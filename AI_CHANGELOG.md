@@ -1,5 +1,10 @@
 # AI Changelog
 
+## 2026-05-11 — Remoção da pílula Loja online no Início
+- Arquivos alterados: `js/modules/dashboard.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Início.
+- Resumo do ajuste: removi a pílula `Loja online aberta/fechada` do cabeçalho do módulo Início.
+
 ## 2026-05-11 — Refinamento premium dos cards e balões dos gráficos
 - Arquivos alterados: `js/modules/temporadas.js`, `css/modules/temporadas.css`, `AI_CHANGELOG.md`.
 - Módulo afetado: Crescimento > Temporadas.

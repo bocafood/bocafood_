@@ -171,7 +171,6 @@ Modules.Dashboard = (function () {
       '</div>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">' +
         _chip(vm.monthLabel) +
-        _chip(vm.online ? 'Loja online aberta' : 'Loja online fechada', vm.online ? '#1F6F43' : '#B42318') +
         _chip((vm.openOrders || []).length + ' pedido(s) em andamento') +
       '</div>' +
     '</div>';
