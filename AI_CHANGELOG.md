@@ -1,0 +1,4599 @@
+# AI Changelog
+
+## 2026-05-11 — Refinamento premium dos cards e balões dos gráficos
+- Arquivos alterados: `js/modules/temporadas.js`, `css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- Módulo afetado: Crescimento > Temporadas.
+- Resumo do ajuste: removi a repetição do nome do gráfico dentro dos balões dos gráficos e refinei os cards superiores com borda mais sofisticada, fundo sutil, ícones em cápsula, sombra mais premium e hover mais elegante.
+- Motivo: reduzir redundância nos balões e melhorar a percepção visual dos indicadores principais do painel.
+- Impacto esperado: cards superiores mais sofisticados e balões de gráficos mais diretos, sem alterar cálculos ou dados.
+
+## 2026-05-11 — Consistência como leitura inicial no começo da temporada
+- Arquivos alterados: `js/modules/temporadas.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Crescimento > Temporadas.
+- Resumo do ajuste: ajustei o gráfico e o balão de `Consistência` para não classificar o primeiro dia como regularidade boa. Quando a temporada ainda tem poucos dias, poucos pedidos ou apenas um dia ativo, o balão mostra `Leitura inicial`.
+- Motivo: evitar interpretação incorreta de 100% de consistência no começo da temporada, quando ainda não há base suficiente para avaliar regularidade.
+- Impacto esperado: leitura mais honesta e compreensível da consistência sem alterar cálculos salvos ou regras de score.
+
+## 2026-05-11 — Balões dos gráficos sobre a barra
+- Arquivos alterados: `css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- Módulo afetado: Crescimento > Temporadas.
+- Resumo do ajuste: reposicionei os balões dos gráficos para aparecerem sobre a própria área da barra quando selecionados, com camada acima do gráfico e sem seta deslocada.
+- Motivo: garantir que o balão sobreponha a imagem/área visual do gráfico em vez de abrir abaixo dela.
+- Impacto esperado: ao clicar em um gráfico, a explicação aparece diretamente sobre ele, sem alterar cálculos ou dados.
+
+## 2026-05-11 — Correção de estado dos balões dos gráficos
+- Arquivos alterados: `js/modules/temporadas.js`, `css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- Módulo afetado: Crescimento > Temporadas.
+- Resumo do ajuste: os balões dos cards e gráficos agora nascem com `hidden` e o clique controla explicitamente a abertura/fechamento, além da classe visual `open`.
+- Motivo: impedir que balões fiquem visíveis de forma fixa quando nenhum card ou gráfico está selecionado.
+- Impacto esperado: balões aparecem somente ao selecionar o card/gráfico correspondente e voltam a ocultar ao fechar ou abrir outro.
+
+## 2026-05-11 — Ajustes de gráficos e remoção do Tenant atual em Temporadas
+- Arquivos alterados: `js/modules/temporadas.js`, `css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- Módulo afetado: Crescimento > Temporadas.
+- Resumo do ajuste: removi os campos visuais `Tenant atual:` dos estados de erro, vazio e temporada ativa; também deixei os valores dos gráficos visíveis apenas nos balões ao selecionar o gráfico, removi o balão da barra `Chance de falha` e ampliei as explicações dos balões de progresso, ritmo, consistência e fidelização.
+- Motivo: limpar a interface e tornar a explicação dos gráficos mais útil sem expor informação técnica de tenant na tela.
+- Impacto esperado: painel mais limpo, gráficos com valores mais discretos e explicações mais claras, sem alterar cálculos, dados, tenantId interno ou regras.
+
+## 2026-05-11 — Balões contextuais nos gráficos da temporada
+- Arquivos alterados: `js/modules/temporadas.js`, `css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- Módulo afetado: Crescimento > Temporadas.
+- Resumo do ajuste: adicionei balões clicáveis na barra principal de progresso e nas barras de status (`Ritmo operacional`, `Consistência`, `Fidelização` e `Chance de falha`), seguindo a mesma lógica contextual dos cards.
+- Motivo: permitir que a usuária clique nos gráficos e entenda o resultado atual e o motivo da leitura exibida.
+- Impacto esperado: gráficos passam a explicar seus próprios resultados sem alterar cálculos, snapshots, dados ou regras.
+
+## 2026-05-11 — Balões sobrepostos aos gráficos da temporada
+- Arquivos alterados: `js/modules/temporadas.js`, `css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- Módulo afetado: Crescimento > Temporadas.
+- Resumo do ajuste: reverti o layout dos valores das barras para o formato anterior e ajustei os balões dos cards para ficarem acima da área de gráficos, com `z-index` maior e containers permitindo overflow.
+- Motivo: o pedido era para o balão dos cards sobrepor os gráficos quando aberto, não reposicionar os valores das barras.
+- Impacto esperado: os gráficos voltam ao visual anterior e os balões de `Progresso`, `Score`, `Ritmo Atual` e `Chance de Falha` aparecem por cima da área abaixo sem serem cortados.
+
+## 2026-05-11 — Valores acima dos gráficos da temporada
+- Arquivos alterados: `js/modules/temporadas.js`, `css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- Módulo afetado: Crescimento > Temporadas.
+- Resumo do ajuste: reposicionei os valores percentuais das barras de status para aparecerem acima dos gráficos, com o número em destaque antes do rótulo; também ajustei a barra principal de progresso para destacar o valor acima da barra.
+- Motivo: deixar a leitura dos gráficos mais direta, com o valor visível antes da barra.
+- Impacto esperado: gráficos do painel ficam mais claros sem alterar os cálculos ou dados.
+
+## 2026-05-11 — Balões contextuais por resultado da temporada
+- Arquivos alterados: `js/modules/temporadas.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Crescimento > Temporadas.
+- Resumo do ajuste: tornei os balões de `Progresso`, `Score`, `Ritmo Atual` e `Chance de Falha` contextuais ao resultado exibido, usando valores atuais, meta, progresso esperado, risco inicial, ritmo e dias restantes.
+- Motivo: explicar por que a temporada está com determinado resultado, como chance de falha alta ou muito alta, em vez de mostrar uma descrição genérica do indicador.
+- Impacto esperado: usuária entende a causa do status atual diretamente no card, sem alterar cálculos, dados, snapshots ou regras.
+
+## 2026-05-11 — Balões de resultado nos cards principais da temporada
+- Arquivos alterados: `js/modules/temporadas.js`, `css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- Módulo afetado: Crescimento > Temporadas.
+- Resumo do ajuste: adicionei balões clicáveis nos cards `Progresso`, `Score`, `Ritmo Atual` e `Chance de Falha`, exibindo o resultado atual e uma explicação curta do indicador.
+- Motivo: permitir que a usuária entenda rapidamente o resultado atual desses indicadores sem abrir o modal completo de ajuda.
+- Impacto esperado: leitura mais clara no Painel da Temporada, sem alterar cálculos, dados, snapshots ou regras.
+
+## 2026-05-11 — Sombra vermelha evidente nos cards prioritários
+- Arquivos alterados: `css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- Módulo afetado: Crescimento > Temporadas.
+- Resumo do ajuste: aumentei a intensidade visual dos cards prioritários com borda vermelha mais forte, halo vermelho e sombra vermelha mais evidente no estado normal e no hover.
+- Motivo: o destaque anterior estava sutil demais e não ficava perceptível na tela da temporada.
+- Impacto esperado: cards de maior peso ficam claramente visíveis sem adicionar texto ou alterar cálculos.
+
+## 2026-05-11 — Sombra reforçada nos cards prioritários de Temporadas
+- Arquivos alterados: `css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- Módulo afetado: Crescimento > Temporadas.
+- Resumo do ajuste: reforcei a sombra, borda e hover dos cards marcados como prioritários pela temporada ativa, mantendo o destaque puramente visual e sem texto adicional.
+- Motivo: destacar melhor os cards correspondentes aos campos de maior peso sem poluir a interface.
+- Impacto esperado: a usuária identifica rapidamente os cards mais importantes da temporada atual sem qualquer mudança em cálculo, dados ou regras.
+
+## 2026-05-11 — Destaque visual sem selo nos campos prioritários de Temporadas
+- Arquivos alterados: `js/modules/temporadas.js`, `css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- Módulo afetado: Crescimento > Temporadas.
+- Resumo do ajuste: removi o texto `Mais peso` dos cards e barras destacadas, mantendo apenas borda, sombra e hover; também tornei os labels dos cards principais contextuais conforme o objetivo, como `Ticket atual`, `Meta de ticket`, `Faturamento atual` ou `Dias ativos`.
+- Motivo: destacar os campos importantes sem poluir visualmente a tela e deixar os indicadores acompanharem a temporada ativa.
+- Impacto esperado: tela da temporada mais limpa, com destaque visual claro e nomes de campos mais coerentes com o objetivo escolhido, sem alterar cálculos ou dados.
+
+## 2026-05-11 — Destaque visual dos campos com mais peso na tela da temporada
+- Arquivos alterados: `js/modules/temporadas.js`, `css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- Módulo afetado: Crescimento > Temporadas.
+- Resumo do ajuste: apliquei destaque visual nos cards principais da Visão Geral que representam os campos de maior peso da temporada, com selo `Mais peso`, sombra, borda destacada e hover; também destaquei barras relevantes como Ritmo operacional, Consistência ou Fidelização conforme o objetivo.
+- Motivo: deixar mais evidente, na própria tela da temporada, quais indicadores merecem mais atenção de acordo com a configuração ativa.
+- Impacto esperado: leitura mais rápida dos campos prioritários sem alterar score, metas, snapshots, IA, dados ou regras de cálculo.
+
+## 2026-05-11 — Destaque dos campos com maior peso na ajuda da temporada
+- Arquivos alterados: `js/modules/temporadas.js`, `css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- Módulo afetado: Crescimento > Temporadas.
+- Resumo do ajuste: adicionei no modal `Como ler esta temporada` o bloco `Campos com mais peso nesta temporada`, mostrando os pesos principais do objetivo ativo, como ticket médio, faturamento, recompra ou consistência.
+- Motivo: deixar claro quais indicadores têm mais influência na leitura do score de acordo com a temporada configurada.
+- Impacto esperado: a usuária identifica rapidamente onde prestar mais atenção, sem alteração nos cálculos, dados ou regras do módulo.
+
+## 2026-05-11 — Explicação do resumo em Como ler esta temporada
+- Arquivos alterados: `js/modules/temporadas.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Crescimento > Temporadas.
+- Resumo do ajuste: adicionei a seção `O que significa este resumo` no modal `Como ler esta temporada`, explicando Objetivo, Estratégia, Dificuldade e Duração com base na temporada ativa.
+- Motivo: deixar claro o significado dos cards do topo, como `Objetivo: Aumentar Ticket`, `Estratégia: Volume` e `Dificuldade: Equilibrado`.
+- Impacto esperado: a usuária entende a configuração da temporada antes de interpretar progresso, score e gráficos, sem alterar cálculos ou dados.
+
+## 2026-05-11 — Troca de Build por Estratégia em Temporadas
+- Arquivos alterados: `js/modules/temporadas.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Crescimento > Temporadas.
+- Resumo do ajuste: troquei os textos visíveis `Build` e `build operacional` por `Estratégia` e `estratégia operacional` no painel, ajuda, resumo de criação, detalhes de programadas e resultado final.
+- Motivo: alinhar a linguagem do módulo à nomenclatura desejada pela interface.
+- Impacto esperado: a usuária vê `Estratégia` sem alterar o campo interno `build`, dados existentes, cálculos, snapshots ou regras.
+
+## 2026-05-11 — Reorganização da explicação dos gráficos da temporada
+- Arquivos alterados: `js/modules/temporadas.js`, `css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- Módulo afetado: Crescimento > Temporadas.
+- Resumo do ajuste: movi a explicação geral `Barras de status` para ficar logo abaixo de `Como ler os gráficos`, antes dos itens específicos de cada barra.
+- Motivo: deixar claro que esse texto explica o conjunto dos gráficos, não um indicador separado.
+- Impacto esperado: modal de ajuda mais organizado e fácil de entender, sem alterar cálculos ou regras do painel.
+
+## 2026-05-11 — Ajuste da ajuda e textos do Painel da Temporada
+- Arquivos alterados: `js/modules/temporadas.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Crescimento > Temporadas.
+- Resumo do ajuste: incluí a seção `Como ler os gráficos` no modal de ajuda da temporada e removi os textos auxiliares dos cards `Ritmo Atual` e `Chance de Falha` no painel.
+- Motivo: deixar a leitura do painel mais limpa e concentrar explicações detalhadas dentro do modal de ajuda.
+- Impacto esperado: usuária entende as barras e gráficos pelo botão de ajuda, sem poluir os cards principais.
+
+## 2026-05-11 — Remoção da pílula Ativa no Painel da Temporada
+- Arquivos alterados: `js/modules/temporadas.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Crescimento > Temporadas.
+- Resumo do ajuste: removi a pílula visual de status `Ativa` do cabeçalho do Painel da Temporada, mantendo os botões de ajuda e finalização.
+- Motivo: reduzir ruído visual no painel ativo, já que a aba e o contexto da tela deixam claro que a temporada está em andamento.
+- Impacto esperado: painel mais limpo sem alterar status interno, cálculos, Firestore, histórico ou regras de temporada.
+
+## 2026-05-11 — Ajuda contextual no Painel da Temporada
+- Arquivos alterados: `js/modules/temporadas.js`, `css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- Módulo afetado: Crescimento > Temporadas.
+- Resumo do ajuste: adicionei o botão `? Como ler` no cabeçalho do Painel da Temporada ativa, abrindo um modal contextual com resumo da temporada e explicação de Progresso, Score, Ritmo Atual, Chance de Falha, Atual e Meta.
+- Contexto: os textos mudam conforme objetivo, build, dificuldade e duração da temporada ativa, mantendo linguagem simples e sem alterar cálculos, snapshots, IA, criação de temporada ou estrutura Firestore.
+- Impacto esperado: permitir que a usuária entenda os indicadores diretamente no painel, sem sair da tela e sem depender de preenchimento manual.
+
+## 2026-05-11 — Temporadas Fase 4 baseline e meta automática
+- Arquivos alterados: `js/modules/temporadas.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Crescimento > Temporadas.
+- Resumo do ajuste: implementei cálculo de baseline real no fluxo `Nova Temporada` usando pedidos do tenant, excluindo cancelados, normalizando datas, valores, cliente e telefone, e calculando faturamento, pedidos, ticket médio, dias ativos, clientes recorrentes e taxa de recompra para os últimos 30 ou 90 dias.
+- Metas: adicionei cálculo de meta automática por objetivo e dificuldade, cálculo de risco inicial para meta fixa, exibição de baseline, meta calculada/fixa, risco inicial e confiabilidade no resumo final, e salvamento dos campos de baseline e `calculatedTargetValue` no documento `seasons`.
+- Escopo: não implementei score completo, snapshots, painel avançado, resultado final, IA, gráficos complexos ou alertas inteligentes.
+- Impacto esperado: permitir iniciar temporadas com ponto de partida real e meta calculada de forma auditável, mantendo isolamento por tenant e sem inventar dados.
+
+## 2026-05-11 — Temporadas Fase 3 fluxo Nova Temporada
+- Arquivos alterados: `js/modules/temporadas.js`, `css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- Módulo afetado: Crescimento > Temporadas.
+- Resumo do ajuste: implementei o fluxo `Nova Temporada` em modal mobile-friendly com etapas para objetivo, duração, tipo de meta, dificuldade, build operacional e resumo final, salvando a temporada como `active` em `tenants/{tenantId}/seasons` via wrapper `DB`.
+- Regras implementadas: bloqueio de criação quando já existe temporada ativa, exigência de valor para meta fixa, cálculo de `startDate` e `endDate` conforme duração, salvamento de `targetMode`, `targetValue`, `targetMetric`, `currentScore: 0`, `currentStatus: pending`, `riskLevel: unknown`, `progressPercent: 0` e `startedAt`.
+- Escopo: não implementei cálculo automático real de meta, baseline, score real, snapshots, dashboard avançado, resultado final, IA, gráficos complexos ou alertas inteligentes.
+- Impacto esperado: permitir que a usuária configure e inicie uma temporada real com dados mínimos, mantendo isolamento por tenant e preparando a Fase 4.
+
+## 2026-05-11 — Temporadas Fase 2 coleção seasons
+- Arquivos alterados: `js/modules/temporadas.js`, `css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- Módulo afetado: Crescimento > Temporadas.
+- Resumo do ajuste: implementei a base funcional da coleção `seasons` no módulo Temporadas, com carregamento por tenant via `DB.getAll('seasons')`, identificação de temporada ativa, listagem de histórico `finished`/`abandoned`, funções base para criar, listar, carregar ativa e atualizar temporadas, além das travas para impedir múltiplas `active` e bloquear edição de temporadas `active`, `finished` ou `abandoned`.
+- Interface: a tela agora mostra card real da temporada ativa quando existir, estado vazio quando não existir e histórico de temporadas finalizadas/abandonadas sem criar dados fake.
+- Escopo: não implementei fluxo completo de criação em etapas, cálculo automático de meta, score real, snapshots, resultado final, IA, gráficos ou alertas inteligentes.
+- Impacto esperado: preparar a base real de dados da V1 mantendo isolamento por tenant e sem alterar módulos existentes.
+
+## 2026-05-11 — Temporadas Fase 1 base do módulo
+- Arquivos alterados: `admin.html`, `js/modules/temporadas.js`, `css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- Módulo afetado: Crescimento > Temporadas.
+- Resumo do ajuste: implementei a base real da Fase 1 do módulo Temporadas, adicionando o item no menu de Crescimento, registrando a rota `crescimento/temporadas`, carregando o tenant atual via `Auth.getTenantId()` e renderizando uma tela inicial vazia com título, subtítulo, botão `Nova Temporada`, card de nenhuma temporada ativa e espaço para histórico futuro.
+- Escopo: não implementei criação de temporada, coleção `seasons`, score, metas, snapshots, resultado final, IA, gráficos complexos ou lógica fake de dados.
+- Impacto esperado: permitir acessar uma tela funcional e leve de Temporadas, pronta para a Fase 2 sem quebrar Plano de Voo, Performance ou o menu Crescimento.
+
+## 2026-05-11 — Plano de implementação V1 de Temporadas
+- Arquivos alterados: `IMPLEMENTATION_PLAN_SEASONS_V1.md`, `AI_CHANGELOG.md`.
+- Módulo afetado: Temporadas / Missões Operacionais.
+- Resumo do ajuste: criei o plano técnico incremental para implementação da V1 do módulo Temporadas, organizando escopo, estrutura sugerida, fases de implementação, dados permitidos, estratégia de performance, regras multi-tenant, fora de escopo e critérios de sucesso.
+- Referências usadas: `DATA_MAP_FOR_SEASONS.md`, `SEASONS_SPEC.md`, `SEASON_SCORING_SYSTEM.md`, `SEASONS_ARCHITECTURE.md` e `SEASONS_UI_FLOW.md`.
+- Escopo: documentação apenas; não foram implementadas telas, backend, CSS, rotas reais, coleções reais ou alterações em código funcional.
+- Impacto esperado: orientar uma implementação futura segura e incremental, reduzindo risco de quebrar módulos existentes ou usar métricas pouco confiáveis na V1.
+
+## 2026-05-11 — UX e fluxo visual de Temporadas
+- Arquivos alterados: `SEASONS_UI_FLOW.md`, `AI_CHANGELOG.md`.
+- Módulo afetado: Temporadas / Missões Operacionais.
+- Resumo do ajuste: criei o documento de UX, fluxo e estrutura visual do módulo Temporadas, definindo posicionamento no menu, telas principais, fluxo de criação, Central de Temporadas, Painel da Temporada, Resultado Final, linguagem, direção visual, responsividade e fora de escopo da V1.
+- Referências usadas: `DATA_MAP_FOR_SEASONS.md`, `SEASONS_SPEC.md`, `SEASON_SCORING_SYSTEM.md` e `SEASONS_ARCHITECTURE.md`.
+- Escopo: documentação apenas; não foram criados HTML, CSS, interface, backend, rotas ou alterações em código funcional.
+- Impacto esperado: orientar a futura implementação visual do módulo com experiência tática, adulta e baseada em dados reais, sem gamificação infantil.
+
+## 2026-05-11 — Arquitetura técnica de Temporadas
+- Arquivos alterados: `SEASONS_ARCHITECTURE.md`, `AI_CHANGELOG.md`.
+- Módulo afetado: Temporadas / Missões Operacionais.
+- Resumo do ajuste: criei o documento técnico de arquitetura do módulo Temporadas, definindo coleções Firestore sugeridas, fontes de dados, normalização, baseline, tipos de atualização, score geral, alertas, lifecycle, performance, multi-tenant, fora de escopo da V1 e preparação futura.
+- Referências usadas: `DATA_MAP_FOR_SEASONS.md`, `SEASONS_SPEC.md` e `SEASON_SCORING_SYSTEM.md`.
+- Escopo: documentação apenas; não foram alterados código funcional, interface, backend, rotas, coleções reais ou regras de banco.
+- Impacto esperado: estabelecer a fundação técnica para implementar Temporadas de forma segura, performática e compatível com os dados reais do BocaFood.
+
+## 2026-05-11 — Sistema de scoring das Temporadas
+- Arquivos alterados: `SEASON_SCORING_SYSTEM.md`, `AI_CHANGELOG.md`.
+- Módulo afetado: Temporadas / Missões Operacionais.
+- Resumo do ajuste: criei o documento técnico do sistema de pontuação e cálculo das Temporadas, definindo tipos de meta, matriz de métricas por objetivo, pesos, regras de progresso, risco, evolução positiva, vitória, builds operacionais, status, resultado final e atualização das análises.
+- Referências usadas: `DATA_MAP_FOR_SEASONS.md` e `SEASONS_SPEC.md`.
+- Escopo: documentação apenas; não foram alterados código, interface, backend, rotas, coleções ou regras funcionais.
+- Impacto esperado: orientar a implementação futura do cérebro lógico das Temporadas com regras claras, auditáveis e compatíveis com os dados reais disponíveis no BocaFood.
+
+## 2026-05-11 — Especificação inicial de Temporadas
+- Arquivos alterados: `SEASONS_SPEC.md`, `AI_CHANGELOG.md`.
+- Módulo afetado: Temporadas / Missões Operacionais.
+- Resumo do ajuste: criei a especificação técnica inicial do módulo de Temporadas antes de qualquer implementação, usando `DATA_MAP_FOR_SEASONS.md` como base para separar métricas por confiança, fontes de dados, regras de criação, duração, dificuldade, builds operacionais, snapshots e resultado final.
+- Escopo: documentação apenas; não foram criadas telas, coleções, regras de banco, rotas ou alterações em código funcional.
+- Impacto esperado: orientar a implementação futura do módulo com limites claros para a V1 e reduzir risco de usar métricas ainda pouco confiáveis, como estoque real, desperdício real, capacidade real de produção e custo exato por venda.
+
+## 2026-05-10 — Preview novo do template premium da Loja Online
+- Arquivos alterados: `preview-template-premium.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Loja Online, Avaliações, Programa de Pontos, Promoções e Upsell.
+- Resumo do ajuste: criei um preview visual novo e separado do template público atual, com composição mobile premium, capa forte, card de identidade sobreposto, chips operacionais, programa de pontos, busca, categorias em pills, banner promocional, produto destaque, lista de produtos, avaliações e carrinho fixo inferior.
+- Refinamento visual: corrigi a primeira dobra para manter apenas a logo sobreposta ao banner, deixando nome/slogan/informações dentro do card branco; elevei o card do Programa de Pontos com visual mais premium, regras resumidas e maior hierarquia; removi o bloco "Combine com" da home e deixei Upsell reservado para detalhe do produto/checkout.
+- Refinamento de leveza: simplifiquei o card do Programa de Pontos para um bloco claro/off-white com detalhe gráfico discreto e hover suave; removi elementos gráficos do menu de categorias, deixando apenas pills de texto.
+- Refinamento premium: substituí o ícone circular do Programa de Pontos por um elemento gráfico de recompensa/progresso, reduzi pesos tipográficos do hero e redesenhei as pílulas da primeira dobra em três blocos compactos com ícones discretos para caberem organizadas na primeira tela.
+- Refinamento de conversão: transformei o card do Programa de Pontos em uma CTA para cadastro, com copy focada em benefício e botão "Quero ganhar pontos", removendo a aparência técnica de regras/pontos como foco principal.
+- Refinamento da CTA de fidelidade: removi saldo de pontos do card para o estado de usuário sem cadastro e substituí o elemento gráfico anterior por um ticket discreto de desconto, mantendo a chamada focada em cadastro gratuito e vantagem futura.
+- Refinamento mobile-first: compactei a primeira dobra do preview, reduzindo capa, logo, espaçamentos e pesos visuais; inseri ações rápidas (`Promoções`, `Clube`, `Mais pedidos`), antecipei busca/categorias, transformei o clube em mini banner e reduzi altura de promoção/destaque para aproximar o cliente dos produtos mais cedo.
+- Refinamento de conversão mobile: removi as ações rápidas e a busca duplicada abaixo do card principal; mantive intacta a área superior até `Mais informações`; reorganizei a sequência para chips, categorias, programa de pontos, promoção, destaque e lista de produtos, com chips/categorias mais leves e imagens de comida mais apetitosas nos blocos promocionais.
+- Ajuste de hierarquia: movi o menu horizontal de categorias para ficar imediatamente antes da seção `Todos os produtos`, deixando a navegação de categorias ligada à lista principal.
+- Ajuste dos chips da primeira dobra: removi os símbolos das pílulas de status/serviço e deixei o chip de status preparado para cor semântica, com aberto em verde e fechado em vermelho.
+- Ajuste de sequência mobile: reposicionei o banner promocional para aparecer logo abaixo das pílulas da primeira dobra e antes do mini banner de Programa de Pontos.
+- Refinamento das pílulas: apliquei acabamento premium com gradiente leve, blur, sombra interna/discreta e hover com elevação suave, preservando aberto em verde e fechado em vermelho.
+- Ajuste fino: reforcei o degradê escuro apenas na lateral esquerda/base do banner promocional para melhorar leitura sem escurecer toda a comida; suavizei o destaque do chip `Aberto` para ficar mais elegante.
+- Refinamento do card de pontos: substituí o ticket por estrelas decorativas discretas e melhorei o acabamento do mini banner com fundo mais suave, borda quente e CTA mais integrado.
+- Ajuste de status: substituí as pílulas `Aberto / Entrega / Retirada` por uma linha textual mais leve, separada por traços delicados, mantendo aberto em verde e fechado em vermelho.
+- Ajuste de alinhamento: movi a linha `Aberto · Entrega · Retirada` para dentro do bloco de texto da loja, acima de `Mais informações`, e troquei os separadores para pontos no mesmo padrão da linha de nota/tempo/mínimo.
+- Rodapé do preview: inseri um rodapé mobile no fim da loja com marca, texto institucional curto, links de horários/endereço/contato e assinatura discreta do BocaFood.
+- Listagem por categoria: alterei o preview para exibir todos os produtos na mesma página, agrupados por categoria; o menu horizontal agora rola até a respectiva categoria em vez de filtrar/esconder produtos.
+- Divisor do topo: adicionei uma linha/sombra sutil abaixo de `Mais informações`, alinhada ao bloco de texto da loja, para indicar o fim da área principal.
+- Acesso do cliente: inseri no topo do preview um botão `Entrar / Cadastre-se` com avatar compacto, integrado aos botões flutuantes.
+- Banner promocional: adicionei CTA `Ver promoções` dentro do banner de promoção.
+- Ajuste de posição: subi levemente o banner promocional reduzindo o espaçamento entre o topo da loja e o conteúdo.
+- Redes sociais no rodapé: adicionei ícones com links para Instagram, Facebook, TikTok e WhatsApp no rodapé do preview.
+- Compatibilidade: o arquivo é um preview estático para validação visual no computador; não altera `index.html`, Firebase, carrinho atual, pedidos, WhatsApp ou lógica de produção.
+- Campos considerados no desenho: identidade e mídia do `config/template`, categorias/produtos, `config/pontos_program`, promoções ativas, regras de upsell e avaliações aprovadas.
+
+## 2026-05-10 — Template público mobile alinhado ao mockup BocaFood
+- Arquivos alterados: `index.html`, `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Loja Online > Template da loja e template público mobile.
+- Resumo do ajuste: atualizei a experiência mobile usando o mockup `template_mobilebocafood.png` como referência direta, com hero de capa, ações flutuantes, logo sobreposto, resumo compacto, chips alinhados, bloco de fidelidade, categorias horizontais com ícones, destaque único, lista de produtos em cards e carrinho fixo inferior.
+- Refinamento adicional: aproximei o mobile do mockup com card principal em composição horizontal, logo grande à esquerda, hierarquia mais premium, sombras mais suaves, banner promocional visual opcional e categorias com elemento gráfico por imagem.
+- Refinamento de leveza: reduzi sombras/pesos visuais, ajustei o produto destaque para card único horizontal no mobile e conectei o card de fidelidade ao `config/pontos_program` para aparecer quando o programa de pontos estiver ativo.
+- Primeira dobra revisada: aumentei a presença da capa, reposicionei o card branco, a logo sobreposta, os botões flutuantes e os chips para seguir mais de perto a composição do mockup mobile.
+- Correção estrutural mobile: recalibrei proporções da primeira dobra para o mockup, reduzi categorias para pills leves com scroll, transformei chips da loja em linha rolável e deixei a busca discreta. A lista de produtos voltou ao visual anterior aprovado.
+- Ajuste isolado da primeira dobra: aumentei a altura real da capa, reposicionei o card branco sobreposto, ampliei a logo com borda/sombra, refinei a hierarquia do nome/metadados e corrigi os três chips para uma única linha horizontal rolável sem quebra.
+- Primeira dobra recomposta como mockup: a capa, o card branco e a logo agora formam uma composição única sobreposta; os chips foram mantidos como pills horizontais sem grid/empilhamento.
+- Ajuste fino: logo da primeira dobra deslocada para a direita para ficar mais próxima do bloco de nome da loja.
+- Campos novos salvos em `config/template`: `verifiedBadgeEnabled/storeVerified`, `loyaltyEnabled/pointsProgramEnabled`, `loyaltyProgramName/pointsProgramName`, `loyaltyShortText/loyaltyText`, `loyaltyButtonText`, `cartButtonText` e `mainButtonText` exposto no formulário.
+- Campos novos/expandidos também salvos em `config/template`: `mobilePromoBannerEnabled/promotionalBannerEnabled`, `mobilePromoBannerImageUrl/promoBannerImageUrl/promotionalBannerImageUrl`, `mobilePromoBannerBadge/promoBannerBadge`, `mobilePromoBannerTitle/promoBannerTitle`, `mobilePromoBannerText/promoBannerSubtitle` e `mobilePromoBannerButtonText/promoBannerButtonText`.
+- Campos novos nas categorias, editáveis também em Loja Online > Template da loja > Vitrine > Menu de categorias: `icon/emoji/symbol`, `graphicUrl/imageUrl/iconUrl/categoryGraphicUrl` e metadados do upload quando houver imagem otimizada.
+- Textos/traduções adicionados nos 5 idiomas: `openNow`, `deliveryFrom`, `loyaltyClub`, `loyaltyDefaultText`, `viewMyPoints`, `allCategories`, `mostOrdered`, `combos`, `viewDetailsCta`, `allProducts`, `sortLabel`, `viewOrder`, `timeLabel`, `paymentMethodLabel`, `customerData`, `localPickup`, `finishOrder`, `pointsShort` e placeholder plural de busca (`searchProduct`).
+- Compatibilidade: mantive as funções atuais de carrinho, produto, variações/adicionais, cupom, entrega/retirada, totalização e envio final para WhatsApp; os novos blocos têm fallback seguro e somem quando não há dado.
+- Validação realizada: `node --check js/modules/catalogo.js`, `node --check js/modules/loja_online.js` e compilação dos scripts inline do `index.html` com `vm.Script`.
+
+## 2026-05-10 — Avaliações movidas para Loja Online
+- Arquivos alterados: `admin.html`, `js/modules/loja_online.js`, `js/modules/catalogo.js`, `js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Loja Online > Avaliações e Cardápio.
+- Resumo do ajuste: movi a navegação de `Avaliações` de Cardápio para Loja Online e habilitei a rota `loja-online/avaliacoes`.
+- Compatibilidade: a tela continua reaproveitando a implementação existente de avaliações, sem alterar dados, Firebase, moderação ou lógica; a rota antiga `catalogo/avaliacoes` segue registrada como fallback.
+- Validação realizada: `node --check js/modules/loja_online.js`, `node --check js/modules/catalogo.js` e `node --check js/modules/pedidos.js`.
+
+## 2026-05-10 — Template da loja dividido em subtabs
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Loja Online > Template da loja.
+- Resumo do ajuste: criei subtabs internas para agrupar cards relacionados em `Identidade`, `Vitrine`, `Operação`, `Atendimento`, `Checkout` e `Textos`.
+- Compatibilidade: mantive todos os cards, campos, IDs, uploads, toggles, handlers, preview e salvamento existentes; a mudança é apenas de organização visual.
+- Validação realizada: `node --check js/modules/catalogo.js`.
+
+## 2026-05-10 — Módulo Loja Online criado
+- Arquivos alterados: `admin.html`, `js/modules/loja_online.js`, `js/modules/catalogo.js`, `js/modules/dashboard.js`, `js/modules/operacao.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Loja Online, Cardápio, Dashboard e Operação.
+- Resumo do ajuste: criei o módulo separado `Loja Online`, movendo a navegação de `Template da loja` e `SEO da loja` para esse novo grupo no menu lateral e removendo essas opções da lista interna de abas do Cardápio.
+- Compatibilidade: as telas continuam reaproveitando a implementação existente de `Modules.Catalogo`, preservando campos, IDs, Firebase, salvamento, upload, SEO e preview; as rotas antigas `catalogo/template` e `catalogo/seo` seguem registradas como fallback.
+- Validação realizada: `node --check js/modules/loja_online.js`, `node --check js/modules/catalogo.js`, `node --check js/modules/dashboard.js` e `node --check js/modules/operacao.js`.
+
+## 2026-05-10 — Resumos removidos do Template da loja
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Cardápio > Template da loja.
+- Resumo do ajuste: removi visualmente os cards laterais de resumo inseridos nos cards do Template e deixei os blocos de configuração ocuparem a largura principal.
+- Compatibilidade: mantive todos os campos, IDs, toggles, seletores, preview e salvamento existentes; o botão de adicionar zona foi preservado na área principal.
+- Validação realizada: `node --check js/modules/catalogo.js`.
+
+## 2026-05-10 — WhatsApp e Mais informações refinados
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Cardápio > Template da loja > WhatsApp da loja e Mais informações.
+- Resumo do ajuste: reorganizei os dois cards com resumo lateral, chips de preenchimento e blocos internos para botão flutuante, apresentação da loja e políticas.
+- Compatibilidade: mantive os mesmos IDs `tpl-whatsapp-tooltip`, `tpl-whatsapp-message`, `tpl-about`, `tpl-important`, `tpl-delivery-policy`, `tpl-cancel-policy` e `tpl-footer`.
+- Validação realizada: `node --check js/modules/catalogo.js`.
+
+## 2026-05-10 — Finalização do pedido refinado
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Cardápio > Template da loja > Finalização do pedido.
+- Resumo do ajuste: reorganizei o card com resumo lateral, chips de estado e bloco de opções do checkout.
+- Compatibilidade: mantive os mesmos toggles `tpl-allow-note` e `tpl-allow-coupon` e o salvamento do checkout.
+- Validação realizada: `node --check js/modules/catalogo.js`.
+
+## 2026-05-10 — Pagamentos exibidos na loja refinado
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Cardápio > Template da loja > Pagamentos exibidos na loja.
+- Resumo do ajuste: reorganizei o card com resumo lateral, chips de formas cadastradas/ativas, bloco de formas disponíveis e bloco de observação geral.
+- Compatibilidade: mantive os métodos vindos do Financeiro, os atributos de coleta, toggles por método, instruções adicionais e `tpl-payment-note`.
+- Validação realizada: `node --check js/modules/catalogo.js`.
+
+## 2026-05-10 — Endereço refinado
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Cardápio > Template da loja > Endereço.
+- Resumo do ajuste: reorganizei o card com resumo lateral, chips de cidade/código postal/país e blocos separados para localização principal e cidade/região.
+- Compatibilidade: mantive os mesmos IDs e o salvamento do endereço público da loja.
+- Validação realizada: `node --check js/modules/catalogo.js`.
+
+## 2026-05-10 — Contato refinado
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Cardápio > Template da loja > Contato.
+- Resumo do ajuste: reorganizei o card com resumo lateral, chips de canais, blocos para atendimento, redes sociais e exibição no rodapé.
+- Compatibilidade: mantive os mesmos IDs de telefone, WhatsApp, e-mail, redes sociais e toggles do rodapé.
+- Validação realizada: `node --check js/modules/catalogo.js`.
+
+## 2026-05-10 — Horários e status refinado
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Cardápio > Template da loja > Horários e status.
+- Resumo do ajuste: reorganizei o card com resumo lateral, chips de modo/aviso, bloco de status público, grade semanal e aviso de horário especial.
+- Compatibilidade: mantive os mesmos IDs dos horários por dia, segundo período, status manual/automático e salvamento.
+- Validação realizada: `node --check js/modules/catalogo.js`.
+
+## 2026-05-10 — Zonas de entrega refinado
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Cardápio > Template da loja > Zonas de entrega.
+- Resumo do ajuste: reorganizei o card com resumo lateral, chips de zonas ativas/CEPs, botão principal de adicionar zona e cabeçalho mais informativo em cada zona.
+- Compatibilidade: mantive os mesmos IDs, coleta de dados, validação de CEP duplicado, ativação, exclusão e salvamento.
+- Validação realizada: `node --check js/modules/catalogo.js`.
+
+## 2026-05-10 — Entrega e retirada refinado
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Cardápio > Template da loja > Entrega e retirada.
+- Resumo do ajuste: reorganizei o card com resumo operacional lateral, chips de status, modos de atendimento, capacidade/prazos e blocos paralelos para entrega e retirada.
+- Compatibilidade: mantive os mesmos IDs, campos, textos, regras de exibição e salvamento do template público.
+- Validação realizada: `node --check js/modules/catalogo.js`.
+
+## 2026-05-10 — Destaques da vitrine refinado
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Cardápio > Template da loja > Destaques da vitrine.
+- Resumo do ajuste: reorganizei o card com resumo lateral, chips de estado e seleção de produtos por posição, deixando mais claro quando a vitrine usa produtos marcados no cadastro ou escolha manual.
+- Compatibilidade: mantive os mesmos IDs dos seletores, o toggle existente e o salvamento de `featuredProductIds`/`highlightProductIds`/`showcaseProductIds`.
+- Validação realizada: `node --check js/modules/catalogo.js`.
+
+## 2026-05-10 — Destaque comercial do topo refinado
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Cardápio > Template da loja > Destaque comercial do topo.
+- Resumo do ajuste: reorganizei o card com resumo lateral, chips de estado e configuração principal agrupada para tipo de destaque, vínculos e textos do CTA.
+- Compatibilidade: mantive os mesmos IDs, pickers, vínculos com produtos/cupons/promoções e fluxo de salvamento.
+- Validação realizada: `node --check js/modules/catalogo.js`.
+
+## 2026-05-10 — Topo da loja refinado
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Cardápio > Template da loja > Topo da loja.
+- Resumo do ajuste: reorganizei o card com resumo lateral, chips de estado e grupos claros para banner promocional, imagem de capa e elementos visíveis.
+- Compatibilidade: mantive os IDs e corrigi o comportamento visual para o card de capa continuar acessível mesmo quando a capa estiver desativada.
+- Validação realizada: `node --check js/modules/catalogo.js`.
+
+## 2026-05-10 — Card principal da loja refinado
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Cardápio > Template da loja > Card principal da loja.
+- Resumo do ajuste: reorganizei o card com resumo lateral, chips de estado e grupos de controles para identidade, localização/status e entrega/retirada.
+- Compatibilidade: mantive os mesmos toggles, IDs e fluxo de salvamento do template público.
+- Validação realizada: `node --check js/modules/catalogo.js`.
+
+## 2026-05-10 — Template da loja sem KPIs
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Cardápio > Template da loja.
+- Resumo do ajuste: removi a linha de cards/KPIs do topo do Template da loja, mantendo cabeçalho, chips, campos e salvamento intactos.
+- Validação realizada: `node --check js/modules/catalogo.js`.
+
+## 2026-05-10 — Identidade visual do Template refinada
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Cardápio > Template da loja > Identidade visual.
+- Resumo do ajuste: dividi o card em blocos menores para `Dados públicos`, `Cor da marca` e `Arquivos da marca`, mantendo os mesmos campos e IDs de salvamento.
+- Visual: reduzi a altura da prévia da logo, melhorei hierarquia, espaçamento e responsividade do card no padrão de `Cardápio > Produtos`.
+- Validação realizada: `node --check js/modules/catalogo.js`.
+
+## 2026-05-10 — Template da loja no padrão Catálogo Produtos
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Cardápio > Template da loja.
+- Resumo do ajuste: reorganizei a tela para seguir a estrutura visual de `Cardápio > Produtos`, com cabeçalho compacto, chips de resumo, KPIs com hover e botão primário no mesmo padrão.
+- Organização: os campos foram agrupados em blocos lógicos de identidade, card principal, topo, destaques, entrega/retirada, zonas, horários, contato, endereço, pagamentos, finalização e textos informativos.
+- Visual: refinei cards internos, bordas, sombras, radius, botões, toggles, checkboxes, pesos de fonte e removi bloco vazio no checkout sem alterar IDs, Firebase ou regras de salvamento.
+- Validação realizada: `node --check js/modules/catalogo.js`.
+
+## 2026-05-10 — Pedidos Clientes com modais no padrão Produtos
+- Arquivos alterados: `js/modules/pedidos.js`, `js/modules/clientes.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Pedidos > Clientes.
+- Resumo do ajuste: completei a padronização da aba Clientes usando `Cardápio > Produtos` como referência direta, com ação principal no cabeçalho, filtros no mesmo grid, chips de resumo e indicação de página.
+- Modais: atualizei o modal compartilhado de criar/editar cliente para usar cards brancos, sombra premium, campos, labels, botões, rodapé e largura no mesmo padrão visual de Produtos.
+- Compatibilidade: mantive busca, filtros, paginação, perfil, histórico, criação, edição e exclusão sem alterar Firebase, coleções ou regras de negócio.
+- Validação realizada: `node --check js/modules/pedidos.js` e `node --check js/modules/clientes.js`.
+
+## 2026-05-10 — Pedidos ativos da Cozinha em tabela
+- Arquivos alterados: `js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Pedidos > Cozinha.
+- Resumo do ajuste: apliquei na lista `Pedidos ativos` o mesmo padrão usado na `Lista de pedidos`, convertendo os cards para tabela no padrão de `Cardápio > Produtos`.
+- Listagem: sem foto/ícone grande e sem listagem de produtos na linha; mantém cliente, identificador/data, canal, status, tipo, horário/endereço, total, ações e paginação.
+- Validação realizada: `node --check js/modules/pedidos.js`.
+
+## 2026-05-10 — Lista de Pedidos sem foto e sem produtos
+- Arquivos alterados: `js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Pedidos > Pedidos.
+- Resumo do ajuste: removi o bloco visual tipo foto/thumbnail e a listagem de produtos da célula principal da tabela de pedidos.
+- Listagem: a coluna Pedido agora mostra cliente e identificador/data do pedido, mantendo status, canal, tipo, total, avaliação, ações e paginação.
+- Validação realizada: `node --check js/modules/pedidos.js`.
+
+## 2026-05-10 — Lista de Pedidos fiel ao Catálogo Produtos
+- Arquivos alterados: `js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Pedidos > Pedidos.
+- Resumo do ajuste: converti a `Lista de pedidos` de cards para tabela no padrão real de `Cardápio > Produtos`.
+- Listagem: cabeçalho branco uppercase, checkbox inicial, célula principal com ícone 48px, chips com borda, linhas com hover `#FBF8F2`, ações iconográficas 30px e paginação dentro do mesmo card da tabela.
+- Compatibilidade: mantive busca, filtros, paginação, abertura de detalhe, WhatsApp, vínculos com cliente e avaliações.
+- Validação realizada: `node --check js/modules/pedidos.js`.
+
+## 2026-05-10 — Pedidos Clientes fiel ao Catálogo Produtos
+- Arquivos alterados: `js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Pedidos > Clientes.
+- Resumo do ajuste: refinei a aba Clientes para copiar com mais fidelidade a estrutura visual de `Catálogo > Produtos`, principalmente a tabela/listagem principal.
+- Listagem: cabeçalho branco, `border-collapse: separate`, checkbox inicial, avatar 48px no padrão de célula de produto, chips com borda, linhas com hover `#FBF8F2`, ações iconográficas 30px e paginação no mesmo padrão.
+- Compatibilidade: mantive busca, filtros, paginação, perfil, histórico e edição de cliente sem alterar dados ou coleções.
+- Validação realizada: `node --check js/modules/pedidos.js`.
+
+## 2026-05-10 — Modo Cozinha com fundo branco
+- Arquivos alterados: `js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Pedidos > Cozinha > Modo cozinha.
+- Resumo do ajuste: alterei o fundo da tela do modo cozinha e do modal/drawer de detalhe para branco, preservando as cores dos cards por status.
+- Compatibilidade: mantive kanban, cards, detalhe, WhatsApp, checklist e atualização de status sem alterar lógica.
+- Validação realizada: `node --check js/modules/pedidos.js`.
+
+## 2026-05-10 — Paginação de Pedidos no padrão Catálogo Produtos
+- Arquivos alterados: `js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Pedidos > Cozinha, Pedidos > Pedidos e Pedidos > Clientes.
+- Resumo do ajuste: apliquei a paginação copiada do padrão real de `Cardápio > Produtos`, com texto `Mostrando X a Y de Z`, seletor `N / pág.`, botões `Anterior`/`Próxima` e indicador com barra vermelha.
+- Compatibilidade: mantive busca, filtros, ações, abertura de detalhes, histórico, edição e fluxo de status; a página volta para 1 ao alterar filtros.
+- Validação realizada: `node --check js/modules/pedidos.js`.
+
+## 2026-05-10 — Aba Clientes de Pedidos no padrão premium
+- Arquivos alterados: `js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Pedidos > Clientes.
+- Resumo do ajuste: alinhei a aba Clientes ao padrão visual aplicado em Cardápio > Produtos e nas telas recentes de Pedidos, com menor padding externo, KPIs mais equilibrados, filtros em card e listagem principal em tabela premium.
+- Listagem: substitui os cards soltos por tabela com cabeçalho uppercase, avatar/iniciais, chips de segmento, dados de contato, total, último pedido, ações discretas e paginação conectada.
+- Modais: refinei o perfil do cliente e criei histórico no padrão visual atual, preservando vínculos com pedidos, avaliações, WhatsApp e filtros.
+- Validação realizada: `node --check js/modules/pedidos.js`.
+
+## 2026-05-10 — Modal do Modo Cozinha refinado
+- Arquivos alterados: `js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Pedidos > Cozinha > Modo cozinha.
+- Resumo do ajuste: refinei o detalhe aberto dentro do modo cozinha como drawer/modal lateral premium, com fundo de foco, cabeçalho por status e cards internos mais organizados.
+- Visual: adicionei backdrop, radius, sombra mais sofisticada, chips de status/tipo, progresso do checklist e melhor hierarquia para dados do pedido.
+- Compatibilidade: mantive salvar status, checklist, WhatsApp, fechamento do detalhe e atualização do kanban sem alterar lógica ou dados.
+- Validação realizada: `node --check js/modules/pedidos.js`.
+
+## 2026-05-10 — Modo Cozinha com cards por status
+- Arquivos alterados: `js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Pedidos > Cozinha > Modo cozinha.
+- Resumo do ajuste: melhorei o modo cozinha em tela cheia com resumo operacional no topo, colunas mais largas e leitura mais clara por etapa.
+- Cards: cada card agora recebe fundo suave, faixa lateral e destaque de status com cor correspondente ao dado/status apresentado, além de progresso do checklist.
+- Compatibilidade: mantive arrastar e soltar, abertura de detalhes, WhatsApp, cancelamento, checklist e atualização de status sem alterar lógica ou coleções.
+- Validação realizada: `node --check js/modules/pedidos.js`.
+
+## 2026-05-10 — Modais da aba Pedidos refinados
+- Arquivos alterados: `js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Pedidos > Pedidos.
+- Resumo do ajuste: removi o cabeçalho antigo `Pedidos` com o texto descritivo do módulo e refinei os modais/ações da aba para seguir o padrão visual premium aplicado nas telas recentes.
+- Modais: atualizei detalhe/WhatsApp, vínculo/cadastro de cliente e criação de pedido manual com bordas, sombras, radius, botões e hierarquia visual alinhados ao padrão de Cardápio > Produtos.
+- Compatibilidade: mantive criação, edição/vínculo de cliente, WhatsApp, status, totais e cálculo do pedido sem alteração de lógica ou coleções.
+- Validação realizada: `node --check js/modules/pedidos.js`.
+
+## 2026-05-10 — Modais da Cozinha refinados
+- Arquivos alterados: `js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Pedidos > Cozinha.
+- Resumo do ajuste: refinei o modo cozinha em tela cheia, o painel lateral de detalhe, o prompt de WhatsApp e o modal normal de detalhes para seguir o padrão visual premium aplicado no sistema.
+- Visual: atualizei cabeçalhos, fundos, bordas, sombras, botões, cards internos, checklist e cards do kanban.
+- Compatibilidade: mantive ações de status, WhatsApp, checklist, salvar, cancelar, arrastar pedidos e modo cozinha.
+- Validação realizada: `node --check js/modules/pedidos.js`.
+
+## 2026-05-10 — Pedidos Clientes no padrão Cardápio Produtos
+- Arquivos alterados: `js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Pedidos > Clientes.
+- Resumo do ajuste: apliquei o mesmo padrão visual usado em Cardápio > Produtos, Pedidos > Cozinha e Pedidos > Pedidos, com cabeçalho leve, KPIs com hover, card de filtros, chips de resumo e listagem premium.
+- Filtros: mantive busca, status, segmento e canal conectados à lógica existente e adicionei limpeza rápida dos filtros.
+- Compatibilidade: preservei perfil completo, histórico, segmentação, edição, vínculo com pedidos e avaliações.
+- Validação realizada: `node --check js/modules/pedidos.js`.
+
+## 2026-05-10 — Pedidos Lista no padrão Cardápio Produtos
+- Arquivos alterados: `js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Pedidos > Pedidos.
+- Resumo do ajuste: apliquei o mesmo padrão visual usado em Cardápio > Produtos e Pedidos > Cozinha, com cabeçalho leve, KPIs com hover, card de filtros, chips de resumo e listagem com sombra, borda e ações discretas.
+- Filtros: mantive busca, status e canal conectados à lógica existente e adicionei limpeza rápida dos filtros.
+- Compatibilidade: preservei abertura de detalhe, WhatsApp, vínculo de cliente, avaliações e filtros existentes.
+- Validação realizada: `node --check js/modules/pedidos.js`.
+
+## 2026-05-10 — Pedidos Cozinha no padrão Cardápio Produtos
+- Arquivos alterados: `js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Pedidos > Cozinha.
+- Resumo do ajuste: atualizei a tela de cozinha para seguir o padrão visual de Cardápio > Produtos, com cabeçalho leve, KPIs com hover, card de filtros, chips de resumo e lista de pedidos com sombra, borda e ações mais discretas.
+- Filtros: conectei busca, status e canal da cozinha aos filtros existentes, preservando a lista de pedidos ativos do cardápio.
+- Compatibilidade: mantive ações de alarme, modo cozinha, novo pedido, detalhe e mudança rápida de status.
+- Validação realizada: `node --check js/modules/pedidos.js`.
+
+## 2026-05-10 — Correção do cenário no Dashboard
+- Arquivos alterados: `js/modules/dashboard.js`, `AI_CHANGELOG.md`.
+- Área afetada: Dashboard principal / Início.
+- Resumo do ajuste: alinhei a leitura do cenário do Plano de Voo com a Performance, carregando todos os documentos de `flight_plan_month_scenarios` e resolvendo o cenário por mês, snapshot vinculado ou previsão salva do mês.
+- Correção: o card `Plano de Voo e Performance` deixa de mostrar `Sem cenário do mês definido` quando já existe cenário/previsão vinculada.
+- Validação realizada: `node --check js/modules/dashboard.js`.
+
+## 2026-05-10 — Remoção do card Loja online do Início
+- Arquivos alterados: `js/modules/dashboard.js`, `AI_CHANGELOG.md`.
+- Área afetada: Dashboard principal / Início.
+- Resumo do ajuste: removi o card lateral `Loja online` da tela Início, mantendo o status no cabeçalho/chips e o controle de ligar/desligar no topo do Admin.
+- Validação realizada: `node --check js/modules/dashboard.js`.
+
+## 2026-05-10 — Refinamento visual da tela Início
+- Arquivos alterados: `js/modules/dashboard.js`, `AI_CHANGELOG.md`.
+- Área afetada: Dashboard principal / Início.
+- Resumo do ajuste: refinei design e layout para ficar mais alinhado às telas atuais do sistema, removendo o hero pesado e usando cabeçalho leve, KPIs no padrão de Cardápio/Performance e cards com densidade mais consistente.
+- Onboarding: deixei o bloco mais compacto, com progresso visual e etapas menores para não dominar a tela.
+- Responsividade: ajustei grids para evitar overflow e manter leitura em desktop e mobile.
+- Validação realizada: `node --check js/modules/dashboard.js`.
+
+## 2026-05-10 — Tela principal do sistema
+- Arquivos alterados: `js/modules/dashboard.js`, `js/core/router.js`, `admin.html`, `AI_CHANGELOG.md`.
+- Área afetada: tela inicial do Admin.
+- Resumo do ajuste: criei a tela `Início` como dashboard principal do sistema, com saudação por horário, resumo de pedidos, vendas, financeiro, loja online, Plano de Voo e Performance.
+- Plano de Voo/Performance: o dashboard usa o cenário do mês em `flight_plan_month_scenarios` e, quando necessário, resolve o resumo pela previsão salva em `flight_plans`.
+- Onboarding: adicionei primeiros passos baseados em dados reais; o bloco desaparece automaticamente quando dados gerais, template, produtos, Plano de Voo e primeiro pedido estiverem concluídos.
+- Navegação: adicionei `Início` como primeiro item do menu e alterei o fallback do router para `dashboard`.
+- Validação realizada: `node --check js/modules/dashboard.js`, `node --check js/core/router.js` e parse dos scripts inline de `admin.html`.
+
+## 2026-05-10 — Status da loja sem borda
+- Arquivos alterados: `admin.html`, `AI_CHANGELOG.md`.
+- Área afetada: cabeçalho do Admin.
+- Resumo do ajuste: removi a borda da pílula de texto do status da loja online, mantendo a sombra e o clique no ícone de energia.
+- Validação realizada: parse dos scripts inline de `admin.html`.
+
+## 2026-05-10 — Controle da loja online mais compacto
+- Arquivos alterados: `admin.html`, `AI_CHANGELOG.md`.
+- Área afetada: cabeçalho do Admin.
+- Resumo do ajuste: reduzi o tamanho do indicador e da pílula de status da loja online para deixar o topo mais elegante.
+- Comportamento: a ação de ligar/desligar agora fica no botão com ícone de energia; a pílula ao lado funciona como status visual.
+- Validação realizada: parse dos scripts inline de `admin.html`.
+
+## 2026-05-10 — Botão de loja online com sinal externo
+- Arquivos alterados: `admin.html`, `AI_CHANGELOG.md`.
+- Área afetada: cabeçalho do Admin.
+- Resumo do ajuste: separei o sinal de ligar/desligar da pílula do botão, criando um indicador externo com ícone de energia e ponto de status.
+- Botão: a pílula agora exibe apenas `Loja ligada`, `Loja desligada` ou `Salvando...`, mantendo a ação de abrir/fechar a loja.
+- Validação realizada: parse dos scripts inline de `admin.html`.
+
+## 2026-05-10 — Configurações Geral mais refinada
+- Arquivos alterados: `js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Configurações > Geral.
+- Resumo do ajuste: refinei a hierarquia visual da aba, deixando a ficha do negócio mais premium com avatar integrado, resumo fiscal no próprio card e campos editáveis melhor organizados.
+- Organização: agrupei `Contato` e `Padrões do sistema` em uma seção única, removi o card redundante de país fiscal e incorporei essa informação ao bloco fiscal.
+- Compatibilidade: mantive os mesmos IDs, campos salvos e integração com avatar, telefone, padrões, documento fiscal e endereço fiscal.
+- Validação realizada: `node --check js/modules/configuracoes.js`.
+
+## 2026-05-10 — Topo sem botão extra de logout
+- Arquivos alterados: `admin.html`, `AI_CHANGELOG.md`.
+- Área afetada: cabeçalho do Admin.
+- Resumo do ajuste: removi o botão de logout que ficava ao lado do chip de status da loja, deixando o topo mais limpo.
+- Validação realizada: parse dos scripts inline de `admin.html`.
+
+## 2026-05-10 — Topo sem avatar e botão da loja refinado
+- Arquivos alterados: `admin.html`, `AI_CHANGELOG.md`.
+- Área afetada: cabeçalho do Admin.
+- Resumo do ajuste: removi o card de avatar/nome da loja do topo e mantive a identidade da loja apenas na lateral.
+- Botão da loja: refinei o controle de ligar/desligar com visual em pill, indicador de status, hover premium e labels `Loja ligada` / `Loja desligada`.
+- Compatibilidade: mantive o botão `Ver loja` e adicionei um botão discreto de sair para preservar a ação de logout.
+- Validação realizada: parse dos scripts inline de `admin.html`.
+
+## 2026-05-10 — Refinamento visual do campo Avatar
+- Arquivos alterados: `js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Configurações > Geral.
+- Resumo do ajuste: simplifiquei o campo `Avatar da conta`, reduzindo o peso visual do bloco, diminuindo a prévia e deixando upload/URL mais discretos.
+- Validação realizada: `node --check js/modules/configuracoes.js`.
+
+## 2026-05-10 — Avatar configurável em Geral
+- Arquivos alterados: `js/modules/configuracoes.js`, `admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Configurações > Geral; lateral do Admin.
+- Resumo do ajuste: adicionei o campo `Avatar da conta` em `Identidade e cadastro`, com upload e URL editável.
+- Tamanho recomendado: imagem quadrada de `500 x 500 px`; o sistema aceita JPG, PNG ou WebP e otimiza para WebP transparente até 150 KB.
+- Integração: o avatar lateral e o avatar do topo agora priorizam `config/geral.avatarUrl`, com fallback para logo do template e demais fontes existentes.
+- Validação realizada: `node --check js/modules/configuracoes.js` e parse dos scripts inline de `admin.html`.
+
+## 2026-05-10 — Avatar lateral usando logo do Template
+- Arquivos alterados: `admin.html`, `AI_CHANGELOG.md`.
+- Área afetada: menu lateral e identidade do topo.
+- Resumo do ajuste: conectei o avatar da loja ao `logoUrl` salvo em `config/template`, com fallback para `config/geral` e depois perfil do Master.
+- Compatibilidade: quando não houver logo salvo, o avatar continua exibindo iniciais da loja.
+- Validação realizada: parse dos scripts inline de `admin.html`.
+
+## 2026-05-10 — Lateral mais premium
+- Arquivos alterados: `admin.html`, `AI_CHANGELOG.md`.
+- Área afetada: menu lateral do Admin.
+- Resumo do ajuste: refinei o card de identidade da loja com mais presença visual, borda lateral vermelha, avatar maior, sombra premium e hierarquia tipográfica mais clara.
+- Suporte: deixei o bloco `Precisa de ajuda?` mais discreto e sofisticado, com ícone em cápsula e contraste melhor.
+- Validação realizada: parse dos scripts inline de `admin.html`.
+
+## 2026-05-10 — Refinamento da lateral com identidade da loja
+- Arquivos alterados: `admin.html`, `AI_CHANGELOG.md`.
+- Área afetada: menu lateral do Admin.
+- Resumo do ajuste: adicionei um card compacto com avatar/logo, nome da loja e plano acima do bloco de suporte.
+- Suporte: refinei o card `Precisa de ajuda?` com iconografia do sistema e texto mais claro, mantendo a função informativa.
+- Compatibilidade: usa dados já disponíveis no perfil sincronizado (`businessName/name`, `logoUrl/avatarUrl`, `plan`) e cai para iniciais quando não houver logo.
+- Validação realizada: parse dos scripts inline de `admin.html`.
+
+## 2026-05-10 — Refinamento do primeiro card de Configurações Geral
+- Arquivos alterados: `js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Configurações > Geral.
+- Resumo do ajuste: redesenhei o primeiro card como `Ficha do negócio`, com resumo visual à esquerda e campos editáveis organizados à direita.
+- Compatibilidade: mantive os mesmos campos e IDs usados no salvamento, sem cortar dados que alimentam loja, fiscal, comunicação ou módulos internos.
+- Validação realizada: `node --check js/modules/configuracoes.js`.
+
+## 2026-05-10 — Remoção da aba Aparência
+- Arquivos alterados: `js/modules/configuracoes.js`, `admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Configurações.
+- Resumo do ajuste: removi a aba `Aparência` do menu lateral e da navegação interna do módulo Configurações.
+- Compatibilidade: não apaguei dados existentes de `config/aparencia`; apenas removi o acesso visual à tela.
+- Validação realizada: `node --check js/modules/configuracoes.js` e parse dos scripts inline de `admin.html`.
+
+## 2026-05-10 — Configurações Plano no lugar de Usuários
+- Arquivos alterados: `js/modules/configuracoes.js`, `admin.html`, `server.rb`, `AI_CHANGELOG.md`.
+- Módulo afetado: Configurações.
+- Resumo do ajuste: removi a aba `Usuários / permissões` do menu e do módulo Configurações e criei a tela `Plano`.
+- Tela nova: exibe plano atual, status da conta, ciclo, renovação, papel de acesso, país fiscal, status de cobrança, fim do teste, recursos e limites quando esses dados vierem do Master.
+- Preparação Master: deixei `system_tenants` pronto para receber `billingStatus`, `billingCycle`, `renewalDate`, `nextBillingAt`, `trialEndsAt`, `features`, `planFeatures` e `planLimits`.
+- Compatibilidade: não apaguei dados existentes de `config/usuarios`; apenas removi a tela/rota do Admin.
+- Validação realizada: `node --check js/modules/configuracoes.js`, parse dos scripts inline de `admin.html` e `ruby -c server.rb`.
+
+## 2026-05-10 — Remoção do aviso Não editar aqui
+- Arquivos alterados: `js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Configurações > Usuários / permissões.
+- Resumo do ajuste: removi o bloco `Não editar aqui` e deixei a tela focada nos cards de acesso e na listagem de perfis internos.
+- Validação realizada: `node --check js/modules/configuracoes.js`.
+
+## 2026-05-10 — Remoção do card Campos conectados ao Master
+- Arquivos alterados: `js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Configurações > Usuários / permissões.
+- Resumo do ajuste: removi o card lateral `Campos conectados ao Master` e mantive apenas o aviso compacto de itens que continuam exclusivos do Master.
+- Compatibilidade: não alterei a leitura do perfil sincronizado nem os perfis internos salvos em `config/usuarios`.
+- Validação realizada: `node --check js/modules/configuracoes.js`.
+
+## 2026-05-10 — Configurações Usuários conectado ao Master
+- Arquivos alterados: `js/modules/configuracoes.js`, `server.rb`, `admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Configurações > Usuários / permissões.
+- Resumo do ajuste: redesenhei a tela no padrão visual atual e separei acesso principal do Master dos perfis internos do tenant.
+- Campos conectados ao Master: `tenantId/uid`, `email`, `name/businessName`, `ownerName`, `phone`, `document`, `fiscalCountry`, `plan`, `role`, `status`, `domain/storeUrl`, `adminUrl` e `source/origin`.
+- Backend: ampliei o documento `system_tenants` gerado pelo Master com dados cadastrais seguros para leitura no Admin, sem expor GitHub token, seed ou campos de publicação sensíveis.
+- Compatibilidade: mantive a lista local `config/usuarios` para perfis internos e permissões operacionais, sem alterar Firebase Auth nem a regra de login.
+- Validação realizada: `node --check js/modules/configuracoes.js`, parse dos scripts inline de `admin.html` e `ruby -c server.rb`.
+
+## 2026-05-10 — Configurações Integrações redesenhada e conectada
+- Arquivos alterados: `js/modules/configuracoes.js`, `index.html`, `admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Configurações > Integrações.
+- Resumo do ajuste: redesenhei a tela no padrão visual atual, com cards de status, blocos para medição/pixels, canais públicos e explicação de onde cada campo é usado.
+- Campos expostos: mantive `gaId`/`ga4Id`, `gtmId`, `pixelId`/`metaPixelId` e `whatsapp`; adicionei edição direta de `instagram`, `facebook` e `tiktok`, que já são lidos pela loja pública.
+- Integração: preservei aliases existentes e conectei a loja pública para inicializar GA4, GTM e Meta Pixel a partir de `config/integracoes` quando o tenant possuir IDs próprios.
+- Validação realizada: `node --check js/modules/configuracoes.js` e parse dos scripts inline de `admin.html`/`index.html`.
+
+## 2026-05-10 — Refinamento de Configurações Domínio
+- Arquivos alterados: `js/modules/configuracoes.js`, `admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Configurações > Domínio / URL.
+- Resumo do ajuste: refinei a hierarquia da tela com destaque para o link principal, status do subdomínio, status do domínio principal e cards de links mais claros.
+- Ajuste visual: o link da loja pública virou destaque, os links úteis ficaram mais organizados e a mensagem de domínio principal agora explica quando é apenas prévia.
+- Escopo: mantive a regra de a usuária configurar apenas o subdomínio; não reintroduzi domínio próprio, domínio principal, login ou painel administrativo na interface.
+- Validação realizada: `node --check js/modules/configuracoes.js`.
+
+## 2026-05-10 — Configurações Domínio com link de avaliações
+- Arquivos alterados: `js/modules/configuracoes.js`, `admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Configurações > Domínio / URL.
+- Resumo do ajuste: removi os cards `API / integrações` e `Login da loja` da lista de links gerados.
+- Link adicionado: incluí o card `Avaliações`, gerando `reviewUrl` a partir do subdomínio da loja.
+- Compatibilidade: mantive `loginUrl` e `apiUrl` no objeto salvo para uso interno/futuro, mas eles não aparecem mais na interface da usuária.
+- Validação realizada: `node --check js/modules/configuracoes.js`.
+
+## 2026-05-10 — Painel administrativo movido para Master
+- Arquivos alterados: `js/modules/configuracoes.js`, `master.html`, `server.rb`, `admin.html`, `AI_CHANGELOG.md`.
+- Módulos afetados: Configurações > Domínio / URL; Painel Master > Cadastro de usuário.
+- Resumo do ajuste: removi o card `Painel administrativo` da tela de domínio do tenant e parei de salvar `adminUrl` em `config/dominio`.
+- Master: renomeei o campo do cadastro de usuário para `Painel administrativo` e deixei claro que a usuária não configura essa URL na tela de domínio.
+- Backend: incluí `adminUrl` na sincronização de `system_tenants`, mantendo fallback para `admin.html`.
+- Validação realizada: `node --check js/modules/configuracoes.js`, parse dos scripts inline de `admin.html`/`master.html` e `ruby -c server.rb`.
+
+## 2026-05-10 — Configurações Domínio apenas com subdomínio da loja
+- Arquivos alterados: `js/modules/configuracoes.js`, `admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Configurações > Domínio / URL.
+- Resumo do ajuste: removi da interface os campos de `Domínio principal do sistema` e `Domínio próprio da loja`.
+- Fluxo: a usuária define apenas o nome da loja/subdomínio; domínio principal e domínio próprio ficam como dados internos/futuros, sem edição pela usuária.
+- Compatibilidade: preservei valores existentes de `rootDomain`, `mainDomain`, `platformDomain` e `customDomain` ao gerar e salvar URLs.
+- Validação realizada: `node --check js/modules/configuracoes.js`.
+
+## 2026-05-10 — Configurações Domínio no padrão atual
+- Arquivos alterados: `js/modules/configuracoes.js`, `admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Configurações > Domínio / URL.
+- Resumo do ajuste: redesenhei a tela no padrão das últimas telas, com configuração de subdomínio da loja, domínio principal futuro, domínio próprio opcional e cards de URLs geradas.
+- URLs preparadas: loja pública, login da loja, pedidos, rastreio, painel administrativo e base de API/integrações.
+- Compatibilidade: mantive `publicUrl`, `siteUrl`, `orderUrl` e `trackUrl`, adicionando `storeSlug`, `slug`, `subdomain`, `rootDomain`, `mainDomain`, `platformDomain`, `customDomain`, `loginUrl`, `adminUrl` e `apiUrl`.
+- Validação realizada: `node --check js/modules/configuracoes.js`.
+
+## 2026-05-10 — Configurações Geral com campos administrativos
+- Arquivos alterados: `js/modules/configuracoes.js`, `admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Configurações > Geral.
+- Resumo do ajuste: adicionei `Nome comercial`, `Razão social`, `Responsável legal` e `E-mail fiscal / administrativo`.
+- Escopo: não adicionei regime fiscal; mantive o fluxo atual focado em Espanha/autónomo e Portugal sem apuração fiscal por enquanto.
+- Compatibilidade: os novos campos são salvos em aliases úteis para documentos e integrações futuras (`tradeName`, `commercialName`, `legalName`, `companyLegalName`, `legalRepresentative`, `adminEmail`, `fiscalEmail`, `billingEmail`).
+- Validação realizada: `node --check js/modules/configuracoes.js`.
+
+## 2026-05-10 — Configurações Geral sem card de localização
+- Arquivos alterados: `js/modules/configuracoes.js`, `admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Configurações > Geral.
+- Resumo do ajuste: removi o card `Localização`, já que o endereço operacional será tratado no Template.
+- Compatibilidade: preservei os valores existentes de `country` e `city` no salvamento para não apagar dados já usados por outras áreas.
+- Validação realizada: `node --check js/modules/configuracoes.js`.
+
+## 2026-05-10 — Configurações Geral com telefone e dados fiscais da empresa
+- Arquivos alterados: `js/modules/configuracoes.js`, `admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Configurações > Geral.
+- Resumo do ajuste: adicionei seletor de país/código no telefone e um bloco separado para dados fiscais da empresa.
+- Dados fiscais: o documento fiscal usa labels, placeholders, dica e validação de acordo com o país fiscal do usuário; o endereço fiscal da empresa é separado do endereço de retirada/template.
+- Google Maps: o campo de endereço fiscal da empresa já chama `BocaPlaces.init('cfg-company-address')`, ficando preparado para autocomplete quando a chave do Google Maps estiver instalada.
+- Compatibilidade: mantive `whatsapp` e `phone`, adicionando `phoneCountryCode`, `whatsappCountryCode`, `phoneFull`, `whatsappFull`, `companyFiscalId`, `fiscalDocument`, `companyAddress` e `businessAddress`.
+- Validação realizada: `node --check js/modules/configuracoes.js`.
+
+## 2026-05-10 — Configurações Geral sem prévia dos dados
+- Arquivos alterados: `js/modules/configuracoes.js`, `admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Configurações > Geral.
+- Resumo do ajuste: removi o bloco de `Prévia dos dados` do card `Identidade do negócio`.
+- Escopo: mantive todos os campos, IDs e salvamento de `config/geral` sem alteração.
+- Validação realizada: `node --check js/modules/configuracoes.js`.
+
+## 2026-05-10 — Configurações Geral com listas de padrões
+- Arquivos alterados: `js/modules/configuracoes.js`, `admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Configurações > Geral.
+- Resumo do ajuste: troquei os campos de `Idioma padrão` e `Moeda` por listas de seleção no bloco `Padrões do sistema`.
+- Compatibilidade: mantive os mesmos IDs (`cfg-language`, `cfg-currency`) e o mesmo salvamento em `language`, `defaultLanguage`, `currency` e `defaultCurrency`.
+- Validação realizada: `node --check js/modules/configuracoes.js`.
+
+## 2026-05-10 — Configurações Geral no padrão visual atual
+- Arquivos alterados: `js/modules/configuracoes.js`, `admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Configurações > Geral.
+- Resumo do ajuste: reorganizei a tela Geral no padrão das últimas telas, com cabeçalho próprio, chips, cards premium, prévia dos dados, blocos de contato, localização, padrões do sistema, país fiscal e rodapé de salvamento.
+- Navegação: removi o cabeçalho genérico e o seletor interno de abas do módulo Configurações, mantendo a navegação pelo menu lateral.
+- Dados preservados: mantive os mesmos IDs de campos e o mesmo objeto salvo em `config/geral`, incluindo campos duplicados usados por outras áreas (`phone`, `defaultLanguage`, `defaultCurrency`, visual, cores, banner e custos indiretos).
+- Escopo: não alterei Firebase, coleções, integrações, regras fiscais nem consumo desses dados em outros módulos.
+- Validação realizada: `node --check js/modules/configuracoes.js`.
+
+## 2026-05-10 — Plano de Voo carregando a versão atual
+- Arquivos alterados: `admin.html`, `js/modules/plano_voo.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Crescimento > Plano de Voo.
+- Resumo do ajuste: removi o carregamento do módulo antigo `crescimento.js` do HTML e adicionei cache bust em `plano_voo.js` para evitar abertura da tela antiga por cache do navegador.
+- Carregamento: removi uma função de pintura antiga e redundante que podia manter a área em `Carregando...`, mantendo a renderização pelo fluxo atual de `_paintActive`.
+- Escopo: não alterei cálculos, dados, Firebase, cenários, previsões ou layout funcional do Plano de Voo.
+- Validação realizada: `node --check js/modules/plano_voo.js` e parse dos scripts inline de `admin.html`.
+
+## 2026-05-10 — Correção da navegação de Crescimento
+- Arquivos alterados: `admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Crescimento > Plano de Voo.
+- Resumo do ajuste: corrigi o clique no grupo `Crescimento` para sempre abrir `Plano de Voo`, mesmo quando o usuário já está dentro de `Crescimento > Performance`.
+- Rotas: registrei explicitamente as subrotas `crescimento/plano-de-voo/simulacao`, `crescimento/plano-de-voo/comparacao` e `crescimento/plano-de-voo/snapshots` para evitar fallback ambíguo nos links internos.
+- Escopo: não alterei cálculos, dados, Firebase nem layout do Plano de Voo ou Performance.
+- Validação realizada: `node --check js/modules/plano_voo.js`, `node --check js/modules/performance.js` e parse dos scripts inline de `admin.html`.
+
+## 2026-05-10 — Fiscal sem seletor interno e menu reordenado
+- Arquivos alterados: `js/modules/fiscal.js`, `admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Fiscal.
+- Resumo do ajuste: removi o seletor de abas interno das páginas fiscais e deixei a navegação centralizada no menu lateral.
+- Menu lateral: reordenei para `Resumo trimestral`, `IVA`, `IRPF` e `Configurações fiscais`; o clique no grupo Fiscal agora abre `Resumo trimestral`.
+- Escopo: não alterei Firebase, cálculos fiscais, coleções, filtros, paginações ou regras de dedutibilidade.
+- Validação realizada: `node --check js/modules/fiscal.js`.
+
+## 2026-05-10 — Remoção visual de Fiscal Compras dedutíveis
+- Arquivos alterados: `js/modules/fiscal.js`, `admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Fiscal.
+- Resumo do ajuste: removi a aba `Compras dedutíveis` das subtabs internas do Fiscal e também do menu lateral, deixando o fluxo fiscal focado em `Configurações fiscais`, `IVA`, `IRPF` e `Resumo trimestral`.
+- Compatibilidade: acessos antigos para `fiscal/compras` são redirecionados para `fiscal/resumo`.
+- Escopo: não apaguei campos, coleções, cálculos, marcações fiscais das compras nem lógica de dedutibilidade.
+- Validação realizada: `node --check js/modules/fiscal.js`.
+
+## 2026-05-10 — Fiscal Resumo trimestral em layout analítico
+- Arquivos alterados: `js/modules/fiscal.js`, `admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Fiscal > Resumo trimestral.
+- Resumo do ajuste: reorganizei a tela como visão analítica no padrão das telas de desempenho/performance, sem criar listagem artificial.
+- Layout: adicionei cabeçalho com chips, KPIs com hover, composição do resultado fiscal, blocos de IVA e IRPF com barras comparativas e leitura rápida do trimestre.
+- Escopo: mantive cálculos fiscais, Firebase, coleções, trimestre ativo e regras de dedutibilidade sem alteração de regra de negócio.
+- Validação realizada: `node --check js/modules/fiscal.js`.
+
+## 2026-05-10 — Fiscal Compras dedutíveis no padrão Catálogo Produtos
+- Arquivos alterados: `js/modules/fiscal.js`, `admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Fiscal > Compras dedutíveis.
+- Resumo do ajuste: levei a aba de compras dedutíveis para o mesmo padrão visual aplicado em `Catálogo > Produtos`, IVA e IRPF, com cabeçalho, chips, KPIs com hover, filtros em card branco e tabela premium.
+- Lista/filtros: adicionei busca conectada, filtro por dedutibilidade, filtro por categoria fiscal, paginação, seletor de itens por página, estado vazio e ação para visualizar detalhes da compra.
+- Edição: mantive os controles de IVA, IRPF e categoria fiscal diretamente na tabela, preservando o salvamento existente por compra.
+- Escopo: mantive Firebase, coleções, campos fiscais, cálculo de IVA/IRPF e regras de dedutibilidade sem alteração de regra de negócio.
+- Validação realizada: `node --check js/modules/fiscal.js`.
+
+## 2026-05-10 — Fiscal IRPF no padrão Catálogo Produtos
+- Arquivos alterados: `js/modules/fiscal.js`, `admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Fiscal > IRPF.
+- Resumo do ajuste: levei a tela de IRPF para o mesmo padrão visual aplicado em `Catálogo > Produtos` e na tela de IVA, com cabeçalho próprio, chips de resumo, KPIs com hover, card de aviso, filtros e tabela premium.
+- Lista/filtros: adicionei busca conectada, filtro por tipo, filtro por impacto fiscal, paginação, seletor de itens por página e ação para abrir detalhes do movimento.
+- Detalhe: incluí modal de visualização com base sem IVA, valor bruto, percentual removido e efeito na base do IRPF.
+- Escopo: mantive cálculos de IRPF, Firebase, coleções, marcações dedutíveis e regras fiscais sem alteração de regra de negócio.
+- Validação realizada: `node --check js/modules/fiscal.js`.
+
+## 2026-05-10 — Fiscal IVA com filtros, paginação e detalhe
+- Arquivos alterados: `js/modules/fiscal.js`, `admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Fiscal > IVA.
+- Resumo do ajuste: completei a listagem da tela de IVA com busca, filtros por tipo/impacto, paginação no padrão de `Catálogo > Produtos` e ação para visualizar detalhes.
+- Conexões: busca, filtros, page size e navegação de páginas estão conectados ao estado da tela e reprocessam a lista sem alterar os cálculos fiscais.
+- Detalhe: adicionei modal de detalhe do movimento com referência, data, base, percentual aplicado, IVA e impacto.
+- Escopo: mantive cálculos, Firebase, coleções e marcações de compras dedutíveis sem alteração de regra de negócio.
+- Validação realizada: `node --check js/modules/fiscal.js`.
+
+## 2026-05-10 — Fiscal IVA no padrão Catálogo Produtos
+- Arquivos alterados: `js/modules/fiscal.js`, `admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Fiscal > IVA.
+- Resumo do ajuste: levei a tela de IVA para o padrão visual de `Catálogo > Produtos`, com cabeçalho próprio, chips de resumo, KPIs com hover, aviso premium e listagem principal.
+- Lista adicionada: incluí a seção `Movimentos considerados no IVA`, mostrando vendas e compras dedutíveis usadas na estimativa, com tabela branca, cabeçalho uppercase, chips e estado vazio.
+- Escopo: mantive cálculos de IVA, `config/fiscal`, marcações de compras dedutíveis, Firebase e coleções sem alteração de regra de negócio.
+- Validação realizada: `node --check js/modules/fiscal.js`.
+
+## 2026-05-10 — Fiscal Configurações no padrão atual
+- Arquivos alterados: `js/modules/fiscal.js`, `admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Fiscal > Configurações fiscais.
+- Resumo do ajuste: levei a tela de configurações fiscais para o padrão visual aplicado nas telas recentes, com cabeçalho próprio, chips de resumo, subtabs discretas, card branco premium e campos alinhados.
+- Ajuste visual: removi o cabeçalho global antigo do módulo Fiscal, refinei as abas internas, inputs, labels, aviso fiscal e botão principal com bordas, sombras, radius e densidade do padrão atual.
+- Escopo: mantive `config/fiscal`, campos, handlers, salvamento, cálculos de IVA/IRPF e compras dedutíveis sem alteração de regra de negócio.
+- Validação realizada: `node --check js/modules/fiscal.js`.
+
+## 2026-05-10 — Financeiro Configurações no padrão atual
+- Arquivos alterados: `js/modules/financeiro.js`, `admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Financeiro > Configurações.
+- Resumo do ajuste: levei a aba Configurações do Financeiro para o mesmo padrão visual aplicado em Entradas e Saídas, com cabeçalho próprio, chips de resumo, subtabs discretas, cards brancos, listas refinadas e estados vazios mais elegantes.
+- Ajuste visual: categorias, formas de pagamento, contas bancárias e custos indiretos agora usam bordas, sombras, radius, espaçamentos, botões, chips e ações por ícone no padrão atual.
+- Modais: refinei os modais de categoria, conta bancária e forma de pagamento com cards internos, introdução, campos alinhados e rodapé com cancelar/salvar.
+- Escopo: mantive Firebase, coleções, campos, handlers, validações, salvamento, edição e exclusão sem alteração de regra de negócio.
+- Validação realizada: `node --check js/modules/financeiro.js`.
+
+## 2026-05-10 — Refinamento dos modais de Financeiro Entradas
+- Arquivos alterados: `js/modules/financeiro.js`, `admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Financeiro > Entradas.
+- Resumo do ajuste: apliquei nos modais de Entradas o mesmo refinamento visual feito em Saídas, com resumo executivo, formulário mais didático e modais auxiliares no padrão premium.
+- Ajuste visual: o modal de resumo ganhou topo com valor/status e cards compactos; o modal de criar/editar ganhou bloco introdutório, identificação, status/datas, recorrência/parcelamento e comprovante/observações; exclusão, confirmação de recebimento, recebimento parcial e nova previsão foram refinados.
+- Escopo: mantive IDs de campos, handlers, validações, Firebase, coleções, criação, edição, confirmação de recebimento, parcialidade e exclusão sem alteração de regra de negócio.
+- Validação realizada: `node --check js/modules/financeiro.js`.
+
+## 2026-05-10 — Refinamento dos modais de Financeiro Saídas
+- Arquivos alterados: `js/modules/financeiro.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Financeiro > Saídas.
+- Resumo do ajuste: refinei os modais de visualizar, criar/editar, confirmar e excluir saída para reduzir aparência de formulário técnico e aproximar a experiência do padrão premium usado em `Catálogo > Produtos`.
+- Ajuste visual: o resumo ganhou topo executivo com valor/status, dados em cards compactos, o formulário ganhou bloco introdutório, agrupamento de identificação, status/datas e recorrência/parcelamento, e a exclusão passou a usar modal próprio em vez de confirmação nativa.
+- Escopo: mantive IDs dos campos, handlers, validações, Firebase, coleções, criação, edição, baixa e exclusão sem alteração de regra de negócio.
+- Validação realizada: `node --check js/modules/financeiro.js`.
+
+## 2026-05-10 — Financeiro Saídas alinhada ao padrão Produtos
+- Arquivos alterados: `js/modules/financeiro.js`, `admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Financeiro > Saídas.
+- Resumo do ajuste: levei a aba Saídas para o padrão visual de `Catálogo > Produtos`, com cabeçalho próprio, botão primário, KPIs com hover, filtros em card branco, chips de resumo, tabela premium, ações por ícone e estado vazio elegante.
+- Paginação: adicionei paginação no rodapé da listagem, com seletor de itens por página, contador, botões `Anterior`/`Próxima` e indicador de página no padrão já usado nas listas recentes.
+- Modais: refinei visualizar saída, criar/editar saída e confirmar saída para acompanhar cards, campos, labels, rodapé e botões do padrão atual.
+- Escopo: mantive contas a pagar, movimentações, Firebase, coleções, filtros, busca, ordenação, criação, edição, exclusão e confirmação de pagamento sem alteração de regra de negócio.
+- Validação realizada: `node --check js/modules/financeiro.js`.
+
+## 2026-05-10 — Modais de Entradas no padrão visual atual
+- Arquivos alterados: `js/modules/financeiro.js`, `admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Financeiro > Entradas.
+- Resumo do ajuste: refinei os modais de criar/editar entrada, visualizar resumo e confirmar recebimento para acompanhar o padrão visual usado em `Catálogo > Produtos`.
+- Ajuste visual: campos e labels ficaram com borda, radius, sombra interna, fonte e densidade do padrão atual; blocos internos passaram a usar cards brancos sem borda e com sombra premium; rodapés receberam botão principal, botão cancelar e espaçamento consistente.
+- Escopo: mantive IDs de campos, handlers, validações, salvamento, confirmação de recebimento, Firebase e coleções sem alteração de lógica.
+- Validação realizada: `node --check js/modules/financeiro.js`; parse dos scripts inline de `admin.html` com Node.
+
+## 2026-05-10 — Refinamento do Financeiro e card de listagem de Entradas
+- Arquivos alterados: `js/modules/financeiro.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Financeiro > Entradas.
+- Resumo do ajuste: removi o cabeçalho geral `Financeiro` com o subtítulo do shell do módulo.
+- Ajuste visual: refinei o card da listagem de Entradas para ficar mais fiel à estrutura de `Catálogo > Produtos`, mantendo wrapper branco, borda `#EAE4DA`, radius `16px`, sombra premium, overflow interno e tabela com separação visual mais limpa.
+- Escopo: alteração visual apenas; não alterei dados, Firebase, filtros, paginação ou ações.
+- Validação realizada: `node --check js/modules/financeiro.js`; parse dos scripts inline de `admin.html` com Node.
+
+## 2026-05-10 — Padronização visual do Financeiro > Entradas
+- Arquivos alterados: `js/modules/financeiro.js`, `admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Financeiro > Entradas.
+- Resumo do ajuste: levei a tela de entradas para o padrão visual de `Catálogo > Produtos`, com cabeçalho refinado, botão primário, KPIs com hover, filtros em card, chips de resumo, tabela premium e estado vazio elegante.
+- Paginação: adicionei paginação no rodapé da lista de entradas, com seletor de itens por página e navegação anterior/próxima no mesmo padrão aplicado em Produtos e Fluxo de Caixa.
+- Escopo: mantive criação, edição, exclusão, seleção em massa, confirmação de recebimento, filtros, busca, ordenação, Firebase e coleções sem alteração de lógica.
+- Validação realizada: `node --check js/modules/financeiro.js`; parse dos scripts inline de `admin.html` com Node.
+
+## 2026-05-10 — Linha vertical e paginação no Fluxo de Caixa
+- Arquivos alterados: `js/modules/financeiro.js`, `admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Financeiro > Fluxo de Caixa.
+- Resumo do ajuste: substituí a listagem tabular longa por uma linha vertical de eventos por data, mantendo entradas, saídas, status e saldo acumulado em cada item.
+- Paginação: adicionei paginação no rodapé no mesmo padrão de `Catálogo > Produtos`, com seletor de itens por página, botões anterior/próxima e contador de página.
+- Ajuste visual: mantive KPIs, filtros, chips, hover, radius, sombra e densidade no padrão já aplicado; a linha vertical usa rolagem horizontal controlada em telas menores para evitar quebra visual.
+- Escopo: não alterei Firebase, coleções, filtros, cálculos, ordenação ou regras de negócio.
+- Validação realizada: `node --check js/modules/financeiro.js`; parse dos scripts inline de `admin.html` com Node.
+
+## 2026-05-10 — Padronização visual do Financeiro > Fluxo de Caixa
+- Arquivos alterados: `js/modules/financeiro.js`, `admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Financeiro > Fluxo de Caixa.
+- Resumo do ajuste: levei a tela de fluxo de caixa para o padrão visual de `Catálogo > Produtos`, com filtros em card, chips de resumo, KPIs com hover, tabela refinada, cabeçalhos uppercase, ícones coloridos por tipo de evento e estado vazio premium.
+- Ajuste de interação: a busca agora recalcula também os cards/KPIs do recorte filtrado, mantendo a tabela e os resumos sincronizados.
+- Escopo: mantive as mesmas fontes de dados, filtros, status, período, conta bancária, ordenação e cálculo de saldo acumulado; não alterei Firebase, coleções ou regras de negócio.
+- Validação realizada: `node --check js/modules/financeiro.js`; parse dos scripts inline de `admin.html` com Node.
+
+## 2026-05-10 — Correção de atualização do Financeiro > Visão Geral
+- Arquivos alterados: `admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Financeiro > Visão Geral.
+- Resumo do ajuste: adicionei versionamento no carregamento de `js/modules/financeiro.js` para evitar que o navegador mantenha uma versão antiga em cache.
+- Contexto: a tela já estava registrada na rota `financeiro/visao-geral` e o arquivo contém o layout atualizado; o ajuste força o painel a buscar o JS novo.
+- Validação realizada: `node --check js/modules/financeiro.js`; parse dos scripts inline de `admin.html` com Node.
+
+## 2026-05-10 — Correção de atualização da tela Performance
+- Arquivos alterados: `admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Crescimento > Performance.
+- Resumo do ajuste: adicionei versionamento no carregamento de `js/modules/performance.js` para evitar que o navegador mantenha uma versão antiga em cache.
+- Escopo: não alterei layout, cálculos, Firebase, rotas ou regras de negócio; apenas forcei o painel a buscar o arquivo atualizado da tela Performance.
+- Validação realizada: parse dos scripts inline de `admin.html` com Node.
+
+## 2026-05-10 — Controle direto para abrir e fechar a loja online
+- Arquivos alterados: `admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: navegação superior do painel.
+- Resumo do ajuste: removi a entrada visual do módulo `Operação` do menu lateral e substituí a necessidade dessa aba por um botão direto ao lado de `Ver loja`.
+- Novo comportamento: o botão alterna entre `Abrir loja online` e `Fechar loja online`, atualiza o status no topo e salva o estado em `config/template` (`manual_open`/`manual_closed`) com espelho em `config/operacao.isOpen`.
+- Compatibilidade: mantive os mesmos campos que a loja pública já consulta, sem criar coleções novas e sem alterar Firebase Rules, pedidos ou lógica de catálogo.
+- Validação realizada: parse dos scripts inline de `admin.html` com Node.
+
+## 2026-05-10 — Reestruturação do módulo Operação conectado ao Template
+- Arquivos alterados: `js/modules/operacao.js`, `admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Operação.
+- Resumo do ajuste: substituí as abas antigas desconectadas por telas operacionais baseadas nos campos usados em `Catálogo > Template da loja`.
+- Novas abas: `Status e horários`, `Entrega e retirada`, `Zonas de entrega`, `Pagamentos` e `Endereço e contato`.
+- Sincronização: as telas de Operação agora leem e salvam os mesmos documentos usados pelo Template (`config/template`, `config/horarios`, `config/zonas`, `config/pagamentos`, `config/endereco`, `config/geral` quando aplicável), então alterações feitas em Operação aparecem no Template e alterações feitas no Template aparecem em Operação.
+- Ajuste visual: apliquei o padrão recente de layout, cards, chips, botões, inputs, radius, sombras, densidade e hierarquia usado nas demais páginas.
+- Escopo: não criei coleções novas, não alterei Firebase Rules e não criei dados paralelos.
+- Validação realizada: `node --check js/modules/operacao.js`.
+
+## 2026-05-10 — Padronização visual do Financeiro > Visão Geral
+- Arquivos alterados: `js/modules/financeiro.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Financeiro > Visão Geral.
+- Resumo do ajuste: levei a visão geral financeira para o mesmo padrão visual aplicado em Programa de Pontos, Plano de Voo e Performance, com header compacto, filtros em card, chips de resumo, KPIs com hover, cards de apoio e blocos refinados de movimentações e contas bancárias.
+- Ajuste solicitado: removi o seletor de abas interno da página, mantendo a navegação pelo menu lateral.
+- Escopo: alteração visual e estrutural da apresentação; filtros, cálculos, Firebase, coleções, contas, entradas, saídas e ações existentes foram preservados.
+- Validação realizada: `node --check js/modules/financeiro.js`.
+
+## 2026-05-10 — Correção da navegação lateral do Plano de Voo
+- Arquivos alterados: `admin.html`, `js/core/router.js`, `js/modules/plano_voo.js`, `js/modules/performance.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Crescimento > Plano de Voo.
+- Resumo do ajuste: separei a rota do item `Plano de Voo` da rota do grupo pai `Crescimento`, para o clique no menu lateral ter o mesmo comportamento visual dos outros botões com subitens.
+- Ajuste de navegação: o grupo `Crescimento` agora abre/navega para `crescimento/plano-de-voo`, as subtabs internas mantêm essa base de rota e o roteador destaca o item pai correto mesmo em rotas internas como `crescimento/plano-de-voo/snapshots`.
+- Escopo: alteração restrita a navegação/estado visual do menu; não alterei Firebase, cálculos ou dados do Plano de Voo.
+- Validação realizada: `node --check js/core/router.js`; `node --check js/modules/plano_voo.js`; `node --check js/modules/performance.js`.
+
+## 2026-05-10 — Padronização visual da tela Performance
+- Arquivos alterados: `js/modules/performance.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Crescimento > Performance.
+- Resumo do ajuste: levei a tela Performance para o mesmo padrão visual aplicado em Plano de Voo e Programa de Pontos, com cabeçalho compacto, cards premium, KPIs com hover, filtros em card, chips de resumo, tabelas refinadas e listas com barras mais consistentes.
+- Ajuste visual: removi padrões antigos de sombra, radius, tipografia local e cards soltos, mantendo a hierarquia de análise com cenário do mês, filtros, KPIs, leitura mensal, linha diária, canais, caixa e categorias.
+- Escopo: alteração de apresentação apenas; mantive Firebase, cálculos, filtros, dados e regras de performance sem alteração.
+- Validação realizada: `node --check js/modules/performance.js`.
+
+## 2026-05-10 — Remoção do botão superior Salvar previsão
+- Arquivos alterados: `js/modules/plano_voo.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Crescimento > Plano de Voo.
+- Resumo do ajuste: removi o botão `Salvar previsão` do topo, ao lado do seletor de subtabs.
+- Escopo: mantive os botões de salvar previsão dentro do fluxo da tela e não alterei snapshots, Firebase ou lógica.
+- Validação realizada: `node --check js/modules/plano_voo.js`.
+
+## 2026-05-10 — Refinamento de Previsões Salvas no Plano de Voo
+- Arquivos alterados: `js/modules/plano_voo.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Crescimento > Plano de Voo > Previsões salvas.
+- Resumo do ajuste: reorganizei a tela de previsões salvas para melhorar hierarquia, leitura dos cenários e uso das ações.
+- Ajuste visual: criei um banner mais claro para o cenário do mês, com chips de mês, cenário e lucro, além de ação direta para comparar.
+- Ajuste de organização: adicionei resumo da biblioteca com total de previsões, receita média e melhor lucro.
+- Ajuste dos cards: os cards agora destacam lucro projetado como métrica principal, mostram receita/custos como apoio e separam ações de comparação e definição do cenário do mês.
+- Escopo: alteração de apresentação apenas; mantive snapshots, cenário do mês, comparação, Firebase e cálculos sem alteração.
+- Validação realizada: `node --check js/modules/plano_voo.js`.
+
+## 2026-05-10 — Refinamento do Previsto vs Real no Plano de Voo
+- Arquivos alterados: `js/modules/plano_voo.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Crescimento > Plano de Voo > Previsto vs Real.
+- Resumo do ajuste: reorganizei a comparação para reduzir cards apertados e melhorar a leitura do desempenho real contra a previsão.
+- Ajuste visual: destaquei os indicadores principais (`Atingimento`, `Saldo vs previsto`, `Lucro real`) em cards maiores.
+- Ajuste de organização: receita, custos e caixa final ficaram em cards de apoio com real, previsto, percentual e variação.
+- Ajuste de tabela: aumentei a largura mínima da tabela comparativa e mantive valores financeiros sem quebra para evitar números espremidos.
+- Escopo: alteração de apresentação apenas; mantive comparação, cálculos, snapshots, Firebase e dados reais sem alteração.
+- Validação realizada: `node --check js/modules/plano_voo.js`.
+
+## 2026-05-10 — Refinamento da Simulação do Plano de Voo
+- Arquivos alterados: `js/modules/plano_voo.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Crescimento > Plano de Voo > Simulação.
+- Resumo do ajuste: reorganizei os dados da aba de simulação para reduzir cards apertados e melhorar a leitura financeira.
+- Ajuste visual: separei os indicadores em cards principais (`Receita projetada`, `Lucro projetado`, `Caixa final`) e cards de apoio (`Custos variáveis`, `Despesas fixas`, `Caixa atual`).
+- Ajuste de organização: o card `Resultado` agora destaca o resultado final e mostra a composição em blocos menores, evitando repetir todos os KPIs grandes.
+- Ajuste de responsividade: linhas de canais, custos variáveis e despesas fixas ganharam largura mínima com rolagem interna para não espremer valores, botões e chips.
+- Escopo: alteração de apresentação apenas; mantive simulação, cálculos, Firebase, snapshots e regras existentes sem alteração.
+- Validação realizada: `node --check js/modules/plano_voo.js`.
+
+## 2026-05-10 — Ícones dos KPIs de Promoções no padrão Produtos
+- Arquivos alterados: `js/modules/marketing.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Ações de Vendas > Promoções.
+- Resumo do ajuste: alinhei os ícones dos cards de KPI ao padrão real de `Catálogo > Produtos`.
+- Ajuste visual: removi fundo, borda e sombra interna do bloco do ícone, mantendo apenas o ícone colorido conforme o dado apresentado.
+- Escopo: alteração visual no helper de KPI usado no módulo de marketing; não alterei filtros, dados, Firebase, listagens ou ações.
+- Validação realizada: `node --check js/modules/marketing.js`.
+
+## 2026-05-10 — Performance dentro de Crescimento
+- Arquivos alterados: `admin.html`, `AI_CHANGELOG.md`.
+- Módulos afetados: Navegação > Crescimento e Performance.
+- Resumo do ajuste: removi `Performance` do nível principal do menu e incluí como subitem dentro de `Crescimento`, logo abaixo de `Plano de Voo`.
+- Ajuste de rota: adicionei `crescimento/performance` apontando para `Modules.Performance`, mantendo a rota antiga `performance` registrada por compatibilidade.
+- Escopo: alteração de navegação apenas; não alterei o módulo Performance, dados, Firebase ou regras de cálculo.
+- Validação realizada: conferência das rotas no `admin.html` e ausência de item principal solto `data-route="performance"`.
+
+## 2026-05-10 — Cores nos elementos gráficos de Promoções e Cupons
+- Arquivos alterados: `js/modules/marketing.js`, `AI_CHANGELOG.md`.
+- Módulos afetados: Ações de Vendas > Promoções e Ações de Vendas > Cupons.
+- Resumo do ajuste: refinei os elementos gráficos dos cards de KPI para terem fundo, borda e ícone coloridos conforme o dado apresentado.
+- Cores aplicadas: ativos/sucesso em verde, expirados/perigo em vermelho, agendados/usos em azul, produtos/total em tom produto e neutros em bege.
+- Escopo: alteração visual apenas nos cards; mantive filtros, listagens, modais, ações e dados sem alteração de lógica.
+- Validação realizada: `node --check js/modules/marketing.js`.
+
+## 2026-05-10 — Plano de Voo alinhado ao Programa de Pontos
+- Arquivos alterados: `js/modules/plano_voo.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Crescimento > Plano de Voo.
+- Resumo do ajuste: levei a tela `Plano de Voo` para o padrão visual aplicado em `Marketing > Programa de Pontos`.
+- Ajuste visual: cabeçalho compacto com chips, subtabs internas em pills, botão primário vermelho com hover, cards brancos com radius 16px, sombra premium, campos `#EAE4DA`, labels compactas, KPIs com ícones e hover.
+- Ajuste de conteúdo: padronizei os blocos de simulação, insights, vendas por canal, custos variáveis, despesas fixas, resultado, comparação e previsões salvas sem alterar os cálculos.
+- Ajuste de tabelas/listas: refinei tabelas comparativas, resumo anual, cards de previsões salvas, banner de cenário do mês, estados vazios e modal de salvar previsão.
+- Escopo: mantive Firebase, coleções, snapshots, cenário do mês, comparação previsto vs real, simulação, transformação em conta a pagar e regras de cálculo sem alteração de lógica.
+- Validação realizada: `node --check js/modules/plano_voo.js`.
+
+## 2026-05-10 — Promoções alinhada ao padrão de Produtos
+- Arquivos alterados: `js/modules/marketing.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Ações de Vendas > Promoções.
+- Resumo do ajuste: levei a tela de `Promoções` para o mesmo padrão visual aplicado em `Catálogo > Produtos` e nas telas recentes.
+- Ajuste visual: cabeçalho compacto, chips de resumo, KPIs com hover premium, filtros em card branco, botão primário com hover, tabela com título/subtítulo, sombra, borda `#EAE4DA`, radius 16px e densidade igual ao padrão.
+- Ajuste de listagem: adicionei paginação no mesmo padrão de Produtos, com seletor de itens por página, contador, botões `Anterior`/`Próxima` e indicador de página vermelho.
+- Ajuste de filtros: mantive busca/status/tipo/período, adicionei limpeza de filtros e preservação de foco na busca.
+- Escopo: mantive coleções, criação, edição, duplicação, pausa/ativação, exclusão, cálculo de impacto e dados existentes sem alteração de regra de negócio.
+- Validação realizada: `node --check js/modules/marketing.js`.
+
+## 2026-05-10 — Filtros na Lista de Preço
+- Arquivos alterados: `js/modules/dinheiro.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Preços e Margem > Lista de Preço.
+- Resumo do ajuste: incluí filtros relevantes no card de filtros da visão de lista de preços, mantendo o padrão visual aplicado no módulo.
+- Filtros adicionados: busca por produto, filtro de preço (`Com preço`/`Sem preço`) e filtro de margem/status (`Em risco`, `Saudáveis`, `Sem dados`), além da limpeza de filtros.
+- Ajuste funcional: cards, chips de resumo, estado vazio e impressão passam a respeitar a lista filtrada; a busca preserva o foco durante a digitação.
+- Escopo: mantive seleção de canal, cálculo de preço por canal, dados e regras existentes sem alteração de lógica de negócio.
+- Validação realizada: `node --check js/modules/dinheiro.js`.
+
+## 2026-05-10 — Regras de Preço alinhada ao Radar
+- Arquivos alterados: `js/modules/dinheiro.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Preços e Margem > Regras de preço.
+- Resumo do ajuste: levei a tela `Regras de preço` para o mesmo padrão visual aplicado no Radar.
+- Ajuste visual: cabeçalho compacto com título/subtítulo e chips, botões no padrão, cards de regras com inputs `#EAE4DA`, grid responsivo e linhas de canais com radius 16px, sombra premium e hover.
+- Escopo: mantive IDs dos campos, salvamento das regras, canais, canal Cardápio fixo e navegação para Configurações sem alteração de lógica.
+- Validação realizada: `node --check js/modules/dinheiro.js`.
+
+## 2026-05-10 — Simulador alinhado ao Radar
+- Arquivos alterados: `js/modules/dinheiro.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Preços e Margem > Simulador.
+- Resumo do ajuste: levei a tela `Simulador` para o mesmo padrão visual aplicado no Radar.
+- Ajuste visual: cabeçalho compacto com título/subtítulo e chips, botões no padrão, card de parâmetros com inputs `#EAE4DA`, radius 10px, sombra premium e grid responsivo; resultados continuam usando os KPIs do Radar.
+- Escopo: mantive simulação, IDs dos campos, eventos, aplicação de canal, cálculo de comissão, impostos, lucro, margem e markup sem alteração de lógica.
+- Validação realizada: `node --check js/modules/dinheiro.js`.
+
+## 2026-05-10 — Lista de Preço alinhada ao Radar
+- Arquivos alterados: `js/modules/dinheiro.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Preços e Margem > Lista de Preço.
+- Resumo do ajuste: levei a tela `Lista de Preço` para o mesmo padrão visual aplicado no Radar.
+- Ajuste visual: cabeçalho compacto com título/subtítulo e chips, botões no padrão, filtro de canal em card branco, seção imprimível com hierarquia refinada e cards de produto com borda `#EAE4DA`, radius 16px, sombra premium e hover.
+- Escopo: mantive seleção de canal, cálculo de preço por canal, impressão e dados sem alteração de lógica.
+- Validação realizada: `node --check js/modules/dinheiro.js`.
+
+## 2026-05-10 — Remoção do seletor de abas do Radar
+- Arquivos alterados: `js/modules/dinheiro.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Preços e Margem > Radar.
+- Resumo do ajuste: removi o seletor de abas em pills do cabeçalho do Radar.
+- Escopo: alteração somente visual; mantive KPIs, cards analíticos, cálculos, margens, custos, canais e navegação existente sem alteração de lógica.
+- Validação realizada: `node --check js/modules/dinheiro.js`.
+
+## 2026-05-10 — Paginação na Composição do Preço
+- Arquivos alterados: `js/modules/dinheiro.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Preços e Margem > Composição do Preço.
+- Resumo do ajuste: adicionei paginação à listagem de produtos no mesmo padrão visual de Catálogo > Produtos.
+- Ajuste visual: contador `Mostrando X a Y de Z`, seletor de itens por página, botões `Anterior`/`Próxima`, indicador de página com barra vermelha, bordas `#EAE4DA`, radius e densidade iguais à listagem de Produtos.
+- Escopo: mantive cálculos, filtros vindos do Radar, busca visual da tabela e abertura de detalhe sem alterar regras de preço ou dados.
+- Validação realizada: `node --check js/modules/dinheiro.js`.
+
+## 2026-05-10 — Composição do Preço alinhada a Produção Receitas
+- Arquivos alterados: `js/modules/dinheiro.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Preços e Margem > Composição do Preço.
+- Resumo do ajuste: levei a tela `Composição do Preço` para o mesmo padrão visual de `Produção > Receitas de produção`.
+- Ajuste visual: cabeçalho compacto com título/subtítulo e chips, filtros em card branco, botão `Limpar filtros`, seção `Produtos analisados`, estado vazio em card e tabela com borda `#EAE4DA`, sombra, radius e hover suave.
+- Escopo: mantive cálculos de custo, margem, lucro, preço mínimo, preço sugerido, busca, filtros vindos do Radar e abertura do detalhe sem alteração de lógica.
+- Validação realizada: `node --check js/modules/dinheiro.js`.
+
+## 2026-05-10 — Preços e Margem Radar com padrão de Programa de Pontos
+- Arquivos alterados: `js/modules/dinheiro.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Preços e Margem > Radar.
+- Resumo do ajuste: levei o Radar para o padrão visual das abas de Marketing > Programa de Pontos.
+- Ajuste visual: cabeçalho compacto com título/subtítulo e chips, seletor de abas em pills no topo direito, KPIs compactos com Material Icons, hover premium, radius, sombra e densidade iguais ao Programa de Pontos.
+- Cards analíticos: refinei prioridades financeiras e produtos em atenção com hover, sombra e bordas no mesmo padrão, mantendo destaque de cor nos ícones/dados conforme risco, alerta ou saúde da margem.
+- Escopo: mantive cálculos, filtros de navegação, produtos, canais, margens, custos e regras sem alteração de lógica.
+- Validação realizada: `node --check js/modules/dinheiro.js`.
+
+## 2026-05-10 — Compras Fornecedores alinhada ao Registro
+- Arquivos alterados: `js/modules/compras.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Compras > Fornecedores.
+- Resumo do ajuste: atualizei a aba `Fornecedores` para copiar o layout e design de `Compras > Registro de compras`.
+- Ajuste visual: cabeçalho com título/subtítulo e chips, botão primário no padrão, filtros em card branco com busca grande, status e limpar, chips de resumo abaixo e seção `Fornecedores cadastrados`.
+- Listagem: mantive tabela, estado vazio, paginação, hover, bordas `#EAE4DA`, sombras, radius e ações discretas no mesmo padrão visual do Registro de compras.
+- Escopo: mantive Firebase, busca, filtros, paginação, criação, edição, exclusão e validações do cadastro sem alteração de lógica.
+- Validação realizada: `node --check js/modules/compras.js`.
+
+## 2026-05-10 — Compras Produtos/Insumos alinhada ao Registro
+- Arquivos alterados: `js/modules/compras.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Compras > Produtos / Insumos.
+- Resumo do ajuste: atualizei a tela `Produtos / Insumos` para copiar o layout e design de `Compras > Registro de compras`, mantendo a tela sem cards de KPI.
+- Ajuste visual: cabeçalho com título/subtítulo e chips, botão primário no padrão, filtros em card branco com busca grande, classe, tipo, categoria, status e limpar, chips de resumo abaixo e seção `Produtos / Insumos cadastrados`.
+- Listagem: mantive tabela, estado vazio, paginação, hover, bordas `#EAE4DA`, sombras, radius e ações discretas no mesmo padrão visual do Registro de compras.
+- Escopo: mantive Firebase, coleções, busca, filtros, paginação, criação, edição e exclusão sem alteração de lógica.
+- Validação realizada: `node --check js/modules/compras.js`.
+
+## 2026-05-10 — Catálogo Avaliações fiel ao layout de Produtos
+- Arquivos alterados: `js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Catálogo > Avaliações.
+- Resumo do ajuste: refinei a tela de Avaliações para copiar com mais fidelidade o layout e design de Catálogo > Produtos.
+- Ajuste visual: página e cabeçalho usam as mesmas classes/estrutura, filtros mantêm card branco e densidade de Produtos, KPIs agora copiam altura, tipografia, ícones, cores, radius, sombra e hover dos cards de Produtos.
+- Cards: os cards da listagem de avaliações receberam overflow, borda `#EAE4DA`, sombra premium e hover com elevação igual ao padrão; o estado vazio também virou card branco no mesmo estilo.
+- Escopo: mantive Firebase, filtros, período, busca, aprovação, rejeição, abertura do detalhe e dados das avaliações sem alteração de lógica.
+- Validação realizada: `node --check js/modules/pedidos.js`.
+
+## 2026-05-10 — Compras Registro alinhado ao Catálogo Produtos
+- Arquivos alterados: `js/modules/compras.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Compras > Registro de compras.
+- Resumo do ajuste: atualizei a tela de Registro de compras para copiar o padrão visual refinado de Catálogo > Produtos.
+- Ajuste visual: cabeçalho com título/subtítulo e chips, botão primário no padrão, KPIs compactos com Material Icons e hover premium, filtros em card branco, seção `Compras registradas` e tabela com largura mínima, borda `#EAE4DA`, sombra e hover suave.
+- Cards: os KPIs agora usam o mesmo layout, densidade, radius, sombra, ícone e comportamento visual dos cards de Catálogo > Produtos.
+- Escopo: mantive Firebase, busca, filtros, período, ordenação, paginação, criação, edição, exclusão e vínculo financeiro sem alteração de lógica.
+- Validação realizada: `node --check js/modules/compras.js`.
+
+## 2026-05-10 — Produção Insumos alinhada ao Catálogo Produtos
+- Arquivos alterados: `js/modules/compras.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Produção > Insumos.
+- Resumo do ajuste: atualizei a tela de Insumos para seguir o padrão visual refinado de Catálogo > Produtos, mantendo a implementação existente usada por `Compras._renderInsumos()`.
+- Ajuste visual: cabeçalho com título/subtítulo e chips, KPIs compactos com hover premium, filtros em card branco, chips menores, seção `Insumos cadastrados` e tabela com borda `#EAE4DA`, hover suave, paginação e ações discretas.
+- Escopo: mantive Firebase, coleções, filtros, paginação, criação, edição e exclusão sem alteração de lógica.
+- Validação realizada: `node --check js/modules/compras.js`.
+
+## 2026-05-10 — Produção Receitas alinhada ao novo padrão
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Produção > Receitas.
+- Resumo do ajuste: atualizei a tela `Receitas de produção` para seguir o padrão visual aprovado em Programa de Pontos e Catálogo > Produtos, sem adicionar cards de KPI.
+- Ajuste visual: cabeçalho com título/subtítulo e chips, filtros em card branco, seção `Receitas cadastradas`, tabela com borda `#EAE4DA`, hover suave, ações discretas e estado vazio refinado.
+- Escopo: mantive Firebase, cálculo de ficha técnica, busca, paginação, criação, edição, visualização e exclusão sem alteração de lógica.
+- Validação realizada: `node --check js/modules/catalogo.js`.
+
+## 2026-05-10 — Catálogo Avaliações alinhada ao Programa de Pontos
+- Arquivos alterados: `js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Catálogo > Avaliações.
+- Resumo do ajuste: atualizei a tela de Avaliações para seguir o mesmo padrão visual aprovado em Programa de Pontos e refinado em Catálogo > Produtos.
+- Ajuste visual: cabeçalho com título/subtítulo e chips de resumo, KPIs compactos com Material Icons e hover com elevação/troca de fundo, filtros em card branco com chips abaixo e seção `Avaliações dos clientes`.
+- Cards: os cards de avaliação agora têm borda suave `#EAE4DA`, hover premium, blocos internos em `#FAF8F4` e chips/status alinhados ao novo padrão.
+- Escopo: mantive Firebase, filtros, moderação, aprovação, rejeição, abertura de detalhe e dados de avaliações sem alteração de lógica.
+- Validação realizada: `node --check js/modules/pedidos.js`.
+
+## 2026-05-10 — Refinamento fiel de Catálogo Produtos
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Catálogo > Produtos.
+- Resumo do ajuste: refinei detalhes visuais para aproximar a tela de Produtos do padrão aprovado em Programa de Pontos.
+- KPIs: troquei os ícones para Material Icons, igual ao padrão usado em Programa de Pontos, e adicionei hover com elevação, sombra e troca suave de fundo para dar o mesmo efeito visual ao passar o mouse.
+- Listagem/cards: alinhei bordas dos chips para `#EAE4DA`, mantive hover suave nas linhas e adicionei hover real nos cards em grade.
+- Escopo: alteração somente visual; sem mudanças em Firebase, dados, filtros, paginação ou ações de produto.
+- Validação realizada: `node --check js/modules/catalogo.js`.
+
+## 2026-05-10 — Catálogo Produtos alinhado ao Programa de Pontos
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Catálogo > Produtos.
+- Resumo do ajuste: atualizei a hierarquia visual da tela de Produtos seguindo o padrão aprovado em Marketing > Programa de Pontos.
+- Ajuste visual: cabeçalho com título/subtítulo e chips de resumo, KPIs mais compactos com hover premium, filtros em card branco, chips de contexto e seção `Produtos do cardápio` com subtítulo antes da listagem.
+- Listagem: mantive a tabela/cards e ações existentes, refinando o encaixe visual, espaçamentos, sombras, bordas e densidade para aproximar do novo padrão.
+- Escopo: mantive Firebase, coleções, busca, filtros, paginação, ordenação, criação, edição, duplicação, exclusão e lógica de produtos.
+- Validação realizada: `node --check js/modules/catalogo.js`.
+
+## 2026-05-10 — Remoção da lista Movimentos recentes
+- Arquivos alterados: `js/modules/marketing.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Marketing > Programa de Pontos > Clientes e movimentos.
+- Resumo do ajuste: removi o bloco visual `Movimentos recentes` e o texto `Acompanhe entradas, usos e expirações de pontos.` da subtab.
+- Escopo: alteração somente visual; histórico e dados de movimentos seguem disponíveis no detalhe do cliente e sem alteração de Firebase, filtros ou regras.
+- Validação realizada: `node --check js/modules/marketing.js`.
+
+## 2026-05-10 — Clientes e movimentos do Programa de Pontos refinados
+- Arquivos alterados: `js/modules/marketing.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Marketing > Programa de Pontos > Clientes e movimentos.
+- Resumo do ajuste: refinei filtros, chips de resumo, tabela de clientes e tabela de movimentos recentes usando o padrão visual da listagem de Cardápio > Produtos.
+- Clientes: adicionei avatar com iniciais, nome/e-mail com hierarquia, chip suave para pontos, ação `Ver` mais discreta e modal de detalhe com saldo, desconto estimado, histórico de movimentos e pedidos relacionados.
+- Movimentos: transformei a lista em tabela refinada com chips por tipo, pontos positivos em verde, usos em vermelho suave e truncamento de pedidos longos com tooltip.
+- Escopo: mantive Firebase, cálculos, histórico, regras, dados dos clientes e filtros existentes; alteração focada em layout, hierarquia e apresentação.
+- Validação realizada: `node --check js/modules/marketing.js`.
+
+## 2026-05-10 — Configuração do Programa de Pontos refinada
+- Arquivos alterados: `js/modules/marketing.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Marketing > Programa de Pontos > Configuração.
+- Resumo do ajuste: reorganizei a configuração em cards menores: `Identidade do programa`, `Como o cliente ganha pontos`, `Como o cliente usa os pontos` e `Validade e aplicação`.
+- Ajuste visual: adicionei preview lateral `Prévia na loja`, rodapé interno de salvamento, estado visual para alterações pendentes e campos/copy no padrão de Catálogo > Produtos.
+- Validade: adicionei o campo `Prazo para expirar` quando `Validade dos pontos` estiver como `Expiram`, com validação obrigatória e salvamento do prazo nas configurações.
+- Regras de pontos: novos movimentos de ganho passam a salvar prazo/expiração quando configurado; o saldo disponível considera pontos expirados somente quando há prazo válido salvo, mantendo fallback seguro para configurações antigas sem prazo.
+- Validação realizada: `node --check js/modules/marketing.js`.
+
+## 2026-05-10 — Desempenho do Programa de Pontos alinhado ao Upsell
+- Arquivos alterados: `js/modules/marketing.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Marketing > Programa de Pontos > Desempenho.
+- Resumo do ajuste: levei a subtab `Desempenho` para o mesmo layout analítico usado em Marketing > Upsell, com filtro de período, KPIs compactos, card largo de evolução, cards de resumo e bloco de oportunidades.
+- Ajuste visual: apliquei a mesma densidade, cards, sombras, bordas, radius, ícones, hover e hierarquia visual já usados no desempenho de Upsell.
+- Escopo: mantive Firebase, coleções, dados existentes, cálculos de pontos e regras do programa; a alteração foi de apresentação da análise.
+- Validação realizada: `node --check js/modules/marketing.js`.
+
+## 2026-05-10 — Remoção do botão Configurar programa
+- Arquivos alterados: `js/modules/marketing.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Marketing > Programa de Pontos.
+- Resumo do ajuste: removi o botão `Configurar programa` do cabeçalho, mantendo o acesso à configuração pela subtab interna `Configuração`.
+- Escopo: alteração somente visual, sem mudanças em Firebase, dados, cálculos ou regras do programa de pontos.
+- Validação realizada: `node --check js/modules/marketing.js`.
+
+## 2026-05-10 — Programa de Pontos com subtabs internas
+- Arquivos alterados: `js/modules/marketing.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Marketing > Programa de Pontos.
+- Resumo do ajuste: reorganizei a tela em subtabs internas `Desempenho`, `Configuração` e `Clientes e movimentos`, seguindo o padrão aplicado em Marketing > Upsell e a linguagem visual de Catálogo > Produtos.
+- Desempenho: concentra KPIs principais, card `Resumo do programa` e card `Oportunidades`, sem deixar cards soltos ou blocos vazios.
+- Configuração: reúne status, nome, texto da loja, regras de ganho/resgate, mínimos, limite, expiração, aplicação e botão `Salvar configuração` em cards/campos no padrão visual do sistema.
+- Clientes e movimentos: adiciona busca, filtros de saldo/elegibilidade/movimentos, tabela de clientes e tabela de movimentos recentes com a mesma densidade, bordas, chips e hierarquia usadas nas telas padronizadas.
+- Escopo: mantive coleções, dados existentes, cálculos, regras de pontos e comportamento de Firebase; o ajuste foi de interface, apresentação, filtros e organização visual.
+- Validação realizada: `node --check js/modules/marketing.js`.
+
+## 2026-05-10 — Sugestões de Upsell alinhada a Catálogo > Produtos
+- Arquivos alterados: `js/modules/marketing.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Marketing/Ações de Vendas > Upsell > Sugestões.
+- Resumo do ajuste: alinhei a subaba `Sugestões` ao layout visual de `Catálogo > Produtos`.
+- Ajuste visual: adicionei cabeçalho interno, KPIs no padrão do Catálogo, filtro compacto sem labels pesados, tabela com borda suave, sombra e hover `#FBF8F2`.
+- Escopo: mantive filtros, listagem, ações, modais e regras de upsell sem alteração de lógica ou dados.
+- Validação realizada: `node --check js/modules/marketing.js`.
+
+## 2026-05-10 — Subtab ativa de Upsell em vermelho
+- Arquivos alterados: `js/modules/marketing.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Marketing/Ações de Vendas > Upsell.
+- Resumo do ajuste: alterei a cor da subtab ativa `Desempenho/Sugestões` para vermelho no padrão do Catálogo, removendo o fundo escuro.
+- Escopo: alteração somente visual no seletor interno de abas.
+- Validação realizada: `node --check js/modules/marketing.js`.
+
+## 2026-05-10 — Upsell com cores alinhadas ao Catálogo
+- Arquivos alterados: `js/modules/marketing.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Marketing/Ações de Vendas > Upsell.
+- Resumo do ajuste: ajustei as cores dos cards de desempenho para seguir a paleta visual de `Catálogo > Produtos`.
+- Ajuste visual: KPIs usam os acentos de produto/categoria/visível/pedidos do Catálogo; cards auxiliares voltaram para base branca com borda suave e ícones em `#FAF8F4`.
+- Escopo: alteração somente visual, sem mudanças em dados, métricas, Firebase ou lógica de upsell.
+- Validação realizada: `node --check js/modules/marketing.js`.
+
+## 2026-05-10 — Upsell separada em subtabs internas
+- Arquivos alterados: `js/modules/marketing.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Marketing/Ações de Vendas > Upsell.
+- Resumo do ajuste: separei a tela de Upsell em subtabs internas `Desempenho` e `Sugestões`, preservando a estrutura de dados e as funcionalidades existentes.
+- Desempenho: mantém KPIs, funil, melhores resultados, alertas/oportunidades e filtro de período.
+- Sugestões: concentra botão `Nova sugestão`, filtros, tabela/listagem e ações de visualizar, editar, pausar, duplicar e excluir.
+- Ajuste visual: subtabs em pills discretas no padrão premium do sistema e chips de resumo no cabeçalho.
+- Escopo: mantive Firebase, eventos, cálculos, tracking, criação, edição, exclusão e regras de upsell.
+- Validação realizada: `node --check js/modules/marketing.js`.
+
+## 2026-05-10 — Upsell refinada visualmente
+- Arquivos alterados: `js/modules/marketing.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Marketing/Ações de Vendas > Upsell.
+- Resumo do ajuste: refinei a percepção visual dos blocos já aprovados de Upsell sem reorganizar a tela.
+- Ajustes: corrigi fallback do card `Melhor upsell`, redesenhei o funil com linha contínua, steps e taxas de passagem, reduzi a dominância do KPI de receita e aumentei a densidade dos cards.
+- Insights: o bloco `Alertas e oportunidades` agora mostra mensagem estratégica conforme volume e comportamento das métricas disponíveis.
+- Escopo: mantive Firebase, eventos, cálculos, métricas, tracking, filtros, listagem e regras existentes.
+- Validação realizada: `node --check js/modules/marketing.js`.
+
+## 2026-05-10 — Upsell reorganizada em blocos analíticos
+- Arquivos alterados: `js/modules/marketing.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Marketing/Ações de Vendas > Upsell.
+- Resumo do ajuste: reorganizei a tela de Upsell para reduzir excesso visual e melhorar a leitura, mantendo o padrão de `Cardápio > Produtos`.
+- Layout: o cabeçalho agora usa título, subtítulo e botão `Nova sugestão`; a área analítica passou a ter 4 KPIs principais, card largo de funil, seção de melhores resultados e card único de alertas/oportunidades.
+- Ajuste visual: removi a repetição de cards pequenos e textos auxiliares poluídos, evitando que nomes e labels quebrem de forma feia.
+- Escopo: mantive métricas, cálculos, Firebase, filtros, listagem, modais e ações existentes.
+- Validação realizada: `node --check js/modules/marketing.js`.
+
+## 2026-05-10 — Upsell alinhada a Cardápio > Produtos
+- Arquivos alterados: `js/modules/marketing.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Ações de Vendas > Upsell.
+- Resumo do ajuste: apliquei o padrão visual de `Cardápio > Produtos`, com cabeçalho próprio, chips de resumo, KPIs, filtros em card branco, estado vazio e listagem principal em tabela compacta.
+- Ajuste visual: os KPIs e cards analíticos usam radius, sombra, densidade, tipografia e cores semânticas alinhadas ao Catálogo; a listagem usa cabeçalho de tabela, chips de tipo/benefício/status e ações por ícones.
+- Modais: atualizei a estrutura visual do modal de Upsell para largura `1120px`, cabeçalho, corpo, seções, labels, campos e rodapé no padrão usado nas abas já padronizadas.
+- Escopo: mantive coleção `upsellRules`, eventos, cálculos de desempenho, filtros, busca, criação, edição, duplicação, ativação/pausa e exclusão.
+- Validação realizada: `node --check js/modules/marketing.js`.
+
+## 2026-05-10 — Cupons alinhada a Cardápio > Produtos
+- Arquivos alterados: `js/modules/marketing.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Ações de Vendas > Cupons.
+- Resumo do ajuste: apliquei o padrão visual real de `Cardápio > Produtos`, com cabeçalho próprio, KPIs, filtros em card branco, chips de resumo, estado vazio e listagem principal em tabela compacta.
+- Ajuste visual: a tabela de cupons agora usa cabeçalhos, linhas clicáveis, ações por ícones, chips de tipo/status, bordas `#EAE4DA`, radius, sombras e densidade alinhados ao Catálogo.
+- Modais: criei visualização e atualizei criação/edição para o padrão do modal de produto, com largura `1120px`, seções brancas com sombra, labels uppercase, campos padronizados e footer com botões consistentes.
+- Escopo: mantive a coleção `coupons`, campos existentes, criação, edição, exclusão, contagem de usos e regras de validade/limite apenas como apresentação visual.
+- Validação realizada: `node --check js/modules/marketing.js`.
+
+## 2026-05-10 — Promoções alinhada a Cardápio > Produtos
+- Arquivos alterados: `js/modules/marketing.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Ações de Vendas > Promoções.
+- Resumo do ajuste: removi o cabeçalho/abas globais do módulo nessa entrada e apliquei o padrão visual usado em `Cardápio > Produtos`, com cabeçalho próprio, chips de resumo, KPIs, filtros em card branco, estado vazio e listagem principal em tabela.
+- Ajuste visual: a listagem passou para a mesma estrutura de tabela compacta de Produtos, com cabeçalhos, linhas clicáveis, ícones de ação, chips/status, bordas, radius, sombras, densidade e hierarquia alinhados ao Catálogo.
+- KPIs: os elementos gráficos dos cards agora usam cor de acordo com a informação exibida, com verde para ativas, tom de produto para itens em promoção, azul para agendadas e vermelho para expiradas.
+- Modais: atualizei criar, editar e visualizar promoção para o padrão do modal de produto, com largura `1120px`, seções brancas com sombra, labels uppercase, campos com borda `#EAE4DA`, footer e botões no mesmo padrão.
+- Escopo: mantive busca, filtros, carregamento, CRUD, duplicação, ativação/pausa, cálculos, preview, impacto e coleções existentes de promoções.
+- Validação realizada: `node --check js/modules/marketing.js`.
+
+## 2026-05-10 — Canais de venda movidos para Configurações
+- Arquivos alterados: `js/modules/configuracoes.js`, `js/modules/dinheiro.js`, `AI_CHANGELOG.md`.
+- Módulos afetados: Configurações > Canais de venda; Preços e Margem > Regras de preço.
+- Resumo do ajuste: criei/ativei a aba `Canais de venda` em Configurações para cadastrar canais adicionais ao Cardápio. O canal `Cardápio` permanece automático e fixo do sistema.
+- Regras de preço: removi o cadastro visual de canais nessa tela; agora ela apenas lista os canais vindos de Configurações e permite definir comissão, taxa fixa e imposto por canal. Os nomes ficam somente leitura.
+- Dados: mantive o documento `config/canais_venda`, preservando taxas já existentes por nome de canal quando os canais são editados em Configurações.
+- Validações realizadas: `node --check js/modules/configuracoes.js`; `node --check js/modules/dinheiro.js`.
+
+## 2026-05-10 — Regras de preço alinhada às abas de Preços e Margem
+- Arquivos alterados: `js/modules/dinheiro.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Preços e Margem > Regras de preço.
+- Resumo do ajuste: apliquei o mesmo padrão visual usado nas abas Radar, Composição, Lista e Simulador, com cabeçalho próprio, cards brancos para regras gerais e canais, botões compactos e campos com bordas/radius/sombra consistentes.
+- Escopo: mantive o salvamento em `config/dinheiro` e `config/canais_venda`, o canal fixo Cardápio e as ações de adicionar/remover canais.
+- Validação realizada: `node --check js/modules/dinheiro.js`.
+
+## 2026-05-10 — Simulador com cards fiscais em segunda linha
+- Arquivos alterados: `js/modules/dinheiro.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Preços e Margem > Simulador.
+- Resumo do ajuste: movi os cards de IVA e Imposto de renda para uma segunda linha de resultados e aumentei a largura mínima dos cards.
+- Ajuste visual: reduzi levemente a fonte dos valores dos KPIs e permiti quebra controlada para evitar números cortados.
+- Validação realizada: `node --check js/modules/dinheiro.js`.
+
+## 2026-05-10 — Simulador alinhado a Cardápio > Produtos
+- Arquivos alterados: `js/modules/dinheiro.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Preços e Margem > Simulador.
+- Resumo do ajuste: apliquei o padrão visual de `Cardápio > Produtos`, com cabeçalho próprio, card de parâmetros, card de resultado, inputs e botões alinhados ao restante de Preços e Margem.
+- Destaques analíticos: os resultados usam tons por gravidade para taxas, impostos, lucro negativo, margem abaixo da mínima e margem saudável.
+- Escopo: mantive os cálculos de preço líquido, comissões, IVA, imposto de renda, lucro, margem e markup.
+- Validação realizada: `node --check js/modules/dinheiro.js`.
+
+## 2026-05-10 — Lista de Preço alinhada a Cardápio > Produtos
+- Arquivos alterados: `js/modules/dinheiro.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Preços e Margem > Lista de Preço.
+- Resumo do ajuste: apliquei o padrão visual de `Cardápio > Produtos`, com cabeçalho próprio, card de seleção de canal, chips de resumo, card principal branco e cards de produto com bordas, sombras, radius e tipografia consistentes.
+- Escopo: mantive seleção de canal, preços calculados por canal e fluxo de impressão.
+- Validação realizada: `node --check js/modules/dinheiro.js`.
+
+## 2026-05-10 — Composição do Preço alinhada a Cardápio > Produtos
+- Arquivos alterados: `js/modules/dinheiro.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Preços e Margem > Composição do Preço.
+- Resumo do ajuste: apliquei o mesmo padrão visual usado em `Cardápio > Produtos`, com cabeçalho próprio, card de busca/resumo, tabela branca com bordas suaves, hover, tipografia e chips/status consistentes.
+- Destaques analíticos: margem, lucro e status mantêm cores por gravidade para facilitar leitura de prejuízo, margem baixa, atenção e saúde.
+- Escopo: mantive cálculos, filtros vindos do Radar, busca, abertura do modal e salvamento de preço.
+- Validação realizada: `node --check js/modules/dinheiro.js`.
+
+## 2026-05-10 — Radar de Preços e Margem alinhado a Cardápio > Produtos
+- Arquivos alterados: `js/modules/dinheiro.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Preços e Margem > Radar.
+- Resumo do ajuste: levei o Radar para o mesmo padrão estrutural e visual de `Cardápio > Produtos`, com contêiner sem cabeçalho global, cabeçalho próprio da tela, KPIs com sombra/radius/densidade equivalentes, seções em cards brancos e ações no padrão de botões existente.
+- Destaques analíticos: os cards do Radar agora usam tons por gravidade do dado apresentado, diferenciando risco crítico, alerta, saúde de margem e estados neutros.
+- Escopo: mantive os cálculos, dados, canais, prioridades e navegação existentes; alterei apenas apresentação visual.
+- Validação realizada: `node --check js/modules/dinheiro.js`.
+
+## 2026-05-10 — Compras com estrutura principal igual ao Catálogo
+- Arquivos alterados: `js/modules/compras.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Compras.
+- Resumo do ajuste: removi o cabeçalho global com os textos `Compras` e `Registre compras, organize fornecedores e acompanhe contas geradas para o Financeiro.`, além da barra de abas interna do módulo, deixando o contêiner principal no mesmo padrão estrutural de `Cardápio/Catálogo`.
+- Escopo: mantive rotas, subtelas, filtros, paginação e ações existentes.
+- Validação realizada: `node --check js/modules/compras.js`.
+
+## 2026-05-10 — Compras sem cards e imagens nas listagens solicitadas
+- Arquivos alterados: `js/modules/compras.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Compras > Fornecedores e Compras > Produtos / Insumos.
+- Resumo do ajuste: removi os cards de KPI da aba Fornecedores e retirei os blocos visuais com ícones/imagens das linhas das listagens de Fornecedores e Produtos/Insumos.
+- Escopo: mantive filtros, resumo textual, paginação e ações existentes.
+- Validação realizada: `node --check js/modules/compras.js`.
+
+## 2026-05-10 — Compras > Configurações alinhada a Cardápio > Configurações
+- Arquivos alterados: `js/modules/compras.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Compras > Configurações.
+- Resumo do ajuste: reestruturei a aba de configurações de Compras para seguir o padrão visual real de `Cardápio > Configurações`, com cabeçalho, subtabs, filtros, lista em cards, chips, botões, paginação e modal no mesmo estilo.
+- Escopo: mantive as coleções `compras_tipos` e `compras_categorias`, a busca, filtros, paginação e ações de criar, editar e excluir.
+- Validação realizada: `node --check js/modules/compras.js`.
+
+## 2026-05-10 — Destaques automáticos conectados ao template público
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Cardápio > Template da loja.
+- Resumo do ajuste: corrigi a conexão do toggle `Usar produtos marcados para destaque` no template público, carregando `showFeaturedProducts` da configuração salva em `config/template`.
+- Impacto esperado: ao ativar o campo no Template da loja, produtos marcados como destaque no cadastro passam a aparecer na vitrine pública de destaques, respeitando a lógica já existente de até 3 itens.
+- Validação realizada: script inline de `index.html` validado com Node.
+
+## 2026-05-10 — Idiomas do Template da loja alinhados ao público
+- Arquivos alterados: `js/modules/catalogo.js`, `index.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Cardápio > Template da loja.
+- Resumo do ajuste: alinhei o campo `Idioma principal da loja` aos idiomas suportados diretamente pelo template público (`pt-BR`, `pt-PT`, `es-ES`, `en`, `fr`) e removi da seleção administrativa opções que não existiam como idioma direto no público.
+- Conexão com o template público: o salvamento agora normaliza o idioma antes de gravar em `language`, `defaultLanguage`, `mainLanguage` e `storeLanguage`, enquanto o template público também normaliza aliases antigos (`en-US` para `en`, `ca-ES` para `es-ES`) antes de aplicar desktop/mobile.
+- Impacto esperado: lojas novas e existentes passam a usar a mesma lista de idiomas no admin e no template público, evitando idioma salvo sem tradução direta e mantendo compatibilidade com valores antigos.
+- Validações realizadas: `AGENTS.md` lido; alterações restritas aos arquivos necessários; `node --check js/modules/catalogo.js`; validação do script inline de `index.html` com Node; busca confirmou a lista pública canônica e a normalização de aliases.
+
+## 2026-05-09 — Tipografia de Configurações alinhada às outras abas de Produção
+- Arquivos alterados: `js/modules/receitas.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: alinhei o cabeçalho de `Produção > Configurações` à mesma escala tipográfica das abas `Receitas` e `Insumos`, usando `h1` no título principal.
+- Escopo: alterei apenas a tag e a consistência tipográfica do cabeçalho; mantive o layout e a lógica intactos.
+
+## 2026-05-09 — Cabeçalho de Configurações da produção padronizado
+- Arquivos alterados: `js/modules/receitas.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: alinhei o cabeçalho de `Produção > Configurações` ao padrão das telas de `Receitas` e `Insumos`, com CTA dinâmico conforme a subtaba ativa.
+- Escopo: mantive a estrutura das abas, listas e ações; alterei apenas a copy do topo e o texto do botão principal.
+
+## 2026-05-09 — Cabeçalho de Insumos padronizado com Produção > Receitas
+- Arquivos alterados: `js/modules/compras.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: alinhei o cabeçalho de `Produção > Insumos` ao mesmo formato visual e textual de `Produção > Receitas`, com label `Produção`, título `Insumos`, subtítulo focado em insumos e botão `+ Novo insumo`.
+- Escopo: mantive filtros, tabela, paginação e ações da listagem; alterei apenas o cabeçalho da tela.
+
+## 2026-05-09 — Cabeçalho de Receitas de produção ajustado
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: atualizei o cabeçalho da tela de receitas para `Produção` / `Receitas de produção`, com o subtítulo focado em fichas técnicas, rendimento, ingredientes e custo real.
+- Escopo: mantive a estrutura da tela, a tabela, os filtros, a paginação e as ações; alterei apenas a copy do cabeçalho.
+
+## 2026-05-09 — Cabeçalho textual removido da tela principal de Produção
+- Arquivos alterados: `js/modules/receitas.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: removi completamente o cabeçalho textual da tela principal de `Produção`, incluindo label, título e subtítulo.
+- Escopo: mantive a navegação e o conteúdo interno do módulo; alterei apenas o topo da página.
+
+## 2026-05-09 — Produção e Insumos sem duplicidade visual
+- Arquivos alterados: `js/modules/receitas.js`, `js/modules/compras.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: corrigi o topo do módulo para mostrar apenas `Produção` e alinhei a tela `Insumos` para remover o cabeçalho vazio e o espaço morto no topo.
+- Escopo: mantive a lógica das telas; alterei apenas os textos e o alinhamento visual do cabeçalho.
+
+## 2026-05-09 — Cabeçalho textual removido da tela Insumos
+- Arquivos alterados: `js/modules/compras.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: removi o texto visível do cabeçalho da tela `Insumos` no módulo de Compras, mantendo apenas a ação de adicionar.
+- Escopo: mantive a listagem e a lógica da tela; alterei apenas a copy superior.
+
+## 2026-05-09 — Produção com título Receitas e subtítulo ajustado
+- Arquivos alterados: `js/modules/receitas.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: deixei o topo do módulo com rótulo `Produção`, título `Receitas` e o subtítulo `Fichas técnicas, insumos, componentes e unidades usadas na produção.`
+- Escopo: alterei apenas o cabeçalho principal para refletir a hierarquia correta pedida pelo usuário.
+
+## 2026-05-09 — Produção com cabeçalho restaurado e contexto de Configurações
+- Arquivos alterados: `js/modules/receitas.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: restabeleci o cabeçalho principal do módulo como `Produção` com a hierarquia visual de `Produtos` e reintroduzi o rótulo `Configurações` no bloco das configurações.
+- Escopo: mantive a navegação e as listas internas; alterei apenas o topo e o contexto textual da área de configuração.
+
+## 2026-05-09 — Cabeçalho textual removido da tela principal de Produção
+- Arquivos alterados: `js/modules/receitas.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: removi o bloco textual superior da tela principal de `Produção`, eliminando label, título e subtítulo visíveis no topo.
+- Escopo: mantive a navegação e o conteúdo interno do módulo; alterei apenas o cabeçalho visual da página.
+
+## 2026-05-09 — Produção com hierarquia tipográfica alinhada a Produtos
+- Arquivos alterados: `js/modules/receitas.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: alinhei a hierarquia tipográfica do topo de `Produção` ao padrão de `Produtos`, mantendo label, título e subtítulo no mesmo ritmo visual.
+- Escopo: alterei apenas a copy do subtítulo e preservei a estrutura atual da tela.
+
+## 2026-05-09 — Produção sem abas e título atualizado
+- Arquivos alterados: `js/modules/receitas.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: removi a visão em abas do módulo de Produção e atualizei o título visível do módulo para `Produção`.
+- Escopo: mantive as telas internas e a navegação por rota para compatibilidade; alterei apenas a apresentação principal do módulo.
+
+## 2026-05-09 — Produção > Configurações alinhada ao padrão de Cardápio
+- Arquivos alterados: `js/modules/receitas.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: removi o card extra de cabeçalho da área de `Configurações` em Produção e alinhei os botões de ação à esquerda, seguindo o mesmo padrão visual usado em `Cardápio > Configurações`.
+- Escopo: mantive a navegação, as listas e os modais; alterei apenas a estrutura visual dos blocos de configuração.
+
+## 2026-05-09 — Botão de Tags alinhado à esquerda em Configurações
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: reposicionei o botão `+ Adicionar tag` para o lado esquerdo da tela, no mesmo alinhamento visual usado em `Variantes`.
+- Escopo: mantive a lógica do modal e a listagem; alterei apenas o alinhamento da ação no topo da aba.
+
+## 2026-05-09 — Emojis removidos dos estados vazios de Configurações
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: removi os emojis dos estados vazios das abas `Categorias`, `Variantes` e `Tags` em `Cardápio > Configurações`.
+- Escopo: mantive as mensagens de vazio e a estrutura das abas; alterei apenas a apresentação visual do empty state.
+
+## 2026-05-09 — Botão de Tags alinhado ao padrão de Configurações
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: alinhei o botão de `Tags` ao mesmo padrão usado em `Categorias` e `Variantes`, com botão textual `+ Adicionar tag` no mesmo tamanho e linguagem visual.
+- Escopo: mantive a lógica de abertura do modal e a listagem das tags; alterei apenas a ação visível do topo.
+
+## 2026-05-09 — Cabeçalho de Tags removido em Cardápio > Configurações
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: removi o cabeçalho textual da tela de `Tags` em `Cardápio > Configurações` e converti a ação de nova tag para um botão compacto com ícone.
+- Escopo: mantive a lista, os botões de editar/excluir e a lógica de cadastro; alterei apenas a copy visível do topo.
+
+## 2026-05-09 — Cabeçalho de Grupos de Variantes removido em Cardápio > Configurações
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: removi o texto de cabeçalho da tela de `Grupos de Variantes` dentro de `Cardápio > Configurações`.
+- Escopo: mantive a estrutura, a lista e as ações da tela; alterei apenas a copy visível do topo.
+
+## 2026-05-09 — Cabeçalho de Categorias removido em Cardápio > Configurações
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: removi os textos `Configurações`, `Categorias` e a descrição do bloco de cabeçalho na tela de `Categorias` dentro de `Cardápio > Configurações`.
+- Escopo: a estrutura e as ações da tela foram mantidas; alterei apenas a copy visível do cabeçalho.
+
+## 2026-05-09 — Receitas com filtros e paginação no padrão de Insumos
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: alinhei a aba `Receitas` ao mesmo padrão aplicado em `Insumos`, com campos do filtro mais compactos, paginação dentro do card e listagem com borda externa.
+- Leitura visual: a tela ficou mais consistente com o padrão das demais tabelas premium do módulo, sem mexer na lógica de receitas.
+
+## 2026-05-09 — Insumos com filtros e paginação no padrão de Receitas
+- Arquivos alterados: `js/modules/compras.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: compacteis os campos do filtro de `Insumos` para caberem em uma linha, movi a paginação para dentro do card de filtros e deixei a listagem com borda completa.
+- Leitura visual: a área de `Insumos` agora fica mais próxima da composição usada em `Receitas`, sem duplicar controles de paginação.
+
+## 2026-05-09 — Insumos sem imagem e filtro no padrão de Receitas
+- Arquivos alterados: `js/modules/compras.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: removi a imagem da listagem de `Insumos` e reacomodei o card de filtros para seguir mais de perto o padrão visual da aba `Receitas`.
+- Leitura visual: a listagem ficou mais limpa e o filtro perdeu aparência de formulário pesado, sem alterar a lógica de busca ou paginação.
+
+## 2026-05-09 — Insumos igualados ao padrão de Receitas
+- Arquivos alterados: `js/modules/compras.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: alinhei o filtro e a listagem de `Insumos` ao mesmo padrão visual de `Receitas`, removendo rótulos visíveis no card de filtro e trocando o cabeçalho da tabela para o estilo branco com títulos em maiúsculas.
+- Leitura visual: a tela ficou mais limpa, mais próxima da composição usada em `Receitas`, sem alterar a lógica de cadastro ou filtragem.
+
+## 2026-05-09 — Insumos alinhados ao padrão visual de Produtos
+- Arquivos alterados: `js/modules/compras.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: reestruturei a aba `Insumos` para seguir o mesmo padrão visual da aba `Produtos`, com cabeçalho limpo, barra de filtros premium e tabela em cards brancos com hover suave.
+- Modais: o modal de `Editar Insumo` e os cadastros de `Produto/Insumo` ficaram com cards brancos, sombra leve e organização mais próxima do padrão de produto.
+
+## 2026-05-09 — Modal Editar Receita alinhado ao padrão de Editar Produto
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: reestruturei o modal `Editar Receita` para seguir o mesmo padrão visual do modal de `Editar Produto`, com cards brancos, títulos simples, sombras suaves e largura maior.
+- Organização: removi a numeração das seções e deixei a hierarquia visual mais próxima da usada em `Produtos`.
+
+## 2026-05-09 — Receitas sem KPIs e com listagem mais fiel a Produtos
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: removi os cards de KPI da aba `Receitas` e simplifiquei a superfície da página para seguir o padrão da tela `Produtos`.
+- Listagem: a tabela de receitas foi aproximada da linguagem visual de `Produtos`, com cabeçalho em maiúsculas, linha separadora fina, ações discretas e busca em card branco.
+
+## 2026-05-09 — Receitas alinhadas ao padrão visual de Produtos
+- Arquivos alterados: `js/modules/catalogo.js`, `js/modules/receitas.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: levei a aba `Receitas` para o mesmo padrão visual da aba `Produtos`, com listagem em tabela premium, métricas no topo, busca em card limpo e ações mais discretas.
+- Modais: o resumo e a edição da receita foram refeitos com cards brancos, sombra suave e hierarquia tipográfica mais consistente.
+
+## 2026-05-09 — Avaliações: modal e listagem no padrão de Produtos
+- Arquivos alterados: `js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: alinhei o modal `Resumo da Avaliação` ao mesmo padrão visual do modal de editar produto, com cards brancos, sombra suave, campos em coluna e ações de moderação mais claras.
+- Listagem: reorganizei os cards de avaliações para leitura vertical, com títulos, campos em coluna, chips discretos e botões `Aprovar` e `Rejeitar` com cores específicas.
+
+## 2026-05-09 — Produtos em destaque conectados ao template público
+- Arquivos alterados: `js/modules/catalogo.js`, `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: adicionei o campo `Selecionar para destaque` no cadastro de produto, gravei o flag `featured` no produto e conectei a listagem ao mesmo estado de destaque.
+- Template público: a seção de destaques da vitrine agora pode usar automaticamente os produtos marcados no cadastro quando o toggle `Usar produtos marcados para destaque` estiver ativo.
+
+## 2026-05-09 — Aba Template da loja atualizada
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: atualizei a aba `Template da loja` para seguir o novo padrão visual do painel, com cards brancos, bordas suaves, sombras premium leves, tipografia mais contida e preview da loja alinhado ao restante do sistema.
+
+## 2026-05-09 — Listagem de produtos alinhada ao padrão do painel
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: refinei a listagem de `Produtos` para ficar mais alinhada ao padrão visual atual do painel, com linhas mais suaves, hover discreto, chips e textos secundários mais consistentes e cards de grade com acabamento mais premium.
+
+## 2026-05-09 — Modal de produto sem preview do cliente
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: removi a coluna de `Preview do cliente` do modal de edição de produto, deixando o formulário ocupar a largura completa sem alterar a lógica de edição.
+
+## 2026-05-09 — KPI de Avaliações igualado ao KPI de Produtos
+- Arquivos alterados: `js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: alinhei o KPI da aba `Avaliações` ao mesmo molde visual do KPI de `Produtos`, com a mesma caixa, ícone, tipografia, peso e proporção.
+
+## 2026-05-09 — Cardápio > Avaliações alinhado ao padrão exato de Produtos
+- Arquivos alterados: `js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: refinei novamente a aba `Avaliações` para seguir com mais fidelidade o padrão visual da tela `Produtos`, ajustando KPI, filtros, chips, cards e modal com as mesmas superfícies, pesos e bordas usadas no módulo `Cardápio`.
+- Compatibilidade: mantive a lógica de moderação e carregamento das avaliações intacta; o trabalho foi apenas de refinamento visual.
+
+## 2026-05-09 — Cardápio > Avaliações no novo design system
+- Arquivos alterados: `js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: atualizei a aba `Avaliações` do `Cardápio` para seguir o novo BocaFood Design System, com tipografia Manrope, superfícies brancas, bordas suaves, sombras premium leves e chips/botões discretos.
+- Escopo visual: refinei o carregamento, o cabeçalho, os KPIs, os filtros, as cards de avaliação e o modal de detalhe sem mexer na lógica de moderação.
+
+## 2026-05-09 — SEO separado em comercial e técnico
+- Arquivos alterados: `js/modules/catalogo.js`, `master.html`, `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: reorganizei `Cardápio > SEO da loja` para exibir apenas campos comerciais para a usuária, com cards de `Aparência no Google`, `SEO local`, `Compartilhamento` e `Status técnico` somente leitura.
+- Master: movi o bloco `SEO técnico da loja` para o modal de cada tenant, mantendo slug, canonical, robots, sitemap, schema e status de publicação dentro do cadastro do tenant.
+- Publicação: a loja pública agora carrega `config/seoTechnical` além de `config/seo`, mantendo compatibilidade com os dados antigos e preparando o fluxo técnico separado.
+
+## 2026-05-09 — Card principal mobile: logo com fundo branco
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: no mobile, o logo do card principal voltou ao visual anterior com fundo branco circular e borda/sombra, mantendo a versão desktop sem moldura.
+
+## 2026-05-09 — Card WhatsApp da loja em coluna uniforme
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: reorganizei o card `WhatsApp da loja` para exibir `Texto ao passar o mouse` e `Mensagem do botão flutuante do WhatsApp` um abaixo do outro, com a mesma largura visual.
+
+## 2026-05-09 — Card Mais informações em coluna uniforme
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: reorganizei o card `Mais informações` no Template da loja para exibir os campos um abaixo do outro, todos com a mesma largura e limite visual consistente.
+
+## 2026-05-09 — Logo do card principal sem moldura
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: removi fundo, borda, padding, raio e sombra do logo do card principal da loja pública nas variações desktop/mobile, preservando transparência de PNG/WebP/SVG quando houver.
+
+## 2026-05-09 — Logo do menu superior sem moldura
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: removi fundo, borda, padding e recorte do logo inserido no menu superior da loja pública, preservando transparência de PNG/WebP/SVG quando houver.
+
+## 2026-05-09 — Loja pública: favicon do Template e logo no menu superior
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: a loja pública agora prioriza `config/template.faviconUrl` e `config/template.logoUrl` ao carregar o tenant, garantindo que as imagens subidas no Template sejam usadas antes dos valores antigos de `geral`.
+- Menu superior: inseri o logo no início da navegação superior, à esquerda dos textos do menu, usando fallback visual se a imagem falhar.
+
+## 2026-05-09 — Template da loja: card Mais informações
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: renomeei o card `Textos institucionais` para `Mais informações`, atualizei o subtítulo e reorganizei os campos em duas linhas: `Sobre a loja` maior com `Aviso importante` menor, depois `Política de entrega` e `Política de cancelamento`.
+- Compatibilidade: removi o campo visível `Texto de rodapé` do card, mantendo o valor em campo oculto para preservar a lógica de salvamento existente e não apagar dados já salvos.
+
+## 2026-05-09 — WhatsApp flutuante: texto do hover editável
+- Arquivos alterados: `js/modules/catalogo.js`, `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: adicionei no card `WhatsApp da loja` o campo `Texto ao passar o mouse`, persistido como `whatsappTooltip`/`whatsappFloatingLabel`. A loja pública aplica esse texto no balão e no `title` do botão flutuante, com fallback seguro quando vazio.
+
+## 2026-05-09 — Template da loja: Finalização do pedido e WhatsApp separados
+- Arquivos alterados: `js/modules/catalogo.js`, `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: separei o antigo card `Finalização do pedido` em dois cards: checkout/carrinho e `WhatsApp da loja`, movendo a mensagem do botão flutuante para o novo card.
+- Integração: a loja pública agora usa `whatsappMessage` exatamente no botão flutuante do WhatsApp, com mensagem padrão segura quando vazio. Também aplica `mainButtonText`, `checkoutWarning`, `allowCustomerNote` e `allowCoupon` no carrinho/checkout.
+
+## 2026-05-09 — Pagamentos exibidos na loja integrados ao Financeiro
+- Arquivos alterados: `js/modules/catalogo.js`, `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: o card `Pagamentos exibidos na loja` agora lista as formas cadastradas em `Configurações > Financeiro`, com toggle por forma para definir disponibilidade na loja e campo opcional de instruções adicionais por opção.
+- Integração: a loja pública usa apenas os métodos ativos, exibe as instruções da opção selecionada no checkout e grava pedidos com `paymentMethod` e `paymentInstructions`, além de manter `payment` para compatibilidade.
+
+## 2026-05-09 — Rodapé público: contatos com dados clicáveis
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: os contatos do rodapé agora exibem o rótulo traduzido e o dado real cadastrado no Template da loja dentro do link, em vez de mostrar apenas o nome do canal. WhatsApp, telefone e e-mail usam `wa.me`, `tel:` e `mailto:`; Instagram, Facebook e TikTok exibem usuário/link normalizado e abrem a rede correspondente.
+
+## 2026-05-09 — Template público: texto de retirada/entrega traduzível
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: no bloco abaixo do carrinho, troquei `Recogida en La Rochapea o entrega` por `Recogida o entrega` e converti o texto para `data-i18n`, com traduções para pt-BR, pt-PT, es-ES, en e fr conforme o idioma do template.
+
+## 2026-05-09 — Card principal mobile e endereço de retirada
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: as pílulas `Entrega` e `Recogida/Retirada` do card principal deixam de usar texto compacto no mobile e passam a renderizar o mesmo conteúdo usado no desktop.
+- Retirada: o endereço exibido no carrinho para `Recogida` agora prioriza o endereço cadastrado no `Template da loja > Endereço`, usando bairro/cidade do mesmo card para a linha complementar.
+
+## 2026-05-09 — Retirada: capacidade aplicada ao selecionar e envio sem chave técnica
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: após selecionar `Retirada`, o select de horários agora reaplica imediatamente o filtro de capacidade baseado em pedidos reais, evitando que `fillSlot()` mostre horários já lotados. A mesma reaplicação foi adicionada após validar CEP na entrega.
+- Compatibilidade: a contagem de capacidade também lê pedidos legados/manuais com `slot` ou `slotLabel` quando houver data no texto, além dos campos explícitos de data/hora. A mensagem de horário lotado no envio foi trocada por texto público em espanhol.
+
+## 2026-05-09 — Carrinho: agenda completa e capacidade baseada em pedidos
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: removi os limites artificiais que encerravam a lista de horários após poucos slots, permitindo exibir todos os dias/horários dentro de `maxAdvanceDays`/`advanceDaysLimit`.
+- Capacidade: a disponibilidade de horários agora conta pedidos reais da coleção `orders`, usando `slotKey` ou os campos `deliveryDate`/`deliveryTime`, `pickupDate`/`pickupTime`, `scheduleDate`/`scheduleTime` e `fulfillmentDate`/`fulfillmentTime`, considerando todos os canais e ignorando pedidos cancelados. `orderSlots` permanece apenas como fallback enquanto a leitura de pedidos ainda não carregou.
+- Registro do pedido: pedidos feitos pela loja pública agora gravam `deliveryDate`, `deliveryTime`, `deliveryDateISO`, `scheduleDate`, `scheduleTime`, `fulfillmentDate`, `fulfillmentTime` e, em retirada, também `pickupDate`/`pickupTime`.
+
+## 2026-05-09 — Capacidade e prazos: texto e agendamento com preparo/capacidade
+- Arquivos alterados: `js/modules/catalogo.js`, `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: atualizei o texto de ajuda de `Dias mínimos de antecedência` no card `Capacidade e prazos`. Também ajustei a geração de horários da loja pública para aplicar o tempo de preparo a partir da abertura de cada faixa, impedindo agendamento exatamente no horário de abertura quando há preparo configurado.
+- Capacidade: corrigi `slotToKey()` para aceitar tanto valores do select (`0_10:45`) quanto chaves já normalizadas (`2026-05-09_10:45`), garantindo que o limite de `Pedidos por hora` seja checado e incrementado na mesma chave após a entrada do pedido.
+
+## 2026-05-09 — Template da loja: correção do card Zonas de entrega
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: corrigi o rascunho interno das zonas para que `+ Adicionar zona` renderize uma nova zona vazia imediatamente, `Excluir` peça confirmação e persista a remoção, e o salvamento valide nome, CEPs, valor decimal e duplicidade de CEP apenas entre zonas ativas.
+- Integração preservada: as zonas continuam sendo salvas em `config/template.deliveryZones` e `config/zonas`, com `active` booleano e `deliveryFee` numérico, mantendo a leitura atual da loja pública/carrinho para chips de entrega e cálculo por CEP.
+- Layout: alinhei os campos do card, reduzi o botão `Excluir` e deixei o toggle `Ativa` mais compacto no padrão visual existente.
+
+## 2026-05-08 — Horários e status: uma linha por dia no desktop
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: reorganizei a seção `Horários e status` para que cada dia fique em uma linha horizontal mais compacta no desktop, com `Fechada`, `Abre`, `Fecha`, `2º período`, `Abre 2` e `Fecha 2` no mesmo bloco. O segundo período continua ocultável quando desativado e a lógica/persistência dos horários foi mantida.
+- Escopo preservado: não alterei regras públicas, rotas nem outros cards do template.
+
+## 2026-05-08 — Horários e status: blocos compactos e segundo período mais claro
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: reorganizei a seção `Horários e status` para ficar mais compacta, com linha principal por dia, toggle `Fechada`, toggle `2º período` e segunda linha só quando necessário para `Abre 2` e `Fecha 2`. O estado fechado agora oculta os campos dependentes e os toggles seguem o padrão visual do BocaFood.
+- Escopo preservado: mantive a persistência e a lógica atual dos horários, sem alterar regras públicas nem outros cards.
+
+## 2026-05-08 — Template da loja: card principal com toggles no lugar de checkboxes
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: troquei os controles marcados/desmarcados do card `Card principal da loja` por toggles switch no padrão visual do BocaFood. A mudança é só visual; a persistência e a lógica de exibição continuam iguais.
+- Escopo preservado: não alterei regras do template, dados antigos, nem outros checkboxes do formulário.
+
+## 2026-05-08 — Template da loja: segunda faixa de horário e resumo operacional no topo
+- Arquivos alterados: `js/modules/catalogo.js`, `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: adicionei uma segunda faixa de horário editável no card `Horários e status`, salvei `open2/close2/enabled2` na configuração e passei o template público a ler essa estrutura. Também corrigi o resumo de horários do topo para mostrar horários reais e não repetir o status, além de manter o comportamento no card principal desktop/mobile.
+- Escopo preservado: não alterei rotas, regras de pedido, carrinho nem a estrutura geral do template.
+
+## 2026-05-08 — Template da loja: novo card principal configurável
+- Arquivos alterados: `js/modules/catalogo.js`, `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: criei o card `Card principal da loja` no `Template da loja` para controlar a visibilidade de logo, nome, slogan, botão de informações, localização, status, horário resumido e chips de entrega/retirada. O template público passou a respeitar essas flags no card principal, com fallback seguro para lojas antigas.
+- Escopo preservado: não alterei persistência antiga nem a estrutura geral do template fora do topo principal.
+
+## 2026-05-08 — Template da loja: card de entrega e retirada reorganizado
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: reestruturei o card `Entrega e retirada` em blocos internos para modos de atendimento, capacidade e prazos, configurações da entrega e configurações da retirada. Também renomeei `Dias de antecedência` para `Dias mínimos de antecedência` e adicionei ajuda contextual aos campos.
+- Escopo preservado: mantive a persistência atual, sem refatorar outros módulos nem alterar a lógica de publicação.
+
+## 2026-05-08 — Template da loja: correção do `cfg` indefinido no salvar
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: removi as referências a `cfg` que quebravam `_saveTemplateLoja()` e o preview do favicon no módulo de admin. O salvamento agora usa apenas estado local do template e configs carregadas do próprio admin, eliminando o `ReferenceError` no botão salvar.
+- Escopo preservado: não alterei rotas, persistência, dados antigos nem a estrutura geral do formulário.
+
+## 2026-05-08 — Template da loja: salvar reforçado por delegação no root
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: adicionei delegação de clique no `catalogo-root` para os botões de salvar do `Template da loja` e do `SEO`, reduzindo a dependência de listeners atrelados ao conteúdo re-renderizado.
+- Escopo preservado: não alterei persistência, rotas, dados nem o conteúdo do formulário.
+
+## 2026-05-08 — Template da loja: salvar reativado com listener explícito
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: removi a dependência do `onclick` inline dos botões de salvar do `Template da loja` e do `SEO`, substituindo por listeners explícitos após o render. Isso reativa o clique mesmo quando o conteúdo é re-renderizado dinamicamente.
+- Escopo preservado: não alterei persistência, rotas, dados nem a lógica de salvamento.
+
+## 2026-05-08 — Entrega e retirada: limite de antecedência para pedidos
+- Arquivos alterados: `index.html`, `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: adicionei `Dias de antecedência` em `Entrega e retirada` e passei a considerar esse limite na geração dos horários, na validação do carrinho e no envio final do pedido. Os slots agora respeitam a antecedência máxima configurada.
+- Escopo preservado: mantive o restante da lógica de entrega, retirada, capacidade por hora e pedido mínimo sem refatoração fora do escopo.
+
+## 2026-05-08 — Template da loja: botão salvar blindado contra submit acidental
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: converti os botões de salvar do `Template da loja` e do `SEO` para `type="button"` e passei o clique a retornar `false`, evitando submit acidental ou comportamento de formulário implícito.
+- Escopo preservado: não alterei persistência, rotas, dados nem a lógica de salvamento em si.
+
+## 2026-05-08 — Entrega e retirada: horários agora consideram preparo, entrega e capacidade por hora
+- Arquivos alterados: `index.html`, `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: adicionei `Pedidos por hora` na seção `Entrega e retirada`, centralizei a leitura do pedido mínimo e passei a calcular os horários disponíveis com base no tempo médio de preparo e no tempo médio de entrega. A ocupação dos slots agora é controlada por hora.
+- Escopo preservado: não alterei rotas, persistência global, outros módulos nem a lógica do carrinho fora da regra de disponibilidade de horários.
+
+## 2026-05-08 — Carrinho: mínimo do pedido centralizado nas regras de entrega
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: centralizei a leitura do valor de pedido mínimo com fallback entre `minimumDeliveryOrder` e `minDeliveryOrder`, apliquei essa regra no carrinho, no aviso visual e na validação de envio do pedido.
+- Escopo preservado: mantive pickup sem bloqueio por mínimo, sem alterar persistência, rotas ou outros módulos.
+
+## 2026-05-08 — Entrega e mobile: taxa removida, tempos em select e chips ajustados
+- Arquivos alterados: `js/modules/catalogo.js`, `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: removi `Taxa de entrega padrão` da seção `Entrega e retirada`, transformei `Tempo médio de preparo` e `Tempo médio de entrega` em listas selecionáveis e reativei no mobile o chip de `Pedido mínimo` junto com o chip de preparo no card principal.
+- Escopo preservado: mantive compatibilidade com dados antigos e não alterei outros módulos nem a lógica geral da loja.
+
+## 2026-05-08 — Template da loja: Identidade visual antes do topo
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: reordenei a seção do `Template da loja` para exibir `Identidade visual` como primeiro card, antes de `Topo da loja`, sem alterar os campos ou a persistência.
+- Escopo preservado: mantive intactos os demais blocos do formulário e a lógica de salvamento.
+
+## 2026-05-08 — Identidade visual: descrição da loja removida da seção
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: removi o campo `Descrição da loja` da seção `Identidade visual` para manter o bloco focado apenas nos dados visuais e públicos realmente usados no template.
+- Escopo preservado: mantive a persistência compatível, sem alterar regras globais, módulos não relacionados ou o restante do template público.
+
+## 2026-05-08 — Público: hover do botão Mais informações em vermelho claro
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: ajustei o hover do botão `Más información`/`Mais informações` nas duas versões para um vermelho claro suave, mantendo o estado normal neutro.
+- Escopo preservado: não alterei lógica, dados, desktop/mobile além do estilo do botão, nem outros componentes do template.
+
+## 2026-05-08 — Público mobile: card principal mais branco e título mais próximo da logo
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: deixei o card principal mobile mais branco, reduzi a presença do degradê e aproximei um pouco mais o título da logo para reforçar a hierarquia visual.
+- Escopo preservado: não alterei desktop, lógica, dados, tenant, carrinho, pedidos, WhatsApp, idioma nem a estrutura geral do template.
+
+## 2026-05-08 — Público mobile: card principal branco com degradê leve
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: deixei o card principal mobile mais branco com degradê suave, subi um pouco o bloco, aproximei o título da logo e aumentei a presença visual da logo.
+- Escopo preservado: não alterei desktop, lógica, dados, tenant, carrinho, pedidos, WhatsApp, idioma nem a estrutura geral do template.
+
+## 2026-05-08 — Público mobile: nome público e frase curta no card principal
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: reexibi no card principal mobile o nome público da loja e a frase curta abaixo da logo, com o nome recebendo mais destaque para ficar mais próximo da hierarquia usada no desktop.
+- Escopo preservado: não alterei a lógica de dados, persistência, desktop, Admin, carrinho, pedidos, WhatsApp nem a composição dos demais blocos do template.
+
+## 2026-05-08 — Identidade visual: logo e favicon com previews ajustados
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: reorganizei os cards de imagem da seção `Identidade visual` para que a logo tenha preview maior em `contain`, sem corte, e o favicon fique menor e mais técnico.
+- Preview contextual: acrescentei uma mini aba do navegador no card de favicon para mostrar onde o ícone aparece, mantendo a imagem inteira no preview.
+- Escopo preservado: não alterei regras globais, outros módulos nem a persistência além do necessário para manter logo e favicon conectados ao template público.
+
+## 2026-05-08 — Identidade visual: idioma e favicon no template da loja
+- Arquivos alterados: `js/modules/catalogo.js`, `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: limpei a seção `Identidade visual` removendo campos que não pertencem ao template público, inclusive cores, troquei o idioma principal por select com opções `pt-BR`, `es-ES`, `en-US` e `ca-ES`, adicionei favicon com upload/URL e conectei logo e favicon ao template público.
+- Orientação de mídia: incluí notas de tamanho recomendado para logo e favicon, sem bloquear o usuário por dimensões exatas.
+- Escopo preservado: mantive compatibilidade com dados antigos, sem alterar regras globais de tenant, rotas, Firebase ou módulos não relacionados.
+
+## 2026-05-08 — Template da loja: vitrine com busca nos 3 destaques
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: substituí os três selects simples de `Produto destacado 1/2/3` por comboboxes pesquisáveis, mantendo o salvamento dos mesmos IDs e ordenando a lista de produtos em ordem alfabética.
+- Escopo preservado: não alterei rotas, permissões, persistência global nem o restante do layout da seção.
+
+## 2026-05-08 — Mobile público: nome dos destaques menos bold
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: reduzi o peso do nome dos produtos no carrossel de `Destacados` no mobile para deixá-lo mais leve e coerente com a hierarquia da primeira dobra.
+- Escopo preservado: não alterei desktop, lógica, dados, carrinho, traduções nem estrutura do template.
+
+## 2026-05-08 — Mobile público: primeira dobra com Inter e hierarquia ajustada
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: alinhei a primeira dobra do template público mobile com a família `Inter`, reduzi o peso das infos pequenas, deixei o card principal mais quente e elegante e preservei o CTA vermelho como foco principal.
+- Escopo preservado: não alterei desktop, lógica, persistência, traduções ou estrutura geral do template.
+
+## 2026-05-08 — Destaque comercial: promoção com mais presença
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: aumentei a presença tipográfica do contexto e do benefício no card `Promoção ativa` para reforçar a leitura comercial sem ampliar excessivamente a altura do card.
+- Escopo preservado: mantive a lógica funcional, a persistência, as traduções, a seleção da promoção e o restante do destaque comercial intactos.
+
+## 2026-05-08 — Destaque comercial: contexto da promoção alinhado ao ícone
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: aumentei o texto de contexto do card `Promoção ativa` e o alinhei visualmente com o ícone do card para que ambos ocupem a mesma faixa de altura.
+- Escopo preservado: mantive a lógica funcional, a persistência, as traduções, a seleção da promoção e o restante da composição do topo.
+
+## 2026-05-08 — Destaque comercial: contexto da promoção maior e em preto
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: aumentei o texto de contexto do card `Promoção ativa` e o coloquei em preto para dar mais presença sem competir com o benefício principal.
+- Escopo preservado: mantive a lógica funcional, a persistência, as traduções, a seleção da promoção e o restante do destaque comercial intactos.
+
+## 2026-05-08 — Destaque comercial: informação secundária da promoção em preto
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: deixei a informação secundária do card `Promoção ativa` em preto/neutro para reduzir ruído cromático e reforçar a hierarquia visual.
+- Escopo preservado: mantive a lógica funcional, a persistência, as traduções, a seleção da promoção e o restante do destaque comercial intactos.
+
+## 2026-05-08 — Destaque comercial: promoção com vermelho concentrado no CTA
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: reduzi o vermelho no card `Promoção ativa`, deixando a cor forte concentrada no CTA e suavizando ícone, texto de contexto e benefício para um visual mais leve e sofisticado.
+- Escopo preservado: não alterei a lógica funcional, persistência, traduções, seleção da promoção, card principal nem os tipos `Cupom ativo`, `Produto destaque` ou `Produto mais pedido`.
+
+## 2026-05-08 — Destaque comercial: promoção com hierarquia corrigida
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: reordenei o card `Promoção ativa` para priorizar o benefício principal, reduzir o peso do texto de contexto e ocultar o nome da promoção quando ele é genérico ou redundante.
+- Escopo preservado: mantive a lógica funcional, a persistência, as traduções, a seleção da promoção e os demais tipos do destaque comercial.
+
+## 2026-05-08 — Destaque comercial: promoção compactada e isolada
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: reduzi a altura e o peso visual do card `Promoção ativa`, mantive a hierarquia comercial e separei estruturalmente o card lateral do card principal para evitar interferência no topo.
+- Escopo preservado: não alterei a lógica de promoção, tradução, persistência, cupom, produto destaque ou produto mais pedido.
+
+## 2026-05-08 — Destaque comercial: cupom e promoção sem título duplicado
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: removi a repetição do título de conversão no card `Cupom ativo` e apliquei a mesma regra ao card `Promoção ativa`, exibindo o nome complementar só quando ele realmente agrega informação.
+- Escopo preservado: mantive a lógica de aplicação do cupom e da promoção, sem alterar tradução, persistência, rotas, Firebase ou os tipos `Produto destaque` e `Produto mais pedido`.
+
+## 2026-05-08 — Destaque comercial lateral e topo ajustados
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: refinei a composição superior do template público para aproximar o card principal do destaque lateral, reduzir o vazio entre os blocos e deixar os cards de `Produto destaque` e `Produto mais pedido` com imagem à esquerda e conteúdo à direita, em formato mais compacto e comercial.
+- Escopo preservado: mantive os demais tipos do destaque comercial, sem alterar Firebase, rotas, carrinho, dados ou regras de publicação.
+
+## 2026-05-08 — Destaque comercial: promoção ativa refinada
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: complementei o card do destaque comercial para o tipo `Promoção ativa`, com título de conversão por idioma, resumo curto da promoção, benefício principal em destaque e informação compacta sobre produtos participantes.
+- Escopo preservado: mantive o comportamento dos tipos `Produto destaque` e `Produto mais pedido`, sem mexer em rotas, Firebase, carrinho, regras de promoção ou publicação.
+
+## 2026-05-08 — Destaque comercial: título e card de produto refinados
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: adicionei fallback de título por idioma para os tipos `Produto destaque` e `Produto mais pedido`, ampliei o suporte de tradução do campo de título do card e renderei o card público de produto com imagem, nome, descrição curta e preço com foco em conversão.
+- Escopo preservado: mantive a estrutura de dados existente, sem alterar rotas, Firebase, carrinho ou regras dos outros tipos do destaque comercial.
+
+## 2026-05-08 — Desktop público: hierarquia tipográfica refinada
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: suavizei a hierarquia tipográfica do desktop, reduzindo bold excessivo em títulos, badges, preços, CTAs e textos auxiliares para deixar o template mais leve e sofisticado.
+- Escopo preservado: não alterei mobile, lógica, dados, tenant, carrinho, pedidos, WhatsApp nem idioma.
+
+## 2026-05-08 — Mobile público: hierarquia tipográfica refinada
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: suavizei a hierarquia tipográfica do mobile, reduzindo bold excessivo em títulos, chips, preços, CTAs e textos auxiliares para deixar o template mais leve e sofisticado.
+- Escopo preservado: não alterei desktop, lógica, dados, tenant, carrinho, pedidos, WhatsApp nem idioma.
+
+## 2026-05-08 — Mobile público: card principal com mais profundidade
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: adicionei mais profundidade visual ao card principal mobile da loja com sombra mais sofisticada, camada interna sutil, brilho quase imperceptível e acento cálido no topo.
+- Chips e hierarquia: ajustei a organização dos chips e a integração do botão `Más información` para reforçar o bloco principal da loja sem poluir o layout.
+- Observação: Refinamento visual do card principal mobile da loja.
+- Escopo preservado: não alterei desktop, lógica, dados, tenant, carrinho, pedidos, WhatsApp nem idioma.
+
+## 2026-05-08 — Mobile público: card principal da loja refinado
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: refinei somente o card principal mobile da loja com logo maior, fundo off-white com degradê sutil, borda fina, sombra leve e chips mais organizados.
+- Destaque visual: o chip de status `Cerrado temporalmente` ganhou fundo vermelho suave e texto em vermelho mais escuro, mantendo a estética premium.
+- Observação: Refinamento visual do card principal mobile da loja.
+- Escopo preservado: não alterei desktop, lógica, dados, tenant, carrinho, pedidos, WhatsApp, idioma nem outras áreas da página além do necessário para esse card.
+
+## 2026-05-08 — Mobile público: preços realmente em preto
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: sobrescrevi no bloco mobile os preços que ainda podiam herdar o vermelho base, deixando-os em preto/quase preto com peso mais contido.
+- Áreas afetadas: preço dos cards de produtos, preço dos destaques, preço da oferta e total grandioso do carrinho/resumo.
+- Escopo preservado: não alterei desktop, Admin, Firebase, rotas, estrutura de dados nem comportamento de compra.
+
+## 2026-05-08 — Mobile público: preços em preto
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: sobrescrevi os preços do mobile para preto/quase preto, com peso mais contido e leitura mais sofisticada.
+- Áreas afetadas: preço dos cards de produtos, preço dos destaques, preço da oferta e total grandioso do carrinho/resumo.
+- Escopo preservado: não alterei desktop, Admin, Firebase, rotas, estrutura de dados nem comportamento de compra.
+
+## 2026-05-08 — Mobile público: preços em preto e mais elegantes
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: apliquei no mobile o mesmo tratamento visual dos preços já usado no desktop, com preto/quase preto, leve aumento de tamanho e peso mais contido.
+- Áreas afetadas: preço dos cards de produtos, preço dos destaques, preço da oferta e total grandioso do carrinho/resumo.
+- Escopo preservado: não alterei desktop, Admin, Firebase, rotas, estrutura de dados nem comportamento de compra.
+
+## 2026-05-08 — Desktop público: preços em preto e mais elegantes
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: ajustei os preços visíveis do desktop para preto/quase preto, com leve aumento de tamanho e peso mais contido, buscando uma leitura mais sofisticada.
+- Áreas afetadas: preço dos cards de produtos, preço dos destaques, preço da oferta e total grandioso do carrinho/resumo.
+- Escopo preservado: não alterei mobile, Admin, Firebase, rotas, estrutura de dados nem comportamento de compra.
+
+## 2026-05-08 — Desktop público: visual neutro quente e premium
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: refinei somente a versão desktop do template público com base off-white/bege claro, cards brancos, bordas neutras, sombras suaves, tipografia menos pesada e mais respiro visual.
+- Áreas ajustadas: header, banner/hero, card da loja, destaque comercial, barra de categorias/busca, cards de produtos/destaques, card do pedido e WhatsApp flutuante.
+- Observação: Ajuste visual desktop do template público; vermelho mantido apenas como cor de ação.
+- Escopo preservado: não alterei mobile, Admin, Firebase, rotas, estrutura de dados, pedidos, carrinho, WhatsApp, tenant nem regras de negócio.
+
+## 2026-05-08 — Público mobile: links em carrosséis voltam a abrir
+- Módulo afetado: Cardápio > Template da loja > template público mobile.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: removi a captura de ponteiro dos carrosséis mobile e adicionei fallback delegado com `data-*` para cards de `Destacados`, barra de categorias e abas do modal `Más información`.
+- Comportamento esperado: toque em card de destaque abre o produto, toque em categoria navega para a seção e toque nas abas do modal troca o conteúdo; o arraste horizontal continua disponível.
+- Escopo preservado: não alterei desktop, Admin, Firebase, rotas, estrutura de dados nem a lógica de carrinho/produtos.
+
+## 2026-05-08 — Público: promoção fecha modal antes de navegar
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: no modal `Promociones activas`, o botão da promoção agora fecha explicitamente o painel antes de renderizar e rolar para a listagem de produtos vinculados.
+- Comportamento esperado: em desktop e mobile, o modal deixa de permanecer aberto após o clique e o cliente é levado para a seção filtrada da promoção.
+- Escopo preservado: não alterei Admin, Firebase, rotas, estrutura de dados nem a lógica de promoções/produtos.
+
+## 2026-05-08 — Público mobile: taps preservados em áreas arrastáveis
+- Módulo afetado: Cardápio > Template da loja > template público mobile.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: corrigi a sensibilidade dos handlers de arraste mobile para não bloquear taps nos cards de `Destacados`, nas abas do modal `Más información` e na barra de categorias.
+- Comportamento esperado: toque simples abre o produto, troca abas do modal e navega por categoria; arraste horizontal continua funcionando quando há deslocamento real.
+- Escopo preservado: não alterei desktop, Admin, Firebase, rotas, estrutura de dados nem a lógica de produto/carrinho.
+
+## 2026-05-08 — Público mobile: refinamento visual do topo e produtos
+- Módulo afetado: Cardápio > Template da loja > template público mobile.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: refinei somente a versão mobile do card principal da loja e dos cards da listagem de produtos, mantendo a estrutura geral e a lógica existentes.
+- Card principal: mantive a logo redonda centralizada, preservei o botão de informações abaixo dela, deixei o subtítulo fora do layout mobile e organizei os chips em linhas mais leves com localização/status, retirada/entrega e tempo de preparação.
+- Cards de produtos: suavizei pesos tipográficos, sombras, tags promocionais e botões de quantidade/adicionar, mantendo a composição com imagem e a hierarquia entre título, descrição, preço e CTA.
+- Escopo preservado: não alterei desktop, Admin, Firebase, rotas, estrutura de dados nem handlers de produto/carrinho.
+
+## 2026-05-08 — Público mobile: arraste do carrossel Destacados
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: adicionei handler de arraste por ponteiro na vitrine mobile `Destacados`, permitindo arrastar horizontalmente sobre os cards e imagens.
+- Comportamento preservado: o clique no card continua abrindo o produto e o clique nos botões de quantidade continua funcionando; o clique só é suprimido quando houve arraste real.
+- Escopo preservado: não alterei desktop, Admin, Firebase, rotas, estrutura de dados nem a lógica de renderização dos produtos.
+
+## 2026-05-08 — Público mobile: vitrine Destacados mais legível
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: refinei somente a versão mobile da seção `Destacados`, substituindo os mini cards apertados por uma vitrine horizontal com cards maiores, scroll suave sem barra visível e indicação visual de continuidade.
+- Card mobile: imagem maior, nome limitado a duas linhas, descrição removida do card mobile, preço atual com mais destaque, preço anterior mais discreto e CTA de quantidade/adicionar com melhor respiro no canto inferior direito.
+- Tags promocionais: reduzi peso visual, tamanho e impacto das tags sobre a imagem para manter leitura mais limpa.
+- Escopo preservado: não alterei desktop, Admin, Firebase, rotas, estrutura de dados nem os handlers de clique existentes dos cards.
+
+## 2026-05-08 — Público: cliques do destaque comercial
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: corrigi os CTAs do card `Destaque comercial do topo` para usar handler delegado, dados explícitos no botão (`data-featured-*`) e ação reconstruída após cada render.
+- Comportamento esperado: produto destaque e produto mais pedido abrem a ficha do produto; promoção ativa abre a listagem de produtos vinculados; cupom ativo aplica o cupom e mostra feedback; texto personalizado executa apenas alvo válido.
+- Ajuste complementar: o botão `Ver todos los productos` da listagem filtrada por promoção passou a usar o mesmo padrão delegado, sem duplicar eventos.
+- Escopo preservado: não alterei Admin, Firebase, rotas, estrutura de dados, carrinho, categorias, modal de produto nem modal `Más información`.
+
+## 2026-05-08 — Público mobile: resumo principal da loja mais limpo
+- Módulo afetado: Cardápio > Template da loja > template público mobile.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: reorganizei somente o card principal/resumo da loja no mobile, com logo redonda centralizada no topo, botão `Más información` abaixo da logo e informações distribuídas em três linhas visuais.
+- Conteúdo mobile: o título e subtítulo da loja foram removidos apenas do layout visual mobile; a linha de localização/status, os chips de retirada/entrega e o tempo de preparação continuam usando os textos do idioma ativo do template.
+- Escopo preservado: não alterei Admin, desktop, outros cards, Firebase, rotas nem estrutura de dados.
+
+## 2026-05-08 — Admin: amostras únicas de cor no Topo da loja
+- Módulo afetado: Admin > Cardápio > Template da loja.
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: removi as amostras duplicadas dos campos de cor do Topo da loja, mantendo uma única amostra ao lado de cada input.
+- Prévia mantida: a faixa do banner promocional continua exibindo a combinação final de cor de fundo e cor da letra.
+- Escopo preservado: não alterei loja pública, Firebase, rotas, estrutura de dados nem outros blocos do template.
+
+## 2026-05-08 — Admin: buscas do destaque comercial sem datalist nativo
+- Módulo afetado: Admin > Cardápio > Template da loja.
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: substituí as listas nativas (`datalist`) dos campos de busca do card `Destaque comercial do topo` por um combobox próprio do Admin, com dropdown branco, borda suave, cantos arredondados e sombra discreta.
+- Campos afetados: cupom ativo, promoção ativa, produto destaque e produto mais pedido no modo manual.
+- Comportamento mantido: filtros por tenant, cupons/promoções ativos, seleção do item, fechamento ao selecionar ou clicar fora e mensagem simples quando não há resultados.
+- Escopo preservado: não alterei loja pública, Firebase, rotas, estrutura de dados nem a lógica dos tipos.
+
+## 2026-05-08 — Admin/Público: produto mais pedido com modo automático/manual
+- Módulo afetado: Admin > Cardápio > Template da loja e conexão do destaque no template público.
+- Arquivos alterados: `js/modules/catalogo.js`, `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: no tipo `Produto mais pedido`, adicionei o modo de origem com `Automático pelo histórico de vendas` e `Seleção manual/personalizada`.
+- Modo automático: calcula o produto mais pedido a partir de pedidos reais do tenant e oculta o card no público quando não há histórico válido.
+- Modo manual: usa um único campo `Selecionar produto` com busca por nome na própria lista, mostrando apenas produtos do tenant atual.
+- Card público: usa os dados comerciais do produto definido e mantém CTA automático para abrir a ficha/modal do produto.
+- Escopo preservado: não alterei Firebase, rotas, estrutura de dados nem os demais tipos do destaque.
+
+## 2026-05-08 — Admin/Público: produto destaque com busca na seleção
+- Módulo afetado: Admin > Cardápio > Template da loja e conexão do destaque no template público.
+- Arquivos alterados: `js/modules/catalogo.js`, `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: no tipo `Produto destaque`, removi o campo separado `Buscar produto vinculado` e mantive apenas `Selecionar produto` com lista pesquisável por nome.
+- Card público: o destaque de produto passa a usar dados comerciais do produto selecionado, como nome, copy curta, preço atual/anterior e badge quando houver.
+- Ação do CTA: mantida automática pelo tipo, abrindo a ficha/modal do produto selecionado com o fluxo público já existente.
+- Escopo preservado: não alterei Firebase, rotas, estrutura de dados nem os demais tipos do destaque.
+
+## 2026-05-08 — Admin/Público: promoção do destaque com busca na seleção
+- Módulo afetado: Admin > Cardápio > Template da loja e conexão do destaque no template público.
+- Arquivos alterados: `js/modules/catalogo.js`, `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: no tipo `Promoção ativa`, removi o campo separado `Buscar promoção ativa` e mantive apenas `Selecionar promoção ativa` com lista pesquisável por nome, tipo, descrição e benefício.
+- Card público: a promoção selecionada usa título e benefício comercial traduzidos, sem expor texto técnico ou `produtos vinculados`.
+- Ação do CTA: mantida a abertura da listagem filtrada com todos os produtos da promoção selecionada, sem abrir produto único.
+- Escopo preservado: não alterei Firebase, rotas, estrutura de dados nem os demais tipos do destaque.
+
+## 2026-05-08 — Admin: cupom do destaque com busca na seleção
+- Módulo afetado: Admin > Cardápio > Template da loja.
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: no tipo `Cupom ativo`, removi o campo separado `Buscar cupom ativo` e mantive apenas `Selecionar cupom` com lista pesquisável por código, nome ou título.
+- Fallback: quando não há cupom ativo do tenant, o próprio campo mostra uma mensagem simples de indisponibilidade.
+- Escopo preservado: não alterei loja pública, Firebase, rotas, estrutura de dados nem os demais tipos do destaque.
+
+## 2026-05-08 — Admin/Público: destaque comercial por tipo
+- Módulo afetado: Admin > Cardápio > Template da loja e conexão do template público.
+- Arquivos alterados: `js/modules/catalogo.js`, `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: a lista `Tipo de conteúdo do card` agora controla os campos exibidos para nenhum, cupom, promoção, produto destaque, produto mais pedido e texto personalizado.
+- Ação automática: cupom aplica o código selecionado no carrinho, promoção abre o item/promoção relacionada e produtos abrem o produto escolhido, sem depender de destino manual.
+- Conexão pública revisada: o template público recebe os IDs de cupom/promoção selecionados e o CTA de promoção abre a listagem filtrada com todos os produtos da promoção.
+- Idioma e fallback: os CTAs públicos usam o idioma ativo do template, com fallback seguro quando cupom, promoção ou produto selecionado não existir.
+- Escopo preservado: não alterei Firebase, rotas, coleções ou estrutura global de dados.
+
+## 2026-05-08 — Admin: card de destaque comercial reorganizado
+- Módulo afetado: Admin > Cardápio > Template da loja.
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: reestruturei o card de destaque comercial com toggle visual, bloco interno mais limpo e campos condicionais quando o destaque está ativo.
+- Busca de produto: adicionei busca por nome no campo de produto vinculado, filtrando apenas produtos do tenant atual e preservando o valor selecionado.
+- Conexão pública: o destaque continua ligado ao template da loja pública e some quando desativado ou sem conteúdo válido.
+
+## 2026-05-08 — Admin: banner promocional com prévia única
+- Módulo afetado: Admin > Cardápio > Template da loja.
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: substituí as prévias separadas de cor do banner promocional por uma única faixa de prévia visual com texto de exemplo, mostrando a combinação real entre cor de fundo e cor da letra.
+- Escopo preservado: não alterei Firebase, rotas, estrutura de dados nem a loja pública.
+
+## 2026-05-08 — Admin: prévias de cor e opacidade do template refinadas
+- Módulo afetado: Admin > Cardápio > Template da loja.
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: simplifiquei as prévias de cor para um formato mais compacto, com amostra visual real ao lado do campo e rótulos claros para banner, texto do banner e sobreposição da capa.
+- Ajuste de opacidade: a transparência da sobreposição passou a usar slider com valor visível em %, sincronizado com o campo numérico.
+- Escopo preservado: não alterei Firebase, rotas, estrutura de dados nem a loja pública.
+
+## 2026-05-08 — Público mobile: card-resumo compacto reorganizado
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: reestruturei o card principal da loja no mobile para uma composição mais compacta e horizontal, com logo menor à esquerda, texto ao lado e chips distribuídos abaixo.
+- Escopo preservado: não alterei desktop, banner, menu superior, categorias, vitrine, carrinho, modais, rodapé, Firebase, rotas ou estrutura de dados.
+
+## 2026-05-08 — Público mobile: card-resumo do topo reorganizado
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: reorganizei o card principal da loja no mobile para ficar mais leve, com logo centralizada, título e subtítulo melhor distribuídos e chips do topo mais bem acomodados.
+- Escopo preservado: não alterei desktop, banner, categorias, vitrine, carrinho, modais, rodapé, Firebase, rotas ou estrutura de dados.
+
+## 2026-05-08 — Público mobile: status da loja com cores corretas
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: corrigi o mobile para o chip de status da loja usar as cores corretas de aberto, fechado e fechado temporariamente, sem ser sobrescrito pelo estilo genérico dos chips do hero.
+- Escopo preservado: não alterei desktop, banner, hero, cards, carrinho, modais, rodapé, Firebase, rotas ou estrutura de dados.
+
+## 2026-05-08 — Público mobile: status da loja reativado no resumo
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: reativei no mobile o chip de status do resumo da loja para mostrar corretamente estados como aberta, fechada e fechada temporariamente.
+- Escopo preservado: não alterei desktop, banner, hero, cards, carrinho, modais, rodapé, Firebase, rotas ou estrutura de dados.
+
+## 2026-05-08 — Público mobile: chips do topo reativados no card-resumo
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: reativei no mobile a exibição dos chips do topo dentro do card-resumo, para que `Mostrar cidade/região` e `Mostrar chips de entrega/retirada` voltem a aparecer quando estiverem habilitadas no Admin.
+- Escopo preservado: não alterei desktop, banner, hero, cards, carrinho, modais, rodapé, Firebase, rotas ou estrutura de dados.
+
+## 2026-05-08 — Admin: primeiro card do Topo da loja reorganizado
+- Módulo afetado: Admin > Cardápio > Template da loja.
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: reorganizei o card `Topo da loja` em blocos separados para banner promocional, imagem de capa e elementos visíveis no topo.
+- Ajustes visuais: troquei os checkboxes por toggles visuais, removi labels genéricos de prévia, padronizei os previews de cor e limpei o upload/URL da capa com preview e ação de remover.
+- Escopo preservado: não alterei Firebase, rotas, estrutura de dados nem a loja pública, exceto o vínculo já existente dos campos.
+
+## 2026-05-08 — Público: faixa promocional fixa no topo sem faixa branca
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: tornei a faixa promocional fixa no topo quando ativa, para ela aparecer sobre o banner sem criar uma faixa branca ou espaço vazio acima.
+- Escopo preservado: não alterei banner, hero, cards, carrinho, modais, rodapé, Firebase, rotas ou estrutura de dados.
+
+## 2026-05-08 — Público: faixa promocional reforçada para não cair em branco
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: forcei a faixa promocional do topo a renderizar com fundo sólido e layout flex quando ativa, evitando a aparência de faixa branca mesmo com as cores configuradas no Admin.
+- Escopo preservado: não alterei desktop/mobile fora do topo, nem Firebase, rotas ou estrutura de dados.
+
+## 2026-05-08 — Público: banner promocional volta a aparecer com fallback
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: corrigi a exibição do banner promocional no topo para ele aparecer quando estiver ativado no Admin, mesmo se o texto estiver vazio, usando fallback traduzido.
+- Escopo preservado: não alterei desktop/mobile fora do topo, nem Firebase, rotas ou estrutura de dados.
+
+## 2026-05-08 — Admin: formato de cor do banner promocional padronizado
+- Módulo afetado: Admin > Cardápio > Template da loja.
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: padronizei o seletor da `Cor do banner promocional` para o mesmo formato visual do novo campo de cor da letra do banner promocional, mantendo a experiência consistente.
+- Escopo preservado: não alterei loja pública, Firebase, rotas, estrutura de dados ou outros campos do template.
+
+## 2026-05-08 — Admin: capa da loja com desktop/mobile e promo text color
+- Módulo afetado: Admin > Cardápio > Template da loja.
+- Arquivos alterados: `js/modules/catalogo.js`, `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: removi as opções de resumo da loja sobre a capa e do bloco “Calcular taxa e tempo de entrega”, e passei a abrir a configuração da capa ao ativar “Usar imagem de capa no topo”.
+- Novos campos: upload de capa desktop e mobile, previews enviados, tamanho recomendado, cor da sobreposição, opacidade da sobreposição e cor da letra do banner promocional.
+- Conexão pública: a loja pública agora lê a capa mobile no mobile e a cor do texto do banner promocional, mantendo as demais conexões existentes.
+- Validações realizadas: `node --check` em `js/modules/catalogo.js` e checagem de sintaxe dos scripts inline de `index.html`.
+
+## 2026-05-08 — Admin: remoção do preview lateral do Template da loja
+- Módulo afetado: Admin > Cardápio > Template da loja.
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: removi o preview lateral dessa tela e deixei a área principal ocupar a largura disponível.
+- Escopo preservado: não alterei o preview mobile de `preview-template.html`, nem a loja pública, Firebase, rotas ou estrutura de dados.
+- Validações realizadas: `node --check` em `js/modules/catalogo.js`.
+
+## 2026-05-08 — Mobile: hero encostado no topo
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: subi o hero no mobile para o banner alcançar o topo da página, sem mexer no desktop.
+- Escopo preservado: não alterei desktop, cards, carrinho, modais, rodapé, Firebase, rotas ou estrutura de dados.
+- Validações realizadas: `node -e` para scripts inline do `index.html`.
+
+## 2026-05-08 — Mobile: fundo extra do menu superior removido
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: removi o fundo/área extra do header mobile para deixar visível apenas o card arredondado do menu superior.
+- Escopo preservado: não alterei desktop, banner, hero, cards, carrinho, modais, rodapé, Firebase, rotas ou estrutura de dados.
+- Validações realizadas: `node -e` para scripts inline do `index.html`.
+
+## 2026-05-08 — Mobile: WhatsApp flutuante reposicionado
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: subi um pouco o botão flutuante de WhatsApp no mobile para abrir mais espaço da borda inferior.
+- Ajuste visual: usei a cor oficial do WhatsApp no botão e mantive distância segura da barra flutuante do carrinho.
+- Escopo preservado: não alterei desktop, Firebase, rotas, autenticação, pedidos, carrinho, checkout, estrutura de dados ou o restante do layout.
+- Validações realizadas: `node -e` para scripts inline do `index.html`.
+
+## 2026-05-08 — Mobile: scrollbar da página principal ocultada
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: escondi também a barra de rolagem visível da página principal no mobile, sem bloquear a navegação por toque ou mouse.
+- Escopo preservado: não alterei desktop, Firebase, rotas, autenticação, pedidos, carrinho, checkout, estrutura de dados ou o restante do layout.
+- Validações realizadas: `node -e` para scripts inline do `index.html`.
+
+## 2026-05-08 — Mobile: scrollbars internas ocultas
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: escondi as barras de rolagem visíveis nos painéis e modais internos do mobile, mantendo a rolagem por gesto funcional.
+- Áreas ajustadas: carrinho mobile, modal “Más información”, painel de navegação, sheet de autenticação e áreas internas de conteúdo com scroll.
+- Escopo preservado: não alterei desktop, Firebase, rotas, autenticação, pedidos, carrinho, checkout, estrutura de dados ou o restante do layout.
+- Validações realizadas: `node -e` para scripts inline do `index.html`.
+
+## 2026-05-08 — Mobile: tipografia mais leve e verde sofisticado
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: reduzi o excesso de bold no mobile, principalmente na vitrine, no carrinho e nas áreas de conversão.
+- Paleta visual: troquei o verde do mobile por um tom mais sóbrio e profissional, aplicado em descontos, promoções ativas, economia e mensagens de benefício.
+- Escopo preservado: não alterei desktop, Firebase, rotas, autenticação, pedidos, carrinho, checkout, estrutura de dados ou o restante do layout fora do mobile.
+- Validações realizadas: `node -e` para scripts inline do `index.html`.
+
+## 2026-05-08 — Desktop: tipografia mais leve e verde sofisticado
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: reduzi o excesso de bold no desktop, principalmente na vitrine e no carrinho, para deixar a leitura mais elegante.
+- Paleta visual: troquei o verde do desktop por um tom mais sóbrio e profissional, aplicado em descontos, promoções ativas, economia e estados visuais ligados a benefício.
+- Escopo preservado: não alterei mobile, Firebase, rotas, autenticação, pedidos, carrinho, checkout, estrutura de dados ou o restante do layout fora do desktop.
+- Validações realizadas: `node -e` para scripts inline do `index.html`.
+
+## 2026-05-08 — Desktop: menu superior fixo durante o scroll
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo da correção: tornei o menu superior do desktop fixo no topo durante a rolagem, sem mexer no mobile.
+- Ajuste de layout: reservei espaço no topo do `body` no breakpoint desktop para evitar sobreposição com o conteúdo inicial.
+- Escopo preservado: não alterei mobile, banner, hero, cards, carrinho, modal, rodapé, Firebase, rotas ou estrutura de dados.
+- Validações realizadas: `node -e` para scripts inline do `index.html`.
+
+## 2026-05-08 — Mobile: menu superior corrigido para fixed
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo da correção: ajustei novamente o menu superior do mobile para permanecer visível durante o scroll usando `position: fixed` no breakpoint mobile.
+- Ajuste de layout: reservei espaço no topo do `body` para o menu não cobrir o conteúdo inicial e mantive o visual limpo.
+- Escopo preservado: não alterei desktop, banner, hero, cards, carrinho, modal, rodapé, Firebase, rotas ou estrutura de dados.
+- Validações realizadas: pendente.
+
+## 2026-05-08 — Mobile: menu superior sticky durante o scroll
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: reforcei o comportamento sticky do menu superior no mobile para ele permanecer visível ao rolar a página.
+- Visual mobile: mantive o topo limpo e responsivo, com fundo coerente ao tema do site e sem criar um bloco visual pesado.
+- Escopo preservado: não alterei Firebase, rotas, autenticação, pedidos, carrinho, checkout ou estrutura de dados.
+- Validações realizadas: pendente.
+
+## 2026-05-08 — Modal mobile: abas “Más información” com arraste horizontal
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: habilitei arraste horizontal real nas abas do modal “Más información” no mobile, com suporte a dedo e mouse.
+- Visual mobile: mantive as abas em uma única linha, com rolagem visual oculta e sem quebrar os botões em várias linhas.
+- Escopo preservado: não alterei Firebase, rotas, autenticação, pedidos, carrinho, checkout ou estrutura de dados.
+- Validações realizadas: pendente.
+
+## 2026-05-08 — Template público: categorias mobile com arraste horizontal
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: habilitei arraste horizontal real no menu de categorias do mobile, com suporte a dedo e mouse no preview.
+- Visual mobile: a barra de categorias segue em uma única linha, sem quebrar os pills, e a rolagem visual ficou oculta.
+- Escopo preservado: não alterei Firebase, rotas, autenticação, pedidos, carrinho, checkout ou estrutura de dados.
+- Validações realizadas: pendente.
+
+## 2026-05-08 — Template público: barra mobile mais baixa
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: desci a barra flutuante `Ver carrito` / `Ver pedido` no mobile para ela ficar mais próxima da borda inferior da tela, mantendo uma margem segura.
+- Convivência visual: preservei espaço para não cobrir conteúdo dos cards e mantive a distância segura em relação ao botão flutuante de WhatsApp.
+- Escopo preservado: não alterei Firebase, rotas, autenticação, pedidos, carrinho, checkout ou estrutura de dados.
+- Validações realizadas: pendente.
+
+## 2026-05-08 — Template público: badges mobile sem sobreposição
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: reorganizei as tags e badges dos cards na versão mobile para evitar sobreposição entre selo promocional e tags cadastradas.
+- Layout mobile: as badges agora se comportam em coluna dentro da área da imagem, com quebra natural e espaçamento discreto, sem cobrir texto importante.
+- Escopo preservado: não alterei Firebase, rotas, autenticação, pedidos, carrinho, checkout ou estrutura de dados.
+- Validações realizadas: pendente.
+
+## 2026-05-08 — Template público: i18n e ícones do topo
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: corrigi os textos públicos do carrinho, checkout, botões e navegação para respeitar o idioma ativo do template, reduzindo mistura de idiomas nos fluxos principais.
+- Ícones: troquei o ícone de `Promoções` para porcentagem e o de `Pedidos` para sacola, no topo e na navegação espelhada.
+- Mensagens: ajuste também os toasts de cupom, limite de horário e pontos ganhos para saírem no idioma configurado.
+- Escopo preservado: não alterei Firebase, rotas, autenticação, pedidos, carrinho, checkout ou estrutura de dados.
+- Validações realizadas: pendente.
+
+## 2026-05-08 — Template público: mobile mais limpo
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: removi o menu fixo inferior da versão mobile e limpei a navegação para reduzir poluição visual.
+- Botão `Ver sacola`: ajustei contraste, hover, active e focus para manter a legibilidade do texto.
+- Categorias: o carrossel horizontal agora permite arraste mais fluido, com scrollbar ocultada e indicação visual discreta nas bordas.
+- Modal `Más información`: escondi a barra visual/scrollbar nessa área para deixar a navegação mais limpa no mobile.
+- Escopo preservado: não alterei Firebase, rotas, autenticação, pedidos, carrinho, checkout ou estrutura de dados.
+- Validações realizadas: pendente.
+
+## 2026-05-08 — Template público: header sticky corrigido
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: corrigi o comportamento do menu superior para ele permanecer fixo durante a rolagem, sem depender da sobreposição negativa no próprio header.
+- Integração visual: a compensação visual agora fica no hero/banner, que sobe por trás da barra do topo sem abrir faixa branca.
+- Escopo preservado: não alterei Firebase, rotas, autenticação, pedidos, carrinho ou estrutura de dados.
+- Validações realizadas: pendente.
+
+## 2026-05-08 — Template público: banner ainda mais alto no topo
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: puxei o hero/banner um pouco mais para cima no desktop e no mobile para eliminar o espaço branco restante abaixo da barra do menu.
+- Menu superior: mantive a barra sticky visível ao rolar e reduzi ainda mais a separação visual entre o menu e o banner.
+- Integração visual: o banner continua ocupando o fundo do topo, passando por trás da área de respiro da navegação.
+- Escopo preservado: não alterei Firebase, rotas, autenticação, pedidos, carrinho ou estrutura de dados.
+- Validações realizadas: pendente.
+
+## 2026-05-08 — Template público: topo integrado ao banner
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: subi mais o banner no desktop e no mobile para ele passar por trás da área de respiro do menu do topo, sem criar uma faixa visual separada.
+- Menu superior: a barra sticky agora usa um fundo mais próximo da cor principal do site, reduzindo o efeito de cartão branco solto.
+- Integração visual: mantive o hero ocupando o fundo do topo inteiro e preservei apenas o respiro necessário para a navegação.
+- Escopo preservado: não alterei Firebase, rotas, autenticação, pedidos, carrinho ou estrutura de dados.
+- Validações realizadas: pendente.
+
+## 2026-05-08 — Template público: modal de produto mais leve e sem técnica
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: reduzi o peso tipográfico do modal de produto, compacteio o preço e transformei o bloco promocional em um único card simples e comercial.
+- Copy: removi textos técnicos de promoção do modal e passei a respeitar o idioma ativo do template sem misturar idiomas.
+- Escopo preservado: não alterei Firebase, rotas, autenticação, pedidos, carrinho, checkout ou estrutura de dados.
+- Validações realizadas: scripts inline de `index.html` validados com Node.
+
+## 2026-05-08 — Template público: modal de produto i18n e promo cards
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: reduzi o peso tipográfico do modal de produto e reorganizei o bloco promocional com cartões mais claros para promoção ativa, benefício/economia e condição da oferta.
+- Idioma: a copy do modal agora respeita o idioma ativo do template, sem misturar textos fixos em português/espanhol/inglês/francês.
+- Escopo preservado: não alterei Firebase, rotas, autenticação, pedidos, carrinho, checkout ou estrutura de dados.
+- Validações realizadas: scripts inline de `index.html` validados com Node.
+
+## 2026-05-08 — Template público: topo mais leve
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: reduzi a altura útil do hero/banner no desktop, aumentei o respiro superior do topo e mantive a barra superior fixa/sticky ao rolar.
+- Banner: a imagem continua cobrindo o hero com `background-size: cover` e `background-position: center`, atrás dos cards da loja.
+- Categorias: a barra de categorias ficou mais próxima do hero, sem um vazio grande entre os blocos do topo.
+- Template da loja: os campos de cor e opacidade da sobreposição do banner já ficam disponíveis para configuração e continuam consumidos pelo público.
+- Escopo preservado: não alterei Firebase, rotas, autenticação, pedidos, carrinho ou estrutura de dados.
+- Validações realizadas: scripts inline de `index.html` validados com Node.
+
+## 2026-05-08 — Template público: topo integrado ao banner
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: reduzi a faixa visual separada abaixo do banner promocional, integrei melhor a barra superior ao topo e aumentei a altura útil do hero no desktop para que a imagem de capa ocupe mais espaço.
+- Banner: a imagem de capa continua cobrindo o hero com `background-size: cover` e `background-position: center`, com sobreposição configurável já suportada pelo template.
+- Espaçamento: a barra de categorias ficou mais próxima do hero e a área branca/cinza extra abaixo do banner promocional foi removida.
+- Escopo preservado: não alterei Firebase, rotas, autenticação, pedidos, carrinho ou estrutura de dados.
+- Validações realizadas: scripts inline de `index.html` validados com Node.
+
+## 2026-05-08 — Template público: banner e rodapé
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: ajustei o banner de capa para renderizar a imagem logo abaixo da faixa promocional e da barra superior, sem a camada preta fixa embutida no `backgroundImage`.
+- Personalização: a camada de sobreposição da capa agora tem cor e opacidade configuráveis no template da loja e esses valores são consumidos no público, aceitando percentuais em formato numérico.
+- Rodapé: fixei a cor de fundo do rodapé público em `#991F00`, conforme solicitado.
+- Escopo preservado: não alterei Firebase, rotas, autenticação, pedidos, carrinho ou estrutura de dados.
+- Validações realizadas: `node --check js/modules/catalogo.js`; scripts inline de `index.html` validados com Node.
+
+## 2026-05-08 — Template público: barra superior de utilidades
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: criei a barra superior da loja logo abaixo da faixa promocional opcional, com visual branco, cantos arredondados, sombra suave e links de utilidade para `Promociones` e `Pedidos`.
+- Estados de autenticação: cliente não logado vê `Promociones` e `Entrar/Registrarse`; cliente logado vê `Promociones`, `Pedidos` e avatar; o botão de login fica oculto quando há sessão.
+- Fidelidade: o badge de pontos do topo só aparece quando o cliente está logado e a loja tem programa de fidelidade ativo; sem fidelidade ativa ou sem login, permanece oculto.
+- Responsividade: a barra aparece em desktop e mobile, com navegação horizontal ajustável, sem sobrepor a faixa promocional ou o hero.
+- Escopo preservado: não alterei Firebase, regras, rotas, autenticação, pedidos, estrutura de dados, carrinho ou lógica de cálculo.
+- Validações realizadas: scripts inline de `index.html` validados com Node; Chrome headless confirmou faixa promocional ativa com barra imediatamente abaixo, cenário não logado, cenário logado sem fidelidade, cenário logado com fidelidade, ausência de gap quando a faixa não existe e responsividade mobile.
+
+## 2026-05-08 — Template público: carrinho mobile restaurado
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: corrigi a exibição do carrinho na versão mobile após a reorganização desktop em duas colunas.
+- Mobile: o mesmo `#cart-section` agora funciona como bottom sheet fixo, aberto pelo botão `Ver sacola`, com botão de fechar, rolagem controlada no painel e ação de envio visível.
+- Desktop preservado: o carrinho continua na coluna lateral direita, abaixo da barra de categorias, com `position: sticky`, sem voltar a sobrepor produtos e sem scrollbar interna no card.
+- Duplicidade evitada: não criei um segundo carrinho nem alterei a lógica de cálculo; apenas reposicionamento/responsividade e abertura/fechamento mobile.
+- Validações realizadas: scripts inline de `index.html` validados com Node; Chrome headless mobile confirmou botão `Ver sacola` visível; validação via DevTools adicionou `Kibe frito XL 120g`, abriu o bottom sheet e confirmou `count=1`, total/subtotal `€4,50`, item listado, botão de envio visível e botão fechar visível; captura desktop confirmou carrinho lateral preservado.
+
+## 2026-05-07 — Template público: rodapé institucional
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: removi o card estático `Sobre nosotros` do final da loja e substituí por uma faixa de rodapé full-width, em tom sólido coerente com a paleta do Boca Food.
+- Conteúdo: o rodapé agora renderiza nome da loja, ano atual, direitos reservados, dados comerciais disponíveis no template, identificação fiscal quando existir, endereço, telefone/WhatsApp e assinatura `Plataforma proporcionada por Boca Food`.
+- Dados preservados: não inventei informações fixas; campos ausentes são omitidos ou recebem fallback discreto sem quebrar o layout.
+- Responsividade: desktop usa blocos distribuídos em linha; mobile empilha os blocos com espaçamento e respiro.
+- Escopo preservado: não alterei Firebase, rotas, autenticação, pedidos, checkout, WhatsApp ou estrutura de dados.
+- Validações realizadas: scripts inline de `index.html` validados com Node; busca confirmou remoção de `Sobre nosotros` e textos antigos; servidor local em `http://127.0.0.1:4181`; Chrome headless confirmou no DOM renderizado o novo `#public-footer`, direitos reservados e assinatura Boca Food.
+
+## 2026-05-07 — Template público: layout desktop em duas colunas
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: reorganizei o desktop abaixo da barra de categorias em duas colunas reais: produtos à esquerda e carrinho à direita, com visual leve, fundo claro, cards brancos, sombras suaves e vermelho como cor principal.
+- Carrinho desktop: deixou de ser painel fixo/flutuante sobreposto e passou para a coluna lateral do layout com `position: sticky`, alinhado ao topo da área de produtos, sem `overflow`/altura fixa que gere scrollbar interna no card.
+- Produtos desktop: a listagem normal voltou para grid de 2 produtos por linha, com cards consistentes, imagem em área fixa com `object-fit: cover`, conteúdo em coluna e botão de adicionar alinhado no rodapé.
+- Barra de categorias: removi o seletor/dropdown `Menú`, mantendo apenas categorias em pills horizontais e busca à direita, com quebra limpa quando não couber.
+- Badges/tags: os badges dos cards agora ficam agrupados em uma área própria sobre a imagem, com flex/wrap e espaçamento para evitar sobreposição.
+- Mobile preservado: mantive 1 produto por linha; ajustei apenas o flex das categorias e da busca para não herdar alturas do desktop.
+- Validações realizadas: scripts inline de `index.html` validados com Node; busca confirmou ausência de `cat-select`/`cat-brand`; servidor local em `http://127.0.0.1:4181`; Chrome headless em desktop confirmou 2 cards por linha, carrinho à direita abaixo da barra, busca sem sobreposição e sem scrollbar interna visível no carrinho; Chrome headless mobile confirmou categorias em scroll, busca normal e cards em 1 coluna.
+
+## 2026-05-07 — Template público: aproximação dos modelos desktop/mobile
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Referências analisadas: `modelo_Template desktop.png` como base principal de desktop e `modelo_Template mobile.png` como base principal de mobile.
+- Resumo do ajuste: refinei o layout público para uma vitrine mais leve e próxima das referências, com fundo neutro claro, cards brancos, bordas discretas, sombras suaves e uso fixo de `#991F00` nos CTAs/ativos/detalhes.
+- Desktop: o header público visual foi removido da primeira dobra, o hero/card da loja foi simplificado, a barra de categorias virou uma barra única com logo pequeno, seletor, pills e busca na mesma linha, e o cardápio normal passou para cards horizontais em uma coluna com imagem fixa, texto leve, preço e botão alinhados.
+- Pedido/carrinho: o resumo lateral permanece à direita, agora começando abaixo da barra de categorias/busca; os blocos existentes de entrega/retirada, cupom, totais, WhatsApp e `¿Cómo funciona?` foram agrupados visualmente no painel sem alterar a lógica do pedido.
+- Mobile: o topo foi aproximado do modelo com capa visual, logo circular sobreposto, card da loja mais limpo, botão `Más información`, categorias em scroll, busca abaixo, cards normais horizontais e barra `Ver sacola` redesenhada acima da navegação inferior.
+- Regras preservadas: não alterei Firestore Rules, autenticação, Master, estrutura de dados, lógica de pedido, checkout ou WhatsApp; o bloco “Calcular taxa e tempo de entrega” continua sem exibição pública.
+- Validações realizadas: `AGENTS.md` lido; referências desktop/mobile abertas visualmente; scripts inline de `index.html` validados com Node; servidor local em `http://127.0.0.1:4181`; Chrome headless gerou capturas desktop/mobile para checar sobreposição, barra de categorias, cards horizontais, painel lateral e navegação inferior. Playwright não estava disponível no ambiente.
+
+## 2026-05-07 — Template público: vitrine Pink com carrinho lateral
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: refinei a vitrine pública para aproximar da referência Pink, mantendo `Destaques` no topo com até 3 produtos configurados e ocultando a seção quando não há destaques.
+- Desktop: a listagem normal passou a usar cards retangulares/horizontais em 2 colunas, com texto à esquerda, imagem lateral à direita, preço e botão de adicionar visíveis, descrição limitada e até 2 badges. Destaques, categorias, busca e listagem passaram a compartilhar a mesma largura/alinhamento.
+- Carrinho desktop: o resumo do pedido existente agora aparece como painel lateral fixo ao lado da vitrine, com itens, quantidade, subtotal/total, cupom, estado vazio e botão de envio por WhatsApp. A barra inferior foi ocultada no desktop.
+- Mobile: os destaques continuam no topo em rolagem horizontal e a listagem mobile foi preservada. A barra fixa inferior virou uma ação `Ver sacola`, com quantidade e total, mantendo distância da navegação inferior e rolando para o resumo do pedido existente.
+- Remoção visual: o bloco de cálculo de taxa/tempo de entrega não aparece no desktop nem no mobile; nenhum dado de entrega foi removido.
+- Validações realizadas: `AGENTS.md` lido; `AI_TASK_RULES.md` não encontrado nos diretórios verificados; scripts inline de `index.html` validados com Node; Chrome headless com tenant válido `MZDs5MEb9gNbX4q5xdRYVgzLL252`; desktop confirmou 3 destaques em 3 colunas, cards normais em 2 colunas com `flex-direction: row-reverse`, primeiro card normal com 375x128px e imagem lateral de 128px, larguras alinhadas de 760px para destaques/lista/categorias, carrinho lateral `fixed` com 340px, barra inferior oculta, máximo de 2 badges, ausência de `undefined` e ausência de texto de cálculo de entrega; carrinho após adicionar produto confirmou item lateral, total e botão WhatsApp habilitado; busca por `guaran` funcionou e ocultou destaques durante o filtro; cenário sem destaques confirmou seção ausente; preview mobile confirmou destaques em rolagem, grid normal com 2 colunas, barra `Ver sacola` com quantidade e total, carrinho/resumo presente, navegação inferior preservada, WhatsApp presente, sem `undefined` e sem cálculo de entrega.
+- Escopo preservado: `preview-template.html` foi usado apenas para validação e não foi alterado; Firestore Rules, autenticação, Master, checkout, lógica de pedido, WhatsApp e estrutura de dados não foram alterados.
+- Pendências: validar manualmente em navegador gráfico com pedidos/carrinho reais de um cliente para ajustar microespaçamentos finais se a loja tiver muitos itens ou descrições muito longas.
+
+## 2026-05-07 — Template público: vitrine com até 3 destaques
+- Módulos afetados: Template público da loja; Cardápio > Template da loja.
+- Arquivos alterados: `index.html`, `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: substituí o destaque único antigo da vitrine por uma seção pública `Destacados/Destaques` com até 3 produtos definidos pela loja. Sem produtos configurados, a seção é omitida e a listagem normal sobe.
+- Configuração: o Template da loja ganhou a seção `Destaques da vitrine`, com 3 seletores de produto. O salvamento grava IDs únicos em `featuredProductIds`, `highlightProductIds` e `showcaseProductIds` dentro da configuração do template, sem criar fallback automático.
+- Vitrine pública: os produtos destacados aparecem no topo da vitrine em cards maiores, com imagem, nome, descrição curta, preço e controle de quantidade. No desktop aparecem em até 3 colunas; no mobile aparecem em rolagem horizontal antes da listagem normal.
+- Listagem normal: no desktop continua compacta e alinhada à largura da área de destaques; produtos destacados são removidos da listagem normal quando não há busca/filtro ativo, deixando abaixo apenas os demais produtos. Durante busca/filtro de promoção, a seção de destaques é ocultada para os resultados subirem.
+- Robustez visual: os cards usam fallback seguro para nome, descrição, imagem e emoji, evitando conteúdo `undefined`; badges continuam limitados a até 2 por produto; repetição visual de `Promoção ativa` segue oculta no desktop quando já há badge/preço promocional claro.
+- Validações realizadas: `AGENTS.md` lido; `AI_TASK_RULES.md` não encontrado nos diretórios verificados; `node --check js/modules/catalogo.js`; scripts inline de `index.html` validados com Node; servidor local em `http://127.0.0.1:3000/preview-template.html` com tenant válido `MZDs5MEb9gNbX4q5xdRYVgzLL252`; Chrome headless desktop com 3 destaques simulados confirmou `featuredCount=3`, 3 colunas, 0 destaques repetidos na listagem normal, grid normal com 4 colunas, máximo de 1 badge nos destaques e 2 nos cards normais, ausência de `undefined`, categorias/busca/WhatsApp presentes; carrinho validado com `getCount` de 1 para 2 e WhatsApp habilitado; busca por `guaran` ocultou destaques, filtrou para 1 card e restaurou a listagem; cenário sem destaques confirmou seção ausente e listagem normal com 22 cards; preview mobile confirmou 3 destaques em rolagem horizontal, grid normal com 2 colunas, carrinho fixo, navegação inferior, categorias, busca e WhatsApp presentes, sem `undefined`.
+- Escopo preservado: `preview-template.html` foi usado apenas para validação e não foi alterado; checkout, carrinho, WhatsApp, autenticação, Firestore Rules, Master e lógica principal de produtos não foram alterados.
+- Pendências: validar manualmente no painel autenticado o salvamento real dos 3 seletores no Firestore e testar com um tenant que já tenha `featuredProductIds` configurado em produção.
+
+## 2026-05-07 — Template público: cards desktop compactos
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: refinei apenas o visual desktop da listagem de produtos, com grid compacto em 3 colunas a partir de desktop e 4 colunas quando há largura suficiente, cards menores, imagem menos alta, descrição limitada a 2 linhas, preço destacado com peso menor e botão `+` menor.
+- Destaque e badges: o card grande permanece restrito ao destaque principal (`oferta-card`), com 1 ocorrência validada; cards normais não receberam variação grande. Badges visíveis por produto ficaram limitados a até 2 overlays, e a linha `Promoção ativa` duplicada é ocultada somente no desktop quando já existe preço promocional ou badge.
+- Escopo preservado: não alterei Firestore Rules, autenticação, Master, checkout, carrinho, WhatsApp, lógica de produtos nem `preview-template.html`.
+- Validações realizadas: `AGENTS.md` lido; `AI_TASK_RULES.md` não encontrado nos diretórios verificados; servidor local em `http://127.0.0.1:3000/preview-template.html` com tenant válido `MZDs5MEb9gNbX4q5xdRYVgzLL252`; desktop direto em `index.html?tenant=MZDs5MEb9gNbX4q5xdRYVgzLL252&lang=es-ES` confirmou 22 cards, grid com 4 colunas em 1280px, primeiro card com 260x290px, 10 cards visíveis na viewport, imagens carregadas nos cards, máximo de 2 badges por card, 0 repetições visíveis de `Promoção ativa` duplicada e 1 `oferta-card`; adição ao carrinho validada em produto simples (`getCount` de 0 para 1 e WhatsApp habilitado); busca validada (`guaran` filtrou para 1 card e restaurou 22); categorias e botão WhatsApp presentes; preview mobile confirmou grid ainda com 2 colunas, card mobile 173x296px, menu mobile presente, categorias, busca e WhatsApp presentes. `preview-template.html` foi usado apenas para validação e não foi alterado.
+
+## 2026-05-07 — Template público: topo limpo e Más información em abas
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: removi o ícone/imagem da tarja promocional do topo, mantendo a faixa apenas com texto e botão de fechar, sem uso de imagem.
+- Pontuação/fidelidade: o bloco de pontos do topo e do painel de conta agora só aparece quando há configuração segura de fidelidade ativa (`loyaltyEnabled`, `pointsProgramEnabled`, `customerPoints`, `loyaltyPoints`, `rewardsEnabled` ou `pointsPerEuro > 0` em config existente); sem configuração ativa, fica oculto por padrão. O bloco do topo foi alinhado visualmente com avatar e menu.
+- Modal `Más información`: reorganizado em abas de cliente final: `Sobre la tienda`, `Entrega y recogida`, `Pagos` e `Contacto y redes`; campos vazios são omitidos, abas sem conteúdo útil são ocultadas, dados não são repetidos entre abas, links `file:///` não são aceitos e não há linha de `site externo`.
+- Textos/traduções: adicionados os textos fixos novos em `pt-BR`, `pt-PT`, `es-ES`, `en` e `fr`, sem traduzir valores cadastrados pela usuária.
+- Validações realizadas: `AGENTS.md` lido; `AI_TASK_RULES.md` não encontrado nos diretórios verificados; alteração restrita ao template público e changelog; scripts inline de `index.html` validados com Node; servidor local em `http://127.0.0.1:3000/preview-template.html` com tenant válido `MZDs5MEb9gNbX4q5xdRYVgzLL252`; Chrome headless confirmou preview carregando `index.html?tenant=MZDs5MEb9gNbX4q5xdRYVgzLL252&lang=es-ES`; tarja simulada com texto `Promoción limpia` ficou visível sem `.mi`, `img` ou `svg`; pontos ocultos sem fidelidade (`display:none`) e visíveis/alinhados quando fidelidade foi ativada em memória (`display:flex`, `42 pts`); modal abriu inicialmente em `Sobre la tienda`; abas funcionaram no preview mobile, desktop direto e mobile direto; mobile confirmou `overflow-x:auto` nas abas; campos vazios ficaram fora do DOM da aba ativa; redes sociais simuladas apareceram em `Contacto y redes`; `#cart-section`, `.cart-pill`, categorias, busca e botão WhatsApp continuaram presentes; busca/DOM confirmou ausência de `file:///`.
+- Escopo preservado: `preview-template.html` foi usado apenas para validação e não foi alterado; Firestore Rules, autenticação, Master, checkout, carrinho, WhatsApp e estrutura de dados não foram alterados.
+
+## 2026-05-07 — Template público: cor fixa e menu Pedidos por login
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: fixei a cor dos pontos de destaque/conversão do template público em `#991F00`, removendo a leitura visual de `primaryColor`, `colorPrimary` e `mainColor` para esses pontos.
+- Card lateral/comercial: mantida borda fina de `1px`, adicionada sutileza com degradê claro e sombra com tom derivado de `#991F00`, preservando o efeito comercial anterior sem voltar ao laranja.
+- Menu `Pedidos`: passou a depender do estado de login no template público; deslogado fica oculto no desktop e no mobile, logado volta a aparecer em ambos.
+- Edição de cores: removidos da tela de aparência/configuração os campos editáveis `Cor principal` e `Cor secundária`, preservando valores já salvos apenas como histórico para não apagar dados ao salvar logo/banner/nome.
+- Validações realizadas: `AGENTS.md` lido; `AI_TASK_RULES.md` não encontrado no projeto nem nos diretórios acima verificados; arquivos alterados limitados ao template público, configuração visual ligada ao template e changelog; `node --check js/modules/configuracoes.js`; scripts inline de `index.html` validados com Node; busca confirmou ausência de `app-primary-color`, `app-secondary-color`, `Cor principal`, `Cor secundária`, `#E4572E`, `colorPrimary`, `mainColor` e leitura dinâmica de cor para destaque; servidor local em `http://127.0.0.1:3000/preview-template.html?tenant=MZDs5MEb9gNbX4q5xdRYVgzLL252&lang=es-ES`; Chrome headless validou o preview-template.html com tenant válido, `--cta-primary=#991F00`, `--red=#991F00`, card lateral com `border 1px rgba(153, 31, 0, 0.18)` e `linear-gradient(rgb(255, 255, 255), rgb(255, 247, 244))`; Chrome headless validou `Pedidos` deslogado/logado no preview mobile (`none`/visível), desktop direto (`none`/`flex`) e mobile direto (`none`/`flex`).
+- Escopo preservado: Firestore Rules, autenticação, Master, checkout, carrinho e WhatsApp não foram alterados.
+
+## 2026-05-07 — Template público: suavização visual do modal “Mis pedidos”
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: suavizei apenas o CSS do modal público `Mis pedidos`, reduzindo peso visual de títulos, labels e valores, removendo aparência de campos/admin nos blocos de `Total`, `Estado`, `Entrega/recogida` e `Pago`, e preservando a hierarquia pedido/data/status/resumo/total/itens/ações.
+- Botões: `Ver detalles` continua como ação principal com destaque; `Contactar por WhatsApp` ficou visualmente secundário, com fundo neutro e peso menor.
+- Status: badges funcionais preservados com aviso para pendente/preparação, vermelho para cancelado e verde para entregue/finalizado/listo.
+- Validações realizadas: `AGENTS.md` lido; `AI_TASK_RULES.md` não encontrado no projeto; arquivos necessários limitados a `index.html` e `AI_CHANGELOG.md`; alteração restrita a visual/CSS do modal de pedidos; scripts inline de `index.html` validados com Node; `preview-template.html` usado somente para validação em `http://127.0.0.1:3000/preview-template.html` com tenant válido; Chrome headless confirmou preview mobile; Chrome headless com pedido simulado apenas em memória validou desktop e mobile, com título em peso `600`, blocos de fatos sem fundo/borda de campo, valores em peso `500`, botão secundário neutro e botões em largura adequada no mobile; busca confirmou ausência de `file:///`.
+- Pendências: validar manualmente no navegador gráfico com pedidos reais para confirmar a percepção visual final em dados reais do tenant.
+
+## 2026-05-07 — Template público: filtro de produtos por promoção
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: o botão do modal público de promoções deixou de abrir automaticamente o primeiro produto vinculado e passou a aplicar um filtro temporário na vitrine pública com os produtos relacionados à promoção clicada.
+- Nova ação do botão da promoção: `Ver productos`, `Ver oferta` e `Usar promoción` fecham o modal, rolam até a área de produtos e renderizam a lista `Productos de esta promoción`, com chip/aviso de promoção ativa e botão `Ver todos los productos`.
+- Comportamento com múltiplos produtos: quando a promoção possui vários `productIds`, todos os produtos válidos e visíveis são exibidos na lista filtrada; nenhum produto isolado é aberto por padrão.
+- Fallback: quando a promoção não possui produtos válidos, a vitrine completa permanece disponível e o cliente recebe a mensagem `Esta promoción no tiene productos disponibles en este momento.`
+- Textos novos adicionados: `Productos de esta promoción`, `Ver todos los productos` e `Esta promoción no tiene productos disponibles en este momento.` em `pt-BR`, `pt-PT`, `es-ES`, `en` e `fr`.
+- Validações realizadas: `AGENTS.md` lido; arquivos necessários limitados a `index.html` e `AI_CHANGELOG.md`; `preview-template.html` usado somente para validação; scripts inline de `index.html` validados com Node; servidor local em `http://127.0.0.1:3000/preview-template.html`; Chrome headless desktop com promoção simulada em memória confirmou modal com 3 produtos vinculados, clique no botão abrindo lista filtrada com 3 cards, `detailOpen=false` e botão `Ver todos los productos` restaurando a lista completa; Chrome headless mobile confirmou o mesmo filtro com 3 cards; fallback com produtos inexistentes confirmou toast amigável e lista completa preservada; busca confirmou ausência de `file:///`.
+- Pendências: validar manualmente com tenant real que possua promoções ativas com múltiplos produtos no Firestore para conferir os vínculos reais cadastrados.
+
+## 2026-05-07 — Template público: modal “Meus pedidos”
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste no modal de pedidos: o painel aberto por `Pedidos` passou a funcionar como área pública de `Mis pedidos`, com subtítulo, estado não logado, estado vazio, cards visuais de pedido, referência curta em vez de ID completo, status com cores, data formatada, total, entrega/retirada, pagamento, resumo de produtos, botão `Ver detalles` com expansão e botão `Contactar por WhatsApp` quando há telefone da loja.
+- Textos novos adicionados: `Mis pedidos`, `Consulta el estado de tus últimos pedidos.`, `Aún no tienes pedidos`, `Cuando hagas un pedido, aparecerá aquí.`, `Entra o regístrate para ver tus pedidos.`, `Ver detalles`, `Contactar por WhatsApp`, `Ver productos`, `Total`, `Productos`, `Pedido`, `Pendiente`, `Cancelado`, `Entregado`, `En preparación`, `Listo para retirar`, além de rótulos de entrega/retirada, pagamento, observação e endereço em `pt-BR`, `pt-PT`, `es-ES`, `en` e `fr`.
+- Dados técnicos removidos da apresentação pública: o ID completo do Firestore deixa de ser título do pedido; a interface mostra apenas referência curta, campos preenchidos e labels traduzidos, sem objetos brutos, valores nulos ou datas sem formatação.
+- Validações realizadas: `AGENTS.md` lido; arquivos necessários limitados a `index.html` e `AI_CHANGELOG.md`; `preview-template.html` usado somente para validação; scripts inline de `index.html` validados com Node; servidor local em `http://127.0.0.1:3000/preview-template.html`; Chrome headless confirmou o preview mobile; Chrome headless confirmou estado não logado com `Entra o regístrate para ver tus pedidos`; Chrome headless com pedido simulado apenas em memória confirmou `Mis pedidos`, referência curta `Pedido #DEFGHI`, data `01/05/2026`, total `€23,00`, status `En preparación`, resumo de produtos, `Ver detalles`, expansão de detalhes e `Contactar por WhatsApp`; busca confirmou ausência de `file:///`.
+- Pendências: validar manualmente em navegador gráfico com cliente real logado e pedidos reais no Firestore para conferir a consulta, os estados de status dinâmicos e o clique final de WhatsApp em ambiente real.
+
+## 2026-05-07 — Template público: modal comercial de promoções
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste no modal de promoções: o painel aberto por `Promoções` passou a usar título comercial, subtítulo de conversão, cards de oferta com badge/ícone, título tratado com fallback para nomes técnicos, benefício em destaque, produtos relacionados como `Válido para`, validade formatada e botão de ação seguro para produto ou lista de produtos.
+- Textos novos adicionados: `Promociones activas`, `Aprovecha las ofertas disponibles antes de finalizar tu pedido.`, `No hay promociones activas`, `Cuando la tienda active una oferta, aparecerá aquí.`, `Oferta especial`, `Descuento disponible`, `Promoción por tiempo limitado`, `Cupón disponible`, `Válido para`, `Válido hasta`, `Ver productos`, `Usar promoción`, `Ver oferta`, além dos textos fixos de benefício para desconto, 2x1, leve/pague e oferta em produtos selecionados em `pt-BR`, `pt-PT`, `es-ES`, `en` e `fr`.
+- Dados técnicos removidos da apresentação pública: o modal não concatena mais tipo bruto, data solta ou o rótulo técnico `Produtos relacionados`; nomes fracos como `promo`, `ofeta` e `prmo` recebem fallback comercial no título.
+- Validações realizadas: `AGENTS.md` lido; arquivos necessários limitados a `index.html` e `AI_CHANGELOG.md`; `preview-template.html` usado somente para validação; scripts inline de `index.html` validados com Node; servidor local em `http://127.0.0.1:3000/preview-template.html`; Chrome headless com tenant válido confirmou o estado vazio do modal; Chrome headless com promoção ativa simulada apenas em memória confirmou cards com `Promociones activas`, benefício claro, `Válido para`, `Válido hasta 08/05/2026` e botão `Ver productos`; screenshot mobile do preview gerado; busca confirmou ausência de `file:///`, `Produtos relacionados:` e `Productos relacionados:` na interface estática.
+- Pendências: validar manualmente em navegador gráfico com um tenant real que já possua promoções ativas/cupones ativos no Firestore, para conferir dados reais e cliques finais em todas as variações de promoção.
+
+## 2026-05-07 — Template público: configuração do card comercial do topo
+- Módulo afetado: Template público da loja; Cardápio > Template da loja.
+- Arquivos alterados: `index.html`, `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Nova configuração criada no Template da loja: seção `Destaque comercial do topo`, com toggle `Ativar card de destaque`, select de tipo (`Nenhum`, `Cupom ativo`, `Promoção ativa`, `Produto destaque`, `Produto mais pedido`, `Texto personalizado`), título, texto, texto do botão, ação/destino do botão e produto vinculado.
+- Comportamento do card lateral: o template público agora só exibe o card comercial quando `featuredActionEnabled` está ativo e `featuredActionType` tem um tipo válido diferente de `none`; o card usa título, texto, ícone, botão, produto vinculado e ação configurados com fallback seguro.
+- Regra desktop sem card lateral: quando não há destaque configurado ou não há conteúdo válido, o card lateral fica oculto e o card principal de informações da loja passa a usar a classe `no-featured`, expandindo sua largura para ocupar melhor o topo sem deixar buraco à direita.
+- Regra mobile sem card lateral: quando não há destaque configurado ou válido, o card comercial fica totalmente oculto e não reserva espaço no fluxo mobile.
+- Ações do botão: cupom aplica o cupom e leva ao carrinho; promoção abre painel de promoções ou produto relacionado; produto abre o modal do produto; seção de produtos rola para produtos; `Nenhuma ação` deixa o botão sem navegação útil e o botão pode ser ocultado quando não há rótulo.
+- Validações realizadas: `AGENTS.md` lido; arquivos necessários limitados a `index.html`, `js/modules/catalogo.js` e `AI_CHANGELOG.md`; `preview-template.html` usado somente para validação mobile; `node --check js/modules/catalogo.js`; scripts inline de `index.html` validados com Node; busca por `tpl-featured`, `featuredActionEnabled`, `featuredActionType`, `featuredActionProductId`, `store-top-info.no-featured` e `file:///`; screenshot desktop com tenant válido sem card lateral; screenshot mobile via `http://127.0.0.1:3000/preview-template.html` sem card lateral; conferido visualmente que o desktop expande o card principal e o mobile não deixa espaço vazio.
+- Pendências: validar no navegador gráfico autenticado a edição real do Template da loja e salvamento no Firestore; validar visualmente com tenant que já tenha `featuredActionEnabled=true` e tipos `coupon`, `promotion`, `featured_product`, `most_ordered` e `custom`, pois o tenant local usado na captura ainda não tem essa nova configuração salva.
+
+## 2026-05-07 — Template público: cor principal nos destaques e navegação
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo do ajuste: mantive a base neutra do template e passei a usar a cor principal configurada da loja apenas nos pontos de destaque/conversão, sem aplicar a cor na estrutura geral. Também aumentei e centralizei melhor o menu superior desktop e substituí as ações antigas de rolagem por painéis de navegação para promoções e pedidos.
+- Campo de cor principal usado: `primaryColor`, com aliases seguros `colorPrimary` e `mainColor` apenas como fallback; `secondaryColor` continua preservado nos dados, mas não é usado visualmente no template público.
+- Onde a cor principal passou a ser aplicada: botões comerciais, botão `Ver cupón`/`Ver promoción`, categoria ativa, links de ação, ícones/badges de destaque, botões de adicionar e elementos ativos relevantes. Fundos, cards, caixa principal da loja, chips neutros, navegação estrutural, status e áreas de suporte continuam neutros ou funcionais.
+- Paleta automática: removi a aplicação obrigatória de paleta derivada no template público; o CSS/JS aplica a cor principal diretamente nos destaques e mantém neutros fixos para estrutura e cores funcionais fixas para status.
+- Ações de navegação ajustadas: `Promoções` abre um painel com promoções ativas e estado vazio; `Pedidos` abre painel de pedidos do cliente quando logado e estado vazio quando não há pedidos; `Entrar/Registrar` fica oculto quando há usuário logado; bolinha/avatar e item `Perfil` abrem o painel de conta/perfil existente, agora com nome, telefone quando existir, e-mail, pedidos e sair.
+- Validações realizadas: `AGENTS.md` lido; arquivos necessários limitados a `index.html` e `AI_CHANGELOG.md`; `preview-template.html` usado somente para validação mobile; scripts inline de `index.html` validados com Node; busca por `file:///`, `deriveStorePalette`, `mixColor`, laranjas estruturais antigos e uso visual de `secondaryColor`; screenshot desktop direto em `index.html` com tenant válido; screenshot mobile via `http://127.0.0.1:3000/preview-template.html`; conferidos base neutra, status fechado em vermelho, menu desktop maior/centralizado, categorias, busca, carrinho e WhatsApp renderizando.
+- Pendências: validar em navegador gráfico com sessão real logada para confirmar visualmente a ocultação de `Entrar/Registrar` e o painel de perfil com dados reais; validar com tenant que tenha `primaryColor` diferente do fallback para confirmar a troca cromática perceptível; validar manualmente os cliques de `Promoções` e `Pedidos` com dados reais de Firestore.
+
+## 2026-05-07 — Preview interno: visualização apenas mobile
+- Módulo afetado: Ferramenta interna de desenvolvimento / Preview do template público.
+- Arquivos alterados: `preview-template.html`, `AI_CHANGELOG.md`.
+- Resumo da simplificação: removi o seletor de visualização, os modos Desktop/Mobile/Ambos, o bloco Desktop, o botão de recarregar Desktop, o iframe desktop e a lógica JavaScript relacionada a desktop/ambos.
+- Confirmação: o preview interno agora mostra somente a versão mobile do template público, com moldura de celular centralizada, campo `Tenant ID`, seletor de idioma, botão `Atualizar preview`, botão `Abrir loja em nova aba`, botão `Recarregar preview` e exibição da URL carregada.
+- Comportamento da URL: o iframe mobile continua carregando `index.html?tenant=TENANT_ID&lang=IDIOMA`; quando o tenant está vazio, a ferramenta mostra aviso claro e usa o fallback local do template.
+- Validações realizadas: `AGENTS.md` lido; arquivos necessários limitados a `preview-template.html` e `AI_CHANGELOG.md`; `index.html`, `admin.html`, `master.html`, Firestore Rules, autenticação, carrinho, pedidos, checkout, WhatsApp e dados não foram alterados; scripts inline de `preview-template.html` validados com Node; busca confirmou ausência de `Desktop`, `desktop`, `Ambos`, `both`, `view-select`, `desktop-frame` e `desktop-url`; servidor local em `http://127.0.0.1:3000/preview-template.html`; screenshot Chrome headless com tenant válido confirmou somente preview mobile, Tenant ID aplicado, idioma enviado por query param e URL do iframe exibida.
+- Pendências: validar manualmente o clique real em `Abrir loja em nova aba` no navegador gráfico, pois a validação automática headless confirmou a ligação do botão e a URL gerada, mas não abriu uma aba visível.
+
+## 2026-05-07 — Template público: ajuste fino de status e leitura dos cards
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo dos ajustes visuais: removi o status aberto/fechado da navegação superior no desktop, mantendo o status apenas dentro do card principal da loja; no mobile, o status foi removido do card branco principal e permanece apenas como badge discreto fora do card. Também reduzi o peso visual dos títulos do card principal, card comercial e modal de informações, e reforcei textos importantes dos cards para preto/quase preto.
+- Estados visuais ajustados: status aberto usa verde (`success`), fechado/fechado temporariamente usa vermelho (`danger`) e estados especiais de atenção/agendamento usam amarelo (`warning`) quando identificados; localização, entrega, retirada, preparo e descrição da loja ficaram com contraste mais forte dentro dos cards.
+- Validações realizadas: `AGENTS.md` lido; arquivos necessários limitados a `index.html` e `AI_CHANGELOG.md`; `preview-template.html` usado somente para validação; scripts inline de `index.html` validados com Node; servidor local em `http://127.0.0.1:3000/preview-template.html`; screenshots Chrome headless em Desktop, Mobile e Ambos com tenant válido; conferido que no desktop o status não aparece mais no topo/navegação e aparece no card principal em verde; conferido que no mobile o status não aparece dentro do card principal; conferidos títulos mais leves, textos importantes com maior contraste, categorias, busca, produtos, carrinho e WhatsApp renderizando.
+- Pendências: validar visualmente com um tenant real configurado como fechado/fechado temporariamente e outro com status especial de atenção/agendamento para conferir esses estados dinâmicos no navegador, além da validação de CSS/JS já feita.
+
+## 2026-05-07 — Template público: paleta neutra com CTAs de conversão
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Resumo da mudança de paleta: substituí o vermelho como base estrutural do template por uma base neutra, preservando a estrutura visual já implementada e concentrando a cor forte apenas em ações de conversão, links relevantes e destaques comerciais.
+- Tokens/cores adotados: base neutra `--bg-page: #F7F5F2`, `--bg-surface: #FFFFFF`, `--bg-soft: #F1EEEA`, `--border-soft: #E4DED6`, `--text-primary: #1F1F1C`, `--text-secondary: #6B6A66`; CTA `--cta-primary: #E4572E`, `--cta-primary-hover: #CC4A24`, `--cta-soft: #FFF1EB`, `--cta-text-on-solid: #FFFFFF`; funcionais `--success: #1FA971`, `--success-soft: #E9F8F1`, `--warning: #D9A441`, `--warning-soft: #FFF7E7`, `--danger: #C94B4B`, `--danger-soft: #FDEEEE`.
+- Onde foram aplicados: fundos, navegação, cards, caixa principal da loja, busca, categorias inativas, áreas secundárias, modal/drawer e carrinho visual usam base neutra; botões principais, links de ação, botão de adicionar, categorias ativas, cupom/promoção/destaque e card comercial usam CTA; loja aberta/disponível usa success; avisos e pontos usam warning; loja fechada, erros e indisponibilidade usam danger.
+- Confirmação sobre `primaryColor`: o campo salvo do tenant continua preservado nos dados, mas não controla mais livremente a paleta pública; o template usa a paleta fixa neutra/CTA definida no próprio CSS/JS.
+- Campos ignorados/removidos da interface: o bloco “Calcular taxa e tempo de entrega” continua fora do topo; `Site externo` e `file:///` não são usados; o banner promocional mantém cor própria apenas como peça isolada quando configurado.
+- Validações realizadas: `AGENTS.md` lido; arquivos necessários limitados a `index.html`, `AI_CHANGELOG.md` e `preview-template.html` apenas para validação; scripts inline de `index.html` validados com Node; busca por vermelhos estruturais antigos e `file:///`; servidor local em `http://127.0.0.1:3000/preview-template.html`; validação visual do preview em Desktop, Mobile e Ambos com tenant válido; conferidos base neutra, identidade por logo/capa/textos, CTAs fortes, status aberto em success, estados danger disponíveis, categorias, busca, produtos, carrinho e WhatsApp renderizando.
+- Pendências: validar em tenants publicados com combinações reais de capa, banner promocional, loja fechada, cupons, promoções e produtos em destaque para confirmar todos os estados dinâmicos fora do ambiente local.
+
+## 2026-05-07 — Ferramenta interna: preview desktop/mobile do template público
+- Módulo afetado: Ferramenta interna de desenvolvimento / Preview do template público.
+- Arquivo criado: `preview-template.html`.
+- Resumo da ferramenta: criei uma página interna isolada para visualizar `index.html` dentro de iframes em modo Desktop, Mobile ou Ambos, com campo de `Tenant ID`, seletor de idioma preparado via query param `lang`, botões para atualizar todos os previews, recarregar cada iframe e abrir a loja em nova aba.
+- Como acessar: `http://127.0.0.1:3000/preview-template.html`; opcionalmente usar query params como `preview-template.html?tenant=TENANT_ID&view=both&lang=es-ES`.
+- Observações: a ferramenta não salva dados, não acessa Firestore diretamente, não altera tenant, não muda carrinho, produtos, checkout, WhatsApp, autenticação, Master, Firestore Rules ou `index.html`.
+- Validações realizadas: `AGENTS.md` lido; arquivos necessários limitados a `preview-template.html` e `AI_CHANGELOG.md`; HTML criado sem bibliotecas externas; servidor local em `http://127.0.0.1:3000/preview-template.html`; verificados preview Desktop, preview Mobile, opção Ambos, botão Atualizar preview, botões de recarregar individualmente e botão Abrir loja em nova aba; confirmado que a ferramenta apenas carrega `index.html` por iframe.
+- Pendências: o seletor de idioma envia `lang` na URL, mas depende de suporte do template público a esse query param para alterar efetivamente o idioma renderizado.
+
+## 2026-05-07 — Template público: topo Boca Food conforme referências desktop/mobile
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Imagens usadas como referência: `modelo_Template desktop.png` e `modelo_Template mobile.png`.
+- Recriei o topo público para aproximar a hierarquia das referências: banner promocional opcional, navegação superior limpa, capa apenas visual, card branco principal com identidade da loja, chips resumidos e card comercial ao lado no desktop/abaixo no mobile.
+- Conectei o card comercial principal com fallback seguro para `featuredActionEnabled`, `featuredActionType`, `featuredActionTitle`, `featuredActionText`, `featuredActionButtonLabel`, `featuredActionTarget`, `activeCoupon`, `activePromotion`, `featuredProduct`, `mostOrderedProduct` e `loyaltyEnabled`; quando não há ação comercial, o card fica oculto.
+- Campos conectados/preservados no topo e no modal: banner promocional, capa, logo, nomes públicos, slogan/descrição, idioma, país fiscal, cidade/região/endereço/Google Maps, status/horários, entrega/retirada/preparo, contatos, pagamentos e textos institucionais.
+- Campos ignorados/removidos da interface: bloco operacional “Calcular taxa e tempo de entrega”; `primaryColor` salvo continua preservado nos dados, mas não é usado como controle livre principal do visual; `Site externo` e `file:///` não são usados.
+- Ampliei “Mais informações” para ocultar campos vazios e mostrar nome, descrição, endereço permitido, cidade/região, horários, retirada, entrega, formas de pagamento, WhatsApp, telefone, email, redes sociais, aviso importante e políticas.
+- Mantive categorias, busca, produtos, carrinho, WhatsApp, checkout, autenticação, Master e Firestore Rules sem mudança de lógica.
+- Validações realizadas: `AGENTS.md` lido; referências desktop/mobile abertas; arquivos necessários limitados a `index.html` e `AI_CHANGELOG.md`; scripts inline de `index.html` validados com Node; busca por `Calcular`, `deliveryCalc`, `file:///` e `Site externo` sem ocorrências; servidor local em `http://127.0.0.1:4177/index.html`; screenshots Chrome headless desktop e mobile; checagem visual de capa sem texto central, card branco, card comercial, categorias, busca, carrinho fixo, WhatsApp e navegação mobile.
+- Pendências: validar com tenant real publicado contendo capa ativa, banner promocional ativo e promoções/cupones reais de Firestore para confirmar todas as combinações dinâmicas.
+
+## 2026-05-07 — Template público: hierarquia visual do topo
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Ajustei a hierarquia do topo público para separar navegação, capa, informações da loja, cálculo de entrega e categorias/busca, sem redesenhar produtos, carrinho, WhatsApp ou fluxo de pedido.
+- A capa da loja passou a ser apenas área visual: removi a repetição de logo, nome, slogan e localização centralizados no hero quando o bloco de informações está ativo.
+- No desktop, o resumo da loja fica integrado abaixo da capa, com logo sobreposto à esquerda, nome, slogan, status, chips reais de entrega/retirada e botão `Mais informações`; o bloco de cálculo fica separado como card lateral quando ativo.
+- No mobile, o resumo fica como card branco sobreposto à capa, compacto e centralizado, com logo, nome, slogan, status e `Mais informações`; os chips extensos ficam ocultos no topo mobile para reduzir repetição visual.
+- Mantive categorias e busca abaixo do topo, alinhadas à largura principal do conteúdo, preservando a lógica atual de filtro e pesquisa.
+- Ajustei a navegação inferior mobile para quatro colunas e preservei o item `Perfil` com fallback fixo, sem interferir no carrinho fixo ou no botão WhatsApp.
+- Preservei o suporte existente a idiomas (`pt-BR`, `pt-PT`, `es-ES`, `en`, `fr`) e não alterei nomes, categorias, descrições ou textos cadastrados pela usuária.
+- Validações realizadas: `AGENTS.md` relido; sintaxe dos scripts inline do `index.html`; busca por `file:///` no `index.html` sem ocorrências; servidor local limpo; screenshot Chrome headless desktop e mobile/responsivo.
+- Pendências: a captura mobile ainda evidencia largura pré-existente nos cards/área fixa do pedido à direita; não corrigi essa parte porque cards, carrinho e fluxo de pedido estão fora do escopo desta tarefa.
+
+## 2026-05-07 — Template público e Template da loja: capa persistente e paleta por cor principal
+- Módulo afetado: Template público da loja; Cardápio > Template da loja.
+- Arquivos alterados: `index.html`, `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Consolidei a primeira implementação do topo público sem redesenhar a loja: mantive navegação desktop/mobile, card/resumo, banner promocional, chips, busca, categorias, carrinho e WhatsApp.
+- Corrigi o fluxo da imagem de capa da loja no admin: o upload em `Cardápio > Template da loja` agora salva imediatamente a URL pública em `config/template`, `config/geral` e `config/aparencia`, usando aliases compatíveis `coverImageUrl` e `bannerUrl`, além dos metadados de Storage quando disponíveis.
+- Padronizei a diferença entre banner promocional de texto e imagem de capa da loja no rótulo/ajuda do admin e no preview.
+- Incluí o campo claro `Cor principal da loja` com color picker, valor hexadecimal sincronizado e preview visual.
+- Adicionei geração automática de cores de apoio a partir da cor principal: principal, escura, clara, fundo suave, borda/acento, contraste, hover, badge suave e chip suave.
+- A paleta passou a ser salva em `colorPalette`/`supportColors` e usada no preview do admin e no template público em variáveis CSS, estados ativos, banner promocional, chips, botões e detalhes do topo.
+- Preservei os dados existentes do tenant com `merge` e aliases legados; não foram alterados cards de produto, carrinho, checkout, pedido, autenticação, Master ou Firestore Rules.
+- Validações realizadas: `node --check js/modules/catalogo.js`; validação dos scripts inline de `index.html`; busca por `file:///` em `index.html` e `js/modules/catalogo.js`; servidor local e screenshots Chrome headless desktop/mobile do template público.
+- Pendências: validar upload e recarregamento da imagem/cor em navegador real com tenant autenticado e Firebase Storage ativo, pois essa etapa depende de sessão e permissões reais.
+
+## 2026-05-07 — Template público da loja: topo personalizável e i18n inicial
+- Módulo afetado: Template público da loja.
+- Arquivos alterados: `index.html`, `AI_CHANGELOG.md`.
+- Ajustei o topo público mantendo a identidade atual: navegação desktop horizontal, navegação inferior mobile, capa configurável, card/resumo da loja, botão/modal de mais informações e banner promocional opcional com fechamento por sessão/localStorage.
+- Campos preparados/lidos: `showPromoBanner`, `promoBannerText`, `promoBannerColor`, `promoBannerDismissible`, `useCoverImage`, `showStoreSummaryCard`, `showCityRegion`, `showMoreInfoButton`, `showDeliveryPickupChips`, `showDeliveryCalculator`, `showDesktopNavigation`, `showMobileBottomNavigation`, `showPromotionsNavItem`, `showOrdersNavItem`, `showLoginNavItem`, `promotionsNavLabel`, `ordersNavLabel`, `language`, `mainLanguage`, `storeLanguage`, `publicStoreName`, `shortStoreName`, `slogan`, `storeDescription`, `logoUrl`, `coverImageUrl`, `primaryColor`, `secondaryColor`, `fiscalCountry`, dados de endereço, entrega/retirada, contato, horários/status, pagamentos e políticas.
+- Idiomas adicionados para textos fixos do template público: `pt-BR`, `pt-PT`, `es-ES`, `en`, `fr`, com fallback em `es-ES`.
+- Ajustes responsivos: desktop mantém navegação superior; mobile usa navegação inferior fixa e espaçamento para preservar prioridade do carrinho/WhatsApp.
+- Observações: produtos, categorias e descrições cadastradas continuam sem tradução automática; não foram alterados cards de produto, carrinho, pedido, checkout, autenticação, Master, admin ou Firestore Rules.
+- Validações realizadas: sintaxe dos scripts inline com Node; servidor local em `http://127.0.0.1:4177/index.html`; screenshots Chrome headless desktop e mobile; busca por `file:///` no `index.html` sem ocorrências.
+- Pendências: validar em navegador real com tenant publicado e dados reais de capa/banner/status/idioma para conferir todas as combinações de configuração.
+
+## 2026-05-07 — Cardápio: Avaliações movidas de Pedidos
+- Módulo afetado: Pedidos e Cardápio.
+- Arquivos alterados: `admin.html`, `js/modules/catalogo.js`, `js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- Removi `Avaliações` do submenu lateral de `Pedidos`.
+- Incluí `Avaliações` no submenu e nas abas principais de `Cardápio`, logo após `Produtos`.
+- A tela atual de avaliações foi reaproveitada via `Modules.Pedidos`, preservando métricas, filtros, listagem, abertura do detalhe, aprovação e rejeição.
+- Rota nova: `catalogo/avaliacoes`.
+- Rota antiga: `pedidos/avaliacoes` permanece registrada e redireciona para `catalogo/avaliacoes`.
+- Ajustei a copy da seção em Cardápio para tratar avaliações como prova social exibida na loja pública.
+- Validações realizadas: checagem sintática de `admin.html`, `js/modules/catalogo.js` e `js/modules/pedidos.js`; busca pontual de menu/rotas.
+- Pendências: validar em navegador com tenant autenticado aprovar/rejeitar avaliações e filtros em execução real.
+
+## 2026-05-07 — Produção: filtro Tipo de Insumos interligado com Categoria
+- Módulo afetado: Produção > Insumos.
+- Arquivos alterados: `js/modules/compras.js`, `AI_CHANGELOG.md`.
+- Reincluí o filtro `Tipo` na tela `Produção > Insumos`, sem voltar com o filtro `Classe`.
+- O filtro `Tipo` usa somente tipos ativos com `classe: 'insumo'`, em ordem alfabética, com opção `Todos os tipos`.
+- O filtro `Categoria` permanece restrito a categorias ativas de insumo, em ordem alfabética, com opção `Todas categorias`.
+- Interliguei `Tipo` e `Categoria`: ao escolher um deles, o outro passa a listar apenas valores usados por insumos compatíveis, limpando a seleção quando ela não se aplica mais.
+- Ajustei o layout para `Busca`, `Tipo`, `Categoria`, `Status` e `Limpar`, mantendo a busca larga e sem incluir `Classe`.
+- Observações: não foram alteradas coleções, permissões, regras Firebase ou estrutura de dados.
+- Pendências: validar no navegador com tenant autenticado os filtros cruzados e console limpo.
+
+## 2026-05-07 — Produção: remover filtro Classe de Insumos
+- Módulo afetado: Produção > Insumos.
+- Arquivos alterados: `js/modules/compras.js`, `AI_CHANGELOG.md`.
+- Removi o filtro visual `Classe` da área de filtros de `Produção > Insumos`.
+- A área de filtros agora fica com `Busca`, `Categoria`, `Status` e o botão `Limpar`, com o campo de busca mais largo.
+- Mantive a coluna `Classe`, a coluna `Tipo`, o modal Novo/Editar Insumo e a lógica de classe do cadastro.
+- Observações: não foram alteradas coleções, permissões, regras Firebase ou estrutura de dados.
+- Pendências: validar em navegador com tenant autenticado a tela carregando e console limpo.
+
+## 2026-05-07 — Produção: filtros e catálogos de Insumos estritos por classe
+- Módulo afetado: Produção > Insumos, Modal Novo/Editar Insumo, Produção > Configurações e Compras > Configurações.
+- Arquivos alterados: `js/modules/compras.js`, `AI_CHANGELOG.md`.
+- Corrigi a fonte das listas de `Tipo` e `Categoria` em contextos de Insumo para usar somente registros ativos com `classe: 'insumo'`.
+- O filtro `Categoria` de `Produção > Insumos` agora ignora registros de Produto, registros globais/sem classe e registros `ambos`, ficando estritamente na classe Insumo e em ordem alfabética.
+- Removi qualquer efeito residual do filtro oculto `Tipo` ao abrir `Produção > Insumos`, limpando `_itensFilters.tipo` nesse fluxo.
+- Aumentei a largura do campo `Busca` e simplifiquei o placeholder para `Nome, categoria, classe, fornecedor, unidade...`.
+- Mantive o campo `Tipo` e a coluna `Tipo`; a remoção continua limitada ao filtro da listagem.
+- Origem encontrada: a função compartilhada de catálogo aceitava registros sem classe ou `classe: 'ambos'` quando recebia `insumo`, o que podia exibir dados antigos/globais nas listas de Insumo.
+- Observações: não foram criadas coleções novas nem alteradas regras Firebase, permissões ou estrutura de dados.
+- Pendências: validar em navegador com tenant autenticado criação/edição/exclusão e console limpo.
+
+## 2026-05-07 — Produção: restaurar Categorias da receita em Configurações
+- Módulo afetado: Produção > Configurações.
+- Arquivos alterados: `js/modules/receitas.js`, `AI_CHANGELOG.md`.
+- Restaurei a subaba `Categorias da receita`, que usa os cadastros próprios de categorias das fichas técnicas.
+- Mantive `Tipos de insumos` e `Categorias de insumos` como subtabs separadas, usando os dados compartilhados com Compras.
+- Observações: não foram alteradas coleções, regras Firebase, permissões ou dados existentes.
+
+## 2026-05-07 — Produção: Tipos e Categorias de Insumos em Configurações
+- Módulo afetado: Produção > Configurações, Compras > Configurações e Produção > Insumos.
+- Arquivos alterados: `js/modules/receitas.js`, `js/modules/compras.js`, `AI_CHANGELOG.md`.
+- Incluí as subtabs `Tipos de insumos` e `Categorias de insumos` dentro de `Produção > Configurações`, junto de `Componentes da receita` e `Unidades`.
+- As novas subtabs usam as mesmas coleções já usadas em Compras: `compras_tipos` e `compras_categorias`.
+- Em Produção, os cadastros exibem apenas registros com `classe: 'insumo'`, em ordem alfabética, sem mostrar registros da classe Produto.
+- Adicionei cadastro, edição e exclusão desses tipos/categorias diretamente pela Produção, mantendo os dados compartilhados com Compras e com o modal Novo/Editar Insumo.
+- Ajustei rotas internas para `receitas/configuracoes/tipos-insumos` e `receitas/configuracoes/categorias-insumos`, mantendo compatibilidade com rotas antigas de categorias.
+- Reforcei a validação contra duplicidade por nome e classe também em `Compras > Configurações`, ignorando maiúsculas/minúsculas e espaços extras.
+- Observações: não foram criadas coleções novas nem alteradas regras Firebase, permissões ou estrutura de dados.
+- Pendências: validar em navegador com tenant autenticado o CRUD real, a sincronização visual entre Compras/Produção e console limpo.
+
+## 2026-05-07 — Produção: Insumos sem filtro Tipo e modal com cadastro rápido
+- Módulo afetado: Produção > Insumos / Modal Novo Insumo / Modal Editar Insumo.
+- Arquivos alterados: `js/modules/compras.js`, `AI_CHANGELOG.md`.
+- Removi o filtro `Tipo` da listagem de `Produção > Insumos`, mantendo `Busca`, `Classe`, `Categoria`, `Status` e `Limpar` alinhados no card de filtros.
+- Removi a coluna `Venda` da tabela quando a tela está em modo `Insumos`, mantendo as colunas `Nome`, `Classe`, `Tipo`, `Categoria`, `Unidade`, `Custo atual` e `Ações`.
+- Troquei os campos `Tipo` e `Categoria` do modal Novo/Editar Insumo por dropdowns pesquisáveis com fundo claro, lista alinhada ao campo e cadastro rápido.
+- O cadastro rápido cria `compras_tipos` ou `compras_categorias` para o tenant atual, evita duplicidade por nome normalizado dentro da classe atual e seleciona o novo valor imediatamente.
+- Garanti ordenação alfabética das listas de `Tipo` e `Categoria` usadas no modal e nos filtros.
+- Ajustei `Embalagem de compra padrão` para um dropdown pesquisável sem cadastro rápido, usando apenas opções em português: `bandeja`, `bolsa`, `caixa`, `fardo`, `frasco`, `garrafa`, `lata`, `pacote`, `saco` e `unidade`.
+- Observações: não foram alteradas coleções existentes, permissões, Firebase Rules ou regras de salvamento de insumo.
+- Pendências: validar em navegador com tenant autenticado o cadastro rápido real e o console limpo durante criação/edição.
+
+## 2026-05-07 — Produção: cadastros auxiliares agrupados em Configurações
+- Módulo afetado: Produção / Receitas / Insumos / Componentes da receita / Categorias / Unidades.
+- Arquivos alterados: `admin.html`, `js/modules/receitas.js`, `AI_CHANGELOG.md`.
+- Reorganizei o submenu lateral de Produção para exibir apenas `Receitas`, `Insumos` e `Configurações`.
+- Reorganizei as abas superiores de Produção para exibir apenas `Receitas`, `Insumos` e `Configurações`.
+- Agrupei `Componentes da receita`, `Categorias` e `Unidades` como subtabs internas dentro de `Produção > Configurações`.
+- Mantive as funções existentes de cadastro, edição, exclusão e listagem desses três cadastros, alterando apenas o contêiner de navegação.
+- Ajustei compatibilidade de rotas antigas como `receitas/componentes`, `receitas/categorias-receita`, `receitas/categorias` e `receitas/unidades`, redirecionando para o novo padrão `receitas/configuracoes/...`.
+- Observações: não foram alteradas coleções, permissões, regras Firebase ou estrutura de dados.
+- Pendências: validação funcional completa em navegador com tenant autenticado para confirmar ações reais de CRUD e console limpo.
+
+## 2026-05-07 — Cardápio: Template e SEO mais práticos para o topo da loja
+- Módulo afetado: Cardápio > Template da loja, Cardápio > SEO da loja e topo do template público.
+- Arquivos alterados: `js/modules/catalogo.js`, `index.html`, `AI_CHANGELOG.md`.
+- Reorganizei o `Template da loja` em blocos práticos: `Topo da loja`, `Identidade visual`, `Entrega e retirada`, `Horários e status`, `Contato`, `Endereço`, `Pagamentos`, `Finalização do pedido`, `Textos institucionais` e `Avançado`.
+- Reorganizei o `SEO da loja` em `Google`, `SEO local`, `Compartilhamento` e `Avançado`, movendo campos técnicos como URL canônica, Schema/JSON-LD, meta robots e indexação para a área avançada.
+- Campos removidos da interface: `Site externo` saiu do Template da loja e não é mais usado em preview, domínio, canonical, URL pública ou publicação.
+- Campos novos criados em `config/template`: controles do banner promocional, uso de capa no topo, resumo sobre a capa, cidade/região, botão de mais informações, chips de entrega/retirada, bloco de cálculo de entrega, modo de status da loja e formas locais de pagamento por país fiscal.
+- Ajustei labels: `País fiscal da loja`, `Documento fiscal da loja`, `Cidade`, `Área de entrega`, `Instruções para retirada`, `Texto do botão de pedido`, `Mensagem inicial do pedido no WhatsApp` e `Aviso antes de enviar o pedido`.
+- Ajustes no preview: o Template agora mostra uma prévia do topo real com barra branca, logo, status, banner promocional, capa, nome, slogan, região, chips, WhatsApp e placeholder limpo quando não há imagem.
+- Ajustes no SEO: o preview do Google usa somente a URL pública real do tenant quando existir; sem URL publicada, exibe `URL da loja será exibida após publicação`.
+- Ajustes no template público: o topo passou a respeitar banner promocional, capa, nome público, slogan, cidade/região, status manual/automático, chips de entrega/retirada, pedido mínimo, taxa de entrega e bloco de cálculo quando configurados.
+- Observações: os dados antigos continuam preservados por gravações com merge; URLs `file:///` são bloqueadas em novos salvamentos dos campos públicos e saneadas nos previews.
+- Pendências: validar em navegador com tenant real os uploads e gravações completas em Firebase, porque dependem de autenticação e Storage ativos.
+
+## 2026-05-06 — Cardápio: abas reorganizadas, Template e SEO recriados
+- Módulo afetado: Cardápio.
+- Arquivos alterados: `admin.html`, `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Reorganizei o menu e as abas principais do Cardápio para `Produtos`, `Template da loja`, `SEO da loja` e `Configurações`.
+- Movi `Categorias`, `Variantes` e `Tags` para subtabs internas em `Cardápio > Configurações`, preservando as funções existentes de criar, editar, excluir e ordenar quando aplicável.
+- Substituí o fluxo antigo de `Template da loja` e `SEO da loja` por telas novas dentro de `Modules.Catalogo`, deixando as rotas `catalogo/template` e `catalogo/seo` apontarem para o módulo Cardápio.
+- A nova tela `Template da loja` carrega dados existentes de `config/geral`, `config/aparencia`, `config/template`, `config/endereco`, `config/pagamentos`, `config/horarios` e `config/zonas`, com preview do cabeçalho da loja.
+- A nova tela `SEO da loja` carrega e salva `config/seo`, com SEO principal, SEO local, Open Graph, Schema/JSON-LD, indexação e previews de Google/social.
+- Campos novos criados em `config/template`: identidade pública, fiscalDocument, contatos sociais, endereço/atendimento, horários por dia, retirada/entrega, pagamentos, comportamento do pedido e textos institucionais.
+- Campos novos criados em `config/seo`: mainKeyword, secondaryKeywords, slug, canonicalUrl, targetRegion, dados locais, Open Graph, schemaType, orderMethods, sameAs, indexEnabled e robots.
+- Observações: os dados antigos continuam preservados por `setDocRoot(..., { merge: true })`; campos equivalentes são sincronizados com documentos já usados pelo projeto quando possível.
+- Pendências: validar no navegador com um tenant real os uploads de logo/banner/imagem social, porque dependem de Firebase Storage e autenticação ativa.
+
+## 2026-05-06 — Cardápio: listagem de produtos com filtros e cards mais claros
+- Módulo afetado: Cardápio > Produtos.
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Adicionei filtros rápidos acima da listagem seguindo o padrão visual do Financeiro: busca, categoria, visibilidade, tipo, promoção e botão `Limpar filtros`.
+- Reorganizei os cards para destacar preço principal sempre em euros com vírgula decimal, tipo do produto, promoção ativa, imagem/placeholder, categoria e ações.
+- Corrigi os textos de `Tipo do produto`, incluindo `Produto pronto`, `Receita vinculada`, `Produto com escolhas` e `Combo/Menu`, além do plural `1 grupo de escolha` / `X grupos de escolha`.
+- Ajustei `Sem categoria` para um badge neutro e mantive vermelho apenas para promoção ativa/alerta.
+- Impacto esperado: leitura mais rápida da listagem, filtros cumulativos com a busca atual e melhor diferenciação visual sem alterar rotas, dados ou regras globais.
+- Observações: validação automatizada limitada a checagem sintática do JS, porque o projeto não possui `package.json` com scripts de lint/teste.
+
+## 2026-05-06 — Cardápio: modal de produto mais claro e organizado
+- Arquivos alterados: `js/modules/catalogo.js`, `AI_CHANGELOG.md`
+- Reorganizei o modal de Novo/Editar Produto em blocos mais claros, com preview sticky na coluna direita.
+- Padronizei o tipo do produto, o botão principal, a área de imagem, a seção de upsell e as validações do combo/menu.
+- Também normalizei o preço para exibição monetária e removi a exibição direta da URL/base64 da imagem no formulário.
+
+## 2026-05-06 — Compras e Financeiro: títulos principais reforçados
+- Arquivos alterados: `js/modules/compras.js`, `js/modules/financeiro.js`, `AI_CHANGELOG.md`
+- Aumentei o destaque visual dos títulos principais `Compras` e `Financeiro` para recuperar a hierarquia de módulo.
+- Também simplifiquei a copy interna da `Visão Geral` do Financeiro.
+
+## 2026-05-06 — Compras e Financeiro: títulos e subtítulos padronizados
+- Arquivos alterados: `js/modules/compras.js`, `js/modules/financeiro.js`, `AI_CHANGELOG.md`
+- Padronizei o peso visual do título principal em `Compras` e `Financeiro` para o mesmo estilo.
+- Atualizei os subtítulos das duas páginas para copies mais claras e coerentes com cada módulo.
+
+## 2026-05-06 — Financeiro: remover Contas Bancárias do submenu lateral de verdade
+- Arquivos alterados: `admin.html`, `js/modules/financeiro.js`, `AI_CHANGELOG.md`
+- Removi a entrada `Contas Bancárias` do submenu lateral do módulo Financeiro no `admin.html`.
+- Mantive `Contas Bancárias` apenas como aba interna em `Financeiro > Configurações`, com a rota legada redirecionando para essa área.
+
+## 2026-05-06 — Financeiro: Contas Bancárias volta para Configurações
+- Arquivo alterado: `js/modules/financeiro.js`, `AI_CHANGELOG.md`
+- Reposicionei `Contas Bancárias` como aba interna de `Financeiro > Configurações`, após `Formas de Pagamento`.
+- O submenu lateral do Financeiro continua sem `Contas Bancárias`, preservando o pedido anterior.
+
+## 2026-05-06 — Financeiro: remover Contas Bancárias do submenu lateral
+- Arquivo alterado: `js/modules/financeiro.js`, `AI_CHANGELOG.md`
+- Removi a entrada visual `Contas Bancárias` do submenu lateral de `Configurações` no módulo Financeiro.
+- O acesso às contas continua disponível pelo card/botão de gestão, sem quebrar a funcionalidade.
+
+## 2026-05-06 — Financeiro: Visão Geral com filtro global e cards reorganizados
+- Arquivo alterado: `js/modules/financeiro.js`, `AI_CHANGELOG.md`
+- A aba `Visão Geral` passou a ter filtro global de período e conta bancária, com botão `Limpar filtros`.
+- Reorganizei os cards principais em duas linhas: `Saldo total`, `Saldo projetado`, `A pagar` e depois `Resultado do período`, `Entradas do período`, `Saídas do período`.
+- Atualizei as copies para deixar saldo disponível, projeção, pendências e resultado do período mais claros.
+- `Movimentações Recentes` e o card de `Contas Bancárias` agora respeitam os filtros globais e mostram dados mais úteis para leitura rápida.
+
+## 2026-05-06 — Compras: parcelas geradas para o Financeiro passam a salvar número sequencial
+- Arquivo alterado: `js/modules/compras.js`, `AI_CHANGELOG.md`
+- Os lançamentos criados em `financeiro_apagar` a partir de compras agora recebem `numeroSequencial` no formato `SA-000001`, seguindo a sequência global do Financeiro.
+- O número sequencial é reservado junto com a criação das parcelas, inclusive quando a compra usa prévia editável ou cálculo automático.
+
+## 2026-05-06 — Compras: remover envio automático e pedir conta bancária no Financeiro da listagem
+- Arquivo alterado: `js/modules/compras.js`, `AI_CHANGELOG.md`
+- Removi o fluxo de `Enviar para Financeiro` do modal e da gravação da compra. Agora salvar a compra não envia mais contas a pagar.
+- Removi os campos de conta bancária do modal de Registro de compras.
+- A listagem agora usa apenas `Atualizar Financeiro`; ao clicar, abre um prompt para escolher a conta bancária e então gerar/sincronizar as contas a pagar.
+- O envio só acontece depois da confirmação da conta bancária no prompt da listagem.
+
+## 2026-05-05 — Compras: console.error objetivo no gerador financeiro
+- Arquivo alterado: `js/modules/compras.js`, `AI_CHANGELOG.md`
+- Adicionei `console.error` no fluxo de geração de contas a pagar da compra salva para capturar o ponto exato da falha, sem alterar o comportamento funcional.
+- O log inclui `compraId`, dados da compra, total, número do pedido e o erro retornado.
+
+## 2026-05-05 — Compras: verificação objetiva pós-criação das parcelas
+- Arquivo alterado: `js/modules/compras.js`, `AI_CHANGELOG.md`
+- Após a criação financeira da compra nova, o sistema agora reconsulta as contas vinculadas e confirma se as parcelas realmente foram gravadas.
+- Se nenhuma conta ativa existir após o processo, o save avisa de forma explícita que as contas a pagar não foram geradas.
+
+## 2026-05-05 — Compras: geração financeira da compra nova sem reconsultar o documento
+- Arquivo alterado: `js/modules/compras.js`, `AI_CHANGELOG.md`
+- O fluxo de compra nova agora usa o objeto salvo em memória imediata para gerar as parcelas, sem depender de um `getDoc` logo após o `set`.
+- Isso remove uma etapa intermediária que ainda podia atrasar ou impedir a criação das contas a pagar no primeiro salvamento.
+
+## 2026-05-05 — Compras: criação nova gera parcelas diretamente após salvar
+- Arquivo alterado: `js/modules/compras.js`, `AI_CHANGELOG.md`
+- O salvamento de compra nova com `Gerar conta a pagar` agora chama a criação de parcelas diretamente após persistir o documento, sem depender do fluxo de atualização.
+- A validação financeira continua sendo aplicada antes da criação, com mensagem clara quando os dados estão incompletos.
+
+## 2026-05-05 — Compras: geração financeira após criar compra usando o documento salvo
+- Arquivo alterado: `js/modules/compras.js`, `AI_CHANGELOG.md`
+- Ao salvar uma compra nova com `Gerar conta a pagar`, o sistema agora recarrega o documento salvo e dispara o fluxo financeiro a partir desse registro persistido.
+- Isso elimina a dependência do estado em memória logo após a criação e alinha o comportamento da compra nova ao mesmo caminho usado na atualização.
+
+## 2026-05-05 — Compras: envio financeiro automático após criar nova compra
+- Arquivo alterado: `js/modules/compras.js`, `AI_CHANGELOG.md`
+- Ao salvar uma compra nova com `Gerar conta a pagar` ativo, o sistema agora dispara automaticamente a geração financeira usando o `id` real recém-criado.
+- O fluxo de envio continua dependente da compra já salva, evitando tentar gerar parcelas com identificador temporário.
+- O gerador financeiro passou a aceitar a compra salva como contexto explícito, cobrindo o caso em que a compra ainda não entrou na lista local no momento do envio.
+
+## 2026-05-05 — Compras: fluxo único de geração financeira por compra salva
+- Arquivo alterado: `js/modules/compras.js`, `AI_CHANGELOG.md`
+- Unifiquei os caminhos de `Enviar para Financeiro` e `Atualizar Financeiro` em uma única rotina baseada em `compraId`.
+- O envio financeiro agora usa o mesmo fluxo para compras novas já salvas e para compras existentes, sem depender de um ramo separado de criação.
+- A mensagem de sucesso passou a refletir se foi a primeira geração das contas a pagar ou uma sincronização posterior, preservando o estado real do Financeiro.
+
+## 2026-05-05 — Master: correção de helper de escape nas configurações globais
+- Arquivo alterado: `master.html`, `AI_CHANGELOG.md`
+- Corrigido o uso incorreto de `_esc(...)` na tela de `Configurações Globais`, substituindo pelas chamadas ao helper existente `esc(...)`.
+- A correção evita o erro `_esc is not defined` ao abrir ou editar tipos globais no Master.
+
+## 2026-05-05 — Master: configurações globais financeiras e selects do Admin por país fiscal
+- Arquivos alterados: `master.html`, `js/modules/financeiro.js`, `AI_CHANGELOG.md`
+- Criada a área `Configurações Globais` no Master para gerenciar tipos globais de conta bancária e tipos globais de forma de pagamento, com país fiscal, ordem, slug, status ativo/inativo e exclusão lógica.
+- Os registros globais passaram a ser persistidos em `system/config` dentro do bloco `globalFinance`, com fallback seguro quando a lista está vazia.
+- O Admin financeiro passou a carregar tipos globais ativos e compatíveis com o país fiscal do tenant atual para o cadastro de contas bancárias e formas de pagamento.
+- A forma de pagamento do tenant agora herda a regra `Exige conta bancária` do tipo global, preservando compatibilidade com dados antigos.
+- As contas bancárias antigas e formas antigas continuam editáveis; quando o tipo salvo não existe mais, o modal mostra a opção legada para não perder o registro.
+
+## 2026-05-05 — Compras: envio financeiro real unificado na listagem e no modal
+- Arquivos alterados: `js/modules/compras.js`, `AI_CHANGELOG.md`
+- O botão `Enviar para Financeiro` da listagem do Registro de compras segue chamando a rotina real de geração em `financeiro_apagar`, com validação de dados obrigatórios antes da gravação.
+- Quando faltam dados financeiros, a ação da listagem abre o modal de edição e foca a seção financeira em vez de exibir sucesso falso.
+- O fluxo de salvamento da compra deixou de sugerir envio já concluído: agora a mensagem é contextual para `gerarContaPagar` ou `pendente_atualizacao`, sem fingir gravação no Financeiro.
+- A proteção contra duplicidade continua baseada em vínculos reais da compra com `financeiro_apagar`, preservando tenant e registros já existentes.
+
+## 2026-05-05 — Tarefa: Simplificar fluxo financeiro das Compras — único botão "Atualizar Financeiro"
+- Arquivo alterado: `js/modules/compras.js`, `AI_CHANGELOG.md`
+- **Fix 1 — Novo estado `pendente_financeiro`**: `_financeiroStateCompra` substituiu o estado `'nao_gerada'` por dois estados distintos: `'pendente_financeiro'` (quando `gerarContaPagar !== false` mas sem documentos em `financeiro_apagar`) e `'nao_configurada'` (quando `gerarContaPagar=false`). Estados mantidos: `'gerada'` e `'pendente_atualizacao'`.
+- **Fix 2 — Badge "Pendente financeiro"**: `_financeiroBadgeHtml` agora exibe badge laranja "Pendente financeiro" para o novo estado, sem badge para `'nao_configurada'`. Elimina o antigo badge cinza "Não gerada" que confundia com um estado neutro.
+- **Fix 3 — Botão único "Atualizar Financeiro" na listagem**: `_financeiroActionHtml` removeu completamente o botão "Enviar para Financeiro". Um único botão laranja "Atualizar Financeiro" aparece para os estados `'pendente_financeiro'` e `'pendente_atualizacao'`, sempre chamando `_atualizarCompraFinanceiro`. Texto de loading unificado para "Atualizando...".
+- **Fix 4 — Botão único "Atualizar Financeiro" no modal**: `_compraFooterEditHtml` simplificado — substitui a lógica com dois botões distintos ("Enviar para Financeiro" / "Atualizar Financeiro") por um único botão "Atualizar Financeiro" que aparece para ambos os estados `pendente_financeiro` e `pendente_atualizacao`, chamando `_atualizarCompraFinanceiroFromModal`.
+- **Fix 5 — Mensagem única em `_doSaveCompra`**: Quando `gerarContaPagar=true`, a mensagem é sempre "Compra salva. Atualize o Financeiro para gerar ou sincronizar as contas a pagar." — independentemente de ser primeira vez ou re-envio. Não há mais bifurcação entre "Envie" e "Atualize".
+- **Fix 6 — Compatibilidade retroativa**: `_enviarCompraFinanceiroFromList` e `_enviarCompraFinanceiroFromModal` redirecionam internamente para `_atualizarCompraFinanceiro` / `_atualizarCompraFinanceiroFromModal`. Nomes mantidos no objeto de retorno público para não quebrar referências externas.
+
+## 2026-05-05 — Tarefa: Corrigir fluxo real de "Enviar para Financeiro" e "Atualizar Financeiro" no Registro de Compras
+- Arquivo alterado: `js/modules/compras.js`, `AI_CHANGELOG.md`
+- **Fix 1 — Mensagem correta em "Enviar para Financeiro"**: `_enviarCompraFinanceiro` exibe "Conta a pagar enviada para o Financeiro." somente após confirmação real via `_contasAtivasForCompra` pós-gravação.
+- **Fix 2 — `_atualizarCompraFinanceiro` — mensagem certa**: Toast de sucesso alterado de "Contas a pagar enviadas para o Financeiro." → "Financeiro atualizado com sucesso.".
+- **Fix 3 — `_atualizarCompraFinanceiro` — falha de validação abre modal**: Quando campos financeiros estão incompletos, chama `_abrirCompraParaCompletarFinanceiro(id)` (abre modal + foca seção financeira) em vez de só exibir toast. Consistente com o fluxo de "Enviar para Financeiro".
+- **Fix 4 — `_atualizarCompraFinanceiro` — aviso de parcelas auto-pagas**: Verifica se há parcelas com `status='pago'` sem movimento efetivado (`selfPaid`). Se encontrar, exibe `UI.confirm` antes de prosseguir, avisando que serão recriadas como pendentes. Usuário pode cancelar.
+- **Fix 5 — `_atualizarCompraFinanceiro` — `_paintRegistrosTable` no catch**: Erros `validation`, `paid` e `user_cancel` chamam `_paintRegistrosTable()` para remover o estado "Enviando..." do botão.
+- **Fix 6 — `_doSaveCompra` — mensagens contextuais**: (a) `contaPagarStatus='pendente_atualizacao'` → "Compra salva. Clique em 'Atualizar Financeiro' para sincronizar as contas a pagar."; (b) `gerarContaPagar=true` e ainda não gerada → "Compra salva. Envie para o Financeiro para gerar as contas a pagar."; (c) demais → "Compra salva com sucesso."
+- **Fix 7 — Banner `hasPending` no modal**: Texto corrigido para "Salve a compra e clique em 'Atualizar Financeiro' para sincronizar as contas a pagar." — elimina afirmação falsa de que salvar recalcula automaticamente as parcelas.
+
+## 2026-05-05 — Compras: envio financeiro real pela listagem
+- Arquivos alterados: `js/modules/compras.js`, `AI_CHANGELOG.md`
+- O botão `Enviar para Financeiro` na listagem do Registro de compras passou a chamar um wrapper próprio que reaproveita a mesma rotina real usada no modal de edição.
+- O clique do botão na listagem agora interrompe o clique da linha, evitando abertura/ação acidental do modal durante o envio.
+- A rotina só mostra `Contas a pagar enviadas para o Financeiro.` depois de criar/confirmar contas reais vinculadas à compra e recarregar a listagem.
+- Se faltarem dados financeiros obrigatórios, a listagem abre o modal da compra, destaca a seção financeira e mostra `Complete os dados financeiros antes de enviar para o Financeiro.`
+- A verificação de duplicidade passou a reconhecer vínculos por `compraId`, `sourceCompraId` e `sourceCollection: compras`/`sourceId`, e os novos documentos em `financeiro_apagar` salvam esses vínculos.
+- Não foram alteradas rotas, permissões, tenant, coleções ou regras financeiras globais.
+
+## 2026-05-05 — Financeiro: resumo da saída com campos completos
+- Arquivos alterados: `js/modules/financeiro.js`, `AI_CHANGELOG.md`
+- O modal `Resumo da saída` passou a normalizar os dados antes da renderização para exibir número interno, número do documento, descrição, favorecido, categoria, conta bancária e forma de pagamento.
+- A normalização cobre aliases usados por saídas manuais (`contas_pagar`) e saídas originadas de Compras (`financeiro_apagar`), mantendo leitura por `sourceCollection`/coleção de origem já carregada.
+- Quando há apenas IDs, o resumo busca o nome correspondente nas contas bancárias, categorias de saída e formas de pagamento do tenant já carregadas no módulo.
+- O resumo deixou de depender apenas da movimentação de pagamento para exibir `Conta de saída` e `Forma de pagamento`, evitando `—` quando esses campos existem no documento da saída.
+- Não foram alteradas rotas, permissões, regras de tenant, coleções ou geração de dados financeiros.
+
+## 2026-05-05 — Financeiro: listagens limpas e busca padronizada
+- Arquivos alterados: `js/modules/financeiro.js`, `AI_CHANGELOG.md`
+- As listagens de `Entradas` e `Saídas` deixaram de exibir a coluna `Categoria`, preservando a categoria no cadastro interno e na busca.
+- As tabelas receberam larguras de coluna mais equilibradas, com mais espaço para `Cliente` em Entradas e `Fornecedor` em Saídas, além de rolagem horizontal estável para telas menores.
+- Os campos `Cliente` no modal de Entrada e `Fornecedor/Favorecido` no modal de Saída passaram a usar combobox com dropdown no mesmo padrão visual e comportamento do fornecedor do Registro de Compras.
+- A seleção por busca continua salvando o vínculo quando o cadastro existe e permite texto manual quando não houver cliente/fornecedor cadastrado.
+- O item `Contas Bancárias` permanece fora das abas principais do Financeiro, mantendo a funcionalidade acessível dentro de `Financeiro > Configurações`.
+- Não foram alteradas rotas, permissões, tenant, coleções, regras financeiras ou estrutura global.
+
+## 2026-05-05 — Financeiro: Entradas, Saídas e formas de pagamento
+- Arquivos alterados: `js/modules/financeiro.js`, `AI_CHANGELOG.md`
+- As abas `Entradas` e `Saídas` receberam botão `Limpar filtros`, resetando período, conta, status, busca e datas personalizadas com atualização imediata da listagem.
+- As listagens de Entradas e Saídas agora têm seleção por checkbox, seleção de todos os itens visíveis e barra de ações em massa para alterar categoria, forma de pagamento, conta bancária, status/confirmar e excluir com validações locais.
+- A confirmação em massa de Saídas valida a coleção de origem (`contas_pagar` ou `financeiro_apagar`) e evita lançamento duplicado no Fluxo de Caixa para o mesmo item.
+- Os modais `Nova Entrada`/`Editar Entrada` e `Nova Saída`/`Editar Saída` foram alargados, ganharam campo de busca para cliente/fornecedor/favorecido, número sequencial interno, número do documento, categoria obrigatória e forma de pagamento obrigatória.
+- As formas de pagamento passaram a ser lidas de `config/financeiro` do tenant, com compatibilidade para registros antigos em texto e fallback mínimo quando a configuração estiver vazia.
+- O cadastro de Forma de Pagamento nas Configurações Financeiras agora salva nome, tipo, ativo/inativo, exige conta bancária, conta padrão, prazo de compensação, taxa percentual, taxa fixa e observação.
+- Entradas e Saídas exibem número interno, documento, categoria, forma de pagamento, conta bancária e dados de pessoa na listagem e incluem esses campos na busca textual.
+- Não foram alteradas rotas, permissões, regras globais de tenant, regras fiscais ou estrutura global.
+
+## 2026-05-05 — Compras: envio manual de contas a pagar para o Financeiro
+- Arquivos alterados: `js/modules/compras.js`, `AI_CHANGELOG.md`
+- O Registro de compras deixou de criar contas a pagar automaticamente ao registrar ou atualizar uma compra.
+- O salvamento agora persiste apenas a compra, os dados financeiros configurados e a prévia das parcelas, exibindo “Compra salva com sucesso.” ou “Compra salva com sucesso. Envie para o Financeiro quando quiser gerar as contas a pagar.”
+- A coluna `Conta a pagar` passou a considerar somente contas reais vinculadas ao `compraId` em `financeiro_apagar`/`contas_pagar`; compras antigas marcadas como geradas mas sem contas reais aparecem como `Não gerada`.
+- Foram adicionados os botões manuais `Enviar para Financeiro` e `Atualizar Financeiro`, com validação dos dados financeiros, proteção contra duplo clique e bloqueio quando há pagamento confirmado.
+- Ao editar uma compra já enviada e alterar campos que impactam o financeiro, a compra passa para `Pendente atualização` sem alterar automaticamente as contas a pagar.
+- O envio manual cria entrada e parcelas com origem `compra`, vínculos por `compraId`, número amigável do pedido, conta bancária, forma de pagamento, categoria financeira e metadados de parcela.
+- Não foram alteradas rotas, tenant, permissões, coleções, regras fiscais ou estrutura global.
+
+## 2026-05-05 — Financeiro: Contas Bancárias em cards nas Configurações
+- Arquivos alterados: `js/modules/financeiro.js`, `AI_CHANGELOG.md`
+- A aba `Financeiro > Configurações > Contas Bancárias` deixou de usar a listagem simples e passou a renderizar a listagem oficial em cards.
+- Os cards exibem nome da conta, banco/instituição ou tipo, saldo atual destacado, saldo inicial, entradas, saídas e ações `Editar`/`Excluir`.
+- O estado vazio da listagem de contas agora mantém o padrão visual em cards e mostra ação para criar uma nova conta.
+- O modal de conta bancária foi ajustado para os títulos `Nova Conta` e `Editar Conta`, mantendo campos de nome, banco/instituição, tipo, saldo inicial e conta ativa no padrão visual do sistema.
+- Após criar, atualizar ou excluir uma conta bancária dentro de Configurações, a tela recarrega a própria aba `Contas Bancárias` em cards, sem voltar para a listagem simples antiga.
+- Não foram alteradas rotas, tenant, permissões, coleções ou regras financeiras globais.
+
+## 2026-05-05 — Compras: contas a pagar geradas no primeiro salvamento
+- Arquivos alterados: `js/modules/compras.js`, `AI_CHANGELOG.md`
+- O fluxo de criação de compra nova agora pré-gera o `compraId` real antes de salvar, grava a compra com esse id e só depois cria as contas a pagar vinculadas no Financeiro.
+- A geração financeira passa a validar que existe `compraId`, confirmar que ao menos uma conta foi criada e atualizar a compra com `contaPagarId`, `contaPagarIds` e `contaPagarGeradaEm` antes de exibir sucesso.
+- A prévia das parcelas é reconstruída imediatamente antes do salvamento, garantindo que entrada e parcelas enviadas ao Financeiro sejam as mesmas do modal no primeiro registro.
+- Foi adicionada proteção local contra duplo envio: os botões do rodapé ficam desabilitados enquanto a compra está sendo salva/processada.
+- A rotina evita duplicidade reaproveitando contas a pagar ativas já vinculadas ao `compraId` quando existirem.
+- Se a compra for salva mas a geração financeira falhar, o sistema mostra a mensagem clara: “Compra salva, mas as contas a pagar não foram geradas. Tente novamente ou revise os dados financeiros.”
+- Não foram alteradas rotas, permissões, tenant, coleções, regras financeiras globais ou fluxo de edição com pagamento confirmado.
+
+## 2026-05-05 — Documentação: padrão global de Limpar filtros
+- Arquivos alterados: `MODULE_VALIDATION.md`, `MODULE_FIX_RULES.md`, `AI_CHANGELOG.md`
+- `MODULE_VALIDATION.md` recebeu a seção `Filtros e limpeza`, definindo presença obrigatória do botão "Limpar filtros", reset completo de período, status, conta bancária e busca, retorno ao estado padrão e atualização automática da listagem.
+- `MODULE_FIX_RULES.md` recebeu a seção `Filtros e limpar filtros`, autorizando correções automáticas seguras para inserir/corrigir o botão, resetar filtros e atualizar listagens, sem alterar lógica complexa sem regra explícita.
+- Nenhuma alteração funcional foi feita no sistema.
+
+## 2026-05-05 — Financeiro: filtros globais, busca contínua e listas seguras
+- Arquivos alterados: `js/modules/financeiro.js`, `AI_CHANGELOG.md`
+- Os filtros de período de `Fluxo de Caixa`, `Entradas` e `Saídas/Contas a pagar` passaram a usar a lista global padronizada: Todo período, Hoje, Ontem, Esta semana, Semana passada, Este mês, Mês passado, Últimos 7 dias, Últimos 30 dias, Últimos 90 dias, Este trimestre, Este ano, Ano passado e Personalizado.
+- O cálculo dos períodos foi centralizado em helper local, preservando datas `YYYY-MM-DD` sem conversão UTC e aplicando os filtros sobre o resultado já filtrado por status, conta e busca.
+- Os campos de busca de Entradas e Saídas receberam preservação de foco e cursor após a filtragem para permitir digitação contínua.
+- O filtro de contas em Entradas agora exibe contas ativas em ordem alfabética.
+- Não foram alteradas rotas, permissões, tenant, coleções, regras financeiras principais ou arquitetura global.
+
+## 2026-05-05 — Financeiro: validação segura e correções locais
+- Arquivos alterados: `js/modules/financeiro.js`, `AI_CHANGELOG.md`
+- Criados helpers locais de data no módulo Financeiro para formatar, ler e somar datas `YYYY-MM-DD` sem conversão UTC nos filtros de período, mês atual e geração de datas recorrentes.
+- O seletor de conta bancária em entradas agora oculta contas inativas (`ativo === false`), preservando a conta já selecionada quando o registro está em edição.
+- Entradas e saídas manuais agora bloqueiam valores menores ou iguais a zero antes de salvar.
+- Exclusões inseguras foram bloqueadas: entradas recebidas/parciais, saídas pagas/parciais e saídas geradas por outro módulo não podem ser removidas diretamente pelo Financeiro.
+- O modal de detalhe de Contas a pagar não exibe ações manuais de editar/excluir/pagar para registros gerados por Compras, preservando o vínculo de origem.
+- O modal de Nova/Editar Saída voltou a exibir o campo Categoria no bloco principal.
+- Ajustados textos e estados locais seguros: toast de conta bancária salva, título Novo/Editar Categoria e leitura correta do modo de custos indiretos, com bloqueio de percentual negativo.
+- Não foram alteradas rotas, permissões, tenant, coleções, regras fiscais ou arquitetura global.
+
+## 2026-05-05 — Estrutura global de logs de validação
+- Arquivos alterados: `ai_logs/_GLOBAL_VALIDATION_INDEX.md`, `ai_logs/_TEMPLATE_MODULE_VALIDATION.md`, `ai_logs/compras_validation.md`, `AI_CHANGELOG.md`
+- Criada a pasta `/ai_logs` para centralizar o histórico de validações e correções dos módulos.
+- Criado o índice global de status dos módulos e o template padrão de validação/correção.
+- Criado o arquivo inicial `compras_validation.md` a partir do template para uso nas próximas validações do módulo Compras.
+- Nenhuma alteração funcional foi feita no sistema.
+
+## 2026-05-05 — Compras: desconto unitário por embalagem
+- Arquivos alterados: `js/modules/compras.js`, `AI_CHANGELOG.md`
+- O campo de desconto do item no Registro de compras foi renomeado visualmente para `Desc. un. (€)` para deixar claro que o valor digitado é por unidade/embalagem comprada.
+- O cálculo do item agora usa `descontoUnitario × qtdComprada` para chegar ao `descontoTotal`; o total líquido da linha passa a ser `(precoEmbalagem - descontoUnitario) × qtdComprada`.
+- O resumo antes de adicionar item mostra preço bruto unitário, desconto unitário, desconto total, total líquido e custo/base calculado sobre o total líquido.
+- A tabela de itens adicionados mostra `Desc. un.`, `Desc. total` e `Total`, preservando compatibilidade com compras antigas que tinham apenas `desconto` total.
+- Itens novos passam a salvar campos explícitos para rastreio: `precoEmbalagem`, `quantidadeComprada`, `descontoUnitario`, `descontoTotal`, `totalBruto`, `totalLiquido` e `custoBaseUnitario`.
+- A validação agora bloqueia desconto unitário maior que o preço por embalagem com a mensagem: “O desconto por unidade não pode ser maior que o preço por embalagem.”
+
+## 2026-05-05 — Compras: desconto claro, vencimento local e contas bancárias reais
+- Arquivos alterados: `js/modules/compras.js`, `AI_CHANGELOG.md`
+- A origem de “Conta bancária prevista” no Registro de compras foi corrigida de `financeiro_contas` para `contas_bancarias`, a mesma base usada em `Financeiro > Contas Bancárias`, filtrando contas com `ativo !== false`.
+- O modal de compra agora salva `contaBancariaId`, `contaBancariaNome` e `contaBancariaOrigem: 'financeiro'` na compra e nas contas a pagar geradas. A entrada usa a conta da entrada; as parcelas usam a conta prevista ou herdam a conta da entrada quando a prevista estiver vazia.
+- A prévia e a geração das parcelas passaram a usar helpers de data local (`YYYY-MM-DD`) sem `toISOString()` no cálculo, evitando deslocamento por timezone. A primeira parcela agora fica exatamente igual ao campo “Vencimento”; as próximas somam o prazo em dias.
+- A exibição de desconto nos itens ficou explícita: preço bruto, desconto negativo, total líquido e custo/base no resumo antes de adicionar; na tabela, itens com desconto mostram `Desconto: -€...` e `Total: €...`.
+- Foi adicionada validação para impedir desconto maior que o valor bruto do item, com a mensagem: “O desconto não pode ser maior que o valor bruto do item.”
+- As validações financeiras foram reforçadas para exigir conta bancária prevista ou herdada, forma de pagamento, categoria financeira, vencimento e parcelas quando houver saldo parcelado, mantendo as validações específicas da entrada.
+
+## 2026-05-05 — Ajuste visual no Fluxo de Caixa
+- Arquivo alterado: `js/modules/financeiro.js`, `AI_CHANGELOG.md`
+- A coluna `Data` da aba `Financeiro > Fluxo de Caixa` agora exibe `DD/MM/AAAA`.
+- A mudança foi só visual: o valor salvo no Firestore, a ordenação e os filtros por período continuam usando a data real.
+
+## 2026-05-05 — Tarefa: Conectar campos financeiros, corrigir vencimento de parcelas com entrada e validar datas
+- Arquivo alterado: `js/modules/compras.js`, `AI_CHANGELOG.md`
+- **Fix 1 — Formas de pagamento reais do Financeiro**: `_renderRegistros` agora carrega também `DB.getDoc('config', 'financeiro')` e armazena em `_finFormas[]`. Nova função `_finFormasPagOptions(selected)` usa `_finFormas` (com fallback à lista padrão hardcoded quando vazio) e garante que "A definir" sempre está no topo. Todos os selects de forma de pagamento no modal de compra (`cp-forma`, `cp-entrada-forma`) e no formulário de fornecedor (`fo-payment-method`) passaram a usar `_finFormasPagOptions` em vez de `_paymentOptions`.
+- **Fix 2 — Categorias financeiras de saída**: Nova função `_finCatSaidaOptions(selected)` filtra `_finCategorias` por `tipo === 'saida'`, ordena por nome e gera as `<option>`. O campo `cp-fin-cat` no modal agora usa essa função em vez de `_options()` sobre a lista completa — apenas categorias de despesa aparecem no seletor.
+- **Fix 3 — Vencimento das parcelas com entrada (correção de bug)**: `_buildParcelasPreview` quando `teveEntrada=true` agora usa o campo `cp-venc` (Vencimento) como base de cálculo das parcelas restantes: Parcela 1 = `vencimento`, Parcela N = `vencimento + (N-1)×prazo dias`. Antes usava `entradaData + N×prazo` o que era incorreto. Se `saldo > 0` e `vencBase` não foi preenchido, a função retorna sem gerar preview (evita datas inválidas).
+- **Fix 4 — Herança de conta/forma para parcelas com entrada**: Quando `teveEntrada=true` e as parcelas restantes não têm override próprio, o campo `cp-conta`/`cp-forma` (conta bancária e forma de pagamento das parcelas principais) é herdado automaticamente nas parcelas geradas, desde que não seja "A definir".
+- **Fix 5 — Validação de datas financeiras em `_saveCompra`**: Novas verificações antes de salvar: (a) Vencimento não pode ser anterior à data da compra; (b) Data da entrada não pode ser anterior à data da compra; (c) Data da entrada não pode ser posterior ao vencimento quando há saldo > 0 (haveria parcelas sem data lógica).
+- **Fix 6 — Metadados ricos em `_criarContasPagar`**: O objeto `base` das contas a pagar agora inclui: `tipoMovimento:'saida'`, `origem:'compra'`, `fornecedorNome` (nome textual do fornecedor), `categoriaFinanceiraNome` (nome da categoria buscada em `_finCategorias`), `categoriaFinanceiraTipo:'saida'`. Esses campos facilitam relatórios e listagens no módulo Financeiro sem joins.
+- **Fix 7 — Campo `tipoParcela` por item**: Cada item gerado no loop de `_criarContasPagar` recebe `tipoParcela: p.isEntrada ? 'entrada' : 'parcela'` — distingue no Firestore qual item é a entrada e quais são as parcelas regulares.
+
+## 2026-05-05 — Tarefa complementar: Menu lateral, card Pendentes e Status editável com pagamento confirmado
+- Arquivos alterados: `admin.html`, `js/modules/compras.js`, `AI_CHANGELOG.md`
+- **Fix 1 — Menu lateral Compras**: Removidos os itens "Tipos" e "Categorias" do submenu lateral. Reordenação para: Registro de compras · Produtos / Insumos · Fornecedores · Configurações. A rota `compras/configuracoes` já existia e abre a aba correta. Tipos e Categorias continuam acessíveis dentro da aba Configurações (subtabs internos — inalterados). A lógica de `_loadSub` que redirecionava `tipos`/`categorias` → `configuracoes` foi preservada para compatibilidade com bookmarks antigos.
+- **Fix 2 — Card "Pendentes" — normalização robusta**: Extraída função `_statusCompraRaw(c)` que lê `statusCompra || status || estado || situacao || situação || statusPagamento || paymentStatus`. Definidas constantes `_PENDENTE_STATUS` (pendente, pendentes, aguardando, em aberto, aberto) e `_PAGO_STATUS` (pago, paga, quitado, quitada, recebida, concluido, concluída, cancelada, cancelado, parcial). `_compraPendente` usa as duas listas para decidir sem ambiguidade. Comparação sempre lowercase+trim. Card recalcula em todos os eventos existentes (filtro, create, edit, delete) pois `_paintRegistrosTable` já é chamado em todos eles.
+- **Fix 3 — Campo Status sempre editável com pagamento confirmado**: Em `_updateCompraModalUI` quando `hasPaid`, o loop de bloqueio agora verifica `if (lockedEls[k].id === 'cp-status') continue` — o select de status não é desabilitado. Após o loop, restaura `opacity/cursor/pointerEvents` do `#cp-status` explicitamente para garantir aparência normal mesmo que CSS de pai interfira.
+- **Fix 4 — Botão "Salvar status" no rodapé**: Quando `hasPaid`, o footer agora exibe 3 botões: "Fechar" · "Salvar status" (azul) · "Estornar pagamentos e liberar edição" (vermelho). O botão "Salvar status" chama `_saveStatusOnly(id)`.
+- **Fix 5 — `_saveStatusOnly(id)`**: Nova função. Lê apenas `#cp-status`, faz `DB.update('compras', id, { statusCompra: newStatus })`, atualiza o objeto em `_compras[]` localmente, exibe toast "Status atualizado com sucesso.", repinta a tabela via `_paintRegistrosTable()` e fecha o modal. Não toca em `financeiro_apagar`, `contas_pagar`, `movimentacoes` nem em nenhuma lógica de parcelas/estorno.
+
+## 2026-05-05 — Tarefa complementar: Alinhamento do Prazo, entrada parcial e integração financeira
+- Arquivo alterado: `js/modules/compras.js`, `AI_CHANGELOG.md`
+- **Fix 1 — Alinhamento do campo "Prazo entre parcelas (dias)"**: Adicionado `align-items:end` ao grid de 4 colunas (Vencimento · Prazo · Parcelas · Categoria). Quando o label longo do campo "Prazo" quebra linha (uppercase via CSS), os inputs ficam todos alinhados na base do grid.
+- **Fix 2 — Cálculo de datas da prévia**: `_buildParcelasPreview` reescrito. Sem entrada: Parcela 1 = vencimento, Parcela N = vencimento + (N-1)×prazo dias. Com entrada: linha de entrada usa `entradaData`; parcelas restantes começam de `entradaData + 1×prazo`, `entradaData + 2×prazo`, etc. Nunca gera data anterior ao vencimento/entrada.
+- **Feature — "Teve entrada?"**: Novo checkbox na seção "Gerar conta a pagar". Quando marcado, exibe sub-painel "Dados da entrada" com 4 campos: Valor da entrada (€), Data da entrada, Forma de pagamento da entrada, Conta bancária da entrada. O painel aparece/desaparece via `_toggleEntradaSection()` sem re-render do modal.
+- **Label dinâmico**: Quando "Teve entrada?" está marcado, o campo "Parcelas" passa a exibir "PARCELAS RESTANTES" (via `_toggleEntradaSection` + label inicial pelo `c.teveEntrada` na abertura).
+- **Prévia com entrada**: Linha de entrada renderizada com fundo verde claro `#F0FFF8`, texto em verde `#1A9E5A` + badge "ENTRADA". Parcelas restantes renderizadas normalmente abaixo.
+- **Cálculo de valores com entrada**: Saldo = total − entradaValor; cada parcela = saldo / parcelas. Se entradaValor ≥ total, nenhuma parcela extra é gerada.
+- **Validação de entrada**: Quando `teveEntrada=true`, valida valor > 0, valor ≤ total, data preenchida, forma ≠ "A definir", conta bancária preenchida. Validações de Conta/Forma/Vencimento do painel principal ficam condicionais a `teveEntrada=false`.
+- **`_criarContasPagar` atualizado**: Usa `idx+1` como `parcelaNumero` (posição no array, entry=1). Aplica `contaBancariaId`/`formaPagamento` por item do preview — entrada usa conta/forma da entrada, parcelas regulares usam a conta/forma do painel principal. Campo `isEntrada:true` marcado no doc do Firestore para rastreabilidade.
+- **`_saveCompra`**: Persistidos no compraData: `teveEntrada`, `entradaValor`, `entradaData`, `entradaFormaPagamento`, `entradaContaBancariaId`.
+
+## 2026-05-04 — Tarefa 29 + KPI: Melhorias no módulo Compras e correção dos cards métricos
+- Arquivo alterado: `js/modules/compras.js`, `AI_CHANGELOG.md`
+- **Tarefa 29.1 — Ordenação por Data**: Coluna "Data" na tabela de Registro de compras agora é clicável — toggle asc/desc com seta visual (↑/↓). Padrão: desc (mais recente primeiro). Adicionado `ordem:'desc'` ao `_registroFilters` e função `_toggleRegistrosOrdem()`. `_filteredRegistros` agora ordena o resultado antes de retornar.
+- **Tarefa 29.2 — Bloqueio de campos com pagamento confirmado**: `_updateCompraModalUI` quando `hasPaid`, além do banner e rodapé existentes, agora itera todos os `input/select/textarea/button` dentro do corpo do formulário e define `disabled=true`, `opacity:0.55`, `cursor:not-allowed`. Impede qualquer edição sem estornar primeiro.
+- **Tarefa 29.3 — Validação de campos obrigatórios no "Gerar conta a pagar"**: `_saveCompra` agora valida que, quando `gerarContaPagar` está marcado, os seguintes campos estão preenchidos: Conta bancária, Forma de pagamento (não pode ser "A definir"), Vencimento, Categoria financeira. Mostra toast de erro e interrompe o save se algum faltar.
+- **Tarefa 29.4 — Campo "Prazo entre parcelas (dias)"**: Novo campo `cp-prazo` (padrão 30) adicionado à seção "Gerar conta a pagar". Layout alterado de 3-colunas para 4-colunas: Vencimento · Prazo · Parcelas · Categoria financeira. `_buildParcelasPreview` agora usa `prazo × i dias` (offset fixo por intervalo) em vez de `+1 mês` para calcular os vencimentos das parcelas. `_saveCompra` persiste `prazoParcelas`.
+- **KPI — Corrigir card "Pendentes"**: `_compraPendente` agora usa comparação case-insensitive: `String(c.statusCompra).toLowerCase() === 'pendente'`. Eliminada falha quando status vem em lowercase ou UPPERCASE do Firestore.
+- **KPI — Corrigir card "Ticket médio"**: Removido o fallback `'-'` quando não há compras. `UI.fmt(ticketMedio)` exibe `€0,00` para lista vazia (ticketMedio = 0).
+- **KPI — Filtro de status case-insensitive**: `_filteredRegistros` compara `String(cStatus).toLowerCase() !== _registroFilters.status.toLowerCase()` — o filtro de status na barra agora funciona independentemente de capitalização.
+
+## 2026-05-05 — Tarefa 28: Corrigir interpretação da coleção financeiro_apagar
+- Pedido feito: `financeiro_apagar` NÃO é legado — é a fonte de contas a pagar geradas pelo módulo Compras. Ambas as coleções devem poder ser confirmadas como saída.
+- Arquivo alterado: `js/modules/financeiro.js`, `AI_CHANGELOG.md`
+- **Fix 1 — `_loadContasPagarData`**: removido rótulo `'legado'`. Cada item agora recebe `_colecao` correto (`'contas_pagar'` ou `'financeiro_apagar'`), `_origemFinanceira` (`'financeiro_manual'` ou `'compra'`) e `_acionavel: true` para ambos.
+- **Fix 2 — Botões na listagem**: "Confirmar saída" usa `cp._acionavel` (true para ambas as coleções). "Editar" e "Excluir" continuam restritos a `contas_pagar` — itens de `financeiro_apagar` vinculados a compras não devem ser excluídos pelo Financeiro para não quebrar o vínculo.
+- **Fix 3 — `_savePagamentoCP` source-aware**: removido guard que bloqueava `financeiro_apagar`. Adicionado `var colecao = cp._colecao || 'contas_pagar'`. `DB.getDoc(colecao, id)` e `DB.update(colecao, id, upd)` agora usam a coleção correta. Movimentação gerada passa a incluir `sourceCollection`, `sourceId`, `origem`, `compraId`, `parcelaNumero`, `totalParcelas` para rastreabilidade no Fluxo de Caixa.
+- **Proteção anti-duplicidade**: antes de criar movimentação, verifica em `_movimentacoes` se já existe saída efetivada para o mesmo `sourceCollection+sourceId` (ou `contaPagarId`). Se sim e não for pagamento parcial, rejeita com aviso.
+
+## 2026-05-05 — Tarefa 27: Corrigir origem dos dados e fluxo de confirmação de saída
+- Pedido feito: "Confirmar saída" ainda disparava a mensagem de não encontrado para itens legados (financeiro_apagar) que nunca existiram em contas_pagar.
+- Arquivo alterado: `js/modules/financeiro.js`, `AI_CHANGELOG.md`
+- **Causa raiz**: `_loadContasPagarData` une `contas_pagar` (docs reais) com `financeiro_apagar` (coleção legada). Itens legados têm IDs próprios que não existem em `contas_pagar/`, por isso `DB.getDoc('contas_pagar', id)` retorna null para eles, disparando a mensagem de erro.
+- **Fix 1 — Tag de origem**: `_loadContasPagarData` agora marca cada item com `_colecao:'contas_pagar'` (real) ou `_colecao:'legado'` (financeiro_apagar). A deduplicação já coloca itens reais primeiro; se o mesmo ID aparecer nos dois lados, o real prevalece.
+- **Fix 2 — Botões condicionais**: "Confirmar saída" e "Editar" só aparecem quando `cp._colecao === 'contas_pagar'`. Itens legados são exibidos para consulta histórica (status, valor, vencimento) sem botões de ação. "Excluir" também limitado a docs reais.
+- **Fix 3 — Guard em `_savePagamentoCP`**: verificação adicional — se `cp._colecao !== 'contas_pagar'`, a função rejeita imediatamente com mensagem informativa sem tocar o Firestore.
+- **Resultado**: conta real → botões aparecem, fluxo funciona; item legado → exibido só como histórico, sem botão, sem erro.
+
+## 2026-05-05 — Tarefa 26: Corrigir confirmação de saída quando conta a pagar não é encontrada
+- Pedido feito: o `_savePagamentoCP` registrava a movimentação ANTES de verificar se o documento `contas_pagar/{id}` existe, causando a mensagem confusa e uma saída avulsa órfã.
+- Arquivo alterado: `js/modules/financeiro.js`, `AI_CHANGELOG.md`
+- **Causa raiz**: `DB.add('movimentacoes', mov)` era a primeira chamada; o `DB.getDoc('contas_pagar', id)` ficava dentro do `.then()`, após a movimentação já ter sido gravada no Firestore.
+- **Correção**: invertida a ordem — `DB.getDoc('contas_pagar', id)` é agora a primeira chamada. Se o documento não existir: fecha o modal, remove o item da lista local, exibe "Esta conta a pagar não existe mais ou já foi removida. A lista foi atualizada.", recarrega a listagem e **não cria nenhuma movimentação**. Se existir: segue o fluxo normal (`DB.add('movimentacoes')` → `DB.update('contas_pagar')`).
+- **Bonus**: ao confirmar o pagamento, o `upd` enviado para `contas_pagar` agora inclui `conta_id` e `contaBancariaId` — a conta bancária utilizada fica registrada no documento da saída, o que permite ao Fluxo de Caixa filtrar corretamente por conta em pagamentos futuros.
+- Mensagem "A conta a pagar não foi encontrada. O pagamento foi registrado na movimentação." removida.
+
+## 2026-05-04 — Tarefa 25: Corrigir erros de update no Financeiro e filtro de Conta Bancária no Fluxo de Caixa
+- Pedido feito: corrigir erro "No document to update" em config/financeiro e contas_pagar; corrigir filtro de Conta Bancária no Fluxo de Caixa para usar conta_id em vez de nome.
+- Arquivo alterado: `js/modules/financeiro.js`, `AI_CHANGELOG.md`
+- **1 — config/financeiro (formas de pagamento)**: `_saveFormaPag`, `_addFormaPag`, `_removeFormaPag` usavam `DB.update('config','financeiro',...)` que falha se o documento não existir. Substituídos por `DB.setDocRoot('config','financeiro',...)` que usa `set({merge:true})` — cria o documento automaticamente na primeira gravação sem sobrescrever outros campos. Mesmo fix aplicado a `DB.update('config','geral',...)` e `DB.update('config','custos',...)` em `_saveCustosInd`.
+- **2 — contas_pagar stale ID**: `_saveCP` agora chama `DB.getDoc('contas_pagar', _editingId)` antes de `DB.update`. Se o documento não existir: remove da lista local, fecha o modal, exibe mensagem amigável "Esta conta a pagar não existe mais ou já foi removida. A lista foi atualizada." e recarrega a listagem. Mesma proteção adicionada em `_savePagamentoCP`. Nenhum erro técnico do Firestore é exibido ao usuário. Não cria conta duplicada.
+- **3 — Filtro Conta Bancária no Fluxo de Caixa**: `_normalizeLegacyCP` agora normaliza `conta_id: cp.conta_id || cp.contaId || cp.conta_bancaria_id || cp.contaBancariaId || ''` (suporta múltiplos nomes de campo legados). `_refreshFluxoResults` filtra contas a pagar por `conta_id` quando uma conta específica está selecionada — lançamentos sem conta vinculada ficam ocultos. Movimentações já usavam `conta_id` normalizado. O saldo filtrado reflete exatamente os lançamentos visíveis na tabela.
+
+## 2026-05-04 — Tarefa 24: Filtros e resumo do Fluxo de Caixa
+- Pedido feito: atualizar lista de períodos, corrigir campo de busca (perda de foco), adicionar filtro por Conta Bancária, botão Limpar filtros, ordenação alfabética de listas, e corrigir copy e cálculo do resumo de saldo.
+- Arquivo alterado: `js/modules/financeiro.js`, `AI_CHANGELOG.md`
+- **1 — Nova lista de períodos** (`_PERIODO_OPTIONS`): Todo período / Hoje / Ontem / Esta semana / Semana passada / Este mês / Mês passado / Últimos 7, 30 e 90 dias / Este trimestre / Este ano / Ano passado / Personalizado — nessa ordem exata. Lógica de cálculo via `_fluxoPeriodRange()`.
+- **2 — Correcção do campo Busca**: `_paintFluxoCaixa` agora cria dois containers estáveis (`#fluxo-summary-txt` e `#fluxo-results`). Ao digitar no campo de busca, `_setFluxoFiltro('busca',…)` chama apenas `_refreshFluxoResults()` — sem re-renderizar o card de filtros nem destruir o `<input>`. Foco e cursor mantidos durante digitação contínua.
+- **3 — Filtro Conta Bancária**: novo `<select>` no card de filtros. Lista contas cadastradas do tenant atual (`_contasBancarias`, respeitando `ativo !== false`), ordenadas alfabeticamente. Opção padrão "Todas as contas". Filtra `_movimentacoes` por `conta_id`; contas a pagar (sem `conta_id`) aparecem em qualquer conta. Estado em `_fluxoFiltro.conta`.
+- **4 — Botão Limpar filtros**: chama `_limparFluxoFiltros()` que restaura `_fluxoFiltro` para os valores padrão (todos os status marcados, período = "Todo período", conta = "Todas as contas", busca vazia) e re-renderiza tudo.
+- **5 — Saldo filtrado**: cálculo e copy alterados. Valor = soma líquida (entradas − saídas) dos eventos exibidos, partindo de zero. Texto: `"Saldo filtrado: € X · Considera os lançamentos exibidos conforme período, status e conta bancária selecionados."` Atualizado via `_refreshFluxoResults()`, refletindo período, status, busca e conta.
+- **6 — Ordenação**: contas bancárias listadas no select em ordem alfabética (`localeCompare`).
+
+## 2026-05-04 — Tarefa 23: Tipos e Categorias de Compras por tenant com refresh automático
+- Pedido feito: garantir que `Tipo` e `Categoria` em Produtos / Insumos venham sempre do tenant atual, sem listas globais, e que filtros/selects atualizem após criar, editar ou excluir esses cadastros.
+- Arquivos alterados: `js/modules/compras.js`, `AI_CHANGELOG.md`
+- **1 — Catálogo por tenant**:
+  - `Tipo` e `Categoria` passaram a ser lidos exclusivamente do banco do tenant atual via `DB.getAll('compras_tipos')` e `DB.getAll('compras_categorias')`.
+  - A interface de Produtos / Insumos não usa mais fallback fixo para montar os selects.
+  - Nenhum cadastro de outro tenant entra na lista atual.
+- **2 — Atualização automática**:
+  - Ao criar, editar ou excluir Tipo/Categoria em `Compras > Tipos` ou `Compras > Categorias`, o módulo recarrega os catálogos e atualiza:
+    - filtros da aba Produtos / Insumos
+    - selects do modal Novo Produto / Editar Produto
+  - O refresh acontece sem recarga manual da página quando o estado do app está ativo.
+- **3 — Filtros e compatibilidade**:
+  - Os filtros de Produtos / Insumos continuam cumulativos entre `Tipo`, `Categoria`, busca, classe e status.
+  - Se um Tipo/Categoria usado em produto for excluído, o produto continua listado e o campo aparece como vazio / `Não informado`, sem quebrar o modal.
+  - Se um filtro ficar apontando para um valor removido, ele é limpo automaticamente.
+
+## 2026-05-04 — Tarefa 22: Carregamento inicial e ações da lista de Usuários no Master
+- Pedido feito: fazer a lista de usuários carregar automaticamente ao abrir `master.html` e corrigir os botões `Editar` e `Excluir` após a limpeza visual da aba.
+- Arquivos alterados: `master.html`, `AI_CHANGELOG.md`
+- **1 — Carregamento inicial da lista**:
+  - `loadUsers()` agora tenta primeiro `POST /api/master/firebase/sync-users`.
+  - Se a sincronização automática falhar, o Master não fica em branco: ele cai para `overview` e, se necessário, para a listagem local.
+  - A interface mostra estado discreto de carregamento e aviso claro quando o sync automático não puder ser concluído.
+  - O botão `Sincronizar usuários Firebase` continua funcionando e usa o mesmo fluxo.
+- **2 — Ações da linha de usuário**:
+  - Os botões `Editar` e `Excluir` foram amarrados explicitamente em `window.editUser(...)` e `window.deleteUser(...)` para não perder referência após a renderização dinâmica.
+  - `editUser(id)` e `deleteUser(id)` continuam disponíveis no escopo global e agora registram o `id` clicado no console.
+  - A exclusão continua pedindo confirmação e recarrega a listagem ao final.
+- **3 — Logs e diagnóstico**:
+  - O console agora registra:
+    - início do carregamento inicial
+    - resposta de `sync-users`
+    - quantidade de usuários renderizados
+    - erros do sync e dos fallbacks
+    - `id` acionado em `Editar` e `Excluir`
+
+## 2026-05-04 — Tarefa 21: País fiscal aplicado a Fornecedores e Produtos / Insumos
+- Pedido feito: ajustar fornecedores, Configurações de Compras e Produtos / Insumos para respeitar `fiscalCountry` como país fiscal/operacional, sem mexer no idioma do painel.
+- Arquivos alterados: `js/modules/compras.js`, `AI_CHANGELOG.md`
+- **1 — Fornecedor no modal de Compras**:
+  - O bloco Contato foi reorganizado para ficar em duas linhas:
+    - linha 1: WhatsApp e Telefone
+    - linha 2: E-mail em largura total
+  - O DDI padrão agora segue o país do fornecedor, ou o `fiscalCountry` do tenant quando o fornecedor não tem país próprio:
+    - PT → `+351`
+    - ES → `+34`
+  - Se o número já estiver preenchido, o código não é sobrescrito.
+  - A mudança de país atualiza o rótulo fiscal e também o DDI padrão apenas quando o campo está vazio.
+- **2 — Produtos / Insumos**:
+  - As listas de `Tipo` e `Categoria` no modal foram ordenadas alfabeticamente.
+  - Foi adicionado campo de busca de fornecedor no modal, no mesmo padrão da busca usada em Nova Compra.
+  - A seleção do fornecedor continua compatível com cadastro sem fornecedor.
+- **3 — Filtros da listagem de Produtos / Insumos**:
+  - `Tipo` e `Categoria` agora se alimentam de forma cumulativa.
+  - O dropdown de `Categoria` se restringe ao contexto atual do `Tipo`, e vice-versa, sem resetar os demais filtros.
+  - Busca e status continuam combinando com os filtros de tipo/categoria.
+- **4 — Configurações de Compras**:
+  - O filtro `Ambos` foi removido da listagem de manutenção de tipos/categorias.
+  - A interface passou a trabalhar com `Todos`, `Insumo` e `Produto`.
+- **5 — País fiscal sem mexer em idioma**:
+  - Nenhuma dessas mudanças altera `adminLanguage` ou `publicStoreLanguage`.
+  - O `fiscalCountry` continua sendo apenas país fiscal/operacional do tenant.
+
+## 2026-05-04 — Tarefa 20: Limpeza da aba Usuários do Master e correção real do Excluir
+- Pedido feito: remover a barra preta técnica de Firebase do topo, eliminar o botão `Recarregar` da aba Usuários, deixar a listagem mais limpa e fazer o botão `Excluir` funcionar sem o registro reaparecer na próxima sincronização.
+- Arquivos alterados: `master.html`, `server.rb`, `AI_CHANGELOG.md`
+- **1 — UI do Master (`master.html`)**:
+  - Barra preta de autenticação Firebase ocultada da interface visual.
+  - A aba Usuários perdeu o botão `Recarregar`; ficou apenas `Sincronizar usuários Firebase`.
+  - A listagem foi simplificada para priorizar:
+    - nome
+    - e-mail
+    - status
+    - sync
+    - loja
+  - O layout da tabela ficou menos poluído, com menos colunas e badges mais discretos.
+  - O carregamento da listagem continua acontecendo automaticamente ao abrir a página.
+- **2 — Exclusão correta de usuário**:
+  - O botão `Excluir` agora chama confirmação, remove o tenant local e tenta apagar `system_tenants/{uid}` no Firestore.
+  - Foi adicionado tombstone local em `.master-store.json` para impedir que o auto-sync traga o mesmo UID de volta logo depois.
+  - O save/import/provision do Master restaura o UID quando o usuário é recriado intencionalmente.
+  - O console agora informa quando a exclusão foi apenas local ou quando `system_tenants` também foi removido.
+- **3 — Sincronização preservada**:
+  - O auto-sync com Firebase Auth continua ativo.
+  - A listagem agora não depende mais da barra técnica de login para aparecer.
+
+## 2026-05-04 — Tarefa 19: Autoimportar usuários do Firebase Auth para o Master local
+- Pedido feito: ao abrir/recarregar o Master, importar automaticamente usuários existentes no Firebase Auth para `.master-store.json` e `system_tenants/{uid}`, sem trazer clientes finais do template público.
+- Arquivos alterados: `server.rb`, `master.html`, `admin.html`, `AI_CHANGELOG.md`
+- **1 — Auto sync no backend (`server.rb`)**:
+  - Adicionado `POST /api/master/firebase/sync-users`.
+  - Novo helper `firebase_customer_uids` percorre `tenants/{tenantId}/store_customers` e `tenants/{tenantId}/customers` para bloquear clientes finais.
+  - Novo helper `firebase_auto_sync_master_from_auth!`:
+    - lista usuários do Firebase Auth
+    - ignora clientes finais
+    - cria registro local quando faltar no Master
+    - cria/atualiza `system_tenants/{uid}`
+    - usa `source: firebase_auth_auto_import`
+    - define `status: active`, `role: store_owner`, `plan: starter`
+  - Logs de resumo agora registram:
+    - total de usuários no Firebase Auth
+    - já sincronizados
+    - importados para o Master
+    - system_tenants criados/atualizados
+    - ignorados por serem clientes finais
+- **2 — Master local (`master.html`)**:
+  - `loadUsers()` agora chama o endpoint de auto sync antes de renderizar a listagem.
+  - O botão `Sincronizar usuários Firebase` também dispara esse mesmo fluxo.
+  - A listagem passa a refletir o estado pós-sync sem depender de ação manual.
+- **3 — Admin (`admin.html`)**:
+  - Mensagem de bloqueio por falta de liberação ajustada para:
+    - `Sua conta ainda não foi liberada no Master.`
+- **4 — Regra de exclusão**:
+  - Clientes finais detectados em `store_customers` ou `customers` não entram no Master e não recebem `system_tenants`.
+
+## 2026-05-04 — Tarefa 18: Sincronização bidirecional Master ↔ Firebase Auth ↔ system_tenants
+- Pedido feito: estruturar fluxo seguro entre Master local, Firebase Auth e `system_tenants`, sem mexer no template público nem em seed/publicação.
+- Arquivos alterados: `server.rb`, `master.html`, `js/core/auth.js`, `admin.html`, `AI_CHANGELOG.md`
+- **1 — Backend administrativo no `server.rb`**:
+  - Adicionados helpers para autenticação admin via OAuth de service account e acesso REST ao Firebase Auth / Firestore.
+  - Novas rotas:
+    - `GET /api/master/firebase/overview` → lista unificada com origem, sync, loja e seed.
+    - `POST /api/master/firebase/provision` → cria/atualiza Auth, salva no `.master-store.json` e tenta escrever `system_tenants/{uid}`.
+    - `POST /api/master/firebase/import-users` → importa usuários do Firebase Auth para o Master local, sem liberar acesso automaticamente.
+    - `POST /api/master/firebase/release-access` → cria/atualiza `system_tenants/{uid}` somente para usuário autorizado.
+  - O backend agora é a fonte das operações administrativas do Firebase Auth; o navegador não grava Auth diretamente.
+- **2 — Master local (`master.html`)**:
+  - A aba Usuários passou a consumir `GET /api/master/firebase/overview`.
+  - Removida a leitura direta de `system_tenants` pelo navegador.
+  - Adicionados botões:
+    - `Sincronizar usuários Firebase`
+    - `Criar no Firebase`
+    - `Importar para Master`
+    - `Liberar acesso`
+  - `saveUser()` agora chama o backend de provisionamento e registra no console:
+    - ação
+    - e-mail
+    - UID
+    - origem
+    - criação/recuperação do Firebase Auth
+    - gravação no Master
+    - criação/atualização de `system_tenants`
+  - A listagem mostra:
+    - origem
+    - status de sync
+    - status da loja
+    - seed vinculada ou pendente
+  - O seletor de papel foi atualizado para:
+    - `master_admin`
+    - `store_owner`
+    - `store_staff`
+    - `store_customer`
+    - `pending_classification`
+  - O status do usuário agora aceita `pending`.
+- **3 — Login do Centro de Control (`js/core/auth.js` + `admin.html`)**:
+  - O login continua via Firebase Auth.
+  - Após login, o sistema consulta `system_tenants/{currentUser.uid}` e bloqueia se:
+    - o doc não existe → `Sua conta existe no Firebase, mas ainda não foi liberada no Master.`
+    - status não é `active` → `Seu acesso está inativo. Fale com o suporte.`
+    - role é `store_customer` → `Esta conta é de cliente da loja e não tem acesso ao Centro de Control.`
+  - Logs agora mostram:
+    - email
+    - UID
+    - path consultado
+    - doc encontrado/ausente
+    - status
+    - role
+    - motivo do bloqueio
+  - Bootstrap admin continua liberado por e-mail.
+- **4 — Regras de identidade**:
+  - `uid` continua sendo a chave principal.
+  - Usuário do Master e usuário do Firebase Auth agora podem convergir no mesmo UID.
+  - O fluxo não libera cliente final como dono de loja.
+- **5 — Resultado prático**:
+  - Usuário criado no Master pode ser provisionado no Firebase Auth e em `system_tenants`.
+  - Usuário existente no Firebase Auth pode ser importado para o Master.
+  - Usuário autorizado e ativo passa a abrir o `/admin.html` quando o `system_tenants/{uid}` está presente.
+
+## 2026-05-04 — Tarefa 17: Corrigir login do Centro de Control — sync Master → Firestore
+- Pedido feito: corrigir acesso ao Centro de Control para usuário cadastrado no Master mas sem sync com Firestore; diferenciar mensagens de erro; adicionar sync automático; detectar UIDs duplicados.
+- Arquivos alterados: `firestore.rules`, `js/core/auth.js`, `admin.html`, `master.html`, `AI_CHANGELOG.md`
+- **Causa raiz**: `master.html` salva usuários APENAS no `.master-store.json` local (via `server.rb`). O login em `admin.html` verifica SOMENTE `system_tenants/{uid}` no Firestore. Nunca houve sincronização automática entre os dois.
+- **1 — `firestore.rules`**:
+  - `system_tenants`: adicionado `allow read/write: if master@bocadobrasil.com`. Antes: apenas o próprio tenant podia ler e `write: false` bloqueava todos. Agora: master pode ler todos os docs e gravar (necessário para sync).
+- **2 — `js/core/auth.js`** — melhor diagnóstico e mensagens:
+  - Quando Firestore não encontra doc: emite `console.warn` com uid, email, snapExists, status e reason.
+  - Após sign-out, tenta `fetch('/api/master/tenants')` para verificar se o usuário existe no store local.
+  - Se encontrado no Master local: loga campos ausentes (storeUrl, status), motivo exato ("Documento system_tenants/UID não existe"), e chama `showAccessDenied('nosync')`.
+  - Se não encontrado: chama `showAccessDenied('no_tenant_doc')`.
+  - Se server não acessível: fallback ao comportamento anterior.
+  - Erro de rede/Firestore: chama `showAccessDenied('error')`.
+- **3 — `admin.html`** — mensagens diferenciadas:
+  - `showAccessDenied(reason)` aceita reason parameter:
+    - `'nosync'` → "Usuário cadastrado no Master, mas ainda não sincronizado com o sistema. Acesse o Master, edite este usuário e clique em Salvar para ativar o acesso."
+    - `'disabled'` → "Este usuário está desativado. Contacte o administrador do Master para reativar o acesso."
+    - `'error'` → "Erro ao verificar o acesso. Verifique sua conexão e tente novamente."
+    - default → mensagem original (cliente da loja).
+- **4 — `master.html`** — sync automático e melhorias na listagem:
+  - **`saveUser()`**: após save local bem-sucedido, chama `_syncTenantToFirestore(p)` em background. Se falhar: toast de aviso + console.warn. Usuários desativados (`status=disabled`) não são sincronizados.
+  - **`_syncTenantToFirestore(p)`**: nova função. Espera Firebase auth, escreve `system_tenants/{id}` com `set({merge:true})`. Campos gravados: `tenantId, email, name, role, status, fiscalCountry, updatedAt`.
+  - **`syncTenantToFirestore(id)`**: função pública para o botão "Sincronizar" na listagem. Busca usuário, chama `_syncTenantToFirestore`, exibe toast de resultado, recarrega listagem.
+  - **Listagem — badge de sincronização**:
+    - `source === 'firebase'` (doc existe no Firestore): badge cinza "Firebase" — sem mudança.
+    - `source === 'master'` (só no store local): badge vermelho "⚠ Não sincronizado".
+  - **Listagem — botão Sincronizar**: aparece para usuários com `source === 'master'`. Cor amarela, clique chama `syncTenantToFirestore(id)`.
+  - **Listagem — coluna Loja**: se `domain` e `storeUrl` ambos ausentes, exibe "Loja não configurada" em vermelho.
+  - **Detecção de UIDs duplicados**: `loadUsers()` detecta o mesmo UID aparecendo mais de uma vez no store local e loga no console com nomes dos registros conflitantes.
+- **Fluxo corrigido para usuário existente (patricia.fezurc@gmail.com)**:
+  1. Master abre `master.html`, encontra Patricia na listagem com badge "⚠ Não sincronizado".
+  2. Clica em "Sincronizar" OU edita e salva. Isso cria `system_tenants/ZjO5moRK9ZNwvLZFKeejlAvJ0aT2` no Firestore.
+  3. Patricia tenta login em `admin.html`. `auth.js` encontra o doc no Firestore. Acesso liberado.
+- **Novos usuários**: ao criar usuário no Master e salvar, o sync Firestore ocorre automaticamente. Nenhuma ação manual necessária.
+
+## 2026-05-04 — Tarefa 16b: Complemento — Clientes, template público, formas de pagamento por país
+- Pedido feito: (1) módulo Clientes adaptado a país fiscal; (2) cliente criado pelo template público preserva country; (3) template público mantém idioma próprio; (4) normalização de métodos de pagamento corrigida; sem refatoração ampla.
+- Arquivos alterados: `js/modules/clientes.js`, `index.html`, `AI_CHANGELOG.md`
+- **1 — Clientes (`js/modules/clientes.js`)**:
+  - **País padrão para novo cliente**: `_defaultCountry` deriva do `Auth.getFiscalCountry()` do tenant — ES → 'España', PT → 'Portugal'.
+  - **NIF dinâmico**: campo NIF no modal agora tem `id="cli-fiscal-label"` e `id="cli-fiscal-hint"` inicializados com labels/placeholder/hint do `FiscalConfig` baseados no país do cliente. Para ES: NIF/NIE/CIF. Para PT: NIF/NIPC.
+  - **Região dinâmica**: label do campo Estado/Província tem `id="cli-state-label"` inicializado com `regionLabel` do FiscalConfig (Província para ES, Distrito para PT).
+  - **`_regionOptions(country, selected)`**: nova função que gera as options do select de região. Para ES: 52 províncias espanholas. Para PT: 20 distritos/regiões portuguesas (inclui Açores, Madeira). Para outros países: vazio (campo livre).
+  - **`_onClienteCountryChange()`**: nova função chamada no `onchange` do `cli-country`. Atualiza label/placeholder/hint do NIF, label do Estado/Região, e reconstrói as options do select de região.
+  - **País select**: `cli-country` recebe `onchange="Modules.Clientes._onClienteCountryChange()"`.
+  - **Validação NIF**: `_saveCliente` agora usa `FiscalConfig.get().validateNif()` e mensagem de erro do config. ES valida NIF/NIE/CIF; PT valida 9 dígitos; outros países: sempre válido.
+  - **Validação código postal**: `_validPostalCode()` agora aceita Portugal (`\d{4}-\d{3}` ou `\d{4}`). Mensagem de erro de `_saveCliente` é dinâmica por país.
+  - **`_onClienteCountryChange` exposta no return object**.
+- **2 — Template público (`index.html`) — mudanças mínimas**:
+  - **`normalizePaymentMethods()`**: corrigida/expandida. Antes mapeava `mbway` → 'Bizum' (errado). Agora: `cash`→'Efectivo', `card`→'Tarjeta', `bizum`→'Bizum', `mbway`→'MB WAY', `multibanco`→'Multibanco', `transferencia`→'Transferencia'. Métodos desconhecidos continuam com valor literal. Nenhum método é adicionado automaticamente — só se a loja ativou.
+  - **Customer criado no `onAuthStateChanged`**: ao criar novo doc em `customers`, agora inclui `country: cfg?.country || cfg?.geral?.country || ''` como default do país da loja. Não é obrigatório — se vazio, fica vazio.
+  - **Idioma do template**: NÃO alterado. O template continua usando seu próprio mecanismo de idioma (`publicStoreLanguage`). `fiscalCountry` não afeta o idioma.
+  - **WhatsApp**: NÃO alterado. Geração de mensagem inalterada.
+  - **Layout do template**: NÃO alterado.
+- **3 — Regras garantidas**:
+  - Bizum apenas aparece no template se a loja configurou `bizum` como método de pagamento ativo.
+  - MB WAY/Multibanco apenas aparecem se ativados nas configurações de pagamento.
+  - O `fiscalCountry` do tenant NÃO força nem oculta métodos de pagamento no template público.
+  - Uma loja PT pode ter template em espanhol; uma loja ES pode ter template em português.
+
+## 2026-05-04 — Tarefa 16: País fiscal por tenant (ES/PT) — Admin Master + regras por país no painel do cliente
+- Pedido feito: implementar configuração de país fiscal por tenant no Admin Master; aplicar regras diferentes para Espanha e Portugal em módulos do painel; criar utilitário central `FiscalConfig`; ocultar menu Fiscal para PT; adaptar campos de fornecedor, compra e pagamento por país.
+- Arquivos alterados: `js/core/auth.js`, `admin.html`, `master.html`, `js/modules/compras.js`, `js/modules/operacao.js`, `js/modules/configuracoes.js`, `AI_CHANGELOG.md`
+- **1 — `FiscalConfig` global (`js/core/auth.js`)**:
+  - Adicionado `window.FiscalConfig` IIFE ao final de `auth.js` (carregado antes de todos os módulos).
+  - Configurações detalhadas para `ES` (NIF/NIE/CIF, IVA ativo, Fiscal ativado) e `PT` (NIF/NIPC, sem IVA, Fiscal desativado).
+  - Config genérica `_default` para outros países (França, Itália, etc.) com validação permissiva.
+  - `get(v)`: aceita código ISO (`'ES'`, `'PT'`) ou nome de exibição (`'España'`, `'Portugal'`).
+  - `countryToCode(displayName)`: converte nome de exibição para código ISO.
+  - `Auth.getFiscalCountry()`: retorna `_adminProfile.fiscalCountry || 'ES'`.
+  - `AdminApp.applyFiscalVisibility()` chamado nos dois pontos de resolução da auth: bootstrap admin e `finally` do Firestore.
+- **2 — Admin do cliente (`admin.html`)**:
+  - `id="nav-group-fiscal"` adicionado ao `<div class="nav-group">` do menu Fiscal.
+  - `AdminApp.applyFiscalVisibility()` adicionado ao objeto `AdminApp`:
+    - Verifica `FiscalConfig.get(Auth.getFiscalCountry()).fiscalModuleEnabled`.
+    - Oculta o grupo de nav Fiscal para tenants PT; mostra para ES/outros.
+    - Se a rota atual começar com `fiscal/`, redireciona para `dashboard` ao ocultar.
+- **3 — Admin Master (`master.html`)**:
+  - Campo `<select id="user-fiscal-country">` adicionado ao formulário de usuário: opções 🇪🇸 Espanha (ES) / 🇵🇹 Portugal (PT).
+  - `userPayload()`: inclui `fiscalCountry: val('user-fiscal-country') || 'ES'`.
+  - `editUser()`: restaura `setVal('user-fiscal-country', t.fiscalCountry || 'ES')`.
+  - `clearUserForm()`: reseta com `setVal('user-fiscal-country', 'ES')`.
+  - O campo é salvo em `system_tenants/{tenantId}.fiscalCountry` via API Master.
+- **4 — Configurações do cliente (`js/modules/configuracoes.js`)**:
+  - `_renderGeral()`: adicionado bloco informativo de país fiscal (somente leitura) com bandeira, nome do país e nota sobre módulo fiscal. Lê `Auth.getAdminProfile().fiscalCountry`.
+- **5 — Compras (`js/modules/compras.js`)**:
+  - Corrigida referência obsoleta a `_googleMapsKey` (de Tarefa 15) → `BocaPlaces.getKey()`.
+  - Modal de fornecedor:
+    - País padrão ao criar novo fornecedor respeita o `fiscalCountry` do tenant (ES → España, PT → Portugal).
+    - NIF label (`fo-nif-label`), placeholder e hint (`fo-nif-hint`) inicializados com config do país do fornecedor via `FiscalConfig`.
+    - Label do estado (`fo-state-label`) inicializado com `regionLabel` do país.
+    - `fo-country` select: `onchange="Modules.Compras._onFornecedorCountryChange()"`.
+    - Nova função `_onFornecedorCountryChange()`: atualiza dinamicamente label/placeholder/hint do NIF e label do estado ao mudar o país.
+    - `_saveFornecedor`: validação do NIF usa `FiscalConfig.get(FiscalConfig.countryToCode(país) || país).validateNif()` e mensagem de erro do config. Funciona para ES (NIF/NIE/CIF), PT (9 dígitos) e outros (sempre válido).
+  - Modal de compra:
+    - Bloco Fiscal (`cp-fiscal-card`) apenas renderizado se `FiscalConfig.get(fiscalCountry).fiscalModuleEnabled === true`.
+    - Campo IVA % (`cp-iva-line`) exibido apenas para ES; para PT é `<input type="hidden">` para não quebrar `_calcCompraLinha`.
+    - Grid da linha de item ajusta colunas dinamicamente (4 colunas com IVA para ES, 3 sem para PT).
+- **6 — Operação (`js/modules/operacao.js`)**:
+  - `_renderPagamentos()`: exibe Bizum apenas para ES; exibe MB WAY e Multibanco apenas para PT; campo "Dados bancários / referência" exibido para todos.
+  - `_savePagamentos()`: salva `bizum` (ES), `mbway`/`multibanco` (PT) sem perder valores de outros países — campos de país não ativo preservam o valor já salvo.
+- **Fluxo de dados**:
+  - `fiscalCountry` salvo em `system_tenants/{tenantId}` pelo Admin Master.
+  - `auth.js` lê o campo via `Object.assign({ tenantId, role }, snap.data())` — já incluído automaticamente.
+  - `Auth.getFiscalCountry()` disponível globalmente para todos os módulos a partir do momento em que a auth resolve.
+
+## 2026-05-04 — Tarefa 15: Google Maps / Places movido para Admin Master, autocomplete global em todos os campos de endereço
+- Pedido feito: mover configuração Google Maps / Places do Admin Cliente para o Admin Master; criar utilitário global `BocaPlaces`; conectar todos os campos de endereço encontrados ao autocomplete global.
+- Arquivos alterados: `master.html`, `firestore.rules`, `js/core/db.js`, `js/modules/compras.js`, `js/modules/configuracoes.js`, `js/modules/clientes.js`, `js/modules/pedidos.js`, `js/modules/operacao.js`, `AI_CHANGELOG.md`
+- **1 — Removido do Admin Cliente (`configuracoes.js`)**:
+  - Removida variável `gmapsSection` com bloco HTML da seção Google Maps / Places.
+  - Removidos campos `cfg-gmaps-enabled` e `cfg-gmaps-key` do formulário de Integrações.
+  - Removidos `googleMapsEnabled` e `googleMapsKey` do collect function.
+  - Integrações continuam exibindo Google Analytics 4, GTM, Meta Pixel e WhatsApp sem alteração.
+- **2 — Admin Master (`master.html`)**:
+  - Novo card "Google Maps / Places" na aba Configurações, antes do card de JSON global.
+  - Status visual: "● Configurado" (verde) / "● Não configurado" (vermelho).
+  - Campo de chave do tipo `password` com botão Mostrar/Ocultar.
+  - Checkbox "Ativar autocomplete de endereço nos formulários da plataforma".
+  - Botão "Remover chave" aparece apenas quando há chave configurada.
+  - Botões Salvar (Firebase) e Recarregar.
+  - Campo vazio no save = preserva chave existente (não sobrescreve). Só atualiza se um novo valor for informado.
+  - Funções: `loadGmapsConfig()`, `saveGmapsConfig()`, `clearGmapsKey()`, `toggleGmapsKeyVisibility()`.
+  - Configuração salva em Firestore: `system/config` — fora de qualquer tenant.
+  - `loadGmapsConfig()` chamado na inicialização da página.
+- **3 — Firestore Rules (`firestore.rules`)**:
+  - Nova regra: `match /system/config { allow read: if signedIn(); allow write: if signedIn() && request.auth.token.email == 'master@bocadobrasil.com'; }`
+  - Regra `match /system/{document=**} { allow read, write: if false; }` mantida como fallback para outros docs de sistema.
+- **4 — Utilitário global `BocaPlaces` (`js/core/db.js`)**:
+  - Adicionado `window.BocaPlaces` ao final de `db.js` (carregado antes de todos os módulos).
+  - `loadConfig()`: lê `system/config` do Firestore; cacheia resultado; falha silenciosamente.
+  - `getKey()`: retorna chave se `googleMapsEnabled !== false && googleMapsKey` estiver definida.
+  - `loadScript(cb)`: carrega script Google Maps com `_bocaPlacesReady` callback; gerencia fila de callbacks concorrentes; falha silenciosamente se sem chave.
+  - `init(inputId)`: versão simples para campos que não precisam de `place_changed` personalizado — ativa autocomplete básico no input.
+  - `setConfig(data)`: escreve em `system/config` via Firestore SDK.
+  - Adicionados `DB.getSystemConfig()` e `DB.setSystemConfig(data)` para acesso direto ao doc `system/config`.
+- **5 — Compras (`js/modules/compras.js`)**:
+  - Removidas variáveis `_googleMapsKey` e `_googleMapsLoading`.
+  - Removida função `_loadGooglePlaces`.
+  - `_initAddressAutocomplete`: refatorada para usar `BocaPlaces.loadConfig()` + `BocaPlaces.loadScript()`. Mantém toda a lógica de `place_changed` que preenche `fo-neighborhood`, `fo-state`, `fo-country`. Falha silenciosamente se BocaPlaces não disponível ou sem chave.
+  - `_renderFornecedores`: removida leitura de `config/integracoes` para chave do Maps. Agora usa `BocaPlaces.loadConfig()` como segunda promise.
+- **6 — Campos de endereço conectados**:
+  - `fo-address` (`compras.js`) — autocomplete com place_changed personalizado (preenche bairro, estado, país)
+  - `cli-address` (`clientes.js`) — `BocaPlaces.init('cli-address')` 200ms após modal abrir
+  - `oc-address` (`pedidos.js`) — `BocaPlaces.init('oc-address')` 200ms após overlay de cliente do pedido ser inserido no DOM
+  - `mo-address` (`pedidos.js`) — `BocaPlaces.init('mo-address')` 300ms após overlay de pedido manual ser inserido no DOM (adicionado nos dois constructors: `_openNewOrderLegacy` e `_openNewOrder`)
+  - `op-address-line` (`operacao.js`) — `BocaPlaces.init('op-address-line')` 100ms após `_renderEndereco` escrever no DOM
+  - `cfg-address-line` (`configuracoes.js`) — `BocaPlaces.init('cfg-address-line')` 100ms após `_renderEndereco` renderizar
+  - `cfg-tpl-pickup-address` (`configuracoes.js`) — `BocaPlaces.init('cfg-tpl-pickup-address')` 100ms após `_renderTemplate` renderizar
+- **7 — Comportamento quando chave não configurada**:
+  - Sem chave ou com `googleMapsEnabled: false`: `BocaPlaces.loadScript()` retorna silenciosamente sem carregar o script Google Maps.
+  - Nenhum erro no console. Todos os campos de endereço funcionam normalmente como entrada manual.
+  - `_bocaAc = true` na flag do input evita dupla inicialização se o modal for reaberto.
+- **8 — Segurança / SaaS**:
+  - Chave não aparece em nenhuma tela do Admin Cliente (removida da UI e do collect).
+  - Chave salva em `system/config` (raiz do Firestore), não dentro de `tenants/{id}`.
+  - Apenas o usuário `master@bocadobrasil.com` pode escrever em `system/config`.
+  - Qualquer usuário autenticado pode ler (necessário para o autocomplete funcionar no front-end do painel).
+
+## 2026-05-04 — Tarefa 14: Modal compra, combobox fornecedor, listas financeiras, coluna Fiscal, busca Configurações
+- Pedido feito: (1) reordenar linha 1 do modal: Data|Nº Documento|Status; (2) Fornecedor em linha própria como combobox pesquisável; (3) Observações como textarea abaixo do Fornecedor; (4) ordenar Conta bancária e Categoria financeira alfabeticamente; (5) remover coluna Fiscal da tabela de Fornecedores; (6) corrigir perda de foco na busca de Tipos/Categorias em Configurações.
+- Arquivos alterados: `js/modules/compras.js`, `AI_CHANGELOG.md`
+- **1 — Linha 1 do modal reordenada**: Data | Nº Documento | Status (Fornecedor saiu desta linha).
+- **2 — Fornecedor como combobox pesquisável (linha própria, largura total)**:
+  - `cp-forn-display`: input visível com placeholder "Buscar fornecedor...", valor pré-preenchido com nome ao editar.
+  - `cp-forn`: `<select>` oculto que mantém o `value` lido por `_saveCompra` e `_buildParcelasPreview`.
+  - `cp-forn-dropdown`: div absoluta com lista de fornecedores filtrável.
+  - `_compraFornSearch(q)`: busca accent-insensitive por nome, contato, NIF, telefone, WhatsApp, email, estado; exibe dropdown com opção "Sem fornecedor" + até 60 resultados com nome em bold e sub-linha de contato/email/estado.
+  - `_compraFornSelect(id)`: preenche hidden select + display input + fecha dropdown + chama `_buildParcelasPreview()`.
+  - `onmousedown` nos itens do dropdown (dispara antes do `onblur` do input), sem conflito com o `setTimeout(..., 200)` no blur.
+- **3 — Observações como textarea**: usa helper `_textarea('cp-obs', ...)` já existente — `min-height:74px`, `resize:vertical`. Leitura em `_saveCompra` inalterada (`.value` funciona em textarea).
+- **4 — Ordenação alfabética de listas financeiras**:
+  - `_contas` e `_finCategorias` ordenados por `.name` com `localeCompare` antes de gerar options.
+  - `_paymentOptions` já estava ordenado — sem alteração.
+- **5 — Coluna Fiscal removida de `_paintFornecedoresTable`**: cabeçalho e célula removidos; variável `fiscal` removida. NIF e endereço ainda são usados na busca (`_filteredFornecedores`) e no modal de edição.
+- **6 — Busca em Tipos/Categorias sem perda de foco**:
+  - `_paintSimpleList` agora apenas renderiza o shell estático (filtros + `<div id="compras-simpleList-table-{kind}">`) e delega a tabela para `_repaintSimpleTable(kind)`.
+  - `_repaintSimpleTable(kind)`: aplica filtros de classe e busca, escreve somente no `<div>` da tabela — sem tocar no input de busca.
+  - `_setSimpleListQ(kind, q)`: chama `_repaintSimpleTable` em vez de `_paintSimpleList` — foco do input preservado.
+  - `_setSimpleListClasse` continua chamando `_paintSimpleList` (recria tudo ao mudar filtro de classe, o que é correto pois os botões precisam ser re-renderizados).
+
+## 2026-05-04 — Tarefa 13: Modal Fornecedor — layout, telefone DDI, endereço Places, campo removido
+- Pedido feito: (1) remover campo "Categorias / itens fornecidos"; (2) melhorar layout do modal; (3) telefone/WhatsApp com seletor de país e DDI; (4) endereço com Google Places Autocomplete opcional; (5) Google Maps / Places em Configurações > Integrações.
+- Arquivos alterados: `js/modules/compras.js`, `js/modules/configuracoes.js`, `AI_CHANGELOG.md`
+- **1 — Campo "Categorias / itens fornecidos" removido**:
+  - Campo removido do HTML do modal.
+  - `_saveFornecedor`: linha `categories: _el('fo-categories').value` removida do payload.
+  - Dados antigos (`categories`/`categorias`) já salvos em Firestore são preservados (não são apagados).
+  - `_filteredFornecedores`: busca ainda inclui `f.categories` para retrocompatibilidade.
+- **2 — Layout do modal corrigido**:
+  - Cards: `padding:20px 22px`, `border-radius:16px`, `gap:14px` entre seções.
+  - Títulos de seção: `font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em`.
+  - Grids internos: `gap:14px` (era `12px`), alinhamento consistente.
+  - Campo Nome com `margin-bottom:14px` isolado antes do grid de 2 colunas.
+  - Estado/Província convertido de `<select>` para `<input list="fo-state-list">` (datalist) — permite tanto valores predefinidos espanhóis quanto texto livre (necessário para Places autocomplete).
+  - Hint de contato removido do card (era redundante após adicionar o seletor de DDI).
+- **3 — Telefone e WhatsApp com país / DDI**:
+  - `PHONE_COUNTRIES`: array de 8 países (ES, BR, PT, FR, IT, DE, GB, US) com bandeira emoji e DDI.
+  - `_parsePhoneValue(val)`: detecta DDI de valores já salvos como "+34 600 000 000" e extrai país + número.
+  - `_phoneField(idPrefix, label, savedValue)`: gera label + flex row com `<select id="{idPrefix}-ddi">` (bandeira + DDI) e `<input id="{idPrefix}-num">`. Preserva compatibilidade com dados antigos via `_parsePhoneValue`.
+  - `_phoneValue(idPrefix)`: lê DDI + número e retorna string normalizada "+34 600 000 000".
+  - `_saveFornecedor`: usa `_phoneValue('fo-whatsapp')` e `_phoneValue('fo-phone')`.
+  - Validação de telefone continua funcional (lê o valor combinado).
+- **4 — Endereço com Google Places Autocomplete (opcional)**:
+  - `_loadGooglePlaces(key, cb)`: carrega o script da API Maps/Places dinamicamente uma única vez; fila de callbacks se já estiver carregando.
+  - `_initAddressAutocomplete()`: inicializa `google.maps.places.Autocomplete` no campo `fo-address`; ao selecionar uma sugestão, preenche automaticamente Bairro, Estado/Província e País; silencioso se Places não disponível.
+  - `_renderFornecedores`: carrega `DB.getDocRoot('config','integracoes')` em paralelo com os fornecedores; armazena a chave em `_googleMapsKey`.
+  - `_openFornecedorModal`: após abrir o modal, chama `setTimeout(_initAddressAutocomplete, 300)`; exibe indicador "● Autocomplete ativo" na seção de endereço quando a chave está configurada.
+  - Fallback: sem chave configurada, o campo `fo-address` funciona como input manual normal, sem mensagem de erro.
+- **5 — Google Maps / Places em Configurações > Integrações**:
+  - `_renderIntegracoes` (configuracoes.js): adicionados campos `cfg-gmaps-enabled` (checkbox) e `cfg-gmaps-key` (input texto), sob subtítulo visual "Google Maps / Places" com indicador "● Configurado / Não configurado".
+  - Collect function inclui `googleMapsEnabled` e `googleMapsKey`, salvos em `config/integracoes` via `DB.setDocRoot`.
+  - Multi-tenant: segue o mesmo padrão dos outros campos de integrações.
+  - Chave não é exposta além do necessário (usada apenas para inicializar o script Places no front).
+
+## 2026-05-03 — Tarefa 12: Combobox pesquisável Produto/Insumo no modal de compra
+- Pedido feito: remover campo de busca separado e substituir o select nativo de Produto/Insumo por um combobox pesquisável (digita dentro do próprio campo, lista filtrada, seleciona, fecha).
+- Arquivos alterados: `js/modules/compras.js`, `AI_CHANGELOG.md`
+- O que foi feito:
+  - Removido `<input id="cp-item-search">` (campo separado que existia acima do select).
+  - `<select id="cp-item">` agora é oculto (`display:none`), mantendo todos os `data-*` attributes intactos para que `_onCompraItemChange` e `_addCompraLinha` continuem a funcionar sem alteração.
+  - Novo `<input id="cp-item-display">` visível com `onfocus`/`oninput` que abre o dropdown filtrado.
+  - Novo `<div id="cp-item-dropdown">` posicionado em `absolute` abaixo do input, `z-index:9999`, max-height 220px com scroll.
+  - `_normalizeStr(s)`: helper que remove acentos via `normalize('NFD')` — permite buscar "guarana" e encontrar "Guaraná".
+  - `_compraItemSearch(q)`: filtra `window._compraAllItems` por nome, classe, tipo, categoria e fornecedor vinculado (accent-insensitive), renderiza até 60 itens no dropdown; usa `onmousedown` nos itens para garantir que o evento dispara antes do `onblur` do input.
+  - `_compraItemSelect(id)`: define `cp-item.value = id`, preenche `cp-item-display`, fecha dropdown, chama `_onCompraItemChange()`.
+  - `onblur` do display input fecha o dropdown com delay de 200ms (para permitir `onmousedown` disparar primeiro).
+  - `_addCompraLinha`: após limpar o select, também limpa `cp-item-display`, fecha o dropdown e reabilita o campo `cp-conteudo` (que pode ter ficado bloqueado para Produto).
+  - Funções exportadas no return: `_compraItemSearch`, `_compraItemSelect`.
+
+## 2026-05-03 — Tarefa 11: Filtros, busca e organização das listas no módulo Compras
+- Pedido feito: 8 melhorias — pill-filters em Configurações, busca em Tipos/Categorias, filtros em Fornecedores, remover filtro de Fornecedor de Itens, botão Limpar em 3 abas, fix foco busca Registros, busca expandida, ordem alfabética.
+- Arquivos alterados: `js/modules/compras.js`, `AI_CHANGELOG.md`
+- **1 — Configurações: pill-filters ordem Todos/Ambos/Insumo/Produto**:
+  - Ordem dos botões corrigida para: Todos → Ambos → Insumo → Produto.
+  - Estilo pill (border-radius 20px, destacado vermelho para activo) já existente, mantido.
+- **2 — Busca em Tipos e Categorias**:
+  - Novo `var _simpleListQ = ''` para guardar o texto de busca da lista activa.
+  - `_paintSimpleList`: card de filtros com `<input id="sl-search-{kind}">` acima dos pill-buttons; filtra por nome, descrição e classe.
+  - `_setSimpleListQ(kind, q)`: actualiza `_simpleListQ` e re-pinta.
+  - `_switchConfigSub`: reseta `_simpleListQ` e `_simpleListClasseFilter` ao trocar de sub-aba.
+- **3 — Fornecedores: card de filtros**:
+  - Novo `var _fornecedoresFilters = { q: '', status: 'ativo' }`.
+  - `_paintFornecedores` reescrita: card de filtros (busca + status + Limpar) + `<div id="compras-forn-table">`.
+  - `_filteredFornecedores()`: filtra por status e texto (name, contact, email, phone, nif, address, categories).
+  - `_paintFornecedoresTable()`: re-pinta apenas o `compras-forn-table` sem recriar filtros (preserva foco).
+  - `_filterFornecedores()`, `_clearFornecedoresFilters()`.
+- **4 — Produtos/Insumos: remover filtro Fornecedor**:
+  - Select "Fornecedor" removido do card de filtros (grid de 6→5 colunas).
+  - `_filterItens` não lê mais `it-f-forn`.
+  - `_filteredItens`: busca geral inclui fornecedor vinculado, classe, unidade_base, unidade_compra_padrao.
+- **5 — Botão Limpar**:
+  - Adicionado em Registro de compras, Produtos/Insumos e Fornecedores.
+  - `_clearRegistrosFilters()`, `_clearItensFilters()`, `_clearFornecedoresFilters()` — resetam estado e re-pintam a aba completa.
+- **6 — Fix foco de busca em Registro de compras**:
+  - `_paintRegistros` separado em shell estático + `_paintRegistrosTable()`.
+  - `_filterRegistros` agora chama apenas `_paintRegistrosTable()` (não recria os inputs), preservando o foco.
+  - `_repaintForKey('registros')` também usa `_paintRegistrosTable()`.
+  - Busca expandida: conta bancária, categoria financeira, statusCompra adicionados ao haystack.
+- **7 — Busca expandida em Produtos/Insumos**:
+  - Haystack inclui: nome, tipo, categoria, classe, unidade_base, unidade_compra_padrao, nome do fornecedor.
+  - Placeholder actualizado para reflectir os campos buscados.
+- **8 — Ordem alfabética**:
+  - Tipos e categorias nos selects de filtro de Produtos/Insumos: ordenados via `.localeCompare` antes do `map`.
+  - `_paymentOptions`: ordem actualizada para "A definir, Cartão, Débito direto, Dinheiro, MB WAY, Outro, Transferência".
+  - Opções de status em Registros: "Todos, Cancelada, Parcial, Pendente, Recebida".
+
+## 2026-05-03 — Tarefa 10: Aba Configurações, menu, financeiro e filtros de período
+- Pedido feito: (1) criar aba "Configurações" com Tipos+Categorias como sub-abas; (2) remover Tipos/Categorias do menu principal; (3) atualizar descrição da entrada financeira para incluir número do PC; (4) confirmar herança de dados do financeiro (já feito); (5) expandir filtro de período para o conjunto completo.
+- Arquivos alterados: `js/modules/compras.js`, `AI_CHANGELOG.md`
+- **1 — Aba Configurações no menu**:
+  - `TABS` reduzido de 6 para 4 entradas: Registro de compras, Produtos/Insumos, Fornecedores, Configurações. Tipos e Categorias removidos do menu principal.
+  - Nova variável `var _configSub = 'tipos'` para controlar a sub-aba activa dentro de Configurações.
+  - `_loadSub`: adicionado caso `'configuracoes'` → `_renderConfiguracoes()`. Adicionadas rotas legadas para `'tipos'` e `'categorias'` que redirecionam para Configurações definindo `_configSub` e `_activeSub`.
+  - `_repaintForKey`: caso `'configuracoes'` → `_paintConfiguracoes()`.
+- **2 — Funções `_renderConfiguracoes`, `_paintConfiguracoes`, `_switchConfigSub`**:
+  - `_renderConfiguracoes`: carrega `compras_tipos` e `compras_categorias` em paralelo, depois chama `_paintConfiguracoes`.
+  - `_paintConfiguracoes`: renderiza cabeçalho "Configurações de Compras" + botões sub-aba (Tipos/Categorias) + `<div id="compras-config-sub">` para conteúdo da sub-aba activa, depois chama `_paintSimpleList`.
+  - `_switchConfigSub(sub)`: actualiza `_configSub` e `_editingKind`, re-pinta Configurações.
+  - `_switchConfigSub` adicionado ao objecto `return` do módulo.
+- **3 — `_paintSimpleList` com suporte a contexto**:
+  - Detecta `_activeSub === 'configuracoes'`: escreve apenas `classeFilter + table` em `#compras-config-sub` (sem `_head`, pois Configurações já tem cabeçalho próprio).
+  - Modo autónomo (acesso directo a Tipos/Categorias): escreve em `compras-content` com `_head` completo.
+- **4 — Descrição da entrada financeira**:
+  - `_criarContasPagar` e `_buildParcelasPreview`: `descBase` agora usa formato `'Pedido de Compra #' + pcLabel + ' — ' + fornNome` (ou `'Compra — ' + fornNome` quando não há número de PC).
+  - Separador de parcela alterado de `' • Parcela '` para `' — Parcela '` para consistência.
+- **5 — Filtros de período expandidos**:
+  - `_periodoMatch`: adicionados casos `hoje`, `ontem`, `semana_atual`, `semana_passada`, `mes_passado`, `trimestre_atual`, `ano_passado`. Lógica numérica mantida para `'7'`, `'30'`, `'90'` dias.
+  - Select de período em `_paintRegistros`: agora mostra 13 opções — Todo período, Hoje, Ontem, Esta semana, Semana passada, Este mês, Mês passado, Últimos 7/30/90 dias, Este trimestre, Este ano, Ano passado.
+
+## 2026-05-03 — Tarefa 9: Status, filtros, busca, validação parcelas, filtros itens, tipos/cats por classe
+- Pedido feito: 6 funcionalidades — campo statusCompra, filtro de status, busca de produto no modal, validação soma parcelas, filtros completos em Produtos/Insumos, tipos/categorias separados por classe.
+- Arquivos alterados: `js/modules/compras.js`, `AI_CHANGELOG.md`
+- **1 — Campo Status da compra (`statusCompra`)**:
+  - `_compraStatusOptions`: novo helper que gera as opções Pendente/Recebida/Parcial/Cancelada.
+  - `_statusBadge(status)`: renderiza badge colorido (Pendente=orange, Recebida=green, Parcial=blue, Cancelada=gray).
+  - `_openCompraModal`: grid de cabeçalho passou de 2 para 3 colunas (Data | Fornecedor | Status). Status default = 'Pendente' em novas compras.
+  - `_saveCompra`: lê `cp-status` e inclui `statusCompra` no payload.
+  - `_compraPendente`: usa `c.statusCompra` em primeiro lugar; mantém fallback legado para compras sem o campo.
+  - Tabela da listagem: nova coluna "Status" com badge; coluna "Conta a pagar" mantida; colspan atualizado para 9.
+- **2 — Filtro de status na listagem**:
+  - `_registroFilters` ganhou campo `status`.
+  - Card de filtros da listagem reformulado: fundo branco, bordas arredondadas, sombra suave — mesmo estilo do Financeiro. Adicionado `select#compras-reg-status`.
+  - `_filterRegistros`: lê `compras-reg-status`.
+  - `_filteredRegistros`: aplica filtro por `statusCompra` (com fallback `_compraPendente` para dados legados).
+- **3 — Busca de produto no modal Nova/Editar Compra**:
+  - `window._compraAllItems = _itens` armazenado ao abrir o modal.
+  - `_filterItemSelect()`: reconstrói `<select id="cp-item">` filtrando `_itens` pelo nome digitado em `cp-item-search`. Preserva todos os `data-*` attributes (unidade, aproveitamento, emb, conteudo, classe).
+  - HTML da célula Produto/Insumo: adicionado `<input id="cp-item-search">` acima do select.
+- **4 — Validação soma de parcelas**:
+  - `_saveCompra`: antes de salvar, se `gerarContaPagar` e `_compraParcelasPreview.length > 0`, calcula `somaParcelas`; se `somaParcelas > total + 0.01` bloqueia e exibe mensagem clara.
+  - `_onParcelaValorChange`: calcula soma ao vivo e exibe aviso "⚠ A soma das parcelas excede o total da compra" inline na célula de total da prévia.
+- **5 — Filtros completos em Produtos/Insumos**:
+  - Nova variável `_itensFilters { q, classe, tipo, categoria, fornecedor, ativo }`.
+  - `_filteredItens()`: filtra `_itens` pelos 6 campos combinados.
+  - `_paintItens`: renderiza card de filtros (grid 6 colunas) acima da tabela. Status default = 'ativo'.
+  - `_filterItens`: lê todos os campos do card e re-renderiza tabela.
+- **6 — Tipos e Categorias por Classe**:
+  - Novos seeds `DEFAULT_TIPOS_SEED` / `DEFAULT_CATS_SEED` com campo `classe` (insumo/produto/ambos). `_seedDefaults` usa os novos seeds.
+  - `_openSimpleModal`: campo `sl-classe` (select Insumo/Produto/Ambos). Default = classe do filtro activo.
+  - `_saveSimple`: persiste `classe` no documento.
+  - `_paintSimpleList`: botões de filtro por classe (Todos/Insumo/Produto/Ambos) acima da tabela; coluna "Classe" na tabela.
+  - `_setSimpleListClasse(kind, classe)`: novo helper que actualiza `_simpleListClasseFilter` e re-pinta.
+  - `_openItemModal`: `tiposFiltrados`/`catsFiltradas` — filtra por `t.classe === classeItem || !t.classe || t.classe === 'ambos'`.
+  - `_toggleItemClasse`: ao trocar classe, reconstrói `<select id="it-tipo">` e `<select id="it-categoria">` com opções da nova classe, mantendo a selecção actual se ainda existir.
+- Backward compat: tipos/cats existentes sem campo `classe` continuam visíveis para ambas as classes (tratados como 'ambos').
+
+## 2026-05-03 — Tarefa 8: Bloquear campo Conteúdo para Produto
+- Pedido feito: bloquear o campo "Conteúdo (×)" no formulário de compra e o campo "Conteúdo por embalagem (×)" no modal de item quando a classe for Produto.
+- Arquivos alterados:
+  - `js/modules/compras.js`
+  - `AI_CHANGELOG.md`
+- O que foi feito:
+  - **`itemOpts`**: adicionado `data-classe` em cada `<option>` do select de itens da compra, para que `_onCompraItemChange` saiba se o item é Produto ou Insumo.
+  - **`_onCompraItemChange`**: ao seleccionar um item com `data-classe="produto"`, o campo `cp-conteudo` é fixado em `1` e desabilitado (`disabled=true`, opacidade 0,45, cursor not-allowed). Ao seleccionar Insumo ou limpar a selecção, o campo é reabilitado. O valor do histórico (`lastCfg.conteudo`) e o default do cadastro (`conteudoPadraoItem`) não são aplicados ao campo quando classe = Produto.
+  - **`_toggleItemClasse`** (modal de item): ao mudar para classe Produto, `it-conteudo-padrao` é fixado em `1` e desabilitado com o mesmo estilo. Ao voltar para Insumo, o campo é reabilitado.
+  - O cálculo de `qtyBase` e `custoAjustado` permanece inalterado — `conteudo = 1` para Produto garante `qtyBase = qtdComprada × 1 = qtdComprada`.
+
+## 2026-05-03 — Tarefa 7: Produto vs Insumo — modal e lógica de unidade base
+- Pedido feito: diferenciar Produto (revenda direta, unidade vendável) de Insumo (ingrediente de receita). Modal Produto não deve mostrar campos de catálogo/venda. Unidade base de Produto deve ser 'un' por padrão. Lógica de compra reflete que Produto não entra em receitas.
+- Arquivos alterados:
+  - `js/modules/compras.js`
+  - `AI_CHANGELOG.md`
+- O que foi feito:
+  - **`it-produto-fields` simplificado**: removidos do bloco "Cardápio e venda" os campos de upload de imagem (`it-img-file`), URL alternativa (`it-img`), Preço de compra (`it-preco-compra`), Preço de venda (`it-preco-venda`) e Descrição para venda (`it-desc-venda`). O bloco passou a chamar-se "Produto para revenda direta" com hint explicativo. Mantido apenas o checkbox "Alimentar cardápio / venda como produto único" (`it-venda`).
+  - **`_saveItem` para Produto**: removida a leitura dos campos de catálogo eliminados; removida a chamada a `_syncProdutoCatalogo` (catálogo é gerido em módulo próprio). Para Produto, apenas `venda_habilitada` e `usar_em_fichas: false` são escritos além dos campos comuns.
+  - **`_toggleItemClasse` — unidade base padrão**: quando o utilizador muda a classe para Produto e o campo `it-unidade` ainda não tem valor, o sistema auto-selecciona 'un'. Para itens existentes com unidade_base já configurada, o valor não é alterado.
+  - **Hint dinâmico "Compra e custo"**: secção recebeu `id="it-custo-hint"`. Em `_toggleItemClasse`, o hint troca de texto conforme a classe: Produto → "controlo de estoque e custo por unidade vendável"; Insumo → "custos, receitas e cálculo financeiro".
+- Regras preservadas:
+  - `_convFactor`, `_isBaseUnit`, cálculo de `qtyBase`, `custoAjustado` e `totalLinha` inalterados.
+  - `_doSaveCompra` continua a actualizar `preco_compra` (custo/base calculado) no item após cada compra.
+  - Para Produto como Guaraná: Embalagem=unidade, Conteúdo=1, Unid. base=un → +1 un, custo €1,00/un. Para caixa c/ 12: Embalagem=caixa, Conteúdo=12 → +12 un, custo €0,6667/un.
+
+## 2026-05-03 — Tarefa 6: Preço por embalagem (preço unitário de compra)
+- Pedido feito: o campo "Preço total (€)" estava sendo tratado como total da linha, gerando custo/base incorreto. Corrigir para que o utilizador informe o preço por embalagem/unidade comprada, e o sistema calcule o total automaticamente.
+- Arquivos alterados:
+  - `js/modules/compras.js`
+  - `AI_CHANGELOG.md`
+- O que foi feito:
+  - **Campo renomeado**: `"Preço total (€)"` → `"Preço/embalagem (€)"` no formulário de item da compra.
+  - **`_calcCompraLinha` corrigido**: introduz variável `precoUnit` (o que o utilizador digita). `subtotalItem = qty × precoUnit`; `totalLinha = subtotalItem − desconto`; `valorSemIva` e `ivaValor` calculados sobre `totalLinha`; `custo/base = valorSemIva / qtyBase / aproveitamento`. Preview agora mostra também o Total calculado em vermelho (ex: "Total: €7,00").
+  - **`_addCompraLinha` corrigido**: mesma fórmula que `_calcCompraLinha`. Armazena dois campos no objeto de linha: `precoUnitario` (novo, o que o user digitou) e `precoPago` (igual a `precoUnitario`, para compatibilidade com `_getLastCompraConfig`). `totalLinha` passa a refletir `qty × precoUnit − desconto`.
+  - **`_renderCompraLinhas` atualizado**:
+    - Cabeçalho: `"Preço pago"` → `"€/embal. · Total"`.
+    - Célula: mostra `€3,50/embal.` na linha principal e `Total €7,00 · IVA 23%` em sub-linha menor.
+  - **`_getLastCompraConfig` atualizado**: ao buscar auto-fill de preço, retorna `precoUnitario` se existir (dados novos), senão usa `precoPago` como fallback (dados legados — antigos compras salvavam o total, isso é aceitável pois não há como distinguir retroactivamente).
+  - **Backward compat**: linhas antigas sem `precoUnitario` continuam sendo exibidas (a célula mostra `precoPago/embal.`). O total da compra (`_lineTotal`) continua a usar `totalLinha` — campo já existente — sem mudança.
+- Fórmula final:
+  ```
+  subtotalItem         = qtdComprada × precoUnitario
+  totalLinha           = max(0, subtotalItem − desconto)
+  valorSemIva          = ivaPct > 0 ? totalLinha / (1 + ivaPct/100) : totalLinha
+  ivaValor             = totalLinha − valorSemIva
+  qtyBase              = qtdComprada × conteudoPorEmbalagem × _convFactor(emb, base)
+  custoAjustado        = valorSemIva / qtyBase / (aproveitamento/100)
+  ```
+- Exemplo verificado: 2 pacotes × 5 kg, €3,50/pacote → subtotal €7,00, estoque +10 kg, custo €0,70/kg ✓
+
+## 2026-05-03 — Tarefa 5: Refinar separação embalagem × unidade base
+- Pedido feito: impedir que o campo Embalagem auto-preencha com unidades de medida (kg, g, L, ml); adicionar campos `unidadeCompraPadrao`/`conteudoPorEmbalagemPadrao` no cadastro de item; novo helper `_isBaseUnit`; corrigir fallback de `_onCompraItemChange`; remover kg/g/L/ml do datalist; mostrar embalagem padrão na tabela de itens.
+- Arquivos alterados:
+  - `js/modules/compras.js`
+  - `AI_CHANGELOG.md`
+- O que foi feito:
+  - **`_isBaseUnit(u)`**: novo helper que retorna `true` para kg, g, gr, L, ml, kilo, litro, litros. Usado para detectar quando um valor salvo como `unidadeCompra` é na verdade uma unidade de medida (dado legado) em vez de uma embalagem (pacote, caixa, etc.).
+  - **`itemOpts` com `data-emb`/`data-conteudo`**: ao gerar o `<select>` de itens, cada `<option>` recebe `data-emb` (embalagem padrão do item — filtrada por `_isBaseUnit` para nunca expor unidade de medida) e `data-conteudo` (conteúdo padrão). Prioridade: `unidade_compra_padrao` > `ultima_embalagem`; ambos filtrados por `_isBaseUnit`.
+  - **`_onCompraItemChange` reescrito (fix principal)**: ao selecionar um item, `cp-emb` passa a ser preenchido com:
+    1. `_getLastCompraConfig.embalagem` — mas apenas se `_isBaseUnit` retornar `false` (dado limpo);
+    2. caso contrário, usa `opt.dataset.emb` (embalagem padrão do cadastro do item);
+    3. se não há histórico, usa `opt.dataset.emb` e `opt.dataset.conteudo` — **nunca** usa `unidadeBase`.
+    Isso corrige o comportamento anterior onde compras antigas que salvavam "kg" em `unidadeCompra` propagavam esse valor errado para o formulário.
+  - **Datalist `cp-emb-list` limpo**: removidas as opções kg, g, L, ml. Mantidas apenas embalagens: un, unidade, pacote, caixa, fardo, saco, garrafa, lata, frasco, bandeja, botella, bolsa, caja.
+  - **Campos no cadastro de item (`_openItemModal`)**: nova grade em "Compra e custo" com `it-emb-padrao` (Embalagem de compra padrão — texto livre + datalist sem unidades de medida) e `it-conteudo-padrao` (Conteúdo por embalagem — número, default 1). Esses campos definem o auto-preenchimento futuro quando não houver histórico de compras.
+  - **`_saveItem` atualizado**: persiste `unidade_compra_padrao` e `conteudo_por_embalagem_padrao` no documento do item.
+  - **`_itensTable` — coluna Unidade enriquecida**: exibe `unidade_base` na linha principal; se o item tiver `unidade_compra_padrao`, exibe em sub-linha menor (cor suave) com o formato "pacote ×5" (conteúdo se > 1).
+- Compatibilidade: compras antigas com `unidadeCompra = 'kg'` continuam sendo calculadas corretamente (`_convFactor` lida com isso); o único efeito da correção é no preenchimento do campo de formulário, não no cálculo de estoque.
+
+## 2026-05-03 — Tarefa 4: Separar embalagem, conteúdo e unidade base
+- Pedido feito: separar unidade de compra (embalagem), conteúdo por embalagem e unidade base de cálculo; corrigir custo/base e entrada no estoque; auto-preencher última configuração ao selecionar item; nova tabela de linhas com coluna Compra → Estoque.
+- Arquivos alterados:
+  - `js/modules/compras.js`
+  - `AI_CHANGELOG.md`
+- O que foi feito:
+  - **`_convFactor(emb, base)`**: novo helper que retorna o fator de conversão entre unidade de compra e unidade base para sub-unidades conhecidas (`g→kg = 0,001`, `ml→L = 0,001`, e inversos). Para embalagens livres (pacote, caixa, fardo…) retorna 1, pois o `conteudo` já carrega o multiplicador.
+  - **`_toBase` atualizado**: simplificado para delegar a `_convFactor`; mantido para compatibilidade com compras antigas (onde `conteudoPorEmbalagem` não existe).
+  - **`_getLastCompraConfig(itemId)`**: substitui `_getLastPrecoPago`. Retorna `{precoPago, embalagem, conteudo, unidadeBase}` da compra mais recente que contém aquele item. Compras antigas sem `conteudoPorEmbalagem` retornam `conteudo:1`.
+  - **Formulário de item (nova grade em dois rows):**
+    - Row 1: `Produto/Insumo | Qtd. comprada | Embalagem (text+datalist) | Conteúdo (×) | Unid. base (read-only)`
+    - Row 2: `Preço total (€) | Desc. (€) | IVA % | + Adicionar`
+    - `<datalist id="cp-emb-list">` com opções comuns: kg, g, L, ml, un, pacote, caixa, fardo, saco, garrafa, lata, frasco, botella, bolsa, caja.
+    - Campo `cp-unidade-base`: read-only, preenchido automaticamente pela unidade base do item selecionado.
+    - Campo `cp-emb`: texto livre com sugestões. Auto-preenchido com a última embalagem usada para aquele item.
+    - Campo `cp-conteudo`: número, default 1. Auto-preenchido com o último conteúdo usado.
+  - **Fórmula corrigida:** `qtyBase = qtdComprada × conteudoPorEmbalagem × _convFactor(embalagem, unidadeBase)`. Exemplos verificados: 1 pacote × 5 kg = 5 kg de estoque, €3,50 / 5 kg = €0,70/kg. 12 un × 1 = 12 un, €8,00 / 12 = €0,6667/un.
+  - **`_onCompraItemChange` reescrito:** ao selecionar item, preenche `cp-unidade-base`, e auto-preenche `cp-emb`, `cp-conteudo` e `cp-preco` (preço só se estiver vazio) com dados da última compra. Exibe hint "Última compra: N embalagem × C unidadeBase · €X.XX".
+  - **`_calcCompraLinha` reescrito:** usa novos campos `cp-emb` e `cp-conteudo`. Preview inline: "Compra: 1 pacote × 5 kg → Estoque: +5,000 kg · Custo/base: €0,7000/kg · IVA: …".
+  - **`_addCompraLinha` reescrito:** lê `cp-emb` e `cp-conteudo`; armazena `conteudoPorEmbalagem` na linha; limpa todos os campos incluindo os novos após adicionar.
+  - **`_renderCompraLinhas` reescrito:** colunas `Item | Compra | +Estoque | Preço pago | Custo/base`. Compra mostra "1 pacote × 5 kg" se `conteudo > 1`, ou "N unidade" se `conteudo = 1`. Estoque mostra "+5,000 kg" em azul. Backward compat: linhas antigas usam `conteudo = 1`.
+  - **`_doSaveCompra`**: ao atualizar custo do item após compra, também persiste `ultima_embalagem` e `ultimo_conteudo` para auto-preenchimento futuro.
+- Compatibilidade: compras antigas sem `conteudoPorEmbalagem` são exibidas com `conteudo = 1`, sem recalcular `qtyBase` (usa o valor já salvo). Nenhum dado antigo é alterado.
+- Pendências: os módulos de Receitas/Fichas técnicas ainda usam o custo por unidade base vindo de `custo_atual` no item — isso já estava correto e continua funcionando pois `custoAjustado` é calculado sobre a `unidadeBase` do item.
+
+## 2026-05-02
+- Pedido feito: número sequencial de pedido de compra (PC-000001), melhor descrição no financeiro, coluna de pedido na listagem, número no modal, sugestão de preço por item, e prévia editável de parcelas antes de salvar.
+- Arquivos alterados:
+  - `js/modules/compras.js`
+  - `AI_CHANGELOG.md`
+- O que foi feito:
+  - **`_padNum(n, len)`**: zero-pad helper (ex: `_padNum(1, 6)` → `'000001'`).
+  - **`_gerarNumeroPedido()`**: lê `DB.getDocRoot('config', 'compras')` → `{lastPCNum: N}`, incrementa e persiste de volta. Bootstrap: se o contador não existir usa `_compras.length` como base. Retorna `'PC-000001'`. Chamado apenas ao criar uma compra nova.
+  - **`_getFornecedorNome(fornecedorId)`**: retorna nome do fornecedor ou `'Compra sem fornecedor'`.
+  - **`_getLastPrecoPago(itemId)`**: varre `_compras` em ordem decrescente de data, retorna o `precoPago` mais recente para aquele item.
+  - **`_buildParcelasPreview()`**: disparado ao mudar fornecedor, gerar-conta-a-pagar, vencimento ou parcelas. Reconstrói `_compraParcelasPreview[]` com descrição `PC-000001 • Fornecedor • Parcela N/T`, valor e data; chama `_renderParcelasPreview()`.
+  - **`_renderParcelasPreview()`**: renderiza tabela editável em `#cp-parcelas-preview` com inputs de valor e vencimento por parcela. Rodapé mostra total em tempo real.
+  - **`_onParcelaValorChange(idx, value)`** / **`_onParcelaVencChange(idx, value)`**: atualizam `_compraParcelasPreview[idx]` sem re-renderizar a tabela inteira.
+  - **Coluna "Pedido" na listagem** (`_paintRegistros`): `thead` e dados agora têm 8 colunas; coluna mostra `c.numPedido || '—'` em fonte monospace; empty state atualizado para `colspan="8"`.
+  - **Número no modal** (`_openCompraModal`): badge com `numPedido` exibido abaixo do banner financeiro para compras existentes. Reset de `_compraParcelasPreview = []` ao abrir. Forn select, checkbox gerar-conta, vencimento e parcelas ganham handlers `_buildParcelasPreview`. Div `#cp-preco-hint` inserido após grade de itens; `#cp-parcelas-preview` inserido no card de parcelamento.
+  - **Sugestão de preço** (`_onCompraItemChange`): após trocar o item, chama `_getLastPrecoPago`. Se encontrado e o campo de preço estiver vazio, preenche automaticamente e exibe hint "Último preço pago: €X.XX [Usar]".
+  - **`_renderCompraLinhas`**: chama `_buildParcelasPreview()` ao final para manter prévia atualizada ao adicionar/remover itens.
+  - **Validação antes de salvar** (`_saveCompra`): se `gerarContaPagar` e a prévia tem itens, bloqueia se qualquer valor ≤ 0 ou vencimento vazio.
+  - **`_doSaveCompra`**: para novas compras, chama `_gerarNumeroPedido()` antes de persisitir e injeta `numPedido` em `compraData`; passa `pcLabel` para `_criarContasPagar`.
+  - **`_criarContasPagar(compraId, compraData, total, numPedido)`**: prioriza `_compraParcelasPreview` se disponível (usa valores, datas e descrições da prévia). Fallback auto-calcula e usa descrição `PC-XXXXXX • Fornecedor • Parcela N/T`. Salva `numPedido` em cada conta gerada.
+  - **Pesquisa**: campo `numPedido` incluído na hay de `_filteredRegistros`.
+- Compatibilidade: lógica de estorno (Task 2) totalmente preservada. `_criarContasPagar` ainda cancela pendentes antes de recriar quando chamado com `mode:'recalculate'`.
+
+## 2026-05-02
+- Pedido feito: lógica completa de edição, exclusão, estorno e recriação de contas a pagar vinculadas às compras.
+- Arquivos alterados:
+  - `js/modules/compras.js`
+  - `AI_CHANGELOG.md`
+- O que foi feito:
+  - **Estado financeiro assíncrono**: `_loadEstadoFinanceiro(compraId)` carrega as contas de `financeiro_apagar` + `contas_pagar` e as movimentações de `movimentacoes`, classifica cada conta como paga (tem movimento `efetivado`) ou pendente, ignorando estornadas/canceladas.
+  - **Fluxo 1 — sem contas**: edição livre, footer normal (Cancelar / Atualizar compra).
+  - **Fluxo 2 — parcelas pendentes**: banner laranja informativo + confirmação antes de salvar → `_cancelarParcelasPendentes` remove as parcelas antigas → `_criarContasPagar` gera novas. Mensagem: "Compra atualizada e contas a pagar recalculadas."
+  - **Fluxo 3 — pagamento confirmado**: banner vermelho bloqueante + `_saveCompra` recusa salvar + footer mostra só "Fechar" e "Estornar pagamentos e liberar edição".
+  - **Estorno** (`_executarEstorno`): para cada parcela paga cria movimento de entrada `tipo:entrada / origem:estorno_compra` na coleção `movimentacoes`, marca o movimento original como `estornado:true`, marca a conta a pagar como `status:'Estornada'` (mantém histórico), remove parcelas pendentes, limpa `contaPagarId/contaPagarIds` na compra. Após estorno: banner verde + footer de edição liberado.
+  - **Fluxo 4 — salvar após estorno**: contas estornadas têm status `Estornada` e são ignoradas pelo estado; `_criarContasPagar` gera novas parcelas do zero.
+  - **Exclusão segura** (`_deleteCompra`): carrega estado antes de confirmar; se há pagamento pago → toast de bloqueio; se há pendentes → confirma com aviso de remoção das parcelas → `_doDeleteCompra` remove parcelas + compra; se sem contas → confirmação simples.
+  - **Anti-duplo-clique**: flag `_savingCompra` bloqueia chamadas simultâneas ao `_doSaveCompra`.
+  - **Coleções usadas**: leitura em `financeiro_apagar` + `contas_pagar`; escrita/remoção em `financeiro_apagar` (padrão existente); movimentos de estorno em `movimentacoes`; registros de compra em `compras`.
+  - `_saveContaPagarFromCompra` (legada) removida e substituída por `_criarContasPagar` (sem "atualizar existente" — sempre fresh após cancelar pendentes).
+- Pendências reais:
+  - O módulo Financeiro / Contas a pagar ainda não exibe o status "Estornada" com visual próprio — atualmente mostra o status como texto bruto. Uma task futura pode adicionar o badge "Estornada" na coluna de status.
+  - Não há tela de detalhe de compra no módulo Financeiro com link de volta à compra original — pode ser adicionado futuramente.
+  - A carga de `movimentacoes` completa ao abrir o modal pode ser lenta em bases grandes; otimização futura com query filtrada por `contaPagarId`.
+
+## 2026-05-02
+- Pedido feito: ajustes finais na página Compras — paginação em todas as abas, botões de modal (Cancelar / Excluir), estados vazios com CTA e redução dos pesos tipográficos.
+- Arquivos alterados:
+  - `js/modules/compras.js`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: a página Compras não tinha paginação (listas longas ficavam sem controle de scroll), os modais tinham apenas o botão de ação principal (sem Cancelar nem Excluir em modo de edição), os estados vazios eram texto simples sem CTA, e toda a tipografia usava `font-weight:900/800` de forma excessiva tornando a interface visualmente pesada.
+- Impacto esperado:
+  - **Paginação**: todas as 5 abas (registros, itens, fornecedores, tipos, categorias) exibem seletor 10 / 25 / 50 por página e navegação numérica. Estado `_pag` por aba, resetado ao filtrar/pesquisar. Botões de página com destaque ativo em vermelho.
+  - **Botões de modal**: em criação → `Cancelar` + botão primário; em edição → `Excluir` (vermelho claro, à esquerda) + `Cancelar` + botão primário. Funções `_delete*` fecham o modal antes de executar a remoção.
+  - **Estados vazios com CTA**: tabelas vazias exibem mensagem + botão "+ Adicionar" / "+ Nova compra" que abre o modal correspondente.
+  - **Tipografia**: `font-weight:900/800` → `600` em todo o módulo (h2 de seção, labels, cabeçalhos de tabela, célula strong, botão principal). H1 "Compras" recebe `font-weight:600` inline. Adicionadas funções `_cancelStyle()` e `_dangerStyle()`.
+  - Funções `_paintFornecedores` e `_paintSimpleList` separadas de `_renderFornecedores` / `_renderSimpleList` para permitir repintura sem recarregar do banco ao mudar de página.
+- Sem mudança de fluxo ou dependência com outros módulos.
+
+## 2026-05-01
+- Pedido feito: bloquear edição acidental do tenantId no Master.
+- Arquivos alterados:
+  - `master.html`
+  - `server.rb`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: o campo "ID do usuário" era um input editável tanto em criação quanto em edição. Em modo de edição, qualquer alteração acidental no ID causava a criação de um novo tenant órfão em vez de atualizar o existente — o que gerava configuração (repo/token) salva no tenant errado.
+- Impacto esperado: em edição, o Tenant ID aparece em bloco somente-leitura com botão "Copiar" e aviso "fixo após criação". O `window._editingTenantId` garante que o payload sempre usa o ID original. A lista de tenants exibe botão "Copiar" ao lado de cada ID. O backend usa `existing['id']` quando o tenant já existe, ignorando qualquer ID diferente que venha no payload.
+- Sem mudança de fluxo ou dependência.
+
+## 2026-05-01
+- Pedido feito: adicionar campo GitHub Token no Master UI para configurar o token de publicação por tenant.
+- Arquivos alterados:
+  - `master.html`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: o backend do upload legado de imagem lê `githubToken` do registro do tenant, mas o formulário do Master não tinha campo para salvar esse token. Sem o token configurado, o upload retornava "GitHub Token não configurado".
+- Impacto esperado: a seção "Publicação GitHub" do modal de edição/criação de tenant passa a ter o campo "GitHub Token" (type password). Ao editar um tenant com token já salvo, o campo fica vazio e exibe o badge "✓ configurado" — o valor real nunca é exibido. Ao salvar com campo vazio, o token existente é preservado (chave ausente no payload → backend mantém). Ao digitar um novo token, o valor é atualizado. Um checkbox "Remover token configurado" aparece somente quando há token salvo e permite limpá-lo explicitamente. O `.master-store.json` já estava no `.gitignore`, portanto o token fica protegido sem necessidade de arquivo separado.
+- Sem mudança de fluxo ou dependência.
+
+## 2026-05-01
+- Pedido feito: restaurar o fluxo legado de upload de imagem de produto para GitHub Raw — corrigir bug de multipart no WEBrick.
+- Arquivos alterados:
+  - `server.rb`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: `WEBrick::HTTPUtils::FormData` (Ruby 2.6 / WEBrick 1.9.1) é uma subclasse de `String` sem métodos `tempfile` nem `read`. O backend testava apenas essas duas interfaces e caía no branch `else`, tentando decodificar um `dataUrl` vazio — resultando em "Arquivo de imagem obrigatório" antes de qualquer upload. Adicionado um `elsif` específico para `FormData` que usa `.filename` e `.to_s` para extrair nome e conteúdo do arquivo.
+- Impacto esperado: o upload multipart agora passa pela etapa de leitura do arquivo e avança até a verificação do token do GitHub. Confirmado via `curl`: a resposta mudou de "Arquivo de imagem obrigatório" para "GitHub Token não configurado", provando que o arquivo é lido corretamente.
+- Pendências: configurar `githubToken` no tenant via Master UI para concluir o fluxo end-to-end. Nenhuma alteração de código é necessária para isso.
+- Sem mudança de fluxo ou dependência.
+
+## 2026-05-01
+- Pedido feito: corrigir o CORS no backend local para permitir o upload legado de imagem de produto do admin em `http://localhost:8080`.
+- Arquivos alterados:
+  - `server.rb`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: adicionar resposta correta para preflight `OPTIONS` e incluir headers CORS em sucesso e erro na rota `/api/master/product-image/upload`.
+- Impacto esperado: o frontend local consegue chamar o backend local sem bloqueio CORS, publicar a imagem no GitHub Raw e preencher automaticamente a URL do produto.
+- Pendências: testar o fluxo completo de upload no navegador com o admin em `8080` e o backend em `3000`.
+
+## 2026-05-01
+- Pedido feito: restaurar o fluxo legado de upload de imagem de produto para GitHub Raw quando o upload novo estiver desativado.
+- Arquivos alterados:
+  - `server.rb`
+  - `js/modules/catalogo.js`
+  - `FEATURE_INDEX.md`
+  - `DEPENDENCY_MAP.md`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: voltar a publicar a imagem pelo backend local para gerar automaticamente a URL raw.githubusercontent.com, sem expor token no frontend e sem depender do Firebase Storage nesta fase.
+- Impacto esperado: o campo de imagem volta a preencher a URL automaticamente, o produto salva normalmente e o catálogo continua exibindo imagens antigas e novas no padrão legado.
+- Pendências: testar criação de produto novo, edição com imagem antiga raw e confirmação de que o upload novo não aciona Firebase Storage.
+
+## 2026-05-01
+- Pedido feito: ajustar temporariamente a interface de imagem do produto para mostrar apenas URL enquanto o upload automático está pendente.
+- Arquivos alterados:
+  - `js/modules/catalogo.js`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: evitar confusão na tela enquanto o envio direto de foto está desativado por pendência de armazenamento.
+- Impacto esperado: o cadastro/edição de produto passa a exibir somente o campo de URL e uma mensagem curta, sem abrir espaço para um upload que não será concluído nesta fase.
+- Pendências: reexibir o seletor de arquivo quando a flag de upload for reativada.
+
+## 2026-05-01
+- Pedido feito: restaurar temporariamente o fluxo antigo de imagem de produto e desativar o envio novo para Firebase Storage nesta fase.
+- Arquivos alterados:
+  - `js/modules/catalogo.js`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: evitar o travamento do cadastro/edição de produto enquanto a configuração final de CORS/Blaze permanece pendente.
+- Impacto esperado: o formulário deixa de tentar enviar imagem para o Storage, mantém preview e URL manual/existente funcionando e evita bloqueio de salvamento.
+- Pendências: reativar o envio automático apenas quando a configuração do Storage estiver concluída no bucket real.
+
+## 2026-05-01
+- Pedido feito: documentar a configuração pendente do Firebase Storage/CORS para upload de imagens e registrar a finalização futura.
+- Arquivos alterados:
+  - `PENDING_SETUP.md`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: deixar explícito que o fluxo de upload já está preparado no código, mas a aplicação do CORS depende do bucket real e de ambiente com Google Cloud SDK ou Cloud Shell.
+- Impacto esperado: a pendência técnica fica registrada com comandos, risco e decisão temporária, evitando retrabalho até a etapa com Blaze/Google Cloud ativo.
+- Pendências: executar `gcloud storage buckets update` e `gcloud storage buckets describe` no bucket `gs://bocado-brasil.firebasestorage.app` quando houver ambiente adequado.
+
+## 2026-05-01
+- Pedido feito: resolver definitivamente o bloqueio CORS do Firebase Storage no upload de imagens.
+- Arquivos alterados:
+  - `cors.json`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: ajustar a política de CORS com `OPTIONS` e headers de upload para o bucket correto do Storage, liberando a preflight request do navegador.
+- Impacto esperado: o bucket aceita a origem local do admin e o upload de produto consegue avançar até `getDownloadURL` sem cair em erro CORS.
+- Pendências: aplicar a configuração no bucket `gs://bocado-brasil.firebasestorage.app` com `gcloud storage buckets update` e confirmar com `gcloud storage buckets describe`.
+
+## 2026-05-01
+- Pedido feito: corrigir o CORS do bucket Firebase Storage para liberar upload de imagem de produto sem travar.
+- Arquivos alterados:
+  - `cors.json`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: definir as origens permitidas e os headers necessários para upload do Storage a partir do admin local e do domínio público.
+- Impacto esperado: o bucket passa a aceitar as preflight requests do upload de produto e o fluxo deixa de ficar preso antes do `getDownloadURL`.
+- Pendências: aplicar a configuração no bucket com `gcloud storage buckets update` e confirmar o `cors_config` no `gs://bocado-brasil.firebasestorage.app`.
+
+## 2026-05-01
+- Pedido feito: diagnosticar por que o upload de imagem de produto ainda trava após ajuste de regras.
+- Arquivos alterados:
+  - `js/core/image-tools.js`
+  - `js/modules/catalogo.js`
+- Motivo da alteração: registrar `auth.uid`, `tenantId`, `productId`, caminho exato do Storage e `FirebaseError.code` durante o upload para confirmar se o bloqueio vem de permissão, caminho ou falha de envio.
+- Impacto esperado: o console passa a mostrar a origem real da falha e o produto mantém o estado correto enquanto o upload tenta finalizar ou falha.
+- Pendências: validar no navegador se `auth.uid` e `tenantId` batem, se o caminho segue `tenants/{tenantId}/products/{productId}/` e se o erro do Storage/Firestore aparece com o código correto.
+
+## 2026-05-01
+- Pedido feito: verificar se o travamento do upload de imagem de produto estava ligado às configurações e regras do Firebase Storage/Firestore.
+- Arquivos alterados:
+  - `storage.rules`
+  - `firebase.json`
+  - `FEATURE_INDEX.md`
+  - `DEPENDENCY_MAP.md`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: explicitar a configuração do Storage por tenant e documentar a dependência de Firebase para upload de imagens de produto sem abrir o bucket inteiro.
+- Impacto esperado: uploads de produto passam a ter regras de Storage específicas, com leitura pública de URLs e escrita restrita ao tenant autenticado, reduzindo a chance de bloqueio por configuração ausente.
+- Pendências: validar o upload no navegador com produto antigo do GitHub Raw e produto novo enviado ao Storage.
+
+## 2026-05-01
+- Pedido feito: separar imagens antigas do GitHub Raw e novas imagens do Firebase Storage sem deixar o upload de produto preso.
+- Arquivos alterados:
+  - `js/core/image-tools.js`
+  - `js/modules/catalogo.js`
+- Motivo da alteração: garantir timeout real para upload de produto, preencher a URL final quando o envio conclui e manter compatibilidade com imagens antigas já publicadas no GitHub Raw.
+- Impacto esperado: imagens antigas continuam aparecendo, novas imagens passam a ser enviadas para o Storage com encerramento garantido do estado de upload e sem salvar arquivos de usuária no repositório.
+- Pendências: testar no navegador produto antigo com URL raw, produto novo com upload e edição com troca de imagem.
+
+## 2026-05-01
+- Pedido feito: impedir que imagens de produto entrem no repositório local ou no GitHub.
+- Arquivos alterados:
+  - `.gitignore`
+- Motivo da alteração: bloquear pastas de upload locais e arquivos de imagem enviados pelas usuárias, preservando apenas assets fixos do sistema com exceções explícitas.
+- Impacto esperado: imagens de produto não aparecem como arquivos novos no Git e não são enviadas ao GitHub; o fluxo continua usando Storage e Firestore apenas para URL/metadados.
+- Pendências: confirmar no ambiente real se não existe nenhum fluxo antigo gravando arquivo local fora das pastas bloqueadas.
+
+## 2026-05-01
+- Pedido feito: impedir que o upload de imagem do produto fique preso em estado de envio quando houver demora ou falha.
+- Arquivos alterados:
+  - `js/modules/catalogo.js`
+- Motivo da alteração: criar timeout, liberar o estado de envio e evitar bloqueio infinito no cadastro/edição de produto.
+- Impacto esperado: o botão salvar volta a funcionar após timeout ou erro, o preview retorna ao estado anterior e a URL final só entra quando o envio conclui.
+- Pendências: testar upload normal, edição com troca de imagem e falha simulada no navegador.
+
+## 2026-05-01
+- Pedido feito: impedir que o upload de imagem do produto fique travado em estado de envio indefinidamente.
+- Arquivos alterados:
+  - `js/modules/catalogo.js`
+- Motivo da alteração: adicionar timeout e liberação garantida de estado para o fluxo de imagem do produto.
+- Impacto esperado: o cadastro/edição de produto deixa de ficar preso em "A imagem ainda está sendo enviada" quando o envio falha ou demora demais.
+- Pendências: testar no navegador a troca de imagem em produto novo, produto existente e um caso de falha simulada.
+
+## 2026-05-01
+- Pedido feito: corrigir o fluxo de upload de imagem no cadastro/edição de produto, com preview imediato e preenchimento automático da URL.
+- Arquivos alterados:
+  - `js/core/image-tools.js`
+  - `js/modules/catalogo.js`
+- Motivo da alteração: fazer o input de imagem disparar preview instantâneo, upload assíncrono e persistência correta da URL/metadados do produto.
+- Impacto esperado: ao escolher um arquivo, o preview do produto atualiza na hora, a URL é preenchida após o envio e o catálogo passa a mostrar a imagem correta.
+- Pendências: testar o fluxo de edição de produto com imagem antiga, troca de imagem e cancelamento/erro de upload no navegador.
+
+## 2026-05-01
+- Pedido feito: incluir instruções de tamanhos e formatos de imagem e mostrar motivo claro quando um upload não puder ser concluído.
+- Arquivos alterados:
+  - `js/core/image-tools.js`
+  - `js/modules/catalogo.js`
+  - `js/modules/configuracoes.js`
+- Motivo da alteração: orientar a usuária sobre formatos e dimensões recomendadas e tornar as recusas de upload mais explicáveis.
+- Impacto esperado: a tela passa a informar JPG/JPEG/PNG/WebP aceitos, tamanhos recomendados e mensagens mais claras quando a imagem não for enviada.
+- Pendências: testar no navegador os três fluxos de upload e confirmar se as mensagens de erro ficam claras na prática.
+
+## 2026-05-01
+- Pedido feito: padronizar e otimizar automaticamente imagens enviadas pelas usuárias no catálogo, banners e logos.
+- Arquivos alterados:
+  - `admin.html`
+  - `js/core/image-tools.js`
+  - `js/modules/catalogo.js`
+  - `js/modules/configuracoes.js`
+  - `index.html`
+  - `tools/generate-product-pages.rb`
+- Motivo da alteração: reduzir peso das imagens, diminuir custo de Storage/tráfego e usar versões otimizadas no catálogo público e no admin.
+- Impacto esperado: uploads passam a gerar WebP otimizado com variantes por uso, preservando a experiência atual e melhorando velocidade de carregamento.
+- Pendências: validar o fluxo real de upload no navegador, conferir Storage por tenant e revisar se há algum cadastro legado sem URLs derivadas.
+
+## 2026-05-01
+- Pedido feito: criar documentação de passagem para outro agente, sem alterar funcionalidades.
+- Arquivos alterados:
+  - `PROJECT_MAP.md`
+  - `FEATURE_INDEX.md`
+  - `DEPENDENCY_MAP.md`
+  - `AI_CHANGELOG.md`
+  - `CLAUDE.md`
+- Motivo da alteração: reduzir consumo de contexto e registrar a arquitetura, módulos, dependências e instruções de trabalho.
+- Impacto esperado: facilitar a continuidade do desenvolvimento por IA sem releitura integral do projeto.
+- Pendências: manter este arquivo atualizado após cada mudança futura feita por IA.
+
+## 2026-05-01
+- Pedido feito: criar páginas públicas individuais de produto para SEO, sitemap e robots por loja single-tenant, com exportação isolada via GitHub.
+- Arquivos alterados:
+  - `server.rb`
+  - `js/modules/catalogo.js`
+  - `tools/generate-product-pages.rb`
+  - `produtos.json`
+  - `sitemap.xml`
+  - `robots.txt`
+  - `produtos/` (páginas geradas por slug)
+- Motivo da alteração: habilitar páginas públicas indexáveis por produto, preservar slug estável, gerar sitemap/robots e conectar a geração ao fluxo de publicação do master.
+- Impacto esperado: o storefront continua com modal, enquanto o site publicado passa a ter URLs rastreáveis por produto e publicação isolada por tenant/repositório.
+- Pendências: validar na publicação real com domínio customizado do tenant e conferir que os arquivos gerados são enviados ao repositório correto.
+
+## 2026-05-01
+- Pedido feito: restaurar novamente o fluxo legado de imagem de produto usando o repositório configurado no Master e fechar a trilha de logs do upload.
+- Arquivos alterados:
+  - `server.rb`
+  - `js/modules/catalogo.js`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: tornar a rota de upload compatível com a configuração do tenant no Master, aceitar upload multipart com arquivo real e registrar logs claros de tenant, produto, repositório e URL gerada.
+- Impacto esperado: o botão de imagem volta a publicar a foto no repositório da loja, preencher a URL automaticamente e mostrar logs úteis caso a publicação falhe.
+- Pendências: reiniciar o backend local em `3000` e validar o upload no navegador com a instância atualizada.
+
+## 2026-05-01
+- Pedido feito: restaurar o fluxo legado de upload de imagem de produto usando o repositório GitHub configurado no Master para o tenant atual.
+- Arquivos alterados:
+  - `server.rb`
+  - `js/modules/catalogo.js`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: fazer o botão de imagem voltar a publicar no repositório da loja, gerar URL `raw.githubusercontent.com` automaticamente e preencher o campo de imagem sem depender de Firebase Storage.
+- Impacto esperado: o upload legado volta a funcionar via backend local com resolução do repositório do tenant no Master, retorno da URL final e atualização do preview/campo de imagem no produto.
+- Pendências: reiniciar o backend local em `3000` e validar o upload no navegador com a instância atualizada.
+
+## 2026-05-01
+- Pedido feito: corrigir o erro 404 da rota legada de upload de imagem de produto no backend local.
+- Arquivos alterados:
+  - `server.rb`
+  - `js/modules/catalogo.js`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: garantir que o backend local responda ao upload legado em `/api/master/product-image/upload` e aceitar aliases legados caso o frontend ainda encontre uma rota antiga em execução.
+- Impacto esperado: o upload legado passa a encontrar rota válida, devolver a URL `raw.githubusercontent.com` e preencher automaticamente o campo de imagem no produto sem cair no fallback 404.
+- Pendências: reiniciar o backend local em `3000` e validar o upload no navegador com a instância atualizada.
+
+## 2026-05-01
+- Pedido feito: criar a área interna `Backup do Sistema` no Master para verificar alterações locais e enviar backup do código para GitHub privado.
+- Arquivos alterados:
+  - `master.html`
+  - `server.rb`
+  - `.gitignore`
+  - `FEATURE_INDEX.md`
+  - `DEPENDENCY_MAP.md`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: permitir backup interno do código via Master, com comandos Git executados somente no backend/local server e sem expor credenciais no frontend.
+- Impacto esperado: o Master passa a ver status do Git local, listar arquivos alterados e enviar backup do código para um repositório privado configurado.
+- Pendências: validar o push real com repositório privado e token configurado no servidor.
+
+## 2026-05-08
+- Pedido feito: fazer o carrinho e a pílula principal respeitarem os horários configurados em `Horários e status`.
+- Arquivos alterados:
+  - `index.html`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: normalizar a leitura dos horários no template público para usar a ordem salva no Admin e evitar desencontro entre a configuração diária e o status/slots exibidos ao cliente.
+- Impacto esperado: o status da loja e a seleção de horários no carrinho passam a refletir corretamente os períodos configurados, inclusive quando o template salva os dias em ordem diferente da indexação nativa do navegador.
+
+## 2026-05-08
+- Pedido feito: trocar o texto de status fechado do card principal por uma chamada para pedido programado, mantendo o vermelho.
+- Arquivos alterados:
+  - `index.html`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: tornar o estado fechado mais comercial no topo da loja, sem perder o destaque visual em vermelho.
+- Impacto esperado: quando a loja estiver fechada, o card principal passa a sugerir pedido programado em vez de exibir apenas `Fechado`/`Cerrado`.
+
+## 2026-05-08
+- Pedido feito: adicionar seletor de país com bandeira nos campos de WhatsApp e Telefone e usar o valor internacional normalizado nos links públicos.
+- Arquivos alterados:
+  - `js/modules/catalogo.js`
+  - `index.html`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: permitir edição mais clara de números internacionais no Admin e gerar links corretos para WhatsApp e ligação no template público.
+- Impacto esperado: o Admin passa a mostrar país + código + número local, enquanto a loja pública abre WhatsApp/telefone com o número internacional limpo e sem caracteres extras.
+
+## 2026-05-08
+- Pedido feito: remover área de entrega, instruções de retirada e toggle de exibição do endereço no card `Endereço`, adicionando o campo `bairro`.
+- Arquivos alterados:
+  - `js/modules/catalogo.js`
+  - `index.html`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: simplificar a seção de endereço para focar na localização pública, sem perder compatibilidade com os dados já salvos.
+- Impacto esperado: o Admin passa a exibir `Bairro` no lugar dos campos removidos e o template público passa a considerar o bairro nos textos de endereço e no rodapé.
+
+## 2026-05-08
+- Pedido feito: remover também o campo `Link do Google Maps` da seção `Endereço` e fazer a pílula de retirada usar o bairro como complemento.
+- Arquivos alterados:
+  - `js/modules/catalogo.js`
+  - `index.html`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: limpar ainda mais o card de endereço no Admin e deixar a pílula pública de retirada mais coerente com o bairro configurado.
+- Impacto esperado: o campo de Google Maps some da interface do Admin, o valor antigo é preservado por compatibilidade e a pílula do topo passa a exibir algo como `Recogida en BAIRRO`.
+
+## 2026-05-08
+- Pedido feito: criar o card `Zonas de entrega` no Template da loja e conectar zonas por CEP ao chip público e ao carrinho.
+- Arquivos alterados:
+  - `js/modules/catalogo.js`
+  - `index.html`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: permitir cadastro de zonas com CEPs e frete por zona, refletindo isso no template público e no cálculo do pedido.
+- Impacto esperado: o Admin passa a salvar zonas de entrega com CEPs e valor por zona; o chip público usa a menor faixa ativa; o carrinho aplica o frete conforme o CEP informado e bloqueia entrega fora de cobertura.
+
+## 2026-05-08
+- Pedido feito: corrigir a abertura do `Template da loja`, que ficava preso em `Carregando...`.
+- Arquivos alterados:
+  - `js/modules/catalogo.js`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: remover a dependência do helper de telefone do template público dentro do Admin, que impedia a renderização da seção.
+- Impacto esperado: a aba `Template da loja` volta a abrir normalmente no Admin e os campos de contato com seletor de país permanecem funcionais.
+
+## 2026-05-09
+- Pedido feito: trazer os filtros anteriores de `Cardápio > Produtos`, removendo `Lista`, `Grade` e `Mais filtros`, e deixar a busca responder sem atraso.
+- Arquivos alterados:
+  - `js/modules/catalogo.js`
+- Motivo da alteração: restaurar os filtros completos na barra principal e simplificar a interação da busca.
+- Impacto esperado: a página volta a exibir os filtros tradicionais, com botão de limpar filtro, sem os controles de visualização extra.
+
+## 2026-05-09
+- Pedido feito: polir a tela `Cardápio > Produtos` comparando o layout atual com o template premium aprovado.
+- Arquivos alterados:
+  - `js/modules/catalogo.js`
+  - `admin.html`
+- Motivo da alteração: corrigir ícones e métricas, simplificar sidebar e rodapé, refinar filtros e dar acabamento visual mais próximo do template.
+- Impacto esperado: a tela fica mais premium, com métricas limpas, sidebar mais leve, ajuda discreta e tabela/filtros mais consistentes.
+
+## 2026-05-09
+- Pedido feito: corrigir ícones quebrados, refinar os cards de métricas e reorganizar o rodapé da sidebar na tela `Cardápio > Produtos`.
+- Arquivos alterados:
+  - `js/modules/catalogo.js`
+  - `admin.html`
+- Motivo da alteração: substituir nomes técnicos de ícones por SVG inline, reduzir o peso visual da sidebar e melhorar a leitura do bloco de loja e do card de ajuda.
+- Impacto esperado: os cards de métricas deixam de exibir texto fantasma, a sidebar fica mais elegante e o rodapé passa a mostrar loja, usuário, status e ajuda de forma compacta.
+
+## 2026-05-09
+- Pedido feito: refinar visualmente a tela `Cardápio > Produtos` para reduzir aparência de ERP antigo e aproximar de SaaS premium moderno.
+- Arquivos alterados:
+  - `js/modules/catalogo.js`
+  - `admin.html`
+- Motivo da alteração: polir a sidebar, o topo, os cards de métricas, os filtros e a tabela, removendo excesso de peso visual e a ajuda duplicada abaixo da listagem.
+- Impacto esperado: a tela fica mais limpa, adulta e sofisticada, com menos vermelho, menos caixas e uma hierarquia visual mais leve.
+
+## 2026-05-09
+- Pedido feito: corrigir a tela `Cardápio > Produtos` que estava presa em `Carregando`.
+- Arquivos alterados:
+  - `js/modules/catalogo.js`
+- Motivo da alteração: um `ReferenceError` no render da lista impedia a tela de terminar de montar.
+- Impacto esperado: a página volta a abrir normalmente, mantendo a lista premium, filtros, paginação e ações de produto.
+
+## 2026-05-09
+- Pedido feito: refazer a tela `Cardápio > Produtos` para aproximar do mockup premium e tornar a lista/tabela o modo principal.
+- Arquivos alterados:
+  - `js/modules/catalogo.js`
+- Motivo da alteração: reduzir a sensação de cadastro/ERP, deixar a tela mais leve e funcional e adicionar as ações `Importar produtos` e `Duplicar`.
+- Impacto esperado: a página passa a abrir em lista premium com métricas, filtros compactos, paginação e ações discretas, mantendo o modo grade como opção secundária.
+
+## 2026-05-09
+- Pedido feito: remover `Google Maps` e `Google Business Profile` do resumo somente leitura do card `SEO local`.
+- Arquivos alterados:
+  - `js/modules/catalogo.js`
+- Motivo da alteração: deixar o card mais limpo e evitar duplicidade com os dados editáveis do restante do fluxo.
+- Impacto esperado: o resumo mostra apenas endereço, telefone e WhatsApp, mantendo o restante do card sem mudança funcional.
+
+## 2026-05-09
+- Pedido feito: criar o arquivo `BOCAFOOD_DESIGN_SYSTEM.md` na raiz do projeto.
+- Arquivos alterados:
+  - `BOCAFOOD_DESIGN_SYSTEM.md`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: documentar o padrão oficial de layout e identidade visual do BocaFood Admin para orientar futuras mudanças.
+- Impacto esperado: nenhuma tela foi alterada; o projeto passa a ter uma referência visual centralizada para decisões de UI.
+
+## 2026-05-09
+- Pedido feito: aplicar o padrão visual do `Template_bocafood` na tela de `Produtos` e mostrar a contagem de pedidos em aberto no menu `Pedidos`.
+- Arquivos alterados:
+  - `js/modules/catalogo.js`
+  - `admin.html`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: aproximar a experiência do admin ao padrão do template, com perfil/negócio no topo, sino com pedidos em aberto, filtros com ordenação e paginação, cards mais consistentes e ajuda no rodapé.
+- Impacto esperado: a tela de produtos passa a ter estrutura mais próxima do template visual e o menu `Pedidos` mostra a quantidade de pedidos abertos em tempo real.
+
+## 2026-05-09
+- Pedido feito: refinar a tela de `Produtos` para ficar mais próxima da vitrine do template público.
+- Arquivos alterados:
+  - `js/modules/catalogo.js`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: trocar a listagem em formato de linha por cards verticais mais visuais e reduzir a densidade dos blocos de suporte.
+- Impacto esperado: os produtos passam a ser exibidos em cards de vitrine mais próximos da linguagem visual do template, mantendo a edição inline e a paginação.
+
+## 2026-05-09
+- Pedido feito: ajustar a tela de `Produtos` no módulo `Cardápio` com base no `BOCAFOOD_DESIGN_SYSTEM`.
+- Arquivos alterados:
+  - `js/modules/catalogo.js`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: alinhar a listagem de produtos ao padrão visual oficial, com topo mais limpo, filtros em card branco e cards de produto mais consistentes.
+- Impacto esperado: a tela de produtos fica mais premium e legível, sem mudar a lógica de edição, busca, filtro ou ordenação.
+
+## 2026-05-09
+- Pedido feito: refinar a tela `Cardápio > Produtos` para aumentar contraste controlado, remover o bloco de loja da sidebar e trazer os dados da loja para o topo direito.
+- Arquivos alterados:
+  - `admin.html`
+  - `js/modules/catalogo.js`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: dar mais presença visual à tela sem mudar a estrutura funcional, reforçando métricas, cabeçalho, filtros e tabela.
+- Impacto esperado: a página passa a parecer menos frágil/apagada, com sidebar mais limpa, identidade da loja no topo e listagem com acabamento mais premium.
+
+## 2026-05-09
+- Pedido feito: refinar o acabamento visual da tela `Produtos` com fundo cinza azulado premium, KPIs mais fortes, filtros em barra e tabela mais elegante.
+- Arquivos alterados:
+  - `admin.html`
+  - `js/modules/catalogo.js`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: elevar a sensação de produto SaaS maduro com micro UI, contraste controlado e superfícies mais sólidas.
+- Impacto esperado: a tela ganha mais presença, melhora a leitura dos cards e filtros, e reduz a aparência de painel administrativo genérico sem mexer na lógica.
+
+## 2026-05-09
+- Pedido feito: fazer o polimento final da tela `Cardápio > Produtos` sem mudar a estrutura geral.
+- Arquivos alterados:
+  - `admin.html`
+  - `js/modules/catalogo.js`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: ajustar micro UI, profundidade, tipografia, botões, sidebar, KPIs, filtros e tabela para uma leitura mais premium.
+- Impacto esperado: a tela fica mais madura, sólida e refinada, com acabamento mais próximo de um SaaS premium tipo Nuvemshop/Tiny.
+
+## 2026-05-09
+- Pedido feito: refinar a identidade visual global do painel BocaFood com tipografia Manrope, paleta off-white quente e sensação food-tech premium.
+- Arquivos alterados:
+  - `admin.html`
+  - `js/modules/catalogo.js`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: sair da aparência SaaS genérica/fria e aproximar o painel de uma marca gastronômica premium, com mais calor humano e refinamento.
+- Impacto esperado: o painel passa a ter uma base visual mais acolhedora e sofisticada, mantendo a estrutura e a lógica intactas.
+
+## 2026-05-09
+- Pedido feito: manter a fonte Manrope e ajustar apenas a paleta, contraste, bordas, chips, filtros e botões para reduzir o bege apagado.
+- Arquivos alterados:
+  - `admin.html`
+  - `js/modules/catalogo.js`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: aumentar a limpeza visual e o contraste sem perder o calor premium da base off-white.
+- Impacto esperado: a interface fica mais clara, mais refinada e menos envelhecida, com cards e chips majoritariamente brancos e bordas neutras.
+
+## 2026-05-09
+- Pedido feito: aplicar os ajustes finais em `Cardápio > Produtos` com fundo branco/quase branco, cards com sombra premium e cabeçalho da tabela em branco com títulos maiúsculos.
+- Arquivos alterados:
+  - `admin.html`
+  - `js/modules/catalogo.js`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: terminar o polimento visual com maior contraste, superfícies brancas e leitura de tabela mais limpa, sem alterar estrutura ou lógica.
+- Impacto esperado: a tela fica mais luminosa e premium, com KPIs, filtros e tabela mais sólidos, e o cabeçalho da tabela ganha leitura mais editorial e refinada.
+
+## 2026-05-09
+- Pedido feito: alinhar bordas e linhas ao cinza-azulado usado nos textos secundários.
+- Arquivos alterados:
+  - `admin.html`
+  - `js/modules/catalogo.js`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: unificar o tratamento de bordas, divisórias e separadores com uma leitura mais coerente e tech, sem mexer na fonte nem na estrutura.
+- Impacto esperado: a interface ganha linhas e contornos mais consistentes com a paleta de suporte, deixando o conjunto mais limpo e mais sofisticado.
+
+## 2026-05-09
+- Pedido feito: escurecer um pouco mais as bordas e linhas e colocar os cards em off-white.
+- Arquivos alterados:
+  - `admin.html`
+  - `js/modules/catalogo.js`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: reforçar contraste de contornos usando o mesmo eixo cinza-azulado da tipografia secundária e dar mais presença às superfícies dos cards.
+- Impacto esperado: os cards passam a ter leitura off-white e as linhas ficam mais sólidas, sem perder a leveza do painel.
+
+## 2026-05-09
+- Pedido feito: colocar as linhas em preto e deixar o card de filtros com fundo branco.
+- Arquivos alterados:
+  - `js/modules/catalogo.js`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: aumentar o contraste das separações visuais da tela de produtos e simplificar o card de filtros para branco puro.
+- Impacto esperado: a listagem fica mais marcada e o filtro ganha leitura mais limpa, sem mexer na lógica da página.
+
+## 2026-05-09
+- Pedido feito: trocar as linhas para vermelho clarinho.
+- Arquivos alterados:
+  - `js/modules/catalogo.js`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: suavizar a leitura visual depois do contraste escuro e retornar as divisórias para um acento BocaFood mais leve.
+- Impacto esperado: a tela volta a ficar mais coerente com a identidade do painel, com linhas suaves e menos agressivas.
+
+## 2026-05-09
+- Pedido feito: remover o off-white dos cards e deixar o card de filtros branco.
+- Arquivos alterados:
+  - `admin.html`
+  - `js/modules/catalogo.js`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: limpar as superfícies principais da interface e manter o foco em branco puro, com bordas suaves em vermelho claro.
+- Impacto esperado: a tela ganha leitura mais limpa e luminosa, sem o tom off-white nas áreas principais.
+
+## 2026-05-09
+- Pedido feito: voltar para branco e trocar apenas as bordas para off-white suave.
+- Arquivos alterados:
+  - `admin.html`
+  - `js/modules/catalogo.js`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: restaurar a superfície branca original e aplicar apenas contornos discretos em off-white, como antes do desvio para contraste pesado.
+- Impacto esperado: a tela volta a ficar leve e limpa, com cards brancos e bordas suaves sem o peso visual do off-white nas superfícies.
+
+## 2026-05-09
+- Pedido feito: deixar os cards KPI em off-white e aumentar a presença visual dos ícones.
+- Arquivos alterados:
+  - `js/modules/catalogo.js`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: reforçar a leitura das métricas sem alterar a estrutura geral da página.
+- Impacto esperado: os KPIs ficam mais destacados, com ícones maiores e superfícies off-white mais consistentes com o pedido.
+
+## 2026-05-09
+- Pedido feito: tirar a borda do card de filtros.
+- Arquivos alterados:
+  - `js/modules/catalogo.js`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: simplificar o card de filtros mantendo apenas a sombra e o conteúdo interno.
+- Impacto esperado: o filtro fica mais leve visualmente e menos encaixotado, sem mudar a usabilidade.
+
+## 2026-05-09
+- Pedido feito: tirar a borda dos cards KPI.
+- Arquivos alterados:
+  - `js/modules/catalogo.js`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: deixar os cards de métricas mais leves e integrados ao conjunto visual, sem borda externa.
+- Impacto esperado: os KPIs ficam com leitura mais fluida e menos caixa, mantendo a sombra e a hierarquia.
+
+## 2026-05-09
+- Pedido feito: trocar os elementos gráficos dos KPIs por outros mais relevantes e deixá-los transparentes.
+- Arquivos alterados:
+  - `js/modules/catalogo.js`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: melhorar a correspondência visual entre ícone e métrica, e remover qualquer caixa visual atrás do gráfico.
+- Impacto esperado: os KPIs ficam mais claros e expressivos, com gráficos maiores, transparentes e mais ligados ao significado de cada número.
+
+## 2026-05-09
+- Pedido feito: deixar as bordas das pilulas da listagem de produtos na mesma cor do nome do produto.
+- Arquivos alterados:
+  - `js/modules/catalogo.js`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: alinhar os chips da tabela ao tom preto usado no nome do produto, mantendo a leitura mais coesa.
+- Impacto esperado: as pilulas da listagem ficam visualmente conectadas ao título do produto, com bordas mais consistentes.
+
+## 2026-05-09
+- Pedido feito: deixar a cor das bordas das pilulas um pouco mais leve.
+- Arquivos alterados:
+  - `js/modules/catalogo.js`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: suavizar o contraste dos chips sem perder a coerência com o nome do produto.
+- Impacto esperado: as pilulas ficam menos pesadas e mais próximas de uma leitura premium e limpa.
+
+## 2026-05-09
+- Pedido feito: reescrever completamente `BOCAFOOD_DESIGN_SYSTEM.md` com a nova definição oficial do design system.
+- Arquivos alterados:
+  - `BOCAFOOD_DESIGN_SYSTEM.md`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: substituir o documento antigo por uma referência única, limpa e coerente para identidade visual, tipografia, paleta e layout do BocaFood.
+- Impacto esperado: o arquivo passa a ser a fonte oficial dos padrões visuais do projeto, sem regras conflitantes antigas.
+
+## 2026-05-09
+- Pedido feito: fazer a aba `SEO da loja` seguir o mesmo padrão visual da aba `Produtos`.
+- Arquivos alterados:
+  - `js/modules/catalogo.js`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: alinhar topo, cards, previews, status e botões do SEO ao mesmo sistema visual premium usado em Produtos.
+- Impacto esperado: a aba SEO passa a ter superfícies, contraste, densidade e linguagem visual consistentes com o restante do módulo Cardápio.
+
+## 2026-05-09
+- Pedido feito: aplicar o mesmo padrão visual de `Produtos` em `Configurações` no módulo `Cardápio`.
+- Arquivos alterados:
+  - `js/modules/catalogo.js`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: alinhar a tela de Configurações, as listagens de categorias/variantes/tags e os modais ao sistema visual premium já adotado em Produtos.
+- Impacto esperado: a aba Configurações ganha topo, cards, botões, chips e listagens com a mesma densidade e acabamento do restante do módulo.
+
+## 2026-05-09
+- Pedido feito: levar o mesmo padrão visual do módulo `Cardápio` para o módulo `Produção`.
+- Arquivos alterados:
+  - `js/modules/receitas.js`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: alinhar a tela de Produção, as configurações auxiliares e os modais ao mesmo acabamento premium, limpo e coerente já aplicado em Cardápio.
+- Impacto esperado: Produção passa a ter topo, cards, listas, botões e modais com a mesma linguagem visual do restante do sistema.
+
+## 2026-05-09
+- Pedido feito: no modal `Editar Produto`, deixar os cards internos com fundo branco, sem borda, com sombra, e remover o texto `Venda`.
+- Arquivos alterados:
+  - `js/modules/catalogo.js`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: aproximar o modal de produto do padrão premium do sistema, reduzindo peso visual e removendo o rótulo de seção que já não era necessário.
+- Impacto esperado: o modal fica mais limpo, coerente e com cards brancos destacados por sombra suave.
+
+## 2026-05-09
+- Pedido feito: corrigir a busca de produtos para permitir digitar a palavra inteira sem travar.
+- Arquivos alterados:
+  - `js/modules/catalogo.js`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: a busca estava re-renderizando a tela a cada tecla e quebrando a digitação contínua.
+- Impacto esperado: a busca passa a aceitar digitação fluida, com atualização em debounce e preservação do campo.
+
+## 2026-05-10
+- Pedido feito: transformar o mockup premium mobile no template público real da loja, reaproveitando carrinho, modal de produto e checkout existentes.
+- Arquivos alterados:
+  - `index.html`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: conectar o novo visual aos campos já existentes de Template da Loja, Programa de Pontos, Promoções, Categorias, Produtos, Avaliações e Rodapé sem alterar a lógica de pedidos.
+- Impacto esperado: o template público mobile passa a usar capa, logo, cor da marca, status, entrega/retirada, banner promocional, CTA de fidelidade, categorias por âncora, produtos agrupados e rodapé social em um layout mais premium e orientado à conversão.
+
+## 2026-05-10
+- Pedido feito: criar a versão desktop do template público com base no novo template mobile, mantendo o carrinho fixo na página.
+- Arquivos alterados:
+  - `index.html`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: levar a mesma composição premium do mobile para desktop, com hero de capa, card da loja, banner promocional, programa de pontos, destaque, categorias e lista de produtos em layout amplo.
+- Impacto esperado: a loja pública no desktop passa a ter visual coerente com o mobile premium e mantém o carrinho em coluna fixa/sticky para compra rápida.
+
+## 2026-05-10
+- Pedido feito: criar uma nova versão mobile fiel ao preview aprovado `preview-template-premium.html#phone-preview`, preservando o template público já criado.
+- Arquivos alterados:
+  - `template-mobile-premium-fiel.html`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: manter uma base visual separada e fiel ao mockup aprovado para validação antes de integrar novamente ao template público real.
+- Impacto esperado: o template atual permanece preservado e há um novo arquivo de referência mobile premium para comparação e próxima implementação.
+
+## 2026-05-10
+- Pedido feito: conectar o template mobile fiel aos campos reais do sistema.
+- Arquivos alterados:
+  - `template-mobile-premium-fiel.html`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: transformar o arquivo de mockup em uma base funcional que lê dados do tenant, mantendo o layout fiel e preservando o template público atual.
+- Impacto esperado: o arquivo passa a carregar configurações da loja, produtos, categorias, promoções, programa de pontos, avaliações, redes sociais, carrinho, modal de produto e envio do pedido por WhatsApp.
+
+## 2026-05-10
+- Pedido feito: colocar o template mobile fiel conectado como template público.
+- Arquivos alterados:
+  - `index.html`
+  - `index-template-publico-anterior.html`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: substituir a página pública pelo template mobile fiel aprovado, mantendo uma cópia do template público anterior para consulta/rollback.
+- Impacto esperado: a URL pública passa a abrir o novo template mobile conectado aos dados do tenant, sem a moldura de preview, com carrinho fixo inferior, modal de produto e envio por WhatsApp.
+
+## 2026-05-10
+- Pedido feito: corrigir preview mobile que não atualizava ao trocar o tenant.
+- Arquivos alterados:
+  - `preview-template.html`
+  - `index.html`
+  - `template-mobile-premium-fiel.html`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: forçar recarregamento real do iframe com cache buster e aceitar variações de parâmetro de tenant.
+- Impacto esperado: ao alterar o Tenant ID no preview mobile, o iframe passa a recarregar o template público com o tenant informado.
+
+## 2026-05-10
+- Pedido feito: investigar por que o preview com tenant `MZDs5MEb9gNbX4q5xdRYVgzlL252` mostrava fallback estático.
+- Arquivos alterados:
+  - `index.html`
+  - `template-mobile-premium-fiel.html`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: o tenant do Master usa `...VgzlL252`, enquanto o seed legado usa `...VgzLL252`; o template agora tenta os dois IDs automaticamente.
+- Impacto esperado: o preview e a loja pública deixam de cair no fallback quando os dados estiverem salvos no ID legado equivalente.
+
+## 2026-05-10
+- Pedido feito: criar um novo preview mobile para ver no desktop a versão mobile publicada.
+- Arquivos alterados:
+  - `preview-mobile-publico.html`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: oferecer uma prévia limpa que abre diretamente o `index.html` público dentro de uma moldura mobile, sem reaproveitar o preview antigo.
+- Impacto esperado: fica mais fácil validar no desktop exatamente a versão mobile publicada da loja.
+
+## 2026-05-10
+- Pedido feito: corrigir conexão do Tenant ID no preview mobile público.
+- Arquivos alterados:
+  - `index.html`
+  - `template-mobile-premium-fiel.html`
+  - `firestore.rules`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: uma leitura de coleção pública sem regra, como `promotions`, podia falhar e derrubar todo o carregamento do tenant, fazendo a loja cair no conteúdo estático.
+- Impacto esperado: o template passa a carregar config, produtos e categorias do tenant mesmo se uma coleção opcional falhar; promoções também ficam liberadas para leitura pública no template.
+
+## 2026-05-10
+- Pedido feito: impedir que letras e números usem a cor da marca no template público.
+- Arquivos alterados:
+  - `index.html`
+  - `template-mobile-premium-fiel.html`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: manter textos, preços, badges, links e números em preto/neutro, deixando a cor da marca apenas para fundos, bordas e elementos visuais.
+- Impacto esperado: ao trocar a cor da marca, o template preserva legibilidade e sofisticação sem tingir textos com a cor configurada.
+
+## 2026-05-10
+- Pedido feito: deixar o selo verificado azul e inserir estrela ao lado da nota de avaliação.
+- Arquivos alterados:
+  - `index.html`
+  - `template-mobile-premium-fiel.html`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: separar ícones informativos da cor da marca, mantendo verificado em azul e avaliação com estrela dourada.
+- Impacto esperado: a primeira dobra comunica verificação e nota com leitura mais clara, sem alterar textos, números ou lógica do tenant.
+
+## 2026-05-10
+- Pedido feito: aplicar regra de contraste para letras e símbolos sobre fundos claros e escuros.
+- Arquivos alterados:
+  - `index.html`
+  - `template-mobile-premium-fiel.html`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: textos e ícones sobre fundos escuros ou de marca devem ficar legíveis; sobre fundos claros devem permanecer pretos.
+- Impacto esperado: botões, carrinho, CTAs e elementos com fundo de marca passam a usar contraste automático, sem tingir texto com a cor da marca.
+
+## 2026-05-10
+- Pedido feito: trazer para o novo template o layout de carrinho usado no template público anterior.
+- Arquivos alterados:
+  - `index.html`
+  - `template-mobile-premium-fiel.html`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: reaproveitar o padrão visual do carrinho antigo, com cabeçalho, lista compacta, subtotal/total e botão grande de envio pelo WhatsApp.
+- Impacto esperado: o carrinho do template novo fica mais próximo do layout anterior, preservando a lógica atual de adicionar, alterar quantidade, remover item e enviar pedido pelo WhatsApp.
+
+## 2026-05-10
+- Pedido feito: trazer também a lógica do carrinho anterior, não apenas o layout.
+- Arquivos alterados:
+  - `index.html`
+  - `template-mobile-premium-fiel.html`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: o carrinho precisava voltar a operar como checkout/resumo, com retirada/entrega, dados do cliente, endereço, pagamento, observação, cupom, desconto, taxa de entrega, total final, validações e gravação do pedido.
+- Impacto esperado: o template novo preserva o visual aprovado e passa a ter uma lógica de carrinho mais próxima do template público anterior, mantendo envio pelo WhatsApp e salvamento em `tenants/{tenantId}/orders`.
+
+## 2026-05-11
+- Pedido feito: deixar o carrinho/fechamento mais premium e completar lógicas do pedido.
+- Arquivos alterados:
+  - `index.html`
+  - `template-mobile-premium-fiel.html`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: o carrinho anterior ainda estava simples demais e faltavam regras importantes de fechamento, como seleção de horário, zona de entrega, código postal, taxa dinâmica, pedido mínimo, pagamento e capacidade por horário.
+- Impacto esperado: o checkout do template novo fica organizado em blocos premium e passa a calcular entrega por zona, validar código postal/endereço, exigir horário de retirada/entrega, preencher métodos de pagamento, aplicar cupom e salvar dados de agenda no pedido.
+
+## 2026-05-11
+- Pedido feito: melhorar o design do carrinho/fechamento do pedido.
+- Arquivos alterados:
+  - `index.html`
+  - `template-mobile-premium-fiel.html`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: deixar o bottom sheet, blocos do checkout, campos, itens, resumo e CTA final com aparência mais premium, leve e sofisticada.
+- Impacto esperado: o carrinho mantém toda a lógica recém-conectada, mas com hierarquia visual melhor, menos aparência de formulário pesado e mais acabamento.
+
+## 2026-05-11
+- Pedido feito: trazer a lógica, estrutura e design do modal de produto antigo para o novo template.
+- Arquivos alterados:
+  - `index.html`
+  - `template-mobile-premium-fiel.html`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: o modal novo ainda estava simples e não respeitava variações, complementos/adicionais, preço ao vivo e composição das escolhas no pedido.
+- Impacto esperado: o modal de produto passa a ter imagem/fallback, badge, descrição completa, preço atualizado, variações obrigatórias, adicionais sugeridos, avaliações do produto, observação e envio das escolhas para carrinho, WhatsApp e pedido salvo.
+
+## 2026-05-11
+- Pedido feito: criar um template desktop novo inspirado no mobile aprovado.
+- Arquivos alterados:
+  - `index.html`
+  - `template-mobile-premium-fiel.html`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: o template público ainda se comportava como um celular centralizado no desktop, sem uma experiência própria para tela grande.
+- Impacto esperado: em desktop, a loja passa a usar hero amplo, vitrine em colunas, categorias sticky, produtos em grade refinada, modal de produto em duas colunas e carrinho fixo lateral, preservando o layout mobile e a lógica atual de pedido.
+
+## 2026-05-11
+- Pedido feito: manter 2 produtos por linha no template desktop.
+- Arquivos alterados:
+  - `index.html`
+  - `template-mobile-premium-fiel.html`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: a grade desktop abria para 3 colunas em telas largas, deixando os cards de produto mais apertados.
+- Impacto esperado: a vitrine desktop mantém 2 produtos por linha em telas grandes, com melhor leitura e mais destaque para imagem, nome e preço.
+
+## 2026-05-11
+- Pedido feito: deixar o fundo do template desktop branco.
+- Arquivos alterados:
+  - `index.html`
+  - `template-mobile-premium-fiel.html`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: remover o fundo com gradientes no desktop para uma leitura mais limpa.
+- Impacto esperado: a página desktop usa fundo branco, mantendo a hierarquia dos cards, sombras e vitrine.
+
+## 2026-05-11
+- Pedido feito: criar um relatório técnico dos dados disponíveis para futura criação do módulo Temporadas / Missões Operacionais.
+- Arquivos alterados:
+  - `DATA_MAP_FOR_SEASONS.md`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: mapear módulos, coleções, campos e métricas já disponíveis no BocaFood para entender o que pode ser calculado automaticamente sem alimentação manual.
+- Impacto esperado: o novo relatório serve como base técnica para decidir quais temporadas/missões podem ser criadas com dados reais e quais eventos/campos ainda precisam ser padronizados.
+
+## 2026-05-11
+- Pedido feito: implementar a Fase 5 do módulo Temporadas / Missões Operacionais.
+- Arquivos alterados:
+  - `js/modules/temporadas.js`
+  - `css/modules/temporadas.css`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: calcular progresso, score, status atual e risco da temporada ativa usando dados reais de pedidos do tenant, sem implementar snapshots, IA ou painel avançado.
+- Impacto esperado: a temporada ativa passa a exibir e persistir progresso, score de 0 a 100, status operacional, risco atual e valor atual vs meta, mantendo isolamento por tenant, excluindo pedidos cancelados dos cálculos e limitando a consulta principal ao intervalo necessário da temporada/baseline quando o wrapper `DB.col` está disponível.
+
+## 2026-05-11
+- Pedido feito: implementar a Fase 7 do módulo Temporadas / Missões Operacionais.
+- Arquivos alterados:
+  - `js/modules/temporadas.js`
+  - `css/modules/temporadas.css`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: criar snapshots automáticos diários e semanais em `season_metrics_snapshots` ao abrir a temporada ativa, evitando duplicação para o mesmo `seasonId`, tipo e data.
+- Impacto esperado: o módulo passa a salvar score, progresso, status, risco, métricas principais, métricas auxiliares, confiança e alertas simples para análises futuras, além de exibir no card ativo a última atualização e a existência das análises diária/semanal.
+
+## 2026-05-11
+- Pedido feito: implementar a Fase 8 do módulo Temporadas / Missões Operacionais.
+- Arquivos alterados:
+  - `js/modules/temporadas.js`
+  - `css/modules/temporadas.css`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: permitir encerrar oficialmente uma temporada ativa, calculando resultado final, classificação, resumo estratégico simples e snapshot `final`.
+- Impacto esperado: temporadas ativas podem ser finalizadas com `finalResult`, `finalScore`, `finalProgressPercent`, `finalMetrics`, `finalSummary` e `finishedAt`, passam ao histórico como `finished` e podem ter o Resultado Final aberto pelo histórico sem permitir edição retroativa.
+
+## 2026-05-11
+- Pedido feito: implementar a Fase 9 do módulo Temporadas / Missões Operacionais: Copiloto de Ação com IA preparado para OpenAI.
+- Arquivos alterados:
+  - `admin.html`
+  - `js/services/seasons.ai.js`
+  - `js/modules/temporadas.js`
+  - `css/modules/temporadas.css`
+  - `server.rb`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: preparar a camada de recomendação prática para usar contexto agregado da temporada, sem deixar IA calcular score, meta, risco ou progresso e sem expor chave da OpenAI no frontend.
+- Impacto esperado: o painel passa a exibir o bloco `Próxima Jogada`, snapshots aceitam campos de recomendação IA, existe fallback local diário, contexto sanitizado sem dados pessoais e há endpoint server-side preparado para futura integração segura com OpenAI.
+
+## 2026-05-11
+- Pedido feito: incluir no cadastro manual de pedido o campo de hora para análise futura de horários de pico no módulo Temporadas.
+- Arquivos alterados:
+  - `js/modules/pedidos.js`
+  - `js/modules/temporadas.js`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: registrar a hora real do pedido manual como dado analítico (`orderTime`, `saleTime`, `analyticsTime`, `analyticsHour`) e permitir que Temporadas consolide horários fortes de venda.
+- Impacto esperado: pedidos criados manualmente passam a carregar hora de venda estruturada, e o módulo Temporadas consegue usar esse campo para identificar `strongHours` em métricas, snapshots e recomendações.
+
+## 2026-05-11
+- Pedido feito: reestruturar a experiência do Painel da Temporada para separar métricas do sistema, snapshots e recomendações da IA.
+- Arquivos alterados:
+  - `js/modules/temporadas.js`
+  - `css/modules/temporadas.css`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: tornar o módulo Temporadas uma central operacional mais clara, com HUD fixo no topo, abas internas e hierarquia explícita entre dados calculados pelo BocaFood e orientação estratégica do Copiloto IA.
+- Impacto esperado: a usuária passa a navegar entre `Visão Geral`, `Próxima Jogada` e `Análises`, entendendo separadamente estado atual, snapshots automáticos e recomendação prática, sem alterar cálculos, snapshots, endpoints ou regras de IA.
+
+## 2026-05-11
+- Pedido feito: criar uma subaba dentro de Temporadas para colocar a listagem de histórico.
+- Arquivos alterados:
+  - `js/modules/temporadas.js`
+  - `css/modules/temporadas.css`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: mover o histórico de temporadas anteriores para uma aba interna do painel da temporada ativa, mantendo a navegação principal mais clara.
+- Impacto esperado: o painel passa a ter a subaba `Histórico`, onde temporadas finalizadas ou abandonadas ficam listadas sem disputar espaço com a visão operacional atual.
+
+## 2026-05-11
+- Pedido feito: ajustar o Histórico para ficar dentro do menu Temporadas, e não dentro do Painel da Temporada, como na tela de Programa de Fidelidade.
+- Arquivos alterados:
+  - `js/modules/temporadas.js`
+  - `css/modules/temporadas.css`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: transformar `Histórico` em subaba da tela principal de Temporadas, ao lado de `Temporada Atual`, removendo essa opção das abas internas do painel ativo.
+- Impacto esperado: a usuária acessa o histórico no nível correto do módulo Temporadas, enquanto o Painel da Temporada mantém apenas abas operacionais da temporada ativa.
+
+## 2026-05-11
+- Pedido feito: ajustar a lógica de Status/Ritmo Atual e Risco/Chance de Falha no módulo Temporadas.
+- Arquivos alterados:
+  - `js/modules/temporadas.js`
+  - `css/modules/temporadas.css`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: evitar que uma temporada recém-criada seja marcada como crítica apenas por ainda estar com progresso 0%, separando ritmo atual de chance de falha.
+- Impacto esperado: `currentStatus` passa a comparar progresso real com progresso esperado para o momento da temporada, exibindo `Em início` nos primeiros dias sem dados suficientes, enquanto `riskLevel` preserva o risco inicial da meta e só considera atraso real depois da janela inicial.
+
+## 2026-05-11
+- Pedido feito: ajustar o fluxo de criação e organização das Temporadas com status programado, data de início, alertas e abas separadas.
+- Arquivos alterados:
+  - `js/modules/temporadas.js`
+  - `css/modules/temporadas.css`
+  - `SEASONS_ARCHITECTURE.md`
+  - `SEASONS_SPEC.md`
+  - `SEASONS_UI_FLOW.md`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: permitir temporadas futuras sem iniciar análises imediatamente, impedir sobreposição de períodos e separar visualmente temporadas ativas, programadas e anteriores.
+- Impacto esperado: o módulo passa a suportar `scheduled`, data de início escolhida pela usuária, promoção automática ao abrir quando a data chegar, alertas informativos no resumo de criação e navegação superior `Ativa`, `Programadas` e `Histórico`.
+
+## 2026-05-11
+- Pedido feito: corrigir elementos gráficos da página Temporadas que apareciam como texto, por exemplo `track_changes`.
+- Arquivos alterados:
+  - `js/modules/temporadas.js`
+  - `css/modules/temporadas.css`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: remover a dependência visual dos ícones do módulo Temporadas em relação à fonte externa Material Icons, que pode falhar e exibir o nome textual do ícone.
+- Impacto esperado: Temporadas passa a renderizar ícones SVG locais no próprio módulo, evitando que nomes como `track_changes`, `add` ou `warning` apareçam como texto na interface.
+
+## 2026-05-11
+- Pedido feito: adicionar animação comemorativa ao Resultado Final da Temporada quando houver `Vitória Total`.
+- Arquivos alterados:
+  - `js/modules/temporadas.js`
+  - `css/modules/temporadas.css`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: reforçar visualmente a conquista real quando a temporada atinge a meta final, sem alterar cálculo, score, snapshots ou IA.
+- Impacto esperado: ao abrir o Resultado Final com `finalResult = Vitória Total`, o módulo dispara uma animação curta e não bloqueante de confete/estrelas/serpentinas, controlada em memória para não repetir indefinidamente.
+
+## 2026-05-11
+- Pedido feito: adicionar comemoração automática quando a meta da Temporada for atingida pela primeira vez, mesmo fora da tela Temporadas.
+- Arquivos alterados:
+  - `admin.html`
+  - `js/core/router.js`
+  - `js/modules/temporadas.js`
+  - `css/modules/temporadas.css`
+  - `SEASONS_ARCHITECTURE.md`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: registrar o marco de meta atingida em `seasons` e permitir que o Admin exiba uma comemoração global quando houver `goalCelebrationPending`.
+- Impacto esperado: ao chegar em `progressPercent >= 100` pela primeira vez, a temporada ativa salva `goalReachedAt` e `goalCelebrationPending`; o Admin checa esse estado ao abrir/trocar módulos, exibe uma comemoração global com ação `Ver temporada` e marca `goalCelebrationShownAt` para não repetir.
+
+## 2026-05-11
+- Pedido feito: deixar as duas comemorações de Temporadas mais explosivas, festivas e com duração de até 5 segundos.
+- Arquivos alterados:
+  - `js/modules/temporadas.js`
+  - `css/modules/temporadas.css`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: aumentar quantidade, variedade e presença visual dos elementos comemorativos tanto na meta atingida quanto na `Vitória Total`.
+- Impacto esperado: as comemorações passam a usar mais partículas, estrelas, serpentinas, pontos e sparks com animação mais ampla e duração controlada em 5 segundos, mantendo `pointer-events` sem bloquear a interface.

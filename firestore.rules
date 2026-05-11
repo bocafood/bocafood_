@@ -1,0 +1,129 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function ownsTenant(tenantId) {
+      return signedIn() && request.auth.uid == tenantId;
+    }
+
+    function isStoreCustomer(customerId) {
+      return signedIn() && request.auth.uid == customerId;
+    }
+
+    match /tenants/{tenantId}/products/{docId} {
+      allow read: if true;
+      allow write: if ownsTenant(tenantId);
+    }
+
+    match /tenants/{tenantId}/categories/{docId} {
+      allow read: if true;
+      allow write: if ownsTenant(tenantId);
+    }
+
+    match /tenants/{tenantId}/produtos_prontos/{docId} {
+      allow read: if true;
+      allow write: if ownsTenant(tenantId);
+    }
+
+    match /tenants/{tenantId}/fichasTecnicas/{docId} {
+      allow read: if true;
+      allow write: if ownsTenant(tenantId);
+    }
+
+    match /tenants/{tenantId}/variantGroups/{docId} {
+      allow read: if true;
+      allow write: if ownsTenant(tenantId);
+    }
+
+    match /tenants/{tenantId}/tags/{docId} {
+      allow read: if true;
+      allow write: if ownsTenant(tenantId);
+    }
+
+    match /tenants/{tenantId}/upsells/{docId} {
+      allow read: if true;
+      allow write: if ownsTenant(tenantId);
+    }
+
+    match /tenants/{tenantId}/upsellRules/{docId} {
+      allow read: if true;
+      allow write: if ownsTenant(tenantId);
+    }
+
+    match /tenants/{tenantId}/reviews/{docId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if ownsTenant(tenantId);
+    }
+
+    match /tenants/{tenantId}/promotions/{docId} {
+      allow read: if true;
+      allow write: if ownsTenant(tenantId);
+    }
+
+    match /tenants/{tenantId}/coupons/{docId} {
+      allow read: if true;
+      allow write: if ownsTenant(tenantId);
+    }
+
+    match /tenants/{tenantId}/config/{docId} {
+      allow read: if true;
+      allow write: if ownsTenant(tenantId);
+    }
+
+    match /tenants/{tenantId}/orders/{docId} {
+      allow create: if true;
+      allow get: if true;
+      allow list, update, delete: if ownsTenant(tenantId);
+    }
+
+    match /tenants/{tenantId}/customers/{customerId} {
+      allow create: if ownsTenant(tenantId) || isStoreCustomer(customerId);
+      allow read, update: if ownsTenant(tenantId) || isStoreCustomer(customerId);
+      allow delete: if ownsTenant(tenantId);
+    }
+
+    match /tenants/{tenantId}/store_customers/{customerId} {
+      allow create: if isStoreCustomer(customerId);
+      allow read, update: if ownsTenant(tenantId) || isStoreCustomer(customerId);
+      allow delete: if ownsTenant(tenantId);
+    }
+
+    match /tenants/{tenantId}/orderSlots/{docId} {
+      allow read, create, update: if true;
+      allow delete: if ownsTenant(tenantId);
+    }
+
+    match /tenants/{tenantId}/{document=**} {
+      allow read, write: if ownsTenant(tenantId);
+    }
+
+    function isMasterAdmin() {
+      return signedIn() && (
+        request.auth.token.email == 'bocadobrasil.es@gmail.com' ||
+        request.auth.token.email == 'pcruz.digital@gmail.com'
+      );
+    }
+
+    match /system_tenants/{tenantId} {
+      allow read: if ownsTenant(tenantId) || isMasterAdmin();
+      allow write: if isMasterAdmin();
+    }
+
+    match /system/config {
+      allow read: if signedIn();
+      allow write: if isMasterAdmin();
+    }
+
+    match /system/{document=**} {
+      allow read, write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

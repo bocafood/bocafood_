@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Centro de Control — BOCA Food</title>
+<link rel="icon" type="image/png" href="assets/boca-food-favicon.png">
+<link rel="apple-touch-icon" href="assets/boca-food-favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+<link href="css/modules/temporadas.css?v=20260511-temporadas-fase1" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<style>
+:root{
+  --red:#B42318;--red-dark:#8F1E14;--dark:#1F1F1F;--white:#fff;
+  --off:#FAFAF8;--line:#EAE4DA;--mid:#D9D1C7;--muted:#6F6860;
+  --gold:#B6925E;--gold-soft:#F6EEDF;--green:#1A9E5A;--blue:#2563EB;--orange:#D97706;--shadow:0 12px 30px rgba(31,31,31,.06);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Manrope','Inter',sans-serif;background:#fff;color:var(--dark);min-height:100vh;font-size:14px;line-height:1.5}
+button,input,select,textarea{font-family:inherit}
+.mi{font-family:'Material Icons Round';font-style:normal;font-weight:normal;line-height:1;display:inline-flex;align-items:center;justify-content:center;vertical-align:middle}
+.login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:linear-gradient(135deg,#FBF5F3 0%,#FFF 100%)}
+.login-card{width:min(460px,100%);background:#fff;border-radius:18px;box-shadow:0 18px 70px rgba(26,26,26,.14);padding:34px}
+.login-brand{display:flex;align-items:center;justify-content:center;margin:0 auto 30px}
+.login-brand img{width:min(260px,80%);height:126px;object-fit:contain}
+.login-brand strong{display:none}
+.login-card h1{font-family:'Manrope','Inter',sans-serif;font-size:28px;font-weight:600;margin-bottom:8px;line-height:1.1;color:var(--dark)}
+.login-card p{font-size:15px;color:var(--muted);line-height:1.55;margin-bottom:24px}
+.login-card label,.field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.login-card label span,.field span{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.22px}
+.login-card input,.field input,.field textarea,.field select{width:100%;padding:11px 12px;border:1px solid var(--mid);border-radius:10px;background:#fff;color:var(--dark);font-size:14px;outline:none}
+.field textarea{min-height:86px;resize:vertical}
+.login-card input:focus,.field input:focus,.field textarea:focus,.field select:focus{border-color:var(--red)}
+.login-error{display:none;margin:0 0 12px;padding:10px 12px;border-radius:10px;background:#FCEDE9;color:var(--red);font-size:13px;font-weight:600}
+.login-submit,.primary-action{width:100%;border:none;background:var(--red);color:#fff;border-radius:11px;padding:13px 16px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 8px 18px rgba(180,35,24,.16)}
+.login-submit:hover,.primary-action:hover{background:var(--red-dark)}
+.app-shell{min-height:100vh;display:grid;grid-template-columns:252px 1fr;transition:grid-template-columns .2s ease}
+.app-shell.sidebar-collapsed{grid-template-columns:72px 1fr}
+.sidebar{background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.brand{height:70px;display:flex;align-items:center;gap:10px;padding:0 18px;border-bottom:1px solid var(--line)}
+.brand img{width:104px;height:46px;object-fit:contain}
+.brand strong{font-family:'Manrope','Inter',sans-serif;font-size:21px;font-weight:600;color:var(--red)}
+.app-shell.sidebar-collapsed .brand{justify-content:center;padding:0 10px}
+.app-shell.sidebar-collapsed .brand img{width:48px;height:44px}
+.nav{padding:12px 10px;overflow-y:auto;flex:1}
+.nav-section{display:none}
+.nav-item,.nav-sub-item{width:100%;border:none;background:transparent;color:#2A2620;display:flex;align-items:center;gap:9px;text-align:left;text-decoration:none;border-radius:10px;padding:8px 10px;font-size:12.8px;font-weight:500;cursor:pointer;min-height:37px;line-height:1.2}
+.nav-item:hover,.nav-sub-item:hover{background:#F9F7F2}
+.nav-item.active,.nav-sub-item.active{background:#FCEEEE;color:var(--red);box-shadow:inset 0 0 0 1px rgba(180,35,24,.05)}
+.nav-item .mi{font-size:15px;color:inherit;flex:0 0 17px;width:17px;display:inline-flex;align-items:center;justify-content:center;opacity:.78}
+.nav-badge{margin-left:auto;display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 7px;border-radius:999px;background:#FBEDEB;color:var(--red);font-size:11px;font-weight:600;line-height:1}
+.nav-group.expanded .nav-sub{display:block}
+.nav-sub{display:none;margin:2px 0 8px 24px;border-left:1px solid var(--line);padding-left:8px}
+.nav-sub-item{font-size:12px;padding:7px 9px;color:#667085;min-height:32px}
+.nav-sub-item.active{position:relative;background:transparent;color:var(--red)}
+.nav-sub-item.active::before{content:'';width:4px;height:4px;border-radius:50%;background:var(--red);margin-right:5px;flex-shrink:0;opacity:.8}
+.app-shell.sidebar-collapsed .nav{padding:12px 8px;overflow:hidden}
+.app-shell.sidebar-collapsed .nav-section,.app-shell.sidebar-collapsed .nav-sub,.app-shell.sidebar-collapsed .sidebar-footer{display:none!important}
+.app-shell.sidebar-collapsed .nav-item{justify-content:center;padding:10px 8px;font-size:0;gap:0;min-height:42px}
+.app-shell.sidebar-collapsed .nav-item .mi{font-size:20px}
+.sidebar-footer{border-top:1px solid var(--line);padding:11px 11px 12px;display:flex;flex-direction:column;gap:8px;background:#fff}
+.sidebar-footer-card{border:1px solid var(--line);background:#fff;border-radius:13px;padding:10px}
+.sidebar-footer-title{font-size:10px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px}
+.sidebar-footer-name{font-size:13px;font-weight:600;color:var(--dark);line-height:1.35}
+.sidebar-footer-sub{font-size:11px;color:var(--muted);line-height:1.4;margin-top:3px;word-break:break-word}
+.sidebar-footer-row{display:flex;align-items:center;gap:8px;justify-content:space-between;margin-top:8px}
+.sidebar-footer-pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;background:#F0FAF3;color:#1A9E5A;font-size:10px;font-weight:600;padding:4px 8px}
+.sidebar-store-card{display:flex;align-items:center;gap:11px;border:1px solid #E8DED6;background:linear-gradient(180deg,#FFFFFF 0%,#FCF8F2 100%);border-radius:16px;padding:11px;box-shadow:0 12px 30px rgba(31,31,31,.06);position:relative;overflow:hidden}
+.sidebar-store-card::before{content:'';position:absolute;left:0;top:12px;bottom:12px;width:3px;border-radius:999px;background:var(--red)}
+.sidebar-store-avatar{width:40px;height:40px;border-radius:14px;background:#FCEEEE;color:var(--red);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex:0 0 auto;overflow:hidden;box-shadow:0 8px 18px rgba(31,31,31,.08),inset 0 0 0 1px rgba(180,35,24,.10)}
+.sidebar-store-avatar img{width:100%;height:100%;object-fit:contain;display:block}
+.sidebar-store-meta{min-width:0;flex:1}
+.sidebar-store-kicker{font-size:9.5px;font-weight:800;color:var(--red);text-transform:uppercase;letter-spacing:.08em;line-height:1.1;margin-bottom:4px}
+.sidebar-store-name{font-size:13px;font-weight:800;color:#1F1F1F;line-height:1.18;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sidebar-store-sub{font-size:10.8px;color:#6F6860;line-height:1.35;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sidebar-footer-help{display:flex;align-items:flex-start;gap:9px;border:1px solid #EAE4DA;background:#fff;border-radius:15px;padding:10px;box-shadow:0 8px 22px rgba(31,31,31,.045)}
+.sidebar-footer-help .mi{width:30px;height:30px;border-radius:11px;background:#FAF8F4;font-size:17px;color:var(--red);margin-top:0;opacity:1;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center}
+.sidebar-footer-help strong{display:block;font-size:11.8px;font-weight:800;color:#1F1F1F;margin-bottom:2px;line-height:1.2}
+.sidebar-footer-help span{display:block;font-size:10.8px;color:#6F6860;line-height:1.38}
+.logout-btn{width:100%;border:1px solid #E5E7EB;background:#fff;color:var(--muted);border-radius:10px;padding:7px 10px;font-size:11px;font-weight:500;cursor:pointer}
+.logout-link{border:none;background:transparent;color:var(--muted);font-size:11px;font-weight:500;cursor:pointer;padding:0}
+.logout-link:hover{color:var(--dark)}
+.main{min-width:0;display:flex;flex-direction:column}
+.topbar{height:50px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 16px;position:sticky;top:0;z-index:50}
+.mobile-menu{border:none;background:var(--line);width:38px;height:38px;border-radius:9px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.sidebar-toggle{border:1px solid #E5E7EB;background:#fff;color:var(--dark);width:32px;height:32px;border-radius:9px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;box-shadow:none}
+.sidebar-toggle:hover{background:#FAFAFB}
+.sidebar-toggle .mi{font-size:18px}
+.mobile-menu{display:none}
+.topbar-left{display:flex;align-items:center;gap:10px}
+.topbar-title{font-size:12px;color:#6B7280;font-weight:500;letter-spacing:.01em}
+.store-btn{border:1px solid var(--line);background:#fff;color:var(--dark);border-radius:10px;padding:7px 11px;font-size:12px;font-weight:500;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(31,31,31,.03)}
+.store-btn:hover{background:#FAFAFB}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.store-status{display:inline-flex;align-items:center;gap:5px;font-size:9.5px;font-weight:600;color:#1A9E5A}
+.store-status::before{content:'';width:6px;height:6px;border-radius:50%;background:#1A9E5A;display:inline-block}
+.store-status.closed{color:#B42318}
+.store-status.closed::before{background:#B42318}
+.store-online-control{display:inline-flex;align-items:center;gap:7px}
+.store-online-signal{position:relative;width:30px;height:30px;border-radius:11px;border:1px solid rgba(26,158,90,.20);background:linear-gradient(180deg,#F4FCF7 0%,#EAF8F0 100%);color:#1A9E5A;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 8px 18px rgba(26,158,90,.09),inset 0 1px 0 rgba(255,255,255,.95);transition:background .15s ease,border-color .15s ease,color .15s ease,box-shadow .15s ease,transform .15s ease;flex:0 0 auto;cursor:pointer;padding:0;font-family:inherit}
+.store-online-signal .mi{font-size:17px}
+.store-online-signal::after{content:'';position:absolute;width:6px;height:6px;border-radius:50%;background:#1A9E5A;box-shadow:0 0 0 3px rgba(26,158,90,.11);transform:translate(9px,-9px)}
+.store-online-signal.closed{border-color:rgba(180,35,24,.22);background:linear-gradient(180deg,#FFF8F6 0%,#FCEEEE 100%);color:#B42318;box-shadow:0 10px 22px rgba(180,35,24,.10),inset 0 1px 0 rgba(255,255,255,.95)}
+.store-online-signal.closed::after{background:#B42318;box-shadow:0 0 0 3px rgba(180,35,24,.13)}
+.store-online-signal.saving{opacity:.72;transform:scale(.98)}
+.store-online-signal:disabled{cursor:wait;filter:saturate(.8)}
+.store-online-btn{position:relative;border:none;background:#fff;color:#166534;border-radius:999px;padding:6px 12px;font-size:11.5px;font-weight:800;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 8px 18px rgba(26,158,90,.07),inset 0 1px 0 rgba(255,255,255,.95);font-family:inherit;min-height:30px;transition:box-shadow .15s ease,filter .15s ease,background .15s ease,color .15s ease;pointer-events:none}
+.store-online-btn.closed{background:#fff;color:#B42318;box-shadow:0 10px 22px rgba(180,35,24,.08),inset 0 1px 0 rgba(255,255,255,.95)}
+.store-online-signal:hover{transform:translateY(-1px);box-shadow:0 12px 22px rgba(31,31,31,.10),inset 0 1px 0 rgba(255,255,255,.95)}
+.store-online-btn:disabled{transform:none;filter:saturate(.8)}
+#app{flex:1;min-width:0}
+.module-page{min-height:calc(100vh - 58px)}
+.module-head{background:#fff;border-bottom:1px solid var(--line);padding:22px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.module-head h1{font-family:'Manrope','Inter',sans-serif;font-size:32px;font-weight:600;line-height:1.1;color:var(--dark)}
+.module-head p{font-size:15px;color:var(--muted);margin-top:4px;line-height:1.55}
+.module-tabs{display:flex;gap:0;overflow-x:auto;background:#fff;border-bottom:1px solid var(--line);padding:0 24px}
+.module-tabs button{padding:13px 16px;border:none;background:transparent;font-size:14px;font-weight:500;color:#736B60;border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap}
+.module-tabs button.active{color:var(--red);border-bottom-color:var(--red)}
+.module-content{padding:24px}
+.module-content.narrow{max-width:880px}
+.loading-inline{padding:40px;color:var(--muted);text-align:center}
+.settings-card{background:#fff;border-radius:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);padding:22px;margin-bottom:18px;border:1px solid var(--line)}
+.settings-card-head{margin-bottom:18px}
+.settings-card-head h2{font-family:'Manrope','Inter',sans-serif;font-size:15px;font-weight:600;color:var(--dark);line-height:1.2}
+.settings-card-head p{font-size:13px;color:var(--muted);margin-top:4px;line-height:1.5}
+.settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.settings-grid .field:has(textarea),.settings-grid .check-row{grid-column:1/-1}
+.check-row{display:flex;align-items:center;gap:10px;background:#F9F7F2;border-radius:10px;padding:11px 12px;font-size:14px;font-weight:600}
+.check-row input{width:17px;height:17px;accent-color:var(--red)}
+.secondary-action{border:1px solid var(--mid);background:#fff;color:var(--dark);border-radius:10px;padding:11px 16px;font-size:13px;font-weight:600;cursor:pointer}
+.growth-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-bottom:18px}
+.kpi-tile{background:#fff;border-radius:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);padding:18px;border:1px solid var(--line)}
+.kpi-tile span{display:block;font-size:13px;font-weight:500;color:var(--muted);text-transform:none;letter-spacing:.01em;margin-bottom:4px}
+.kpi-tile strong{display:block;font-family:'Manrope','Inter',sans-serif;font-size:38px;font-weight:700;color:var(--dark);margin-bottom:0;line-height:1}
+.kpi-tile small{font-size:12px;color:var(--muted)}
+.progress-line{height:12px;background:#F1ECE4;border-radius:999px;overflow:hidden;margin:8px 0 18px}
+.progress-line span{display:block;height:100%;background:var(--red);border-radius:999px}
+.bf-table tbody tr{transition:background .15s ease,border-color .15s ease}
+.bf-table tbody tr:hover{background:#FCFBF8}
+.bf-table tbody tr:hover td{background:transparent}
+@media(max-width:900px){
+  .app-shell{grid-template-columns:1fr}
+  .app-shell.sidebar-collapsed{grid-template-columns:1fr}
+  .sidebar{position:fixed;z-index:100;left:0;top:0;transform:translateX(-100%);transition:transform .22s;width:264px}
+  .app-shell.nav-open .sidebar{transform:translateX(0)}
+  .mobile-menu{display:flex;align-items:center;justify-content:center}
+  .sidebar-toggle{display:none}
+  .settings-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div id="login-screen" class="login-screen" style="display:none">
+  <form id="login-form" class="login-card">
+    <div class="login-brand"><img src="assets/boca-food-logo.png" alt="BOCA Food"></div>
+    <h1>Bienvenido.</h1>
+    <p>Aquí gestionas todo lo que hace crecer tu negocio.</p>
+    <div id="login-error" class="login-error"></div>
+    <label><span>E-mail</span><input id="login-email" type="email" autocomplete="email" required></label>
+    <label><span>Senha</span><input id="login-pass" type="password" autocomplete="current-password" required></label>
+    <button class="login-submit" type="submit">Entrar</button>
+  </form>
+</div>
+
+<div id="admin-shell" class="app-shell" style="display:none">
+  <aside class="sidebar">
+    <div class="brand"><img src="assets/boca-food-logo.png" alt="BOCA Food"></div>
+    <nav class="nav">
+      <div class="nav-group">
+        <button class="nav-item" data-route="dashboard" onclick="Router.navigate('dashboard')"><span class="mi">dashboard</span><span>Início</span></button>
+      </div>
+
+      <div class="nav-group">
+        <button class="nav-item" data-route="pedidos" onclick="AdminApp.toggleNavGroup(event,'pedidos','pedidos/cozinha')"><span class="mi">list_alt</span><span>Pedidos</span><span id="nav-open-orders-badge" class="nav-badge" style="display:none;">0</span></button>
+        <div class="nav-sub">
+          <button class="nav-sub-item" data-route="pedidos/cozinha" onclick="Router.navigate('pedidos/cozinha')">Cozinha</button>
+          <button class="nav-sub-item" data-route="pedidos/lista" onclick="Router.navigate('pedidos/lista')">Pedidos</button>
+          <button class="nav-sub-item" data-route="pedidos/clientes" onclick="Router.navigate('pedidos/clientes')">Clientes</button>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <button class="nav-item" data-route="catalogo" onclick="AdminApp.toggleNavGroup(event,'catalogo','catalogo/produtos')"><span class="mi">restaurant_menu</span>Cardápio</button>
+        <div class="nav-sub">
+          <button class="nav-sub-item" data-route="catalogo/produtos" onclick="Router.navigate('catalogo/produtos')">Produtos</button>
+          <button class="nav-sub-item" data-route="catalogo/configuracoes" onclick="Router.navigate('catalogo/configuracoes')">Configurações</button>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <button class="nav-item" data-route="loja-online" onclick="AdminApp.toggleNavGroup(event,'loja-online','loja-online/template')"><span class="mi">storefront</span>Loja Online</button>
+        <div class="nav-sub">
+          <button class="nav-sub-item" data-route="loja-online/template" onclick="Router.navigate('loja-online/template')">Template da loja</button>
+          <button class="nav-sub-item" data-route="loja-online/seo" onclick="Router.navigate('loja-online/seo')">SEO da loja</button>
+          <button class="nav-sub-item" data-route="loja-online/avaliacoes" onclick="Router.navigate('loja-online/avaliacoes')">Avaliações</button>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <button class="nav-item" data-route="receitas" onclick="AdminApp.toggleNavGroup(event,'receitas','receitas/receitas')"><span class="mi">receipt_long</span>Produção</button>
+        <div class="nav-sub">
+          <button class="nav-sub-item" data-route="receitas/receitas" onclick="Router.navigate('receitas/receitas')">Receitas</button>
+          <button class="nav-sub-item" data-route="receitas/insumos" onclick="Router.navigate('receitas/insumos')">Insumos</button>
+          <button class="nav-sub-item" data-route="receitas/configuracoes" onclick="Router.navigate('receitas/configuracoes')">Configurações</button>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <button class="nav-item" data-route="compras" onclick="AdminApp.toggleNavGroup(event,'compras','compras/registros')"><span class="mi">shopping_cart</span>Compras</button>
+        <div class="nav-sub">
+          <button class="nav-sub-item" data-route="compras/registros" onclick="Router.navigate('compras/registros')">Registro de compras</button>
+          <button class="nav-sub-item" data-route="compras/itens" onclick="Router.navigate('compras/itens')">Produtos / Insumos</button>
+          <button class="nav-sub-item" data-route="compras/fornecedores" onclick="Router.navigate('compras/fornecedores')">Fornecedores</button>
+          <button class="nav-sub-item" data-route="compras/configuracoes" onclick="Router.navigate('compras/configuracoes')">Configurações</button>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <button class="nav-item" data-route="dinheiro" onclick="AdminApp.toggleNavGroup(event,'dinheiro','dinheiro/resumo')"><span class="mi">calculate</span>Preços e Margem</button>
+        <div class="nav-sub">
+          <button class="nav-sub-item" data-route="dinheiro/resumo" onclick="Router.navigate('dinheiro/resumo')">Radar</button>
+          <button class="nav-sub-item" data-route="dinheiro/precos" onclick="Router.navigate('dinheiro/precos')">Composição do preço</button>
+          <button class="nav-sub-item" data-route="dinheiro/lista" onclick="Router.navigate('dinheiro/lista')">Lista de preço</button>
+          <button class="nav-sub-item" data-route="dinheiro/simulador" onclick="Router.navigate('dinheiro/simulador')">Simulador</button>
+          <button class="nav-sub-item" data-route="dinheiro/regras" onclick="Router.navigate('dinheiro/regras')">Regras de preço</button>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <button class="nav-item" data-route="marketing" onclick="AdminApp.toggleNavGroup(event,'marketing','marketing/promocoes')"><span class="mi">campaign</span>Ações de Vendas</button>
+        <div class="nav-sub">
+          <button class="nav-sub-item" data-route="marketing/promocoes" onclick="Router.navigate('marketing/promocoes')">Promoções</button>
+          <button class="nav-sub-item" data-route="marketing/cupons" onclick="Router.navigate('marketing/cupons')">Cupons</button>
+          <button class="nav-sub-item" data-route="marketing/upsell" onclick="Router.navigate('marketing/upsell')">Upsell</button>
+          <button class="nav-sub-item" data-route="marketing/pontos" onclick="Router.navigate('marketing/pontos')">Programa de Pontos</button>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <button class="nav-item" data-route="crescimento" onclick="AdminApp.toggleNavGroup(event,'crescimento','crescimento/plano-de-voo',true)"><span class="mi">trending_up</span>Crescimento</button>
+        <div class="nav-sub">
+          <button class="nav-sub-item" data-route="crescimento/plano-de-voo" onclick="Router.navigate('crescimento/plano-de-voo')">Plano de Voo</button>
+          <button class="nav-sub-item" data-route="crescimento/performance" onclick="Router.navigate('crescimento/performance')">Performance</button>
+          <button class="nav-sub-item" data-route="crescimento/temporadas" onclick="Router.navigate('crescimento/temporadas')">Temporadas</button>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <button class="nav-item" data-route="financeiro" onclick="AdminApp.toggleNavGroup(event,'financeiro','financeiro/visao-geral')"><span class="mi">payments</span>Financeiro</button>
+        <div class="nav-sub">
+          <button class="nav-sub-item" data-route="financeiro/visao-geral" onclick="Router.navigate('financeiro/visao-geral')">Visão Geral</button>
+          <button class="nav-sub-item" data-route="financeiro/fluxo-caixa" onclick="Router.navigate('financeiro/fluxo-caixa')">Fluxo de Caixa</button>
+          <button class="nav-sub-item" data-route="financeiro/movimentacoes" onclick="Router.navigate('financeiro/movimentacoes')">Entradas</button>
+          <button class="nav-sub-item" data-route="financeiro/contas-pagar" onclick="Router.navigate('financeiro/contas-pagar')">Saídas</button>
+          <button class="nav-sub-item" data-route="financeiro/configuracoes" onclick="Router.navigate('financeiro/configuracoes')">Configurações</button>
+        </div>
+      </div>
+
+      <div class="nav-group" id="nav-group-fiscal">
+        <button class="nav-item" data-route="fiscal" onclick="AdminApp.toggleNavGroup(event,'fiscal','fiscal/resumo')"><span class="mi">receipt_long</span>Fiscal</button>
+        <div class="nav-sub">
+          <button class="nav-sub-item" data-route="fiscal/resumo" onclick="Router.navigate('fiscal/resumo')">Resumo trimestral</button>
+          <button class="nav-sub-item" data-route="fiscal/iva" onclick="Router.navigate('fiscal/iva')">IVA</button>
+          <button class="nav-sub-item" data-route="fiscal/irpf" onclick="Router.navigate('fiscal/irpf')">IRPF</button>
+          <button class="nav-sub-item" data-route="fiscal/configuracoes" onclick="Router.navigate('fiscal/configuracoes')">Configurações fiscais</button>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <button class="nav-item" data-route="configuracoes" onclick="AdminApp.toggleNavGroup(event,'configuracoes','configuracoes/geral')"><span class="mi">settings</span>Configurações</button>
+        <div class="nav-sub">
+          <button class="nav-sub-item" data-route="configuracoes/geral" onclick="Router.navigate('configuracoes/geral')">Geral</button>
+          <button class="nav-sub-item" data-route="configuracoes/dominio" onclick="Router.navigate('configuracoes/dominio')">Domínio / URL</button>
+          <button class="nav-sub-item" data-route="configuracoes/integracoes" onclick="Router.navigate('configuracoes/integracoes')">Integrações</button>
+          <button class="nav-sub-item" data-route="configuracoes/plano" onclick="Router.navigate('configuracoes/plano')">Plano</button>
+        </div>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-store-card">
+        <div id="sidebar-store-avatar" class="sidebar-store-avatar">BF</div>
+        <div class="sidebar-store-meta">
+          <div class="sidebar-store-kicker">Conta ativa</div>
+          <div id="sidebar-store-name" class="sidebar-store-name">Minha loja</div>
+          <div id="sidebar-store-sub" class="sidebar-store-sub">Plano Starter</div>
+        </div>
+      </div>
+      <div class="sidebar-footer-help">
+        <span class="mi">support_agent</span>
+        <div>
+          <strong>Precisa de ajuda?</strong>
+          <span>Fale com nosso suporte quando precisar revisar sua configuração.</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <main class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="mobile-menu" onclick="AdminApp.toggleNav()"><span class="mi">menu</span></button>
+        <button class="sidebar-toggle" onclick="AdminApp.toggleSidebar()" title="Encolher menu"><span class="mi" id="sidebar-toggle-icon">keyboard_double_arrow_left</span></button>
+        <div class="topbar-title">Centro de Control</div>
+      </div>
+      <div class="topbar-right">
+        <div class="store-online-control">
+          <button id="store-online-signal" class="store-online-signal" type="button" onclick="AdminApp.toggleOnlineStore()" title="Loja online aberta"><span class="mi">power_settings_new</span></button>
+          <span id="store-online-toggle" class="store-online-btn" title="Status da loja online"><span id="store-online-toggle-label">Fechar loja online</span></span>
+        </div>
+        <button class="store-btn" onclick="AdminApp.openStore()"><span class="mi" style="font-size:17px">storefront</span>Ver loja</button>
+      </div>
+    </header>
+    <div id="app"></div>
+  </main>
+</div>
+
+<script src="js/core/auth.js"></script>
+<script src="js/core/db.js"></script>
+<script src="js/core/ui.js"></script>
+<script src="js/core/router.js"></script>
+<script src="js/core/image-tools.js"></script>
+<script src="js/modules/dashboard.js?v=20260510-dashboard-principal"></script>
+<script src="js/modules/pedidos.js"></script>
+<script src="js/modules/catalogo.js"></script>
+<script src="js/modules/loja_online.js"></script>
+<script src="js/modules/receitas.js"></script>
+<script src="js/modules/clientes.js"></script>
+<script src="js/modules/marketing.js"></script>
+<script src="js/modules/plano_voo.js?v=20260510-plano-voo-navegacao-crescimento"></script>
+<script src="js/modules/performance.js?v=20260510-performance-layout"></script>
+<script src="js/services/seasons.ai.js?v=20260511-temporadas-fase9"></script>
+<script src="js/modules/temporadas.js?v=20260511-temporadas-fase1"></script>
+<script src="js/modules/compras.js"></script>
+<script src="js/modules/dinheiro.js"></script>
+<script src="js/modules/fiscal.js?v=20260510-fiscal-menu-sem-abas"></script>
+<script src="js/modules/financeiro.js?v=20260510-financeiro-configuracoes-layout"></script>
+<script src="js/modules/configuracoes.js?v=20260510-configuracoes-avatar-geral"></script>
+<script>
+(function () {
+  'use strict';
+
+  var BB_FB_CFG = {
+    apiKey: 'AIzaSyAZk2mEPXR-VQOOEJWfcdhqoJOhHWjzda4',
+    authDomain: 'bocado-brasil.firebaseapp.com',
+    projectId: 'bocado-brasil',
+    storageBucket: 'bocado-brasil.firebasestorage.app',
+    messagingSenderId: '1083383234261',
+    appId: '1:1083383234261:web:b73a9e9f7df73233d6ec5c'
+  };
+
+  if (!firebase.apps.length) firebase.initializeApp(BB_FB_CFG);
+
+  function _openOrdersCount(orders) {
+    var openStatuses = {
+      'Pendente': true,
+      'Confirmado': true,
+      'Em preparação': true,
+      'Em camino': true,
+      'Listo para recoger': true
+    };
+    return (orders || []).filter(function (o) {
+      var status = String(o && o.status || 'Pendente');
+      return openStatuses[status] && status !== 'Entregado' && status !== 'Cancelado';
+    }).length;
+  }
+
+  function _adminInitials(name) {
+    return String(name || 'BF').trim().split(/\s+/).slice(0, 2).map(function (part) {
+      return part ? part[0].toUpperCase() : '';
+    }).join('') || 'BF';
+  }
+
+  function _adminSafeImg(url) {
+    return '<img src="' + String(url || '').replace(/"/g, '&quot;') + '" alt="">';
+  }
+
+  function _adminApplyStoreIdentity(profile, template, geral) {
+    profile = profile || {};
+    template = template || {};
+    geral = geral || {};
+    var storeName = template.publicStoreName || template.publicName || geral.businessName || profile.storeName || profile.businessName || profile.name || 'Minha loja';
+    var storeLogo = geral.avatarUrl || geral.storeAvatarUrl || geral.accountAvatarUrl || template.logoUrl || geral.logoUrl || profile.logoUrl || profile.logo || profile.avatarUrl || '';
+    var plan = profile.plan ? String(profile.plan) : 'starter';
+    var planLabel = ({ starter: 'Starter', pro: 'Pro', enterprise: 'Enterprise' })[plan] || plan;
+    var initials = _adminInitials(storeName);
+    var avatar = document.getElementById('store-avatar');
+    var storeTitle = document.getElementById('store-name');
+    var sidebarAvatar = document.getElementById('sidebar-store-avatar');
+    var sidebarName = document.getElementById('sidebar-store-name');
+    var sidebarSub = document.getElementById('sidebar-store-sub');
+    if (avatar) avatar.innerHTML = storeLogo ? _adminSafeImg(storeLogo) : initials;
+    if (storeTitle) storeTitle.textContent = storeName;
+    if (sidebarAvatar) sidebarAvatar.innerHTML = storeLogo ? _adminSafeImg(storeLogo) : initials;
+    if (sidebarName) sidebarName.textContent = storeName;
+    if (sidebarSub) sidebarSub.textContent = 'Plano ' + planLabel;
+  }
+
+  window.AdminApp = {
+    showLogin: function () {
+      document.getElementById('login-screen').style.display = 'flex';
+      document.getElementById('admin-shell').style.display = 'none';
+    },
+    showApp: function () {
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('admin-shell').style.display = 'grid';
+      var shell = document.getElementById('admin-shell');
+      if (shell) {
+        var collapsed = localStorage.getItem('admin.sidebarCollapsed') === '1';
+        shell.classList.toggle('sidebar-collapsed', collapsed);
+        var icon = document.getElementById('sidebar-toggle-icon');
+        if (icon) icon.textContent = collapsed ? 'keyboard_double_arrow_right' : 'keyboard_double_arrow_left';
+        var toggle = document.querySelector('.sidebar-toggle');
+        if (toggle) toggle.title = collapsed ? 'Abrir menu' : 'Encolher menu';
+      }
+      var profile = Auth.getAdminProfile ? Auth.getAdminProfile() : null;
+      _adminApplyStoreIdentity(profile, null, null);
+      if (window.DB && typeof DB.getDocRoot === 'function') {
+        Promise.all([DB.getDocRoot('config', 'template'), DB.getDocRoot('config', 'geral')]).then(function (docs) {
+          _adminApplyStoreIdentity(profile, docs[0] || {}, docs[1] || {});
+        }).catch(function () {});
+      }
+      AdminApp.refreshStoreOnlineStatus();
+      if (!window._adminOpenOrdersListenerBound && DB && typeof DB.listen === 'function') {
+        window._adminOpenOrdersListenerBound = true;
+        DB.listen('orders', function (orders) {
+          var badge = document.getElementById('nav-open-orders-badge');
+          var count = _openOrdersCount(orders);
+          if (!badge) return;
+          badge.textContent = count;
+          badge.style.display = count > 0 ? 'inline-flex' : 'none';
+        });
+      }
+      AdminApp.checkSeasonGoalCelebration();
+    },
+    checkSeasonGoalCelebration: function () {
+      if (window.Modules && Modules.Temporadas && typeof Modules.Temporadas.checkPendingGoalCelebration === 'function') {
+        Modules.Temporadas.checkPendingGoalCelebration();
+      }
+    },
+    showAccessDenied: function (reason) {
+      var err = document.getElementById('login-error');
+      this.showLogin();
+      if (err) {
+        var msg;
+        if (reason === 'missing_master' || reason === 'nosync') {
+          msg = 'Sua conta ainda não foi liberada no Master.';
+        } else if (reason === 'inactive' || reason === 'disabled') {
+          msg = 'Seu acesso está inativo. Fale com o suporte.';
+        } else if (reason === 'customer') {
+          msg = 'Esta conta é de cliente da loja e não tem acesso ao Centro de Control.';
+        } else if (reason === 'not_allowed') {
+          msg = 'Esta conta ainda não tem permissão para o Centro de Control.';
+        } else if (reason === 'error') {
+          msg = 'Erro ao verificar o acesso. Verifique sua conexão e tente novamente.';
+        } else {
+          msg = 'Esta conta é cliente da loja ou não tem acesso ao Centro de Control.';
+        }
+        err.textContent = msg;
+        err.style.display = 'block';
+      }
+    },
+    toggleNav: function () {
+      document.getElementById('admin-shell').classList.toggle('nav-open');
+    },
+    toggleSidebar: function () {
+      var shell = document.getElementById('admin-shell');
+      if (!shell) return;
+      shell.classList.toggle('sidebar-collapsed');
+      var collapsed = shell.classList.contains('sidebar-collapsed');
+      localStorage.setItem('admin.sidebarCollapsed', collapsed ? '1' : '0');
+      var icon = document.getElementById('sidebar-toggle-icon');
+      if (icon) icon.textContent = collapsed ? 'keyboard_double_arrow_right' : 'keyboard_double_arrow_left';
+      var toggle = document.querySelector('.sidebar-toggle');
+      if (toggle) toggle.title = collapsed ? 'Abrir menu' : 'Encolher menu';
+    },
+    _isStoreOnline: function (template, operacao) {
+      template = template || {};
+      operacao = operacao || {};
+      if (template.statusMode === 'manual_closed' || template.manualClosed === true) return false;
+      if (template.statusMode === 'manual_open' || template.manualOpen === true) return true;
+      if (operacao.isOpen === false) return false;
+      return true;
+    },
+    _applyStoreOnlineStatus: function (isOpen, saving) {
+      var status = document.getElementById('store-online-status');
+      var btn = document.getElementById('store-online-toggle');
+      var label = document.getElementById('store-online-toggle-label');
+      var signal = document.getElementById('store-online-signal');
+      if (status) {
+        status.textContent = isOpen ? 'Loja online aberta' : 'Loja online fechada';
+        status.classList.toggle('closed', !isOpen);
+      }
+      if (signal) {
+        signal.classList.toggle('closed', !isOpen);
+        signal.classList.toggle('saving', !!saving);
+        signal.disabled = !!saving;
+        signal.title = saving ? 'Atualizando status da loja' : (isOpen ? 'Loja online aberta' : 'Loja online fechada');
+      }
+      if (btn) {
+        btn.classList.toggle('closed', !isOpen);
+        btn.style.opacity = saving ? '.72' : '';
+        btn.title = saving ? 'Atualizando status da loja' : (isOpen ? 'Loja online aberta' : 'Loja online fechada');
+      }
+      if (label) label.textContent = saving ? 'Salvando...' : (isOpen ? 'Loja ligada' : 'Loja desligada');
+    },
+    refreshStoreOnlineStatus: function () {
+      if (!window.DB || typeof DB.getDocRoot !== 'function') return;
+      Promise.all([
+        DB.getDocRoot('config', 'template').catch(function () { return {}; }),
+        DB.getDocRoot('config', 'operacao').catch(function () { return {}; })
+      ]).then(function (r) {
+        AdminApp._applyStoreOnlineStatus(AdminApp._isStoreOnline(r[0], r[1]), false);
+      }).catch(function () {
+        AdminApp._applyStoreOnlineStatus(true, false);
+      });
+    },
+    toggleOnlineStore: function () {
+      if (!window.DB || typeof DB.getDocRoot !== 'function' || typeof DB.setDocRoot !== 'function') return;
+      var signal = document.getElementById('store-online-signal');
+      if (signal && signal.disabled) return;
+      Promise.all([
+        DB.getDocRoot('config', 'template').catch(function () { return {}; }),
+        DB.getDocRoot('config', 'operacao').catch(function () { return {}; })
+      ]).then(function (r) {
+        var isOpen = AdminApp._isStoreOnline(r[0], r[1]);
+        var nextOpen = !isOpen;
+        AdminApp._applyStoreOnlineStatus(nextOpen, true);
+        var statusMode = nextOpen ? 'manual_open' : 'manual_closed';
+        return Promise.all([
+          DB.setDocRoot('config', 'template', {
+            statusMode: statusMode,
+            manualOpen: nextOpen,
+            manualClosed: !nextOpen,
+            updatedAt: new Date().toISOString()
+          }),
+          DB.setDocRoot('config', 'operacao', {
+            isOpen: nextOpen,
+            statusMode: statusMode,
+            updatedAt: new Date().toISOString()
+          })
+        ]).then(function () {
+          AdminApp._applyStoreOnlineStatus(nextOpen, false);
+          if (window.UI && UI.toast) UI.toast(nextOpen ? 'Loja online aberta.' : 'Loja online fechada.', 'success');
+        });
+      }).catch(function (err) {
+        AdminApp.refreshStoreOnlineStatus();
+        if (window.UI && UI.toast) UI.toast('Erro ao atualizar a loja online: ' + (err && err.message ? err.message : err), 'error');
+      });
+    },
+    toggleNavGroup: function (event, base, fallbackRoute, forceFallback) {
+      if (event) event.preventDefault();
+      var shell = document.getElementById('admin-shell');
+      var btn = event && event.currentTarget ? event.currentTarget : document.querySelector('[data-route="' + base + '"]');
+      var group = btn ? btn.closest('.nav-group') : null;
+      var current = Router.current ? Router.current() : '';
+      var currentBase = current.split('/')[0];
+      var isDoubleClick = !!(event && event.detail && event.detail > 1);
+
+      if (shell && shell.classList.contains('sidebar-collapsed')) {
+        shell.classList.remove('sidebar-collapsed');
+        localStorage.setItem('admin.sidebarCollapsed', '0');
+        var icon = document.getElementById('sidebar-toggle-icon');
+        if (icon) icon.textContent = 'keyboard_double_arrow_left';
+        var toggle = document.querySelector('.sidebar-toggle');
+        if (toggle) toggle.title = 'Encolher menu';
+        if (currentBase !== base || (forceFallback && current !== fallbackRoute)) Router.navigate(fallbackRoute);
+        return;
+      }
+
+      if (isDoubleClick && group && group.classList.contains('expanded')) {
+        group.classList.remove('expanded');
+        var sub = group.querySelector('.nav-sub');
+        if (sub) sub.style.display = 'none';
+        return;
+      }
+
+      document.querySelectorAll('.nav-group.expanded').forEach(function (g) {
+        if (g !== group) {
+          g.classList.remove('expanded');
+          var sub = g.querySelector('.nav-sub');
+          if (sub) sub.style.display = 'none';
+        }
+      });
+      if (group) {
+        group.classList.add('expanded');
+        var navSub = group.querySelector('.nav-sub');
+        if (navSub) navSub.style.display = 'block';
+      }
+      if (currentBase !== base || (forceFallback && current !== fallbackRoute)) Router.navigate(fallbackRoute);
+    },
+    applyFiscalVisibility: function () {
+      var fc = window.Auth && Auth.getFiscalCountry ? Auth.getFiscalCountry() : 'ES';
+      var cfg = window.FiscalConfig ? FiscalConfig.get(fc) : { fiscalModuleEnabled: true };
+      var fiscalGroup = document.getElementById('nav-group-fiscal');
+      if (fiscalGroup) fiscalGroup.style.display = cfg.fiscalModuleEnabled ? '' : 'none';
+      if (!cfg.fiscalModuleEnabled && window.Router) {
+        var current = Router.current ? Router.current() : '';
+        if (current.split('/')[0] === 'fiscal') Router.navigate('dashboard');
+      }
+    },
+    openStore: function () {
+      var profile = Auth.getAdminProfile ? Auth.getAdminProfile() : null;
+      var user = Auth.getUser ? Auth.getUser() : null;
+      var tenantId = (profile && profile.tenantId) || (user && user.uid) || '';
+      var base = window.location.href.split('#')[0].split('?')[0].replace(/admin\.html$/, 'index.html');
+      var url = base + (tenantId ? '?tenant=' + encodeURIComponent(tenantId) : '');
+      window.open(url, '_blank');
+    }
+  };
+
+  Router.register('dashboard', Modules.Dashboard);
+  Router.register('pedidos', Modules.Pedidos);
+  Router.register('pedidos/cozinha', Modules.Pedidos);
+  Router.register('pedidos/lista', Modules.Pedidos);
+  Router.register('pedidos/clientes', Modules.Clientes);
+  Router.register('pedidos/avaliacoes', Modules.Pedidos);
+  Router.register('catalogo', Modules.Catalogo);
+  Router.register('receitas', Modules.Receitas);
+  Router.register('clientes', Modules.Clientes);
+  Router.register('marketing', Modules.Marketing);
+  Router.register('marketing/avaliacoes', Modules.Marketing);
+  Router.register('marketing/pontos', Modules.Marketing);
+  Router.register('loja-online', Modules.LojaOnline);
+  Router.register('loja-online/template', Modules.LojaOnline);
+  Router.register('loja-online/seo', Modules.LojaOnline);
+  Router.register('loja-online/avaliacoes', Modules.LojaOnline);
+  Router.register('catalogo/seo', Modules.LojaOnline);
+  Router.register('catalogo/template', Modules.LojaOnline);
+  Router.register('catalogo/avaliacoes', Modules.LojaOnline);
+  Router.register('catalogo/configuracoes', Modules.Catalogo);
+  Router.register('crescimento', Modules.PlanoDeVoo);
+  Router.register('crescimento/plano-de-voo', Modules.PlanoDeVoo);
+  Router.register('crescimento/plano-de-voo/simulacao', Modules.PlanoDeVoo);
+  Router.register('crescimento/plano-de-voo/comparacao', Modules.PlanoDeVoo);
+  Router.register('crescimento/plano-de-voo/snapshots', Modules.PlanoDeVoo);
+  Router.register('crescimento/performance', Modules.Performance);
+  Router.register('crescimento/temporadas', Modules.Temporadas);
+  Router.register('plano-de-voo', Modules.PlanoDeVoo);
+  Router.register('plano-de-voo/simulacao', Modules.PlanoDeVoo);
+  Router.register('plano-de-voo/comparacao', Modules.PlanoDeVoo);
+  Router.register('plano-de-voo/snapshots', Modules.PlanoDeVoo);
+  Router.register('performance', Modules.Performance);
+  Router.register('compras', Modules.Compras);
+  Router.register('dinheiro', Modules.Dinheiro);
+  Router.register('fiscal', Modules.Fiscal);
+  Router.register('financeiro', Modules.Financeiro);
+  Router.register('configuracoes', Modules.Configuracoes);
+
+  document.querySelectorAll('.nav-item,.nav-sub-item').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.getElementById('admin-shell').classList.remove('nav-open');
+    });
+  });
+
+  document.getElementById('login-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var err = document.getElementById('login-error');
+    err.style.display = 'none';
+    Auth.login(
+      document.getElementById('login-email').value.trim(),
+      document.getElementById('login-pass').value
+    ).catch(function (ex) {
+      err.textContent = 'Não foi possível entrar. Verifique e-mail e senha.';
+      err.style.display = 'block';
+      console.error(ex);
+    });
+  });
+
+  Auth.init();
+})();
+</script>
+</body>
+</html>

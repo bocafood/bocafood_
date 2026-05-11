@@ -1,0 +1,22 @@
+[
+  {
+    "origin": [
+      "http://localhost:8080",
+      "http://127.0.0.1:8080",
+      "https://bocado-brasil.web.app",
+      "https://bocado-brasil.firebaseapp.com"
+    ],
+    "method": ["GET", "POST", "PUT", "HEAD", "OPTIONS"],
+    "responseHeader": [
+      "Content-Type",
+      "Authorization",
+      "x-goog-resumable",
+      "x-goog-upload-protocol",
+      "x-goog-upload-command",
+      "x-goog-upload-header-content-length",
+      "x-goog-upload-header-content-type",
+      "x-firebase-storage-version"
+    ],
+    "maxAgeSeconds": 3600
+  }
+]
