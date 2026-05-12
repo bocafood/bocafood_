@@ -1,5 +1,12 @@
 # AI Changelog
 
+## 2026-05-12 — URLs públicas por slug de loja
+- Arquivos alterados: `master.html`, `server.rb`, `public/index.html`, `firebase.json`, `firestore.rules`, `AI_CHANGELOG.md`.
+- Módulo afetado: Master local, loja pública e Firebase Hosting.
+- Resumo do ajuste: adicionei slug público obrigatório no cadastro de loja do Master, geração automática a partir do nome, URL `https://bocafood.app/loja/{slug}` e gravação do mapeamento seguro em `public_stores/{slug}`. A loja pública agora resolve `/loja/{slug}` por esse mapeamento e carrega o tenant correspondente.
+- Motivo: permitir endereço interno automático por loja sem DNS, subdomínio ou domínio próprio.
+- Impacto esperado: Firebase Hosting mantém publicação em `public/`, reescreve apenas `/loja/**` para `index.html`, preserva rotas existentes e permite leitura pública apenas por `get` de um slug específico.
+
 ## 2026-05-12 — Estrutura pública do Firebase Hosting
 - Arquivos alterados/criados: `firebase.json`, `public/`, `AI_CHANGELOG.md`.
 - Módulo afetado: Publicação Firebase Hosting.

@@ -113,6 +113,12 @@ service cloud.firestore {
       allow write: if isMasterAdmin();
     }
 
+    match /public_stores/{slug} {
+      allow get: if true;
+      allow list: if false;
+      allow write: if isMasterAdmin();
+    }
+
     match /system/config {
       allow read: if signedIn();
       allow write: if isMasterAdmin();

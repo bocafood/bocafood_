@@ -3130,10 +3130,37 @@
       var selectedDeliveryZone = null;
       var deliveryZones = [];
       var slotCounts = {};
+      var requestedStoreSlug = storeSlugFromPath();
 
       function tenantIdFromUrl() {
         var params = new URLSearchParams(window.location.search);
         return params.get('tenant') || params.get('tenantId') || params.get('uid') || params.get('t') || params.get('store') || params.get('loja') || window.PUBLISHED_TENANT_ID || '';
+      }
+
+      function storeSlugFromPath() {
+        var match = window.location.pathname.match(/^\/loja\/([^/?#]+)/);
+        return match ? decodeURIComponent(match[1]).toLowerCase().replace(/[^a-z0-9-]/g, '') : '';
+      }
+
+      async function resolvePublicStore() {
+        if (!requestedStoreSlug) return null;
+        if (!db) throw new Error('Loja não encontrada.');
+        var snap = await db.collection('public_stores').doc(requestedStoreSlug).get();
+        if (!snap.exists) throw new Error('Loja não encontrada.');
+        var data = snap.data() || {};
+        if (String(data.status || '').toLowerCase() !== 'active') throw new Error('Loja indisponível.');
+        if (!data.tenantId) throw new Error('Loja não encontrada.');
+        activeTenantId = data.tenantId;
+        tenantId = data.tenantId;
+        return data;
+      }
+
+      function renderStoreNotFound(message) {
+        var loading = document.getElementById('template-loading');
+        if (loading) loading.classList.add('hidden');
+        var screen = document.querySelector('.phone-screen');
+        if (!screen) return;
+        screen.innerHTML = '<div style="min-height:100%;display:grid;place-items:center;padding:34px;text-align:center;background:#fffaf3;color:#211b18;"><div><div style="width:58px;height:58px;border-radius:18px;background:#f7f1e8;display:inline-grid;place-items:center;margin-bottom:16px;font-size:24px;">!</div><h1 style="font-size:24px;margin:0 0 8px;">Loja não encontrada</h1><p style="margin:0;color:#766f68;line-height:1.5;">' + text(message || 'Esta loja não está disponível no momento.') + '</p></div></div>';
       }
 
       function docConfig(id) {
@@ -4069,6 +4096,7 @@
       async function loadConnectedData() {
         bindStaticEvents();
         try {
+          if (requestedStoreSlug) await resolvePublicStore();
           if (db && tenantId) {
             var candidates = tenantCandidates(tenantId);
             for (var i = 0; i < candidates.length; i++) {
@@ -4102,6 +4130,10 @@
           renderCart();
         } catch (err) {
           console.warn('Falha ao conectar template fiel:', err);
+          if (requestedStoreSlug) {
+            renderStoreNotFound(err && err.message ? err.message : 'Esta loja não está disponível no momento.');
+            return;
+          }
           fallbackProducts();
           renderStoreInfo();
           renderPromo();
