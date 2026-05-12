@@ -1,5 +1,12 @@
 # AI Changelog
 
+## 2026-05-12 — Estrutura pública do Firebase Hosting
+- Arquivos alterados/criados: `firebase.json`, `public/`, `AI_CHANGELOG.md`.
+- Módulo afetado: Publicação Firebase Hosting.
+- Resumo do ajuste: criei a pasta `public/` com cópias dos arquivos necessários para a loja pública e o Admin funcionarem online, incluindo HTMLs públicos/admin, `assets/`, `css/`, `js/`, `produtos/`, `produtos.json`, `robots.txt`, `sitemap.xml` e `logo.png`. Ajustei o Hosting em `firebase.json` para publicar `public/`.
+- Motivo: impedir que arquivos internos da raiz sejam publicados no Hosting.
+- Impacto esperado: `master.html`, `server.rb`, ferramentas internas, documentação, credenciais e caches deixam de fazer parte do diretório publicado, sem alterar visual, rotas internas, Auth, Firestore ou regras de negócio.
+
 ## 2026-05-11 — Remoção da pílula Loja online no Início
 - Arquivos alterados: `js/modules/dashboard.js`, `AI_CHANGELOG.md`.
 - Módulo afetado: Início.
