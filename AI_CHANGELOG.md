@@ -1,5 +1,11 @@
 # AI Changelog
 
+## 2026-05-12 — Redirecionamento do cc para Admin
+- Arquivos alterados: `public/index.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Centro de Control publicado.
+- Resumo do ajuste: adicionei redirecionamento mínimo para que `https://cc.bocafood.app/` abra automaticamente `/admin.html`.
+- Impacto esperado: o domínio `cc.bocafood.app` abre o Admin na raiz sem alterar `bocafood.app`, `/loja/{slug}`, rotas públicas, Firebase Hosting, regras Firebase ou Master local.
+
 ## 2026-05-12 — URLs públicas por slug de loja
 - Arquivos alterados: `master.html`, `server.rb`, `public/index.html`, `firebase.json`, `firestore.rules`, `AI_CHANGELOG.md`.
 - Módulo afetado: Master local, loja pública e Firebase Hosting.
