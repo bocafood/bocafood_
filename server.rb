@@ -101,6 +101,54 @@ def log_master(message)
   File.open(LOG_FILE, 'a') { |f| f.puts("[#{Time.now.utc.iso8601}] #{message}") }
 end
 
+def public_store_slug(value)
+  value.to_s.downcase.unicode_normalize(:nfkd).encode('ASCII', replace: '', undef: :replace, invalid: :replace)
+       .gsub(/[^a-z0-9]+/, '-').gsub(/\A-+|-+\z/, '').gsub(/-{2,}/, '-')
+end
+
+def public_store_url(slug)
+  slug.to_s.empty? ? '' : "https://bocafood.app/loja/#{slug}"
+end
+
+def public_store_name(tenant)
+  name = tenant['businessName'].to_s.strip
+  name.empty? ? tenant['name'].to_s.strip : name
+end
+
+def ensure_unique_public_slug!(store, slug, tenant_id)
+  duplicate = (store['tenants'] || []).find do |tenant|
+    tenant['id'].to_s != tenant_id.to_s && public_store_slug(tenant['slug']) == slug
+  end
+  raise WEBrick::HTTPStatus::BadRequest, 'Slug público já está em uso por outra loja.' if duplicate
+
+  public_doc = firestore_get_document('public_stores', slug)
+  return unless public_doc
+
+  data = firestore_fields_to_hash(public_doc['fields'] || {})
+  owner = data['tenantId'].to_s.strip
+  raise WEBrick::HTTPStatus::BadRequest, 'Slug público já está cadastrado no Firebase.' if !owner.empty? && owner != tenant_id.to_s
+end
+
+def sync_public_store!(tenant, previous_slug = '')
+  slug = public_store_slug(tenant['slug'])
+  raise WEBrick::HTTPStatus::BadRequest, 'Slug público obrigatório' if slug.empty?
+
+  old_slug = public_store_slug(previous_slug)
+  firestore_delete_document('public_stores', old_slug) if !old_slug.empty? && old_slug != slug
+  existing = firestore_get_document('public_stores', slug)
+  created_at = existing ? firestore_value_to_ruby(existing.dig('fields', 'createdAt')) : Time.now.utc.iso8601
+
+  firestore_replace_document('public_stores', slug, {
+    'tenantId' => tenant['id'].to_s.strip,
+    'slug' => slug,
+    'storeName' => public_store_name(tenant),
+    'status' => tenant['status'].to_s.strip.empty? ? 'active' : tenant['status'].to_s.strip,
+    'publicUrl' => public_store_url(slug),
+    'createdAt' => created_at,
+    'updatedAt' => Time.now.utc.iso8601
+  })
+end
+
 def tenant_from_body(body, existing = {})
   now = Time.now.utc.iso8601
   id = body['id'].to_s.strip
@@ -112,6 +160,10 @@ def tenant_from_body(body, existing = {})
   role = existing['role'].to_s.strip if role.empty? && !existing['role'].to_s.strip.empty?
   role = 'store_owner' if role.empty?
   role = firebase_normalize_role(role)
+  name_for_slug = body['businessName'].to_s.strip.empty? ? body['name'].to_s.strip : body['businessName'].to_s.strip
+  slug = public_store_slug(body['slug'].to_s.strip.empty? ? (existing['slug'].to_s.strip.empty? ? name_for_slug : existing['slug']) : body['slug'])
+  raise WEBrick::HTTPStatus::BadRequest, 'Slug público obrigatório' if slug.empty?
+  public_url = public_store_url(slug)
 
   existing.merge({
     'id' => final_id,
@@ -127,7 +179,9 @@ def tenant_from_body(body, existing = {})
     'role' => role,
     'fiscalCountry' => body['fiscalCountry'].to_s.strip.empty? ? (existing['fiscalCountry'] || 'ES') : body['fiscalCountry'].to_s.strip,
     'domain' => body['domain'].to_s.strip,
-    'storeUrl' => body['storeUrl'].to_s.strip,
+    'slug' => slug,
+    'publicUrl' => public_url,
+    'storeUrl' => body['storeUrl'].to_s.strip.empty? ? public_url : body['storeUrl'].to_s.strip,
     'adminUrl' => body['adminUrl'].to_s.strip,
     'seedFile' => body['seedFile'].to_s.strip,
     'source' => body['source'].to_s.strip,
@@ -512,6 +566,19 @@ def firestore_upsert_document(collection_id, doc_id, fields)
   }
   query = { 'updateMask.fieldPaths' => merged.keys.map(&:to_s) }
   url = "https://firestore.googleapis.com/v1/projects/#{firebase_project_id}/databases/(default)/documents/#{collection_id}/#{doc_id}?#{URI.encode_www_form(query)}"
+  response, parsed = google_http_json('PATCH', url, body, google_auth_headers)
+  unless response.is_a?(Net::HTTPSuccess)
+    raise "Falha ao gravar Firestore #{collection_id}/#{doc_id}: #{parsed['error'] || response.body.to_s}"
+  end
+  parsed
+end
+
+def firestore_replace_document(collection_id, doc_id, fields)
+  body = {
+    'name' => "projects/#{firebase_project_id}/databases/(default)/documents/#{collection_id}/#{doc_id}",
+    'fields' => firestore_fields_from_hash(fields)
+  }
+  url = "https://firestore.googleapis.com/v1/projects/#{firebase_project_id}/databases/(default)/documents/#{collection_id}/#{doc_id}"
   response, parsed = google_http_json('PATCH', url, body, google_auth_headers)
   unless response.is_a?(Net::HTTPSuccess)
     raise "Falha ao gravar Firestore #{collection_id}/#{doc_id}: #{parsed['error'] || response.body.to_s}"
@@ -1607,10 +1674,12 @@ server.mount_proc '/api/master/firebase/provision' do |req, res|
     tenant['source'] = existing_local['source'].to_s.strip.empty? ? 'master_local' : existing_local['source'].to_s.strip
 
     store = master_store
+    ensure_unique_public_slug!(store, tenant['slug'], tenant['id'])
     master_restore_tenant!(store, tenant['id'])
     master_replace_tenant(store, tenant)
 
     sync_result = sync_system_tenant!(tenant, { 'email' => tenant['email'] })
+    public_store_result = sync_public_store!(tenant, existing_local['slug'])
 
     log_master(
       "firebase provision email=#{tenant['email']} uid=#{tenant['id']} origin=#{tenant['source']} created_auth=#{auth_result['created']} saved_master=true system_tenants=#{sync_result['ok'] ? 'ok' : (sync_result['skipped'] ? 'skipped' : 'error')}"
@@ -1622,7 +1691,8 @@ server.mount_proc '/api/master/firebase/provision' do |req, res|
       uid: tenant['id'],
       tenant: tenant,
       auth: auth_result,
-      systemTenant: sync_result
+      systemTenant: sync_result,
+      publicStore: public_store_result
     })
   rescue => e
     log_master("firebase provision error #{e.class}: #{e.message}")
@@ -1740,10 +1810,12 @@ server.mount_proc '/api/master/tenants' do |req, res|
     id = body['id'].to_s.strip
     existing = (store['tenants'] || []).find { |t| t['id'] == id } || {}
     tenant = tenant_from_body(body, existing)
+    ensure_unique_public_slug!(store, tenant['slug'], tenant['id'])
     master_restore_tenant!(store, tenant['id'])
     store['tenants'] = (store['tenants'] || []).reject { |t| t['id'] == tenant['id'] }
     store['tenants'] << tenant
     save_store(store)
+    sync_public_store!(tenant, existing['slug'])
     log_master("user saved #{tenant['id']}")
   end
   json_response(res, 200, { tenants: store['tenants'] || [] })
@@ -1757,9 +1829,11 @@ server.mount_proc '/api/master/tenants/delete' do |req, res|
   body = read_json(req)
   id = body['id'].to_s.strip
   raise WEBrick::HTTPStatus::BadRequest, 'ID do usuário obrigatório' if id.empty?
+  existing = (store['tenants'] || []).find { |t| t['id'].to_s == id } || {}
   store['tenants'] = (store['tenants'] || []).reject { |t| t['id'].to_s == id }
   master_mark_tenant_deleted!(store, id)
   save_store(store)
+  firestore_delete_document('public_stores', public_store_slug(existing['slug'])) if !public_store_slug(existing['slug']).empty?
   deleted_system = false
   begin
     deleted_system = firestore_delete_document('system_tenants', id)

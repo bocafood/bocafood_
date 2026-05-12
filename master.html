@@ -327,7 +327,8 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
         <label><span>Papel</span><select id="user-role"><option value="master_admin">Master admin</option><option value="store_owner">Dono da loja</option><option value="store_staff">Equipe da loja</option><option value="store_customer">Cliente da loja</option><option value="pending_classification">Pendente de classificação</option></select></label>
         <label><span>País fiscal</span><select id="user-fiscal-country"><option value="ES">🇪🇸 Espanha (ES)</option><option value="PT">🇵🇹 Portugal (PT)</option></select></label>
         <label><span>Domínio</span><input id="user-domain" placeholder="loja.com"></label>
-        <label><span>URL da loja</span><input id="user-store-url" placeholder="https://loja.com"></label>
+        <label><span>Slug público</span><input id="user-public-slug" placeholder="bocado-brasil" oninput="normalizePublicSlugField(false)"><small style="color:#8A7E7C;font-size:11px;display:block;margin-top:3px;">Usado em https://bocafood.app/loja/slug-da-loja</small></label>
+        <label><span>URL da loja</span><input id="user-store-url" placeholder="https://bocafood.app/loja/bocado-brasil"></label>
         <label><span>Painel administrativo</span><input id="user-admin-url" placeholder="admin.html"><small style="color:#8A7E7C;font-size:11px;display:block;margin-top:3px;">URL interna de acesso ao painel deste tenant. A usuária não configura isso em Domínio / URL.</small></label>
         <label><span>Origem</span><input id="user-source" placeholder="manual, legado, indicação..."></label>
         <label class="full"><span>Arquivo seed / importação</span><input id="user-seed" placeholder="data/tenants/...seed.json"></label>
@@ -819,6 +820,7 @@ function openUserModal(){
   clearUserForm();
   document.getElementById('user-modal-title').textContent='Novo usuário';
   document.getElementById('user-modal').classList.add('open');
+  bindPublicSlugAutomation();
   setTimeout(function(){document.getElementById('user-id').focus()},50);
 }
 function copyTenantId(){
@@ -826,6 +828,34 @@ function copyTenantId(){
   if(!id){toast('Tenant ID não disponível');return;}
   if(navigator.clipboard){navigator.clipboard.writeText(id).then(function(){toast('Tenant ID copiado')}).catch(function(){toast('Copie manualmente: '+id)});}
   else{try{var el=document.createElement('textarea');el.value=id;document.body.appendChild(el);el.select();document.execCommand('copy');document.body.removeChild(el);toast('Tenant ID copiado');}catch(e){toast('Copie manualmente: '+id);}}
+}
+function publicStoreSlug(value){
+  return String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').replace(/-{2,}/g,'-');
+}
+function publicStoreUrl(slug){
+  return slug ? 'https://bocafood.app/loja/' + slug : '';
+}
+function normalizePublicSlugField(fromName){
+  var slugEl=document.getElementById('user-public-slug');
+  var urlEl=document.getElementById('user-store-url');
+  if(!slugEl)return;
+  if(fromName && slugEl.dataset.manual==='1')return;
+  var slug=publicStoreSlug(slugEl.value);
+  if(!fromName)slugEl.dataset.manual='1';
+  slugEl.value=slug;
+  if(urlEl && (!urlEl.value || urlEl.value.indexOf('https://bocafood.app/loja/')===0))urlEl.value=publicStoreUrl(slug);
+}
+function bindPublicSlugAutomation(){
+  var nameEl=document.getElementById('user-name');
+  var businessEl=document.getElementById('user-business');
+  function fill(){
+    var slugEl=document.getElementById('user-public-slug');
+    if(!slugEl || slugEl.value || slugEl.dataset.manual==='1')return;
+    slugEl.value=publicStoreSlug((businessEl&&businessEl.value)||(nameEl&&nameEl.value)||'');
+    normalizePublicSlugField(true);
+  }
+  if(nameEl && !nameEl.dataset.slugBound){nameEl.dataset.slugBound='1';nameEl.addEventListener('input',fill);}
+  if(businessEl && !businessEl.dataset.slugBound){businessEl.dataset.slugBound='1';businessEl.addEventListener('input',fill);}
 }
 function closeUserModal(){
   document.getElementById('user-modal').classList.remove('open');
@@ -1052,12 +1082,16 @@ async function importUserSeed(id){
   }
 }
 function userPayload(){
+  normalizePublicSlugField(false);
+  var slug = val('user-public-slug');
+  if(!slug){ throw new Error('Slug público obrigatório'); }
   var p = {
     id:window._editingTenantId||val('user-id'), name:val('user-name'), businessName:val('user-business'), ownerName:val('user-owner'),
     email:val('user-email'), phone:val('user-phone'), document:val('user-document'), plan:val('user-plan'),
     status:val('user-status'), role:val('user-role'), fiscalCountry:val('user-fiscal-country')||'ES', domain:val('user-domain'), storeUrl:val('user-store-url'),
     adminUrl:val('user-admin-url'), source:val('user-source'), seedFile:val('user-seed'), notes:val('user-notes'),
-    githubRepo:val('user-github-repo'), githubBranch:val('user-github-branch')||'main', publicFile:val('user-public-file')||'index.html'
+    githubRepo:val('user-github-repo'), githubBranch:val('user-github-branch')||'main', publicFile:val('user-public-file')||'index.html',
+    slug: slug, publicUrl: publicStoreUrl(slug)
   };
   var clearChk = document.getElementById('user-github-token-clear');
   var tokenVal = val('user-github-token');
@@ -1067,7 +1101,8 @@ function userPayload(){
   return p;
 }
 function saveUser(){
-  var p=userPayload();
+  var p;
+  try{ p=userPayload(); }catch(e){ toast(e.message); return; }
   provisionUser(p,{action:(window._editingTenantId ? 'update_user' : 'create_user')})
     .then(function(r){
       var tenant = r.tenant || p;
@@ -1186,6 +1221,8 @@ function editUser(id){
   setVal('user-name',t.name);setVal('user-business',t.businessName);setVal('user-owner',t.ownerName);
   setVal('user-email',t.email);setVal('user-phone',t.phone);setVal('user-document',t.document);setVal('user-plan',t.plan||'starter');
   setVal('user-status',t.status||'active');setVal('user-role',t.role||'store_owner');setVal('user-fiscal-country',t.fiscalCountry||'ES');setVal('user-domain',t.domain);setVal('user-store-url',t.storeUrl);
+  setVal('user-public-slug',publicStoreSlug(t.slug||''));
+  var slugEl=document.getElementById('user-public-slug');if(slugEl)slugEl.dataset.manual=t.slug?'1':'';
   setVal('user-admin-url',t.adminUrl);setVal('user-source',t.source);setVal('user-seed',t.seedFile);setVal('user-notes',t.notes);
   setVal('user-github-repo',t.githubRepo||'');setVal('user-github-branch',t.githubBranch||'main');setVal('user-public-file',t.publicFile||'index.html');
   setVal('user-github-token','');
@@ -1200,6 +1237,7 @@ function editUser(id){
   loadSeoTechConfig();
   document.getElementById('user-modal-title').textContent='Editar usuário';
   document.getElementById('user-modal').classList.add('open');
+  bindPublicSlugAutomation();
   openTab('usuarios');
 }
 function clearUserForm(){
@@ -1207,7 +1245,8 @@ function clearUserForm(){
   document.getElementById('user-id-label').style.display='';
   document.getElementById('user-id-readonly-label').style.display='none';
   document.getElementById('user-id-display').textContent='';
-  ['user-id','user-name','user-business','user-owner','user-email','user-phone','user-document','user-domain','user-store-url','user-admin-url','user-source','user-seed','user-notes','user-github-repo','user-public-file','user-github-token'].forEach(function(id){setVal(id,'')});
+  ['user-id','user-name','user-business','user-owner','user-email','user-phone','user-document','user-domain','user-public-slug','user-store-url','user-admin-url','user-source','user-seed','user-notes','user-github-repo','user-public-file','user-github-token'].forEach(function(id){setVal(id,'')});
+  var slugEl=document.getElementById('user-public-slug');if(slugEl)slugEl.dataset.manual='';
   setVal('user-plan','starter');setVal('user-status','active');setVal('user-role','store_owner');setVal('user-fiscal-country','ES');
   var _tkBadge=document.getElementById('user-github-token-badge');
   var _tkClearRow=document.getElementById('user-github-token-clear-row');
@@ -1415,7 +1454,7 @@ function _seoTechFillFields(data, meta){
   meta = meta || {};
   var allowIndex = data.allowIndexing;
   if (allowIndex === undefined) allowIndex = data.indexEnabled;
-  setVal('seo-tech-slug', data.slug || data.officialSlug || data.storeSlug || '');
+  setVal('seo-tech-slug', publicStoreSlug(data.slug || data.officialSlug || data.storeSlug || meta.slug || ''));
   setVal('seo-tech-domain', data.domain || data.subdomain || meta.domain || '');
   setVal('seo-tech-canonical', data.canonicalUrl || data.canonical || '');
   setVal('seo-tech-fiscal-country', data.fiscalCountry || meta.fiscalCountry || '');
@@ -1436,7 +1475,7 @@ function _seoTechCollectFields(){
   return {
     allowIndexing: allowIndex,
     indexEnabled: allowIndex,
-    slug: val('seo-tech-slug'),
+    slug: publicStoreSlug(val('seo-tech-slug')),
     domain: val('seo-tech-domain'),
     subdomain: val('seo-tech-domain'),
     canonicalUrl: val('seo-tech-canonical'),
