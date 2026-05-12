@@ -111,7 +111,7 @@ Modules.Configuracoes = (function () {
     if (!file) return;
     var targetKind = kind === 'banner' ? 'banner' : 'logo';
     var draftId = _appearanceDraftId(targetKind);
-    ImageTools.process(file, { kind: targetKind, entityId: draftId }).then(function (result) {
+    ImageTools.process(file, { kind: targetKind, folder: targetKind === 'logo' ? 'logos' : 'banners', entityId: draftId }).then(function (result) {
       var state = _appearanceState();
       state[targetKind] = result;
       var field = document.getElementById(targetKind === 'logo' ? 'app-logo-url' : 'app-banner-url');
@@ -132,7 +132,7 @@ Modules.Configuracoes = (function () {
   function _uploadGeneralAvatarImage(event) {
     var file = event && event.target && event.target.files ? event.target.files[0] : null;
     if (!file) return;
-    ImageTools.process(file, { kind: 'logo', entityId: 'general-avatar' }).then(function (result) {
+    ImageTools.process(file, { kind: 'logo', folder: 'logos', entityId: 'general-avatar' }).then(function (result) {
       var state = _appearanceState();
       state.generalAvatar = result;
       var field = document.getElementById('cfg-avatar-url');
@@ -336,6 +336,7 @@ Modules.Configuracoes = (function () {
         storeAvatarUrl: _val('cfg-avatar-url'),
         accountAvatarUrl: _val('cfg-avatar-url'),
         avatarStoragePath: _appearanceState().generalAvatar && _appearanceState().generalAvatar.imageStoragePath ? _appearanceState().generalAvatar.imageStoragePath : c.avatarStoragePath,
+        avatarImagePath: _appearanceState().generalAvatar && (_appearanceState().generalAvatar.imagePath || _appearanceState().generalAvatar.imageStoragePath) ? (_appearanceState().generalAvatar.imagePath || _appearanceState().generalAvatar.imageStoragePath) : (c.avatarImagePath || c.avatarStoragePath),
         avatarWidth: _appearanceState().generalAvatar && _appearanceState().generalAvatar.imageWidth ? _appearanceState().generalAvatar.imageWidth : c.avatarWidth,
         avatarHeight: _appearanceState().generalAvatar && _appearanceState().generalAvatar.imageHeight ? _appearanceState().generalAvatar.imageHeight : c.avatarHeight,
         avatarSizeKb: _appearanceState().generalAvatar && _appearanceState().generalAvatar.imageSizeKb ? _appearanceState().generalAvatar.imageSizeKb : c.avatarSizeKb,
@@ -486,11 +487,13 @@ Modules.Configuracoes = (function () {
         secondaryColor: c.secondaryColor || (_config.geral && _config.geral.secondaryColor) || '',
         bannerUrl: _val('app-banner-url'),
         logoStoragePath: _appearanceState().logo && _appearanceState().logo.imageStoragePath ? _appearanceState().logo.imageStoragePath : c.logoStoragePath,
+        logoImagePath: _appearanceState().logo && (_appearanceState().logo.imagePath || _appearanceState().logo.imageStoragePath) ? (_appearanceState().logo.imagePath || _appearanceState().logo.imageStoragePath) : (c.logoImagePath || c.logoStoragePath),
         logoWidth: _appearanceState().logo && _appearanceState().logo.imageWidth ? _appearanceState().logo.imageWidth : c.logoWidth,
         logoHeight: _appearanceState().logo && _appearanceState().logo.imageHeight ? _appearanceState().logo.imageHeight : c.logoHeight,
         logoSizeKb: _appearanceState().logo && _appearanceState().logo.imageSizeKb ? _appearanceState().logo.imageSizeKb : c.logoSizeKb,
         logoFormat: _appearanceState().logo && _appearanceState().logo.imageFormat ? _appearanceState().logo.imageFormat : c.logoFormat,
         bannerStoragePath: _appearanceState().banner && _appearanceState().banner.imageStoragePath ? _appearanceState().banner.imageStoragePath : c.bannerStoragePath,
+        bannerImagePath: _appearanceState().banner && (_appearanceState().banner.imagePath || _appearanceState().banner.imageStoragePath) ? (_appearanceState().banner.imagePath || _appearanceState().banner.imageStoragePath) : (c.bannerImagePath || c.bannerStoragePath),
         bannerWidth: _appearanceState().banner && _appearanceState().banner.imageWidth ? _appearanceState().banner.imageWidth : c.bannerWidth,
         bannerHeight: _appearanceState().banner && _appearanceState().banner.imageHeight ? _appearanceState().banner.imageHeight : c.bannerHeight,
         bannerSizeKb: _appearanceState().banner && _appearanceState().banner.imageSizeKb ? _appearanceState().banner.imageSizeKb : c.bannerSizeKb,

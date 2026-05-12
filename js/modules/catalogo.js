@@ -28,7 +28,7 @@ Modules.Catalogo = (function () {
   var _recipeConfig = { indirectCostPercent: 0 };
   var _financeSaidas = [];
   var _financeApagar = [];
-  var USE_FIREBASE_STORAGE_UPLOAD = false;
+  var USE_FIREBASE_STORAGE_UPLOAD = true;
 
   function _newEntityId(prefix) {
     var safePrefix = prefix || 'entity';
@@ -76,7 +76,7 @@ Modules.Catalogo = (function () {
       return 'Não conseguimos enviar a foto. Tente novamente.';
     }
     if (raw.indexOf('formato') >= 0 || raw.indexOf('arquivo') >= 0 || raw.indexOf('pesada') >= 0 || raw.indexOf('tamanho') >= 0) {
-      return 'Não conseguimos usar essa imagem. Envie uma foto em JPG ou PNG.';
+      return 'Não conseguimos usar essa imagem. Envie uma foto em JPG, PNG ou WebP.';
     }
     return 'Erro ao enviar imagem. Tente novamente.';
   }
@@ -104,7 +104,7 @@ Modules.Catalogo = (function () {
     var name = String(file && file.name || '').trim().toLowerCase();
     var mime = String(file && file.type || '').toLowerCase();
     if (!/^image\/(jpeg|jpg|png|webp)$/i.test(mime) && !/\.(jpe?g|png|webp)$/.test(name)) {
-      throw new Error('Não conseguimos usar essa imagem. Envie uma foto em JPG ou PNG.');
+      throw new Error('Não conseguimos usar essa imagem. Envie uma foto em JPG, PNG ou WebP.');
     }
 
     var baseUrl = _legacyImageUploadBaseUrl();
@@ -162,6 +162,7 @@ Modules.Catalogo = (function () {
       });
       return {
         imageUrl: result.imageUrl || '',
+        imagePath: result.imageStoragePath || '',
         imageCardUrl: result.imageCardUrl || result.imageUrl || '',
         imageThumbUrl: result.imageThumbUrl || result.imageCardUrl || result.imageUrl || '',
         imageStoragePath: result.imageStoragePath || '',
@@ -918,9 +919,9 @@ Modules.Catalogo = (function () {
                     ${(() => { var imageSrc = window._pmImagePreviewUrl || _imageUrlFor(p, 'card') || _imageUrlFor(p, 'main') || _imageUrlFor(p, 'thumb') || ''; return imageSrc ? '<img src="' + _esc(imageSrc) + '" alt="" style="width:100%;height:100%;object-fit:cover;display:block;">' : '<span class="mi" style="font-size:38px;color:#C9BCB8;">image</span>'; })()}
                   </div>
                   <div style="display:flex;flex-direction:column;gap:8px;min-width:0;">
-                    <button type="button" onclick="Modules.Catalogo._openProductImagePicker()" style="padding:9px 12px;border:none;border-radius:10px;background:#F3E8D7;color:#8A6F5A;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Trocar imagem</button>
+                    <button type="button" onclick="Modules.Catalogo._openProductImagePicker()" style="padding:9px 12px;border:none;border-radius:10px;background:#F3E8D7;color:#8A6F5A;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Enviar imagem</button>
                     <button type="button" onclick="Modules.Catalogo._removeProductImage()" style="padding:9px 12px;border:1px solid #E6DDD3;border-radius:10px;background:#fff;color:#7A746B;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Remover imagem</button>
-                    <div style="font-size:11px;line-height:1.45;color:#7A746B;">A imagem é publicada automaticamente.</div>
+                    <div style="font-size:11px;line-height:1.45;color:#7A746B;">JPG, PNG ou WebP. A imagem é enviada automaticamente ao selecionar o arquivo.</div>
                   </div>
                 </div>
               </div>
@@ -2053,6 +2054,7 @@ Modules.Catalogo = (function () {
     var name = (document.getElementById('pm-name') || {}).value || '';
     if (!name.trim()) { _setProductModalError('O nome do produto é obrigatório.'); UI.toast('O nome do produto é obrigatório.', 'error'); return; }
     if (USE_FIREBASE_STORAGE_UPLOAD && window._pmImageUploadPending) {
+      _setProductModalError('A imagem ainda está sendo enviada. Aguarde um instante.');
       UI.toast('A imagem ainda está sendo enviada. Aguarde um instante.', 'info');
       return;
     }
@@ -2187,6 +2189,7 @@ Modules.Catalogo = (function () {
       data.imageUrl = '';
       data.imageCardUrl = '';
       data.imageThumbUrl = '';
+      data.imagePath = '';
       data.imageStoragePath = '';
       data.imageWidth = null;
       data.imageHeight = null;
@@ -2194,6 +2197,7 @@ Modules.Catalogo = (function () {
       data.imageFormat = '';
     } else if (imgState) {
       data.imageUrl = imgState.imageUrl || '';
+      data.imagePath = imgState.imagePath || imgState.imageStoragePath || '';
       data.imageCardUrl = imgState.imageCardUrl || imgState.cardUrl || imgState.imageUrl || '';
       data.imageThumbUrl = imgState.imageThumbUrl || imgState.thumbUrl || imgState.imageCardUrl || imgState.imageUrl || '';
       data.imageStoragePath = imgState.imageStoragePath || '';
@@ -2580,7 +2584,7 @@ Modules.Catalogo = (function () {
     var placeholderId = opts.placeholderId;
     var currentUrl = _cleanPublicUrl(opts.value || '');
     var placeholder = opts.placeholder || 'Sem imagem';
-    var accept = opts.accept || 'image/jpeg,image/jpg,image/png,image/webp,image/svg+xml';
+    var accept = opts.accept || 'image/jpeg,image/jpg,image/png,image/webp';
     var cardClass = opts.cardClass ? ' ' + opts.cardClass : '';
     var previewClass = opts.previewClass ? ' ' + opts.previewClass : '';
     var fitClass = opts.fit === 'contain' ? ' tpl-image-preview--contain' : '';
@@ -2723,7 +2727,7 @@ Modules.Catalogo = (function () {
         '<div style="display:flex;align-items:center;gap:8px;justify-content:flex-end;">' +
           '<div id="tpl-cat-graphic-preview-' + _esc(id) + '" style="width:48px;height:48px;border-radius:15px;background:#FAF8F4;border:1px solid #EAE4DA;display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:18px;color:#6F6860;">' + (graphic ? '<img src="' + _esc(graphic) + '" style="width:100%;height:100%;object-fit:cover;">' : _esc(icon || 'Aa')) + '</div>' +
           '<button type="button" class="tpl-image-btn primary" style="height:34px;padding:0 10px;" onclick="document.getElementById(\'tpl-cat-file-' + _esc(id) + '\').click()">Enviar</button>' +
-          '<input id="tpl-cat-file-' + _esc(id) + '" type="file" accept="image/jpeg,image/jpg,image/png,image/webp,image/svg+xml" onchange="Modules.Catalogo._uploadTemplateCategoryGraphic(event,\'' + _esc(id) + '\')" style="display:none;">' +
+          '<input id="tpl-cat-file-' + _esc(id) + '" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onchange="Modules.Catalogo._uploadTemplateCategoryGraphic(event,\'' + _esc(id) + '\')" style="display:none;">' +
         '</div>' +
       '</div>';
     }).join('') + '</div>';
@@ -3127,7 +3131,8 @@ Modules.Catalogo = (function () {
     if (!file || !window.ImageTools) return;
     var target = kind === 'banner' || kind === 'bannerDesktop' || kind === 'bannerMobile' || kind === 'promoMobile' || kind === 'share' || kind === 'favicon' ? kind : 'logo';
     var imageKind = target === 'logo' || target === 'favicon' ? 'logo' : 'banner';
-    ImageTools.process(file, { kind: imageKind, entityId: 'catalogo-' + target }).then(function (result) {
+    var storageFolder = target === 'logo' || target === 'favicon' ? 'logos' : (target === 'promoMobile' || target === 'share' ? 'featured' : 'banners');
+    ImageTools.process(file, { kind: target === 'promoMobile' || target === 'share' ? 'featured' : imageKind, folder: storageFolder, entityId: 'catalogo-' + target }).then(function (result) {
       _imageUploadState()[target] = result;
       var fieldId = target === 'logo'
         ? 'tpl-logo-url'
@@ -3157,14 +3162,14 @@ Modules.Catalogo = (function () {
       var persist = Promise.resolve();
       if (publicUrl && target !== 'share') {
         var patchTemplate = target === 'logo'
-          ? { logoUrl: publicUrl, logoStoragePath: result.imageStoragePath || '', logoWidth: result.imageWidth || 0, logoHeight: result.imageHeight || 0, logoSizeKb: result.imageSizeKb || 0, logoFormat: result.imageFormat || 'webp' }
+          ? { logoUrl: publicUrl, logoStoragePath: result.imageStoragePath || '', logoImagePath: result.imagePath || result.imageStoragePath || '', logoWidth: result.imageWidth || 0, logoHeight: result.imageHeight || 0, logoSizeKb: result.imageSizeKb || 0, logoFormat: result.imageFormat || 'webp' }
           : target === 'favicon'
-            ? { faviconUrl: publicUrl, faviconStoragePath: result.imageStoragePath || '', faviconWidth: result.imageWidth || 0, faviconHeight: result.imageHeight || 0, faviconSizeKb: result.imageSizeKb || 0, faviconFormat: result.imageFormat || 'webp' }
+            ? { faviconUrl: publicUrl, faviconStoragePath: result.imageStoragePath || '', faviconImagePath: result.imagePath || result.imageStoragePath || '', faviconWidth: result.imageWidth || 0, faviconHeight: result.imageHeight || 0, faviconSizeKb: result.imageSizeKb || 0, faviconFormat: result.imageFormat || 'webp' }
           : target === 'promoMobile'
-            ? { mobilePromoBannerImageUrl: publicUrl, promoBannerImageUrl: publicUrl, promotionalBannerImageUrl: publicUrl, mobilePromoBannerStoragePath: result.imageStoragePath || '', promoBannerImageStoragePath: result.imageStoragePath || '', mobilePromoBannerWidth: result.imageWidth || 0, mobilePromoBannerHeight: result.imageHeight || 0, mobilePromoBannerSizeKb: result.imageSizeKb || 0, mobilePromoBannerFormat: result.imageFormat || 'webp' }
+            ? { mobilePromoBannerImageUrl: publicUrl, promoBannerImageUrl: publicUrl, promotionalBannerImageUrl: publicUrl, mobilePromoBannerStoragePath: result.imageStoragePath || '', promoBannerImageStoragePath: result.imageStoragePath || '', promoBannerImagePath: result.imagePath || result.imageStoragePath || '', mobilePromoBannerWidth: result.imageWidth || 0, mobilePromoBannerHeight: result.imageHeight || 0, mobilePromoBannerSizeKb: result.imageSizeKb || 0, mobilePromoBannerFormat: result.imageFormat || 'webp' }
           : target === 'bannerMobile'
-            ? { coverImageMobileUrl: publicUrl, mobileCoverImageUrl: publicUrl, bannerMobileUrl: publicUrl, bannerMobileStoragePath: result.imageStoragePath || '', coverImageMobileStoragePath: result.imageStoragePath || '', bannerMobileWidth: result.imageWidth || 0, bannerMobileHeight: result.imageHeight || 0, bannerMobileSizeKb: result.imageSizeKb || 0, bannerMobileFormat: result.imageFormat || 'webp' }
-            : { coverImageUrl: publicUrl, bannerUrl: publicUrl, bannerStoragePath: result.imageStoragePath || '', coverImageStoragePath: result.imageStoragePath || '', bannerWidth: result.imageWidth || 0, bannerHeight: result.imageHeight || 0, bannerSizeKb: result.imageSizeKb || 0, bannerFormat: result.imageFormat || 'webp' };
+            ? { coverImageMobileUrl: publicUrl, mobileCoverImageUrl: publicUrl, bannerMobileUrl: publicUrl, bannerMobileStoragePath: result.imageStoragePath || '', coverImageMobileStoragePath: result.imageStoragePath || '', bannerMobileImagePath: result.imagePath || result.imageStoragePath || '', bannerMobileWidth: result.imageWidth || 0, bannerMobileHeight: result.imageHeight || 0, bannerMobileSizeKb: result.imageSizeKb || 0, bannerMobileFormat: result.imageFormat || 'webp' }
+            : { coverImageUrl: publicUrl, bannerUrl: publicUrl, bannerStoragePath: result.imageStoragePath || '', coverImageStoragePath: result.imageStoragePath || '', bannerImagePath: result.imagePath || result.imageStoragePath || '', bannerWidth: result.imageWidth || 0, bannerHeight: result.imageHeight || 0, bannerSizeKb: result.imageSizeKb || 0, bannerFormat: result.imageFormat || 'webp' };
         var patchShared = target === 'logo'
           ? { logoUrl: publicUrl }
           : target === 'favicon'
@@ -3605,8 +3610,8 @@ Modules.Catalogo = (function () {
                 '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
                   '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Arquivos da marca</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Logo e favicon usados no topo, menus, rodapé e aba do navegador.</div></div>' +
                   '<div class="tpl-image-grid-media">' +
-                    _imageConfigHtml('logo', { cardClass: 'tpl-image-card--logo', previewClass: 'tpl-image-preview--logo', fit: 'contain', fileId: 'tpl-logo-file', urlId: 'tpl-logo-url', previewId: 'tpl-preview-logo', placeholderId: 'tpl-preview-logo-placeholder', label: 'Logo', value: logo, note: 'Use imagem quadrada, preferencialmente 512x512 px. Formatos recomendados: PNG, WebP ou SVG.', accept: 'image/png,image/jpeg,image/jpg,image/webp,image/svg+xml' }) +
-                    _imageConfigHtml('favicon', { cardClass: 'tpl-image-card--favicon', previewClass: 'tpl-image-preview--favicon', fit: 'contain', fileId: 'tpl-favicon-file', urlId: 'tpl-favicon-url', previewId: 'tpl-preview-favicon', placeholderId: 'tpl-preview-favicon-placeholder', label: 'Favicon', value: _cleanPublicUrl(tpl.faviconUrl || geral.faviconUrl || app.faviconUrl || ''), note: 'Use imagem quadrada, preferencialmente 64x64 px ou 512x512 px. Formatos recomendados: PNG, ICO, SVG ou WebP.', accept: 'image/png,image/x-icon,image/vnd.microsoft.icon,image/svg+xml,image/webp', extraHtml: '<div class="tpl-image-browser-tab" style="margin-top:12px;"><span class="tpl-image-browser-icon"><img id="tpl-preview-favicon-tab-icon" src="' + _esc(_cleanPublicUrl(tpl.faviconUrl || geral.faviconUrl || app.faviconUrl || '')) + '" alt="" style="display:' + (_cleanPublicUrl(tpl.faviconUrl || geral.faviconUrl || app.faviconUrl || '') ? 'block' : 'none') + ';"></span><span class="tpl-image-browser-text">Aba do navegador</span></div>' }) +
+                    _imageConfigHtml('logo', { cardClass: 'tpl-image-card--logo', previewClass: 'tpl-image-preview--logo', fit: 'contain', fileId: 'tpl-logo-file', urlId: 'tpl-logo-url', previewId: 'tpl-preview-logo', placeholderId: 'tpl-preview-logo-placeholder', label: 'Logo', value: logo, note: 'Use imagem quadrada, preferencialmente 512x512 px. Formatos aceitos: JPG, PNG ou WebP.', accept: 'image/png,image/jpeg,image/jpg,image/webp' }) +
+                    _imageConfigHtml('favicon', { cardClass: 'tpl-image-card--favicon', previewClass: 'tpl-image-preview--favicon', fit: 'contain', fileId: 'tpl-favicon-file', urlId: 'tpl-favicon-url', previewId: 'tpl-preview-favicon', placeholderId: 'tpl-preview-favicon-placeholder', label: 'Favicon', value: _cleanPublicUrl(tpl.faviconUrl || geral.faviconUrl || app.faviconUrl || ''), note: 'Use imagem quadrada, preferencialmente 64x64 px ou 512x512 px. Formatos aceitos: JPG, PNG ou WebP.', accept: 'image/png,image/jpeg,image/jpg,image/webp', extraHtml: '<div class="tpl-image-browser-tab" style="margin-top:12px;"><span class="tpl-image-browser-icon"><img id="tpl-preview-favicon-tab-icon" src="' + _esc(_cleanPublicUrl(tpl.faviconUrl || geral.faviconUrl || app.faviconUrl || '')) + '" alt="" style="display:' + (_cleanPublicUrl(tpl.faviconUrl || geral.faviconUrl || app.faviconUrl || '') ? 'block' : 'none') + ';"></span><span class="tpl-image-browser-text">Aba do navegador</span></div>' }) +
                   '</div>' +
                 '</div>' +
               '</div>' +
@@ -4529,9 +4534,9 @@ Modules.Catalogo = (function () {
     };
     var template = {
       publicName: _val('tpl-public-name'), publicStoreName: _val('tpl-public-name'), shortName: shortNameValue, shortStoreName: shortNameValue, slogan: _val('tpl-slogan'), description: currentTpl.description || currentGeral.description || '', storeDescription: currentTpl.description || currentGeral.description || '', verifiedBadgeEnabled: _checked('tpl-verified-badge'), storeVerified: _checked('tpl-verified-badge'),
-      logoUrl: logoUrl, faviconUrl: faviconUrl, coverImageUrl: coverUrl, bannerUrl: coverUrl, coverImageMobileUrl: coverMobileUrl, mobileCoverImageUrl: coverMobileUrl, bannerMobileUrl: coverMobileUrl, logoStoragePath: images.logo && images.logo.imageStoragePath || currentTpl.logoStoragePath || '', faviconStoragePath: images.favicon && images.favicon.imageStoragePath || currentTpl.faviconStoragePath || currentGeral.faviconStoragePath || '', bannerStoragePath: coverUrl ? (images.banner && images.banner.imageStoragePath || currentTpl.bannerStoragePath || currentTpl.coverImageStoragePath || '') : '', coverImageStoragePath: coverUrl ? (images.banner && images.banner.imageStoragePath || currentTpl.coverImageStoragePath || currentTpl.bannerStoragePath || '') : '', bannerMobileStoragePath: coverMobileUrl ? (images.bannerMobile && images.bannerMobile.imageStoragePath || currentTpl.bannerMobileStoragePath || currentTpl.coverImageMobileStoragePath || '') : '', coverImageMobileStoragePath: coverMobileUrl ? (images.bannerMobile && images.bannerMobile.imageStoragePath || currentTpl.coverImageMobileStoragePath || currentTpl.bannerMobileStoragePath || '') : '',
+      logoUrl: logoUrl, faviconUrl: faviconUrl, coverImageUrl: coverUrl, bannerUrl: coverUrl, coverImageMobileUrl: coverMobileUrl, mobileCoverImageUrl: coverMobileUrl, bannerMobileUrl: coverMobileUrl, logoStoragePath: images.logo && images.logo.imageStoragePath || currentTpl.logoStoragePath || '', logoImagePath: images.logo && (images.logo.imagePath || images.logo.imageStoragePath) || currentTpl.logoImagePath || currentTpl.logoStoragePath || '', faviconStoragePath: images.favicon && images.favicon.imageStoragePath || currentTpl.faviconStoragePath || currentGeral.faviconStoragePath || '', faviconImagePath: images.favicon && (images.favicon.imagePath || images.favicon.imageStoragePath) || currentTpl.faviconImagePath || currentTpl.faviconStoragePath || currentGeral.faviconStoragePath || '', bannerStoragePath: coverUrl ? (images.banner && images.banner.imageStoragePath || currentTpl.bannerStoragePath || currentTpl.coverImageStoragePath || '') : '', bannerImagePath: coverUrl ? (images.banner && (images.banner.imagePath || images.banner.imageStoragePath) || currentTpl.bannerImagePath || currentTpl.bannerStoragePath || currentTpl.coverImageStoragePath || '') : '', coverImageStoragePath: coverUrl ? (images.banner && images.banner.imageStoragePath || currentTpl.coverImageStoragePath || currentTpl.bannerStoragePath || '') : '', bannerMobileStoragePath: coverMobileUrl ? (images.bannerMobile && images.bannerMobile.imageStoragePath || currentTpl.bannerMobileStoragePath || currentTpl.coverImageMobileStoragePath || '') : '', bannerMobileImagePath: coverMobileUrl ? (images.bannerMobile && (images.bannerMobile.imagePath || images.bannerMobile.imageStoragePath) || currentTpl.bannerMobileImagePath || currentTpl.bannerMobileStoragePath || currentTpl.coverImageMobileStoragePath || '') : '', coverImageMobileStoragePath: coverMobileUrl ? (images.bannerMobile && images.bannerMobile.imageStoragePath || currentTpl.coverImageMobileStoragePath || currentTpl.bannerMobileStoragePath || '') : '',
       topPromoEnabled: _checked('tpl-top-promo-enabled'), showPromoBanner: _checked('tpl-top-promo-enabled'), topPromoText: _val('tpl-top-promo-text'), promoBannerText: _val('tpl-top-promo-text'), topPromoColor: _val('tpl-top-promo-color') || primary, promoBannerColor: _val('tpl-top-promo-color') || primary, topPromoTextColor: promoTextColor, promoBannerTextColor: promoTextColor, bannerPromoTextColor: promoTextColor, topPromoClosable: _checked('tpl-top-promo-closable'), promoBannerDismissible: _checked('tpl-top-promo-closable'), topUseCover: _checked('tpl-top-use-cover'), useCoverImage: _checked('tpl-top-use-cover'), topShowRegion: _checked('tpl-top-show-region'), showCityRegion: _checked('tpl-top-show-region'), topShowMoreInfo: _checked('tpl-top-more-info'), showMoreInfoButton: _checked('tpl-top-more-info'), topShowChips: _checked('tpl-top-chips'), showDeliveryPickupChips: _checked('tpl-top-chips'),
-      mobilePromoBannerEnabled: _checked('tpl-mobile-promo-banner-enabled'), promotionalBannerEnabled: _checked('tpl-mobile-promo-banner-enabled'), promoVisualBannerEnabled: _checked('tpl-mobile-promo-banner-enabled'), mobilePromoBannerImageUrl: mobilePromoBannerUrl, promoBannerImageUrl: mobilePromoBannerUrl, promotionalBannerImageUrl: mobilePromoBannerUrl, mobilePromoBannerStoragePath: mobilePromoBannerUrl ? (images.promoMobile && images.promoMobile.imageStoragePath || currentTpl.mobilePromoBannerStoragePath || currentTpl.promoBannerImageStoragePath || '') : '', promoBannerImageStoragePath: mobilePromoBannerUrl ? (images.promoMobile && images.promoMobile.imageStoragePath || currentTpl.promoBannerImageStoragePath || currentTpl.mobilePromoBannerStoragePath || '') : '', mobilePromoBannerBadge: _val('tpl-mobile-promo-banner-badge'), promoBannerBadge: _val('tpl-mobile-promo-banner-badge'), mobilePromoBannerTitle: _val('tpl-mobile-promo-banner-title'), promoBannerTitle: _val('tpl-mobile-promo-banner-title'), mobilePromoBannerText: _val('tpl-mobile-promo-banner-text'), promoBannerSubtitle: _val('tpl-mobile-promo-banner-text'), mobilePromoBannerButtonText: _val('tpl-mobile-promo-banner-button'), promoBannerButtonText: _val('tpl-mobile-promo-banner-button'),
+      mobilePromoBannerEnabled: _checked('tpl-mobile-promo-banner-enabled'), promotionalBannerEnabled: _checked('tpl-mobile-promo-banner-enabled'), promoVisualBannerEnabled: _checked('tpl-mobile-promo-banner-enabled'), mobilePromoBannerImageUrl: mobilePromoBannerUrl, promoBannerImageUrl: mobilePromoBannerUrl, promotionalBannerImageUrl: mobilePromoBannerUrl, mobilePromoBannerStoragePath: mobilePromoBannerUrl ? (images.promoMobile && images.promoMobile.imageStoragePath || currentTpl.mobilePromoBannerStoragePath || currentTpl.promoBannerImageStoragePath || '') : '', promoBannerImageStoragePath: mobilePromoBannerUrl ? (images.promoMobile && images.promoMobile.imageStoragePath || currentTpl.promoBannerImageStoragePath || currentTpl.mobilePromoBannerStoragePath || '') : '', promoBannerImagePath: mobilePromoBannerUrl ? (images.promoMobile && (images.promoMobile.imagePath || images.promoMobile.imageStoragePath) || currentTpl.promoBannerImagePath || currentTpl.promoBannerImageStoragePath || currentTpl.mobilePromoBannerStoragePath || '') : '', mobilePromoBannerBadge: _val('tpl-mobile-promo-banner-badge'), promoBannerBadge: _val('tpl-mobile-promo-banner-badge'), mobilePromoBannerTitle: _val('tpl-mobile-promo-banner-title'), promoBannerTitle: _val('tpl-mobile-promo-banner-title'), mobilePromoBannerText: _val('tpl-mobile-promo-banner-text'), promoBannerSubtitle: _val('tpl-mobile-promo-banner-text'), mobilePromoBannerButtonText: _val('tpl-mobile-promo-banner-button'), promoBannerButtonText: _val('tpl-mobile-promo-banner-button'),
       bannerOverlayColor: bannerOverlayColor, coverOverlayColor: bannerOverlayColor, heroOverlayColor: bannerOverlayColor, topBannerOverlayColor: bannerOverlayColor,
       bannerOverlayOpacity: bannerOverlayOpacity, coverOverlayOpacity: bannerOverlayOpacity, heroOverlayOpacity: bannerOverlayOpacity, topBannerOverlayOpacity: bannerOverlayOpacity,
       mainCardConfig: mainCardConfig, topShowRegion: mainCardConfig.showLocation || mainCardConfig.showStoreStatus, showCityRegion: mainCardConfig.showLocation || mainCardConfig.showStoreStatus, topShowMoreInfo: mainCardConfig.showMoreInfoButton, showMoreInfoButton: mainCardConfig.showMoreInfoButton, topShowChips: mainCardConfig.showPickup || mainCardConfig.showDelivery || mainCardConfig.showPreparationTime || mainCardConfig.showDeliveryTime || mainCardConfig.showMinimumOrder || mainCardConfig.showAdvanceDays, showDeliveryPickupChips: mainCardConfig.showPickup || mainCardConfig.showDelivery || mainCardConfig.showPreparationTime || mainCardConfig.showDeliveryTime || mainCardConfig.showMinimumOrder || mainCardConfig.showAdvanceDays,
@@ -4823,6 +4828,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       ogImage: _cleanPublicUrl(_val('seo-og-image')),
       imageUrl: _cleanPublicUrl(_val('seo-og-image')),
       ogImageStoragePath: images.share && images.share.imageStoragePath || '',
+      ogImagePath: images.share && (images.share.imagePath || images.share.imageStoragePath) || '',
       updatedAt: new Date().toISOString()
     };
     DB.setDocRoot('config', 'seo', seo).then(function () {
@@ -4910,6 +4916,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var c = id ? (_categories.find(function (x) { return x.id === id; }) || {}) : {};
     var graphicUrl = _cleanPublicUrl(c.graphicUrl || c.imageUrl || c.iconUrl || c.categoryGraphicUrl || '');
     window._catalogCategoryGraphicState = {};
+    window._catDraftId = id || _newEntityId('cat');
     var body = '<div>' +
       '<div style="margin-bottom:12px;"><label style="' + _labelStyle() + '">Nome *</label><input id="cat-name" type="text" value="' + _esc(c.name || '') + '" style="' + _inputStyle() + '"></div>' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:12px;">' +
@@ -4923,7 +4930,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
             '<button type="button" class="tpl-image-btn primary" onclick="document.getElementById(\'cat-graphic-file\').click()">Enviar imagem</button>' +
             '<button type="button" class="tpl-image-btn ghost" onclick="Modules.Catalogo._clearCategoryGraphic()">Remover imagem</button>' +
           '</div>' +
-          '<input id="cat-graphic-file" type="file" accept="image/jpeg,image/jpg,image/png,image/webp,image/svg+xml" onchange="Modules.Catalogo._uploadCategoryGraphic(event)" style="display:none;">' +
+          '<input id="cat-graphic-file" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onchange="Modules.Catalogo._uploadCategoryGraphic(event)" style="display:none;">' +
           '<div style="font-size:11px;color:#8A7E7C;line-height:1.35;">Tamanho recomendado: 256 × 256 px, fundo transparente ou recorte quadrado.</div>' +
         '</div>' +
         '<div id="cat-graphic-preview" style="width:96px;height:96px;border-radius:24px;background:#FAF8F4;border:1px solid #EAE4DA;display:flex;align-items:center;justify-content:center;overflow:hidden;color:#A39B90;font-size:11px;text-align:center;">' + (graphicUrl ? '<img src="' + _esc(graphicUrl) + '" style="width:100%;height:100%;object-fit:cover;">' : 'Sem imagem') + '</div>' +
@@ -4939,15 +4946,18 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   function _uploadCategoryGraphic(event) {
     var file = event && event.target && event.target.files ? event.target.files[0] : null;
     if (!file || !window.ImageTools) return;
-    ImageTools.process(file, { kind: 'logo', entityId: 'catalogo-category-' + (_editingId || 'new') }).then(function (result) {
+    window._catalogCategoryGraphicPending = true;
+    ImageTools.process(file, { kind: 'category', folder: 'categories', entityId: _editingId || window._catDraftId || _newEntityId('cat') }).then(function (result) {
       var url = _cleanPublicUrl(result.imageUrl || '');
       var input = document.getElementById('cat-graphic-url');
       var preview = document.getElementById('cat-graphic-preview');
       if (input) input.value = url;
       if (preview) preview.innerHTML = url ? '<img src="' + _esc(url) + '" style="width:100%;height:100%;object-fit:cover;">' : 'Sem imagem';
       window._catalogCategoryGraphicState = result || {};
+      window._catalogCategoryGraphicPending = false;
       UI.toast('Elemento gráfico otimizado.', 'success');
     }).catch(function (err) {
+      window._catalogCategoryGraphicPending = false;
       UI.toast(err && err.message ? err.message : 'Erro ao otimizar imagem.', 'error');
       if (event && event.target) event.target.value = '';
     });
@@ -4969,7 +4979,8 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   function _uploadTemplateCategoryGraphic(event, catId) {
     var file = event && event.target && event.target.files ? event.target.files[0] : null;
     if (!file || !window.ImageTools || !catId) return;
-    ImageTools.process(file, { kind: 'logo', entityId: 'catalogo-template-category-' + catId }).then(function (result) {
+    _templateCategoryUploadState()[catId] = Object.assign({}, _templateCategoryUploadState()[catId] || {}, { pending: true });
+    ImageTools.process(file, { kind: 'category', folder: 'categories', entityId: catId }).then(function (result) {
       var url = _cleanPublicUrl(result.imageUrl || '');
       var input = document.getElementById('tpl-cat-graphic-' + catId);
       var preview = document.getElementById('tpl-cat-graphic-preview-' + catId);
@@ -4978,6 +4989,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       _templateCategoryUploadState()[catId] = result || {};
       UI.toast('Elemento gráfico da categoria otimizado.', 'success');
     }).catch(function (err) {
+      _templateCategoryUploadState()[catId] = Object.assign({}, _templateCategoryUploadState()[catId] || {}, { pending: false });
       UI.toast(err && err.message ? err.message : 'Erro ao otimizar imagem.', 'error');
       if (event && event.target) event.target.value = '';
     });
@@ -4995,6 +5007,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       var upload = uploads[id] || {};
       var data = { icon: icon, emoji: icon, symbol: icon, graphicUrl: graphicUrl, imageUrl: graphicUrl, iconUrl: graphicUrl, categoryGraphicUrl: graphicUrl };
       if (upload.imageStoragePath) data.graphicStoragePath = upload.imageStoragePath;
+      if (upload.imagePath || upload.imageStoragePath) data.imagePath = upload.imagePath || upload.imageStoragePath;
       if (upload.imageWidth) data.graphicWidth = upload.imageWidth;
       if (upload.imageHeight) data.graphicHeight = upload.imageHeight;
       if (upload.imageFormat) data.graphicFormat = upload.imageFormat;
@@ -5006,15 +5019,19 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   function _saveCat() {
     var name = (document.getElementById('cat-name') || {}).value || '';
     if (!name) { UI.toast('Nome e obrigatorio', 'error'); return; }
+    if (window._catalogCategoryGraphicPending) { UI.toast('A imagem ainda está sendo enviada. Aguarde um instante.', 'info'); return; }
     var icon = (document.getElementById('cat-icon') || {}).value || '';
     var graphicUrl = _cleanPublicUrl((document.getElementById('cat-graphic-url') || {}).value || '');
     var graphicState = window._catalogCategoryGraphicState || {};
     var data = { name: name, icon: icon, emoji: icon, symbol: icon, graphicUrl: graphicUrl, imageUrl: graphicUrl, iconUrl: graphicUrl, categoryGraphicUrl: graphicUrl };
     if (graphicState.imageStoragePath) data.graphicStoragePath = graphicState.imageStoragePath;
+    if (graphicState.imagePath || graphicState.imageStoragePath) data.imagePath = graphicState.imagePath || graphicState.imageStoragePath;
     if (graphicState.imageWidth) data.graphicWidth = graphicState.imageWidth;
     if (graphicState.imageHeight) data.graphicHeight = graphicState.imageHeight;
     if (graphicState.imageFormat) data.graphicFormat = graphicState.imageFormat;
-    var op = _editingId ? DB.update('categories', _editingId, data) : DB.add('categories', data);
+    var catId = _editingId || window._catDraftId || _newEntityId('cat');
+    data.id = catId;
+    var op = _editingId ? DB.update('categories', _editingId, data) : DB.set('categories', catId, data);
     op.then(function () {
       UI.toast('Categoria salva!', 'success');
       if (window._catModal) window._catModal.close();
@@ -5113,7 +5130,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     if (!file) return;
     var draftId = window._ppDraftId || _editingId || _newEntityId('pronto');
     window._ppDraftId = draftId;
-    ImageTools.process(file, { kind: 'product', folder: 'products-ready', entityId: draftId }).then(function (result) {
+    ImageTools.process(file, { kind: 'product', folder: 'products', entityId: draftId }).then(function (result) {
       window._ppImageState = result;
       window._ppImageBase64 = null;
       var preview = document.getElementById('pp-img-preview');
@@ -5138,6 +5155,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var imgState = window._ppImageState || null;
     if (imgState) {
       data.imageUrl = imgState.imageUrl || '';
+      data.imagePath = imgState.imagePath || imgState.imageStoragePath || '';
       data.imageCardUrl = imgState.imageCardUrl || imgState.cardUrl || imgState.imageUrl || '';
       data.imageThumbUrl = imgState.imageThumbUrl || imgState.thumbUrl || imgState.imageCardUrl || imgState.imageUrl || '';
       data.imageStoragePath = imgState.imageStoragePath || '';
@@ -6201,7 +6219,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     if (!file) return;
     var draftId = window._fcDraftId || _editingId || _newEntityId('receita');
     window._fcDraftId = draftId;
-    ImageTools.process(file, { kind: 'product', folder: 'recipes', entityId: draftId }).then(function (result) {
+    ImageTools.process(file, { kind: 'product', folder: 'products', entityId: draftId }).then(function (result) {
       window._fcImageState = result;
       window._fcImageBase64 = null;
       var preview = document.getElementById('fc-img-preview');
@@ -6297,6 +6315,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var imgState = window._fcImageState || null;
     if (imgState) {
       data.imageUrl = imgState.imageUrl || '';
+      data.imagePath = imgState.imagePath || imgState.imageStoragePath || '';
       data.imageCardUrl = imgState.imageCardUrl || imgState.cardUrl || imgState.imageUrl || '';
       data.imageThumbUrl = imgState.imageThumbUrl || imgState.thumbUrl || imgState.imageCardUrl || imgState.imageUrl || '';
       data.imageStoragePath = imgState.imageStoragePath || '';
@@ -6440,7 +6459,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     _addMenuGroup: _addMenuGroup, _removeMenuGroup: _removeMenuGroup,
     _addMenuOption: _addMenuOption, _removeMenuOption: _removeMenuOption, _filterMenuOptions: _filterMenuOptions,
     _addUpsellProduct: _addUpsellProduct, _removeUpsellProduct: _removeUpsellProduct, _filterUpsellProducts: _filterUpsellProducts,
-    _onImgFileChange: _onImgFileChange,
+    _onImgFileChange: _onImgFileChange, _openProductImagePicker: _openProductImagePicker, _removeProductImage: _removeProductImage,
     _onProntoImgChange: _onProntoImgChange, _onFichaImgChange: _onFichaImgChange,
     _openCatModal: _openCatModal, _selectCatColor: _selectCatColor, _uploadCategoryGraphic: _uploadCategoryGraphic, _clearCategoryGraphic: _clearCategoryGraphic, _uploadTemplateCategoryGraphic: _uploadTemplateCategoryGraphic, _saveCat: _saveCat, _deleteCat: _deleteCat,
     _openProntosModal: _openProntosModal, _savePronto: _savePronto, _deletePronto: _deletePronto,

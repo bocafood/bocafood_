@@ -29,6 +29,18 @@ window.ImageTools = (function () {
       variants: [
         { key: 'main', file: 'logo.webp', width: 500, height: 500, fit: 'contain', quality: 0.9, maxKb: 150, background: 'transparent' }
       ]
+    },
+    category: {
+      folder: 'categories',
+      variants: [
+        { key: 'main', file: 'category.webp', width: 500, height: 500, fit: 'contain', quality: 0.9, maxKb: 180, background: 'transparent' }
+      ]
+    },
+    featured: {
+      folder: 'featured',
+      variants: [
+        { key: 'main', file: 'featured.webp', width: 1200, height: 600, fit: 'cover', quality: 0.86, maxKb: 500 }
+      ]
     }
   };
 
@@ -62,6 +74,9 @@ window.ImageTools = (function () {
 
   function _validateFile(file) {
     if (!file) throw new Error('Arquivo inválido.');
+    if ((file.size || 0) > 8 * 1024 * 1024) {
+      throw new Error('Imagem muito pesada. Envie uma imagem com até 8 MB.');
+    }
     if (!VALID_MIME[file.type] && !/^image\/(jpeg|jpg|png|webp)$/i.test(file.type || '')) {
       throw new Error('Formato não permitido. Envie JPG, JPEG, PNG ou WebP.');
     }
@@ -227,6 +242,9 @@ window.ImageTools = (function () {
   function _storagePath(folder, entityId, fileName) {
     var tid = _tenantId();
     if (!tid) throw new Error('Tenant não encontrado.');
+    if (folder === 'logos') {
+      return ['tenants', tid, folder, _safeFileName(entityId) + '-' + fileName].join('/');
+    }
     return ['tenants', tid, folder, entityId, fileName].join('/');
   }
 
@@ -320,6 +338,7 @@ window.ImageTools = (function () {
           cardUrl: (mapped.card && mapped.card.url) || main.url || '',
           thumbUrl: (mapped.thumb && mapped.thumb.url) || (mapped.card && mapped.card.url) || main.url || '',
           imageUrl: main.url || '',
+          imagePath: main.storagePath || '',
           imageCardUrl: (mapped.card && mapped.card.url) || main.url || '',
           imageThumbUrl: (mapped.thumb && mapped.thumb.url) || (mapped.card && mapped.card.url) || main.url || '',
           imageStoragePath: main.storagePath || '',
@@ -373,6 +392,7 @@ window.ImageTools = (function () {
             storageFolder: folder,
             mainUrl: uploaded.url,
             imageUrl: uploaded.url,
+            imagePath: uploaded.storagePath,
             imageStoragePath: uploaded.storagePath,
             imageWidth: data.width || source.width || 0,
             imageHeight: data.height || source.height || 0,
@@ -388,7 +408,7 @@ window.ImageTools = (function () {
     options = options || {};
     var kind = options.kind || 'product';
     if (kind === 'logo' || kind === 'banner') {
-      return _uploadSingle(file, options);
+      return _withTimeout(_uploadSingle(file, options), 60000);
     }
     var upload = _processPreset(file, options);
     if (!options.folder || options.folder === PRESETS.product.folder) {
