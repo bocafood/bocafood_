@@ -185,6 +185,10 @@ button,input,select,textarea{font-family:inherit}
         </div>
       </div>
 
+      <div class="nav-group" id="nav-group-tpv" style="display:none">
+        <button class="nav-item" data-route="venda-presencial" onclick="Router.navigate('venda-presencial')"><span class="mi">point_of_sale</span><span>Venda presencial</span></button>
+      </div>
+
       <div class="nav-group">
         <button class="nav-item" data-route="catalogo" onclick="AdminApp.toggleNavGroup(event,'catalogo','catalogo/produtos')"><span class="mi">restaurant_menu</span>Cardápio</button>
         <div class="nav-sub">
@@ -276,6 +280,7 @@ button,input,select,textarea{font-family:inherit}
         <button class="nav-item" data-route="configuracoes" onclick="AdminApp.toggleNavGroup(event,'configuracoes','configuracoes/geral')"><span class="mi">settings</span>Configurações</button>
         <div class="nav-sub">
           <button class="nav-sub-item" data-route="configuracoes/geral" onclick="Router.navigate('configuracoes/geral')">Geral</button>
+          <button class="nav-sub-item" data-route="configuracoes/tpv" onclick="Router.navigate('configuracoes/tpv')">TPV</button>
           <button class="nav-sub-item" data-route="configuracoes/dominio" onclick="Router.navigate('configuracoes/dominio')">Domínio / URL</button>
           <button class="nav-sub-item" data-route="configuracoes/integracoes" onclick="Router.navigate('configuracoes/integracoes')">Integrações</button>
           <button class="nav-sub-item" data-route="configuracoes/plano" onclick="Router.navigate('configuracoes/plano')">Plano</button>
@@ -326,6 +331,7 @@ button,input,select,textarea{font-family:inherit}
 <script src="js/core/image-tools.js"></script>
 <script src="js/modules/dashboard.js?v=20260510-dashboard-principal"></script>
 <script src="js/modules/pedidos.js"></script>
+<script src="js/modules/pos.js?v=20260512-tpv-shell"></script>
 <script src="js/modules/catalogo.js"></script>
 <script src="js/modules/loja_online.js"></script>
 <script src="js/modules/receitas.js"></script>
@@ -425,6 +431,7 @@ button,input,select,textarea{font-family:inherit}
         }).catch(function () {});
       }
       AdminApp.refreshStoreOnlineStatus();
+      AdminApp.applyTpvVisibility();
       if (!window._adminOpenOrdersListenerBound && DB && typeof DB.listen === 'function') {
         window._adminOpenOrdersListenerBound = true;
         DB.listen('orders', function (orders) {
@@ -603,6 +610,24 @@ button,input,select,textarea{font-family:inherit}
         if (current.split('/')[0] === 'fiscal') Router.navigate('dashboard');
       }
     },
+    applyTpvVisibility: function () {
+      var group = document.getElementById('nav-group-tpv');
+      if (!window.DB || typeof DB.getDocRoot !== 'function') {
+        if (group) group.style.display = 'none';
+        return;
+      }
+      DB.getDocRoot('config', 'tpv').then(function (cfg) {
+        cfg = cfg || {};
+        var enabled = cfg.enabled === true || cfg.tpvEnabled === true || cfg.active === true;
+        if (group) group.style.display = enabled ? '' : 'none';
+        if (!enabled && window.Router) {
+          var current = Router.current ? Router.current() : '';
+          if (current.split('/')[0] === 'venda-presencial' || current.split('/')[0] === 'tpv') Router.navigate('configuracoes/tpv');
+        }
+      }).catch(function () {
+        if (group) group.style.display = 'none';
+      });
+    },
     openStore: function () {
       var profile = Auth.getAdminProfile ? Auth.getAdminProfile() : null;
       var user = Auth.getUser ? Auth.getUser() : null;
@@ -614,6 +639,8 @@ button,input,select,textarea{font-family:inherit}
   };
 
   Router.register('dashboard', Modules.Dashboard);
+  Router.register('venda-presencial', Modules.POS);
+  Router.register('tpv', Modules.POS);
   Router.register('pedidos', Modules.Pedidos);
   Router.register('pedidos/cozinha', Modules.Pedidos);
   Router.register('pedidos/lista', Modules.Pedidos);

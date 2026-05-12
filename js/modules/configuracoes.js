@@ -12,13 +12,14 @@ Modules.Configuracoes = (function () {
 
   var TABS = [
     { key: 'geral', label: 'Geral' },
+    { key: 'tpv', label: 'TPV' },
     { key: 'dominio', label: 'Domínio / URL' },
     { key: 'integracoes', label: 'Integrações' },
     { key: 'plano', label: 'Plano' },
     { key: 'canais_venda', label: 'Canais de venda' }
   ];
 
-  var CONFIG_TABS = ['geral', 'dominio', 'integracoes', 'pagamentos', 'endereco', 'seo', 'template', 'canais_venda'];
+  var CONFIG_TABS = ['geral', 'tpv', 'dominio', 'integracoes', 'pagamentos', 'endereco', 'seo', 'template', 'canais_venda'];
 
   var DEFAULT_UNIDADES = [
     { name: 'Quilograma', symbol: 'kg', type: 'massa' },
@@ -68,6 +69,7 @@ Modules.Configuracoes = (function () {
   function _renderSub() {
     if (_activeSub === 'geral') return _renderGeral();
     if (_activeSub === 'produtos') { _activeSub = 'geral'; return _renderGeral(); }
+    if (_activeSub === 'tpv') return _renderTpv();
     if (_activeSub === 'dominio') return _renderDominio();
     if (_activeSub === 'integracoes') return _renderIntegracoes();
     if (_activeSub === 'plano') return _renderPlano();
@@ -933,7 +935,7 @@ Modules.Configuracoes = (function () {
 
   function _renderCanaisVenda() {
     var c = _config.canais_venda || {};
-    var list = (Array.isArray(c.list) ? c.list : []).filter(function (ch) { return !_isCardapioChannel(ch); });
+    var list = (Array.isArray(c.list) ? c.list : []).filter(function (ch) { return !_isSystemChannel(ch); });
     var rows = list.map(function (ch, idx) {
       return '<div class="channel-row" data-channel-row="' + idx + '" style="grid-column:1/-1;display:grid;grid-template-columns:minmax(240px,1fr) 34px;gap:10px;align-items:end;background:#fff;border:1px solid #EAE4DA;border-radius:14px;padding:12px;box-shadow:0 1px 2px rgba(31,31,31,.03);">' +
         _field('ch-name-' + idx, 'Canal de venda', ch.name || '', 'WhatsApp, Marketplace, iFood...') +
@@ -942,8 +944,8 @@ Modules.Configuracoes = (function () {
     }).join('');
     var content = document.getElementById('config-content');
     content.innerHTML = '<div class="settings-card">' +
-      '<div class="settings-card-head"><h2>Canais de venda</h2><p>Cadastre os canais além do Cardápio. O Cardápio é padrão do sistema e aparece automaticamente em Regras de preço.</p></div>' +
-      '<div style="background:#F0FAF4;border:1px solid #BDE7CA;border-radius:14px;padding:12px 14px;margin-bottom:14px;color:#1F6F43;font-size:13px;font-weight:600;">Cardápio é fixo e não precisa ser cadastrado aqui.</div>' +
+      '<div class="settings-card-head"><h2>Canais de venda</h2><p>Cadastre os canais além dos canais fixos do sistema. Cardápio e TPV aparecem automaticamente em Regras de preço.</p></div>' +
+      '<div style="background:#F0FAF4;border:1px solid #BDE7CA;border-radius:14px;padding:12px 14px;margin-bottom:14px;color:#1F6F43;font-size:13px;font-weight:600;">Cardápio e TPV são fixos e não precisam ser cadastrados aqui.</div>' +
       '<div id="channels-list" class="settings-grid">' + (rows || '<div style="grid-column:1/-1;text-align:center;padding:40px 20px;color:#8A7E7C;font-size:14px;font-weight:600;">Nenhum canal adicional cadastrado.</div>') + '</div>' +
       '<div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;"><button class="secondary-action" type="button" onclick="Modules.Configuracoes._addCanalVenda()">+ Adicionar canal</button><button class="primary-action" type="button" onclick="Modules.Configuracoes._saveCanaisVenda()">Salvar canais</button></div>' +
       '</div>';
@@ -963,11 +965,11 @@ Modules.Configuracoes = (function () {
         minMarginPct: parseFloat(String(prev.minMarginPct || '0').replace(',', '.')) || 0,
         differentPrice: !!prev.differentPrice
       };
-    }).filter(function (ch) { return !!ch.name && !_isCardapioChannel(ch); });
+    }).filter(function (ch) { return !!ch.name && !_isSystemChannel(ch); });
   }
 
   function _saveCanaisVenda() {
-    var data = { list: _collectCanaisVenda() };
+    var data = { list: _fixedChannels().concat(_collectCanaisVenda()) };
     DB.setDocRoot('config', 'canais_venda', data).then(function () {
       _config.canais_venda = data;
       UI.toast('Canais salvos', 'success');
@@ -985,6 +987,24 @@ Modules.Configuracoes = (function () {
     list.splice(idx, 1);
     _config.canais_venda = { list: list };
     _renderCanaisVenda();
+  }
+
+  function _renderTpv() {
+    var c = _config.tpv || {};
+    var enabled = c.enabled === true || c.tpvEnabled === true || c.active === true;
+    _paint('TPV / Venda presencial', 'Ative o módulo de venda presencial por loja. Quando ativo, o menu Venda presencial aparece e as vendas usam o canal TPV.', [
+      _check('cfg-tpv-enabled', 'Ativar TPV nesta loja', enabled),
+      _field('cfg-tpv-register-name', 'Nome do caixa', c.registerName || 'Caixa principal', 'Caixa principal'),
+      _field('cfg-tpv-default-payment', 'Pagamento padrão', c.defaultPaymentMethod || '', 'Dinheiro, cartão, multibanco...')
+    ].join(''), function () {
+      return {
+        enabled: _checked('cfg-tpv-enabled'),
+        registerName: _val('cfg-tpv-register-name') || 'Caixa principal',
+        defaultPaymentMethod: _val('cfg-tpv-default-payment'),
+        channel: 'TPV',
+        updatedAt: new Date().toISOString()
+      };
+    });
   }
 
   function _paint(title, desc, body, collect) {
@@ -1208,6 +1228,10 @@ Modules.Configuracoes = (function () {
           console.error('Config sync geral/aparencia error', err);
         });
       }
+      if (key === 'tpv') {
+        _ensureFixedChannels();
+        if (window.AdminApp && typeof AdminApp.applyTpvVisibility === 'function') AdminApp.applyTpvVisibility();
+      }
       UI.toast('Configurações salvas', 'success');
     }).catch(function (err) { UI.toast('Erro: ' + err.message, 'error'); });
   }
@@ -1233,6 +1257,32 @@ Modules.Configuracoes = (function () {
   function _isCardapioChannel(channel) {
     var name = _normChannelName(channel && channel.name);
     return name === 'cardápio' || name === 'cardapio';
+  }
+
+  function _isTpvChannel(channel) {
+    var name = _normChannelName(channel && channel.name);
+    return name === 'tpv';
+  }
+
+  function _isSystemChannel(channel) {
+    return _isCardapioChannel(channel) || _isTpvChannel(channel);
+  }
+
+  function _fixedChannels() {
+    return [
+      { name: 'Cardápio', commissionPct: 0, fixedFee: 0, taxPct: 0, minMarginPct: 0, differentPrice: false, locked: true },
+      { name: 'TPV', commissionPct: 0, fixedFee: 0, taxPct: 0, minMarginPct: 0, differentPrice: false, locked: true }
+    ];
+  }
+
+  function _ensureFixedChannels() {
+    var current = (_config.canais_venda && Array.isArray(_config.canais_venda.list)) ? _config.canais_venda.list : [];
+    var custom = current.filter(function (ch) { return !_isSystemChannel(ch); });
+    var data = { list: _fixedChannels().concat(custom) };
+    _config.canais_venda = data;
+    DB.setDocRoot('config', 'canais_venda', data).catch(function (err) {
+      console.error('TPV channel sync error', err);
+    });
   }
 
   function _json(value) {
