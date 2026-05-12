@@ -148,12 +148,13 @@ Modules.Clientes = (function () {
       '<div style="' + _sectionTitle() + '">Endereço e entrega</div>' +
       _field('cli-address', 'Endereço principal', c.address || '') +
       '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:12px;">' +
+      _field('cli-number', 'Número', c.number || c.numero || '') +
       _field('cli-hood', 'Bairro / zona', c.neighborhood || c.zone || '') +
       _field('cli-zip', 'Código postal', c.postalCode || '') +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:12px;">' +
       '<div><label id="cli-state-label" style="' + _label() + '">' + _esc(_cliNifCfg.regionLabel || 'Estado / Província') + '</label>' +
         '<select id="cli-state" style="' + _input() + 'background:#fff;">' + _regionOptions(_cliCountry, c.state || c.province || '') + '</select></div>' +
-      '</div>' +
-      '<div style="display:grid;grid-template-columns:1fr 2fr;gap:12px;margin-top:12px;">' +
       '<div><label style="' + _label() + '">País</label><select id="cli-country" onchange="Modules.Clientes._onClienteCountryChange()" style="' + _input() + 'background:#fff;">' + _countryOptions(_cliCountry) + '</select></div>' +
       _field('cli-reference', 'Referência / complemento', c.reference || c.complement || '') +
       '</div></div>' +
@@ -212,6 +213,8 @@ Modules.Clientes = (function () {
       fiscalId: _val('cli-fiscal'),
       birthday: _val('cli-bday'),
       address: _val('cli-address'),
+      number: _val('cli-number'),
+      numero: _val('cli-number'),
       neighborhood: _val('cli-hood'),
       zone: _val('cli-hood'),
       postalCode: _val('cli-zip'),

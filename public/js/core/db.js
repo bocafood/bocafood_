@@ -293,24 +293,188 @@ window.BocaPlaces = (function () {
       var fn; while ((fn = _queue.shift())) fn();
     };
     var s = document.createElement('script');
-    s.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(key) + '&libraries=places&callback=_bocaPlacesReady';
+    s.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(key) + '&v=weekly&loading=async&libraries=places&callback=_bocaPlacesReady';
     s.async = true;
     s.defer = true;
     s.onerror = function () { _loading = false; };
     document.head.appendChild(s);
   }
 
-  // Simple autocomplete — basic address suggestion, no custom place_changed handling.
-  // For fields that need custom handling (fo-address), use loadScript() directly.
-  function init(inputId) {
+  function loadPlacesLibrary() {
+    if (window.google && window.google.maps && typeof window.google.maps.importLibrary === 'function') {
+      return window.google.maps.importLibrary('places').catch(function () { return null; });
+    }
+    return Promise.resolve(null);
+  }
+
+  function _componentMap(addressComponents) {
+    var out = {};
+    (addressComponents || []).forEach(function (item) {
+      var types = item.types || [];
+      var longText = item.longText || item.long_name || item.name || '';
+      var shortText = item.shortText || item.short_name || longText;
+      types.forEach(function (type) {
+        out[type] = { longText: longText, shortText: shortText };
+      });
+    });
+    return out;
+  }
+
+  function _componentValue(map, keys, shortText) {
+    for (var i = 0; i < keys.length; i++) {
+      var item = map[keys[i]];
+      if (item) return shortText ? item.shortText : item.longText;
+    }
+    return '';
+  }
+
+  function _latLng(location) {
+    if (!location) return { lat: '', lng: '' };
+    var lat = typeof location.lat === 'function' ? location.lat() : location.lat;
+    var lng = typeof location.lng === 'function' ? location.lng() : location.lng;
+    return {
+      lat: lat == null ? '' : lat,
+      lng: lng == null ? '' : lng
+    };
+  }
+
+  function normalizePlace(place) {
+    place = place || {};
+    var json = typeof place.toJSON === 'function' ? place.toJSON() : place;
+    var components = place.addressComponents || json.addressComponents || json.address_components || [];
+    var map = _componentMap(components);
+    var loc = _latLng(place.location || json.location);
+    var street = _componentValue(map, ['route']);
+    var number = _componentValue(map, ['street_number']);
+    var addressLine = [street, number].filter(Boolean).join(', ');
+    return {
+      formattedAddress: place.formattedAddress || json.formattedAddress || json.formatted_address || '',
+      addressLine: addressLine,
+      street: street,
+      number: number,
+      neighborhood: _componentValue(map, ['neighborhood', 'sublocality_level_1', 'sublocality']),
+      city: _componentValue(map, ['locality', 'postal_town', 'administrative_area_level_3']),
+      province: _componentValue(map, ['administrative_area_level_2', 'administrative_area_level_1']),
+      country: _componentValue(map, ['country']),
+      countryCode: _componentValue(map, ['country'], true),
+      postalCode: _componentValue(map, ['postal_code']),
+      latitude: loc.lat,
+      longitude: loc.lng,
+      placeId: place.id || place.placeId || json.id || json.place_id || ''
+    };
+  }
+
+  function _syncInput(input, value) {
+    input.value = value || '';
+    try { input.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {}
+    try { input.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) {}
+  }
+
+  function _setField(id, value) {
+    var el = document.getElementById(id);
+    if (el && value) _syncInput(el, value);
+  }
+
+  function _setCountry(id, data) {
+    var map = {
+      Spain: 'España', ES: 'España',
+      Portugal: 'Portugal', PT: 'Portugal',
+      France: 'Francia', FR: 'Francia',
+      Italy: 'Italia', IT: 'Italia',
+      Germany: 'Alemania', DE: 'Alemania',
+      'United Kingdom': 'Reino Unido', GB: 'Reino Unido', UK: 'Reino Unido',
+      Belgium: 'Bélgica', BE: 'Bélgica',
+      Netherlands: 'Países Bajos', NL: 'Países Bajos'
+    };
+    _setField(id, map[data.country] || map[data.countryCode] || data.country);
+  }
+
+  function _fillRelatedFields(inputId, data) {
+    if (inputId === 'cfg-address-line') {
+      _setField('cfg-address-number', data.number);
+      _setField('cfg-city', data.city);
+      _setField('cfg-postal', data.postalCode);
+      _setField('cfg-pickup-area', data.neighborhood);
+      _setField('cfg-address-region', data.province);
+      _setCountry('cfg-address-country', data);
+    } else if (inputId === 'cfg-company-address') {
+      _setField('cfg-company-number', data.number);
+      _setField('cfg-company-neighborhood', data.neighborhood);
+      _setField('cfg-company-city', data.city);
+      _setField('cfg-company-postal', data.postalCode);
+      _setField('cfg-company-region', data.province);
+      _setCountry('cfg-company-country', data);
+    } else if (inputId === 'cfg-tpl-pickup-address') {
+      _setField('cfg-tpl-pickup-number', data.number);
+      _setField('cfg-tpl-pickup-area', data.neighborhood);
+    } else if (inputId === 'cli-address') {
+      _setField('cli-number', data.number);
+      _setField('cli-hood', data.neighborhood);
+      _setField('cli-zip', data.postalCode);
+      _setField('cli-state', data.province);
+      _setCountry('cli-country', data);
+    } else if (inputId === 'tpl-address') {
+      _setField('tpl-number', data.number);
+      _setField('tpl-neighborhood', data.neighborhood);
+      _setField('tpl-city', data.city);
+      _setField('tpl-region', data.province);
+      _setField('tpl-postal', data.postalCode);
+      _setCountry('tpl-country', data);
+    } else if (inputId === 'op-address') {
+      _setField('op-number', data.number);
+      _setField('op-neighborhood', data.neighborhood);
+      _setField('op-city', data.city);
+      _setField('op-region', data.province);
+      _setField('op-postal', data.postalCode);
+      _setCountry('op-country', data);
+    }
+  }
+
+  function init(inputId, opts) {
+    opts = opts || {};
     loadConfig().then(function () {
       loadScript(function () {
-        var input = document.getElementById(inputId);
-        if (!input || input._bocaAc) return;
-        try {
-          new window.google.maps.places.Autocomplete(input, { types: ['address'] });
-          input._bocaAc = true;
-        } catch (e) { /* fail silently */ }
+        loadPlacesLibrary().then(function () {
+          var input = document.getElementById(inputId);
+          if (!input || input._bocaAc) return;
+          try {
+            if (!window.google || !window.google.maps || !window.google.maps.places || !window.google.maps.places.PlaceAutocompleteElement) return;
+            var placeEl = new window.google.maps.places.PlaceAutocompleteElement();
+            placeEl.id = inputId + '-places';
+            placeEl.style.cssText = 'display:block;width:100%;min-height:40px;margin-bottom:8px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#1F1F1F;color-scheme:light;font-family:inherit;font-size:13px;box-shadow:0 1px 2px rgba(31,31,31,.03);--gmp-mat-color-surface:#fff;--gmp-mat-color-on-surface:#1F1F1F;--gmp-mat-color-primary:#B42318;';
+            placeEl.setAttribute('requested-language', 'es');
+            placeEl.setAttribute('unit-system', 'metric');
+            placeEl.setAttribute('aria-label', 'Buscar endereço');
+            try { placeEl.placeholder = input.placeholder || 'Buscar endereço'; } catch (e) {}
+            if (input.value) placeEl.value = input.value;
+            input.insertAdjacentElement('beforebegin', placeEl);
+            input._bocaAc = true;
+            input._bocaPlaceElement = placeEl;
+            window.setTimeout(function () {
+              if (input._bocaPlaceElement === placeEl) input.style.display = 'none';
+            }, 0);
+            placeEl.addEventListener('input', function () {
+              if (placeEl.value != null) _syncInput(input, placeEl.value);
+            });
+            placeEl.addEventListener('gmp-select', function (event) {
+              Promise.resolve().then(function () {
+                var prediction = event && event.placePrediction;
+                var place = prediction && typeof prediction.toPlace === 'function' ? prediction.toPlace() : (event && event.place);
+                if (!place) return null;
+                if (typeof place.fetchFields === 'function') {
+                  return place.fetchFields({ fields: ['id', 'displayName', 'formattedAddress', 'location', 'addressComponents'] }).then(function () { return place; });
+                }
+                return place;
+              }).then(function (place) {
+                if (!place) return;
+                var data = normalizePlace(place);
+                _syncInput(input, data.addressLine || data.formattedAddress || placeEl.value || input.value);
+                _fillRelatedFields(inputId, data);
+                if (typeof opts.onPlace === 'function') opts.onPlace(data, place);
+              }).catch(function () { /* keep manual fallback */ });
+            });
+          } catch (e) { /* fail silently */ }
+        }).catch(function () { /* fail silently */ });
       });
     }).catch(function () { /* fail silently */ });
   }
@@ -321,5 +485,5 @@ window.BocaPlaces = (function () {
       .then(function () { _cfg = Object.assign(_cfg || {}, data); });
   }
 
-  return { loadConfig: loadConfig, getKey: getKey, loadScript: loadScript, init: init, setConfig: setConfig };
+  return { loadConfig: loadConfig, getKey: getKey, loadScript: loadScript, init: init, normalizePlace: normalizePlace, setConfig: setConfig };
 })();
