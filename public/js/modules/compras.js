@@ -944,43 +944,41 @@ Modules.Compras = (function () {
   // Usa a configuração global (BocaPlaces) — ativa apenas se a chave estiver configurada no Admin Master.
   function _initAddressAutocomplete() {
     if (!window.BocaPlaces) return;
-    BocaPlaces.loadConfig().then(function () {
-      BocaPlaces.loadScript(function () {
-        var input = document.getElementById('fo-address');
-        if (!input || input._bocaAc) return;
-        try {
-          var ac = new window.google.maps.places.Autocomplete(input, { types: ['address'] });
-          input._bocaAc = true;
-          ac.addListener('place_changed', function () {
-            var place = ac.getPlace();
-            if (!place || !place.address_components) return;
-            var comp = {};
-            for (var i = 0; i < place.address_components.length; i++) {
-              var c = place.address_components[i];
-              for (var j = 0; j < c.types.length; j++) { comp[c.types[j]] = c.long_name; }
-            }
-            var neighborhood = comp.neighborhood || comp.sublocality_level_1 || comp.locality || '';
-            var state = comp.administrative_area_level_2 || comp.administrative_area_level_1 || '';
-            var country = comp.country || '';
-            var neighborEl = document.getElementById('fo-neighborhood');
-            var stateEl = document.getElementById('fo-state');
-            var countryEl = document.getElementById('fo-country');
-            if (neighborEl) neighborEl.value = neighborhood;
-            if (stateEl && state) stateEl.value = state;
-            var countryMap = { 'Spain': 'España', 'Portugal': 'Portugal', 'France': 'Francia',
-              'Italy': 'Italia', 'Germany': 'Alemania', 'United Kingdom': 'Reino Unido',
-              'United States': 'Otro', 'Belgium': 'Bélgica', 'Netherlands': 'Países Bajos' };
-            if (countryEl && country) {
-              var mapped = countryMap[country] || 'Otro';
-              var copts = countryEl.options;
-              for (var l = 0; l < copts.length; l++) {
-                if (copts[l].value === mapped) { countryEl.value = copts[l].value; break; }
-              }
-            }
-          });
-        } catch (e) { /* Places unavailable — silent fallback */ }
-      });
-    }).catch(function () { /* fail silently */ });
+    BocaPlaces.init('fo-address', {
+      onPlace: function (place) {
+        var neighborEl = document.getElementById('fo-neighborhood');
+        var stateEl = document.getElementById('fo-state');
+        var countryEl = document.getElementById('fo-country');
+        var numberEl = document.getElementById('fo-number');
+        var postalEl = document.getElementById('fo-postal');
+        var cityEl = document.getElementById('fo-city');
+        var latEl = document.getElementById('fo-latitude');
+        var lngEl = document.getElementById('fo-longitude');
+        var placeIdEl = document.getElementById('fo-place-id');
+        var formattedEl = document.getElementById('fo-formatted-address');
+        if (numberEl && place.number) numberEl.value = place.number;
+        if (neighborEl) neighborEl.value = place.neighborhood || '';
+        if (stateEl && place.province) stateEl.value = place.province;
+        if (postalEl && place.postalCode) postalEl.value = place.postalCode;
+        if (cityEl && place.city) cityEl.value = place.city;
+        if (latEl) latEl.value = place.latitude || '';
+        if (lngEl) lngEl.value = place.longitude || '';
+        if (placeIdEl) placeIdEl.value = place.placeId || '';
+        if (formattedEl) formattedEl.value = place.formattedAddress || '';
+        var countryMap = { Spain: 'España', Portugal: 'Portugal', France: 'Francia',
+          Italy: 'Italia', Germany: 'Alemania', 'United Kingdom': 'Reino Unido',
+          'United States': 'Otro', Belgium: 'Bélgica', Netherlands: 'Países Bajos',
+          ES: 'España', PT: 'Portugal', FR: 'Francia', IT: 'Italia', DE: 'Alemania',
+          GB: 'Reino Unido', UK: 'Reino Unido', US: 'Otro', BE: 'Bélgica', NL: 'Países Bajos' };
+        if (countryEl && (place.country || place.countryCode)) {
+          var mapped = countryMap[place.country] || countryMap[place.countryCode] || 'Otro';
+          var copts = countryEl.options;
+          for (var l = 0; l < copts.length; l++) {
+            if (copts[l].value === mapped) { countryEl.value = copts[l].value; break; }
+          }
+        }
+      }
+    });
   }
 
   function _onCompraItemChange() {
@@ -2304,13 +2302,22 @@ Modules.Compras = (function () {
       '<div style="margin-bottom:14px;">' +
       '<label style="' + _labelStyle() + '">Endereço</label>' +
       '<input id="fo-address" type="text" value="' + _esc(f.address || '') + '" placeholder="Rua, número..." autocomplete="off" style="' + iS + '">' +
+      '<input id="fo-city" type="hidden" value="' + _esc(f.city || f.cidade || '') + '">' +
+      '<input id="fo-formatted-address" type="hidden" value="' + _esc(f.formattedAddress || '') + '">' +
+      '<input id="fo-latitude" type="hidden" value="' + _esc(f.latitude || '') + '">' +
+      '<input id="fo-longitude" type="hidden" value="' + _esc(f.longitude || '') + '">' +
+      '<input id="fo-place-id" type="hidden" value="' + _esc(f.placeId || '') + '">' +
       stateDatalist + '</div>' +
       '<div style="' + g3 + '">' +
+      _field('fo-number', 'Número', f.number || f.numero || '') +
       _field('fo-neighborhood', 'Bairro / Localidade', f.bairro || f.neighborhood || '') +
+      _field('fo-postal', 'Código postal', f.postalCode || f.codigoPostal || '') +
       '<div><label id="fo-state-label" style="' + _labelStyle() + '">' + _esc(_fornNifCfg.regionLabel || 'Estado / Província') + '</label>' +
       '<input id="fo-state" list="fo-state-list" value="' + _esc(selectedState) + '" placeholder="Selecionar ou digitar..." style="' + iS + '"></div>' +
       _select('fo-country', 'País', countryOpts, 'Modules.Compras._onFornecedorCountryChange()') +
-      '</div></div>' +
+      '</div>' +
+      '<div style="margin-top:12px;">' + _field('fo-reference', 'Referência / complemento', f.reference || f.complemento || '', 'Loja, andar, porta, observação de entrega...') + '</div>' +
+      '</div>' +
 
       '<div style="' + card + '">' +
       '<div style="' + secTitle + '">Contato</div>' +
@@ -2400,12 +2407,24 @@ Modules.Compras = (function () {
       email: email,
       nif: nif,
       address: _el('fo-address').value,
+      number: _el('fo-number') ? _el('fo-number').value : '',
+      numero: _el('fo-number') ? _el('fo-number').value : '',
+      formattedAddress: _el('fo-formatted-address') && _el('fo-formatted-address').value ? _el('fo-formatted-address').value : _el('fo-address').value,
       bairro: _el('fo-neighborhood').value,
       neighborhood: _el('fo-neighborhood').value,
+      cidade: _el('fo-city') ? _el('fo-city').value : '',
+      city: _el('fo-city') ? _el('fo-city').value : '',
       estado: _el('fo-state').value,
       state: _el('fo-state').value,
       pais: _el('fo-country').value,
       country: _el('fo-country').value,
+      postalCode: _el('fo-postal') ? _el('fo-postal').value : '',
+      codigoPostal: _el('fo-postal') ? _el('fo-postal').value : '',
+      reference: _el('fo-reference') ? _el('fo-reference').value : '',
+      complemento: _el('fo-reference') ? _el('fo-reference').value : '',
+      latitude: _el('fo-latitude') ? _el('fo-latitude').value : '',
+      longitude: _el('fo-longitude') ? _el('fo-longitude').value : '',
+      placeId: _el('fo-place-id') ? _el('fo-place-id').value : '',
       defaultPaymentMethod: _el('fo-payment-method').value,
       paymentDays: parseInt(_el('fo-payment-days').value || '0', 10) || 0,
       notes: _el('fo-notes').value,

@@ -1,5 +1,11 @@
 # AI Changelog
 
+## 2026-05-12 — Migração para Google Places Autocomplete novo
+- Arquivos alterados: `public/js/core/db.js`, `public/js/modules/compras.js`, `public/js/modules/configuracoes.js`, `public/js/modules/clientes.js`, `public/js/modules/catalogo.js`, `js/core/db.js`, `js/modules/compras.js`, `js/modules/configuracoes.js`, `js/modules/clientes.js`, `js/modules/catalogo.js`, `js/modules/operacao.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Configurações, Compras, Clientes, Catálogo/Template e Operação local.
+- Resumo do ajuste: substituí o uso legado de `google.maps.places.Autocomplete` pelo `google.maps.places.PlaceAutocompleteElement`, mantendo fallback manual quando a chave/API não estiver disponível. Também ajustei o carregamento do Maps JS com `loading=async` e padronizei os cadastros de endereço no mesmo modelo do modal de fornecedor.
+- Impacto esperado: campos de endereço seguem editáveis como texto normal e, quando a API nova carrega, selecionam endereço com dados estruturados como rua, número, bairro/localidade, cidade, província, país, código postal, coordenadas e `placeId` quando disponíveis. O campo de referência/complemento permanece manual e em branco após a seleção automática.
+
 ## 2026-05-12 — Carregamento seguro da identidade no Admin
 - Arquivos alterados: `public/admin.html`, `public/js/core/auth.js`, `AI_CHANGELOG.md`.
 - Módulo afetado: Centro de Control.

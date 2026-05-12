@@ -413,9 +413,10 @@ Modules.Operacao = (function () {
         _sectionTitle('Endereço público', 'Localização usada pela loja pública e pelos dados do Template.') +
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">' +
           _inputField('op-address', 'Endereço', end.address || end.addressLine || tpl.address || '', 'text', 'Rua...') +
+          _inputField('op-number', 'Número', end.number || end.numero || tpl.number || tpl.numero || '', 'text') +
           _inputField('op-city', 'Cidade', end.city || tpl.city || geral.city || '', 'text') +
           _inputField('op-region', 'Região / província', end.region || end.state || end.province || tpl.region || '', 'text') +
-          _inputField('op-neighborhood', 'Bairro', end.neighborhood || tpl.neighborhood || geral.neighborhood || '', 'text') +
+          _inputField('op-neighborhood', 'Bairro / Localidade', end.neighborhood || tpl.neighborhood || geral.neighborhood || '', 'text') +
           _inputField('op-postal', 'Código postal', end.postalCode || tpl.postalCode || '', 'text') +
           _inputField('op-country', 'País', end.country || tpl.country || geral.country || '', 'text') +
         '</div>' +
@@ -437,6 +438,8 @@ Modules.Operacao = (function () {
   function _saveContato() {
     var tpl = Object.assign({}, _config.template || {}, {
       address: _val('op-address'),
+      number: _val('op-number'),
+      numero: _val('op-number'),
       city: _val('op-city'),
       region: _val('op-region'),
       neighborhood: _val('op-neighborhood'),

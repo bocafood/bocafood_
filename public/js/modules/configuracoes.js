@@ -269,7 +269,9 @@ Modules.Configuracoes = (function () {
             _configInput('cfg-company-fiscal-id', fiscalDocLabel, c.companyFiscalId || c.fiscalDocument || c.taxId || c.nif || '', fiscalDocPlaceholder) +
             '<div style="font-size:11px;color:#8A7E7C;line-height:1.4;margin-top:5px;">' + _esc(fiscalDocHint) + '</div>' +
           '</div>' +
-          _configInput('cfg-company-address', addressLabel + ' fiscal da empresa', companyAddress.addressLine || c.companyAddressLine || c.businessAddressLine || '', 'Rua, número...', 'text', 'off', 'business street-address') +
+          _configInput('cfg-company-address', addressLabel + ' fiscal da empresa', companyAddress.addressLine || c.companyAddressLine || c.businessAddressLine || '', 'Rua...', 'text', 'off', 'business street-address') +
+          _configInput('cfg-company-number', 'Número', companyAddress.number || c.companyNumber || '', 'Número') +
+          _configInput('cfg-company-neighborhood', 'Bairro / Localidade', companyAddress.neighborhood || c.companyNeighborhood || '', 'Bairro / zona') +
           _configInput('cfg-company-city', cityLabel, companyAddress.city || c.companyCity || c.businessCity || c.city || '', cityLabel) +
           _configInput('cfg-company-region', regionLabel, companyAddress.region || companyAddress.state || c.companyRegion || c.companyState || '', regionLabel) +
           _configInput('cfg-company-postal', postalLabel, companyAddress.postalCode || c.companyPostalCode || '', postalLabel) +
@@ -341,12 +343,16 @@ Modules.Configuracoes = (function () {
         companyFiscalId: fiscalId,
         fiscalDocument: fiscalId,
         companyAddressLine: _val('cfg-company-address'),
+        companyNumber: _val('cfg-company-number'),
+        companyNeighborhood: _val('cfg-company-neighborhood'),
         companyCity: _val('cfg-company-city'),
         companyRegion: _val('cfg-company-region'),
         companyPostalCode: _val('cfg-company-postal'),
         companyCountry: _val('cfg-company-country'),
         companyAddress: {
           addressLine: _val('cfg-company-address'),
+          number: _val('cfg-company-number'),
+          neighborhood: _val('cfg-company-neighborhood'),
           city: _val('cfg-company-city'),
           region: _val('cfg-company-region'),
           postalCode: _val('cfg-company-postal'),
@@ -354,6 +360,8 @@ Modules.Configuracoes = (function () {
         },
         businessAddress: {
           addressLine: _val('cfg-company-address'),
+          number: _val('cfg-company-number'),
+          neighborhood: _val('cfg-company-neighborhood'),
           city: _val('cfg-company-city'),
           region: _val('cfg-company-region'),
           postalCode: _val('cfg-company-postal'),
@@ -796,18 +804,31 @@ Modules.Configuracoes = (function () {
     var c = _config.endereco || {};
     _paint('Endereço', 'Local físico do negócio e dados de contato.', [
       _field('cfg-address-line', 'Endereço', c.addressLine || c.pickupAddress, 'Rua...'),
+      _field('cfg-address-number', 'Número', c.number || c.numero || ''),
+      _field('cfg-pickup-area', 'Bairro / Localidade', c.pickupArea || c.neighborhood || ''),
       _field('cfg-city', 'Cidade', c.city, 'Lisboa'),
       _field('cfg-postal', 'Código postal', c.postalCode, '1000-000'),
-      _field('cfg-pickup-area', 'Área / bairro para retirada', c.pickupArea, 'Centro'),
+      _field('cfg-address-region', 'Província', c.region || c.state || c.province || ''),
+      _field('cfg-address-country', 'País', c.country || ''),
+      _field('cfg-address-reference', 'Referência / complemento', c.reference || c.complemento || ''),
       _field('cfg-phone', 'Telefone', c.phone, '+351...'),
       _field('cfg-email', 'E-mail', c.email, 'contato@...')
     ].join(''), function () {
       return {
         addressLine: _val('cfg-address-line'),
         pickupAddress: _val('cfg-address-line'),
+        number: _val('cfg-address-number'),
+        numero: _val('cfg-address-number'),
         pickupArea: _val('cfg-pickup-area'),
+        neighborhood: _val('cfg-pickup-area'),
         city: _val('cfg-city'),
         postalCode: _val('cfg-postal'),
+        region: _val('cfg-address-region'),
+        state: _val('cfg-address-region'),
+        province: _val('cfg-address-region'),
+        country: _val('cfg-address-country'),
+        reference: _val('cfg-address-reference'),
+        complemento: _val('cfg-address-reference'),
         phone: _val('cfg-phone'),
         email: _val('cfg-email')
       };
@@ -910,6 +931,7 @@ Modules.Configuracoes = (function () {
       _field('cfg-tpl-prep', 'Tempo de preparo (min)', c.prepTime || 45, '45', 'number'),
       _field('cfg-tpl-site', 'siteUrl', c.siteUrl, 'https://seudominio.com'),
       _field('cfg-tpl-pickup-address', 'pickupAddress', c.pickupAddress, 'Rua...'),
+      _field('cfg-tpl-pickup-number', 'Número', c.pickupNumber || c.number || ''),
       _field('cfg-tpl-pickup-area', 'pickupArea', c.pickupArea, 'Centro'),
       _field('cfg-tpl-highlight', 'Produto destaque ID', c.destaqueProductId, 'ID do produto'),
       _textarea('cfg-tpl-hours', 'hours (JSON)', _json(c.hours || []), '[{"enabled":true,"open":"11:00","close":"22:00"}]'),
@@ -922,6 +944,7 @@ Modules.Configuracoes = (function () {
         prepTime: parseInt(_val('cfg-tpl-prep')) || 45,
         siteUrl: _val('cfg-tpl-site'),
         pickupAddress: _val('cfg-tpl-pickup-address'),
+        pickupNumber: _val('cfg-tpl-pickup-number'),
         pickupArea: _val('cfg-tpl-pickup-area'),
         destaqueProductId: _val('cfg-tpl-highlight'),
         hours: _parseJson('cfg-tpl-hours', []),
