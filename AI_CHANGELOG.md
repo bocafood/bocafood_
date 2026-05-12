@@ -1,5 +1,11 @@
 # AI Changelog
 
+## 2026-05-12 — Carregamento seguro da identidade no Admin
+- Arquivos alterados: `public/admin.html`, `public/js/core/auth.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Centro de Control.
+- Resumo do ajuste: o cartão de nome/avatar da loja agora inicia em estado neutro, só aplica dados depois da sessão atual e do tenant carregarem, e ignora respostas antigas de autenticação/configuração.
+- Impacto esperado: ao atualizar ou trocar login, o Admin não exibe nome/avatar antigo de outro usuário ou tenant antes dos dados atuais carregarem.
+
 ## 2026-05-12 — Redirecionamento do cc para Admin
 - Arquivos alterados: `public/index.html`, `AI_CHANGELOG.md`.
 - Módulo afetado: Centro de Control publicado.

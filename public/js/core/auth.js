@@ -5,6 +5,7 @@ window.Auth = (function () {
   let _currentUser = null;
   let _authReady = false;
   let _adminProfile = null;
+  let _authSessionSeq = 0;
   const MASTER_EMAIL = 'bocadobrasil.es@gmail.com';
   const BOOTSTRAP_ADMIN_EMAILS = ['bocadobrasil.es@gmail.com', 'pcruz.digital@gmail.com'];
 
@@ -22,9 +23,11 @@ window.Auth = (function () {
 
   function init() {
     firebase.auth().onAuthStateChanged(function (user) {
+      var sessionSeq = ++_authSessionSeq;
       _authReady = false;
       _currentUser = null;
       _adminProfile = null;
+      if (window.AdminApp && AdminApp.resetStoreIdentity) AdminApp.resetStoreIdentity();
       if (!user) {
         _authReady = true;
         if (window.Router) Router.resolve();
@@ -33,7 +36,7 @@ window.Auth = (function () {
 
       if (BOOTSTRAP_ADMIN_EMAILS.indexOf(user.email || '') >= 0) {
         _currentUser = user;
-        _adminProfile = { tenantId: user.uid, role: user.email === MASTER_EMAIL ? 'master_admin' : 'store_owner', bootstrap: true };
+        _adminProfile = { authUid: user.uid, uid: user.uid, tenantId: user.uid, role: user.email === MASTER_EMAIL ? 'master_admin' : 'store_owner', bootstrap: true, email: user.email || '' };
         _authReady = true;
         console.info('[Auth] bootstrap access granted', { email: user.email || '', uid: user.uid, role: _adminProfile.role });
         if (window.Router) Router.resolve();
@@ -44,6 +47,7 @@ window.Auth = (function () {
       var docPath = 'system_tenants/' + user.uid;
       console.info('[Auth] lookup system_tenants', { email: user.email || '', uid: user.uid, path: docPath });
       firebase.firestore().collection('system_tenants').doc(user.uid).get().then(function (snap) {
+        if (sessionSeq !== _authSessionSeq || !firebase.auth().currentUser || firebase.auth().currentUser.uid !== user.uid) return;
         var data = snap.exists ? (snap.data() || {}) : null;
         var role = data ? (data.role || 'pending_classification') : '';
         var normalizedRole = data ? normalizeRole(role) : '';
@@ -71,7 +75,7 @@ window.Auth = (function () {
 
         if (!deniedReason) {
           _currentUser = user;
-          _adminProfile = Object.assign({ tenantId: user.uid, role: normalizedRole || 'store_owner' }, data);
+          _adminProfile = Object.assign({ authUid: user.uid, uid: user.uid, tenantId: user.uid, role: normalizedRole || 'store_owner', email: user.email || '' }, data);
           console.info('[Auth] access granted', {
             email: user.email || '',
             uid: user.uid,
@@ -95,6 +99,7 @@ window.Auth = (function () {
           if (window.AdminApp && AdminApp.showAccessDenied) AdminApp.showAccessDenied(deniedReason);
         });
       }).catch(function (err) {
+        if (sessionSeq !== _authSessionSeq) return;
         console.error('[Auth] Erro ao verificar perfil do Centro de Control.', {
           email: user.email || '',
           uid: user.uid,
@@ -105,6 +110,7 @@ window.Auth = (function () {
           if (window.AdminApp && AdminApp.showAccessDenied) AdminApp.showAccessDenied('error');
         });
       }).finally(function () {
+        if (sessionSeq !== _authSessionSeq) return;
         _authReady = true;
         if (window.Router) Router.resolve();
         if (window.AdminApp && AdminApp.applyFiscalVisibility) AdminApp.applyFiscalVisibility();
@@ -117,6 +123,7 @@ window.Auth = (function () {
   }
 
   function logout() {
+    _authSessionSeq++;
     return firebase.auth().signOut();
   }
 

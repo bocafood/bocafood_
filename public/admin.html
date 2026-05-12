@@ -289,11 +289,11 @@ button,input,select,textarea{font-family:inherit}
     </nav>
     <div class="sidebar-footer">
       <div class="sidebar-store-card">
-        <div id="sidebar-store-avatar" class="sidebar-store-avatar">BF</div>
+        <div id="sidebar-store-avatar" class="sidebar-store-avatar">...</div>
         <div class="sidebar-store-meta">
-          <div class="sidebar-store-kicker">Conta ativa</div>
-          <div id="sidebar-store-name" class="sidebar-store-name">Minha loja</div>
-          <div id="sidebar-store-sub" class="sidebar-store-sub">Plano Starter</div>
+          <div class="sidebar-store-kicker">Carregando</div>
+          <div id="sidebar-store-name" class="sidebar-store-name">Carregando conta...</div>
+          <div id="sidebar-store-sub" class="sidebar-store-sub">Validando sessão</div>
         </div>
       </div>
       <div class="sidebar-footer-help">
@@ -385,11 +385,38 @@ button,input,select,textarea{font-family:inherit}
     return '<img src="' + String(url || '').replace(/"/g, '&quot;') + '" alt="">';
   }
 
+  function _adminIdentityToken(profile) {
+    profile = profile || {};
+    var user = Auth.getUser ? Auth.getUser() : null;
+    return [
+      user && user.uid ? user.uid : '',
+      profile.authUid || profile.uid || '',
+      profile.tenantId || '',
+      profile.updatedAt || '',
+      profile.email || (user && user.email) || ''
+    ].join('|');
+  }
+
+  function _adminResetStoreIdentity() {
+    var sidebarAvatar = document.getElementById('sidebar-store-avatar');
+    var sidebarName = document.getElementById('sidebar-store-name');
+    var sidebarSub = document.getElementById('sidebar-store-sub');
+    if (sidebarAvatar) sidebarAvatar.textContent = '...';
+    if (sidebarName) sidebarName.textContent = 'Carregando conta...';
+    if (sidebarSub) sidebarSub.textContent = 'Validando sessão';
+    window._adminStoreIdentityToken = '';
+  }
+
   function _adminApplyStoreIdentity(profile, template, geral) {
     profile = profile || {};
     template = template || {};
     geral = geral || {};
-    var storeName = template.publicStoreName || template.publicName || geral.businessName || profile.storeName || profile.businessName || profile.name || 'Minha loja';
+    var user = Auth.getUser ? Auth.getUser() : null;
+    var profileUid = profile.authUid || profile.uid || user.uid;
+    if (!user || !profile.tenantId || profileUid !== user.uid) return;
+    var token = _adminIdentityToken(profile);
+    if (window._adminStoreIdentityToken && window._adminStoreIdentityToken !== token) return;
+    var storeName = template.publicStoreName || template.publicName || geral.businessName || profile.storeName || profile.businessName || profile.name || user.email || 'Conta atual';
     var storeLogo = geral.avatarUrl || geral.storeAvatarUrl || geral.accountAvatarUrl || template.logoUrl || geral.logoUrl || profile.logoUrl || profile.logo || profile.avatarUrl || '';
     var plan = profile.plan ? String(profile.plan) : 'starter';
     var planLabel = ({ starter: 'Starter', pro: 'Pro', enterprise: 'Enterprise' })[plan] || plan;
@@ -407,9 +434,11 @@ button,input,select,textarea{font-family:inherit}
   }
 
   window.AdminApp = {
+    resetStoreIdentity: _adminResetStoreIdentity,
     showLogin: function () {
       document.getElementById('login-screen').style.display = 'flex';
       document.getElementById('admin-shell').style.display = 'none';
+      _adminResetStoreIdentity();
     },
     showApp: function () {
       document.getElementById('login-screen').style.display = 'none';
@@ -424,11 +453,25 @@ button,input,select,textarea{font-family:inherit}
         if (toggle) toggle.title = collapsed ? 'Abrir menu' : 'Encolher menu';
       }
       var profile = Auth.getAdminProfile ? Auth.getAdminProfile() : null;
-      _adminApplyStoreIdentity(profile, null, null);
+      if (!profile || !profile.tenantId) {
+        _adminResetStoreIdentity();
+        return;
+      }
+      var identityToken = _adminIdentityToken(profile);
+      if (window._adminStoreIdentityToken !== identityToken) _adminResetStoreIdentity();
+      window._adminStoreIdentityToken = identityToken;
       if (window.DB && typeof DB.getDocRoot === 'function') {
         Promise.all([DB.getDocRoot('config', 'template'), DB.getDocRoot('config', 'geral')]).then(function (docs) {
+          if (window._adminStoreIdentityToken !== identityToken) return;
+          var currentUser = Auth.getUser ? Auth.getUser() : null;
+          var profileUid = profile.authUid || profile.uid || '';
+          if (!currentUser || (profileUid && currentUser.uid !== profileUid)) return;
           _adminApplyStoreIdentity(profile, docs[0] || {}, docs[1] || {});
-        }).catch(function () {});
+        }).catch(function () {
+          if (window._adminStoreIdentityToken === identityToken) _adminApplyStoreIdentity(profile, null, null);
+        });
+      } else {
+        _adminApplyStoreIdentity(profile, null, null);
       }
       AdminApp.refreshStoreOnlineStatus();
       AdminApp.applyTpvVisibility();
