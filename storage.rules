@@ -9,25 +9,48 @@ service firebase.storage {
       return signedIn() && request.auth.uid == tenantId;
     }
 
+    function hasTenantProfile() {
+      return signedIn()
+        && firestore.exists(/databases/(default)/documents/system_tenants/$(request.auth.uid));
+    }
+
+    function canWriteTenant(tenantId) {
+      return ownsTenant(tenantId)
+        || (hasTenantProfile()
+          && firestore.get(/databases/(default)/documents/system_tenants/$(request.auth.uid)).data.tenantId == tenantId
+          && firestore.get(/databases/(default)/documents/system_tenants/$(request.auth.uid)).data.status == 'active'
+          && firestore.get(/databases/(default)/documents/system_tenants/$(request.auth.uid)).data.role in ['store_owner', 'tenant_owner', 'store_staff', 'manager', 'master_admin', 'master']);
+    }
+
     function validImage() {
       return request.resource != null
         && request.resource.size < 8 * 1024 * 1024
-        && request.resource.contentType.matches('image/.*');
+        && request.resource.contentType.matches('image/(jpeg|jpg|png|webp)');
     }
 
     match /tenants/{tenantId}/products/{productId}/{allPaths=**} {
       allow read: if true;
-      allow write: if ownsTenant(tenantId) && validImage();
+      allow write: if canWriteTenant(tenantId) && validImage();
+    }
+
+    match /tenants/{tenantId}/categories/{categoryId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if canWriteTenant(tenantId) && validImage();
     }
 
     match /tenants/{tenantId}/banners/{allPaths=**} {
       allow read: if true;
-      allow write: if ownsTenant(tenantId) && validImage();
+      allow write: if canWriteTenant(tenantId) && validImage();
+    }
+
+    match /tenants/{tenantId}/featured/{featuredId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if canWriteTenant(tenantId) && validImage();
     }
 
     match /tenants/{tenantId}/logos/{allPaths=**} {
       allow read: if true;
-      allow write: if ownsTenant(tenantId) && validImage();
+      allow write: if canWriteTenant(tenantId) && validImage();
     }
 
     match /{allPaths=**} {

@@ -1,5 +1,12 @@
 # AI Changelog
 
+## 2026-05-12 — Upload de imagens do Admin no Firebase Storage
+- Arquivos alterados: `public/js/core/image-tools.js`, `public/js/modules/catalogo.js`, `public/js/modules/configuracoes.js`, `js/core/image-tools.js`, `js/modules/catalogo.js`, `js/modules/configuracoes.js`, `storage.rules`, `AI_CHANGELOG.md`.
+- Módulo afetado: Admin, Catálogo, Configurações e Firebase Storage.
+- Resumo do ajuste: o helper central `ImageTools` passou a validar JPG/PNG/WebP até 8 MB, otimizar as imagens em WebP e enviar para paths multi-tenant no Firebase Storage. Produtos, categorias, banners, logos/avatar, favicon e imagens de destaque passam pelo mesmo fluxo, mantendo preview, timeout de upload e bloqueio de salvamento quando há upload de produto pendente.
+- Padrão de paths: `tenants/{tenantId}/products/{productId}/{filename}`, `tenants/{tenantId}/categories/{categoryId}/{filename}`, `tenants/{tenantId}/banners/{bannerId}/{filename}`, `tenants/{tenantId}/logos/{filename}` e `tenants/{tenantId}/featured/{id}/{filename}`.
+- Compatibilidade: leituras antigas por `imageUrl`, `imageCardUrl`, `imageThumbUrl`, `logoUrl`, `bannerUrl` e storage paths legados foram mantidas; produtos antigos sem imagem continuam usando fallback visual. As regras de Storage aceitam o tenant do próprio `uid` ou o `tenantId` ativo mapeado em `system_tenants/{uid}`.
+
 ## 2026-05-12 — Migração para Google Places Autocomplete novo
 - Arquivos alterados: `public/js/core/db.js`, `public/js/modules/compras.js`, `public/js/modules/configuracoes.js`, `public/js/modules/clientes.js`, `public/js/modules/catalogo.js`, `js/core/db.js`, `js/modules/compras.js`, `js/modules/configuracoes.js`, `js/modules/clientes.js`, `js/modules/catalogo.js`, `js/modules/operacao.js`, `AI_CHANGELOG.md`.
 - Módulo afetado: Configurações, Compras, Clientes, Catálogo/Template e Operação local.
