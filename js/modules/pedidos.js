@@ -2789,6 +2789,7 @@ Modules.Pedidos = (function () {
     if (paymentStatus === 'pago') paidAmount = total;
     if (paymentStatus !== 'parcial') paidAmount = paymentStatus === 'pago' ? total : 0;
 
+    if (!(name || phone) && _fold(_manualOrderState.channel) === 'tpv') name = 'Cliente balcão';
     if (!(name || phone)) { UI.toast('Informe o nome ou telefone do cliente', 'error'); return; }
     if (!type) { UI.toast('Tipo do pedido obrigatório', 'error'); return; }
     if (!items.length) { UI.toast('Selecione ao menos um produto', 'error'); return; }
@@ -2864,6 +2865,9 @@ Modules.Pedidos = (function () {
 
   function _orderContext() {
     var route = String((window.Router && typeof Router.current === 'function' && Router.current()) || location.hash.replace(/^#/, '') || '').toLowerCase();
+    if (route.indexOf('venda-presencial') === 0 || route.indexOf('tpv') === 0) {
+      return { channel: 'TPV', source: 'TPV', type: 'pickup', paymentStatus: 'pago' };
+    }
     if (route.indexOf('pedidos/cozinha') === 0 || route.indexOf('pedidos/lista') === 0) {
       return { channel: 'cardapio', source: 'cardapio' };
     }
@@ -2890,11 +2894,11 @@ Modules.Pedidos = (function () {
     _manualOrderState.customerZone = '';
     _manualOrderState.customerPreferences = '';
     _manualOrderState.customerNotes = '';
-    _manualOrderState.type = 'delivery';
+    _manualOrderState.type = context.type || 'delivery';
     _manualOrderState.channel = context.channel || 'manual';
     _manualOrderState.source = context.source || 'manual';
     _manualOrderState.paymentMethod = '';
-    _manualOrderState.paymentStatus = 'previsto';
+    _manualOrderState.paymentStatus = context.paymentStatus || 'previsto';
     _manualOrderState.paidAmount = 0;
     _manualOrderState.orderTime = _currentTimeValue();
     _manualOrderState.deliveryDate = '';
@@ -3704,6 +3708,76 @@ Modules.Pedidos = (function () {
     setTimeout(function () { if (window.BocaPlaces) BocaPlaces.init('mo-address'); }, 300);
   }
 
+  function _openTpvOrder() {
+    return _loadMeta().then(function () {
+      _openNewOrder();
+    }).catch(function () {
+      _openNewOrder();
+    });
+  }
+
+  function _createTpvOrder(data) {
+    data = data || {};
+    var items = Array.isArray(data.items) ? data.items : [];
+    var total = _num(data.total);
+    if (!items.length) return Promise.reject(new Error('Selecione ao menos um produto'));
+    if (!(total > 0)) return Promise.reject(new Error('O total final precisa ser maior que zero'));
+    var orderTime = _normalizeTimeValue(data.orderTime || _currentTimeValue());
+    var paymentStatus = String(data.paymentStatus || 'pago');
+    var paymentMethod = String(data.paymentMethod || '');
+    var paidAmount = paymentStatus === 'pago' ? total : _num(data.paidAmount || 0);
+    var payload = {
+      customerId: String(data.customerId || ''),
+      customerName: String(data.customerName || 'Cliente balcão'),
+      customerPhone: String(data.customerPhone || ''),
+      customerEmail: String(data.customerEmail || ''),
+      address: '',
+      zone: '',
+      type: 'pickup',
+      slot: '',
+      note: String(data.note || ''),
+      status: 'Pendente',
+      items: items,
+      subtotalOriginal: _num(data.subtotalOriginal != null ? data.subtotalOriginal : data.subtotal),
+      subtotal: _num(data.subtotal != null ? data.subtotal : data.subtotalOriginal),
+      subtotalFinal: _num(data.subtotalFinal != null ? data.subtotalFinal : data.subtotal),
+      promoDiscountTotal: _num(data.promoDiscountTotal || 0),
+      discountTotal: _num(data.discountTotal || data.promoDiscountTotal || 0),
+      shippingFee: 0,
+      manualAdjustmentValue: _num(data.manualAdjustmentValue || 0),
+      total: total,
+      paymentMethod: paymentMethod,
+      paymentStatus: paymentStatus,
+      paymentState: paymentStatus,
+      paidAmount: paidAmount,
+      amountPaid: paidAmount,
+      valuePaid: paidAmount,
+      paid: paymentStatus === 'pago' ? true : (paymentStatus === 'parcial' ? paidAmount : false),
+      deliveryDate: '',
+      deliveryTime: '',
+      orderTime: orderTime,
+      saleTime: orderTime,
+      createdTime: orderTime,
+      analyticsTime: orderTime,
+      analyticsHour: _timeHour(orderTime),
+      orderHour: _timeHour(orderTime),
+      channel: 'TPV',
+      source: 'TPV',
+      originChannel: 'TPV',
+      originSource: 'TPV',
+      priceOrigin: 'manual',
+      manualAdjustment: true,
+      createdAt: _manualOrderCreatedAt(orderTime)
+    };
+    return DB.add('orders', payload).then(function (ref) {
+      var createdId = (ref && ref.id) ? String(ref.id) : '';
+      if (createdId) payload.id = createdId;
+      return _syncOrderFinanceMovement(createdId || '', payload).then(function () {
+        return payload;
+      });
+    });
+  }
+
   function _manualOrderPhonePlaceholder() {
     var country = _fold(_firstText(_generalConfig.country, _generalConfig.pais, _generalConfig.countryName, ''));
     if (country.indexOf('espa') >= 0) return '+34...';
@@ -4051,7 +4125,7 @@ Modules.Pedidos = (function () {
     _showDetailWhatsappPrompt: _showDetailWhatsappPrompt, _hideDetailWhatsappPrompt: _hideDetailWhatsappPrompt,
     _sendDetailWhatsapp: _sendDetailWhatsapp,
     _saveKitchenDetail: _saveKitchenDetail, _waFromDetail: _waFromDetail, _waFromKitchenDetail: _waFromKitchenDetail, _whatsapp: _whatsapp, _cancelOrder: _cancelOrder,
-    _openNewOrder: _openNewOrder, _saveNewOrder: _saveNewOrder,
+    _openNewOrder: _openNewOrder, _openTpvOrder: _openTpvOrder, _createTpvOrder: _createTpvOrder, _saveNewOrder: _saveNewOrder,
     _manualOrderSearchCustomers: _manualOrderSearchCustomers,
     _manualOrderSearchItems: _manualOrderSearchItems,
     _manualOrderField: _manualOrderField,

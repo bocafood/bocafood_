@@ -98,15 +98,18 @@ Modules.Dinheiro = (function () {
   function _normalizeChannels(c) {
     var list = Array.isArray(c.list) ? c.list : [];
     var hasCardapio = list.some(function (ch) { return _isCardapioChannel(ch); });
+    var hasTpv = list.some(function (ch) { return _isTpvChannel(ch); });
     if (!hasCardapio) list.unshift({ name: 'Cardápio', commissionPct: 0, fixedFee: 0, taxPct: 0, locked: true });
+    if (!hasTpv) list.splice(1, 0, { name: 'TPV', commissionPct: 0, fixedFee: 0, taxPct: 0, locked: true });
     return list.map(function (ch) {
       var cardapio = _isCardapioChannel(ch);
+      var tpv = _isTpvChannel(ch);
       return {
-        name: cardapio ? 'Cardápio' : (ch.name || ''),
-        commissionPct: cardapio ? 0 : _num(ch.commissionPct),
-        fixedFee: cardapio ? 0 : _num(ch.fixedFee),
-        taxPct: cardapio ? 0 : _num(ch.taxPct),
-        locked: cardapio || !!ch.locked
+        name: cardapio ? 'Cardápio' : (tpv ? 'TPV' : (ch.name || '')),
+        commissionPct: (cardapio || tpv) ? 0 : _num(ch.commissionPct),
+        fixedFee: (cardapio || tpv) ? 0 : _num(ch.fixedFee),
+        taxPct: (cardapio || tpv) ? 0 : _num(ch.taxPct),
+        locked: cardapio || tpv || !!ch.locked
       };
     });
   }
@@ -369,9 +372,14 @@ Modules.Dinheiro = (function () {
     return name === 'cardapio' || name === 'catalogo';
   }
 
+  function _isTpvChannel(channel) {
+    var name = String((channel || {}).name || '').toLowerCase().trim();
+    return name === 'tpv';
+  }
+
   function _isOwnChannel(channel) {
     var name = String((channel || {}).name || '').toLowerCase();
-    return !name || name === 'loja própria' || name === 'loja propria' || _isCardapioChannel(channel);
+    return !name || name === 'loja própria' || name === 'loja propria' || _isCardapioChannel(channel) || _isTpvChannel(channel);
   }
 
   function _pushFee(list, label, value, color, percentBase) {
