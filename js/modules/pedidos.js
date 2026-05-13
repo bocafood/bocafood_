@@ -2796,11 +2796,27 @@ Modules.Pedidos = (function () {
     if (!(total > 0)) { UI.toast('O total final precisa ser maior que zero', 'error'); return; }
 
     var saveOrder = function () {
+      _ensureManualOrderCustomer({
+        customerId: _manualOrderState.selectedCustomerId || _manualOrderState.customerId || '',
+        name: name,
+        phone: phone,
+        email: email,
+        address: address,
+        zone: zone,
+        channel: channel,
+        note: note
+      }).then(function (customerId) {
       var payload = {
-        customerId: String(_manualOrderState.selectedCustomerId || ''),
+        customerId: String(customerId || ''),
+        clientId: String(customerId || ''),
         customerName: name,
+        clientName: name,
+        name: name,
         customerPhone: phone,
+        phone: phone,
+        whatsapp: phone,
         customerEmail: email,
+        email: email,
         address: address,
         zone: zone,
         type: type,
@@ -2850,6 +2866,7 @@ Modules.Pedidos = (function () {
         if (window._newOrderModal) window._newOrderModal.close();
       }).catch(function (err) {
         UI.toast('Erro: ' + (err && err.message ? err.message : 'falha ao salvar'), 'error');
+      });
       });
     };
 
@@ -3810,6 +3827,70 @@ Modules.Pedidos = (function () {
     var d = new Date();
     d.setHours(_timeHour(time), parseInt(time.slice(3, 5), 10) || 0, 0, 0);
     return d.toISOString();
+  }
+
+  function _ensureManualOrderCustomer(data) {
+    data = data || {};
+    var selectedId = String(data.customerId || '').trim();
+    var name = String(data.name || '').trim();
+    var phone = String(data.phone || '').trim();
+    var email = String(data.email || '').trim();
+    var address = String(data.address || '').trim();
+    var zone = String(data.zone || '').trim();
+    var channel = String(data.channel || 'manual').trim() || 'manual';
+    var note = String(data.note || '').trim();
+    var phoneKey = _phone(phone);
+    var emailKey = _clean(email);
+
+    if (selectedId) return Promise.resolve(selectedId);
+    if (!(name || phone || email)) return Promise.resolve('');
+
+    return DB.getAll('store_customers').catch(function () { return _customers || []; }).then(function (rows) {
+      var list = Array.isArray(rows) ? rows : [];
+      var match = list.find(function (c) {
+        if (phoneKey && _phone(c.phone || c.whatsapp || '') === phoneKey) return true;
+        if (!phoneKey && emailKey && _clean(c.email || '') === emailKey) return true;
+        return false;
+      }) || null;
+      var payload = {
+        name: name || (match && match.name) || phone || email || 'Cliente',
+        phone: phone || (match && (match.phone || match.whatsapp)) || '',
+        whatsapp: phone || (match && (match.whatsapp || match.phone)) || '',
+        email: email || (match && match.email) || '',
+        address: address || (match && match.address) || '',
+        neighborhood: zone || (match && (match.neighborhood || match.zone)) || '',
+        zone: zone || (match && (match.zone || match.neighborhood)) || '',
+        status: (match && match.status) || 'ativo',
+        origin: (match && match.origin) || channel,
+        mainChannel: (match && (match.mainChannel || match.channelName || match.channel)) || channel,
+        channelName: (match && (match.channelName || match.mainChannel || match.channel)) || channel,
+        acceptsMarketing: match ? !!match.acceptsMarketing : false,
+        preferences: (match && match.preferences) || '',
+        allergies: (match && match.allergies) || '',
+        notes: (match && (match.notes || match.internalNotes)) || note,
+        internalNotes: (match && (match.internalNotes || match.notes)) || note,
+        points: match && match.points ? match.points : 0,
+        ordersCount: match && match.ordersCount ? match.ordersCount : 0,
+        totalSpent: match && match.totalSpent ? match.totalSpent : 0,
+        totalOrders: match && match.totalOrders ? match.totalOrders : 0
+      };
+      var op = match && match.id ? DB.update('store_customers', match.id, payload).then(function () { return match.id; }) : DB.add('store_customers', payload).then(function (ref) {
+        return ref && ref.id ? ref.id : ref;
+      });
+      return op.then(function (customerId) {
+        customerId = String(customerId || '');
+        if (customerId) {
+          var next = Object.assign({}, payload, { id: customerId });
+          var idx = (_customers || []).findIndex(function (c) { return String(c.id || '') === customerId; });
+          if (idx >= 0) _customers[idx] = Object.assign({}, _customers[idx], next);
+          else _customers.push(next);
+        }
+        return customerId;
+      });
+    }).catch(function (err) {
+      console.warn('Manual order customer sync skipped', err);
+      return '';
+    });
   }
 
   function _manualOrderCanSubmit() {

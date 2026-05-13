@@ -12,9 +12,11 @@ window.UI = (function () {
     if (!el) {
       el = document.createElement('div');
       el.id = 'ui-toast';
+      el.className = 'bf-toast';
       el.style.cssText = 'position:fixed;top:20px;right:20px;z-index:9999;padding:12px 20px;border-radius:10px;color:#fff;font-size:14px;font-weight:600;max-width:320px;box-shadow:0 4px 20px rgba(0,0,0,.2);transition:opacity .3s,transform .3s;opacity:0;transform:translateY(-8px);pointer-events:none;font-family:inherit;';
       document.body.appendChild(el);
     }
+    el.className = 'bf-toast bf-toast-' + type;
     el.textContent = msg;
     el.style.background = colors[type] || colors.success;
     el.style.opacity = '1';
@@ -32,12 +34,13 @@ window.UI = (function () {
   function confirm(msg) {
     return new Promise(function (resolve) {
       var overlay = document.createElement('div');
+      overlay.className = 'bf-confirm-backdrop';
       overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:8000;display:flex;align-items:center;justify-content:center;padding:20px;';
-      overlay.innerHTML = '<div style="background:#fff;border-radius:16px;padding:28px;max-width:380px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);">' +
-        '<p style="font-size:16px;font-weight:600;color:#1a1a1a;margin-bottom:24px;line-height:1.5;">' + msg + '</p>' +
-        '<div style="display:flex;gap:10px;">' +
-        '<button id="ui-confirm-no" style="flex:1;padding:12px;border-radius:10px;border:1.5px solid #D4C8C6;background:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Cancelar</button>' +
-        '<button id="ui-confirm-yes" style="flex:1;padding:12px;border-radius:10px;border:none;background:#C4362A;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Confirmar</button>' +
+      overlay.innerHTML = '<div class="bf-confirm" style="background:#fff;border-radius:16px;padding:28px;max-width:380px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);">' +
+        '<p class="bf-confirm-message" style="font-size:16px;font-weight:600;color:#1a1a1a;margin-bottom:24px;line-height:1.5;">' + msg + '</p>' +
+        '<div class="bf-confirm-actions" style="display:flex;gap:10px;">' +
+        '<button id="ui-confirm-no" class="bf-btn bf-btn-secondary" style="flex:1;padding:12px;border-radius:10px;border:1.5px solid #D4C8C6;background:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Cancelar</button>' +
+        '<button id="ui-confirm-yes" class="bf-btn bf-btn-primary" style="flex:1;padding:12px;border-radius:10px;border:none;background:#C4362A;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Confirmar</button>' +
         '</div></div>';
       document.body.appendChild(overlay);
       overlay.querySelector('#ui-confirm-yes').onclick = function () { document.body.removeChild(overlay); resolve(true); };
@@ -49,15 +52,16 @@ window.UI = (function () {
   // ── Generic Modal ──────────────────────────────────────────────────────────
   function modal(opts) {
     var overlay = document.createElement('div');
+    overlay.className = 'bf-modal-backdrop';
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:7000;display:flex;align-items:center;justify-content:center;padding:16px;opacity:0;transition:opacity .25s;';
     var maxW = opts.maxWidth || '560px';
-    overlay.innerHTML = '<div style="background:#fff;border-radius:16px;width:100%;max-width:' + maxW + ';max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);transition:transform .25s;transform:scale(.96);">' +
-      '<div style="padding:24px 24px 0;display:flex;align-items:center;justify-content:space-between;">' +
-      '<h2 style="font-family:\'League Spartan\',sans-serif;font-size:20px;font-weight:800;">' + (opts.title || '') + '</h2>' +
-      '<button class="ui-modal-close" style="background:#F2EDED;border:none;border-radius:50%;width:32px;height:32px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">✕</button>' +
+    overlay.innerHTML = '<div class="bf-modal" style="background:#fff;border-radius:16px;width:100%;max-width:' + maxW + ';max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);transition:transform .25s;transform:scale(.96);">' +
+      '<div class="bf-modal-head" style="padding:24px 24px 0;display:flex;align-items:center;justify-content:space-between;">' +
+      '<h2 class="bf-modal-title" style="font-family:inherit;font-size:20px;font-weight:800;">' + (opts.title || '') + '</h2>' +
+      '<button class="ui-modal-close bf-modal-close" style="background:#F2EDED;border:none;border-radius:50%;width:32px;height:32px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">✕</button>' +
       '</div>' +
-      '<div style="padding:20px 24px;">' + (opts.body || '') + '</div>' +
-      (opts.footer ? '<div style="padding:0 24px 24px;">' + opts.footer + '</div>' : '') +
+      '<div class="bf-modal-body" style="padding:20px 24px;">' + (opts.body || '') + '</div>' +
+      (opts.footer ? '<div class="bf-modal-foot" style="padding:0 24px 24px;">' + opts.footer + '</div>' : '') +
       '</div>';
     document.body.appendChild(overlay);
 
@@ -85,7 +89,8 @@ window.UI = (function () {
     if (!el) {
       el = document.createElement('div');
       el.id = 'ui-loading';
-      el.innerHTML = '<div style="width:44px;height:44px;border:4px solid rgba(196,54,42,.2);border-top-color:#C4362A;border-radius:50%;animation:uiSpin .7s linear infinite;"></div>';
+      el.className = 'bf-loading';
+      el.innerHTML = '<div class="bf-loading-spinner" style="width:44px;height:44px;border:4px solid rgba(196,54,42,.2);border-top-color:#C4362A;border-radius:50%;animation:uiSpin .7s linear infinite;"></div>';
       el.style.cssText = 'position:fixed;inset:0;background:rgba(255,255,255,.75);z-index:9998;display:flex;align-items:center;justify-content:center;';
       if (!document.getElementById('ui-spin-style')) {
         var style = document.createElement('style');
