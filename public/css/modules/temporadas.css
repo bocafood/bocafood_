@@ -124,6 +124,1102 @@
   font-size: 17px;
 }
 
+.stones-card {
+  margin: 18px 24px 0;
+  --stone-accent: #8A6F5A;
+  --stone-accent-soft: #F5EFE6;
+  --stone-accent-line: #E7DDD1;
+  --stone-accent-shadow: rgba(138, 111, 90, .18);
+  background:
+    radial-gradient(circle at 10% 0%, color-mix(in srgb, var(--stone-accent) 14%, transparent), transparent 32%),
+    linear-gradient(135deg, rgba(255, 255, 255, .99), rgba(250, 248, 244, .96));
+  border: 1px solid color-mix(in srgb, var(--stone-accent-line) 80%, #EAE4DA);
+  border-radius: 20px;
+  box-shadow: 0 18px 44px rgba(31, 31, 31, .07);
+  padding: 22px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: stretch;
+  overflow: hidden;
+  position: relative;
+}
+
+.stones-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-top: 4px solid var(--stone-accent);
+  opacity: .72;
+  pointer-events: none;
+}
+
+.stones-card .seasons-section-label {
+  color: var(--stone-accent);
+}
+
+.stones-card-main {
+  grid-column: 1 / -1;
+  border: 1px solid color-mix(in srgb, var(--stone-accent-line) 78%, #EAE4DA);
+  background:
+    radial-gradient(circle at 5% 10%, color-mix(in srgb, var(--stone-accent) 13%, transparent), transparent 32%),
+    linear-gradient(135deg, rgba(255, 255, 255, .90), rgba(255, 255, 255, .66));
+  border-radius: 18px;
+  padding: 18px;
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  min-width: 0;
+  position: relative;
+  z-index: 1;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .82);
+}
+
+.stones-symbol {
+  width: 108px;
+  height: 108px;
+  border-radius: 32px;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255, 255, 255, .94), transparent 38%),
+    linear-gradient(145deg, #fff, var(--stone-accent-soft));
+  border: 1px solid var(--stone-accent-line);
+  color: var(--stone-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .9), 0 22px 42px var(--stone-accent-shadow);
+  flex: 0 0 auto;
+}
+
+.stone-theme-pedra-bruta {
+  --stone-accent: #8A6F5A;
+  --stone-accent-soft: #F5EFE6;
+  --stone-accent-line: #E7DDD1;
+  --stone-accent-shadow: rgba(138, 111, 90, .16);
+}
+
+.stone-theme-quartzo {
+  --stone-accent: #8A6F5A;
+  --stone-accent-soft: #F8F3EA;
+  --stone-accent-line: #E7DDD1;
+  --stone-accent-shadow: rgba(138, 111, 90, .16);
+}
+
+.stone-theme-ametista {
+  --stone-accent: #6D28D9;
+  --stone-accent-soft: #F5F3FF;
+  --stone-accent-line: #DDD6FE;
+  --stone-accent-shadow: rgba(109, 40, 217, .18);
+}
+
+.stone-theme-safira {
+  --stone-accent: #1D4ED8;
+  --stone-accent-soft: #EFF6FF;
+  --stone-accent-line: #BFDBFE;
+  --stone-accent-shadow: rgba(29, 78, 216, .18);
+}
+
+.stone-theme-esmeralda {
+  --stone-accent: #047857;
+  --stone-accent-soft: #ECFDF5;
+  --stone-accent-line: #BBF7D0;
+  --stone-accent-shadow: rgba(4, 120, 87, .18);
+}
+
+.stone-theme-rubi {
+  --stone-accent: #B42318;
+  --stone-accent-soft: #FFF1F2;
+  --stone-accent-line: #FECACA;
+  --stone-accent-shadow: rgba(180, 35, 24, .18);
+}
+
+.stone-theme-diamante {
+  --stone-accent: #0369A1;
+  --stone-accent-soft: #E0F2FE;
+  --stone-accent-line: #BAE6FD;
+  --stone-accent-shadow: rgba(3, 105, 161, .18);
+}
+
+.stone-theme-onix {
+  --stone-accent: #111827;
+  --stone-accent-soft: #F3F4F6;
+  --stone-accent-line: #D1D5DB;
+  --stone-accent-shadow: rgba(17, 24, 39, .20);
+}
+
+.stones-evolution-path .stone-theme-quartzo {
+  color: #8A6F5A;
+  border-color: #E7DDD1;
+  background: linear-gradient(135deg, #FFFFFF, #F5EFE6);
+}
+
+.stones-evolution-path .stone-theme-ametista {
+  color: #6D28D9;
+  border-color: #DDD6FE;
+  background: linear-gradient(135deg, #FFFFFF, #F5F3FF);
+}
+
+.stones-evolution-path .stone-theme-safira {
+  color: #1D4ED8;
+  border-color: #BFDBFE;
+  background: linear-gradient(135deg, #FFFFFF, #EFF6FF);
+}
+
+.stones-evolution-path .stone-theme-esmeralda {
+  color: #047857;
+  border-color: #BBF7D0;
+  background: linear-gradient(135deg, #FFFFFF, #ECFDF5);
+}
+
+.stones-evolution-path .stone-theme-rubi {
+  color: #B42318;
+  border-color: #FECACA;
+  background: linear-gradient(135deg, #FFFFFF, #FFF1F2);
+}
+
+.stones-evolution-path .stone-theme-diamante {
+  color: #0369A1;
+  border-color: #BAE6FD;
+  background: linear-gradient(135deg, #FFFFFF, #E0F2FE);
+}
+
+.stones-evolution-path .stone-theme-onix {
+  color: #111827;
+  border-color: #D1D5DB;
+  background: linear-gradient(135deg, #FFFFFF, #F3F4F6);
+}
+
+.stones-gem {
+  --gem-size: 54px;
+  width: var(--gem-size);
+  height: var(--gem-size);
+  position: relative;
+  display: inline-block;
+  color: var(--stone-accent);
+  filter: drop-shadow(0 13px 18px var(--stone-accent-shadow));
+  transform: rotate(-2deg);
+}
+
+.stones-gem-large {
+  --gem-size: 68px;
+}
+
+.stones-gem-md {
+  --gem-size: 42px;
+}
+
+.stones-gem-small {
+  --gem-size: 23px;
+  filter: drop-shadow(0 4px 7px rgba(31, 31, 31, .08));
+}
+
+.stones-gem::before,
+.stones-gem::after {
+  content: "";
+  position: absolute;
+  display: block;
+}
+
+.stones-gem::before {
+  inset: 3%;
+  border-radius: 26% 28% 38% 36%;
+  background:
+    radial-gradient(circle at 32% 22%, rgba(255, 255, 255, .86) 0 10%, transparent 24%),
+    linear-gradient(145deg, rgba(255, 255, 255, .54), transparent 36%),
+    linear-gradient(135deg, currentColor 0%, currentColor 44%, color-mix(in srgb, currentColor 62%, #111827) 100%);
+  clip-path: polygon(25% 3%, 75% 3%, 96% 32%, 51% 98%, 4% 32%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .78),
+    inset -10px -12px 18px rgba(31, 31, 31, .18),
+    inset 10px 9px 20px rgba(255, 255, 255, .22);
+}
+
+.stones-gem::after {
+  left: 21%;
+  top: 16%;
+  width: 24%;
+  height: 18%;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .76);
+  filter: blur(.2px);
+  transform: rotate(-22deg);
+}
+
+.stones-gem i {
+  position: absolute;
+  display: block;
+  z-index: 1;
+  background: rgba(255, 255, 255, .28);
+  mix-blend-mode: screen;
+}
+
+.stones-gem-top {
+  left: 27%;
+  top: 8%;
+  width: 46%;
+  height: 25%;
+  clip-path: polygon(12% 0, 88% 0, 100% 100%, 0 100%);
+  opacity: .62;
+}
+
+.stones-gem-left {
+  left: 8%;
+  top: 33%;
+  width: 43%;
+  height: 54%;
+  clip-path: polygon(0 0, 100% 0, 78% 100%, 34% 100%);
+  opacity: .32;
+}
+
+.stones-gem-right {
+  right: 8%;
+  top: 33%;
+  width: 43%;
+  height: 54%;
+  clip-path: polygon(0 0, 100% 0, 66% 100%, 22% 100%);
+  opacity: .2;
+}
+
+.stones-gem-core {
+  left: 35%;
+  top: 33%;
+  width: 30%;
+  height: 52%;
+  clip-path: polygon(0 0, 100% 0, 62% 100%, 38% 100%);
+  background: rgba(255, 255, 255, .42) !important;
+  opacity: .72;
+}
+
+.stones-copy {
+  min-width: 0;
+  padding-top: 3px;
+  flex: 1;
+}
+
+.stones-copy h2 {
+  margin: 0;
+  color: #1F1F1F;
+  font-size: 36px;
+  font-weight: 900;
+  line-height: 1.05;
+}
+
+.stones-copy p {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+  max-width: 760px;
+}
+
+.stones-status-chips {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.stones-status-chips span {
+  min-height: 52px;
+  border: 1px solid color-mix(in srgb, var(--stone-accent-line) 80%, #EAE4DA);
+  background: rgba(255, 255, 255, .82);
+  border-radius: 16px;
+  padding: 9px 12px;
+  display: grid;
+  gap: 3px;
+  min-width: 128px;
+  box-shadow: 0 8px 18px rgba(31, 31, 31, .035);
+}
+
+.stones-status-chips small {
+  color: #8A7E7C;
+  font-size: 9.5px;
+  font-weight: 900;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.stones-status-chips strong {
+  color: var(--stone-accent);
+  font-size: 13.5px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.stones-note {
+  display: block;
+  margin-top: 8px;
+  color: #A39B90;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.stones-progress-panel {
+  grid-column: 1 / -1;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .92), rgba(255, 255, 255, .76)),
+    radial-gradient(circle at 12% 0%, var(--stone-accent-soft), transparent 38%);
+  border: 1px solid color-mix(in srgb, var(--stone-accent-line) 82%, #EAE4DA);
+  border-radius: 18px;
+  padding: 18px 18px 16px;
+  display: grid;
+  gap: 15px;
+  min-width: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.stones-progress-top,
+.stones-progress-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.stones-progress-top span,
+.stones-progress-meta span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.stones-progress-top strong,
+.stones-progress-meta strong {
+  color: var(--stone-accent);
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.stones-progress-line {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(240, 234, 225, .92);
+  overflow: hidden;
+  box-shadow: inset 0 1px 2px rgba(31, 31, 31, .06);
+}
+
+.stones-progress-line span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--stone-accent), color-mix(in srgb, var(--stone-accent) 55%, #B6925E));
+  min-width: 0;
+}
+
+.stones-journey {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 10px;
+  align-items: stretch;
+}
+
+.stones-journey-step {
+  position: relative;
+  min-width: 0;
+  border: 1px solid #EEE7DC;
+  background: rgba(252, 250, 247, .82);
+  border-radius: 16px;
+  padding: 12px 8px 11px;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  color: #A39B90;
+  opacity: .58;
+}
+
+.stones-journey-step::after {
+  content: "";
+  position: absolute;
+  top: 25px;
+  left: calc(100% + 2px);
+  width: 8px;
+  height: 2px;
+  background: #E2D8CB;
+}
+
+.stones-journey-step:last-child::after {
+  display: none;
+}
+
+.stones-journey-mark {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #FFFFFF, #F5EFE6);
+  border: 1px solid #E7DDD1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .85);
+}
+
+.stones-journey-step strong {
+  display: block;
+  width: 100%;
+  color: inherit;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1.15;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stones-journey-step small {
+  display: block;
+  color: inherit;
+  font-size: 9.5px;
+  font-weight: 800;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.stones-journey-done {
+  opacity: .96;
+  background: #FFFFFF;
+  color: var(--stone-accent);
+  border-color: var(--stone-accent-line);
+}
+
+.stones-journey-done::after {
+  background: var(--stone-accent);
+}
+
+.stones-journey-current {
+  opacity: 1;
+  color: var(--stone-accent);
+  background:
+    radial-gradient(circle at 50% 0%, var(--stone-accent-soft), transparent 60%),
+    linear-gradient(180deg, #FFFFFF 0%, #FAF8F4 100%);
+  border-color: var(--stone-accent);
+  box-shadow: 0 12px 24px var(--stone-accent-shadow);
+  transform: translateY(-2px);
+}
+
+.stones-journey-current .stones-journey-mark {
+  background: linear-gradient(180deg, #FFFFFF, var(--stone-accent-soft));
+  border-color: currentColor;
+  box-shadow:
+    0 0 0 4px var(--stone-accent-soft),
+    0 10px 20px rgba(31, 31, 31, .10);
+}
+
+.stones-journey-future {
+  filter: grayscale(.25);
+}
+
+.stones-insights {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.stones-insight-list {
+  background: #fff;
+  border: 1px solid #EAE4DA;
+  border-radius: 16px;
+  padding: 14px 15px;
+  box-shadow: 0 1px 2px rgba(31, 31, 31, .03);
+}
+
+.stones-insight-list h3 {
+  margin: 0 0 9px;
+  color: var(--stone-accent);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.stones-insight-list ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.stones-card-loading {
+  grid-template-columns: 1fr;
+}
+
+.stones-evolution-card {
+  grid-column: 1 / -1;
+  border: 1px solid #EAE4DA;
+  background: #fff;
+  border-radius: 16px;
+  padding: 15px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+}
+
+.stones-evolution-empty {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.stones-evolution-path {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+
+.stones-evolution-path span {
+  border: 1px solid #EAE4DA;
+  border-radius: 999px;
+  padding: 7px 10px;
+  color: #8A6F5A;
+  background: #FAF8F4;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.stones-evolution-path b {
+  color: var(--muted);
+  font-size: 16px;
+}
+
+.stones-evolution-copy h3,
+.stones-evolution-empty h3 {
+  margin: 0;
+  color: var(--dark);
+  font-size: 15px;
+  line-height: 1.25;
+  font-weight: 900;
+}
+
+.stones-evolution-copy p,
+.stones-evolution-empty p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.stones-evolution-copy small {
+  display: block;
+  margin-top: 5px;
+  color: #A39B90;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.stones-checklist {
+  grid-column: 1 / -1;
+  background: #fff;
+  border: 1px solid #EAE4DA;
+  border-radius: 16px;
+  padding: 15px;
+}
+
+.stones-checklist-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.stones-checklist-head h3 {
+  margin: 0;
+  color: var(--dark);
+  font-size: 15px;
+  line-height: 1.25;
+  font-weight: 900;
+}
+
+.stones-checklist-head small {
+  border: 1px solid #EAE4DA;
+  background: #FAF8F4;
+  color: #8A6F5A;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 10.5px;
+  font-weight: 900;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.stones-checklist-list {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.stones-checklist-item {
+  border: 1px solid #EFE8DD;
+  background: #FCFAF7;
+  border-radius: 14px;
+  padding: 11px;
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 8px;
+  min-width: 0;
+}
+
+.stones-checklist-mark {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: #F5EFE6;
+  color: #8A6F5A;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.stones-checklist-item strong {
+  display: block;
+  color: var(--dark);
+  font-size: 12.5px;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.stones-checklist-item p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.38;
+}
+
+.stones-checklist-item-completed {
+  background: #F5FBF7;
+  border-color: #DCEFE3;
+}
+
+.stones-checklist-item-completed .stones-checklist-mark {
+  background: #E7F6ED;
+  color: #1A7F4B;
+}
+
+.stones-checklist-item-limited {
+  background: #FFF8ED;
+  border-color: #F5DEC2;
+}
+
+.stones-checklist-item-limited .stones-checklist-mark {
+  background: #FFF1E5;
+  color: #B45309;
+}
+
+.stones-season-impact {
+  margin-top: 14px;
+  border: 1px solid #EAE4DA;
+  background: linear-gradient(180deg, #FFFFFF 0%, #FCFAF7 100%);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 10px 24px rgba(31, 31, 31, .04);
+}
+
+.stones-season-impact-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.stones-season-impact-head h4 {
+  margin: 0;
+  color: var(--dark);
+  font-size: 17px;
+  line-height: 1.2;
+  font-weight: 900;
+}
+
+.stones-season-impact-head p {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+  max-width: 620px;
+}
+
+.stones-season-impact-head > strong {
+  min-width: 74px;
+  border-radius: 999px;
+  padding: 9px 12px;
+  background: #F5EFE6;
+  color: #8A6F5A;
+  font-size: 13px;
+  font-weight: 900;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.stones-season-impact-head > strong.positive {
+  background: #F0F7F2;
+  color: #1A7F4B;
+}
+
+.stones-season-impact-head > strong.limited {
+  background: #FFF1E5;
+  color: #B45309;
+}
+
+.stones-season-progress {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.stones-season-progress div:not(.stones-progress-line) {
+  display: grid;
+  gap: 2px;
+}
+
+.stones-season-progress span {
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 900;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.stones-season-progress strong {
+  color: var(--dark);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.stones-season-impact-meta {
+  margin-top: 13px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.stones-season-impact-meta span {
+  border: 1px solid #EFE8DD;
+  background: #fff;
+  border-radius: 12px;
+  padding: 9px 10px;
+}
+
+.stones-season-impact-meta small {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.stones-season-impact-meta strong {
+  display: block;
+  color: var(--dark);
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.stones-history-modal {
+  width: min(860px, 100%);
+}
+
+.stones-history-body {
+  padding: 20px;
+  display: grid;
+  gap: 18px;
+  overflow: auto;
+}
+
+.stones-history-section-head {
+  margin-bottom: 10px;
+}
+
+.stones-history-section-head h3 {
+  margin: 0;
+  color: var(--dark);
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.stones-history-event {
+  margin-top: 10px;
+  border: 1px solid #EAE4DA;
+  background: #fff;
+  border-radius: 16px;
+  padding: 15px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(260px, .8fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.stones-history-event-main small {
+  display: block;
+  margin-top: 8px;
+  color: #A39B90;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.stones-history-event-main p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.stones-history-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.stones-history-metrics span {
+  border: 1px solid #EFE8DD;
+  background: #FCFAF7;
+  border-radius: 12px;
+  padding: 9px 10px;
+}
+
+.stones-history-metrics small {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.stones-history-metrics strong {
+  display: block;
+  color: var(--dark);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.stones-history-empty {
+  min-height: 220px;
+  border: 1px dashed #D9D1C7;
+  background: #FCFAF7;
+  border-radius: 18px;
+  padding: 28px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
+
+.stones-history-empty h3 {
+  margin: 12px 0 0;
+  color: var(--dark);
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.stones-history-empty p {
+  margin: 7px auto 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+  max-width: 420px;
+}
+
+.stones-snapshots-history {
+  border-top: 1px solid #EFE8DD;
+  padding-top: 16px;
+}
+
+.stones-snapshots-list {
+  display: grid;
+  gap: 8px;
+}
+
+.stones-snapshot-row {
+  border: 1px solid #EAE4DA;
+  background: #fff;
+  border-radius: 14px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.stones-snapshot-row strong {
+  display: block;
+  color: var(--dark);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.stones-snapshot-row span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.35;
+}
+
+.stones-snapshot-row-metrics {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.stones-snapshot-row-metrics small {
+  border: 1px solid #EFE8DD;
+  background: #FCFAF7;
+  border-radius: 999px;
+  padding: 6px 9px;
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.stones-snapshot-row-metrics strong {
+  display: inline;
+  font-size: inherit;
+}
+
+.stones-snapshots-empty {
+  border: 1px dashed #D9D1C7;
+  background: #FCFAF7;
+  border-radius: 14px;
+  padding: 14px;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.stones-upgrade-celebration {
+  position: fixed;
+  inset: 0;
+  z-index: 19000;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.stones-upgrade-particles {
+  position: absolute;
+  inset: 0;
+}
+
+.stones-upgrade-particles span {
+  position: absolute;
+  width: var(--stone-size);
+  height: var(--stone-size);
+  border-radius: 999px;
+  background: var(--stone-color);
+  opacity: 0;
+  animation: stones-upgrade-fall var(--stone-duration) ease-out var(--stone-delay) forwards;
+  box-shadow: 0 0 14px rgba(31, 31, 31, .08);
+}
+
+.stones-upgrade-particles span:nth-child(3n) {
+  border-radius: 2px;
+}
+
+.stones-upgrade-particles span:nth-child(4n) {
+  width: calc(var(--stone-size) * 2.3);
+  height: 3px;
+  border-radius: 999px;
+}
+
+.stones-upgrade-toast {
+  position: absolute;
+  top: 88px;
+  right: 24px;
+  width: min(430px, calc(100vw - 32px));
+  border: 1px solid rgba(234, 228, 218, .95);
+  background: rgba(255, 255, 255, .96);
+  backdrop-filter: blur(18px);
+  border-radius: 20px;
+  box-shadow: 0 24px 70px rgba(31, 31, 31, .20);
+  padding: 18px;
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  pointer-events: auto;
+  animation: stones-upgrade-toast 3.8s ease both;
+}
+
+.stones-upgrade-symbol {
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #FFFFFF, #FAF8F4);
+  border: 1px solid #E4D8C9;
+  color: #8A6F5A;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 21px;
+  font-weight: 900;
+  box-shadow: 0 12px 28px rgba(31, 31, 31, .07);
+}
+
+.stones-upgrade-toast small {
+  display: block;
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 900;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+
+.stones-upgrade-toast strong {
+  display: block;
+  color: var(--dark);
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.stones-upgrade-toast p {
+  margin: 7px 0 12px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+@keyframes stones-upgrade-fall {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -20px, 0) rotate(0deg) scale(.8);
+  }
+  15% {
+    opacity: .95;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--stone-drift), 62vh, 0) rotate(var(--stone-rotate)) scale(1);
+  }
+}
+
+@keyframes stones-upgrade-toast {
+  0% {
+    opacity: 0;
+    transform: translate3d(18px, -12px, 0) scale(.98);
+  }
+  12%, 88% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(18px, -10px, 0) scale(.98);
+  }
+}
+
 .seasons-shell {
   padding: 22px 24px 28px;
   display: grid;
@@ -133,6 +1229,10 @@
 
 .seasons-shell-single {
   grid-template-columns: minmax(0, 1fr);
+}
+
+.seasons-maturity-panel .stones-card {
+  margin: 0;
 }
 
 .seasons-active-card,
@@ -2061,8 +3161,13 @@
 
 @media (prefers-reduced-motion: reduce) {
   .seasons-victory-celebration,
-  .seasons-goal-burst {
+  .seasons-goal-burst,
+  .stones-upgrade-particles {
     display: none;
+  }
+
+  .stones-upgrade-toast {
+    animation: none;
   }
 }
 
@@ -2262,7 +3367,12 @@
 
   .seasons-hud,
   .seasons-copilot-layout,
-  .seasons-analysis-grid {
+  .seasons-analysis-grid,
+  .stones-card,
+  .stones-insights,
+  .stones-checklist-list,
+  .stones-evolution-card,
+  .stones-history-event {
     grid-template-columns: 1fr;
   }
 
@@ -2294,6 +3404,83 @@
 
   .seasons-module-tabs {
     padding: 10px 16px 0;
+  }
+
+  .stones-card {
+    margin: 16px 16px 0;
+    padding: 18px;
+  }
+
+  .stones-card-main {
+    align-items: flex-start;
+  }
+
+  .stones-progress-top,
+  .stones-progress-meta {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .stones-journey {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .stones-journey-step:nth-child(4n)::after {
+    display: none;
+  }
+
+  .stones-season-impact-head,
+  .stones-season-progress {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+  }
+
+  .stones-season-impact-head > strong {
+    align-self: flex-start;
+  }
+
+  .stones-season-impact-meta {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .stones-checklist-head {
+    flex-direction: column;
+  }
+
+  .stones-evolution-empty,
+  .stones-evolution-card {
+    align-items: flex-start;
+  }
+
+  .stones-evolution-card .seasons-secondary-button {
+    width: 100%;
+  }
+
+  .stones-history-metrics {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .stones-snapshot-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .stones-snapshot-row-metrics {
+    flex-wrap: wrap;
+  }
+
+  .stones-upgrade-toast {
+    top: 62px;
+    right: 12px;
+    left: 12px;
+    width: auto;
+    grid-template-columns: 52px minmax(0, 1fr);
+  }
+
+  .stones-upgrade-symbol {
+    width: 52px;
+    height: 52px;
+    border-radius: 17px;
   }
 
   .seasons-primary-action {
@@ -2416,9 +3603,21 @@
     grid-column: 1 / -1;
     width: 100%;
   }
+
+  .stones-upgrade-toast button {
+    width: 100%;
+  }
 }
 
 @media (max-width: 460px) {
+  .stones-journey {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stones-journey-step:nth-child(2n)::after {
+    display: none;
+  }
+
   .seasons-live-grid {
     grid-template-columns: 1fr;
   }

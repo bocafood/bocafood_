@@ -26,8 +26,15 @@ O Boca Food é um sistema de gestão e operação de loja com painel admin, cat�
 - Preserve o funcionamento atual do sistema.
 - Mantenha os textos exibidos ao cliente final em espanhol.
 
+### Fonte de verdade dos arquivos publicados
+- O Firebase Hosting publica a pasta `public/`; portanto, `public/` é a fonte de verdade para tudo que é publicado.
+- Para qualquer alteração visual, funcional ou de módulo usado pelo Admin ou pela loja publicada, edite os arquivos dentro de `public/`.
+- Não edite duplicatas da raiz para telas publicadas, exceto quando a tarefa pedir explicitamente.
+- Arquivos duplicados da raiz devem ser tratados como legado até uma futura limpeza ou reconciliação controlada.
+- Antes de qualquer deploy, confirme que as mudanças necessárias estão dentro de `public/`.
+- A raiz do projeto deve ser usada para documentação, changelogs, configurações, scripts locais e arquivos internos que não devem ser publicados.
+
 ### Finalização obrigatória
 - Sempre atualizar `AI_CHANGELOG.md` ao finalizar qualquer alteração.
 - Registrar no changelog o que foi feito, os arquivos alterados, o motivo e o impacto esperado.
 - Se a mudança afetar módulos, dependências ou fluxos, atualizar também os documentos de arquitetura necessários.
-

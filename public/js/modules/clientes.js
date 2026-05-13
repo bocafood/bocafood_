@@ -16,8 +16,12 @@ Modules.Clientes = (function () {
   function render() {
     var app = document.getElementById('app');
     app.innerHTML = '<section class="module-page">' +
-      '<div class="module-head"><div><h1>Clientes</h1><p>Base de clientes, histórico de compras, preferências e ações de relacionamento.</p></div>' +
-      '<button onclick="Modules.Clientes._openModal(null)" style="' + _primaryBtn() + '">+ Novo Cliente</button></div>' +
+      '<div class="module-head" style="align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px;">' +
+        '<div style="min-width:0;flex:1 1 420px;"><h1 style="font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;line-height:1.2;">Clientes</h1><p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0 0 10px;max-width:760px;">Base de clientes, histórico de compras, preferências e ações de relacionamento.</p><div id="clientes-head-chips" style="display:flex;gap:8px;flex-wrap:wrap;"></div></div>' +
+        '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;">' +
+          '<button class="bf-btn-primary" onclick="Modules.Clientes._openModal(null)" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;display:inline-flex;align-items:center;gap:8px;"><span class="mi" style="font-size:16px;">person_add</span>Novo Cliente</button>' +
+        '</div>' +
+      '</div>' +
       '<div id="clientes-content" class="module-content"><div class="loading-inline">Carregando...</div></div>' +
       '</section>';
     _load();
@@ -61,14 +65,18 @@ Modules.Clientes = (function () {
     var root = document.getElementById('clientes-content');
     if (!root) return;
     var data = _filtered();
-    root.innerHTML = _kpis() +
-      '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:18px 0 14px;">' +
-      '<input id="cli-search" value="' + _esc(_filters.q) + '" oninput="Modules.Clientes._setFilter(\'q\', this.value)" placeholder="Pesquisar por nome, telefone, email, canal, tag ou endereço..." style="min-width:260px;flex:1;padding:12px 16px;border:1.5px solid #D4C8C6;border-radius:22px;font-size:14px;font-family:inherit;outline:none;background:#fff;">' +
-      '<select id="cli-status-filter" onchange="Modules.Clientes._setFilter(\'status\', this.value)" style="' + _smallSelect() + '">' + _filterOptions(['', 'ativo', 'recorrente', 'inativo', 'bloqueado'], _filters.status, 'Status') + '</select>' +
-      '<select id="cli-segment-filter" onchange="Modules.Clientes._setFilter(\'segment\', this.value)" style="' + _smallSelect() + '">' + _filterOptions(['', 'novo', 'recorrente', 'vip', 'inativo', 'sem_pedido'], _filters.segment, 'Segmento') + '</select>' +
-      '<select id="cli-origin-filter" onchange="Modules.Clientes._setFilter(\'origin\', this.value)" style="' + _smallSelect() + '">' + _originOptions(_filters.origin) + '</select>' +
-      '</div>' +
-      '<div id="clientes-list">' + _list(data) + '</div>';
+    var total = _view.length;
+    var recurrent = _view.filter(function (c) { return c._stats.ordersCount >= 2; }).length;
+    var inactive = _view.filter(function (c) { return c._stats.segment === 'inativo'; }).length;
+    var headChips = document.getElementById('clientes-head-chips');
+    if (headChips) {
+      headChips.innerHTML = _chip(total + ' clientes') + _chip(recurrent + ' recorrentes') + _chip(inactive + ' inativos');
+    }
+    root.innerHTML = '<div class="bf-page" style="display:flex;flex-direction:column;gap:16px;">' +
+      _kpis() +
+      _filtersHTML(data) +
+      '<div id="clientes-list">' + _list(data) + '</div>' +
+      '</div>';
   }
 
   function _kpis() {
@@ -78,18 +86,60 @@ Modules.Clientes = (function () {
     var valid = _view.filter(function (c) { return c._stats.ordersCount > 0; });
     var avgTicket = valid.length ? valid.reduce(function (s, c) { return s + c._stats.avgTicket; }, 0) / valid.length : 0;
     var optIn = _view.filter(function (c) { return c.acceptsMarketing === true; }).length;
-    return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;">' +
-      _kpi('Clientes', total, 'base cadastrada') +
-      _kpi('Recorrentes', recurrent, '2+ pedidos') +
-      _kpi('Inativos', inactive, 'sem compra recente') +
-      _kpi('Ticket médio', valid.length ? UI.fmt(avgTicket) : 'sem dados', valid.length + ' cliente(s) com pedido') +
-      _kpi('Aceitam marketing', optIn, 'WhatsApp/campanhas') +
+    return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;">' +
+      _kpi('Total de clientes', total, 'base cadastrada', 'groups', '#8A6F5A') +
+      _kpi('Recorrentes', recurrent, '2+ pedidos', 'repeat', '#6C8777') +
+      _kpi('Inativos', inactive, 'sem compra recente', 'person_off', '#A18362') +
+      _kpi('Ticket médio', valid.length ? UI.fmt(avgTicket) : 'sem dados', valid.length + ' cliente(s) com pedido', 'payments', '#B42318') +
+      _kpi('Aceitam marketing', optIn, 'WhatsApp/campanhas', 'campaign', '#2563EB') +
       '</div>';
   }
 
+  function _filtersHTML(data) {
+    var fieldStyle = 'padding:10px 12px;border:1px solid #EAE4DA;border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;width:100%;box-sizing:border-box;color:#1F1F1F;box-shadow:inset 0 1px 0 rgba(255,255,255,.78);transition:border-color .15s ease,box-shadow .15s ease,background .15s ease;';
+    return '<div style="background:#fff;border:none;border-radius:16px;padding:18px 20px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
+      '<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-end;">' +
+        '<div style="display:grid;grid-template-columns:minmax(320px,1.6fr) minmax(160px,.75fr) minmax(170px,.8fr) minmax(170px,.8fr);gap:10px 12px;flex:1;align-items:end;">' +
+          '<div><input id="cli-search" type="search" value="' + _esc(_filters.q) + '" oninput="Modules.Clientes._setFilter(\'q\', this.value)" placeholder="Buscar clientes pelo nome, telefone ou email..." autocomplete="off" autocapitalize="off" spellcheck="false" style="' + fieldStyle + 'height:40px;"></div>' +
+          '<div><select id="cli-status-filter" onchange="Modules.Clientes._setFilter(\'status\', this.value)" style="' + fieldStyle + 'height:40px;">' + _filterOptions(['', 'ativo', 'recorrente', 'inativo', 'bloqueado'], _filters.status, 'Status: Todos') + '</select></div>' +
+          '<div><select id="cli-segment-filter" onchange="Modules.Clientes._setFilter(\'segment\', this.value)" style="' + fieldStyle + 'height:40px;">' + _filterOptions(['', 'novo', 'recorrente', 'vip', 'inativo', 'sem_pedido'], _filters.segment, 'Segmento: Todos') + '</select></div>' +
+          '<div><select id="cli-origin-filter" onchange="Modules.Clientes._setFilter(\'origin\', this.value)" style="' + fieldStyle + 'height:40px;">' + _originOptions(_filters.origin) + '</select></div>' +
+        '</div>' +
+      '</div>' +
+      '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
+        _chip(_view.length + ' clientes') +
+        _chip(data.length + ' encontrados') +
+        _chip(_filters.q || _filters.status || _filters.segment || _filters.origin ? 'Filtros ativos' : 'Sem filtros ativos') +
+      '</div>' +
+    '</div>';
+  }
+
   function _list(data) {
-    if (!data.length) return UI.emptyState('Nenhum cliente encontrado', '👥');
-    return '<div style="display:flex;flex-direction:column;gap:12px;">' + data.map(_rowHTML).join('') + '</div>';
+    if (!data.length) {
+      return '<section style="background:#fff;border:none;border-radius:16px;padding:28px 22px;text-align:center;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
+        '<div style="font-size:15px;font-weight:700;color:#1F1F1F;margin-bottom:4px;">Nenhum cliente encontrado</div>' +
+        '<div style="font-size:13px;color:#6F6860;line-height:1.45;">Tente ajustar a busca ou os filtros.</div>' +
+      '</section>';
+    }
+    return '<section style="display:flex;flex-direction:column;gap:10px;">' +
+      '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">Clientes cadastrados</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Consulte contatos, relacionamento e histórico de compra.</div></div>' +
+      '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:16px;overflow:hidden;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
+        '<div style="overflow:auto;">' +
+          '<table class="bf-table" style="width:100%;border-collapse:separate;border-spacing:0;min-width:940px;">' +
+            '<thead><tr style="background:#fff;border-bottom:1px solid #EAE4DA;">' +
+              '<th style="width:44px;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;"><input type="checkbox" disabled style="width:16px;height:16px;accent-color:#B42318;"></th>' +
+              '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Cliente</th>' +
+              '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Contato</th>' +
+              '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Segmento</th>' +
+              '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Pedidos</th>' +
+              '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Total</th>' +
+              '<th style="text-align:right;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Ações</th>' +
+            '</tr></thead>' +
+            '<tbody>' + data.map(_rowHTML).join('') + '</tbody>' +
+          '</table>' +
+        '</div>' +
+      '</div>' +
+    '</section>';
   }
 
   function _rowHTML(c) {
@@ -98,24 +148,32 @@ Modules.Clientes = (function () {
     var wa = _whatsUrl(c.phone, 'Hola ' + (c.name || '') + ', ¿todo bien?');
     var contact = _contactHTML(c, 'Hola ' + (c.name || '') + ', ¿todo bien?');
     var address = _clientAddress(c);
-    return '<div class="cliente-card" onclick="Modules.Clientes._openProfile(\'' + c.id + '\')" style="background:#fff;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,.06);padding:14px 16px;display:grid;grid-template-columns:auto 1.6fr 1fr auto;gap:14px;align-items:center;cursor:pointer;">' +
-      '<div style="width:54px;height:54px;border-radius:15px;background:' + _avatarColor(c.name) + ';color:#fff;font-family:\'League Spartan\',sans-serif;font-size:18px;font-weight:900;display:flex;align-items:center;justify-content:center;">' + _esc(initials) + '</div>' +
-      '<div style="min-width:0;">' +
-      '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><strong style="font-size:16px;">' + _esc(c.name || 'Cliente') + '</strong>' + _segmentBadge(s.segment) + _statusBadge(c.status) + '</div>' +
-      '<div style="font-size:12px;color:#8A7E7C;margin-top:3px;">' + (contact || 'Sem contato') + '</div>' +
-      (address ? '<div style="font-size:12px;color:#8A7E7C;margin-top:4px;display:flex;gap:4px;align-items:center;min-width:0;"><span class="mi" style="font-size:14px;color:#C4362A;">location_on</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + _esc(address) + '</span></div>' : '') +
-      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:7px;">' + _tags(c.tags).map(function (t) { return UI.badge(t, 'gray'); }).join('') + '</div>' +
-      '</div>' +
-      '<div style="display:grid;grid-template-columns:repeat(3,minmax(80px,1fr));gap:8px;min-width:280px;">' +
-      _miniMetric('Pedidos', s.ordersCount || 0) +
-      _miniMetric('Total', s.ordersCount ? UI.fmt(s.totalSpent) : '-') +
-      _miniMetric('Ticket', s.ordersCount ? UI.fmt(s.avgTicket) : '-') +
-      '</div>' +
-      '<div style="display:flex;gap:7px;align-items:center;" onclick="event.stopPropagation();">' +
-      (c.phone ? '<a href="' + wa + '" target="_blank" style="' + _iconBtn('#E9F8EF', '#1A9E5A') + '" title="WhatsApp"><span class="mi" style="font-size:16px;">chat</span></a>' : '') +
-      '<button onclick="Modules.Clientes._openHistory(\'' + c.id + '\')" style="' + _iconBtn('#EEF4FF', '#2563EB') + '" title="Histórico"><span class="mi" style="font-size:16px;">history</span></button>' +
-      '<button onclick="Modules.Clientes._openModal(\'' + c.id + '\')" style="' + _iconBtn('#F2EDED', '#1A1A1A') + '" title="Editar"><span class="mi" style="font-size:16px;">edit</span></button>' +
-      '</div></div>';
+    return '<tr onclick="Modules.Clientes._openProfile(\'' + c.id + '\')" onmouseenter="this.style.background=\'#FBF8F2\'" onmouseleave="this.style.background=\'#fff\'" style="cursor:pointer;background:#fff;border-bottom:1px solid #EAE4DA;transition:background .15s ease;">' +
+      '<td style="padding:14px 16px;vertical-align:middle;"><input type="checkbox" onclick="event.stopPropagation()" style="width:16px;height:16px;accent-color:#B42318;"></td>' +
+      '<td style="padding:12px 16px;vertical-align:middle;min-width:280px;">' +
+        '<div style="display:flex;align-items:center;gap:12px;min-width:0;">' +
+          '<div style="width:48px;height:48px;border-radius:12px;background:' + _avatarColor(c.name) + ';color:#fff;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 1px 2px rgba(31,31,31,.03);">' + _esc(initials) + '</div>' +
+          '<div style="min-width:0;flex:1;">' +
+            '<div style="font-size:15px;font-weight:600;color:#1F1F1F;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(c.name || 'Cliente') + '</div>' +
+            '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:5px;">' + _tags(c.tags).map(function (t) { return UI.badge(t, 'gray'); }).join('') + '</div>' +
+          '</div>' +
+        '</div>' +
+      '</td>' +
+      '<td style="padding:13px 16px;vertical-align:middle;min-width:220px;">' +
+        '<div style="font-size:12px;color:#6F6860;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (contact || 'Sem contato') + '</div>' +
+        '<div style="font-size:12px;color:#A39B90;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;">' + _esc(address || 'Sem endereço') + '</div>' +
+      '</td>' +
+      '<td style="padding:13px 16px;vertical-align:middle;">' + _segmentBadge(s.segment) + '<div style="margin-top:6px;">' + _statusBadge(c.status) + '</div></td>' +
+      '<td style="padding:13px 16px;vertical-align:middle;white-space:nowrap;font-size:14px;font-weight:600;color:#1F1F1F;">' + (s.ordersCount || 0) + '<div style="font-size:12px;color:#6F6860;font-weight:500;margin-top:2px;">Ticket ' + (s.ordersCount ? UI.fmt(s.avgTicket) : '-') + '</div></td>' +
+      '<td style="padding:13px 16px;vertical-align:middle;white-space:nowrap;font-size:14px;font-weight:600;color:#1F1F1F;">' + (s.ordersCount ? UI.fmt(s.totalSpent) : '-') + '</td>' +
+      '<td style="padding:13px 16px;vertical-align:middle;text-align:right;white-space:nowrap;" onclick="event.stopPropagation();">' +
+        '<div style="display:inline-flex;align-items:center;gap:6px;">' +
+          (c.phone ? '<a href="' + wa + '" target="_blank" style="' + _iconBtn('#fff', '#6F6860') + '" title="WhatsApp"><span class="mi" style="font-size:14px;">chat</span></a>' : '') +
+          '<button type="button" onclick="Modules.Clientes._openHistory(\'' + c.id + '\')" style="' + _iconBtn('#fff', '#6F6860') + '" title="Histórico"><span class="mi" style="font-size:14px;">history</span></button>' +
+          '<button type="button" onclick="Modules.Clientes._openModal(\'' + c.id + '\')" style="' + _iconBtn('#fff', '#6F6860') + '" title="Editar"><span class="mi" style="font-size:14px;">edit</span></button>' +
+        '</div>' +
+      '</td>' +
+    '</tr>';
   }
 
   function _openModal(id) {
@@ -129,7 +187,7 @@ Modules.Clientes = (function () {
       : { fiscalDocumentLabel: 'NIF / CIF', fiscalDocumentPlaceholder: '', fiscalDocumentHint: '', regionLabel: 'Estado / Província' };
     var selectedChannel = c.mainChannel || c.channelName || c.channel || c.origin || _defaultChannel();
     var body = '<div style="display:flex;flex-direction:column;gap:14px;font-family:Manrope,Inter,sans-serif;">' +
-      '<div style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
+      '<div class="bf-card" style="padding:16px;">' +
       '<div style="' + _sectionTitle() + '">Dados do cliente</div>' +
       '<div style="display:grid;grid-template-columns:1.3fr .8fr .9fr;gap:12px;margin-bottom:12px;">' +
       _field('cli-name', 'Nome completo *', c.name || '') +
@@ -144,7 +202,7 @@ Modules.Clientes = (function () {
         '<div id="cli-fiscal-hint" style="font-size:11px;color:#8A7E7C;margin-top:4px;">' + _esc(_cliNifCfg.fiscalDocumentHint) + '</div></div>' +
       _field('cli-bday', 'Aniversário', c.birthday || '', 'date') +
       '</div></div>' +
-      '<div style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
+      '<div class="bf-card" style="padding:16px;">' +
       '<div style="' + _sectionTitle() + '">Endereço e entrega</div>' +
       _field('cli-address', 'Endereço principal', c.address || '') +
       '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:12px;">' +
@@ -158,7 +216,7 @@ Modules.Clientes = (function () {
       '<div><label style="' + _label() + '">País</label><select id="cli-country" onchange="Modules.Clientes._onClienteCountryChange()" style="' + _input() + 'background:#fff;">' + _countryOptions(_cliCountry) + '</select></div>' +
       _field('cli-reference', 'Referência / complemento', c.reference || c.complement || '') +
       '</div></div>' +
-      '<div style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
+      '<div class="bf-card" style="padding:16px;">' +
       '<div style="' + _sectionTitle() + '">Marketing e relacionamento</div>' +
       '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#1F1F1F;margin-bottom:12px;"><input id="cli-marketing" type="checkbox" ' + (c.acceptsMarketing ? 'checked' : '') + ' style="accent-color:#B42318;width:16px;height:16px;"> Aceita receber promoções</label>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
@@ -169,14 +227,14 @@ Modules.Clientes = (function () {
       _field('cli-allergies', 'Alergias / restrições', c.allergies || '') +
       _field('cli-points', 'Pontos de fidelidade', c.points || 0, 'number') +
       '</div></div>' +
-      '<div style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
+      '<div class="bf-card" style="padding:16px;">' +
       _textarea('cli-notes', 'Observações internas', c.notes || c.internalNotes || '') +
       '</div></div>';
     var footer = '<div style="display:flex;flex-direction:column;gap:8px;align-items:stretch;font-family:Manrope,Inter,sans-serif;">' +
       '<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;">' +
-      (id ? '<button onclick="Modules.Clientes._deleteCliente(\'' + id + '\')" style="height:40px;padding:0 14px;border-radius:10px;border:1px solid #EAE4DA;background:#fff;color:#B42318;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:7px;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:16px;">delete</span>Excluir</button>' : '') +
-      '<button onclick="if(window._clienteModal)window._clienteModal.close()" style="height:40px;padding:0 14px;border-radius:10px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);">Cancelar</button>' +
-      '<button onclick="Modules.Clientes._saveCliente()" style="flex:1;' + _primaryBtn() + '">' + (id ? 'Atualizar cliente' : 'Adicionar cliente') + '</button>' +
+      (id ? '<button class="bf-btn bf-btn-secondary" onclick="Modules.Clientes._deleteCliente(\'' + id + '\')" style="color:#B42318;"><span class="mi" style="font-size:16px;">delete</span>Excluir</button>' : '') +
+      '<button class="bf-btn bf-btn-secondary" onclick="if(window._clienteModal)window._clienteModal.close()">Cancelar</button>' +
+      '<button class="bf-btn bf-btn-primary" onclick="Modules.Clientes._saveCliente()" style="flex:1;">' + (id ? 'Atualizar cliente' : 'Adicionar cliente') + '</button>' +
       '</div>' +
       '<div style="font-size:11px;color:#7A746B;text-align:center;line-height:1.4;">As alterações ficam vinculadas aos pedidos e ao histórico do cliente.</div>' +
       '</div>';
@@ -249,7 +307,7 @@ Modules.Clientes = (function () {
       '<div style="display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;margin-bottom:16px;">' +
       '<div style="width:64px;height:64px;border-radius:18px;background:' + _avatarColor(c.name) + ';color:#fff;font-size:22px;font-weight:900;display:flex;align-items:center;justify-content:center;">' + _esc(_initials(c.name)) + '</div>' +
       '<div><h2 style="font-size:22px;font-weight:900;margin-bottom:4px;">' + _esc(c.name || 'Cliente') + '</h2><div style="color:#8A7E7C;font-size:13px;">' + (contact || 'Sem contato') + '</div>' + (address ? '<div style="color:#8A7E7C;font-size:13px;margin-top:4px;"><span class="mi" style="font-size:15px;color:#C4362A;vertical-align:-2px;">location_on</span> ' + _esc(address) + '</div>' : '') + '</div>' +
-      '<button onclick="Modules.Clientes._openModal(\'' + c.id + '\')" style="' + _primaryBtn() + '">Editar</button>' +
+      '<button class="bf-btn bf-btn-primary" onclick="Modules.Clientes._openModal(\'' + c.id + '\')" style="min-width:180px;">Editar</button>' +
       '</div>' +
       '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px;">' +
       _kpi('Pedidos', s.ordersCount, 'histórico') +
@@ -671,19 +729,29 @@ Modules.Clientes = (function () {
     '</div>';
   }
 
-  function _miniMetric(label, value) { return '<div style="background:#F8F6F5;border-radius:10px;padding:9px;"><div style="font-size:10px;color:#8A7E7C;font-weight:900;text-transform:uppercase;">' + label + '</div><strong style="font-size:14px;">' + value + '</strong></div>'; }
-  function _kpi(label, value, sub) { return '<div class="kpi-tile"><span>' + label + '</span><strong>' + value + '</strong><small>' + _esc(sub || '') + '</small></div>'; }
+  function _miniMetric(label, value) { return '<div style="background:#FAF8F4;border:1px solid #EAE4DA;border-radius:12px;padding:10px 11px;min-width:0;"><div style="font-size:10px;color:#6F6860;font-weight:800;text-transform:uppercase;letter-spacing:.04em;line-height:1.2;">' + label + '</div><strong style="display:block;font-size:14px;color:#1F1F1F;margin-top:4px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + value + '</strong></div>'; }
+  function _kpi(label, value, sub, icon, color) {
+    return '<div style="display:flex;align-items:center;gap:12px;background:#FAF8F4;border:none;border-radius:16px;padding:15px 16px;box-shadow:0 12px 30px rgba(31,31,31,.06);min-height:78px;overflow:hidden;transition:transform .16s ease,box-shadow .16s ease,background .16s ease;" onmouseenter="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 16px 34px rgba(31,31,31,.09)\';this.style.background=\'#fff\'" onmouseleave="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'0 12px 30px rgba(31,31,31,.06)\';this.style.background=\'#FAF8F4\'">' +
+      '<div style="width:46px;height:46px;border-radius:14px;background:transparent;color:' + (color || '#6F6860') + ';display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span class="mi" style="font-size:24px;">' + _esc(icon || 'analytics') + '</span></div>' +
+      '<div style="min-width:0;display:flex;flex-direction:column;gap:3px;">' +
+        '<span style="font-size:12px;font-weight:500;color:#6F6860;line-height:1.15;">' + _esc(label) + '</span>' +
+        '<strong style="font-size:34px;font-weight:700;color:#1F1F1F;line-height:1;white-space:nowrap;letter-spacing:0;">' + _esc(String(value)) + '</strong>' +
+        (sub ? '<small style="font-size:11px;color:#8A7E7C;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(sub) + '</small>' : '') +
+      '</div>' +
+    '</div>';
+  }
+  function _chip(text) { return '<span style="display:inline-flex;align-items:center;min-height:24px;padding:0 10px;border-radius:999px;background:#fff;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:500;box-shadow:0 1px 2px rgba(31,31,31,.02);">' + _esc(text) + '</span>'; }
   function _info(label, value) { return '<div style="padding:8px 0;border-top:1px solid #F2EDED;"><div style="font-size:10px;color:#8A7E7C;font-weight:900;text-transform:uppercase;">' + label + '</div><div style="font-size:13px;font-weight:700;">' + _esc(value || '-') + '</div></div>'; }
   function _infoHTML(label, html) { return '<div style="padding:8px 0;border-top:1px solid #F2EDED;"><div style="font-size:10px;color:#8A7E7C;font-weight:900;text-transform:uppercase;">' + label + '</div><div style="font-size:13px;font-weight:700;">' + (html || '-') + '</div></div>'; }
-  function _field(id, label, value, type) { return '<div><label style="' + _label() + '">' + label + '</label><input id="' + id + '" type="' + (type || 'text') + '" value="' + _esc(value == null ? '' : value) + '" style="' + _input() + '"></div>'; }
-  function _textarea(id, label, value) { return '<div><label style="' + _label() + '">' + label + '</label><textarea id="' + id + '" style="' + _input() + 'min-height:92px;resize:vertical;">' + _esc(value || '') + '</textarea></div>'; }
-  function _select(id, label, options) { return '<div><label style="' + _label() + '">' + label + '</label><select id="' + id + '" style="' + _input() + 'background:#fff;">' + options + '</select></div>'; }
+  function _field(id, label, value, type) { return '<div class="bf-field"><label>' + label + '</label><input id="' + id + '" class="bf-input" type="' + (type || 'text') + '" value="' + _esc(value == null ? '' : value) + '"></div>'; }
+  function _textarea(id, label, value) { return '<div class="bf-field"><label>' + label + '</label><textarea id="' + id + '" class="bf-textarea">' + _esc(value || '') + '</textarea></div>'; }
+  function _select(id, label, options) { return '<div class="bf-field"><label>' + label + '</label><select id="' + id + '" class="bf-select">' + options + '</select></div>'; }
   function _input() { return 'width:100%;padding:10px 12px;border:1px solid #EAE4DA;border-radius:10px;font-size:14px;font-family:inherit;outline:none;box-sizing:border-box;background:#fff;color:#1F1F1F;box-shadow:inset 0 1px 0 rgba(255,255,255,.78);transition:border-color .15s ease,box-shadow .15s ease,background .15s ease;'; }
   function _label() { return 'font-size:10px;font-weight:600;color:#7A746B;display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em;'; }
   function _sectionTitle() { return 'font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:12px;'; }
   function _primaryBtn() { return 'min-width:180px;height:40px;background:#B42318;color:#fff;border:none;padding:0 16px;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(180,35,24,.18);'; }
   function _smallSelect() { return 'height:38px;padding:0 12px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;font-size:13px;font-weight:500;color:#1F1F1F;font-family:inherit;outline:none;box-shadow:0 1px 2px rgba(31,31,31,.03);'; }
-  function _iconBtn(bg, color) { return 'width:36px;height:36px;border-radius:10px;border:1px solid #EAE4DA;background:' + bg + ';color:' + color + ';cursor:pointer;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;box-shadow:0 1px 2px rgba(31,31,31,.03);'; }
+  function _iconBtn(bg, color) { return 'width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:' + bg + ';color:' + color + ';cursor:pointer;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;box-shadow:0 1px 2px rgba(31,31,31,.03);'; }
   function _panel() { return 'background:#fff;border:1px solid #EAE4DA;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);'; }
   function _h3() { return 'font-size:14px;font-weight:700;color:#1F1F1F;margin-bottom:10px;'; }
   function _actionButton(bg, color) { return 'width:100%;display:flex;align-items:center;gap:8px;margin-top:8px;padding:10px 12px;border-radius:10px;border:1px solid #EAE4DA;background:' + bg + ';color:' + color + ';font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);'; }

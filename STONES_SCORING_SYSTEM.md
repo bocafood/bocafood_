@@ -293,25 +293,115 @@ Depois do índice bruto, aplicar limitadores. Exemplo: se risco extremo recorren
 
 ## 7. Checklist automático
 
-O checklist das Pedras deve ser automático. A usuária não marca tarefas.
+O checklist das Pedras deve ser uma lista de **marcos reais de evolução do negócio**, detectados automaticamente pelo BocaFood.
 
-O sistema marca itens como consequência dos dados reais gerados no BocaFood.
+Ele não representa:
 
-Exemplos de marcos automáticos:
+- uso do sistema;
+- tarefas administrativas;
+- cliques;
+- ações mecânicas;
+- abertura de telas;
+- uso de uma feature específica.
 
-- concluir temporada;
-- atingir vitória parcial;
-- atingir vitória total;
-- manter score médio acima do mínimo;
-- reduzir risco;
-- atingir meta equilibrada;
-- atingir meta Growth saudável;
-- manter consistência;
+Ele representa:
+
+- sinais reais de maturidade;
+- melhoria operacional;
+- crescimento saudável;
+- estabilidade;
+- execução consistente;
+- redução de risco;
+- evolução contra o próprio histórico da loja.
+
+A usuária não marca tarefas manualmente. O sistema identifica os marcos a partir de dados como:
+
+- pedidos;
+- temporadas;
+- Plano de Voo;
+- Performance;
+- financeiro normalizado;
+- clientes;
+- recorrência;
+- avaliações;
+- score;
+- risco;
+- crescimento saudável.
+
+Mesmo sendo detectado por dados do sistema, o checklist deve parecer uma leitura de evolução do negócio. A usuária deve sentir: "meu negócio está evoluindo", não "subi porque cliquei em coisas".
+
+### O que evitar como checklist principal
+
+Evitar como foco visual principal:
+
+- criar temporada;
+- abrir análise;
+- acessar módulo;
+- clicar em botão;
+- usar feature X;
+- preencher uma tela;
+- configurar algo sem resultado real.
+
+Esses sinais podem existir internamente com peso baixo como indício de adoção/organização, mas não devem ser apresentados como marcos principais da Pedra.
+
+### Marcos corretos para mostrar
+
+Exemplos de marcos adequados:
+
+- vender em mais dias da semana;
+- melhorar ticket médio;
+- reduzir risco da operação;
+- concluir temporada com estabilidade;
+- aumentar recorrência de clientes;
+- manter crescimento saudável;
+- melhorar consistência semanal;
+- reduzir dependência de promoções;
+- reduzir dependência de poucos produtos;
+- manter contas sob controle;
+- sustentar metas mais ousadas;
 - melhorar fidelização;
-- evitar abandono;
-- reduzir contas vencidas;
-- manter dias com venda;
-- melhorar ticket sem piorar margem estimada.
+- reduzir oscilações fortes;
+- crescer sem piorar margem estimada;
+- manter boa reputação/avaliações.
+
+### Exemplos por transição de Pedra
+
+| Transição | Foco | Exemplos de checklist |
+|---|---|---|
+| Pedra Bruta -> Quartzo | Sobrevivência, organização inicial e primeiros sinais de consistência | Vender em mais dias da semana; concluir primeira temporada; reduzir instabilidade inicial; criar rotina mínima de vendas. |
+| Quartzo -> Ametista | Consistência e previsibilidade inicial | Manter semanas mais estáveis; reduzir oscilações fortes; melhorar score médio; reduzir risco recorrente. |
+| Ametista -> Safira | Crescimento saudável inicial | Melhorar recorrência; aumentar estabilidade; crescer mantendo controle; concluir temporadas equilibradas. |
+| Safira -> Esmeralda | Crescimento mais sustentável | Melhorar fidelização; reduzir dependência de promoções; manter crescimento saudável; reduzir risco médio. |
+| Esmeralda -> Rubi | Maturidade operacional | Sustentar metas mais ousadas; melhorar estabilidade financeira; reduzir dependência de poucos produtos; manter boa consistência. |
+| Rubi -> Diamante | Alta consistência | Manter crescimento saudável por longo período; reduzir instabilidade operacional; concluir temporadas difíceis; manter boa saúde financeira. |
+| Diamante -> Ônix | Excelência sustentável | Sustentar crescimento com baixo risco; manter alta previsibilidade; equilibrar crescimento e estabilidade; demonstrar maturidade consistente. |
+
+### Linguagem do checklist
+
+O checklist deve soar como leitura estratégica de maturidade empresarial.
+
+Evitar:
+
+- tom infantil;
+- "missão desbloqueada";
+- "XP ganho";
+- "parabéns por clicar";
+- gamificação artificial;
+- linguagem de coach.
+
+Preferir:
+
+- "Seu negócio está mais consistente.";
+- "Sua operação reduziu risco.";
+- "Seu crescimento está mais saudável.";
+- "A recompra melhorou em relação ao histórico.";
+- "Sua meta foi sustentada com controle.";
+
+### Relação com o sistema
+
+O checklist é consequência dos dados. A usuária não precisa alimentar a tela.
+
+Exemplo: a usuária não marca "melhorei recorrência". O sistema detecta aumento de clientes recorrentes, melhora de recompra e frequência maior, e marca automaticamente o marco correspondente.
 
 O checklist deve explicar progresso, não virar lista manual de tarefas. Ele é uma camada de leitura sobre pedidos, Temporadas, Plano de Voo, Performance, fidelização e financeiro normalizado.
 
