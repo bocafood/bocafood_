@@ -1,5 +1,19 @@
 # AI Changelog
 
+## 2026-05-13 — Reconciliacao seletiva para public
+- Arquivos alterados: `public/admin.html`, `public/css/admin.css`, `public/js/core/ui.js`, `public/js/modules/clientes.js`, `public/js/modules/pedidos.js`, `public/js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Admin publicado, camada visual global, Clientes, Pedido Manual e Configuracoes.
+- Resumo do ajuste: sincronizei seletivamente para `public/` as mudancas importantes que estavam apenas na raiz, incluindo `css/admin.css`, UI global, Clientes, correcao de Pedido Manual e melhorias visuais seguras de Configuracoes. `public/admin.html` passou a carregar `css/admin.css` sem ser sobrescrito por completo.
+- Motivo: alinhar a fonte de verdade publicada com as mudancas ja validadas na raiz, agora que `public/` foi definido como fonte de verdade do Firebase Hosting.
+- Impacto esperado: deploy futuro passa a incluir a camada visual global, o visual atualizado de Clientes, a correcao de cliente no Pedido Manual e a migracao visual de Configuracoes. `public/index.html` e `public/js/core/auth.js` foram preservados; nao houve alteracao funcional nova, commit, push ou deploy.
+
+## 2026-05-13 — Definicao de public como fonte de verdade
+- Arquivos alterados: `AGENTS.md`, `PUBLIC_SOURCE_OF_TRUTH.md`, `AI_CHANGELOG.md`.
+- Módulo afetado: regras de trabalho, organizacao de arquivos publicados e fluxo futuro de deploy.
+- Resumo do ajuste: defini `public/` como fonte de verdade para arquivos publicados pelo Firebase Hosting, documentando que duplicatas da raiz devem ser tratadas como legado ate futura reconciliacao.
+- Motivo: reduzir confusao entre ambiente local pela raiz e deploy, ja que o Firebase publica somente `public/`.
+- Impacto esperado: proximas alteracoes visuais, funcionais e de modulos publicados devem ser feitas em `public/`, sem alteracao funcional, sem sincronizacao de arquivos, sem Firebase/Auth/DB e sem deploy.
+
 ## 2026-05-13 — Auditoria de duplicidade raiz/public
 - Arquivos alterados: `AI_CHANGELOG.md`.
 - Módulo afetado: organização de arquivos do Admin, `public/` e fluxo futuro de publicação.
