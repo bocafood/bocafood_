@@ -348,6 +348,40 @@ Mensagens conceituais recomendadas:
 - Diamante: "Seu negócio combina resultado, consistência e controle."
 - Ônix: "Sua evolução mostra excelência sustentável."
 
+### Checklist como leitura de evolução
+
+O checklist das Pedras deve ser comunicado como uma leitura de marcos reais do negócio, não como tarefas de uso do software.
+
+Ele não deve transmitir:
+
+- "clique em mais coisas para subir";
+- "use tal recurso para ganhar pontos";
+- "complete tarefas administrativas para evoluir";
+- "missão desbloqueada" ou "XP ganho".
+
+Ele deve transmitir:
+
+- "seu negócio está mais consistente";
+- "sua operação reduziu risco";
+- "sua recorrência melhorou";
+- "seu crescimento está mais saudável";
+- "sua meta foi sustentada com controle".
+
+A usuária não marca itens manualmente. O BocaFood interpreta dados de pedidos, Temporadas, Plano de Voo, Performance, clientes, financeiro, recorrência e risco para identificar marcos de maturidade. O foco visual deve ser evolução empresarial, não uso mecânico da plataforma.
+
+Exemplos adequados de marcos:
+
+- vender em mais dias da semana;
+- melhorar ticket médio;
+- reduzir risco da operação;
+- concluir temporada com estabilidade;
+- aumentar recorrência de clientes;
+- manter crescimento saudável;
+- reduzir dependência de promoções;
+- reduzir dependência de poucos produtos;
+- manter contas sob controle;
+- sustentar metas mais ousadas.
+
 ## 12. Guardrails conceituais
 
 Para evitar premiar crescimento ruim:

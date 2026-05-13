@@ -1,5 +1,124 @@
 # AI Changelog
 
+## 2026-05-13 — Documento técnico de Maturidade do Negócio
+- Arquivos alterados: `MATURIDADE_NEGOCIO_FUNCIONAMENTO_MAPEAMENTO.md`, `AI_CHANGELOG.md`.
+- Módulo afetado: documentação técnica de Maturidade do Negócio / Sistema de Pedras.
+- Resumo do ajuste: criei um documento detalhado explicando a lógica atual de Maturidade, incluindo Pedras, coleções, campos, índices, score, progresso, checklist automático, blockers, upgrade, snapshots, histórico, relação com Temporadas e Plano de Voo, limitações e recomendações.
+- Motivo: registrar o funcionamento real da camada de maturidade para orientar validação, produto e próximas etapas técnicas.
+- Impacto esperado: o time passa a ter uma referência separada de Temporadas para entender o Sistema de Pedras em detalhe. Não houve alteração de código, layout, Firebase, dados, permissões, commit, push ou deploy.
+
+## 2026-05-13 — Documento técnico de Temporadas
+- Arquivos alterados: `TEMPORADAS_FUNCIONAMENTO_MAPEAMENTO.md`, `AI_CHANGELOG.md`.
+- Módulo afetado: documentação técnica de Temporadas / Missões Operacionais.
+- Resumo do ajuste: criei um documento explicando como Temporadas funciona hoje, incluindo fluxo, rotas, coleções, campos da coleção `seasons`, campos de snapshots, opções do wizard, cálculos, resultados possíveis, integração com Maturidade do Negócio e pendências.
+- Motivo: registrar o funcionamento real do módulo para orientar validação, lançamento e próximas etapas.
+- Impacto esperado: o time passa a ter uma referência única para entender Temporadas, seus dados, resultados e lacunas atuais. Não houve alteração de código, layout, Firebase, dados, permissões, commit, push ou deploy.
+
+## 2026-05-13 — Remocao do cabecalho da Maturidade
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: tela `Maturidade do Negócio` publicada em `public/`.
+- Resumo do ajuste: removi o cabeçalho textual da tela de Maturidade (`Sistema de Pedras`, `Maturidade do Negócio` e o texto explicativo), mantendo o cabeçalho normal apenas em `Temporadas`.
+- Motivo: fazer a tela de maturidade começar direto pelo bloco visual das Pedras, sem repetição textual no topo.
+- Impacto esperado: ao abrir `crescimento/maturidade`, a usuária vê primeiro a experiência visual de maturidade; `crescimento/temporadas` continua com título, descrição e botão `Nova Temporada`. Não houve alteração de cálculo, Firebase, dados, permissões, commit, push ou deploy.
+
+## 2026-05-13 — Maturidade separada de Temporadas
+- Arquivos alterados: `public/admin.html`, `public/js/modules/temporadas.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Admin publicado em `public/`, navegação de Crescimento, Temporadas e Sistema de Pedras.
+- Resumo do ajuste: separei `Maturidade do Negócio` em uma rota própria (`crescimento/maturidade`) no topo do menu, sem abas internas. A rota `crescimento/temporadas` voltou a exibir apenas as abas de Temporadas: `Ativa`, `Programadas` e `Histórico`.
+- Motivo: deixar claro que Maturidade é uma área permanente do negócio, enquanto Temporadas continua sendo o módulo de campanhas operacionais.
+- Impacto esperado: ao clicar em `Maturidade do Negócio`, a usuária vê somente a tela das Pedras; ao clicar em `Temporadas`, vê somente as abas de Temporadas. Não houve alteração de cálculo, Firebase, dados, permissões, estrutura global, commit, push ou deploy.
+
+## 2026-05-13 — Maturidade no topo do Admin
+- Arquivos alterados: `public/admin.html`, `public/js/modules/temporadas.js`, `public/css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- Módulo afetado: Admin publicado em `public/`, menu lateral e aba `Maturidade do Negócio` do Sistema de Pedras.
+- Resumo do ajuste: adicionei o atalho `Maturidade do Negócio` no topo do menu antes de `Início`, usando a rota existente `crescimento/temporadas`. Também ajustei o hero da página para comunicar `Maturidade do Negócio` em vez de `Temporadas` e refinei o card principal com uma composição mais premium, sem coluna vazia no topo.
+- Motivo: deixar a Maturidade como entrada visual principal do Admin e melhorar a leitura da página conforme o padrão esperado.
+- Impacto esperado: a usuária encontra a Maturidade imediatamente no menu e vê uma tela mais coerente com o Sistema de Pedras. Não houve alteração de cálculo, Firebase, dados, permissões, estrutura global, commit, push ou deploy.
+
+## 2026-05-13 — Caminhada das Pedras em linha inteira
+- Arquivos alterados: `public/css/modules/temporadas.css`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Temporadas, aba `Maturidade do Negócio` e Sistema de Pedras publicado em `public/`.
+- Resumo do ajuste: movi visualmente o gráfico `Caminhada das Pedras` para ocupar uma linha inteira abaixo do bloco principal e refinei os símbolos das Pedras com uma forma facetada em CSS, brilho e profundidade mais premium.
+- Motivo: deixar a jornada mais legível e dar mais presença visual às Pedras, sem usar iniciais ou aparência simples demais.
+- Impacto esperado: a usuária vê a trilha completa com mais respiro, destaque claro na Pedra atual e símbolos mais alinhados à estética premium. Atualizei o cache-busting dos assets de Temporadas, sem alterar cálculo, Firebase, dados, rotas, permissões, commit, push ou deploy.
+
+## 2026-05-13 — Design premium da Maturidade do Negócio
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/css/modules/temporadas.css`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Temporadas, aba `Maturidade do Negócio` e Sistema de Pedras publicado em `public/`.
+- Resumo do ajuste: refinei o layout da tela de maturidade seguindo o padrão visual do Programa de Pontos, com hierarquia mais clara, chips informativos, card premium alinhado à Pedra atual e elementos gráficos em CSS representando as Pedras no lugar de iniciais.
+- Motivo: tornar a tela mais elegante, comunicativa e coerente com o nível atual da usuária, sem parecer gamificação infantil.
+- Impacto esperado: a usuária passa a ver uma experiência visual mais premium, com cor, progresso e caminhada das Pedras comunicando maturidade do negócio. Atualizei o cache-busting dos assets de Temporadas, sem alterar cálculo, Firebase, dados, rotas, permissões, commit, push ou deploy.
+
+## 2026-05-13 — Caminhada completa das Pedras
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/css/modules/temporadas.css`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Temporadas e Sistema de Pedras publicado em `public/`.
+- Resumo do ajuste: substituí o painel visual de `Próxima Pedra` por uma jornada com todas as Pedras, marcando as já percorridas, destacando a Pedra atual e deixando as próximas discretas como caminho a percorrer.
+- Motivo: deixar claro onde a loja está na evolução completa e quais Pedras ainda faltam, sem depender apenas de uma barra para a próxima etapa.
+- Impacto esperado: a usuária passa a entender a trilha completa de maturidade no bloco principal das Pedras. Também atualizei o cache-busting dos assets de Temporadas, sem alterar cálculo, Firebase, dados, rotas, permissões, commit, push ou deploy.
+
+## 2026-05-13 — Fase 6 das Pedras com snapshots de maturidade
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/css/modules/temporadas.css`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Temporadas e Sistema de Pedras publicado em `public/`.
+- Resumo do ajuste: implementei snapshots históricos em `business_maturity_snapshots`, com geração mensal única, snapshot ao finalizar temporada e snapshot ao ocorrer upgrade de Pedra. Cada snapshot salva Pedra atual, próxima Pedra, progresso, score, índices, checklist, blockers, pontos fortes/fracos, confiança dos dados, fonte e vínculos de temporada/upgrade quando existirem.
+- Motivo: criar uma base auditável de maturidade e reduzir dependência de recálculo histórico completo.
+- Impacto esperado: o Sistema de Pedras passa a manter histórico recente de maturidade no modal `Histórico de evolução`, limitado aos snapshots mais recentes, sem IA estratégica, rankings, notificações externas, gráficos avançados, comparação entre lojas, commit, push ou deploy.
+
+## 2026-05-13 — Maturidade como primeira aba de Temporadas
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/css/modules/temporadas.css`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Temporadas e Sistema de Pedras publicado em `public/`.
+- Resumo do ajuste: transformei `Maturidade do Negócio` na primeira aba principal do módulo Temporadas, removendo o card fixo acima das abas e renderizando o Sistema de Pedras dentro do shell principal. Também atualizei o cache-busting do JS/CSS de Temporadas no `public/admin.html`.
+- Motivo: deixar a tela de maturidade como entrada principal do módulo, sem parecer uma área aninhada dentro de outra aba.
+- Impacto esperado: ao abrir Temporadas pelo Admin publicado, a primeira tela visível passa a ser Maturidade do Negócio, com as abas `Ativa`, `Programadas` e `Histórico` ao lado, sem alteração de cálculo, Firebase, dados, rotas, permissões, commit, push ou deploy.
+
+## 2026-05-13 — Cache-busting das atualizações de Pedras
+- Arquivos alterados: `public/admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Admin publicado e carregamento do módulo Temporadas.
+- Resumo do ajuste: atualizei a versão dos assets `public/js/modules/temporadas.js` e `public/css/modules/temporadas.css` carregados pelo `public/admin.html` para `20260513-stones-fase5`.
+- Motivo: garantir que o navegador carregue as alterações recentes do Sistema de Pedras em vez de manter o JS/CSS antigo em cache.
+- Impacto esperado: ao abrir o Admin a partir de `public/`, as fases recentes das Pedras passam a aparecer sem depender de limpeza manual agressiva de cache. Não houve alteração de lógica, Firebase, rotas, permissões, dados, commit, push ou deploy.
+
+## 2026-05-13 — Fase 5 das Pedras com comemoração e histórico
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- Módulo afetado: Temporadas e Sistema de Pedras publicado em `public/`.
+- Resumo do ajuste: adicionei comemoração visual elegante quando ocorre subida de Pedra, card `Evolução recente` no bloco das Pedras e modal `Histórico de evolução` lendo `stone_upgrade_events`. Eventos de upgrade passam a nascer com `celebrationPending` e são marcados com `celebrationShownAt` depois da exibição para evitar repetição indevida.
+- Motivo: tornar a evolução de Pedra visível, memorável e auditável, sem estética gamer infantil e sem depender de notificações externas.
+- Impacto esperado: a usuária vê claramente a transição Pedra anterior → Nova Pedra, os motivos principais e os indicadores do histórico, mantendo multi-tenant via wrapper `DB` e sem alterar scoring, cálculo de upgrade, Temporadas, snapshots mensais, IA estratégica, rankings ou comparação entre lojas.
+
+## 2026-05-13 — Fase 4 das Pedras com upgrade automático
+- Arquivos alterados: `public/js/modules/temporadas.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Temporadas e Sistema de Pedras publicado em `public/`.
+- Resumo do ajuste: implementei a subida automática de Pedra quando `stoneProgressPercent` chega a 100% sem bloqueios graves. O sistema sobe no máximo uma Pedra por cálculo, reinicia o progresso da nova Pedra, salva dados de auditoria em `business_maturity/current` e registra o evento em `stone_upgrade_events`.
+- Motivo: permitir evolução automática da maturidade acumulada quando os dados indicam progresso suficiente, sem depender de ação manual da usuária.
+- Impacto esperado: lojas com maturidade suficiente avançam para a próxima Pedra com rastreabilidade de motivo, indicadores usados e assinatura de cálculo, evitando repetição do mesmo upgrade ao reabrir a tela. Não foram implementados snapshots mensais, IA estratégica, rankings, notificações externas ou múltiplas subidas em sequência.
+
+## 2026-05-13 — Fase 3 das Pedras com Caminho automático
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- Módulo afetado: Temporadas e Sistema de Pedras publicado em `public/`.
+- Resumo do ajuste: implementei o checklist automático `Caminho da Pedra` em `business_maturity/current`, com itens por transição de Pedra, status `completed`, `pending` e `limited`, categoria, fonte e evidência. O bloco visual das Pedras agora exibe até cinco marcos reais do negócio, como consistência de vendas, conclusão de temporada, redução de risco, crescimento saudável, recorrência e execução.
+- Motivo: mostrar evolução real da operação sem transformar o Sistema de Pedras em tarefas manuais, cliques ou gamificação artificial.
+- Impacto esperado: a usuária passa a ver o caminho para a próxima Pedra com marcos detectados automaticamente a partir de Temporadas, pedidos, clientes, Plano de Voo e sinais básicos de performance, sem upgrade automático, snapshots mensais, IA estratégica, rankings, notificações ou edição manual de checklist.
+
+## 2026-05-13 — Fase 2 das Pedras integrada às Temporadas
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- Módulo afetado: Temporadas e Sistema de Pedras publicado em `public/`.
+- Resumo do ajuste: refinei o cálculo de maturidade para considerar temporadas `finished` e `abandoned`, com impacto por Vitória Total, Vitória Parcial, Temporada Instável, Falha Operacional, abandono, score final, risco e dificuldade. O Resultado Final da Temporada agora mostra o bloco `Impacto na sua Pedra` com Pedra Atual, Próxima Pedra, progresso antes/depois, contribuição e motivo do avanço ou limitação.
+- Motivo: fazer temporadas finalizadas influenciarem claramente a evolução da Pedra, sem implementar checklist completo, upgrade automático, snapshots mensais, IA estratégica, rankings ou notificações.
+- Impacto esperado: a usuária passa a entender como cada ciclo operacional contribuiu para a maturidade do negócio. A mudança atualiza `business_maturity/current` de forma leve e multi-tenant, sem alterar regras existentes de Temporadas, Plano de Voo, Performance, rotas, Firebase/Auth/DB config ou estrutura global de dados.
+
+## 2026-05-13 — Fase 1 do Sistema de Pedras
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- Módulo afetado: Temporadas e maturidade do negócio publicada em `public/`.
+- Resumo do ajuste: implementei a base funcional inicial das Pedras com coleção `business_maturity/current`, ordem oficial das Pedras, estado inicial em Pedra Bruta, cálculo conservador de índices, progresso para próxima Pedra, pontos fortes/fracos e bloco visual premium no módulo Temporadas.
+- Motivo: iniciar o Sistema de Pedras sem checklist completo, snapshots avançados, IA estratégica, rankings, notificações ou upgrade automático.
+- Impacto esperado: tenants passam a ter uma leitura inicial de maturidade baseada em Temporadas, pedidos, recorrência básica e contexto do Plano de Voo, respeitando multi-tenant via `Auth.getTenantId()`/`DB` e sem alterar a lógica existente de Temporadas, Plano de Voo ou Performance.
+
+## 2026-05-13 — Refinamento do checklist automatico das Pedras
+- Arquivos alterados: `STONES_SCORING_SYSTEM.md`, `STONES_EVOLUTION_SYSTEM.md`, `STONES_UI_FLOW.md`, `AI_CHANGELOG.md`.
+- Módulo afetado: documentação conceitual do Sistema de Pedras, UX do checklist automatico e maturidade do negócio.
+- Resumo do ajuste: redefini o checklist das Pedras como marcos reais de evolução do negócio, não tarefas mecânicas de uso do software. Incluí exemplos por transição de Pedra, linguagem recomendada, itens a evitar e diretrizes de UX.
+- Motivo: evitar gamificação artificial e garantir que a usuária perceba evolução empresarial real, baseada em pedidos, Temporadas, Plano de Voo, Performance, financeiro, clientes, recorrência, score e risco.
+- Impacto esperado: base conceitual mais clara para uma futura UX premium do Sistema de Pedras, sem implementação de código, sem alteração funcional, sem commit, push ou deploy.
+
 ## 2026-05-13 — Reconciliacao seletiva para public
 - Arquivos alterados: `public/admin.html`, `public/css/admin.css`, `public/js/core/ui.js`, `public/js/modules/clientes.js`, `public/js/modules/pedidos.js`, `public/js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
 - Módulo afetado: Admin publicado, camada visual global, Clientes, Pedido Manual e Configuracoes.

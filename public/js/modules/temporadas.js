@@ -11,8 +11,15 @@ Modules.Temporadas = (function () {
     activeSeason: null,
     activeConflict: false,
     scheduledStartConflict: false,
+    pageMode: 'seasons',
     moduleTab: 'current',
     activeTab: 'overview',
+    businessMaturity: null,
+    businessMaturityLoading: false,
+    businessMaturityError: null,
+    businessMaturityEvents: [],
+    businessMaturitySnapshots: [],
+    pendingStoneCelebration: null,
     snapshots: {
       daily: null,
       weekly: null
@@ -31,6 +38,19 @@ Modules.Temporadas = (function () {
     active: true,
     finished: true,
     abandoned: true
+  };
+
+  var STONES_ORDER = ['Pedra Bruta', 'Quartzo', 'Ametista', 'Safira', 'Esmeralda', 'Rubi', 'Diamante', 'Ônix'];
+
+  var STONE_DESCRIPTIONS = {
+    'Pedra Bruta': 'Seu negócio está em fase de construção. O foco agora é sobreviver, organizar e criar base.',
+    Quartzo: 'Seu negócio começou a criar mais consistência.',
+    Ametista: 'Sua operação já mostra sinais de estabilidade.',
+    Safira: 'Sua base está ficando mais confiável para crescer com controle.',
+    Esmeralda: 'Seu crescimento começa a aparecer com mais saúde.',
+    Rubi: 'Sua operação demonstra maturidade sólida.',
+    Diamante: 'Seu negócio combina resultado, consistência e controle.',
+    'Ônix': 'Sua evolução mostra excelência sustentável.'
   };
 
   var OBJECTIVES = [
@@ -62,27 +82,34 @@ Modules.Temporadas = (function () {
     { value: 'retention', label: 'Fidelização', text: 'Prioriza recompra, clientes recorrentes e frequência.' }
   ];
 
-  function render() {
+  function render(sub) {
     _tenantId = (window.Auth && typeof Auth.getTenantId === 'function') ? (Auth.getTenantId() || '') : '';
+    var isMaturityPage = sub === 'maturidade';
+    _state.pageMode = isMaturityPage ? 'maturity' : 'seasons';
+    _state.moduleTab = isMaturityPage ? 'maturity' : _validModuleTab(_state.moduleTab);
 
     var app = document.getElementById('app');
     if (!app) return;
 
+    var heroAction = '<button class="seasons-primary-action" type="button" onclick="Modules.Temporadas.openCreateFlow()">' +
+      _icon('add') +
+      '<span>Nova Temporada</span>' +
+    '</button>';
+    var heroHtml = isMaturityPage ? '' : '<div class="seasons-hero">' +
+      '<div class="seasons-hero-copy">' +
+        '<div class="seasons-kicker">' + _icon('track_changes') + ' Missões Operacionais</div>' +
+        '<h1>Temporadas</h1>' +
+        '<p>Crie missões de 30 ou 90 dias para acompanhar metas reais do negócio.</p>' +
+      '</div>' +
+      heroAction +
+    '</div>';
+
     app.innerHTML = '' +
-      '<section class="module-page seasons-page">' +
-        '<div class="seasons-hero">' +
-          '<div class="seasons-hero-copy">' +
-            '<div class="seasons-kicker">' + _icon('track_changes') + ' Missões Operacionais</div>' +
-            '<h1>Temporadas</h1>' +
-            '<p>Crie missões de 30 ou 90 dias para acompanhar metas reais do negócio.</p>' +
-          '</div>' +
-          '<button class="seasons-primary-action" type="button" onclick="Modules.Temporadas.openCreateFlow()">' +
-            _icon('add') +
-            '<span>Nova Temporada</span>' +
-          '</button>' +
-        '</div>' +
-        '<div id="seasons-module-tabs">' + _moduleTabs() + '</div>' +
+      '<section class="module-page seasons-page ' + (isMaturityPage ? 'seasons-page-maturity' : 'seasons-page-temporadas') + '">' +
+        heroHtml +
+        '<div id="seasons-module-tabs">' + (isMaturityPage ? '' : _moduleTabs()) + '</div>' +
         '<div class="seasons-shell seasons-shell-single">' +
+          '<div id="seasons-maturity-slot" class="seasons-maturity-panel">' + _maturityLoadingCard() + '</div>' +
           '<div id="seasons-active-slot">' + _loadingCard() + '</div>' +
           '<div id="seasons-scheduled-slot">' + _scheduledLoadingCard() + '</div>' +
           '<div id="seasons-history-slot">' + _historyLoadingCard() + '</div>' +
@@ -104,6 +131,12 @@ Modules.Temporadas = (function () {
       _state.activeSeason = null;
       _state.activeConflict = false;
       _state.scheduledStartConflict = false;
+      _state.businessMaturity = _initialMaturity();
+      _state.businessMaturityLoading = false;
+      _state.businessMaturityError = null;
+      _state.businessMaturityEvents = [];
+      _state.businessMaturitySnapshots = [];
+      _state.pendingStoneCelebration = null;
       _state.snapshots = { daily: null, weekly: null };
       _paint();
       return;
@@ -126,6 +159,8 @@ Modules.Temporadas = (function () {
         return season;
       });
     }).then(function () {
+      return _loadBusinessMaturity();
+    }).then(function () {
       _loading = false;
       _paint();
     }).catch(function (err) {
@@ -136,6 +171,12 @@ Modules.Temporadas = (function () {
       _state.activeSeason = null;
       _state.activeConflict = false;
       _state.scheduledStartConflict = false;
+      _state.businessMaturity = _initialMaturity();
+      _state.businessMaturityLoading = false;
+      _state.businessMaturityError = err;
+      _state.businessMaturityEvents = [];
+      _state.businessMaturitySnapshots = [];
+      _state.pendingStoneCelebration = null;
       _state.snapshots = { daily: null, weekly: null };
       _paint();
     });
@@ -146,14 +187,18 @@ Modules.Temporadas = (function () {
     var scheduledSlot = document.getElementById('seasons-scheduled-slot');
     var historySlot = document.getElementById('seasons-history-slot');
     var tabsSlot = document.getElementById('seasons-module-tabs');
-    if (!activeSlot || !scheduledSlot || !historySlot) return;
+    var maturitySlot = document.getElementById('seasons-maturity-slot');
+    if (!activeSlot || !scheduledSlot || !historySlot || !maturitySlot) return;
     var shell = activeSlot.parentNode;
-    var activeModuleTab = _validModuleTab(_state.moduleTab);
+    var isMaturityPage = _state.pageMode === 'maturity';
+    var activeModuleTab = isMaturityPage ? 'maturity' : _validModuleTab(_state.moduleTab);
     _state.moduleTab = activeModuleTab;
-    if (tabsSlot) tabsSlot.innerHTML = _moduleTabs();
+    if (tabsSlot) tabsSlot.innerHTML = isMaturityPage ? '' : _moduleTabs();
+    if (maturitySlot) maturitySlot.innerHTML = _maturityCard(_state.businessMaturity, _state.businessMaturityLoading, _state.businessMaturityError);
 
     if (_loading) {
       if (shell) shell.classList.add('seasons-shell-single');
+      maturitySlot.style.display = activeModuleTab === 'maturity' ? '' : 'none';
       activeSlot.style.display = activeModuleTab === 'current' ? '' : 'none';
       scheduledSlot.style.display = activeModuleTab === 'scheduled' ? '' : 'none';
       historySlot.style.display = activeModuleTab === 'history' ? '' : 'none';
@@ -165,6 +210,7 @@ Modules.Temporadas = (function () {
 
     if (_error) {
       if (shell) shell.classList.add('seasons-shell-single');
+      maturitySlot.style.display = activeModuleTab === 'maturity' ? '' : 'none';
       activeSlot.style.display = activeModuleTab === 'current' ? '' : 'none';
       scheduledSlot.style.display = activeModuleTab === 'scheduled' ? '' : 'none';
       historySlot.style.display = activeModuleTab === 'history' ? '' : 'none';
@@ -179,15 +225,23 @@ Modules.Temporadas = (function () {
     scheduledSlot.innerHTML = _scheduledCard(_scheduledSeasons());
     historySlot.innerHTML = _historyCard(_historySeasons());
 
-    if (activeModuleTab === 'scheduled') {
+    if (activeModuleTab === 'maturity') {
+      maturitySlot.style.display = '';
+      activeSlot.style.display = 'none';
+      scheduledSlot.style.display = 'none';
+      historySlot.style.display = 'none';
+    } else if (activeModuleTab === 'scheduled') {
+      maturitySlot.style.display = 'none';
       activeSlot.style.display = 'none';
       scheduledSlot.style.display = '';
       historySlot.style.display = 'none';
     } else if (activeModuleTab === 'history') {
+      maturitySlot.style.display = 'none';
       activeSlot.style.display = 'none';
       scheduledSlot.style.display = 'none';
       historySlot.style.display = '';
     } else {
+      maturitySlot.style.display = 'none';
       activeSlot.style.display = '';
       scheduledSlot.style.display = 'none';
       historySlot.style.display = 'none';
@@ -213,6 +267,1743 @@ Modules.Temporadas = (function () {
   function _setModuleTab(tab) {
     _state.moduleTab = _validModuleTab(tab);
     _paint();
+  }
+
+  function _loadBusinessMaturity(opts) {
+    opts = opts || {};
+    _state.businessMaturityLoading = true;
+    _state.businessMaturityError = null;
+    _paint();
+
+    if (!_tenantId || !window.DB || typeof DB.getAll !== 'function') {
+      _state.businessMaturity = _initialMaturity();
+      _state.businessMaturityLoading = false;
+      return Promise.resolve(_state.businessMaturity);
+    }
+
+    var monthKey = _maturityMonthKey();
+    return Promise.all([
+      DB.getAll('orders').catch(function () { return []; }),
+      DB.getAll('store_customers').catch(function () { return []; }),
+      DB.getAll('flight_plans').catch(function () { return []; }),
+      (DB.getDoc ? DB.getDoc('flight_plan_month_scenarios', monthKey).catch(function () { return null; }) : Promise.resolve(null)),
+      (DB.getDoc ? DB.getDoc('business_maturity', 'current').catch(function () { return null; }) : Promise.resolve(null)),
+      DB.getAll('stone_upgrade_events').catch(function () { return []; }),
+      DB.getAll('business_maturity_snapshots').catch(function () { return []; })
+    ]).then(function (r) {
+      var events = _normalizeStoneUpgradeEvents(r[5] || []);
+      var snapshots = _normalizeMaturitySnapshots(r[6] || []);
+      var maturity = _calculateBusinessMaturity({
+        seasons: _state.seasons || [],
+        orders: r[0] || [],
+        customers: r[1] || [],
+        flightPlans: r[2] || [],
+        monthScenario: r[3] || null,
+        existing: r[4] || null
+      });
+      _state.businessMaturity = maturity;
+      _state.businessMaturityEvents = events;
+      _state.businessMaturitySnapshots = snapshots;
+      _state.businessMaturityLoading = false;
+      return _saveBusinessMaturity(maturity, r[4] || null).then(function (savedMaturity) {
+        if (savedMaturity && savedMaturity.recentUpgradeEvent) {
+          _state.businessMaturityEvents = _normalizeStoneUpgradeEvents([savedMaturity.recentUpgradeEvent].concat(_state.businessMaturityEvents || []));
+          _state.pendingStoneCelebration = savedMaturity.recentUpgradeEvent;
+        } else {
+          _state.pendingStoneCelebration = _nextPendingStoneCelebration(_state.businessMaturityEvents);
+        }
+        _state.businessMaturity = savedMaturity || maturity;
+        return _ensureBusinessMaturitySnapshots(_state.businessMaturity, _state.businessMaturitySnapshots, opts).then(function (updatedSnapshots) {
+          _state.businessMaturitySnapshots = updatedSnapshots;
+          _paint();
+          _triggerStoneUpgradeCelebration(_state.pendingStoneCelebration);
+          return _state.businessMaturity;
+        });
+      });
+    }).catch(function (err) {
+      console.warn('Business maturity calculation skipped', err);
+      _state.businessMaturity = _initialMaturity();
+      _state.businessMaturityLoading = false;
+      _state.businessMaturityError = err;
+      _state.businessMaturitySnapshots = [];
+      return _state.businessMaturity;
+    });
+  }
+
+  function _saveBusinessMaturity(maturity, existing) {
+    if (!maturity || !window.DB || typeof DB.set !== 'function') return Promise.resolve(maturity);
+    var now = _maturityTimestamp();
+    var clientNow = new Date().toISOString();
+    var upgradeEvent = maturity.pendingUpgradeEvent || null;
+    var payload = Object.assign({}, maturity, {
+      tenantId: _tenantId,
+      id: undefined,
+      createdAt: existing && existing.createdAt ? existing.createdAt : now,
+      updatedAt: now,
+      lastCalculatedAt: now,
+      lastUpgradeAt: upgradeEvent ? now : (existing && existing.lastUpgradeAt ? existing.lastUpgradeAt : null)
+    });
+    delete payload.id;
+    delete payload.pendingUpgradeEvent;
+    delete payload.recentUpgradeEvent;
+    return DB.set('business_maturity', 'current', payload).then(function () {
+      return true;
+    }).catch(function (err) {
+      console.warn('Business maturity save skipped', err);
+      return false;
+    }).then(function (saved) {
+      if (!saved || !upgradeEvent || typeof DB.add !== 'function') return maturity;
+      return DB.add('stone_upgrade_events', Object.assign({}, upgradeEvent, {
+        tenantId: _tenantId,
+        upgradedAt: now,
+        celebrationPending: true,
+        celebrationShownAt: null
+      })).then(function (ref) {
+        maturity.recentUpgradeEvent = Object.assign({}, upgradeEvent, {
+          id: ref && ref.id ? ref.id : '',
+          tenantId: _tenantId,
+          createdAt: clientNow,
+          upgradedAt: clientNow,
+          celebrationPending: true,
+          celebrationShownAt: null
+        });
+        return maturity;
+      }).catch(function (err) {
+        console.warn('Stone upgrade event save skipped', err);
+        return maturity;
+      });
+    });
+  }
+
+  function _calculateBusinessMaturity(input) {
+    input = input || {};
+    var existing = input.existing || {};
+    var seasons = _normalizeSeasons(input.seasons || []);
+    var orders = _maturityValidOrders(input.orders || []);
+    var customers = input.customers || [];
+    var monthScenario = input.monthScenario || null;
+    var flightPlans = input.flightPlans || [];
+    var currentStone = _validStone(existing.currentStone) || 'Pedra Bruta';
+    var nextStone = _nextStone(currentStone);
+    var seasonStats = _maturitySeasonStats(seasons);
+    var orderStats = _maturityOrderStats(orders);
+    var loyaltyStats = _maturityLoyaltyStats(orders, customers);
+    var scenario = _maturityScenario(monthScenario, flightPlans);
+    var indexes = _maturityIndexes(seasonStats, orderStats, loyaltyStats, scenario);
+    var maturityScore = _maturityScore(indexes);
+    var hasEnoughData = seasonStats.total > 0 || orderStats.totalOrders >= 3;
+    var previousProgress = _clamp(_number(existing.stoneProgressPercent, 0), 0, 100);
+    var progress = hasEnoughData ? _clamp(Math.round((maturityScore * 0.68) + seasonStats.totalImpact), 0, 100) : 0;
+    var strengths = _maturityStrengths(seasonStats, orderStats, loyaltyStats, indexes, scenario);
+    var weaknesses = _maturityWeaknesses(seasonStats, orderStats, loyaltyStats, indexes, scenario);
+    var lastImpact = seasonStats.lastImpact || _emptySeasonImpact();
+    var checklist = _maturityChecklist(currentStone, nextStone, seasonStats, orderStats, loyaltyStats, indexes, scenario);
+    var blockers = _stoneUpgradeBlockers(seasonStats, orderStats, indexes, checklist, hasEnoughData);
+    var signature = _maturityCalculationSignature(seasonStats, orderStats, loyaltyStats, scenario);
+    var upgrade = _stoneUpgradeDecision(existing, {
+      currentStone: currentStone,
+      nextStone: nextStone,
+      progress: progress,
+      previousProgress: previousProgress,
+      maturityScore: maturityScore,
+      indexes: indexes,
+      checklist: checklist,
+      blockers: blockers,
+      signature: signature,
+      seasonStats: seasonStats,
+      orderStats: orderStats,
+      loyaltyStats: loyaltyStats,
+      scenario: scenario
+    });
+    if (upgrade.upgraded) {
+      currentStone = upgrade.currentStone;
+      nextStone = upgrade.nextStone;
+      progress = upgrade.progress;
+      checklist = _maturityChecklist(currentStone, nextStone, seasonStats, orderStats, loyaltyStats, indexes, scenario);
+      strengths = _maturityStrengths(seasonStats, orderStats, loyaltyStats, indexes, scenario);
+      weaknesses = _maturityWeaknesses(seasonStats, orderStats, loyaltyStats, indexes, scenario);
+    } else if (upgrade.progress !== undefined) {
+      progress = upgrade.progress;
+    }
+
+    return {
+      tenantId: _tenantId,
+      currentStone: currentStone,
+      nextStone: nextStone,
+      stoneProgressPercent: progress,
+      previousStoneProgressPercent: previousProgress,
+      maturityScore: hasEnoughData ? Math.round(maturityScore) : 0,
+      indexes: indexes,
+      strengths: strengths,
+      weaknesses: weaknesses,
+      checklist: checklist,
+      checklistSummary: _maturityChecklistSummary(checklist),
+      blockers: blockers,
+      lastSeasonImpact: lastImpact,
+      lastSeasonImpactPercent: lastImpact.impactPercent || 0,
+      lastSeasonImpactReason: lastImpact.reason || '',
+      seasonContributionSummary: seasonStats.summary,
+      lastUpgradeSignature: upgrade.lastUpgradeSignature || existing.lastUpgradeSignature || '',
+      lastUpgradeReason: upgrade.reason || existing.lastUpgradeReason || '',
+      lastUpgradeFrom: upgrade.fromStone || existing.lastUpgradeFrom || '',
+      lastUpgradeTo: upgrade.toStone || existing.lastUpgradeTo || '',
+      pendingUpgradeEvent: upgrade.event || null,
+      recentUpgradeEvent: null,
+      lastCalculatedAt: existing.lastCalculatedAt || null,
+      lastUpgradeAt: upgrade.upgraded ? null : (existing.lastUpgradeAt || null),
+      createdAt: existing.createdAt || null,
+      updatedAt: existing.updatedAt || null,
+      calculationVersion: 'stones_phase_4',
+      calculationNotes: [
+        'Fase 4: upgrade automatico de uma Pedra quando progresso chega a 100 sem bloqueios graves.',
+        'Eventos de evolucao sao salvos em stone_upgrade_events para auditoria.'
+      ]
+    };
+  }
+
+  function _initialMaturity() {
+    return {
+      tenantId: _tenantId,
+      currentStone: 'Pedra Bruta',
+      nextStone: 'Quartzo',
+      stoneProgressPercent: 0,
+      maturityScore: 0,
+      indexes: _emptyMaturityIndexes(),
+      strengths: ['Comeco da organizacao do negocio.'],
+      weaknesses: ['Ainda faltam dados suficientes para medir evolucao.'],
+      lastCalculatedAt: null,
+      lastUpgradeAt: null,
+      createdAt: null,
+      updatedAt: null,
+      checklist: _initialChecklist(),
+      checklistSummary: { completed: 0, pending: 4, limited: 0, total: 4 },
+      blockers: [],
+      lastSeasonImpact: _emptySeasonImpact(),
+      lastSeasonImpactPercent: 0,
+      lastSeasonImpactReason: '',
+      seasonContributionSummary: _emptySeasonContributionSummary(),
+      lastUpgradeSignature: '',
+      lastUpgradeReason: '',
+      lastUpgradeFrom: '',
+      lastUpgradeTo: '',
+      recentUpgradeEvent: null,
+      calculationVersion: 'stones_phase_4'
+    };
+  }
+
+  function _emptyMaturityIndexes() {
+    return {
+      healthyGrowth: _maturityIndex(0, 'low', ['Sem dados suficientes de pedidos.']),
+      consistency: _maturityIndex(0, 'low', ['Sem historico suficiente de vendas ou temporadas.']),
+      financialHealth: _maturityIndex(0, 'low', ['Financeiro avancado ainda fora desta fase.']),
+      controlledRisk: _maturityIndex(0, 'low', ['Sem temporadas suficientes para medir risco.']),
+      loyalty: _maturityIndex(0, 'low', ['Sem recorrencia suficiente para medir fidelizacao.']),
+      execution: _maturityIndex(0, 'low', ['Sem temporadas finalizadas para medir execução.'])
+    };
+  }
+
+  function _maturityIndexes(seasonStats, orderStats, loyaltyStats, scenario) {
+    var healthyGrowth = 0;
+    if (orderStats.totalOrders > 0) healthyGrowth += Math.min(34, orderStats.totalOrders * 3);
+    if (orderStats.revenue > 0) healthyGrowth += Math.min(18, orderStats.revenue / 120);
+    if (orderStats.growthPct > 0) healthyGrowth += Math.min(18, orderStats.growthPct * 0.35);
+    if (orderStats.averageTicket > 0) healthyGrowth += Math.min(14, orderStats.averageTicket / 4);
+    if (scenario === 'growth' || scenario === 'expansion') healthyGrowth += Math.min(6, seasonStats.avgRiskScore <= 55 ? 6 : 2);
+
+    var consistency = Math.min(42, orderStats.activeDays * 5) + Math.min(18, orderStats.activeWeeks * 6);
+    if (seasonStats.finished > 0) consistency += Math.min(22, seasonStats.finished * 9);
+    if (seasonStats.avgScore > 0) consistency += Math.min(18, seasonStats.avgScore * 0.22);
+    consistency += Math.min(10, seasonStats.totalImpact * 0.25);
+    consistency -= seasonStats.abandoned * 10;
+
+    var financialHealth = orderStats.totalOrders > 0 ? 42 : 0;
+    if (orderStats.averageTicket > 0) financialHealth += Math.min(18, orderStats.averageTicket / 3);
+    if (scenario === 'survival') financialHealth += 8;
+    if (scenario === 'equilibrium') financialHealth += 10;
+    if ((scenario === 'growth' || scenario === 'expansion') && seasonStats.avgRiskScore > 70) financialHealth -= 12;
+
+    var controlledRisk = seasonStats.total ? Math.max(0, 100 - seasonStats.avgRiskScore) : (orderStats.totalOrders >= 3 ? 45 : 0);
+    controlledRisk += Math.min(14, seasonStats.finished * 5);
+    controlledRisk -= seasonStats.abandoned * 16;
+
+    var loyalty = loyaltyStats.uniqueCustomers ? Math.min(70, loyaltyStats.recurringRate * 100) : 0;
+    loyalty += Math.min(20, loyaltyStats.recurringCustomers * 6);
+    if (customers.length >= 5) loyalty += 8;
+
+    var execution = seasonStats.finished * 18 + seasonStats.totalVictories * 15 + seasonStats.partialVictories * 9;
+    if (seasonStats.avgScore > 0) execution += Math.min(25, seasonStats.avgScore * 0.28);
+    execution += Math.min(24, seasonStats.totalImpact * 0.45);
+    execution -= seasonStats.abandoned * 18;
+
+    return {
+      healthyGrowth: _maturityIndex(healthyGrowth, orderStats.totalOrders >= 6 ? 'medium' : 'low', _growthNotes(orderStats, scenario)),
+      consistency: _maturityIndex(consistency, orderStats.totalOrders >= 6 || seasonStats.total >= 2 ? 'medium' : 'low', _consistencyNotes(seasonStats, orderStats)),
+      financialHealth: _maturityIndex(financialHealth, orderStats.totalOrders ? 'low' : 'low', ['Esta fase usa pedidos e Plano de Voo como sinal leve; margem complexa fica fora.']),
+      controlledRisk: _maturityIndex(controlledRisk, seasonStats.total ? 'medium' : 'low', _riskNotes(seasonStats)),
+      loyalty: _maturityIndex(loyalty, loyaltyStats.uniqueCustomers >= 5 ? 'medium' : 'low', _loyaltyNotes(loyaltyStats)),
+      execution: _maturityIndex(execution, seasonStats.total ? 'high' : 'low', _executionNotes(seasonStats))
+    };
+  }
+
+  function _maturityIndex(score, confidence, notes) {
+    return {
+      score: Math.round(_clamp(score, 0, 100)),
+      confidence: confidence || 'low',
+      notes: notes || []
+    };
+  }
+
+  function _maturityScore(indexes) {
+    return (
+      indexes.healthyGrowth.score * 0.20 +
+      indexes.consistency.score * 0.25 +
+      indexes.financialHealth.score * 0.20 +
+      indexes.controlledRisk.score * 0.15 +
+      indexes.loyalty.score * 0.10 +
+      indexes.execution.score * 0.10
+    );
+  }
+
+  function _maturitySeasonStats(seasons) {
+    var closed = (seasons || []).filter(function (season) {
+      return season && (season.status === 'finished' || season.status === 'abandoned');
+    });
+    var finished = 0;
+    var abandoned = 0;
+    var totalVictories = 0;
+    var partialVictories = 0;
+    var unstable = 0;
+    var failed = 0;
+    var scoreSum = 0;
+    var scoreCount = 0;
+    var riskSum = 0;
+    var riskCount = 0;
+    var totalImpact = 0;
+    var impacts = [];
+
+    closed.forEach(function (season) {
+      if (!season) return;
+      if (season.status === 'finished') finished++;
+      if (season.status === 'abandoned') abandoned++;
+      if (season.finalResult === 'Vitória Total') totalVictories++;
+      if (season.finalResult === 'Vitória Parcial') partialVictories++;
+      if (season.finalResult === 'Temporada Instável') unstable++;
+      if (season.finalResult === 'Falha Operacional') failed++;
+      var score = _number(season.finalScore, _number(season.currentScore, null));
+      if (score !== null && isFinite(score) && score > 0) {
+        scoreSum += score;
+        scoreCount++;
+      }
+      if (season.riskLevel || season.initialRiskLevel) {
+        riskSum += _riskScore(season.riskLevel || season.initialRiskLevel);
+        riskCount++;
+      }
+      var impact = _seasonMaturityImpact(season);
+      totalImpact += impact.impactPercent;
+      impacts.push(impact);
+    });
+    impacts.sort(function (a, b) {
+      return _dateValue(b.seasonDate || '') - _dateValue(a.seasonDate || '');
+    });
+
+    return {
+      total: closed.length,
+      finished: finished,
+      abandoned: abandoned,
+      totalVictories: totalVictories,
+      partialVictories: partialVictories,
+      unstable: unstable,
+      failed: failed,
+      avgScore: scoreCount ? scoreSum / scoreCount : 0,
+      avgRiskScore: riskCount ? riskSum / riskCount : 55,
+      totalImpact: _clamp(totalImpact, 0, 42),
+      lastImpact: impacts[0] || _emptySeasonImpact(),
+      impacts: impacts,
+      summary: {
+        closedSeasons: closed.length,
+        finished: finished,
+        abandoned: abandoned,
+        totalVictories: totalVictories,
+        partialVictories: partialVictories,
+        unstable: unstable,
+        failed: failed,
+        totalImpactPercent: Math.round(_clamp(totalImpact, 0, 42)),
+        averageScore: scoreCount ? Math.round(scoreSum / scoreCount) : 0,
+        averageRiskScore: riskCount ? Math.round(riskSum / riskCount) : 55
+      }
+    };
+  }
+
+  function _seasonMaturityImpact(season) {
+    season = season || {};
+    var result = season.status === 'abandoned' ? 'Abandono' : (season.finalResult || 'Resultado não calculado');
+    var score = _number(season.finalScore, _number(season.currentScore, 0));
+    var risk = season.riskLevel || season.initialRiskLevel || 'unknown';
+    var difficulty = season.difficulty || season.targetDifficulty || 'balanced';
+    var impact = 0;
+    var reasons = [];
+    var limiters = [];
+
+    if (result === 'Vitória Total') {
+      impact += 13;
+      reasons.push('Vitória Total fortaleceu a execução.');
+    } else if (result === 'Vitória Parcial') {
+      impact += 8;
+      reasons.push('Vitória Parcial gerou avanço moderado.');
+    } else if (result === 'Temporada Instável') {
+      impact += 3;
+      reasons.push('Houve avanço, mas com instabilidade.');
+    } else if (result === 'Falha Operacional') {
+      impact += 1;
+      limiters.push('Falha Operacional quase não contribui para a Pedra.');
+    } else if (result === 'Abandono') {
+      impact -= 7;
+      limiters.push('Temporada abandonada limita a evolução.');
+    }
+
+    if (score >= 85) {
+      impact += 5;
+      reasons.push('Score final alto aumentou a qualidade do avanço.');
+    } else if (score >= 65) {
+      impact += 3;
+      reasons.push('Score final saudável contribuiu para maturidade.');
+    } else if (score > 0 && score < 40) {
+      impact -= 3;
+      limiters.push('Score final baixo reduziu o impacto.');
+    }
+
+    if (risk === 'low') {
+      impact += 3;
+      reasons.push('Risco baixo deixou o avanço mais saudável.');
+    } else if (risk === 'medium') {
+      impact += 1;
+      reasons.push('Risco médio manteve o avanço controlado.');
+    } else if (risk === 'high' || risk === 'very_high') {
+      impact -= risk === 'very_high' ? 7 : 5;
+      limiters.push('Chance de falha elevada limitou o avanço.');
+    }
+
+    if (difficulty === 'aggressive') {
+      if (risk === 'low' || risk === 'medium') {
+        impact += 4;
+        reasons.push('Dificuldade agressiva bem controlada aumentou a contribuição.');
+      } else {
+        limiters.push('Dificuldade agressiva com risco alto não acelera a Pedra.');
+      }
+    } else if (difficulty === 'balanced') {
+      impact += 2;
+    } else if (difficulty === 'safe') {
+      impact += 1;
+    }
+
+    impact = _clamp(Math.round(impact), -8, 22);
+    var reason = _seasonImpactReason(result, difficulty, risk, impact, reasons, limiters);
+    return {
+      seasonId: season.id || '',
+      seasonTitle: season.title || '',
+      seasonDate: season.finishedAt || season.abandonedAt || season.updatedAt || season.endDate || season.createdAt || '',
+      finalResult: result,
+      finalScore: Math.round(score || 0),
+      riskLevel: risk,
+      difficulty: difficulty,
+      impactPercent: impact,
+      reason: reason,
+      limiters: limiters,
+      positives: reasons
+    };
+  }
+
+  function _seasonImpactReason(result, difficulty, risk, impact, reasons, limiters) {
+    if (result === 'Abandono') return 'Esta temporada limitou sua evolução porque foi abandonada antes de consolidar resultado.';
+    if (result === 'Vitória Total' && difficulty === 'aggressive' && (risk === 'high' || risk === 'very_high')) {
+      return 'Vitória Total em dificuldade agressiva aumentou seu progresso, mas o avanço foi limitado por chance de falha elevada.';
+    }
+    if (impact >= 15) return 'Esta temporada fortaleceu sua evolução porque foi concluída com boa consistência.';
+    if (impact >= 7) return 'Esta temporada contribuiu de forma moderada para sua Pedra.';
+    if (impact > 0) return 'Esta temporada avançou pouco sua Pedra porque ainda houve instabilidade ou risco relevante.';
+    if (limiters.length) return limiters[0];
+    return reasons[0] || 'Impacto calculado a partir do resultado final, score, risco e dificuldade.';
+  }
+
+  function _emptySeasonImpact() {
+    return {
+      seasonId: '',
+      seasonTitle: '',
+      seasonDate: '',
+      finalResult: '',
+      finalScore: 0,
+      riskLevel: 'unknown',
+      difficulty: '',
+      impactPercent: 0,
+      reason: 'Nenhuma temporada finalizada analisada ainda.',
+      limiters: [],
+      positives: []
+    };
+  }
+
+  function _emptySeasonContributionSummary() {
+    return {
+      closedSeasons: 0,
+      finished: 0,
+      abandoned: 0,
+      totalVictories: 0,
+      partialVictories: 0,
+      unstable: 0,
+      failed: 0,
+      totalImpactPercent: 0,
+      averageScore: 0,
+      averageRiskScore: 55
+    };
+  }
+
+  function _maturityOrderStats(orders) {
+    var now = new Date();
+    var currentStart = new Date(now.getTime() - 30 * 86400000);
+    var previousStart = new Date(now.getTime() - 60 * 86400000);
+    var revenue = 0;
+    var currentRevenue = 0;
+    var previousRevenue = 0;
+    var currentOrders = 0;
+    var previousOrders = 0;
+    var days = {};
+    var weeks = {};
+
+    (orders || []).forEach(function (order) {
+      var value = _maturityOrderValue(order);
+      var date = _maturityOrderDate(order);
+      revenue += value;
+      if (date) {
+        days[_dateKey(date)] = true;
+        weeks[_weekKey(date)] = true;
+        if (date >= currentStart) {
+          currentRevenue += value;
+          currentOrders++;
+        } else if (date >= previousStart) {
+          previousRevenue += value;
+          previousOrders++;
+        }
+      }
+    });
+
+    var growthPct = previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : (currentRevenue > 0 ? 8 : 0);
+    var currentAverageTicket = currentOrders ? currentRevenue / currentOrders : 0;
+    var previousAverageTicket = previousOrders ? previousRevenue / previousOrders : 0;
+    return {
+      totalOrders: (orders || []).length,
+      revenue: revenue,
+      averageTicket: orders.length ? revenue / orders.length : 0,
+      activeDays: Object.keys(days).length,
+      activeWeeks: Object.keys(weeks).length,
+      currentRevenue: currentRevenue,
+      previousRevenue: previousRevenue,
+      currentOrders: currentOrders,
+      previousOrders: previousOrders,
+      currentAverageTicket: currentAverageTicket,
+      previousAverageTicket: previousAverageTicket,
+      growthPct: growthPct
+    };
+  }
+
+  function _maturityLoyaltyStats(orders, customers) {
+    var map = {};
+    (orders || []).forEach(function (order) {
+      var key = String(order.customerId || order.clientId || order.customerPhone || order.phone || order.customerEmail || order.email || order.customerName || order.name || '').trim().toLowerCase();
+      if (!key) key = 'order:' + (order.id || Math.random());
+      map[key] = (map[key] || 0) + 1;
+    });
+    (customers || []).forEach(function (customer) {
+      var key = String(customer.id || customer.phone || customer.email || customer.name || '').trim().toLowerCase();
+      if (!key || map[key]) return;
+      map[key] = _number(customer.ordersCount, _number(customer.totalOrders, 0));
+    });
+    var keys = Object.keys(map);
+    var recurring = keys.filter(function (key) { return map[key] >= 2; }).length;
+    return {
+      uniqueCustomers: keys.length,
+      recurringCustomers: recurring,
+      recurringRate: keys.length ? recurring / keys.length : 0
+    };
+  }
+
+  function _maturityScenario(monthScenario, flightPlans) {
+    var direct = monthScenario && (monthScenario.scenario || monthScenario.selectedScenario);
+    if (direct) return String(direct).toLowerCase();
+    var plans = (flightPlans || []).slice().sort(function (a, b) {
+      return _dateValue(b.updatedAt || b.createdAt || b.periodStart) - _dateValue(a.updatedAt || a.createdAt || a.periodStart);
+    });
+    return plans[0] && plans[0].scenario ? String(plans[0].scenario).toLowerCase() : '';
+  }
+
+  function _maturityValidOrders(orders) {
+    return (orders || []).filter(function (order) {
+      if (!order) return false;
+      var status = String(order.status || order.state || order.orderStatus || '').toLowerCase();
+      if (['cancelado', 'cancelada', 'canceled', 'cancelled', 'reembolsado', 'refunded'].indexOf(status) >= 0) return false;
+      return _maturityOrderValue(order) >= 0;
+    });
+  }
+
+  function _maturityOrderValue(order) {
+    return _money(order.total || order.grandTotal || order.finalTotal || order.amount || order.value || order.subtotal || 0);
+  }
+
+  function _maturityOrderDate(order) {
+    var raw = order && (order.createdAt || order.date || order.data || order.paidAt || order.updatedAt);
+    if (!raw) return null;
+    if (raw && typeof raw.toDate === 'function') return raw.toDate();
+    var d = new Date(raw);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  function _maturityStrengths(seasonStats, orderStats, loyaltyStats, indexes, scenario) {
+    var list = [];
+    if (seasonStats.finished > 0) list.push('Temporadas concluídas mostram execução real.');
+    if (seasonStats.totalVictories > 0 || seasonStats.partialVictories > 0) list.push('Há vitórias totais ou parciais em temporadas.');
+    if (orderStats.activeDays >= 4) list.push('A loja vendeu em mais dias, sinal de consistência.');
+    if (loyaltyStats.recurringCustomers > 0) list.push('Já existem sinais básicos de recorrência de clientes.');
+    if (indexes.controlledRisk.score >= 60) list.push('O risco operacional está mais controlado.');
+    if (scenario === 'survival') list.push('Meta Survival conta como construção válida nesta fase.');
+    if (!list.length) list.push('Começo da organização do negócio registrado.');
+    return list.slice(0, 4);
+  }
+
+  function _maturityWeaknesses(seasonStats, orderStats, loyaltyStats, indexes) {
+    var list = [];
+    if (!seasonStats.finished) list.push('Ainda faltam temporadas concluídas para medir execução.');
+    if (seasonStats.abandoned > 0) list.push('Temporadas abandonadas reduzem a velocidade de evolução.');
+    if (seasonStats.avgRiskScore >= 70) list.push('Risco alto recorrente limita o avanço.');
+    if (orderStats.activeDays < 3) list.push('Poucos dias com venda limitam a leitura de consistência.');
+    if (!loyaltyStats.recurringCustomers) list.push('Baixa recorrência ainda limita a maturidade.');
+    if (indexes.financialHealth.confidence === 'low') list.push('Saúde financeira ainda tem leitura básica nesta fase.');
+    return list.slice(0, 4);
+  }
+
+  function _growthNotes(orderStats, scenario) {
+    var notes = [];
+    if (orderStats.totalOrders) notes.push(orderStats.totalOrders + ' pedido(s) válidos analisados.');
+    if (orderStats.growthPct > 0) notes.push('Receita recente acima do período anterior.');
+    if (scenario) notes.push('Cenário do Plano de Voo usado como contexto: ' + scenario + '.');
+    if (!notes.length) notes.push('Ainda há poucos pedidos para medir crescimento.');
+    return notes;
+  }
+
+  function _consistencyNotes(seasonStats, orderStats) {
+    var notes = [];
+    if (orderStats.activeDays) notes.push(orderStats.activeDays + ' dia(s) com venda detectados.');
+    if (seasonStats.finished) notes.push(seasonStats.finished + ' temporada(s) concluída(s).');
+    if (seasonStats.abandoned) notes.push(seasonStats.abandoned + ' temporada(s) abandonada(s) reduziram o índice.');
+    if (!notes.length) notes.push('Sem histórico suficiente para medir consistência.');
+    return notes;
+  }
+
+  function _riskNotes(seasonStats) {
+    if (!seasonStats.total) return ['Sem temporadas suficientes para medir risco com confiança.'];
+    return ['Risco médio calculado a partir das temporadas disponíveis.'];
+  }
+
+  function _loyaltyNotes(loyaltyStats) {
+    if (!loyaltyStats.uniqueCustomers) return ['Sem clientes suficientes para medir recorrência.'];
+    return [loyaltyStats.recurringCustomers + ' cliente(s) recorrente(s) entre ' + loyaltyStats.uniqueCustomers + ' identificado(s).'];
+  }
+
+  function _executionNotes(seasonStats) {
+    if (!seasonStats.total) return ['Sem temporadas para medir execução.'];
+    return [seasonStats.finished + ' concluída(s), ' + seasonStats.abandoned + ' abandonada(s).'];
+  }
+
+  function _stoneUpgradeDecision(existing, ctx) {
+    existing = existing || {};
+    ctx = ctx || {};
+    var currentStone = ctx.currentStone || 'Pedra Bruta';
+    var nextStone = ctx.nextStone || _nextStone(currentStone);
+    var progress = _clamp(_number(ctx.progress, 0), 0, 100);
+    var blockers = ctx.blockers || [];
+    var signature = ctx.signature || '';
+    var reason = _stoneUpgradeReason(ctx);
+    var blocked = blockers.some(function (blocker) {
+      return blocker && blocker.effect === 'block_upgrade';
+    });
+    var alreadyUsedSignature = signature && existing.lastUpgradeSignature === signature;
+    if (currentStone === nextStone || progress < 100 || blocked || alreadyUsedSignature) {
+      return {
+        upgraded: false,
+        currentStone: currentStone,
+        nextStone: nextStone,
+        progress: alreadyUsedSignature ? _clamp(_number(existing.stoneProgressPercent, 0), 0, 100) : progress,
+        reason: blocked ? _blockerReason(blockers) : ''
+      };
+    }
+
+    var targetStone = nextStone;
+    return {
+      upgraded: true,
+      currentStone: targetStone,
+      nextStone: _nextStone(targetStone),
+      progress: 0,
+      fromStone: currentStone,
+      toStone: targetStone,
+      reason: reason,
+      lastUpgradeSignature: signature,
+      event: {
+        fromStone: currentStone,
+        toStone: targetStone,
+        previousProgress: _clamp(_number(ctx.previousProgress, 0), 0, 100),
+        newProgress: 0,
+        maturityScore: Math.round(_number(ctx.maturityScore, 0)),
+        reason: reason,
+        indicatorsUsed: _stoneUpgradeIndicators(ctx),
+        snapshotId: '',
+        calculationSignature: signature
+      }
+    };
+  }
+
+  function _stoneUpgradeBlockers(seasonStats, orderStats, indexes, checklist, hasEnoughData) {
+    var blockers = [];
+    if (!hasEnoughData) {
+      blockers.push(_stoneBlocker('insufficient_data', 'Dados insuficientes para subir Pedra.', 'data', 'block_upgrade'));
+    }
+    if (seasonStats.abandoned >= 2) {
+      blockers.push(_stoneBlocker('recurring_abandonment', 'Abandono recorrente de temporadas trava a subida.', 'execution', 'block_upgrade'));
+    }
+    if (seasonStats.avgRiskScore >= 82 && seasonStats.total > 0) {
+      blockers.push(_stoneBlocker('extreme_risk', 'Risco muito alto recorrente trava a subida.', 'risk', 'block_upgrade'));
+    }
+    if (seasonStats.failed >= 2) {
+      blockers.push(_stoneBlocker('recurring_failure', 'Falhas operacionais recorrentes travam a subida.', 'execution', 'block_upgrade'));
+    }
+    if (orderStats.growthPct > 25 && seasonStats.avgRiskScore >= 75) {
+      blockers.push(_stoneBlocker('chaotic_growth', 'Crescimento com risco alto não deve subir Pedra.', 'growth', 'block_upgrade'));
+    }
+    if (indexes.controlledRisk && indexes.controlledRisk.score < 20) {
+      blockers.push(_stoneBlocker('critical_limiters', 'Limitadores críticos de risco ou execução impedem a subida agora.', 'risk', 'block_upgrade'));
+    }
+    return blockers;
+  }
+
+  function _stoneBlocker(id, title, category, effect) {
+    return {
+      id: id,
+      title: title,
+      category: category,
+      effect: effect || 'slow_progress'
+    };
+  }
+
+  function _blockerReason(blockers) {
+    var blocker = (blockers || []).filter(function (item) {
+      return item && item.effect === 'block_upgrade';
+    })[0];
+    return blocker ? blocker.title : '';
+  }
+
+  function _stoneUpgradeReason(ctx) {
+    var checklist = ctx.checklist || [];
+    var completed = checklist.filter(function (item) { return item.status === 'completed'; }).length;
+    var parts = [];
+    parts.push('Progresso da Pedra chegou a 100% com maturidade acumulada.');
+    if (ctx.seasonStats && ctx.seasonStats.totalVictories) parts.push('Vitórias totais em temporadas fortaleceram a execução.');
+    else if (ctx.seasonStats && ctx.seasonStats.partialVictories) parts.push('Vitórias parciais mostraram avanço operacional.');
+    if (ctx.seasonStats && ctx.seasonStats.avgRiskScore <= 60) parts.push('Risco médio permaneceu controlado.');
+    if (completed) parts.push(completed + ' marco(s) do Caminho da Pedra foram detectados automaticamente.');
+    return parts.join(' ');
+  }
+
+  function _stoneUpgradeIndicators(ctx) {
+    ctx = ctx || {};
+    return {
+      maturityScore: Math.round(_number(ctx.maturityScore, 0)),
+      stoneProgressPercent: Math.round(_number(ctx.progress, 0)),
+      indexes: ctx.indexes || {},
+      checklistSummary: _maturityChecklistSummary(ctx.checklist || []),
+      seasonContributionSummary: ctx.seasonStats && ctx.seasonStats.summary ? ctx.seasonStats.summary : _emptySeasonContributionSummary(),
+      orderSummary: {
+        totalOrders: ctx.orderStats ? ctx.orderStats.totalOrders : 0,
+        activeDays: ctx.orderStats ? ctx.orderStats.activeDays : 0,
+        activeWeeks: ctx.orderStats ? ctx.orderStats.activeWeeks : 0,
+        growthPct: ctx.orderStats ? Math.round(ctx.orderStats.growthPct) : 0
+      },
+      loyaltySummary: {
+        uniqueCustomers: ctx.loyaltyStats ? ctx.loyaltyStats.uniqueCustomers : 0,
+        recurringCustomers: ctx.loyaltyStats ? ctx.loyaltyStats.recurringCustomers : 0,
+        recurringRate: ctx.loyaltyStats ? Math.round(ctx.loyaltyStats.recurringRate * 100) : 0
+      },
+      scenario: ctx.scenario || ''
+    };
+  }
+
+  function _maturityCalculationSignature(seasonStats, orderStats, loyaltyStats, scenario) {
+    var summary = seasonStats && seasonStats.summary ? seasonStats.summary : _emptySeasonContributionSummary();
+    return [
+      summary.closedSeasons || 0,
+      summary.finished || 0,
+      summary.abandoned || 0,
+      summary.totalVictories || 0,
+      summary.partialVictories || 0,
+      summary.averageScore || 0,
+      summary.averageRiskScore || 0,
+      orderStats.totalOrders || 0,
+      Math.round(orderStats.currentRevenue || 0),
+      Math.round(orderStats.previousRevenue || 0),
+      orderStats.activeDays || 0,
+      orderStats.activeWeeks || 0,
+      loyaltyStats.recurringCustomers || 0,
+      Math.round((loyaltyStats.recurringRate || 0) * 100),
+      scenario || ''
+    ].join('|');
+  }
+
+  function _maturityChecklist(currentStone, nextStone, seasonStats, orderStats, loyaltyStats, indexes, scenario) {
+    var transition = (currentStone || 'Pedra Bruta') + '->' + (nextStone || _nextStone(currentStone));
+    var factories = _checklistFactories();
+    var ids = _checklistIdsForTransition(transition);
+    var items = ids.map(function (id) {
+      return factories[id] ? factories[id](seasonStats, orderStats, loyaltyStats, indexes, scenario) : null;
+    }).filter(Boolean);
+
+    if (seasonStats.abandoned > 0 && !items.some(function (item) { return item.id === 'avoid_abandonment'; })) {
+      items.push(factories.avoid_abandonment(seasonStats, orderStats, loyaltyStats, indexes, scenario));
+    }
+    if (seasonStats.avgRiskScore >= 70 && !items.some(function (item) { return item.id === 'reduce_operation_risk'; })) {
+      items.push(factories.reduce_operation_risk(seasonStats, orderStats, loyaltyStats, indexes, scenario));
+    }
+    return items.slice(0, 6);
+  }
+
+  function _checklistFactories() {
+    return {
+      sell_more_days: function (seasonStats, orderStats) {
+        return _checklistItem({
+          id: 'sell_more_days',
+          title: 'Manter vendas em mais dias da semana',
+          description: 'A operação ganha maturidade quando vende com mais frequência, não apenas em dias isolados.',
+          category: 'consistency',
+          completed: orderStats.activeDays >= 4,
+          source: 'orders',
+          completedAt: _recentEvidenceDate(seasonStats),
+          evidence: { activeDays: orderStats.activeDays },
+          completedEvidence: 'Detectado por dias com venda no período.',
+          pendingEvidence: 'Ainda há poucos dias com venda para confirmar consistência.'
+        });
+      },
+      finish_season: function (seasonStats) {
+        return _checklistItem({
+          id: 'finish_season',
+          title: 'Concluir uma temporada',
+          description: 'Finalizar ciclos operacionais mostra execução e capacidade de acompanhar metas até o fechamento.',
+          category: 'execution',
+          completed: seasonStats.finished > 0,
+          source: 'seasons',
+          completedAt: _recentEvidenceDate(seasonStats),
+          evidence: { finishedSeasons: seasonStats.finished },
+          completedEvidence: 'Detectado pelo fechamento de temporada.',
+          pendingEvidence: 'Ainda falta uma temporada concluída para medir execução.'
+        });
+      },
+      reduce_initial_instability: function (seasonStats, orderStats) {
+        var limited = seasonStats.abandoned > 0 || seasonStats.failed > 0 || seasonStats.avgRiskScore >= 70;
+        return _checklistItem({
+          id: 'reduce_initial_instability',
+          title: 'Reduzir instabilidade inicial',
+          description: 'A evolução fica mais forte quando a loja reduz abandono, falhas e risco recorrente.',
+          category: 'risk',
+          completed: seasonStats.total > 0 && !limited && orderStats.activeDays >= 3,
+          limited: limited,
+          source: 'seasons',
+          completedAt: _recentEvidenceDate(seasonStats),
+          evidence: { abandoned: seasonStats.abandoned, failed: seasonStats.failed, averageRiskScore: Math.round(seasonStats.avgRiskScore) },
+          completedEvidence: 'Detectado por temporada finalizada sem sinais fortes de instabilidade.',
+          pendingEvidence: 'Ainda faltam dados para confirmar menor instabilidade.',
+          limitedEvidence: 'Abandono, falha ou risco alto ainda limitam este marco.'
+        });
+      },
+      minimum_order_base: function (seasonStats, orderStats) {
+        return _checklistItem({
+          id: 'minimum_order_base',
+          title: 'Criar base mínima de pedidos',
+          description: 'Uma base inicial de pedidos ajuda o BocaFood a ler evolução real com mais confiança.',
+          category: 'growth',
+          completed: orderStats.totalOrders >= 5,
+          source: 'orders',
+          completedAt: _recentEvidenceDate(seasonStats),
+          evidence: { totalOrders: orderStats.totalOrders },
+          completedEvidence: 'Detectado por volume mínimo de pedidos válidos.',
+          pendingEvidence: 'Ainda há poucos pedidos válidos para confirmar a base inicial.'
+        });
+      },
+      stable_weeks: function (seasonStats, orderStats) {
+        return _checklistItem({
+          id: 'stable_weeks',
+          title: 'Manter semanas mais estáveis',
+          description: 'Semanas com vendas recorrentes indicam mais previsibilidade operacional.',
+          category: 'consistency',
+          completed: orderStats.activeWeeks >= 2 && orderStats.activeDays >= 5,
+          source: 'orders',
+          completedAt: _recentEvidenceDate(seasonStats),
+          evidence: { activeWeeks: orderStats.activeWeeks, activeDays: orderStats.activeDays },
+          completedEvidence: 'Detectado por vendas distribuídas em mais semanas.',
+          pendingEvidence: 'Ainda falta regularidade semanal para confirmar estabilidade.'
+        });
+      },
+      reduce_oscillation: function (seasonStats, orderStats) {
+        var limited = orderStats.previousRevenue > 0 && orderStats.growthPct < -25;
+        return _checklistItem({
+          id: 'reduce_oscillation',
+          title: 'Reduzir oscilações fortes',
+          description: 'A maturidade aumenta quando o resultado recente não cai de forma brusca contra o histórico.',
+          category: 'consistency',
+          completed: orderStats.previousRevenue > 0 && orderStats.growthPct >= -10,
+          limited: limited,
+          source: 'orders',
+          completedAt: _recentEvidenceDate(seasonStats),
+          evidence: { growthPct: Math.round(orderStats.growthPct), previousRevenue: Math.round(orderStats.previousRevenue), currentRevenue: Math.round(orderStats.currentRevenue) },
+          completedEvidence: 'Detectado por variação recente sem queda forte.',
+          pendingEvidence: 'Ainda falta histórico comparável para medir oscilação.',
+          limitedEvidence: 'Queda recente forte limita este marco.'
+        });
+      },
+      improve_average_score: function (seasonStats) {
+        return _checklistItem({
+          id: 'improve_average_score',
+          title: 'Melhorar score médio das temporadas',
+          description: 'Scores mais saudáveis mostram melhor execução dos ciclos operacionais.',
+          category: 'execution',
+          completed: seasonStats.avgScore >= 65,
+          limited: seasonStats.total > 0 && seasonStats.avgScore > 0 && seasonStats.avgScore < 45,
+          source: 'seasons',
+          completedAt: _recentEvidenceDate(seasonStats),
+          evidence: { averageScore: Math.round(seasonStats.avgScore) },
+          completedEvidence: 'Detectado por score médio saudável nas temporadas.',
+          pendingEvidence: 'O score médio ainda precisa melhorar.',
+          limitedEvidence: 'Score médio baixo limita a evolução.'
+        });
+      },
+      reduce_recurring_risk: function (seasonStats) {
+        return _checklistItem({
+          id: 'reduce_recurring_risk',
+          title: 'Reduzir risco recorrente',
+          description: 'Risco controlado evita que crescimento rápido seja confundido com evolução saudável.',
+          category: 'risk',
+          completed: seasonStats.total > 0 && seasonStats.avgRiskScore <= 55,
+          limited: seasonStats.avgRiskScore >= 70,
+          source: 'seasons',
+          completedAt: _recentEvidenceDate(seasonStats),
+          evidence: { averageRiskScore: Math.round(seasonStats.avgRiskScore) },
+          completedEvidence: 'Detectado por risco médio controlado nas temporadas.',
+          pendingEvidence: 'Ainda falta reduzir o risco médio das temporadas.',
+          limitedEvidence: 'Risco médio alto limita a evolução.'
+        });
+      },
+      improve_recurrence: function (seasonStats, orderStats, loyaltyStats) {
+        return _checklistItem({
+          id: 'improve_recurrence',
+          title: 'Melhorar recorrência de clientes',
+          description: 'Clientes que voltam indicam maturidade comercial e operação mais confiável.',
+          category: 'loyalty',
+          completed: loyaltyStats.recurringCustomers >= 2 || loyaltyStats.recurringRate >= 0.25,
+          source: 'orders',
+          completedAt: _recentEvidenceDate(seasonStats),
+          evidence: { recurringCustomers: loyaltyStats.recurringCustomers, recurringRate: Math.round(loyaltyStats.recurringRate * 100) },
+          completedEvidence: 'Detectado por clientes recorrentes no histórico de pedidos.',
+          pendingEvidence: 'A recorrência ainda precisa crescer.'
+        });
+      },
+      increase_stability: function (seasonStats, orderStats) {
+        return _checklistItem({
+          id: 'increase_stability',
+          title: 'Aumentar estabilidade da operação',
+          description: 'Estabilidade combina venda em dias diferentes, temporadas concluídas e menor risco.',
+          category: 'consistency',
+          completed: orderStats.activeDays >= 5 && seasonStats.finished >= 1 && seasonStats.avgRiskScore <= 65,
+          source: 'orders,seasons',
+          completedAt: _recentEvidenceDate(seasonStats),
+          evidence: { activeDays: orderStats.activeDays, finishedSeasons: seasonStats.finished, averageRiskScore: Math.round(seasonStats.avgRiskScore) },
+          completedEvidence: 'Detectado por vendas mais distribuídas e temporada concluída.',
+          pendingEvidence: 'Ainda falta combinar venda regular, execução e risco controlado.'
+        });
+      },
+      grow_with_control: function (seasonStats, orderStats) {
+        var limited = orderStats.growthPct > 20 && seasonStats.avgRiskScore >= 70;
+        return _checklistItem({
+          id: 'grow_with_control',
+          title: 'Crescer mantendo controle',
+          description: 'Crescimento só fortalece a Pedra quando não vem acompanhado de risco elevado.',
+          category: 'growth',
+          completed: orderStats.growthPct > 0 && seasonStats.avgRiskScore <= 65,
+          limited: limited,
+          source: 'orders,seasons',
+          completedAt: _recentEvidenceDate(seasonStats),
+          evidence: { growthPct: Math.round(orderStats.growthPct), averageRiskScore: Math.round(seasonStats.avgRiskScore) },
+          completedEvidence: 'Detectado por crescimento recente com risco controlado.',
+          pendingEvidence: 'Ainda falta crescimento recente com risco controlado.',
+          limitedEvidence: 'Crescimento com risco alto não conta como evolução saudável.'
+        });
+      },
+      balanced_seasons: function (seasonStats) {
+        return _checklistItem({
+          id: 'balanced_seasons',
+          title: 'Concluir temporadas equilibradas',
+          description: 'Temporadas equilibradas indicam evolução sustentável, sem depender de pressão excessiva.',
+          category: 'execution',
+          completed: seasonStats.finished >= 1 && seasonStats.avgScore >= 60 && seasonStats.avgRiskScore <= 65,
+          source: 'seasons',
+          completedAt: _recentEvidenceDate(seasonStats),
+          evidence: { finishedSeasons: seasonStats.finished, averageScore: Math.round(seasonStats.avgScore), averageRiskScore: Math.round(seasonStats.avgRiskScore) },
+          completedEvidence: 'Detectado por temporada concluída com score e risco saudáveis.',
+          pendingEvidence: 'Ainda falta uma temporada concluída com equilíbrio entre score e risco.'
+        });
+      },
+      improve_loyalty: function (seasonStats, orderStats, loyaltyStats) {
+        return _checklistItem({
+          id: 'improve_loyalty',
+          title: 'Melhorar fidelização',
+          description: 'Fidelização mais forte reduz dependência de vendas pontuais.',
+          category: 'loyalty',
+          completed: loyaltyStats.recurringRate >= 0.30 && loyaltyStats.recurringCustomers >= 2,
+          source: 'orders,store_customers',
+          completedAt: _recentEvidenceDate(seasonStats),
+          evidence: { recurringCustomers: loyaltyStats.recurringCustomers, recurringRate: Math.round(loyaltyStats.recurringRate * 100) },
+          completedEvidence: 'Detectado por taxa de recompra mais forte.',
+          pendingEvidence: 'A fidelização ainda precisa de mais recompra.'
+        });
+      },
+      reduce_promotion_dependency: function (seasonStats, orderStats) {
+        return _checklistItem({
+          id: 'reduce_promotion_dependency',
+          title: 'Reduzir dependência de promoções',
+          description: 'Sem dados promocionais completos, esta V1 usa ticket e estabilidade como sinal auxiliar.',
+          category: 'growth',
+          completed: orderStats.currentAverageTicket > 0 && orderStats.previousAverageTicket > 0 && orderStats.currentAverageTicket >= orderStats.previousAverageTicket,
+          source: 'orders',
+          completedAt: _recentEvidenceDate(seasonStats),
+          evidence: { currentAverageTicket: Math.round(orderStats.currentAverageTicket), previousAverageTicket: Math.round(orderStats.previousAverageTicket) },
+          completedEvidence: 'Detectado por ticket médio preservado ou melhorado.',
+          pendingEvidence: 'Ainda falta histórico de ticket para reduzir dependência de promoções.'
+        });
+      },
+      healthy_growth: function (seasonStats, orderStats) {
+        var limited = orderStats.growthPct > 15 && seasonStats.avgRiskScore >= 70;
+        return _checklistItem({
+          id: 'healthy_growth',
+          title: 'Manter crescimento saudável',
+          description: 'A Pedra evolui melhor quando crescimento, score e risco caminham juntos.',
+          category: 'growth',
+          completed: orderStats.growthPct > 0 && seasonStats.avgScore >= 60 && seasonStats.avgRiskScore <= 65,
+          limited: limited,
+          source: 'orders,seasons',
+          completedAt: _recentEvidenceDate(seasonStats),
+          evidence: { growthPct: Math.round(orderStats.growthPct), averageScore: Math.round(seasonStats.avgScore), averageRiskScore: Math.round(seasonStats.avgRiskScore) },
+          completedEvidence: 'Detectado por crescimento com score saudável e risco controlado.',
+          pendingEvidence: 'Ainda falta crescimento acompanhado de score e risco saudáveis.',
+          limitedEvidence: 'Crescimento com risco alto limita este marco.'
+        });
+      },
+      reduce_average_risk: function (seasonStats) {
+        return _checklistItem({
+          id: 'reduce_average_risk',
+          title: 'Reduzir risco médio',
+          description: 'Menor risco médio indica operação mais previsível e menos vulnerável.',
+          category: 'risk',
+          completed: seasonStats.total > 0 && seasonStats.avgRiskScore <= 50,
+          limited: seasonStats.avgRiskScore >= 70,
+          source: 'seasons',
+          completedAt: _recentEvidenceDate(seasonStats),
+          evidence: { averageRiskScore: Math.round(seasonStats.avgRiskScore) },
+          completedEvidence: 'Detectado por risco médio baixo nas temporadas.',
+          pendingEvidence: 'O risco médio ainda precisa cair.',
+          limitedEvidence: 'Risco médio elevado limita a evolução.'
+        });
+      },
+      ambitious_goals: function (seasonStats, orderStats, loyaltyStats, indexes, scenario) {
+        var growthContext = scenario === 'growth' || scenario === 'expansion';
+        return _checklistItem({
+          id: 'ambitious_goals',
+          title: 'Sustentar metas mais ousadas',
+          description: 'Metas mais fortes só contam quando aparecem com controle e boa execução.',
+          category: 'execution',
+          completed: growthContext && seasonStats.avgScore >= 65 && seasonStats.avgRiskScore <= 60,
+          limited: growthContext && seasonStats.avgRiskScore >= 70,
+          source: 'flight_plans,seasons',
+          completedAt: _recentEvidenceDate(seasonStats),
+          evidence: { scenario: scenario || '', averageScore: Math.round(seasonStats.avgScore), averageRiskScore: Math.round(seasonStats.avgRiskScore) },
+          completedEvidence: 'Detectado por contexto de Growth/Expansion com score e risco saudáveis.',
+          pendingEvidence: 'Ainda falta sustentar meta mais ousada com controle.',
+          limitedEvidence: 'Meta ousada com risco alto não acelera a Pedra.'
+        });
+      },
+      financial_stability: function (seasonStats, orderStats) {
+        return _checklistItem({
+          id: 'financial_stability',
+          title: 'Melhorar estabilidade financeira',
+          description: 'Nesta V1, a leitura financeira é conservadora e usa pedidos/ticket como sinal básico.',
+          category: 'financial',
+          completed: orderStats.totalOrders >= 8 && orderStats.averageTicket > 0 && orderStats.growthPct >= -10,
+          source: 'orders',
+          completedAt: _recentEvidenceDate(seasonStats),
+          evidence: { totalOrders: orderStats.totalOrders, averageTicket: Math.round(orderStats.averageTicket), growthPct: Math.round(orderStats.growthPct) },
+          completedEvidence: 'Detectado por pedidos, ticket e variação recente sem deterioração forte.',
+          pendingEvidence: 'Ainda falta base financeira normalizada para maior confiança.'
+        });
+      },
+      reduce_concentration: function (seasonStats, orderStats) {
+        return _checklistItem({
+          id: 'reduce_concentration',
+          title: 'Reduzir dependência de poucos dias',
+          description: 'Vendas distribuídas reduzem risco de depender de poucos picos.',
+          category: 'risk',
+          completed: orderStats.activeDays >= 8 && orderStats.activeWeeks >= 3,
+          source: 'orders',
+          completedAt: _recentEvidenceDate(seasonStats),
+          evidence: { activeDays: orderStats.activeDays, activeWeeks: orderStats.activeWeeks },
+          completedEvidence: 'Detectado por vendas distribuídas em mais dias e semanas.',
+          pendingEvidence: 'Ainda há concentração de vendas em poucos dias ou semanas.'
+        });
+      },
+      good_consistency: function (seasonStats, orderStats) {
+        return _checklistItem({
+          id: 'good_consistency',
+          title: 'Manter boa consistência',
+          description: 'Consistência forte combina vendas recorrentes e temporadas sem abandono.',
+          category: 'consistency',
+          completed: orderStats.activeDays >= 8 && seasonStats.abandoned === 0 && seasonStats.finished >= 2,
+          limited: seasonStats.abandoned > 0,
+          source: 'orders,seasons',
+          completedAt: _recentEvidenceDate(seasonStats),
+          evidence: { activeDays: orderStats.activeDays, finishedSeasons: seasonStats.finished, abandoned: seasonStats.abandoned },
+          completedEvidence: 'Detectado por boa regularidade e temporadas concluídas sem abandono.',
+          pendingEvidence: 'Ainda falta mais histórico consistente.',
+          limitedEvidence: 'Abandono recente limita a consistência.'
+        });
+      },
+      long_healthy_growth: function (seasonStats, orderStats) {
+        return _checklistItem({
+          id: 'long_healthy_growth',
+          title: 'Manter crescimento saudável por mais tempo',
+          description: 'Pedras altas exigem histórico mais longo de crescimento com controle.',
+          category: 'growth',
+          completed: seasonStats.finished >= 3 && orderStats.growthPct > 0 && seasonStats.avgRiskScore <= 60,
+          source: 'orders,seasons',
+          completedAt: _recentEvidenceDate(seasonStats),
+          evidence: { finishedSeasons: seasonStats.finished, growthPct: Math.round(orderStats.growthPct), averageRiskScore: Math.round(seasonStats.avgRiskScore) },
+          completedEvidence: 'Detectado por sequência de temporadas com crescimento controlado.',
+          pendingEvidence: 'Ainda falta histórico longo de crescimento saudável.'
+        });
+      },
+      reduce_operational_instability: function (seasonStats) {
+        var limited = seasonStats.unstable > 0 || seasonStats.failed > 0 || seasonStats.abandoned > 0;
+        return _checklistItem({
+          id: 'reduce_operational_instability',
+          title: 'Reduzir instabilidade operacional',
+          description: 'Menos temporadas instáveis, falhas e abandonos indicam operação mais madura.',
+          category: 'risk',
+          completed: seasonStats.finished >= 2 && !limited && seasonStats.avgRiskScore <= 60,
+          limited: limited,
+          source: 'seasons',
+          completedAt: _recentEvidenceDate(seasonStats),
+          evidence: { unstable: seasonStats.unstable, failed: seasonStats.failed, abandoned: seasonStats.abandoned },
+          completedEvidence: 'Detectado por temporadas concluídas sem instabilidade relevante.',
+          pendingEvidence: 'Ainda falta reduzir instabilidade operacional.',
+          limitedEvidence: 'Instabilidade, falha ou abandono ainda limitam este marco.'
+        });
+      },
+      difficult_seasons: function (seasonStats) {
+        return _checklistItem({
+          id: 'difficult_seasons',
+          title: 'Concluir temporadas difíceis',
+          description: 'Desafios maiores só fortalecem a Pedra quando fecham com risco controlado.',
+          category: 'execution',
+          completed: seasonStats.impacts.some(function (impact) {
+            return impact.difficulty === 'aggressive' && impact.impactPercent >= 10 && (impact.riskLevel === 'low' || impact.riskLevel === 'medium');
+          }),
+          source: 'seasons',
+          completedAt: _recentEvidenceDate(seasonStats),
+          evidence: { aggressiveControlledWins: seasonStats.impacts.filter(function (impact) { return impact.difficulty === 'aggressive' && impact.impactPercent >= 10; }).length },
+          completedEvidence: 'Detectado por temporada agressiva concluída com contribuição saudável.',
+          pendingEvidence: 'Ainda falta concluir desafio maior com baixo risco.'
+        });
+      },
+      good_financial_health: function (seasonStats, orderStats) {
+        return _checklistItem({
+          id: 'good_financial_health',
+          title: 'Manter boa saúde financeira',
+          description: 'Nesta V1, saúde financeira alta ainda depende de sinais básicos e deve ser validada depois.',
+          category: 'financial',
+          completed: orderStats.totalOrders >= 12 && orderStats.averageTicket > 0 && orderStats.growthPct >= 0,
+          source: 'orders',
+          completedAt: _recentEvidenceDate(seasonStats),
+          evidence: { totalOrders: orderStats.totalOrders, averageTicket: Math.round(orderStats.averageTicket), growthPct: Math.round(orderStats.growthPct) },
+          completedEvidence: 'Detectado por volume, ticket e crescimento recente sem queda.',
+          pendingEvidence: 'Ainda falta dado financeiro mais confiável para confirmar este marco.'
+        });
+      },
+      low_risk_growth: function (seasonStats, orderStats) {
+        return _checklistItem({
+          id: 'low_risk_growth',
+          title: 'Sustentar crescimento com baixo risco',
+          description: 'Excelência exige crescer sem aumentar vulnerabilidade operacional.',
+          category: 'growth',
+          completed: orderStats.growthPct > 0 && seasonStats.avgRiskScore <= 45 && seasonStats.finished >= 3,
+          source: 'orders,seasons',
+          completedAt: _recentEvidenceDate(seasonStats),
+          evidence: { growthPct: Math.round(orderStats.growthPct), averageRiskScore: Math.round(seasonStats.avgRiskScore), finishedSeasons: seasonStats.finished },
+          completedEvidence: 'Detectado por crescimento e risco médio baixo ao longo de temporadas.',
+          pendingEvidence: 'Ainda falta crescimento sustentado com risco baixo.'
+        });
+      },
+      high_predictability: function (seasonStats, orderStats) {
+        return _checklistItem({
+          id: 'high_predictability',
+          title: 'Manter alta previsibilidade',
+          description: 'Previsibilidade combina semanas ativas, score alto e ausência de abandono.',
+          category: 'consistency',
+          completed: orderStats.activeWeeks >= 4 && seasonStats.avgScore >= 75 && seasonStats.abandoned === 0,
+          source: 'orders,seasons',
+          completedAt: _recentEvidenceDate(seasonStats),
+          evidence: { activeWeeks: orderStats.activeWeeks, averageScore: Math.round(seasonStats.avgScore), abandoned: seasonStats.abandoned },
+          completedEvidence: 'Detectado por regularidade semanal, score alto e sem abandono.',
+          pendingEvidence: 'Ainda falta previsibilidade alta por mais tempo.'
+        });
+      },
+      balance_growth_stability: function (seasonStats, orderStats) {
+        return _checklistItem({
+          id: 'balance_growth_stability',
+          title: 'Equilibrar crescimento e estabilidade',
+          description: 'A evolução mais alta combina avanço de resultado com operação consistente.',
+          category: 'growth',
+          completed: orderStats.growthPct > 0 && orderStats.activeDays >= 8 && seasonStats.avgRiskScore <= 55,
+          source: 'orders,seasons',
+          completedAt: _recentEvidenceDate(seasonStats),
+          evidence: { growthPct: Math.round(orderStats.growthPct), activeDays: orderStats.activeDays, averageRiskScore: Math.round(seasonStats.avgRiskScore) },
+          completedEvidence: 'Detectado por crescimento, dias ativos e risco controlado.',
+          pendingEvidence: 'Ainda falta equilibrar crescimento com estabilidade operacional.'
+        });
+      },
+      consistent_maturity: function (seasonStats, orderStats, loyaltyStats) {
+        return _checklistItem({
+          id: 'consistent_maturity',
+          title: 'Demonstrar maturidade consistente',
+          description: 'Maturidade consistente aparece quando execução, risco, vendas e recorrência caminham juntos.',
+          category: 'execution',
+          completed: seasonStats.finished >= 4 && seasonStats.avgScore >= 75 && seasonStats.avgRiskScore <= 55 && loyaltyStats.recurringCustomers >= 3,
+          source: 'seasons,orders',
+          completedAt: _recentEvidenceDate(seasonStats),
+          evidence: { finishedSeasons: seasonStats.finished, averageScore: Math.round(seasonStats.avgScore), recurringCustomers: loyaltyStats.recurringCustomers },
+          completedEvidence: 'Detectado por histórico forte de execução, risco e recorrência.',
+          pendingEvidence: 'Ainda falta histórico mais longo de maturidade consistente.'
+        });
+      },
+      season_partial_win: function (seasonStats) {
+        return _checklistItem({
+          id: 'season_partial_win',
+          title: 'Alcançar Vitória Parcial',
+          description: 'Vitória Parcial mostra avanço real mesmo quando a meta completa ainda não foi atingida.',
+          category: 'execution',
+          completed: seasonStats.partialVictories > 0 || seasonStats.totalVictories > 0,
+          source: 'seasons',
+          completedAt: _recentEvidenceDate(seasonStats),
+          evidence: { partialVictories: seasonStats.partialVictories, totalVictories: seasonStats.totalVictories },
+          completedEvidence: 'Detectado pelo resultado final de temporada.',
+          pendingEvidence: 'Ainda falta alcançar uma vitória parcial ou total.'
+        });
+      },
+      season_total_win: function (seasonStats) {
+        return _checklistItem({
+          id: 'season_total_win',
+          title: 'Alcançar Vitória Total',
+          description: 'Vitória Total confirma execução forte de uma meta operacional.',
+          category: 'execution',
+          completed: seasonStats.totalVictories > 0,
+          source: 'seasons',
+          completedAt: _recentEvidenceDate(seasonStats),
+          evidence: { totalVictories: seasonStats.totalVictories },
+          completedEvidence: 'Detectado por Vitória Total em temporada finalizada.',
+          pendingEvidence: 'Ainda falta uma Vitória Total.'
+        });
+      },
+      avoid_abandonment: function (seasonStats) {
+        return _checklistItem({
+          id: 'avoid_abandonment',
+          title: 'Evitar abandono de temporada',
+          description: 'Abandono recorrente indica quebra de execução e reduz a velocidade de evolução.',
+          category: 'execution',
+          completed: seasonStats.total > 0 && seasonStats.abandoned === 0,
+          limited: seasonStats.abandoned > 0,
+          source: 'seasons',
+          completedAt: _recentEvidenceDate(seasonStats),
+          evidence: { abandoned: seasonStats.abandoned },
+          completedEvidence: 'Detectado por temporadas fechadas sem abandono.',
+          pendingEvidence: 'Ainda falta histórico para confirmar ausência de abandono.',
+          limitedEvidence: 'Temporada abandonada limita a evolução.'
+        });
+      },
+      reduce_operation_risk: function (seasonStats) {
+        return _checklistItem({
+          id: 'reduce_operation_risk',
+          title: 'Reduzir risco da operação',
+          description: 'Risco menor deixa a evolução mais saudável e menos dependente de esforço extremo.',
+          category: 'risk',
+          completed: seasonStats.total > 0 && seasonStats.avgRiskScore <= 55,
+          limited: seasonStats.avgRiskScore >= 70,
+          source: 'seasons',
+          completedAt: _recentEvidenceDate(seasonStats),
+          evidence: { averageRiskScore: Math.round(seasonStats.avgRiskScore) },
+          completedEvidence: 'Detectado por chance de falha média controlada.',
+          pendingEvidence: 'Ainda falta reduzir a chance de falha média.',
+          limitedEvidence: 'Chance de falha elevada limita a evolução.'
+        });
+      }
+    };
+  }
+
+  function _checklistIdsForTransition(transition) {
+    var map = {
+      'Pedra Bruta->Quartzo': ['sell_more_days', 'finish_season', 'reduce_initial_instability', 'minimum_order_base'],
+      'Quartzo->Ametista': ['stable_weeks', 'reduce_oscillation', 'improve_average_score', 'reduce_recurring_risk', 'season_partial_win'],
+      'Ametista->Safira': ['improve_recurrence', 'increase_stability', 'grow_with_control', 'balanced_seasons'],
+      'Safira->Esmeralda': ['improve_loyalty', 'reduce_promotion_dependency', 'healthy_growth', 'reduce_average_risk'],
+      'Esmeralda->Rubi': ['ambitious_goals', 'financial_stability', 'reduce_concentration', 'good_consistency'],
+      'Rubi->Diamante': ['long_healthy_growth', 'reduce_operational_instability', 'difficult_seasons', 'good_financial_health'],
+      'Diamante->Ônix': ['low_risk_growth', 'high_predictability', 'balance_growth_stability', 'consistent_maturity']
+    };
+    return map[transition] || map['Pedra Bruta->Quartzo'];
+  }
+
+  function _checklistItem(config) {
+    var limited = config.limited === true;
+    var completed = !limited && config.completed === true;
+    var status = limited ? 'limited' : (completed ? 'completed' : 'pending');
+    return {
+      id: config.id,
+      title: config.title,
+      description: config.description,
+      category: config.category,
+      completed: completed,
+      completedAt: completed ? (config.completedAt || null) : null,
+      status: status,
+      source: config.source || '',
+      evidence: Object.assign({}, config.evidence || {}, {
+        message: limited
+          ? (config.limitedEvidence || config.pendingEvidence || '')
+          : (completed ? config.completedEvidence : config.pendingEvidence)
+      })
+    };
+  }
+
+  function _initialChecklist() {
+    var emptySeasonStats = {
+      total: 0,
+      finished: 0,
+      abandoned: 0,
+      totalVictories: 0,
+      partialVictories: 0,
+      unstable: 0,
+      failed: 0,
+      avgScore: 0,
+      avgRiskScore: 55,
+      totalImpact: 0,
+      impacts: [],
+      lastImpact: _emptySeasonImpact()
+    };
+    var emptyOrderStats = {
+      totalOrders: 0,
+      revenue: 0,
+      averageTicket: 0,
+      activeDays: 0,
+      activeWeeks: 0,
+      currentRevenue: 0,
+      previousRevenue: 0,
+      currentOrders: 0,
+      previousOrders: 0,
+      currentAverageTicket: 0,
+      previousAverageTicket: 0,
+      growthPct: 0
+    };
+    var emptyLoyaltyStats = { uniqueCustomers: 0, recurringCustomers: 0, recurringRate: 0 };
+    return _maturityChecklist('Pedra Bruta', 'Quartzo', emptySeasonStats, emptyOrderStats, emptyLoyaltyStats, _emptyMaturityIndexes(), '');
+  }
+
+  function _maturityChecklistSummary(checklist) {
+    checklist = checklist || [];
+    return {
+      completed: checklist.filter(function (item) { return item.status === 'completed'; }).length,
+      pending: checklist.filter(function (item) { return item.status === 'pending'; }).length,
+      limited: checklist.filter(function (item) { return item.status === 'limited'; }).length,
+      total: checklist.length
+    };
+  }
+
+  function _recentEvidenceDate(seasonStats) {
+    var last = seasonStats && seasonStats.lastImpact;
+    return last && last.seasonDate ? last.seasonDate : null;
+  }
+
+  function _normalizeStoneUpgradeEvents(events) {
+    var seen = {};
+    return (events || []).filter(function (event) {
+      if (!event) return false;
+      var key = event.id || event.calculationSignature || (event.fromStone + '>' + event.toStone + ':' + _dateValue(event.createdAt));
+      if (seen[key]) return false;
+      seen[key] = true;
+      return true;
+    }).sort(function (a, b) {
+      return _dateValue(b.createdAt || b.upgradedAt) - _dateValue(a.createdAt || a.upgradedAt);
+    });
+  }
+
+  function _normalizeMaturitySnapshots(snapshots) {
+    return (snapshots || []).filter(function (snapshot) {
+      return snapshot && snapshot.snapshotType;
+    }).sort(function (a, b) {
+      return _dateValue(b.createdAt || b.periodEnd) - _dateValue(a.createdAt || a.periodEnd);
+    }).slice(0, 24);
+  }
+
+  function _ensureBusinessMaturitySnapshots(maturity, existingSnapshots, opts) {
+    opts = opts || {};
+    existingSnapshots = _normalizeMaturitySnapshots(existingSnapshots || []);
+    if (!maturity || !window.DB || typeof DB.add !== 'function') return Promise.resolve(existingSnapshots);
+
+    var plans = [];
+    var monthly = _maturitySnapshotPlan('monthly', maturity, opts, null);
+    if (!_hasMaturitySnapshot(existingSnapshots, monthly)) plans.push(monthly);
+
+    if (opts.snapshotType === 'season_final' && opts.relatedSeasonId) {
+      var seasonFinal = _maturitySnapshotPlan('season_final', maturity, opts, null);
+      if (!_hasMaturitySnapshot(existingSnapshots, seasonFinal)) plans.push(seasonFinal);
+    }
+
+    if (maturity.recentUpgradeEvent && maturity.recentUpgradeEvent.id) {
+      var upgrade = _maturitySnapshotPlan('stone_upgrade', maturity, opts, maturity.recentUpgradeEvent);
+      if (!_hasMaturitySnapshot(existingSnapshots, upgrade)) plans.push(upgrade);
+    }
+
+    if (!plans.length) return Promise.resolve(existingSnapshots);
+
+    var created = [];
+    return plans.reduce(function (chain, plan) {
+      return chain.then(function () {
+        return DB.add('business_maturity_snapshots', plan).then(function (ref) {
+          created.push(Object.assign({}, plan, {
+            id: ref && ref.id ? ref.id : '',
+            createdAt: new Date().toISOString()
+          }));
+        }).catch(function (err) {
+          console.warn('Business maturity snapshot save skipped', err);
+        });
+      });
+    }, Promise.resolve()).then(function () {
+      return _normalizeMaturitySnapshots(created.concat(existingSnapshots));
+    });
+  }
+
+  function _maturitySnapshotPlan(type, maturity, opts, upgradeEvent) {
+    opts = opts || {};
+    var period = _maturitySnapshotPeriod(type, opts);
+    return {
+      tenantId: _tenantId,
+      snapshotType: type,
+      periodStart: period.start,
+      periodEnd: period.end,
+      currentStone: maturity.currentStone || 'Pedra Bruta',
+      nextStone: maturity.nextStone || _nextStone(maturity.currentStone),
+      stoneProgressPercent: Math.round(_number(maturity.stoneProgressPercent, 0)),
+      maturityScore: Math.round(_number(maturity.maturityScore, 0)),
+      indexes: maturity.indexes || _emptyMaturityIndexes(),
+      checklistSummary: maturity.checklistSummary || _maturityChecklistSummary(maturity.checklist || []),
+      checklist: maturity.checklist || [],
+      blockers: maturity.blockers || [],
+      strengths: maturity.strengths || [],
+      weaknesses: maturity.weaknesses || [],
+      dataConfidence: _maturityDataConfidence(maturity),
+      source: opts.source || (type === 'monthly' ? 'panel_open' : type),
+      relatedSeasonId: type === 'season_final' ? (opts.relatedSeasonId || '') : '',
+      relatedUpgradeEventId: upgradeEvent && upgradeEvent.id ? upgradeEvent.id : '',
+      createdAt: _maturityTimestamp()
+    };
+  }
+
+  function _maturitySnapshotPeriod(type, opts) {
+    opts = opts || {};
+    if (type === 'season_final') {
+      var season = opts.season || {};
+      return {
+        start: season.startDate || season.startedAt || opts.periodStart || _maturityMonthStart(),
+        end: season.finishedAt || season.endDate || opts.periodEnd || new Date().toISOString()
+      };
+    }
+    if (type === 'stone_upgrade') {
+      return {
+        start: opts.periodStart || _maturityMonthStart(),
+        end: opts.periodEnd || new Date().toISOString()
+      };
+    }
+    return {
+      start: _maturityMonthStart(),
+      end: _maturityMonthEnd()
+    };
+  }
+
+  function _hasMaturitySnapshot(snapshots, plan) {
+    return (snapshots || []).some(function (snapshot) {
+      if (!snapshot || snapshot.snapshotType !== plan.snapshotType) return false;
+      if (plan.snapshotType === 'monthly') return String(snapshot.periodStart || '').slice(0, 7) === String(plan.periodStart || '').slice(0, 7);
+      if (plan.snapshotType === 'season_final') return snapshot.relatedSeasonId && snapshot.relatedSeasonId === plan.relatedSeasonId;
+      if (plan.snapshotType === 'stone_upgrade') return snapshot.relatedUpgradeEventId && snapshot.relatedUpgradeEventId === plan.relatedUpgradeEventId;
+      return false;
+    });
+  }
+
+  function _maturityDataConfidence(maturity) {
+    var indexes = maturity && maturity.indexes ? maturity.indexes : {};
+    var keys = Object.keys(indexes);
+    if (!keys.length) return 'low';
+    var low = keys.filter(function (key) { return indexes[key] && indexes[key].confidence === 'low'; }).length;
+    var high = keys.filter(function (key) { return indexes[key] && indexes[key].confidence === 'high'; }).length;
+    if (low >= 4) return 'low';
+    if (high >= 2 || low <= 1) return 'high';
+    return 'medium';
+  }
+
+  function _maturityMonthStart() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-01';
+  }
+
+  function _maturityMonthEnd() {
+    var d = new Date();
+    return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10);
+  }
+
+  function _nextPendingStoneCelebration(events) {
+    return (events || []).filter(function (event) {
+      return event && event.id && event.celebrationPending === true && !event.celebrationShownAt;
+    })[0] || null;
+  }
+
+  function _maturityCard(maturity, loading, error) {
+    if (loading) return _maturityLoadingCard();
+    maturity = maturity || _initialMaturity();
+    var progress = _clamp(_number(maturity.stoneProgressPercent, 0), 0, 100);
+    var current = maturity.currentStone || 'Pedra Bruta';
+    var next = maturity.nextStone || _nextStone(current);
+    var history = _state.businessMaturityEvents || [];
+    return '<section class="stones-card ' + _esc(_stoneThemeClass(current)) + '" aria-label="Maturidade do negócio">' +
+      '<div class="stones-card-main">' +
+        '<div class="stones-symbol">' + _stoneGraphic(current, 'large') + '</div>' +
+        '<div class="stones-copy">' +
+          '<span class="seasons-section-label">Maturidade do Negócio</span>' +
+          '<h2>' + _esc(current) + '</h2>' +
+          '<p>' + _esc(STONE_DESCRIPTIONS[current] || STONE_DESCRIPTIONS['Pedra Bruta']) + '</p>' +
+          _maturityStatusChips(maturity, current, next, progress) +
+          (error ? '<small class="stones-note">Leitura inicial exibida; cálculo completo indisponível no momento.</small>' : '') +
+        '</div>' +
+      '</div>' +
+      '<div class="stones-progress-panel">' +
+        '<div class="stones-progress-top"><span>Caminhada das Pedras</span><strong>' + _esc(current) + '</strong></div>' +
+        _stoneJourney(current, next) +
+        '<div class="stones-progress-line"><span style="width:' + progress + '%"></span></div>' +
+        '<div class="stones-progress-meta"><strong>' + Math.round(progress) + '% até ' + _esc(next) + '</strong><span>As próximas Pedras aparecem como caminho ainda a percorrer.</span></div>' +
+      '</div>' +
+      _maturityEvolutionBlock(history) +
+      '<div class="stones-insights">' +
+        _maturityInsightList('Pontos fortes', maturity.strengths || []) +
+        _maturityInsightList('Pontos que limitam evolução', maturity.weaknesses || []) +
+      '</div>' +
+      _maturityChecklistBlock(maturity.checklist || []) +
+    '</section>';
+  }
+
+  function _maturityLoadingCard() {
+    return '<section class="stones-card stones-card-loading stone-theme-pedra-bruta" aria-label="Carregando maturidade"><div class="stones-card-main"><div class="stones-symbol">' + _stoneGraphic('Pedra Bruta', 'large') + '</div><div class="stones-copy"><span class="seasons-section-label">Maturidade do Negócio</span><h2>Pedra Bruta</h2><p>Calculando leitura inicial de evolução do negócio.</p></div></div></section>';
+  }
+
+  function _maturityStatusChips(maturity, current, next, progress) {
+    var summary = maturity.checklistSummary || {};
+    return '<div class="stones-status-chips">' +
+      '<span><small>Pedra atual</small><strong>' + _esc(current) + '</strong></span>' +
+      '<span><small>Próxima etapa</small><strong>' + _esc(next) + '</strong></span>' +
+      '<span><small>Progresso</small><strong>' + Math.round(progress) + '%</strong></span>' +
+      '<span><small>Marcos</small><strong>' + _number(summary.completed, 0) + '/' + _number(summary.total, 0) + '</strong></span>' +
+    '</div>';
+  }
+
+  function _stoneJourney(current, next) {
+    var currentIndex = STONES_ORDER.indexOf(current);
+    if (currentIndex < 0) currentIndex = 0;
+    return '<div class="stones-journey" aria-label="Caminhada completa das Pedras">' + STONES_ORDER.map(function (stone, index) {
+      var state = index < currentIndex ? 'done' : (index === currentIndex ? 'current' : 'future');
+      var label = index === currentIndex ? 'Você está aqui' : (stone === next ? 'Próxima' : (index < currentIndex ? 'Percorrida' : 'A percorrer'));
+      return '<div class="stones-journey-step stones-journey-' + state + ' ' + _esc(_stoneThemeClass(stone)) + '">' +
+        '<span class="stones-journey-mark">' + _stoneGraphic(stone, 'small') + '</span>' +
+        '<strong>' + _esc(stone) + '</strong>' +
+        '<small>' + _esc(label) + '</small>' +
+      '</div>';
+    }).join('') + '</div>';
+  }
+
+  function _maturityInsightList(title, items) {
+    items = (items || []).slice(0, 3);
+    if (!items.length) items = ['Ainda sem dados suficientes para leitura.'];
+    return '<div class="stones-insight-list"><h3>' + _esc(title) + '</h3><ul>' + items.map(function (item) {
+      return '<li>' + _esc(item) + '</li>';
+    }).join('') + '</ul></div>';
+  }
+
+  function _maturityEvolutionBlock(events) {
+    var latest = (events || [])[0];
+    if (!latest) {
+      return '<div class="stones-evolution-card stones-evolution-empty">' +
+        '<div><span class="seasons-section-label">Evolução recente</span><h3>Ainda sem subida de Pedra</h3><p>Quando a loja evoluir, o histórico ficará disponível aqui.</p></div>' +
+        '<button class="seasons-secondary-button" type="button" onclick="Modules.Temporadas.openStoneEvolutionHistory()">Histórico de evolução</button>' +
+      '</div>';
+    }
+    return '<div class="stones-evolution-card">' +
+      '<div class="stones-evolution-path">' +
+        '<span class="' + _esc(_stoneThemeClass(latest.fromStone)) + '">' + _esc(latest.fromStone || 'Pedra anterior') + '</span>' +
+        '<b>→</b>' +
+        '<span class="' + _esc(_stoneThemeClass(latest.toStone)) + '">' + _esc(latest.toStone || 'Nova Pedra') + '</span>' +
+      '</div>' +
+      '<div class="stones-evolution-copy">' +
+        '<span class="seasons-section-label">Evolução recente</span>' +
+        '<h3>' + _esc(latest.fromStone || 'Pedra') + ' → ' + _esc(latest.toStone || 'Pedra') + '</h3>' +
+        '<p>' + _esc(latest.reason || 'Evolução registrada a partir dos indicadores de maturidade.') + '</p>' +
+        '<small>' + _esc(_formatDateTime(latest.createdAt || latest.upgradedAt) || 'Data em processamento') + '</small>' +
+      '</div>' +
+      '<button class="seasons-secondary-button" type="button" onclick="Modules.Temporadas.openStoneEvolutionHistory()">Histórico de evolução</button>' +
+    '</div>';
+  }
+
+  function _maturityChecklistBlock(checklist) {
+    checklist = (checklist || []).slice().sort(function (a, b) {
+      var weight = { limited: 0, pending: 1, completed: 2 };
+      return (weight[a.status] || 1) - (weight[b.status] || 1);
+    }).slice(0, 5);
+    if (!checklist.length) checklist = _initialChecklist().slice(0, 5);
+    return '<div class="stones-checklist" aria-label="Caminho da Pedra">' +
+      '<div class="stones-checklist-head">' +
+        '<div><span class="seasons-section-label">Caminho da Pedra</span><h3>Marcos reais do negócio</h3></div>' +
+        '<small>Automático</small>' +
+      '</div>' +
+      '<div class="stones-checklist-list">' +
+        checklist.map(_maturityChecklistItem).join('') +
+      '</div>' +
+    '</div>';
+  }
+
+  function _maturityChecklistItem(item) {
+    item = item || {};
+    var status = item.status || (item.completed ? 'completed' : 'pending');
+    var symbol = status === 'completed' ? '✓' : (status === 'limited' ? '!' : '•');
+    var evidence = item.evidence && item.evidence.message ? item.evidence.message : (item.description || '');
+    return '<article class="stones-checklist-item stones-checklist-item-' + _esc(status) + '">' +
+      '<span class="stones-checklist-mark">' + _esc(symbol) + '</span>' +
+      '<div>' +
+        '<strong>' + _esc(item.title || 'Marco de evolução') + '</strong>' +
+        '<p>' + _esc(evidence) + '</p>' +
+      '</div>' +
+    '</article>';
+  }
+
+  function _seasonStoneImpactBlock(season) {
+    if (!season || (season.status !== 'finished' && season.status !== 'abandoned')) return '';
+    var maturity = _state.businessMaturity || _initialMaturity();
+    var storedImpact = maturity.lastSeasonImpact || {};
+    var impact = storedImpact.seasonId && storedImpact.seasonId === season.id
+      ? storedImpact
+      : _seasonMaturityImpact(season);
+    var current = maturity.currentStone || 'Pedra Bruta';
+    var next = maturity.nextStone || _nextStone(current);
+    var after = _clamp(_number(maturity.stoneProgressPercent, 0), 0, 100);
+    var matchedLast = impact.seasonId && impact.seasonId === storedImpact.seasonId;
+    var before = matchedLast && maturity.previousStoneProgressPercent !== undefined
+      ? _clamp(_number(maturity.previousStoneProgressPercent, after), 0, 100)
+      : _clamp(after - Math.max(0, _number(impact.impactPercent, 0)), 0, 100);
+    var contribution = _number(impact.impactPercent, 0);
+    var contributionClass = contribution > 0 ? 'positive' : (contribution < 0 ? 'limited' : 'neutral');
+    return '<section class="stones-season-impact" aria-label="Impacto na sua Pedra">' +
+      '<div class="stones-season-impact-head">' +
+        '<div>' +
+          '<span class="seasons-section-label">Impacto na sua Pedra</span>' +
+          '<h4>' + _esc(current) + ' → ' + _esc(next) + '</h4>' +
+          '<p>' + _esc(impact.reason || 'Impacto calculado com base no resultado final, score, risco e dificuldade da temporada.') + '</p>' +
+        '</div>' +
+        '<strong class="' + contributionClass + '">' + _esc(_seasonImpactLabel(contribution)) + '</strong>' +
+      '</div>' +
+      '<div class="stones-season-progress">' +
+        '<div><span>Antes</span><strong>' + Math.round(before) + '%</strong></div>' +
+        '<div class="stones-progress-line"><span style="width:' + after + '%"></span></div>' +
+        '<div><span>Depois</span><strong>' + Math.round(after) + '%</strong></div>' +
+      '</div>' +
+      '<div class="stones-season-impact-meta">' +
+        _seasonImpactPill('Resultado', impact.finalResult || season.finalResult || _statusLabel(season.status)) +
+        _seasonImpactPill('Score', impact.finalScore ? String(impact.finalScore) : String(Math.round(_number(season.finalScore, season.currentScore || 0)))) +
+        _seasonImpactPill('Risco', _riskLabel(impact.riskLevel || season.riskLevel)) +
+        _seasonImpactPill('Dificuldade', _difficultyLabel(impact.difficulty || season.difficulty)) +
+      '</div>' +
+    '</section>';
+  }
+
+  function _seasonImpactLabel(value) {
+    value = Math.round(_number(value, 0));
+    if (value > 0) return '+' + value + ' p.p.';
+    if (value < 0) return value + ' p.p.';
+    return '0 p.p.';
+  }
+
+  function _seasonImpactPill(label, value) {
+    return '<span><small>' + _esc(label) + '</small><strong>' + _esc(value || 'Não calculado') + '</strong></span>';
+  }
+
+  function _validStone(stone) {
+    return STONES_ORDER.indexOf(stone) >= 0 ? stone : '';
+  }
+
+  function _nextStone(stone) {
+    var idx = STONES_ORDER.indexOf(stone);
+    if (idx < 0) return 'Quartzo';
+    return STONES_ORDER[Math.min(idx + 1, STONES_ORDER.length - 1)] || 'Quartzo';
+  }
+
+  function _stoneInitial(stone) {
+    if (stone === 'Pedra Bruta') return 'PB';
+    if (stone === 'Ônix') return 'Ô';
+    return String(stone || 'P').charAt(0).toUpperCase();
+  }
+
+  function _stoneGraphic(stone, size) {
+    return '<span class="stones-gem stones-gem-' + _esc(size || 'md') + ' ' + _esc(_stoneThemeClass(stone)) + '" aria-hidden="true">' +
+      '<i class="stones-gem-top"></i><i class="stones-gem-left"></i><i class="stones-gem-right"></i><i class="stones-gem-core"></i>' +
+    '</span>';
+  }
+
+  function _stoneThemeClass(stone) {
+    return 'stone-theme-' + String(stone || 'pedra')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+  }
+
+  function _maturityTimestamp() {
+    return window.firebase && firebase.firestore && firebase.firestore.FieldValue
+      ? firebase.firestore.FieldValue.serverTimestamp()
+      : new Date().toISOString();
+  }
+
+  function _maturityMonthKey() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  }
+
+  function _dateKey(date) {
+    return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+  }
+
+  function _weekKey(date) {
+    var first = new Date(date.getFullYear(), 0, 1);
+    var day = Math.floor((date - first) / 86400000);
+    return date.getFullYear() + '-W' + Math.ceil((day + first.getDay() + 1) / 7);
   }
 
   function _loadingCard() {
@@ -406,6 +2197,7 @@ Modules.Temporadas = (function () {
         _finalList('O que funcionou', summary.worked || []) +
         _finalList('O que atrapalhou', summary.blocked || []) +
       '</div>' +
+      _seasonStoneImpactBlock(season) +
       '<div class="seasons-final-suggestion">' + _icon('next_plan') + '<div><small>Sugestão para próxima temporada</small><strong>' + _esc(_objectiveLabel(summary.nextSeasonSuggestion || '')) + '</strong><p>' + _esc(summary.suggestionReason || 'Sugestão baseada nas métricas finais disponíveis.') + '</p></div></div>';
   }
 
@@ -753,12 +2545,21 @@ Modules.Temporadas = (function () {
     _paint();
 
     _finalizeSeason(season).then(function (finishedSeason) {
-      _loading = false;
       _state.activeSeason = null;
       _state.snapshots = { daily: null, weekly: null };
       _state.seasons = _state.seasons.map(function (item) {
         return item.id === finishedSeason.id ? finishedSeason : item;
       });
+      return _loadBusinessMaturity({
+        snapshotType: 'season_final',
+        source: 'season_final',
+        relatedSeasonId: finishedSeason.id || '',
+        season: finishedSeason
+      }).then(function () {
+        return finishedSeason;
+      });
+    }).then(function (finishedSeason) {
+      _loading = false;
       _paint();
       _toast('Temporada finalizada.', 'success');
       _renderFinalResultModal(finishedSeason);
@@ -798,6 +2599,100 @@ Modules.Temporadas = (function () {
     if (modal) modal.remove();
   }
 
+  function openStoneEvolutionHistory() {
+    var overlay = document.getElementById('stones-upgrade-celebration');
+    if (overlay) overlay.remove();
+    closeStoneEvolutionHistory();
+    var wrapper = document.createElement('div');
+    wrapper.id = 'stones-history-modal';
+    wrapper.className = 'seasons-modal-backdrop';
+    wrapper.innerHTML = _stoneEvolutionHistoryHtml(_state.businessMaturityEvents || []);
+    document.body.appendChild(wrapper);
+  }
+
+  function closeStoneEvolutionHistory() {
+    var modal = document.getElementById('stones-history-modal');
+    if (modal) modal.remove();
+  }
+
+  function _stoneEvolutionHistoryHtml(events) {
+    events = _normalizeStoneUpgradeEvents(events || []);
+    return '<div class="seasons-modal stones-history-modal" role="dialog" aria-modal="true" aria-label="Histórico de evolução">' +
+      '<div class="seasons-modal-head">' +
+        '<div><span class="seasons-section-label">Sistema de Pedras</span><h2>Histórico de evolução</h2></div>' +
+        '<button class="seasons-icon-button" type="button" onclick="Modules.Temporadas.closeStoneEvolutionHistory()" aria-label="Fechar">' + _icon('close') + '</button>' +
+      '</div>' +
+      '<div class="stones-history-body">' +
+        '<section>' +
+          '<div class="stones-history-section-head"><span class="seasons-section-label">Subidas de Pedra</span><h3>Evoluções registradas</h3></div>' +
+          (events.length ? events.map(_stoneHistoryEventCard).join('') : _stoneHistoryEmpty()) +
+        '</section>' +
+        _maturitySnapshotsHistoryBlock(_state.businessMaturitySnapshots || []) +
+      '</div>' +
+    '</div>';
+  }
+
+  function _stoneHistoryEmpty() {
+    return '<div class="stones-history-empty"><div class="stones-symbol">' + _stoneGraphic('Pedra Bruta', 'md') + '</div><h3>Ainda sem evolução registrada</h3><p>Quando a loja subir de Pedra, o evento aparecerá aqui com motivo, data e indicadores usados.</p></div>';
+  }
+
+  function _stoneHistoryEventCard(event) {
+    var indicators = event.indicatorsUsed || {};
+    var checklist = indicators.checklistSummary || {};
+    var orderSummary = indicators.orderSummary || {};
+    return '<article class="stones-history-event">' +
+      '<div class="stones-history-event-main">' +
+        '<div class="stones-evolution-path">' +
+          '<span class="' + _esc(_stoneThemeClass(event.fromStone)) + '">' + _esc(event.fromStone || 'Pedra anterior') + '</span>' +
+          '<b>→</b>' +
+          '<span class="' + _esc(_stoneThemeClass(event.toStone)) + '">' + _esc(event.toStone || 'Nova Pedra') + '</span>' +
+        '</div>' +
+        '<small>' + _esc(_formatDateTime(event.createdAt || event.upgradedAt) || 'Data em processamento') + '</small>' +
+        '<p>' + _esc(event.reason || 'Evolução registrada a partir dos indicadores de maturidade.') + '</p>' +
+      '</div>' +
+      '<div class="stones-history-metrics">' +
+        _stoneHistoryMetric('Progresso anterior', Math.round(_number(event.previousProgress, 0)) + '%') +
+        _stoneHistoryMetric('Score', Math.round(_number(event.maturityScore, 0))) +
+        _stoneHistoryMetric('Marcos concluídos', _number(checklist.completed, 0) + '/' + _number(checklist.total, 0)) +
+        _stoneHistoryMetric('Dias com venda', _number(orderSummary.activeDays, 0)) +
+      '</div>' +
+    '</article>';
+  }
+
+  function _stoneHistoryMetric(label, value) {
+    return '<span><small>' + _esc(label) + '</small><strong>' + _esc(value) + '</strong></span>';
+  }
+
+  function _maturitySnapshotsHistoryBlock(snapshots) {
+    snapshots = _normalizeMaturitySnapshots(snapshots || []).slice(0, 12);
+    return '<section class="stones-snapshots-history">' +
+      '<div class="stones-history-section-head"><span class="seasons-section-label">Histórico de maturidade</span><h3>Snapshots recentes</h3></div>' +
+      (snapshots.length ? '<div class="stones-snapshots-list">' + snapshots.map(_maturitySnapshotRow).join('') + '</div>' : '<div class="stones-snapshots-empty">Ainda não há snapshots de maturidade registrados.</div>') +
+    '</section>';
+  }
+
+  function _maturitySnapshotRow(snapshot) {
+    return '<article class="stones-snapshot-row">' +
+      '<div>' +
+        '<strong>' + _esc(snapshot.currentStone || 'Pedra Bruta') + '</strong>' +
+        '<span>' + _esc(_snapshotTypeLabel(snapshot.snapshotType)) + ' · ' + _esc(_formatDate(snapshot.createdAt || snapshot.periodEnd) || 'Data em processamento') + '</span>' +
+      '</div>' +
+      '<div class="stones-snapshot-row-metrics">' +
+        '<small>Progresso <strong>' + Math.round(_number(snapshot.stoneProgressPercent, 0)) + '%</strong></small>' +
+        '<small>Score <strong>' + Math.round(_number(snapshot.maturityScore, 0)) + '</strong></small>' +
+      '</div>' +
+    '</article>';
+  }
+
+  function _snapshotTypeLabel(type) {
+    return ({
+      monthly: 'Mensal',
+      season_final: 'Temporada finalizada',
+      stone_upgrade: 'Subida de Pedra',
+      manual_recalculation: 'Recálculo manual'
+    })[type] || 'Snapshot';
+  }
+
   function _renderFinalResultModal(season) {
     closeFinalResult();
     var wrapper = document.createElement('div');
@@ -806,6 +2701,77 @@ Modules.Temporadas = (function () {
     wrapper.innerHTML = _finalResultHtml(season);
     document.body.appendChild(wrapper);
     _triggerVictoryCelebration(season);
+  }
+
+  function _triggerStoneUpgradeCelebration(event) {
+    if (!event || !event.id || event.celebrationShownAt) return;
+    var existing = document.getElementById('stones-upgrade-celebration');
+    if (existing) existing.remove();
+
+    var overlay = document.createElement('div');
+    overlay.id = 'stones-upgrade-celebration';
+    overlay.className = 'stones-upgrade-celebration ' + _stoneThemeClass(event.toStone);
+    overlay.innerHTML = _stoneUpgradeCelebrationHtml(event);
+    document.body.appendChild(overlay);
+    _markStoneCelebrationShown(event);
+
+    window.setTimeout(function () {
+      if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    }, 4200);
+  }
+
+  function _stoneUpgradeCelebrationHtml(event) {
+    var palette = _stoneCelebrationPalette(event.toStone);
+    var pieces = [];
+    for (var i = 0; i < 38; i += 1) {
+      var left = 5 + Math.random() * 90;
+      var top = 6 + Math.random() * 30;
+      var delay = Math.random() * .35;
+      var duration = 2.4 + Math.random() * .9;
+      var drift = (Math.random() * 180 - 90).toFixed(0) + 'px';
+      var rotate = (Math.random() * 520 - 260).toFixed(0) + 'deg';
+      var size = (5 + Math.random() * 8).toFixed(0) + 'px';
+      var color = palette[i % palette.length];
+      pieces.push('<span style="left:' + left.toFixed(2) + '%;top:' + top.toFixed(2) + 'vh;--stone-delay:' + delay.toFixed(2) + 's;--stone-duration:' + duration.toFixed(2) + 's;--stone-drift:' + drift + ';--stone-rotate:' + rotate + ';--stone-color:' + color + ';--stone-size:' + size + ';"></span>');
+    }
+    return '<div class="stones-upgrade-particles" aria-hidden="true">' + pieces.join('') + '</div>' +
+      '<div class="stones-upgrade-toast" role="status">' +
+        '<div class="stones-upgrade-symbol">' + _stoneGraphic(event.toStone, 'md') + '</div>' +
+        '<div>' +
+          '<small>Sistema de Pedras</small>' +
+          '<strong>Você evoluiu para ' + _esc(event.toStone || 'a próxima Pedra') + '.</strong>' +
+          '<p>Seu negócio demonstrou mais maturidade, consistência e evolução saudável.</p>' +
+          '<button class="seasons-primary-button" type="button" onclick="Modules.Temporadas.openStoneEvolutionHistory()">Ver evolução</button>' +
+        '</div>' +
+      '</div>';
+  }
+
+  function _stoneCelebrationPalette(stone) {
+    var map = {
+      Quartzo: ['#FFFFFF', '#EAE4DA', '#B6925E'],
+      Ametista: ['#7C3AED', '#C4B5FD', '#F5F3FF'],
+      Safira: ['#1D4ED8', '#93C5FD', '#EFF6FF'],
+      Esmeralda: ['#047857', '#86EFAC', '#ECFDF5'],
+      Rubi: ['#B42318', '#FCA5A5', '#FFF1F2'],
+      Diamante: ['#E0F2FE', '#FFFFFF', '#94A3B8'],
+      'Ônix': ['#111827', '#6B7280', '#F9FAFB']
+    };
+    return map[stone] || ['#8A6F5A', '#EAE4DA', '#FFFFFF'];
+  }
+
+  function _markStoneCelebrationShown(event) {
+    _state.pendingStoneCelebration = null;
+    _state.businessMaturityEvents = (_state.businessMaturityEvents || []).map(function (item) {
+      if (item.id !== event.id) return item;
+      return Object.assign({}, item, { celebrationPending: false, celebrationShownAt: new Date().toISOString() });
+    });
+    if (!window.DB || typeof DB.update !== 'function') return;
+    DB.update('stone_upgrade_events', event.id, {
+      celebrationPending: false,
+      celebrationShownAt: _maturityTimestamp()
+    }).catch(function (err) {
+      console.warn('Stone upgrade celebration update skipped', err);
+    });
   }
 
   function _triggerVictoryCelebration(season) {
@@ -929,6 +2895,7 @@ Modules.Temporadas = (function () {
             _finalList('O que funcionou', summary.worked || []) +
             _finalList('O que atrapalhou', summary.blocked || []) +
           '</div>' +
+          _seasonStoneImpactBlock(season) +
           '<div class="seasons-final-summary">' +
             '<span class="seasons-section-label">Evolução detectada</span>' +
             '<p>' + _esc(summary.evolution || 'Ainda não há leitura estratégica suficiente para esta temporada.') + '</p>' +
@@ -3235,6 +5202,8 @@ Modules.Temporadas = (function () {
     finishActiveSeason: finishActiveSeason,
     openFinalResult: openFinalResult,
     openScheduledDetails: openScheduledDetails,
+    openStoneEvolutionHistory: openStoneEvolutionHistory,
+    closeStoneEvolutionHistory: closeStoneEvolutionHistory,
     openHelpModal: openHelpModal,
     closeHelpModal: closeHelpModal,
     toggleMetricBalloon: toggleMetricBalloon,
