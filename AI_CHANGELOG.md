@@ -1,5 +1,12 @@
 # AI Changelog
 
+## 2026-05-13 — Redução de riscos de FOUC em HTML/CSS
+- Arquivos alterados: `admin.html`, `public/admin.html`, `review.html`, `public/review.html`, `track.html`, `public/track.html`, `master.html`, `index.html`, `public/index.html`, `template-mobile-premium-fiel.html`, `index-template-publico-anterior.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Admin, Master local, loja pública, review, tracking e templates públicos.
+- Resumo do ajuste: reposicionei scripts bloqueantes do cabeçalho para depois dos blocos de CSS crítico nos HTMLs afetados, mantendo a ordem de carregamento entre os scripts. Também adicionei `display=block` às fontes externas de ícones do Google e movi os snippets de Analytics/Pixel do template público anterior para o fim do `body`.
+- Motivo: reduzir flash de conteúdo sem estilo causado por scripts antes do CSS crítico e por fontes de ícones sem estratégia explícita de exibição.
+- Impacto esperado: render inicial mais estável, com menor chance de FOUC/FOUT em páginas públicas e painéis, sem alterar rotas, permissões, Firebase, workflows ou estrutura de dados.
+
 ## 2026-05-12 — Upload de imagens do Admin no Firebase Storage
 - Arquivos alterados: `public/js/core/image-tools.js`, `public/js/modules/catalogo.js`, `public/js/modules/configuracoes.js`, `js/core/image-tools.js`, `js/modules/catalogo.js`, `js/modules/configuracoes.js`, `storage.rules`, `AI_CHANGELOG.md`.
 - Módulo afetado: Admin, Catálogo, Configurações e Firebase Storage.
