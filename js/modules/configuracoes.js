@@ -83,11 +83,11 @@ Modules.Configuracoes = (function () {
   }
 
   function _field(id, label, value, placeholder, type) {
-    return '<label class="field"><span>' + label + '</span><input id="' + id + '" type="' + (type || 'text') + '" value="' + _esc(value || '') + '" placeholder="' + (placeholder || '') + '"></label>';
+    return '<label class="field bf-field"><span>' + _esc(label) + '</span><input id="' + id + '" class="bf-input" type="' + (type || 'text') + '" value="' + _esc(value || '') + '" placeholder="' + _esc(placeholder || '') + '"></label>';
   }
 
   function _textarea(id, label, value, placeholder) {
-    return '<label class="field"><span>' + label + '</span><textarea id="' + id + '" placeholder="' + (placeholder || '') + '">' + _esc(value || '') + '</textarea></label>';
+    return '<label class="field bf-field"><span>' + _esc(label) + '</span><textarea id="' + id + '" class="bf-textarea" placeholder="' + _esc(placeholder || '') + '">' + _esc(value || '') + '</textarea></label>';
   }
 
   function _appearanceState() {
@@ -168,24 +168,24 @@ Modules.Configuracoes = (function () {
     var content = document.getElementById('config-content');
     if (!content) return;
     content.className = 'module-content';
-    content.innerHTML = '<div style="display:flex;flex-direction:column;gap:16px;">' +
-      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
-        '<div style="min-width:0;"><h2 style="font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;line-height:1.2;">Geral</h2><p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0;">Dados centrais usados pelo painel, loja online, fiscal, comunicação e módulos operacionais.</p></div>' +
+    content.innerHTML = '<div style="display:flex;flex-direction:column;gap:22px;max-width:1180px;margin:0 auto;width:100%;">' +
+      '<div class="bf-section-header" style="padding:2px 2px 0;">' +
+        '<div style="min-width:0;max-width:720px;"><h2 style="font-size:24px;font-weight:800;color:#1F1F1F;margin:0 0 6px;line-height:1.16;">Geral</h2><p class="bf-section-subtitle" style="font-size:14px;margin:0;">Dados centrais usados pelo painel, loja online, fiscal, comunicação e módulos operacionais.</p></div>' +
         '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">' +
           _configChip(c.businessName || 'Nome pendente') +
           _configChip((c.city || 'Cidade') + ' / ' + (c.country || 'Pais')) +
           _configChip((c.currency || c.defaultCurrency || 'EUR') + ' · ' + (c.language || c.defaultLanguage || 'pt-PT')) +
         '</div>' +
       '</div>' +
-      '<section style="' + _configCardStyle('0') + 'overflow:hidden;">' +
-        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(360px,100%),1fr));gap:0;align-items:stretch;">' +
-          '<div style="background:linear-gradient(135deg,#FFF 0%,#FAF8F4 100%);border-right:1px solid #EAE4DA;padding:22px;display:flex;flex-direction:column;justify-content:space-between;gap:20px;min-width:0;">' +
+      '<section class="bf-card" style="overflow:hidden;">' +
+        '<div class="bf-split-grid">' +
+          '<div style="background:#FAF8F4;border-right:1px solid #EAE4DA;padding:24px;display:flex;flex-direction:column;justify-content:space-between;gap:20px;min-width:0;">' +
             '<div>' +
               '<div style="display:flex;align-items:flex-start;gap:14px;margin-bottom:18px;">' +
-                '<div id="cfg-avatar-preview" style="width:66px;height:66px;border-radius:20px;background:#fff;color:#B42318;border:1px solid #E5D3CF;display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 12px 24px rgba(31,31,31,.075);flex:0 0 auto;">' + (avatarUrl ? '<img src="' + _esc(avatarUrl) + '" alt="" style="width:100%;height:100%;object-fit:contain;display:block;">' : '<span class="mi" style="font-size:30px;">storefront</span>') + '</div>' +
+                '<div id="cfg-avatar-preview" style="width:68px;height:68px;border-radius:18px;background:#fff;color:#B42318;border:1px solid #E5D3CF;display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 8px 20px rgba(31,31,31,.06);flex:0 0 auto;">' + (avatarUrl ? '<img src="' + _esc(avatarUrl) + '" alt="" style="width:100%;height:100%;object-fit:contain;display:block;">' : '<span class="mi" style="font-size:30px;">storefront</span>') + '</div>' +
                 '<div style="min-width:0;flex:1;padding-top:2px;">' +
-                  '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:7px;"><span style="font-size:12px;font-weight:800;color:#B42318;text-transform:uppercase;letter-spacing:.02em;">Ficha do negócio</span><span style="display:inline-flex;align-items:center;min-height:22px;padding:0 8px;border-radius:999px;background:#fff;border:1px solid #EAE4DA;color:#6F6860;font-size:11px;font-weight:700;">' + _esc(fiscalLabel) + '</span></div>' +
-                  '<h3 style="margin:0;color:#1F1F1F;font-size:25px;font-weight:800;line-height:1.12;word-break:break-word;">' + _esc(c.businessName || c.tradeName || c.visualName || 'Nome do negócio') + '</h3>' +
+                  '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;"><span class="bf-badge" style="background:#fff;border:1px solid #EAE4DA;color:#B42318;">Ficha do negócio</span><span class="bf-badge" style="background:#fff;border:1px solid #EAE4DA;">' + _esc(fiscalLabel) + '</span></div>' +
+                  '<h3 style="margin:0;color:#1F1F1F;font-size:24px;font-weight:800;line-height:1.12;word-break:break-word;">' + _esc(c.businessName || c.tradeName || c.visualName || 'Nome do negócio') + '</h3>' +
                   '<p style="margin:8px 0 0;color:#6F6860;font-size:13px;line-height:1.45;max-width:440px;">' + _esc(c.description || 'Descrição curta ainda não preenchida.') + '</p>' +
                 '</div>' +
               '</div>' +
@@ -197,48 +197,48 @@ Modules.Configuracoes = (function () {
               _generalMiniInfo('País fiscal', fiscalLabel) +
             '</div>' +
           '</div>' +
-          '<div style="padding:22px;min-width:0;">' +
-            '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px;">' +
-              '<div><div style="font-size:16px;font-weight:700;color:#1F1F1F;">Identidade e cadastro</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:3px;">Campos que alimentam áreas públicas, internas e fiscais.</div></div>' +
-              '<span style="display:inline-flex;align-items:center;min-height:28px;padding:0 11px;border-radius:999px;background:#FAF8F4;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:700;white-space:nowrap;">Editável</span>' +
+          '<div class="bf-section" style="min-width:0;">' +
+            '<div class="bf-section-header">' +
+              '<div><h3 class="bf-section-title">Identidade e cadastro</h3><p class="bf-section-subtitle">Campos que alimentam áreas públicas, internas e fiscais.</p></div>' +
+              '<span class="bf-badge">Editável</span>' +
             '</div>' +
-            '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;">' +
-              '<div style="grid-column:1/-1;">' +
-                '<div style="border:1px solid #EAE4DA;border-radius:15px;background:#FAF8F4;padding:13px 14px;display:flex;align-items:center;gap:12px;">' +
-                  '<div style="width:38px;height:38px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;flex:0 0 auto;box-shadow:0 8px 18px rgba(31,31,31,.045);"><span class="mi" style="font-size:20px;">add_photo_alternate</span></div>' +
+            '<div class="bf-form-grid">' +
+              '<div class="bf-span-full">' +
+                '<div class="bf-panel" style="padding:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">' +
+                  '<div style="width:38px;height:38px;border-radius:12px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span class="mi" style="font-size:20px;">add_photo_alternate</span></div>' +
                   '<div style="min-width:0;flex:1;">' +
                     '<div style="font-size:13px;font-weight:800;color:#1F1F1F;line-height:1.25;">Avatar da conta</div>' +
                     '<div style="font-size:12px;color:#6F6860;line-height:1.4;margin-top:2px;">Imagem quadrada, ideal 500 x 500 px. JPG, PNG ou WebP.</div>' +
                   '</div>' +
-                  '<input type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onchange="Modules.Configuracoes._uploadGeneralAvatarImage(event)" style="max-width:210px;width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#1F1F1F;font-size:12px;font-weight:400;font-family:inherit;outline:none;">' +
+                  '<input class="bf-input" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onchange="Modules.Configuracoes._uploadGeneralAvatarImage(event)" style="max-width:240px;font-size:12px;">' +
                 '</div>' +
-                '<input id="cfg-avatar-url" value="' + _esc(avatarUrl) + '" placeholder="URL do avatar" style="' + _configInputStyle() + 'margin-top:10px;">' +
+                '<input id="cfg-avatar-url" class="bf-input" value="' + _esc(avatarUrl) + '" placeholder="URL do avatar" style="margin-top:10px;">' +
               '</div>' +
-              '<div style="grid-column:1/-1;">' + _configInput('cfg-business-name', 'Nome do negócio', c.businessName, 'Boca do Brasil') + '</div>' +
+              '<div class="bf-span-full">' + _configInput('cfg-business-name', 'Nome do negócio', c.businessName, 'Boca do Brasil') + '</div>' +
               _configInput('cfg-trade-name', 'Nome comercial', c.tradeName || c.commercialName || c.visualName || c.businessName, 'Boca do Brasil') +
               _configInput('cfg-legal-name', 'Razão social', c.legalName || c.companyLegalName || '', 'Nome legal da empresa') +
               _configInput('cfg-legal-representative', 'Responsável legal', c.legalRepresentative || c.responsavelLegal || '', 'Nome do responsável') +
-              '<div style="grid-column:1/-1;">' + _configTextarea('cfg-description', 'Descrição curta', c.description, 'Comida brasileira artesanal em Lisboa') + '</div>' +
+              '<div class="bf-span-full">' + _configTextarea('cfg-description', 'Descrição curta', c.description, 'Comida brasileira artesanal em Lisboa') + '</div>' +
             '</div>' +
           '</div>' +
         '</div>' +
       '</section>' +
-      '<section style="' + _configCardStyle() + '">' +
-        '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:16px;">' +
-          '<div><div style="font-size:15px;font-weight:800;color:#1F1F1F;">Contato e padrões</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Canais de atendimento e preferências compartilhadas com o restante do painel.</div></div>' +
-          '<span style="display:inline-flex;align-items:center;min-height:28px;padding:0 11px;border-radius:999px;background:#FAF8F4;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:700;">' + _esc(c.currency || c.defaultCurrency || 'EUR') + ' · ' + _esc(c.language || c.defaultLanguage || 'pt-PT') + '</span>' +
+      '<section class="bf-card bf-section">' +
+        '<div class="bf-section-header">' +
+          '<div><h3 class="bf-section-title">Contato e padrões</h3><p class="bf-section-subtitle">Canais de atendimento e preferências compartilhadas com o restante do painel.</p></div>' +
+          '<span class="bf-badge">' + _esc(c.currency || c.defaultCurrency || 'EUR') + ' · ' + _esc(c.language || c.defaultLanguage || 'pt-PT') + '</span>' +
         '</div>' +
-        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:18px;">' +
-          '<div style="border:1px solid #EAE4DA;border-radius:15px;background:#fff;padding:14px;">' +
-            '<div style="display:flex;align-items:center;gap:9px;margin-bottom:13px;"><span class="mi" style="font-size:19px;color:#B42318;">support_agent</span><div style="font-size:13px;font-weight:800;color:#1F1F1F;">Atendimento</div></div>' +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(290px,100%),1fr));gap:16px;">' +
+          '<div class="bf-panel" style="background:#fff;padding:16px;">' +
+            '<div style="display:flex;align-items:center;gap:9px;margin-bottom:14px;"><span class="mi" style="font-size:19px;color:#6F6860;">support_agent</span><div style="font-size:13px;font-weight:800;color:#1F1F1F;">Atendimento</div></div>' +
             '<div style="display:flex;flex-direction:column;gap:14px;">' +
               _phoneInput('cfg-phone-country', 'cfg-whatsapp', 'Telefone / WhatsApp', c.phoneCountryCode || c.whatsappCountryCode || _defaultPhoneCode(fc), c.whatsapp || c.phone, '912 345 678') +
               _configInput('cfg-email', 'E-mail', c.email, 'contato@...') +
               _configInput('cfg-admin-email', 'E-mail fiscal / administrativo', c.adminEmail || c.fiscalEmail || c.billingEmail || '', 'admin@...') +
             '</div>' +
           '</div>' +
-          '<div style="border:1px solid #EAE4DA;border-radius:15px;background:#fff;padding:14px;">' +
-            '<div style="display:flex;align-items:center;gap:9px;margin-bottom:13px;"><span class="mi" style="font-size:19px;color:#B42318;">tune</span><div style="font-size:13px;font-weight:800;color:#1F1F1F;">Padrões do sistema</div></div>' +
+          '<div class="bf-panel" style="background:#fff;padding:16px;">' +
+            '<div style="display:flex;align-items:center;gap:9px;margin-bottom:14px;"><span class="mi" style="font-size:19px;color:#6F6860;">tune</span><div style="font-size:13px;font-weight:800;color:#1F1F1F;">Padrões do sistema</div></div>' +
             '<div style="display:flex;flex-direction:column;gap:14px;">' +
             _configSelect('cfg-language', 'Idioma padrão', c.language || c.defaultLanguage || 'pt-PT', [
               ['pt-PT', 'Português (Portugal)'],
@@ -256,15 +256,15 @@ Modules.Configuracoes = (function () {
           '</div>' +
         '</div>' +
       '</section>' +
-      '<section style="' + _configCardStyle() + '">' +
-        '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:14px;">' +
+      '<section class="bf-card bf-section">' +
+        '<div class="bf-section-header">' +
           '<div style="display:flex;align-items:flex-start;gap:11px;min-width:0;">' +
             '<div style="width:38px;height:38px;border-radius:13px;background:#FAF8F4;color:#B45309;display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span class="mi" style="font-size:21px;">account_balance</span></div>' +
-            '<div style="min-width:0;"><div style="font-size:15px;font-weight:800;color:#1F1F1F;">Dados fiscais da empresa</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Documento e endereço fiscal do negócio. Este endereço é separado do endereço de retirada usado no template.</div></div>' +
+            '<div style="min-width:0;"><h3 class="bf-section-title">Dados fiscais da empresa</h3><p class="bf-section-subtitle">Documento e endereço fiscal do negócio. Este endereço é separado do endereço de retirada usado no template.</p></div>' +
           '</div>' +
-          '<span style="display:inline-flex;align-items:center;min-height:28px;padding:0 11px;border-radius:999px;background:#FAF8F4;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:700;">' + _esc(fiscalLabel) + ' · ' + _esc(fiscalNote) + '</span>' +
+          '<span class="bf-badge bf-badge-warning">' + _esc(fiscalLabel) + ' · ' + _esc(fiscalNote) + '</span>' +
         '</div>' +
-        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;">' +
+        '<div class="bf-form-grid">' +
           '<div>' +
             _configInput('cfg-company-fiscal-id', fiscalDocLabel, c.companyFiscalId || c.fiscalDocument || c.taxId || c.nif || '', fiscalDocPlaceholder) +
             '<div style="font-size:11px;color:#8A7E7C;line-height:1.4;margin-top:5px;">' + _esc(fiscalDocHint) + '</div>' +
@@ -277,14 +277,14 @@ Modules.Configuracoes = (function () {
           _configInput('cfg-company-postal', postalLabel, companyAddress.postalCode || c.companyPostalCode || '', postalLabel) +
           _configInput('cfg-company-country', 'País fiscal da empresa', companyAddress.country || c.companyCountry || c.country || fiscalLabel, fiscalLabel) +
         '</div>' +
-        '<div style="display:flex;align-items:flex-start;gap:10px;background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;padding:13px 14px;color:#6F6860;font-size:13px;line-height:1.45;margin-top:14px;">' +
+        '<div class="bf-panel" style="display:flex;align-items:flex-start;gap:10px;padding:13px 14px;color:#6F6860;font-size:13px;line-height:1.45;">' +
           '<span class="mi" style="font-size:18px;color:#B45309;line-height:1.35;">travel_explore</span>' +
           '<div>O campo de endereço fiscal já está preparado para o autocomplete do Google Maps via <strong style="color:#1F1F1F;">BocaPlaces</strong>. O país fiscal é definido pelo Master e afeta regras fiscais, IVA e módulos disponíveis.</div>' +
         '</div>' +
       '</section>' +
-      '<section style="' + _configCardStyle('12px 14px') + 'display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;position:sticky;bottom:0;z-index:2;">' +
+      '<section class="bf-card bf-actions-row" style="padding:14px 16px;position:sticky;bottom:0;z-index:2;">' +
         '<div style="font-size:13px;color:#6F6860;line-height:1.45;">As alterações alimentam outras áreas do painel. Salve para atualizar a base compartilhada.</div>' +
-        '<button id="config-save" style="' + _configPrimaryStyle() + '">Salvar configurações</button>' +
+        '<button id="config-save" class="bf-btn bf-btn-primary">Salvar configurações</button>' +
       '</section>' +
     '</div>';
     document.getElementById('config-save').onclick = function () {
@@ -440,9 +440,9 @@ Modules.Configuracoes = (function () {
         '</div>' +
       '</div>',
       _field('app-visual-name', 'Nome visual da loja', c.visualName || _config.geral.visualName || _config.geral.businessName, 'Boca do Brasil'),
-      '<div class="field"><span>Logo</span><input type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onchange="Modules.Configuracoes._uploadAppearanceImage(event,\'logo\')" style="width:100%;padding:11px 12px;border:1.5px solid #D4C8C6;border-radius:10px;background:#fff;font-size:14px;"><div style="margin-top:6px;font-size:11px;line-height:1.45;color:#8A7E7C;">' + _appearanceTip('logo') + '</div></div>',
+      '<div class="field bf-field"><span>Logo</span><input class="bf-input" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onchange="Modules.Configuracoes._uploadAppearanceImage(event,\'logo\')"><div style="margin-top:6px;font-size:11px;line-height:1.45;color:#8A7E7C;">' + _appearanceTip('logo') + '</div></div>',
       _field('app-logo-url', 'Logo', c.logoUrl || _config.geral.logoUrl, 'https://...'),
-      '<div class="field"><span>Banner</span><input type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onchange="Modules.Configuracoes._uploadAppearanceImage(event,\'banner\')" style="width:100%;padding:11px 12px;border:1.5px solid #D4C8C6;border-radius:10px;background:#fff;font-size:14px;"><div style="margin-top:6px;font-size:11px;line-height:1.45;color:#8A7E7C;">' + _appearanceTip('banner') + '</div></div>',
+      '<div class="field bf-field"><span>Banner</span><input class="bf-input" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onchange="Modules.Configuracoes._uploadAppearanceImage(event,\'banner\')"><div style="margin-top:6px;font-size:11px;line-height:1.45;color:#8A7E7C;">' + _appearanceTip('banner') + '</div></div>',
       _field('app-favicon-url', 'Favicon', c.faviconUrl || _config.geral.faviconUrl, 'https://...'),
       _field('app-banner-url', 'Imagem de capa / banner', c.bannerUrl || _config.geral.bannerUrl, 'https://...'),
       _textarea('app-notes', 'Observação interna', c.notes || '', 'Apenas para referência do time')
@@ -538,7 +538,7 @@ Modules.Configuracoes = (function () {
 
     var typeLabel = { massa: 'Massa', volume: 'Volume', unidade: 'Unidade' };
 
-    content.innerHTML = '<div class="settings-card">' +
+    content.innerHTML = '<div class="settings-card bf-card">' +
       '<div class="settings-card-head"><h2>Produtos</h2><p>Configurações relacionadas ao cardápio de produtos.</p></div>' +
       '<div style="margin-top:16px;">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">' +
@@ -546,11 +546,11 @@ Modules.Configuracoes = (function () {
       '<h3 style="font-size:15px;font-weight:700;margin-bottom:4px;">Unidades de Medida</h3>' +
       '<p style="font-size:12px;color:#8A7E7C;">Unidades usadas em insumos e fichas técnicas</p>' +
       '</div>' +
-      '<button onclick="Modules.Configuracoes._openUnidadeModal(null)" style="background:#C4362A;color:#fff;border:none;padding:9px 16px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">+ Adicionar</button>' +
+      '<button class="bf-btn bf-btn-primary" onclick="Modules.Configuracoes._openUnidadeModal(null)">+ Adicionar</button>' +
       '</div>' +
       (_unidades.length === 0
         ? '<p style="text-align:center;padding:24px;color:#8A7E7C;font-size:13px;">Nenhuma unidade cadastrada.</p>'
-        : '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.06);">' +
+        : '<div style="overflow-x:auto;"><table class="bf-table" style="background:#fff;border-radius:12px;overflow:hidden;">' +
           '<thead><tr style="background:#F2EDED;">' +
           '<th style="padding:11px 14px;text-align:left;font-size:11px;font-weight:700;color:#8A7E7C;text-transform:uppercase;">Nome</th>' +
           '<th style="padding:11px 14px;text-align:left;font-size:11px;font-weight:700;color:#8A7E7C;text-transform:uppercase;">Símbolo</th>' +
@@ -563,8 +563,8 @@ Modules.Configuracoes = (function () {
               '<td style="padding:11px 14px;font-size:13px;">' + _esc(u.symbol) + '</td>' +
               '<td style="padding:11px 14px;font-size:13px;color:#8A7E7C;">' + (typeLabel[u.type] || u.type || '—') + '</td>' +
               '<td style="padding:11px 8px;text-align:right;">' +
-              '<button onclick="Modules.Configuracoes._openUnidadeModal(\'' + u.id + '\')" style="width:28px;height:28px;border-radius:7px;border:none;background:#EEF4FF;color:#3B82F6;cursor:pointer;margin-right:4px;font-size:13px;">✏</button>' +
-              '<button onclick="Modules.Configuracoes._deleteUnidade(\'' + u.id + '\')" style="width:28px;height:28px;border-radius:7px;border:none;background:#FFF0EE;color:#C4362A;cursor:pointer;font-size:13px;">✕</button>' +
+              '<button class="bf-btn bf-btn-secondary" onclick="Modules.Configuracoes._openUnidadeModal(\'' + u.id + '\')" style="width:30px;min-height:30px;height:30px;padding:0;margin-right:4px;color:#2563EB;">✏</button>' +
+              '<button class="bf-btn bf-btn-danger" onclick="Modules.Configuracoes._deleteUnidade(\'' + u.id + '\')" style="width:30px;min-height:30px;height:30px;padding:0;">✕</button>' +
               '</td></tr>';
           }).join('') +
           '</tbody></table></div>') +
@@ -577,11 +577,11 @@ Modules.Configuracoes = (function () {
       '<h3 style="font-size:15px;font-weight:700;margin-bottom:4px;">Fornecedores</h3>' +
       '<p style="font-size:12px;color:#8A7E7C;">Lista de fornecedores para produtos prontos e insumos</p>' +
       '</div>' +
-      '<button onclick="Modules.Configuracoes._openFornecedorModal(null)" style="background:#C4362A;color:#fff;border:none;padding:9px 16px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">+ Adicionar</button>' +
+      '<button class="bf-btn bf-btn-primary" onclick="Modules.Configuracoes._openFornecedorModal(null)">+ Adicionar</button>' +
       '</div>' +
       (_fornecedores.length === 0
         ? '<p style="text-align:center;padding:24px;color:#8A7E7C;font-size:13px;">Nenhum fornecedor cadastrado.</p>'
-        : '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.06);">' +
+        : '<div style="overflow-x:auto;"><table class="bf-table" style="background:#fff;border-radius:12px;overflow:hidden;">' +
           '<thead><tr style="background:#F2EDED;">' +
           '<th style="padding:11px 14px;text-align:left;font-size:11px;font-weight:700;color:#8A7E7C;text-transform:uppercase;">Nome</th>' +
           '<th style="padding:11px 14px;text-align:left;font-size:11px;font-weight:700;color:#8A7E7C;text-transform:uppercase;">Contato</th>' +
@@ -592,8 +592,8 @@ Modules.Configuracoes = (function () {
               '<td style="padding:11px 14px;font-size:13px;font-weight:700;">' + _esc(f.name) + '</td>' +
               '<td style="padding:11px 14px;font-size:13px;color:#8A7E7C;">' + _esc(f.contact || '—') + '</td>' +
               '<td style="padding:11px 8px;text-align:right;">' +
-              '<button onclick="Modules.Configuracoes._openFornecedorModal(\'' + f.id + '\')" style="width:28px;height:28px;border-radius:7px;border:none;background:#EEF4FF;color:#3B82F6;cursor:pointer;margin-right:4px;"><span class="mi" style="font-size:14px;">edit</span></button>' +
-              '<button onclick="Modules.Configuracoes._deleteFornecedor(\'' + f.id + '\')" style="width:28px;height:28px;border-radius:7px;border:none;background:#FFF0EE;color:#C4362A;cursor:pointer;"><span class="mi" style="font-size:14px;">delete</span></button>' +
+              '<button class="bf-btn bf-btn-secondary" onclick="Modules.Configuracoes._openFornecedorModal(\'' + f.id + '\')" style="width:30px;min-height:30px;height:30px;padding:0;margin-right:4px;color:#2563EB;"><span class="mi" style="font-size:14px;">edit</span></button>' +
+              '<button class="bf-btn bf-btn-danger" onclick="Modules.Configuracoes._deleteFornecedor(\'' + f.id + '\')" style="width:30px;min-height:30px;height:30px;padding:0;"><span class="mi" style="font-size:14px;">delete</span></button>' +
               '</td></tr>';
           }).join('') +
           '</tbody></table></div>') +
@@ -605,15 +605,12 @@ Modules.Configuracoes = (function () {
   function _openFornecedorModal(id) {
     _editingFornecedorId = id;
     var f = id ? (_fornecedores.find(function (x) { return x.id === id; }) || {}) : {};
-    var body = '<div>' +
-      '<div style="margin-bottom:12px;"><label style="font-size:11px;font-weight:700;color:#8A7E7C;display:block;margin-bottom:4px;">Nome *</label>' +
-      '<input id="forn-name" type="text" value="' + _esc(f.name || '') + '" style="width:100%;padding:10px;border:1.5px solid #D4C8C6;border-radius:9px;font-size:14px;font-family:inherit;outline:none;"></div>' +
-      '<div style="margin-bottom:12px;"><label style="font-size:11px;font-weight:700;color:#8A7E7C;display:block;margin-bottom:4px;">Contato (telefone / email)</label>' +
-      '<input id="forn-contact" type="text" value="' + _esc(f.contact || '') + '" style="width:100%;padding:10px;border:1.5px solid #D4C8C6;border-radius:9px;font-size:14px;font-family:inherit;outline:none;"></div>' +
-      '<div style="margin-bottom:12px;"><label style="font-size:11px;font-weight:700;color:#8A7E7C;display:block;margin-bottom:4px;">Observações</label>' +
-      '<textarea id="forn-notes" style="width:100%;padding:10px;border:1.5px solid #D4C8C6;border-radius:9px;font-size:14px;font-family:inherit;outline:none;min-height:60px;resize:vertical;">' + _esc(f.notes || '') + '</textarea></div>' +
+    var body = '<div style="display:flex;flex-direction:column;gap:12px;">' +
+      '<label class="bf-field"><span>Nome *</span><input id="forn-name" class="bf-input" type="text" value="' + _esc(f.name || '') + '"></label>' +
+      '<label class="bf-field"><span>Contato (telefone / email)</span><input id="forn-contact" class="bf-input" type="text" value="' + _esc(f.contact || '') + '"></label>' +
+      '<label class="bf-field"><span>Observações</span><textarea id="forn-notes" class="bf-textarea" style="min-height:70px;">' + _esc(f.notes || '') + '</textarea></label>' +
       '</div>';
-    var footer = '<button onclick="Modules.Configuracoes._saveFornecedor()" style="width:100%;padding:13px;border-radius:11px;border:none;background:#C4362A;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">' + (id ? 'Atualizar' : 'Adicionar') + '</button>';
+    var footer = '<button class="bf-btn bf-btn-primary" onclick="Modules.Configuracoes._saveFornecedor()" style="width:100%;">' + (id ? 'Atualizar' : 'Adicionar') + '</button>';
     window._fornecedorModal = UI.modal({ title: id ? 'Editar Fornecedor' : 'Novo Fornecedor', body: body, footer: footer });
   }
 
@@ -648,21 +645,20 @@ Modules.Configuracoes = (function () {
   function _openUnidadeModal(id) {
     _editingUnidadeId = id;
     var u = id ? (_unidades.find(function (x) { return x.id === id; }) || {}) : {};
-    var body = '<div>' +
-      '<div style="margin-bottom:12px;"><label style="font-size:11px;font-weight:700;color:#8A7E7C;display:block;margin-bottom:4px;">Nome *</label>' +
-      '<input id="un-name" type="text" value="' + _esc(u.name || '') + '" placeholder="ex: Quilograma" style="width:100%;padding:10px;border:1.5px solid #D4C8C6;border-radius:9px;font-size:14px;font-family:inherit;outline:none;"></div>' +
+    var body = '<div style="display:flex;flex-direction:column;gap:12px;">' +
+      '<label class="bf-field"><span>Nome *</span><input id="un-name" class="bf-input" type="text" value="' + _esc(u.name || '') + '" placeholder="ex: Quilograma"></label>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
-      '<div><label style="font-size:11px;font-weight:700;color:#8A7E7C;display:block;margin-bottom:4px;">Símbolo *</label>' +
-      '<input id="un-symbol" type="text" value="' + _esc(u.symbol || '') + '" placeholder="kg" style="width:100%;padding:10px;border:1.5px solid #D4C8C6;border-radius:9px;font-size:14px;font-family:inherit;outline:none;"></div>' +
-      '<div><label style="font-size:11px;font-weight:700;color:#8A7E7C;display:block;margin-bottom:4px;">Tipo *</label>' +
-      '<select id="un-type" style="width:100%;padding:10px;border:1.5px solid #D4C8C6;border-radius:9px;font-size:14px;font-family:inherit;outline:none;">' +
+      '<label class="bf-field"><span>Símbolo *</span>' +
+      '<input id="un-symbol" class="bf-input" type="text" value="' + _esc(u.symbol || '') + '" placeholder="kg"></label>' +
+      '<label class="bf-field"><span>Tipo *</span>' +
+      '<select id="un-type" class="bf-select">' +
       '<option value="massa"' + (u.type === 'massa' ? ' selected' : '') + '>Massa</option>' +
       '<option value="volume"' + (u.type === 'volume' ? ' selected' : '') + '>Volume</option>' +
       '<option value="unidade"' + (!u.type || u.type === 'unidade' ? ' selected' : '') + '>Unidade</option>' +
-      '</select></div>' +
+      '</select></label>' +
       '</div></div>';
 
-    var footer = '<button onclick="Modules.Configuracoes._saveUnidade()" style="width:100%;padding:13px;border-radius:11px;border:none;background:#C4362A;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">' + (id ? 'Atualizar' : 'Adicionar') + '</button>';
+    var footer = '<button class="bf-btn bf-btn-primary" onclick="Modules.Configuracoes._saveUnidade()" style="width:100%;">' + (id ? 'Atualizar' : 'Adicionar') + '</button>';
     window._unidadeModal = UI.modal({ title: id ? 'Editar Unidade' : 'Nova Unidade de Medida', body: body, footer: footer });
   }
 
@@ -716,7 +712,7 @@ Modules.Configuracoes = (function () {
       '</div>' +
       '<section style="' + _configCardStyle() + 'display:grid;grid-template-columns:minmax(260px,1fr) auto;gap:14px;align-items:center;">' +
         '<div style="min-width:0;"><div style="font-size:12px;font-weight:600;color:#6F6860;margin-bottom:5px;">Link principal da loja</div><div style="font-size:clamp(20px,2.4vw,30px);font-weight:700;color:#1F1F1F;line-height:1.1;word-break:break-all;">' + _esc(urls.publicUrl.replace(/^https?:\/\//, '')) + '</div><div style="font-size:12px;color:#8A7E7C;line-height:1.4;margin-top:7px;">' + (domainReady ? 'URL calculada com o domínio principal do sistema.' : 'Prévia temporária até o domínio principal ser configurado internamente.') + '</div></div>' +
-        '<button type="button" onclick="Modules.Configuracoes._copyDomainValue(\'' + _esc(urls.publicUrl) + '\')" style="height:40px;padding:0 14px;border-radius:12px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:8px;"><span class="mi" style="font-size:17px;">content_copy</span>Copiar</button>' +
+        '<button type="button" class="bf-btn bf-btn-secondary" onclick="Modules.Configuracoes._copyDomainValue(\'' + _esc(urls.publicUrl) + '\')"><span class="mi" style="font-size:17px;">content_copy</span>Copiar</button>' +
       '</section>' +
       '<section style="' + _configCardStyle() + '">' +
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:14px;">' +
@@ -750,7 +746,7 @@ Modules.Configuracoes = (function () {
       '</section>' +
       '<section style="' + _configCardStyle('12px 14px') + 'display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;position:sticky;bottom:0;z-index:2;">' +
         '<div style="font-size:13px;color:#6F6860;line-height:1.45;">Esses dados alimentam os links públicos da loja, pedidos, rastreio e avaliações.</div>' +
-        '<button id="config-save" style="' + _configPrimaryStyle() + '">Salvar domínio</button>' +
+        '<button id="config-save" class="bf-btn bf-btn-primary">Salvar domínio</button>' +
       '</section>' +
     '</div>';
     document.getElementById('config-save').onclick = function () {
@@ -892,7 +888,7 @@ Modules.Configuracoes = (function () {
         '</aside>' +
       '</div>' +
       '<div style="position:sticky;bottom:0;margin-top:16px;background:linear-gradient(180deg,rgba(250,248,244,0),#FAF8F4 42%);padding:14px 0 2px;display:flex;justify-content:flex-end;">' +
-        '<button id="config-save" style="' + _configPrimaryStyle() + '">Salvar configurações</button>' +
+        '<button id="config-save" class="bf-btn bf-btn-primary">Salvar configurações</button>' +
       '</div>';
     document.getElementById('config-save').onclick = function () {
       var phone = _val('cfg-whatsapp');
@@ -963,17 +959,17 @@ Modules.Configuracoes = (function () {
     var c = _config.canais_venda || {};
     var list = (Array.isArray(c.list) ? c.list : []).filter(function (ch) { return !_isSystemChannel(ch); });
     var rows = list.map(function (ch, idx) {
-      return '<div class="channel-row" data-channel-row="' + idx + '" style="grid-column:1/-1;display:grid;grid-template-columns:minmax(240px,1fr) 34px;gap:10px;align-items:end;background:#fff;border:1px solid #EAE4DA;border-radius:14px;padding:12px;box-shadow:0 1px 2px rgba(31,31,31,.03);">' +
+      return '<div class="channel-row bf-panel" data-channel-row="' + idx + '" style="grid-column:1/-1;display:grid;grid-template-columns:minmax(240px,1fr) 34px;gap:10px;align-items:end;background:#fff;padding:12px;">' +
         _field('ch-name-' + idx, 'Canal de venda', ch.name || '', 'WhatsApp, Marketplace, iFood...') +
-        '<button type="button" onclick="Modules.Configuracoes._removeCanalVenda(' + idx + ')" title="Remover canal" style="height:38px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#B42318;cursor:pointer;font-weight:700;box-shadow:0 1px 2px rgba(31,31,31,.03);">×</button>' +
+        '<button class="bf-btn bf-btn-danger" type="button" onclick="Modules.Configuracoes._removeCanalVenda(' + idx + ')" title="Remover canal" style="width:34px;min-height:38px;height:38px;padding:0;">×</button>' +
       '</div>';
     }).join('');
     var content = document.getElementById('config-content');
-    content.innerHTML = '<div class="settings-card">' +
+    content.innerHTML = '<div class="settings-card bf-card">' +
       '<div class="settings-card-head"><h2>Canais de venda</h2><p>Cadastre os canais além dos canais fixos do sistema. Cardápio e TPV aparecem automaticamente em Regras de preço.</p></div>' +
       '<div style="background:#F0FAF4;border:1px solid #BDE7CA;border-radius:14px;padding:12px 14px;margin-bottom:14px;color:#1F6F43;font-size:13px;font-weight:600;">Cardápio e TPV são fixos e não precisam ser cadastrados aqui.</div>' +
       '<div id="channels-list" class="settings-grid">' + (rows || '<div style="grid-column:1/-1;text-align:center;padding:40px 20px;color:#8A7E7C;font-size:14px;font-weight:600;">Nenhum canal adicional cadastrado.</div>') + '</div>' +
-      '<div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;"><button class="secondary-action" type="button" onclick="Modules.Configuracoes._addCanalVenda()">+ Adicionar canal</button><button class="primary-action" type="button" onclick="Modules.Configuracoes._saveCanaisVenda()">Salvar canais</button></div>' +
+      '<div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;"><button class="bf-btn bf-btn-secondary" type="button" onclick="Modules.Configuracoes._addCanalVenda()">+ Adicionar canal</button><button class="bf-btn bf-btn-primary" type="button" onclick="Modules.Configuracoes._saveCanaisVenda()">Salvar canais</button></div>' +
       '</div>';
   }
 
@@ -1035,10 +1031,10 @@ Modules.Configuracoes = (function () {
 
   function _paint(title, desc, body, collect) {
     var content = document.getElementById('config-content');
-    content.innerHTML = '<div class="settings-card">' +
+    content.innerHTML = '<div class="settings-card bf-card">' +
       '<div class="settings-card-head"><h2>' + title + '</h2><p>' + desc + '</p></div>' +
       '<div class="settings-grid">' + body + '</div>' +
-      '<button class="primary-action" id="config-save">Salvar configurações</button>' +
+      '<button class="bf-btn bf-btn-primary" id="config-save" style="width:100%;">Salvar configurações</button>' +
       '</div>';
     document.getElementById('config-save').onclick = function () {
       _save(_activeSub, collect());
@@ -1050,17 +1046,17 @@ Modules.Configuracoes = (function () {
   }
 
   function _configChip(txt) {
-    return '<span style="display:inline-flex;align-items:center;min-height:24px;padding:0 10px;border-radius:999px;background:#fff;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:500;box-shadow:0 1px 2px rgba(31,31,31,.02);">' + _esc(txt) + '</span>';
+    return '<span class="bf-badge" style="background:#fff;border:1px solid #EAE4DA;box-shadow:0 1px 2px rgba(31,31,31,.02);">' + _esc(txt) + '</span>';
   }
 
   function _configInput(id, label, value, placeholder, type, autocomplete, name) {
-    return '<div><label style="' + _configLabelStyle() + '">' + _esc(label) + '</label><input id="' + id + '" type="' + (type || 'text') + '" value="' + _esc(value == null ? '' : value) + '" placeholder="' + _esc(placeholder || '') + '"' + (autocomplete ? ' autocomplete="' + _esc(autocomplete) + '"' : '') + (name ? ' name="' + _esc(name) + '"' : '') + ' style="' + _configInputStyle() + '"></div>';
+    return '<div class="bf-field"><label>' + _esc(label) + '</label><input id="' + id + '" class="bf-input" type="' + (type || 'text') + '" value="' + _esc(value == null ? '' : value) + '" placeholder="' + _esc(placeholder || '') + '"' + (autocomplete ? ' autocomplete="' + _esc(autocomplete) + '"' : '') + (name ? ' name="' + _esc(name) + '"' : '') + '></div>';
   }
 
   function _phoneInput(countryId, phoneId, label, countryCode, phone, placeholder) {
-    return '<div><label style="' + _configLabelStyle() + '">' + _esc(label) + '</label><div style="display:grid;grid-template-columns:minmax(132px,.42fr) minmax(150px,1fr);gap:8px;">' +
-      '<select id="' + countryId + '" style="' + _configInputStyle() + 'height:40px;background:#fff;">' + _phoneCountryOptions(countryCode) + '</select>' +
-      '<input id="' + phoneId + '" type="tel" value="' + _esc(phone == null ? '' : phone) + '" placeholder="' + _esc(placeholder || '') + '" autocomplete="tel-national" style="' + _configInputStyle() + 'height:40px;">' +
+    return '<div class="bf-field"><label>' + _esc(label) + '</label><div style="display:grid;grid-template-columns:minmax(132px,.42fr) minmax(150px,1fr);gap:8px;">' +
+      '<select id="' + countryId + '" class="bf-select">' + _phoneCountryOptions(countryCode) + '</select>' +
+      '<input id="' + phoneId + '" class="bf-input" type="tel" value="' + _esc(phone == null ? '' : phone) + '" placeholder="' + _esc(placeholder || '') + '" autocomplete="tel-national">' +
     '</div></div>';
   }
 
@@ -1086,12 +1082,12 @@ Modules.Configuracoes = (function () {
   }
 
   function _configTextarea(id, label, value, placeholder) {
-    return '<div><label style="' + _configLabelStyle() + '">' + _esc(label) + '</label><textarea id="' + id + '" placeholder="' + _esc(placeholder || '') + '" style="' + _configInputStyle() + 'min-height:118px;resize:vertical;line-height:1.45;">' + _esc(value == null ? '' : value) + '</textarea></div>';
+    return '<div class="bf-field"><label>' + _esc(label) + '</label><textarea id="' + id + '" class="bf-textarea" placeholder="' + _esc(placeholder || '') + '" style="min-height:118px;line-height:1.45;">' + _esc(value == null ? '' : value) + '</textarea></div>';
   }
 
   function _configSelect(id, label, value, options) {
     var selected = String(value == null ? '' : value);
-    return '<div><label style="' + _configLabelStyle() + '">' + _esc(label) + '</label><select id="' + id + '" style="' + _configInputStyle() + 'height:40px;background:#fff;">' + (options || []).map(function (opt) {
+    return '<div class="bf-field"><label>' + _esc(label) + '</label><select id="' + id + '" class="bf-select">' + (options || []).map(function (opt) {
       return '<option value="' + _esc(opt[0]) + '"' + (String(opt[0]) === selected ? ' selected' : '') + '>' + _esc(opt[1]) + '</option>';
     }).join('') + '</select></div>';
   }

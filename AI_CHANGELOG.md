@@ -1,5 +1,124 @@
 # AI Changelog
 
+## 2026-05-13 — Auditoria de duplicidade raiz/public
+- Arquivos alterados: `AI_CHANGELOG.md`.
+- Módulo afetado: organização de arquivos do Admin, `public/` e fluxo futuro de publicação.
+- Resumo do ajuste: auditei os pares duplicados entre raiz e `public/` para Admin, JS core, módulos, CSS e HTMLs relevantes. Confirmei que o ambiente local atual usa os arquivos da raiz, enquanto Firebase Hosting publica `public/` conforme `firebase.json`.
+- Motivo: identificar risco de deploy com arquivos publicados desatualizados, sem apagar, mover, sincronizar, refatorar ou alterar lógica/layout.
+- Impacto esperado: diagnóstico claro para uma próxima etapa segura de sincronização entre raiz e `public/`, sem alteração em Firebase/Auth/DB, rotas, permissões, dados, commit, push ou deploy.
+
+## 2026-05-13 — Clientes alinhado ao padrão Catálogo > Produtos
+- Arquivos alterados: `js/modules/clientes.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Pedidos > Clientes (`pedidos/clientes`).
+- Resumo do ajuste: reajustei a composição visual da tela para seguir o padrão real de Catálogo > Produtos: cabeçalho simples sem card pesado, chips de resumo, KPIs compactos com ícones, card de filtros no mesmo estilo, lista em tabela dentro de card com cabeçalho discreto, linhas com hover suave e ações neutras.
+- Motivo: a melhoria anterior ainda não estava visualmente alinhada ao design aprovado de Produtos.
+- Impacto esperado: tela de Clientes mais consistente com Catálogo > Produtos, sem alteração de lógica, dados, filtros funcionais, fluxo de salvar, rotas, Firebase, Auth, DB, permissões ou estrutura de dados.
+
+## 2026-05-13 — Remoção de marcadores e melhoria visual real em Pedidos > Clientes
+- Arquivos alterados: `js/modules/clientes.js`, `public/js/modules/clientes.js`, `css/admin.css`, `AI_CHANGELOG.md`.
+- Módulo afetado: Pedidos > Clientes (`pedidos/clientes`).
+- Resumo do ajuste: removi os marcadores temporários `DEBUG CLIENTES ATIVO - RAIZ` e `DEBUG CLIENTES ATIVO - PUBLIC`. Também refinei visualmente a tela controlada por `js/modules/clientes.js`, com topo em card branco, hierarquia de título/subtítulo, KPIs mais leves, filtros em card próprio com labels, lista em bloco tipo tabela, estado vazio mais profissional e ajuste mobile para evitar overflow horizontal.
+- Motivo: concluir o diagnóstico de arquivo ativo e tornar a melhoria visual perceptível no navegador sem alterar lógica de Clientes ou Pedidos.
+- Impacto esperado: tela `pedidos/clientes` mais próxima do padrão visual de Compras/Financeiro, sem alteração de dados, filtros funcionais, fluxo de salvar, rotas, Firebase, Auth, DB, permissões ou estrutura de dados.
+
+## 2026-05-13 — Marcadores temporários de diagnóstico em Clientes
+- Arquivos alterados: `js/modules/clientes.js`, `public/js/modules/clientes.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Pedidos > Clientes.
+- Resumo do ajuste: confirmei que existem cópias duplicadas de `admin.html` e `clientes.js` na raiz e em `public/`. Adicionei marcadores temporários diferentes no topo da listagem de Clientes para identificar qual arquivo o navegador está carregando: `DEBUG CLIENTES ATIVO - RAIZ` na cópia da raiz e `DEBUG CLIENTES ATIVO - PUBLIC` na cópia publicada.
+- Motivo: diagnosticar por que alterações visuais feitas em `js/modules/clientes.js` podem não aparecer quando o navegador está usando a cópia em `public/js/modules/clientes.js`.
+- Impacto esperado: prova visual imediata da origem do JavaScript ativo, sem alterar lógica, dados, rotas, Firebase/Auth/DB, permissões, pedido manual ou layout permanente.
+
+## 2026-05-13 — Vínculo de cliente no Pedido Manual
+- Arquivos alterados: `js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Pedidos, Pedido Manual e base de Clientes.
+- Resumo do ajuste: corrigi o fluxo de pedido manual para garantir que clientes digitados manualmente sejam vinculados a `store_customers` antes de salvar o pedido. A nova função `_ensureManualOrderCustomer()` busca cliente existente por telefone normalizado, usa e-mail quando não há telefone, cria/atualiza o cadastro quando há dados mínimos e retorna o `customerId` para gravar também em `customerId/clientId` no pedido.
+- Motivo: evitar que clientes digitados no Pedido Manual não apareçam depois em `Pedidos > Clientes`, cuja fonte de dados é `store_customers`.
+- Impacto esperado: pedidos manuais com cliente novo passam a alimentar a base de Clientes sem alteração visual, sem mudança de rotas, Firebase/Auth/DB config, permissões, estrutura global de dados ou consolidação entre módulos.
+
+## 2026-05-13 — Auditoria de duplicidade de Clientes
+- Arquivos alterados: `AI_CHANGELOG.md`.
+- Módulo afetado: Pedidos > Clientes, `js/modules/clientes.js` e pontos de cliente em `js/modules/pedidos.js`.
+- Resumo do ajuste: auditei a duplicidade de responsabilidades de Clientes entre `Modules.Clientes` e `Modules.Pedidos`, confirmando que a rota visível `pedidos/clientes` usa `Modules.Clientes`, enquanto `pedidos.js` mantém render interno legado de clientes, perfil/histórico próprios, vínculo de cliente ao pedido e seleção de cliente no pedido manual.
+- Motivo: identificar riscos antes do lançamento sem alterar lógica, visual, dados, rotas, Firebase, Auth, DB, permissões ou estrutura de dados.
+- Impacto esperado: documentação clara dos fluxos ativos e dos riscos de inconsistência, especialmente pedidos manuais com cliente digitado que não geram cadastro em `store_customers` e por isso podem não aparecer na tela `pedidos/clientes`.
+
+## 2026-05-13 — Refinamento visual de Pedidos > Clientes
+- Arquivos alterados: `js/modules/clientes.js`, `css/admin.css`, `AI_CHANGELOG.md`.
+- Módulo afetado: Pedidos > Clientes (`pedidos/clientes`).
+- Resumo do ajuste: melhorei visualmente a tela principal renderizada por `Modules.Clientes`, reorganizando a área de filtros dentro de um card com header, contador de resultados, largura máxima consistente, lista com cards mais limpos, hover sutil, avatar sem dependência de fonte não carregada, métricas internas mais alinhadas e adaptação mobile sem overflow horizontal.
+- Motivo: tornar a melhoria visual perceptível para validação manual, indo além da troca técnica de classes.
+- Impacto esperado: tela `pedidos/clientes` mais limpa, legível e responsiva, sem alteração de lógica, dados, filtros, histórico, perfil, segmentação, modais, rotas, Firebase, Auth, DB, permissões ou estrutura de dados.
+
+## 2026-05-13 — Refinamento visual de Configurações > Geral
+- Arquivos alterados: `js/modules/configuracoes.js`, `css/admin.css`, `AI_CHANGELOG.md`.
+- Módulo afetado: Configurações > Geral.
+- Resumo do ajuste: melhorei visualmente apenas a função `_renderGeral()` em `js/modules/configuracoes.js`, reorganizando a tela em cards mais claros, seções com headers consistentes, grids responsivos, campos mais limpos, bloco de avatar mais leve, cards internos neutros e barra de ação final mais alinhada ao padrão global. Também adicionei classes genéricas reutilizáveis em `css/admin.css` para seções, grids, linhas de ação e layout split responsivo.
+- Motivo: tornar a melhoria visual perceptível para validação manual, indo além da troca técnica de classes sem alterar comportamento.
+- Impacto esperado: tela `configuracoes/geral` mais limpa, espaçada e responsiva, sem alteração de lógica, dados, rotas, Firebase, Auth, DB, permissões, estrutura de dados, campos existentes ou fluxo de salvar.
+
+## 2026-05-13 — Migração visual inicial de Configurações
+- Arquivos alterados: `js/modules/configuracoes.js`, `css/admin.css`, `AI_CHANGELOG.md`.
+- Módulo afetado: Configurações do Admin.
+- Resumo do ajuste: confirmei que as rotas visíveis `configuracoes`, `configuracoes/geral`, `configuracoes/tpv`, `configuracoes/dominio`, `configuracoes/integracoes` e `configuracoes/plano` são controladas por `Modules.Configuracoes` via fallback da rota base `configuracoes`. Migrei visualmente campos, botões, cards, tabelas simples, chips, canais de venda e modais de fornecedor/unidade para classes globais (`bf-btn`, `bf-card`, `bf-panel`, `bf-table`, `bf-field`, `bf-input`, `bf-select`, `bf-textarea` e `bf-badge`), mantendo estilos inline nos layouts específicos.
+- Motivo: avançar a padronização visual segura do Admin em um módulo de menor risco, sem refatorar lógica nem alterar contratos.
+- Impacto esperado: Configurações mais alinhado à camada visual global, sem alteração funcional, sem mudança de Firebase, Auth, DB, rotas, permissões, estrutura de dados, integrações, tenant ou fluxos de formulário.
+
+## 2026-05-13 — Migração visual inicial de Clientes
+- Arquivos alterados: `js/modules/clientes.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Pedidos > Clientes (`pedidos/clientes`) e documentação de alterações.
+- Resumo do ajuste: confirmei que a rota visível `pedidos/clientes` é controlada por `Modules.Clientes` em `js/modules/clientes.js`. Apliquei uma migração visual pequena usando classes globais já existentes (`bf-btn`, `bf-btn-primary`, `bf-btn-secondary`, `bf-card`, `bf-input`, `bf-select`, `bf-field` e `bf-textarea`) em botões, filtros, cards e campos do módulo, mantendo estilos inline nos trechos sensíveis.
+- Motivo: iniciar a padronização visual segura de Clientes sem alterar lógica, dados, busca, filtros, histórico, perfil, segmentação, modais, rotas, Firebase, Auth, DB, permissões ou estrutura de dados.
+- Impacto esperado: tela de Clientes mais alinhada à camada visual global do Admin, com `js/modules/pedidos.js` preservado para uma etapa própria por ainda conter uma implementação interna/duplicada de clientes.
+
+## 2026-05-13 — Arquitetura técnica do Sistema de Pedras
+- Arquivos alterados: `STONES_ARCHITECTURE.md`, `AI_CHANGELOG.md`.
+- Módulo afetado: Documentação técnica do Sistema de Pedras, Temporadas, Plano de Voo, Performance e maturidade do negócio.
+- Resumo do ajuste: criei a arquitetura técnica do Sistema de Pedras, definindo coleções sugeridas, snapshots, eventos de upgrade, ordem oficial das Pedras, fontes de dados, índices calculados, checklist automático, blockers, gatilhos de recálculo, data confidence, auditabilidade, regras multi-tenant, performance e itens fora do escopo da V1.
+- Motivo: preparar a futura implementação das Pedras com persistência, cálculo e auditoria claros antes de alterar qualquer lógica do sistema.
+- Impacto esperado: base técnica para uma V1 auditável e segura, sem alterar código, telas, rotas, Firebase, Auth, DB, permissões ou estrutura de dados.
+
+## 2026-05-13 — Validação da camada visual global do Admin
+- Arquivos alterados: `css/admin.css`, `AI_CHANGELOG.md`.
+- Módulo afetado: Admin e UI core.
+- Resumo do ajuste: validei a integração da camada visual global do Admin, mantendo a ordem atual de CSS e os fallbacks inline. Adicionei aliases dos tokens legados (`--red`, `--line`, `--muted` etc.) dentro de `css/admin.css` para a camada global continuar compatível com o shell antigo sem depender apenas do `<style>` inline.
+- Motivo: garantir compatibilidade entre os novos tokens `--bf-*` e os tokens antigos usados pelo Admin antes de iniciar migração visual de módulos menores.
+- Impacto esperado: camada visual global mais segura para uso gradual, sem alterar módulos de negócio, rotas, Firebase, Auth, DB, permissões, dados ou fluxos.
+
+## 2026-05-13 — Sistema de cálculo das Pedras
+- Arquivos alterados: `STONES_SCORING_SYSTEM.md`, `AI_CHANGELOG.md`.
+- Módulo afetado: Documentação técnica do Sistema de Pedras, Temporadas, Plano de Voo, Performance e maturidade do negócio.
+- Resumo do ajuste: criei a especificação conceitual do cálculo das Pedras, definindo índices oficiais, pesos sugeridos, progresso de 0 a 100%, checklist automático, regras por Pedra, influência dos cenários do Plano de Voo, desacelerações, proteções e dados permitidos para V1.
+- Motivo: estabelecer uma lógica adulta de maturidade acumulada, evitando XP artificial e evitando premiar faturamento bruto, volume de pedidos ou crescimento caótico.
+- Impacto esperado: base documental para uma futura implementação segura do Sistema de Pedras, com evolução gradual, auditável e justa para lojas pequenas e grandes.
+
+## 2026-05-13 — Primeira camada visual global do Admin
+- Arquivos alterados: `admin.html`, `css/admin.css`, `js/core/ui.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Admin, UI core e documentação técnica.
+- Resumo do ajuste: criei `css/admin.css` com tokens globais e classes reutilizáveis para botões, cards, campos, tabelas, badges, modais, confirmação, toast e loading. O Admin agora carrega esse CSS após as fontes, mantendo o `<style>` inline existente. Também adicionei classes compatíveis aos elementos criados por `UI.modal`, `UI.confirm`, `toast` e `loading`, preservando os estilos inline como fallback.
+- Motivo: iniciar uma padronização visual segura do Admin sem refatorar módulos grandes, lógica, rotas, Firebase, Auth, DB, permissões, tenants ou estrutura de dados.
+- Impacto esperado: base visual reutilizável para próximas etapas de padronização, com baixo risco funcional e sem alterar fluxos dos módulos de negócio.
+
+## 2026-05-13 — Especificação do Sistema de Pedras com Pedra Bruta
+- Arquivos alterados: `STONES_EVOLUTION_SYSTEM.md`, `BUSINESS_MATURITY_DATA_MAP.md`, `AI_CHANGELOG.md`.
+- Módulo afetado: Documentação técnica do Sistema de Pedras, Plano de Voo, Performance e Temporadas.
+- Resumo do ajuste: criei a especificação conceitual do Sistema de Pedras com a nova ordem oficial incluindo Pedra Bruta, relação correta com os cenários `survival`, `equilibrium`, `growth` e `expansion`, e critérios de evolução por estágio real do negócio.
+- Motivo: evitar que a progressão premie apenas crescimento agressivo ou penalize lojas pequenas/em sobrevivência; reconhecer sobrevivência, consistência, execução e risco controlado como evolução válida.
+- Impacto esperado: base conceitual mais segura para uma V1 futura das Pedras, com crescimento saudável como componente e não como critério único.
+
+## 2026-05-13 — Auditoria técnica e visual do Admin
+- Arquivos alterados: `ADMIN_AUDIT.md`, `AI_CHANGELOG.md`.
+- Módulo afetado: Documentação técnica do Admin.
+- Resumo do ajuste: criei uma auditoria objetiva do Admin atual, mapeando módulos carregados e não carregados, rotas registradas e visíveis no menu, possíveis rotas legadas, famílias de modais/overlays, padrões visuais e inconsistências de design system.
+- Motivo: preparar uma padronização visual segura sem refatorar lógica, rotas, Firebase, Auth, DB, permissões, estrutura de dados ou workflows.
+- Impacto esperado: base técnica para planejar uma primeira etapa de padronização por tokens/classes globais, reduzindo risco de regressão nos módulos grandes.
+
+## 2026-05-13 — Mapa de dados para Sistema de Pedras
+- Arquivos alterados: `BUSINESS_MATURITY_DATA_MAP.md`, `AI_CHANGELOG.md`.
+- Módulo afetado: Documentação técnica, Temporadas, Plano de Voo, Performance, Financeiro, Pedidos, Clientes, Compras, Cardápio, Marketing e Programa de Pontos.
+- Resumo do ajuste: criei um relatório técnico mapeando dados reais disponíveis para um futuro Sistema de Pedras/Maturidade do Negócio, diferenciando Temporadas de evolução acumulada e classificando métricas por fonte, confiabilidade e uso recomendado.
+- Motivo: orientar a decisão de produto e arquitetura para uma progressão baseada em crescimento saudável, consistência, margem, caixa, execução e risco controlado, sem premiar apenas faturamento bruto.
+- Impacto esperado: base documental para desenhar uma V1 segura do Sistema de Pedras e identificar dados que precisam de padronização antes de virarem score permanente.
+
 ## 2026-05-13 — Redução de riscos de FOUC em HTML/CSS
 - Arquivos alterados: `admin.html`, `public/admin.html`, `review.html`, `public/review.html`, `track.html`, `public/track.html`, `master.html`, `index.html`, `public/index.html`, `template-mobile-premium-fiel.html`, `index-template-publico-anterior.html`, `AI_CHANGELOG.md`.
 - Módulo afetado: Admin, Master local, loja pública, review, tracking e templates públicos.
