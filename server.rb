@@ -1,9 +1,11 @@
 require 'webrick'
 require 'json'
 require 'net/http'
+require 'net/smtp'
 require 'uri'
 require 'base64'
 require 'time'
+require 'timeout'
 require 'open3'
 require 'tempfile'
 require 'fileutils'
@@ -99,6 +101,89 @@ end
 
 def log_master(message)
   File.open(LOG_FILE, 'a') { |f| f.puts("[#{Time.now.utc.iso8601}] #{message}") }
+end
+
+def smtp_test_error(code, message)
+  { ok: false, code: code, message: message, error: message }
+end
+
+def normalize_smtp_secure(value)
+  secure = value.to_s.strip.downcase
+  return secure if %w[tls ssl none].include?(secure)
+  'tls'
+end
+
+def smtp_error_payload(error)
+  case error
+  when SocketError
+    smtp_test_error('INVALID_CONFIG', 'Host SMTP inválido ou DNS não resolvido.')
+  when Net::SMTPAuthenticationError
+    smtp_test_error('AUTH_FAILED', 'Credenciais SMTP inválidas.')
+  when Net::SMTPFatalError
+    msg = error.message.to_s
+    if msg.match?(/auth|authentication|535|534|530/i)
+      smtp_test_error('AUTH_FAILED', 'Autenticação SMTP recusada. Verifique se o usuário/senha estão corretos e se a autenticação SMTP está ativada no Microsoft 365/GoDaddy.')
+    else
+      smtp_test_error('CONNECTION_FAILED', "Servidor SMTP recusou a conexão: #{msg}")
+    end
+  when Net::SMTPServerBusy, Net::SMTPUnknownError
+    smtp_test_error('CONNECTION_FAILED', "Servidor SMTP indisponível ou bloqueado: #{error.message}")
+  when OpenSSL::SSL::SSLError
+    smtp_test_error('INVALID_CONFIG', "TLS/SSL incompatível. Para smtp.office365.com na porta 587 use TLS/STARTTLS, não SSL direto.")
+  when Timeout::Error, Errno::ETIMEDOUT
+    smtp_test_error('CONNECTION_FAILED', 'Timeout de conexão. O SMTP pode estar bloqueado pela rede, firewall ou provedor.')
+  when Errno::ECONNREFUSED, Errno::EHOSTUNREACH, Errno::ENETUNREACH
+    smtp_test_error('CONNECTION_FAILED', 'Conexão recusada ou rede indisponível. Verifique host, porta e bloqueio do provedor.')
+  else
+    smtp_test_error('CONNECTION_FAILED', "Erro SMTP: #{error.message}")
+  end
+end
+
+def test_smtp_connection!(body)
+  host = body['smtpHost'].to_s.strip
+  port = body['smtpPort'].to_i
+  secure = normalize_smtp_secure(body['smtpSecure'])
+  user = body['smtpUser'].to_s.strip
+  password = body['smtpPassword'].to_s
+  from_email = body['fromEmail'].to_s.strip
+  reply_to = body['replyTo'].to_s.strip
+
+  raise WEBrick::HTTPStatus::BadRequest, 'Host SMTP obrigatório.' if host.empty?
+  raise WEBrick::HTTPStatus::BadRequest, 'Porta SMTP inválida.' if port <= 0 || port > 65_535
+  raise WEBrick::HTTPStatus::BadRequest, 'Usuário SMTP obrigatório.' if user.empty?
+  raise WEBrick::HTTPStatus::BadRequest, 'Senha SMTP obrigatória para testar autenticação. A senha salva não é exibida nem reutilizada pelo teste local.' if password.empty?
+  raise WEBrick::HTTPStatus::BadRequest, 'E-mail do remetente inválido.' if !from_email.empty? && !from_email.include?('@')
+  raise WEBrick::HTTPStatus::BadRequest, 'E-mail de resposta inválido.' if !reply_to.empty? && !reply_to.include?('@')
+  if secure == 'ssl' && port == 587
+    raise WEBrick::HTTPStatus::BadRequest, 'Configuração inválida: porta 587 usa TLS/STARTTLS. Não use SSL direto nessa porta.'
+  end
+
+  smtp = Net::SMTP.new(host, port)
+  smtp.open_timeout = 10
+  smtp.read_timeout = 10
+  ssl_context = OpenSSL::SSL::SSLContext.new
+  ssl_context.verify_mode = OpenSSL::SSL::VERIFY_NONE
+  smtp.enable_ssl(ssl_context) if secure == 'ssl'
+  smtp.enable_starttls_auto(ssl_context) if secure == 'tls'
+
+  auth_type = :plain
+  smtp.start('localhost', user, password, auth_type) { true }
+
+  {
+    ok: true,
+    code: 'OK',
+    message: 'Conexão SMTP validada com sucesso.'
+  }
+ensure
+  begin
+    smtp&.finish if smtp&.started?
+  rescue
+  end
+end
+
+def local_master_request?(req)
+  host = req.host.to_s
+  host == '127.0.0.1' || host == 'localhost' || host == '::1'
 end
 
 def public_store_slug(value)
@@ -1879,6 +1964,46 @@ server.mount_proc '/api/master/logs' do |_req, res|
   logs = File.exist?(LOG_FILE) ? File.readlines(LOG_FILE).last(200).map(&:chomp) : []
   json_response(res, 200, { logs: logs })
 end
+
+email_test_smtp_handler = proc do |req, res|
+  apply_cors_headers(res, req['Origin'] || req['origin'])
+  if req.request_method == 'OPTIONS'
+    res.status = 204
+    res.body = ''
+    next
+  end
+
+  begin
+    unless local_master_request?(req)
+      next json_response_cors(req, res, 403, smtp_test_error('ENDPOINT_ERROR', 'Endpoint restrito ao Master local. Abra pelo servidor local autorizado.'))
+    end
+    unless req.request_method == 'POST'
+      next json_response_cors(req, res, 405, smtp_test_error('ENDPOINT_ERROR', 'Endpoint existe, mas exige método POST.'))
+    end
+
+    body = read_json(req)
+    host = body['smtpHost'].to_s.strip
+    port = body['smtpPort'].to_i
+    secure = normalize_smtp_secure(body['smtpSecure'])
+    user_present = !body['smtpUser'].to_s.strip.empty?
+    password_present = !body['smtpPassword'].to_s.empty?
+    log_master("email smtp test start host=#{host} port=#{port} secure=#{secure} user_present=#{user_present} password_present=#{password_present}")
+    result = test_smtp_connection!(body)
+    log_master("email smtp test ok host=#{host} port=#{port} secure=#{secure} user_present=#{user_present}")
+    json_response_cors(req, res, 200, result)
+  rescue WEBrick::HTTPStatus::BadRequest => e
+    payload = smtp_test_error('INVALID_CONFIG', e.message)
+    log_master("email smtp test validation_error #{payload[:code]} #{e.message}")
+    json_response_cors(req, res, 400, payload)
+  rescue => e
+    payload = smtp_error_payload(e)
+    log_master("email smtp test error code=#{payload[:code]} class=#{e.class} message=#{e.message}")
+    json_response_cors(req, res, 400, payload)
+  end
+end
+
+server.mount_proc '/api/master/email/test-smtp', &email_test_smtp_handler
+server.mount_proc '/api/master/email/test-smtp/', &email_test_smtp_handler
 
 server.mount_proc '/api/master/backup/config' do |req, res|
   store = master_store

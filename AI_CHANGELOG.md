@@ -1,5 +1,54 @@
 # AI Changelog
 
+## 2026-05-14 — Rota local de teste SMTP do Master
+- Arquivos alterados: `server.rb`, `master.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Master interno, tela `E-mails automáticos -> Configuração SMTP` e backend local Ruby.
+- Resumo do ajuste: reforcei a rota local `POST /api/master/email/test-smtp`, montando também a variante com barra final, e alinhei o payload do frontend para enviar `fromEmail`, `replyTo`, `smtpHost`, `smtpPort`, `smtpSecure`, `smtpUser` e `smtpPassword`.
+- Backend: o teste SMTP usa `Net::SMTP` com `OpenSSL`, valida host, porta, usuário e senha, bloqueia SSL direto na porta 587, usa STARTTLS para `TLS` e mantém o endpoint restrito ao Master local.
+- Retornos: o endpoint agora responde com `ok`, `code` e `message`, usando `OK`, `AUTH_FAILED`, `CONNECTION_FAILED`, `INVALID_CONFIG` e `ENDPOINT_ERROR`.
+- Segurança: o endpoint não salva senha, não devolve senha e não loga senha; registra apenas booleanos de presença para diagnóstico.
+- Validação: `ruby -c server.rb` e `node --check functions/index.js` passaram. Um `curl` local retornou conexão recusada porque não havia processo escutando em `127.0.0.1:3000` durante a validação.
+- Impacto esperado: após reiniciar o Master local, a rota deixa de ser inexistente e o botão passa a retornar mensagens claras de configuração/conexão SMTP, sem commit, push ou deploy.
+
+## 2026-05-14 — Correção do teste SMTP no Master local
+- Arquivos alterados: `master.html`, `server.rb`, `AI_CHANGELOG.md`.
+- Módulo afetado: Master interno, tela `E-mails automáticos -> Configuração SMTP` e endpoint local de teste SMTP.
+- Resumo do ajuste: corrigi o botão `Testar conexão` para chamar `POST /api/master/email/test-smtp` no Master local em vez de depender da Cloud Function via navegador. O frontend envia somente host, porta, segurança, usuário e senha digitada no formulário para o backend local.
+- Backend: criei o endpoint local `/api/master/email/test-smtp` em `server.rb`, usando `Net::SMTP` da biblioteca padrão Ruby para testar conexão TLS, SSL ou sem segurança, com autenticação quando usuário e senha forem informados.
+- Erros tratados: endpoint/método incorreto, host/porta inválidos, credenciais inválidas, autenticação SMTP recusada/desativada, SMTP bloqueado/timeout e conexão bem-sucedida.
+- Segurança: a senha SMTP não é logada; o backend registra apenas presença de usuário/senha como booleano para diagnóstico. O frontend público não foi alterado.
+- Mensagem no Master: falha de rede/rota agora mostra `Não foi possível chamar o servidor de teste SMTP. Verifique se o Master local está rodando e se a rota /api/master/email/test-smtp existe.`
+- Pendência: a Cloud Function existente pode ser reaproveitada futuramente para produção, mas o teste local agora não depende dela.
+- Impacto esperado: o teste SMTP deixa de exibir `Failed to fetch` sem contexto e passa a validar a conexão pelo servidor local com mensagens acionáveis, sem commit, push ou deploy.
+
+## 2026-05-14 — E-mail de suporte BocaFood
+- Arquivos alterados: `master.html`, `functions/index.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Master interno de e-mails automáticos e defaults de e-mails transacionais.
+- Resumo do ajuste: alterei o e-mail de suporte padrão para `teajudo@bocafood.app` nos placeholders, defaults da tela, dados fictícios da prévia e Functions.
+- Migração: se `system_email_settings/default.replyTo` ou `supportEmail` ainda estiverem com o valor default antigo `suporte@bocafood.com`, o Master/Functions atualizam para `teajudo@bocafood.app`.
+- Impacto esperado: novos envios, prévias e configurações default passam a usar o e-mail correto de suporte, sem alterar Admin das lojas, rotas públicas, commit, push ou deploy.
+
+## 2026-05-14 — E-mails automáticos em português com visual Maturidade
+- Arquivos alterados: `master.html`, `functions/index.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Master interno de e-mails automáticos e layout base de e-mails transacionais.
+- Resumo do ajuste: atualizei os templates padrão e a prévia para português, removendo textos em espanhol dos e-mails. Também refinei o layout base para se aproximar do visual aprovado da tela `Maturidade do Negócio`, com fundo claro rosado, card branco com sombra suave, linha/acento BocaFood, bloco interno em tom quente e botão vermelho.
+- Migração: adicionei atualização automática dos templates padrão antigos em espanhol quando ainda estiverem com os textos default, preservando `createdAt`.
+- Logo: o layout passa a renderizar a logo do SaaS BocaFood no topo usando `https://bocafood.app/assets/boca-food-logo.png`, com fallback pelo campo `brandLogoUrl`.
+- Impacto esperado: novos templates e e-mails enfileirados pelas Functions passam a sair em português e com identidade visual mais próxima do Admin/Maturidade, sem alterar Admin das lojas, rotas públicas, regras globais fora do escopo, commit, push ou deploy.
+
+## 2026-05-14 — Master de e-mails automáticos
+- Arquivos alterados/criados: `master.html`, `functions/index.js`, `firestore.rules`, `AI_CHANGELOG.md`.
+- Módulo afetado: Master interno, e-mails transacionais, Cloud Functions e segurança Firestore.
+- Resumo do ajuste: criei a área `Configurações -> E-mails automáticos` no Master com abas `Configuração SMTP`, `Templates`, `Prévia` e `Logs`; adicionei edição de remetente/SMTP sem exibir senha salva, templates globais, editor com variáveis, prévia responsiva desktop/mobile e logs recentes.
+- Coleções criadas/preparadas: `system_email_settings/default`, `system_email_templates/{templateKey}`, `email_logs`, `mail`, `pending_hotmart_access` e `system_private_email_secrets/default` para senha SMTP bloqueada por rules.
+- Templates criados: `welcome_hotmart`, `password_reset`, `verify_email`, `subscription_active`, `payment_pending`, `subscription_canceled` e `test_email`.
+- Functions criadas/alteradas: `saveEmailSettings`, `testSmtpConnection`, `sendTestEmail` e `hotmartWebhook`; o helper interno carrega template, substitui variáveis `{{variable}}`, aplica layout base responsivo, cria documento compatível com a extensão Firebase Trigger Email from Firestore e registra `email_logs`.
+- Segurança: tenants/clientes não podem editar `system_email_settings`/`system_email_templates`, não podem escrever em `mail`, não leem `system_private_email_secrets`, e as funções HTTP exigem token Firebase de Master.
+- Hotmart: compra aprovada/assinatura ativa salva `pending_hotmart_access` e enfileira `welcome_hotmart`; eventos duplicados, pendentes ou com sistema/template desativado não disparam envio.
+- Pendências: não substituí o fluxo atual de reset de senha; o template `password_reset` ficou preparado para futura geração segura de link via Firebase Admin. Em produção, migrar a senha SMTP para Firebase Secrets/Secret Manager.
+- Instruções SMTP/GoDaddy: no Master, informe host SMTP do domínio GoDaddy, porta `587` com `TLS` ou `465` com `SSL`, usuário como e-mail completo, senha da caixa/app password quando aplicável, remetente igual ao domínio autorizado e depois use `Testar conexão` antes de ativar os envios.
+- Impacto esperado: o BocaFood passa a ter uma base central de e-mails automáticos controlada pelo Master, sem alterar layout do Admin das lojas, rotas públicas, módulos publicados, commit, push ou deploy.
+
 ## 2026-05-13 — Documento técnico de Maturidade do Negócio
 - Arquivos alterados: `MATURIDADE_NEGOCIO_FUNCIONAMENTO_MAPEAMENTO.md`, `AI_CHANGELOG.md`.
 - Módulo afetado: documentação técnica de Maturidade do Negócio / Sistema de Pedras.
@@ -4900,3 +4949,22 @@
   - `AI_CHANGELOG.md`
 - Motivo da alteração: aumentar quantidade, variedade e presença visual dos elementos comemorativos tanto na meta atingida quanto na `Vitória Total`.
 - Impacto esperado: as comemorações passam a usar mais partículas, estrelas, serpentinas, pontos e sparks com animação mais ampla e duração controlada em 5 segundos, mantendo `pointer-events` sem bloquear a interface.
+## 2026-05-14
+- Pedido feito: integrar o BocaFood com webhooks da Hotmart usando Firebase Cloud Functions e Firestore.
+- Arquivos alterados:
+  - `firebase.json`
+  - `functions/package.json`
+  - `functions/index.js`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: receber eventos da Hotmart, validar `X-HOTMART-HOTTOK`, registrar eventos brutos, normalizar assinatura/compra e atualizar billing de tenants ou pendencias por email.
+- Impacto esperado: compras aprovadas, assinaturas ativas, atrasos, cancelamentos, reembolsos, chargebacks e trocas de plano passam a ter uma base automatizada para atualizar `hotmart_events`, `hotmart_subscriptions`, `billing_plan_mappings/hotmart`, `system_tenants/{uid}.billing` e `pending_hotmart_access`, sem apagar tenants e sem alterar layout, rotas do Admin ou regras visuais.
+
+## 2026-05-14
+- Pedido feito: gerar um mapeamento visual das conexoes do sistema BocaFood.
+- Arquivos alterados:
+  - `SISTEMA_BOCAFOOD_MAPA_CONEXOES.md`
+  - `SISTEMA_BOCAFOOD_MAPA_CONEXOES.mmd`
+  - `SISTEMA_BOCAFOOD_MAPA_CONEXOES.svg`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: documentar como Master, Admin, template publico, Firebase, Storage, modulos operacionais, Temporadas, Maturidade e integracoes se conectam.
+- Impacto esperado: facilitar revisao tecnica das dependencias do sistema antes de novas padronizacoes ou deploys, sem alterar codigo, layout, dados, Firebase, rotas ou permissoes.

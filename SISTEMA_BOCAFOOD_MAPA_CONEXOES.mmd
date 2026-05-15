@@ -1,0 +1,107 @@
+flowchart LR
+  subgraph PUBLICA["Camada publica"]
+    Template["Template publico da loja<br/>public/index.html"]
+    Review["Paginas publicas<br/>review.html / track.html / SEO"]
+    WhatsApp["WhatsApp"]
+  end
+
+  subgraph ADMIN["Camada Admin"]
+    Admin["Admin<br/>public/admin.html"]
+    Config["Configuracoes"]
+    Catalogo["Cardapio / Produtos"]
+    Pedidos["Pedidos"]
+    Cozinha["Cozinha"]
+    Clientes["Clientes"]
+    Compras["Compras"]
+    Producao["Producao / Receitas"]
+    Financeiro["Financeiro"]
+    Marketing["Acoes de Vendas<br/>Marketing / Pontos / Upsell"]
+  end
+
+  subgraph INTEL["Inteligencia / crescimento"]
+    Plano["Plano de Voo"]
+    Performance["Performance"]
+    Temporadas["Temporadas"]
+    Maturidade["Maturidade do Negocio<br/>Sistema de Pedras"]
+    IA["IA / Proxima Jogada<br/>preparado por endpoint"]
+  end
+
+  subgraph DADOS["Camada de dados"]
+    Auth["Firebase Auth"]
+    Firestore[("Firestore<br/>tenants/{tenantId} + system")]
+    Storage[("Firebase Storage<br/>imagens e assets")]
+  end
+
+  subgraph EXTERNAS["Integracoes externas"]
+    Master["Master interno<br/>master.html"]
+    Places["Google Places<br/>condicional por system/config"]
+    OpenAI["OpenAI / backend IA<br/>preparado / futuro"]
+    GitHub["GitHub<br/>publicacao via Master"]
+  end
+
+  Auth -->|login e UID| Admin
+  Auth -->|perfil e permissao| Firestore
+  Admin -->|le e escreve por tenantId| Firestore
+  Master -->|tenants e config global| Firestore
+  Master -->|publica sites / backup| GitHub
+  Master -->|salva chave global| Places
+  Places -->|autocomplete de endereco| Config
+  Places -->|autocomplete de endereco| Pedidos
+  Places -->|autocomplete de endereco| Clientes
+  Places -->|autocomplete de fornecedor| Compras
+
+  Config -->|dados gerais, dominio, template, integracoes| Firestore
+  Catalogo -->|produtos, categorias, variantes, tags| Firestore
+  Catalogo -->|imagens de produtos, logos, banners| Storage
+  Storage -->|URLs de imagens| Firestore
+
+  Firestore -->|config, produtos, categorias, promocoes| Template
+  Template -->|cria pedido e reserva slot| Firestore
+  Template -->|pedido / contato| WhatsApp
+  Review -->|avaliacoes| Firestore
+
+  Pedidos -->|orders e status| Firestore
+  Firestore -->|novos pedidos| Cozinha
+  Cozinha -->|atualiza status| Pedidos
+  Pedidos -->|aviso de status| WhatsApp
+  Pedidos -->|cliente criado/vinculado| Clientes
+  Clientes -->|store_customers e historico| Firestore
+  Pedidos -->|vendas, totais, pagamentos| Financeiro
+
+  Compras -->|compras, fornecedores, contas| Firestore
+  Compras -->|contas a pagar / movimentacoes| Financeiro
+  Compras -->|insumos e custos| Producao
+  Producao -->|fichas tecnicas e custo estimado| Catalogo
+  Financeiro -->|entradas, saidas, caixa| Firestore
+
+  Marketing -->|promocoes, cupons, upsell, pontos| Firestore
+  Marketing -->|campanhas e beneficios| Template
+  Marketing -->|descontos e pontos| Pedidos
+
+  Firestore -->|orders, clientes, financeiro| Plano
+  Firestore -->|orders, clientes, marketing| Performance
+  Plano -->|cenario e meta| Temporadas
+  Performance -->|historico e indicadores| Temporadas
+  Pedidos -->|vendas, ticket, dias com venda| Temporadas
+  Temporadas -->|seasons e snapshots| Firestore
+  Temporadas -->|resultado, score, risco| Maturidade
+  Pedidos -->|pedidos e recorrencia| Maturidade
+  Clientes -->|recorrencia e fidelizacao| Maturidade
+  Plano -->|cenario survival/equilibrium/growth/expansion| Maturidade
+  Maturidade -->|business_maturity, snapshots, upgrades| Firestore
+
+  Temporadas -->|contexto para recomendacao| IA
+  IA -->|recomendacao / fallback| Temporadas
+  IA -.->|endpoint configuravel| OpenAI
+
+  classDef public fill:#FFF8EC,stroke:#D97706,color:#1F1F1F;
+  classDef admin fill:#F8FAFC,stroke:#64748B,color:#1F1F1F;
+  classDef data fill:#EEF2FF,stroke:#2563EB,color:#1F1F1F;
+  classDef intel fill:#F0FDF4,stroke:#1A9E5A,color:#1F1F1F;
+  classDef ext fill:#FAF5FF,stroke:#7C3AED,color:#1F1F1F;
+
+  class Template,Review,WhatsApp public;
+  class Admin,Config,Catalogo,Pedidos,Cozinha,Clientes,Compras,Producao,Financeiro,Marketing admin;
+  class Auth,Firestore,Storage data;
+  class Plano,Performance,Temporadas,Maturidade,IA intel;
+  class Master,Places,OpenAI,GitHub ext;
