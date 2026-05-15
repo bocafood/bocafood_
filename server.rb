@@ -103,6 +103,18 @@ def log_master(message)
   File.open(LOG_FILE, 'a') { |f| f.puts("[#{Time.now.utc.iso8601}] #{message}") }
 end
 
+def log_email_settings(message)
+  line = "[EMAIL SETTINGS] #{message}"
+  puts line
+  log_master(line)
+end
+
+def log_email_test(message)
+  line = "[EMAIL TEST] #{message}"
+  puts line
+  log_master(line)
+end
+
 def smtp_test_error(code, message)
   { ok: false, code: code, message: message, error: message }
 end
@@ -179,6 +191,502 @@ ensure
     smtp&.finish if smtp&.started?
   rescue
   end
+end
+
+def email_settings_error(message = 'Não foi possível salvar a configuração SMTP.', debug = nil)
+  payload = {
+    ok: false,
+    code: 'SAVE_FAILED',
+    message: message.to_s.strip.empty? ? 'Não foi possível salvar a configuração SMTP.' : message.to_s
+  }
+  payload[:debug] = debug.to_s.gsub(/smtpPassword["']?\s*[:=]\s*["']?[^"',}\s]+/i, 'smtpPassword=[REMOVIDO]') if debug && !debug.to_s.strip.empty?
+  payload
+end
+
+def email_master_credential_message
+  'Credencial Firebase do Master não configurada. Inicie pelo start-bocafood-local.sh.'
+end
+
+def email_master_credential_error?(error)
+  error.message.to_s.match?(/Service account Firebase não configurada|FIREBASE_SERVICE_ACCOUNT|GOOGLE_APPLICATION_CREDENTIALS|credencial/i)
+end
+
+def email_read_error(message = 'Não foi possível carregar os dados de e-mail.', debug = nil)
+  payload = {
+    ok: false,
+    code: 'LOAD_FAILED',
+    message: message.to_s.strip.empty? ? 'Não foi possível carregar os dados de e-mail.' : message.to_s
+  }
+  payload[:debug] = debug.to_s if debug && !debug.to_s.strip.empty?
+  payload
+end
+
+def email_settings_received_fields(body)
+  {
+    'fromName' => !body['fromName'].to_s.strip.empty?,
+    'fromEmail' => !body['fromEmail'].to_s.strip.empty?,
+    'replyTo' => !body['replyTo'].to_s.strip.empty?,
+    'supportEmail' => !body['supportEmail'].to_s.strip.empty?,
+    'appBaseUrl' => !body['appBaseUrl'].to_s.strip.empty?,
+    'brandName' => !body['brandName'].to_s.strip.empty?,
+    'smtpHost' => body['smtpHost'].to_s.strip,
+    'smtpPort' => body['smtpPort'].to_i,
+    'smtpSecure' => normalize_smtp_secure(body['smtpSecure']),
+    'smtpUser' => !body['smtpUser'].to_s.strip.empty?,
+    'smtpPassword' => body['smtpPassword'].to_s.empty? ? 'empty' : 'present',
+    'enabled' => body['enabled'] == true
+  }
+end
+
+def email_settings_debug(error)
+  {
+    'class' => error.class.to_s,
+    'message' => error.message.to_s
+  }.to_json
+end
+
+def email_public_settings_from_body(body)
+  smtp_port = body['smtpPort'].to_i
+  smtp_secure = normalize_smtp_secure(body['smtpSecure'])
+  from_email = body['fromEmail'].to_s.strip
+  reply_to = body['replyTo'].to_s.strip
+  support_email = body['supportEmail'].to_s.strip
+
+  raise WEBrick::HTTPStatus::BadRequest, 'Nome do remetente obrigatório.' if body['fromName'].to_s.strip.empty?
+  raise WEBrick::HTTPStatus::BadRequest, 'E-mail do remetente obrigatório.' if from_email.empty? || !from_email.include?('@')
+  raise WEBrick::HTTPStatus::BadRequest, 'E-mail de resposta inválido.' if !reply_to.empty? && !reply_to.include?('@')
+  raise WEBrick::HTTPStatus::BadRequest, 'E-mail de suporte inválido.' if !support_email.empty? && !support_email.include?('@')
+  raise WEBrick::HTTPStatus::BadRequest, 'Host SMTP obrigatório.' if body['smtpHost'].to_s.strip.empty?
+  raise WEBrick::HTTPStatus::BadRequest, 'Porta SMTP inválida.' if smtp_port <= 0 || smtp_port > 65_535
+  raise WEBrick::HTTPStatus::BadRequest, 'Usuário SMTP obrigatório.' if body['smtpUser'].to_s.strip.empty?
+
+  {
+    'fromName' => body['fromName'].to_s.strip,
+    'fromEmail' => from_email,
+    'replyTo' => reply_to,
+    'supportEmail' => support_email.empty? ? reply_to : support_email,
+    'appBaseUrl' => body['appBaseUrl'].to_s.strip,
+    'brandName' => body['brandName'].to_s.strip.empty? ? 'BocaFood' : body['brandName'].to_s.strip,
+    'smtpHost' => body['smtpHost'].to_s.strip,
+    'smtpPort' => smtp_port,
+    'smtpSecure' => smtp_secure,
+    'smtpUser' => body['smtpUser'].to_s.strip,
+    'enabled' => body['enabled'] == true,
+    'provider' => 'smtp'
+  }
+end
+
+def email_secret_configured?
+  secret_doc = firestore_get_document('system_private_email_secrets', 'default')
+  fields = secret_doc ? firestore_fields_to_hash(secret_doc['fields'] || {}) : {}
+  fields['smtpPasswordConfigured'] == true || !fields['smtpPassword'].to_s.empty?
+rescue
+  false
+end
+
+def email_settings_payload(settings_doc = nil)
+  settings_doc ||= firestore_get_document('system_email_settings', 'default')
+  settings = settings_doc ? default_email_settings.merge(firestore_fields_to_hash(settings_doc['fields'] || {})) : default_email_settings
+  settings.delete('smtpPassword')
+  settings['smtpPasswordConfigured'] = email_secret_configured?
+  settings
+end
+
+def default_email_settings
+  {
+    'fromName' => 'BocaFood',
+    'fromEmail' => 'no-reply@bocafood.com',
+    'replyTo' => 'teajudo@bocafood.app',
+    'supportEmail' => 'teajudo@bocafood.app',
+    'appBaseUrl' => 'https://app.bocafood.com',
+    'brandName' => 'BocaFood',
+    'brandLogoUrl' => 'https://bocafood.app/assets/boca-food-logo.png',
+    'smtpHost' => '',
+    'smtpPort' => 587,
+    'smtpSecure' => 'tls',
+    'smtpUser' => '',
+    'smtpPasswordConfigured' => false,
+    'enabled' => false,
+    'provider' => 'smtp'
+  }
+end
+
+def save_email_settings!(body)
+  public_settings = email_public_settings_from_body(body)
+  log_email_settings('salvando system_email_settings/default')
+  settings_doc = firestore_upsert_document('system_email_settings', 'default', public_settings)
+  log_email_settings('sucesso ao salvar system_email_settings/default')
+  password = body['smtpPassword'].to_s
+  password_present = !password.empty?
+
+  if password_present
+    log_email_settings('salvando system_private_email_secrets/default smtpPassword=present')
+    firestore_upsert_document('system_private_email_secrets', 'default', {
+      'smtpPassword' => password,
+      'smtpPasswordConfigured' => true
+    })
+    log_email_settings('sucesso ao salvar system_private_email_secrets/default')
+  else
+    log_email_settings('system_private_email_secrets/default preservado smtpPassword=empty')
+  end
+
+  log_email_settings("salvo host=#{public_settings['smtpHost']} port=#{public_settings['smtpPort']} secure=#{public_settings['smtpSecure']} user_present=#{!public_settings['smtpUser'].empty?} password_updated=#{password_present}")
+
+  {
+    ok: true,
+    message: 'Configuração SMTP salva com sucesso.',
+    settings: email_settings_payload(settings_doc)
+  }
+end
+
+def email_send_error(message = 'Não foi possível enviar o e-mail de teste.', debug = nil)
+  payload = {
+    ok: false,
+    code: 'SEND_FAILED',
+    message: message.to_s.strip.empty? ? 'Não foi possível enviar o e-mail de teste.' : message.to_s
+  }
+  if debug && !debug.to_s.strip.empty?
+    payload[:debug] = debug.to_s
+      .gsub(/smtpPassword["']?\s*[:=]\s*["']?[^"',}\s]+/i, 'smtpPassword=[REMOVIDO]')
+      .gsub(/password["']?\s*[:=]\s*["']?[^"',}\s]+/i, 'password=[REMOVIDO]')
+      .gsub(/token["']?\s*[:=]\s*["']?[^"',}\s]+/i, 'token=[REMOVIDO]')
+  end
+  payload
+end
+
+def email_send_debug(error)
+  {
+    'class' => error.class.to_s,
+    'message' => error.message.to_s
+  }.to_json
+end
+
+def valid_email_address?(value)
+  value.to_s.strip.match?(/\A[^@\s]+@[^@\s]+\.[^@\s]+\z/)
+end
+
+def email_replace_variables(text, variables)
+  text.to_s.gsub(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/) do
+    key = Regexp.last_match(1)
+    variables.key?(key) ? variables[key].to_s : ''
+  end
+end
+
+def default_test_email_template
+  {
+    'key' => 'test_email',
+    'name' => 'Teste de envio',
+    'description' => 'Usado pelo Master para validar envio SMTP.',
+    'subject' => 'Teste de envio BocaFood',
+    'preheader' => 'Se voce recebeu esta mensagem, o SMTP do BocaFood esta funcionando.',
+    'body' => '<p>Ola {{buyerName}},</p><p>Este e um e-mail de teste enviado pelo Master do BocaFood.</p><p>A configuracao SMTP foi carregada e usada pelo backend local.</p>',
+    'ctaLabel' => 'Abrir BocaFood',
+    'ctaUrl' => '{{appBaseUrl}}',
+    'enabled' => true,
+    'availableVariables' => ['buyerName', 'buyerEmail', 'supportEmail', 'appBaseUrl', 'brandName']
+  }
+end
+
+def default_email_templates
+  [
+    {
+      'key' => 'welcome_hotmart',
+      'name' => 'Boas-vindas após compra Hotmart',
+      'description' => 'Enviado quando uma compra Hotmart é aprovada ou uma assinatura fica ativa.',
+      'subject' => 'Bem-vinda ao {{productName}}, {{buyerName}}',
+      'preheader' => 'Seu acesso ao {{productName}} ja esta pronto.',
+      'body' => '<p>Ola {{buyerName}},</p><p>Obrigada por comprar o {{productName}}. Seu plano {{planName}} esta pronto para comecar.</p><p>Clique no botao para criar seu acesso e entrar no BocaFood.</p>',
+      'ctaLabel' => 'Criar meu acesso',
+      'ctaUrl' => '{{signupUrl}}',
+      'enabled' => true,
+      'availableVariables' => ['buyerName', 'buyerEmail', 'signupUrl', 'supportEmail', 'planName', 'productName', 'appBaseUrl', 'brandName']
+    },
+    {
+      'key' => 'password_reset',
+      'name' => 'Esqueci minha senha',
+      'description' => 'Base preparada para envio futuro de link gerado pelo Firebase Admin.',
+      'subject' => 'Redefina sua senha do {{brandName}}',
+      'preheader' => 'Use este link para criar uma nova senha.',
+      'body' => '<p>Ola {{buyerName}},</p><p>Recebemos uma solicitacao para redefinir a senha da sua conta.</p><p>Se foi voce, use o botao abaixo. Se nao solicitou essa alteracao, ignore este e-mail.</p>',
+      'ctaLabel' => 'Redefinir senha',
+      'ctaUrl' => '{{resetPasswordUrl}}',
+      'enabled' => true,
+      'availableVariables' => ['buyerName', 'buyerEmail', 'resetPasswordUrl', 'supportEmail', 'appBaseUrl', 'brandName']
+    },
+    {
+      'key' => 'verify_email',
+      'name' => 'Confirmação de e-mail',
+      'description' => 'Confirma o endereço de e-mail da conta BocaFood.',
+      'subject' => 'Confirme seu e-mail no {{brandName}}',
+      'preheader' => 'Falta apenas confirmar seu e-mail para continuar.',
+      'body' => '<p>Ola {{buyerName}},</p><p>Confirme seu endereco de e-mail para proteger sua conta e receber avisos importantes.</p>',
+      'ctaLabel' => 'Confirmar e-mail',
+      'ctaUrl' => '{{appBaseUrl}}',
+      'enabled' => true,
+      'availableVariables' => ['buyerName', 'buyerEmail', 'supportEmail', 'appBaseUrl', 'brandName']
+    },
+    {
+      'key' => 'subscription_active',
+      'name' => 'Assinatura ativada',
+      'description' => 'Confirma que a assinatura está ativa.',
+      'subject' => 'Sua assinatura esta ativa',
+      'preheader' => 'Voce ja pode usar o {{productName}} com o plano {{planName}}.',
+      'body' => '<p>Ola {{buyerName}},</p><p>Sua assinatura do {{productName}} esta ativa. Voce ja pode entrar no painel e continuar configurando sua loja.</p>',
+      'ctaLabel' => 'Abrir BocaFood',
+      'ctaUrl' => '{{appBaseUrl}}',
+      'enabled' => true,
+      'availableVariables' => ['buyerName', 'buyerEmail', 'supportEmail', 'planName', 'productName', 'appBaseUrl', 'brandName']
+    },
+    {
+      'key' => 'payment_pending',
+      'name' => 'Pagamento pendente',
+      'description' => 'Avisa que o pagamento ainda está pendente.',
+      'subject' => 'Seu pagamento esta pendente',
+      'preheader' => 'Avisaremos quando o pagamento tiver confirmação.',
+      'body' => '<p>Ola {{buyerName}},</p><p>Seu pagamento do {{productName}} ainda esta pendente. Quando ele for confirmado, enviaremos as instrucoes de acesso.</p>',
+      'ctaLabel' => 'Ver status',
+      'ctaUrl' => '{{appBaseUrl}}',
+      'enabled' => true,
+      'availableVariables' => ['buyerName', 'buyerEmail', 'supportEmail', 'planName', 'productName', 'appBaseUrl', 'brandName']
+    },
+    {
+      'key' => 'subscription_canceled',
+      'name' => 'Assinatura cancelada',
+      'description' => 'Avisa sobre cancelamento da assinatura.',
+      'subject' => 'Sua assinatura foi cancelada',
+      'preheader' => 'Seu acesso pode ficar limitado conforme o ciclo de cobranca.',
+      'body' => '<p>Ola {{buyerName}},</p><p>Registramos o cancelamento da sua assinatura. Se foi um erro ou se voce precisa de ajuda, fale com o suporte.</p>',
+      'ctaLabel' => 'Falar com suporte',
+      'ctaUrl' => 'mailto:{{supportEmail}}',
+      'enabled' => true,
+      'availableVariables' => ['buyerName', 'buyerEmail', 'supportEmail', 'planName', 'productName', 'appBaseUrl', 'brandName']
+    },
+    default_test_email_template
+  ]
+end
+
+def ensure_email_template_defaults!
+  default_email_templates.each do |template|
+    key = template['key'].to_s
+    next if key.empty?
+    existing = firestore_get_document('system_email_templates', key)
+    firestore_upsert_document('system_email_templates', key, template) unless existing
+  end
+end
+
+def load_email_templates_payload
+  ensure_email_template_defaults!
+  docs = firestore_list_documents('system_email_templates')
+  templates = docs.map do |doc|
+    key = doc['name'].to_s.split('/').last.to_s
+    firestore_fields_to_hash(doc['fields'] || {}).merge('key' => key)
+  end
+  templates.sort_by { |tpl| tpl['name'].to_s.downcase }
+end
+
+def save_email_template_payload!(body)
+  key = body['key'].to_s.strip
+  raise WEBrick::HTTPStatus::BadRequest, 'Template inválido.' if key.empty?
+  raise WEBrick::HTTPStatus::BadRequest, 'Nome e assunto são obrigatórios.' if body['name'].to_s.strip.empty? || body['subject'].to_s.strip.empty?
+
+  payload = {
+    'key' => key,
+    'name' => body['name'].to_s.strip,
+    'description' => body['description'].to_s,
+    'subject' => body['subject'].to_s,
+    'preheader' => body['preheader'].to_s,
+    'body' => body['body'].to_s,
+    'html' => body['html'].to_s.empty? ? body['body'].to_s : body['html'].to_s,
+    'ctaLabel' => body['ctaLabel'].to_s,
+    'ctaUrl' => body['ctaUrl'].to_s,
+    'enabled' => body['enabled'] != false,
+    'availableVariables' => Array(body['availableVariables'])
+  }
+  firestore_upsert_document('system_email_templates', key, payload)
+  payload
+end
+
+def load_email_logs_payload
+  docs = firestore_list_documents('email_logs')
+  logs = docs.map do |doc|
+    id = doc['name'].to_s.split('/').last.to_s
+    firestore_fields_to_hash(doc['fields'] || {}).merge('id' => id)
+  end
+  logs.sort_by { |log| log['createdAt'].to_s }.reverse.first(30)
+end
+
+def load_email_template_for_test(template_key)
+  key = template_key.to_s.strip.empty? ? 'test_email' : template_key.to_s.strip
+  doc = firestore_get_document('system_email_templates', key)
+  if !doc && key == 'test_email'
+    firestore_upsert_document('system_email_templates', 'test_email', default_test_email_template)
+    doc = firestore_get_document('system_email_templates', 'test_email')
+  end
+  raise WEBrick::HTTPStatus::NotFound, 'Template não encontrado.' unless doc
+  firestore_fields_to_hash(doc['fields'] || {}).merge('key' => key)
+end
+
+def build_test_email_layout(settings, template, variables)
+  brand_name = variables['brandName'].to_s.empty? ? 'BocaFood' : variables['brandName'].to_s
+  support_email = variables['supportEmail'].to_s
+  logo_url = variables['brandLogoUrl'].to_s.empty? ? 'https://bocafood.app/assets/boca-food-logo.png' : variables['brandLogoUrl'].to_s
+  title = CGI.escapeHTML(email_replace_variables(template['subject'] || 'Teste de envio BocaFood', variables))
+  preheader = CGI.escapeHTML(email_replace_variables(template['preheader'] || '', variables))
+  body = email_replace_variables(template['body'] || template['html'] || default_test_email_template['body'], variables)
+  cta_label = CGI.escapeHTML(email_replace_variables(template['ctaLabel'] || '', variables))
+  cta_url = CGI.escapeHTML(email_replace_variables(template['ctaUrl'] || '', variables))
+  cta_html = cta_label.empty? || cta_url.empty? ? '' : %Q(<div style="margin-top:24px;text-align:left;"><a href="#{cta_url}" style="display:inline-block;background:#B42318;color:#ffffff;text-decoration:none;border-radius:14px;padding:14px 22px;font-size:14px;font-weight:700;line-height:1.2;min-width:190px;text-align:center;box-shadow:0 12px 24px rgba(180,35,24,.18);">#{cta_label}</a></div>)
+
+  %Q(<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>#{title}</title></head><body style="margin:0;padding:0;background:#FFF7F6;font-family:Arial,Helvetica,sans-serif;color:#1F1F1F;"><div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">#{preheader}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#FFF7F6;padding:26px 12px;"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:580px;background:#ffffff;border-radius:24px;box-shadow:0 18px 46px rgba(31,31,31,.08);overflow:hidden;border:1px solid #F2EDED;"><tr><td style="height:5px;background:#B42318;font-size:1px;line-height:1px;">&nbsp;</td></tr><tr><td style="padding:26px 30px 10px;text-align:left;background:linear-gradient(135deg,#FFFFFF 0%,#FFF8F6 100%);"><img src="#{CGI.escapeHTML(logo_url)}" alt="#{CGI.escapeHTML(brand_name)}" width="132" style="display:block;width:132px;max-width:46%;height:auto;border:0;outline:none;text-decoration:none;"><div style="margin-top:20px;font-size:11px;line-height:1.3;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#B42318;">SaaS #{CGI.escapeHTML(brand_name)}</div><div style="margin-top:8px;font-size:26px;line-height:1.16;font-weight:700;color:#1F1F1F;">#{title}</div>#{preheader.empty? ? '' : %Q(<div style="margin-top:9px;font-size:14px;line-height:1.55;color:#6F6860;">#{preheader}</div>)}</td></tr><tr><td style="padding:14px 30px 4px;background:#ffffff;"><div style="border:1px solid #E7DDD1;border-radius:20px;padding:20px;background:linear-gradient(135deg,#FFFFFF 0%,#FAF8F4 100%);font-size:15px;line-height:1.68;color:#3B3533;">#{body}#{cta_html}</div></td></tr><tr><td style="padding:16px 30px 0;background:#ffffff;"><div style="font-size:12px;line-height:1.5;color:#8A7E7C;background:#FFF8EC;border:1px solid #F5E3BC;border-radius:16px;padding:12px 14px;">Por seguranca, nunca compartilhe sua senha. O BocaFood nao solicita senhas por e-mail.</div></td></tr><tr><td style="padding:20px 30px 30px;background:#ffffff;font-size:12px;line-height:1.5;color:#8A7E7C;">Precisa de ajuda? Escreva para <a href="mailto:#{CGI.escapeHTML(support_email)}" style="color:#B42318;text-decoration:none;font-weight:700;">#{CGI.escapeHTML(support_email)}</a>.<br>#{CGI.escapeHTML(brand_name)}</td></tr></table></td></tr></table></body></html>)
+end
+
+def encoded_email_subject(value)
+  "=?UTF-8?B?#{Base64.strict_encode64(value.to_s)}?="
+end
+
+def clean_email_header(value)
+  value.to_s.gsub(/[\r\n]+/, ' ').strip
+end
+
+def smtp_close_warning_error?(error)
+  msg = error.message.to_s
+  return true if error.is_a?(EOFError)
+  return true if msg.match?(/SSL_read.*Connection reset by peer/i)
+  return true if msg.match?(/connection reset.*(after DATA|closing|quit|peer)/i)
+  return true if msg.match?(/end of file reached/i)
+  false
+end
+
+def send_html_email_via_smtp!(settings, password, to, subject, html)
+  host = settings['smtpHost'].to_s.strip
+  port = settings['smtpPort'].to_i
+  secure = normalize_smtp_secure(settings['smtpSecure'])
+  user = settings['smtpUser'].to_s.strip
+  from_email = settings['fromEmail'].to_s.strip
+  from_name = settings['fromName'].to_s.strip.empty? ? settings['brandName'].to_s.strip : settings['fromName'].to_s.strip
+  reply_to = settings['replyTo'].to_s.strip
+
+  raise WEBrick::HTTPStatus::BadRequest, 'Configuração SMTP não encontrada.' if host.empty? || port <= 0 || from_email.empty? || user.empty?
+  raise WEBrick::HTTPStatus::BadRequest, 'Senha SMTP não configurada.' if password.to_s.empty?
+  raise WEBrick::HTTPStatus::BadRequest, 'Remetente inválido.' unless valid_email_address?(from_email)
+  raise WEBrick::HTTPStatus::BadRequest, 'Destinatário inválido.' unless valid_email_address?(to)
+
+  boundary = "bocafood-#{SecureRandom.hex(12)}"
+  headers = []
+  headers << %(From: #{encoded_email_subject(clean_email_header(from_name))} <#{from_email}>)
+  headers << %(To: <#{to}>)
+  headers << %(Reply-To: <#{reply_to}>) if valid_email_address?(reply_to)
+  headers << %(Subject: #{encoded_email_subject(subject)})
+  headers << 'MIME-Version: 1.0'
+  headers << %(Content-Type: multipart/alternative; boundary="#{boundary}")
+  headers << 'X-BocaFood-Origin: master-email-test'
+  message = headers.join("\r\n") +
+    "\r\n\r\n--#{boundary}\r\nContent-Type: text/html; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n#{html}\r\n--#{boundary}--\r\n"
+
+  smtp = Net::SMTP.new(host, port)
+  smtp.open_timeout = 15
+  smtp.read_timeout = 20
+  ssl_context = OpenSSL::SSL::SSLContext.new
+  ssl_context.verify_mode = OpenSSL::SSL::VERIFY_NONE
+  smtp.enable_ssl(ssl_context) if secure == 'ssl'
+  smtp.enable_starttls_auto(ssl_context) if secure == 'tls'
+
+  sent = false
+  close_warning = nil
+  begin
+    smtp.start('localhost', user, password.to_s, :plain)
+    smtp.send_message(message, from_email, to)
+    sent = true
+  rescue => e
+    if sent && smtp_close_warning_error?(e)
+      close_warning = e
+      log_email_test("warning apos envio SMTP class=#{e.class} message=#{e.message}")
+    else
+      raise
+    end
+  ensure
+    if smtp&.started?
+      begin
+        smtp.finish
+      rescue => e
+        if sent && smtp_close_warning_error?(e)
+          close_warning ||= e
+          log_email_test("warning ao fechar SMTP class=#{e.class} message=#{e.message}")
+        else
+          raise
+        end
+      end
+    end
+  end
+
+  {
+    sent: sent,
+    closeWarning: close_warning ? "#{close_warning.class}: #{close_warning.message}" : nil
+  }
+end
+
+def log_email_test_result(to:, template_key:, subject:, status:, error: nil)
+  firestore_upsert_document('email_logs', SecureRandom.uuid, {
+    'to' => to,
+    'templateKey' => template_key,
+    'subject' => subject.to_s,
+    'status' => status,
+    'origin' => 'teste',
+    'error' => error.to_s,
+    'createdAt' => Time.now.utc.iso8601
+  })
+rescue => e
+  log_email_test("erro ao registrar email_logs #{email_send_debug(e)}")
+end
+
+def send_test_email!(body)
+  to = body['to'].to_s.strip.downcase
+  template_key = body['templateKey'].to_s.strip.empty? ? 'test_email' : body['templateKey'].to_s.strip
+  raise WEBrick::HTTPStatus::BadRequest, 'Destinatário inválido.' unless valid_email_address?(to)
+
+  settings_doc = firestore_get_document('system_email_settings', 'default')
+  log_email_test("settings encontrados=#{!!settings_doc}")
+  raise WEBrick::HTTPStatus::BadRequest, 'Configuração SMTP não encontrada.' unless settings_doc
+  settings = firestore_fields_to_hash(settings_doc['fields'] || {})
+
+  secret_doc = firestore_get_document('system_private_email_secrets', 'default')
+  log_email_test("secret SMTP encontrado=#{!!secret_doc}")
+  secret = secret_doc ? firestore_fields_to_hash(secret_doc['fields'] || {}) : {}
+  password = secret['smtpPassword'].to_s
+  raise WEBrick::HTTPStatus::BadRequest, 'Senha SMTP não configurada.' if password.empty?
+
+  template = load_email_template_for_test(template_key)
+  raise WEBrick::HTTPStatus::BadRequest, 'Template desativado.' if template['enabled'] == false
+  log_email_test("template carregado key=#{template_key}")
+
+  variables = {
+    'buyerName' => 'Patrícia',
+    'buyerEmail' => to,
+    'signupUrl' => 'https://app.bocafood.com/cadastro',
+    'supportEmail' => settings['supportEmail'].to_s.empty? ? settings['replyTo'].to_s : settings['supportEmail'].to_s,
+    'planName' => 'Plano Essencial',
+    'productName' => 'BocaFood',
+    'resetPasswordUrl' => 'https://app.bocafood.com/redefinir-senha',
+    'appBaseUrl' => settings['appBaseUrl'].to_s.empty? ? 'https://app.bocafood.com' : settings['appBaseUrl'].to_s,
+    'brandName' => settings['brandName'].to_s.empty? ? 'BocaFood' : settings['brandName'].to_s,
+    'brandLogoUrl' => settings['brandLogoUrl'].to_s.empty? ? 'https://bocafood.app/assets/boca-food-logo.png' : settings['brandLogoUrl'].to_s
+  }
+  subject = email_replace_variables(template['subject'] || 'Teste de envio BocaFood', variables)
+  html = build_test_email_layout(settings, template, variables)
+  smtp_result = send_html_email_via_smtp!(settings, password, to, subject, html)
+  status = smtp_result[:closeWarning] ? 'warning' : 'success'
+  log_email_test_result(to: to, template_key: template_key, subject: subject, status: status, error: smtp_result[:closeWarning])
+
+  {
+    ok: true,
+    message: 'E-mail de teste enviado com sucesso.'
+  }
+rescue => e
+  begin
+    log_email_test_result(to: body['to'].to_s.strip.downcase, template_key: body['templateKey'].to_s.strip.empty? ? 'test_email' : body['templateKey'].to_s.strip, subject: '', status: 'error', error: e.message)
+  rescue
+  end
+  raise
 end
 
 def local_master_request?(req)
@@ -2004,6 +2512,159 @@ end
 
 server.mount_proc '/api/master/email/test-smtp', &email_test_smtp_handler
 server.mount_proc '/api/master/email/test-smtp/', &email_test_smtp_handler
+
+email_settings_handler = proc do |req, res|
+  apply_cors_headers(res, req['Origin'] || req['origin'])
+  log_email_settings("rota chamada method=#{req.request_method} path=#{req.path} host=#{req.host}")
+  if req.request_method == 'OPTIONS'
+    res.status = 204
+    res.body = ''
+    next
+  end
+
+  begin
+    unless local_master_request?(req)
+      next json_response_cors(req, res, 403, email_settings_error('Endpoint restrito ao Master local.'))
+    end
+
+    case req.request_method
+    when 'GET'
+      log_email_settings('carregando system_email_settings/default')
+      json_response_cors(req, res, 200, {
+        ok: true,
+        settings: email_settings_payload
+      })
+    when 'POST'
+      body = read_json(req)
+      log_email_settings("campos recebidos #{email_settings_received_fields(body).to_json}")
+      json_response_cors(req, res, 200, save_email_settings!(body))
+    else
+      json_response_cors(req, res, 405, email_settings_error('Endpoint existe, mas exige método POST.'))
+    end
+  rescue WEBrick::HTTPStatus::BadRequest => e
+    debug = email_settings_debug(e)
+    log_email_settings("erro validacao #{debug}")
+    json_response_cors(req, res, 400, email_settings_error(e.message, debug))
+  rescue => e
+    debug = email_settings_debug(e)
+    log_email_settings("erro tecnico #{debug}")
+    message = email_master_credential_error?(e) ? email_master_credential_message : 'Não foi possível salvar a configuração SMTP.'
+    payload = req.request_method == 'GET' ? email_read_error(message, debug) : email_settings_error(message, debug)
+    json_response_cors(req, res, 400, payload)
+  end
+end
+
+server.mount_proc '/api/master/email/settings', &email_settings_handler
+server.mount_proc '/api/master/email/settings/', &email_settings_handler
+
+email_templates_handler = proc do |req, res|
+  apply_cors_headers(res, req['Origin'] || req['origin'])
+  if req.request_method == 'OPTIONS'
+    res.status = 204
+    res.body = ''
+    next
+  end
+
+  begin
+    unless local_master_request?(req)
+      next json_response_cors(req, res, 403, email_read_error('Endpoint restrito ao Master local.'))
+    end
+
+    case req.request_method
+    when 'GET'
+      json_response_cors(req, res, 200, {
+        ok: true,
+        templates: load_email_templates_payload
+      })
+    when 'POST'
+      template = save_email_template_payload!(read_json(req))
+      json_response_cors(req, res, 200, {
+        ok: true,
+        message: 'Template salvo.',
+        template: template
+      })
+    else
+      json_response_cors(req, res, 405, email_read_error('Endpoint existe, mas exige método GET ou POST.'))
+    end
+  rescue WEBrick::HTTPStatus::BadRequest => e
+    json_response_cors(req, res, 400, email_read_error(e.message))
+  rescue => e
+    debug = email_settings_debug(e)
+    log_email_settings("templates erro tecnico #{debug}")
+    message = email_master_credential_error?(e) ? email_master_credential_message : 'Não foi possível carregar os templates de e-mail.'
+    json_response_cors(req, res, 400, email_read_error(message, debug))
+  end
+end
+
+server.mount_proc '/api/master/email/templates', &email_templates_handler
+server.mount_proc '/api/master/email/templates/', &email_templates_handler
+
+email_logs_handler = proc do |req, res|
+  apply_cors_headers(res, req['Origin'] || req['origin'])
+  if req.request_method == 'OPTIONS'
+    res.status = 204
+    res.body = ''
+    next
+  end
+
+  begin
+    unless local_master_request?(req)
+      next json_response_cors(req, res, 403, email_read_error('Endpoint restrito ao Master local.'))
+    end
+    unless req.request_method == 'GET'
+      next json_response_cors(req, res, 405, email_read_error('Endpoint existe, mas exige método GET.'))
+    end
+
+    json_response_cors(req, res, 200, {
+      ok: true,
+      logs: load_email_logs_payload
+    })
+  rescue => e
+    debug = email_settings_debug(e)
+    log_email_settings("logs erro tecnico #{debug}")
+    message = email_master_credential_error?(e) ? email_master_credential_message : 'Não foi possível carregar os logs de e-mail.'
+    json_response_cors(req, res, 400, email_read_error(message, debug))
+  end
+end
+
+server.mount_proc '/api/master/email/logs', &email_logs_handler
+server.mount_proc '/api/master/email/logs/', &email_logs_handler
+
+email_send_test_handler = proc do |req, res|
+  apply_cors_headers(res, req['Origin'] || req['origin'])
+  log_email_test("rota chamada method=#{req.request_method} path=#{req.path} host=#{req.host}")
+  if req.request_method == 'OPTIONS'
+    res.status = 204
+    res.body = ''
+    next
+  end
+
+  begin
+    unless local_master_request?(req)
+      next json_response_cors(req, res, 403, email_send_error('Endpoint restrito ao Master local.'))
+    end
+    unless req.request_method == 'POST'
+      next json_response_cors(req, res, 405, email_send_error('Endpoint existe, mas exige método POST.'))
+    end
+
+    body = read_json(req)
+    to = body['to'].to_s.strip.downcase
+    template_key = body['templateKey'].to_s.strip.empty? ? 'test_email' : body['templateKey'].to_s.strip
+    log_email_test("destinatario=#{to} templateKey=#{template_key}")
+    json_response_cors(req, res, 200, send_test_email!(body))
+  rescue WEBrick::HTTPStatus::BadRequest, WEBrick::HTTPStatus::NotFound => e
+    debug = email_send_debug(e)
+    log_email_test("erro validacao #{debug}")
+    json_response_cors(req, res, 400, email_send_error('Não foi possível enviar o e-mail de teste.', e.message))
+  rescue => e
+    debug = email_send_debug(e)
+    log_email_test("erro tecnico #{debug}")
+    json_response_cors(req, res, 400, email_send_error('Não foi possível enviar o e-mail de teste.', debug))
+  end
+end
+
+server.mount_proc '/api/master/email/send-test', &email_send_test_handler
+server.mount_proc '/api/master/email/send-test/', &email_send_test_handler
 
 server.mount_proc '/api/master/backup/config' do |req, res|
   store = master_store

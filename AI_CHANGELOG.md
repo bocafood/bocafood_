@@ -1,5 +1,41 @@
 # AI Changelog
 
+## 2026-05-15 — Warning no fechamento SMTP após envio teste
+- Arquivos alterados: `server.rb`, `AI_CHANGELOG.md`.
+- Módulo afetado: Master interno, rota `POST /api/master/email/send-test`.
+- Resumo do ajuste: se `Net::SMTP` aceitar o envio da mensagem e ocorrer erro apenas no fechamento/quit da conexão, como `SSL_read: Connection reset by peer` ou `EOFError`, a rota passa a retornar sucesso em vez de falha total.
+- Logs: `email_logs` agora registra `success` quando enviado, `warning` quando enviado com erro tardio de fechamento e `error` quando a falha acontece antes ou durante autenticação/DATA.
+- Segurança: não houve alteração de host, porta, segurança, usuário, senha, layout ou configuração SMTP; credenciais continuam sem log e sem retorno ao frontend.
+- Impacto esperado: quando o e-mail realmente chegar ao destinatário, o Master mostra `E-mail de teste enviado com sucesso.` mesmo que o provedor encerre a conexão logo após o envio.
+
+## 2026-05-15 — Carregamento de e-mails pelo backend do Master
+- Arquivos alterados: `master.html`, `server.rb`, `AI_CHANGELOG.md`.
+- Módulo afetado: Master interno, tela `E-mails automáticos`.
+- Resumo do ajuste: removi do carregamento da tela as leituras diretas via Firebase client SDK para `system_email_settings`, `system_email_templates` e `email_logs`, passando a usar endpoints locais do Master.
+- Backend: adicionei/completei `GET /api/master/email/settings`, `GET/POST /api/master/email/templates` e `GET /api/master/email/logs`, todos usando o backend Ruby/service account e sem expor `system_private_email_secrets/default`.
+- Segurança: `system_private_email_secrets/default` continua sem retorno ao frontend; o Master recebe apenas `smtpPasswordConfigured: true/false` para mostrar `Senha configurada`.
+- UX: quando a credencial Firebase do Master não estiver carregada, a tela passa a mostrar `Credencial Firebase do Master não configurada. Inicie pelo start-bocafood-local.sh.` em vez de `Missing or insufficient permissions`.
+- Impacto esperado: a tela de e-mails volta a carregar configurações, templates e logs sem depender das permissões Firestore do usuário autenticado no navegador, sem alterar teste SMTP, salvamento SMTP, commit, push ou deploy.
+
+## 2026-05-15 — Envio de e-mail teste pelo Master local
+- Arquivos alterados: `master.html`, `server.rb`, `AI_CHANGELOG.md`.
+- Módulo afetado: Master interno, tela `E-mails automáticos` e backend local Ruby.
+- Resumo do ajuste: alterei o botão `Enviar teste` para chamar `POST /api/master/email/send-test` no Master local e criei a rota correspondente no `server.rb`.
+- Backend: a rota valida destinatário, carrega `system_email_settings/default`, `system_private_email_secrets/default` e `system_email_templates/test_email`, cria o template padrão se ele não existir, aplica o layout base e envia o HTML via SMTP com `Net::SMTP`.
+- Segurança: a senha SMTP é lida apenas de `system_private_email_secrets/default`, não é logada, não volta no JSON e não é usada no navegador.
+- Diagnóstico: adicionei logs seguros `[EMAIL TEST]` com rota chamada, destinatário, template, presença de settings/secret e erro técnico sanitizado.
+- Impacto esperado: o teste de e-mail passa a rodar no backend local usando os mesmos dados SMTP já salvos e validados, registrando resultado em `email_logs`, sem alterar o teste de conexão, o salvamento SMTP, commit, push ou deploy.
+
+## 2026-05-15 — Salvamento SMTP pelo Master local
+- Arquivos alterados: `master.html`, `server.rb`, `AI_CHANGELOG.md`.
+- Módulo afetado: Master interno, tela `E-mails automáticos -> Configuração SMTP` e backend local Ruby.
+- Resumo do ajuste: troquei o botão `Salvar configuração` para chamar `POST /api/master/email/settings` no Master local e criei a rota correspondente em `server.rb`.
+- Backend: a rota salva as configurações públicas em `system_email_settings/default` com `provider: "smtp"` e salva/atualiza a senha somente em `system_private_email_secrets/default` quando o campo senha vem preenchido.
+- Diagnóstico: adicionei logs temporários e seguros no terminal para a rota `/api/master/email/settings`, incluindo chamada da rota, campos recebidos sem senha, sucesso de gravação das coleções e erro técnico sanitizado.
+- Segurança: a senha SMTP não é retornada ao frontend, não é gravada em `system_email_settings/default`, não é logada e senha vazia preserva a senha privada já existente.
+- UX: falhas de fetch agora mostram mensagem clara sobre servidor local/rota, erros retornam `debug` sem dados sensíveis quando existir, e sucesso retorna `Configuração SMTP salva com sucesso.`
+- Impacto esperado: após reiniciar o Master local, a tela deixa de depender da Cloud Function para salvar SMTP e passa a persistir a configuração pelo backend local autorizado, sem commit, push ou deploy.
+
 ## 2026-05-14 — Rota local de teste SMTP do Master
 - Arquivos alterados: `server.rb`, `master.html`, `AI_CHANGELOG.md`.
 - Módulo afetado: Master interno, tela `E-mails automáticos -> Configuração SMTP` e backend local Ruby.
