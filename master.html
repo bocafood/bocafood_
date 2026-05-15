@@ -1500,11 +1500,7 @@ var _emailDefaults = {
     brandLogoUrl: 'https://bocafood.app/assets/boca-food-logo.png'
   }
 };
-function _emailDb(){ initFirebase(); return firebase.firestore(); }
-function _emailSettingsRef(){ return _emailDb().collection('system_email_settings').doc('default'); }
-function _emailTemplateRef(key){ return _emailDb().collection('system_email_templates').doc(key); }
 function _emailFunctionUrl(name){ return 'https://us-central1-bocado-brasil.cloudfunctions.net/' + name; }
-function _emailNow(){ return firebase.firestore.FieldValue.serverTimestamp(); }
 function _emailTemplateByKey(key){
   return (_emailMasterState.templates || []).find(function(t){ return t.key === key; }) || _emailDefaults.templates[0];
 }
@@ -1528,11 +1524,13 @@ function _emailCallFunction(name, payload){
     });
   });
 }
-function _emailCallLocalMaster(path, payload){
+function _emailCallLocalMaster(path, payload, options){
+  options = options || {};
+  var method = options.method || 'POST';
   return fetch(path, {
-    method: 'POST',
+    method: method,
     headers: {'Content-Type':'application/json'},
-    body: JSON.stringify(payload || {})
+    body: method === 'GET' ? undefined : JSON.stringify(payload || {})
   }).then(function(r){
     return r.text().then(function(text){
       var data = {};
@@ -1544,13 +1542,15 @@ function _emailCallLocalMaster(path, payload){
       if(!r.ok){
         var msg = data.error || data.message || r.statusText;
         if(r.status === 404) msg = 'Endpoint inexistente: ' + path;
-        throw new Error(msg);
+        var err = new Error(msg);
+        if(data.debug) err.debug = data.debug;
+        throw err;
       }
       return data;
     });
   }).catch(function(e){
     if(e && (e.name === 'TypeError' || e.message === 'Failed to fetch')){
-      throw new Error('Não foi possível chamar o servidor de teste SMTP. Verifique se o Master local está rodando e se a rota /api/master/email/test-smtp existe.');
+      throw new Error('Não foi possível chamar o servidor local. Verifique se o Master está rodando e se a rota '+path+' existe.');
     }
     throw e;
   });
@@ -1563,50 +1563,19 @@ function switchEmailTab(tab){
   if(tab === 'logs') loadEmailLogs();
 }
 function _emailEnsureDefaults(){
-  return waitFirebaseUser().then(function(user){
-    if(!user)throw new Error('Entre com uma conta Master para carregar e-mails automáticos.');
-    return _emailSettingsRef().get();
-  }).then(function(snap){
-    var p = [];
-    if(!snap.exists){
-      p.push(_emailSettingsRef().set(Object.assign({}, _emailDefaults.settings, {updatedAt:_emailNow()}), {merge:true}));
-    } else {
-      var settings = snap.data() || {};
-      if(settings.replyTo === 'suporte@bocafood.com' || settings.supportEmail === 'suporte@bocafood.com'){
-        p.push(_emailSettingsRef().set({
-          replyTo: settings.replyTo === 'suporte@bocafood.com' ? EMAIL_DEFAULT_SUPPORT : settings.replyTo,
-          supportEmail: settings.supportEmail === 'suporte@bocafood.com' ? EMAIL_DEFAULT_SUPPORT : settings.supportEmail,
-          updatedAt: _emailNow()
-        }, {merge:true}));
-      }
-    }
-    _emailDefaults.templates.forEach(function(tpl){
-      p.push(_emailTemplateRef(tpl.key).get().then(function(tSnap){
-        if(!tSnap.exists){
-          return _emailTemplateRef(tpl.key).set(Object.assign({}, tpl, {createdAt:_emailNow(),updatedAt:_emailNow()}), {merge:true});
-        }
-        var current = tSnap.data() || {};
-        var text = [current.subject || '', current.preheader || '', current.body || current.html || ''].join(' ');
-        if(/Hola |Bienvenida|Restablece|suscripci|Prueba de e-mail|Tu pago|Confirma tu/i.test(text)){
-          return _emailTemplateRef(tpl.key).set(Object.assign({}, tpl, {createdAt:current.createdAt || _emailNow(),updatedAt:_emailNow()}), {merge:true});
-        }
-        return null;
-      }));
-    });
-    return Promise.all(p);
-  });
+  return Promise.resolve();
 }
 function loadEmailMaster(){
   return _emailEnsureDefaults().then(function(){
     return Promise.all([
-      _emailSettingsRef().get(),
-      _emailDb().collection('system_email_templates').orderBy('name').get()
+      _emailCallLocalMaster('/api/master/email/settings', null, {method:'GET'}),
+      _emailCallLocalMaster('/api/master/email/templates', null, {method:'GET'})
     ]);
   }).then(function(results){
-    var settingsSnap = results[0];
-    var templateSnap = results[1];
-    _emailMasterState.settings = Object.assign({}, _emailDefaults.settings, settingsSnap.exists ? settingsSnap.data() : {});
-    _emailMasterState.templates = templateSnap.docs.map(function(doc){ return Object.assign({key:doc.id}, doc.data() || {}); });
+    var settingsResult = results[0] || {};
+    var templateResult = results[1] || {};
+    _emailMasterState.settings = Object.assign({}, _emailDefaults.settings, settingsResult.settings || {});
+    _emailMasterState.templates = (templateResult.templates && templateResult.templates.length ? templateResult.templates : _emailDefaults.templates);
     if(!_emailTemplateByKey(_emailMasterState.selectedTemplateKey)) _emailMasterState.selectedTemplateKey = (_emailMasterState.templates[0] || {}).key || 'welcome_hotmart';
     renderEmailSettings();
     renderEmailTemplateList();
@@ -1614,7 +1583,17 @@ function loadEmailMaster(){
     renderEmailPreview();
     loadEmailLogs();
     _emailMasterState.loaded = true;
-  }).catch(function(e){toast(e.message || 'Erro ao carregar e-mails automáticos')});
+  }).catch(function(e){
+    var msg = e && e.message ? e.message : 'Erro ao carregar e-mails automáticos';
+    if(e && e.debug) msg += ' Debug: ' + e.debug;
+    toast(msg);
+    _emailMasterState.settings = Object.assign({}, _emailDefaults.settings);
+    _emailMasterState.templates = _emailDefaults.templates.slice();
+    renderEmailSettings();
+    renderEmailTemplateList();
+    renderEmailEditor();
+    renderEmailPreview();
+  });
 }
 function renderEmailSettings(){
   var s = _emailMasterState.settings || {};
@@ -1657,11 +1636,15 @@ function collectEmailSettings(){
 function saveEmailSettings(){
   var payload = collectEmailSettings();
   if(!payload.fromName || !payload.fromEmail){toast('Informe remetente e e-mail do remetente');return;}
-  _emailCallFunction('saveEmailSettings', payload).then(function(r){
+  _emailCallLocalMaster('/api/master/email/settings', payload).then(function(r){
     _emailMasterState.settings = Object.assign({}, _emailMasterState.settings || {}, r.settings || {});
     renderEmailSettings();
-    toast('Configuração de e-mail salva');
-  }).catch(function(e){toast('Erro ao salvar SMTP: '+e.message)});
+    toast(r.message || 'Configuração SMTP salva com sucesso.');
+  }).catch(function(e){
+    var msg = e && e.message ? e.message : 'Não foi possível salvar a configuração SMTP.';
+    if(e && e.debug) msg += ' Debug: ' + e.debug;
+    toast('Erro ao salvar SMTP: '+msg);
+  });
 }
 function testSmtpConnection(){
   var payload = collectEmailSettings();
@@ -1723,16 +1706,20 @@ function collectEmailTemplate(){
     ctaLabel: val('email-template-cta-label'),
     ctaUrl: val('email-template-cta-url'),
     enabled: !!document.getElementById('email-template-enabled').checked,
-    updatedAt: _emailNow()
+    updatedAt: new Date().toISOString()
   });
 }
 function saveEmailTemplate(){
   var tpl = collectEmailTemplate();
   if(!tpl.key || !tpl.name || !tpl.subject){toast('Nome e assunto são obrigatórios');return;}
-  _emailTemplateRef(tpl.key).set(tpl, {merge:true}).then(function(){
-    toast('Template salvo');
+  _emailCallLocalMaster('/api/master/email/templates', tpl).then(function(r){
+    toast(r.message || 'Template salvo');
     return loadEmailMaster();
-  }).catch(function(e){toast('Erro ao salvar template: '+e.message)});
+  }).catch(function(e){
+    var msg = e && e.message ? e.message : 'Erro ao salvar template';
+    if(e && e.debug) msg += ' Debug: ' + e.debug;
+    toast('Erro ao salvar template: '+msg);
+  });
 }
 function _emailPreviewHtml(tpl){
   var settings = Object.assign({}, _emailDefaults.settings, _emailMasterState.settings || {});
@@ -1775,14 +1762,18 @@ function sendEmailTest(){
   var email = prompt('Enviar teste para qual e-mail?');
   if(!email)return;
   var tpl = collectEmailTemplate();
-  _emailCallFunction('sendTestEmail', {
+  _emailCallLocalMaster('/api/master/email/send-test', {
     to: email,
-    templateKey: tpl.key,
-    variables: _emailDefaults.previewData
+    templateKey: tpl.key || 'test_email'
   }).then(function(r){
-    toast(r.skipped ? ('Envio ignorado: '+(r.reason || 'sem envio')) : 'E-mail de teste enfileirado');
+    toast(r.message || 'E-mail de teste enviado com sucesso.');
     loadEmailLogs();
-  }).catch(function(e){toast('Erro ao enviar teste: '+e.message);loadEmailLogs();});
+  }).catch(function(e){
+    var msg = e && e.message ? e.message : 'Não foi possível enviar o e-mail de teste.';
+    if(e && e.debug) msg += ' Debug: ' + e.debug;
+    toast('Erro ao enviar teste: '+msg);
+    loadEmailLogs();
+  });
 }
 function _emailFormatDate(value){
   if(!value)return '';
@@ -1793,16 +1784,17 @@ function _emailFormatDate(value){
 function loadEmailLogs(){
   var body = document.getElementById('email-logs-body');
   if(!body)return Promise.resolve();
-  return waitFirebaseUser().then(function(user){
-    if(!user)throw new Error('Entre com uma conta Master para carregar logs.');
-    return _emailDb().collection('email_logs').orderBy('createdAt','desc').limit(30).get();
-  }).then(function(snap){
-    if(snap.empty){body.innerHTML='<tr><td colspan="7">Sem logs recentes.</td></tr>';return;}
-    body.innerHTML = snap.docs.map(function(doc){
-      var l = doc.data() || {};
+  return _emailCallLocalMaster('/api/master/email/logs', null, {method:'GET'}).then(function(r){
+    var logs = r.logs || [];
+    if(!logs.length){body.innerHTML='<tr><td colspan="7">Sem logs recentes.</td></tr>';return;}
+    body.innerHTML = logs.map(function(l){
       return '<tr><td>'+esc(_emailFormatDate(l.createdAt))+'</td><td>'+esc(l.to || '')+'</td><td>'+esc(l.templateKey || '')+'</td><td>'+esc(l.subject || '')+'</td><td><span class="email-status '+(l.status === 'queued' || l.status === 'ok' ? 'on' : (l.status === 'error' ? 'off' : ''))+'">'+esc(l.status || '')+'</span></td><td>'+esc(l.origin || '')+'</td><td>'+esc(l.error || '')+'</td></tr>';
     }).join('');
-  }).catch(function(e){body.innerHTML='<tr><td colspan="7">'+esc(e.message || 'Erro ao carregar logs')+'</td></tr>';});
+  }).catch(function(e){
+    var msg = e && e.message ? e.message : 'Erro ao carregar logs';
+    if(e && e.debug) msg += ' Debug: ' + e.debug;
+    body.innerHTML='<tr><td colspan="7">'+esc(msg)+'</td></tr>';
+  });
 }
 function loadBackupConfig(){
   api('/api/master/backup/config').then(function(r){
