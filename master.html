@@ -97,7 +97,34 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
 .global-modal-actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
 .global-help{padding:12px 14px;border-radius:12px;background:#F9F7F7;border:1px solid #EEE6E4;color:var(--muted);font-size:12px;line-height:1.5}
 .global-help strong{color:var(--dark)}
+.email-shell{display:grid;gap:16px}
+.email-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.email-tab-btn{border:1.5px solid var(--mid);background:#fff;color:var(--muted);border-radius:999px;padding:9px 14px;font-size:12px;font-weight:800;cursor:pointer}
+.email-tab-btn.active{background:var(--red);border-color:var(--red);color:#fff}
+.email-panel{display:none}.email-panel.active{display:block}
+.email-card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);padding:20px}
+.email-card h3{font-size:18px;font-weight:700;color:var(--dark);margin-bottom:5px}
+.email-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.email-form-grid .full{grid-column:1/-1}
+.email-status{display:inline-flex;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:800;background:#F3F4F6;color:#4B5563}
+.email-status.on{background:#EDFAF3;color:#15803D}.email-status.off{background:#FFF0EE;color:#C4362A}
+.email-template-list{display:grid;grid-template-columns:minmax(260px,.85fr) minmax(420px,1.15fr);gap:16px;align-items:start}
+.email-template-items{display:grid;gap:10px}
+.email-template-item{width:100%;text-align:left;border:1px solid var(--line);background:#fff;border-radius:14px;padding:13px 14px;cursor:pointer;box-shadow:0 4px 12px rgba(31,31,31,.03)}
+.email-template-item.active{border-color:#E2A09A;background:#FFF8F7}
+.email-template-item strong{display:block;font-size:14px;font-weight:700;color:var(--dark);margin-bottom:3px}
+.email-template-item span{font-size:12px;color:var(--muted);line-height:1.35}
+.email-vars{display:flex;gap:6px;flex-wrap:wrap}
+.email-var{display:inline-flex;border-radius:999px;background:#F9F7F7;border:1px solid #EEE6E4;color:#6F6860;padding:5px 8px;font-size:11px;font-weight:700}
+.email-preview-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.email-preview-frame{background:#fff7f6;border:1px solid var(--line);border-radius:18px;padding:18px;overflow:auto}
+.email-preview-frame.mobile{max-width:390px;margin:0 auto}
+.email-log-table{width:100%;border-collapse:collapse;font-size:13px;min-width:760px}
+.email-log-table th{text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;padding:10px;border-bottom:1px solid var(--line);background:#FAF8F8}
+.email-log-table td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
+.email-secret-note{font-size:11px;line-height:1.45;color:#8A7E7C;margin-top:5px}
 @media(max-width:980px){.grid.two,.form-grid{grid-template-columns:1fr}.hero,.toolbar{align-items:flex-start;flex-direction:column}}
+@media(max-width:980px){.email-form-grid,.email-template-list{grid-template-columns:1fr}}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -132,6 +159,7 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
   <nav class="tabs">
     <button class="tab-btn active" data-tab="usuarios" onclick="openTab('usuarios')">Usuários</button>
     <button class="tab-btn" data-tab="configuracoes" onclick="openTab('configuracoes')">Configurações</button>
+    <button class="tab-btn" data-tab="emails-automaticos" onclick="openTab('emails-automaticos')">E-mails automáticos</button>
     <button class="tab-btn" data-tab="configuracoes-globais" onclick="openTab('configuracoes-globais')">Configurações Globais</button>
     <button class="tab-btn" data-tab="backup" onclick="openTab('backup')">Backup do Sistema</button>
   </nav>
@@ -154,6 +182,12 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
 
   <section id="tab-configuracoes" class="tab-panel">
     <section class="grid">
+      <div class="card">
+        <h2>E-mails automáticos</h2>
+        <p>Configure SMTP, templates transacionais, prévias responsivas e testes internos do BocaFood.</p>
+        <div class="actions"><button class="btn" onclick="openTab('emails-automaticos')">Abrir e-mails automáticos</button></div>
+      </div>
+
       <div class="card">
         <h2>Publicar site</h2>
         <p>Publica o pacote público completo do site para um tenant específico. Repositório e branch são lidos do cadastro.</p>
@@ -226,6 +260,130 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
         <pre id="logs">Carregando...</pre>
       </div>
     </section>
+  </section>
+
+  <section id="tab-emails-automaticos" class="tab-panel">
+    <div class="email-shell">
+      <div class="card">
+        <div class="toolbar">
+          <div>
+            <h2>E-mails automáticos</h2>
+            <p>Configuração interna de SMTP, templates transacionais, prévia responsiva e logs da fila de e-mails.</p>
+          </div>
+          <div class="actions">
+            <button class="btn secondary" onclick="loadEmailMaster()">Recarregar</button>
+            <button class="btn" onclick="sendEmailTest()">Enviar teste</button>
+          </div>
+        </div>
+        <div class="email-tabs">
+          <button class="email-tab-btn active" data-email-tab="smtp" onclick="switchEmailTab('smtp')">Configuração SMTP</button>
+          <button class="email-tab-btn" data-email-tab="templates" onclick="switchEmailTab('templates')">Templates</button>
+          <button class="email-tab-btn" data-email-tab="preview" onclick="switchEmailTab('preview')">Prévia</button>
+          <button class="email-tab-btn" data-email-tab="logs" onclick="switchEmailTab('logs')">Logs</button>
+        </div>
+
+        <div id="email-panel-smtp" class="email-panel active">
+          <div class="email-card">
+            <div class="toolbar">
+              <div>
+                <h3>Configuração SMTP</h3>
+                <p>Dados usados pelo Master para validar a conexão e pela estrutura de envio transacional.</p>
+              </div>
+              <span id="email-smtp-status" class="email-status off">Inativo</span>
+            </div>
+            <div class="email-form-grid">
+              <label><span>Nome do remetente</span><input id="email-from-name" placeholder="BocaFood"></label>
+              <label><span>E-mail do remetente</span><input id="email-from-email" type="email" placeholder="no-reply@bocafood.com"></label>
+              <label><span>E-mail de resposta</span><input id="email-reply-to" type="email" placeholder="teajudo@bocafood.app"></label>
+              <label><span>E-mail de suporte</span><input id="email-support-email" type="email" placeholder="teajudo@bocafood.app"></label>
+              <label><span>URL base do app</span><input id="email-app-base-url" placeholder="https://app.bocafood.com"></label>
+              <label><span>Nome da marca</span><input id="email-brand-name" placeholder="BocaFood"></label>
+              <label><span>Host SMTP</span><input id="email-smtp-host" placeholder="smtp.seudominio.com"></label>
+              <label><span>Porta SMTP</span><input id="email-smtp-port" type="number" placeholder="587"></label>
+              <label><span>Segurança</span><select id="email-smtp-secure"><option value="tls">TLS</option><option value="ssl">SSL</option><option value="none">Nenhuma</option></select></label>
+              <label><span>Usuário SMTP</span><input id="email-smtp-user" autocomplete="off" placeholder="usuario@seudominio.com"></label>
+              <label class="full"><span>Senha SMTP</span><input id="email-smtp-password" type="password" autocomplete="new-password" placeholder="Senha configurada"><div id="email-password-note" class="email-secret-note">Se já existir senha salva, ela não será exibida. Preencha este campo apenas para trocar a senha.</div></label>
+              <label class="full"><span>Status</span><div class="check-row" style="margin:0;"><input id="email-enabled" type="checkbox"><span>Ativo para envio automático</span></div></label>
+            </div>
+            <div class="actions" style="margin-top:14px;">
+              <button class="btn secondary" onclick="testSmtpConnection()">Testar conexão</button>
+              <button class="btn" onclick="saveEmailSettings()">Salvar configuração</button>
+            </div>
+            <div class="global-help" style="margin-top:14px;">Senha SMTP é salva em <strong>system_private_email_secrets/default</strong>, bloqueada para clientes pelas rules. Em produção, o ideal é migrar essa senha para Firebase Secrets/Secret Manager.</div>
+          </div>
+        </div>
+
+        <div id="email-panel-templates" class="email-panel">
+          <div class="email-template-list">
+            <div class="email-card">
+              <div class="toolbar">
+                <div>
+                  <h3>Templates</h3>
+                  <p>Modelos globais usados pelos e-mails transacionais.</p>
+                </div>
+              </div>
+              <div id="email-template-list" class="email-template-items"></div>
+            </div>
+            <div class="email-card">
+              <div class="toolbar">
+                <div>
+                  <h3 id="email-editor-title">Editor de template</h3>
+                  <p id="email-editor-desc">Selecione um template para editar.</p>
+                </div>
+                <span id="email-template-status" class="email-status off">Inativo</span>
+              </div>
+              <div class="email-form-grid">
+                <label><span>Nome do template</span><input id="email-template-name"></label>
+                <label><span>Assunto</span><input id="email-template-subject"></label>
+                <label class="full"><span>Pré-header</span><input id="email-template-preheader"></label>
+                <label class="full"><span>Corpo do e-mail</span><textarea id="email-template-body" style="min-height:180px;"></textarea></label>
+                <label><span>Texto do botão CTA</span><input id="email-template-cta-label"></label>
+                <label><span>URL do botão CTA</span><input id="email-template-cta-url"></label>
+                <label class="full"><span>Status</span><div class="check-row" style="margin:0;"><input id="email-template-enabled" type="checkbox"><span>Template ativo</span></div></label>
+                <div class="full">
+                  <label><span>Variáveis disponíveis</span></label>
+                  <div id="email-template-vars" class="email-vars"></div>
+                </div>
+              </div>
+              <div class="actions" style="margin-top:14px;">
+                <button class="btn" onclick="saveEmailTemplate()">Salvar</button>
+                <button class="btn secondary" onclick="sendEmailTest()">Enviar teste</button>
+                <button class="btn secondary" onclick="previewEmailTemplate()">Visualizar prévia</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="email-panel-preview" class="email-panel">
+          <div class="email-card">
+            <div class="email-preview-toolbar">
+              <div>
+                <h3>Prévia responsiva</h3>
+                <p>Renderização com dados fictícios antes de salvar ou enviar teste.</p>
+              </div>
+              <div class="actions">
+                <button class="btn secondary" id="email-preview-desktop" onclick="setEmailPreviewMode('desktop')">Desktop</button>
+                <button class="btn secondary" id="email-preview-mobile" onclick="setEmailPreviewMode('mobile')">Mobile</button>
+              </div>
+            </div>
+            <div id="email-preview-frame" class="email-preview-frame"></div>
+          </div>
+        </div>
+
+        <div id="email-panel-logs" class="email-panel">
+          <div class="email-card">
+            <div class="toolbar">
+              <div>
+                <h3>Logs recentes</h3>
+                <p>Últimos registros de fila, testes, Hotmart e erros.</p>
+              </div>
+              <button class="btn secondary" onclick="loadEmailLogs()">Atualizar logs</button>
+            </div>
+            <div class="global-table-wrap"><table class="email-log-table"><thead><tr><th>Data</th><th>Destinatário</th><th>Template</th><th>Assunto</th><th>Status</th><th>Origem</th><th>Erro</th></tr></thead><tbody id="email-logs-body"><tr><td colspan="7">Carregando...</td></tr></tbody></table></div>
+          </div>
+        </div>
+      </div>
+    </div>
   </section>
 
   <section id="tab-configuracoes-globais" class="tab-panel">
@@ -449,6 +607,9 @@ function openTab(tab){
   document.querySelectorAll('.tab-panel').forEach(function(panel){panel.classList.toggle('active',panel.id==='tab-'+tab)});
   if(tab==='configuracoes-globais'){
     loadGlobalFinanceScreen();
+  }
+  if(tab==='emails-automaticos'){
+    loadEmailMaster();
   }
 }
 var _globalFinanceState = {
@@ -1290,6 +1451,359 @@ function saveGlobalConfig(){
   api('/api/master/global_config',{method:'POST',body:JSON.stringify(cfg)}).then(function(){toast('Config global salva')}).catch(function(e){toast(e.message)})
 }
 function loadLogs(){api('/api/master/logs').then(function(r){document.getElementById('logs').textContent=(r.logs||[]).join('\n')||'Sem logs'})}
+// ── E-mails automáticos do Master ───────────────────────────────────────────
+var _emailMasterState = {
+  loaded: false,
+  activeTab: 'smtp',
+  selectedTemplateKey: 'welcome_hotmart',
+  previewMode: 'desktop',
+  settings: {},
+  templates: []
+};
+var EMAIL_DEFAULT_SUPPORT = 'teajudo@bocafood.app';
+var _emailDefaults = {
+  settings: {
+    fromName: 'BocaFood',
+    fromEmail: 'no-reply@bocafood.com',
+    replyTo: EMAIL_DEFAULT_SUPPORT,
+    supportEmail: EMAIL_DEFAULT_SUPPORT,
+    appBaseUrl: 'https://app.bocafood.com',
+    brandName: 'BocaFood',
+    brandLogoUrl: 'https://bocafood.app/assets/boca-food-logo.png',
+    smtpHost: '',
+    smtpPort: 587,
+    smtpSecure: 'tls',
+    smtpUser: '',
+    smtpPasswordConfigured: false,
+    enabled: false,
+    provider: 'smtp'
+  },
+  templates: [
+    {key:'welcome_hotmart',name:'Boas-vindas após compra Hotmart',description:'Enviado quando uma compra Hotmart é aprovada ou uma assinatura fica ativa.',subject:'Bem-vinda ao {{productName}}, {{buyerName}}',preheader:'Seu acesso ao {{productName}} ja esta pronto.',body:'<p>Ola {{buyerName}},</p><p>Obrigada por comprar o {{productName}}. Seu plano {{planName}} esta pronto para comecar.</p><p>Clique no botao para criar seu acesso e entrar no BocaFood.</p>',ctaLabel:'Criar meu acesso',ctaUrl:'{{signupUrl}}',enabled:true,availableVariables:['buyerName','buyerEmail','signupUrl','supportEmail','planName','productName','appBaseUrl','brandName']},
+    {key:'password_reset',name:'Esqueci minha senha',description:'Base preparada para envio futuro de link gerado pelo Firebase Admin.',subject:'Redefina sua senha do {{brandName}}',preheader:'Use este link para criar uma nova senha.',body:'<p>Ola {{buyerName}},</p><p>Recebemos uma solicitacao para redefinir a senha da sua conta.</p><p>Se foi voce, use o botao abaixo. Se nao solicitou essa alteracao, ignore este e-mail.</p>',ctaLabel:'Redefinir senha',ctaUrl:'{{resetPasswordUrl}}',enabled:true,availableVariables:['buyerName','buyerEmail','resetPasswordUrl','supportEmail','appBaseUrl','brandName']},
+    {key:'verify_email',name:'Confirmação de e-mail',description:'Confirma o endereço de e-mail da conta BocaFood.',subject:'Confirme seu e-mail no {{brandName}}',preheader:'Falta apenas confirmar seu e-mail para continuar.',body:'<p>Ola {{buyerName}},</p><p>Confirme seu endereco de e-mail para proteger sua conta e receber avisos importantes.</p>',ctaLabel:'Confirmar e-mail',ctaUrl:'{{appBaseUrl}}',enabled:true,availableVariables:['buyerName','buyerEmail','supportEmail','appBaseUrl','brandName']},
+    {key:'subscription_active',name:'Assinatura ativada',description:'Confirma que a assinatura está ativa.',subject:'Sua assinatura esta ativa',preheader:'Voce ja pode usar o {{productName}} com o plano {{planName}}.',body:'<p>Ola {{buyerName}},</p><p>Sua assinatura do {{productName}} esta ativa. Voce ja pode entrar no painel e continuar configurando sua loja.</p>',ctaLabel:'Abrir BocaFood',ctaUrl:'{{appBaseUrl}}',enabled:true,availableVariables:['buyerName','buyerEmail','supportEmail','planName','productName','appBaseUrl','brandName']},
+    {key:'payment_pending',name:'Pagamento pendente',description:'Avisa que o pagamento ainda está pendente.',subject:'Seu pagamento esta pendente',preheader:'Avisaremos quando o pagamento for confirmado.',body:'<p>Ola {{buyerName}},</p><p>Seu pagamento do {{productName}} ainda esta pendente. Quando ele for confirmado, enviaremos as instrucoes de acesso.</p>',ctaLabel:'Ver status',ctaUrl:'{{appBaseUrl}}',enabled:true,availableVariables:['buyerName','buyerEmail','supportEmail','planName','productName','appBaseUrl','brandName']},
+    {key:'subscription_canceled',name:'Assinatura cancelada',description:'Avisa sobre cancelamento da assinatura.',subject:'Sua assinatura foi cancelada',preheader:'Seu acesso pode ficar limitado conforme o ciclo de cobranca.',body:'<p>Ola {{buyerName}},</p><p>Registramos o cancelamento da sua assinatura. Se foi um erro ou se voce precisa de ajuda, fale com o suporte.</p>',ctaLabel:'Falar com suporte',ctaUrl:'mailto:{{supportEmail}}',enabled:true,availableVariables:['buyerName','buyerEmail','supportEmail','planName','productName','appBaseUrl','brandName']},
+    {key:'test_email',name:'Teste de envio',description:'Usado pelo Master para validar a fila de e-mail.',subject:'Teste de e-mail do {{brandName}}',preheader:'Se voce recebeu esta mensagem, a fila de e-mails esta funcionando.',body:'<p>Ola {{buyerName}},</p><p>Este e um e-mail de teste enviado pelo Master do BocaFood.</p>',ctaLabel:'Abrir BocaFood',ctaUrl:'{{appBaseUrl}}',enabled:true,availableVariables:['buyerName','buyerEmail','supportEmail','appBaseUrl','brandName']}
+  ],
+  previewData: {
+    buyerName: 'Patrícia',
+    buyerEmail: 'cliente@email.com',
+    signupUrl: 'https://app.bocafood.com/cadastro',
+    supportEmail: EMAIL_DEFAULT_SUPPORT,
+    planName: 'Plano Essencial',
+    productName: 'BocaFood',
+    resetPasswordUrl: 'https://app.bocafood.com/redefinir-senha',
+    appBaseUrl: 'https://app.bocafood.com',
+    brandName: 'BocaFood',
+    brandLogoUrl: 'https://bocafood.app/assets/boca-food-logo.png'
+  }
+};
+function _emailDb(){ initFirebase(); return firebase.firestore(); }
+function _emailSettingsRef(){ return _emailDb().collection('system_email_settings').doc('default'); }
+function _emailTemplateRef(key){ return _emailDb().collection('system_email_templates').doc(key); }
+function _emailFunctionUrl(name){ return 'https://us-central1-bocado-brasil.cloudfunctions.net/' + name; }
+function _emailNow(){ return firebase.firestore.FieldValue.serverTimestamp(); }
+function _emailTemplateByKey(key){
+  return (_emailMasterState.templates || []).find(function(t){ return t.key === key; }) || _emailDefaults.templates[0];
+}
+function _emailReplace(text, vars){
+  return String(text || '').replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g,function(_,key){ return vars[key] != null ? String(vars[key]) : ''; });
+}
+function _emailCallFunction(name, payload){
+  return waitFirebaseUser().then(function(user){
+    if(!user)throw new Error('Entre com uma conta Master para executar esta ação.');
+    return user.getIdToken();
+  }).then(function(token){
+    return fetch(_emailFunctionUrl(name), {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body: JSON.stringify(payload || {})
+    }).then(function(r){
+      return r.json().catch(function(){return {};}).then(function(j){
+        if(!r.ok)throw new Error(j.error || r.statusText);
+        return j;
+      });
+    });
+  });
+}
+function _emailCallLocalMaster(path, payload){
+  return fetch(path, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(payload || {})
+  }).then(function(r){
+    return r.text().then(function(text){
+      var data = {};
+      if(text){
+        try{ data = JSON.parse(text); }catch(e){
+          data = { error: r.status === 404 ? 'endpoint inexistente' : text };
+        }
+      }
+      if(!r.ok){
+        var msg = data.error || data.message || r.statusText;
+        if(r.status === 404) msg = 'Endpoint inexistente: ' + path;
+        throw new Error(msg);
+      }
+      return data;
+    });
+  }).catch(function(e){
+    if(e && (e.name === 'TypeError' || e.message === 'Failed to fetch')){
+      throw new Error('Não foi possível chamar o servidor de teste SMTP. Verifique se o Master local está rodando e se a rota /api/master/email/test-smtp existe.');
+    }
+    throw e;
+  });
+}
+function switchEmailTab(tab){
+  _emailMasterState.activeTab = tab || 'smtp';
+  document.querySelectorAll('.email-tab-btn').forEach(function(btn){btn.classList.toggle('active',btn.dataset.emailTab===_emailMasterState.activeTab)});
+  document.querySelectorAll('.email-panel').forEach(function(panel){panel.classList.toggle('active',panel.id==='email-panel-'+_emailMasterState.activeTab)});
+  if(tab === 'preview') renderEmailPreview();
+  if(tab === 'logs') loadEmailLogs();
+}
+function _emailEnsureDefaults(){
+  return waitFirebaseUser().then(function(user){
+    if(!user)throw new Error('Entre com uma conta Master para carregar e-mails automáticos.');
+    return _emailSettingsRef().get();
+  }).then(function(snap){
+    var p = [];
+    if(!snap.exists){
+      p.push(_emailSettingsRef().set(Object.assign({}, _emailDefaults.settings, {updatedAt:_emailNow()}), {merge:true}));
+    } else {
+      var settings = snap.data() || {};
+      if(settings.replyTo === 'suporte@bocafood.com' || settings.supportEmail === 'suporte@bocafood.com'){
+        p.push(_emailSettingsRef().set({
+          replyTo: settings.replyTo === 'suporte@bocafood.com' ? EMAIL_DEFAULT_SUPPORT : settings.replyTo,
+          supportEmail: settings.supportEmail === 'suporte@bocafood.com' ? EMAIL_DEFAULT_SUPPORT : settings.supportEmail,
+          updatedAt: _emailNow()
+        }, {merge:true}));
+      }
+    }
+    _emailDefaults.templates.forEach(function(tpl){
+      p.push(_emailTemplateRef(tpl.key).get().then(function(tSnap){
+        if(!tSnap.exists){
+          return _emailTemplateRef(tpl.key).set(Object.assign({}, tpl, {createdAt:_emailNow(),updatedAt:_emailNow()}), {merge:true});
+        }
+        var current = tSnap.data() || {};
+        var text = [current.subject || '', current.preheader || '', current.body || current.html || ''].join(' ');
+        if(/Hola |Bienvenida|Restablece|suscripci|Prueba de e-mail|Tu pago|Confirma tu/i.test(text)){
+          return _emailTemplateRef(tpl.key).set(Object.assign({}, tpl, {createdAt:current.createdAt || _emailNow(),updatedAt:_emailNow()}), {merge:true});
+        }
+        return null;
+      }));
+    });
+    return Promise.all(p);
+  });
+}
+function loadEmailMaster(){
+  return _emailEnsureDefaults().then(function(){
+    return Promise.all([
+      _emailSettingsRef().get(),
+      _emailDb().collection('system_email_templates').orderBy('name').get()
+    ]);
+  }).then(function(results){
+    var settingsSnap = results[0];
+    var templateSnap = results[1];
+    _emailMasterState.settings = Object.assign({}, _emailDefaults.settings, settingsSnap.exists ? settingsSnap.data() : {});
+    _emailMasterState.templates = templateSnap.docs.map(function(doc){ return Object.assign({key:doc.id}, doc.data() || {}); });
+    if(!_emailTemplateByKey(_emailMasterState.selectedTemplateKey)) _emailMasterState.selectedTemplateKey = (_emailMasterState.templates[0] || {}).key || 'welcome_hotmart';
+    renderEmailSettings();
+    renderEmailTemplateList();
+    renderEmailEditor();
+    renderEmailPreview();
+    loadEmailLogs();
+    _emailMasterState.loaded = true;
+  }).catch(function(e){toast(e.message || 'Erro ao carregar e-mails automáticos')});
+}
+function renderEmailSettings(){
+  var s = _emailMasterState.settings || {};
+  setVal('email-from-name', s.fromName || '');
+  setVal('email-from-email', s.fromEmail || '');
+  setVal('email-reply-to', s.replyTo || '');
+  setVal('email-support-email', s.supportEmail || s.replyTo || '');
+  setVal('email-app-base-url', s.appBaseUrl || '');
+  setVal('email-brand-name', s.brandName || s.fromName || 'BocaFood');
+  setVal('email-smtp-host', s.smtpHost || '');
+  setVal('email-smtp-port', s.smtpPort || 587);
+  setVal('email-smtp-secure', s.smtpSecure || 'tls');
+  setVal('email-smtp-user', s.smtpUser || '');
+  setVal('email-smtp-password', '');
+  var enabled = s.enabled === true;
+  var enabledEl = document.getElementById('email-enabled');
+  if(enabledEl) enabledEl.checked = enabled;
+  var status = document.getElementById('email-smtp-status');
+  if(status){status.textContent = enabled ? 'Ativo' : 'Inativo'; status.className = 'email-status ' + (enabled ? 'on' : 'off');}
+  var note = document.getElementById('email-password-note');
+  if(note) note.textContent = s.smtpPasswordConfigured ? 'Senha configurada. Preencha o campo apenas para trocar a senha.' : 'Nenhuma senha SMTP configurada.';
+}
+function collectEmailSettings(){
+  return {
+    fromName: val('email-from-name'),
+    fromEmail: val('email-from-email'),
+    replyTo: val('email-reply-to'),
+    supportEmail: val('email-support-email') || val('email-reply-to'),
+    appBaseUrl: val('email-app-base-url'),
+    brandName: val('email-brand-name') || 'BocaFood',
+    smtpHost: val('email-smtp-host'),
+    smtpPort: Number(val('email-smtp-port') || 587),
+    smtpSecure: val('email-smtp-secure') || 'tls',
+    smtpUser: val('email-smtp-user'),
+    smtpPassword: val('email-smtp-password'),
+    smtpPasswordConfigured: !!((_emailMasterState.settings || {}).smtpPasswordConfigured || val('email-smtp-password')),
+    enabled: !!(document.getElementById('email-enabled') || {}).checked
+  };
+}
+function saveEmailSettings(){
+  var payload = collectEmailSettings();
+  if(!payload.fromName || !payload.fromEmail){toast('Informe remetente e e-mail do remetente');return;}
+  _emailCallFunction('saveEmailSettings', payload).then(function(r){
+    _emailMasterState.settings = Object.assign({}, _emailMasterState.settings || {}, r.settings || {});
+    renderEmailSettings();
+    toast('Configuração de e-mail salva');
+  }).catch(function(e){toast('Erro ao salvar SMTP: '+e.message)});
+}
+function testSmtpConnection(){
+  var payload = collectEmailSettings();
+  if(!payload.smtpHost || !payload.smtpPort){toast('Informe host e porta SMTP');return;}
+  toast('Testando conexão SMTP...');
+  _emailCallLocalMaster('/api/master/email/test-smtp', {
+    fromEmail: payload.fromEmail,
+    replyTo: payload.replyTo,
+    smtpHost: payload.smtpHost,
+    smtpPort: payload.smtpPort,
+    smtpSecure: payload.smtpSecure,
+    smtpUser: payload.smtpUser,
+    smtpPassword: payload.smtpPassword
+  }).then(function(r){
+    toast(r.message || 'Conexão SMTP validada');
+    loadEmailLogs();
+  }).catch(function(e){toast('Erro SMTP: '+e.message);loadEmailLogs();});
+}
+function renderEmailTemplateList(){
+  var box = document.getElementById('email-template-list');
+  if(!box)return;
+  box.innerHTML = (_emailMasterState.templates || []).map(function(tpl){
+    var active = tpl.key === _emailMasterState.selectedTemplateKey;
+    return '<button class="email-template-item'+(active?' active':'')+'" onclick="selectEmailTemplate(\''+esc(tpl.key)+'\')"><strong>'+esc(tpl.name || tpl.key)+'</strong><span>'+esc(tpl.description || '')+'</span><div style="margin-top:8px;">'+(tpl.enabled===false?'<span class="email-status off">Inativo</span>':'<span class="email-status on">Ativo</span>')+'</div></button>';
+  }).join('');
+}
+function selectEmailTemplate(key){
+  _emailMasterState.selectedTemplateKey = key;
+  renderEmailTemplateList();
+  renderEmailEditor();
+  renderEmailPreview();
+}
+function renderEmailEditor(){
+  var tpl = _emailTemplateByKey(_emailMasterState.selectedTemplateKey);
+  if(!tpl)return;
+  document.getElementById('email-editor-title').textContent = tpl.name || tpl.key;
+  document.getElementById('email-editor-desc').textContent = tpl.description || '';
+  setVal('email-template-name', tpl.name || '');
+  setVal('email-template-subject', tpl.subject || '');
+  setVal('email-template-preheader', tpl.preheader || '');
+  setVal('email-template-body', tpl.body || tpl.html || '');
+  setVal('email-template-cta-label', tpl.ctaLabel || '');
+  setVal('email-template-cta-url', tpl.ctaUrl || '');
+  document.getElementById('email-template-enabled').checked = tpl.enabled !== false;
+  var status = document.getElementById('email-template-status');
+  if(status){status.textContent = tpl.enabled === false ? 'Inativo' : 'Ativo'; status.className = 'email-status ' + (tpl.enabled === false ? 'off' : 'on');}
+  var vars = document.getElementById('email-template-vars');
+  vars.innerHTML = (tpl.availableVariables || []).map(function(v){return '<span class="email-var">{{'+esc(v)+'}}</span>';}).join('');
+}
+function collectEmailTemplate(){
+  var current = _emailTemplateByKey(_emailMasterState.selectedTemplateKey);
+  return Object.assign({}, current || {}, {
+    key: _emailMasterState.selectedTemplateKey,
+    name: val('email-template-name'),
+    subject: val('email-template-subject'),
+    preheader: val('email-template-preheader'),
+    body: document.getElementById('email-template-body').value || '',
+    html: document.getElementById('email-template-body').value || '',
+    ctaLabel: val('email-template-cta-label'),
+    ctaUrl: val('email-template-cta-url'),
+    enabled: !!document.getElementById('email-template-enabled').checked,
+    updatedAt: _emailNow()
+  });
+}
+function saveEmailTemplate(){
+  var tpl = collectEmailTemplate();
+  if(!tpl.key || !tpl.name || !tpl.subject){toast('Nome e assunto são obrigatórios');return;}
+  _emailTemplateRef(tpl.key).set(tpl, {merge:true}).then(function(){
+    toast('Template salvo');
+    return loadEmailMaster();
+  }).catch(function(e){toast('Erro ao salvar template: '+e.message)});
+}
+function _emailPreviewHtml(tpl){
+  var settings = Object.assign({}, _emailDefaults.settings, _emailMasterState.settings || {});
+  var vars = Object.assign({}, _emailDefaults.previewData, {
+    supportEmail: settings.supportEmail || settings.replyTo || _emailDefaults.previewData.supportEmail,
+    appBaseUrl: settings.appBaseUrl || _emailDefaults.previewData.appBaseUrl,
+    brandName: settings.brandName || settings.fromName || 'BocaFood',
+    brandLogoUrl: settings.brandLogoUrl || _emailDefaults.previewData.brandLogoUrl
+  });
+  var subject = _emailReplace(tpl.subject || tpl.name || 'BocaFood', vars);
+  var preheader = _emailReplace(tpl.preheader || '', vars);
+  var body = _emailReplace(tpl.body || tpl.html || '', vars);
+  var ctaLabel = _emailReplace(tpl.ctaLabel || '', vars);
+  var ctaUrl = _emailReplace(tpl.ctaUrl || '', vars);
+  var cta = ctaLabel && ctaUrl ? '<a href="'+esc(ctaUrl)+'" style="display:inline-block;background:#B42318;color:#fff;text-decoration:none;border-radius:14px;padding:14px 22px;font-size:14px;font-weight:700;line-height:1.2;min-width:190px;text-align:center;box-shadow:0 12px 24px rgba(180,35,24,.18);">'+esc(ctaLabel)+'</a>' : '';
+  return '<div style="max-width:580px;margin:0 auto;background:#fff;border-radius:24px;box-shadow:0 18px 46px rgba(31,31,31,.08);overflow:hidden;font-family:Arial,Helvetica,sans-serif;color:#1F1F1F;border:1px solid #F2EDED;">'+
+    '<div style="height:5px;background:#B42318;font-size:1px;line-height:1px;">&nbsp;</div>'+
+    '<div style="padding:26px 30px 10px;text-align:left;background:linear-gradient(135deg,#FFFFFF 0%,#FFF8F6 100%);"><img src="'+esc(vars.brandLogoUrl)+'" alt="'+esc(vars.brandName)+'" style="display:block;width:132px;max-width:46%;height:auto;border:0;"><div style="margin-top:20px;font-size:11px;line-height:1.3;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#B42318;">SaaS '+esc(vars.brandName)+'</div><div style="margin-top:8px;font-size:26px;line-height:1.16;font-weight:700;color:#1F1F1F;">'+esc(subject)+'</div><div style="margin-top:9px;font-size:14px;line-height:1.55;color:#6F6860;">'+esc(preheader)+'</div></div>'+
+    '<div style="padding:14px 30px 4px;background:#fff;"><div style="border:1px solid #E7DDD1;border-radius:20px;padding:20px;background:linear-gradient(135deg,#FFFFFF 0%,#FAF8F4 100%);font-size:15px;line-height:1.68;color:#3B3533;">'+body+'<div style="margin-top:24px;text-align:left;">'+cta+'</div></div></div>'+
+    '<div style="padding:16px 30px 0;background:#fff;"><div style="font-size:12px;line-height:1.5;color:#8A7E7C;background:#FFF8EC;border:1px solid #F5E3BC;border-radius:16px;padding:12px 14px;">Por seguranca, nunca compartilhe sua senha. O BocaFood nao solicita senhas por e-mail.</div></div>'+
+    '<div style="padding:20px 30px 30px;background:#fff;font-size:12px;line-height:1.5;color:#8A7E7C;">Precisa de ajuda? Escreva para <a href="mailto:'+esc(vars.supportEmail)+'" style="color:#B42318;text-decoration:none;font-weight:700;">'+esc(vars.supportEmail)+'</a>.<br>'+esc(vars.brandName)+'</div>'+
+  '</div>';
+}
+function renderEmailPreview(){
+  var frame = document.getElementById('email-preview-frame');
+  if(!frame)return;
+  var tpl = collectEmailTemplate();
+  frame.classList.toggle('mobile', _emailMasterState.previewMode === 'mobile');
+  frame.innerHTML = _emailPreviewHtml(tpl);
+}
+function previewEmailTemplate(){
+  renderEmailPreview();
+  switchEmailTab('preview');
+}
+function setEmailPreviewMode(mode){
+  _emailMasterState.previewMode = mode === 'mobile' ? 'mobile' : 'desktop';
+  renderEmailPreview();
+}
+function sendEmailTest(){
+  var email = prompt('Enviar teste para qual e-mail?');
+  if(!email)return;
+  var tpl = collectEmailTemplate();
+  _emailCallFunction('sendTestEmail', {
+    to: email,
+    templateKey: tpl.key,
+    variables: _emailDefaults.previewData
+  }).then(function(r){
+    toast(r.skipped ? ('Envio ignorado: '+(r.reason || 'sem envio')) : 'E-mail de teste enfileirado');
+    loadEmailLogs();
+  }).catch(function(e){toast('Erro ao enviar teste: '+e.message);loadEmailLogs();});
+}
+function _emailFormatDate(value){
+  if(!value)return '';
+  var d = value.toDate ? value.toDate() : new Date(value);
+  if(isNaN(d.getTime()))return '';
+  return d.toLocaleString('pt-BR');
+}
+function loadEmailLogs(){
+  var body = document.getElementById('email-logs-body');
+  if(!body)return Promise.resolve();
+  return waitFirebaseUser().then(function(user){
+    if(!user)throw new Error('Entre com uma conta Master para carregar logs.');
+    return _emailDb().collection('email_logs').orderBy('createdAt','desc').limit(30).get();
+  }).then(function(snap){
+    if(snap.empty){body.innerHTML='<tr><td colspan="7">Sem logs recentes.</td></tr>';return;}
+    body.innerHTML = snap.docs.map(function(doc){
+      var l = doc.data() || {};
+      return '<tr><td>'+esc(_emailFormatDate(l.createdAt))+'</td><td>'+esc(l.to || '')+'</td><td>'+esc(l.templateKey || '')+'</td><td>'+esc(l.subject || '')+'</td><td><span class="email-status '+(l.status === 'queued' || l.status === 'ok' ? 'on' : (l.status === 'error' ? 'off' : ''))+'">'+esc(l.status || '')+'</span></td><td>'+esc(l.origin || '')+'</td><td>'+esc(l.error || '')+'</td></tr>';
+    }).join('');
+  }).catch(function(e){body.innerHTML='<tr><td colspan="7">'+esc(e.message || 'Erro ao carregar logs')+'</td></tr>';});
+}
 function loadBackupConfig(){
   api('/api/master/backup/config').then(function(r){
     var cfg = r.config || {};

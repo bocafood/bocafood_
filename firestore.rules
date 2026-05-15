@@ -124,6 +124,32 @@ service cloud.firestore {
       allow write: if isMasterAdmin();
     }
 
+    match /system_email_settings/{docId} {
+      allow read, write: if isMasterAdmin();
+    }
+
+    match /system_email_templates/{templateKey} {
+      allow read, write: if isMasterAdmin();
+    }
+
+    match /email_logs/{docId} {
+      allow read: if isMasterAdmin();
+      allow write: if false;
+    }
+
+    match /mail/{docId} {
+      allow read, write: if false;
+    }
+
+    match /system_private_email_secrets/{docId} {
+      allow read, write: if false;
+    }
+
+    match /pending_hotmart_access/{docId} {
+      allow read: if isMasterAdmin();
+      allow write: if false;
+    }
+
     match /system/{document=**} {
       allow read, write: if false;
     }
