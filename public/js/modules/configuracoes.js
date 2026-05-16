@@ -9,9 +9,14 @@ Modules.Configuracoes = (function () {
   var _editingUnidadeId = null;
   var _fornecedores = [];
   var _editingFornecedorId = null;
+  var _systemTenant = {};
+  var _masterTenantControl = {};
+  var _publicationProducts = [];
+  var _publicationCategories = [];
 
   var TABS = [
     { key: 'geral', label: 'Geral' },
+    { key: 'conta_usuario', label: 'Conta / Usuária' },
     { key: 'tpv', label: 'TPV' },
     { key: 'dominio', label: 'Domínio / URL' },
     { key: 'integracoes', label: 'Integrações' },
@@ -19,7 +24,7 @@ Modules.Configuracoes = (function () {
     { key: 'canais_venda', label: 'Canais de venda' }
   ];
 
-  var CONFIG_TABS = ['geral', 'tpv', 'dominio', 'integracoes', 'pagamentos', 'endereco', 'seo', 'template', 'canais_venda'];
+  var CONFIG_TABS = ['geral', 'conta_usuario', 'tpv', 'dominio', 'integracoes', 'pagamentos', 'endereco', 'seo', 'template', 'canais_venda'];
 
   var DEFAULT_UNIDADES = [
     { name: 'Quilograma', symbol: 'kg', type: 'massa' },
@@ -44,8 +49,26 @@ Modules.Configuracoes = (function () {
     var el = document.getElementById('config-tabs');
     if (!el) return;
     el.innerHTML = TABS.map(function (t) {
-      return '<button class="' + (t.key === _activeSub ? 'active' : '') + '" onclick="Modules.Configuracoes._switchSub(\'' + t.key + '\')">' + t.label + '</button>';
+      return '<button type="button" class="config-tab-btn ' + (t.key === _activeSub ? 'active' : '') + '" onclick="Modules.Configuracoes._switchSub(\'' + t.key + '\')">' + t.label + '</button>';
     }).join('');
+  }
+
+  function _configVisualStyles() {
+    return '<style id="config-visual-style">' +
+      '.config-wrap{display:flex;flex-direction:column;gap:18px;max-width:1040px;margin:0 auto;width:100%;}' +
+      '.config-tabs{display:flex;gap:6px;align-items:center;overflow-x:auto;padding:4px 2px 8px;border-bottom:1px solid #EAE4DA;scrollbar-width:thin;}' +
+      '.config-tab-btn{appearance:none;-webkit-appearance:none;border:0;background:transparent;color:#6F6860;border-radius:999px;padding:9px 13px;font:800 13px/1.1 inherit;white-space:nowrap;cursor:pointer;position:relative;transition:background .16s ease,color .16s ease;}' +
+      '.config-tab-btn:hover{background:#FFF8F6;color:#B42318;}' +
+      '.config-tab-btn.active{background:#FFF0EE;color:#B42318;}' +
+      '.config-tab-btn.active:after{content:"";position:absolute;left:13px;right:13px;bottom:-9px;height:3px;border-radius:999px;background:#B42318;}' +
+      '.bf-field label,.bf-field>span,.bf-field-label{text-transform:uppercase;font-size:10px;font-weight:800;letter-spacing:.055em;color:#8A7E7C;}' +
+      '.bf-input,.bf-select,.bf-textarea{border-color:#D8C9C5;background:#fff;border-radius:10px;color:#2F2927;}' +
+      '.bf-input,.bf-select{min-height:42px;}' +
+      '.bf-select{appearance:none;-webkit-appearance:none;padding-right:38px;background-image:linear-gradient(45deg,transparent 50%,#8A7E7C 50%),linear-gradient(135deg,#8A7E7C 50%,transparent 50%);background-position:calc(100% - 18px) 18px,calc(100% - 13px) 18px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;}' +
+      '.bf-phone-row{display:grid;grid-template-columns:minmax(112px,132px) minmax(0,1fr);gap:8px;align-items:center;}' +
+      '.bf-phone-row .bf-select{min-width:0;padding-left:10px;padding-right:30px;}' +
+      '@media(max-width:640px){.config-tabs{padding-bottom:10px}.config-tab-btn{padding:8px 11px;font-size:12px}.bf-phone-row{grid-template-columns:minmax(96px,118px) minmax(0,1fr)}}' +
+    '</style>';
   }
 
   function _switchSub(key) {
@@ -54,20 +77,57 @@ Modules.Configuracoes = (function () {
     Router.navigate('configuracoes/' + key);
   }
 
+  function _recordActivity(input) {
+    if (!window.Auth || !Auth.recordSystemAccessLog) return Promise.resolve(false);
+    return Auth.recordSystemAccessLog(input || {}).catch(function () { return false; });
+  }
+
   function _load() {
-    return Promise.all(CONFIG_TABS.map(function (k) { return DB.getDocRoot('config', k); }))
+    var tenantPromise = _loadSystemTenant().catch(function () { return {}; });
+    var masterTenantPromise = _loadMasterTenantControl().catch(function () { return {}; });
+    return Promise.all(CONFIG_TABS.map(function (k) { return DB.getDocRoot('config', k); }).concat([tenantPromise, masterTenantPromise]))
       .then(function (docs) {
         _config = {};
         CONFIG_TABS.forEach(function (k, i) { _config[k] = docs[i] || {}; });
+        _systemTenant = docs[CONFIG_TABS.length] || {};
+        _masterTenantControl = docs[CONFIG_TABS.length + 1] || _systemTenant || {};
       })
       .catch(function (err) {
         console.error('Config load error', err);
         _config = {};
+        _systemTenant = {};
+        _masterTenantControl = {};
       });
+  }
+
+  function _loadSystemTenant() {
+    var tenantId = window.Auth && Auth.getTenantId ? Auth.getTenantId() : '';
+    if (!tenantId || !window.firebase || !firebase.firestore) return Promise.resolve({});
+    console.info('[Configuracoes] lendo tenant Master', { tenantUid: tenantId, path: 'system_tenants/' + tenantId });
+    return firebase.firestore().collection('system_tenants').doc(tenantId).get().then(function (snap) {
+      if (!snap.exists) return {};
+      return Object.assign({}, snap.data() || {}, { id: snap.id });
+    });
+  }
+
+  function _loadMasterTenantControl() {
+    var tenantId = window.Auth && Auth.getTenantId ? Auth.getTenantId() : '';
+    var masterTenantId = window.Auth && Auth.getMasterTenantId ? Auth.getMasterTenantId() : tenantId;
+    if (!masterTenantId || !window.firebase || !firebase.firestore) return Promise.resolve({});
+    var refreshPromise = window.Auth && Auth.refreshMasterTenantControl ? Auth.refreshMasterTenantControl() : Promise.resolve(null);
+    return refreshPromise.then(function () {
+      if (masterTenantId === tenantId) return _loadSystemTenant();
+      console.info('[Configuracoes] lendo tenant de controle Master', { tenantUid: masterTenantId, path: 'system_tenants/' + masterTenantId });
+      return firebase.firestore().collection('system_tenants').doc(masterTenantId).get().then(function (snap) {
+        if (!snap.exists) return {};
+        return Object.assign({}, snap.data() || {}, { id: snap.id });
+      });
+    });
   }
 
   function _renderSub() {
     if (_activeSub === 'geral') return _renderGeral();
+    if (_activeSub === 'conta_usuario') return _renderContaUsuario();
     if (_activeSub === 'produtos') { _activeSub = 'geral'; return _renderGeral(); }
     if (_activeSub === 'tpv') return _renderTpv();
     if (_activeSub === 'dominio') return _renderDominio();
@@ -152,7 +212,10 @@ Modules.Configuracoes = (function () {
   function _renderGeral() {
     var c = _config.geral || {};
     var profile = window.Auth && Auth.getAdminProfile ? Auth.getAdminProfile() : null;
-    var fc = (profile && profile.fiscalCountry) || 'ES';
+    var companyAddress = c.companyAddress || c.businessAddress || {};
+    var masterFiscalCountry = (_masterTenantControl && (_masterTenantControl.fiscalCountry || (_masterTenantControl.accountAddress && _masterTenantControl.accountAddress.fiscalCountry) || (_masterTenantControl.store && _masterTenantControl.store.fiscalCountry))) || '';
+    var tenantFiscalCountry = (_systemTenant && (_systemTenant.fiscalCountry || (_systemTenant.accountAddress && _systemTenant.accountAddress.fiscalCountry) || (_systemTenant.store && _systemTenant.store.fiscalCountry))) || '';
+    var fc = _fiscalCountryCode(masterFiscalCountry || tenantFiscalCountry || (profile && profile.fiscalCountry) || 'ES');
     var fiscalCfg = window.FiscalConfig ? FiscalConfig.get(fc) : null;
     var fiscalLabel = fiscalCfg ? fiscalCfg.label : (fc === 'PT' ? 'Portugal' : 'Espanha');
     var fiscalNote = fiscalCfg && !fiscalCfg.fiscalModuleEnabled ? 'Modulo fiscal desativado' : 'Modulo fiscal ativo';
@@ -163,7 +226,7 @@ Modules.Configuracoes = (function () {
     var addressLabel = fiscalCfg ? fiscalCfg.addressLabel : 'Endereço';
     var cityLabel = fiscalCfg ? fiscalCfg.cityLabel : 'Cidade';
     var postalLabel = fiscalCfg ? fiscalCfg.postalCodeLabel : 'Código postal';
-    var companyAddress = c.companyAddress || c.businessAddress || {};
+    var addressCountry = companyAddress.country || c.companyCountry || c.country || '';
     var avatarUrl = c.avatarUrl || c.storeAvatarUrl || c.accountAvatarUrl || '';
     var content = document.getElementById('config-content');
     if (!content) return;
@@ -275,7 +338,8 @@ Modules.Configuracoes = (function () {
           _configInput('cfg-company-city', cityLabel, companyAddress.city || c.companyCity || c.businessCity || c.city || '', cityLabel) +
           _configInput('cfg-company-region', regionLabel, companyAddress.region || companyAddress.state || c.companyRegion || c.companyState || '', regionLabel) +
           _configInput('cfg-company-postal', postalLabel, companyAddress.postalCode || c.companyPostalCode || '', postalLabel) +
-          _configInput('cfg-company-country', 'País fiscal da empresa', companyAddress.country || c.companyCountry || c.country || fiscalLabel, fiscalLabel) +
+          '<div class="bf-field"><label>País</label><input id="cfg-company-country" class="bf-input" value="' + _esc(addressCountry) + '" readonly placeholder="Gerado pelo endereço"><div style="font-size:11px;color:#8A7E7C;line-height:1.4;margin-top:5px;">Preenchido automaticamente pelo Google Places a partir do endereço fiscal.</div></div>' +
+          '<div class="bf-field"><label>País fiscal</label><input id="cfg-company-fiscal-country" class="bf-input" value="' + _esc(fiscalLabel + ' (' + fc + ')') + '" readonly data-fiscal-country="' + _esc(fc) + '"><div style="font-size:11px;color:#8A7E7C;line-height:1.4;margin-top:5px;">Definido no Master. Esse campo libera ou bloqueia módulos fiscais no Admin; Portugal não exibe o módulo Fiscal, Espanha exibe.</div></div>' +
         '</div>' +
         '<div class="bf-panel" style="display:flex;align-items:flex-start;gap:10px;padding:13px 14px;color:#6F6860;font-size:13px;line-height:1.45;">' +
           '<span class="mi" style="font-size:18px;color:#B45309;line-height:1.35;">travel_explore</span>' +
@@ -373,16 +437,106 @@ Modules.Configuracoes = (function () {
     setTimeout(function () { if (window.BocaPlaces) BocaPlaces.init('cfg-company-address'); }, 100);
   }
 
+  function _renderContaUsuario() {
+    var content = document.getElementById('config-content');
+    var geral = _config.geral || {};
+    var conta = _config.conta_usuario || {};
+    var tenant = _systemTenant || {};
+    var accountAddress = tenant.accountAddress || conta.accountAddress || {};
+    var user = window.Auth && Auth.getUser ? Auth.getUser() : null;
+    var profile = window.Auth && Auth.getAdminProfile ? (Auth.getAdminProfile() || {}) : {};
+    var fiscalCountry = _fiscalCountryCode((window.Auth && Auth.getFiscalCountry ? Auth.getFiscalCountry() : '') || tenant.fiscalCountry || accountAddress.fiscalCountry || 'ES');
+    var whatsapp = _splitPhoneForForm(tenant.whatsappFull || tenant.whatsapp || conta.whatsappFull || conta.whatsapp || '', tenant.whatsappCountryCode || conta.whatsappCountryCode || _defaultPhoneCode(fiscalCountry));
+    var emailValue = (user && user.email) || tenant.email || conta.email || geral.email || '';
+    var roleValue = tenant.role || conta.role || profile.role || '';
+
+    content.innerHTML =
+      _configVisualStyles() +
+      '<div class="config-wrap">' +
+        '<div id="config-tabs" class="config-tabs"></div>' +
+        '<div class="settings-card-head" style="margin-top:12px;">' +
+          '<div><h2>Conta / Usuária</h2><p>Dados da dona da conta usados para suporte, cobrança, cadastro e regras fiscais.</p></div>' +
+        '</div>' +
+        '<section class="bf-card bf-section">' +
+          '<div class="bf-section-header">' +
+            '<div><h3 class="bf-section-title">Dados da usuária / responsável</h3><p class="bf-section-subtitle">Informações administrativas da conta BocaFood. O e-mail da conta vem do login quando disponível.</p></div>' +
+          '</div>' +
+          '<div class="bf-form-grid">' +
+            _configInput('cfg-account-owner-name', 'Nome completo da usuária', tenant.ownerName || conta.ownerName || geral.ownerName || geral.legalRepresentative || geral.tradeName || '', 'Nome completo') +
+            '<div class="bf-field"><label>E-mail da conta</label><input id="cfg-account-email" class="bf-input" type="email" value="' + _esc(emailValue) + '" readonly placeholder="E-mail do login"><div style="font-size:11px;color:#8A7E7C;line-height:1.4;margin-top:5px;">Somente leitura quando vier do Firebase Auth.</div></div>' +
+            _phoneInput('cfg-account-whatsapp-country', 'cfg-account-whatsapp', 'WhatsApp da usuária', whatsapp.countryCode, whatsapp.number, '600 000 000') +
+            _configSelect('cfg-account-language', 'Idioma da conta', tenant.language || conta.language || geral.language || geral.defaultLanguage || 'es-ES', _languageOptions()) +
+            '<div class="bf-field"><label>Papel</label><input id="cfg-account-role" class="bf-input" value="' + _esc(_roleDisplay(roleValue)) + '" readonly placeholder="Não configurado"><div style="font-size:11px;color:#8A7E7C;line-height:1.4;margin-top:5px;">Definido no Master para este acesso.</div></div>' +
+          '</div>' +
+        '</section>' +
+        '<section class="bf-card bf-actions-row" style="padding:14px 16px;position:sticky;bottom:0;z-index:2;">' +
+          '<div style="font-size:13px;color:#6F6860;line-height:1.45;">Esses dados são sincronizados para o Master em <code>system_tenants/{uid}</code>.</div>' +
+          '<button id="account-save" class="bf-btn bf-btn-primary">Salvar Conta / Usuária</button>' +
+        '</section>' +
+      '</div>';
+    _renderTabs();
+    document.getElementById('account-save').onclick = _saveContaUsuario;
+  }
+
+  function _saveContaUsuario() {
+    var tenantId = window.Auth && Auth.getTenantId ? Auth.getTenantId() : '';
+    if (!tenantId || !window.firebase || !firebase.firestore) {
+      UI.toast('Não foi possível identificar a conta atual.', 'error');
+      return;
+    }
+    var now = new Date().toISOString();
+    var whatsappCode = _val('cfg-account-whatsapp-country');
+    var whatsappNumber = _cleanPhoneNumber(_val('cfg-account-whatsapp'));
+    var patch = {
+      ownerName: _val('cfg-account-owner-name'),
+      whatsappCountryCode: whatsappCode,
+      whatsappNumber: whatsappNumber,
+      whatsappFull: _phoneFull(whatsappCode, whatsappNumber),
+      language: _val('cfg-account-language'),
+      updatedAt: now
+    };
+    var compatibility = Object.assign({}, _config.conta_usuario || {}, patch, {
+      whatsapp: patch.whatsappFull,
+      email: _val('cfg-account-email')
+    });
+    console.info('[Configuracoes] salvando Conta/Usuária', {
+      tenantUid: tenantId,
+      path: 'system_tenants/' + tenantId,
+      fields: Object.keys(patch)
+    });
+    Promise.all([
+      firebase.firestore().collection('system_tenants').doc(tenantId).set(patch, { merge: true }),
+      DB.setDocRoot('config', 'conta_usuario', _cleanFirestorePayload(compatibility))
+    ]).then(function () {
+      _systemTenant = Object.assign({}, _systemTenant || {}, patch);
+      _config.conta_usuario = compatibility;
+      return _recordActivity({
+        action: 'account_settings_updated',
+        module: 'configuracoes/conta_usuario',
+        entityType: 'tenant',
+        entityId: tenantId,
+        summary: 'Dados da conta atualizados.',
+        severity: 'info',
+        metadata: { fields: Object.keys(patch).filter(function (key) { return key !== 'updatedAt'; }).join(',') }
+      });
+    }).then(function () {
+      UI.toast('Dados da conta salvos.', 'success');
+    }).catch(function (err) {
+      UI.toast('Erro ao salvar dados da conta: ' + (err && err.message ? err.message : err), 'error');
+    });
+  }
+
   function _renderPlano() {
     var profile = window.Auth && Auth.getAdminProfile ? (Auth.getAdminProfile() || {}) : {};
-    var plan = profile.plan || 'starter';
+    var plan = profile.plan || 'essencial';
+    if (plan === 'starter') plan = 'essencial';
     var status = profile.status || 'active';
     var features = Array.isArray(profile.features) ? profile.features : (Array.isArray(profile.planFeatures) ? profile.planFeatures : []);
     var limits = profile.planLimits || profile.limits || {};
     var billing = profile.billing || {};
     var renewalDate = profile.renewalDate || profile.nextBillingAt || billing.renewalDate || billing.nextBillingAt || '';
     var trialEndsAt = profile.trialEndsAt || billing.trialEndsAt || '';
-    var cycle = profile.billingCycle || billing.cycle || '';
+    var cycle = profile.billingCycle || billing.billingCycle || billing.cycle || '';
     var billingStatus = profile.billingStatus || billing.status || '';
     var content = document.getElementById('config-content');
     var featureRows = features.length ? features.map(function (item) {
@@ -740,6 +894,7 @@ Modules.Configuracoes = (function () {
         _domainStatusCard('Domínio principal', domainReady ? _cleanDomain(rootDomain || c.customDomain) : 'Pendente', domainReady ? 'Configurado internamente.' : 'Será definido pelo sistema.', domainReady ? '#1F6F43' : '#B45309', domainReady ? 'verified' : 'schedule') +
         _domainStatusCard('Links públicos', suggestedSlug ? 'Gerados' : 'Aguardando', suggestedSlug ? 'Prontos para copiar.' : 'Dependem do subdomínio.', suggestedSlug ? '#6C8777' : '#B45309', 'link') +
       '</section>' +
+      '<section id="store-publication-card" style="' + _configCardStyle() + '">' + _publicationCardHtml(urls, _publicationState(urls)) + '</section>' +
       '<section style="' + _configCardStyle() + 'display:flex;gap:12px;align-items:flex-start;">' +
         '<div style="width:38px;height:38px;border-radius:12px;background:#FAF8F4;color:#B45309;display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span class="mi" style="font-size:22px;">info</span></div>' +
         '<div style="min-width:0;"><div style="font-size:14px;font-weight:700;color:#1F1F1F;margin-bottom:3px;">Preparado para o domínio principal</div><div style="font-size:13px;color:#6F6860;line-height:1.45;">A usuária define apenas o nome da loja. O domínio principal será configurado internamente pelo sistema e aplicado automaticamente às URLs.</div></div>' +
@@ -755,7 +910,7 @@ Modules.Configuracoes = (function () {
       var root = _cleanDomain(rootDomain);
       var custom = _cleanDomain(c.customDomain);
       var generated = _domainUrls(slug, root, { customDomain: custom });
-      _save('dominio', {
+      var dominioData = {
         storeSlug: slug,
         slug: slug,
         subdomain: slug,
@@ -770,8 +925,261 @@ Modules.Configuracoes = (function () {
         trackUrl: generated.trackUrl,
         reviewUrl: generated.reviewUrl,
         apiUrl: generated.apiUrl
+      };
+      DB.setDocRoot('config', 'dominio', dominioData).then(function () {
+        _config.dominio = dominioData;
+        return _syncStoreSlugUrl(slug, generated);
+      }).then(function () {
+        UI.toast('Domínio e URL salvos', 'success');
+        _renderDominio();
+      }).catch(function (err) {
+        UI.toast('Erro: ' + err.message, 'error');
       });
     };
+    _refreshPublicationReadiness(urls);
+  }
+
+  function _syncStoreSlugUrl(slug, urls) {
+    var tenantId = window.Auth && Auth.getTenantId ? Auth.getTenantId() : '';
+    if (!tenantId || !window.firebase || !firebase.firestore) return Promise.reject(new Error('Tenant não identificado.'));
+    var now = new Date().toISOString();
+    var currentStore = ((_systemTenant && _systemTenant.store) || {});
+    var nextStore = Object.assign({}, currentStore, {
+      slug: slug,
+      publicUrl: urls.publicUrl,
+      status: currentStore.status || 'draft',
+      updatedAt: now
+    });
+    console.info('[Configuracoes] salvando Domínio/URL', {
+      tenantUid: tenantId,
+      path: 'system_tenants/' + tenantId + '.store',
+      slug: slug,
+      publicUrl: urls.publicUrl
+    });
+    return firebase.firestore().collection('system_tenants').doc(tenantId).set({ store: nextStore, updatedAt: now }, { merge: true }).then(function () {
+      _systemTenant = Object.assign({}, _systemTenant || {}, { store: nextStore, updatedAt: now });
+      if ((currentStore.slug || '') !== slug) {
+        return _recordActivity({
+          action: 'store_slug_updated',
+          module: 'configuracoes/dominio',
+          entityType: 'store',
+          entityId: tenantId,
+          summary: 'Slug público da loja alterado.',
+          severity: 'info',
+          metadata: { from: currentStore.slug || '', to: slug, publicUrl: urls.publicUrl || '' }
+        });
+      }
+    });
+  }
+
+  function _refreshPublicationReadiness(urls) {
+    Promise.all([
+      DB.getAll('products').catch(function () { return []; }),
+      DB.getAll('categories').catch(function () { return []; }),
+      _loadSystemTenant().catch(function () { return {}; })
+    ]).then(function (res) {
+      _publicationProducts = res[0] || [];
+      _publicationCategories = res[1] || [];
+      _systemTenant = res[2] || _systemTenant || {};
+      var card = document.getElementById('store-publication-card');
+      if (card) card.innerHTML = _publicationCardHtml(urls, _publicationState(urls));
+    });
+  }
+
+  function _publicationState(urls) {
+    var geral = _config.geral || {};
+    var dominio = _config.dominio || {};
+    var integracoes = _config.integracoes || {};
+    var endereco = _config.endereco || {};
+    var canais = _config.canais_venda || {};
+    var tenantStore = (_systemTenant && _systemTenant.store) || {};
+    var slug = _slugify((document.getElementById('cfg-store-slug') || {}).value || dominio.storeSlug || dominio.slug || dominio.subdomain || tenantStore.slug || '');
+    var storeName = geral.businessName || geral.tradeName || geral.visualName || tenantStore.name || '';
+    var language = geral.language || geral.defaultLanguage || tenantStore.language || '';
+    var country = geral.country || endereco.country || tenantStore.country || '';
+    var whatsapp = integracoes.whatsapp || geral.whatsapp || geral.phone || '';
+    var hasOrderChannel = _hasOrderChannel(canais);
+    var activeCategories = (_publicationCategories || []).filter(_isActiveCatalogItem);
+    var activeProducts = (_publicationProducts || []).filter(_isActiveProduct);
+    var missing = [];
+    if (!storeName) missing.push('nome da loja');
+    if (!slug) missing.push('slug público');
+    if (!language) missing.push('idioma da loja');
+    if (!country) missing.push('país da loja');
+    if (!whatsapp && !hasOrderChannel) missing.push('WhatsApp de pedidos ou canal de pedido');
+    if (!activeCategories.length) missing.push('pelo menos 1 categoria ativa');
+    if (!activeProducts.length) missing.push('pelo menos 1 produto ativo');
+    var coreReady = !!(storeName && slug && language && country);
+    return {
+      slug: slug,
+      storeName: storeName,
+      language: language,
+      country: country,
+      whatsapp: whatsapp,
+      hasOrderChannel: hasOrderChannel,
+      publicUrl: urls.publicUrl,
+      status: tenantStore.status || (coreReady ? 'ready' : 'draft'),
+      publishedAt: tenantStore.publishedAt || '',
+      lastPublishedAt: tenantStore.lastPublishedAt || '',
+      unpublishedAt: tenantStore.unpublishedAt || '',
+      lastPublicationError: tenantStore.lastPublicationError || '',
+      missing: missing,
+      coreReady: coreReady,
+      suspended: tenantStore.status === 'suspended'
+    };
+  }
+
+  function _isActiveCatalogItem(item) {
+    if (!item) return false;
+    var status = String(item.status || item.state || '').toLowerCase();
+    return item.active !== false && item.enabled !== false && item.ativo !== false && item.hidden !== true && item.menuVisible !== false && !/inactive|inativo|disabled|ocult|hidden|archived|arquiv/.test(status);
+  }
+
+  function _isActiveProduct(item) {
+    return _isActiveCatalogItem(item) && !!(item.name || item.nome || item.title);
+  }
+
+  function _hasOrderChannel(config) {
+    var list = Array.isArray(config.list) ? config.list : [];
+    return list.some(function (channel) {
+      if (!channel) return false;
+      var name = _normChannelName(channel.name || channel.label || channel.key || '');
+      return channel.active !== false && channel.enabled !== false && (name === 'cardápio' || name === 'cardapio' || name === 'online' || name === 'loja online' || name === 'delivery');
+    });
+  }
+
+  function _publicationCardHtml(urls, state) {
+    state = state || {};
+    var status = state.status || 'draft';
+    var statusMeta = _publicationStatusMeta(status);
+    var missingHtml = state.missing && state.missing.length
+      ? '<div style="margin-top:12px;padding:12px 14px;border:1px dashed #F0C9C0;border-radius:12px;background:#FFF8F6;color:#7A352B;font-size:13px;line-height:1.45;"><strong>Antes de publicar sua loja, complete:</strong> ' + _esc(state.missing.join(', ')) + '.</div>'
+      : '<div style="margin-top:12px;padding:12px 14px;border:1px solid #D9F2E3;border-radius:12px;background:#F0FFF4;color:#1F6F43;font-size:13px;line-height:1.45;">Requisitos mínimos completos para publicação.</div>';
+    var suspended = status === 'suspended';
+    var publishDisabled = suspended ? ' disabled' : '';
+    return '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:14px;">' +
+        '<div style="min-width:0;"><div style="font-size:15px;font-weight:800;color:#1F1F1F;">Publicação da loja</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:3px;">Controle quando sua loja pública fica disponível para clientes.</div></div>' +
+        '<span style="display:inline-flex;align-items:center;min-height:28px;padding:0 11px;border-radius:999px;background:' + statusMeta.bg + ';border:1px solid ' + statusMeta.border + ';color:' + statusMeta.color + ';font-size:12px;font-weight:800;">' + _esc(statusMeta.label) + '</span>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">' +
+        _domainStatusCard('URL pública calculada', state.publicUrl || urls.publicUrl, 'Link usado na loja publicada.', '#6C8777', 'link') +
+        _domainStatusCard('Status atual', statusMeta.label, statusMeta.hint, statusMeta.color, statusMeta.icon) +
+        _domainStatusCard('Última publicação', _formatPlanDate(state.lastPublishedAt || state.publishedAt), 'Data registrada em system_tenants.', state.lastPublishedAt || state.publishedAt ? '#2F6B57' : '#9A6A2F', 'event_available') +
+      '</div>' +
+      (state.lastPublicationError ? '<div style="margin-top:12px;padding:12px 14px;border:1px solid #F0C9C0;border-radius:12px;background:#FFF8F6;color:#7A352B;font-size:13px;line-height:1.45;"><strong>Erro da última publicação:</strong> ' + _esc(state.lastPublicationError) + '</div>' : '') +
+      (suspended ? '<div style="margin-top:12px;padding:12px 14px;border:1px solid #F0C9C0;border-radius:12px;background:#FFF8F6;color:#7A352B;font-size:13px;line-height:1.45;">Sua loja está suspensa. Entre em contato com o suporte BocaFood.</div>' : missingHtml) +
+      '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;">' +
+        '<button type="button" class="bf-btn bf-btn-primary" onclick="Modules.Configuracoes._publishStore()" ' + publishDisabled + '>Publicar loja</button>' +
+        (status === 'published' ? '<button type="button" class="bf-btn bf-btn-secondary" onclick="Modules.Configuracoes._unpublishStore()">Despublicar loja</button>' : '') +
+      '</div>';
+  }
+
+  function _publicationStatusMeta(status) {
+    var map = {
+      draft: { label: 'Rascunho', hint: 'Ainda faltam dados para publicar.', color: '#B45309', bg: '#FFF7ED', border: '#F3D9C7', icon: 'edit_note' },
+      ready: { label: 'Pronta para publicar', hint: 'Requisitos principais preenchidos.', color: '#1F6F43', bg: '#F0FFF4', border: '#D9F2E3', icon: 'check_circle' },
+      published: { label: 'Publicada', hint: 'Loja disponível publicamente.', color: '#1F6F43', bg: '#F0FFF4', border: '#D9F2E3', icon: 'public' },
+      unpublished: { label: 'Não publicada', hint: 'Dados salvos, loja fora do ar.', color: '#6F6860', bg: '#FAF8F4', border: '#EAE4DA', icon: 'visibility_off' },
+      suspended: { label: 'Suspensa', hint: 'Publicação bloqueada pelo Master.', color: '#B42318', bg: '#FFF8F6', border: '#F0C9C0', icon: 'block' },
+      publication_error: { label: 'Erro de publicação', hint: 'Revise a última falha registrada.', color: '#B42318', bg: '#FFF8F6', border: '#F0C9C0', icon: 'error' }
+    };
+    return map[status] || map.draft;
+  }
+
+  function _publishStore() {
+    var c = _config.dominio || {};
+    var root = _cleanDomain(c.rootDomain || c.mainDomain || c.platformDomain || '');
+    var custom = _cleanDomain(c.customDomain);
+    var slug = _slugify(_val('cfg-store-slug') || c.storeSlug || c.slug || c.subdomain || '');
+    var urls = _domainUrls(slug, root, { customDomain: custom });
+    var state = _publicationState(urls);
+    if (state.suspended) {
+      UI.toast('Sua loja está suspensa. Entre em contato com o suporte BocaFood.', 'error');
+      return;
+    }
+    if (state.missing.length) {
+      var nextStatus = state.coreReady ? 'ready' : 'draft';
+      _updateStorePublication(nextStatus, urls, { lastPublicationError: 'Faltam requisitos: ' + state.missing.join(', ') }, 'store_publication_failed')
+        .then(function () {
+          UI.toast('Antes de publicar sua loja, complete: ' + state.missing.join(', ') + '.', 'error');
+          _refreshPublicationReadiness(urls);
+        })
+        .catch(function (err) { UI.toast('Erro ao validar publicação: ' + err.message, 'error'); });
+      return;
+    }
+    DB.setDocRoot('config', 'dominio', {
+      storeSlug: slug,
+      slug: slug,
+      subdomain: slug,
+      rootDomain: root,
+      mainDomain: root,
+      platformDomain: root,
+      customDomain: custom,
+      publicUrl: urls.publicUrl,
+      siteUrl: urls.publicUrl,
+      loginUrl: urls.loginUrl,
+      orderUrl: urls.orderUrl,
+      trackUrl: urls.trackUrl,
+      reviewUrl: urls.reviewUrl,
+      apiUrl: urls.apiUrl
+    }).then(function () {
+      return _updateStorePublication('published', urls, { publishedAt: new Date().toISOString(), lastPublishedAt: new Date().toISOString(), lastPublicationError: '' }, 'store_published');
+    }).then(function () {
+      UI.toast('Loja publicada com sucesso.', 'success');
+      return _load();
+    }).then(function () {
+      _renderDominio();
+    }).catch(function (err) {
+      UI.toast('Erro ao publicar loja: ' + err.message, 'error');
+    });
+  }
+
+  function _unpublishStore() {
+    UI.confirm('Despublicar esta loja? Seus dados continuarão salvos.').then(function (yes) {
+      if (!yes) return;
+      var c = _config.dominio || {};
+      var slug = _slugify(_val('cfg-store-slug') || c.storeSlug || c.slug || c.subdomain || '');
+      var urls = _domainUrls(slug, c.rootDomain || c.mainDomain || c.platformDomain || '', c);
+      _updateStorePublication('unpublished', urls, { unpublishedAt: new Date().toISOString() }, 'store_unpublished')
+        .then(function () {
+          UI.toast('Sua loja foi despublicada. Seus dados continuam salvos.', 'success');
+          return _load();
+        })
+        .then(function () { _renderDominio(); })
+        .catch(function (err) { UI.toast('Erro ao despublicar loja: ' + err.message, 'error'); });
+    });
+  }
+
+  function _updateStorePublication(status, urls, extraStore, action) {
+    var tenantId = window.Auth && Auth.getTenantId ? Auth.getTenantId() : '';
+    if (!tenantId || !window.firebase || !firebase.firestore) return Promise.reject(new Error('Tenant não identificado.'));
+    var now = new Date().toISOString();
+    var geral = _config.geral || {};
+    var endereco = _config.endereco || {};
+    var store = Object.assign({}, ((_systemTenant && _systemTenant.store) || {}), {
+      name: geral.businessName || geral.tradeName || ((_systemTenant.store || {}).name) || '',
+      slug: urls && urls.publicUrl ? _slugify(_val('cfg-store-slug') || ((_config.dominio || {}).slug)) : ((_systemTenant.store || {}).slug || ''),
+      publicUrl: urls.publicUrl,
+      country: geral.country || endereco.country || ((_systemTenant.store || {}).country) || '',
+      language: geral.language || geral.defaultLanguage || ((_systemTenant.store || {}).language) || '',
+      status: status
+    }, extraStore || {});
+    return firebase.firestore().collection('system_tenants').doc(tenantId).set({ store: store, updatedAt: now }, { merge: true }).then(function () {
+      _systemTenant.store = store;
+      return _recordActivity({
+        action: action,
+        module: 'configuracoes/dominio',
+        entityType: 'store',
+        entityId: tenantId,
+        summary: action === 'store_publication_failed' ? 'Erro ao publicar loja.' : (action === 'store_unpublished' ? 'Loja despublicada.' : 'Loja publicada.'),
+        severity: action === 'store_publication_failed' ? 'warning' : 'info',
+        metadata: {
+          status: status,
+          publicUrl: store.publicUrl || '',
+          lastPublicationError: store.lastPublicationError || ''
+        }
+      });
+    });
   }
 
   function _renderPagamentos() {
@@ -925,6 +1333,8 @@ Modules.Configuracoes = (function () {
 
   function _renderTemplate() {
     var c = _config.template || {};
+    var deliveryArea = c.deliveryArea || {};
+    var zone1 = (Array.isArray(c.deliveryZones) && c.deliveryZones[0]) || {};
     _paint('Template da loja', 'Campos diretos esperados pelo template público index.html.', [
       _check('cfg-tpl-closed', 'Loja fechada manualmente', !!c.manualClosed),
       _field('cfg-tpl-prep', 'Tempo de preparo (min)', c.prepTime || 45, '45', 'number'),
@@ -932,6 +1342,14 @@ Modules.Configuracoes = (function () {
       _field('cfg-tpl-pickup-address', 'pickupAddress', c.pickupAddress, 'Rua...'),
       _field('cfg-tpl-pickup-number', 'Número', c.pickupNumber || c.number || ''),
       _field('cfg-tpl-pickup-area', 'pickupArea', c.pickupArea, 'Centro'),
+      '<div class="full user-field-note" style="grid-column:1/-1;">Localização atendida pela loja. Selecione a cidade antes de cadastrar as zonas de entrega; Google Places preenche província/estado, país e código postal quando disponível.</div>',
+      _field('cfg-tpl-delivery-city', 'Cidade atendida', deliveryArea.city || c.deliveryCity || zone1.city || zone1.cidade || zone1.locality || zone1.name || '', 'Buscar cidade atendida'),
+      _field('cfg-tpl-delivery-province', 'Província / estado', deliveryArea.province || c.deliveryProvince || zone1.province || zone1.state || zone1.estado || '', 'Preenchido automaticamente'),
+      '<label class="field bf-field"><span>País atendido</span><select id="cfg-tpl-delivery-country" class="bf-input">' + _countrySelectOptions(deliveryArea.country || c.deliveryCountry || zone1.country || zone1.pais || zone1.país || zone1.countryCode || '') + '</select></label>',
+      _field('cfg-tpl-delivery-postal', 'Código postal base', deliveryArea.postalCode || c.deliveryPostalCode || zone1.postal || zone1.postalCode || zone1.zip || '', 'Preenchido automaticamente'),
+      _field('cfg-tpl-instagram', 'Instagram', c.instagram || (c.social && c.social.instagram) || ((_config.integracoes || {}).instagram) || '', 'https://instagram.com/sua_loja'),
+      _field('cfg-tpl-facebook', 'Facebook', c.facebook || (c.social && c.social.facebook) || ((_config.integracoes || {}).facebook) || '', 'https://facebook.com/sua_loja'),
+      _field('cfg-tpl-tiktok', 'TikTok', c.tiktok || (c.social && c.social.tiktok) || ((_config.integracoes || {}).tiktok) || '', 'https://tiktok.com/@sua_loja'),
       _field('cfg-tpl-highlight', 'Produto destaque ID', c.destaqueProductId, 'ID do produto'),
       _textarea('cfg-tpl-hours', 'hours (JSON)', _json(c.hours || []), '[{"enabled":true,"open":"11:00","close":"22:00"}]'),
       _textarea('cfg-tpl-zones', 'deliveryZones (JSON)', _json(c.deliveryZones || []), '[{"postal":"1000-000","name":"Centro","fee":2}]'),
@@ -945,6 +1363,25 @@ Modules.Configuracoes = (function () {
         pickupAddress: _val('cfg-tpl-pickup-address'),
         pickupNumber: _val('cfg-tpl-pickup-number'),
         pickupArea: _val('cfg-tpl-pickup-area'),
+        deliveryCity: _val('cfg-tpl-delivery-city'),
+        deliveryProvince: _val('cfg-tpl-delivery-province'),
+        deliveryCountry: _val('cfg-tpl-delivery-country'),
+        deliveryPostalCode: _val('cfg-tpl-delivery-postal'),
+        deliveryArea: {
+          city: _val('cfg-tpl-delivery-city'),
+          province: _val('cfg-tpl-delivery-province'),
+          country: _val('cfg-tpl-delivery-country'),
+          postalCode: _val('cfg-tpl-delivery-postal'),
+          source: 'admin_delivery_zones'
+        },
+        instagram: _val('cfg-tpl-instagram'),
+        facebook: _val('cfg-tpl-facebook'),
+        tiktok: _val('cfg-tpl-tiktok'),
+        social: {
+          instagram: _val('cfg-tpl-instagram'),
+          facebook: _val('cfg-tpl-facebook'),
+          tiktok: _val('cfg-tpl-tiktok')
+        },
         destaqueProductId: _val('cfg-tpl-highlight'),
         hours: _parseJson('cfg-tpl-hours', []),
         deliveryZones: _parseJson('cfg-tpl-zones', []),
@@ -952,7 +1389,11 @@ Modules.Configuracoes = (function () {
         coupons: _parseJson('cfg-tpl-coupons', [])
       };
     });
-    setTimeout(function () { if (window.BocaPlaces) BocaPlaces.init('cfg-tpl-pickup-address'); }, 100);
+    setTimeout(function () {
+      if (!window.BocaPlaces) return;
+      BocaPlaces.init('cfg-tpl-pickup-address');
+      BocaPlaces.init('cfg-tpl-delivery-city');
+    }, 100);
   }
 
   function _renderCanaisVenda() {
@@ -1054,10 +1495,10 @@ Modules.Configuracoes = (function () {
   }
 
   function _phoneInput(countryId, phoneId, label, countryCode, phone, placeholder) {
-    return '<div class="bf-field"><label>' + _esc(label) + '</label><div style="display:grid;grid-template-columns:minmax(132px,.42fr) minmax(150px,1fr);gap:8px;">' +
+    return '<div class="bf-field"><label>' + _esc(label) + '</label><div class="bf-phone-row">' +
       '<select id="' + countryId + '" class="bf-select">' + _phoneCountryOptions(countryCode) + '</select>' +
       '<input id="' + phoneId + '" class="bf-input" type="tel" value="' + _esc(phone == null ? '' : phone) + '" placeholder="' + _esc(placeholder || '') + '" autocomplete="tel-national">' +
-    '</div></div>';
+      '</div></div>';
   }
 
   function _phoneCountryOptions(selected) {
@@ -1068,8 +1509,10 @@ Modules.Configuracoes = (function () {
       ['+55', '🇧🇷 +55'],
       ['+33', '🇫🇷 +33'],
       ['+39', '🇮🇹 +39'],
+      ['+49', '🇩🇪 +49'],
       ['+44', '🇬🇧 +44'],
-      ['+1', '🇺🇸 +1']
+      ['+1', '🇺🇸 +1'],
+      ['', 'Outro']
     ].map(function (opt) {
       return '<option value="' + _esc(opt[0]) + '"' + (opt[0] === current ? ' selected' : '') + '>' + _esc(opt[1]) + '</option>';
     }).join('');
@@ -1078,7 +1521,36 @@ Modules.Configuracoes = (function () {
   function _defaultPhoneCode(fiscalCountry) {
     if (fiscalCountry === 'PT') return '+351';
     if (fiscalCountry === 'BR') return '+55';
+    if (fiscalCountry === 'FR') return '+33';
+    if (fiscalCountry === 'IT') return '+39';
+    if (fiscalCountry === 'DE') return '+49';
+    if (fiscalCountry === 'GB') return '+44';
+    if (fiscalCountry === 'US') return '+1';
     return '+34';
+  }
+
+  function _splitPhoneForForm(fullValue, fallbackCode) {
+    var value = String(fullValue || '').trim();
+    var code = String(fallbackCode || '+34').trim();
+    var digits = _cleanPhoneNumber(value);
+    var countries = ['+351', '+34', '+55', '+33', '+39', '+49', '+44', '+1'];
+    for (var i = 0; i < countries.length; i += 1) {
+      var dial = countries[i];
+      var dialDigits = _cleanPhoneNumber(dial);
+      if (value.indexOf(dial) === 0 || digits.indexOf(dialDigits) === 0) {
+        code = dial;
+        digits = digits.slice(dialDigits.length);
+        break;
+      }
+    }
+    return { countryCode: code, number: digits, full: _phoneFull(code, digits) };
+  }
+
+  function _languageOptions() {
+    return [
+      ['pt-BR', '🇧🇷 Português'],
+      ['es-ES', '🇪🇸 Espanhol']
+    ];
   }
 
   function _configTextarea(id, label, value, placeholder) {
@@ -1119,12 +1591,8 @@ Modules.Configuracoes = (function () {
   }
 
   function _domainBase(slug, rootDomain, c) {
-    var custom = _cleanDomain(c && c.customDomain);
-    if (custom) return 'https://' + custom;
-    rootDomain = _cleanDomain(rootDomain);
-    if (slug && rootDomain) return 'https://' + slug + '.' + rootDomain;
-    if (slug) return 'https://' + slug + '.dominio-principal.com';
-    return 'https://loja.dominio-principal.com';
+    if (slug) return 'https://bocafood.app/loja/' + slug;
+    return 'https://bocafood.app/loja/aguardando-slug';
   }
 
   function _domainUrls(slug, rootDomain, c) {
@@ -1193,8 +1661,8 @@ Modules.Configuracoes = (function () {
   }
 
   function _planDisplay(plan) {
-    var map = { starter: 'Starter', pro: 'Pro', enterprise: 'Enterprise' };
-    var value = String(plan || 'starter').trim();
+    var map = { essencial: 'Plano Essencial', starter: 'Plano Essencial', compromisso_anual: 'Plano Compromisso Anual', fundadoras: 'Plano Fundadoras' };
+    var value = String(plan || 'essencial').trim();
     return map[value] || value;
   }
 
@@ -1242,10 +1710,11 @@ Modules.Configuracoes = (function () {
   }
 
   function _save(key, data) {
+    data = _cleanFirestorePayload(data);
     DB.setDocRoot('config', key, data).then(function () {
       _config[key] = data;
       if (key === 'aparencia') {
-        _config.geral = Object.assign({}, _config.geral || {}, data);
+        _config.geral = _cleanFirestorePayload(Object.assign({}, _config.geral || {}, data));
         DB.setDocRoot('config', 'geral', _config.geral).catch(function (err) {
           console.error('Config sync geral/aparencia error', err);
         });
@@ -1254,8 +1723,244 @@ Modules.Configuracoes = (function () {
         _ensureFixedChannels();
         if (window.AdminApp && typeof AdminApp.applyTpvVisibility === 'function') AdminApp.applyTpvVisibility();
       }
+      _syncSystemTenantFromConfig(key, data).catch(function (err) {
+        console.warn('[Configuracoes] sync system_tenants falhou', { key: key, message: err && err.message ? err.message : String(err || '') });
+      });
+      if (['geral', 'endereco', 'template', 'integracoes'].indexOf(key) >= 0) {
+        _recordActivity({
+          action: 'store_settings_updated',
+          module: 'configuracoes/' + key,
+          entityType: 'store',
+          entityId: window.Auth && Auth.getTenantId ? Auth.getTenantId() : '',
+          summary: 'Configurações da loja atualizadas.',
+          severity: 'info',
+          metadata: { screen: key }
+        });
+      }
       UI.toast('Configurações salvas', 'success');
     }).catch(function (err) { UI.toast('Erro: ' + err.message, 'error'); });
+  }
+
+  function _cleanFirestorePayload(value) {
+    if (Array.isArray(value)) {
+      return value.map(function (item) {
+        return typeof item === 'undefined' ? null : _cleanFirestorePayload(item);
+      });
+    }
+    if (value && typeof value === 'object') {
+      return Object.keys(value).reduce(function (acc, key) {
+        if (typeof value[key] === 'undefined') return acc;
+        acc[key] = _cleanFirestorePayload(value[key]);
+        return acc;
+      }, {});
+    }
+    return value;
+  }
+
+  function _syncSystemTenantFromConfig(key, data) {
+    if (key !== 'geral' && key !== 'endereco' && key !== 'template' && key !== 'integracoes') return Promise.resolve();
+    var tenantId = window.Auth && Auth.getTenantId ? Auth.getTenantId() : '';
+    if (!tenantId || !window.firebase || !firebase.firestore) return Promise.resolve();
+    var now = new Date().toISOString();
+    var patch = { updatedAt: now };
+    var currentStore = ((_systemTenant && _systemTenant.store) || {});
+    var currentAddress = ((_systemTenant && _systemTenant.accountAddress) || {});
+    var zoneLocation = _primaryDeliveryZoneLocation(key === 'template' ? data : null);
+    var hasZoneLocation = !!(zoneLocation.city || zoneLocation.province || zoneLocation.country || zoneLocation.postalCode);
+    var hasCurrentDeliveryLocation = currentStore.locationSource === 'delivery_area' && !!(currentStore.city || currentStore.region || currentStore.province || currentStore.country || currentStore.postalCode);
+    if (key === 'geral') {
+      var phoneCode = data.phoneCountryCode || data.whatsappCountryCode || '';
+      var phoneNumber = _cleanPhoneNumber(data.phone || data.whatsapp || '');
+      var phoneFull = _phoneFull(phoneCode, phoneNumber);
+      var addressCountry = _countryIso((data.companyAddress && data.companyAddress.country) || data.companyCountry || data.country || '');
+      patch.ownerName = data.legalRepresentative || data.responsavelLegal || data.tradeName || data.businessName || '';
+      patch.responsibleName = data.legalRepresentative || data.responsavelLegal || '';
+      patch.phoneCountryCode = phoneCode;
+      patch.phoneNumber = phoneNumber;
+      patch.phoneFull = phoneFull;
+      patch.whatsappCountryCode = phoneCode;
+      patch.whatsappNumber = phoneNumber;
+      patch.whatsappFull = phoneFull;
+      patch.contactEmail = data.email || '';
+      patch.adminEmail = data.adminEmail || data.fiscalEmail || data.billingEmail || '';
+      patch.fiscalEmail = data.fiscalEmail || data.adminEmail || '';
+      patch.billingEmail = data.billingEmail || data.adminEmail || '';
+      patch.country = addressCountry;
+      patch.language = data.language || data.defaultLanguage || '';
+      patch.document = data.companyFiscalId || data.fiscalDocument || data.taxId || data.nif || '';
+      patch.accountAddress = Object.assign({}, currentAddress, {
+        street: data.companyAddressLine || (data.companyAddress && data.companyAddress.addressLine) || '',
+        number: data.companyNumber || (data.companyAddress && data.companyAddress.number) || '',
+        complement: data.companyComplement || (data.companyAddress && data.companyAddress.complement) || '',
+        neighborhood: data.companyNeighborhood || (data.companyAddress && data.companyAddress.neighborhood) || '',
+        city: data.companyCity || (data.companyAddress && data.companyAddress.city) || '',
+        province: data.companyRegion || (data.companyAddress && (data.companyAddress.region || data.companyAddress.state || data.companyAddress.province)) || '',
+        postalCode: data.companyPostalCode || (data.companyAddress && data.companyAddress.postalCode) || '',
+        country: addressCountry,
+        source: 'admin_setup',
+        updatedAt: now
+      });
+      patch.store = Object.assign({}, currentStore, {
+        name: data.businessName || data.tradeName || currentStore.name || '',
+        city: currentStore.city || zoneLocation.city || '',
+        country: zoneLocation.country || currentStore.country || addressCountry,
+        language: data.language || data.defaultLanguage || currentStore.language || '',
+        status: currentStore.status || 'draft',
+        updatedAt: now
+      });
+    }
+    if (key === 'endereco') {
+      var publicAddress = {
+        street: data.addressLine || data.pickupAddress || data.address || '',
+        number: data.number || data.numero || '',
+        complement: data.complement || data.complemento || data.reference || '',
+        neighborhood: data.neighborhood || '',
+        city: data.city || '',
+        province: data.region || data.state || data.province || '',
+        postalCode: data.postalCode || '',
+        country: _countryIso(data.country || ''),
+        source: 'admin_public_address',
+        updatedAt: now
+      };
+      var addressHasLocation = !!(publicAddress.street || publicAddress.number || publicAddress.neighborhood || publicAddress.city || publicAddress.province || publicAddress.country || publicAddress.postalCode);
+      patch.store = Object.assign({}, currentStore, {
+        city: hasCurrentDeliveryLocation ? (currentStore.city || '') : (publicAddress.city || ''),
+        region: hasCurrentDeliveryLocation ? (currentStore.region || currentStore.province || '') : (publicAddress.province || ''),
+        province: hasCurrentDeliveryLocation ? (currentStore.province || currentStore.region || '') : (publicAddress.province || ''),
+        country: hasCurrentDeliveryLocation ? (currentStore.country || '') : (publicAddress.country || ''),
+        postalCode: hasCurrentDeliveryLocation ? (currentStore.postalCode || '') : (publicAddress.postalCode || ''),
+        address: addressHasLocation ? publicAddress : (currentStore.address || {}),
+        locationSource: hasCurrentDeliveryLocation ? 'delivery_area' : (addressHasLocation ? 'public_address' : (currentStore.locationSource || '')),
+        status: currentStore.status || 'draft',
+        updatedAt: now
+      });
+    }
+    if (key === 'template') {
+      var templateAddress = {
+        street: data.address || data.pickupAddress || '',
+        number: data.number || data.numero || '',
+        complement: data.complemento || data.reference || '',
+        neighborhood: data.neighborhood || '',
+        city: data.city || '',
+        province: data.region || data.province || data.state || '',
+        postalCode: data.postalCode || '',
+        country: _countryIso(data.country || ''),
+        source: 'admin_public_address',
+        updatedAt: now
+      };
+      var templateAddressHasLocation = !!(templateAddress.street || templateAddress.number || templateAddress.neighborhood || templateAddress.city || templateAddress.province || templateAddress.country || templateAddress.postalCode);
+      patch.store = Object.assign({}, currentStore, {
+        city: hasZoneLocation ? zoneLocation.city : (templateAddress.city || currentStore.city || ''),
+        region: hasZoneLocation ? zoneLocation.province : (templateAddress.province || currentStore.region || currentStore.province || ''),
+        province: hasZoneLocation ? zoneLocation.province : (templateAddress.province || currentStore.province || currentStore.region || ''),
+        country: hasZoneLocation ? zoneLocation.country : (templateAddress.country || currentStore.country || ''),
+        postalCode: hasZoneLocation ? zoneLocation.postalCode : (templateAddress.postalCode || currentStore.postalCode || ''),
+        address: templateAddressHasLocation ? templateAddress : (currentStore.address || {}),
+        locationSource: hasZoneLocation ? 'delivery_area' : (templateAddressHasLocation ? 'public_address' : (currentStore.locationSource || '')),
+        deliveryArea: zoneLocation,
+        social: _storeSocialFromConfig(data, currentStore),
+        status: currentStore.status || 'draft',
+        updatedAt: now
+      });
+    }
+    if (key === 'integracoes') {
+      patch.store = Object.assign({}, currentStore, {
+        social: _storeSocialFromConfig(data, currentStore),
+        updatedAt: now
+      });
+    }
+    console.info('[Configuracoes] sincronizando system_tenants', {
+      tenantUid: tenantId,
+      screen: key,
+      path: 'system_tenants/' + tenantId,
+      fields: Object.keys(patch).filter(function (k) { return k !== 'updatedAt'; })
+    });
+    return firebase.firestore().collection('system_tenants').doc(tenantId).set(patch, { merge: true }).then(function () {
+      _systemTenant = Object.assign({}, _systemTenant || {}, patch);
+    });
+  }
+
+  function _cleanPhoneNumber(value) {
+    return String(value || '').replace(/[^\d]/g, '');
+  }
+
+  function _phoneFull(code, number) {
+    var clean = _cleanPhoneNumber(number);
+    return String(code || '') + clean;
+  }
+
+  function _countryIso(value) {
+    var v = String(value || '').trim().toUpperCase();
+    var map = { ESPANHA: 'ES', SPAIN: 'ES', PORTUGAL: 'PT', BRASIL: 'BR', BRAZIL: 'BR', FRANCA: 'FR', 'FRANÇA': 'FR', FRANCE: 'FR', ITALIA: 'IT', 'ITÁLIA': 'IT', ITALY: 'IT', ALEMANHA: 'DE', GERMANY: 'DE', 'REINO UNIDO': 'GB', UK: 'GB', UNITEDKINGDOM: 'GB', 'UNITED KINGDOM': 'GB', EUA: 'US', USA: 'US', 'UNITED STATES': 'US', 'ESTADOS UNIDOS': 'US' };
+    if (v === 'OTHER' || v === 'OUTRO') return 'OTHER';
+    return ['ES', 'PT', 'BR', 'FR', 'IT', 'DE', 'GB', 'US'].indexOf(v) >= 0 ? v : (map[v] || '');
+  }
+
+  function _fiscalCountryCode(value) {
+    var code = _countryIso(value);
+    return code === 'PT' ? 'PT' : 'ES';
+  }
+
+  function _countrySelectOptions(value) {
+    var selected = _countryIso(value);
+    var list = [
+      ['', 'Selecionar país'],
+      ['ES', 'Espanha (ES)'],
+      ['PT', 'Portugal (PT)'],
+      ['BR', 'Brasil (BR)'],
+      ['FR', 'França (FR)'],
+      ['IT', 'Itália (IT)'],
+      ['DE', 'Alemanha (DE)'],
+      ['GB', 'Reino Unido (GB)'],
+      ['US', 'Estados Unidos (US)'],
+      ['OTHER', 'Outro']
+    ];
+    return list.map(function (item) {
+      var valueAttr = item[0];
+      return '<option value="' + _esc(valueAttr) + '"' + (valueAttr === selected ? ' selected' : '') + '>' + _esc(item[1]) + '</option>';
+    }).join('');
+  }
+
+  function _primaryDeliveryZoneLocation(zones) {
+    var tpl = _config.template || {};
+    if (zones && !Array.isArray(zones.deliveryZones)) {
+      tpl = zones;
+      zones = zones.deliveryZones;
+    }
+    zones = Array.isArray(zones) ? zones : (tpl.deliveryZones || []);
+    var area = tpl.deliveryArea || {};
+    var zone = zones[0] || {};
+    if (!zone || typeof zone !== 'object') zone = {};
+    var postalCode = String(zone.postal || zone.postalCode || zone.zip || zone.cep || '').trim();
+    postalCode = String(area.postalCode || tpl.deliveryPostalCode || postalCode || '').trim();
+    return {
+      city: String(area.city || tpl.deliveryCity || zone.city || zone.cidade || zone.locality || zone.name || zone.nome || '').trim(),
+      province: String(area.province || tpl.deliveryProvince || zone.province || zone.state || zone.estado || '').trim(),
+      country: _countryIso(area.country || tpl.deliveryCountry || zone.country || zone.pais || zone.país || zone.countryCode || '') || _countryFromPostalCode(postalCode),
+      postalCode: postalCode,
+      source: 'admin_delivery_zones'
+    };
+  }
+
+  function _storeSocialFromConfig(data, currentStore) {
+    var existing = currentStore && currentStore.social && typeof currentStore.social === 'object' ? currentStore.social : {};
+    var template = (_config.template || {});
+    var templateSocial = template.social && typeof template.social === 'object' ? template.social : {};
+    return {
+      instagram: data.instagram || (data.social && data.social.instagram) || template.instagram || templateSocial.instagram || existing.instagram || '',
+      facebook: data.facebook || (data.social && data.social.facebook) || template.facebook || templateSocial.facebook || existing.facebook || '',
+      tiktok: data.tiktok || (data.social && data.social.tiktok) || template.tiktok || templateSocial.tiktok || existing.tiktok || ''
+    };
+  }
+
+  function _countryFromPostalCode(postalCode) {
+    var postal = String(postalCode || '').trim().toUpperCase();
+    if (/^\d{4}-\d{3}$/.test(postal)) return 'PT';
+    if (/^\d{5}$/.test(postal)) return 'ES';
+    if (/^\d{5}-?\d{3}$/.test(postal)) return 'BR';
+    if (/^[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}$/.test(postal)) return 'GB';
+    if (/^\d{5}(-\d{4})?$/.test(postal)) return 'US';
+    return '';
   }
 
   function _check(id, label, checked) {
@@ -1337,6 +2042,8 @@ Modules.Configuracoes = (function () {
     _uploadAppearanceImage: _uploadAppearanceImage,
     _uploadGeneralAvatarImage: _uploadGeneralAvatarImage,
     _normalizeDomainSlugField: _normalizeDomainSlugField,
-    _copyDomainValue: _copyDomainValue
+    _copyDomainValue: _copyDomainValue,
+    _publishStore: _publishStore,
+    _unpublishStore: _unpublishStore
   };
 })();

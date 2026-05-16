@@ -69,9 +69,59 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
 .user-sub{font-size:12px;line-height:1.35;color:var(--muted)}
 .user-sub strong{color:var(--dark)}
 .user-meta{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.user-last-access{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:3px}
+.last-access-badge{display:inline-flex;align-items:center;gap:5px;border:1px solid #D7E7DD;background:#F0FFF4;color:#1F6F43;border-radius:999px;padding:5px 9px;font-size:12px;font-weight:900}
+.last-access-badge.empty{border-color:#EAE4DA;background:#FAF8F4;color:#6F6860}
 .user-actions{display:flex;gap:6px;flex-wrap:wrap}
 .user-actions .btn{padding:7px 10px;font-size:12px;border-radius:9px}
 .users-empty{padding:16px;border:1px dashed var(--mid);border-radius:12px;background:#fff;color:var(--muted);font-size:13px}
+.master-filters{display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:10px;align-items:end;margin:0 0 14px}
+.master-section-title{grid-column:1/-1;margin:8px 0 0;padding:12px 0 0;border-top:1px solid var(--line);font-size:12px;font-weight:900;color:var(--red);text-transform:uppercase;letter-spacing:.06em}
+.user-modal-dialog{width:min(980px,100%);display:flex;flex-direction:column;overflow:hidden}
+.user-modal-dialog .modal-body{overflow:auto}
+.user-modal-tabs{display:flex;gap:8px;flex-wrap:wrap;padding:14px 22px 0;background:#fff;border-bottom:1px solid var(--line)}
+.user-modal-tab{border:1.5px solid var(--mid);background:#fff;color:var(--muted);border-radius:999px;padding:8px 12px;font-size:12px;font-weight:900;cursor:pointer}
+.tenant-user-list{display:grid;gap:10px}
+.tenant-user-card{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px;border:1px solid var(--line);border-radius:12px;background:#fff}
+.tenant-user-card strong{display:block;color:var(--dark);font-size:14px}
+.tenant-user-card p{margin:4px 0 0;color:var(--muted);font-size:12px}
+.tenant-user-meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.tenant-user-details-overlay{display:none;position:fixed;inset:0;z-index:120;background:rgba(22,18,16,.42);align-items:center;justify-content:center;padding:18px}
+.tenant-user-details-overlay.open{display:flex}
+.tenant-user-details-dialog{width:min(880px,100%);max-height:92vh;overflow:hidden;display:flex;flex-direction:column;background:#fff;border-radius:18px;box-shadow:0 22px 70px rgba(0,0,0,.22)}
+.tenant-user-details-dialog .modal-body{overflow:auto}
+.access-history-grid{display:grid;gap:10px}
+.access-history-card{border:1px solid var(--line);border-radius:12px;background:#fff;padding:12px 14px;display:grid;grid-template-columns:1fr auto;gap:8px;align-items:start}
+.access-history-title{font-weight:900;color:var(--dark);font-size:13px}
+.access-history-meta{font-size:12px;color:var(--muted);line-height:1.45;margin-top:3px}
+.access-history-badge{display:inline-flex;align-items:center;border-radius:999px;padding:4px 8px;background:#F3F4F6;color:#374151;font-size:11px;font-weight:900;text-transform:uppercase}
+.access-history-badge.login{background:#EFF6FF;color:#1D4ED8}
+.access-history-badge.warning{background:#FFF8EC;color:#9A6A00}
+.access-history-filters{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}
+.access-history-filter{border:1.5px solid var(--mid);background:#fff;color:var(--muted);border-radius:999px;padding:7px 11px;font-size:12px;font-weight:900;cursor:pointer}
+.access-history-filter.active{background:var(--red);border-color:var(--red);color:#fff}
+.user-modal-tab.active{background:var(--red);border-color:var(--red);color:#fff}
+.user-tab-panel{display:none}
+.user-tab-panel.active{display:block}
+.readonly-field{width:100%;padding:10px 12px;border:1.5px solid var(--mid);border-radius:9px;background:#F5F3F2;font-size:14px;color:#3B3533;min-height:41px;word-break:break-all}
+.user-modal-footer{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;padding:14px 22px;border-top:1px solid var(--line);background:#fff;position:sticky;bottom:0;z-index:2}
+.user-field-note{grid-column:1/-1;margin:0 0 12px;padding:10px 12px;border:1px solid #EEE6E4;border-radius:10px;background:#F9F7F7;color:var(--muted);font-size:12px;line-height:1.45}
+.field-hint{display:block;margin-top:4px;color:var(--muted);font-size:11px;line-height:1.35;text-transform:none;letter-spacing:0;font-weight:600}
+.field-warning{display:none;margin-top:4px;color:#9A3412;font-size:11px;line-height:1.35;text-transform:none;letter-spacing:0;font-weight:700}
+.field-warning.show{display:block}
+.phone-field{display:grid;grid-template-columns:minmax(136px,.9fr) minmax(0,1.1fr);gap:8px}
+.phone-field input,.phone-field select{margin:0}
+.origin-note{display:block;margin-top:4px;color:var(--muted);font-size:11px;line-height:1.35;text-transform:none;letter-spacing:0;font-weight:600}
+.support-toggle{padding:12px 22px;background:#fff;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:6px}
+.support-toggle label{margin:0;display:flex;flex-direction:row;align-items:center;gap:8px;font-size:12px;font-weight:900;color:var(--dark)}
+.support-toggle input{width:15px;height:15px;accent-color:var(--red)}
+.support-warning{display:none;color:#9A3412;font-size:12px;line-height:1.4;font-weight:700}
+.support-warning.show{display:block}
+#user-modal input[readonly],#user-modal select:disabled,#user-modal textarea[readonly]{background:#F5F3F2;color:#6F6860;cursor:default}
+.hotmart-pending-list{display:grid;gap:10px}
+.hotmart-pending-item{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;grid-template-columns:1.4fr 1fr auto;gap:12px;align-items:center}
+.hotmart-pending-item strong{display:block;color:var(--dark);font-size:14px}
+.hotmart-pending-item small{display:block;color:var(--muted);line-height:1.5;margin-top:3px}
 .subtabs{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}
 .subtab-btn{border:1.5px solid var(--mid);background:#fff;color:var(--muted);border-radius:999px;padding:8px 14px;font-size:12px;font-weight:800;cursor:pointer}
 .subtab-btn.active{background:var(--red);border-color:var(--red);color:#fff}
@@ -149,7 +199,7 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
   <section class="hero">
     <div>
       <h1>Controle interno</h1>
-      <p>Publicação, tenants, templates, configurações globais e logs ficam fora do Centro de Control do usuário.</p>
+      <p>Publicação, tenants, templates, configurações globais e logs ficam fora do Centro de Controle da conta.</p>
     </div>
     <a class="btn secondary" href="admin.html">Abrir Centro de Control</a>
   </section>
@@ -157,7 +207,7 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
   <div id="local-warning" class="warn" style="display:none">Este painel deve ser aberto pelo servidor local em 127.0.0.1. Ações internas ficam bloqueadas fora desse contexto.</div>
 
   <nav class="tabs">
-    <button class="tab-btn active" data-tab="usuarios" onclick="openTab('usuarios')">Usuários</button>
+    <button class="tab-btn active" data-tab="usuarios" onclick="openTab('usuarios')">Contas</button>
     <button class="tab-btn" data-tab="configuracoes" onclick="openTab('configuracoes')">Configurações</button>
     <button class="tab-btn" data-tab="emails-automaticos" onclick="openTab('emails-automaticos')">E-mails automáticos</button>
     <button class="tab-btn" data-tab="configuracoes-globais" onclick="openTab('configuracoes-globais')">Configurações Globais</button>
@@ -169,13 +219,31 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
       <div class="card">
         <div class="toolbar">
           <div>
-            <h2>Usuários cadastrados</h2>
-            <p>Usuário é o dono do Centro de Control e da loja publicada. Clientes da loja ficam separados dentro da base desse usuário.</p>
+            <h2>Contas BocaFood</h2>
+            <p>Contas são negócios que usam o BocaFood para gerenciar e publicar sua loja.</p>
           </div>
-          <div class="actions"><button class="btn blue" onclick="openUserModal()">Novo usuário</button><button class="btn secondary" onclick="syncFirebaseUsers()">Sincronizar usuários Firebase</button></div>
+          <div class="actions"><button class="btn blue" onclick="openUserModal()">Nova conta</button><button class="btn secondary" onclick="loadUsers({force:true})">Recarregar</button></div>
+        </div>
+        <div class="master-filters">
+          <label><span>Busca</span><input id="users-search" placeholder="E-mail, conta, negócio, loja ou UID" oninput="renderUsersList()"></label>
+          <label><span>Plano</span><select id="users-filter-plan" onchange="renderUsersList()"><option value="">Todos</option><option value="essencial">Plano Essencial</option><option value="compromisso_anual">Plano Compromisso Anual</option><option value="fundadoras">Plano Fundadoras</option></select></label>
+          <label><span>Status conta</span><select id="users-filter-status" onchange="renderUsersList()"><option value="">Todos</option><option value="pending">Pendente</option><option value="active">Ativo</option><option value="blocked">Bloqueado</option><option value="canceled">Cancelado</option><option value="disabled">Bloqueado legado</option></select></label>
+          <label><span>Assinatura</span><select id="users-filter-billing" onchange="renderUsersList()"><option value="">Todas</option><option value="active">Ativa</option><option value="pending_payment">Pagamento pendente</option><option value="past_due">Atrasada</option><option value="canceled">Cancelada</option><option value="refunded">Reembolsada</option><option value="chargeback">Chargeback</option><option value="inactive">Inativa</option></select></label>
+          <button class="btn secondary" onclick="clearUserFilters()">Limpar</button>
         </div>
         <div id="users-sync-status" style="display:none;margin:0 0 12px;font-size:12px;font-weight:700;color:#8A7E7C;"></div>
         <div id="users-wrap"></div>
+        <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line);">
+          <div class="toolbar">
+            <div>
+              <h3 style="margin:0;font-size:16px;">Pendências de acesso</h3>
+              <p>Casos que precisam de ação manual, como compra aprovada sem cadastro ou e-mail diferente do cadastro.</p>
+            </div>
+            <button class="btn secondary" onclick="loadHotmartPending()">Recarregar</button>
+          </div>
+          <div class="global-help" style="margin-bottom:12px;">Fluxo normal: compra com mesmo e-mail vincula automaticamente; compra sem tenant fica em pendência; cadastro posterior com mesmo e-mail deve consumir a pendência e liberar acesso; e-mail diferente exige vínculo manual no Master.</div>
+          <div id="hotmart-pending-wrap" class="hotmart-pending-list"><div class="users-empty">Carregando pendências...</div></div>
+        </div>
       </div>
     </div>
   </section>
@@ -194,7 +262,7 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
         <label>
           <span>Tenant <a href="https://console.firebase.google.com" target="_blank" style="font-size:11px;color:#C4362A;">Firebase UID</a></span>
           <select id="pub-tenant" onchange="onPubTenantChange()" style="width:100%;">
-            <option value="">— selecionar usuário —</option>
+            <option value="">— selecionar conta —</option>
           </select>
         </label>
         <div id="pub-tenant-info" style="display:none;font-size:12px;color:#8A7E7C;background:#F9F7F7;border-radius:8px;padding:10px 12px;margin-bottom:12px;line-height:1.7;">
@@ -202,7 +270,7 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
         </div>
         <label><span>GitHub Token (ghp_...)</span><input id="pub-token" type="password" placeholder="ghp_xxxxxxxxxxxx"></label>
         <div class="actions"><button class="btn" onclick="publishSite()">Publicar</button></div>
-        <p style="font-size:11px;color:#8A7E7C;margin-top:8px;">Se o campo ficar vazio, o Master usa o token salvo no cadastro do usuário. Crie em GitHub → Settings → Developer settings → Personal access tokens (permissão <strong>repo</strong>).</p>
+        <p style="font-size:11px;color:#8A7E7C;margin-top:8px;">Se o campo ficar vazio, o Master usa o token salvo no cadastro da conta. Crie em GitHub → Settings → Developer settings → Personal access tokens (permissão <strong>repo</strong>).</p>
       </div>
 
       <div class="card">
@@ -213,7 +281,7 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
         <div class="actions" style="margin-top:8px;">
           <button class="btn" onclick="publishAll()">Publicar todos</button>
         </div>
-        <p style="font-size:11px;color:#8A7E7C;margin-top:8px;">O repositório e a branch de cada tenant são lidos do cadastro (aba Usuários). Tenants sem repositório configurado são ignorados.</p>
+        <p style="font-size:11px;color:#8A7E7C;margin-top:8px;">O repositório e a branch de cada tenant são lidos do cadastro (aba Contas). Tenants sem repositório configurado são ignorados.</p>
       </div>
 
       <div class="card">
@@ -444,7 +512,7 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
 
       <div class="card">
         <h2>Dados Firestore</h2>
-        <p>O backup automático oficial do Firestore exige plano Blaze/billing ativo. Quando o sistema tiver usuárias reais, ative o Blaze e configure backup agendado para Cloud Storage.</p>
+        <p>O backup automático oficial do Firestore exige plano Blaze/billing ativo. Quando o sistema tiver contas reais, ative o Blaze e configure backup agendado para Cloud Storage.</p>
         <div class="warn" style="margin-bottom:0;">Nesta etapa não será feita exportação oficial do Firestore.</div>
       </div>
 
@@ -462,67 +530,186 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
   </section>
 </main>
 <div class="modal-overlay" id="user-modal" onclick="if(event.target===this)closeUserModal()">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="user-modal-title">
+  <div class="modal user-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="user-modal-title">
     <div class="modal-head">
       <div>
-        <h2 id="user-modal-title">Cadastro de usuário</h2>
+        <h2 id="user-modal-title">Cadastro de conta</h2>
         <p>Informações relevantes para liberar o Centro de Control, publicar a loja e prestar suporte.</p>
       </div>
       <button class="modal-close" onclick="closeUserModal()" aria-label="Fechar">×</button>
     </div>
+    <div class="support-toggle">
+      <label><input id="user-support-mode" type="checkbox" onchange="applyUserSupportMode()"> Modo suporte: permitir correções manuais</label>
+      <div id="user-support-warning" class="support-warning">Use correções manuais apenas para suporte. Alterações podem afetar vínculo com Hotmart, Auth ou publicação da loja.</div>
+    </div>
+    <div class="user-modal-tabs" role="tablist" aria-label="Seções da conta">
+      <button type="button" class="user-modal-tab active" data-user-tab="negocio" onclick="openUserModalTab('negocio')">Negócio</button>
+      <button type="button" class="user-modal-tab" data-user-tab="usuarios" onclick="openUserModalTab('usuarios')">Responsável</button>
+      <button type="button" class="user-modal-tab" data-user-tab="plano" onclick="openUserModalTab('plano')">Plano e acesso</button>
+      <button type="button" class="user-modal-tab" data-user-tab="hotmart" onclick="openUserModalTab('hotmart')">Hotmart</button>
+      <button type="button" class="user-modal-tab" data-user-tab="seo" onclick="openUserModalTab('seo')">SEO técnico</button>
+    </div>
     <div class="modal-body">
-      <div class="form-grid">
-        <label id="user-id-label"><span>ID do usuário</span><input id="user-id" placeholder="uid Firebase"></label>
-        <label id="user-id-readonly-label" style="display:none;"><span>Tenant ID <small style="font-size:10px;color:#8A7E7C;font-weight:400;margin-left:4px;">— fixo após criação</small></span><div style="display:flex;align-items:center;gap:8px;"><code id="user-id-display" style="flex:1;padding:8px 10px;background:#F5F3F2;border:1.5px solid #D4C8C6;border-radius:8px;font-size:12px;color:#3B3533;word-break:break-all;cursor:default;"></code><button type="button" class="btn secondary" style="padding:6px 12px;font-size:12px;white-space:nowrap;" onclick="copyTenantId()">Copiar</button></div></label>
-        <label><span>Status</span><select id="user-status"><option value="active">Ativo</option><option value="pending">Pendente</option><option value="paused">Pausado</option><option value="disabled">Bloqueado</option></select></label>
-        <label><span>Nome do negócio</span><input id="user-name" placeholder="Bocado Brasil"></label>
-        <label><span>Razão / marca</span><input id="user-business" placeholder="Nome exibido na loja"></label>
-        <label><span>Responsável</span><input id="user-owner" placeholder="Nome da pessoa"></label>
-        <label><span>E-mail de acesso</span><input id="user-email" type="email" placeholder="usuario@email.com"></label>
-        <label><span>Telefone</span><input id="user-phone" placeholder="+34 ..."></label>
-        <label><span>Documento</span><input id="user-document" placeholder="NIF/CNPJ/CPF"></label>
-        <label><span>Plano</span><select id="user-plan"><option value="starter">Starter</option><option value="pro">Pro</option><option value="enterprise">Enterprise</option></select></label>
-        <label><span>Papel</span><select id="user-role"><option value="master_admin">Master admin</option><option value="store_owner">Dono da loja</option><option value="store_staff">Equipe da loja</option><option value="store_customer">Cliente da loja</option><option value="pending_classification">Pendente de classificação</option></select></label>
-        <label><span>País fiscal</span><select id="user-fiscal-country"><option value="ES">🇪🇸 Espanha (ES)</option><option value="PT">🇵🇹 Portugal (PT)</option></select></label>
-        <label><span>Domínio</span><input id="user-domain" placeholder="loja.com"></label>
-        <label><span>Slug público</span><input id="user-public-slug" placeholder="bocado-brasil" oninput="normalizePublicSlugField(false)"><small style="color:#8A7E7C;font-size:11px;display:block;margin-top:3px;">Usado em https://bocafood.app/loja/slug-da-loja</small></label>
-        <label><span>URL da loja</span><input id="user-store-url" placeholder="https://bocafood.app/loja/bocado-brasil"></label>
-        <label><span>Painel administrativo</span><input id="user-admin-url" placeholder="admin.html"><small style="color:#8A7E7C;font-size:11px;display:block;margin-top:3px;">URL interna de acesso ao painel deste tenant. A usuária não configura isso em Domínio / URL.</small></label>
-        <label><span>Origem</span><input id="user-source" placeholder="manual, legado, indicação..."></label>
-        <label class="full"><span>Arquivo seed / importação</span><input id="user-seed" placeholder="data/tenants/...seed.json"></label>
-        <label class="full" style="margin-top:8px;padding-top:12px;border-top:1px solid #F2EDED;"><span style="color:#C4362A;">— Publicação GitHub —</span></label>
-        <label><span>Repositório GitHub (usuario/repo)</span><input id="user-github-repo" placeholder="ex: minhaorg/meu-site"></label>
-        <label><span>Branch</span><input id="user-github-branch" value="main" placeholder="main"></label>
-        <label class="full"><span>Arquivo público</span><input id="user-public-file" value="index.html" placeholder="index.html"></label>
-        <label class="full"><span>GitHub Token <span id="user-github-token-badge" style="display:none;font-size:11px;font-weight:600;color:#16a34a;margin-left:8px;">✓ configurado</span></span><input id="user-github-token" type="password" placeholder="Cole o token de acesso do GitHub"><small style="color:#8A7E7C;font-size:11px;display:block;margin-top:3px;">Necessário para publicar imagens e atualizar arquivos no repositório da loja. Deixe em branco para manter o token já salvo.</small></label>
-        <label id="user-github-token-clear-row" style="display:none;flex-direction:row;align-items:center;gap:6px;margin-top:0;cursor:pointer;"><input type="checkbox" id="user-github-token-clear" style="width:13px;height:13px;flex-shrink:0;"> <span style="font-size:12px;color:#C4362A;">Remover token configurado</span></label>
-        <div class="full" style="margin-top:8px;padding-top:12px;border-top:1px solid #F2EDED;">
-          <div style="font-size:12px;font-weight:900;color:#1A1A1A;margin-bottom:10px;">SEO técnico da loja</div>
-          <div class="form-grid" style="margin-top:0;">
-            <label><span>Permitir indexação</span><div class="check-row" style="margin:0;"><input id="seo-tech-allow-index" type="checkbox"><span>Permitir que a loja apareça no Google</span></div></label>
-            <label><span>Meta robots</span><select id="seo-tech-meta-robots"><option value="index,follow">index, follow</option><option value="noindex,nofollow">noindex, nofollow</option></select></label>
-            <label><span>Slug oficial da loja</span><input id="seo-tech-slug" placeholder="boca-food"></label>
-            <label><span>Domínio / subdomínio</span><input id="seo-tech-domain" placeholder="loja.com"></label>
-            <label><span>URL canônica</span><input id="seo-tech-canonical" placeholder="https://..."></label>
-            <label><span>País fiscal</span><input id="seo-tech-fiscal-country" placeholder="ES ou PT"></label>
-            <label><span>Idioma padrão</span><input id="seo-tech-language" placeholder="es-ES"></label>
-            <label><span>Tipo schema padrão</span><input id="seo-tech-schema-type" placeholder="FoodEstablishment"></label>
-            <label><span>Categoria schema padrão</span><input id="seo-tech-schema-category" placeholder="Restaurant / FastFoodRestaurant"></label>
-            <label><span>Sitemap</span><div class="check-row" style="margin:0;"><input id="seo-tech-sitemap-active" type="checkbox"><span>Ativo</span></div></label>
-            <label><span>Robots</span><div class="check-row" style="margin:0;"><input id="seo-tech-robots-active" type="checkbox"><span>Ativo</span></div></label>
-            <label><span>Search Console</span><div class="check-row" style="margin:0;"><input id="seo-tech-search-console" type="checkbox"><span>Vinculado</span></div></label>
-            <label><span>Última publicação SEO</span><input id="seo-tech-last-published" placeholder="2026-05-09T..."></label>
-            <label class="full"><span>Status da loja</span><select id="seo-tech-store-status"><option value="publicada">Publicada</option><option value="rascunho">Rascunho</option><option value="bloqueada">Bloqueada</option><option value="aguardando_dominio">Aguardando domínio</option></select></label>
-          </div>
-          <div class="actions" style="margin-top:12px;">
-            <button type="button" class="btn blue" onclick="saveSeoTechConfig()">Salvar SEO técnico</button>
-            <button type="button" class="btn secondary" onclick="loadSeoTechConfig()">Recarregar SEO técnico</button>
-          </div>
-          <p style="font-size:11px;color:#8A7E7C;margin-top:8px;">Esses dados ficam no Master e são usados na publicação da loja. A usuária não edita essa área.</p>
-        </div>
-        <label class="full"><span>Observações internas</span><textarea id="user-notes" placeholder="Informações úteis para suporte, publicação, cobrança e operação."></textarea></label>
+      <div class="user-tab-panel" data-user-panel="usuarios">
+        <div class="user-field-note">Responsável e usuários da conta com acesso ao Centro de Controle. Nesta fase existe uma pessoa principal; a estrutura fica preparada para múltiplos acessos no futuro.</div>
+        <div id="tenant-users-list" class="tenant-user-list"></div>
       </div>
-      <div class="actions"><button class="btn blue" onclick="saveUser()">Salvar usuário</button><button class="btn secondary" onclick="closeUserModal()">Cancelar</button></div>
+      <div class="user-tab-panel active" data-user-panel="negocio">
+        <div class="form-grid">
+        <div class="user-field-note">Campos do negócio/loja. Esses dados representam a operação da loja, publicação, localização e presença pública.</div>
+        <label id="user-id-label"><span>ID da conta</span><input id="user-id" placeholder="uid Firebase"></label>
+        <label id="user-id-readonly-label" style="display:none;"><span>Tenant ID <small style="font-size:10px;color:#8A7E7C;font-weight:400;margin-left:4px;">— fixo após criação</small></span><div style="display:flex;align-items:center;gap:8px;"><code id="user-id-display" style="flex:1;padding:8px 10px;background:#F5F3F2;border:1.5px solid #D4C8C6;border-radius:8px;font-size:12px;color:#3B3533;word-break:break-all;cursor:default;"></code><button type="button" class="btn secondary" style="padding:6px 12px;font-size:12px;white-space:nowrap;" onclick="copyTenantId()">Copiar</button></div></label>
+        <label><span>Status da conta</span><select id="user-status"><option value="pending">Pendente</option><option value="active">Ativo</option><option value="blocked">Bloqueado</option><option value="canceled">Cancelado</option><option value="disabled">Bloqueado legado</option></select></label>
+        <label><span>Origem</span><select id="user-source"><option value="manual">Manual</option><option value="hotmart">Hotmart</option><option value="test">Teste</option><option value="referral">Indicação</option><option value="master">Master</option></select></label>
+        <label style="display:none;"><span>Nome legado</span><input id="user-name" placeholder="Bocado Brasil"></label>
+        <label style="display:none;"><span>Razão / marca</span><input id="user-business" placeholder="Nome exibido na loja"></label>
+        <label><span>Nome da loja</span><input id="user-store-name" placeholder="Aguardando configuração no Centro de Controle"><small class="field-hint">Normalmente preenchido pela usuária no Centro de Controle.</small></label>
+        <label><span>Slug público</span><input id="user-public-slug" readonly placeholder="Aguardando slug da loja"><small class="field-hint">Definido pela usuária no Centro de Controle em Configurações → Domínio / URL.</small></label>
+        <label><span>URL pública calculada</span><input id="user-store-url" readonly placeholder="Aguardando slug da loja"></label>
+        <label><span>Cidade da loja</span><input id="user-store-city" placeholder="Não preenchido"><small id="user-store-city-origin" class="field-hint">Origem: Centro de Controle</small></label>
+        <label><span>Província / estado da loja</span><input id="user-store-province" placeholder="Não preenchido"><small id="user-store-province-origin" class="field-hint">Origem: Centro de Controle</small></label>
+        <label><span>País da loja</span><select id="user-store-country"><option value="">Não preenchido</option><option value="ES">Espanha (ES)</option><option value="PT">Portugal (PT)</option><option value="BR">Brasil (BR)</option><option value="FR">França (FR)</option><option value="IT">Itália (IT)</option><option value="DE">Alemanha (DE)</option><option value="GB">Reino Unido (GB)</option><option value="US">Estados Unidos (US)</option><option value="OTHER">Outro</option></select><small id="user-store-country-origin" class="field-hint">Origem: Centro de Controle</small></label>
+        <label><span>Idioma da loja</span><select id="user-store-language"><option value="">Não preenchido</option><option value="pt-BR">Português Brasil — pt-BR</option><option value="pt-PT">Português Portugal — pt-PT</option><option value="es-ES">Espanhol Espanha — es-ES</option><option value="en">Inglês — en</option><option value="fr">Francês — fr</option></select><small class="field-hint">Normalmente preenchido pela usuária no Centro de Controle.</small></label>
+        <label><span>Status da loja</span><select id="user-store-status"><option value="draft">Rascunho</option><option value="ready">Pronta para publicar</option><option value="published">Publicada</option><option value="unpublished">Não publicada</option><option value="suspended">Suspensa</option><option value="publication_error">Erro de publicação</option><option value="active">Ativa legado</option></select><small class="field-hint">Reflete o estado real de publicação. Edite apenas em modo suporte.</small></label>
+        <label><span>Instagram</span><input id="user-store-instagram" readonly placeholder="Não preenchido"><small class="field-hint">Origem: Centro de Controle → Loja Online → Template da loja.</small></label>
+        <label><span>Facebook</span><input id="user-store-facebook" readonly placeholder="Não preenchido"><small class="field-hint">Origem: Centro de Controle → Loja Online → Template da loja.</small></label>
+        <label><span>TikTok</span><input id="user-store-tiktok" readonly placeholder="Não preenchido"><small class="field-hint">Origem: Centro de Controle → Loja Online → Template da loja.</small></label>
+        <label><span>Última publicação</span><input id="user-store-last-published-at" readonly placeholder="auto"></label>
+        <label><span>Erro da última publicação</span><input id="user-store-last-publication-error" readonly placeholder="Sem erro registrado"></label>
+        <div class="full user-field-note">Dados fiscais do negócio. Endereço fiscal, país fiscal e documento pertencem ao cadastro da empresa/negócio, não à lista de usuários da conta.</div>
+        <label><span>Documento</span><input id="user-document" placeholder="Não preenchido"></label>
+        <input id="user-account-address-source" type="hidden" value="setup">
+        <label><span>Endereço / rua</span><input id="user-account-street" placeholder="Não preenchido"></label>
+        <label><span>Número</span><input id="user-account-number" placeholder="Não preenchido"></label>
+        <label><span>Complemento</span><input id="user-account-complement" placeholder="Não preenchido"></label>
+        <label><span>Bairro / zona</span><input id="user-account-neighborhood" placeholder="Não preenchido"></label>
+        <label><span>Cidade</span><input id="user-account-city" placeholder="Não preenchido"></label>
+        <label><span>Província / estado</span><input id="user-account-province" placeholder="Não preenchido"></label>
+        <label><span>Código postal</span><input id="user-account-postal-code" placeholder="Não preenchido"></label>
+        <label><span>País</span><input id="user-account-country" readonly placeholder="Não preenchido"><small class="field-hint">Copiado de Dados fiscais da empresa → País.</small></label>
+        <label><span>País fiscal</span><select id="user-fiscal-country"><option value="">Não preenchido</option><option value="ES">Espanha (ES)</option><option value="PT">Portugal (PT)</option></select><small class="field-hint">Origem: Master. Define módulos e regras fiscais do Admin.</small></label>
+        <label class="full"><span>Observações internas</span><textarea id="user-notes" placeholder="Informações úteis para suporte, publicação, cobrança e operação."></textarea></label>
+        </div>
+      </div>
+      <div class="tenant-user-details-overlay" id="tenant-user-details-modal" onclick="if(event.target===this)closeTenantUserDetailsModal()">
+        <div class="tenant-user-details-dialog" role="dialog" aria-modal="true" aria-labelledby="tenant-user-details-title">
+          <div class="modal-head">
+            <div>
+              <h2 id="tenant-user-details-title">Dados do responsável</h2>
+              <p>Dados pessoais, contato e idioma da pessoa principal da conta.</p>
+            </div>
+            <button class="modal-close" onclick="closeTenantUserDetailsModal()" aria-label="Fechar">×</button>
+          </div>
+          <div class="modal-body">
+            <div class="form-grid">
+        <div class="user-field-note">Dados do responsável. Estes campos representam a pessoa com acesso ao Centro de Controle.</div>
+        <label><span>Nome completo</span><input id="user-full-name" placeholder="Não preenchido" oninput="renderTenantUsersPreview()"></label>
+        <label><span>Nome social / nome curto</span><input id="user-social-name" placeholder="Como prefere ser chamada" oninput="renderTenantUsersPreview()"></label>
+        <label><span>E-mail de acesso</span><input id="user-email" type="email" placeholder="Não preenchido" oninput="checkUserEmailChange();renderTenantUsersPreview()"><small id="user-email-warning" class="field-warning">Alterar o e-mail pode quebrar o vínculo com Hotmart e Firebase Auth. Use apenas para suporte manual.</small></label>
+        <label><span>WhatsApp da usuária</span><div class="phone-field"><select id="user-whatsapp-country-code" onchange="syncUserPhoneFields()"><option value="+34">🇪🇸 +34</option><option value="+351">🇵🇹 +351</option><option value="+55">🇧🇷 +55</option><option value="+33">🇫🇷 +33</option><option value="+39">🇮🇹 +39</option><option value="+49">🇩🇪 +49</option><option value="+44">🇬🇧 +44</option><option value="+1">🇺🇸 +1</option><option value="">Outro</option></select><input id="user-whatsapp-number" inputmode="tel" placeholder="600000000" oninput="syncUserPhoneFields()"></div><input id="user-whatsapp" type="hidden"><small class="field-hint">Origem: Admin → Configurações → Conta / Usuária. Preparado para contato individual da usuária.</small></label>
+        <label><span>Papel</span><select id="user-role" onchange="renderTenantUsersPreview()"><option value="owner">Owner</option><option value="admin">Admin</option><option value="support">Suporte</option><option value="master_admin">Master admin</option><option value="store_owner">Dono da loja legado</option><option value="store_staff">Equipe da loja legado</option><option value="pending_classification">Pendente de classificação</option></select><small class="field-hint">Origem: Master. Define o papel deste acesso no Centro de Controle.</small></label>
+        <input id="user-owner" type="hidden" value="">
+        <input id="user-contact-email" type="hidden" value="">
+        <input id="user-admin-email" type="hidden" value="">
+        <input id="user-phone-country-code" type="hidden" value="">
+        <input id="user-phone-number" type="hidden" value="">
+        <input id="user-phone" type="hidden" value="">
+        <input id="user-country" type="hidden" value="">
+        <label><span>Idioma da conta</span><select id="user-language"><option value="">Não preenchido</option><option value="pt-BR">Português Brasil — pt-BR</option><option value="pt-PT">Português Portugal — pt-PT</option><option value="es-ES">Espanhol Espanha — es-ES</option><option value="en">Inglês — en</option><option value="fr">Francês — fr</option></select></label>
+            </div>
+          </div>
+          <div class="user-modal-footer">
+            <button type="button" class="btn blue" onclick="closeTenantUserDetailsModal()">Aplicar no cadastro</button>
+            <button type="button" class="btn secondary" onclick="closeTenantUserDetailsModal()">Fechar</button>
+          </div>
+        </div>
+      </div>
+      <div class="user-tab-panel" data-user-panel="plano">
+        <div class="form-grid">
+        <div class="user-field-note">Plano e cobrança. Origem: Hotmart ou Master. Campos automáticos ficam bloqueados por padrão.</div>
+        <label><span>Plano</span><select id="user-plan"><option value="essencial">Plano Essencial</option><option value="compromisso_anual">Plano Compromisso Anual</option><option value="fundadoras">Plano Fundadoras</option></select></label>
+        <label><span>Ciclo</span><select id="user-billing-cycle"><option value="monthly">Mensal</option><option value="annual">Anual</option></select></label>
+        <label><span>Provedor de cobrança</span><select id="user-billing-provider" onchange="handleBillingProviderChange()"><option value="none">Nenhum</option><option value="hotmart">Hotmart</option><option value="manual">Manual</option></select><small class="field-hint" id="user-billing-provider-note">Edite apenas quando a cobrança for manual.</small></label>
+        <label><span>Status assinatura</span><select id="user-billing-status"><option value="inactive">Inativa</option><option value="active">Ativa</option><option value="pending_payment">Pagamento pendente</option><option value="past_due">Atrasada</option><option value="canceled">Cancelada</option><option value="refunded">Reembolsada</option><option value="chargeback">Chargeback</option></select></label>
+        <label><span>Fim do trial</span><input id="user-trial-ends-at" placeholder="Não definido"></label>
+        <label><span>Ativado em</span><input id="user-activated-at" placeholder="Não definido"></label>
+        <label><span>Cancelado em</span><input id="user-canceled-at" placeholder="Não definido"></label>
+        <div class="user-field-note">Acesso técnico / Firebase. Origem: Firebase Auth, Sistema ou Master. Dados automáticos ficam somente leitura.</div>
+        <label><span>Auth UID</span><input id="user-auth-uid" readonly placeholder="uid Firebase"></label>
+        <label><span>E-mail verificado</span><select id="user-email-verified" disabled><option value="false">Não</option><option value="true">Sim</option></select></label>
+        <label><span>Último acesso</span><input id="user-last-login-at" readonly placeholder="timestamp Firebase"></label>
+        <label><span>Criado em</span><input id="user-created-at" readonly placeholder="auto"></label>
+        <label><span>Atualizado em</span><input id="user-updated-at" readonly placeholder="auto"></label>
+        </div>
+      </div>
+      <div class="user-tab-panel" data-user-panel="hotmart">
+        <div class="form-grid">
+        <div class="user-field-note" id="user-hotmart-link-state">Esta conta não está vinculada à Hotmart. Use a ação Vincular Hotmart apenas se precisar associar manualmente uma compra ou assinatura.</div>
+        <label><span>Hotmart subscriber</span><input id="user-hotmart-subscriber-code" readonly placeholder="Não vinculado"></label>
+        <label><span>Hotmart transaction</span><input id="user-hotmart-transaction" readonly placeholder="Não vinculado"></label>
+        <label><span>Hotmart product ID</span><input id="user-hotmart-product-id" readonly placeholder="Não recebido"></label>
+        <label><span>Hotmart offer code</span><input id="user-hotmart-offer-code" readonly placeholder="Não recebido"></label>
+        <label><span>Purchase status</span><input id="user-hotmart-purchase-status" readonly placeholder="Aguardando evento da Hotmart"></label>
+        <label><span>Subscription status</span><input id="user-hotmart-subscription-status" readonly placeholder="Aguardando evento da Hotmart"></label>
+        <label><span>Último evento recebido</span><input id="user-hotmart-last-event" readonly placeholder="Nenhum evento recebido"></label>
+        <div class="actions full">
+          <button type="button" class="btn secondary" onclick="linkHotmartPurchase(window._editingTenantId)">Vincular compra Hotmart</button>
+          <button type="button" class="btn secondary" onclick="viewHotmartEventsForCurrentUser()">Ver eventos Hotmart</button>
+          <button type="button" class="btn secondary" disabled title="Em desenvolvimento">Reprocessar vínculo — Em desenvolvimento</button>
+        </div>
+        </div>
+      </div>
+      <div class="user-tab-panel" data-user-panel="seo">
+        <div class="form-grid">
+        <div class="user-field-note">Configurações técnicas usadas pelo BocaFood para indexação, sitemap, robots, schema e integrações com Google. A usuária edita apenas o SEO básico da loja no Centro de Controle.</div>
+        <label><span>Permitir indexação</span><div class="check-row" style="margin:0;"><input id="seo-tech-allow-index" type="checkbox"><span>Permitir que a loja apareça no Google</span></div></label>
+        <label><span>Meta robots</span><select id="seo-tech-meta-robots"><option value="index,follow">index, follow</option><option value="noindex,nofollow">noindex, nofollow</option><option value="noindex,follow">noindex, follow</option></select></label>
+        <label><span>Tipo schema padrão</span><input id="seo-tech-schema-type" readonly placeholder="FoodEstablishment"></label>
+        <label><span>Categoria schema padrão</span><input id="seo-tech-schema-category" readonly placeholder="Restaurant / FastFoodRestaurant"></label>
+        <label><span>Sitemap ativo</span><div class="check-row" style="margin:0;"><input id="seo-tech-sitemap-active" type="checkbox"><span id="seo-tech-sitemap-badge" class="status-pill neutral">Não</span></div></label>
+        <label><span>Robots ativo</span><div class="check-row" style="margin:0;"><input id="seo-tech-robots-active" type="checkbox"><span id="seo-tech-robots-badge" class="status-pill neutral">Não</span></div></label>
+        <label><span>Search Console vinculado</span><div class="check-row" style="margin:0;"><input id="seo-tech-search-console" type="checkbox" disabled><span id="seo-tech-search-console-badge" class="status-pill neutral">Não</span></div></label>
+        <label><span>Última publicação SEO</span><input id="seo-tech-last-published" readonly placeholder="Não publicado"></label>
+        <div class="actions full">
+          <button type="button" class="btn blue" onclick="saveSeoTechConfig()">Salvar SEO técnico</button>
+          <button type="button" class="btn secondary" onclick="loadSeoTechConfig()">Recarregar SEO técnico</button>
+        </div>
+        </div>
+      </div>
+    </div>
+    <div class="user-modal-footer">
+      <button class="btn blue" onclick="saveUser()">Salvar conta</button>
+      <button class="btn secondary" onclick="closeUserModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="access-history-modal" onclick="if(event.target===this)closeAccessHistoryModal()">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="access-history-title">
+    <div class="modal-head">
+      <div>
+        <h2 id="access-history-title">Histórico de acessos</h2>
+        <p id="access-history-subtitle">Acessos e ações registradas para a conta.</p>
+      </div>
+      <button class="modal-close" onclick="closeAccessHistoryModal()" aria-label="Fechar">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="toolbar">
+        <div>
+          <strong id="access-history-user">Usuária</strong>
+          <p id="access-history-count" style="margin-top:4px;">Carregando histórico...</p>
+        </div>
+        <button class="btn secondary" onclick="reloadAccessHistory()">Atualizar</button>
+      </div>
+      <div id="access-history-filters" class="access-history-filters">
+        <button class="access-history-filter active" data-access-filter="todos" onclick="setAccessHistoryFilter('todos')">Todos</button>
+        <button class="access-history-filter" data-access-filter="login" onclick="setAccessHistoryFilter('login')">Login</button>
+        <button class="access-history-filter" data-access-filter="loja" onclick="setAccessHistoryFilter('loja')">Loja</button>
+        <button class="access-history-filter" data-access-filter="publicacao" onclick="setAccessHistoryFilter('publicacao')">Publicação</button>
+        <button class="access-history-filter" data-access-filter="conta" onclick="setAccessHistoryFilter('conta')">Conta</button>
+        <button class="access-history-filter" data-access-filter="master" onclick="setAccessHistoryFilter('master')">Master</button>
+        <button class="access-history-filter" data-access-filter="erros" onclick="setAccessHistoryFilter('erros')">Erros</button>
+      </div>
+      <div id="access-history-list" class="access-history-grid"></div>
     </div>
   </div>
 </div>
@@ -556,6 +743,7 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
 function api(path, opts){
   opts = opts || {};
   opts.headers = Object.assign({'Content-Type':'application/json'}, opts.headers || {});
+  if(!opts.method || String(opts.method).toUpperCase()==='GET')opts.cache='no-store';
   return fetch(path, opts).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.error||r.statusText);return j;});});
 }
 function toast(msg){var el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(function(){el.classList.remove('show')},3000)}
@@ -979,10 +1167,285 @@ function saveGlobalFinanceItem(){
 }
 function openUserModal(){
   clearUserForm();
-  document.getElementById('user-modal-title').textContent='Novo usuário';
+  document.getElementById('user-modal-title').textContent='Nova conta';
   document.getElementById('user-modal').classList.add('open');
+  openUserModalTab('negocio');
+  decorateUserFieldOrigins();
+  applyUserSupportMode();
   bindPublicSlugAutomation();
-  setTimeout(function(){document.getElementById('user-id').focus()},50);
+  setTimeout(function(){var el=document.getElementById('user-store-name');if(el)el.focus()},50);
+}
+function userSupportModeEnabled(){
+  var el=document.getElementById('user-support-mode');
+  return !!(el&&el.checked);
+}
+function setFieldLocked(id, locked){
+  var el=document.getElementById(id);
+  if(!el)return;
+  if(el.tagName==='SELECT' || el.type==='checkbox')el.disabled=!!locked;
+  else el.readOnly=!!locked;
+}
+function inferBillingProvider(tenant){
+  tenant = tenant || {};
+  var billing = tenant.billing || {};
+  var provider = String(billing.provider || tenant.billingProvider || '').trim();
+  if(provider)return provider;
+  if(billing.hotmartSubscriberCode || billing.hotmartTransaction || billing.hotmartOfferCode || tenant.hotmartSubscriberCode || tenant.hotmartTransaction || tenant.hotmartOfferCode)return 'hotmart';
+  var origin = String(tenant.origin || tenant.source || '').trim();
+  if(origin === 'manual' || origin === 'master' || origin === 'master_local')return 'manual';
+  return 'none';
+}
+function parseFlexibleDate(value){
+  if(value == null || value === '')return null;
+  if(value && typeof value.toDate === 'function')return value.toDate();
+  if(typeof value === 'object'){
+    var seconds = value.seconds != null ? value.seconds : value._seconds;
+    if(seconds != null)return new Date(Number(seconds) * 1000);
+    if(value.iso)return parseFlexibleDate(value.iso);
+    if(value.value)return parseFlexibleDate(value.value);
+  }
+  var text = String(value || '').trim();
+  if(!text)return null;
+  var date = new Date(text);
+  return isNaN(date.getTime()) ? null : date;
+}
+function padDatePart(value){return String(value).padStart(2,'0')}
+function dateToDatetimeLocal(value){
+  var date = parseFlexibleDate(value);
+  if(!date)return '';
+  return date.getFullYear()+'-'+padDatePart(date.getMonth()+1)+'-'+padDatePart(date.getDate())+'T'+padDatePart(date.getHours())+':'+padDatePart(date.getMinutes());
+}
+function dateToDisplay(value){
+  var date = parseFlexibleDate(value);
+  if(!date)return 'Não definido';
+  return padDatePart(date.getDate())+'/'+padDatePart(date.getMonth()+1)+'/'+date.getFullYear()+' '+padDatePart(date.getHours())+':'+padDatePart(date.getMinutes());
+}
+function datetimeLocalToIso(value){
+  if(!value)return '';
+  var date = new Date(value);
+  return isNaN(date.getTime()) ? '' : date.toISOString();
+}
+function hotmartOfferLabel(code){
+  var value=String(code||'').trim().toLowerCase();
+  var map={u7wyvsyn:'Plano Essencial',kah1d2ne:'Plano Compromisso Anual',woavlwrh:'Plano Fundadoras'};
+  return value ? (value+(map[value] ? ' — '+map[value] : '')) : '';
+}
+function setReadonlyDisplayValue(id, value, emptyText, rawValue){
+  var el=document.getElementById(id);
+  if(!el)return;
+  var text=String(value||'').trim();
+  el.value=text || emptyText || '';
+  el.dataset.rawValue=rawValue == null ? text : String(rawValue||'').trim();
+}
+function updateHotmartTabState(tenant){
+  tenant=tenant||{};
+  var billing=tenant.billing||{};
+  var linked=inferBillingProvider(tenant)==='hotmart';
+  var state=document.getElementById('user-hotmart-link-state');
+  if(state){
+    state.innerHTML=linked
+      ? '<span class="status-pill info">Vinculado à Hotmart</span><div style="margin-top:6px;">Dados recebidos por webhook ou vínculo Hotmart. Estes campos são somente leitura.</div>'
+      : 'Esta conta não está vinculada à Hotmart.<br>Use a ação Vincular Hotmart apenas se precisar associar manualmente uma compra ou assinatura.';
+  }
+  setReadonlyDisplayValue('user-hotmart-subscriber-code', billing.hotmartSubscriberCode, 'Não vinculado');
+  setReadonlyDisplayValue('user-hotmart-transaction', billing.hotmartTransaction, 'Não vinculado');
+  setReadonlyDisplayValue('user-hotmart-product-id', billing.hotmartProductId, 'Não recebido');
+  setReadonlyDisplayValue('user-hotmart-offer-code', hotmartOfferLabel(billing.hotmartOfferCode), 'Não recebido', billing.hotmartOfferCode);
+  setReadonlyDisplayValue('user-hotmart-purchase-status', billing.purchaseStatus||billing.hotmartPurchaseStatus, 'Aguardando evento da Hotmart');
+  setReadonlyDisplayValue('user-hotmart-subscription-status', billing.subscriptionStatus||billing.hotmartSubscriptionStatus||billing.status, 'Aguardando evento da Hotmart');
+  var lastEvent = billing.lastEventAt||billing.lastHotmartEventAt||billing.updatedAt||tenant.updatedAt;
+  setReadonlyDisplayValue('user-hotmart-last-event', lastEvent ? dateToDisplay(lastEvent) : '', 'Nenhum evento recebido', lastEvent);
+}
+function setBillingDateField(id, value){
+  var el=document.getElementById(id);
+  if(!el)return;
+  var date = parseFlexibleDate(value);
+  el.dataset.rawValue = date ? date.toISOString() : '';
+  updateBillingDateField(id);
+}
+function updateBillingDateField(id){
+  var el=document.getElementById(id);
+  if(!el)return;
+  var provider = val('user-billing-provider') || 'none';
+  var raw = el.dataset.rawValue || el.value || '';
+  if(provider === 'manual'){
+    el.type = 'datetime-local';
+    el.value = dateToDatetimeLocal(raw);
+    el.onchange = function(){el.dataset.rawValue = datetimeLocalToIso(el.value);};
+  }else{
+    el.onchange = null;
+    el.type = 'text';
+    el.value = raw ? dateToDisplay(raw) : 'Não definido';
+  }
+}
+function updateBillingProviderControls(){
+  var provider = val('user-billing-provider') || 'none';
+  var note = document.getElementById('user-billing-provider-note');
+  var billingFields = ['user-plan','user-billing-cycle','user-billing-status','user-trial-ends-at','user-activated-at','user-canceled-at'];
+  ['user-trial-ends-at','user-activated-at','user-canceled-at'].forEach(updateBillingDateField);
+  if(provider === 'hotmart'){
+    billingFields.forEach(function(id){setFieldLocked(id,true);});
+    if(note)note.textContent = 'Dados controlados pela Hotmart. Alterações devem ser feitas pela assinatura ou por vínculo/reprocessamento.';
+  }else if(provider === 'manual'){
+    billingFields.forEach(function(id){setFieldLocked(id,false);});
+    if(note)note.textContent = 'Cobrança controlada manualmente pelo Master.';
+  }else{
+    billingFields.forEach(function(id){setFieldLocked(id,true);});
+    if(note)note.textContent = 'Nenhum provedor de cobrança definido. Selecione Manual para configurar acesso sem Hotmart.';
+  }
+}
+function handleBillingProviderChange(){
+  var el=document.getElementById('user-billing-provider');
+  if(!el)return;
+  var previous=el.dataset.previousProvider || 'none';
+  var next=el.value || 'none';
+  if(previous === 'hotmart' && next === 'manual'){
+    if(!confirm('Essa conta está vinculada à Hotmart. Alterar para cobrança manual pode quebrar o controle automático de assinatura. Deseja continuar?')){
+      el.value = previous;
+      updateBillingProviderControls();
+      return;
+    }
+    el.dataset.manualOverride = 'true';
+  }else if(previous !== 'hotmart' && next === 'hotmart'){
+    alert('Hotmart só pode ser definido por vínculo ou reprocessamento Hotmart.');
+    el.value = previous;
+    updateBillingProviderControls();
+    return;
+  }else if(next !== 'manual'){
+    el.dataset.manualOverride = '';
+  }
+  el.dataset.previousProvider = next;
+  updateBillingProviderControls();
+}
+function applyUserSupportMode(){
+  var enabled=userSupportModeEnabled() || !window._editingTenantId;
+  var warning=document.getElementById('user-support-warning');
+  if(warning)warning.classList.toggle('show', userSupportModeEnabled());
+  ['user-full-name','user-social-name','user-email','user-phone-country-code','user-phone-number','user-whatsapp-country-code','user-whatsapp-number','user-language','user-document','user-account-street','user-account-number','user-account-complement','user-account-neighborhood','user-account-city','user-account-province','user-account-postal-code','user-account-country','user-fiscal-country','user-store-name','user-store-city','user-store-province','user-store-country','user-store-language','user-store-status'].forEach(function(id){setFieldLocked(id,!enabled);});
+  ['user-id','user-source','user-contact-email','user-admin-email','user-public-slug','user-store-url','user-store-instagram','user-store-facebook','user-store-tiktok','user-store-last-published-at','user-store-last-publication-error','user-auth-uid','user-email-verified','user-last-login-at','user-created-at','user-updated-at','user-hotmart-subscriber-code','user-hotmart-transaction','user-hotmart-product-id','user-hotmart-offer-code','user-hotmart-purchase-status','user-hotmart-subscription-status','user-hotmart-last-event','seo-tech-schema-type','seo-tech-schema-category','seo-tech-search-console','seo-tech-last-published'].forEach(function(id){setFieldLocked(id,true);});
+  updateBillingProviderControls();
+}
+function decorateUserFieldOrigins(){
+  var addressOrigin = val('user-account-address-source') === 'hotmart' ? 'Origem: Hotmart' : 'Origem: Cadastro/setup da usuária';
+  var storeLocationOrigin = window._currentStoreLocationOrigin || 'Origem: Centro de Controle';
+  var origins={
+    'user-id':'Origem: Sistema','user-status':'Origem: Master','user-full-name':'Origem: Cadastro/setup da usuária','user-social-name':'Origem: Cadastro/setup da usuária','user-email':'Origem: Firebase Auth / Cadastro','user-contact-email':'Origem: Admin → Configurações → Geral','user-admin-email':'Origem: Admin → Configurações → Geral','user-phone':'Origem: Cadastro/setup da usuária','user-whatsapp':'Origem: Admin → Configurações → Conta / Usuária','user-language':'Origem: Cadastro/setup da usuária','user-source':'Origem: Sistema','user-document':'Origem: Cadastro/setup da usuária','user-account-street':addressOrigin,'user-account-number':addressOrigin,'user-account-complement':addressOrigin,'user-account-neighborhood':addressOrigin,'user-account-city':addressOrigin,'user-account-province':addressOrigin,'user-account-postal-code':addressOrigin,'user-account-country':addressOrigin,'user-fiscal-country':'Origem: Cadastro/setup da usuária. Alterar apenas em modo suporte.','user-store-name':'Origem: Centro de Controle','user-public-slug':'Origem: Centro de Controle → Configurações → Domínio / URL','user-store-url':'Origem: Sistema','user-store-city':storeLocationOrigin,'user-store-province':storeLocationOrigin,'user-store-country':storeLocationOrigin,'user-store-language':'Origem: Centro de Controle','user-store-status':'Origem: Sistema/Publicação','user-store-instagram':'Origem: Centro de Controle → Loja Online → Template da loja','user-store-facebook':'Origem: Centro de Controle → Loja Online → Template da loja','user-store-tiktok':'Origem: Centro de Controle → Loja Online → Template da loja','user-store-last-published-at':'Origem: Sistema/Publicação','user-store-last-publication-error':'Origem: Sistema/Publicação','user-plan':'Origem: Hotmart ou Master','user-billing-cycle':'Origem: Hotmart ou Master','user-billing-provider':'Origem: Hotmart/Sistema','user-billing-status':'Origem: Hotmart ou Master','user-trial-ends-at':'Origem: Hotmart/Master','user-activated-at':'Origem: Sistema/Hotmart','user-canceled-at':'Origem: Sistema/Hotmart','user-auth-uid':'Origem: Firebase Auth','user-email-verified':'Origem: Firebase Auth','user-last-login-at':'Origem: Firebase Auth/Sistema','user-created-at':'Origem: Sistema','user-updated-at':'Origem: Sistema','user-role':'Origem: Master','user-hotmart-subscriber-code':'Origem: Hotmart','user-hotmart-transaction':'Origem: Hotmart','user-hotmart-product-id':'Origem: Hotmart','user-hotmart-offer-code':'Origem: Hotmart','user-hotmart-purchase-status':'Origem: Hotmart','user-hotmart-subscription-status':'Origem: Hotmart','user-hotmart-last-event':'Origem: Hotmart','seo-tech-allow-index':'Origem: Master/Admin','seo-tech-meta-robots':'Origem: Sistema/Master','seo-tech-schema-type':'Origem: Sistema','seo-tech-schema-category':'Origem: Sistema','seo-tech-sitemap-active':'Origem: Sistema/Master','seo-tech-robots-active':'Origem: Sistema/Master','seo-tech-search-console':'Origem: Sistema/Google','seo-tech-last-published':'Origem: Sistema'
+  };
+  Object.keys(origins).forEach(function(id){
+    var el=document.getElementById(id);
+    if(!el)return;
+    var label=el.closest('label');
+    if(!label && el.closest('.check-row'))label=el.closest('label');
+    if(!label)return;
+    var existing=label.querySelector('.origin-note');
+    if(existing){existing.textContent=origins[id];return;}
+    var note=document.createElement('small');
+    note.className='origin-note';
+    note.textContent=origins[id];
+    label.appendChild(note);
+  });
+}
+function checkUserEmailChange(){
+  var warn=document.getElementById('user-email-warning');
+  if(!warn)return;
+  var current=String(window._originalUserEmail||'').trim().toLowerCase();
+  var next=val('user-email').toLowerCase();
+  warn.classList.toggle('show', !!current && !!next && next!==current);
+}
+function parsePhoneParts(full, countryCode, number){
+  var codes=['+351','+55','+34','+33','+39','+49','+44','+1'];
+  var raw=String(full||'').trim();
+  var code=String(countryCode||'').trim();
+  var num=String(number||'').trim();
+  if(!code && raw){
+    var compact=raw.replace(/\s+/g,'');
+    var found=codes.find(function(c){return compact.indexOf(c)===0;});
+    if(found){code=found;num=compact.slice(found.length);}
+    else{code='';num=raw;}
+  }
+  if(!num && raw && code){
+    var prefix=raw.replace(/\s+/g,'');
+    num=prefix.indexOf(code)===0 ? prefix.slice(code.length) : raw;
+  }
+  return {countryCode:code,number:num,full:phoneFullValue(code,num)};
+}
+function phoneFullValue(code, number){
+  var clean=String(number||'').replace(/[^\d]/g,'');
+  return String(code||'') + clean;
+}
+function normalizeCountryCode(value){
+  var v=String(value||'').trim().toUpperCase();
+  var map={ESPANHA:'ES',SPAIN:'ES',PORTUGAL:'PT',BRASIL:'BR',BRAZIL:'BR',FRANCA:'FR','FRANÇA':'FR',FRANCE:'FR',ITALIA:'IT','ITÁLIA':'IT',ITALY:'IT',ALEMANHA:'DE',GERMANY:'DE','REINO UNIDO':'GB',UK:'GB',UNITEDKINGDOM:'GB','UNITED KINGDOM':'GB',EUA:'US',USA:'US','UNITED STATES':'US','ESTADOS UNIDOS':'US'};
+  return ['ES','PT','BR','FR','IT','DE','GB','US'].indexOf(v)>=0 ? v : (map[v]||'OTHER');
+}
+function normalizeCountryCodeOrEmpty(value){
+  var raw=String(value||'').trim();
+  return raw ? normalizeCountryCode(raw) : '';
+}
+function normalizeLanguageCode(value){
+  var v=String(value||'').trim();
+  var low=v.toLowerCase();
+  var map={'pt-br':'pt-BR','pt_br':'pt-BR','portugues brasil':'pt-BR','português brasil':'pt-BR','pt-pt':'pt-PT','pt_pt':'pt-PT','portugues portugal':'pt-PT','português portugal':'pt-PT','es':'es-ES','es-es':'es-ES','es_es':'es-ES','espanhol':'es-ES','en':'en','english':'en','ingles':'en','inglês':'en','fr':'fr','frances':'fr','francês':'fr'};
+  return map[low] || (['pt-BR','pt-PT','es-ES','en','fr'].indexOf(v)>=0 ? v : 'es-ES');
+}
+function normalizeLanguageCodeOrEmpty(value){
+  var raw=String(value||'').trim();
+  return raw ? normalizeLanguageCode(raw) : '';
+}
+function setPhoneControl(prefix, data){
+  data=data||{};
+  setVal(prefix+'-country-code', data.countryCode || '');
+  setVal(prefix+'-number', data.number || '');
+  setVal(prefix, data.full || phoneFullValue(data.countryCode,data.number));
+}
+function syncUserPhoneFields(){
+  var phoneCode=val('user-phone-country-code');
+  var phoneNumber=val('user-phone-number');
+  var whatsappCode=val('user-whatsapp-country-code');
+  var whatsappNumber=val('user-whatsapp-number');
+  setVal('user-phone', phoneFullValue(phoneCode,phoneNumber));
+  setVal('user-whatsapp', phoneFullValue(whatsappCode,whatsappNumber));
+  renderTenantUsersPreview();
+}
+function openUserModalTab(tab){
+  tab = tab || 'negocio';
+  document.querySelectorAll('#user-modal .user-modal-tab').forEach(function(btn){
+    btn.classList.toggle('active', btn.dataset.userTab === tab);
+  });
+  document.querySelectorAll('#user-modal .user-tab-panel').forEach(function(panel){
+    panel.classList.toggle('active', panel.dataset.userPanel === tab);
+  });
+}
+function openTenantUserDetailsModal(){
+  var modal=document.getElementById('tenant-user-details-modal');
+  if(modal)modal.classList.add('open');
+}
+function closeTenantUserDetailsModal(){
+  syncUserPhoneFields();
+  renderTenantUsersPreview();
+  var modal=document.getElementById('tenant-user-details-modal');
+  if(modal)modal.classList.remove('open');
+}
+function renderTenantUsersPreview(){
+  var wrap=document.getElementById('tenant-users-list');
+  if(!wrap)return;
+  var name=val('user-social-name') || val('user-full-name') || 'Usuária principal';
+  var email=val('user-email') || 'E-mail não preenchido';
+  var whatsapp=val('user-whatsapp') || 'WhatsApp não preenchido';
+  var role=val('user-role') || 'owner';
+  var status=val('user-status') || 'pending';
+  wrap.innerHTML =
+    '<div class="tenant-user-card">' +
+      '<div>' +
+        '<strong>'+esc(name)+'</strong>' +
+        '<p>'+esc(email)+' · '+esc(whatsapp)+'</p>' +
+        '<div class="tenant-user-meta">' +
+          '<span class="status-pill info">'+esc(role)+'</span>' +
+          '<span class="status-pill '+(status==='active'?'ok':(status==='blocked'?'danger':'warn'))+'">'+esc(status)+'</span>' +
+        '</div>' +
+      '</div>' +
+      '<button type="button" class="btn secondary" onclick="openTenantUserDetailsModal()">Ver dados</button>' +
+    '</div>';
 }
 function copyTenantId(){
   var id=window._editingTenantId||'';
@@ -994,31 +1457,26 @@ function publicStoreSlug(value){
   return String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').replace(/-{2,}/g,'-');
 }
 function publicStoreUrl(slug){
-  return slug ? 'https://bocafood.app/loja/' + slug : '';
+  return slug ? 'https://bocafood.app/loja/' + slug : 'Aguardando slug da loja';
+}
+function userPublicUrlFromFields(){
+  var slug = publicStoreSlug(val('user-public-slug'));
+  return publicStoreUrl(slug);
+}
+function updateUserPublicUrl(){
+  setVal('user-store-url', userPublicUrlFromFields());
 }
 function normalizePublicSlugField(fromName){
   var slugEl=document.getElementById('user-public-slug');
-  var urlEl=document.getElementById('user-store-url');
   if(!slugEl)return;
-  if(fromName && slugEl.dataset.manual==='1')return;
-  var slug=publicStoreSlug(slugEl.value);
-  if(!fromName)slugEl.dataset.manual='1';
-  slugEl.value=slug;
-  if(urlEl && (!urlEl.value || urlEl.value.indexOf('https://bocafood.app/loja/')===0))urlEl.value=publicStoreUrl(slug);
+  updateUserPublicUrl();
 }
 function bindPublicSlugAutomation(){
-  var nameEl=document.getElementById('user-name');
-  var businessEl=document.getElementById('user-business');
-  function fill(){
-    var slugEl=document.getElementById('user-public-slug');
-    if(!slugEl || slugEl.value || slugEl.dataset.manual==='1')return;
-    slugEl.value=publicStoreSlug((businessEl&&businessEl.value)||(nameEl&&nameEl.value)||'');
-    normalizePublicSlugField(true);
-  }
-  if(nameEl && !nameEl.dataset.slugBound){nameEl.dataset.slugBound='1';nameEl.addEventListener('input',fill);}
-  if(businessEl && !businessEl.dataset.slugBound){businessEl.dataset.slugBound='1';businessEl.addEventListener('input',fill);}
+  updateUserPublicUrl();
 }
 function closeUserModal(){
+  var details=document.getElementById('tenant-user-details-modal');
+  if(details)details.classList.remove('open');
   document.getElementById('user-modal').classList.remove('open');
 }
 function setUsersSyncStatus(text, kind){
@@ -1037,11 +1495,29 @@ function setUsersSyncStatus(text, kind){
 }
 function renderUsersList(results){
   var users = (results && results.users) || [];
-  window._masterUsers = users.sort(function(a,b){
+  if(results && results.users) window._masterUsersRaw = users.slice();
+  window._masterUsers = (window._masterUsersRaw || users).slice().sort(function(a,b){
     return String(a.name || a.businessName || a.id || '').localeCompare(String(b.name || b.businessName || b.id || ''));
   });
+  var q = String(val('users-search') || '').toLowerCase();
+  var planFilter = val('users-filter-plan');
+  var statusFilter = val('users-filter-status');
+  var billingFilter = val('users-filter-billing');
+  window._masterUsers = window._masterUsers.filter(function(t){
+    var billing = t.billing || {};
+    var store = t.store || {};
+    var text = [t.id,t.uid,t.name,t.fullName,t.ownerName,t.email,t.businessName,store.name,t.plan,billing.planSlug,t.status,t.accountStatus,billing.status,t.billingStatus].join(' ').toLowerCase();
+    if(q && text.indexOf(q) < 0) return false;
+    if(planFilter && normalizePlanSlug(billing.planSlug || t.plan || '') !== planFilter) return false;
+    if(statusFilter && String(t.accountStatus || t.status || '') !== statusFilter) return false;
+    if(billingFilter && String(billing.status || t.billingStatus || '') !== billingFilter) return false;
+    return true;
+  });
   var signature = window._masterUsers.map(function(t){
-    return [t.id||'', t.updatedAt||'', t.status||'', t.role||'', t.origin||'', t.syncStatus||'', t.localExists?'1':'0', t.authExists?'1':'0', t.systemExists?'1':'0'].join('|');
+    var store=t.store||{};
+    var billing=t.billing||{};
+    var auth=t.auth||{};
+    return [t.id||'', t.updatedAt||'', t.status||'', t.accountStatus||'', t.role||'', t.origin||'', t.syncStatus||'', t.lastAccessAt||'', auth.lastLoginAt||'', t.lastLoginAt||'', store.name||'', store.slug||'', store.publicUrl||'', store.status||'', billing.planSlug||'', billing.status||'', t.localExists?'1':'0', t.authExists?'1':'0', t.systemExists?'1':'0'].join('|');
   }).join('||');
   var changed = signature !== window._masterUsersSignature;
   window._masterUsersSignature = signature;
@@ -1050,37 +1526,65 @@ function renderUsersList(results){
   }
 
     if(!window._masterUsers.length){
-      document.getElementById('users-wrap').innerHTML='<div class="users-empty">Nenhum usuário encontrado após a sincronização.</div>';
+      document.getElementById('users-wrap').innerHTML='<div class="users-empty">Nenhum tenant BocaFood encontrado com os filtros atuais.</div>';
     }else{
       var rows = window._masterUsers.map(function(t){
         var uid = esc(t.id || '');
-        var status = esc(t.status || 'active');
-        var statusClass = t.status === 'disabled' ? 'disabled' : (t.status === 'pending' ? 'pending' : '');
-        var syncClass = t.syncStatus === 'Sincronizado' ? 'info' : (String(t.syncStatus || '').indexOf('Falta') >= 0 ? 'warn' : 'neutral');
+        var billing = t.billing || {};
+        var store = t.store || {};
+        var auth = t.auth || {};
+        var statusValue = t.accountStatus || t.status || 'active';
+        var billingStatus = billing.status || t.billingStatus || 'inactive';
+        var planValue = normalizePlanSlug(billing.planSlug || t.plan || 'essencial');
+        var originValue = t.origin || t.source || 'manual';
+        var status = esc(statusValue);
+        var statusClass = statusValue === 'blocked' || statusValue === 'disabled' || statusValue === 'canceled' ? 'disabled' : (statusValue === 'pending' ? 'pending' : '');
         var storeClass = t.storeStatus === 'Loja configurada' ? 'info' : (t.storeStatus === 'Loja não configurada' ? 'danger' : 'warn');
         var storeBadge = '<span class="status-pill '+storeClass+'">'+esc(t.storeStatus || 'Loja não configurada')+'</span>';
-        var syncBadge = '<span class="status-pill '+syncClass+'">'+esc(t.syncStatus || 'Sincronização parcial')+'</span>';
         var statusBadge = '<span class="status-pill '+statusClass+'">'+status+'</span>';
-        var originLine = '<span class="user-sub">Origem: <strong>'+esc(t.origin || 'Local')+'</strong></span>';
-        var uidLine = '<span class="user-sub">UID: '+uid+'</span> <button class="btn secondary" style="padding:4px 8px;font-size:11px;" onclick="copyUserId('+JSON.stringify(t.id||'')+')">Copiar</button>';
-        var contactLine = '<span class="user-sub">'+esc(t.email||'')+(t.phone ? ' · '+esc(t.phone) : '')+'</span>';
-        var lojaDetalhe = t.domain || t.storeUrl ? '<div class="user-sub">'+esc(t.domain || t.storeUrl)+'</div>' : '';
+        var originLine = '<span class="user-sub">'+esc(originValue)+'</span>';
+        var idArg = jsInlineArg(t.id || '');
+        var uidLine = '<span class="user-sub">UID: '+uid+'</span> <button class="btn secondary" style="padding:4px 8px;font-size:11px;" onclick="copyUserId('+idArg+')">Copiar</button>';
+        var userWhatsapp = t.whatsappFull || t.whatsapp || '';
+        var contactLine = '<span class="user-sub">'+esc(t.email||'')+(userWhatsapp ? ' · WhatsApp responsável: '+esc(userWhatsapp) : '')+'</span>';
+        var lojaNome = store.name || t.businessName || t.name || '';
+        var lojaDetalhe = (store.publicUrl || t.storeUrl) ? '<div class="user-sub">'+esc(store.publicUrl || t.storeUrl)+'</div>' : '';
         lojaDetalhe += t.githubRepo ? '<div class="user-sub">Repo: '+esc(t.githubRepo)+'</div>' : '';
-        var actions = ['<button class="btn secondary" onclick="window.editUser('+JSON.stringify(t.id||'')+')">Editar</button>'];
-        if (t.canCreateAuth) actions.push('<button class="btn secondary" style="background:#EEF2FF;color:#3730A3;border-color:#C7D2FE;" onclick="window.createUserInFirebase('+JSON.stringify(t.id||'')+')">Criar no Firebase</button>');
-        if (t.canImportToMaster) actions.push('<button class="btn secondary" style="background:#ECFDF5;color:#166534;border-color:#A7F3D0;" onclick="window.importFirebaseUserToMaster('+JSON.stringify(t.id||'')+')">Importar para Master</button>');
-        if (t.canReleaseAccess) actions.push('<button class="btn secondary" style="background:#FFF7ED;color:#9A3412;border-color:#FDBA74;" onclick="window.releaseAccess('+JSON.stringify(t.id||'')+')">Liberar acesso</button>');
-        if (t.localExists) actions.push('<button class="btn secondary" onclick="window.deleteUser('+JSON.stringify(t.id||'')+')">Excluir</button>');
-        return '<tr><td><div class="user-main"><div class="user-name">'+esc(t.name||t.businessName||'')+'</div>'+contactLine+'<div class="user-meta">'+originLine+'<span class="user-sub">•</span>'+uidLine+'</div></div></td><td><div class="user-main">'+statusBadge+'<span class="user-sub">Plano: '+esc(t.plan||'starter')+'</span></div></td><td>'+syncBadge+'</td><td><div class="user-main">'+storeBadge+lojaDetalhe+'</div></td><td><div class="user-actions">'+actions.join(' ')+'</div></td></tr>';
+        var actions = ['<button class="btn secondary" onclick="window.editUser('+idArg+')">Ver</button>','<button class="btn secondary" onclick="window.editUser('+idArg+')">Editar</button>'];
+        actions.push('<button class="btn secondary" style="background:#FFF7ED;color:#9A3412;border-color:#FDBA74;" onclick="window.releaseAccess('+idArg+')">Liberar acesso</button>');
+        actions.push('<button class="btn secondary" style="background:#FFF0EE;color:#C4362A;border-color:#F2C7C1;" onclick="window.blockAccess('+idArg+')">Bloquear</button>');
+        actions.push('<button class="btn secondary" onclick="window.changePlan('+idArg+')">Trocar plano</button>');
+        actions.push('<button class="btn secondary" onclick="window.linkHotmartPurchase('+idArg+')">Vincular Hotmart</button>');
+        actions.push('<button class="btn secondary" onclick="window.viewUserLogs('+idArg+')">Logs</button>');
+        actions.push('<button class="btn secondary" onclick="window.archiveUser('+idArg+')">Arquivar</button>');
+        var lastAccessRaw = t.lastAccessAt || auth.lastLoginAt || t.lastLoginAt || '';
+        var lastAccessText = _emailFormatDate(lastAccessRaw) || '';
+        var tenantCreatedText = _emailFormatDate(t.createdAt) || '';
+        var authCreatedText = _emailFormatDate(auth.createdAt) || '';
+        var createdIsFallback = String(t.origin||t.source||'').indexOf('firebase_auth_auto_import') >= 0;
+        var createdText = (!createdIsFallback && tenantCreatedText) ? ('Conta criada em: '+esc(tenantCreatedText)) : (authCreatedText ? ('Criado no Firebase Auth: '+esc(authCreatedText)) : 'Cadastro original não informado');
+        var lastAccessBadge = '<div class="user-last-access"><span class="last-access-badge '+(lastAccessText?'':'empty')+'">Último acesso: '+esc(lastAccessText || 'sem registro')+'</span><span class="user-sub">'+createdText+'</span></div>';
+        var accountName = lojaNome || t.businessName || t.name || t.id || '';
+        var responsibleName = t.socialName || t.fullName || t.ownerName || t.name || 'Não preenchido';
+        return '<tr>' +
+          '<td><div class="user-main"><div class="user-name">'+esc(accountName)+'</div>'+lojaDetalhe+'<div class="user-meta">'+uidLine+'</div>'+lastAccessBadge+'</div></td>' +
+          '<td><div class="user-main"><div class="user-name">'+esc(responsibleName)+'</div></div></td>' +
+          '<td><div class="user-main">'+contactLine+'</div></td>' +
+          '<td><div class="user-main"><span class="user-sub">'+esc(planLabel(planValue))+'</span><span class="status-pill neutral">'+esc(billingStatus)+'</span></div></td>' +
+          '<td><div class="user-main">'+statusBadge+'</div></td>' +
+          '<td><div class="user-main">'+storeBadge+'</div></td>' +
+          '<td><div class="user-main">'+originLine+'</div></td>' +
+          '<td><div class="user-actions">'+actions.join(' ')+'</div></td>' +
+        '</tr>';
       }).join('');
-      document.getElementById('users-wrap').innerHTML='<table class="table users-table"><thead><tr><th>Usuário</th><th>Status</th><th>Sync</th><th>Loja</th><th>Ações</th></tr></thead><tbody>'+rows+'</tbody></table>';
+      document.getElementById('users-wrap').innerHTML='<table class="table users-table"><thead><tr><th>Conta / negócio</th><th>Responsável</th><th>E-mail de acesso</th><th>Plano</th><th>Status da conta</th><th>Status da loja</th><th>Origem</th><th>Ações</th></tr></thead><tbody>'+rows+'</tbody></table>';
     }
 
     ['pub-tenant'].forEach(function(selectId){
       var sel=document.getElementById(selectId);
       if(!sel)return;
       var prev=sel.value;
-      sel.innerHTML='<option value="">— selecionar usuário —</option>'+
+      sel.innerHTML='<option value="">— selecionar conta —</option>'+
         window._masterUsers.map(function(t){
           return '<option value="'+esc(t.id)+'"'+(t.id===prev?' selected':'')+'>'+esc(t.name||t.businessName||t.id)+(t.githubRepo?'':' ⚠')+' ('+esc(String(t.id).slice(0,8))+'...)</option>';
         }).join('');
@@ -1088,6 +1592,10 @@ function renderUsersList(results){
     });
     if(document.getElementById('pub-tenant') && document.getElementById('pub-tenant').value) onPubTenantChange();
   return changed;
+}
+function clearUserFilters(){
+  ['users-search','users-filter-plan','users-filter-status','users-filter-billing'].forEach(function(id){setVal(id,'')});
+  renderUsersList({users:window._masterUsersRaw || window._masterUsers || []});
 }
 function copyUserId(id){
   if(!id){toast('ID indisponível');return;}
@@ -1107,72 +1615,40 @@ function loadUsers(opts){
     silent: !!opts.silent,
     force: !!opts.force
   });
-  setUsersSyncStatus('Sincronizando usuários...');
-  window._masterUsersSyncInFlight = api('/api/master/firebase/sync-users',{method:'POST',body:JSON.stringify({})})
-    .then(function(sync){
-      console.info('[Master] sync-users response', {
-        foundFirebase: sync && sync.counts ? sync.counts.auth_total : 0,
-        alreadySynced: sync && sync.counts ? sync.counts.already_synced : 0,
-        importedMaster: sync && sync.counts ? sync.counts.imported_master : 0,
-        createdSystem: sync && sync.counts ? sync.counts.created_system : 0,
-        updatedSystem: sync && sync.counts ? sync.counts.updated_system : 0,
-        ignoredCustomers: sync && sync.counts ? sync.counts.ignored_customers : 0
-      });
-      return api('/api/master/firebase/overview').then(function(results){
-        return { sync: sync, results: results, source: 'overview', syncFailed: false };
-      }).catch(function(overviewError){
-        console.error('[Master] overview fetch failed after sync', overviewError);
-        return api('/api/master/tenants').then(function(localResults){
-          return { sync: sync, results: { users: localResults.tenants || [] }, source: 'local', syncFailed: false, overviewError: overviewError };
-        }).catch(function(localError){
-          console.error('[Master] local tenants fallback failed', localError);
-          throw overviewError;
-        });
-      });
-    })
-    .catch(function(syncError){
-      console.error('[Master] sync-users failed', syncError);
-      return api('/api/master/firebase/overview').then(function(results){
-        return { sync: null, results: results, source: 'overview', syncFailed: true, syncError: syncError };
-      }).catch(function(overviewError){
-        console.error('[Master] overview fetch failed after sync error', overviewError);
-        return api('/api/master/tenants').then(function(localResults){
-          return { sync: null, results: { users: localResults.tenants || [] }, source: 'local', syncFailed: true, syncError: syncError, overviewError: overviewError };
-        }).catch(function(localError){
-          console.error('[Master] local tenants fallback failed after sync error', localError);
-          return { sync: null, results: { users: [] }, source: 'empty', syncFailed: true, syncError: syncError, overviewError: overviewError, localError: localError };
-        });
-      });
+  setUsersSyncStatus('Carregando contas BocaFood...');
+  window._masterUsersSyncInFlight = api('/api/master/users')
+    .then(function(results){
+      return { results: results, source: 'system_tenants', syncFailed: false };
     })
     .then(function(payload){
       var results = payload && payload.results ? payload.results : { users: [] };
       var changed = renderUsersList(results);
       var count = (results && results.users ? results.users.length : 0);
+      var tenantUids = (results.users || []).map(function(u){return u.id || u.uid || '';}).filter(Boolean).slice(0,20);
       console.info('[Master] loadUsers rendered', {
         source: payload && payload.source ? payload.source : 'unknown',
         users: count,
         changed: changed,
-        syncFailed: !!(payload && payload.syncFailed)
+        syncFailed: false,
+        firestorePath: 'system_tenants',
+        tenantUids: tenantUids
       });
-      if(payload && payload.syncFailed){
-        setUsersSyncStatus('Não foi possível sincronizar automaticamente. Use o botão Sincronizar usuários Firebase.', 'error');
-        if(!opts.silent){
-          toast('Não foi possível sincronizar automaticamente. Use o botão Sincronizar usuários Firebase.');
-        }
-      }else{
-        setUsersSyncStatus(changed ? '' : 'Usuários já estão sincronizados.');
-      }
+      setUsersSyncStatus(changed ? '' : 'Listando apenas tenants BocaFood com acesso ao Centro de Controle.');
       return {
-        sync: payload && payload.sync ? payload.sync : null,
+        sync: null,
         results: results,
         changed: changed,
-        source: payload && payload.source ? payload.source : 'unknown',
-        syncFailed: !!(payload && payload.syncFailed)
+        source: 'system_tenants',
+        syncFailed: false
       };
+    })
+    .then(function(payload){
+      loadHotmartPending();
+      return payload;
     })
     .catch(function(e){
       console.error('[Master] loadUsers failed', e);
-      setUsersSyncStatus('Não foi possível sincronizar usuários Firebase automaticamente.', 'error');
+      setUsersSyncStatus('Não foi possível carregar Contas BocaFood. Verifique se o Master local está rodando e se a credencial Firebase do Master está configurada.', 'error');
       if(!opts.silent) toast(e.message);
       var emptyResults = { users: [] };
       renderUsersList(emptyResults);
@@ -1205,21 +1681,21 @@ async function waitFirebaseUser(){
 }
 async function importUserSeed(id){
   var t=(window._masterUsers||[]).find(function(u){return u.id===id});
-  if(!t||!t.seedFile){toast('Este usuário não tem seed vinculado');return;}
+  if(!t||!t.seedFile){toast('Esta conta não tem seed vinculado');return;}
   var user=await waitFirebaseUser();
   if(!user){toast('Entre no Centro de Control com este usuário antes de importar.');return;}
   var targetId=user.uid;
   var mismatch=user.uid!==id;
   var msg=mismatch
-    ? 'A sessão atual tem outro ID Firebase:\n\nUsuário cadastrado no Master: '+id+'\nSessão atual: '+targetId+'\n\nImportar os dados antigos para a sessão atual? Assim eles aparecem no Centro de Control deste login.'
-    : 'Importar o seed para o Firestore deste usuário? Isso vai criar/atualizar produtos, categorias, upsells, avaliações e configurações.';
+    ? 'A sessão atual tem outro ID Firebase:\n\nConta cadastrada no Master: '+id+'\nSessão atual: '+targetId+'\n\nImportar os dados antigos para a sessão atual? Assim eles aparecem no Centro de Control deste login.'
+    : 'Importar o seed para o Firestore desta conta? Isso vai criar/atualizar produtos, categorias, upsells, avaliações e configurações.';
   if(!confirm(msg))return;
   try{
     toast('Importando seed...');
     var seed=await fetch(t.seedFile).then(function(r){if(!r.ok)throw new Error('Seed não encontrado');return r.json()});
     var tenants=(seed.firestore&&seed.firestore.tenants)||{};
     var tenant=tenants[id]||tenants[targetId]||tenants[Object.keys(tenants)[0]]||null;
-    if(!tenant)throw new Error('Seed não contém dados para este usuário');
+    if(!tenant)throw new Error('Seed não contém dados para esta conta');
     var db=firebase.firestore();
     var batch=db.batch();
     var writes=0;
@@ -1244,21 +1720,107 @@ async function importUserSeed(id){
 }
 function userPayload(){
   normalizePublicSlugField(false);
-  var slug = val('user-public-slug');
-  if(!slug){ throw new Error('Slug público obrigatório'); }
+  var original = window._editingTenantOriginal || {};
+  var originalStore = original.store || {};
+  var slug = publicStoreSlug(originalStore.slug || original.slug || val('user-public-slug'));
+  var planSlug = normalizePlanSlug(val('user-plan') || 'essencial');
+  var accountStatus = val('user-status') || 'pending';
+  var storeName = val('user-store-name') || val('user-business') || val('user-name');
+  var emailChanged = !!window._editingTenantId && !!window._originalUserEmail && val('user-email').toLowerCase() !== String(window._originalUserEmail).toLowerCase();
+  if(emailChanged && !confirm('Alterar o e-mail pode quebrar o vínculo com Hotmart e Firebase Auth. Use apenas para suporte manual. Continuar?')){
+    throw new Error('Alteração de e-mail cancelada.');
+  }
+  var supportMode = userSupportModeEnabled() || !window._editingTenantId;
+  var originalBilling = original.billing || {};
+  var originalAuth = original.auth || {};
+  var originalAccountAddress = original.accountAddress || {};
+  var billingProvider = val('user-billing-provider') || 'none';
+  var providerEl = document.getElementById('user-billing-provider');
+  var manualOverride = !!(providerEl && providerEl.dataset.manualOverride === 'true');
+  var keep = function(next, old){ return supportMode ? next : old; };
+  syncUserPhoneFields();
+  var phoneParts = parsePhoneParts(val('user-phone'), val('user-phone-country-code'), val('user-phone-number'));
+  var whatsappParts = parsePhoneParts(val('user-whatsapp'), val('user-whatsapp-country-code'), val('user-whatsapp-number'));
+  var supportFiscalCountry = val('user-fiscal-country') === 'PT' ? 'PT' : 'ES';
+  var accountAddress = supportMode ? {
+    street: val('user-account-street'),
+    number: val('user-account-number'),
+    complement: val('user-account-complement'),
+    neighborhood: val('user-account-neighborhood'),
+    city: val('user-account-city'),
+    province: val('user-account-province'),
+    postalCode: val('user-account-postal-code'),
+    country: val('user-account-country'),
+    fiscalCountry: supportFiscalCountry,
+    source: val('user-account-address-source') || 'setup'
+  } : originalAccountAddress;
+  var fiscalCountry = supportMode ? supportFiscalCountry : (original.fiscalCountry || originalAccountAddress.fiscalCountry || originalStore.fiscalCountry || '');
+  var accountCountry = originalAccountAddress.country || original.country || '';
   var p = {
-    id:window._editingTenantId||val('user-id'), name:val('user-name'), businessName:val('user-business'), ownerName:val('user-owner'),
-    email:val('user-email'), phone:val('user-phone'), document:val('user-document'), plan:val('user-plan'),
-    status:val('user-status'), role:val('user-role'), fiscalCountry:val('user-fiscal-country')||'ES', domain:val('user-domain'), storeUrl:val('user-store-url'),
-    adminUrl:val('user-admin-url'), source:val('user-source'), seedFile:val('user-seed'), notes:val('user-notes'),
-    githubRepo:val('user-github-repo'), githubBranch:val('user-github-branch')||'main', publicFile:val('user-public-file')||'index.html',
-    slug: slug, publicUrl: publicStoreUrl(slug)
+    id:window._editingTenantId||val('user-id'), supportMode:supportMode, fullName:keep(val('user-full-name'), original.fullName||original.ownerName||''), preferredName:keep(val('user-social-name'), original.preferredName||original.socialName||''), socialName:keep(val('user-social-name'), original.socialName||original.preferredName||''), name:val('user-name'), businessName:keep(val('user-business') || storeName, original.businessName||originalStore.name||''), ownerName:keep(val('user-full-name'), original.ownerName||original.fullName||''),
+    email:keep(val('user-email'), original.email||''), phone:keep(phoneParts.full, original.phoneFull||original.phone||''), phoneCountryCode:keep(phoneParts.countryCode, original.phoneCountryCode||''), phoneNumber:keep(phoneParts.number, original.phoneNumber||''), phoneFull:keep(phoneParts.full, original.phoneFull||original.phone||''), whatsapp:keep(whatsappParts.full, original.whatsappFull||original.whatsapp||''), whatsappCountryCode:keep(whatsappParts.countryCode, original.whatsappCountryCode||''), whatsappNumber:keep(whatsappParts.number, original.whatsappNumber||''), whatsappFull:keep(whatsappParts.full, original.whatsappFull||original.whatsapp||''), country:accountCountry, language:keep(val('user-language'), original.language||''), document:keep(val('user-document'), original.document||''), plan:billingProvider === 'manual' ? planSlug : normalizePlanSlug(originalBilling.planSlug || original.plan || ''),
+    status:accountStatus, accountStatus:accountStatus, role:val('user-role'), fiscalCountry:fiscalCountry, storeUrl:slug ? publicStoreUrl(slug) : (original.storeUrl || ''),
+    source:original.origin||original.source||val('user-source'), origin:original.origin||original.source||val('user-source'), notes:val('user-notes'),
+    slug: slug, publicUrl: slug ? publicStoreUrl(slug) : '',
+    accountAddress: accountAddress,
+    store:{
+      name: keep(storeName, originalStore.name||original.businessName||''),
+      slug: originalStore.slug || original.slug || slug,
+      domain: originalStore.domain || original.domain || '',
+      city: keep(val('user-store-city'), originalStore.city||''),
+      region: keep(val('user-store-province'), originalStore.region||originalStore.province||''),
+      province: keep(val('user-store-province'), originalStore.province||originalStore.region||''),
+      country: keep(val('user-store-country') || val('user-country'), originalStore.country||original.country||''),
+      fiscalCountry: fiscalCountry,
+      language: keep(val('user-store-language') || val('user-language'), originalStore.language||original.language||''),
+      status: supportMode ? (val('user-store-status') || originalStore.status || 'draft') : (originalStore.status || val('user-store-status') || 'draft'),
+      address: originalStore.address || {},
+      locationSource: originalStore.locationSource || '',
+      social: originalStore.social || {},
+      publishedAt: originalStore.publishedAt || '',
+      lastPublishedAt: originalStore.lastPublishedAt || '',
+      unpublishedAt: originalStore.unpublishedAt || '',
+      lastPublicationError: originalStore.lastPublicationError || ''
+    },
+    billing:{
+      provider: billingProvider,
+      manualOverride: manualOverride,
+      status: billingProvider === 'manual' ? (val('user-billing-status') || 'inactive') : (originalBilling.status || ''),
+      planSlug: billingProvider === 'manual' ? planSlug : normalizePlanSlug(originalBilling.planSlug || original.plan || ''),
+      billingCycle: billingProvider === 'manual' ? (val('user-billing-cycle') || 'monthly') : (originalBilling.billingCycle || original.billingCycle || originalBilling.cycle || ''),
+      trialEndsAt: billingProvider === 'manual' ? datetimeLocalToIso(val('user-trial-ends-at')) : (originalBilling.trialEndsAt || original.trialEndsAt || ''),
+      activatedAt: billingProvider === 'manual' ? datetimeLocalToIso(val('user-activated-at')) : (originalBilling.activatedAt || original.activatedAt || ''),
+      canceledAt: billingProvider === 'manual' ? datetimeLocalToIso(val('user-canceled-at')) : (originalBilling.canceledAt || original.canceledAt || ''),
+      hotmartSubscriberCode: originalBilling.hotmartSubscriberCode || (document.getElementById('user-hotmart-subscriber-code')&&document.getElementById('user-hotmart-subscriber-code').dataset.rawValue) || '',
+      hotmartTransaction: originalBilling.hotmartTransaction || (document.getElementById('user-hotmart-transaction')&&document.getElementById('user-hotmart-transaction').dataset.rawValue) || '',
+      hotmartProductId: originalBilling.hotmartProductId || (document.getElementById('user-hotmart-product-id')&&document.getElementById('user-hotmart-product-id').dataset.rawValue) || '',
+      hotmartOfferCode: originalBilling.hotmartOfferCode || (document.getElementById('user-hotmart-offer-code')&&document.getElementById('user-hotmart-offer-code').dataset.rawValue) || '',
+      purchaseStatus: originalBilling.purchaseStatus || originalBilling.hotmartPurchaseStatus || (document.getElementById('user-hotmart-purchase-status')&&document.getElementById('user-hotmart-purchase-status').dataset.rawValue) || '',
+      subscriptionStatus: originalBilling.subscriptionStatus || originalBilling.hotmartSubscriptionStatus || (document.getElementById('user-hotmart-subscription-status')&&document.getElementById('user-hotmart-subscription-status').dataset.rawValue) || '',
+      lastHotmartEventAt: originalBilling.lastHotmartEventAt || originalBilling.lastEventAt || (document.getElementById('user-hotmart-last-event')&&document.getElementById('user-hotmart-last-event').dataset.rawValue) || ''
+    },
+    billingCycle: billingProvider === 'manual' ? (val('user-billing-cycle') || 'monthly') : (originalBilling.billingCycle || original.billingCycle || originalBilling.cycle || ''),
+    trialEndsAt: billingProvider === 'manual' ? datetimeLocalToIso(val('user-trial-ends-at')) : (originalBilling.trialEndsAt || original.trialEndsAt || ''),
+    activatedAt: billingProvider === 'manual' ? datetimeLocalToIso(val('user-activated-at')) : (originalBilling.activatedAt || original.activatedAt || ''),
+    canceledAt: billingProvider === 'manual' ? datetimeLocalToIso(val('user-canceled-at')) : (originalBilling.canceledAt || original.canceledAt || ''),
+    auth:{
+      uid: originalAuth.uid || val('user-auth-uid') || window._editingTenantId || val('user-id'),
+      emailVerified: originalAuth.emailVerified === true || ((document.getElementById('user-email-verified') && document.getElementById('user-email-verified').value) === 'true'),
+      lastLoginAt: originalAuth.lastLoginAt || val('user-last-login-at')
+    },
+    seo:{
+      allowIndexing: document.getElementById('seo-tech-allow-index').checked,
+      metaRobots: val('seo-tech-meta-robots'),
+      schemaType: val('seo-tech-schema-type'),
+      schemaCategory: val('seo-tech-schema-category'),
+      sitemapEnabled: document.getElementById('seo-tech-sitemap-active').checked,
+      robotsEnabled: document.getElementById('seo-tech-robots-active').checked,
+      searchConsoleLinked: document.getElementById('seo-tech-search-console').checked,
+      lastSeoPublishedAt: val('seo-tech-last-published')
+    },
+    createdAt: original.createdAt || val('user-created-at'),
+    updatedAt: original.updatedAt || val('user-updated-at')
   };
-  var clearChk = document.getElementById('user-github-token-clear');
-  var tokenVal = val('user-github-token');
-  if(clearChk && clearChk.checked){ p.githubToken = ''; }
-  else if(tokenVal){ p.githubToken = tokenVal; }
-  // campo vazio sem checkbox marcado → chave ausente → backend preserva token existente
   return p;
 }
 function saveUser(){
@@ -1268,11 +1830,11 @@ function saveUser(){
     .then(function(r){
       var tenant = r.tenant || p;
       if(r.systemTenant && r.systemTenant.error){
-        toast('Usuário salvo, mas a liberação do Centro de Control falhou');
+        toast('Conta salva, mas a liberação do Centro de Control falhou');
       }else if(r.systemTenant && r.systemTenant.skipped){
-        toast('Usuário salvo; acesso ainda não liberado');
+        toast('Conta salva; acesso ainda não liberado');
       }else{
-        toast('Usuário sincronizado');
+        toast('Conta sincronizada');
       }
       closeUserModal();
       loadUsers();
@@ -1299,20 +1861,7 @@ function saveUser(){
     });
 }
 function syncFirebaseUsers(){
-  console.info('[Master] manual sync clicked');
-  return loadUsers({force:true})
-    .then(function(payload){
-      if(payload && payload.syncFailed){
-        toast('Não foi possível sincronizar automaticamente. Use o botão Sincronizar usuários Firebase.');
-      }else{
-        toast('Usuários Firebase sincronizados');
-      }
-      return payload;
-    })
-    .catch(function(e){
-      console.error('[Master] sync users firebase erro', e);
-      toast('Erro ao sincronizar usuários Firebase: '+e.message);
-    });
+  return loadUsers({force:true}).then(function(payload){toast('Contas BocaFood atualizadas');return payload;});
 }
 function provisionUser(payload, opts){
   opts = opts || {};
@@ -1347,102 +1896,326 @@ function provisionUser(payload, opts){
 }
 function createUserInFirebase(id){
   var t=(window._masterUsers||[]).find(function(u){return u.id===id;});
-  if(!t){toast('Usuário não encontrado');return;}
+  if(!t){toast('Conta não encontrada');return;}
   provisionUser(t,{action:'create_firebase'})
-    .then(function(){toast('Usuário criado/sincronizado no Firebase');loadUsers();})
+    .then(function(){toast('Conta criada/sincronizada no Firebase');loadUsers();})
     .catch(function(e){toast('Erro ao criar no Firebase: '+e.message);});
 }
 function importFirebaseUserToMaster(id){
   var t=(window._masterUsers||[]).find(function(u){return u.id===id;});
-  if(!t){toast('Usuário não encontrado');return;}
+  if(!t){toast('Conta não encontrada');return;}
   api('/api/master/firebase/import-users',{method:'POST',body:JSON.stringify({uid:id,email:t.email||''})})
     .then(function(r){
       var n=(r.imported||[]).length;
-      toast(n ? 'Usuário importado para o Master' : 'Nenhum usuário importado');
+      toast(n ? 'Conta importada para o Master' : 'Nenhuma conta importada');
       loadUsers();
     })
     .catch(function(e){toast('Erro ao importar: '+e.message);});
 }
 function releaseAccess(id){
   var t=(window._masterUsers||[]).find(function(u){return u.id===id;});
-  if(!t){toast('Usuário não encontrado');return;}
-  api('/api/master/firebase/release-access',{method:'POST',body:JSON.stringify({uid:id,email:t.email||''})})
+  if(!t){toast('Conta não encontrada');return;}
+  api('/api/master/tenants/action',{method:'POST',body:JSON.stringify({action:'activate_access',uid:id,email:t.email||''})})
     .then(function(){toast('Acesso liberado');loadUsers();})
     .catch(function(e){toast('Erro ao liberar acesso: '+e.message);});
+}
+function blockAccess(id){
+  if(!confirm('Bloquear acesso desta conta?'))return;
+  api('/api/master/tenants/action',{method:'POST',body:JSON.stringify({action:'block_access',uid:id})})
+    .then(function(){toast('Acesso bloqueado');loadUsers();})
+    .catch(function(e){toast('Erro ao bloquear: '+e.message);});
+}
+function changePlan(id){
+  var t=(window._masterUsers||[]).find(function(u){return u.id===id;});
+  if(!t){toast('Conta não encontrada');return;}
+  var current=normalizePlanSlug((t.billing&&t.billing.planSlug)||t.plan||'essencial');
+  var plan=prompt('Novo plano (essencial, compromisso_anual, fundadoras):', current);
+  plan = normalizePlanSlug(plan);
+  if(!plan)return;
+  var currentCycle=(t.billing&&t.billing.billingCycle)||t.billingCycle||(t.billing&&t.billing.cycle)||'monthly';
+  var cycle=prompt('Ciclo de cobrança (monthly ou annual):', currentCycle) || currentCycle;
+  api('/api/master/tenants/action',{method:'POST',body:JSON.stringify({action:'change_plan',uid:id,planSlug:plan,billingCycle:cycle})})
+    .then(function(){toast('Plano alterado');loadUsers();})
+    .catch(function(e){toast('Erro ao trocar plano: '+e.message);});
+}
+function linkHotmartPurchase(id){
+  var tx=prompt('Informe o ID da pendência Hotmart ou transação para vincular:');
+  if(!tx)return;
+  api('/api/master/hotmart/pending/action',{method:'POST',body:JSON.stringify({action:'link_existing',uid:id,pendingId:tx})})
+    .then(function(r){toast(r.manualLink?'Compra vinculada manualmente':'Compra Hotmart vinculada');loadUsers();loadHotmartPending();})
+    .catch(function(e){toast('Erro ao vincular Hotmart: '+e.message);});
+}
+function viewHotmartEventsForCurrentUser(){
+  var t=(window._masterUsers||[]).find(function(u){return u.id===window._editingTenantId;}) || {};
+  var billing=t.billing||{};
+  var lines=[
+    'Subscriber: '+(billing.hotmartSubscriberCode||'Não vinculado'),
+    'Transação: '+(billing.hotmartTransaction||'Não vinculado'),
+    'Produto: '+(billing.hotmartProductId||'Não recebido'),
+    'Oferta: '+(hotmartOfferLabel(billing.hotmartOfferCode)||'Não recebido'),
+    'Purchase status: '+(billing.purchaseStatus||billing.hotmartPurchaseStatus||'Aguardando evento da Hotmart'),
+    'Subscription status: '+(billing.subscriptionStatus||billing.hotmartSubscriptionStatus||billing.status||'Aguardando evento da Hotmart'),
+    'Último evento: '+dateToDisplay(billing.lastEventAt||billing.lastHotmartEventAt||billing.updatedAt||t.updatedAt)
+  ];
+  alert(lines.join('\n'));
+}
+var _accessHistoryContext = null;
+var _accessHistoryFilter = 'todos';
+function viewUserLogs(id){
+  var t=(window._masterUsers||[]).find(function(u){return u.id===id || u.uid===id;}) || {};
+  _accessHistoryContext = { uid:id, email:t.email||'', name:t.ownerName||t.name||t.businessName||t.email||id };
+  _accessHistoryFilter = 'todos';
+  updateAccessHistoryFilterButtons();
+  var modal=document.getElementById('access-history-modal');
+  if(modal)modal.classList.add('open');
+  var user=document.getElementById('access-history-user');
+  if(user)user.textContent=_accessHistoryContext.name;
+  reloadAccessHistory();
+}
+function closeAccessHistoryModal(){
+  var modal=document.getElementById('access-history-modal');
+  if(modal)modal.classList.remove('open');
+}
+function accessHistoryActionLabel(action){
+  var map={
+    admin_login:'Login no Centro de Controle',
+    store_published:'Loja publicada',
+    store_unpublished:'Loja despublicada',
+    store_publication_failed:'Erro ao publicar loja',
+    store_slug_updated:'Slug público alterado',
+    account_settings_updated:'Dados da conta atualizados',
+    store_settings_updated:'Configurações da loja atualizadas',
+    master_tenant_updated:'Dados alterados pelo Master',
+    master_account_blocked:'Conta bloqueada pelo Master',
+    master_account_activated:'Conta liberada pelo Master',
+    account_status_changed:'Status da conta alterado',
+    plan_changed:'Plano alterado',
+    billing_plan_changed:'Plano alterado',
+    billing_cycle_changed:'Ciclo de cobrança alterado',
+    billing_provider_changed:'Provedor de cobrança alterado',
+    billing_status_changed:'Status de assinatura alterado',
+    billing_trial_changed:'Fim do trial alterado',
+    billing_activation_date_changed:'Data de ativação alterada',
+    billing_cancellation_date_changed:'Data de cancelamento alterada',
+    fiscal_country_changed:'País fiscal alterado',
+    tenant_archived:'Tenant arquivado'
+  };
+  return map[action] || action || 'Evento';
+}
+function accessHistoryMatchesFilter(log){
+  var action=String(log.action||'');
+  var module=String(log.module||'');
+  if(_accessHistoryFilter==='login')return action==='admin_login';
+  if(_accessHistoryFilter==='loja')return /store_|publication|loja|template|dominio/.test(action+' '+module);
+  if(_accessHistoryFilter==='publicacao')return ['store_published','store_unpublished','store_publication_failed'].indexOf(action)>=0;
+  if(_accessHistoryFilter==='conta')return /account|billing|plan|fiscal|settings/.test(action);
+  if(_accessHistoryFilter==='master')return /^master_|tenant_|account_status|plan_|billing_status|fiscal_country/.test(action) || module.indexOf('master')>=0;
+  if(_accessHistoryFilter==='erros')return log.severity==='warning'||log.severity==='critical'||/failed|error|blocked|bloque/.test(action);
+  return true;
+}
+function setAccessHistoryFilter(filter){
+  _accessHistoryFilter=filter||'todos';
+  updateAccessHistoryFilterButtons();
+  reloadAccessHistory();
+}
+function updateAccessHistoryFilterButtons(){
+  document.querySelectorAll('.access-history-filter').forEach(function(btn){
+    btn.classList.toggle('active', btn.getAttribute('data-access-filter')===_accessHistoryFilter);
+  });
+}
+function renderAccessHistory(logs){
+  var list=document.getElementById('access-history-list');
+  var count=document.getElementById('access-history-count');
+  logs=(logs||[]).filter(accessHistoryMatchesFilter);
+  if(count)count.textContent=(logs.length||0)+' registro(s) encontrado(s).';
+  if(!list)return;
+  if(!logs.length){list.innerHTML='<div class="users-empty">Nenhum acesso registrado para esta conta ainda.</div>';return;}
+  list.innerHTML=logs.map(function(l){
+    var details=l.metadata&&typeof l.metadata==='object'?l.metadata:(l.details&&typeof l.details==='object'?l.details:{});
+    var action=l.action||'';
+    var badgeClass=action==='admin_login'?'login':(l.severity==='warning'||l.severity==='critical'||String(action).indexOf('failed')>=0||String(action).indexOf('blocked')>=0?'warning':'');
+    var parts=[];
+    if(l.source)parts.push('Origem: '+esc(l.source));
+    if(l.module)parts.push('Módulo: '+esc(l.module));
+    if(l.severity)parts.push('Severidade: '+esc(l.severity));
+    if(l.email||details.email)parts.push('E-mail: '+esc(l.email||details.email));
+    if(l.uid||l.tenantUid)parts.push('UID: '+esc(l.uid||l.tenantUid));
+    if(details.role)parts.push('Papel: '+esc(details.role));
+    if(details.masterTenantId)parts.push('Tenant Master: '+esc(details.masterTenantId));
+    if(details.from||details.to)parts.push('Alteração: '+esc(details.from||'-')+' → '+esc(details.to||'-'));
+    return '<div class="access-history-card"><div><div class="access-history-title">'+esc(accessHistoryActionLabel(action))+'</div><div class="access-history-meta">'+esc(_emailFormatDate(l.createdAt)||l.createdAt||'-')+'</div><div class="access-history-meta">'+esc(l.summary||l.message||'Registro do sistema')+'</div><div class="access-history-meta">'+(parts.join('<br>')||'')+'</div></div><span class="access-history-badge '+badgeClass+'">'+esc(action||'log')+'</span></div>';
+  }).join('');
+}
+function reloadAccessHistory(){
+  if(!_accessHistoryContext)return;
+  var list=document.getElementById('access-history-list');
+  if(list)list.innerHTML='<div class="users-empty">Carregando histórico...</div>';
+  var qs='uid='+encodeURIComponent(_accessHistoryContext.uid||'')+'&email='+encodeURIComponent(_accessHistoryContext.email||'');
+  api('/api/master/access/logs?'+qs).then(function(r){
+    renderAccessHistory(r.logs||[]);
+  }).catch(function(e){
+    if(list)list.innerHTML='<div class="users-empty">'+esc(e.message||'Erro ao carregar histórico')+'</div>';
+    toast('Erro ao carregar histórico: '+e.message);
+  });
+}
+function loadHotmartPending(){
+  var box=document.getElementById('hotmart-pending-wrap');
+  if(!box)return Promise.resolve();
+  return api('/api/master/hotmart/pending').then(function(r){
+    var items=r.items||[];
+    if(!items.length){box.innerHTML='<div class="users-empty">Nenhuma pendência de acesso no momento. Compras Hotmart com e-mail correspondente são vinculadas automaticamente.</div>';return;}
+    box.innerHTML=items.map(function(p){
+      var id=p.id||p.hotmartTransaction||p.buyerEmail||'';
+      var pendingArg = jsInlineArg(id);
+      return '<div class="hotmart-pending-item"><div><strong>'+esc(p.buyerName||p.buyerEmail||'Pendência sem nome')+'</strong><small>'+esc(p.buyerEmail||'')+' · '+esc(p.status||'pending')+'</small><small>Motivo: '+esc(p.pendingReason||p.reason||'ação manual necessária')+'</small></div><div><small>Subscriber: '+esc(p.hotmartSubscriberCode||'-')+'</small><small>Transação: '+esc(p.hotmartTransaction||'-')+'</small><small>Criado: '+esc(_emailFormatDate(p.createdAt)||'-')+' · Atualizado: '+esc(_emailFormatDate(p.updatedAt)||'-')+'</small></div><div class="user-actions"><button class="btn secondary" onclick="linkPendingToExisting('+pendingArg+')">Vincular</button><button class="btn" onclick="createTenantFromPending('+pendingArg+')">Criar tenant</button><button class="btn secondary" onclick="archivePending('+pendingArg+')">Arquivar</button></div></div>';
+    }).join('');
+  }).catch(function(e){box.innerHTML='<div class="users-empty">'+esc(e.message||'Erro ao carregar pendências Hotmart')+'</div>';});
+}
+function linkPendingToExisting(pendingId){
+  var email=prompt('E-mail da conta/tenant existente para vincular:');
+  if(!email)return;
+  api('/api/master/hotmart/pending/action',{method:'POST',body:JSON.stringify({action:'link_existing',pendingId:pendingId,email:email})})
+    .then(function(r){toast(r.manualLink?'Compra vinculada manualmente':'Compra vinculada');loadUsers();loadHotmartPending();})
+    .catch(function(e){toast('Erro ao vincular: '+e.message);});
+}
+function createTenantFromPending(pendingId){
+  api('/api/master/hotmart/pending/action',{method:'POST',body:JSON.stringify({action:'create_tenant',pendingId:pendingId})})
+    .then(function(){toast('Tenant criado a partir da compra Hotmart');loadUsers();loadHotmartPending();})
+    .catch(function(e){toast('Erro ao criar tenant: '+e.message);});
+}
+function archivePending(pendingId){
+  if(!confirm('Arquivar esta pendência Hotmart?'))return;
+  api('/api/master/hotmart/pending/action',{method:'POST',body:JSON.stringify({action:'archive',pendingId:pendingId})})
+    .then(function(){toast('Pendência arquivada');loadHotmartPending();})
+    .catch(function(e){toast('Erro ao arquivar: '+e.message);});
 }
 function editUser(id){
   console.info('[Master] edit clicked', { id: id });
   var t=(window._masterUsers||[]).find(function(u){return u.id===id});
   if(!t)return;
+  console.info('[Master] tenant lido para edição', {
+    tenantUid: t.id,
+    path: 'system_tenants/' + t.id,
+    storeSlug: t.store && t.store.slug || '',
+    publicUrl: t.store && t.store.publicUrl || '',
+    fieldsFound: {
+      ownerName: !!t.ownerName,
+      responsibleName: !!t.responsibleName,
+      accountAddress: !!t.accountAddress,
+      storeName: !!(t.store && t.store.name),
+      storeCity: !!(t.store && t.store.city),
+      storeProvince: !!(t.store && t.store.province),
+      storeCountry: !!(t.store && t.store.country),
+      storeLanguage: !!(t.store && t.store.language)
+    },
+    usedLegacyFallback: false
+  });
   window._editingTenantId=t.id;
+  window._editingTenantOriginal=JSON.parse(JSON.stringify(t||{}));
+  window._originalUserEmail=t.email||'';
   document.getElementById('user-id-label').style.display='none';
   document.getElementById('user-id-readonly-label').style.display='';
   document.getElementById('user-id-display').textContent=t.id;
+  var store=t.store||{};
+  var billing=t.billing||{};
+  var auth=t.auth||{};
+  var accountAddress=t.accountAddress||{};
   setVal('user-id','');
-  setVal('user-name',t.name);setVal('user-business',t.businessName);setVal('user-owner',t.ownerName);
-  setVal('user-email',t.email);setVal('user-phone',t.phone);setVal('user-document',t.document);setVal('user-plan',t.plan||'starter');
-  setVal('user-status',t.status||'active');setVal('user-role',t.role||'store_owner');setVal('user-fiscal-country',t.fiscalCountry||'ES');setVal('user-domain',t.domain);setVal('user-store-url',t.storeUrl);
-  setVal('user-public-slug',publicStoreSlug(t.slug||''));
+  setVal('user-full-name',t.ownerName||t.fullName||'');
+  setVal('user-social-name',t.preferredName||t.socialName||'');
+  setVal('user-name',t.name);setVal('user-business',t.businessName);setVal('user-owner',t.responsibleName||t.ownerName||'');
+  setVal('user-email',t.email);
+  setVal('user-contact-email',t.contactEmail||'');
+  setVal('user-admin-email',t.adminEmail||t.fiscalEmail||t.billingEmail||'');
+  setPhoneControl('user-phone', parsePhoneParts(t.phoneFull||t.phone, t.phoneCountryCode, t.phoneNumber));
+  setPhoneControl('user-whatsapp', parsePhoneParts(t.whatsappFull||t.whatsapp, t.whatsappCountryCode, t.whatsappNumber));
+  setVal('user-country',normalizeCountryCodeOrEmpty(t.country || accountAddress.country));setVal('user-language',normalizeLanguageCodeOrEmpty(t.language));setVal('user-document',t.document);setVal('user-plan',normalizePlanSlug(billing.planSlug||t.plan||'essencial'));
+  setVal('user-account-street',accountAddress.street);setVal('user-account-number',accountAddress.number);setVal('user-account-complement',accountAddress.complement);setVal('user-account-neighborhood',accountAddress.neighborhood);setVal('user-account-city',accountAddress.city);setVal('user-account-province',accountAddress.province);setVal('user-account-postal-code',accountAddress.postalCode);setVal('user-account-country',accountAddress.country||t.country||'');setVal('user-account-address-source',accountAddress.source||((t.origin||t.source)==='hotmart'?'hotmart':'setup'));
+  checkUserEmailChange();
+  setVal('user-status',t.accountStatus||t.status||'active');setVal('user-role',t.role||'owner');setVal('user-fiscal-country',normalizeCountryCodeOrEmpty(t.fiscalCountry||accountAddress.fiscalCountry||store.fiscalCountry));
+  var storeSocial=store.social||{};
+  var storeAddress=(store.address&&typeof store.address==='object')?store.address:{};
+  var storeCity=store.city||storeAddress.city||'';
+  var storeRegion=store.region||store.province||storeAddress.province||'';
+  var storeCountry=store.country||storeAddress.country||'';
+  window._currentStoreLocationOrigin = store.locationSource==='delivery_area'
+    ? 'Origem: Centro de Controle → Loja Online → Template da loja'
+    : (store.locationSource==='public_address'||storeAddress.source==='admin_public_address'
+      ? 'Origem: Centro de Controle → Atendimento → Endereço'
+      : 'Origem: Centro de Controle');
+  var legacyTemplate=(t.template||t.configTemplate||t.storeTemplate||{});
+  setVal('user-store-name',store.name||'');setVal('user-store-city',storeCity);setVal('user-store-province',storeRegion);setVal('user-store-country',normalizeCountryCodeOrEmpty(storeCountry));setVal('user-store-language',normalizeLanguageCodeOrEmpty(store.language));setVal('user-store-status',store.status||'draft');setVal('user-store-instagram',storeSocial.instagram||store.instagram||legacyTemplate.instagram||'');setVal('user-store-facebook',storeSocial.facebook||store.facebook||legacyTemplate.facebook||'');setVal('user-store-tiktok',storeSocial.tiktok||store.tiktok||legacyTemplate.tiktok||'');setVal('user-store-last-published-at',store.lastPublishedAt||store.publishedAt);setVal('user-store-last-publication-error',store.lastPublicationError);
+  var providerValue = inferBillingProvider(t);
+  setVal('user-billing-provider',providerValue);setVal('user-billing-status',billing.status||t.billingStatus||'inactive');setVal('user-billing-cycle',billing.billingCycle||t.billingCycle||billing.cycle||'monthly');
+  var providerEl=document.getElementById('user-billing-provider');if(providerEl){providerEl.dataset.previousProvider=providerValue;providerEl.dataset.manualOverride='';}
+  setBillingDateField('user-trial-ends-at',billing.trialEndsAt||t.trialEndsAt);setBillingDateField('user-activated-at',billing.activatedAt||t.activatedAt);setBillingDateField('user-canceled-at',billing.canceledAt||t.canceledAt);
+  updateHotmartTabState(t);
+  setVal('user-auth-uid',auth.uid||t.uid||t.id);setVal('user-email-verified',String(auth.emailVerified===true||t.emailVerified===true));setVal('user-last-login-at',auth.lastLoginAt||t.lastLoginAt);setVal('user-created-at',t.createdAt);setVal('user-updated-at',t.updatedAt);
+  setVal('user-public-slug',publicStoreSlug(store.slug||t.slug||''));
   var slugEl=document.getElementById('user-public-slug');if(slugEl)slugEl.dataset.manual=t.slug?'1':'';
-  setVal('user-admin-url',t.adminUrl);setVal('user-source',t.source);setVal('user-seed',t.seedFile);setVal('user-notes',t.notes);
-  setVal('user-github-repo',t.githubRepo||'');setVal('user-github-branch',t.githubBranch||'main');setVal('user-public-file',t.publicFile||'index.html');
-  setVal('user-github-token','');
-  var _tkBadge=document.getElementById('user-github-token-badge');
-  var _tkClearRow=document.getElementById('user-github-token-clear-row');
-  var _tkClear=document.getElementById('user-github-token-clear');
-  if(_tkBadge)_tkBadge.style.display=t.githubToken?'inline':'none';
-  if(_tkClearRow)_tkClearRow.style.display=t.githubToken?'flex':'none';
-  if(_tkClear)_tkClear.checked=false;
+  updateUserPublicUrl();
+  var currentSlug=publicStoreSlug(store.slug||t.slug||'');
+  if(currentSlug)setVal('user-store-url',publicStoreUrl(currentSlug));
+  if(!publicStoreSlug(store.slug||t.slug||''))setVal('user-store-url','Aguardando slug da loja');
+  var sourceValue=t.origin||t.source||'manual';
+  if(sourceValue==='master_local')sourceValue='master';
+  if(String(sourceValue).indexOf('firebase_auth')===0)sourceValue='manual';
+  setVal('user-source',sourceValue);setVal('user-notes',t.notes);
   var pubSel=document.getElementById('pub-tenant');if(pubSel)pubSel.value=t.id;
   onPubTenantChange();
   loadSeoTechConfig();
-  document.getElementById('user-modal-title').textContent='Editar usuário';
+  document.getElementById('user-modal-title').textContent='Editar conta';
   document.getElementById('user-modal').classList.add('open');
+  openUserModalTab('negocio');
+  decorateUserFieldOrigins();
+  renderTenantUsersPreview();
+  var support=document.getElementById('user-support-mode');if(support)support.checked=false;
+  applyUserSupportMode();
   bindPublicSlugAutomation();
   openTab('usuarios');
 }
 function clearUserForm(){
   window._editingTenantId=null;
+  window._editingTenantOriginal={};
+  window._originalUserEmail='';
+  window._currentStoreLocationOrigin='Origem: Centro de Controle';
+  var support=document.getElementById('user-support-mode');if(support)support.checked=false;
   document.getElementById('user-id-label').style.display='';
   document.getElementById('user-id-readonly-label').style.display='none';
   document.getElementById('user-id-display').textContent='';
-  ['user-id','user-name','user-business','user-owner','user-email','user-phone','user-document','user-domain','user-public-slug','user-store-url','user-admin-url','user-source','user-seed','user-notes','user-github-repo','user-public-file','user-github-token'].forEach(function(id){setVal(id,'')});
+  ['user-id','user-full-name','user-social-name','user-name','user-business','user-owner','user-email','user-contact-email','user-admin-email','user-phone','user-phone-country-code','user-phone-number','user-whatsapp','user-whatsapp-country-code','user-whatsapp-number','user-country','user-language','user-document','user-account-street','user-account-number','user-account-complement','user-account-neighborhood','user-account-city','user-account-province','user-account-postal-code','user-account-address-source','user-public-slug','user-store-url','user-source','user-notes','user-store-name','user-store-city','user-store-province','user-store-country','user-store-language','user-store-instagram','user-store-facebook','user-store-tiktok','user-store-last-published-at','user-store-last-publication-error','user-trial-ends-at','user-activated-at','user-canceled-at','user-hotmart-subscriber-code','user-hotmart-transaction','user-hotmart-product-id','user-hotmart-offer-code','user-hotmart-purchase-status','user-hotmart-subscription-status','user-hotmart-last-event','user-auth-uid','user-last-login-at','user-created-at','user-updated-at'].forEach(function(id){setVal(id,'')});
   var slugEl=document.getElementById('user-public-slug');if(slugEl)slugEl.dataset.manual='';
-  setVal('user-plan','starter');setVal('user-status','active');setVal('user-role','store_owner');setVal('user-fiscal-country','ES');
-  var _tkBadge=document.getElementById('user-github-token-badge');
-  var _tkClearRow=document.getElementById('user-github-token-clear-row');
-  var _tkClear=document.getElementById('user-github-token-clear');
-  if(_tkBadge)_tkBadge.style.display='none';
-  if(_tkClearRow)_tkClearRow.style.display='none';
-  if(_tkClear)_tkClear.checked=false;
+  ['user-trial-ends-at','user-activated-at','user-canceled-at'].forEach(function(id){var el=document.getElementById(id);if(el){el.dataset.rawValue='';el.type='text';}});
+  updateHotmartTabState({});
+  setVal('user-plan','essencial');setVal('user-status','pending');setVal('user-role','owner');setVal('user-fiscal-country','ES');setVal('user-account-country','');setVal('user-account-address-source','setup');setVal('user-store-status','draft');setVal('user-billing-cycle','monthly');setVal('user-billing-provider','manual');setVal('user-billing-status','inactive');setVal('user-email-verified','false');setVal('user-country','');setVal('user-language','es-ES');setVal('user-store-country','');setVal('user-store-language','es-ES');setVal('user-source','manual');
+  var providerEl=document.getElementById('user-billing-provider');if(providerEl){providerEl.dataset.previousProvider='manual';providerEl.dataset.manualOverride='';}
+  setVal('user-store-url','Aguardando slug da loja');
+  setPhoneControl('user-phone', {countryCode:'+34',number:'',full:''});
+  setPhoneControl('user-whatsapp', {countryCode:'+34',number:'',full:''});
+  renderTenantUsersPreview();
+  decorateUserFieldOrigins();
+  applyUserSupportMode();
+  checkUserEmailChange();
   _seoTechFillFields({}, {});
 }
-function deleteUser(id){
-  console.info('[Master] delete clicked', { id: id });
+function archiveUser(id){
+  console.info('[Master] archive clicked', { id: id });
   var t=(window._masterUsers||[]).find(function(u){return u.id===id});
-  var source=t&&t.localExists&&t.authExists&&t.systemExists?'registro sincronizado':'registro local do Master';
-  if(!confirm('Excluir este usuário do '+source+'? Isso remove o registro local e a liberação do Centro de Control, quando existirem.'))return;
-  setUsersSyncStatus('Excluindo usuário...');
-  api('/api/master/tenants/delete',{method:'POST',body:JSON.stringify({id:id})})
+  if(!confirm('Arquivar este tenant? Os dados não serão apagados.'))return;
+  setUsersSyncStatus('Arquivando conta...');
+  api('/api/master/tenants/action',{method:'POST',body:JSON.stringify({action:'archive',uid:id,email:t&&t.email||''})})
     .then(function(resp){
-      console.info('[Master] delete endpoint response', {
-        id: id,
-        deletedSystemTenant: !!(resp && resp.deletedSystemTenant),
-        message: resp && resp.message ? resp.message : ''
-      });
-      console.info('[Master] user deleted', { id:id, source:source, localOnly:!(t&&t.authExists&&t.systemExists), deletedSystemTenant: !!(resp && resp.deletedSystemTenant) });
-      toast(resp && resp.deletedSystemTenant === false ? 'Usuário excluído localmente' : 'Usuário excluído');
-      if(resp && resp.deletedSystemTenant === false){
-        console.warn('[Master] system_tenants was not removed for uid=' + id);
-      }
+      console.info('[Master] tenant archived', { id: id, ok: !!(resp&&resp.ok) });
+      toast('Tenant arquivado');
       return loadUsers({force:true,silent:true});
     })
     .catch(function(e){
-      console.error('[Master] delete user failed', e);
-      setUsersSyncStatus('Não foi possível excluir o usuário.', 'error');
-      toast('Erro ao excluir: '+e.message);
+      console.error('[Master] archive user failed', e);
+      setUsersSyncStatus('Não foi possível arquivar a conta.', 'error');
+      toast('Erro ao arquivar: '+e.message);
     });
 }
+function deleteUser(id){ archiveUser(id); }
 function loadTemplates(){api('/api/master/templates').then(function(r){if((r.templates||[])[0]){document.getElementById('tpl-name').value=r.templates[0].name||'default';document.getElementById('tpl-file').value=r.templates[0].file||'index.html';}})}
 function saveTemplate(){api('/api/master/templates',{method:'POST',body:JSON.stringify({name:val('tpl-name'),file:val('tpl-file')})}).then(function(){toast('Template salvo')}).catch(function(e){toast(e.message)})}
 function loadGlobalConfig(){api('/api/master/global_config').then(function(r){document.getElementById('global-config').value=JSON.stringify(r.config||{},null,2)})}
@@ -1886,6 +2659,9 @@ function fbSignOut(){
 function val(id){return document.getElementById(id).value.trim()}
 function setVal(id,v){var el=document.getElementById(id);if(el)el.value=v||''}
 function esc(s){return String(s||'').replace(/[&<>"']/g,function(m){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]})}
+function normalizePlanSlug(plan){var value=String(plan||'').trim();return value==='starter'?'essencial':value}
+function planLabel(plan){var value=normalizePlanSlug(plan||'essencial');return {essencial:'Plano Essencial',compromisso_anual:'Plano Compromisso Anual',fundadoras:'Plano Fundadoras'}[value]||value}
+function jsInlineArg(s){return "decodeURIComponent('"+encodeURIComponent(String(s||''))+"')"}
 
 // ── Google Maps / Places global config ───────────────────────────────────────
 function _gmapsRef(){
@@ -1941,14 +2717,6 @@ function toggleGmapsKeyVisibility(){
   if(inp.type==='password'){inp.type='text';if(btn)btn.textContent='Ocultar';}
   else{inp.type='password';if(btn)btn.textContent='Mostrar';}
 }
-function _seoTechRef(tenantId){
-  initFirebase();
-  return firebase.firestore().collection('tenants/' + tenantId + '/config').doc('seoTechnical');
-}
-function _seoTechDocRef(tenantId, id){
-  initFirebase();
-  return firebase.firestore().collection('tenants/' + tenantId + '/config').doc(id);
-}
 function _seoTechTenantMeta(tenantId){
   return (window._masterUsers || []).find(function(u){ return String(u.id || '') === String(tenantId || ''); }) || {};
 }
@@ -1960,107 +2728,90 @@ function _seoTechFillFields(data, meta){
   meta = meta || {};
   var allowIndex = data.allowIndexing;
   if (allowIndex === undefined) allowIndex = data.indexEnabled;
-  setVal('seo-tech-slug', publicStoreSlug(data.slug || data.officialSlug || data.storeSlug || meta.slug || ''));
-  setVal('seo-tech-domain', data.domain || data.subdomain || meta.domain || '');
-  setVal('seo-tech-canonical', data.canonicalUrl || data.canonical || '');
-  setVal('seo-tech-fiscal-country', data.fiscalCountry || meta.fiscalCountry || '');
-  setVal('seo-tech-language', data.defaultLanguage || data.language || '');
-  setVal('seo-tech-schema-type', data.schemaType || '');
-  setVal('seo-tech-schema-category', data.schemaCategory || '');
+  var schemaType = data.schemaType || 'FoodEstablishment';
+  var schemaCategory = data.schemaCategory || 'Restaurant / FastFoodRestaurant';
+  setVal('seo-tech-schema-type', schemaType);
+  setVal('seo-tech-schema-category', schemaCategory);
   setVal('seo-tech-meta-robots', data.metaRobots || data.robots || (allowIndex === false ? 'noindex,nofollow' : 'index,follow'));
-  setVal('seo-tech-last-published', data.lastPublishedAt || data.updatedAt || '');
-  setVal('seo-tech-store-status', data.storeStatus || meta.storeStatus || meta.status || 'rascunho');
+  setVal('seo-tech-last-published', dateToDisplay(data.lastSeoPublishedAt || data.lastPublishedAt || data.updatedAt));
   document.getElementById('seo-tech-allow-index').checked = allowIndex !== false;
-  document.getElementById('seo-tech-sitemap-active').checked = data.sitemapActive !== false;
-  document.getElementById('seo-tech-robots-active').checked = data.robotsActive !== false;
+  document.getElementById('seo-tech-sitemap-active').checked = data.sitemapEnabled !== undefined ? data.sitemapEnabled !== false : data.sitemapActive !== false;
+  document.getElementById('seo-tech-robots-active').checked = data.robotsEnabled !== undefined ? data.robotsEnabled !== false : data.robotsActive !== false;
   document.getElementById('seo-tech-search-console').checked = data.searchConsoleLinked === true;
+  var last=document.getElementById('seo-tech-last-published');if(last)last.dataset.rawValue=data.lastSeoPublishedAt || data.lastPublishedAt || data.updatedAt || '';
+  updateSeoTechBadges();
+}
+function updateSeoTechBadges(){
+  var sitemap=document.getElementById('seo-tech-sitemap-active');
+  var robots=document.getElementById('seo-tech-robots-active');
+  var search=document.getElementById('seo-tech-search-console');
+  [
+    ['seo-tech-sitemap-badge', sitemap && sitemap.checked],
+    ['seo-tech-robots-badge', robots && robots.checked],
+    ['seo-tech-search-console-badge', search && search.checked]
+  ].forEach(function(item){
+    var el=document.getElementById(item[0]);
+    if(!el)return;
+    el.textContent=item[1]?'Ativo':'Não';
+    el.className='status-pill '+(item[1]?'info':'neutral');
+  });
 }
 function _seoTechCollectFields(){
   var allowIndex = document.getElementById('seo-tech-allow-index').checked;
   var robots = val('seo-tech-meta-robots') || (allowIndex ? 'index,follow' : 'noindex,nofollow');
   return {
     allowIndexing: allowIndex,
-    indexEnabled: allowIndex,
-    slug: publicStoreSlug(val('seo-tech-slug')),
-    domain: val('seo-tech-domain'),
-    subdomain: val('seo-tech-domain'),
-    canonicalUrl: val('seo-tech-canonical'),
-    fiscalCountry: val('seo-tech-fiscal-country'),
-    defaultLanguage: val('seo-tech-language'),
-    language: val('seo-tech-language'),
-    schemaType: val('seo-tech-schema-type'),
-    schemaCategory: val('seo-tech-schema-category'),
+    schemaType: val('seo-tech-schema-type') || 'FoodEstablishment',
+    schemaCategory: val('seo-tech-schema-category') || 'Restaurant / FastFoodRestaurant',
     metaRobots: robots,
-    robots: robots,
-    sitemapActive: document.getElementById('seo-tech-sitemap-active').checked,
-    robotsActive: document.getElementById('seo-tech-robots-active').checked,
+    sitemapEnabled: document.getElementById('seo-tech-sitemap-active').checked,
+    robotsEnabled: document.getElementById('seo-tech-robots-active').checked,
     searchConsoleLinked: document.getElementById('seo-tech-search-console').checked,
-    lastPublishedAt: val('seo-tech-last-published'),
-    storeStatus: val('seo-tech-store-status'),
-    updatedAt: new Date().toISOString()
+    lastSeoPublishedAt: (document.getElementById('seo-tech-last-published') && document.getElementById('seo-tech-last-published').dataset.rawValue) || ''
   };
 }
 function onSeoTechTenantChange(){
   loadSeoTechConfig();
 }
 function loadSeoTechConfig(){
-  waitFirebaseUser().then(function(user){
-    if(!user){toast('Entre no Centro de Control para carregar o SEO técnico.');return;}
-    var tenantId=_seoTechCurrentTenantId();
-    if(!tenantId){_seoTechFillFields({},{});return;}
-    Promise.all([
-      _seoTechRef(tenantId).get(),
-      _seoTechDocRef(tenantId,'seo').get(),
-      _seoTechDocRef(tenantId,'template').get(),
-      _seoTechDocRef(tenantId,'geral').get(),
-      _seoTechDocRef(tenantId,'dominio').get()
-    ]).then(function(snaps){
-      var tech = snaps[0] && snaps[0].exists ? (snaps[0].data() || {}) : {};
-      var seo = snaps[1] && snaps[1].exists ? (snaps[1].data() || {}) : {};
-      var tpl = snaps[2] && snaps[2].exists ? (snaps[2].data() || {}) : {};
-      var geral = snaps[3] && snaps[3].exists ? (snaps[3].data() || {}) : {};
-      var dominio = snaps[4] && snaps[4].exists ? (snaps[4].data() || {}) : {};
-      var meta = _seoTechTenantMeta(tenantId);
-      var merged = {
-        allowIndexing: tech.allowIndexing !== undefined ? tech.allowIndexing : (seo.indexEnabled !== false),
-        indexEnabled: tech.indexEnabled !== undefined ? tech.indexEnabled : seo.indexEnabled,
-        slug: tech.slug || seo.slug || meta.slug || '',
-        domain: tech.domain || tech.subdomain || dominio.publicUrl || dominio.siteUrl || meta.domain || '',
-        canonicalUrl: tech.canonicalUrl || seo.canonicalUrl || dominio.publicUrl || dominio.siteUrl || '',
-        fiscalCountry: tech.fiscalCountry || meta.fiscalCountry || geral.fiscalCountry || '',
-        defaultLanguage: tech.defaultLanguage || tech.language || seo.language || geral.language || '',
-        language: tech.language || seo.language || geral.language || '',
-        schemaType: tech.schemaType || seo.schemaType || 'FoodEstablishment',
-        schemaCategory: tech.schemaCategory || seo.schemaCategory || seo.businessCategory || '',
-        metaRobots: tech.metaRobots || seo.robots || (seo.indexEnabled === false ? 'noindex,nofollow' : 'index,follow'),
-        sitemapActive: tech.sitemapActive !== undefined ? tech.sitemapActive : true,
-        robotsActive: tech.robotsActive !== undefined ? tech.robotsActive : true,
-        searchConsoleLinked: tech.searchConsoleLinked === true,
-        lastPublishedAt: tech.lastPublishedAt || seo.updatedAt || '',
-        storeStatus: tech.storeStatus || meta.storeStatus || meta.status || 'rascunho'
-      };
-      _seoTechFillFields(merged, meta);
-    }).catch(function(e){toast('Erro ao carregar SEO técnico: '+e.message);});
-  });
+  var tenantId=_seoTechCurrentTenantId();
+  if(!tenantId){_seoTechFillFields({},{});return;}
+  var meta = _seoTechTenantMeta(tenantId);
+  _seoTechFillFields(meta.seo || {}, meta);
 }
 function saveSeoTechConfig(){
-  waitFirebaseUser().then(function(user){
-    if(!user){toast('Entre no Centro de Control primeiro.');return;}
-    var tenantId=_seoTechCurrentTenantId();
-    if(!tenantId){toast('Selecione um tenant');return;}
-    var data=_seoTechCollectFields();
-    _seoTechRef(tenantId).set(data,{merge:true}).then(function(){
-      toast('SEO técnico salvo');
-    }).catch(function(e){toast('Erro ao salvar SEO técnico: '+e.message);});
-  });
+  var tenantId=_seoTechCurrentTenantId();
+  if(!tenantId){toast('Selecione um tenant');return;}
+  var current=(window._masterUsers||[]).find(function(u){return String(u.id||'')===String(tenantId||'');})||{};
+  var payload=JSON.parse(JSON.stringify(current));
+  payload.id=tenantId;
+  payload.supportMode=true;
+  payload.seo=_seoTechCollectFields();
+  api('/api/master/firebase/provision',{method:'POST',body:JSON.stringify(payload)}).then(function(){
+    toast('SEO técnico salvo');
+    return loadUsers({force:true});
+  }).then(function(){loadSeoTechConfig();}).catch(function(e){toast('Erro ao salvar SEO técnico: '+e.message);});
 }
 window.loadUsers = loadUsers;
 window.syncFirebaseUsers = syncFirebaseUsers;
+window.openUserModalTab = openUserModalTab;
 window.editUser = editUser;
 window.deleteUser = deleteUser;
 window.createUserInFirebase = createUserInFirebase;
 window.importFirebaseUserToMaster = importFirebaseUserToMaster;
 window.releaseAccess = releaseAccess;
+window.blockAccess = blockAccess;
+window.changePlan = changePlan;
+window.linkHotmartPurchase = linkHotmartPurchase;
+window.viewHotmartEventsForCurrentUser = viewHotmartEventsForCurrentUser;
+window.viewUserLogs = viewUserLogs;
+window.closeAccessHistoryModal = closeAccessHistoryModal;
+window.reloadAccessHistory = reloadAccessHistory;
+window.setAccessHistoryFilter = setAccessHistoryFilter;
+window.archiveUser = archiveUser;
+window.linkPendingToExisting = linkPendingToExisting;
+window.createTenantFromPending = createTenantFromPending;
+window.archivePending = archivePending;
 window.copyUserId = copyUserId;
 window.openUserModal = openUserModal;
 window.closeUserModal = closeUserModal;

@@ -290,6 +290,7 @@ button,input,select,textarea{font-family:inherit}
         <button class="nav-item" data-route="configuracoes" onclick="AdminApp.toggleNavGroup(event,'configuracoes','configuracoes/geral')"><span class="mi">settings</span>Configurações</button>
         <div class="nav-sub">
           <button class="nav-sub-item" data-route="configuracoes/geral" onclick="Router.navigate('configuracoes/geral')">Geral</button>
+          <button class="nav-sub-item" data-route="configuracoes/conta_usuario" onclick="Router.navigate('configuracoes/conta_usuario')">Conta / Usuária</button>
           <button class="nav-sub-item" data-route="configuracoes/tpv" onclick="Router.navigate('configuracoes/tpv')">TPV</button>
           <button class="nav-sub-item" data-route="configuracoes/dominio" onclick="Router.navigate('configuracoes/dominio')">Domínio / URL</button>
           <button class="nav-sub-item" data-route="configuracoes/integracoes" onclick="Router.navigate('configuracoes/integracoes')">Integrações</button>
@@ -334,15 +335,15 @@ button,input,select,textarea{font-family:inherit}
   </main>
 </div>
 
-<script src="js/core/auth.js"></script>
-<script src="js/core/db.js"></script>
+<script src="js/core/auth.js?v=20260516-billing-cycle"></script>
+<script src="js/core/db.js?v=20260516-company-country-places"></script>
 <script src="js/core/ui.js"></script>
 <script src="js/core/router.js"></script>
 <script src="js/core/image-tools.js"></script>
 <script src="js/modules/dashboard.js?v=20260510-dashboard-principal"></script>
 <script src="js/modules/pedidos.js"></script>
 <script src="js/modules/pos.js?v=20260512-tpv-shell"></script>
-<script src="js/modules/catalogo.js"></script>
+<script src="js/modules/catalogo.js?v=20260516-store-location-origin"></script>
 <script src="js/modules/loja_online.js"></script>
 <script src="js/modules/receitas.js"></script>
 <script src="js/modules/clientes.js"></script>
@@ -355,7 +356,7 @@ button,input,select,textarea{font-family:inherit}
 <script src="js/modules/dinheiro.js"></script>
 <script src="js/modules/fiscal.js?v=20260510-fiscal-menu-sem-abas"></script>
 <script src="js/modules/financeiro.js?v=20260510-financeiro-configuracoes-layout"></script>
-<script src="js/modules/configuracoes.js?v=20260510-configuracoes-avatar-geral"></script>
+<script src="js/modules/configuracoes.js?v=20260516-hotmart-essencial"></script>
 <script>
 (function () {
   'use strict';
@@ -428,8 +429,9 @@ button,input,select,textarea{font-family:inherit}
     if (window._adminStoreIdentityToken && window._adminStoreIdentityToken !== token) return;
     var storeName = template.publicStoreName || template.publicName || geral.businessName || profile.storeName || profile.businessName || profile.name || user.email || 'Conta atual';
     var storeLogo = geral.avatarUrl || geral.storeAvatarUrl || geral.accountAvatarUrl || template.logoUrl || geral.logoUrl || profile.logoUrl || profile.logo || profile.avatarUrl || '';
-    var plan = profile.plan ? String(profile.plan) : 'starter';
-    var planLabel = ({ starter: 'Starter', pro: 'Pro', enterprise: 'Enterprise' })[plan] || plan;
+    var plan = profile.plan ? String(profile.plan) : 'essencial';
+    if (plan === 'starter') plan = 'essencial';
+    var planLabel = ({ essencial: 'Plano Essencial', compromisso_anual: 'Plano Compromisso Anual', fundadoras: 'Plano Fundadoras' })[plan] || plan;
     var initials = _adminInitials(storeName);
     var avatar = document.getElementById('store-avatar');
     var storeTitle = document.getElementById('store-name');

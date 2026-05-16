@@ -110,7 +110,96 @@ service cloud.firestore {
 
     match /system_tenants/{tenantId} {
       allow read: if ownsTenant(tenantId) || isMasterAdmin();
+      allow update: if ownsTenant(tenantId) && validTenantAdminProfileUpdate();
       allow write: if isMasterAdmin();
+    }
+
+    function validTenantAdminProfileUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'ownerName',
+          'responsibleName',
+          'phoneCountryCode',
+          'phoneNumber',
+          'phoneFull',
+          'whatsappCountryCode',
+          'whatsappNumber',
+          'whatsappFull',
+          'contactEmail',
+          'adminEmail',
+          'fiscalEmail',
+          'billingEmail',
+          'country',
+          'language',
+          'document',
+          'accountAddress',
+          'store',
+          'updatedAt'
+        ]) &&
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['accountAddress']) ||
+          request.resource.data.accountAddress.diff(existingAccountAddress()).affectedKeys().hasOnly([
+            'street',
+            'number',
+            'complement',
+            'neighborhood',
+            'city',
+            'province',
+            'postalCode',
+            'country',
+            'source',
+            'updatedAt'
+          ])) &&
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['store']) ||
+          (
+            request.resource.data.store is map &&
+            (existingStore().status != 'suspended' || request.resource.data.store.status == 'suspended') &&
+            request.resource.data.store.diff(existingStore()).affectedKeys().hasOnly([
+          'name',
+          'slug',
+              'publicUrl',
+              'city',
+              'region',
+              'province',
+              'country',
+              'postalCode',
+              'address',
+              'locationSource',
+              'deliveryArea',
+              'language',
+              'social',
+          'status',
+          'updatedAt',
+          'publishedAt',
+          'lastPublishedAt',
+          'unpublishedAt',
+          'lastPublicationError'
+            ]) &&
+            request.resource.data.store.status in ['draft', 'ready', 'published', 'unpublished', 'publication_error', 'suspended'] &&
+            (!request.resource.data.store.diff(existingStore()).affectedKeys().hasAny(['address']) ||
+              request.resource.data.store.address.diff(existingStoreAddress()).affectedKeys().hasOnly([
+                'street',
+                'number',
+                'complement',
+                'neighborhood',
+                'city',
+                'province',
+                'postalCode',
+                'country',
+                'source',
+                'updatedAt'
+              ]))
+          ));
+    }
+
+    function existingAccountAddress() {
+      return resource.data.keys().hasAny(['accountAddress']) && resource.data.accountAddress is map ? resource.data.accountAddress : {};
+    }
+
+    function existingStore() {
+      return resource.data.keys().hasAny(['store']) && resource.data.store is map ? resource.data.store : {};
+    }
+
+    function existingStoreAddress() {
+      return resource.data.keys().hasAny(['store']) && resource.data.store is map && resource.data.store.keys().hasAny(['address']) && resource.data.store.address is map ? resource.data.store.address : {};
     }
 
     match /public_stores/{slug} {
@@ -147,6 +236,18 @@ service cloud.firestore {
 
     match /pending_hotmart_access/{docId} {
       allow read: if isMasterAdmin();
+      allow write: if false;
+    }
+
+    match /system_access_logs/{docId} {
+      allow read: if isMasterAdmin();
+      allow create: if signedIn() &&
+        request.resource.data.tenantUid == request.auth.uid &&
+        request.resource.data.uid == request.auth.uid &&
+        request.resource.data.source == 'admin' &&
+        request.resource.data.action in ['admin_login', 'store_published', 'store_unpublished', 'store_publication_failed', 'store_slug_updated', 'account_settings_updated', 'store_settings_updated'] &&
+        request.resource.data.severity in ['info', 'warning', 'critical'] &&
+        request.resource.data.keys().hasOnly(['tenantUid', 'uid', 'email', 'action', 'module', 'entityType', 'entityId', 'summary', 'source', 'severity', 'createdAt', 'metadata']);
       allow write: if false;
     }
 

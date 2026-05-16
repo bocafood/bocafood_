@@ -403,10 +403,20 @@ window.BocaPlaces = (function () {
       _setField('cfg-company-city', data.city);
       _setField('cfg-company-postal', data.postalCode);
       _setField('cfg-company-region', data.province);
-      _setCountry('cfg-company-country', data);
+      _setField('cfg-company-country', data.countryCode || data.country);
     } else if (inputId === 'cfg-tpl-pickup-address') {
       _setField('cfg-tpl-pickup-number', data.number);
       _setField('cfg-tpl-pickup-area', data.neighborhood);
+    } else if (inputId === 'cfg-tpl-delivery-city') {
+      _setField('cfg-tpl-delivery-city', data.city || data.formattedAddress);
+      _setField('cfg-tpl-delivery-province', data.province);
+      _setField('cfg-tpl-delivery-postal', data.postalCode);
+      _setSelectValue('cfg-tpl-delivery-country', data.countryCode);
+    } else if (inputId === 'tpl-delivery-area-city') {
+      _setField('tpl-delivery-area-city', data.city || data.formattedAddress);
+      _setField('tpl-delivery-area-province', data.province);
+      _setField('tpl-delivery-area-postal', data.postalCode);
+      _setSelectValue('tpl-delivery-area-country', data.countryCode);
     } else if (inputId === 'cli-address') {
       _setField('cli-number', data.number);
       _setField('cli-hood', data.neighborhood);
@@ -428,6 +438,13 @@ window.BocaPlaces = (function () {
       _setField('op-postal', data.postalCode);
       _setCountry('op-country', data);
     }
+  }
+
+  function _setSelectValue(id, value) {
+    var el = document.getElementById(id);
+    if (!el || !value) return;
+    el.value = value;
+    try { el.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) {}
   }
 
   function init(inputId, opts) {

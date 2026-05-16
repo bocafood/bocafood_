@@ -19,6 +19,7 @@ Modules.Catalogo = (function () {
   var _editingId = null;
   var _deliveryZonesDraft = [];
   var _deliveryZonesDraftDirty = false;
+  var _templateActiveTab = 'identidade';
   var _productFilters = { category: 'todas', visibility: 'todos', type: 'todos', promo: 'todos' };
   var _productView = { page: 1, pageSize: 12, sort: 'order', mode: 'list' };
   var _productSearchQuery = '';
@@ -2557,6 +2558,7 @@ Modules.Catalogo = (function () {
 
   function _setTemplateTab(key) {
     key = key || 'identidade';
+    _templateActiveTab = key;
     var content = document.getElementById('catalogo-content');
     if (!content) return;
     [].slice.call(content.querySelectorAll('[data-template-tab]')).forEach(function (btn) {
@@ -2565,6 +2567,9 @@ Modules.Catalogo = (function () {
     [].slice.call(content.querySelectorAll('[data-template-panel]')).forEach(function (panel) {
       panel.classList.toggle('active', panel.getAttribute('data-template-panel') === key);
     });
+  }
+  function _templatePanelAttrs(key) {
+    return 'data-template-panel="' + key + '"' + ((_templateActiveTab || 'identidade') === key ? ' class="active"' : '');
   }
 
   function _fieldHtml(id, label, value, placeholder, type) {
@@ -2624,6 +2629,20 @@ Modules.Catalogo = (function () {
     return '<label style="display:block;"><span style="' + _labelStyle() + '">' + _esc(label) + '</span><select id="' + id + '" style="' + _inputStyle() + '">' + options.map(function (o) {
       return '<option value="' + _esc(o.value) + '"' + (String(value || '') === String(o.value) ? ' selected' : '') + '>' + _esc(o.label) + '</option>';
     }).join('') + '</select></label>';
+  }
+  function _templateCountryOptions() {
+    return [
+      { value: '', label: 'Selecionar país' },
+      { value: 'ES', label: 'Espanha (ES)' },
+      { value: 'PT', label: 'Portugal (PT)' },
+      { value: 'BR', label: 'Brasil (BR)' },
+      { value: 'FR', label: 'França (FR)' },
+      { value: 'IT', label: 'Itália (IT)' },
+      { value: 'DE', label: 'Alemanha (DE)' },
+      { value: 'GB', label: 'Reino Unido (GB)' },
+      { value: 'US', label: 'Estados Unidos (US)' },
+      { value: 'OTHER', label: 'Outro' }
+    ];
   }
   function _featuredProductOptionsHtml(query, selectedId) {
     var q = String(query || '').trim().toLowerCase();
@@ -3122,6 +3141,63 @@ Modules.Catalogo = (function () {
       return _storeConfig;
     });
   }
+  function _syncSystemTenantStoreFromTemplate(template) {
+    var tenantUid = window.Auth && typeof Auth.getTenantId === 'function' ? Auth.getTenantId() : '';
+    if (!tenantUid || !window.firebase || !firebase.firestore) return Promise.resolve();
+    var now = new Date().toISOString();
+    var area = (template && template.deliveryArea && typeof template.deliveryArea === 'object') ? template.deliveryArea : {};
+    var publicAddress = {
+      street: template && template.address ? String(template.address).trim() : '',
+      number: template && (template.number || template.numero) ? String(template.number || template.numero).trim() : '',
+      complement: template && (template.complemento || template.reference) ? String(template.complemento || template.reference).trim() : '',
+      neighborhood: template && template.neighborhood ? String(template.neighborhood).trim() : '',
+      city: template && template.city ? String(template.city).trim() : '',
+      province: template && (template.region || template.province || template.state) ? String(template.region || template.province || template.state).trim() : '',
+      postalCode: template && template.postalCode ? String(template.postalCode).trim() : '',
+      country: template && template.country ? String(template.country).trim() : '',
+      source: '',
+      updatedAt: now
+    };
+    var areaHasLocation = !!(area.city || area.province || area.country || area.postalCode);
+    var addressHasLocation = !!(publicAddress.street || publicAddress.number || publicAddress.neighborhood || publicAddress.city || publicAddress.province || publicAddress.country || publicAddress.postalCode);
+    if (addressHasLocation) publicAddress.source = 'admin_public_address';
+    var locationSource = areaHasLocation ? 'delivery_area' : (addressHasLocation ? 'public_address' : '');
+    var primaryCity = areaHasLocation ? (area.city || '') : (publicAddress.city || '');
+    var primaryRegion = areaHasLocation ? (area.province || '') : (publicAddress.province || '');
+    var primaryCountry = areaHasLocation ? (area.country || '') : (publicAddress.country || '');
+    var primaryPostalCode = areaHasLocation ? (area.postalCode || '') : (publicAddress.postalCode || '');
+    var social = {
+      instagram: template && template.instagram ? String(template.instagram).trim() : '',
+      facebook: template && template.facebook ? String(template.facebook).trim() : '',
+      tiktok: template && template.tiktok ? String(template.tiktok).trim() : ''
+    };
+    var storePatch = {
+      deliveryArea: area,
+      address: publicAddress,
+      city: primaryCity,
+      region: primaryRegion,
+      province: primaryRegion,
+      country: primaryCountry,
+      postalCode: primaryPostalCode,
+      locationSource: locationSource,
+      social: social,
+      updatedAt: now
+    };
+    if (template && template.publicName) storePatch.name = template.publicName;
+    if (template && template.language) storePatch.language = template.language;
+    console.info('[Catalogo] sync system_tenants store from template', {
+      tenantUid: tenantUid,
+      source: 'loja-online/template',
+      path: 'system_tenants/' + tenantUid + '.store',
+      locationSource: locationSource || 'empty',
+      socialFields: Object.keys(social).filter(function (key) { return !!social[key]; }),
+      fields: Object.keys(storePatch)
+    });
+    return firebase.firestore().collection('system_tenants').doc(tenantUid).set({
+      store: storePatch,
+      updatedAt: now
+    }, { merge: true });
+  }
   function _imageUploadState() {
     window._catalogStoreImageState = window._catalogStoreImageState || {};
     return window._catalogStoreImageState;
@@ -3366,9 +3442,14 @@ Modules.Catalogo = (function () {
     var zones = Array.isArray(_deliveryZonesDraft) ? _deliveryZonesDraft : [];
     var activeZones = zones.filter(function (zone) { return zone && zone.active !== false; }).length;
     var postalTotal = zones.reduce(function (sum, zone) { return sum + (Array.isArray(zone && zone.postalCodes) ? zone.postalCodes.length : 0); }, 0);
-    var body = zones.length ? zones.map(_deliveryZoneCardHtml).join('') : '<div style="border:1px dashed #EAE4DA;background:#FAF8F4;border-radius:14px;padding:18px;color:#6F6860;font-size:13px;line-height:1.45;text-align:center;">Nenhuma zona cadastrada ainda. Clique em <strong>Adicionar zona</strong> para começar.</div>';
-    return '<section data-template-panel="operacao" style="' + _cardStyle() + '">' + _sectionTitle('Zonas de entrega', 'Configure os CEPs atendidos e o valor de entrega de cada zona.') +
+    var deliveryArea = _collectDeliveryAreaFromDom(_deliveryAreaFromConfig(_storeConfig.template || {}, _storeConfig.zonas || {}));
+    var locationReady = _deliveryAreaReady(deliveryArea);
+    var disabledAttr = locationReady ? '' : ' disabled aria-disabled="true"';
+    var disabledStyle = locationReady ? 'background:#B42318;color:#fff;box-shadow:0 4px 12px rgba(180,35,24,.18);cursor:pointer;' : 'background:#D8CEC2;color:#fff;box-shadow:none;cursor:not-allowed;opacity:.72;';
+    var body = zones.length ? zones.map(_deliveryZoneCardHtml).join('') : '<div style="border:1px dashed #EAE4DA;background:#FAF8F4;border-radius:14px;padding:18px;color:#6F6860;font-size:13px;line-height:1.45;text-align:center;">' + (locationReady ? 'Nenhuma zona cadastrada ainda. Clique em <strong>Adicionar zona</strong> para começar.' : 'Cadastre primeiro a <strong>Localização atendida</strong> acima para liberar as zonas de entrega.') + '</div>';
+    return '<section ' + _templatePanelAttrs('operacao') + ' style="' + _cardStyle() + '">' + _sectionTitle('Zonas de entrega', 'Configure os CEPs atendidos e o valor de entrega de cada zona.') +
       '<div style="display:flex;flex-direction:column;gap:12px;">' +
+        (!locationReady ? '<div style="border:1px solid #F1D7B8;background:#FFF8ED;border-radius:12px;padding:12px 14px;color:#7A4E13;font-size:12px;line-height:1.45;">Para cadastrar zonas, preencha antes Cidade atendida, Província / estado, País atendido e Código postal base.</div>' : '') +
         '<div style="display:none;">' +
           '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">map</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo das zonas</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">CEPs, áreas atendidas e valores por região.</div></div></div>' +
           '<div style="display:flex;gap:7px;flex-wrap:wrap;">' +
@@ -3377,10 +3458,10 @@ Modules.Catalogo = (function () {
             '<span style="display:inline-flex;align-items:center;min-height:24px;padding:0 10px;border-radius:999px;background:#fff;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:500;box-shadow:0 1px 2px rgba(31,31,31,.02);">' + postalTotal + ' CEPs</span>' +
           '</div>' +
           '<small style="display:block;color:#6F6860;font-size:11px;line-height:1.45;">Zonas ativas com CEP duplicado não podem ser salvas.</small>' +
-          '<button type="button" class="tpl-image-btn primary" data-delivery-zone-add="1" style="min-height:38px;border-radius:10px;background:#B42318;color:#fff;box-shadow:0 4px 12px rgba(180,35,24,.18);">+ Adicionar zona</button>' +
+          '<button type="button" class="tpl-image-btn primary" data-delivery-zone-add="1"' + disabledAttr + ' style="min-height:38px;border-radius:10px;' + disabledStyle + '">+ Adicionar zona</button>' +
         '</div>' +
         '<div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;">' +
-          '<button type="button" class="tpl-image-btn primary" data-delivery-zone-add="1" style="min-height:38px;border-radius:10px;background:#B42318;color:#fff;box-shadow:0 4px 12px rgba(180,35,24,.18);">+ Adicionar zona</button>' +
+          '<button type="button" class="tpl-image-btn primary" data-delivery-zone-add="1"' + disabledAttr + ' style="min-height:38px;border-radius:10px;' + disabledStyle + '">+ Adicionar zona</button>' +
         '</div>' +
         '<div id="tpl-delivery-zones-list" style="display:flex;flex-direction:column;gap:12px;">' + body + '</div>' +
       '</div>' +
@@ -3421,6 +3502,20 @@ Modules.Catalogo = (function () {
     return '';
   }
 
+  function _deliveryAreaMissingItems(area) {
+    area = area || {};
+    var missing = [];
+    if (!String(area.city || '').trim()) missing.push('Cidade atendida');
+    if (!String(area.province || '').trim()) missing.push('Província / estado');
+    if (!_normalizeDeliveryAreaCountry(area.country || '')) missing.push('País atendido');
+    if (!String(area.postalCode || '').trim()) missing.push('Código postal base');
+    return missing;
+  }
+
+  function _deliveryAreaReady(area) {
+    return _deliveryAreaMissingItems(area).length === 0;
+  }
+
   function _minActiveDeliveryZoneFee(zones) {
     var fees = (Array.isArray(zones) ? zones : []).filter(function (zone) { return zone && zone.active !== false && Number(zone.deliveryFee) >= 0; }).map(function (zone) {
       return Number(zone.deliveryFee);
@@ -3436,7 +3531,95 @@ Modules.Catalogo = (function () {
     }).filter(Boolean).slice(0, 8).join(', ');
   }
 
+  function _normalizeDeliveryAreaCountry(value) {
+    var v = String(value || '').trim();
+    var upper = v.toUpperCase();
+    var map = {
+      ESPANHA: 'ES',
+      ESPAÑA: 'ES',
+      SPAIN: 'ES',
+      ES: 'ES',
+      PORTUGAL: 'PT',
+      PT: 'PT',
+      BRASIL: 'BR',
+      BRAZIL: 'BR',
+      BR: 'BR',
+      FRANCA: 'FR',
+      FRANÇA: 'FR',
+      FRANCE: 'FR',
+      FR: 'FR',
+      ITALIA: 'IT',
+      ITÁLIA: 'IT',
+      ITALY: 'IT',
+      IT: 'IT',
+      ALEMANHA: 'DE',
+      GERMANY: 'DE',
+      DE: 'DE',
+      'REINO UNIDO': 'GB',
+      'UNITED KINGDOM': 'GB',
+      UK: 'GB',
+      GB: 'GB',
+      'ESTADOS UNIDOS': 'US',
+      'UNITED STATES': 'US',
+      EUA: 'US',
+      US: 'US',
+      OTHER: 'OTHER',
+      OUTRO: 'OTHER'
+    };
+    return map[upper] || '';
+  }
+
+  function _deliveryAreaFromConfig(tpl, zonas) {
+    tpl = tpl || {};
+    zonas = zonas || {};
+    var area = {};
+    if (tpl.deliveryArea && typeof tpl.deliveryArea === 'object') area = Object.assign({}, tpl.deliveryArea);
+    else if (zonas.area && typeof zonas.area === 'object') area = Object.assign({}, zonas.area);
+    return {
+      city: area.city || tpl.deliveryCity || zonas.deliveryCity || '',
+      province: area.province || area.state || tpl.deliveryProvince || zonas.deliveryProvince || '',
+      country: _normalizeDeliveryAreaCountry(area.country || tpl.deliveryCountry || zonas.deliveryCountry || ''),
+      postalCode: area.postalCode || area.zip || tpl.deliveryPostalCode || zonas.deliveryPostalCode || '',
+      source: area.source || 'admin_delivery_zones'
+    };
+  }
+
+  function _deliveryAreaHtml(area) {
+    area = area || {};
+    return '<section ' + _templatePanelAttrs('operacao') + ' style="' + _cardStyle() + '">' + _sectionTitle('Localização atendida', 'Selecione a cidade atendida antes de cadastrar as zonas de entrega. A província, país e código postal podem ser preenchidos automaticamente pela busca.') +
+      '<div style="display:flex;flex-direction:column;gap:12px;">' +
+        '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
+          '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Cidade base da entrega</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Esses dados alimentam o Master como cidade, província/estado e país operacionais da loja.</div></div>' +
+          _grid(
+            _fieldHtml('tpl-delivery-area-city', 'Cidade atendida', area.city || '', 'Buscar cidade atendida') +
+            _fieldHtml('tpl-delivery-area-province', 'Província / estado', area.province || '', 'Preenchido automaticamente') +
+            _selectHtml('tpl-delivery-area-country', 'País atendido', area.country || '', _templateCountryOptions()) +
+            _fieldHtml('tpl-delivery-area-postal', 'Código postal base', area.postalCode || '', 'Código postal'), '220px') +
+        '</div>' +
+      '</div>' +
+    '</section>';
+  }
+
+  function _collectDeliveryAreaFromDom(currentArea) {
+    currentArea = currentArea || {};
+    return {
+      city: _val('tpl-delivery-area-city') || currentArea.city || '',
+      province: _val('tpl-delivery-area-province') || currentArea.province || '',
+      country: _normalizeDeliveryAreaCountry(_val('tpl-delivery-area-country') || currentArea.country || ''),
+      postalCode: _val('tpl-delivery-area-postal') || currentArea.postalCode || '',
+      source: 'admin_delivery_zones',
+      updatedAt: new Date().toISOString()
+    };
+  }
+
   function _addDeliveryZoneRow() {
+    _templateActiveTab = 'operacao';
+    var deliveryArea = _collectDeliveryAreaFromDom(_deliveryAreaFromConfig(_storeConfig.template || {}, _storeConfig.zonas || {}));
+    var missing = _deliveryAreaMissingItems(deliveryArea);
+    if (missing.length) {
+      UI.toast('Antes de adicionar zonas, preencha: ' + missing.join(', ') + '.', 'error');
+      return;
+    }
     _deliveryZonesDraft = _collectDeliveryZonesFromDom();
     _deliveryZonesDraft.push({
       id: _newEntityId('zone'),
@@ -3456,6 +3639,7 @@ Modules.Catalogo = (function () {
       _deliveryZonesDraft = _collectDeliveryZonesFromDom().filter(function (zone) {
         return String(zone.id || '') !== String(zoneId || '');
       });
+      _templateActiveTab = 'operacao';
       _deliveryZonesDraftDirty = true;
       _renderTemplateLoja();
       _saveDeliveryZonesOnly();
@@ -3465,11 +3649,25 @@ Modules.Catalogo = (function () {
   }
 
   function _saveDeliveryZonesOnly() {
+    var deliveryArea = _collectDeliveryAreaFromDom(_deliveryAreaFromConfig(_storeConfig.template || {}, _storeConfig.zonas || {}));
+    var missingArea = _deliveryAreaMissingItems(deliveryArea);
+    if (missingArea.length) {
+      UI.toast('Antes de salvar zonas, preencha: ' + missingArea.join(', ') + '.', 'error');
+      return;
+    }
     var err = _deliveryZoneValidationError(_deliveryZonesDraft);
     if (err) { UI.toast(err, 'error'); return; }
     var zones = _normalizeDeliveryZones(_deliveryZonesDraft);
-    var template = Object.assign({}, _storeConfig.template || {}, { deliveryZones: zones, updatedAt: new Date().toISOString() });
-    var zonas = Object.assign({}, _storeConfig.zonas || {}, { list: zones, deliveryZones: zones });
+    var template = Object.assign({}, _storeConfig.template || {}, {
+      deliveryArea: deliveryArea,
+      deliveryCity: deliveryArea.city,
+      deliveryProvince: deliveryArea.province,
+      deliveryCountry: deliveryArea.country,
+      deliveryPostalCode: deliveryArea.postalCode,
+      deliveryZones: zones,
+      updatedAt: new Date().toISOString()
+    });
+    var zonas = Object.assign({}, _storeConfig.zonas || {}, { area: deliveryArea, list: zones, deliveryZones: zones });
     Promise.all([
       DB.setDocRoot('config', 'template', template),
       DB.setDocRoot('config', 'zonas', zonas)
@@ -3553,6 +3751,7 @@ Modules.Catalogo = (function () {
       var mainCard = _mainCardConfigFromTemplate(tpl);
       var contactDisplay = _contactDisplayConfigFromTemplate(tpl);
       var paymentMethods = _templatePaymentMethods(financeiro, pay, tpl);
+      var deliveryArea = _deliveryAreaFromConfig(tpl, zonas);
       if (!preserveDeliveryZonesDraft) {
         _deliveryZonesDraft = _normalizeDeliveryZones(
           Array.isArray(tpl.deliveryZones) && tpl.deliveryZones.length
@@ -3589,9 +3788,9 @@ Modules.Catalogo = (function () {
           '<div style="min-width:0;flex:1 1 420px;"><h2 style="font-size:22px;font-weight:700;line-height:1.2;margin:0 0 6px;color:#1F1F1F;">Template da loja</h2><p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0 0 10px;max-width:760px;">Organize identidade, topo, operação, contatos, pagamentos e textos exibidos na loja pública.</p><div style="display:flex;gap:8px;flex-wrap:wrap;"><span style="' + chipStyle + '">' + (logo ? 'Logo configurada' : 'Sem logo') + '</span><span style="' + chipStyle + '">' + (banner ? 'Capa configurada' : 'Sem capa') + '</span><span style="' + chipStyle + '">' + (deliveryEnabled ? 'Entrega ativa' : 'Entrega inativa') + '</span><span style="' + chipStyle + '">' + (pickupEnabled ? 'Retirada ativa' : 'Retirada inativa') + '</span></div></div>' +
           '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;"><button type="button" data-save-template-loja="1" onmouseenter="this.style.transform=\'translateY(-1px)\';this.style.boxShadow=\'0 8px 18px rgba(180,35,24,.20)\';" onmouseleave="this.style.transform=\'none\';this.style.boxShadow=\'0 4px 12px rgba(180,35,24,.18)\';" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">Salvar alterações</button></div>' +
         '</div>' +
-        _templateSubtabsHtml('identidade') +
+        _templateSubtabsHtml(_templateActiveTab || 'identidade') +
         '<div style="display:flex;flex-direction:column;gap:14px;">' +
-            '<section data-template-panel="identidade" class="active" style="' + _cardStyle() + '">' + _sectionTitle('Identidade visual', 'Dados visuais e públicos usados no cabeçalho da loja.') +
+            '<section ' + _templatePanelAttrs('identidade') + ' style="' + _cardStyle() + '">' + _sectionTitle('Identidade visual', 'Dados visuais e públicos usados no cabeçalho da loja.') +
               '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:14px;align-items:start;">' +
                 '<div style="display:flex;flex-direction:column;gap:12px;">' +
                   '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
@@ -3616,7 +3815,7 @@ Modules.Catalogo = (function () {
                 '</div>' +
               '</div>' +
             '</section>' +
-            '<section data-template-panel="identidade" class="active" style="' + _cardStyle() + '">' + _sectionTitle('Card principal da loja', 'Configure quais informações aparecem no topo da loja pública.') +
+            '<section ' + _templatePanelAttrs('identidade') + ' style="' + _cardStyle() + '">' + _sectionTitle('Card principal da loja', 'Configure quais informações aparecem no topo da loja pública.') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">view_quilt</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo do card</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Controle o que aparece no primeiro card visto pelo cliente.</div></div></div>' +
@@ -3659,7 +3858,7 @@ Modules.Catalogo = (function () {
                 '</div>' +
               '</div>' +
             '</section>' +
-            '<section data-template-panel="identidade" class="active" style="' + _cardStyle() + '">' + _sectionTitle('Topo da loja', 'Controle o topo atual da loja pública sem trocar o design geral.') +
+            '<section ' + _templatePanelAttrs('identidade') + ' style="' + _cardStyle() + '">' + _sectionTitle('Topo da loja', 'Controle o topo atual da loja pública sem trocar o design geral.') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">web_asset</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo do topo</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Controle faixa, capa e elementos de navegação da loja.</div></div></div>' +
@@ -3714,12 +3913,12 @@ Modules.Catalogo = (function () {
                 '</div>' +
               '</div>' +
             '</section>' +
-            '<section data-template-panel="vitrine" style="' + _cardStyle() + '">' + _sectionTitle('Menu de categorias', 'Controle os elementos gráficos opcionais das categorias no template mobile. Se não houver imagem, o menu usa emoji ou apenas texto.') +
+            '<section ' + _templatePanelAttrs('vitrine') + ' style="' + _cardStyle() + '">' + _sectionTitle('Menu de categorias', 'Controle os elementos gráficos opcionais das categorias no template mobile. Se não houver imagem, o menu usa emoji ou apenas texto.') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 _templateCategoryVisualsHtml() +
               '</div>' +
             '</section>' +
-            '<section data-template-panel="vitrine" style="' + _cardStyle() + '">' + _sectionTitle('Destaque comercial do topo', 'Escolha o conteúdo do card lateral/comercial exibido ao lado do resumo da loja no desktop e abaixo no mobile.') +
+            '<section ' + _templatePanelAttrs('vitrine') + ' style="' + _cardStyle() + '">' + _sectionTitle('Destaque comercial do topo', 'Escolha o conteúdo do card lateral/comercial exibido ao lado do resumo da loja no desktop e abaixo no mobile.') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">campaign</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo do destaque</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Escolha se o topo terá cupom, promoção, produto ou texto próprio.</div></div></div>' +
@@ -3782,7 +3981,7 @@ Modules.Catalogo = (function () {
                 '</div>' +
               '</div>' +
             '</section>' +
-            '<section data-template-panel="vitrine" style="' + _cardStyle() + '">' + _sectionTitle('Destaques da vitrine', 'Escolha produtos para aparecerem no topo da listagem pública.') +
+            '<section ' + _templatePanelAttrs('vitrine') + ' style="' + _cardStyle() + '">' + _sectionTitle('Destaques da vitrine', 'Escolha produtos para aparecerem no topo da listagem pública.') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">stars</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo da vitrine</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Defina quais produtos ganham destaque antes da lista completa.</div></div></div>' +
@@ -3812,7 +4011,7 @@ Modules.Catalogo = (function () {
                 '</div>' +
               '</div>' +
             '</section>' +
-            '<section data-template-panel="vitrine" style="' + _cardStyle() + '">' + _sectionTitle('Programa de fidelidade', 'Bloco exibido no mobile abaixo dos dados principais da loja.') +
+            '<section ' + _templatePanelAttrs('vitrine') + ' style="' + _cardStyle() + '">' + _sectionTitle('Programa de fidelidade', 'Bloco exibido no mobile abaixo dos dados principais da loja.') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
                   '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;"><div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Clube de pontos</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Ative somente se a loja usar programa de pontos.</div></div><div style="min-width:220px;">' + _toggleHtml('tpl-loyalty-enabled', 'Mostrar fidelidade', tpl.loyaltyEnabled === true || tpl.pointsProgramEnabled === true, '') + '</div></div>' +
@@ -3823,7 +4022,7 @@ Modules.Catalogo = (function () {
                 '</div>' +
               '</div>' +
             '</section>' +
-            '<section data-template-panel="operacao" style="' + _cardStyle() + '">' + _sectionTitle('Entrega e retirada', 'Configure como o cliente pode receber o pedido, os prazos operacionais e as informações exibidas na loja.') +
+            '<section ' + _templatePanelAttrs('operacao') + ' style="' + _cardStyle() + '">' + _sectionTitle('Entrega e retirada', 'Configure como o cliente pode receber o pedido, os prazos operacionais e as informações exibidas na loja.') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">local_shipping</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo operacional</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Canais, prazos e textos que aparecem na loja.</div></div></div>' +
@@ -3866,8 +4065,9 @@ Modules.Catalogo = (function () {
                 '</div>' +
               '</div>' +
             '</section>' +
+            _deliveryAreaHtml(deliveryArea) +
             _deliveryZonesHtml() +
-            '<section data-template-panel="operacao" style="' + _cardStyle() + '">' + _sectionTitle('Horários e status', 'Funcionamento da loja e mensagens especiais.') +
+            '<section ' + _templatePanelAttrs('operacao') + ' style="' + _cardStyle() + '">' + _sectionTitle('Horários e status', 'Funcionamento da loja e mensagens especiais.') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">schedule</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo dos horários</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Defina abertura automática, fechamento manual e horários especiais.</div></div></div>' +
@@ -3894,7 +4094,7 @@ Modules.Catalogo = (function () {
                 '</div>' +
               '</div>' +
             '</section>' +
-            '<section data-template-panel="atendimento" style="' + _cardStyle() + '">' + _sectionTitle('Contato', 'Configure os canais que o cliente pode usar para falar com a loja.') +
+            '<section ' + _templatePanelAttrs('atendimento') + ' style="' + _cardStyle() + '">' + _sectionTitle('Contato', 'Configure os canais que o cliente pode usar para falar com a loja.') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">support_agent</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo dos contatos</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Canais clicáveis e redes exibidos na loja.</div></div></div>' +
@@ -3936,7 +4136,7 @@ Modules.Catalogo = (function () {
                 '</div>' +
               '</div>' +
             '</section>' +
-            '<section data-template-panel="atendimento" style="' + _cardStyle() + '">' + _sectionTitle('Endereço', 'Localização pública da loja.') +
+            '<section ' + _templatePanelAttrs('atendimento') + ' style="' + _cardStyle() + '">' + _sectionTitle('Endereço', 'Localização pública da loja.') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">location_on</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo do endereço</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Local público usado para retirada, comunicação e referência da loja.</div></div></div>' +
@@ -3967,7 +4167,7 @@ Modules.Catalogo = (function () {
                 '</div>' +
               '</div>' +
             '</section>' +
-            '<section data-template-panel="checkout" style="' + _cardStyle() + '">' + _sectionTitle('Pagamentos exibidos na loja', 'Formas cadastradas em Configurações > Financeiro. Ative apenas as que estarão disponíveis para o cliente.') +
+            '<section ' + _templatePanelAttrs('checkout') + ' style="' + _cardStyle() + '">' + _sectionTitle('Pagamentos exibidos na loja', 'Formas cadastradas em Configurações > Financeiro. Ative apenas as que estarão disponíveis para o cliente.') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">payments</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo dos pagamentos</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Formas de pagamento visíveis no checkout da loja.</div></div></div>' +
@@ -3990,7 +4190,7 @@ Modules.Catalogo = (function () {
                 '</div>' +
               '</div>' +
             '</section>' +
-            '<section data-template-panel="checkout" style="' + _cardStyle() + '">' + _sectionTitle('Finalização do pedido', 'Configurações ligadas ao carrinho e checkout.') +
+            '<section ' + _templatePanelAttrs('checkout') + ' style="' + _cardStyle() + '">' + _sectionTitle('Finalização do pedido', 'Configurações ligadas ao carrinho e checkout.') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">shopping_cart_checkout</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo do checkout</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Controle opções simples do carrinho e finalização.</div></div></div>' +
@@ -4012,7 +4212,7 @@ Modules.Catalogo = (function () {
                 '</div>' +
               '</div>' +
             '</section>' +
-            '<section data-template-panel="atendimento" style="' + _cardStyle() + '">' + _sectionTitle('WhatsApp da loja', 'Mensagem usada pelo botão flutuante do WhatsApp na loja pública.') +
+            '<section ' + _templatePanelAttrs('atendimento') + ' style="' + _cardStyle() + '">' + _sectionTitle('WhatsApp da loja', 'Mensagem usada pelo botão flutuante do WhatsApp na loja pública.') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">chat</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo do WhatsApp</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Texto do botão flutuante e mensagem inicial enviada pelo cliente.</div></div></div>' +
@@ -4029,7 +4229,7 @@ Modules.Catalogo = (function () {
                 '</div>' +
               '</div>' +
             '</section>' +
-            '<section data-template-panel="textos" style="' + _cardStyle() + '">' + _sectionTitle('Mais informações', 'Textos exibidos quando o cliente abre o modal de informações da loja.') +
+            '<section ' + _templatePanelAttrs('textos') + ' style="' + _cardStyle() + '">' + _sectionTitle('Mais informações', 'Textos exibidos quando o cliente abre o modal de informações da loja.') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">info</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo das informações</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Conteúdo do modal público de informações da loja.</div></div></div>' +
@@ -4057,6 +4257,7 @@ Modules.Catalogo = (function () {
             '</section>' +
             '<div style="display:flex;justify-content:flex-end;"><button type="button" data-save-template-loja="1" onmouseenter="this.style.transform=\'translateY(-1px)\';this.style.boxShadow=\'0 8px 18px rgba(180,35,24,.20)\';" onmouseleave="this.style.transform=\'none\';this.style.boxShadow=\'0 4px 12px rgba(180,35,24,.18)\';" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">Salvar alterações</button></div>' +
         '</div></div>';
+      _setTemplateTab(_templateActiveTab || 'identidade');
       setTimeout(function () {
         [].slice.call(content.querySelectorAll('input,textarea,select')).forEach(function (el) {
           el.addEventListener('input', _refreshTemplatePreview);
@@ -4068,7 +4269,10 @@ Modules.Catalogo = (function () {
         _bindColorField('tpl-primary-color');
         _bindOpacityField('tpl-banner-overlay-opacity');
         _refreshTemplatePreview();
-        if (window.BocaPlaces) BocaPlaces.init('tpl-address');
+        if (window.BocaPlaces) {
+          BocaPlaces.init('tpl-address');
+          BocaPlaces.init('tpl-delivery-area-city');
+        }
       }, 80);
     });
   }
@@ -4465,13 +4669,21 @@ Modules.Catalogo = (function () {
     var fiscal = _fiscalInfo();
     var hours = _collectHours();
     var collectedDeliveryZones = _collectDeliveryZonesFromDom();
-    var deliveryZonesError = _deliveryZoneValidationError(collectedDeliveryZones);
-    if (deliveryZonesError) { UI.toast(deliveryZonesError, 'error'); return; }
-    var deliveryZones = _normalizeDeliveryZones(collectedDeliveryZones);
     var images = _imageUploadState();
     var currentTpl = _storeConfig.template || {};
     var currentGeral = _storeConfig.geral || {};
     var currentApp = _storeConfig.aparencia || {};
+    var deliveryArea = _collectDeliveryAreaFromDom(_deliveryAreaFromConfig(currentTpl, _storeConfig.zonas || {}));
+    if (collectedDeliveryZones.length) {
+      var missingArea = _deliveryAreaMissingItems(deliveryArea);
+      if (missingArea.length) {
+        UI.toast('Antes de salvar zonas, preencha: ' + missingArea.join(', ') + '.', 'error');
+        return;
+      }
+    }
+    var deliveryZonesError = _deliveryZoneValidationError(collectedDeliveryZones);
+    if (deliveryZonesError) { UI.toast(deliveryZonesError, 'error'); return; }
+    var deliveryZones = _normalizeDeliveryZones(collectedDeliveryZones);
     var primary = document.getElementById('tpl-primary-color') ? (_normalizeHexColor(_val('tpl-primary-color-hex') || _val('tpl-primary-color')) || '#B42318') : (currentTpl.primaryColor || currentGeral.primaryColor || currentApp.primaryColor || '#B42318');
     var palette = _deriveStorePalette(primary);
     var logoUrl = _cleanPublicUrl(_val('tpl-logo-url'));
@@ -4555,7 +4767,7 @@ Modules.Catalogo = (function () {
         showFacebookInFooter: _checked('tpl-contact-footer-facebook'),
         showTiktokInFooter: _checked('tpl-contact-footer-tiktok')
       },
-address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-number'), city: _val('tpl-city'), region: _val('tpl-region'), neighborhood: _val('tpl-neighborhood') || currentTpl.neighborhood || currentGeral.neighborhood || currentApp.neighborhood || '', postalCode: _val('tpl-postal'), country: _val('tpl-country'), reference: _val('tpl-reference'), complemento: _val('tpl-reference'), showAddress: currentTpl.showAddress !== undefined ? currentTpl.showAddress : (currentGeral.showAddress !== undefined ? currentGeral.showAddress : (currentApp.showAddress !== undefined ? currentApp.showAddress : true)), mapsUrl: currentTpl.mapsUrl || currentGeral.mapsUrl || currentApp.mapsUrl || '', deliveryArea: currentTpl.deliveryArea || currentGeral.deliveryArea || currentApp.deliveryArea || '', pickupNote: currentTpl.pickupNote || currentGeral.pickupNote || currentApp.pickupNote || '',      statusMode: _val('tpl-status-mode') || 'auto', manualClosed: (_val('tpl-status-mode') === 'manual_closed'), manualOpen: (_val('tpl-status-mode') === 'manual_open'), hours: hours, pickupHours: _val('tpl-pickup-hours'), deliveryHours: _val('tpl-delivery-hours'), specialHoursText: _val('tpl-special-hours'),
+address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-number'), city: _val('tpl-city'), region: _val('tpl-region'), neighborhood: _val('tpl-neighborhood') || currentTpl.neighborhood || currentGeral.neighborhood || currentApp.neighborhood || '', postalCode: _val('tpl-postal'), country: _val('tpl-country'), reference: _val('tpl-reference'), complemento: _val('tpl-reference'), showAddress: currentTpl.showAddress !== undefined ? currentTpl.showAddress : (currentGeral.showAddress !== undefined ? currentGeral.showAddress : (currentApp.showAddress !== undefined ? currentApp.showAddress : true)), mapsUrl: currentTpl.mapsUrl || currentGeral.mapsUrl || currentApp.mapsUrl || '', deliveryArea: deliveryArea, deliveryCity: deliveryArea.city, deliveryProvince: deliveryArea.province, deliveryCountry: deliveryArea.country, deliveryPostalCode: deliveryArea.postalCode, pickupNote: currentTpl.pickupNote || currentGeral.pickupNote || currentApp.pickupNote || '',      statusMode: _val('tpl-status-mode') || 'auto', manualClosed: (_val('tpl-status-mode') === 'manual_closed'), manualOpen: (_val('tpl-status-mode') === 'manual_open'), hours: hours, pickupHours: _val('tpl-pickup-hours'), deliveryHours: _val('tpl-delivery-hours'), specialHoursText: _val('tpl-special-hours'),
       pickupEnabled: _checked('tpl-pickup-enabled'), deliveryEnabled: _checked('tpl-delivery-enabled'), minDeliveryOrder: _numVal('tpl-min-delivery'), minimumDeliveryOrder: _numVal('tpl-min-delivery'), maxOrdersPerSlot: _numVal('tpl-orders-per-hour'), ordersPerHour: _numVal('tpl-orders-per-hour'), maxAdvanceDays: _numVal('tpl-max-advance-days'), advanceDaysLimit: _numVal('tpl-max-advance-days'), deliveryFee: document.getElementById('tpl-delivery-fee') ? _numVal('tpl-delivery-fee') : (currentTpl.deliveryFee || currentGeral.deliveryFee || currentApp.deliveryFee || ''), deliveryText: _val('tpl-delivery-text'), pickupText: _val('tpl-pickup-text'), prepTime: _val('tpl-prep-time') || currentTpl.prepTime || currentGeral.prepTime || currentApp.prepTime || '', averagePrepTime: _val('tpl-prep-time') || currentTpl.averagePrepTime || currentGeral.averagePrepTime || currentApp.averagePrepTime || currentTpl.prepTime || '', deliveryTime: _val('tpl-delivery-time') || currentTpl.deliveryTime || currentGeral.deliveryTime || currentApp.deliveryTime || '', averageDeliveryTime: _val('tpl-delivery-time') || currentTpl.averageDeliveryTime || currentGeral.averageDeliveryTime || currentApp.averageDeliveryTime || currentTpl.deliveryTime || '',
       deliveryZones: deliveryZones,
       paymentMethods: paymentMethods, paymentMethodConfigs: paymentMethodConfigs, paymentMethodInstructions: paymentMethodInstructions, paymentNote: _val('tpl-payment-note'),
@@ -4600,8 +4812,10 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       }
       _deliveryZonesDraft = deliveryZones;
       _deliveryZonesDraftDirty = false;
-      UI.toast('Alterações visíveis na loja salvas.', 'success');
       _refreshTemplatePreview();
+      return _syncSystemTenantStoreFromTemplate(template);
+    }).then(function () {
+      UI.toast('Alterações visíveis na loja salvas.', 'success');
     }).catch(function (err) { UI.toast('Erro: ' + err.message, 'error'); });
   }
 
@@ -4666,7 +4880,6 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       var geral = _storeConfig.geral || {};
       var tpl = _storeConfig.template || {};
       var seo = _storeConfig.seo || {};
-      var seoTech = _storeConfig.seoTechnical || {};
       var businessName = seo.businessName || geral.businessName || tpl.publicName || '';
       var city = seo.city || geral.city || tpl.city || '';
       var category = seo.mainKeyword || 'Comida brasileira';
@@ -4681,10 +4894,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       var googleMaps = seo.googleMapsUrl || tpl.mapsUrl || '';
       var googleBusiness = seo.googleBusinessUrl || '';
       var storeUrl = _publicStoreUrl();
-      var published = seoTech.storeStatus ? String(seoTech.storeStatus) === 'publicada' : !!storeUrl;
-      var canFindGoogle = (seoTech.allowIndexing !== undefined ? seoTech.allowIndexing : seo.indexEnabled !== false) && String(seoTech.metaRobots || seo.robots || '').indexOf('noindex') < 0;
-      var sitemapUpdated = seoTech.sitemapActive !== undefined ? !!seoTech.sitemapActive : !!(seo.sitemapUpdatedAt || seo.sitemapActive);
-      var lastSeoUpdate = seoTech.lastPublishedAt || seoTech.updatedAt || seo.updatedAt || seo.lastPublishedAt || seo.lastSeoUpdate || '';
+      var published = !!storeUrl;
       var content = document.getElementById('catalogo-content');
       content.innerHTML =
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px;">' +
@@ -4729,15 +4939,6 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
                 '220px'
               ) + '</div>' +
               '<div style="grid-column:1/-1;">' + _seoPreviewHtml(seo, titleDefault, descDefault, storeUrl, published, shareCustom, seo.ogImage || seo.imageUrl || tpl.bannerUrl || geral.bannerUrl || '') + '</div>', '260px') +
-            '</section>' +
-            '<section style="' + _cardStyle() + '">' + _sectionTitle('Status técnico', 'Somente leitura para evitar erro de publicação.') +
-              '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;">' +
-                _statusChip('Loja publicada', published ? 'Sim' : 'Não', published ? 'green' : 'gray') +
-                _statusChip('Google pode encontrar esta loja', canFindGoogle ? 'Sim' : 'Não', canFindGoogle ? 'green' : 'gray') +
-                _statusChip('Sitemap atualizado', sitemapUpdated ? 'Sim' : 'Não', sitemapUpdated ? 'green' : 'gray') +
-                _statusChip('Última atualização SEO/publicação', lastSeoUpdate || '—', 'blue') +
-              '</div>' +
-              '<div style="margin-top:12px;font-size:12px;line-height:1.5;color:#6F6860;">As configurações técnicas são controladas automaticamente pelo Boca Food para evitar erro de publicação.</div>' +
             '</section>' +
             '<div style="display:flex;justify-content:flex-end;"><button type="button" data-save-seo-loja="1" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">Salvar alterações</button></div>' +
         '</div>';
@@ -4789,9 +4990,8 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var desc = _val('seo-description') || 'Descrição SEO da loja com cidade, produto e diferencial.';
     var shareCustom = _checked('seo-share-custom-enabled');
     var shareWrap = document.getElementById('seo-share-custom-fields');
-    var seoTech = _storeConfig.seoTechnical || {};
     var storeUrl = _publicStoreUrl();
-    var published = seoTech.storeStatus ? String(seoTech.storeStatus) === 'publicada' : !!storeUrl;
+    var published = !!storeUrl;
     var url = published && storeUrl ? storeUrl : 'URL da loja será exibida após publicação';
     if (document.getElementById('seo-preview-url')) document.getElementById('seo-preview-url').textContent = url;
     if (document.getElementById('seo-preview-title')) document.getElementById('seo-preview-title').textContent = title;

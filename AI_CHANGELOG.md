@@ -1,5 +1,476 @@
 # AI Changelog
 
+## 2026-05-16 — Integração Hotmart com billing do tenant
+- Arquivos alterados: `functions/index.js`, `server.rb`, `AI_CHANGELOG.md`.
+- Hotmart webhook: eventos aprovados/ativos atualizam tenants existentes com `billing.provider`, `billing.status`, `planSlug`, `billingCycle`, `activatedAt`, códigos Hotmart, `purchaseStatus` e `subscriptionStatus`, além dos espelhos `plan`, `billingStatus`, `billingCycle` e `activatedAt`.
+- Trial: quando o evento/oferta enviar `trialDays`, calcula e grava `billing.trialEndsAt` e `trialEndsAt`; sem trial configurado, mantém vazio sem erro.
+- Status: eventos de cancelamento, reembolso, chargeback, pagamento pendente e atraso mapeiam `billing.status`, `billingStatus` e `canceledAt` quando aplicável, sem apagar tenant, loja ou dados existentes.
+- Pendências: `pending_hotmart_access` passa a guardar `planSlug`, `billingCycle`, `trialDays`, `trialEndsAt`, `purchaseStatus`, `subscriptionStatus`, `eventType`, status interno e motivo, sem salvar payload bruto fora de `hotmart_events`.
+- Backend local: criação/vínculo manual a partir de pendência Hotmart consome os novos campos e preserva compatibilidade com registros antigos.
+- Logs: adicionados eventos seguros em `system_access_logs` para ativação, cancelamento, pagamento pendente/atrasado, reembolso, chargeback e vínculo Hotmart com tenant.
+
+## 2026-05-16 — Plano e acesso separado de dados Firebase
+- Arquivos alterados: `master.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Master `Usuários → Editar usuário → Plano e acesso`.
+- Organização: a aba foi separada em `Plano e cobrança` e `Acesso técnico / Firebase`.
+- Plano e cobrança: mantém `Plano`, `Ciclo`, `Provider cobrança`, `Status assinatura`, `Fim do trial`, `Ativado em` e `Cancelado em`.
+- Acesso técnico: concentra `Auth UID`, `E-mail verificado`, `Último acesso`, `Criado em`, `Atualizado em` e `Papel`.
+- Escopo: mudança visual/organizacional; sem alteração de Hotmart, cobrança, endpoints ou salvamento.
+
+## 2026-05-16 — Correção do ciclo de cobrança em Plano e acesso
+- Arquivos alterados: `public/js/core/auth.js`, `public/js/modules/configuracoes.js`, `public/admin.html`, `master.html`, `server.rb`, `AI_CHANGELOG.md`.
+- Admin: `Auth.getAdminProfile()` e a tela `Configurações → Plano` passam a aceitar `profile.billingCycle`, `billing.billingCycle` e `billing.cycle`, nessa ordem.
+- Master: a aba `Plano e acesso` lê o ciclo de `billing.billingCycle`, `billingCycle` ou `billing.cycle`; ao salvar, mantém `billing.billingCycle` e o espelho `billingCycle`.
+- Backend: `system_tenants/{uid}` passa a manter espelhos `plan`, `billingStatus`, `billingCycle`, `trialEndsAt`, `activatedAt` e `canceledAt` junto da estrutura `billing`.
+- Hotmart: criação/vínculo a partir de `pending_hotmart_access` preenche `billing.billingCycle` e `billingCycle`; quando não houver ciclo, usa `monthly` com warning seguro em `system_access_logs`.
+- Logs: alterações manuais de plano, ciclo, provider e status de assinatura ficam registradas sem dados sensíveis.
+- Cache: `public/admin.html` recebeu cache-buster para carregar `auth.js` e `configuracoes.js` atualizados.
+
+## 2026-05-16 — Papel vinculado aos dados da usuária
+- Arquivos alterados: `master.html`, `public/js/modules/configuracoes.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Master: o campo `Papel` saiu da aba `Plano e acesso` e passou para o modal da usuária, junto dos dados do respectivo acesso.
+- Admin: `Configurações → Conta / Usuária → Dados da usuária / responsável` agora mostra `Papel` como campo somente leitura definido pelo Master.
+- Cache: `public/admin.html` recebeu novo cache-buster para carregar o módulo atualizado.
+- Escopo: não houve alteração de permissões, endpoints, cobrança, Hotmart ou regras de acesso.
+
+## 2026-05-16 — Campos da usuária reduzidos no Master
+- Arquivos alterados: `master.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Master `Usuários → Editar usuário → Usuárias`.
+- Ajuste: a modal de dados da usuária passa a exibir somente `Nome completo`, `Nome social / nome curto`, `E-mail de acesso`, `WhatsApp da usuária` e `Idioma da conta`.
+- Compatibilidade: os campos antigos de telefone/e-mails administrativos ficam preservados internamente para não apagar dados existentes, mas não aparecem como campos da usuária.
+- Salvamento: `Nome social / nome curto` passa a ser enviado como `preferredName` e `socialName`, mantendo compatibilidade com os dados atuais.
+
+## 2026-05-16 — Ajuste da separação entre negócio e usuária
+- Arquivos alterados: `master.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Master `Usuários → Editar usuário`.
+- Correção: a aba `Usuárias` passa a conter apenas campos pessoais da usuária/responsável, como nome, e-mail, contato e idioma.
+- Negócio: tenant, status da conta, origem, documento, endereço fiscal, país fiscal e observações internas ficam na aba `Negócio`, pois pertencem ao cadastro do negócio/empresa.
+- Escopo: reorganização visual; sem alteração de salvamento, endpoints, permissões, Admin ou dados Firestore.
+
+## 2026-05-16 — Master separa negócio e usuárias no cadastro
+- Arquivos alterados: `master.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Master `Usuários → Editar usuário`.
+- Organização: a edição passa a abrir na aba `Negócio`, com campos da loja, publicação, localização e redes sociais.
+- Usuárias: os dados da usuária principal foram separados em uma aba `Usuárias`, exibidos primeiro como lista e abertos em modal interno para detalhes.
+- Preparação futura: a nova lista deixa a interface pronta para múltiplas usuárias/acessos por tenant, sem alterar permissões, endpoints ou estrutura de gravação nesta etapa.
+- Escopo: salvamento existente preservado; não houve alteração em Admin, Hotmart, SMTP, pedidos ou template público.
+
+## 2026-05-16 — Idioma da conta com Português e Espanhol
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Admin `Configurações → Conta / Usuária`.
+- Ajuste: o select `Idioma da conta` agora mostra apenas `🇧🇷 Português` e `🇪🇸 Espanhol`.
+- Salvamento: os valores internos continuam padronizados como `pt-BR` e `es-ES`.
+- Cache: `public/admin.html` recebeu novo cache-buster para carregar a versão atualizada.
+
+## 2026-05-16 — Idioma da conta limitado a português e espanhol
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Admin `Configurações → Conta / Usuária`.
+- Ajuste: o select `Idioma da conta` agora mostra apenas Português Brasil, Português Portugal e Espanhol Espanha.
+- Cache: `public/admin.html` recebeu novo cache-buster para carregar a versão atualizada do módulo de configurações.
+- Escopo: não houve alteração no caminho Firestore, no salvamento, no Master ou em outros módulos.
+
+## 2026-05-16 — Visual das Configurações Conta / Usuária
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Admin `Configurações → Conta / Usuária`.
+- Abas: padronizadas como abas horizontais limpas, com texto cinza, ativo em vermelho e underline vermelho, sem aparência de botão HTML cru.
+- Selects: `Idioma da conta` e demais selects renderizados por `bf-select` recebem altura, borda, raio, fundo branco e seta discreta alinhados ao padrão BocaFood.
+- Telefone/WhatsApp: os selects de código telefônico usam layout compacto com bandeira + código ao lado do número, preservando responsividade.
+- Escopo: alteração apenas visual/usabilidade; nomes dos campos, salvamento, Firestore e sincronização com Master não foram alterados.
+
+## 2026-05-16 — WhatsApp da usuária visível no Master
+- Arquivos alterados: `master.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Master `Usuários`.
+- Ajuste: o campo da aba Conta foi renomeado para `WhatsApp da usuária` e indica origem `Admin → Configurações → Conta / Usuária`.
+- Listagem: o card/linha da usuária passa a mostrar `WhatsApp usuária` junto do e-mail quando o dado existir.
+- Preparação futura: o campo continua usando `system_tenants/{uid}.whatsapp*`, separado do WhatsApp público/operacional da loja, para suportar contatos individuais de usuários no futuro sem liberar multiusuário agora.
+
+## 2026-05-16 — Conta / Usuária sem responsável e telefone duplicados
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Admin `Configurações → Conta / Usuária`.
+- Ajuste visual: removidos da aba os campos `Responsável legal` e `Telefone principal`, evitando duplicidade com dados fiscais/gerais.
+- WhatsApp: o campo agora é `WhatsApp da usuária` e carrega apenas `tenant.whatsapp*` ou `config/conta_usuario.whatsapp*`, sem herdar WhatsApp/telefone da aba `Geral`.
+- Salvamento: a aba deixa de escrever `responsibleName`, `phoneCountryCode`, `phoneNumber`, `phoneFull` e `phone`, preservando valores antigos por merge sem apagar dados existentes.
+- Cache: `public/admin.html` recebeu cache-buster novo para `configuracoes.js`.
+
+## 2026-05-16 — Data de cadastro do Firebase Auth na listagem
+- Arquivos alterados: `server.rb`, `master.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Master `Usuários`.
+- Backend: a listagem de tenants anexa metadados do Firebase Auth por UID/e-mail em `auth.createdAt`, `auth.lastLoginAt`, `auth.emailVerified` e `auth.uid`, sem sobrescrever `createdAt` do tenant.
+- Visual: quando a data confiável do tenant não existe ou veio de importação automática, o card mostra `Criado no Firebase Auth` usando `auth.createdAt`.
+- Impacto esperado: usuárias criadas originalmente pelo Firebase Auth, como `pcruz.digital@gmail.com`, passam a mostrar a data de cadastro do Auth quando disponível.
+
+## 2026-05-16 — Último acesso vindo dos logs reais
+- Arquivos alterados: `server.rb`, `master.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Master `Usuários` e histórico `system_access_logs`.
+- Correção: a listagem de usuários passa a calcular `lastAccessAt` a partir dos eventos `admin_login` em `system_access_logs`, usando UID e e-mail como fallback para casos de documentos duplicados.
+- Visual: o badge de último acesso usa `lastAccessAt` antes de `auth.lastLoginAt`; a data de criação foi renomeada para `Conta criada em` e evita exibir uma data enganosa quando o registro veio de importação automática do Firebase Auth.
+- Impacto esperado: usuárias que acessam o Admin, como `pcruz.digital@gmail.com`, passam a aparecer com o último acesso real após o login ser registrado.
+
+## 2026-05-16 — Último acesso visível na listagem de usuários
+- Arquivos alterados: `master.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Master `Usuários`.
+- Ajuste visual: a listagem de usuários passa a exibir o `Último acesso` como badge visível dentro do card/linha da usuária.
+- Estado vazio: quando não houver `auth.lastLoginAt` ou `lastLoginAt`, a listagem mostra `Último acesso: sem registro`.
+- Atualização: a assinatura de renderização da lista passou a considerar `auth.lastLoginAt`/`lastLoginAt`, permitindo atualizar o card quando o valor mudar.
+
+## 2026-05-16 — Padrão leve de logs de atividade
+- Arquivos alterados: `AGENTS.md`, `public/js/core/auth.js`, `public/js/modules/configuracoes.js`, `public/admin.html`, `firestore.rules`, `server.rb`, `master.html`, `AI_CHANGELOG.md`.
+- Regra global: documentado que o BocaFood registra somente ações relevantes para suporte, auditoria, cobrança e segurança, sem logar cliques, navegação simples, scroll, digitação, foco em campo ou visualizações comuns.
+- Estrutura: logs em `system_access_logs` passam a usar campos leves `tenantUid`, `email`, `action`, `module`, `entityType`, `entityId`, `summary`, `source`, `severity`, `createdAt` e `metadata`, sem senhas, tokens, payload completo, HTML, imagens ou dados de clientes finais.
+- Helper Admin: criado `Auth.recordSystemAccessLog`, com actions permitidas, limpeza de metadata, limite de tamanho e falha silenciosa para não quebrar a ação principal.
+- Actions iniciais: `admin_login`, `store_published`, `store_unpublished`, `store_publication_failed`, `store_slug_updated`, `account_settings_updated`, `store_settings_updated`, `master_tenant_updated`, `master_account_blocked` e `master_account_activated`.
+- Master: o modal `Histórico de acessos` agora mostra data/hora, ação traduzida, origem, módulo, resumo, severidade e detalhes, com filtros `Todos`, `Login`, `Loja`, `Publicação`, `Conta`, `Master` e `Erros`.
+- Custo/retenção: leituras do Master limitadas aos 50 registros mais recentes; retenção automática fica pendente para etapa futura, com diretriz de 90 dias para logs comuns e 1 ano para cobrança, Hotmart, acesso e publicação.
+
+## 2026-05-16 — Histórico de acessos do usuário no Master
+- Arquivos alterados: `public/js/core/auth.js`, `public/admin.html`, `firestore.rules`, `server.rb`, `master.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Admin/Centro de Controle, Master `Usuários` e coleção `system_access_logs`.
+- Registro: ao liberar acesso no Admin, o client registra um evento `admin_login` em `system_access_logs` com `tenantUid`, `uid`, `createdAt`, `source: "admin"` e detalhes seguros como e-mail, papel e `masterTenantId`.
+- Segurança: as regras do Firestore permitem criação client-side apenas de eventos `admin_login` e eventos de publicação já previstos, sem permitir edição/leitura por tenant comum.
+- Master: o botão `Logs` agora abre uma tela/modal de `Histórico de acessos`, filtrando por UID e e-mail para cobrir casos com documentos duplicados do mesmo usuário.
+- Backend: `/api/master/access/logs` aceita filtro por `uid`, `email` e `action`, retorna até 100 registros recentes e continua restrito ao Master local.
+
+## 2026-05-16 — País fiscal espelhado por e-mail
+- Arquivos alterados: `server.rb`, `AI_CHANGELOG.md`.
+- Módulo afetado: Master `Usuários`, deduplicação de `system_tenants` e Admin fiscal.
+- Correção: ao salvar um usuário no Master, o backend agora atualiza o `fiscalCountry` em todos os documentos `system_tenants` com o mesmo e-mail, evitando que outro documento mais completo volte a aparecer com o país fiscal antigo.
+- Escopo: o espelho altera somente campos fiscais/de controle (`fiscalCountry`, `accountAddress.fiscalCountry`, `store.fiscalCountry`, `masterTenantId`, `role`, `accountStatus`, `updatedAt`) e não copia dados operacionais da loja.
+- Ajuste adicional: a sincronização recebe o UID real retornado pelo Firebase Auth para também atualizar o documento usado no login do Admin.
+
+## 2026-05-16 — País fiscal canônico no Master
+- Arquivos alterados: `master.html`, `server.rb`, `AI_CHANGELOG.md`.
+- Módulo afetado: Master `Usuários → Editar usuário` e sincronização `system_tenants`.
+- Correção: o Master passa a exibir primeiro o valor canônico `fiscalCountry` top-level, em vez de priorizar valores antigos em `accountAddress.fiscalCountry` ou `store.fiscalCountry`.
+- Backend: ao salvar, `fiscalCountry` top-level é a fonte principal e é espelhado para `accountAddress.fiscalCountry` e `store.fiscalCountry`, evitando Master mostrar Espanha enquanto o Admin lê Portugal.
+- Impacto esperado: após salvar novamente no Master, Admin e Master usam o mesmo país fiscal para liberar/ocultar o módulo Fiscal.
+
+## 2026-05-16 — Espelho fiscal para UID autenticado
+- Arquivos alterados: `server.rb`, `AI_CHANGELOG.md`.
+- Módulo afetado: Master `Usuários` e sincronização `system_tenants`.
+- Correção: quando o Master salva um tenant cujo documento principal não é o mesmo UID usado no Firebase Auth, o backend também espelha apenas os campos de controle fiscal em `system_tenants/{authUid}`.
+- Campos espelhados: `fiscalCountry`, `accountAddress.fiscalCountry`, `store.fiscalCountry`, `masterTenantId`, `email`, `role`, `accountStatus` e `updatedAt`.
+- Impacto esperado: o Admin autenticado pelo UID passa a receber o mesmo `País fiscal` definido no Master, sem copiar dados operacionais da loja nem permitir edição pelo Admin.
+
+## 2026-05-16 — País fiscal do Admin atualizado a partir do Master
+- Arquivos alterados: `public/js/core/auth.js`, `public/js/modules/configuracoes.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Centro de Controle `Configurações → Geral → Dados fiscais da empresa`.
+- Correção: o Admin agora recarrega o tenant de controle do Master (`masterTenantId`) antes de renderizar o campo `País fiscal`, evitando manter valor antigo do perfil carregado no login.
+- Regra preservada: `tenantId` operacional do Admin continua sendo o UID autenticado; a leitura adicional usa somente metadados de controle do Master, como `fiscalCountry`.
+- UI: o campo `País fiscal` prioriza o valor atual de `system_tenants/{masterTenantId}` e só usa o perfil local como fallback.
+- Cache: `public/admin.html` recebeu cache-buster novo para `configuracoes.js`.
+
+## 2026-05-16 — Bootstrap fiscal alinhado por e-mail do tenant
+- Arquivos alterados: `public/js/core/auth.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: autenticação do Centro de Controle e visibilidade dos módulos fiscais.
+- Correção: usuários bootstrap como `pcruz.digital@gmail.com` agora procuram também tenants em `system_tenants` pelo e-mail e escolhem o tenant mais completo, evitando divergência quando existe mais de um documento para o mesmo e-mail.
+- Critério: a escolha do tenant segue a mesma prioridade do Master por loja/slug/URL/billing/status e inclui fallback case-insensitive para e-mails gravados com caixa diferente.
+- Fiscal: o Admin passa a aplicar o `fiscalCountry` do tenant preferido pelo Master; `ES` mantém o módulo Fiscal visível e `PT` oculta o módulo Fiscal.
+- Segurança operacional: o `tenantId` usado pelo Admin continua sendo o UID autenticado, para não misturar dados operacionais entre lojas; apenas os metadados de controle do Master são usados para país fiscal/role.
+- Debug: adicionados logs seguros com UID, tenant preferido, país fiscal e quantidade de matches por e-mail, sem expor dados sensíveis.
+- Cache: `public/admin.html` recebeu cache-buster novo para carregar a versão atualizada de `auth.js`.
+
+## 2026-05-16 — País no Master copiado dos dados fiscais
+- Arquivos alterados: `master.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Master `Usuários → Editar usuário → Conta`.
+- Ajuste: o campo `País` passou a ser somente leitura e apenas copia `accountAddress.country`, vindo de `Dados fiscais da empresa → País` no Admin.
+- Separação: `País` não edita nem substitui `País fiscal`; `País fiscal` continua separado, controlado pelo Master e usado para liberar/ocultar módulos fiscais.
+- Salvamento: o Master preserva o país cadastrado nos dados fiscais e não usa mais o valor visual do campo como edição comum.
+
+## 2026-05-16 — País herdado dos dados fiscais da empresa
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `public/js/core/db.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Centro de Controle `Configurações → Geral → Dados fiscais da empresa`.
+- Ajuste: o campo `País` passa a ser somente leitura e preenchido automaticamente pelo Google Places a partir do endereço fiscal.
+- Autocomplete: quando o endereço fiscal preencher país, o campo `País` recebe o código/nome retornado pelo Places.
+- Sincronização: `country` e `accountAddress.country` herdam esse país cadastrado em `Dados fiscais da empresa`; `País fiscal` continua somente leitura e controlado pelo Master.
+- Correção: removido fallback indevido para `fiscalCountry` ao atualizar `store.country` a partir das configurações gerais.
+
+## 2026-05-16 — País fiscal do bootstrap alinhado ao Master
+- Arquivos alterados: `public/js/core/auth.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Correção: usuários em bootstrap, incluindo `pcruz.digital@gmail.com`, agora também carregam `system_tenants/{uid}` antes de liberar o Admin, para usar o mesmo `fiscalCountry` definido no Master.
+- Comportamento: `Auth.getFiscalCountry()` normaliza o valor para `ES` ou `PT`; `ES` mantém o módulo Fiscal visível e `PT` oculta o módulo Fiscal.
+- Cache: `public/admin.html` recebeu cache-buster novo para `auth.js`.
+- Impacto esperado: Admin e Master deixam de divergir em país fiscal e na visibilidade do módulo Fiscal.
+
+## 2026-05-16 — País fiscal controlado somente pelo Master
+- Arquivos alterados: `AGENTS.md`, `public/js/core/auth.js`, `public/js/modules/configuracoes.js`, `public/admin.html`, `firestore.rules`, `AI_CHANGELOG.md`.
+- Regra global: `País fiscal` passa a ser definido/alterado somente no Master; no Admin a usuária apenas visualiza o valor aplicado à conta.
+- Admin: o campo `País fiscal` em `Configurações → Geral → Dados fiscais da empresa` ficou somente leitura e não é mais enviado no salvamento de configurações.
+- Sincronização: o Admin não grava mais `fiscalCountry` nem `accountAddress.fiscalCountry` em `system_tenants/{uid}`; esses campos permanecem sob controle do Master.
+- Segurança: `firestore.rules` deixou de permitir que o tenant escreva `fiscalCountry` top-level ou dentro de `accountAddress`.
+- Comportamento fiscal: Espanha (`ES`) exibe o módulo Fiscal; Portugal (`PT`) não exibe o módulo Fiscal, conforme `FiscalConfig`.
+
+## 2026-05-16 — País fiscal restrito a regras implementadas
+- Arquivos alterados: `AGENTS.md`, `public/js/core/auth.js`, `public/js/modules/configuracoes.js`, `public/admin.html`, `master.html`, `AI_CHANGELOG.md`.
+- Regra global: documentado que `País fiscal` não é país do endereço; ele controla `Auth.getFiscalCountry()`, `FiscalConfig`, regras fiscais e módulos liberados.
+- Opções fiscais: nesta fase, apenas Espanha (`ES`) e Portugal (`PT`) aparecem como opções de `País fiscal`, porque são os únicos países com configuração fiscal específica implementada.
+- Segurança funcional: países sem configuração fiscal específica passam a cair no padrão `País fiscal em desenvolvimento`, sem liberar módulo fiscal nem impostos de produto/compra.
+- Admin: o campo `País fiscal` em `Configurações → Geral → Dados fiscais da empresa` usa apenas `ES/PT` como valores válidos.
+- Master: o campo `País fiscal` no modal de Usuários também foi limitado e normalizado para `ES/PT`, mantendo correção apenas em modo suporte.
+
+## 2026-05-16 — País e país fiscal nos dados fiscais da empresa
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `public/js/core/db.js`, `public/admin.html`, `firestore.rules`, `AI_CHANGELOG.md`.
+- Módulo afetado: Centro de Controle `Configurações → Geral`, card `Dados fiscais da empresa`, e sincronização para `system_tenants/{uid}`.
+- Ajuste: adicionado o campo `País` como dado gerado pelo endereço fiscal/autocomplete, separado do campo `País fiscal`.
+- País fiscal: campo separado do país de endereço e usado para definir regras fiscais e módulos liberados para a usuária.
+- Sincronização: `accountAddress.country` recebe o país do endereço; `fiscalCountry` fica sob controle do Master.
+- Cache: `public/admin.html` recebeu cache-buster para carregar as versões novas de `db.js` e `configuracoes.js`.
+- Regras: o tenant não pode atualizar `fiscalCountry`; alteração deve passar pelo Master.
+
+## 2026-05-16 — Remoção do card fiscal da aba Conta / Usuária
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Centro de Controle `Configurações → Conta / Usuária`.
+- Ajuste visual: removido o card `Dados fiscais da empresa` dessa aba; ela agora mantém apenas dados da usuária/responsável, e-mail da conta, telefone, WhatsApp e idioma.
+- Salvamento: o botão da aba não sobrescreve mais `document` nem `accountAddress`, preservando dados fiscais já existentes em `system_tenants/{uid}` e em `config/conta_usuario`.
+
+## 2026-05-16 — Reorganização fiscal da aba Conta / Usuária
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Módulo afetado: Centro de Controle `Configurações → Conta / Usuária`.
+- Ajuste visual: o card `Dados da usuária / responsável` agora fica restrito aos dados administrativos da dona da conta, sem endereço nem documento fiscal.
+- Dados fiscais: documento, endereço fiscal e país fiscal ficam concentrados no card `Dados fiscais da empresa`, mantendo a mesma estrutura salva em `system_tenants/{uid}`.
+- Impacto esperado: a tela deixa claro que endereço e país fiscal pertencem aos dados fiscais da empresa, não ao bloco de dados pessoais/responsável.
+
+## 2026-05-16 — Exibição da aba Conta / Usuária no menu do Admin
+- Arquivos alterados: `public/admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Centro de Controle `Configurações`.
+- Correção: o menu lateral de Configurações agora inclui a rota `configuracoes/conta_usuario`, permitindo acessar a aba `Conta / Usuária` que já existia no módulo `public/js/modules/configuracoes.js`.
+- Impacto esperado: ao abrir `http://127.0.0.1:3000/admin.html`, a opção `Conta / Usuária` aparece dentro de Configurações e carrega a tela de dados da dona da conta.
+
+## 2026-05-16 — Origem operacional da cidade/estado/país da loja no Master
+- Arquivos alterados: `public/js/modules/catalogo.js`, `public/js/modules/configuracoes.js`, `public/admin.html`, `master.html`, `server.rb`, `firestore.rules`, `AI_CHANGELOG.md`.
+- Módulo afetado: Admin `Loja Online → Template da loja`, Admin `Configurações → Endereço`, sincronização `system_tenants/{uid}.store` e Master `Usuários → Editar usuário → Loja`.
+- Correção: ao salvar o Template da loja, a localização atendida passa a ser a prioridade para `store.city`, `store.region`, `store.country` e `store.postalCode`; se ela não existir, o endereço público da loja é salvo em `store.address` e usado como fallback. O mesmo fallback foi aplicado ao salvamento de `Configurações → Endereço`.
+- Firestore: `store.address`, `store.region` e `store.locationSource` foram incluídos no contrato permitido para atualização pelo Admin, preservando os demais dados do tenant por merge.
+- Master: Cidade, Província/Estado e País leem `store.city`, `store.region`/`province`, `store.country` e fallback de `store.address`, sem placeholders como Madrid/Outro; quando não houver dado real, fica `Não preenchido`.
+- Origem visual: o Master indica `Centro de Controle → Loja Online → Template da loja` para localização atendida e `Centro de Controle → Atendimento → Endereço` quando o fallback vier do endereço público.
+- Cache: `public/admin.html` recebeu novo cache-buster para carregar a versão atualizada de `catalogo.js`.
+
+## 2026-05-16 — Sincronização de redes sociais da loja para o Master
+- Arquivos alterados: `public/js/modules/catalogo.js`, `master.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Centro de Controle `Loja Online → Template da loja`, `system_tenants/{uid}.store.social` e Master `Usuários → Editar usuário → Loja`.
+- Correção: ao salvar o Template da loja, `instagram`, `facebook` e `tiktok` continuam sendo gravados em `config/template` e também passam a sincronizar por merge para `system_tenants/{uid}.store.social`.
+- Debug seguro: a sincronização registra `tenantUid`, caminho salvo e quais campos sociais foram preenchidos, sem dados sensíveis.
+- Master: os campos de redes sociais permanecem somente leitura, com origem visual `Centro de Controle → Loja Online → Template da loja`, e usam fallback legado quando `store.social` ainda estiver vazio.
+
+## 2026-05-16 — Aba Conta / Usuária no Admin
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `public/admin.html`, `master.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Centro de Controle `Configurações` e Master `Usuários → Editar usuário → Conta`.
+- Admin: criada a aba `Conta / Usuária` para a dona da conta preencher nome completo, responsável legal, documento, telefone principal, WhatsApp, idioma da conta e endereço fiscal/contato.
+- Componentes: país, país fiscal e idioma usam listas padronizadas; telefone e WhatsApp usam seletor de código por país conforme o padrão global do `AGENTS.md`.
+- Firestore: a aba salva por merge em `system_tenants/{uid}` os campos `ownerName`, `responsibleName`, `document`, `phoneCountryCode`, `phoneNumber`, `phoneFull`, `whatsappCountryCode`, `whatsappNumber`, `whatsappFull`, `language`, `accountAddress` e `updatedAt`, sem apagar `billing`, `auth`, `store`, `seo` ou Hotmart.
+- Compatibilidade: dados antigos de `Configurações → Geral` e `config/conta_usuario` são usados como fallback e a nova aba também grava `config/conta_usuario` para leitura futura.
+- Master: removido o campo visível `País da usuária`; a aba Conta passa a focar em país/endereço fiscal e mantém os dados bloqueados por padrão, editáveis só em modo suporte.
+
+## 2026-05-16 — Localização atendida no Template da loja real
+- Arquivos alterados: `public/js/modules/catalogo.js`, `public/js/core/db.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Admin `Loja Online → Template da loja`, aba `Operação`, e sincronização para `system_tenants/{uid}.store`.
+- Correção: os campos `Cidade atendida`, `Província / estado`, `País atendido` e `Código postal base` agora aparecem na tela real usada pela usuária antes das `Zonas de entrega`.
+- Zonas: o botão `+ Adicionar zona` preserva a aba `Operação` depois do re-render, evitando voltar visualmente para `Card principal da loja`.
+- Re-render: os painéis internos do Template agora nascem com a aba ativa correta no HTML gerado, não apenas por ajuste posterior via JavaScript.
+- Bloqueio: o cadastro e salvamento de zonas de entrega só é liberado depois de preencher `Cidade atendida`, `Província / estado`, `País atendido` e `Código postal base`.
+- Google/BocaPlaces: a busca de cidade também preenche província/estado, país e código postal nos novos campos do Template da loja.
+- Master: ao salvar o template, a localização atendida é sincronizada por merge para `system_tenants/{uid}.store.city`, `province`, `country`, `postalCode` e `deliveryArea`, sem apagar outros campos do tenant.
+- Cache: `public/admin.html` recebeu cache-buster para carregar a versão nova de `catalogo.js` e `db.js`.
+
+## 2026-05-16 — Localização atendida antes das zonas de entrega
+- Arquivos alterados: `AGENTS.md`, `public/js/core/db.js`, `public/js/modules/configuracoes.js`, `public/admin.html`, `master.html`, `server.rb`, `firestore.rules`, `AI_CHANGELOG.md`.
+- Módulo afetado: Admin `Configurações → Template da loja`, Master `Usuários → Editar usuário → Loja` e `system_tenants/{uid}.store`.
+- Admin: antes de `deliveryZones`, foram adicionados os campos `Cidade atendida`, `Província / estado`, `País atendido` e `Código postal base`.
+- Google/BocaPlaces: o campo `Cidade atendida` usa `BocaPlaces`; ao selecionar local, tenta preencher automaticamente província/estado, país e código postal.
+- Sincronização: os campos passam a alimentar `store.city`, `store.province`, `store.country`, `store.postalCode` e `store.deliveryArea`.
+- Master: a aba `Loja` agora mostra também `Província / estado da loja`, herdado da localização atendida configurada no Admin.
+- Compatibilidade: a Zona 1 de `deliveryZones` continua como fallback quando os novos campos ainda não estiverem preenchidos.
+
+## 2026-05-16 — E-mails de contato e redes sociais no Master
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `public/admin.html`, `master.html`, `server.rb`, `firestore.rules`, `AI_CHANGELOG.md`.
+- Módulos afetados: Centro de Controle `Configurações`, Master `Usuários` → `Editar usuário` e `system_tenants/{uid}`.
+- Conta: o Admin sincroniza `contactEmail`, `adminEmail`, `fiscalEmail` e `billingEmail` a partir de `Configurações → Geral`; o Master exibe `E-mail de contato` e `E-mail administrativo` como campos somente leitura na aba `Conta`.
+- Loja: o Admin passa a aceitar Instagram, Facebook e TikTok também em `Configurações → Template da loja` e sincroniza esses dados para `system_tenants/{uid}.store.social`.
+- Compatibilidade: a sincronização também lê redes sociais já cadastradas em `Configurações → Integrações`, preservando valores existentes quando o Template ainda não tiver redes preenchidas.
+- Segurança: o Master apenas visualiza esses campos; o salvamento preserva `store.social` para não apagar dados vindos do Admin.
+- Regras: `firestore.rules` permite ao tenant atualizar somente os novos campos públicos de contato e redes sociais dentro do escopo já autorizado.
+
+## 2026-05-16 — Cidade e país da loja herdados da Zona 1
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `public/admin.html`, `firestore.rules`, `AI_CHANGELOG.md`.
+- Módulo afetado: Centro de Controle `Configurações` e sincronização para `system_tenants/{uid}.store`.
+- Correção: `store.city` e `store.country`, exibidos no Master como `Cidade da loja` e `País da loja`, passam a usar a Zona 1 de `deliveryZones` como fonte preferencial quando disponível.
+- Origem: a sincronização lê `deliveryZones[0]` em `Configurações → Template da loja`, usando `city/cidade/locality/name` para cidade e `country/pais/countryCode` ou inferência pelo código postal para país.
+- Compatibilidade: se a Zona 1 não tiver dados suficientes, mantém valores existentes e só então usa os campos legados de endereço.
+- Regras: `firestore.rules` agora permite `store.postalCode` para registrar o código postal usado na sincronização.
+- Cache: atualizei o cache-buster de `configuracoes.js` para carregar a herança por Zona 1 no Admin local.
+
+## 2026-05-16 — Correção do salvar Configurações no Admin
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Centro de Controle `Configurações` → botão `Salvar configurações`.
+- Correção: o payload enviado ao Firestore agora remove campos `undefined` antes de chamar `DB.setDocRoot`, evitando erro em campos opcionais como `custosIndiretosModo`.
+- Cache: atualizei o cache-buster de `configuracoes.js` em `public/admin.html` para o navegador carregar a versão corrigida.
+- Impacto esperado: o botão volta a salvar as configurações e a sincronização posterior para `system_tenants/{uid}` continua funcionando.
+
+## 2026-05-16 — Sincronização de dados do Admin para o Master
+- Arquivos alterados: `AGENTS.md`, `public/js/modules/configuracoes.js`, `master.html`, `server.rb`, `firestore.rules`, `AI_CHANGELOG.md`.
+- Módulos afetados: Centro de Controle `Configurações`, Master interno `Usuários` e documento `system_tenants/{uid}`.
+- Padronização: dados de cadastro, telefone/WhatsApp, país, idioma, documento, endereço fiscal/contato e dados da loja salvos no Admin passam a ser sincronizados por merge para `system_tenants/{uid}`.
+- Caminhos Firestore: o Admin mantém compatibilidade com `tenants/{uid}/config/*`, mas também grava os campos principais em `system_tenants/{uid}` para leitura pelo Master.
+- Master: o modal de edição deixou de inventar valores como país/idioma padrão, nome de loja legado ou endereço placeholder; campos ausentes aparecem como `Não preenchido` ou `Aguardando configuração no Centro de Controle`.
+- Listagem: a API `/api/master/users` deixa de retornar importações automáticas do Firebase Auth sem loja nem billing configurados na lista principal de tenants BocaFood.
+- Domínio/URL: o Master não gera slug automaticamente a partir do nome e aceita tenant sem slug até a usuária configurar em `Configurações → Domínio / URL`.
+- Logs/segurança: foram adicionados logs seguros de campos encontrados no Master e log `tenant_support_update` quando houver correção em modo suporte, sem expor documentos, senhas ou tokens.
+- Regras: `firestore.rules` permite ao próprio tenant sincronizar somente campos autorizados de perfil/endereço/loja em `system_tenants/{uid}`, preservando a restrição de suspensão da loja.
+- Impacto esperado: dados atualizados no Admin aparecem no Master ao recarregar, sem depender de `localStorage`, placeholders ou caminhos antigos como fonte principal.
+
+## 2026-05-16 — Atualização visual da lista de usuários no Master
+- Arquivos alterados: `master.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Master interno, aba `Usuários`.
+- Correção: a assinatura usada para decidir se a lista precisa redesenhar agora inclui `store.name`, `store.slug`, `store.publicUrl`, `store.status`, plano e status de billing.
+- Cache: chamadas GET do helper `api()` agora usam `cache: no-store` para evitar resposta antiga ao recarregar dados do Master local.
+- Impacto esperado: alterações feitas no Admin em `system_tenants/{uid}.store` aparecem no Master ao recarregar a lista, sem manter a tabela visualmente congelada.
+
+## 2026-05-16 — Deduplicação de tenants no Master
+- Arquivos alterados: `server.rb`, `master.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Master interno, listagem e modal `Usuários`.
+- Correção: a API `/api/master/users` agora agrupa tenants por e-mail e prefere o registro com loja/slug/URL/billing configurados, evitando que um registro antigo vazio apareça no lugar do tenant usado pelo Admin.
+- URL no Master: a API e o modal passam a exibir a URL BocaFood calculada pelo slug (`https://bocafood.app/loja/{slug}`), mesmo quando `store.publicUrl` antigo ainda contém domínio legado.
+- Diagnóstico: havia dois documentos `system_tenants` para `pcruz.digital@gmail.com`, um sem loja e outro com `Banana Rosa`; a lista podia mostrar/abrir o registro vazio.
+- Impacto esperado: dados salvos no Admin para o tenant correto aparecem no Master sem apagar documentos antigos.
+
+## 2026-05-16 — Cache-buster do módulo Configurações no Admin
+- Arquivos alterados: `public/admin.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Centro de Controle da usuária, carregamento de `public/js/modules/configuracoes.js`.
+- Correção: atualizei a query string do script `configuracoes.js` para forçar o navegador a buscar a versão nova que sincroniza `system_tenants/{uid}.store.slug` e `store.publicUrl`.
+- Diagnóstico: `http://127.0.0.1:3000/admin.html` já estava servindo `public/admin.html`, mas o cache-buster antigo podia manter o JavaScript anterior no navegador.
+- Impacto esperado: ao recarregar o Admin, a tela `Configurações → Domínio / URL` passa a usar a lógica nova sem depender de hard refresh manual.
+
+## 2026-05-16 — Estrutura Master/Admin/Public e sincronização de slug
+- Arquivos alterados: `AGENTS.md`, `server.rb`, `public/js/modules/configuracoes.js`, `master.html`, `AI_CHANGELOG.md`.
+- Estrutura documentada: `master.html` permanece fora de `public/`, `public/admin.html` é o Centro de Controle, e `public/index.html`/assets/módulos são a loja pública publicada pelo Firebase Hosting.
+- Teste local: documentei que o Admin não deve ser aberto via `file://`; deve ser acessado por `http://127.0.0.1:3000/admin.html`.
+- Servidor local: `server.rb` passa a servir arquivos estáticos a partir de `public/`, mantendo `/master.html` servido explicitamente da raiz interna.
+- Sincronização de slug: `Configurações → Domínio / URL` agora salva o slug e a URL pública também em `system_tenants/{uid}.store.slug` e `system_tenants/{uid}.store.publicUrl`, além do documento de configuração do tenant.
+- Master: a lista/edição lê `system_tenants/{uid}` e registra logs seguros no console com `tenantUid`, caminho lido e slug/URL pública usados.
+- Debug seguro: Admin registra no console o `tenantUid`, caminho Firestore salvo e valores não sensíveis (`slug`, `publicUrl`) ao salvar Domínio/URL.
+- Impacto esperado: mudanças de slug feitas no Centro de Controle passam a aparecer no Master para o mesmo `tenantUid`, evitando divergência entre `tenants/{uid}/config/dominio` e `system_tenants/{uid}.store`.
+
+## 2026-05-16 — URL pública BocaFood no modal de Usuários
+- Arquivos alterados: `AGENTS.md`, `master.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Master interno, modal `Usuários` → `Editar usuário` → aba `Loja`.
+- Regra global: documentei que, nesta fase, lojas não terão domínio próprio por cliente e a URL padrão é `https://bocafood.app/loja/{slug}`.
+- Modal Master: removi o campo `Domínio`, mantive `Slug público` apenas como leitura com origem `Centro de Controle` e deixei `URL pública calculada` sempre bloqueada com origem `Sistema`.
+- Cálculo de URL: a tela agora exibe `https://bocafood.app/loja/{slug}` quando houver slug e `Aguardando slug da loja` quando o slug ainda não existir.
+- Salvamento: o Master não edita nem gera slug, não escreve domínio fake e preserva `store.domain` antigo sem exibir nem sobrescrever esse dado nesta etapa.
+- Impacto esperado: a aba Loja deixa de sugerir domínio próprio por tenant e passa a refletir a configuração feita pela usuária no Centro de Controle.
+
+## 2026-05-16 — Publicação da loja pelo Centro de Controle
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `master.html`, `server.rb`, `firestore.rules`, `AI_CHANGELOG.md`.
+- Módulo afetado: Centro de Controle `Configurações` → `Domínio / URL`, Master `Usuários` → `Editar usuário` → `Loja` e estrutura `system_tenants/{uid}.store`.
+- Campos criados/alterados: `store.status`, `store.publishedAt`, `store.lastPublishedAt`, `store.unpublishedAt`, `store.lastPublicationError` e `store.publicUrl`.
+- Regras de publicação: a usuária pode publicar/despublicar a própria loja; publicação define `store.status = published`, grava datas e URL pública; despublicação define `store.status = unpublished` sem apagar dados.
+- Validações: antes de publicar, o Admin exige nome da loja, slug público, idioma, país, WhatsApp/canal de pedido, pelo menos 1 categoria ativa e pelo menos 1 produto ativo.
+- Suspensão: quando `store.status = suspended`, o Centro de Controle bloqueia a publicação e orienta contato com suporte BocaFood; o Master vê o status como origem `Sistema/Publicação` e só corrige em modo suporte.
+- Logs: ações `store_published`, `store_unpublished`, `store_publication_failed` e `store_suspended` passam a ser registradas em `system_access_logs` com `tenantUid`, `source` e detalhes.
+- Segurança: `firestore.rules` permite ao próprio tenant atualizar apenas campos controlados de publicação em `system_tenants/{uid}.store` e criar logs próprios de publicação; tenants não podem remover suspensão.
+- Pendências: este fluxo atualiza o estado de publicação e URL no Firestore; não executa deploy manual nem altera geração real de arquivos públicos.
+
+## 2026-05-16 — País fiscal e endereço fiscal no modal de Usuários
+- Arquivos alterados: `AGENTS.md`, `master.html`, `server.rb`, `AI_CHANGELOG.md`.
+- Módulo afetado: Master interno, modal `Usuários` → `Editar usuário` e salvamento em `system_tenants/{uid}`.
+- Regra global: documentei que país fiscal vem do cadastro/setup inicial da usuária, deve ser select/lista e só pode ser corrigido pelo Master em modo suporte com log.
+- Modal: movi o país fiscal para a área de conta/endereço, deixei bloqueado por padrão e adicionei o bloco `Endereço fiscal / contato` com rua, número, complemento, bairro/zona, cidade, província/estado, código postal, país e país fiscal.
+- Origem dos campos: endereço e país fiscal aparecem como dados de `Cadastro/setup da usuária`, ou `Hotmart` quando o endereço inicial vier da compra; todos ficam editáveis apenas em modo suporte.
+- Salvamento: `system_tenants/{uid}` passa a suportar `accountAddress` sem misturar com endereço da loja, preservando endereço e país fiscal quando o modo suporte estiver desligado.
+- Logs: alterações manuais em país fiscal, país/cidade/código postal do endereço, documento e e-mail são registradas em `system_access_logs`.
+- Impacto esperado: o Master diferencia endereço fiscal/contato da usuária e dados operacionais da loja, evitando correções indevidas fora do modo suporte.
+
+## 2026-05-16 — Bloqueio por origem e modo suporte no modal de Usuários
+- Arquivos alterados: `AGENTS.md`, `master.html`, `server.rb`, `AI_CHANGELOG.md`.
+- Módulo afetado: regras globais do Master e modal `Usuários` → `Editar usuário`.
+- Regra de origem: documentei no `AGENTS.md` que dados operacionais preenchidos pela usuária no Admin ficam somente leitura no Master por padrão, e que dados automáticos de Hotmart, Firebase Auth e sistema não devem ser editados livremente.
+- Modal: adicionei `Modo suporte: permitir correções manuais`, aviso de risco e rótulos discretos `Origem: ...` por campo.
+- Bloqueios: dados de Admin/usuária, Hotmart, Auth e sistema ficam bloqueados por padrão; campos controlados pelo Master seguem editáveis, como status da conta, plano, ciclo, trial, papel, slug, país fiscal, status da loja e observações.
+- Salvamento: com Modo suporte desligado, o payload preserva valores originais dos campos bloqueados e o backend também evita sobrescrever dados de Admin/usuária, Auth e Hotmart.
+- Logs: mudanças em e-mail, telefone, WhatsApp, domínio, país fiscal, status da conta, plano, status de assinatura e status da loja são registradas em `system_access_logs`.
+- Impacto esperado: o Master passa a separar claramente leitura operacional, correções de suporte e controle administrativo, reduzindo alterações acidentais em dados externos ou automáticos.
+
+## 2026-05-16 — Padrão global de país, idioma e telefone
+- Arquivos alterados: `AGENTS.md`, `master.html`, `server.rb`, `AI_CHANGELOG.md`.
+- Módulo afetado: regras globais de formulário e modal Master `Usuários` → `Conta`.
+- Resumo do ajuste: documentei no `AGENTS.md` que campos de país e idioma devem usar listas padronizadas, e que telefone/WhatsApp devem usar seletor de país com bandeira e código automático.
+- Modal Master: troquei `País da usuária` e `Idioma da conta` por selects, e substituí `Telefone`/`WhatsApp` por seletor de código internacional mais número, com migração visual de valores antigos como `+34`, `+351`, `+55`, `+33`, `+39`, `+49`, `+44` e `+1`.
+- Salvamento: `system_tenants/{uid}` passa a receber `phoneCountryCode`, `phoneNumber`, `phoneFull`, `whatsappCountryCode`, `whatsappNumber` e `whatsappFull`, mantendo `phone`, `whatsapp`, `country` e `language` para compatibilidade.
+- Impacto esperado: o Master passa a seguir o padrão global e reduz dados livres/inconsistentes sem alterar Hotmart, SMTP, pedidos, clientes finais ou template público.
+
+## 2026-05-16 — Salvamento limpo de `system_tenants` pelo modal de Usuários
+- Arquivos alterados: `master.html`, `server.rb`, `AI_CHANGELOG.md`.
+- Módulo afetado: Master interno, modal `Usuários` e gravação em `system_tenants/{uid}`.
+- Resumo do ajuste: alinhei o payload do modal e o `sync_system_tenant!` para gravar a estrutura limpa com blocos `store`, `billing`, `auth` e `seo`, incluindo `store.publicUrl`, status Hotmart e campos avançados de SEO.
+- Campos legados: o salvamento em `system_tenants` deixou de escrever `githubRepo`, `githubBranch`, `githubToken`, `publicFile`, `seedFile`, `adminUrl`, duplicidades antigas de plano/status/domínio/SEO e caminhos internos de publicação.
+- Compatibilidade: a leitura continua aceitando dados antigos, e campos desconhecidos já existentes não são apagados nesta etapa.
+- Logs: alterações em e-mail, status da conta, plano e status de assinatura registram eventos em `system_access_logs`.
+- Impacto esperado: o documento `system_tenants/{uid}` passa a refletir o modelo atual do BocaFood sem quebrar a leitura de tenants antigos.
+
+## 2026-05-16 — Readonly e origem dos campos no modal de Usuários
+- Arquivos alterados: `master.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Master interno, modal `Usuários` → `Editar usuário`.
+- Resumo do ajuste: marquei campos automáticos de Hotmart, Firebase Auth e cálculo do sistema como somente leitura, mantendo editáveis apenas os campos operacionais do Master e campos de suporte.
+- Microcopy: adicionei notas discretas para `Dados automáticos da Hotmart`, `Dados do Firebase Auth`, `Dados editáveis pelo Master` e `Dados normalmente preenchidos pela usuária`.
+- Segurança operacional: alteração de e-mail agora exibe aviso visual e pede confirmação antes de salvar, porque pode quebrar vínculo com Hotmart e Firebase Auth.
+- Impacto esperado: o Master reduz edições acidentais em campos automáticos sem alterar endpoints, regras de dados, Hotmart, SMTP, e-mails, Admin das lojas, pedidos ou template público.
+
+## 2026-05-16 — Abas internas no modal de edição de Usuários
+- Arquivos alterados: `master.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Master interno, modal `Usuários` → `Editar usuário`.
+- Resumo do ajuste: reorganizei o modal em abas internas `Conta`, `Loja`, `Plano e acesso`, `Hotmart` e `SEO avançado`, mantendo o formulário no mesmo contrato de dados.
+- Visual: adicionei abas horizontais claras e rodapé fixo no modal com `Salvar usuário` e `Cancelar` sempre visíveis.
+- Campos readonly: deixei `Tenant ID`, `URL pública calculada`, `Auth UID`, datas de acesso/criação/atualização, dados Hotmart e `Última publicação SEO` como leitura no modal.
+- Impacto esperado: a edição de tenants fica mais organizada sem alterar regras de dados, endpoints, Hotmart, SMTP, e-mails, Admin das lojas, pedidos ou template público.
+
+## 2026-05-16 — Limpeza do modal de edição de Usuários no Master
+- Arquivos alterados: `master.html`, `server.rb`, `AI_CHANGELOG.md`.
+- Módulo afetado: Master interno, modal `Usuários` → `Editar usuário`.
+- Resumo do ajuste: removi do modal os campos legados de publicação GitHub por tenant, `Painel administrativo`, `Arquivo seed / importação` e duplicidades do SEO técnico.
+- SEO técnico: mantive apenas controles avançados sem repetir `Slug público`, `Domínio`, `País fiscal`, `Idioma da loja` e `Status da loja`; a URL canônica passa a ser calculada a partir de domínio/slug ao salvar.
+- Backend: preservei `adminUrl`, `seedFile`, `githubRepo`, `githubBranch`, `githubToken` e `publicFile` quando esses campos não vierem mais no formulário, evitando apagar metadados internos/legados ao salvar o usuário.
+- Impacto esperado: o modal fica alinhado ao modelo atual de publicação centralizada, sem campos GitHub por cliente e sem duplicidades para a operação do Master.
+
+## 2026-05-16 — Correção dos botões da listagem de Usuários BocaFood
+- Arquivos alterados: `master.html`, `AI_CHANGELOG.md`.
+- Módulo afetado: Master interno, aba `Usuários`.
+- Resumo do ajuste: expus no `window` os handlers usados pelos botões renderizados dinamicamente na listagem e nas pendências de acesso, e corrigi a montagem dos argumentos inline para não quebrar o HTML com `onclick="funcao("uid")"`.
+- Impacto esperado: botões `Ver`, `Editar`, `Liberar acesso`, `Bloquear`, `Trocar plano`, `Vincular Hotmart`, `Logs`, `Arquivar` e ações das pendências Hotmart deixam de falhar por função indefinida ou `Unexpected end of input`.
+
+## 2026-05-16 — Filtro estrito de tenants BocaFood no Master
+- Arquivos alterados: `master.html`, `server.rb`, `AI_CHANGELOG.md`.
+- Módulo afetado: Master interno, aba `Usuários`.
+- Resumo do ajuste: a lista principal `Usuários BocaFood` agora filtra `system_tenants` para exibir somente tenants com sinais reais de SaaS, como role administrativa, loja, billing, status de conta ou origem válida.
+- Regra anti-cliente-final: registros com origem `firebase_auth*` sem loja e sem billing deixam de aparecer como usuários BocaFood; a tela não consulta `Firebase Auth`, `customers`, `store_customers`, pedidos ou clientes finais para montar a lista principal.
+- Botões: `Liberar acesso`, `Bloquear`, `Trocar plano`, `Vincular Hotmart`, `Logs` e `Arquivar` passam a operar sobre endpoints locais conectados a `system_tenants`/logs, sem exclusão definitiva automática.
+- Visual/UX: removi a coluna de sincronização da lista principal, troquei `Excluir` por `Arquivar` e atualizei mensagens para `Listando apenas tenants BocaFood com acesso ao Centro de Controle.`
+- Endpoints corrigidos/usados: `GET /api/master/users`, `POST /api/master/tenants/action`, `POST /api/master/hotmart/pending/action` e `GET /api/master/access/logs`.
+- Pendências: ainda pode existir rota legada de sincronização Firebase para diagnóstico/manual, mas ela não alimenta mais a lista principal de Usuários BocaFood.
+
+## 2026-05-16 — Reorganização de Usuários BocaFood e pendências de acesso
+- Arquivos alterados: `master.html`, `server.rb`, `AI_CHANGELOG.md`.
+- Módulo afetado: Master interno, aba `Usuários`, usuários SaaS BocaFood e exceções Hotmart.
+- Resumo do ajuste: renomeei a lista principal para `Usuários BocaFood`, deixando claro que ela representa clientes do SaaS com acesso ao Centro de Controle da própria loja, não clientes finais das lojas.
+- Carregamento: a lista principal passa a chamar `GET /api/master/users`, que lê somente `system_tenants`; a tela deixou de acionar sincronização automática que consultava clientes finais em `tenants/{tenantId}/customers` ou `store_customers`.
+- Mensagens: substituí o erro legado de sincronização Firebase por uma mensagem específica de carregamento de `Usuários BocaFood` via Master local.
+- Hotmart: removi `Compras Hotmart pendentes` como card principal e transformei em bloco secundário `Pendências de acesso`, exibindo apenas exceções que exigem ação manual.
+- Endpoint: corrigi/criei `GET /api/master/hotmart/pending` para retornar apenas pendências reais de `pending_hotmart_access`, com `pendingReason`, buyer, status, subscriber, transação e datas.
+- Regra de produto documentada na tela: compra com mesmo e-mail vincula automaticamente; compra sem tenant fica pendente; cadastro posterior com mesmo e-mail deve consumir a pendência; e-mail diferente exige vínculo manual no Master.
+- Segurança: `pending_hotmart_access` segue restrito ao Master pelas rules já existentes; nada foi exposto no frontend público.
+- Impacto esperado: a tela de Usuários fica focada em tenants/usuárias BocaFood e Hotmart aparece apenas como acompanhamento de exceções, sem misturar clientes finais, pedidos ou dados de lojas.
+
+## 2026-05-15 — Gestão avançada de usuários, billing e Hotmart no Master
+- Arquivos alterados: `master.html`, `server.rb`, `firestore.rules`, `AI_CHANGELOG.md`.
+- Módulo afetado: Master interno, aba `Usuários`, cadastro de tenants, acesso, billing e vínculo Hotmart.
+- Resumo do ajuste: ampliei a listagem de usuários para exibir usuária, e-mail, loja, plano, status da conta, status de assinatura, origem, criação, último acesso e ações de ver/editar/bloquear/liberar/trocar plano/vincular Hotmart/ver logs.
+- Formulário: reorganizei o cadastro em seções de dados da usuária, dados da loja, plano/cobrança e Firebase Auth/acesso, incluindo `fullName`, `whatsapp`, `country`, `language`, `accountStatus`, `origin`, `store.*`, `billing.*`, `auth.*`, datas e campos Hotmart.
+- Coleções usadas/criadas: `system_tenants/{uid}`, `pending_hotmart_access`, `system_access_logs`, além do cadastro local do Master usado por `server.rb`.
+- Estrutura de dados: `system_tenants/{uid}` passa a receber os blocos `store`, `billing` e `auth`, mantendo campos legados como `plan`, `status`, `billingStatus`, `fiscalCountry`, `domain` e `storeUrl` para compatibilidade.
+- Hotmart: adicionei área de pendências com ações para vincular a usuário existente, criar tenant a partir da compra e arquivar; vínculo automático/manual respeita o e-mail da compra, e vínculo com e-mail diferente registra log manual.
+- Logs: `system_access_logs` registra criação/atualização manual, liberação, bloqueio, troca de plano, vínculo Hotmart, vínculo manual e arquivamento de pendências.
+- Segurança: `firestore.rules` mantém dados internos editáveis apenas por Master e bloqueia escrita client-side em `pending_hotmart_access` e `system_access_logs`; tenants comuns não editam billing/status/origem/plano/vínculos.
+- Pendências: os botões trabalham sobre o Master local e service account; fluxos completos de cobrança recorrente/cancelamento automático da Hotmart ainda dependem do webhook manter `pending_hotmart_access`/billing atualizado.
+- Impacto esperado: o Master passa a controlar usuárias, lojas, acesso, plano, assinatura e compras Hotmart pendentes sem alterar Admin das lojas, template público, pedidos, commit, push ou deploy.
+
 ## 2026-05-15 — Warning no fechamento SMTP após envio teste
 - Arquivos alterados: `server.rb`, `AI_CHANGELOG.md`.
 - Módulo afetado: Master interno, rota `POST /api/master/email/send-test`.
@@ -5004,3 +5475,92 @@
   - `AI_CHANGELOG.md`
 - Motivo da alteração: documentar como Master, Admin, template publico, Firebase, Storage, modulos operacionais, Temporadas, Maturidade e integracoes se conectam.
 - Impacto esperado: facilitar revisao tecnica das dependencias do sistema antes de novas padronizacoes ou deploys, sem alterar codigo, layout, dados, Firebase, rotas ou permissoes.
+
+## 2026-05-16
+- Pedido feito: configurar os codigos reais das ofertas Hotmart para os planos internos do BocaFood.
+- Arquivos alterados:
+  - `functions/index.js`
+  - `server.rb`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: mapear `data.purchase.offer.code` e o parametro `off=` para `starter`, `compromisso_anual` e `fundadoras`, preenchendo `billing.billingCycle`, espelhos no topo e dados de pendencia com trial correto.
+- Impacto esperado: eventos Hotmart aprovados/ativos passam a gravar plano, ciclo, oferta e trial conforme as ofertas reais; o plano Fundadoras nao cria `trialEndsAt`, pois nao possui teste gratis.
+
+## 2026-05-16
+- Pedido feito: corrigir o mapeamento da oferta Hotmart `u7wyvsyn` de `starter` para `essencial`.
+- Arquivos alterados:
+  - `functions/index.js`
+  - `server.rb`
+  - `master.html`
+  - `public/admin.html`
+  - `public/js/modules/configuracoes.js`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: o BocaFood nao possui Plano Starter nesta fase; a oferta real corresponde ao Plano Essencial Mensal.
+- Impacto esperado: novos eventos/reprocessamentos Hotmart gravam `planSlug: essencial`, `plan: essencial`, ciclo mensal e trial de 15 dias; registros antigos com `starter` continuam legiveis, mas sao exibidos/migrados como `Plano Essencial` ao atualizar.
+
+## 2026-05-16
+- Pedido feito: ajustar a edicao da aba Master Usuarios > Editar usuario > Plano e acesso conforme o provedor de cobranca.
+- Arquivos alterados:
+  - `AGENTS.md`
+  - `master.html`
+  - `server.rb`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: impedir que dados de plano/cobranca controlados pela Hotmart sejam sobrescritos manualmente pelo Master como se fossem cobranca manual.
+- Impacto esperado: quando `billing.provider` for `hotmart`, plano, ciclo, status, trial, ativacao e cancelamento ficam somente leitura e o backend preserva os dados Hotmart; quando for `manual`, o Master pode editar esses campos e os espelhos do tenant sao atualizados.
+- Compatibilidade: tenants antigos inferem provider visual por codigos Hotmart, origem manual/master ou ausencia de cobranca; valores antigos continuam legiveis sem migracao destrutiva.
+- Logs: alteracoes manuais de provider, plano, ciclo, status de assinatura, trial, ativacao e cancelamento registram `system_access_logs`.
+
+## 2026-05-16
+- Pedido feito: limpar a aba Plano e acesso e ajustar exibicao/edicao de datas de cobranca.
+- Arquivos alterados:
+  - `master.html`
+  - `server.rb`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: remover `Papel` da area de plano/cobranca e evitar exibicao crua de datas ISO nos campos de trial, ativacao e cancelamento.
+- Impacto esperado: `Papel` fica junto dos dados da usuaria/acesso; `Fim do trial`, `Ativado em` e `Cancelado em` usam `datetime-local` quando a cobranca e manual e exibem leitura formatada `DD/MM/AAAA HH:mm` quando controlados pela Hotmart ou bloqueados.
+- Compatibilidade: a interface trata strings ISO, timestamps Firebase, valores vazios e ausentes sem gerar datas falsas como 1970 ou data atual automatica.
+- Logs: datas alteradas manualmente usam actions `billing_trial_changed`, `billing_activation_date_changed` e `billing_cancellation_date_changed`.
+
+## 2026-05-16
+- Pedido feito: ajustar a aba Hotmart do modal Master Usuarios > Editar usuario para suporte/auditoria.
+- Arquivos alterados:
+  - `master.html`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: remover placeholders que pareciam dados reais e deixar claro quando uma conta nao esta vinculada a Hotmart.
+- Impacto esperado: campos Hotmart ficam sempre somente leitura, exibem estados como `Nao vinculado`, `Nao recebido` e `Aguardando evento da Hotmart`, e a aba mostra badge `Vinculado a Hotmart` apenas quando `billing.provider`/codigos Hotmart indicam vínculo.
+- Mapeamento visual: `hotmartOfferCode` passa a exibir `u7wyvsyn — Plano Essencial`, `kah1d2ne — Plano Compromisso Anual` ou `woavlwrh — Plano Fundadoras`.
+- Acoes: `Vincular compra Hotmart` e `Ver eventos Hotmart` permanecem funcionais; `Reprocessar vínculo` fica desabilitado como `Em desenvolvimento` para nao parecer acao clicavel sem implementacao.
+
+## 2026-05-16
+- Pedido feito: fazer pente fino na conexao dos campos Hotmart.
+- Arquivos alterados:
+  - `functions/index.js`
+  - `server.rb`
+  - `master.html`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: garantir que os campos exibidos na aba Hotmart venham de dados reais do webhook/vinculo e que textos visuais de estado vazio nao sejam salvos como codigos Hotmart.
+- Impacto esperado: `billing.lastHotmartEventAt` passa a ser preenchido pelo webhook e pelo vinculo local; o Master usa valores crus em `dataset.rawValue` e nao grava `Nao vinculado`, `Nao recebido` ou labels formatados como dados reais.
+- Campos auditados: `hotmartSubscriberCode`, `hotmartTransaction`, `hotmartProductId`, `hotmartOfferCode`, `purchaseStatus`, `subscriptionStatus` e `lastHotmartEventAt`.
+
+## 2026-05-16
+- Pedido feito: separar SEO tecnico no Master e SEO basico/comercial no Admin da usuaria.
+- Arquivos alterados:
+  - `AGENTS.md`
+  - `master.html`
+  - `server.rb`
+  - `public/js/modules/catalogo.js`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: a usuaria nao deve editar campos tecnicos como meta robots, schema, sitemap, robots ou Search Console no Admin comum.
+- Impacto esperado: a aba `SEO avançado` do Master passa a funcionar como painel tecnico/status, salvando em `system_tenants/{uid}.seo`; o Admin mantem apenas SEO basico/comercial da loja, como titulo, descricao, categoria/localidade e imagem de compartilhamento.
+- Campos Master: `allowIndexing`, `metaRobots`, `schemaType`, `schemaCategory`, `sitemapEnabled`, `robotsEnabled`, `searchConsoleLinked` e `lastSeoPublishedAt`.
+- Ajustes visuais: ultima publicacao SEO aparece formatada, schema fica como leitura tecnica padrao e sitemap/robots/Search Console aparecem com badges de status.
+
+## 2026-05-16
+- Pedido feito: ajustar a nomenclatura do Master para diferenciar contas, negocios, loja publica, usuarios da conta e clientes finais.
+- Arquivos alterados:
+  - `AGENTS.md`
+  - `master.html`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: evitar que tenants/clientes BocaFood sejam chamados de "Usuarios", ja que cada conta podera ter varios usuarios internos no futuro.
+- Impacto esperado: a area principal do Master passa a usar "Contas", a listagem usa labels de conta/negocio/responsavel e o modal passa a usar abas "Negocio", "Responsavel", "Plano e acesso", "Hotmart" e "SEO tecnico".
+- Definicoes oficiais: Conta e o cliente BocaFood/tenant; Negocio e a operacao gastronomica; Loja publica e a vitrine publicada; Usuarios da conta sao pessoas com acesso ao Centro de Controle; Clientes da loja sao consumidores finais.
+- Compatibilidade: nomes tecnicos, colecoes Firestore, `system_tenants`, `tenantUid`, `uid`, rotas e IDs internos foram mantidos sem migracao de dados.
