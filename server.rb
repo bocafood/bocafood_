@@ -13,9 +13,11 @@ require 'shellwords'
 require 'openssl'
 require 'securerandom'
 require 'cgi'
+require 'digest'
 require_relative 'tools/generate-product-pages'
 
 ROOT = File.dirname(File.expand_path(__FILE__))
+PUBLIC_ROOT = File.join(ROOT, 'public')
 STORE_FILE = File.join(ROOT, '.master-store.json')
 LOG_FILE = File.join(ROOT, '.master.log')
 BACKUP_CONFIG_KEY = 'system_backup'
@@ -742,6 +744,30 @@ def sync_public_store!(tenant, previous_slug = '')
   })
 end
 
+def billing_provider_from_hash(tenant)
+  tenant ||= {}
+  billing = tenant['billing'].is_a?(Hash) ? tenant['billing'] : {}
+  provider = billing['provider'].to_s.strip
+  return provider unless provider.empty?
+  return 'hotmart' if !billing['hotmartSubscriberCode'].to_s.strip.empty? || !billing['hotmartTransaction'].to_s.strip.empty? || !billing['hotmartOfferCode'].to_s.strip.empty? || !tenant['hotmartSubscriberCode'].to_s.strip.empty? || !tenant['hotmartTransaction'].to_s.strip.empty? || !tenant['hotmartOfferCode'].to_s.strip.empty?
+  origin = tenant['origin'].to_s.strip.empty? ? tenant['source'].to_s.strip : tenant['origin'].to_s.strip
+  return 'manual' if %w[manual master master_local].include?(origin)
+  'none'
+end
+
+def billing_plan_slug_value(billing, tenant)
+  value = billing['planSlug'].to_s.strip
+  value = tenant['plan'].to_s.strip if value.empty?
+  value == 'starter' ? 'essencial' : value
+end
+
+def billing_cycle_value(billing, tenant)
+  value = billing['billingCycle'].to_s.strip
+  value = tenant['billingCycle'].to_s.strip if value.empty?
+  value = billing['cycle'].to_s.strip if value.empty?
+  value
+end
+
 def tenant_from_body(body, existing = {})
   now = Time.now.utc.iso8601
   id = body['id'].to_s.strip
@@ -753,36 +779,208 @@ def tenant_from_body(body, existing = {})
   role = existing['role'].to_s.strip if role.empty? && !existing['role'].to_s.strip.empty?
   role = 'store_owner' if role.empty?
   role = firebase_normalize_role(role)
-  name_for_slug = body['businessName'].to_s.strip.empty? ? body['name'].to_s.strip : body['businessName'].to_s.strip
-  slug = public_store_slug(body['slug'].to_s.strip.empty? ? (existing['slug'].to_s.strip.empty? ? name_for_slug : existing['slug']) : body['slug'])
-  raise WEBrick::HTTPStatus::BadRequest, 'Slug público obrigatório' if slug.empty?
-  public_url = public_store_url(slug)
+	  store_body = body['store'].is_a?(Hash) ? body['store'] : {}
+	  account_address_body = body['accountAddress'].is_a?(Hash) ? body['accountAddress'] : {}
+	  billing_body = body['billing'].is_a?(Hash) ? body['billing'] : {}
+	  auth_body = body['auth'].is_a?(Hash) ? body['auth'] : {}
+	  seo_body = body['seo'].is_a?(Hash) ? body['seo'] : {}
+	  support_mode = body['supportMode'] == true || existing.empty?
+	  keep_unless_support = ->(new_value, old_value) { support_mode ? new_value : old_value }
+	  existing_store = existing['store'].is_a?(Hash) ? existing['store'] : {}
+	  existing_store_address = existing_store['address'].is_a?(Hash) ? existing_store['address'] : {}
+	  existing_account_address = existing['accountAddress'].is_a?(Hash) ? existing['accountAddress'] : {}
+	  slug = public_store_slug(body['slug'].to_s.strip.empty? ? existing['slug'].to_s.strip : body['slug'])
+	  public_url = slug.empty? ? '' : public_store_url(slug)
+  plan_slug = billing_body['planSlug'].to_s.strip.empty? ? (body['plan'].to_s.strip.empty? ? 'essencial' : body['plan'].to_s.strip) : billing_body['planSlug'].to_s.strip
+  plan_slug = 'essencial' if plan_slug == 'starter'
+  billing_cycle_body = billing_body['billingCycle'].to_s.strip
+  billing_cycle_body = billing_body['cycle'].to_s.strip if billing_cycle_body.empty?
+  billing_cycle_body = body['billingCycle'].to_s.strip if billing_cycle_body.empty?
+  billing_cycle_body = 'monthly' if billing_cycle_body.empty?
+  account_status = body['accountStatus'].to_s.strip.empty? ? (body['status'].to_s.strip.empty? ? 'pending' : body['status'].to_s.strip) : body['accountStatus'].to_s.strip
+  origin = body['origin'].to_s.strip.empty? ? (body['source'].to_s.strip.empty? ? 'manual' : body['source'].to_s.strip) : body['origin'].to_s.strip
+  existing_billing = existing['billing'].is_a?(Hash) ? existing['billing'] : {}
+  existing_provider = billing_provider_from_hash(existing)
+  incoming_provider = billing_body['provider'].to_s.strip.empty? ? (existing.empty? && %w[manual master master_local].include?(origin) ? 'manual' : existing_provider) : billing_body['provider'].to_s.strip
+  incoming_provider = 'none' unless %w[none hotmart manual].include?(incoming_provider)
+  incoming_provider = existing_provider == 'manual' ? 'manual' : 'none' if incoming_provider == 'hotmart' && existing_provider != 'hotmart'
+  manual_override = billing_body['manualOverride'] == true
+  hotmart_manual_override = existing_provider == 'hotmart' && incoming_provider == 'manual' && manual_override
+  fiscal_country_value = body['fiscalCountry'].to_s.strip
+  fiscal_country_value = account_address_body['fiscalCountry'].to_s.strip if fiscal_country_value.empty?
+  fiscal_country_value = store_body['fiscalCountry'].to_s.strip if fiscal_country_value.empty?
+  fiscal_country_value = existing['fiscalCountry'].to_s.strip if !support_mode && !existing['fiscalCountry'].to_s.strip.empty?
+  fiscal_country_value = existing_account_address['fiscalCountry'].to_s.strip if !support_mode && fiscal_country_value.empty? && !existing_account_address['fiscalCountry'].to_s.strip.empty?
+  fiscal_country_value = existing_store['fiscalCountry'].to_s.strip if !support_mode && fiscal_country_value.empty? && !existing_store['fiscalCountry'].to_s.strip.empty?
+  account_address_hash = {
+    'street' => account_address_body['street'].to_s.strip,
+    'number' => account_address_body['number'].to_s.strip,
+    'complement' => account_address_body['complement'].to_s.strip,
+    'neighborhood' => account_address_body['neighborhood'].to_s.strip,
+    'city' => account_address_body['city'].to_s.strip,
+    'province' => account_address_body['province'].to_s.strip,
+    'postalCode' => account_address_body['postalCode'].to_s.strip,
+    'country' => account_address_body['country'].to_s.strip.empty? ? body['country'].to_s.strip : account_address_body['country'].to_s.strip,
+    'fiscalCountry' => fiscal_country_value,
+    'source' => account_address_body['source'].to_s.strip.empty? ? 'setup' : account_address_body['source'].to_s.strip
+  }
+  account_address_hash = existing_account_address.merge(account_address_hash) if support_mode && !existing_account_address.empty?
+  account_address_hash = existing_account_address unless support_mode || existing_account_address.empty?
+  store_address_body = store_body['address'].is_a?(Hash) ? store_body['address'] : {}
+  store_address_hash = existing_store_address.merge({
+    'street' => store_address_body['street'].to_s.strip,
+    'number' => store_address_body['number'].to_s.strip,
+    'complement' => store_address_body['complement'].to_s.strip,
+    'neighborhood' => store_address_body['neighborhood'].to_s.strip,
+    'city' => store_address_body['city'].to_s.strip,
+    'province' => store_address_body['province'].to_s.strip,
+    'postalCode' => store_address_body['postalCode'].to_s.strip,
+    'country' => store_address_body['country'].to_s.strip,
+    'source' => store_address_body['source'].to_s.strip,
+    'updatedAt' => store_address_body['updatedAt'].to_s.strip
+  })
+  store_address_hash = existing_store_address unless support_mode || existing_store_address.empty?
+  store_region = store_body['region'].to_s.strip.empty? ? store_body['province'].to_s.strip : store_body['region'].to_s.strip
+  store_hash = {
+	    'name' => store_body['name'].to_s.strip.empty? ? body['businessName'].to_s.strip : store_body['name'].to_s.strip,
+	    'slug' => slug,
+	    'domain' => existing_store['domain'].to_s.strip,
+	    'publicUrl' => store_body['publicUrl'].to_s.strip.empty? ? public_url : store_body['publicUrl'].to_s.strip,
+	    'city' => store_body['city'].to_s.strip,
+    'region' => store_region,
+    'province' => store_body['province'].to_s.strip.empty? ? store_region : store_body['province'].to_s.strip,
+    'country' => store_body['country'].to_s.strip.empty? ? body['country'].to_s.strip : store_body['country'].to_s.strip,
+    'fiscalCountry' => fiscal_country_value,
+    'language' => store_body['language'].to_s.strip.empty? ? body['language'].to_s.strip : store_body['language'].to_s.strip,
+    'status' => store_body['status'].to_s.strip.empty? ? 'draft' : store_body['status'].to_s.strip,
+    'postalCode' => store_body['postalCode'].to_s.strip,
+    'address' => store_address_hash,
+    'locationSource' => store_body['locationSource'].to_s.strip.empty? ? existing_store['locationSource'].to_s.strip : store_body['locationSource'].to_s.strip,
+    'deliveryArea' => store_body['deliveryArea'].is_a?(Hash) ? store_body['deliveryArea'] : (existing_store['deliveryArea'].is_a?(Hash) ? existing_store['deliveryArea'] : {}),
+    'social' => store_body['social'].is_a?(Hash) ? store_body['social'] : (existing_store['social'].is_a?(Hash) ? existing_store['social'] : {}),
+    'publishedAt' => store_body['publishedAt'].to_s.strip,
+    'lastPublishedAt' => store_body['lastPublishedAt'].to_s.strip,
+    'unpublishedAt' => store_body['unpublishedAt'].to_s.strip,
+    'lastPublicationError' => store_body['lastPublicationError'].to_s.strip
+  }
+  billing_hash = {
+    'provider' => incoming_provider,
+    'status' => billing_body['status'].to_s.strip.empty? ? (incoming_provider == 'manual' && account_status == 'active' ? 'active' : 'inactive') : billing_body['status'].to_s.strip,
+    'planSlug' => incoming_provider == 'manual' ? plan_slug : '',
+    'billingCycle' => incoming_provider == 'manual' ? billing_cycle_body : '',
+    'trialEndsAt' => incoming_provider == 'manual' ? billing_body['trialEndsAt'].to_s.strip : '',
+    'activatedAt' => incoming_provider == 'manual' ? billing_body['activatedAt'].to_s.strip : '',
+    'canceledAt' => incoming_provider == 'manual' ? billing_body['canceledAt'].to_s.strip : '',
+	    'hotmartSubscriberCode' => billing_body['hotmartSubscriberCode'].to_s.strip,
+	    'hotmartTransaction' => billing_body['hotmartTransaction'].to_s.strip,
+	    'hotmartProductId' => billing_body['hotmartProductId'].to_s.strip,
+	    'hotmartOfferCode' => billing_body['hotmartOfferCode'].to_s.strip,
+	    'purchaseStatus' => billing_body['purchaseStatus'].to_s.strip,
+	    'subscriptionStatus' => billing_body['subscriptionStatus'].to_s.strip,
+	    'lastHotmartEventAt' => billing_body['lastHotmartEventAt'].to_s.strip
+	  }
+	  auth_hash = {
+	    'uid' => auth_body['uid'].to_s.strip.empty? ? final_id : auth_body['uid'].to_s.strip,
+	    'emailVerified' => auth_body['emailVerified'] == true,
+	    'lastLoginAt' => auth_body['lastLoginAt'].to_s.strip
+	  }
+	  existing_auth = existing['auth'].is_a?(Hash) ? existing['auth'] : {}
+	  if existing_provider == 'hotmart' && !hotmart_manual_override
+	    billing_hash['provider'] = 'hotmart'
+	    billing_hash['status'] = existing_billing['status'].to_s.strip.empty? ? existing['billingStatus'].to_s : existing_billing['status'].to_s
+	    billing_hash['planSlug'] = billing_plan_slug_value(existing_billing, existing)
+	    billing_hash['billingCycle'] = billing_cycle_value(existing_billing, existing)
+	    billing_hash['trialEndsAt'] = existing_billing['trialEndsAt'].to_s.strip.empty? ? existing['trialEndsAt'].to_s : existing_billing['trialEndsAt'].to_s
+	    billing_hash['activatedAt'] = existing_billing['activatedAt'].to_s.strip.empty? ? existing['activatedAt'].to_s : existing_billing['activatedAt'].to_s
+	    billing_hash['canceledAt'] = existing_billing['canceledAt'].to_s.strip.empty? ? existing['canceledAt'].to_s : existing_billing['canceledAt'].to_s
+	  elsif incoming_provider == 'none'
+	    %w[status planSlug billingCycle trialEndsAt activatedAt canceledAt].each { |key| billing_hash[key] = '' }
+	    billing_hash['status'] = 'inactive'
+	  elsif hotmart_manual_override
+	    billing_hash['metadata'] = existing_billing['metadata'].is_a?(Hash) ? existing_billing['metadata'].merge('manualOverride' => true) : { 'manualOverride' => true }
+	  end
+	  unless support_mode
+	    store_hash['name'] = existing_store['name'].to_s unless existing_store['name'].to_s.strip.empty?
+	    store_hash['domain'] = existing_store['domain'].to_s unless existing_store['domain'].to_s.strip.empty?
+	    store_hash['city'] = existing_store['city'].to_s unless existing_store['city'].to_s.strip.empty?
+	    store_hash['region'] = existing_store['region'].to_s unless existing_store['region'].to_s.strip.empty?
+	    store_hash['province'] = existing_store['province'].to_s unless existing_store['province'].to_s.strip.empty?
+	    store_hash['country'] = existing_store['country'].to_s unless existing_store['country'].to_s.strip.empty?
+	    store_hash['language'] = existing_store['language'].to_s unless existing_store['language'].to_s.strip.empty?
+	    store_hash['status'] = existing_store['status'].to_s unless existing_store['status'].to_s.strip.empty?
+	  end
+	  %w[postalCode publishedAt lastPublishedAt unpublishedAt lastPublicationError].each do |key|
+	    store_hash[key] = existing_store[key].to_s unless existing_store[key].to_s.strip.empty?
+	  end
+	  store_hash['address'] = existing_store['address'] if existing_store['address'].is_a?(Hash) && !existing_store['address'].empty?
+	  store_hash['locationSource'] = existing_store['locationSource'].to_s unless existing_store['locationSource'].to_s.strip.empty?
+	  store_hash['deliveryArea'] = existing_store['deliveryArea'] if existing_store['deliveryArea'].is_a?(Hash) && !existing_store['deliveryArea'].empty?
+	  %w[hotmartSubscriberCode hotmartTransaction hotmartProductId hotmartOfferCode purchaseStatus subscriptionStatus lastHotmartEventAt].each do |key|
+	    billing_hash[key] = existing_billing[key].to_s unless existing_billing[key].to_s.strip.empty?
+	  end
+	  auth_hash['uid'] = existing_auth['uid'].to_s unless existing_auth['uid'].to_s.strip.empty?
+	  auth_hash['emailVerified'] = existing_auth['emailVerified'] == true if existing_auth.key?('emailVerified')
+	  auth_hash['lastLoginAt'] = existing_auth['lastLoginAt'].to_s unless existing_auth['lastLoginAt'].to_s.strip.empty?
+	  seo_hash = {
+	    'allowIndexing' => seo_body.key?('allowIndexing') ? seo_body['allowIndexing'] == true : true,
+	    'metaRobots' => %w[index,follow noindex,nofollow noindex,follow].include?(seo_body['metaRobots'].to_s.strip) ? seo_body['metaRobots'].to_s.strip : 'index,follow',
+	    'schemaType' => seo_body['schemaType'].to_s.strip.empty? ? 'FoodEstablishment' : seo_body['schemaType'].to_s.strip,
+	    'schemaCategory' => seo_body['schemaCategory'].to_s.strip.empty? ? 'Restaurant / FastFoodRestaurant' : seo_body['schemaCategory'].to_s.strip,
+	    'sitemapEnabled' => seo_body.key?('sitemapEnabled') ? seo_body['sitemapEnabled'] == true : true,
+	    'robotsEnabled' => seo_body.key?('robotsEnabled') ? seo_body['robotsEnabled'] == true : true,
+	    'searchConsoleLinked' => seo_body['searchConsoleLinked'] == true,
+	    'lastSeoPublishedAt' => seo_body['lastSeoPublishedAt'].to_s.strip
+	  }
 
   existing.merge({
-    'id' => final_id,
-    'name' => body['name'].to_s.strip,
-    'email' => body['email'].to_s.strip,
-    'ownerName' => body['ownerName'].to_s.strip,
-    'phone' => body['phone'].to_s.strip,
-    'whatsapp' => body.key?('whatsapp') ? body['whatsapp'].to_s.strip : existing['whatsapp'].to_s,
+	    'id' => final_id,
+	    'fullName' => keep_unless_support.call(body['fullName'].to_s.strip, existing['fullName'].to_s.strip),
+	    'name' => body['name'].to_s.strip,
+	    'email' => keep_unless_support.call(body['email'].to_s.strip, existing['email'].to_s.strip),
+	    'ownerName' => keep_unless_support.call(body['fullName'].to_s.strip.empty? ? body['ownerName'].to_s.strip : body['fullName'].to_s.strip, existing['ownerName'].to_s.strip),
+	    'responsibleName' => keep_unless_support.call(body['ownerName'].to_s.strip, existing['responsibleName'].to_s.strip),
+	    'phone' => keep_unless_support.call(body['phone'].to_s.strip, existing['phone'].to_s.strip),
+	    'phoneCountryCode' => keep_unless_support.call(body['phoneCountryCode'].to_s.strip, existing['phoneCountryCode'].to_s.strip),
+	    'phoneNumber' => keep_unless_support.call(body['phoneNumber'].to_s.strip, existing['phoneNumber'].to_s.strip),
+	    'phoneFull' => keep_unless_support.call(body['phoneFull'].to_s.strip.empty? ? body['phone'].to_s.strip : body['phoneFull'].to_s.strip, existing['phoneFull'].to_s.strip),
+	    'whatsapp' => keep_unless_support.call((body.key?('whatsapp') ? body['whatsapp'].to_s.strip : existing['whatsapp'].to_s), existing['whatsapp'].to_s.strip),
+	    'whatsappCountryCode' => keep_unless_support.call(body['whatsappCountryCode'].to_s.strip, existing['whatsappCountryCode'].to_s.strip),
+	    'whatsappNumber' => keep_unless_support.call(body['whatsappNumber'].to_s.strip, existing['whatsappNumber'].to_s.strip),
+	    'whatsappFull' => keep_unless_support.call(body['whatsappFull'].to_s.strip.empty? ? body['whatsapp'].to_s.strip : body['whatsappFull'].to_s.strip, existing['whatsappFull'].to_s.strip),
+	    'country' => keep_unless_support.call(body['country'].to_s.strip, existing['country'].to_s.strip),
+	    'language' => keep_unless_support.call(body['language'].to_s.strip, existing['language'].to_s.strip),
     'businessName' => body['businessName'].to_s.strip,
-    'document' => body['document'].to_s.strip,
-    'plan' => body['plan'].to_s.strip.empty? ? 'starter' : body['plan'].to_s.strip,
-    'status' => body['status'].to_s.strip.empty? ? 'active' : body['status'].to_s.strip,
+	    'document' => keep_unless_support.call(body['document'].to_s.strip, existing['document'].to_s.strip),
+    'plan' => billing_hash['provider'] == 'none' ? '' : billing_plan_slug_value(billing_hash, { 'plan' => plan_slug }),
+    'status' => account_status,
+    'accountStatus' => account_status,
     'role' => role,
-    'fiscalCountry' => body['fiscalCountry'].to_s.strip.empty? ? (existing['fiscalCountry'] || 'ES') : body['fiscalCountry'].to_s.strip,
-    'domain' => body['domain'].to_s.strip,
+    'fiscalCountry' => fiscal_country_value,
+    'domain' => store_hash['domain'],
     'slug' => slug,
     'publicUrl' => public_url,
     'storeUrl' => body['storeUrl'].to_s.strip.empty? ? public_url : body['storeUrl'].to_s.strip,
-    'adminUrl' => body['adminUrl'].to_s.strip,
-    'seedFile' => body['seedFile'].to_s.strip,
-    'source' => body['source'].to_s.strip,
+    'adminUrl' => body.key?('adminUrl') ? body['adminUrl'].to_s.strip : (existing['adminUrl'].to_s.strip.empty? ? 'admin.html' : existing['adminUrl'].to_s.strip),
+    'seedFile' => body.key?('seedFile') ? body['seedFile'].to_s.strip : existing['seedFile'].to_s.strip,
+    'source' => origin,
+    'origin' => origin,
+    'accountAddress' => account_address_hash,
+    'store' => store_hash,
+    'billing' => billing_hash,
+    'billingStatus' => billing_hash['status'],
+    'billingCycle' => billing_hash['billingCycle'],
+    'trialEndsAt' => billing_hash['trialEndsAt'],
+    'activatedAt' => billing_hash['activatedAt'],
+    'canceledAt' => billing_hash['canceledAt'],
+	    'auth' => auth_hash,
+	    'seo' => seo_hash,
+    'emailVerified' => auth_hash['emailVerified'],
+    'lastLoginAt' => auth_hash['lastLoginAt'],
     'notes' => body['notes'].to_s.strip,
-    'githubRepo' => body['githubRepo'].to_s.strip,
-    'githubBranch' => body['githubBranch'].to_s.strip.empty? ? 'main' : body['githubBranch'].to_s.strip,
+    'githubRepo' => body.key?('githubRepo') ? body['githubRepo'].to_s.strip : existing['githubRepo'].to_s.strip,
+    'githubBranch' => body.key?('githubBranch') ? (body['githubBranch'].to_s.strip.empty? ? 'main' : body['githubBranch'].to_s.strip) : (existing['githubBranch'].to_s.strip.empty? ? 'main' : existing['githubBranch'].to_s.strip),
     'githubToken' => github_token,
-    'publicFile' => body['publicFile'].to_s.strip.empty? ? 'index.html' : body['publicFile'].to_s.strip,
+    'publicFile' => body.key?('publicFile') ? (body['publicFile'].to_s.strip.empty? ? 'index.html' : body['publicFile'].to_s.strip) : (existing['publicFile'].to_s.strip.empty? ? 'index.html' : existing['publicFile'].to_s.strip),
     'createdAt' => existing['createdAt'] || now,
     'updatedAt' => now
   })
@@ -1006,6 +1204,8 @@ end
 def firebase_normalize_role(role)
   r = role.to_s.strip
   return 'store_owner' if r.empty? || r == 'tenant_owner'
+  return 'store_owner' if r == 'owner'
+  return 'store_staff' if r == 'admin' || r == 'support'
   return 'master_admin' if r == 'master'
   return 'store_staff' if r == 'manager'
   r
@@ -1239,7 +1439,7 @@ def firebase_create_or_update_auth_user(tenant)
   final_uid = existing['uid'] if existing && !existing['uid'].to_s.strip.empty?
   desired_display_name = tenant['name'].to_s.strip.empty? ? tenant['businessName'].to_s.strip : tenant['name'].to_s.strip
   desired_display_name = tenant['ownerName'].to_s.strip if desired_display_name.empty?
-  disabled = tenant['status'].to_s.strip == 'disabled'
+  disabled = %w[disabled blocked canceled].include?(tenant['status'].to_s.strip)
   api_key = firebase_web_api_key
   auth_headers = google_auth_headers.merge('Content-Type' => 'application/json')
 
@@ -1317,7 +1517,7 @@ def master_tenant_from_auth_user(user, existing = {})
     'whatsapp' => existing['whatsapp'].to_s.strip,
     'businessName' => existing['businessName'].to_s.strip.empty? ? (display.empty? ? existing['name'].to_s.strip : display) : existing['businessName'].to_s.strip,
     'document' => existing['document'].to_s.strip,
-    'plan' => existing['plan'].to_s.strip.empty? ? 'starter' : existing['plan'].to_s.strip,
+    'plan' => existing['plan'].to_s.strip.empty? || existing['plan'].to_s.strip == 'starter' ? 'essencial' : existing['plan'].to_s.strip,
     'status' => existing['status'].to_s.strip.empty? ? 'pending' : existing['status'].to_s.strip,
     'role' => firebase_normalize_role(existing['role'].to_s.strip.empty? ? 'pending_classification' : existing['role']),
     'fiscalCountry' => existing['fiscalCountry'].to_s.strip.empty? ? 'ES' : existing['fiscalCountry'].to_s.strip,
@@ -1347,41 +1547,204 @@ end
 
 def sync_system_tenant!(tenant, auth_user = nil, force: false)
   role = firebase_normalize_role(tenant['role'])
-  status = tenant['status'].to_s.strip.empty? ? 'active' : tenant['status'].to_s.strip
-  should_write = status == 'active' && firebase_role_authorized_for_admin?(role)
+  status = tenant['accountStatus'].to_s.strip.empty? ? (tenant['status'].to_s.strip.empty? ? 'active' : tenant['status'].to_s.strip) : tenant['accountStatus'].to_s.strip
+  should_write = force || (status == 'active' && firebase_role_authorized_for_admin?(role))
   return { 'ok' => false, 'skipped' => true, 'reason' => 'user_not_authorized' } unless should_write
+  store_hash = tenant['store'].is_a?(Hash) ? tenant['store'] : {}
+  account_address_hash = tenant['accountAddress'].is_a?(Hash) ? tenant['accountAddress'] : {}
+  billing_hash = tenant['billing'].is_a?(Hash) ? tenant['billing'] : {}
+  auth_hash = tenant['auth'].is_a?(Hash) ? tenant['auth'] : {}
+  seo_hash = tenant['seo'].is_a?(Hash) ? tenant['seo'] : {}
+  plan_slug = billing_hash['planSlug'].to_s.strip.empty? ? (tenant['plan'].to_s.strip.empty? ? 'essencial' : tenant['plan'].to_s.strip) : billing_hash['planSlug'].to_s.strip
+  plan_slug = 'essencial' if plan_slug == 'starter'
+  billing_cycle = billing_hash['billingCycle'].to_s.strip
+  billing_cycle = tenant['billingCycle'].to_s.strip if billing_cycle.empty?
+  billing_cycle = billing_hash['cycle'].to_s.strip if billing_cycle.empty?
+  slug = store_hash['slug'].to_s.strip.empty? ? tenant['slug'].to_s.strip : store_hash['slug'].to_s.strip
+  domain = store_hash['domain'].to_s.strip.empty? ? tenant['domain'].to_s.strip : store_hash['domain'].to_s.strip
+  public_url = store_hash['publicUrl'].to_s.strip
+  public_url = domain.match?(%r{\Ahttps?://}) ? domain : "https://#{domain}" if public_url.empty? && !domain.empty?
+  public_url = public_store_url(slug) if public_url.empty?
+  fiscal_country = tenant['fiscalCountry'].to_s.strip
+  fiscal_country = account_address_hash['fiscalCountry'].to_s.strip if fiscal_country.empty?
+  fiscal_country = store_hash['fiscalCountry'].to_s.strip if fiscal_country.empty?
 
   doc = {
-    'uid' => tenant['id'].to_s.strip,
-    'tenantId' => tenant['id'].to_s.strip,
-    'email' => (auth_user && auth_user['email'].to_s.strip) || tenant['email'].to_s.strip,
-    'name' => tenant['name'].to_s.strip.empty? ? tenant['businessName'].to_s.strip : tenant['name'].to_s.strip,
-    'businessName' => tenant['businessName'].to_s.strip,
     'ownerName' => tenant['ownerName'].to_s.strip,
+    'responsibleName' => tenant['responsibleName'].to_s.strip,
+    'email' => tenant['email'].to_s.strip,
     'phone' => tenant['phone'].to_s.strip,
+    'phoneCountryCode' => tenant['phoneCountryCode'].to_s.strip,
+    'phoneNumber' => tenant['phoneNumber'].to_s.strip,
+    'phoneFull' => tenant['phoneFull'].to_s.strip.empty? ? tenant['phone'].to_s.strip : tenant['phoneFull'].to_s.strip,
+    'whatsapp' => tenant['whatsapp'].to_s.strip,
+    'whatsappCountryCode' => tenant['whatsappCountryCode'].to_s.strip,
+    'whatsappNumber' => tenant['whatsappNumber'].to_s.strip,
+    'whatsappFull' => tenant['whatsappFull'].to_s.strip.empty? ? tenant['whatsapp'].to_s.strip : tenant['whatsappFull'].to_s.strip,
+    'country' => tenant['country'].to_s.strip,
+    'language' => tenant['language'].to_s.strip,
     'document' => tenant['document'].to_s.strip,
-    'status' => status,
+    'accountAddress' => {
+      'street' => account_address_hash['street'].to_s.strip,
+      'number' => account_address_hash['number'].to_s.strip,
+      'complement' => account_address_hash['complement'].to_s.strip,
+      'neighborhood' => account_address_hash['neighborhood'].to_s.strip,
+      'city' => account_address_hash['city'].to_s.strip,
+      'province' => account_address_hash['province'].to_s.strip,
+      'postalCode' => account_address_hash['postalCode'].to_s.strip,
+      'country' => account_address_hash['country'].to_s.strip,
+      'fiscalCountry' => fiscal_country,
+      'source' => account_address_hash['source'].to_s.strip.empty? ? 'setup' : account_address_hash['source'].to_s.strip
+    },
+    'accountStatus' => status,
+    'origin' => tenant['origin'].to_s.strip.empty? ? tenant['source'].to_s.strip : tenant['origin'].to_s.strip,
     'role' => role,
-    'plan' => tenant['plan'].to_s.strip.empty? ? 'starter' : tenant['plan'].to_s.strip,
-    'billingStatus' => tenant['billingStatus'].to_s.strip,
-    'billingCycle' => tenant['billingCycle'].to_s.strip,
-    'renewalDate' => tenant['renewalDate'].to_s.strip,
-    'nextBillingAt' => tenant['nextBillingAt'].to_s.strip,
-    'trialEndsAt' => tenant['trialEndsAt'].to_s.strip,
-    'features' => tenant['features'].is_a?(Array) ? tenant['features'] : [],
-    'planFeatures' => tenant['planFeatures'].is_a?(Array) ? tenant['planFeatures'] : [],
-    'planLimits' => tenant['planLimits'].is_a?(Hash) ? tenant['planLimits'] : {},
-    'fiscalCountry' => tenant['fiscalCountry'].to_s.strip.empty? ? 'ES' : tenant['fiscalCountry'].to_s.strip,
-    'domain' => tenant['domain'].to_s.strip,
-    'storeUrl' => tenant['storeUrl'].to_s.strip,
-    'adminUrl' => tenant['adminUrl'].to_s.strip.empty? ? 'admin.html' : tenant['adminUrl'].to_s.strip,
-    'source' => tenant['source'].to_s.strip.empty? ? 'master_local' : tenant['source'].to_s.strip,
-    'origin' => tenant['source'].to_s.strip.empty? ? 'master_local' : tenant['source'].to_s.strip
+    'notes' => tenant['notes'].to_s.strip,
+    'store' => {
+      'name' => store_hash['name'].to_s.strip.empty? ? tenant['businessName'].to_s.strip : store_hash['name'].to_s.strip,
+      'slug' => slug,
+      'domain' => domain,
+      'publicUrl' => public_url,
+      'city' => store_hash['city'].to_s.strip,
+      'region' => store_hash['region'].to_s.strip.empty? ? store_hash['province'].to_s.strip : store_hash['region'].to_s.strip,
+      'province' => store_hash['province'].to_s.strip.empty? ? store_hash['region'].to_s.strip : store_hash['province'].to_s.strip,
+      'country' => store_hash['country'].to_s.strip.empty? ? tenant['country'].to_s.strip : store_hash['country'].to_s.strip,
+      'fiscalCountry' => fiscal_country,
+      'language' => store_hash['language'].to_s.strip.empty? ? tenant['language'].to_s.strip : store_hash['language'].to_s.strip,
+      'status' => store_hash['status'].to_s.strip.empty? ? 'draft' : store_hash['status'].to_s.strip,
+      'postalCode' => store_hash['postalCode'].to_s.strip,
+      'address' => store_hash['address'].is_a?(Hash) ? store_hash['address'] : {},
+      'locationSource' => store_hash['locationSource'].to_s.strip,
+      'deliveryArea' => store_hash['deliveryArea'].is_a?(Hash) ? store_hash['deliveryArea'] : {},
+      'social' => store_hash['social'].is_a?(Hash) ? store_hash['social'] : {},
+      'publishedAt' => store_hash['publishedAt'].to_s.strip,
+      'lastPublishedAt' => store_hash['lastPublishedAt'].to_s.strip,
+      'unpublishedAt' => store_hash['unpublishedAt'].to_s.strip,
+      'lastPublicationError' => store_hash['lastPublicationError'].to_s.strip
+    },
+    'billing' => {
+      'provider' => billing_hash['provider'].to_s.strip.empty? ? 'none' : billing_hash['provider'].to_s.strip,
+      'status' => billing_hash['status'].to_s.strip.empty? ? tenant['billingStatus'].to_s.strip : billing_hash['status'].to_s.strip,
+      'planSlug' => plan_slug,
+      'billingCycle' => billing_cycle,
+      'trialEndsAt' => billing_hash['trialEndsAt'].to_s.strip.empty? ? tenant['trialEndsAt'].to_s.strip : billing_hash['trialEndsAt'].to_s.strip,
+      'activatedAt' => billing_hash['activatedAt'].to_s.strip,
+      'canceledAt' => billing_hash['canceledAt'].to_s.strip,
+      'hotmartSubscriberCode' => billing_hash['hotmartSubscriberCode'].to_s.strip,
+      'hotmartTransaction' => billing_hash['hotmartTransaction'].to_s.strip,
+      'hotmartProductId' => billing_hash['hotmartProductId'].to_s.strip,
+      'hotmartOfferCode' => billing_hash['hotmartOfferCode'].to_s.strip,
+      'purchaseStatus' => billing_hash['purchaseStatus'].to_s.strip,
+      'subscriptionStatus' => billing_hash['subscriptionStatus'].to_s.strip,
+      'lastHotmartEventAt' => billing_hash['lastHotmartEventAt'].to_s.strip
+    },
+    'auth' => {
+      'uid' => auth_hash['uid'].to_s.strip.empty? ? tenant['id'].to_s.strip : auth_hash['uid'].to_s.strip,
+      'emailVerified' => auth_hash['emailVerified'] == true || (auth_user && auth_user['emailVerified'] == true),
+      'lastLoginAt' => auth_hash['lastLoginAt'].to_s.strip.empty? ? (auth_user && auth_user['lastLoginAt'].to_s) : auth_hash['lastLoginAt'].to_s.strip
+    },
+    'seo' => {
+      'allowIndexing' => seo_hash.key?('allowIndexing') ? seo_hash['allowIndexing'] == true : true,
+      'metaRobots' => %w[index,follow noindex,nofollow noindex,follow].include?(seo_hash['metaRobots'].to_s.strip) ? seo_hash['metaRobots'].to_s.strip : 'index,follow',
+      'schemaType' => seo_hash['schemaType'].to_s.strip.empty? ? 'FoodEstablishment' : seo_hash['schemaType'].to_s.strip,
+      'schemaCategory' => seo_hash['schemaCategory'].to_s.strip.empty? ? 'Restaurant / FastFoodRestaurant' : seo_hash['schemaCategory'].to_s.strip,
+      'sitemapEnabled' => seo_hash.key?('sitemapEnabled') ? seo_hash['sitemapEnabled'] == true : (seo_hash['sitemapActive'] != false),
+      'robotsEnabled' => seo_hash.key?('robotsEnabled') ? seo_hash['robotsEnabled'] == true : (seo_hash['robotsActive'] != false),
+      'searchConsoleLinked' => seo_hash['searchConsoleLinked'] == true,
+      'lastSeoPublishedAt' => seo_hash['lastSeoPublishedAt'].to_s.strip.empty? ? seo_hash['lastPublishedAt'].to_s.strip : seo_hash['lastSeoPublishedAt'].to_s.strip
+    },
+    'fiscalCountry' => fiscal_country,
+    'plan' => plan_slug,
+    'billingStatus' => billing_hash['status'].to_s.strip.empty? ? tenant['billingStatus'].to_s.strip : billing_hash['status'].to_s.strip,
+    'billingCycle' => billing_cycle,
+    'trialEndsAt' => billing_hash['trialEndsAt'].to_s.strip.empty? ? tenant['trialEndsAt'].to_s.strip : billing_hash['trialEndsAt'].to_s.strip,
+    'activatedAt' => billing_hash['activatedAt'].to_s.strip.empty? ? tenant['activatedAt'].to_s.strip : billing_hash['activatedAt'].to_s.strip,
+    'canceledAt' => billing_hash['canceledAt'].to_s.strip.empty? ? tenant['canceledAt'].to_s.strip : billing_hash['canceledAt'].to_s.strip,
+    'createdAt' => tenant['createdAt'].to_s.strip,
+    'updatedAt' => Time.now.utc.iso8601
   }
   firestore_upsert_document('system_tenants', tenant['id'].to_s.strip, doc)
+  auth_uid = ''
+  auth_uid = auth_user['uid'].to_s.strip if auth_user.is_a?(Hash)
+  auth_uid = auth_hash['uid'].to_s.strip if auth_uid.empty?
+  if !auth_uid.empty? && auth_uid != tenant['id'].to_s.strip
+    fiscal_country = doc['fiscalCountry'].to_s.strip
+    fiscal_country = doc['accountAddress']['fiscalCountry'].to_s.strip if fiscal_country.empty? && doc['accountAddress'].is_a?(Hash)
+    fiscal_country = doc['store']['fiscalCountry'].to_s.strip if fiscal_country.empty? && doc['store'].is_a?(Hash)
+    firestore_upsert_document('system_tenants', auth_uid, {
+      'fiscalCountry' => fiscal_country,
+      'accountAddress' => { 'fiscalCountry' => fiscal_country },
+      'store' => { 'fiscalCountry' => fiscal_country },
+      'masterTenantId' => tenant['id'].to_s.strip,
+      'email' => doc['email'].to_s.strip,
+      'role' => doc['role'].to_s.strip,
+      'accountStatus' => doc['accountStatus'].to_s.strip,
+      'updatedAt' => doc['updatedAt'].to_s.strip
+    })
+    log_master("system_tenants fiscal mirror auth_uid=#{auth_uid} master_tenant=#{tenant['id']} fiscalCountry=#{fiscal_country}")
+  end
+  mirror_fiscal_country_for_email!(
+    email: doc['email'],
+    canonical_uid: tenant['id'],
+    fiscal_country: doc['fiscalCountry'],
+    doc: doc
+  )
   { 'ok' => true, 'skipped' => false, 'doc' => doc }
 rescue => e
   { 'ok' => false, 'skipped' => false, 'error' => e.message }
+end
+
+def tenant_access_change_logs!(before, after)
+  before ||= {}
+  after ||= {}
+  uid = after['id'].to_s.strip.empty? ? after['uid'].to_s.strip : after['id'].to_s.strip
+  email = after['email'].to_s.strip
+  before_billing = before['billing'].is_a?(Hash) ? before['billing'] : {}
+  after_billing = after['billing'].is_a?(Hash) ? after['billing'] : {}
+  before_store = before['store'].is_a?(Hash) ? before['store'] : {}
+  after_store = after['store'].is_a?(Hash) ? after['store'] : {}
+  before_address = before['accountAddress'].is_a?(Hash) ? before['accountAddress'] : {}
+  after_address = after['accountAddress'].is_a?(Hash) ? after['accountAddress'] : {}
+  changes = [
+    ['email_changed', before['email'].to_s.strip, after['email'].to_s.strip, 'E-mail de acesso alterado pelo Master.'],
+    ['phone_changed', (before['phoneFull'].to_s.strip.empty? ? before['phone'].to_s.strip : before['phoneFull'].to_s.strip), (after['phoneFull'].to_s.strip.empty? ? after['phone'].to_s.strip : after['phoneFull'].to_s.strip), 'Telefone alterado pelo Master em modo suporte.'],
+    ['whatsapp_changed', (before['whatsappFull'].to_s.strip.empty? ? before['whatsapp'].to_s.strip : before['whatsappFull'].to_s.strip), (after['whatsappFull'].to_s.strip.empty? ? after['whatsapp'].to_s.strip : after['whatsappFull'].to_s.strip), 'WhatsApp alterado pelo Master em modo suporte.'],
+    ['document_changed', before['document'].to_s.strip, after['document'].to_s.strip, 'Documento alterado pelo Master em modo suporte.'],
+    ['account_address_country_changed', before_address['country'].to_s.strip, after_address['country'].to_s.strip, 'País do endereço fiscal/contato alterado pelo Master em modo suporte.'],
+    ['account_address_city_changed', before_address['city'].to_s.strip, after_address['city'].to_s.strip, 'Cidade do endereço fiscal/contato alterada pelo Master em modo suporte.'],
+    ['account_address_postal_code_changed', before_address['postalCode'].to_s.strip, after_address['postalCode'].to_s.strip, 'Código postal do endereço fiscal/contato alterado pelo Master em modo suporte.'],
+    ['domain_changed', (before_store['domain'].to_s.strip.empty? ? before['domain'].to_s.strip : before_store['domain'].to_s.strip), (after_store['domain'].to_s.strip.empty? ? after['domain'].to_s.strip : after_store['domain'].to_s.strip), 'Domínio alterado pelo Master em modo suporte.'],
+    ['fiscal_country_changed', (before_address['fiscalCountry'].to_s.strip.empty? ? (before_store['fiscalCountry'].to_s.strip.empty? ? before['fiscalCountry'].to_s.strip : before_store['fiscalCountry'].to_s.strip) : before_address['fiscalCountry'].to_s.strip), (after_address['fiscalCountry'].to_s.strip.empty? ? (after_store['fiscalCountry'].to_s.strip.empty? ? after['fiscalCountry'].to_s.strip : after_store['fiscalCountry'].to_s.strip) : after_address['fiscalCountry'].to_s.strip), 'País fiscal alterado pelo Master em modo suporte.'],
+    ['store_status_changed', before_store['status'].to_s.strip, after_store['status'].to_s.strip, 'Status da loja alterado pelo Master.'],
+    ['account_status_changed', (before['accountStatus'].to_s.strip.empty? ? before['status'].to_s.strip : before['accountStatus'].to_s.strip), (after['accountStatus'].to_s.strip.empty? ? after['status'].to_s.strip : after['accountStatus'].to_s.strip), 'Status da conta alterado pelo Master.'],
+    ['billing_plan_changed', billing_plan_slug_value(before_billing, before), billing_plan_slug_value(after_billing, after), 'Plano alterado pelo Master.'],
+    ['billing_cycle_changed', (before_billing['billingCycle'].to_s.strip.empty? ? (before['billingCycle'].to_s.strip.empty? ? before_billing['cycle'].to_s.strip : before['billingCycle'].to_s.strip) : before_billing['billingCycle'].to_s.strip), (after_billing['billingCycle'].to_s.strip.empty? ? (after['billingCycle'].to_s.strip.empty? ? after_billing['cycle'].to_s.strip : after['billingCycle'].to_s.strip) : after_billing['billingCycle'].to_s.strip), 'Ciclo de cobrança alterado pelo Master.'],
+    ['billing_provider_changed', before_billing['provider'].to_s.strip, after_billing['provider'].to_s.strip, 'Provedor de cobrança alterado pelo Master.'],
+    ['billing_status_changed', (before_billing['status'].to_s.strip.empty? ? before['billingStatus'].to_s.strip : before_billing['status'].to_s.strip), (after_billing['status'].to_s.strip.empty? ? after['billingStatus'].to_s.strip : after_billing['status'].to_s.strip), 'Status de assinatura alterado pelo Master.'],
+    ['billing_trial_changed', (before_billing['trialEndsAt'].to_s.strip.empty? ? before['trialEndsAt'].to_s.strip : before_billing['trialEndsAt'].to_s.strip), (after_billing['trialEndsAt'].to_s.strip.empty? ? after['trialEndsAt'].to_s.strip : after_billing['trialEndsAt'].to_s.strip), 'Fim do trial alterado pelo Master.'],
+    ['billing_activation_date_changed', (before_billing['activatedAt'].to_s.strip.empty? ? before['activatedAt'].to_s.strip : before_billing['activatedAt'].to_s.strip), (after_billing['activatedAt'].to_s.strip.empty? ? after['activatedAt'].to_s.strip : after_billing['activatedAt'].to_s.strip), 'Data de ativação alterada pelo Master.'],
+    ['billing_cancellation_date_changed', (before_billing['canceledAt'].to_s.strip.empty? ? before['canceledAt'].to_s.strip : before_billing['canceledAt'].to_s.strip), (after_billing['canceledAt'].to_s.strip.empty? ? after['canceledAt'].to_s.strip : after_billing['canceledAt'].to_s.strip), 'Data de cancelamento alterada pelo Master.']
+  ]
+  changes.each do |action, old_value, new_value, message|
+    next if old_value.to_s == new_value.to_s
+    next if old_value.to_s.empty? && new_value.to_s.empty?
+    system_access_log!(
+      action: action,
+      uid: uid,
+      email: email,
+      message: message,
+      details: { 'from' => old_value.to_s, 'to' => new_value.to_s }
+    )
+  end
+  if before_store['status'].to_s != 'suspended' && after_store['status'].to_s == 'suspended'
+    system_access_log!(
+      action: 'store_suspended',
+      uid: uid,
+      email: email,
+      message: 'Loja suspensa pelo Master em modo suporte.',
+      details: { 'from' => before_store['status'].to_s, 'to' => 'suspended' }
+    )
+  end
 end
 
 def import_firebase_user_to_master!(auth_user)
@@ -1452,9 +1815,14 @@ def master_merged_overview
     base['businessName'] = local['businessName'].to_s.strip.empty? ? base['name'] : local['businessName'].to_s.strip
     base['status'] = local['status'].to_s.strip.empty? ? (system['status'].to_s.strip.empty? ? (auth['disabled'] ? 'disabled' : 'pending') : system['status'].to_s.strip) : local['status'].to_s.strip
     base['role'] = firebase_normalize_role(local['role'].to_s.strip.empty? ? (system['role'].to_s.strip.empty? ? 'pending_classification' : system['role'].to_s.strip) : local['role'])
-    base['plan'] = local['plan'].to_s.strip.empty? ? (system['plan'].to_s.strip.empty? ? 'starter' : system['plan'].to_s.strip) : local['plan'].to_s.strip
+    base['plan'] = local['plan'].to_s.strip.empty? ? (system['plan'].to_s.strip.empty? ? 'essencial' : system['plan'].to_s.strip) : local['plan'].to_s.strip
+    base['plan'] = 'essencial' if base['plan'].to_s.strip == 'starter'
     base['fiscalCountry'] = local['fiscalCountry'].to_s.strip.empty? ? (system['fiscalCountry'].to_s.strip.empty? ? 'ES' : system['fiscalCountry'].to_s.strip) : local['fiscalCountry'].to_s.strip
-    base['domain'] = local['domain'].to_s.strip
+    base['store'] = local['store'].is_a?(Hash) ? local['store'] : (system['store'].is_a?(Hash) ? system['store'] : {})
+    base['billing'] = local['billing'].is_a?(Hash) ? local['billing'] : (system['billing'].is_a?(Hash) ? system['billing'] : {})
+    base['auth'] = local['auth'].is_a?(Hash) ? local['auth'] : (system['auth'].is_a?(Hash) ? system['auth'] : {})
+    base['accountStatus'] = local['accountStatus'].to_s.strip.empty? ? base['status'] : local['accountStatus'].to_s.strip
+    base['domain'] = local['domain'].to_s.strip.empty? ? base['store']['domain'].to_s.strip : local['domain'].to_s.strip
     base['storeUrl'] = local['storeUrl'].to_s.strip
     base['adminUrl'] = local['adminUrl'].to_s.strip.empty? ? 'admin.html' : local['adminUrl'].to_s.strip
     base['seedFile'] = local['seedFile'].to_s.strip
@@ -1500,7 +1868,7 @@ def master_merged_overview
     else
       'Sincronização parcial'
     end
-    base['storeStatus'] = if base['domain'].to_s.strip.empty? && base['storeUrl'].to_s.strip.empty? && base['githubRepo'].to_s.strip.empty?
+    base['storeStatus'] = if base['domain'].to_s.strip.empty? && base['storeUrl'].to_s.strip.empty? && base['githubRepo'].to_s.strip.empty? && base['store']['name'].to_s.strip.empty?
       'Loja não configurada'
     elsif !base['domain'].to_s.strip.empty? || !base['storeUrl'].to_s.strip.empty?
       base['githubRepo'].to_s.strip.empty? ? 'Loja parcialmente configurada' : 'Loja configurada'
@@ -1555,6 +1923,487 @@ def master_replace_tenant(store, tenant)
   end
   store['tenants'] << tenant
   save_store(store)
+  tenant
+end
+
+def system_access_log!(action:, uid: '', email: '', message: '', details: {}, source: 'master', mod: 'master', entity_type: 'tenant', entity_id: '', severity: 'info')
+  safe_metadata = details.is_a?(Hash) ? details.each_with_object({}) do |(key, value), acc|
+    next if key.to_s.match?(/password|senha|token|secret|credential|authorization|payload|html|image|customer|cliente/i)
+    text = value.is_a?(Hash) || value.is_a?(Array) ? value.to_json : value.to_s
+    acc[key.to_s] = text.length > 180 ? text[0, 180] : text
+  end : {}
+  firestore_upsert_document('system_access_logs', SecureRandom.uuid, {
+    'tenantUid' => uid.to_s,
+    'action' => action.to_s,
+    'uid' => uid.to_s,
+    'email' => email.to_s,
+    'message' => message.to_s,
+    'module' => mod.to_s,
+    'entityType' => entity_type.to_s,
+    'entityId' => entity_id.to_s.empty? ? uid.to_s : entity_id.to_s,
+    'summary' => message.to_s,
+    'source' => source.to_s.empty? ? 'master' : source.to_s,
+    'severity' => %w[info warning critical].include?(severity.to_s) ? severity.to_s : 'info',
+    'metadata' => safe_metadata,
+    'details' => safe_metadata,
+    'createdAt' => Time.now.utc.iso8601
+  })
+rescue => e
+  log_master("system access log error action=#{action} uid=#{uid} #{e.class}: #{e.message}")
+end
+
+def pending_hotmart_docs
+  firestore_list_documents('pending_hotmart_access').map do |doc|
+    id = doc['name'].to_s.split('/').last.to_s
+    firestore_fields_to_hash(doc['fields'] || {}).merge('id' => id)
+  end.reject { |item| item['status'].to_s == 'archived' }
+end
+
+def pending_hotmart_requires_manual_action?(item)
+  status = item['status'].to_s.strip.downcase
+  reason = [item['reason'], item['pendingReason'], item['error'], item['linkError']].join(' ').downcase
+  return false if %w[linked auto_linked completed resolved archived ignored].include?(status)
+  return true if status.empty? || %w[pending pending_manual manual_review error failed incomplete pending_payment approved_without_tenant canceled_without_tenant email_mismatch].include?(status)
+  return true if reason.match?(/sem tenant|without tenant|email diferente|email mismatch|erro|incomplet|manual|pendente|pending|cancelad/)
+  false
+end
+
+def pending_hotmart_reason(item)
+  return item['pendingReason'].to_s unless item['pendingReason'].to_s.strip.empty?
+  return item['reason'].to_s unless item['reason'].to_s.strip.empty?
+  status = item['status'].to_s.strip.downcase
+  return 'compra aprovada sem tenant cadastrado' if status.empty? || status == 'pending'
+  return 'pagamento pendente para acompanhamento' if status == 'pending_payment'
+  return 'evento Hotmart com erro de vínculo' if %w[error failed].include?(status)
+  return 'evento Hotmart com dados incompletos' if status == 'incomplete'
+  return 'assinatura cancelada sem tenant localizado' if status == 'canceled_without_tenant'
+  return 'e-mail diferente do cadastro' if status == 'email_mismatch'
+  'ação manual necessária'
+end
+
+def system_tenants_users
+  auth_by_uid = {}
+  auth_by_email = {}
+  begin
+    firebase_auth_users_list.each do |auth_user|
+      uid_key = auth_user['uid'].to_s.strip
+      email_key = auth_user['email'].to_s.strip.downcase
+      auth_by_uid[uid_key] = auth_user unless uid_key.empty?
+      auth_by_email[email_key] = auth_user unless email_key.empty?
+    end
+  rescue => e
+    log_master("system_tenants_users firebase auth warning #{e.class}: #{e.message}")
+  end
+  last_access_by_uid = {}
+  last_access_by_email = {}
+  begin
+    firestore_list_documents('system_access_logs').each do |doc|
+      log = firestore_fields_to_hash(doc['fields'] || {})
+      next unless log['action'].to_s == 'admin_login'
+      created_at = log['createdAt'].to_s
+      next if created_at.empty?
+      uid_key = log['uid'].to_s.strip.empty? ? log['tenantUid'].to_s.strip : log['uid'].to_s.strip
+      metadata = log['metadata'].is_a?(Hash) ? log['metadata'] : (log['details'].is_a?(Hash) ? log['details'] : {})
+      email_key = log['email'].to_s.strip.downcase
+      email_key = metadata['email'].to_s.strip.downcase if email_key.empty?
+      last_access_by_uid[uid_key] = created_at if !uid_key.empty? && (last_access_by_uid[uid_key].to_s.empty? || created_at > last_access_by_uid[uid_key].to_s)
+      last_access_by_email[email_key] = created_at if !email_key.empty? && (last_access_by_email[email_key].to_s.empty? || created_at > last_access_by_email[email_key].to_s)
+    end
+  rescue => e
+    log_master("system_tenants_users access logs warning #{e.class}: #{e.message}")
+  end
+  users = firestore_list_documents('system_tenants').map do |doc|
+    uid = doc['name'].to_s.split('/').last.to_s
+    data = firestore_fields_to_hash(doc['fields'] || {})
+    next if firebase_customer_marker?(data)
+    store = data['store'].is_a?(Hash) ? data['store'] : {}
+    store = store.merge('publicUrl' => public_store_url(store['slug'].to_s.strip)) unless store['slug'].to_s.strip.empty?
+    billing = data['billing'].is_a?(Hash) ? data['billing'] : {}
+    auth = data['auth'].is_a?(Hash) ? data['auth'] : {}
+    source = data['source'].to_s.strip
+    origin = data['origin'].to_s.strip.empty? ? source : data['origin'].to_s.strip
+    role = data['role'].to_s.strip
+    account_status = data['accountStatus'].to_s.strip.empty? ? data['status'].to_s.strip : data['accountStatus'].to_s.strip
+    store_configured = !store['name'].to_s.strip.empty? || !store['slug'].to_s.strip.empty?
+    billing_configured = !billing.empty? && (
+      !billing['provider'].to_s.strip.empty? ||
+      !billing['status'].to_s.strip.empty? ||
+      !billing['planSlug'].to_s.strip.empty? ||
+      !billing['hotmartSubscriberCode'].to_s.strip.empty? ||
+      !billing['hotmartTransaction'].to_s.strip.empty?
+    )
+    saas_status = %w[pending active blocked canceled archived].include?(account_status)
+    allowed_origin = %w[hotmart manual test referral master master_local].include?(origin)
+    allowed_role = %w[owner admin store_owner master_admin].include?(role)
+    firebase_auto_import = origin.start_with?('firebase_auth') || source.start_with?('firebase_auth')
+    next if firebase_auto_import && !store_configured && !billing_configured
+    next unless allowed_role || store_configured || billing_configured || saas_status || allowed_origin
+    next if !store_configured && !billing_configured && !saas_status && !allowed_origin
+    email_key = data['email'].to_s.strip.downcase
+    auth_user = auth_by_uid[uid] || auth_by_email[email_key] || {}
+    auth['uid'] = auth_user['uid'].to_s if auth['uid'].to_s.strip.empty? && !auth_user['uid'].to_s.strip.empty?
+    auth['emailVerified'] = auth_user['emailVerified'] if !auth.key?('emailVerified') && auth_user.key?('emailVerified')
+    auth['createdAt'] = auth_user['createdAt'].to_s if auth['createdAt'].to_s.strip.empty? && !auth_user['createdAt'].to_s.strip.empty?
+    auth['lastLoginAt'] = auth_user['lastLoginAt'].to_s if auth['lastLoginAt'].to_s.strip.empty? && !auth_user['lastLoginAt'].to_s.strip.empty?
+    access_at = last_access_by_uid[uid].to_s
+    access_at = last_access_by_email[email_key].to_s if access_at.empty?
+    auth['lastLoginAt'] = access_at if !access_at.empty? && (auth['lastLoginAt'].to_s.empty? || access_at > auth['lastLoginAt'].to_s)
+    data.merge(
+      'id' => data['id'].to_s.strip.empty? ? uid : data['id'].to_s,
+      'uid' => data['uid'].to_s.strip.empty? ? uid : data['uid'].to_s,
+      'businessName' => data['businessName'].to_s.strip.empty? ? store['name'].to_s : data['businessName'].to_s,
+      'accountStatus' => account_status,
+      'plan' => billing['planSlug'].to_s.strip.empty? ? data['plan'].to_s : billing['planSlug'].to_s,
+      'billingStatus' => billing['status'].to_s.strip.empty? ? data['billingStatus'].to_s : billing['status'].to_s,
+      'origin' => origin,
+      'store' => store,
+      'billing' => billing,
+      'auth' => auth,
+      'lastAccessAt' => access_at.empty? ? auth['lastLoginAt'].to_s : access_at,
+      'localExists' => true,
+      'systemExists' => true,
+      'authExists' => !auth['uid'].to_s.strip.empty?,
+      'syncStatus' => 'system_tenants',
+      'storeStatus' => store_configured ? (store['status'].to_s.strip.empty? ? 'active' : store['status'].to_s) : 'Loja não configurada'
+    )
+  end.compact
+  grouped = {}
+  users.each do |user|
+    email_key = user['email'].to_s.strip.downcase
+    key = email_key.empty? ? "uid:#{user['id']}" : "email:#{email_key}"
+    current = grouped[key]
+    grouped[key] = user if current.nil? || system_tenant_user_rank(user) > system_tenant_user_rank(current)
+  end
+  grouped.values.sort_by { |user| String(user['ownerName'] || user['name'] || user['businessName'] || user['email'] || user['id']).downcase }
+end
+
+def system_tenant_user_rank(user)
+  store = user['store'].is_a?(Hash) ? user['store'] : {}
+  billing = user['billing'].is_a?(Hash) ? user['billing'] : {}
+  score = 0
+  score += 100 if !store['slug'].to_s.strip.empty?
+  score += 80 if !store['name'].to_s.strip.empty?
+  score += 60 if !store['publicUrl'].to_s.strip.empty?
+  score += 40 if !billing['planSlug'].to_s.strip.empty? || !billing['provider'].to_s.strip.empty?
+  score += 20 if user['accountStatus'].to_s == 'active' || user['status'].to_s == 'active'
+  updated_at = Time.parse(user['updatedAt'].to_s).to_i rescue 0
+  score + [updated_at, 9_999_999_999].min / 1_000_000_000.0
+end
+
+def system_tenant_by_uid(uid)
+  id = uid.to_s.strip
+  return nil if id.empty?
+  doc = firestore_get_document('system_tenants', id)
+  return nil unless doc
+  data = firestore_fields_to_hash(doc['fields'] || {})
+  data['id'] ||= id
+  data['uid'] ||= id
+  data
+end
+
+def mirror_fiscal_country_for_email!(email:, canonical_uid:, fiscal_country:, doc:)
+  email_key = email.to_s.strip.downcase
+  fiscal = fiscal_country.to_s.strip
+  canonical = canonical_uid.to_s.strip
+  return if email_key.empty? || fiscal.empty?
+
+  firestore_list_documents('system_tenants').each do |item|
+    uid = item['name'].to_s.split('/').last.to_s
+    next if uid.empty? || uid == canonical
+    data = firestore_fields_to_hash(item['fields'] || {})
+    next unless data['email'].to_s.strip.downcase == email_key
+
+    firestore_upsert_document('system_tenants', uid, {
+      'fiscalCountry' => fiscal,
+      'accountAddress' => { 'fiscalCountry' => fiscal },
+      'store' => { 'fiscalCountry' => fiscal },
+      'masterTenantId' => canonical,
+      'email' => doc['email'].to_s.strip,
+      'role' => doc['role'].to_s.strip,
+      'accountStatus' => doc['accountStatus'].to_s.strip,
+      'updatedAt' => doc['updatedAt'].to_s.strip
+    })
+    log_master("system_tenants fiscal mirror email=#{email_key} uid=#{uid} master_tenant=#{canonical} fiscalCountry=#{fiscal}")
+  end
+end
+
+def find_pending_hotmart(id_or_tx)
+  key = id_or_tx.to_s.strip
+  raise WEBrick::HTTPStatus::BadRequest, 'Pendência Hotmart obrigatória.' if key.empty?
+  pending_hotmart_docs.find do |item|
+    item['id'].to_s == key ||
+      item['hotmartTransaction'].to_s == key ||
+      item['transaction'].to_s == key ||
+      item['buyerEmail'].to_s.strip.downcase == key.downcase
+  end
+end
+
+HOTMART_OFFER_PLANS = {
+  'u7wyvsyn' => { 'planSlug' => 'essencial', 'billingCycle' => 'monthly', 'trialDays' => 15 },
+  'kah1d2ne' => { 'planSlug' => 'compromisso_anual', 'billingCycle' => 'annual', 'trialDays' => 15 },
+  'woavlwrh' => { 'planSlug' => 'fundadoras', 'billingCycle' => 'monthly', 'trialDays' => 0 }
+}.freeze
+
+def hotmart_offer_plan_from_pending(pending)
+  code = pending['hotmartOfferCode'].to_s.strip.downcase
+  code = pending['offerCode'].to_s.strip.downcase if code.empty?
+  HOTMART_OFFER_PLANS[code]
+end
+
+def hotmart_billing_cycle_from_pending(pending)
+  offer_plan = hotmart_offer_plan_from_pending(pending)
+  return [offer_plan['billingCycle'], false] if offer_plan
+  raw = pending['billingCycle'].to_s.strip
+  raw = pending['cycle'].to_s.strip if raw.empty?
+  raw = pending['billing_cycle'].to_s.strip if raw.empty?
+  raw = pending['recurrence'].to_s.strip if raw.empty?
+  value = raw.downcase
+  return ['annual', false] if %w[annual annually yearly year anual ano].include?(value) || value.include?('annual') || value.include?('year') || value.include?('anual')
+  return ['monthly', false] if %w[monthly month mensal mes mês].include?(value) || value.include?('month') || value.include?('mensal')
+  reference = [pending['planSlug'], pending['planName'], pending['offerCode'], pending['hotmartOfferCode']].map(&:to_s).join(' ').downcase
+  return ['annual', false] if reference.include?('annual') || reference.include?('anual') || reference.include?('year')
+  return ['monthly', false] if reference.include?('monthly') || reference.include?('mensal') || reference.include?('month')
+  ['monthly', true]
+end
+
+def hotmart_status_from_pending(pending)
+  raw = pending['internalStatus'].to_s.strip
+  raw = pending['billingStatus'].to_s.strip if raw.empty?
+  raw = pending['status'].to_s.strip if raw.empty? && %w[active canceled refunded chargeback pending_payment past_due].include?(pending['status'].to_s)
+  event = pending['eventType'].to_s.upcase
+  return raw unless raw.empty?
+  return 'chargeback' if event.include?('CHARGEBACK')
+  return 'refunded' if event.include?('REFUND') || event.include?('REIMBURSE')
+  return 'canceled' if event.include?('CANCEL')
+  return 'past_due' if event.include?('OVERDUE') || event.include?('PAST_DUE') || event.include?('DELAYED')
+  return 'pending_payment' if event.include?('BILLET') || event.include?('BOLETO') || event.include?('PENDING') || event.include?('WAITING')
+  'active'
+end
+
+def hotmart_event_time_from_pending(pending)
+  value = pending['activatedAt'].to_s.strip
+  value = pending['canceledAt'].to_s.strip if value.empty?
+  value = pending['updatedAt'].to_s.strip if value.empty?
+  value = pending['createdAt'].to_s.strip if value.empty?
+  value.empty? ? Time.now.utc.iso8601 : value
+end
+
+def hotmart_log_action_for_status(status)
+  {
+    'active' => 'hotmart_subscription_activated',
+    'canceled' => 'hotmart_subscription_canceled',
+    'pending_payment' => 'hotmart_payment_pending',
+    'past_due' => 'hotmart_payment_past_due',
+    'refunded' => 'hotmart_refunded',
+    'chargeback' => 'hotmart_chargeback'
+  }[status.to_s] || 'hotmart_event_received'
+end
+
+def tenant_from_hotmart_pending(pending)
+  email = pending['buyerEmail'].to_s.strip.downcase
+  raise WEBrick::HTTPStatus::BadRequest, 'Compra Hotmart sem buyerEmail.' if email.empty?
+  now = Time.now.utc.iso8601
+  uid = "hotmart_#{Digest::SHA1.hexdigest(email)[0,16]}"
+  name = pending['buyerName'].to_s.strip.empty? ? email.split('@').first.to_s : pending['buyerName'].to_s.strip
+  offer_plan = hotmart_offer_plan_from_pending(pending)
+  plan = offer_plan ? offer_plan['planSlug'] : (pending['planSlug'].to_s.strip.empty? ? 'essencial' : pending['planSlug'].to_s.strip)
+  plan = 'essencial' if plan == 'starter'
+  billing_cycle, cycle_fallback = hotmart_billing_cycle_from_pending(pending)
+  billing_status = hotmart_status_from_pending(pending)
+  event_time = hotmart_event_time_from_pending(pending)
+  trial_days = offer_plan ? offer_plan['trialDays'].to_i : pending['trialDays'].to_i
+  trial_ends_at = pending['trialEndsAt'].to_s.strip
+  trial_ends_at = (Time.parse(event_time) + trial_days * 86_400).utc.iso8601 if trial_ends_at.empty? && trial_days.positive?
+  canceled_at = %w[canceled refunded chargeback].include?(billing_status) ? event_time : pending['canceledAt'].to_s.strip
+  if cycle_fallback
+    log_master("hotmart billingCycle fallback monthly pending=#{pending['id']} email=#{email} plan=#{plan}")
+    system_access_log!(action: 'hotmart_billing_cycle_fallback', email: email, message: 'Ciclo Hotmart ausente; usando monthly.', details: { 'pendingId' => pending['id'], 'planSlug' => plan, 'billingCycle' => billing_cycle }, source: 'hotmart', mod: 'hotmart', severity: 'warning')
+  end
+  slug = public_store_slug(pending['storeName'].to_s.strip.empty? ? name : pending['storeName'])
+  buyer_address = pending['buyerAddress'].is_a?(Hash) ? pending['buyerAddress'] : (pending['address'].is_a?(Hash) ? pending['address'] : {})
+  buyer_country = buyer_address['country_iso'].to_s.strip.empty? ? pending['buyerCountry'].to_s.strip : buyer_address['country_iso'].to_s.strip
+  tenant_doc = {
+    'id' => uid,
+    'uid' => uid,
+    'fullName' => name,
+    'name' => name,
+    'ownerName' => name,
+    'email' => email,
+    'phone' => pending['buyerPhone'].to_s,
+    'whatsapp' => pending['buyerPhone'].to_s,
+    'country' => buyer_country,
+    'language' => 'es-ES',
+    'businessName' => pending['storeName'].to_s.strip.empty? ? name : pending['storeName'].to_s.strip,
+    'plan' => plan,
+    'billingStatus' => billing_status,
+    'billingCycle' => billing_cycle,
+    'trialEndsAt' => trial_ends_at,
+    'activatedAt' => billing_status == 'active' ? event_time : '',
+    'canceledAt' => canceled_at,
+    'status' => 'pending',
+    'accountStatus' => 'pending',
+    'role' => 'owner',
+    'fiscalCountry' => buyer_country.empty? ? 'ES' : buyer_country,
+    'domain' => '',
+    'slug' => slug,
+    'publicUrl' => public_store_url(slug),
+    'storeUrl' => public_store_url(slug),
+    'adminUrl' => 'admin.html',
+    'source' => 'hotmart',
+    'origin' => 'hotmart',
+    'notes' => 'Criado a partir de compra Hotmart pendente.',
+    'githubRepo' => '',
+    'githubBranch' => 'main',
+    'githubToken' => '',
+    'publicFile' => 'index.html',
+    'store' => {
+      'name' => pending['storeName'].to_s.strip.empty? ? name : pending['storeName'].to_s.strip,
+      'slug' => slug,
+      'domain' => '',
+      'city' => '',
+      'country' => buyer_country,
+      'fiscalCountry' => buyer_country.empty? ? 'ES' : buyer_country,
+      'language' => 'es-ES',
+      'status' => 'draft'
+    },
+    'accountAddress' => {
+      'street' => buyer_address['address'].to_s,
+      'number' => buyer_address['number'].to_s,
+      'complement' => buyer_address['complement'].to_s,
+      'neighborhood' => buyer_address['neighborhood'].to_s,
+      'city' => buyer_address['city'].to_s,
+      'province' => buyer_address['state'].to_s,
+      'postalCode' => buyer_address['zipcode'].to_s,
+      'country' => buyer_country,
+      'fiscalCountry' => buyer_country.empty? ? 'ES' : buyer_country,
+      'source' => buyer_address.empty? ? 'setup' : 'hotmart'
+    },
+    'billing' => {
+      'provider' => 'hotmart',
+      'status' => billing_status,
+      'planSlug' => plan,
+      'billingCycle' => billing_cycle,
+      'trialEndsAt' => trial_ends_at,
+      'activatedAt' => billing_status == 'active' ? event_time : '',
+      'canceledAt' => canceled_at,
+      'hotmartSubscriberCode' => pending['hotmartSubscriberCode'].to_s,
+      'hotmartTransaction' => pending['hotmartTransaction'].to_s.empty? ? pending['transaction'].to_s : pending['hotmartTransaction'].to_s,
+      'hotmartProductId' => pending['hotmartProductId'].to_s,
+      'hotmartOfferCode' => pending['offerCode'].to_s.empty? ? pending['hotmartOfferCode'].to_s : pending['offerCode'].to_s,
+      'purchaseStatus' => pending['purchaseStatus'].to_s,
+      'subscriptionStatus' => pending['subscriptionStatus'].to_s.empty? ? billing_status : pending['subscriptionStatus'].to_s,
+      'lastHotmartEventAt' => event_time
+    },
+    'auth' => { 'uid' => uid, 'emailVerified' => false, 'lastLoginAt' => '' },
+    'createdAt' => now,
+    'updatedAt' => now
+  }
+  if trial_ends_at.empty?
+    tenant_doc.delete('trialEndsAt')
+    tenant_doc['billing'].delete('trialEndsAt') if tenant_doc['billing'].is_a?(Hash)
+  end
+  tenant_doc
+end
+
+def link_hotmart_pending_to_tenant!(pending, tenant, manual: false)
+  now = Time.now.utc.iso8601
+  billing = tenant['billing'].is_a?(Hash) ? tenant['billing'] : {}
+  offer_plan = hotmart_offer_plan_from_pending(pending)
+  billing_cycle, cycle_fallback = hotmart_billing_cycle_from_pending(pending)
+  billing_status = hotmart_status_from_pending(pending)
+  event_time = hotmart_event_time_from_pending(pending)
+  trial_days = offer_plan ? offer_plan['trialDays'].to_i : pending['trialDays'].to_i
+  trial_ends_at = pending['trialEndsAt'].to_s.strip
+  trial_ends_at = (Time.parse(event_time) + trial_days * 86_400).utc.iso8601 if trial_ends_at.empty? && trial_days.positive?
+  canceled_at = %w[canceled refunded chargeback].include?(billing_status) ? event_time : pending['canceledAt'].to_s.strip
+  if cycle_fallback
+    fallback_email = tenant['email'].to_s.empty? ? pending['buyerEmail'].to_s : tenant['email'].to_s
+    log_master("hotmart billingCycle fallback monthly pending=#{pending['id']} email=#{fallback_email} tenant=#{tenant['id']}")
+    system_access_log!(action: 'hotmart_billing_cycle_fallback', uid: tenant['id'], email: fallback_email, message: 'Ciclo Hotmart ausente; usando monthly.', details: { 'pendingId' => pending['id'], 'planSlug' => pending['planSlug'], 'billingCycle' => billing_cycle }, source: 'hotmart', mod: 'hotmart', severity: 'warning')
+  end
+  billing['provider'] = 'hotmart'
+  billing['status'] = billing_status
+  billing['planSlug'] = offer_plan ? offer_plan['planSlug'] : (pending['planSlug'].to_s.strip.empty? ? (billing['planSlug'].to_s.strip.empty? ? tenant['plan'].to_s : billing['planSlug'].to_s) : pending['planSlug'].to_s.strip)
+  billing['planSlug'] = 'essencial' if billing['planSlug'].to_s.strip == 'starter'
+  billing['billingCycle'] = billing_cycle
+  if trial_ends_at.empty?
+    billing.delete('trialEndsAt')
+  else
+    billing['trialEndsAt'] = trial_ends_at
+  end
+  billing['activatedAt'] = event_time if billing_status == 'active'
+  billing['canceledAt'] = canceled_at
+  billing['hotmartSubscriberCode'] = pending['hotmartSubscriberCode'].to_s
+  billing['hotmartTransaction'] = pending['hotmartTransaction'].to_s.empty? ? pending['transaction'].to_s : pending['hotmartTransaction'].to_s
+  billing['hotmartProductId'] = pending['hotmartProductId'].to_s
+  billing['hotmartOfferCode'] = pending['offerCode'].to_s.empty? ? pending['hotmartOfferCode'].to_s : pending['offerCode'].to_s
+  billing['purchaseStatus'] = pending['purchaseStatus'].to_s
+  billing['subscriptionStatus'] = pending['subscriptionStatus'].to_s.empty? ? billing_status : pending['subscriptionStatus'].to_s
+  billing['lastHotmartEventAt'] = event_time
+  tenant['billing'] = billing
+  account_address = tenant['accountAddress'].is_a?(Hash) ? tenant['accountAddress'] : {}
+  buyer_address = pending['buyerAddress'].is_a?(Hash) ? pending['buyerAddress'] : (pending['address'].is_a?(Hash) ? pending['address'] : {})
+  if account_address.empty? && !buyer_address.empty?
+    buyer_country = buyer_address['country_iso'].to_s.strip.empty? ? pending['buyerCountry'].to_s.strip : buyer_address['country_iso'].to_s.strip
+    tenant['accountAddress'] = {
+      'street' => buyer_address['address'].to_s,
+      'number' => buyer_address['number'].to_s,
+      'complement' => buyer_address['complement'].to_s,
+      'neighborhood' => buyer_address['neighborhood'].to_s,
+      'city' => buyer_address['city'].to_s,
+      'province' => buyer_address['state'].to_s,
+      'postalCode' => buyer_address['zipcode'].to_s,
+      'country' => buyer_country,
+      'fiscalCountry' => buyer_country.empty? ? 'ES' : buyer_country,
+      'source' => 'hotmart'
+    }
+  end
+  tenant['plan'] = billing['planSlug'].to_s.strip.empty? ? tenant['plan'] : billing['planSlug']
+  tenant['billingCycle'] = billing['billingCycle']
+  if trial_ends_at.empty?
+    tenant.delete('trialEndsAt')
+  else
+    tenant['trialEndsAt'] = billing['trialEndsAt']
+  end
+  tenant['activatedAt'] = billing['activatedAt'] if billing_status == 'active'
+  tenant['canceledAt'] = billing['canceledAt']
+  tenant['billingStatus'] = billing['status']
+  tenant['source'] = tenant['source'].to_s.strip.empty? ? 'hotmart' : tenant['source']
+  tenant['origin'] = tenant['origin'].to_s.strip.empty? ? 'hotmart' : tenant['origin']
+  tenant['updatedAt'] = now
+  firestore_upsert_document('pending_hotmart_access', pending['id'], {
+    'status' => 'linked',
+    'linkedTenantId' => tenant['id'].to_s,
+    'linkedEmail' => tenant['email'].to_s,
+    'manualLink' => manual,
+    'updatedAt' => now
+  })
+  system_access_log!(
+    action: manual ? 'hotmart_manual_link' : 'hotmart_purchase_linked',
+    uid: tenant['id'],
+    email: tenant['email'],
+    message: manual ? 'Compra Hotmart vinculada manualmente com e-mail diferente.' : 'Compra Hotmart vinculada por e-mail.',
+    details: { 'pendingId' => pending['id'], 'buyerEmail' => pending['buyerEmail'], 'transaction' => billing['hotmartTransaction'] }
+  )
+  system_access_log!(
+    action: hotmart_log_action_for_status(billing_status),
+    uid: tenant['id'],
+    email: tenant['email'],
+    message: "Status Hotmart aplicado ao tenant: #{billing_status}.",
+    details: { 'pendingId' => pending['id'], 'billingStatus' => billing_status, 'planSlug' => billing['planSlug'], 'billingCycle' => billing['billingCycle'] },
+    source: 'hotmart',
+    mod: 'hotmart',
+    severity: %w[chargeback past_due].include?(billing_status) ? 'warning' : 'info'
+  )
+  system_access_log!(
+    action: 'hotmart_linked_to_tenant',
+    uid: tenant['id'],
+    email: tenant['email'],
+    message: 'Evento Hotmart vinculado ao tenant.',
+    details: { 'pendingId' => pending['id'], 'billingStatus' => billing_status },
+    source: 'hotmart',
+    mod: 'hotmart'
+  )
   tenant
 end
 
@@ -1628,7 +2477,7 @@ def firebase_auto_sync_master_from_auth!
         'whatsapp' => '',
         'businessName' => display.empty? ? fallback_name : display,
         'document' => '',
-        'plan' => 'starter',
+        'plan' => 'essencial',
         'status' => 'active',
         'role' => 'store_owner',
         'fiscalCountry' => system_doc['fiscalCountry'].to_s.strip.empty? ? 'ES' : system_doc['fiscalCountry'].to_s.strip,
@@ -1657,7 +2506,7 @@ def firebase_auto_sync_master_from_auth!
       existing_local['businessName'] = existing_local['businessName'].to_s.strip.empty? ? existing_local['name'].to_s.strip : existing_local['businessName'].to_s.strip
       existing_local['status'] = 'active' if existing_local['status'].to_s.strip.empty? || existing_local['status'].to_s == 'pending'
       existing_local['role'] = firebase_normalize_role(existing_local['role'].to_s.strip.empty? ? 'store_owner' : existing_local['role'])
-      existing_local['plan'] = existing_local['plan'].to_s.strip.empty? ? 'starter' : existing_local['plan'].to_s.strip
+      existing_local['plan'] = existing_local['plan'].to_s.strip.empty? || existing_local['plan'].to_s.strip == 'starter' ? 'essencial' : existing_local['plan'].to_s.strip
       existing_local['source'] = existing_local['source'].to_s.strip.empty? ? 'firebase_auth_auto_import' : existing_local['source'].to_s.strip
       existing_local['updatedAt'] = now
       master_replace_tenant(store, existing_local)
@@ -1670,7 +2519,7 @@ def firebase_auto_sync_master_from_auth!
       'name' => existing_local['name'].to_s.strip.empty? ? (auth_user['displayName'].to_s.strip.empty? ? email.split('@').first.to_s : auth_user['displayName'].to_s.strip) : existing_local['name'].to_s.strip,
       'status' => existing_local['status'].to_s == 'disabled' ? 'disabled' : 'active',
       'role' => firebase_normalize_role(existing_local['role'].to_s.strip.empty? ? 'store_owner' : existing_local['role']),
-      'plan' => existing_local['plan'].to_s.strip.empty? ? 'starter' : existing_local['plan'].to_s.strip,
+      'plan' => existing_local['plan'].to_s.strip.empty? || existing_local['plan'].to_s.strip == 'starter' ? 'essencial' : existing_local['plan'].to_s.strip,
       'fiscalCountry' => existing_local['fiscalCountry'].to_s.strip.empty? ? (system_doc['fiscalCountry'].to_s.strip.empty? ? 'ES' : system_doc['fiscalCountry'].to_s.strip) : existing_local['fiscalCountry'].to_s.strip,
       'source' => 'firebase_auth_auto_import',
       'createdAt' => system_doc['createdAt'].to_s.strip.empty? ? now : system_doc['createdAt'].to_s,
@@ -2214,10 +3063,15 @@ end
 server = WEBrick::HTTPServer.new(
   BindAddress: '127.0.0.1',
   Port: (ENV['PORT'] || 3000).to_i,
-  DocumentRoot: ROOT,
+  DocumentRoot: PUBLIC_ROOT,
   Logger: WEBrick::Log.new($stderr, WEBrick::BasicLog::ERROR),
   AccessLog: []
 )
+
+server.mount_proc '/master.html' do |_req, res|
+  res['Content-Type'] = 'text/html; charset=utf-8'
+  res.body = File.read(File.join(ROOT, 'master.html'))
+end
 
 server.mount_proc '/api/master/firebase/overview' do |_req, res|
   begin
@@ -2246,13 +3100,15 @@ server.mount_proc '/api/master/firebase/provision' do |req, res|
   begin
     next json_response(res, 405, { ok: false, error: 'POST required' }) unless req.request_method == 'POST'
 
-    body = read_json(req)
-    email = body['email'].to_s.strip
-    uid_hint = body['id'].to_s.strip
-    store = master_store
-    existing_local = master_find_tenant(store, uid: uid_hint, email: email) || {}
-    tenant = tenant_from_body(body, existing_local)
-    tenant['source'] = existing_local['source'].to_s.strip.empty? ? 'master_local' : existing_local['source'].to_s.strip
+	    body = read_json(req)
+	    email = body['email'].to_s.strip
+	    uid_hint = body['id'].to_s.strip
+	    store = master_store
+	    existing_local = master_find_tenant(store, uid: uid_hint, email: email) || {}
+	    existing_for_logs = existing_local.empty? ? (system_tenant_by_uid(uid_hint) || {}) : existing_local
+	    tenant = tenant_from_body(body, existing_for_logs)
+    tenant['source'] = body['source'].to_s.strip.empty? ? (existing_local['source'].to_s.strip.empty? ? 'master_local' : existing_local['source'].to_s.strip) : body['source'].to_s.strip
+    tenant['origin'] = body['origin'].to_s.strip.empty? ? tenant['source'] : body['origin'].to_s.strip
     tenant['email'] = email.empty? ? tenant['email'] : email
     tenant['status'] = body['status'].to_s.strip.empty? ? (existing_local['status'].to_s.strip.empty? ? 'active' : existing_local['status'].to_s.strip) : body['status'].to_s.strip
     tenant['role'] = firebase_normalize_role(body['role'].to_s.strip.empty? ? (existing_local['role'].to_s.strip.empty? ? 'store_owner' : existing_local['role']) : body['role'])
@@ -2264,15 +3120,34 @@ server.mount_proc '/api/master/firebase/provision' do |req, res|
     tenant['email'] = email if !email.empty?
     tenant['updatedAt'] = Time.now.utc.iso8601
     tenant['createdAt'] = existing_local['createdAt'] || tenant['createdAt']
-    tenant['source'] = existing_local['source'].to_s.strip.empty? ? 'master_local' : existing_local['source'].to_s.strip
+    tenant['source'] = body['source'].to_s.strip.empty? ? (existing_local['source'].to_s.strip.empty? ? 'master_local' : existing_local['source'].to_s.strip) : body['source'].to_s.strip
+    tenant['origin'] = body['origin'].to_s.strip.empty? ? tenant['source'] : body['origin'].to_s.strip
 
     store = master_store
     ensure_unique_public_slug!(store, tenant['slug'], tenant['id'])
     master_restore_tenant!(store, tenant['id'])
     master_replace_tenant(store, tenant)
 
-    sync_result = sync_system_tenant!(tenant, { 'email' => tenant['email'] })
-    public_store_result = sync_public_store!(tenant, existing_local['slug'])
+	    sync_result = sync_system_tenant!(tenant, { 'email' => tenant['email'], 'uid' => final_uid }, force: true)
+	    public_store_result = tenant['slug'].to_s.strip.empty? ? { 'ok' => true, 'skipped' => true, 'reason' => 'slug_not_configured' } : sync_public_store!(tenant, existing_local['slug'])
+	    tenant_access_change_logs!(existing_for_logs, tenant) unless existing_for_logs.empty?
+	    if body['supportMode'] == true && !existing_for_logs.empty?
+	      system_access_log!(
+	        action: 'master_tenant_updated',
+	        uid: tenant['id'],
+	        email: tenant['email'],
+	        message: 'Dados alterados pelo Master em modo suporte.',
+	        details: { 'supportMode' => true },
+	        mod: 'master/users'
+	      )
+	    end
+	    system_access_log!(
+      action: existing_local.empty? ? 'manual_user_created' : 'manual_user_updated',
+      uid: tenant['id'],
+      email: tenant['email'],
+      message: existing_local.empty? ? 'Usuário criado manualmente no Master.' : 'Usuário atualizado no Master.',
+      details: { 'origin' => tenant['origin'] || tenant['source'], 'plan' => tenant['plan'], 'billingStatus' => tenant['billingStatus'] }
+    )
 
     log_master(
       "firebase provision email=#{tenant['email']} uid=#{tenant['id']} origin=#{tenant['source']} created_auth=#{auth_result['created']} saved_master=true system_tenants=#{sync_result['ok'] ? 'ok' : (sync_result['skipped'] ? 'skipped' : 'error')}"
@@ -2373,6 +3248,7 @@ server.mount_proc '/api/master/firebase/release-access' do |req, res|
     raise WEBrick::HTTPStatus::BadRequest, sync_result['error'] if sync_result['error']
     raise WEBrick::HTTPStatus::BadRequest, 'Usuário não liberado para o Centro de Control.' if sync_result['skipped']
 
+    system_access_log!(action: 'master_account_activated', uid: tenant['id'], email: tenant['email'], message: 'Conta liberada pelo Master.', details: { 'role' => tenant['role'], 'status' => tenant['status'] }, mod: 'master/users')
     log_master("firebase release access email=#{tenant['email']} uid=#{tenant['id']} role=#{tenant['role']} status=#{tenant['status']}")
     json_response(res, 200, { ok: true, tenantId: tenant['id'], systemTenant: sync_result['doc'] })
   rescue WEBrick::HTTPStatus::NotFound => e
@@ -2384,6 +3260,208 @@ server.mount_proc '/api/master/firebase/release-access' do |req, res|
   rescue => e
     log_master("firebase release access error #{e.class}: #{e.message}")
     json_response(res, 400, { ok: false, error: e.message })
+  end
+end
+
+server.mount_proc '/api/master/users' do |req, res|
+  begin
+    next json_response(res, 405, { ok: false, error: 'GET required', users: [] }) unless req.request_method == 'GET'
+    users = system_tenants_users
+    log_master("master users read path=system_tenants count=#{users.length} tenantUids=#{users.first(20).map { |u| u['id'].to_s }.join(',')}")
+    json_response(res, 200, { ok: true, users: users })
+  rescue => e
+    json_response(res, 400, { ok: false, error: e.message, users: [] })
+  end
+end
+
+server.mount_proc '/api/master/tenants/action' do |req, res|
+  begin
+    next json_response(res, 405, { ok: false, error: 'POST required' }) unless req.request_method == 'POST'
+    body = read_json(req)
+    action = body['action'].to_s
+    uid = body['uid'].to_s.strip
+    store = master_store
+    tenant = master_find_tenant(store, uid: uid, email: body['email'])
+    tenant ||= system_tenant_by_uid(uid)
+    raise WEBrick::HTTPStatus::NotFound, 'Usuário não encontrado.' unless tenant
+
+    case action
+    when 'activate_access'
+      billing = tenant['billing'].is_a?(Hash) ? tenant['billing'] : {}
+      billing['status'] = 'active' if billing['status'].to_s.strip.empty? || billing['status'].to_s == 'inactive' || billing['status'].to_s == 'pending_payment'
+      tenant['status'] = 'active'
+      tenant['accountStatus'] = 'active'
+      tenant['billing'] = billing
+      tenant['billingStatus'] = billing['status']
+      tenant['updatedAt'] = Time.now.utc.iso8601
+      master_replace_tenant(store, tenant) if master_find_tenant(store, uid: uid, email: body['email'])
+      firestore_upsert_document('system_tenants', tenant['id'] || uid, {
+        'accountStatus' => 'active',
+        'status' => 'active',
+        'billing' => billing,
+        'billingStatus' => billing['status'],
+        'updatedAt' => tenant['updatedAt']
+      })
+      system_access_log!(action: 'master_account_activated', uid: tenant['id'] || uid, email: tenant['email'], message: 'Conta liberada pelo Master.', details: { 'billingStatus' => billing['status'] }, mod: 'master/users')
+      json_response(res, 200, { ok: true, tenant: tenant })
+    when 'block_access'
+      tenant['status'] = 'blocked'
+      tenant['accountStatus'] = 'blocked'
+      tenant['updatedAt'] = Time.now.utc.iso8601
+      master_replace_tenant(store, tenant) if master_find_tenant(store, uid: uid, email: body['email'])
+      begin
+        firebase_create_or_update_auth_user(tenant)
+      rescue => e
+        log_master("block access firebase auth warning uid=#{tenant['id']} #{e.class}: #{e.message}")
+      end
+      begin
+        firestore_upsert_document('system_tenants', tenant['id'] || uid, { 'accountStatus' => 'blocked', 'status' => 'blocked', 'updatedAt' => tenant['updatedAt'] })
+      rescue => e
+        log_master("block access system_tenants warning uid=#{tenant['id']} #{e.class}: #{e.message}")
+      end
+      system_access_log!(action: 'master_account_blocked', uid: tenant['id'], email: tenant['email'], message: 'Conta bloqueada pelo Master.', mod: 'master/users', severity: 'warning')
+      json_response(res, 200, { ok: true, tenant: tenant })
+    when 'change_plan'
+      plan = body['planSlug'].to_s.strip
+      raise WEBrick::HTTPStatus::BadRequest, 'Plano obrigatório.' if plan.empty?
+      cycle = body['billingCycle'].to_s.strip
+      billing = tenant['billing'].is_a?(Hash) ? tenant['billing'] : {}
+      provider = billing_provider_from_hash(tenant)
+      raise WEBrick::HTTPStatus::BadRequest, 'Plano controlado pela Hotmart. Use vínculo/reprocessamento Hotmart.' if provider == 'hotmart'
+      billing['provider'] = 'manual' if provider == 'none'
+      cycle = billing['billingCycle'].to_s.strip if cycle.empty?
+      cycle = tenant['billingCycle'].to_s.strip if cycle.empty?
+      cycle = billing['cycle'].to_s.strip if cycle.empty?
+      cycle = 'monthly' if cycle.empty?
+      billing['planSlug'] = plan
+      billing['billingCycle'] = cycle
+      tenant['plan'] = plan
+      tenant['billing'] = billing
+      tenant['billingCycle'] = billing['billingCycle']
+      tenant['updatedAt'] = Time.now.utc.iso8601
+      master_replace_tenant(store, tenant) if master_find_tenant(store, uid: uid, email: body['email'])
+      firestore_upsert_document('system_tenants', tenant['id'] || uid, {
+        'plan' => plan,
+        'billing' => billing,
+        'billingCycle' => billing['billingCycle'].to_s,
+        'updatedAt' => tenant['updatedAt']
+      })
+      system_access_log!(action: 'billing_plan_changed', uid: tenant['id'] || uid, email: tenant['email'], message: "Plano alterado para #{plan}.", details: { 'planSlug' => plan, 'billingCycle' => billing['billingCycle'].to_s })
+      json_response(res, 200, { ok: true, tenant: tenant })
+    when 'archive'
+      tenant['status'] = 'archived'
+      tenant['accountStatus'] = 'archived'
+      tenant['archivedAt'] = Time.now.utc.iso8601
+      tenant['updatedAt'] = tenant['archivedAt']
+      master_replace_tenant(store, tenant) if master_find_tenant(store, uid: uid, email: body['email'])
+      firestore_upsert_document('system_tenants', tenant['id'] || uid, {
+        'accountStatus' => 'archived',
+        'status' => 'archived',
+        'archivedAt' => tenant['archivedAt'],
+        'updatedAt' => tenant['updatedAt']
+      })
+      system_access_log!(action: 'tenant_archived', uid: tenant['id'] || uid, email: tenant['email'], message: 'Tenant arquivado pelo Master.')
+      json_response(res, 200, { ok: true, tenant: tenant })
+    else
+      raise WEBrick::HTTPStatus::BadRequest, 'Ação inválida.'
+    end
+  rescue WEBrick::HTTPStatus::NotFound => e
+    json_response(res, 404, { ok: false, error: e.message })
+  rescue => e
+    json_response(res, 400, { ok: false, error: e.message })
+  end
+end
+
+server.mount_proc '/api/master/hotmart/pending' do |_req, res|
+  begin
+    items = pending_hotmart_docs
+      .select { |item| pending_hotmart_requires_manual_action?(item) }
+      .map { |item| item.merge('pendingReason' => pending_hotmart_reason(item)) }
+      .sort_by { |item| item['updatedAt'].to_s.empty? ? item['createdAt'].to_s : item['updatedAt'].to_s }
+      .reverse
+    json_response(res, 200, { ok: true, items: items })
+  rescue => e
+    json_response(res, 400, { ok: false, error: e.message, items: [] })
+  end
+end
+
+server.mount_proc '/api/master/hotmart/pending/action' do |req, res|
+  begin
+    next json_response(res, 405, { ok: false, error: 'POST required' }) unless req.request_method == 'POST'
+    body = read_json(req)
+    action = body['action'].to_s
+    pending = find_pending_hotmart(body['pendingId'].to_s.strip.empty? ? body['transaction'] : body['pendingId'])
+    raise WEBrick::HTTPStatus::NotFound, 'Pendência Hotmart não encontrada.' unless pending
+    store = master_store
+    now = Time.now.utc.iso8601
+
+    case action
+    when 'archive'
+      firestore_upsert_document('pending_hotmart_access', pending['id'], { 'status' => 'archived', 'updatedAt' => now })
+      system_access_log!(action: 'hotmart_pending_archived', email: pending['buyerEmail'], message: 'Pendência Hotmart arquivada.', details: { 'pendingId' => pending['id'] })
+      json_response(res, 200, { ok: true })
+    when 'create_tenant'
+      tenant = tenant_from_hotmart_pending(pending)
+      existing = master_find_tenant(store, uid: tenant['id'], email: tenant['email']) || {}
+      raise WEBrick::HTTPStatus::BadRequest, 'Já existe tenant com este e-mail. Use vincular compra Hotmart.' unless existing.empty?
+      master_replace_tenant(store, tenant)
+      linked = link_hotmart_pending_to_tenant!(pending, tenant, manual: false)
+      sync_system_tenant!(linked, nil, force: true)
+      system_access_log!(action: 'manual_user_created', uid: tenant['id'], email: tenant['email'], message: 'Tenant criado a partir de compra Hotmart pendente.', details: { 'pendingId' => pending['id'] })
+      json_response(res, 200, { ok: true, tenant: linked })
+    when 'link_existing'
+      tenant = master_find_tenant(store, uid: body['uid'], email: body['email'])
+      tenant ||= system_tenant_by_uid(body['uid'])
+      raise WEBrick::HTTPStatus::NotFound, 'Usuário/tenant não encontrado para vínculo.' unless tenant
+      same_email = tenant['email'].to_s.strip.downcase == pending['buyerEmail'].to_s.strip.downcase
+      manual = !same_email
+      linked = link_hotmart_pending_to_tenant!(pending, tenant, manual: manual)
+      master_replace_tenant(store, linked) if master_find_tenant(store, uid: linked['id'], email: linked['email'])
+      tenant_hotmart_update = {
+        'billing' => linked['billing'],
+        'billingStatus' => linked['billingStatus'],
+        'billingCycle' => linked['billingCycle'],
+        'activatedAt' => linked['activatedAt'],
+        'canceledAt' => linked['canceledAt'],
+        'plan' => linked['plan'],
+        'origin' => linked['origin'],
+        'source' => linked['source'],
+        'updatedAt' => linked['updatedAt']
+      }
+      tenant_hotmart_update['trialEndsAt'] = linked['trialEndsAt'] if linked.key?('trialEndsAt')
+      firestore_upsert_document('system_tenants', linked['id'], tenant_hotmart_update)
+      json_response(res, 200, { ok: true, tenant: linked, manualLink: manual })
+    else
+      raise WEBrick::HTTPStatus::BadRequest, 'Ação inválida.'
+    end
+  rescue WEBrick::HTTPStatus::NotFound => e
+    json_response(res, 404, { ok: false, error: e.message })
+  rescue => e
+    json_response(res, 400, { ok: false, error: e.message })
+  end
+end
+
+server.mount_proc '/api/master/access/logs' do |req, res|
+  begin
+    params = URI.decode_www_form(req.query_string.to_s).to_h
+    uid = params['uid'].to_s.strip
+    email = params['email'].to_s.strip.downcase
+    action = params['action'].to_s.strip
+    docs = firestore_list_documents('system_access_logs')
+    logs = docs.map { |doc| firestore_fields_to_hash(doc['fields'] || {}).merge('id' => doc['name'].to_s.split('/').last.to_s) }
+    logs = logs.select do |log|
+      uid_match = uid.empty? || log['uid'].to_s == uid || log['tenantUid'].to_s == uid
+      details = log['details'].is_a?(Hash) ? log['details'] : {}
+      email_value = log['email'].to_s.strip.downcase
+      email_value = details['email'].to_s.strip.downcase if email_value.empty?
+      email_match = email.empty? || email_value == email
+      action_match = action.empty? || log['action'].to_s == action
+      uid_match && email_match && action_match
+    end
+    logs = logs.sort_by { |log| log['createdAt'].to_s }.reverse.first(50)
+    json_response(res, 200, { ok: true, logs: logs })
+  rescue => e
+    json_response(res, 400, { ok: false, error: e.message, logs: [] })
   end
 end
 
@@ -2408,7 +3486,7 @@ server.mount_proc '/api/master/tenants' do |req, res|
     store['tenants'] = (store['tenants'] || []).reject { |t| t['id'] == tenant['id'] }
     store['tenants'] << tenant
     save_store(store)
-    sync_public_store!(tenant, existing['slug'])
+    sync_public_store!(tenant, existing['slug']) unless tenant['slug'].to_s.strip.empty?
     log_master("user saved #{tenant['id']}")
   end
   json_response(res, 200, { tenants: store['tenants'] || [] })

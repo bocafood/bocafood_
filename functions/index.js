@@ -11,6 +11,11 @@ const MASTER_EMAILS = new Set([
   "bocadobrasil.es@gmail.com",
   "pcruz.digital@gmail.com"
 ]);
+const HOTMART_OFFER_PLANS = {
+  u7wyvsyn: { planSlug: "essencial", billingCycle: "monthly", trialDays: 15 },
+  kah1d2ne: { planSlug: "compromisso_anual", billingCycle: "annual", trialDays: 15 },
+  woavlwrh: { planSlug: "fundadoras", billingCycle: "monthly", trialDays: 0 }
+};
 
 const EMAIL_TEMPLATE_DEFAULTS = {
   welcome_hotmart: {
@@ -104,8 +109,68 @@ function serverTimestamp() {
   return admin.firestore.FieldValue.serverTimestamp();
 }
 
+function nowIso() {
+  return new Date().toISOString();
+}
+
 function normalizeEmail(value) {
   return String(value || "").trim().toLowerCase();
+}
+
+function slugify(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-{2,}/g, "-");
+}
+
+function hotmartOfferCodeFromPayload(payload) {
+  const data = payload.data || payload || {};
+  const purchase = data.purchase || {};
+  const offer = purchase.offer || data.offer || {};
+  const direct = offer.code || purchase.offer_code || data.offerCode || data.hotmartOfferCode || "";
+  if (direct) return String(direct).trim().toLowerCase();
+  const url = String(purchase.checkout_url || purchase.payment_url || data.checkoutUrl || data.url || "");
+  const match = url.match(/[?&]off=([^&#]+)/i);
+  return match ? decodeURIComponent(match[1]).trim().toLowerCase() : "";
+}
+
+function hotmartOfferPlan(payload) {
+  return HOTMART_OFFER_PLANS[hotmartOfferCodeFromPayload(payload)] || null;
+}
+
+function eventDateIso(payload) {
+  const data = payload.data || payload || {};
+  const candidates = [
+    data.purchase && data.purchase.approved_date,
+    data.purchase && data.purchase.order_date,
+    data.purchase && data.purchase.date,
+    data.subscription && data.subscription.date_next_charge,
+    data.eventDate,
+    data.createdAt,
+    payload.creation_date,
+    payload.createdAt
+  ];
+  const value = candidates.find((item) => item != null && String(item).trim() !== "");
+  if (!value) return nowIso();
+  if (typeof value === "number") {
+    const ms = value > 9999999999 ? value : value * 1000;
+    return new Date(ms).toISOString();
+  }
+  const parsed = Date.parse(String(value));
+  return Number.isNaN(parsed) ? nowIso() : new Date(parsed).toISOString();
+}
+
+function addDaysIso(iso, days) {
+  const count = Number(days || 0);
+  if (!count) return "";
+  const parsed = Date.parse(iso);
+  if (Number.isNaN(parsed)) return "";
+  return new Date(parsed + count * 86400000).toISOString();
 }
 
 function replaceVariables(text, variables) {
@@ -127,19 +192,226 @@ function isApprovedHotmartEvent(eventName) {
   ].includes(event);
 }
 
+function hotmartBillingStatus(eventName, payload) {
+  const event = String(eventName || "").toUpperCase();
+  const data = payload.data || payload || {};
+  const purchase = data.purchase || {};
+  const subscription = data.subscription || {};
+  const rawStatus = String(purchase.status || subscription.status || data.status || "").toUpperCase();
+  if (event.includes("CHARGEBACK") || rawStatus.includes("CHARGEBACK")) return "chargeback";
+  if (event.includes("REFUND") || event.includes("REIMBURSE") || rawStatus.includes("REFUND")) return "refunded";
+  if (event.includes("CANCEL") || rawStatus.includes("CANCEL")) return "canceled";
+  if (event.includes("OVERDUE") || event.includes("PAST_DUE") || event.includes("DELAYED") || rawStatus.includes("OVERDUE") || rawStatus.includes("PAST_DUE")) return "past_due";
+  if (event.includes("BILLET") || event.includes("BOLETO") || event.includes("PENDING") || event.includes("WAITING") || rawStatus.includes("PENDING") || rawStatus.includes("WAITING")) return "pending_payment";
+  if (isApprovedHotmartEvent(event)) return "active";
+  return "";
+}
+
+function hotmartLogAction(status) {
+  return {
+    active: "hotmart_subscription_activated",
+    canceled: "hotmart_subscription_canceled",
+    pending_payment: "hotmart_payment_pending",
+    past_due: "hotmart_payment_past_due",
+    refunded: "hotmart_refunded",
+    chargeback: "hotmart_chargeback"
+  }[status] || "hotmart_event_received";
+}
+
+function mapHotmartCycle(payload) {
+  const offerPlan = hotmartOfferPlan(payload);
+  if (offerPlan) return { billingCycle: offerPlan.billingCycle, fallback: false };
+  const data = payload.data || payload || {};
+  const subscription = data.subscription || {};
+  const purchase = data.purchase || {};
+  const offer = data.offer || {};
+  const raw = [
+    data.billingCycle,
+    data.billing_cycle,
+    data.recurrence,
+    subscription.billingCycle,
+    subscription.billing_cycle,
+    subscription.recurrence,
+    purchase.billingCycle,
+    offer.billingCycle
+  ].find((item) => item != null && String(item).trim() !== "");
+  const value = String(raw || "").toLowerCase();
+  if (["annual", "annually", "yearly", "year", "anual", "ano"].includes(value) || value.includes("annual") || value.includes("year") || value.includes("anual")) return { billingCycle: "annual", fallback: false };
+  if (["monthly", "month", "mensal", "mes", "mês"].includes(value) || value.includes("month") || value.includes("mensal")) return { billingCycle: "monthly", fallback: false };
+  const reference = [
+    subscription.plan && subscription.plan.name,
+    subscription.plan_name,
+    purchase.plan,
+    data.planName,
+    offer.code,
+    offer.name
+  ].map((item) => String(item || "").toLowerCase()).join(" ");
+  if (reference.includes("annual") || reference.includes("year") || reference.includes("anual")) return { billingCycle: "annual", fallback: false };
+  if (reference.includes("monthly") || reference.includes("mensal") || reference.includes("month")) return { billingCycle: "monthly", fallback: false };
+  return { billingCycle: "monthly", fallback: true };
+}
+
+function extractHotmartTrialDays(payload) {
+  const offerPlan = hotmartOfferPlan(payload);
+  if (offerPlan) return offerPlan.trialDays || 0;
+  const data = payload.data || payload || {};
+  const subscription = data.subscription || {};
+  const offer = data.offer || {};
+  const plan = subscription.plan || {};
+  const value = [data.trialDays, data.trial_days, subscription.trialDays, subscription.trial_days, offer.trialDays, offer.trial_days, plan.trialDays, plan.trial_days]
+    .find((item) => item != null && String(item).trim() !== "");
+  const days = Number(value || 0);
+  return Number.isFinite(days) && days > 0 ? days : 0;
+}
+
 function extractHotmartBuyer(payload) {
   const data = payload.data || payload;
   const buyer = data.buyer || data.buyer_info || {};
   const purchase = data.purchase || {};
   const subscription = data.subscription || {};
   const product = data.product || {};
+  const offer = data.offer || {};
   const fullName = buyer.name || buyer.full_name || data.buyerName || "";
+  const cycleInfo = mapHotmartCycle(payload);
+  const activatedAt = eventDateIso(payload);
+  const trialDays = extractHotmartTrialDays(payload);
+  const planName = subscription.plan && subscription.plan.name ? subscription.plan.name : (subscription.plan_name || purchase.plan || data.planName || "Plano BocaFood");
+  const offerCode = hotmartOfferCodeFromPayload(payload);
+  const offerPlan = hotmartOfferPlan(payload);
+  const planSlug = (offerPlan && offerPlan.planSlug) || slugify(data.planSlug || subscription.plan_slug || (subscription.plan && (subscription.plan.slug || subscription.plan.id || subscription.plan.name)) || offer.planSlug || offerCode || planName) || "essencial";
   return {
     buyerName: fullName || "Cliente",
     buyerEmail: normalizeEmail(buyer.email || data.buyerEmail || data.email),
-    planName: subscription.plan && subscription.plan.name ? subscription.plan.name : (subscription.plan_name || purchase.plan || data.planName || "Plano BocaFood"),
-    productName: product.name || data.productName || "BocaFood"
+    buyerPhone: buyer.phone || buyer.phone_number || data.buyerPhone || "",
+    buyerCountry: buyer.country_iso || buyer.country || data.buyerCountry || "",
+    planName,
+    planSlug,
+    productName: product.name || data.productName || "BocaFood",
+    hotmartSubscriberCode: subscription.subscriber_code || subscription.subscriberCode || subscription.code || data.hotmartSubscriberCode || "",
+    hotmartTransaction: purchase.transaction || purchase.transaction_code || data.transaction || data.hotmartTransaction || "",
+    hotmartProductId: product.id || product.ucode || data.hotmartProductId || "",
+    hotmartOfferCode: offerCode,
+    billingCycle: cycleInfo.billingCycle,
+    billingCycleFallback: cycleInfo.fallback,
+    trialDays,
+    activatedAt,
+    trialEndsAt: trialDays ? addDaysIso(activatedAt, trialDays) : "",
+    purchaseStatus: purchase.status || data.purchaseStatus || "",
+    subscriptionStatus: subscription.status || data.subscriptionStatus || "",
+    buyerAddress: buyer.address || data.buyerAddress || {}
   };
+}
+
+async function recordSystemAccessLog(data) {
+  const metadata = {};
+  Object.keys(data.metadata || {}).forEach((key) => {
+    if (/password|senha|token|secret|credential|authorization|payload|html|image|customer|cliente/i.test(key)) return;
+    const value = data.metadata[key];
+    const text = typeof value === "object" ? JSON.stringify(value) : String(value == null ? "" : value);
+    metadata[key] = text.length > 180 ? text.slice(0, 180) : text;
+  });
+  await db.collection("system_access_logs").doc().set({
+    tenantUid: data.tenantUid || "",
+    uid: data.tenantUid || "",
+    email: data.email || "",
+    action: data.action || "hotmart_event_received",
+    module: "hotmart",
+    entityType: "tenant",
+    entityId: data.tenantUid || data.email || "",
+    summary: data.summary || "",
+    message: data.summary || "",
+    source: "hotmart",
+    severity: data.severity || "info",
+    metadata,
+    details: metadata,
+    createdAt: nowIso()
+  });
+}
+
+async function findSystemTenantsForHotmart(buyer) {
+  const matches = [];
+  if (buyer.buyerEmail) {
+    const emailSnap = await db.collection("system_tenants").where("email", "==", buyer.buyerEmail).get();
+    emailSnap.forEach((doc) => matches.push({ id: doc.id, data: doc.data() || {} }));
+  }
+  const codes = [buyer.hotmartSubscriberCode, buyer.hotmartTransaction].filter(Boolean);
+  for (const code of codes) {
+    const field = code === buyer.hotmartSubscriberCode ? "billing.hotmartSubscriberCode" : "billing.hotmartTransaction";
+    const snap = await db.collection("system_tenants").where(field, "==", code).get();
+    snap.forEach((doc) => {
+      if (!matches.some((item) => item.id === doc.id)) matches.push({ id: doc.id, data: doc.data() || {} });
+    });
+  }
+  return matches;
+}
+
+async function applyHotmartBillingToTenants({ buyer, status, eventName, eventAt }) {
+  const matches = await findSystemTenantsForHotmart(buyer);
+  if (!matches.length) return 0;
+  const canceledAt = ["canceled", "refunded", "chargeback"].includes(status) ? eventAt : "";
+  let activePatch = status === "active" ? {
+    plan: buyer.planSlug,
+    billingCycle: buyer.billingCycle,
+    activatedAt: eventAt,
+    billingStatus: "active",
+    billing: {
+      provider: "hotmart",
+      status: "active",
+      planSlug: buyer.planSlug,
+      billingCycle: buyer.billingCycle,
+      activatedAt: eventAt,
+      hotmartSubscriberCode: buyer.hotmartSubscriberCode || "",
+      hotmartTransaction: buyer.hotmartTransaction || "",
+      hotmartProductId: buyer.hotmartProductId || "",
+      hotmartOfferCode: buyer.hotmartOfferCode || "",
+      purchaseStatus: buyer.purchaseStatus || "",
+      subscriptionStatus: buyer.subscriptionStatus || "",
+      lastHotmartEventAt: eventAt
+    },
+    updatedAt: eventAt
+  } : {
+    billingStatus: status,
+    billing: {
+      provider: "hotmart",
+      status,
+      canceledAt: canceledAt || "",
+      hotmartSubscriberCode: buyer.hotmartSubscriberCode || "",
+      hotmartTransaction: buyer.hotmartTransaction || "",
+      hotmartProductId: buyer.hotmartProductId || "",
+      hotmartOfferCode: buyer.hotmartOfferCode || "",
+      purchaseStatus: buyer.purchaseStatus || "",
+      subscriptionStatus: buyer.subscriptionStatus || status,
+      lastHotmartEventAt: eventAt
+    },
+    updatedAt: eventAt
+  };
+  if (status === "active" && buyer.trialEndsAt) {
+    activePatch.trialEndsAt = buyer.trialEndsAt;
+    activePatch.billing.trialEndsAt = buyer.trialEndsAt;
+  } else if (status === "active") {
+    activePatch.trialEndsAt = admin.firestore.FieldValue.delete();
+    activePatch.billing.trialEndsAt = admin.firestore.FieldValue.delete();
+  }
+  if (canceledAt) activePatch.canceledAt = canceledAt;
+  await Promise.all(matches.map(async (item) => {
+    await db.collection("system_tenants").doc(item.id).set(activePatch, { merge: true });
+    await recordSystemAccessLog({
+      tenantUid: item.id,
+      email: buyer.buyerEmail || item.data.email || "",
+      action: hotmartLogAction(status),
+      summary: `Evento Hotmart aplicado ao tenant: ${status}.`,
+      severity: ["chargeback", "past_due"].includes(status) ? "warning" : "info",
+      metadata: {
+        eventType: eventName,
+        billingStatus: status,
+        planSlug: buyer.planSlug,
+        billingCycle: buyer.billingCycle,
+        transaction: buyer.hotmartTransaction,
+        subscriber: buyer.hotmartSubscriberCode
+      }
+    });
+  }));
+  return matches.length;
 }
 
 async function ensureEmailDefaults() {
@@ -460,37 +732,78 @@ exports.hotmartWebhook = onRequest(
       );
 
       const eventName = payload.event || payload.event_name || payload.type;
-      if (isApprovedHotmartEvent(eventName)) {
+      const status = hotmartBillingStatus(eventName, payload);
+      if (status) {
         const buyer = extractHotmartBuyer(payload);
-        if (buyer.buyerEmail) {
-          const settingsSnap = await db.collection("system_email_settings").doc("default").get();
-          const settings = settingsSnap.exists ? settingsSnap.data() : {};
-          const appBaseUrl = settings.appBaseUrl || "https://app.bocafood.com";
-          await db.collection("pending_hotmart_access").doc(eventId).set({
+        if (buyer.buyerEmail || buyer.hotmartSubscriberCode || buyer.hotmartTransaction) {
+          const eventAt = eventDateIso(payload);
+          const linkedCount = await applyHotmartBillingToTenants({ buyer, status, eventName, eventAt });
+          const pendingAccess = {
             eventId,
             buyerName: buyer.buyerName,
             buyerEmail: buyer.buyerEmail,
+            buyerPhone: buyer.buyerPhone,
+            buyerCountry: buyer.buyerCountry,
+            buyerAddress: buyer.buyerAddress,
             planName: buyer.planName,
             productName: buyer.productName,
-            status: "pending",
+            planSlug: buyer.planSlug,
+            billingCycle: buyer.billingCycle,
+            trialDays: buyer.trialDays || 0,
+            activatedAt: status === "active" ? eventAt : "",
+            canceledAt: ["canceled", "refunded", "chargeback"].includes(status) ? eventAt : "",
+            purchaseStatus: buyer.purchaseStatus || "",
+            subscriptionStatus: buyer.subscriptionStatus || status,
+            hotmartSubscriberCode: buyer.hotmartSubscriberCode || "",
+            hotmartTransaction: buyer.hotmartTransaction || "",
+            hotmartProductId: buyer.hotmartProductId || "",
+            hotmartOfferCode: buyer.hotmartOfferCode || "",
+            offerCode: buyer.hotmartOfferCode || "",
+            lastHotmartEventAt: eventAt,
+            status: linkedCount ? "linked" : "pending",
+            internalStatus: status,
+            pendingReason: linkedCount ? "linked_to_tenant" : "tenant_not_found",
+            eventType: eventName || "",
             source: "hotmart",
             createdAt: serverTimestamp(),
-            payload
-          }, { merge: true });
-          await createEmailFromTemplate({
-            to: buyer.buyerEmail,
-            templateKey: "welcome_hotmart",
-            origin: "hotmart",
-            metadata: { eventId },
-            variables: {
-              ...buyer,
-              signupUrl: `${appBaseUrl.replace(/\/$/, "")}/cadastro`,
-              supportEmail: settings.supportEmail || settings.replyTo || "",
-              appBaseUrl,
-              brandName: settings.brandName || settings.fromName || "BocaFood",
-              brandLogoUrl: settings.brandLogoUrl || "https://bocafood.app/assets/boca-food-logo.png"
+            updatedAt: serverTimestamp()
+          };
+          if (buyer.trialEndsAt) pendingAccess.trialEndsAt = buyer.trialEndsAt;
+          else pendingAccess.trialEndsAt = admin.firestore.FieldValue.delete();
+          await db.collection("pending_hotmart_access").doc(eventId).set(pendingAccess, { merge: true });
+          await recordSystemAccessLog({
+            email: buyer.buyerEmail,
+            action: linkedCount ? "hotmart_linked_to_tenant" : hotmartLogAction(status),
+            summary: linkedCount ? "Evento Hotmart vinculado ao tenant." : "Evento Hotmart recebido sem tenant vinculado.",
+            severity: buyer.billingCycleFallback ? "warning" : "info",
+            metadata: {
+              eventId,
+              eventType: eventName,
+              billingStatus: status,
+              planSlug: buyer.planSlug,
+              billingCycle: buyer.billingCycle,
+              linkedCount
             }
           });
+          if (buyer.buyerEmail && isApprovedHotmartEvent(eventName) && !linkedCount) {
+            const settingsSnap = await db.collection("system_email_settings").doc("default").get();
+            const settings = settingsSnap.exists ? settingsSnap.data() : {};
+            const appBaseUrl = settings.appBaseUrl || "https://app.bocafood.com";
+            await createEmailFromTemplate({
+              to: buyer.buyerEmail,
+              templateKey: "welcome_hotmart",
+              origin: "hotmart",
+              metadata: { eventId },
+              variables: {
+                ...buyer,
+                signupUrl: `${appBaseUrl.replace(/\/$/, "")}/cadastro`,
+                supportEmail: settings.supportEmail || settings.replyTo || "",
+                appBaseUrl,
+                brandName: settings.brandName || settings.fromName || "BocaFood",
+                brandLogoUrl: settings.brandLogoUrl || "https://bocafood.app/assets/boca-food-logo.png"
+              }
+            });
+          }
         }
       }
 
