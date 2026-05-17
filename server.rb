@@ -269,6 +269,10 @@ def email_public_settings_from_body(body)
     'supportEmail' => support_email.empty? ? reply_to : support_email,
     'appBaseUrl' => body['appBaseUrl'].to_s.strip,
     'brandName' => body['brandName'].to_s.strip.empty? ? 'BocaFood' : body['brandName'].to_s.strip,
+    'termsUrl' => body['termsUrl'].to_s.strip,
+    'privacyUrl' => body['privacyUrl'].to_s.strip,
+    'securityText' => body['securityText'].to_s.strip.empty? ? 'o BocaFood nunca solicita senha por e-mail.' : body['securityText'].to_s.strip,
+    'footerReasonDefault' => body['footerReasonDefault'].to_s.strip.empty? ? 'esta mensagem faz parte do seu relacionamento com o BocaFood' : body['footerReasonDefault'].to_s.strip,
     'smtpHost' => body['smtpHost'].to_s.strip,
     'smtpPort' => smtp_port,
     'smtpSecure' => smtp_secure,
@@ -302,6 +306,10 @@ def default_email_settings
     'supportEmail' => 'teajudo@bocafood.app',
     'appBaseUrl' => 'https://app.bocafood.com',
     'brandName' => 'BocaFood',
+    'termsUrl' => 'https://bocafood.app/termos',
+    'privacyUrl' => 'https://bocafood.app/privacidade',
+    'securityText' => 'o BocaFood nunca solicita senha por e-mail.',
+    'footerReasonDefault' => 'esta mensagem faz parte do seu relacionamento com o BocaFood',
     'brandLogoUrl' => 'https://bocafood.app/assets/boca-food-logo.png',
     'smtpHost' => '',
     'smtpPort' => 587,
@@ -817,6 +825,165 @@ def apply_crm_tag_to_tenant!(body)
   { 'tenantUid' => uid, 'tagKey' => tag_key, 'action' => action }
 end
 
+def crm_nested_value(source, path)
+  current = source
+  path.to_s.split('.').each do |part|
+    return nil unless current.is_a?(Hash)
+    return nil unless current.key?(part)
+    current = current[part]
+  end
+  current
+end
+
+def crm_value_present?(value)
+  return false if value.nil?
+  return !value.strip.empty? if value.is_a?(String)
+  return !value.empty? if value.respond_to?(:empty?)
+  true
+end
+
+def crm_number(value)
+  return value.to_f if value.is_a?(Numeric)
+  Float(value.to_s)
+rescue
+  nil
+end
+
+def crm_time(value)
+  return value if value.is_a?(Time)
+  return nil if value.nil? || value.to_s.strip.empty?
+  Time.parse(value.to_s)
+rescue
+  nil
+end
+
+def crm_condition_matches?(tenant, condition)
+  return false unless condition.is_a?(Hash)
+  field = condition['field'].to_s.strip
+  operator = condition['operator'].to_s.strip
+  expected = condition['value']
+  actual = crm_nested_value(tenant, field)
+
+  case operator
+  when 'equals'
+    actual.to_s == expected.to_s
+  when 'not_equals'
+    actual.to_s != expected.to_s
+  when 'greater_than', 'greater_or_equal', 'less_than', 'less_or_equal'
+    left = crm_number(actual)
+    right = crm_number(expected)
+    return false if left.nil? || right.nil?
+    case operator
+    when 'greater_than' then left > right
+    when 'greater_or_equal' then left >= right
+    when 'less_than' then left < right
+    else left <= right
+    end
+  when 'exists'
+    crm_value_present?(actual)
+  when 'not_exists'
+    !crm_value_present?(actual)
+  when 'older_than_days', 'newer_than_days'
+    date = crm_time(actual)
+    days = crm_number(expected)
+    return false if date.nil? || days.nil?
+    threshold = Time.now.utc - (days * 86_400)
+    operator == 'older_than_days' ? date < threshold : date >= threshold
+  else
+    false
+  end
+end
+
+def crm_rule_matches?(tenant, rule)
+  conditions = normalize_crm_rule_items(rule['conditions'])
+  return false if conditions.empty?
+  conditions.all? { |condition| crm_condition_matches?(tenant, condition) }
+end
+
+def apply_crm_rule_action_to_tenant!(uid, action, rule_id, added_by)
+  tag_key = clean_crm_tag_key(action['tagKey'])
+  type = action['type'].to_s.strip == 'remove_tag' ? 'remove_tag' : 'add_tag'
+  raise WEBrick::HTTPStatus::BadRequest, 'tagKey da ação obrigatório.' if tag_key.empty?
+
+  doc = firestore_get_document('system_tenants', uid)
+  raise WEBrick::HTTPStatus::BadRequest, 'Conta não encontrada em system_tenants.' unless doc
+  tenant = firestore_fields_to_hash(doc['fields'] || {})
+  crm_tags = tenant['crmTags'].is_a?(Hash) ? tenant['crmTags'] : {}
+  crm_meta = tenant['crmTagMeta'].is_a?(Hash) ? tenant['crmTagMeta'] : {}
+  crm_tags[tag_key] = type == 'add_tag'
+  if type == 'add_tag'
+    crm_meta[tag_key] = {
+      'addedAt' => Time.now.utc.iso8601,
+      'addedBy' => added_by.to_s.strip.empty? ? 'crm_rule' : added_by.to_s.strip,
+      'source' => 'rule',
+      'ruleId' => rule_id
+    }
+  end
+  firestore_upsert_document('system_tenants', uid, {
+    'crmTags' => crm_tags,
+    'crmTagMeta' => crm_meta
+  })
+  firestore_upsert_document('system_crm_tag_logs', SecureRandom.uuid, {
+    'ruleId' => rule_id,
+    'tenantUid' => uid,
+    'action' => type,
+    'tagKey' => tag_key,
+    'matched' => true,
+    'reason' => 'manual_rule_validation'
+  })
+  { 'tenantUid' => uid, 'action' => type, 'tagKey' => tag_key, 'ruleId' => rule_id }
+end
+
+def run_crm_tag_rules_payload!(body)
+  ensure_crm_tag_defaults!
+  ensure_crm_rule_defaults!
+  tenant_uid_filter = body['tenantUid'].to_s.strip
+  rule_id_filter = clean_crm_tag_key(body['ruleId'])
+  added_by = body['addedBy'].to_s.strip.empty? ? 'crm_rule_validation' : body['addedBy'].to_s.strip
+
+  rules = load_crm_rules_payload.select { |rule| rule['enabled'] == true }
+  rules = rules.select { |rule| rule['ruleId'].to_s == rule_id_filter } unless rule_id_filter.empty?
+  raise WEBrick::HTTPStatus::BadRequest, 'Nenhuma regra CRM ativa encontrada para executar.' if rules.empty?
+
+  tenant_docs = if tenant_uid_filter.empty?
+                  firestore_list_documents('system_tenants')
+                else
+                  doc = firestore_get_document('system_tenants', tenant_uid_filter)
+                  raise WEBrick::HTTPStatus::BadRequest, 'Conta não encontrada em system_tenants.' unless doc
+                  [doc]
+                end
+
+  processed = []
+  rules.each do |rule|
+    tenant_docs.each do |tenant_doc|
+      uid = File.basename(tenant_doc['name'].to_s)
+      tenant = firestore_fields_to_hash(tenant_doc['fields'] || {})
+      tenant['id'] = uid
+      tenant['uid'] = uid
+      tenant['tenantUid'] = uid
+      matched = crm_rule_matches?(tenant, rule)
+      unless matched
+        firestore_upsert_document('system_crm_tag_logs', SecureRandom.uuid, {
+          'ruleId' => rule['ruleId'],
+          'tenantUid' => uid,
+          'action' => 'skipped',
+          'matched' => false,
+          'reason' => 'conditions_not_matched'
+        }) unless tenant_uid_filter.empty? || rule_id_filter.empty?
+        processed << { 'tenantUid' => uid, 'ruleId' => rule['ruleId'], 'matched' => false, 'actions' => [] }
+        next
+      end
+
+      actions = normalize_crm_rule_items(rule['actions']).map do |action|
+        apply_crm_rule_action_to_tenant!(uid, action, rule['ruleId'], added_by)
+      end
+      processed << { 'tenantUid' => uid, 'ruleId' => rule['ruleId'], 'matched' => true, 'actions' => actions }
+    end
+  end
+
+  { 'processed' => processed }
+end
+
 def load_email_templates_payload
   ensure_email_template_defaults!
   docs = firestore_list_documents('system_email_templates')
@@ -841,6 +1008,13 @@ def save_email_template_payload!(body)
   key = body['key'].to_s.strip
   raise WEBrick::HTTPStatus::BadRequest, 'Template inválido.' if key.empty?
   raise WEBrick::HTTPStatus::BadRequest, 'Nome e assunto são obrigatórios.' if body['name'].to_s.strip.empty? || body['subject'].to_s.strip.empty?
+  existing_doc = firestore_get_document('system_email_templates', key)
+  existing = existing_doc ? firestore_fields_to_hash(existing_doc['fields'] || {}) : {}
+  default = default_email_templates.find { |template| template['key'].to_s == key } || {}
+  available_variables = Array(body.key?('availableVariables') ? body['availableVariables'] : (existing['availableVariables'] || default['availableVariables']))
+  cta_url = body['ctaUrl'].to_s.strip
+  cta_url = '{{resetPasswordUrl}}' if cta_url.empty? && key == 'password_reset'
+  cta_url = default['ctaUrl'].to_s if cta_url.empty? && !default['ctaUrl'].to_s.empty?
 
   payload = {
     'key' => key,
@@ -851,9 +1025,10 @@ def save_email_template_payload!(body)
     'body' => body['body'].to_s,
     'html' => body['html'].to_s.empty? ? body['body'].to_s : body['html'].to_s,
     'ctaLabel' => body['ctaLabel'].to_s,
-    'ctaUrl' => body['ctaUrl'].to_s,
+    'ctaUrl' => cta_url,
+    'footerReason' => body['footerReason'].to_s,
     'enabled' => body['enabled'] != false,
-    'availableVariables' => Array(body['availableVariables'])
+    'availableVariables' => available_variables
   }
   firestore_upsert_document('system_email_templates', key, payload)
   payload
@@ -883,14 +1058,22 @@ def build_test_email_layout(settings, template, variables)
   brand_name = variables['brandName'].to_s.empty? ? 'BocaFood' : variables['brandName'].to_s
   support_email = variables['supportEmail'].to_s
   logo_url = variables['brandLogoUrl'].to_s.empty? ? 'https://bocafood.app/assets/boca-food-logo.png' : variables['brandLogoUrl'].to_s
+  terms_url = variables['termsUrl'].to_s
+  privacy_url = variables['privacyUrl'].to_s
+  security_text = email_replace_variables(variables['securityText'].to_s.empty? ? 'o BocaFood nunca solicita senha por e-mail.' : variables['securityText'].to_s, variables)
+  reason_source = template['footerReason'].to_s.strip.empty? ? variables['footerReasonDefault'].to_s : template['footerReason'].to_s
+  email_reason = email_replace_variables(reason_source.empty? ? 'esta mensagem faz parte do seu relacionamento com o BocaFood' : reason_source, variables)
   title = CGI.escapeHTML(email_replace_variables(template['subject'] || 'Teste de envio BocaFood', variables))
   preheader = CGI.escapeHTML(email_replace_variables(template['preheader'] || '', variables))
   body = email_replace_variables(template['body'] || template['html'] || default_test_email_template['body'], variables)
   cta_label = CGI.escapeHTML(email_replace_variables(template['ctaLabel'] || '', variables))
   cta_url = CGI.escapeHTML(email_replace_variables(template['ctaUrl'] || '', variables))
   cta_html = cta_label.empty? || cta_url.empty? ? '' : %Q(<div style="margin-top:24px;text-align:left;"><a href="#{cta_url}" style="display:inline-block;background:#B42318;color:#ffffff;text-decoration:none;border-radius:14px;padding:14px 22px;font-size:14px;font-weight:700;line-height:1.2;min-width:190px;text-align:center;box-shadow:0 12px 24px rgba(180,35,24,.18);">#{cta_label}</a></div>)
+  terms_link = terms_url.empty? ? 'Termos de uso' : %Q(<a href="#{CGI.escapeHTML(terms_url)}" style="color:#8A7E7C;text-decoration:none;">Termos de uso</a>)
+  privacy_link = privacy_url.empty? ? 'Política de privacidade' : %Q(<a href="#{CGI.escapeHTML(privacy_url)}" style="color:#8A7E7C;text-decoration:none;">Política de privacidade</a>)
+  footer_html = %Q(<div style="font-size:11px;line-height:1.55;color:#8A7E7C;"><strong style="font-weight:700;color:#5F5552;">Segurança:</strong> #{CGI.escapeHTML(security_text)}<br>Precisa de ajuda? Escreva para <a href="mailto:#{CGI.escapeHTML(support_email)}" style="color:#B42318;text-decoration:none;font-weight:700;">#{CGI.escapeHTML(support_email)}</a><br>Você recebeu este e-mail porque #{CGI.escapeHTML(email_reason)}.<br>#{CGI.escapeHTML(brand_name)}<br>#{terms_link} &middot; #{privacy_link}</div>)
 
-  %Q(<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>#{title}</title></head><body style="margin:0;padding:0;background:#FFF7F6;font-family:Arial,Helvetica,sans-serif;color:#1F1F1F;"><div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">#{preheader}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#FFF7F6;padding:26px 12px;"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:580px;background:#ffffff;border-radius:24px;box-shadow:0 18px 46px rgba(31,31,31,.08);overflow:hidden;border:1px solid #F2EDED;"><tr><td style="height:5px;background:#B42318;font-size:1px;line-height:1px;">&nbsp;</td></tr><tr><td style="padding:26px 30px 10px;text-align:left;background:linear-gradient(135deg,#FFFFFF 0%,#FFF8F6 100%);"><img src="#{CGI.escapeHTML(logo_url)}" alt="#{CGI.escapeHTML(brand_name)}" width="132" style="display:block;width:132px;max-width:46%;height:auto;border:0;outline:none;text-decoration:none;"><div style="margin-top:20px;font-size:11px;line-height:1.3;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#B42318;">SaaS #{CGI.escapeHTML(brand_name)}</div><div style="margin-top:8px;font-size:26px;line-height:1.16;font-weight:700;color:#1F1F1F;">#{title}</div>#{preheader.empty? ? '' : %Q(<div style="margin-top:9px;font-size:14px;line-height:1.55;color:#6F6860;">#{preheader}</div>)}</td></tr><tr><td style="padding:14px 30px 4px;background:#ffffff;"><div style="border:1px solid #E7DDD1;border-radius:20px;padding:20px;background:linear-gradient(135deg,#FFFFFF 0%,#FAF8F4 100%);font-size:15px;line-height:1.68;color:#3B3533;">#{body}#{cta_html}</div></td></tr><tr><td style="padding:16px 30px 0;background:#ffffff;"><div style="font-size:12px;line-height:1.5;color:#8A7E7C;background:#FFF8EC;border:1px solid #F5E3BC;border-radius:16px;padding:12px 14px;">Por seguranca, nunca compartilhe sua senha. O BocaFood nao solicita senhas por e-mail.</div></td></tr><tr><td style="padding:20px 30px 30px;background:#ffffff;font-size:12px;line-height:1.5;color:#8A7E7C;">Precisa de ajuda? Escreva para <a href="mailto:#{CGI.escapeHTML(support_email)}" style="color:#B42318;text-decoration:none;font-weight:700;">#{CGI.escapeHTML(support_email)}</a>.<br>#{CGI.escapeHTML(brand_name)}</td></tr></table></td></tr></table></body></html>)
+  %Q(<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>#{title}</title></head><body style="margin:0;padding:0;background:#FAF8F4;font-family:Arial,Helvetica,sans-serif;color:#1F1F1F;"><div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">#{preheader}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:linear-gradient(135deg,#FFFCFB 0%,#FAF8F4 58%,#FFF8F6 100%);padding:28px 12px;"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:580px;background:linear-gradient(145deg,#FFFFFF 0%,#FFFDFB 42%,#FFF8F6 78%,#FAF8F4 100%);border-radius:24px;box-shadow:0 20px 44px rgba(63,38,35,.085),0 2px 8px rgba(31,31,31,.035);overflow:hidden;border:1px solid #EDE6E3;"><tr><td style="height:5px;background:#B42318;font-size:1px;line-height:1px;">&nbsp;</td></tr><tr><td style="padding:26px 30px 10px;text-align:left;background:linear-gradient(135deg,#FFFFFF 0%,#FFF8F6 100%);"><img src="#{CGI.escapeHTML(logo_url)}" alt="#{CGI.escapeHTML(brand_name)}" width="132" style="display:block;width:132px;max-width:46%;height:auto;border:0;outline:none;text-decoration:none;"><div style="margin-top:20px;font-size:11px;line-height:1.3;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#B42318;">SaaS #{CGI.escapeHTML(brand_name)}</div><div style="margin-top:8px;font-size:26px;line-height:1.16;font-weight:700;color:#1F1F1F;">#{title}</div>#{preheader.empty? ? '' : %Q(<div style="margin-top:9px;font-size:14px;line-height:1.55;color:#6F6860;">#{preheader}</div>)}</td></tr><tr><td style="padding:14px 30px 4px;background:#ffffff;"><div style="border:1px solid #E7DDD1;border-radius:20px;padding:20px;background:linear-gradient(135deg,#FFFFFF 0%,#FAF8F4 100%);font-size:15px;line-height:1.68;color:#3B3533;">#{body}#{cta_html}</div></td></tr><tr><td style="padding:18px 30px 30px;background:linear-gradient(135deg,#FFFFFF 0%,#FFF8F6 62%,#FDF1EF 100%);border-top:1px solid #F2EDED;">#{footer_html}</td></tr></table></td></tr></table></body></html>)
 end
 
 def encoded_email_subject(value)
@@ -1022,7 +1205,11 @@ def send_test_email!(body)
     'resetPasswordUrl' => 'https://app.bocafood.com/redefinir-senha',
     'appBaseUrl' => settings['appBaseUrl'].to_s.empty? ? 'https://app.bocafood.com' : settings['appBaseUrl'].to_s,
     'brandName' => settings['brandName'].to_s.empty? ? 'BocaFood' : settings['brandName'].to_s,
-    'brandLogoUrl' => settings['brandLogoUrl'].to_s.empty? ? 'https://bocafood.app/assets/boca-food-logo.png' : settings['brandLogoUrl'].to_s
+    'brandLogoUrl' => settings['brandLogoUrl'].to_s.empty? ? 'https://bocafood.app/assets/boca-food-logo.png' : settings['brandLogoUrl'].to_s,
+    'termsUrl' => settings['termsUrl'].to_s,
+    'privacyUrl' => settings['privacyUrl'].to_s,
+    'securityText' => settings['securityText'].to_s.empty? ? 'o BocaFood nunca solicita senha por e-mail.' : settings['securityText'].to_s,
+    'footerReasonDefault' => settings['footerReasonDefault'].to_s.empty? ? 'esta mensagem faz parte do seu relacionamento com o BocaFood' : settings['footerReasonDefault'].to_s
   }
   subject = email_replace_variables(template['subject'] || 'Teste de envio BocaFood', variables)
   html = build_test_email_layout(settings, template, variables)
@@ -4177,6 +4364,34 @@ end
 
 server.mount_proc '/api/master/crm/tenant-tags', &crm_tenant_tags_handler
 server.mount_proc '/api/master/crm/tenant-tags/', &crm_tenant_tags_handler
+
+crm_run_tag_rules_handler = proc do |req, res|
+  apply_cors_headers(res, req['Origin'] || req['origin'])
+  if req.request_method == 'OPTIONS'
+    res.status = 204
+    res.body = ''
+    next
+  end
+
+  begin
+    unless local_master_request?(req)
+      next json_response_cors(req, res, 403, email_read_error('Endpoint restrito ao Master local.'))
+    end
+    next json_response_cors(req, res, 405, email_read_error('Endpoint existe, mas exige método POST.')) unless req.request_method == 'POST'
+    result = run_crm_tag_rules_payload!(read_json(req))
+    json_response_cors(req, res, 200, { ok: true, message: 'Regras CRM executadas para validação local.', result: result })
+  rescue WEBrick::HTTPStatus::BadRequest => e
+    json_response_cors(req, res, 400, email_read_error(e.message))
+  rescue => e
+    debug = email_settings_debug(e)
+    log_email_settings("crm run tag rules erro tecnico #{debug}")
+    message = email_master_credential_error?(e) ? email_master_credential_message : 'Não foi possível executar as regras CRM.'
+    json_response_cors(req, res, 400, email_read_error(message, debug))
+  end
+end
+
+server.mount_proc '/api/master/crm/run-tag-rules', &crm_run_tag_rules_handler
+server.mount_proc '/api/master/crm/run-tag-rules/', &crm_run_tag_rules_handler
 
 email_logs_handler = proc do |req, res|
   apply_cors_headers(res, req['Origin'] || req['origin'])

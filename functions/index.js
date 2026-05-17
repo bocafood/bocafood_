@@ -469,6 +469,16 @@ function replaceVariables(text, variables) {
   });
 }
 
+function escapeHtml(value) {
+  return String(value || "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;",
+    "'": "&#39;"
+  }[char]));
+}
+
 function cleanHeader(value) {
   return String(value || "").replace(/[\r\n]+/g, " ").trim();
 }
@@ -938,6 +948,10 @@ async function ensureEmailDefaults() {
       appBaseUrl: "https://app.bocafood.com",
       brandName: "BocaFood",
       brandLogoUrl: "https://bocafood.app/assets/boca-food-logo.png",
+      termsUrl: "https://bocafood.app/termos",
+      privacyUrl: "https://bocafood.app/privacidade",
+      securityText: "o BocaFood nunca solicita senha por e-mail.",
+      footerReasonDefault: "esta mensagem faz parte do seu relacionamento com o BocaFood",
       smtpHost: "",
       smtpPort: 587,
       smtpSecure: "tls",
@@ -1010,15 +1024,23 @@ function buildEmailLayout(settings, template, variables) {
   const brandName = variables.brandName || settings.brandName || "BocaFood";
   const supportEmail = variables.supportEmail || settings.supportEmail || settings.replyTo || "";
   const logoUrl = variables.brandLogoUrl || settings.brandLogoUrl || "https://bocafood.app/assets/boca-food-logo.png";
+  const termsUrl = variables.termsUrl || settings.termsUrl || "";
+  const privacyUrl = variables.privacyUrl || settings.privacyUrl || "";
   const preheader = replaceVariables(template.preheader || "", variables);
   const body = replaceVariables(template.body || template.html || "", variables);
   const ctaLabel = replaceVariables(template.ctaLabel || "", variables);
   const ctaUrl = replaceVariables(template.ctaUrl || "", variables);
   const title = replaceVariables(template.subject || template.name || brandName, variables);
+  const securityText = replaceVariables(variables.securityText || settings.securityText || "o BocaFood nunca solicita senha por e-mail.", variables);
+  const reasonSource = String(template.footerReason || "").trim() || variables.footerReasonDefault || settings.footerReasonDefault || "esta mensagem faz parte do seu relacionamento com o BocaFood";
+  const emailReason = replaceVariables(reasonSource, variables);
+  const termsLink = termsUrl ? `<a href="${escapeHtml(termsUrl)}" style="color:#8A7E7C;text-decoration:none;">Termos de uso</a>` : "Termos de uso";
+  const privacyLink = privacyUrl ? `<a href="${escapeHtml(privacyUrl)}" style="color:#8A7E7C;text-decoration:none;">Política de privacidade</a>` : "Política de privacidade";
   const ctaHtml = ctaLabel && ctaUrl
     ? `<a href="${ctaUrl}" style="display:inline-block;background:#B42318;color:#ffffff;text-decoration:none;border-radius:14px;padding:14px 22px;font-size:14px;font-weight:700;line-height:1.2;min-width:190px;text-align:center;box-shadow:0 12px 24px rgba(180,35,24,.18);">${ctaLabel}</a>`
     : "";
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title></head><body style="margin:0;padding:0;background:#FFF7F6;font-family:Arial,Helvetica,sans-serif;color:#1F1F1F;"><div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">${preheader}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#FFF7F6;padding:26px 12px;"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:580px;background:#ffffff;border-radius:24px;box-shadow:0 18px 46px rgba(31,31,31,.08);overflow:hidden;border:1px solid #F2EDED;"><tr><td style="height:5px;background:#B42318;font-size:1px;line-height:1px;">&nbsp;</td></tr><tr><td style="padding:26px 30px 10px;text-align:left;background:linear-gradient(135deg,#FFFFFF 0%,#FFF8F6 100%);"><img src="${logoUrl}" alt="${brandName}" width="132" style="display:block;width:132px;max-width:46%;height:auto;border:0;outline:none;text-decoration:none;"><div style="margin-top:20px;font-size:11px;line-height:1.3;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#B42318;">SaaS ${brandName}</div><div style="margin-top:8px;font-size:26px;line-height:1.16;font-weight:700;color:#1F1F1F;">${title}</div>${preheader ? `<div style="margin-top:9px;font-size:14px;line-height:1.55;color:#6F6860;">${preheader}</div>` : ""}</td></tr><tr><td style="padding:14px 30px 4px;background:#ffffff;"><div style="border:1px solid #E7DDD1;border-radius:20px;padding:20px;background:linear-gradient(135deg,#FFFFFF 0%,#FAF8F4 100%);font-size:15px;line-height:1.68;color:#3B3533;">${body}${ctaHtml ? `<div style="margin-top:24px;text-align:left;">${ctaHtml}</div>` : ""}</div></td></tr><tr><td style="padding:16px 30px 0;background:#ffffff;"><div style="font-size:12px;line-height:1.5;color:#8A7E7C;background:#FFF8EC;border:1px solid #F5E3BC;border-radius:16px;padding:12px 14px;">Por seguranca, nunca compartilhe sua senha. O BocaFood nao solicita senhas por e-mail.</div></td></tr><tr><td style="padding:20px 30px 30px;background:#ffffff;font-size:12px;line-height:1.5;color:#8A7E7C;">Precisa de ajuda? Escreva para <a href="mailto:${supportEmail}" style="color:#B42318;text-decoration:none;font-weight:700;">${supportEmail}</a>.<br>${brandName}</td></tr></table></td></tr></table></body></html>`;
+  const footerHtml = `<strong style="font-weight:700;color:#5F5552;">Segurança:</strong> ${escapeHtml(securityText)}<br>Precisa de ajuda? Escreva para <a href="mailto:${escapeHtml(supportEmail)}" style="color:#B42318;text-decoration:none;font-weight:700;">${escapeHtml(supportEmail)}</a><br>Você recebeu este e-mail porque ${escapeHtml(emailReason)}.<br>${escapeHtml(brandName)}<br>${termsLink} &middot; ${privacyLink}`;
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title></head><body style="margin:0;padding:0;background:#FAF8F4;font-family:Arial,Helvetica,sans-serif;color:#1F1F1F;"><div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">${preheader}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:linear-gradient(135deg,#FFFCFB 0%,#FAF8F4 58%,#FFF8F6 100%);padding:28px 12px;"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:580px;background:linear-gradient(145deg,#FFFFFF 0%,#FFFDFB 42%,#FFF8F6 78%,#FAF8F4 100%);border-radius:24px;box-shadow:0 20px 44px rgba(63,38,35,.085),0 2px 8px rgba(31,31,31,.035);overflow:hidden;border:1px solid #EDE6E3;"><tr><td style="height:5px;background:#B42318;font-size:1px;line-height:1px;">&nbsp;</td></tr><tr><td style="padding:26px 30px 10px;text-align:left;background:linear-gradient(135deg,#FFFFFF 0%,#FFF8F6 100%);"><img src="${logoUrl}" alt="${brandName}" width="132" style="display:block;width:132px;max-width:46%;height:auto;border:0;outline:none;text-decoration:none;"><div style="margin-top:20px;font-size:11px;line-height:1.3;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#B42318;">SaaS ${brandName}</div><div style="margin-top:8px;font-size:26px;line-height:1.16;font-weight:700;color:#1F1F1F;">${title}</div>${preheader ? `<div style="margin-top:9px;font-size:14px;line-height:1.55;color:#6F6860;">${preheader}</div>` : ""}</td></tr><tr><td style="padding:14px 30px 4px;background:#ffffff;"><div style="border:1px solid #E7DDD1;border-radius:20px;padding:20px;background:linear-gradient(135deg,#FFFFFF 0%,#FAF8F4 100%);font-size:15px;line-height:1.68;color:#3B3533;">${body}${ctaHtml ? `<div style="margin-top:24px;text-align:left;">${ctaHtml}</div>` : ""}</div></td></tr><tr><td style="padding:18px 30px 30px;background:linear-gradient(135deg,#FFFFFF 0%,#FFF8F6 62%,#FDF1EF 100%);border-top:1px solid #F2EDED;font-size:11px;line-height:1.55;color:#8A7E7C;">${footerHtml}</td></tr></table></td></tr></table></body></html>`;
 }
 
 function smtpRead(socket, timeoutMs = 20000) {
@@ -1201,7 +1223,16 @@ async function loadEmailTemplate(templateKey) {
   await ensureEmailDefaults();
   const snap = await db.collection("system_email_templates").doc(templateKey).get();
   if (!snap.exists) throw new Error(`Template ${templateKey} não encontrado`);
-  return snap.data();
+  const savedTemplate = snap.data() || {};
+  const defaultTemplate = EMAIL_TEMPLATE_DEFAULTS[templateKey] || {};
+  const mergedTemplate = { ...defaultTemplate, ...savedTemplate };
+  if (!String(mergedTemplate.ctaUrl || "").trim() && defaultTemplate.ctaUrl) {
+    mergedTemplate.ctaUrl = defaultTemplate.ctaUrl;
+  }
+  if (!String(mergedTemplate.ctaLabel || "").trim() && defaultTemplate.ctaLabel) {
+    mergedTemplate.ctaLabel = defaultTemplate.ctaLabel;
+  }
+  return mergedTemplate;
 }
 
 async function createEmailFromTemplate({ to, templateKey, variables = {}, origin = "sistema", metadata = {} }) {
@@ -1231,6 +1262,10 @@ async function createEmailFromTemplate({ to, templateKey, variables = {}, origin
     appBaseUrl: settings.appBaseUrl || "https://app.bocafood.com",
     brandName: settings.brandName || settings.fromName || "BocaFood",
     brandLogoUrl: settings.brandLogoUrl || "https://bocafood.app/assets/boca-food-logo.png",
+    termsUrl: settings.termsUrl || "",
+    privacyUrl: settings.privacyUrl || "",
+    securityText: settings.securityText || "o BocaFood nunca solicita senha por e-mail.",
+    footerReasonDefault: settings.footerReasonDefault || "esta mensagem faz parte do seu relacionamento com o BocaFood",
     ...variables
   };
   const subject = replaceVariables(template.subject || "", mergedVariables);
@@ -1309,6 +1344,10 @@ async function sendEmailFromTemplateViaSmtp({ to, templateKey, variables = {}, s
       appBaseUrl: settings.appBaseUrl || "https://bocafood.app",
       brandName: settings.brandName || settings.fromName || "BocaFood",
       brandLogoUrl: settings.brandLogoUrl || "https://bocafood.app/assets/boca-food-logo.png",
+      termsUrl: settings.termsUrl || "",
+      privacyUrl: settings.privacyUrl || "",
+      securityText: settings.securityText || "o BocaFood nunca solicita senha por e-mail.",
+      footerReasonDefault: settings.footerReasonDefault || "esta mensagem faz parte do seu relacionamento com o BocaFood",
       ...variables
     };
     const subject = replaceVariables(template.subject || template.name || "BocaFood", mergedVariables);
@@ -1390,13 +1429,23 @@ exports.requestPasswordResetEmail = onCall({ region: REGION, serviceAccount: FIR
   let resetPasswordUrl = "";
   let resetLinkErrorCode = "";
   try {
-    resetPasswordUrl = await admin.auth().generatePasswordResetLink(email, {
-      url: `${appBaseUrl}/login`,
+    const generatedResetLink = await admin.auth().generatePasswordResetLink(email, {
+      url: `${appBaseUrl}/redefinir-senha`,
       handleCodeInApp: false
     });
+    const generatedUrl = new URL(generatedResetLink);
+    const generatedOobCode = generatedUrl.searchParams.get("oobCode");
+    resetPasswordUrl = generatedOobCode
+      ? `${appBaseUrl}/redefinir-senha?mode=resetPassword&oobCode=${encodeURIComponent(generatedOobCode)}`
+      : generatedResetLink;
   } catch (error) {
     try {
-      resetPasswordUrl = await admin.auth().generatePasswordResetLink(email);
+      const generatedResetLink = await admin.auth().generatePasswordResetLink(email);
+      const generatedUrl = new URL(generatedResetLink);
+      const generatedOobCode = generatedUrl.searchParams.get("oobCode");
+      resetPasswordUrl = generatedOobCode
+        ? `${appBaseUrl}/redefinir-senha?mode=resetPassword&oobCode=${encodeURIComponent(generatedOobCode)}`
+        : generatedResetLink;
       await db.collection("email_logs").doc(emailLogId({ eventId: `${eventId}_continue_url_fallback`, templateKey: "password_reset", to: email })).set({
         to: email,
         templateKey: "password_reset",
@@ -1731,6 +1780,10 @@ exports.saveEmailSettings = onRequest({ region: REGION }, async (req, res) => {
       supportEmail: normalizeEmail(body.supportEmail || body.replyTo),
       appBaseUrl: String(body.appBaseUrl || "").trim(),
       brandName: String(body.brandName || "BocaFood").trim(),
+      termsUrl: String(body.termsUrl || "").trim(),
+      privacyUrl: String(body.privacyUrl || "").trim(),
+      securityText: String(body.securityText || "o BocaFood nunca solicita senha por e-mail.").trim(),
+      footerReasonDefault: String(body.footerReasonDefault || "esta mensagem faz parte do seu relacionamento com o BocaFood").trim(),
       smtpHost: String(body.smtpHost || "").trim(),
       smtpPort: Number(body.smtpPort || 587),
       smtpSecure: ["tls", "ssl", "none"].includes(String(body.smtpSecure || "").toLowerCase()) ? String(body.smtpSecure).toLowerCase() : "tls",
@@ -2298,8 +2351,13 @@ exports.dailyCrmTagRuleCheck = onSchedule(
       const actions = Array.isArray(rule.actions) ? rule.actions : [];
       if (!actions.length) return;
       tenantsSnap.forEach((tenantDoc) => {
-        const tenant = tenantDoc.data() || {};
         const tenantUid = tenantDoc.id;
+        const tenant = {
+          ...(tenantDoc.data() || {}),
+          id: tenantUid,
+          uid: tenantUid,
+          tenantUid
+        };
         const matched = tenantMatchesCrmRule(tenant, rule);
         if (!matched) {
           jobs.push(writeCrmTagLog({

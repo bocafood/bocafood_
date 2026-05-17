@@ -212,9 +212,29 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
 .email-var{display:flex;flex-direction:column;gap:3px;border-radius:10px;background:#F9F7F7;border:1px solid #EEE6E4;color:#6F6860;padding:8px 10px;font-size:11px;font-weight:700;line-height:1.35}
 .email-var code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:var(--dark);font-weight:900}
 .email-var small{font-size:11px;color:var(--muted);font-weight:600;line-height:1.35}
+.email-template-help{margin-top:6px;color:#8A7E7C;font-size:11px;line-height:1.45}
+.email-template-core-vars{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;padding:12px;border:1px solid #EEE6E4;border-radius:14px;background:#FFFCFB;margin-bottom:12px}
+.email-template-core-vars .email-var{background:#fff;border-color:#EAE4DA}
 .email-preview-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
-.email-preview-frame{background:#fff7f6;border:1px solid var(--line);border-radius:18px;padding:18px;overflow:auto}
+.email-preview-frame{background:radial-gradient(circle at 12% 0%,rgba(196,54,42,.085),transparent 30%),linear-gradient(135deg,#FFFCFB 0%,#FAF8F4 55%,#FFF8F6 100%);border:1px solid #F1EAE7;border-radius:18px;padding:22px;overflow:auto;box-shadow:0 12px 28px rgba(31,31,31,.04),inset 0 1px 0 rgba(255,255,255,.92)}
 .email-preview-frame.mobile{max-width:390px;margin:0 auto}
+.email-preview-frame.mobile .email-preview-canvas{padding:0}
+.email-preview-canvas{display:flex;align-items:flex-start;justify-content:center;padding:0}
+.email-preview-card{width:min(580px,100%);background:linear-gradient(145deg,#FFFFFF 0%,#FFFDFB 42%,#FFF8F6 78%,#FAF8F4 100%);border:1px solid rgba(237,230,227,.95);border-radius:20px;box-shadow:0 20px 44px rgba(63,38,35,.085),0 2px 8px rgba(31,31,31,.035);overflow:hidden;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',Arial,sans-serif;color:#1F1F1F}
+.email-preview-card::before{content:'';display:block;height:4px;background:linear-gradient(90deg,var(--red),#B6925E)}
+.email-preview-head{padding:18px 28px 13px;background:transparent;border-bottom:1px solid rgba(242,237,237,.75)}
+.email-preview-logo{display:block;width:76px;max-width:34%;height:auto;border:0}
+.email-preview-main{padding:20px 28px 0;background:transparent}
+.email-preview-subject{margin:0;color:#191514;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',Arial,sans-serif;font-size:23px;line-height:1.25;font-weight:680;letter-spacing:0}
+.email-preview-preheader{margin:8px 0 0;max-width:500px;color:#6B615F;font-size:14.5px;line-height:1.55}
+.email-preview-body{margin-top:18px;font-size:15.5px;line-height:1.68;color:#3F3430}
+.email-preview-body p{color:#3F3430;font-size:15.5px;line-height:1.68;margin:0 0 12px}
+.email-preview-body p:last-child{margin-bottom:0}
+.email-preview-cta{margin-top:20px}
+.email-preview-cta a{display:inline-flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#C4362A 0%,#A92F25 100%);color:#fff!important;text-decoration:none;border-radius:12px;padding:0 19px;height:44px;font-size:14px;font-weight:750;line-height:1.2;min-width:158px;text-align:center;border:1px solid rgba(126,31,24,.16);box-shadow:0 10px 20px rgba(196,54,42,.14),inset 0 1px 0 rgba(255,255,255,.20)}
+.email-preview-note{margin-top:18px;color:#756966;font-size:11.5px;line-height:1.5}
+.email-preview-footer{padding:18px 28px 28px;background:linear-gradient(135deg,#FFFFFF 0%,#FFF8F6 62%,#FDF1EF 100%);border-top:1px solid rgba(242,237,237,.82);color:#8A7E7C;font-size:12px;line-height:1.55}
+.email-preview-footer a{color:#C4362A;text-decoration:none;font-weight:800}
 .email-log-table{width:100%;border-collapse:collapse;font-size:13px;min-width:760px}
 .email-log-table th{text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;padding:10px;border-bottom:1px solid var(--line);background:#FAF8F8}
 .email-log-table td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
@@ -444,6 +464,10 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
               <label><span>E-mail de suporte</span><input id="email-support-email" type="email" placeholder="teajudo@bocafood.app"></label>
               <label><span>URL base do app</span><input id="email-app-base-url" placeholder="https://app.bocafood.com"></label>
               <label><span>Nome da marca</span><input id="email-brand-name" placeholder="BocaFood"></label>
+              <label><span>Termos de uso</span><input id="email-terms-url" placeholder="https://bocafood.app/termos"></label>
+              <label><span>Política de privacidade</span><input id="email-privacy-url" placeholder="https://bocafood.app/privacidade"></label>
+              <label class="full"><span>Texto de segurança do rodapé</span><input id="email-security-text" placeholder="o BocaFood nunca solicita senha por e-mail."></label>
+              <label class="full"><span>Motivo padrão do rodapé</span><input id="email-footer-reason-default" placeholder="esta mensagem faz parte do seu relacionamento com o BocaFood"></label>
               <label><span>Host SMTP</span><input id="email-smtp-host" placeholder="smtp.seudominio.com"></label>
               <label><span>Porta SMTP</span><input id="email-smtp-port" type="number" placeholder="587"></label>
               <label><span>Segurança</span><select id="email-smtp-secure"><option value="tls">TLS</option><option value="ssl">SSL</option><option value="none">Nenhuma</option></select></label>
@@ -482,19 +506,28 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
                 <label><span>Nome do template</span><input id="email-template-name"></label>
                 <label><span>Assunto</span><input id="email-template-subject"></label>
                 <label class="full"><span>Pré-header</span><input id="email-template-preheader"></label>
-                <label class="full"><span>Corpo do e-mail</span><textarea id="email-template-body" style="min-height:180px;"></textarea></label>
+                <label class="full"><span>Motivo do rodapé</span><input id="email-template-footer-reason" placeholder="este e-mail foi enviado por causa de uma atualização da sua conta"><small class="email-template-help">Opcional. Se ficar vazio, será usado o motivo padrão das configurações globais.</small></label>
+                <label class="full"><span>Corpo do e-mail</span><textarea id="email-template-body" style="min-height:180px;"></textarea><small class="email-template-help">Use texto e HTML simples, como parágrafos, links e negrito. Evite scripts, estilos complexos ou imagens grandes.</small></label>
                 <label><span>Texto do botão CTA</span><input id="email-template-cta-label"></label>
                 <label><span>URL do botão CTA</span><input id="email-template-cta-url"></label>
                 <label class="full"><span>Status</span><div class="check-row" style="margin:0;"><input id="email-template-enabled" type="checkbox"><span>Template ativo</span></div></label>
                 <div class="full">
-                  <label><span>Variáveis disponíveis</span></label>
+                  <label><span>Variáveis principais</span></label>
+                  <div class="email-template-core-vars">
+                    <span class="email-var"><code>{{buyerName}}</code><small>Nome da cliente.</small></span>
+                    <span class="email-var"><code>{{productName}}</code><small>Produto comprado.</small></span>
+                    <span class="email-var"><code>{{planName}}</code><small>Plano contratado.</small></span>
+                    <span class="email-var"><code>{{appBaseUrl}}</code><small>Link do painel.</small></span>
+                  </div>
+                  <label><span>Outras variáveis deste template</span></label>
                   <div id="email-template-vars" class="email-vars"></div>
                 </div>
               </div>
               <div class="actions" style="margin-top:14px;">
-                <button class="btn" onclick="saveEmailTemplate()">Salvar</button>
+                <button class="btn" onclick="saveEmailTemplate()">Salvar template</button>
                 <button class="btn secondary" onclick="sendEmailTest()">Enviar teste</button>
                 <button class="btn secondary" onclick="previewEmailTemplate()">Visualizar prévia</button>
+                <button class="btn secondary" style="opacity:.78" onclick="restoreDefaultEmailTemplate()">Restaurar padrão</button>
               </div>
             </div>
           </div>
@@ -549,10 +582,10 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
             <div class="global-help" style="margin-bottom:12px;">Estas tags são salvas em <strong>system_tenants/{uid}.crmTags</strong> e não usam <strong>system_email_triggers</strong>.</div>
             <div id="crm-tag-list" class="global-table-wrap"></div>
           </div>
-          <div class="email-card">
+          <div class="email-card" id="crm-tag-editor-card">
             <div class="toolbar">
               <div>
-                <h3>Nova/editar tag CRM</h3>
+                <h3 id="crm-tag-editor-title">Nova/editar tag CRM</h3>
                 <p>Use chaves simples para segmentar campanhas e análises de contas.</p>
               </div>
               <span class="email-status off">CRM</span>
@@ -2689,6 +2722,12 @@ var EMAIL_VARIABLE_DESCRIPTIONS = {
   signupUrl: 'Link para criar ou concluir o acesso ao BocaFood.',
   resetPasswordUrl: 'Link seguro para redefinir a senha.',
   supportEmail: 'E-mail de suporte configurado no Master.',
+  termsUrl: 'Link para os termos de uso exibido no rodapé.',
+  privacyUrl: 'Link para a política de privacidade exibido no rodapé.',
+  securityText: 'Texto de segurança exibido no rodapé.',
+  emailReason: 'Motivo do envio exibido no rodapé.',
+  footerReason: 'Motivo específico configurado no template.',
+  footerReasonDefault: 'Motivo padrão usado quando o template não tem motivo próprio.',
   planName: 'Nome do plano da conta, quando disponível.',
   productName: 'Nome do produto ou assinatura comprada.',
   appBaseUrl: 'URL base do painel BocaFood.',
@@ -2710,6 +2749,10 @@ var _emailDefaults = {
     appBaseUrl: 'https://app.bocafood.com',
     brandName: 'BocaFood',
     brandLogoUrl: 'https://bocafood.app/assets/boca-food-logo.png',
+    termsUrl: 'https://bocafood.app/termos',
+    privacyUrl: 'https://bocafood.app/privacidade',
+    securityText: 'o BocaFood nunca solicita senha por e-mail.',
+    footerReasonDefault: 'esta mensagem faz parte do seu relacionamento com o BocaFood',
     smtpHost: '',
     smtpPort: 587,
     smtpSecure: 'tls',
@@ -2918,6 +2961,10 @@ function renderEmailSettings(){
   setVal('email-support-email', s.supportEmail || s.replyTo || '');
   setVal('email-app-base-url', s.appBaseUrl || '');
   setVal('email-brand-name', s.brandName || s.fromName || 'BocaFood');
+  setVal('email-terms-url', s.termsUrl || '');
+  setVal('email-privacy-url', s.privacyUrl || '');
+  setVal('email-security-text', s.securityText || 'o BocaFood nunca solicita senha por e-mail.');
+  setVal('email-footer-reason-default', s.footerReasonDefault || 'esta mensagem faz parte do seu relacionamento com o BocaFood');
   setVal('email-smtp-host', s.smtpHost || '');
   setVal('email-smtp-port', s.smtpPort || 587);
   setVal('email-smtp-secure', s.smtpSecure || 'tls');
@@ -2939,6 +2986,10 @@ function collectEmailSettings(){
     supportEmail: val('email-support-email') || val('email-reply-to'),
     appBaseUrl: val('email-app-base-url'),
     brandName: val('email-brand-name') || 'BocaFood',
+    termsUrl: val('email-terms-url'),
+    privacyUrl: val('email-privacy-url'),
+    securityText: val('email-security-text') || 'o BocaFood nunca solicita senha por e-mail.',
+    footerReasonDefault: val('email-footer-reason-default') || 'esta mensagem faz parte do seu relacionamento com o BocaFood',
     smtpHost: val('email-smtp-host'),
     smtpPort: Number(val('email-smtp-port') || 587),
     smtpSecure: val('email-smtp-secure') || 'tls',
@@ -3011,14 +3062,17 @@ function selectEmailTemplate(key){
 function renderEmailEditor(){
   var tpl = _emailTemplateByKey(_emailMasterState.selectedTemplateKey);
   if(!tpl)return;
+  var defaultTpl = (_emailDefaults.templates || []).find(function(item){return item.key === tpl.key;}) || {};
+  var ctaUrl = tpl.ctaUrl || (tpl.key === 'password_reset' ? '{{resetPasswordUrl}}' : (defaultTpl.ctaUrl || ''));
   document.getElementById('email-editor-title').textContent = tpl.name || tpl.key;
   document.getElementById('email-editor-desc').textContent = tpl.description || '';
   setVal('email-template-name', tpl.name || '');
   setVal('email-template-subject', tpl.subject || '');
   setVal('email-template-preheader', tpl.preheader || '');
+  setVal('email-template-footer-reason', tpl.footerReason || '');
   setVal('email-template-body', tpl.body || tpl.html || '');
   setVal('email-template-cta-label', tpl.ctaLabel || '');
-  setVal('email-template-cta-url', tpl.ctaUrl || '');
+  setVal('email-template-cta-url', ctaUrl);
   document.getElementById('email-template-enabled').checked = tpl.enabled !== false;
   var status = document.getElementById('email-template-status');
   if(status){status.textContent = tpl.enabled === false ? 'Inativo' : 'Ativo'; status.className = 'email-status ' + (tpl.enabled === false ? 'off' : 'on');}
@@ -3028,17 +3082,38 @@ function renderEmailEditor(){
     return '<span class="email-var"><code>{{'+esc(v)+'}}</code><small>'+esc(description)+'</small></span>';
   }).join('');
 }
+function restoreDefaultEmailTemplate(){
+  var key = _emailMasterState.selectedTemplateKey;
+  var tpl = (_emailDefaults.templates || []).find(function(item){return item.key === key;});
+  if(!tpl){toast('Não há padrão local para este template.');return;}
+  setVal('email-template-name', tpl.name || '');
+  setVal('email-template-subject', tpl.subject || '');
+  setVal('email-template-preheader', tpl.preheader || '');
+  setVal('email-template-footer-reason', tpl.footerReason || '');
+  setVal('email-template-body', tpl.body || tpl.html || '');
+  setVal('email-template-cta-label', tpl.ctaLabel || '');
+  setVal('email-template-cta-url', tpl.ctaUrl || '');
+  document.getElementById('email-template-enabled').checked = tpl.enabled !== false;
+  renderEmailPreview();
+  toast('Padrão carregado no editor. Salve para aplicar.');
+}
 function collectEmailTemplate(){
   var current = _emailTemplateByKey(_emailMasterState.selectedTemplateKey);
+  var defaultTpl = (_emailDefaults.templates || []).find(function(item){return item.key === _emailMasterState.selectedTemplateKey;}) || {};
+  var ctaUrl = val('email-template-cta-url');
+  if(!ctaUrl && _emailMasterState.selectedTemplateKey === 'password_reset') ctaUrl = '{{resetPasswordUrl}}';
+  if(!ctaUrl && defaultTpl.ctaUrl) ctaUrl = defaultTpl.ctaUrl;
   return Object.assign({}, current || {}, {
     key: _emailMasterState.selectedTemplateKey,
     name: val('email-template-name'),
     subject: val('email-template-subject'),
     preheader: val('email-template-preheader'),
+    footerReason: val('email-template-footer-reason'),
     body: document.getElementById('email-template-body').value || '',
     html: document.getElementById('email-template-body').value || '',
     ctaLabel: val('email-template-cta-label'),
-    ctaUrl: val('email-template-cta-url'),
+    ctaUrl: ctaUrl,
+    availableVariables: Array.isArray(current && current.availableVariables) ? current.availableVariables : [],
     enabled: !!document.getElementById('email-template-enabled').checked,
     updatedAt: new Date().toISOString()
   });
@@ -3155,17 +3230,29 @@ function renderCrmTags(){
     tags.map(function(tag){
       var key = tag.key || tag.id || '';
       var color = tag.color || '#6B7280';
-      return '<tr><td><span style="display:inline-flex;align-items:center;gap:8px;"><span style="width:10px;height:10px;border-radius:50%;background:'+esc(color)+';"></span><strong>'+esc(tag.name || key)+'</strong></span></td><td>'+esc(key)+'</td><td>'+esc(tag.description || '')+'</td><td>'+(tag.enabled===false?'<span class="email-status off">Inativa</span>':'<span class="email-status on">Ativa</span>')+'</td><td><button class="btn secondary" onclick="selectCrmTag(\''+esc(key)+'\')">Editar</button></td></tr>';
+      return '<tr><td><span style="display:inline-flex;align-items:center;gap:8px;"><span style="width:10px;height:10px;border-radius:50%;background:'+esc(color)+';"></span><strong>'+esc(tag.name || key)+'</strong></span></td><td>'+esc(key)+'</td><td>'+esc(tag.description || '')+'</td><td>'+(tag.enabled===false?'<span class="email-status off">Inativa</span>':'<span class="email-status on">Ativa</span>')+'</td><td><button class="btn secondary" type="button" data-crm-tag-edit="'+esc(key)+'">Editar</button></td></tr>';
     }).join('') + '</tbody></table>';
+  box.querySelectorAll('[data-crm-tag-edit]').forEach(function(button){
+    button.addEventListener('click', function(){
+      selectCrmTag(button.getAttribute('data-crm-tag-edit') || '');
+    });
+  });
 }
 function selectCrmTag(key){
   var tag = (_emailMasterState.crmTags || []).find(function(item){return (item.key || item.id) === key;});
-  if(!tag) return;
+  if(!tag){toast('Tag CRM não encontrada. Recarregue a lista e tente novamente.');return;}
   setVal('crm-tag-key', tag.key || tag.id || '');
   setVal('crm-tag-name', tag.name || '');
   setVal('crm-tag-color', tag.color || '#6B7280');
   setVal('crm-tag-description', tag.description || '');
   document.getElementById('crm-tag-enabled').checked = tag.enabled !== false;
+  var title = document.getElementById('crm-tag-editor-title');
+  if(title) title.textContent = 'Editar tag CRM';
+  var editor = document.getElementById('crm-tag-editor-card');
+  if(editor) editor.scrollIntoView({behavior:'smooth', block:'start'});
+  var nameInput = document.getElementById('crm-tag-name');
+  if(nameInput) setTimeout(function(){nameInput.focus();}, 220);
+  toast('Tag carregada para edição.');
 }
 function saveCrmTag(){
   var payload = {
@@ -3279,20 +3366,42 @@ function _emailPreviewHtml(tpl){
     supportEmail: settings.supportEmail || settings.replyTo || _emailDefaults.previewData.supportEmail,
     appBaseUrl: settings.appBaseUrl || _emailDefaults.previewData.appBaseUrl,
     brandName: settings.brandName || settings.fromName || 'BocaFood',
-    brandLogoUrl: settings.brandLogoUrl || _emailDefaults.previewData.brandLogoUrl
+    brandLogoUrl: settings.brandLogoUrl || _emailDefaults.previewData.brandLogoUrl,
+    termsUrl: settings.termsUrl || _emailDefaults.settings.termsUrl || '',
+    privacyUrl: settings.privacyUrl || _emailDefaults.settings.privacyUrl || '',
+    securityText: settings.securityText || _emailDefaults.settings.securityText,
+    footerReasonDefault: settings.footerReasonDefault || _emailDefaults.settings.footerReasonDefault
   });
   var subject = _emailReplace(tpl.subject || tpl.name || 'BocaFood', vars);
   var preheader = _emailReplace(tpl.preheader || '', vars);
   var body = _emailReplace(tpl.body || tpl.html || '', vars);
   var ctaLabel = _emailReplace(tpl.ctaLabel || '', vars);
   var ctaUrl = _emailReplace(tpl.ctaUrl || '', vars);
-  var cta = ctaLabel && ctaUrl ? '<a href="'+esc(ctaUrl)+'" style="display:inline-block;background:#B42318;color:#fff;text-decoration:none;border-radius:14px;padding:14px 22px;font-size:14px;font-weight:700;line-height:1.2;min-width:190px;text-align:center;box-shadow:0 12px 24px rgba(180,35,24,.18);">'+esc(ctaLabel)+'</a>' : '';
-  return '<div style="max-width:580px;margin:0 auto;background:#fff;border-radius:24px;box-shadow:0 18px 46px rgba(31,31,31,.08);overflow:hidden;font-family:Arial,Helvetica,sans-serif;color:#1F1F1F;border:1px solid #F2EDED;">'+
-    '<div style="height:5px;background:#B42318;font-size:1px;line-height:1px;">&nbsp;</div>'+
-    '<div style="padding:26px 30px 10px;text-align:left;background:linear-gradient(135deg,#FFFFFF 0%,#FFF8F6 100%);"><img src="'+esc(vars.brandLogoUrl)+'" alt="'+esc(vars.brandName)+'" style="display:block;width:132px;max-width:46%;height:auto;border:0;"><div style="margin-top:20px;font-size:11px;line-height:1.3;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#B42318;">SaaS '+esc(vars.brandName)+'</div><div style="margin-top:8px;font-size:26px;line-height:1.16;font-weight:700;color:#1F1F1F;">'+esc(subject)+'</div><div style="margin-top:9px;font-size:14px;line-height:1.55;color:#6F6860;">'+esc(preheader)+'</div></div>'+
-    '<div style="padding:14px 30px 4px;background:#fff;"><div style="border:1px solid #E7DDD1;border-radius:20px;padding:20px;background:linear-gradient(135deg,#FFFFFF 0%,#FAF8F4 100%);font-size:15px;line-height:1.68;color:#3B3533;">'+body+'<div style="margin-top:24px;text-align:left;">'+cta+'</div></div></div>'+
-    '<div style="padding:16px 30px 0;background:#fff;"><div style="font-size:12px;line-height:1.5;color:#8A7E7C;background:#FFF8EC;border:1px solid #F5E3BC;border-radius:16px;padding:12px 14px;">Por seguranca, nunca compartilhe sua senha. O BocaFood nao solicita senhas por e-mail.</div></div>'+
-    '<div style="padding:20px 30px 30px;background:#fff;font-size:12px;line-height:1.5;color:#8A7E7C;">Precisa de ajuda? Escreva para <a href="mailto:'+esc(vars.supportEmail)+'" style="color:#B42318;text-decoration:none;font-weight:700;">'+esc(vars.supportEmail)+'</a>.<br>'+esc(vars.brandName)+'</div>'+
+  var cta = ctaLabel && ctaUrl ? '<div class="email-preview-cta"><a href="'+esc(ctaUrl)+'">'+esc(ctaLabel)+'</a></div>' : '';
+  var samplePreview = tpl.key === 'welcome_hotmart';
+  var previewSupportEmail = vars.supportEmail;
+  var emailReason = _emailReplace((tpl.footerReason || vars.footerReasonDefault || _emailDefaults.settings.footerReasonDefault), vars);
+  if(samplePreview){
+    subject = 'Bem-vinda, Patrícia';
+    preheader = 'Seu acesso ao BocaFood está pronto.';
+    body = '<p>Olá Patrícia,</p><p>Sua compra foi confirmada e seu plano Plano Essencial já está liberado.</p><p>Crie seu acesso usando o mesmo e-mail da compra para entrar no painel e começar a configurar sua loja.</p>';
+    cta = '<div class="email-preview-cta"><a href="'+esc(ctaUrl || vars.signupUrl || vars.appBaseUrl)+'">Criar meu acesso</a></div>';
+  }
+  var terms = vars.termsUrl ? '<a href="'+esc(vars.termsUrl)+'">Termos de uso</a>' : 'Termos de uso';
+  var privacy = vars.privacyUrl ? '<a href="'+esc(vars.privacyUrl)+'">Política de privacidade</a>' : 'Política de privacidade';
+  return '<div class="email-preview-canvas">'+
+    '<article class="email-preview-card">'+
+      '<header class="email-preview-head">'+
+        '<img class="email-preview-logo" src="'+esc(vars.brandLogoUrl)+'" alt="'+esc(vars.brandName)+'">'+
+      '</header>'+
+      '<main class="email-preview-main">'+
+        '<h2 class="email-preview-subject">'+esc(subject)+'</h2>'+
+        (preheader ? '<p class="email-preview-preheader">'+esc(preheader)+'</p>' : '')+
+        '<div class="email-preview-body">'+body+cta+'</div>'+
+        '<div class="email-preview-note"><strong>Segurança:</strong> '+esc(vars.securityText || 'o BocaFood nunca solicita senha por e-mail.')+'</div>'+
+      '</main>'+
+      '<footer class="email-preview-footer">Precisa de ajuda? Escreva para <a href="mailto:'+esc(previewSupportEmail)+'">'+esc(previewSupportEmail)+'</a>.<br>Você recebeu este e-mail porque '+esc(emailReason)+'.<br>'+esc(vars.brandName)+'<br>'+terms+' · '+privacy+'</footer>'+
+    '</article>'+
   '</div>';
 }
 function renderEmailPreview(){

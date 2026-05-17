@@ -20,6 +20,10 @@
         "destination": "/admin.html"
       },
       {
+        "source": "/redefinir-senha",
+        "destination": "/redefinir-senha.html"
+      },
+      {
         "source": "/master",
         "destination": "/master.html"
       },
