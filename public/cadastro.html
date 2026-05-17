@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cadastro BocaFood</title>
+  <link rel="icon" type="image/png" href="assets/boca-food-favicon.png">
+  <link rel="apple-touch-icon" href="assets/boca-food-favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-functions-compat.js"></script>
+  <style>
+    :root{
+      --red:#C4362A;
+      --red-soft:#FFF4F2;
+      --ink:#2D2321;
+      --muted:#7B6E6A;
+      --line:#EFE4E1;
+      --bg:#FFF9F7;
+      --green:#2F6B57;
+      --shadow:0 14px 36px rgba(31,31,31,.06);
+      --content-width:760px;
+      --content-pad:24px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;font-family:'Manrope','Inter',sans-serif;background:linear-gradient(180deg,#FCF7F5 0%,#FFF9F7 100%);color:var(--ink)}
+    .topbar{width:min(var(--content-width),100%);margin:0 auto;padding:4px var(--content-pad) 0;display:flex;align-items:center;justify-content:center}
+    .brand-logo{width:82px;height:auto;object-fit:contain;background:transparent;border:0;padding:0}
+    .page{min-height:calc(100vh - 44px);display:block;width:min(900px,100%);margin:0 auto;padding:0 24px 24px}
+    .page-title,.preview-banner,.progress-card,.panel{width:min(var(--content-width),100%);margin-left:auto;margin-right:auto}
+    .page-title{margin-top:-10px;margin-bottom:10px;padding:0 var(--content-pad)}
+    .page-kicker{display:block;color:var(--red);font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin-bottom:0}
+    .page-title h1{font-size:31px;line-height:1.08;margin:0 0 8px;font-weight:700;letter-spacing:0;color:#261D1A}
+    .page-title p{font-size:14px;line-height:1.5;color:var(--muted);margin:0;max-width:640px}
+    .preview-banner{display:none;margin-top:0;margin-bottom:10px;padding:7px 10px;border:1px solid #EFE4E1;background:#FFFCFB;color:#9A8D89;border-radius:12px;font-size:11px;line-height:1.35}
+    .preview-banner.show{display:block}
+    .progress-card{position:relative;margin-top:0;margin-bottom:12px;background:linear-gradient(135deg,#FFFFFF 0%,#FAF8F4 100%);border:1px solid #EAE4DA;border-radius:18px;padding:12px var(--content-pad) 11px;box-shadow:0 14px 36px rgba(31,31,31,.06);overflow:hidden}
+    .progress-card::before{content:'';position:absolute;inset:0 0 auto;height:3px;background:linear-gradient(90deg,var(--red),#B6925E)}
+    .progress-meta{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:11px;color:#776A66;font-weight:700;margin-bottom:7px}
+    .progress-bar{height:5px;border-radius:999px;background:#EFE8DF;overflow:hidden;box-shadow:inset 0 1px 2px rgba(31,31,31,.08)}
+    .progress-fill{height:100%;width:14.28%;border-radius:999px;background:linear-gradient(90deg,var(--red),#B6925E);box-shadow:0 0 10px rgba(180,35,24,.18);transition:width .18s ease}
+    .step-pills{display:none}
+    .panel{position:relative;background:linear-gradient(135deg,#FFFFFF 0%,#FAF8F4 100%);border:1px solid #EAE4DA;border-radius:22px;box-shadow:var(--shadow);min-height:0;display:flex;flex-direction:column;overflow:hidden}
+    .panel::before{content:'';position:absolute;inset:0 0 auto;height:2px;background:linear-gradient(90deg,rgba(196,54,42,.42),rgba(182,146,94,.34))}
+    .question{font-family:'Manrope','Inter',sans-serif;font-size:24px;line-height:1.16;margin:22px 24px 7px;font-weight:700;letter-spacing:0;color:#261D1A}
+    .hint{font-size:13px;line-height:1.45;color:var(--muted);margin:0 24px 8px;max-width:620px}
+    .step-note{font-size:12px;line-height:1.42;color:#8A7D79;margin:0 22px 12px;display:none}
+    .step-note.show{display:block}
+    .step-main{padding:0 24px 10px}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .responsible-grid{grid-template-columns:minmax(0,1.35fr) minmax(190px,.85fr)}
+    .store-step{gap:14px}
+    .signup-section{grid-column:1/-1;display:flex;flex-direction:column;gap:8px;margin-top:2px}
+    .boxed-step{gap:12px}
+    .boxed-step .signup-section{padding:13px 14px 14px;border:1px solid rgba(196,54,42,.24);border-radius:17px;background:linear-gradient(135deg,#FFFFFF 0%,#FFFCFB 100%);gap:10px}
+    .boxed-step .signup-section-title{font-size:11px;font-weight:900;color:#473D3A}
+    .boxed-step .signup-section-help{font-size:11.5px;color:#9A8D89}
+    .sales-step{gap:12px}
+    .signup-section-head{display:flex;flex-direction:column;gap:3px}
+    .signup-section-title{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#6D625E}
+    .signup-section-help{font-size:12px;line-height:1.4;color:#8A7E7A}
+    .store-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    label{display:flex;flex-direction:column;gap:7px;margin:0}
+    label.full{grid-column:1/-1}
+    label span{font-size:11px;font-weight:750;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+    .field-note{font-size:11px;line-height:1.35;color:#958884;font-weight:500}
+    input,select{width:100%;height:44px;border:1.5px solid #E5D8D5;border-radius:12px;background:#fff;color:var(--ink);font:inherit;font-size:14px;padding:0 13px;outline:none;appearance:none}
+    select{background-image:linear-gradient(45deg,transparent 50%,#8A7D79 50%),linear-gradient(135deg,#8A7D79 50%,transparent 50%);background-position:calc(100% - 18px) 19px,calc(100% - 13px) 19px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:34px}
+    input:focus,select:focus{border-color:var(--red);box-shadow:0 0 0 4px rgba(196,54,42,.08)}
+    .phone-field{display:grid;grid-template-columns:118px 1fr;gap:10px}
+    .choice-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+    .choice{position:relative;display:flex;align-items:center;gap:8px;border:1.5px solid #E7D8D5;border-radius:14px;background:#fff;padding:11px 12px;color:#4E423F;font-size:13px;font-weight:650;cursor:pointer}
+    .choice input{width:16px;height:16px;accent-color:var(--red);flex:0 0 auto}
+    .choice:has(input:checked){border-color:var(--red);background:#FFF7F5;box-shadow:0 0 0 4px rgba(196,54,42,.07)}
+    .store-step .choice-grid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+    .store-step .choice{min-height:40px;padding:9px 34px 9px 11px;border-radius:13px;font-size:12.5px;line-height:1.25;justify-content:flex-start}
+    .sales-step .choice-grid{grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:8px}
+    .sales-step .choice{min-height:38px;padding-top:8px;padding-bottom:8px}
+    .moment-step .choice-grid{grid-template-columns:repeat(auto-fit,minmax(160px,1fr));align-items:stretch}
+    .moment-step .choice{align-items:center;justify-content:center;min-height:54px;padding:9px 32px 9px 12px;font-size:12px;text-align:center}
+    .moment-step .choice span{display:flex;align-items:center;justify-content:center;min-height:34px;line-height:1.18;text-align:center;width:100%}
+    .store-step .choice input{position:absolute;opacity:0;pointer-events:none}
+    .store-step .choice:has(input:checked){border-color:rgba(196,54,42,.72);background:#FFF4F2;box-shadow:none}
+    .store-step .choice:has(input:checked)::after{content:'✓';position:absolute;right:11px;top:50%;transform:translateY(-50%);width:17px;height:17px;border-radius:999px;background:var(--red);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900}
+    .actions{display:flex;gap:12px;justify-content:flex-end;margin-top:auto;padding:8px 24px 10px;background:#fff;border-top:1px solid rgba(240,230,227,.62)}
+    button{border:none;border-radius:13px;height:44px;padding:0 18px;font-weight:800;font-size:14px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;text-align:center}
+    .primary{background:var(--red);color:#fff;box-shadow:0 10px 20px rgba(196,54,42,.16)}
+    .secondary{background:#fff;color:var(--ink);border:1.5px solid var(--line)}
+    .google-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:7px;background:#fff;color:#5E514E;border:1.5px solid #E5D8D5;box-shadow:none;margin-bottom:8px;font-size:13px;font-weight:600}
+    .google-btn:hover{border-color:#D9C8C4;background:#FFFCFB}
+    .google-mark{width:16px;height:16px;display:block;flex:0 0 auto}
+    .divider{display:flex;align-items:center;gap:9px;color:#A89C98;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin:0 0 10px}
+    .divider::before,.divider::after{content:'';height:1px;background:var(--line);flex:1}
+    button:disabled{opacity:.55;cursor:not-allowed;box-shadow:none}
+    .message{border-radius:14px;padding:12px 14px;font-size:13px;line-height:1.45;margin:12px 0 0;display:none}
+    .message.show{display:block}
+    .message.error{background:#FFF0EE;color:#9B271D;border:1px solid #F4C6BF}
+    .message.info{background:#F4FAF7;color:#245A49;border:1px solid #CFE8DC}
+    .success-box{background:linear-gradient(135deg,#FFFFFF 0%,#FFFCFB 100%);border:1px solid rgba(196,54,42,.24);border-radius:18px;padding:16px;color:#3F3633;line-height:1.5}
+    .success-head{display:flex;align-items:flex-start;gap:12px}
+    .success-icon{width:34px;height:34px;border-radius:12px;background:#FFF4F2;color:var(--red);display:flex;align-items:center;justify-content:center;font-weight:900;flex:0 0 auto}
+    .success-title{font-size:17px;font-weight:850;color:#261D1A;line-height:1.25;margin:0 0 4px}
+    .success-text{font-size:13px;color:#6F625E;line-height:1.5;margin:0}
+    .success-list{display:grid;gap:8px;margin-top:14px}
+    .success-item{display:flex;align-items:center;gap:9px;background:#fff;border:1px solid #EFE4E1;border-radius:13px;padding:9px 10px;font-size:12.5px;color:#4E423F;font-weight:650}
+    .success-item::before{content:'✓';width:17px;height:17px;border-radius:999px;background:var(--red);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;flex:0 0 auto}
+    .mini-note{font-size:12px;color:var(--muted);line-height:1.45;margin-top:8px}
+    @media(max-width:880px){
+      .topbar{padding:10px 16px 0;justify-content:center}
+      .brand-logo{width:76px}
+      .page{padding:0 16px 18px}
+      .page-title{padding:0 4px;text-align:center}
+      .page-title h1{font-size:26px}
+      .page-title p{max-width:none}
+      .panel{min-height:auto;border-radius:20px}
+      .question{font-size:22px;margin:20px 20px 7px}
+      .hint{margin-left:20px;margin-right:20px}
+      .step-note{margin-left:20px;margin-right:20px}
+      .step-main{padding:0 20px 6px}
+      .form-grid{grid-template-columns:1fr}
+      .store-fields{grid-template-columns:1fr}
+      .store-step .choice-grid{grid-template-columns:1fr}
+      .actions{flex-direction:column;padding:12px 20px}.actions button{width:100%}
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <img class="brand-logo" src="assets/boca-food-logo.png" alt="BocaFood">
+  </header>
+  <main class="page">
+    <section class="page-title">
+      <span class="page-kicker">Primeiro acesso</span>
+    </section>
+    <div class="preview-banner" id="preview-banner">Modo prévia ativo: navegue pelas etapas sem criar conta, salvar dados ou consultar Hotmart.</div>
+    <div class="progress-card">
+      <div class="progress-meta">
+        <span id="progress-current">1 de 7 · Acesso</span>
+        <span id="progress-percent">14% concluído</span>
+      </div>
+      <div class="progress-bar" aria-hidden="true"><div class="progress-fill" id="progress-fill"></div></div>
+    </div>
+    <section class="panel">
+      <h2 class="question" id="step-title"></h2>
+      <p class="hint" id="step-hint"></p>
+      <p class="step-note" id="step-note"></p>
+      <div class="step-main">
+        <div id="step-body"></div>
+        <div id="form-message" class="message"></div>
+      </div>
+      <div class="actions">
+        <button class="secondary" id="back-btn" type="button">Voltar</button>
+        <button class="primary" id="next-btn" type="button">Continuar</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+  (function(){
+    'use strict';
+    var isPreview = new URLSearchParams(window.location.search).get('preview') === '1';
+    var BB_FB_CFG = {
+      apiKey: 'AIzaSyAZk2mEPXR-VQOOEJWfcdhqoJOhHWjzda4',
+      authDomain: 'bocado-brasil.firebaseapp.com',
+      projectId: 'bocado-brasil',
+      storageBucket: 'bocado-brasil.firebasestorage.app',
+      messagingSenderId: '1083383234261',
+      appId: '1:1083383234261:web:b73a9e9f7df73233d6ec5c'
+    };
+    if (!isPreview && !firebase.apps.length) firebase.initializeApp(BB_FB_CFG);
+    var completeSignup = isPreview ? null : firebase.app().functions('us-central1').httpsCallable('completeSignupOnboarding');
+    var state = {
+      step: 0,
+      loading: false,
+      authCreated: false,
+      purchaseFound: false,
+      data: {
+        email: isPreview ? 'preview@bocafood.local' : '',
+        password: isPreview ? 'preview123' : '',
+        confirmPassword: isPreview ? 'preview123' : '',
+        ownerName: isPreview ? 'Cliente Prévia' : '',
+        whatsappCountryCode: '+34',
+        whatsappNumber: isPreview ? '600000000' : '',
+        language: 'pt-BR',
+        storeName: isPreview ? 'Loja Prévia' : '',
+        businessType: isPreview ? 'Marmitas / pratos prontos' : '',
+        salesMode: isPreview ? 'Delivery' : '',
+        storeCity: isPreview ? 'Madrid' : '',
+        sellingFrequency: isPreview ? 'Vendo toda semana' : '',
+        salesChannels: isPreview ? ['WhatsApp'] : [],
+        menuStatus: isPreview ? 'Tenho uma lista simples' : '',
+        orderControl: isPreview ? 'Só no WhatsApp' : '',
+        productionPlace: isPreview ? 'Em casa' : '',
+        dailyCapacity: isPreview ? '6 a 10 pedidos' : '',
+        teamStructure: isPreview ? 'Trabalho sozinha' : '',
+        costKnowledge: isPreview ? 'Tenho uma ideia aproximada' : '',
+        mainChallenge: isPreview ? 'Organizar pedidos' : '',
+        mainGoal: isPreview ? 'Publicar minha loja online' : '',
+        businessStage: isPreview ? 'Começando' : '',
+        weeklyTimeAvailable: isPreview ? '2 a 5 horas' : ''
+      }
+    };
+    var steps = [
+      ['Crie seu acesso ao BocaFood','Use o mesmo e-mail usado na compra para liberar seu acesso. Continue com Google ou crie uma senha usando esse mesmo e-mail.'],
+      ['Dados do usuário responsável','Esses dados serão usados no perfil do usuário que vai administrar o Centro de Controle.'],
+      ['Dados da loja','Essas informações ajudam a configurar sua loja inicial no BocaFood. Você poderá editar tudo depois no Centro de Controle.'],
+      ['Como sua loja vende hoje','Essas respostas ajudam o BocaFood a configurar sua loja e sugerir próximos passos mais úteis.'],
+      ['Estrutura e capacidade','Agora vamos entender sua operação para guiar melhor sua evolução.'],
+      ['Momento do negócio','Últimas perguntas para montar um diagnóstico inicial simples.'],
+      ['Finalização','Seu acesso foi criado e os dados principais foram salvos.']
+    ];
+    var stepNavLabels = ['Acesso','Você','Negócio','Vendas','Estrutura','Momento','Finalização'];
+    var countries = [
+      ['ES','Espanha'],['PT','Portugal'],['BR','Brasil'],['FR','França'],['IT','Itália'],['DE','Alemanha'],['GB','Reino Unido'],['US','Estados Unidos'],['OTHER','Outro']
+    ];
+    var languages = [['pt-BR','🇧🇷 Português'],['es-ES','🇪🇸 Espanhol']];
+    var phoneCodes = [['+34','🇪🇸 +34'],['+351','🇵🇹 +351'],['+55','🇧🇷 +55'],['+33','🇫🇷 +33'],['+39','🇮🇹 +39'],['+49','🇩🇪 +49'],['+44','🇬🇧 +44'],['+1','🇺🇸 +1']];
+    var businessTypes = ['Salgados / snacks','Doces / confeitaria','Marmitas / pratos prontos','Comida por encomenda','Bolos','Bebidas','Cestas / kits','Outro'];
+    var salesModes = ['Delivery','Retirada','Atendimento presencial','Eventos / encomendas'];
+    var sellingFrequencies = ['Ainda não comecei','Vendo de vez em quando','Vendo toda semana','Vendo quase todos os dias','Vendo todos os dias'];
+    var salesChannels = ['WhatsApp','Instagram','Loja física','Site próprio','Marketplace / app de entrega','Ainda não recebo pedidos'];
+    var menuStatuses = ['Tenho cardápio completo','Tenho uma lista simples','Tenho só no WhatsApp/Instagram','Ainda não tenho'];
+    var orderControls = ['Uso um sistema','Uso planilha ou caderno','Organizo pelo WhatsApp','Ainda não controlo'];
+    var productionPlaces = ['Em casa','Em cozinha compartilhada','Em cozinha própria','Em loja/ponto físico','Ainda não tenho estrutura definida'];
+    var dailyCapacities = ['Até 5 pedidos','6 a 10 pedidos','11 a 20 pedidos','21 a 40 pedidos','Mais de 40 pedidos','Ainda não sei'];
+    var teamStructures = ['Trabalho sozinha','Tenho ajuda da família','Tenho 1 pessoa ajudando','Tenho equipe pequena','Tenho equipe estruturada'];
+    var costKnowledges = ['Sim, tenho ficha técnica/custo calculado','Tenho uma ideia aproximada','Não sei direito','Nunca calculei'];
+    var mainChallenges = ['Conseguir mais clientes','Organizar pedidos','Criar cardápio','Calcular preços e custos','Divulgar melhor','Ter constância nas vendas','Controlar dinheiro','Profissionalizar o negócio','Ainda estou começando e preciso de direção'];
+    var mainGoals = ['Começar a vender','Vender mais pelo WhatsApp/Instagram','Organizar meu delivery','Publicar minha loja online','Controlar custos e lucro','Criar promoções','Profissionalizar tudo','Escalar o negócio'];
+    var businessStages = ['Ideia','Começando','Já vendo, mas ainda desorganizada','Vendo bem, mas preciso profissionalizar','Quero crescer e escalar'];
+    var weeklyTimes = ['Menos de 2 horas','2 a 5 horas','5 a 10 horas','Mais de 10 horas','Depende da semana'];
+
+    function esc(value){return String(value == null ? '' : value).replace(/[&<>"']/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch];});}
+    function options(items, selected){return items.map(function(item){return '<option value="'+esc(item[0])+'" '+(item[0]===selected?'selected':'')+'>'+esc(item[1])+'</option>';}).join('');}
+    function choiceOptions(name, items, selected){
+      return '<div class="choice-grid">'+items.map(function(item){
+        return '<label class="choice"><input type="radio" name="'+esc(name)+'" value="'+esc(item)+'" '+(item===selected?'checked':'')+'><span>'+esc(item)+'</span></label>';
+      }).join('')+'</div>';
+    }
+    function multiChoiceOptions(name, items, selected){
+      selected=Array.isArray(selected)?selected:(selected?[selected]:[]);
+      return '<div class="choice-grid">'+items.map(function(item){
+        return '<label class="choice"><input type="checkbox" name="'+esc(name)+'" value="'+esc(item)+'" '+(selected.indexOf(item)>=0?'checked':'')+'><span>'+esc(item)+'</span></label>';
+      }).join('')+'</div>';
+    }
+    function radioVal(name){var el=document.querySelector('input[name="'+name+'"]:checked');return el?el.value:'';}
+    function checkedVals(name){return Array.prototype.slice.call(document.querySelectorAll('input[name="'+name+'"]:checked')).map(function(el){return el.value;});}
+    function bindSalesChannelExclusivity(){
+      Array.prototype.slice.call(document.querySelectorAll('input[name="salesChannels"]')).forEach(function(el){
+        el.addEventListener('change',function(){
+          var none='Ainda não recebo pedidos';
+          var channels=Array.prototype.slice.call(document.querySelectorAll('input[name="salesChannels"]'));
+          if(el.value===none&&el.checked){
+            channels.forEach(function(item){if(item.value!==none)item.checked=false;});
+          }else if(el.checked){
+            channels.forEach(function(item){if(item.value===none)item.checked=false;});
+          }
+          state.data.salesChannels=checkedVals('salesChannels');
+        });
+      });
+    }
+    function val(id){var el=document.getElementById(id);return el?el.value.trim():'';}
+    function setMsg(text,type){var el=document.getElementById('form-message');el.textContent=text||'';el.className='message '+(text?'show ':'')+(type||'info');}
+    function setLoading(on){state.loading=on;document.getElementById('next-btn').disabled=on;document.getElementById('back-btn').disabled=on;document.getElementById('next-btn').textContent=on?'Salvando...':(state.step===6?'Entrar no BocaFood':'Continuar');}
+    function sync(){
+      ['email','password','confirmPassword','ownerName','whatsappCountryCode','whatsappNumber','language','storeName','storeCity'].forEach(function(key){
+        var el=document.getElementById(key); if(el) state.data[key]=el.value.trim();
+      });
+      [['sellingFrequency','sellingFrequency'],['menuStatus','menuStatus'],['orderControl','orderControl'],['productionPlace','productionPlace'],['dailyCapacity','dailyCapacity'],['teamStructure','teamStructure'],['costKnowledge','costKnowledge'],['mainChallenge','mainChallenge'],['mainGoal','mainGoal'],['businessStage','businessStage'],['weeklyTimeAvailable','weeklyTimeAvailable']].forEach(function(pair){
+        var value=radioVal(pair[1]); if(value) state.data[pair[0]]=value;
+      });
+      if(document.querySelector('input[name="businessType"]')) state.data.businessType=checkedVals('businessType');
+      if(document.querySelector('input[name="salesMode"]')) state.data.salesMode=checkedVals('salesMode');
+      if(document.querySelector('input[name="salesChannels"]')) state.data.salesChannels=checkedVals('salesChannels');
+    }
+    function renderPills(){
+      var progress=Math.round(((state.step+1)/steps.length)*100);
+      document.getElementById('progress-current').textContent=(state.step+1)+' de '+steps.length+' · '+stepNavLabels[state.step];
+      document.getElementById('progress-percent').textContent=progress+'% concluído';
+      document.getElementById('progress-fill').style.width=progress+'%';
+    }
+    function render(){
+      setMsg('');
+      renderPills();
+      document.getElementById('preview-banner').className='preview-banner '+(isPreview?'show':'');
+      document.getElementById('step-title').textContent=steps[state.step][0];
+      document.getElementById('step-hint').textContent=steps[state.step][1];
+      var note=document.getElementById('step-note');
+      note.textContent='';
+      note.className='step-note';
+      document.getElementById('back-btn').style.display=state.step===0?'none':'inline-flex';
+      document.getElementById('next-btn').textContent=state.step===6?(isPreview?'Rever prévia':'Entrar no BocaFood'):'Continuar';
+      var d=state.data;
+      var body='';
+      if(state.step===0){
+        body=(isPreview?'':'<button class="google-btn" id="google-signup-btn" type="button"><svg class="google-mark" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"/></svg>Continuar com Google</button><div class="divider">ou entre com e-mail</div>')+'<div class="form-grid"><label class="full"><span>E-mail da compra</span><input id="email" type="email" autocomplete="email" placeholder="seu@email.com" value="'+esc(d.email)+'"></label><label><span>Senha</span><input id="password" type="password" autocomplete="new-password" placeholder="Crie uma senha" value="'+esc(d.password)+'"></label><label><span>Confirmar senha</span><input id="confirmPassword" type="password" autocomplete="new-password" placeholder="Repita a senha" value="'+esc(d.confirmPassword)+'"></label></div><div class="mini-note">'+(isPreview?'Modo prévia: estes dados não serão salvos.':'O acesso só será liberado se o e-mail for o mesmo usado na compra.<br>Já tem acesso? <a href="/admin.html" style="color:#C4362A;font-weight:800;text-decoration:none;">Entrar no Centro de Controle</a>')+'</div>';
+      }else if(state.step===1){
+        body='<div class="form-grid responsible-grid"><label class="full"><span>Nome completo do usuário</span><input id="ownerName" value="'+esc(d.ownerName)+'"></label><label><span>WhatsApp do usuário</span><div class="phone-field"><select id="whatsappCountryCode">'+options(phoneCodes,d.whatsappCountryCode)+'</select><input id="whatsappNumber" inputmode="tel" value="'+esc(d.whatsappNumber)+'" placeholder="600 000 000"></div><small class="field-note">Usaremos esse número para suporte e comunicações sobre a conta.</small></label><label><span>Idioma da conta</span><select id="language">'+options(languages,d.language)+'</select></label></div>';
+      }else if(state.step===2){
+        body='<div class="form-grid store-step boxed-step moment-step"><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Identificação da loja</div></div><div class="store-fields"><label><span>Nome da loja</span><input id="storeName" value="'+esc(d.storeName)+'" placeholder="Ex.: Boca Burger"></label><label><span>Cidade principal de atendimento</span><input id="storeCity" value="'+esc(d.storeCity)+'" placeholder="Ex.: Madrid"></label></div></div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">O que você vende ou pretende vender?</div><div class="signup-section-help">Escolha uma ou mais opções.</div></div>'+multiChoiceOptions('businessType',businessTypes,d.businessType)+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Como sua loja atende hoje?</div><div class="signup-section-help">Você pode marcar mais de uma opção.</div></div>'+multiChoiceOptions('salesMode',salesModes,d.salesMode)+'</div></div>';
+      }else if(state.step===3){
+        body='<div class="form-grid store-step boxed-step sales-step moment-step"><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Ritmo de vendas</div><div class="signup-section-help">Escolha a opção que mais combina com o momento atual.</div></div>'+choiceOptions('sellingFrequency',sellingFrequencies,d.sellingFrequency)+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Canais de pedido</div><div class="signup-section-help">Marque por onde você recebe pedidos hoje.</div></div>'+multiChoiceOptions('salesChannels',salesChannels,d.salesChannels)+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Cardápio</div><div class="signup-section-help">Isso ajuda a entender quanto falta para publicar sua loja.</div></div>'+choiceOptions('menuStatus',menuStatuses,d.menuStatus)+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Controle de pedidos</div><div class="signup-section-help">Como você organiza os pedidos hoje?</div></div>'+choiceOptions('orderControl',orderControls,d.orderControl)+'</div></div>';
+      }else if(state.step===4){
+        body='<div class="form-grid store-step boxed-step moment-step"><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Local de produção</div><div class="signup-section-help">Escolha onde os produtos são preparados hoje.</div></div>'+choiceOptions('productionPlace',productionPlaces,d.productionPlace)+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Capacidade diária</div><div class="signup-section-help">Quantos pedidos você consegue atender em um dia sem se enrolar?</div></div>'+choiceOptions('dailyCapacity',dailyCapacities,d.dailyCapacity)+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Equipe</div><div class="signup-section-help">Marque como você trabalha hoje.</div></div>'+choiceOptions('teamStructure',teamStructures,d.teamStructure)+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Custos</div><div class="signup-section-help">Isso ajuda o BocaFood a entender sua maturidade de preço e margem.</div></div>'+choiceOptions('costKnowledge',costKnowledges,d.costKnowledge)+'</div></div>';
+      }else if(state.step===5){
+        body='<div class="form-grid store-step boxed-step moment-step"><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Principal desafio</div><div class="signup-section-help">Escolha o ponto que mais precisa de atenção agora.</div></div>'+choiceOptions('mainChallenge',mainChallenges,d.mainChallenge)+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Objetivo principal</div><div class="signup-section-help">Isso ajuda o BocaFood a priorizar os próximos passos.</div></div>'+choiceOptions('mainGoal',mainGoals,d.mainGoal)+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Fase do negócio</div><div class="signup-section-help">Marque a fase que melhor descreve seu momento atual.</div></div>'+choiceOptions('businessStage',businessStages,d.businessStage)+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Tempo disponível</div><div class="signup-section-help">Quanto tempo você consegue dedicar por semana para organizar o negócio?</div></div>'+choiceOptions('weeklyTimeAvailable',weeklyTimes,d.weeklyTimeAvailable)+'</div></div>';
+      }else{
+        body='<div class="success-box"><div class="success-head"><div class="success-icon">✓</div><div><h3 class="success-title">Seu acesso está pronto.</h3><p class="success-text">Salvamos os dados principais e criamos a base inicial da sua loja como rascunho.</p></div></div><div class="success-list"><div class="success-item">Acesso criado</div><div class="success-item">Dados principais salvos</div><div class="success-item">Loja criada como rascunho</div></div></div>';
+        if(!state.purchaseFound) body+='<div class="message show error">Não encontramos uma compra ativa para este e-mail. Use o mesmo e-mail da compra ou fale com o suporte: teajudo@bocafood.app.</div>';
+      }
+      document.getElementById('step-body').innerHTML=body;
+      var googleBtn=document.getElementById('google-signup-btn');
+      if(googleBtn) googleBtn.addEventListener('click',signInWithGoogle);
+      if(state.step===3) bindSalesChannelExclusivity();
+    }
+    function validate(){
+      sync();
+      var d=state.data;
+      if(state.step===0){
+        if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(d.email)) return 'Informe um e-mail válido.';
+        if(d.password.length<6) return 'A senha precisa ter pelo menos 6 caracteres.';
+        if(d.password!==d.confirmPassword) return 'A confirmação de senha não confere.';
+      }
+      if(state.step===1 && (!d.ownerName || !d.whatsappNumber || !d.language)) return 'Preencha nome, WhatsApp e idioma da conta.';
+      if(state.step===2 && (!d.storeName || !(Array.isArray(d.businessType)?d.businessType.length:d.businessType) || !(Array.isArray(d.salesMode)?d.salesMode.length:d.salesMode) || !d.storeCity)) return 'Preencha nome, produtos, atendimento e cidade da loja.';
+      if(state.step===5 && !d.businessStage) return 'Selecione a fase do negócio.';
+      return '';
+    }
+    function createAccess(){
+      if(isPreview){
+        sync();
+        state.authCreated=true;
+        state.purchaseFound=false;
+        state.step=1;
+        render();
+        return Promise.resolve();
+      }
+      var d=state.data;
+      setLoading(true);
+      return firebase.auth().createUserWithEmailAndPassword(d.email,d.password).then(function(cred){
+        state.authCreated=true;
+        return completeSignup({stage:'account_created',email:cred.user.email}).then(function(result){
+          state.purchaseFound=!!(result.data&&result.data.purchaseFound);
+          state.step=1;render();
+        });
+      }).catch(function(err){
+        var code=err&&err.code?err.code:'';
+        if(code==='auth/email-already-in-use') setMsg('Já existe uma conta com esse e-mail. Faça login ou recupere sua senha.','error');
+        else setMsg('Não foi possível criar o acesso. Verifique os dados e tente novamente.','error');
+      }).finally(function(){setLoading(false);});
+    }
+    function signInWithGoogle(){
+      if(isPreview) return;
+      if(state.loading) return;
+      setLoading(true);
+      var provider=new firebase.auth.GoogleAuthProvider();
+      provider.setCustomParameters({prompt:'select_account'});
+      return firebase.auth().signInWithPopup(provider).then(function(result){
+        var user=result.user;
+        state.authCreated=true;
+        state.data.email=user&&user.email?user.email:'';
+        if(user&&user.displayName&&!state.data.ownerName) state.data.ownerName=user.displayName;
+        return completeSignup({stage:'account_created',email:state.data.email}).then(function(response){
+          state.purchaseFound=!!(response.data&&response.data.purchaseFound);
+          state.step=1;
+          render();
+        });
+      }).catch(function(err){
+        var code=err&&err.code?err.code:'';
+        if(code==='auth/popup-closed-by-user') setMsg('Login com Google cancelado. Você também pode criar acesso com e-mail e senha.','error');
+        else if(code==='auth/account-exists-with-different-credential') setMsg('Já existe uma conta com esse e-mail usando outro método de acesso. Entre pelo Centro de Controle ou recupere sua senha.','error');
+        else setMsg('Não foi possível entrar com Google. Tente novamente ou use e-mail e senha.','error');
+      }).finally(function(){setLoading(false);});
+    }
+    function finish(){
+      sync();
+      if(isPreview){
+        state.purchaseFound=false;
+        state.step=6;
+        render();
+        setMsg('Prévia concluída. Nenhuma conta foi criada e nenhum dado foi salvo.','info');
+        return Promise.resolve();
+      }
+      setLoading(true);
+      var d=state.data;
+      var payload=Object.assign({},d,{
+        stage:'completed',
+        businessType:Array.isArray(d.businessType)?d.businessType.join(', '):d.businessType,
+        salesMode:Array.isArray(d.salesMode)?d.salesMode.join(', '):d.salesMode,
+        whatsappFull:String(d.whatsappCountryCode||'')+String(d.whatsappNumber||'').replace(/\s+/g,'')
+      });
+      return completeSignup(payload).then(function(result){
+        var data=result.data||{};
+        state.purchaseFound=!!data.purchaseFound;
+        if(data.ok){
+          state.step=6;render();
+        }else{
+          state.step=6;render();
+          setMsg(data.message||'Não encontramos uma compra ativa para este e-mail.','error');
+        }
+      }).catch(function(){
+        setMsg('Não foi possível finalizar o cadastro. Tente novamente em instantes.','error');
+      }).finally(function(){setLoading(false);});
+    }
+    document.getElementById('next-btn').addEventListener('click',function(){
+      if(state.loading) return;
+      if(state.step===6){
+        if(isPreview){state.step=0;render();return;}
+        if(state.purchaseFound) window.location.href='/admin.html#inicio';
+        return;
+      }
+      var error=validate();
+      if(error){setMsg(error,'error');return;}
+      if(state.step===0){createAccess();return;}
+      if(state.step===5){finish();return;}
+      sync();state.step+=1;render();
+    });
+    document.getElementById('back-btn').addEventListener('click',function(){if(state.loading)return;sync();state.step=Math.max(0,state.step-1);render();});
+    render();
+  })();
+  </script>
+</body>
+</html>

@@ -15,7 +15,7 @@ window.Auth = (function () {
 
   function normalizeRole(role) {
     var r = (role || '').toString().trim();
-    if (!r || r === 'tenant_owner') return 'store_owner';
+    if (!r || r === 'tenant_owner' || r === 'owner') return 'store_owner';
     if (r === 'manager') return 'store_staff';
     if (r === 'master') return 'master_admin';
     return r;
