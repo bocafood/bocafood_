@@ -211,6 +211,10 @@ Modules.Configuracoes = (function () {
 
   function _renderGeral() {
     var c = _config.geral || {};
+    var tenantStore = (_systemTenant && _systemTenant.store) || {};
+    var inheritedStoreName = tenantStore.name || '';
+    var businessNameValue = c.businessName || inheritedStoreName || '';
+    var tradeNameValue = c.tradeName || c.commercialName || c.visualName || businessNameValue || '';
     var profile = window.Auth && Auth.getAdminProfile ? Auth.getAdminProfile() : null;
     var companyAddress = c.companyAddress || c.businessAddress || {};
     var masterFiscalCountry = (_masterTenantControl && (_masterTenantControl.fiscalCountry || (_masterTenantControl.accountAddress && _masterTenantControl.accountAddress.fiscalCountry) || (_masterTenantControl.store && _masterTenantControl.store.fiscalCountry))) || '';
@@ -235,7 +239,7 @@ Modules.Configuracoes = (function () {
       '<div class="bf-section-header" style="padding:2px 2px 0;">' +
         '<div style="min-width:0;max-width:720px;"><h2 style="font-size:24px;font-weight:800;color:#1F1F1F;margin:0 0 6px;line-height:1.16;">Geral</h2><p class="bf-section-subtitle" style="font-size:14px;margin:0;">Dados centrais usados pelo painel, loja online, fiscal, comunicação e módulos operacionais.</p></div>' +
         '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">' +
-          _configChip(c.businessName || 'Nome pendente') +
+          _configChip(businessNameValue || 'Nome pendente') +
           _configChip((c.city || 'Cidade') + ' / ' + (c.country || 'Pais')) +
           _configChip((c.currency || c.defaultCurrency || 'EUR') + ' · ' + (c.language || c.defaultLanguage || 'pt-PT')) +
         '</div>' +
@@ -248,13 +252,13 @@ Modules.Configuracoes = (function () {
                 '<div id="cfg-avatar-preview" style="width:68px;height:68px;border-radius:18px;background:#fff;color:#B42318;border:1px solid #E5D3CF;display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 8px 20px rgba(31,31,31,.06);flex:0 0 auto;">' + (avatarUrl ? '<img src="' + _esc(avatarUrl) + '" alt="" style="width:100%;height:100%;object-fit:contain;display:block;">' : '<span class="mi" style="font-size:30px;">storefront</span>') + '</div>' +
                 '<div style="min-width:0;flex:1;padding-top:2px;">' +
                   '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;"><span class="bf-badge" style="background:#fff;border:1px solid #EAE4DA;color:#B42318;">Ficha do negócio</span><span class="bf-badge" style="background:#fff;border:1px solid #EAE4DA;">' + _esc(fiscalLabel) + '</span></div>' +
-                  '<h3 style="margin:0;color:#1F1F1F;font-size:24px;font-weight:800;line-height:1.12;word-break:break-word;">' + _esc(c.businessName || c.tradeName || c.visualName || 'Nome do negócio') + '</h3>' +
+                  '<h3 style="margin:0;color:#1F1F1F;font-size:24px;font-weight:800;line-height:1.12;word-break:break-word;">' + _esc(businessNameValue || tradeNameValue || 'Nome do negócio') + '</h3>' +
                   '<p style="margin:8px 0 0;color:#6F6860;font-size:13px;line-height:1.45;max-width:440px;">' + _esc(c.description || 'Descrição curta ainda não preenchida.') + '</p>' +
                 '</div>' +
               '</div>' +
             '</div>' +
             '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;">' +
-              _generalMiniInfo('Nome comercial', c.tradeName || c.commercialName || c.visualName || c.businessName || 'Não informado') +
+              _generalMiniInfo('Nome comercial', tradeNameValue || 'Não informado') +
               _generalMiniInfo('Responsável', c.legalRepresentative || c.responsavelLegal || 'Não informado') +
               _generalMiniInfo('Documento', c.companyFiscalId || c.fiscalDocument || c.taxId || c.nif || 'Não informado') +
               _generalMiniInfo('País fiscal', fiscalLabel) +
@@ -277,8 +281,8 @@ Modules.Configuracoes = (function () {
                 '</div>' +
                 '<input id="cfg-avatar-url" class="bf-input" value="' + _esc(avatarUrl) + '" placeholder="URL do avatar" style="margin-top:10px;">' +
               '</div>' +
-              '<div class="bf-span-full">' + _configInput('cfg-business-name', 'Nome do negócio', c.businessName, 'Boca do Brasil') + '</div>' +
-              _configInput('cfg-trade-name', 'Nome comercial', c.tradeName || c.commercialName || c.visualName || c.businessName, 'Boca do Brasil') +
+              '<div class="bf-span-full">' + _configInput('cfg-business-name', 'Nome do negócio', businessNameValue, 'Boca do Brasil') + '</div>' +
+              _configInput('cfg-trade-name', 'Nome comercial', tradeNameValue, 'Boca do Brasil') +
               _configInput('cfg-legal-name', 'Razão social', c.legalName || c.companyLegalName || '', 'Nome legal da empresa') +
               _configInput('cfg-legal-representative', 'Responsável legal', c.legalRepresentative || c.responsavelLegal || '', 'Nome do responsável') +
               '<div class="bf-span-full">' + _configTextarea('cfg-description', 'Descrição curta', c.description, 'Comida brasileira artesanal em Lisboa') + '</div>' +

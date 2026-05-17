@@ -406,7 +406,7 @@ def default_email_templates
     {
       'key' => 'password_reset',
       'name' => 'Esqueci minha senha',
-      'description' => 'Base preparada para envio futuro de link gerado pelo Firebase Admin.',
+      'description' => 'Enviado quando a usuária solicita redefinição de senha no login.',
       'subject' => 'Redefina sua senha do {{brandName}}',
       'preheader' => 'Use este link para criar uma nova senha.',
       'body' => '<p>Ola {{buyerName}},</p><p>Recebemos uma solicitacao para redefinir a senha da sua conta.</p><p>Se foi voce, use o botao abaixo. Se nao solicitou essa alteracao, ignore este e-mail.</p>',
@@ -452,6 +452,54 @@ def default_email_templates
       'availableVariables' => ['buyerName', 'buyerEmail', 'supportEmail', 'planName', 'productName', 'appBaseUrl', 'brandName']
     },
     {
+      'key' => 'trial_ending',
+      'name' => 'Trial acabando',
+      'description' => 'Aviso enviado quando o periodo de teste esta perto do fim.',
+      'subject' => 'Seu teste do {{brandName}} acaba em breve',
+      'preheader' => 'Faltam poucos dias para terminar seu periodo de teste.',
+      'body' => '<p>Ola {{buyerName}},</p><p>Seu periodo de teste do {{brandName}} esta acabando em breve.</p><p>Entre no Centro de Controle para revisar sua loja e manter o acesso ativo.</p>',
+      'ctaLabel' => 'Abrir BocaFood',
+      'ctaUrl' => '{{appBaseUrl}}',
+      'enabled' => true,
+      'availableVariables' => ['buyerName', 'buyerEmail', 'supportEmail', 'appBaseUrl', 'brandName', 'trialEndsAt', 'planName']
+    },
+    {
+      'key' => 'trial_ends_today',
+      'name' => 'Trial acaba hoje',
+      'description' => 'Aviso enviado no dia final do periodo de teste.',
+      'subject' => 'Seu teste do {{brandName}} acaba hoje',
+      'preheader' => 'Hoje e o ultimo dia do seu periodo de teste.',
+      'body' => '<p>Ola {{buyerName}},</p><p>Seu teste do {{brandName}} acaba hoje.</p><p>Se precisar de ajuda para continuar, fale com o suporte.</p>',
+      'ctaLabel' => 'Abrir BocaFood',
+      'ctaUrl' => '{{appBaseUrl}}',
+      'enabled' => true,
+      'availableVariables' => ['buyerName', 'buyerEmail', 'supportEmail', 'appBaseUrl', 'brandName', 'trialEndsAt', 'planName']
+    },
+    {
+      'key' => 'trial_expired',
+      'name' => 'Trial expirado',
+      'description' => 'Aviso enviado quando o periodo de teste terminou.',
+      'subject' => 'Seu teste do {{brandName}} terminou',
+      'preheader' => 'Seu periodo de teste chegou ao fim.',
+      'body' => '<p>Ola {{buyerName}},</p><p>Seu periodo de teste terminou. Para continuar usando o BocaFood, regularize seu acesso ou fale com o suporte.</p>',
+      'ctaLabel' => 'Falar com suporte',
+      'ctaUrl' => 'mailto:{{supportEmail}}',
+      'enabled' => true,
+      'availableVariables' => ['buyerName', 'buyerEmail', 'supportEmail', 'appBaseUrl', 'brandName', 'trialEndsAt', 'planName']
+    },
+    {
+      'key' => 'store_not_published',
+      'name' => 'Loja não publicada',
+      'description' => 'Lembrete para contas que ainda nao publicaram a loja.',
+      'subject' => 'Sua loja ainda nao esta publicada',
+      'preheader' => 'Complete a publicacao para seus clientes encontrarem sua loja.',
+      'body' => '<p>Ola {{buyerName}},</p><p>Sua loja publica ainda nao foi publicada.</p><p>Entre no Centro de Controle, revise a configuracao e publique sua loja quando estiver pronta.</p>',
+      'ctaLabel' => 'Abrir Centro de Controle',
+      'ctaUrl' => '{{appBaseUrl}}',
+      'enabled' => false,
+      'availableVariables' => ['buyerName', 'buyerEmail', 'supportEmail', 'appBaseUrl', 'brandName', 'storeName']
+    },
+    {
       'key' => 'subscription_canceled',
       'name' => 'Assinatura cancelada',
       'description' => 'Avisa sobre cancelamento da assinatura.',
@@ -476,13 +524,158 @@ def ensure_email_template_defaults!
   end
 end
 
+def default_email_triggers
+  [
+    {
+      'triggerKey' => 'welcome_hotmart_email',
+      'tagKey' => 'hotmart_pending_access',
+      'templateKey' => 'welcome_hotmart',
+      'name' => 'Boas-vindas Hotmart',
+      'description' => 'Envia boas-vindas quando existir pendência de acesso Hotmart marcada por etiqueta.',
+      'enabled' => false,
+      'delayHours' => 0,
+      'dedupeWindowDays' => 30,
+      'source' => 'system'
+    },
+    {
+      'triggerKey' => 'trial_ending_email',
+      'tagKey' => 'trial_ending',
+      'templateKey' => 'trial_ending',
+      'name' => 'Trial acabando',
+      'description' => 'Envia aviso quando o trial estiver perto de acabar.',
+      'enabled' => true,
+      'delayHours' => 0,
+      'dedupeWindowDays' => 30,
+      'source' => 'system'
+    },
+    {
+      'triggerKey' => 'trial_ends_today_email',
+      'tagKey' => 'trial_ends_today',
+      'templateKey' => 'trial_ends_today',
+      'name' => 'Trial acaba hoje',
+      'description' => 'Envia aviso no dia em que o trial termina.',
+      'enabled' => true,
+      'delayHours' => 0,
+      'dedupeWindowDays' => 30,
+      'source' => 'system'
+    },
+    {
+      'triggerKey' => 'trial_expired_email',
+      'tagKey' => 'trial_expired',
+      'templateKey' => 'trial_expired',
+      'name' => 'Trial expirado',
+      'description' => 'Envia aviso quando o trial terminou sem assinatura ativa.',
+      'enabled' => true,
+      'delayHours' => 0,
+      'dedupeWindowDays' => 30,
+      'source' => 'system'
+    },
+    {
+      'triggerKey' => 'payment_pending_email',
+      'tagKey' => 'payment_pending',
+      'templateKey' => 'payment_pending',
+      'name' => 'Pagamento pendente',
+      'description' => 'Envia aviso quando a cobrança estiver pendente.',
+      'enabled' => true,
+      'delayHours' => 0,
+      'dedupeWindowDays' => 7,
+      'source' => 'system'
+    },
+    {
+      'triggerKey' => 'subscription_active_email',
+      'tagKey' => 'subscription_active',
+      'templateKey' => 'subscription_active',
+      'name' => 'Assinatura ativa',
+      'description' => 'Gatilho preparado para contas marcadas com assinatura ativa.',
+      'enabled' => false,
+      'delayHours' => 0,
+      'dedupeWindowDays' => 30,
+      'source' => 'system'
+    },
+    {
+      'triggerKey' => 'subscription_canceled_email',
+      'tagKey' => 'subscription_canceled',
+      'templateKey' => 'subscription_canceled',
+      'name' => 'Assinatura cancelada',
+      'description' => 'Envia aviso quando assinatura, reembolso ou chargeback cancelar o acesso.',
+      'enabled' => true,
+      'delayHours' => 0,
+      'dedupeWindowDays' => 30,
+      'source' => 'system'
+    },
+    {
+      'triggerKey' => 'store_not_published_email',
+      'tagKey' => 'store_not_published',
+      'templateKey' => 'store_not_published',
+      'name' => 'Loja não publicada',
+      'description' => 'Envia lembrete quando a loja ainda não foi publicada.',
+      'enabled' => false,
+      'delayHours' => 24,
+      'dedupeWindowDays' => 7,
+      'source' => 'system'
+    }
+  ]
+end
+
+def ensure_email_trigger_defaults!
+  default_email_triggers.each do |trigger|
+    key = trigger['triggerKey']
+    existing = firestore_get_document('system_email_triggers', key)
+    firestore_upsert_document('system_email_triggers', key, trigger) unless existing
+  end
+end
+
+def load_email_triggers_payload
+  ensure_email_trigger_defaults!
+  docs = firestore_list_documents('system_email_triggers')
+  triggers = docs.map do |doc|
+    fields = firestore_fields_to_hash(doc['fields'] || {})
+    fields['id'] = File.basename(doc['name'].to_s)
+    fields['triggerKey'] ||= fields['id']
+    fields
+  end
+  triggers.sort_by { |item| item['name'].to_s.downcase }
+end
+
+def save_email_trigger_payload!(body)
+  trigger_key = body['triggerKey'].to_s.strip
+  tag_key = body['tagKey'].to_s.strip
+  template_key = body['templateKey'].to_s.strip
+  raise WEBrick::HTTPStatus::BadRequest, 'triggerKey obrigatório.' if trigger_key.empty?
+  raise WEBrick::HTTPStatus::BadRequest, 'Etiqueta obrigatória.' if tag_key.empty?
+  raise WEBrick::HTTPStatus::BadRequest, 'Template obrigatório.' if template_key.empty?
+  payload = {
+    'triggerKey' => trigger_key,
+    'tagKey' => tag_key,
+    'templateKey' => template_key,
+    'name' => body['name'].to_s.strip.empty? ? trigger_key : body['name'].to_s.strip,
+    'description' => body['description'].to_s.strip,
+    'enabled' => body['enabled'] == true,
+    'delayHours' => [body['delayHours'].to_i, 0].max,
+    'dedupeWindowDays' => [body['dedupeWindowDays'].to_i, 1].max,
+    'source' => body['source'].to_s.strip.empty? ? 'master' : body['source'].to_s.strip
+  }
+  firestore_upsert_document('system_email_triggers', trigger_key, payload)
+  payload
+end
+
 def load_email_templates_payload
   ensure_email_template_defaults!
   docs = firestore_list_documents('system_email_templates')
-  templates = docs.map do |doc|
+  saved_templates = docs.map do |doc|
     key = doc['name'].to_s.split('/').last.to_s
     firestore_fields_to_hash(doc['fields'] || {}).merge('key' => key)
   end
+  by_key = {}
+  default_email_templates.each do |template|
+    key = template['key'].to_s
+    by_key[key] = template if !key.empty?
+  end
+  saved_templates.each do |template|
+    key = template['key'].to_s
+    by_key[key] = (by_key[key] || {}).merge(template) if !key.empty?
+  end
+  templates = by_key.values
   templates.sort_by { |tpl| tpl['name'].to_s.downcase }
 end
 
@@ -3073,6 +3266,16 @@ server.mount_proc '/master.html' do |_req, res|
   res.body = File.read(File.join(ROOT, 'master.html'))
 end
 
+server.mount_proc '/cadastro' do |_req, res|
+  res['Content-Type'] = 'text/html; charset=utf-8'
+  res.body = File.read(File.join(PUBLIC_ROOT, 'cadastro.html'))
+end
+
+server.mount_proc '/login' do |_req, res|
+  res['Content-Type'] = 'text/html; charset=utf-8'
+  res.body = File.read(File.join(PUBLIC_ROOT, 'admin.html'))
+end
+
 server.mount_proc '/api/master/firebase/overview' do |_req, res|
   begin
     json_response(res, 200, {
@@ -3676,6 +3879,48 @@ end
 
 server.mount_proc '/api/master/email/templates', &email_templates_handler
 server.mount_proc '/api/master/email/templates/', &email_templates_handler
+
+email_triggers_handler = proc do |req, res|
+  apply_cors_headers(res, req['Origin'] || req['origin'])
+  if req.request_method == 'OPTIONS'
+    res.status = 204
+    res.body = ''
+    next
+  end
+
+  begin
+    unless local_master_request?(req)
+      next json_response_cors(req, res, 403, email_read_error('Endpoint restrito ao Master local.'))
+    end
+
+    case req.request_method
+    when 'GET'
+      json_response_cors(req, res, 200, {
+        ok: true,
+        triggers: load_email_triggers_payload
+      })
+    when 'POST'
+      trigger = save_email_trigger_payload!(read_json(req))
+      json_response_cors(req, res, 200, {
+        ok: true,
+        message: 'Gatilho salvo.',
+        trigger: trigger
+      })
+    else
+      json_response_cors(req, res, 405, email_read_error('Endpoint existe, mas exige método GET ou POST.'))
+    end
+  rescue WEBrick::HTTPStatus::BadRequest => e
+    json_response_cors(req, res, 400, email_read_error(e.message))
+  rescue => e
+    debug = email_settings_debug(e)
+    log_email_settings("triggers erro tecnico #{debug}")
+    message = email_master_credential_error?(e) ? email_master_credential_message : 'Não foi possível carregar os gatilhos de e-mail.'
+    json_response_cors(req, res, 400, email_read_error(message, debug))
+  end
+end
+
+server.mount_proc '/api/master/email/triggers', &email_triggers_handler
+server.mount_proc '/api/master/email/triggers/', &email_triggers_handler
 
 email_logs_handler = proc do |req, res|
   apply_cors_headers(res, req['Origin'] || req['origin'])

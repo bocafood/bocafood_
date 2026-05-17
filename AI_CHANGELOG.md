@@ -1,5 +1,377 @@
 # AI Changelog
 
+## 2026-05-17 — Respostas do cadastro no Master
+- Arquivos alterados: `master.html`, `AI_CHANGELOG.md`.
+- Master: criada aba `Cadastro` no modal de conta para visualizar as respostas do onboarding salvas em `system_tenants/{uid}.businessProfile`.
+- Visualização: respostas agrupadas em Loja, Vendas, Estrutura e Momento, com campos somente leitura e estado vazio quando não houver cadastro inicial.
+- Escopo: alteração de interface/leitura; não altera dados, permissões, Firebase, Hotmart, e-mails ou salvamento.
+
+## 2026-05-17 — E-mail de cadastro concluído
+- Arquivos alterados: `functions/index.js`, `master.html`, `AI_CHANGELOG.md`.
+- E-mails: criado o template padrão `welcome_access_created` para cadastro concluído com compra Hotmart ativa vinculada.
+- Onboarding: após `signup_completed`, a Function envia o template por SMTP usando as configurações salvas no Master e registra o resultado em `email_logs`.
+- Segurança: o envio não expõe credenciais e não bloqueia a criação da conta se o SMTP/template falhar.
+
+## 2026-05-17 — E-mail de suporte no cadastro sem compra
+- Arquivos alterados: `public/cadastro.html`, `functions/index.js`, `AI_CHANGELOG.md`.
+- Cadastro: a mensagem de compra não localizada agora informa o suporte `teajudo@bocafood.app`.
+- Backend: o retorno `NO_ACTIVE_PURCHASE` da Function também usa a mesma mensagem.
+- Escopo: alteração apenas de copy; fluxo de cadastro, autenticação e vínculo Hotmart não foram alterados.
+
+## 2026-05-17 — Pílulas uniformes na tela 3
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: a etapa `Dados da loja` passou a usar o mesmo alinhamento central, altura uniforme e fonte ajustada das telas seguintes.
+- Escopo: alteração apenas visual; campos, seleções e salvamento não foram alterados.
+
+## 2026-05-17 — Pílulas uniformes na tela 4
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: a etapa `Como sua loja vende hoje` passou a usar o mesmo alinhamento central, altura uniforme e fonte ajustada das telas 5 e 6.
+- Escopo: alteração apenas visual; exclusividade de canais, fluxo e salvamento não foram alterados.
+
+## 2026-05-17 — Pílulas uniformes na tela 5
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: a etapa `Estrutura e capacidade` passou a usar o mesmo alinhamento central, altura uniforme e fonte ajustada das pílulas da tela 6.
+- Escopo: alteração apenas visual; fluxo, seleção e salvamento não foram alterados.
+
+## 2026-05-17 — Pílulas uniformes na tela 6
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: as pílulas da etapa `Momento do negócio` agora têm texto centralizado, altura uniforme e fonte ajustada para caber melhor.
+- Escopo: alteração apenas visual na etapa 6; fluxo e salvamento não foram alterados.
+
+## 2026-05-17 — Alinhamento das pílulas da tela 6
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: os textos das pílulas da etapa `Momento do negócio` foram alinhados verticalmente dentro das opções.
+- Escopo: alteração apenas visual; fluxo, seleção e salvamento não foram alterados.
+
+## 2026-05-17 — Finalização premium no cadastro
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: a etapa `Finalização` recebeu bloco visual alinhado aos subcards das etapas anteriores, com borda vermelha suave, ícone discreto e lista de confirmação.
+- Escopo: alteração apenas visual/copy; redirecionamento, lógica, Firebase e Hotmart não foram alterados.
+
+## 2026-05-17 — Subcards em Momento do negócio
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: a etapa `Momento do negócio` passou a usar o mesmo layout das etapas anteriores, com subcards para desafio, objetivo, fase e tempo disponível.
+- Campos: mantidos os mesmos dados salvos (`mainChallenge`, `mainGoal`, `businessStage`, `weeklyTimeAvailable`).
+- Escopo: alteração apenas visual/copy; fluxo e salvamento não foram alterados.
+
+## 2026-05-17 — Subcards em Estrutura e capacidade
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: a etapa `Estrutura e capacidade` passou a usar o mesmo layout das etapas anteriores, com subcards de borda vermelha suave, títulos fortes e textos auxiliares.
+- Campos: mantidos os mesmos dados salvos (`productionPlace`, `dailyCapacity`, `teamStructure`, `costKnowledge`).
+- Escopo: alteração apenas visual/copy; fluxo e salvamento não foram alterados.
+
+## 2026-05-17 — Subcards também em Dados da loja
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: a etapa `Dados da loja` passou a usar o mesmo design da etapa `Como sua loja vende hoje`, com subcards de borda vermelha suave, fundo leve e títulos mais fortes.
+- CSS: criado padrão compartilhado `boxed-step` para reutilizar o layout visual entre etapas sem alterar lógica ou dados.
+- Escopo: alteração apenas visual; fluxo, seleções e salvamento não foram alterados.
+
+## 2026-05-17 — Borda vermelha nos subcards de vendas
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: os subcards da etapa `Como sua loja vende hoje` receberam borda vermelha suave e títulos com peso maior.
+- Escopo: alteração apenas visual; lógica, seleções e dados salvos não foram alterados.
+
+## 2026-05-17 — Sub-blocos visuais na etapa de vendas
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: a etapa `Como sua loja vende hoje` recebeu sub-blocos sutis para Ritmo de vendas, Canais de pedido, Cardápio e Controle de pedidos.
+- Visual: cada pergunta agora tem borda suave, fundo levemente rosado, padding próprio e maior separação entre título, ajuda e opções.
+- Escopo: alteração apenas visual; fluxo, seleções, Firebase, preview, Hotmart e estrutura de dados não foram alterados.
+
+## 2026-05-17 — Clareza da etapa Como vende hoje
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: a etapa passou a se chamar `Como sua loja vende hoje`, com subtítulo e textos auxiliares mais claros.
+- Opções: removido `Boca a boca` dos canais, simplificados textos de cardápio e controle de pedidos, mantendo compatibilidade com os campos existentes.
+- Usabilidade: `Ainda não recebo pedidos` agora é opção exclusiva nos canais de pedido, desmarcando outros canais e sendo desmarcada quando outro canal é escolhido.
+- Escopo: alteração visual/copy e regra local da etapa; fluxo, Firebase, autenticação, Hotmart e rotas não foram alterados.
+
+## 2026-05-17 — Padrão visual aplicado à etapa Vendas
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: a etapa `Como você vende hoje` passou a usar o mesmo padrão visual da etapa `Dados da loja`, com seções, textos auxiliares e cards compactos selecionáveis.
+- Layout: removido o visual pesado de grade genérica na etapa 4, mantendo seleção por check discreto e compatibilidade com os campos existentes.
+- Escopo: alteração apenas visual/copy; fluxo, autenticação, Firebase, Hotmart e rotas não foram alterados.
+
+## 2026-05-17 — Nome da loja herdado no Admin
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Admin: o campo `Nome do negócio` em Configurações → Geral agora usa `system_tenants/{uid}.store.name` como fallback quando `config/geral.businessName` ainda não foi preenchido.
+- Cadastro: o `Nome da loja` salvo no onboarding passa a aparecer no respectivo campo do Admin sem exigir preenchimento manual prévio.
+- Escopo: ajuste de leitura/fallback; lógica de cadastro, autenticação, Hotmart e rotas não foram alteradas.
+
+## 2026-05-17 — Etapa Dados da loja no cadastro
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: a etapa `Sobre o negócio` foi renomeada para `Dados da loja`, com copy voltada à configuração inicial da loja BocaFood.
+- Layout: criada seção `Identificação da loja` com nome da loja e cidade principal de atendimento na mesma linha no desktop.
+- Opções: produtos vendidos e canais de atendimento passaram a usar cards compactos de múltipla escolha, com check discreto e sem mini toggle visível.
+- Compatibilidade: os campos continuam usando `storeName`, `storeCity`, `businessType` e `salesMode`; escolhas múltiplas são enviadas como texto agrupado para manter a Function atual compatível.
+
+## 2026-05-17 — Papel Admin no onboarding
+- Arquivos alterados: `functions/index.js`, `AI_CHANGELOG.md`.
+- Cadastro: o onboarding agora grava `role: "admin"` em `system_tenants/{uid}` para preencher o campo Papel no Master como Admin/ADM.
+- Escopo: ajuste restrito ao valor salvo pelo cadastro; fluxo, autenticação, Hotmart e rotas não foram alterados.
+
+## 2026-05-17 — Etapa usuário responsável no cadastro
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: a etapa 2 passou a tratar explicitamente os dados como perfil do usuário responsável pelo Centro de Controle.
+- Copy: atualizados título, subtítulo, labels de nome, WhatsApp e idioma, além da microcopy do WhatsApp.
+- Layout: WhatsApp recebeu mais largura que o idioma na segunda linha do desktop, preservando o layout mobile.
+- Escopo: alteração apenas visual/copy; fluxo, autenticação, preview, Hotmart e Firebase não foram alterados.
+
+## 2026-05-17 — Ajuste de idioma e botão no cadastro
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: opções de idioma simplificadas para `🇧🇷 Português` e `🇪🇸 Espanhol`, sem repetir Brasil/Espanha no texto.
+- Visual: botões passaram a centralizar o texto com alinhamento flexível, corrigindo o botão `Voltar`.
+- Escopo: alteração apenas visual/copy; lógica de cadastro e autenticação não foram alteradas.
+
+## 2026-05-17 — Idioma e WhatsApp na etapa responsável
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: o select de idioma da etapa `Dados da responsável` foi limitado a Português Brasil e Espanhol Espanha, com bandeiras nas opções.
+- Layout: WhatsApp de contato e idioma do Centro de Controle passaram a ficar na mesma linha no desktop, mantendo empilhamento no mobile.
+- Escopo: alteração apenas visual/copy; lógica de cadastro, autenticação e fluxo não foram alterados.
+
+## 2026-05-17 — Copy da etapa Você no cadastro
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: a etapa `Você` foi renomeada para `Dados da responsável`, com textos e labels mais claros para responsável, WhatsApp de contato e idioma do Centro de Controle.
+- Visual: suavizada a linha superior do card, reduzido o destaque do aviso de modo prévia e compactado levemente o rodapé do card.
+- Escopo: alteração apenas visual/copy; lógica de cadastro, preview, autenticação, Hotmart e fluxo não foram alterados.
+
+## 2026-05-17 — Ajuste de posição do Primeiro acesso
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: o texto `Primeiro acesso` voltou ao alinhamento anterior e o espaço vertical entre logo e texto foi reduzido.
+- Escopo: alteração apenas visual; lógica de cadastro, autenticação e fluxo não foram alterados.
+
+## 2026-05-17 — Destaque do Primeiro acesso no cadastro
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: aumentado o texto `Primeiro acesso` e aproximado da logo BocaFood no topo da tela.
+- Escopo: alteração apenas visual; lógica de cadastro, autenticação e fluxo não foram alterados.
+
+## 2026-05-17 — Remoção do título do topo do cadastro
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: removido o título `Vamos preparar seu Centro de Controle` do topo, mantendo apenas a identificação de primeiro acesso.
+- Escopo: alteração apenas de copy; lógica de cadastro, autenticação e fluxo não foram alterados.
+
+## 2026-05-17 — Remoção do subtítulo do topo do cadastro
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: removida a frase explicativa abaixo do título principal para evitar repetição com a copy do card de acesso.
+- Escopo: alteração apenas de copy; lógica de cadastro, autenticação e fluxo não foram alterados.
+
+## 2026-05-17 — Copy do acesso no cadastro
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: ajustado o texto da etapa de acesso para deixar claro que Google ou senha devem usar o mesmo e-mail da compra.
+- Formulário: o campo de e-mail agora aparece como `E-mail da compra`, mantendo o placeholder e adicionando microcopy discreta sobre liberação do acesso.
+- Escopo: alteração apenas de copy; lógica de cadastro, autenticação, Google login e fluxo de etapas não foram alterados.
+
+## 2026-05-17 — Cards do cadastro alinhados ao Admin
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: os cards de progresso e etapa receberam o mesmo padrão visual usado no Admin/Maturidade do Negócio, com degradê branco/off-white, borda suave, sombra leve e faixa superior em vermelho/dourado.
+- Escopo: alteração apenas visual; lógica de cadastro, autenticação, Google login e salvamento não foram alterados.
+
+## 2026-05-17 — Barra de progresso sem brilho excessivo
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: removido o brilho radial em volta da barra de progresso, mantendo apenas sombra sutil e preenchimento vermelho discreto.
+- Escopo: alteração apenas visual; lógica de cadastro, autenticação e salvamento não foram alterados.
+
+## 2026-05-17 — Brilho sofisticado na barra de progresso
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: a barra de progresso recebeu brilho externo suave e radial, com sombra mais premium ao redor do card.
+- Escopo: alteração apenas visual; lógica de cadastro e autenticação não foram alteradas.
+
+## 2026-05-17 — Barra de progresso premium no cadastro
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: a barra de progresso foi alinhada ao mesmo recuo dos textos do topo e do conteúdo do card.
+- Visual: aplicado fundo branco com leve gradiente, sombra suave, relevo interno e preenchimento vermelho com brilho discreto.
+- Escopo: alteração apenas visual; lógica de cadastro, autenticação, Google login e salvamento não foram alterados.
+
+## 2026-05-17 — Espaço entre logo e texto reduzido
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: reduzido o espaçamento vertical entre a logo BocaFood e o texto `Primeiro acesso`.
+- Escopo: alteração apenas visual; fluxo de cadastro não foi alterado.
+
+## 2026-05-17 — Alinhamento da coluna do cadastro
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: topo, progresso e card principal passaram a usar a mesma largura interna.
+- Alinhamento: os textos do topo usam o mesmo recuo do conteúdo interno do card, deixando títulos e cards começando no mesmo eixo visual.
+- Escopo: alteração apenas visual; lógica de cadastro, autenticação, Google login e salvamento não foram alterados.
+
+## 2026-05-17 — Logo do cadastro mais presente
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: a logo BocaFood no topo foi aumentada, centralizada e aproximada do título.
+- Escopo: alteração apenas visual; fluxo de cadastro, autenticação, Google login e salvamento não foram alterados.
+
+## 2026-05-17 — Copy premium do primeiro acesso
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: a tela de primeiro acesso recebeu copy mais clara e menos repetida, com título `Vamos preparar seu Centro de Controle`.
+- Hierarquia: removidas as duplicidades visuais de `Etapa 1` e `Etapa 1 de 7` dentro do card, mantendo o andamento apenas na barra de progresso.
+- Formulário: placeholders e microcopy foram ajustados para `seu@email.com`, `Crie uma senha`, `Repita a senha` e `Já tem acesso? Entrar no Centro de Controle`.
+- Visual: card e rodapé ficaram mais compactos, com progresso em formato `1 de 7 · Acesso` e `14% concluído`.
+- Escopo: ajuste apenas visual/copy; autenticação, Google login, rotas, Firebase, validações, etapas e salvamento não foram alterados.
+
+## 2026-05-17 — Logo Google no cadastro
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: o botão `Continuar com Google` deixou de usar a letra `G` genérica e passou a exibir o logotipo Google em SVG inline.
+- Escopo: alteração apenas visual; o fluxo de Google login e a lógica de cadastro não foram alterados.
+
+## 2026-05-17 — Hierarquia premium do cadastro
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: topo, progresso e card principal foram alinhados no mesmo container de largura máxima.
+- Hierarquia: o título `Cadastro BocaFood` voltou como ponto de entrada visual, com subtítulo menor e controlado.
+- Visual: card principal recebeu borda, sombra, raio e espaçamentos mais refinados; o progresso ficou mais integrado e discreto.
+- Escopo: alteração apenas de layout, alinhamento, hierarquia visual e copy; lógica de cadastro, Firebase Auth, Google login, Hotmart, Firestore, logs, `businessProfile` e salvamento não foram alterados.
+
+## 2026-05-17 — Frase auxiliar removida do cadastro
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: removida a frase `Depois, fazemos algumas perguntas rápidas para preparar seu Centro de Controle.` da etapa 1.
+- Escopo: alteração apenas de copy; lógica de cadastro, Firebase, Google login, Hotmart e salvamento não foram alterados.
+
+## 2026-05-16 — Ajuste fino visual do cadastro
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: reduzido o espaço vertical do topo, do progresso, do card principal e do rodapé para deixar `/cadastro.html` mais compacta.
+- Copy: o texto inicial passou para `Crie seu acesso e conte um pouco sobre o seu negócio...`; a etapa 1 agora usa `Use o mesmo e-mail da compra para o sistema encontrar seu plano.`
+- Visual: o botão Google, separador e espaçamentos entre título, texto e campos ficaram mais leves.
+- Escopo: alteração apenas de layout, espaçamento e copy; lógica de cadastro, Firebase Auth, Google login, Hotmart, Firestore, logs, `businessProfile` e salvamento não foram alterados.
+
+## 2026-05-16 — Modo prévia do cadastro
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: adicionada a opção local `?preview=1` para navegar pelas etapas do onboarding sem criar conta, salvar dados, inicializar Firebase ou consultar Hotmart.
+- Prévia: o modo preenche dados fictícios leves, oculta o botão Google e permite revisar os campos até a finalização.
+- Segurança: o fluxo real sem `preview=1` continua usando Firebase Auth, Google login, Hotmart e salvamento como antes.
+
+## 2026-05-16 — Destaque do primeiro acesso no cadastro
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: o marcador `Primeiro acesso` recebeu mais destaque visual com texto maior e negrito leve, sem pílula, fundo ou borda.
+- Escopo: alteração apenas visual; lógica de cadastro, Google login, Firebase, Hotmart e salvamento não foram alterados.
+
+## 2026-05-16 — Logo BocaFood correta no cadastro
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: a tela `/cadastro.html` passou a usar a mesma logo BocaFood do Admin: `assets/boca-food-logo.png`.
+- Favicon: o favicon também passou a usar o mesmo asset do Admin: `assets/boca-food-favicon.png`.
+- Correção: removido o uso de `logo.png`, que correspondia à marca antiga BocadoBrasil.
+- Escopo: alteração apenas visual/head; lógica de cadastro e autenticação não foram alteradas.
+
+## 2026-05-16 — Fonte do Admin no cadastro
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: removido o título `Cadastro BocaFood` da área principal da tela `/cadastro.html`.
+- Fonte: a tela passou a usar o mesmo padrão do Admin, com `Manrope` como fonte principal e `Inter` como fallback.
+- Escopo: alteração apenas visual; lógica de cadastro e autenticação não foram alteradas.
+
+## 2026-05-16 — Logo centralizada e favicon no cadastro
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: a logo no topo de `/cadastro.html` foi centralizada.
+- Favicon: adicionados `rel="icon"` e `apple-touch-icon` apontando para `/logo.png`, asset disponível dentro de `public/`.
+- Fonte: a tela continua usando `Inter` como fonte principal da interface.
+- Escopo: alteração apenas visual/head; lógica de cadastro e autenticação não foram alteradas.
+
+## 2026-05-16 — Topo do cadastro com logo limpa
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: removido o texto ao lado da logo no topo da tela `/cadastro.html`.
+- Visual: a logo BocaFood ficou maior e sem fundo, borda ou padding para usar aparência transparente.
+- Escopo: alteração apenas visual; lógica de cadastro e autenticação não foram alteradas.
+
+## 2026-05-16 — Progresso do cadastro simplificado
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: removida a linha de textos das etapas abaixo da barra de progresso em `/cadastro.html`.
+- Visual: o progresso agora fica apenas com texto compacto `Etapa X de 7 · Nome`, porcentagem e barra fina.
+- Escopo: alteração apenas visual; lógica de cadastro, Google login, Firebase, Hotmart, salvamento, `businessProfile` e logs não foram alterados.
+
+## 2026-05-16 — Cadastro mais compacto e guiado
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: a tela `/cadastro.html` foi simplificada visualmente sem alterar lógica de cadastro, Google login, Firebase, Hotmart, Firestore, logs, `businessProfile` ou salvamento.
+- Layout: o container geral foi reduzido para largura máxima menor, com menos espaçamento vertical e card principal mais compacto.
+- Progresso: os chips grandes foram trocados por barra fina com texto `Etapa X de 7 · Nome`, mantendo as etapas em texto pequeno.
+- Card: removido o bloco lateral `Depois disso`; a orientação virou uma frase curta abaixo do texto principal.
+- Etapa 1: copy ajustada para `Crie seu acesso`, texto sobre liberar o plano pelo e-mail da compra e microcopy `Já tem conta? Entre pelo Centro de Controle.`
+- Visual: botão Google, separador e rodapé do card ficaram mais leves, com menos peso visual e menos espaço vazio.
+
+## 2026-05-16 — Cadastro alinhado ao visual do Admin
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: a tela `/cadastro.html` foi ajustada apenas em layout, identidade visual e copy, sem alterar Firebase Auth, Hotmart, Firestore, logs, `businessProfile` ou salvamento.
+- Referências: o visual foi aproximado do padrão das telas internas `Maturidade do Negócio` e `Programa de Pontos`, com fundo off-white rosado, cards brancos, borda suave, sombra leve e vermelho usado com controle.
+- Progresso: as etapas foram redesenhadas como pills/tabs compactas de sistema, com etapa ativa em vermelho e etapas futuras neutras.
+- Card principal: a etapa passou a ter estrutura mais parecida com o Admin, com badge interno, título menor, texto direto, coluna de apoio discreta e rodapé de ações definido.
+- Copy: a etapa inicial agora usa `Crie seu acesso`, texto sobre usar o mesmo e-mail da compra e microcopy `Já tem conta? Entre pelo Centro de Controle.`
+
+## 2026-05-16 — Botão Google no padrão do onboarding
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: o botão `Continuar com Google` foi ajustado visualmente para combinar com o padrão atual do card de onboarding.
+- Visual: removida a aparência de botão externo pesado, com borda suave, hover discreto, tipografia alinhada e marca compacta em vermelho BocaFood.
+- Escopo: alteração apenas visual; autenticação Google e fluxo de onboarding não foram alterados.
+
+## 2026-05-16 — Cadastro com Google
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: adicionada a opção `Continuar com Google` na etapa 1 do onboarding público.
+- Fluxo: após autenticar com Google, a tela usa o e-mail autenticado para chamar `completeSignupOnboarding` e seguir para a etapa `Sobre você`, preservando o vínculo Hotmart por e-mail.
+- Compatibilidade: o cadastro por e-mail e senha continua disponível; salvamento, billing, logs e demais etapas não foram alterados.
+
+## 2026-05-16 — Onboarding sem card lateral introdutório
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: removido o card lateral `Comece pelo essencial` com checklist e lista vertical de etapas.
+- Layout: a tela passa a usar um card principal centralizado, com progresso compacto acima do card.
+- Escopo: ajuste apenas visual; lógica de etapas, validação, salvamento, Hotmart e logs não foram alterados.
+
+## 2026-05-16 — Visual premium do onboarding público
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: a tela `/cadastro.html` foi ajustada visualmente sem alterar a lógica de etapas, validação, salvamento, vínculo Hotmart ou logs.
+- Layout: removido o aspecto de landing page e adotado um padrão mais próximo de Maturidade do Negócio/Plano de voo, com topo simples, logo real BocaFood, card lateral de progresso e card principal de pergunta.
+- Progresso: os chips grandes foram substituídos por lista/barra discreta de etapas com ativo em vermelho, concluídas com check e futuras em cinza.
+- Copy: a etapa inicial agora usa tom mais direto e guiado, com título `Vamos criar seu acesso`, apoio sobre e-mail da compra e link discreto para quem já tem conta.
+- Visual: tipografia reduzida, menos bold, sombra mais leve, fundo rosado suave, campos e selects com borda/foco no padrão BocaFood e botões arredondados.
+
+## 2026-05-16 — Onboarding com diagnóstico inicial do negócio
+- Arquivos alterados: `public/cadastro.html`, `functions/index.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Cadastro: a tela existente foi adaptada sem recriação para o fluxo final em 7 etapas: criar acesso, sobre você, sobre o negócio, como vende hoje, estrutura/capacidade, momento do negócio e finalização.
+- Perguntas finais: adicionadas perguntas de tipo do negócio, modo de venda, frequência de vendas, canais, cardápio, controle de pedidos, produção, capacidade diária, equipe, conhecimento de custos, desafio, objetivo, fase e tempo disponível.
+- Estrutura Firestore: o diagnóstico inicial passa a ser salvo em `system_tenants/{uid}.businessProfile` com `source: "signup_onboarding"` e `updatedAt`, preservando `store.name`, `store.city` e `store.status: "draft"`.
+- Compatibilidade: campos antigos do onboarding, como `storeKind`, continuam aceitos como fallback para `businessType`; a gravação usa merge e não apaga dados antigos nem billing Hotmart.
+- Hotmart: o vínculo com `pending_hotmart_access` e a cópia de billing foram preservados.
+- Logs: adicionado `signup_business_profile_saved`, além dos logs já existentes de criação, vínculo, conclusão e cadastro sem compra ativa.
+- AGENTS: documentado que diagnóstico inicial do onboarding deve ser salvo em `businessProfile`.
+
+## 2026-05-16 — Tela pública de cadastro/onboarding
+- Arquivos alterados: `public/cadastro.html`, `functions/index.js`, `public/js/core/auth.js`, `firebase.json`, `server.rb`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Tela criada: `public/cadastro.html`, acessível por `/cadastro.html` e `/cadastro`, com experiência guiada em 5 etapas: criar acesso, sobre a usuária, sobre o negócio, dados fiscais básicos e finalização.
+- Visual: layout em duas colunas no desktop, fluxo em card branco com sombra suave, fundo claro/rosado, pills de etapa, botões vermelhos arredondados e responsividade mobile.
+- Criação de conta: a etapa inicial cria Firebase Auth com e-mail e senha, valida e-mail/senha e mostra mensagem clara quando o e-mail já existe.
+- Vínculo Hotmart: adicionada Function autenticada `completeSignupOnboarding`, que busca `pending_hotmart_access` pelo e-mail autenticado, cria/atualiza `system_tenants/{uid}`, copia billing da pendência ativa e marca a pendência como vinculada sem expor dados Hotmart no frontend.
+- Campos salvos: e-mail, nome, WhatsApp, idioma, documento, endereço fiscal básico, dados iniciais da loja, tipo do negócio, status draft, auth.uid, role owner, origem e timestamps.
+- Segurança: o frontend não lê `pending_hotmart_access` diretamente; a Function exige usuário autenticado e usa o e-mail do Auth para localizar compra ativa.
+- Logs: a Function registra `signup_started`, `signup_account_created`, `signup_hotmart_linked`, `signup_completed` e `signup_without_purchase` em `system_access_logs` sem senha ou dados sensíveis.
+- Integração Admin: `Auth.normalizeRole` passa a tratar `role: owner` como `store_owner` para liberar o Centro de Controle quando a conta estiver ativa.
+- Roteamento: `firebase.json` e `server.rb` direcionam `/cadastro` para `cadastro.html`.
+- Pendências: a Function precisa ser publicada em um deploy futuro para o onboarding funcionar em produção.
+
+## 2026-05-16 — Descrição das variáveis de e-mail
+- Arquivos alterados: `master.html`, `AI_CHANGELOG.md`.
+- Master: em `E-mails automáticos → Templates`, a área `Variáveis disponíveis` agora mostra cada variável junto de uma descrição curta.
+- Variáveis: adicionadas descrições para nome, e-mail, links, suporte, plano, produto, marca, trial, loja, cobrança e códigos Hotmart.
+- Escopo: alteração apenas visual/informativa; o salvamento e o envio dos templates não foram alterados.
+
+## 2026-05-16 — Templates novos permanecem visíveis no Master
+- Arquivos alterados: `master.html`, `server.rb`, `AI_CHANGELOG.md`.
+- Correção: a lista de templates em `E-mails automáticos` agora mescla templates salvos no Firestore com os templates padrão do sistema.
+- Backend local: `/api/master/email/templates` retorna os defaults quando um template novo ainda não existe como documento, preservando os valores salvos quando existem.
+- Frontend Master: a tela também mescla os defaults localmente para evitar que templates novos sumam quando a API retorna uma lista incompleta.
+- Impacto esperado: templates como `trial_ending`, `trial_ends_today`, `trial_expired` e `store_not_published` continuam visíveis na aba Templates.
+
+## 2026-05-16 — SMTP não volta para defaults quando gatilhos falham
+- Arquivos alterados: `master.html`, `AI_CHANGELOG.md`.
+- Master: o carregamento de `E-mails automáticos` deixou de usar falha única para configurações, templates e gatilhos.
+- Correção: se templates ou gatilhos falharem, a configuração SMTP carregada de `/api/master/email/settings` não é substituída por defaults visuais.
+- Impacto esperado: os campos de `Configuração SMTP` continuam exibindo os dados salvos em `system_email_settings/default`, mesmo quando outra parte da tela não carregar.
+- Feedback: a tela mostra aviso discreto indicando qual bloco não foi carregado.
+
+## 2026-05-16 — Gatilhos padrão para templates sem vínculo
+- Arquivos alterados: `functions/index.js`, `server.rb`, `master.html`, `AI_CHANGELOG.md`.
+- E-mails automáticos: adicionados gatilhos padrão para templates que ainda não tinham entrada em `system_email_triggers`.
+- Novos gatilhos: `welcome_hotmart_email`, `trial_ends_today_email` e `subscription_active_email`.
+- Segurança: `welcome_hotmart_email` e `subscription_active_email` começam inativos para evitar reenvios recorrentes de e-mails transacionais sem ativação manual no Master.
+- Trial: `trial_ends_today_email` começa ativo e usa a etiqueta `trial_ends_today`, com deduplicação de 30 dias.
+- Interface: os defaults do Master foram atualizados para que os templates passem a exibir `Com gatilho ativo` ou `Gatilho inativo`, em vez de `Sem gatilho`, quando houver vínculo configurado.
+
+## 2026-05-16 — Status de gatilho real nos templates
+- Arquivos alterados: `master.html`, `AI_CHANGELOG.md`.
+- Master: a lista de templates em `E-mails automáticos` deixou de usar uma lista fixa para indicar se um template tem gatilho.
+- Gatilhos: o status agora consulta os gatilhos carregados de `system_email_triggers` e mostra `Com gatilho ativo`, `Gatilho inativo` ou `Sem gatilho` conforme o `templateKey`.
+- Compatibilidade: `test_email` continua como `Manual`, e `password_reset`/`verify_email` continuam como `Preparado, não conectado`.
+- Interface: ao salvar ou recarregar gatilhos, a lista de templates é redesenhada para refletir o vínculo atual.
+
 ## 2026-05-16 — Integração Hotmart com billing do tenant
 - Arquivos alterados: `functions/index.js`, `server.rb`, `AI_CHANGELOG.md`.
 - Hotmart webhook: eventos aprovados/ativos atualizam tenants existentes com `billing.provider`, `billing.status`, `planSlug`, `billingCycle`, `activatedAt`, códigos Hotmart, `purchaseStatus` e `subscriptionStatus`, além dos espelhos `plan`, `billingStatus`, `billingCycle` e `activatedAt`.
@@ -5564,3 +5936,107 @@
 - Impacto esperado: a area principal do Master passa a usar "Contas", a listagem usa labels de conta/negocio/responsavel e o modal passa a usar abas "Negocio", "Responsavel", "Plano e acesso", "Hotmart" e "SEO tecnico".
 - Definicoes oficiais: Conta e o cliente BocaFood/tenant; Negocio e a operacao gastronomica; Loja publica e a vitrine publicada; Usuarios da conta sao pessoas com acesso ao Centro de Controle; Clientes da loja sao consumidores finais.
 - Compatibilidade: nomes tecnicos, colecoes Firestore, `system_tenants`, `tenantUid`, `uid`, rotas e IDs internos foram mantidos sem migracao de dados.
+
+## 2026-05-16
+- Pedido feito: melhorar a listagem Master > Contas para ficar mais compacta e facil de escanear.
+- Arquivos alterados:
+  - `master.html`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: reduzir a altura de cada conta, organizar a hierarquia de informacoes e evitar que todas as acoes secundarias fiquem empilhadas na linha.
+- Impacto esperado: a tabela de Contas BocaFood exibe colunas compactas para conta/negocio, responsavel, e-mail, plano, status da conta, status da loja, origem, ultimo acesso e acoes.
+- Acoes: apenas `Ver`, `Editar` e `Mais ações` ficam visiveis; liberar acesso, bloquear, trocar plano, vincular Hotmart, logs e arquivar ficam dentro do menu secundario.
+- Filtros: adicionados filtros de `Status da loja` e `Origem`, mantendo busca, plano, status da conta e assinatura.
+- Badges: status da conta, loja e assinatura receberam labels amigaveis e cores consistentes.
+- Paginacao: a listagem passa a mostrar 20 contas por pagina, com controles `Anterior` e `Próxima`.
+- Segurança/escopo: a fonte da listagem continua sendo somente `system_tenants` validos; nao foram adicionadas consultas a clientes finais, pedidos, customers ou usuarios Firebase Auth sem tenant.
+
+## 2026-05-16
+- Pedido feito: limpar e reorganizar a aba Configuracoes do Master.
+- Arquivos alterados:
+  - `AGENTS.md`
+  - `master.html`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: remover atalhos duplicados e fluxos legados da area principal de Configuracoes, mantendo apenas cards uteis para operacao atual.
+- Impacto esperado: a aba Configuracoes mostra `Google Maps / Places`, `Diagnostico tecnico` e `Ferramentas tecnicas`.
+- E-mails automaticos: o card duplicado foi ocultado porque ja existe aba propria no Master.
+- Publicacao legada: `Publicar site` e `Publicar todos os sites` foram ocultados da interface principal como fluxo legado do modelo GitHub por tenant, sem remover o codigo.
+- Templates: o card principal foi ocultado e seus controles ficaram agrupados em `Ferramentas tecnicas` como item legado/tecnico.
+- Configuracoes globais: a edicao de JSON cru saiu do card principal e foi movida para `Ferramentas tecnicas`.
+- Logs: `Logs e erros` foi renomeado para `Diagnostico tecnico`.
+- Visual: os cards visiveis da aba Configuracoes ficam empilhados em coluna unica, centralizados, com largura maxima controlada e menor espaco entre cards.
+
+## 2026-05-16
+- Pedido feito: conectar gatilhos reais dos e-mails automaticos Hotmart usando SMTP salvo no Master.
+- Arquivos alterados:
+  - `functions/index.js`
+  - `master.html`
+  - `AI_CHANGELOG.md`
+- Motivo da alteração: o webhook Hotmart nao deve depender apenas da colecao `mail`/fila para disparar e-mails automaticos.
+- Impacto esperado: Functions passa a carregar `system_email_settings/default`, `system_private_email_secrets/default` e `system_email_templates/{templateKey}` para enviar e-mails por SMTP real.
+- Gatilhos conectados: `welcome_hotmart` para compra aprovada sem tenant vinculado, `subscription_active` para compra/assinatura ativa com tenant vinculado, `payment_pending` para pagamento pendente/aguardando e `subscription_canceled` para cancelamento, reembolso ou chargeback.
+- Deduplicacao: o envio usa chave baseada em `eventId + templateKey + buyerEmail` e nao reenvia quando ja existe `email_logs` com sucesso para a mesma chave.
+- Logs: `email_logs` registra `to`, `templateKey`, `subject`, `status`, `source`, `eventId`, `tenantUid`, `error` e `createdAt`, sem HTML completo, payload Hotmart completo, senhas ou tokens.
+- Compatibilidade: a colecao `mail` permanece apenas como fallback para `welcome_hotmart` quando o SMTP real falha, sem tratar `queued` como envio real.
+- Master: a lista de templates passa a mostrar status de gatilho `Manual`, `Conectado` ou `Preparado, não conectado`; `password_reset` e `verify_email` continuam preparados, mas nao conectados.
+
+## 2026-05-16
+- Pedido feito: evoluir e-mails automaticos para gatilhos configuraveis por etiquetas inteligentes.
+- Arquivos alterados:
+  - `AGENTS.md`
+  - `functions/index.js`
+  - `server.rb`
+  - `master.html`
+  - `AI_CHANGELOG.md`
+- Estrutura de tags: `system_tenants/{uid}.tags.{tagKey}` passa a suportar etiquetas leves com `active`, `addedAt`, `updatedAt`, `source`, `reason` e `metadata`.
+- Helpers: criados `applyTenantTag`, `removeTenantTag` e `hasActiveTenantTag` nas Functions.
+- Rotinas agendadas: adicionadas `dailyTenantTagCheck` e `dailyEmailTriggerCheck`, com agenda diaria em `Europe/Madrid`.
+- Colecao nova: `system_email_triggers/{triggerKey}` guarda `tagKey`, `templateKey`, `enabled`, `delayHours`, `dedupeWindowDays`, `source`, `createdAt` e `updatedAt`.
+- Gatilhos iniciais: `trial_ending_email`, `trial_expired_email`, `payment_pending_email`, `subscription_canceled_email` e `store_not_published_email`.
+- Templates novos: `trial_ending`, `trial_ends_today`, `trial_expired` e `store_not_published`.
+- Master: adicionada aba `Gatilhos` em E-mails automaticos para listar, criar, editar, ativar/desativar e configurar etiqueta, template, atraso e janela anti-duplicidade.
+- Contas: o modal de edicao passa a mostrar `Etiquetas ativas` como badges somente leitura.
+- Deduplicacao: `dailyEmailTriggerCheck` evita reenvio quando ja existe `email_logs` success para `tenantUid + triggerKey` dentro da janela configurada.
+- Pendencias: a validacao de requisitos reais para `store_ready_to_publish` ainda usa campos resumidos em `system_tenants.store`; uma validacao mais profunda pode ser criada depois se for necessario ler categorias/produtos.
+
+## 2026-05-17
+- Pedido feito: criar no Master uma pagina com resumo visual das respostas do cadastro/onboarding.
+- Arquivos alterados:
+  - `master.html`
+  - `AI_CHANGELOG.md`
+- Motivo da alteracao: a visualizacao no modal da conta mostra respostas individuais, mas o Master tambem precisa enxergar tendencias gerais em formato de graficos/resumos.
+- Impacto esperado: o Master passa a ter a aba `Resumo do cadastro`, com metricas e graficos de barras leves em CSS usando `businessProfile` das contas carregadas de `system_tenants`.
+- Resumos exibidos: tipo de produto, modelo de atendimento, ritmo de vendas, canais de pedido, cardapio, controle de pedidos, estrutura de producao, capacidade diaria, equipe, custos, principal desafio, objetivo, fase do negocio e tempo disponivel.
+- Escopo: nao foram criadas novas colecoes, rotas ou consultas; a tela reutiliza os dados ja carregados pela listagem de Contas e nao altera respostas do cadastro.
+
+## 2026-05-17
+- Pedido feito: validar e preparar a pagina de login do Centro de Controle.
+- Arquivos alterados:
+  - `public/admin.html`
+  - `server.rb`
+  - `firebase.json`
+  - `AI_CHANGELOG.md`
+- Motivo da alteracao: o login ja existia embutido no Admin, mas nao havia rota `/login` e a tela precisava ficar alinhada ao padrao visual atual do BocaFood.
+- Impacto esperado: `/login` passa a abrir o mesmo login do Centro de Controle, com visual mais premium, opcao de entrar com Google, login por e-mail/senha, recuperacao de senha e link para primeiro acesso.
+- Segurança/escopo: a autenticacao continua usando Firebase Auth e `Auth.init()`; nao foram alteradas regras de acesso, validacao de tenant, Hotmart ou estrutura de dados.
+- Ajuste posterior: removido o link `Primeiro acesso` da tela de login para manter essa tela focada apenas em entrada e recuperacao de acesso.
+- Ajuste posterior: removida a nota sobre e-mail da compra/suporte do rodape do login para deixar a tela mais limpa.
+- Ajuste posterior: a tela de login passou a declarar explicitamente a mesma familia tipografica do cadastro (`Manrope`/`Inter`) no bloco de login e seus elementos internos.
+- Ajuste posterior: aumentado o logo da tela de login e reduzido o espaco entre logo e texto seguinte.
+- Ajuste posterior: revisada a copy da tela de login para focar no acesso ao Centro de Controle, com labels mais claras, placeholders, botao `Entrar no Centro de Controle`, divisor `ou entre com e-mail e senha`, link discreto para primeiro acesso e mensagens de erro mais especificas para e-mail inexistente, senha incorreta e Google nao vinculado.
+- Ajuste posterior: reduzido levemente o logo e a sombra do botao principal, mantendo o card centralizado e o vermelho apenas nos pontos de acao.
+- Ajuste posterior: removido o link/microcopy `Primeiro acesso? Criar acesso` da tela de login.
+- Ajuste posterior: removido o titulo `Acesse seu Centro de Controle` da tela de login.
+- Ajuste posterior: removido o subtitulo sobre entrar com o mesmo e-mail do cadastro da tela de login.
+
+## 2026-05-17
+- Pedido feito: transformar `Esqueci minha senha` em tela propria e ativar envio pelo backend/Firebase Admin.
+- Arquivos alterados:
+  - `public/admin.html`
+  - `functions/index.js`
+  - `master.html`
+  - `server.rb`
+  - `AI_CHANGELOG.md`
+- Motivo da alteracao: o botao de recuperacao usava o e-mail nativo do Firebase no proprio login; agora deve abrir uma tela separada e enviar o template `password_reset` configurado no Master.
+- Impacto esperado: ao clicar em `Esqueci minha senha`, o login alterna para uma tela de recuperacao; ao enviar o e-mail, a callable Function `requestPasswordResetEmail` gera um link via Firebase Admin e dispara o template SMTP `password_reset`.
+- Segurança: o fluxo nao retorna senha, token ou detalhes tecnicos ao frontend; quando o e-mail nao existe, registra `email_logs` como `skipped` e retorna mensagem generica para evitar exposicao de contas.
+- Master/Templates: `password_reset` passa a aparecer como `Conectado` e a descricao padrao foi atualizada para indicar envio real pelo login.

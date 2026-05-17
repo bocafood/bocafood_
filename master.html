@@ -25,10 +25,11 @@ h1{font-family:'League Spartan',sans-serif;font-size:34px}p{color:var(--muted);f
 .tab-btn.active{color:var(--red);border-bottom-color:var(--red)}
 .tab-panel{display:none}.tab-panel.active{display:block}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.settings-grid{grid-template-columns:minmax(0,880px);justify-content:center;gap:12px}
 .grid.two{grid-template-columns:minmax(360px,.85fr) minmax(520px,1.15fr)}
 .card{background:#fff;border-radius:14px;box-shadow:var(--shadow);padding:20px}
 .card h2{font-family:'League Spartan',sans-serif;font-size:22px;margin-bottom:8px}.card p{margin-bottom:16px}
-.actions{display:flex;gap:8px;flex-wrap:wrap}.btn{border:none;border-radius:10px;padding:10px 14px;font-weight:800;font-size:13px;cursor:pointer;background:var(--red);color:#fff}.btn.secondary{background:#fff;color:var(--dark);border:1.5px solid var(--mid)}.btn.blue{background:var(--blue)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}.btn{border:none;border-radius:10px;padding:10px 14px;font-weight:800;font-size:13px;cursor:pointer;background:var(--red);color:#fff}.btn:disabled{opacity:.45;cursor:not-allowed}.btn.secondary{background:#fff;color:var(--dark);border:1.5px solid var(--mid)}.btn.blue{background:var(--blue)}
 label{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}label span{font-size:11px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
 input,textarea,select{width:100%;padding:10px 12px;border:1.5px solid var(--mid);border-radius:9px;font-family:inherit;font-size:14px;outline:none;background:#fff}textarea{min-height:90px;resize:vertical}
 input:focus,textarea:focus,select:focus{border-color:var(--red)}
@@ -36,11 +37,14 @@ input:focus,textarea:focus,select:focus{border-color:var(--red)}
 .check-row{display:flex;align-items:center;gap:10px;background:var(--line);border-radius:10px;padding:11px 12px;font-size:13px;font-weight:700}
 .check-row input{width:16px;height:16px;accent-color:var(--red)}
 .table{width:100%;border-collapse:collapse;font-size:13px}.table th{text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;padding:9px;border-bottom:1px solid var(--line)}.table td{padding:10px 9px;border-bottom:1px solid var(--line)}
-.status-pill{display:inline-flex;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:900;background:#EDFAF3;color:var(--green)}
+.status-pill{display:inline-flex;align-items:center;white-space:nowrap;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:900;background:#EDFAF3;color:var(--green)}
 .status-pill.paused,.status-pill.pending,.status-pill.warn{background:#FFF8EC;color:#9A6A00}
 .status-pill.disabled,.status-pill.danger{background:#FFF0EE;color:var(--red)}
 .status-pill.info{background:#EFF6FF;color:#1D4ED8}
 .status-pill.neutral{background:#F3F4F6;color:#374151}
+.status-pill.ok{background:#EDFAF3;color:#157347}
+.status-pill.orange{background:#FFF7ED;color:#9A3412}
+.status-pill.gray{background:#F3F4F6;color:#4B5563}
 .modal-overlay{position:fixed;inset:0;background:rgba(26,26,26,.48);display:none;align-items:center;justify-content:center;padding:22px;z-index:40}
 .modal-overlay.open{display:flex}
 .modal{width:min(820px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:16px;box-shadow:0 24px 90px rgba(0,0,0,.28)}
@@ -58,24 +62,38 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
 .fb-login-btn{background:#C4362A;color:#fff}
 .fb-logout-btn{background:#2E2E2E;color:#ccc}
 #fb-auth-status{font-size:12px;color:#8A7E7C}
-.users-table{width:100%;border-collapse:separate;border-spacing:0 8px;font-size:13px}
-.users-table thead th{text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;padding:0 10px 4px}
-.users-table tbody tr{background:#fff;box-shadow:0 1px 0 rgba(0,0,0,.03)}
-.users-table tbody td{padding:12px 10px;vertical-align:top;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:#fff}
+.users-table{width:100%;border-collapse:separate;border-spacing:0 7px;font-size:12px;table-layout:auto}
+.users-table thead th{text-align:left;color:var(--muted);font-size:10px;text-transform:uppercase;padding:0 8px 4px;letter-spacing:.04em;white-space:nowrap}
+.users-table tbody tr{background:#fff;box-shadow:0 2px 10px rgba(63,38,35,.04)}
+.users-table tbody td{padding:9px 8px;vertical-align:middle;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:#fff}
 .users-table tbody td:first-child{border-left:1px solid var(--line);border-top-left-radius:12px;border-bottom-left-radius:12px}
 .users-table tbody td:last-child{border-right:1px solid var(--line);border-top-right-radius:12px;border-bottom-right-radius:12px}
-.user-main{display:flex;flex-direction:column;gap:4px}
-.user-name{font-size:14px;font-weight:900;color:var(--dark);line-height:1.25}
-.user-sub{font-size:12px;line-height:1.35;color:var(--muted)}
+.user-main{display:flex;flex-direction:column;gap:3px;min-width:0}
+.user-name{font-size:13px;font-weight:800;color:var(--dark);line-height:1.2;word-break:break-word}
+.user-sub{font-size:11px;line-height:1.3;color:var(--muted);word-break:break-word}
 .user-sub strong{color:var(--dark)}
-.user-meta{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.user-last-access{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:3px}
-.last-access-badge{display:inline-flex;align-items:center;gap:5px;border:1px solid #D7E7DD;background:#F0FFF4;color:#1F6F43;border-radius:999px;padding:5px 9px;font-size:12px;font-weight:900}
+.user-meta{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.uid-copy{padding:3px 7px!important;font-size:10px!important;border-radius:999px!important}
+.user-last-access{display:flex;flex-direction:column;gap:2px;margin-top:2px}
+.last-access-badge{display:inline-flex;align-items:center;gap:5px;border:1px solid #D7E7DD;background:#F0FFF4;color:#1F6F43;border-radius:999px;padding:3px 7px;font-size:10px;font-weight:800;width:max-content}
 .last-access-badge.empty{border-color:#EAE4DA;background:#FAF8F4;color:#6F6860}
-.user-actions{display:flex;gap:6px;flex-wrap:wrap}
-.user-actions .btn{padding:7px 10px;font-size:12px;border-radius:9px}
+.user-actions{display:flex;gap:6px;align-items:center;flex-wrap:nowrap;position:relative}
+.user-actions .btn{padding:6px 9px;font-size:11px;border-radius:9px;white-space:nowrap}
+.account-actions-menu{position:relative}
+.account-actions-menu summary{list-style:none;cursor:pointer}
+.account-actions-menu summary::-webkit-details-marker{display:none}
+.account-actions-menu[open] summary{border-color:var(--red);color:var(--red)}
+.account-actions-list{position:absolute;right:0;top:calc(100% + 6px);z-index:25;min-width:190px;display:grid;gap:6px;padding:8px;border:1px solid var(--line);border-radius:12px;background:#fff;box-shadow:0 14px 34px rgba(0,0,0,.14)}
+.account-actions-list .btn{width:100%;justify-content:flex-start;text-align:left;background:#fff;color:var(--dark);border:1px solid var(--line)}
+.account-actions-list .btn.danger{color:var(--red);border-color:#F2C7C1;background:#FFF7F6}
 .users-empty{padding:16px;border:1px dashed var(--mid);border-radius:12px;background:#fff;color:var(--muted);font-size:13px}
-.master-filters{display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:10px;align-items:end;margin:0 0 14px}
+.master-filters{display:grid;grid-template-columns:minmax(210px,2fr) repeat(5,minmax(120px,1fr)) auto;gap:10px;align-items:end;margin:0 0 14px}
+.master-filters label{margin-bottom:0}
+.master-filters .btn{padding:8px 11px;font-size:12px}
+.users-list-note{font-size:12px;font-weight:700;color:var(--muted);margin:0 0 10px}
+.users-pagination{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;color:var(--muted);font-size:12px;font-weight:700}
+.users-pagination-actions{display:flex;gap:8px}
+.users-pagination .btn{padding:7px 10px;font-size:11px}
 .master-section-title{grid-column:1/-1;margin:8px 0 0;padding:12px 0 0;border-top:1px solid var(--line);font-size:12px;font-weight:900;color:var(--red);text-transform:uppercase;letter-spacing:.06em}
 .user-modal-dialog{width:min(980px,100%);display:flex;flex-direction:column;overflow:hidden}
 .user-modal-dialog .modal-body{overflow:auto}
@@ -86,6 +104,32 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
 .tenant-user-card strong{display:block;color:var(--dark);font-size:14px}
 .tenant-user-card p{margin:4px 0 0;color:var(--muted);font-size:12px}
 .tenant-user-meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.signup-profile-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.signup-profile-section{border:1px solid rgba(196,54,42,.22);border-radius:14px;background:linear-gradient(135deg,#FFFFFF 0%,#FFFCFB 100%);padding:13px 14px}
+.signup-profile-section h3{margin:0 0 4px;color:var(--dark);font-size:12px;font-weight:900;letter-spacing:.06em;text-transform:uppercase}
+.signup-profile-section p{margin:0 0 10px;color:var(--muted);font-size:11px;line-height:1.4}
+.signup-answer-list{display:grid;gap:8px}
+.signup-answer{display:grid;gap:3px;padding:9px 10px;border:1px solid var(--line);border-radius:10px;background:#fff}
+.signup-answer span{color:var(--muted);font-size:10px;font-weight:900;letter-spacing:.05em;text-transform:uppercase}
+.signup-answer strong{color:var(--dark);font-size:13px;line-height:1.3;font-weight:800}
+.signup-answer.full{grid-column:1/-1}
+.signup-empty{padding:16px;border:1px dashed var(--mid);border-radius:12px;background:#fff;color:var(--muted);font-size:13px;line-height:1.45}
+.signup-summary-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:12px 0 16px}
+.signup-summary-metric{border:1px solid var(--line);border-radius:14px;background:linear-gradient(135deg,#fff 0%,#FFFBFA 100%);padding:14px;box-shadow:0 2px 10px rgba(63,38,35,.04)}
+.signup-summary-metric span{display:block;color:var(--muted);font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.06em}
+.signup-summary-metric strong{display:block;margin-top:5px;color:var(--dark);font-family:'League Spartan',sans-serif;font-size:28px;line-height:1}
+.signup-summary-metric p{margin:5px 0 0;font-size:11px;color:var(--muted)}
+.signup-summary-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.signup-chart-card{border:1px solid rgba(196,54,42,.18);border-radius:16px;background:#fff;padding:15px;box-shadow:0 2px 12px rgba(63,38,35,.05)}
+.signup-chart-card h3{margin:0;color:var(--dark);font-size:13px;font-weight:900;letter-spacing:.05em;text-transform:uppercase}
+.signup-chart-card p{margin:4px 0 12px;color:var(--muted);font-size:11px}
+.signup-chart-list{display:grid;gap:8px}
+.signup-chart-row{display:grid;grid-template-columns:minmax(118px,1fr) minmax(120px,2fr) 42px;gap:10px;align-items:center}
+.signup-chart-label{color:#4E423F;font-size:12px;font-weight:800;line-height:1.25}
+.signup-chart-track{height:10px;border-radius:999px;background:#F4ECE9;overflow:hidden}
+.signup-chart-fill{height:100%;min-width:4px;border-radius:999px;background:linear-gradient(90deg,var(--red),#B58B62)}
+.signup-chart-count{text-align:right;color:var(--muted);font-size:11px;font-weight:900}
+.signup-summary-empty{padding:18px;border:1px dashed var(--mid);border-radius:14px;background:#fff;color:var(--muted);font-size:13px;line-height:1.45}
 .tenant-user-details-overlay{display:none;position:fixed;inset:0;z-index:120;background:rgba(22,18,16,.42);align-items:center;justify-content:center;padding:18px}
 .tenant-user-details-overlay.open{display:flex}
 .tenant-user-details-dialog{width:min(880px,100%);max-height:92vh;overflow:hidden;display:flex;flex-direction:column;background:#fff;border-radius:18px;box-shadow:0 22px 70px rgba(0,0,0,.22)}
@@ -164,8 +208,10 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
 .email-template-item.active{border-color:#E2A09A;background:#FFF8F7}
 .email-template-item strong{display:block;font-size:14px;font-weight:700;color:var(--dark);margin-bottom:3px}
 .email-template-item span{font-size:12px;color:var(--muted);line-height:1.35}
-.email-vars{display:flex;gap:6px;flex-wrap:wrap}
-.email-var{display:inline-flex;border-radius:999px;background:#F9F7F7;border:1px solid #EEE6E4;color:#6F6860;padding:5px 8px;font-size:11px;font-weight:700}
+.email-vars{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
+.email-var{display:flex;flex-direction:column;gap:3px;border-radius:10px;background:#F9F7F7;border:1px solid #EEE6E4;color:#6F6860;padding:8px 10px;font-size:11px;font-weight:700;line-height:1.35}
+.email-var code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:var(--dark);font-weight:900}
+.email-var small{font-size:11px;color:var(--muted);font-weight:600;line-height:1.35}
 .email-preview-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
 .email-preview-frame{background:#fff7f6;border:1px solid var(--line);border-radius:18px;padding:18px;overflow:auto}
 .email-preview-frame.mobile{max-width:390px;margin:0 auto}
@@ -173,7 +219,8 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
 .email-log-table th{text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;padding:10px;border-bottom:1px solid var(--line);background:#FAF8F8}
 .email-log-table td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
 .email-secret-note{font-size:11px;line-height:1.45;color:#8A7E7C;margin-top:5px}
-@media(max-width:980px){.grid.two,.form-grid{grid-template-columns:1fr}.hero,.toolbar{align-items:flex-start;flex-direction:column}}
+@media(max-width:980px){.grid.two,.form-grid,.signup-profile-grid,.signup-summary-grid,.signup-summary-metrics{grid-template-columns:1fr}.hero,.toolbar{align-items:flex-start;flex-direction:column}.master-filters{grid-template-columns:1fr 1fr}.users-table,.users-table thead,.users-table tbody,.users-table tr,.users-table th,.users-table td{display:block}.users-table thead{display:none}.users-table{border-spacing:0}.users-table tbody tr{display:grid;gap:10px;margin-bottom:12px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#fff}.users-table tbody td{border:none!important;padding:0;background:transparent}.users-table tbody td::before{content:attr(data-label);display:block;margin-bottom:4px;color:var(--muted);font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.04em}.user-actions{justify-content:flex-start;flex-wrap:wrap}.account-actions-list{position:static;margin-top:6px;box-shadow:none}.signup-chart-row{grid-template-columns:minmax(100px,1fr) minmax(96px,1.4fr) 36px}}
+@media(max-width:640px){main{padding:16px}.master-filters{grid-template-columns:1fr}.users-pagination{align-items:flex-start;flex-direction:column}.users-pagination-actions{width:100%}.users-pagination-actions .btn{flex:1}.user-actions .btn{flex:1}.account-actions-menu{width:100%}.account-actions-menu summary.btn{width:100%;text-align:center}.account-actions-list{width:100%}}
 @media(max-width:980px){.email-form-grid,.email-template-list{grid-template-columns:1fr}}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -208,6 +255,7 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
 
   <nav class="tabs">
     <button class="tab-btn active" data-tab="usuarios" onclick="openTab('usuarios')">Contas</button>
+    <button class="tab-btn" data-tab="cadastro-resumo" onclick="openTab('cadastro-resumo')">Resumo do cadastro</button>
     <button class="tab-btn" data-tab="configuracoes" onclick="openTab('configuracoes')">Configurações</button>
     <button class="tab-btn" data-tab="emails-automaticos" onclick="openTab('emails-automaticos')">E-mails automáticos</button>
     <button class="tab-btn" data-tab="configuracoes-globais" onclick="openTab('configuracoes-globais')">Configurações Globais</button>
@@ -227,11 +275,14 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
         <div class="master-filters">
           <label><span>Busca</span><input id="users-search" placeholder="E-mail, conta, negócio, loja ou UID" oninput="renderUsersList()"></label>
           <label><span>Plano</span><select id="users-filter-plan" onchange="renderUsersList()"><option value="">Todos</option><option value="essencial">Plano Essencial</option><option value="compromisso_anual">Plano Compromisso Anual</option><option value="fundadoras">Plano Fundadoras</option></select></label>
-          <label><span>Status conta</span><select id="users-filter-status" onchange="renderUsersList()"><option value="">Todos</option><option value="pending">Pendente</option><option value="active">Ativo</option><option value="blocked">Bloqueado</option><option value="canceled">Cancelado</option><option value="disabled">Bloqueado legado</option></select></label>
+          <label><span>Status conta</span><select id="users-filter-status" onchange="renderUsersList()"><option value="">Todos</option><option value="pending">Pendente</option><option value="active">Ativo</option><option value="blocked">Bloqueado</option><option value="canceled">Cancelado</option><option value="archived">Arquivado</option><option value="inactive">Inativo</option><option value="disabled">Bloqueado legado</option></select></label>
           <label><span>Assinatura</span><select id="users-filter-billing" onchange="renderUsersList()"><option value="">Todas</option><option value="active">Ativa</option><option value="pending_payment">Pagamento pendente</option><option value="past_due">Atrasada</option><option value="canceled">Cancelada</option><option value="refunded">Reembolsada</option><option value="chargeback">Chargeback</option><option value="inactive">Inativa</option></select></label>
+          <label><span>Status da loja</span><select id="users-filter-store" onchange="renderUsersList()"><option value="">Todos</option><option value="draft">Rascunho</option><option value="ready">Pronta</option><option value="published">Publicada</option><option value="unpublished">Não publicada</option><option value="suspended">Suspensa</option><option value="publication_error">Erro de publicação</option><option value="empty">Loja não configurada</option></select></label>
+          <label><span>Origem</span><select id="users-filter-origin" onchange="renderUsersList()"><option value="">Todas</option><option value="hotmart">Hotmart</option><option value="manual">Manual</option><option value="master_local">Master local</option><option value="firebase_auth_auto_import">Firebase Auth</option><option value="test">Teste</option><option value="referral">Indicação</option></select></label>
           <button class="btn secondary" onclick="clearUserFilters()">Limpar</button>
         </div>
         <div id="users-sync-status" style="display:none;margin:0 0 12px;font-size:12px;font-weight:700;color:#8A7E7C;"></div>
+        <div class="users-list-note">Listando apenas contas BocaFood com acesso ao Centro de Controle.</div>
         <div id="users-wrap"></div>
         <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line);">
           <div class="toolbar">
@@ -248,15 +299,31 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
     </div>
   </section>
 
-  <section id="tab-configuracoes" class="tab-panel">
-    <section class="grid">
+  <section id="tab-cadastro-resumo" class="tab-panel">
+    <div class="grid">
       <div class="card">
+        <div class="toolbar">
+          <div>
+            <h2>Resumo das respostas do cadastro</h2>
+            <p>Visão geral das respostas do primeiro acesso para entender maturidade, canais, estrutura e desafios das contas BocaFood.</p>
+          </div>
+          <div class="actions"><button class="btn secondary" onclick="loadUsers({force:true}).then(function(){renderSignupSummary()})">Atualizar dados</button></div>
+        </div>
+        <div id="signup-summary-wrap" class="signup-summary-empty">Carregue as contas para ver os resumos do cadastro inicial.</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-configuracoes" class="tab-panel">
+    <section class="grid settings-grid">
+      <div class="card" style="display:none;">
         <h2>E-mails automáticos</h2>
         <p>Configure SMTP, templates transacionais, prévias responsivas e testes internos do BocaFood.</p>
         <div class="actions"><button class="btn" onclick="openTab('emails-automaticos')">Abrir e-mails automáticos</button></div>
       </div>
 
-      <div class="card">
+      <!-- Fluxo legado do modelo de publicação por repositório GitHub por tenant. Oculto enquanto publicação centralizada estiver ativa. -->
+      <div class="card" style="display:none;">
         <h2>Publicar site</h2>
         <p>Publica o pacote público completo do site para um tenant específico. Repositório e branch são lidos do cadastro.</p>
         <label>
@@ -273,7 +340,8 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
         <p style="font-size:11px;color:#8A7E7C;margin-top:8px;">Se o campo ficar vazio, o Master usa o token salvo no cadastro da conta. Crie em GitHub → Settings → Developer settings → Personal access tokens (permissão <strong>repo</strong>).</p>
       </div>
 
-      <div class="card">
+      <!-- Fluxo legado do modelo de publicação por repositório GitHub por tenant. Oculto enquanto publicação centralizada estiver ativa. -->
+      <div class="card" style="display:none;">
         <h2>Publicar todos os sites</h2>
         <p>Publica o pacote público completo para <strong>todos os tenants ativos</strong> que têm repositório GitHub configurado no cadastro.</p>
         <label><span>GitHub Token (ghp_...) — usado para todos</span><input id="pub-all-token" type="password" placeholder="ghp_xxxxxxxxxxxx"></label>
@@ -284,7 +352,8 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
         <p style="font-size:11px;color:#8A7E7C;margin-top:8px;">O repositório e a branch de cada tenant são lidos do cadastro (aba Contas). Tenants sem repositório configurado são ignorados.</p>
       </div>
 
-      <div class="card">
+      <!-- Templates base do fluxo antigo de geração/publicação. Mantido apenas como ferramenta técnica temporária. -->
+      <div class="card" style="display:none;">
         <h2>Templates</h2>
         <p>Controle de templates base usados para gerar o site publicado. O arquivo base é sempre enviado ao GitHub como <strong>index.html</strong>.</p>
         <label><span>Nome</span><input id="tpl-name" value="default"></label>
@@ -316,16 +385,23 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
       </div>
 
       <div class="card">
-        <h2>Configurações globais</h2>
-        <p>Valores internos compartilhados pelo Master.</p>
-        <label><span>JSON</span><textarea id="global-config">{}</textarea></label>
-        <div class="actions"><button class="btn blue" onclick="saveGlobalConfig()">Salvar</button><button class="btn secondary" onclick="loadGlobalConfig()">Recarregar</button></div>
+        <h2>Diagnóstico técnico</h2>
+        <p>Consulte logs, erros e informações úteis para suporte e depuração local.</p>
+        <div class="actions" style="margin-bottom:12px"><button class="btn secondary" onclick="loadLogs()">Atualizar logs</button></div>
+        <pre id="logs">Carregando...</pre>
       </div>
 
       <div class="card">
-        <h2>Logs e erros</h2>
-        <div class="actions" style="margin-bottom:12px"><button class="btn secondary" onclick="loadLogs()">Atualizar logs</button></div>
-        <pre id="logs">Carregando...</pre>
+        <h2>Ferramentas técnicas</h2>
+        <p>Área técnica para manutenção interna. Use apenas quando souber exatamente o que está alterando.</p>
+        <div class="global-help" style="margin-bottom:14px;">Configurações perigosas e itens legados ficam agrupados aqui para não poluir a área principal do Master.</div>
+        <label><span>Configurações globais JSON</span><textarea id="global-config">{}</textarea></label>
+        <div class="actions" style="margin-bottom:16px;"><button class="btn blue" onclick="saveGlobalConfig()">Salvar configurações globais</button><button class="btn secondary" onclick="loadGlobalConfig()">Recarregar</button></div>
+        <div class="master-section-title">Templates base legados</div>
+        <p style="margin:8px 0 12px;">Mantido apenas para manutenção técnica enquanto o fluxo de publicação centralizada estiver ativo.</p>
+        <label><span>Nome</span><input id="tpl-name" value="default"></label>
+        <label><span>Arquivo base</span><input id="tpl-file" value="index.html"></label>
+        <div class="actions"><button class="btn secondary" onclick="saveTemplate()">Salvar template</button><button class="btn secondary" onclick="loadTemplates()">Recarregar template</button></div>
       </div>
     </section>
   </section>
@@ -346,6 +422,7 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
         <div class="email-tabs">
           <button class="email-tab-btn active" data-email-tab="smtp" onclick="switchEmailTab('smtp')">Configuração SMTP</button>
           <button class="email-tab-btn" data-email-tab="templates" onclick="switchEmailTab('templates')">Templates</button>
+          <button class="email-tab-btn" data-email-tab="triggers" onclick="switchEmailTab('triggers')">Gatilhos</button>
           <button class="email-tab-btn" data-email-tab="preview" onclick="switchEmailTab('preview')">Prévia</button>
           <button class="email-tab-btn" data-email-tab="logs" onclick="switchEmailTab('logs')">Logs</button>
         </div>
@@ -418,6 +495,43 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
                 <button class="btn secondary" onclick="sendEmailTest()">Enviar teste</button>
                 <button class="btn secondary" onclick="previewEmailTemplate()">Visualizar prévia</button>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="email-panel-triggers" class="email-panel">
+          <div class="email-card">
+            <div class="toolbar">
+              <div>
+                <h3>Gatilhos por etiqueta</h3>
+                <p>Configure qual template será enviado quando uma etiqueta estiver ativa na conta.</p>
+              </div>
+              <button class="btn secondary" onclick="newEmailTrigger()">Novo gatilho</button>
+            </div>
+            <div class="global-help" style="margin-bottom:12px;">Regra simples desta etapa: etiqueta ativa → template enviado, respeitando atraso e janela anti-duplicidade.</div>
+            <div id="email-trigger-list" class="global-table-wrap"></div>
+          </div>
+          <div class="email-card">
+            <div class="toolbar">
+              <div>
+                <h3 id="email-trigger-editor-title">Editar gatilho</h3>
+                <p>Use etiquetas leves. Não configure envios sem janela anti-duplicidade.</p>
+              </div>
+              <span id="email-trigger-status" class="email-status off">Inativo</span>
+            </div>
+            <div class="email-form-grid">
+              <label><span>Chave do gatilho</span><input id="email-trigger-key" placeholder="trial_ending_email"></label>
+              <label><span>Nome</span><input id="email-trigger-name" placeholder="Trial acabando"></label>
+              <label><span>Etiqueta</span><select id="email-trigger-tag"></select></label>
+              <label><span>Template</span><select id="email-trigger-template"></select></label>
+              <label><span>Atraso em horas</span><input id="email-trigger-delay" type="number" min="0" value="0"></label>
+              <label><span>Janela anti-duplicidade em dias</span><input id="email-trigger-dedupe" type="number" min="1" value="30"></label>
+              <label class="full"><span>Descrição</span><textarea id="email-trigger-description" style="min-height:80px;"></textarea></label>
+              <label class="full"><span>Status</span><div class="check-row" style="margin:0;"><input id="email-trigger-enabled" type="checkbox"><span>Gatilho ativo</span></div></label>
+            </div>
+            <div class="actions" style="margin-top:14px;">
+              <button class="btn" onclick="saveEmailTrigger()">Salvar gatilho</button>
+              <button class="btn secondary" onclick="loadEmailTriggers()">Recarregar gatilhos</button>
             </div>
           </div>
         </div>
@@ -544,6 +658,7 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
     </div>
     <div class="user-modal-tabs" role="tablist" aria-label="Seções da conta">
       <button type="button" class="user-modal-tab active" data-user-tab="negocio" onclick="openUserModalTab('negocio')">Negócio</button>
+      <button type="button" class="user-modal-tab" data-user-tab="cadastro" onclick="openUserModalTab('cadastro')">Cadastro</button>
       <button type="button" class="user-modal-tab" data-user-tab="usuarios" onclick="openUserModalTab('usuarios')">Responsável</button>
       <button type="button" class="user-modal-tab" data-user-tab="plano" onclick="openUserModalTab('plano')">Plano e acesso</button>
       <button type="button" class="user-modal-tab" data-user-tab="hotmart" onclick="openUserModalTab('hotmart')">Hotmart</button>
@@ -589,6 +704,17 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
         <label><span>País</span><input id="user-account-country" readonly placeholder="Não preenchido"><small class="field-hint">Copiado de Dados fiscais da empresa → País.</small></label>
         <label><span>País fiscal</span><select id="user-fiscal-country"><option value="">Não preenchido</option><option value="ES">Espanha (ES)</option><option value="PT">Portugal (PT)</option></select><small class="field-hint">Origem: Master. Define módulos e regras fiscais do Admin.</small></label>
         <label class="full"><span>Observações internas</span><textarea id="user-notes" placeholder="Informações úteis para suporte, publicação, cobrança e operação."></textarea></label>
+        <div class="full">
+          <label><span>Etiquetas ativas</span></label>
+          <div id="user-active-tags" class="tenant-user-meta"><span class="user-sub">Nenhuma etiqueta ativa.</span></div>
+          <small class="field-hint">Origem: Sistema. Etiquetas são usadas por automações e gatilhos de e-mail.</small>
+        </div>
+        </div>
+      </div>
+      <div class="user-tab-panel" data-user-panel="cadastro">
+        <div class="form-grid">
+          <div class="user-field-note">Respostas do cadastro inicial/onboarding. Esses dados são leitura para suporte e diagnóstico; a usuária pode completar a loja depois no Centro de Controle.</div>
+          <div id="signup-profile-view" class="full signup-profile-grid"></div>
         </div>
       </div>
       <div class="tenant-user-details-overlay" id="tenant-user-details-modal" onclick="if(event.target===this)closeTenantUserDetailsModal()">
@@ -793,6 +919,13 @@ function publishAll(){
 function openTab(tab){
   document.querySelectorAll('.tab-btn').forEach(function(btn){btn.classList.toggle('active',btn.dataset.tab===tab)});
   document.querySelectorAll('.tab-panel').forEach(function(panel){panel.classList.toggle('active',panel.id==='tab-'+tab)});
+  if(tab==='cadastro-resumo'){
+    if((window._masterUsersRaw || []).length){
+      renderSignupSummary();
+    }else{
+      loadUsers({silent:true}).then(function(){renderSignupSummary()});
+    }
+  }
   if(tab==='configuracoes-globais'){
     loadGlobalFinanceScreen();
   }
@@ -1416,6 +1549,127 @@ function openUserModalTab(tab){
     panel.classList.toggle('active', panel.dataset.userPanel === tab);
   });
 }
+function signupAnswer(label,value){
+  var display=Array.isArray(value)?value.filter(Boolean).join(', '):String(value||'').trim();
+  return '<div class="signup-answer"><span>'+esc(label)+'</span><strong>'+esc(display||'Não respondido')+'</strong></div>';
+}
+function signupProfileSection(title,help,items){
+  return '<section class="signup-profile-section"><h3>'+esc(title)+'</h3><p>'+esc(help)+'</p><div class="signup-answer-list">'+items.join('')+'</div></section>';
+}
+function renderSignupProfile(tenant){
+  var wrap=document.getElementById('signup-profile-view');
+  if(!wrap)return;
+  tenant=tenant||{};
+  var profile=tenant.businessProfile||{};
+  var store=tenant.store||{};
+  var hasProfile=!!Object.keys(profile).length;
+  if(!hasProfile&&!store.name&&!store.city){
+    wrap.innerHTML='<div class="signup-empty">Nenhuma resposta de cadastro inicial encontrada para esta conta.</div>';
+    return;
+  }
+  wrap.innerHTML=[
+    signupProfileSection('Loja','Dados iniciais usados para criar a base da loja.',[
+      signupAnswer('Nome da loja',store.name||tenant.storeName),
+      signupAnswer('Cidade principal',store.city||profile.serviceCity),
+      signupAnswer('Produtos vendidos',profile.businessType),
+      signupAnswer('Atendimento',profile.salesMode)
+    ]),
+    signupProfileSection('Vendas','Como a loja vendia no momento do cadastro.',[
+      signupAnswer('Ritmo de vendas',profile.sellingFrequency),
+      signupAnswer('Canais de pedido',profile.salesChannels),
+      signupAnswer('Cardápio',profile.menuStatus),
+      signupAnswer('Controle de pedidos',profile.orderControl)
+    ]),
+    signupProfileSection('Estrutura','Capacidade e organização operacional inicial.',[
+      signupAnswer('Local de produção',profile.productionPlace),
+      signupAnswer('Capacidade diária',profile.dailyCapacity),
+      signupAnswer('Equipe',profile.teamStructure),
+      signupAnswer('Conhecimento de custos',profile.costKnowledge)
+    ]),
+    signupProfileSection('Momento','Diagnóstico inicial declarado pela usuária.',[
+      signupAnswer('Principal desafio',profile.mainChallenge),
+      signupAnswer('Objetivo principal',profile.mainGoal),
+      signupAnswer('Fase do negócio',profile.businessStage),
+      signupAnswer('Tempo disponível',profile.weeklyTimeAvailable)
+    ])
+  ].join('');
+}
+function signupSummaryValues(value){
+  if(Array.isArray(value))return value.map(function(v){return String(v||'').trim();}).filter(Boolean);
+  var text=String(value||'').trim();
+  if(!text)return [];
+  return text.split(',').map(function(v){return v.trim();}).filter(Boolean);
+}
+function signupSummaryCount(users, getter){
+  var counts={};
+  users.forEach(function(t){
+    signupSummaryValues(getter(t)).forEach(function(value){
+      counts[value]=(counts[value]||0)+1;
+    });
+  });
+  return Object.keys(counts).map(function(label){return {label:label,count:counts[label]};}).sort(function(a,b){
+    return b.count-a.count || a.label.localeCompare(b.label);
+  });
+}
+function signupSummaryRows(rows,total){
+  if(!rows.length)return '<div class="signup-summary-empty">Ainda não há respostas suficientes para este gráfico.</div>';
+  return '<div class="signup-chart-list">'+rows.slice(0,8).map(function(row){
+    var pct=total?Math.round((row.count/total)*100):0;
+    return '<div class="signup-chart-row"><div class="signup-chart-label">'+esc(row.label)+'</div><div class="signup-chart-track"><div class="signup-chart-fill" style="width:'+pct+'%"></div></div><div class="signup-chart-count">'+row.count+' · '+pct+'%</div></div>';
+  }).join('')+'</div>';
+}
+function signupSummaryCard(title,help,users,getter,total){
+  var rows=signupSummaryCount(users,getter);
+  return '<section class="signup-chart-card"><h3>'+esc(title)+'</h3><p>'+esc(help)+'</p>'+signupSummaryRows(rows,total)+'</section>';
+}
+function renderSignupSummary(){
+  var wrap=document.getElementById('signup-summary-wrap');
+  if(!wrap)return;
+  var users=(window._masterUsersRaw || window._masterUsers || []).slice();
+  var withProfile=users.filter(function(t){
+    var profile=t.businessProfile||{};
+    return Object.keys(profile).length || (t.store && (t.store.name || t.store.city));
+  });
+  if(!users.length){
+    wrap.className='signup-summary-empty';
+    wrap.innerHTML='Nenhuma conta BocaFood carregada. Clique em Atualizar dados para buscar as contas.';
+    return;
+  }
+  if(!withProfile.length){
+    wrap.className='signup-summary-empty';
+    wrap.innerHTML='Nenhuma resposta de cadastro inicial encontrada nas contas carregadas.';
+    return;
+  }
+  var storesStarted=withProfile.filter(function(t){return t.store && (t.store.name || t.store.city);}).length;
+  var profilesFilled=withProfile.filter(function(t){return t.businessProfile && Object.keys(t.businessProfile).length;}).length;
+  var channelsTotal=withProfile.reduce(function(sum,t){return sum+signupSummaryValues(t.businessProfile && t.businessProfile.salesChannels).length;},0);
+  var metrics=[
+    ['Contas analisadas',withProfile.length,'Com dados do cadastro inicial'],
+    ['Perfil preenchido',profilesFilled,'Contas com businessProfile'],
+    ['Lojas iniciadas',storesStarted,'Nome ou cidade da loja preenchidos'],
+    ['Canais marcados',channelsTotal,'Soma das escolhas de canais']
+  ].map(function(item){
+    return '<div class="signup-summary-metric"><span>'+esc(item[0])+'</span><strong>'+esc(item[1])+'</strong><p>'+esc(item[2])+'</p></div>';
+  }).join('');
+  var cards=[
+    signupSummaryCard('Tipo de produto','O que as contas vendem ou pretendem vender.',withProfile,function(t){return t.businessProfile && t.businessProfile.businessType;},withProfile.length),
+    signupSummaryCard('Modelo de atendimento','Como a loja atende ou pretende atender.',withProfile,function(t){return t.businessProfile && t.businessProfile.salesMode;},withProfile.length),
+    signupSummaryCard('Ritmo de vendas','Frequência atual de vendas declarada no cadastro.',withProfile,function(t){return t.businessProfile && t.businessProfile.sellingFrequency;},withProfile.length),
+    signupSummaryCard('Canais de pedido','Por onde as contas recebem pedidos hoje.',withProfile,function(t){return t.businessProfile && t.businessProfile.salesChannels;},withProfile.length),
+    signupSummaryCard('Cardápio','Nível de organização do cardápio no primeiro acesso.',withProfile,function(t){return t.businessProfile && t.businessProfile.menuStatus;},withProfile.length),
+    signupSummaryCard('Controle de pedidos','Como as contas organizam pedidos atualmente.',withProfile,function(t){return t.businessProfile && t.businessProfile.orderControl;},withProfile.length),
+    signupSummaryCard('Estrutura de produção','Onde a conta produz os produtos.',withProfile,function(t){return t.businessProfile && t.businessProfile.productionPlace;},withProfile.length),
+    signupSummaryCard('Capacidade diária','Volume de pedidos que a conta diz conseguir atender.',withProfile,function(t){return t.businessProfile && t.businessProfile.dailyCapacity;},withProfile.length),
+    signupSummaryCard('Equipe','Estrutura de ajuda/equipe declarada.',withProfile,function(t){return t.businessProfile && t.businessProfile.teamStructure;},withProfile.length),
+    signupSummaryCard('Custos','Quanto a conta conhece os custos dos produtos.',withProfile,function(t){return t.businessProfile && t.businessProfile.costKnowledge;},withProfile.length),
+    signupSummaryCard('Principal desafio','Maior desafio declarado no onboarding.',withProfile,function(t){return t.businessProfile && t.businessProfile.mainChallenge;},withProfile.length),
+    signupSummaryCard('Objetivo principal','Objetivo imediato declarado pela conta.',withProfile,function(t){return t.businessProfile && t.businessProfile.mainGoal;},withProfile.length),
+    signupSummaryCard('Fase do negócio','Maturidade percebida no momento do cadastro.',withProfile,function(t){return t.businessProfile && t.businessProfile.businessStage;},withProfile.length),
+    signupSummaryCard('Tempo disponível','Tempo semanal para organizar o negócio.',withProfile,function(t){return t.businessProfile && t.businessProfile.weeklyTimeAvailable;},withProfile.length)
+  ].join('');
+  wrap.className='';
+  wrap.innerHTML='<div class="signup-summary-metrics">'+metrics+'</div><div class="signup-summary-grid">'+cards+'</div>';
+}
 function openTenantUserDetailsModal(){
   var modal=document.getElementById('tenant-user-details-modal');
   if(modal)modal.classList.add('open');
@@ -1446,6 +1700,14 @@ function renderTenantUsersPreview(){
       '</div>' +
       '<button type="button" class="btn secondary" onclick="openTenantUserDetailsModal()">Ver dados</button>' +
     '</div>';
+}
+function renderTenantTags(tags){
+  var wrap=document.getElementById('user-active-tags');
+  if(!wrap)return;
+  var active=Object.keys(tags||{}).filter(function(key){return tags[key] && tags[key].active===true;}).sort();
+  wrap.innerHTML = active.length
+    ? active.map(function(key){return '<span class="status-pill info">'+esc(key)+'</span>';}).join('')
+    : '<span class="user-sub">Nenhuma etiqueta ativa.</span>';
 }
 function copyTenantId(){
   var id=window._editingTenantId||'';
@@ -1493,91 +1755,182 @@ function setUsersSyncStatus(text, kind){
   el.className=kind||'';
   el.style.color=kind==='error'?'#C4362A':'#8A7E7C';
 }
+var USERS_PAGE_SIZE = 20;
+window._usersPage = window._usersPage || 1;
+function userFilterValues(){
+  return {
+    q: String(val('users-search') || '').toLowerCase(),
+    plan: val('users-filter-plan'),
+    status: val('users-filter-status'),
+    billing: val('users-filter-billing'),
+    store: val('users-filter-store'),
+    origin: val('users-filter-origin')
+  };
+}
+function hasUserFilters(filters){
+  filters = filters || userFilterValues();
+  return !!(filters.q || filters.plan || filters.status || filters.billing || filters.store || filters.origin);
+}
+function accountStatusMeta(status){
+  var value = String(status || 'inactive');
+  return {
+    active: ['Ativa','ok'],
+    pending: ['Pendente','pending'],
+    blocked: ['Bloqueada','danger'],
+    disabled: ['Bloqueada','danger'],
+    canceled: ['Cancelada','gray'],
+    archived: ['Arquivada','gray'],
+    inactive: ['Inativa','neutral']
+  }[value] || [value || 'Inativa','neutral'];
+}
+function billingStatusMeta(status){
+  var value = String(status || 'inactive');
+  return {
+    active: ['Ativa','ok'],
+    pending_payment: ['Pagamento pendente','pending'],
+    past_due: ['Atrasada','orange'],
+    canceled: ['Cancelada','gray'],
+    refunded: ['Reembolsada','gray'],
+    chargeback: ['Chargeback','danger'],
+    inactive: ['Inativa','neutral']
+  }[value] || [value || 'Inativa','neutral'];
+}
+function storeStatusValue(tenant){
+  var store = tenant && tenant.store || {};
+  var raw = String(store.status || tenant.storeStatus || '').trim();
+  if(!raw || raw === 'Loja não configurada')return 'empty';
+  if(raw === 'Loja configurada')return 'ready';
+  return raw;
+}
+function storeStatusMeta(status){
+  var value = String(status || 'empty');
+  return {
+    draft: ['Rascunho','gray'],
+    ready: ['Pronta','info'],
+    published: ['Publicada','ok'],
+    unpublished: ['Não publicada','gray'],
+    suspended: ['Suspensa','danger'],
+    publication_error: ['Erro de publicação','danger'],
+    active: ['Publicada','ok'],
+    empty: ['Loja não configurada','danger']
+  }[value] || [value || 'Loja não configurada','neutral'];
+}
+function cycleLabel(cycle){
+  return {monthly:'Mensal',annual:'Anual'}[String(cycle || '')] || '';
+}
+function setUsersPage(page){
+  window._usersPage = Math.max(1, Number(page || 1));
+  window._usersPageChange = true;
+  window._masterUsersSignature = '';
+  renderUsersList({users:window._masterUsersRaw || window._masterUsers || []});
+}
 function renderUsersList(results){
   var users = (results && results.users) || [];
   if(results && results.users) window._masterUsersRaw = users.slice();
   window._masterUsers = (window._masterUsersRaw || users).slice().sort(function(a,b){
     return String(a.name || a.businessName || a.id || '').localeCompare(String(b.name || b.businessName || b.id || ''));
   });
-  var q = String(val('users-search') || '').toLowerCase();
-  var planFilter = val('users-filter-plan');
-  var statusFilter = val('users-filter-status');
-  var billingFilter = val('users-filter-billing');
+  var filters = userFilterValues();
+  var filterKey = JSON.stringify(filters);
+  if(window._usersFilterKey !== filterKey && !window._usersPageChange) window._usersPage = 1;
+  window._usersFilterKey = filterKey;
+  window._usersPageChange = false;
   window._masterUsers = window._masterUsers.filter(function(t){
     var billing = t.billing || {};
     var store = t.store || {};
-    var text = [t.id,t.uid,t.name,t.fullName,t.ownerName,t.email,t.businessName,store.name,t.plan,billing.planSlug,t.status,t.accountStatus,billing.status,t.billingStatus].join(' ').toLowerCase();
-    if(q && text.indexOf(q) < 0) return false;
-    if(planFilter && normalizePlanSlug(billing.planSlug || t.plan || '') !== planFilter) return false;
-    if(statusFilter && String(t.accountStatus || t.status || '') !== statusFilter) return false;
-    if(billingFilter && String(billing.status || t.billingStatus || '') !== billingFilter) return false;
+    var origin = String(t.origin || t.source || 'manual');
+    var storeStatus = storeStatusValue(t);
+    var text = [t.id,t.uid,t.name,t.fullName,t.ownerName,t.socialName,t.email,t.businessName,store.name,store.slug,store.publicUrl,t.plan,billing.planSlug,t.status,t.accountStatus,billing.status,t.billingStatus,origin].join(' ').toLowerCase();
+    if(filters.q && text.indexOf(filters.q) < 0) return false;
+    if(filters.plan && normalizePlanSlug(billing.planSlug || t.plan || '') !== filters.plan) return false;
+    if(filters.status && String(t.accountStatus || t.status || '') !== filters.status) return false;
+    if(filters.billing && String(billing.status || t.billingStatus || '') !== filters.billing) return false;
+    if(filters.store && storeStatus !== filters.store) return false;
+    if(filters.origin && origin !== filters.origin) return false;
     return true;
   });
+  var totalFiltered = window._masterUsers.length;
+  var totalRaw = (window._masterUsersRaw || users || []).length;
+  var totalPages = Math.max(1, Math.ceil(totalFiltered / USERS_PAGE_SIZE));
+  if(window._usersPage > totalPages) window._usersPage = totalPages;
+  if(window._usersPage < 1) window._usersPage = 1;
+  var startIndex = (window._usersPage - 1) * USERS_PAGE_SIZE;
+  var pageUsers = window._masterUsers.slice(startIndex, startIndex + USERS_PAGE_SIZE);
   var signature = window._masterUsers.map(function(t){
     var store=t.store||{};
     var billing=t.billing||{};
     var auth=t.auth||{};
     return [t.id||'', t.updatedAt||'', t.status||'', t.accountStatus||'', t.role||'', t.origin||'', t.syncStatus||'', t.lastAccessAt||'', auth.lastLoginAt||'', t.lastLoginAt||'', store.name||'', store.slug||'', store.publicUrl||'', store.status||'', billing.planSlug||'', billing.status||'', t.localExists?'1':'0', t.authExists?'1':'0', t.systemExists?'1':'0'].join('|');
-  }).join('||');
+  }).join('||') + '|page=' + window._usersPage + '|filters=' + JSON.stringify(filters);
   var changed = signature !== window._masterUsersSignature;
   window._masterUsersSignature = signature;
   if(!changed && document.getElementById('users-wrap') && document.getElementById('users-wrap').innerHTML){
     return false;
   }
 
-    if(!window._masterUsers.length){
-      document.getElementById('users-wrap').innerHTML='<div class="users-empty">Nenhum tenant BocaFood encontrado com os filtros atuais.</div>';
+    if(!totalFiltered){
+      document.getElementById('users-wrap').innerHTML='<div class="users-empty">'+(totalRaw && hasUserFilters(filters) ? 'Nenhuma conta corresponde aos filtros aplicados.' : 'Nenhuma conta BocaFood encontrada.')+'</div>';
     }else{
-      var rows = window._masterUsers.map(function(t){
+      var rows = pageUsers.map(function(t){
         var uid = esc(t.id || '');
         var billing = t.billing || {};
         var store = t.store || {};
         var auth = t.auth || {};
-        var statusValue = t.accountStatus || t.status || 'active';
+        var statusValue = t.accountStatus || t.status || 'inactive';
         var billingStatus = billing.status || t.billingStatus || 'inactive';
         var planValue = normalizePlanSlug(billing.planSlug || t.plan || 'essencial');
+        var cycleValue = billing.billingCycle || t.billingCycle || billing.cycle || '';
         var originValue = t.origin || t.source || 'manual';
-        var status = esc(statusValue);
-        var statusClass = statusValue === 'blocked' || statusValue === 'disabled' || statusValue === 'canceled' ? 'disabled' : (statusValue === 'pending' ? 'pending' : '');
-        var storeClass = t.storeStatus === 'Loja configurada' ? 'info' : (t.storeStatus === 'Loja não configurada' ? 'danger' : 'warn');
-        var storeBadge = '<span class="status-pill '+storeClass+'">'+esc(t.storeStatus || 'Loja não configurada')+'</span>';
-        var statusBadge = '<span class="status-pill '+statusClass+'">'+status+'</span>';
+        var accountMeta = accountStatusMeta(statusValue);
+        var billingMeta = billingStatusMeta(billingStatus);
+        var storeMeta = storeStatusMeta(storeStatusValue(t));
+        var storeBadge = '<span class="status-pill '+storeMeta[1]+'">'+esc(storeMeta[0])+'</span>';
+        var statusBadge = '<span class="status-pill '+accountMeta[1]+'">'+esc(accountMeta[0])+'</span>';
+        var billingBadge = '<span class="status-pill '+billingMeta[1]+'">'+esc(billingMeta[0])+'</span>';
         var originLine = '<span class="user-sub">'+esc(originValue)+'</span>';
         var idArg = jsInlineArg(t.id || '');
-        var uidLine = '<span class="user-sub">UID: '+uid+'</span> <button class="btn secondary" style="padding:4px 8px;font-size:11px;" onclick="copyUserId('+idArg+')">Copiar</button>';
-        var userWhatsapp = t.whatsappFull || t.whatsapp || '';
-        var contactLine = '<span class="user-sub">'+esc(t.email||'')+(userWhatsapp ? ' · WhatsApp responsável: '+esc(userWhatsapp) : '')+'</span>';
+        var uidLine = '<span class="user-sub">UID: '+uid+'</span> <button class="btn secondary uid-copy" onclick="copyUserId('+idArg+')">Copiar</button>';
+        var contactLine = '<span class="user-sub">'+esc(t.email||'Não informado')+'</span>';
         var lojaNome = store.name || t.businessName || t.name || '';
         var lojaDetalhe = (store.publicUrl || t.storeUrl) ? '<div class="user-sub">'+esc(store.publicUrl || t.storeUrl)+'</div>' : '';
-        lojaDetalhe += t.githubRepo ? '<div class="user-sub">Repo: '+esc(t.githubRepo)+'</div>' : '';
-        var actions = ['<button class="btn secondary" onclick="window.editUser('+idArg+')">Ver</button>','<button class="btn secondary" onclick="window.editUser('+idArg+')">Editar</button>'];
-        actions.push('<button class="btn secondary" style="background:#FFF7ED;color:#9A3412;border-color:#FDBA74;" onclick="window.releaseAccess('+idArg+')">Liberar acesso</button>');
-        actions.push('<button class="btn secondary" style="background:#FFF0EE;color:#C4362A;border-color:#F2C7C1;" onclick="window.blockAccess('+idArg+')">Bloquear</button>');
-        actions.push('<button class="btn secondary" onclick="window.changePlan('+idArg+')">Trocar plano</button>');
-        actions.push('<button class="btn secondary" onclick="window.linkHotmartPurchase('+idArg+')">Vincular Hotmart</button>');
-        actions.push('<button class="btn secondary" onclick="window.viewUserLogs('+idArg+')">Logs</button>');
-        actions.push('<button class="btn secondary" onclick="window.archiveUser('+idArg+')">Arquivar</button>');
+        var actions = [
+          '<button class="btn secondary" onclick="window.editUser('+idArg+')">Ver</button>',
+          '<button class="btn secondary" onclick="window.editUser('+idArg+')">Editar</button>',
+          '<details class="account-actions-menu"><summary class="btn secondary">Mais ações</summary><div class="account-actions-list">' +
+            '<button class="btn secondary" onclick="window.releaseAccess('+idArg+')">Liberar acesso</button>' +
+            '<button class="btn secondary danger" onclick="window.blockAccess('+idArg+')">Bloquear</button>' +
+            '<button class="btn secondary" onclick="window.changePlan('+idArg+')">Trocar plano</button>' +
+            '<button class="btn secondary" onclick="window.linkHotmartPurchase('+idArg+')">Vincular Hotmart</button>' +
+            '<button class="btn secondary" onclick="window.viewUserLogs('+idArg+')">Logs</button>' +
+            '<button class="btn secondary danger" onclick="window.archiveUser('+idArg+')">Arquivar</button>' +
+          '</div></details>'
+        ];
         var lastAccessRaw = t.lastAccessAt || auth.lastLoginAt || t.lastLoginAt || '';
         var lastAccessText = _emailFormatDate(lastAccessRaw) || '';
         var tenantCreatedText = _emailFormatDate(t.createdAt) || '';
         var authCreatedText = _emailFormatDate(auth.createdAt) || '';
         var createdIsFallback = String(t.origin||t.source||'').indexOf('firebase_auth_auto_import') >= 0;
-        var createdText = (!createdIsFallback && tenantCreatedText) ? ('Conta criada em: '+esc(tenantCreatedText)) : (authCreatedText ? ('Criado no Firebase Auth: '+esc(authCreatedText)) : 'Cadastro original não informado');
-        var lastAccessBadge = '<div class="user-last-access"><span class="last-access-badge '+(lastAccessText?'':'empty')+'">Último acesso: '+esc(lastAccessText || 'sem registro')+'</span><span class="user-sub">'+createdText+'</span></div>';
-        var accountName = lojaNome || t.businessName || t.name || t.id || '';
-        var responsibleName = t.socialName || t.fullName || t.ownerName || t.name || 'Não preenchido';
+        var createdText = (!createdIsFallback && tenantCreatedText) ? ('Criado em: '+esc(tenantCreatedText)) : (authCreatedText ? ('Criado no Firebase Auth: '+esc(authCreatedText)) : '');
+        var lastAccessBadge = '<div class="user-last-access"><span class="last-access-badge '+(lastAccessText?'':'empty')+'">'+esc(lastAccessText || 'Sem registro')+'</span></div>';
+        var accountName = lojaNome || t.businessName || t.name || 'Não informado';
+        var responsibleName = t.socialName || t.fullName || t.ownerName || 'Não informado';
+        var planLine = '<span class="user-sub">'+esc(planLabel(planValue))+(cycleLabel(cycleValue) ? ' · '+esc(cycleLabel(cycleValue)) : '')+'</span>'+billingBadge;
         return '<tr>' +
-          '<td><div class="user-main"><div class="user-name">'+esc(accountName)+'</div>'+lojaDetalhe+'<div class="user-meta">'+uidLine+'</div>'+lastAccessBadge+'</div></td>' +
-          '<td><div class="user-main"><div class="user-name">'+esc(responsibleName)+'</div></div></td>' +
-          '<td><div class="user-main">'+contactLine+'</div></td>' +
-          '<td><div class="user-main"><span class="user-sub">'+esc(planLabel(planValue))+'</span><span class="status-pill neutral">'+esc(billingStatus)+'</span></div></td>' +
-          '<td><div class="user-main">'+statusBadge+'</div></td>' +
-          '<td><div class="user-main">'+storeBadge+'</div></td>' +
-          '<td><div class="user-main">'+originLine+'</div></td>' +
-          '<td><div class="user-actions">'+actions.join(' ')+'</div></td>' +
+          '<td data-label="Conta / negócio"><div class="user-main"><div class="user-name">'+esc(accountName)+'</div>'+lojaDetalhe+'<div class="user-meta">'+uidLine+'</div>'+(createdText?'<span class="user-sub">'+createdText+'</span>':'')+'</div></td>' +
+          '<td data-label="Responsável"><div class="user-main"><div class="user-name">'+esc(responsibleName)+'</div></div></td>' +
+          '<td data-label="E-mail de acesso"><div class="user-main">'+contactLine+'</div></td>' +
+          '<td data-label="Plano"><div class="user-main">'+planLine+'</div></td>' +
+          '<td data-label="Status da conta"><div class="user-main">'+statusBadge+'</div></td>' +
+          '<td data-label="Status da loja"><div class="user-main">'+storeBadge+'</div></td>' +
+          '<td data-label="Origem"><div class="user-main">'+originLine+'</div></td>' +
+          '<td data-label="Último acesso"><div class="user-main">'+lastAccessBadge+'</div></td>' +
+          '<td data-label="Ações"><div class="user-actions">'+actions.join(' ')+'</div></td>' +
         '</tr>';
       }).join('');
-      document.getElementById('users-wrap').innerHTML='<table class="table users-table"><thead><tr><th>Conta / negócio</th><th>Responsável</th><th>E-mail de acesso</th><th>Plano</th><th>Status da conta</th><th>Status da loja</th><th>Origem</th><th>Ações</th></tr></thead><tbody>'+rows+'</tbody></table>';
+      var first = startIndex + 1;
+      var last = Math.min(startIndex + USERS_PAGE_SIZE, totalFiltered);
+      var pagination = '<div class="users-pagination"><span>Mostrando '+first+'-'+last+' de '+totalFiltered+' contas</span><div class="users-pagination-actions"><button class="btn secondary" '+(window._usersPage<=1?'disabled':'')+' onclick="setUsersPage('+(window._usersPage-1)+')">Anterior</button><button class="btn secondary" '+(window._usersPage>=totalPages?'disabled':'')+' onclick="setUsersPage('+(window._usersPage+1)+')">Próxima</button></div></div>';
+      document.getElementById('users-wrap').innerHTML='<table class="table users-table"><thead><tr><th>Conta / negócio</th><th>Responsável</th><th>E-mail de acesso</th><th>Plano</th><th>Status da conta</th><th>Status da loja</th><th>Origem</th><th>Último acesso</th><th>Ações</th></tr></thead><tbody>'+rows+'</tbody></table>'+pagination;
     }
 
     ['pub-tenant'].forEach(function(selectId){
@@ -1594,7 +1947,9 @@ function renderUsersList(results){
   return changed;
 }
 function clearUserFilters(){
-  ['users-search','users-filter-plan','users-filter-status','users-filter-billing'].forEach(function(id){setVal(id,'')});
+  ['users-search','users-filter-plan','users-filter-status','users-filter-billing','users-filter-store','users-filter-origin'].forEach(function(id){setVal(id,'')});
+  window._usersPage = 1;
+  window._masterUsersSignature = '';
   renderUsersList({users:window._masterUsersRaw || window._masterUsers || []});
 }
 function copyUserId(id){
@@ -1634,6 +1989,9 @@ function loadUsers(opts){
         tenantUids: tenantUids
       });
       setUsersSyncStatus(changed ? '' : 'Listando apenas tenants BocaFood com acesso ao Centro de Controle.');
+      if(document.getElementById('tab-cadastro-resumo') && document.getElementById('tab-cadastro-resumo').classList.contains('active')){
+        renderSignupSummary();
+      }
       return {
         sync: null,
         results: results,
@@ -2161,14 +2519,17 @@ function editUser(id){
   if(sourceValue==='master_local')sourceValue='master';
   if(String(sourceValue).indexOf('firebase_auth')===0)sourceValue='manual';
   setVal('user-source',sourceValue);setVal('user-notes',t.notes);
+  renderTenantTags(t.tags || {});
   var pubSel=document.getElementById('pub-tenant');if(pubSel)pubSel.value=t.id;
   onPubTenantChange();
   loadSeoTechConfig();
+  renderSignupProfile(t);
   document.getElementById('user-modal-title').textContent='Editar conta';
   document.getElementById('user-modal').classList.add('open');
   openUserModalTab('negocio');
   decorateUserFieldOrigins();
   renderTenantUsersPreview();
+  renderTenantTags({});
   var support=document.getElementById('user-support-mode');if(support)support.checked=false;
   applyUserSupportMode();
   bindPublicSlugAutomation();
@@ -2192,6 +2553,7 @@ function clearUserForm(){
   setVal('user-store-url','Aguardando slug da loja');
   setPhoneControl('user-phone', {countryCode:'+34',number:'',full:''});
   setPhoneControl('user-whatsapp', {countryCode:'+34',number:'',full:''});
+  renderSignupProfile({});
   renderTenantUsersPreview();
   decorateUserFieldOrigins();
   applyUserSupportMode();
@@ -2229,11 +2591,32 @@ var _emailMasterState = {
   loaded: false,
   activeTab: 'smtp',
   selectedTemplateKey: 'welcome_hotmart',
+  selectedTriggerKey: '',
   previewMode: 'desktop',
   settings: {},
-  templates: []
+  templates: [],
+  triggers: []
 };
 var EMAIL_DEFAULT_SUPPORT = 'teajudo@bocafood.app';
+var TENANT_TAG_OPTIONS = ['trial_ending','trial_ends_today','trial_expired','store_not_published','store_ready_to_publish','payment_pending','subscription_canceled','subscription_active','hotmart_pending_access','inactive_user'];
+var EMAIL_VARIABLE_DESCRIPTIONS = {
+  buyerName: 'Nome da compradora ou responsável pela conta.',
+  buyerEmail: 'E-mail da compradora ou e-mail de acesso da conta.',
+  signupUrl: 'Link para criar ou concluir o acesso ao BocaFood.',
+  resetPasswordUrl: 'Link seguro para redefinir a senha.',
+  supportEmail: 'E-mail de suporte configurado no Master.',
+  planName: 'Nome do plano da conta, quando disponível.',
+  productName: 'Nome do produto ou assinatura comprada.',
+  appBaseUrl: 'URL base do painel BocaFood.',
+  brandName: 'Nome da marca exibida no e-mail.',
+  brandLogoUrl: 'URL do logo usado no layout do e-mail.',
+  trialEndsAt: 'Data de término do período de teste.',
+  storeName: 'Nome do negócio ou loja pública.',
+  billingStatus: 'Status atual da cobrança ou assinatura.',
+  billingCycle: 'Ciclo de cobrança, como mensal ou anual.',
+  hotmartTransaction: 'Código da transação Hotmart.',
+  hotmartOfferCode: 'Código da oferta Hotmart.'
+};
 var _emailDefaults = {
   settings: {
     fromName: 'BocaFood',
@@ -2253,10 +2636,15 @@ var _emailDefaults = {
   },
   templates: [
     {key:'welcome_hotmart',name:'Boas-vindas após compra Hotmart',description:'Enviado quando uma compra Hotmart é aprovada ou uma assinatura fica ativa.',subject:'Bem-vinda ao {{productName}}, {{buyerName}}',preheader:'Seu acesso ao {{productName}} ja esta pronto.',body:'<p>Ola {{buyerName}},</p><p>Obrigada por comprar o {{productName}}. Seu plano {{planName}} esta pronto para comecar.</p><p>Clique no botao para criar seu acesso e entrar no BocaFood.</p>',ctaLabel:'Criar meu acesso',ctaUrl:'{{signupUrl}}',enabled:true,availableVariables:['buyerName','buyerEmail','signupUrl','supportEmail','planName','productName','appBaseUrl','brandName']},
-    {key:'password_reset',name:'Esqueci minha senha',description:'Base preparada para envio futuro de link gerado pelo Firebase Admin.',subject:'Redefina sua senha do {{brandName}}',preheader:'Use este link para criar uma nova senha.',body:'<p>Ola {{buyerName}},</p><p>Recebemos uma solicitacao para redefinir a senha da sua conta.</p><p>Se foi voce, use o botao abaixo. Se nao solicitou essa alteracao, ignore este e-mail.</p>',ctaLabel:'Redefinir senha',ctaUrl:'{{resetPasswordUrl}}',enabled:true,availableVariables:['buyerName','buyerEmail','resetPasswordUrl','supportEmail','appBaseUrl','brandName']},
+    {key:'welcome_access_created',name:'Cadastro concluído',description:'Enviado quando a cliente conclui o cadastro com compra Hotmart ativa vinculada.',subject:'Seu acesso ao {{brandName}} esta pronto',preheader:'Seu Centro de Controle ja pode ser acessado.',body:'<p>Ola {{buyerName}},</p><p>Seu cadastro foi concluido e sua compra foi vinculada com sucesso.</p><p>Sua loja foi criada como rascunho para voce continuar a configuracao no Centro de Controle.</p>',ctaLabel:'Abrir Centro de Controle',ctaUrl:'{{appBaseUrl}}/admin.html#inicio',enabled:true,availableVariables:['buyerName','buyerEmail','supportEmail','planName','productName','appBaseUrl','brandName','storeName']},
+    {key:'password_reset',name:'Esqueci minha senha',description:'Enviado quando a usuária solicita redefinição de senha no login.',subject:'Redefina sua senha do {{brandName}}',preheader:'Use este link para criar uma nova senha.',body:'<p>Ola {{buyerName}},</p><p>Recebemos uma solicitacao para redefinir a senha da sua conta.</p><p>Se foi voce, use o botao abaixo. Se nao solicitou essa alteracao, ignore este e-mail.</p>',ctaLabel:'Redefinir senha',ctaUrl:'{{resetPasswordUrl}}',enabled:true,availableVariables:['buyerName','buyerEmail','resetPasswordUrl','supportEmail','appBaseUrl','brandName']},
     {key:'verify_email',name:'Confirmação de e-mail',description:'Confirma o endereço de e-mail da conta BocaFood.',subject:'Confirme seu e-mail no {{brandName}}',preheader:'Falta apenas confirmar seu e-mail para continuar.',body:'<p>Ola {{buyerName}},</p><p>Confirme seu endereco de e-mail para proteger sua conta e receber avisos importantes.</p>',ctaLabel:'Confirmar e-mail',ctaUrl:'{{appBaseUrl}}',enabled:true,availableVariables:['buyerName','buyerEmail','supportEmail','appBaseUrl','brandName']},
     {key:'subscription_active',name:'Assinatura ativada',description:'Confirma que a assinatura está ativa.',subject:'Sua assinatura esta ativa',preheader:'Voce ja pode usar o {{productName}} com o plano {{planName}}.',body:'<p>Ola {{buyerName}},</p><p>Sua assinatura do {{productName}} esta ativa. Voce ja pode entrar no painel e continuar configurando sua loja.</p>',ctaLabel:'Abrir BocaFood',ctaUrl:'{{appBaseUrl}}',enabled:true,availableVariables:['buyerName','buyerEmail','supportEmail','planName','productName','appBaseUrl','brandName']},
     {key:'payment_pending',name:'Pagamento pendente',description:'Avisa que o pagamento ainda está pendente.',subject:'Seu pagamento esta pendente',preheader:'Avisaremos quando o pagamento for confirmado.',body:'<p>Ola {{buyerName}},</p><p>Seu pagamento do {{productName}} ainda esta pendente. Quando ele for confirmado, enviaremos as instrucoes de acesso.</p>',ctaLabel:'Ver status',ctaUrl:'{{appBaseUrl}}',enabled:true,availableVariables:['buyerName','buyerEmail','supportEmail','planName','productName','appBaseUrl','brandName']},
+    {key:'trial_ending',name:'Trial acabando',description:'Aviso enviado quando o periodo de teste esta perto do fim.',subject:'Seu teste do {{brandName}} acaba em breve',preheader:'Faltam poucos dias para terminar seu periodo de teste.',body:'<p>Ola {{buyerName}},</p><p>Seu periodo de teste do {{brandName}} esta acabando em breve.</p>',ctaLabel:'Abrir BocaFood',ctaUrl:'{{appBaseUrl}}',enabled:true,availableVariables:['buyerName','buyerEmail','supportEmail','appBaseUrl','brandName','trialEndsAt','planName']},
+    {key:'trial_ends_today',name:'Trial acaba hoje',description:'Aviso enviado no dia final do periodo de teste.',subject:'Seu teste do {{brandName}} acaba hoje',preheader:'Hoje e o ultimo dia do seu periodo de teste.',body:'<p>Ola {{buyerName}},</p><p>Seu teste do {{brandName}} acaba hoje.</p>',ctaLabel:'Abrir BocaFood',ctaUrl:'{{appBaseUrl}}',enabled:true,availableVariables:['buyerName','buyerEmail','supportEmail','appBaseUrl','brandName','trialEndsAt','planName']},
+    {key:'trial_expired',name:'Trial expirado',description:'Aviso enviado quando o periodo de teste terminou.',subject:'Seu teste do {{brandName}} terminou',preheader:'Seu periodo de teste chegou ao fim.',body:'<p>Ola {{buyerName}},</p><p>Seu periodo de teste terminou. Para continuar usando o BocaFood, fale com o suporte.</p>',ctaLabel:'Falar com suporte',ctaUrl:'mailto:{{supportEmail}}',enabled:true,availableVariables:['buyerName','buyerEmail','supportEmail','appBaseUrl','brandName','trialEndsAt','planName']},
+    {key:'store_not_published',name:'Loja não publicada',description:'Lembrete para contas que ainda nao publicaram a loja.',subject:'Sua loja ainda nao esta publicada',preheader:'Complete a publicacao para seus clientes encontrarem sua loja.',body:'<p>Ola {{buyerName}},</p><p>Sua loja publica ainda nao foi publicada.</p>',ctaLabel:'Abrir Centro de Controle',ctaUrl:'{{appBaseUrl}}',enabled:false,availableVariables:['buyerName','buyerEmail','supportEmail','appBaseUrl','brandName','storeName']},
     {key:'subscription_canceled',name:'Assinatura cancelada',description:'Avisa sobre cancelamento da assinatura.',subject:'Sua assinatura foi cancelada',preheader:'Seu acesso pode ficar limitado conforme o ciclo de cobranca.',body:'<p>Ola {{buyerName}},</p><p>Registramos o cancelamento da sua assinatura. Se foi um erro ou se voce precisa de ajuda, fale com o suporte.</p>',ctaLabel:'Falar com suporte',ctaUrl:'mailto:{{supportEmail}}',enabled:true,availableVariables:['buyerName','buyerEmail','supportEmail','planName','productName','appBaseUrl','brandName']},
     {key:'test_email',name:'Teste de envio',description:'Usado pelo Master para validar a fila de e-mail.',subject:'Teste de e-mail do {{brandName}}',preheader:'Se voce recebeu esta mensagem, a fila de e-mails esta funcionando.',body:'<p>Ola {{buyerName}},</p><p>Este e um e-mail de teste enviado pelo Master do BocaFood.</p>',ctaLabel:'Abrir BocaFood',ctaUrl:'{{appBaseUrl}}',enabled:true,availableVariables:['buyerName','buyerEmail','supportEmail','appBaseUrl','brandName']}
   ],
@@ -2271,11 +2659,36 @@ var _emailDefaults = {
     appBaseUrl: 'https://app.bocafood.com',
     brandName: 'BocaFood',
     brandLogoUrl: 'https://bocafood.app/assets/boca-food-logo.png'
-  }
+  },
+  triggers: [
+    {triggerKey:'welcome_hotmart_email',tagKey:'hotmart_pending_access',templateKey:'welcome_hotmart',name:'Boas-vindas Hotmart',description:'Envia boas-vindas quando existir pendência de acesso Hotmart marcada por etiqueta.',enabled:false,delayHours:0,dedupeWindowDays:30,source:'system'},
+    {triggerKey:'trial_ending_email',tagKey:'trial_ending',templateKey:'trial_ending',name:'Trial acabando',description:'Envia aviso quando o trial estiver perto de acabar.',enabled:true,delayHours:0,dedupeWindowDays:30,source:'system'},
+    {triggerKey:'trial_ends_today_email',tagKey:'trial_ends_today',templateKey:'trial_ends_today',name:'Trial acaba hoje',description:'Envia aviso no dia em que o trial termina.',enabled:true,delayHours:0,dedupeWindowDays:30,source:'system'},
+    {triggerKey:'trial_expired_email',tagKey:'trial_expired',templateKey:'trial_expired',name:'Trial expirado',description:'Envia aviso quando o trial terminou sem assinatura ativa.',enabled:true,delayHours:0,dedupeWindowDays:30,source:'system'},
+    {triggerKey:'payment_pending_email',tagKey:'payment_pending',templateKey:'payment_pending',name:'Pagamento pendente',description:'Envia aviso quando a cobrança estiver pendente.',enabled:true,delayHours:0,dedupeWindowDays:7,source:'system'},
+    {triggerKey:'subscription_active_email',tagKey:'subscription_active',templateKey:'subscription_active',name:'Assinatura ativa',description:'Gatilho preparado para contas marcadas com assinatura ativa.',enabled:false,delayHours:0,dedupeWindowDays:30,source:'system'},
+    {triggerKey:'subscription_canceled_email',tagKey:'subscription_canceled',templateKey:'subscription_canceled',name:'Assinatura cancelada',description:'Envia aviso quando assinatura, reembolso ou chargeback cancelar o acesso.',enabled:true,delayHours:0,dedupeWindowDays:30,source:'system'},
+    {triggerKey:'store_not_published_email',tagKey:'store_not_published',templateKey:'store_not_published',name:'Loja não publicada',description:'Envia lembrete quando a loja ainda não foi publicada.',enabled:false,delayHours:24,dedupeWindowDays:7,source:'system'}
+  ]
 };
 function _emailFunctionUrl(name){ return 'https://us-central1-bocado-brasil.cloudfunctions.net/' + name; }
 function _emailTemplateByKey(key){
   return (_emailMasterState.templates || []).find(function(t){ return t.key === key; }) || _emailDefaults.templates[0];
+}
+function mergeEmailTemplatesWithDefaults(templates){
+  var map = {};
+  (_emailDefaults.templates || []).forEach(function(tpl){
+    if(tpl && tpl.key) map[tpl.key] = Object.assign({}, tpl);
+  });
+  (templates || []).forEach(function(tpl){
+    if(tpl && tpl.key) map[tpl.key] = Object.assign({}, map[tpl.key] || {}, tpl);
+  });
+  return Object.keys(map).map(function(key){return map[key];}).sort(function(a,b){
+    return String(a.name || a.key || '').localeCompare(String(b.name || b.key || ''), 'pt-BR');
+  });
+}
+function _emailTriggerByKey(key){
+  return (_emailMasterState.triggers || []).find(function(t){ return (t.triggerKey || t.id) === key; }) || (_emailMasterState.triggers || [])[0] || _emailDefaults.triggers[0];
 }
 function _emailReplace(text, vars){
   return String(text || '').replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g,function(_,key){ return vars[key] != null ? String(vars[key]) : ''; });
@@ -2334,37 +2747,55 @@ function switchEmailTab(tab){
   document.querySelectorAll('.email-panel').forEach(function(panel){panel.classList.toggle('active',panel.id==='email-panel-'+_emailMasterState.activeTab)});
   if(tab === 'preview') renderEmailPreview();
   if(tab === 'logs') loadEmailLogs();
+  if(tab === 'triggers') renderEmailTriggers();
 }
 function _emailEnsureDefaults(){
   return Promise.resolve();
 }
 function loadEmailMaster(){
   return _emailEnsureDefaults().then(function(){
+    function safeEmailLoad(promise, fallback){
+      return promise.then(function(result){return result;}).catch(function(error){
+        return {__error:error, __fallback:fallback};
+      });
+    }
     return Promise.all([
-      _emailCallLocalMaster('/api/master/email/settings', null, {method:'GET'}),
-      _emailCallLocalMaster('/api/master/email/templates', null, {method:'GET'})
+      safeEmailLoad(_emailCallLocalMaster('/api/master/email/settings', null, {method:'GET'}), {settings:_emailMasterState.settings || _emailDefaults.settings}),
+      safeEmailLoad(_emailCallLocalMaster('/api/master/email/templates', null, {method:'GET'}), {templates:_emailMasterState.templates && _emailMasterState.templates.length ? _emailMasterState.templates : _emailDefaults.templates}),
+      safeEmailLoad(_emailCallLocalMaster('/api/master/email/triggers', null, {method:'GET'}), {triggers:_emailMasterState.triggers && _emailMasterState.triggers.length ? _emailMasterState.triggers : _emailDefaults.triggers})
     ]);
   }).then(function(results){
     var settingsResult = results[0] || {};
     var templateResult = results[1] || {};
+    var triggerResult = results[2] || {};
+    var loadWarnings = [];
+    if(settingsResult.__error){ loadWarnings.push('configuração SMTP'); settingsResult = settingsResult.__fallback || {}; }
+    if(templateResult.__error){ loadWarnings.push('templates'); templateResult = templateResult.__fallback || {}; }
+    if(triggerResult.__error){ loadWarnings.push('gatilhos'); triggerResult = triggerResult.__fallback || {}; }
     _emailMasterState.settings = Object.assign({}, _emailDefaults.settings, settingsResult.settings || {});
-    _emailMasterState.templates = (templateResult.templates && templateResult.templates.length ? templateResult.templates : _emailDefaults.templates);
+    _emailMasterState.templates = mergeEmailTemplatesWithDefaults(templateResult.templates);
+    _emailMasterState.triggers = (triggerResult.triggers && triggerResult.triggers.length ? triggerResult.triggers : _emailDefaults.triggers);
+    if(!_emailMasterState.selectedTriggerKey && _emailMasterState.triggers[0]) _emailMasterState.selectedTriggerKey = _emailMasterState.triggers[0].triggerKey || _emailMasterState.triggers[0].id;
     if(!_emailTemplateByKey(_emailMasterState.selectedTemplateKey)) _emailMasterState.selectedTemplateKey = (_emailMasterState.templates[0] || {}).key || 'welcome_hotmart';
     renderEmailSettings();
     renderEmailTemplateList();
     renderEmailEditor();
+    renderEmailTriggers();
     renderEmailPreview();
     loadEmailLogs();
     _emailMasterState.loaded = true;
+    if(loadWarnings.length) toast('Alguns dados não foram carregados: '+loadWarnings.join(', ')+'.');
   }).catch(function(e){
     var msg = e && e.message ? e.message : 'Erro ao carregar e-mails automáticos';
     if(e && e.debug) msg += ' Debug: ' + e.debug;
     toast(msg);
     _emailMasterState.settings = Object.assign({}, _emailDefaults.settings);
-    _emailMasterState.templates = _emailDefaults.templates.slice();
+    _emailMasterState.templates = mergeEmailTemplatesWithDefaults([]);
+    _emailMasterState.triggers = _emailDefaults.triggers.slice();
     renderEmailSettings();
     renderEmailTemplateList();
     renderEmailEditor();
+    renderEmailTriggers();
     renderEmailPreview();
   });
 }
@@ -2441,8 +2872,24 @@ function renderEmailTemplateList(){
   if(!box)return;
   box.innerHTML = (_emailMasterState.templates || []).map(function(tpl){
     var active = tpl.key === _emailMasterState.selectedTemplateKey;
-    return '<button class="email-template-item'+(active?' active':'')+'" onclick="selectEmailTemplate(\''+esc(tpl.key)+'\')"><strong>'+esc(tpl.name || tpl.key)+'</strong><span>'+esc(tpl.description || '')+'</span><div style="margin-top:8px;">'+(tpl.enabled===false?'<span class="email-status off">Inativo</span>':'<span class="email-status on">Ativo</span>')+'</div></button>';
+    var trigger = emailTemplateTriggerStatus(tpl.key);
+    return '<button class="email-template-item'+(active?' active':'')+'" onclick="selectEmailTemplate(\''+esc(tpl.key)+'\')"><strong>'+esc(tpl.name || tpl.key)+'</strong><span>'+esc(tpl.description || '')+'</span><div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">'+(tpl.enabled===false?'<span class="email-status off">Inativo</span>':'<span class="email-status on">Ativo</span>')+'<span class="email-status '+esc(trigger.className)+'">'+esc(trigger.label)+'</span></div></button>';
   }).join('');
+}
+function emailTemplateTriggerStatus(key){
+  if(key === 'test_email')return {label:'Manual',className:'on'};
+  if(key === 'password_reset')return {label:'Conectado',className:'on'};
+  if(key === 'verify_email')return {label:'Preparado, não conectado',className:'off'};
+  var relatedTriggers = (_emailMasterState.triggers || []).filter(function(trigger){
+    return trigger && trigger.templateKey === key;
+  });
+  if(relatedTriggers.some(function(trigger){return trigger.enabled !== false;})){
+    return {label:'Com gatilho ativo',className:'on'};
+  }
+  if(relatedTriggers.length){
+    return {label:'Gatilho inativo',className:'off'};
+  }
+  return {label:'Sem gatilho',className:'off'};
 }
 function selectEmailTemplate(key){
   _emailMasterState.selectedTemplateKey = key;
@@ -2465,7 +2912,10 @@ function renderEmailEditor(){
   var status = document.getElementById('email-template-status');
   if(status){status.textContent = tpl.enabled === false ? 'Inativo' : 'Ativo'; status.className = 'email-status ' + (tpl.enabled === false ? 'off' : 'on');}
   var vars = document.getElementById('email-template-vars');
-  vars.innerHTML = (tpl.availableVariables || []).map(function(v){return '<span class="email-var">{{'+esc(v)+'}}</span>';}).join('');
+  vars.innerHTML = (tpl.availableVariables || []).map(function(v){
+    var description = EMAIL_VARIABLE_DESCRIPTIONS[v] || 'Valor preenchido automaticamente pelo sistema no envio.';
+    return '<span class="email-var"><code>{{'+esc(v)+'}}</code><small>'+esc(description)+'</small></span>';
+  }).join('');
 }
 function collectEmailTemplate(){
   var current = _emailTemplateByKey(_emailMasterState.selectedTemplateKey);
@@ -2492,6 +2942,90 @@ function saveEmailTemplate(){
     var msg = e && e.message ? e.message : 'Erro ao salvar template';
     if(e && e.debug) msg += ' Debug: ' + e.debug;
     toast('Erro ao salvar template: '+msg);
+  });
+}
+function renderEmailTriggerSelects(){
+  var tag = document.getElementById('email-trigger-tag');
+  var tpl = document.getElementById('email-trigger-template');
+  if(tag) tag.innerHTML = TENANT_TAG_OPTIONS.map(function(key){return '<option value="'+esc(key)+'">'+esc(key)+'</option>';}).join('');
+  if(tpl) tpl.innerHTML = (_emailMasterState.templates || _emailDefaults.templates).map(function(item){return '<option value="'+esc(item.key)+'">'+esc(item.name || item.key)+' ('+esc(item.key)+')</option>';}).join('');
+}
+function renderEmailTriggers(){
+  renderEmailTriggerSelects();
+  var box=document.getElementById('email-trigger-list');
+  if(box){
+    var triggers=_emailMasterState.triggers || [];
+    if(!triggers.length){
+      box.innerHTML='<div class="users-empty">Nenhum gatilho configurado.</div>';
+    }else{
+      box.innerHTML='<table class="email-log-table"><thead><tr><th>Gatilho</th><th>Etiqueta</th><th>Template</th><th>Atraso</th><th>Dedup</th><th>Status</th><th></th></tr></thead><tbody>'+
+        triggers.map(function(t){
+          var key=t.triggerKey||t.id||'';
+          return '<tr><td><strong>'+esc(t.name||key)+'</strong><br><span class="user-sub">'+esc(key)+'</span></td><td>'+esc(t.tagKey||'')+'</td><td>'+esc(t.templateKey||'')+'</td><td>'+esc(t.delayHours||0)+'h</td><td>'+esc(t.dedupeWindowDays||30)+' dia(s)</td><td>'+(t.enabled===false?'<span class="email-status off">Inativo</span>':'<span class="email-status on">Ativo</span>')+'</td><td><button class="btn secondary" onclick="selectEmailTrigger(\''+esc(key)+'\')">Editar</button></td></tr>';
+        }).join('')+'</tbody></table>';
+    }
+  }
+  renderEmailTriggerEditor();
+}
+function selectEmailTrigger(key){
+  _emailMasterState.selectedTriggerKey=key;
+  renderEmailTriggers();
+}
+function newEmailTrigger(){
+  _emailMasterState.selectedTriggerKey='';
+  setVal('email-trigger-key','');
+  setVal('email-trigger-name','');
+  setVal('email-trigger-description','');
+  setVal('email-trigger-delay','0');
+  setVal('email-trigger-dedupe','30');
+  document.getElementById('email-trigger-enabled').checked=true;
+  renderEmailTriggerSelects();
+  document.getElementById('email-trigger-editor-title').textContent='Novo gatilho';
+  var status=document.getElementById('email-trigger-status');if(status){status.textContent='Novo';status.className='email-status off';}
+}
+function renderEmailTriggerEditor(){
+  var trigger=_emailTriggerByKey(_emailMasterState.selectedTriggerKey);
+  if(!trigger)return;
+  setVal('email-trigger-key', trigger.triggerKey || trigger.id || '');
+  setVal('email-trigger-name', trigger.name || '');
+  setVal('email-trigger-description', trigger.description || '');
+  setVal('email-trigger-delay', trigger.delayHours || 0);
+  setVal('email-trigger-dedupe', trigger.dedupeWindowDays || 30);
+  setVal('email-trigger-tag', trigger.tagKey || '');
+  setVal('email-trigger-template', trigger.templateKey || '');
+  document.getElementById('email-trigger-enabled').checked = trigger.enabled !== false;
+  document.getElementById('email-trigger-editor-title').textContent = trigger.name || 'Editar gatilho';
+  var status=document.getElementById('email-trigger-status');
+  if(status){status.textContent=trigger.enabled===false?'Inativo':'Ativo';status.className='email-status '+(trigger.enabled===false?'off':'on');}
+}
+function collectEmailTrigger(){
+  return {
+    triggerKey: val('email-trigger-key'),
+    name: val('email-trigger-name'),
+    description: val('email-trigger-description'),
+    tagKey: val('email-trigger-tag'),
+    templateKey: val('email-trigger-template'),
+    delayHours: Number(val('email-trigger-delay') || 0),
+    dedupeWindowDays: Number(val('email-trigger-dedupe') || 30),
+    enabled: !!document.getElementById('email-trigger-enabled').checked,
+    source: 'master'
+  };
+}
+function saveEmailTrigger(){
+  var trigger=collectEmailTrigger();
+  if(!trigger.triggerKey || !trigger.tagKey || !trigger.templateKey){toast('Chave, etiqueta e template são obrigatórios');return;}
+  _emailCallLocalMaster('/api/master/email/triggers', trigger).then(function(r){
+    toast(r.message || 'Gatilho salvo');
+    _emailMasterState.selectedTriggerKey = trigger.triggerKey;
+    return loadEmailTriggers();
+  }).catch(function(e){toast('Erro ao salvar gatilho: '+(e.message||e));});
+}
+function loadEmailTriggers(){
+  return _emailCallLocalMaster('/api/master/email/triggers', null, {method:'GET'}).then(function(r){
+    _emailMasterState.triggers = r.triggers || _emailDefaults.triggers.slice();
+    if(!_emailMasterState.selectedTriggerKey && _emailMasterState.triggers[0]) _emailMasterState.selectedTriggerKey = _emailMasterState.triggers[0].triggerKey || _emailMasterState.triggers[0].id;
+    renderEmailTriggers();
+    renderEmailTemplateList();
   });
 }
 function _emailPreviewHtml(tpl){
@@ -2809,6 +3343,7 @@ window.closeAccessHistoryModal = closeAccessHistoryModal;
 window.reloadAccessHistory = reloadAccessHistory;
 window.setAccessHistoryFilter = setAccessHistoryFilter;
 window.archiveUser = archiveUser;
+window.setUsersPage = setUsersPage;
 window.linkPendingToExisting = linkPendingToExisting;
 window.createTenantFromPending = createTenantFromPending;
 window.archivePending = archivePending;

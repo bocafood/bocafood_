@@ -12,6 +12,14 @@
     "public": "public",
     "rewrites": [
       {
+        "source": "/cadastro",
+        "destination": "/cadastro.html"
+      },
+      {
+        "source": "/login",
+        "destination": "/admin.html"
+      },
+      {
         "source": "/loja/**",
         "destination": "/index.html"
       }
