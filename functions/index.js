@@ -5,10 +5,13 @@ const net = require("net");
 const tls = require("tls");
 const crypto = require("crypto");
 
-admin.initializeApp();
+admin.initializeApp({
+  projectId: process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || "bocado-brasil"
+});
 
 const db = admin.firestore();
 const REGION = "us-central1";
+const FIREBASE_ADMIN_SERVICE_ACCOUNT = "firebase-adminsdk-fbsvc@bocado-brasil.iam.gserviceaccount.com";
 const MASTER_EMAILS = new Set([
   "bocadobrasil.es@gmail.com",
   "pcruz.digital@gmail.com"
@@ -1075,11 +1078,14 @@ async function sendEmailFromTemplateViaSmtp({ to, templateKey, variables = {}, s
       warning: smtpResult && smtpResult.warning ? smtpResult.warning : ""
     };
   } catch (error) {
+    const smtpErrorDetail = error && error.smtpResponse
+      ? `${error.message || "send_failed"}:${String(error.smtpResponse).slice(0, 180)}`
+      : (error && error.message ? error.message : "send_failed");
     await logRef.set({
       ...baseLog,
       subject: "",
       status: "error",
-      error: String(error && error.message ? error.message : "send_failed").slice(0, 240)
+      error: String(smtpErrorDetail).slice(0, 240)
     }, { merge: true });
     return { ok: false, error: error && error.message ? error.message : "send_failed" };
   }
@@ -1094,7 +1100,7 @@ async function findTenantByEmail(email) {
   return found;
 }
 
-exports.requestPasswordResetEmail = onCall({ region: REGION }, async (request) => {
+exports.requestPasswordResetEmail = onCall({ region: REGION, serviceAccount: FIREBASE_ADMIN_SERVICE_ACCOUNT }, async (request) => {
   const email = normalizeEmail(request.data && request.data.email);
   if (!email || !email.includes("@")) {
     throw new HttpsError("invalid-argument", "Informe um e-mail válido.");
@@ -1108,22 +1114,6 @@ exports.requestPasswordResetEmail = onCall({ region: REGION }, async (request) =
     console.info("[PASSWORD RESET] auth_user_found", { emailHash: safeEventHash, uid: authUser.uid || "" });
   } catch (error) {
     console.info("[PASSWORD RESET] auth_user_not_found", { emailHash: safeEventHash });
-    await db.collection("email_logs").doc(emailLogId({ eventId, templateKey: "password_reset", to: email })).set({
-      to: email,
-      templateKey: "password_reset",
-      status: "skipped",
-      source: "auth",
-      origin: "auth",
-      eventId,
-      error: "auth_user_not_found",
-      createdAt: serverTimestamp()
-    }, { merge: true });
-    return {
-      ok: true,
-      smtpSent: false,
-      fallbackRequired: false,
-      debugCode: "auth_user_not_found"
-    };
   }
 
   const settingsSnap = await db.collection("system_email_settings").doc("default").get();
@@ -1144,23 +1134,50 @@ exports.requestPasswordResetEmail = onCall({ region: REGION }, async (request) =
   console.info("[PASSWORD RESET] config_check", { emailHash: safeEventHash, ...resetDiagnostics });
   const appBaseUrl = String(settings.appBaseUrl || "https://bocafood.app").replace(/\/$/, "");
   let resetPasswordUrl = "";
+  let resetLinkErrorCode = "";
   try {
     resetPasswordUrl = await admin.auth().generatePasswordResetLink(email, {
       url: `${appBaseUrl}/login`,
       handleCodeInApp: false
     });
   } catch (error) {
-    resetPasswordUrl = await admin.auth().generatePasswordResetLink(email);
-    await db.collection("email_logs").doc(emailLogId({ eventId: `${eventId}_continue_url_fallback`, templateKey: "password_reset", to: email })).set({
+    try {
+      resetPasswordUrl = await admin.auth().generatePasswordResetLink(email);
+      await db.collection("email_logs").doc(emailLogId({ eventId: `${eventId}_continue_url_fallback`, templateKey: "password_reset", to: email })).set({
+        to: email,
+        templateKey: "password_reset",
+        status: "warning",
+        source: "auth",
+        origin: "auth",
+        eventId,
+        error: "password_reset_continue_url_fallback",
+        createdAt: serverTimestamp()
+      }, { merge: true });
+    } catch (fallbackError) {
+      resetLinkErrorCode = fallbackError && fallbackError.code ? fallbackError.code : "unknown";
+      console.info("[PASSWORD RESET] link_not_generated", {
+        emailHash: safeEventHash,
+        code: resetLinkErrorCode
+      });
+    }
+  }
+  if (!resetPasswordUrl) {
+    await db.collection("email_logs").doc(emailLogId({ eventId, templateKey: "password_reset", to: email })).set({
       to: email,
       templateKey: "password_reset",
-      status: "warning",
+      status: "skipped",
       source: "auth",
       origin: "auth",
       eventId,
-      error: "password_reset_continue_url_fallback",
+      error: resetLinkErrorCode ? `password_reset_link_not_generated:${resetLinkErrorCode}` : "password_reset_link_not_generated",
       createdAt: serverTimestamp()
     }, { merge: true });
+    return {
+      ok: true,
+      smtpSent: false,
+      fallbackRequired: false,
+      debugCode: "password_reset_link_not_generated"
+    };
   }
   const tenant = await findTenantByEmail(email);
   const tenantData = tenant ? tenant.data : {};
