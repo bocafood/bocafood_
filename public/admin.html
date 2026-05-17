@@ -432,13 +432,7 @@ button,input,select,textarea{font-family:inherit}
     }
     btn.disabled = true;
     btn.textContent = 'Enviando...';
-    functions.httpsCallable('requestPasswordResetEmail')({ email: email }).then(function (response) {
-      var data = response && response.data ? response.data : {};
-      if (!data.fallbackRequired) return null;
-      return firebase.auth().sendPasswordResetEmail(email).catch(function (nativeError) {
-        console.warn('[Auth] Firebase native password reset fallback did not complete', nativeError);
-      });
-    }).then(function () {
+    functions.httpsCallable('requestPasswordResetEmail')({ email: email }).then(function () {
       err.textContent = 'Se esse e-mail estiver vinculado a uma conta BocaFood, enviaremos um link de recuperação.';
       err.style.display = 'block';
     }).catch(function (ex) {

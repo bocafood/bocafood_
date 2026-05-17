@@ -812,30 +812,17 @@ async function smtpExpect(socket, command, acceptedCodes) {
   const response = await smtpRead(socket);
   const code = Number(String(response).slice(0, 3));
   if (!acceptedCodes.includes(code)) {
-    throw new Error(`smtp_response_${code || "unknown"}`);
+    const error = new Error(`smtp_response_${code || "unknown"}`);
+    error.responseCode = code || 0;
+    error.smtpResponse = String(response || "").slice(0, 500);
+    throw error;
   }
   return response;
 }
 
-async function smtpAuthLogin(socket, user, password) {
-  await smtpExpect(socket, "AUTH LOGIN", [334]);
-  await smtpExpect(socket, Buffer.from(user, "utf8").toString("base64"), [334]);
-  return smtpExpect(socket, Buffer.from(password, "utf8").toString("base64"), [235, 503]);
-}
-
-async function smtpAuthenticate(socket, settings, user, password) {
-  const host = String(settings.smtpHost || "").trim().toLowerCase();
-  if (host.includes("brevo.com")) {
-    return smtpAuthLogin(socket, user, password);
-  }
+async function smtpAuthenticate(socket, user, password) {
   const plainAuth = Buffer.from(`\u0000${user}\u0000${password}`, "utf8").toString("base64");
-  try {
-    return await smtpExpect(socket, `AUTH PLAIN ${plainAuth}`, [235, 503]);
-  } catch (error) {
-    const message = String(error && error.message ? error.message : "");
-    if (!/smtp_response_535|smtp_response_504|smtp_response_500|smtp_response_502/.test(message)) throw error;
-  }
-  return smtpAuthLogin(socket, user, password);
+  return smtpExpect(socket, `AUTH PLAIN ${plainAuth}`, [235, 503]);
 }
 
 function smtpConnect(settings) {
@@ -877,10 +864,19 @@ async function sendSmtpEmail({ settings, password, to, subject, html }) {
   const { host, port, secure, requireTLS } = transport;
   const user = String(settings.smtpUser || "").trim();
   const fromEmail = normalizeEmail(settings.fromEmail);
+  const envelopeFrom = fromEmail;
   const replyTo = normalizeEmail(settings.replyTo || settings.supportEmail || fromEmail);
   const fromName = cleanHeader(settings.fromName || settings.brandName || "BocaFood");
   const trimmedPassword = String(password || "").trim();
-  console.info("[SMTP] send config", { host, port, secure, requireTLS, user: maskSmtpUser(user), fromEmail });
+  console.info("[SMTP] send config", {
+    host,
+    port,
+    secure,
+    requireTLS,
+    user: maskSmtpUser(user),
+    fromEmail,
+    envelopeFrom
+  });
   if (!host || !port || !fromEmail || !user || !trimmedPassword) throw new Error("smtp_config_incomplete");
   if (!normalizeEmail(to)) throw new Error("email_to_required");
 
@@ -892,8 +888,8 @@ async function sendSmtpEmail({ settings, password, to, subject, html }) {
       socket = await smtpStartTls(socket, settings);
       await smtpExpect(socket, "EHLO bocafood.app", [250]);
     }
-    await smtpAuthenticate(socket, settings, user, trimmedPassword);
-    await smtpExpect(socket, `MAIL FROM:<${fromEmail}>`, [250]);
+    await smtpAuthenticate(socket, user, trimmedPassword);
+    await smtpExpect(socket, `MAIL FROM:<${envelopeFrom}>`, [250]);
     await smtpExpect(socket, `RCPT TO:<${normalizeEmail(to)}>`, [250, 251]);
     await smtpExpect(socket, "DATA", [354]);
     const safeSubject = encodedSubject(subject || "BocaFood");
@@ -926,6 +922,19 @@ async function sendSmtpEmail({ settings, password, to, subject, html }) {
       // Alguns SMTPs fecham a conexão logo após aceitar DATA; o envio já foi aceito.
     }
     return { accepted: true };
+  } catch (error) {
+    console.warn("[SMTP] send failed", {
+      host,
+      port,
+      secure,
+      requireTLS,
+      user: maskSmtpUser(user),
+      fromEmail,
+      envelopeFrom,
+      responseCode: error && error.responseCode ? error.responseCode : 0,
+      response: error && error.smtpResponse ? String(error.smtpResponse).slice(0, 240) : String(error && error.message ? error.message : "").slice(0, 240)
+    });
+    throw error;
   } finally {
     try { socket.end(); } catch (error) {}
   }
@@ -1112,7 +1121,7 @@ exports.requestPasswordResetEmail = onCall({ region: REGION }, async (request) =
     return {
       ok: true,
       smtpSent: false,
-      fallbackRequired: true,
+      fallbackRequired: false,
       debugCode: "auth_user_not_found"
     };
   }
@@ -1179,7 +1188,6 @@ exports.requestPasswordResetEmail = onCall({ region: REGION }, async (request) =
     reason: result.reason || "",
     error: result.error ? String(result.error).slice(0, 120) : ""
   });
-  const shouldUseNativeFallback = result.ok !== true || result.skipped === true;
   const debugCode = result.ok === true && result.skipped !== true
     ? "smtp_success"
     : (result.skipped === true ? `smtp_skipped_${result.reason || "unknown"}` : `smtp_error_${result.error || "send_failed"}`);
@@ -1195,8 +1203,8 @@ exports.requestPasswordResetEmail = onCall({ region: REGION }, async (request) =
     severity: "info",
     metadata: {
       templateKey: "password_reset",
-      smtpStatus: result.ok === true && result.skipped !== true ? "success" : "fallback_required",
-      fallbackRequired: shouldUseNativeFallback,
+      smtpStatus: result.ok === true && result.skipped !== true ? "success" : "smtp_not_sent",
+      fallbackRequired: false,
       debugCode,
       diagnostics: resetDiagnostics
     },
@@ -1205,7 +1213,7 @@ exports.requestPasswordResetEmail = onCall({ region: REGION }, async (request) =
   return {
     ok: true,
     smtpSent: result.ok === true && result.skipped !== true,
-    fallbackRequired: shouldUseNativeFallback,
+    fallbackRequired: false,
     debugCode,
     diagnostics: resetDiagnostics
   };
