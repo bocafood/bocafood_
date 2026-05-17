@@ -12,6 +12,7 @@ admin.initializeApp({
 const db = admin.firestore();
 const REGION = "us-central1";
 const FIREBASE_ADMIN_SERVICE_ACCOUNT = "firebase-adminsdk-fbsvc@bocado-brasil.iam.gserviceaccount.com";
+const FIRESTORE_BACKUP_DEFAULT_BUCKET = "gs://bocado-brasil-firestore-backups";
 const MASTER_EMAILS = new Set([
   "bocadobrasil.es@gmail.com",
   "pcruz.digital@gmail.com"
@@ -20,6 +21,12 @@ const HOTMART_OFFER_PLANS = {
   u7wyvsyn: { planSlug: "essencial", billingCycle: "monthly", trialDays: 15 },
   kah1d2ne: { planSlug: "compromisso_anual", billingCycle: "annual", trialDays: 15 },
   woavlwrh: { planSlug: "fundadoras", billingCycle: "monthly", trialDays: 0 }
+};
+const PLAN_DISPLAY_NAMES = {
+  essencial: "Plano Essencial",
+  compromisso_anual: "Plano Compromisso Anual",
+  fundadoras: "Plano Fundadoras",
+  starter: "Plano Essencial"
 };
 const TENANT_TAG_KEYS = [
   "trial_ending",
@@ -738,6 +745,12 @@ function hotmartLogAction(status) {
     refunded: "hotmart_refunded",
     chargeback: "hotmart_chargeback"
   }[status] || "hotmart_event_received";
+}
+
+function planDisplayName(planSlug) {
+  const normalized = String(planSlug || "").trim();
+  if (!normalized) return "Plano BocaFood";
+  return PLAN_DISPLAY_NAMES[normalized] || normalized.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 function mapHotmartCycle(payload) {
@@ -1604,6 +1617,129 @@ function handleCors(req, res) {
   return false;
 }
 
+function backupTimestampPath(date = new Date()) {
+  return date.toISOString().replace(/[:.]/g, "-");
+}
+
+function normalizeBackupBucket(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return FIRESTORE_BACKUP_DEFAULT_BUCKET;
+  return raw.startsWith("gs://") ? raw.replace(/\/+$/, "") : `gs://${raw.replace(/^\/+|\/+$/g, "")}`;
+}
+
+async function googleAccessToken() {
+  const response = await fetch("http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token", {
+    headers: { "Metadata-Flavor": "Google" }
+  });
+  if (!response.ok) throw new Error(`metadata_token_${response.status}`);
+  const data = await response.json();
+  if (!data.access_token) throw new Error("metadata_token_missing");
+  return data.access_token;
+}
+
+function firestoreBackupPublicLog(doc) {
+  const data = doc && doc.data ? doc.data() || {} : doc || {};
+  return {
+    id: doc && doc.id ? doc.id : String(data.id || ""),
+    status: String(data.status || ""),
+    source: String(data.source || ""),
+    bucket: String(data.bucket || ""),
+    outputUriPrefix: String(data.outputUriPrefix || ""),
+    operationName: String(data.operationName || ""),
+    error: String(data.error || "").slice(0, 240),
+    startedAt: data.startedAt && data.startedAt.toDate ? data.startedAt.toDate().toISOString() : String(data.startedAt || ""),
+    finishedAt: data.finishedAt && data.finishedAt.toDate ? data.finishedAt.toDate().toISOString() : String(data.finishedAt || ""),
+    createdBy: String(data.createdBy || "")
+  };
+}
+
+async function loadFirestoreBackupSettings() {
+  const ref = db.collection("system_backup_settings").doc("firestore");
+  const snap = await ref.get();
+  const data = snap.exists ? snap.data() || {} : {};
+  return {
+    enabled: data.enabled !== false,
+    bucket: normalizeBackupBucket(data.bucket || FIRESTORE_BACKUP_DEFAULT_BUCKET),
+    retentionDays: Number(data.retentionDays || 30),
+    schedule: String(data.schedule || "daily_0300_europe_madrid"),
+    updatedAt: data.updatedAt || ""
+  };
+}
+
+async function saveFirestoreBackupSettings({ bucket, enabled, retentionDays, updatedBy }) {
+  const payload = {
+    enabled: enabled !== false,
+    bucket: normalizeBackupBucket(bucket),
+    retentionDays: Math.max(1, Math.min(365, Number(retentionDays || 30))),
+    schedule: "daily_0300_europe_madrid",
+    updatedBy: String(updatedBy || ""),
+    updatedAt: serverTimestamp()
+  };
+  await db.collection("system_backup_settings").doc("firestore").set(payload, { merge: true });
+  return payload;
+}
+
+async function runFirestoreExport({ source = "manual", requestedBy = "" } = {}) {
+  const settings = await loadFirestoreBackupSettings();
+  if (source === "schedule" && settings.enabled === false) {
+    const skippedRef = await db.collection("system_firestore_backups").add({
+      status: "skipped",
+      source,
+      bucket: settings.bucket,
+      outputUriPrefix: "",
+      error: "backup_disabled",
+      createdBy: requestedBy,
+      startedAt: serverTimestamp(),
+      finishedAt: serverTimestamp()
+    });
+    return { ok: true, skipped: true, backup: firestoreBackupPublicLog({ id: skippedRef.id, data: () => ({ status: "skipped", source, bucket: settings.bucket, error: "backup_disabled" }) }) };
+  }
+  const projectId = process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || "bocado-brasil";
+  const outputUriPrefix = `${settings.bucket.replace(/\/+$/, "")}/firestore/${backupTimestampPath()}`;
+  const logRef = db.collection("system_firestore_backups").doc();
+  await logRef.set({
+    status: "running",
+    source,
+    bucket: settings.bucket,
+    outputUriPrefix,
+    createdBy: requestedBy,
+    startedAt: serverTimestamp(),
+    error: ""
+  }, { merge: true });
+  try {
+    const token = await googleAccessToken();
+    const url = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/databases/(default):exportDocuments`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ outputUriPrefix })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const message = data && data.error && data.error.message ? data.error.message : `firestore_export_${response.status}`;
+      throw new Error(message);
+    }
+    await logRef.set({
+      status: "started",
+      operationName: String(data.name || ""),
+      finishedAt: serverTimestamp()
+    }, { merge: true });
+    const snap = await logRef.get();
+    return { ok: true, backup: firestoreBackupPublicLog(snap) };
+  } catch (error) {
+    await logRef.set({
+      status: "error",
+      error: String(error && error.message ? error.message : "export_failed").slice(0, 240),
+      finishedAt: serverTimestamp()
+    }, { merge: true });
+    const snap = await logRef.get();
+    return { ok: false, error: String(error && error.message ? error.message : "export_failed").slice(0, 240), backup: firestoreBackupPublicLog(snap) };
+  }
+}
+
 function safeEmailLog(data) {
   data = data || {};
   return {
@@ -1895,6 +2031,39 @@ exports.sendTestEmail = onRequest({ region: REGION }, async (req, res) => {
   }
 });
 
+exports.firestoreBackupAdmin = onRequest({ region: REGION, serviceAccount: FIREBASE_ADMIN_SERVICE_ACCOUNT, timeoutSeconds: 540, memory: "512MiB" }, async (req, res) => {
+  try {
+    if (handleCors(req, res)) return;
+    if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+    const master = await requireMaster(req);
+    const body = req.body || {};
+    const action = String(body.action || "status");
+    if (action === "save_config") {
+      await saveFirestoreBackupSettings({
+        bucket: body.bucket,
+        enabled: body.enabled !== false,
+        retentionDays: body.retentionDays,
+        updatedBy: master.email || ""
+      });
+      const settings = await loadFirestoreBackupSettings();
+      return res.json({ ok: true, settings });
+    }
+    if (action === "run_now") {
+      const result = await runFirestoreExport({ source: "manual", requestedBy: master.email || "" });
+      return res.status(result.ok ? 200 : 500).json(result);
+    }
+    const [settings, logsSnap] = await Promise.all([
+      loadFirestoreBackupSettings(),
+      db.collection("system_firestore_backups").orderBy("startedAt", "desc").limit(20).get()
+    ]);
+    const logs = [];
+    logsSnap.forEach((doc) => logs.push(firestoreBackupPublicLog(doc)));
+    return res.json({ ok: true, settings, logs });
+  } catch (error) {
+    return res.status(400).json({ ok: false, error: String(error && error.message ? error.message : "backup_admin_failed").slice(0, 240) });
+  }
+});
+
 function hotmartEmailTemplateForStatus({ status, linkedCount }) {
   if (status === "active") return linkedCount ? "subscription_active" : "welcome_hotmart";
   if (status === "pending_payment" || status === "past_due") return "payment_pending";
@@ -2028,6 +2197,67 @@ exports.completeSignupOnboarding = onCall({ region: REGION }, async (request) =>
   const now = nowIso();
   const tenantRef = db.collection("system_tenants").doc(uid);
 
+  if (stage === "legal_acceptance") {
+    const acceptedTerms = data.acceptedTerms === true;
+    const acceptedPrivacy = data.acceptedPrivacy === true;
+    if (!acceptedTerms || !acceptedPrivacy) {
+      throw new HttpsError("invalid-argument", "Aceite os Termos de uso e a Política de privacidade para continuar.");
+    }
+    const tenantSnap = await tenantRef.get();
+    const tenantData = tenantSnap.exists ? (tenantSnap.data() || {}) : {};
+    const billing = tenantData.billing || {};
+    const activeAccount = tenantData.accountStatus === "active" || tenantData.status === "active" || billing.status === "active";
+    if (!activeAccount) {
+      throw new HttpsError("failed-precondition", "Assinatura de termos disponível apenas para contas com acesso liberado.");
+    }
+    const termsUrl = cleanSignupText(data.termsUrl || "https://bocafood.app/termosdeuso", 240);
+    const privacyUrl = cleanSignupText(data.privacyUrl || "https://bocafood.app/privacidade", 240);
+    const acceptance = {
+      termsAccepted: true,
+      privacyAccepted: true,
+      termsUrl,
+      privacyUrl,
+      acceptedAt: now,
+      acceptedByUid: uid,
+      acceptedByEmail: authEmail,
+      source: "signup_onboarding"
+    };
+    await tenantRef.set({
+      legalAcceptance: acceptance,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+    await db.collection("system_legal_acceptances").doc(`${uid}_${Date.now()}`).set({
+      tenantUid: uid,
+      email: authEmail,
+      ...acceptance,
+      createdAt: serverTimestamp()
+    }, { merge: true });
+    await recordSignupLog({
+      tenantUid: uid,
+      email: authEmail,
+      action: "signup_legal_terms_accepted",
+      summary: "Termos de uso e política de privacidade aceitos no onboarding.",
+      metadata: { termsUrl, privacyUrl }
+    });
+    const store = tenantData.store || {};
+    const planSlug = billing.planSlug || tenantData.plan || "";
+    await sendEmailFromTemplateViaSmtp({
+      to: authEmail,
+      templateKey: "welcome_access_created",
+      source: "signup",
+      eventId: `signup_completed_${uid}`,
+      tenantUid: uid,
+      variables: {
+        buyerName: tenantData.ownerName || tenantData.fullName || authEmail,
+        buyerEmail: authEmail,
+        planName: planDisplayName(planSlug),
+        productName: "BocaFood",
+        storeName: store.name || tenantData.storeName || ""
+      }
+    });
+    return { ok: true, legalAccepted: true, redirectUrl: "/admin.html#inicio" };
+  }
+
   if (stage === "account_created") {
     await recordSignupLog({ tenantUid: uid, email: authEmail, action: "signup_started", summary: "Cadastro BocaFood iniciado.", metadata: { purchaseFound: !!pending } });
     await recordSignupLog({ tenantUid: uid, email: authEmail, action: "signup_account_created", summary: "Conta Firebase criada pelo onboarding.", metadata: { purchaseFound: !!pending } });
@@ -2125,20 +2355,6 @@ exports.completeSignupOnboarding = onCall({ region: REGION }, async (request) =>
     }, { merge: true });
     await recordSignupLog({ tenantUid: uid, email: authEmail, action: "signup_hotmart_linked", summary: "Compra Hotmart vinculada ao cadastro.", metadata: { pendingId: pending.id, planSlug: billing.planSlug, billingCycle: billing.billingCycle } });
     await recordSignupLog({ tenantUid: uid, email: authEmail, action: "signup_completed", summary: "Cadastro BocaFood concluído com compra ativa.", metadata: { origin: "hotmart" } });
-    await sendEmailFromTemplateViaSmtp({
-      to: authEmail,
-      templateKey: "welcome_access_created",
-      source: "signup",
-      eventId: `signup_completed_${uid}`,
-      tenantUid: uid,
-      variables: {
-        buyerName: ownerName,
-        buyerEmail: authEmail,
-        planName: (pending.data && (pending.data.planName || pending.data.planSlug)) || billing.planSlug || "Plano BocaFood",
-        productName: (pending.data && pending.data.productName) || "BocaFood",
-        storeName
-      }
-    });
     return { ok: true, purchaseFound: true, accountStatus: "active", redirectUrl: "/admin.html#inicio" };
   }
 
@@ -2334,6 +2550,14 @@ exports.dailyTenantTagCheck = onSchedule(
     });
     await Promise.all(jobs);
     console.info("dailyTenantTagCheck completed", { tenants: snap.size, writes: jobs.length });
+  }
+);
+
+exports.dailyFirestoreBackup = onSchedule(
+  { region: REGION, schedule: "0 3 * * *", timeZone: "Europe/Madrid", serviceAccount: FIREBASE_ADMIN_SERVICE_ACCOUNT, timeoutSeconds: 540, memory: "512MiB" },
+  async () => {
+    const result = await runFirestoreExport({ source: "schedule", requestedBy: "dailyFirestoreBackup" });
+    if (!result.ok && !result.skipped) console.error("dailyFirestoreBackup failed", { error: result.error || "backup_failed" });
   }
 );
 

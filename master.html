@@ -108,6 +108,15 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
 .signup-profile-section{border:1px solid rgba(196,54,42,.22);border-radius:14px;background:linear-gradient(135deg,#FFFFFF 0%,#FFFCFB 100%);padding:13px 14px}
 .signup-profile-section h3{margin:0 0 4px;color:var(--dark);font-size:12px;font-weight:900;letter-spacing:.06em;text-transform:uppercase}
 .signup-profile-section p{margin:0 0 10px;color:var(--muted);font-size:11px;line-height:1.4}
+.legal-acceptance-card{grid-column:1/-1;border:1px solid rgba(196,54,42,.20);border-radius:14px;background:linear-gradient(135deg,#FFFFFF 0%,#FFFCFB 100%);padding:13px 14px;display:grid;gap:10px}
+.legal-acceptance-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.legal-acceptance-head h3{margin:0;color:var(--dark);font-size:12px;font-weight:900;letter-spacing:.06em;text-transform:uppercase}
+.legal-acceptance-head p{margin:4px 0 0;color:var(--muted);font-size:11px;line-height:1.4}
+.legal-acceptance-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.legal-acceptance-item{border:1px solid var(--line);border-radius:10px;background:#fff;padding:9px 10px}
+.legal-acceptance-item span{display:block;color:var(--muted);font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.04em}
+.legal-acceptance-item strong,.legal-acceptance-item a{display:block;margin-top:3px;color:var(--dark);font-size:12px;font-weight:800;word-break:break-word;text-decoration:none}
+.legal-acceptance-item a{color:var(--red)}
 .signup-answer-list{display:grid;gap:8px}
 .signup-answer{display:grid;gap:3px;padding:9px 10px;border:1px solid var(--line);border-radius:10px;background:#fff}
 .signup-answer span{color:var(--muted);font-size:10px;font-weight:900;letter-spacing:.05em;text-transform:uppercase}
@@ -239,9 +248,21 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
 .email-log-table th{text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;padding:10px;border-bottom:1px solid var(--line);background:#FAF8F8}
 .email-log-table td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
 .email-secret-note{font-size:11px;line-height:1.45;color:#8A7E7C;margin-top:5px}
-@media(max-width:980px){.grid.two,.form-grid,.signup-profile-grid,.signup-summary-grid,.signup-summary-metrics{grid-template-columns:1fr}.hero,.toolbar{align-items:flex-start;flex-direction:column}.master-filters{grid-template-columns:1fr 1fr}.users-table,.users-table thead,.users-table tbody,.users-table tr,.users-table th,.users-table td{display:block}.users-table thead{display:none}.users-table{border-spacing:0}.users-table tbody tr{display:grid;gap:10px;margin-bottom:12px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#fff}.users-table tbody td{border:none!important;padding:0;background:transparent}.users-table tbody td::before{content:attr(data-label);display:block;margin-bottom:4px;color:var(--muted);font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.04em}.user-actions{justify-content:flex-start;flex-wrap:wrap}.account-actions-list{position:static;margin-top:6px;box-shadow:none}.signup-chart-row{grid-template-columns:minmax(100px,1fr) minmax(96px,1.4fr) 36px}}
+.pages-shell{display:grid;grid-template-columns:minmax(260px,.75fr) minmax(460px,1.25fr);gap:16px;align-items:start}
+.page-items{display:grid;gap:10px}
+.page-item{width:100%;text-align:left;border:1px solid var(--line);background:#fff;border-radius:14px;padding:13px 14px;cursor:pointer;box-shadow:0 4px 12px rgba(31,31,31,.03)}
+.page-item.active{border-color:#E2A09A;background:#FFF8F7}
+.page-item strong{display:block;font-size:14px;font-weight:800;color:var(--dark);margin-bottom:3px}
+.page-item span{display:block;font-size:12px;color:var(--muted);line-height:1.35}
+.page-preview{border:1px solid #EEE6E4;border-radius:16px;background:linear-gradient(135deg,#FFFCFB 0%,#FAF8F4 100%);padding:18px;color:#3F3430;line-height:1.65;min-height:220px}
+.page-preview h1,.page-preview h2,.page-preview h3{color:#1F1F1F;margin:0 0 10px;line-height:1.25}
+.page-preview p{margin:0 0 12px}
+.page-preview-empty{color:#8A7E7C;font-size:13px}
+.page-editor-help{font-size:11px;line-height:1.45;color:#8A7E7C;margin-top:5px}
+@media(max-width:980px){.grid.two,.form-grid,.signup-profile-grid,.signup-summary-grid,.signup-summary-metrics,.legal-acceptance-grid{grid-template-columns:1fr}.hero,.toolbar{align-items:flex-start;flex-direction:column}.master-filters{grid-template-columns:1fr 1fr}.users-table,.users-table thead,.users-table tbody,.users-table tr,.users-table th,.users-table td{display:block}.users-table thead{display:none}.users-table{border-spacing:0}.users-table tbody tr{display:grid;gap:10px;margin-bottom:12px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#fff}.users-table tbody td{border:none!important;padding:0;background:transparent}.users-table tbody td::before{content:attr(data-label);display:block;margin-bottom:4px;color:var(--muted);font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.04em}.user-actions{justify-content:flex-start;flex-wrap:wrap}.account-actions-list{position:static;margin-top:6px;box-shadow:none}.signup-chart-row{grid-template-columns:minmax(100px,1fr) minmax(96px,1.4fr) 36px}}
 @media(max-width:640px){main{padding:16px}.master-filters{grid-template-columns:1fr}.users-pagination{align-items:flex-start;flex-direction:column}.users-pagination-actions{width:100%}.users-pagination-actions .btn{flex:1}.user-actions .btn{flex:1}.account-actions-menu{width:100%}.account-actions-menu summary.btn{width:100%;text-align:center}.account-actions-list{width:100%}}
 @media(max-width:980px){.email-form-grid,.email-template-list{grid-template-columns:1fr}}
+@media(max-width:980px){.pages-shell{grid-template-columns:1fr}}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -277,9 +298,10 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
     <button class="tab-btn active" data-tab="usuarios" onclick="openTab('usuarios')">Contas</button>
     <button class="tab-btn" data-tab="cadastro-resumo" onclick="openTab('cadastro-resumo')">Resumo do cadastro</button>
     <button class="tab-btn" data-tab="configuracoes" onclick="openTab('configuracoes')">Configurações</button>
+    <button class="tab-btn" data-tab="paginas-sistema" onclick="openTab('paginas-sistema')">Páginas do sistema</button>
     <button class="tab-btn" data-tab="emails-automaticos" onclick="openTab('emails-automaticos')">E-mails automáticos</button>
     <button class="tab-btn" data-tab="configuracoes-globais" onclick="openTab('configuracoes-globais')">Configurações Globais</button>
-    <button class="tab-btn" data-tab="backup" onclick="openTab('backup')">Backup do Sistema</button>
+    <!-- Legado: backup técnico de código via GitHub oculto da navegação principal. O fluxo atual usa Git/PR fora do Master. -->
   </nav>
 
   <section id="tab-usuarios" class="tab-panel active">
@@ -412,6 +434,35 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
       </div>
 
       <div class="card">
+        <div class="toolbar">
+          <div>
+            <h2>Backup de dados Firestore</h2>
+            <p>Exportação oficial dos dados do Firestore para Cloud Storage, com rotina diária e execução manual restrita ao Master.</p>
+          </div>
+          <div class="actions">
+            <button class="btn secondary" onclick="loadFirestoreBackup()">Recarregar</button>
+            <button class="btn blue" onclick="runFirestoreBackupNow()">Executar backup agora</button>
+          </div>
+        </div>
+        <div class="global-help" style="margin-bottom:14px;">Requer bucket Cloud Storage existente e permissões IAM para o service account das Functions exportar o Firestore.</div>
+        <div class="form-grid">
+          <label><span>Bucket Cloud Storage</span><input id="firestore-backup-bucket" placeholder="gs://bocado-brasil-firestore-backups"></label>
+          <label><span>Retenção planejada em dias</span><input id="firestore-backup-retention" type="number" min="1" max="365" value="30"></label>
+          <label class="check-row full" style="align-items:center;margin:0;"><input id="firestore-backup-enabled" type="checkbox" checked><span>Backup diário ativo às 03:00 Europe/Madrid</span></label>
+        </div>
+        <div class="actions" style="margin:10px 0 14px;">
+          <button class="btn" onclick="saveFirestoreBackupConfig()">Salvar configuração</button>
+        </div>
+        <div id="firestore-backup-status" class="global-help" style="margin-bottom:12px;">Carregando status do backup...</div>
+        <div class="global-table-wrap">
+          <table class="global-table">
+            <thead><tr><th>Data</th><th>Status</th><th>Origem</th><th>Destino</th><th>Operação / erro</th></tr></thead>
+            <tbody id="firestore-backup-logs"><tr><td colspan="5">Carregando...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
         <h2>Ferramentas técnicas</h2>
         <p>Área técnica para manutenção interna. Use apenas quando souber exatamente o que está alterando.</p>
         <div class="global-help" style="margin-bottom:14px;">Configurações perigosas e itens legados ficam agrupados aqui para não poluir a área principal do Master.</div>
@@ -424,6 +475,58 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
         <div class="actions"><button class="btn secondary" onclick="saveTemplate()">Salvar template</button><button class="btn secondary" onclick="loadTemplates()">Recarregar template</button></div>
       </div>
     </section>
+  </section>
+
+  <section id="tab-paginas-sistema" class="tab-panel">
+    <div class="card">
+      <div class="toolbar">
+        <div>
+          <h2>Páginas do sistema</h2>
+          <p>Crie e edite páginas institucionais globais, como Termos de uso, Política de privacidade, Avisos legais e páginas de suporte. Depois elas podem ser linkadas nos locais certos.</p>
+        </div>
+        <div class="actions">
+          <button class="btn secondary" onclick="loadSystemPages()">Recarregar</button>
+          <button class="btn blue" onclick="newSystemPage()">Nova página</button>
+        </div>
+      </div>
+      <div class="global-help" style="margin-bottom:14px;">Esta área apenas salva o conteúdo em <strong>system_pages</strong>. Ela não publica nem altera links do site, e-mails ou rodapés automaticamente.</div>
+      <div class="pages-shell">
+        <div class="email-card">
+          <h3>Páginas cadastradas</h3>
+          <p>Selecione uma página para editar.</p>
+          <div id="system-pages-list" class="page-items"><div class="users-empty">Carregando páginas...</div></div>
+        </div>
+        <div class="email-card">
+          <div class="toolbar">
+            <div>
+              <h3 id="system-page-editor-title">Editor de página</h3>
+              <p id="system-page-editor-desc">Conteúdo global preparado para links institucionais do BocaFood.</p>
+            </div>
+            <span id="system-page-status-badge" class="email-status off">Rascunho</span>
+          </div>
+          <div class="email-form-grid">
+            <label><span>Chave da página</span><input id="system-page-key" placeholder="termos-de-uso"></label>
+            <label><span>Status</span><select id="system-page-status"><option value="draft">Rascunho</option><option value="published">Pronta para linkar</option><option value="archived">Arquivada</option></select></label>
+            <label><span>Título</span><input id="system-page-title" placeholder="Termos de uso"></label>
+            <label><span>Slug / URL sugerida</span><input id="system-page-slug" placeholder="/termos"></label>
+            <label class="full"><span>Resumo interno</span><input id="system-page-summary" placeholder="Página institucional usada no rodapé e nos e-mails."></label>
+            <label><span>Categoria</span><select id="system-page-category"><option value="legal">Legal</option><option value="privacy">Privacidade</option><option value="support">Suporte</option><option value="institutional">Institucional</option><option value="other">Outro</option></select></label>
+            <label><span>Ordem</span><input id="system-page-order" type="number" value="10"></label>
+            <label><span>Título SEO</span><input id="system-page-seo-title" placeholder="Termos de uso | BocaFood"></label>
+            <label><span>Descrição SEO</span><input id="system-page-seo-description" placeholder="Leia os termos de uso do BocaFood."></label>
+            <label class="full"><span>Conteúdo HTML</span><textarea id="system-page-content" style="min-height:260px;" placeholder="<h2>Termos de uso</h2>&#10;<p>Escreva o conteúdo aqui.</p>"></textarea><small class="page-editor-help">Use HTML simples: títulos, parágrafos, listas e links. Não use scripts, iframes, tokens, senhas ou dados sensíveis.</small></label>
+          </div>
+          <div class="actions" style="margin-top:12px;">
+            <button class="btn" onclick="saveSystemPage()">Salvar página</button>
+            <button class="btn secondary" onclick="renderSystemPagePreview()">Atualizar prévia</button>
+          </div>
+          <div style="margin-top:18px;">
+            <div class="master-section-title">Prévia</div>
+            <div id="system-page-preview" class="page-preview"><span class="page-preview-empty">A prévia aparece aqui.</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
   </section>
 
   <section id="tab-emails-automaticos" class="tab-panel">
@@ -701,7 +804,7 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
     </div>
   </section>
 
-  <section id="tab-backup" class="tab-panel">
+  <section id="tab-backup" class="tab-panel" hidden>
     <section class="grid two">
       <div class="card">
         <div class="toolbar">
@@ -828,6 +931,7 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
       <div class="user-tab-panel" data-user-panel="cadastro">
         <div class="form-grid">
           <div class="user-field-note">Respostas do cadastro inicial/onboarding. Esses dados são leitura para suporte e diagnóstico; a usuária pode completar a loja depois no Centro de Controle.</div>
+          <div id="legal-acceptance-view" class="legal-acceptance-card"></div>
           <div id="signup-profile-view" class="full signup-profile-grid"></div>
         </div>
       </div>
@@ -1043,9 +1147,149 @@ function openTab(tab){
   if(tab==='configuracoes-globais'){
     loadGlobalFinanceScreen();
   }
+  if(tab==='configuracoes'){
+    loadFirestoreBackup();
+  }
+  if(tab==='paginas-sistema'){
+    loadSystemPages();
+  }
   if(tab==='emails-automaticos'){
     loadEmailMaster();
   }
+}
+var _systemPagesState = { loaded:false, pages:[], selectedKey:'' };
+function _systemPageByKey(key){
+  return (_systemPagesState.pages || []).find(function(page){return (page.key || page.id) === key;}) || null;
+}
+function _systemPageSlug(value){
+  var slug = String(value || '').trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return slug || 'pagina';
+}
+function loadSystemPages(){
+  var list = document.getElementById('system-pages-list');
+  if(list) list.innerHTML = '<div class="users-empty">Carregando páginas...</div>';
+  return _emailCallLocalMaster('/api/master/system-pages', null, {method:'GET'})
+    .then(function(data){
+      _systemPagesState.loaded = true;
+      _systemPagesState.pages = data.pages || [];
+      if(!_systemPagesState.selectedKey && _systemPagesState.pages[0]) _systemPagesState.selectedKey = _systemPagesState.pages[0].key || _systemPagesState.pages[0].id;
+      renderSystemPagesList();
+      renderSystemPageEditor();
+    })
+    .catch(function(error){
+      var msg = error && error.message ? error.message : 'Não foi possível carregar páginas.';
+      if(error && error.debug) msg += ' Debug: ' + error.debug;
+      if(list) list.innerHTML = '<div class="users-empty">Erro ao carregar páginas: '+esc(msg)+'</div>';
+      toast('Erro ao carregar páginas do sistema: ' + msg);
+    });
+}
+function renderSystemPagesList(){
+  var list = document.getElementById('system-pages-list');
+  if(!list)return;
+  if(!(_systemPagesState.pages || []).length){
+    list.innerHTML = '<div class="users-empty">Nenhuma página cadastrada ainda.</div>';
+    return;
+  }
+  list.innerHTML = _systemPagesState.pages.map(function(page){
+    var key = page.key || page.id || '';
+    var active = key === _systemPagesState.selectedKey;
+    var statusLabel = page.status === 'published' ? 'Pronta para linkar' : (page.status === 'archived' ? 'Arquivada' : 'Rascunho');
+    return '<button class="page-item'+(active ? ' active' : '')+'" type="button" onclick="selectSystemPage(\''+esc(key)+'\')"><strong>'+esc(page.title || key)+'</strong><span>'+esc(key)+' · '+esc(statusLabel)+'</span><span>'+esc(page.slug || '')+'</span></button>';
+  }).join('');
+}
+function selectSystemPage(key){
+  _systemPagesState.selectedKey = key;
+  renderSystemPagesList();
+  renderSystemPageEditor();
+}
+function newSystemPage(){
+  _systemPagesState.selectedKey = '';
+  renderSystemPagesList();
+  setVal('system-page-key','');
+  setVal('system-page-status','draft');
+  setVal('system-page-title','');
+  setVal('system-page-slug','');
+  setVal('system-page-summary','');
+  setVal('system-page-category','legal');
+  setVal('system-page-order','10');
+  setVal('system-page-seo-title','');
+  setVal('system-page-seo-description','');
+  setVal('system-page-content','');
+  var title = document.getElementById('system-page-editor-title');
+  if(title) title.textContent = 'Nova página';
+  var badge = document.getElementById('system-page-status-badge');
+  if(badge){badge.textContent = 'Rascunho'; badge.className = 'email-status off';}
+  renderSystemPagePreview();
+}
+function renderSystemPageEditor(){
+  var page = _systemPageByKey(_systemPagesState.selectedKey);
+  if(!page){
+    newSystemPage();
+    return;
+  }
+  setVal('system-page-key', page.key || page.id || '');
+  setVal('system-page-status', page.status || 'draft');
+  setVal('system-page-title', page.title || '');
+  setVal('system-page-slug', page.slug || '');
+  setVal('system-page-summary', page.summary || '');
+  setVal('system-page-category', page.category || 'legal');
+  setVal('system-page-order', page.order || 10);
+  setVal('system-page-seo-title', page.seoTitle || '');
+  setVal('system-page-seo-description', page.seoDescription || '');
+  setVal('system-page-content', page.contentHtml || page.content || '');
+  var title = document.getElementById('system-page-editor-title');
+  if(title) title.textContent = page.title || page.key || 'Editar página';
+  var badge = document.getElementById('system-page-status-badge');
+  var published = page.status === 'published';
+  if(badge){badge.textContent = published ? 'Pronta para linkar' : (page.status === 'archived' ? 'Arquivada' : 'Rascunho'); badge.className = 'email-status ' + (published ? 'on' : 'off');}
+  renderSystemPagePreview();
+}
+function collectSystemPage(){
+  var title = val('system-page-title');
+  var key = val('system-page-key') || _systemPageSlug(title);
+  var slug = val('system-page-slug') || ('/' + _systemPageSlug(title || key));
+  if(slug && slug.charAt(0) !== '/') slug = '/' + slug;
+  return {
+    key: _systemPageSlug(key),
+    title: title,
+    slug: slug,
+    status: val('system-page-status') || 'draft',
+    summary: val('system-page-summary'),
+    category: val('system-page-category') || 'legal',
+    order: Number(val('system-page-order') || 10),
+    seoTitle: val('system-page-seo-title'),
+    seoDescription: val('system-page-seo-description'),
+    contentHtml: document.getElementById('system-page-content').value || ''
+  };
+}
+function renderSystemPagePreview(){
+  var preview = document.getElementById('system-page-preview');
+  if(!preview)return;
+  var page = collectSystemPage();
+  var html = page.contentHtml || '<p class="page-preview-empty">A prévia aparece aqui.</p>';
+  html = String(html).replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '').replace(/<iframe\b[^>]*>[\s\S]*?<\/iframe>/gi, '').replace(/\son[a-z]+\s*=\s*(['"]).*?\1/gi, '').replace(/\sjavascript:/gi, '');
+  preview.innerHTML = '<h2>'+esc(page.title || 'Página sem título')+'</h2>' + html;
+}
+function saveSystemPage(){
+  var page = collectSystemPage();
+  if(!page.key || !page.title){
+    toast('Informe chave e título da página.');
+    return;
+  }
+  _emailCallLocalMaster('/api/master/system-pages', page)
+    .then(function(data){
+      toast(data.message || 'Página salva.');
+      _systemPagesState.selectedKey = (data.page || page).key;
+      return loadSystemPages();
+    })
+    .catch(function(error){
+      var msg = error && error.message ? error.message : 'Não foi possível salvar a página.';
+      if(error && error.debug) msg += ' Debug: ' + error.debug;
+      toast('Erro ao salvar página: '+msg);
+    });
 }
 var _globalFinanceState = {
   active: 'bank',
@@ -1271,8 +1515,14 @@ function loadGlobalFinanceScreen(){
   var box = document.getElementById('global-finance-content');
   if (box) box.innerHTML = '<div class="card" style="box-shadow:none;border:1px solid var(--line);"><div class="loading-inline">Carregando configurações globais...</div></div>';
   _globalFinanceState.loading = true;
-  _globalFinanceLoadPromise = waitFirebaseUser().then(function (user) {
-    if (!user) throw new Error('Entre no Centro de Control para carregar as configurações globais.');
+  _globalFinanceLoadPromise = waitFirebaseUser(8000).then(function (user) {
+    if (!user) {
+      if (box) box.innerHTML = '<div class="card" style="box-shadow:none;border:1px solid var(--line);"><div class="loading-inline">Aguardando autenticação Firebase...</div></div>';
+      return waitFirebaseUser(8000);
+    }
+    return user;
+  }).then(function (user) {
+    if (!user) throw new Error('Faça login no Master para carregar as configurações globais.');
     return _globalFinanceRef().get();
   }).then(function (snap) {
     var data = snap && snap.exists ? (snap.data() || {}) : {};
@@ -1669,6 +1919,25 @@ function signupAnswer(label,value){
 }
 function signupProfileSection(title,help,items){
   return '<section class="signup-profile-section"><h3>'+esc(title)+'</h3><p>'+esc(help)+'</p><div class="signup-answer-list">'+items.join('')+'</div></section>';
+}
+function renderLegalAcceptance(tenant){
+  var wrap=document.getElementById('legal-acceptance-view');
+  if(!wrap)return;
+  tenant=tenant||{};
+  var legal=tenant.legalAcceptance||{};
+  var accepted=legal.termsAccepted===true&&legal.privacyAccepted===true;
+  var badge=accepted?'<span class="status-pill ok">Aceito</span>':'<span class="status-pill neutral">Sem aceite</span>';
+  var acceptedAt=dateToDisplay(legal.acceptedAt)||'Não registrado';
+  var acceptedBy=legal.acceptedByEmail||tenant.email||'Não registrado';
+  var terms=legal.termsUrl?'<a href="'+esc(legal.termsUrl)+'" target="_blank" rel="noopener">'+esc(legal.termsUrl)+'</a>':'<strong>Não registrado</strong>';
+  var privacy=legal.privacyUrl?'<a href="'+esc(legal.privacyUrl)+'" target="_blank" rel="noopener">'+esc(legal.privacyUrl)+'</a>':'<strong>Não registrado</strong>';
+  wrap.innerHTML='<div class="legal-acceptance-head"><div><h3>Aceite dos documentos</h3><p>Registro de Termos de Uso e Política de Privacidade assinado no primeiro acesso.</p></div>'+badge+'</div>'+
+    '<div class="legal-acceptance-grid">'+
+      '<div class="legal-acceptance-item"><span>Data do aceite</span><strong>'+esc(acceptedAt)+'</strong></div>'+
+      '<div class="legal-acceptance-item"><span>Assinado por</span><strong>'+esc(acceptedBy)+'</strong></div>'+
+      '<div class="legal-acceptance-item"><span>Termos de Uso</span>'+terms+'</div>'+
+      '<div class="legal-acceptance-item"><span>Política de Privacidade</span>'+privacy+'</div>'+
+    '</div>';
 }
 function renderSignupProfile(tenant){
   var wrap=document.getElementById('signup-profile-view');
@@ -2144,11 +2413,12 @@ function initFirebase(){
   return firebase;
 }
 async function waitFirebaseUser(){
+  var timeoutMs = Number(arguments[0] || 2500);
   initFirebase();
   if(firebase.auth().currentUser)return firebase.auth().currentUser;
   return new Promise(function(resolve){
     var off=firebase.auth().onAuthStateChanged(function(user){off();resolve(user||null)});
-    setTimeout(function(){try{off()}catch(e){}resolve(firebase.auth().currentUser||null)},2500);
+    setTimeout(function(){try{off()}catch(e){}resolve(firebase.auth().currentUser||null)},timeoutMs);
   });
 }
 async function importUserSeed(id){
@@ -2637,6 +2907,7 @@ function editUser(id){
   var pubSel=document.getElementById('pub-tenant');if(pubSel)pubSel.value=t.id;
   onPubTenantChange();
   loadSeoTechConfig();
+  renderLegalAcceptance(t);
   renderSignupProfile(t);
   document.getElementById('user-modal-title').textContent='Editar conta';
   document.getElementById('user-modal').classList.add('open');
@@ -2667,6 +2938,7 @@ function clearUserForm(){
   setVal('user-store-url','Aguardando slug da loja');
   setPhoneControl('user-phone', {countryCode:'+34',number:'',full:''});
   setPhoneControl('user-whatsapp', {countryCode:'+34',number:'',full:''});
+  renderLegalAcceptance({});
   renderSignupProfile({});
   renderTenantUsersPreview();
   decorateUserFieldOrigins();
@@ -2849,6 +3121,79 @@ function _emailCallFunction(name, payload){
       });
     });
   });
+}
+function firestoreBackupStatusClass(status){
+  status=String(status||'').toLowerCase();
+  if(status==='started'||status==='running')return 'info';
+  if(status==='skipped')return 'gray';
+  if(status==='error')return 'danger';
+  return 'ok';
+}
+function renderFirestoreBackup(data){
+  data=data||{};
+  var settings=data.settings||{};
+  var logs=data.logs||[];
+  setVal('firestore-backup-bucket', settings.bucket || 'gs://bocado-brasil-firestore-backups');
+  setVal('firestore-backup-retention', settings.retentionDays || 30);
+  var enabled=document.getElementById('firestore-backup-enabled');
+  if(enabled)enabled.checked=settings.enabled!==false;
+  var status=document.getElementById('firestore-backup-status');
+  var last=logs[0]||null;
+  if(status){
+    status.innerHTML=last
+      ? 'Último backup: <strong>'+esc(last.status||'sem status')+'</strong> em '+esc(dateToDisplay(last.startedAt)||'data não registrada')+'. Destino: <strong>'+esc(last.outputUriPrefix||last.bucket||'não configurado')+'</strong>'
+      : 'Nenhum backup registrado ainda. Salve o bucket e execute o primeiro backup manual.';
+  }
+  var tbody=document.getElementById('firestore-backup-logs');
+  if(!tbody)return;
+  if(!logs.length){tbody.innerHTML='<tr><td colspan="5">Nenhum backup registrado.</td></tr>';return;}
+  tbody.innerHTML=logs.map(function(log){
+    var details=log.error||log.operationName||'';
+    return '<tr>'+
+      '<td>'+esc(dateToDisplay(log.startedAt)||'—')+'</td>'+
+      '<td><span class="status-pill '+firestoreBackupStatusClass(log.status)+'">'+esc(log.status||'—')+'</span></td>'+
+      '<td>'+esc(log.source||'—')+'</td>'+
+      '<td><div class="global-sub">'+esc(log.outputUriPrefix||log.bucket||'—')+'</div></td>'+
+      '<td><div class="global-sub">'+esc(details||'—')+'</div></td>'+
+    '</tr>';
+  }).join('');
+}
+function loadFirestoreBackup(){
+  var tbody=document.getElementById('firestore-backup-logs');
+  if(tbody)tbody.innerHTML='<tr><td colspan="5">Carregando...</td></tr>';
+  return _emailCallFunction('firestoreBackupAdmin', {action:'status'})
+    .then(renderFirestoreBackup)
+    .catch(function(e){
+      var status=document.getElementById('firestore-backup-status');
+      if(status)status.textContent='Erro ao carregar backup Firestore: '+(e.message||e);
+      if(tbody)tbody.innerHTML='<tr><td colspan="5">Erro ao carregar.</td></tr>';
+      toast('Erro ao carregar backup Firestore: '+(e.message||e));
+    });
+}
+function saveFirestoreBackupConfig(){
+  return _emailCallFunction('firestoreBackupAdmin', {
+    action:'save_config',
+    bucket:val('firestore-backup-bucket'),
+    retentionDays:Number(val('firestore-backup-retention')||30),
+    enabled:!!(document.getElementById('firestore-backup-enabled')&&document.getElementById('firestore-backup-enabled').checked)
+  }).then(function(){
+    toast('Configuração do backup Firestore salva');
+    return loadFirestoreBackup();
+  }).catch(function(e){toast('Erro ao salvar backup Firestore: '+(e.message||e));});
+}
+function runFirestoreBackupNow(){
+  if(!confirm('Executar exportação do Firestore agora? O processo usa Cloud Storage e pode gerar custo no projeto Blaze.'))return;
+  var status=document.getElementById('firestore-backup-status');
+  if(status)status.textContent='Iniciando exportação oficial do Firestore...';
+  return _emailCallFunction('firestoreBackupAdmin', {action:'run_now'})
+    .then(function(r){
+      toast(r.ok?'Backup Firestore iniciado':'Backup Firestore retornou erro');
+      return loadFirestoreBackup();
+    })
+    .catch(function(e){
+      toast('Erro ao executar backup Firestore: '+(e.message||e));
+      return loadFirestoreBackup();
+    });
 }
 function _emailCallLocalMaster(path, payload, options){
   options = options || {};

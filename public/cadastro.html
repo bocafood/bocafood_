@@ -100,6 +100,14 @@
     .message.error{background:#FFF0EE;color:#9B271D;border:1px solid #F4C6BF}
     .message.info{background:#F4FAF7;color:#245A49;border:1px solid #CFE8DC}
     .success-box{background:linear-gradient(135deg,#FFFFFF 0%,#FFFCFB 100%);border:1px solid rgba(196,54,42,.24);border-radius:18px;padding:16px;color:#3F3633;line-height:1.5}
+    .purchase-alert{background:linear-gradient(135deg,#FFFFFF 0%,#FFF8F6 100%);border:1px solid #F1B8B0;border-radius:18px;padding:18px;color:#3F3633;line-height:1.5;box-shadow:0 14px 34px rgba(155,39,29,.07)}
+    .purchase-alert-head{display:flex;align-items:flex-start;gap:12px}
+    .purchase-alert-icon{width:36px;height:36px;border-radius:13px;background:#FFF0EE;color:#9B271D;display:flex;align-items:center;justify-content:center;font-weight:900;flex:0 0 auto}
+    .purchase-alert-title{font-size:18px;font-weight:850;color:#261D1A;line-height:1.24;margin:0 0 6px}
+    .purchase-alert-text{font-size:13.5px;color:#6F625E;line-height:1.55;margin:0}
+    .purchase-alert-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+    .purchase-alert-actions button,.purchase-alert-actions a{min-height:42px;border-radius:12px;padding:0 14px;font-size:13px;font-weight:800;text-decoration:none}
+    .purchase-alert-actions a{display:inline-flex;align-items:center;justify-content:center;background:#fff;color:#9B271D;border:1.5px solid #F1B8B0}
     .success-head{display:flex;align-items:flex-start;gap:12px}
     .success-icon{width:34px;height:34px;border-radius:12px;background:#FFF4F2;color:var(--red);display:flex;align-items:center;justify-content:center;font-weight:900;flex:0 0 auto}
     .success-title{font-size:17px;font-weight:850;color:#261D1A;line-height:1.25;margin:0 0 4px}
@@ -107,6 +115,14 @@
     .success-list{display:grid;gap:8px;margin-top:14px}
     .success-item{display:flex;align-items:center;gap:9px;background:#fff;border:1px solid #EFE4E1;border-radius:13px;padding:9px 10px;font-size:12.5px;color:#4E423F;font-weight:650}
     .success-item::before{content:'✓';width:17px;height:17px;border-radius:999px;background:var(--red);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;flex:0 0 auto}
+    .legal-sign-box{margin-top:11px;padding:11px 12px;border:1px solid rgba(196,54,42,.16);border-radius:13px;background:#FFFCFB;color:#5E514E;font-size:12.5px;line-height:1.42}
+    .legal-sign-title{display:block;margin:0 0 2px;color:#2D2321;font-size:12.8px;font-weight:820;line-height:1.25}
+    .legal-sign-text{margin:0 0 8px;color:#7B6E6A;font-size:12px;line-height:1.38}
+    .legal-sign-links{display:flex;align-items:center;gap:16px;margin:0 0 9px;font-size:12.5px}
+    .legal-sign-box a{color:var(--red);font-weight:800;text-decoration:none}
+    .legal-sign-check{display:flex;flex-direction:row;align-items:center;gap:9px;margin:0;font-weight:650;color:#3F3633;text-align:left}
+    .legal-sign-check input{width:16px;height:16px;margin:0;accent-color:var(--red);flex:0 0 auto;appearance:auto;-webkit-appearance:checkbox;padding:0;border:0;background:transparent;cursor:pointer}
+    .legal-sign-check span{line-height:1.35;flex:1}
     .mini-note{font-size:12px;color:var(--muted);line-height:1.45;margin-top:8px}
     @media(max-width:880px){
       .topbar{padding:10px 16px 0;justify-content:center}
@@ -161,7 +177,9 @@
   <script>
   (function(){
     'use strict';
-    var isPreview = new URLSearchParams(window.location.search).get('preview') === '1';
+    var previewParams = new URLSearchParams(window.location.search);
+    var isPreview = previewParams.get('preview') === '1';
+    var previewHasPurchase = isPreview && (previewParams.get('purchase') === '1' || previewParams.get('success') === '1');
     var BB_FB_CFG = {
       apiKey: 'AIzaSyAZk2mEPXR-VQOOEJWfcdhqoJOhHWjzda4',
       authDomain: 'bocado-brasil.firebaseapp.com',
@@ -176,7 +194,11 @@
       step: 0,
       loading: false,
       authCreated: false,
-      purchaseFound: false,
+      purchaseFound: previewHasPurchase,
+      legalAccepted: false,
+      legalSigned: false,
+      termsUrl: 'https://bocafood.app/termosdeuso',
+      privacyUrl: 'https://bocafood.app/privacidade',
       data: {
         email: isPreview ? 'preview@bocafood.local' : '',
         password: isPreview ? 'preview123' : '',
@@ -264,7 +286,13 @@
     }
     function val(id){var el=document.getElementById(id);return el?el.value.trim():'';}
     function setMsg(text,type){var el=document.getElementById('form-message');el.textContent=text||'';el.className='message '+(text?'show ':'')+(type||'info');}
-    function setLoading(on){state.loading=on;document.getElementById('next-btn').disabled=on;document.getElementById('back-btn').disabled=on;document.getElementById('next-btn').textContent=on?'Salvando...':(state.step===6?'Entrar no BocaFood':'Continuar');}
+    function updatePrimaryButton(){
+      var btn=document.getElementById('next-btn');
+      var finalSuccess=state.step===6&&state.purchaseFound;
+      btn.textContent=state.loading?'Salvando...':(finalSuccess?(isPreview?'Simular aceite':'Entrar no BocaFood'):'Continuar');
+      btn.disabled=!!state.loading||(finalSuccess&&!state.legalAccepted);
+    }
+    function setLoading(on){state.loading=on;document.getElementById('back-btn').disabled=on;updatePrimaryButton();}
     function sync(){
       ['email','password','confirmPassword','ownerName','whatsappCountryCode','whatsappNumber','language','storeName','storeCity'].forEach(function(key){
         var el=document.getElementById(key); if(el) state.data[key]=el.value.trim();
@@ -285,14 +313,18 @@
     function render(){
       setMsg('');
       renderPills();
-      document.getElementById('preview-banner').className='preview-banner '+(isPreview?'show':'');
+      var previewBanner=document.getElementById('preview-banner');
+      previewBanner.className='preview-banner '+(isPreview?'show':'');
+      if(isPreview) previewBanner.textContent=previewHasPurchase?'Modo prévia ativo: simulando compra ativa para visualizar a finalização com aceite dos termos. Nenhum dado será salvo.':'Modo prévia ativo: simulando e-mail sem compra ativa. Use ?preview=1&purchase=1 para ver a finalização com aceite.';
       document.getElementById('step-title').textContent=steps[state.step][0];
       document.getElementById('step-hint').textContent=steps[state.step][1];
       var note=document.getElementById('step-note');
       note.textContent='';
       note.className='step-note';
+      var finalBlocked = state.step === 6 && !state.purchaseFound;
       document.getElementById('back-btn').style.display=state.step===0?'none':'inline-flex';
-      document.getElementById('next-btn').textContent=state.step===6?(isPreview?'Rever prévia':'Entrar no BocaFood'):'Continuar';
+      document.getElementById('next-btn').style.display=finalBlocked?'none':'inline-flex';
+      updatePrimaryButton();
       var d=state.data;
       var body='';
       if(state.step===0){
@@ -308,12 +340,19 @@
       }else if(state.step===5){
         body='<div class="form-grid store-step boxed-step moment-step"><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Principal desafio</div><div class="signup-section-help">Escolha o ponto que mais precisa de atenção agora.</div></div>'+choiceOptions('mainChallenge',mainChallenges,d.mainChallenge)+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Objetivo principal</div><div class="signup-section-help">Isso ajuda o BocaFood a priorizar os próximos passos.</div></div>'+choiceOptions('mainGoal',mainGoals,d.mainGoal)+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Fase do negócio</div><div class="signup-section-help">Marque a fase que melhor descreve seu momento atual.</div></div>'+choiceOptions('businessStage',businessStages,d.businessStage)+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Tempo disponível</div><div class="signup-section-help">Quanto tempo você consegue dedicar por semana para organizar o negócio?</div></div>'+choiceOptions('weeklyTimeAvailable',weeklyTimes,d.weeklyTimeAvailable)+'</div></div>';
       }else{
-        body='<div class="success-box"><div class="success-head"><div class="success-icon">✓</div><div><h3 class="success-title">Seu acesso está pronto.</h3><p class="success-text">Salvamos os dados principais e criamos a base inicial da sua loja como rascunho.</p></div></div><div class="success-list"><div class="success-item">Acesso criado</div><div class="success-item">Dados principais salvos</div><div class="success-item">Loja criada como rascunho</div></div></div>';
-        if(!state.purchaseFound) body+='<div class="message show error">Não encontramos uma compra ativa para este e-mail. Use o mesmo e-mail da compra ou fale com o suporte: teajudo@bocafood.app.</div>';
+        if(state.purchaseFound){
+          body='<div class="success-box"><div class="success-head"><div class="success-icon">✓</div><div><h3 class="success-title">Seu acesso está pronto.</h3><p class="success-text">Salvamos os dados principais e criamos a base inicial da sua loja como rascunho.</p></div></div><div class="success-list"><div class="success-item">Acesso criado</div><div class="success-item">Dados principais salvos</div><div class="success-item">Loja criada como rascunho</div></div><div class="legal-sign-box"><strong class="legal-sign-title">Confirme os termos para continuar</strong><p class="legal-sign-text">Para entrar no BocaFood, leia e aceite os documentos abaixo.</p><div class="legal-sign-links"><a href="'+esc(state.termsUrl)+'" target="_blank" rel="noopener">Termos de Uso</a><a href="'+esc(state.privacyUrl)+'" target="_blank" rel="noopener">Política de Privacidade</a></div><label class="legal-sign-check"><input id="legal-acceptance" type="checkbox" '+(state.legalAccepted?'checked':'')+'> <span>Li e aceito os Termos de Uso e a Política de Privacidade do BocaFood.</span></label></div></div>';
+        }else{
+          body='<div class="purchase-alert"><div class="purchase-alert-head"><div class="purchase-alert-icon">!</div><div><h3 class="purchase-alert-title">Não encontramos uma compra ativa para este e-mail</h3><p class="purchase-alert-text">Use o mesmo e-mail da compra para liberar seu acesso. Se precisar, fale com o suporte: <strong>teajudo@bocafood.app</strong></p></div></div><div class="purchase-alert-actions"><button class="secondary" id="retry-email-btn" type="button">Tentar outro e-mail</button><a href="mailto:teajudo@bocafood.app">Falar com suporte</a></div></div>';
+        }
       }
       document.getElementById('step-body').innerHTML=body;
       var googleBtn=document.getElementById('google-signup-btn');
       if(googleBtn) googleBtn.addEventListener('click',signInWithGoogle);
+      var retryEmailBtn=document.getElementById('retry-email-btn');
+      if(retryEmailBtn) retryEmailBtn.addEventListener('click',function(){state.step=0;render();});
+      var legalAcceptance=document.getElementById('legal-acceptance');
+      if(legalAcceptance) legalAcceptance.addEventListener('change',function(){state.legalAccepted=!!legalAcceptance.checked;updatePrimaryButton();});
       if(state.step===3) bindSalesChannelExclusivity();
     }
     function validate(){
@@ -333,7 +372,7 @@
       if(isPreview){
         sync();
         state.authCreated=true;
-        state.purchaseFound=false;
+        state.purchaseFound=previewHasPurchase;
         state.step=1;
         render();
         return Promise.resolve();
@@ -378,10 +417,12 @@
     function finish(){
       sync();
       if(isPreview){
-        state.purchaseFound=false;
+        state.purchaseFound=previewHasPurchase;
+        state.legalAccepted=false;
+        state.legalSigned=false;
         state.step=6;
         render();
-        setMsg('Prévia concluída. Nenhuma conta foi criada e nenhum dado foi salvo.','info');
+        setMsg(previewHasPurchase?'Prévia de compra ativa concluída. Nenhuma conta foi criada e nenhum dado foi salvo.':'Prévia sem compra ativa concluída. Nenhuma conta foi criada e nenhum dado foi salvo.','info');
         return Promise.resolve();
       }
       setLoading(true);
@@ -395,11 +436,12 @@
       return completeSignup(payload).then(function(result){
         var data=result.data||{};
         state.purchaseFound=!!data.purchaseFound;
+        state.legalAccepted=false;
+        state.legalSigned=false;
         if(data.ok){
           state.step=6;render();
         }else{
           state.step=6;render();
-          setMsg(data.message||'Não encontramos uma compra ativa para este e-mail.','error');
         }
       }).catch(function(){
         setMsg('Não foi possível finalizar o cadastro. Tente novamente em instantes.','error');
@@ -408,8 +450,31 @@
     document.getElementById('next-btn').addEventListener('click',function(){
       if(state.loading) return;
       if(state.step===6){
-        if(isPreview){state.step=0;render();return;}
-        if(state.purchaseFound) window.location.href='/admin.html#inicio';
+        if(state.purchaseFound) {
+          var legalEl=document.getElementById('legal-acceptance');
+          state.legalAccepted=!!(legalEl&&legalEl.checked);
+          if(!state.legalAccepted){setMsg('Para entrar no Centro de Controle, aceite os Termos de uso e a Política de privacidade.','error');return;}
+          if(isPreview){
+            state.legalSigned=true;
+            setMsg('Aceite simulado com sucesso. Nenhum dado foi salvo na prévia.','info');
+            return;
+          }
+          setLoading(true);
+          completeSignup({
+            stage:'legal_acceptance',
+            email:state.data.email,
+            acceptedTerms:true,
+            acceptedPrivacy:true,
+            termsUrl:state.termsUrl,
+            privacyUrl:state.privacyUrl
+          }).then(function(){
+            state.legalSigned=true;
+            window.location.href='/admin.html#inicio';
+          }).catch(function(){
+            setMsg('Não foi possível registrar a assinatura dos termos. Tente novamente.','error');
+          }).finally(function(){setLoading(false);});
+        }
+        if(isPreview){state.step=0;render();}
         return;
       }
       var error=validate();

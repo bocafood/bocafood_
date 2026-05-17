@@ -3,14 +3,15 @@
 ## Boca Food
 
 ### Objetivo do sistema
-O Boca Food é um sistema de gestão e operação de loja com painel admin, catálogo público, pedidos, cozinha, financeiro, clientes, promoções, upsell, performance e publicação por tenant/domínio próprio.
+O Boca Food é um sistema de gestão e operação de loja com painel admin, catálogo público, pedidos, cozinha, financeiro, clientes, promoções, upsell, performance, publicação centralizada e suporte multi-tenant.
 
 ### Regras de tenant e multiusuário
 - O sistema é multi-tenant.
 - Toda leitura, escrita, exportação e publicação devem respeitar o `tenantId` ou `lojaId` selecionado.
 - Não misturar dados entre lojas.
 - Ao publicar/exportar, enviar somente os dados da loja selecionada.
-- O site público é single-tenant por domínio/repositório.
+- Nesta fase, a publicação é centralizada no BocaFood. Não assumir repositório GitHub ou domínio próprio por tenant.
+- A loja pública padrão usa `https://bocafood.app/loja/{slug}`, com o slug configurado pela usuária no Centro de Controle e apenas visualizado no Master.
 
 ### Nomenclatura oficial
 - Na interface do Master, usar "Contas" para clientes/tenants BocaFood.
@@ -25,6 +26,43 @@ O Boca Food é um sistema de gestão e operação de loja com painel admin, cat�
 - Cada área funcional vive em um módulo próprio.
 - Reutilize os módulos existentes sempre que possível.
 - Preserve as rotas, integrações e contratos já existentes.
+
+### Master e contas BocaFood
+- A área principal do Master para clientes do SaaS chama-se "Contas", não "Usuários".
+- A listagem de Contas deve buscar somente `system_tenants` válidos e nunca misturar clientes finais, pedidos, `customers`, `tenants/{tenantId}/clientes` ou usuários soltos do Firebase Auth sem tenant real.
+- Registros importados apenas de Firebase Auth, sem loja, billing, status SaaS ou origem válida, não devem aparecer como Conta BocaFood.
+- Ações de conta no Master devem ser funcionais ou ficar ocultas/desabilitadas; não deixar botões clicáveis sem ação real.
+- Campos vindos do Admin, Hotmart, Firebase Auth ou cálculo do sistema devem indicar origem visual e ficar bloqueados por padrão. Correções manuais devem exigir modo suporte quando aplicável e gerar log.
+- O Master deve ler dados reais de `system_tenants/{uid}` e exibir estado vazio claro quando algo não existir. Não usar placeholders como dados reais.
+- O Master pode ter uma versão publicada restrita para diagnóstico de produção, mas ela deve exigir Firebase Auth, validação backend/allowlist Master e nunca retornar senhas, tokens, HTML sensível ou payloads completos.
+
+### Admin, cadastro e dados herdados
+- O Admin/Centro de Controle é a origem real dos dados operacionais preenchidos pela usuária, como dados da conta, loja, template, redes sociais, localização atendida, endereço público e slug.
+- Dados relevantes para suporte, cobrança, fiscal, publicação e Master devem ser sincronizados para `system_tenants/{uid}` com `merge`, sem apagar `billing`, `auth`, `seo`, Hotmart ou outros campos existentes.
+- A aba Admin Configurações → Conta / Usuária guarda dados do usuário responsável pela conta, não dados da loja. O usuário responsável deve ter nome completo, nome curto/social quando existir, WhatsApp próprio, idioma da conta, e-mail de acesso e papel/permissão.
+- O campo `role`/Papel pertence ao respectivo usuário da conta e deve preparar o sistema para múltiplos usuários futuros, mesmo que nesta fase exista apenas a responsável principal.
+- O nome da loja, cidade principal, localização atendida, redes sociais e slug público devem alimentar `system_tenants/{uid}.store` para aparecerem no Master.
+- Cidade, província/estado e país operacionais da loja devem vir primeiro da localização atendida configurada antes das zonas de entrega; endereço público da loja em Atendimento → Endereço pode servir como fallback.
+- O cadastro de zonas de entrega só deve ser liberado depois de a localização atendida estar definida.
+
+### Onboarding e diagnóstico inicial
+- O onboarding público fica em `public/cadastro.html` e deve parecer uma experiência guiada de primeiro acesso, não uma landing page nem um formulário genérico.
+- O fluxo coleta acesso, dados do usuário responsável, dados iniciais da loja e diagnóstico de maturidade do negócio.
+- Dados de diagnóstico devem ser salvos em `system_tenants/{uid}.businessProfile`, com origem `signup_onboarding`, mantendo compatibilidade com campos antigos e sem sobrescrever billing vindo da Hotmart.
+- O Master pode exibir respostas individuais no modal da conta e também resumos agregados em gráficos/tabelas leves, sem criar campanhas automaticamente a partir desses dados.
+- O modo prévia do cadastro pode existir para validar telas sem criar conta, consultar Hotmart ou salvar dados reais; ele não substitui validação do fluxo real autenticado.
+
+### Hotmart, plano e cobrança
+- A fonte principal de plano/cobrança é `system_tenants/{uid}.billing`, com espelhos no topo apenas para compatibilidade (`plan`, `billingStatus`, `billingCycle`, `trialEndsAt`, `activatedAt`, `canceledAt`).
+- O ciclo padrão é `billing.billingCycle`; `billing.cycle` antigo só deve ser usado como fallback de leitura.
+- Mapeamento atual de ofertas Hotmart:
+  - `u7wyvsyn` → `planSlug: essencial`, `billingCycle: monthly`, `trialDays: 15`, nome exibido "Plano Essencial".
+  - `kah1d2ne` → `planSlug: compromisso_anual`, `billingCycle: annual`, `trialDays: 15`, nome exibido "Plano Compromisso Anual".
+  - `woavlwrh` → `planSlug: fundadoras`, `billingCycle: monthly`, `trialDays: 0`, nome exibido "Plano Fundadoras".
+- Não usar `starter` como plano ativo do BocaFood nesta fase; se aparecer dado antigo `starter`, manter leitura compatível e migrar para `essencial` ao reprocessar/atualizar.
+- Eventos Hotmart devem atualizar status de cobrança sem apagar tenant, loja ou dados: ativo, pagamento pendente, atraso, cancelamento, reembolso e chargeback.
+- `pending_hotmart_access` é apenas para exceções/pendências de vínculo, não uma lista principal de contas.
+- Se `billing.provider` for `hotmart`, campos de plano/ciclo/status/trial/datas são controlados pela Hotmart e ficam somente leitura no Master. Se for `manual`, o Master pode editar e deve registrar logs.
 
 ### Padrão global de formulários
 - Campos de país nunca devem ser input livre. Devem usar select/lista com opções padronizadas, salvando preferencialmente o código ISO: Espanha (ES), Portugal (PT), Brasil (BR), França (FR), Itália (IT), Alemanha (DE), Reino Unido (GB), Estados Unidos (US) e Outro (OTHER).
@@ -46,7 +84,39 @@ O Boca Food é um sistema de gestão e operação de loja com painel admin, cat�
 - Etiquetas de contas em `system_tenants/{uid}.tags` devem ser leves, sem dados sensíveis, e usadas para automações como e-mails por gatilho. Gatilhos de e-mail devem usar deduplicação, janela anti-reenvio e logs curtos; não enviar e-mails repetidos sem respeitar a janela configurada. Rotinas agendadas devem ser econômicas, limitar leituras e evitar varrer dados desnecessários.
 - Tags de CRM para contas são uma camada separada das etiquetas transacionais de e-mail. Devem usar `system_crm_tags`, `system_crm_tag_rules`, `system_crm_tag_logs` e `system_tenants/{uid}.crmTags`/`crmTagMeta`. Não usar essas tags em `system_email_triggers`, não misturar com `system_tenants/{uid}.tags` e não alterar `dailyEmailTriggerCheck` para ler CRM tags. Campanhas/segmentações comerciais podem usar `crmTags`, mas e-mails transacionais continuam usando apenas as etiquetas transacionais existentes.
 - O cadastro inicial do BocaFood deve ser guiado, em etapas, com visual de onboarding/conversa. A tela de cadastro deve coletar apenas o necessário para criar acesso, vincular compra Hotmart, iniciar o tenant e entender a maturidade inicial do negócio; dados de diagnóstico inicial devem ser salvos em `businessProfile`, e dados mais detalhados da loja devem ser completados depois no Centro de Controle.
+- Quando o cadastro encontrar compra ativa e concluir o onboarding, a usuária deve aceitar Termos de Uso e Política de Privacidade antes de entrar no Centro de Controle. O aceite deve ser salvo em `system_tenants/{uid}.legalAcceptance` e auditado em `system_legal_acceptances`; o Master deve mostrar esse aceite como dado somente leitura da conta.
+- O e-mail transacional de cadastro concluído (`welcome_access_created`/`Cadastro concluído`) deve ser enviado somente depois da confirmação final com aceite dos documentos, não antes da liberação visual do acesso.
+- Se o cadastro não encontrar compra ativa para o e-mail autenticado, a etapa final não deve exibir sucesso, checklist positivo nem botão de entrada. Deve mostrar estado de alerta claro orientando a usar o e-mail da compra ou falar com `teajudo@bocafood.app`.
 - Para controle de custo, logs comuns devem ser pequenos, as leituras do Master devem ser limitadas e não se deve instrumentar ações de alta frequência. Futuramente implementar retenção automática: 90 dias para logs comuns e 1 ano para logs de cobrança, Hotmart, acesso e publicação.
+
+### E-mails automáticos
+- O SMTP de produção é configurado pelo Master em `system_email_settings/default` e `system_private_email_secrets/default`; senha SMTP nunca deve ser exposta ao frontend, logs ou changelog.
+- Templates transacionais vivem em `system_email_templates/{templateKey}` e devem usar o layout transacional BocaFood compartilhado entre prévia do Master, envio local e Functions.
+- O rodapé transacional deve usar configurações globais `supportEmail`, `termsUrl`, `privacyUrl`, `brandName`, `securityText` e `footerReasonDefault`; templates podem sobrescrever o motivo pelo campo opcional `footerReason`.
+- Recuperação de senha deve usar o template `password_reset` e a página BocaFood `/redefinir-senha`; não usar o e-mail visual padrão do Firebase como fluxo principal.
+- Gatilhos transacionais por etiqueta continuam separados de CRM tags. Não misturar `system_email_triggers` com `system_crm_tags`.
+- `test_email` é manual; templates Hotmart e assinatura podem ser disparados por webhook/Functions; templates por etiqueta são disparados por `dailyEmailTriggerCheck` e `system_email_triggers`.
+- `sendTestEmail`, recuperação de senha e envios automáticos devem usar o mesmo helper SMTP real das Functions para evitar divergência entre teste e envio final.
+- Para SMTP Brevo nas portas 587 e 2525, usar STARTTLS (`secure=false`, `requireTLS=true`); porta 465 usa TLS implícito (`secure=true`). Fazer `trim` em host, usuário, senha e remetente.
+
+### Login, acesso e recuperação de senha
+- A tela de login do Centro de Controle deve ser focada em acesso ao Admin, com visual alinhado ao cadastro e ao padrão BocaFood.
+- `Esqueci minha senha` deve abrir fluxo/tela própria de recuperação, chamando `requestPasswordResetEmail`.
+- A página `/redefinir-senha` é a tela BocaFood para concluir troca de senha usando `oobCode` do Firebase Auth.
+- Mensagens de erro de login e recuperação não devem expor detalhes técnicos nem confirmar indevidamente se uma conta existe.
+
+### Páginas do sistema
+- Páginas institucionais globais, como Termos de Uso e Política de Privacidade, devem ser gerenciadas no Master em `system_pages`.
+- O editor de páginas do sistema deve sanitizar HTML de entrada/preview e remover `script`, `iframe`, handlers inline e URLs `javascript:`.
+- Links de Termos e Política usados em e-mails e cadastro devem apontar para as páginas corretas publicadas/configuradas; não usar slugs temporários.
+- A criação de páginas no Master não deve linkar automaticamente em todos os fluxos sem uma solicitação explícita.
+
+### Backup e manutenção
+- O backup oficial de dados deve usar exportação nativa do Firestore para Cloud Storage, não o fluxo legado de backup de código por GitHub.
+- Configurações do backup Firestore ficam em `system_backup_settings/firestore`; execuções e erros ficam em `system_firestore_backups`.
+- O Master pode iniciar backup manual e consultar logs, e a rotina `dailyFirestoreBackup` executa backup agendado quando habilitada.
+- Backup Firestore requer projeto em Blaze, bucket Cloud Storage válido e permissões IAM para o service account das Functions exportar Firestore e escrever no bucket.
+- O card/fluxo legado `Backup do Sistema` deve permanecer oculto na interface principal enquanto a publicação centralizada e o backup oficial de dados estiverem ativos.
 
 ### Regras de trabalho
 - Não leia o projeto inteiro sem necessidade.

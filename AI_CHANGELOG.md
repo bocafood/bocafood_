@@ -6108,3 +6108,49 @@
 - A Function `requestPasswordResetEmail` passa a transformar o link gerado pelo Firebase Auth em uma URL do BocaFood (`/redefinir-senha?mode=resetPassword&oobCode=...`), mantendo fallback seguro quando a URL de retorno nao estiver autorizada.
 - Adicionada rewrite de Hosting para `/redefinir-senha`, permitindo abrir a tela sem expor o nome do arquivo HTML.
 - Impacto esperado: os e-mails transacionais de recuperacao de senha levam a uma pagina BocaFood para definir a nova senha, sem usar a tela visual padrao do Firebase.
+
+## 2026-05-17 — Páginas do sistema no Master
+- Arquivos alterados: `master.html`, `server.rb`, `AI_CHANGELOG.md`.
+- Criada a aba `Páginas do sistema` no Master local para cadastrar e editar páginas institucionais globais, como Termos de uso, Política de privacidade, Avisos legais e páginas de suporte.
+- Criados endpoints locais restritos ao Master em `/api/master/system-pages` para listar e salvar documentos na coleção `system_pages`.
+- Estrutura salva: `key`, `title`, `slug`, `status`, `summary`, `category`, `order`, `seoTitle`, `seoDescription`, `contentHtml`, `source`, `createdAt` e `updatedAt`.
+- Segurança: a tela e o backend removem `script`, `iframe`, handlers inline e `javascript:` do HTML da prévia/salvamento; a área apenas salva conteúdo e não linka automaticamente nos e-mails, rodapés ou páginas públicas.
+- Impacto esperado: o Master passa a ter um editor central para preparar páginas institucionais antes de pedir o vínculo nos locais corretos.
+- Ajuste posterior: a aba passou a usar o helper local do Master para carregar/salvar páginas, exibindo erro real de endpoint, credencial Firebase ou debug técnico seguro em vez de mensagem genérica.
+
+## 2026-05-17 — Cadastro sem compra ativa
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Corrigida a etapa final do primeiro acesso para não mostrar o card de sucesso quando o e-mail não tem compra ativa vinculada.
+- Quando `purchaseFound` for falso, a tela passa a exibir um card de alerta com o título `Não encontramos uma compra ativa para este e-mail`, orientação para usar o e-mail da compra e suporte `teajudo@bocafood.app`.
+- O checklist de sucesso e o botão `Entrar no BocaFood` ficam restritos ao fluxo com compra ativa encontrada.
+- Ajuste posterior: quando o cadastro termina com compra ativa, a etapa final passa a exibir links para Termos de uso e Política de privacidade e exige aceite antes de entrar no Centro de Controle.
+- A assinatura dos documentos é salva pela Function `completeSignupOnboarding` em `system_tenants/{uid}.legalAcceptance` e também em `system_legal_acceptances`, com log `signup_legal_terms_accepted`.
+- Ajuste posterior: o modo prévia do cadastro agora permite simular compra ativa com `?preview=1&purchase=1`, exibindo a finalização com aceite dos documentos sem criar conta, consultar Hotmart ou salvar dados; `?preview=1` continua mostrando o fluxo sem compra ativa.
+- Ajuste posterior: no modo prévia com compra ativa, o botão da etapa final passou a validar o checkbox dos Termos/Política e exibir confirmação de aceite simulado, em vez de voltar ao início sem feedback.
+- Ajuste posterior: corrigida a aparência do checkbox de aceite dos documentos, sobrescrevendo o `appearance:none` global dos inputs apenas nesse campo.
+- Ajuste posterior: corrigido o link padrão da Política de privacidade no cadastro e no fallback da Function de aceite, trocando o slug temporário `/rr` por `https://bocafood.app/privacidade`.
+- Ajuste posterior: o card de aceite dos documentos na etapa final ficou mais compacto, com título/texto/links separados, checkbox alinhado ao texto e botão final desabilitado até o aceite ser marcado; em produção o botão passa a exibir `Entrar no BocaFood`.
+- Ajuste posterior: o bloco de aceite foi refinado novamente para uma confirmação mais simples: título `Confirme para continuar`, texto de apoio curto e links de Termos/Política dentro da própria frase do checkbox, reduzindo peso visual e espaço vazio.
+- Ajuste posterior: o texto `Li e aceito...` foi alinhado lateralmente ao checkbox, com o texto ocupando a linha ao lado do controle em vez de parecer separado.
+- Ajuste posterior: o bloco de aceite voltou a exibir os links de Termos de Uso e Política de Privacidade em linha própria, antes do checkbox, com a copy final solicitada para a etapa de confirmação.
+- Ajuste posterior: o label do aceite passou a forçar `flex-direction: row`, evitando que o estilo global dos labels empilhe o checkbox acima do texto.
+- Ajuste posterior: o Master passou a exibir na aba Cadastro da conta um card somente leitura com o status do aceite dos documentos, data do aceite, e-mail assinante e links de Termos de Uso/Política de Privacidade salvos em `legalAcceptance`.
+- Ajuste posterior: o e-mail transacional `welcome_access_created` (`Cadastro concluído`) passou a ser enviado após a confirmação/aceite dos documentos no onboarding, em vez de ser disparado antes do aceite na etapa `completed`.
+- Ajuste posterior: a tela de configurações globais financeiras do Master passou a aguardar mais tempo pela autenticação Firebase antes de exibir erro, com mensagem corrigida para `Faça login no Master para carregar as configurações globais`.
+- Ajuste posterior: ocultada da navegação principal do Master a aba legada `Backup do Sistema`, mantendo o código/endpoints disponíveis apenas como fluxo técnico legado de backup de código.
+
+## 2026-05-17 — Backup de dados Firestore
+- Arquivos alterados: `functions/index.js`, `master.html`, `AI_CHANGELOG.md`.
+- Criada a Function protegida `firestoreBackupAdmin` para Master configurar bucket, consultar logs e iniciar exportação oficial do Firestore para Cloud Storage.
+- Criada a rotina agendada `dailyFirestoreBackup`, diária às 03:00 no timezone `Europe/Madrid`, usando `system_backup_settings/firestore` e registrando execuções em `system_firestore_backups`.
+- A aba Configurações do Master ganhou o card `Backup de dados Firestore`, com bucket, retenção planejada, status do último backup, logs recentes e botão `Executar backup agora`.
+- O fluxo usa a API oficial `projects.databases.exportDocuments`; se faltar bucket ou permissão IAM, o erro técnico é registrado em `system_firestore_backups` e mostrado no Master sem expor credenciais.
+- Pendências operacionais: criar/confirmar o bucket Cloud Storage `gs://bocado-brasil-firestore-backups` e conceder ao service account das Functions permissão para exportar Firestore e escrever no bucket.
+
+## 2026-05-17 — Documentação consolidada do projeto
+- Arquivos alterados: `AGENTS.md`, `AI_CHANGELOG.md`.
+- Atualizado o objetivo do sistema para refletir publicação centralizada e remover a premissa antiga de domínio/repositório próprio por tenant.
+- Documentadas as regras atuais do cadastro: aceite obrigatório de Termos de Uso e Política de Privacidade, salvamento em `system_tenants/{uid}.legalAcceptance`, auditoria em `system_legal_acceptances` e envio do template `welcome_access_created` somente após o aceite.
+- Documentadas as regras dos e-mails automáticos: SMTP salvo no Master, senha sempre protegida, layout transacional compartilhado, rodapé global com termos/política, recuperação de senha via template `password_reset` e página `/redefinir-senha`.
+- Documentado o backup oficial de dados Firestore via exportação para Cloud Storage, com configurações em `system_backup_settings/firestore`, logs em `system_firestore_backups`, rotina `dailyFirestoreBackup` e fluxo legado de backup de código oculto.
+- Ajuste posterior: ampliada a documentação para cobrir decisões anteriores de Master/Contas, origem dos dados herdados do Admin, onboarding e `businessProfile`, Hotmart/billing, mapeamento real das ofertas, login/redefinição de senha, páginas do sistema e uso do Master restrito em produção.

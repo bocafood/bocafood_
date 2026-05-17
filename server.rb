@@ -667,6 +667,66 @@ def save_email_trigger_payload!(body)
   payload
 end
 
+def load_system_pages_payload
+  docs = firestore_list_documents('system_pages')
+  pages = docs.map do |doc|
+    fields = firestore_fields_to_hash(doc['fields'] || {})
+    fields['id'] = File.basename(doc['name'].to_s)
+    fields['key'] ||= fields['id']
+    fields
+  end
+  pages.sort_by { |page| [page['order'].to_i, page['title'].to_s.downcase] }
+end
+
+def system_page_key(value)
+  value.to_s.strip.downcase
+       .gsub(/[áàãâä]/, 'a')
+       .gsub(/[éèêë]/, 'e')
+       .gsub(/[íìîï]/, 'i')
+       .gsub(/[óòõôö]/, 'o')
+       .gsub(/[úùûü]/, 'u')
+       .gsub(/[ç]/, 'c')
+       .gsub(/[^a-z0-9]+/, '-')
+       .gsub(/^-+|-+$/, '')
+end
+
+def sanitize_system_page_html(value)
+  value.to_s
+       .gsub(%r{<script\b[^>]*>.*?</script>}im, '')
+       .gsub(%r{<iframe\b[^>]*>.*?</iframe>}im, '')
+       .gsub(/\son[a-z]+\s*=\s*(['"]).*?\1/im, '')
+       .gsub(/\sjavascript:/i, '')
+end
+
+def save_system_page_payload!(body)
+  title = body['title'].to_s.strip
+  key = system_page_key(body['key'].to_s.empty? ? title : body['key'])
+  raise WEBrick::HTTPStatus::BadRequest, 'Chave da página obrigatória.' if key.empty?
+  raise WEBrick::HTTPStatus::BadRequest, 'Título da página obrigatório.' if title.empty?
+
+  slug = body['slug'].to_s.strip
+  slug = "/#{system_page_key(title)}" if slug.empty?
+  slug = "/#{slug}" unless slug.start_with?('/')
+  status = body['status'].to_s.strip
+  status = 'draft' unless %w[draft published archived].include?(status)
+
+  payload = {
+    'key' => key,
+    'title' => title,
+    'slug' => slug,
+    'status' => status,
+    'summary' => body['summary'].to_s.strip,
+    'category' => body['category'].to_s.strip.empty? ? 'legal' : body['category'].to_s.strip,
+    'order' => body['order'].to_i,
+    'seoTitle' => body['seoTitle'].to_s.strip,
+    'seoDescription' => body['seoDescription'].to_s.strip,
+    'contentHtml' => sanitize_system_page_html(body['contentHtml']),
+    'source' => 'master_local'
+  }
+  firestore_upsert_document('system_pages', key, payload)
+  payload
+end
+
 def crm_tag_defaults
   [
     { 'key' => 'trial_sem_cardapio', 'name' => 'Trial sem cardápio', 'description' => 'Conta em trial que ainda não iniciou o cardápio.', 'color' => '#F59E0B', 'enabled' => true, 'createdBy' => 'system' },
@@ -4224,6 +4284,48 @@ end
 
 server.mount_proc '/api/master/email/templates', &email_templates_handler
 server.mount_proc '/api/master/email/templates/', &email_templates_handler
+
+system_pages_handler = proc do |req, res|
+  apply_cors_headers(res, req['Origin'] || req['origin'])
+  if req.request_method == 'OPTIONS'
+    res.status = 204
+    res.body = ''
+    next
+  end
+
+  begin
+    unless local_master_request?(req)
+      next json_response_cors(req, res, 403, email_read_error('Endpoint restrito ao Master local.'))
+    end
+
+    case req.request_method
+    when 'GET'
+      json_response_cors(req, res, 200, {
+        ok: true,
+        pages: load_system_pages_payload
+      })
+    when 'POST'
+      page = save_system_page_payload!(read_json(req))
+      json_response_cors(req, res, 200, {
+        ok: true,
+        message: 'Página salva.',
+        page: page
+      })
+    else
+      json_response_cors(req, res, 405, email_read_error('Endpoint existe, mas exige método GET ou POST.'))
+    end
+  rescue WEBrick::HTTPStatus::BadRequest => e
+    json_response_cors(req, res, 400, email_read_error(e.message))
+  rescue => e
+    debug = email_settings_debug(e)
+    log_email_settings("system pages erro tecnico #{debug}")
+    message = email_master_credential_error?(e) ? email_master_credential_message : 'Não foi possível salvar ou carregar páginas do sistema.'
+    json_response_cors(req, res, 400, email_read_error(message, debug))
+  end
+end
+
+server.mount_proc '/api/master/system-pages', &system_pages_handler
+server.mount_proc '/api/master/system-pages/', &system_pages_handler
 
 email_triggers_handler = proc do |req, res|
   apply_cors_headers(res, req['Origin'] || req['origin'])
