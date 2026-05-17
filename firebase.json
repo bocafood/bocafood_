@@ -20,6 +20,10 @@
         "destination": "/admin.html"
       },
       {
+        "source": "/master",
+        "destination": "/master.html"
+      },
+      {
         "source": "/loja/**",
         "destination": "/index.html"
       }

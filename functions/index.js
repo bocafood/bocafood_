@@ -938,7 +938,7 @@ async function createEmailFromTemplate({ to, templateKey, variables = {}, origin
   return { ok: true, mailId: mailRef.id, subject };
 }
 
-async function sendEmailFromTemplateViaSmtp({ to, templateKey, variables = {}, source = "hotmart", eventId = "", tenantUid = "", triggerKey = "", tagKey = "" }) {
+async function sendEmailFromTemplateViaSmtp({ to, templateKey, variables = {}, source = "hotmart", eventId = "", tenantUid = "", triggerKey = "", tagKey = "", requireSystemEnabled = true, requireTemplateEnabled = true }) {
   const normalizedTo = normalizeEmail(to);
   const logId = emailLogId({ eventId, templateKey, to: normalizedTo });
   const logRef = db.collection("email_logs").doc(logId);
@@ -979,13 +979,13 @@ async function sendEmailFromTemplateViaSmtp({ to, templateKey, variables = {}, s
     const settings = settingsSnap.exists ? (settingsSnap.data() || {}) : {};
     const secret = secretSnap.exists ? (secretSnap.data() || {}) : {};
 
-    if (!settings.enabled) {
+    if (requireSystemEnabled && !settings.enabled) {
       await logRef.set({ ...baseLog, status: "skipped", error: "system_email_disabled" }, { merge: true });
       return { ok: false, skipped: true, reason: "system_email_disabled" };
     }
 
     const template = await loadEmailTemplate(templateKey);
-    if (template.enabled === false) {
+    if (requireTemplateEnabled && template.enabled === false) {
       await logRef.set({ ...baseLog, status: "skipped", error: "template_disabled" }, { merge: true });
       return { ok: false, skipped: true, reason: "template_disabled" };
     }
@@ -1039,7 +1039,9 @@ exports.requestPasswordResetEmail = onCall({ region: REGION }, async (request) =
   let authUser = null;
   try {
     authUser = await admin.auth().getUserByEmail(email);
+    console.info("[PASSWORD RESET] auth_user_found", { emailHash: safeEventHash, uid: authUser.uid || "" });
   } catch (error) {
+    console.info("[PASSWORD RESET] auth_user_not_found", { emailHash: safeEventHash });
     await db.collection("email_logs").doc(emailLogId({ eventId, templateKey: "password_reset", to: email })).set({
       to: email,
       templateKey: "password_reset",
@@ -1050,11 +1052,30 @@ exports.requestPasswordResetEmail = onCall({ region: REGION }, async (request) =
       error: "auth_user_not_found",
       createdAt: serverTimestamp()
     }, { merge: true });
-    return { ok: true };
+    return {
+      ok: true,
+      smtpSent: false,
+      fallbackRequired: true,
+      debugCode: "auth_user_not_found"
+    };
   }
 
   const settingsSnap = await db.collection("system_email_settings").doc("default").get();
+  const secretSnap = await db.collection("system_private_email_secrets").doc("default").get();
+  const templateSnap = await db.collection("system_email_templates").doc("password_reset").get();
   const settings = settingsSnap.exists ? (settingsSnap.data() || {}) : {};
+  const secret = secretSnap.exists ? (secretSnap.data() || {}) : {};
+  const template = templateSnap.exists ? (templateSnap.data() || {}) : {};
+  const resetDiagnostics = {
+    settingsFound: settingsSnap.exists,
+    templateFound: templateSnap.exists,
+    templateEnabled: template.enabled !== false,
+    smtpHostConfigured: !!settings.smtpHost,
+    smtpUserConfigured: !!settings.smtpUser,
+    smtpPasswordConfigured: !!secret.smtpPassword,
+    settingsEnabled: settings.enabled === true
+  };
+  console.info("[PASSWORD RESET] config_check", { emailHash: safeEventHash, ...resetDiagnostics });
   const appBaseUrl = String(settings.appBaseUrl || "https://bocafood.app").replace(/\/$/, "");
   let resetPasswordUrl = "";
   try {
@@ -1083,6 +1104,8 @@ exports.requestPasswordResetEmail = onCall({ region: REGION }, async (request) =
     source: "auth",
     eventId,
     tenantUid: tenant ? tenant.id : (authUser.uid || ""),
+    requireSystemEnabled: false,
+    requireTemplateEnabled: false,
     variables: {
       buyerName: tenantData.socialName || tenantData.ownerName || tenantData.fullName || authUser.displayName || "Cliente",
       buyerEmail: email,
@@ -1092,9 +1115,17 @@ exports.requestPasswordResetEmail = onCall({ region: REGION }, async (request) =
       brandName: settings.brandName || settings.fromName || "BocaFood"
     }
   });
-  if (!result.ok && !result.skipped) {
-    throw new HttpsError("internal", "Não foi possível enviar o e-mail de recuperação.");
-  }
+  console.info("[PASSWORD RESET] smtp_result", {
+    emailHash: safeEventHash,
+    ok: result.ok === true,
+    skipped: result.skipped === true,
+    reason: result.reason || "",
+    error: result.error ? String(result.error).slice(0, 120) : ""
+  });
+  const shouldUseNativeFallback = result.ok !== true || result.skipped === true;
+  const debugCode = result.ok === true && result.skipped !== true
+    ? "smtp_success"
+    : (result.skipped === true ? `smtp_skipped_${result.reason || "unknown"}` : `smtp_error_${result.error || "send_failed"}`);
   await db.collection("system_access_logs").doc().set({
     tenantUid: tenant ? tenant.id : (authUser.uid || ""),
     email,
@@ -1105,10 +1136,22 @@ exports.requestPasswordResetEmail = onCall({ region: REGION }, async (request) =
     summary: "Solicitação de redefinição de senha.",
     source: "auth",
     severity: "info",
-    metadata: { templateKey: "password_reset" },
+    metadata: {
+      templateKey: "password_reset",
+      smtpStatus: result.ok === true && result.skipped !== true ? "success" : "fallback_required",
+      fallbackRequired: shouldUseNativeFallback,
+      debugCode,
+      diagnostics: resetDiagnostics
+    },
     createdAt: nowIso()
   });
-  return { ok: true };
+  return {
+    ok: true,
+    smtpSent: result.ok === true && result.skipped !== true,
+    fallbackRequired: shouldUseNativeFallback,
+    debugCode,
+    diagnostics: resetDiagnostics
+  };
 });
 
 async function tenantEmailRecentlySent({ tenantUid, triggerKey, dedupeWindowDays }) {
@@ -1175,6 +1218,134 @@ function handleCors(req, res) {
   }
   return false;
 }
+
+function safeEmailLog(data) {
+  data = data || {};
+  return {
+    to: normalizeEmail(data.to || ""),
+    templateKey: String(data.templateKey || ""),
+    subject: String(data.subject || "").slice(0, 160),
+    status: String(data.status || ""),
+    source: String(data.source || data.origin || ""),
+    eventId: String(data.eventId || "").slice(0, 120),
+    tenantUid: String(data.tenantUid || ""),
+    triggerKey: String(data.triggerKey || ""),
+    tagKey: String(data.tagKey || ""),
+    error: String(data.error || "").slice(0, 240),
+    createdAt: data.createdAt && data.createdAt.toDate ? data.createdAt.toDate().toISOString() : String(data.createdAt || "")
+  };
+}
+
+function safeEmailTemplate(key, data, triggersByTemplate) {
+  data = data || {};
+  const relatedTriggers = triggersByTemplate[key] || [];
+  return {
+    key,
+    name: String(data.name || key),
+    description: String(data.description || "").slice(0, 240),
+    enabled: data.enabled !== false,
+    subject: String(data.subject || "").slice(0, 180),
+    triggerCount: relatedTriggers.length,
+    activeTriggerCount: relatedTriggers.filter((trigger) => trigger.enabled !== false).length
+  };
+}
+
+exports.masterEmailDiagnostics = onRequest({ region: REGION }, async (req, res) => {
+  try {
+    if (handleCors(req, res)) return;
+    if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+    await requireMaster(req);
+    await ensureEmailDefaults();
+    await ensureEmailTriggerDefaults();
+
+    const body = req.body || {};
+    const lookupEmail = normalizeEmail(body.email || "");
+    const [
+      settingsSnap,
+      secretSnap,
+      templatesSnap,
+      triggersSnap,
+      logsSnap
+    ] = await Promise.all([
+      db.collection("system_email_settings").doc("default").get(),
+      db.collection("system_private_email_secrets").doc("default").get(),
+      db.collection("system_email_templates").get(),
+      db.collection("system_email_triggers").get(),
+      db.collection("email_logs").orderBy("createdAt", "desc").limit(40).get()
+    ]);
+
+    const settings = settingsSnap.exists ? (settingsSnap.data() || {}) : {};
+    const secret = secretSnap.exists ? (secretSnap.data() || {}) : {};
+    const triggersByTemplate = {};
+    const triggers = [];
+    triggersSnap.forEach((doc) => {
+      const data = doc.data() || {};
+      const item = {
+        triggerKey: data.triggerKey || doc.id,
+        tagKey: String(data.tagKey || ""),
+        templateKey: String(data.templateKey || ""),
+        name: String(data.name || doc.id),
+        enabled: data.enabled !== false,
+        delayHours: Number(data.delayHours || 0),
+        dedupeWindowDays: Number(data.dedupeWindowDays || 0)
+      };
+      triggers.push(item);
+      if (!triggersByTemplate[item.templateKey]) triggersByTemplate[item.templateKey] = [];
+      triggersByTemplate[item.templateKey].push(item);
+    });
+
+    const templates = [];
+    templatesSnap.forEach((doc) => templates.push(safeEmailTemplate(doc.id, doc.data(), triggersByTemplate)));
+    templates.sort((a, b) => a.key.localeCompare(b.key));
+
+    const logs = [];
+    logsSnap.forEach((doc) => logs.push({ id: doc.id, ...safeEmailLog(doc.data()) }));
+
+    let lookup = null;
+    if (lookupEmail) {
+      lookup = { email: lookupEmail, authUserExists: false, tenantExists: false, tenantUid: "" };
+      try {
+        const user = await admin.auth().getUserByEmail(lookupEmail);
+        lookup.authUserExists = true;
+        lookup.uid = user.uid || "";
+      } catch (error) {
+        lookup.authUserExists = false;
+      }
+      const tenant = await findTenantByEmail(lookupEmail);
+      if (tenant) {
+        lookup.tenantExists = true;
+        lookup.tenantUid = tenant.id;
+      }
+    }
+
+    return res.json({
+      ok: true,
+      settings: {
+        found: settingsSnap.exists,
+        enabled: settings.enabled === true,
+        provider: settings.provider || "smtp",
+        fromName: settings.fromName || "",
+        fromEmail: settings.fromEmail || "",
+        replyTo: settings.replyTo || "",
+        supportEmail: settings.supportEmail || "",
+        appBaseUrl: settings.appBaseUrl || "",
+        brandName: settings.brandName || "",
+        smtpHostConfigured: !!settings.smtpHost,
+        smtpPort: Number(settings.smtpPort || 0),
+        smtpSecure: settings.smtpSecure || "",
+        smtpUserConfigured: !!settings.smtpUser,
+        smtpPasswordConfigured: !!secret.smtpPassword || settings.smtpPasswordConfigured === true
+      },
+      templates,
+      triggers,
+      logs,
+      lookup
+    });
+  } catch (error) {
+    const status = error.message === "forbidden" ? 403 : 401;
+    return res.status(status).json({ error: error.message || "unauthorized" });
+  }
+});
 
 function smtpSocketVerify(config) {
   return new Promise((resolve, reject) => {
@@ -1275,10 +1446,11 @@ exports.sendTestEmail = onRequest({ region: REGION }, async (req, res) => {
     const to = normalizeEmail(body.to);
     const templateKey = String(body.templateKey || "test_email").trim();
     if (!to) return res.status(400).json({ error: "to_required" });
-    const result = await createEmailFromTemplate({
+    const result = await sendEmailFromTemplateViaSmtp({
       to,
       templateKey,
-      origin: "teste",
+      source: "teste",
+      eventId: `manual_test_${templateKey}_${Date.now()}`,
       variables: {
         buyerName: "Patrícia",
         buyerEmail: to,
@@ -1293,7 +1465,18 @@ exports.sendTestEmail = onRequest({ region: REGION }, async (req, res) => {
         ...(body.variables || {})
       }
     });
-    return res.json(result);
+    if (!result.ok) {
+      return res.status(400).json({
+        ok: false,
+        error: result.reason || result.error || "send_test_error"
+      });
+    }
+    return res.json({
+      ok: true,
+      subject: result.subject || "",
+      skipped: result.skipped === true,
+      reason: result.reason || ""
+    });
   } catch (error) {
     return res.status(400).json({ error: error.message || "send_test_error" });
   }

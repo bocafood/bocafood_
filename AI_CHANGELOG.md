@@ -6043,3 +6043,22 @@
 - Ajuste posterior: `requestPasswordResetEmail` agora faz fallback para o link padrao do Firebase Admin se a URL de retorno configurada nao estiver autorizada no Firebase Auth.
 - Ajuste posterior: a tela de login mostra mensagem especifica quando a callable `requestPasswordResetEmail` ainda nao estiver publicada em Functions.
 - Ajuste posterior: adicionada `.firebaseignore` para impedir que arquivos `.env`, backups e service accounts sejam empacotados em deploy.
+- Ajuste posterior: o envio transacional `password_reset` deixou de ser pulado pelos toggles de automacao/template (`system_email_disabled` ou `template_disabled`); ele continua usando o SMTP salvo no Master e ainda falha de verdade se credenciais/configuracao SMTP estiverem incorretas.
+- Diagnostico posterior: adicionados logs seguros em `requestPasswordResetEmail` para indicar se o usuario foi encontrado no Firebase Auth e qual foi o resultado SMTP, usando apenas hash do e-mail e sem expor senha, token ou credenciais.
+- Ajuste posterior: a tela de recuperacao do Admin tambem aciona o reset nativo do Firebase Auth apos chamar a Function `requestPasswordResetEmail`, funcionando como fallback de entrega quando o SMTP customizado nao chega ao inbox.
+- Ajuste posterior: o fallback nativo do Firebase Auth passou a ser condicional; a Function retorna `smtpSent`/`fallbackRequired` e o Admin so dispara o e-mail nativo quando o SMTP customizado nao envia ou foi pulado.
+- Ajuste posterior: quando o Firebase Admin nao encontra o usuario no fluxo customizado, a Function retorna `fallbackRequired` sem expor a causa para a tela; o Admin pode acionar o fluxo nativo seguro do Firebase, que tambem nao revela se a conta existe.
+- Diagnostico temporario: `requestPasswordResetEmail` passa a retornar `debugCode` e flags nao sensiveis de configuracao (`settingsFound`, `templateFound`, `smtpHostConfigured`, `smtpUserConfigured`, `smtpPasswordConfigured`) para diferenciar falha de Auth, template ou SMTP em producao.
+- Ajuste posterior: `sendTestEmail` nas Functions deixou de apenas criar documento na colecao `mail` e passou a usar o mesmo helper SMTP real (`sendEmailFromTemplateViaSmtp`) usado por Hotmart, cadastro e gatilhos por etiqueta, validando o motor de envio automatico em producao.
+
+## 2026-05-17
+- Pedido feito: criar uma primeira versao de Master restrito publicado para diagnostico de producao.
+- Arquivos alterados:
+  - `functions/index.js`
+  - `firebase.json`
+  - `public/master.html`
+  - `AI_CHANGELOG.md`
+- Motivo da alteracao: o Master local nao valida com seguranca o estado real das Functions/Firestore em producao; era necessario um painel restrito para conferir SMTP, templates, gatilhos, logs e existencia de conta Auth/tenant no projeto publicado.
+- Impacto esperado: `/master` passa a abrir uma tela restrita por Firebase Auth e allowlist backend (`MASTER_EMAILS`), usando endpoint protegido `masterEmailDiagnostics`.
+- Seguranca: o endpoint exige token Firebase e e-mail Master permitido; nao retorna senha SMTP, tokens, HTML de templates ou payloads sensiveis. A tela mostra apenas flags seguras como `smtpPasswordConfigured`, templates, gatilhos e logs sanitizados.
+- Escopo: nao publiquei o `master.html` local completo; foi criada uma versao inicial de Master Produção focada em diagnostico tecnico de e-mails automaticos.
