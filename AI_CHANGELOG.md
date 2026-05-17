@@ -6075,3 +6075,13 @@
 - Ajuste posterior: o fluxo de recuperação de senha passa a registrar em `email_logs` o código técnico seguro quando a geração do link pelo Firebase Auth falhar, sem expor link, senha ou dados sensíveis.
 - Ajuste posterior: `requestPasswordResetEmail` passa a executar com o service account Firebase Admin do projeto para ter permissão de gerar links de recuperação no Firebase Auth, sem embutir chave ou credencial no código.
 - Ajuste posterior: falhas SMTP em envio por template passam a registrar no `email_logs` a resposta SMTP truncada e segura, ajudando a diferenciar erro de autenticação, envelope ou conteúdo sem expor senha/HTML.
+- Ajuste posterior: `AGENTS.md` documenta a regra operacional de conclusão automática quando a usuária disser que a tarefa "deu certo": rodar validações, fazer deploy quando necessário, commitar arquivos relacionados e fazer push, mantendo as travas contra `git add .` e arquivos sensíveis.
+
+## 2026-05-17 — Tags de CRM para contas
+- Arquivos alterados: `functions/index.js`, `server.rb`, `master.html`, `firestore.rules`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Criada a camada independente de Tags de CRM para contas, usando `system_crm_tags`, `system_crm_tag_rules`, `system_crm_tag_logs` e `system_tenants/{uid}.crmTags`/`crmTagMeta`.
+- Criados defaults de tags CRM como `trial_sem_cardapio`, `usuario_inativo`, `potencial_upgrade`, `cardapio_iniciado`, `loja_publicada`, `risco_cancelamento` e `cliente_avancada`.
+- Criada a rotina agendada `dailyCrmTagRuleCheck`, separada de `dailyEmailTriggerCheck`, para avaliar regras ativas e aplicar/remover tags CRM em contas.
+- O Master local ganhou aba `CRM tags` dentro de E-mails automáticos para gerenciar tags, regras e aplicação manual em contas.
+- As regras do Firestore permitem que apenas Master leia/escreva tags e regras CRM; logs CRM são leitura Master e escrita bloqueada ao client.
+- Importante: tags CRM não são etiquetas transacionais de e-mail, não integram `system_email_triggers` e não são lidas por `dailyEmailTriggerCheck`.

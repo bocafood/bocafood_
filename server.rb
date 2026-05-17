@@ -659,6 +659,164 @@ def save_email_trigger_payload!(body)
   payload
 end
 
+def crm_tag_defaults
+  [
+    { 'key' => 'trial_sem_cardapio', 'name' => 'Trial sem cardápio', 'description' => 'Conta em trial que ainda não iniciou o cardápio.', 'color' => '#F59E0B', 'enabled' => true, 'createdBy' => 'system' },
+    { 'key' => 'usuario_inativo', 'name' => 'Usuário inativo', 'description' => 'Conta com pouca atividade recente.', 'color' => '#6B7280', 'enabled' => true, 'createdBy' => 'system' },
+    { 'key' => 'potencial_upgrade', 'name' => 'Potencial upgrade', 'description' => 'Conta com sinais de maturidade para plano superior.', 'color' => '#2563EB', 'enabled' => true, 'createdBy' => 'system' },
+    { 'key' => 'cardapio_iniciado', 'name' => 'Cardápio iniciado', 'description' => 'Conta que já iniciou cadastro de produtos/cardápio.', 'color' => '#16A34A', 'enabled' => true, 'createdBy' => 'system' },
+    { 'key' => 'loja_publicada', 'name' => 'Loja publicada', 'description' => 'Conta com loja pública publicada.', 'color' => '#059669', 'enabled' => true, 'createdBy' => 'system' },
+    { 'key' => 'risco_cancelamento', 'name' => 'Risco de cancelamento', 'description' => 'Conta com sinais de risco comercial ou cobrança crítica.', 'color' => '#DC2626', 'enabled' => true, 'createdBy' => 'system' },
+    { 'key' => 'cliente_avancada', 'name' => 'Cliente avançada', 'description' => 'Conta com uso avançado do BocaFood.', 'color' => '#7C3AED', 'enabled' => true, 'createdBy' => 'system' }
+  ]
+end
+
+def crm_rule_defaults
+  [
+    {
+      'ruleId' => 'trial_sem_cardapio_rule',
+      'name' => 'Marcar trial sem cardápio',
+      'description' => 'Aplica tag CRM quando a conta está em trial há mais de 5 dias e ainda não tem produtos.',
+      'enabled' => false,
+      'audience' => 'tenants',
+      'conditions' => [
+        { 'field' => 'billing.status', 'operator' => 'equals', 'value' => 'trial' },
+        { 'field' => 'createdAt', 'operator' => 'older_than_days', 'value' => 5 },
+        { 'field' => 'stats.productsCount', 'operator' => 'equals', 'value' => 0 }
+      ],
+      'actions' => [{ 'type' => 'add_tag', 'tagKey' => 'trial_sem_cardapio' }],
+      'runFrequency' => 'daily',
+      'createdBy' => 'system'
+    },
+    {
+      'ruleId' => 'cardapio_iniciado_rule',
+      'name' => 'Marcar cardápio iniciado',
+      'description' => 'Remove trial sem cardápio e marca cardápio iniciado quando a conta tem produtos.',
+      'enabled' => false,
+      'audience' => 'tenants',
+      'conditions' => [{ 'field' => 'stats.productsCount', 'operator' => 'greater_than', 'value' => 0 }],
+      'actions' => [{ 'type' => 'remove_tag', 'tagKey' => 'trial_sem_cardapio' }, { 'type' => 'add_tag', 'tagKey' => 'cardapio_iniciado' }],
+      'runFrequency' => 'daily',
+      'createdBy' => 'system'
+    }
+  ]
+end
+
+def clean_crm_tag_key(value)
+  value.to_s.strip.downcase.gsub(/[^a-z0-9_]+/, '_').gsub(/^_+|_+$/, '')[0, 64].to_s
+end
+
+def ensure_crm_tag_defaults!
+  crm_tag_defaults.each do |tag|
+    key = tag['key']
+    existing = firestore_get_document('system_crm_tags', key)
+    firestore_upsert_document('system_crm_tags', key, tag) unless existing
+  end
+end
+
+def ensure_crm_rule_defaults!
+  crm_rule_defaults.each do |rule|
+    key = rule['ruleId']
+    existing = firestore_get_document('system_crm_tag_rules', key)
+    firestore_upsert_document('system_crm_tag_rules', key, rule) unless existing
+  end
+end
+
+def load_crm_tags_payload
+  ensure_crm_tag_defaults!
+  firestore_list_documents('system_crm_tags').map do |doc|
+    fields = firestore_fields_to_hash(doc['fields'] || {})
+    fields['id'] = File.basename(doc['name'].to_s)
+    fields['key'] ||= fields['id']
+    fields
+  end.sort_by { |item| item['name'].to_s.downcase }
+end
+
+def save_crm_tag_payload!(body)
+  key = clean_crm_tag_key(body['key'])
+  raise WEBrick::HTTPStatus::BadRequest, 'Chave da tag CRM obrigatória.' if key.empty?
+  payload = {
+    'key' => key,
+    'name' => body['name'].to_s.strip.empty? ? key : body['name'].to_s.strip,
+    'description' => body['description'].to_s.strip,
+    'color' => body['color'].to_s.strip.empty? ? '#6B7280' : body['color'].to_s.strip,
+    'enabled' => body['enabled'] != false,
+    'createdBy' => body['createdBy'].to_s.strip.empty? ? 'master' : body['createdBy'].to_s.strip
+  }
+  firestore_upsert_document('system_crm_tags', key, payload)
+  payload
+end
+
+def normalize_crm_rule_items(items)
+  Array(items).map do |item|
+    next nil unless item.is_a?(Hash)
+    normalized = {}
+    item.each { |k, v| normalized[k.to_s] = v }
+    normalized
+  end.compact
+end
+
+def load_crm_rules_payload
+  ensure_crm_rule_defaults!
+  firestore_list_documents('system_crm_tag_rules').map do |doc|
+    fields = firestore_fields_to_hash(doc['fields'] || {})
+    fields['id'] = File.basename(doc['name'].to_s)
+    fields['ruleId'] ||= fields['id']
+    fields
+  end.sort_by { |item| item['name'].to_s.downcase }
+end
+
+def save_crm_rule_payload!(body)
+  rule_id = clean_crm_tag_key(body['ruleId'])
+  raise WEBrick::HTTPStatus::BadRequest, 'ruleId obrigatório.' if rule_id.empty?
+  payload = {
+    'ruleId' => rule_id,
+    'name' => body['name'].to_s.strip.empty? ? rule_id : body['name'].to_s.strip,
+    'description' => body['description'].to_s.strip,
+    'enabled' => body['enabled'] == true,
+    'audience' => body['audience'].to_s.strip.empty? ? 'tenants' : body['audience'].to_s.strip,
+    'conditions' => normalize_crm_rule_items(body['conditions']),
+    'actions' => normalize_crm_rule_items(body['actions']),
+    'runFrequency' => body['runFrequency'].to_s.strip.empty? ? 'daily' : body['runFrequency'].to_s.strip,
+    'createdBy' => body['createdBy'].to_s.strip.empty? ? 'master' : body['createdBy'].to_s.strip
+  }
+  firestore_upsert_document('system_crm_tag_rules', rule_id, payload)
+  payload
+end
+
+def apply_crm_tag_to_tenant!(body)
+  uid = body['tenantUid'].to_s.strip
+  tag_key = clean_crm_tag_key(body['tagKey'])
+  action = body['action'].to_s.strip == 'remove_tag' ? 'remove_tag' : 'add_tag'
+  raise WEBrick::HTTPStatus::BadRequest, 'tenantUid obrigatório.' if uid.empty?
+  raise WEBrick::HTTPStatus::BadRequest, 'tagKey obrigatório.' if tag_key.empty?
+  doc = firestore_get_document('system_tenants', uid)
+  raise WEBrick::HTTPStatus::BadRequest, 'Conta não encontrada em system_tenants.' unless doc
+  tenant = firestore_fields_to_hash(doc['fields'] || {})
+  crm_tags = tenant['crmTags'].is_a?(Hash) ? tenant['crmTags'] : {}
+  crm_meta = tenant['crmTagMeta'].is_a?(Hash) ? tenant['crmTagMeta'] : {}
+  crm_tags[tag_key] = action == 'add_tag'
+  if action == 'add_tag'
+    crm_meta[tag_key] = {
+      'addedAt' => Time.now.utc.iso8601,
+      'addedBy' => body['addedBy'].to_s.strip.empty? ? 'master' : body['addedBy'].to_s.strip,
+      'source' => 'manual'
+    }
+  end
+  firestore_upsert_document('system_tenants', uid, {
+    'crmTags' => crm_tags,
+    'crmTagMeta' => crm_meta
+  })
+  firestore_upsert_document('system_crm_tag_logs', SecureRandom.uuid, {
+    'tenantUid' => uid,
+    'action' => action,
+    'tagKey' => tag_key,
+    'matched' => true,
+    'reason' => 'manual_master'
+  })
+  { 'tenantUid' => uid, 'tagKey' => tag_key, 'action' => action }
+end
+
 def load_email_templates_payload
   ensure_email_template_defaults!
   docs = firestore_list_documents('system_email_templates')
@@ -3921,6 +4079,104 @@ end
 
 server.mount_proc '/api/master/email/triggers', &email_triggers_handler
 server.mount_proc '/api/master/email/triggers/', &email_triggers_handler
+
+crm_tags_handler = proc do |req, res|
+  apply_cors_headers(res, req['Origin'] || req['origin'])
+  if req.request_method == 'OPTIONS'
+    res.status = 204
+    res.body = ''
+    next
+  end
+
+  begin
+    unless local_master_request?(req)
+      next json_response_cors(req, res, 403, email_read_error('Endpoint restrito ao Master local.'))
+    end
+
+    case req.request_method
+    when 'GET'
+      json_response_cors(req, res, 200, { ok: true, tags: load_crm_tags_payload })
+    when 'POST'
+      tag = save_crm_tag_payload!(read_json(req))
+      json_response_cors(req, res, 200, { ok: true, message: 'Tag CRM salva.', tag: tag })
+    else
+      json_response_cors(req, res, 405, email_read_error('Endpoint existe, mas exige método GET ou POST.'))
+    end
+  rescue WEBrick::HTTPStatus::BadRequest => e
+    json_response_cors(req, res, 400, email_read_error(e.message))
+  rescue => e
+    debug = email_settings_debug(e)
+    log_email_settings("crm tags erro tecnico #{debug}")
+    message = email_master_credential_error?(e) ? email_master_credential_message : 'Não foi possível carregar as tags CRM.'
+    json_response_cors(req, res, 400, email_read_error(message, debug))
+  end
+end
+
+server.mount_proc '/api/master/crm/tags', &crm_tags_handler
+server.mount_proc '/api/master/crm/tags/', &crm_tags_handler
+
+crm_rules_handler = proc do |req, res|
+  apply_cors_headers(res, req['Origin'] || req['origin'])
+  if req.request_method == 'OPTIONS'
+    res.status = 204
+    res.body = ''
+    next
+  end
+
+  begin
+    unless local_master_request?(req)
+      next json_response_cors(req, res, 403, email_read_error('Endpoint restrito ao Master local.'))
+    end
+
+    case req.request_method
+    when 'GET'
+      json_response_cors(req, res, 200, { ok: true, rules: load_crm_rules_payload })
+    when 'POST'
+      rule = save_crm_rule_payload!(read_json(req))
+      json_response_cors(req, res, 200, { ok: true, message: 'Regra CRM salva.', rule: rule })
+    else
+      json_response_cors(req, res, 405, email_read_error('Endpoint existe, mas exige método GET ou POST.'))
+    end
+  rescue WEBrick::HTTPStatus::BadRequest => e
+    json_response_cors(req, res, 400, email_read_error(e.message))
+  rescue => e
+    debug = email_settings_debug(e)
+    log_email_settings("crm rules erro tecnico #{debug}")
+    message = email_master_credential_error?(e) ? email_master_credential_message : 'Não foi possível carregar as regras CRM.'
+    json_response_cors(req, res, 400, email_read_error(message, debug))
+  end
+end
+
+server.mount_proc '/api/master/crm/tag-rules', &crm_rules_handler
+server.mount_proc '/api/master/crm/tag-rules/', &crm_rules_handler
+
+crm_tenant_tags_handler = proc do |req, res|
+  apply_cors_headers(res, req['Origin'] || req['origin'])
+  if req.request_method == 'OPTIONS'
+    res.status = 204
+    res.body = ''
+    next
+  end
+
+  begin
+    unless local_master_request?(req)
+      next json_response_cors(req, res, 403, email_read_error('Endpoint restrito ao Master local.'))
+    end
+    next json_response_cors(req, res, 405, email_read_error('Endpoint existe, mas exige método POST.')) unless req.request_method == 'POST'
+    result = apply_crm_tag_to_tenant!(read_json(req))
+    json_response_cors(req, res, 200, { ok: true, message: 'Tag CRM aplicada à conta.', result: result })
+  rescue WEBrick::HTTPStatus::BadRequest => e
+    json_response_cors(req, res, 400, email_read_error(e.message))
+  rescue => e
+    debug = email_settings_debug(e)
+    log_email_settings("crm tenant tag erro tecnico #{debug}")
+    message = email_master_credential_error?(e) ? email_master_credential_message : 'Não foi possível aplicar a tag CRM.'
+    json_response_cors(req, res, 400, email_read_error(message, debug))
+  end
+end
+
+server.mount_proc '/api/master/crm/tenant-tags', &crm_tenant_tags_handler
+server.mount_proc '/api/master/crm/tenant-tags/', &crm_tenant_tags_handler
 
 email_logs_handler = proc do |req, res|
   apply_cors_headers(res, req['Origin'] || req['origin'])

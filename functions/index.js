@@ -34,6 +34,127 @@ const TENANT_TAG_KEYS = [
   "inactive_user"
 ];
 
+const CRM_TAG_DEFAULTS = {
+  trial_sem_cardapio: {
+    name: "Trial sem cardápio",
+    key: "trial_sem_cardapio",
+    description: "Conta em trial que ainda não iniciou o cardápio.",
+    color: "#F59E0B",
+    enabled: true,
+    createdBy: "system"
+  },
+  usuario_inativo: {
+    name: "Usuário inativo",
+    key: "usuario_inativo",
+    description: "Conta com pouca atividade recente.",
+    color: "#6B7280",
+    enabled: true,
+    createdBy: "system"
+  },
+  potencial_upgrade: {
+    name: "Potencial upgrade",
+    key: "potencial_upgrade",
+    description: "Conta com sinais de maturidade para plano superior.",
+    color: "#2563EB",
+    enabled: true,
+    createdBy: "system"
+  },
+  cardapio_iniciado: {
+    name: "Cardápio iniciado",
+    key: "cardapio_iniciado",
+    description: "Conta que já iniciou cadastro de produtos/cardápio.",
+    color: "#16A34A",
+    enabled: true,
+    createdBy: "system"
+  },
+  loja_publicada: {
+    name: "Loja publicada",
+    key: "loja_publicada",
+    description: "Conta com loja pública publicada.",
+    color: "#059669",
+    enabled: true,
+    createdBy: "system"
+  },
+  risco_cancelamento: {
+    name: "Risco de cancelamento",
+    key: "risco_cancelamento",
+    description: "Conta com sinais de risco comercial ou cobrança crítica.",
+    color: "#DC2626",
+    enabled: true,
+    createdBy: "system"
+  },
+  cliente_avancada: {
+    name: "Cliente avançada",
+    key: "cliente_avancada",
+    description: "Conta com uso avançado do BocaFood.",
+    color: "#7C3AED",
+    enabled: true,
+    createdBy: "system"
+  }
+};
+
+const CRM_TAG_RULE_DEFAULTS = {
+  trial_sem_cardapio_rule: {
+    name: "Marcar trial sem cardápio",
+    description: "Aplica tag CRM quando a conta está em trial há mais de 5 dias e ainda não tem produtos.",
+    enabled: false,
+    audience: "tenants",
+    conditions: [
+      { field: "billing.status", operator: "equals", value: "trial" },
+      { field: "createdAt", operator: "older_than_days", value: 5 },
+      { field: "stats.productsCount", operator: "equals", value: 0 }
+    ],
+    actions: [
+      { type: "add_tag", tagKey: "trial_sem_cardapio" }
+    ],
+    runFrequency: "daily",
+    createdBy: "system"
+  },
+  cardapio_iniciado_rule: {
+    name: "Marcar cardápio iniciado",
+    description: "Remove trial sem cardápio e marca cardápio iniciado quando a conta tem produtos.",
+    enabled: false,
+    audience: "tenants",
+    conditions: [
+      { field: "stats.productsCount", operator: "greater_than", value: 0 }
+    ],
+    actions: [
+      { type: "remove_tag", tagKey: "trial_sem_cardapio" },
+      { type: "add_tag", tagKey: "cardapio_iniciado" }
+    ],
+    runFrequency: "daily",
+    createdBy: "system"
+  },
+  loja_publicada_rule: {
+    name: "Marcar loja publicada",
+    description: "Aplica tag CRM quando a loja está publicada.",
+    enabled: false,
+    audience: "tenants",
+    conditions: [
+      { field: "store.status", operator: "equals", value: "published" }
+    ],
+    actions: [
+      { type: "add_tag", tagKey: "loja_publicada" }
+    ],
+    runFrequency: "daily",
+    createdBy: "system"
+  },
+  risco_cancelamento_rule: {
+    name: "Marcar risco de cancelamento",
+    description: "Aplica tag CRM para contas com cobrança atrasada ou crítica.",
+    enabled: false,
+    audience: "tenants",
+    conditions: [
+      { field: "billing.status", operator: "equals", value: "past_due" }
+    ],
+    actions: [
+      { type: "add_tag", tagKey: "risco_cancelamento" }
+    ],
+    runFrequency: "daily",
+    createdBy: "system"
+  }
+};
+
 const EMAIL_TRIGGER_DEFAULTS = {
   welcome_hotmart_email: {
     triggerKey: "welcome_hotmart_email",
@@ -416,6 +537,139 @@ async function removeTenantTag(tenantUid, tagKey, data = {}) {
       }
     },
     updatedAt: now
+  }, { merge: true });
+  return true;
+}
+
+function cleanCrmTagKey(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 64);
+}
+
+async function ensureCrmTagDefaults() {
+  const now = nowIso();
+  await Promise.all(Object.keys(CRM_TAG_DEFAULTS).map(async (key) => {
+    const ref = db.collection("system_crm_tags").doc(key);
+    const snap = await ref.get();
+    if (snap.exists) return;
+    await ref.set({
+      ...CRM_TAG_DEFAULTS[key],
+      createdAt: now,
+      updatedAt: now
+    }, { merge: true });
+  }));
+}
+
+async function ensureCrmTagRuleDefaults() {
+  const now = nowIso();
+  await Promise.all(Object.keys(CRM_TAG_RULE_DEFAULTS).map(async (key) => {
+    const ref = db.collection("system_crm_tag_rules").doc(key);
+    const snap = await ref.get();
+    if (snap.exists) return;
+    await ref.set({
+      ...CRM_TAG_RULE_DEFAULTS[key],
+      createdAt: now,
+      updatedAt: now
+    }, { merge: true });
+  }));
+}
+
+function getPathValue(source, path) {
+  const parts = String(path || "").split(".").filter(Boolean);
+  let current = source;
+  for (const part of parts) {
+    if (current == null || typeof current !== "object" || !(part in current)) return undefined;
+    current = current[part];
+  }
+  return current;
+}
+
+function comparableNumber(value) {
+  if (typeof value === "number") return value;
+  const parsed = Number(String(value == null ? "" : value).replace(",", "."));
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function valueExists(value) {
+  return value !== undefined && value !== null && String(value).trim() !== "";
+}
+
+function evaluateCrmCondition(tenant, condition) {
+  const field = String(condition && condition.field || "").trim();
+  const operator = String(condition && condition.operator || "").trim();
+  const expected = condition ? condition.value : undefined;
+  const actual = getPathValue(tenant, field);
+  if (!field || !operator) return false;
+  if (operator === "exists") return valueExists(actual);
+  if (operator === "not_exists") return !valueExists(actual);
+  if (operator === "equals") return String(actual == null ? "" : actual).toLowerCase() === String(expected == null ? "" : expected).toLowerCase();
+  if (operator === "not_equals") return String(actual == null ? "" : actual).toLowerCase() !== String(expected == null ? "" : expected).toLowerCase();
+  if (["greater_than", "greater_or_equal", "less_than", "less_or_equal"].includes(operator)) {
+    const actualNumber = comparableNumber(actual);
+    const expectedNumber = comparableNumber(expected);
+    if (actualNumber == null || expectedNumber == null) return false;
+    if (operator === "greater_than") return actualNumber > expectedNumber;
+    if (operator === "greater_or_equal") return actualNumber >= expectedNumber;
+    if (operator === "less_than") return actualNumber < expectedNumber;
+    if (operator === "less_or_equal") return actualNumber <= expectedNumber;
+  }
+  if (operator === "older_than_days" || operator === "newer_than_days") {
+    const parsed = actual && actual.toDate ? actual.toDate().getTime() : Date.parse(String(actual || ""));
+    const days = comparableNumber(expected);
+    if (Number.isNaN(parsed) || days == null) return false;
+    const ageMs = Date.now() - parsed;
+    const windowMs = days * 86400000;
+    return operator === "older_than_days" ? ageMs > windowMs : ageMs <= windowMs;
+  }
+  return false;
+}
+
+function tenantMatchesCrmRule(tenant, rule) {
+  const conditions = Array.isArray(rule.conditions) ? rule.conditions : [];
+  if (!conditions.length) return false;
+  return conditions.every((condition) => evaluateCrmCondition(tenant, condition));
+}
+
+async function writeCrmTagLog({ ruleId = "", tenantUid = "", action = "", tagKey = "", matched = false, reason = "" }) {
+  await db.collection("system_crm_tag_logs").doc().set({
+    ruleId,
+    tenantUid,
+    action,
+    tagKey,
+    matched: matched === true,
+    reason: String(reason || "").slice(0, 240),
+    createdAt: serverTimestamp()
+  });
+}
+
+async function applyCrmTagToTenant(tenantUid, tagKey, meta = {}) {
+  const cleanKey = cleanCrmTagKey(tagKey);
+  if (!tenantUid || !cleanKey) return false;
+  const now = nowIso();
+  await db.collection("system_tenants").doc(tenantUid).set({
+    crmTags: { [cleanKey]: true },
+    crmTagMeta: {
+      [cleanKey]: {
+        addedAt: meta.addedAt || now,
+        addedBy: meta.addedBy || "system",
+        source: meta.source || "rule"
+      }
+    },
+    updatedAt: now
+  }, { merge: true });
+  return true;
+}
+
+async function removeCrmTagFromTenant(tenantUid, tagKey) {
+  const cleanKey = cleanCrmTagKey(tagKey);
+  if (!tenantUid || !cleanKey) return false;
+  await db.collection("system_tenants").doc(tenantUid).set({
+    crmTags: { [cleanKey]: false },
+    updatedAt: nowIso()
   }, { merge: true });
   return true;
 }
@@ -2027,6 +2281,90 @@ exports.dailyTenantTagCheck = onSchedule(
     });
     await Promise.all(jobs);
     console.info("dailyTenantTagCheck completed", { tenants: snap.size, writes: jobs.length });
+  }
+);
+
+exports.dailyCrmTagRuleCheck = onSchedule(
+  { region: REGION, schedule: "40 9 * * *", timeZone: "Europe/Madrid" },
+  async () => {
+    await ensureCrmTagDefaults();
+    await ensureCrmTagRuleDefaults();
+    const rulesSnap = await db.collection("system_crm_tag_rules").where("enabled", "==", true).limit(50).get();
+    const tenantsSnap = await db.collection("system_tenants").limit(500).get();
+    const jobs = [];
+    rulesSnap.forEach((ruleDoc) => {
+      const rule = ruleDoc.data() || {};
+      if (String(rule.audience || "tenants") !== "tenants") return;
+      const actions = Array.isArray(rule.actions) ? rule.actions : [];
+      if (!actions.length) return;
+      tenantsSnap.forEach((tenantDoc) => {
+        const tenant = tenantDoc.data() || {};
+        const tenantUid = tenantDoc.id;
+        const matched = tenantMatchesCrmRule(tenant, rule);
+        if (!matched) {
+          jobs.push(writeCrmTagLog({
+            ruleId: ruleDoc.id,
+            tenantUid,
+            action: "skipped",
+            matched: false,
+            reason: "conditions_not_matched"
+          }));
+          return;
+        }
+        actions.forEach((action) => {
+          const type = String(action.type || "").trim();
+          const tagKey = cleanCrmTagKey(action.tagKey);
+          if (!tagKey) {
+            jobs.push(writeCrmTagLog({
+              ruleId: ruleDoc.id,
+              tenantUid,
+              action: "error",
+              matched: true,
+              reason: "tagKey_missing"
+            }));
+            return;
+          }
+          if (type === "add_tag") {
+            jobs.push(applyCrmTagToTenant(tenantUid, tagKey, {
+              addedBy: "dailyCrmTagRuleCheck",
+              source: "rule"
+            }).then(() => writeCrmTagLog({
+              ruleId: ruleDoc.id,
+              tenantUid,
+              action: "add_tag",
+              tagKey,
+              matched: true,
+              reason: "rule_matched"
+            })).catch((error) => writeCrmTagLog({
+              ruleId: ruleDoc.id,
+              tenantUid,
+              action: "error",
+              tagKey,
+              matched: true,
+              reason: error && error.message ? error.message : "add_tag_failed"
+            })));
+          } else if (type === "remove_tag") {
+            jobs.push(removeCrmTagFromTenant(tenantUid, tagKey).then(() => writeCrmTagLog({
+              ruleId: ruleDoc.id,
+              tenantUid,
+              action: "remove_tag",
+              tagKey,
+              matched: true,
+              reason: "rule_matched"
+            })).catch((error) => writeCrmTagLog({
+              ruleId: ruleDoc.id,
+              tenantUid,
+              action: "error",
+              tagKey,
+              matched: true,
+              reason: error && error.message ? error.message : "remove_tag_failed"
+            })));
+          }
+        });
+      });
+    });
+    await Promise.all(jobs);
+    console.info("dailyCrmTagRuleCheck completed", { rules: rulesSnap.size, tenants: tenantsSnap.size, writes: jobs.length });
   }
 );
 

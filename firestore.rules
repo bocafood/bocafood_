@@ -221,6 +221,19 @@ service cloud.firestore {
       allow read, write: if isMasterAdmin();
     }
 
+    match /system_crm_tags/{tagId} {
+      allow read, write: if isMasterAdmin();
+    }
+
+    match /system_crm_tag_rules/{ruleId} {
+      allow read, write: if isMasterAdmin();
+    }
+
+    match /system_crm_tag_logs/{logId} {
+      allow read: if isMasterAdmin();
+      allow write: if false;
+    }
+
     match /email_logs/{docId} {
       allow read: if isMasterAdmin();
       allow write: if false;

@@ -423,6 +423,7 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
           <button class="email-tab-btn active" data-email-tab="smtp" onclick="switchEmailTab('smtp')">Configuração SMTP</button>
           <button class="email-tab-btn" data-email-tab="templates" onclick="switchEmailTab('templates')">Templates</button>
           <button class="email-tab-btn" data-email-tab="triggers" onclick="switchEmailTab('triggers')">Gatilhos</button>
+          <button class="email-tab-btn" data-email-tab="crm" onclick="switchEmailTab('crm')">CRM tags</button>
           <button class="email-tab-btn" data-email-tab="preview" onclick="switchEmailTab('preview')">Prévia</button>
           <button class="email-tab-btn" data-email-tab="logs" onclick="switchEmailTab('logs')">Logs</button>
         </div>
@@ -532,6 +533,86 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
             <div class="actions" style="margin-top:14px;">
               <button class="btn" onclick="saveEmailTrigger()">Salvar gatilho</button>
               <button class="btn secondary" onclick="loadEmailTriggers()">Recarregar gatilhos</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="email-panel-crm" class="email-panel">
+          <div class="email-card">
+            <div class="toolbar">
+              <div>
+                <h3>Tags de CRM para contas</h3>
+                <p>Camada independente para segmentação comercial. Não dispara gatilhos transacionais de e-mail.</p>
+              </div>
+              <button class="btn secondary" onclick="loadCrmTags()">Recarregar CRM</button>
+            </div>
+            <div class="global-help" style="margin-bottom:12px;">Estas tags são salvas em <strong>system_tenants/{uid}.crmTags</strong> e não usam <strong>system_email_triggers</strong>.</div>
+            <div id="crm-tag-list" class="global-table-wrap"></div>
+          </div>
+          <div class="email-card">
+            <div class="toolbar">
+              <div>
+                <h3>Nova/editar tag CRM</h3>
+                <p>Use chaves simples para segmentar campanhas e análises de contas.</p>
+              </div>
+              <span class="email-status off">CRM</span>
+            </div>
+            <div class="email-form-grid">
+              <label><span>Chave da tag</span><input id="crm-tag-key" placeholder="trial_sem_cardapio"></label>
+              <label><span>Nome</span><input id="crm-tag-name" placeholder="Trial sem cardápio"></label>
+              <label><span>Cor</span><input id="crm-tag-color" placeholder="#F59E0B"></label>
+              <label><span>Status</span><div class="check-row" style="margin:0;"><input id="crm-tag-enabled" type="checkbox" checked><span>Tag ativa</span></div></label>
+              <label class="full"><span>Descrição</span><textarea id="crm-tag-description" style="min-height:70px;"></textarea></label>
+            </div>
+            <div class="actions" style="margin-top:14px;">
+              <button class="btn" onclick="saveCrmTag()">Salvar tag CRM</button>
+            </div>
+          </div>
+          <div class="email-card">
+            <div class="toolbar">
+              <div>
+                <h3>Regras automáticas de tags</h3>
+                <p>A rotina diária avalia condições e aplica/remove tags CRM nas contas.</p>
+              </div>
+              <button class="btn secondary" onclick="newCrmRule()">Nova regra</button>
+            </div>
+            <div id="crm-rule-list" class="global-table-wrap"></div>
+          </div>
+          <div class="email-card">
+            <div class="toolbar">
+              <div>
+                <h3>Editor de regra CRM</h3>
+                <p>Informe condições e ações em JSON simples. Público atual: tenants.</p>
+              </div>
+              <span class="email-status off">Regra CRM</span>
+            </div>
+            <div class="email-form-grid">
+              <label><span>Rule ID</span><input id="crm-rule-id" placeholder="trial_sem_cardapio_rule"></label>
+              <label><span>Nome</span><input id="crm-rule-name" placeholder="Marcar trial sem cardápio"></label>
+              <label><span>Frequência</span><input id="crm-rule-frequency" placeholder="daily" value="daily"></label>
+              <label><span>Status</span><div class="check-row" style="margin:0;"><input id="crm-rule-enabled" type="checkbox"><span>Regra ativa</span></div></label>
+              <label class="full"><span>Descrição</span><textarea id="crm-rule-description" style="min-height:60px;"></textarea></label>
+              <label class="full"><span>Condições JSON</span><textarea id="crm-rule-conditions" style="min-height:110px;" placeholder='[{"field":"billing.status","operator":"equals","value":"trial"}]'></textarea></label>
+              <label class="full"><span>Ações JSON</span><textarea id="crm-rule-actions" style="min-height:90px;" placeholder='[{"type":"add_tag","tagKey":"trial_sem_cardapio"}]'></textarea></label>
+            </div>
+            <div class="actions" style="margin-top:14px;">
+              <button class="btn" onclick="saveCrmRule()">Salvar regra CRM</button>
+            </div>
+          </div>
+          <div class="email-card">
+            <div class="toolbar">
+              <div>
+                <h3>Aplicar tag manualmente</h3>
+                <p>Use para suporte ou segmentação manual de uma conta específica.</p>
+              </div>
+            </div>
+            <div class="email-form-grid">
+              <label><span>Tenant UID</span><input id="crm-tenant-uid" placeholder="uid da conta"></label>
+              <label><span>Tag CRM</span><select id="crm-tenant-tag"></select></label>
+              <label><span>Ação</span><select id="crm-tenant-action"><option value="add_tag">Adicionar tag</option><option value="remove_tag">Remover tag</option></select></label>
+            </div>
+            <div class="actions" style="margin-top:14px;">
+              <button class="btn" onclick="applyCrmTenantTag()">Aplicar na conta</button>
             </div>
           </div>
         </div>
@@ -2592,10 +2673,13 @@ var _emailMasterState = {
   activeTab: 'smtp',
   selectedTemplateKey: 'welcome_hotmart',
   selectedTriggerKey: '',
+  selectedCrmRuleKey: '',
   previewMode: 'desktop',
   settings: {},
   templates: [],
-  triggers: []
+  triggers: [],
+  crmTags: [],
+  crmRules: []
 };
 var EMAIL_DEFAULT_SUPPORT = 'teajudo@bocafood.app';
 var TENANT_TAG_OPTIONS = ['trial_ending','trial_ends_today','trial_expired','store_not_published','store_ready_to_publish','payment_pending','subscription_canceled','subscription_active','hotmart_pending_access','inactive_user'];
@@ -2669,6 +2753,19 @@ var _emailDefaults = {
     {triggerKey:'subscription_active_email',tagKey:'subscription_active',templateKey:'subscription_active',name:'Assinatura ativa',description:'Gatilho preparado para contas marcadas com assinatura ativa.',enabled:false,delayHours:0,dedupeWindowDays:30,source:'system'},
     {triggerKey:'subscription_canceled_email',tagKey:'subscription_canceled',templateKey:'subscription_canceled',name:'Assinatura cancelada',description:'Envia aviso quando assinatura, reembolso ou chargeback cancelar o acesso.',enabled:true,delayHours:0,dedupeWindowDays:30,source:'system'},
     {triggerKey:'store_not_published_email',tagKey:'store_not_published',templateKey:'store_not_published',name:'Loja não publicada',description:'Envia lembrete quando a loja ainda não foi publicada.',enabled:false,delayHours:24,dedupeWindowDays:7,source:'system'}
+  ],
+  crmTags: [
+    {key:'trial_sem_cardapio',name:'Trial sem cardápio',description:'Conta em trial que ainda não iniciou o cardápio.',color:'#F59E0B',enabled:true},
+    {key:'usuario_inativo',name:'Usuário inativo',description:'Conta com pouca atividade recente.',color:'#6B7280',enabled:true},
+    {key:'potencial_upgrade',name:'Potencial upgrade',description:'Conta com sinais de maturidade para plano superior.',color:'#2563EB',enabled:true},
+    {key:'cardapio_iniciado',name:'Cardápio iniciado',description:'Conta que já iniciou cadastro de produtos/cardápio.',color:'#16A34A',enabled:true},
+    {key:'loja_publicada',name:'Loja publicada',description:'Conta com loja pública publicada.',color:'#059669',enabled:true},
+    {key:'risco_cancelamento',name:'Risco de cancelamento',description:'Conta com sinais de risco comercial ou cobrança crítica.',color:'#DC2626',enabled:true},
+    {key:'cliente_avancada',name:'Cliente avançada',description:'Conta com uso avançado do BocaFood.',color:'#7C3AED',enabled:true}
+  ],
+  crmRules: [
+    {ruleId:'trial_sem_cardapio_rule',name:'Marcar trial sem cardápio',description:'Aplica tag CRM quando a conta está em trial há mais de 5 dias e ainda não tem produtos.',enabled:false,audience:'tenants',conditions:[{field:'billing.status',operator:'equals',value:'trial'},{field:'createdAt',operator:'older_than_days',value:5},{field:'stats.productsCount',operator:'equals',value:0}],actions:[{type:'add_tag',tagKey:'trial_sem_cardapio'}],runFrequency:'daily'},
+    {ruleId:'cardapio_iniciado_rule',name:'Marcar cardápio iniciado',description:'Remove trial sem cardápio e marca cardápio iniciado quando a conta tem produtos.',enabled:false,audience:'tenants',conditions:[{field:'stats.productsCount',operator:'greater_than',value:0}],actions:[{type:'remove_tag',tagKey:'trial_sem_cardapio'},{type:'add_tag',tagKey:'cardapio_iniciado'}],runFrequency:'daily'}
   ]
 };
 function _emailFunctionUrl(name){ return 'https://us-central1-bocado-brasil.cloudfunctions.net/' + name; }
@@ -2748,6 +2845,7 @@ function switchEmailTab(tab){
   if(tab === 'preview') renderEmailPreview();
   if(tab === 'logs') loadEmailLogs();
   if(tab === 'triggers') renderEmailTriggers();
+  if(tab === 'crm') renderCrmPanel();
 }
 function _emailEnsureDefaults(){
   return Promise.resolve();
@@ -2762,25 +2860,35 @@ function loadEmailMaster(){
     return Promise.all([
       safeEmailLoad(_emailCallLocalMaster('/api/master/email/settings', null, {method:'GET'}), {settings:_emailMasterState.settings || _emailDefaults.settings}),
       safeEmailLoad(_emailCallLocalMaster('/api/master/email/templates', null, {method:'GET'}), {templates:_emailMasterState.templates && _emailMasterState.templates.length ? _emailMasterState.templates : _emailDefaults.templates}),
-      safeEmailLoad(_emailCallLocalMaster('/api/master/email/triggers', null, {method:'GET'}), {triggers:_emailMasterState.triggers && _emailMasterState.triggers.length ? _emailMasterState.triggers : _emailDefaults.triggers})
+      safeEmailLoad(_emailCallLocalMaster('/api/master/email/triggers', null, {method:'GET'}), {triggers:_emailMasterState.triggers && _emailMasterState.triggers.length ? _emailMasterState.triggers : _emailDefaults.triggers}),
+      safeEmailLoad(_emailCallLocalMaster('/api/master/crm/tags', null, {method:'GET'}), {tags:_emailMasterState.crmTags && _emailMasterState.crmTags.length ? _emailMasterState.crmTags : _emailDefaults.crmTags}),
+      safeEmailLoad(_emailCallLocalMaster('/api/master/crm/tag-rules', null, {method:'GET'}), {rules:_emailMasterState.crmRules && _emailMasterState.crmRules.length ? _emailMasterState.crmRules : _emailDefaults.crmRules})
     ]);
   }).then(function(results){
     var settingsResult = results[0] || {};
     var templateResult = results[1] || {};
     var triggerResult = results[2] || {};
+    var crmTagResult = results[3] || {};
+    var crmRuleResult = results[4] || {};
     var loadWarnings = [];
     if(settingsResult.__error){ loadWarnings.push('configuração SMTP'); settingsResult = settingsResult.__fallback || {}; }
     if(templateResult.__error){ loadWarnings.push('templates'); templateResult = templateResult.__fallback || {}; }
     if(triggerResult.__error){ loadWarnings.push('gatilhos'); triggerResult = triggerResult.__fallback || {}; }
+    if(crmTagResult.__error){ loadWarnings.push('tags CRM'); crmTagResult = crmTagResult.__fallback || {}; }
+    if(crmRuleResult.__error){ loadWarnings.push('regras CRM'); crmRuleResult = crmRuleResult.__fallback || {}; }
     _emailMasterState.settings = Object.assign({}, _emailDefaults.settings, settingsResult.settings || {});
     _emailMasterState.templates = mergeEmailTemplatesWithDefaults(templateResult.templates);
     _emailMasterState.triggers = (triggerResult.triggers && triggerResult.triggers.length ? triggerResult.triggers : _emailDefaults.triggers);
+    _emailMasterState.crmTags = (crmTagResult.tags && crmTagResult.tags.length ? crmTagResult.tags : _emailDefaults.crmTags);
+    _emailMasterState.crmRules = (crmRuleResult.rules && crmRuleResult.rules.length ? crmRuleResult.rules : _emailDefaults.crmRules);
     if(!_emailMasterState.selectedTriggerKey && _emailMasterState.triggers[0]) _emailMasterState.selectedTriggerKey = _emailMasterState.triggers[0].triggerKey || _emailMasterState.triggers[0].id;
+    if(!_emailMasterState.selectedCrmRuleKey && _emailMasterState.crmRules[0]) _emailMasterState.selectedCrmRuleKey = _emailMasterState.crmRules[0].ruleId || _emailMasterState.crmRules[0].id;
     if(!_emailTemplateByKey(_emailMasterState.selectedTemplateKey)) _emailMasterState.selectedTemplateKey = (_emailMasterState.templates[0] || {}).key || 'welcome_hotmart';
     renderEmailSettings();
     renderEmailTemplateList();
     renderEmailEditor();
     renderEmailTriggers();
+    renderCrmPanel();
     renderEmailPreview();
     loadEmailLogs();
     _emailMasterState.loaded = true;
@@ -2792,10 +2900,13 @@ function loadEmailMaster(){
     _emailMasterState.settings = Object.assign({}, _emailDefaults.settings);
     _emailMasterState.templates = mergeEmailTemplatesWithDefaults([]);
     _emailMasterState.triggers = _emailDefaults.triggers.slice();
+    _emailMasterState.crmTags = _emailDefaults.crmTags.slice();
+    _emailMasterState.crmRules = _emailDefaults.crmRules.slice();
     renderEmailSettings();
     renderEmailTemplateList();
     renderEmailEditor();
     renderEmailTriggers();
+    renderCrmPanel();
     renderEmailPreview();
   });
 }
@@ -3027,6 +3138,140 @@ function loadEmailTriggers(){
     renderEmailTriggers();
     renderEmailTemplateList();
   });
+}
+function crmRuleByKey(key){
+  return (_emailMasterState.crmRules || []).find(function(rule){return (rule.ruleId || rule.id) === key;}) || (_emailMasterState.crmRules || [])[0] || null;
+}
+function renderCrmTagSelects(){
+  var select = document.getElementById('crm-tenant-tag');
+  if(select) select.innerHTML = (_emailMasterState.crmTags || _emailDefaults.crmTags).map(function(tag){return '<option value="'+esc(tag.key || tag.id || '')+'">'+esc(tag.name || tag.key || tag.id || '')+'</option>';}).join('');
+}
+function renderCrmTags(){
+  var box = document.getElementById('crm-tag-list');
+  if(!box) return;
+  var tags = _emailMasterState.crmTags || [];
+  if(!tags.length){box.innerHTML='<div class="users-empty">Nenhuma tag CRM configurada.</div>';return;}
+  box.innerHTML = '<table class="email-log-table"><thead><tr><th>Tag</th><th>Chave</th><th>Descrição</th><th>Status</th><th></th></tr></thead><tbody>' +
+    tags.map(function(tag){
+      var key = tag.key || tag.id || '';
+      var color = tag.color || '#6B7280';
+      return '<tr><td><span style="display:inline-flex;align-items:center;gap:8px;"><span style="width:10px;height:10px;border-radius:50%;background:'+esc(color)+';"></span><strong>'+esc(tag.name || key)+'</strong></span></td><td>'+esc(key)+'</td><td>'+esc(tag.description || '')+'</td><td>'+(tag.enabled===false?'<span class="email-status off">Inativa</span>':'<span class="email-status on">Ativa</span>')+'</td><td><button class="btn secondary" onclick="selectCrmTag(\''+esc(key)+'\')">Editar</button></td></tr>';
+    }).join('') + '</tbody></table>';
+}
+function selectCrmTag(key){
+  var tag = (_emailMasterState.crmTags || []).find(function(item){return (item.key || item.id) === key;});
+  if(!tag) return;
+  setVal('crm-tag-key', tag.key || tag.id || '');
+  setVal('crm-tag-name', tag.name || '');
+  setVal('crm-tag-color', tag.color || '#6B7280');
+  setVal('crm-tag-description', tag.description || '');
+  document.getElementById('crm-tag-enabled').checked = tag.enabled !== false;
+}
+function saveCrmTag(){
+  var payload = {
+    key: val('crm-tag-key'),
+    name: val('crm-tag-name'),
+    color: val('crm-tag-color') || '#6B7280',
+    description: val('crm-tag-description'),
+    enabled: !!document.getElementById('crm-tag-enabled').checked,
+    createdBy: 'master'
+  };
+  if(!payload.key){toast('Chave da tag CRM obrigatória');return;}
+  _emailCallLocalMaster('/api/master/crm/tags', payload).then(function(){
+    toast('Tag CRM salva.');
+    return loadCrmTags();
+  }).catch(function(e){toast('Erro ao salvar tag CRM: '+(e.message||e));});
+}
+function renderCrmRules(){
+  var box = document.getElementById('crm-rule-list');
+  if(!box) return;
+  var rules = _emailMasterState.crmRules || [];
+  if(!rules.length){box.innerHTML='<div class="users-empty">Nenhuma regra CRM configurada.</div>';return;}
+  box.innerHTML = '<table class="email-log-table"><thead><tr><th>Regra</th><th>Condições</th><th>Ações</th><th>Status</th><th></th></tr></thead><tbody>' +
+    rules.map(function(rule){
+      var key = rule.ruleId || rule.id || '';
+      var conditions = Array.isArray(rule.conditions) ? rule.conditions.length : 0;
+      var actions = Array.isArray(rule.actions) ? rule.actions.map(function(a){return (a.type || '')+': '+(a.tagKey || '');}).join('<br>') : '';
+      return '<tr><td><strong>'+esc(rule.name || key)+'</strong><br><span class="user-sub">'+esc(key)+'</span></td><td>'+conditions+' condição(ões)</td><td>'+actions+'</td><td>'+(rule.enabled===false?'<span class="email-status off">Inativa</span>':'<span class="email-status on">Ativa</span>')+'</td><td><button class="btn secondary" onclick="selectCrmRule(\''+esc(key)+'\')">Editar</button></td></tr>';
+    }).join('') + '</tbody></table>';
+}
+function selectCrmRule(key){
+  _emailMasterState.selectedCrmRuleKey = key;
+  renderCrmRuleEditor();
+}
+function newCrmRule(){
+  _emailMasterState.selectedCrmRuleKey = '';
+  setVal('crm-rule-id','');
+  setVal('crm-rule-name','');
+  setVal('crm-rule-frequency','daily');
+  setVal('crm-rule-description','');
+  setVal('crm-rule-conditions','[]');
+  setVal('crm-rule-actions','[]');
+  document.getElementById('crm-rule-enabled').checked = false;
+}
+function renderCrmRuleEditor(){
+  var rule = crmRuleByKey(_emailMasterState.selectedCrmRuleKey);
+  if(!rule) return;
+  setVal('crm-rule-id', rule.ruleId || rule.id || '');
+  setVal('crm-rule-name', rule.name || '');
+  setVal('crm-rule-frequency', rule.runFrequency || 'daily');
+  setVal('crm-rule-description', rule.description || '');
+  setVal('crm-rule-conditions', JSON.stringify(rule.conditions || [], null, 2));
+  setVal('crm-rule-actions', JSON.stringify(rule.actions || [], null, 2));
+  document.getElementById('crm-rule-enabled').checked = rule.enabled === true;
+}
+function saveCrmRule(){
+  var conditions, actions;
+  try{conditions = JSON.parse(document.getElementById('crm-rule-conditions').value || '[]');}catch(e){toast('Condições JSON inválidas');return;}
+  try{actions = JSON.parse(document.getElementById('crm-rule-actions').value || '[]');}catch(e){toast('Ações JSON inválidas');return;}
+  var payload = {
+    ruleId: val('crm-rule-id'),
+    name: val('crm-rule-name'),
+    description: val('crm-rule-description'),
+    enabled: !!document.getElementById('crm-rule-enabled').checked,
+    audience: 'tenants',
+    conditions: conditions,
+    actions: actions,
+    runFrequency: val('crm-rule-frequency') || 'daily',
+    createdBy: 'master'
+  };
+  if(!payload.ruleId){toast('Rule ID obrigatório');return;}
+  _emailCallLocalMaster('/api/master/crm/tag-rules', payload).then(function(){
+    toast('Regra CRM salva.');
+    _emailMasterState.selectedCrmRuleKey = payload.ruleId;
+    return loadCrmRules();
+  }).catch(function(e){toast('Erro ao salvar regra CRM: '+(e.message||e));});
+}
+function applyCrmTenantTag(){
+  var payload = {
+    tenantUid: val('crm-tenant-uid'),
+    tagKey: val('crm-tenant-tag'),
+    action: val('crm-tenant-action'),
+    addedBy: 'master'
+  };
+  if(!payload.tenantUid || !payload.tagKey){toast('Tenant UID e tag CRM são obrigatórios');return;}
+  _emailCallLocalMaster('/api/master/crm/tenant-tags', payload).then(function(r){
+    toast(r.message || 'Tag CRM aplicada à conta.');
+  }).catch(function(e){toast('Erro ao aplicar tag CRM: '+(e.message||e));});
+}
+function renderCrmPanel(){
+  renderCrmTagSelects();
+  renderCrmTags();
+  renderCrmRules();
+  renderCrmRuleEditor();
+}
+function loadCrmTags(){
+  return _emailCallLocalMaster('/api/master/crm/tags', null, {method:'GET'}).then(function(r){
+    _emailMasterState.crmTags = r.tags || _emailDefaults.crmTags.slice();
+    renderCrmPanel();
+  }).catch(function(e){toast('Erro ao carregar tags CRM: '+(e.message||e));});
+}
+function loadCrmRules(){
+  return _emailCallLocalMaster('/api/master/crm/tag-rules', null, {method:'GET'}).then(function(r){
+    _emailMasterState.crmRules = r.rules || _emailDefaults.crmRules.slice();
+    if(!_emailMasterState.selectedCrmRuleKey && _emailMasterState.crmRules[0]) _emailMasterState.selectedCrmRuleKey = _emailMasterState.crmRules[0].ruleId || _emailMasterState.crmRules[0].id;
+    renderCrmPanel();
+  }).catch(function(e){toast('Erro ao carregar regras CRM: '+(e.message||e));});
 }
 function _emailPreviewHtml(tpl){
   var settings = Object.assign({}, _emailDefaults.settings, _emailMasterState.settings || {});
