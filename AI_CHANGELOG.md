@@ -6040,3 +6040,6 @@
 - Impacto esperado: ao clicar em `Esqueci minha senha`, o login alterna para uma tela de recuperacao; ao enviar o e-mail, a callable Function `requestPasswordResetEmail` gera um link via Firebase Admin e dispara o template SMTP `password_reset`.
 - Segurança: o fluxo nao retorna senha, token ou detalhes tecnicos ao frontend; quando o e-mail nao existe, registra `email_logs` como `skipped` e retorna mensagem generica para evitar exposicao de contas.
 - Master/Templates: `password_reset` passa a aparecer como `Conectado` e a descricao padrao foi atualizada para indicar envio real pelo login.
+- Ajuste posterior: `requestPasswordResetEmail` agora faz fallback para o link padrao do Firebase Admin se a URL de retorno configurada nao estiver autorizada no Firebase Auth.
+- Ajuste posterior: a tela de login mostra mensagem especifica quando a callable `requestPasswordResetEmail` ainda nao estiver publicada em Functions.
+- Ajuste posterior: adicionada `.firebaseignore` para impedir que arquivos `.env`, backups e service accounts sejam empacotados em deploy.

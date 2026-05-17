@@ -436,7 +436,14 @@ button,input,select,textarea{font-family:inherit}
       err.textContent = 'Se esse e-mail estiver vinculado a uma conta BocaFood, enviaremos um link de recuperação.';
       err.style.display = 'block';
     }).catch(function (ex) {
-      err.textContent = 'Não foi possível enviar o link de recuperação. Tente novamente em alguns instantes.';
+      var code = ex && ex.code ? ex.code : '';
+      if (code === 'functions/not-found') {
+        err.textContent = 'A recuperação por e-mail ainda não está publicada. Atualize as Functions antes de testar na rede.';
+      } else if (code === 'functions/invalid-argument') {
+        err.textContent = 'Informe um e-mail válido para receber o link de recuperação.';
+      } else {
+        err.textContent = 'Não foi possível enviar o link de recuperação. Tente novamente em alguns instantes.';
+      }
       err.style.display = 'block';
       console.error(ex);
     }).finally(function () {
