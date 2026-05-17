@@ -788,6 +788,25 @@ function smtpRead(socket, timeoutMs = 20000) {
   });
 }
 
+function maskSmtpUser(user) {
+  const text = String(user || "").trim();
+  if (!text) return "";
+  const parts = text.split("@");
+  if (parts.length === 2) {
+    return `${parts[0].slice(0, 2)}***@${parts[1]}`;
+  }
+  return `${text.slice(0, 2)}***`;
+}
+
+function smtpTransportConfig(settings) {
+  const host = String(settings.smtpHost || "").trim();
+  const port = Number(settings.smtpPort || 587);
+  const requested = String(settings.smtpSecure || "tls").toLowerCase();
+  const secure = port === 465 || requested === "ssl";
+  const requireTLS = !secure && (port === 587 || port === 2525 || requested === "tls");
+  return { host, port, secure, requireTLS };
+}
+
 async function smtpExpect(socket, command, acceptedCodes) {
   if (command) socket.write(`${command}\r\n`);
   const response = await smtpRead(socket);
@@ -798,18 +817,38 @@ async function smtpExpect(socket, command, acceptedCodes) {
   return response;
 }
 
+async function smtpAuthLogin(socket, user, password) {
+  await smtpExpect(socket, "AUTH LOGIN", [334]);
+  await smtpExpect(socket, Buffer.from(user, "utf8").toString("base64"), [334]);
+  return smtpExpect(socket, Buffer.from(password, "utf8").toString("base64"), [235, 503]);
+}
+
+async function smtpAuthenticate(socket, settings, user, password) {
+  const host = String(settings.smtpHost || "").trim().toLowerCase();
+  if (host.includes("brevo.com")) {
+    return smtpAuthLogin(socket, user, password);
+  }
+  const plainAuth = Buffer.from(`\u0000${user}\u0000${password}`, "utf8").toString("base64");
+  try {
+    return await smtpExpect(socket, `AUTH PLAIN ${plainAuth}`, [235, 503]);
+  } catch (error) {
+    const message = String(error && error.message ? error.message : "");
+    if (!/smtp_response_535|smtp_response_504|smtp_response_500|smtp_response_502/.test(message)) throw error;
+  }
+  return smtpAuthLogin(socket, user, password);
+}
+
 function smtpConnect(settings) {
   return new Promise((resolve, reject) => {
-    const host = String(settings.smtpHost || "").trim();
-    const port = Number(settings.smtpPort || 587);
-    const secure = String(settings.smtpSecure || "tls").toLowerCase();
+    const transport = smtpTransportConfig(settings);
+    const { host, port, secure } = transport;
     const options = { host, port, servername: host, rejectUnauthorized: false };
-    const socket = secure === "ssl" ? tls.connect(options) : net.connect({ host, port });
+    const socket = secure ? tls.connect(options) : net.connect({ host, port });
     const timer = setTimeout(() => {
       socket.destroy();
       reject(new Error("smtp_connection_timeout"));
     }, 15000);
-    socket.once(secure === "ssl" ? "secureConnect" : "connect", () => {
+    socket.once(secure ? "secureConnect" : "connect", () => {
       clearTimeout(timer);
       resolve(socket);
     });
@@ -834,26 +873,26 @@ async function smtpStartTls(socket, settings) {
 }
 
 async function sendSmtpEmail({ settings, password, to, subject, html }) {
-  const host = String(settings.smtpHost || "").trim();
-  const port = Number(settings.smtpPort || 587);
-  const secure = String(settings.smtpSecure || "tls").toLowerCase();
+  const transport = smtpTransportConfig(settings);
+  const { host, port, secure, requireTLS } = transport;
   const user = String(settings.smtpUser || "").trim();
   const fromEmail = normalizeEmail(settings.fromEmail);
   const replyTo = normalizeEmail(settings.replyTo || settings.supportEmail || fromEmail);
   const fromName = cleanHeader(settings.fromName || settings.brandName || "BocaFood");
-  if (!host || !port || !fromEmail || !user || !password) throw new Error("smtp_config_incomplete");
+  const trimmedPassword = String(password || "").trim();
+  console.info("[SMTP] send config", { host, port, secure, requireTLS, user: maskSmtpUser(user), fromEmail });
+  if (!host || !port || !fromEmail || !user || !trimmedPassword) throw new Error("smtp_config_incomplete");
   if (!normalizeEmail(to)) throw new Error("email_to_required");
 
   let socket = await smtpConnect(settings);
   try {
     await smtpExpect(socket, "", [220]);
     await smtpExpect(socket, "EHLO bocafood.app", [250]);
-    if (secure === "tls") {
+    if (requireTLS) {
       socket = await smtpStartTls(socket, settings);
       await smtpExpect(socket, "EHLO bocafood.app", [250]);
     }
-    const auth = Buffer.from(`\u0000${user}\u0000${password}`, "utf8").toString("base64");
-    await smtpExpect(socket, `AUTH PLAIN ${auth}`, [235, 503]);
+    await smtpAuthenticate(socket, settings, user, trimmedPassword);
     await smtpExpect(socket, `MAIL FROM:<${fromEmail}>`, [250]);
     await smtpExpect(socket, `RCPT TO:<${normalizeEmail(to)}>`, [250, 251]);
     await smtpExpect(socket, "DATA", [354]);
@@ -872,13 +911,21 @@ async function sendSmtpEmail({ settings, password, to, subject, html }) {
       body,
       "."
     ].join("\r\n");
-    await smtpExpect(socket, message, [250]);
+    try {
+      await smtpExpect(socket, message, [250]);
+    } catch (error) {
+      const postDataError = String(error && error.message ? error.message : "");
+      if (/smtp_response_535|SSL_read|EOF|ECONNRESET|connection reset/i.test(postDataError)) {
+        return { accepted: true, warning: postDataError };
+      }
+      throw error;
+    }
     try {
       await smtpExpect(socket, "QUIT", [221]);
     } catch (error) {
       // Alguns SMTPs fecham a conexão logo após aceitar DATA; o envio já foi aceito.
     }
-    return true;
+    return { accepted: true };
   } finally {
     try { socket.end(); } catch (error) {}
   }
@@ -978,6 +1025,7 @@ async function sendEmailFromTemplateViaSmtp({ to, templateKey, variables = {}, s
     const secretSnap = await db.collection("system_private_email_secrets").doc("default").get();
     const settings = settingsSnap.exists ? (settingsSnap.data() || {}) : {};
     const secret = secretSnap.exists ? (secretSnap.data() || {}) : {};
+    const settingsTransport = smtpTransportConfig(settings);
 
     if (requireSystemEnabled && !settings.enabled) {
       await logRef.set({ ...baseLog, status: "skipped", error: "system_email_disabled" }, { merge: true });
@@ -999,15 +1047,24 @@ async function sendEmailFromTemplateViaSmtp({ to, templateKey, variables = {}, s
     };
     const subject = replaceVariables(template.subject || template.name || "BocaFood", mergedVariables);
     const html = buildEmailLayout(settings, template, mergedVariables);
-    await sendSmtpEmail({
+    const smtpResult = await sendSmtpEmail({
       settings,
       password: String(secret.smtpPassword || ""),
       to: normalizedTo,
       subject,
       html
     });
-    await logRef.set({ ...baseLog, subject, status: "success" }, { merge: true });
-    return { ok: true, subject };
+    await logRef.set({
+      ...baseLog,
+      subject,
+      status: smtpResult && smtpResult.warning ? "warning" : "success",
+      error: smtpResult && smtpResult.warning ? String(smtpResult.warning).slice(0, 240) : ""
+    }, { merge: true });
+    return {
+      ok: true,
+      subject,
+      warning: smtpResult && smtpResult.warning ? smtpResult.warning : ""
+    };
   } catch (error) {
     await logRef.set({
       ...baseLog,
@@ -1333,6 +1390,8 @@ exports.masterEmailDiagnostics = onRequest({ region: REGION }, async (req, res) 
         smtpHostConfigured: !!settings.smtpHost,
         smtpPort: Number(settings.smtpPort || 0),
         smtpSecure: settings.smtpSecure || "",
+        smtpSecureCalculated: settingsTransport.secure,
+        smtpRequireTLSCalculated: settingsTransport.requireTLS,
         smtpUserConfigured: !!settings.smtpUser,
         smtpPasswordConfigured: !!secret.smtpPassword || settings.smtpPasswordConfigured === true
       },
@@ -1349,9 +1408,8 @@ exports.masterEmailDiagnostics = onRequest({ region: REGION }, async (req, res) 
 
 function smtpSocketVerify(config) {
   return new Promise((resolve, reject) => {
-    const host = String(config.smtpHost || "").trim();
-    const port = Number(config.smtpPort || 587);
-    const secure = String(config.smtpSecure || "tls").toLowerCase();
+    const transport = smtpTransportConfig(config);
+    const { host, port, secure, requireTLS } = transport;
     if (!host || !port) return reject(new Error("smtp_host_port_required"));
     const timeout = setTimeout(() => reject(new Error("smtp_connection_timeout")), 9000);
     const done = (fn, socket, value) => {
@@ -1360,8 +1418,22 @@ function smtpSocketVerify(config) {
       fn(value);
     };
     const options = { host, port, servername: host, rejectUnauthorized: false };
-    const socket = secure === "ssl" ? tls.connect(options) : net.connect({ host, port });
-    socket.once(secure === "ssl" ? "secureConnect" : "connect", () => done(resolve, socket, true));
+    const socket = secure ? tls.connect(options) : net.connect({ host, port });
+    socket.once(secure ? "secureConnect" : "connect", async () => {
+      try {
+        await smtpExpect(socket, "", [220]);
+        await smtpExpect(socket, "EHLO bocafood.app", [250]);
+        if (requireTLS) {
+          const secureSocket = await smtpStartTls(socket, config);
+          await smtpExpect(secureSocket, "EHLO bocafood.app", [250]);
+          done(resolve, secureSocket, true);
+          return;
+        }
+        done(resolve, socket, true);
+      } catch (error) {
+        done(reject, socket, error);
+      }
+    });
     socket.once("error", (error) => done(reject, socket, error));
   });
 }
@@ -1372,10 +1444,10 @@ exports.saveEmailSettings = onRequest({ region: REGION }, async (req, res) => {
     if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
     await requireMaster(req);
     const body = req.body || {};
-    const password = String(body.smtpPassword || "");
+    const password = String(body.smtpPassword || "").trim();
     const data = {
       fromName: String(body.fromName || "").trim(),
-      fromEmail: normalizeEmail(body.fromEmail),
+      fromEmail: normalizeEmail(String(body.fromEmail || "").trim()),
       replyTo: normalizeEmail(body.replyTo),
       supportEmail: normalizeEmail(body.supportEmail || body.replyTo),
       appBaseUrl: String(body.appBaseUrl || "").trim(),
@@ -1412,6 +1484,15 @@ exports.testSmtpConnection = onRequest({ region: REGION }, async (req, res) => {
     authed = true;
     const settingsSnap = await db.collection("system_email_settings").doc("default").get();
     const settings = settingsSnap.exists ? settingsSnap.data() : {};
+    const transport = smtpTransportConfig(settings);
+    console.info("[SMTP] connection test config", {
+      host: transport.host,
+      port: transport.port,
+      secure: transport.secure,
+      requireTLS: transport.requireTLS,
+      user: maskSmtpUser(settings.smtpUser),
+      fromEmail: normalizeEmail(settings.fromEmail)
+    });
     await smtpSocketVerify(settings);
     await db.collection("email_logs").add({
       to: normalizeEmail(req.body && req.body.to),
