@@ -6100,6 +6100,7 @@
 - Ajuste posterior: o rodapé dos e-mails transacionais recebeu degradê vermelho muito leve e borda superior suave na prévia, no envio local e nas Functions, mantendo compatibilidade com clientes de e-mail.
 - Ajuste posterior: o fundo geral da prévia e do HTML final dos e-mails transacionais ficou mais premium, com degradê externo off-white/rosado e card principal com degradê interno mais refinado e sombra difusa.
 - Ajuste posterior: o template `password_reset` passa a preencher e preservar a URL do CTA como `{{resetPasswordUrl}}` quando o documento salvo estiver antigo ou vazio; o Master local, o `server.rb` e as Functions usam o padrão do template para evitar botão de redefinição sem destino.
+- Ajuste posterior: alinhada a renderização real dos e-mails transacionais com a prévia do Master. O HTML enviado pelas Functions e o teste local do `server.rb` deixaram de usar o layout antigo com logo grande, texto `SaaS BocaFood`, título no cabeçalho e card interno pesado, passando a seguir o visual atual da prévia com logo menor, degradê, tipografia do sistema, CTA premium e corpo mais limpo.
 
 ## 2026-05-17 — Página de redefinição de senha
 - Arquivos alterados: `public/redefinir-senha.html`, `functions/index.js`, `firebase.json`, `AI_CHANGELOG.md`.
