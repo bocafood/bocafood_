@@ -1,0 +1,6 @@
+.firebase/
+**/.env
+**/.env.*
+**/*.env
+**/*serviceAccount*.json
+functions_backup_hotmart/

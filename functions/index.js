@@ -1056,10 +1056,25 @@ exports.requestPasswordResetEmail = onCall({ region: REGION }, async (request) =
   const settingsSnap = await db.collection("system_email_settings").doc("default").get();
   const settings = settingsSnap.exists ? (settingsSnap.data() || {}) : {};
   const appBaseUrl = String(settings.appBaseUrl || "https://bocafood.app").replace(/\/$/, "");
-  const resetPasswordUrl = await admin.auth().generatePasswordResetLink(email, {
-    url: `${appBaseUrl}/login`,
-    handleCodeInApp: false
-  });
+  let resetPasswordUrl = "";
+  try {
+    resetPasswordUrl = await admin.auth().generatePasswordResetLink(email, {
+      url: `${appBaseUrl}/login`,
+      handleCodeInApp: false
+    });
+  } catch (error) {
+    resetPasswordUrl = await admin.auth().generatePasswordResetLink(email);
+    await db.collection("email_logs").doc(emailLogId({ eventId: `${eventId}_continue_url_fallback`, templateKey: "password_reset", to: email })).set({
+      to: email,
+      templateKey: "password_reset",
+      status: "warning",
+      source: "auth",
+      origin: "auth",
+      eventId,
+      error: "password_reset_continue_url_fallback",
+      createdAt: serverTimestamp()
+    }, { merge: true });
+  }
   const tenant = await findTenantByEmail(email);
   const tenantData = tenant ? tenant.data : {};
   const result = await sendEmailFromTemplateViaSmtp({
