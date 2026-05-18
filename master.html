@@ -259,6 +259,14 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
 .page-preview p{margin:0 0 12px}
 .page-preview-empty{color:#8A7E7C;font-size:13px}
 .page-editor-help{font-size:11px;line-height:1.45;color:#8A7E7C;margin-top:5px}
+.page-linked-card{margin-top:14px;border:1px solid #F0D8D4;border-radius:16px;background:#FFFDFC;padding:14px 15px;box-shadow:0 6px 16px rgba(31,31,31,.03)}
+.page-linked-card h4{margin:0 0 4px;font-size:13px;color:var(--dark);font-weight:900}
+.page-linked-card p{margin:0 0 10px;color:var(--muted);font-size:12px;line-height:1.45}
+.page-linked-list{display:grid;gap:8px}
+.page-linked-item{display:flex;align-items:flex-start;gap:8px;border:1px solid #F4E7E4;background:#FFF8F7;border-radius:12px;padding:9px 10px;color:#4B403D;font-size:12px;line-height:1.35}
+.page-linked-item strong{display:block;color:#2B2523;font-size:12px;margin-bottom:1px}
+.page-linked-dot{width:8px;height:8px;border-radius:50%;background:var(--red);margin-top:4px;flex:0 0 auto}
+.page-linked-empty{border:1px dashed #E6D4D0;background:#FFFCFB;border-radius:12px;padding:10px;color:#8A7E7C;font-size:12px;line-height:1.45}
 @media(max-width:980px){.grid.two,.form-grid,.signup-profile-grid,.signup-summary-grid,.signup-summary-metrics,.legal-acceptance-grid{grid-template-columns:1fr}.hero,.toolbar{align-items:flex-start;flex-direction:column}.master-filters{grid-template-columns:1fr 1fr}.users-table,.users-table thead,.users-table tbody,.users-table tr,.users-table th,.users-table td{display:block}.users-table thead{display:none}.users-table{border-spacing:0}.users-table tbody tr{display:grid;gap:10px;margin-bottom:12px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#fff}.users-table tbody td{border:none!important;padding:0;background:transparent}.users-table tbody td::before{content:attr(data-label);display:block;margin-bottom:4px;color:var(--muted);font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.04em}.user-actions{justify-content:flex-start;flex-wrap:wrap}.account-actions-list{position:static;margin-top:6px;box-shadow:none}.signup-chart-row{grid-template-columns:minmax(100px,1fr) minmax(96px,1.4fr) 36px}}
 @media(max-width:640px){main{padding:16px}.master-filters{grid-template-columns:1fr}.users-pagination{align-items:flex-start;flex-direction:column}.users-pagination-actions{width:100%}.users-pagination-actions .btn{flex:1}.user-actions .btn{flex:1}.account-actions-menu{width:100%}.account-actions-menu summary.btn{width:100%;text-align:center}.account-actions-list{width:100%}}
 @media(max-width:980px){.email-form-grid,.email-template-list{grid-template-columns:1fr}}
@@ -519,7 +527,9 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
           <div class="actions" style="margin-top:12px;">
             <button class="btn" onclick="saveSystemPage()">Salvar página</button>
             <button class="btn secondary" onclick="renderSystemPagePreview()">Atualizar prévia</button>
+            <button class="btn danger" id="system-page-delete-btn" onclick="deleteSystemPage()">Excluir página</button>
           </div>
+          <div id="system-page-links-card" class="page-linked-card"></div>
           <div style="margin-top:18px;">
             <div class="master-section-title">Prévia</div>
             <div id="system-page-preview" class="page-preview"><span class="page-preview-empty">A prévia aparece aqui.</span></div>
@@ -1222,7 +1232,10 @@ function newSystemPage(){
   if(title) title.textContent = 'Nova página';
   var badge = document.getElementById('system-page-status-badge');
   if(badge){badge.textContent = 'Rascunho'; badge.className = 'email-status off';}
+  var deleteBtn = document.getElementById('system-page-delete-btn');
+  if(deleteBtn) deleteBtn.disabled = true;
   renderSystemPagePreview();
+  renderSystemPageLinks(null);
 }
 function renderSystemPageEditor(){
   var page = _systemPageByKey(_systemPagesState.selectedKey);
@@ -1245,7 +1258,10 @@ function renderSystemPageEditor(){
   var badge = document.getElementById('system-page-status-badge');
   var published = page.status === 'published';
   if(badge){badge.textContent = published ? 'Pronta para linkar' : (page.status === 'archived' ? 'Arquivada' : 'Rascunho'); badge.className = 'email-status ' + (published ? 'on' : 'off');}
+  var deleteBtn = document.getElementById('system-page-delete-btn');
+  if(deleteBtn) deleteBtn.disabled = false;
   renderSystemPagePreview();
+  renderSystemPageLinks(page);
 }
 function collectSystemPage(){
   var title = val('system-page-title');
@@ -1273,6 +1289,23 @@ function renderSystemPagePreview(){
   html = String(html).replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '').replace(/<iframe\b[^>]*>[\s\S]*?<\/iframe>/gi, '').replace(/\son[a-z]+\s*=\s*(['"]).*?\1/gi, '').replace(/\sjavascript:/gi, '');
   preview.innerHTML = '<h2>'+esc(page.title || 'Página sem título')+'</h2>' + html;
 }
+function renderSystemPageLinks(page){
+  var card = document.getElementById('system-page-links-card');
+  if(!card)return;
+  if(!page){
+    card.innerHTML = '<h4>Onde esta página está linkada</h4><p>Salve ou selecione uma página para verificar os vínculos conhecidos.</p><div class="page-linked-empty">Nenhum vínculo ativo para uma página nova ainda.</div>';
+    return;
+  }
+  var links = page.linkedIn || [];
+  var intro = 'Mostra os vínculos conhecidos que apontam para esta página. Não altera links automaticamente.';
+  if(!links.length){
+    card.innerHTML = '<h4>Onde esta página está linkada</h4><p>'+esc(intro)+'</p><div class="page-linked-empty">Nenhum vínculo ativo encontrado nos fluxos conhecidos do Master. Se esta página precisar aparecer em e-mails, cadastro ou rodapés, vincule a URL no campo correspondente.</div>';
+    return;
+  }
+  card.innerHTML = '<h4>Onde esta página está linkada</h4><p>'+esc(intro)+'</p><div class="page-linked-list">'+links.map(function(link){
+    return '<div class="page-linked-item"><span class="page-linked-dot"></span><div><strong>'+esc(link.title || 'Vínculo encontrado')+'</strong><span>'+esc(link.description || '')+'</span><br><span>'+esc(link.field || '')+'</span></div></div>';
+  }).join('')+'</div>';
+}
 function saveSystemPage(){
   var page = collectSystemPage();
   if(!page.key || !page.title){
@@ -1289,6 +1322,27 @@ function saveSystemPage(){
       var msg = error && error.message ? error.message : 'Não foi possível salvar a página.';
       if(error && error.debug) msg += ' Debug: ' + error.debug;
       toast('Erro ao salvar página: '+msg);
+    });
+}
+function deleteSystemPage(){
+  var page = _systemPageByKey(_systemPagesState.selectedKey);
+  if(!page || !(page.key || page.id)){
+    toast('Selecione uma página cadastrada para excluir.');
+    return;
+  }
+  var links = page.linkedIn || [];
+  var warning = links.length ? '\n\nAtenção: esta página aparece vinculada em '+links.length+' local(is) conhecido(s). A exclusão não remove esses links automaticamente.' : '';
+  if(!confirm('Excluir a página "'+(page.title || page.key || page.id)+'" de system_pages?'+warning))return;
+  _emailCallLocalMaster('/api/master/system-pages', { key: page.key || page.id }, { method:'DELETE' })
+    .then(function(data){
+      toast(data.message || 'Página excluída.');
+      _systemPagesState.selectedKey = '';
+      return loadSystemPages();
+    })
+    .catch(function(error){
+      var msg = error && error.message ? error.message : 'Não foi possível excluir a página.';
+      if(error && error.debug) msg += ' Debug: ' + error.debug;
+      toast('Erro ao excluir página: '+msg);
     });
 }
 var _globalFinanceState = {

@@ -6204,3 +6204,15 @@
 - Ajuste posterior: atualizada a nota de comunicações essenciais para deixar claro que elas continuam sendo enviadas mesmo se a usuária desativar as preferências comerciais.
 - Ajuste posterior: atualizadas as labels dos checkboxes para deixar explícito `Quero receber...` em novidades/campanhas, dicas práticas e ofertas/upgrade.
 - Ajuste posterior: alinhados os checkboxes dos blocos de aceite legal e preferências de comunicação usando grid de duas colunas, mantendo texto e caixa no mesmo eixo visual.
+
+## 2026-05-18 — Permissão de acesso para role admin
+- Arquivos alterados: `public/js/core/auth.js`, `AI_CHANGELOG.md`.
+- Corrigida a validação de papéis do Centro de Controle para aceitar `role: admin` como papel válido de tenant BocaFood.
+- A mudança resolve contas criadas pelo cadastro/onboarding Hotmart que já possuem `accountStatus/status = active`, mas eram bloqueadas no frontend com a mensagem de falta de permissão.
+- O ajuste não concede permissão Master; `admin` continua sendo acesso comum ao Centro de Controle e ainda depende de tenant ativo.
+
+## 2026-05-18 — Exclusão e vínculos em Páginas do sistema
+- Arquivos alterados: `master.html`, `server.rb`, `AI_CHANGELOG.md`.
+- A aba Master → Páginas do sistema ganhou botão `Excluir página`, usando `DELETE /api/master/system-pages` para remover o documento correspondente de `system_pages`.
+- O editor passou a exibir o card `Onde esta página está linkada`, indicando vínculos conhecidos com as configurações globais de e-mail (`termsUrl`/`privacyUrl`) e links de aceite do cadastro quando a URL coincide.
+- A exclusão mostra alerta quando a página possui vínculos conhecidos, deixando claro que apagar a página não remove automaticamente URLs já configuradas em outros fluxos.

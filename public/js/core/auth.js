@@ -9,7 +9,7 @@ window.Auth = (function () {
   const MASTER_EMAIL = 'bocadobrasil.es@gmail.com';
 
   function isAllowedAdminRole(role) {
-    return ['master_admin', 'store_owner', 'store_staff'].indexOf((role || '').toString()) >= 0;
+    return ['master_admin', 'store_owner', 'store_staff', 'admin'].indexOf((role || '').toString()) >= 0;
   }
 
   function normalizeRole(role) {
@@ -17,6 +17,7 @@ window.Auth = (function () {
     if (!r || r === 'tenant_owner' || r === 'owner') return 'store_owner';
     if (r === 'manager') return 'store_staff';
     if (r === 'master') return 'master_admin';
+    if (r === 'admin') return 'admin';
     return r;
   }
 

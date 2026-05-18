@@ -693,12 +693,65 @@ def save_email_trigger_payload!(body)
   payload
 end
 
+def normalize_system_page_url(value)
+  value.to_s.strip.sub(%r{/\z}, '').downcase
+end
+
+def system_page_possible_urls(page)
+  slug = page['slug'].to_s.strip
+  key = page['key'].to_s.strip
+  values = []
+  values << slug unless slug.empty?
+  values << "/#{key}" unless key.empty?
+  values += values.map { |path| path.start_with?('http') ? path : "https://bocafood.app#{path.start_with?('/') ? path : "/#{path}"}" }
+  values.map { |value| normalize_system_page_url(value) }.reject(&:empty?).uniq
+end
+
+def system_page_link_usages(page, email_settings)
+  urls = system_page_possible_urls(page)
+  usages = []
+  terms_url = normalize_system_page_url(email_settings['termsUrl'])
+  privacy_url = normalize_system_page_url(email_settings['privacyUrl'])
+  if !terms_url.empty? && urls.include?(terms_url)
+    usages << {
+      'title' => 'Rodapé dos e-mails transacionais',
+      'description' => 'Usada no campo Termos de uso das configurações globais de e-mail.',
+      'field' => 'system_email_settings/default.termsUrl'
+    }
+  end
+  if !privacy_url.empty? && urls.include?(privacy_url)
+    usages << {
+      'title' => 'Rodapé dos e-mails transacionais',
+      'description' => 'Usada no campo Política de privacidade das configurações globais de e-mail.',
+      'field' => 'system_email_settings/default.privacyUrl'
+    }
+  end
+  if urls.include?('https://bocafood.app/termosdeuso') || urls.include?('https://bocafood.app/termos')
+    usages << {
+      'title' => 'Cadastro / primeiro acesso',
+      'description' => 'Pode aparecer como link de Termos de Uso no aceite do onboarding, conforme URL configurada no cadastro publicado.',
+      'field' => 'public/cadastro.html'
+    }
+  end
+  if urls.include?('https://bocafood.app/privacidade')
+    usages << {
+      'title' => 'Cadastro / primeiro acesso',
+      'description' => 'Pode aparecer como link de Política de Privacidade no aceite do onboarding, conforme URL configurada no cadastro publicado.',
+      'field' => 'public/cadastro.html'
+    }
+  end
+  usages.uniq { |usage| [usage['title'], usage['field'], usage['description']] }
+end
+
 def load_system_pages_payload
   docs = firestore_list_documents('system_pages')
+  settings_doc = firestore_get_document('system_email_settings', 'default')
+  email_settings = settings_doc ? default_email_settings.merge(firestore_fields_to_hash(settings_doc['fields'] || {})) : default_email_settings
   pages = docs.map do |doc|
     fields = firestore_fields_to_hash(doc['fields'] || {})
     fields['id'] = File.basename(doc['name'].to_s)
     fields['key'] ||= fields['id']
+    fields['linkedIn'] = system_page_link_usages(fields, email_settings)
     fields
   end
   pages.sort_by { |page| [page['order'].to_i, page['title'].to_s.downcase] }
@@ -751,6 +804,14 @@ def save_system_page_payload!(body)
   }
   firestore_upsert_document('system_pages', key, payload)
   payload
+end
+
+def delete_system_page_payload!(body)
+  key = system_page_key(body['key'])
+  raise WEBrick::HTTPStatus::BadRequest, 'Chave da página obrigatória.' if key.empty?
+
+  firestore_delete_document('system_pages', key)
+  { 'key' => key }
 end
 
 def crm_tag_defaults
@@ -4337,8 +4398,15 @@ system_pages_handler = proc do |req, res|
         message: 'Página salva.',
         page: page
       })
+    when 'DELETE'
+      deleted = delete_system_page_payload!(read_json(req))
+      json_response_cors(req, res, 200, {
+        ok: true,
+        message: 'Página excluída.',
+        page: deleted
+      })
     else
-      json_response_cors(req, res, 405, email_read_error('Endpoint existe, mas exige método GET ou POST.'))
+      json_response_cors(req, res, 405, email_read_error('Endpoint existe, mas exige método GET, POST ou DELETE.'))
     end
   rescue WEBrick::HTTPStatus::BadRequest => e
     json_response_cors(req, res, 400, email_read_error(e.message))
