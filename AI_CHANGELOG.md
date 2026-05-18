@@ -1,5 +1,32 @@
 # AI Changelog
 
+## 2026-05-18 — Clareza na etapa Você do cadastro
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: a etapa `Você` foi ajustada para `Dados do responsável pela conta`, com copy mais clara sobre identificação, suporte, segurança e comunicações importantes.
+- Layout: adicionada separação sutil entre dados do responsável e preferência da conta, além de aviso discreto informando que os dados podem ser alterados depois em Configurações.
+- Escopo: alteração apenas visual/copy; campos, validação, Firebase, Firestore, Hotmart, rotas e salvamento permanecem iguais.
+
+## 2026-05-18 — Favicon BocaFood sincronizado novamente
+- Arquivos alterados: `public/assets/boca-food-favicon.png`, `assets/boca-food-favicon.png`, `AI_CHANGELOG.md`.
+- Identidade: o novo `public/favicon BocaFood.png` foi sincronizado novamente para os assets padrão do sistema.
+- Escopo: alteração visual de asset; não altera favicon dinâmico das lojas públicas nem lógica do sistema.
+
+## 2026-05-18 — Remoção do texto Primeiro acesso
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: removido o texto visual `Primeiro acesso` do topo da tela para deixar o início mais limpo.
+- Escopo: ajuste apenas visual; fluxo, autenticação, Firebase e Hotmart não foram alterados.
+
+## 2026-05-18 — Clareza no primeiro acesso
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: a etapa inicial passou a explicar melhor que o acesso deve usar o mesmo e-mail da compra, com aviso discreto antes das opções de Google ou senha.
+- Copy: atualizados título, subtítulo, separador, label e placeholder do e-mail; removida a frase duplicada abaixo dos campos.
+- UX: o botão `Continuar` fica desativado na etapa inicial enquanto e-mail, senha e confirmação não estiverem válidos, sem alterar o fluxo de autenticação.
+
+## 2026-05-18 — Favicon BocaFood atualizado
+- Arquivos alterados: `public/assets/boca-food-favicon.png`, `assets/boca-food-favicon.png`, `AI_CHANGELOG.md`.
+- Identidade: o novo arquivo `public/favicon BocaFood.png` foi sincronizado para os assets padrão usados por Admin, cadastro, login, Master publicado, páginas do sistema e páginas internas BocaFood.
+- Escopo: não altera favicon dinâmico dos templates públicos das lojas, que continuam usando a configuração da usuária quando existir.
+
 ## 2026-05-18 — Logo maior no cadastro
 - Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
 - Cadastro: a logo BocaFood no topo da tela foi aumentada no desktop e no mobile para ganhar mais presença visual.
@@ -6293,3 +6320,57 @@
 - A página auxiliar `public/financeiro.html` passou a usar logo, favicon e apple-touch-icon BocaFood antes do redirecionamento ao Admin.
 - O Master restrito publicado passou a declarar também `apple-touch-icon`, além do favicon.
 - Não foram alterados `public/index.html`, review ou tracking da loja pública para preservar o fluxo em que logo/favicon vêm da usuária/tenant.
+
+## 2026-05-18 — Clareza na etapa Negócio do cadastro
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- A etapa 3 do cadastro passou de `Dados da loja` para `Sobre sua loja`, com subtítulo mais claro sobre a configuração inicial da loja.
+- A seção `Identificação da loja` foi renomeada para `Informações básicas`, e o campo de cidade passou a exibir `Cidade onde você atende`.
+- As opções de produtos e formas de venda ganharam labels mais naturais na interface, preservando os valores internos já salvos no onboarding.
+- As seções internas da etapa receberam borda neutra e destaque vermelho apenas para seleção, progresso e ação principal, reduzindo a sensação de formulário pesado.
+
+## 2026-05-18 — Favicon BocaFood atualizado novamente
+- Arquivos alterados: `public/assets/boca-food-favicon.png`, `assets/boca-food-favicon.png`, `AI_CHANGELOG.md`.
+- Identidade: o novo arquivo `public/favicon BocaFood.png` foi sincronizado para os assets versionados usados pelas telas internas e páginas publicadas do BocaFood.
+- Escopo: alteração apenas de asset visual; não altera lógica, rotas, autenticação, Hotmart, e-mails ou favicon dinâmico das lojas públicas.
+
+## 2026-05-18 — Clareza na etapa Vendas do cadastro
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- A etapa 4 manteve o título `Como sua loja vende hoje`, mas recebeu subtítulo mais claro sobre operação e configuração inicial.
+- Os textos de apoio de ritmo de vendas, canais de pedido e cardápio foram refinados para leitura mais natural.
+- Canais de pedido e situação do cardápio passaram a usar labels visuais mais leves, preservando os valores internos já salvos no onboarding.
+- A etapa passou a usar o mesmo tratamento visual neutro da etapa 3, com bordas claras e destaque vermelho apenas para seleção, progresso e ação principal.
+
+## 2026-05-18 — Mapa de vendas na etapa Vendas do cadastro
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- A etapa 4 do cadastro foi redesenhada visualmente como `mapa de vendas`, mantendo o mesmo fluxo, campos, valores internos e comportamento de seleção.
+- O ritmo de vendas passou a ser exibido como uma régua de evolução, com labels visuais mais curtas e valores salvos preservados.
+- Canais de pedido e cardápio ganharam opções mais compactas e neutras, reduzindo a sensação de questionário repetitivo.
+- Adicionado o resumo dinâmico `Seu mapa de vendas até aqui`, mostrando ritmo, canais e cardápio conforme as escolhas da usuária.
+
+## 2026-05-18 — Refinamento premium do mapa de vendas
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- A régua de ritmo da etapa 4 removeu os círculos numerados e passou a usar pontos discretos com linha horizontal leve.
+- Os canais de pedido removeram siglas improvisadas e ficaram mais compactos, mantendo seleção múltipla e valores internos preservados.
+- Cardápio e controle de pedidos foram compactados com bordas neutras e destaque vermelho apenas quando selecionados.
+- O resumo `Seu mapa de vendas` passou a exibir ritmo, canais, cardápio e pedidos em chips leves, com frase neutra quando ainda não há respostas.
+
+## 2026-05-18 — Raio-X da operação na etapa Estrutura
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- A etapa 5 do cadastro foi redesenhada visualmente como `Raio-X da operação`, mantendo fluxo, campos, valores internos e salvamento inalterados.
+- Local de produção e custos passaram a usar chips compactos com labels mais naturais, preservando os valores salvos no onboarding.
+- Capacidade diária e equipe passaram a usar réguas discretas de progressão, sem numeração grande nem aparência gamificada.
+- Adicionado resumo dinâmico `Raio-X da sua operação`, com produção, capacidade, equipe e custos conforme as escolhas da usuária.
+- Ajustado foco visível dos botões para seguir o padrão BocaFood sem perder acessibilidade.
+
+## 2026-05-18 — Radar do momento na etapa Momento
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- A etapa 6 passou a usar o mesmo padrão visual dinâmico das etapas 4 e 5, sem alterar fluxo, campos, valores internos ou salvamento.
+- Desafio e objetivo principal foram organizados em chips compactos; fase do negócio e tempo disponível passaram a usar réguas discretas.
+- Adicionado resumo dinâmico `Radar do seu momento`, exibindo desafio, objetivo, fase e tempo conforme as escolhas da usuária.
+- A mudança reduz a sensação de questionário repetitivo e mantém o visual premium do cadastro.
+
+## 2026-05-18 — Mapa inicial da loja na etapa Negócio
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- A etapa 3 passou a usar o mesmo padrão visual dinâmico das etapas seguintes, sem alterar fluxo, campos, valores internos ou salvamento.
+- Nome da loja e cidade seguem como campos principais; produtos e forma de venda foram organizados em opções compactas com bordas neutras.
+- Adicionado o resumo dinâmico `Mapa inicial da loja`, exibindo loja, cidade, produtos e forma de venda conforme as escolhas da usuária.
