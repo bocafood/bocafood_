@@ -99,6 +99,7 @@ O Boca Food é um sistema de gestão e operação de loja com painel admin, cat�
 - `test_email` é manual; templates Hotmart e assinatura podem ser disparados por webhook/Functions; templates por etiqueta são disparados por `dailyEmailTriggerCheck` e `system_email_triggers`.
 - `sendTestEmail`, recuperação de senha e envios automáticos devem usar o mesmo helper SMTP real das Functions para evitar divergência entre teste e envio final.
 - Para SMTP Brevo nas portas 587 e 2525, usar STARTTLS (`secure=false`, `requireTLS=true`); porta 465 usa TLS implícito (`secure=true`). Fazer `trim` em host, usuário, senha e remetente.
+- O e-mail de acesso bloqueado deve usar template próprio `access_blocked` quando cancelamento, reembolso ou chargeback Hotmart bloquearem a conta. Pagamento pendente/atraso deve continuar usando `payment_pending` enquanto não houver regra explícita de bloqueio por inadimplência.
 
 ### Login, acesso e recuperação de senha
 - A tela de login do Centro de Controle deve ser focada em acesso ao Admin, com visual alinhado ao cadastro e ao padrão BocaFood.

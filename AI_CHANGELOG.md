@@ -6161,3 +6161,7 @@
 - Quando o status Hotmart voltar para `active`, o webhook passa a liberar a conta vinculada com `accountStatus/status = active`, além de atualizar `billing`.
 - A mudança não apaga tenant, loja ou dados da conta; apenas reflete o estado de acesso em `system_tenants/{uid}` e mantém os logs existentes em `system_access_logs`.
 - A documentação do projeto foi atualizada para registrar que cancelamento, reembolso e chargeback bloqueiam acesso automaticamente, enquanto evento ativo pode liberar novamente.
+- Ajuste posterior: criado o template transacional `access_blocked` para avisar quando o acesso for bloqueado por cancelamento, reembolso ou chargeback Hotmart.
+- O webhook Hotmart passa a enviar `access_blocked` para status `canceled`, `refunded` e `chargeback`; `payment_pending` continua reservado para pagamento pendente/atrasado sem bloqueio automático.
+- O gatilho padrão `subscription_canceled_email` foi redirecionado para o template `access_blocked` quando ainda estiver com a configuração padrão do sistema, evitando manter o aviso antigo de assinatura cancelada como e-mail principal de bloqueio.
+- Atualizados defaults do Master local, Functions e backend local para exibir/editar/enviar o novo template com variáveis `blockedReason`, `canceledAt`, `billingStatus`, `hotmartTransaction` e `hotmartOfferCode`.

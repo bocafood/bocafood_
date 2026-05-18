@@ -41,6 +41,8 @@ const TENANT_TAG_KEYS = [
   "inactive_user"
 ];
 
+const HOTMART_BLOCKED_STATUSES = ["canceled", "refunded", "chargeback"];
+
 const CRM_TAG_DEFAULTS = {
   trial_sem_cardapio: {
     name: "Trial sem cardápio",
@@ -232,9 +234,9 @@ const EMAIL_TRIGGER_DEFAULTS = {
   subscription_canceled_email: {
     triggerKey: "subscription_canceled_email",
     tagKey: "subscription_canceled",
-    templateKey: "subscription_canceled",
-    name: "Assinatura cancelada",
-    description: "Envia aviso quando assinatura, reembolso ou chargeback cancelar o acesso.",
+    templateKey: "access_blocked",
+    name: "Acesso bloqueado",
+    description: "Envia aviso quando cancelamento, reembolso ou chargeback bloqueia o acesso.",
     enabled: true,
     delayHours: 0,
     dedupeWindowDays: 30,
@@ -325,6 +327,18 @@ const EMAIL_TEMPLATE_DEFAULTS = {
     ctaUrl: "{{appBaseUrl}}",
     enabled: true,
     availableVariables: ["buyerName", "buyerEmail", "supportEmail", "planName", "productName", "appBaseUrl", "brandName"]
+  },
+  access_blocked: {
+    key: "access_blocked",
+    name: "Acesso bloqueado",
+    description: "Avisa que o acesso foi bloqueado por cancelamento, reembolso ou chargeback.",
+    subject: "Seu acesso ao {{brandName}} foi bloqueado",
+    preheader: "Identificamos uma alteração na sua assinatura Hotmart.",
+    body: "<p>Ola {{buyerName}},</p><p>Identificamos uma alteração na sua assinatura do {{productName}} e o acesso ao Centro de Controle foi bloqueado.</p><p>Motivo: {{blockedReason}}.</p><p>Se acredita que houve um erro ou precisa regularizar o acesso, fale com o suporte BocaFood.</p>",
+    ctaLabel: "Falar com suporte",
+    ctaUrl: "mailto:{{supportEmail}}",
+    enabled: true,
+    availableVariables: ["buyerName", "buyerEmail", "supportEmail", "planName", "productName", "appBaseUrl", "brandName", "billingStatus", "blockedReason", "canceledAt", "hotmartTransaction", "hotmartOfferCode"]
   },
   trial_ending: {
     key: "trial_ending",
@@ -748,7 +762,15 @@ function hotmartLogAction(status) {
 }
 
 function hotmartBlocksAccess(status) {
-  return ["canceled", "refunded", "chargeback"].includes(String(status || ""));
+  return HOTMART_BLOCKED_STATUSES.includes(String(status || ""));
+}
+
+function hotmartBlockedReason(status) {
+  return {
+    canceled: "assinatura cancelada",
+    refunded: "compra reembolsada",
+    chargeback: "chargeback registrado"
+  }[String(status || "")] || "assinatura alterada";
 }
 
 function planDisplayName(planSlug) {
@@ -1042,6 +1064,21 @@ async function ensureEmailTriggerDefaults() {
         createdAt: now,
         updatedAt: now
       }, { merge: true });
+    } else {
+      const current = snap.data() || {};
+      if (
+        key === "subscription_canceled_email" &&
+        current.source === "system" &&
+        current.tagKey === "subscription_canceled" &&
+        current.templateKey === "subscription_canceled"
+      ) {
+        batch.set(ref, {
+          templateKey: "access_blocked",
+          name: "Acesso bloqueado",
+          description: "Envia aviso quando cancelamento, reembolso ou chargeback bloqueia o acesso.",
+          updatedAt: now
+        }, { merge: true });
+      }
     }
   }
   await batch.commit();
@@ -2081,11 +2118,11 @@ exports.firestoreBackupAdmin = onRequest({ region: REGION, serviceAccount: FIREB
 function hotmartEmailTemplateForStatus({ status, linkedCount }) {
   if (status === "active") return linkedCount ? "subscription_active" : "welcome_hotmart";
   if (status === "pending_payment" || status === "past_due") return "payment_pending";
-  if (["canceled", "refunded", "chargeback"].includes(status)) return "subscription_canceled";
+  if (hotmartBlocksAccess(status)) return "access_blocked";
   return "";
 }
 
-function hotmartEmailVariables({ buyer, settings, status }) {
+function hotmartEmailVariables({ buyer, settings, status, eventAt = "" }) {
   const appBaseUrl = settings.appBaseUrl || "https://bocafood.app";
   return {
     ...buyer,
@@ -2098,6 +2135,8 @@ function hotmartEmailVariables({ buyer, settings, status }) {
     brandLogoUrl: settings.brandLogoUrl || "https://bocafood.app/assets/boca-food-logo.png",
     billingStatus: status || "",
     billingCycle: buyer.billingCycle || "",
+    blockedReason: hotmartBlockedReason(status),
+    canceledAt: hotmartBlocksAccess(status) ? eventAt : "",
     trialEndsAt: buyer.trialEndsAt || "",
     hotmartTransaction: buyer.hotmartTransaction || "",
     hotmartOfferCode: buyer.hotmartOfferCode || ""
@@ -2483,7 +2522,7 @@ exports.hotmartWebhook = onRequest(
             const settingsSnap = await db.collection("system_email_settings").doc("default").get();
             const settings = settingsSnap.exists ? settingsSnap.data() : {};
             const tenantUid = (linkedResult.tenantUids || [])[0] || "";
-            const variables = hotmartEmailVariables({ buyer, settings, status });
+            const variables = hotmartEmailVariables({ buyer, settings, status, eventAt });
             const smtpResult = await sendEmailFromTemplateViaSmtp({
               to: buyer.buyerEmail,
               templateKey,

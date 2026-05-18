@@ -3009,6 +3009,8 @@ var EMAIL_VARIABLE_DESCRIPTIONS = {
   storeName: 'Nome do negócio ou loja pública.',
   billingStatus: 'Status atual da cobrança ou assinatura.',
   billingCycle: 'Ciclo de cobrança, como mensal ou anual.',
+  blockedReason: 'Motivo legível do bloqueio de acesso.',
+  canceledAt: 'Data do cancelamento, reembolso ou chargeback.',
   hotmartTransaction: 'Código da transação Hotmart.',
   hotmartOfferCode: 'Código da oferta Hotmart.'
 };
@@ -3040,6 +3042,7 @@ var _emailDefaults = {
     {key:'verify_email',name:'Confirmação de e-mail',description:'Confirma o endereço de e-mail da conta BocaFood.',subject:'Confirme seu e-mail no {{brandName}}',preheader:'Falta apenas confirmar seu e-mail para continuar.',body:'<p>Ola {{buyerName}},</p><p>Confirme seu endereco de e-mail para proteger sua conta e receber avisos importantes.</p>',ctaLabel:'Confirmar e-mail',ctaUrl:'{{appBaseUrl}}',enabled:true,availableVariables:['buyerName','buyerEmail','supportEmail','appBaseUrl','brandName']},
     {key:'subscription_active',name:'Assinatura ativada',description:'Confirma que a assinatura está ativa.',subject:'Sua assinatura esta ativa',preheader:'Voce ja pode usar o {{productName}} com o plano {{planName}}.',body:'<p>Ola {{buyerName}},</p><p>Sua assinatura do {{productName}} esta ativa. Voce ja pode entrar no painel e continuar configurando sua loja.</p>',ctaLabel:'Abrir BocaFood',ctaUrl:'{{appBaseUrl}}',enabled:true,availableVariables:['buyerName','buyerEmail','supportEmail','planName','productName','appBaseUrl','brandName']},
     {key:'payment_pending',name:'Pagamento pendente',description:'Avisa que o pagamento ainda está pendente.',subject:'Seu pagamento esta pendente',preheader:'Avisaremos quando o pagamento for confirmado.',body:'<p>Ola {{buyerName}},</p><p>Seu pagamento do {{productName}} ainda esta pendente. Quando ele for confirmado, enviaremos as instrucoes de acesso.</p>',ctaLabel:'Ver status',ctaUrl:'{{appBaseUrl}}',enabled:true,availableVariables:['buyerName','buyerEmail','supportEmail','planName','productName','appBaseUrl','brandName']},
+    {key:'access_blocked',name:'Acesso bloqueado',description:'Avisa que o acesso foi bloqueado por cancelamento, reembolso ou chargeback.',subject:'Seu acesso ao {{brandName}} foi bloqueado',preheader:'Identificamos uma alteração na sua assinatura Hotmart.',body:'<p>Ola {{buyerName}},</p><p>Identificamos uma alteração na sua assinatura do {{productName}} e o acesso ao Centro de Controle foi bloqueado.</p><p>Motivo: {{blockedReason}}.</p><p>Se acredita que houve um erro ou precisa regularizar o acesso, fale com o suporte BocaFood.</p>',ctaLabel:'Falar com suporte',ctaUrl:'mailto:{{supportEmail}}',enabled:true,availableVariables:['buyerName','buyerEmail','supportEmail','planName','productName','appBaseUrl','brandName','billingStatus','blockedReason','canceledAt','hotmartTransaction','hotmartOfferCode']},
     {key:'trial_ending',name:'Trial acabando',description:'Aviso enviado quando o periodo de teste esta perto do fim.',subject:'Seu teste do {{brandName}} acaba em breve',preheader:'Faltam poucos dias para terminar seu periodo de teste.',body:'<p>Ola {{buyerName}},</p><p>Seu periodo de teste do {{brandName}} esta acabando em breve.</p>',ctaLabel:'Abrir BocaFood',ctaUrl:'{{appBaseUrl}}',enabled:true,availableVariables:['buyerName','buyerEmail','supportEmail','appBaseUrl','brandName','trialEndsAt','planName']},
     {key:'trial_ends_today',name:'Trial acaba hoje',description:'Aviso enviado no dia final do periodo de teste.',subject:'Seu teste do {{brandName}} acaba hoje',preheader:'Hoje e o ultimo dia do seu periodo de teste.',body:'<p>Ola {{buyerName}},</p><p>Seu teste do {{brandName}} acaba hoje.</p>',ctaLabel:'Abrir BocaFood',ctaUrl:'{{appBaseUrl}}',enabled:true,availableVariables:['buyerName','buyerEmail','supportEmail','appBaseUrl','brandName','trialEndsAt','planName']},
     {key:'trial_expired',name:'Trial expirado',description:'Aviso enviado quando o periodo de teste terminou.',subject:'Seu teste do {{brandName}} terminou',preheader:'Seu periodo de teste chegou ao fim.',body:'<p>Ola {{buyerName}},</p><p>Seu periodo de teste terminou. Para continuar usando o BocaFood, fale com o suporte.</p>',ctaLabel:'Falar com suporte',ctaUrl:'mailto:{{supportEmail}}',enabled:true,availableVariables:['buyerName','buyerEmail','supportEmail','appBaseUrl','brandName','trialEndsAt','planName']},
@@ -3057,7 +3060,12 @@ var _emailDefaults = {
     resetPasswordUrl: 'https://app.bocafood.com/redefinir-senha',
     appBaseUrl: 'https://app.bocafood.com',
     brandName: 'BocaFood',
-    brandLogoUrl: 'https://bocafood.app/assets/boca-food-logo.png'
+    brandLogoUrl: 'https://bocafood.app/assets/boca-food-logo.png',
+    billingStatus: 'chargeback',
+    blockedReason: 'chargeback registrado',
+    canceledAt: '2026-05-18 09:00',
+    hotmartTransaction: 'HP123456',
+    hotmartOfferCode: 'u7wyvsyn'
   },
   triggers: [
     {triggerKey:'welcome_hotmart_email',tagKey:'hotmart_pending_access',templateKey:'welcome_hotmart',name:'Boas-vindas Hotmart',description:'Envia boas-vindas quando existir pendência de acesso Hotmart marcada por etiqueta.',enabled:false,delayHours:0,dedupeWindowDays:30,source:'system'},
@@ -3066,7 +3074,7 @@ var _emailDefaults = {
     {triggerKey:'trial_expired_email',tagKey:'trial_expired',templateKey:'trial_expired',name:'Trial expirado',description:'Envia aviso quando o trial terminou sem assinatura ativa.',enabled:true,delayHours:0,dedupeWindowDays:30,source:'system'},
     {triggerKey:'payment_pending_email',tagKey:'payment_pending',templateKey:'payment_pending',name:'Pagamento pendente',description:'Envia aviso quando a cobrança estiver pendente.',enabled:true,delayHours:0,dedupeWindowDays:7,source:'system'},
     {triggerKey:'subscription_active_email',tagKey:'subscription_active',templateKey:'subscription_active',name:'Assinatura ativa',description:'Gatilho preparado para contas marcadas com assinatura ativa.',enabled:false,delayHours:0,dedupeWindowDays:30,source:'system'},
-    {triggerKey:'subscription_canceled_email',tagKey:'subscription_canceled',templateKey:'subscription_canceled',name:'Assinatura cancelada',description:'Envia aviso quando assinatura, reembolso ou chargeback cancelar o acesso.',enabled:true,delayHours:0,dedupeWindowDays:30,source:'system'},
+    {triggerKey:'subscription_canceled_email',tagKey:'subscription_canceled',templateKey:'access_blocked',name:'Acesso bloqueado',description:'Envia aviso quando cancelamento, reembolso ou chargeback bloqueia o acesso.',enabled:true,delayHours:0,dedupeWindowDays:30,source:'system'},
     {triggerKey:'store_not_published_email',tagKey:'store_not_published',templateKey:'store_not_published',name:'Loja não publicada',description:'Envia lembrete quando a loja ainda não foi publicada.',enabled:false,delayHours:24,dedupeWindowDays:7,source:'system'}
   ],
   crmTags: [

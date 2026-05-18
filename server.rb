@@ -460,6 +460,18 @@ def default_email_templates
       'availableVariables' => ['buyerName', 'buyerEmail', 'supportEmail', 'planName', 'productName', 'appBaseUrl', 'brandName']
     },
     {
+      'key' => 'access_blocked',
+      'name' => 'Acesso bloqueado',
+      'description' => 'Avisa que o acesso foi bloqueado por cancelamento, reembolso ou chargeback.',
+      'subject' => 'Seu acesso ao {{brandName}} foi bloqueado',
+      'preheader' => 'Identificamos uma alteração na sua assinatura Hotmart.',
+      'body' => '<p>Ola {{buyerName}},</p><p>Identificamos uma alteração na sua assinatura do {{productName}} e o acesso ao Centro de Controle foi bloqueado.</p><p>Motivo: {{blockedReason}}.</p><p>Se acredita que houve um erro ou precisa regularizar o acesso, fale com o suporte BocaFood.</p>',
+      'ctaLabel' => 'Falar com suporte',
+      'ctaUrl' => 'mailto:{{supportEmail}}',
+      'enabled' => true,
+      'availableVariables' => ['buyerName', 'buyerEmail', 'supportEmail', 'planName', 'productName', 'appBaseUrl', 'brandName', 'billingStatus', 'blockedReason', 'canceledAt', 'hotmartTransaction', 'hotmartOfferCode']
+    },
+    {
       'key' => 'trial_ending',
       'name' => 'Trial acabando',
       'description' => 'Aviso enviado quando o periodo de teste esta perto do fim.',
@@ -603,9 +615,9 @@ def default_email_triggers
     {
       'triggerKey' => 'subscription_canceled_email',
       'tagKey' => 'subscription_canceled',
-      'templateKey' => 'subscription_canceled',
-      'name' => 'Assinatura cancelada',
-      'description' => 'Envia aviso quando assinatura, reembolso ou chargeback cancelar o acesso.',
+      'templateKey' => 'access_blocked',
+      'name' => 'Acesso bloqueado',
+      'description' => 'Envia aviso quando cancelamento, reembolso ou chargeback bloqueia o acesso.',
       'enabled' => true,
       'delayHours' => 0,
       'dedupeWindowDays' => 30,
@@ -629,7 +641,21 @@ def ensure_email_trigger_defaults!
   default_email_triggers.each do |trigger|
     key = trigger['triggerKey']
     existing = firestore_get_document('system_email_triggers', key)
-    firestore_upsert_document('system_email_triggers', key, trigger) unless existing
+    if existing
+      if key == 'subscription_canceled_email' &&
+         existing['source'].to_s == 'system' &&
+         existing['tagKey'].to_s == 'subscription_canceled' &&
+         existing['templateKey'].to_s == 'subscription_canceled'
+        firestore_upsert_document('system_email_triggers', key, {
+          'templateKey' => 'access_blocked',
+          'name' => 'Acesso bloqueado',
+          'description' => 'Envia aviso quando cancelamento, reembolso ou chargeback bloqueia o acesso.',
+          'updatedAt' => Time.now.utc.iso8601
+        })
+      end
+    else
+      firestore_upsert_document('system_email_triggers', key, trigger)
+    end
   end
 end
 
