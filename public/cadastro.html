@@ -153,7 +153,7 @@
 </head>
 <body>
   <header class="topbar">
-    <img class="brand-logo" src="assets/boca-food-logo.png" alt="BocaFood">
+    <img class="brand-logo" src="/logo%20BocaFood.png" alt="BocaFood">
   </header>
   <main class="page">
     <section class="page-title">
@@ -238,6 +238,7 @@
         weeklyTimeAvailable: isPreview ? '2 a 5 horas' : ''
       }
     };
+    var SIGNUP_GOOGLE_PENDING_KEY = 'bocafood.signup.googlePending';
     var steps = [
       ['Crie seu acesso ao BocaFood','Use o mesmo e-mail usado na compra para liberar seu acesso. Continue com Google ou crie uma senha usando esse mesmo e-mail.'],
       ['Dados do usuário responsável','Esses dados serão usados no perfil do usuário que vai administrar o Centro de Controle.'],
@@ -412,9 +413,11 @@
       if(isPreview) return;
       if(state.loading) return;
       setLoading(true);
+      setMsg('Abrindo Google para continuar o cadastro...','info');
       var provider=new firebase.auth.GoogleAuthProvider();
       provider.setCustomParameters({prompt:'select_account'});
       return firebase.auth().signInWithPopup(provider).then(function(result){
+        try{localStorage.removeItem(SIGNUP_GOOGLE_PENDING_KEY);}catch(e){}
         var user=result.user;
         state.authCreated=true;
         state.data.email=user&&user.email?user.email:'';
@@ -426,10 +429,41 @@
         });
       }).catch(function(err){
         var code=err&&err.code?err.code:'';
+        if(code==='auth/popup-blocked'||code==='auth/cancelled-popup-request'||code==='auth/operation-not-supported-in-this-environment'){
+          try{localStorage.setItem(SIGNUP_GOOGLE_PENDING_KEY,'1');}catch(e){}
+          return firebase.auth().signInWithRedirect(provider);
+        }
         if(code==='auth/popup-closed-by-user') setMsg('Login com Google cancelado. Você também pode criar acesso com e-mail e senha.','error');
         else if(code==='auth/account-exists-with-different-credential') setMsg('Já existe uma conta com esse e-mail usando outro método de acesso. Entre pelo Centro de Controle ou recupere sua senha.','error');
-        else setMsg('Não foi possível entrar com Google. Tente novamente ou use e-mail e senha.','error');
+        else if(code==='auth/unauthorized-domain') setMsg('Este domínio ainda não está autorizado no Firebase Auth para login com Google.','error');
+        else if(code==='auth/operation-not-allowed') setMsg('O login com Google ainda não está ativado no Firebase Auth.','error');
+        else if(code==='auth/network-request-failed') setMsg('Falha de conexão ao abrir o Google. Verifique a rede e tente novamente.','error');
+        else setMsg('Não foi possível entrar com Google. Código: '+(code||'erro_desconhecido')+'.','error');
       }).finally(function(){setLoading(false);});
+    }
+    function handleGoogleRedirectResult(){
+      if(isPreview) return;
+      var pending=false;
+      try{pending=localStorage.getItem(SIGNUP_GOOGLE_PENDING_KEY)==='1';}catch(e){}
+      firebase.auth().getRedirectResult().then(function(result){
+        var user=(result&&result.user)||firebase.auth().currentUser;
+        if(!pending||!user) return;
+        try{localStorage.removeItem(SIGNUP_GOOGLE_PENDING_KEY);}catch(e){}
+        state.authCreated=true;
+        state.data.email=user.email||'';
+        if(user.displayName&&!state.data.ownerName) state.data.ownerName=user.displayName;
+        setLoading(true);
+        setMsg('Google conectado. Preparando seu cadastro...','info');
+        return completeSignup({stage:'account_created',email:state.data.email}).then(function(response){
+          state.purchaseFound=!!(response.data&&response.data.purchaseFound);
+          state.step=1;
+          render();
+        }).finally(function(){setLoading(false);});
+      }).catch(function(err){
+        try{localStorage.removeItem(SIGNUP_GOOGLE_PENDING_KEY);}catch(e){}
+        setMsg('Não foi possível concluir o acesso com Google. Tente novamente ou use e-mail e senha.','error');
+        console.error(err);
+      });
     }
     function finish(){
       sync();
@@ -503,6 +537,7 @@
     });
     document.getElementById('back-btn').addEventListener('click',function(){if(state.loading)return;sync();state.step=Math.max(0,state.step-1);render();});
     render();
+    handleGoogleRedirectResult();
   })();
   </script>
 </body>

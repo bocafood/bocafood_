@@ -310,7 +310,7 @@ def default_email_settings
     'privacyUrl' => 'https://bocafood.app/privacidade',
     'securityText' => 'o BocaFood nunca solicita senha por e-mail.',
     'footerReasonDefault' => 'esta mensagem faz parte do seu relacionamento com o BocaFood',
-    'brandLogoUrl' => 'https://bocafood.app/assets/boca-food-logo.png',
+    'brandLogoUrl' => 'https://bocafood.app/logo%20BocaFood.png',
     'smtpHost' => '',
     'smtpPort' => 587,
     'smtpSecure' => 'tls',
@@ -1143,7 +1143,7 @@ end
 def build_test_email_layout(settings, template, variables)
   brand_name = variables['brandName'].to_s.empty? ? 'BocaFood' : variables['brandName'].to_s
   support_email = variables['supportEmail'].to_s
-  logo_url = variables['brandLogoUrl'].to_s.empty? ? 'https://bocafood.app/assets/boca-food-logo.png' : variables['brandLogoUrl'].to_s
+  logo_url = variables['brandLogoUrl'].to_s.empty? ? 'https://bocafood.app/logo%20BocaFood.png' : variables['brandLogoUrl'].to_s
   terms_url = variables['termsUrl'].to_s
   privacy_url = variables['privacyUrl'].to_s
   security_text = email_replace_variables(variables['securityText'].to_s.empty? ? 'o BocaFood nunca solicita senha por e-mail.' : variables['securityText'].to_s, variables)
@@ -1291,7 +1291,7 @@ def send_test_email!(body)
     'resetPasswordUrl' => 'https://app.bocafood.com/redefinir-senha',
     'appBaseUrl' => settings['appBaseUrl'].to_s.empty? ? 'https://app.bocafood.com' : settings['appBaseUrl'].to_s,
     'brandName' => settings['brandName'].to_s.empty? ? 'BocaFood' : settings['brandName'].to_s,
-    'brandLogoUrl' => settings['brandLogoUrl'].to_s.empty? ? 'https://bocafood.app/assets/boca-food-logo.png' : settings['brandLogoUrl'].to_s,
+    'brandLogoUrl' => settings['brandLogoUrl'].to_s.empty? ? 'https://bocafood.app/logo%20BocaFood.png' : settings['brandLogoUrl'].to_s,
     'termsUrl' => settings['termsUrl'].to_s,
     'privacyUrl' => settings['privacyUrl'].to_s,
     'securityText' => settings['securityText'].to_s.empty? ? 'o BocaFood nunca solicita senha por e-mail.' : settings['securityText'].to_s,

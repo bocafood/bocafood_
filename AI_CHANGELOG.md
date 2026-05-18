@@ -6102,12 +6102,22 @@
 - Ajuste posterior: o template `password_reset` passa a preencher e preservar a URL do CTA como `{{resetPasswordUrl}}` quando o documento salvo estiver antigo ou vazio; o Master local, o `server.rb` e as Functions usam o padrão do template para evitar botão de redefinição sem destino.
 - Ajuste posterior: alinhada a renderização real dos e-mails transacionais com a prévia do Master. O HTML enviado pelas Functions e o teste local do `server.rb` deixaram de usar o layout antigo com logo grande, texto `SaaS BocaFood`, título no cabeçalho e card interno pesado, passando a seguir o visual atual da prévia com logo menor, degradê, tipografia do sistema, CTA premium e corpo mais limpo.
 
+## 2026-05-18 — Fallback Google Auth no login e cadastro
+- Arquivos alterados: `public/admin.html`, `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Os botões de login/cadastro com Google agora exibem feedback imediato ao clique para evitar sensação de botão sem ação.
+- Quando o popup do Google for bloqueado, cancelado por solicitação concorrente ou não suportado pelo navegador, o fluxo passa a usar fallback com `signInWithRedirect`.
+- No cadastro, o retorno do redirect do Google é tratado para continuar o onboarding, chamar `completeSignupOnboarding` no estágio `account_created` e avançar para a etapa de dados do usuário.
+- Impacto esperado: login e primeiro acesso com Google funcionam também em navegadores/ambientes que bloqueiam popup.
+- Ajuste posterior: o Admin deixou de liberar acesso ao Centro de Controle apenas por e-mail de bootstrap sem tenant ativo; agora mesmo o e-mail Master precisa resolver um `system_tenants` ativo para abrir o Admin.
+- Ajuste posterior: as mensagens de erro do Google Auth ficaram mais específicas para domínio não autorizado, provedor Google desativado, falha de rede e códigos desconhecidos.
+
 ## 2026-05-18 — Favicon BocaFood nas páginas internas
 - Arquivos alterados: `public/admin.html`, `public/cadastro.html`, `public/redefinir-senha.html`, `public/master.html`, `master.html`, `AI_CHANGELOG.md`.
 - As páginas internas do BocaFood passaram a usar o novo arquivo `public/favicon BocaFood.png` como favicon e apple-touch-icon.
 - A alteração não mexe nos templates públicos da loja nem nos fluxos onde o favicon vem da usuária/tenant, preservando a personalização da loja pública.
 - O Master restrito publicado deixou de referenciar `/logo.png` e passou a usar `/assets/boca-food-logo.png`, evitando imagem quebrada após a remoção do arquivo legado.
 - Impacto esperado: Admin, cadastro, redefinição de senha e Master exibem o favicon oficial BocaFood, enquanto lojas publicadas continuam podendo usar o favicon configurado pela usuária.
+- Ajuste posterior: os logos internos do Admin, cadastro, redefinição de senha, Master restrito, Master local e layouts transacionais de e-mail passaram a usar `public/logo BocaFood.png` (`/logo%20BocaFood.png`), mantendo a loja pública e o template da usuária sem alteração.
 
 ## 2026-05-18 — Proteção do Hottok Hotmart
 - Arquivos alterados: `functions/index.js`, `deploy-hotmart-webhook.sh`, `AGENTS.md`, `AI_CHANGELOG.md`.

@@ -178,7 +178,7 @@ button,input,select,textarea{font-family:inherit}
 <body>
 <div id="login-screen" class="login-screen" style="display:none">
   <form id="login-form" class="login-card">
-    <div class="login-brand"><img src="assets/boca-food-logo.png" alt="BOCA Food"></div>
+    <div class="login-brand"><img src="/logo%20BocaFood.png" alt="BOCA Food"></div>
     <span class="login-kicker">Centro de Controle</span>
     <div id="login-error" class="login-error"></div>
     <div id="login-panel" class="login-panel">
@@ -205,7 +205,7 @@ button,input,select,textarea{font-family:inherit}
 
 <div id="admin-shell" class="app-shell" style="display:none">
   <aside class="sidebar">
-    <div class="brand"><img src="assets/boca-food-logo.png" alt="BOCA Food"></div>
+    <div class="brand"><img src="/logo%20BocaFood.png" alt="BOCA Food"></div>
     <nav class="nav">
       <div class="nav-group">
         <button class="nav-item nav-item-maturity" data-route="crescimento/maturidade" onclick="Router.navigate('crescimento/maturidade')"><span class="mi">diamond</span><span>Maturidade do Negócio</span></button>
@@ -842,19 +842,35 @@ button,input,select,textarea{font-family:inherit}
   });
   document.getElementById('login-google').addEventListener('click', function () {
     var err = document.getElementById('login-error');
+    var btn = document.getElementById('login-google');
     err.style.display = 'none';
+    err.textContent = 'Abrindo Google para entrar...';
+    err.style.display = 'block';
+    if (btn) btn.disabled = true;
     var provider = new firebase.auth.GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
     firebase.auth().signInWithPopup(provider).catch(function (ex) {
       var code = ex && ex.code ? ex.code : '';
+      if (code === 'auth/popup-blocked' || code === 'auth/cancelled-popup-request' || code === 'auth/operation-not-supported-in-this-environment') {
+        return firebase.auth().signInWithRedirect(provider);
+      }
       if (code === 'auth/popup-closed-by-user') {
         err.textContent = 'Login com Google cancelado. Você também pode entrar com e-mail e senha.';
       } else if (code === 'auth/account-exists-with-different-credential') {
         err.textContent = 'Este Google não está vinculado à sua conta BocaFood. Use o mesmo e-mail do cadastro.';
+      } else if (code === 'auth/unauthorized-domain') {
+        err.textContent = 'Este domínio ainda não está autorizado no Firebase Auth para login com Google.';
+      } else if (code === 'auth/operation-not-allowed') {
+        err.textContent = 'O login com Google ainda não está ativado no Firebase Auth.';
+      } else if (code === 'auth/network-request-failed') {
+        err.textContent = 'Falha de conexão ao abrir o Google. Verifique a rede e tente novamente.';
       } else {
-        err.textContent = 'Não foi possível entrar com Google. Tente novamente ou use e-mail e senha.';
+        err.textContent = 'Não foi possível entrar com Google. Código: ' + (code || 'erro_desconhecido') + '.';
       }
       err.style.display = 'block';
       console.error(ex);
+    }).finally(function () {
+      if (btn) btn.disabled = false;
     });
   });
   document.getElementById('login-reset').addEventListener('click', showResetPanel);

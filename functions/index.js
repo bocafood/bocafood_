@@ -998,7 +998,7 @@ async function ensureEmailDefaults() {
       supportEmail: DEFAULT_SUPPORT_EMAIL,
       appBaseUrl: "https://app.bocafood.com",
       brandName: "BocaFood",
-      brandLogoUrl: "https://bocafood.app/assets/boca-food-logo.png",
+      brandLogoUrl: "https://bocafood.app/logo%20BocaFood.png",
       termsUrl: "https://bocafood.app/termos",
       privacyUrl: "https://bocafood.app/privacidade",
       securityText: "o BocaFood nunca solicita senha por e-mail.",
@@ -1089,7 +1089,7 @@ async function ensureEmailTriggerDefaults() {
 function buildEmailLayout(settings, template, variables) {
   const brandName = variables.brandName || settings.brandName || "BocaFood";
   const supportEmail = variables.supportEmail || settings.supportEmail || settings.replyTo || "";
-  const logoUrl = variables.brandLogoUrl || settings.brandLogoUrl || "https://bocafood.app/assets/boca-food-logo.png";
+  const logoUrl = variables.brandLogoUrl || settings.brandLogoUrl || "https://bocafood.app/logo%20BocaFood.png";
   const termsUrl = variables.termsUrl || settings.termsUrl || "";
   const privacyUrl = variables.privacyUrl || settings.privacyUrl || "";
   const preheader = replaceVariables(template.preheader || "", variables);
@@ -1327,7 +1327,7 @@ async function createEmailFromTemplate({ to, templateKey, variables = {}, origin
     supportEmail: settings.supportEmail || settings.replyTo || "",
     appBaseUrl: settings.appBaseUrl || "https://app.bocafood.com",
     brandName: settings.brandName || settings.fromName || "BocaFood",
-    brandLogoUrl: settings.brandLogoUrl || "https://bocafood.app/assets/boca-food-logo.png",
+    brandLogoUrl: settings.brandLogoUrl || "https://bocafood.app/logo%20BocaFood.png",
     termsUrl: settings.termsUrl || "",
     privacyUrl: settings.privacyUrl || "",
     securityText: settings.securityText || "o BocaFood nunca solicita senha por e-mail.",
@@ -1409,7 +1409,7 @@ async function sendEmailFromTemplateViaSmtp({ to, templateKey, variables = {}, s
       supportEmail: settings.supportEmail || settings.replyTo || DEFAULT_SUPPORT_EMAIL,
       appBaseUrl: settings.appBaseUrl || "https://bocafood.app",
       brandName: settings.brandName || settings.fromName || "BocaFood",
-      brandLogoUrl: settings.brandLogoUrl || "https://bocafood.app/assets/boca-food-logo.png",
+      brandLogoUrl: settings.brandLogoUrl || "https://bocafood.app/logo%20BocaFood.png",
       termsUrl: settings.termsUrl || "",
       privacyUrl: settings.privacyUrl || "",
       securityText: settings.securityText || "o BocaFood nunca solicita senha por e-mail.",
@@ -1633,7 +1633,7 @@ function tenantEmailVariables(tenant, tagKey) {
     supportEmail: DEFAULT_SUPPORT_EMAIL,
     appBaseUrl: "https://bocafood.app",
     brandName: "BocaFood",
-    brandLogoUrl: "https://bocafood.app/assets/boca-food-logo.png",
+    brandLogoUrl: "https://bocafood.app/logo%20BocaFood.png",
     planName: billing.planSlug || tenant.plan || "",
     productName: "BocaFood",
     billingStatus: billing.status || tenant.billingStatus || "",
@@ -2063,7 +2063,7 @@ exports.sendTestEmail = onRequest({ region: REGION }, async (req, res) => {
         resetPasswordUrl: "https://app.bocafood.com/redefinir-senha",
         appBaseUrl: "https://app.bocafood.com",
         brandName: "BocaFood",
-        brandLogoUrl: "https://bocafood.app/assets/boca-food-logo.png",
+        brandLogoUrl: "https://bocafood.app/logo%20BocaFood.png",
         ...(body.variables || {})
       }
     });
@@ -2134,7 +2134,7 @@ function hotmartEmailVariables({ buyer, settings, status, eventAt = "" }) {
     supportEmail: settings.supportEmail || settings.replyTo || DEFAULT_SUPPORT_EMAIL,
     appBaseUrl,
     brandName: settings.brandName || settings.fromName || "BocaFood",
-    brandLogoUrl: settings.brandLogoUrl || "https://bocafood.app/assets/boca-food-logo.png",
+    brandLogoUrl: settings.brandLogoUrl || "https://bocafood.app/logo%20BocaFood.png",
     billingStatus: status || "",
     billingCycle: buyer.billingCycle || "",
     blockedReason: hotmartBlockedReason(status),
