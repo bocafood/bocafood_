@@ -1,5 +1,6 @@
 const { onRequest, onCall, HttpsError } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const net = require("net");
 const tls = require("tls");
@@ -13,6 +14,7 @@ const db = admin.firestore();
 const REGION = "us-central1";
 const FIREBASE_ADMIN_SERVICE_ACCOUNT = "firebase-adminsdk-fbsvc@bocado-brasil.iam.gserviceaccount.com";
 const FIRESTORE_BACKUP_DEFAULT_BUCKET = "gs://bocado-brasil-firestore-backups";
+const HOTMART_HOTTOK_SECRET = defineSecret("HOTMART_HOTTOK");
 const MASTER_EMAILS = new Set([
   "bocadobrasil.es@gmail.com",
   "pcruz.digital@gmail.com"
@@ -2143,6 +2145,25 @@ function hotmartEmailVariables({ buyer, settings, status, eventAt = "" }) {
   };
 }
 
+function readHotmartHottok() {
+  let secretValue = "";
+  try {
+    secretValue = String(HOTMART_HOTTOK_SECRET.value() || "").trim();
+  } catch (error) {
+    secretValue = "";
+  }
+  const envValue = String(process.env.HOTMART_HOTTOK || "").trim();
+  return secretValue || envValue;
+}
+
+function hotmartHottokLooksMisconfigured(value) {
+  const token = String(value || "");
+  if (!token) return false;
+  if (token.length > 240) return true;
+  if (/[\r\n]/.test(token)) return true;
+  return /printf|pbpaste|functions\/\.env|HOTMART_HOTTOK=|firebase\s+deploy|firebase\s+functions/i.test(token);
+}
+
 function cleanSignupText(value, max = 180) {
   return String(value || "").trim().slice(0, max);
 }
@@ -2160,6 +2181,15 @@ function cleanLanguageCode(value) {
 function cleanSignupList(value, maxItems = 10) {
   if (!Array.isArray(value)) return [];
   return value.slice(0, maxItems).map((item) => cleanSignupText(item, 120)).filter(Boolean);
+}
+
+function cleanCommunicationPreferences(value) {
+  const prefs = value && typeof value === "object" ? value : {};
+  return {
+    commercialCampaigns: prefs.commercialCampaigns === true,
+    growthTips: prefs.growthTips === true,
+    upgradeOffers: prefs.upgradeOffers === true
+  };
 }
 
 function pendingHotmartIsActive(data) {
@@ -2275,8 +2305,14 @@ exports.completeSignupOnboarding = onCall({ region: REGION }, async (request) =>
       acceptedByEmail: authEmail,
       source: "signup_onboarding"
     };
+    const communicationPreferences = {
+      ...cleanCommunicationPreferences(data.communicationPreferences),
+      source: "signup_onboarding",
+      updatedAt: now
+    };
     await tenantRef.set({
       legalAcceptance: acceptance,
+      communicationPreferences,
       updatedAt: serverTimestamp()
     }, { merge: true });
     await db.collection("system_legal_acceptances").doc(`${uid}_${Date.now()}`).set({
@@ -2290,7 +2326,13 @@ exports.completeSignupOnboarding = onCall({ region: REGION }, async (request) =>
       email: authEmail,
       action: "signup_legal_terms_accepted",
       summary: "Termos de uso e política de privacidade aceitos no onboarding.",
-      metadata: { termsUrl, privacyUrl }
+      metadata: {
+        termsUrl,
+        privacyUrl,
+        communicationCommercialCampaigns: communicationPreferences.commercialCampaigns,
+        communicationGrowthTips: communicationPreferences.growthTips,
+        communicationUpgradeOffers: communicationPreferences.upgradeOffers
+      }
     });
     const store = tenantData.store || {};
     const planSlug = billing.planSlug || tenantData.plan || "";
@@ -2422,7 +2464,7 @@ exports.completeSignupOnboarding = onCall({ region: REGION }, async (request) =>
 });
 
 exports.hotmartWebhook = onRequest(
-  { region: REGION },
+  { region: REGION, secrets: [HOTMART_HOTTOK_SECRET] },
   async (req, res) => {
     try {
       if (req.method === "GET") {
@@ -2433,8 +2475,18 @@ exports.hotmartWebhook = onRequest(
         return res.status(405).send("Method not allowed");
       }
 
-      const expectedHottok = process.env.HOTMART_HOTTOK;
-      const receivedHottok = req.get("X-HOTMART-HOTTOK");
+      const expectedHottok = readHotmartHottok();
+      const receivedHottok = String(req.get("X-HOTMART-HOTTOK") || "").trim();
+
+      if (!expectedHottok) {
+        console.error("HOTMART_HOTTOK não configurado para o webhook.");
+        return res.status(500).send("Webhook token not configured");
+      }
+
+      if (hotmartHottokLooksMisconfigured(expectedHottok)) {
+        console.error("HOTMART_HOTTOK parece estar mal configurado.");
+        return res.status(500).send("Webhook token misconfigured");
+      }
 
       if (!expectedHottok || receivedHottok !== expectedHottok) {
         return res.status(401).send("Unauthorized");

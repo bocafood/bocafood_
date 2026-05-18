@@ -62,8 +62,23 @@ O Boca Food é um sistema de gestão e operação de loja com painel admin, cat�
 - Não usar `starter` como plano ativo do BocaFood nesta fase; se aparecer dado antigo `starter`, manter leitura compatível e migrar para `essencial` ao reprocessar/atualizar.
 - Eventos Hotmart devem atualizar status de cobrança sem apagar tenant, loja ou dados: ativo, pagamento pendente, atraso, cancelamento, reembolso e chargeback.
 - Eventos Hotmart de cancelamento, reembolso ou chargeback devem bloquear automaticamente o acesso da conta (`accountStatus/status = blocked`) sem apagar tenant, loja ou dados. Um evento Hotmart ativo pode liberar novamente a conta (`accountStatus/status = active`) quando a assinatura voltar a estar ativa.
+- `HOTMART_HOTTOK` deve ser configurado via Firebase Secret Manager / Functions Secrets, nunca como variável solta manual no Cloud Run. Nunca colar comandos de terminal no valor do Hottok, nunca printar ou compartilhar o token, e após cada deploy de `hotmartWebhook` testar/reprocessar um webhook Hotmart confirmando status 200.
 - `pending_hotmart_access` é apenas para exceções/pendências de vínculo, não uma lista principal de contas.
 - Se `billing.provider` for `hotmart`, campos de plano/ciclo/status/trial/datas são controlados pela Hotmart e ficam somente leitura no Master. Se for `manual`, o Master pode editar e deve registrar logs.
+
+### Hotmart Webhook — Hottok e deploy seguro
+- `HOTMART_HOTTOK` é segredo sensível e nunca deve ser salvo em `functions/.env`, arquivos `.env`, código fonte, `AI_CHANGELOG.md`, prints, logs, variáveis manuais do Cloud Run ou documentação pública.
+- `HOTMART_HOTTOK` deve ser configurado exclusivamente via Firebase Functions Secrets / Secret Manager.
+- Comando correto para criar ou atualizar o secret: `firebase functions:secrets:set HOTMART_HOTTOK --project bocado-brasil`.
+- O webhook `hotmartWebhook` deve declarar o secret no código da Function. Não criar variável comum `HOTMART_HOTTOK` no Cloud Run.
+- Não editar `HOTMART_HOTTOK` manualmente em Google Cloud → Cloud Run → hotmartwebhook → Variáveis de ambiente. Se existir variável normal `HOTMART_HOTTOK` no Cloud Run, ela deve ser removida para não conflitar com o Secret.
+- Deploy da Hotmart deve ser feito preferencialmente pelo script `./deploy-hotmart-webhook.sh`. Se faltar permissão, rodar `chmod +x deploy-hotmart-webhook.sh` e depois `./deploy-hotmart-webhook.sh`.
+- Após qualquer deploy da `hotmartWebhook`, testar o webhook na Hotmart e confirmar status 200/processado.
+- Interpretação dos status: `200` significa webhook aceito; `401` significa Hottok errado, ausente ou mal configurado; `403` significa acesso público bloqueado; `404` significa URL errada ou Function inexistente; `500` significa erro interno da Function.
+- URL oficial do webhook Hotmart: `https://us-central1-bocado-brasil.cloudfunctions.net/hotmartWebhook`.
+- Nunca colar comandos de terminal no campo de valor do Hottok. Exemplo de erro que nunca deve ser repetido: `printf "HOTMART_HOTTOK=%s\n" "$(pbpaste | tr -d '\r\n')" > functions/.env`.
+- Se o Hottok precisar ser trocado: gerar/copiar novo Hottok na Hotmart, rodar `firebase functions:secrets:set HOTMART_HOTTOK --project bocado-brasil`, rodar `./deploy-hotmart-webhook.sh`, testar webhook na Hotmart e confirmar status 200.
+- A Function possui validação defensiva para rejeitar valores claramente errados no `HOTMART_HOTTOK`, como `printf`, `pbpaste`, `functions/.env`, `HOTMART_HOTTOK=` e quebras de linha suspeitas. Essa validação não substitui o uso correto do Secret.
 
 ### Padrão global de formulários
 - Campos de país nunca devem ser input livre. Devem usar select/lista com opções padronizadas, salvando preferencialmente o código ISO: Espanha (ES), Portugal (PT), Brasil (BR), França (FR), Itália (IT), Alemanha (DE), Reino Unido (GB), Estados Unidos (US) e Outro (OTHER).
@@ -86,6 +101,7 @@ O Boca Food é um sistema de gestão e operação de loja com painel admin, cat�
 - Tags de CRM para contas são uma camada separada das etiquetas transacionais de e-mail. Devem usar `system_crm_tags`, `system_crm_tag_rules`, `system_crm_tag_logs` e `system_tenants/{uid}.crmTags`/`crmTagMeta`. Não usar essas tags em `system_email_triggers`, não misturar com `system_tenants/{uid}.tags` e não alterar `dailyEmailTriggerCheck` para ler CRM tags. Campanhas/segmentações comerciais podem usar `crmTags`, mas e-mails transacionais continuam usando apenas as etiquetas transacionais existentes.
 - O cadastro inicial do BocaFood deve ser guiado, em etapas, com visual de onboarding/conversa. A tela de cadastro deve coletar apenas o necessário para criar acesso, vincular compra Hotmart, iniciar o tenant e entender a maturidade inicial do negócio; dados de diagnóstico inicial devem ser salvos em `businessProfile`, e dados mais detalhados da loja devem ser completados depois no Centro de Controle.
 - Quando o cadastro encontrar compra ativa e concluir o onboarding, a usuária deve aceitar Termos de Uso e Política de Privacidade antes de entrar no Centro de Controle. O aceite deve ser salvo em `system_tenants/{uid}.legalAcceptance` e auditado em `system_legal_acceptances`; o Master deve mostrar esse aceite como dado somente leitura da conta.
+- A etapa final do cadastro também pode coletar preferências de comunicação comercial para uso futuro do CRM. Essas preferências devem ser salvas em `system_tenants/{uid}.communicationPreferences` e não devem disparar campanhas automaticamente enquanto o módulo promocional/CRM não estiver concluído.
 - O e-mail transacional de cadastro concluído (`welcome_access_created`/`Cadastro concluído`) deve ser enviado somente depois da confirmação final com aceite dos documentos, não antes da liberação visual do acesso.
 - Se o cadastro não encontrar compra ativa para o e-mail autenticado, a etapa final não deve exibir sucesso, checklist positivo nem botão de entrada. Deve mostrar estado de alerta claro orientando a usar o e-mail da compra ou falar com `teajudo@bocafood.app`.
 - Para controle de custo, logs comuns devem ser pequenos, as leituras do Master devem ser limitadas e não se deve instrumentar ações de alta frequência. Futuramente implementar retenção automática: 90 dias para logs comuns e 1 ano para logs de cobrança, Hotmart, acesso e publicação.

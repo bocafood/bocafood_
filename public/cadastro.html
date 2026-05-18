@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Cadastro BocaFood</title>
-  <link rel="icon" type="image/png" href="assets/boca-food-favicon.png">
-  <link rel="apple-touch-icon" href="assets/boca-food-favicon.png">
+  <link rel="icon" type="image/png" href="/favicon%20BocaFood.png">
+  <link rel="apple-touch-icon" href="/favicon%20BocaFood.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -120,9 +120,17 @@
     .legal-sign-text{margin:0 0 8px;color:#7B6E6A;font-size:12px;line-height:1.38}
     .legal-sign-links{display:flex;align-items:center;gap:16px;margin:0 0 9px;font-size:12.5px}
     .legal-sign-box a{color:var(--red);font-weight:800;text-decoration:none}
-    .legal-sign-check{display:flex;flex-direction:row;align-items:center;gap:9px;margin:0;font-weight:650;color:#3F3633;text-align:left}
-    .legal-sign-check input{width:16px;height:16px;margin:0;accent-color:var(--red);flex:0 0 auto;appearance:auto;-webkit-appearance:checkbox;padding:0;border:0;background:transparent;cursor:pointer}
-    .legal-sign-check span{line-height:1.35;flex:1}
+    .legal-sign-check{display:grid;grid-template-columns:16px 1fr;align-items:start;column-gap:9px;margin:0;font-weight:650;color:#3F3633;text-align:left}
+    .legal-sign-check input{width:16px;height:16px;margin:1px 0 0;accent-color:var(--red);appearance:auto;-webkit-appearance:checkbox;padding:0;border:0;background:transparent;cursor:pointer}
+    .legal-sign-check span{line-height:1.32;min-width:0}
+    .communication-pref-box{margin-top:10px;padding:11px 12px;border:1px solid #EFE4E1;border-radius:13px;background:#FFFFFF;color:#5E514E;font-size:12.5px;line-height:1.42}
+    .communication-pref-title{display:block;margin:0 0 3px;color:#2D2321;font-size:12.8px;font-weight:820;line-height:1.25}
+    .communication-pref-subtitle{margin:0 0 9px;color:#7B6E6A;font-size:12px;line-height:1.38}
+    .communication-pref-list{display:grid;gap:8px;margin:0 0 10px}
+    .communication-pref-check{display:grid;grid-template-columns:16px 1fr;align-items:start;column-gap:9px;margin:0;color:#3F3633;font-size:12.5px;font-weight:650;text-align:left}
+    .communication-pref-check input{width:16px;height:16px;margin:1px 0 0;accent-color:var(--red);appearance:auto;-webkit-appearance:checkbox;padding:0;border:0;background:transparent;cursor:pointer}
+    .communication-pref-check span{line-height:1.32;min-width:0}
+    .communication-pref-note{margin:0;color:#7B6E6A;font-size:11.8px;line-height:1.45}
     .mini-note{font-size:12px;color:var(--muted);line-height:1.45;margin-top:8px}
     @media(max-width:880px){
       .topbar{padding:10px 16px 0;justify-content:center}
@@ -199,6 +207,11 @@
       legalSigned: false,
       termsUrl: 'https://bocafood.app/termosdeuso',
       privacyUrl: 'https://bocafood.app/privacidade',
+      communicationPreferences: {
+        commercialCampaigns: false,
+        growthTips: false,
+        upgradeOffers: false
+      },
       data: {
         email: isPreview ? 'preview@bocafood.local' : '',
         password: isPreview ? 'preview123' : '',
@@ -341,7 +354,7 @@
         body='<div class="form-grid store-step boxed-step moment-step"><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Principal desafio</div><div class="signup-section-help">Escolha o ponto que mais precisa de atenção agora.</div></div>'+choiceOptions('mainChallenge',mainChallenges,d.mainChallenge)+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Objetivo principal</div><div class="signup-section-help">Isso ajuda o BocaFood a priorizar os próximos passos.</div></div>'+choiceOptions('mainGoal',mainGoals,d.mainGoal)+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Fase do negócio</div><div class="signup-section-help">Marque a fase que melhor descreve seu momento atual.</div></div>'+choiceOptions('businessStage',businessStages,d.businessStage)+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Tempo disponível</div><div class="signup-section-help">Quanto tempo você consegue dedicar por semana para organizar o negócio?</div></div>'+choiceOptions('weeklyTimeAvailable',weeklyTimes,d.weeklyTimeAvailable)+'</div></div>';
       }else{
         if(state.purchaseFound){
-          body='<div class="success-box"><div class="success-head"><div class="success-icon">✓</div><div><h3 class="success-title">Seu acesso está pronto.</h3><p class="success-text">Salvamos os dados principais e criamos a base inicial da sua loja como rascunho.</p></div></div><div class="success-list"><div class="success-item">Acesso criado</div><div class="success-item">Dados principais salvos</div><div class="success-item">Loja criada como rascunho</div></div><div class="legal-sign-box"><strong class="legal-sign-title">Confirme os termos para continuar</strong><p class="legal-sign-text">Para entrar no BocaFood, leia e aceite os documentos abaixo.</p><div class="legal-sign-links"><a href="'+esc(state.termsUrl)+'" target="_blank" rel="noopener">Termos de Uso</a><a href="'+esc(state.privacyUrl)+'" target="_blank" rel="noopener">Política de Privacidade</a></div><label class="legal-sign-check"><input id="legal-acceptance" type="checkbox" '+(state.legalAccepted?'checked':'')+'> <span>Li e aceito os Termos de Uso e a Política de Privacidade do BocaFood.</span></label></div></div>';
+          body='<div class="success-box"><div class="success-head"><div class="success-icon">✓</div><div><h3 class="success-title">Seu acesso está pronto.</h3><p class="success-text">Salvamos os dados principais e criamos a base inicial da sua loja como rascunho.</p></div></div><div class="success-list"><div class="success-item">Acesso criado</div><div class="success-item">Dados principais salvos</div><div class="success-item">Loja criada como rascunho</div></div><div class="legal-sign-box"><strong class="legal-sign-title">Confirme os termos para continuar</strong><p class="legal-sign-text">Para entrar no BocaFood, leia e aceite os documentos abaixo.</p><div class="legal-sign-links"><a href="'+esc(state.termsUrl)+'" target="_blank" rel="noopener">Termos de Uso</a><a href="'+esc(state.privacyUrl)+'" target="_blank" rel="noopener">Política de Privacidade</a></div><label class="legal-sign-check"><input id="legal-acceptance" type="checkbox" '+(state.legalAccepted?'checked':'')+'> <span>Li e aceito os Termos de Uso e a Política de Privacidade do BocaFood.</span></label></div><div class="communication-pref-box"><strong class="communication-pref-title">Preferências de comunicação</strong><p class="communication-pref-subtitle">Quer continuar recebendo ideias, melhorias e oportunidades para vender mais com o BocaFood?</p><div class="communication-pref-list"><label class="communication-pref-check"><input id="communication-pref-commercialCampaigns" type="checkbox" '+(state.communicationPreferences.commercialCampaigns?'checked':'')+'> <span>Quero receber novidades, conteúdos e campanhas comerciais</span></label><label class="communication-pref-check"><input id="communication-pref-growthTips" type="checkbox" '+(state.communicationPreferences.growthTips?'checked':'')+'> <span>Quero receber dicas práticas para melhorar minha loja</span></label><label class="communication-pref-check"><input id="communication-pref-upgradeOffers" type="checkbox" '+(state.communicationPreferences.upgradeOffers?'checked':'')+'> <span>Quero receber ofertas, promoções e convites para upgrade</span></label></div><p class="communication-pref-note">Mesmo que você desative essas opções, ainda enviaremos comunicações essenciais sobre conta, segurança, cobrança, senha, plano e obrigações legais.</p></div></div>';
         }else{
           body='<div class="purchase-alert"><div class="purchase-alert-head"><div class="purchase-alert-icon">!</div><div><h3 class="purchase-alert-title">Não encontramos uma compra ativa para este e-mail</h3><p class="purchase-alert-text">Use o mesmo e-mail da compra para liberar seu acesso. Se precisar, fale com o suporte: <strong>teajudo@bocafood.app</strong></p></div></div><div class="purchase-alert-actions"><button class="secondary" id="retry-email-btn" type="button">Tentar outro e-mail</button><a href="mailto:teajudo@bocafood.app">Falar com suporte</a></div></div>';
         }
@@ -353,6 +366,10 @@
       if(retryEmailBtn) retryEmailBtn.addEventListener('click',function(){state.step=0;render();});
       var legalAcceptance=document.getElementById('legal-acceptance');
       if(legalAcceptance) legalAcceptance.addEventListener('change',function(){state.legalAccepted=!!legalAcceptance.checked;updatePrimaryButton();});
+      ['commercialCampaigns','growthTips','upgradeOffers'].forEach(function(key){
+        var pref=document.getElementById('communication-pref-'+key);
+        if(pref) pref.addEventListener('change',function(){state.communicationPreferences[key]=!!pref.checked;});
+      });
       if(state.step===3) bindSalesChannelExclusivity();
     }
     function validate(){
@@ -466,7 +483,8 @@
             acceptedTerms:true,
             acceptedPrivacy:true,
             termsUrl:state.termsUrl,
-            privacyUrl:state.privacyUrl
+            privacyUrl:state.privacyUrl,
+            communicationPreferences:state.communicationPreferences
           }).then(function(){
             state.legalSigned=true;
             window.location.href='/admin.html#inicio';

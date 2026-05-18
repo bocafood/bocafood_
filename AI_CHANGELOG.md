@@ -6102,6 +6102,23 @@
 - Ajuste posterior: o template `password_reset` passa a preencher e preservar a URL do CTA como `{{resetPasswordUrl}}` quando o documento salvo estiver antigo ou vazio; o Master local, o `server.rb` e as Functions usam o padrão do template para evitar botão de redefinição sem destino.
 - Ajuste posterior: alinhada a renderização real dos e-mails transacionais com a prévia do Master. O HTML enviado pelas Functions e o teste local do `server.rb` deixaram de usar o layout antigo com logo grande, texto `SaaS BocaFood`, título no cabeçalho e card interno pesado, passando a seguir o visual atual da prévia com logo menor, degradê, tipografia do sistema, CTA premium e corpo mais limpo.
 
+## 2026-05-18 — Favicon BocaFood nas páginas internas
+- Arquivos alterados: `public/admin.html`, `public/cadastro.html`, `public/redefinir-senha.html`, `public/master.html`, `master.html`, `AI_CHANGELOG.md`.
+- As páginas internas do BocaFood passaram a usar o novo arquivo `public/favicon BocaFood.png` como favicon e apple-touch-icon.
+- A alteração não mexe nos templates públicos da loja nem nos fluxos onde o favicon vem da usuária/tenant, preservando a personalização da loja pública.
+- O Master restrito publicado deixou de referenciar `/logo.png` e passou a usar `/assets/boca-food-logo.png`, evitando imagem quebrada após a remoção do arquivo legado.
+- Impacto esperado: Admin, cadastro, redefinição de senha e Master exibem o favicon oficial BocaFood, enquanto lojas publicadas continuam podendo usar o favicon configurado pela usuária.
+
+## 2026-05-18 — Proteção do Hottok Hotmart
+- Arquivos alterados: `functions/index.js`, `deploy-hotmart-webhook.sh`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- O webhook `hotmartWebhook` passou a declarar `HOTMART_HOTTOK` como Firebase Functions Secret, usando Secret Manager no runtime e mantendo fallback temporário para `process.env.HOTMART_HOTTOK`.
+- Adicionada validação defensiva para rejeitar valores de Hottok claramente mal configurados, como comandos de terminal, referência a `functions/.env`, `HOTMART_HOTTOK=` ou quebras de linha inesperadas, sem imprimir o token.
+- Criado o script local `deploy-hotmart-webhook.sh`, que roda `node --check functions/index.js`, verifica a existência do secret, faz deploy somente de `hotmartWebhook` e mostra a URL esperada com lembrete de teste na Hotmart.
+- Documentada em `AGENTS.md` a regra de não configurar Hottok manualmente no Cloud Run e sempre usar Firebase Secret Manager / Functions Secrets.
+- Impacto esperado: reduzir risco de sobrescrever o token da Hotmart com valor errado durante deploy e evitar novos retornos 401 por configuração acidental.
+- Ajuste posterior: adicionada a seção permanente `Hotmart Webhook — Hottok e deploy seguro` no `AGENTS.md`, proibindo salvar `HOTMART_HOTTOK` em `.env`, código, changelog, logs, prints, variáveis manuais do Cloud Run ou documentação pública.
+- A documentação passou a registrar o comando oficial `firebase functions:secrets:set HOTMART_HOTTOK --project bocado-brasil`, o uso preferencial de `./deploy-hotmart-webhook.sh`, a URL oficial do webhook e a interpretação dos status 200/401/403/404/500 após teste na Hotmart.
+
 ## 2026-05-17 — Página de redefinição de senha
 - Arquivos alterados: `public/redefinir-senha.html`, `functions/index.js`, `firebase.json`, `AI_CHANGELOG.md`.
 - Criada a tela publicada `/redefinir-senha` com layout alinhado à tela de login do Centro de Controle, usando logo BocaFood, card central, fundo rosado claro, campos de nova senha/confirmacao e mensagens claras.
@@ -6165,3 +6182,15 @@
 - O webhook Hotmart passa a enviar `access_blocked` para status `canceled`, `refunded` e `chargeback`; `payment_pending` continua reservado para pagamento pendente/atrasado sem bloqueio automático.
 - O gatilho padrão `subscription_canceled_email` foi redirecionado para o template `access_blocked` quando ainda estiver com a configuração padrão do sistema, evitando manter o aviso antigo de assinatura cancelada como e-mail principal de bloqueio.
 - Atualizados defaults do Master local, Functions e backend local para exibir/editar/enviar o novo template com variáveis `blockedReason`, `canceledAt`, `billingStatus`, `hotmartTransaction` e `hotmartOfferCode`.
+
+## 2026-05-18 — Preferências de comunicação no cadastro
+- Arquivos alterados: `public/cadastro.html`, `functions/index.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- A etapa final do cadastro, abaixo do aceite de Termos de Uso e Política de Privacidade, passa a mostrar o bloco `Preferências de comunicação`.
+- Foram adicionadas três opções opcionais: novidades/conteúdos/campanhas comerciais, dicas para vender mais e ofertas/promoções/convites para upgrade.
+- A Function `completeSignupOnboarding` salva as preferências em `system_tenants/{uid}.communicationPreferences` com origem `signup_onboarding` e `updatedAt`.
+- As comunicações essenciais de conta, segurança, cobrança, senha, plano e obrigações legais continuam independentes dessas preferências.
+- A mudança apenas guarda dados para uso futuro no CRM/promocionais; nenhum disparo de campanha foi conectado nesta etapa.
+- Ajuste posterior: adicionado subtítulo no bloco de preferências: `Quer continuar recebendo ideias, melhorias e oportunidades para vender mais com o BocaFood?`.
+- Ajuste posterior: atualizada a nota de comunicações essenciais para deixar claro que elas continuam sendo enviadas mesmo se a usuária desativar as preferências comerciais.
+- Ajuste posterior: atualizadas as labels dos checkboxes para deixar explícito `Quero receber...` em novidades/campanhas, dicas práticas e ofertas/upgrade.
+- Ajuste posterior: alinhados os checkboxes dos blocos de aceite legal e preferências de comunicação usando grid de duas colunas, mantendo texto e caixa no mesmo eixo visual.
