@@ -241,6 +241,8 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
 .email-preview-body p:last-child{margin-bottom:0}
 .email-preview-cta{margin-top:20px}
 .email-preview-cta a{display:inline-flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#C4362A 0%,#A92F25 100%);color:#fff!important;text-decoration:none;border-radius:12px;padding:0 19px;height:44px;font-size:14px;font-weight:750;line-height:1.2;min-width:158px;text-align:center;border:1px solid rgba(126,31,24,.16);box-shadow:0 10px 20px rgba(196,54,42,.14),inset 0 1px 0 rgba(255,255,255,.20)}
+.email-preview-cta small{display:block;margin-top:10px;color:#8A7E7C;font-size:12px;line-height:1.45}
+.email-preview-cta small a{display:inline;color:#B42318!important;background:none;border:0;box-shadow:none;min-width:0;height:auto;padding:0;font-size:12px;font-weight:800;line-height:1.45;text-align:left}
 .email-preview-footer{padding:18px 28px 28px;background:linear-gradient(135deg,#FFFFFF 0%,#FFF8F6 62%,#FDF1EF 100%);border-top:1px solid rgba(242,237,237,.82);color:#8A7E7C;font-size:12px;line-height:1.55}
 .email-preview-footer strong{font-weight:700;color:#5F5552}
 .email-preview-footer a{color:#C4362A;text-decoration:none;font-weight:800}
@@ -3041,7 +3043,7 @@ var _emailMasterState = {
   crmRules: []
 };
 var EMAIL_DEFAULT_SUPPORT = 'teajudo@bocafood.app';
-var BOCAFOOD_BRAND_LOGO_URL = 'https://bocafood.app/assets/boca-food-logo.png';
+var BOCAFOOD_BRAND_LOGO_URL = 'https://bocafood.app/assets/boca-food-logo.png?v=20260518-bocafood-logo';
 function normalizeBocaFoodBrandLogoUrl(value){
   var url = String(value || '').trim();
   if(!url || url.indexOf('logo%20BocaFood.png') >= 0 || url.indexOf('logo BocaFood.png') >= 0) return BOCAFOOD_BRAND_LOGO_URL;
@@ -3791,7 +3793,7 @@ function _emailPreviewHtml(tpl){
   var body = _emailReplace(tpl.body || tpl.html || '', vars);
   var ctaLabel = _emailReplace(tpl.ctaLabel || '', vars);
   var ctaUrl = _emailReplace(tpl.ctaUrl || '', vars);
-  var cta = ctaLabel && ctaUrl ? '<div class="email-preview-cta"><a href="'+esc(ctaUrl)+'">'+esc(ctaLabel)+'</a></div>' : '';
+  var cta = ctaLabel && ctaUrl ? '<div class="email-preview-cta"><a href="'+esc(ctaUrl)+'" target="_blank" rel="noopener">'+esc(ctaLabel)+'</a><small>Se o botão não abrir, acesse: <a href="'+esc(ctaUrl)+'" target="_blank" rel="noopener">'+esc(ctaUrl)+'</a></small></div>' : '';
   var previewSupportEmail = vars.supportEmail;
   var securityText = _emailReplace(vars.securityText || _emailDefaults.settings.securityText, vars);
   var emailReason = _emailReplace((tpl.footerReason || vars.footerReasonDefault || _emailDefaults.settings.footerReasonDefault), vars);

@@ -284,7 +284,7 @@ def email_public_settings_from_body(body)
 end
 
 def bocafood_brand_logo_url
-  'https://bocafood.app/assets/boca-food-logo.png'
+  'https://bocafood.app/assets/boca-food-logo.png?v=20260518-bocafood-logo'
 end
 
 def normalize_bocafood_brand_logo_url(value)
@@ -1226,7 +1226,7 @@ def build_test_email_layout(settings, template, variables)
   body = email_replace_variables(template['body'] || template['html'] || default_test_email_template['body'], variables)
   cta_label = CGI.escapeHTML(email_replace_variables(template['ctaLabel'] || '', variables))
   cta_url = CGI.escapeHTML(email_replace_variables(template['ctaUrl'] || '', variables))
-  cta_html = cta_label.empty? || cta_url.empty? ? '' : %Q(<div style="margin-top:20px;text-align:left;"><a href="#{cta_url}" style="display:inline-block;background:linear-gradient(135deg,#C4362A 0%,#A92F25 100%);color:#ffffff;text-decoration:none;border-radius:12px;padding:0 19px;height:44px;line-height:44px;font-size:14px;font-weight:700;min-width:158px;text-align:center;border:1px solid rgba(126,31,24,.16);box-shadow:0 10px 20px rgba(196,54,42,.14),inset 0 1px 0 rgba(255,255,255,.20);">#{cta_label}</a></div>)
+  cta_html = cta_label.empty? || cta_url.empty? ? '' : %Q(<div style="margin-top:20px;text-align:left;"><a href="#{cta_url}" target="_blank" rel="noopener" style="display:inline-block;background:linear-gradient(135deg,#C4362A 0%,#A92F25 100%);color:#ffffff;text-decoration:none;border-radius:12px;padding:0 19px;height:44px;line-height:44px;font-size:14px;font-weight:700;min-width:158px;text-align:center;border:1px solid rgba(126,31,24,.16);box-shadow:0 10px 20px rgba(196,54,42,.14),inset 0 1px 0 rgba(255,255,255,.20);">#{cta_label}</a><div style="margin-top:10px;font-size:12px;line-height:1.45;color:#8A7E7C;">Se o botão não abrir, acesse: <a href="#{cta_url}" target="_blank" rel="noopener" style="color:#B42318;text-decoration:none;font-weight:700;">#{cta_url}</a></div></div>)
   terms_link = terms_url.empty? ? 'Termos de uso' : %Q(<a href="#{CGI.escapeHTML(terms_url)}" style="color:#8A7E7C;text-decoration:none;">Termos de uso</a>)
   privacy_link = privacy_url.empty? ? 'Política de privacidade' : %Q(<a href="#{CGI.escapeHTML(privacy_url)}" style="color:#8A7E7C;text-decoration:none;">Política de privacidade</a>)
   footer_html = %Q(<div style="font-size:11px;line-height:1.55;color:#8A7E7C;"><strong style="font-weight:700;color:#5F5552;">Segurança:</strong> #{CGI.escapeHTML(security_text)}<br>Precisa de ajuda? Escreva para <a href="mailto:#{CGI.escapeHTML(support_email)}" style="color:#B42318;text-decoration:none;font-weight:700;">#{CGI.escapeHTML(support_email)}</a><br>Você recebeu este e-mail porque #{CGI.escapeHTML(email_reason)}.<br>#{CGI.escapeHTML(brand_name)}<br>#{terms_link} &middot; #{privacy_link}</div>)

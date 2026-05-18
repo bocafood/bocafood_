@@ -1,5 +1,22 @@
 # AI Changelog
 
+## 2026-05-18 — Logo maior no cadastro
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: a logo BocaFood no topo da tela foi aumentada no desktop e no mobile para ganhar mais presença visual.
+- Escopo: ajuste somente visual; fluxo de cadastro, Firebase, Hotmart, salvamento e autenticação não foram alterados.
+
+## 2026-05-18 — Logo atualizada nos e-mails
+- Arquivos alterados: `functions/index.js`, `server.rb`, `master.html`, `AI_CHANGELOG.md`.
+- E-mails: a URL padrão da logo BocaFood usada nos layouts transacionais recebeu versão/cache-busting para evitar que clientes de e-mail continuem exibindo a imagem antiga em cache.
+- Master/local: a prévia dos templates e o envio local passam a usar a mesma URL versionada da logo atual.
+- Escopo: ajuste de asset visual; SMTP, gatilhos, templates e credenciais não foram alterados.
+
+## 2026-05-18 — CTA robusto nos e-mails transacionais
+- Arquivos alterados: `functions/index.js`, `server.rb`, `master.html`, `AI_CHANGELOG.md`.
+- E-mails: o botão CTA agora abre em nova aba e inclui um link textual de fallback com a mesma URL, útil quando o cliente de e-mail bloqueia o clique no botão estilizado.
+- Template Hotmart: confirmado que `welcome_hotmart` resolve `{{signupUrl}}` para `https://bocafood.app/cadastro`; a prévia passa a mostrar também o fallback.
+- Escopo: ajuste de renderização do e-mail e prévia; SMTP, Hotmart, gatilhos e dados salvos não foram alterados.
+
 ## 2026-05-18 — Prévia e CTA do template Hotmart
 - Arquivos alterados: `master.html`, `functions/index.js`, `server.rb`, `AI_CHANGELOG.md`.
 - Master: a prévia do template `Boas-vindas após compra Hotmart` deixou de usar uma amostra fixa e passou a renderizar o assunto, preheader, corpo e CTA realmente editados no template.
