@@ -6246,3 +6246,11 @@
 - Documentado no `AGENTS.md` que essas são as URLs oficiais dos documentos legais globais usados em cadastro e rodapés transacionais.
 - Ajuste posterior: removido o aviso `Segurança: o BocaFood nunca solicita senha por e-mail.` do corpo/prévia do e-mail, mantendo essa informação somente no rodapé transacional.
 - Ajuste posterior: adicionados aliases públicos `/termos`, `/privacidade` e `/rr` para renderizar as páginas legais corretas, preservando links antigos já enviados por e-mail.
+
+## 2026-05-18 — Logo e favicon BocaFood revisados
+- Arquivos alterados: `public/assets/boca-food-logo.png`, `public/assets/boca-food-favicon.png`, `assets/boca-food-logo.png`, `assets/boca-food-favicon.png`, `public/404.html`, `public/financeiro.html`, `public/master.html`, `AI_CHANGELOG.md`.
+- Atualizados os assets versionados a partir dos arquivos mais recentes enviados em `public/logo BocaFood.png` e `public/favicon BocaFood.png`.
+- A página 404 publicada foi substituída pelo visual BocaFood, com logo, favicon e link para o Centro de Controle.
+- A página auxiliar `public/financeiro.html` passou a usar logo, favicon e apple-touch-icon BocaFood antes do redirecionamento ao Admin.
+- O Master restrito publicado passou a declarar também `apple-touch-icon`, além do favicon.
+- Não foram alterados `public/index.html`, review ou tracking da loja pública para preservar o fluxo em que logo/favicon vêm da usuária/tenant.
