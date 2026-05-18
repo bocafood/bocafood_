@@ -129,6 +129,7 @@ O Boca Food é um sistema de gestão e operação de loja com painel admin, cat�
 - Páginas institucionais globais, como Termos de Uso e Política de Privacidade, devem ser gerenciadas no Master em `system_pages`.
 - O editor de páginas do sistema deve sanitizar HTML de entrada/preview e remover `script`, `iframe`, handlers inline e URLs `javascript:`.
 - Links de Termos e Política usados em e-mails e cadastro devem apontar para as páginas corretas publicadas/configuradas; não usar slugs temporários.
+- As URLs públicas atuais dos documentos legais globais são `https://bocafood.app/termosdeuso` e `https://bocafood.app/politicadeprivacidade`. Essas rotas devem renderizar somente páginas publicadas de `system_pages`.
 - A criação de páginas no Master não deve linkar automaticamente em todos os fluxos sem uma solicitação explícita.
 
 ### Backup e manutenção

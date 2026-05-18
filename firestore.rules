@@ -221,6 +221,11 @@ service cloud.firestore {
       allow read, write: if isMasterAdmin();
     }
 
+    match /system_pages/{pageId} {
+      allow get, list: if resource.data.status == 'published';
+      allow write: if isMasterAdmin();
+    }
+
     match /system_crm_tags/{tagId} {
       allow read, write: if isMasterAdmin();
     }

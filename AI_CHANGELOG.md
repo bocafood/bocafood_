@@ -6235,3 +6235,14 @@
 - O mapeamento de plano em eventos de assinatura passou a priorizar nome do plano, evitando salvar IDs numéricos da Hotmart como `planSlug`; campos Hotmart vazios deixam de sobrescrever valores já existentes no tenant.
 - Validação em produção: o evento real `SUBSCRIPTION_CANCELLATION` salvo em `hotmart_events` foi reprocessado com status 200, vinculou o tenant por `data.subscriber.email`, bloqueou a conta, marcou `billing.status = canceled`, manteve o plano como `essencial` e não reenviou e-mail duplicado graças à deduplicação de `email_logs`.
 - Documentação atualizada no `AGENTS.md`: eventos reais da Hotmart podem variar entre `data.buyer`, `data.purchase` e `data.subscriber`; reprocessamentos devem usar Secret Manager e validar apenas campos seguros, sem imprimir Hottok nem payload completo.
+
+## 2026-05-18 — Link público da Política de Privacidade
+- Arquivos alterados: `public/cadastro.html`, `public/system-page.html`, `firebase.json`, `firestore.rules`, `master.html`, `server.rb`, `functions/index.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Corrigido o link padrão da Política de Privacidade para `https://bocafood.app/politicadeprivacidade`, alinhado ao slug real publicado em `system_pages`.
+- O cadastro/primeiro acesso passa a apontar o aceite para a página real de Política de Privacidade, em vez de `/privacidade` ou URL temporária.
+- Os defaults de e-mail no Master local, backend local e Functions passaram a usar `https://bocafood.app/termosdeuso` e `https://bocafood.app/politicadeprivacidade`.
+- Criada a página pública `public/system-page.html`, que renderiza documentos publicados de `system_pages` para as rotas `/termosdeuso` e `/politicadeprivacidade`.
+- Atualizado `firebase.json` para rotear `/termosdeuso` e `/politicadeprivacidade` para o renderer público, e `firestore.rules` para permitir leitura pública somente de páginas com `status = published`.
+- Documentado no `AGENTS.md` que essas são as URLs oficiais dos documentos legais globais usados em cadastro e rodapés transacionais.
+- Ajuste posterior: removido o aviso `Segurança: o BocaFood nunca solicita senha por e-mail.` do corpo/prévia do e-mail, mantendo essa informação somente no rodapé transacional.
+- Ajuste posterior: adicionados aliases públicos `/termos`, `/privacidade` e `/rr` para renderizar as páginas legais corretas, preservando links antigos já enviados por e-mail.

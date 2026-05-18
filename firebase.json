@@ -28,6 +28,26 @@
         "destination": "/master.html"
       },
       {
+        "source": "/termosdeuso",
+        "destination": "/system-page.html"
+      },
+      {
+        "source": "/termos",
+        "destination": "/system-page.html"
+      },
+      {
+        "source": "/politicadeprivacidade",
+        "destination": "/system-page.html"
+      },
+      {
+        "source": "/privacidade",
+        "destination": "/system-page.html"
+      },
+      {
+        "source": "/rr",
+        "destination": "/system-page.html"
+      },
+      {
         "source": "/loja/**",
         "destination": "/index.html"
       }
