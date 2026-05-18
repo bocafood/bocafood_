@@ -242,6 +242,7 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
 .email-preview-cta{margin-top:20px}
 .email-preview-cta a{display:inline-flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#C4362A 0%,#A92F25 100%);color:#fff!important;text-decoration:none;border-radius:12px;padding:0 19px;height:44px;font-size:14px;font-weight:750;line-height:1.2;min-width:158px;text-align:center;border:1px solid rgba(126,31,24,.16);box-shadow:0 10px 20px rgba(196,54,42,.14),inset 0 1px 0 rgba(255,255,255,.20)}
 .email-preview-footer{padding:18px 28px 28px;background:linear-gradient(135deg,#FFFFFF 0%,#FFF8F6 62%,#FDF1EF 100%);border-top:1px solid rgba(242,237,237,.82);color:#8A7E7C;font-size:12px;line-height:1.55}
+.email-preview-footer strong{font-weight:700;color:#5F5552}
 .email-preview-footer a{color:#C4362A;text-decoration:none;font-weight:800}
 .email-log-table{width:100%;border-collapse:collapse;font-size:13px;min-width:760px}
 .email-log-table th{text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;padding:10px;border-bottom:1px solid var(--line);background:#FAF8F8}
@@ -574,7 +575,7 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
               <label><span>E-mail do remetente</span><input id="email-from-email" type="email" placeholder="no-reply@bocafood.com"></label>
               <label><span>E-mail de resposta</span><input id="email-reply-to" type="email" placeholder="teajudo@bocafood.app"></label>
               <label><span>E-mail de suporte</span><input id="email-support-email" type="email" placeholder="teajudo@bocafood.app"></label>
-              <label><span>URL base do app</span><input id="email-app-base-url" placeholder="https://app.bocafood.com"></label>
+              <label><span>URL base do app</span><input id="email-app-base-url" placeholder="https://bocafood.app"></label>
               <label><span>Nome da marca</span><input id="email-brand-name" placeholder="BocaFood"></label>
               <label><span>Termos de uso</span><input id="email-terms-url" placeholder="https://bocafood.app/termosdeuso"></label>
               <label><span>Política de privacidade</span><input id="email-privacy-url" placeholder="https://bocafood.app/politicadeprivacidade"></label>
@@ -3079,7 +3080,7 @@ var _emailDefaults = {
     fromEmail: 'no-reply@bocafood.com',
     replyTo: EMAIL_DEFAULT_SUPPORT,
     supportEmail: EMAIL_DEFAULT_SUPPORT,
-    appBaseUrl: 'https://app.bocafood.com',
+    appBaseUrl: 'https://bocafood.app',
     brandName: 'BocaFood',
     brandLogoUrl: BOCAFOOD_BRAND_LOGO_URL,
     termsUrl: 'https://bocafood.app/termosdeuso',
@@ -3112,12 +3113,12 @@ var _emailDefaults = {
   previewData: {
     buyerName: 'Patrícia',
     buyerEmail: 'cliente@email.com',
-    signupUrl: 'https://app.bocafood.com/cadastro',
+    signupUrl: 'https://bocafood.app/cadastro',
     supportEmail: EMAIL_DEFAULT_SUPPORT,
     planName: 'Plano Essencial',
     productName: 'BocaFood',
-    resetPasswordUrl: 'https://app.bocafood.com/redefinir-senha',
-    appBaseUrl: 'https://app.bocafood.com',
+    resetPasswordUrl: 'https://bocafood.app/redefinir-senha',
+    appBaseUrl: 'https://bocafood.app',
     brandName: 'BocaFood',
     brandLogoUrl: BOCAFOOD_BRAND_LOGO_URL,
     billingStatus: 'chargeback',
@@ -3791,15 +3792,9 @@ function _emailPreviewHtml(tpl){
   var ctaLabel = _emailReplace(tpl.ctaLabel || '', vars);
   var ctaUrl = _emailReplace(tpl.ctaUrl || '', vars);
   var cta = ctaLabel && ctaUrl ? '<div class="email-preview-cta"><a href="'+esc(ctaUrl)+'">'+esc(ctaLabel)+'</a></div>' : '';
-  var samplePreview = tpl.key === 'welcome_hotmart';
   var previewSupportEmail = vars.supportEmail;
+  var securityText = _emailReplace(vars.securityText || _emailDefaults.settings.securityText, vars);
   var emailReason = _emailReplace((tpl.footerReason || vars.footerReasonDefault || _emailDefaults.settings.footerReasonDefault), vars);
-  if(samplePreview){
-    subject = 'Bem-vinda, Patrícia';
-    preheader = 'Seu acesso ao BocaFood está pronto.';
-    body = '<p>Olá Patrícia,</p><p>Sua compra foi confirmada e seu plano Plano Essencial já está liberado.</p><p>Crie seu acesso usando o mesmo e-mail da compra para entrar no painel e começar a configurar sua loja.</p>';
-    cta = '<div class="email-preview-cta"><a href="'+esc(ctaUrl || vars.signupUrl || vars.appBaseUrl)+'">Criar meu acesso</a></div>';
-  }
   var terms = vars.termsUrl ? '<a href="'+esc(vars.termsUrl)+'">Termos de uso</a>' : 'Termos de uso';
   var privacy = vars.privacyUrl ? '<a href="'+esc(vars.privacyUrl)+'">Política de privacidade</a>' : 'Política de privacidade';
   return '<div class="email-preview-canvas">'+
@@ -3812,7 +3807,7 @@ function _emailPreviewHtml(tpl){
         (preheader ? '<p class="email-preview-preheader">'+esc(preheader)+'</p>' : '')+
         '<div class="email-preview-body">'+body+cta+'</div>'+
       '</main>'+
-      '<footer class="email-preview-footer">Precisa de ajuda? Escreva para <a href="mailto:'+esc(previewSupportEmail)+'">'+esc(previewSupportEmail)+'</a>.<br>Você recebeu este e-mail porque '+esc(emailReason)+'.<br>'+esc(vars.brandName)+'<br>'+terms+' · '+privacy+'</footer>'+
+      '<footer class="email-preview-footer"><strong>Segurança:</strong> '+esc(securityText)+'<br>Precisa de ajuda? Escreva para <a href="mailto:'+esc(previewSupportEmail)+'">'+esc(previewSupportEmail)+'</a><br>Você recebeu este e-mail porque '+esc(emailReason)+'.<br>'+esc(vars.brandName)+'<br>'+terms+' · '+privacy+'</footer>'+
     '</article>'+
   '</div>';
 }

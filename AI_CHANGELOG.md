@@ -1,5 +1,27 @@
 # AI Changelog
 
+## 2026-05-18 — Prévia e CTA do template Hotmart
+- Arquivos alterados: `master.html`, `functions/index.js`, `server.rb`, `AI_CHANGELOG.md`.
+- Master: a prévia do template `Boas-vindas após compra Hotmart` deixou de usar uma amostra fixa e passou a renderizar o assunto, preheader, corpo e CTA realmente editados no template.
+- E-mails: defaults de prévia/teste/local foram alinhados para `https://bocafood.app`, garantindo que `{{signupUrl}}` aponte para `https://bocafood.app/cadastro`.
+- Escopo: ajuste de prévia e URLs padrão; SMTP, gatilhos Hotmart, mapeamento de planos e dados salvos não foram alterados.
+
+## 2026-05-18 — Link de privacidade no cadastro
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: a Política de Privacidade agora fica clicável também dentro da frase do aceite final, junto dos Termos de Uso.
+- Link: a URL padrão de privacidade do cadastro passou a usar `https://bocafood.app/privacidade`, rota pública mapeada para a página institucional publicada.
+- Escopo: ajuste de link/copy; criação de conta, aceite, Firebase, Hotmart e salvamento não foram alterados.
+
+## 2026-05-18 — Rodapé padronizado na prévia de e-mails
+- Arquivos alterados: `master.html`, `AI_CHANGELOG.md`.
+- Master: a prévia dos templates transacionais agora usa o mesmo padrão de rodapé do envio real, com Segurança, suporte, motivo do e-mail, marca, Termos de uso e Política de privacidade.
+- Escopo: ajuste visual/consistência da prévia; SMTP, gatilhos, Functions, endpoints e templates salvos não foram alterados.
+
+## 2026-05-18 — Scroll no cadastro mobile
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Cadastro: ao trocar de etapa no onboarding, a página agora retorna ao topo da tela para evitar que o celular abra a próxima etapa na parte final do card.
+- Escopo: ajuste apenas de usabilidade/rolagem; fluxo de cadastro, autenticação, Hotmart, Firebase e salvamento não foram alterados.
+
 ## 2026-05-17 — Respostas do cadastro no Master
 - Arquivos alterados: `master.html`, `AI_CHANGELOG.md`.
 - Master: criada aba `Cadastro` no modal de conta para visualizar as respostas do onboarding salvas em `system_tenants/{uid}.businessProfile`.

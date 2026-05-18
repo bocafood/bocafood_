@@ -1032,7 +1032,7 @@ async function ensureEmailDefaults() {
       fromEmail: "no-reply@bocafood.com",
       replyTo: DEFAULT_SUPPORT_EMAIL,
       supportEmail: DEFAULT_SUPPORT_EMAIL,
-      appBaseUrl: "https://app.bocafood.com",
+      appBaseUrl: "https://bocafood.app",
       brandName: "BocaFood",
       brandLogoUrl: BOCAFOOD_BRAND_LOGO_URL,
       termsUrl: "https://bocafood.app/termosdeuso",
@@ -1361,7 +1361,7 @@ async function createEmailFromTemplate({ to, templateKey, variables = {}, origin
 
   const mergedVariables = {
     supportEmail: settings.supportEmail || settings.replyTo || "",
-    appBaseUrl: settings.appBaseUrl || "https://app.bocafood.com",
+    appBaseUrl: settings.appBaseUrl || "https://bocafood.app",
     brandName: settings.brandName || settings.fromName || "BocaFood",
     brandLogoUrl: normalizeBocaFoodBrandLogoUrl(settings.brandLogoUrl),
     termsUrl: settings.termsUrl || "",
@@ -2093,12 +2093,12 @@ exports.sendTestEmail = onRequest({ region: REGION }, async (req, res) => {
       variables: {
         buyerName: "Patrícia",
         buyerEmail: to,
-        signupUrl: "https://app.bocafood.com/cadastro",
+        signupUrl: "https://bocafood.app/cadastro",
         supportEmail: DEFAULT_SUPPORT_EMAIL,
         planName: "Plano Essencial",
         productName: "BocaFood",
-        resetPasswordUrl: "https://app.bocafood.com/redefinir-senha",
-        appBaseUrl: "https://app.bocafood.com",
+        resetPasswordUrl: "https://bocafood.app/redefinir-senha",
+        appBaseUrl: "https://bocafood.app",
         brandName: "BocaFood",
         brandLogoUrl: BOCAFOOD_BRAND_LOGO_URL,
         ...(body.variables || {})
