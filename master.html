@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Master Local — BOCA Food</title>
-<link rel="icon" type="image/png" href="/favicon%20BocaFood.png">
-<link rel="apple-touch-icon" href="/favicon%20BocaFood.png">
+<link rel="icon" type="image/png" href="/assets/boca-food-favicon.png">
+<link rel="apple-touch-icon" href="/assets/boca-food-favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@700;800;900&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -278,7 +278,7 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
 </head>
 <body>
 <header>
-  <div class="brand"><img src="/logo%20BocaFood.png" alt="BOCA Food"></div>
+  <div class="brand"><img src="/assets/boca-food-logo.png" alt="BOCA Food"></div>
   <div class="local-badge" id="local-badge">Verificando local...</div>
 </header>
 <div id="fb-auth-bar">
@@ -1333,7 +1333,7 @@ function deleteSystemPage(){
   var links = page.linkedIn || [];
   var warning = links.length ? '\n\nAtenção: esta página aparece vinculada em '+links.length+' local(is) conhecido(s). A exclusão não remove esses links automaticamente.' : '';
   if(!confirm('Excluir a página "'+(page.title || page.key || page.id)+'" de system_pages?'+warning))return;
-  _emailCallLocalMaster('/api/master/system-pages', { key: page.key || page.id }, { method:'DELETE' })
+  _emailCallLocalMaster('/api/master/system-pages', { action: 'delete', key: page.key || page.id })
     .then(function(data){
       toast(data.message || 'Página excluída.');
       _systemPagesState.selectedKey = '';
@@ -3041,6 +3041,12 @@ var _emailMasterState = {
   crmRules: []
 };
 var EMAIL_DEFAULT_SUPPORT = 'teajudo@bocafood.app';
+var BOCAFOOD_BRAND_LOGO_URL = 'https://bocafood.app/assets/boca-food-logo.png';
+function normalizeBocaFoodBrandLogoUrl(value){
+  var url = String(value || '').trim();
+  if(!url || url.indexOf('logo%20BocaFood.png') >= 0 || url.indexOf('logo BocaFood.png') >= 0) return BOCAFOOD_BRAND_LOGO_URL;
+  return url;
+}
 var TENANT_TAG_OPTIONS = ['trial_ending','trial_ends_today','trial_expired','store_not_published','store_ready_to_publish','payment_pending','subscription_canceled','subscription_active','hotmart_pending_access','inactive_user'];
 var EMAIL_VARIABLE_DESCRIPTIONS = {
   buyerName: 'Nome da compradora ou responsável pela conta.',
@@ -3076,7 +3082,7 @@ var _emailDefaults = {
     supportEmail: EMAIL_DEFAULT_SUPPORT,
     appBaseUrl: 'https://app.bocafood.com',
     brandName: 'BocaFood',
-    brandLogoUrl: 'https://bocafood.app/logo%20BocaFood.png',
+    brandLogoUrl: BOCAFOOD_BRAND_LOGO_URL,
     termsUrl: 'https://bocafood.app/termos',
     privacyUrl: 'https://bocafood.app/privacidade',
     securityText: 'o BocaFood nunca solicita senha por e-mail.',
@@ -3114,7 +3120,7 @@ var _emailDefaults = {
     resetPasswordUrl: 'https://app.bocafood.com/redefinir-senha',
     appBaseUrl: 'https://app.bocafood.com',
     brandName: 'BocaFood',
-    brandLogoUrl: 'https://bocafood.app/logo%20BocaFood.png',
+    brandLogoUrl: BOCAFOOD_BRAND_LOGO_URL,
     billingStatus: 'chargeback',
     blockedReason: 'chargeback registrado',
     canceledAt: '2026-05-18 09:00',
@@ -3393,6 +3399,7 @@ function collectEmailSettings(){
     supportEmail: val('email-support-email') || val('email-reply-to'),
     appBaseUrl: val('email-app-base-url'),
     brandName: val('email-brand-name') || 'BocaFood',
+    brandLogoUrl: BOCAFOOD_BRAND_LOGO_URL,
     termsUrl: val('email-terms-url'),
     privacyUrl: val('email-privacy-url'),
     securityText: val('email-security-text') || 'o BocaFood nunca solicita senha por e-mail.',
@@ -3773,7 +3780,7 @@ function _emailPreviewHtml(tpl){
     supportEmail: settings.supportEmail || settings.replyTo || _emailDefaults.previewData.supportEmail,
     appBaseUrl: settings.appBaseUrl || _emailDefaults.previewData.appBaseUrl,
     brandName: settings.brandName || settings.fromName || 'BocaFood',
-    brandLogoUrl: settings.brandLogoUrl || _emailDefaults.previewData.brandLogoUrl,
+    brandLogoUrl: normalizeBocaFoodBrandLogoUrl(settings.brandLogoUrl || _emailDefaults.previewData.brandLogoUrl),
     termsUrl: settings.termsUrl || _emailDefaults.settings.termsUrl || '',
     privacyUrl: settings.privacyUrl || _emailDefaults.settings.privacyUrl || '',
     securityText: settings.securityText || _emailDefaults.settings.securityText,

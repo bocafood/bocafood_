@@ -14,6 +14,7 @@ const db = admin.firestore();
 const REGION = "us-central1";
 const FIREBASE_ADMIN_SERVICE_ACCOUNT = "firebase-adminsdk-fbsvc@bocado-brasil.iam.gserviceaccount.com";
 const FIRESTORE_BACKUP_DEFAULT_BUCKET = "gs://bocado-brasil-firestore-backups";
+const BOCAFOOD_BRAND_LOGO_URL = "https://bocafood.app/assets/boca-food-logo.png";
 const HOTMART_HOTTOK_SECRET = defineSecret("HOTMART_HOTTOK");
 const MASTER_EMAILS = new Set([
   "bocadobrasil.es@gmail.com",
@@ -44,6 +45,12 @@ const TENANT_TAG_KEYS = [
 ];
 
 const HOTMART_BLOCKED_STATUSES = ["canceled", "refunded", "chargeback"];
+
+function normalizeBocaFoodBrandLogoUrl(value) {
+  const url = String(value || "").trim();
+  if (!url || url.includes("logo%20BocaFood.png") || url.includes("logo BocaFood.png")) return BOCAFOOD_BRAND_LOGO_URL;
+  return url;
+}
 
 const CRM_TAG_DEFAULTS = {
   trial_sem_cardapio: {
@@ -455,6 +462,18 @@ function hotmartOfferPlan(payload) {
   return HOTMART_OFFER_PLANS[hotmartOfferCodeFromPayload(payload)] || null;
 }
 
+function firstHotmartValue(values) {
+  return (values || []).find((item) => item != null && String(item).trim() !== "") || "";
+}
+
+function planSlugFromHotmartName(value) {
+  const name = String(value || "").toLowerCase();
+  if (name.includes("essencial")) return "essencial";
+  if (name.includes("compromisso") || name.includes("anual")) return "compromisso_anual";
+  if (name.includes("fundadora")) return "fundadoras";
+  return "";
+}
+
 function eventDateIso(payload) {
   const data = payload.data || payload || {};
   const candidates = [
@@ -830,27 +849,34 @@ function extractHotmartTrialDays(payload) {
 function extractHotmartBuyer(payload) {
   const data = payload.data || payload;
   const buyer = data.buyer || data.buyer_info || {};
+  const subscriber = data.subscriber || {};
   const purchase = data.purchase || {};
   const subscription = data.subscription || {};
   const product = data.product || {};
   const offer = data.offer || {};
-  const fullName = buyer.name || buyer.full_name || data.buyerName || "";
+  const fullName = buyer.name || buyer.full_name || subscriber.name || data.buyerName || "";
   const cycleInfo = mapHotmartCycle(payload);
   const activatedAt = eventDateIso(payload);
   const trialDays = extractHotmartTrialDays(payload);
   const planName = subscription.plan && subscription.plan.name ? subscription.plan.name : (subscription.plan_name || purchase.plan || data.planName || "Plano BocaFood");
   const offerCode = hotmartOfferCodeFromPayload(payload);
   const offerPlan = hotmartOfferPlan(payload);
-  const planSlug = (offerPlan && offerPlan.planSlug) || slugify(data.planSlug || subscription.plan_slug || (subscription.plan && (subscription.plan.slug || subscription.plan.id || subscription.plan.name)) || offer.planSlug || offerCode || planName) || "essencial";
+  const rawPlanSlug = firstHotmartValue([
+    data.planSlug,
+    subscription.plan_slug,
+    subscription.plan && subscription.plan.slug,
+    offer.planSlug
+  ]);
+  const planSlug = (offerPlan && offerPlan.planSlug) || rawPlanSlug || planSlugFromHotmartName(planName) || slugify(offerCode || planName || (subscription.plan && subscription.plan.id)) || "essencial";
   return {
     buyerName: fullName || "Cliente",
-    buyerEmail: normalizeEmail(buyer.email || data.buyerEmail || data.email),
-    buyerPhone: buyer.phone || buyer.phone_number || data.buyerPhone || "",
-    buyerCountry: buyer.country_iso || buyer.country || data.buyerCountry || "",
+    buyerEmail: normalizeEmail(buyer.email || subscriber.email || data.buyerEmail || data.email),
+    buyerPhone: buyer.phone || buyer.phone_number || (subscriber.phone && (subscriber.phone.phone || subscriber.phone.cell)) || data.buyerPhone || "",
+    buyerCountry: buyer.country_iso || buyer.country || subscriber.country || subscriber.country_iso || data.buyerCountry || "",
     planName,
     planSlug,
     productName: product.name || data.productName || "BocaFood",
-    hotmartSubscriberCode: subscription.subscriber_code || subscription.subscriberCode || subscription.code || data.hotmartSubscriberCode || "",
+    hotmartSubscriberCode: subscription.subscriber_code || subscription.subscriberCode || subscriber.code || subscription.code || data.hotmartSubscriberCode || "",
     hotmartTransaction: purchase.transaction || purchase.transaction_code || data.transaction || data.hotmartTransaction || "",
     hotmartProductId: product.id || product.ucode || data.hotmartProductId || "",
     hotmartOfferCode: offerCode,
@@ -964,6 +990,16 @@ async function applyHotmartBillingToTenants({ buyer, status, eventName, eventAt 
     activePatch.trialEndsAt = admin.firestore.FieldValue.delete();
     activePatch.billing.trialEndsAt = admin.firestore.FieldValue.delete();
   }
+  [
+    "hotmartSubscriberCode",
+    "hotmartTransaction",
+    "hotmartProductId",
+    "hotmartOfferCode",
+    "purchaseStatus",
+    "subscriptionStatus"
+  ].forEach((field) => {
+    if (activePatch.billing && activePatch.billing[field] === "") delete activePatch.billing[field];
+  });
   if (canceledAt) activePatch.canceledAt = canceledAt;
   await Promise.all(matches.map(async (item) => {
     await db.collection("system_tenants").doc(item.id).set(activePatch, { merge: true });
@@ -998,7 +1034,7 @@ async function ensureEmailDefaults() {
       supportEmail: DEFAULT_SUPPORT_EMAIL,
       appBaseUrl: "https://app.bocafood.com",
       brandName: "BocaFood",
-      brandLogoUrl: "https://bocafood.app/logo%20BocaFood.png",
+      brandLogoUrl: BOCAFOOD_BRAND_LOGO_URL,
       termsUrl: "https://bocafood.app/termos",
       privacyUrl: "https://bocafood.app/privacidade",
       securityText: "o BocaFood nunca solicita senha por e-mail.",
@@ -1089,7 +1125,7 @@ async function ensureEmailTriggerDefaults() {
 function buildEmailLayout(settings, template, variables) {
   const brandName = variables.brandName || settings.brandName || "BocaFood";
   const supportEmail = variables.supportEmail || settings.supportEmail || settings.replyTo || "";
-  const logoUrl = variables.brandLogoUrl || settings.brandLogoUrl || "https://bocafood.app/logo%20BocaFood.png";
+  const logoUrl = normalizeBocaFoodBrandLogoUrl(variables.brandLogoUrl || settings.brandLogoUrl);
   const termsUrl = variables.termsUrl || settings.termsUrl || "";
   const privacyUrl = variables.privacyUrl || settings.privacyUrl || "";
   const preheader = replaceVariables(template.preheader || "", variables);
@@ -1327,7 +1363,7 @@ async function createEmailFromTemplate({ to, templateKey, variables = {}, origin
     supportEmail: settings.supportEmail || settings.replyTo || "",
     appBaseUrl: settings.appBaseUrl || "https://app.bocafood.com",
     brandName: settings.brandName || settings.fromName || "BocaFood",
-    brandLogoUrl: settings.brandLogoUrl || "https://bocafood.app/logo%20BocaFood.png",
+    brandLogoUrl: normalizeBocaFoodBrandLogoUrl(settings.brandLogoUrl),
     termsUrl: settings.termsUrl || "",
     privacyUrl: settings.privacyUrl || "",
     securityText: settings.securityText || "o BocaFood nunca solicita senha por e-mail.",
@@ -1409,7 +1445,7 @@ async function sendEmailFromTemplateViaSmtp({ to, templateKey, variables = {}, s
       supportEmail: settings.supportEmail || settings.replyTo || DEFAULT_SUPPORT_EMAIL,
       appBaseUrl: settings.appBaseUrl || "https://bocafood.app",
       brandName: settings.brandName || settings.fromName || "BocaFood",
-      brandLogoUrl: settings.brandLogoUrl || "https://bocafood.app/logo%20BocaFood.png",
+      brandLogoUrl: normalizeBocaFoodBrandLogoUrl(settings.brandLogoUrl),
       termsUrl: settings.termsUrl || "",
       privacyUrl: settings.privacyUrl || "",
       securityText: settings.securityText || "o BocaFood nunca solicita senha por e-mail.",
@@ -1633,7 +1669,7 @@ function tenantEmailVariables(tenant, tagKey) {
     supportEmail: DEFAULT_SUPPORT_EMAIL,
     appBaseUrl: "https://bocafood.app",
     brandName: "BocaFood",
-    brandLogoUrl: "https://bocafood.app/logo%20BocaFood.png",
+    brandLogoUrl: BOCAFOOD_BRAND_LOGO_URL,
     planName: billing.planSlug || tenant.plan || "",
     productName: "BocaFood",
     billingStatus: billing.status || tenant.billingStatus || "",
@@ -1969,6 +2005,7 @@ exports.saveEmailSettings = onRequest({ region: REGION }, async (req, res) => {
       supportEmail: normalizeEmail(body.supportEmail || body.replyTo),
       appBaseUrl: String(body.appBaseUrl || "").trim(),
       brandName: String(body.brandName || "BocaFood").trim(),
+      brandLogoUrl: normalizeBocaFoodBrandLogoUrl(body.brandLogoUrl),
       termsUrl: String(body.termsUrl || "").trim(),
       privacyUrl: String(body.privacyUrl || "").trim(),
       securityText: String(body.securityText || "o BocaFood nunca solicita senha por e-mail.").trim(),
@@ -2063,7 +2100,7 @@ exports.sendTestEmail = onRequest({ region: REGION }, async (req, res) => {
         resetPasswordUrl: "https://app.bocafood.com/redefinir-senha",
         appBaseUrl: "https://app.bocafood.com",
         brandName: "BocaFood",
-        brandLogoUrl: "https://bocafood.app/logo%20BocaFood.png",
+        brandLogoUrl: BOCAFOOD_BRAND_LOGO_URL,
         ...(body.variables || {})
       }
     });
@@ -2134,7 +2171,7 @@ function hotmartEmailVariables({ buyer, settings, status, eventAt = "" }) {
     supportEmail: settings.supportEmail || settings.replyTo || DEFAULT_SUPPORT_EMAIL,
     appBaseUrl,
     brandName: settings.brandName || settings.fromName || "BocaFood",
-    brandLogoUrl: settings.brandLogoUrl || "https://bocafood.app/logo%20BocaFood.png",
+    brandLogoUrl: normalizeBocaFoodBrandLogoUrl(settings.brandLogoUrl),
     billingStatus: status || "",
     billingCycle: buyer.billingCycle || "",
     blockedReason: hotmartBlockedReason(status),
@@ -2496,8 +2533,9 @@ exports.hotmartWebhook = onRequest(
       const eventId = payload.id || `hotmart-${Date.now()}`;
       const eventRef = db.collection("hotmart_events").doc(eventId);
       const existingEvent = await eventRef.get();
+      const existingEventData = existingEvent.exists ? existingEvent.data() || {} : {};
 
-      if (existingEvent.exists) {
+      if (existingEvent.exists && existingEventData.processedAt) {
         return res.status(200).json({
           ok: true,
           duplicate: true,
@@ -2516,12 +2554,28 @@ exports.hotmartWebhook = onRequest(
 
       const eventName = payload.event || payload.event_name || payload.type;
       const status = hotmartBillingStatus(eventName, payload);
+      let linkedCount = 0;
+      let processingStatus = status ? "processed" : "ignored_unsupported";
+      let processingReason = status ? "" : "unmapped_event";
+      let buyerSummary = {};
       if (status) {
         const buyer = extractHotmartBuyer(payload);
+        buyerSummary = {
+          buyerEmail: buyer.buyerEmail || "",
+          hotmartSubscriberCode: buyer.hotmartSubscriberCode || "",
+          hotmartTransaction: buyer.hotmartTransaction || "",
+          hotmartOfferCode: buyer.hotmartOfferCode || "",
+          planSlug: buyer.planSlug || "",
+          billingCycle: buyer.billingCycle || ""
+        };
         if (buyer.buyerEmail || buyer.hotmartSubscriberCode || buyer.hotmartTransaction) {
           const eventAt = eventDateIso(payload);
           const linkedResult = await applyHotmartBillingToTenants({ buyer, status, eventName, eventAt });
-          const linkedCount = linkedResult.count || 0;
+          linkedCount = linkedResult.count || 0;
+          if (!linkedCount) {
+            processingStatus = "pending_manual";
+            processingReason = "tenant_not_found";
+          }
           const pendingAccess = {
             eventId,
             buyerName: buyer.buyerName,
@@ -2601,8 +2655,63 @@ exports.hotmartWebhook = onRequest(
               });
             }
           }
+        } else {
+          const eventAt = eventDateIso(payload);
+          processingStatus = "pending_manual";
+          processingReason = "incomplete_hotmart_payload";
+          await db.collection("pending_hotmart_access").doc(eventId).set({
+            eventId,
+            buyerName: buyer.buyerName || "",
+            buyerEmail: "",
+            planName: buyer.planName || "",
+            productName: buyer.productName || "",
+            planSlug: buyer.planSlug || "",
+            billingCycle: buyer.billingCycle || "",
+            purchaseStatus: buyer.purchaseStatus || "",
+            subscriptionStatus: buyer.subscriptionStatus || status,
+            hotmartSubscriberCode: "",
+            hotmartTransaction: "",
+            hotmartProductId: buyer.hotmartProductId || "",
+            hotmartOfferCode: buyer.hotmartOfferCode || "",
+            lastHotmartEventAt: eventAt,
+            status: "pending",
+            internalStatus: status,
+            pendingReason: "incomplete_hotmart_payload",
+            eventType: eventName || "",
+            source: "hotmart",
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          }, { merge: true });
+          await recordSystemAccessLog({
+            action: "hotmart_event_incomplete",
+            summary: "Evento Hotmart recebido com dados insuficientes para vincular ao tenant.",
+            severity: "warning",
+            metadata: {
+              eventId,
+              eventType: eventName,
+              billingStatus: status,
+              pendingReason: "incomplete_hotmart_payload"
+            }
+          });
         }
       }
+
+      await eventRef.set(
+        {
+          processedAt: admin.firestore.FieldValue.serverTimestamp(),
+          processingStatus,
+          processingReason,
+          billingStatus: status || "",
+          linkedCount,
+          buyerEmail: buyerSummary.buyerEmail || "",
+          hotmartSubscriberCode: buyerSummary.hotmartSubscriberCode || "",
+          hotmartTransaction: buyerSummary.hotmartTransaction || "",
+          hotmartOfferCode: buyerSummary.hotmartOfferCode || "",
+          planSlug: buyerSummary.planSlug || "",
+          billingCycle: buyerSummary.billingCycle || ""
+        },
+        { merge: true }
+      );
 
       return res.status(200).json({
         ok: true,

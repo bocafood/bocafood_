@@ -269,6 +269,7 @@ def email_public_settings_from_body(body)
     'supportEmail' => support_email.empty? ? reply_to : support_email,
     'appBaseUrl' => body['appBaseUrl'].to_s.strip,
     'brandName' => body['brandName'].to_s.strip.empty? ? 'BocaFood' : body['brandName'].to_s.strip,
+    'brandLogoUrl' => normalize_bocafood_brand_logo_url(body['brandLogoUrl']),
     'termsUrl' => body['termsUrl'].to_s.strip,
     'privacyUrl' => body['privacyUrl'].to_s.strip,
     'securityText' => body['securityText'].to_s.strip.empty? ? 'o BocaFood nunca solicita senha por e-mail.' : body['securityText'].to_s.strip,
@@ -280,6 +281,16 @@ def email_public_settings_from_body(body)
     'enabled' => body['enabled'] == true,
     'provider' => 'smtp'
   }
+end
+
+def bocafood_brand_logo_url
+  'https://bocafood.app/assets/boca-food-logo.png'
+end
+
+def normalize_bocafood_brand_logo_url(value)
+  url = value.to_s.strip
+  return bocafood_brand_logo_url if url.empty? || url.include?('logo%20BocaFood.png') || url.include?('logo BocaFood.png')
+  url
 end
 
 def email_secret_configured?
@@ -310,7 +321,7 @@ def default_email_settings
     'privacyUrl' => 'https://bocafood.app/privacidade',
     'securityText' => 'o BocaFood nunca solicita senha por e-mail.',
     'footerReasonDefault' => 'esta mensagem faz parte do seu relacionamento com o BocaFood',
-    'brandLogoUrl' => 'https://bocafood.app/logo%20BocaFood.png',
+    'brandLogoUrl' => bocafood_brand_logo_url,
     'smtpHost' => '',
     'smtpPort' => 587,
     'smtpSecure' => 'tls',
@@ -1204,7 +1215,7 @@ end
 def build_test_email_layout(settings, template, variables)
   brand_name = variables['brandName'].to_s.empty? ? 'BocaFood' : variables['brandName'].to_s
   support_email = variables['supportEmail'].to_s
-  logo_url = variables['brandLogoUrl'].to_s.empty? ? 'https://bocafood.app/logo%20BocaFood.png' : variables['brandLogoUrl'].to_s
+  logo_url = normalize_bocafood_brand_logo_url(variables['brandLogoUrl'])
   terms_url = variables['termsUrl'].to_s
   privacy_url = variables['privacyUrl'].to_s
   security_text = email_replace_variables(variables['securityText'].to_s.empty? ? 'o BocaFood nunca solicita senha por e-mail.' : variables['securityText'].to_s, variables)
@@ -1352,7 +1363,7 @@ def send_test_email!(body)
     'resetPasswordUrl' => 'https://app.bocafood.com/redefinir-senha',
     'appBaseUrl' => settings['appBaseUrl'].to_s.empty? ? 'https://app.bocafood.com' : settings['appBaseUrl'].to_s,
     'brandName' => settings['brandName'].to_s.empty? ? 'BocaFood' : settings['brandName'].to_s,
-    'brandLogoUrl' => settings['brandLogoUrl'].to_s.empty? ? 'https://bocafood.app/logo%20BocaFood.png' : settings['brandLogoUrl'].to_s,
+    'brandLogoUrl' => normalize_bocafood_brand_logo_url(settings['brandLogoUrl']),
     'termsUrl' => settings['termsUrl'].to_s,
     'privacyUrl' => settings['privacyUrl'].to_s,
     'securityText' => settings['securityText'].to_s.empty? ? 'o BocaFood nunca solicita senha por e-mail.' : settings['securityText'].to_s,
@@ -4392,21 +4403,24 @@ system_pages_handler = proc do |req, res|
         pages: load_system_pages_payload
       })
     when 'POST'
-      page = save_system_page_payload!(read_json(req))
-      json_response_cors(req, res, 200, {
-        ok: true,
-        message: 'Página salva.',
-        page: page
-      })
-    when 'DELETE'
-      deleted = delete_system_page_payload!(read_json(req))
-      json_response_cors(req, res, 200, {
-        ok: true,
-        message: 'Página excluída.',
-        page: deleted
-      })
+      body = read_json(req)
+      if body['action'].to_s == 'delete'
+        deleted = delete_system_page_payload!(body)
+        json_response_cors(req, res, 200, {
+          ok: true,
+          message: 'Página excluída.',
+          page: deleted
+        })
+      else
+        page = save_system_page_payload!(body)
+        json_response_cors(req, res, 200, {
+          ok: true,
+          message: 'Página salva.',
+          page: page
+        })
+      end
     else
-      json_response_cors(req, res, 405, email_read_error('Endpoint existe, mas exige método GET, POST ou DELETE.'))
+      json_response_cors(req, res, 405, email_read_error('Endpoint existe, mas exige método GET ou POST.'))
     end
   rescue WEBrick::HTTPStatus::BadRequest => e
     json_response_cors(req, res, 400, email_read_error(e.message))

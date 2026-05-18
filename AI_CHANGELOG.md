@@ -6213,6 +6213,25 @@
 
 ## 2026-05-18 — Exclusão e vínculos em Páginas do sistema
 - Arquivos alterados: `master.html`, `server.rb`, `AI_CHANGELOG.md`.
-- A aba Master → Páginas do sistema ganhou botão `Excluir página`, usando `DELETE /api/master/system-pages` para remover o documento correspondente de `system_pages`.
+- A aba Master → Páginas do sistema ganhou botão `Excluir página`, usando `POST /api/master/system-pages` com `action: delete` para remover o documento correspondente de `system_pages`, evitando bloqueio do método `DELETE` pelo WEBrick local.
 - O editor passou a exibir o card `Onde esta página está linkada`, indicando vínculos conhecidos com as configurações globais de e-mail (`termsUrl`/`privacyUrl`) e links de aceite do cadastro quando a URL coincide.
 - A exclusão mostra alerta quando a página possui vínculos conhecidos, deixando claro que apagar a página não remove automaticamente URLs já configuradas em outros fluxos.
+
+## 2026-05-18 — Logo e favicon BocaFood padronizados
+- Arquivos alterados: `public/assets/boca-food-logo.png`, `public/assets/boca-food-favicon.png`, `public/admin.html`, `public/cadastro.html`, `public/redefinir-senha.html`, `public/master.html`, `master.html`, `server.rb`, `functions/index.js`, `AI_CHANGELOG.md`.
+- Os novos arquivos enviados como `public/logo BocaFood.png` e `public/favicon BocaFood.png` foram copiados para os assets versionados `public/assets/boca-food-logo.png` e `public/assets/boca-food-favicon.png`.
+- As telas internas publicadas do BocaFood passaram a usar `/assets/boca-food-logo.png` e `/assets/boca-food-favicon.png`, evitando depender dos arquivos com espaço no nome que ficam ignorados pelo Git.
+- O layout dos e-mails transacionais, a prévia do Master e os defaults de Functions/backend passaram a usar `https://bocafood.app/assets/boca-food-logo.png`, com normalização para substituir URLs antigas como `logo%20BocaFood.png`.
+- Não foram alteradas as referências da loja pública/template para preservar o fluxo em que logo e favicon da loja vêm da usuária.
+
+## 2026-05-18 — Cancelamento Hotmart por subscriber
+- Arquivos alterados: `functions/index.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Corrigida a leitura de eventos `SUBSCRIPTION_CANCELLATION` da Hotmart para extrair e-mail, nome, telefone e código do assinante a partir de `data.subscriber`.
+- Antes, o webhook gravava o evento em `hotmart_events`, mas não conseguia vincular o cancelamento ao tenant quando o payload não trazia `data.buyer`.
+- Impacto esperado: cancelamentos de assinatura passam a atualizar `system_tenants/{uid}` pelo e-mail/código do assinante, bloqueando acesso e atualizando `billing.status` conforme a regra já existente.
+- Ajuste adicional: `hotmart_events` agora recebe `processedAt`, `processingStatus`, `billingStatus` e `linkedCount`; eventos já gravados sem `processedAt` podem ser reprocessados em um reenvio da Hotmart, evitando que um evento antigo fique preso como duplicado antes de aplicar a regra.
+- Ajuste adicional: o webhook passou a salvar resumo normalizado no evento (`buyerEmail`, `hotmartSubscriberCode`, `hotmartTransaction`, `hotmartOfferCode`, `planSlug`, `billingCycle`) e marcar como `pending_manual` quando o tenant não for encontrado ou o payload vier incompleto.
+- Eventos Hotmart reconhecidos mas sem identificadores mínimos agora criam pendência em `pending_hotmart_access` com `pendingReason: incomplete_hotmart_payload`, em vez de ficarem apenas registrados em `hotmart_events` sem ação manual.
+- O mapeamento de plano em eventos de assinatura passou a priorizar nome do plano, evitando salvar IDs numéricos da Hotmart como `planSlug`; campos Hotmart vazios deixam de sobrescrever valores já existentes no tenant.
+- Validação em produção: o evento real `SUBSCRIPTION_CANCELLATION` salvo em `hotmart_events` foi reprocessado com status 200, vinculou o tenant por `data.subscriber.email`, bloqueou a conta, marcou `billing.status = canceled`, manteve o plano como `essencial` e não reenviou e-mail duplicado graças à deduplicação de `email_logs`.
+- Documentação atualizada no `AGENTS.md`: eventos reais da Hotmart podem variar entre `data.buyer`, `data.purchase` e `data.subscriber`; reprocessamentos devem usar Secret Manager e validar apenas campos seguros, sem imprimir Hottok nem payload completo.
