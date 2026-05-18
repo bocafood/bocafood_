@@ -6154,3 +6154,10 @@
 - Documentadas as regras dos e-mails automáticos: SMTP salvo no Master, senha sempre protegida, layout transacional compartilhado, rodapé global com termos/política, recuperação de senha via template `password_reset` e página `/redefinir-senha`.
 - Documentado o backup oficial de dados Firestore via exportação para Cloud Storage, com configurações em `system_backup_settings/firestore`, logs em `system_firestore_backups`, rotina `dailyFirestoreBackup` e fluxo legado de backup de código oculto.
 - Ajuste posterior: ampliada a documentação para cobrir decisões anteriores de Master/Contas, origem dos dados herdados do Admin, onboarding e `businessProfile`, Hotmart/billing, mapeamento real das ofertas, login/redefinição de senha, páginas do sistema e uso do Master restrito em produção.
+
+## 2026-05-18 — Bloqueio automático por evento Hotmart
+- Arquivos alterados: `functions/index.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- O webhook Hotmart passa a bloquear automaticamente a conta vinculada quando o status recebido for `canceled`, `refunded` ou `chargeback`, gravando `accountStatus/status = blocked`, `blockedAt` e `blockedReason`.
+- Quando o status Hotmart voltar para `active`, o webhook passa a liberar a conta vinculada com `accountStatus/status = active`, além de atualizar `billing`.
+- A mudança não apaga tenant, loja ou dados da conta; apenas reflete o estado de acesso em `system_tenants/{uid}` e mantém os logs existentes em `system_access_logs`.
+- A documentação do projeto foi atualizada para registrar que cancelamento, reembolso e chargeback bloqueiam acesso automaticamente, enquanto evento ativo pode liberar novamente.

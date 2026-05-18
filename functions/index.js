@@ -747,6 +747,10 @@ function hotmartLogAction(status) {
   }[status] || "hotmart_event_received";
 }
 
+function hotmartBlocksAccess(status) {
+  return ["canceled", "refunded", "chargeback"].includes(String(status || ""));
+}
+
 function planDisplayName(planSlug) {
   const normalized = String(planSlug || "").trim();
   if (!normalized) return "Plano BocaFood";
@@ -883,8 +887,11 @@ async function findSystemTenantsForHotmart(buyer) {
 async function applyHotmartBillingToTenants({ buyer, status, eventName, eventAt }) {
   const matches = await findSystemTenantsForHotmart(buyer);
   if (!matches.length) return { count: 0, tenantUids: [] };
-  const canceledAt = ["canceled", "refunded", "chargeback"].includes(status) ? eventAt : "";
+  const shouldBlockAccess = hotmartBlocksAccess(status);
+  const canceledAt = shouldBlockAccess ? eventAt : "";
   let activePatch = status === "active" ? {
+    accountStatus: "active",
+    status: "active",
     plan: buyer.planSlug,
     billingCycle: buyer.billingCycle,
     activatedAt: eventAt,
@@ -920,6 +927,12 @@ async function applyHotmartBillingToTenants({ buyer, status, eventName, eventAt 
     },
     updatedAt: eventAt
   };
+  if (shouldBlockAccess) {
+    activePatch.accountStatus = "blocked";
+    activePatch.status = "blocked";
+    activePatch.blockedAt = eventAt;
+    activePatch.blockedReason = `hotmart_${status}`;
+  }
   if (status === "active" && buyer.trialEndsAt) {
     activePatch.trialEndsAt = buyer.trialEndsAt;
     activePatch.billing.trialEndsAt = buyer.trialEndsAt;
@@ -939,6 +952,7 @@ async function applyHotmartBillingToTenants({ buyer, status, eventName, eventAt 
       metadata: {
         eventType: eventName,
         billingStatus: status,
+        accountStatus: activePatch.accountStatus || "",
         planSlug: buyer.planSlug,
         billingCycle: buyer.billingCycle,
         transaction: buyer.hotmartTransaction,

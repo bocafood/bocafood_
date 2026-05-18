@@ -61,6 +61,7 @@ O Boca Food é um sistema de gestão e operação de loja com painel admin, cat�
   - `woavlwrh` → `planSlug: fundadoras`, `billingCycle: monthly`, `trialDays: 0`, nome exibido "Plano Fundadoras".
 - Não usar `starter` como plano ativo do BocaFood nesta fase; se aparecer dado antigo `starter`, manter leitura compatível e migrar para `essencial` ao reprocessar/atualizar.
 - Eventos Hotmart devem atualizar status de cobrança sem apagar tenant, loja ou dados: ativo, pagamento pendente, atraso, cancelamento, reembolso e chargeback.
+- Eventos Hotmart de cancelamento, reembolso ou chargeback devem bloquear automaticamente o acesso da conta (`accountStatus/status = blocked`) sem apagar tenant, loja ou dados. Um evento Hotmart ativo pode liberar novamente a conta (`accountStatus/status = active`) quando a assinatura voltar a estar ativa.
 - `pending_hotmart_access` é apenas para exceções/pendências de vínculo, não uma lista principal de contas.
 - Se `billing.provider` for `hotmart`, campos de plano/ciclo/status/trial/datas são controlados pela Hotmart e ficam somente leitura no Master. Se for `manual`, o Master pode editar e deve registrar logs.
 
