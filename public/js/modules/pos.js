@@ -100,7 +100,7 @@ Modules.POS = (function () {
     return '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
       '<div style="min-width:0;">' +
         '<h1 style="font-size:22px;font-weight:700;color:#1F1F1F;line-height:1.15;margin:0 0 6px;">Venda presencial</h1>' +
-        '<p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0;max-width:760px;">TPV rápido para balcão: escolha produtos, confira o carrinho e finalize com pagamento básico.</p>' +
+        '<p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0;max-width:760px;">Venda rápida para balcão: escolha produtos, confira o carrinho e finalize com pagamento básico.</p>' +
       '</div>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;align-items:center;">' +
         _statusChip(cashOpen ? 'Caixa aberto' : 'Caixa fechado', cashOpen ? '#1F6F43' : '#B45309', cashOpen ? 'point_of_sale' : 'lock') +
@@ -200,7 +200,7 @@ Modules.POS = (function () {
   function _recentHtml() {
     var list = _tpvOrders().slice(0, 6);
     return '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap;">' +
-      '<div><h2 style="font-size:16px;font-weight:700;color:#1F1F1F;margin:0 0 4px;">Últimas vendas presenciais</h2><p style="font-size:13px;color:#6F6860;margin:0;">Pedidos registrados com canal TPV.</p></div>' +
+      '<div><h2 style="font-size:16px;font-weight:700;color:#1F1F1F;margin:0 0 4px;">Últimas vendas presenciais</h2><p style="font-size:13px;color:#6F6860;margin:0;">Pedidos registrados pelo canal Venda presencial.</p></div>' +
       '<button type="button" onclick="Router.navigate(\'pedidos/lista\')" style="height:36px;padding:0 12px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#1F1F1F;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Ver pedidos</button>' +
     '</div>' + _ordersTable(list);
   }
@@ -310,7 +310,7 @@ Modules.POS = (function () {
       _data.orders.unshift(order);
       _cart = [];
       _cashReceived = '';
-      if (window.UI && UI.toast) UI.toast('Venda TPV registrada.', 'success');
+      if (window.UI && UI.toast) UI.toast('Venda presencial registrada.', 'success');
     }).catch(function (err) {
       if (window.UI && UI.toast) UI.toast('Erro: ' + ((err && err.message) || 'falha ao salvar'), 'error');
     }).then(function () {
@@ -330,8 +330,8 @@ Modules.POS = (function () {
     return '<section style="' + _cardStyle() + 'max-width:820px;">' +
       '<div style="display:flex;align-items:flex-start;gap:14px;">' +
         '<span class="mi" style="width:42px;height:42px;border-radius:13px;background:#FAF8F4;color:#B42318;display:flex;align-items:center;justify-content:center;font-size:23px;flex:0 0 auto;">point_of_sale</span>' +
-        '<div style="min-width:0;"><h1 style="font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;">TPV desativado</h1>' +
-        '<p style="font-size:13px;color:#6F6860;line-height:1.5;margin:0 0 14px;">Ative o TPV nas configurações da loja para liberar a tela Venda presencial no menu.</p>' +
+        '<div style="min-width:0;"><h1 style="font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;">Venda presencial desativada</h1>' +
+        '<p style="font-size:13px;color:#6F6860;line-height:1.5;margin:0 0 14px;">Ative a venda presencial nas configurações da loja para liberar essa tela no menu.</p>' +
         '<button type="button" onclick="Router.navigate(\'configuracoes/tpv\')" style="height:40px;padding:0 15px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Abrir configurações</button></div>' +
       '</div>' +
     '</section>';
@@ -341,7 +341,7 @@ Modules.POS = (function () {
     return '<section style="' + _cardStyle() + 'max-width:820px;color:#1F1F1F;">' +
       '<div style="display:flex;align-items:flex-start;gap:14px;">' +
         '<span class="mi" style="width:42px;height:42px;border-radius:13px;background:#FAF8F4;color:#B42318;display:flex;align-items:center;justify-content:center;font-size:23px;flex:0 0 auto;">lock</span>' +
-        '<div style="min-width:0;"><h1 style="font-size:22px;font-weight:700;margin:0 0 6px;">Sem permissão para TPV</h1>' +
+        '<div style="min-width:0;"><h1 style="font-size:22px;font-weight:700;margin:0 0 6px;">Sem permissão para Venda presencial</h1>' +
         '<p style="font-size:13px;color:#6F6860;line-height:1.5;margin:0;">Este acesso está restrito a dono da loja, equipe da loja ou master admin.</p></div>' +
       '</div>' +
     '</section>';
@@ -350,7 +350,7 @@ Modules.POS = (function () {
   function _paintError(err) {
     var content = document.getElementById('pos-content');
     if (!content) return;
-    content.innerHTML = '<section style="' + _cardStyle() + 'color:#B42318;font-size:13px;">Erro ao carregar TPV: ' + _esc((err && err.message) || err || 'desconhecido') + '</section>';
+    content.innerHTML = '<section style="' + _cardStyle() + 'color:#B42318;font-size:13px;">Erro ao carregar Venda presencial: ' + _esc((err && err.message) || err || 'desconhecido') + '</section>';
   }
 
   function _categoryOptions() {
@@ -525,7 +525,7 @@ Modules.POS = (function () {
     if (!list.length) return '<div style="padding:28px 16px;text-align:center;color:#6F6860;font-size:13px;border:1px dashed #EAE4DA;border-radius:14px;background:#FAF8F4;">Nenhuma venda presencial registrada ainda.</div>';
     return '<div style="display:grid;gap:8px;">' + list.map(function (o) {
       return '<div style="display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:center;border:1px solid #EAE4DA;border-radius:12px;padding:10px 12px;background:#fff;">' +
-        '<div style="min-width:0;"><div style="font-size:13px;font-weight:700;color:#1F1F1F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(o.orderNumber || o.numero || o.id || 'Venda TPV') + '</div><div style="font-size:12px;color:#6F6860;margin-top:2px;">' + _esc(_dateLabel(o.createdAt || o.date || o.data)) + '</div></div>' +
+        '<div style="min-width:0;"><div style="font-size:13px;font-weight:700;color:#1F1F1F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(o.orderNumber || o.numero || o.id || 'Venda presencial') + '</div><div style="font-size:12px;color:#6F6860;margin-top:2px;">' + _esc(_dateLabel(o.createdAt || o.date || o.data)) + '</div></div>' +
         '<span style="font-size:12px;color:#6F6860;">' + _esc(o.status || 'Pendente') + '</span>' +
         '<strong style="font-size:13px;color:#1F1F1F;">' + _fmtMoney(_orderTotal(o)) + '</strong>' +
       '</div>';

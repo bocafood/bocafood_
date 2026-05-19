@@ -16,15 +16,15 @@ Modules.Configuracoes = (function () {
 
   var TABS = [
     { key: 'geral', label: 'Geral' },
-    { key: 'conta_usuario', label: 'Conta / Usuária' },
-    { key: 'tpv', label: 'TPV' },
-    { key: 'dominio', label: 'Domínio / URL' },
+    { key: 'conta_usuario', label: 'Usuário' },
+    { key: 'tpv', label: 'Venda presencial' },
+    { key: 'dominio', label: 'Link da loja' },
     { key: 'integracoes', label: 'Integrações' },
     { key: 'plano', label: 'Plano' },
     { key: 'canais_venda', label: 'Canais de venda' }
   ];
 
-  var CONFIG_TABS = ['geral', 'conta_usuario', 'tpv', 'dominio', 'integracoes', 'pagamentos', 'endereco', 'seo', 'template', 'canais_venda'];
+  var CONFIG_TABS = ['geral', 'conta_usuario', 'tpv', 'dominio', 'integracoes', 'pagamentos', 'financeiro', 'endereco', 'seo', 'template', 'canais_venda'];
 
   var DEFAULT_UNIDADES = [
     { name: 'Quilograma', symbol: 'kg', type: 'massa' },
@@ -67,7 +67,32 @@ Modules.Configuracoes = (function () {
       '.bf-select{appearance:none;-webkit-appearance:none;padding-right:38px;background-image:linear-gradient(45deg,transparent 50%,#8A7E7C 50%),linear-gradient(135deg,#8A7E7C 50%,transparent 50%);background-position:calc(100% - 18px) 18px,calc(100% - 13px) 18px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;}' +
       '.bf-phone-row{display:grid;grid-template-columns:minmax(112px,132px) minmax(0,1fr);gap:8px;align-items:center;}' +
       '.bf-phone-row .bf-select{min-width:0;padding-left:10px;padding-right:30px;}' +
-      '@media(max-width:640px){.config-tabs{padding-bottom:10px}.config-tab-btn{padding:8px 11px;font-size:12px}.bf-phone-row{grid-template-columns:minmax(96px,118px) minmax(0,1fr)}}' +
+      '.account-block{padding:0 0 18px;border-bottom:none;}' +
+      '.account-block:last-of-type{padding-bottom:0;}' +
+      '.account-block-title{margin:0 0 4px;color:#1F1F1F;font-size:13px;font-weight:800;line-height:1.2;}' +
+      '.account-block-text{margin:0 0 12px;color:#6F6860;font-size:12px;line-height:1.45;}' +
+      '.account-field-help{font-size:11px;color:#8A7E7C;line-height:1.4;margin-top:5px;}' +
+      '.account-settings .bf-input,.account-settings .bf-select{background:#FFFCF8;border-color:#E8DCD7;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;}' +
+      '.account-settings .bf-input:focus,.account-settings .bf-select:focus{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);outline:none;}' +
+      '.account-settings .bf-input[readonly]{background:#F8F4F1;color:#6F6860;}' +
+      '.account-settings{padding:18px 20px;}' +
+      '.account-settings .bf-section-header{margin-bottom:14px;}' +
+      '.account-settings .bf-form-grid{gap:14px 16px;align-items:start;}' +
+      '.account-settings .account-block{padding-bottom:14px;}' +
+      '.account-settings .account-block + .account-block{padding-top:2px;}' +
+      '.account-settings .account-block-title{margin-bottom:2px;}' +
+      '.account-settings .account-block-text{margin-bottom:10px;}' +
+      '.account-phone-box{display:grid;grid-template-columns:112px minmax(0,1fr);gap:8px;align-items:center;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:6px;}' +
+      '.account-phone-box .bf-select,.account-phone-box .bf-input{border:0;background:transparent;box-shadow:none;min-height:36px;}' +
+      '.account-phone-box .bf-select{border-right:1px solid #E8DCD7;border-radius:8px;padding-left:8px;}' +
+      '.account-phone-box .bf-input{padding-left:8px;}' +
+      '.account-phone-box:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
+      '.account-reset-action{margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}' +
+      '.account-reset-btn{height:34px;border:1px solid #E4D8D3;background:#fff;color:#B42318;border-radius:10px;padding:0 11px;font-size:11px;font-weight:800;font-family:inherit;cursor:pointer;box-shadow:0 6px 14px rgba(31,31,31,.04);}' +
+      '.account-reset-btn:hover{background:#FFF8F6;border-color:#E7C9C3;}' +
+      '.account-reset-btn:disabled{opacity:.55;cursor:not-allowed;}' +
+      '.account-card-footer{display:flex;justify-content:flex-end;padding-top:18px;border-top:none;}' +
+      '@media(max-width:640px){.config-tabs{padding-bottom:10px}.config-tab-btn{padding:8px 11px;font-size:12px}.bf-phone-row{grid-template-columns:minmax(96px,118px) minmax(0,1fr)}.account-phone-box{grid-template-columns:100px minmax(0,1fr)}.account-settings .bf-form-grid,.fiscal-business .bf-form-grid{grid-template-columns:1fr!important}}' +
     '</style>';
   }
 
@@ -213,8 +238,7 @@ Modules.Configuracoes = (function () {
     var c = _config.geral || {};
     var tenantStore = (_systemTenant && _systemTenant.store) || {};
     var inheritedStoreName = tenantStore.name || '';
-    var businessNameValue = c.businessName || inheritedStoreName || '';
-    var tradeNameValue = c.tradeName || c.commercialName || c.visualName || businessNameValue || '';
+    var businessNameValue = c.businessName || inheritedStoreName || c.tradeName || c.commercialName || c.visualName || '';
     var profile = window.Auth && Auth.getAdminProfile ? Auth.getAdminProfile() : null;
     var companyAddress = c.companyAddress || c.businessAddress || {};
     var masterFiscalCountry = (_masterTenantControl && (_masterTenantControl.fiscalCountry || (_masterTenantControl.accountAddress && _masterTenantControl.accountAddress.fiscalCountry) || (_masterTenantControl.store && _masterTenantControl.store.fiscalCountry))) || '';
@@ -223,136 +247,109 @@ Modules.Configuracoes = (function () {
     var fiscalCfg = window.FiscalConfig ? FiscalConfig.get(fc) : null;
     var fiscalLabel = fiscalCfg ? fiscalCfg.label : (fc === 'PT' ? 'Portugal' : 'Espanha');
     var fiscalNote = fiscalCfg && !fiscalCfg.fiscalModuleEnabled ? 'Modulo fiscal desativado' : 'Modulo fiscal ativo';
-    var fiscalDocLabel = fiscalCfg ? fiscalCfg.fiscalDocumentLabel : 'Documento fiscal';
-    var fiscalDocPlaceholder = fiscalCfg ? fiscalCfg.fiscalDocumentPlaceholder : 'Número de identificação fiscal';
-    var fiscalDocHint = fiscalCfg ? fiscalCfg.fiscalDocumentHint : 'Documento fiscal da empresa.';
+    var fiscalDocLabel = fc === 'ES' ? 'NIF / NIE / CIF' : (fiscalCfg ? fiscalCfg.fiscalDocumentLabel : 'Documento fiscal');
+    var fiscalDocPlaceholder = fc === 'ES' ? 'Ex.: 12345678Z, X1234567L ou B12345678' : (fiscalCfg ? fiscalCfg.fiscalDocumentPlaceholder : 'Número de identificação fiscal');
+    var fiscalDocHint = fc === 'ES' ? 'Documento fiscal usado na Espanha.' : (fiscalCfg ? fiscalCfg.fiscalDocumentHint : 'Documento fiscal da empresa.');
     var regionLabel = fiscalCfg ? fiscalCfg.regionLabel : 'Região / Província';
     var addressLabel = fiscalCfg ? fiscalCfg.addressLabel : 'Endereço';
     var cityLabel = fiscalCfg ? fiscalCfg.cityLabel : 'Cidade';
     var postalLabel = fiscalCfg ? fiscalCfg.postalCodeLabel : 'Código postal';
     var addressCountry = companyAddress.country || c.companyCountry || c.country || '';
     var avatarUrl = c.avatarUrl || c.storeAvatarUrl || c.accountAvatarUrl || '';
+    var fiscalDocumentValue = c.companyFiscalId || c.fiscalDocument || c.taxId || c.nif || '';
+    var shortDescription = c.description || '';
     var content = document.getElementById('config-content');
     if (!content) return;
     content.className = 'module-content';
     content.innerHTML = '<div style="display:flex;flex-direction:column;gap:22px;max-width:1180px;margin:0 auto;width:100%;">' +
-      '<div class="bf-section-header" style="padding:2px 2px 0;">' +
-        '<div style="min-width:0;max-width:720px;"><h2 style="font-size:24px;font-weight:800;color:#1F1F1F;margin:0 0 6px;line-height:1.16;">Geral</h2><p class="bf-section-subtitle" style="font-size:14px;margin:0;">Dados centrais usados pelo painel, loja online, fiscal, comunicação e módulos operacionais.</p></div>' +
-        '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">' +
-          _configChip(businessNameValue || 'Nome pendente') +
-          _configChip((c.city || 'Cidade') + ' / ' + (c.country || 'Pais')) +
-          _configChip((c.currency || c.defaultCurrency || 'EUR') + ' · ' + (c.language || c.defaultLanguage || 'pt-PT')) +
-        '</div>' +
-      '</div>' +
-      '<section class="bf-card" style="overflow:hidden;">' +
+      '<style>.profile-business .bf-input,.profile-business .bf-select,.fiscal-business .bf-input,.fiscal-business .bf-select,.contact-preferences .bf-input,.contact-preferences .bf-select{transition:border-color .16s ease,box-shadow .16s ease,background .16s ease}.profile-business .bf-input,.profile-business .bf-select,.profile-business textarea.bf-input,.fiscal-business .bf-input,.fiscal-business .bf-select{background:#FFFCF8;border-color:#E8DCD7}.profile-business .bf-input:focus,.profile-business .bf-select:focus,.profile-business textarea.bf-input:focus,.fiscal-business .bf-input:focus,.fiscal-business .bf-select:focus,.contact-preferences .bf-input:focus,.contact-preferences .bf-select:focus{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);outline:none}.profile-business .bf-field label,.fiscal-business .bf-field label{color:#7E716D}.profile-logo-row{display:grid;grid-template-columns:48px minmax(0,1fr) minmax(170px,230px);gap:12px;align-items:center;grid-column:1/-1;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:14px;padding:10px}.fiscal-business .bf-input[readonly]{background:#F8F4F1;color:#6F6860}.fiscal-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px 14px}.fiscal-span-2{grid-column:span 2}.fiscal-span-1{grid-column:span 1}.contact-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 16px}.contact-field-help{font-size:11px;color:#8A7E7C;line-height:1.38;margin-top:4px}.contact-phone-box{display:grid;grid-template-columns:112px minmax(0,1fr);gap:8px;align-items:center;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:6px}.contact-phone-box .bf-select,.contact-phone-box .bf-input{border:0;background:transparent;box-shadow:none;min-height:36px}.contact-phone-box .bf-select{border-right:1px solid #E8DCD7;border-radius:8px;padding-left:8px}.contact-phone-box .bf-input{padding-left:8px}.contact-phone-box:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08)}@media(max-width:900px){.fiscal-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.fiscal-span-2,.fiscal-span-1{grid-column:span 1}}@media(max-width:760px){.contact-grid{grid-template-columns:1fr}.profile-logo-row{grid-template-columns:48px minmax(0,1fr)}.profile-logo-row input{grid-column:1/-1}.fiscal-grid{grid-template-columns:1fr}.fiscal-span-2,.fiscal-span-1{grid-column:1/-1}}@media(max-width:420px){.contact-phone-box{grid-template-columns:100px minmax(0,1fr)}}</style>' +
+      '<section class="bf-card" style="overflow:hidden;background:linear-gradient(135deg,#fff 0%,#fff 58%,#FFF7F4 100%);">' +
         '<div class="bf-split-grid">' +
-          '<div style="background:#FAF8F4;border-right:1px solid #EAE4DA;padding:24px;display:flex;flex-direction:column;justify-content:space-between;gap:20px;min-width:0;">' +
-            '<div>' +
-              '<div style="display:flex;align-items:flex-start;gap:14px;margin-bottom:18px;">' +
-                '<div id="cfg-avatar-preview" style="width:68px;height:68px;border-radius:18px;background:#fff;color:#B42318;border:1px solid #E5D3CF;display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 8px 20px rgba(31,31,31,.06);flex:0 0 auto;">' + (avatarUrl ? '<img src="' + _esc(avatarUrl) + '" alt="" style="width:100%;height:100%;object-fit:contain;display:block;">' : '<span class="mi" style="font-size:30px;">storefront</span>') + '</div>' +
-                '<div style="min-width:0;flex:1;padding-top:2px;">' +
-                  '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;"><span class="bf-badge" style="background:#fff;border:1px solid #EAE4DA;color:#B42318;">Ficha do negócio</span><span class="bf-badge" style="background:#fff;border:1px solid #EAE4DA;">' + _esc(fiscalLabel) + '</span></div>' +
-                  '<h3 style="margin:0;color:#1F1F1F;font-size:24px;font-weight:800;line-height:1.12;word-break:break-word;">' + _esc(businessNameValue || tradeNameValue || 'Nome do negócio') + '</h3>' +
-                  '<p style="margin:8px 0 0;color:#6F6860;font-size:13px;line-height:1.45;max-width:440px;">' + _esc(c.description || 'Descrição curta ainda não preenchida.') + '</p>' +
+          '<div style="background:linear-gradient(145deg,#FFF8F5 0%,#FAF8F4 55%,#FFFFFF 100%);border-right:1px solid #EAE4DA;padding:24px;display:flex;flex-direction:column;gap:18px;min-width:0;">' +
+            '<div style="background:#fff;border:1px solid #EADFD8;border-radius:22px;padding:22px;box-shadow:0 16px 36px rgba(31,31,31,.07);display:flex;flex-direction:column;gap:18px;min-height:280px;">' +
+              '<div style="display:flex;align-items:flex-start;gap:16px;">' +
+                '<div id="cfg-avatar-preview" style="width:84px;height:84px;border-radius:22px;background:#FFF7F4;color:#B42318;border:1px solid #E5D3CF;display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 10px 22px rgba(31,31,31,.08);flex:0 0 auto;">' + (avatarUrl ? '<img src="' + _esc(avatarUrl) + '" alt="" style="width:100%;height:100%;object-fit:contain;display:block;">' : '<span class="mi" style="font-size:34px;">storefront</span>') + '</div>' +
+                '<div style="min-width:0;flex:1;padding-top:3px;">' +
+                  '<h3 style="margin:0;color:#1F1F1F;font-size:25px;font-weight:800;line-height:1.12;word-break:break-word;">' + _esc(businessNameValue || 'Nome comercial') + '</h3>' +
+                  '<p style="margin:9px 0 0;color:#6F6860;font-size:13px;line-height:1.5;max-width:420px;">' + _esc(shortDescription || 'Adicione uma apresentação curta para explicar o que você vende.') + '</p>' +
                 '</div>' +
               '</div>' +
-            '</div>' +
-            '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;">' +
-              _generalMiniInfo('Nome comercial', tradeNameValue || 'Não informado') +
-              _generalMiniInfo('Responsável', c.legalRepresentative || c.responsavelLegal || 'Não informado') +
-              _generalMiniInfo('Documento', c.companyFiscalId || c.fiscalDocument || c.taxId || c.nif || 'Não informado') +
-              _generalMiniInfo('País fiscal', fiscalLabel) +
+              '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+                '<span class="bf-badge" style="background:#FFF7F4;border:1px solid #EACBC4;color:#7B332D;">' + _esc(fiscalLabel) + '</span>' +
+                '<span class="bf-badge" style="background:#fff;border:1px solid #EAE4DA;color:#6F6860;">' + _esc(fiscalDocumentValue ? 'Documento informado' : 'Documento não informado') + '</span>' +
+              '</div>' +
             '</div>' +
           '</div>' +
-          '<div class="bf-section" style="min-width:0;">' +
+          '<div class="bf-section profile-business" style="min-width:0;">' +
             '<div class="bf-section-header">' +
-              '<div><h3 class="bf-section-title">Identidade e cadastro</h3><p class="bf-section-subtitle">Campos que alimentam áreas públicas, internas e fiscais.</p></div>' +
+              '<div><h3 class="bf-section-title">Perfil do negócio</h3><p class="bf-section-subtitle">Configure como sua marca aparece no BocaFood e mantenha os dados principais atualizados.</p></div>' +
               '<span class="bf-badge">Editável</span>' +
             '</div>' +
-            '<div class="bf-form-grid">' +
-              '<div class="bf-span-full">' +
-                '<div class="bf-panel" style="padding:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">' +
-                  '<div style="width:38px;height:38px;border-radius:12px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span class="mi" style="font-size:20px;">add_photo_alternate</span></div>' +
-                  '<div style="min-width:0;flex:1;">' +
-                    '<div style="font-size:13px;font-weight:800;color:#1F1F1F;line-height:1.25;">Avatar da conta</div>' +
-                    '<div style="font-size:12px;color:#6F6860;line-height:1.4;margin-top:2px;">Imagem quadrada, ideal 500 x 500 px. JPG, PNG ou WebP.</div>' +
+            '<div style="display:grid;grid-template-columns:1fr;gap:12px;">' +
+              '<div class="bf-panel" style="background:#fff;padding:16px;border-color:#EADFD8;box-shadow:0 10px 24px rgba(31,31,31,.04);">' +
+                '<div style="display:flex;align-items:flex-start;gap:9px;margin-bottom:13px;"><span class="mi" style="font-size:18px;color:#6F6860;line-height:1.2;">storefront</span><div><div style="font-size:13px;font-weight:800;color:#1F1F1F;">Informações da marca</div><div style="font-size:12px;color:#8A7E7C;line-height:1.35;margin-top:2px;">Configure o nome, a apresentação e a imagem principal da sua loja.</div></div></div>' +
+                '<div class="bf-form-grid" style="grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 16px;">' +
+                  '<div class="profile-logo-row">' +
+                    '<div style="width:42px;height:42px;border-radius:13px;background:#FFF7F4;color:#B42318;display:flex;align-items:center;justify-content:center;flex:0 0 auto;border:1px solid #F0D8D1;"><span class="mi" style="font-size:20px;">add_photo_alternate</span></div>' +
+                    '<div style="min-width:0;"><div style="font-size:13px;font-weight:800;color:#1F1F1F;line-height:1.25;margin-bottom:2px;">Logo da marca</div><div style="font-size:12px;color:#6F6860;line-height:1.4;">Imagem quadrada, ideal 500 × 500 px. Use JPG, PNG ou WebP.</div></div>' +
+                    '<input class="bf-input" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onchange="Modules.Configuracoes._uploadGeneralAvatarImage(event)" style="width:100%;font-size:12px;background:#fff;">' +
                   '</div>' +
-                  '<input class="bf-input" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onchange="Modules.Configuracoes._uploadGeneralAvatarImage(event)" style="max-width:240px;font-size:12px;">' +
+                  '<input id="cfg-avatar-url" type="hidden" value="' + _esc(avatarUrl) + '">' +
+                  '<div class="bf-field"><label>Nome comercial</label><input id="cfg-business-name" class="bf-input" value="' + _esc(businessNameValue) + '" placeholder="Ex.: Bocado Brasil"><div style="font-size:11px;color:#8A7E7C;line-height:1.45;margin-top:6px;">Nome que seus clientes veem na loja online.</div></div>' +
+                  '<div class="bf-field"><label>Nome fiscal</label><input id="cfg-legal-name" class="bf-input" value="' + _esc(c.legalName || c.companyLegalName || '') + '" placeholder="Nome completo ou denominação social"><div style="font-size:11px;color:#8A7E7C;line-height:1.45;margin-top:6px;">Para autónomo, use o nome completo. Para empresa, use a denominação social.</div></div>' +
+                  '<div class="bf-field bf-span-full"><label>Apresentação curta</label><textarea id="cfg-description" class="bf-input" rows="3" placeholder="Ex.: Comida brasileira caseira feita por encomenda em Pamplona." style="min-height:92px;resize:vertical;">' + _esc(shortDescription) + '</textarea><div style="font-size:11px;color:#8A7E7C;line-height:1.45;margin-top:6px;">Uma frase simples para explicar o que você vende.</div></div>' +
                 '</div>' +
-                '<input id="cfg-avatar-url" class="bf-input" value="' + _esc(avatarUrl) + '" placeholder="URL do avatar" style="margin-top:10px;">' +
               '</div>' +
-              '<div class="bf-span-full">' + _configInput('cfg-business-name', 'Nome do negócio', businessNameValue, 'Boca do Brasil') + '</div>' +
-              _configInput('cfg-trade-name', 'Nome comercial', tradeNameValue, 'Boca do Brasil') +
-              _configInput('cfg-legal-name', 'Razão social', c.legalName || c.companyLegalName || '', 'Nome legal da empresa') +
-              _configInput('cfg-legal-representative', 'Responsável legal', c.legalRepresentative || c.responsavelLegal || '', 'Nome do responsável') +
-              '<div class="bf-span-full">' + _configTextarea('cfg-description', 'Descrição curta', c.description, 'Comida brasileira artesanal em Lisboa') + '</div>' +
             '</div>' +
           '</div>' +
         '</div>' +
       '</section>' +
-      '<section class="bf-card bf-section">' +
+      '<section class="bf-card bf-section contact-preferences" style="padding-top:18px;">' +
         '<div class="bf-section-header">' +
-          '<div><h3 class="bf-section-title">Contato e padrões</h3><p class="bf-section-subtitle">Canais de atendimento e preferências compartilhadas com o restante do painel.</p></div>' +
-          '<span class="bf-badge">' + _esc(c.currency || c.defaultCurrency || 'EUR') + ' · ' + _esc(c.language || c.defaultLanguage || 'pt-PT') + '</span>' +
+          '<div><h3 class="bf-section-title">Contato e preferências</h3><p class="bf-section-subtitle">Dados usados para atendimento, comunicação e padrões do painel.</p></div>' +
         '</div>' +
-        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(290px,100%),1fr));gap:16px;">' +
-          '<div class="bf-panel" style="background:#fff;padding:16px;">' +
-            '<div style="display:flex;align-items:center;gap:9px;margin-bottom:14px;"><span class="mi" style="font-size:19px;color:#6F6860;">support_agent</span><div style="font-size:13px;font-weight:800;color:#1F1F1F;">Atendimento</div></div>' +
-            '<div style="display:flex;flex-direction:column;gap:14px;">' +
-              _phoneInput('cfg-phone-country', 'cfg-whatsapp', 'Telefone / WhatsApp', c.phoneCountryCode || c.whatsappCountryCode || _defaultPhoneCode(fc), c.whatsapp || c.phone, '912 345 678') +
-              _configInput('cfg-email', 'E-mail', c.email, 'contato@...') +
-              _configInput('cfg-admin-email', 'E-mail fiscal / administrativo', c.adminEmail || c.fiscalEmail || c.billingEmail || '', 'admin@...') +
+        '<div style="display:grid;grid-template-columns:1fr;gap:12px;">' +
+          '<div class="bf-panel" style="background:#fff;padding:16px;border-color:#EADFD8;box-shadow:0 10px 24px rgba(31,31,31,.04);">' +
+            '<div style="display:flex;align-items:flex-start;gap:9px;margin-bottom:13px;"><span class="mi" style="font-size:18px;color:#6F6860;line-height:1.2;">support_agent</span><div><div style="font-size:13px;font-weight:800;color:#1F1F1F;">Atendimento</div><div style="font-size:12px;color:#8A7E7C;line-height:1.35;margin-top:2px;">Canais usados para falar com clientes e receber contatos importantes.</div></div></div>' +
+            '<div class="contact-grid">' +
+              _contactPhoneInput('cfg-phone-country', 'cfg-phone', 'Telefone da loja', c.phoneCountryCode || _defaultPhoneCode(fc), c.phone || '', '912 345 678', 'Número principal de atendimento por telefone.') +
+              _contactPhoneInput('cfg-whatsapp-country', 'cfg-whatsapp', 'WhatsApp da loja', c.whatsappCountryCode || c.phoneCountryCode || _defaultPhoneCode(fc), c.whatsapp || '', '912 345 678', 'Número usado para atendimento da loja pelo WhatsApp.') +
+              '<div>' + _configInput('cfg-email', 'E-mail de contato', c.email, 'contato@...') + '<div class="contact-field-help">E-mail que seus clientes podem usar para falar com a loja.</div></div>' +
+              '<div>' + _configInput('cfg-admin-email', 'E-mail administrativo/fiscal', c.adminEmail || c.fiscalEmail || c.billingEmail || '', 'admin@...') + '<div class="contact-field-help">E-mail usado para assuntos da conta e documentos.</div></div>' +
             '</div>' +
           '</div>' +
-          '<div class="bf-panel" style="background:#fff;padding:16px;">' +
-            '<div style="display:flex;align-items:center;gap:9px;margin-bottom:14px;"><span class="mi" style="font-size:19px;color:#6F6860;">tune</span><div style="font-size:13px;font-weight:800;color:#1F1F1F;">Padrões do sistema</div></div>' +
-            '<div style="display:flex;flex-direction:column;gap:14px;">' +
-            _configSelect('cfg-language', 'Idioma padrão', c.language || c.defaultLanguage || 'pt-PT', [
-              ['pt-PT', 'Português (Portugal)'],
-              ['pt-BR', 'Português (Brasil)'],
-              ['es-ES', 'Espanhol'],
-              ['en', 'Inglês']
-            ]) +
-            _configSelect('cfg-currency', 'Moeda', c.currency || c.defaultCurrency || 'EUR', [
-              ['EUR', 'Euro (EUR)'],
-              ['BRL', 'Real brasileiro (BRL)'],
-              ['USD', 'Dólar americano (USD)'],
-              ['GBP', 'Libra esterlina (GBP)']
-            ]) +
-            '</div>' +
-          '</div>' +
+          '<input id="cfg-language" type="hidden" value="' + _esc(c.language || c.defaultLanguage || 'pt-PT') + '">' +
+          '<input id="cfg-currency" type="hidden" value="' + _esc(c.currency || c.defaultCurrency || 'EUR') + '">' +
         '</div>' +
       '</section>' +
-      '<section class="bf-card bf-section">' +
+      '<section class="bf-card bf-section fiscal-business">' +
         '<div class="bf-section-header">' +
-          '<div style="display:flex;align-items:flex-start;gap:11px;min-width:0;">' +
-            '<div style="width:38px;height:38px;border-radius:13px;background:#FAF8F4;color:#B45309;display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span class="mi" style="font-size:21px;">account_balance</span></div>' +
-            '<div style="min-width:0;"><h3 class="bf-section-title">Dados fiscais da empresa</h3><p class="bf-section-subtitle">Documento e endereço fiscal do negócio. Este endereço é separado do endereço de retirada usado no template.</p></div>' +
-          '</div>' +
-          '<span class="bf-badge bf-badge-warning">' + _esc(fiscalLabel) + ' · ' + _esc(fiscalNote) + '</span>' +
+          '<div style="min-width:0;"><h3 class="bf-section-title">Dados fiscais do negócio</h3><p class="bf-section-subtitle">Dados usados para documentos, regras fiscais e informações legais da conta.</p></div>' +
+          '<span class="bf-badge bf-badge-warning">' + _esc(fiscalLabel) + ' · ' + (fiscalCfg && !fiscalCfg.fiscalModuleEnabled ? 'Fiscal inativo' : 'Fiscal ativo') + '</span>' +
         '</div>' +
-        '<div class="bf-form-grid">' +
-          '<div>' +
-            _configInput('cfg-company-fiscal-id', fiscalDocLabel, c.companyFiscalId || c.fiscalDocument || c.taxId || c.nif || '', fiscalDocPlaceholder) +
-            '<div style="font-size:11px;color:#8A7E7C;line-height:1.4;margin-top:5px;">' + _esc(fiscalDocHint) + '</div>' +
+        '<div style="display:grid;grid-template-columns:1fr;gap:12px;">' +
+          '<div class="bf-panel" style="background:#fff;padding:16px;border-color:#EADFD8;box-shadow:0 10px 24px rgba(31,31,31,.04);">' +
+            '<div style="display:flex;align-items:flex-start;gap:9px;margin-bottom:13px;"><span class="mi" style="font-size:18px;color:#6F6860;line-height:1.2;">account_balance</span><div><div style="font-size:13px;font-weight:800;color:#1F1F1F;">Informações fiscais</div><div style="font-size:12px;color:#8A7E7C;line-height:1.35;margin-top:2px;">Comece digitando o endereço e selecione uma opção da lista para preencher os dados automaticamente.</div></div></div>' +
+            '<div class="fiscal-grid">' +
+              '<div class="fiscal-span-2">' +
+                _configInput('cfg-company-fiscal-id', fiscalDocLabel, c.companyFiscalId || c.fiscalDocument || c.taxId || c.nif || '', fiscalDocPlaceholder) +
+                '<div style="font-size:11px;color:#8A7E7C;line-height:1.4;margin-top:5px;">' + _esc(fiscalDocHint) + '</div>' +
+              '</div>' +
+              '<div class="fiscal-span-2">' + _configInput('cfg-company-address', 'Endereço fiscal', companyAddress.addressLine || c.companyAddressLine || c.businessAddressLine || '', 'Rua...', 'text', 'off', 'business street-address') + '<div style="font-size:11px;color:#8A7E7C;line-height:1.4;margin-top:5px;">Endereço usado para dados fiscais e documentos da conta.</div></div>' +
+              '<div class="fiscal-span-1">' + _configInput('cfg-company-number', 'Número', companyAddress.number || c.companyNumber || '', 'Número') + '</div>' +
+              '<div class="fiscal-span-1">' + _configInput('cfg-company-neighborhood', 'Bairro / zona', companyAddress.neighborhood || c.companyNeighborhood || '', 'Bairro / zona') + '</div>' +
+              '<div class="fiscal-span-1">' + _configInput('cfg-company-city', cityLabel, companyAddress.city || c.companyCity || c.businessCity || c.city || '', cityLabel) + '</div>' +
+              '<div class="fiscal-span-1">' + _configInput('cfg-company-region', regionLabel, companyAddress.region || companyAddress.state || c.companyRegion || c.companyState || '', regionLabel) + '</div>' +
+              '<div class="fiscal-span-1">' + _configInput('cfg-company-postal', postalLabel, companyAddress.postalCode || c.companyPostalCode || '', postalLabel) + '</div>' +
+              '<div class="bf-field fiscal-span-1"><label>País</label><input id="cfg-company-country" class="bf-input" value="' + _esc(addressCountry) + '" readonly placeholder="País"><div style="font-size:11px;color:#8A7E7C;line-height:1.4;margin-top:5px;">País identificado pelo endereço fiscal.</div></div>' +
+              '<div class="bf-field fiscal-span-2"><label>País fiscal</label><input id="cfg-company-fiscal-country" class="bf-input" value="' + _esc(fiscalLabel + ' (' + fc + ')') + '" readonly data-fiscal-country="' + _esc(fc) + '"><div style="font-size:11px;color:#8A7E7C;line-height:1.4;margin-top:5px;">Este campo define quais regras fiscais aparecem no painel. Para alterar, fale com o suporte.</div></div>' +
+            '</div>' +
           '</div>' +
-          _configInput('cfg-company-address', addressLabel + ' fiscal da empresa', companyAddress.addressLine || c.companyAddressLine || c.businessAddressLine || '', 'Rua...', 'text', 'off', 'business street-address') +
-          _configInput('cfg-company-number', 'Número', companyAddress.number || c.companyNumber || '', 'Número') +
-          _configInput('cfg-company-neighborhood', 'Bairro / Localidade', companyAddress.neighborhood || c.companyNeighborhood || '', 'Bairro / zona') +
-          _configInput('cfg-company-city', cityLabel, companyAddress.city || c.companyCity || c.businessCity || c.city || '', cityLabel) +
-          _configInput('cfg-company-region', regionLabel, companyAddress.region || companyAddress.state || c.companyRegion || c.companyState || '', regionLabel) +
-          _configInput('cfg-company-postal', postalLabel, companyAddress.postalCode || c.companyPostalCode || '', postalLabel) +
-          '<div class="bf-field"><label>País</label><input id="cfg-company-country" class="bf-input" value="' + _esc(addressCountry) + '" readonly placeholder="Gerado pelo endereço"><div style="font-size:11px;color:#8A7E7C;line-height:1.4;margin-top:5px;">Preenchido automaticamente pelo Google Places a partir do endereço fiscal.</div></div>' +
-          '<div class="bf-field"><label>País fiscal</label><input id="cfg-company-fiscal-country" class="bf-input" value="' + _esc(fiscalLabel + ' (' + fc + ')') + '" readonly data-fiscal-country="' + _esc(fc) + '"><div style="font-size:11px;color:#8A7E7C;line-height:1.4;margin-top:5px;">Definido no Master. Esse campo libera ou bloqueia módulos fiscais no Admin; Portugal não exibe o módulo Fiscal, Espanha exibe.</div></div>' +
-        '</div>' +
-        '<div class="bf-panel" style="display:flex;align-items:flex-start;gap:10px;padding:13px 14px;color:#6F6860;font-size:13px;line-height:1.45;">' +
-          '<span class="mi" style="font-size:18px;color:#B45309;line-height:1.35;">travel_explore</span>' +
-          '<div>O campo de endereço fiscal já está preparado para o autocomplete do Google Maps via <strong style="color:#1F1F1F;">BocaPlaces</strong>. O país fiscal é definido pelo Master e afeta regras fiscais, IVA e módulos disponíveis.</div>' +
         '</div>' +
       '</section>' +
       '<section class="bf-card bf-actions-row" style="padding:14px 16px;position:sticky;bottom:0;z-index:2;">' +
-        '<div style="font-size:13px;color:#6F6860;line-height:1.45;">As alterações alimentam outras áreas do painel. Salve para atualizar a base compartilhada.</div>' +
-        '<button id="config-save" class="bf-btn bf-btn-primary">Salvar configurações</button>' +
+        '<div style="font-size:13px;color:#6F6860;line-height:1.45;">Revise os dados antes de salvar.</div>' +
+        '<button id="config-save" class="bf-btn bf-btn-primary">Salvar alterações</button>' +
       '</section>' +
     '</div>';
     document.getElementById('config-save').onclick = function () {
@@ -365,19 +362,15 @@ Modules.Configuracoes = (function () {
       }
       _save('geral', {
         businessName: _val('cfg-business-name'),
-        tradeName: _val('cfg-trade-name'),
-        commercialName: _val('cfg-trade-name'),
         legalName: _val('cfg-legal-name'),
         companyLegalName: _val('cfg-legal-name'),
-        legalRepresentative: _val('cfg-legal-representative'),
-        responsavelLegal: _val('cfg-legal-representative'),
         description: _val('cfg-description'),
+        phone: _val('cfg-phone'),
         whatsapp: _val('cfg-whatsapp'),
-        phone: _val('cfg-whatsapp'),
         phoneCountryCode: _val('cfg-phone-country'),
-        whatsappCountryCode: _val('cfg-phone-country'),
-        phoneFull: [_val('cfg-phone-country'), _val('cfg-whatsapp')].filter(Boolean).join(' '),
-        whatsappFull: [_val('cfg-phone-country'), _val('cfg-whatsapp')].filter(Boolean).join(' '),
+        whatsappCountryCode: _val('cfg-whatsapp-country'),
+        phoneFull: [_val('cfg-phone-country'), _val('cfg-phone')].filter(Boolean).join(' '),
+        whatsappFull: [_val('cfg-whatsapp-country'), _val('cfg-whatsapp')].filter(Boolean).join(' '),
         email: _val('cfg-email'),
         adminEmail: _val('cfg-admin-email'),
         fiscalEmail: _val('cfg-admin-email'),
@@ -450,36 +443,73 @@ Modules.Configuracoes = (function () {
     var user = window.Auth && Auth.getUser ? Auth.getUser() : null;
     var profile = window.Auth && Auth.getAdminProfile ? (Auth.getAdminProfile() || {}) : {};
     var fiscalCountry = _fiscalCountryCode((window.Auth && Auth.getFiscalCountry ? Auth.getFiscalCountry() : '') || tenant.fiscalCountry || accountAddress.fiscalCountry || 'ES');
-    var whatsapp = _splitPhoneForForm(tenant.whatsappFull || tenant.whatsapp || conta.whatsappFull || conta.whatsapp || '', tenant.whatsappCountryCode || conta.whatsappCountryCode || _defaultPhoneCode(fiscalCountry));
+    var tenantAccountWhatsappFull = tenant.accountWhatsappFull || tenant.ownerWhatsappFull || tenant.userWhatsappFull || '';
+    var tenantAccountWhatsappCountry = tenant.accountWhatsappCountryCode || tenant.ownerWhatsappCountryCode || tenant.userWhatsappCountryCode || '';
+    if (!tenantAccountWhatsappFull && !conta.whatsappFull && !conta.whatsapp && !geral.whatsapp && (tenant.ownerName || tenant.preferredName || tenant.socialName)) {
+      tenantAccountWhatsappFull = tenant.whatsappFull || tenant.whatsapp || '';
+      tenantAccountWhatsappCountry = tenant.whatsappCountryCode || '';
+    }
+    var accountWhatsappFull = conta.whatsappFull || conta.whatsapp || tenantAccountWhatsappFull || '';
+    var accountWhatsappCountry = conta.whatsappCountryCode || tenantAccountWhatsappCountry || _defaultPhoneCode(fiscalCountry);
+    var whatsapp = _splitPhoneForForm(accountWhatsappFull, accountWhatsappCountry);
     var emailValue = (user && user.email) || tenant.email || conta.email || geral.email || '';
-    var roleValue = tenant.role || conta.role || profile.role || '';
 
     content.innerHTML =
       _configVisualStyles() +
       '<div class="config-wrap">' +
-        '<div id="config-tabs" class="config-tabs"></div>' +
-        '<div class="settings-card-head" style="margin-top:12px;">' +
-          '<div><h2>Conta / Usuária</h2><p>Dados da dona da conta usados para suporte, cobrança, cadastro e regras fiscais.</p></div>' +
-        '</div>' +
-        '<section class="bf-card bf-section">' +
+        '<section class="bf-card bf-section account-settings">' +
           '<div class="bf-section-header">' +
-            '<div><h3 class="bf-section-title">Dados da usuária / responsável</h3><p class="bf-section-subtitle">Informações administrativas da conta BocaFood. O e-mail da conta vem do login quando disponível.</p></div>' +
+            '<div><h3 class="bf-section-title">Usuário</h3><p class="bf-section-subtitle">Mantenha seus dados atualizados para receber suporte, avisos importantes e acessar sua conta com segurança.</p></div>' +
           '</div>' +
-          '<div class="bf-form-grid">' +
-            _configInput('cfg-account-owner-name', 'Nome completo da usuária', tenant.ownerName || conta.ownerName || geral.ownerName || geral.legalRepresentative || geral.tradeName || '', 'Nome completo') +
-            '<div class="bf-field"><label>E-mail da conta</label><input id="cfg-account-email" class="bf-input" type="email" value="' + _esc(emailValue) + '" readonly placeholder="E-mail do login"><div style="font-size:11px;color:#8A7E7C;line-height:1.4;margin-top:5px;">Somente leitura quando vier do Firebase Auth.</div></div>' +
-            _phoneInput('cfg-account-whatsapp-country', 'cfg-account-whatsapp', 'WhatsApp da usuária', whatsapp.countryCode, whatsapp.number, '600 000 000') +
-            _configSelect('cfg-account-language', 'Idioma da conta', tenant.language || conta.language || geral.language || geral.defaultLanguage || 'es-ES', _languageOptions()) +
-            '<div class="bf-field"><label>Papel</label><input id="cfg-account-role" class="bf-input" value="' + _esc(_roleDisplay(roleValue)) + '" readonly placeholder="Não configurado"><div style="font-size:11px;color:#8A7E7C;line-height:1.4;margin-top:5px;">Definido no Master para este acesso.</div></div>' +
+          '<div style="display:grid;grid-template-columns:1fr;gap:12px;">' +
+            '<div class="bf-panel" style="background:#fff;padding:16px;border-color:#EADFD8;box-shadow:0 10px 24px rgba(31,31,31,.04);">' +
+              '<div style="display:flex;align-items:flex-start;gap:9px;margin-bottom:13px;"><span class="mi" style="font-size:18px;color:#6F6860;line-height:1.2;">person</span><div><div style="font-size:13px;font-weight:800;color:#1F1F1F;">Dados do usuário</div><div style="font-size:12px;color:#8A7E7C;line-height:1.35;margin-top:2px;">Informações da pessoa responsável pelo acesso e comunicação da conta.</div></div></div>' +
+              '<div class="bf-form-grid" style="grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 16px;">' +
+                '<div class="bf-field"><label>Seu nome completo</label><input id="cfg-account-owner-name" class="bf-input" value="' + _esc(tenant.ownerName || conta.ownerName || geral.ownerName || '') + '" placeholder="Nome completo"><div class="account-field-help">Nome da pessoa responsável pela conta.</div></div>' +
+                '<div class="bf-field"><label>Como você quer ser chamada?</label><input id="cfg-account-social-name" class="bf-input" value="' + _esc(tenant.preferredName || tenant.socialName || conta.preferredName || conta.socialName || '') + '" placeholder="Nome curto"><div class="account-field-help">Usaremos esse nome nas mensagens e áreas internas do BocaFood.</div></div>' +
+              '<div class="bf-field"><label>E-mail de acesso</label><input id="cfg-account-email" class="bf-input" type="email" value="' + _esc(emailValue) + '" readonly placeholder="seu@email.com"><div class="account-field-help">Para trocar este e-mail, fale com o suporte.</div><div class="account-reset-action"><button id="cfg-account-password-reset" type="button" class="account-reset-btn" onclick="Modules.Configuracoes._sendPasswordReset()">Enviar link para redefinir senha</button></div></div>' +
+              '<div class="bf-field"><label>WhatsApp de contato</label><div class="account-phone-box"><select id="cfg-account-whatsapp-country" class="bf-select" aria-label="Código do país">' + _phoneCountryOptions(whatsapp.countryCode) + '</select><input id="cfg-account-whatsapp" class="bf-input" type="tel" value="' + _esc(whatsapp.number == null ? '' : whatsapp.number) + '" placeholder="600 000 000" autocomplete="tel-national"></div><div class="account-field-help">Usado para suporte e avisos importantes da sua conta.</div></div>' +
+              '</div>' +
+            '</div>' +
           '</div>' +
         '</section>' +
         '<section class="bf-card bf-actions-row" style="padding:14px 16px;position:sticky;bottom:0;z-index:2;">' +
-          '<div style="font-size:13px;color:#6F6860;line-height:1.45;">Esses dados são sincronizados para o Master em <code>system_tenants/{uid}</code>.</div>' +
-          '<button id="account-save" class="bf-btn bf-btn-primary">Salvar Conta / Usuária</button>' +
+          '<div style="font-size:13px;color:#6F6860;line-height:1.45;">Revise os dados antes de salvar.</div>' +
+          '<button id="account-save" class="bf-btn bf-btn-primary">Salvar alterações</button>' +
         '</section>' +
       '</div>';
-    _renderTabs();
     document.getElementById('account-save').onclick = _saveContaUsuario;
+  }
+
+  function _sendPasswordReset() {
+    var email = _val('cfg-account-email');
+    var btn = document.getElementById('cfg-account-password-reset');
+    if (!email) {
+      UI.toast('E-mail de acesso não encontrado.', 'error');
+      return;
+    }
+    if (!window.firebase || !firebase.app || !firebase.app().functions) {
+      UI.toast('Recuperação de senha indisponível neste ambiente.', 'error');
+      return;
+    }
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Enviando...';
+    }
+    firebase.app().functions('us-central1').httpsCallable('requestPasswordResetEmail')({ email: email })
+      .then(function () {
+        UI.toast('Enviamos o link de redefinição para o e-mail de acesso.', 'success');
+      })
+      .catch(function (err) {
+        console.error('[Configuracoes] password reset error', err);
+        UI.toast('Não foi possível enviar o link de redefinição. Tente novamente em alguns instantes.', 'error');
+      })
+      .finally(function () {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'Enviar link para redefinir senha';
+        }
+      });
   }
 
   function _saveContaUsuario() {
@@ -493,10 +523,15 @@ Modules.Configuracoes = (function () {
     var whatsappNumber = _cleanPhoneNumber(_val('cfg-account-whatsapp'));
     var patch = {
       ownerName: _val('cfg-account-owner-name'),
+      preferredName: _val('cfg-account-social-name'),
+      socialName: _val('cfg-account-social-name'),
       whatsappCountryCode: whatsappCode,
       whatsappNumber: whatsappNumber,
       whatsappFull: _phoneFull(whatsappCode, whatsappNumber),
-      language: _val('cfg-account-language'),
+      accountWhatsappCountryCode: whatsappCode,
+      accountWhatsappNumber: whatsappNumber,
+      accountWhatsappFull: _phoneFull(whatsappCode, whatsappNumber),
+      language: 'pt-BR',
       updatedAt: now
     };
     var compatibility = Object.assign({}, _config.conta_usuario || {}, patch, {
@@ -852,38 +887,37 @@ Modules.Configuracoes = (function () {
   function _renderDominio() {
     var c = _config.dominio || {};
     var geral = _config.geral || {};
-    var suggestedSlug = _slugify(c.storeSlug || c.slug || c.subdomain || geral.storeSlug || geral.businessName || geral.tradeName || '');
+    var suggestedSlug = _slugify(c.storeSlug || c.slug || c.subdomain || geral.storeSlug || geral.businessName || '');
     var rootDomain = c.rootDomain || c.mainDomain || c.platformDomain || '';
     var urls = _domainUrls(suggestedSlug, rootDomain, c);
-    var domainReady = !!_cleanDomain(rootDomain || c.customDomain);
-    var slugStatus = suggestedSlug ? 'Subdomínio definido' : 'Subdomínio pendente';
+    var slugStatus = suggestedSlug ? 'Link definido' : 'Link pendente';
     var content = document.getElementById('config-content');
     if (!content) return;
     content.className = 'module-content';
     content.innerHTML = '<div style="display:flex;flex-direction:column;gap:16px;">' +
       '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
-        '<div style="min-width:0;"><h2 style="font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;line-height:1.2;">Domínio / URL</h2><p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0;">Defina o identificador da loja que será usado como subdomínio e base dos links públicos.</p></div>' +
+        '<div style="min-width:0;"><h2 style="font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;line-height:1.2;">Link da loja</h2><p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0;">Defina o identificador que completa o endereço público da sua loja no BocaFood.</p></div>' +
         '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">' +
           _configChip(slugStatus) +
-          _configChip(domainReady ? 'Domínio do sistema pronto' : 'Aguardando domínio principal') +
+          _configChip('bocafood.app') +
         '</div>' +
       '</div>' +
       '<section style="' + _configCardStyle() + 'display:grid;grid-template-columns:minmax(260px,1fr) auto;gap:14px;align-items:center;">' +
-        '<div style="min-width:0;"><div style="font-size:12px;font-weight:600;color:#6F6860;margin-bottom:5px;">Link principal da loja</div><div style="font-size:clamp(20px,2.4vw,30px);font-weight:700;color:#1F1F1F;line-height:1.1;word-break:break-all;">' + _esc(urls.publicUrl.replace(/^https?:\/\//, '')) + '</div><div style="font-size:12px;color:#8A7E7C;line-height:1.4;margin-top:7px;">' + (domainReady ? 'URL calculada com o domínio principal do sistema.' : 'Prévia temporária até o domínio principal ser configurado internamente.') + '</div></div>' +
+        '<div style="min-width:0;"><div style="font-size:12px;font-weight:600;color:#6F6860;margin-bottom:5px;">Link principal da loja</div><div style="font-size:clamp(20px,2.4vw,30px);font-weight:700;color:#1F1F1F;line-height:1.1;word-break:break-all;">' + _esc(urls.publicUrl.replace(/^https?:\/\//, '')) + '</div><div style="font-size:12px;color:#8A7E7C;line-height:1.4;margin-top:7px;">Esse é o endereço público da loja. A usuária não precisa configurar domínio próprio.</div></div>' +
         '<button type="button" class="bf-btn bf-btn-secondary" onclick="Modules.Configuracoes._copyDomainValue(\'' + _esc(urls.publicUrl) + '\')"><span class="mi" style="font-size:17px;">content_copy</span>Copiar</button>' +
       '</section>' +
       '<section style="' + _configCardStyle() + '">' +
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:14px;">' +
-          '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">Identificador da loja</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Esse nome completa o endereço da loja e deve ser curto, claro e fácil de escrever.</div></div>' +
+          '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">Identificador da loja</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Esse nome completa o endereço bocafood.app/ e deve ser curto, claro e fácil de escrever.</div></div>' +
           '<span style="display:inline-flex;align-items:center;min-height:28px;padding:0 11px;border-radius:999px;background:' + (suggestedSlug ? '#F0FFF4' : '#FFF7ED') + ';border:1px solid ' + (suggestedSlug ? '#D9F2E3' : '#F3D9C7') + ';color:' + (suggestedSlug ? '#1F6F43' : '#B45309') + ';font-size:12px;font-weight:700;">' + _esc(slugStatus) + '</span>' +
         '</div>' +
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;">' +
-          '<div><label style="' + _configLabelStyle() + '">Nome da loja / subdomínio</label><input id="cfg-store-slug" type="text" value="' + _esc(suggestedSlug) + '" placeholder="minha-loja" oninput="Modules.Configuracoes._normalizeDomainSlugField(\'cfg-store-slug\')" style="' + _configInputStyle() + '"><div style="font-size:11px;color:#8A7E7C;line-height:1.4;margin-top:5px;">Use letras, números e hífen. Exemplo: <strong>minha-loja</strong>.</div></div>' +
+          '<div><label style="' + _configLabelStyle() + '">Nome do link</label><input id="cfg-store-slug" type="text" value="' + _esc(suggestedSlug) + '" placeholder="minha-loja" oninput="Modules.Configuracoes._normalizeDomainSlugField(\'cfg-store-slug\')" style="' + _configInputStyle() + '"><div style="font-size:11px;color:#8A7E7C;line-height:1.4;margin-top:5px;">Use letras, números e hífen. Exemplo: <strong>bocafood.app/minha-loja</strong>.</div></div>' +
         '</div>' +
       '</section>' +
       '<section style="' + _configCardStyle() + '">' +
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:14px;">' +
-          '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">Links gerados pelo sistema</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Quando o domínio principal for configurado, estes links ficam prontos a partir do subdomínio da loja.</div></div>' +
+          '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">Links gerados pelo sistema</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Estes links são gerados automaticamente a partir do identificador da loja.</div></div>' +
           '<span style="display:inline-flex;align-items:center;min-height:28px;padding:0 11px;border-radius:999px;background:#FAF8F4;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:700;">Gerados automaticamente</span>' +
         '</div>' +
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;">' +
@@ -894,23 +928,23 @@ Modules.Configuracoes = (function () {
         '</div>' +
       '</section>' +
       '<section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">' +
-        _domainStatusCard('Subdomínio', suggestedSlug || 'Pendente', suggestedSlug ? 'Pronto para salvar.' : 'Informe o nome da loja.', suggestedSlug ? '#1F6F43' : '#B45309', suggestedSlug ? 'check_circle' : 'pending') +
-        _domainStatusCard('Domínio principal', domainReady ? _cleanDomain(rootDomain || c.customDomain) : 'Pendente', domainReady ? 'Configurado internamente.' : 'Será definido pelo sistema.', domainReady ? '#1F6F43' : '#B45309', domainReady ? 'verified' : 'schedule') +
-        _domainStatusCard('Links públicos', suggestedSlug ? 'Gerados' : 'Aguardando', suggestedSlug ? 'Prontos para copiar.' : 'Dependem do subdomínio.', suggestedSlug ? '#6C8777' : '#B45309', 'link') +
+        _domainStatusCard('Identificador', suggestedSlug || 'Pendente', suggestedSlug ? 'Pronto para salvar.' : 'Informe o nome do link.', suggestedSlug ? '#1F6F43' : '#B45309', suggestedSlug ? 'check_circle' : 'pending') +
+        _domainStatusCard('Domínio BocaFood', 'bocafood.app', 'Usado automaticamente no link público.', '#1F6F43', 'verified') +
+        _domainStatusCard('Links públicos', suggestedSlug ? 'Gerados' : 'Aguardando', suggestedSlug ? 'Prontos para copiar.' : 'Dependem do identificador.', suggestedSlug ? '#6C8777' : '#B45309', 'link') +
       '</section>' +
       '<section id="store-publication-card" style="' + _configCardStyle() + '">' + _publicationCardHtml(urls, _publicationState(urls)) + '</section>' +
       '<section style="' + _configCardStyle() + 'display:flex;gap:12px;align-items:flex-start;">' +
         '<div style="width:38px;height:38px;border-radius:12px;background:#FAF8F4;color:#B45309;display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span class="mi" style="font-size:22px;">info</span></div>' +
-        '<div style="min-width:0;"><div style="font-size:14px;font-weight:700;color:#1F1F1F;margin-bottom:3px;">Preparado para o domínio principal</div><div style="font-size:13px;color:#6F6860;line-height:1.45;">A usuária define apenas o nome da loja. O domínio principal será configurado internamente pelo sistema e aplicado automaticamente às URLs.</div></div>' +
+        '<div style="min-width:0;"><div style="font-size:14px;font-weight:700;color:#1F1F1F;margin-bottom:3px;">Link público BocaFood</div><div style="font-size:13px;color:#6F6860;line-height:1.45;">A usuária define apenas o identificador da loja. O endereço final sempre segue o padrão bocafood.app/nome-da-loja, sem domínio personalizado.</div></div>' +
       '</section>' +
       '<section style="' + _configCardStyle('12px 14px') + 'display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;position:sticky;bottom:0;z-index:2;">' +
         '<div style="font-size:13px;color:#6F6860;line-height:1.45;">Esses dados alimentam os links públicos da loja, pedidos, rastreio e avaliações.</div>' +
-        '<button id="config-save" class="bf-btn bf-btn-primary">Salvar domínio</button>' +
+        '<button id="config-save" class="bf-btn bf-btn-primary">Salvar link</button>' +
       '</section>' +
     '</div>';
     document.getElementById('config-save').onclick = function () {
       var slug = _slugify(_val('cfg-store-slug'));
-      if (!slug) { UI.toast('Informe o nome da loja para gerar o subdomínio.', 'error'); return; }
+      if (!slug) { UI.toast('Informe o nome do link da loja.', 'error'); return; }
       var root = _cleanDomain(rootDomain);
       var custom = _cleanDomain(c.customDomain);
       var generated = _domainUrls(slug, root, { customDomain: custom });
@@ -998,7 +1032,7 @@ Modules.Configuracoes = (function () {
     var canais = _config.canais_venda || {};
     var tenantStore = (_systemTenant && _systemTenant.store) || {};
     var slug = _slugify((document.getElementById('cfg-store-slug') || {}).value || dominio.storeSlug || dominio.slug || dominio.subdomain || tenantStore.slug || '');
-    var storeName = geral.businessName || geral.tradeName || geral.visualName || tenantStore.name || '';
+    var storeName = geral.businessName || geral.visualName || tenantStore.name || '';
     var language = geral.language || geral.defaultLanguage || tenantStore.language || '';
     var country = geral.country || endereco.country || tenantStore.country || '';
     var whatsapp = integracoes.whatsapp || geral.whatsapp || geral.phone || '';
@@ -1161,7 +1195,7 @@ Modules.Configuracoes = (function () {
     var geral = _config.geral || {};
     var endereco = _config.endereco || {};
     var store = Object.assign({}, ((_systemTenant && _systemTenant.store) || {}), {
-      name: geral.businessName || geral.tradeName || ((_systemTenant.store || {}).name) || '',
+      name: geral.businessName || ((_systemTenant.store || {}).name) || '',
       slug: urls && urls.publicUrl ? _slugify(_val('cfg-store-slug') || ((_config.dominio || {}).slug)) : ((_systemTenant.store || {}).slug || ''),
       publicUrl: urls.publicUrl,
       country: geral.country || endereco.country || ((_systemTenant.store || {}).country) || '',
@@ -1411,8 +1445,8 @@ Modules.Configuracoes = (function () {
     }).join('');
     var content = document.getElementById('config-content');
     content.innerHTML = '<div class="settings-card bf-card">' +
-      '<div class="settings-card-head"><h2>Canais de venda</h2><p>Cadastre os canais além dos canais fixos do sistema. Cardápio e TPV aparecem automaticamente em Regras de preço.</p></div>' +
-      '<div style="background:#F0FAF4;border:1px solid #BDE7CA;border-radius:14px;padding:12px 14px;margin-bottom:14px;color:#1F6F43;font-size:13px;font-weight:600;">Cardápio e TPV são fixos e não precisam ser cadastrados aqui.</div>' +
+      '<div class="settings-card-head"><h2>Canais de venda</h2><p>Cadastre os canais além dos canais fixos do sistema. Cardápio e Venda presencial aparecem automaticamente em Regras de preço.</p></div>' +
+      '<div style="background:#F0FAF4;border:1px solid #BDE7CA;border-radius:14px;padding:12px 14px;margin-bottom:14px;color:#1F6F43;font-size:13px;font-weight:600;">Cardápio e Venda presencial são fixos e não precisam ser cadastrados aqui.</div>' +
       '<div id="channels-list" class="settings-grid">' + (rows || '<div style="grid-column:1/-1;text-align:center;padding:40px 20px;color:#8A7E7C;font-size:14px;font-weight:600;">Nenhum canal adicional cadastrado.</div>') + '</div>' +
       '<div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;"><button class="bf-btn bf-btn-secondary" type="button" onclick="Modules.Configuracoes._addCanalVenda()">+ Adicionar canal</button><button class="bf-btn bf-btn-primary" type="button" onclick="Modules.Configuracoes._saveCanaisVenda()">Salvar canais</button></div>' +
       '</div>';
@@ -1459,19 +1493,92 @@ Modules.Configuracoes = (function () {
   function _renderTpv() {
     var c = _config.tpv || {};
     var enabled = c.enabled === true || c.tpvEnabled === true || c.active === true;
-    _paint('TPV / Venda presencial', 'Ative o módulo de venda presencial por loja. Quando ativo, o menu Venda presencial aparece e as vendas usam o canal TPV.', [
-      _check('cfg-tpv-enabled', 'Ativar TPV nesta loja', enabled),
-      _field('cfg-tpv-register-name', 'Nome do caixa', c.registerName || 'Caixa principal', 'Caixa principal'),
-      _field('cfg-tpv-default-payment', 'Pagamento padrão', c.defaultPaymentMethod || '', 'Dinheiro, cartão, multibanco...')
-    ].join(''), function () {
-      return {
+    var paymentMethods = _tpvFinancePaymentMethods(c.defaultPaymentMethod || '');
+    var paymentOptions = _tpvPaymentMethodOptions(c.defaultPaymentMethod || '', paymentMethods);
+    var content = document.getElementById('config-content');
+    content.innerHTML =
+      '<div style="display:flex;flex-direction:column;gap:22px;max-width:1180px;margin:0 auto;width:100%;">' +
+        '<style>.tpv-settings .bf-input,.tpv-settings .bf-select{background:#FFFCF8;border-color:#E8DCD7;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease}.tpv-settings .bf-input:focus,.tpv-settings .bf-select:focus{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);outline:none}.tpv-panel{display:grid;grid-template-columns:1fr;gap:14px}.tpv-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px 16px;align-items:start}.tpv-status-wrap{display:flex;flex-direction:column;align-items:flex-start;min-width:0}.tpv-status-field{background:#FFFCF8;border:0;border-radius:12px;padding:0;min-height:42px;display:flex;align-items:center;justify-content:flex-start;width:100%}.tpv-status-row{display:flex;align-items:center;justify-content:flex-start;gap:8px;min-height:42px;white-space:nowrap}.tpv-status-row input{accent-color:#C4362A;width:16px;height:16px;flex:0 0 auto}.tpv-status-row span{font-size:13px;font-weight:800;color:#1F1F1F;line-height:1.2}.tpv-note{font-size:12px;color:#6F6860;line-height:1.48;background:#FFFCF8;border:1px solid #EADFD8;border-radius:14px;padding:10px 12px}.tpv-field-help{font-size:11px;color:#8A7E7C;line-height:1.38;margin-top:5px}.tpv-settings .bf-field label,.tpv-status-label{color:#7E716D;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.045em;margin-bottom:6px;display:block}@media(max-width:900px){.tpv-grid{grid-template-columns:1fr 1fr}.tpv-status-wrap{grid-column:1/-1}}@media(max-width:760px){.tpv-grid{grid-template-columns:1fr}.tpv-status-row{white-space:normal}}</style>' +
+        '<section class="bf-card bf-section tpv-settings">' +
+          '<div class="bf-section-header">' +
+            '<div style="min-width:0;"><h3 class="bf-section-title">Venda presencial</h3><p class="bf-section-subtitle">Configurações usadas para vender presencialmente pela loja.</p></div>' +
+          '</div>' +
+          '<div style="display:grid;grid-template-columns:1fr;gap:12px;">' +
+            '<div class="bf-panel tpv-panel" style="background:#fff;padding:16px;border-color:#EADFD8;box-shadow:0 10px 24px rgba(31,31,31,.04);">' +
+              '<div style="display:flex;align-items:flex-start;gap:9px;margin-bottom:13px;"><span class="mi" style="font-size:18px;color:#6F6860;line-height:1.2;">point_of_sale</span><div><div style="font-size:13px;font-weight:800;color:#1F1F1F;">Informações do caixa</div><div style="font-size:12px;color:#8A7E7C;line-height:1.35;margin-top:2px;">Ative a venda presencial quando a loja também registrar vendas no balcão.</div></div></div>' +
+              '<div class="tpv-grid">' +
+                '<div class="tpv-status-wrap"><span class="tpv-status-label">Status</span><div class="tpv-status-field"><label class="tpv-status-row"><input id="cfg-tpv-enabled" type="checkbox"' + (enabled ? ' checked' : '') + '><span>Ativar venda presencial</span></label></div></div>' +
+                '<div class="bf-field"><label>Nome do caixa</label><input id="cfg-tpv-register-name" class="bf-input" value="' + _esc(c.registerName || 'Caixa principal') + '" placeholder="Caixa principal"><div class="tpv-field-help">Nome interno para identificar o caixa usado nas vendas presenciais.</div></div>' +
+                '<div class="bf-field"><label>Pagamento padrão</label><select id="cfg-tpv-default-payment" class="bf-select">' + paymentOptions + '</select></div>' +
+              '</div>' +
+            '</div>' +
+            '<div class="tpv-note">Quando ativado, o menu Venda presencial aparece no painel e as vendas feitas ali entram como canal Venda presencial. Quando desativado, esse menu fica oculto e a loja continua usando apenas os canais de venda já configurados.</div>' +
+          '</div>' +
+        '</section>' +
+        '<section class="bf-card bf-actions-row" style="padding:14px 16px;position:sticky;bottom:0;z-index:2;">' +
+          '<div style="font-size:13px;color:#6F6860;line-height:1.45;">Revise os dados antes de salvar.</div>' +
+          '<button class="bf-btn bf-btn-primary" id="config-save">Salvar alterações</button>' +
+        '</section>' +
+      '</div>';
+    document.getElementById('config-save').onclick = function () {
+      _save(_activeSub, {
         enabled: _checked('cfg-tpv-enabled'),
         registerName: _val('cfg-tpv-register-name') || 'Caixa principal',
         defaultPaymentMethod: _val('cfg-tpv-default-payment'),
-        channel: 'TPV',
+        channel: 'Venda presencial',
         updatedAt: new Date().toISOString()
+      });
+    };
+  }
+
+  function _tpvFinancePaymentMethods(selected) {
+    var current = String(selected || '').trim();
+    var financeiro = _config.financeiro || {};
+    var source = Array.isArray(financeiro.formas_pagamento) ? financeiro.formas_pagamento
+      : (Array.isArray(financeiro.paymentMethods) ? financeiro.paymentMethods
+      : (Array.isArray(financeiro.formasPagamento) ? financeiro.formasPagamento : []));
+    var methods = source.map(function (item) {
+      if (typeof item === 'string') return { name: item, active: true, raw: item };
+      var typeName = item && (item.tipoGlobalNome || item.tipo || item.typeName || item.type || '');
+      var accountId = item && (item.contaPadraoId || item.defaultAccountId || item.bankAccountId || '');
+      return {
+        name: item && (item.nome || item.name || item.label || item.id || ''),
+        active: !item || item.ativo !== false,
+        typeName: typeName,
+        requiresAccount: !!(item && (item.exigeConta || item.requiresBankAccount)),
+        defaultAccountId: accountId,
+        compensationDays: item && (item.prazoCompensacaoDias || item.defaultCompensationDays || item.compensationDays || 0),
+        feePct: item && (item.taxaPercentual || item.feePct || 0),
+        feeFixed: item && (item.taxaFixa || item.fixedFee || 0),
+        raw: item
       };
+    }).filter(function (item) {
+      return item.name;
+    }).sort(function (a, b) {
+      return String(a.name).localeCompare(String(b.name));
     });
+    if (!methods.length) {
+      methods = ['Dinheiro', 'Transferência', 'MB Way', 'Multibanco', 'Cartão', 'Cheque', 'Outro'].map(function (name) {
+        return { name: name, active: true, fallback: true };
+      });
+    }
+    var exists = methods.some(function (item) { return item.name === current; });
+    if (current && !exists) {
+      methods.unshift({ name: current, active: false, legacy: true });
+    }
+    return methods;
+  }
+
+  function _tpvPaymentMethodOptions(selected, methods) {
+    var current = String(selected || '').trim();
+    var html = '<option value="">Selecionar forma de pagamento...</option>';
+    html += (methods || []).filter(function (item) {
+      return item.active !== false || item.name === current;
+    }).map(function (item) {
+      var extra = item.legacy ? ' (não listado no Financeiro)' : (item.active === false ? ' (inativa)' : '');
+      return '<option value="' + _esc(item.name) + '"' + (item.name === current ? ' selected' : '') + '>' + _esc(item.name + extra) + '</option>';
+    }).join('');
+    return html;
   }
 
   function _paint(title, desc, body, collect) {
@@ -1503,6 +1610,16 @@ Modules.Configuracoes = (function () {
       '<select id="' + countryId + '" class="bf-select">' + _phoneCountryOptions(countryCode) + '</select>' +
       '<input id="' + phoneId + '" class="bf-input" type="tel" value="' + _esc(phone == null ? '' : phone) + '" placeholder="' + _esc(placeholder || '') + '" autocomplete="tel-national">' +
       '</div></div>';
+  }
+
+  function _contactPhoneInput(countryId, phoneId, label, countryCode, phone, placeholder, help) {
+    return '<div class="bf-field"><label>' + _esc(label) + '</label>' +
+      '<div class="contact-phone-box">' +
+        '<select id="' + countryId + '" class="bf-select" aria-label="Código do país">' + _phoneCountryOptions(countryCode) + '</select>' +
+        '<input id="' + phoneId + '" class="bf-input" type="tel" value="' + _esc(phone == null ? '' : phone) + '" placeholder="' + _esc(placeholder || '') + '" autocomplete="tel-national">' +
+      '</div>' +
+      '<div class="contact-field-help">' + _esc(help || '') + '</div>' +
+    '</div>';
   }
 
   function _phoneCountryOptions(selected) {
@@ -1595,8 +1712,8 @@ Modules.Configuracoes = (function () {
   }
 
   function _domainBase(slug, rootDomain, c) {
-    if (slug) return 'https://bocafood.app/loja/' + slug;
-    return 'https://bocafood.app/loja/aguardando-slug';
+    if (slug) return 'https://bocafood.app/' + slug;
+    return 'https://bocafood.app/aguardando-slug';
   }
 
   function _domainUrls(slug, rootDomain, c) {
@@ -1677,7 +1794,7 @@ Modules.Configuracoes = (function () {
   }
 
   function _roleDisplay(role) {
-    var map = { master_admin: 'Master admin', master: 'Master admin', store_owner: 'Dono da loja', tenant_owner: 'Dono da loja', store_staff: 'Equipe da loja', manager: 'Gestor', store_customer: 'Cliente da loja', pending_classification: 'Pendente' };
+    var map = { master_admin: 'Master admin', master: 'Master admin', store_owner: 'Responsável pela loja', tenant_owner: 'Responsável pela loja', owner: 'Responsável pela loja', store_staff: 'Equipe da loja', manager: 'Gestor', store_customer: 'Cliente da loja', pending_classification: 'Pendente' };
     var value = String(role || '').trim();
     return map[value] || value || 'Não configurado';
   }
@@ -1773,18 +1890,16 @@ Modules.Configuracoes = (function () {
     var hasZoneLocation = !!(zoneLocation.city || zoneLocation.province || zoneLocation.country || zoneLocation.postalCode);
     var hasCurrentDeliveryLocation = currentStore.locationSource === 'delivery_area' && !!(currentStore.city || currentStore.region || currentStore.province || currentStore.country || currentStore.postalCode);
     if (key === 'geral') {
-      var phoneCode = data.phoneCountryCode || data.whatsappCountryCode || '';
-      var phoneNumber = _cleanPhoneNumber(data.phone || data.whatsapp || '');
+      var phoneCode = data.phoneCountryCode || '';
+      var phoneNumber = _cleanPhoneNumber(data.phone || '');
       var phoneFull = _phoneFull(phoneCode, phoneNumber);
+      var storeWhatsappCode = data.whatsappCountryCode || '';
+      var storeWhatsappNumber = _cleanPhoneNumber(data.whatsapp || '');
+      var storeWhatsappFull = _phoneFull(storeWhatsappCode, storeWhatsappNumber);
       var addressCountry = _countryIso((data.companyAddress && data.companyAddress.country) || data.companyCountry || data.country || '');
-      patch.ownerName = data.legalRepresentative || data.responsavelLegal || data.tradeName || data.businessName || '';
-      patch.responsibleName = data.legalRepresentative || data.responsavelLegal || '';
       patch.phoneCountryCode = phoneCode;
       patch.phoneNumber = phoneNumber;
       patch.phoneFull = phoneFull;
-      patch.whatsappCountryCode = phoneCode;
-      patch.whatsappNumber = phoneNumber;
-      patch.whatsappFull = phoneFull;
       patch.contactEmail = data.email || '';
       patch.adminEmail = data.adminEmail || data.fiscalEmail || data.billingEmail || '';
       patch.fiscalEmail = data.fiscalEmail || data.adminEmail || '';
@@ -1805,10 +1920,16 @@ Modules.Configuracoes = (function () {
         updatedAt: now
       });
       patch.store = Object.assign({}, currentStore, {
-        name: data.businessName || data.tradeName || currentStore.name || '',
+        name: data.businessName || currentStore.name || '',
         city: currentStore.city || zoneLocation.city || '',
         country: zoneLocation.country || currentStore.country || addressCountry,
         language: data.language || data.defaultLanguage || currentStore.language || '',
+        phone: data.phone || '',
+        phoneCountryCode: phoneCode,
+        phoneFull: phoneFull,
+        whatsapp: data.whatsapp || '',
+        whatsappCountryCode: storeWhatsappCode,
+        whatsappFull: storeWhatsappFull,
         status: currentStore.status || 'draft',
         updatedAt: now
       });
@@ -1992,7 +2113,7 @@ Modules.Configuracoes = (function () {
 
   function _isTpvChannel(channel) {
     var name = _normChannelName(channel && channel.name);
-    return name === 'tpv';
+    return name === 'tpv' || name === 'venda presencial';
   }
 
   function _isSystemChannel(channel) {
@@ -2002,7 +2123,7 @@ Modules.Configuracoes = (function () {
   function _fixedChannels() {
     return [
       { name: 'Cardápio', commissionPct: 0, fixedFee: 0, taxPct: 0, minMarginPct: 0, differentPrice: false, locked: true },
-      { name: 'TPV', commissionPct: 0, fixedFee: 0, taxPct: 0, minMarginPct: 0, differentPrice: false, locked: true }
+      { name: 'Venda presencial', commissionPct: 0, fixedFee: 0, taxPct: 0, minMarginPct: 0, differentPrice: false, locked: true }
     ];
   }
 
@@ -2012,7 +2133,7 @@ Modules.Configuracoes = (function () {
     var data = { list: _fixedChannels().concat(custom) };
     _config.canais_venda = data;
     DB.setDocRoot('config', 'canais_venda', data).catch(function (err) {
-      console.error('TPV channel sync error', err);
+      console.error('Venda presencial channel sync error', err);
     });
   }
 
@@ -2047,6 +2168,7 @@ Modules.Configuracoes = (function () {
     _uploadGeneralAvatarImage: _uploadGeneralAvatarImage,
     _normalizeDomainSlugField: _normalizeDomainSlugField,
     _copyDomainValue: _copyDomainValue,
+    _sendPasswordReset: _sendPasswordReset,
     _publishStore: _publishStore,
     _unpublishStore: _unpublishStore
   };

@@ -124,7 +124,7 @@
     .moment-ruler-option:has(input:checked){color:#3F3430}
     .moment-ruler-option:has(input:checked) .moment-ruler-dot{width:14px;height:14px;border-color:var(--red);background:var(--red);box-shadow:0 6px 12px rgba(196,54,42,.13)}
     .store-map-step .signup-section{gap:10px}
-    .store-map-step .store-fields{gap:10px}
+    .store-map-step .store-fields{grid-template-columns:1.2fr .9fr .8fr;gap:10px}
     .store-map-step .choice-grid{grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:8px}
     .store-map-step .choice{min-height:38px;padding:8px 34px 8px 11px;border-color:#E9DED9;background:#fff;font-size:12.2px;font-weight:700;line-height:1.18}
     .store-map-step .choice span{display:flex;align-items:center;min-height:24px}
@@ -318,6 +318,7 @@
         businessType: isPreview ? 'Marmitas / pratos prontos' : '',
         salesMode: isPreview ? 'Delivery' : '',
         storeCity: isPreview ? 'Madrid' : '',
+        fiscalCountry: 'ES',
         sellingFrequency: isPreview ? 'Vendo toda semana' : '',
         salesChannels: isPreview ? ['WhatsApp'] : [],
         menuStatus: isPreview ? 'Tenho uma lista simples' : '',
@@ -346,6 +347,7 @@
     var countries = [
       ['ES','Espanha'],['PT','Portugal'],['BR','Brasil'],['FR','França'],['IT','Itália'],['DE','Alemanha'],['GB','Reino Unido'],['US','Estados Unidos'],['OTHER','Outro']
     ];
+    var fiscalCountries = [['ES','Espanha'],['PT','Portugal']];
     var languages = [['pt-BR','🇧🇷 Português'],['es-ES','🇪🇸 Espanhol']];
     var phoneCodes = [['+34','🇪🇸 +34'],['+351','🇵🇹 +351'],['+55','🇧🇷 +55'],['+33','🇫🇷 +33'],['+39','🇮🇹 +39'],['+49','🇩🇪 +49'],['+44','🇬🇧 +44'],['+1','🇺🇸 +1']];
     var businessTypes = ['Salgados / snacks','Doces / confeitaria','Marmitas / pratos prontos','Comida por encomenda','Bolos','Bebidas','Cestas / kits','Outro'];
@@ -491,20 +493,26 @@
       var found = items.find(function(item){ return item.value === value; });
       return found ? found.label : value;
     }
+    function displaySelectLabel(items, value){
+      var found = items.find(function(item){ return item[0] === value; });
+      return found ? found[1] : value;
+    }
     function storeMapSummaryHtml(){
       var d = state.data;
       var name = d.storeName || '';
       var city = d.storeCity || '';
+      var fiscalCountry = d.fiscalCountry ? displaySelectLabel(fiscalCountries, d.fiscalCountry) : '';
       var types = Array.isArray(d.businessType) ? d.businessType : (d.businessType ? [d.businessType] : []);
       var modes = Array.isArray(d.salesMode) ? d.salesMode : (d.salesMode ? [d.salesMode] : []);
       var typeText = types.map(function(value){ return displayLabel(businessTypeLabels, value); }).join(', ');
       var modeText = modes.map(function(value){ return displayLabel(salesModeLabels, value); }).join(', ');
-      if(!name && !city && !typeText && !modeText){
+      if(!name && !city && !fiscalCountry && !typeText && !modeText){
         return '<p class="store-map-summary-text">Complete as respostas acima para montarmos a base inicial da sua loja.</p>';
       }
       return '<ul class="store-map-summary-list">'
         +(name?'<li><strong>Loja:</strong> '+esc(name)+'</li>':'')
         +(city?'<li><strong>Cidade:</strong> '+esc(city)+'</li>':'')
+        +(fiscalCountry?'<li><strong>País fiscal:</strong> '+esc(fiscalCountry)+'</li>':'')
         +(typeText?'<li><strong>Produtos:</strong> '+esc(typeText)+'</li>':'')
         +(modeText?'<li><strong>Venda:</strong> '+esc(modeText)+'</li>':'')
         +'</ul>';
@@ -608,7 +616,7 @@
     }
     function setLoading(on){state.loading=on;document.getElementById('back-btn').disabled=on;updatePrimaryButton();}
     function sync(){
-      ['email','password','confirmPassword','ownerName','whatsappCountryCode','whatsappNumber','language','storeName','storeCity'].forEach(function(key){
+      ['email','password','confirmPassword','ownerName','whatsappCountryCode','whatsappNumber','language','storeName','storeCity','fiscalCountry'].forEach(function(key){
         var el=document.getElementById(key); if(el) state.data[key]=el.value.trim();
       });
       [['sellingFrequency','sellingFrequency'],['menuStatus','menuStatus'],['orderControl','orderControl'],['productionPlace','productionPlace'],['dailyCapacity','dailyCapacity'],['teamStructure','teamStructure'],['costKnowledge','costKnowledge'],['mainChallenge','mainChallenge'],['mainGoal','mainGoal'],['businessStage','businessStage'],['weeklyTimeAvailable','weeklyTimeAvailable']].forEach(function(pair){
@@ -651,7 +659,7 @@
       }else if(state.step===1){
         body='<div class="form-grid responsible-grid"><div class="responsible-block"><div class="responsible-block-title">Dados do responsável</div><label class="full"><span>Nome completo do responsável</span><input id="ownerName" value="'+esc(d.ownerName)+'"></label><label class="full"><span>WhatsApp do responsável</span><div class="phone-field"><select id="whatsappCountryCode">'+options(phoneCodes,d.whatsappCountryCode)+'</select><input id="whatsappNumber" inputmode="tel" value="'+esc(d.whatsappNumber)+'" placeholder="600 000 000"></div><small class="field-note">Usaremos esse número apenas para suporte, segurança e comunicações importantes da conta.</small></label></div><div class="responsible-block"><div class="responsible-block-title">Preferência da conta</div><label class="full"><span>Idioma do Centro de Controle</span><select id="language">'+options(languages,d.language)+'</select></label></div></div><div class="step-soft-note">Você poderá alterar esses dados depois em Configurações.</div>';
       }else if(state.step===2){
-        body='<div class="form-grid store-step boxed-step business-step store-map-step"><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Informações básicas</div><div class="signup-section-help">Comece pelo nome e pela cidade principal da loja.</div></div><div class="store-fields"><label><span>Nome da loja</span><input id="storeName" value="'+esc(d.storeName)+'" placeholder="Ex.: Boca Burger"></label><label><span>Cidade onde você atende</span><input id="storeCity" value="'+esc(d.storeCity)+'" placeholder="Ex.: Madrid"></label></div></div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Produtos principais</div><div class="signup-section-help">Escolha uma ou mais opções.</div></div>'+multiChoiceOptionsLabeled('businessType',businessTypeLabels,d.businessType)+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Forma de venda</div><div class="signup-section-help">Marque como sua loja vende hoje.</div></div>'+multiChoiceOptionsLabeled('salesMode',salesModeLabels,d.salesMode)+'</div><div class="store-map-summary"><div class="store-map-summary-title">Mapa inicial da loja</div><div id="store-map-summary-content">'+storeMapSummaryHtml()+'</div></div></div>';
+        body='<div class="form-grid store-step boxed-step business-step store-map-step"><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Informações básicas</div><div class="signup-section-help">Comece pelo nome, cidade principal e país fiscal da loja.</div></div><div class="store-fields"><label><span>Nome da loja</span><input id="storeName" value="'+esc(d.storeName)+'" placeholder="Ex.: Boca Burger"></label><label><span>Cidade onde você atende</span><input id="storeCity" value="'+esc(d.storeCity)+'" placeholder="Ex.: Madrid"></label><label><span>País fiscal</span><select id="fiscalCountry">'+options(fiscalCountries,d.fiscalCountry)+'</select></label></div></div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Produtos principais</div><div class="signup-section-help">Escolha uma ou mais opções.</div></div>'+multiChoiceOptionsLabeled('businessType',businessTypeLabels,d.businessType)+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Forma de venda</div><div class="signup-section-help">Marque como sua loja vende hoje.</div></div>'+multiChoiceOptionsLabeled('salesMode',salesModeLabels,d.salesMode)+'</div><div class="store-map-summary"><div class="store-map-summary-title">Mapa inicial da loja</div><div id="store-map-summary-content">'+storeMapSummaryHtml()+'</div></div></div>';
       }else if(state.step===3){
         body='<div class="form-grid store-step boxed-step sales-step sales-map-step"><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Ritmo de vendas</div><div class="signup-section-help">Escolha a opção que mais combina com sua rotina atual.</div></div>'+salesRulerOptions('sellingFrequency',sellingFrequencyLabels,d.sellingFrequency)+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Canais de pedido</div><div class="signup-section-help">Marque por onde você recebe pedidos hoje.</div></div>'+salesChannelOptions('salesChannels',salesChannelLabels,d.salesChannels)+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Cardápio</div><div class="signup-section-help">Isso ajuda o BocaFood a entender quanto falta para sua loja ficar pronta para vender.</div></div>'+menuStatusOptions('menuStatus',menuStatusLabels,d.menuStatus)+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Controle de pedidos</div><div class="signup-section-help">Como você organiza os pedidos hoje?</div></div>'+choiceOptions('orderControl',orderControls,d.orderControl)+'</div><div class="sales-map-summary"><div class="sales-map-summary-title">Seu mapa de vendas até aqui</div><div id="sales-map-summary-content">'+salesSummaryHtml()+'</div></div></div>';
       }else if(state.step===4){
@@ -678,9 +686,9 @@
         if(pref) pref.addEventListener('change',function(){state.communicationPreferences[key]=!!pref.checked;});
       });
       if(state.step===2){
-        ['storeName','storeCity'].forEach(function(id){
+        ['storeName','storeCity','fiscalCountry'].forEach(function(id){
           var el=document.getElementById(id);
-          if(el) el.addEventListener('input', updateStoreMapSummary);
+          if(el) el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', updateStoreMapSummary);
         });
         Array.prototype.slice.call(document.querySelectorAll('input[name="businessType"],input[name="salesMode"]')).forEach(function(el){
           el.addEventListener('change', updateStoreMapSummary);
@@ -725,7 +733,7 @@
         if(d.password!==d.confirmPassword) return 'A confirmação de senha não confere.';
       }
       if(state.step===1 && (!d.ownerName || !d.whatsappNumber || !d.language)) return 'Preencha nome, WhatsApp e idioma da conta.';
-      if(state.step===2 && (!d.storeName || !(Array.isArray(d.businessType)?d.businessType.length:d.businessType) || !(Array.isArray(d.salesMode)?d.salesMode.length:d.salesMode) || !d.storeCity)) return 'Preencha nome, produtos, atendimento e cidade da loja.';
+      if(state.step===2 && (!d.storeName || !(Array.isArray(d.businessType)?d.businessType.length:d.businessType) || !(Array.isArray(d.salesMode)?d.salesMode.length:d.salesMode) || !d.storeCity || !d.fiscalCountry)) return 'Preencha nome, produtos, atendimento, cidade e país fiscal da loja.';
       if(state.step===5 && !d.businessStage) return 'Selecione a fase do negócio.';
       return '';
     }

@@ -309,6 +309,7 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
     <button class="tab-btn" data-tab="cadastro-resumo" onclick="openTab('cadastro-resumo')">Resumo do cadastro</button>
     <button class="tab-btn" data-tab="configuracoes" onclick="openTab('configuracoes')">Configurações</button>
     <button class="tab-btn" data-tab="paginas-sistema" onclick="openTab('paginas-sistema')">Páginas do sistema</button>
+    <button class="tab-btn" data-tab="central-ajuda" onclick="openTab('central-ajuda')">Central de Ajuda</button>
     <button class="tab-btn" data-tab="emails-automaticos" onclick="openTab('emails-automaticos')">E-mails automáticos</button>
     <button class="tab-btn" data-tab="configuracoes-globais" onclick="openTab('configuracoes-globais')">Configurações Globais</button>
     <!-- Legado: backup técnico de código via GitHub oculto da navegação principal. O fluxo atual usa Git/PR fora do Master. -->
@@ -797,6 +798,29 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
     </div>
   </section>
 
+  <section id="tab-central-ajuda" class="tab-panel">
+    <div class="card">
+      <div class="toolbar">
+        <div>
+          <h2>Central de Ajuda / Chamados</h2>
+          <p>Chamados abertos pelas usuárias no Centro de Controle, reunidos para acompanhamento da equipe BocaFood.</p>
+        </div>
+        <div class="actions">
+          <button class="btn secondary" onclick="loadSupportTickets({force:true})">Recarregar</button>
+        </div>
+      </div>
+      <div class="master-filters" style="grid-template-columns:minmax(220px,2fr) repeat(3,minmax(140px,1fr)) auto;">
+        <label><span>Busca</span><input id="support-ticket-search" placeholder="Assunto, mensagem, e-mail, loja ou UID" oninput="renderSupportTickets()"></label>
+        <label><span>Status</span><select id="support-ticket-status" onchange="renderSupportTickets()"><option value="">Todos</option><option value="open">Aberto</option><option value="in_progress">Em atendimento</option><option value="resolved">Resolvido</option><option value="closed">Fechado</option></select></label>
+        <label><span>Prioridade</span><select id="support-ticket-priority" onchange="renderSupportTickets()"><option value="">Todas</option><option value="low">Baixa</option><option value="normal">Normal</option><option value="high">Alta</option><option value="urgent">Urgente</option></select></label>
+        <label><span>Tipo</span><select id="support-ticket-type" onchange="renderSupportTickets()"><option value="">Todos</option><option value="question">Dúvida</option><option value="technical">Problema técnico</option><option value="billing">Cobrança/plano</option><option value="setup">Configuração</option><option value="other">Outro</option></select></label>
+        <button class="btn secondary" onclick="clearSupportTicketFilters()">Limpar</button>
+      </div>
+      <div id="support-ticket-status-text" style="margin:0 0 12px;font-size:12px;font-weight:700;color:#8A7E7C;">Carregue os chamados para visualizar.</div>
+      <div id="support-ticket-wrap"><div class="users-empty">Carregando chamados...</div></div>
+    </div>
+  </section>
+
   <section id="tab-configuracoes-globais" class="tab-panel">
     <div class="card">
       <div class="toolbar">
@@ -913,6 +937,8 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
         <label><span>Cidade da loja</span><input id="user-store-city" placeholder="Não preenchido"><small id="user-store-city-origin" class="field-hint">Origem: Centro de Controle</small></label>
         <label><span>Província / estado da loja</span><input id="user-store-province" placeholder="Não preenchido"><small id="user-store-province-origin" class="field-hint">Origem: Centro de Controle</small></label>
         <label><span>País da loja</span><select id="user-store-country"><option value="">Não preenchido</option><option value="ES">Espanha (ES)</option><option value="PT">Portugal (PT)</option><option value="BR">Brasil (BR)</option><option value="FR">França (FR)</option><option value="IT">Itália (IT)</option><option value="DE">Alemanha (DE)</option><option value="GB">Reino Unido (GB)</option><option value="US">Estados Unidos (US)</option><option value="OTHER">Outro</option></select><small id="user-store-country-origin" class="field-hint">Origem: Centro de Controle</small></label>
+        <label><span>Telefone da loja</span><input id="user-store-phone" placeholder="Não preenchido"><small class="field-hint">Origem: Admin → Configurações → Geral.</small></label>
+        <label><span>WhatsApp da loja</span><input id="user-store-whatsapp" placeholder="Não preenchido"><small class="field-hint">Origem: Admin → Configurações → Geral.</small></label>
         <label><span>Idioma da loja</span><select id="user-store-language"><option value="">Não preenchido</option><option value="pt-BR">Português Brasil — pt-BR</option><option value="pt-PT">Português Portugal — pt-PT</option><option value="es-ES">Espanhol Espanha — es-ES</option><option value="en">Inglês — en</option><option value="fr">Francês — fr</option></select><small class="field-hint">Normalmente preenchido pela usuária no Centro de Controle.</small></label>
         <label><span>Status da loja</span><select id="user-store-status"><option value="draft">Rascunho</option><option value="ready">Pronta para publicar</option><option value="published">Publicada</option><option value="unpublished">Não publicada</option><option value="suspended">Suspensa</option><option value="publication_error">Erro de publicação</option><option value="active">Ativa legado</option></select><small class="field-hint">Reflete o estado real de publicação. Edite apenas em modo suporte.</small></label>
         <label><span>Instagram</span><input id="user-store-instagram" readonly placeholder="Não preenchido"><small class="field-hint">Origem: Centro de Controle → Loja Online → Template da loja.</small></label>
@@ -1168,6 +1194,93 @@ function openTab(tab){
   if(tab==='emails-automaticos'){
     loadEmailMaster();
   }
+  if(tab==='central-ajuda'){
+    loadSupportTickets();
+  }
+}
+var _supportTicketsState = { loaded:false, loading:false, tickets:[] };
+function _supportTicketStatusLabel(status){
+  return {open:'Aberto',in_progress:'Em atendimento',resolved:'Resolvido',closed:'Fechado'}[String(status||'').trim()] || (status || 'Aberto');
+}
+function _supportTicketPriorityLabel(priority){
+  return {low:'Baixa',normal:'Normal',high:'Alta',urgent:'Urgente'}[String(priority||'').trim()] || (priority || 'Normal');
+}
+function _supportTicketTypeLabel(type){
+  return {question:'Dúvida',technical:'Problema técnico',billing:'Cobrança/plano',setup:'Configuração',other:'Outro'}[String(type||'').trim()] || (type || 'Outro');
+}
+function _supportTicketStatusClass(status){
+  status = String(status || 'open');
+  if(status === 'resolved' || status === 'closed')return 'ok';
+  if(status === 'in_progress')return 'info';
+  return 'warn';
+}
+function _supportTicketPriorityClass(priority){
+  priority = String(priority || 'normal');
+  if(priority === 'urgent' || priority === 'high')return 'danger';
+  if(priority === 'low')return 'neutral';
+  return 'info';
+}
+function loadSupportTickets(opts){
+  opts = opts || {};
+  if(_supportTicketsState.loading)return Promise.resolve();
+  if(_supportTicketsState.loaded && !opts.force){renderSupportTickets();return Promise.resolve();}
+  var statusEl = document.getElementById('support-ticket-status-text');
+  var wrap = document.getElementById('support-ticket-wrap');
+  _supportTicketsState.loading = true;
+  if(statusEl)statusEl.textContent = 'Carregando chamados...';
+  if(wrap)wrap.innerHTML = '<div class="users-empty">Carregando chamados...</div>';
+  return api('/api/master/support/tickets').then(function(r){
+    _supportTicketsState.tickets = r.tickets || [];
+    _supportTicketsState.loaded = true;
+    renderSupportTickets();
+  }).catch(function(e){
+    if(statusEl)statusEl.textContent = 'Erro ao carregar chamados.';
+    if(wrap)wrap.innerHTML = '<div class="users-empty">Erro ao carregar chamados: '+esc(e.message || e)+'</div>';
+  }).finally(function(){
+    _supportTicketsState.loading = false;
+  });
+}
+function clearSupportTicketFilters(){
+  ['support-ticket-search','support-ticket-status','support-ticket-priority','support-ticket-type'].forEach(function(id){setVal(id,'')});
+  renderSupportTickets();
+}
+function renderSupportTickets(){
+  var wrap = document.getElementById('support-ticket-wrap');
+  var statusEl = document.getElementById('support-ticket-status-text');
+  if(!wrap)return;
+  var search = (document.getElementById('support-ticket-search') || {}).value || '';
+  search = search.trim().toLowerCase();
+  var status = (document.getElementById('support-ticket-status') || {}).value || '';
+  var priority = (document.getElementById('support-ticket-priority') || {}).value || '';
+  var type = (document.getElementById('support-ticket-type') || {}).value || '';
+  var tickets = (_supportTicketsState.tickets || []).filter(function(t){
+    var haystack = [t.ticketCode,t.subject,t.message,t.tenantUid,t.tenantEmail,t.accountEmail,t.storeName,t.contactEmail,t.contactWhatsapp].join(' ').toLowerCase();
+    if(search && haystack.indexOf(search) < 0)return false;
+    if(status && String(t.status || 'open') !== status)return false;
+    if(priority && String(t.priority || 'normal') !== priority)return false;
+    if(type && String(t.type || 'other') !== type)return false;
+    return true;
+  });
+  if(statusEl)statusEl.textContent = tickets.length + ' chamado(s) exibido(s) de ' + ((_supportTicketsState.tickets || []).length) + ' carregado(s).';
+  if(!tickets.length){
+    wrap.innerHTML = '<div class="users-empty">Nenhum chamado encontrado para os filtros aplicados.</div>';
+    return;
+  }
+  wrap.innerHTML = '<div class="global-table-wrap"><table class="table"><thead><tr><th>Chamado</th><th>Conta</th><th>Contato</th><th>Tipo</th><th>Prioridade</th><th>Status</th><th>Datas</th></tr></thead><tbody>' + tickets.map(function(t){
+    var subject = t.subject || 'Sem assunto';
+    var message = t.message || '';
+    var shortMessage = message.length > 160 ? message.slice(0,157) + '...' : message;
+    var tenantLabel = t.storeName || t.tenantEmail || t.tenantUid || 'Conta não identificada';
+    return '<tr>'
+      + '<td><strong>'+esc(subject)+'</strong><div class="user-sub">'+esc(t.ticketCode || t.id || '')+'</div><div class="user-sub">'+esc(shortMessage || 'Sem descrição.')+'</div></td>'
+      + '<td><strong>'+esc(tenantLabel)+'</strong><div class="user-sub">UID: '+esc(t.tenantUid || 'Não informado')+'</div><div class="user-sub">'+esc(t.tenantEmail || t.accountEmail || 'E-mail não informado')+'</div></td>'
+      + '<td><div>'+esc(t.contactEmail || t.accountEmail || 'Não informado')+'</div><div class="user-sub">'+esc(t.contactWhatsapp || 'WhatsApp não informado')+'</div></td>'
+      + '<td>'+esc(_supportTicketTypeLabel(t.type))+'</td>'
+      + '<td><span class="status-pill '+_supportTicketPriorityClass(t.priority)+'">'+esc(_supportTicketPriorityLabel(t.priority))+'</span></td>'
+      + '<td><span class="status-pill '+_supportTicketStatusClass(t.status)+'">'+esc(_supportTicketStatusLabel(t.status))+'</span><div class="user-sub">Origem: Admin</div></td>'
+      + '<td><div><strong>Criado:</strong> '+esc(_emailFormatDate(t.createdAt) || 'Não informado')+'</div><div class="user-sub"><strong>Atualizado:</strong> '+esc(_emailFormatDate(t.updatedAt) || 'Não informado')+'</div></td>'
+      + '</tr>';
+  }).join('') + '</tbody></table></div>';
 }
 var _systemPagesState = { loaded:false, pages:[], selectedKey:'' };
 function _systemPageByKey(key){
@@ -1874,7 +1987,7 @@ function applyUserSupportMode(){
   var enabled=userSupportModeEnabled() || !window._editingTenantId;
   var warning=document.getElementById('user-support-warning');
   if(warning)warning.classList.toggle('show', userSupportModeEnabled());
-  ['user-full-name','user-social-name','user-email','user-phone-country-code','user-phone-number','user-whatsapp-country-code','user-whatsapp-number','user-language','user-document','user-account-street','user-account-number','user-account-complement','user-account-neighborhood','user-account-city','user-account-province','user-account-postal-code','user-account-country','user-fiscal-country','user-store-name','user-store-city','user-store-province','user-store-country','user-store-language','user-store-status'].forEach(function(id){setFieldLocked(id,!enabled);});
+  ['user-full-name','user-social-name','user-email','user-phone-country-code','user-phone-number','user-whatsapp-country-code','user-whatsapp-number','user-language','user-document','user-account-street','user-account-number','user-account-complement','user-account-neighborhood','user-account-city','user-account-province','user-account-postal-code','user-account-country','user-fiscal-country','user-store-name','user-store-city','user-store-province','user-store-country','user-store-phone','user-store-whatsapp','user-store-language','user-store-status'].forEach(function(id){setFieldLocked(id,!enabled);});
   ['user-id','user-source','user-contact-email','user-admin-email','user-public-slug','user-store-url','user-store-instagram','user-store-facebook','user-store-tiktok','user-store-last-published-at','user-store-last-publication-error','user-auth-uid','user-email-verified','user-last-login-at','user-created-at','user-updated-at','user-hotmart-subscriber-code','user-hotmart-transaction','user-hotmart-product-id','user-hotmart-offer-code','user-hotmart-purchase-status','user-hotmart-subscription-status','user-hotmart-last-event','seo-tech-schema-type','seo-tech-schema-category','seo-tech-search-console','seo-tech-last-published'].forEach(function(id){setFieldLocked(id,true);});
   updateBillingProviderControls();
 }
@@ -1882,7 +1995,7 @@ function decorateUserFieldOrigins(){
   var addressOrigin = val('user-account-address-source') === 'hotmart' ? 'Origem: Hotmart' : 'Origem: Cadastro/setup da usuária';
   var storeLocationOrigin = window._currentStoreLocationOrigin || 'Origem: Centro de Controle';
   var origins={
-    'user-id':'Origem: Sistema','user-status':'Origem: Master','user-full-name':'Origem: Cadastro/setup da usuária','user-social-name':'Origem: Cadastro/setup da usuária','user-email':'Origem: Firebase Auth / Cadastro','user-contact-email':'Origem: Admin → Configurações → Geral','user-admin-email':'Origem: Admin → Configurações → Geral','user-phone':'Origem: Cadastro/setup da usuária','user-whatsapp':'Origem: Admin → Configurações → Conta / Usuária','user-language':'Origem: Cadastro/setup da usuária','user-source':'Origem: Sistema','user-document':'Origem: Cadastro/setup da usuária','user-account-street':addressOrigin,'user-account-number':addressOrigin,'user-account-complement':addressOrigin,'user-account-neighborhood':addressOrigin,'user-account-city':addressOrigin,'user-account-province':addressOrigin,'user-account-postal-code':addressOrigin,'user-account-country':addressOrigin,'user-fiscal-country':'Origem: Cadastro/setup da usuária. Alterar apenas em modo suporte.','user-store-name':'Origem: Centro de Controle','user-public-slug':'Origem: Centro de Controle → Configurações → Domínio / URL','user-store-url':'Origem: Sistema','user-store-city':storeLocationOrigin,'user-store-province':storeLocationOrigin,'user-store-country':storeLocationOrigin,'user-store-language':'Origem: Centro de Controle','user-store-status':'Origem: Sistema/Publicação','user-store-instagram':'Origem: Centro de Controle → Loja Online → Template da loja','user-store-facebook':'Origem: Centro de Controle → Loja Online → Template da loja','user-store-tiktok':'Origem: Centro de Controle → Loja Online → Template da loja','user-store-last-published-at':'Origem: Sistema/Publicação','user-store-last-publication-error':'Origem: Sistema/Publicação','user-plan':'Origem: Hotmart ou Master','user-billing-cycle':'Origem: Hotmart ou Master','user-billing-provider':'Origem: Hotmart/Sistema','user-billing-status':'Origem: Hotmart ou Master','user-trial-ends-at':'Origem: Hotmart/Master','user-activated-at':'Origem: Sistema/Hotmart','user-canceled-at':'Origem: Sistema/Hotmart','user-auth-uid':'Origem: Firebase Auth','user-email-verified':'Origem: Firebase Auth','user-last-login-at':'Origem: Firebase Auth/Sistema','user-created-at':'Origem: Sistema','user-updated-at':'Origem: Sistema','user-role':'Origem: Master','user-hotmart-subscriber-code':'Origem: Hotmart','user-hotmart-transaction':'Origem: Hotmart','user-hotmart-product-id':'Origem: Hotmart','user-hotmart-offer-code':'Origem: Hotmart','user-hotmart-purchase-status':'Origem: Hotmart','user-hotmart-subscription-status':'Origem: Hotmart','user-hotmart-last-event':'Origem: Hotmart','seo-tech-allow-index':'Origem: Master/Admin','seo-tech-meta-robots':'Origem: Sistema/Master','seo-tech-schema-type':'Origem: Sistema','seo-tech-schema-category':'Origem: Sistema','seo-tech-sitemap-active':'Origem: Sistema/Master','seo-tech-robots-active':'Origem: Sistema/Master','seo-tech-search-console':'Origem: Sistema/Google','seo-tech-last-published':'Origem: Sistema'
+    'user-id':'Origem: Sistema','user-status':'Origem: Master','user-full-name':'Origem: Cadastro/setup da usuária','user-social-name':'Origem: Cadastro/setup da usuária','user-email':'Origem: Firebase Auth / Cadastro','user-contact-email':'Origem: Admin → Configurações → Geral','user-admin-email':'Origem: Admin → Configurações → Geral','user-phone':'Origem: Cadastro/setup da usuária','user-whatsapp':'Origem: Admin → Configurações → Conta / Usuária','user-language':'Origem: Cadastro/setup da usuária','user-source':'Origem: Sistema','user-document':'Origem: Cadastro/setup da usuária','user-account-street':addressOrigin,'user-account-number':addressOrigin,'user-account-complement':addressOrigin,'user-account-neighborhood':addressOrigin,'user-account-city':addressOrigin,'user-account-province':addressOrigin,'user-account-postal-code':addressOrigin,'user-account-country':addressOrigin,'user-fiscal-country':'Origem: Cadastro/setup da usuária. Alterar apenas em modo suporte.','user-store-name':'Origem: Centro de Controle','user-public-slug':'Origem: Centro de Controle → Configurações → Domínio / URL','user-store-url':'Origem: Sistema','user-store-city':storeLocationOrigin,'user-store-province':storeLocationOrigin,'user-store-country':storeLocationOrigin,'user-store-phone':'Origem: Admin → Configurações → Geral','user-store-whatsapp':'Origem: Admin → Configurações → Geral','user-store-language':'Origem: Centro de Controle','user-store-status':'Origem: Sistema/Publicação','user-store-instagram':'Origem: Centro de Controle → Loja Online → Template da loja','user-store-facebook':'Origem: Centro de Controle → Loja Online → Template da loja','user-store-tiktok':'Origem: Centro de Controle → Loja Online → Template da loja','user-store-last-published-at':'Origem: Sistema/Publicação','user-store-last-publication-error':'Origem: Sistema/Publicação','user-plan':'Origem: Hotmart ou Master','user-billing-cycle':'Origem: Hotmart ou Master','user-billing-provider':'Origem: Hotmart/Sistema','user-billing-status':'Origem: Hotmart ou Master','user-trial-ends-at':'Origem: Hotmart/Master','user-activated-at':'Origem: Sistema/Hotmart','user-canceled-at':'Origem: Sistema/Hotmart','user-auth-uid':'Origem: Firebase Auth','user-email-verified':'Origem: Firebase Auth','user-last-login-at':'Origem: Firebase Auth/Sistema','user-created-at':'Origem: Sistema','user-updated-at':'Origem: Sistema','user-role':'Origem: Master','user-hotmart-subscriber-code':'Origem: Hotmart','user-hotmart-transaction':'Origem: Hotmart','user-hotmart-product-id':'Origem: Hotmart','user-hotmart-offer-code':'Origem: Hotmart','user-hotmart-purchase-status':'Origem: Hotmart','user-hotmart-subscription-status':'Origem: Hotmart','user-hotmart-last-event':'Origem: Hotmart','seo-tech-allow-index':'Origem: Master/Admin','seo-tech-meta-robots':'Origem: Sistema/Master','seo-tech-schema-type':'Origem: Sistema','seo-tech-schema-category':'Origem: Sistema','seo-tech-sitemap-active':'Origem: Sistema/Master','seo-tech-robots-active':'Origem: Sistema/Master','seo-tech-search-console':'Origem: Sistema/Google','seo-tech-last-published':'Origem: Sistema'
   };
   Object.keys(origins).forEach(function(id){
     var el=document.getElementById(id);
@@ -2570,6 +2683,10 @@ function userPayload(){
       province: keep(val('user-store-province'), originalStore.province||originalStore.region||''),
       country: keep(val('user-store-country') || val('user-country'), originalStore.country||original.country||''),
       fiscalCountry: fiscalCountry,
+      phone: keep(val('user-store-phone'), originalStore.phoneFull||originalStore.phone||''),
+      phoneFull: keep(val('user-store-phone'), originalStore.phoneFull||originalStore.phone||''),
+      whatsapp: keep(val('user-store-whatsapp'), originalStore.whatsappFull||originalStore.whatsapp||''),
+      whatsappFull: keep(val('user-store-whatsapp'), originalStore.whatsappFull||originalStore.whatsapp||''),
       language: keep(val('user-store-language') || val('user-language'), originalStore.language||original.language||''),
       status: supportMode ? (val('user-store-status') || originalStore.status || 'draft') : (originalStore.status || val('user-store-status') || 'draft'),
       address: originalStore.address || {},
@@ -2942,7 +3059,7 @@ function editUser(id){
       ? 'Origem: Centro de Controle → Atendimento → Endereço'
       : 'Origem: Centro de Controle');
   var legacyTemplate=(t.template||t.configTemplate||t.storeTemplate||{});
-  setVal('user-store-name',store.name||'');setVal('user-store-city',storeCity);setVal('user-store-province',storeRegion);setVal('user-store-country',normalizeCountryCodeOrEmpty(storeCountry));setVal('user-store-language',normalizeLanguageCodeOrEmpty(store.language));setVal('user-store-status',store.status||'draft');setVal('user-store-instagram',storeSocial.instagram||store.instagram||legacyTemplate.instagram||'');setVal('user-store-facebook',storeSocial.facebook||store.facebook||legacyTemplate.facebook||'');setVal('user-store-tiktok',storeSocial.tiktok||store.tiktok||legacyTemplate.tiktok||'');setVal('user-store-last-published-at',store.lastPublishedAt||store.publishedAt);setVal('user-store-last-publication-error',store.lastPublicationError);
+  setVal('user-store-name',store.name||'');setVal('user-store-city',storeCity);setVal('user-store-province',storeRegion);setVal('user-store-country',normalizeCountryCodeOrEmpty(storeCountry));setVal('user-store-phone',store.phoneFull||store.phone||'');setVal('user-store-whatsapp',store.whatsappFull||store.whatsapp||'');setVal('user-store-language',normalizeLanguageCodeOrEmpty(store.language));setVal('user-store-status',store.status||'draft');setVal('user-store-instagram',storeSocial.instagram||store.instagram||legacyTemplate.instagram||'');setVal('user-store-facebook',storeSocial.facebook||store.facebook||legacyTemplate.facebook||'');setVal('user-store-tiktok',storeSocial.tiktok||store.tiktok||legacyTemplate.tiktok||'');setVal('user-store-last-published-at',store.lastPublishedAt||store.publishedAt);setVal('user-store-last-publication-error',store.lastPublicationError);
   var providerValue = inferBillingProvider(t);
   setVal('user-billing-provider',providerValue);setVal('user-billing-status',billing.status||t.billingStatus||'inactive');setVal('user-billing-cycle',billing.billingCycle||t.billingCycle||billing.cycle||'monthly');
   var providerEl=document.getElementById('user-billing-provider');if(providerEl){providerEl.dataset.previousProvider=providerValue;providerEl.dataset.manualOverride='';}
@@ -2985,7 +3102,7 @@ function clearUserForm(){
   document.getElementById('user-id-label').style.display='';
   document.getElementById('user-id-readonly-label').style.display='none';
   document.getElementById('user-id-display').textContent='';
-  ['user-id','user-full-name','user-social-name','user-name','user-business','user-owner','user-email','user-contact-email','user-admin-email','user-phone','user-phone-country-code','user-phone-number','user-whatsapp','user-whatsapp-country-code','user-whatsapp-number','user-country','user-language','user-document','user-account-street','user-account-number','user-account-complement','user-account-neighborhood','user-account-city','user-account-province','user-account-postal-code','user-account-address-source','user-public-slug','user-store-url','user-source','user-notes','user-store-name','user-store-city','user-store-province','user-store-country','user-store-language','user-store-instagram','user-store-facebook','user-store-tiktok','user-store-last-published-at','user-store-last-publication-error','user-trial-ends-at','user-activated-at','user-canceled-at','user-hotmart-subscriber-code','user-hotmart-transaction','user-hotmart-product-id','user-hotmart-offer-code','user-hotmart-purchase-status','user-hotmart-subscription-status','user-hotmart-last-event','user-auth-uid','user-last-login-at','user-created-at','user-updated-at'].forEach(function(id){setVal(id,'')});
+  ['user-id','user-full-name','user-social-name','user-name','user-business','user-owner','user-email','user-contact-email','user-admin-email','user-phone','user-phone-country-code','user-phone-number','user-whatsapp','user-whatsapp-country-code','user-whatsapp-number','user-country','user-language','user-document','user-account-street','user-account-number','user-account-complement','user-account-neighborhood','user-account-city','user-account-province','user-account-postal-code','user-account-address-source','user-public-slug','user-store-url','user-source','user-notes','user-store-name','user-store-city','user-store-province','user-store-country','user-store-phone','user-store-whatsapp','user-store-language','user-store-instagram','user-store-facebook','user-store-tiktok','user-store-last-published-at','user-store-last-publication-error','user-trial-ends-at','user-activated-at','user-canceled-at','user-hotmart-subscriber-code','user-hotmart-transaction','user-hotmart-product-id','user-hotmart-offer-code','user-hotmart-purchase-status','user-hotmart-subscription-status','user-hotmart-last-event','user-auth-uid','user-last-login-at','user-created-at','user-updated-at'].forEach(function(id){setVal(id,'')});
   var slugEl=document.getElementById('user-public-slug');if(slugEl)slugEl.dataset.manual='';
   ['user-trial-ends-at','user-activated-at','user-canceled-at'].forEach(function(id){var el=document.getElementById(id);if(el){el.dataset.rawValue='';el.type='text';}});
   updateHotmartTabState({});
@@ -3004,13 +3121,16 @@ function clearUserForm(){
 }
 function archiveUser(id){
   console.info('[Master] archive clicked', { id: id });
-  var t=(window._masterUsers||[]).find(function(u){return u.id===id});
+  var t=(window._masterUsers||[]).find(function(u){return u.id===id}) || (window._masterUsersRaw||[]).find(function(u){return u.id===id});
+  if(!id){toast('Conta inválida para arquivar.');return;}
   if(!confirm('Arquivar este tenant? Os dados não serão apagados.'))return;
   setUsersSyncStatus('Arquivando conta...');
   api('/api/master/tenants/action',{method:'POST',body:JSON.stringify({action:'archive',uid:id,email:t&&t.email||''})})
     .then(function(resp){
       console.info('[Master] tenant archived', { id: id, ok: !!(resp&&resp.ok) });
       toast('Tenant arquivado');
+      window._masterUsersSignature = '';
+      setUsersSyncStatus('Conta arquivada. Atualizando lista...');
       return loadUsers({force:true,silent:true});
     })
     .catch(function(e){

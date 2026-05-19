@@ -2412,6 +2412,7 @@ exports.completeSignupOnboarding = onCall({ region: REGION }, async (request) =>
   const ownerName = cleanSignupText(data.ownerName, 120);
   const storeName = cleanSignupText(data.storeName, 120);
   const storeCity = cleanSignupText(data.storeCity || data.serviceCity, 120);
+  const fiscalCountry = cleanCountryCode(data.fiscalCountry || data.countryFiscal || data.accountFiscalCountry) || "ES";
   const businessType = cleanSignupText(data.businessType || data.storeKind, 120);
   const businessStage = cleanSignupText(data.businessStage, 120);
   const language = cleanLanguageCode(data.language);
@@ -2430,6 +2431,13 @@ exports.completeSignupOnboarding = onCall({ region: REGION }, async (request) =>
     whatsappNumber,
     whatsappFull,
     language,
+    fiscalCountry,
+    accountAddress: {
+      city: storeCity,
+      fiscalCountry,
+      source: "signup_onboarding",
+      updatedAt: now
+    },
     accountStatus: pending ? "active" : "pending",
     status: pending ? "active" : "pending",
     origin: pending ? "hotmart" : "signup",
@@ -2437,6 +2445,7 @@ exports.completeSignupOnboarding = onCall({ region: REGION }, async (request) =>
     store: {
       name: storeName,
       city: storeCity,
+      fiscalCountry,
       status: "draft",
       updatedAt: now
     },
@@ -2444,6 +2453,7 @@ exports.completeSignupOnboarding = onCall({ region: REGION }, async (request) =>
       businessType,
       salesMode: cleanSignupText(data.salesMode, 120),
       serviceCity: storeCity,
+      fiscalCountry,
       sellingFrequency: cleanSignupText(data.sellingFrequency, 120),
       salesChannels: cleanSignupList(data.salesChannels),
       menuStatus: cleanSignupText(data.menuStatus, 120),

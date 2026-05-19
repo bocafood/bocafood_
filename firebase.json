@@ -50,6 +50,10 @@
       {
         "source": "/loja/**",
         "destination": "/index.html"
+      },
+      {
+        "source": "/**",
+        "destination": "/index.html"
       }
     ],
     "ignore": [

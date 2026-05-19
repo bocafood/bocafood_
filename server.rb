@@ -1398,7 +1398,7 @@ def public_store_slug(value)
 end
 
 def public_store_url(slug)
-  slug.to_s.empty? ? '' : "https://bocafood.app/loja/#{slug}"
+  slug.to_s.empty? ? '' : "https://bocafood.app/#{slug}"
 end
 
 def public_store_name(tenant)
@@ -2135,7 +2135,7 @@ def firebase_create_or_update_auth_user(tenant)
   final_uid = existing['uid'] if existing && !existing['uid'].to_s.strip.empty?
   desired_display_name = tenant['name'].to_s.strip.empty? ? tenant['businessName'].to_s.strip : tenant['name'].to_s.strip
   desired_display_name = tenant['ownerName'].to_s.strip if desired_display_name.empty?
-  disabled = %w[disabled blocked canceled].include?(tenant['status'].to_s.strip)
+  disabled = %w[disabled blocked canceled archived].include?(tenant['status'].to_s.strip)
   api_key = firebase_web_api_key
   auth_headers = google_auth_headers.merge('Content-Type' => 'application/json')
 
@@ -2675,6 +2675,56 @@ def pending_hotmart_reason(item)
   return 'assinatura cancelada sem tenant localizado' if status == 'canceled_without_tenant'
   return 'e-mail diferente do cadastro' if status == 'email_mismatch'
   'ação manual necessária'
+end
+
+def master_support_tickets
+  tenants = firestore_list_documents('system_tenants').map do |doc|
+    uid = doc['name'].to_s.split('/').last.to_s
+    data = firestore_fields_to_hash(doc['fields'] || {})
+    next if firebase_customer_marker?(data)
+    store = data['store'].is_a?(Hash) ? data['store'] : {}
+    {
+      'uid' => uid,
+      'email' => data['email'].to_s,
+      'storeName' => store['name'].to_s.empty? ? (data['businessName'].to_s.empty? ? data['ownerName'].to_s : data['businessName'].to_s) : store['name'].to_s
+    }
+  end.compact
+
+  tickets = []
+  tenants.each do |tenant|
+    tenant_uid = tenant['uid'].to_s
+    next if tenant_uid.empty?
+    begin
+      firestore_list_documents("tenants/#{tenant_uid}/support_tickets").each do |doc|
+        ticket_id = doc['name'].to_s.split('/').last.to_s
+        data = firestore_fields_to_hash(doc['fields'] || {})
+        tickets << {
+          'id' => ticket_id,
+          'ticketPath' => "tenants/#{tenant_uid}/support_tickets/#{ticket_id}",
+          'tenantUid' => data['tenantUid'].to_s.empty? ? tenant_uid : data['tenantUid'].to_s,
+          'tenantEmail' => tenant['email'].to_s,
+          'accountEmail' => data['accountEmail'].to_s,
+          'storeName' => data['storeName'].to_s.empty? ? tenant['storeName'].to_s : data['storeName'].to_s,
+          'ticketCode' => data['ticketCode'].to_s,
+          'type' => data['type'].to_s.empty? ? 'other' : data['type'].to_s,
+          'priority' => data['priority'].to_s.empty? ? 'normal' : data['priority'].to_s,
+          'subject' => data['subject'].to_s,
+          'message' => data['message'].to_s,
+          'contactEmail' => data['contactEmail'].to_s,
+          'contactWhatsapp' => data['contactWhatsapp'].to_s,
+          'status' => data['status'].to_s.empty? ? 'open' : data['status'].to_s,
+          'source' => data['source'].to_s,
+          'pageUrl' => data['pageUrl'].to_s,
+          'userAgent' => data['userAgent'].to_s,
+          'createdAt' => data['createdAt'].to_s,
+          'updatedAt' => data['updatedAt'].to_s
+        }
+      end
+    rescue => e
+      log_master("support tickets read warning tenantUid=#{tenant_uid} #{e.class}: #{e.message}")
+    end
+  end
+  tickets.sort_by { |ticket| ticket['createdAt'].to_s }.reverse.first(200)
 end
 
 def system_tenants_users
@@ -3980,6 +4030,17 @@ server.mount_proc '/api/master/users' do |req, res|
   end
 end
 
+server.mount_proc '/api/master/support/tickets' do |req, res|
+  begin
+    next json_response(res, 405, { ok: false, error: 'GET required', tickets: [] }) unless req.request_method == 'GET'
+    tickets = master_support_tickets
+    log_master("master support tickets read path=tenants/{tenantUid}/support_tickets count=#{tickets.length}")
+    json_response(res, 200, { ok: true, tickets: tickets, count: tickets.length })
+  rescue => e
+    json_response(res, 400, { ok: false, error: e.message, tickets: [] })
+  end
+end
+
 server.mount_proc '/api/master/tenants/action' do |req, res|
   begin
     next json_response(res, 405, { ok: false, error: 'POST required' }) unless req.request_method == 'POST'
@@ -4060,6 +4121,11 @@ server.mount_proc '/api/master/tenants/action' do |req, res|
       tenant['archivedAt'] = Time.now.utc.iso8601
       tenant['updatedAt'] = tenant['archivedAt']
       master_replace_tenant(store, tenant) if master_find_tenant(store, uid: uid, email: body['email'])
+      begin
+        firebase_create_or_update_auth_user(tenant)
+      rescue => e
+        log_master("archive firebase auth warning uid=#{tenant['id']} #{e.class}: #{e.message}")
+      end
       firestore_upsert_document('system_tenants', tenant['id'] || uid, {
         'accountStatus' => 'archived',
         'status' => 'archived',

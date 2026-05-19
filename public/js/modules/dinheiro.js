@@ -100,12 +100,12 @@ Modules.Dinheiro = (function () {
     var hasCardapio = list.some(function (ch) { return _isCardapioChannel(ch); });
     var hasTpv = list.some(function (ch) { return _isTpvChannel(ch); });
     if (!hasCardapio) list.unshift({ name: 'Cardápio', commissionPct: 0, fixedFee: 0, taxPct: 0, locked: true });
-    if (!hasTpv) list.splice(1, 0, { name: 'TPV', commissionPct: 0, fixedFee: 0, taxPct: 0, locked: true });
+    if (!hasTpv) list.splice(1, 0, { name: 'Venda presencial', commissionPct: 0, fixedFee: 0, taxPct: 0, locked: true });
     return list.map(function (ch) {
       var cardapio = _isCardapioChannel(ch);
       var tpv = _isTpvChannel(ch);
       return {
-        name: cardapio ? 'Cardápio' : (tpv ? 'TPV' : (ch.name || '')),
+        name: cardapio ? 'Cardápio' : (tpv ? 'Venda presencial' : (ch.name || '')),
         commissionPct: (cardapio || tpv) ? 0 : _num(ch.commissionPct),
         fixedFee: (cardapio || tpv) ? 0 : _num(ch.fixedFee),
         taxPct: (cardapio || tpv) ? 0 : _num(ch.taxPct),
@@ -374,7 +374,7 @@ Modules.Dinheiro = (function () {
 
   function _isTpvChannel(channel) {
     var name = String((channel || {}).name || '').toLowerCase().trim();
-    return name === 'tpv';
+    return name === 'tpv' || name === 'venda presencial';
   }
 
   function _isOwnChannel(channel) {

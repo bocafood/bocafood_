@@ -28,6 +28,7 @@ O Boca Food é um sistema de gestão e operação de loja com painel admin, cat�
 - Preserve as rotas, integrações e contratos já existentes.
 
 ### Master e contas BocaFood
+- O Master está congelado para novas tarefas de Admin até liberação explícita da usuária. Em tarefas do Admin, não alterar `master.html`, telas, labels, estilos, cards, abas, rotas ou lógica exclusiva do Master. O Admin pode herdar/ler dados de `system_tenants` e estruturas já existentes, mas mudanças no Master só podem ocorrer se a usuária liberar o congelamento ou pedir alteração explícita no Master.
 - A área principal do Master para clientes do SaaS chama-se "Contas", não "Usuários".
 - A listagem de Contas deve buscar somente `system_tenants` válidos e nunca misturar clientes finais, pedidos, `customers`, `tenants/{tenantId}/clientes` ou usuários soltos do Firebase Auth sem tenant real.
 - Registros importados apenas de Firebase Auth, sem loja, billing, status SaaS ou origem válida, não devem aparecer como Conta BocaFood.

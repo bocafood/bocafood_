@@ -3143,8 +3143,29 @@
       }
 
       function storeSlugFromPath() {
-        var match = window.location.pathname.match(/^\/loja\/([^/?#]+)/);
-        return match ? decodeURIComponent(match[1]).toLowerCase().replace(/[^a-z0-9-]/g, '') : '';
+        var path = window.location.pathname || '';
+        var legacyMatch = path.match(/^\/loja\/([^/?#]+)/);
+        if (legacyMatch) return decodeURIComponent(legacyMatch[1]).toLowerCase().replace(/[^a-z0-9-]/g, '');
+        var rootMatch = path.match(/^\/([^/?#]+)/);
+        if (!rootMatch) return '';
+        var reserved = {
+          admin: true,
+          'admin.html': true,
+          index: true,
+          'index.html': true,
+          cadastro: true,
+          login: true,
+          master: true,
+          'master.html': true,
+          termos: true,
+          termosdeuso: true,
+          privacidade: true,
+          politicadeprivacidade: true,
+          'redefinir-senha': true,
+          rr: true
+        };
+        var slug = decodeURIComponent(rootMatch[1]).toLowerCase().replace(/[^a-z0-9-]/g, '');
+        return reserved[slug] ? '' : slug;
       }
 
       async function resolvePublicStore() {

@@ -1,5 +1,218 @@
 # AI Changelog
 
+## 2026-05-19 — Guia de uso de Configurações → Geral
+- Arquivos alterados: `public/js/modules/suporte.js`, `AI_CHANGELOG.md`.
+- Admin: a Central de Ajuda ganhou um card `Configurações` com guia detalhado para a aba `Geral`.
+- Conteúdo: adicionadas explicações práticas para Perfil do negócio, logo, nome comercial, nome fiscal, apresentação curta, contatos da loja e dados fiscais do negócio.
+- Organização: removida a categoria separada `Conta e acesso`; o guia passou a ser `Configurações → Usuário`, dentro do grupo `Configurações`.
+- Navegação: os cards principais agora abrem uma lista de guias do módulo; cada guia abre as instruções do submódulo com botões para voltar aos guias, voltar aos módulos e abrir a tela correspondente.
+- Navegação: os cards dos módulos ficam visíveis apenas na tela inicial; ao abrir um módulo ou guia, a lista de módulos é ocultada até a usuária voltar.
+- Comunicação: linguagem orientada à usuária, sem termos técnicos internos e sem expor lógica de bastidores.
+
+## 2026-05-19 — Contatos da loja na aba Negócio do Master
+- Arquivos alterados: `master.html`, `AI_CHANGELOG.md`.
+- Master: adicionados os campos `Telefone da loja` e `WhatsApp da loja` na aba `Negócio` do modal de conta.
+- Leitura: os campos exibem dados de `system_tenants/{uid}.store.phoneFull/phone` e `store.whatsappFull/whatsapp`, sincronizados pelo Admin em `Configurações → Geral`.
+- Escopo: alteração pontual no Master liberada para esta demanda; demais áreas do Master permanecem congeladas.
+
+## 2026-05-19 — Limpeza de rótulos no Perfil da loja
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Admin: removidos os textos superiores `Perfil da loja`, subtítulo, `Prévia da loja` e a pílula de país no topo da primeira dobra de `Configurações → Geral`.
+- Admin: o formulário principal agora usa `Perfil do negócio` com subtítulo focado em como a marca aparece no BocaFood.
+- Admin: removidos os mini cards de resumo `Nome comercial`, `Documento` e `País fiscal` da prévia esquerda.
+- Admin: refinado o alinhamento dos campos do card `Perfil do negócio`, com upload de logo mais limpo e campos principais em grade equilibrada.
+- Admin: removido o campo visual `Idioma do painel` da aba Geral, mantendo o valor interno em campo oculto para preservar compatibilidade de salvamento.
+- Verificação: `Moeda` segue visível, mas hoje aparece como configuração salva em `geral.currency/defaultCurrency`; os módulos financeiros encontrados ainda usam EUR fixo para formatação.
+- Admin: removido o campo visual `Moeda` da aba Geral; o valor segue preservado em campo oculto para manter compatibilidade com o salvamento existente.
+- Admin: separados os campos `Telefone da loja` e `WhatsApp da loja` na aba Geral, salvando `phone` e `whatsapp` de forma independente.
+- Sincronização: o WhatsApp da aba Geral deixou de sobrescrever os campos de WhatsApp do usuário responsável; os contatos da loja passam a ser sincronizados dentro de `store`.
+- Admin: refinado o bloco `Contato e preferências`, com campos em grade mais compacta, espaçamento menor e foco off-white sutil ao preencher.
+- Admin: os campos de telefone e WhatsApp da loja ganharam composição própria, com DDI e número no mesmo bloco visual para melhorar alinhamento e leitura.
+- Admin: aplicado o mesmo padrão sutil de campos off-white e foco rosado ao card `Perfil do negócio`.
+- Admin: aplicado o mesmo padrão visual na aba `Usuário`, incluindo campos off-white, foco rosado e WhatsApp em bloco unificado com DDI.
+- Admin: compactado e alinhado o layout da aba `Usuário`, reduzindo espaçamentos e mantendo campos em grade no desktop.
+- Admin: a aba `Usuário` passou a seguir a mesma estrutura visual de `Contato e preferências`, com um bloco único de campos e menos divisões internas.
+- Admin: aplicado o mesmo padrão visual no bloco `Dados fiscais do negócio`, com campos off-white, foco rosado e readonly mais suave.
+- Admin: `Dados fiscais do negócio` passou a seguir a mesma estrutura visual de `Contato e preferências`, com um bloco único de campos e dica integrada ao cabeçalho interno.
+- Admin: `Perfil do negócio` passou a seguir a mesma estrutura visual de `Contato e preferências`, com um bloco único de campos e upload integrado.
+- Admin: removida a frase auxiliar da prévia esquerda da loja para reduzir peso visual.
+- Admin: compactada a grade de `Informações fiscais`, deixando campos curtos em colunas menores e campos longos com largura proporcional.
+- Escopo: ajuste apenas visual/copy; campos, upload e salvamento permanecem inalterados.
+
+## 2026-05-19 — Perfil da loja em Configurações
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Admin: a primeira dobra de `Configurações → Geral` foi refeita como `Perfil da loja`.
+- UX: a coluna esquerda virou uma prévia visual da loja, com logo, nome comercial, apresentação curta e badges de país/documento.
+- Copy: o formulário principal passou a usar `Dados principais`, `Logo da marca`, `Nome comercial` e `Apresentação curta`, removendo termos corporativos ou técnicos dessa dobra.
+- Escopo: alteração apenas de layout/copy; upload, IDs de campos, salvamento, Firestore, tenant e lógica fiscal permanecem inalterados.
+
+## 2026-05-19 — Remoção do cabeçalho em Dados da loja
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Admin: removido o cabeçalho visual com `Dados da loja` e o subtítulo da rota `Configurações → Geral`.
+- Escopo: ajuste apenas visual; cards, campos, salvamento e lógica permanecem inalterados.
+
+## 2026-05-19 — Segunda dobra de Dados da loja
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Admin: ajustada a segunda dobra de `Configurações → Geral`, com `Contato e preferências`, `Preferências do painel` e `Dados fiscais do negócio`.
+- Copy: adicionados textos de apoio para atendimento, e-mails, idioma, moeda, documento fiscal, endereço fiscal, país e país fiscal.
+- UX: removidas mensagens técnicas visíveis sobre Master, Google Places, BocaPlaces e módulos fiscais, mantendo orientações simples para a usuária.
+- Escopo: ajuste apenas visual/copy; permissões, rotas, Firestore, multi-tenant, integração de endereço e lógica fiscal permanecem inalterados.
+
+## 2026-05-19 — Primeira dobra de Dados da loja
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Admin: a primeira dobra de `Configurações → Geral` foi renomeada visualmente para `Dados da loja`.
+- Copy: ajustados título, subtítulo, card `Identidade da loja`, labels e textos de apoio para logo, nome comercial/marca, nome fiscal, documento fiscal e descrição curta da marca.
+- UX: o campo técnico da URL do avatar foi ocultado da usuária, mantendo o valor no mesmo campo interno para preservar o salvamento.
+- Escopo: ajuste apenas visual/copy; rotas, permissões, Firestore, tenant e lógica fiscal permanecem inalterados.
+
+## 2026-05-18 — Remoção do Responsável legal em Geral
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Admin: removido o campo visual `Responsável legal` da aba `Configurações → Geral`.
+- Dados: o salvamento da aba Geral deixou de escrever `legalRepresentative` e `responsavelLegal`.
+- Sincronização: a aba Geral deixou de atualizar `ownerName` e `responsibleName`, evitando misturar dados do negócio com dados do usuário.
+- Compatibilidade: dados antigos não são apagados automaticamente.
+
+## 2026-05-18 — Remoção do Nome comercial em Geral
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Admin: removido o campo visual `Nome comercial` da aba `Configurações → Geral`.
+- Dados: o salvamento da aba Geral deixou de escrever `tradeName` e `commercialName`; o campo `Nome do negócio` passa a ser a origem usada para loja, slug sugerido e sincronização com `system_tenants.store.name`.
+- Compatibilidade: valores antigos de `tradeName/commercialName` ainda podem preencher `Nome do negócio` quando não houver `businessName`, sem apagar dados existentes.
+
+## 2026-05-18 — Copy neutra na Central de Ajuda
+- Arquivos alterados: `public/js/modules/suporte.js`, `AI_CHANGELOG.md`.
+- Admin: ajustados textos da Central de Ajuda para ficarem detalhados, porém mais neutros e profissionais.
+- Copy: removidas frases que revelavam intenção interna de comunicação ou soavam excessivamente explicativas.
+- Escopo: ajuste apenas de texto; layout, chamados, rotas e salvamento permanecem iguais.
+
+## 2026-05-18 — Textos detalhados na Central de Ajuda
+- Arquivos alterados: `public/js/modules/suporte.js`, `AI_CHANGELOG.md`.
+- Admin: os textos da Central de Ajuda foram enriquecidos com explicações mais humanas e detalhadas para usuárias com dificuldade.
+- Guias: os cards e conteúdos de `Primeiros passos` e `Conta e acesso` agora explicam com mais contexto o que preencher, por que preencher e o que fazer em caso de dúvida.
+- Escopo: alteração apenas de copy/ajuda; chamados, rotas, Master e salvamento não foram alterados.
+
+## 2026-05-18 — Central de Ajuda em formato de biblioteca
+- Arquivos alterados: `public/js/modules/suporte.js`, `AI_CHANGELOG.md`.
+- Admin: a rota `/suporte/guias` foi redesenhada como home de Central de Ajuda, com hero, busca, botões rápidos e cards por categoria.
+- Guias: a página principal agora mostra categorias como Primeiros passos, Conta e acesso, Loja Online, Cardápio, Pedidos, Financeiro, Ações de vendas e Suporte.
+- UX: o conteúdo detalhado de `Conta e acesso` só aparece ao clicar no card, evitando que a home pareça uma tabela/lista administrativa.
+- Visual: mantido o padrão BocaFood com fundo claro, cards brancos, sombra suave, cantos arredondados e vermelho apenas como destaque.
+
+## 2026-05-18 — Guia de Configurações → Usuário
+- Arquivos alterados: `public/js/modules/suporte.js`, `AI_CHANGELOG.md`.
+- Admin: a Central de Ajuda agora inclui um guia disponível para `Configurações → Usuário`.
+- Conteúdo: adicionadas explicações para nome completo, nome curto, e-mail de acesso, redefinição de senha, WhatsApp de contato e botão de salvar.
+- Escopo: ajuste apenas em guias de ajuda; chamados, Master, rotas e salvamento não foram alterados.
+
+## 2026-05-18 — Reset de senha na tela Usuário
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Admin: adicionada a ação `Enviar link para redefinir senha` ao lado do e-mail de acesso na tela `Configurações → Usuário`.
+- Integração: a ação reutiliza a Function publicada `requestPasswordResetEmail`, a mesma do fluxo `Esqueci minha senha`.
+- Escopo: ajuste localizado no Admin; não altera autenticação, backend, Master, rotas ou estrutura de dados.
+
+## 2026-05-18 — Conta / Usuária renomeada para Usuário
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Admin: a seção visual `Dados da responsável` passou a se chamar `Usuário`.
+- Menu lateral: o item `Conta / Usuária` em Configurações foi renomeado para `Usuário`, mantendo a mesma rota interna.
+- Escopo: ajuste apenas de nomenclatura; rotas, dados e salvamento permanecem iguais.
+
+## 2026-05-18 — Remoção de linhas restantes na conta
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Admin: removidas as linhas divisórias restantes da tela de conta para deixar o card mais limpo.
+- Escopo: ajuste apenas visual; campos e salvamento permanecem iguais.
+
+## 2026-05-18 — Preferências da conta ocultas no Admin
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Admin: removido temporariamente o bloco visual `Preferências da conta` da tela da conta.
+- Admin: o idioma salvo por essa tela fica fixo em `pt-BR`, focando o painel em português nesta fase.
+- Escopo: ajuste localizado em `Conta / Usuária`; demais telas, rotas e autenticação permanecem iguais.
+
+## 2026-05-18 — Remoção do cabeçalho de Minha conta
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Admin: removido o cabeçalho `Minha conta no BocaFood` e o subtítulo `Dados de quem administra a loja e recebe informações importantes da conta`.
+- Escopo: ajuste apenas visual/copy; campos e salvamento permanecem iguais.
+
+## 2026-05-18 — Nome completo sem fallback de negócio
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Admin: o campo `Seu nome completo` em `Minha conta no BocaFood` deixou de herdar `legalRepresentative` e `tradeName`.
+- Dados: o campo agora usa apenas dados da usuária (`ownerName`) vindos do tenant/configuração da conta.
+- Escopo: ajuste localizado de origem visual do campo; salvamento e demais campos permanecem iguais.
+
+## 2026-05-18 — Remoção de Função na loja
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Admin: removido o campo visual `Função na loja` da tela `Minha conta no BocaFood`.
+- Escopo: ajuste apenas de interface; dados de papel/acesso continuam controlados pelo sistema/Master.
+
+## 2026-05-18 — Remoção do título Dados pessoais
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Admin: removidos o título `Dados pessoais` e a descrição `Dados básicos da pessoa responsável pela conta` da tela `Minha conta no BocaFood`.
+- Escopo: ajuste apenas de copy/layout; campos e salvamento permanecem iguais.
+
+## 2026-05-18 — Minha conta no BocaFood
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Admin: a tela `Configurações → Conta / Usuária` foi renomeada visualmente para `Minha conta no BocaFood`, com copy mais clara para dados da responsável.
+- Layout: campos reorganizados em três blocos dentro do card principal: Dados pessoais, Acesso e contato, e Preferências da conta.
+- Admin: o botão final passou a ser `Salvar alterações` dentro do card, alinhado no rodapé à direita.
+- Admin: removidos textos técnicos da visão da usuária e ajustada a função `Dono da loja` para `Responsável pela loja`.
+- Menu lateral: o card `Precisa de ajuda?` recebeu copy curta e CTA `Abrir ajuda`.
+
+## 2026-05-18 — Card de avatar sem rótulo
+- Arquivos alterados: `public/admin.html`, `AI_CHANGELOG.md`.
+- Admin: removido o rótulo `Conta BocaFood` do card lateral do avatar, mantendo apenas nome da conta e plano.
+- Escopo: ajuste apenas visual no menu lateral; não altera identidade, tenant, autenticação ou lógica.
+
+## 2026-05-18 — Botão simples em Conta / Usuária
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Admin: removido o card que envolvia a ação final da tela `Conta / Usuária`, deixando apenas o botão `Salvar Conta / Usuária`.
+- Escopo: ajuste apenas visual; salvamento e campos permanecem iguais.
+
+## 2026-05-18 — Remoção de microcopy técnica em Conta / Usuária
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Admin: removido o texto técnico `Esses dados são sincronizados para o Master em system_tenants/{uid}` da tela `Configurações → Conta / Usuária`.
+- Escopo: ajuste apenas de texto; salvamento, campos e sincronização permanecem iguais.
+
+## 2026-05-18 — Nome social na Conta / Usuária
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Admin: adicionada a entrada `Nome social / nome curto` em `Configurações → Conta / Usuária`.
+- Dados: o campo salva em `system_tenants/{uid}.preferredName` e `system_tenants/{uid}.socialName`, mantendo compatibilidade com a leitura do Master.
+- Escopo: ajuste localizado no Admin; Master, autenticação, rotas e demais campos permanecem iguais.
+
+## 2026-05-18 — Conta / Usuária sem abas superiores
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Admin: removidas as abas superiores internas da tela `Configurações → Conta / Usuária`, mantendo apenas o conteúdo da própria aba.
+- Escopo: ajuste visual localizado; menu lateral, rotas, salvamento e demais telas de Configurações permanecem iguais.
+
+## 2026-05-18 — Ajuste do card de conta no Admin
+- Arquivos alterados: `public/admin.html`, `AI_CHANGELOG.md`.
+- Admin: o card lateral da conta deixou de exibir o rótulo fixo `Carregando` depois do perfil carregado.
+- Admin: corrigida a duplicidade `Plano Plano Essencial`; agora o card mostra apenas o nome do plano.
+- Escopo: ajuste apenas visual/textual no menu lateral; não altera autenticação, tenant, Master ou regras do sistema.
+
+## 2026-05-18 — Card de ajuda sem borda no Admin
+- Arquivos alterados: `public/admin.html`, `AI_CHANGELOG.md`.
+- Admin: removida a linha/borda do card lateral `Precisa de ajuda?`, mantendo sombra suave e hover.
+- Escopo: ajuste apenas visual no menu lateral; não altera rotas, chamados, Master ou lógica do sistema.
+
+## 2026-05-18 — Favicon BocaFood sincronizado com novo arquivo
+- Arquivos alterados: `public/assets/boca-food-favicon.png`, `assets/boca-food-favicon.png`, `AI_CHANGELOG.md`.
+- Identidade: o arquivo atualizado `public/favicon BocaFood.png` foi aplicado novamente aos favicons padrão do BocaFood.
+- Escopo: ajuste apenas de asset visual; não altera templates públicos das lojas nem lógica do sistema.
+
+## 2026-05-18 — Favicon BocaFood trocado novamente
+- Arquivos alterados: `public/assets/boca-food-favicon.png`, `assets/boca-food-favicon.png`, `AI_CHANGELOG.md`.
+- Identidade: o arquivo `public/favicon BocaFood.png` foi sincronizado novamente para os favicons padrão usados pelas páginas BocaFood.
+- Escopo: ajuste apenas de asset visual; templates públicos das lojas continuam usando o favicon configurado pela usuária.
+
+## 2026-05-18 — Copy do card de ajuda no Admin
+- Arquivos alterados: `public/admin.html`, `AI_CHANGELOG.md`.
+- Admin: o card lateral de ajuda passou a exibir `Precisa de ajuda?` e `Acesse a ajuda ou fale com o suporte.`
+- Escopo: ajuste apenas de texto; não altera rotas, suporte, chamados, Master ou lógica do sistema.
+
+## 2026-05-18 — Central de Ajuda / Chamados no Master
+- Arquivos alterados: `master.html`, `server.rb`, `AI_CHANGELOG.md`.
+- Master: criada a aba `Central de Ajuda / Chamados` para a equipe BocaFood visualizar os chamados abertos no Admin/Centro de Controle.
+- Backend local: criado endpoint `GET /api/master/support/tickets`, agregando os documentos salvos em `tenants/{tenantUid}/support_tickets` e conectando campos como assunto, mensagem, tipo, prioridade, status, contato, conta e datas.
+- Escopo: mudança pontual autorizada no Master; não altera telas prontas, fluxos de e-mail, Hotmart, pedidos, clientes finais, template público ou regras de cobrança.
+
 ## 2026-05-18 — Clareza na etapa Você do cadastro
 - Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
 - Cadastro: a etapa `Você` foi ajustada para `Dados do responsável pela conta`, com copy mais clara sobre identificação, suporte, segurança e comunicações importantes.
@@ -6374,3 +6587,72 @@
 - A etapa 3 passou a usar o mesmo padrão visual dinâmico das etapas seguintes, sem alterar fluxo, campos, valores internos ou salvamento.
 - Nome da loja e cidade seguem como campos principais; produtos e forma de venda foram organizados em opções compactas com bordas neutras.
 - Adicionado o resumo dinâmico `Mapa inicial da loja`, exibindo loja, cidade, produtos e forma de venda conforme as escolhas da usuária.
+
+## 2026-05-18 — Congelamento do Master para tarefas do Admin
+- Arquivos alterados: `AGENTS.md`, `AI_CHANGELOG.md`.
+- Registrada regra permanente de que o Master fica congelado para novas tarefas do Admin até liberação explícita da usuária.
+- Tarefas do Admin podem herdar ou ler dados de `system_tenants`, mas não devem alterar `master.html`, visual, rotas ou lógica exclusiva do Master sem pedido direto.
+
+## 2026-05-18 — Correção pontual do botão Arquivar no Master
+- Arquivos alterados: `master.html`, `server.rb`, `AI_CHANGELOG.md`.
+- O arquivamento de conta agora também aciona a atualização do Firebase Auth para desativar acesso quando `status = archived`.
+- A rotina de Auth passou a tratar `archived` como status desabilitado, alinhando Arquivar ao comportamento esperado de bloqueio de acesso.
+- O botão Arquivar ganhou validação de UID e força atualização visual da lista após a ação.
+
+## 2026-05-18 — Botão de logout no menu lateral do Admin
+- Arquivos alterados: `public/admin.html`, `AI_CHANGELOG.md`.
+- Adicionado botão premium `Sair da conta` abaixo do card `Precisa de ajuda?` no menu lateral do Centro de Controle.
+- O botão usa o logout existente de `Auth.logout()`, retorna para a tela de login e mantém o visual alinhado aos cards do menu lateral.
+- O Master permanece congelado; nenhuma alteração adicional foi feita no painel Master nesta tarefa.
+- Ajuste posterior: aumentado o respiro inferior do rodapé lateral para o botão `Sair da conta` não ficar colado ao fim da tela.
+- Ajuste posterior: removida a linha/borda do card `Sair da conta`, mantendo o efeito premium por gradiente e sombra suave.
+- Ajuste posterior: reduzido o peso visual do texto `Encerrar sessão` no botão de logout.
+- Ajuste posterior: copy do card de ajuda alterada para `Precisa de suporte?` com menção à equipe BocaFood.
+
+## 2026-05-18 — Página de abertura de chamado no Admin
+- Arquivos alterados: `public/admin.html`, `public/js/modules/suporte.js`, `AI_CHANGELOG.md`.
+- Criada a rota `suporte/chamado` no Centro de Controle para abertura de chamados pela usuária.
+- O card `Precisa de suporte?` no menu lateral agora abre a página de suporte.
+- A página salva chamados em `tenants/{tenantId}/support_tickets`, com tipo, prioridade, assunto, mensagem, contato, código do chamado e contexto seguro da conta.
+- O Master permanece congelado; não houve alteração em `master.html` nesta tarefa.
+- Ajuste posterior: copy do card lateral alterada para `Precisa de ajuda?` e orientação para ver instruções ou abrir chamado.
+- Ajuste posterior: microcopy do card lateral refinada para mencionar instruções de uso e Central de Ajuda.
+- Ajuste posterior: o card lateral passou a abrir a `Central de Ajuda`, com caminhos separados para `Guias de uso` e `Abrir chamado`.
+- A área de instruções foi nomeada como `Guias de uso`, evitando a nomenclatura mais burocrática `Página de instruções`.
+- Adicionada a tela `Meus chamados` no Admin para a própria usuária acompanhar os chamados salvos em `tenants/{tenantId}/support_tickets`.
+- Após enviar um chamado, o Admin direciona a usuária para `Meus chamados`, onde ela vê código, status, tipo, prioridade, data e resumo da mensagem.
+- Ajuste posterior: removido o CTA `Abrir ajuda` do card lateral, mantendo apenas o texto curto de orientação para suporte.
+
+## 2026-05-19 — Guias da Central de Ajuda mais premium
+- Arquivos alterados: `public/js/modules/suporte.js`, `AI_CHANGELOG.md`.
+- A página principal da Central de Ajuda passou a abrir primeiro os módulos e, depois, os submódulos/guias relacionados.
+- Os cards de submódulos e painéis de instruções ganharam visual mais premium, com bordas suaves, sombra leve, hierarquia melhor e navegação de volta para módulos/submódulos.
+- O conteúdo detalhado dos guias fica oculto na home e aparece apenas após a escolha do módulo e do submódulo.
+
+## 2026-05-19 — País fiscal no onboarding e visual da aba TPV
+- Arquivos alterados: `public/cadastro.html`, `functions/index.js`, `public/js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- A etapa `Sobre sua loja` do cadastro passou a perguntar `País fiscal` ao lado da cidade de atendimento.
+- O país fiscal do onboarding é salvo em `system_tenants/{uid}.fiscalCountry`, `accountAddress.fiscalCountry`, `store.fiscalCountry` e `businessProfile.fiscalCountry`, permitindo herança no Master sem alterar o painel Master.
+- A aba `Configurações → TPV` no Admin recebeu o mesmo padrão visual limpo usado em `Dados fiscais do negócio`, com painel único, campos alinhados, fundo off-white, foco suave e botão `Salvar alterações`.
+- Ajuste posterior: removido o card/toggle próprio que destoava do padrão e reorganizada a aba TPV com a mesma composição de seção, painel, grid compacto e rodapé de ações usada nas telas de Configurações.
+- Ajuste posterior: o campo `Pagamento padrão` da aba TPV passou a herdar as formas ativas de `Financeiro → Configurações → Formas de pagamento`, mantendo compatibilidade com valores antigos já salvos.
+- Ajuste posterior: a aba `Usuário` passou a usar o mesmo card de rodapé de ações da TPV, com o texto `Revise os dados antes de salvar.` e o botão `Salvar alterações` fora do card principal.
+- Ajuste posterior: a herança de formas de pagamento no TPV passou a aceitar os formatos `formas_pagamento`, `formasPagamento` e `paymentMethods`, preservando dados complementares do Financeiro e exibindo um resumo das formas herdadas abaixo do select.
+- Ajuste posterior: removidos o card `Formas herdadas do Financeiro` e a microcopy abaixo do campo `Pagamento padrão`, mantendo apenas o select com a lista herdada.
+- Ajuste posterior: a explicação do status do TPV agora descreve o comportamento quando o módulo está ativado e quando está desativado.
+- Ajuste posterior: a explicação do status do TPV saiu do campo `Status` e passou para uma nota separada abaixo do painel.
+- Ajuste posterior: a nomenclatura visível `TPV` foi trocada para `Venda presencial` no Admin, nas configurações, na tela de venda presencial e nos canais financeiros, preservando chaves técnicas `tpv` e compatibilidade com dados antigos.
+- Ajuste posterior: o card `Status` da aba Venda presencial foi compactado, centralizado e o label passou para `Ativar venda presencial`.
+- Ajuste posterior: o label `Status` saiu de dentro do card e passou a ficar acima do controle de ativação.
+- Ajuste posterior: removida a borda do controle `Ativar venda presencial`, deixando o bloco mais leve.
+- Ajuste posterior: revisada a hierarquia da aba `Venda presencial`, com painel interno único, grid alinhado em três colunas, status alinhado à esquerda e nota explicativa integrada ao painel.
+- Ajuste posterior: a nota explicativa da aba `Venda presencial` voltou para fora do painel interno, preservando o alinhamento revisado.
+
+## 2026-05-19 — Link público da loja sem domínio personalizado
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `public/admin.html`, `public/index.html`, `firebase.json`, `server.rb`, `AI_CHANGELOG.md`.
+- A aba `Domínio / URL` foi renomeada visualmente para `Link da loja`, deixando claro que a usuária configura apenas o identificador da loja.
+- O link público passou do formato `bocafood.app/loja/{slug}` para `bocafood.app/{slug}`.
+- O Hosting ganhou fallback para carregar a loja pública por slug na raiz, mantendo compatibilidade com links antigos em `/loja/{slug}`.
+- A loja pública agora resolve tanto `/loja/{slug}` quanto `/{slug}`, ignorando rotas reservadas como `login`, `cadastro`, `master`, `termos` e `privacidade`.
+- O backend local passou a calcular `publicUrl` no mesmo padrão `https://bocafood.app/{slug}` para manter consistência dos tenants.
+- Ajuste posterior: o botão `Ver loja` do Admin passou a abrir `/?tenant={uid}` em vez de `/index.html?tenant={uid}`, evitando que `index.html` fosse interpretado como slug público.
