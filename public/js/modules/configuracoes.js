@@ -996,6 +996,8 @@ Modules.Configuracoes = (function () {
     });
     return firebase.firestore().collection('system_tenants').doc(tenantId).set({ store: nextStore, updatedAt: now }, { merge: true }).then(function () {
       _systemTenant = Object.assign({}, _systemTenant || {}, { store: nextStore, updatedAt: now });
+      return _syncPublicStoreSlug(tenantId, slug, urls, nextStore, currentStore);
+    }).then(function () {
       if ((currentStore.slug || '') !== slug) {
         return _recordActivity({
           action: 'store_slug_updated',
@@ -1008,6 +1010,27 @@ Modules.Configuracoes = (function () {
         });
       }
     });
+  }
+
+  function _syncPublicStoreSlug(tenantId, slug, urls, store, previousStore) {
+    if (!tenantId || !slug || !window.firebase || !firebase.firestore) return Promise.resolve(false);
+    var db = firebase.firestore();
+    var now = new Date().toISOString();
+    var previousSlug = _slugify((previousStore && previousStore.slug) || '');
+    var publicData = {
+      tenantId: tenantId,
+      slug: slug,
+      storeName: store.name || ((_config.geral || {}).businessName) || ((_config.geral || {}).name) || '',
+      status: 'active',
+      publicUrl: urls.publicUrl,
+      updatedAt: now
+    };
+    var writes = [];
+    if (previousSlug && previousSlug !== slug) {
+      writes.push(db.collection('public_stores').doc(previousSlug).delete().catch(function () { return false; }));
+    }
+    writes.push(db.collection('public_stores').doc(slug).set(Object.assign({ createdAt: now }, publicData), { merge: true }));
+    return Promise.all(writes).then(function () { return true; });
   }
 
   function _refreshPublicationReadiness(urls) {
@@ -1204,6 +1227,8 @@ Modules.Configuracoes = (function () {
     }, extraStore || {});
     return firebase.firestore().collection('system_tenants').doc(tenantId).set({ store: store, updatedAt: now }, { merge: true }).then(function () {
       _systemTenant.store = store;
+      return _syncPublicStoreSlug(tenantId, store.slug, urls, store, ((_systemTenant && _systemTenant.store) || {}));
+    }).then(function () {
       return _recordActivity({
         action: action,
         module: 'configuracoes/dominio',

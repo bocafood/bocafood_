@@ -6649,10 +6649,12 @@
 - Ajuste posterior: a nota explicativa da aba `Venda presencial` voltou para fora do painel interno, preservando o alinhamento revisado.
 
 ## 2026-05-19 — Link público da loja sem domínio personalizado
-- Arquivos alterados: `public/js/modules/configuracoes.js`, `public/admin.html`, `public/index.html`, `firebase.json`, `server.rb`, `AI_CHANGELOG.md`.
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `public/admin.html`, `public/index.html`, `firebase.json`, `firestore.rules`, `server.rb`, `AI_CHANGELOG.md`.
 - A aba `Domínio / URL` foi renomeada visualmente para `Link da loja`, deixando claro que a usuária configura apenas o identificador da loja.
 - O link público passou do formato `bocafood.app/loja/{slug}` para `bocafood.app/{slug}`.
 - O Hosting ganhou fallback para carregar a loja pública por slug na raiz, mantendo compatibilidade com links antigos em `/loja/{slug}`.
 - A loja pública agora resolve tanto `/loja/{slug}` quanto `/{slug}`, ignorando rotas reservadas como `login`, `cadastro`, `master`, `termos` e `privacidade`.
 - O backend local passou a calcular `publicUrl` no mesmo padrão `https://bocafood.app/{slug}` para manter consistência dos tenants.
 - Ajuste posterior: o botão `Ver loja` do Admin passou a abrir `/?tenant={uid}` em vez de `/index.html?tenant={uid}`, evitando que `index.html` fosse interpretado como slug público.
+- Ajuste posterior: ao salvar/publicar o link da loja, o Admin cria ou atualiza `public_stores/{slug}` para que `bocafood.app/{slug}` resolva a loja pelo link público configurado.
+- Ajuste posterior: as regras do Firestore permitem que a própria conta mantenha apenas o mapeamento público do seu slug, sem permitir escrita em slugs de outros tenants.

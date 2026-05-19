@@ -205,7 +205,27 @@ service cloud.firestore {
     match /public_stores/{slug} {
       allow get: if true;
       allow list: if false;
-      allow write: if isMasterAdmin();
+      allow create: if isMasterAdmin() || validPublicStoreOwnerWrite(slug);
+      allow update: if isMasterAdmin() || (signedIn() && resource.data.tenantId == request.auth.uid && validPublicStoreOwnerWrite(slug));
+      allow delete: if isMasterAdmin() || (signedIn() && resource.data.tenantId == request.auth.uid);
+    }
+
+    function validPublicStoreOwnerWrite(slug) {
+      return signedIn() &&
+        request.resource.data.tenantId == request.auth.uid &&
+        request.resource.data.slug == slug &&
+        request.resource.data.keys().hasOnly([
+          'tenantId',
+          'slug',
+          'storeName',
+          'status',
+          'publicUrl',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        request.resource.data.status in ['active', 'inactive', 'unpublished'] &&
+        request.resource.data.publicUrl is string &&
+        request.resource.data.publicUrl.matches('^https://bocafood\\.app/[a-z0-9-]+$');
     }
 
     match /system/config {

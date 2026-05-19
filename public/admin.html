@@ -802,6 +802,12 @@ button,input,select,textarea{font-family:inherit}
       var profile = Auth.getAdminProfile ? Auth.getAdminProfile() : null;
       var user = Auth.getUser ? Auth.getUser() : null;
       var tenantId = (profile && profile.tenantId) || (user && user.uid) || '';
+      var store = (profile && profile.store) || {};
+      var configuredUrl = (store.publicUrl || profile.storeUrl || profile.publicUrl || '').trim();
+      if (configuredUrl) {
+        window.open(configuredUrl, '_blank');
+        return;
+      }
       var origin = window.location.origin || '';
       var path = window.location.pathname || '';
       var base = origin + path.replace(/\/?admin\.html$/, '/').replace(/\/+$/, '/') ;
