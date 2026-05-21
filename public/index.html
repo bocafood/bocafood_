@@ -4,6 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Loja Online</title>
+  <link rel="icon" id="site-favicon" type="image/png" href="assets/boca-food-favicon.png">
+  <link rel="apple-touch-icon" id="site-apple-touch-icon" href="assets/boca-food-favicon.png">
   <style>
     :root {
       --brand: #8f1d1d;
@@ -438,7 +440,7 @@
     }
 
     .template-content {
-      padding: 6px 16px 108px;
+      padding: 0 16px 108px;
     }
 
     .loyalty-card {
@@ -570,12 +572,17 @@
     }
 
     .category-strip {
-      margin: -2px -16px 11px;
-      padding: 0 16px 4px;
+      position: sticky;
+      top: 0;
+      z-index: 8;
+      margin: 0 -16px 10px;
+      padding: 8px 16px 7px;
       display: flex;
       gap: 7px;
       overflow-x: auto;
       scrollbar-width: none;
+      background: linear-gradient(180deg, rgba(255,253,249,.96) 0%, rgba(255,253,249,.90) 72%, rgba(255,253,249,0) 100%);
+      backdrop-filter: blur(12px);
     }
 
     .category-strip::-webkit-scrollbar { display: none; }
@@ -604,73 +611,200 @@
       box-shadow: 0 8px 16px rgba(143, 29, 29, .06);
     }
 
-    .promo-banner {
-      margin-top: 12px;
-      overflow: hidden;
-      min-height: 104px;
-      border-radius: 22px;
-      display: grid;
-      grid-template-columns: 1fr 112px;
+    .top-promo-strip {
+      display: none;
+      min-height: 34px;
+      padding: 8px 42px 8px 14px;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
       background:
-        linear-gradient(110deg, rgba(24, 15, 10, .90) 0%, rgba(24, 15, 10, .78) 34%, rgba(24, 15, 10, .22) 62%, rgba(24, 15, 10, 0) 100%),
-        linear-gradient(0deg, rgba(24, 15, 10, .62) 0%, rgba(24, 15, 10, .22) 32%, rgba(24, 15, 10, 0) 64%),
+        radial-gradient(circle at 18% 0%, rgba(255,255,255,.28) 0, rgba(255,255,255,0) 32%),
+        linear-gradient(135deg, color-mix(in srgb, var(--brand) 92%, #fff 8%), var(--brand-dark));
+      color: #fff;
+      font-size: 11px;
+      font-weight: 760;
+      line-height: 1.25;
+      letter-spacing: -.01em;
+      box-shadow: 0 12px 28px rgba(143, 29, 29, .16), inset 0 1px 0 rgba(255,255,255,.28);
+      position: relative;
+      z-index: 4;
+    }
+
+    .top-promo-strip-text {
+      display: inline-block;
+      max-width: 100%;
+    }
+
+    .top-promo-close {
+      position: absolute;
+      right: 9px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 24px;
+      height: 24px;
+      border: 1px solid rgba(255,255,255,.34);
+      border-radius: 999px;
+      background: rgba(255,255,255,.14);
+      color: inherit;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      line-height: 1;
+      cursor: pointer;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.20);
+    }
+
+    .top-promo-strip.closable .top-promo-close {
+      display: inline-flex;
+    }
+
+    .top-promo-strip::after {
+      content: "";
+      position: absolute;
+      left: 16%;
+      right: 16%;
+      bottom: -9px;
+      height: 12px;
+      border-radius: 999px;
+      background: radial-gradient(ellipse at center, rgba(143, 29, 29, .18), rgba(143, 29, 29, 0) 68%);
+      pointer-events: none;
+      opacity: .85;
+    }
+
+    @media (min-width: 768px) {
+      .top-promo-strip {
+        grid-column: 1;
+        margin: 8px 8px -12px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,.34);
+        min-height: 36px;
+        padding: 9px 48px 9px 22px;
+      }
+    }
+
+    .promo-banner {
+      margin-top: 0;
+      overflow: hidden;
+      min-height: 128px;
+      border-radius: 20px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 108px;
+      background:
+        radial-gradient(circle at 88% 20%, rgba(255,255,255,.38) 0 0, rgba(255,255,255,0) 96px),
+        linear-gradient(105deg, rgba(34, 18, 12, .88) 0%, rgba(74, 27, 17, .72) 46%, rgba(126, 41, 25, .08) 72%, rgba(255,255,255,.16) 100%),
+        linear-gradient(0deg, rgba(24, 15, 10, .26) 0%, rgba(24, 15, 10, .04) 54%, rgba(24, 15, 10, 0) 100%),
         url("https://images.unsplash.com/photo-1559847844-5315695dadae?auto=format&fit=crop&w=760&q=88") center / cover;
-      box-shadow: 0 12px 26px rgba(33, 27, 24, .09);
+      box-shadow: 0 12px 24px rgba(33, 27, 24, .10), inset 0 1px 0 rgba(255,255,255,.22);
       color: #fff;
       position: relative;
+      cursor: pointer;
+      isolation: isolate;
+      transform: translateZ(0);
+      transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+    }
+
+    .promo-banner::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,.18) 0%, rgba(255,255,255,0) 32%),
+        radial-gradient(circle at 18% 92%, rgba(255, 195, 154, .18), rgba(255, 195, 154, 0) 42%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .promo-banner::after {
+      content: "";
+      position: absolute;
+      right: 14px;
+      bottom: 12px;
+      width: 68px;
+      height: 68px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.12);
+      filter: blur(12px);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .promo-banner:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 24px 48px rgba(33, 27, 24, .17), inset 0 1px 0 rgba(255,255,255,.20);
+      filter: saturate(1.04);
     }
 
     .promo-copy {
+      position: relative;
+      z-index: 1;
       padding: 14px;
+      align-self: center;
+      max-width: 76%;
     }
 
-    .eyebrow {
+    .promo-copy .eyebrow {
       display: inline-flex;
       align-items: center;
-      height: 19px;
-      padding: 0 8px;
+      height: 22px;
+      padding: 0 9px;
       border-radius: 999px;
-      color: #fff;
-      background: rgba(255,255,255,.16);
-      font-size: 8px;
+      color: rgba(255,255,255,.96);
+      background: rgba(255,255,255,.17);
+      border: 1px solid rgba(255,255,255,.18);
+      backdrop-filter: blur(8px);
+      font-size: 8.5px;
       letter-spacing: .08em;
       font-weight: 760;
       text-transform: uppercase;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.18);
     }
 
     .promo-copy strong {
       display: block;
-      margin-top: 7px;
-      font-size: 16px;
-      line-height: 1.02;
-      letter-spacing: -.025em;
-      font-weight: 780;
+      margin-top: 8px;
+      max-width: 360px;
+      font-size: 18px;
+      line-height: .98;
+      letter-spacing: -.03em;
+      font-weight: 820;
+      text-wrap: balance;
+      text-shadow: 0 2px 14px rgba(0,0,0,.22);
     }
 
     .promo-copy span {
       display: block;
-      margin-top: 3px;
-      color: rgba(255,255,255,.82);
-      font-size: 10px;
-      font-weight: 560;
-      line-height: 1.35;
+      margin-top: 5px;
+      max-width: 310px;
+      color: rgba(255,255,255,.88);
+      font-size: 11px;
+      font-weight: 580;
+      line-height: 1.36;
+      text-shadow: 0 1px 10px rgba(0,0,0,.18);
     }
 
     .promo-cta {
-      margin-top: 9px;
-      min-height: 28px;
+      margin-top: 11px;
+      min-height: 32px;
       border: 0;
       border-radius: 999px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      padding: 0 11px;
-      color: var(--ink);
-      background: rgba(255,255,255,.92);
-      box-shadow: 0 8px 16px rgba(0,0,0,.10);
-      font-size: 10px;
-      font-weight: 780;
+      padding: 0 14px;
+      color: #23140F;
+      background: linear-gradient(180deg, #FFFFFF 0%, #FFEFE7 100%);
+      box-shadow: 0 12px 24px rgba(0,0,0,.16), inset 0 1px 0 rgba(255,255,255,.82);
+      font-size: 10.5px;
+      font-weight: 820;
       white-space: nowrap;
+      transition: transform .16s ease, box-shadow .16s ease;
+    }
+
+    .promo-banner:hover .promo-cta {
+      transform: translateY(-1px);
+      box-shadow: 0 15px 28px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.88);
     }
 
     .section-head {
@@ -1617,6 +1751,42 @@
       overflow: hidden;
     }
 
+    @media (max-width: 430px) {
+      .store-hero { min-height: 292px; padding: 12px 12px 0; }
+      .floating-nav { gap: 8px; }
+      .nav-side { gap: 7px; min-width: 0; }
+      .account-pill { max-width: 150px; min-height: 34px; padding-right: 9px; font-size: 10px; overflow: hidden; }
+      .account-pill span:last-child { overflow: hidden; text-overflow: ellipsis; }
+      .circle-btn { width: 34px; height: 34px; }
+      .store-card { margin-top: 144px; padding: 0 13px; border-radius: 28px 28px 0 0; }
+      .identity-row { grid-template-columns: 76px minmax(0, 1fr); gap: 10px; }
+      .store-logo { width: 76px; height: 76px; margin-top: -28px; border-width: 5px; }
+      .identity-copy { padding-top: 12px; }
+      .store-name { font-size: clamp(20px, 7vw, 24px); }
+      .store-slogan { max-width: 100%; font-size: 11px; }
+      .facts-row, .store-chips { gap: 6px; font-size: 10px; }
+      .template-content { padding: 14px 12px calc(96px + env(safe-area-inset-bottom)); }
+      .top-promo-strip { min-height: 32px; padding: 7px 38px 7px 12px; font-size: 10px; }
+      .promo-banner { min-height: 126px; margin-top: 0; grid-template-columns: minmax(0, 1fr) 92px; border-radius: 20px; background-position: center; }
+      .promo-copy { max-width: 82%; padding: 13px; }
+      .promo-copy strong { font-size: clamp(15px, 4.8vw, 17px); }
+      .promo-copy span { font-size: 10px; }
+      .promo-cta { min-height: 29px; padding: 0 12px; }
+      .category-strip { margin-left: -12px; margin-right: -12px; padding-left: 12px; padding-right: 12px; }
+      .product-row { grid-template-columns: 74px minmax(0, 1fr) 34px; gap: 10px; padding: 8px; border-radius: 20px; }
+      .product-img { width: 74px; height: 74px; border-radius: 16px; }
+      .product-title { font-size: 13px; }
+      .product-desc { font-size: 10.5px; -webkit-line-clamp: 2; }
+      .add-btn { width: 34px; height: 34px; }
+    }
+
+    @media (max-width: 360px) {
+      .account-pill span:last-child { display: none; }
+      .identity-row { grid-template-columns: 68px minmax(0, 1fr); }
+      .store-logo { width: 68px; height: 68px; }
+      .promo-copy { max-width: 88%; }
+    }
+
     .cart-title {
       margin: 0;
       padding: 16px 18px;
@@ -2355,7 +2525,8 @@
       .phone-screen {
         display: grid;
         grid-template-columns: minmax(0, 1fr) 390px;
-        gap: 24px;
+        column-gap: 24px;
+        row-gap: 0;
         align-items: start;
         min-height: auto;
         background: transparent;
@@ -2435,33 +2606,33 @@
       }
 
       .promo-banner {
-        min-height: 232px;
+        min-height: 256px;
         margin-top: 0;
-        border-radius: 30px;
+        border-radius: 32px;
         grid-template-columns: minmax(0, 1fr) 310px;
-        box-shadow: 0 20px 54px rgba(33, 27, 24, .12);
+        box-shadow: 0 26px 64px rgba(33, 27, 24, .16), inset 0 1px 0 rgba(255,255,255,.18);
       }
 
       .promo-copy {
-        padding: 28px;
+        padding: 32px;
         align-self: center;
       }
 
       .promo-copy strong {
         max-width: 520px;
-        font-size: 32px;
-        line-height: .98;
+        font-size: 34px;
+        line-height: .96;
       }
 
       .promo-copy span {
-        max-width: 390px;
-        font-size: 13px;
+        max-width: 420px;
+        font-size: 14px;
       }
 
       .promo-cta {
-        min-height: 36px;
-        padding: 0 16px;
-        font-size: 12px;
+        min-height: 40px;
+        padding: 0 19px;
+        font-size: 12.5px;
       }
 
       .loyalty-card {
@@ -2730,6 +2901,7 @@
     <section class="phone-stage" id="phone-preview" aria-label="Preview mobile do novo template premium">
       <div class="phone-shell">
         <div class="phone-screen">
+          <div class="top-promo-strip" aria-label="Aviso da loja"></div>
           <section class="store-hero">
             <div class="floating-nav">
               <div class="nav-side">
@@ -2766,24 +2938,21 @@
           </section>
 
           <div class="template-content">
+            <nav class="category-strip" aria-label="Categorias">
+              <button class="category-pill active" type="button" data-target="cat-todos">Todas</button>
+              <button class="category-pill" type="button" data-target="cat-promocoes">Promoções</button>
+              <button class="category-pill" type="button" data-target="cat-mais-pedidos">Mais pedidos</button>
+              <button class="category-pill" type="button" data-target="cat-combos">Combos</button>
+              <button class="category-pill" type="button" data-target="cat-doces">Doces</button>
+              <button class="category-pill" type="button" data-target="cat-bebidas">Bebidas</button>
+            </nav>
+
             <section class="promo-banner" aria-label="Promoção ativa">
               <div class="promo-copy">
                 <span class="eyebrow">Promoção ativa</span>
                 <strong>Combo premium com desconto hoje</strong>
                 <span>Oferta vinculada ao módulo Promoções, com badge e chamada configuráveis.</span>
                 <button class="promo-cta" type="button">Ver promoções</button>
-              </div>
-            </section>
-
-            <section class="loyalty-card" aria-label="Programa de pontos">
-              <span class="loyalty-stars" aria-hidden="true"></span>
-              <div>
-                <div class="loyalty-title">Ganhe pontos a cada pedido</div>
-                <div class="loyalty-text">Entre no clube e troque pontos por descontos.</div>
-              </div>
-              <div class="loyalty-actions">
-                <button class="loyalty-cta" type="button">Quero participar</button>
-                <span class="loyalty-hint">Cadastro grátis</span>
               </div>
             </section>
 
@@ -2803,18 +2972,22 @@
               <div class="featured-img" role="img" aria-label="Burger brasa especial"></div>
             </section>
 
+            <section class="loyalty-card" aria-label="Programa de pontos">
+              <span class="loyalty-stars" aria-hidden="true"></span>
+              <div>
+                <div class="loyalty-title">Ganhe pontos a cada pedido</div>
+                <div class="loyalty-text">Entre no clube e troque pontos por descontos.</div>
+              </div>
+              <div class="loyalty-actions">
+                <button class="loyalty-cta" type="button">Quero participar</button>
+                <span class="loyalty-hint">Cadastro grátis</span>
+              </div>
+            </section>
+
             <div class="section-head">
               <h2>Todos os produtos</h2>
               <button type="button">Ordenar</button>
             </div>
-
-            <nav class="category-strip" aria-label="Categorias">
-              <button class="category-pill active" type="button" data-target="cat-todos">Todas</button>
-              <button class="category-pill" type="button" data-target="cat-mais-pedidos">Mais pedidos</button>
-              <button class="category-pill" type="button" data-target="cat-combos">Combos</button>
-              <button class="category-pill" type="button" data-target="cat-doces">Doces</button>
-              <button class="category-pill" type="button" data-target="cat-bebidas">Bebidas</button>
-            </nav>
 
             <section class="products-list" id="cat-todos" aria-label="Lista de produtos por categoria">
               <section class="category-section" id="cat-mais-pedidos" aria-label="Mais pedidos">
@@ -3136,6 +3309,7 @@
       var deliveryZones = [];
       var slotCounts = {};
       var requestedStoreSlug = storeSlugFromPath();
+      var marketingTrackingApplied = false;
 
       function tenantIdFromUrl() {
         var params = new URLSearchParams(window.location.search);
@@ -3260,6 +3434,69 @@
         });
       }
 
+      function trackingId(value, pattern) {
+        var id = String(value || '').trim();
+        return pattern.test(id) ? id : '';
+      }
+
+      function injectScript(id, src) {
+        if (!src || document.getElementById(id)) return;
+        var script = document.createElement('script');
+        script.id = id;
+        script.async = true;
+        script.src = src;
+        document.head.appendChild(script);
+      }
+
+      function applyMarketingTracking() {
+        if (marketingTrackingApplied) return;
+        marketingTrackingApplied = true;
+        var ga4Id = trackingId(firstText(cfg.ga4Id, cfg.gaId, cfg.googleAnalyticsId), /^G-[A-Z0-9-]+$/i);
+        var gtmId = trackingId(firstText(cfg.gtmId, cfg.googleTagManagerId), /^GTM-[A-Z0-9-]+$/i);
+        var metaPixelId = trackingId(firstText(cfg.metaPixelId, cfg.pixelId, cfg.facebookPixelId), /^\d{5,30}$/);
+
+        if (ga4Id) {
+          window.dataLayer = window.dataLayer || [];
+          window.gtag = window.gtag || function () { window.dataLayer.push(arguments); };
+          window.gtag('js', new Date());
+          window.gtag('config', ga4Id, { page_title: document.title, page_path: window.location.pathname });
+          injectScript('bf-ga4-script', 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(ga4Id));
+        }
+
+        if (gtmId) {
+          window.dataLayer = window.dataLayer || [];
+          window.dataLayer.push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' });
+          injectScript('bf-gtm-script', 'https://www.googletagmanager.com/gtm.js?id=' + encodeURIComponent(gtmId));
+        }
+
+        if (metaPixelId) {
+          if (!window.fbq) {
+            var fbq = function () {
+              fbq.callMethod ? fbq.callMethod.apply(fbq, arguments) : fbq.queue.push(arguments);
+            };
+            fbq.push = fbq;
+            fbq.loaded = true;
+            fbq.version = '2.0';
+            fbq.queue = [];
+            window.fbq = fbq;
+            window._fbq = fbq;
+          }
+          injectScript('bf-meta-pixel-script', 'https://connect.facebook.net/en_US/fbevents.js');
+          window.fbq('init', metaPixelId);
+          window.fbq('track', 'PageView');
+        }
+      }
+
+      function trackMarketingEvent(name, params) {
+        params = params || {};
+        if (window.gtag) window.gtag('event', name, params);
+        if (window.dataLayer) window.dataLayer.push(Object.assign({ event: name }, params));
+        if (window.fbq) {
+          if (name === 'add_to_cart') window.fbq('track', 'AddToCart', { content_name: params.item_name || '', value: params.value || 0, currency: params.currency || 'EUR' });
+          if (name === 'begin_checkout') window.fbq('track', 'InitiateCheckout', { value: params.value || 0, currency: params.currency || 'EUR' });
+        }
+      }
+
       function normalizeHex(value) {
         var raw = String(value || '').trim();
         if (/^#[0-9a-f]{6}$/i.test(raw)) return raw.toUpperCase();
@@ -3361,35 +3598,102 @@
         document.documentElement.style.setProperty('--brand-rgb', rgb.r + ',' + rgb.g + ',' + rgb.b);
       }
 
+      function applyIdentityMeta() {
+        var lang = firstText(cfg.language, cfg.mainLanguage, cfg.storeLanguage, cfg.defaultLanguage);
+        if (lang) document.documentElement.lang = lang;
+        var favicon = firstText(cfg.faviconUrl, cfg.favicon, cfg.iconUrl);
+        if (!favicon) return;
+        var fav = document.getElementById('site-favicon');
+        var apple = document.getElementById('site-apple-touch-icon');
+        if (fav) fav.href = favicon;
+        if (apple) apple.href = favicon;
+      }
+
       function renderStoreInfo() {
         var name = firstText(cfg.publicStoreName, cfg.publicName, cfg.siteName, cfg.businessName, cfg.shortStoreName, 'Boca Food');
         var slogan = firstText(cfg.slogan, cfg.storeDescription, cfg.description, 'Comida feita na hora, com cara de restaurante próprio.');
         var logo = firstText(cfg.logoUrl, cfg.avatarUrl, 'assets/boca-food-logo.png');
-        var cover = firstText(cfg.coverImageMobileUrl, cfg.mobileCoverImageUrl, cfg.coverImageUrl, cfg.bannerUrl);
+        var isMobileCover = window.innerWidth < 768;
+        var cover = isMobileCover
+          ? firstText(cfg.coverImageMobileUrl, cfg.mobileCoverImageUrl, cfg.bannerMobileUrl, cfg.coverImageUrl, cfg.bannerUrl)
+          : firstText(cfg.coverImageUrl, cfg.bannerUrl, cfg.coverImageMobileUrl, cfg.mobileCoverImageUrl, cfg.bannerMobileUrl);
         var prep = firstText(cfg.averagePrepTime, cfg.prepTime, cfg.deliveryTime, '25-35 min');
         var min = num(cfg.minimumOrder || cfg.minOrder || cfg.deliveryMinimum || cfg.minimumDeliveryOrder);
         var deliveryFee = num(cfg.deliveryFee || cfg.deliveryFrom || cfg.defaultDeliveryFee);
         var open = cfg.manualClosed ? false : cfg.storeOpen !== false;
+        var mainCard = cfg.mainCardConfig || {};
+        var hasMainCardConfig = !!(cfg.mainCardConfig && Object.keys(cfg.mainCardConfig).length);
+        var mainFlag = function (key, fallback) {
+          return hasMainCardConfig && mainCard[key] !== undefined ? !!mainCard[key] : fallback;
+        };
+        var showLogo = mainFlag('showLogo', true);
+        var showStoreName = mainFlag('showStoreName', true);
+        var showSlogan = mainFlag('showSlogan', true);
+        var showRating = mainFlag('showRating', true);
+        var showMoreInfo = mainFlag('showMoreInfoButton', cfg.topShowMoreInfo !== false && cfg.showMoreInfoButton !== false);
+        var showLocation = mainFlag('showLocation', cfg.topShowRegion !== false && cfg.showCityRegion !== false);
+        var showStoreStatus = mainFlag('showStoreStatus', true);
+        var showHours = mainFlag('showOpeningHoursSummary', false);
+        var showPickup = mainFlag('showPickup', cfg.pickupEnabled !== false);
+        var showDelivery = mainFlag('showDelivery', cfg.deliveryEnabled !== false);
+        var showPrep = mainFlag('showPreparationTime', true);
+        var showDeliveryTime = mainFlag('showDeliveryTime', false);
+        var showMinimumOrder = mainFlag('showMinimumOrder', true);
+        var showAdvanceDays = mainFlag('showAdvanceDays', false);
+        var storeLogo = document.querySelector('.store-logo');
+        var storeName = document.querySelector('.store-name');
+        var storeSlogan = document.querySelector('.store-slogan');
+        var factsRow = document.querySelector('.facts-row');
+        var chipsRow = document.querySelector('.store-chips');
+        var moreInfo = document.querySelector('.more-info');
 
         document.title = name + ' - Loja Online';
-        document.querySelector('.store-name').innerHTML = text(name) + (cfg.verifiedBadgeEnabled === false ? '' : '<span class="verified">✓</span>');
-        document.querySelector('.store-slogan').textContent = slogan;
-        document.querySelector('.store-logo').src = logo;
+        if (storeName) {
+          storeName.innerHTML = text(name) + (cfg.verifiedBadgeEnabled === false ? '' : '<span class="verified">✓</span>');
+          storeName.style.display = showStoreName ? '' : 'none';
+        }
+        if (storeSlogan) {
+          storeSlogan.textContent = slogan;
+          storeSlogan.style.display = showSlogan ? '' : 'none';
+        }
+        if (storeLogo) {
+          storeLogo.src = logo;
+          storeLogo.style.display = showLogo ? '' : 'none';
+        }
         document.querySelector('.store-footer-brand span:last-child').textContent = name;
         document.querySelector('.store-footer-mark').textContent = name.slice(0, 2).toUpperCase();
         document.querySelector('.store-footer-text').textContent = firstText(cfg.footerText, cfg.aboutText, cfg.moreInfoAbout, 'Pedidos preparados com cuidado, ingredientes selecionados e atendimento direto pela loja.');
         document.querySelector('.account-avatar').textContent = name.slice(0, 2).toUpperCase();
-        if (cover) document.querySelector('.store-hero').style.backgroundImage = 'linear-gradient(180deg, rgba(28, 18, 10, .20) 0%, rgba(28, 18, 10, .03) 54%, rgba(255, 250, 243, 0) 100%), url("' + cover + '")';
+        if (cover && cfg.topUseCover !== false && cfg.useCoverImage !== false) document.querySelector('.store-hero').style.backgroundImage = 'linear-gradient(180deg, rgba(28, 18, 10, .20) 0%, rgba(28, 18, 10, .03) 54%, rgba(255, 250, 243, 0) 100%), url("' + cover + '")';
 
         var avg = reviewAverage();
         var minText = min ? 'mín. ' + money(min) : firstText(cfg.minimumOrderText, 'mín. €12');
-        document.querySelector('.facts-row').innerHTML = '<span class="rating-star">★</span><b>' + text(avg || '4,8') + '</b><span class="dot"></span><span>' + text(prep) + '</span><span class="dot"></span><span>' + text(minText) + '</span>';
+        var facts = (showRating && avg) ? ['<span class="rating-star">★</span><b>' + text(avg) + '</b>'] : [];
+        var cityRegion = [firstText(cfg.city, cfg.storeCity, cfg.locationCity), firstText(cfg.region, cfg.province, cfg.state)].filter(Boolean).join(' · ');
+        var hoursText = firstText(cfg.openingHoursSummary, cfg.hoursSummary, cfg.businessHoursText, cfg.todayHoursText);
+        var deliveryTime = firstText(cfg.averageDeliveryTime, cfg.deliveryTime);
+        var advanceDays = num(cfg.maxAdvanceDays || cfg.advanceDaysLimit || cfg.advanceDays);
+        if (showLocation && cityRegion) facts.push('<span>' + text(cityRegion) + '</span>');
+        if (showPrep && prep) facts.push('<span>' + text(prep) + '</span>');
+        if (showDeliveryTime && deliveryTime) facts.push('<span>' + text(deliveryTime) + '</span>');
+        if (showMinimumOrder && minText) facts.push('<span>' + text(minText) + '</span>');
+        if (showAdvanceDays && advanceDays) facts.push('<span>' + text(advanceDays + ' dia' + (advanceDays === 1 ? '' : 's') + ' de antecedência') + '</span>');
+        if (showHours && hoursText) facts.push('<span>' + text(hoursText) + '</span>');
+        if (factsRow) {
+          factsRow.innerHTML = facts.join('<span class="dot"></span>');
+          factsRow.style.display = facts.length ? '' : 'none';
+        }
 
         var statusLabel = open ? firstText(cfg.openLabel, 'Aberto') : firstText(cfg.closedLabel, 'Fechado');
-        var chips = ['<span class="store-chip ' + (open ? 'open' : 'closed') + '">' + text(statusLabel) + '</span>'];
-        if (cfg.deliveryEnabled !== false) chips.push('<span class="store-chip">Entrega ' + (deliveryFee ? money(deliveryFee) : 'desde') + '</span>');
-        if (cfg.pickupEnabled !== false) chips.push('<span class="store-chip">Retirada</span>');
-        document.querySelector('.store-chips').innerHTML = chips.join('');
+        var chips = [];
+        if (showStoreStatus) chips.push('<span class="store-chip ' + (open ? 'open' : 'closed') + '">' + text(statusLabel) + '</span>');
+        if (showDelivery && cfg.deliveryEnabled !== false) chips.push('<span class="store-chip">Entrega ' + (deliveryFee ? money(deliveryFee) : 'desde') + '</span>');
+        if (showPickup && cfg.pickupEnabled !== false) chips.push('<span class="store-chip">Retirada</span>');
+        if (chipsRow) {
+          chipsRow.innerHTML = chips.join('');
+          chipsRow.style.display = chips.length ? '' : 'none';
+        }
+        if (moreInfo) moreInfo.style.display = showMoreInfo ? '' : 'none';
       }
 
       function reviewAverage() {
@@ -3412,16 +3716,161 @@
         });
       }
 
+      function selectedPromoBannerPromotion() {
+        var selected = firstText(cfg.mobilePromoBannerPromotionId, cfg.promoBannerPromotionId, cfg.mobilePromoPromotionId);
+        var active = activePromotions();
+        if (selected) {
+          var found = active.find(function (p) { return String(p.id || p._id || p.promoId || '') === String(selected); });
+          if (found) return found;
+        }
+        return active[0] || {};
+      }
+
+      function promotionId(promo) {
+        return String(promo && (promo.id || promo._id || promo.promoId || promo.code || promo.slug || '') || '');
+      }
+
+      function promotionTitle(promo) {
+        return firstText(promo && promo.name, promo && promo.title, promo && promo.description, 'Promoção ativa');
+      }
+
+      function promotionProductIds(promo) {
+        var ids = [];
+        if (Array.isArray(promo && promo.productIds)) ids = ids.concat(promo.productIds);
+        if (promo && promo.productId) ids.push(promo.productId);
+        if (Array.isArray(promo && promo.selectedProductIds)) ids = ids.concat(promo.selectedProductIds);
+        return ids.map(String).filter(Boolean).filter(function (id, idx, arr) { return arr.indexOf(id) === idx; });
+      }
+
+      function promotionProducts(promo) {
+        var ids = promotionProductIds(promo);
+        if (!promo || !promotionId(promo)) return [];
+        if (promo.applyTo === 'all' || promo.scope === 'todos_produtos') return products.filter(function (p) { return p && p.menuVisible !== false; });
+        return products.filter(function (p) { return ids.indexOf(String(p.id || '')) >= 0 && p.menuVisible !== false; });
+      }
+
+      function selectedPromoBannerProduct() {
+        var selected = firstText(cfg.mobilePromoBannerProductId, cfg.promoBannerProductId);
+        if (!selected) return null;
+        var product = products.find(function (p) {
+          return p && p.menuVisible !== false && String(p.id || '') === String(selected);
+        });
+        if (!product) return null;
+        var linked = activePromotions().some(function (promo) {
+          return promotionProducts(promo).some(function (item) { return String(item && item.id || '') === String(selected); });
+        });
+        return linked ? product : null;
+      }
+
+      function allPromotionProducts() {
+        var seen = {};
+        var out = [];
+        activePromotions().forEach(function (promo) {
+          promotionProducts(promo).forEach(function (product) {
+            var id = String(product && product.id || '');
+            if (!id || seen[id]) return;
+            seen[id] = true;
+            out.push(product);
+          });
+        });
+        return out;
+      }
+
+      function promotionSectionId(promo) {
+        return 'promo-' + String(promotionId(promo) || 'ativa').toLowerCase().replace(/[^a-z0-9-]+/g, '-');
+      }
+
+      function handlePromoBannerClick() {
+        var promo = selectedPromoBannerPromotion();
+        var items = promotionProducts(promo);
+        var target = firstText(cfg.mobilePromoBannerTarget, cfg.promoBannerTarget, 'promotion');
+        if (target === 'all_promotions') {
+          var allSection = document.getElementById('cat-promocoes');
+          if (allSection) allSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          else if (items[0]) openProduct(items[0].id);
+          return;
+        }
+        if (target === 'product') {
+          var selectedProduct = selectedPromoBannerProduct();
+          if (selectedProduct) openProduct(selectedProduct.id);
+          else if (items[0]) openProduct(items[0].id);
+          else {
+            var allItems = allPromotionProducts();
+            if (allItems[0]) openProduct(allItems[0].id);
+          }
+          return;
+        }
+        var section = promotionId(promo) ? document.getElementById(promotionSectionId(promo)) : null;
+        if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        else if (items[0]) openProduct(items[0].id);
+      }
+
+      function renderTopPromoStrip() {
+        var strip = document.querySelector('.top-promo-strip');
+        if (!strip) return;
+        var enabled = cfg.topPromoEnabled === true || cfg.showPromoBanner === true;
+        var message = firstText(cfg.topPromoText, cfg.promoBannerText);
+        var dismissible = cfg.topPromoClosable !== false && cfg.promoBannerDismissible !== false;
+        var closedKey = 'bocafood_top_promo_closed_' + String(activeTenantId || requestedTenantId || 'default');
+        var closed = false;
+        try { closed = dismissible && sessionStorage.getItem(closedKey) === '1'; } catch (e) {}
+        if (!enabled || !message) {
+          strip.style.display = 'none';
+          return;
+        }
+        if (closed) {
+          strip.style.display = 'none';
+          return;
+        }
+        strip.style.display = 'flex';
+        strip.classList.toggle('closable', dismissible);
+        strip.innerHTML = '<span class="top-promo-strip-text"></span>' + (dismissible ? '<button class="top-promo-close" type="button" aria-label="Fechar aviso">×</button>' : '');
+        strip.querySelector('.top-promo-strip-text').textContent = message;
+        var rootStyle = window.getComputedStyle ? getComputedStyle(document.documentElement) : null;
+        var brandFallback = rootStyle ? rootStyle.getPropertyValue('--brand') : '';
+        var promoColor = normalizeHex(firstText(cfg.topPromoColor, cfg.promoBannerColor, brandFallback, '#8F1D1D')) || '#8F1D1D';
+        var promoDark = tastefulBrand(promoColor);
+        var promoTextColor = normalizeHex(firstText(cfg.topPromoTextColor, cfg.promoBannerTextColor, cfg.bannerPromoTextColor)) || readableOn(promoColor);
+        strip.style.backgroundColor = promoColor;
+        strip.style.backgroundImage = 'radial-gradient(circle at 18% 0%, rgba(255,255,255,.28) 0, rgba(255,255,255,0) 32%), linear-gradient(135deg, ' + promoColor + ' 0%, ' + promoDark + ' 100%)';
+        strip.style.color = promoTextColor;
+        var close = strip.querySelector('.top-promo-close');
+        if (close) {
+          close.onclick = function () {
+            try { sessionStorage.setItem(closedKey, '1'); } catch (e) {}
+            strip.style.display = 'none';
+          };
+        }
+      }
+
       function renderPromo() {
         var section = document.querySelector('.promo-banner');
-        var promo = activePromotions()[0] || {};
-        var image = firstText(cfg.mobilePromoBannerImageUrl, cfg.promoBannerImageUrl, cfg.promotionalBannerImageUrl, promo.imageUrl, promo.bannerUrl);
-        var enabled = (cfg.mobilePromoBannerEnabled !== false && cfg.promotionalBannerEnabled !== false);
-        if (!enabled && !promo.id) { section.style.display = 'none'; return; }
-        if (image) section.style.backgroundImage = 'linear-gradient(110deg, rgba(24, 15, 10, .90) 0%, rgba(24, 15, 10, .78) 34%, rgba(24, 15, 10, .22) 62%, rgba(24, 15, 10, 0) 100%), linear-gradient(0deg, rgba(24, 15, 10, .62) 0%, rgba(24, 15, 10, .22) 32%, rgba(24, 15, 10, 0) 64%), url("' + image + '")';
-        section.querySelector('.eyebrow').textContent = firstText(cfg.mobilePromoBannerBadge, promo.badge, 'Promoção ativa');
-        section.querySelector('strong').textContent = firstText(cfg.mobilePromoBannerTitle, cfg.promoBannerTitle, promo.title, promo.name, 'Promoção especial da loja');
-        section.querySelector('span:not(.eyebrow)').textContent = firstText(cfg.mobilePromoBannerText, cfg.promoBannerSubtitle, promo.description, promo.desc, 'Aproveite as ofertas disponíveis antes de finalizar seu pedido.');
+        var promo = selectedPromoBannerPromotion();
+        var isMobile = window.innerWidth < 768;
+        var image = isMobile
+          ? firstText(cfg.mobilePromoBannerImageUrl, cfg.promoBannerImageUrl, cfg.promotionalBannerImageUrl, promo.imageUrl, promo.bannerUrl)
+          : firstText(cfg.desktopPromoBannerImageUrl, cfg.promoBannerDesktopImageUrl, cfg.mobilePromoBannerImageUrl, cfg.promoBannerImageUrl, cfg.promotionalBannerImageUrl, promo.imageUrl, promo.bannerUrl);
+        var viewportEnabled = cfg.mobilePromoBannerEnabled !== false && cfg.promotionalBannerEnabled !== false && cfg.promoVisualBannerEnabled !== false;
+        var title = firstText(cfg.mobilePromoBannerTitle, cfg.promoBannerTitle, promo.title, promo.name);
+        var hasPromo = !!promotionId(promo);
+        var hasContent = !!(image || promo.id || title || cfg.mobilePromoBannerText || cfg.promoBannerSubtitle);
+        var enabled = viewportEnabled && hasPromo && hasContent;
+        if (!enabled) { section.style.display = 'none'; return; }
+        section.style.display = '';
+        if (image) {
+          section.style.backgroundImage = isMobile
+            ? 'radial-gradient(circle at 88% 20%, rgba(255,255,255,.38) 0 0, rgba(255,255,255,0) 96px), linear-gradient(105deg, rgba(34, 18, 12, .88) 0%, rgba(74, 27, 17, .72) 46%, rgba(126, 41, 25, .08) 72%, rgba(255,255,255,.16) 100%), linear-gradient(0deg, rgba(24, 15, 10, .26) 0%, rgba(24, 15, 10, .04) 54%, rgba(24, 15, 10, 0) 100%), url("' + image + '")'
+            : 'radial-gradient(circle at 84% 18%, rgba(255,255,255,.34) 0 0, rgba(255,255,255,0) 112px), linear-gradient(112deg, rgba(23, 12, 8, .94) 0%, rgba(61, 24, 15, .86) 42%, rgba(126, 41, 25, .28) 72%, rgba(126, 41, 25, .08) 100%), linear-gradient(0deg, rgba(24, 15, 10, .56) 0%, rgba(24, 15, 10, .16) 42%, rgba(24, 15, 10, 0) 78%), url("' + image + '")';
+        }
+        section.querySelector('.eyebrow').textContent = firstText(cfg.mobilePromoBannerBadge, promo.badge, 'Oferta especial');
+        section.querySelector('strong').textContent = firstText(title, 'Hoy apetece algo especial');
+        section.querySelector('span:not(.eyebrow)').textContent = firstText(cfg.mobilePromoBannerText, cfg.promoBannerSubtitle, promo.description, promo.desc, 'Elige una promoción preparada para disfrutar más por menos.');
+        section.querySelector('.promo-cta').textContent = firstText(cfg.mobilePromoBannerButtonText, cfg.promoBannerButtonText, 'Ver ofertas');
+        section.onclick = handlePromoBannerClick;
+        section.querySelector('.promo-cta').onclick = function (event) {
+          event.stopPropagation();
+          handlePromoBannerClick();
+        };
       }
 
       function renderLoyalty() {
@@ -3479,8 +3928,14 @@
       function renderCategoriesAndProducts() {
         normalizeCategories();
         var strip = document.querySelector('.category-strip');
+        var promo = selectedPromoBannerPromotion();
+        var promoItems = promotionProducts(promo);
+        var allPromoItems = allPromotionProducts();
         var hasMost = featuredProducts().length > 0;
-        var tabs = [{ id: 'cat-todos', label: 'Todas' }].concat(hasMost ? [{ id: 'cat-mais-pedidos', label: 'Mais pedidos' }] : []).concat(categories.map(function (c) { return { id: 'cat-' + c.id, label: c.label }; }));
+        var promoTabs = [];
+        if (allPromoItems.length) promoTabs.push({ id: 'cat-promocoes', label: 'Promoções' });
+        if (promoItems.length && promotionId(promo)) promoTabs.push({ id: promotionSectionId(promo), label: promotionTitle(promo) });
+        var tabs = [{ id: 'cat-todos', label: 'Todas' }].concat(hasMost ? [{ id: 'cat-mais-pedidos', label: 'Mais pedidos' }] : []).concat(promoTabs).concat(categories.map(function (c) { return { id: 'cat-' + c.id, label: c.label }; }));
         strip.innerHTML = tabs.map(function (tab, idx) {
           return '<button class="category-pill ' + (idx === 0 ? 'active' : '') + '" type="button" data-target="' + text(tab.id) + '">' + text(tab.label) + '</button>';
         }).join('');
@@ -3489,6 +3944,8 @@
         var html = '';
         var most = featuredProducts();
         if (most.length) html += categoryHtml('cat-mais-pedidos', 'Mais pedidos', 'Favoritos da loja', most.slice(0, 4));
+        if (allPromoItems.length) html += categoryHtml('cat-promocoes', 'Promoções', 'Ofertas ativas da loja', allPromoItems);
+        if (promoItems.length && promotionId(promo)) html += categoryHtml(promotionSectionId(promo), promotionTitle(promo), firstText(promo.description, promo.shortDescription, promo.customerMessage, 'Produtos desta promoção'), promoItems);
         categories.forEach(function (cat) {
           var items = products.filter(function (p) { return productCategory(p) === cat.id && p.menuVisible !== false; });
           if (items.length) html += categoryHtml('cat-' + cat.id, cat.label, items.length + ' produtos', items);
@@ -3721,7 +4178,14 @@
         var key = String(id) + '::' + String(note || '') + '::' + choiceText;
         var found = cart.find(function (item) { return item.key === key; });
         if (found) found.qty += qty;
-        else cart.push({ key: key, id: id, qty: qty, note: note || '', name: productName(product), price: productPrice(product) + num(extraUnit), choices: choices || [] });
+        else cart.push({ key: key, id: id, qty: qty, note: note || '', name: productName(product), price: productPrice(product) + num(extraUnit), choices: choices || [], fiscal: productFiscalSnapshot(product) });
+        trackMarketingEvent('add_to_cart', {
+          currency: 'EUR',
+          value: (productPrice(product) + num(extraUnit)) * qty,
+          item_id: String(id),
+          item_name: productName(product),
+          quantity: qty
+        });
         renderCart();
       }
 
@@ -4037,6 +4501,11 @@
         if (payment) lines.push('Pagamento: ' + payment);
         if (note) lines.push('Observação: ' + note);
         var href = whatsappLink();
+        trackMarketingEvent('begin_checkout', {
+          currency: 'EUR',
+          value: cartGrandTotal(),
+          items: cart.map(function (item) { return { item_id: item.id, item_name: item.name, quantity: item.qty, price: item.price }; })
+        });
         if (href) window.open(href + '?text=' + encodeURIComponent(lines.join('\n')), '_blank', 'noopener');
         saveOrder({ subtotal: subtotal, discount: discount, deliveryFee: fee, total: cartGrandTotal(), customerName: customerName, customerPhone: customerPhone, address: address, postal: postal, payment: payment, note: note, slotKey: slotKey, slotLabel: slotLabelText });
       }
@@ -4076,9 +4545,94 @@
           createdAt: firebase.firestore.FieldValue.serverTimestamp(),
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
+        data.fiscal = ensureOrderFiscalDefaults(data);
         col('orders').add(data).then(function () {
           if (data.slotKey) return col('orderSlots').doc(data.slotKey).set({ count: firebase.firestore.FieldValue.increment(1), date: data.scheduleDate, time: data.scheduleTime }, { merge: true });
         }).catch(function (err) { console.warn('Order save error', err); });
+      }
+
+      function productFiscalSnapshot(product) {
+        var fiscal = (product && product.fiscal) || {};
+        var iva = fiscal.ivaRate == null || fiscal.ivaRate === '' ? 10 : num(fiscal.ivaRate);
+        return {
+          sku: firstText(fiscal.sku, product && product.sku, product && product.codigo, ''),
+          fiscalName: firstText(fiscal.fiscalName, product && product.fiscalName, productName(product)),
+          ivaRate: Number.isFinite(iva) ? iva : 10,
+          ivaIncluded: fiscal.ivaIncluded !== false,
+          taxCategory: firstText(fiscal.taxCategory, 'prepared_food'),
+          unitCode: firstText(fiscal.unitCode, 'unit'),
+          externalFiscalProductId: firstText(fiscal.externalFiscalProductId, ''),
+          facturaDirectaProductId: firstText(fiscal.facturaDirectaProductId, '')
+        };
+      }
+
+      function ensureOrderFiscalDefaults(order) {
+        order = order || {};
+        var fiscal = order.fiscal || {};
+        return {
+          invoiceType: fiscal.invoiceType || 'simplified',
+          fiscalStatus: fiscal.fiscalStatus || 'not_issued',
+          issueMode: fiscal.issueMode || 'automatic',
+          provider: fiscal.provider || '',
+          providerInvoiceId: fiscal.providerInvoiceId || '',
+          facturaDirectaInvoiceId: fiscal.facturaDirectaInvoiceId || '',
+          invoiceNumber: fiscal.invoiceNumber || '',
+          invoiceSeries: fiscal.invoiceSeries || '',
+          invoicePdfUrl: fiscal.invoicePdfUrl || '',
+          invoiceQrUrl: fiscal.invoiceQrUrl || '',
+          issuedAt: fiscal.issuedAt || null,
+          cancelledAt: fiscal.cancelledAt || null,
+          errorCode: fiscal.errorCode || '',
+          errorMessage: fiscal.errorMessage || '',
+          retryCount: num(fiscal.retryCount || 0),
+          lastAttemptAt: fiscal.lastAttemptAt || null,
+          customerSnapshot: fiscal.customerSnapshot || buildFiscalCustomerSnapshot(order),
+          itemsSnapshot: Array.isArray(fiscal.itemsSnapshot) && fiscal.itemsSnapshot.length ? fiscal.itemsSnapshot : buildFiscalItemsSnapshot(order),
+          totalsSnapshot: fiscal.totalsSnapshot || buildFiscalTotalsSnapshot(order)
+        };
+      }
+
+      function buildFiscalCustomerSnapshot(order) {
+        return {
+          name: firstText(order.customerName, order.clientName, order.name, ''),
+          phone: firstText(order.customerPhone, order.phone, order.whatsapp, ''),
+          email: firstText(order.customerEmail, order.email, ''),
+          fiscal: order.customerFiscal || {}
+        };
+      }
+
+      function buildFiscalItemsSnapshot(order) {
+        return (order.items || []).map(function (item) {
+          var product = findProduct(item.id || item.productId);
+          var fiscal = item.fiscal || productFiscalSnapshot(product || item);
+          var itemIva = fiscal.ivaRate == null || fiscal.ivaRate === '' ? 10 : num(fiscal.ivaRate);
+          var qty = num(item.qty != null ? item.qty : item.quantity || 1) || 1;
+          var price = num(item.price != null ? item.price : item.finalPrice || item.originalPrice || 0);
+          return {
+            id: String(item.id || item.productId || ''),
+            name: firstText(item.name, product ? productName(product) : '', 'Produto'),
+            quantity: qty,
+            price: price,
+            total: num(item.total != null ? item.total : price * qty),
+            fiscal: {
+              sku: firstText(fiscal.sku, ''),
+              fiscalName: firstText(fiscal.fiscalName, item.name, product ? productName(product) : '', 'Produto'),
+              ivaRate: Number.isFinite(itemIva) ? itemIva : 10,
+              ivaIncluded: fiscal.ivaIncluded !== false,
+              unitCode: firstText(fiscal.unitCode, 'unit'),
+              taxCategory: firstText(fiscal.taxCategory, 'prepared_food')
+            }
+          };
+        });
+      }
+
+      function buildFiscalTotalsSnapshot(order) {
+        return {
+          subtotal: num(order.subtotal != null ? order.subtotal : order.subtotalFinal),
+          taxTotal: num(order.taxTotal || order.ivaTotal || order.vatTotal || 0),
+          total: num(order.total || order.grandTotal || order.amount || 0),
+          currency: firstText(order.currency, cfg.currency, cfg.defaultCurrency, 'EUR')
+        };
       }
 
       function bindStaticEvents() {
@@ -4128,15 +4682,15 @@
             for (var i = 0; i < candidates.length; i++) {
               activeTenantId = candidates[i];
               var docs = await Promise.all([
-                safeConfig('geral'), safeConfig('template'), safeConfig('operacao'), safeConfig('horarios'), safeConfig('zonas'), safeConfig('pontos_program'), safeConfig('integracoes'), safeDocs('categories'), safeDocs('products'), safeDocs('reviews'), safeDocs('promotions'), safeDocs('coupons'), safeDocs('orderSlots')
+                safeConfig('geral'), safeConfig('aparencia'), safeConfig('template'), safeConfig('operacao'), safeConfig('horarios'), safeConfig('zonas'), safeConfig('pontos_program'), safeConfig('integracoes'), safeDocs('categories'), safeDocs('products'), safeDocs('reviews'), safeDocs('promotions'), safeDocs('coupons'), safeDocs('orderSlots')
               ]);
-              cfg = Object.assign({}, docs[0] || {}, docs[1] || {}, docs[2] || {}, docs[3] || {}, docs[4] || {}, docs[5] || {}, docs[6] || {});
-              categories = docs[7] || [];
-              products = (docs[8] || []).filter(function (p) { return p && p.menuVisible !== false && p.active !== false; });
-              reviews = docs[9] || [];
-              promotions = docs[10] || [];
-              coupons = docs[11] || [];
-              slotCounts = (docs[12] || []).reduce(function (acc, item) { acc[item.id] = num(item.count); return acc; }, {});
+              cfg = Object.assign({}, docs[0] || {}, docs[1] || {}, docs[2] || {}, docs[3] || {}, docs[4] || {}, docs[5] || {}, docs[6] || {}, docs[7] || {});
+              categories = docs[8] || [];
+              products = (docs[9] || []).filter(function (p) { return p && p.menuVisible !== false && p.active !== false; });
+              reviews = docs[10] || [];
+              promotions = docs[11] || [];
+              coupons = docs[12] || [];
+              slotCounts = (docs[13] || []).reduce(function (acc, item) { acc[item.id] = num(item.count); return acc; }, {});
               window.__templateTenantDebug = { requestedTenantId: tenantId, activeTenantId: activeTenantId, configLoaded: Object.keys(cfg).length, categoriesLoaded: categories.length, productsLoaded: products.length, reviewsLoaded: reviews.length, promotionsLoaded: promotions.length, couponsLoaded: coupons.length };
               if (Object.keys(cfg).length || categories.length || products.length) break;
             }
@@ -4146,7 +4700,10 @@
           renderPaymentMethods();
           renderSlots();
           applyBrand();
+          applyIdentityMeta();
           renderStoreInfo();
+          applyMarketingTracking();
+          renderTopPromoStrip();
           renderPromo();
           renderLoyalty();
           renderFeatured();
@@ -4162,6 +4719,7 @@
           }
           fallbackProducts();
           renderStoreInfo();
+          renderTopPromoStrip();
           renderPromo();
           renderLoyalty();
           renderFeatured();

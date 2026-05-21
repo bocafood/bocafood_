@@ -16,6 +16,7 @@ Modules.Catalogo = (function () {
   var _recipeCategories = [];
   var _recipeComponents = [];
   var _fichaPag = { page: 1, perPage: 10 };
+  var _fichaFilters = { q: '' };
   var _editingId = null;
   var _deliveryZonesDraft = [];
   var _deliveryZonesDraftDirty = false;
@@ -896,6 +897,7 @@ Modules.Catalogo = (function () {
         '<input type="checkbox" class="pm-variant-check" data-vgid="' + vg.id + '"' + (checked ? ' checked' : '') + ' style="width:15px;height:15px;accent-color:#B42318;">' +
         _esc(vg.title) + '</label>';
     }).join('') + '</div>');
+    var productFiscal = _ensureProductFiscal(p);
 
     window._pmMenuGroupCount = menuGroups.length;
     window._pmVisible = p.menuVisible !== false;
@@ -988,6 +990,22 @@ Modules.Catalogo = (function () {
           <details style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">
             <summary style="cursor:pointer;list-style:none;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
               <div>
+                <div style="font-size:11px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;">Dados fiscais</div>
+                <div style="font-size:12px;color:#6F6860;margin-top:4px;">Base preparada para futura faturação. Opcional por enquanto.</div>
+              </div>
+              <span style="font-size:16px;line-height:1;color:#6F6860;">▸</span>
+            </summary>
+            <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1.4fr .7fr 1fr 1fr;gap:10px;">
+              <div><label style="${_fichaLbl()}">SKU / Código interno</label><input id="pm-fiscal-sku" type="text" maxlength="60" value="${_esc(productFiscal.sku || '')}" style="${_fichaInp()}"></div>
+              <div><label style="${_fichaLbl()}">Nome fiscal</label><input id="pm-fiscal-name" type="text" maxlength="120" value="${_esc(productFiscal.fiscalName || '')}" placeholder="${_esc(p.name || '')}" style="${_fichaInp()}"></div>
+              <div><label style="${_fichaLbl()}">IVA</label><input id="pm-fiscal-iva" type="number" step="0.01" min="0" value="${_esc(productFiscal.ivaRate)}" style="${_fichaInp()}"></div>
+              <div><label style="${_fichaLbl()}">Categoria fiscal</label><select id="pm-fiscal-tax-category" style="${_fichaInp()}background:#fff;"><option value="prepared_food"${productFiscal.taxCategory === 'prepared_food' ? ' selected' : ''}>Comida preparada</option><option value="food"${productFiscal.taxCategory === 'food' ? ' selected' : ''}>Alimento</option><option value="beverage"${productFiscal.taxCategory === 'beverage' ? ' selected' : ''}>Bebida</option><option value="service"${productFiscal.taxCategory === 'service' ? ' selected' : ''}>Serviço</option><option value="other"${productFiscal.taxCategory === 'other' ? ' selected' : ''}>Outro</option></select></div>
+              <div><label style="${_fichaLbl()}">Unidade fiscal</label><select id="pm-fiscal-unit-code" style="${_fichaInp()}background:#fff;"><option value="unit"${productFiscal.unitCode === 'unit' ? ' selected' : ''}>Unidade</option><option value="kg"${productFiscal.unitCode === 'kg' ? ' selected' : ''}>Quilo</option><option value="g"${productFiscal.unitCode === 'g' ? ' selected' : ''}>Grama</option><option value="l"${productFiscal.unitCode === 'l' ? ' selected' : ''}>Litro</option><option value="ml"${productFiscal.unitCode === 'ml' ? ' selected' : ''}>Mililitro</option></select></div>
+            </div>
+          </details>
+          <details style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">
+            <summary style="cursor:pointer;list-style:none;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+              <div>
                 <div style="font-size:11px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;">SEO (opcional)</div>
                 <div style="font-size:12px;color:#6F6860;margin-top:4px;">Use apenas se quiser aparecer no Google</div>
               </div>
@@ -1036,7 +1054,38 @@ Modules.Catalogo = (function () {
     p.type = p.type || (p.category === 'menu' ? 'menu' : 'unico');
     p.featured = p.featured === true || p.popular === true;
     p.popular = p.popular === true || p.featured === true;
+    p.fiscal = _ensureProductFiscal(p);
     return p;
+  }
+
+  function _defaultProductFiscal() {
+    return {
+      sku: '',
+      fiscalName: '',
+      ivaRate: 10,
+      ivaIncluded: true,
+      taxCategory: 'prepared_food',
+      unitCode: 'unit',
+      externalFiscalProductId: '',
+      facturaDirectaProductId: ''
+    };
+  }
+
+  function _ensureProductFiscal(product) {
+    var p = product || {};
+    var current = Object.assign({}, p.fiscal || {});
+    var defaults = _defaultProductFiscal();
+    var iva = current.ivaRate != null && current.ivaRate !== '' ? parseFloat(current.ivaRate) : defaults.ivaRate;
+    return Object.assign({}, defaults, current, {
+      sku: current.sku || p.sku || p.codigo || '',
+      fiscalName: current.fiscalName || p.fiscalName || '',
+      ivaRate: isFinite(iva) ? iva : defaults.ivaRate,
+      ivaIncluded: current.ivaIncluded !== false,
+      taxCategory: current.taxCategory || defaults.taxCategory,
+      unitCode: current.unitCode || defaults.unitCode,
+      externalFiscalProductId: current.externalFiscalProductId || '',
+      facturaDirectaProductId: current.facturaDirectaProductId || ''
+    });
   }
 
   function _productPricingPreview(p) {
@@ -2146,6 +2195,17 @@ Modules.Catalogo = (function () {
     seoSlug = _uniqueProductSlug(seoSlug, _editingId);
     var seoKw = (document.getElementById('pm-seo-kw') || {}).value || '';
     var seoAlt = (document.getElementById('pm-seo-alt') || {}).value || name;
+    var fiscalBase = _ensureProductFiscal(base);
+    var fiscalIvaRaw = (document.getElementById('pm-fiscal-iva') || {}).value;
+    var fiscalIva = parseFloat(String(fiscalIvaRaw == null ? '' : fiscalIvaRaw).replace(',', '.'));
+    var fiscal = Object.assign({}, fiscalBase, {
+      sku: ((document.getElementById('pm-fiscal-sku') || {}).value || '').trim(),
+      fiscalName: ((document.getElementById('pm-fiscal-name') || {}).value || '').trim(),
+      ivaRate: isFinite(fiscalIva) ? fiscalIva : fiscalBase.ivaRate,
+      ivaIncluded: true,
+      taxCategory: ((document.getElementById('pm-fiscal-tax-category') || {}).value || fiscalBase.taxCategory || 'prepared_food'),
+      unitCode: ((document.getElementById('pm-fiscal-unit-code') || {}).value || fiscalBase.unitCode || 'unit')
+    });
 
     var data = {
       name: name,
@@ -2182,7 +2242,8 @@ Modules.Catalogo = (function () {
       seoDescription: seoDesc,
       slug: seoSlug,
       seoKeyword: seoKw,
-      imageAlt: seoAlt
+      imageAlt: seoAlt,
+      fiscal: fiscal
     };
 
     var imgState = window._pmImageState || null;
@@ -2463,8 +2524,10 @@ Modules.Catalogo = (function () {
       '.tpl-toggle-title{font-size:13px;font-weight:600;color:#1F1F1F;display:block}' +
       '.tpl-toggle-hint{display:block;color:#6F6860;font-size:11px;margin-top:2px;line-height:1.35}' +
       '.tpl-color-field{display:block}' +
-      '.tpl-color-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}' +
-      '.tpl-color-swatch{width:40px;height:40px;border-radius:10px;border:1px solid #EAE4DA;box-shadow:inset 0 0 0 1px rgba(255,255,255,.32);flex:0 0 auto}' +
+      '.tpl-color-row{display:flex;gap:9px;align-items:center;flex-wrap:nowrap}' +
+      '.tpl-color-swatch{position:relative;width:44px;height:42px;border-radius:11px;border:1.5px solid #D4C8C6;box-shadow:inset 0 0 0 2px rgba(255,255,255,.62),0 6px 14px rgba(31,31,31,.06);flex:0 0 44px;overflow:hidden;cursor:pointer}' +
+      '.tpl-color-swatch input{position:absolute;inset:-6px;width:calc(100% + 12px);height:calc(100% + 12px);border:0;padding:0;opacity:0;cursor:pointer}' +
+      '.tpl-color-row input[type="text"]{min-width:0;flex:1}' +
       '.tpl-opacity-field{display:flex;flex-direction:column;gap:8px}' +
       '.tpl-opacity-row{display:flex;gap:10px;align-items:center}' +
       '.tpl-opacity-range{flex:1;accent-color:#B42318}' +
@@ -2528,17 +2591,172 @@ Modules.Catalogo = (function () {
       '@media (max-width: 640px){.tpl-delivery-zone-grid{grid-template-columns:1fr}.tpl-delivery-zone-delete{padding:7px 10px}}' +
       '.tpl-payment-methods{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;align-items:start}.tpl-payment-method-card{border:1px solid #EAE4DA;border-radius:12px;background:#fff;padding:12px;display:flex;flex-direction:column;gap:10px;box-shadow:0 1px 2px rgba(31,31,31,.03)}.tpl-payment-method-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.tpl-payment-method-name{font-size:13px;font-weight:600;color:#1F1F1F;line-height:1.25}.tpl-payment-method-status{font-size:10px;font-weight:600;color:#6F6860;margin-top:3px}.tpl-payment-method-note{font-size:11px;line-height:1.35;color:#6F6860;margin-top:6px}' +
       '@media (max-width: 640px){.tpl-payment-methods{grid-template-columns:1fr}.tpl-payment-method-head{align-items:center}}' +
-      '.tpl-subtabs{display:flex;gap:6px;align-items:center;overflow:auto;padding:4px;background:#fff;border:1px solid #EAE4DA;border-radius:12px;box-shadow:0 1px 2px rgba(31,31,31,.03)}' +
-      '.tpl-subtab{height:34px;padding:0 12px;border:none;border-radius:9px;background:transparent;color:#6F6860;font-family:Manrope,Inter,sans-serif;font-size:12px;font-weight:700;white-space:nowrap;cursor:pointer;transition:background .15s,color .15s,box-shadow .15s}' +
-      '.tpl-subtab:hover{background:#FAF8F4;color:#1F1F1F}' +
-      '.tpl-subtab.active{background:#B42318;color:#fff;box-shadow:0 4px 12px rgba(180,35,24,.18)}' +
+      '.tpl-config-page{gap:16px !important}' +
+      '.tpl-config-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:2px 0 0}' +
+      '.tpl-config-title{font-size:22px;font-weight:760;line-height:1.16;margin:0 0 6px;color:#211815;letter-spacing:-.01em}' +
+      '.tpl-config-subtitle{font-size:13px;color:#756A64;line-height:1.45;margin:0;max-width:720px}' +
+      '.tpl-config-status{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}' +
+      '.tpl-config-chip{display:inline-flex;align-items:center;min-height:24px;padding:0 9px;border-radius:999px;background:rgba(255,255,255,.74);border:1px solid #E9DDD7;color:#6F625C;font-size:11px;font-weight:650;box-shadow:inset 0 1px 0 rgba(255,255,255,.72)}' +
+      '.tpl-config-save{height:39px;padding:0 15px;border:none;border-radius:12px;background:#B42318;color:#fff;font-size:13px;font-weight:650;cursor:pointer;box-shadow:0 8px 18px rgba(180,35,24,.16);font-family:inherit;transition:transform .15s,box-shadow .15s,background .15s}' +
+      '.tpl-config-save:hover{transform:translateY(-1px);box-shadow:0 12px 24px rgba(180,35,24,.20);background:#A61F16}' +
+      '.tpl-subtabs{display:flex;gap:8px;align-items:center;overflow:auto;padding:9px;background:linear-gradient(135deg,#FFFDFC 0%,#FFF7F2 58%,#F8EFE8 100%);border:1px solid #E8DDD5;border-radius:18px;box-shadow:0 10px 26px rgba(85,46,32,.055),inset 0 1px 0 rgba(255,255,255,.72)}' +
+      '.tpl-subtab{height:32px;padding:0 12px;border:1px solid transparent;border-radius:999px;background:rgba(255,255,255,.72);color:#6F6860;font-family:Manrope,Inter,sans-serif;font-size:12px;font-weight:720;white-space:nowrap;cursor:pointer;transition:background .15s,color .15s,box-shadow .15s,border-color .15s,transform .15s}' +
+      '.tpl-subtab:hover{background:#fff;color:#211815;border-color:#E8DDD5;box-shadow:0 5px 14px rgba(85,46,32,.06)}' +
+      '.tpl-subtab.active{background:#B42318;color:#fff;border-color:#B42318;box-shadow:0 8px 18px rgba(180,35,24,.18)}' +
       '[data-template-panel]{display:none}' +
       '[data-template-panel].active{display:block}' +
+      '.tpl-config-panel{background:linear-gradient(145deg,#FFFFFF 0%,#FFFDFB 68%,#FFF8F3 100%) !important;border:1px solid #E8DDD5 !important;border-radius:20px !important;padding:16px 18px !important;box-shadow:0 10px 26px rgba(85,46,32,.052),inset 0 1px 0 rgba(255,255,255,.76) !important}' +
+      '.tpl-config-panel>div:first-child{margin-bottom:14px !important;padding-bottom:12px;border-bottom:1px solid rgba(232,221,213,.82)}' +
+      '.tpl-config-panel h3{font-size:15px !important;font-weight:760 !important;color:#211815 !important;letter-spacing:-.005em}' +
+      '.tpl-config-panel p{font-size:12px !important;color:#82766F !important;line-height:1.42 !important;max-width:780px}' +
+      '.tpl-config-page input:not([type="checkbox"]):not([type="color"]):not([type="range"]),.tpl-config-page textarea,.tpl-config-page select{background:#FFFCF7 !important;border:1px solid #E8DDD5 !important;border-radius:12px !important;box-shadow:inset 0 1px 0 rgba(255,255,255,.78),0 1px 0 rgba(120,70,50,.03) !important;color:#211815 !important}' +
+      '.tpl-config-page input:not([type="checkbox"]):not([type="color"]):not([type="range"]):focus,.tpl-config-page textarea:focus,.tpl-config-page select:focus{border-color:#D7A49C !important;background:#fff !important;box-shadow:0 0 0 3px rgba(180,35,24,.08),inset 0 1px 0 rgba(255,255,255,.78) !important}' +
+      '.tpl-config-page label span[style*="letter-spacing"]{color:#5E534D !important;font-weight:750 !important}' +
+      '.tpl-config-page [style*="padding:14px"][style*="border:1px solid #EAE4DA"]{background:rgba(255,255,255,.66) !important;border-color:#EADFD8 !important;border-radius:15px !important;box-shadow:inset 0 1px 0 rgba(255,255,255,.78) !important}' +
+      '.tpl-config-page [style*="font-size:12px"][style*="font-weight:700"]{font-size:12.5px !important;font-weight:780 !important;color:#2A211E !important}' +
+      '.tpl-config-page [style*="font-size:11px"][style*="color:#6F6860"]{color:#8A7E7C !important;line-height:1.32 !important}' +
+      '.tpl-config-page .tpl-toggle{background:#FFFDFC !important;border-color:#E8DDD5 !important;border-radius:13px !important;padding:10px 11px !important;box-shadow:inset 0 1px 0 rgba(255,255,255,.74) !important;align-items:center !important}' +
+      '.tpl-config-page .tpl-toggle-title{font-size:12.5px !important;font-weight:720 !important;color:#2A211E !important}' +
+      '.tpl-config-page .tpl-toggle-hint{font-size:10.5px !important;color:#9A8E89 !important;margin-top:1px !important}' +
+      '.tpl-config-page .tpl-toggle-control{width:18px !important;height:18px !important;margin-top:0 !important}' +
+      '.tpl-config-page .tpl-toggle-track{background:#fff !important;border:1px solid #DCCBC4 !important;border-radius:5px !important;box-shadow:inset 0 1px 0 rgba(255,255,255,.78) !important}' +
+      '.tpl-config-page .tpl-toggle-track::after{content:"";position:absolute;left:5px;top:2px;width:5px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(42deg);display:none}' +
+      '.tpl-config-page .tpl-toggle-control input:checked + .tpl-toggle-track{background:#B42318 !important;border-color:#B42318 !important}' +
+      '.tpl-config-page .tpl-toggle-control input:checked + .tpl-toggle-track::after{display:block}' +
+      '.tpl-config-page .tpl-toggle-thumb{display:none !important}' +
+      '.tpl-premium-switch{display:inline-flex;align-items:center;justify-content:space-between;gap:14px;min-width:260px;padding:10px 12px;border:1px solid #E8DDD5;border-radius:16px;background:linear-gradient(135deg,#FFFDFC,#FFF7F2);box-shadow:0 8px 18px rgba(85,46,32,.055),inset 0 1px 0 rgba(255,255,255,.76);cursor:pointer;user-select:none}' +
+      '.tpl-premium-switch input{position:absolute;opacity:0;pointer-events:none}' +
+      '.tpl-premium-switch-copy{display:flex;flex-direction:column;gap:2px;min-width:0}' +
+      '.tpl-premium-switch-title{font-size:12.5px;font-weight:760;color:#211815;line-height:1.2}' +
+      '.tpl-premium-switch-state{font-size:10.5px;font-weight:700;color:#8A7E7C;line-height:1.2}' +
+      '.tpl-premium-switch-control{width:48px;height:28px;border-radius:999px;background:#EEE5DF;border:1px solid #D8C9C0;box-shadow:inset 0 1px 2px rgba(33,27,24,.10);position:relative;flex:0 0 auto;transition:background .18s,border-color .18s,box-shadow .18s}' +
+      '.tpl-premium-switch-control::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 5px 12px rgba(33,27,24,.18);transition:transform .18s}' +
+      '.tpl-premium-switch input:checked ~ .tpl-premium-switch-control{background:#B42318;border-color:#B42318;box-shadow:0 7px 18px rgba(180,35,24,.20),inset 0 1px 0 rgba(255,255,255,.18)}' +
+      '.tpl-premium-switch input:checked ~ .tpl-premium-switch-control::after{transform:translateX(20px)}' +
+      '.tpl-premium-switch input:checked + .tpl-premium-switch-copy .tpl-premium-switch-state::before{content:"Ativada"}' +
+      '.tpl-premium-switch input:not(:checked) + .tpl-premium-switch-copy .tpl-premium-switch-state::before{content:"Desativada"}' +
+      '.tpl-config-page .tpl-image-card,.tpl-config-page .tpl-payment-method-card,.tpl-config-page .tpl-hours-day{background:rgba(255,255,255,.68) !important;border-color:#EADFD8 !important;box-shadow:inset 0 1px 0 rgba(255,255,255,.78) !important;border-radius:15px !important}' +
+      '.tpl-config-page .tpl-image-preview{background:#FFFCF8 !important;border-color:#E8DCD7 !important}' +
+      '.tpl-language-wrap{position:relative;display:block}' +
+      '.tpl-language-select{appearance:none;-webkit-appearance:none;-moz-appearance:none;padding-right:42px !important;background:#fff !important}' +
+      '.tpl-language-arrow{position:absolute;right:15px;top:50%;transform:translateY(-50%);font-size:19px;color:#6F6860;line-height:1;pointer-events:none;z-index:2}' +
+      '.tpl-section-heading{display:flex;align-items:flex-start;gap:9px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid rgba(232,221,213,.82)}' +
+      '.tpl-section-heading .mi{font-size:18px;color:#8A7E7C;line-height:1.15;margin-top:1px;opacity:.9}' +
+      '.tpl-section-heading h3{font-size:15px;font-weight:760;margin:0 0 4px;color:#211815;letter-spacing:-.005em}' +
+      '.tpl-section-heading p{font-size:12px;color:#82766F;line-height:1.42;margin:0;max-width:780px}' +
+      '.tpl-mini-title{display:flex;align-items:flex-start;gap:8px;min-width:0}' +
+      '.tpl-mini-title .mi{width:18px;height:18px;color:#8A7E7C;display:inline-flex;align-items:center;justify-content:center;font-size:17px;line-height:1;flex:0 0 auto;margin-top:1px}' +
+      '.tpl-mini-title strong{display:block;font-size:12.5px;font-weight:780;color:#2A211E;line-height:1.2}' +
+      '.tpl-mini-title small{display:block;font-size:11px;color:#8A7E7C;line-height:1.32;margin-top:2px}' +
+      '.tpl-identity-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,.92fr);gap:14px;align-items:start}' +
+      '.tpl-identity-stack{display:flex;flex-direction:column;gap:12px;min-width:0}' +
+      '.tpl-identity-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}' +
+      '.tpl-identity-fields .tpl-field-full{grid-column:1/-1}' +
+      '.tpl-identity-layout{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(300px,.92fr);gap:18px;align-items:start}' +
+      '.tpl-identity-workspace .tpl-identity-layout{display:block}' +
+      '.tpl-identity-main{display:flex;flex-direction:column;gap:13px;min-width:0}' +
+      '.tpl-identity-main-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px 14px;align-items:start}' +
+      '.tpl-identity-main-grid .tpl-field-full{grid-column:1/-1}' +
+      '.tpl-identity-workspace{grid-template-columns:minmax(0,1fr) minmax(300px,.46fr);gap:20px;align-items:start;overflow:visible}' +
+      '.tpl-identity-workspace.active{display:grid !important}' +
+      '.tpl-identity-left{display:flex;flex-direction:column;gap:14px;min-width:0}' +
+      '.tpl-identity-assets{min-width:0;border-left:1px solid rgba(232,221,213,.78);padding-left:18px}' +
+      '.tpl-identity-assets .tpl-image-grid-media{grid-template-columns:minmax(0,1fr) minmax(128px,150px);gap:12px;align-items:start}' +
+      '.tpl-identity-assets .tpl-image-card{padding:12px !important}' +
+      '.tpl-identity-assets .tpl-image-card--logo{border:0 !important;box-shadow:none !important;background:transparent !important}' +
+      '.tpl-identity-assets .tpl-image-card--favicon{border:0 !important;box-shadow:none !important;background:transparent !important}' +
+      '.tpl-identity-assets .tpl-image-preview--logo{min-height:154px !important;height:154px !important}' +
+      '.tpl-identity-assets .tpl-image-preview--favicon{width:76px !important;height:76px !important;min-height:76px !important}' +
+      '.tpl-identity-files .tpl-image-preview{border:0 !important;box-shadow:none !important;background:transparent !important}' +
+      '.tpl-identity-help{display:block;font-size:10.5px;color:#8A7E7C;line-height:1.35;margin-top:5px}' +
+      '.tpl-brand-preview{display:grid;grid-template-columns:58px minmax(0,1fr);gap:12px;align-items:center;padding:13px;border:1px solid #EADFD8;border-radius:16px;background:linear-gradient(145deg,#FFFFFF 0%,#FFFCF8 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.78)}' +
+      '.tpl-brand-preview-logo{width:58px;height:58px;border-radius:16px;border:1px solid #E8DCD7;background:#FFFCF8;display:flex;align-items:center;justify-content:center;overflow:hidden;color:#8A7E7C;flex:0 0 auto}' +
+      '.tpl-brand-preview-logo img{width:100%;height:100%;object-fit:contain;display:block}' +
+      '.tpl-brand-preview-name{font-size:15px;font-weight:800;color:#211815;line-height:1.18;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+      '.tpl-brand-preview-text{font-size:12px;color:#6F6860;line-height:1.35;margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}' +
+      '.tpl-brand-preview-accent{width:48px;height:5px;border-radius:999px;margin-top:9px;background:#B42318}' +
+      '.tpl-identity-files{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(180px,.75fr);gap:12px;align-items:stretch}' +
+      '.tpl-identity-files .tpl-image-card{height:100%;min-height:0;justify-content:flex-start}' +
+      '.tpl-identity-files .tpl-image-card--logo,.tpl-identity-files .tpl-image-card--favicon{padding:12px !important}' +
+      '.tpl-identity-files .tpl-image-card--logo,.tpl-identity-files .tpl-image-card--favicon{border:0 !important;box-shadow:none !important;background:transparent !important}' +
+      '.tpl-identity-files .tpl-image-preview--logo{min-height:136px !important;height:136px !important;padding:12px !important}' +
+      '.tpl-identity-files .tpl-image-card--favicon{align-items:flex-start;justify-content:flex-start}' +
+      '.tpl-identity-files .tpl-image-card--favicon .tpl-image-browser-tab{margin-top:0 !important;width:100%;height:42px;align-self:stretch}' +
+      '.tpl-identity-files .tpl-image-preview--favicon{width:86px !important;height:86px !important;min-height:86px !important;padding:10px !important;align-self:center}' +
+      '.tpl-identity-files .tpl-image-url{display:none !important}' +
+      '.tpl-config-panel[data-template-panel="identidade"]{padding:18px 20px !important}' +
+      '.tpl-identity-left .tpl-config-panel{padding:18px 20px !important}' +
+      '.tpl-config-panel[data-template-panel="identidade"] [style*="padding:14px"][style*="border:1px solid #EAE4DA"]:not(.tpl-image-card){background:transparent !important;border:0 !important;border-radius:0 !important;box-shadow:none !important;padding:0 0 15px !important;border-bottom:1px solid rgba(232,221,213,.78) !important}' +
+      '.tpl-identity-left .tpl-config-panel [style*="padding:14px"][style*="border:1px solid #EAE4DA"]:not(.tpl-image-card){background:transparent !important;border:0 !important;border-radius:0 !important;box-shadow:none !important;padding:0 0 15px !important;border-bottom:1px solid rgba(232,221,213,.78) !important}' +
+      '.tpl-config-panel[data-template-panel="identidade"] [style*="padding:14px"][style*="border:1px solid #EAE4DA"]:not(.tpl-image-card):last-child{border-bottom:0 !important;padding-bottom:0 !important}' +
+      '.tpl-identity-left .tpl-config-panel [style*="padding:14px"][style*="border:1px solid #EAE4DA"]:not(.tpl-image-card):last-child{border-bottom:0 !important;padding-bottom:0 !important}' +
+      '.tpl-config-panel[data-template-panel="identidade"] .tpl-image-card{box-shadow:none !important;background:#FFFCF8 !important}' +
+      '.tpl-identity-left .tpl-config-panel .tpl-image-card{box-shadow:none !important;background:#FFFCF8 !important}' +
+      '.tpl-config-panel[data-template-panel="identidade"] .tpl-toggle{padding:8px 0 !important;background:transparent !important;border:0 !important;border-radius:0 !important;box-shadow:none !important}' +
+      '.tpl-identity-left .tpl-config-panel .tpl-toggle{padding:8px 0 !important;background:transparent !important;border:0 !important;border-radius:0 !important;box-shadow:none !important}' +
+      '.tpl-config-panel[data-template-panel="identidade"] .tpl-toggle + .tpl-toggle{border-top:1px solid rgba(232,221,213,.62) !important}' +
+      '.tpl-identity-left .tpl-config-panel .tpl-toggle + .tpl-toggle{border-top:1px solid rgba(232,221,213,.62) !important}' +
+      '.tpl-maincard-controls .tpl-toggle + .tpl-toggle{border-top:0 !important}' +
+      '.tpl-maincard-layout{display:block}' +
+      '.tpl-maincard-controls{min-width:0}' +
+      '.tpl-maincard-columns{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;align-items:start}' +
+      '.tpl-maincard-column{display:flex;flex-direction:column;gap:10px;min-width:0}' +
+      '.tpl-maincard-column-title{font-size:10.5px;font-weight:800;color:#8A7E7C;text-transform:uppercase;letter-spacing:.05em;margin:0 0 1px}' +
+      '.tpl-maincard-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;align-items:start}' +
+      '.tpl-maincard-row + .tpl-maincard-columns{margin-top:12px}' +
+      '.tpl-maincard-preview-shell{position:relative !important;min-width:0;width:100%;border-left:0;padding-left:20px;align-self:stretch;z-index:8;background:transparent;overflow:visible}' +
+      '.tpl-maincard-preview-label{font-size:10.5px;font-weight:800;color:#8A7E7C;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}' +
+      '.tpl-maincard-preview-phone{position:relative;width:100%;max-height:calc(100vh - 56px);overflow:hidden;border:1px solid #E8DCD7;border-radius:26px;background:#FFFAF3;box-shadow:0 18px 46px rgba(72,48,38,.10);will-change:top,left,width}' +
+      '.tpl-maincard-preview-hero{min-height:256px;padding:14px 14px 0;position:relative;background:linear-gradient(180deg,rgba(28,18,10,.20) 0%,rgba(28,18,10,.03) 54%,rgba(255,250,243,0) 100%),linear-gradient(135deg,#DAC4AF,#F7E8DB);background-position:center 22%;background-size:cover}' +
+      '.tpl-maincard-preview-nav{display:flex;align-items:center;justify-content:space-between;position:relative;z-index:2}' +
+      '.tpl-maincard-preview-nav-left,.tpl-maincard-preview-nav-side{display:flex;align-items:center;gap:9px}' +
+      '.tpl-maincard-preview-pill,.tpl-maincard-preview-circle{background:rgba(255,255,255,.92);box-shadow:0 8px 18px rgba(33,27,24,.14);color:#211B18}' +
+      '.tpl-maincard-preview-pill{height:34px;border-radius:999px;padding:4px 10px 4px 4px;display:inline-flex;align-items:center;gap:7px;font-size:10px;font-weight:760}' +
+      '.tpl-maincard-preview-avatar{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,#B42318,#C98A2F);font-size:9px;font-weight:820}' +
+      '.tpl-maincard-preview-circle{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-size:16px;font-weight:900}' +
+      '.tpl-maincard-preview-card{margin:132px -14px 0;padding:0 16px 0;min-height:156px;background:#FFFAF3;border-radius:32px 32px 0 0;box-shadow:0 -18px 38px rgba(33,27,24,.10);position:relative;z-index:2}' +
+      '.tpl-maincard-preview-head{display:grid;grid-template-columns:88px minmax(0,1fr);gap:12px;align-items:start}' +
+      '.tpl-maincard-preview-logo{width:88px;height:88px;margin-top:-34px;border-radius:50%;background:#fff;border:6px solid #FFFAF3;display:flex;align-items:center;justify-content:center;overflow:hidden;color:#8A7E7C;box-shadow:0 16px 28px rgba(33,27,24,.18)}' +
+      '.tpl-maincard-preview-logo img{width:100%;height:100%;object-fit:cover;display:block}' +
+      '.tpl-maincard-preview-copy{min-width:0;padding-top:14px;padding-bottom:13px;position:relative}' +
+      '.tpl-maincard-preview-copy::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;border-radius:999px;background:linear-gradient(90deg,rgba(33,27,24,.11),rgba(33,27,24,.035),rgba(33,27,24,0));box-shadow:0 8px 16px rgba(33,27,24,.045)}' +
+      '.tpl-maincard-preview-name{margin:0;font-size:24px;font-weight:850;color:#211B18;line-height:.98;letter-spacing:-.035em;word-break:break-word}' +
+      '.tpl-maincard-preview-slogan{margin:5px 0 0;max-width:228px;font-size:12px;font-weight:650;color:#6F665D;line-height:1.35;text-align:left;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}' +
+      '.tpl-maincard-preview-facts{margin-top:8px;display:flex;align-items:center;gap:8px;color:#6C625B;font-size:11px;font-weight:720;white-space:nowrap;overflow:hidden}' +
+      '.tpl-maincard-preview-star{color:#211B18;font-size:11px;line-height:1;margin-right:-4px}' +
+      '.tpl-maincard-preview-facts b{color:#211B18}' +
+      '.tpl-maincard-preview-dot{width:4px;height:4px;border-radius:50%;background:#B7AA9D;flex:0 0 auto}' +
+      '.tpl-maincard-preview-more{margin-top:5px;display:inline-flex;align-items:center;gap:5px;color:#B42318;text-decoration:none;font-size:11px;font-weight:760}' +
+      '.tpl-maincard-preview-chips{display:flex;align-items:center;gap:8px;margin-top:7px;color:#675E55;font-size:10.5px;font-weight:650;white-space:nowrap;overflow:hidden}' +
+      '.tpl-maincard-preview-chip{display:inline-flex;align-items:center;min-width:0;color:inherit;font-size:inherit;font-weight:inherit;white-space:nowrap;letter-spacing:-.01em;background:transparent;padding:0;border-radius:0}' +
+      '.tpl-maincard-preview-chip.open{color:#227554;font-weight:720}.tpl-maincard-preview-chip.closed{color:#9D2525;font-weight:720}' +
+      '.tpl-maincard-preview-chip + .tpl-maincard-preview-chip::before{content:"";width:4px;height:4px;margin-right:8px;border-radius:50%;background:#B7AA9D;flex:0 0 auto}' +
+      '.tpl-maincard-preview-promo{display:none;padding:9px 12px;text-align:center;font-size:11px;font-weight:820;line-height:1.25;letter-spacing:-.01em;background:#B42318;color:#fff}' +
+      '.tpl-maincard-preview-mobile-banner{display:none;margin:10px 12px 12px;min-height:86px;border-radius:20px;overflow:hidden;background:linear-gradient(135deg,#2D211B,#8F1D1D);background-size:cover;background-position:center;box-shadow:0 14px 28px rgba(33,27,24,.10);position:relative;color:#fff}' +
+      '.tpl-maincard-preview-mobile-banner::before{content:"";position:absolute;inset:0;background:linear-gradient(110deg,rgba(24,15,10,.88),rgba(24,15,10,.54) 48%,rgba(24,15,10,.10));pointer-events:none}' +
+      '.tpl-maincard-preview-mobile-banner-copy{position:relative;z-index:1;padding:12px;max-width:76%;display:flex;flex-direction:column;align-items:flex-start;gap:4px}' +
+      '.tpl-maincard-preview-mobile-banner-badge{display:inline-flex;align-items:center;min-height:17px;padding:0 7px;border-radius:999px;background:rgba(255,255,255,.16);font-size:7.5px;font-weight:850;letter-spacing:.07em;text-transform:uppercase}' +
+      '.tpl-maincard-preview-mobile-banner-title{font-size:14px;font-weight:850;line-height:1.05;letter-spacing:-.025em}' +
+      '.tpl-maincard-preview-mobile-banner-text{font-size:9.5px;font-weight:650;line-height:1.25;opacity:.88;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}' +
+      '.tpl-maincard-preview-mobile-banner-cta{margin-top:3px;min-height:22px;padding:0 9px;border-radius:999px;background:#fff;color:#8F1D1D;font-size:8.5px;font-weight:820;display:inline-flex;align-items:center}' +
+      '@media(max-width:760px){.tpl-identity-workspace.active{display:block !important}.tpl-identity-left{gap:14px}.tpl-maincard-preview-shell{position:static !important;border-left:0;border-top:0;padding-left:0;padding-top:16px;margin-top:14px}.tpl-maincard-preview-phone{position:relative;top:auto}.tpl-maincard-columns,.tpl-maincard-row{grid-template-columns:1fr}}' +
+      '.tpl-config-panel[data-template-panel="identidade"] .tpl-section-heading{margin-bottom:10px !important}' +
+      '.tpl-identity-left .tpl-config-panel .tpl-section-heading{margin-bottom:10px !important}' +
+      '.tpl-config-panel[data-template-panel="identidade"] [style*="display:flex;flex-direction:column;gap:12px;"]{gap:10px !important}' +
+      '.tpl-identity-left .tpl-config-panel [style*="display:flex;flex-direction:column;gap:12px;"]{gap:10px !important}' +
+      '@media(max-width:760px){.tpl-identity-grid,.tpl-identity-layout{grid-template-columns:1fr}.tpl-identity-fields,.tpl-identity-main-grid{grid-template-columns:1fr}.tpl-identity-assets{border-left:0;border-top:1px solid rgba(232,221,213,.78);padding-left:0;padding-top:16px}.tpl-identity-files{grid-template-columns:1fr}}' +
+      '@media(max-width:760px){.tpl-config-head{align-items:flex-start}.tpl-config-save{width:100%}.tpl-subtabs{padding:8px}.tpl-config-panel{padding:14px !important}}' +
       '.tpl-image-url{width:100%;padding:10px 12px;border:1px solid #EAE4DA;border-radius:10px;font-size:14px;font-family:Manrope,Inter,sans-serif;outline:none;background:#fff;box-sizing:border-box;color:#1F1F1F;box-shadow:inset 0 1px 0 rgba(255,255,255,.78);}';
     document.head.appendChild(style);
   }
-  function _sectionTitle(title, desc) {
-    return '<div style="margin-bottom:14px;"><h3 style="font-size:14px;font-weight:600;margin:0 0 4px;color:#1F1F1F;">' + _esc(title) + '</h3><p style="font-size:13px;color:#6F6860;line-height:1.5;margin:0;">' + _esc(desc || '') + '</p></div>';
+  function _sectionTitle(title, desc, icon) {
+    if (icon) {
+      return '<div class="tpl-section-heading"><span class="mi">' + _esc(icon) + '</span><div><h3>' + _esc(title) + '</h3>' + (desc ? '<p>' + _esc(desc || '') + '</p>' : '') + '</div></div>';
+    }
+    return '<div style="margin-bottom:14px;"><h3 style="font-size:14px;font-weight:600;margin:0' + (desc ? ' 0 4px' : '') + ';color:#1F1F1F;">' + _esc(title) + '</h3>' + (desc ? '<p style="font-size:13px;color:#6F6860;line-height:1.5;margin:0;">' + _esc(desc || '') + '</p>' : '') + '</div>';
+  }
+  function _templateMiniTitle(icon, title, desc) {
+    return '<div class="tpl-mini-title"><span class="mi">' + _esc(icon || 'tune') + '</span><div><strong>' + _esc(title || '') + '</strong>' + (desc ? '<small>' + _esc(desc) + '</small>' : '') + '</div></div>';
   }
 
   function _templateSubtabsHtml(active) {
@@ -2567,9 +2785,49 @@ Modules.Catalogo = (function () {
     [].slice.call(content.querySelectorAll('[data-template-panel]')).forEach(function (panel) {
       panel.classList.toggle('active', panel.getAttribute('data-template-panel') === key);
     });
+    _syncTemplatePreviewColumn();
+  }
+  function _syncTemplatePreviewColumn() {
+    var content = document.getElementById('catalogo-content');
+    if (!content) return;
+    var workspace = content.querySelector('.tpl-identity-workspace.active');
+    var left = workspace && workspace.querySelector('.tpl-identity-left');
+    var shell = workspace && workspace.querySelector('.tpl-maincard-preview-shell');
+    var phone = shell && shell.querySelector('.tpl-maincard-preview-phone');
+    if (!workspace || !left || !shell || !phone) return;
+    if (window.innerWidth <= 760) {
+      shell.style.minHeight = '';
+      phone.style.position = '';
+      phone.style.top = '';
+      phone.style.left = '';
+      phone.style.width = '';
+      return;
+    }
+    var leftHeight = left.scrollHeight || left.offsetHeight || 0;
+    shell.style.minHeight = leftHeight + 'px';
+    phone.style.width = shell.clientWidth + 'px';
+    var shellRect = shell.getBoundingClientRect();
+    var viewportTop = 70;
+    var phoneHeight = phone.offsetHeight || 0;
+    var shellBottom = shellRect.top + leftHeight;
+    if (shellRect.top >= viewportTop) {
+      phone.style.position = 'relative';
+      phone.style.top = '';
+      phone.style.left = '';
+      return;
+    }
+    if (shellBottom - phoneHeight <= viewportTop) {
+      phone.style.position = 'absolute';
+      phone.style.top = Math.max(0, leftHeight - phoneHeight) + 'px';
+      phone.style.left = '20px';
+      return;
+    }
+    phone.style.position = 'fixed';
+    phone.style.top = viewportTop + 'px';
+    phone.style.left = shellRect.left + 'px';
   }
   function _templatePanelAttrs(key) {
-    return 'data-template-panel="' + key + '"' + ((_templateActiveTab || 'identidade') === key ? ' class="active"' : '');
+    return 'data-template-panel="' + key + '" class="tpl-config-panel' + (((_templateActiveTab || 'identidade') === key) ? ' active' : '') + '"';
   }
 
   function _fieldHtml(id, label, value, placeholder, type) {
@@ -2577,10 +2835,13 @@ Modules.Catalogo = (function () {
   }
   function _colorFieldHtml(id, label, value, previewLabel) {
     var color = _normalizeHexColor(value) || '#B42318';
-    return '<label class="tpl-color-field"><span style="' + _labelStyle() + '">' + _esc(label) + '</span><div class="tpl-color-row"><input id="' + id + '" type="color" value="' + _esc(color) + '" style="width:48px;height:40px;border:1.5px solid #D4C8C6;border-radius:10px;background:#fff;padding:3px;cursor:pointer;"><input id="' + id + '-hex" type="text" value="' + _esc(color) + '" placeholder="#B42318" maxlength="7" style="' + _inputStyle() + 'text-transform:uppercase;"><span id="' + id + '-swatch" title="' + _esc(previewLabel || label) + '" class="tpl-color-swatch" style="background:' + _esc(color) + ';"></span></div></label>';
+    return '<label class="tpl-color-field"><span style="' + _labelStyle() + '">' + _esc(label) + '</span><div class="tpl-color-row"><span class="tpl-color-swatch" data-color-swatch-for="' + _esc(id) + '" style="background:' + _esc(color) + ';"><input id="' + id + '" type="color" value="' + _esc(color) + '" title="' + _esc(previewLabel || label) + '"></span><input id="' + id + '-hex" type="text" value="' + _esc(color) + '" placeholder="#B42318" maxlength="7" style="' + _inputStyle() + 'text-transform:uppercase;"></div></label>';
   }
   function _toggleHtml(id, label, checked, hint) {
     return '<label class="tpl-toggle"><span class="tpl-toggle-control"><input id="' + id + '" type="checkbox"' + (checked ? ' checked' : '') + '><span class="tpl-toggle-track"></span><span class="tpl-toggle-thumb"></span></span><span><span class="tpl-toggle-title">' + _esc(label) + '</span>' + (hint ? '<span class="tpl-toggle-hint">' + _esc(hint) + '</span>' : '') + '</span></label>';
+  }
+  function _premiumSwitchHtml(id, label, checked, hint) {
+    return '<label class="tpl-premium-switch"><input id="' + id + '" type="checkbox"' + (checked ? ' checked' : '') + '><span class="tpl-premium-switch-copy"><span class="tpl-premium-switch-title">' + _esc(label) + '</span><span class="tpl-premium-switch-state"></span>' + (hint ? '<span class="tpl-toggle-hint">' + _esc(hint) + '</span>' : '') + '</span><span class="tpl-premium-switch-control"></span></label>';
   }
   function _imageConfigHtml(kind, opts) {
     var fileId = opts.fileId;
@@ -2594,6 +2855,9 @@ Modules.Catalogo = (function () {
     var previewClass = opts.previewClass ? ' ' + opts.previewClass : '';
     var fitClass = opts.fit === 'contain' ? ' tpl-image-preview--contain' : '';
     var extraHtml = opts.extraHtml || '';
+    var urlInputType = opts.hideUrl ? 'hidden' : 'text';
+    var urlInputStyle = opts.hideUrl ? 'display:none;' : 'margin-top:2px;';
+    var previewHtml = opts.hidePreview ? '' : '<div class="tpl-image-preview' + previewClass + fitClass + '"><img id="' + previewId + '" src="' + _esc(currentUrl) + '" style="display:' + (currentUrl ? 'block' : 'none') + ';"><span class="tpl-image-overlay" id="' + previewId + '-overlay" style="position:absolute;inset:0;display:' + (currentUrl ? 'block' : 'none') + ';background:rgba(0,0,0,.08);pointer-events:none;"></span><span id="' + placeholderId + '" style="position:absolute;font-size:11px;color:#6F6860;' + (currentUrl ? 'display:none;' : '') + '">' + _esc(placeholder) + '</span></div>';
     return '<div class="tpl-image-card' + cardClass + '">' +
       '<div style="display:flex;flex-direction:column;gap:6px;">' +
         '<span style="' + _labelStyle() + '">' + _esc(opts.label || '') + '</span>' +
@@ -2602,10 +2866,10 @@ Modules.Catalogo = (function () {
           '<button type="button" class="tpl-image-btn ghost" onclick="Modules.Catalogo._clearStoreImage(\'' + kind + '\')">Remover imagem</button>' +
         '</div>' +
         '<input id="' + fileId + '" type="file" accept="' + _esc(accept) + '" onchange="Modules.Catalogo._uploadStoreImage(event,\'' + kind + '\')" style="display:none;">' +
-        '<input id="' + urlId + '" value="' + _esc(currentUrl) + '" placeholder="https://..." class="tpl-image-url" style="margin-top:2px;">' +
+        '<input id="' + urlId + '" type="' + urlInputType + '" value="' + _esc(currentUrl) + '" placeholder="https://..." class="tpl-image-url" style="' + urlInputStyle + '">' +
         '<div class="tpl-image-note">' + _esc(opts.note || '') + '</div>' +
       '</div>' +
-      '<div class="tpl-image-preview' + previewClass + fitClass + '"><img id="' + previewId + '" src="' + _esc(currentUrl) + '" style="display:' + (currentUrl ? 'block' : 'none') + ';"><span class="tpl-image-overlay" id="' + previewId + '-overlay" style="position:absolute;inset:0;display:' + (currentUrl ? 'block' : 'none') + ';background:rgba(0,0,0,.08);pointer-events:none;"></span><span id="' + placeholderId + '" style="position:absolute;font-size:11px;color:#6F6860;' + (currentUrl ? 'display:none;' : '') + '">' + _esc(placeholder) + '</span></div>' +
+      previewHtml +
       extraHtml +
     '</div>';
   }
@@ -2924,6 +3188,45 @@ Modules.Catalogo = (function () {
         String(p.title || '').toLowerCase() === value;
     }) || null;
   }
+  function _promotionProductOptionItems() {
+    var seen = {};
+    var items = [];
+    _activePromotionOptions().forEach(function (promo) {
+      _activeProductOptions().forEach(function (product) {
+        if (!_promoAppliesToProduct(promo, product)) return;
+        var id = String(product.id || '');
+        if (!id || seen[id]) return;
+        seen[id] = true;
+        items.push({
+          product: product,
+          promotion: promo,
+          label: _productPickerValue(product),
+          sub: 'Vinculado a ' + _promotionLabel(promo)
+        });
+      });
+    });
+    return items.sort(function (a, b) {
+      return String(a.label || '').localeCompare(String(b.label || ''), undefined, { sensitivity: 'base' });
+    });
+  }
+  function _mobilePromoProductPickerHtml(selectedId) {
+    var selected = String(selectedId || '').trim();
+    var items = _promotionProductOptionItems();
+    var selectedItem = items.find(function (item) { return String(item.product && item.product.id || '') === selected; });
+    if (!items.length) {
+      return _featuredComboboxHtml({ kind: 'mobilePromoProduct', inputId: 'tpl-mobile-promo-banner-product-picker', hiddenId: 'tpl-mobile-promo-banner-product', dropdownId: 'tpl-mobile-promo-banner-product-dropdown', label: 'Produto da promoção', placeholder: 'Nenhum produto vinculado a promoção', disabled: true });
+    }
+    return _featuredComboboxHtml({
+      kind: 'mobilePromoProduct',
+      inputId: 'tpl-mobile-promo-banner-product-picker',
+      hiddenId: 'tpl-mobile-promo-banner-product',
+      dropdownId: 'tpl-mobile-promo-banner-product-dropdown',
+      label: 'Produto da promoção',
+      displayValue: selectedItem ? selectedItem.label : '',
+      hiddenValue: selectedItem ? String(selectedItem.product.id || '') : '',
+      placeholder: 'Buscar produto vinculado a promoção...'
+    });
+  }
   function _promotionPickerHtml(selectedId) {
     var selected = String(selectedId || '').trim();
     var promotions = _activePromotionOptions();
@@ -2943,11 +3246,11 @@ Modules.Catalogo = (function () {
   }
   function _templateLanguageOptions() {
     return [
-      { value: 'pt-BR', label: 'Português Brasil — pt-BR' },
-      { value: 'pt-PT', label: 'Português Portugal — pt-PT' },
-      { value: 'es-ES', label: 'Español — es-ES' },
-      { value: 'en', label: 'English — en' },
-      { value: 'fr', label: 'Français — fr' }
+      { value: 'pt-BR', label: 'Português Brasil' },
+      { value: 'pt-PT', label: 'Português Portugal' },
+      { value: 'es-ES', label: 'Español' },
+      { value: 'en', label: 'English' },
+      { value: 'fr', label: 'Français' }
     ];
   }
   function _featuredButtonSuggestion(type, lang) {
@@ -3205,29 +3508,29 @@ Modules.Catalogo = (function () {
   function _uploadStoreImage(event, kind) {
     var file = event && event.target && event.target.files ? event.target.files[0] : null;
     if (!file || !window.ImageTools) return;
-    var target = kind === 'banner' || kind === 'bannerDesktop' || kind === 'bannerMobile' || kind === 'promoMobile' || kind === 'share' || kind === 'favicon' ? kind : 'logo';
+    var target = kind === 'banner' || kind === 'bannerDesktop' || kind === 'bannerMobile' || kind === 'promoMobile' || kind === 'promoDesktop' || kind === 'share' || kind === 'favicon' ? kind : 'logo';
     var imageKind = target === 'logo' || target === 'favicon' ? 'logo' : 'banner';
-    var storageFolder = target === 'logo' || target === 'favicon' ? 'logos' : (target === 'promoMobile' || target === 'share' ? 'featured' : 'banners');
-    ImageTools.process(file, { kind: target === 'promoMobile' || target === 'share' ? 'featured' : imageKind, folder: storageFolder, entityId: 'catalogo-' + target }).then(function (result) {
+    var storageFolder = target === 'logo' || target === 'favicon' ? 'logos' : (target === 'promoMobile' || target === 'promoDesktop' || target === 'share' ? 'featured' : 'banners');
+    ImageTools.process(file, { kind: target === 'promoMobile' || target === 'promoDesktop' || target === 'share' ? 'featured' : imageKind, folder: storageFolder, entityId: 'catalogo-' + target }).then(function (result) {
       _imageUploadState()[target] = result;
-      var fieldId = target === 'logo'
-        ? 'tpl-logo-url'
-        : (target === 'favicon'
-          ? 'tpl-favicon-url'
-          : (target === 'share'
-          ? 'seo-og-image'
-          : (target === 'promoMobile'
-          ? 'tpl-mobile-promo-banner-url'
-          : (target === 'bannerMobile' ? 'tpl-banner-mobile-url' : 'tpl-banner-url'))));
-      var previewId = target === 'logo'
-        ? 'tpl-preview-logo'
-        : (target === 'favicon'
-          ? 'tpl-preview-favicon'
-          : (target === 'share'
-          ? 'seo-preview-share-img'
-          : (target === 'promoMobile'
-          ? 'tpl-preview-mobile-promo-banner'
-          : (target === 'bannerMobile' ? 'tpl-preview-banner-mobile' : 'tpl-preview-banner'))));
+      var fieldMap = {
+        logo: 'tpl-logo-url',
+        favicon: 'tpl-favicon-url',
+        share: 'seo-og-image',
+        promoMobile: 'tpl-mobile-promo-banner-url',
+        promoDesktop: 'tpl-desktop-promo-banner-url',
+        bannerMobile: 'tpl-banner-mobile-url'
+      };
+      var previewMap = {
+        logo: 'tpl-preview-logo',
+        favicon: 'tpl-preview-favicon',
+        share: 'seo-preview-share-img',
+        promoMobile: 'tpl-preview-mobile-promo-banner',
+        promoDesktop: 'tpl-preview-desktop-promo-banner',
+        bannerMobile: 'tpl-preview-banner-mobile'
+      };
+      var fieldId = fieldMap[target] || 'tpl-banner-url';
+      var previewId = previewMap[target] || 'tpl-preview-banner';
       var field = document.getElementById(fieldId);
       var preview = document.getElementById(previewId);
       var tabIcon = target === 'favicon' ? document.getElementById('tpl-preview-favicon-tab-icon') : null;
@@ -3243,6 +3546,8 @@ Modules.Catalogo = (function () {
             ? { faviconUrl: publicUrl, faviconStoragePath: result.imageStoragePath || '', faviconImagePath: result.imagePath || result.imageStoragePath || '', faviconWidth: result.imageWidth || 0, faviconHeight: result.imageHeight || 0, faviconSizeKb: result.imageSizeKb || 0, faviconFormat: result.imageFormat || 'webp' }
           : target === 'promoMobile'
             ? { mobilePromoBannerImageUrl: publicUrl, promoBannerImageUrl: publicUrl, promotionalBannerImageUrl: publicUrl, mobilePromoBannerStoragePath: result.imageStoragePath || '', promoBannerImageStoragePath: result.imageStoragePath || '', promoBannerImagePath: result.imagePath || result.imageStoragePath || '', mobilePromoBannerWidth: result.imageWidth || 0, mobilePromoBannerHeight: result.imageHeight || 0, mobilePromoBannerSizeKb: result.imageSizeKb || 0, mobilePromoBannerFormat: result.imageFormat || 'webp' }
+          : target === 'promoDesktop'
+            ? { desktopPromoBannerImageUrl: publicUrl, promoBannerDesktopImageUrl: publicUrl, desktopPromoBannerStoragePath: result.imageStoragePath || '', promoBannerDesktopStoragePath: result.imageStoragePath || '', desktopPromoBannerImagePath: result.imagePath || result.imageStoragePath || '', desktopPromoBannerWidth: result.imageWidth || 0, desktopPromoBannerHeight: result.imageHeight || 0, desktopPromoBannerSizeKb: result.imageSizeKb || 0, desktopPromoBannerFormat: result.imageFormat || 'webp' }
           : target === 'bannerMobile'
             ? { coverImageMobileUrl: publicUrl, mobileCoverImageUrl: publicUrl, bannerMobileUrl: publicUrl, bannerMobileStoragePath: result.imageStoragePath || '', coverImageMobileStoragePath: result.imageStoragePath || '', bannerMobileImagePath: result.imagePath || result.imageStoragePath || '', bannerMobileWidth: result.imageWidth || 0, bannerMobileHeight: result.imageHeight || 0, bannerMobileSizeKb: result.imageSizeKb || 0, bannerMobileFormat: result.imageFormat || 'webp' }
             : { coverImageUrl: publicUrl, bannerUrl: publicUrl, bannerStoragePath: result.imageStoragePath || '', coverImageStoragePath: result.imageStoragePath || '', bannerImagePath: result.imagePath || result.imageStoragePath || '', bannerWidth: result.imageWidth || 0, bannerHeight: result.imageHeight || 0, bannerSizeKb: result.imageSizeKb || 0, bannerFormat: result.imageFormat || 'webp' };
@@ -3252,6 +3557,8 @@ Modules.Catalogo = (function () {
             ? { faviconUrl: publicUrl }
           : target === 'promoMobile'
             ? { mobilePromoBannerImageUrl: publicUrl, promoBannerImageUrl: publicUrl }
+          : target === 'promoDesktop'
+            ? { desktopPromoBannerImageUrl: publicUrl, promoBannerDesktopImageUrl: publicUrl }
           : target === 'bannerMobile'
             ? { coverImageMobileUrl: publicUrl, mobileCoverImageUrl: publicUrl, bannerMobileUrl: publicUrl }
             : { coverImageUrl: publicUrl, bannerUrl: publicUrl };
@@ -3278,10 +3585,10 @@ Modules.Catalogo = (function () {
     });
   }
   function _clearStoreImage(kind) {
-    var target = kind === 'promoMobile' ? 'promoMobile' : (kind === 'bannerMobile' ? 'bannerMobile' : (kind === 'bannerDesktop' ? 'bannerDesktop' : (kind === 'banner' ? 'banner' : (kind === 'favicon' ? 'favicon' : 'logo'))));
-    var fieldId = target === 'logo' ? 'tpl-logo-url' : (target === 'favicon' ? 'tpl-favicon-url' : (target === 'promoMobile' ? 'tpl-mobile-promo-banner-url' : (target === 'bannerMobile' ? 'tpl-banner-mobile-url' : 'tpl-banner-url')));
-    var previewId = target === 'logo' ? 'tpl-preview-logo' : (target === 'favicon' ? 'tpl-preview-favicon' : (target === 'promoMobile' ? 'tpl-preview-mobile-promo-banner' : (target === 'bannerMobile' ? 'tpl-preview-banner-mobile' : 'tpl-preview-banner-desktop')));
-    var placeholderId = target === 'logo' ? 'tpl-preview-logo-placeholder' : (target === 'favicon' ? 'tpl-preview-favicon-placeholder' : (target === 'promoMobile' ? 'tpl-preview-mobile-promo-banner-placeholder' : (target === 'bannerMobile' ? 'tpl-preview-banner-mobile-placeholder' : 'tpl-preview-banner-desktop-placeholder')));
+    var target = kind === 'promoMobile' ? 'promoMobile' : (kind === 'promoDesktop' ? 'promoDesktop' : (kind === 'bannerMobile' ? 'bannerMobile' : (kind === 'bannerDesktop' ? 'bannerDesktop' : (kind === 'banner' ? 'banner' : (kind === 'favicon' ? 'favicon' : 'logo')))));
+    var fieldId = target === 'logo' ? 'tpl-logo-url' : (target === 'favicon' ? 'tpl-favicon-url' : (target === 'promoMobile' ? 'tpl-mobile-promo-banner-url' : (target === 'promoDesktop' ? 'tpl-desktop-promo-banner-url' : (target === 'bannerMobile' ? 'tpl-banner-mobile-url' : 'tpl-banner-url'))));
+    var previewId = target === 'logo' ? 'tpl-preview-logo' : (target === 'favicon' ? 'tpl-preview-favicon' : (target === 'promoMobile' ? 'tpl-preview-mobile-promo-banner' : (target === 'promoDesktop' ? 'tpl-preview-desktop-promo-banner' : (target === 'bannerMobile' ? 'tpl-preview-banner-mobile' : 'tpl-preview-banner-desktop'))));
+    var placeholderId = target === 'logo' ? 'tpl-preview-logo-placeholder' : (target === 'favicon' ? 'tpl-preview-favicon-placeholder' : (target === 'promoMobile' ? 'tpl-preview-mobile-promo-banner-placeholder' : (target === 'promoDesktop' ? 'tpl-preview-desktop-promo-banner-placeholder' : (target === 'bannerMobile' ? 'tpl-preview-banner-mobile-placeholder' : 'tpl-preview-banner-desktop-placeholder'))));
     var field = document.getElementById(fieldId);
     var preview = document.getElementById(previewId);
     var placeholder = document.getElementById(placeholderId);
@@ -3302,6 +3609,7 @@ Modules.Catalogo = (function () {
       showLogo: main.showLogo !== undefined ? !!main.showLogo : true,
       showStoreName: main.showStoreName !== undefined ? !!main.showStoreName : false,
       showSlogan: main.showSlogan !== undefined ? !!main.showSlogan : false,
+      showRating: main.showRating !== undefined ? !!main.showRating : true,
       showMoreInfoButton: main.showMoreInfoButton !== undefined ? !!main.showMoreInfoButton : (tpl.topShowMoreInfo !== false),
       showLocation: main.showLocation !== undefined ? !!main.showLocation : (tpl.topShowRegion !== false),
       showStoreStatus: main.showStoreStatus !== undefined ? !!main.showStoreStatus : (tpl.topShowRegion !== false),
@@ -3447,7 +3755,7 @@ Modules.Catalogo = (function () {
     var disabledAttr = locationReady ? '' : ' disabled aria-disabled="true"';
     var disabledStyle = locationReady ? 'background:#B42318;color:#fff;box-shadow:0 4px 12px rgba(180,35,24,.18);cursor:pointer;' : 'background:#D8CEC2;color:#fff;box-shadow:none;cursor:not-allowed;opacity:.72;';
     var body = zones.length ? zones.map(_deliveryZoneCardHtml).join('') : '<div style="border:1px dashed #EAE4DA;background:#FAF8F4;border-radius:14px;padding:18px;color:#6F6860;font-size:13px;line-height:1.45;text-align:center;">' + (locationReady ? 'Nenhuma zona cadastrada ainda. Clique em <strong>Adicionar zona</strong> para começar.' : 'Cadastre primeiro a <strong>Localização atendida</strong> acima para liberar as zonas de entrega.') + '</div>';
-    return '<section ' + _templatePanelAttrs('operacao') + ' style="' + _cardStyle() + '">' + _sectionTitle('Zonas de entrega', 'Configure os CEPs atendidos e o valor de entrega de cada zona.') +
+    return '<section ' + _templatePanelAttrs('operacao') + ' style="' + _cardStyle() + '">' + _sectionTitle('Zonas de entrega', 'Configure os CEPs atendidos e o valor de entrega de cada zona.', 'local_shipping') +
       '<div style="display:flex;flex-direction:column;gap:12px;">' +
         (!locationReady ? '<div style="border:1px solid #F1D7B8;background:#FFF8ED;border-radius:12px;padding:12px 14px;color:#7A4E13;font-size:12px;line-height:1.45;">Para cadastrar zonas, preencha antes Cidade atendida, Província / estado, País atendido e Código postal base.</div>' : '') +
         '<div style="display:none;">' +
@@ -3586,7 +3894,7 @@ Modules.Catalogo = (function () {
 
   function _deliveryAreaHtml(area) {
     area = area || {};
-    return '<section ' + _templatePanelAttrs('operacao') + ' style="' + _cardStyle() + '">' + _sectionTitle('Localização atendida', 'Selecione a cidade atendida antes de cadastrar as zonas de entrega. A província, país e código postal podem ser preenchidos automaticamente pela busca.') +
+    return '<section ' + _templatePanelAttrs('operacao') + ' style="' + _cardStyle() + '">' + _sectionTitle('Localização atendida', 'Selecione a cidade atendida antes de cadastrar as zonas de entrega. A província, país e código postal podem ser preenchidos automaticamente pela busca.', 'travel_explore') +
       '<div style="display:flex;flex-direction:column;gap:12px;">' +
         '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
           '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Cidade base da entrega</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Esses dados alimentam o Master como cidade, província/estado e país operacionais da loja.</div></div>' +
@@ -3736,6 +4044,9 @@ Modules.Catalogo = (function () {
       var featuredCouponId = tpl.featuredActionCouponId || tpl.featuredCouponId || '';
       var featuredPromotionId = tpl.featuredActionPromotionId || tpl.featuredPromotionId || '';
       var mostOrderedMode = tpl.mostOrderedMode || tpl.featuredMostOrderedMode || 'auto';
+      var mobilePromoTarget = tpl.mobilePromoBannerTarget || tpl.promoBannerTarget || ((tpl.mobilePromoBannerProductId || tpl.promoBannerProductId) ? 'product' : 'promotion');
+      var mobilePromoPromotionId = tpl.mobilePromoBannerPromotionId || tpl.promoBannerPromotionId || tpl.mobilePromoPromotionId || '';
+      var mobilePromoProductId = tpl.mobilePromoBannerProductId || tpl.promoBannerProductId || '';
       var mostOrderedAuto = _mostOrderedProductFromOrders();
       var productOptions = [{ value: '', label: 'Selecionar produto' }].concat((_products || []).filter(function (p) { return p && p.menuVisible !== false; }).map(function (p) {
         return { value: String(p.id), label: p.name || p.title || String(p.id) };
@@ -3780,145 +4091,199 @@ Modules.Catalogo = (function () {
         { value: '60-75', label: '60-75 min' },
         { value: '75-90', label: '75-90 min' }
       ];
-      var chipStyle = 'display:inline-flex;align-items:center;min-height:24px;padding:0 10px;border-radius:999px;background:#fff;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:500;box-shadow:0 1px 2px rgba(31,31,31,.02);';
+      var chipStyle = 'display:inline-flex;align-items:center;min-height:25px;padding:0 10px;border-radius:999px;background:#FFFDFC;border:1px solid #E9DDD7;color:#6F625C;font-size:11px;font-weight:650;box-shadow:0 1px 2px rgba(80,42,28,.03);';
+      var identityName = geral.businessName || tpl.publicName || 'Boca Food';
+      var identityText = geral.slogan || tpl.slogan || 'Adicione uma apresentação curta.';
+      var identityColor = _normalizeHexColor(tpl.brandColor || tpl.primaryColor || geral.primaryColor || '#B42318') || '#B42318';
       var content = document.getElementById('catalogo-content');
       content.innerHTML =
-        '<div class="bf-page" style="padding:0;display:flex;flex-direction:column;gap:16px;font-family:Manrope,Inter,sans-serif;">' +
-        '<div class="bf-page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
-          '<div style="min-width:0;flex:1 1 420px;"><h2 style="font-size:22px;font-weight:700;line-height:1.2;margin:0 0 6px;color:#1F1F1F;">Template da loja</h2><p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0 0 10px;max-width:760px;">Organize identidade, topo, operação, contatos, pagamentos e textos exibidos na loja pública.</p><div style="display:flex;gap:8px;flex-wrap:wrap;"><span style="' + chipStyle + '">' + (logo ? 'Logo configurada' : 'Sem logo') + '</span><span style="' + chipStyle + '">' + (banner ? 'Capa configurada' : 'Sem capa') + '</span><span style="' + chipStyle + '">' + (deliveryEnabled ? 'Entrega ativa' : 'Entrega inativa') + '</span><span style="' + chipStyle + '">' + (pickupEnabled ? 'Retirada ativa' : 'Retirada inativa') + '</span></div></div>' +
-          '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;"><button type="button" data-save-template-loja="1" onmouseenter="this.style.transform=\'translateY(-1px)\';this.style.boxShadow=\'0 8px 18px rgba(180,35,24,.20)\';" onmouseleave="this.style.transform=\'none\';this.style.boxShadow=\'0 4px 12px rgba(180,35,24,.18)\';" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">Salvar alterações</button></div>' +
+        '<div class="bf-page tpl-config-page" style="padding:0;display:flex;flex-direction:column;font-family:Manrope,Inter,sans-serif;">' +
+        '<div class="tpl-config-head">' +
+          '<div style="min-width:0;flex:1 1 420px;"><h2 class="tpl-config-title">Template da loja</h2><p class="tpl-config-subtitle">Organize a aparência, os canais e os textos que aparecem na página pública do seu negócio.</p><div class="tpl-config-status"><span class="tpl-config-chip">' + (logo ? 'Logo configurada' : 'Sem logo') + '</span><span class="tpl-config-chip">' + (banner ? 'Capa configurada' : 'Sem capa') + '</span><span class="tpl-config-chip">' + (deliveryEnabled ? 'Entrega ativa' : 'Entrega inativa') + '</span><span class="tpl-config-chip">' + (pickupEnabled ? 'Retirada ativa' : 'Retirada inativa') + '</span></div></div>' +
+          '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;"><button type="button" class="tpl-config-save" data-save-template-loja="1">Salvar alterações</button></div>' +
         '</div>' +
         _templateSubtabsHtml(_templateActiveTab || 'identidade') +
         '<div style="display:flex;flex-direction:column;gap:14px;">' +
-            '<section ' + _templatePanelAttrs('identidade') + ' style="' + _cardStyle() + '">' + _sectionTitle('Identidade visual', 'Dados visuais e públicos usados no cabeçalho da loja.') +
-              '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:14px;align-items:start;">' +
-                '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                  '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Dados públicos</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Nome, frase e idioma usados na loja pública.</div></div>' +
-                    _grid(
-                      _fieldHtml('tpl-public-name', 'Nome público da loja', geral.businessName || tpl.publicName || '', 'Boca Food') +
-                      _fieldHtml('tpl-slogan', 'Slogan/frase curta', geral.slogan || tpl.slogan || '', 'Comida feita com carinho') +
-                      _selectHtml('tpl-language', 'Idioma principal da loja', _normalizeTemplateLanguage(geral.language || geral.defaultLanguage || tpl.language || 'es-ES'), _templateLanguageOptions()) +
-                      _toggleHtml('tpl-verified-badge', 'Selo verificado', tpl.verifiedBadgeEnabled === true || tpl.storeVerified === true, 'Exibe o selo ao lado do nome da loja no mobile.'), '220px') +
+            '<div data-template-panel="identidade" class="tpl-identity-workspace' + (((_templateActiveTab || 'identidade') === 'identidade') ? ' active' : '') + '">' +
+            '<div class="tpl-identity-left">' +
+            '<section class="tpl-config-panel" style="' + _cardStyle() + '">' + _sectionTitle('Identidade visual', '', 'palette') +
+              '<input id="tpl-verified-badge" type="checkbox" style="display:none;"' + ((tpl.verifiedBadgeEnabled === true || tpl.storeVerified === true) ? ' checked' : '') + '>' +
+              '<input id="tpl-public-name" type="hidden" value="' + _esc(identityName) + '">' +
+              '<div class="tpl-identity-layout">' +
+                '<div class="tpl-identity-main">' +
+                  '<div class="tpl-brand-preview">' +
+                    '<div class="tpl-brand-preview-logo">' + (logo ? '<img src="' + _esc(_cleanPublicUrl(logo)) + '" alt="">' : '<span class="mi" style="font-size:25px;">storefront</span>') + '</div>' +
+                    '<div style="min-width:0;"><div class="tpl-brand-preview-name">' + _esc(identityName) + '</div><div class="tpl-brand-preview-text">' + _esc(identityText) + '</div><div class="tpl-brand-preview-accent" style="background:' + _esc(identityColor) + ';"></div></div>' +
                   '</div>' +
-                  '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Cor da marca</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">A cor principal alimenta botões, chips e destaques da loja.</div></div>' +
-                    _colorFieldHtml('tpl-primary-color', 'Cor principal', tpl.brandColor || tpl.primaryColor || geral.primaryColor || '#B42318', 'Cor principal da identidade visual da loja. Usada nos pills, bordas e destaques da loja pública.') +
-                  '</div>' +
-                '</div>' +
-                '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                  '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Arquivos da marca</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Logo e favicon usados no topo, menus, rodapé e aba do navegador.</div></div>' +
-                  '<div class="tpl-image-grid-media">' +
-                    _imageConfigHtml('logo', { cardClass: 'tpl-image-card--logo', previewClass: 'tpl-image-preview--logo', fit: 'contain', fileId: 'tpl-logo-file', urlId: 'tpl-logo-url', previewId: 'tpl-preview-logo', placeholderId: 'tpl-preview-logo-placeholder', label: 'Logo', value: logo, note: 'Use imagem quadrada, preferencialmente 512x512 px. Formatos aceitos: JPG, PNG ou WebP.', accept: 'image/png,image/jpeg,image/jpg,image/webp' }) +
-                    _imageConfigHtml('favicon', { cardClass: 'tpl-image-card--favicon', previewClass: 'tpl-image-preview--favicon', fit: 'contain', fileId: 'tpl-favicon-file', urlId: 'tpl-favicon-url', previewId: 'tpl-preview-favicon', placeholderId: 'tpl-preview-favicon-placeholder', label: 'Favicon', value: _cleanPublicUrl(tpl.faviconUrl || geral.faviconUrl || app.faviconUrl || ''), note: 'Use imagem quadrada, preferencialmente 64x64 px ou 512x512 px. Formatos aceitos: JPG, PNG ou WebP.', accept: 'image/png,image/jpeg,image/jpg,image/webp', extraHtml: '<div class="tpl-image-browser-tab" style="margin-top:12px;"><span class="tpl-image-browser-icon"><img id="tpl-preview-favicon-tab-icon" src="' + _esc(_cleanPublicUrl(tpl.faviconUrl || geral.faviconUrl || app.faviconUrl || '')) + '" alt="" style="display:' + (_cleanPublicUrl(tpl.faviconUrl || geral.faviconUrl || app.faviconUrl || '') ? 'block' : 'none') + ';"></span><span class="tpl-image-browser-text">Aba do navegador</span></div>' }) +
+                  '<div class="tpl-identity-main-grid">' +
+                    '<label class="tpl-field-full" style="display:block;"><span style="' + _labelStyle() + '">Apresentação curta</span><textarea id="tpl-slogan" rows="3" style="' + _inputStyle() + 'min-height:86px;resize:vertical;line-height:1.45;">' + _esc(geral.slogan || tpl.slogan || '') + '</textarea><small class="tpl-identity-help">Uma frase curta para apresentar sua loja na página pública.</small></label>' +
+                    '<label style="display:block;"><span style="' + _labelStyle() + '">Idioma principal da loja</span><span class="tpl-language-wrap"><select id="tpl-language" class="tpl-language-select" style="' + _inputStyle() + 'padding-right:42px;appearance:none;-webkit-appearance:none;-moz-appearance:none;background:#fff;">' + _templateLanguageOptions().map(function (o) { return '<option value="' + _esc(o.value) + '"' + (String(_normalizeTemplateLanguage(geral.language || geral.defaultLanguage || tpl.language || 'es-ES')) === String(o.value) ? ' selected' : '') + '>' + _esc(o.label) + '</option>'; }).join('') + '</select><span class="mi tpl-language-arrow">expand_more</span></span><small class="tpl-identity-help">Idioma usado nos textos principais da loja pública.</small></label>' +
+                    '<div>' + _colorFieldHtml('tpl-primary-color', 'Cor da marca', tpl.brandColor || tpl.primaryColor || geral.primaryColor || '#B42318', 'Cor da marca usada em botões e destaques.') + '<small class="tpl-identity-help">Use uma cor que combine com a identidade da sua marca.</small></div>' +
+                    '<div class="tpl-field-full tpl-identity-files">' +
+                      _imageConfigHtml('logo', { hideUrl: true, cardClass: 'tpl-image-card--logo', previewClass: 'tpl-image-preview--logo', fit: 'contain', fileId: 'tpl-logo-file', urlId: 'tpl-logo-url', previewId: 'tpl-preview-logo', placeholderId: 'tpl-preview-logo-placeholder', label: 'Logo da loja', value: logo, note: 'Tamanho recomendado: 500 × 500 px. Use JPG, PNG ou WebP.', accept: 'image/png,image/jpeg,image/jpg,image/webp' }) +
+                      _imageConfigHtml('favicon', { hideUrl: true, hidePreview: true, cardClass: 'tpl-image-card--favicon', previewClass: 'tpl-image-preview--favicon', fit: 'contain', fileId: 'tpl-favicon-file', urlId: 'tpl-favicon-url', previewId: 'tpl-preview-favicon', placeholderId: 'tpl-preview-favicon-placeholder', label: 'Favicon', value: _cleanPublicUrl(tpl.faviconUrl || geral.faviconUrl || app.faviconUrl || ''), note: 'Favicon recomendado: 32 × 32 px. Use PNG, JPG ou WebP.', accept: 'image/png,image/jpeg,image/jpg,image/webp', extraHtml: '<div class="tpl-image-browser-tab" style="margin-top:12px;"><span class="tpl-image-browser-icon"><img id="tpl-preview-favicon-tab-icon" src="' + _esc(_cleanPublicUrl(tpl.faviconUrl || geral.faviconUrl || app.faviconUrl || '')) + '" alt="" style="display:' + (_cleanPublicUrl(tpl.faviconUrl || geral.faviconUrl || app.faviconUrl || '') ? 'block' : 'none') + ';"></span><span class="tpl-image-browser-text">Aba</span></div>' }) +
+                    '</div>' +
                   '</div>' +
                 '</div>' +
               '</div>' +
             '</section>' +
-            '<section ' + _templatePanelAttrs('identidade') + ' style="' + _cardStyle() + '">' + _sectionTitle('Card principal da loja', 'Configure quais informações aparecem no topo da loja pública.') +
+            '<section class="tpl-config-panel" style="' + _cardStyle() + '">' + _sectionTitle('Card principal da loja', '', 'view_quilt') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">view_quilt</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo do card</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Controle o que aparece no primeiro card visto pelo cliente.</div></div></div>' +
                   '<div style="display:flex;gap:7px;flex-wrap:wrap;">' +
-                    '<span style="' + chipStyle + '">' + (mainCard.showLogo || mainCard.showStoreName || mainCard.showSlogan ? 'Identidade ativa' : 'Identidade oculta') + '</span>' +
-                    '<span style="' + chipStyle + '">' + (mainCard.showLocation || mainCard.showStoreStatus || mainCard.showOpeningHoursSummary ? 'Status visível' : 'Status oculto') + '</span>' +
-                    '<span style="' + chipStyle + '">' + (mainCard.showPickup || mainCard.showDelivery ? 'Canais visíveis' : 'Canais ocultos') + '</span>' +
+                    '<span class="tpl-config-chip">' + (mainCard.showLogo || mainCard.showStoreName || mainCard.showSlogan ? 'Identidade ativa' : 'Identidade oculta') + '</span>' +
+                    '<span class="tpl-config-chip">' + (mainCard.showLocation || mainCard.showStoreStatus || mainCard.showOpeningHoursSummary ? 'Status visível' : 'Status oculto') + '</span>' +
+                    '<span class="tpl-config-chip">' + (mainCard.showPickup || mainCard.showDelivery ? 'Canais visíveis' : 'Canais ocultos') + '</span>' +
                   '</div>' +
                 '</div>' +
-                '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                  '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;"><div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Identidade no card</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Mostre a marca e a chamada principal no topo da loja.</div></div></div>' +
-                    _grid(
-                      _toggleHtml('tpl-maincard-show-logo', 'Logo', mainCard.showLogo, '') +
-                      _toggleHtml('tpl-maincard-show-name', 'Nome da loja', mainCard.showStoreName, '') +
-                      _toggleHtml('tpl-maincard-show-slogan', 'Slogan/frase curta', mainCard.showSlogan, '') +
-                      _toggleHtml('tpl-maincard-show-more-info', 'Botão “Mais informação”', mainCard.showMoreInfoButton, ''), '190px') +
-                  '</div>' +
-                  '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px;align-items:start;">' +
-                    '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                      '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Localização e status</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Contexto público de funcionamento.</div></div>' +
-                      '<div style="display:flex;flex-direction:column;gap:10px;">' +
+                '<div class="tpl-maincard-layout">' +
+                '<div class="tpl-maincard-controls" style="display:flex;flex-direction:column;gap:12px;">' +
+                  '<div class="tpl-maincard-columns">' +
+                    '<div class="tpl-maincard-column">' +
+                      '<div class="tpl-maincard-column-title">Identidade</div>' +
+                        _toggleHtml('tpl-maincard-show-logo', 'Logo', mainCard.showLogo, '') +
+                        _toggleHtml('tpl-maincard-show-name', 'Nome da loja', mainCard.showStoreName, '') +
+                        _toggleHtml('tpl-maincard-show-slogan', 'Slogan/frase curta', mainCard.showSlogan, '') +
+                        _toggleHtml('tpl-maincard-show-rating', 'Nota de avaliação', mainCard.showRating, '') +
+                        _toggleHtml('tpl-maincard-show-more-info', 'Botão “Mais informação”', mainCard.showMoreInfoButton, '') +
+                    '</div>' +
+                    '<div class="tpl-maincard-column">' +
+                      '<div class="tpl-maincard-column-title">Localização</div>' +
                         _toggleHtml('tpl-maincard-show-location', 'Cidade/localização', mainCard.showLocation, '') +
                         _toggleHtml('tpl-maincard-show-status', 'Status da loja', mainCard.showStoreStatus, '') +
                         _toggleHtml('tpl-maincard-show-hours', 'Horário resumido', mainCard.showOpeningHoursSummary, '') +
-                      '</div>' +
                     '</div>' +
-                    '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                      '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Entrega e retirada</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Chips operacionais mostrados ao cliente.</div></div>' +
-                      '<div style="display:flex;flex-direction:column;gap:10px;">' +
+                    '<div class="tpl-maincard-column">' +
+                      '<div class="tpl-maincard-column-title">Atendimento</div>' +
                         _toggleHtml('tpl-maincard-show-pickup', 'Retirada', mainCard.showPickup, '') +
                         _toggleHtml('tpl-maincard-show-delivery', 'Entrega', mainCard.showDelivery, '') +
                         _toggleHtml('tpl-maincard-show-prep', 'Tempo de preparo', mainCard.showPreparationTime, '') +
+                    '</div>' +
+                    '<div class="tpl-maincard-column">' +
+                      '<div class="tpl-maincard-column-title">Pedido</div>' +
                         _toggleHtml('tpl-maincard-show-delivery-time', 'Tempo de entrega', mainCard.showDeliveryTime, '') +
                         _toggleHtml('tpl-maincard-show-min-order', 'Pedido mínimo', mainCard.showMinimumOrder, '') +
                         _toggleHtml('tpl-maincard-show-advance-days', 'Antecedência mínima', mainCard.showAdvanceDays, '') +
-                      '</div>' +
+                    '</div>' +
+                  '</div>' +
+                '</div>' +
+                '</div>' +
+              '</div>' +
+            '</section>' +
+            '<section class="tpl-config-panel" style="' + _cardStyle() + '">' + _sectionTitle('Imagem de capa', '', 'wallpaper') +
+              '<div style="display:flex;flex-direction:column;gap:12px;">' +
+                '<div id="tpl-cover-config" style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
+                  '<div style="display:flex;align-items:flex-start;justify-content:flex-start;gap:12px;flex-wrap:wrap;">' +
+                    _premiumSwitchHtml('tpl-top-use-cover', 'Mostrar imagem de capa', tpl.topUseCover !== false, '') +
+                  '</div>' +
+                  '<div id="tpl-cover-settings" style="display:' + (tpl.topUseCover !== false ? 'grid' : 'none') + ';grid-template-columns:minmax(260px,1.1fr) minmax(220px,.9fr);gap:12px;align-items:start;">' +
+                    '<div style="display:flex;flex-direction:column;gap:12px;">' +
+                      _imageConfigHtml('bannerDesktop', { hideUrl: true, fileId: 'tpl-banner-desktop-file', urlId: 'tpl-banner-url', previewId: 'tpl-preview-banner-desktop', placeholderId: 'tpl-preview-banner-desktop-placeholder', label: 'Imagem de capa desktop', value: banner, placeholder: 'Sem imagem de capa desktop', note: 'Tamanho recomendado: 1600 × 520 px. Use uma imagem horizontal para o topo da loja.' }) +
+                      _imageConfigHtml('bannerMobile', { hideUrl: true, fileId: 'tpl-banner-mobile-file', urlId: 'tpl-banner-mobile-url', previewId: 'tpl-preview-banner-mobile', placeholderId: 'tpl-preview-banner-mobile-placeholder', label: 'Imagem de capa mobile', value: bannerMobile, placeholder: 'Sem imagem de capa mobile', note: 'Tamanho recomendado: 1080 × 720 px. Use uma imagem que continue bonita em tela vertical.' }) +
+                    '</div>' +
+                    '<div style="display:flex;flex-direction:column;gap:12px;">' +
+                      _colorFieldHtml('tpl-banner-overlay-color', 'Cor da sobreposição da capa', tpl.bannerOverlayColor || tpl.coverOverlayColor || tpl.heroOverlayColor || '#000000', 'Prévia da sobreposição da capa') +
+                      _opacityFieldHtml('tpl-banner-overlay-opacity', 'Opacidade da sobreposição (%)', tpl.bannerOverlayOpacity != null ? tpl.bannerOverlayOpacity : (tpl.bannerOverlayTransparency != null ? (100 - Number(tpl.bannerOverlayTransparency)) : 14)) +
                     '</div>' +
                   '</div>' +
                 '</div>' +
               '</div>' +
             '</section>' +
-            '<section ' + _templatePanelAttrs('identidade') + ' style="' + _cardStyle() + '">' + _sectionTitle('Topo da loja', 'Controle o topo atual da loja pública sem trocar o design geral.') +
+            '<section class="tpl-config-panel" style="' + _cardStyle() + '">' + _sectionTitle('Banner promocional', '', 'campaign') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">web_asset</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo do topo</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Controle faixa, capa e elementos de navegação da loja.</div></div></div>' +
                   '<div style="display:flex;gap:7px;flex-wrap:wrap;">' +
-                    '<span style="' + chipStyle + '">' + (tpl.topPromoEnabled ? 'Banner ativo' : 'Sem banner') + '</span>' +
-                    '<span style="' + chipStyle + '">' + (tpl.topUseCover !== false ? 'Capa ativa' : 'Sem capa') + '</span>' +
-                    '<span style="' + chipStyle + '">' + (tpl.topShowChips !== false ? 'Chips visíveis' : 'Chips ocultos') + '</span>' +
+                    '<span class="tpl-config-chip">' + (tpl.topPromoEnabled ? 'Banner ativo' : 'Sem banner') + '</span>' +
+                    '<span class="tpl-config-chip">' + (tpl.topUseCover !== false ? 'Capa ativa' : 'Sem capa') + '</span>' +
+                    '<span class="tpl-config-chip">' + (tpl.topShowChips !== false ? 'Chips visíveis' : 'Chips ocultos') + '</span>' +
                   '</div>' +
                 '</div>' +
                 '<div style="display:flex;flex-direction:column;gap:12px;">' +
                   '<div id="tpl-promo-config" style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;"><div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Banner promocional</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Faixa curta exibida acima da loja.</div></div><div style="min-width:220px;">' + _toggleHtml('tpl-top-promo-enabled', 'Mostrar banner', !!tpl.topPromoEnabled, '') + '</div></div>' +
-                    '<div id="tpl-promo-settings" style="display:' + (tpl.topPromoEnabled ? 'grid' : 'none') + ';grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;align-items:start;">' +
+                    '<div style="display:flex;align-items:flex-start;justify-content:flex-start;gap:12px;flex-wrap:wrap;">' +
+                      _premiumSwitchHtml('tpl-top-promo-enabled', 'Mostrar Faixa no Topo', !!tpl.topPromoEnabled, '') +
+                    '</div>' +
+                    '<div id="tpl-promo-settings" style="display:' + (tpl.topPromoEnabled ? 'grid' : 'none') + ';grid-template-columns:repeat(auto-fit,minmax(220px,1fr));column-gap:12px;row-gap:8px;align-items:start;">' +
                       _fieldHtml('tpl-top-promo-text', 'Texto do banner promocional', tpl.topPromoText || '', 'Entrega grátis acima de €30') +
                       _colorFieldHtml('tpl-top-promo-color', 'Cor do banner promocional', tpl.topPromoColor || '#B42318', '') +
                       _colorFieldHtml('tpl-top-promo-text-color', 'Cor da letra do banner promocional', tpl.topPromoTextColor || tpl.promoBannerTextColor || tpl.bannerPromoTextColor || '#FFFFFF', '') +
                       _toggleHtml('tpl-top-promo-closable', 'Permitir fechar banner', tpl.topPromoClosable !== false, '') +
-                      '<div id="tpl-promo-banner-preview" style="grid-column:1 / -1;display:flex;align-items:center;justify-content:center;min-height:52px;padding:10px 14px;border-radius:12px;border:1px solid #EAE4DA;background:' + _esc(_normalizeHexColor(tpl.topPromoColor || '#B42318')) + ';color:' + _esc(_normalizeHexColor(tpl.topPromoTextColor || tpl.promoBannerTextColor || tpl.bannerPromoTextColor || '#FFFFFF')) + ';font-size:13px;font-weight:800;line-height:1.25;text-align:center;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);">Entrega grátis acima de €30</div>' +
+                      '<div id="tpl-promo-banner-preview" style="grid-column:1 / -1;display:flex;align-items:center;justify-content:center;min-height:48px;margin-top:-2px;padding:9px 14px;border-radius:12px;border:1px solid #EAE4DA;background:' + _esc(_normalizeHexColor(tpl.topPromoColor || '#B42318')) + ';color:' + _esc(_normalizeHexColor(tpl.topPromoTextColor || tpl.promoBannerTextColor || tpl.bannerPromoTextColor || '#FFFFFF')) + ';font-size:13px;font-weight:800;line-height:1.25;text-align:center;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);">Entrega grátis acima de €30</div>' +
                     '</div>' +
                   '</div>' +
                   '<div id="tpl-mobile-promo-config" style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;"><div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Banner promocional visual</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Banner premium exibido na página mobile, abaixo das categorias. Opcional.</div></div><div style="min-width:220px;">' + _toggleHtml('tpl-mobile-promo-banner-enabled', 'Mostrar no mobile', tpl.mobilePromoBannerEnabled !== false && !!(tpl.mobilePromoBannerImageUrl || tpl.promoBannerImageUrl || tpl.promotionalBannerImageUrl), '') + '</div></div>' +
+                    '<div style="display:flex;align-items:flex-start;justify-content:flex-start;gap:12px;flex-wrap:wrap;">' +
+                      _premiumSwitchHtml('tpl-mobile-promo-banner-enabled', 'Mostrar banner promocional', tpl.mobilePromoBannerEnabled !== false && tpl.promotionalBannerEnabled !== false && tpl.promoVisualBannerEnabled !== false, '') +
+                    '</div>' +
                     '<div style="display:grid;grid-template-columns:minmax(260px,1.1fr) minmax(220px,.9fr);gap:12px;align-items:start;">' +
-                      _imageConfigHtml('promoMobile', { fileId: 'tpl-mobile-promo-banner-file', urlId: 'tpl-mobile-promo-banner-url', previewId: 'tpl-preview-mobile-promo-banner', placeholderId: 'tpl-preview-mobile-promo-banner-placeholder', label: 'Imagem do banner promocional mobile', value: tpl.mobilePromoBannerImageUrl || tpl.promoBannerImageUrl || tpl.promotionalBannerImageUrl || '', placeholder: 'Sem banner promocional', note: 'Tamanho recomendado: 1080 × 420 px. Use imagem com produto/combinação em destaque.' }) +
+                      '<div style="display:flex;flex-direction:column;gap:12px;">' +
+                        _imageConfigHtml('promoMobile', { hideUrl: true, fileId: 'tpl-mobile-promo-banner-file', urlId: 'tpl-mobile-promo-banner-url', previewId: 'tpl-preview-mobile-promo-banner', placeholderId: 'tpl-preview-mobile-promo-banner-placeholder', label: 'Imagem do banner promocional mobile', value: tpl.mobilePromoBannerImageUrl || tpl.promoBannerImageUrl || tpl.promotionalBannerImageUrl || '', placeholder: 'Sem banner promocional', note: 'Tamanho recomendado: 1080 × 420 px. Use imagem com produto/combinação em destaque.' }) +
+                        _imageConfigHtml('promoDesktop', { hideUrl: true, fileId: 'tpl-desktop-promo-banner-file', urlId: 'tpl-desktop-promo-banner-url', previewId: 'tpl-preview-desktop-promo-banner', placeholderId: 'tpl-preview-desktop-promo-banner-placeholder', label: 'Imagem do banner promocional desktop', value: tpl.desktopPromoBannerImageUrl || tpl.promoBannerDesktopImageUrl || '', placeholder: 'Sem banner promocional desktop', note: 'Tamanho recomendado: 1600 × 520 px. Use uma imagem horizontal, com boa leitura em telas maiores.' }) +
+                      '</div>' +
                       '<div style="display:flex;flex-direction:column;gap:12px;">' +
                         _fieldHtml('tpl-mobile-promo-banner-badge', 'Selo do banner', tpl.mobilePromoBannerBadge || tpl.promoBannerBadge || '', 'Mais pedido') +
                         _fieldHtml('tpl-mobile-promo-banner-title', 'Título do banner', tpl.mobilePromoBannerTitle || tpl.promoBannerTitle || '', 'Combo Burger Clássico') +
                         _textareaHtml('tpl-mobile-promo-banner-text', 'Texto curto', tpl.mobilePromoBannerText || tpl.promoBannerSubtitle || '', 'Burger + batata + refrigerante', 2) +
                         _fieldHtml('tpl-mobile-promo-banner-button', 'Texto do botão', tpl.mobilePromoBannerButtonText || tpl.promoBannerButtonText || '', 'Ver detalhes') +
+                        _selectHtml('tpl-mobile-promo-banner-target', 'Ao clicar no banner', mobilePromoTarget, [
+                          { value: 'promotion', label: 'Abrir página da promoção' },
+                          { value: 'product', label: 'Abrir produto da promoção' },
+                          { value: 'all_promotions', label: 'Abrir todas as promoções' }
+                        ]) +
+                        '<div id="tpl-mobile-promo-banner-promotion-wrap" style="display:' + (mobilePromoTarget === 'promotion' ? 'block' : 'none') + ';">' +
+                          _promotionPickerHtml(mobilePromoPromotionId).replace(/tpl-featured-promotion-picker/g, 'tpl-mobile-promo-banner-promotion-picker').replace(/tpl-featured-promotion-dropdown/g, 'tpl-mobile-promo-banner-promotion-dropdown').replace(/tpl-featured-promotion/g, 'tpl-mobile-promo-banner-promotion').replace('Selecionar promoção ativa', 'Promoção que será aberta') +
+                        '</div>' +
+                        '<div id="tpl-mobile-promo-banner-product-wrap" style="display:' + (mobilePromoTarget === 'product' ? 'block' : 'none') + ';">' +
+                          _mobilePromoProductPickerHtml(mobilePromoProductId) +
+                        '</div>' +
+                        '<div id="tpl-mobile-promo-banner-all-note" style="display:' + (mobilePromoTarget === 'all_promotions' ? 'block' : 'none') + ';padding:11px 12px;border:1px solid #F0E8DE;border-radius:12px;background:#FFFDFC;color:#766B63;font-size:12px;line-height:1.45;">Não precisa escolher item específico. O banner leva para a área com todas as promoções ativas.</div>' +
                       '</div>' +
                     '</div>' +
                   '</div>' +
-                  '<div id="tpl-cover-config" style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;"><div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Imagem de capa</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Imagem pública do topo com versão desktop, mobile e sobreposição.</div></div><div style="min-width:220px;">' + _toggleHtml('tpl-top-use-cover', 'Usar capa', tpl.topUseCover !== false, '') + '</div></div>' +
-                    '<div id="tpl-cover-settings" style="display:' + (tpl.topUseCover !== false ? 'grid' : 'none') + ';grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;align-items:start;">' +
-                      _imageConfigHtml('bannerDesktop', { fileId: 'tpl-banner-desktop-file', urlId: 'tpl-banner-url', previewId: 'tpl-preview-banner-desktop', placeholderId: 'tpl-preview-banner-desktop-placeholder', label: 'Imagem de capa desktop', value: banner, placeholder: 'Sem imagem de capa desktop', note: 'Tamanho recomendado: 1600 × 520 px.' }) +
-                      _imageConfigHtml('bannerMobile', { fileId: 'tpl-banner-mobile-file', urlId: 'tpl-banner-mobile-url', previewId: 'tpl-preview-banner-mobile', placeholderId: 'tpl-preview-banner-mobile-placeholder', label: 'Imagem de capa mobile', value: bannerMobile || banner, placeholder: 'Sem imagem de capa mobile', note: 'Tamanho recomendado: 1080 × 720 px.' }) +
-                      '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                        _colorFieldHtml('tpl-banner-overlay-color', 'Cor da sobreposição da capa', tpl.bannerOverlayColor || tpl.coverOverlayColor || tpl.heroOverlayColor || '#000000', 'Prévia da sobreposição da capa') +
-                        _opacityFieldHtml('tpl-banner-overlay-opacity', 'Opacidade da sobreposição (%)', tpl.bannerOverlayOpacity != null ? tpl.bannerOverlayOpacity : (tpl.bannerOverlayTransparency != null ? (100 - Number(tpl.bannerOverlayTransparency)) : 14)) +
-                      '</div>' +
-                    '</div>' +
-                  '</div>' +
-                  '<div id="tpl-top-elements-config" style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Elementos visíveis no topo</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Itens auxiliares exibidos no cabeçalho da loja pública.</div></div>' +
-                    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;">' +
-                      _toggleHtml('tpl-top-show-region', 'Mostrar cidade/região', tpl.topShowRegion !== false, '') +
-                      _toggleHtml('tpl-top-more-info', 'Mostrar botão “Mais informações”', tpl.topShowMoreInfo !== false, '') +
-                      _toggleHtml('tpl-top-chips', 'Mostrar chips de entrega/retirada', tpl.topShowChips !== false, '') +
-                    '</div>' +
-                  '</div>' +
+                  '<input id="tpl-top-show-region" type="checkbox" style="display:none;"' + (tpl.topShowRegion !== false ? ' checked' : '') + '>' +
+                  '<input id="tpl-top-more-info" type="checkbox" style="display:none;"' + (tpl.topShowMoreInfo !== false ? ' checked' : '') + '>' +
+                  '<input id="tpl-top-chips" type="checkbox" style="display:none;"' + (tpl.topShowChips !== false ? ' checked' : '') + '>' +
                 '</div>' +
               '</div>' +
             '</section>' +
-            '<section ' + _templatePanelAttrs('vitrine') + ' style="' + _cardStyle() + '">' + _sectionTitle('Menu de categorias', 'Controle os elementos gráficos opcionais das categorias no template mobile. Se não houver imagem, o menu usa emoji ou apenas texto.') +
+            '</div>' +
+            '<aside class="tpl-maincard-preview-shell">' +
+              '<div class="tpl-maincard-preview-phone">' +
+                '<div id="tpl-maincard-preview-promo" class="tpl-maincard-preview-promo">Entrega grátis acima de €30</div>' +
+                '<div id="tpl-maincard-preview-hero" class="tpl-maincard-preview-hero" style="' + (bannerMobile || banner ? 'background-image:linear-gradient(180deg,rgba(28,18,10,.20) 0%,rgba(28,18,10,.03) 54%,rgba(255,250,243,0) 100%),url(&quot;' + _esc(_cleanPublicUrl(bannerMobile || banner)) + '&quot;);' : '') + '">' +
+                  '<div class="tpl-maincard-preview-nav"><div class="tpl-maincard-preview-nav-left"><span class="tpl-maincard-preview-circle">‹</span><span class="tpl-maincard-preview-pill"><span id="tpl-maincard-preview-avatar" class="tpl-maincard-preview-avatar">' + _esc(String(identityName || 'BF').slice(0, 2).toUpperCase()) + '</span>Entrar</span></div><div class="tpl-maincard-preview-nav-side"><span class="tpl-maincard-preview-circle"><span class="mi" style="font-size:15px;">search</span></span><span class="tpl-maincard-preview-circle"><span class="mi" style="font-size:15px;">shopping_bag</span></span></div></div>' +
+                  '<div class="tpl-maincard-preview-card">' +
+                    '<div class="tpl-maincard-preview-head">' +
+                      '<div id="tpl-maincard-preview-logo" class="tpl-maincard-preview-logo">' + (logo ? '<img src="' + _esc(_cleanPublicUrl(logo)) + '" alt="">' : '<span class="mi" style="font-size:25px;">storefront</span>') + '</div>' +
+                      '<div class="tpl-maincard-preview-copy">' +
+                        '<div id="tpl-maincard-preview-name" class="tpl-maincard-preview-name">' + _esc(identityName) + '</div>' +
+                        '<div id="tpl-maincard-preview-slogan" class="tpl-maincard-preview-slogan">' + _esc(identityText) + '</div>' +
+                        '<div id="tpl-maincard-preview-facts" class="tpl-maincard-preview-facts"></div>' +
+                        '<div id="tpl-maincard-preview-chips" class="tpl-maincard-preview-chips"></div>' +
+                        '<span id="tpl-maincard-preview-more" class="tpl-maincard-preview-more">Mais informações ›</span>' +
+                      '</div>' +
+                    '</div>' +
+                  '</div>' +
+                '</div>' +
+                '<div id="tpl-maincard-preview-mobile-banner" class="tpl-maincard-preview-mobile-banner">' +
+                  '<div class="tpl-maincard-preview-mobile-banner-copy">' +
+                    '<span id="tpl-maincard-preview-mobile-banner-badge" class="tpl-maincard-preview-mobile-banner-badge">Mais pedido</span>' +
+                    '<div id="tpl-maincard-preview-mobile-banner-title" class="tpl-maincard-preview-mobile-banner-title">Combo Burger Clássico</div>' +
+                    '<div id="tpl-maincard-preview-mobile-banner-text" class="tpl-maincard-preview-mobile-banner-text">Burger + batata + refrigerante</div>' +
+                    '<span id="tpl-maincard-preview-mobile-banner-cta" class="tpl-maincard-preview-mobile-banner-cta">Ver detalhes</span>' +
+                  '</div>' +
+                '</div>' +
+              '</div>' +
+            '</aside>' +
+            '</div>' +
+            '<section ' + _templatePanelAttrs('vitrine') + ' style="' + _cardStyle() + '">' + _sectionTitle('Menu de categorias', 'Controle os elementos gráficos opcionais das categorias no template mobile. Se não houver imagem, o menu usa emoji ou apenas texto.', 'category') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 _templateCategoryVisualsHtml() +
               '</div>' +
             '</section>' +
-            '<section ' + _templatePanelAttrs('vitrine') + ' style="' + _cardStyle() + '">' + _sectionTitle('Destaque comercial do topo', 'Escolha o conteúdo do card lateral/comercial exibido ao lado do resumo da loja no desktop e abaixo no mobile.') +
+            '<section ' + _templatePanelAttrs('vitrine') + ' style="' + _cardStyle() + '">' + _sectionTitle('Destaque comercial do topo', 'Escolha o conteúdo do card lateral/comercial exibido ao lado do resumo da loja no desktop e abaixo no mobile.', 'campaign') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">campaign</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo do destaque</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Escolha se o topo terá cupom, promoção, produto ou texto próprio.</div></div></div>' +
@@ -3981,7 +4346,7 @@ Modules.Catalogo = (function () {
                 '</div>' +
               '</div>' +
             '</section>' +
-            '<section ' + _templatePanelAttrs('vitrine') + ' style="' + _cardStyle() + '">' + _sectionTitle('Destaques da vitrine', 'Escolha produtos para aparecerem no topo da listagem pública.') +
+            '<section ' + _templatePanelAttrs('vitrine') + ' style="' + _cardStyle() + '">' + _sectionTitle('Destaques da vitrine', 'Escolha produtos para aparecerem no topo da listagem pública.', 'stars') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">stars</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo da vitrine</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Defina quais produtos ganham destaque antes da lista completa.</div></div></div>' +
@@ -4011,7 +4376,7 @@ Modules.Catalogo = (function () {
                 '</div>' +
               '</div>' +
             '</section>' +
-            '<section ' + _templatePanelAttrs('vitrine') + ' style="' + _cardStyle() + '">' + _sectionTitle('Programa de fidelidade', 'Bloco exibido no mobile abaixo dos dados principais da loja.') +
+            '<section ' + _templatePanelAttrs('vitrine') + ' style="' + _cardStyle() + '">' + _sectionTitle('Programa de fidelidade', 'Bloco exibido no mobile abaixo dos dados principais da loja.', 'loyalty') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
                   '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;"><div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Clube de pontos</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Ative somente se a loja usar programa de pontos.</div></div><div style="min-width:220px;">' + _toggleHtml('tpl-loyalty-enabled', 'Mostrar fidelidade', tpl.loyaltyEnabled === true || tpl.pointsProgramEnabled === true, '') + '</div></div>' +
@@ -4022,7 +4387,7 @@ Modules.Catalogo = (function () {
                 '</div>' +
               '</div>' +
             '</section>' +
-            '<section ' + _templatePanelAttrs('operacao') + ' style="' + _cardStyle() + '">' + _sectionTitle('Entrega e retirada', 'Configure como o cliente pode receber o pedido, os prazos operacionais e as informações exibidas na loja.') +
+            '<section ' + _templatePanelAttrs('operacao') + ' style="' + _cardStyle() + '">' + _sectionTitle('Entrega e retirada', 'Configure como o cliente pode receber o pedido, os prazos operacionais e as informações exibidas na loja.', 'delivery_dining') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">local_shipping</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo operacional</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Canais, prazos e textos que aparecem na loja.</div></div></div>' +
@@ -4067,7 +4432,7 @@ Modules.Catalogo = (function () {
             '</section>' +
             _deliveryAreaHtml(deliveryArea) +
             _deliveryZonesHtml() +
-            '<section ' + _templatePanelAttrs('operacao') + ' style="' + _cardStyle() + '">' + _sectionTitle('Horários e status', 'Funcionamento da loja e mensagens especiais.') +
+            '<section ' + _templatePanelAttrs('operacao') + ' style="' + _cardStyle() + '">' + _sectionTitle('Horários e status', 'Funcionamento da loja e mensagens especiais.', 'schedule') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">schedule</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo dos horários</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Defina abertura automática, fechamento manual e horários especiais.</div></div></div>' +
@@ -4094,7 +4459,7 @@ Modules.Catalogo = (function () {
                 '</div>' +
               '</div>' +
             '</section>' +
-            '<section ' + _templatePanelAttrs('atendimento') + ' style="' + _cardStyle() + '">' + _sectionTitle('Contato', 'Configure os canais que o cliente pode usar para falar com a loja.') +
+            '<section ' + _templatePanelAttrs('atendimento') + ' style="' + _cardStyle() + '">' + _sectionTitle('Contato', 'Configure os canais que o cliente pode usar para falar com a loja.', 'support_agent') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">support_agent</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo dos contatos</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Canais clicáveis e redes exibidos na loja.</div></div></div>' +
@@ -4136,7 +4501,7 @@ Modules.Catalogo = (function () {
                 '</div>' +
               '</div>' +
             '</section>' +
-            '<section ' + _templatePanelAttrs('atendimento') + ' style="' + _cardStyle() + '">' + _sectionTitle('Endereço', 'Localização pública da loja.') +
+            '<section ' + _templatePanelAttrs('atendimento') + ' style="' + _cardStyle() + '">' + _sectionTitle('Endereço', 'Localização pública da loja.', 'location_on') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">location_on</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo do endereço</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Local público usado para retirada, comunicação e referência da loja.</div></div></div>' +
@@ -4167,7 +4532,7 @@ Modules.Catalogo = (function () {
                 '</div>' +
               '</div>' +
             '</section>' +
-            '<section ' + _templatePanelAttrs('checkout') + ' style="' + _cardStyle() + '">' + _sectionTitle('Pagamentos exibidos na loja', 'Formas cadastradas em Configurações > Financeiro. Ative apenas as que estarão disponíveis para o cliente.') +
+            '<section ' + _templatePanelAttrs('checkout') + ' style="' + _cardStyle() + '">' + _sectionTitle('Pagamentos exibidos na loja', 'Formas cadastradas em Configurações > Financeiro. Ative apenas as que estarão disponíveis para o cliente.', 'payments') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">payments</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo dos pagamentos</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Formas de pagamento visíveis no checkout da loja.</div></div></div>' +
@@ -4190,7 +4555,7 @@ Modules.Catalogo = (function () {
                 '</div>' +
               '</div>' +
             '</section>' +
-            '<section ' + _templatePanelAttrs('checkout') + ' style="' + _cardStyle() + '">' + _sectionTitle('Finalização do pedido', 'Configurações ligadas ao carrinho e checkout.') +
+            '<section ' + _templatePanelAttrs('checkout') + ' style="' + _cardStyle() + '">' + _sectionTitle('Finalização do pedido', 'Configurações ligadas ao carrinho e checkout.', 'shopping_cart_checkout') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">shopping_cart_checkout</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo do checkout</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Controle opções simples do carrinho e finalização.</div></div></div>' +
@@ -4212,7 +4577,7 @@ Modules.Catalogo = (function () {
                 '</div>' +
               '</div>' +
             '</section>' +
-            '<section ' + _templatePanelAttrs('atendimento') + ' style="' + _cardStyle() + '">' + _sectionTitle('WhatsApp da loja', 'Mensagem usada pelo botão flutuante do WhatsApp na loja pública.') +
+            '<section ' + _templatePanelAttrs('atendimento') + ' style="' + _cardStyle() + '">' + _sectionTitle('WhatsApp da loja', 'Mensagem usada pelo botão flutuante do WhatsApp na loja pública.', 'chat') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">chat</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo do WhatsApp</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Texto do botão flutuante e mensagem inicial enviada pelo cliente.</div></div></div>' +
@@ -4229,7 +4594,7 @@ Modules.Catalogo = (function () {
                 '</div>' +
               '</div>' +
             '</section>' +
-            '<section ' + _templatePanelAttrs('textos') + ' style="' + _cardStyle() + '">' + _sectionTitle('Mais informações', 'Textos exibidos quando o cliente abre o modal de informações da loja.') +
+            '<section ' + _templatePanelAttrs('textos') + ' style="' + _cardStyle() + '">' + _sectionTitle('Mais informações', 'Textos exibidos quando o cliente abre o modal de informações da loja.', 'info') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">info</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo das informações</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Conteúdo do modal público de informações da loja.</div></div></div>' +
@@ -4255,10 +4620,20 @@ Modules.Catalogo = (function () {
               '</div>' +
               '<input id="tpl-footer" type="hidden" value="' + _esc(tpl.footerText || '') + '">' +
             '</section>' +
-            '<div style="display:flex;justify-content:flex-end;"><button type="button" data-save-template-loja="1" onmouseenter="this.style.transform=\'translateY(-1px)\';this.style.boxShadow=\'0 8px 18px rgba(180,35,24,.20)\';" onmouseleave="this.style.transform=\'none\';this.style.boxShadow=\'0 4px 12px rgba(180,35,24,.18)\';" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">Salvar alterações</button></div>' +
+            '<div style="display:flex;justify-content:flex-end;"><button type="button" class="tpl-config-save" data-save-template-loja="1">Salvar alterações</button></div>' +
         '</div></div>';
       _setTemplateTab(_templateActiveTab || 'identidade');
       setTimeout(function () {
+        if (!content._tplPreviewScrollBound) {
+          content._tplPreviewScrollBound = true;
+          var syncPreview = function () {
+            if (window.requestAnimationFrame) window.requestAnimationFrame(_syncTemplatePreviewColumn);
+            else _syncTemplatePreviewColumn();
+          };
+          content.addEventListener('scroll', syncPreview, { passive: true });
+          window.addEventListener('scroll', syncPreview, { passive: true });
+          window.addEventListener('resize', syncPreview);
+        }
         [].slice.call(content.querySelectorAll('input,textarea,select')).forEach(function (el) {
           el.addEventListener('input', _refreshTemplatePreview);
           el.addEventListener('change', _refreshTemplatePreview);
@@ -4269,6 +4644,8 @@ Modules.Catalogo = (function () {
         _bindColorField('tpl-primary-color');
         _bindOpacityField('tpl-banner-overlay-opacity');
         _refreshTemplatePreview();
+        _syncTemplatePreviewColumn();
+        setTimeout(_syncTemplatePreviewColumn, 160);
         if (window.BocaPlaces) {
           BocaPlaces.init('tpl-address');
           BocaPlaces.init('tpl-delivery-area-city');
@@ -4298,15 +4675,25 @@ Modules.Catalogo = (function () {
     var hex = document.getElementById(id + '-hex');
     if (!picker || !hex || picker._boundColor) return;
     picker._boundColor = true;
+    var swatch = document.querySelector('[data-color-swatch-for="' + id + '"]');
+    var syncSwatch = function (value) {
+      var color = _normalizeHexColor(value);
+      if (color && swatch) swatch.style.background = color;
+    };
     picker.addEventListener('input', function () {
       hex.value = _normalizeHexColor(picker.value) || '#B42318';
+      syncSwatch(hex.value);
       _refreshTemplatePreview();
     });
     hex.addEventListener('input', function () {
       var color = _normalizeHexColor(hex.value);
-      if (color) picker.value = color;
+      if (color) {
+        picker.value = color;
+        syncSwatch(color);
+      }
       _refreshTemplatePreview();
     });
+    syncSwatch(picker.value || hex.value);
   }
   function _bindOpacityField(id) {
     var num = document.getElementById(id);
@@ -4378,6 +4765,12 @@ Modules.Catalogo = (function () {
   function _bindFeaturedPromotionPicker() {
     _bindFeaturedCombobox('promotion', 'tpl-featured-promotion-picker', 'tpl-featured-promotion', 'tpl-featured-promotion-dropdown');
   }
+  function _bindMobilePromoPromotionPicker() {
+    _bindFeaturedCombobox('promotion', 'tpl-mobile-promo-banner-promotion-picker', 'tpl-mobile-promo-banner-promotion', 'tpl-mobile-promo-banner-promotion-dropdown');
+  }
+  function _bindMobilePromoProductPicker() {
+    _bindFeaturedCombobox('mobilePromoProduct', 'tpl-mobile-promo-banner-product-picker', 'tpl-mobile-promo-banner-product', 'tpl-mobile-promo-banner-product-dropdown');
+  }
   function _bindShowcaseProductPickers() {
     [1, 2, 3].forEach(function (index) {
       _bindFeaturedCombobox('showcaseProduct', 'tpl-showcase-product-picker-' + index, 'tpl-showcase-product-' + index, 'tpl-showcase-product-dropdown-' + index);
@@ -4415,6 +4808,16 @@ Modules.Catalogo = (function () {
         };
       });
     }
+    if (kind === 'mobilePromoProduct') {
+      return _promotionProductOptionItems().map(function (item) {
+        return {
+          value: String(item.product && item.product.id || ''),
+          label: item.label,
+          sub: item.sub,
+          search: [item.label, item.sub, item.product && item.product.name, item.product && item.product.title].filter(Boolean).join(' ')
+        };
+      });
+    }
     return _activeProductOptions().map(function (p) {
       return {
         value: String(p.id || ''),
@@ -4427,6 +4830,7 @@ Modules.Catalogo = (function () {
   function _featuredComboboxEmptyText(kind) {
     if (kind === 'coupon') return 'Nenhum cupom ativo encontrado.';
     if (kind === 'promotion') return 'Nenhuma promoção ativa encontrada.';
+    if (kind === 'mobilePromoProduct') return 'Nenhum produto vinculado a promoção encontrado.';
     return 'Nenhum produto encontrado.';
   }
   function _closeFeaturedComboboxes(except) {
@@ -4491,6 +4895,7 @@ Modules.Catalogo = (function () {
   }
 
   function _refreshTemplatePreview() {
+    setTimeout(_syncTemplatePreviewColumn, 0);
     var name = document.getElementById('tpl-preview-name');
     var slogan = document.getElementById('tpl-preview-slogan');
     var btn = document.getElementById('tpl-preview-button');
@@ -4517,7 +4922,22 @@ Modules.Catalogo = (function () {
     var featuredText = document.getElementById('tpl-preview-featured-text');
     var featuredBtn = document.getElementById('tpl-preview-featured-btn');
     var shortName = document.getElementById('tpl-preview-short');
+    var logoDot = document.getElementById('tpl-preview-logo-dot');
     var statusPill = document.getElementById('tpl-preview-status-pill');
+    var mainCardPreviewHero = document.getElementById('tpl-maincard-preview-hero');
+    var mainCardPreviewAvatar = document.getElementById('tpl-maincard-preview-avatar');
+    var mainCardPreviewLogo = document.getElementById('tpl-maincard-preview-logo');
+    var mainCardPreviewName = document.getElementById('tpl-maincard-preview-name');
+    var mainCardPreviewSlogan = document.getElementById('tpl-maincard-preview-slogan');
+    var mainCardPreviewFacts = document.getElementById('tpl-maincard-preview-facts');
+    var mainCardPreviewMore = document.getElementById('tpl-maincard-preview-more');
+    var mainCardPreviewChips = document.getElementById('tpl-maincard-preview-chips');
+    var mainCardPreviewPromo = document.getElementById('tpl-maincard-preview-promo');
+    var mainCardPreviewMobileBanner = document.getElementById('tpl-maincard-preview-mobile-banner');
+    var mainCardPreviewMobileBannerBadge = document.getElementById('tpl-maincard-preview-mobile-banner-badge');
+    var mainCardPreviewMobileBannerTitle = document.getElementById('tpl-maincard-preview-mobile-banner-title');
+    var mainCardPreviewMobileBannerText = document.getElementById('tpl-maincard-preview-mobile-banner-text');
+    var mainCardPreviewMobileBannerCta = document.getElementById('tpl-maincard-preview-mobile-banner-cta');
     var promoSettings = document.getElementById('tpl-promo-settings');
     var coverSettings = document.getElementById('tpl-cover-settings');
     var coverConfig = document.getElementById('tpl-cover-config');
@@ -4530,10 +4950,29 @@ Modules.Catalogo = (function () {
     var featuredCustomWrap = document.getElementById('tpl-featured-custom-wrap');
     var deliverySettingsWrap = document.getElementById('tpl-delivery-settings-wrap');
     var pickupSettingsWrap = document.getElementById('tpl-pickup-settings-wrap');
+    var mobilePromoTarget = _val('tpl-mobile-promo-banner-target') || 'promotion';
+    var mobilePromoPromotionWrap = document.getElementById('tpl-mobile-promo-banner-promotion-wrap');
+    var mobilePromoProductWrap = document.getElementById('tpl-mobile-promo-banner-product-wrap');
+    var mobilePromoAllNote = document.getElementById('tpl-mobile-promo-banner-all-note');
     _syncPhoneCompositeFields();
-    if (name) name.textContent = _val('tpl-public-name') || 'Nome da loja';
+    if (name) {
+      name.textContent = _val('tpl-public-name') || 'Nome da loja';
+      name.style.display = _checked('tpl-maincard-show-name') ? 'block' : 'none';
+    }
+    if (mainCardPreviewName) {
+      mainCardPreviewName.textContent = _val('tpl-public-name') || 'Nome da loja';
+      mainCardPreviewName.style.display = _checked('tpl-maincard-show-name') ? 'block' : 'none';
+    }
+    if (mainCardPreviewAvatar) mainCardPreviewAvatar.textContent = String(_val('tpl-public-name') || 'BF').slice(0, 2).toUpperCase();
     if (shortName) shortName.textContent = _val('tpl-short-name') || _val('tpl-public-name') || 'Loja';
-    if (slogan) slogan.textContent = _val('tpl-slogan') || 'Slogan da loja';
+    if (slogan) {
+      slogan.textContent = _val('tpl-slogan') || 'Slogan da loja';
+      slogan.style.display = _checked('tpl-maincard-show-slogan') ? 'block' : 'none';
+    }
+    if (mainCardPreviewSlogan) {
+      mainCardPreviewSlogan.textContent = _val('tpl-slogan') || 'Apresentação curta da loja';
+      mainCardPreviewSlogan.style.display = _checked('tpl-maincard-show-slogan') ? 'block' : 'none';
+    }
     var primaryInput = _normalizeHexColor(_val('tpl-primary-color-hex') || _val('tpl-primary-color')) || '#B42318';
     var palette = _deriveStorePalette(primaryInput);
     var colorPreview = document.getElementById('tpl-primary-color-preview');
@@ -4574,12 +5013,32 @@ Modules.Catalogo = (function () {
     var mode = _val('tpl-status-mode') || 'auto';
     var statusText = mode === 'manual_open' ? 'Aberta manualmente' : (mode === 'manual_closed' ? 'Fechada temporariamente' : 'Automática pelos horários');
     if (status) status.textContent = statusText + ' · ' + (_checked('tpl-delivery-enabled') ? 'Entrega ativa' : 'Entrega inativa') + ' · ' + (_checked('tpl-pickup-enabled') ? 'Retirada ativa' : 'Retirada inativa');
-    if (statusPill) { statusPill.textContent = mode === 'manual_closed' ? 'Cerrada' : 'Abierta'; statusPill.style.color = mode === 'manual_closed' ? '#B42318' : '#1A9E5A'; statusPill.style.background = mode === 'manual_closed' ? '#FFF0EE' : '#EDFAF3'; }
+    if (statusPill) { statusPill.textContent = mode === 'manual_closed' ? 'Cerrada' : 'Abierta'; statusPill.style.color = mode === 'manual_closed' ? '#B42318' : '#1A9E5A'; statusPill.style.background = mode === 'manual_closed' ? '#FFF0EE' : '#EDFAF3'; statusPill.style.display = _checked('tpl-maincard-show-status') ? 'inline-flex' : 'none'; }
     if (promo) {
       promo.style.display = _checked('tpl-top-promo-enabled') ? 'block' : 'none';
       promo.textContent = _val('tpl-top-promo-text') || 'Banner promocional';
       promo.style.background = promoColor;
       promo.style.color = promoTextColor;
+    }
+    if (mainCardPreviewPromo) {
+      mainCardPreviewPromo.style.display = _checked('tpl-top-promo-enabled') ? 'block' : 'none';
+      mainCardPreviewPromo.textContent = _val('tpl-top-promo-text') || 'Entrega grátis acima de €30';
+      mainCardPreviewPromo.style.background = promoColor;
+      mainCardPreviewPromo.style.color = promoTextColor;
+    }
+    if (mainCardPreviewMobileBanner) {
+      var mobilePromoUrl = _cleanPublicUrl(_val('tpl-mobile-promo-banner-url'));
+      var mobilePromoEnabled = _checked('tpl-mobile-promo-banner-enabled');
+      var mobilePromoTitle = _val('tpl-mobile-promo-banner-title') || 'Combo Burger Clássico';
+      var mobilePromoText = _val('tpl-mobile-promo-banner-text') || 'Burger + batata + refrigerante';
+      var mobilePromoBadge = _val('tpl-mobile-promo-banner-badge') || 'Mais pedido';
+      var mobilePromoButton = _val('tpl-mobile-promo-banner-button') || 'Ver detalhes';
+      mainCardPreviewMobileBanner.style.display = mobilePromoEnabled && mobilePromoUrl ? 'block' : 'none';
+      mainCardPreviewMobileBanner.style.backgroundImage = mobilePromoUrl ? 'url("' + mobilePromoUrl.replace(/"/g, '%22') + '")' : '';
+      if (mainCardPreviewMobileBannerBadge) mainCardPreviewMobileBannerBadge.textContent = mobilePromoBadge;
+      if (mainCardPreviewMobileBannerTitle) mainCardPreviewMobileBannerTitle.textContent = mobilePromoTitle;
+      if (mainCardPreviewMobileBannerText) mainCardPreviewMobileBannerText.textContent = mobilePromoText;
+      if (mainCardPreviewMobileBannerCta) mainCardPreviewMobileBannerCta.textContent = mobilePromoButton;
     }
     if (summary) summary.style.display = 'block';
     if (promoSettings) promoSettings.style.display = _checked('tpl-top-promo-enabled') ? 'grid' : 'none';
@@ -4596,32 +5055,81 @@ Modules.Catalogo = (function () {
     if (featuredCouponWrap) featuredCouponWrap.style.display = featuredEnabled && featuredType === 'coupon' ? 'flex' : 'none';
     if (featuredPromotionWrap) featuredPromotionWrap.style.display = featuredEnabled && featuredType === 'promotion' ? 'flex' : 'none';
     if (featuredCustomWrap) featuredCustomWrap.style.display = featuredEnabled && featuredType === 'custom' ? 'flex' : 'none';
+    if (mobilePromoPromotionWrap) mobilePromoPromotionWrap.style.display = mobilePromoTarget === 'promotion' ? 'block' : 'none';
+    if (mobilePromoProductWrap) mobilePromoProductWrap.style.display = mobilePromoTarget === 'product' ? 'block' : 'none';
+    if (mobilePromoAllNote) mobilePromoAllNote.style.display = mobilePromoTarget === 'all_promotions' ? 'block' : 'none';
     if (deliverySettingsWrap) deliverySettingsWrap.style.display = _checked('tpl-delivery-enabled') ? 'flex' : 'none';
     if (pickupSettingsWrap) pickupSettingsWrap.style.display = _checked('tpl-pickup-enabled') ? 'flex' : 'none';
     if (document.getElementById('tpl-featured-product-picker') || document.getElementById('tpl-featured-product')) _bindFeaturedProductPicker();
     if (document.getElementById('tpl-most-ordered-product-picker') || document.getElementById('tpl-featured-most-ordered-product')) _bindMostOrderedProductPicker();
     if (document.getElementById('tpl-featured-coupon-picker') || document.getElementById('tpl-featured-coupon')) _bindFeaturedCouponPicker();
     if (document.getElementById('tpl-featured-promotion-picker') || document.getElementById('tpl-featured-promotion')) _bindFeaturedPromotionPicker();
+    if (document.getElementById('tpl-mobile-promo-banner-promotion-picker') || document.getElementById('tpl-mobile-promo-banner-promotion')) _bindMobilePromoPromotionPicker();
+    if (document.getElementById('tpl-mobile-promo-banner-product-picker') || document.getElementById('tpl-mobile-promo-banner-product')) _bindMobilePromoProductPicker();
     if (document.getElementById('tpl-showcase-product-picker-1') || document.getElementById('tpl-showcase-product-1')) _bindShowcaseProductPickers();
-    if (region) { region.style.display = _checked('tpl-top-show-region') ? 'block' : 'none'; region.textContent = [_val('tpl-city'), _val('tpl-region')].filter(Boolean).join(' · ') || 'Cidade/região'; }
-    if (more) more.style.display = _checked('tpl-top-more-info') ? 'inline-block' : 'none';
+    if (region) { region.style.display = _checked('tpl-maincard-show-location') ? 'block' : 'none'; region.textContent = [_val('tpl-city'), _val('tpl-region')].filter(Boolean).join(' · ') || 'Cidade/região'; }
+    if (more) more.style.display = _checked('tpl-maincard-show-more-info') ? 'inline-block' : 'none';
+    if (mainCardPreviewMore) mainCardPreviewMore.style.display = _checked('tpl-maincard-show-more-info') ? 'inline-flex' : 'none';
     if (calc) calc.style.display = 'none';
     if (coverConfig) coverConfig.style.display = 'flex';
     if (coverSettings) coverSettings.style.display = _checked('tpl-top-use-cover') ? 'grid' : 'none';
     if (elementsConfig) elementsConfig.style.display = 'flex';
     if (chips) {
-      chips.style.display = _checked('tpl-top-chips') ? 'flex' : 'none';
+      var showPreviewChips = _checked('tpl-maincard-show-pickup') || _checked('tpl-maincard-show-delivery') || _checked('tpl-maincard-show-prep') || _checked('tpl-maincard-show-delivery-time') || _checked('tpl-maincard-show-min-order') || _checked('tpl-maincard-show-advance-days');
+      chips.style.display = showPreviewChips ? 'flex' : 'none';
       var previewZones = _collectDeliveryZonesFromDom();
       var storedDeliveryFee = _minActiveDeliveryZoneFee(previewZones);
       if (storedDeliveryFee == null || storedDeliveryFee === '') storedDeliveryFee = _val('tpl-delivery-fee') || ((_storeConfig && _storeConfig.template && _storeConfig.template.deliveryFee) || (_storeConfig && _storeConfig.geral && _storeConfig.geral.deliveryFee) || '');
-      chips.innerHTML = (_checked('tpl-delivery-enabled') ? '<span style="font-size:10px;font-weight:800;background:' + _esc(palette.chipSoft) + ';color:' + _esc(palette.primaryDark) + ';border-radius:999px;padding:5px 8px;">Entrega ' + (storedDeliveryFee !== '' && storedDeliveryFee != null ? _fmtMoneyDisplay(storedDeliveryFee) : '') + '</span>' : '') +
-        (_checked('tpl-pickup-enabled') ? '<span style="font-size:10px;font-weight:800;background:' + _esc(palette.chipSoft) + ';color:' + _esc(palette.primaryDark) + ';border-radius:999px;padding:5px 8px;">Retirada</span>' : '') +
-        (_val('tpl-min-delivery') ? '<span style="font-size:10px;font-weight:800;background:' + _esc(palette.chipSoft) + ';color:' + _esc(palette.primaryDark) + ';border-radius:999px;padding:5px 8px;">Mín. ' + _fmtMoneyDisplay(_val('tpl-min-delivery')) + '</span>' : '');
+      chips.innerHTML = (_checked('tpl-maincard-show-delivery') && _checked('tpl-delivery-enabled') ? '<span style="font-size:10px;font-weight:800;background:' + _esc(palette.chipSoft) + ';color:' + _esc(palette.primaryDark) + ';border-radius:999px;padding:5px 8px;">Entrega ' + (storedDeliveryFee !== '' && storedDeliveryFee != null ? _fmtMoneyDisplay(storedDeliveryFee) : '') + '</span>' : '') +
+        (_checked('tpl-maincard-show-pickup') && _checked('tpl-pickup-enabled') ? '<span style="font-size:10px;font-weight:800;background:' + _esc(palette.chipSoft) + ';color:' + _esc(palette.primaryDark) + ';border-radius:999px;padding:5px 8px;">Retirada</span>' : '') +
+        (_checked('tpl-maincard-show-prep') && _val('tpl-prep-time') ? '<span style="font-size:10px;font-weight:800;background:' + _esc(palette.chipSoft) + ';color:' + _esc(palette.primaryDark) + ';border-radius:999px;padding:5px 8px;">Preparo ' + _esc(_val('tpl-prep-time')) + ' min</span>' : '') +
+        (_checked('tpl-maincard-show-delivery-time') && _val('tpl-delivery-time') ? '<span style="font-size:10px;font-weight:800;background:' + _esc(palette.chipSoft) + ';color:' + _esc(palette.primaryDark) + ';border-radius:999px;padding:5px 8px;">Entrega ' + _esc(_val('tpl-delivery-time')) + '</span>' : '') +
+        (_checked('tpl-maincard-show-min-order') && _val('tpl-min-delivery') ? '<span style="font-size:10px;font-weight:800;background:' + _esc(palette.chipSoft) + ';color:' + _esc(palette.primaryDark) + ';border-radius:999px;padding:5px 8px;">Mín. ' + _fmtMoneyDisplay(_val('tpl-min-delivery')) + '</span>' : '') +
+        (_checked('tpl-maincard-show-advance-days') && _val('tpl-max-advance-days') ? '<span style="font-size:10px;font-weight:800;background:' + _esc(palette.chipSoft) + ';color:' + _esc(palette.primaryDark) + ';border-radius:999px;padding:5px 8px;">Antecedência ' + _esc(_val('tpl-max-advance-days')) + ' dia(s)</span>' : '');
     }
+    var bannerUrl = _cleanPublicUrl(_val('tpl-banner-url'));
+    var bannerMobileUrl = _cleanPublicUrl(_val('tpl-banner-mobile-url'));
     var logoUrl = _cleanPublicUrl(_val('tpl-logo-url'));
     if (logo) { logo.style.display = logoUrl ? 'block' : 'none'; logo.src = logoUrl || ''; }
-    var bannerUrl = _cleanPublicUrl(_val('tpl-banner-url'));
-    var bannerMobileUrl = _cleanPublicUrl(_val('tpl-banner-mobile-url')) || bannerUrl;
+    if (logoDot) logoDot.style.display = _checked('tpl-maincard-show-logo') ? 'inline-flex' : 'none';
+    if (mainCardPreviewLogo) {
+      mainCardPreviewLogo.style.display = _checked('tpl-maincard-show-logo') ? 'flex' : 'none';
+      mainCardPreviewLogo.innerHTML = logoUrl ? '<img src="' + _esc(logoUrl) + '" alt="">' : '<span class="mi" style="font-size:25px;">storefront</span>';
+    }
+    if (mainCardPreviewHero) {
+      var mainPreviewCoverUrl = bannerMobileUrl || bannerUrl;
+      mainCardPreviewHero.style.backgroundImage = mainPreviewCoverUrl && _checked('tpl-top-use-cover')
+        ? 'linear-gradient(180deg,rgba(28,18,10,.20) 0%,rgba(28,18,10,.03) 54%,rgba(255,250,243,0) 100%),url("' + mainPreviewCoverUrl.replace(/"/g, '\\"') + '")'
+        : 'linear-gradient(180deg,rgba(28,18,10,.20) 0%,rgba(28,18,10,.03) 54%,rgba(255,250,243,0) 100%),linear-gradient(135deg,#DAC4AF,#F7E8DB)';
+    }
+    if (mainCardPreviewFacts) {
+      var previewFacts = _checked('tpl-maincard-show-rating') ? ['<span class="tpl-maincard-preview-star">★</span><b>4,8</b>'] : [];
+      var previewRegion = [_val('tpl-city'), _val('tpl-region')].filter(Boolean).join(' · ');
+      var previewPrep = _val('tpl-prep-time');
+      var previewDeliveryTime = _val('tpl-delivery-time');
+      var previewMinimum = _val('tpl-min-delivery');
+      var previewAdvanceDays = Number(_val('tpl-max-advance-days'));
+      var previewHours = _val('tpl-opening-hours-summary') || _val('tpl-hours-summary') || '';
+      if (_checked('tpl-maincard-show-location') && previewRegion) previewFacts.push('<span>' + _esc(previewRegion) + '</span>');
+      if (_checked('tpl-maincard-show-prep') && previewPrep) previewFacts.push('<span>' + _esc(String(previewPrep).indexOf('min') >= 0 ? previewPrep : previewPrep + ' min') + '</span>');
+      if (_checked('tpl-maincard-show-delivery-time') && previewDeliveryTime) previewFacts.push('<span>' + _esc(String(previewDeliveryTime).indexOf('min') >= 0 ? previewDeliveryTime : previewDeliveryTime + ' min') + '</span>');
+      if (_checked('tpl-maincard-show-min-order') && previewMinimum) previewFacts.push('<span>mín. ' + _fmtMoneyDisplay(previewMinimum) + '</span>');
+      if (_checked('tpl-maincard-show-advance-days') && previewAdvanceDays) previewFacts.push('<span>' + previewAdvanceDays + ' dia' + (previewAdvanceDays === 1 ? '' : 's') + ' de antecedência</span>');
+      if (_checked('tpl-maincard-show-hours') && previewHours) previewFacts.push('<span>' + _esc(previewHours) + '</span>');
+      mainCardPreviewFacts.style.display = previewFacts.length ? 'flex' : 'none';
+      mainCardPreviewFacts.innerHTML = previewFacts.join('<span class="tpl-maincard-preview-dot"></span>');
+    }
+    if (mainCardPreviewChips) {
+      var previewCardChips = [];
+      var previewZonesForMainCard = _collectDeliveryZonesFromDom();
+      var previewMainDeliveryFee = _minActiveDeliveryZoneFee(previewZonesForMainCard);
+      if (previewMainDeliveryFee == null || previewMainDeliveryFee === '') previewMainDeliveryFee = _val('tpl-delivery-fee') || ((_storeConfig && _storeConfig.template && _storeConfig.template.deliveryFee) || (_storeConfig && _storeConfig.geral && _storeConfig.geral.deliveryFee) || '');
+      if (_checked('tpl-maincard-show-status')) previewCardChips.push({ label: mode === 'manual_closed' ? 'Fechado' : 'Aberto', tone: mode === 'manual_closed' ? 'closed' : 'open' });
+      if (_checked('tpl-maincard-show-delivery') && _checked('tpl-delivery-enabled')) previewCardChips.push({ label: 'Entrega ' + (previewMainDeliveryFee !== '' && previewMainDeliveryFee != null ? _fmtMoneyDisplay(previewMainDeliveryFee) : 'desde'), tone: '' });
+      if (_checked('tpl-maincard-show-pickup') && _checked('tpl-pickup-enabled')) previewCardChips.push({ label: 'Retirada', tone: '' });
+      mainCardPreviewChips.style.display = previewCardChips.length ? 'flex' : 'none';
+      mainCardPreviewChips.innerHTML = previewCardChips.map(function (chip) { return '<span class="tpl-maincard-preview-chip ' + _esc(chip.tone || '') + '">' + _esc(chip.label) + '</span>'; }).join('');
+    }
     if (banner) { banner.style.display = bannerUrl && _checked('tpl-top-use-cover') ? 'block' : 'none'; banner.src = bannerUrl || ''; }
     if (bannerDesktop) { bannerDesktop.style.display = bannerUrl && _checked('tpl-top-use-cover') ? 'block' : 'none'; bannerDesktop.src = bannerUrl || ''; }
     if (bannerDesktopPlaceholder) bannerDesktopPlaceholder.style.display = bannerUrl && _checked('tpl-top-use-cover') ? 'none' : 'block';
@@ -4665,7 +5173,7 @@ Modules.Catalogo = (function () {
   }
 
   function _saveTemplateLoja() {
-    if (!_validatePublicUrls([{ id: 'tpl-logo-url', label: 'Logo' }, { id: 'tpl-favicon-url', label: 'Favicon' }, { id: 'tpl-banner-url', label: 'Imagem de capa desktop' }, { id: 'tpl-banner-mobile-url', label: 'Imagem de capa mobile' }, { id: 'tpl-mobile-promo-banner-url', label: 'Banner promocional mobile' }])) return;
+    if (!_validatePublicUrls([{ id: 'tpl-logo-url', label: 'Logo' }, { id: 'tpl-favicon-url', label: 'Favicon' }, { id: 'tpl-banner-url', label: 'Imagem de capa desktop' }, { id: 'tpl-banner-mobile-url', label: 'Imagem de capa mobile' }, { id: 'tpl-mobile-promo-banner-url', label: 'Banner promocional mobile' }, { id: 'tpl-desktop-promo-banner-url', label: 'Banner promocional desktop' }])) return;
     var fiscal = _fiscalInfo();
     var hours = _collectHours();
     var collectedDeliveryZones = _collectDeliveryZonesFromDom();
@@ -4689,8 +5197,9 @@ Modules.Catalogo = (function () {
     var logoUrl = _cleanPublicUrl(_val('tpl-logo-url'));
     var faviconUrl = _cleanPublicUrl(_val('tpl-favicon-url')) || currentTpl.faviconUrl || currentGeral.faviconUrl || currentApp.faviconUrl || '';
     var coverUrl = _cleanPublicUrl(_val('tpl-banner-url'));
-    var coverMobileUrl = _cleanPublicUrl(_val('tpl-banner-mobile-url')) || coverUrl;
+    var coverMobileUrl = _cleanPublicUrl(_val('tpl-banner-mobile-url'));
     var mobilePromoBannerUrl = _cleanPublicUrl(_val('tpl-mobile-promo-banner-url'));
+    var desktopPromoBannerUrl = _cleanPublicUrl(_val('tpl-desktop-promo-banner-url'));
     var showcaseIds = ['tpl-showcase-product-1', 'tpl-showcase-product-2', 'tpl-showcase-product-3'].map(function (id) {
       return String(_val(id) || '').trim();
     }).filter(Boolean).filter(function (id, idx, arr) {
@@ -4701,6 +5210,9 @@ Modules.Catalogo = (function () {
     var bannerOverlayOpacity = isFinite(bannerOverlayOpacityRaw) ? bannerOverlayOpacityRaw : Number(currentTpl.bannerOverlayOpacity != null ? currentTpl.bannerOverlayOpacity : currentTpl.coverOverlayOpacity != null ? currentTpl.coverOverlayOpacity : currentTpl.heroOverlayOpacity != null ? currentTpl.heroOverlayOpacity : 14);
     if (!isFinite(bannerOverlayOpacity)) bannerOverlayOpacity = 14;
     var promoTextColor = _normalizeHexColor(_val('tpl-top-promo-text-color')) || _normalizeHexColor(currentTpl.topPromoTextColor || currentTpl.promoBannerTextColor || currentTpl.bannerPromoTextColor) || '#FFFFFF';
+    var mobilePromoBannerPromotionId = String(_val('tpl-mobile-promo-banner-promotion') || '').trim();
+    var mobilePromoBannerProductId = String(_val('tpl-mobile-promo-banner-product') || '').trim();
+    var mobilePromoBannerTarget = _val('tpl-mobile-promo-banner-target') || 'promotion';
     var featuredType = _val('tpl-featured-type') || 'none';
     var featuredButtonLabel = '';
     if (featuredType === 'coupon') featuredButtonLabel = _val('tpl-featured-button');
@@ -4715,6 +5227,7 @@ Modules.Catalogo = (function () {
       showLogo: _checked('tpl-maincard-show-logo'),
       showStoreName: _checked('tpl-maincard-show-name'),
       showSlogan: _checked('tpl-maincard-show-slogan'),
+      showRating: _checked('tpl-maincard-show-rating'),
       showMoreInfoButton: _checked('tpl-maincard-show-more-info'),
       showLocation: _checked('tpl-maincard-show-location'),
       showStoreStatus: _checked('tpl-maincard-show-status'),
@@ -4747,8 +5260,8 @@ Modules.Catalogo = (function () {
     var template = {
       publicName: _val('tpl-public-name'), publicStoreName: _val('tpl-public-name'), shortName: shortNameValue, shortStoreName: shortNameValue, slogan: _val('tpl-slogan'), description: currentTpl.description || currentGeral.description || '', storeDescription: currentTpl.description || currentGeral.description || '', verifiedBadgeEnabled: _checked('tpl-verified-badge'), storeVerified: _checked('tpl-verified-badge'),
       logoUrl: logoUrl, faviconUrl: faviconUrl, coverImageUrl: coverUrl, bannerUrl: coverUrl, coverImageMobileUrl: coverMobileUrl, mobileCoverImageUrl: coverMobileUrl, bannerMobileUrl: coverMobileUrl, logoStoragePath: images.logo && images.logo.imageStoragePath || currentTpl.logoStoragePath || '', logoImagePath: images.logo && (images.logo.imagePath || images.logo.imageStoragePath) || currentTpl.logoImagePath || currentTpl.logoStoragePath || '', faviconStoragePath: images.favicon && images.favicon.imageStoragePath || currentTpl.faviconStoragePath || currentGeral.faviconStoragePath || '', faviconImagePath: images.favicon && (images.favicon.imagePath || images.favicon.imageStoragePath) || currentTpl.faviconImagePath || currentTpl.faviconStoragePath || currentGeral.faviconStoragePath || '', bannerStoragePath: coverUrl ? (images.banner && images.banner.imageStoragePath || currentTpl.bannerStoragePath || currentTpl.coverImageStoragePath || '') : '', bannerImagePath: coverUrl ? (images.banner && (images.banner.imagePath || images.banner.imageStoragePath) || currentTpl.bannerImagePath || currentTpl.bannerStoragePath || currentTpl.coverImageStoragePath || '') : '', coverImageStoragePath: coverUrl ? (images.banner && images.banner.imageStoragePath || currentTpl.coverImageStoragePath || currentTpl.bannerStoragePath || '') : '', bannerMobileStoragePath: coverMobileUrl ? (images.bannerMobile && images.bannerMobile.imageStoragePath || currentTpl.bannerMobileStoragePath || currentTpl.coverImageMobileStoragePath || '') : '', bannerMobileImagePath: coverMobileUrl ? (images.bannerMobile && (images.bannerMobile.imagePath || images.bannerMobile.imageStoragePath) || currentTpl.bannerMobileImagePath || currentTpl.bannerMobileStoragePath || currentTpl.coverImageMobileStoragePath || '') : '', coverImageMobileStoragePath: coverMobileUrl ? (images.bannerMobile && images.bannerMobile.imageStoragePath || currentTpl.coverImageMobileStoragePath || currentTpl.bannerMobileStoragePath || '') : '',
-      topPromoEnabled: _checked('tpl-top-promo-enabled'), showPromoBanner: _checked('tpl-top-promo-enabled'), topPromoText: _val('tpl-top-promo-text'), promoBannerText: _val('tpl-top-promo-text'), topPromoColor: _val('tpl-top-promo-color') || primary, promoBannerColor: _val('tpl-top-promo-color') || primary, topPromoTextColor: promoTextColor, promoBannerTextColor: promoTextColor, bannerPromoTextColor: promoTextColor, topPromoClosable: _checked('tpl-top-promo-closable'), promoBannerDismissible: _checked('tpl-top-promo-closable'), topUseCover: _checked('tpl-top-use-cover'), useCoverImage: _checked('tpl-top-use-cover'), topShowRegion: _checked('tpl-top-show-region'), showCityRegion: _checked('tpl-top-show-region'), topShowMoreInfo: _checked('tpl-top-more-info'), showMoreInfoButton: _checked('tpl-top-more-info'), topShowChips: _checked('tpl-top-chips'), showDeliveryPickupChips: _checked('tpl-top-chips'),
-      mobilePromoBannerEnabled: _checked('tpl-mobile-promo-banner-enabled'), promotionalBannerEnabled: _checked('tpl-mobile-promo-banner-enabled'), promoVisualBannerEnabled: _checked('tpl-mobile-promo-banner-enabled'), mobilePromoBannerImageUrl: mobilePromoBannerUrl, promoBannerImageUrl: mobilePromoBannerUrl, promotionalBannerImageUrl: mobilePromoBannerUrl, mobilePromoBannerStoragePath: mobilePromoBannerUrl ? (images.promoMobile && images.promoMobile.imageStoragePath || currentTpl.mobilePromoBannerStoragePath || currentTpl.promoBannerImageStoragePath || '') : '', promoBannerImageStoragePath: mobilePromoBannerUrl ? (images.promoMobile && images.promoMobile.imageStoragePath || currentTpl.promoBannerImageStoragePath || currentTpl.mobilePromoBannerStoragePath || '') : '', promoBannerImagePath: mobilePromoBannerUrl ? (images.promoMobile && (images.promoMobile.imagePath || images.promoMobile.imageStoragePath) || currentTpl.promoBannerImagePath || currentTpl.promoBannerImageStoragePath || currentTpl.mobilePromoBannerStoragePath || '') : '', mobilePromoBannerBadge: _val('tpl-mobile-promo-banner-badge'), promoBannerBadge: _val('tpl-mobile-promo-banner-badge'), mobilePromoBannerTitle: _val('tpl-mobile-promo-banner-title'), promoBannerTitle: _val('tpl-mobile-promo-banner-title'), mobilePromoBannerText: _val('tpl-mobile-promo-banner-text'), promoBannerSubtitle: _val('tpl-mobile-promo-banner-text'), mobilePromoBannerButtonText: _val('tpl-mobile-promo-banner-button'), promoBannerButtonText: _val('tpl-mobile-promo-banner-button'),
+      topPromoEnabled: _checked('tpl-top-promo-enabled'), showPromoBanner: _checked('tpl-top-promo-enabled'), desktopPromoBannerEnabled: _checked('tpl-mobile-promo-banner-enabled'), promoBannerDesktopEnabled: _checked('tpl-mobile-promo-banner-enabled'), topPromoText: _val('tpl-top-promo-text'), promoBannerText: _val('tpl-top-promo-text'), topPromoColor: _val('tpl-top-promo-color') || primary, promoBannerColor: _val('tpl-top-promo-color') || primary, topPromoTextColor: promoTextColor, promoBannerTextColor: promoTextColor, bannerPromoTextColor: promoTextColor, topPromoClosable: _checked('tpl-top-promo-closable'), promoBannerDismissible: _checked('tpl-top-promo-closable'), topUseCover: _checked('tpl-top-use-cover'), useCoverImage: _checked('tpl-top-use-cover'), topShowRegion: _checked('tpl-top-show-region'), showCityRegion: _checked('tpl-top-show-region'), topShowMoreInfo: _checked('tpl-top-more-info'), showMoreInfoButton: _checked('tpl-top-more-info'), topShowChips: _checked('tpl-top-chips'), showDeliveryPickupChips: _checked('tpl-top-chips'),
+      mobilePromoBannerEnabled: _checked('tpl-mobile-promo-banner-enabled'), promotionalBannerEnabled: _checked('tpl-mobile-promo-banner-enabled'), promoVisualBannerEnabled: _checked('tpl-mobile-promo-banner-enabled'), mobilePromoBannerImageUrl: mobilePromoBannerUrl, promoBannerImageUrl: mobilePromoBannerUrl, promotionalBannerImageUrl: mobilePromoBannerUrl, desktopPromoBannerImageUrl: desktopPromoBannerUrl, promoBannerDesktopImageUrl: desktopPromoBannerUrl, mobilePromoBannerStoragePath: mobilePromoBannerUrl ? (images.promoMobile && images.promoMobile.imageStoragePath || currentTpl.mobilePromoBannerStoragePath || currentTpl.promoBannerImageStoragePath || '') : '', promoBannerImageStoragePath: mobilePromoBannerUrl ? (images.promoMobile && images.promoMobile.imageStoragePath || currentTpl.promoBannerImageStoragePath || currentTpl.mobilePromoBannerStoragePath || '') : '', promoBannerImagePath: mobilePromoBannerUrl ? (images.promoMobile && (images.promoMobile.imagePath || images.promoMobile.imageStoragePath) || currentTpl.promoBannerImagePath || currentTpl.promoBannerImageStoragePath || currentTpl.mobilePromoBannerStoragePath || '') : '', desktopPromoBannerStoragePath: desktopPromoBannerUrl ? (images.promoDesktop && images.promoDesktop.imageStoragePath || currentTpl.desktopPromoBannerStoragePath || currentTpl.promoBannerDesktopStoragePath || '') : '', promoBannerDesktopStoragePath: desktopPromoBannerUrl ? (images.promoDesktop && images.promoDesktop.imageStoragePath || currentTpl.promoBannerDesktopStoragePath || currentTpl.desktopPromoBannerStoragePath || '') : '', desktopPromoBannerImagePath: desktopPromoBannerUrl ? (images.promoDesktop && (images.promoDesktop.imagePath || images.promoDesktop.imageStoragePath) || currentTpl.desktopPromoBannerImagePath || currentTpl.promoBannerDesktopImagePath || currentTpl.desktopPromoBannerStoragePath || '') : '', mobilePromoBannerBadge: _val('tpl-mobile-promo-banner-badge'), promoBannerBadge: _val('tpl-mobile-promo-banner-badge'), mobilePromoBannerTitle: _val('tpl-mobile-promo-banner-title'), promoBannerTitle: _val('tpl-mobile-promo-banner-title'), mobilePromoBannerText: _val('tpl-mobile-promo-banner-text'), promoBannerSubtitle: _val('tpl-mobile-promo-banner-text'), mobilePromoBannerButtonText: _val('tpl-mobile-promo-banner-button'), promoBannerButtonText: _val('tpl-mobile-promo-banner-button'), mobilePromoBannerPromotionId: mobilePromoBannerPromotionId, promoBannerPromotionId: mobilePromoBannerPromotionId, mobilePromoBannerProductId: mobilePromoBannerProductId, promoBannerProductId: mobilePromoBannerProductId, mobilePromoBannerTarget: mobilePromoBannerTarget, promoBannerTarget: mobilePromoBannerTarget,
       bannerOverlayColor: bannerOverlayColor, coverOverlayColor: bannerOverlayColor, heroOverlayColor: bannerOverlayColor, topBannerOverlayColor: bannerOverlayColor,
       bannerOverlayOpacity: bannerOverlayOpacity, coverOverlayOpacity: bannerOverlayOpacity, heroOverlayOpacity: bannerOverlayOpacity, topBannerOverlayOpacity: bannerOverlayOpacity,
       mainCardConfig: mainCardConfig, topShowRegion: mainCardConfig.showLocation || mainCardConfig.showStoreStatus, showCityRegion: mainCardConfig.showLocation || mainCardConfig.showStoreStatus, topShowMoreInfo: mainCardConfig.showMoreInfoButton, showMoreInfoButton: mainCardConfig.showMoreInfoButton, topShowChips: mainCardConfig.showPickup || mainCardConfig.showDelivery || mainCardConfig.showPreparationTime || mainCardConfig.showDeliveryTime || mainCardConfig.showMinimumOrder || mainCardConfig.showAdvanceDays, showDeliveryPickupChips: mainCardConfig.showPickup || mainCardConfig.showDelivery || mainCardConfig.showPreparationTime || mainCardConfig.showDeliveryTime || mainCardConfig.showMinimumOrder || mainCardConfig.showAdvanceDays,
@@ -5700,16 +6213,18 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var content = document.getElementById('catalogo-content');
     if (!content) return;
     var totalCount = _fichas.length;
+    var filtered = _filteredFichas();
+    var filteredCount = filtered.length;
     var p = _fichaPag || (_fichaPag = { page: 1, perPage: 10 });
-    var totalPages = Math.max(1, Math.ceil(totalCount / p.perPage));
+    var totalPages = Math.max(1, Math.ceil(filteredCount / p.perPage));
     var currentPage = Math.min(p.page, totalPages);
     if (p.page !== currentPage) p.page = currentPage;
-    var start = totalCount ? ((currentPage - 1) * p.perPage + 1) : 0;
-    var end = totalCount ? Math.min(currentPage * p.perPage, totalCount) : 0;
+    var start = filteredCount ? ((currentPage - 1) * p.perPage + 1) : 0;
+    var end = filteredCount ? Math.min(currentPage * p.perPage, filteredCount) : 0;
     var pageOptions = [10, 25, 50].map(function (n) {
       return '<option value="' + n + '"' + (Number(p.perPage) === n ? ' selected' : '') + '>' + n + ' / pág.</option>';
     }).join('');
-    var pageData = _fichas.slice((currentPage - 1) * p.perPage, currentPage * p.perPage);
+    var pageData = filtered.slice((currentPage - 1) * p.perPage, currentPage * p.perPage);
     var rows = pageData.map(function (f) {
       var ci = _calcFichaCosts(f);
       var yieldLabel = (f.yieldQuantity || f.yield || 1) + ' ' + (f.yieldUnit || 'porções');
@@ -5733,34 +6248,46 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
         '</td>' +
       '</tr>';
     }).join('');
+    var hasFilters = !!(_fichaFilters.q || '').trim();
+    var clearFiltersHtml = hasFilters
+      ? '<div class="recipes-filter-actions"><button onclick="Modules.Catalogo._clearFichasFilters()" style="height:40px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;font-size:13px;font-family:inherit;cursor:pointer;background:#fff;color:#6F6860;white-space:nowrap;box-shadow:0 1px 2px rgba(31,31,31,.03);">Limpar filtros</button></div>'
+      : '';
+    var recipesCss = '<style>' +
+      '.recipes-page{display:flex;flex-direction:column;gap:16px;}' +
+      '.recipes-page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;}' +
+      '.recipes-page-title{font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;line-height:1.15;}' +
+      '.recipes-page-subtitle{font-size:13px;color:#6F6860;line-height:1.5;margin:0;max-width:760px;}' +
+      '.recipes-primary-btn{height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;transition:transform .16s ease,box-shadow .16s ease,background .16s ease;}' +
+      '.recipes-primary-btn:hover{background:#9F1F16;transform:translateY(-1px);box-shadow:0 8px 18px rgba(180,35,24,.22);}' +
+      '.recipes-filter-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:14px;box-shadow:0 10px 24px rgba(31,31,31,.04);}' +
+      '.recipes-filter-grid{display:grid;grid-template-columns:minmax(320px,1fr);gap:10px;align-items:end;}' +
+      '.recipes-filter-control{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:6px;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;}' +
+      '.recipes-filter-control:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
+      '.recipes-filter-control input{width:100%;height:36px;border:0;border-radius:8px;padding:0 8px;font-size:14px;font-family:inherit;outline:none;background:transparent;box-sizing:border-box;color:#1F1F1F;box-shadow:none;}' +
+      '.recipes-filter-actions{display:flex;justify-content:flex-start;margin-top:12px;}' +
+      '.recipes-select{min-width:110px;max-width:110px;height:34px;padding:0 34px 0 10px;border:1px solid #EAE4DA;border-radius:10px;font-size:12px;font-family:inherit;outline:none;background-color:#fff;color:#6F6860;box-sizing:border-box;appearance:none;-webkit-appearance:none;-moz-appearance:none;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 14px center;background-size:14px;}' +
+      '@media(max-width:680px){.recipes-filter-grid{grid-template-columns:1fr}.recipes-primary-btn,.recipes-filter-actions button{width:100%;}}' +
+      '</style>';
+    var emptyHtml = totalCount === 0
+      ? '<section style="background:#fff;border:1px solid #EAE4DA;border-radius:16px;padding:42px 20px;box-shadow:0 12px 30px rgba(31,31,31,.06);text-align:center;"><div style="font-size:15px;font-weight:700;color:#1F1F1F;margin-bottom:4px;">Nenhuma receita ainda</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-bottom:16px;">Crie a primeira ficha técnica para começar a calcular rendimento e custo.</div><button onclick="Modules.Catalogo._openFichaModal(null)" class="recipes-primary-btn">+ Nova receita</button></section>'
+      : '<section style="background:#fff;border:1px solid #EAE4DA;border-radius:16px;padding:42px 20px;box-shadow:0 12px 30px rgba(31,31,31,.06);text-align:center;"><div style="font-size:15px;font-weight:700;color:#1F1F1F;margin-bottom:4px;">Nenhuma receita encontrada</div><div style="font-size:13px;color:#6F6860;line-height:1.45;">Ajuste a busca ou limpe os filtros para ver outras receitas.</div></section>';
     content.innerHTML =
-      '<div style="display:flex;flex-direction:column;gap:16px;">' +
-      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
+      recipesCss +
+      '<div class="recipes-page">' +
+      '<div class="recipes-page-head">' +
         '<div style="min-width:0;flex:1 1 420px;">' +
-          '<h2 style="font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;line-height:1.2;">Receitas de produção</h2>' +
-          '<p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0 0 10px;max-width:760px;">Crie fichas técnicas para calcular rendimento, ingredientes e custo real de cada receita.</p>' +
-          '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
-            '<span style="display:inline-flex;align-items:center;min-height:24px;padding:0 10px;border-radius:999px;background:#fff;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:500;box-shadow:0 1px 2px rgba(31,31,31,.02);">' + totalCount + ' receitas</span>' +
-            '<span style="display:inline-flex;align-items:center;min-height:24px;padding:0 10px;border-radius:999px;background:#fff;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:500;box-shadow:0 1px 2px rgba(31,31,31,.02);">' + _recipeCategories.length + ' categorias</span>' +
-            '<span style="display:inline-flex;align-items:center;min-height:24px;padding:0 10px;border-radius:999px;background:#fff;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:500;box-shadow:0 1px 2px rgba(31,31,31,.02);">' + _recipeComponents.length + ' componentes</span>' +
-          '</div>' +
+          '<h2 class="recipes-page-title">Receitas de produção</h2>' +
+          '<p class="recipes-page-subtitle">Crie fichas técnicas para calcular rendimento, ingredientes e custo real de cada receita.</p>' +
         '</div>' +
-        '<button onclick="Modules.Catalogo._openFichaModal(null)" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">+ Nova receita</button>' +
+        '<button onclick="Modules.Catalogo._openFichaModal(null)" class="recipes-primary-btn">+ Nova receita</button>' +
       '</div>' +
-      '<div style="background:#fff;border:none;border-radius:16px;padding:18px 20px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
-        '<div style="display:grid;grid-template-columns:minmax(320px,1.6fr) auto;gap:10px;align-items:end;">' +
-          '<div><input id="fichas-search" type="search" placeholder="Buscar receita..." oninput="Modules.Catalogo._filterFichas()" style="width:100%;height:40px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;box-sizing:border-box;color:#1F1F1F;box-shadow:inset 0 1px 0 rgba(255,255,255,.78);"></div>' +
-          '<button onclick="Modules.Catalogo._clearFichasFilters()" style="height:40px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;font-size:13px;font-family:inherit;cursor:pointer;background:#fff;color:#6F6860;white-space:nowrap;box-shadow:0 1px 2px rgba(31,31,31,.03);">Limpar filtros</button>' +
+      '<div class="recipes-filter-card">' +
+        '<div class="recipes-filter-grid">' +
+          '<div><label style="' + _fichaLbl() + '">Buscar</label><div class="recipes-filter-control"><input id="fichas-search" type="search" placeholder="Buscar por nome ou categoria..." value="' + _esc(_fichaFilters.q || '') + '" oninput="Modules.Catalogo._filterFichas()" autocomplete="off"></div></div>' +
         '</div>' +
-        '<div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' +
-          '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
-            '<span style="display:inline-flex;align-items:center;min-height:24px;padding:0 10px;border-radius:999px;background:#fff;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:500;box-shadow:0 1px 2px rgba(31,31,31,.02);">' + totalCount + ' receitas</span>' +
-            '<span style="display:inline-flex;align-items:center;min-height:24px;padding:0 10px;border-radius:999px;background:#fff;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:500;box-shadow:0 1px 2px rgba(31,31,31,.02);">' + _recipeCategories.length + ' categorias</span>' +
-            '<span style="display:inline-flex;align-items:center;min-height:24px;padding:0 10px;border-radius:999px;background:#fff;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:500;box-shadow:0 1px 2px rgba(31,31,31,.02);">' + _recipeComponents.length + ' componentes</span>' +
-          '</div>' +
-        '</div>' +
+        clearFiltersHtml +
       '</div>' +
-      (totalCount === 0 ? '<section style="background:#fff;border:none;border-radius:16px;padding:18px 20px;box-shadow:0 12px 30px rgba(31,31,31,.06);text-align:center;"><div style="font-size:15px;font-weight:700;color:#1F1F1F;margin-bottom:4px;">Nenhuma receita ainda</div><div style="font-size:13px;color:#6F6860;line-height:1.45;">Crie a primeira ficha técnica para começar a calcular rendimento e custo.</div></section>' :
+      (filteredCount === 0 ? emptyHtml :
         '<section style="display:flex;flex-direction:column;gap:10px;">' +
         '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">Receitas cadastradas</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Acompanhe rendimento, custo total e custo por unidade de cada ficha técnica.</div></div>' +
         '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);overflow:hidden;">' +
@@ -5778,9 +6305,9 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
             '</table>' +
           '</div>' +
           '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:16px 18px;">' +
-            '<span style="font-size:12px;color:#6F6860;line-height:1.4;">Mostrando <strong style="color:#1F1F1F;font-weight:600;">' + start + '</strong> a <strong style="color:#1F1F1F;font-weight:600;">' + end + '</strong> de <strong style="color:#1F1F1F;font-weight:600;">' + totalCount + '</strong></span>' +
+            '<span style="font-size:12px;color:#6F6860;line-height:1.4;">Mostrando <strong style="color:#1F1F1F;font-weight:600;">' + start + '</strong> a <strong style="color:#1F1F1F;font-weight:600;">' + end + '</strong> de <strong style="color:#1F1F1F;font-weight:600;">' + filteredCount + '</strong></span>' +
             '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;">' +
-              '<select onchange="Modules.Catalogo._setFichaPageSize(this.value)" style="min-width:110px;max-width:110px;height:34px;padding:0 10px;border:1px solid #EAE4DA;border-radius:10px;font-size:12px;font-family:inherit;outline:none;background:#fff;color:#6F6860;box-sizing:border-box;">' + pageOptions + '</select>' +
+              '<select onchange="Modules.Catalogo._setFichaPageSize(this.value)" class="recipes-select">' + pageOptions + '</select>' +
               '<div style="display:flex;align-items:center;gap:6px;">' +
                 '<button type="button" onclick="Modules.Catalogo._setFichaPage(' + (currentPage - 1) + ')" style="height:34px;padding:0 11px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#6F6860;font-size:12px;font-weight:500;cursor:' + (currentPage > 1 ? 'pointer' : 'not-allowed') + ';opacity:' + (currentPage > 1 ? '1' : '.45') + ';"' + (currentPage > 1 ? '' : ' disabled') + '>Anterior</button>' +
                 '<div style="display:flex;align-items:center;gap:6px;"><span style="font-size:12px;color:#A39B90;">' + currentPage + '</span><span style="width:14px;height:2px;border-radius:999px;background:#B42318;display:inline-block;opacity:.65"></span><span style="font-size:12px;color:#A39B90;">' + totalPages + '</span></div>' +
@@ -5810,13 +6337,38 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     };
   }
 
-  function _filterFichas() {
-    var search = ((document.getElementById('fichas-search') || {}).value || '').toLowerCase();
-    var list = document.getElementById('fichas-list');
-    if (!list) return;
-    list.querySelectorAll('[data-ficha-name]').forEach(function (el) {
-      el.style.display = (el.dataset.fichaName || '').indexOf(search) >= 0 ? 'table-row' : 'none';
+  function _filteredFichas() {
+    var q = String((_fichaFilters && _fichaFilters.q) || '').trim().toLowerCase();
+    if (!q) return _fichas.slice();
+    return _fichas.filter(function (f) {
+      var hay = [
+        f.name,
+        f.category,
+        f.yieldUnit,
+        f.internalNotes,
+        f.productionNotes,
+        f.preparationMode
+      ].join(' ').toLowerCase();
+      return hay.indexOf(q) >= 0;
     });
+  }
+
+  function _filterFichas() {
+    var activeId = document.activeElement ? document.activeElement.id : '';
+    _fichaFilters.q = ((document.getElementById('fichas-search') || {}).value || '').trim();
+    if (!_fichaPag) _fichaPag = { page: 1, perPage: 10 };
+    _fichaPag.page = 1;
+    _paintFichas();
+    if (activeId === 'fichas-search') {
+      var input = document.getElementById('fichas-search');
+      if (input) {
+        try {
+          input.focus();
+          var len = String(input.value || '').length;
+          if (input.setSelectionRange) input.setSelectionRange(len, len);
+        } catch (e) {}
+      }
+    }
   }
 
   function _setFichaPageSize(n) {
@@ -5834,8 +6386,9 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   }
 
   function _clearFichasFilters() {
-    var input = document.getElementById('fichas-search');
-    if (input) input.value = '';
+    _fichaFilters.q = '';
+    if (!_fichaPag) _fichaPag = { page: 1, perPage: 10 };
+    _fichaPag.page = 1;
     _paintFichas();
   }
 
@@ -5924,10 +6477,10 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     if (!comps.length && Array.isArray(f.ingredients) && f.ingredients.length) {
       comps = [{ name: 'Outro', note: '', ingredients: f.ingredients }];
     }
-    if (!comps.length) comps = [{ name: 'Massa', note: '', ingredients: [] }];
+    if (!comps.length) comps = [{ name: _defaultRecipeComponentName(), note: '', ingredients: [] }];
     return comps.map(function (comp) {
       return {
-        name: comp.name || comp.componentName || 'Outro',
+        name: comp.name || comp.componentName || '',
         note: comp.note || comp.observation || comp.observacao || '',
         ingredients: (comp.ingredients || []).map(function (ing) {
           return {
@@ -6084,7 +6637,6 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     window._fichaCompCount = 0;
 
     var CATS = (_recipeCategories || []).map(function (c) { return c.name || c.label || ''; }).filter(Boolean);
-    if (!CATS.length) CATS = ['Salgado', 'Doce', 'Massa', 'Recheio', 'Molho', 'Bebida', 'Acompanhamento', 'Outro'];
     if (f.category && CATS.indexOf(f.category) < 0) CATS.unshift(f.category);
     var YIELD_UNITS = ['unidades', 'porções', 'gramas', 'kg', 'ml', 'litros'];
     var CONSERV = ['Ambiente', 'Refrigerado', 'Congelado'];
@@ -6115,8 +6667,8 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var summary = _fichaSummaryData(f);
     var costBadge = summary.costs.costPerYield > 0 ? UI.fmt(summary.costs.costPerYield) : '—';
 
-    var sectionHead = function (title, desc) {
-      return '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px;"><div><div style="font-size:14px;font-weight:600;line-height:1.3;color:#1F1F1F;">' + _esc(title) + '</div><div style="font-size:13px;line-height:1.45;color:#6F6860;margin-top:4px;">' + _esc(desc || '') + '</div></div></div>';
+    var sectionHead = function (icon, title, desc) {
+      return '<div class="recipe-modal-head"><span class="mi">' + _esc(icon) + '</span><div><div class="recipe-modal-title">' + _esc(title) + '</div><div class="recipe-modal-desc">' + _esc(desc || '') + '</div></div></div>';
     };
 
     var componentRows = _normalizeFichaComponents(f).map(function (comp, i) {
@@ -6124,81 +6676,166 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       return _fichaComponentHtml(i, comp);
     }).join('');
 
-    var body = '<div>' +
+    var modalCss = '<style>' +
+      '.recipe-modal-body{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px;font-family:Manrope,Inter,sans-serif;}' +
+      '.recipe-modal-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:14px;box-shadow:0 10px 24px rgba(31,31,31,.04);min-width:0;}' +
+      '.recipe-modal-main,.recipe-modal-ingredients,.recipe-modal-cost,.recipe-modal-production{grid-column:1/-1}.recipe-modal-yield{grid-column:1/span 6}.recipe-modal-image{grid-column:7/-1}' +
+      '.recipe-modal-head{display:flex;align-items:flex-start;gap:9px;margin-bottom:12px;}' +
+      '.recipe-modal-head .mi{font-size:18px;color:#6F6860;line-height:1.2;}' +
+      '.recipe-modal-title{font-size:13px;font-weight:800;line-height:1.25;color:#1F1F1F;margin-bottom:3px;}' +
+      '.recipe-modal-desc{font-size:12px;line-height:1.4;color:#8A7E7C;margin:0;max-width:760px;}' +
+      '.recipe-modal-grid{display:grid;gap:11px 12px;align-items:end}.recipe-modal-main-grid{grid-template-columns:minmax(280px,1fr) minmax(180px,.55fr)}.recipe-yield-grid{grid-template-columns:minmax(140px,.42fr) minmax(190px,.62fr)}#fc-peso-section{grid-template-columns:minmax(150px,.5fr) minmax(190px,.65fr)!important;}.recipe-production-top{margin-bottom:12px}.recipe-production-top .recipe-modal-head{margin-bottom:0}.recipe-production-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,.68fr);gap:12px;align-items:start}.recipe-production-group{background:#FFFCF8;border:1px solid #EADFD8;border-radius:16px;padding:12px;box-shadow:0 1px 2px rgba(31,31,31,.03);min-width:0}.recipe-production-group-title{font-size:11px;font-weight:800;color:#1F1F1F;line-height:1.25;margin-bottom:9px}.recipe-production-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(112px,.42fr);gap:9px;align-items:end}.recipe-production-full{grid-column:1/-1}' +
+      '.recipe-cost-layout{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(260px,.72fr);gap:12px;align-items:stretch;}' +
+      '.recipe-cost-group{background:#FFFCF8;border:1px solid #EADFD8;border-radius:16px;padding:12px;box-shadow:0 1px 2px rgba(31,31,31,.03);min-width:0;}' +
+      '.recipe-cost-group-title{font-size:11px;font-weight:800;color:#1F1F1F;line-height:1.25;margin-bottom:9px;}' +
+      '.recipe-cost-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;}' +
+      '.recipe-cost-results{display:grid;grid-template-columns:1fr;gap:9px;}' +
+      '.recipe-cost-card{background:#fff;border:1px solid #EAE4DA;border-radius:14px;padding:10px 12px;box-shadow:0 1px 2px rgba(31,31,31,.03);min-width:0;}' +
+      '.recipe-cost-card.is-total{background:linear-gradient(180deg,#FFF7F5 0%,#fff 100%);border-color:#E7C6C0;}' +
+      '.recipe-help-note{margin-top:10px;font-size:11px;color:#6F6860;line-height:1.45;}' +
+      '.recipe-help-btn{border:0;background:transparent;color:#B42318;border-radius:8px;height:auto;padding:0;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;}' +
+      '.recipe-help-box{display:none;margin:0 0 12px;padding:11px 12px;border:1px solid #EADFD8;border-radius:12px;background:#FFFCF8;color:#5A4E4C;font-size:12px;line-height:1.5;}' +
+      '.recipe-help-box strong{color:#1F1F1F;font-weight:700;}' +
+      '.recipe-dashed-btn{width:100%;height:38px;padding:0 12px;border-radius:10px;border:1px dashed #D8CCC5;background:#fff;font-size:12px;font-weight:600;cursor:pointer;color:#6F6860;font-family:inherit;margin-top:10px;}' +
+      '.recipe-dashed-btn:hover{background:#FFFCF8;border-color:#D9AAA1;color:#B42318;}' +
+      '.recipe-component{background:#fff;border:1px solid #EAE4DA;border-radius:16px;padding:13px;box-shadow:0 1px 2px rgba(31,31,31,.03);}' +
+      '.recipe-component-head{display:grid;grid-template-columns:minmax(220px,1fr) minmax(180px,.8fr) 34px;gap:10px;align-items:end;margin-bottom:12px;}' +
+      '.recipe-ingredient-row{display:grid;grid-template-columns:minmax(210px,1.2fr) minmax(86px,.42fr) minmax(62px,.28fr) minmax(72px,.32fr) minmax(82px,.34fr) 30px;gap:8px;align-items:center;padding:9px;border:1px solid #EAE4DA;border-radius:12px;background:#FFFCF8;box-shadow:none;}' +
+      '.supplier-field-control{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:6px;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease}.supplier-field-control:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08)}.supplier-field-control input,.supplier-field-control select,.supplier-field-control textarea{width:100%;min-height:36px;border:0;border-radius:8px;padding:0 8px;font-size:14px;font-family:inherit;outline:none;background:transparent;box-sizing:border-box;color:#1F1F1F;box-shadow:none}.supplier-field-control select{padding-right:42px;appearance:none;-webkit-appearance:none;-moz-appearance:none;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 16px center;background-size:14px}.supplier-field-control textarea{min-height:72px;padding-top:8px;padding-bottom:8px;resize:vertical}.supplier-field-control input[type=file]{padding-top:7px;}' +
+      '.recipe-footer{display:flex;align-items:center;gap:8px;}' +
+      '.recipe-footer-note{font-size:11px;color:#6F6860;margin-right:auto;}' +
+      '.recipe-cancel-btn{height:38px;padding:0 14px;border-radius:10px;border:1px solid #E6E1D8;background:#fff;color:#6F6860;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;}' +
+      '.recipe-delete-btn{height:38px;padding:0 14px;border-radius:10px;border:1px solid #F1D3CF;background:#FFF7F5;color:#B42318;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;}' +
+      '.recipe-save-btn{height:38px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;}' +
+      '.recipe-save-btn:hover{background:#9F1F16;}' +
+      '@media(max-width:900px){.recipe-modal-yield,.recipe-modal-image{grid-column:1/-1}.recipe-modal-main-grid,.recipe-yield-grid,.recipe-production-grid{grid-template-columns:1fr 1fr}.recipe-production-layout,.recipe-cost-layout{grid-template-columns:1fr}.recipe-ingredient-row{grid-template-columns:minmax(210px,1fr) 90px 62px 72px 82px 30px}}@media(max-width:640px){.recipe-modal-body{grid-template-columns:1fr}.recipe-modal-card{grid-column:1/-1!important;padding:13px}.recipe-modal-main-grid,.recipe-yield-grid,#fc-peso-section,.recipe-production-grid,.recipe-component-head,.recipe-ingredient-row,.recipe-cost-grid{grid-template-columns:1fr!important}.recipe-footer{align-items:stretch;flex-direction:column}.recipe-footer-note{margin-right:0;text-align:center}.recipe-save-btn,.recipe-cancel-btn,.recipe-delete-btn{width:100%;}}' +
+      '</style>';
 
-      '<div style="margin-bottom:20px;background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' + sectionHead('Identidade', 'Resumo da receita e do custo por unidade.') +
-      '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px;">' +
-      '<div style="font-size:13px;color:#6F6860;">Resumo da receita e do custo por unidade.</div>' +
-      '<div style="background:#fff;border:1px solid #E6E1D8;border-radius:999px;padding:8px 12px;font-size:12px;font-weight:500;color:#B42318;">Custo por unidade: ' + costBadge + '</div>' +
-      '</div>' +
-      '<div style="margin-bottom:12px;"><label style="' + _fichaLbl() + '">Nome da receita *</label>' +
-      '<input id="fc-name" type="text" value="' + _esc(f.name || '') + '" style="' + _fichaInp() + '"></div>' +
-      '<div style="margin-bottom:12px;">' +
+    var body = modalCss + '<div class="recipe-modal-body">' +
+
+      '<div class="recipe-modal-card recipe-modal-main">' + sectionHead('receipt_long', 'Dados da receita', 'Dê um nome claro para encontrar esta receita depois.') +
+      '<div class="recipe-modal-grid recipe-modal-main-grid">' +
+      '<div><label style="' + _fichaLbl() + '">Nome da receita *</label>' +
+      '<div class="supplier-field-control"><input id="fc-name" type="text" value="' + _esc(f.name || '') + '"></div></div>' +
       '<div><label style="' + _fichaLbl() + '">Categoria</label>' +
-      '<select id="fc-category" style="' + _fichaInp() + 'background:#fff;"><option value="">Selecionar...</option>' + catOpts + '</select></div>' +
+      '<div class="supplier-field-control"><select id="fc-category"><option value="">Selecionar...</option>' + catOpts + '</select></div></div>' +
       '</div>' +
-      '<div style="margin-bottom:12px;"><label style="' + _fichaLbl() + '">Imagem</label>' +
-      '<input type="file" id="fc-img-file" accept="image/jpeg,image/jpg,image/png,image/webp" onchange="Modules.Catalogo._onFichaImgChange(event)" style="' + _fichaInp() + 'padding:8px;background:#fff;">' +
-      '<div style="margin-top:6px;font-size:11px;line-height:1.45;color:#8A7E7C;">' + _imageUploadTip('product') + '</div>' +
-      '<img id="fc-img-preview" src="' + imgSrc + '" style="max-width:100%;max-height:110px;border-radius:9px;margin-top:8px;' + imgPreviewStyle + '"></div>' +
-      '<div><label style="' + _fichaLbl() + '">Observação interna</label>' +
-      '<textarea id="fc-notes" style="' + _fichaInp() + 'min-height:58px;resize:vertical;">' + _esc(f.internalNotes || '') + '</textarea></div>' +
+      '<div style="margin-top:11px;"><label style="' + _fichaLbl() + '">Anotações da receita</label>' +
+      '<div class="supplier-field-control"><textarea id="fc-notes">' + _esc(f.internalNotes || '') + '</textarea></div></div>' +
       '</div>' +
 
-      '<div style="margin-bottom:20px;background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' + sectionHead('Rendimento', 'Defina a quantidade produzida e o tipo de saída.') +
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">' +
+      '<div class="recipe-modal-card recipe-modal-yield">' +
+      '<div class="recipe-modal-head"><span class="mi">scale</span><div><div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;"><div class="recipe-modal-title">Rendimento</div><button type="button" class="recipe-help-btn" onclick="Modules.Catalogo._toggleFichaYieldHelp()">Como preencher?</button></div><div class="recipe-modal-desc">Informe quanto esta receita rende quando fica pronta.</div></div></div>' +
+      '<div id="fc-yield-help" class="recipe-help-box">' +
+        'Aqui você dirá quanto essa receita depois de pronta.<br><br>' +
+        '<strong>Exemplo:</strong><br>' +
+        'Você faz uma massa e, no final, consegue montar 20 salgados.<br><br>' +
+        '<strong>Preencha assim:</strong><br>' +
+        '• Rendimento: 20<br>' +
+        '• Tipo de rendimento: unidades<br>' +
+        '• Peso por unidade: só preencha se cada unidade tiver um peso padrão<br><br>' +
+        'O BocaFood usa esse rendimento para calcular quanto custa cada unidade produzida.<br><br>' +
+        'Se a receita rende unidades, use "unidades".<br>' +
+        'Se rende uma quantidade em kg, use "kg".<br>' +
+        'Se rende uma quantidade em litros, use "litros".<br><br>' +
+        '<strong>Importante:</strong><br>' +
+        'preencha o rendimento real depois de pronta, não a quantidade de ingredientes usados.' +
+      '</div>' +
+      '<div class="recipe-modal-grid recipe-yield-grid">' +
       '<div><label style="' + _fichaLbl() + '">Rendimento *</label>' +
-      '<input id="fc-yield-qty" type="text" value="' + _esc(f.yieldQuantity || f.yield || '') + '" oninput="Modules.Catalogo._updateFichaPesoTotal()" style="' + _fichaInp() + '"></div>' +
+      '<div class="supplier-field-control"><input id="fc-yield-qty" type="text" value="' + _esc(f.yieldQuantity || f.yield || '') + '" oninput="Modules.Catalogo._updateFichaPesoTotal()"></div></div>' +
       '<div><label style="' + _fichaLbl() + '">Tipo de rendimento *</label>' +
-      '<select id="fc-yield-unit" onchange="Modules.Catalogo._onYieldUnitChange()" style="' + _fichaInp() + 'background:#fff;">' + yieldUnitOpts + '</select></div>' +
+      '<div class="supplier-field-control"><select id="fc-yield-unit" onchange="Modules.Catalogo._onYieldUnitChange()">' + yieldUnitOpts + '</select></div></div>' +
       '</div>' +
-      '<div id="fc-peso-section" style="display:' + (showPeso ? 'grid' : 'none') + ';grid-template-columns:1fr 1fr;gap:12px;margin-bottom:4px;">' +
+      '<div id="fc-peso-section" class="recipe-modal-grid" style="display:' + (showPeso ? 'grid' : 'none') + ';grid-template-columns:1fr 1fr;gap:12px;margin-top:11px;">' +
       '<div><label style="' + _fichaLbl() + '">Peso por unidade (g)</label>' +
-      '<input id="fc-unit-weight" type="text" value="' + _esc(f.unitWeightGrams || '') + '" placeholder="Ex: 120" oninput="Modules.Catalogo._updateFichaPesoTotal()" style="' + _fichaInp() + '"></div>' +
+      '<div class="supplier-field-control"><input id="fc-unit-weight" type="text" value="' + _esc(f.unitWeightGrams || '') + '" placeholder="Ex: 120" oninput="Modules.Catalogo._updateFichaPesoTotal()"></div></div>' +
       '<div><label style="' + _fichaLbl() + '">Peso total produzido</label>' +
-      '<input id="fc-peso-total" type="text" readonly style="' + _fichaInp() + 'background:#F8F6F5;color:#8A7E7C;" placeholder="Calculado automaticamente"></div>' +
+      '<div class="supplier-field-control"><input id="fc-peso-total" type="text" readonly placeholder="Calculado automaticamente" style="color:#8A7E7C;"></div></div>' +
       '</div>' +
+      '<div style="margin-top:12px;background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;padding:10px 12px;box-shadow:0 1px 2px rgba(31,31,31,.03);"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Custo por unidade</div><strong style="font-size:17px;color:#1A1A1A;">' + costBadge + '</strong></div>' +
       '</div>' +
 
-      '<div style="margin-bottom:20px;background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' + sectionHead('Ingredientes', 'Monte os componentes e insumos desta receita.') +
+      '<div class="recipe-modal-card recipe-modal-image">' + sectionHead('image', 'Imagem', 'Adicione uma foto para reconhecer esta receita com mais facilidade.') +
+      '<label style="' + _fichaLbl() + '">Foto da receita</label>' +
+      '<div class="supplier-field-control"><input type="file" id="fc-img-file" accept="image/jpeg,image/jpg,image/png,image/webp" onchange="Modules.Catalogo._onFichaImgChange(event)"></div>' +
+      '<div style="margin-top:6px;font-size:11px;line-height:1.45;color:#8A7E7C;">' + _imageUploadTip('product') + '</div>' +
+      '<img id="fc-img-preview" src="' + imgSrc + '" style="max-width:100%;max-height:110px;border-radius:9px;margin-top:8px;' + imgPreviewStyle + '">' +
+      '</div>' +
+
+      '<div class="recipe-modal-card recipe-modal-ingredients">' +
+      '<div class="recipe-modal-head"><span class="mi">restaurant</span><div><div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;"><div class="recipe-modal-title">Ingredientes</div><button type="button" class="recipe-help-btn" onclick="Modules.Catalogo._toggleFichaIngredientsHelp()">Como preencher?</button></div><div class="recipe-modal-desc">Liste o que entra na preparação e a quantidade usada.</div></div></div>' +
+      '<div id="fc-ingredients-help" class="recipe-help-box">' +
+        'Informe aqui o que entra em cada etapa da receita.<br><br>' +
+        'Primeiro escolha a etapa da receita, como massa, recheio, cobertura ou finalização.<br>' +
+        'Essas etapas são cadastradas em Produção &gt; Configurações.<br><br>' +
+        'Depois adicione os ingredientes usados nessa etapa.<br><br>' +
+        '<strong>Exemplo:</strong><br>' +
+        'Na etapa "Massa", você pode adicionar farinha, leite, manteiga e sal.<br><br>' +
+        'Preencha a quantidade que realmente entra na receita.<br><br>' +
+        '<strong>Importante:</strong><br>' +
+        'não informe como você compra o ingrediente.<br>' +
+        'Informe quanto você usa na produção.<br><br>' +
+        '<strong>Exemplo:</strong><br>' +
+        'se você compra farinha em saco de 5 kg, mas usa 500 g na massa, coloque 500 g aqui.' +
+      '</div>' +
       '<div id="fc-components" style="display:flex;flex-direction:column;gap:12px;">' + componentRows + '</div>' +
-      '<button type="button" onclick="Modules.Catalogo._addFichaComponent()" style="width:100%;padding:10px;border-radius:10px;border:1.5px dashed #D4C8C6;background:transparent;font-size:13px;font-weight:700;cursor:pointer;color:#8A7E7C;font-family:inherit;margin-top:10px;">+ Adicionar componente</button>' +
+      '<button type="button" onclick="Modules.Catalogo._addFichaComponent()" class="recipe-dashed-btn">+ Adicionar componente</button>' +
       '</div>' +
 
-      '<div style="margin-bottom:20px;background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' + sectionHead('Custos', 'Acompanhe custo total, por unidade e por quilo.') +
-      '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;">' +
-      '<div style="background:#fff;border:none;border-radius:16px;padding:12px;box-shadow:0 12px 30px rgba(31,31,31,.06);"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Ingredientes</div><div id="fc-cost-ingredients" style="font-size:18px;font-weight:600;color:#1F1F1F;">€0,00</div></div>' +
-      '<div style="background:#fff;border:none;border-radius:16px;padding:12px;box-shadow:0 12px 30px rgba(31,31,31,.06);"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Embalagem</div><div id="fc-cost-packaging" style="font-size:18px;font-weight:600;color:#1F1F1F;">€0,00</div></div>' +
-      '<div style="background:#fff;border:none;border-radius:16px;padding:12px;box-shadow:0 12px 30px rgba(31,31,31,.06);"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Custo direto</div><div id="fc-cost-direct" style="font-size:18px;font-weight:600;color:#1F1F1F;">€0,00</div></div>' +
-      '<div style="background:#fff;border:none;border-radius:16px;padding:12px;box-shadow:0 12px 30px rgba(31,31,31,.06);"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Custos indiretos estimados <span id="fc-indirect-pct"></span></div><div id="fc-cost-indirect" style="font-size:18px;font-weight:600;color:#B42318;">€0,00</div><div id="fc-indirect-mode" style="font-size:10px;color:#6F6860;margin-top:3px;">Modo: Manual</div></div>' +
-      '<div style="background:#fff;border:none;border-radius:16px;padding:12px;box-shadow:0 12px 30px rgba(31,31,31,.06);"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Custo total</div><div id="fc-cost-total" style="font-size:18px;font-weight:600;color:#B42318;">€0,00</div></div>' +
-      '<div style="background:#fff;border:none;border-radius:16px;padding:12px;box-shadow:0 12px 30px rgba(31,31,31,.06);"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Por <span id="fc-cost-unit-label">unidade</span></div><div id="fc-cost-unit" style="font-size:18px;font-weight:600;color:#1F1F1F;">€0,00</div></div>' +
-      '<div style="background:#fff;border:none;border-radius:16px;padding:12px;box-shadow:0 12px 30px rgba(31,31,31,.06);"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Por kg / L</div><div id="fc-cost-kg" style="font-size:18px;font-weight:600;color:#1F1F1F;">—</div></div>' +
+      '<div class="recipe-modal-card recipe-modal-cost">' + sectionHead('payments', 'Custos', 'Veja quanto esta receita custa para produzir.') +
+      '<div class="recipe-cost-layout">' +
+      '<div class="recipe-cost-group"><div class="recipe-cost-group-title">Composição do custo</div><div class="recipe-cost-grid">' +
+      '<div class="recipe-cost-card"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Ingredientes</div><div id="fc-cost-ingredients" style="font-size:18px;font-weight:600;color:#1F1F1F;">€0,00</div></div>' +
+      '<div class="recipe-cost-card"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Embalagem</div><div id="fc-cost-packaging" style="font-size:18px;font-weight:600;color:#1F1F1F;">€0,00</div></div>' +
+      '<div class="recipe-cost-card"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Custo direto</div><div id="fc-cost-direct" style="font-size:18px;font-weight:600;color:#1F1F1F;">€0,00</div></div>' +
+      '<div class="recipe-cost-card"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Outros custos <span id="fc-indirect-pct"></span></div><div id="fc-cost-indirect" style="font-size:18px;font-weight:600;color:#B42318;">€0,00</div><div id="fc-indirect-mode" style="font-size:10px;color:#6F6860;margin-top:3px;">Critério: Manual</div></div>' +
+      '</div></div>' +
+      '<div class="recipe-cost-group"><div class="recipe-cost-group-title">Resultado da receita</div><div class="recipe-cost-results">' +
+      '<div class="recipe-cost-card is-total"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Custo total</div><div id="fc-cost-total" style="font-size:20px;font-weight:700;color:#B42318;">€0,00</div></div>' +
+      '<div class="recipe-cost-card"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Por <span id="fc-cost-unit-label">unidade</span></div><div id="fc-cost-unit" style="font-size:18px;font-weight:600;color:#1F1F1F;">€0,00</div></div>' +
+      '<div class="recipe-cost-card"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Por kg / L</div><div id="fc-cost-kg" style="font-size:18px;font-weight:600;color:#1F1F1F;">—</div></div>' +
+      '</div></div>' +
       '</div>' +
-      '<div style="margin-top:10px;font-size:11px;color:#6F6860;font-style:italic;">A perda vem do cadastro do insumo. Custos indiretos estimados usam o modo definido em Configurações.</div>' +
+      '<div class="recipe-help-note">Os custos são atualizados conforme os ingredientes e quantidades informadas nesta receita.</div>' +
       '</div>' +
 
-      '<div style="margin-bottom:8px;background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' + sectionHead('Produção', 'Orientações internas para preparo, conservação e validade.') +
-      '<div style="margin-bottom:12px;"><label style="' + _fichaLbl() + '">Modo de preparo</label>' +
-      '<textarea id="fc-prep" placeholder="Descreva o passo a passo da produção desta receita." style="' + _fichaInp() + 'min-height:100px;resize:vertical;">' + _esc(f.preparationMode || '') + '</textarea></div>' +
-      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px;">' +
-      '<div><label style="' + _fichaLbl() + '">Conservação</label>' +
-      '<select id="fc-conserv" style="' + _fichaInp() + 'background:#fff;"><option value="">Selecionar...</option>' + conservOpts + '</select></div>' +
-      '<div><label style="' + _fichaLbl() + '">Validade (número)</label>' +
-      '<input id="fc-shelf-val" type="text" value="' + _esc(f.shelfLifeValue || '') + '" placeholder="Ex: 30" style="' + _fichaInp() + '"></div>' +
-      '<div><label style="' + _fichaLbl() + '">Validade (unidade)</label>' +
-      '<select id="fc-shelf-unit" style="' + _fichaInp() + 'background:#fff;">' + shelfUnitOpts + '</select></div>' +
+      '<div class="recipe-modal-card recipe-modal-production">' +
+      '<div class="recipe-production-top">' + sectionHead('restaurant_menu', 'Produção', 'Registre orientações de preparo, armazenamento e validade.') + '</div>' +
+      '<div class="recipe-production-layout">' +
+      '<div class="recipe-production-group"><div class="recipe-production-group-title">Preparo</div>' +
+      '<div style="margin-bottom:10px;"><label style="' + _fichaLbl() + '">Modo de preparo</label>' +
+      '<div class="supplier-field-control"><textarea id="fc-prep" placeholder="Descreva o passo a passo da produção desta receita." style="min-height:104px;">' + _esc(f.preparationMode || '') + '</textarea></div></div>' +
+      '<div><label style="' + _fichaLbl() + '">Cuidados no preparo</label>' +
+      '<div class="supplier-field-control"><textarea id="fc-prod-notes" placeholder="Ex: ponto da massa, cuidado no forno, embalagem final.">' + _esc(f.productionNotes || '') + '</textarea></div></div>' +
       '</div>' +
-      '<div><label style="' + _fichaLbl() + '">Observações de produção</label>' +
-      '<textarea id="fc-prod-notes" style="' + _fichaInp() + 'min-height:60px;resize:vertical;">' + _esc(f.productionNotes || '') + '</textarea></div>' +
+      '<div class="recipe-production-group"><div class="recipe-production-group-title">Conservação e validade</div>' +
+      '<div class="recipe-production-grid">' +
+      '<div class="recipe-production-full"><label style="' + _fichaLbl() + '">Conservação</label>' +
+      '<div class="supplier-field-control"><select id="fc-conserv"><option value="">Selecionar...</option>' + conservOpts + '</select></div></div>' +
+      '<div><label style="' + _fichaLbl() + '">Validade</label>' +
+      '<div class="supplier-field-control"><input id="fc-shelf-val" type="text" value="' + _esc(f.shelfLifeValue || '') + '" placeholder="Ex: 30"></div></div>' +
+      '<div><label style="' + _fichaLbl() + '">Unidade</label>' +
+      '<div class="supplier-field-control"><select id="fc-shelf-unit">' + shelfUnitOpts + '</select></div></div>' +
+      '</div>' +
+      '<div style="font-size:11px;color:#6F6860;line-height:1.45;margin-top:9px;">Use esta parte para registrar como a receita deve ser guardada e por quanto tempo pode ser usada.</div>' +
+      '</div>' +
+      '</div>' +
       '</div>' +
 
       '</div>';
 
-    var footer = '<div style="display:flex;flex-direction:column;gap:6px;align-items:stretch;">' +
-      '<button onclick="Modules.Catalogo._saveFicha()" style="width:100%;height:40px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:14px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">Salvar receita</button>' +
-      '<div style="font-size:11px;color:#6F6860;text-align:center;">Atualiza custos automaticamente</div>' +
-      '</div>';
+    var footer = id
+      ? '<div class="recipe-footer">' +
+        '<button onclick="Modules.Catalogo._deleteFicha(\'' + id + '\')" class="recipe-delete-btn">Excluir</button>' +
+        '<span style="flex:1;"></span>' +
+        '<button onclick="window._fichaModal&&window._fichaModal.close()" class="recipe-cancel-btn">Cancelar</button>' +
+        '<button onclick="Modules.Catalogo._saveFicha()" class="recipe-save-btn">Atualizar receita</button>' +
+        '</div>'
+      : '<div class="recipe-footer" style="justify-content:flex-end;">' +
+        '<button onclick="window._fichaModal&&window._fichaModal.close()" class="recipe-cancel-btn">Cancelar</button>' +
+        '<button onclick="Modules.Catalogo._saveFicha()" class="recipe-save-btn">Adicionar receita</button>' +
+        '</div>';
     window._fichaModal = UI.modal({ title: id ? 'Editar Receita' : 'Nova Receita', body: body, footer: footer, maxWidth: '1120px' });
     setTimeout(function () { _updateFichaCost(); _updateFichaPesoTotal(); }, 80);
   }
@@ -6214,7 +6851,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   function _recipeComponentOptionsHtml(selected) {
     var names = _recipeComponentNames(selected);
     if (!names.length) {
-      return '<option value="">Cadastre componentes primeiro</option>';
+      return '<option value="">Cadastre etapas em Produção > Configurações</option>';
     }
     return '<option value="">Selecionar componente...</option>' + names.map(function (name) {
       return '<option value="' + _esc(name) + '"' + (name === selected ? ' selected' : '') + '>' + _esc(name) + '</option>';
@@ -6224,6 +6861,18 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   function _defaultRecipeComponentName() {
     var first = (_recipeComponents || []).find(function (c) { return (c.name || c.label || '').trim(); });
     return first ? (first.name || first.label || '').trim() : '';
+  }
+
+  function _toggleFichaYieldHelp() {
+    var el = document.getElementById('fc-yield-help');
+    if (!el) return;
+    el.style.display = el.style.display === 'block' ? 'none' : 'block';
+  }
+
+  function _toggleFichaIngredientsHelp() {
+    var el = document.getElementById('fc-ingredients-help');
+    if (!el) return;
+    el.style.display = el.style.display === 'block' ? 'none' : 'block';
   }
 
   function _fichaComponentHtml(compIdx, comp) {
@@ -6238,14 +6887,14 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       window._fichaIngCount = blankIdx + 1;
       rows = _fichaIngRow(blankIdx, compIdx, '', 0);
     }
-    return '<div id="fc-comp-' + compIdx + '" class="fc-component" data-comp-idx="' + compIdx + '" style="background:#fff;border:none;border-radius:16px;padding:14px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
-      '<div style="display:grid;grid-template-columns:1fr 1fr 34px;gap:10px;align-items:end;margin-bottom:12px;">' +
-      '<div><label style="' + _fichaLbl() + '">Nome do componente</label><select data-comp-name="' + compIdx + '" onchange="Modules.Catalogo._updateFichaCost()" style="' + _fichaInp() + 'background:#fff;">' + _recipeComponentOptionsHtml((comp.name || '').trim()) + '</select></div>' +
-      '<div><label style="' + _fichaLbl() + '">Observação opcional</label><input data-comp-note="' + compIdx + '" value="' + _esc(comp.note || '') + '" placeholder="Ex: usar fria" style="' + _fichaInp() + '"></div>' +
+    return '<div id="fc-comp-' + compIdx + '" class="fc-component recipe-component" data-comp-idx="' + compIdx + '">' +
+      '<div class="recipe-component-head">' +
+      '<div><label style="' + _fichaLbl() + '">Etapa da receita</label><div class="supplier-field-control"><select data-comp-name="' + compIdx + '" onchange="Modules.Catalogo._updateFichaCost()">' + _recipeComponentOptionsHtml((comp.name || '').trim()) + '</select></div></div>' +
+      '<div><label style="' + _fichaLbl() + '">Anotação</label><div class="supplier-field-control"><input data-comp-note="' + compIdx + '" value="' + _esc(comp.note || '') + '" placeholder="Ex: usar fria"></div></div>' +
       '<button type="button" onclick="Modules.Catalogo._removeFichaComponent(' + compIdx + ')" title="Remover componente" style="width:34px;height:34px;border-radius:9px;border:1px solid #E6E1D8;background:#fff;color:#B42318;cursor:pointer;font-size:14px;box-shadow:0 1px 2px rgba(31,31,31,.03);">✕</button>' +
       '</div>' +
       '<div id="fc-comp-ings-' + compIdx + '" style="display:flex;flex-direction:column;gap:8px;">' + rows + '</div>' +
-      '<button type="button" onclick="Modules.Catalogo._addFichaIng(' + compIdx + ')" style="width:100%;height:38px;padding:0 12px;border-radius:10px;border:1px dashed #E6E1D8;background:#fff;font-size:12px;font-weight:500;cursor:pointer;color:#6F6860;font-family:inherit;margin-top:10px;">+ Adicionar insumo neste componente</button>' +
+      '<button type="button" onclick="Modules.Catalogo._addFichaIng(' + compIdx + ')" class="recipe-dashed-btn">+ Adicionar ingrediente nesta parte</button>' +
       '</div>';
   }
 
@@ -6262,12 +6911,12 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       : '<span style="color:#D4C8C6;font-size:11px;">—</span>';
     var costHtml = costVal > 0 ? '€' + costVal.toFixed(costVal < 0.01 ? 6 : 2) : '—';
 
-    return '<div id="fc-ing-' + idx + '" data-comp-row="' + compIdx + '" style="display:grid;grid-template-columns:minmax(200px,1.4fr) 90px 72px 88px 84px 30px;gap:8px;align-items:center;padding:10px 10px;border:none;border-radius:12px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);">' +
-      '<div><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Insumo</div>' +
-      '<select data-ing-idx="' + idx + '" onchange="Modules.Catalogo._onFichaIngChange(\'' + idx + '\')" style="width:100%;height:38px;padding:0 10px;border:1px solid #E6E1D8;border-radius:8px;font-size:13px;font-family:inherit;outline:none;background:#fff;">' + opts + '</select></div>' +
-      '<div><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Qtd</div>' +
-      '<input type="text" data-ing-qty="' + idx + '" value="' + (qty || '') + '" placeholder="0" oninput="Modules.Catalogo._updateFichaCost()" style="width:100%;height:38px;padding:0 10px;border:1px solid #E6E1D8;border-radius:8px;font-size:13px;font-family:inherit;outline:none;background:#fff;"></div>' +
-      '<div><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Unid.</div><div id="fc-ing-unit-' + idx + '" style="font-size:12px;color:#1F1F1F;font-weight:600;">' + _esc(unidade) + '</div></div>' +
+    return '<div id="fc-ing-' + idx + '" class="recipe-ingredient-row" data-comp-row="' + compIdx + '">' +
+      '<div><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Ingrediente</div>' +
+      '<div class="supplier-field-control"><select data-ing-idx="' + idx + '" onchange="Modules.Catalogo._onFichaIngChange(\'' + idx + '\')">' + opts + '</select></div></div>' +
+      '<div><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Quantidade</div>' +
+      '<div class="supplier-field-control"><input type="text" data-ing-qty="' + idx + '" value="' + (qty || '') + '" placeholder="0" oninput="Modules.Catalogo._updateFichaCost()"></div></div>' +
+      '<div><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Unidade</div><div id="fc-ing-unit-' + idx + '" style="font-size:12px;color:#1F1F1F;font-weight:600;">' + _esc(unidade) + '</div></div>' +
       '<div><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Perda</div><div id="fc-ing-loss-' + idx + '" style="white-space:nowrap;">' + perdaHtml + '</div></div>' +
       '<div><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Custo</div><div id="fc-ing-cost-' + idx + '" style="font-size:12px;color:#1F1F1F;font-weight:600;white-space:nowrap;">' + costHtml + '</div></div>' +
       '<div style="text-align:right;"><button type="button" onclick="Modules.Catalogo._removeFichaIng(' + idx + ')" style="width:26px;height:26px;border-radius:7px;border:1px solid #E6E1D8;background:#fff;color:#B42318;cursor:pointer;font-size:12px;box-shadow:0 1px 2px rgba(31,31,31,.03);">✕</button></div>' +
@@ -6668,6 +7317,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     _filterItensCusto: _filterItensCusto, _setItensCustoFilter: _setItensCustoFilter, _onItemTipoChange: _onItemTipoChange,
     _openFichaViewModal: _openFichaViewModal, _editFichaFromView: _editFichaFromView,
     _openFichaModal: _openFichaModal, _addFichaComponent: _addFichaComponent, _removeFichaComponent: _removeFichaComponent, _addFichaIng: _addFichaIng, _removeFichaIng: _removeFichaIng,
+    _toggleFichaYieldHelp: _toggleFichaYieldHelp, _toggleFichaIngredientsHelp: _toggleFichaIngredientsHelp,
     _updateFichaCost: _updateFichaCost, _updateFichaPesoTotal: _updateFichaPesoTotal, _onYieldUnitChange: _onYieldUnitChange,
     _onFichaIngChange: _onFichaIngChange, _onFichaImgChange: _onFichaImgChange,
     _saveFicha: _saveFicha, _deleteFicha: _deleteFicha,
