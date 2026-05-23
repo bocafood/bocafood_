@@ -7372,3 +7372,15 @@
 - Ajuste visual posterior: os botões superiores da primeira dobra mobile da loja pública passaram para 40px de altura, com avatar de 30px e texto levemente maior para melhorar toque e legibilidade em celular.
 
 - Ajuste visual posterior: o card principal mobile da loja pública ganhou mais respiro inferior, apresentação curta maior, informações rápidas mais legíveis e peso menor no nome da loja, mantendo a composição compacta da primeira dobra.
+
+- Ajuste visual: o modal de cadastro da cliente na loja pública foi refinado com resumo mais leve, WhatsApp separado dos endereços, lista de endereços em cards compactos, formulário de endereço em grid proporcional e remoção de texto vazio no cabeçalho/resumo quando não há mensagem a exibir.
+
+- Correção visual: os campos curtos do cadastro de endereço da cliente agora quebram em pares de duas colunas, evitando que número, piso, bairro, código postal, localidade e província fiquem comprimidos na mesma linha.
+
+- Ajuste visual: o botão `Ver promoções` no topo da loja pública recebeu fundo claro mais evidente baseado na cor da marca, mantendo borda e sombra leves.
+
+- Correção visual: reforçado o fundo do botão `Ver promoções` nas regras finais do template para impedir que estilos duplicados o deixem transparente no topo da loja pública.
+
+- Ajuste visual: o card `Destaque da casa` no mobile ficou mais compacto e conversor, com imagem integrada, título menos pesado, preço em preto, CTA verde e selo de destaque mais discreto.
+
+- Ajuste visual: o card de Programa de Pontos no mobile foi refinado com fundo claro na cor da marca, estrelas mais discretas, hierarquia mais leve e CTA com área de toque maior.

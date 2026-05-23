@@ -267,9 +267,11 @@
       justify-content: center;
       padding: 0 14px;
       color: var(--brand);
-      background: linear-gradient(180deg, rgba(var(--brand-rgb), .10), rgba(var(--brand-rgb), .055));
-      border: 1px solid rgba(var(--brand-rgb), .16);
-      box-shadow: 0 8px 18px rgba(var(--brand-rgb), .08);
+      background:
+        linear-gradient(180deg, rgba(var(--brand-rgb), .18), rgba(var(--brand-rgb), .09)),
+        rgba(255, 255, 255, .86);
+      border: 1px solid rgba(var(--brand-rgb), .20);
+      box-shadow: 0 10px 22px rgba(var(--brand-rgb), .10);
       font-size: 11.5px;
       font-weight: 650;
       line-height: 1;
@@ -1516,9 +1518,11 @@
       min-height: 34px;
       padding: 0 14px;
       color: var(--brand);
-      background: linear-gradient(180deg, rgba(var(--brand-rgb), .10), rgba(var(--brand-rgb), .055));
-      border: 1px solid rgba(var(--brand-rgb), .16);
-      box-shadow: 0 8px 18px rgba(var(--brand-rgb), .08);
+      background:
+        linear-gradient(180deg, rgba(var(--brand-rgb), .20), rgba(var(--brand-rgb), .11)),
+        rgba(255, 255, 255, .92);
+      border: 1px solid rgba(var(--brand-rgb), .22);
+      box-shadow: 0 10px 22px rgba(var(--brand-rgb), .11);
       font-size: 11.5px;
       font-weight: 650;
     }
@@ -2375,10 +2379,13 @@
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      padding: 12px;
-      border-radius: 16px;
-      background: #FAF8F4;
-      border: 1px solid #EAE4DA;
+      padding: 13px 14px;
+      border-radius: 18px;
+      background:
+        radial-gradient(circle at 8% 0%, rgba(var(--brand-rgb), .10), rgba(var(--brand-rgb), 0) 42%),
+        #fffaf5;
+      border: 1px solid rgba(33, 27, 24, .07);
+      box-shadow: 0 10px 24px rgba(33, 27, 24, .045), inset 0 1px 0 rgba(255,255,255,.76);
     }
 
     .account-summary-main {
@@ -2397,7 +2404,7 @@
       background: var(--brand);
       color: var(--on-brand);
       font-size: 14px;
-      font-weight: 700;
+      font-weight: 650;
       flex: 0 0 auto;
     }
 
@@ -2405,7 +2412,7 @@
       color: var(--ink);
       font-size: 14px;
       line-height: 1.2;
-      font-weight: 700;
+      font-weight: 650;
       overflow-wrap: anywhere;
     }
 
@@ -2425,11 +2432,12 @@
 
     .account-address-card {
       display: grid;
-      gap: 7px;
-      padding: 10px;
-      border-radius: 14px;
-      background: #FAF8F4;
-      border: 1px solid #EAE4DA;
+      gap: 10px;
+      padding: 13px;
+      border-radius: 18px;
+      background: #fffaf5;
+      border: 1px solid rgba(33, 27, 24, .07);
+      box-shadow: 0 10px 24px rgba(33, 27, 24, .04), inset 0 1px 0 rgba(255,255,255,.75);
     }
 
     .account-address-head {
@@ -2441,22 +2449,22 @@
 
     .account-address-title {
       color: var(--ink);
-      font-size: 12px;
+      font-size: 13px;
       line-height: 1.2;
-      font-weight: 700;
+      font-weight: 650;
     }
 
     .account-address-text {
       margin-top: 2px;
       color: #171412;
-      font-size: 11px;
-      line-height: 1.3;
+      font-size: 11.5px;
+      line-height: 1.38;
       font-weight: 400;
     }
 
     .account-address-text strong {
       color: var(--ink);
-      font-weight: 650;
+      font-weight: 560;
     }
 
     .account-address-text span {
@@ -2471,16 +2479,25 @@
       align-items: center;
     }
 
+    .account-section-label {
+      margin: 2px 0 -2px;
+      color: #5f554e;
+      font-size: 10.5px;
+      line-height: 1.2;
+      font-weight: 620;
+      letter-spacing: .015em;
+    }
+
     .account-add-address {
       width: max-content;
-      min-height: 34px;
+      min-height: 36px;
       border: 1px solid rgba(var(--brand-rgb), .18);
-      border-radius: 12px;
+      border-radius: 14px;
       background: rgba(var(--brand-rgb), .055);
       color: var(--brand);
       padding: 0 12px;
       font: inherit;
-      font-size: 11px;
+      font-size: 11.5px;
       font-weight: 650;
       cursor: pointer;
       box-shadow: 0 8px 16px rgba(var(--brand-rgb), .06);
@@ -2493,21 +2510,21 @@
 
     .account-saved-addresses {
       display: grid;
-      gap: 6px;
+      gap: 7px;
     }
 
     .account-saved-address {
       display: grid;
-      gap: 2px;
+      gap: 3px;
       width: 100%;
-      border: 1px solid rgba(56, 43, 37, .08);
-      border-radius: 12px;
+      border: 1px solid rgba(56, 43, 37, .075);
+      border-radius: 14px;
       background: #fff;
       color: #1f1f1f;
-      padding: 8px 10px;
+      padding: 10px 11px;
       text-align: left;
       font: inherit;
-      font-size: 11px;
+      font-size: 11.5px;
       line-height: 1.35;
       cursor: pointer;
       transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;
@@ -2522,8 +2539,8 @@
 
     .account-saved-address strong {
       color: var(--ink);
-      font-size: 11.5px;
-      font-weight: 650;
+      font-size: 12px;
+      font-weight: 640;
     }
 
     .account-address-status {
@@ -2540,9 +2557,9 @@
 
     .account-address-form {
       display: none;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 6px;
-      padding-top: 2px;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 8px;
+      padding-top: 4px;
     }
 
     .account-address-form.show {
@@ -2550,10 +2567,11 @@
     }
 
     .account-address-form .auth-field {
-      min-height: 34px;
-      padding: 7px 9px;
-      font-size: 11px;
-      border-radius: 11px;
+      min-height: 38px;
+      padding: 8px 10px;
+      font-size: 11.5px;
+      border-radius: 13px;
+      background: #fffdf9;
     }
 
     .account-address-suggestions {
@@ -2627,7 +2645,16 @@
     }
 
     .account-address-form .account-span-half {
-      grid-column: span 1;
+      grid-column: span 3;
+    }
+
+    #account-address-number,
+    #account-address-complement,
+    #account-address-neighborhood,
+    #account-address-postal,
+    #account-address-city,
+    #account-address-province {
+      grid-column: span 3;
     }
 
     .account-save-row {
@@ -2638,14 +2665,14 @@
 
     .account-save-row .auth-submit {
       width: auto;
-      min-height: 34px;
-      padding: 0 14px;
-      font-size: 11px;
+      min-height: 38px;
+      padding: 0 15px;
+      font-size: 11.5px;
     }
 
     @media (max-width: 520px) {
       .account-address-form {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(6, minmax(0, 1fr));
       }
 
       .account-address-form .span-2,
@@ -2659,7 +2686,7 @@
       }
 
       .account-contact-row {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
       }
 
       .account-contact-row .auth-submit,
@@ -7419,6 +7446,11 @@
 
       .promo-nav-btn {
         padding: 0 13px;
+        background:
+          linear-gradient(180deg, rgba(var(--brand-rgb), .22), rgba(var(--brand-rgb), .12)),
+          rgba(255, 255, 255, .94) !important;
+        border-color: rgba(var(--brand-rgb), .24) !important;
+        box-shadow: 0 10px 22px rgba(var(--brand-rgb), .12), inset 0 1px 0 rgba(255,255,255,.54) !important;
       }
 
       .account-avatar {
@@ -7547,6 +7579,154 @@
 
       .featured-card {
         margin-bottom: 8px;
+        min-height: 136px;
+        grid-template-columns: minmax(0, 56%) minmax(112px, 44%);
+        border-radius: 22px;
+        background:
+          linear-gradient(135deg, rgba(255,255,255,.96), rgba(255,250,244,.92)),
+          rgba(var(--brand-rgb), .035);
+        border-color: rgba(33, 27, 24, .055);
+        box-shadow: 0 12px 26px rgba(33, 27, 24, .055);
+      }
+
+      .featured-copy {
+        padding: 14px 0 14px 14px;
+      }
+
+      .featured-card .eyebrow {
+        min-height: 21px;
+        padding: 0 8px;
+        font-size: 9.5px;
+        font-weight: 640;
+        background: rgba(var(--brand-rgb), .075);
+        border-color: rgba(var(--brand-rgb), .12);
+      }
+
+      .featured-card .eyebrow:before {
+        display: none;
+      }
+
+      .featured-copy h3 {
+        margin-top: 7px;
+        font-size: clamp(18px, 5.4vw, 21px);
+        line-height: 1.04;
+        font-weight: 720;
+        letter-spacing: -.032em;
+      }
+
+      .featured-copy p {
+        margin-top: 4px;
+        color: #5f554e;
+        font-size: 11px;
+        line-height: 1.28;
+      }
+
+      .featured-price {
+        margin-top: 7px;
+        color: #171412;
+        font-size: 16px;
+        font-weight: 680;
+      }
+
+      .featured-action {
+        margin-top: 8px;
+        min-height: 34px;
+        padding: 0 14px;
+        border-radius: 14px;
+        background: linear-gradient(135deg, #1fa971 0%, #128c5b 100%);
+        color: #fff;
+        box-shadow: 0 10px 20px rgba(18, 140, 91, .20);
+        font-size: 11.5px;
+        font-weight: 650;
+      }
+
+      .featured-img {
+        min-height: 136px;
+        background-image:
+          linear-gradient(90deg, rgba(255,250,243,.42) 0%, rgba(255,250,243,.14) 34%, rgba(255,250,243,0) 62%),
+          url("https://images.unsplash.com/photo-1594212699903-ec8a3eca50f5?auto=format&fit=crop&w=520&q=90");
+        background-position: center, center;
+        background-size: 100% 100%, cover;
+      }
+
+      .loyalty-card {
+        margin-top: 0;
+        min-height: 98px;
+        padding: 15px 15px 14px;
+        border-radius: 22px;
+        background:
+          radial-gradient(circle at 86% 10%, rgba(201, 138, 47, .18), rgba(201, 138, 47, 0) 34%),
+          linear-gradient(135deg, rgba(var(--brand-rgb), .07), rgba(255,255,255,.84) 45%, rgba(255,250,244,.96));
+        border: 1px solid rgba(var(--brand-rgb), .12);
+        box-shadow: 0 12px 26px rgba(33, 27, 24, .055), inset 0 1px 0 rgba(255,255,255,.74);
+      }
+
+      .loyalty-card:before {
+        top: 16px;
+        bottom: 16px;
+        width: 2px;
+        background: rgba(var(--brand-rgb), .34);
+      }
+
+      .loyalty-card:after {
+        width: 118px;
+        height: 118px;
+        right: -70px;
+        bottom: -72px;
+        background: radial-gradient(circle, rgba(201, 138, 47, .15), rgba(201, 138, 47, 0) 68%);
+      }
+
+      .loyalty-stars {
+        right: 13px;
+        top: 12px;
+        width: 52px;
+        height: 34px;
+        opacity: .9;
+      }
+
+      .loyalty-stars:before {
+        border: 0;
+        background: rgba(201, 138, 47, .08);
+      }
+
+      .loyalty-stars:after {
+        color: #c98a2f;
+        font-size: 16px;
+        text-shadow: -18px 9px 0 rgba(201, 138, 47, .34), -4px 18px 0 rgba(201, 138, 47, .20);
+      }
+
+      .loyalty-title {
+        max-width: calc(100% - 64px);
+        font-size: 14.5px;
+        line-height: 1.16;
+        font-weight: 680;
+        letter-spacing: -.02em;
+      }
+
+      .loyalty-text {
+        max-width: calc(100% - 56px);
+        margin-top: 4px;
+        color: #5f554e;
+        font-size: 11.25px;
+        line-height: 1.32;
+      }
+
+      .loyalty-actions {
+        margin-top: 11px;
+      }
+
+      .loyalty-cta {
+        min-height: 32px;
+        padding: 0 13px;
+        border-radius: 13px;
+        background:
+          linear-gradient(180deg, rgba(var(--brand-rgb), .15), rgba(var(--brand-rgb), .08)),
+          rgba(255,255,255,.82);
+        border-color: rgba(var(--brand-rgb), .18);
+        color: var(--brand);
+        box-shadow: 0 8px 18px rgba(var(--brand-rgb), .08);
+        font-size: 11px;
+        font-weight: 650;
       }
 
       .category-strip {
@@ -7607,6 +7787,40 @@
       .template-content {
         padding: 7px 12px calc(96px + env(safe-area-inset-bottom));
         gap: 13px;
+      }
+
+      .featured-card {
+        min-height: 132px;
+        grid-template-columns: minmax(0, 56%) minmax(106px, 44%);
+      }
+
+      .featured-copy {
+        padding: 13px 0 13px 13px;
+      }
+
+      .featured-copy h3 {
+        font-size: clamp(17px, 5.5vw, 20px);
+      }
+
+      .featured-copy p {
+        font-size: 10.5px;
+      }
+
+      .featured-img {
+        min-height: 132px;
+      }
+
+      .loyalty-card {
+        min-height: 96px;
+        padding: 14px 14px 13px;
+      }
+
+      .loyalty-title {
+        font-size: 14px;
+      }
+
+      .loyalty-text {
+        font-size: 11px;
       }
     }
   </style>
@@ -7973,6 +8187,7 @@
                       <div class="account-address-text" id="account-address-text">Guarda una dirección para comprar más rápido la próxima vez.</div>
                     </div>
                   </div>
+                  <div class="account-section-label" id="account-whatsapp-title">WhatsApp</div>
                   <div class="account-contact-row">
                     <div class="store-phone-box">
                       <select id="account-whatsapp-country" aria-label="Código do país">
@@ -11116,13 +11331,13 @@
             kicker: 'Conta',
             title: 'Sua conta',
             text: 'Aqui ficam seus dados para comprar mais rápido nesta loja.',
-            points: 'Ver pontos',
-            logout: 'Sair da conta',
-            addressTitle: 'Endereço de entrega',
-            noAddress: 'Salve um endereço para comprar mais rápido da próxima vez.',
-            editAddress: 'Editar',
-            saveAddress: 'Salvar dados',
-            addressSaved: 'Dados salvos para suas próximas compras.',
+          points: 'Ver pontos',
+          logout: 'Sair da conta',
+          addressTitle: 'Endereço de entrega',
+          noAddress: 'Adicione seus endereços de entrega e escolha um deles no checkout.',
+          editAddress: 'Editar',
+          saveAddress: 'Salvar dados',
+          addressSaved: 'Dados salvos para suas próximas compras.',
             whatsappTitle: 'WhatsApp',
             whatsappPlaceholder: 'Seu WhatsApp'
           },
@@ -11130,13 +11345,13 @@
             kicker: 'Conta',
             title: 'A sua conta',
             text: 'Aqui ficam os seus dados para comprar mais rápido nesta loja.',
-            points: 'Ver pontos',
-            logout: 'Sair da conta',
-            addressTitle: 'Endereço de entrega',
-            noAddress: 'Guarde um endereço para comprar mais rápido da próxima vez.',
-            editAddress: 'Editar',
-            saveAddress: 'Guardar dados',
-            addressSaved: 'Dados guardados para as próximas compras.',
+          points: 'Ver pontos',
+          logout: 'Sair da conta',
+          addressTitle: 'Endereço de entrega',
+          noAddress: 'Adicione os seus endereços de entrega e escolha um deles no checkout.',
+          editAddress: 'Editar',
+          saveAddress: 'Guardar dados',
+          addressSaved: 'Dados guardados para as próximas compras.',
             whatsappTitle: 'WhatsApp',
             whatsappPlaceholder: 'O seu WhatsApp'
           },
@@ -11144,13 +11359,13 @@
             kicker: 'Account',
             title: 'Your account',
             text: 'Your saved details help you order faster next time.',
-            points: 'View points',
-            logout: 'Sign out',
-            addressTitle: 'Delivery address',
-            noAddress: 'Save an address to order faster next time.',
-            editAddress: 'Edit',
-            saveAddress: 'Save details',
-            addressSaved: 'Details saved for your next orders.',
+          points: 'View points',
+          logout: 'Sign out',
+          addressTitle: 'Delivery address',
+          noAddress: 'Add your delivery addresses and choose one at checkout.',
+          editAddress: 'Edit',
+          saveAddress: 'Save details',
+          addressSaved: 'Details saved for your next orders.',
             whatsappTitle: 'WhatsApp',
             whatsappPlaceholder: 'Your WhatsApp'
           },
@@ -11158,13 +11373,13 @@
             kicker: 'Compte',
             title: 'Votre compte',
             text: 'Vos informations enregistrées vous aident à commander plus vite.',
-            points: 'Voir les points',
-            logout: 'Se déconnecter',
-            addressTitle: 'Adresse de livraison',
-            noAddress: 'Enregistrez une adresse pour commander plus vite la prochaine fois.',
-            editAddress: 'Modifier',
-            saveAddress: 'Enregistrer',
-            addressSaved: 'Informations enregistrées pour vos prochaines commandes.',
+          points: 'Voir les points',
+          logout: 'Se déconnecter',
+          addressTitle: 'Adresse de livraison',
+          noAddress: 'Ajoutez vos adresses de livraison et choisissez-en une au moment de commander.',
+          editAddress: 'Modifier',
+          saveAddress: 'Enregistrer',
+          addressSaved: 'Informations enregistrées pour vos prochaines commandes.',
             whatsappTitle: 'WhatsApp',
             whatsappPlaceholder: 'Votre WhatsApp'
           },
@@ -11172,12 +11387,12 @@
             kicker: 'Cuenta',
             title: 'Tu cuenta',
             text: '',
-            points: 'Ver puntos',
-            logout: 'Cerrar sesión',
-            addressTitle: 'Dirección de entrega',
-            noAddress: 'Guarda una dirección para comprar más rápido la próxima vez.',
-            editAddress: 'Editar',
-            saveAddress: 'Guardar datos',
+          points: 'Ver puntos',
+          logout: 'Cerrar sesión',
+          addressTitle: 'Dirección de entrega',
+          noAddress: 'Añade tus direcciones de entrega y elige una al hacer el pedido.',
+          editAddress: 'Editar',
+          saveAddress: 'Guardar datos',
             addressSaved: 'Datos guardados para tus próximas compras.',
             whatsappTitle: 'WhatsApp',
             whatsappPlaceholder: 'Tu WhatsApp'
@@ -11743,12 +11958,13 @@
         var whatsappLine = customerWhatsapp(customer);
         var summary = document.getElementById('account-summary');
         if (summary) {
+          var summaryNote = balance ? balance + ' ' + t('pointsBalanceNote') : accountPanelText('text');
           summary.innerHTML = '<div class="account-summary-main">' +
             '<div class="account-summary-avatar">' + text(customerInitials(customer)) + '</div>' +
             '<div><div class="account-summary-name">' + text(name) + '</div>' +
             (email ? '<div class="account-summary-email">' + text(email) + '</div>' : '') +
             '</div></div>' +
-            '<div class="points-note">' + text(balance ? balance + ' ' + t('pointsBalanceNote') : accountPanelText('text')) + '</div>';
+            (summaryNote ? '<div class="points-note">' + text(summaryNote) + '</div>' : '');
         }
         var addressTitle = document.getElementById('account-address-title');
         var addressText = document.getElementById('account-address-text');
@@ -11765,6 +11981,8 @@
         showAccountAddressStatus('');
         var contactSave = document.getElementById('account-contact-save');
         if (contactSave) contactSave.textContent = 'Guardar WhatsApp';
+        var whatsappTitle = document.getElementById('account-whatsapp-title');
+        if (whatsappTitle) whatsappTitle.textContent = accountPanelText('whatsappTitle');
         var addressAdd = document.getElementById('account-address-add');
         if (addressAdd) addressAdd.textContent = 'Añadir dirección';
         var whatsappInput = document.getElementById('account-whatsapp');
