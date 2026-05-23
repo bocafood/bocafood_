@@ -1614,36 +1614,40 @@
     }
 
     .store-footer {
-      margin-top: 20px;
-      padding: 18px 4px 6px;
+      margin-top: 22px;
+      padding: 18px 14px 16px;
       color: #171412;
-      text-align: center;
-      border-top: 1px solid rgba(33, 27, 24, .07);
+      text-align: left;
+      border-top: 1px solid rgba(33, 27, 24, .045);
+      border-radius: 24px 24px 0 0;
+      background:
+        radial-gradient(circle at 8% 0%, rgba(var(--brand-rgb), .07), rgba(var(--brand-rgb), 0) 42%),
+        linear-gradient(180deg, rgba(255,255,255,.68), rgba(255,250,243,.92));
     }
 
     .store-footer-brand {
       display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 9px;
+      justify-content: flex-start;
+      gap: 10px;
       color: #171412;
-      font-size: 13px;
+      font-size: 14px;
       font-weight: 700;
       letter-spacing: -.02em;
     }
 
     .store-footer-mark {
-      width: 24px;
-      height: 24px;
+      width: 34px;
+      height: 34px;
       border-radius: 50%;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       color: #fff;
       background: var(--brand);
-      font-size: 11px;
-      font-weight: 820;
-      box-shadow: 0 8px 16px rgba(143, 29, 29, .16);
+      font-size: 12px;
+      font-weight: 720;
+      box-shadow: 0 10px 20px rgba(var(--brand-rgb), .14);
       overflow: hidden;
       flex: 0 0 auto;
     }
@@ -1656,56 +1660,59 @@
     }
 
     .store-footer-text {
-      margin: 8px auto 0;
-      max-width: 270px;
+      margin: 9px 0 0;
+      max-width: 340px;
       color: #171412;
-      font-size: 10.5px;
-      line-height: 1.45;
+      font-size: 11.5px;
+      line-height: 1.5;
       font-weight: 400;
     }
 
     .store-footer-links {
-      margin-top: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-wrap: wrap;
-      gap: 8px;
+      margin-top: 13px;
+      display: grid;
+      gap: 6px;
       color: #171412;
-      font-size: 10px;
+      font-size: 11px;
       font-weight: 400;
       line-height: 1.45;
     }
 
-    .store-footer-links span + span:before {
+    .store-footer-links span {
+      display: flex;
+      align-items: flex-start;
+      gap: 7px;
+      min-width: 0;
+    }
+
+    .store-footer-links span:before {
       content: "";
-      width: 3px;
-      height: 3px;
-      margin-right: 8px;
-      display: inline-block;
-      vertical-align: middle;
+      width: 4px;
+      height: 4px;
+      margin-top: .62em;
+      flex: 0 0 auto;
       border-radius: 50%;
-      background: #b7aa9d;
+      background: rgba(var(--brand-rgb), .42);
     }
 
     .store-footer-socials {
-      margin-top: 14px;
+      margin-top: 15px;
       display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 9px;
+      justify-content: flex-start;
+      gap: 10px;
     }
 
     .store-footer-socials a {
-      width: 31px;
-      height: 31px;
+      width: 40px;
+      height: 40px;
       border-radius: 50%;
       display: inline-grid;
       place-items: center;
-      color: #5e554e;
-      background: rgba(255,255,255,.70);
-      border: 1px solid rgba(33, 27, 24, .07);
-      box-shadow: 0 8px 16px rgba(33, 27, 24, .045);
+      color: #171412;
+      background: rgba(255,255,255,.78);
+      border: 1px solid rgba(33, 27, 24, .055);
+      box-shadow: 0 9px 18px rgba(33, 27, 24, .04);
       text-decoration: none;
       transition: transform .18s ease, box-shadow .18s ease, color .18s ease;
     }
@@ -1717,12 +1724,12 @@
     }
 
     .social-icon {
-      width: 15px;
-      height: 15px;
+      width: 17px;
+      height: 17px;
       display: block;
       fill: none;
       stroke: currentColor;
-      stroke-width: 1.8;
+      stroke-width: 1.65;
       stroke-linecap: round;
       stroke-linejoin: round;
     }
@@ -1733,10 +1740,11 @@
     }
 
     .store-footer-powered {
-      margin-top: 13px;
+      margin-top: 15px;
       color: #171412;
       font-size: 9.5px;
       font-weight: 400;
+      text-align: left;
     }
 
     .floating-whatsapp {
@@ -1862,11 +1870,15 @@
       z-index: 80;
       display: grid;
       place-items: center;
-      background: rgba(255, 250, 243, .92);
+      padding: 22px;
+      background:
+        radial-gradient(circle at 16% 0%, rgba(var(--brand-rgb), .13), rgba(var(--brand-rgb), 0) 34%),
+        radial-gradient(circle at 92% 12%, rgba(255,255,255,.82), rgba(255,255,255,0) 28%),
+        linear-gradient(180deg, rgba(255, 250, 243, .99), rgba(255, 246, 238, .97));
       backdrop-filter: blur(14px);
       color: var(--ink);
       font-size: 12px;
-      font-weight: 820;
+      font-weight: 620;
       transition: opacity .22s ease, visibility .22s ease;
     }
 
@@ -1874,6 +1886,45 @@
       opacity: 0;
       visibility: hidden;
       pointer-events: none;
+    }
+
+    .template-loading-card {
+      width: min(280px, 100%);
+      display: grid;
+      justify-items: center;
+      gap: 13px;
+      padding: 26px 22px;
+      border-radius: 30px;
+      background: rgba(255,255,255,.66);
+      border: 1px solid rgba(255,255,255,.82);
+      box-shadow: 0 24px 58px rgba(33, 27, 24, .10);
+    }
+
+    .template-loading-spinner {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: 3px solid rgba(var(--brand-rgb), .14);
+      border-top-color: var(--brand);
+      animation: bfLoadingSpin .85s linear infinite;
+      box-shadow: 0 10px 24px rgba(var(--brand-rgb), .12);
+    }
+
+    .template-loading-text {
+      color: #5f554e;
+      font-size: 12px;
+      line-height: 1.4;
+      text-align: center;
+      font-weight: 560;
+    }
+
+    @keyframes bfLoadingSpin {
+      to { transform: rotate(360deg); }
+    }
+
+    body.public-loading .phone-screen {
+      opacity: 0;
+      visibility: hidden;
     }
 
     .product-modal,
@@ -5098,6 +5149,16 @@
       box-shadow: none;
     }
 
+    .modal-footer.is-combo-footer {
+      grid-template-columns: minmax(0, 1fr);
+      justify-content: stretch;
+    }
+
+    .modal-footer.is-combo-footer .modal-add {
+      width: 100%;
+      min-width: 0;
+    }
+
     .modal-review-card {
       padding: 13px;
       border-radius: 18px;
@@ -5458,6 +5519,10 @@
       .reviews-card,
       .store-footer {
         border-radius: 30px;
+      }
+
+      .store-footer {
+        padding: 24px 26px 26px;
       }
 
       .cart-bar {
@@ -8603,6 +8668,10 @@
         gap: 10px;
       }
 
+      .product-modal .modal-footer.is-combo-footer {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
       .product-modal .modal-footer .modal-add {
         min-height: 52px;
         font-size: 16px;
@@ -8621,6 +8690,115 @@
         touch-action: manipulation;
       }
     }
+
+    @media (max-width: 959px) {
+      html,
+      body {
+        max-width: 100%;
+        overflow-x: hidden;
+      }
+
+      body {
+        width: 100%;
+      }
+
+      .studio-layout,
+      .phone-stage,
+      .phone-shell,
+      .template-content {
+        max-width: 100%;
+      }
+
+      .store-hero,
+      .store-card,
+      .featured-card,
+      .loyalty-card,
+      .store-footer {
+        max-width: 100%;
+        overflow-x: clip;
+      }
+
+      .phone-screen {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: visible;
+      }
+
+      img,
+      .store-logo,
+      .featured-img,
+      .product-img,
+      .review-product-link img {
+        max-width: 100%;
+      }
+
+      .floating-whatsapp,
+      .floating-whatsapp-tip {
+        max-width: calc(100% - 28px);
+      }
+
+      .cart-bar {
+        left: 14px;
+        right: 14px;
+        width: auto;
+        max-width: none;
+        transform: none;
+        overflow: visible;
+      }
+
+      .category-strip {
+        position: sticky;
+        top: 0;
+        z-index: 12;
+        width: calc(100% + 24px);
+        max-width: calc(100% + 24px);
+        margin: 0 -12px 10px;
+        padding: 8px 12px 10px;
+        gap: 7px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        overscroll-behavior-x: contain;
+        scroll-snap-type: x proximity;
+        -webkit-overflow-scrolling: touch;
+        background:
+          linear-gradient(90deg, rgba(var(--store-bg-rgb), .98), rgba(var(--store-bg-rgb), .74) 10%, rgba(var(--store-bg-rgb), .74) 90%, rgba(var(--store-bg-rgb), .98)),
+          linear-gradient(180deg, rgba(var(--store-bg-rgb), .98), rgba(var(--store-bg-rgb), .90) 72%, rgba(var(--store-bg-rgb), 0));
+        backdrop-filter: blur(14px);
+      }
+
+      .category-pill {
+        min-height: 42px;
+        padding: 0 16px;
+        scroll-snap-align: start;
+        border: 1px solid rgba(33, 27, 24, .055);
+        border-radius: 999px;
+        background: rgba(255,255,255,.74);
+        color: #171412;
+        font-size: 13px;
+        font-weight: 520;
+        box-shadow: 0 8px 18px rgba(33, 27, 24, .035);
+        touch-action: manipulation;
+      }
+
+      .category-pill.active {
+        color: var(--brand);
+        border-color: rgba(var(--brand-rgb), .20);
+        background:
+          linear-gradient(180deg, rgba(var(--brand-rgb), .13), rgba(var(--brand-rgb), .065)),
+          rgba(255,255,255,.86);
+        box-shadow: 0 10px 22px rgba(var(--brand-rgb), .08), inset 0 1px 0 rgba(255,255,255,.64);
+        font-weight: 650;
+      }
+
+      .category-pill:active {
+        transform: scale(.985);
+      }
+
+      .store-footer {
+        margin-top: 24px;
+        padding-bottom: calc(98px + env(safe-area-inset-bottom));
+      }
+    }
   </style>
   <script>
     if (window.location.hostname === 'cc.bocafood.app' && (window.location.pathname === '/' || window.location.pathname === '')) {
@@ -8631,8 +8809,13 @@
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 </head>
-<body>
-  <div class="template-loading" id="template-loading">Carregando loja...</div>
+<body class="public-loading">
+  <div class="template-loading" id="template-loading" aria-live="polite" aria-busy="true">
+    <div class="template-loading-card">
+      <div class="template-loading-spinner" aria-hidden="true"></div>
+      <div class="template-loading-text" id="template-loading-text">Cargando tienda...</div>
+    </div>
+  </div>
   <header class="studio-topbar">
     <div class="studio-title">
       <strong>Novo template premium da Loja Online</strong>
@@ -9462,10 +9645,99 @@
 
       function renderStoreNotFound(message) {
         var loading = document.getElementById('template-loading');
-        if (loading) loading.classList.add('hidden');
+        document.body.classList.remove('public-loading');
+        if (loading) {
+          loading.classList.add('hidden');
+          loading.setAttribute('aria-busy', 'false');
+        }
         var screen = document.querySelector('.phone-screen');
         if (!screen) return;
         screen.innerHTML = '<div style="min-height:100%;display:grid;place-items:center;padding:34px;text-align:center;background:#fffaf3;color:#211b18;"><div><div style="width:58px;height:58px;border-radius:18px;background:#f7f1e8;display:inline-grid;place-items:center;margin-bottom:16px;font-size:24px;">!</div><h1 style="font-size:24px;margin:0 0 8px;">' + text(t('storeNotFound')) + '</h1><p style="margin:0;color:#766f68;line-height:1.5;">' + text(message || t('storeUnavailable')) + '</p></div></div>';
+      }
+
+      function finishInitialLoading() {
+        var loading = document.getElementById('template-loading');
+        document.body.classList.remove('public-loading');
+        if (loading) {
+          loading.classList.add('hidden');
+          loading.setAttribute('aria-busy', 'false');
+        }
+      }
+
+      function setInitialLoadingState(state) {
+        var texts = {
+          start: 'Cargando tienda...',
+          data: 'Cargando tienda...',
+          visual: 'Preparando tienda...',
+          assets: 'Preparando tienda...',
+          ready: 'Tienda lista'
+        };
+        var textEl = document.getElementById('template-loading-text');
+        if (textEl) textEl.textContent = texts[state] || texts.start;
+      }
+
+      function imageUrlsFromBackground(value) {
+        var urls = [];
+        String(value || '').replace(/url\((['"]?)(.*?)\1\)/g, function (_, quote, url) {
+          if (url && !/^data:/i.test(url)) urls.push(url);
+          return '';
+        });
+        return urls;
+      }
+
+      function preloadImage(url, timeoutMs) {
+        url = firstText(url, '');
+        if (!url) return Promise.resolve();
+        return new Promise(function (resolve) {
+          var done = false;
+          var img = new Image();
+          var finish = function () {
+            if (done) return;
+            done = true;
+            resolve();
+          };
+          img.onload = finish;
+          img.onerror = finish;
+          img.src = url;
+          setTimeout(finish, timeoutMs || 1300);
+        });
+      }
+
+      function criticalVisualUrls() {
+        var urls = [];
+        var add = function (url) {
+          url = firstText(url, '');
+          if (url && urls.indexOf(url) < 0) urls.push(url);
+        };
+        var logo = document.querySelector('.store-logo');
+        if (logo) add(logo.currentSrc || logo.src);
+        document.querySelectorAll('.product-img').forEach(function (img, index) {
+          if (index < 5) add(img.currentSrc || img.src);
+        });
+        ['.store-hero', '.featured-img'].forEach(function (selector) {
+          var el = document.querySelector(selector);
+          if (!el) return;
+          imageUrlsFromBackground(el.style.backgroundImage || getComputedStyle(el).backgroundImage).forEach(add);
+        });
+        return urls;
+      }
+
+      function waitCriticalVisualAssets() {
+        return new Promise(function (resolve) {
+          requestAnimationFrame(function () {
+            var urls = criticalVisualUrls();
+            var fontsReady = document.fonts && document.fonts.ready
+              ? Promise.race([
+                document.fonts.ready.catch(function () {}),
+                new Promise(function (done) { setTimeout(done, 900); })
+              ])
+              : Promise.resolve();
+            var imagesReady = urls.length
+              ? Promise.all(urls.slice(0, 10).map(function (url) { return preloadImage(url, 1600); })).then(function () {})
+              : Promise.resolve();
+            Promise.all([fontsReady, imagesReady]).then(resolve).catch(resolve);
+          });
+        });
       }
 
       function docConfig(id) {
@@ -9891,7 +10163,8 @@
       }
 
       function applyStaticCopy() {
-        document.getElementById('template-loading').textContent = t('loading');
+        var loadingText = document.getElementById('template-loading-text');
+        if (loadingText && !document.body.classList.contains('public-loading')) loadingText.textContent = t('loading');
         var account = document.querySelector('.account-pill');
         if (account) {
           account.setAttribute('aria-label', t('account'));
@@ -10063,7 +10336,7 @@
       }
 
       function weeklyHoursRows() {
-        var src = cfg.hours || cfg.days || [];
+        var src = cfg.hours || cfg.weeklyHours || cfg.days || [];
         if (!Array.isArray(src) && src && typeof src === 'object') {
           var keys = Object.keys(src);
           var numericKeys = keys.filter(function (key) { return /^\d+$/.test(key); });
@@ -10193,11 +10466,25 @@
       }
 
       function statusModeValue() {
-        return String(cfg.statusMode || cfg.storeStatusMode || cfg.openingMode || '').toLowerCase();
+        var raw = String(cfg.statusMode || cfg.storeStatusMode || cfg.openingMode || '').toLowerCase();
+        if (raw === 'manual_open' || raw === 'manual_closed') return raw;
+        if (raw === 'manual') return 'manual';
+        if (raw === 'auto' || raw === 'automatic' || raw === 'automatico' || raw === 'automático') return 'auto';
+        if (cfg.manualClosed === true || cfg.manualOpen === true || typeof cfg.isOpen === 'boolean') return 'manual';
+        return 'auto';
       }
 
-      function isAutomaticStatusMode(mode) {
-        return !mode || mode === 'auto' || mode === 'automatic' || mode === 'automatico' || mode === 'automático';
+      function explicitStoreOpenValue() {
+        var status = String(firstText(cfg.publicStoreStatus, cfg.storeOnlineStatus, cfg.onlineStatus, cfg.status, '')).toLowerCase();
+        if (status === 'open' || status === 'opened' || status === 'aberto' || status === 'abierta' || status === 'ligada' || status === 'online') return true;
+        if (status === 'closed' || status === 'fechado' || status === 'cerrado' || status === 'fechada' || status === 'desligada' || status === 'offline') return false;
+        if (cfg.manualClosed === true) return false;
+        if (cfg.manualOpen === true) return true;
+        if (typeof cfg.isOpen === 'boolean') return cfg.isOpen;
+        if (typeof cfg.open === 'boolean') return cfg.open;
+        if (typeof cfg.storeOpen === 'boolean') return cfg.storeOpen;
+        if (typeof cfg.online === 'boolean') return cfg.online;
+        return null;
       }
 
       function periodCandidates(type, daysAhead) {
@@ -10242,26 +10529,8 @@
         var mode = statusModeValue();
         if (mode === 'manual_closed') return false;
         if (mode === 'manual_open') return true;
-        if (mode === 'manual') {
-          if (cfg.manualClosed === true) return false;
-          if (cfg.manualOpen === true) return true;
-          if (typeof cfg.isOpen === 'boolean') return cfg.isOpen;
-          return true;
-        }
-        if (!isAutomaticStatusMode(mode)) {
-          if (cfg.manualClosed) return false;
-          if (cfg.manualOpen) return true;
-          if (typeof cfg.isOpen === 'boolean') return cfg.isOpen;
-        }
-        var rows = weeklyHoursRows();
-        if (!rows.length) return false;
-        var now = new Date();
-        return activeOrderTypes().some(function (type) {
-          return periodsForOffset(0, type).some(function (period) {
-            var win = periodWindow(0, period);
-            return win && now.getTime() >= win.start.getTime() && now.getTime() <= win.end.getTime();
-          });
-        });
+        var explicit = explicitStoreOpenValue();
+        return explicit === null ? false : explicit;
       }
 
       function fulfillmentEnabled(type) {
@@ -11649,6 +11918,7 @@
         var lock = document.getElementById('modal-combo-lock');
         var variants = document.getElementById('modal-variants');
         var footerQty = document.querySelector('.modal-footer .qty-box');
+        var footer = document.querySelector('.modal-footer');
         if (comboBox) comboBox.classList.toggle('is-visible', combo);
         if (comboLabel) comboLabel.textContent = t('comboQtyLabel');
         if (lock) {
@@ -11657,6 +11927,7 @@
         }
         if (variants) variants.classList.toggle('is-locked', combo && modalQty <= 0);
         if (footerQty) footerQty.style.display = combo ? 'none' : '';
+        if (footer) footer.classList.toggle('is-combo-footer', combo);
         updateModalQtyDisplays();
       }
 
@@ -11965,7 +12236,9 @@
       function closeProduct() {
         var modal = document.getElementById('product-modal');
         var panel = modal ? modal.querySelector('.modal-panel') : null;
+        var footer = modal ? modal.querySelector('.modal-footer') : null;
         if (panel) panel.classList.remove('is-combo');
+        if (footer) footer.classList.remove('is-combo-footer');
         modal.classList.remove('open');
         modal.setAttribute('aria-hidden', 'true');
         if (returnToPromotionsAfterProduct) {
@@ -14697,7 +14970,9 @@
 
       async function loadConnectedData() {
         bindStaticEvents();
+        setInitialLoadingState('start');
         try {
+          setInitialLoadingState('data');
           if (requestedStoreSlug) await resolvePublicStore();
           if (db && tenantId) {
             var candidates = tenantCandidates(tenantId);
@@ -14722,6 +14997,7 @@
             }
           }
           if (!products.length) fallbackProducts();
+          setInitialLoadingState('visual');
           normalizeDeliveryZones();
           renderPaymentMethods();
           renderSlots();
@@ -14752,7 +15028,9 @@
           applyStaticCopy();
           initPublicAuth();
         } finally {
-          document.getElementById('template-loading').classList.add('hidden');
+          setInitialLoadingState('assets');
+          await waitCriticalVisualAssets();
+          finishInitialLoading();
         }
       }
 

@@ -7408,3 +7408,23 @@
 - Ajuste mobile: os botões do modal de produto ficaram maiores e com área de toque mais segura no celular, incluindo stepper de variações, quantidade principal, combo, botão de adicionar, observação e fechar, reduzindo toques fora do alvo e zoom indesejado.
 
 - Correção visual: a camada defumada dos modais da loja pública passou a ser renderizada como pseudo-elemento fixo independente do painel, cobrindo toda a viewport no mobile e evitando cortes quando o conteúdo do modal rola.
+
+- Correção visual: o botão de adicionar no modal de produto foi padronizado entre produto simples e combo; quando o item é combo e o seletor de quantidade fica no topo, o rodapé vira uma única coluna e o botão ocupa a largura correta.
+
+- Ajuste mobile: o menu de categorias da loja pública recebeu uma camada final de refinamento com botões mais confortáveis para toque, rolagem horizontal com snap, estado ativo mais elegante na cor da marca e fundo sutil para funcionar como navegação rápida do cardápio.
+
+- Ajuste visual: o rodapé da loja pública foi refinado com logo maior, marca mais presente, informações em linhas organizadas, redes sociais com área de toque maior e respiro inferior adequado para mobile.
+
+- Correção funcional: o status aberto/fechado do card principal da loja pública deixou de calcular pela grade de horários e passou a apenas espelhar o estado gravado pelo Admin/topo, usando `manual_open`, `manual_closed`, `manualOpen`, `manualClosed`, `isOpen` e campos explícitos equivalentes.
+
+- Correção mobile: adicionada contenção de overflow horizontal no template público da loja, ajustando largura de containers, hero, cards, barra fixa do pedido, WhatsApp flutuante, imagens e chips de categoria para impedir movimento lateral da página no celular.
+
+- Ajuste de carregamento: a loja pública agora abre com um skeleton premium e mantém o conteúdo principal oculto até aplicar dados, tema, imagens e blocos essenciais, reduzindo saltos visuais de logo, banner, nome, cards e cores ao abrir ou recarregar a página.
+
+- Correção mobile: removida a contenção aplicada em ancestrais da loja pública que prendia elementos `fixed`, restaurando o comportamento fixo do botão `Ver pedido`, WhatsApp flutuante, modal de produto e carrinho, mantendo a proteção horizontal apenas nos blocos visuais seguros.
+
+- Correção de carregamento: o skeleton da loja pública agora espera as imagens críticas e fontes ficarem prontas antes de liberar o conteúdo principal, evitando que capa, logo, destaque, produtos e tipografia apareçam montando depois do carregamento inicial.
+
+- Ajuste de carregamento: a loja pública recebeu um estado real de preparação, com tela elegante, prévia estrutural, status por etapa e barra de progresso suave enquanto dados, tema, imagens e fontes são carregados antes de exibir o conteúdo final.
+
+- Ajuste visual: o carregamento da loja pública foi simplificado para um spinner elegante com texto curto, mantendo a espera por dados, imagens e fontes sem excesso de informação visual.
