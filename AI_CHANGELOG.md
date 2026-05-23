@@ -7384,3 +7384,17 @@
 - Ajuste visual: o card `Destaque da casa` no mobile ficou mais compacto e conversor, com imagem integrada, título menos pesado, preço em preto, CTA verde e selo de destaque mais discreto.
 
 - Ajuste visual: o card de Programa de Pontos no mobile foi refinado com fundo claro na cor da marca, estrelas mais discretas, hierarquia mais leve e CTA com área de toque maior.
+
+- Ajuste visual: removido o degradê do card principal mobile da loja pública, mantendo fundo limpo, borda na cor da marca e sombra leve.
+
+- Ajuste visual: o modal `Ver promoções` da loja pública recebeu cabeçalho mais leve, cards de promoção com borda suave, badges menos pesados e produtos com imagem, texto, preço e botão `+` mais alinhados para mobile.
+
+- Ajuste visual: o modal de Programa de Pontos/Fidelidade foi refinado com saldo em destaque, desconto e regra em cards mais leves, estado de login mais premium e histórico em cards compactos menos administrativos.
+
+- Ajuste visual: os botões de categoria da loja pública ficaram mais confortáveis no mobile, com altura maior para toque, espaçamento de carrossel melhor, peso de fonte mais leve e estado ativo em tom claro da cor da marca.
+
+- Ajuste visual: os cards de produto da loja pública foram refinados no mobile com tipografia menos pesada, preço menor, descrição mais compacta, botão `+` mais alinhado e tags mais delicadas.
+
+- Ajuste visual: o modal de produto da loja pública foi refinado no mobile para lidar melhor com muitas opções, com imagem mais controlada, textos menos pesados, seções de variação mais claras, upsell mais compacto, observação menor e rodapé de compra mais alinhado.
+
+- Ajuste visual: o card/carrossel de resenhas da loja pública ficou mais leve e premium, com slides mais compactos, borda suave, quote mais legível, produto citado integrado e CTA de avaliação preservado fora do card.
