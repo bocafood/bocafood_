@@ -7631,6 +7631,21 @@
       overflow: hidden;
     }
 
+    .product-modal::before,
+    .cart-sheet::before,
+    .auth-modal::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      background: rgba(20, 15, 12, .44);
+      backdrop-filter: blur(10px);
+      pointer-events: none;
+      z-index: -1;
+    }
+
     .auth-panel {
       max-height: calc(100dvh - 28px);
       overflow: hidden auto;
@@ -7649,6 +7664,29 @@
 
       .auth-panel {
         max-height: calc(100dvh - 20px);
+      }
+    }
+
+    @media (max-width: 959px) {
+      .product-modal,
+      .cart-sheet,
+      .auth-modal {
+        inset: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        top: 0 !important;
+        bottom: 0 !important;
+        width: 100vw !important;
+        max-width: none !important;
+        transform: none !important;
+        background: transparent !important;
+        isolation: isolate;
+      }
+
+      .product-modal.open,
+      .cart-sheet.open,
+      .auth-modal.open {
+        display: flex !important;
       }
     }
 
@@ -8512,6 +8550,75 @@
         padding-left: 14px;
         padding-right: 14px;
         grid-template-columns: 96px minmax(0, 1fr);
+      }
+    }
+
+    @media (max-width: 959px) {
+      .product-modal .modal-stepper {
+        grid-template-columns: 40px 28px 40px;
+        gap: 5px;
+        align-items: center;
+      }
+
+      .product-modal .modal-stepper button {
+        width: 40px;
+        height: 40px;
+        min-width: 40px;
+        min-height: 40px;
+        border-radius: 13px;
+        font-size: 18px;
+        line-height: 1;
+        touch-action: manipulation;
+      }
+
+      .product-modal .modal-combo-stepper {
+        grid-template-columns: 42px 34px 42px;
+        gap: 5px;
+      }
+
+      .product-modal .modal-combo-stepper button {
+        width: 42px;
+        height: 42px;
+        min-width: 42px;
+        min-height: 42px;
+        border-radius: 14px;
+        font-size: 18px;
+        touch-action: manipulation;
+      }
+
+      .product-modal .qty-box {
+        height: 52px;
+        grid-template-columns: 42px minmax(28px, 1fr) 42px;
+      }
+
+      .product-modal .qty-box button {
+        min-width: 42px;
+        min-height: 52px;
+        font-size: 20px;
+        touch-action: manipulation;
+      }
+
+      .product-modal .modal-footer {
+        grid-template-columns: 122px minmax(0, 1fr);
+        gap: 10px;
+      }
+
+      .product-modal .modal-footer .modal-add {
+        min-height: 52px;
+        font-size: 16px;
+        line-height: 1.15;
+        touch-action: manipulation;
+      }
+
+      .product-modal .modal-note {
+        font-size: 16px;
+      }
+
+      .product-modal .modal-close {
+        width: 42px;
+        height: 42px;
+        font-size: 20px;
+        touch-action: manipulation;
       }
     }
   </style>
