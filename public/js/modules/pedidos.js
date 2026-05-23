@@ -218,7 +218,7 @@ Modules.Pedidos = (function () {
         });
       }
       _knownIds = new Set(orders.map(function (o) { return o.id; }));
-      _orders = orders;
+      _orders = (orders || []).map(_ensureOrderFiscalDefaults);
       _syncOrderCustomerLinks(_orders);
       _paintActive();
     });
@@ -1836,7 +1836,22 @@ Modules.Pedidos = (function () {
         customerEmail: email,
         address: address || order.address || '',
         note: notes || order.note || '',
-        internalNote: notes || order.internalNote || ''
+        internalNote: notes || order.internalNote || '',
+        fiscal: _ensureOrderFiscalDefaults(Object.assign({}, order, {
+          customerId: customerId,
+          clientId: customerId,
+          customerName: name,
+          clientName: name,
+          name: name,
+          phone: phone,
+          customerPhone: phone,
+          whatsapp: phone,
+          email: email,
+          customerEmail: email,
+          address: address || order.address || '',
+          customerFiscal: match && match.fiscal ? match.fiscal : {},
+          fiscal: Object.assign({}, order.fiscal || {}, { customerSnapshot: null })
+        })).fiscal
       }).then(function () {
         _orders = _orders.map(function (o) {
           if (String(o.id || '') !== String(orderId || '')) return o;
@@ -2856,6 +2871,7 @@ Modules.Pedidos = (function () {
         manualAdjustment: channel !== 'cardapio' || adjustment !== 0,
         createdAt: _manualOrderCreatedAt(orderTime)
       };
+      payload.fiscal = _ensureOrderFiscalDefaults(payload).fiscal;
 
       DB.add('orders', payload).then(function (ref) {
         var createdId = (ref && ref.id) ? String(ref.id) : '';
@@ -3571,6 +3587,120 @@ Modules.Pedidos = (function () {
     });
   }
 
+  function _ensureOrderFiscalDefaults(order) {
+    order = Object.assign({}, order || {});
+    var current = Object.assign({}, order.fiscal || {});
+    var fiscal = {
+      invoiceType: current.invoiceType || 'simplified',
+      fiscalStatus: current.fiscalStatus || 'not_issued',
+      issueMode: current.issueMode || 'automatic',
+      provider: current.provider || '',
+      providerInvoiceId: current.providerInvoiceId || '',
+      facturaDirectaInvoiceId: current.facturaDirectaInvoiceId || '',
+      invoiceNumber: current.invoiceNumber || '',
+      invoiceSeries: current.invoiceSeries || '',
+      invoicePdfUrl: current.invoicePdfUrl || '',
+      invoiceQrUrl: current.invoiceQrUrl || '',
+      issuedAt: current.issuedAt || null,
+      cancelledAt: current.cancelledAt || null,
+      errorCode: current.errorCode || '',
+      errorMessage: current.errorMessage || '',
+      retryCount: _num(current.retryCount || 0),
+      lastAttemptAt: current.lastAttemptAt || null,
+      customerSnapshot: current.customerSnapshot && Object.keys(current.customerSnapshot).length ? current.customerSnapshot : _buildFiscalCustomerSnapshot(order),
+      itemsSnapshot: Array.isArray(current.itemsSnapshot) && current.itemsSnapshot.length ? current.itemsSnapshot : _buildFiscalItemsSnapshot(order),
+      totalsSnapshot: current.totalsSnapshot && Object.keys(current.totalsSnapshot).length ? current.totalsSnapshot : _buildFiscalTotalsSnapshot(order)
+    };
+    order.fiscal = fiscal;
+    return order;
+  }
+
+  function _buildFiscalCustomerSnapshot(order) {
+    order = order || {};
+    var customer = _findCustomerForOrder(order);
+    return {
+      name: _firstText(order.customerName, order.clientName, order.name, customer && customer.name, ''),
+      phone: _firstText(order.customerPhone, order.phone, order.whatsapp, customer && (customer.phone || customer.whatsapp), ''),
+      email: _firstText(order.customerEmail, order.email, customer && customer.email, ''),
+      fiscal: Object.assign({}, (customer && customer.fiscal) || order.customerFiscal || {})
+    };
+  }
+
+  function _buildFiscalItemsSnapshot(order) {
+    var items = Array.isArray(order && order.items) ? order.items : [];
+    return items.map(function (item) {
+      var product = _findProductForOrderItem(item);
+      var fiscal = _orderItemFiscal(product, item);
+      var qty = _num(item.quantity != null ? item.quantity : item.qty != null ? item.qty : 1) || 1;
+      var price = _num(item.finalPrice != null ? item.finalPrice : item.price != null ? item.price : item.originalPrice || 0);
+      var total = _num(item.total != null ? item.total : item.subtotal != null ? item.subtotal : item.lineTotal != null ? item.lineTotal : price * qty);
+      return {
+        id: String(item.productId || item.id || ''),
+        name: _firstText(item.name, item.productName, product && product.name, 'Produto'),
+        quantity: qty,
+        price: price,
+        total: total,
+        fiscal: fiscal
+      };
+    });
+  }
+
+  function _buildFiscalTotalsSnapshot(order) {
+    order = order || {};
+    return {
+      subtotal: _num(order.subtotalFinal != null ? order.subtotalFinal : order.subtotal != null ? order.subtotal : order.subtotalOriginal),
+      taxTotal: _num(order.taxTotal || order.ivaTotal || order.vatTotal || 0),
+      total: _num(order.total != null ? order.total : order.grandTotal != null ? order.grandTotal : order.amount),
+      currency: _firstText(order.currency, _generalConfig.currency, _generalConfig.defaultCurrency, 'EUR')
+    };
+  }
+
+  function _findCustomerForOrder(order) {
+    order = order || {};
+    var wantedId = String(order.customerId || order.clientId || '').trim();
+    if (wantedId) {
+      var byId = (_customers || []).find(function (c) { return String(c.id || '') === wantedId; });
+      if (byId) return byId;
+    }
+    var phone = _phone(order.customerPhone || order.phone || order.whatsapp || '');
+    if (phone) {
+      var byPhone = (_customers || []).find(function (c) { return _phone(c.phone || c.whatsapp || '') === phone; });
+      if (byPhone) return byPhone;
+    }
+    var email = _clean(order.customerEmail || order.email || '');
+    if (email) {
+      var byEmail = (_customers || []).find(function (c) { return _clean(c.email || '') === email; });
+      if (byEmail) return byEmail;
+    }
+    return null;
+  }
+
+  function _findProductForOrderItem(item) {
+    var wantedId = String((item && (item.productId || item.id)) || '').trim();
+    if (wantedId) {
+      var byId = (_products || []).find(function (p) { return String(p.id || '') === wantedId; });
+      if (byId) return byId;
+    }
+    var name = _clean(item && (item.name || item.productName));
+    if (!name) return null;
+    return (_products || []).find(function (p) { return _clean(p.name || p.title || '') === name; }) || null;
+  }
+
+  function _orderItemFiscal(product, item) {
+    var current = Object.assign({}, (item && item.fiscal) || (product && product.fiscal) || {});
+    var iva = current.ivaRate == null || current.ivaRate === '' ? 10 : _num(current.ivaRate);
+    return {
+      sku: _firstText(current.sku, product && (product.sku || product.codigo), ''),
+      fiscalName: _firstText(current.fiscalName, product && product.fiscalName, item && item.name, product && product.name, 'Produto'),
+      ivaRate: isFinite(iva) ? iva : 10,
+      ivaIncluded: current.ivaIncluded !== false,
+      unitCode: _firstText(current.unitCode, 'unit'),
+      taxCategory: _firstText(current.taxCategory, 'prepared_food'),
+      externalFiscalProductId: _firstText(current.externalFiscalProductId, ''),
+      facturaDirectaProductId: _firstText(current.facturaDirectaProductId, '')
+    };
+  }
+
   function _firstText() {
     for (var i = 0; i < arguments.length; i++) {
       var v = arguments[i];
@@ -3786,6 +3916,7 @@ Modules.Pedidos = (function () {
       manualAdjustment: true,
       createdAt: _manualOrderCreatedAt(orderTime)
     };
+    payload.fiscal = _ensureOrderFiscalDefaults(payload).fiscal;
     return DB.add('orders', payload).then(function (ref) {
       var createdId = (ref && ref.id) ? String(ref.id) : '';
       if (createdId) payload.id = createdId;

@@ -18,7 +18,6 @@ Modules.Configuracoes = (function () {
     { key: 'geral', label: 'Geral' },
     { key: 'conta_usuario', label: 'Usuário' },
     { key: 'tpv', label: 'Venda presencial' },
-    { key: 'dominio', label: 'Link da loja' },
     { key: 'integracoes', label: 'Integrações' },
     { key: 'plano', label: 'Plano' },
     { key: 'canais_venda', label: 'Canais de venda' }
@@ -37,12 +36,17 @@ Modules.Configuracoes = (function () {
   ];
 
   function render(sub) {
-    _activeSub = sub || 'geral';
+    _activeSub = _normalizeSub(sub || 'geral');
     var app = document.getElementById('app');
     app.innerHTML = '<section class="module-page">' +
       '<div id="config-content" class="module-content narrow"><div class="loading-inline">Carregando...</div></div>' +
       '</section>';
     _load().then(function () { _renderSub(); });
+  }
+
+  function _normalizeSub(sub) {
+    if (sub === 'link-da-loja' || sub === 'link') return 'dominio';
+    return sub || 'geral';
   }
 
   function _renderTabs() {
@@ -97,9 +101,9 @@ Modules.Configuracoes = (function () {
   }
 
   function _switchSub(key) {
-    _activeSub = key;
+    _activeSub = _normalizeSub(key);
     _renderSub();
-    Router.navigate('configuracoes/' + key);
+    Router.navigate('configuracoes/' + _activeSub);
   }
 
   function _recordActivity(input) {
@@ -258,25 +262,42 @@ Modules.Configuracoes = (function () {
     var avatarUrl = c.avatarUrl || c.storeAvatarUrl || c.accountAvatarUrl || '';
     var fiscalDocumentValue = c.companyFiscalId || c.fiscalDocument || c.taxId || c.nif || '';
     var shortDescription = c.description || '';
+    var previewAddress = [
+      companyAddress.addressLine || c.companyAddressLine || c.businessAddressLine || '',
+      companyAddress.number || c.companyNumber || '',
+      companyAddress.neighborhood || c.companyNeighborhood || '',
+      companyAddress.city || c.companyCity || c.businessCity || c.city || '',
+      companyAddress.region || companyAddress.state || c.companyRegion || c.companyState || '',
+      companyAddress.postalCode || c.companyPostalCode || ''
+    ].filter(Boolean).join(', ');
+    var previewPhone = _phoneFull(c.phoneCountryCode || _defaultPhoneCode(fc), c.phone || '');
+    var previewWhatsapp = _phoneFull(c.whatsappCountryCode || c.phoneCountryCode || _defaultPhoneCode(fc), c.whatsapp || '');
     var content = document.getElementById('config-content');
     if (!content) return;
     content.className = 'module-content';
     content.innerHTML = '<div style="display:flex;flex-direction:column;gap:22px;max-width:1180px;margin:0 auto;width:100%;">' +
-      '<style>.profile-business .bf-input,.profile-business .bf-select,.fiscal-business .bf-input,.fiscal-business .bf-select,.contact-preferences .bf-input,.contact-preferences .bf-select{transition:border-color .16s ease,box-shadow .16s ease,background .16s ease}.profile-business .bf-input,.profile-business .bf-select,.profile-business textarea.bf-input,.fiscal-business .bf-input,.fiscal-business .bf-select{background:#FFFCF8;border-color:#E8DCD7}.profile-business .bf-input:focus,.profile-business .bf-select:focus,.profile-business textarea.bf-input:focus,.fiscal-business .bf-input:focus,.fiscal-business .bf-select:focus,.contact-preferences .bf-input:focus,.contact-preferences .bf-select:focus{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);outline:none}.profile-business .bf-field label,.fiscal-business .bf-field label{color:#7E716D}.profile-logo-row{display:grid;grid-template-columns:48px minmax(0,1fr) minmax(170px,230px);gap:12px;align-items:center;grid-column:1/-1;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:14px;padding:10px}.fiscal-business .bf-input[readonly]{background:#F8F4F1;color:#6F6860}.fiscal-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px 14px}.fiscal-span-2{grid-column:span 2}.fiscal-span-1{grid-column:span 1}.contact-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 16px}.contact-field-help{font-size:11px;color:#8A7E7C;line-height:1.38;margin-top:4px}.contact-phone-box{display:grid;grid-template-columns:112px minmax(0,1fr);gap:8px;align-items:center;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:6px}.contact-phone-box .bf-select,.contact-phone-box .bf-input{border:0;background:transparent;box-shadow:none;min-height:36px}.contact-phone-box .bf-select{border-right:1px solid #E8DCD7;border-radius:8px;padding-left:8px}.contact-phone-box .bf-input{padding-left:8px}.contact-phone-box:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08)}@media(max-width:900px){.fiscal-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.fiscal-span-2,.fiscal-span-1{grid-column:span 1}}@media(max-width:760px){.contact-grid{grid-template-columns:1fr}.profile-logo-row{grid-template-columns:48px minmax(0,1fr)}.profile-logo-row input{grid-column:1/-1}.fiscal-grid{grid-template-columns:1fr}.fiscal-span-2,.fiscal-span-1{grid-column:1/-1}}@media(max-width:420px){.contact-phone-box{grid-template-columns:100px minmax(0,1fr)}}</style>' +
+      '<style>.general-info-panel{border:1px solid #EADFD8;border-radius:15px;background:#fff;padding:14px;display:grid;gap:12px}.general-info-title{display:flex;align-items:flex-start;gap:9px;margin-bottom:13px}.general-info-title .mi{font-size:18px;color:#6F6860;line-height:1.2;opacity:.95}.general-info-title strong{display:block;font-size:13px;font-weight:800;color:#1F1F1F;line-height:1.25}.general-info-title span{display:block;font-size:12px;color:#8A7E7C;line-height:1.35;margin-top:2px}.store-preview-shell{background:linear-gradient(145deg,#FFF8F1 0%,#FAF5ED 48%,#FFFDFC 100%);border-right:1px solid #EAE4DA;padding:24px;display:flex;flex-direction:column;gap:18px;min-width:0;position:relative;overflow:hidden}.store-preview-shell::before{content:"";position:absolute;left:26px;right:26px;top:18px;height:120px;background:radial-gradient(circle at 28% 20%,rgba(255,255,255,.95) 0%,rgba(255,244,235,.72) 38%,rgba(196,54,42,.09) 100%);filter:blur(10px);opacity:.88;pointer-events:none}.store-preview-card{position:relative;z-index:1;background:linear-gradient(145deg,#FFFFFF 0%,#FFFDF9 48%,#FFF5EF 100%);border:1px solid rgba(228,211,200,.96);border-radius:26px;padding:24px;box-shadow:0 24px 58px rgba(72,48,38,.12),0 8px 22px rgba(196,54,42,.06);display:flex;flex-direction:column;gap:18px;min-height:300px;overflow:hidden}.store-preview-card::after{content:"";position:absolute;right:-42px;top:-52px;width:150px;height:150px;border-radius:999px;background:radial-gradient(circle,rgba(196,54,42,.12),rgba(196,54,42,0) 68%);pointer-events:none}.store-preview-main{display:flex;align-items:flex-start;gap:17px;position:relative;z-index:1}.store-preview-logo{width:92px;height:92px;border-radius:25px;background:linear-gradient(145deg,#FFF8F4 0%,#FCECE7 100%);color:#B42318;border:1px solid #E8D1CA;display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 16px 34px rgba(82,52,42,.14);flex:0 0 auto}.store-preview-logo img{width:100%;height:100%;object-fit:contain;display:block}.store-preview-logo .mi{font-size:36px}.store-preview-copy{min-width:0;flex:1;padding-top:5px}.store-preview-name{margin:0;color:#211A18;font-size:27px;font-weight:850;line-height:1.08;letter-spacing:-.01em;word-break:break-word}.store-preview-description{margin:10px 0 0;color:#635853;font-size:13.5px;line-height:1.55;max-width:430px}.store-preview-meta{position:relative;z-index:1;display:grid;gap:10px;padding-top:4px}.store-preview-details{display:grid;grid-template-columns:1fr;gap:8px}.store-preview-detail{display:grid;grid-template-columns:22px minmax(0,1fr);gap:9px;align-items:start;border:1px solid rgba(232,215,206,.78);background:rgba(255,255,255,.72);border-radius:15px;padding:10px 11px;box-shadow:inset 0 1px 0 rgba(255,255,255,.85)}.store-preview-detail .mi{font-size:17px;color:#C4362A;margin-top:1px}.store-preview-detail small{display:block;color:#A0928D;font-size:10px;font-weight:850;text-transform:uppercase;letter-spacing:.045em;line-height:1.1;margin-bottom:3px}.store-preview-detail strong{display:block;color:#3D302C;font-size:12.5px;font-weight:760;line-height:1.35;word-break:break-word}.store-preview-detail.muted strong{color:#8A7E7C;font-weight:650}.store-preview-badges{display:flex;gap:8px;flex-wrap:wrap}.store-preview-badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:7px 10px;font-size:11px;font-weight:820;line-height:1;border:1px solid #E8D7CE;background:rgba(255,255,255,.78);color:#6A4038}.store-preview-badge .mi{font-size:14px;color:#C4362A}.profile-business .bf-input,.profile-business .bf-select,.fiscal-business .bf-input,.fiscal-business .bf-select,.contact-preferences .bf-input,.contact-preferences .bf-select{background:#FFFCF8;border-color:#E8DCD7;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease}.profile-business .bf-input:focus,.profile-business .bf-select:focus,.profile-business textarea.bf-input:focus,.fiscal-business .bf-input:focus,.fiscal-business .bf-select:focus,.contact-preferences .bf-input:focus,.contact-preferences .bf-select:focus{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);outline:none}.profile-business .bf-field label,.fiscal-business .bf-field label,.contact-preferences .bf-field label{color:#7E716D}.profile-logo-row{display:grid;grid-template-columns:48px minmax(0,1fr) minmax(170px,230px);gap:12px;align-items:center;grid-column:1/-1;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:14px;padding:10px}.fiscal-business .bf-input[readonly]{background:#F8F4F1;color:#6F6860}.fiscal-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px 14px}.fiscal-span-2{grid-column:span 2}.fiscal-span-1{grid-column:span 1}.contact-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 16px}.contact-field-help,.general-field-help{font-size:10px;color:#9A8E89;line-height:1.3;margin-top:4px;max-width:300px}.contact-phone-box{display:grid;grid-template-columns:112px minmax(0,1fr);gap:8px;align-items:center;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:6px}.contact-phone-box .bf-select,.contact-phone-box .bf-input{border:0;background:transparent;box-shadow:none;min-height:36px}.contact-phone-box .bf-select{border-right:1px solid #E8DCD7;border-radius:8px;padding-left:8px}.contact-phone-box .bf-input{padding-left:8px}.contact-phone-box:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08)}@media(max-width:900px){.fiscal-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.fiscal-span-2,.fiscal-span-1{grid-column:span 1}.store-preview-main{flex-direction:column}.store-preview-logo{width:86px;height:86px}}@media(max-width:760px){.contact-grid{grid-template-columns:1fr}.profile-logo-row{grid-template-columns:48px minmax(0,1fr)}.profile-logo-row input{grid-column:1/-1}.fiscal-grid{grid-template-columns:1fr}.fiscal-span-2,.fiscal-span-1{grid-column:1/-1}.store-preview-shell{border-right:0;border-bottom:1px solid #EAE4DA;padding:18px}.store-preview-card{min-height:0;padding:20px}.store-preview-name{font-size:23px}}@media(max-width:420px){.contact-phone-box{grid-template-columns:100px minmax(0,1fr)}}</style>' +
       '<section class="bf-card" style="overflow:hidden;background:linear-gradient(135deg,#fff 0%,#fff 58%,#FFF7F4 100%);">' +
         '<div class="bf-split-grid">' +
-          '<div style="background:linear-gradient(145deg,#FFF8F5 0%,#FAF8F4 55%,#FFFFFF 100%);border-right:1px solid #EAE4DA;padding:24px;display:flex;flex-direction:column;gap:18px;min-width:0;">' +
-            '<div style="background:#fff;border:1px solid #EADFD8;border-radius:22px;padding:22px;box-shadow:0 16px 36px rgba(31,31,31,.07);display:flex;flex-direction:column;gap:18px;min-height:280px;">' +
-              '<div style="display:flex;align-items:flex-start;gap:16px;">' +
-                '<div id="cfg-avatar-preview" style="width:84px;height:84px;border-radius:22px;background:#FFF7F4;color:#B42318;border:1px solid #E5D3CF;display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 10px 22px rgba(31,31,31,.08);flex:0 0 auto;">' + (avatarUrl ? '<img src="' + _esc(avatarUrl) + '" alt="" style="width:100%;height:100%;object-fit:contain;display:block;">' : '<span class="mi" style="font-size:34px;">storefront</span>') + '</div>' +
-                '<div style="min-width:0;flex:1;padding-top:3px;">' +
-                  '<h3 style="margin:0;color:#1F1F1F;font-size:25px;font-weight:800;line-height:1.12;word-break:break-word;">' + _esc(businessNameValue || 'Nome comercial') + '</h3>' +
-                  '<p style="margin:9px 0 0;color:#6F6860;font-size:13px;line-height:1.5;max-width:420px;">' + _esc(shortDescription || 'Adicione uma apresentação curta para explicar o que você vende.') + '</p>' +
+          '<div class="store-preview-shell">' +
+            '<div class="store-preview-card">' +
+              '<div class="store-preview-main">' +
+                '<div id="cfg-avatar-preview" class="store-preview-logo">' + (avatarUrl ? '<img src="' + _esc(avatarUrl) + '" alt="">' : '<span class="mi">storefront</span>') + '</div>' +
+                '<div class="store-preview-copy">' +
+                  '<h3 class="store-preview-name">' + _esc(businessNameValue || 'Nome comercial') + '</h3>' +
+                  '<p class="store-preview-description">' + _esc(shortDescription || 'Adicione uma apresentação curta para explicar o que você vende.') + '</p>' +
                 '</div>' +
               '</div>' +
-              '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
-                '<span class="bf-badge" style="background:#FFF7F4;border:1px solid #EACBC4;color:#7B332D;">' + _esc(fiscalLabel) + '</span>' +
-                '<span class="bf-badge" style="background:#fff;border:1px solid #EAE4DA;color:#6F6860;">' + _esc(fiscalDocumentValue ? 'Documento informado' : 'Documento não informado') + '</span>' +
+              '<div class="store-preview-meta">' +
+                '<div class="store-preview-badges">' +
+                  '<span class="store-preview-badge"><span class="mi">public</span>' + _esc(fiscalLabel) + '</span>' +
+                  '<span class="store-preview-badge"><span class="mi">badge</span>' + _esc(fiscalDocumentValue || 'Documento não informado') + '</span>' +
+                '</div>' +
+                '<div class="store-preview-details">' +
+                  '<div class="store-preview-detail ' + (previewAddress ? '' : 'muted') + '"><span class="mi">location_on</span><div><small>Endereço</small><strong>' + _esc(previewAddress || 'Não informado') + '</strong></div></div>' +
+                  '<div class="store-preview-detail ' + (previewPhone ? '' : 'muted') + '"><span class="mi">call</span><div><small>Telefone</small><strong>' + _esc(previewPhone || 'Não informado') + '</strong></div></div>' +
+                  '<div class="store-preview-detail ' + (previewWhatsapp ? '' : 'muted') + '"><span class="mi">chat</span><div><small>WhatsApp</small><strong>' + _esc(previewWhatsapp || 'Não informado') + '</strong></div></div>' +
+                '</div>' +
               '</div>' +
             '</div>' +
           '</div>' +
@@ -286,8 +307,8 @@ Modules.Configuracoes = (function () {
               '<span class="bf-badge">Editável</span>' +
             '</div>' +
             '<div style="display:grid;grid-template-columns:1fr;gap:12px;">' +
-              '<div class="bf-panel" style="background:#fff;padding:16px;border-color:#EADFD8;box-shadow:0 10px 24px rgba(31,31,31,.04);">' +
-                '<div style="display:flex;align-items:flex-start;gap:9px;margin-bottom:13px;"><span class="mi" style="font-size:18px;color:#6F6860;line-height:1.2;">storefront</span><div><div style="font-size:13px;font-weight:800;color:#1F1F1F;">Informações da marca</div><div style="font-size:12px;color:#8A7E7C;line-height:1.35;margin-top:2px;">Configure o nome, a apresentação e a imagem principal da sua loja.</div></div></div>' +
+              '<div class="general-info-panel">' +
+                '<div class="general-info-title"><span class="mi">storefront</span><div><strong>Informações da marca</strong><span>Configure o nome, a apresentação e a imagem principal da sua loja.</span></div></div>' +
                 '<div class="bf-form-grid" style="grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 16px;">' +
                   '<div class="profile-logo-row">' +
                     '<div style="width:42px;height:42px;border-radius:13px;background:#FFF7F4;color:#B42318;display:flex;align-items:center;justify-content:center;flex:0 0 auto;border:1px solid #F0D8D1;"><span class="mi" style="font-size:20px;">add_photo_alternate</span></div>' +
@@ -295,9 +316,9 @@ Modules.Configuracoes = (function () {
                     '<input class="bf-input" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onchange="Modules.Configuracoes._uploadGeneralAvatarImage(event)" style="width:100%;font-size:12px;background:#fff;">' +
                   '</div>' +
                   '<input id="cfg-avatar-url" type="hidden" value="' + _esc(avatarUrl) + '">' +
-                  '<div class="bf-field"><label>Nome comercial</label><input id="cfg-business-name" class="bf-input" value="' + _esc(businessNameValue) + '" placeholder="Ex.: Bocado Brasil"><div style="font-size:11px;color:#8A7E7C;line-height:1.45;margin-top:6px;">Nome que seus clientes veem na loja online.</div></div>' +
-                  '<div class="bf-field"><label>Nome fiscal</label><input id="cfg-legal-name" class="bf-input" value="' + _esc(c.legalName || c.companyLegalName || '') + '" placeholder="Nome completo ou denominação social"><div style="font-size:11px;color:#8A7E7C;line-height:1.45;margin-top:6px;">Para autónomo, use o nome completo. Para empresa, use a denominação social.</div></div>' +
-                  '<div class="bf-field bf-span-full"><label>Apresentação curta</label><textarea id="cfg-description" class="bf-input" rows="3" placeholder="Ex.: Comida brasileira caseira feita por encomenda em Pamplona." style="min-height:92px;resize:vertical;">' + _esc(shortDescription) + '</textarea><div style="font-size:11px;color:#8A7E7C;line-height:1.45;margin-top:6px;">Uma frase simples para explicar o que você vende.</div></div>' +
+                  '<div class="bf-field"><label>Nome comercial</label><input id="cfg-business-name" class="bf-input" value="' + _esc(businessNameValue) + '" placeholder="Ex.: Bocado Brasil"><div class="general-field-help">Nome que seus clientes veem na loja online.</div></div>' +
+                  '<div class="bf-field"><label>Nome fiscal</label><input id="cfg-legal-name" class="bf-input" value="' + _esc(c.legalName || c.companyLegalName || '') + '" placeholder="Nome completo ou denominação social"><div class="general-field-help">Para autónomo, use o nome completo. Para empresa, use a denominação social.</div></div>' +
+                  '<div class="bf-field bf-span-full"><label>Apresentação curta</label><textarea id="cfg-description" class="bf-input" rows="3" placeholder="Ex.: Comida brasileira caseira feita por encomenda em Pamplona." style="min-height:92px;resize:vertical;">' + _esc(shortDescription) + '</textarea><div class="general-field-help">Uma frase simples para explicar o que você vende.</div></div>' +
                 '</div>' +
               '</div>' +
             '</div>' +
@@ -309,8 +330,8 @@ Modules.Configuracoes = (function () {
           '<div><h3 class="bf-section-title">Contato e preferências</h3><p class="bf-section-subtitle">Dados usados para atendimento, comunicação e padrões do painel.</p></div>' +
         '</div>' +
         '<div style="display:grid;grid-template-columns:1fr;gap:12px;">' +
-          '<div class="bf-panel" style="background:#fff;padding:16px;border-color:#EADFD8;box-shadow:0 10px 24px rgba(31,31,31,.04);">' +
-            '<div style="display:flex;align-items:flex-start;gap:9px;margin-bottom:13px;"><span class="mi" style="font-size:18px;color:#6F6860;line-height:1.2;">support_agent</span><div><div style="font-size:13px;font-weight:800;color:#1F1F1F;">Atendimento</div><div style="font-size:12px;color:#8A7E7C;line-height:1.35;margin-top:2px;">Canais usados para falar com clientes e receber contatos importantes.</div></div></div>' +
+          '<div class="general-info-panel">' +
+            '<div class="general-info-title"><span class="mi">support_agent</span><div><strong>Atendimento</strong><span>Canais usados para falar com clientes e receber contatos importantes.</span></div></div>' +
             '<div class="contact-grid">' +
               _contactPhoneInput('cfg-phone-country', 'cfg-phone', 'Telefone da loja', c.phoneCountryCode || _defaultPhoneCode(fc), c.phone || '', '912 345 678', 'Número principal de atendimento por telefone.') +
               _contactPhoneInput('cfg-whatsapp-country', 'cfg-whatsapp', 'WhatsApp da loja', c.whatsappCountryCode || c.phoneCountryCode || _defaultPhoneCode(fc), c.whatsapp || '', '912 345 678', 'Número usado para atendimento da loja pelo WhatsApp.') +
@@ -328,8 +349,8 @@ Modules.Configuracoes = (function () {
           '<span class="bf-badge bf-badge-warning">' + _esc(fiscalLabel) + ' · ' + (fiscalCfg && !fiscalCfg.fiscalModuleEnabled ? 'Fiscal inativo' : 'Fiscal ativo') + '</span>' +
         '</div>' +
         '<div style="display:grid;grid-template-columns:1fr;gap:12px;">' +
-          '<div class="bf-panel" style="background:#fff;padding:16px;border-color:#EADFD8;box-shadow:0 10px 24px rgba(31,31,31,.04);">' +
-            '<div style="display:flex;align-items:flex-start;gap:9px;margin-bottom:13px;"><span class="mi" style="font-size:18px;color:#6F6860;line-height:1.2;">account_balance</span><div><div style="font-size:13px;font-weight:800;color:#1F1F1F;">Informações fiscais</div><div style="font-size:12px;color:#8A7E7C;line-height:1.35;margin-top:2px;">Comece digitando o endereço e selecione uma opção da lista para preencher os dados automaticamente.</div></div></div>' +
+          '<div class="general-info-panel">' +
+            '<div class="general-info-title"><span class="mi">account_balance</span><div><strong>Informações fiscais</strong><span>Comece digitando o endereço e selecione uma opção da lista para preencher os dados automaticamente.</span></div></div>' +
             '<div class="fiscal-grid">' +
               '<div class="fiscal-span-2">' +
                 _configInput('cfg-company-fiscal-id', fiscalDocLabel, c.companyFiscalId || c.fiscalDocument || c.taxId || c.nif || '', fiscalDocPlaceholder) +
@@ -521,16 +542,27 @@ Modules.Configuracoes = (function () {
     var now = new Date().toISOString();
     var whatsappCode = _val('cfg-account-whatsapp-country');
     var whatsappNumber = _cleanPhoneNumber(_val('cfg-account-whatsapp'));
+    var ownerName = _val('cfg-account-owner-name');
+    var preferredName = _val('cfg-account-social-name');
+    var whatsappFull = _phoneFull(whatsappCode, whatsappNumber);
     var patch = {
-      ownerName: _val('cfg-account-owner-name'),
-      preferredName: _val('cfg-account-social-name'),
-      socialName: _val('cfg-account-social-name'),
+      ownerName: ownerName,
+      fullName: ownerName,
+      responsibleName: ownerName,
+      preferredName: preferredName,
+      socialName: preferredName,
       whatsappCountryCode: whatsappCode,
       whatsappNumber: whatsappNumber,
-      whatsappFull: _phoneFull(whatsappCode, whatsappNumber),
+      whatsappFull: whatsappFull,
       accountWhatsappCountryCode: whatsappCode,
       accountWhatsappNumber: whatsappNumber,
-      accountWhatsappFull: _phoneFull(whatsappCode, whatsappNumber),
+      accountWhatsappFull: whatsappFull,
+      ownerWhatsappCountryCode: whatsappCode,
+      ownerWhatsappNumber: whatsappNumber,
+      ownerWhatsappFull: whatsappFull,
+      userWhatsappCountryCode: whatsappCode,
+      userWhatsappNumber: whatsappNumber,
+      userWhatsappFull: whatsappFull,
       language: 'pt-BR',
       updatedAt: now
     };
@@ -569,51 +601,47 @@ Modules.Configuracoes = (function () {
     var profile = window.Auth && Auth.getAdminProfile ? (Auth.getAdminProfile() || {}) : {};
     var plan = profile.plan || 'essencial';
     if (plan === 'starter') plan = 'essencial';
-    var status = profile.status || 'active';
-    var features = Array.isArray(profile.features) ? profile.features : (Array.isArray(profile.planFeatures) ? profile.planFeatures : []);
-    var limits = profile.planLimits || profile.limits || {};
+    var status = profile.accountStatus || profile.status || 'active';
     var billing = profile.billing || {};
-    var renewalDate = profile.renewalDate || profile.nextBillingAt || billing.renewalDate || billing.nextBillingAt || '';
     var trialEndsAt = profile.trialEndsAt || billing.trialEndsAt || '';
     var cycle = profile.billingCycle || billing.billingCycle || billing.cycle || '';
     var billingStatus = profile.billingStatus || billing.status || '';
+    var fiscalCountry = profile.fiscalCountry || (profile.accountAddress && profile.accountAddress.fiscalCountry) || 'ES';
+    var trialState = _trialState(trialEndsAt, billingStatus);
+    var isPostTrial = trialState && trialState.status === 'expired';
+    var billingActive = _isBillingActive(billingStatus);
+    var accessActive = String(status || '').toLowerCase() === 'active';
+    var isPostTrialActive = isPostTrial && billingActive && accessActive;
+    var planCards = isPostTrialActive ?
+      (_domainStatusCard('Plano atual', _planDisplay(plan), 'Seu acesso está ativo no BocaFood.', '#B42318', 'workspace_premium') +
+      _domainStatusCard('Acesso', _accountStatusDisplay(status), 'Sua conta está liberada para uso.', '#2F6B57', 'verified_user') +
+      _domainStatusCard('Cobrança', _billingCycleDisplay(cycle), 'Sua assinatura está ativa.', cycle ? '#2F6B57' : '#9A6A2F', 'event_repeat')) :
+      (isPostTrial ?
+      (_domainStatusCard('Plano atual', _planDisplay(plan), 'Seu plano no BocaFood.', '#B42318', 'workspace_premium') +
+      _domainStatusCard('Acesso', _accountStatusDisplay(status), 'Mostra se sua conta está liberada para uso.', accessActive ? '#2F6B57' : '#9A6A2F', 'verified_user') +
+      _domainStatusCard('Cobrança', _billingStatusDisplay(billingStatus || status), 'Verifique o status da assinatura para continuar usando o BocaFood.', '#9A6A2F', 'event_repeat')) :
+      (_domainStatusCard('Plano atual', _planDisplay(plan), 'Seu plano ativo no BocaFood.', '#B42318', 'workspace_premium') +
+      _domainStatusCard('Acesso', _accountStatusDisplay(status), 'Mostra se sua conta está liberada para uso.', accessActive ? '#2F6B57' : '#9A6A2F', 'verified_user') +
+      _domainStatusCard('Período grátis', _trialCardValue(trialState), trialState.dateText ? 'Data final: ' + trialState.dateText : 'Data final: Não configurado', trialState.daysLeft != null ? '#9A6A2F' : '#6F6860', 'hourglass_top') +
+      _domainStatusCard('Cobrança', _billingCycleDisplay(cycle), 'Mostra como será a renovação do plano.', cycle ? '#2F6B57' : '#9A6A2F', 'event_repeat')));
     var content = document.getElementById('config-content');
-    var featureRows = features.length ? features.map(function (item) {
-      var label = typeof item === 'string' ? item : (item.label || item.name || item.key || 'Recurso');
-      var enabled = typeof item === 'object' ? item.enabled !== false : true;
-      return _planListRow(enabled ? 'check_circle' : 'block', label, enabled ? 'Disponível neste plano' : 'Indisponível neste plano', enabled ? '#2F6B57' : '#9B928A');
-    }).join('') : _planEmpty('Recursos ainda não configurados no Master.');
-    var limitRows = Object.keys(limits || {}).length ? Object.keys(limits).map(function (key) {
-      return _planListRow('speed', _humanizePlanKey(key), limits[key], '#B42318');
-    }).join('') : _planEmpty('Limites de uso ainda não configurados no Master.');
     content.innerHTML =
-      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px;">' +
-        '<div><h2 style="margin:0;color:#1F1F1F;font-size:24px;line-height:1.15;font-weight:700;">Plano</h2><p style="margin:6px 0 0;color:#6F6860;font-size:14px;line-height:1.45;max-width:760px;">Acompanhe o plano da conta e deixe a leitura pronta para os campos que serão configurados no Master.</p></div>' +
-        '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">' + _configChip('Dados do Master') + _configChip('Somente leitura') + '</div>' +
+      '<style>.plan-help-card{display:flex;align-items:center;justify-content:space-between;gap:18px;background:linear-gradient(135deg,#FFFFFF 0%,#FFF8F6 100%);border:1px solid #EADFD8;border-radius:18px;padding:18px 20px;box-shadow:0 14px 34px rgba(31,31,31,.055);margin-bottom:18px}.plan-help-main{display:flex;align-items:center;gap:13px;min-width:0}.plan-help-icon{width:42px;height:42px;border-radius:14px;background:#FFF0EE;color:#B42318;display:flex;align-items:center;justify-content:center;font-size:21px;flex:0 0 auto}.plan-help-title{font-size:15px;font-weight:850;color:#1F1F1F;line-height:1.2}.plan-help-text{font-size:13px;color:#6F6860;line-height:1.42;margin-top:3px}.plan-hotmart-info{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;background:#fff;border:1px solid #EADFD8;border-radius:18px;padding:18px 20px;box-shadow:0 12px 28px rgba(31,31,31,.045);margin-top:2px}.plan-hotmart-info .mi{width:40px;height:40px;border-radius:14px;background:#FAF8F4;color:#B42318;display:flex;align-items:center;justify-content:center;font-size:20px;flex:0 0 auto}.plan-hotmart-info h3{margin:0;color:#1F1F1F;font-size:15px;font-weight:850;line-height:1.2}.plan-hotmart-info p{margin:5px 0 0;color:#6F6860;font-size:13px;line-height:1.45;max-width:720px}.plan-trial-banner{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px;border:1px solid #EACBC4;border-radius:18px;background:linear-gradient(135deg,#FFF8F6 0%,#fff 100%);padding:18px 20px;box-shadow:0 12px 30px rgba(31,31,31,.05)}.plan-trial-main{display:flex;gap:12px;align-items:flex-start;min-width:0}.plan-trial-icon{width:38px;height:38px;border-radius:13px;background:#FFF0EE;color:#B42318;display:grid;place-items:center;flex:0 0 auto}.plan-trial-banner h3{margin:0;color:#1F1F1F;font-size:16px;font-weight:800;line-height:1.25}.plan-trial-banner p{margin:5px 0 0;color:#6F6860;font-size:13px;line-height:1.45;max-width:680px}.plan-trial-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.plan-secondary-btn{height:38px;border:1px solid #E4D8D3;border-radius:11px;background:#fff;color:#6F6860;padding:0 14px;font-size:12px;font-weight:800;font-family:inherit;cursor:pointer}.plan-status-grid{display:grid;grid-template-columns:repeat(4,minmax(210px,1fr));gap:18px;margin-bottom:18px}.plan-status-grid>div{min-height:124px;padding:22px 20px!important;transition:transform .18s ease,box-shadow .18s ease,background .18s ease}.plan-status-grid>div:hover{transform:translateY(-2px);background:#fff;box-shadow:0 18px 38px rgba(31,31,31,.08)!important}.plan-status-grid>div>div:last-child>div:nth-child(2){white-space:normal!important;overflow:visible!important;text-overflow:clip!important;line-height:1.16!important;font-size:18px!important}.plan-status-grid>div>div:last-child>div:nth-child(3){line-height:1.42!important;margin-top:6px!important}.plan-section-title{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}.plan-section-title h3{margin:0;color:#1F1F1F;font-size:16px;font-weight:800;line-height:1.2}.plan-section-title p{margin:4px 0 0;color:#6F6860;font-size:13px;line-height:1.45}.plan-section-title .mi{color:#B42318;font-size:21px;line-height:1.1;opacity:.9}@media(max-width:1120px){.plan-status-grid{grid-template-columns:repeat(2,minmax(220px,1fr))}}@media(max-width:760px){.plan-help-card,.plan-hotmart-info{flex-direction:column;align-items:stretch}.plan-help-main{align-items:flex-start}.plan-trial-banner{flex-direction:column}.plan-trial-actions{width:100%;justify-content:stretch}.plan-trial-actions button{flex:1 1 auto}.plan-status-grid{grid-template-columns:1fr}}</style>' +
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px;">' +
+        '<div><h2 style="margin:0;color:#1F1F1F;font-size:24px;line-height:1.15;font-weight:700;">Meu plano</h2><p style="margin:6px 0 0;color:#6F6860;font-size:14px;line-height:1.45;max-width:760px;">Acompanhe seu plano, acesso e assinatura no BocaFood.</p></div>' +
       '</div>' +
-      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:16px;">' +
-        _domainStatusCard('Plano atual', _planDisplay(plan), 'Campo `plan` sincronizado pelo Master', '#B42318', 'workspace_premium') +
-        _domainStatusCard('Status da conta', _accountStatusDisplay(status), 'Controle de acesso do tenant', status === 'active' ? '#2F6B57' : '#9A6A2F', 'verified_user') +
-        _domainStatusCard('Ciclo', _valueOrPending(cycle), 'Cobrança mensal, anual ou personalizada', cycle ? '#2F6B57' : '#9A6A2F', 'event_repeat') +
-        _domainStatusCard('Próxima renovação', _formatPlanDate(renewalDate), 'Data enviada pelo Master', renewalDate ? '#2F6B57' : '#9A6A2F', 'calendar_month') +
-      '</div>' +
-      '<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,.72fr);gap:16px;align-items:start;">' +
-        '<div style="display:flex;flex-direction:column;gap:16px;min-width:0;">' +
-          '<section style="' + _configCardStyle('18px 20px') + '"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px;"><div><h3 style="margin:0;color:#1F1F1F;font-size:16px;font-weight:700;">Resumo do plano</h3><p style="margin:4px 0 0;color:#6F6860;font-size:13px;line-height:1.4;">Campos já sincronizados pelo Master e campos preparados para assinatura.</p></div><span class="mi" style="color:#B42318;font-size:22px;">receipt_long</span></div>' +
-            '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;">' +
-              _planMetric('Papel de acesso', _roleDisplay(profile.role), 'Define entrada no painel') +
-              _planMetric('País fiscal', profile.fiscalCountry || 'ES', 'Base das regras fiscais') +
-              _planMetric('Status de cobrança', _valueOrPending(billingStatus), 'Aguardando campo do Master') +
-              _planMetric('Fim do teste', _formatPlanDate(trialEndsAt), 'Aguardando campo do Master') +
-            '</div>' +
-          '</section>' +
-          '<section style="' + _configCardStyle('18px 20px') + '"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px;"><div><h3 style="margin:0;color:#1F1F1F;font-size:16px;font-weight:700;">Recursos do plano</h3><p style="margin:4px 0 0;color:#6F6860;font-size:13px;line-height:1.4;">Quando o Master enviar recursos, eles aparecem aqui automaticamente.</p></div><span class="mi" style="color:#B42318;font-size:22px;">fact_check</span></div><div style="display:flex;flex-direction:column;gap:8px;">' + featureRows + '</div></section>' +
+      '<div class="plan-help-card">' +
+        '<div class="plan-help-main">' +
+          '<span class="mi plan-help-icon">support_agent</span>' +
+          '<div><div class="plan-help-title">Precisa de ajuda com seu plano?</div><div class="plan-help-text">Fale com a equipe BocaFood para tirar dúvidas sobre acesso, assinatura ou status da sua conta.</div></div>' +
         '</div>' +
-        '<aside style="display:flex;flex-direction:column;gap:16px;min-width:0;">' +
-          '<section style="' + _configCardStyle('18px 20px') + '"><div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:14px;"><div style="width:36px;height:36px;border-radius:12px;background:#FAF8F4;color:#B42318;display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span class="mi" style="font-size:20px;">tune</span></div><div><h3 style="margin:0;color:#1F1F1F;font-size:16px;font-weight:700;">Limites e uso</h3><p style="margin:4px 0 0;color:#6F6860;font-size:13px;line-height:1.4;">Preparado para limites por plano, módulos e volume de uso.</p></div></div><div style="display:flex;flex-direction:column;gap:8px;">' + limitRows + '</div></section>' +
-          '<section style="' + _configCardStyle('18px 20px') + '"><h3 style="margin:0 0 8px;color:#1F1F1F;font-size:16px;font-weight:700;">Próximos campos do Master</h3><p style="margin:0;color:#6F6860;font-size:13px;line-height:1.45;">A tela já está preparada para receber ciclo de cobrança, renovação, fim do teste, status de cobrança, recursos e limites do plano.</p></section>' +
-        '</aside>' +
-      '</div>';
+        '<button type="button" class="plan-secondary-btn" onclick="Router.navigate(\'suporte/chamado\')">Falar com suporte</button>' +
+      '</div>' +
+      _trialBannerHtml(trialState, billingStatus, status) +
+      '<div class="plan-status-grid">' +
+        planCards +
+      '</div>' +
+      '<section class="plan-hotmart-info"><div style="display:flex;align-items:flex-start;gap:13px;min-width:0;"><span class="mi">receipt_long</span><div><h3>Dados da compra na Hotmart</h3><p>Pagamentos, recibos, cartão, próxima cobrança e dados financeiros da assinatura devem ser conferidos no painel da Hotmart. O BocaFood usa a Hotmart apenas para liberar, manter ou bloquear o acesso conforme o status recebido.</p></div></div><button type="button" class="plan-secondary-btn" onclick="window.open(\'https://consumer.hotmart.com/\',\'_blank\',\'noopener\')">Abrir Hotmart</button></section>';
   }
 
   function _renderAparencia() {
@@ -1318,31 +1346,32 @@ Modules.Configuracoes = (function () {
     var hasSocial = !!(c.whatsapp || c.instagram || c.facebook || c.tiktok);
     var content = document.getElementById('config-content');
     content.innerHTML =
+      '<style>.integrations-info-panel{border:1px solid #EADFD8;border-radius:15px;background:#fff;padding:14px;display:grid;gap:12px}.integrations-info-title{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:13px}.integrations-info-title h3{margin:0;color:#1F1F1F;font-size:16px;font-weight:800;line-height:1.2}.integrations-info-title p{margin:4px 0 0;color:#6F6860;font-size:13px;line-height:1.45;max-width:620px}.integrations-info-title .mi{color:#B42318;font-size:21px;line-height:1.1;opacity:.9}.integrations-info-panel .bf-input,.integrations-info-panel .bf-select{background:#FFFCF8;border-color:#E4D8D3;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease}.integrations-info-panel .bf-input:focus,.integrations-info-panel .bf-select:focus{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);outline:none}.integrations-info-panel .contact-field-help{font-size:10px;line-height:1.3;margin-top:4px;color:#9A8E89;max-width:270px}.integrations-phone-box{display:grid;grid-template-columns:112px minmax(0,1fr);gap:8px;align-items:center;background:#FFFCF8;border:1px solid #E4D8D3;border-radius:12px;padding:6px;transition:border-color .16s ease,box-shadow .16s ease}.integrations-phone-box .bf-select,.integrations-phone-box .bf-input{border:0;background:transparent;box-shadow:none;min-height:36px}.integrations-phone-box .bf-select{border-right:1px solid #E8DCD7;border-radius:8px;padding-left:8px}.integrations-phone-box .bf-input{padding-left:8px}.integrations-phone-box:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08)}@media(max-width:640px){.integrations-info-panel{padding:12px}.integrations-info-title{margin-bottom:11px}.integrations-phone-box{grid-template-columns:100px minmax(0,1fr)}}</style>' +
       '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px;">' +
-        '<div><h2 style="margin:0;color:#1F1F1F;font-size:24px;line-height:1.15;font-weight:700;">Integrações</h2><p style="margin:6px 0 0;color:#6F6860;font-size:14px;line-height:1.45;max-width:680px;">Conecte canais públicos, analytics e pixels usados pela loja online sem alterar a operação do cardápio.</p></div>' +
+        '<div><h2 style="margin:0;color:#1F1F1F;font-size:24px;line-height:1.15;font-weight:700;">Integrações</h2><p style="margin:6px 0 0;color:#6F6860;font-size:14px;line-height:1.45;max-width:680px;">Conecte canais, redes sociais e ferramentas de medição usadas na página pública do seu negócio.</p></div>' +
         '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">' +
-          _configChip((hasAnalytics ? 'Analytics ativo' : 'Analytics pendente')) +
-          _configChip((hasMeta ? 'Pixel ativo' : 'Pixel pendente')) +
-          _configChip((hasSocial ? 'Canais conectados' : 'Canais pendentes')) +
+          _configChip((hasAnalytics ? 'Medição conectada' : 'Medição pendente')) +
+          _configChip((hasMeta ? 'Pixel conectado' : 'Pixel pendente')) +
+          _configChip((whatsapp ? 'WhatsApp conectado' : 'WhatsApp pendente')) +
         '</div>' +
       '</div>' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:16px;">' +
-        _domainStatusCard('Medição', hasAnalytics ? 'Configurada' : 'Pendente', hasAnalytics ? 'GA4 ou GTM informado' : 'Informe GA4 ou GTM', hasAnalytics ? '#2F6B57' : '#9A6A2F', 'monitoring') +
-        _domainStatusCard('Meta Pixel', hasMeta ? 'Configurado' : 'Pendente', hasMeta ? 'ID pronto para eventos' : 'Informe o Pixel ID', hasMeta ? '#B42318' : '#9A6A2F', 'ads_click') +
-        _domainStatusCard('WhatsApp', whatsapp ? 'Conectado' : 'Pendente', whatsapp ? 'Usado no contato público' : 'Informe o número público', whatsapp ? '#2F6B57' : '#9A6A2F', 'forum') +
+        _domainStatusCard('Medição', hasAnalytics ? 'Conectada' : 'Pendente', hasAnalytics ? 'GA4 ou GTM adicionado.' : 'Adicione GA4 ou GTM.', hasAnalytics ? '#2F6B57' : '#9A6A2F', 'monitoring') +
+        _domainStatusCard('Meta Pixel', hasMeta ? 'Conectado' : 'Pendente', hasMeta ? 'Pixel ID adicionado.' : 'Adicione o Pixel ID.', hasMeta ? '#B42318' : '#9A6A2F', 'ads_click') +
+        _domainStatusCard('WhatsApp', whatsapp ? 'Conectado' : 'Pendente', whatsapp ? 'Canal principal ativo.' : 'Adicione o WhatsApp principal.', whatsapp ? '#2F6B57' : '#9A6A2F', 'forum') +
       '</div>' +
       '<div style="display:grid;grid-template-columns:minmax(0,1.12fr) minmax(300px,.88fr);gap:16px;align-items:start;">' +
         '<div style="display:flex;flex-direction:column;gap:16px;min-width:0;">' +
-          '<section style="' + _configCardStyle('18px 20px') + '"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px;"><div><h3 style="margin:0;color:#1F1F1F;font-size:16px;font-weight:700;">Medição e pixels</h3><p style="margin:4px 0 0;color:#6F6860;font-size:13px;line-height:1.4;">IDs usados para medir visitas, campanhas e conversões da loja pública.</p></div><span class="mi" style="color:#B42318;font-size:22px;">query_stats</span></div>' +
-            '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">' +
-              _configInput('cfg-ga4', 'Google Analytics 4 ID', ga, 'G-XXXXXXXXXX') +
-              _configInput('cfg-gtm', 'Google Tag Manager ID', c.gtmId, 'GTM-XXXXXXX') +
-              _configInput('cfg-meta', 'Meta Pixel ID', meta, '123456789') +
+          '<section style="' + _configCardStyle('18px 20px') + '"><div class="integrations-info-title"><div><h3>Visitas e campanhas</h3><p>Use essas integrações para acompanhar visitas, campanhas e conversões.</p></div><span class="mi">query_stats</span></div>' +
+            '<div class="integrations-info-panel" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));">' +
+              _configInputWithHelp('cfg-ga4', 'Google Analytics 4', ga, 'G-XXXXXXXXXX', 'Código usado para acompanhar visitas e comportamento na página pública.') +
+              _configInputWithHelp('cfg-gtm', 'Google Tag Manager', c.gtmId, 'GTM-XXXXXXX', 'Use se você gerencia tags e scripts pelo GTM.') +
+              _configInputWithHelp('cfg-meta', 'Meta Pixel', meta, '123456789', 'Código usado para medir campanhas do Facebook e Instagram.') +
             '</div>' +
           '</section>' +
-          '<section style="' + _configCardStyle('18px 20px') + '"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px;"><div><h3 style="margin:0;color:#1F1F1F;font-size:16px;font-weight:700;">Canais públicos</h3><p style="margin:4px 0 0;color:#6F6860;font-size:13px;line-height:1.4;">Links e contatos exibidos na loja, avaliações e pontos de contato do cliente.</p></div><span class="mi" style="color:#B42318;font-size:22px;">share</span></div>' +
-            '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">' +
-              _phoneInput('cfg-int-whatsapp-country', 'cfg-whatsapp', 'WhatsApp público', countryCode, whatsapp, '912 345 678') +
+          '<section style="' + _configCardStyle('18px 20px') + '"><div class="integrations-info-title"><div><h3>Canais de contato</h3><p>Adicione os links que seus clientes usam para falar com você ou acompanhar sua marca.</p></div><span class="mi">share</span></div>' +
+            '<div class="integrations-info-panel" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));">' +
+              _integrationPhoneInput('cfg-int-whatsapp-country', 'cfg-whatsapp', 'WhatsApp', countryCode, whatsapp, '912 345 678') +
               _configInput('cfg-instagram', 'Instagram', c.instagram, 'https://instagram.com/sua_loja') +
               _configInput('cfg-facebook', 'Facebook', c.facebook, 'https://facebook.com/sua_loja') +
               _configInput('cfg-tiktok', 'TikTok', c.tiktok, 'https://tiktok.com/@sua_loja') +
@@ -1350,16 +1379,16 @@ Modules.Configuracoes = (function () {
           '</section>' +
         '</div>' +
         '<aside style="' + _configCardStyle('18px 20px') + 'position:sticky;top:82px;">' +
-          '<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:14px;"><div style="width:36px;height:36px;border-radius:12px;background:#FAF8F4;color:#B42318;display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span class="mi" style="font-size:20px;">hub</span></div><div><h3 style="margin:0;color:#1F1F1F;font-size:16px;font-weight:700;">Onde esses dados aparecem</h3><p style="margin:4px 0 0;color:#6F6860;font-size:13px;line-height:1.4;">A configuração fica salva em Firebase e alimenta os pontos públicos já conectados.</p></div></div>' +
+          '<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:14px;"><div style="width:36px;height:36px;border-radius:12px;background:#FAF8F4;color:#B42318;display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span class="mi" style="font-size:20px;">hub</span></div><div><h3 style="margin:0;color:#1F1F1F;font-size:16px;font-weight:700;">O que cada integração faz</h3><p style="margin:4px 0 0;color:#6F6860;font-size:13px;line-height:1.4;">Veja como cada canal ajuda no funcionamento da sua página pública.</p></div></div>' +
           '<div style="display:flex;flex-direction:column;gap:10px;">' +
-            _integrationInfoRow('forum', 'WhatsApp', 'Usado nos botões de contato da loja e na página de avaliações.') +
-            _integrationInfoRow('alternate_email', 'Redes sociais', 'Instagram, Facebook e TikTok são lidos pelo template público quando preenchidos.') +
-            _integrationInfoRow('analytics', 'Analytics', 'GA4, GTM e Meta Pixel ficam disponíveis para medição da loja pública.') +
+            _integrationInfoRow('forum', 'WhatsApp', 'Mostra o botão de contato na página pública e nas avaliações.') +
+            _integrationInfoRow('alternate_email', 'Redes sociais', 'Exibe seus canais para o cliente conhecer e acompanhar sua marca.') +
+            _integrationInfoRow('analytics', 'Analytics', 'Ajuda a medir visitas, campanhas e resultados.') +
           '</div>' +
         '</aside>' +
       '</div>' +
       '<div style="position:sticky;bottom:0;margin-top:16px;background:linear-gradient(180deg,rgba(250,248,244,0),#FAF8F4 42%);padding:14px 0 2px;display:flex;justify-content:flex-end;">' +
-        '<button id="config-save" class="bf-btn bf-btn-primary">Salvar configurações</button>' +
+        '<button id="config-save" class="bf-btn bf-btn-primary">Salvar alterações</button>' +
       '</div>';
     document.getElementById('config-save').onclick = function () {
       var phone = _val('cfg-whatsapp');
@@ -1630,9 +1659,20 @@ Modules.Configuracoes = (function () {
     return '<div class="bf-field"><label>' + _esc(label) + '</label><input id="' + id + '" class="bf-input" type="' + (type || 'text') + '" value="' + _esc(value == null ? '' : value) + '" placeholder="' + _esc(placeholder || '') + '"' + (autocomplete ? ' autocomplete="' + _esc(autocomplete) + '"' : '') + (name ? ' name="' + _esc(name) + '"' : '') + '></div>';
   }
 
+  function _configInputWithHelp(id, label, value, placeholder, help, type, autocomplete, name) {
+    return '<div class="bf-field"><label>' + _esc(label) + '</label><input id="' + id + '" class="bf-input" type="' + (type || 'text') + '" value="' + _esc(value == null ? '' : value) + '" placeholder="' + _esc(placeholder || '') + '"' + (autocomplete ? ' autocomplete="' + _esc(autocomplete) + '"' : '') + (name ? ' name="' + _esc(name) + '"' : '') + '><div class="contact-field-help">' + _esc(help || '') + '</div></div>';
+  }
+
   function _phoneInput(countryId, phoneId, label, countryCode, phone, placeholder) {
     return '<div class="bf-field"><label>' + _esc(label) + '</label><div class="bf-phone-row">' +
       '<select id="' + countryId + '" class="bf-select">' + _phoneCountryOptions(countryCode) + '</select>' +
+      '<input id="' + phoneId + '" class="bf-input" type="tel" value="' + _esc(phone == null ? '' : phone) + '" placeholder="' + _esc(placeholder || '') + '" autocomplete="tel-national">' +
+      '</div></div>';
+  }
+
+  function _integrationPhoneInput(countryId, phoneId, label, countryCode, phone, placeholder) {
+    return '<div class="bf-field"><label>' + _esc(label) + '</label><div class="integrations-phone-box">' +
+      '<select id="' + countryId + '" class="bf-select" aria-label="Código do país">' + _phoneCountryOptions(countryCode) + '</select>' +
       '<input id="' + phoneId + '" class="bf-input" type="tel" value="' + _esc(phone == null ? '' : phone) + '" placeholder="' + _esc(placeholder || '') + '" autocomplete="tel-national">' +
       '</div></div>';
   }
@@ -1748,7 +1788,7 @@ Modules.Configuracoes = (function () {
       loginUrl: base + '/login',
       orderUrl: base + '/#pedido',
       trackUrl: base + '/track.html',
-      reviewUrl: base + '/review.html',
+      reviewUrl: base + '/review',
       apiUrl: base + '/api'
     };
   }
@@ -1806,6 +1846,110 @@ Modules.Configuracoes = (function () {
     return '<div style="padding:18px;border:1px dashed #E4D9D6;border-radius:14px;background:#FBF5F3;color:#8A7E7C;text-align:center;font-size:13px;line-height:1.4;">' + _esc(text || 'Ainda não configurado.') + '</div>';
   }
 
+  function _dateFromAny(value) {
+    if (!value) return null;
+    if (value && typeof value.toDate === 'function') return value.toDate();
+    if (value && typeof value.seconds === 'number') return new Date(value.seconds * 1000);
+    var d = new Date(value);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  function _trialState(trialEndsAt, billingStatus) {
+    var d = _dateFromAny(trialEndsAt);
+    if (!d) return { status: 'none', daysLeft: null, dateText: '' };
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    var end = new Date(d.getTime());
+    end.setHours(0, 0, 0, 0);
+    var daysLeft = Math.ceil((end.getTime() - today.getTime()) / 86400000);
+    return {
+      status: daysLeft <= 0 ? 'expired' : 'active',
+      daysLeft: daysLeft,
+      dateText: _formatPlanDate(trialEndsAt)
+    };
+  }
+
+  function _trialBannerHtml(state, billingStatus, accountStatus) {
+    if (!state || state.status === 'none') return '';
+    var billingActive = _isBillingActive(billingStatus);
+    var accessActive = String(accountStatus || '').toLowerCase() === 'active';
+    if (state.status === 'expired' && billingActive && accessActive) return '';
+    var title = 'Você está no período grátis';
+    var text = 'Seu acesso grátis termina em ' + state.dateText + '. Aproveite esse período para configurar seu negócio no BocaFood.';
+    var showActions = false;
+    var primary = 'Escolher plano';
+    if (state.status === 'expired') {
+      title = 'Seu período grátis terminou';
+      text = 'Escolha um plano para continuar usando o BocaFood sem interrupção.';
+      showActions = true;
+      primary = 'Escolher plano';
+    } else if (state.daysLeft === 1) {
+      title = 'Seu período grátis termina amanhã';
+      text = 'Escolha um plano para continuar usando o BocaFood sem interromper seu acesso.';
+      showActions = true;
+    } else if (state.daysLeft <= 5) {
+      title = 'Seu período grátis termina em breve';
+      text = 'Seu acesso grátis termina em ' + Math.max(0, state.daysLeft) + ' dias. Escolha um plano para continuar usando o BocaFood sem interrupção.';
+      showActions = true;
+    }
+    return '<section class="plan-trial-banner">' +
+      '<div class="plan-trial-main"><div class="plan-trial-icon"><span class="mi" style="font-size:20px;">hourglass_top</span></div><div><h3>' + _esc(title) + '</h3><p>' + _esc(text) + '</p></div></div>' +
+      (showActions ? '<div class="plan-trial-actions"><button type="button" class="bf-btn bf-btn-primary" onclick="Router.navigate(\'suporte/chamado\')">' + _esc(primary) + '</button><button type="button" class="plan-secondary-btn" onclick="Router.navigate(\'suporte/chamado\')">Falar com suporte</button></div>' : '') +
+    '</section>';
+  }
+
+  function _trialCardValue(state) {
+    if (!state || state.status === 'none') return 'Não configurado';
+    if (state.status === 'expired') return 'Encerrado';
+    if (state.daysLeft === 1) return 'Termina amanhã';
+    if (state.daysLeft === 0) return 'Termina hoje';
+    return 'Termina em ' + state.daysLeft + ' dias';
+  }
+
+  function _isBillingActive(status) {
+    var value = String(status || '').toLowerCase();
+    return value === 'active' || value === 'paid' || value === 'approved';
+  }
+
+  function _planTimelineRows(profile, billing, trialState) {
+    var rows = [];
+    var createdAt = profile.createdAt || profile.created_at || profile.created || '';
+    if (createdAt) {
+      rows.push(_planTimelineItem('rocket_launch', 'Acesso liberado', 'Sua conta BocaFood foi criada e já está pronta para uso.', _formatPlanDate(createdAt), 'Concluído'));
+    }
+    if (trialState && trialState.dateText) {
+      var daysText = trialState.daysLeft > 1 ? trialState.daysLeft + ' dias grátis' : (trialState.daysLeft === 1 ? '1 dia grátis' : 'período grátis');
+      rows.push(_planTimelineItem('hourglass_top', trialState.status === 'expired' ? 'Período grátis encerrado' : 'Período grátis ativo', trialState.status === 'expired' ? 'O período grátis chegou ao fim.' : 'Você ainda tem ' + daysText + ' para usar o BocaFood.', 'Termina em ' + trialState.dateText, trialState.status === 'expired' ? 'Encerrado' : 'Ativo'));
+      rows.push(_planTimelineItem('workspace_premium', 'Próxima etapa', 'Escolha um plano antes do fim do período grátis para continuar usando sem interrupção.', '', 'Pendente', true));
+    }
+    if (!rows.length) {
+      rows.push(_planTimelineItem('info', 'Plano em preparação', 'Quando houver informações do período grátis ou assinatura, elas aparecerão aqui.', '', 'Aguardando'));
+    }
+    return rows.join('');
+  }
+
+  function _planTimelineItem(icon, title, text, date, status, showCta) {
+    return '<div class="plan-timeline-item">' +
+      '<span class="mi plan-timeline-icon">' + _esc(icon || 'info') + '</span>' +
+      '<div><div class="plan-timeline-title">' + _esc(title || '') + '</div><div class="plan-timeline-text">' + _esc(text || '') + '</div>' +
+        '<span class="plan-timeline-status">' + _esc(status || '') + '</span>' +
+        (showCta ? '<div style="margin-top:9px;"><button type="button" class="bf-btn bf-btn-primary" onclick="Router.navigate(\'suporte/chamado\')" style="height:34px;padding:0 12px;font-size:12px;">Escolher plano</button></div>' : '') +
+      '</div>' +
+      '<div class="plan-timeline-date">' + _esc(date || '') + '</div>' +
+    '</div>';
+  }
+
+  function _realBillingRows(profile, billing, trialState, postTrialActive) {
+    var charges = billing.charges || profile.billingCharges || profile.charges || [];
+    if (!Array.isArray(charges) || !charges.length) {
+      var postTrial = trialState && trialState.status === 'expired';
+      return '<div class="plan-empty-billing"><strong>Nenhuma cobrança realizada ainda.</strong>' + (postTrial ? (postTrialActive ? 'Quando houver pagamentos ou renovações, eles aparecerão aqui.' : 'Quando sua assinatura estiver ativa, os pagamentos e renovações aparecerão aqui.') : 'Você está usando o período grátis do BocaFood.') + '</div>';
+    }
+    return '<div class="plan-history-table-wrap"><table class="plan-history-table"><thead><tr><th>Data</th><th>Descrição</th><th>Valor</th><th>Status</th><th>Recibo</th></tr></thead><tbody>' + charges.map(function (item) {
+      return '<tr><td>' + _esc(_formatPlanDate(item.date || item.createdAt || item.paidAt || '')) + '</td><td>' + _esc(item.description || item.title || 'Cobrança do plano') + '</td><td>' + _esc(item.amount || item.value || '-') + '</td><td>' + _esc(item.status || '-') + '</td><td>' + (item.receiptUrl ? '<a href="' + _esc(item.receiptUrl) + '" target="_blank" rel="noopener" style="color:#B42318;font-weight:800;text-decoration:none;">Ver recibo</a>' : '-') + '</td></tr>';
+    }).join('') + '</tbody></table></div>';
+  }
+
   function _planDisplay(plan) {
     var map = { essencial: 'Plano Essencial', starter: 'Plano Essencial', compromisso_anual: 'Plano Compromisso Anual', fundadoras: 'Plano Fundadoras' };
     var value = String(plan || 'essencial').trim();
@@ -1813,9 +1957,28 @@ Modules.Configuracoes = (function () {
   }
 
   function _accountStatusDisplay(status) {
-    var map = { active: 'Ativo', pending: 'Pendente', paused: 'Pausado', disabled: 'Bloqueado' };
+    var map = { active: 'Ativo', pending: 'Pendente', paused: 'Pausado', disabled: 'Bloqueado', blocked: 'Bloqueado', canceled: 'Cancelado', inactive: 'Inativo', archived: 'Arquivado' };
     var value = String(status || 'active').trim();
     return map[value] || value;
+  }
+
+  function _billingCycleDisplay(cycle) {
+    var map = { monthly: 'Mensal', month: 'Mensal', mensal: 'Mensal', annual: 'Anual', yearly: 'Anual', anual: 'Anual' };
+    var value = String(cycle || '').trim();
+    return value ? (map[value] || value) : 'Ainda não configurada';
+  }
+
+  function _billingStatusDisplay(status) {
+    var map = { active: 'Ativo', trial: 'Período grátis', trialing: 'Período grátis', pending: 'Pendente', pending_payment: 'Pagamento pendente', past_due: 'Pagamento em atraso', canceled: 'Cancelado', refunded: 'Reembolsado', chargeback: 'Chargeback', inactive: 'Inativo' };
+    var value = String(status || '').trim();
+    return value ? (map[value] || value) : 'Não configurado';
+  }
+
+  function _countryDisplay(country) {
+    var map = { ES: 'Espanha', PT: 'Portugal', BR: 'Brasil', FR: 'França', IT: 'Itália', DE: 'Alemanha', GB: 'Reino Unido', US: 'Estados Unidos', OTHER: 'Outro' };
+    var value = String(country || '').trim();
+    var upper = value.toUpperCase();
+    return map[upper] || value || 'Não configurado';
   }
 
   function _roleDisplay(role) {
@@ -1826,8 +1989,8 @@ Modules.Configuracoes = (function () {
 
   function _formatPlanDate(value) {
     if (!value) return 'Não configurado';
-    var d = new Date(value);
-    if (isNaN(d.getTime())) return String(value);
+    var d = _dateFromAny(value);
+    if (!d) return String(value);
     return d.toLocaleDateString('pt-PT');
   }
 
@@ -1922,16 +2085,41 @@ Modules.Configuracoes = (function () {
       var storeWhatsappNumber = _cleanPhoneNumber(data.whatsapp || '');
       var storeWhatsappFull = _phoneFull(storeWhatsappCode, storeWhatsappNumber);
       var addressCountry = _countryIso((data.companyAddress && data.companyAddress.country) || data.companyCountry || data.country || '');
+      var businessName = data.businessName || data.tradeName || data.commercialName || (currentStore && currentStore.name) || '';
+      var legalName = data.legalName || data.companyLegalName || '';
+      var fiscalDocument = data.companyFiscalId || data.fiscalDocument || data.taxId || data.nif || '';
+      var fiscalCountry = _fiscalCountryCode(data.fiscalCountry || data.defaultFiscalCountry || (_systemTenant && (_systemTenant.fiscalCountry || (_systemTenant.accountAddress && _systemTenant.accountAddress.fiscalCountry) || (_systemTenant.store && _systemTenant.store.fiscalCountry))) || (window.Auth && Auth.getFiscalCountry ? Auth.getFiscalCountry() : '') || addressCountry || 'ES');
+      var fiscalCity = data.companyCity || (data.companyAddress && data.companyAddress.city) || '';
+      var fiscalProvince = data.companyRegion || (data.companyAddress && (data.companyAddress.region || data.companyAddress.state || data.companyAddress.province)) || '';
+      var fiscalPostalCode = data.companyPostalCode || (data.companyAddress && data.companyAddress.postalCode) || '';
       patch.phoneCountryCode = phoneCode;
       patch.phoneNumber = phoneNumber;
       patch.phoneFull = phoneFull;
+      patch.whatsappCountryCode = storeWhatsappCode;
+      patch.storeWhatsappCountryCode = storeWhatsappCode;
+      patch.storeWhatsappNumber = storeWhatsappNumber;
+      patch.storeWhatsappFull = storeWhatsappFull;
       patch.contactEmail = data.email || '';
       patch.adminEmail = data.adminEmail || data.fiscalEmail || data.billingEmail || '';
       patch.fiscalEmail = data.fiscalEmail || data.adminEmail || '';
       patch.billingEmail = data.billingEmail || data.adminEmail || '';
       patch.country = addressCountry;
+      patch.fiscalCountry = fiscalCountry;
       patch.language = data.language || data.defaultLanguage || '';
-      patch.document = data.companyFiscalId || data.fiscalDocument || data.taxId || data.nif || '';
+      patch.name = businessName;
+      patch.businessName = businessName;
+      patch.storeName = businessName;
+      patch.legalName = legalName;
+      patch.companyLegalName = legalName;
+      patch.document = fiscalDocument;
+      patch.companyFiscalId = fiscalDocument;
+      patch.fiscalDocument = fiscalDocument;
+      patch.taxId = fiscalDocument;
+      patch.nif = fiscalDocument;
+      patch.description = data.description || '';
+      patch.shortDescription = data.description || '';
+      patch.avatarUrl = data.avatarUrl || data.storeAvatarUrl || data.accountAvatarUrl || '';
+      patch.storeAvatarUrl = data.storeAvatarUrl || data.avatarUrl || '';
       patch.accountAddress = Object.assign({}, currentAddress, {
         street: data.companyAddressLine || (data.companyAddress && data.companyAddress.addressLine) || '',
         number: data.companyNumber || (data.companyAddress && data.companyAddress.number) || '',
@@ -1941,18 +2129,26 @@ Modules.Configuracoes = (function () {
         province: data.companyRegion || (data.companyAddress && (data.companyAddress.region || data.companyAddress.state || data.companyAddress.province)) || '',
         postalCode: data.companyPostalCode || (data.companyAddress && data.companyAddress.postalCode) || '',
         country: addressCountry,
+        fiscalCountry: fiscalCountry,
         source: 'admin_setup',
         updatedAt: now
       });
       patch.store = Object.assign({}, currentStore, {
-        name: data.businessName || currentStore.name || '',
-        city: currentStore.city || zoneLocation.city || '',
+        name: businessName || currentStore.name || '',
+        description: data.description || currentStore.description || '',
+        city: currentStore.city || zoneLocation.city || fiscalCity || '',
+        region: currentStore.region || currentStore.province || zoneLocation.province || fiscalProvince || '',
+        province: currentStore.province || currentStore.region || zoneLocation.province || fiscalProvince || '',
+        postalCode: currentStore.postalCode || zoneLocation.postalCode || fiscalPostalCode || '',
         country: zoneLocation.country || currentStore.country || addressCountry,
+        fiscalCountry: fiscalCountry,
         language: data.language || data.defaultLanguage || currentStore.language || '',
         phone: data.phone || '',
+        phoneNumber: phoneNumber,
         phoneCountryCode: phoneCode,
         phoneFull: phoneFull,
         whatsapp: data.whatsapp || '',
+        whatsappNumber: storeWhatsappNumber,
         whatsappCountryCode: storeWhatsappCode,
         whatsappFull: storeWhatsappFull,
         status: currentStore.status || 'draft',

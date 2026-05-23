@@ -1,5 +1,110 @@
 # AI Changelog
 
+## 2026-05-23 — Status da loja no topo do Admin
+- Arquivos alterados: `public/admin.html`, `public/index.html`, `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- O botão do topo do Admin passou a ler se o status da loja está em modo automático ou manual antes de exibir `Loja ligada` ou `Loja desligada`.
+- Em modo automático, o indicador calcula aberto/fechado usando a grade semanal de horários já salva; em modo manual, continua respeitando `manualOpen`, `manualClosed` e `operacao.isOpen`.
+- O rótulo e o título do controle agora indicam o modo (`Automático` ou `Manual`) para evitar confundir horário automático com fechamento manual.
+- O card principal da loja pública passou a respeitar também `operacao.isOpen` quando o status está em modo manual, mantendo `Aberto/Fechado` alinhado ao botão do topo do Admin.
+- O `Horário resumido` do card principal passou a mostrar a semana agrupada por horários iguais, como `Seg-Sex: 12:00-15:00 / 18:00-22:00 · Sáb-Dom: 12:00-16:00`, com o template público recalculando os dias no idioma da loja.
+- Corrigida a interpretação do prazo de antecedência no carrinho: `2` agora permite escolher hoje, amanhã e depois de amanhã, em vez de começar a agenda apenas dois dias depois; o Admin deixou de salvar esse campo como antecedência mínima.
+- A leitura da grade semanal no template público passou a preservar sempre as 7 posições da semana ao carregar horários por objeto ou por array, evitando que dias configurados fiquem deslocados ou indisponíveis no calendário do carrinho; horários que terminam à meia-noite também deixam de ser descartados.
+- O calendário de retirada/entrega do carrinho deixou de bloquear datas com base apenas nos horários já gerados; agora a data segue o intervalo de antecedência permitido, e a disponibilidade fica concentrada na lista de horários do dia escolhido.
+- O carrinho deixou de ler qualquer campo de antecedência mínima para iniciar a agenda: o calendário sempre começa em hoje, e o campo `Antecedência` funciona apenas como limite máximo de dias para pedidos futuros.
+- O layout do card principal da loja pública passou a permitir quebra de linha nos chips de status/horário, evitando que o horário resumido semanal ultrapasse a área do card.
+- O efeito visual sobre a imagem do card promocional/destaque foi suavizado e passou a usar a cor da marca em vez de um degradê branco pesado.
+- O horário resumido do card principal passou a ocupar uma linha própria dentro dos chips, permitindo exibir todos os grupos de horários da semana sem ultrapassar a largura do card.
+- O título do card promocional/destaque foi levemente reduzido no mobile e no desktop para melhorar proporção e leitura.
+- O placeholder da barra de busca de produtos no template público deixou de usar peso alto, ficando com leitura mais leve.
+- O botão `Mais informações` da loja pública agora abre um modal premium com `Sobre a loja`, `Aviso importante`, `Política de entrega` e `Política de cancelamento`, usando os textos configurados no Admin.
+- O rodapé da loja pública passou a usar a logo real no lugar das iniciais, exibir horários e endereço completo de atendimento, respeitar os toggles de contatos/redes sociais e remover o texto padrão `Gracias por visitarnos.` quando não houver texto próprio configurado.
+- Incluído o WhatsApp flutuante no template público com tooltip/mensagem configurados em `Template da loja > Atendimento`, abrindo o WhatsApp com a mensagem inicial salva.
+- O botão flutuante do WhatsApp passou a ser uma bolinha independente e os textos do rodapé ficaram sem negrito, mantendo leitura mais leve.
+- A apresentação curta do card principal da loja pública passou a usar preto para ganhar mais leitura.
+- O ícone do WhatsApp flutuante foi afinado para não parecer em negrito.
+- Registrada no `AGENTS.md` a preferência visual de evitar excesso de negrito, mantendo a interface mais leve, elegante e premium.
+- O WhatsApp flutuante ganhou ícone maior e tooltip mais elegante, exibido apenas ao passar o mouse ou focar no botão.
+- O rodapé passou a ocultar telefone quando só houver DDI/código sem número real, e o WhatsApp flutuante deixou de usar número fallback quando a loja não configurou WhatsApp.
+- O botão flutuante recebeu um ícone preenchido do WhatsApp mais limpo, sem borda branca na bolinha.
+- O degradê do card promocional/destaque foi suavizado para ficar mais leve e elegante, e o botão `Ver pedido` passou a mostrar apenas o valor, sem o texto `Subtotal`.
+- O card principal da loja pública recebeu uma borda fina e elegante na cor da marca.
+- O card principal deixou de usar tom gelo e recebeu fundo off-white quente com degradê de marca mais perceptível; no botão `Ver pedido`, a linha `Subtotal + valor` voltou a aparecer em branco.
+- No carrinho, textos secundários que estavam cinza passaram para preto, e a mensagem de ausência de horários perdeu fundo e borda.
+- Removido o subtítulo explicativo do modal `Mais informações`, deixando o card mais limpo.
+- Correção: o autocomplete da `Localização principal` em `Template da loja` passou a preencher também o campo `Bairro / Localidade`, reconhecendo variações de bairro retornadas pelo Google Places.
+- Ajuste visual: no template público, o modal `Mais informações` passou a usar bordas/linhas brancas, o card principal recebeu contorno na cor da marca também no desktop/mobile e os totalizadores de produtos das categorias ficaram sem negrito.
+- Ajuste visual posterior: o contorno do card principal e do botão `Ver promoções` no template público passou a usar linha branca para ficar mais leve sobre o hero.
+- Avaliações: a página pública de avaliação passou a funcionar pelo slug da loja (`/slug/review`), resolvendo o tenant via `public_stores`, impedindo envio sem loja identificada e usando o nome real da loja no título, logo e mensagem de WhatsApp.
+- O link de avaliações gerado no Admin agora segue o padrão `bocafood.app/slug/review`, e o template público oculta a seção/título de avaliações quando ainda não há avaliações aprovadas.
+- Ajuste posterior: a página pública de avaliações ganhou layout alinhado ao template atual, herdando cor da marca, logo, favicon e idioma principal configurados no Admin; o template público agora mostra um CTA para deixar avaliação mesmo quando ainda não há avaliações publicadas.
+- Ajuste posterior: quando não há avaliações aprovadas, o template público oculta o cabeçalho `Reseñas / Ver todas` e mantém apenas o CTA para deixar avaliação.
+- Ajuste posterior: no estado sem resenhas, a área de avaliações remove o card externo e deixa visível somente o card com degradê e CTA.
+- Ajuste posterior: adicionado respiro vertical entre o card de resenha/CTA e a lista de produtos no template público.
+- Ajuste posterior: a página de avaliação enviada trocou emojis por elementos gráficos no padrão visual e o botão `Ver menú` passou a usar a URL pública resolvida da loja, evitando abrir uma rota sem loja identificada.
+- Ajuste posterior: aumentado o respiro do cabeçalho `Reseñas / Ver todas` em relação aos produtos no template público.
+- Ajuste posterior: removido o bloqueio local de avaliação já enviada, permitindo que o cliente abra a página novamente e envie outra avaliação para a loja.
+- Ajuste posterior: o CTA para nova opinião fica fora do card da resenha, resenhas vinculadas a produto exibem imagem/nome do produto, e o link `Ver todas` abre um modal premium com todas as resenhas aprovadas.
+- Ajuste posterior: após enviar uma avaliação, a página mantém a tela de confirmação aberta, sem retornar automaticamente ao formulário.
+- Ajuste posterior: centralizado o botão `Cuéntanos también cómo fue tu experiencia` abaixo do card de resenha.
+
+## 2026-05-22 — Carrinho público herdado do template de referência
+- Arquivos alterados: `public/index.html`, `AI_CHANGELOG.md`.
+- O carrinho do template público passou a herdar elementos do `template para ver.html`: alerta de pedido mínimo, validação visual de zona/CEP antes de endereço, opções de pagamento em botões, linha de economia e modal para escolher entre login/criação de acesso ou continuar como convidado.
+- A validação do checkout foi conectada aos campos já existentes, exigindo horário, pagamento, mínimo de entrega, zona atendida e endereço quando aplicável, sem alterar rotas, Firestore, tenant ou estrutura de pedidos.
+- A interface mantém o salvamento atual em `orders` e o envio por WhatsApp, apenas organizando o fluxo para ficar mais próximo da referência e com textos traduzidos por idioma.
+- Ajuste visual posterior: o carrinho manteve o comportamento fixo/lateral no desktop, mas herdou o layout interno das imagens de referência, com bloco inicial de recebimento, pedido em card próprio, cupom dentro do pedido, resumo limpo e barra de ação com total, limpar pedido e envio por WhatsApp.
+- Ajuste posterior: o card `Tu pedido` fica oculto quando o carrinho está vazio, evitando exibir um bloco visual sem itens.
+- Ajuste posterior: removidos os símbolos gráficos improvisados dos cards de retirada e entrega, mantendo apenas texto e hierarquia visual.
+- Ajuste posterior: removidos do carrinho os campos visíveis de nome/WhatsApp; o pedido agora segue o fluxo de login/criação de acesso ou convidado, com aviso de que convidado não acumula pontos.
+- Ajuste posterior: removida a repetição `Recepción obligatorio`, corrigido o título do bloco de pagamento após remover Cliente, eliminada a repetição visual `Entrega / Entrega` e simplificada a barra final para não parecer um segundo carrinho.
+- Ajuste visual posterior: reduzidos tamanhos, pesos e espaçamentos dos cards internos do carrinho para deixar recebimento, pagamento, itens, cupom e resumo mais elegantes e menos pesados.
+- Ajuste visual posterior: o carrinho mobile foi compactado novamente com cards menores, menos sombra, bordas mais discretas e barra de ações oculta quando não há itens no pedido.
+- Ajuste posterior: o checkout recebeu rótulos discretos para código postal, endereço, horários e observação, aproximando a hierarquia do modelo de referência sem reintroduzir campos de cliente.
+- Correção posterior: a validação de código postal da entrega agora aceita código exato, prefixo, wildcard, faixas como `31000-31999`, faixas vindas como objeto e zonas padrão sem código explícito; a mensagem de indisponibilidade foi ajustada para o idioma da loja pública.
+- Ajuste visual posterior: o carrinho foi reorganizado no padrão dos modais, separando recebimento, pedido/resumo e finalização em blocos premium, com campos off-white, bordas suaves, hierarquia mais clara, menos peso visual e pagamento/observação ocultos quando não há itens.
+- Ajuste posterior: o carrinho ganhou um botão fixo de fechar no topo do bloco de recebimento, mantendo a ação visível mesmo quando o card do pedido está vazio ou oculto.
+- Ajuste posterior: o campo `Dirección de entrega` do carrinho passou a usar Google Places quando a chave global está configurada, preenchendo número, localidade, província, país, código postal e metadados do endereço sem alterar o fluxo de checkout.
+- Ajuste visual posterior: reduzi o peso do negrito em labels, opções de recebimento, pagamento, preço de linha e botões secundários do carrinho, mantendo destaque apenas nos pontos principais.
+- Ajuste posterior: a busca do Google no carrinho passou a partir também do campo `Código postal`, usando autocomplete/geocoding para preencher localidade, província, país, endereço formatado e metadados antes da confirmação do pedido.
+- Ajuste posterior: o carrinho deixou de preencher o campo de rua com a área retornada pelo código postal; a rua só é preenchida quando o Google retorna `route`, e o campo de endereço ganhou uma ajuda discreta para a cliente buscar ou digitar rua e número.
+- Ajuste posterior: o campo `Dirección de entrega` ganhou uma lista própria de sugestões por Google Geocoder, usando código postal, cidade e país como contexto, para encontrar ruas mesmo quando o autocomplete nativo não abre no drawer do carrinho.
+- Ajuste visual posterior: o carrinho passou a seguir o padrão do modal `Compras → Produtos / Insumos`, com cards em degradê branco/off-white, borda `#EADFD8`, raio menor, sombra leve, campos off-white com foco vermelho suave e selects com seta no padrão aprovado.
+- Ajuste posterior: `Horario de recogida` e `Horario de entrega` foram separados em calendário de data e seleção de horário, usando os dias/horários disponíveis da configuração da loja e mantendo o `slotKey` interno compatível com WhatsApp, pedidos e contagem de vagas.
+- Correção posterior: o calendário de retirada/entrega agora inicia na primeira data disponível para exibir os horários imediatamente, e o card de entrega voltou a mostrar `desde` com o menor valor configurado nas zonas quando ainda não há CEP selecionado.
+- Correção visual posterior: o carrinho voltou à ordem correta após adicionar produto (`Recebimento`, `Tu pedido`, `Pagamento e observações`, ações finais) e o botão `×` duplicado no card do pedido foi ocultado, mantendo apenas o fechar principal do carrinho.
+- Ajuste visual posterior: criada uma camada final nova de layout para o carrinho público, inspirada nas referências `carrinho`, com cards brancos amplos, recebimento no topo, lista do pedido mais limpa, cupom/resumo integrados, barra de ações fixa e rolagem própria no mobile, sem alterar cálculo, envio, Firestore ou validações.
+- Refinamento posterior: o carrinho público foi convertido visualmente para um checkout único e compacto, removendo a pilha pesada de cards, reduzindo alturas, corrigindo corte no topo mobile e mantendo a sequência recebimento, pedido, pagamento, resumo e ações no mesmo fluxo.
+- Ajuste posterior: removidos textos redundantes do carrinho, o endereço de retirada passou a exibir número, bairro/zona e referência quando configurados, os campos de data/horário ficaram mais compactos e os cards de retirada/entrega ganharam ícones na cor da marca.
+- Ajuste visual posterior: refinado o topo do carrinho com botão de fechar menor e mais premium, degradê sutil na cor da marca, aviso de pedido mínimo mais compacto e fallback ampliado para exibir bairro/zona no endereço de retirada.
+- Ajuste posterior: quando o carrinho está vazio, o painel público deixa de exibir recebimento, pagamento e ações finais, mostrando apenas a mensagem de que ainda não há itens no pedido.
+- Ajuste posterior: a área de pagamento do carrinho passou a usar a pergunta `¿Cómo vas a pagar?` e opções em lista vertical, enquanto o estado vazio ganhou visual mais leve com degradê sutil e menos negrito.
+- Ajuste posterior: os itens do carrinho passaram a seguir a referência `carrinho2`, com nome e badges promocionais na mesma linha, benefício em verde, escolhas/variações recuadas com barra lateral, preço antigo riscado e preço final alinhado à direita.
+- Ajuste posterior: o estado vazio do carrinho voltou a exibir o botão de fechar, o select de pagamento deixou de mostrar o placeholder `Forma de pago` como opção visível e a zona/preço de entrega passou a aparecer como texto limpo, sem fundo ou borda.
+- Ajuste posterior: o resumo do carrinho ganhou hierarquia visual para descontos e economia, com promoções/cupons em verde e linha `Ahorras` em box suave para destacar o benefício.
+- Ajuste posterior: o campo de cupom foi movido para próximo da forma de pagamento no checkout público, mantendo os mesmos IDs e vínculo com a lógica de cupons do Admin; a pílula de pedido mínimo ficou mais compacta e aproximou `Pedido mínimo` de `Añade más`.
+- Correção posterior: o botão de envio por WhatsApp agora usa `disabled` real conforme carrinho, recebimento, horário, pagamento, mínimo, zona e endereço estiverem prontos; a mensagem enviada foi reorganizada no modelo `#pedido_1234`, com itens, códigos, escolhas, subtotal, entrega, total, endereço, hora e pagamento.
+- Ajuste visual posterior: a ajuda abaixo do endereço de entrega deixou de usar fundo, borda e negrito, ficando como texto discreto dentro do carrinho.
+- Ajuste visual posterior: o select de forma de pagamento ficou proporcional ao conteúdo no desktop e o botão de envio por WhatsApp recebeu verde próprio mais elegante, com hover e sombra suave.
+- Ajuste posterior: removida a linha de retorno da zona/preço logo abaixo do código postal quando o CEP é válido; a validação continua ativa e o aviso aparece apenas quando a loja não atende o código informado.
+- Ajuste visual posterior: os campos do endereço do carrinho foram realinhados com altura consistente e larguras proporcionais ao conteúdo, reduzindo o espaço de `País` e compactando a pílula de pedido mínimo.
+- Ajuste posterior: o endereço de entrega ganhou o campo `Piso / puerta` como complemento universal, salvando o dado no pedido e incluindo-o na linha de endereço; a divisória antes do chip de pedido mínimo foi removida.
+- Ajuste visual posterior: o bloco de forma de pagamento e observações foi reorganizado para deixar o select proporcional ao conteúdo, com a observação permanecendo maior abaixo.
+- Correção posterior: o campo de cupom de desconto no carrinho voltou a ficar visível junto ao checkout quando há cupons carregados ou a configuração não está explicitamente desativada, mantendo a lógica de validação existente.
+- Ajuste visual posterior: as variações no modal do produto receberam fundo levemente tingido pela cor da marca e espaçamento vertical mais compacto.
+- Ajuste posterior: a página/modal de promoções perdeu as bordas em volta dos cards, mantendo sombra e fundo; ao abrir um produto a partir de promoções, fechar o modal do produto retorna para o modal de promoções.
+- Ajuste visual posterior: os nomes do menu de categorias passaram a aparecer em preto, inclusive no estado ativo, e o botão `Añadir producto` do modal ficou verde, centralizado e largo o suficiente para exibir o texto inteiro.
+- Correção posterior: o botão `Limpiar pedido` agora também limpa zona selecionada, código postal, endereço e metadados da entrega, removendo o valor de frete do carrinho.
+- Ajuste visual posterior: a apresentação curta do card principal deixou de usar negrito e as informações rápidas/status foram realinhadas com espaçamento mais consistente.
+- Ajuste posterior: o card principal da loja passou a organizar melhor as informações rápidas, exibindo horário junto de aberto/fechado, usando `Pedido mín.`, rotulando tempos como preparação/entrega com `min` quando necessário e mostrando o menor valor real em `Entrega desde`.
+- Ajuste visual posterior: o endereço de retirada no carrinho passou a aparecer em preto, com ícone discreto de localização na cor da marca.
+- Correção posterior: o status automático da loja pública passou a ignorar flags manuais antigas quando `statusMode` está em automático, calculando aberto/fechado pela grade real de horários; o card principal agora mostra o horário vigente quando aberto ou o próximo horário disponível quando o período do dia já passou.
+- Ajuste posterior: o próximo horário no card principal foi simplificado para exibir apenas a faixa de horário, sem texto adicional nem data.
+- Correção posterior: em modo automático, a loja pública deixou de usar horários padrão de fallback quando existe grade configurada sem período válido para o dia, evitando mostrar `Aberto` fora do horário de atendimento.
+- Ajuste posterior: o campo `Status da loja` no Admin foi simplificado para duas opções, `Automático pelos horários` e `Manual`, com um controle de aberta/fechada exibido apenas no modo manual.
+- Correção posterior: a prévia do Admin deixou de forçar `Aberto` em modo automático e passou a calcular aberto/fechado pela grade semanal atual; no modo manual, o template público lê `manualClosed` e `manualOpen`.
+- Ajuste visual posterior: o logo do card principal da loja pública voltou a exibir uma moldura branca.
+- Ajuste visual posterior: o card principal recebeu um degradê suave com a cor da marca, reduziu espaçamentos internos e padronizou o tamanho dos textos informativos.
+
 ## 2026-05-20 — Template da loja alinhado ao padrão de Configurações
 - Arquivos alterados: `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
 - Admin Loja Online: a tela `Template da loja` passou a seguir o padrão visual definido em `Compras → Configurações` e `Produção → Configurações`.
@@ -65,6 +170,42 @@
 - Ajuste posterior: no desktop, a faixa do topo ficou mais próxima do banner principal da loja para reduzir o espaço visual entre os dois elementos.
 - Ajuste posterior: a versão mobile do template público recebeu ajustes responsivos para telas menores, com navegação, card principal, banner promocional, filtros e produtos mais compactos.
 - Ajuste posterior: `preview-mobile.html` passou a se adaptar melhor em telas menores de computador, reduzindo moldura, altura e espaçamentos.
+- Ajuste posterior: no desktop, a capa do hero público foi ajustada sem margem externa e com altura mais estreita, mantendo a imagem em faixa cheia e o carrinho sobreposto.
+- Ajuste posterior: o carrinho desktop deixou de ter rolagem interna; agora cresce conforme o conteúdo e a rolagem fica na página.
+- Ajuste posterior: o carrinho desktop ganhou distância do topo e perdeu a aparência de sheet/janela mobile, sem alça interna nem fundo quadrado no cabeçalho.
+- Ajuste posterior: no desktop, os botões de busca e sacola foram alinhados dentro do hero na coluna do carrinho, na mesma linha visual do botão de entrada.
+- Ajuste posterior: o carrinho desktop recebeu margem à direita para respirar melhor dentro do hero.
+- Ajuste posterior: o conteúdo da loja a partir do menu ganhou margem esquerda no desktop, mantendo o hero em faixa cheia sem recuo.
+- Ajuste posterior: o card de destaque passou a aparecer antes da barra de menu/categorias no desktop e no mobile.
+- Ajuste posterior: no mobile, o card principal da loja ficou mais compacto abaixo do link `Mais informações`, reduzindo o respiro inferior.
+- Ajuste posterior: no mobile, o espaço entre o card principal da loja e `Destaque da casa` foi reduzido para aproximar o início do conteúdo.
+- Ajuste posterior: o card `Destaque da casa` ganhou um pouco mais de respiro inferior no conteúdo.
+- Ajuste posterior: `Cor da sobreposição da capa` passou a ser aplicada também na prévia lateral do Admin e no hero real do template público, usando cor e opacidade configuradas.
+- Ajuste posterior: o card `Destaque da casa` recebeu margem inferior para separar melhor o destaque da barra de menu.
+- Ajuste posterior: o link `Mais informações` deixou de ser sobrescrito pela cor neutra no template público e voltou a usar a cor da marca; os estados `Aberto` e `Fechado` permanecem verde e vermelho.
+- Ajuste posterior: o avatar do botão `Entrar` passou a usar a cor da marca na prévia do Admin e no template público, exibindo ícone de pessoa quando não há usuário logado.
+- Ajuste posterior: o avatar do botão `Entrar` no template público deixou de usar degradê e passou a usar cor sólida da marca.
+- Ajuste posterior: o template público ganhou uma camada real de copy por idioma (`pt-BR`, `pt-PT`, `es-ES`, `en`, `fr`) para navegação, carrinho, checkout por WhatsApp, horários, avaliações, modal de produto, mensagens vazias e estados de loja indisponível, usando o idioma configurado na loja como fonte.
+- Ajuste posterior: o card principal do topo mobile foi refinado com composição mais leve sobre a capa, efeito translúcido, logo menor e mais presente, informações rápidas em pílulas discretas, chips de status/atendimento mais organizados e link `Mais informações` mais compacto.
+- Ajuste posterior: as pílulas das informações rápidas do card principal foram removidas; avaliação, tempo, mínimo, status, entrega e retirada agora aparecem como linhas limpas com pequenos elementos gráficos ao lado e começam abaixo do logo para reforçar a hierarquia visual mobile.
+- Ajuste posterior: os elementos gráficos das informações rápidas do topo mobile deixaram de ter fundo/borda e foram trocados por ícones lineares mais coerentes com avaliação, tempo, pedido mínimo, status, entrega e retirada; as informações também perderam excesso de negrito.
+- Ajuste posterior: os ícones das informações rápidas foram substituídos por um traço discreto na cor do texto e o link `Mais informações` deixou de ter aparência de pílula.
+- Ajuste posterior: a primeira linha de informações do card principal mobile deixou de mostrar o traço, ganhou espaçamento menor entre itens e passou a alinhar pelo mesmo eixo do nome da marca, não pelo logo.
+- Ajuste posterior: a segunda linha de status/atendimento também deixou de mostrar traço no primeiro item e passou a separar os itens com uma bolinha discreta na cor do texto.
+- Ajuste posterior: a primeira linha de informações rápidas também passou a usar a mesma bolinha discreta de separação entre itens.
+- Ajuste posterior: o espaçamento vertical interno do card principal mobile foi reduzido para deixar marca, informações rápidas, status e link de informações mais próximos.
+- Ajuste posterior: as linhas de informações do card principal mobile agora quebram para a linha de baixo quando o texto não cabe inteiro, evitando corte ou rolagem horizontal.
+- Ajuste posterior: quando as informações rápidas quebram de linha, o primeiro item visual de cada linha deixa de exibir a bolinha separadora.
+- Ajuste posterior: o cálculo da bolinha separadora do topo mobile passou a rodar após o layout renderizar, no carregamento e no resize, garantindo bolinha apenas antes de itens que continuam na mesma linha.
+- Ajuste posterior: o respiro inferior do card principal mobile foi reduzido entre o link `Mais informações` e a borda do card.
+- Ajuste posterior: o texto do botão de acesso foi alinhado verticalmente e, em espanhol, passou a aparecer como `Iniciar sesión`.
+- Ajuste posterior: o texto do botão de acesso recebeu ajuste fino de centralização dentro da pílula.
+- Ajuste posterior: a estrutura do card principal em desktop foi restaurada, mantendo informações rápidas, status e `Mais informações` dentro do bloco do nome da marca como antes dos ajustes mobile.
+- Ajuste posterior: a borda branca ao redor do logo no card principal da loja pública foi removida.
+- Ajuste posterior: o card principal da loja pública recebeu um degradê muito leve com a cor da marca, preservando o fundo claro e a leitura premium.
+- Ajuste posterior: a apresentação curta do card principal ganhou uma linha inferior discreta para separar melhor o texto das informações rápidas.
+- Ajuste posterior: removido o botão circular de voltar com seta que ficava ao lado do botão de acesso no topo da loja pública.
+- Ajuste posterior: no mobile, foi aumentado o respiro entre a linha inferior da apresentação curta e as informações rápidas abaixo.
 - Escopo: mantidos os mesmos dados, rotas, Firebase, handlers, campos e funcionamento do template público.
 
 ## 2026-05-20 — Padrão visual em Produção → Configurações
@@ -6971,6 +7112,44 @@
 - Ajuste posterior: o banner promocional mobile ficou mais compacto e menos pesado visualmente, com overlay mais leve, altura menor, sombra mais suave e CTA preservado sem dominar a primeira dobra.
 - Ajuste posterior: o banner promocional público agora só aparece quando há promoção ativa vinculada, evitando bloco vazio ou genérico antes dos produtos.
 - Ajuste posterior: a área de destaque/mais pedidos passou a vir logo após navegação e promoção, aproximando o fluxo de compra dos produtos.
+- Ajuste posterior: a faixa do topo e o banner promocional foram removidos da interface do Template da loja e da loja pública. Os campos antigos ficaram ocultos para compatibilidade e para não apagar configurações já salvas.
+- Ajuste posterior: no desktop, a imagem de capa passou a preencher toda a área do hero com `cover`, posição central e degradê inferior mais leve para deixar a imagem ocupar melhor o espaço visual.
+- Ajuste posterior: no desktop, o hero deixou de parecer um card arredondado; a imagem de capa agora atravessa toda a área superior da loja e o carrinho fica sobreposto à capa.
+
+## 2026-05-21 — Ajustes no topo mobile da loja pública
+- Arquivos alterados: `public/index.html`, `AI_CHANGELOG.md`.
+- A imagem de capa do hero no mobile passou a ficar limitada ao topo do card, terminando visualmente próxima à metade da logo, sem alterar o comportamento do hero no desktop.
+- Ajuste posterior: a capa mobile foi levemente estendida para passar pela logo e chegar mais próxima da metade do card principal, mantendo o desktop inalterado.
+- Ajuste posterior: o fundo geral da loja pública foi unificado em uma única superfície clara para tela, conteúdo, barra de categorias e rodapé, mantendo o hero como exceção por usar a imagem de capa.
+- Ajuste posterior: o card `Destaque da casa` passou a usar a mesma base clara da página, inclusive no degradê da imagem, evitando sensação de fundo diferente.
+- Ajuste posterior: no mobile, o degradê dinâmico da imagem do `Destaque da casa` passou a usar a cor clara real da página, e os botões `Iniciar sesión` e `Ver promociones` foram equalizados em altura, peso e alinhamento.
+- Ajuste posterior: no mobile, a `Cor da sobreposição da capa` passou a cobrir somente a área real da imagem do hero; a área sem imagem mantém o fundo base da página.
+- Ajuste posterior: a sobreposição da capa no mobile foi separada em uma camada própria com altura fixa da imagem, impedindo que a cor configurada alcance a área vazia do hero.
+- Ajuste posterior: no mobile, as sombras do card principal e do card `Destaque da casa` foram removidas; o desktop permanece com o comportamento visual anterior.
+- Ajuste posterior: no mobile, o degradê do card principal foi removido para manter a mesma base clara da página; o desktop permanece inalterado.
+- Ajuste posterior: no mobile, a transição entre a imagem do hero e o fundo ganhou uma sombra/degradê sutil na cor da marca, sem alterar o desktop.
+- Ajuste posterior: o efeito de transição mobile entre hero e fundo ficou mais presente, com área maior e reforço radial na cor da marca.
+- Ajuste posterior: a bolsinha do topo foi removida, mantendo apenas o carrinho fixo/visível da loja; o botão de busca recebeu cursor e estados de hover/click.
+- Ajuste posterior: o botão `Iniciar sesión` foi refinado para aproximar o ícone do texto e alinhar melhor sua altura visual ao botão `Ver promociones`.
+- Ajuste posterior: o bloco `Destaque da casa` foi redesenhado como card herói de produto, com composição inspirada na referência `CARD PRINCIPAL.png`: badge suave, nome/preço em destaque, CTA vermelho, imagem integrada à direita e degradê de transição sobre a foto.
+- Ajuste posterior: o botão de busca do topo passou a abrir um painel de busca de produtos, filtrando por nome, descrição, código/SKU e categoria, com resultados clicáveis para abrir o produto.
+- Ajuste posterior: removido o card de dica inicial do painel de busca; agora a área fica vazia até a cliente digitar e só mostra estado vazio quando não encontra produto.
+- Ajuste posterior: removido o efeito de card externo da barra `Menu de categorias` da vitrine, mantendo apenas os botões de categoria e o comportamento sticky.
+- Ajuste posterior: removido da aba `Vitrine` do Admin o card `Menu de categorias`, mantendo dados e funções antigas sem exibição para compatibilidade.
+- Ajuste posterior: criada na aba `Vitrine` a seção `Ordem das categorias`, permitindo arrastar categorias e salvar a sequência no mesmo campo `categories/{id}.order`; o template público passou a respeitar essa ordem ao montar o menu e as seções.
+- Ajuste posterior: a aba `Vitrine` passou a carregar diretamente a coleção `categories`, conectando o card de ordenação às categorias criadas em configurações do produto mesmo quando a tela é aberta direto pelo Template da loja.
+- Ajuste posterior: o card `Ordem das categorias` ganhou botões discretos de subir/descer como alternativa ao arrastar, salvando a ordem no mesmo campo `categories/{id}.order`.
+- Correção: o salvamento do Template da loja deixou de quebrar a atualização da prévia por uso da paleta de cores antes da inicialização.
+- Ajuste posterior: o menu de categorias do template público deixou de exibir entradas automáticas de promoções/descontos, mantendo apenas `Todas`, `Mais pedidos` e categorias reais da loja.
+- Ajuste posterior: removido o número visual dos cards em `Ordem das categorias`, deixando apenas nome, quantidade de produtos e ações de ordenação.
+- Correção: o checkbox `Ativar destaque` passou a controlar de fato a exibição do card `Destaque da casa` e do título da seção no template público.
+- Ajuste posterior: removida a opção `Produto destaque` da configuração do destaque comercial, deixando produtos destacados apenas no card próprio `Destaques da vitrine`.
+- Ajuste posterior: o card público `Destaque da casa` passou a respeitar o `Tipo de conteúdo do card`, alternando entre cupom, promoção, produto mais pedido e texto personalizado com ações conectadas aos campos salvos.
+- Correção: o seletor `Promoção ativa` do card `Configuração do destaque` passou a reconhecer os campos/status usados pelo módulo de promoções, incluindo datas alternativas e status pausado/finalizado/expirado.
+- Ajuste posterior: removido o card `Destaques da vitrine` da aba `Vitrine`; a vitrine passa a usar automaticamente produtos marcados como destaque no cadastro.
+- O botão `Ver promoções` foi conectado ao template público: aparece quando há promoção ativa e leva a cliente para a seção de promoções/produtos promocionais.
+- O botão `Entrar/Iniciar sesión` passou a abrir um modal de acesso no template público, com textos traduzidos conforme o idioma principal da loja.
+- Mantidos carrinho, pedidos, produtos, categorias, promoções, rotas, tenant e Firestore sem alteração estrutural.
 
 ## 2026-05-19 — Padrão visual em Compras Configurações
 - Arquivos alterados: `public/js/modules/compras.js`, `AI_CHANGELOG.md`.
@@ -7052,3 +7231,134 @@
 - Ajuste posterior: o modal `Nova/Editar Receita` recebeu o padrão visual dos modais aprovados, com cards em degradê suave, campos off-white, selects com seta alinhada, grids mais proporcionais, cards de custo mais leves e rodapé com ação principal compacta.
 - Ajuste posterior: componentes e linhas de insumos da receita passaram a usar blocos internos mais leves, mantendo os mesmos IDs, cálculos, salvamento e estrutura de dados.
 - Ajuste posterior: o `AGENTS.md` passou a registrar o padrão específico do modal de `Produção → Receitas`.
+
+## 2026-05-22 — Operação do Template da loja
+- Arquivos alterados: `public/js/modules/catalogo.js`, `public/index.html`, `AI_CHANGELOG.md`.
+- Removidos da aba `Template da loja → Operação` os campos sem uso no template público: texto de entrega, texto de retirada e aviso de horário especial.
+- A loja pública passou a respeitar entrega/retirada desativadas também no carrinho, escondendo a opção indisponível e mantendo apenas o modo ativo.
+- A antecedência configurada em `Dias mínimos de antecedência` agora afeta a geração real de horários disponíveis no checkout.
+- O status aberto/fechado passou a usar a grade semanal quando o modo está automático, preservando os estados manuais de aberta/fechada.
+- O salvamento do template passou a gerar resumo automático de horário para alimentar o card principal quando a opção de horário resumido estiver ativa.
+- Ajuste visual posterior: o card `Entrega e retirada` foi reorganizado em blocos mais compactos, com hierarquia mais clara e campos proporcionais ao conteúdo, preservando os mesmos IDs e lógica.
+
+## 2026-05-21 — Promoções ativas no Template da loja
+- Arquivos alterados: `public/js/modules/catalogo.js`, `public/index.html`, `AI_CHANGELOG.md`.
+- O seletor `Promoção ativa` do card promocional passou a normalizar promoções vindas de Ações de Vendas, aceitando variações de `id`, status, tipo, datas e produtos vinculados.
+- O filtro de promoções ativas agora considera campos alternativos como `dataInicio`, `dataFim`, `startsAt`, `endsAt`, `validFrom`, `validUntil`, `state` e `status`, evitando ocultar promoções válidas por diferença de estrutura.
+- A loja pública passou a reconhecer os mesmos campos alternativos para exibir e abrir o card promocional selecionado, sem alterar coleções, rotas ou estrutura salva.
+- Correção posterior: o Template da loja passou a carregar também a coleção `promocoes`, além de `promotions`, igual ao módulo de Ações de Vendas. As duas origens são mescladas e normalizadas para alimentar o seletor `Promoção ativa`.
+- Correção posterior: promoções normalizadas para o Template agora alinham `enabled` com `active`, evitando que registros legados com `active: true` e `enabled: false` apareçam ativos em Ações de Vendas, mas bloqueados no seletor do Template.
+- Correção posterior: a mescla de promoções do Template passou a preferir versões ativas quando há duplicidade entre origens e também inclui promoções derivadas de `product.promo`, cobrindo o mesmo cenário exibido em Ações de Vendas.
+- Ajuste posterior: o seletor `Promoção ativa` deixou de bloquear quando há promoções carregadas com status inconsistente, passando a exibir as promoções disponíveis para escolha e mantendo `promotions` como fonte oficial.
+- Ajuste posterior: a loja pública também normaliza e mescla `promotions` e `promocoes`, evitando que uma promoção selecionada no Admin deixe de ser encontrada no template por diferença de origem.
+- Ajuste posterior: todos os tipos de conteúdo do card de destaque passaram a aceitar imagem, tag, título, subtítulo e CTA editáveis no Template da loja.
+- Ajuste posterior: o template público passou a aplicar esses textos/imagem customizados por cima dos dados automáticos de cupom, promoção, mais pedido ou texto personalizado.
+- Ajuste posterior: o cabeçalho externo `Destaque da casa / Ver todas` foi ocultado no template público, deixando apenas o card de destaque.
+- Ajuste posterior: o menu de categorias da loja pública foi reposicionado para aparecer depois do card de fidelidade e recebeu acabamento mais premium, com hover, superfície translúcida e seleção usando a cor da marca em vez de vermelho fixo.
+- Ajuste posterior: a pilha de fontes do template público passou a priorizar `Manrope`, depois `Inter`, mantendo apenas `sans-serif` como fallback técnico.
+- Ajuste posterior: removida do Template da loja a configuração duplicada de `Programa de fidelidade`; o card público agora prioriza os campos reais de `config/pontos_program` (`active`, `programName`, `storeText`, `earnPerEuro`) e mantém campos antigos apenas como fallback de compatibilidade.
+- Ajuste posterior: o template público ganhou um modal próprio de pontos, aberto pelo botão do card de fidelidade, com consulta por WhatsApp/e-mail, saldo, desconto estimado, regra de resgate e histórico de movimentos quando os dados do tenant estiverem disponíveis.
+- Ajuste posterior: a aba `Vitrine` voltou a exibir um card de Programa de Pontos sem duplicar regras, mostrando o resumo de `config/pontos_program` e levando a configuração para `Ações de Vendas → Programa de Pontos`.
+- Ajuste posterior: o card público de fidelidade passou a usar a cor da marca nos detalhes antes fixos em vermelho, mantendo as estrelas em amarelo.
+- Correção: quando `Status do programa` está inativo em `Ações de Vendas → Programa de Pontos`, o card público de fidelidade agora fica oculto mesmo que existam campos legados de fidelidade no template.
+- Ajuste posterior: o modal público de pontos recebeu hierarquia tipográfica mais próxima da prévia do Programa de Pontos no Admin, com títulos 16/700, textos 13px, labels discretas e cards mais leves.
+- Ajuste posterior: a prévia do Programa de Pontos foi movida para dentro do card `Identidade do programa`, logo abaixo de status, nome e texto exibido na loja, mantendo a mesma lógica de atualização em tempo real.
+- Ajuste posterior: o texto exibido no card público do Programa de Pontos deixou de usar negrito, mantendo a label do campo no padrão do Admin.
+- Ajuste posterior: as informações rápidas do card principal da loja pública deixaram de usar negrito, mantendo nome, frase da loja, status `Aberto/Fechado` e link `Mais informações` com a hierarquia anterior.
+- Ajuste posterior: o subtítulo/descrição do card de destaque da loja pública deixou de usar negrito, preservando a hierarquia do título, preço e botão.
+- Ajuste posterior: removida a borda do elemento gráfico dentro da tag de destaque do card de produto herói, mantendo a borda da tag principal.
+- Ajuste posterior: removido do template público o botão `Ordenar` da seção de produtos, mantendo apenas o título da lista.
+- Ajuste posterior: removido do template público o título `Todos os produtos / Todos los productos`, deixando a lista começar diretamente pelas categorias.
+- Ajuste posterior: removido do modal público de fidelidade o texto inicial pedindo WhatsApp/e-mail; mensagens de status aparecem apenas quando houver resultado ou erro.
+- Ajuste posterior: a seção `Mais pedidos` passou a priorizar contadores reais salvos nos produtos (`salesCount`, `orderCount`, `soldCount` e variações), usando produtos marcados como destaque/popular apenas como fallback.
+- Ajuste posterior: removido o subtítulo `Favoritos da loja / Favoritos de la tienda` da seção `Mais pedidos`.
+- Ajuste posterior: promoções deixaram de aparecer como seção fixa dentro da lista de produtos; o botão `Ver promoções` agora abre uma tela/modal própria com todas as promoções ativas juntas e botão para voltar aos produtos.
+- Ajuste posterior: os cards de produto da loja pública foram ajustados conforme a referência visual `card de produto.png`: imagem grande no topo, corpo branco com título forte, linha curta destacada, descrição, preço grande no rodapé e botão `+` quadrado usando a cor da marca.
+- Ajuste posterior: o preço dos cards de produto passou a usar preto, mantendo a cor da marca no botão de adicionar e nos detalhes.
+- Ajuste posterior: a tag do banner promocional foi restaurada ao padrão anterior, mantendo a nova tag amarela apenas nos cards de produto.
+- Ajuste posterior: a seção `Mais pedidos / Más pedidos` passou a exibir os produtos em carrossel horizontal, mantendo as demais categorias no grid padrão.
+- Ajuste posterior: revertida a compactação dos cards de produto, restaurando as proporções aprovadas antes do pedido de carrossel e mantendo apenas `Mais pedidos / Más pedidos` em carrossel.
+- Ajuste posterior: refinada a proporção final aprovada dos cards de produto, mantendo imagem grande, corpo branco mais equilibrado, preço preto, botão de adicionar proporcional e `Mais pedidos / Más pedidos` em carrossel sem afetar as demais categorias.
+- Ajuste posterior: reduzido o espaçamento entre as linhas de texto dos cards de produto para deixar título, destaque e descrição mais próximos.
+- Ajuste posterior: o botão `+` dos cards de produto foi centralizado internamente e alinhado visualmente ao preço no rodapé.
+- Ajuste posterior: o modal de produto do template público foi aproximado da referência `template para ver.html`, mantendo a lógica atual de carrinho, produtos e pedidos. A experiência ganhou folha inferior mais premium, imagem de destaque, variantes com progresso, opções selecionadas com destaque, complementos em layout mais claro, rodapé fixo e botão com total atualizado.
+- O modal também passou a fechar ao clicar fora, atualizar `aria-hidden` corretamente e orientar melhor quando houver opções obrigatórias pendentes, sem alterar Firestore, rotas, tenant ou estrutura de dados.
+- Correção posterior: a varredura de lógica do modal de produto alinhou os complementos e o `Perfecto con` ao template de referência. Complementos vinculados por ID agora aparecem mesmo quando estão ocultos da vitrine, o produto sugerido em `pairing` ganhou bloco próprio e os complementos são adicionados como itens separados no carrinho, evitando multiplicação indevida quando a quantidade do produto principal muda.
+- Correção posterior: o cadastro de produto passou a salvar escolhas de combo e grupos de variantes também em `variants`, formato lido diretamente pelo template público. O template ganhou fallback para `menuChoiceGroups`, leitura de `tags` como badge do produto e uso de `imageAlt` na imagem do card.
+- Ajuste posterior: o modal de produto do Admin ganhou campo de descrição completa, usado no modal público do produto, e o salvamento deixou de apagar `pairing` existente quando não há edição específica desse campo.
+- Ajuste posterior: o cadastro de produto passou a salvar `productType: "combo"` para produtos com escolhas/menu e ganhou seleção visual do produto `Perfecto con`, mantendo `pairing`, `pairingId` e `pairingProductId` alinhados para o template público.
+- Ajuste posterior: o modal público passou a tratar combos com comportamento próprio: quantidade inicial zero, seletor `¿Cuántos quieres?` antes das escolhas, opções bloqueadas até escolher quantidade, botão final desativado enquanto a quantidade estiver zerada e layout desktop de combo com imagem ampla no topo.
+- O bloco de complementos do modal público passou a respeitar o título configurado no cadastro (`addAlsoTitle`), preservando a lógica de adicionar complementos e produto sugerido como itens separados no carrinho.
+- Correção: o total do modal passou a calcular acréscimos de variantes pelo total escolhido, evitando multiplicar extras duas vezes quando um combo tem quantidade maior que 1.
+- Correção: a loja pública passou a carregar `variantGroups` e usar `variantGroupIds` como fallback quando o produto ainda não possui `variants` materializado, restaurando a exibição de variantes antigas ou globais no modal do produto.
+- Correção: as tags exibidas nos cards e no modal do produto agora usam as cores escolhidas no cadastro (`bgColor`/`textColor`) e mantêm `badgeColor`/`badgeTextColor` apenas como fallback.
+- Ajuste posterior: o cadastro de grupos de variantes passou a permitir marcar obrigatoriedade, mínimo e máximo por item adicionado, valor extra ou desconto por opção e foto opcional por opção.
+- Ajuste posterior: o modal público passou a respeitar mínimo e máximo separadamente, exibir acréscimos e descontos corretamente, e deixar a opção sem área de imagem quando nenhuma foto estiver cadastrada.
+- Ajuste posterior: a tag do produto deixou de exibir elemento gráfico antes do texto e preserva também a cor da fonte escolhida pela usuária no cadastro.
+- Correção: o modal de cadastro de produto voltou a abrir após adicionar helper local para fallback de textos e expor handlers usados pelos campos de preço e prévia do produto.
+- Ajuste posterior: no cadastro do produto, os grupos de variantes agora mostram as opções apenas quando a variante está marcada para aquele produto, exibindo nome, valor extra/desconto e foto quando existir.
+- Correção posterior: a prévia das opções de variantes no cadastro do produto passou a normalizar os campos de foto e preço, mostrando acréscimo, desconto ou `Sem acréscimo`, e renderizando imagem somente quando houver foto válida cadastrada.
+- Correção posterior: a loja pública passou a carregar a coleção de tags do tenant e resolver a tag do produto por id/texto, preservando cor de fundo e cor da fonte escolhidas pela usuária também quando o produto salva apenas referência da tag.
+- Ajuste visual: o modal público do produto foi refinado com fundo mais premium, imagem com tratamento visual, tipografia mais forte, seções de opções mais leves, seleção com destaque sutil e rodapé de compra mais conversor, sem alterar a lógica de carrinho, variantes ou pedidos.
+- Ajuste visual posterior: removida a borda do bloco de quantidade `¿Cuántos quieres?` no modal público do produto, mantendo a sombra para preservar o destaque leve.
+- Funcionalidade: criada camada de cálculo promocional no template público, usando promoções ativas de `promotions/promocoes` para aplicar desconto percentual, valor fixo, preço fixo, 2x1/leve-pague e frete grátis na vitrine, modal, carrinho, WhatsApp e pedido salvo, preservando cupons como desconto separado.
+- Ajuste visual posterior: o bloco de upsell/complementos do modal público recebeu visual mais conversor e o botão totalizador ficou verde, maior e centralizado; no preço promocional do modal, a tag de desconto foi removida e o valor cheio passou a aparecer riscado ao lado, sem negrito.
+- Ajuste visual posterior: removidas as bordas externas e linhas internas dos cards de variação no modal público do produto, mantendo fundo, sombra e destaque de seleção.
+- Funcionalidade: quando um produto de upsell/complemento no modal público possui variações, o botão de adicionar abre a seleção das variações dentro do próprio bloco antes de somar o item, e o item relacionado é enviado ao carrinho com as escolhas e acréscimos selecionados.
+- Ajuste visual posterior: microcopies e preços antigos riscados no template público passaram a usar peso normal, sem negrito, incluindo preço antes da promoção no card, modal e carrinho.
+- Ajuste posterior: no cadastro do produto, o card `Perfecto con` foi removido da interface e `Aumentar valor do pedido` passou a aceitar apenas 1 produto selecionado por vez, listando todos os produtos ativos do cardápio como candidatos.
+- Correção posterior: o cadastro do produto deixou de descartar itens de `Aumentar valor do pedido` ao reabrir/salvar quando o produto sugerido possui variantes ou estrutura diferente de produto simples.
+- Correção posterior: no modal público do produto, itens de `Aumentar valor do pedido` com variantes agora abrem a seleção de opções na primeira tentativa de adicionar, inclusive quando as variantes são opcionais.
+- Ajuste posterior: no modal público, variantes de itens de `Aumentar valor do pedido` só podem ser escolhidas depois que o produto sugerido foi adicionado; variantes obrigatórias pendentes bloqueiam o botão final até a escolha ser completada.
+- Ajuste posterior: tags nos cards de produto passaram a resolver também referências simples por texto/id para aplicar a cor de fundo e fonte escolhidas no cadastro da tag.
+- Ajuste visual posterior: a página/modal de promoções recebeu cards compactos próprios, visual mais premium e sem barras de rolagem visíveis; o template também oculta a barra de rolagem visual do site mantendo a rolagem funcional.
+- Ajuste visual posterior: no modal público do produto, o espaçamento entre título e descrição curta foi reduzido para deixar a leitura mais compacta.
+- Ajuste visual posterior: o card de Programa de Pontos passou a exibir cursor de clique ao passar o mouse, mantendo o título do bloco de upsell limpo.
+- Correção posterior: a tag exibida nos cards de produto deixou de ser sobrescrita por regra global de cor e agora usa variáveis próprias para respeitar fundo e texto cadastrados pela usuária.
+- Ajuste visual posterior: removida a sombra do card de variantes dentro do modal público do produto, mantendo o bloco mais leve.
+- Funcionalidade: conectado o modal de acesso do template público para login/criação de acesso de cliente final com e-mail/senha ou Google, salvando/atualizando o cliente em `store_customers` do tenant.
+- Ajuste posterior: o modal de Programa de Pontos agora mostra o bloco de login/cadastro quando não há cliente logado e conecta os botões `Iniciar sesión` e `Crear acceso` ao modal de acesso correto.
+- Ajuste posterior: as resenhas da loja pública passaram a aparecer em carrossel horizontal, sem contador de resenhas aprovadas e sem efeito degradê no card.
+- Correção posterior: o card de resenha agora tenta vincular produto por ID, slug, SKU ou nome normalizado, além de usar imagem do próprio review quando existir, para exibir imagem e nome do produto citado.
+- Ajuste posterior: o carrossel de resenhas ganhou arraste por mouse/toque no template público.
+- Ajuste posterior: a nota de avaliação do card principal agora respeita o toggle do Template, aceita médias já salvas como fallback e aparece em destaque com estrelas ao lado, na mesma linha da localização quando houver espaço.
+- Ajuste posterior: o menu de categorias do template público também ganhou arraste horizontal por mouse/toque.
+- Ajuste visual posterior: todos os textos do rodapé da loja pública passaram a usar preto, mantendo o nome da loja em negrito.
+- Ajuste posterior: as estrelas da nota no card principal agora acompanham a avaliação arredondada, em vez de sempre exibir cinco estrelas.
+- Funcionalidade: quando a cliente já está logada no template público, o botão do avatar agora abre um modal de conta com dados da cliente, acesso aos pontos quando o programa está ativo e ação para sair; quando não há login, continua abrindo o modal de acesso.
+- Ajuste visual posterior: os botões `+` do template público passaram a usar verde conversor, e o CTA de avaliação ganhou tom claro da cor da marca.
+- Funcionalidade: o modal de conta e o checkout da loja pública passaram a pedir WhatsApp da cliente e salvar o dado em `store_customers`, junto ao endereço de entrega, para reutilização em próximas compras.
+- Ajuste posterior: quando a cliente está logada, o checkout tenta preencher automaticamente WhatsApp e endereço salvos, mantendo a edição disponível no carrinho e no modal de conta.
+- Ajuste visual posterior: o campo de WhatsApp da cliente no checkout e no modal de conta passou a seguir o padrão de DDI + número usado na aba Usuário do Admin.
+- Ajuste visual posterior: o modal de conta da cliente ficou mais compacto, mostrando WhatsApp/endereço em resumo e abrindo os campos de edição somente ao clicar em `Editar`.
+- Ajuste posterior: o card `Dirección de entrega` do modal de conta da loja pública ficou mais compacto e o campo de endereço passou a usar a mesma busca/autocomplete do Google já aplicada no carrinho, preenchendo rua, número, bairro, código postal, cidade e província quando disponível.
+- Correção: a autenticação da cliente na loja pública passou a configurar persistência local antes de login, cadastro e Google, evitando que o estado logado se perca ao fechar modais e mantendo pontos, conta e checkout usando a mesma sessão.
+- Correção posterior: o modal de Programa de Pontos passou a consultar também o usuário atual do Firebase Auth antes de exibir `Iniciar sesión` e `Crear acceso`, ocultando esses botões quando a cliente já está logada.
+- Ajuste posterior: removida a frase `Aquí guardamos tus datos para que puedas comprar más rápido.` do modal de conta da cliente na loja pública, ocultando o subtítulo quando não houver texto configurado para o idioma.
+- Correção posterior: o bloco de login/cadastro do modal de Programa de Pontos agora é ocultado por classe, `display` e `aria-hidden` quando existe cliente logada, evitando que `Iniciar sesión` e `Crear acceso` reapareçam ao abrir pontos a partir do modal de conta.
+- Ajuste visual posterior: o botão `Ver promociones` passou a usar fundo claro na cor da marca, e os campos do card `Dirección de entrega` foram reorganizados em grid mais compacto com número/piso proporcionais, bairro e código postal na mesma linha, e localidade/província lado a lado.
+- Ajuste posterior: removido do modal de conta da cliente o botão `Cerrar sesión`, mantendo somente o botão de fechar do modal no topo.
+- Ajuste visual posterior: o botão `Ver promociones` passou a seguir o mesmo padrão visual do CTA de avaliações, com fundo claro na cor da marca, borda suave, sombra leve e tipografia menos pesada.
+- Correção visual posterior: reforçada a regra final do botão `Ver promociones` para igualar o CTA de avaliações também após os estilos do topo e do mobile, mantendo fundo claro, borda sutil e texto na cor da marca.
+- Ajuste visual posterior: o card `Dirección de entrega` do modal de conta foi reorganizado em duas colunas fixas para campos curtos, deixando número/piso, bairro/código postal e localidade/província lado a lado, enquanto busca de rua e sugestões ocupam a linha inteira.
+- Correção posterior: a busca do Google no campo `Dirección de entrega` do modal de conta passou a cancelar retornos antigos, limpar a lista após seleção e aceitar clique/toque nas sugestões, evitando que a lista continue aberta ou não aplique o endereço escolhido.
+- Correção posterior: o card `Dirección de entrega` mantém duas colunas também no mobile, e o botão `Ver puntos` do modal de conta agora impede propagação do clique, confirma a sessão atual e abre apenas o modal de pontos sem acionar logout.
+- Correção posterior: a busca de endereço do checkout passou a usar a mesma proteção da busca do modal de conta, cancelando retornos antigos do Google, limpando sugestões após seleção, aceitando clique/toque e reinicializando o autocomplete quando os campos de entrega ficam visíveis.
+- Correção posterior: o salvamento do cadastro da cliente na loja pública passou a usar a sessão real do Firebase Auth como fallback, gravando WhatsApp e endereço em `store_customers` com campos de compatibilidade (`deliveryAddress`, `defaultDeliveryAddress`, `addressData`, endereço estruturado e telefone).
+- Correção posterior: o carrinho da loja pública passou a usar `storeAuthUser()` para reconhecer a sessão real da cliente ao abrir, renderizar e enviar pedido, evitando que cliente logada seja tratada como convidada quando `currentStoreUser` ainda não sincronizou.
+- Correção posterior: os campos de rua do checkout e do cadastro da cliente deixaram de usar a lista nativa do Google Places, que aparecia com outro formato e podia continuar aberta após a seleção; agora ambos usam apenas a lista BocaFood alimentada pelo Google Geocoder e escondem qualquer dropdown nativo remanescente após escolher endereço.
+- Correção posterior: fechar o carrinho deixou de manter modais de checkout abertos e o envio por WhatsApp agora espera a restauração inicial da sessão do Firebase antes de pedir login/criação de acesso, evitando tratar cliente logada como convidada por atraso do Auth.
+- Correção posterior: o botão `Ver puntos` dentro do modal de edição do cadastro da cliente agora espera a sessão do Firebase, fecha o modal de conta e abre o modal de pontos em seguida, evitando que a troca de modais falhe.
+- Correção posterior: o fechamento do modal de cadastro da cliente agora bloqueia propagação do clique, limpa sugestões de endereço e revalida a sessão atual antes de atualizar o botão do avatar, evitando que fechar o modal pareça encerrar a sessão.
+
+- Funcionalidade: o cadastro da cliente e o checkout da loja pública passaram a trabalhar com agenda de endereços de entrega em `store_customers`, permitindo salvar endereços com nome, validar o código postal contra as zonas atendidas e reutilizar os endereços salvos no carrinho. Mantidos os campos legados `deliveryAddress`, `defaultDeliveryAddress`, `addressData` e campos planos para compatibilidade.
+
+- Correção: o envio do pedido pelo WhatsApp no carrinho público passou a preservar explicitamente a sessão atual da cliente antes e depois do envio, deixou de tentar salvar endereço vazio em pedidos de retirada e agora mostra uma confirmação de sucesso dentro do carrinho após abrir o WhatsApp.
+
+- Ajuste visual e funcional: no modal de conta da cliente, o WhatsApp foi separado da agenda de endereços, mantendo um único contato para todos os endereços. O cadastro de endereço agora abre somente pelo botão de adicionar, salva e retorna para uma lista de cards com os endereços cadastrados.
+
+- Correção: o pedido enviado por WhatsApp agora abre um modal real de confirmação no template público, com título, texto, referência do pedido e botão traduzidos pela camada de idioma da loja.
+
+- Correção: o botão `Añadir dirección` no modal de conta da cliente agora limpa corretamente os campos do formulário antes de cadastrar novo endereço, evitando reabrir o endereço anterior como edição.
+
+- Correção: o WhatsApp da cliente passou a ser preservado ao salvar endereços, não é mais sobrescrito por valor vazio, espelha imediatamente para o checkout e valida o campo antes de gravar no cadastro da cliente.

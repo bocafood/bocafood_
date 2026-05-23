@@ -60,12 +60,78 @@ Modules.Fiscal = (function () {
   }
 
   function _normalizeConfig(c) {
-    return Object.assign({
-      ivaPadrao: 21,
+    return _normalizeFiscalConfig(c || {});
+  }
+
+  function _defaultFiscalConfig() {
+    return {
+      countryCode: 'ES',
+      currency: 'EUR',
+      fiscalProvider: '',
+      providerMode: 'none',
+      providerConnected: false,
+      invoiceMode: 'automatic',
+      defaultInvoiceType: 'simplified',
+      simplifiedInvoiceEnabled: true,
+      fullInvoiceEnabled: true,
+      defaultIvaRate: 10,
+      pricesIncludeIva: true,
+      invoiceSeries: 'A',
+      nextInvoiceNumber: 1,
+      facturaDirecta: {
+        enabled: false,
+        partnerMode: false,
+        companyId: '',
+        connectionStatus: 'not_connected',
+        lastSyncAt: null
+      },
+      legalBusiness: {
+        legalName: '',
+        commercialName: '',
+        documentType: '',
+        fiscalId: '',
+        taxRegime: '',
+        address: '',
+        number: '',
+        complement: '',
+        city: '',
+        province: '',
+        postalCode: '',
+        countryCode: 'ES',
+        invoiceEmail: ''
+      },
+      createdAt: null,
+      updatedAt: null,
+      ivaPadrao: 10,
       irpfPadrao: 15,
       trimestreAtual: _currentQuarterKey(),
       usarCalculoFiscal: true
-    }, c || {});
+    };
+  }
+
+  function _normalizeFiscalConfig(c) {
+    var defaults = _defaultFiscalConfig();
+    var legal = Object.assign({}, defaults.legalBusiness, c.legalBusiness || {});
+    var facturaDirecta = Object.assign({}, defaults.facturaDirecta, c.facturaDirecta || {});
+    var iva = _num(c.defaultIvaRate != null ? c.defaultIvaRate : (c.ivaPadrao != null ? c.ivaPadrao : defaults.defaultIvaRate));
+    var normalized = Object.assign({}, defaults, c || {}, {
+      countryCode: _normalizeCountryCode(c.countryCode || legal.countryCode || defaults.countryCode),
+      currency: _normalizeCurrency(c.currency || defaults.currency),
+      defaultIvaRate: iva || defaults.defaultIvaRate,
+      pricesIncludeIva: c.pricesIncludeIva !== false,
+      invoiceMode: c.invoiceMode === 'manual' ? 'manual' : 'automatic',
+      defaultInvoiceType: c.defaultInvoiceType === 'full' ? 'full' : 'simplified',
+      invoiceSeries: String(c.invoiceSeries || defaults.invoiceSeries).trim() || defaults.invoiceSeries,
+      nextInvoiceNumber: Math.max(1, parseInt(c.nextInvoiceNumber, 10) || defaults.nextInvoiceNumber),
+      facturaDirecta: facturaDirecta,
+      legalBusiness: legal,
+      ivaPadrao: iva || defaults.defaultIvaRate,
+      irpfPadrao: _num(c.irpfPadrao != null ? c.irpfPadrao : defaults.irpfPadrao),
+      trimestreAtual: c.trimestreAtual || defaults.trimestreAtual,
+      usarCalculoFiscal: c.usarCalculoFiscal !== false
+    });
+    normalized.legalBusiness.countryCode = _normalizeCountryCode(normalized.legalBusiness.countryCode || normalized.countryCode);
+    return normalized;
   }
 
   function _renderSub() {
@@ -79,49 +145,131 @@ Modules.Fiscal = (function () {
 
   function _renderConfig() {
     var c = _data.config;
-    var enabled = c.usarCalculoFiscal !== false;
+    var fd = c.facturaDirecta || {};
+    var legal = c.legalBusiness || {};
+    var fdStatus = fd.connectionStatus === 'connected' ? 'Conectado' : 'Não conectado';
     _content(
       '<div style="display:flex;flex-direction:column;gap:16px;">' +
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
-          '<div style="min-width:0;"><h2 style="font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;line-height:1.2;">Configurações fiscais</h2><p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0;">Defina os percentuais fiscais usados nas estimativas de IVA, IRPF e resumo trimestral.</p></div>' +
+          '<div style="min-width:0;"><h2 style="font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;line-height:1.2;">Configuração fiscal</h2><p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0;max-width:680px;">Prepare os dados de faturação do seu negócio para uma futura integração fiscal. Esta tela ainda não emite faturas nem envia documentos para nenhum provedor.</p></div>' +
           '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">' +
-            _chip((c.ivaPadrao || 0) + '% IVA') +
-            _chip((c.irpfPadrao || 0) + '% IRPF') +
-            _chip(enabled ? 'Cálculo ativo' : 'Cálculo inativo') +
+            _chip(_countryLabel(c.countryCode)) +
+            _chip((c.defaultIvaRate || 0) + '% IVA') +
+            _chip(_invoiceModeLabel(c.invoiceMode)) +
+            _chip('FacturaDirecta: ' + fdStatus) +
           '</div>' +
         '</div>' +
-        '<section style="' + _cardStyle() + '">' +
-          '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:14px;">' +
-            '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">Parâmetros fiscais</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Percentuais e período fiscal usados nos cálculos do módulo.</div></div>' +
-            '<span style="display:inline-flex;align-items:center;min-height:28px;padding:0 11px;border-radius:999px;background:#FAF8F4;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:700;">' + _esc(String(c.trimestreAtual || _currentQuarterKey()).replace('-T', ' / T')) + '</span>' +
+        '<section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;align-items:start;">' +
+          '<div style="' + _cardStyle() + 'display:flex;flex-direction:column;gap:18px;">' +
+            '<div><div style="font-size:15px;font-weight:700;color:#1F1F1F;">Dados de faturação</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:3px;">Configurações básicas para preparar faturas simplificadas e completas no futuro.</div></div>' +
+            '<div style="' + _softGroupStyle() + '">' +
+              '<div style="font-size:12px;font-weight:700;color:#1F1F1F;margin-bottom:12px;">Regras padrão</div>' +
+              '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;">' +
+                _select('fis-country', 'País fiscal', _countryOptions(c.countryCode)) +
+                _select('fis-currency', 'Moeda', _currencyOptions(c.currency)) +
+                _field('fis-default-iva', 'IVA padrão (%)', c.defaultIvaRate, 'number') +
+                _select('fis-prices-iva', 'Preços incluem IVA', '<option value="sim"' + (c.pricesIncludeIva !== false ? ' selected' : '') + '>Sim</option><option value="nao"' + (c.pricesIncludeIva === false ? ' selected' : '') + '>Não</option>') +
+                _select('fis-default-invoice-type', 'Tipo de fatura padrão', _invoiceTypeOptions(c.defaultInvoiceType)) +
+                _select('fis-invoice-mode', 'Emissão', _invoiceModeOptions(c.invoiceMode)) +
+                _field('fis-series', 'Série', c.invoiceSeries, 'text') +
+                _field('fis-next-number', 'Próximo número', c.nextInvoiceNumber, 'number') +
+              '</div>' +
+            '</div>' +
+            '<div style="' + _softGroupStyle() + '">' +
+              '<div style="font-size:12px;font-weight:700;color:#1F1F1F;margin-bottom:12px;">Dados fiscais do negócio</div>' +
+              '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;">' +
+                _field('fis-legal-name', 'Nome fiscal', legal.legalName, 'text') +
+                _field('fis-commercial-name', 'Nome comercial', legal.commercialName, 'text') +
+                _select('fis-doc-type', 'Tipo de documento', _documentTypeOptions(legal.documentType)) +
+                _field('fis-fiscal-id', 'NIF / NIE / CIF', legal.fiscalId, 'text') +
+                _field('fis-tax-regime', 'Regime fiscal', legal.taxRegime, 'text') +
+                _field('fis-invoice-email', 'E-mail para faturas', legal.invoiceEmail, 'email') +
+                _field('fis-address', 'Endereço fiscal', legal.address, 'text') +
+                _field('fis-number', 'Número', legal.number, 'text') +
+                _field('fis-complement', 'Complemento', legal.complement, 'text') +
+                _field('fis-city', 'Cidade', legal.city, 'text') +
+                _field('fis-province', 'Província', legal.province, 'text') +
+                _field('fis-postal-code', 'Código postal', legal.postalCode, 'text') +
+              '</div>' +
+            '</div>' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-top:2px;">' +
+              '<div style="font-size:12px;color:#8A7E7C;line-height:1.4;">Revise os dados antes de salvar. Nenhuma fatura será emitida nesta etapa.</div>' +
+              '<button onclick="Modules.Fiscal._saveConfig()" style="' + _primaryStyle() + '">Salvar alterações</button>' +
+            '</div>' +
           '</div>' +
-          '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:14px;">' +
-            _field('fis-iva', 'IVA padrão (%)', c.ivaPadrao, 'number') +
-            _field('fis-irpf', 'IRPF estimado padrão (%)', c.irpfPadrao, 'number') +
-            _select('fis-quarter', 'Trimestre atual', _quarterOptions(c.trimestreAtual)) +
-            _select('fis-enabled', 'Usar cálculo fiscal no sistema', '<option value="sim"' + (enabled ? ' selected' : '') + '>Sim</option><option value="nao"' + (!enabled ? ' selected' : '') + '>Não</option>') +
-          '</div>' +
-          '<div style="background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;padding:14px 16px;display:flex;gap:12px;align-items:flex-start;margin-bottom:16px;">' +
-            '<div style="width:38px;height:38px;border-radius:12px;background:#fff;color:#B45309;display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span class="mi" style="font-size:22px;">info</span></div>' +
-            '<div style="font-size:13px;color:#6F6860;line-height:1.45;"><strong style="display:block;color:#1F1F1F;font-size:13px;margin-bottom:3px;">Cálculo estimado</strong>Não substitui contador ou gestor fiscal. Use os valores como apoio operacional.</div>' +
-          '</div>' +
-          '<div style="display:flex;justify-content:flex-end;">' +
-            '<button onclick="Modules.Fiscal._saveConfig()" style="' + _primaryStyle() + '">Salvar configurações fiscais</button>' +
-          '</div>' +
+          '<aside style="display:flex;flex-direction:column;gap:12px;">' +
+            '<div style="' + _cardStyle('16px') + 'display:flex;flex-direction:column;gap:10px;">' +
+              '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">' +
+                '<div style="font-size:14px;font-weight:700;color:#1F1F1F;">FacturaDirecta</div>' +
+                '<span style="display:inline-flex;align-items:center;min-height:24px;padding:0 9px;border-radius:999px;background:#FAF8F4;border:1px solid #EAE4DA;color:#6F6860;font-size:11px;font-weight:700;">Em breve</span>' +
+              '</div>' +
+              '<div style="font-size:13px;color:#6F6860;line-height:1.45;">A conexão com provedor externo ainda não está ativa. Nenhuma chave ou token é solicitado nesta fase.</div>' +
+              '<div style="display:grid;grid-template-columns:1fr;gap:8px;margin-top:2px;">' +
+                _readonlyMini('Status', fdStatus) +
+                _readonlyMini('Modo', fd.partnerMode ? 'Parceiro' : 'Padrão futuro') +
+              '</div>' +
+            '</div>' +
+            '<div style="' + _cardStyle('16px') + 'display:flex;gap:11px;align-items:flex-start;">' +
+              '<div style="width:34px;height:34px;border-radius:12px;background:#FAF8F4;color:#B45309;display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span class="mi" style="font-size:20px;">info</span></div>' +
+              '<div style="font-size:13px;color:#6F6860;line-height:1.45;"><strong style="display:block;color:#1F1F1F;font-size:13px;margin-bottom:3px;">Preparação fiscal</strong>Estes dados ajudam a deixar produtos, clientes, fornecedores e pedidos prontos para uma integração futura. A emissão real será criada em outra etapa.</div>' +
+            '</div>' +
+            '<div style="' + _cardStyle('16px') + 'display:flex;gap:11px;align-items:flex-start;">' +
+              '<div style="width:34px;height:34px;border-radius:12px;background:#FAF8F4;color:#6C8777;display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span class="mi" style="font-size:20px;">calculate</span></div>' +
+              '<div style="font-size:13px;color:#6F6860;line-height:1.45;"><strong style="display:block;color:#1F1F1F;font-size:13px;margin-bottom:3px;">Cálculos atuais</strong>As abas de IVA e IRPF continuam usando estimativas internas. Isso não substitui contador ou gestor fiscal.</div>' +
+            '</div>' +
+          '</aside>' +
         '</section>' +
       '</div>'
     );
   }
 
   function _saveConfig() {
-    var data = {
-      ivaPadrao: _num(_val('fis-iva')),
-      irpfPadrao: _num(_val('fis-irpf')),
-      trimestreAtual: _val('fis-quarter') || _currentQuarterKey(),
-      usarCalculoFiscal: _val('fis-enabled') !== 'nao'
-    };
+    var current = _normalizeFiscalConfig(_data.config || {});
+    var now = new Date().toISOString();
+    var iva = _num(_val('fis-default-iva')) || 10;
+    var country = _normalizeCountryCode(_val('fis-country') || current.countryCode);
+    var data = Object.assign({}, current, {
+      countryCode: country,
+      currency: _normalizeCurrency(_val('fis-currency') || current.currency),
+      invoiceMode: _val('fis-invoice-mode') === 'manual' ? 'manual' : 'automatic',
+      defaultInvoiceType: _val('fis-default-invoice-type') === 'full' ? 'full' : 'simplified',
+      simplifiedInvoiceEnabled: true,
+      fullInvoiceEnabled: true,
+      defaultIvaRate: iva,
+      pricesIncludeIva: _val('fis-prices-iva') !== 'nao',
+      invoiceSeries: String(_val('fis-series') || 'A').trim() || 'A',
+      nextInvoiceNumber: Math.max(1, parseInt(_val('fis-next-number'), 10) || 1),
+      providerMode: current.providerMode || 'none',
+      providerConnected: current.providerConnected === true,
+      fiscalProvider: current.fiscalProvider || '',
+      facturaDirecta: Object.assign({}, _defaultFiscalConfig().facturaDirecta, current.facturaDirecta || {}, {
+        enabled: false,
+        connectionStatus: (current.facturaDirecta && current.facturaDirecta.connectionStatus) || 'not_connected'
+      }),
+      legalBusiness: {
+        legalName: String(_val('fis-legal-name') || '').trim(),
+        commercialName: String(_val('fis-commercial-name') || '').trim(),
+        documentType: String(_val('fis-doc-type') || '').trim(),
+        fiscalId: String(_val('fis-fiscal-id') || '').trim(),
+        taxRegime: String(_val('fis-tax-regime') || '').trim(),
+        address: String(_val('fis-address') || '').trim(),
+        number: String(_val('fis-number') || '').trim(),
+        complement: String(_val('fis-complement') || '').trim(),
+        city: String(_val('fis-city') || '').trim(),
+        province: String(_val('fis-province') || '').trim(),
+        postalCode: String(_val('fis-postal-code') || '').trim(),
+        countryCode: country,
+        invoiceEmail: String(_val('fis-invoice-email') || '').trim()
+      },
+      createdAt: current.createdAt || now,
+      updatedAt: now,
+      ivaPadrao: iva,
+      irpfPadrao: current.irpfPadrao,
+      trimestreAtual: current.trimestreAtual || _currentQuarterKey(),
+      usarCalculoFiscal: current.usarCalculoFiscal !== false
+    });
     DB.setDocRoot('config', 'fiscal', data).then(function () {
-      UI.toast('Configurações fiscais salvas.', 'success');
+      UI.toast('Configuração fiscal salva.', 'success');
       _data.config = _normalizeConfig(data);
       _renderSub();
     }).catch(function (err) { UI.toast('Erro: ' + err.message, 'error'); });
@@ -877,6 +1025,80 @@ Modules.Fiscal = (function () {
     return d.getFullYear() + '-T' + (Math.floor(d.getMonth() / 3) + 1);
   }
 
+  function _normalizeCountryCode(value) {
+    var v = String(value || 'ES').trim().toUpperCase();
+    if (v === 'ESPANHA' || v === 'SPAIN') return 'ES';
+    if (v === 'PORTUGAL') return 'PT';
+    if (v === 'BRASIL' || v === 'BRAZIL') return 'BR';
+    return ['ES', 'PT', 'BR', 'FR', 'IT', 'DE', 'GB', 'US'].indexOf(v) >= 0 ? v : 'ES';
+  }
+
+  function _normalizeCurrency(value) {
+    var v = String(value || 'EUR').trim().toUpperCase();
+    return ['EUR', 'BRL', 'USD', 'GBP'].indexOf(v) >= 0 ? v : 'EUR';
+  }
+
+  function _countryLabel(value) {
+    var map = { ES: 'Espanha', PT: 'Portugal', BR: 'Brasil', FR: 'França', IT: 'Itália', DE: 'Alemanha', GB: 'Reino Unido', US: 'Estados Unidos' };
+    return map[_normalizeCountryCode(value)] || 'Espanha';
+  }
+
+  function _invoiceModeLabel(value) {
+    return value === 'manual' ? 'Emissão manual' : 'Emissão automática';
+  }
+
+  function _optionList(options, selected) {
+    return options.map(function (opt) {
+      return '<option value="' + _esc(opt[0]) + '"' + (String(selected || '') === String(opt[0]) ? ' selected' : '') + '>' + _esc(opt[1]) + '</option>';
+    }).join('');
+  }
+
+  function _countryOptions(selected) {
+    return _optionList([
+      ['ES', 'Espanha'],
+      ['PT', 'Portugal'],
+      ['BR', 'Brasil'],
+      ['FR', 'França'],
+      ['IT', 'Itália'],
+      ['DE', 'Alemanha'],
+      ['GB', 'Reino Unido'],
+      ['US', 'Estados Unidos']
+    ], _normalizeCountryCode(selected));
+  }
+
+  function _currencyOptions(selected) {
+    return _optionList([
+      ['EUR', 'Euro (EUR)'],
+      ['BRL', 'Real (BRL)'],
+      ['USD', 'Dólar (USD)'],
+      ['GBP', 'Libra (GBP)']
+    ], _normalizeCurrency(selected));
+  }
+
+  function _invoiceTypeOptions(selected) {
+    return _optionList([
+      ['simplified', 'Fatura simplificada'],
+      ['full', 'Fatura completa']
+    ], selected || 'simplified');
+  }
+
+  function _invoiceModeOptions(selected) {
+    return _optionList([
+      ['automatic', 'Automática'],
+      ['manual', 'Manual']
+    ], selected || 'automatic');
+  }
+
+  function _documentTypeOptions(selected) {
+    return _optionList([
+      ['', 'Selecionar'],
+      ['nif', 'NIF'],
+      ['nie', 'NIE'],
+      ['cif', 'CIF'],
+      ['other', 'Outro']
+    ], selected || '');
+  }
+
   function _quarterOptions(selected) {
     var now = new Date();
     var year = now.getFullYear();
@@ -956,8 +1178,15 @@ Modules.Fiscal = (function () {
   function _tdStyle() { return 'padding:12px 14px;font-size:13px;border-bottom:1px solid #F2EDEA;'; }
   function _field(id, label, value, type) { return '<div><label style="' + _labelStyle() + '">' + label + '</label><input id="' + id + '" type="' + (type || 'text') + '" value="' + _esc(value == null ? '' : value) + '" style="' + _inputStyle() + '"></div>'; }
   function _select(id, label, options) { return '<div><label style="' + _labelStyle() + '">' + label + '</label><select id="' + id + '" style="' + _inputStyle() + 'background:#fff;">' + options + '</select></div>'; }
+  function _readonlyMini(label, value) {
+    return '<div style="background:#FAF8F4;border:1px solid #EAE4DA;border-radius:12px;padding:10px 12px;">' +
+      '<div style="font-size:10px;font-weight:700;color:#8A7E7C;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">' + _esc(label) + '</div>' +
+      '<div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.3;">' + _esc(value || '-') + '</div>' +
+    '</div>';
+  }
   function _content(html) { var el = document.getElementById('fiscal-content'); if (el) el.innerHTML = html; }
   function _cardStyle(pad) { return 'background:#fff;border:none;border-radius:16px;padding:' + (pad || '18px 20px') + ';box-shadow:0 12px 30px rgba(31,31,31,.06);'; }
+  function _softGroupStyle() { return 'background:#FAF8F4;border:1px solid #EAE4DA;border-radius:16px;padding:16px;'; }
   function _chip(txt) { return '<span style="display:inline-flex;align-items:center;min-height:24px;padding:0 10px;border-radius:999px;background:#fff;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:500;box-shadow:0 1px 2px rgba(31,31,31,.02);">' + _esc(txt) + '</span>'; }
   function _inputStyle() { return 'width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#1F1F1F;font-size:14px;font-weight:400;font-family:inherit;outline:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.78);'; }
   function _labelStyle() { return 'font-size:11px;font-weight:600;color:#6F6860;display:block;margin-bottom:5px;letter-spacing:.02em;'; }

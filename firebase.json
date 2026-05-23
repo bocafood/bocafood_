@@ -52,6 +52,14 @@
         "destination": "/index.html"
       },
       {
+        "source": "/*/review",
+        "destination": "/review.html"
+      },
+      {
+        "source": "/*/review.html",
+        "destination": "/review.html"
+      },
+      {
         "source": "/**",
         "destination": "/index.html"
       }

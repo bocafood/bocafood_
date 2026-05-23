@@ -37,6 +37,14 @@ Modules.Catalogo = (function () {
     return safePrefix + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   }
 
+  function firstText() {
+    for (var i = 0; i < arguments.length; i += 1) {
+      if (typeof arguments[i] === 'string' && arguments[i].trim()) return arguments[i].trim();
+      if (arguments[i] !== null && arguments[i] !== undefined && typeof arguments[i] !== 'object' && String(arguments[i]).trim()) return String(arguments[i]).trim();
+    }
+    return '';
+  }
+
   function _metricIconSVG(name) {
     var stroke = 'stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"';
     var baseStyle = 'width:26px;height:26px;display:block;';
@@ -861,8 +869,8 @@ Modules.Catalogo = (function () {
 
   function _buildProductModal(p, id) {
     p = _normalizeProduct(p);
-    var tipoUnico = !p.type || p.type === 'unico';
-    var tipoMenu = p.type === 'menu';
+    var tipoMenu = p.type === 'menu' || p.productType === 'combo';
+    var tipoUnico = !tipoMenu;
     var unicoSubReceita = !p.unicoSource || p.unicoSource === 'receita';
     var unicoSubPronto = p.unicoSource === 'produto_pronto' || p.unicoSource === 'compras_produto';
     var fichaOptions = _fichas.map(function (f) {
@@ -874,9 +882,12 @@ Modules.Catalogo = (function () {
     }).join('');
     var menuGroups = _normalizeMenuGroups(p);
     var menuGroupsHtml = menuGroups.map(function (group, i) { return _menuGroupRowHtml(i, group); }).join('');
-    var addAlsoIds = (p.addAlsoIds || []).map(String).filter(function (id) { return _isSimpleUpsellProduct(_productForId(id)); });
+    var availableUpsellIds = {};
+    _upsellProductPool().forEach(function (item) { availableUpsellIds[String(item.id)] = true; });
+    var addAlsoIds = (p.addAlsoIds || []).map(String).filter(function (id) { return availableUpsellIds[String(id)]; }).slice(0, 1);
     var addAlsoTitle = p.addAlsoTitle || p.upsellTitle || 'Aumentar valor do pedido';
     var addAlsoDiscount = parseFloat(String(p.addAlsoDiscount || p.upsellDiscount || 0).replace(',', '.')) || 0;
+    var pairingId = firstText(p.pairing, p.pairingId, p.pairingProductId, '');
     var pricingPreview = _productPricingPreview(p);
     var promoBlockHtml = _promoBlockHtml(p);
     var pricingChipsHtml = pricingPreview
@@ -891,11 +902,16 @@ Modules.Catalogo = (function () {
         '<span style="background:' + (tag.bgColor || '#F7F1F0') + ';color:' + (tag.textColor || '#5E5553') + ';padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;">' + _esc(tag.text) + '</span>' +
         '</label>';
     }).join(''));
-    var variantsHtml = (_variants.length === 0 ? '<p style="font-size:12px;color:#8A7E7C;margin:0;">Nenhum grupo de variantes criado ainda.</p>' : '<div id="pm-variant-checks">' + _variants.map(function (vg) {
-      var checked = p.variantGroupIds && p.variantGroupIds.indexOf(vg.id) >= 0;
-      return '<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:6px 0;">' +
-        '<input type="checkbox" class="pm-variant-check" data-vgid="' + vg.id + '"' + (checked ? ' checked' : '') + ' style="width:15px;height:15px;accent-color:#B42318;">' +
-        _esc(vg.title) + '</label>';
+    var variantsHtml = (_variants.length === 0 ? '<p style="font-size:12px;color:#8A7E7C;margin:0;">Nenhum grupo de variantes criado ainda.</p>' : '<div id="pm-variant-checks" style="display:grid;gap:8px;">' + _variants.map(function (vg) {
+      var checked = (p.variantGroupIds || []).map(String).indexOf(String(vg.id)) >= 0;
+      return '<div style="border:1px solid #EAE4DA;border-radius:12px;background:#FFFCF8;padding:9px 10px;">' +
+        '<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">' +
+        '<input type="checkbox" class="pm-variant-check" data-vgid="' + vg.id + '"' + (checked ? ' checked' : '') + ' onchange="Modules.Catalogo._toggleProductVariantPreview(this)" style="width:15px;height:15px;accent-color:#B42318;">' +
+        '<span style="font-weight:650;color:#1F1F1F;">' + _esc(vg.title) + '</span>' +
+        '<span style="font-size:11px;color:#8A7E7C;">' + (vg.required ? 'Obrigatória' : 'Opcional') + ' · mín. ' + (vg.minPerUnit != null ? vg.minPerUnit : vg.min || 0) + ' · máx. ' + (vg.maxPerUnit || vg.max || 1) + '</span>' +
+        '</label>' +
+        _productVariantOptionsPreviewHtml(vg, checked) +
+        '</div>';
     }).join('') + '</div>');
     var productFiscal = _ensureProductFiscal(p);
 
@@ -932,6 +948,7 @@ Modules.Catalogo = (function () {
                 <div><label style="${_fichaLbl()}">Nome do produto *</label><input id="pm-name" type="text" maxlength="55" value="${_esc(p.name || '')}" oninput="Modules.Catalogo._onProductNameChange();Modules.Catalogo._refreshProductPreview()" style="${_fichaInp()}"></div>
                 <div><label style="${_fichaLbl()}">Frase que faz vender (microcopy)</label><input id="pm-microcopy" type="text" maxlength="72" value="${_esc(p.microcopy || '')}" placeholder="Ex: Crocante por fora, recheio que surpreende" oninput="Modules.Catalogo._refreshProductPreview()" style="${_fichaInp()}"><p style="font-size:11px;color:#6F6860;margin-top:4px;">Essa frase ajuda o cliente a decidir comprar.</p></div>
                 <div><label style="${_fichaLbl()}">Descrição curta</label><textarea id="pm-short-desc" maxlength="120" oninput="Modules.Catalogo._onProductDescChange();Modules.Catalogo._refreshProductPreview()" style="${_fichaInp()}min-height:72px;resize:vertical;">${_esc(p.shortDesc || p.description || '')}</textarea></div>
+                <div><label style="${_fichaLbl()}">Descrição completa</label><textarea id="pm-full-desc" maxlength="700" oninput="Modules.Catalogo._refreshProductPreview()" style="${_fichaInp()}min-height:88px;resize:vertical;">${_esc(p.fullDesc || p.fullDescription || p.seoDescription || p.shortDesc || p.description || '')}</textarea><p style="font-size:11px;color:#6F6860;margin-top:4px;">Aparece quando o cliente abre o produto para ver os detalhes.</p></div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:end;">
                 <div><label style="${_fichaLbl()}">Preço *</label><input id="pm-price" type="text" inputmode="decimal" value="${_esc(_moneyDisplay(p.price || ''))}" onfocus="Modules.Catalogo._moneyInputFocus(this)" onblur="Modules.Catalogo._moneyInputBlur(this)" oninput="Modules.Catalogo._refreshProductPreview()" placeholder="€0,00" style="${_fichaInp()}font-size:18px;font-weight:700;color:#B42318;text-align:right;"></div>
                   <div><label style="${_fichaLbl()}">Categoria</label><select id="pm-cat" onchange="Modules.Catalogo._refreshProductPreview()" style="${_fichaInp()}background:#fff;"><option value="">Sem categoria</option>${_categories.map(function (c) { return '<option value="' + c.id + '"' + (p.categoryId === c.id ? ' selected' : '') + '>' + _esc(c.name) + '</option>'; }).join('')}</select></div>
@@ -1658,6 +1675,127 @@ Modules.Catalogo = (function () {
     });
   }
 
+  function _variantGroupToPublicVariant(group) {
+    if (!group) return null;
+    var options = (group.options || []).map(function (option) {
+      var label = _variantOptionLabel(option);
+      if (!label) return null;
+      var price = _variantOptionPrice(option);
+      return {
+        name: label,
+        label: label,
+        priceExtra: price,
+        price: price,
+        img: _variantOptionImage(option)
+      };
+    }).filter(Boolean);
+    if (!options.length) return null;
+    var max = parseInt(group.maxPerUnit || group.max || (group.multiSelect ? options.length : 1), 10) || 1;
+    var min = parseInt(group.minPerUnit != null ? group.minPerUnit : group.min != null ? group.min : (group.required ? 1 : 0), 10);
+    if (min < 0) min = 0;
+    if (max < 1) max = 1;
+    if (min > max) min = max;
+    return {
+      id: group.id || ('vg_' + _toSlug(group.title || group.name || 'opcao')),
+      title: group.title || group.name || 'Escolha',
+      required: group.required === true || min > 0,
+      minPerUnit: min,
+      maxPerUnit: max,
+      options: options
+    };
+  }
+
+  function _menuGroupToPublicVariant(group, index) {
+    if (!group) return null;
+    var options = (group.options || []).map(function (option) {
+      var label = _variantOptionLabel(option) || _labelForMenuRef(option.ref);
+      if (!label) return null;
+      var price = _variantOptionPrice(option);
+      return {
+        ref: option.ref || '',
+        name: label,
+        label: label,
+        priceExtra: price,
+        price: price,
+        img: _variantOptionImage(option) || _imgForEntity(_entityForMenuRef(option.ref)) || ''
+      };
+    }).filter(Boolean);
+    if (!options.length) return null;
+    var max = parseInt(group.max || group.qty || group.min || 1, 10) || 1;
+    var min = parseInt(group.min == null ? max : group.min, 10);
+    if (min < 0) min = 0;
+    return {
+      id: group.id || ('menu_' + index),
+      title: group.title || group.name || 'Escolha',
+      required: min > 0,
+      maxPerUnit: Math.max(1, max),
+      minPerUnit: min,
+      options: options
+    };
+  }
+
+  function _publicVariantsForProduct(menuChoiceGroups, variantGroupIds) {
+    var variants = [];
+    (menuChoiceGroups || []).forEach(function (group, index) {
+      var mapped = _menuGroupToPublicVariant(group, index);
+      if (mapped) variants.push(mapped);
+    });
+    (variantGroupIds || []).forEach(function (id) {
+      var group = (_variants || []).find(function (item) { return String(item.id) === String(id); });
+      var mapped = _variantGroupToPublicVariant(group);
+      if (mapped && !variants.some(function (item) { return String(item.id) === String(mapped.id); })) variants.push(mapped);
+    });
+    return variants;
+  }
+
+  function _variantOptionLabel(option) {
+    return option && String(option.label || option.name || option.title || option.text || option.nome || '').trim();
+  }
+
+  function _variantOptionPrice(option) {
+    var raw = option && (option.priceExtra != null ? option.priceExtra : option.extraPrice != null ? option.extraPrice : option.price != null ? option.price : option.valorExtra != null ? option.valorExtra : option.valor != null ? option.valor : 0);
+    var value = parseFloat(String(raw || 0).replace(',', '.'));
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  function _variantOptionImage(option) {
+    var raw = option && (option.img || option.imageUrl || option.imageCardUrl || option.cardImageUrl || option.imageThumbUrl || option.thumbnailUrl || option.thumbUrl || option.photoUrl || option.image || option.url || '');
+    raw = String(raw || '').trim();
+    if (!raw || raw === 'undefined' || raw === 'null' || raw === '#') return '';
+    return raw;
+  }
+
+  function _productVariantOptionsPreviewHtml(group, visible) {
+    var mapped = _variantGroupToPublicVariant(group);
+    var options = Array.isArray(mapped && mapped.options) ? mapped.options : (Array.isArray(group && group.options) ? group.options : []);
+    if (!options.length) {
+      return '<div data-product-variant-preview data-empty="1" style="display:' + (visible ? 'block' : 'none') + ';margin:8px 0 0 23px;font-size:12px;color:#8A7E7C;">Nenhuma opção cadastrada neste grupo.</div>';
+    }
+    return '<div data-product-variant-preview style="display:' + (visible ? 'grid' : 'none') + ';grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin:9px 0 0 23px;gap:7px;">' +
+      options.map(function (option) {
+        var label = _variantOptionLabel(option);
+        if (!label) return '';
+        var price = _variantOptionPrice(option);
+        var priceText = price > 0 ? '+' + UI.fmt(price) : price < 0 ? '-' + UI.fmt(Math.abs(price)) : 'Sem acréscimo';
+        var priceColor = price > 0 ? '#7A2E22' : price < 0 ? '#1F6B45' : '#8A7E7C';
+        var img = _variantOptionImage(option);
+        return '<div style="display:flex;align-items:center;gap:8px;min-height:38px;padding:6px 8px;border-radius:12px;background:#fff;border:1px solid #EAE4DA;color:#1F1F1F;box-shadow:0 1px 2px rgba(31,31,31,.03);">' +
+          (img ? '<img src="' + _esc(img) + '" alt="" style="width:30px;height:30px;border-radius:9px;object-fit:cover;flex-shrink:0;background:#F8F2EF;">' : '') +
+          '<div style="min-width:0;display:flex;flex-direction:column;gap:2px;">' +
+            '<span style="font-size:12px;font-weight:650;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(label) + '</span>' +
+            '<span style="font-size:11px;font-weight:700;line-height:1.15;color:' + priceColor + ';">' + _esc(priceText) + '</span>' +
+          '</div>' +
+        '</div>';
+      }).join('') +
+      '</div>';
+  }
+
+  function _toggleProductVariantPreview(input) {
+    var row = input && input.closest ? input.closest('div') : null;
+    var preview = row ? row.querySelector('[data-product-variant-preview]') : null;
+    if (preview) preview.style.display = input.checked ? (preview.dataset.empty ? 'block' : 'grid') : 'none';
+  }
+
   // Change E: SEO auto-update tracking
   function _seoEdited(field) {
     window._pmSeoEdited = window._pmSeoEdited || {};
@@ -1784,7 +1922,7 @@ Modules.Catalogo = (function () {
     return _products.filter(function (p) {
       p = _normalizeProduct(p);
       var isCurrent = _editingId && String(p.id) === String(_editingId);
-      return !isCurrent && _isSimpleUpsellProduct(p);
+      return !isCurrent && p.active !== false && p.menuVisible !== false;
     }).map(function (p) {
       p = _normalizeProduct(p);
       return { id: String(p.id), name: p.name || 'Produto', price: p.price || 0, img: _imageUrlFor(p, 'thumb') || _imageUrlFor(p, 'card') || _imageUrlFor(p, 'main') };
@@ -1798,6 +1936,13 @@ Modules.Catalogo = (function () {
       var p = _productForId(id) || {};
       var img = _imgForEntity(p);
       var imgHtml = img ? '<img src="' + _esc(img) + '" style="width:34px;height:34px;border-radius:8px;object-fit:cover;background:#F2EDED;flex-shrink:0;" onerror="this.style.display=\'none\';">' : '<div style="width:34px;height:34px;border-radius:8px;background:#F2EDED;display:flex;align-items:center;justify-content:center;color:#B9AAA6;flex-shrink:0;"><span class="mi" style="font-size:17px;">restaurant</span></div>';
+      if (kind === 'pairing') {
+        return '<div data-upsell-selected="' + kind + '" data-id="' + _esc(id) + '" style="display:grid;grid-template-columns:34px 1fr 26px;align-items:center;gap:9px;padding:8px 10px;border:1px solid #F2EDED;border-radius:9px;background:#fff;margin-bottom:6px;">' +
+          imgHtml +
+          '<div style="min-width:0;"><div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(p.name || id) + '</div><div style="font-size:11px;color:#6E6563;margin-top:2px;">Aparece como sugestão no bloco Perfecto con.</div></div>' +
+          '<button type="button" onclick="Modules.Catalogo._removeUpsellProduct(\'' + kind + '\', \'' + _esc(id) + '\')" style="width:26px;height:26px;border-radius:7px;border:none;background:#FFF0EE;color:#B42318;cursor:pointer;font-size:13px;flex-shrink:0;">x</button>' +
+          '</div>';
+      }
       var original = _moneyLike(p.price || 0);
       var disc = Math.max(_moneyLike(discount || 0), 0);
       var finalPrice = Math.max(original - disc, 0);
@@ -1812,7 +1957,7 @@ Modules.Catalogo = (function () {
   function _upsellCandidatesHtml(kind, ids) {
     var selected = {};
     (ids || []).forEach(function (id) { selected[String(id)] = true; });
-    var rows = _upsellProductPool().filter(function (p) { return !selected[p.id]; }).sort(function (a, b) { return String(a.name || '').localeCompare(String(b.name || '')); });
+    var rows = _upsellProductPool().filter(function (p) { return kind === 'addAlso' || !selected[p.id]; }).sort(function (a, b) { return String(a.name || '').localeCompare(String(b.name || '')); });
     if (!rows.length) return '<div style="font-size:12px;color:#8A7E7C;padding:10px;">Nenhum produto disponível.</div>';
     return rows.map(function (p) {
       var imgHtml = p.img ? '<img src="' + _esc(p.img) + '" style="width:30px;height:30px;border-radius:7px;object-fit:cover;background:#F2EDED;flex-shrink:0;" onerror="this.style.display=\'none\';">' : '<span class="mi" style="font-size:17px;color:#B9AAA6;">restaurant</span>';
@@ -1823,14 +1968,15 @@ Modules.Catalogo = (function () {
 
   function _upsellBlockHtml(kind, title, help, ids, discount) {
     var safeDiscount = parseFloat(String(discount || 0).replace(',', '.')) || 0;
+    var isPairing = kind === 'pairing';
     return '<div style="background:#fff;border:1px solid #F2EDED;border-radius:12px;padding:10px;min-width:0;">' +
       '<div style="font-size:13px;font-weight:800;margin-bottom:2px;">' + _esc(title) + '</div>' +
       '<div style="font-size:11px;color:#6F6860;line-height:1.35;margin-bottom:8px;">' + _esc(help) + '</div>' +
-      '<div style="display:grid;grid-template-columns:minmax(0,1fr) 130px;gap:10px;margin-bottom:10px;">' +
+      (isPairing ? '' : '<div style="display:grid;grid-template-columns:minmax(0,1fr) 130px;gap:10px;margin-bottom:10px;">' +
       '<label style="display:block;min-width:0;"><span style="display:block;font-size:10px;font-weight:800;text-transform:uppercase;color:#8A7E7C;margin-bottom:3px;">Texto do bloco</span><input id="pm-upsell-title-' + kind + '" type="text" maxlength="42" value="' + _esc(title) + '" placeholder="Aumentar valor do pedido" style="width:100%;padding:8px;border:1.5px solid #D4C8C6;border-radius:8px;font-size:12px;font-family:inherit;outline:none;"></label>' +
       '<label style="display:block;min-width:0;"><span style="display:block;font-size:10px;font-weight:800;text-transform:uppercase;color:#8A7E7C;margin-bottom:3px;">Desconto aplicado ao item adicional</span><input id="pm-upsell-discount-' + kind + '" type="number" min="0" step="0.01" value="' + (safeDiscount || '') + '" placeholder="0,00" style="width:100%;padding:8px;border:1.5px solid #D4C8C6;border-radius:8px;font-size:12px;font-family:inherit;outline:none;"></label>' +
-      '</div>' +
-      '<div style="font-size:10px;font-weight:800;color:#8A7E7C;text-transform:uppercase;margin-bottom:4px;">Itens sugeridos</div>' +
+      '</div>') +
+      '<div style="font-size:10px;font-weight:800;color:#8A7E7C;text-transform:uppercase;margin-bottom:4px;">' + (isPairing ? 'Produto combinado' : 'Itens sugeridos') + '</div>' +
       '<div id="pm-upsell-selected-' + kind + '" style="max-height:170px;overflow:auto;padding:8px;border:1px solid #F2EDED;border-radius:9px;background:#FCFAFA;margin-bottom:8px;">' + _upsellSelectedHtml(kind, ids, safeDiscount) + '</div>' +
       '<input data-upsell-search="' + kind + '" oninput="Modules.Catalogo._filterUpsellProducts(\'' + kind + '\')" placeholder="Buscar produto..." style="width:100%;padding:9px;border:1.5px solid #D4C8C6;border-radius:9px;font-size:12px;font-family:inherit;outline:none;margin-bottom:6px;">' +
       '<div id="pm-upsell-candidates-' + kind + '" style="max-height:150px;overflow:auto;border:1px solid #F2EDED;border-radius:9px;background:#fff;">' + _upsellCandidatesHtml(kind, ids) + '</div>' +
@@ -1849,7 +1995,7 @@ Modules.Catalogo = (function () {
   function _addUpsellProduct(kind, id) {
     var selectedBox = document.getElementById('pm-upsell-selected-' + kind);
     if (!selectedBox) return;
-    if (kind === 'pairing') selectedBox.innerHTML = '';
+    if (kind === 'pairing' || kind === 'addAlso') selectedBox.innerHTML = '';
     if (selectedBox.querySelector('[data-id="' + String(id).replace(/"/g, '\\"') + '"]')) return;
     var empty = selectedBox.querySelector('[data-upsell-empty]');
     if (empty) empty.remove();
@@ -2187,6 +2333,10 @@ Modules.Catalogo = (function () {
         return;
       }
     }
+    var publicVariants = _publicVariantsForProduct(menuChoiceGroups, variantGroupIds);
+    var selectedTags = tags.filter(function (tag) { return tag && tag.text; });
+    var primaryTag = selectedTags[0] || {};
+    var selectedPairing = firstText(base.pairing, base.pairingId, base.pairingProductId, '');
 
     // Change E: SEO
     var seoTitle = (document.getElementById('pm-seo-title') || {}).value || name;
@@ -2221,18 +2371,26 @@ Modules.Catalogo = (function () {
       menuVisible: window._pmVisible !== false,
       // Change B
       type: tipo,
+      productType: tipo === 'menu' ? 'combo' : 'simple',
       unicoSource: tipo === 'unico' ? unicoSrc : null,
       fichaId: (tipo === 'unico' && unicoSrc === 'receita') ? ((document.getElementById('pm-ficha-id') || {}).value || '') : '',
       produtoProntoId: (tipo === 'unico' && (unicoSrc === 'produto_pronto' || unicoSrc === 'compras_produto')) ? selectedProntoId : '',
       sourceItemId: (tipo === 'unico' && unicoSrc === 'compras_produto') ? selectedProntoId : '',
       menuItems: tipo === 'menu' ? menuItems : [],
       menuChoiceGroups: tipo === 'menu' ? menuChoiceGroups : [],
-      addAlsoIds: [].slice.call(document.querySelectorAll('[data-upsell-selected="addAlso"]')).map(function (x) { return x.dataset.id; }),
+      addAlsoIds: [].slice.call(document.querySelectorAll('[data-upsell-selected="addAlso"]')).map(function (x) { return x.dataset.id; }).slice(0, 1),
       addAlsoTitle: ((document.getElementById('pm-upsell-title-addAlso') || {}).value || 'Aumentar valor do pedido').trim(),
       addAlsoDiscount: parseFloat(String(((document.getElementById('pm-upsell-discount-addAlso') || {}).value || '0')).replace(',', '.')) || 0,
-      pairing: null,
+      variants: publicVariants,
+      pairing: selectedPairing || '',
+      pairingId: selectedPairing || '',
+      pairingProductId: selectedPairing || '',
       // Change C
       tags: tags,
+      badgeText: firstText(primaryTag.text, base.badgeText, base.tag, ''),
+      tag: firstText(primaryTag.text, base.tag, base.badgeText, ''),
+      badgeColor: firstText(primaryTag.bgColor, base.badgeColor, ''),
+      badgeTextColor: firstText(primaryTag.textColor, base.badgeTextColor, ''),
       // Change D
       variantGroupIds: variantGroupIds,
       featured: !!(document.getElementById('pm-featured') && document.getElementById('pm-featured').checked),
@@ -2712,7 +2870,8 @@ Modules.Catalogo = (function () {
       '.tpl-maincard-preview-nav-left,.tpl-maincard-preview-nav-side{display:flex;align-items:center;gap:9px}' +
       '.tpl-maincard-preview-pill,.tpl-maincard-preview-circle{background:rgba(255,255,255,.92);box-shadow:0 8px 18px rgba(33,27,24,.14);color:#211B18}' +
       '.tpl-maincard-preview-pill{height:34px;border-radius:999px;padding:4px 10px 4px 4px;display:inline-flex;align-items:center;gap:7px;font-size:10px;font-weight:760}' +
-      '.tpl-maincard-preview-avatar{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,#B42318,#C98A2F);font-size:9px;font-weight:820}' +
+      '.tpl-maincard-preview-avatar{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;color:#fff;background:var(--tpl-preview-brand,#B42318);font-size:9px;font-weight:820}' +
+      '.tpl-maincard-preview-avatar svg{width:14px;height:14px;display:block;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}' +
       '.tpl-maincard-preview-circle{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-size:16px;font-weight:900}' +
       '.tpl-maincard-preview-card{margin:132px -14px 0;padding:0 16px 0;min-height:156px;background:#FFFAF3;border-radius:32px 32px 0 0;box-shadow:0 -18px 38px rgba(33,27,24,.10);position:relative;z-index:2}' +
       '.tpl-maincard-preview-head{display:grid;grid-template-columns:88px minmax(0,1fr);gap:12px;align-items:start}' +
@@ -2731,14 +2890,6 @@ Modules.Catalogo = (function () {
       '.tpl-maincard-preview-chip{display:inline-flex;align-items:center;min-width:0;color:inherit;font-size:inherit;font-weight:inherit;white-space:nowrap;letter-spacing:-.01em;background:transparent;padding:0;border-radius:0}' +
       '.tpl-maincard-preview-chip.open{color:#227554;font-weight:720}.tpl-maincard-preview-chip.closed{color:#9D2525;font-weight:720}' +
       '.tpl-maincard-preview-chip + .tpl-maincard-preview-chip::before{content:"";width:4px;height:4px;margin-right:8px;border-radius:50%;background:#B7AA9D;flex:0 0 auto}' +
-      '.tpl-maincard-preview-promo{display:none;padding:9px 12px;text-align:center;font-size:11px;font-weight:820;line-height:1.25;letter-spacing:-.01em;background:#B42318;color:#fff}' +
-      '.tpl-maincard-preview-mobile-banner{display:none;margin:10px 12px 12px;min-height:86px;border-radius:20px;overflow:hidden;background:linear-gradient(135deg,#2D211B,#8F1D1D);background-size:cover;background-position:center;box-shadow:0 14px 28px rgba(33,27,24,.10);position:relative;color:#fff}' +
-      '.tpl-maincard-preview-mobile-banner::before{content:"";position:absolute;inset:0;background:linear-gradient(110deg,rgba(24,15,10,.88),rgba(24,15,10,.54) 48%,rgba(24,15,10,.10));pointer-events:none}' +
-      '.tpl-maincard-preview-mobile-banner-copy{position:relative;z-index:1;padding:12px;max-width:76%;display:flex;flex-direction:column;align-items:flex-start;gap:4px}' +
-      '.tpl-maincard-preview-mobile-banner-badge{display:inline-flex;align-items:center;min-height:17px;padding:0 7px;border-radius:999px;background:rgba(255,255,255,.16);font-size:7.5px;font-weight:850;letter-spacing:.07em;text-transform:uppercase}' +
-      '.tpl-maincard-preview-mobile-banner-title{font-size:14px;font-weight:850;line-height:1.05;letter-spacing:-.025em}' +
-      '.tpl-maincard-preview-mobile-banner-text{font-size:9.5px;font-weight:650;line-height:1.25;opacity:.88;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}' +
-      '.tpl-maincard-preview-mobile-banner-cta{margin-top:3px;min-height:22px;padding:0 9px;border-radius:999px;background:#fff;color:#8F1D1D;font-size:8.5px;font-weight:820;display:inline-flex;align-items:center}' +
       '@media(max-width:760px){.tpl-identity-workspace.active{display:block !important}.tpl-identity-left{gap:14px}.tpl-maincard-preview-shell{position:static !important;border-left:0;border-top:0;padding-left:0;padding-top:16px;margin-top:14px}.tpl-maincard-preview-phone{position:relative;top:auto}.tpl-maincard-columns,.tpl-maincard-row{grid-template-columns:1fr}}' +
       '.tpl-config-panel[data-template-panel="identidade"] .tpl-section-heading{margin-bottom:10px !important}' +
       '.tpl-identity-left .tpl-config-panel .tpl-section-heading{margin-bottom:10px !important}' +
@@ -3070,11 +3221,14 @@ Modules.Catalogo = (function () {
     return _featuredComboboxHtml({ kind: 'mostOrderedProduct', inputId: 'tpl-most-ordered-product-picker', hiddenId: 'tpl-featured-most-ordered-product', dropdownId: 'tpl-most-ordered-product-dropdown', label: 'Selecionar produto', displayValue: selectedProduct ? _productPickerValue(selectedProduct) : '', hiddenValue: selectedProduct ? String(selectedProduct.id || '') : '', placeholder: 'Digite o nome do produto...' });
   }
   function _isTemplateMarketingActive(item) {
-    if (!item || item.active === false || item.enabled === false) return false;
+    if (!item || item.active === false) return false;
+    if (item.active == null && item.enabled === false) return false;
+    var status = String(item.status || item.state || '').trim().toLowerCase();
+    if (['pausada', 'pausado', 'paused', 'inativa', 'inativo', 'inactive', 'finalizada', 'finalizado', 'expired', 'expirada', 'expirado', 'cancelada', 'cancelado', 'canceled'].indexOf(status) >= 0) return false;
     var today = new Date();
     today.setHours(0, 0, 0, 0);
-    var start = item.startDate || item.startsAt || item.validFrom || '';
-    var end = item.endDate || item.endsAt || item.expiry || item.validUntil || '';
+    var start = item.startDate || item.startsAt || item.validFrom || item.dataInicio || item.inicio || '';
+    var end = item.endDate || item.endsAt || item.expiry || item.validUntil || item.dataFim || item.fim || '';
     if (start) {
       var sd = new Date(start);
       if (!isNaN(sd.getTime()) && sd > today) return false;
@@ -3086,6 +3240,104 @@ Modules.Catalogo = (function () {
     }
     if (item.maxUses && item.usesCount >= item.maxUses) return false;
     return true;
+  }
+  function _templateMarketingId(item) {
+    return String(item && (item.id || item._id || item.promoId || item.promotionId || item.code || item.slug || '') || '').trim();
+  }
+  function _normalizeTemplatePromotionType(type) {
+    var t = String(type || '').trim().toLowerCase();
+    if (t === 'percentual' || t === 'percentage' || t === 'percent' || t === 'desconto_percentual') return 'pct';
+    if (t === 'valor_fixo' || t === 'fixed' || t === 'fixed_amount' || t === 'desconto_valor') return 'eur';
+    if (t === 'b2x1' || t === 'pack' || t === 'leve_2_pague_1') return '2x1';
+    if (t === 'extra_combo' || t === 'upgrade' || t === 'leve_pague' || t === 'leve_mais') return 'add1';
+    if (t === 'gratis_entrega' || t === 'frete_gratis') return 'free_shipping';
+    return t || 'pct';
+  }
+  function _normalizeTemplatePromotion(promo, idx) {
+    if (!promo) return promo;
+    var id = _templateMarketingId(promo) || ('promotion-' + idx);
+    var rawStatus = String(promo.status || promo.state || '').trim().toLowerCase();
+    var active = promo.active;
+    if (active == null && promo.enabled != null) active = promo.enabled;
+    if (typeof active === 'string') active = !['false', '0', 'no', 'nao', 'não', 'inactive', 'inativo', 'inativa'].includes(active.trim().toLowerCase());
+    if (active == null && rawStatus) {
+      active = ['pausada', 'pausado', 'paused', 'inativa', 'inativo', 'inactive', 'finalizada', 'finalizado', 'expired', 'expirada', 'expirado', 'cancelada', 'cancelado', 'canceled'].indexOf(rawStatus) < 0;
+    }
+    if (active == null) active = true;
+    var productIds = [];
+    ['productIds', 'selectedProductIds', 'products', 'items'].forEach(function (key) {
+      if (Array.isArray(promo[key])) {
+        promo[key].forEach(function (item) {
+          productIds.push(typeof item === 'object' ? (item.id || item.productId || item.produtoId || item.ref) : item);
+        });
+      }
+    });
+    if (promo.productId) productIds.push(promo.productId);
+    if (promo.produtoId) productIds.push(promo.produtoId);
+    productIds = productIds.map(String).filter(Boolean).filter(function (value, pos, arr) { return arr.indexOf(value) === pos; });
+    return Object.assign({}, promo, {
+      id: id,
+      name: promo.name || promo.title || promo.nome || promo.label || promo.description || ('Promoção ' + (idx + 1)),
+      type: _normalizeTemplatePromotionType(promo.type || promo.tipo || promo.discountType),
+      active: active !== false,
+      enabled: active !== false,
+      startDate: promo.startDate || promo.startsAt || promo.validFrom || promo.dataInicio || promo.inicio || '',
+      endDate: promo.endDate || promo.endsAt || promo.expiry || promo.validUntil || promo.dataFim || promo.fim || '',
+      applyTo: promo.applyTo || (promo.scope === 'produtos_selecionados' || promo.scope === 'selected_products' || productIds.length ? 'selected' : 'all'),
+      scope: promo.scope || (productIds.length ? 'produtos_selecionados' : 'todos_produtos'),
+      productIds: productIds
+    });
+  }
+  function _deriveTemplatePromotionFromProduct(product, idx) {
+    if (!product || !product.promo || typeof product.promo !== 'object') return null;
+    var promo = _normalizeTemplatePromotion(product.promo, idx);
+    if (!promo) return null;
+    var productId = String(product.id || product.productId || product._id || idx || '');
+    promo.id = _templateMarketingId(promo) || ('product_' + productId);
+    promo.applyTo = promo.applyTo || 'selected';
+    promo.scope = promo.scope || 'produtos_selecionados';
+    promo.productIds = (promo.productIds || []).concat([productId]).map(String).filter(Boolean).filter(function (value, pos, arr) { return arr.indexOf(value) === pos; });
+    promo.productId = promo.productId || productId;
+    promo.productName = promo.productName || product.name || product.title || product.nome || '';
+    promo.active = promo.active !== false;
+    promo.enabled = promo.active;
+    return promo;
+  }
+  function _mergeTemplatePromotions(groups) {
+    var out = [];
+    var seen = {};
+    (groups || []).forEach(function (group) {
+      (group || []).forEach(function (promo) {
+        var normalized = _normalizeTemplatePromotion(promo, out.length);
+        if (!normalized) return;
+        var id = _templateMarketingId(normalized);
+        var key = id || [
+          normalized.name || normalized.title || '',
+          normalized.type || '',
+          normalized.startDate || '',
+          normalized.endDate || '',
+          normalized.valuePercentual != null ? normalized.valuePercentual : '',
+          normalized.valueDesconto != null ? normalized.valueDesconto : ''
+        ].join('|');
+        if (seen[key]) {
+          var existing = seen[key];
+          existing.productIds = (existing.productIds || []).concat(normalized.productIds || []).map(String).filter(Boolean).filter(function (value, pos, arr) { return arr.indexOf(value) === pos; });
+          if (normalized.active !== false) {
+            existing.active = true;
+            existing.enabled = true;
+          }
+          if (!existing.name && normalized.name) existing.name = normalized.name;
+          if (!existing.title && normalized.title) existing.title = normalized.title;
+          if (!existing.description && normalized.description) existing.description = normalized.description;
+          if (!existing.productId && normalized.productId) existing.productId = normalized.productId;
+          if (!existing.productName && normalized.productName) existing.productName = normalized.productName;
+          return;
+        }
+        seen[key] = normalized;
+        out.push(normalized);
+      });
+    });
+    return out;
   }
   function _featuredMarketingOptionsHtml(list, query, selectedId, emptyLabel, labelFn) {
     var q = String(query || '').trim().toLowerCase();
@@ -3157,6 +3409,10 @@ Modules.Catalogo = (function () {
   function _activePromotionOptions() {
     return (_promotions || []).filter(_isTemplateMarketingActive);
   }
+  function _promotionPickerOptions() {
+    var active = _activePromotionOptions();
+    return active.length ? active : (_promotions || []);
+  }
   function _promotionTypeLabel(type) {
     var t = String(type || '').toLowerCase();
     if (t === 'pct') return 'Desconto (%)';
@@ -3177,7 +3433,7 @@ Modules.Catalogo = (function () {
   }
   function _promotionPickerValue(p) {
     var desc = p.description || p.shortDescription || p.text || p.customerMessage || p.benefit || p.benefitText || '';
-    return [p.name || p.title || p.id, _promotionTypeLabel(p.type), _promotionBenefitText(p), desc].filter(Boolean).join(' · ');
+    return [p.name || p.title || _templateMarketingId(p), _promotionTypeLabel(p.type), _promotionBenefitText(p), desc].filter(Boolean).join(' · ');
   }
   function _promotionByPickerText(text) {
     var value = String(text || '').trim().toLowerCase();
@@ -3229,12 +3485,12 @@ Modules.Catalogo = (function () {
   }
   function _promotionPickerHtml(selectedId) {
     var selected = String(selectedId || '').trim();
-    var promotions = _activePromotionOptions();
-    var selectedPromotion = promotions.find(function (p) { return String(p.id || '') === selected; });
+    var promotions = _promotionPickerOptions();
+    var selectedPromotion = promotions.find(function (p) { return _templateMarketingId(p) === selected; });
     if (!promotions.length) {
       return _featuredComboboxHtml({ kind: 'promotion', inputId: 'tpl-featured-promotion-picker', hiddenId: 'tpl-featured-promotion', dropdownId: 'tpl-featured-promotion-dropdown', label: 'Selecionar promoção ativa', placeholder: 'Nenhuma promoção ativa disponível', disabled: true });
     }
-    return _featuredComboboxHtml({ kind: 'promotion', inputId: 'tpl-featured-promotion-picker', hiddenId: 'tpl-featured-promotion', dropdownId: 'tpl-featured-promotion-dropdown', label: 'Selecionar promoção ativa', displayValue: selectedPromotion ? _promotionPickerValue(selectedPromotion) : '', hiddenValue: selectedPromotion ? String(selectedPromotion.id || '') : '', placeholder: 'Digite nome, tipo, descrição ou benefício...' });
+    return _featuredComboboxHtml({ kind: 'promotion', inputId: 'tpl-featured-promotion-picker', hiddenId: 'tpl-featured-promotion', dropdownId: 'tpl-featured-promotion-dropdown', label: 'Selecionar promoção ativa', displayValue: selectedPromotion ? _promotionPickerValue(selectedPromotion) : '', hiddenValue: selectedPromotion ? _templateMarketingId(selectedPromotion) : '', placeholder: 'Digite nome, tipo, descrição ou benefício...' });
   }
   function _templateLanguage() {
     return _normalizeTemplateLanguage(_val('tpl-language') || (((_storeConfig.geral || {}).language) || ((_storeConfig.template || {}).language) || 'es-ES'));
@@ -3437,7 +3693,7 @@ Modules.Catalogo = (function () {
     return { code: code || 'ES', cfg: cfg || {}, country: (cfg && cfg.label) || (code === 'PT' ? 'Portugal' : 'Espanha') };
   }
   function _loadStoreConfig() {
-    var keys = ['geral', 'aparencia', 'template', 'pagamentos', 'endereco', 'horarios', 'zonas', 'seo', 'seoTechnical', 'dominio', 'financeiro'];
+    var keys = ['geral', 'aparencia', 'template', 'pagamentos', 'endereco', 'horarios', 'zonas', 'seo', 'seoTechnical', 'dominio', 'financeiro', 'pontos_program'];
     return Promise.all(keys.map(function (k) { return DB.getDocRoot('config', k).catch(function () { return {}; }); })).then(function (docs) {
       _storeConfig = {};
       keys.forEach(function (k, i) { _storeConfig[k] = docs[i] || {}; });
@@ -3508,15 +3764,16 @@ Modules.Catalogo = (function () {
   function _uploadStoreImage(event, kind) {
     var file = event && event.target && event.target.files ? event.target.files[0] : null;
     if (!file || !window.ImageTools) return;
-    var target = kind === 'banner' || kind === 'bannerDesktop' || kind === 'bannerMobile' || kind === 'promoMobile' || kind === 'promoDesktop' || kind === 'share' || kind === 'favicon' ? kind : 'logo';
+    var target = kind === 'banner' || kind === 'bannerDesktop' || kind === 'bannerMobile' || kind === 'promoMobile' || kind === 'promoDesktop' || kind === 'featured' || kind === 'share' || kind === 'favicon' ? kind : 'logo';
     var imageKind = target === 'logo' || target === 'favicon' ? 'logo' : 'banner';
-    var storageFolder = target === 'logo' || target === 'favicon' ? 'logos' : (target === 'promoMobile' || target === 'promoDesktop' || target === 'share' ? 'featured' : 'banners');
-    ImageTools.process(file, { kind: target === 'promoMobile' || target === 'promoDesktop' || target === 'share' ? 'featured' : imageKind, folder: storageFolder, entityId: 'catalogo-' + target }).then(function (result) {
+    var storageFolder = target === 'logo' || target === 'favicon' ? 'logos' : (target === 'promoMobile' || target === 'promoDesktop' || target === 'featured' || target === 'share' ? 'featured' : 'banners');
+    ImageTools.process(file, { kind: target === 'promoMobile' || target === 'promoDesktop' || target === 'featured' || target === 'share' ? 'featured' : imageKind, folder: storageFolder, entityId: 'catalogo-' + target }).then(function (result) {
       _imageUploadState()[target] = result;
       var fieldMap = {
         logo: 'tpl-logo-url',
         favicon: 'tpl-favicon-url',
         share: 'seo-og-image',
+        featured: 'tpl-featured-image-url',
         promoMobile: 'tpl-mobile-promo-banner-url',
         promoDesktop: 'tpl-desktop-promo-banner-url',
         bannerMobile: 'tpl-banner-mobile-url'
@@ -3525,6 +3782,7 @@ Modules.Catalogo = (function () {
         logo: 'tpl-preview-logo',
         favicon: 'tpl-preview-favicon',
         share: 'seo-preview-share-img',
+        featured: 'tpl-preview-featured-image',
         promoMobile: 'tpl-preview-mobile-promo-banner',
         promoDesktop: 'tpl-preview-desktop-promo-banner',
         bannerMobile: 'tpl-preview-banner-mobile'
@@ -3544,6 +3802,8 @@ Modules.Catalogo = (function () {
           ? { logoUrl: publicUrl, logoStoragePath: result.imageStoragePath || '', logoImagePath: result.imagePath || result.imageStoragePath || '', logoWidth: result.imageWidth || 0, logoHeight: result.imageHeight || 0, logoSizeKb: result.imageSizeKb || 0, logoFormat: result.imageFormat || 'webp' }
           : target === 'favicon'
             ? { faviconUrl: publicUrl, faviconStoragePath: result.imageStoragePath || '', faviconImagePath: result.imagePath || result.imageStoragePath || '', faviconWidth: result.imageWidth || 0, faviconHeight: result.imageHeight || 0, faviconSizeKb: result.imageSizeKb || 0, faviconFormat: result.imageFormat || 'webp' }
+          : target === 'featured'
+            ? { featuredActionImageUrl: publicUrl, featuredImageUrl: publicUrl, featuredActionImageStoragePath: result.imageStoragePath || '', featuredActionImagePath: result.imagePath || result.imageStoragePath || '', featuredActionImageWidth: result.imageWidth || 0, featuredActionImageHeight: result.imageHeight || 0, featuredActionImageSizeKb: result.imageSizeKb || 0, featuredActionImageFormat: result.imageFormat || 'webp' }
           : target === 'promoMobile'
             ? { mobilePromoBannerImageUrl: publicUrl, promoBannerImageUrl: publicUrl, promotionalBannerImageUrl: publicUrl, mobilePromoBannerStoragePath: result.imageStoragePath || '', promoBannerImageStoragePath: result.imageStoragePath || '', promoBannerImagePath: result.imagePath || result.imageStoragePath || '', mobilePromoBannerWidth: result.imageWidth || 0, mobilePromoBannerHeight: result.imageHeight || 0, mobilePromoBannerSizeKb: result.imageSizeKb || 0, mobilePromoBannerFormat: result.imageFormat || 'webp' }
           : target === 'promoDesktop'
@@ -3555,6 +3815,8 @@ Modules.Catalogo = (function () {
           ? { logoUrl: publicUrl }
           : target === 'favicon'
             ? { faviconUrl: publicUrl }
+          : target === 'featured'
+            ? { featuredActionImageUrl: publicUrl, featuredImageUrl: publicUrl }
           : target === 'promoMobile'
             ? { mobilePromoBannerImageUrl: publicUrl, promoBannerImageUrl: publicUrl }
           : target === 'promoDesktop'
@@ -3585,10 +3847,10 @@ Modules.Catalogo = (function () {
     });
   }
   function _clearStoreImage(kind) {
-    var target = kind === 'promoMobile' ? 'promoMobile' : (kind === 'promoDesktop' ? 'promoDesktop' : (kind === 'bannerMobile' ? 'bannerMobile' : (kind === 'bannerDesktop' ? 'bannerDesktop' : (kind === 'banner' ? 'banner' : (kind === 'favicon' ? 'favicon' : 'logo')))));
-    var fieldId = target === 'logo' ? 'tpl-logo-url' : (target === 'favicon' ? 'tpl-favicon-url' : (target === 'promoMobile' ? 'tpl-mobile-promo-banner-url' : (target === 'promoDesktop' ? 'tpl-desktop-promo-banner-url' : (target === 'bannerMobile' ? 'tpl-banner-mobile-url' : 'tpl-banner-url'))));
-    var previewId = target === 'logo' ? 'tpl-preview-logo' : (target === 'favicon' ? 'tpl-preview-favicon' : (target === 'promoMobile' ? 'tpl-preview-mobile-promo-banner' : (target === 'promoDesktop' ? 'tpl-preview-desktop-promo-banner' : (target === 'bannerMobile' ? 'tpl-preview-banner-mobile' : 'tpl-preview-banner-desktop'))));
-    var placeholderId = target === 'logo' ? 'tpl-preview-logo-placeholder' : (target === 'favicon' ? 'tpl-preview-favicon-placeholder' : (target === 'promoMobile' ? 'tpl-preview-mobile-promo-banner-placeholder' : (target === 'promoDesktop' ? 'tpl-preview-desktop-promo-banner-placeholder' : (target === 'bannerMobile' ? 'tpl-preview-banner-mobile-placeholder' : 'tpl-preview-banner-desktop-placeholder'))));
+    var target = kind === 'featured' ? 'featured' : (kind === 'promoMobile' ? 'promoMobile' : (kind === 'promoDesktop' ? 'promoDesktop' : (kind === 'bannerMobile' ? 'bannerMobile' : (kind === 'bannerDesktop' ? 'bannerDesktop' : (kind === 'banner' ? 'banner' : (kind === 'favicon' ? 'favicon' : 'logo'))))));
+    var fieldId = target === 'logo' ? 'tpl-logo-url' : (target === 'favicon' ? 'tpl-favicon-url' : (target === 'featured' ? 'tpl-featured-image-url' : (target === 'promoMobile' ? 'tpl-mobile-promo-banner-url' : (target === 'promoDesktop' ? 'tpl-desktop-promo-banner-url' : (target === 'bannerMobile' ? 'tpl-banner-mobile-url' : 'tpl-banner-url')))));
+    var previewId = target === 'logo' ? 'tpl-preview-logo' : (target === 'favicon' ? 'tpl-preview-favicon' : (target === 'featured' ? 'tpl-preview-featured-image' : (target === 'promoMobile' ? 'tpl-preview-mobile-promo-banner' : (target === 'promoDesktop' ? 'tpl-preview-desktop-promo-banner' : (target === 'bannerMobile' ? 'tpl-preview-banner-mobile' : 'tpl-preview-banner-desktop')))));
+    var placeholderId = target === 'logo' ? 'tpl-preview-logo-placeholder' : (target === 'favicon' ? 'tpl-preview-favicon-placeholder' : (target === 'featured' ? 'tpl-preview-featured-image-placeholder' : (target === 'promoMobile' ? 'tpl-preview-mobile-promo-banner-placeholder' : (target === 'promoDesktop' ? 'tpl-preview-desktop-promo-banner-placeholder' : (target === 'bannerMobile' ? 'tpl-preview-banner-mobile-placeholder' : 'tpl-preview-banner-desktop-placeholder')))));
     var field = document.getElementById(fieldId);
     var preview = document.getElementById(previewId);
     var placeholder = document.getElementById(placeholderId);
@@ -3996,14 +4258,31 @@ Modules.Catalogo = (function () {
     Promise.all([
       _loadStoreConfig(),
       DB.getAll('products').catch(function () { return []; }),
+      DB.getAll('produtos').catch(function () { return []; }),
+      DB.getAll('produtos_prontos').catch(function () { return []; }),
+      DB.getAll('fichasTecnicas').catch(function () { return []; }),
+      DB.getAll('categories').catch(function () { return []; }),
       DB.getAll('coupons').catch(function () { return []; }),
       DB.getAll('promotions').catch(function () { return []; }),
+      DB.getAll('promocoes').catch(function () { return []; }),
       DB.getAll('orders').catch(function () { return []; })
     ]).then(function (results) {
       var productList = results[1] || [];
-      _coupons = results[2] || [];
-      _promotions = results[3] || [];
-      _orders = results[4] || [];
+      var marketingProductSources = []
+        .concat(results[1] || [])
+        .concat(results[2] || [])
+        .concat(results[3] || [])
+        .concat(results[4] || []);
+      _categories = (results[5] || []).slice().sort(function (a, b) {
+        return (a.order || 0) - (b.order || 0) || String(a.name || a.label || '').localeCompare(String(b.name || b.label || ''));
+      });
+      _coupons = results[6] || [];
+      _promotions = _mergeTemplatePromotions([
+        results[7] || [],
+        results[8] || [],
+        marketingProductSources.map(_deriveTemplatePromotionFromProduct).filter(Boolean)
+      ]);
+      _orders = results[9] || [];
       _products = productList.slice().sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
       _ensureTemplateStyles();
       var geral = _storeConfig.geral || {};
@@ -4012,11 +4291,14 @@ Modules.Catalogo = (function () {
       var end = _storeConfig.endereco || {};
       var pay = _storeConfig.pagamentos || {};
       var financeiro = _storeConfig.financeiro || {};
+      var pointsCfg = _storeConfig.pontos_program || {};
       var hor = _storeConfig.horarios || {};
       var zonas = _storeConfig.zonas || {};
       var fiscal = _fiscalInfo();
       var regionLabel = fiscal.cfg.regionLabel || (fiscal.code === 'PT' ? 'Distrito' : 'Província/Estado');
-      var statusMode = tpl.statusMode || (tpl.manualClosed ? 'manual_closed' : 'auto');
+      var rawStatusMode = tpl.statusMode || (tpl.manualClosed || tpl.manualOpen ? 'manual' : 'auto');
+      var statusMode = rawStatusMode === 'manual' || rawStatusMode === 'manual_closed' || rawStatusMode === 'manual_open' ? 'manual' : 'auto';
+      var manualStatusClosed = rawStatusMode === 'manual_closed' || tpl.manualClosed === true;
       var days = ['Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado','Domingo'];
       var hoursHtml = days.map(function (d, idx) {
         var row = (hor.days && hor.days[idx]) || (tpl.hours && tpl.hours[idx]) || {};
@@ -4039,10 +4321,11 @@ Modules.Catalogo = (function () {
       var logo = app.logoUrl || geral.logoUrl || tpl.logoUrl || '';
       var banner = app.coverImageUrl || geral.coverImageUrl || tpl.coverImageUrl || app.bannerUrl || geral.bannerUrl || tpl.bannerUrl || '';
       var bannerMobile = app.coverImageMobileUrl || geral.coverImageMobileUrl || tpl.coverImageMobileUrl || app.mobileCoverImageUrl || geral.mobileCoverImageUrl || tpl.mobileCoverImageUrl || app.bannerMobileUrl || geral.bannerMobileUrl || tpl.bannerMobileUrl || '';
-      var featuredType = tpl.featuredActionType || 'none';
+      var featuredType = tpl.featuredActionType === 'featured_product' ? 'none' : (tpl.featuredActionType || 'none');
       var featuredTarget = featuredType === 'custom' ? (tpl.featuredActionTarget || '') : '';
       var featuredCouponId = tpl.featuredActionCouponId || tpl.featuredCouponId || '';
       var featuredPromotionId = tpl.featuredActionPromotionId || tpl.featuredPromotionId || '';
+      var featuredImageUrl = _cleanPublicUrl(tpl.featuredActionImageUrl || tpl.featuredImageUrl || '');
       var mostOrderedMode = tpl.mostOrderedMode || tpl.featuredMostOrderedMode || 'auto';
       var mobilePromoTarget = tpl.mobilePromoBannerTarget || tpl.promoBannerTarget || ((tpl.mobilePromoBannerProductId || tpl.promoBannerProductId) ? 'product' : 'promotion');
       var mobilePromoPromotionId = tpl.mobilePromoBannerPromotionId || tpl.promoBannerPromotionId || tpl.mobilePromoPromotionId || '';
@@ -4190,70 +4473,29 @@ Modules.Catalogo = (function () {
                 '</div>' +
               '</div>' +
             '</section>' +
-            '<section class="tpl-config-panel" style="' + _cardStyle() + '">' + _sectionTitle('Banner promocional', '', 'campaign') +
-              '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                '<div style="display:none;">' +
-                  '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">web_asset</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo do topo</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Controle faixa, capa e elementos de navegação da loja.</div></div></div>' +
-                  '<div style="display:flex;gap:7px;flex-wrap:wrap;">' +
-                    '<span class="tpl-config-chip">' + (tpl.topPromoEnabled ? 'Banner ativo' : 'Sem banner') + '</span>' +
-                    '<span class="tpl-config-chip">' + (tpl.topUseCover !== false ? 'Capa ativa' : 'Sem capa') + '</span>' +
-                    '<span class="tpl-config-chip">' + (tpl.topShowChips !== false ? 'Chips visíveis' : 'Chips ocultos') + '</span>' +
-                  '</div>' +
-                '</div>' +
-                '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                  '<div id="tpl-promo-config" style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div style="display:flex;align-items:flex-start;justify-content:flex-start;gap:12px;flex-wrap:wrap;">' +
-                      _premiumSwitchHtml('tpl-top-promo-enabled', 'Mostrar Faixa no Topo', !!tpl.topPromoEnabled, '') +
-                    '</div>' +
-                    '<div id="tpl-promo-settings" style="display:' + (tpl.topPromoEnabled ? 'grid' : 'none') + ';grid-template-columns:repeat(auto-fit,minmax(220px,1fr));column-gap:12px;row-gap:8px;align-items:start;">' +
-                      _fieldHtml('tpl-top-promo-text', 'Texto do banner promocional', tpl.topPromoText || '', 'Entrega grátis acima de €30') +
-                      _colorFieldHtml('tpl-top-promo-color', 'Cor do banner promocional', tpl.topPromoColor || '#B42318', '') +
-                      _colorFieldHtml('tpl-top-promo-text-color', 'Cor da letra do banner promocional', tpl.topPromoTextColor || tpl.promoBannerTextColor || tpl.bannerPromoTextColor || '#FFFFFF', '') +
-                      _toggleHtml('tpl-top-promo-closable', 'Permitir fechar banner', tpl.topPromoClosable !== false, '') +
-                      '<div id="tpl-promo-banner-preview" style="grid-column:1 / -1;display:flex;align-items:center;justify-content:center;min-height:48px;margin-top:-2px;padding:9px 14px;border-radius:12px;border:1px solid #EAE4DA;background:' + _esc(_normalizeHexColor(tpl.topPromoColor || '#B42318')) + ';color:' + _esc(_normalizeHexColor(tpl.topPromoTextColor || tpl.promoBannerTextColor || tpl.bannerPromoTextColor || '#FFFFFF')) + ';font-size:13px;font-weight:800;line-height:1.25;text-align:center;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);">Entrega grátis acima de €30</div>' +
-                    '</div>' +
-                  '</div>' +
-                  '<div id="tpl-mobile-promo-config" style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div style="display:flex;align-items:flex-start;justify-content:flex-start;gap:12px;flex-wrap:wrap;">' +
-                      _premiumSwitchHtml('tpl-mobile-promo-banner-enabled', 'Mostrar banner promocional', tpl.mobilePromoBannerEnabled !== false && tpl.promotionalBannerEnabled !== false && tpl.promoVisualBannerEnabled !== false, '') +
-                    '</div>' +
-                    '<div style="display:grid;grid-template-columns:minmax(260px,1.1fr) minmax(220px,.9fr);gap:12px;align-items:start;">' +
-                      '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                        _imageConfigHtml('promoMobile', { hideUrl: true, fileId: 'tpl-mobile-promo-banner-file', urlId: 'tpl-mobile-promo-banner-url', previewId: 'tpl-preview-mobile-promo-banner', placeholderId: 'tpl-preview-mobile-promo-banner-placeholder', label: 'Imagem do banner promocional mobile', value: tpl.mobilePromoBannerImageUrl || tpl.promoBannerImageUrl || tpl.promotionalBannerImageUrl || '', placeholder: 'Sem banner promocional', note: 'Tamanho recomendado: 1080 × 420 px. Use imagem com produto/combinação em destaque.' }) +
-                        _imageConfigHtml('promoDesktop', { hideUrl: true, fileId: 'tpl-desktop-promo-banner-file', urlId: 'tpl-desktop-promo-banner-url', previewId: 'tpl-preview-desktop-promo-banner', placeholderId: 'tpl-preview-desktop-promo-banner-placeholder', label: 'Imagem do banner promocional desktop', value: tpl.desktopPromoBannerImageUrl || tpl.promoBannerDesktopImageUrl || '', placeholder: 'Sem banner promocional desktop', note: 'Tamanho recomendado: 1600 × 520 px. Use uma imagem horizontal, com boa leitura em telas maiores.' }) +
-                      '</div>' +
-                      '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                        _fieldHtml('tpl-mobile-promo-banner-badge', 'Selo do banner', tpl.mobilePromoBannerBadge || tpl.promoBannerBadge || '', 'Mais pedido') +
-                        _fieldHtml('tpl-mobile-promo-banner-title', 'Título do banner', tpl.mobilePromoBannerTitle || tpl.promoBannerTitle || '', 'Combo Burger Clássico') +
-                        _textareaHtml('tpl-mobile-promo-banner-text', 'Texto curto', tpl.mobilePromoBannerText || tpl.promoBannerSubtitle || '', 'Burger + batata + refrigerante', 2) +
-                        _fieldHtml('tpl-mobile-promo-banner-button', 'Texto do botão', tpl.mobilePromoBannerButtonText || tpl.promoBannerButtonText || '', 'Ver detalhes') +
-                        _selectHtml('tpl-mobile-promo-banner-target', 'Ao clicar no banner', mobilePromoTarget, [
-                          { value: 'promotion', label: 'Abrir página da promoção' },
-                          { value: 'product', label: 'Abrir produto da promoção' },
-                          { value: 'all_promotions', label: 'Abrir todas as promoções' }
-                        ]) +
-                        '<div id="tpl-mobile-promo-banner-promotion-wrap" style="display:' + (mobilePromoTarget === 'promotion' ? 'block' : 'none') + ';">' +
-                          _promotionPickerHtml(mobilePromoPromotionId).replace(/tpl-featured-promotion-picker/g, 'tpl-mobile-promo-banner-promotion-picker').replace(/tpl-featured-promotion-dropdown/g, 'tpl-mobile-promo-banner-promotion-dropdown').replace(/tpl-featured-promotion/g, 'tpl-mobile-promo-banner-promotion').replace('Selecionar promoção ativa', 'Promoção que será aberta') +
-                        '</div>' +
-                        '<div id="tpl-mobile-promo-banner-product-wrap" style="display:' + (mobilePromoTarget === 'product' ? 'block' : 'none') + ';">' +
-                          _mobilePromoProductPickerHtml(mobilePromoProductId) +
-                        '</div>' +
-                        '<div id="tpl-mobile-promo-banner-all-note" style="display:' + (mobilePromoTarget === 'all_promotions' ? 'block' : 'none') + ';padding:11px 12px;border:1px solid #F0E8DE;border-radius:12px;background:#FFFDFC;color:#766B63;font-size:12px;line-height:1.45;">Não precisa escolher item específico. O banner leva para a área com todas as promoções ativas.</div>' +
-                      '</div>' +
-                    '</div>' +
-                  '</div>' +
-                  '<input id="tpl-top-show-region" type="checkbox" style="display:none;"' + (tpl.topShowRegion !== false ? ' checked' : '') + '>' +
-                  '<input id="tpl-top-more-info" type="checkbox" style="display:none;"' + (tpl.topShowMoreInfo !== false ? ' checked' : '') + '>' +
-                  '<input id="tpl-top-chips" type="checkbox" style="display:none;"' + (tpl.topShowChips !== false ? ' checked' : '') + '>' +
-                '</div>' +
-              '</div>' +
-            '</section>' +
+            '<input id="tpl-top-promo-enabled" type="checkbox" style="display:none;">' +
+            '<input id="tpl-mobile-promo-banner-enabled" type="checkbox" style="display:none;">' +
+            '<input id="tpl-top-promo-closable" type="checkbox" style="display:none;"' + (tpl.topPromoClosable !== false ? ' checked' : '') + '>' +
+            '<input id="tpl-top-promo-text" type="hidden" value="' + _esc(tpl.topPromoText || '') + '">' +
+            '<input id="tpl-top-promo-color" type="hidden" value="' + _esc(tpl.topPromoColor || '#B42318') + '">' +
+            '<input id="tpl-top-promo-text-color" type="hidden" value="' + _esc(tpl.topPromoTextColor || tpl.promoBannerTextColor || tpl.bannerPromoTextColor || '#FFFFFF') + '">' +
+            '<input id="tpl-mobile-promo-banner-url" type="hidden" value="' + _esc(tpl.mobilePromoBannerImageUrl || tpl.promoBannerImageUrl || tpl.promotionalBannerImageUrl || '') + '">' +
+            '<input id="tpl-desktop-promo-banner-url" type="hidden" value="' + _esc(tpl.desktopPromoBannerImageUrl || tpl.promoBannerDesktopImageUrl || '') + '">' +
+            '<input id="tpl-mobile-promo-banner-badge" type="hidden" value="' + _esc(tpl.mobilePromoBannerBadge || tpl.promoBannerBadge || '') + '">' +
+            '<input id="tpl-mobile-promo-banner-title" type="hidden" value="' + _esc(tpl.mobilePromoBannerTitle || tpl.promoBannerTitle || '') + '">' +
+            '<input id="tpl-mobile-promo-banner-text" type="hidden" value="' + _esc(tpl.mobilePromoBannerText || tpl.promoBannerSubtitle || '') + '">' +
+            '<input id="tpl-mobile-promo-banner-button" type="hidden" value="' + _esc(tpl.mobilePromoBannerButtonText || tpl.promoBannerButtonText || '') + '">' +
+            '<input id="tpl-mobile-promo-banner-promotion" type="hidden" value="' + _esc(mobilePromoPromotionId) + '">' +
+            '<input id="tpl-mobile-promo-banner-product" type="hidden" value="' + _esc(mobilePromoProductId) + '">' +
+            '<input id="tpl-mobile-promo-banner-target" type="hidden" value="' + _esc(mobilePromoTarget) + '">' +
+            '<input id="tpl-top-show-region" type="checkbox" style="display:none;"' + (tpl.topShowRegion !== false ? ' checked' : '') + '>' +
+            '<input id="tpl-top-more-info" type="checkbox" style="display:none;"' + (tpl.topShowMoreInfo !== false ? ' checked' : '') + '>' +
+            '<input id="tpl-top-chips" type="checkbox" style="display:none;"' + (tpl.topShowChips !== false ? ' checked' : '') + '>' +
             '</div>' +
             '<aside class="tpl-maincard-preview-shell">' +
               '<div class="tpl-maincard-preview-phone">' +
-                '<div id="tpl-maincard-preview-promo" class="tpl-maincard-preview-promo">Entrega grátis acima de €30</div>' +
                 '<div id="tpl-maincard-preview-hero" class="tpl-maincard-preview-hero" style="' + (bannerMobile || banner ? 'background-image:linear-gradient(180deg,rgba(28,18,10,.20) 0%,rgba(28,18,10,.03) 54%,rgba(255,250,243,0) 100%),url(&quot;' + _esc(_cleanPublicUrl(bannerMobile || banner)) + '&quot;);' : '') + '">' +
-                  '<div class="tpl-maincard-preview-nav"><div class="tpl-maincard-preview-nav-left"><span class="tpl-maincard-preview-circle">‹</span><span class="tpl-maincard-preview-pill"><span id="tpl-maincard-preview-avatar" class="tpl-maincard-preview-avatar">' + _esc(String(identityName || 'BF').slice(0, 2).toUpperCase()) + '</span>Entrar</span></div><div class="tpl-maincard-preview-nav-side"><span class="tpl-maincard-preview-circle"><span class="mi" style="font-size:15px;">search</span></span><span class="tpl-maincard-preview-circle"><span class="mi" style="font-size:15px;">shopping_bag</span></span></div></div>' +
+                  '<div class="tpl-maincard-preview-nav"><div class="tpl-maincard-preview-nav-left"><span class="tpl-maincard-preview-circle">‹</span><span class="tpl-maincard-preview-pill"><span id="tpl-maincard-preview-avatar" class="tpl-maincard-preview-avatar"><svg viewBox="0 0 24 24"><path d="M20 21a8 8 0 0 0-16 0"></path><circle cx="12" cy="8" r="4"></circle></svg></span>Entrar</span></div><div class="tpl-maincard-preview-nav-side"><span class="tpl-maincard-preview-circle"><span class="mi" style="font-size:15px;">search</span></span><span class="tpl-maincard-preview-circle"><span class="mi" style="font-size:15px;">shopping_bag</span></span></div></div>' +
                   '<div class="tpl-maincard-preview-card">' +
                     '<div class="tpl-maincard-preview-head">' +
                       '<div id="tpl-maincard-preview-logo" class="tpl-maincard-preview-logo">' + (logo ? '<img src="' + _esc(_cleanPublicUrl(logo)) + '" alt="">' : '<span class="mi" style="font-size:25px;">storefront</span>') + '</div>' +
@@ -4267,20 +4509,26 @@ Modules.Catalogo = (function () {
                     '</div>' +
                   '</div>' +
                 '</div>' +
-                '<div id="tpl-maincard-preview-mobile-banner" class="tpl-maincard-preview-mobile-banner">' +
-                  '<div class="tpl-maincard-preview-mobile-banner-copy">' +
-                    '<span id="tpl-maincard-preview-mobile-banner-badge" class="tpl-maincard-preview-mobile-banner-badge">Mais pedido</span>' +
-                    '<div id="tpl-maincard-preview-mobile-banner-title" class="tpl-maincard-preview-mobile-banner-title">Combo Burger Clássico</div>' +
-                    '<div id="tpl-maincard-preview-mobile-banner-text" class="tpl-maincard-preview-mobile-banner-text">Burger + batata + refrigerante</div>' +
-                    '<span id="tpl-maincard-preview-mobile-banner-cta" class="tpl-maincard-preview-mobile-banner-cta">Ver detalhes</span>' +
-                  '</div>' +
-                '</div>' +
               '</div>' +
             '</aside>' +
             '</div>' +
-            '<section ' + _templatePanelAttrs('vitrine') + ' style="' + _cardStyle() + '">' + _sectionTitle('Menu de categorias', 'Controle os elementos gráficos opcionais das categorias no template mobile. Se não houver imagem, o menu usa emoji ou apenas texto.', 'category') +
-              '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                _templateCategoryVisualsHtml() +
+            '<section ' + _templatePanelAttrs('vitrine') + ' style="' + _cardStyle() + '">' + _sectionTitle('Ordem das categorias', 'Arraste para definir a sequência que aparece no menu e nas seções da loja pública.', 'swap_vert') +
+              '<div style="display:grid;gap:12px;">' +
+                _templateCategoryOrderHtml() +
+              '</div>' +
+            '</section>' +
+            '<section ' + _templatePanelAttrs('vitrine') + ' style="' + _cardStyle() + '">' + _sectionTitle('Programa de pontos', 'O card público usa as regras configuradas em Ações de Vendas → Programa de Pontos.', 'loyalty') +
+              '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;">' +
+                '<div style="min-width:0;">' +
+                  '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:9px;">' +
+                    '<span style="' + chipStyle + '">' + (pointsCfg.active === false ? 'Oculto no público' : 'Ativo no público') + '</span>' +
+                    '<span style="' + chipStyle + '">' + _esc(pointsCfg.programName || 'Programa de Pontos') + '</span>' +
+                  '</div>' +
+                  '<div style="font-size:13px;font-weight:760;color:#1F1F1F;line-height:1.25;">' + _esc(pointsCfg.programName || 'Programa de Pontos') + '</div>' +
+                  '<div style="font-size:12px;color:#6F6860;line-height:1.45;margin-top:4px;">' + _esc(pointsCfg.storeText || 'Configure o texto e as regras do programa no módulo de pontos. O card da loja pública será atualizado automaticamente.') + '</div>' +
+                  '<div style="font-size:11px;color:#8A7E7C;line-height:1.4;margin-top:8px;">' + _esc((pointsCfg.earnPerEuro || 1) + ' ponto(s) a cada €1 · ' + (pointsCfg.redeemRate || 10) + ' pontos = €1 de desconto') + '</div>' +
+                '</div>' +
+                '<button type="button" onclick="Router.navigate(\'marketing/pontos\')" style="height:38px;padding:0 14px;border:none;border-radius:12px;background:#B42318;color:#fff;font-size:12px;font-weight:760;cursor:pointer;font-family:inherit;box-shadow:0 8px 18px rgba(180,35,24,.16);white-space:nowrap;">Configurar pontos</button>' +
               '</div>' +
             '</section>' +
             '<section ' + _templatePanelAttrs('vitrine') + ' style="' + _cardStyle() + '">' + _sectionTitle('Destaque comercial do topo', 'Escolha o conteúdo do card lateral/comercial exibido ao lado do resumo da loja no desktop e abaixo no mobile.', 'campaign') +
@@ -4301,14 +4549,21 @@ Modules.Catalogo = (function () {
                     { value: 'none', label: 'Nenhum' },
                     { value: 'coupon', label: 'Cupom ativo' },
                     { value: 'promotion', label: 'Promoção ativa' },
-                    { value: 'featured_product', label: 'Produto destaque' },
                     { value: 'most_ordered', label: 'Produto mais pedido' },
                     { value: 'custom', label: 'Texto personalizado' }
-                  ]) +
+                    ]) +
+                    '<div style="grid-column:1/-1;display:grid;grid-template-columns:minmax(240px,.85fr) minmax(260px,1.15fr);gap:12px;align-items:start;">' +
+                      _imageConfigHtml('featured', { hideUrl: true, cardClass: 'tpl-image-card--featured', previewClass: 'tpl-image-preview--featured', fileId: 'tpl-featured-image-file', urlId: 'tpl-featured-image-url', previewId: 'tpl-preview-featured-image', placeholderId: 'tpl-preview-featured-image-placeholder', label: 'Imagem do card', value: featuredImageUrl, note: 'Opcional. Use uma imagem apetitosa em JPG, PNG ou WebP.', accept: 'image/png,image/jpeg,image/jpg,image/webp' }) +
+                      '<div style="display:grid;gap:10px;">' +
+                        _fieldHtml('tpl-featured-kicker', 'Tag de destaque', tpl.featuredActionKicker || tpl.featuredKicker || '', featuredType === 'coupon' ? 'Cupom especial' : featuredType === 'promotion' ? 'Promoção ativa' : featuredType === 'most_ordered' ? 'Mais pedido' : 'Destaque') +
+                        _fieldHtml('tpl-featured-title', 'Título do card', tpl.featuredActionTitle || '', featuredType === 'coupon' ? 'Cupom disponível' : featuredType === 'promotion' ? 'Promoção da loja' : featuredType === 'most_ordered' ? 'Produto mais pedido' : 'Destaque comercial') +
+                        _textareaHtml('tpl-featured-text', 'Subtítulo do card', tpl.featuredActionText || '', 'Texto curto para explicar o destaque.', 3) +
+                        _fieldHtml('tpl-featured-button-common', 'Texto do CTA', tpl.featuredActionButtonLabel || '', _featuredButtonSuggestion(featuredType, geral.language || tpl.language)) +
+                      '</div>' +
+                    '</div>' +
                   '<div id="tpl-featured-product-wrap" style="display:' + (featuredType === 'featured_product' ? 'block' : 'none') + ';grid-column:1 / -1;">' +
                     _productPickerHtml(featuredType === 'featured_product' ? featuredSelectedId : '') +
                     '<div class="tpl-featured-search-note">A lista mostra apenas produtos do tenant atual. O CTA abre o produto selecionado automaticamente.</div>' +
-                    '<div style="margin-top:12px;">' + _fieldHtml('tpl-featured-button-product', 'Texto do botão opcional', featuredType === 'featured_product' ? (tpl.featuredActionButtonLabel || '') : '', _featuredButtonSuggestion('featured_product', geral.language || tpl.language)) + '</div>' +
                   '</div>' +
                   '<div id="tpl-featured-most-ordered-wrap" style="display:' + (featuredType === 'most_ordered' ? 'block' : 'none') + ';grid-column:1 / -1;">' +
                     '<div style="display:flex;flex-direction:column;gap:12px;">' +
@@ -4317,24 +4572,18 @@ Modules.Catalogo = (function () {
                       '<div id="tpl-most-ordered-manual-wrap" style="display:' + (mostOrderedMode === 'manual' ? 'block' : 'none') + ';">' +
                         _mostOrderedManualPickerHtml(featuredType === 'most_ordered' ? featuredSelectedId : '') +
                       '</div>' +
-                      _fieldHtml('tpl-featured-button-most', 'Texto do botão opcional', featuredType === 'most_ordered' ? (tpl.featuredActionButtonLabel || '') : '', _featuredButtonSuggestion('most_ordered', geral.language || tpl.language)) +
-                    '</div>' +
+                      '</div>' +
                     '<div class="tpl-featured-search-note">No automático, o cálculo usa pedidos reais deste tenant. No manual, a lista mostra apenas produtos do tenant atual.</div>' +
                   '</div>' +
                   '<div id="tpl-featured-coupon-wrap" class="tpl-featured-fields" style="display:' + (featuredType === 'coupon' ? 'flex' : 'none') + ';">' +
                     _couponPickerHtml(featuredCouponId) +
                     '<div class="tpl-featured-search-note">A lista mostra apenas cupons ativos deste tenant. O CTA aplica o cupom automaticamente no carrinho.</div>' +
-                    _fieldHtml('tpl-featured-button', 'Texto do botão opcional', tpl.featuredActionButtonLabel || '', _featuredButtonSuggestion('coupon', geral.language || tpl.language)) +
                   '</div>' +
                   '<div id="tpl-featured-promotion-wrap" class="tpl-featured-fields" style="display:' + (featuredType === 'promotion' ? 'flex' : 'none') + ';">' +
                     _promotionPickerHtml(featuredPromotionId) +
                     '<div class="tpl-featured-search-note">A lista mostra apenas promoções ativas deste tenant. O CTA abre a listagem de produtos da promoção automaticamente.</div>' +
-                    _fieldHtml('tpl-featured-button-promotion', 'Texto do botão opcional', tpl.featuredActionButtonLabel || '', _featuredButtonSuggestion('promotion', geral.language || tpl.language)) +
                   '</div>' +
                   '<div id="tpl-featured-custom-wrap" class="tpl-featured-fields" style="display:' + (featuredType === 'custom' ? 'flex' : 'none') + ';">' +
-                    _fieldHtml('tpl-featured-title', 'Título do card', tpl.featuredActionTitle || '', 'Destaque comercial') +
-                    _textareaHtml('tpl-featured-text', 'Texto do card', tpl.featuredActionText || '', 'Resumo curto do destaque.', 3) +
-                    _fieldHtml('tpl-featured-button-custom', 'Texto do botão', tpl.featuredActionButtonLabel || '', 'Ver destaque') +
                     _selectHtml('tpl-featured-target', 'Ação do botão', featuredTarget, [
                       { value: '', label: 'Sem ação automática' },
                       { value: 'promotions', label: 'Abrir promoções' },
@@ -4346,51 +4595,10 @@ Modules.Catalogo = (function () {
                 '</div>' +
               '</div>' +
             '</section>' +
-            '<section ' + _templatePanelAttrs('vitrine') + ' style="' + _cardStyle() + '">' + _sectionTitle('Destaques da vitrine', 'Escolha produtos para aparecerem no topo da listagem pública.', 'stars') +
+            '<section ' + _templatePanelAttrs('operacao') + ' style="' + _cardStyle() + '">' + _sectionTitle('Entrega e retirada', 'Defina como o cliente recebe o pedido e quais prazos aparecem no checkout.', 'delivery_dining') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 '<div style="display:none;">' +
-                  '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">stars</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo da vitrine</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Defina quais produtos ganham destaque antes da lista completa.</div></div></div>' +
-                  '<div style="display:flex;gap:7px;flex-wrap:wrap;">' +
-                    '<span style="' + chipStyle + '">' + (tpl.showFeaturedProducts === true ? 'Automático ativo' : 'Seleção manual') + '</span>' +
-                    '<span style="' + chipStyle + '">' + showcaseIds.length + ' de 3 escolhidos</span>' +
-                    '<span style="' + chipStyle + '">' + ((_products || []).filter(function (p) { return p && p.menuVisible !== false; }).length) + ' produtos disponíveis</span>' +
-                  '</div>' +
-                  '<small style="display:block;color:#6F6860;font-size:11px;line-height:1.45;">Use produtos marcados no cadastro ou escolha até 3 itens manualmente para a vitrine.</small>' +
-                '</div>' +
-                '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                  '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;"><div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Produtos em destaque</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Escolha a origem da vitrine e os produtos que aparecem em destaque.</div></div><div style="min-width:240px;">' + _toggleHtml('tpl-show-featured-products', 'Usar marcados no cadastro', tpl.showFeaturedProducts === true, 'Puxa automaticamente produtos marcados como destaque.') + '</div></div>' +
-                  '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;align-items:start;">' +
-                    '<div style="display:flex;flex-direction:column;gap:8px;">' +
-                      '<div style="font-size:11px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;">Posição 1</div>' +
-                      _showcaseProductPickerHtml(1, showcaseIds[0] || '') +
-                    '</div>' +
-                    '<div style="display:flex;flex-direction:column;gap:8px;">' +
-                      '<div style="font-size:11px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;">Posição 2</div>' +
-                      _showcaseProductPickerHtml(2, showcaseIds[1] || '') +
-                    '</div>' +
-                    '<div style="display:flex;flex-direction:column;gap:8px;">' +
-                      '<div style="font-size:11px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;">Posição 3</div>' +
-                      _showcaseProductPickerHtml(3, showcaseIds[2] || '') +
-                    '</div>' +
-                  '</div>' +
-                '</div>' +
-              '</div>' +
-            '</section>' +
-            '<section ' + _templatePanelAttrs('vitrine') + ' style="' + _cardStyle() + '">' + _sectionTitle('Programa de fidelidade', 'Bloco exibido no mobile abaixo dos dados principais da loja.', 'loyalty') +
-              '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                  '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;"><div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Clube de pontos</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Ative somente se a loja usar programa de pontos.</div></div><div style="min-width:220px;">' + _toggleHtml('tpl-loyalty-enabled', 'Mostrar fidelidade', tpl.loyaltyEnabled === true || tpl.pointsProgramEnabled === true, '') + '</div></div>' +
-                  _grid(
-                    _fieldHtml('tpl-loyalty-name', 'Nome do programa', tpl.loyaltyProgramName || tpl.pointsProgramName || '', 'Clube da loja') +
-                    _fieldHtml('tpl-loyalty-text', 'Texto curto do programa', tpl.loyaltyShortText || tpl.loyaltyText || '', 'Peça, acumule pontos e ganhe descontos exclusivos.') +
-                    _fieldHtml('tpl-loyalty-button', 'Texto do botão', tpl.loyaltyButtonText || '', 'Ver meus pontos'), '220px') +
-                '</div>' +
-              '</div>' +
-            '</section>' +
-            '<section ' + _templatePanelAttrs('operacao') + ' style="' + _cardStyle() + '">' + _sectionTitle('Entrega e retirada', 'Configure como o cliente pode receber o pedido, os prazos operacionais e as informações exibidas na loja.', 'delivery_dining') +
-              '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                '<div style="display:none;">' +
-                  '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">local_shipping</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo operacional</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Canais, prazos e textos que aparecem na loja.</div></div></div>' +
+                  '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">local_shipping</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo operacional</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Canais e prazos que aparecem na loja.</div></div></div>' +
                   '<div style="display:flex;gap:7px;flex-wrap:wrap;">' +
                     '<span style="' + chipStyle + '">' + (pickupEnabled ? 'Retirada ativa' : 'Retirada inativa') + '</span>' +
                     '<span style="' + chipStyle + '">' + (deliveryEnabled ? 'Entrega ativa' : 'Entrega inativa') + '</span>' +
@@ -4399,32 +4607,35 @@ Modules.Catalogo = (function () {
                   '</div>' +
                   '<small style="display:block;color:#6F6860;font-size:11px;line-height:1.45;">Essas informações alimentam os chips e o resumo do topo da loja.</small>' +
                 '</div>' +
-                '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                  '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Modos de atendimento</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Ative os canais disponíveis para o cliente.</div></div>' +
-                    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;">' +
-                      _checkHtml('tpl-pickup-enabled', 'Ativar retirada', pickupEnabled, '') +
-                      _checkHtml('tpl-delivery-enabled', 'Ativar entrega', deliveryEnabled, '') +
-                    '</div>' +
-                  '</div>' +
-                  '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Capacidade e prazos</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Defina antecedência, preparo e volume de atendimento.</div></div>' +
-                    _grid(
-                      '<label style="display:block;"><span style="' + _labelStyle() + '">Dias mínimos de antecedência</span><input id="tpl-max-advance-days" type="number" min="0" step="1" value="' + _esc(advanceDaysValue) + '" placeholder="0" style="' + _inputStyle() + '"><small style="display:block;margin-top:6px;font-size:11px;line-height:1.35;color:#8A7E7C;">Use 0 para pedidos no mesmo dia.</small></label>' +
-                      _selectHtml('tpl-prep-time', 'Tempo médio de preparo', prepTimeValue, prepTimeOptions) +
-                      '<label style="display:block;"><span style="' + _labelStyle() + '">Pedidos por hora</span><input id="tpl-orders-per-hour" type="number" min="0" step="1" value="' + _esc(ordersPerHourValue) + '" placeholder="12" style="' + _inputStyle() + '"><small style="display:block;margin-top:6px;font-size:11px;line-height:1.35;color:#8A7E7C;">Capacidade por horário disponível.</small></label>', '220px') +
-                  '</div>' +
+                '<div style="display:flex;flex-direction:column;gap:10px;">' +
                   '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px;align-items:start;">' +
-                    '<div id="tpl-delivery-settings-wrap" style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:' + (deliveryEnabled ? 'flex' : 'none') + ';flex-direction:column;gap:12px;">' +
-                      '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Entrega</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Regras e texto exibidos quando a entrega estiver ativa.</div></div>' +
-                      _grid(
-                        '<label style="display:block;"><span style="' + _labelStyle() + '">Pedido mínimo</span><input id="tpl-min-delivery" type="text" inputmode="decimal" value="' + _esc(tpl.minDeliveryOrder || '') + '" placeholder="Ex: 15,00" style="' + _inputStyle() + '"><small style="display:block;margin-top:6px;font-size:11px;line-height:1.35;color:#8A7E7C;">Valor mínimo para liberar entrega.</small></label>' +
-                        _selectHtml('tpl-delivery-time', 'Tempo médio de entrega', deliveryTimeValue, deliveryTimeOptions), '180px') +
-                      '<label style="display:block;"><span style="' + _labelStyle() + '">Texto de entrega</span><textarea id="tpl-delivery-text" rows="3" placeholder="Entregamos na área selecionada." style="' + _inputStyle() + 'min-height:84px;resize:vertical;">' + _esc(tpl.deliveryText || '') + '</textarea></label>' +
+                    '<div style="padding:13px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:10px;">' +
+                      '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Modos de atendimento</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Escolha o que fica disponível no carrinho.</div></div>' +
+                      '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;">' +
+                        _checkHtml('tpl-pickup-enabled', 'Retirada', pickupEnabled, '') +
+                        _checkHtml('tpl-delivery-enabled', 'Entrega', deliveryEnabled, '') +
+                      '</div>' +
                     '</div>' +
-                    '<div id="tpl-pickup-settings-wrap" style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:' + (pickupEnabled ? 'flex' : 'none') + ';flex-direction:column;gap:12px;">' +
-                      '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Retirada</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Texto e instruções mostrados quando a retirada estiver ativa.</div></div>' +
-                      '<label style="display:block;"><span style="' + _labelStyle() + '">Texto de retirada</span><textarea id="tpl-pickup-text" rows="3" placeholder="Retire no endereço informado." style="' + _inputStyle() + 'min-height:84px;resize:vertical;">' + _esc(tpl.pickupText || '') + '</textarea></label>' +
+                    '<div style="padding:13px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:10px;">' +
+                      '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Prazos e capacidade</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Controle antecedência, preparo e volume por horário.</div></div>' +
+                      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:10px;align-items:start;">' +
+                        '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Antecedência</span><input id="tpl-max-advance-days" type="number" min="0" step="1" value="' + _esc(advanceDaysValue) + '" placeholder="0" style="' + _inputStyle() + '"><small style="display:block;margin-top:6px;font-size:11px;line-height:1.35;color:#8A7E7C;">0 permite hoje.</small></label>' +
+                        _selectHtml('tpl-prep-time', 'Tempo de preparo', prepTimeValue, prepTimeOptions) +
+                        '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Pedidos/hora</span><input id="tpl-orders-per-hour" type="number" min="0" step="1" value="' + _esc(ordersPerHourValue) + '" placeholder="12" style="' + _inputStyle() + '"><small style="display:block;margin-top:6px;font-size:11px;line-height:1.35;color:#8A7E7C;">Limite por horário.</small></label>' +
+                      '</div>' +
+                    '</div>' +
+                  '</div>' +
+                  '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px;align-items:start;">' +
+                    '<div id="tpl-delivery-settings-wrap" style="padding:13px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:' + (deliveryEnabled ? 'flex' : 'none') + ';flex-direction:column;gap:10px;">' +
+                      '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Entrega</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Regras usadas quando a entrega estiver ativa.</div></div>' +
+                      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;align-items:start;">' +
+                        '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Pedido mínimo</span><input id="tpl-min-delivery" type="text" inputmode="decimal" value="' + _esc(tpl.minDeliveryOrder || '') + '" placeholder="Ex: 15,00" style="' + _inputStyle() + '"><small style="display:block;margin-top:6px;font-size:11px;line-height:1.35;color:#8A7E7C;">Só para entrega.</small></label>' +
+                        _selectHtml('tpl-delivery-time', 'Tempo de entrega', deliveryTimeValue, deliveryTimeOptions) +
+                      '</div>' +
+                    '</div>' +
+                    '<div id="tpl-pickup-settings-wrap" style="padding:13px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:' + (pickupEnabled ? 'flex' : 'none') + ';flex-direction:column;gap:6px;">' +
+                      '<div style="font-size:12px;font-weight:700;color:#1F1F1F;">Retirada</div>' +
+                      '<div style="font-size:11px;color:#6F6860;line-height:1.35;">Quando ativa, a retirada aparece no carrinho com o endereço da loja.</div>' +
                     '</div>' +
                   '</div>' +
                 '</div>' +
@@ -4435,10 +4646,9 @@ Modules.Catalogo = (function () {
             '<section ' + _templatePanelAttrs('operacao') + ' style="' + _cardStyle() + '">' + _sectionTitle('Horários e status', 'Funcionamento da loja e mensagens especiais.', 'schedule') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 '<div style="display:none;">' +
-                  '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">schedule</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo dos horários</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Defina abertura automática, fechamento manual e horários especiais.</div></div></div>' +
+                  '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">schedule</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo dos horários</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Defina abertura automática, fechamento manual e grade semanal.</div></div></div>' +
                   '<div style="display:flex;gap:7px;flex-wrap:wrap;">' +
-                    '<span style="' + chipStyle + '">' + (statusMode === 'manual_closed' ? 'Fechada manualmente' : statusMode === 'manual_open' ? 'Aberta manualmente' : 'Automática') + '</span>' +
-                    '<span style="' + chipStyle + '">' + ((tpl.specialHoursText || '').trim() ? 'Aviso especial' : 'Sem aviso') + '</span>' +
+                    '<span style="' + chipStyle + '">' + (statusMode === 'manual' ? 'Manual' : 'Automática') + '</span>' +
                     '<span style="' + chipStyle + '">7 dias</span>' +
                   '</div>' +
                   '<small style="display:block;color:#6F6860;font-size:11px;line-height:1.45;">O modo automático usa a grade semanal abaixo para mostrar a loja aberta ou fechada.</small>' +
@@ -4446,15 +4656,14 @@ Modules.Catalogo = (function () {
                 '<div style="display:flex;flex-direction:column;gap:12px;">' +
                   '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
                     '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Status público da loja</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Escolha se o status segue os horários ou se será controlado manualmente.</div></div>' +
-                    _grid(_selectHtml('tpl-status-mode', 'Status da loja', statusMode, [{ value: 'auto', label: 'Automático pelos horários' }, { value: 'manual_open', label: 'Aberta manualmente' }, { value: 'manual_closed', label: 'Fechada temporariamente' }]), '260px') +
+                    _grid(_selectHtml('tpl-status-mode', 'Status da loja', statusMode, [{ value: 'auto', label: 'Automático pelos horários' }, { value: 'manual', label: 'Manual' }]), '260px') +
+                    '<div id="tpl-manual-status-wrap" style="display:' + (statusMode === 'manual' ? 'block' : 'none') + ';">' +
+                      _toggleHtml('tpl-manual-closed', 'Loja fechada', manualStatusClosed, 'Quando estiver manual, este controle define se a loja aparece aberta ou fechada para clientes.') +
+                    '</div>' +
                   '</div>' +
                   '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
                     '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Grade semanal</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Configure abertura, fechamento e segundo período de cada dia.</div></div>' +
                     '<div style="display:flex;flex-direction:column;gap:8px;">' + hoursHtml + '</div>' +
-                  '</div>' +
-                  '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Aviso de horário especial</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Use para feriados, pausas ou mudanças temporárias.</div></div>' +
-                    _textareaHtml('tpl-special-hours', 'Texto para horários especiais', tpl.specialHoursText || '', 'Fechamos em feriados...', 3) +
                   '</div>' +
                 '</div>' +
               '</div>' +
@@ -4643,11 +4852,22 @@ Modules.Catalogo = (function () {
         });
         _bindColorField('tpl-primary-color');
         _bindOpacityField('tpl-banner-overlay-opacity');
+        _bindTemplateCategoryOrder();
         _refreshTemplatePreview();
         _syncTemplatePreviewColumn();
         setTimeout(_syncTemplatePreviewColumn, 160);
         if (window.BocaPlaces) {
-          BocaPlaces.init('tpl-address');
+          BocaPlaces.init('tpl-address', {
+            onPlace: function (place) {
+              var neighborhoodEl = document.getElementById('tpl-neighborhood');
+              var neighborhood = place.neighborhood || place.sublocality || place.district || '';
+              if (neighborhoodEl && neighborhood) {
+                neighborhoodEl.value = neighborhood;
+                try { neighborhoodEl.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {}
+                try { neighborhoodEl.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) {}
+              }
+            }
+          });
           BocaPlaces.init('tpl-delivery-area-city');
         }
       }, 80);
@@ -4789,9 +5009,9 @@ Modules.Catalogo = (function () {
       });
     }
     if (kind === 'promotion') {
-      return _activePromotionOptions().map(function (p) {
+      return _promotionPickerOptions().map(function (p) {
         return {
-          value: String(p.id || ''),
+          value: _templateMarketingId(p),
           label: _promotionPickerValue(p),
           sub: [p.name || p.title, _promotionTypeLabel(p.type), _promotionBenefitText(p)].filter(Boolean).join(' · '),
           search: [p.name, p.title, p.description, p.text, p.customerMessage, p.rulesText, _promotionTypeLabel(p.type), _promotionBenefitText(p), _promotionPickerValue(p)].filter(Boolean).join(' ')
@@ -4932,12 +5152,6 @@ Modules.Catalogo = (function () {
     var mainCardPreviewFacts = document.getElementById('tpl-maincard-preview-facts');
     var mainCardPreviewMore = document.getElementById('tpl-maincard-preview-more');
     var mainCardPreviewChips = document.getElementById('tpl-maincard-preview-chips');
-    var mainCardPreviewPromo = document.getElementById('tpl-maincard-preview-promo');
-    var mainCardPreviewMobileBanner = document.getElementById('tpl-maincard-preview-mobile-banner');
-    var mainCardPreviewMobileBannerBadge = document.getElementById('tpl-maincard-preview-mobile-banner-badge');
-    var mainCardPreviewMobileBannerTitle = document.getElementById('tpl-maincard-preview-mobile-banner-title');
-    var mainCardPreviewMobileBannerText = document.getElementById('tpl-maincard-preview-mobile-banner-text');
-    var mainCardPreviewMobileBannerCta = document.getElementById('tpl-maincard-preview-mobile-banner-cta');
     var promoSettings = document.getElementById('tpl-promo-settings');
     var coverSettings = document.getElementById('tpl-cover-settings');
     var coverConfig = document.getElementById('tpl-cover-config');
@@ -4954,6 +5168,8 @@ Modules.Catalogo = (function () {
     var mobilePromoPromotionWrap = document.getElementById('tpl-mobile-promo-banner-promotion-wrap');
     var mobilePromoProductWrap = document.getElementById('tpl-mobile-promo-banner-product-wrap');
     var mobilePromoAllNote = document.getElementById('tpl-mobile-promo-banner-all-note');
+    var primaryInput = _normalizeHexColor(_val('tpl-primary-color-hex') || _val('tpl-primary-color')) || '#B42318';
+    var palette = _deriveStorePalette(primaryInput) || _deriveStorePalette('#B42318');
     _syncPhoneCompositeFields();
     if (name) {
       name.textContent = _val('tpl-public-name') || 'Nome da loja';
@@ -4963,7 +5179,11 @@ Modules.Catalogo = (function () {
       mainCardPreviewName.textContent = _val('tpl-public-name') || 'Nome da loja';
       mainCardPreviewName.style.display = _checked('tpl-maincard-show-name') ? 'block' : 'none';
     }
-    if (mainCardPreviewAvatar) mainCardPreviewAvatar.textContent = String(_val('tpl-public-name') || 'BF').slice(0, 2).toUpperCase();
+    if (mainCardPreviewAvatar) {
+      mainCardPreviewAvatar.style.background = palette.primaryColor;
+      mainCardPreviewAvatar.style.color = palette.primaryContrast;
+      mainCardPreviewAvatar.innerHTML = '<svg viewBox="0 0 24 24"><path d="M20 21a8 8 0 0 0-16 0"></path><circle cx="12" cy="8" r="4"></circle></svg>';
+    }
     if (shortName) shortName.textContent = _val('tpl-short-name') || _val('tpl-public-name') || 'Loja';
     if (slogan) {
       slogan.textContent = _val('tpl-slogan') || 'Slogan da loja';
@@ -4973,8 +5193,6 @@ Modules.Catalogo = (function () {
       mainCardPreviewSlogan.textContent = _val('tpl-slogan') || 'Apresentação curta da loja';
       mainCardPreviewSlogan.style.display = _checked('tpl-maincard-show-slogan') ? 'block' : 'none';
     }
-    var primaryInput = _normalizeHexColor(_val('tpl-primary-color-hex') || _val('tpl-primary-color')) || '#B42318';
-    var palette = _deriveStorePalette(primaryInput);
     var colorPreview = document.getElementById('tpl-primary-color-preview');
     var palettePreview = document.getElementById('tpl-preview-palette');
     if (colorPreview) {
@@ -5011,34 +5229,17 @@ Modules.Catalogo = (function () {
     }
     if (btn) { btn.textContent = _val('tpl-main-button') || 'Pedir pelo WhatsApp'; btn.style.background = palette.primaryColor; btn.style.color = palette.primaryContrast; }
     var mode = _val('tpl-status-mode') || 'auto';
-    var statusText = mode === 'manual_open' ? 'Aberta manualmente' : (mode === 'manual_closed' ? 'Fechada temporariamente' : 'Automática pelos horários');
+    var manualStatusWrap = document.getElementById('tpl-manual-status-wrap');
+    if (manualStatusWrap) manualStatusWrap.style.display = mode === 'manual' ? 'block' : 'none';
+    var previewOpen = mode === 'manual' ? !_checked('tpl-manual-closed') : _previewStoreOpenNow();
+    var statusText = mode === 'manual' ? 'Manual' : 'Automática pelos horários';
     if (status) status.textContent = statusText + ' · ' + (_checked('tpl-delivery-enabled') ? 'Entrega ativa' : 'Entrega inativa') + ' · ' + (_checked('tpl-pickup-enabled') ? 'Retirada ativa' : 'Retirada inativa');
-    if (statusPill) { statusPill.textContent = mode === 'manual_closed' ? 'Cerrada' : 'Abierta'; statusPill.style.color = mode === 'manual_closed' ? '#B42318' : '#1A9E5A'; statusPill.style.background = mode === 'manual_closed' ? '#FFF0EE' : '#EDFAF3'; statusPill.style.display = _checked('tpl-maincard-show-status') ? 'inline-flex' : 'none'; }
+    if (statusPill) { statusPill.textContent = previewOpen ? 'Abierta' : 'Cerrada'; statusPill.style.color = previewOpen ? '#1A9E5A' : '#B42318'; statusPill.style.background = previewOpen ? '#EDFAF3' : '#FFF0EE'; statusPill.style.display = _checked('tpl-maincard-show-status') ? 'inline-flex' : 'none'; }
     if (promo) {
       promo.style.display = _checked('tpl-top-promo-enabled') ? 'block' : 'none';
       promo.textContent = _val('tpl-top-promo-text') || 'Banner promocional';
       promo.style.background = promoColor;
       promo.style.color = promoTextColor;
-    }
-    if (mainCardPreviewPromo) {
-      mainCardPreviewPromo.style.display = _checked('tpl-top-promo-enabled') ? 'block' : 'none';
-      mainCardPreviewPromo.textContent = _val('tpl-top-promo-text') || 'Entrega grátis acima de €30';
-      mainCardPreviewPromo.style.background = promoColor;
-      mainCardPreviewPromo.style.color = promoTextColor;
-    }
-    if (mainCardPreviewMobileBanner) {
-      var mobilePromoUrl = _cleanPublicUrl(_val('tpl-mobile-promo-banner-url'));
-      var mobilePromoEnabled = _checked('tpl-mobile-promo-banner-enabled');
-      var mobilePromoTitle = _val('tpl-mobile-promo-banner-title') || 'Combo Burger Clássico';
-      var mobilePromoText = _val('tpl-mobile-promo-banner-text') || 'Burger + batata + refrigerante';
-      var mobilePromoBadge = _val('tpl-mobile-promo-banner-badge') || 'Mais pedido';
-      var mobilePromoButton = _val('tpl-mobile-promo-banner-button') || 'Ver detalhes';
-      mainCardPreviewMobileBanner.style.display = mobilePromoEnabled && mobilePromoUrl ? 'block' : 'none';
-      mainCardPreviewMobileBanner.style.backgroundImage = mobilePromoUrl ? 'url("' + mobilePromoUrl.replace(/"/g, '%22') + '")' : '';
-      if (mainCardPreviewMobileBannerBadge) mainCardPreviewMobileBannerBadge.textContent = mobilePromoBadge;
-      if (mainCardPreviewMobileBannerTitle) mainCardPreviewMobileBannerTitle.textContent = mobilePromoTitle;
-      if (mainCardPreviewMobileBannerText) mainCardPreviewMobileBannerText.textContent = mobilePromoText;
-      if (mainCardPreviewMobileBannerCta) mainCardPreviewMobileBannerCta.textContent = mobilePromoButton;
     }
     if (summary) summary.style.display = 'block';
     if (promoSettings) promoSettings.style.display = _checked('tpl-top-promo-enabled') ? 'grid' : 'none';
@@ -5099,7 +5300,7 @@ Modules.Catalogo = (function () {
     if (mainCardPreviewHero) {
       var mainPreviewCoverUrl = bannerMobileUrl || bannerUrl;
       mainCardPreviewHero.style.backgroundImage = mainPreviewCoverUrl && _checked('tpl-top-use-cover')
-        ? 'linear-gradient(180deg,rgba(28,18,10,.20) 0%,rgba(28,18,10,.03) 54%,rgba(255,250,243,0) 100%),url("' + mainPreviewCoverUrl.replace(/"/g, '\\"') + '")'
+        ? 'linear-gradient(180deg,' + bannerOverlayRgba + ' 0%,rgba(' + bannerOverlayRgb.r + ',' + bannerOverlayRgb.g + ',' + bannerOverlayRgb.b + ',' + (Math.max(0, Math.min(1, bannerOverlayOpacity / 100)) * .45) + ') 54%,rgba(' + bannerOverlayRgb.r + ',' + bannerOverlayRgb.g + ',' + bannerOverlayRgb.b + ',0) 100%),url("' + mainPreviewCoverUrl.replace(/"/g, '\\"') + '")'
         : 'linear-gradient(180deg,rgba(28,18,10,.20) 0%,rgba(28,18,10,.03) 54%,rgba(255,250,243,0) 100%),linear-gradient(135deg,#DAC4AF,#F7E8DB)';
     }
     if (mainCardPreviewFacts) {
@@ -5124,7 +5325,7 @@ Modules.Catalogo = (function () {
       var previewZonesForMainCard = _collectDeliveryZonesFromDom();
       var previewMainDeliveryFee = _minActiveDeliveryZoneFee(previewZonesForMainCard);
       if (previewMainDeliveryFee == null || previewMainDeliveryFee === '') previewMainDeliveryFee = _val('tpl-delivery-fee') || ((_storeConfig && _storeConfig.template && _storeConfig.template.deliveryFee) || (_storeConfig && _storeConfig.geral && _storeConfig.geral.deliveryFee) || '');
-      if (_checked('tpl-maincard-show-status')) previewCardChips.push({ label: mode === 'manual_closed' ? 'Fechado' : 'Aberto', tone: mode === 'manual_closed' ? 'closed' : 'open' });
+      if (_checked('tpl-maincard-show-status')) previewCardChips.push({ label: previewOpen ? 'Aberto' : 'Fechado', tone: previewOpen ? 'open' : 'closed' });
       if (_checked('tpl-maincard-show-delivery') && _checked('tpl-delivery-enabled')) previewCardChips.push({ label: 'Entrega ' + (previewMainDeliveryFee !== '' && previewMainDeliveryFee != null ? _fmtMoneyDisplay(previewMainDeliveryFee) : 'desde'), tone: '' });
       if (_checked('tpl-maincard-show-pickup') && _checked('tpl-pickup-enabled')) previewCardChips.push({ label: 'Retirada', tone: '' });
       mainCardPreviewChips.style.display = previewCardChips.length ? 'flex' : 'none';
@@ -5148,7 +5349,7 @@ Modules.Catalogo = (function () {
       if (featuredTitle) { featuredTitle.textContent = _val('tpl-featured-title') || (featuredType === 'coupon' ? 'Cupom disponível' : featuredType === 'promotion' ? 'Promoção ativa' : featuredType === 'custom' ? 'Destaque comercial' : featuredType === 'most_ordered' ? 'Produto mais pedido' : 'Produto destaque'); featuredTitle.style.color = palette.primaryColor; }
       if (featuredText) featuredText.textContent = _val('tpl-featured-text') || 'Resumo do destaque escolhido para o topo.';
       if (featuredBtn) {
-        var btnText = featuredType === 'promotion' ? _val('tpl-featured-button-promotion') : (featuredType === 'custom' ? _val('tpl-featured-button-custom') : (featuredType === 'featured_product' ? _val('tpl-featured-button-product') : (featuredType === 'most_ordered' ? _val('tpl-featured-button-most') : _val('tpl-featured-button'))));
+        var btnText = _val('tpl-featured-button-common') || (featuredType === 'promotion' ? _val('tpl-featured-button-promotion') : (featuredType === 'custom' ? _val('tpl-featured-button-custom') : (featuredType === 'featured_product' ? _val('tpl-featured-button-product') : (featuredType === 'most_ordered' ? _val('tpl-featured-button-most') : _val('tpl-featured-button')))));
         featuredBtn.textContent = btnText || _featuredButtonSuggestion(featuredType) || 'Ver destaque';
         featuredBtn.style.background = palette.primaryColor;
         featuredBtn.style.color = palette.primaryContrast;
@@ -5172,8 +5373,68 @@ Modules.Catalogo = (function () {
     });
   }
 
+  function _minutesFromTime(value) {
+    var parts = String(value || '').split(':').map(Number);
+    if (!isFinite(parts[0])) return null;
+    return (parts[0] || 0) * 60 + (isFinite(parts[1]) ? parts[1] : 0);
+  }
+
+  function _previewStoreOpenNow() {
+    var hours = _collectHours();
+    var now = new Date();
+    var idx = (now.getDay() + 6) % 7;
+    var row = hours[idx] || null;
+    if (!row || row.closed || row.enabled === false) return false;
+    var current = now.getHours() * 60 + now.getMinutes();
+    var periods = [];
+    if (row.open && row.close) periods.push({ start: row.open, end: row.close });
+    if (row.enabled2 && row.open2 && row.close2) periods.push({ start: row.open2, end: row.close2 });
+    return periods.some(function (period) {
+      var start = _minutesFromTime(period.start);
+      var end = _minutesFromTime(period.end);
+      if (start == null || end == null) return false;
+      if (end <= start) return current >= start || current <= end;
+      return current >= start && current <= end;
+    });
+  }
+
+  function _hoursSummaryFromHours(hours) {
+    var dayLabels = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+    var rows = Array.isArray(hours) ? hours : [];
+    var groups = {};
+    rows.slice(0, 7).forEach(function (row, index) {
+      row = row || {};
+      if (row.closed || row.enabled === false) return;
+      var periods = [];
+      if (row.open && row.close) periods.push(row.open + '-' + row.close);
+      if (row.enabled2 && row.open2 && row.close2) periods.push(row.open2 + '-' + row.close2);
+      if (!periods.length) return;
+      var label = periods.join(' / ');
+      if (!groups[label]) groups[label] = [];
+      groups[label].push(index);
+    });
+    function compactDays(indexes) {
+      var parts = [];
+      var start = null;
+      var prev = null;
+      indexes.forEach(function (idx) {
+        if (start === null) { start = idx; prev = idx; return; }
+        if (idx === prev + 1) { prev = idx; return; }
+        parts.push(start === prev ? dayLabels[start] : dayLabels[start] + '-' + dayLabels[prev]);
+        start = idx;
+        prev = idx;
+      });
+      if (start !== null) parts.push(start === prev ? dayLabels[start] : dayLabels[start] + '-' + dayLabels[prev]);
+      return parts.join(', ');
+    }
+    var summary = Object.keys(groups).map(function (label) {
+      return compactDays(groups[label]) + ': ' + label;
+    });
+    return summary.length ? summary.join(' · ') : 'Fechado na semana';
+  }
+
   function _saveTemplateLoja() {
-    if (!_validatePublicUrls([{ id: 'tpl-logo-url', label: 'Logo' }, { id: 'tpl-favicon-url', label: 'Favicon' }, { id: 'tpl-banner-url', label: 'Imagem de capa desktop' }, { id: 'tpl-banner-mobile-url', label: 'Imagem de capa mobile' }, { id: 'tpl-mobile-promo-banner-url', label: 'Banner promocional mobile' }, { id: 'tpl-desktop-promo-banner-url', label: 'Banner promocional desktop' }])) return;
+    if (!_validatePublicUrls([{ id: 'tpl-logo-url', label: 'Logo' }, { id: 'tpl-favicon-url', label: 'Favicon' }, { id: 'tpl-banner-url', label: 'Imagem de capa desktop' }, { id: 'tpl-banner-mobile-url', label: 'Imagem de capa mobile' }, { id: 'tpl-featured-image-url', label: 'Imagem do destaque' }, { id: 'tpl-mobile-promo-banner-url', label: 'Banner promocional mobile' }, { id: 'tpl-desktop-promo-banner-url', label: 'Banner promocional desktop' }])) return;
     var fiscal = _fiscalInfo();
     var hours = _collectHours();
     var collectedDeliveryZones = _collectDeliveryZonesFromDom();
@@ -5200,11 +5461,7 @@ Modules.Catalogo = (function () {
     var coverMobileUrl = _cleanPublicUrl(_val('tpl-banner-mobile-url'));
     var mobilePromoBannerUrl = _cleanPublicUrl(_val('tpl-mobile-promo-banner-url'));
     var desktopPromoBannerUrl = _cleanPublicUrl(_val('tpl-desktop-promo-banner-url'));
-    var showcaseIds = ['tpl-showcase-product-1', 'tpl-showcase-product-2', 'tpl-showcase-product-3'].map(function (id) {
-      return String(_val(id) || '').trim();
-    }).filter(Boolean).filter(function (id, idx, arr) {
-      return arr.indexOf(id) === idx;
-    }).slice(0, 3);
+    var showcaseIds = [];
     var bannerOverlayColor = _normalizeHexColor(_val('tpl-banner-overlay-color')) || _normalizeHexColor(currentTpl.bannerOverlayColor || currentTpl.coverOverlayColor || currentTpl.heroOverlayColor) || '#000000';
     var bannerOverlayOpacityRaw = Number(_val('tpl-banner-overlay-opacity'));
     var bannerOverlayOpacity = isFinite(bannerOverlayOpacityRaw) ? bannerOverlayOpacityRaw : Number(currentTpl.bannerOverlayOpacity != null ? currentTpl.bannerOverlayOpacity : currentTpl.coverOverlayOpacity != null ? currentTpl.coverOverlayOpacity : currentTpl.heroOverlayOpacity != null ? currentTpl.heroOverlayOpacity : 14);
@@ -5214,12 +5471,8 @@ Modules.Catalogo = (function () {
     var mobilePromoBannerProductId = String(_val('tpl-mobile-promo-banner-product') || '').trim();
     var mobilePromoBannerTarget = _val('tpl-mobile-promo-banner-target') || 'promotion';
     var featuredType = _val('tpl-featured-type') || 'none';
-    var featuredButtonLabel = '';
-    if (featuredType === 'coupon') featuredButtonLabel = _val('tpl-featured-button');
-    if (featuredType === 'promotion') featuredButtonLabel = _val('tpl-featured-button-promotion');
-    if (featuredType === 'featured_product') featuredButtonLabel = _val('tpl-featured-button-product');
-    if (featuredType === 'most_ordered') featuredButtonLabel = _val('tpl-featured-button-most');
-    if (featuredType === 'custom') featuredButtonLabel = _val('tpl-featured-button-custom');
+    var featuredButtonLabel = _val('tpl-featured-button-common') || _val('tpl-featured-button') || _val('tpl-featured-button-promotion') || _val('tpl-featured-button-product') || _val('tpl-featured-button-most') || _val('tpl-featured-button-custom');
+    var featuredImageUrl = _cleanPublicUrl(_val('tpl-featured-image-url'));
     var featuredTarget = featuredType === 'custom' ? _val('tpl-featured-target') : '';
     var mostOrderedMode = _val('tpl-most-ordered-mode') || 'auto';
     var featuredProductId = featuredType === 'featured_product' ? _val('tpl-featured-product') : (featuredType === 'most_ordered' && mostOrderedMode === 'manual' ? _val('tpl-featured-most-ordered-product') : '');
@@ -5260,14 +5513,13 @@ Modules.Catalogo = (function () {
     var template = {
       publicName: _val('tpl-public-name'), publicStoreName: _val('tpl-public-name'), shortName: shortNameValue, shortStoreName: shortNameValue, slogan: _val('tpl-slogan'), description: currentTpl.description || currentGeral.description || '', storeDescription: currentTpl.description || currentGeral.description || '', verifiedBadgeEnabled: _checked('tpl-verified-badge'), storeVerified: _checked('tpl-verified-badge'),
       logoUrl: logoUrl, faviconUrl: faviconUrl, coverImageUrl: coverUrl, bannerUrl: coverUrl, coverImageMobileUrl: coverMobileUrl, mobileCoverImageUrl: coverMobileUrl, bannerMobileUrl: coverMobileUrl, logoStoragePath: images.logo && images.logo.imageStoragePath || currentTpl.logoStoragePath || '', logoImagePath: images.logo && (images.logo.imagePath || images.logo.imageStoragePath) || currentTpl.logoImagePath || currentTpl.logoStoragePath || '', faviconStoragePath: images.favicon && images.favicon.imageStoragePath || currentTpl.faviconStoragePath || currentGeral.faviconStoragePath || '', faviconImagePath: images.favicon && (images.favicon.imagePath || images.favicon.imageStoragePath) || currentTpl.faviconImagePath || currentTpl.faviconStoragePath || currentGeral.faviconStoragePath || '', bannerStoragePath: coverUrl ? (images.banner && images.banner.imageStoragePath || currentTpl.bannerStoragePath || currentTpl.coverImageStoragePath || '') : '', bannerImagePath: coverUrl ? (images.banner && (images.banner.imagePath || images.banner.imageStoragePath) || currentTpl.bannerImagePath || currentTpl.bannerStoragePath || currentTpl.coverImageStoragePath || '') : '', coverImageStoragePath: coverUrl ? (images.banner && images.banner.imageStoragePath || currentTpl.coverImageStoragePath || currentTpl.bannerStoragePath || '') : '', bannerMobileStoragePath: coverMobileUrl ? (images.bannerMobile && images.bannerMobile.imageStoragePath || currentTpl.bannerMobileStoragePath || currentTpl.coverImageMobileStoragePath || '') : '', bannerMobileImagePath: coverMobileUrl ? (images.bannerMobile && (images.bannerMobile.imagePath || images.bannerMobile.imageStoragePath) || currentTpl.bannerMobileImagePath || currentTpl.bannerMobileStoragePath || currentTpl.coverImageMobileStoragePath || '') : '', coverImageMobileStoragePath: coverMobileUrl ? (images.bannerMobile && images.bannerMobile.imageStoragePath || currentTpl.coverImageMobileStoragePath || currentTpl.bannerMobileStoragePath || '') : '',
-      topPromoEnabled: _checked('tpl-top-promo-enabled'), showPromoBanner: _checked('tpl-top-promo-enabled'), desktopPromoBannerEnabled: _checked('tpl-mobile-promo-banner-enabled'), promoBannerDesktopEnabled: _checked('tpl-mobile-promo-banner-enabled'), topPromoText: _val('tpl-top-promo-text'), promoBannerText: _val('tpl-top-promo-text'), topPromoColor: _val('tpl-top-promo-color') || primary, promoBannerColor: _val('tpl-top-promo-color') || primary, topPromoTextColor: promoTextColor, promoBannerTextColor: promoTextColor, bannerPromoTextColor: promoTextColor, topPromoClosable: _checked('tpl-top-promo-closable'), promoBannerDismissible: _checked('tpl-top-promo-closable'), topUseCover: _checked('tpl-top-use-cover'), useCoverImage: _checked('tpl-top-use-cover'), topShowRegion: _checked('tpl-top-show-region'), showCityRegion: _checked('tpl-top-show-region'), topShowMoreInfo: _checked('tpl-top-more-info'), showMoreInfoButton: _checked('tpl-top-more-info'), topShowChips: _checked('tpl-top-chips'), showDeliveryPickupChips: _checked('tpl-top-chips'),
-      mobilePromoBannerEnabled: _checked('tpl-mobile-promo-banner-enabled'), promotionalBannerEnabled: _checked('tpl-mobile-promo-banner-enabled'), promoVisualBannerEnabled: _checked('tpl-mobile-promo-banner-enabled'), mobilePromoBannerImageUrl: mobilePromoBannerUrl, promoBannerImageUrl: mobilePromoBannerUrl, promotionalBannerImageUrl: mobilePromoBannerUrl, desktopPromoBannerImageUrl: desktopPromoBannerUrl, promoBannerDesktopImageUrl: desktopPromoBannerUrl, mobilePromoBannerStoragePath: mobilePromoBannerUrl ? (images.promoMobile && images.promoMobile.imageStoragePath || currentTpl.mobilePromoBannerStoragePath || currentTpl.promoBannerImageStoragePath || '') : '', promoBannerImageStoragePath: mobilePromoBannerUrl ? (images.promoMobile && images.promoMobile.imageStoragePath || currentTpl.promoBannerImageStoragePath || currentTpl.mobilePromoBannerStoragePath || '') : '', promoBannerImagePath: mobilePromoBannerUrl ? (images.promoMobile && (images.promoMobile.imagePath || images.promoMobile.imageStoragePath) || currentTpl.promoBannerImagePath || currentTpl.promoBannerImageStoragePath || currentTpl.mobilePromoBannerStoragePath || '') : '', desktopPromoBannerStoragePath: desktopPromoBannerUrl ? (images.promoDesktop && images.promoDesktop.imageStoragePath || currentTpl.desktopPromoBannerStoragePath || currentTpl.promoBannerDesktopStoragePath || '') : '', promoBannerDesktopStoragePath: desktopPromoBannerUrl ? (images.promoDesktop && images.promoDesktop.imageStoragePath || currentTpl.promoBannerDesktopStoragePath || currentTpl.desktopPromoBannerStoragePath || '') : '', desktopPromoBannerImagePath: desktopPromoBannerUrl ? (images.promoDesktop && (images.promoDesktop.imagePath || images.promoDesktop.imageStoragePath) || currentTpl.desktopPromoBannerImagePath || currentTpl.promoBannerDesktopImagePath || currentTpl.desktopPromoBannerStoragePath || '') : '', mobilePromoBannerBadge: _val('tpl-mobile-promo-banner-badge'), promoBannerBadge: _val('tpl-mobile-promo-banner-badge'), mobilePromoBannerTitle: _val('tpl-mobile-promo-banner-title'), promoBannerTitle: _val('tpl-mobile-promo-banner-title'), mobilePromoBannerText: _val('tpl-mobile-promo-banner-text'), promoBannerSubtitle: _val('tpl-mobile-promo-banner-text'), mobilePromoBannerButtonText: _val('tpl-mobile-promo-banner-button'), promoBannerButtonText: _val('tpl-mobile-promo-banner-button'), mobilePromoBannerPromotionId: mobilePromoBannerPromotionId, promoBannerPromotionId: mobilePromoBannerPromotionId, mobilePromoBannerProductId: mobilePromoBannerProductId, promoBannerProductId: mobilePromoBannerProductId, mobilePromoBannerTarget: mobilePromoBannerTarget, promoBannerTarget: mobilePromoBannerTarget,
+      topPromoEnabled: false, showPromoBanner: false, desktopPromoBannerEnabled: false, promoBannerDesktopEnabled: false, topPromoText: _val('tpl-top-promo-text'), promoBannerText: _val('tpl-top-promo-text'), topPromoColor: _val('tpl-top-promo-color') || primary, promoBannerColor: _val('tpl-top-promo-color') || primary, topPromoTextColor: promoTextColor, promoBannerTextColor: promoTextColor, bannerPromoTextColor: promoTextColor, topPromoClosable: _checked('tpl-top-promo-closable'), promoBannerDismissible: _checked('tpl-top-promo-closable'), topUseCover: _checked('tpl-top-use-cover'), useCoverImage: _checked('tpl-top-use-cover'), topShowRegion: _checked('tpl-top-show-region'), showCityRegion: _checked('tpl-top-show-region'), topShowMoreInfo: _checked('tpl-top-more-info'), showMoreInfoButton: _checked('tpl-top-more-info'), topShowChips: _checked('tpl-top-chips'), showDeliveryPickupChips: _checked('tpl-top-chips'),
+      mobilePromoBannerEnabled: false, promotionalBannerEnabled: false, promoVisualBannerEnabled: false, mobilePromoBannerImageUrl: mobilePromoBannerUrl, promoBannerImageUrl: mobilePromoBannerUrl, promotionalBannerImageUrl: mobilePromoBannerUrl, desktopPromoBannerImageUrl: desktopPromoBannerUrl, promoBannerDesktopImageUrl: desktopPromoBannerUrl, mobilePromoBannerStoragePath: mobilePromoBannerUrl ? (images.promoMobile && images.promoMobile.imageStoragePath || currentTpl.mobilePromoBannerStoragePath || currentTpl.promoBannerImageStoragePath || '') : '', promoBannerImageStoragePath: mobilePromoBannerUrl ? (images.promoMobile && images.promoMobile.imageStoragePath || currentTpl.promoBannerImageStoragePath || currentTpl.mobilePromoBannerStoragePath || '') : '', promoBannerImagePath: mobilePromoBannerUrl ? (images.promoMobile && (images.promoMobile.imagePath || images.promoMobile.imageStoragePath) || currentTpl.promoBannerImagePath || currentTpl.promoBannerImageStoragePath || currentTpl.mobilePromoBannerStoragePath || '') : '', desktopPromoBannerStoragePath: desktopPromoBannerUrl ? (images.promoDesktop && images.promoDesktop.imageStoragePath || currentTpl.desktopPromoBannerStoragePath || currentTpl.promoBannerDesktopStoragePath || '') : '', promoBannerDesktopStoragePath: desktopPromoBannerUrl ? (images.promoDesktop && images.promoDesktop.imageStoragePath || currentTpl.promoBannerDesktopStoragePath || currentTpl.desktopPromoBannerStoragePath || '') : '', desktopPromoBannerImagePath: desktopPromoBannerUrl ? (images.promoDesktop && (images.promoDesktop.imagePath || images.promoDesktop.imageStoragePath) || currentTpl.desktopPromoBannerImagePath || currentTpl.promoBannerDesktopImagePath || currentTpl.desktopPromoBannerStoragePath || '') : '', mobilePromoBannerBadge: _val('tpl-mobile-promo-banner-badge'), promoBannerBadge: _val('tpl-mobile-promo-banner-badge'), mobilePromoBannerTitle: _val('tpl-mobile-promo-banner-title'), promoBannerTitle: _val('tpl-mobile-promo-banner-title'), mobilePromoBannerText: _val('tpl-mobile-promo-banner-text'), promoBannerSubtitle: _val('tpl-mobile-promo-banner-text'), mobilePromoBannerButtonText: _val('tpl-mobile-promo-banner-button'), promoBannerButtonText: _val('tpl-mobile-promo-banner-button'), mobilePromoBannerPromotionId: mobilePromoBannerPromotionId, promoBannerPromotionId: mobilePromoBannerPromotionId, mobilePromoBannerProductId: mobilePromoBannerProductId, promoBannerProductId: mobilePromoBannerProductId, mobilePromoBannerTarget: mobilePromoBannerTarget, promoBannerTarget: mobilePromoBannerTarget,
       bannerOverlayColor: bannerOverlayColor, coverOverlayColor: bannerOverlayColor, heroOverlayColor: bannerOverlayColor, topBannerOverlayColor: bannerOverlayColor,
       bannerOverlayOpacity: bannerOverlayOpacity, coverOverlayOpacity: bannerOverlayOpacity, heroOverlayOpacity: bannerOverlayOpacity, topBannerOverlayOpacity: bannerOverlayOpacity,
       mainCardConfig: mainCardConfig, topShowRegion: mainCardConfig.showLocation || mainCardConfig.showStoreStatus, showCityRegion: mainCardConfig.showLocation || mainCardConfig.showStoreStatus, topShowMoreInfo: mainCardConfig.showMoreInfoButton, showMoreInfoButton: mainCardConfig.showMoreInfoButton, topShowChips: mainCardConfig.showPickup || mainCardConfig.showDelivery || mainCardConfig.showPreparationTime || mainCardConfig.showDeliveryTime || mainCardConfig.showMinimumOrder || mainCardConfig.showAdvanceDays, showDeliveryPickupChips: mainCardConfig.showPickup || mainCardConfig.showDelivery || mainCardConfig.showPreparationTime || mainCardConfig.showDeliveryTime || mainCardConfig.showMinimumOrder || mainCardConfig.showAdvanceDays,
-      featuredActionEnabled: _checked('tpl-featured-enabled'), featuredActionType: featuredType, featuredActionTitle: featuredType === 'custom' ? _val('tpl-featured-title') : '', featuredActionText: featuredType === 'custom' ? _val('tpl-featured-text') : '', featuredActionButtonLabel: featuredButtonLabel, featuredActionTarget: featuredTarget, featuredActionProductId: featuredProductId, featuredProductId: featuredType === 'featured_product' ? featuredProductId : '', mostOrderedProductId: featuredType === 'most_ordered' ? featuredProductId : '', mostOrderedMode: featuredType === 'most_ordered' ? mostOrderedMode : '', featuredMostOrderedMode: featuredType === 'most_ordered' ? mostOrderedMode : '', featuredActionCouponId: featuredType === 'coupon' ? _val('tpl-featured-coupon') : '', featuredCouponId: featuredType === 'coupon' ? _val('tpl-featured-coupon') : '', featuredActionPromotionId: featuredType === 'promotion' ? _val('tpl-featured-promotion') : '', featuredPromotionId: featuredType === 'promotion' ? _val('tpl-featured-promotion') : '',
-      showFeaturedProducts: _checked('tpl-show-featured-products'),
-      loyaltyEnabled: _checked('tpl-loyalty-enabled'), pointsProgramEnabled: _checked('tpl-loyalty-enabled'), loyaltyProgramName: _val('tpl-loyalty-name'), pointsProgramName: _val('tpl-loyalty-name'), loyaltyShortText: _val('tpl-loyalty-text'), loyaltyText: _val('tpl-loyalty-text'), loyaltyButtonText: _val('tpl-loyalty-button'),
+      featuredActionEnabled: _checked('tpl-featured-enabled'), featuredActionType: featuredType, featuredActionKicker: _val('tpl-featured-kicker'), featuredKicker: _val('tpl-featured-kicker'), featuredActionTitle: _val('tpl-featured-title'), featuredActionText: _val('tpl-featured-text'), featuredActionButtonLabel: featuredButtonLabel, featuredActionImageUrl: featuredImageUrl, featuredImageUrl: featuredImageUrl, featuredActionImageStoragePath: images.featured && images.featured.imageStoragePath || currentTpl.featuredActionImageStoragePath || '', featuredActionImagePath: images.featured && (images.featured.imagePath || images.featured.imageStoragePath) || currentTpl.featuredActionImagePath || currentTpl.featuredActionImageStoragePath || '', featuredActionTarget: featuredTarget, featuredActionProductId: featuredProductId, featuredProductId: featuredType === 'featured_product' ? featuredProductId : '', mostOrderedProductId: featuredType === 'most_ordered' ? featuredProductId : '', mostOrderedMode: featuredType === 'most_ordered' ? mostOrderedMode : '', featuredMostOrderedMode: featuredType === 'most_ordered' ? mostOrderedMode : '', featuredActionCouponId: featuredType === 'coupon' ? _val('tpl-featured-coupon') : '', featuredCouponId: featuredType === 'coupon' ? _val('tpl-featured-coupon') : '', featuredActionPromotionId: featuredType === 'promotion' ? _val('tpl-featured-promotion') : '', featuredPromotionId: featuredType === 'promotion' ? _val('tpl-featured-promotion') : '',
+      showFeaturedProducts: true,
       featuredProductIds: showcaseIds, highlightProductIds: showcaseIds, showcaseProductIds: showcaseIds,
       primaryColor: primary, brandColor: primary, themeColor: primary, accentColor: primary, secondaryColor: currentTpl.secondaryColor || currentGeral.secondaryColor || currentApp.secondaryColor || palette.primaryDark, colorPalette: palette, supportColors: palette, language: languageValue, defaultLanguage: languageValue, mainLanguage: languageValue, storeLanguage: languageValue, fiscalCountry: fiscalCountryValue, fiscalDocument: fiscalDocValue,
       whatsapp: _val('tpl-whatsapp'), phone: _val('tpl-phone'), email: _val('tpl-email'), instagram: _val('tpl-instagram'), facebook: _val('tpl-facebook'), tiktok: _val('tpl-tiktok'),
@@ -5280,8 +5532,8 @@ Modules.Catalogo = (function () {
         showFacebookInFooter: _checked('tpl-contact-footer-facebook'),
         showTiktokInFooter: _checked('tpl-contact-footer-tiktok')
       },
-address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-number'), city: _val('tpl-city'), region: _val('tpl-region'), neighborhood: _val('tpl-neighborhood') || currentTpl.neighborhood || currentGeral.neighborhood || currentApp.neighborhood || '', postalCode: _val('tpl-postal'), country: _val('tpl-country'), reference: _val('tpl-reference'), complemento: _val('tpl-reference'), showAddress: currentTpl.showAddress !== undefined ? currentTpl.showAddress : (currentGeral.showAddress !== undefined ? currentGeral.showAddress : (currentApp.showAddress !== undefined ? currentApp.showAddress : true)), mapsUrl: currentTpl.mapsUrl || currentGeral.mapsUrl || currentApp.mapsUrl || '', deliveryArea: deliveryArea, deliveryCity: deliveryArea.city, deliveryProvince: deliveryArea.province, deliveryCountry: deliveryArea.country, deliveryPostalCode: deliveryArea.postalCode, pickupNote: currentTpl.pickupNote || currentGeral.pickupNote || currentApp.pickupNote || '',      statusMode: _val('tpl-status-mode') || 'auto', manualClosed: (_val('tpl-status-mode') === 'manual_closed'), manualOpen: (_val('tpl-status-mode') === 'manual_open'), hours: hours, pickupHours: _val('tpl-pickup-hours'), deliveryHours: _val('tpl-delivery-hours'), specialHoursText: _val('tpl-special-hours'),
-      pickupEnabled: _checked('tpl-pickup-enabled'), deliveryEnabled: _checked('tpl-delivery-enabled'), minDeliveryOrder: _numVal('tpl-min-delivery'), minimumDeliveryOrder: _numVal('tpl-min-delivery'), maxOrdersPerSlot: _numVal('tpl-orders-per-hour'), ordersPerHour: _numVal('tpl-orders-per-hour'), maxAdvanceDays: _numVal('tpl-max-advance-days'), advanceDaysLimit: _numVal('tpl-max-advance-days'), deliveryFee: document.getElementById('tpl-delivery-fee') ? _numVal('tpl-delivery-fee') : (currentTpl.deliveryFee || currentGeral.deliveryFee || currentApp.deliveryFee || ''), deliveryText: _val('tpl-delivery-text'), pickupText: _val('tpl-pickup-text'), prepTime: _val('tpl-prep-time') || currentTpl.prepTime || currentGeral.prepTime || currentApp.prepTime || '', averagePrepTime: _val('tpl-prep-time') || currentTpl.averagePrepTime || currentGeral.averagePrepTime || currentApp.averagePrepTime || currentTpl.prepTime || '', deliveryTime: _val('tpl-delivery-time') || currentTpl.deliveryTime || currentGeral.deliveryTime || currentApp.deliveryTime || '', averageDeliveryTime: _val('tpl-delivery-time') || currentTpl.averageDeliveryTime || currentGeral.averageDeliveryTime || currentApp.averageDeliveryTime || currentTpl.deliveryTime || '',
+address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-number'), city: _val('tpl-city'), region: _val('tpl-region'), neighborhood: _val('tpl-neighborhood') || currentTpl.neighborhood || currentGeral.neighborhood || currentApp.neighborhood || '', postalCode: _val('tpl-postal'), country: _val('tpl-country'), reference: _val('tpl-reference'), complemento: _val('tpl-reference'), showAddress: currentTpl.showAddress !== undefined ? currentTpl.showAddress : (currentGeral.showAddress !== undefined ? currentGeral.showAddress : (currentApp.showAddress !== undefined ? currentApp.showAddress : true)), mapsUrl: currentTpl.mapsUrl || currentGeral.mapsUrl || currentApp.mapsUrl || '', deliveryArea: deliveryArea, deliveryCity: deliveryArea.city, deliveryProvince: deliveryArea.province, deliveryCountry: deliveryArea.country, deliveryPostalCode: deliveryArea.postalCode, pickupNote: currentTpl.pickupNote || currentGeral.pickupNote || currentApp.pickupNote || '',      statusMode: (_val('tpl-status-mode') === 'manual' ? 'manual' : 'auto'), manualClosed: (_val('tpl-status-mode') === 'manual' && _checked('tpl-manual-closed')), manualOpen: (_val('tpl-status-mode') === 'manual' && !_checked('tpl-manual-closed')), hours: hours, pickupHours: _val('tpl-pickup-hours'), deliveryHours: _val('tpl-delivery-hours'), openingHoursSummary: _hoursSummaryFromHours(hours), hoursSummary: _hoursSummaryFromHours(hours), todayHoursText: _hoursSummaryFromHours(hours),
+      pickupEnabled: _checked('tpl-pickup-enabled'), deliveryEnabled: _checked('tpl-delivery-enabled'), minDeliveryOrder: _numVal('tpl-min-delivery'), minimumDeliveryOrder: _numVal('tpl-min-delivery'), maxOrdersPerSlot: _numVal('tpl-orders-per-hour'), ordersPerHour: _numVal('tpl-orders-per-hour'), maxAdvanceDays: _numVal('tpl-max-advance-days'), advanceDaysLimit: _numVal('tpl-max-advance-days'), scheduleDays: _numVal('tpl-max-advance-days') + 1, daysToShow: _numVal('tpl-max-advance-days') + 1, minAdvanceDays: 0, minimumAdvanceDays: 0, deliveryFee: document.getElementById('tpl-delivery-fee') ? _numVal('tpl-delivery-fee') : (currentTpl.deliveryFee || currentGeral.deliveryFee || currentApp.deliveryFee || ''), prepTime: _val('tpl-prep-time') || currentTpl.prepTime || currentGeral.prepTime || currentApp.prepTime || '', averagePrepTime: _val('tpl-prep-time') || currentTpl.averagePrepTime || currentGeral.averagePrepTime || currentApp.averagePrepTime || currentTpl.prepTime || '', deliveryTime: _val('tpl-delivery-time') || currentTpl.deliveryTime || currentGeral.deliveryTime || currentApp.deliveryTime || '', averageDeliveryTime: _val('tpl-delivery-time') || currentTpl.averageDeliveryTime || currentGeral.averageDeliveryTime || currentApp.averageDeliveryTime || currentTpl.deliveryTime || '',
       deliveryZones: deliveryZones,
       paymentMethods: paymentMethods, paymentMethodConfigs: paymentMethodConfigs, paymentMethodInstructions: paymentMethodInstructions, paymentNote: _val('tpl-payment-note'),
       payments: { cash: methodIsActive(['dinheiro', 'efectivo', 'efetivo', 'cash']), card: methodIsActive(['cartao', 'tarjeta', 'card']), bizum: methodIsActive(['bizum']), mbway: methodIsActive(['mb-way', 'mbway']), transfer: methodIsActive(['transferencia', 'transfer', 'bank-transfer']), localTransfer: methodIsActive(['transferencia', 'transfer', 'bank-transfer']), online: methodIsActive(['pagamento-online', 'pago-online', 'online']), note: _val('tpl-payment-note'), paymentMethods: paymentMethods, paymentMethodConfigs: paymentMethodConfigs, paymentMethodInstructions: paymentMethodInstructions, paymentNote: _val('tpl-payment-note') },
@@ -5297,7 +5549,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var aparencia = Object.assign({}, currentApp, { logoUrl: template.logoUrl, faviconUrl: template.faviconUrl, faviconStoragePath: template.faviconStoragePath, coverImageUrl: template.coverImageUrl, bannerUrl: template.bannerUrl, coverImageMobileUrl: template.coverImageMobileUrl, mobileCoverImageUrl: template.mobileCoverImageUrl, bannerMobileUrl: template.bannerMobileUrl, primaryColor: template.primaryColor, secondaryColor: template.secondaryColor, colorPalette: palette, supportColors: palette, visualName: template.publicName });
     var endereco = Object.assign({}, _storeConfig.endereco || {}, { address: template.address, city: template.city, region: template.region, province: template.region, state: template.region, postalCode: template.postalCode, country: template.country, showAddress: template.showAddress, mapsUrl: template.mapsUrl });
     var pagamentos = Object.assign({}, _storeConfig.pagamentos || {}, template.payments, { paymentMethods: paymentMethods, paymentMethodConfigs: paymentMethodConfigs, paymentMethodInstructions: paymentMethodInstructions, paymentNote: template.paymentNote, note: template.paymentNote });
-    var horarios = Object.assign({}, _storeConfig.horarios || {}, { days: hours, pickupHours: template.pickupHours, deliveryHours: template.deliveryHours, specialHoursText: template.specialHoursText });
+    var horarios = Object.assign({}, _storeConfig.horarios || {}, { days: hours, pickupHours: template.pickupHours, deliveryHours: template.deliveryHours, openingHoursSummary: template.openingHoursSummary, hoursSummary: template.hoursSummary, todayHoursText: template.todayHoursText });
     var zonas = Object.assign({}, _storeConfig.zonas || {}, { area: template.deliveryArea, list: deliveryZones, deliveryZones: deliveryZones });
     var categoryVisualUpdates = _collectTemplateCategoryVisualUpdates();
     for (var cv = 0; cv < categoryVisualUpdates.length; cv += 1) {
@@ -5689,6 +5941,70 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     return window._catalogTemplateCategoryGraphicState;
   }
 
+  function _templateCategoryOrderHtml() {
+    var cats = (_categories || []).filter(function (cat) {
+      return cat && cat.active !== false && cat.visible !== false;
+    }).slice().sort(function (a, b) {
+      return (a.order || 0) - (b.order || 0) || String(a.name || a.label || '').localeCompare(String(b.name || b.label || ''));
+    });
+    if (!cats.length) {
+      return '<div style="padding:22px;border:1px dashed #E6DAD4;border-radius:16px;background:#FFFCF8;color:#7A6F69;font-size:13px;line-height:1.45;text-align:center;">Crie categorias no cardápio para organizar a ordem que aparece na loja pública.</div>';
+    }
+    return '<div id="tpl-category-order-list" style="display:grid;gap:9px;">' + cats.map(function (cat) {
+      var name = cat.name || cat.label || cat.nome || 'Categoria';
+      var count = (_products || []).filter(function (p) {
+        return String(p.categoryId || p.category || '') === String(cat.id || cat.slug || cat.name || '');
+      }).length;
+      return '<div draggable="true" data-id="' + _esc(cat.id) + '" data-template-category-order="1" style="display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:center;background:#FFFCF8;border:1px solid #EADFD8;border-radius:14px;padding:10px 12px;box-shadow:0 1px 2px rgba(31,31,31,.03);cursor:grab;">' +
+        '<span class="mi" style="font-size:18px;color:#A39B90;">drag_indicator</span>' +
+        '<div style="min-width:0;">' +
+          '<div style="font-size:13px;font-weight:760;color:#1F1F1F;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(name) + '</div>' +
+          '<div style="font-size:11px;color:#8A7E7C;line-height:1.3;margin-top:2px;">' + (count === 1 ? '1 produto nessa categoria' : count + ' produtos nessa categoria') + '</div>' +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:5px;">' +
+          '<button type="button" title="Subir categoria" onclick="event.stopPropagation();Modules.Catalogo._moveTemplateCategory(\'' + _esc(cat.id) + '\', -1)" style="width:28px;height:28px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;display:flex;align-items:center;justify-content:center;cursor:pointer;font-family:inherit;"><span class="mi" style="font-size:16px;">keyboard_arrow_up</span></button>' +
+          '<button type="button" title="Descer categoria" onclick="event.stopPropagation();Modules.Catalogo._moveTemplateCategory(\'' + _esc(cat.id) + '\', 1)" style="width:28px;height:28px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;display:flex;align-items:center;justify-content:center;cursor:pointer;font-family:inherit;"><span class="mi" style="font-size:16px;">keyboard_arrow_down</span></button>' +
+        '</div>' +
+      '</div>';
+    }).join('') + '</div>';
+  }
+
+  function _saveTemplateCategoryOrder(orders) {
+    _categories = (_categories || []).map(function (cat) {
+      var found = orders.find(function (o) { return String(o.id) === String(cat.id); });
+      return found ? Object.assign({}, cat, { order: found.order }) : cat;
+    }).sort(function (a, b) { return (a.order || 0) - (b.order || 0) || String(a.name || a.label || '').localeCompare(String(b.name || b.label || '')); });
+    return Promise.all(orders.map(function (o) { return DB.update('categories', o.id, { order: o.order }); }))
+      .then(function () { UI.toast('Ordem das categorias salva.', 'success'); })
+      .catch(function (err) { UI.toast('Erro ao salvar ordem: ' + err.message, 'error'); });
+  }
+
+  function _bindTemplateCategoryOrder() {
+    var listEl = document.getElementById('tpl-category-order-list');
+    if (!listEl) return;
+    makeSortable(listEl, function (orders) {
+      _saveTemplateCategoryOrder(orders);
+    });
+  }
+
+  function _moveTemplateCategory(id, direction) {
+    var cats = (_categories || []).filter(function (cat) {
+      return cat && cat.active !== false && cat.visible !== false;
+    }).slice().sort(function (a, b) {
+      return (a.order || 0) - (b.order || 0) || String(a.name || a.label || '').localeCompare(String(b.name || b.label || ''));
+    });
+    var index = cats.findIndex(function (cat) { return String(cat.id) === String(id); });
+    var next = index + (Number(direction) || 0);
+    if (index < 0 || next < 0 || next >= cats.length) return;
+    var moved = cats.splice(index, 1)[0];
+    cats.splice(next, 0, moved);
+    _saveTemplateCategoryOrder(cats.map(function (cat, idx) { return { id: cat.id, order: idx }; }))
+      .then(function () {
+        _templateActiveTab = 'vitrine';
+        _renderTemplateLoja();
+      });
+  }
+
   function _uploadTemplateCategoryGraphic(event, catId) {
     var file = event && event.target && event.target.files ? event.target.files[0] : null;
     if (!file || !window.ImageTools || !catId) return;
@@ -5927,7 +6243,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
               '<span class="mi" style="color:#A39B90;font-size:18px;flex-shrink:0;">drag_indicator</span>' +
               '<div style="min-width:0;flex:1;">' +
                 '<div style="font-size:15px;font-weight:600;color:#1F1F1F;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(vg.title) + '</div>' +
-                '<div style="font-size:12px;color:#6F6860;line-height:1.35;margin-top:2px;">' + (vg.required ? 'Obrigatório' : 'Opcional') + ' · ' + (vg.multiSelect ? 'Seleção múltipla' : 'Seleção única') + '</div>' +
+              '<div style="font-size:12px;color:#6F6860;line-height:1.35;margin-top:2px;">' + (vg.required ? 'Obrigatório' : 'Opcional') + ' · mínimo ' + (vg.minPerUnit != null ? vg.minPerUnit : vg.min || 0) + ' · máximo ' + (vg.maxPerUnit || vg.max || (vg.multiSelect ? 'vários' : 1)) + ' por item</div>' +
               '</div></div>' +
               '<div style="display:flex;gap:6px;flex-shrink:0;">' +
               '<button onclick="Modules.Catalogo._openVariantModal(\'' + vg.id + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">edit</span></button>' +
@@ -5935,7 +6251,9 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
               '</div></div>' +
               '<div style="display:flex;gap:6px;flex-wrap:wrap;">' +
               (vg.options || []).map(function (opt) {
-                return '<span style="font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:#fff;border:1px solid #EAE4DA;color:#1F1F1F;">' + _esc(opt.label) + (opt.price ? ' (+' + UI.fmt(opt.price) + ')' : '') + '</span>';
+                var price = parseFloat(opt.priceExtra != null ? opt.priceExtra : opt.price || 0) || 0;
+                var priceText = price ? ' (' + (price > 0 ? '+' : '-') + UI.fmt(Math.abs(price)) + ')' : '';
+                return '<span style="font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:#fff;border:1px solid #EAE4DA;color:#1F1F1F;">' + _esc(opt.label || opt.name || '') + priceText + '</span>';
               }).join('') +
               '</div></div>';
           }).join('') + '</div></section>');
@@ -5950,24 +6268,93 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     }
   }
 
+  function _variantOptionRows(options) {
+    options = options && options.length ? options : [{ label: '', price: 0, img: '' }];
+    return options.map(function (option, index) {
+      return _variantOptionRowHtml(option, index);
+    }).join('');
+  }
+
+  function _variantOptionRowHtml(option, index) {
+    option = option || {};
+    var img = option.img || option.imageUrl || option.image || '';
+    var price = option.priceExtra != null ? option.priceExtra : option.extraPrice != null ? option.extraPrice : option.price || '';
+    return '<div class="vg-option-row" data-option-index="' + index + '" style="display:grid;grid-template-columns:minmax(0,1.35fr) 110px 118px 30px;gap:10px;align-items:end;padding:10px;border:1px solid #EAE4DA;border-radius:14px;background:#FFFCF8;margin-bottom:8px;">' +
+      '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Opção</span><input class="vg-option-label" type="text" value="' + _esc(option.label || option.name || '') + '" placeholder="Ex: Carne, queijo, grande..." style="' + _inputStyle() + '"></label>' +
+      '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Valor extra/desconto</span><input class="vg-option-price" type="number" step="0.01" value="' + _esc(price) + '" placeholder="0,00" style="' + _inputStyle() + '"></label>' +
+      '<div style="display:flex;align-items:center;gap:8px;min-width:0;">' +
+        '<input class="vg-option-img" type="hidden" value="' + _esc(img) + '">' +
+        (img ? '<img class="vg-option-preview" src="' + _esc(img) + '" alt="" style="width:38px;height:38px;border-radius:10px;object-fit:cover;background:#F2EDED;flex-shrink:0;">' : '<span class="vg-option-preview" style="display:none;"></span>') +
+        '<label style="height:38px;padding:0 10px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#6F6860;font-size:12px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;">Foto<input type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onchange="Modules.Catalogo._onVariantOptionImageChange(event)" style="display:none;"></label>' +
+      '</div>' +
+      '<button type="button" onclick="Modules.Catalogo._removeVariantOptionRow(this)" style="width:30px;height:38px;border-radius:10px;border:1px solid #EAE4DA;background:#fff;color:#B42318;cursor:pointer;font-family:inherit;">x</button>' +
+      '</div>';
+  }
+
+  function _addVariantOptionRow(option) {
+    var host = document.getElementById('vg-options-list');
+    if (!host) return;
+    var index = host.querySelectorAll('.vg-option-row').length;
+    host.insertAdjacentHTML('beforeend', _variantOptionRowHtml(option || {}, index));
+  }
+
+  function _removeVariantOptionRow(button) {
+    var row = button && button.closest ? button.closest('.vg-option-row') : null;
+    var host = document.getElementById('vg-options-list');
+    if (row) row.remove();
+    if (host && !host.querySelector('.vg-option-row')) _addVariantOptionRow();
+  }
+
+  function _onVariantOptionImageChange(event) {
+    var file = event && event.target && event.target.files ? event.target.files[0] : null;
+    var row = event && event.target && event.target.closest ? event.target.closest('.vg-option-row') : null;
+    if (!file || !row || !window.ImageTools) return;
+    var draftId = _editingId || window._variantDraftId || _newEntityId('variant');
+    window._variantDraftId = draftId;
+    ImageTools.process(file, { kind: 'product', folder: 'variants', entityId: draftId + '-' + (row.dataset.optionIndex || 'option') }).then(function (result) {
+      var url = result && (result.imageUrl || result.url || result.downloadURL) || '';
+      if (!url) return;
+      var input = row.querySelector('.vg-option-img');
+      var preview = row.querySelector('.vg-option-preview');
+      if (input) input.value = url;
+      if (!preview || preview.tagName !== 'IMG') {
+        var img = document.createElement('img');
+        img.className = 'vg-option-preview';
+        img.alt = '';
+        img.style.cssText = 'width:38px;height:38px;border-radius:10px;object-fit:cover;background:#F2EDED;flex-shrink:0;';
+        var parent = input ? input.parentNode : row;
+        parent.insertBefore(img, parent.querySelector('label'));
+        preview = img;
+      }
+      preview.src = url;
+      preview.style.display = 'block';
+    }).catch(function (err) {
+      UI.toast('Erro ao enviar foto: ' + err.message, 'error');
+    });
+  }
+
   function _openVariantModal(id) {
     _editingId = id;
     var vg = id ? (_variants.find(function (x) { return x.id === id; }) || {}) : {};
-    var opts = (vg.options || []).map(function (o) { return o.label + (o.price ? ':' + o.price : ''); }).join('\n');
+    window._variantDraftId = id || _newEntityId('variant');
+    var minPerUnit = parseInt(vg.minPerUnit != null ? vg.minPerUnit : vg.min != null ? vg.min : (vg.required ? 1 : 0), 10);
+    var maxPerUnit = parseInt(vg.maxPerUnit || vg.max || (vg.multiSelect ? Math.max(1, (vg.options || []).length) : 1), 10) || 1;
+    if (minPerUnit < 0) minPerUnit = 0;
+    if (maxPerUnit < 1) maxPerUnit = 1;
+    if (minPerUnit > maxPerUnit) minPerUnit = maxPerUnit;
 
     var body = '<div>' +
       '<div style="margin-bottom:12px;"><label style="' + _labelStyle() + '">Título do Grupo *</label>' +
       '<input id="vg-title" type="text" value="' + _esc(vg.title || '') + '" placeholder="Ex: Tamanho, Molhos..." style="' + _inputStyle() + '"></div>' +
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">' +
+      '<div style="display:grid;grid-template-columns:1fr 110px 110px;gap:12px;margin-bottom:12px;align-items:end;">' +
       '<div style="display:flex;align-items:center;gap:8px;padding:10px;background:#FAFAF8;border-radius:10px;border:1px solid #EAE4DA;">' +
       '<input type="checkbox" id="vg-required"' + (vg.required ? ' checked' : '') + ' style="width:16px;height:16px;accent-color:#B42318;">' +
       '<label for="vg-required" style="font-size:13px;font-weight:500;color:#1F1F1F;cursor:pointer;">Obrigatório</label></div>' +
-      '<div style="display:flex;align-items:center;gap:8px;padding:10px;background:#FAFAF8;border-radius:10px;border:1px solid #EAE4DA;">' +
-      '<input type="checkbox" id="vg-multi"' + (vg.multiSelect ? ' checked' : '') + ' style="width:16px;height:16px;accent-color:#B42318;">' +
-      '<label for="vg-multi" style="font-size:13px;font-weight:500;color:#1F1F1F;cursor:pointer;">Seleção múltipla</label></div>' +
+      '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Mínimo por item</span><input id="vg-min" type="number" min="0" step="1" value="' + minPerUnit + '" style="' + _inputStyle() + '"></label>' +
+      '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Máximo por item</span><input id="vg-max" type="number" min="1" step="1" value="' + maxPerUnit + '" style="' + _inputStyle() + '"></label>' +
       '</div>' +
-      '<div><label style="' + _labelStyle() + '">Opções (uma por linha, formato: Label ou Label:Preço)</label>' +
-      '<textarea id="vg-options" style="' + _inputStyle() + 'min-height:100px;resize:vertical;" placeholder="Pequeno\nMedio:2\nGrande:4">' + opts + '</textarea></div>' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0 8px;"><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;">Opções</div><div style="font-size:12px;color:#6F6860;margin-top:2px;">Use valor positivo para acréscimo e negativo para desconto. A foto é opcional.</div></div><button type="button" onclick="Modules.Catalogo._addVariantOptionRow()" style="height:34px;padding:0 12px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#B42318;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">+ Opção</button></div>' +
+      '<div id="vg-options-list">' + _variantOptionRows(vg.options || []) + '</div>' +
       '</div>';
 
     var footer = '<button onclick="Modules.Catalogo._saveVariant()" style="width:100%;height:40px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:14px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">' + (id ? 'Atualizar' : 'Criar Grupo') + '</button>';
@@ -5977,15 +6364,26 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   function _saveVariant() {
     var title = (document.getElementById('vg-title') || {}).value || '';
     if (!title) { UI.toast('Titulo e obrigatorio', 'error'); return; }
-    var lines = ((document.getElementById('vg-options') || {}).value || '').split('\n').filter(function (l) { return l.trim(); });
-    var options = lines.map(function (l) {
-      var parts = l.split(':');
-      return { label: parts[0].trim(), price: parts[1] ? parseFloat(parts[1]) : 0 };
-    });
+    var min = parseInt((document.getElementById('vg-min') || {}).value || 0, 10);
+    var max = parseInt((document.getElementById('vg-max') || {}).value || 1, 10);
+    if (min < 0) min = 0;
+    if (max < 1) max = 1;
+    if (min > max) min = max;
+    var options = [].slice.call(document.querySelectorAll('.vg-option-row')).map(function (row) {
+      var label = ((row.querySelector('.vg-option-label') || {}).value || '').trim();
+      var price = parseFloat(String(((row.querySelector('.vg-option-price') || {}).value || '0')).replace(',', '.')) || 0;
+      var img = ((row.querySelector('.vg-option-img') || {}).value || '').trim();
+      return label ? { label: label, name: label, price: price, priceExtra: price, img: img } : null;
+    }).filter(Boolean);
+    if (!options.length) { UI.toast('Adicione pelo menos uma opção.', 'error'); return; }
     var data = {
       title: title,
-      required: !!(document.getElementById('vg-required') || {}).checked,
-      multiSelect: !!(document.getElementById('vg-multi') || {}).checked,
+      required: !!(document.getElementById('vg-required') || {}).checked || min > 0,
+      minPerUnit: min,
+      maxPerUnit: max,
+      min: min,
+      max: max,
+      multiSelect: max > 1,
       options: options
     };
     var op = _editingId ? DB.update('variantGroups', _editingId, data) : DB.add('variantGroups', data);
@@ -7303,16 +7701,16 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     _setCatalogCfgSub: _setCatalogCfgSub,
     _uploadStoreImage: _uploadStoreImage, _saveTemplateLoja: _saveTemplateLoja, _saveSeoLoja: _saveSeoLoja,
     _openProductModal: _openProductModal, _toggleVis: _toggleVis, _saveProduct: _saveProduct, _deleteProduct: _deleteProduct, _duplicateProduct: _duplicateProduct, _openImportProducts: _openImportProducts, _filterProdutos: _filterProdutos, _setProductFilter: _setProductFilter, _setProductSort: _setProductSort, _setProductPage: _setProductPage, _setProductPageSize: _setProductPageSize, _clearProductFilters: _clearProductFilters, _quickUpdateProduct: _quickUpdateProduct,
-    _onProductNameChange: _onProductNameChange, _onProductDescChange: _onProductDescChange,
+    _onProductNameChange: _onProductNameChange, _onProductDescChange: _onProductDescChange, _refreshProductPreview: _refreshProductPreview, _moneyInputFocus: _moneyInputFocus, _moneyInputBlur: _moneyInputBlur,
     _seoEdited: _seoEdited, _onTipoChange: _onTipoChange, _onUnicoSrcChange: _onUnicoSrcChange,
     _addMenuGroup: _addMenuGroup, _removeMenuGroup: _removeMenuGroup,
     _addMenuOption: _addMenuOption, _removeMenuOption: _removeMenuOption, _filterMenuOptions: _filterMenuOptions,
     _addUpsellProduct: _addUpsellProduct, _removeUpsellProduct: _removeUpsellProduct, _filterUpsellProducts: _filterUpsellProducts,
     _onImgFileChange: _onImgFileChange, _openProductImagePicker: _openProductImagePicker, _removeProductImage: _removeProductImage,
     _onProntoImgChange: _onProntoImgChange, _onFichaImgChange: _onFichaImgChange,
-    _openCatModal: _openCatModal, _selectCatColor: _selectCatColor, _uploadCategoryGraphic: _uploadCategoryGraphic, _clearCategoryGraphic: _clearCategoryGraphic, _uploadTemplateCategoryGraphic: _uploadTemplateCategoryGraphic, _saveCat: _saveCat, _deleteCat: _deleteCat,
+    _openCatModal: _openCatModal, _selectCatColor: _selectCatColor, _uploadCategoryGraphic: _uploadCategoryGraphic, _clearCategoryGraphic: _clearCategoryGraphic, _uploadTemplateCategoryGraphic: _uploadTemplateCategoryGraphic, _moveTemplateCategory: _moveTemplateCategory, _saveCat: _saveCat, _deleteCat: _deleteCat,
     _openProntosModal: _openProntosModal, _savePronto: _savePronto, _deletePronto: _deletePronto,
-    _openVariantModal: _openVariantModal, _saveVariant: _saveVariant, _deleteVariant: _deleteVariant,
+    _openVariantModal: _openVariantModal, _addVariantOptionRow: _addVariantOptionRow, _removeVariantOptionRow: _removeVariantOptionRow, _onVariantOptionImageChange: _onVariantOptionImageChange, _toggleProductVariantPreview: _toggleProductVariantPreview, _saveVariant: _saveVariant, _deleteVariant: _deleteVariant,
     _openItemCustoModal: _openItemCustoModal, _saveItemCusto: _saveItemCusto, _deleteItemCusto: _deleteItemCusto,
     _filterItensCusto: _filterItensCusto, _setItensCustoFilter: _setItensCustoFilter, _onItemTipoChange: _onItemTipoChange,
     _openFichaViewModal: _openFichaViewModal, _editFichaFromView: _editFichaFromView,

@@ -352,7 +352,15 @@ window.BocaPlaces = (function () {
       addressLine: addressLine,
       street: street,
       number: number,
-      neighborhood: _componentValue(map, ['neighborhood', 'sublocality_level_1', 'sublocality']),
+      neighborhood: _componentValue(map, [
+        'neighborhood',
+        'sublocality_level_1',
+        'sublocality_level_2',
+        'sublocality_level_3',
+        'sublocality',
+        'administrative_area_level_4',
+        'administrative_area_level_5'
+      ]),
       city: _componentValue(map, ['locality', 'postal_town', 'administrative_area_level_3']),
       province: _componentValue(map, ['administrative_area_level_2', 'administrative_area_level_1']),
       country: _componentValue(map, ['country']),

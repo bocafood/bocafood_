@@ -932,7 +932,7 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
         <label style="display:none;"><span>Nome legado</span><input id="user-name" placeholder="Bocado Brasil"></label>
         <label style="display:none;"><span>Razão / marca</span><input id="user-business" placeholder="Nome exibido na loja"></label>
         <label><span>Nome da loja</span><input id="user-store-name" placeholder="Aguardando configuração no Centro de Controle"><small class="field-hint">Normalmente preenchido pela usuária no Centro de Controle.</small></label>
-        <label><span>Slug público</span><input id="user-public-slug" readonly placeholder="Aguardando slug da loja"><small class="field-hint">Definido pela usuária no Centro de Controle em Configurações → Domínio / URL.</small></label>
+        <label><span>Slug público</span><input id="user-public-slug" readonly placeholder="Aguardando slug da loja"><small class="field-hint">Definido pela usuária no Centro de Controle em Loja Online → Link da loja.</small></label>
         <label><span>URL pública calculada</span><input id="user-store-url" readonly placeholder="Aguardando slug da loja"></label>
         <label><span>Cidade da loja</span><input id="user-store-city" placeholder="Não preenchido"><small id="user-store-city-origin" class="field-hint">Origem: Centro de Controle</small></label>
         <label><span>Província / estado da loja</span><input id="user-store-province" placeholder="Não preenchido"><small id="user-store-province-origin" class="field-hint">Origem: Centro de Controle</small></label>
@@ -2271,7 +2271,7 @@ function publicStoreSlug(value){
   return String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').replace(/-{2,}/g,'-');
 }
 function publicStoreUrl(slug){
-  return slug ? 'https://bocafood.app/loja/' + slug : 'Aguardando slug da loja';
+  return slug ? 'https://bocafood.app/' + slug : 'Aguardando slug da loja';
 }
 function userPublicUrlFromFields(){
   var slug = publicStoreSlug(val('user-public-slug'));

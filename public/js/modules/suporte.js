@@ -189,7 +189,8 @@ Modules.Suporte = (function () {
         '</section>' +
         '<section id="help-category-grid" class="help-category-grid">' +
           _guideCategoryCard('primeiros-passos', 'rocket_launch', 'Primeiros passos', 'Comece pelo essencial: revise seu acesso, complete os dados principais da loja e saiba o que fazer antes de publicar.', 'Disponível', '1 guia', true) +
-          _guideCategoryCard('configuracoes', 'settings', 'Configurações', 'Entenda como preencher Geral e Usuário sem misturar dados da loja, dados fiscais e dados da pessoa responsável pela conta.', 'Disponível', '2 guias', true) +
+          _guideCategoryCard('configuracoes', 'settings', 'Configurações', 'Entenda Geral, Usuário, Venda presencial, Integrações e Meu plano sem misturar dados da loja, acesso e assinatura.', 'Disponível', '5 guias', true) +
+          _guideCategoryCard('compras', 'shopping_cart', 'Compras', 'Entenda fornecedores, produtos e insumos, registro de compras e configurações para manter custos e pagamentos organizados.', 'Disponível', '4 guias', true) +
           _guideCategoryCard('loja-online', 'storefront', 'Loja Online', 'Vai reunir orientações sobre aparência da loja, link público, publicação, avaliações e informações que aparecem para seus clientes.', 'Em breve', '', false) +
           _guideCategoryCard('cardapio', 'restaurant_menu', 'Cardápio', 'Vai explicar como organizar produtos, categorias, fotos, preços, fichas técnicas e custos sem misturar cadastro com controle financeiro.', 'Em breve', '', false) +
           _guideCategoryCard('pedidos', 'receipt_long', 'Pedidos', 'Vai mostrar como acompanhar pedidos recebidos, entender status e manter a operação organizada durante o atendimento.', 'Em breve', '', false) +
@@ -230,6 +231,20 @@ Modules.Suporte = (function () {
         '<div class="help-submodule-grid">' +
           _submoduleCard('configuracoes-geral', 'storefront', 'Geral', 'Dados principais da loja, contatos do negócio e informações fiscais.', 'configuracoes') +
           _submoduleCard('configuracoes-usuario', 'person', 'Usuário', 'Dados da pessoa responsável pelo acesso, WhatsApp e recuperação de senha.', 'configuracoes') +
+          _submoduleCard('configuracoes-venda-presencial', 'point_of_sale', 'Venda presencial', 'Quando ativar a venda no balcão e como escolher a forma de pagamento padrão.', 'configuracoes') +
+          _submoduleCard('configuracoes-integracoes', 'hub', 'Integrações', 'WhatsApp, redes sociais e ferramentas de medição usadas na página pública.', 'configuracoes') +
+          _submoduleCard('configuracoes-plano', 'workspace_premium', 'Plano', 'Plano atual, acesso, período grátis quando existir e dados da compra na Hotmart.', 'configuracoes') +
+        '</div>';
+    } else if (key === 'compras') {
+      body = '<div class="help-guide-panel-head">' +
+          '<div><h3>Compras</h3><p>Use estes guias para cadastrar fornecedores, organizar produtos e insumos, registrar compras e manter os custos da loja mais fáceis de acompanhar.</p></div>' +
+          '<button class="support-secondary" type="button" onclick="Modules.Suporte._clearGuidePanel()">Voltar aos módulos</button>' +
+        '</div>' +
+        '<div class="help-submodule-grid">' +
+          _submoduleCard('compras-registro', 'receipt_long', 'Registro de compras', 'Como lançar uma compra, preencher itens recebidos, documento, pagamento e contas a pagar.', 'compras') +
+          _submoduleCard('compras-produtos-insumos', 'inventory_2', 'Produtos / Insumos', 'Como cadastrar itens comprados, unidade base, embalagem padrão, fornecedor e uso em receitas.', 'compras') +
+          _submoduleCard('compras-fornecedores', 'storefront', 'Fornecedores', 'Como preencher dados fiscais, endereço, contato e condições de pagamento dos fornecedores.', 'compras') +
+          _submoduleCard('compras-configuracoes', 'category', 'Configurações', 'Como organizar categorias e opções usadas nos cadastros e filtros de compras.', 'compras') +
         '</div>';
     } else if (key === 'suporte') {
       body = '<div class="help-guide-panel-head">' +
@@ -279,6 +294,12 @@ Modules.Suporte = (function () {
     '</div>';
   }
 
+  function _guideFields(items) {
+    return '<div class="support-guide-fields">' + items.map(function (item) {
+      return '<div class="support-guide-field"><strong>' + _esc(item[0]) + '</strong><span>' + _esc(item[1]) + '</span></div>';
+    }).join('') + '</div>';
+  }
+
   function _openGuide(key, moduleKey) {
     var panel = document.getElementById('help-guide-panel');
     if (!panel) return;
@@ -318,6 +339,144 @@ Modules.Suporte = (function () {
           '<div class="support-guide-field"><strong>País fiscal</strong><span>Esse campo mostra o país fiscal aplicado à conta. Se ele não estiver correto, fale com o suporte antes de continuar configurando dados fiscais.</span></div>' +
           '<div class="support-guide-field"><strong>Salvar alterações</strong><span>Depois de revisar os dados, clique em Salvar alterações. Se você trocar de tela antes de salvar, as mudanças podem não ficar guardadas.</span></div>' +
         '</div>';
+    } else if (key === 'configuracoes-venda-presencial') {
+      body = '<div class="help-guide-panel-head">' +
+          '<div><h3>Configurações → Venda presencial</h3><p>Esta tela controla se a loja terá uma área de venda feita diretamente no balcão, em evento ou em atendimento presencial. Use com cuidado: quando estiver ativada, aparece uma opção própria no menu para registrar vendas presenciais.</p></div>' +
+          _guideBackButtons(moduleKey || 'configuracoes', 'Abrir Venda presencial', 'configuracoes/tpv') +
+        '</div>' +
+        '<div class="support-guide-fields">' +
+          '<div class="support-guide-field"><strong>Quando ativar</strong><span>Ative a venda presencial se você também registra vendas feitas fora do pedido online, como retirada no balcão, venda em feira, evento, loja física ou atendimento direto. Se você trabalha somente com pedidos pela loja pública ou WhatsApp, pode deixar desativado por enquanto.</span></div>' +
+          '<div class="support-guide-field"><strong>O que muda ao ativar</strong><span>Quando ativada, o menu Venda presencial aparece no painel. As vendas registradas ali entram separadas como canal de venda presencial, ajudando você a entender de onde vieram os pedidos e o dinheiro.</span></div>' +
+          '<div class="support-guide-field"><strong>O que acontece ao desativar</strong><span>Quando desativada, o menu de venda presencial fica oculto. A loja continua funcionando com os outros canais que você já usa, como loja pública, WhatsApp ou pedidos online.</span></div>' +
+          '<div class="support-guide-field"><strong>Pagamento padrão</strong><span>Escolha a forma de pagamento que costuma ser usada nesse tipo de venda. A lista vem das formas cadastradas no Financeiro. Se uma forma de pagamento não aparecer, revise primeiro Financeiro → Configurações → Formas de pagamento.</span></div>' +
+          '<div class="support-guide-field"><strong>Salvar alterações</strong><span>Depois de ativar, desativar ou trocar a forma de pagamento padrão, clique em Salvar alterações. Se o menu não aparecer logo depois, atualize a página ou entre novamente no painel.</span></div>' +
+        '</div>';
+    } else if (key === 'configuracoes-integracoes') {
+      body = '<div class="help-guide-panel-head">' +
+          '<div><h3>Configurações → Integrações</h3><p>A aba Integrações reúne canais de contato, redes sociais e ferramentas de medição da página pública. Ela ajuda clientes a encontrarem seus canais e ajuda você a medir visitas e campanhas quando tiver os códigos configurados.</p></div>' +
+          _guideBackButtons(moduleKey || 'configuracoes', 'Abrir Integrações', 'configuracoes/integracoes') +
+        '</div>' +
+        '<div class="support-guide-fields">' +
+          '<div class="support-guide-field"><strong>WhatsApp</strong><span>Informe o WhatsApp público da loja, usado para contato com clientes. Esse número é diferente do WhatsApp do usuário responsável pela conta. Use aqui o número que você quer que clientes vejam e usem para falar com a loja.</span></div>' +
+          '<div class="support-guide-field"><strong>Instagram, Facebook e TikTok</strong><span>Preencha os links dos canais que você realmente usa. Esses links ajudam clientes a conhecerem sua marca, verem fotos, acompanharem novidades e confirmarem que estão falando com a loja certa.</span></div>' +
+          '<div class="support-guide-field"><strong>Google Analytics 4</strong><span>Use este campo se você já tem um código do Google Analytics. Ele ajuda a acompanhar visitas e comportamento na página pública. Se você ainda não usa Analytics, pode deixar em branco.</span></div>' +
+          '<div class="support-guide-field"><strong>Google Tag Manager</strong><span>Use apenas se você ou alguém que cuida do seu marketing trabalha com GTM. Ele serve para organizar tags e scripts em um só lugar. Se você não conhece essa ferramenta, não precisa preencher agora.</span></div>' +
+          '<div class="support-guide-field"><strong>Meta Pixel</strong><span>Use este campo quando você mede campanhas do Facebook ou Instagram com Pixel. Ele ajuda a entender resultados de anúncios. Se você não anuncia ainda, pode deixar vazio até precisar.</span></div>' +
+          '<div class="support-guide-field"><strong>Salvar alterações</strong><span>Depois de preencher links ou códigos, clique em Salvar alterações. Os canais aparecem na página pública quando estiverem preenchidos corretamente.</span></div>' +
+        '</div>';
+    } else if (key === 'configuracoes-plano') {
+      body = '<div class="help-guide-panel-head">' +
+          '<div><h3>Configurações → Plano</h3><p>A tela Meu plano ajuda você a entender se sua conta está liberada, qual plano está associado ao acesso e onde conferir informações da compra feita pela Hotmart. Ela não altera dados da loja, dados fiscais ou forma de pagamento.</p></div>' +
+          _guideBackButtons(moduleKey || 'configuracoes', 'Abrir Plano', 'configuracoes/plano') +
+        '</div>' +
+        '<div class="support-guide-fields">' +
+          '<div class="support-guide-field"><strong>Plano atual</strong><span>Mostra o plano associado à sua conta BocaFood. Se a conta ainda estiver dentro do período grátis, o destaque pode mostrar os dias gratuitos restantes em vez de repetir o nome do plano.</span></div>' +
+          '<div class="support-guide-field"><strong>Acesso</strong><span>Indica se sua conta está liberada para usar o Centro de Controle. Quando aparece como ativa, você pode seguir configurando a loja normalmente. Se aparecer pendente ou bloqueada, abra um chamado para a equipe verificar.</span></div>' +
+          '<div class="support-guide-field"><strong>Período grátis</strong><span>Esse aviso aparece somente quando existe período grátis ativo ou quando ele terminou sem acesso liberado. Se o período grátis acabar e a Hotmart mantiver a assinatura ativa, a tela deixa de mostrar mensagens de teste grátis e passa a focar no plano ativo.</span></div>' +
+          '<div class="support-guide-field"><strong>Cobrança</strong><span>Mostra o ciclo do plano quando essa informação vem da compra, como mensal ou anual. O BocaFood não mostra cartão, recibo ou lista completa de cobranças dentro do painel, porque esses detalhes ficam no ambiente da Hotmart.</span></div>' +
+          '<div class="support-guide-field"><strong>Dados da compra na Hotmart</strong><span>Use esta área para lembrar que pagamentos, recibos, cartão, próxima cobrança e dados financeiros devem ser conferidos no painel da Hotmart. O BocaFood mostra apenas o necessário para indicar plano e acesso.</span></div>' +
+          '<div class="support-guide-field"><strong>Quando o acesso pode mudar</strong><span>Se a Hotmart informar cancelamento, reembolso, chargeback ou atraso que bloqueie o acesso, a conta pode deixar de aparecer como ativa. Nesses casos, os dados da loja não são apagados; o acesso apenas fica limitado até regularizar.</span></div>' +
+          '<div class="support-guide-field"><strong>Precisa de ajuda com seu plano?</strong><span>Use o card de ajuda quando tiver dúvida sobre acesso, assinatura, período grátis ou compra. Explique o que aparece na tela e, se possível, informe o e-mail usado na compra. Não envie senha, cartão ou dados sensíveis.</span></div>' +
+        '</div>';
+    } else if (key === 'compras-registro') {
+      body = '<div class="help-guide-panel-head">' +
+          '<div><h3>Compras → Registro de compras</h3><p>Use esta tela para registrar o que entrou na loja, de qual fornecedor veio, quanto custou e como o pagamento será acompanhado no financeiro.</p></div>' +
+          _guideBackButtons(moduleKey || 'compras', 'Abrir Registro de compras', 'compras/registros') +
+        '</div>' +
+        _guideFields([
+          ['Quando registrar uma compra', 'Registre uma compra quando você recebeu ou contratou algo para a loja: ingredientes, produtos prontos, embalagens, descartáveis, serviços ou qualquer gasto ligado à operação. O ideal é criar um registro por nota, recibo, pedido ou entrega para manter o histórico fácil de entender.'],
+          ['Nova compra', 'Abre o formulário para lançar uma compra. Antes de começar, se possível, cadastre o fornecedor e os itens comprados. Assim o preenchimento fica mais rápido e o custo por unidade fica mais confiável.'],
+          ['Fornecedor', 'Escolha quem vendeu os itens. Use a busca para encontrar o fornecedor cadastrado. Ao selecionar, o sistema consegue mostrar o nome comercial e aproveitar padrões de pagamento quando eles existirem.'],
+          ['Nome comercial', 'Mostra como aquele fornecedor é conhecido no dia a dia. Esse campo ajuda você a confirmar se selecionou o fornecedor certo, principalmente quando o nome fiscal é diferente do nome usado comercialmente.'],
+          ['Data da compra', 'Informe a data em que a compra aconteceu ou a data do documento recebido. Essa data ajuda a organizar o histórico e entender quando o custo foi atualizado.'],
+          ['Número do documento', 'Use para guardar o número da nota, recibo, pedido, fatura ou referência do fornecedor. Se não houver documento, você pode deixar em branco ou usar uma identificação simples que ajude a reconhecer a compra depois.'],
+          ['Status da compra', 'Use Pendente quando ainda falta receber ou revisar algo. Use Recebida quando a compra já entrou corretamente. Use Parcial quando só uma parte foi recebida. Use Cancelada quando o registro não deve mais entrar na organização da loja.'],
+          ['Observações internas', 'Use para detalhes que ajudam você ou sua equipe: combinado com fornecedor, prazo, divergência de entrega, item substituído, valor combinado ou qualquer ponto que explique a compra.'],
+          ['Itens comprados', 'Nesta parte você informa cada item recebido. Escolha o item, diga como ele veio do fornecedor, quantas embalagens vieram e qual foi o preço pago por embalagem. O sistema usa essas informações para calcular o custo real por unidade.'],
+          ['Quantidade comprada', 'Informe quantas embalagens, caixas, sacos, unidades ou pacotes foram comprados. Se você comprou 3 sacos de farinha, a quantidade comprada é 3.'],
+          ['Embalagem', 'Descreva como o item veio na compra: saco, caixa, garrafa, pacote, bandeja ou unidade. Esse campo ajuda a entender o preço informado e a leitura do estoque.'],
+          ['Conteúdo da embalagem', 'Informe quanto vem dentro de cada embalagem. Exemplo: um saco com 5 kg, uma garrafa com 1 L ou uma caixa com 12 unidades. Esse número é usado para calcular quanto custa cada kg, litro ou unidade.'],
+          ['Unidade usada no custo', 'É a unidade que o sistema usa para custo, estoque e receitas: kg, g, L, ml ou unidade. Ela vem do cadastro do item. Se estiver errada, ajuste primeiro em Produtos / Insumos.'],
+          ['Preço por embalagem', 'Informe o valor pago pela embalagem inteira, não o valor por kg, litro ou unidade. Exemplo: se o saco de 5 kg custou €2,50, preencha €2,50 no preço da embalagem.'],
+          ['Desconto por embalagem', 'Use apenas quando o fornecedor deu desconto em cada embalagem ou unidade comprada. Se o desconto foi no total da compra, revise se faz sentido dividir o valor entre os itens antes de preencher.'],
+          ['IVA do item', 'Quando aparecer, use para informar o imposto aplicado ao item. Se você não tiver certeza, mantenha o padrão da loja e revise depois com a pessoa que acompanha sua parte fiscal.'],
+          ['Adicionar item', 'Depois de preencher os dados do item, clique para adicioná-lo à compra. Só depois de adicionar ele entra no total e no resumo da compra.'],
+          ['Pagamento e vencimento', 'Use esta parte para organizar se a compra também deve gerar conta a pagar no financeiro. Preencha vencimento, forma de pagamento, categoria financeira e parcelas quando houver pagamento futuro.'],
+          ['Gerar conta a pagar', 'Marque quando essa compra precisa aparecer no Financeiro para acompanhamento de pagamento. Se a compra já foi paga e você não quer controlar parcelas, revise se vale deixar desmarcado.'],
+          ['Entrada', 'Use quando uma parte já foi paga no momento da compra. O restante pode ser dividido em parcelas, mantendo a compra e o financeiro mais fáceis de conferir.'],
+          ['Parcelas e intervalo', 'Use quando o fornecedor permitiu pagar em mais de uma vez. Informe a quantidade de parcelas e o intervalo entre vencimentos para que o financeiro fique organizado.'],
+          ['Categoria financeira', 'Escolha o grupo que melhor representa esse gasto. Isso ajuda depois a entender quanto a loja gasta com ingredientes, embalagens, serviços ou outras despesas.'],
+          ['Compra com contas a pagar já geradas', 'Quando uma compra já gerou parcelas no financeiro, edite com atenção. Ao salvar usando Atualizar compra, as mudanças são sincronizadas para evitar diferença entre o registro da compra e as contas a pagar.'],
+          ['Boas práticas', 'Cadastre fornecedores e itens antes de registrar compras, confira quantidades e preços antes de salvar e evite misturar documentos diferentes no mesmo registro quando isso dificultar a conferência.']
+        ]);
+    } else if (key === 'compras-produtos-insumos') {
+      body = '<div class="help-guide-panel-head">' +
+          '<div><h3>Compras → Produtos / Insumos</h3><p>Use esta tela para cadastrar os itens que a loja compra. Esses cadastros ajudam no registro de compras, no cálculo de custo e, quando for insumo, na preparação de receitas.</p></div>' +
+          _guideBackButtons(moduleKey || 'compras', 'Abrir Produtos / Insumos', 'compras/itens') +
+        '</div>' +
+        _guideFields([
+          ['Produto pronto ou insumo', 'Produto pronto é algo comprado para vender ou usar como item final. Insumo é algo usado para preparar produtos, como farinha, chocolate, carne, molho, embalagem ou descartável. Escolher a classe certa ajuda o sistema a mostrar os campos adequados.'],
+          ['Classe do item', 'Define se o cadastro será tratado como produto pronto ou insumo. Quando for insumo, aparecem opções ligadas a receitas e aproveitamento. Quando for produto pronto, a tela fica mais simples.'],
+          ['Nome do item', 'Use um nome fácil de procurar. Prefira nomes claros, como Farinha de trigo, Batata, Caixa para bolo ou Refrigerante lata. Evite abreviações que você possa esquecer depois.'],
+          ['Categoria', 'Organiza itens parecidos no mesmo grupo. Exemplos: Laticínios, Congelados, Bebidas, Embalagens ou Descartáveis. A categoria ajuda na busca, nos filtros e na leitura dos custos.'],
+          ['Cadastro ativo', 'Itens ativos aparecem nas buscas e nos formulários de compra. Se você não usa mais um item, prefira desativar em vez de apagar quando ele já apareceu em compras antigas.'],
+          ['Compra e custo', 'Use esta área para dizer como você costuma comprar esse item. Isso ajuda o sistema a preencher melhor o registro de compras e calcular custo por unidade, kg ou litro.'],
+          ['Unidade base', 'É a unidade usada para calcular custo, estoque e receitas. Se você usa batata por quilo nas receitas, escolha kg. Se usa leite por litro, escolha L. Se compra e usa por unidade, escolha unidade.'],
+          ['Fornecedor padrão', 'Escolha o fornecedor onde você costuma comprar esse item. Isso não impede comprar de outro fornecedor, mas deixa o lançamento mais rápido quando o fornecedor for o de sempre.'],
+          ['Embalagem de compra padrão', 'Informe como o item costuma vir na compra: saco, caixa, pacote, garrafa, bandeja ou unidade. Exemplo: batata em saco, leite em garrafa, ovos em caixa.'],
+          ['Conteúdo por embalagem', 'Informe quanto vem dentro da embalagem padrão. Exemplo: saco com 5 kg, garrafa com 1 L ou caixa com 12 unidades. Esse dado ajuda o sistema a calcular o custo real.'],
+          ['Como preencher?', 'A ajuda aparece para insumos porque eles costumam entrar em receitas. Ela explica o exemplo da batata comprada em saco, mas usada por kg, para mostrar como embalagem e conteúdo trabalham juntos no custo.'],
+          ['Custo atual', 'O custo atual ajuda você a acompanhar quanto o item está custando. Ele pode ser atualizado a partir das compras registradas e serve como referência para receitas, margens e decisões de compra.'],
+          ['Uso em receitas', 'Ative quando este item puder entrar na preparação dos seus produtos. Ao ativar, ele aparece na lista de ingredientes das receitas e o BocaFood usa o custo dele para calcular quanto cada produto custa para ser feito.'],
+          ['Aproveitamento (%)', 'Informe quanto do item realmente é aproveitado. Use 100% quando tudo é usado. Se existe perda ao limpar, descascar, cortar ou preparar, use uma porcentagem menor. Exemplo: se de 1 kg você aproveita cerca de 800 g, use 80%.'],
+          ['Dados fiscais', 'Preencha quando precisar organizar o item para documentos e impostos: código interno, nome fiscal, IVA, categoria fiscal e unidade fiscal. Esses dados ajudam a preparar a base fiscal sem mudar a forma simples de cadastrar o item.'],
+          ['Quando editar', 'Edite quando mudar fornecedor padrão, unidade base, categoria, embalagem ou uso em receitas. Se o item já foi usado em compras e receitas, revise com atenção para não confundir custos antigos com custos novos.'],
+          ['Quando não apagar', 'Se o item já apareceu em compras, receitas ou relatórios, prefira desativar. Assim o histórico continua entendível e você evita perder referência de custos anteriores.']
+        ]);
+    } else if (key === 'compras-fornecedores') {
+      body = '<div class="help-guide-panel-head">' +
+          '<div><h3>Compras → Fornecedores</h3><p>Use esta tela para manter os dados de quem vende ingredientes, produtos, embalagens ou serviços para a loja. Um cadastro bem preenchido deixa compras e pagamentos mais fáceis de conferir.</p></div>' +
+          _guideBackButtons(moduleKey || 'compras', 'Abrir Fornecedores', 'compras/fornecedores') +
+        '</div>' +
+        _guideFields([
+          ['Quando cadastrar um fornecedor', 'Cadastre todo fornecedor que você usa com alguma frequência ou que precisa aparecer no histórico de compras. Pode ser mercado, distribuidor, produtor local, loja de embalagens ou prestador de serviço.'],
+          ['Dados fiscais', 'Use esta parte para identificar corretamente o fornecedor nas compras, pagamentos e documentos. Preencha com os dados que aparecem na nota, fatura, recibo ou cadastro comercial do fornecedor.'],
+          ['Nome fiscal', 'É o nome usado em documentos. Pode ser o nome completo de uma pessoa autónoma ou a denominação social de uma empresa. Esse nome nem sempre é igual ao nome conhecido comercialmente.'],
+          ['Nome comercial', 'É o nome pelo qual você reconhece o fornecedor no dia a dia. Ele aparece em resumos e facilita encontrar o fornecedor certo sem precisar decorar o nome fiscal.'],
+          ['Pessoa de contato', 'Preencha quando você fala com uma pessoa específica dentro do fornecedor. Isso ajuda na hora de resolver dúvidas de entrega, pedido ou pagamento.'],
+          ['Tipo de documento', 'Escolha o tipo de identificação fiscal do fornecedor. Use a opção que corresponde ao documento informado. Se não tiver certeza, confira no documento do fornecedor antes de salvar.'],
+          ['Documento fiscal', 'Informe o número do documento do fornecedor. Esse campo ajuda a diferenciar fornecedores com nomes parecidos e deixa o cadastro pronto para compras e conferências.'],
+          ['País fiscal', 'Mostra o país usado para interpretar os dados fiscais do fornecedor. Para fornecedores da Espanha, mantenha Espanha. Para fornecedores de outro país, escolha o país correspondente quando estiver disponível.'],
+          ['Regime fiscal', 'Use quando você souber como o fornecedor trabalha fiscalmente. Essa informação ajuda na organização fiscal e pode influenciar conferências futuras. Se você não sabe, deixe sem preencher até confirmar.'],
+          ['IVA dedutível', 'Marque quando o IVA da compra normalmente pode ser considerado na organização fiscal do negócio. Se você não tem certeza, mantenha o padrão e revise com apoio fiscal antes de usar em decisões importantes.'],
+          ['IRPF dedutível', 'Use apenas quando fizer sentido para o tipo de fornecedor e documento recebido. Nem todo fornecedor usa IRPF. Se não souber, deixe desmarcado até confirmar.'],
+          ['Endereço', 'Preencha o endereço principal do fornecedor. Comece digitando a rua e escolha uma sugestão quando aparecer. Depois confira número, zona, localidade, província, código postal e país.'],
+          ['Telefone e WhatsApp', 'Use telefone para contato geral e WhatsApp para conversas rápidas com o fornecedor. Se for o mesmo número, você pode repetir. O importante é conseguir falar com o fornecedor quando houver dúvida sobre compra ou entrega.'],
+          ['E-mail', 'Use o e-mail onde o fornecedor envia documentos, respostas, orçamentos ou comprovantes. Evite e-mails que você não costuma acompanhar.'],
+          ['Pagamento padrão', 'Escolha a forma de pagamento mais comum para esse fornecedor. Isso ajuda o registro de compras a sugerir o preenchimento correto, mas você ainda pode mudar em cada compra.'],
+          ['Prazo de pagamento', 'Informe em quantos dias você costuma pagar esse fornecedor. Exemplo: 0 para pagamento na hora, 7 para uma semana, 30 para mensal.'],
+          ['Observações', 'Use para anotar condições, horário de entrega, pedido mínimo, contato preferido, qualidade, frequência ou qualquer detalhe que ajude na compra.'],
+          ['Fornecedor ativo', 'Fornecedores ativos aparecem na busca e nos formulários de compra. Se você parou de comprar, desative para manter o histórico sem deixar a lista principal confusa.'],
+          ['Editar ou excluir', 'Edite sempre que os dados mudarem. Se o fornecedor já tem compras registradas, prefira desativar em vez de excluir, para manter o histórico compreensível.']
+        ]);
+    } else if (key === 'compras-configuracoes') {
+      body = '<div class="help-guide-panel-head">' +
+          '<div><h3>Compras → Configurações</h3><p>Use esta tela para organizar as opções que aparecem nos cadastros e filtros de compras. Ela ajuda a encontrar itens mais rápido e manter custos separados por grupos.</p></div>' +
+          _guideBackButtons(moduleKey || 'compras', 'Abrir Configurações', 'compras/configuracoes') +
+        '</div>' +
+        _guideFields([
+          ['Para que serve', 'Configurações de compras organizam os cadastros usados em Produtos / Insumos, Fornecedores e Registro de compras. O objetivo é deixar a operação mais fácil de procurar, filtrar e conferir.'],
+          ['Categorias', 'Categorias organizam itens parecidos no mesmo grupo. Exemplos: Bebidas, Laticínios, Carnes, Embalagens, Congelados e Descartáveis. Use nomes simples e consistentes.'],
+          ['Como escolher uma categoria', 'Pense em como você procura os itens na prática. Se você quer encontrar ingredientes por tipo de compra, use categorias como Hortifruti, Secos, Proteínas ou Embalagens. Evite criar categorias muito parecidas.'],
+          ['Ordem da lista', 'As categorias aparecem em ordem alfabética para facilitar a busca. Se uma categoria não aparecer onde você espera, confira se o nome está escrito da forma desejada e se ela está ativa.'],
+          ['Busca e filtros', 'Use a busca para encontrar uma categoria pelo nome. O botão Limpar filtros aparece somente quando há algo filtrando a lista. Se nada aparecer, limpe os filtros ou revise a palavra buscada.'],
+          ['Nova categoria', 'Crie uma categoria quando precisar agrupar itens de um jeito que ainda não existe. Use um nome curto e fácil de entender. A categoria criada poderá aparecer nos cadastros de Produtos / Insumos e nos filtros.'],
+          ['Editar categoria', 'Use para corrigir nome, ajustar status ou padronizar a organização. Se a categoria já estiver em uso, prefira renomear com cuidado para não confundir relatórios e buscas.'],
+          ['Excluir categoria', 'Use exclusão apenas quando a categoria foi criada por engano ou não está em uso. Se ela já organiza itens existentes, avalie deixar inativa ou ajustar o nome para preservar a leitura do histórico.'],
+          ['Categorias e classe do item', 'A classe do item separa Produto pronto de Insumo. A categoria apenas agrupa itens parecidos. Exemplo: um insumo e um produto pronto podem estar em grupos diferentes conforme a organização da loja.'],
+          ['Unidades de medida', 'As unidades aparecem nos cadastros e compras para indicar como o item é medido, como kg, g, L, ml ou unidade. Elas ajudam o sistema a calcular custos e quantidades de forma coerente.'],
+          ['Boas práticas', 'Comece com poucas categorias bem claras. Depois, se a lista crescer, crie novas categorias. Muitas categorias parecidas deixam a busca mais difícil e podem espalhar custos que deveriam estar juntos.']
+        ]);
     } else if (key === 'suporte-abrir') {
       body = '<div class="help-guide-panel-head">' +
           '<div><h3>Suporte → Abrir chamado</h3><p>Use o chamado quando tiver dúvida, erro, bloqueio ou uma configuração que precise da equipe BocaFood.</p></div>' +

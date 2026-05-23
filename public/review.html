@@ -3,68 +3,82 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deja tu opinión | Bocado Brasil</title>
+<title>Deja tu opinión | BocaFood</title>
 <meta name="robots" content="noindex">
-<link rel="icon" id="site-favicon" type="image/png" href="">
+<link rel="icon" id="site-favicon" type="image/png" href="/assets/boca-food-favicon.png">
+<link rel="apple-touch-icon" id="site-apple-touch-icon" href="/assets/boca-food-favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@700;800;900&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round&display=block" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
-  --red:#C4362A;--red-dark:#9E2418;
-  --off-white:#FBF5F3;--white:#FFFFFF;
-  --gray-light:#F2EDED;--gray-mid:#D4C8C6;
-  --gray-text:#8A7E7C;--dark:#1A1A1A;
-  --radius:16px;
-  --shadow-sm:0 2px 8px rgba(0,0,0,.07);
-  --shadow-md:0 6px 24px rgba(0,0,0,.11);
+  --brand:#C4362A;--brand-dark:#9E2418;--brand-rgb:196,54,42;
+  --store-bg:#FFF8F1;--paper:#FFFFFF;--paper-soft:#FFFCF8;
+  --line:#EFE5DE;--line-soft:rgba(255,255,255,.88);
+  --muted:#756B63;--ink:#201917;
+  --radius:22px;
+  --shadow-sm:0 10px 24px rgba(34,25,21,.06);
+  --shadow-md:0 22px 58px rgba(34,25,21,.10);
 }
-body{font-family:'Work Sans',sans-serif;background:var(--off-white);color:var(--dark);min-height:100vh;display:flex;flex-direction:column}
+body{font-family:'Manrope','Inter',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:
+  radial-gradient(circle at 12% -10%, rgba(var(--brand-rgb), .13), rgba(var(--brand-rgb), 0) 32%),
+  linear-gradient(180deg,var(--store-bg),#FFFDF9 62%,var(--store-bg));color:var(--ink);min-height:100vh;display:flex;flex-direction:column}
 .mi{font-family:'Material Icons Round';font-style:normal;font-weight:normal;line-height:1;display:inline-block;vertical-align:middle;white-space:nowrap;word-wrap:normal;direction:ltr;-webkit-font-smoothing:antialiased;-webkit-font-feature-settings:'liga';font-feature-settings:'liga';user-select:none}
 
-header{background:var(--white);border-bottom:1px solid var(--gray-light);box-shadow:var(--shadow-sm)}
-.header-inner{max-width:480px;margin:0 auto;padding:13px 20px;display:flex;align-items:center;justify-content:center}
-.logo-fallback{font-family:'League Spartan',sans-serif;font-size:19px;font-weight:800;color:var(--red)}
-.logo img{height:40px;width:auto;display:block}
+header{background:transparent;border:0}
+.header-inner{max-width:560px;margin:0 auto;padding:22px 20px 8px;display:flex;align-items:center;justify-content:center}
+.logo{min-height:48px;display:flex;align-items:center;justify-content:center}
+.logo-fallback{font-size:20px;font-weight:700;color:var(--brand)}
+.logo img{max-height:50px;max-width:190px;width:auto;display:block;object-fit:contain}
 
-.hero-strip{background:linear-gradient(135deg,#C4362A,#8E1F14);padding:28px 20px 24px;text-align:center}
-.hero-strip h1{font-family:'League Spartan',sans-serif;font-size:26px;font-weight:800;color:#fff;letter-spacing:-.5px;margin-bottom:6px}
-.hero-strip p{color:rgba(255,255,255,.8);font-size:14px}
+.hero-strip{max-width:560px;margin:0 auto;padding:16px 20px 8px;text-align:left}
+.hero-strip h1{font-size:clamp(28px,6vw,40px);font-weight:740;color:var(--ink);letter-spacing:-.035em;line-height:1.03;margin-bottom:9px}
+.hero-strip p{color:var(--muted);font-size:14px;line-height:1.55;max-width:420px}
 
-.form-wrap{max-width:480px;margin:0 auto;padding:24px 16px 40px;flex:1}
-.card{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow-md);padding:24px 20px}
+.form-wrap{width:min(560px,100%);margin:0 auto;padding:12px 16px 42px;flex:1}
+.card{background:
+  radial-gradient(circle at 12% 0%, rgba(var(--brand-rgb), .09), rgba(var(--brand-rgb), 0) 32%),
+  linear-gradient(180deg,rgba(255,255,255,.98),rgba(255,252,248,.96));border:1px solid var(--line-soft);border-radius:var(--radius);box-shadow:var(--shadow-md);padding:22px;overflow:hidden}
 
-.step-label{font-size:11px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px}
+.step-label{font-size:10px;font-weight:700;color:var(--brand);text-transform:uppercase;letter-spacing:.08em;margin-bottom:16px}
 
 /* Star rating */
-.stars-wrap{display:flex;gap:8px;justify-content:center;margin:4px 0 20px}
-.star-btn{background:none;border:none;cursor:pointer;font-size:40px;line-height:1;color:var(--gray-mid);transition:color .15s,transform .1s;padding:4px}
+.stars-wrap{display:flex;gap:7px;justify-content:center;margin:4px 0 16px;padding:12px;border-radius:18px;background:rgba(255,255,255,.62);border:1px solid rgba(255,255,255,.82)}
+.star-btn{background:none;border:none;cursor:pointer;font-size:38px;line-height:1;color:#D8CCC5;transition:color .15s,transform .1s;padding:2px}
 .star-btn:hover,.star-btn.active{color:#FFD166;transform:scale(1.1)}
-.star-hint{text-align:center;font-size:13px;font-weight:600;color:var(--gray-text);min-height:20px;margin-bottom:16px;transition:color .2s}
+.star-hint{text-align:center;font-size:13px;font-weight:500;color:var(--muted);min-height:20px;margin-bottom:16px;transition:color .2s}
 
 /* Form fields */
-.form-group{margin-bottom:16px}
-.form-group label{display:block;font-size:12px;font-weight:700;color:var(--gray-text);text-transform:uppercase;letter-spacing:.3px;margin-bottom:6px}
-.form-group input,.form-group textarea,.form-group select{width:100%;padding:12px 14px;border:1.5px solid var(--gray-mid);border-radius:11px;font-size:14px;font-family:'Work Sans',sans-serif;font-weight:500;background:var(--white);color:var(--dark);outline:none;transition:border-color .2s;resize:vertical}
-.form-group input:focus,.form-group textarea:focus,.form-group select:focus{border-color:var(--red)}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:11px;font-weight:650;color:#7A7068;letter-spacing:0;margin-bottom:6px}
+.form-group input,.form-group textarea,.form-group select{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:13px;font-size:14px;font-family:inherit;font-weight:500;background:var(--paper-soft);color:var(--ink);outline:none;transition:border-color .18s,box-shadow .18s,background .18s;resize:vertical}
+.form-group input:focus,.form-group textarea:focus,.form-group select:focus{background:#fff;border-color:rgba(var(--brand-rgb), .45);box-shadow:0 0 0 4px rgba(var(--brand-rgb), .08)}
 .form-group textarea{min-height:100px}
 
-.submit-btn{width:100%;padding:15px;background:var(--red);color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;font-family:'Work Sans',sans-serif;cursor:pointer;transition:background .2s;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:8px}
-.submit-btn:hover{background:var(--red-dark)}
-.submit-btn:disabled{background:var(--gray-mid);cursor:not-allowed}
+.submit-btn{width:100%;min-height:48px;padding:13px 16px;background:linear-gradient(135deg,var(--brand),var(--brand-dark));color:#fff;border:1px solid rgba(255,255,255,.72);border-radius:14px;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;transition:transform .18s,box-shadow .18s,filter .18s;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:8px;box-shadow:0 14px 28px rgba(var(--brand-rgb), .20)}
+.submit-btn:hover{transform:translateY(-1px);filter:brightness(1.03);box-shadow:0 18px 34px rgba(var(--brand-rgb), .24)}
+.submit-btn:disabled{background:#D8CCC5;box-shadow:none;cursor:not-allowed}
 
 /* Success state */
 .success-card{text-align:center;display:none}
-.success-icon{font-size:64px;margin-bottom:16px}
-.success-title{font-family:'League Spartan',sans-serif;font-size:26px;font-weight:800;color:var(--dark);margin-bottom:8px}
-.success-sub{font-size:14px;color:var(--gray-text);line-height:1.6;margin-bottom:24px}
-.back-btn{display:inline-flex;align-items:center;gap:6px;background:var(--red);color:#fff;padding:12px 22px;border-radius:12px;font-size:14px;font-weight:700;text-decoration:none;transition:background .2s}
-.back-btn:hover{background:var(--red-dark)}
+.success-graphic{width:64px;height:64px;margin:0 auto 15px;border-radius:22px;background:radial-gradient(circle at 32% 20%,rgba(255,255,255,.96),rgba(var(--brand-rgb),.13));border:1px solid rgba(255,255,255,.9);box-shadow:0 16px 32px rgba(var(--brand-rgb),.14);display:grid;place-items:center;color:var(--brand)}
+.success-graphic .mi{font-size:31px}
+.success-title{font-size:24px;font-weight:720;color:var(--ink);letter-spacing:-.02em;margin-bottom:8px}
+.success-sub{font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:22px}
+.back-btn{display:inline-flex;align-items:center;gap:7px;background:var(--brand);color:#fff;padding:12px 18px;border-radius:14px;font-size:14px;font-weight:650;text-decoration:none;transition:transform .18s,filter .18s;box-shadow:0 12px 24px rgba(var(--brand-rgb),.18)}
+.back-btn:hover{filter:brightness(1.04);transform:translateY(-1px)}
 
 /* Already submitted */
 .already-card{text-align:center;padding:16px 0}
+#form-error{border:1px solid rgba(var(--brand-rgb),.13)}
+@media(max-width:520px){
+  .header-inner{padding-top:18px}
+  .hero-strip{padding-top:12px}
+  .card{padding:19px 16px;border-radius:20px}
+  .star-btn{font-size:34px}
+}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -74,20 +88,20 @@ header{background:var(--white);border-bottom:1px solid var(--gray-light);box-sha
 <header>
   <div class="header-inner">
     <div class="logo">
-      <img id="site-logo" src="" alt="Bocado Brasil" onerror="this.style.display='none';document.getElementById('logo-fallback').style.display='block'">
-      <span class="logo-fallback" id="logo-fallback" style="display:none">Bocado Brasil</span>
+      <img id="site-logo" src="" alt="BocaFood" onerror="this.style.display='none';document.getElementById('logo-fallback').style.display='block'">
+      <span class="logo-fallback" id="logo-fallback" style="display:none">BocaFood</span>
     </div>
   </div>
 </header>
 
 <div class="hero-strip">
-  <h1>¿Cómo fue tu experiencia?</h1>
-  <p>Tu opinión nos ayuda a mejorar y a llegar a más personas</p>
+  <h1 id="review-hero-title">¿Cómo fue tu experiencia?</h1>
+  <p id="review-hero-text">Tu opinión nos ayuda a mejorar y a llegar a más personas</p>
 </div>
 
 <div class="form-wrap">
   <div class="card" id="form-card">
-    <div class="step-label">Deja tu valoración</div>
+    <div class="step-label" id="review-kicker">Deja tu valoración</div>
 
     <!-- Stars -->
     <div class="stars-wrap" id="stars-wrap">
@@ -100,49 +114,40 @@ header{background:var(--white);border-bottom:1px solid var(--gray-light);box-sha
     <div class="star-hint" id="star-hint">Toca las estrellas para valorar</div>
 
     <div class="form-group">
-      <label>Tu nombre</label>
+      <label id="name-label">Tu nombre</label>
       <input type="text" id="r-name" placeholder="Ex: María G." maxlength="60" autocomplete="name">
     </div>
 
     <div class="form-group">
-      <label>Comentario</label>
+      <label id="comment-label">Comentario</label>
       <textarea id="r-comment" placeholder="¿Qué te pareció? ¿Qué pediste?" maxlength="500"></textarea>
     </div>
 
     <div class="form-group" id="product-group" style="display:none">
-      <label>¿Qué pediste? <span style="font-weight:400;color:var(--gray-text)">(opcional)</span></label>
+      <label><span id="product-label">¿Qué pediste?</span> <span id="optional-label" style="font-weight:400;color:var(--muted)">(opcional)</span></label>
       <select id="r-product">
         <option value="">— Seleccionar producto —</option>
       </select>
     </div>
 
-    <div id="form-error" style="display:none;background:#FFF0EE;border-radius:9px;padding:10px 14px;font-size:13px;font-weight:600;color:var(--red);margin-bottom:12px"></div>
+    <div id="form-error" style="display:none;background:#FFF0EE;border-radius:12px;padding:10px 14px;font-size:13px;font-weight:500;color:var(--brand);margin-bottom:12px"></div>
 
     <button class="submit-btn" id="submit-btn" onclick="submitReview()">
-      <span class="mi">send</span> Enviar valoración
+      <span class="mi">send</span> <span id="submit-label">Enviar valoración</span>
     </button>
-    <p style="font-size:11px;color:var(--gray-text);text-align:center;margin-top:10px;line-height:1.5">
+    <p id="review-privacy-note" style="font-size:11px;color:var(--muted);text-align:center;margin-top:10px;line-height:1.5">
       Tu valoración será revisada antes de publicarse.<br>No compartimos tus datos con terceros.
     </p>
   </div>
 
-  <!-- Already submitted -->
-  <div class="card already-card" id="already-card" style="display:none">
-    <div class="success-icon">🙏</div>
-    <div class="success-title">¡Ya enviaste tu opinión!</div>
-    <div class="success-sub">Gracias por tu valoración anterior. Nos alegra mucho saber de ti.</div>
-    <a href="index.html" class="back-btn"><span class="mi">storefront</span> Ver menú</a>
-  </div>
-
   <!-- Success -->
   <div class="card success-card" id="success-card">
-    <div class="success-icon">🎉</div>
-    <div class="success-title">¡Gracias por tu opinión!</div>
-    <div class="success-sub">
+    <div class="success-graphic"><span class="mi">check_circle</span></div>
+    <div class="success-title" id="success-title">¡Gracias por tu opinión!</div>
+    <div class="success-sub" id="success-text">
       Tu valoración se abrió en WhatsApp — solo pulsa <strong>Enviar</strong> para que lleguemos a verla.<br><br>
       ¡Tu apoyo nos da mucha energía! 💚
     </div>
-    <a href="index.html" class="back-btn"><span class="mi">storefront</span> Volver al menú</a>
   </div>
 </div>
 
@@ -150,32 +155,141 @@ header{background:var(--white);border-bottom:1px solid var(--gray-light);box-sha
 // Phone injected at publish time — fallback is the default number
 let WA_PHONE=/*[[BOCA_PHONE]]*/'34611878234'/*[[BOCA_PHONE_END]]*/;
 const CFG_KEY='bocadoBrasilConfig';
-const SUBMITTED_KEY='bocadoBrasilReviewSubmitted';
-const STAR_HINTS=['','¡Muy malo!','Podría mejorar','Está bien','¡Muy bueno!','¡Excelente!'];
+let REVIEW_LANG='es';
+const REVIEW_I18N={
+  es:{heroTitle:'¿Cómo fue tu experiencia?',heroText:'Tu opinión ayuda a esta tienda a mejorar y atender mejor.',kicker:'Deja tu valoración',starHint:'Toca las estrellas para valorar',starHints:['','¡Muy malo!','Podría mejorar','Está bien','¡Muy bueno!','¡Excelente!'],nameLabel:'Tu nombre',namePlaceholder:'Ej.: María G.',commentLabel:'Comentario',commentPlaceholder:'¿Qué te pareció? ¿Qué pediste?',productLabel:'¿Qué pediste?',optional:'(opcional)',productPlaceholder:'— Seleccionar producto —',submit:'Enviar valoración',privacy:'Tu valoración será revisada antes de publicarse.<br>No compartimos tus datos con terceros.',alreadyTitle:'¡Ya enviaste tu opinión!',alreadyText:'Gracias por tu valoración anterior. Nos alegra mucho saber de ti.',successTitle:'¡Gracias por tu opinión!',successText:'Tu valoración se abrió en WhatsApp — solo pulsa <strong>Enviar</strong> para que lleguemos a verla.<br><br>¡Tu apoyo nos da mucha energía! 💚',back:'Ver menú',noStore:'No fue posible identificar la tienda para enviar la valoración. Abre el enlace de valoración desde la tienda.',starError:'Por favor, selecciona una valoración con estrellas.',nameError:'Por favor, escribe tu nombre.',commentError:'Por favor, escribe un comentario.',whatsappTitle:'Nueva valoración',whatsappName:'Nombre',whatsappRating:'Nota',whatsappProduct:'Producto',whatsappComment:'Comentario',whatsappDate:'Fecha'},
+  pt:{heroTitle:'Como foi sua experiência?',heroText:'Sua opinião ajuda esta loja a melhorar e atender melhor.',kicker:'Deixe sua avaliação',starHint:'Toque nas estrelas para avaliar',starHints:['','Muito ruim','Pode melhorar','Está bom','Muito bom','Excelente'],nameLabel:'Seu nome',namePlaceholder:'Ex.: Maria G.',commentLabel:'Comentário',commentPlaceholder:'O que você achou? O que pediu?',productLabel:'O que você pediu?',optional:'(opcional)',productPlaceholder:'— Selecionar produto —',submit:'Enviar avaliação',privacy:'Sua avaliação será revisada antes de ser publicada.<br>Não compartilhamos seus dados com terceiros.',alreadyTitle:'Você já enviou sua avaliação!',alreadyText:'Obrigada pela avaliação anterior. Ficamos felizes em ouvir você.',successTitle:'Obrigada pela sua avaliação!',successText:'Sua avaliação foi aberta no WhatsApp — agora é só tocar em <strong>Enviar</strong> para a loja receber.<br><br>Seu apoio ajuda muito. 💚',back:'Ver cardápio',noStore:'Não foi possível identificar a loja para enviar a avaliação. Abra o link de avaliação pela loja.',starError:'Selecione uma nota com estrelas.',nameError:'Escreva seu nome.',commentError:'Escreva um comentário.',whatsappTitle:'Nova avaliação',whatsappName:'Nome',whatsappRating:'Nota',whatsappProduct:'Produto',whatsappComment:'Comentário',whatsappDate:'Data'},
+  en:{heroTitle:'How was your experience?',heroText:'Your feedback helps this store improve and serve you better.',kicker:'Leave your review',starHint:'Tap the stars to rate',starHints:['','Very bad','Could improve','Good','Very good','Excellent'],nameLabel:'Your name',namePlaceholder:'Ex.: Mary G.',commentLabel:'Comment',commentPlaceholder:'What did you think? What did you order?',productLabel:'What did you order?',optional:'(optional)',productPlaceholder:'— Select product —',submit:'Send review',privacy:'Your review will be checked before being published.<br>We do not share your data with third parties.',alreadyTitle:'You already sent your review!',alreadyText:'Thanks for your previous review. We are happy to hear from you.',successTitle:'Thanks for your review!',successText:'Your review opened in WhatsApp — just tap <strong>Send</strong> so the store receives it.<br><br>Your support helps a lot. 💚',back:'View menu',noStore:'We could not identify the store for this review. Open the review link from the store.',starError:'Please choose a star rating.',nameError:'Please enter your name.',commentError:'Please write a comment.',whatsappTitle:'New review',whatsappName:'Name',whatsappRating:'Rating',whatsappProduct:'Product',whatsappComment:'Comment',whatsappDate:'Date'},
+  fr:{heroTitle:'Comment s’est passée votre expérience ?',heroText:'Votre avis aide cette boutique à s’améliorer et à mieux vous servir.',kicker:'Laisser un avis',starHint:'Touchez les étoiles pour noter',starHints:['','Très mauvais','Peut mieux faire','Bien','Très bien','Excellent'],nameLabel:'Votre nom',namePlaceholder:'Ex. : Marie G.',commentLabel:'Commentaire',commentPlaceholder:'Qu’en avez-vous pensé ? Qu’avez-vous commandé ?',productLabel:'Qu’avez-vous commandé ?',optional:'(facultatif)',productPlaceholder:'— Sélectionner un produit —',submit:'Envoyer l’avis',privacy:'Votre avis sera vérifié avant publication.<br>Nous ne partageons pas vos données avec des tiers.',alreadyTitle:'Vous avez déjà envoyé votre avis !',alreadyText:'Merci pour votre avis précédent. Nous sommes heureux de vous lire.',successTitle:'Merci pour votre avis !',successText:'Votre avis s’est ouvert dans WhatsApp — appuyez simplement sur <strong>Envoyer</strong> pour que la boutique le reçoive.<br><br>Votre soutien compte beaucoup. 💚',back:'Voir le menu',noStore:'Impossible d’identifier la boutique pour envoyer l’avis. Ouvrez le lien d’avis depuis la boutique.',starError:'Veuillez sélectionner une note avec les étoiles.',nameError:'Veuillez écrire votre nom.',commentError:'Veuillez écrire un commentaire.',whatsappTitle:'Nouvel avis',whatsappName:'Nom',whatsappRating:'Note',whatsappProduct:'Produit',whatsappComment:'Commentaire',whatsappDate:'Date'}
+};
 const BB_FB_CFG={apiKey:'AIzaSyAZk2mEPXR-VQOOEJWfcdhqoJOhHWjzda4',authDomain:'bocado-brasil.firebaseapp.com',projectId:'bocado-brasil',storageBucket:'bocado-brasil.firebasestorage.app',messagingSenderId:'1083383234261',appId:'1:1083383234261:web:b73a9e9f7df73233d6ec5c'};
 firebase.initializeApp(BB_FB_CFG);
 const db=firebase.firestore();
 var PUBLISHED_TENANT_ID='';
+let STORE_NAME='BocaFood';
+let REVIEW_STORE_SLUG=storeSlugFromUrl();
+let REVIEW_STORE_URL='';
 function tenantIdFromUrl(){
   const params=new URLSearchParams(window.location.search);
   return params.get('tenant')||params.get('tenantId')||params.get('uid')||window.PUBLISHED_TENANT_ID||PUBLISHED_TENANT_ID||'';
 }
-const TENANT_ID=tenantIdFromUrl();
-function tenantCollection(name){return TENANT_ID?db.collection('tenants').doc(TENANT_ID).collection(name):db.collection(name);}
-function tenantConfigDoc(id){return TENANT_ID?db.collection('tenants').doc(TENANT_ID).collection('config').doc(id):db.collection('config').doc(id);}
-if(TENANT_ID){
-  document.querySelectorAll('a[href="index.html"]').forEach(a=>{a.href='index.html?tenant='+encodeURIComponent(TENANT_ID);});
+let TENANT_ID=tenantIdFromUrl();
+function storeSlugFromUrl(){
+  const params=new URLSearchParams(window.location.search);
+  const querySlug=params.get('slug')||params.get('loja')||params.get('storeSlug')||'';
+  if(querySlug)return String(querySlug).toLowerCase().replace(/[^a-z0-9-]/g,'');
+  const parts=(window.location.pathname||'').split('/').filter(Boolean);
+  if(parts.length>=2&&(parts[1]==='review'||parts[1]==='review.html'))return decodeURIComponent(parts[0]).toLowerCase().replace(/[^a-z0-9-]/g,'');
+  return '';
+}
+function tenantCollection(name){return db.collection('tenants').doc(TENANT_ID).collection(name);}
+function tenantConfigDoc(id){return db.collection('tenants').doc(TENANT_ID).collection('config').doc(id);}
+function reviewText(key){return (REVIEW_I18N[REVIEW_LANG]&&REVIEW_I18N[REVIEW_LANG][key])||REVIEW_I18N.es[key]||'';}
+function normalizeLang(value){
+  const raw=String(value||'').toLowerCase();
+  if(raw.indexOf('pt')===0)return 'pt';
+  if(raw.indexOf('en')===0)return 'en';
+  if(raw.indexOf('fr')===0)return 'fr';
+  return 'es';
+}
+function setText(id,value,html){
+  const el=document.getElementById(id);
+  if(!el)return;
+  if(html)el.innerHTML=value;
+  else el.textContent=value;
+}
+function applyReviewLanguage(lang){
+  REVIEW_LANG=normalizeLang(lang||REVIEW_LANG);
+  document.documentElement.lang=REVIEW_LANG;
+  setText('review-hero-title',reviewText('heroTitle'));
+  setText('review-hero-text',reviewText('heroText'));
+  setText('review-kicker',reviewText('kicker'));
+  setText('star-hint',reviewText('starHint'));
+  setText('name-label',reviewText('nameLabel'));
+  setText('comment-label',reviewText('commentLabel'));
+  setText('product-label',reviewText('productLabel'));
+  setText('optional-label',reviewText('optional'));
+  setText('submit-label',reviewText('submit'));
+  setText('review-privacy-note',reviewText('privacy'),true);
+  setText('success-title',reviewText('successTitle'));
+  setText('success-text',reviewText('successText'),true);
+  document.querySelectorAll('.back-label').forEach(el=>{el.textContent=reviewText('back');});
+  const name=document.getElementById('r-name');
+  const comment=document.getElementById('r-comment');
+  const product=document.getElementById('r-product');
+  if(name)name.placeholder=reviewText('namePlaceholder');
+  if(comment)comment.placeholder=reviewText('commentPlaceholder');
+  if(product&&product.options[0])product.options[0].textContent=reviewText('productPlaceholder');
+}
+function normalizeHex(value){
+  const raw=String(value||'').trim();
+  if(/^#[0-9a-f]{6}$/i.test(raw))return raw;
+  if(/^[0-9a-f]{6}$/i.test(raw))return '#'+raw;
+  return '';
+}
+function hexToRgb(hex){
+  const clean=String(hex||'').replace('#','');
+  const value=parseInt(clean,16);
+  return {r:(value>>16)&255,g:(value>>8)&255,b:value&255};
+}
+function darkenHex(hex,amount){
+  const rgb=hexToRgb(hex);
+  const clamp=n=>Math.max(0,Math.min(255,Math.round(n)));
+  return '#'+[clamp(rgb.r*(1-amount)),clamp(rgb.g*(1-amount)),clamp(rgb.b*(1-amount))].map(v=>v.toString(16).padStart(2,'0')).join('');
+}
+function applyReviewTheme(color){
+  const hex=normalizeHex(color);
+  if(!hex)return;
+  const rgb=hexToRgb(hex);
+  document.documentElement.style.setProperty('--brand',hex);
+  document.documentElement.style.setProperty('--brand-dark',darkenHex(hex,.22));
+  document.documentElement.style.setProperty('--brand-rgb',rgb.r+','+rgb.g+','+rgb.b);
+}
+function storeUrl(){
+  if(REVIEW_STORE_URL)return REVIEW_STORE_URL;
+  return REVIEW_STORE_SLUG?('/'+encodeURIComponent(REVIEW_STORE_SLUG)):(TENANT_ID?('index.html?tenant='+encodeURIComponent(TENANT_ID)):'index.html');
+}
+function updateBackLinks(){
+  document.querySelectorAll('.back-btn').forEach(a=>{a.href=storeUrl();});
+}
+function firstText(){
+  for(let i=0;i<arguments.length;i++){
+    const value=arguments[i];
+    if(value!==undefined&&value!==null&&String(value).trim())return String(value).trim();
+  }
+  return '';
+}
+async function resolveReviewTenant(){
+  if(TENANT_ID){updateBackLinks();return TENANT_ID;}
+  if(!REVIEW_STORE_SLUG)return '';
+  const snap=await db.collection('public_stores').doc(REVIEW_STORE_SLUG).get();
+  if(!snap.exists)return '';
+  const data=snap.data()||{};
+  if(String(data.status||'').toLowerCase()!=='active')return '';
+  TENANT_ID=data.tenantId||'';
+  STORE_NAME=firstText(data.storeName,data.name,STORE_NAME);
+  REVIEW_STORE_URL=firstText(data.publicUrl,data.siteUrl,REVIEW_STORE_SLUG?('/'+encodeURIComponent(REVIEW_STORE_SLUG)):'');
+  updateBackLinks();
+  return TENANT_ID;
 }
 
 let selectedStars=0;
 let siteProd=[];
+applyReviewLanguage('es');
 
 // Load cfg for logo + products (shared localStorage — same domain as index.html on GitHub Pages)
 let cfg={};
 try{const s=localStorage.getItem(CFG_KEY);if(s)cfg=JSON.parse(s);}catch(e){}
 
 // Favicon
-if(cfg.faviconUrl){const fv=document.getElementById('site-favicon');if(fv)fv.href=cfg.faviconUrl;}
+function applyFavicon(url){
+  if(!url)return;
+  const fv=document.getElementById('site-favicon');
+  const apple=document.getElementById('site-apple-touch-icon');
+  if(fv)fv.href=url;
+  if(apple)apple.href=url;
+}
+applyFavicon(cfg.faviconUrl);
 
 // Logo
 const logoImg=document.getElementById('site-logo');
@@ -199,23 +313,43 @@ if(siteProd.length>0){
 }
 
 async function loadTenantReviewContext(){
-  if(!TENANT_ID)return;
+  await resolveReviewTenant();
+  if(!TENANT_ID){
+    const errEl=document.getElementById('form-error');
+    if(errEl){errEl.textContent='No fue posible identificar la tienda para enviar la valoración. Abre el enlace de valoración desde la tienda.';errEl.style.display='block';}
+    const submit=document.getElementById('submit-btn');
+    if(submit)submit.disabled=true;
+    return;
+  }
   try{
-    const [geralSnap,integracoesSnap,productsSnap]=await Promise.all([
+    const [geralSnap,templateSnap,aparenciaSnap,integracoesSnap,productsSnap]=await Promise.all([
       tenantConfigDoc('geral').get(),
+      tenantConfigDoc('template').get(),
+      tenantConfigDoc('aparencia').get(),
       tenantConfigDoc('integracoes').get(),
       tenantCollection('products').get()
     ]);
     const geral=geralSnap.exists?geralSnap.data():{};
+    const template=templateSnap.exists?templateSnap.data():{};
+    const aparencia=aparenciaSnap.exists?aparenciaSnap.data():{};
+    const visual=Object.assign({}, geral, aparencia, template);
     const integracoes=integracoesSnap.exists?integracoesSnap.data():{};
-    if(geral.faviconUrl){const fv=document.getElementById('site-favicon');if(fv)fv.href=geral.faviconUrl;}
-    if(geral.logoUrl){logoImg.src=geral.logoUrl;logoImg.style.display='block';document.getElementById('logo-fallback').style.display='none';}
+    STORE_NAME=firstText(visual.businessName,visual.publicName,visual.shortName,visual.name,STORE_NAME);
+    REVIEW_STORE_URL=firstText(visual.publicUrl,visual.siteUrl,REVIEW_STORE_URL);
+    updateBackLinks();
+    applyReviewLanguage(firstText(visual.language,visual.mainLanguage,visual.storeLanguage,visual.defaultLanguage,'es'));
+    applyReviewTheme(firstText(visual.brandColor,visual.primaryColor,visual.themeColor,visual.accentColor));
+    document.title='Deja tu opinión | '+STORE_NAME;
+    logoImg.alt=STORE_NAME;
+    document.getElementById('logo-fallback').textContent=STORE_NAME;
+    applyFavicon(visual.faviconUrl||visual.favicon||visual.iconUrl);
+    if(visual.logoUrl){logoImg.src=visual.logoUrl;logoImg.style.display='block';document.getElementById('logo-fallback').style.display='none';}
     if(integracoes.whatsapp)WA_PHONE=String(integracoes.whatsapp).replace(/\D/g,'')||WA_PHONE;
     const rows=productsSnap.docs.map(d=>({id:d.id,...d.data()})).filter(p=>p.menuVisible!==false&&p.visible!==false);
     if(rows.length){
       siteProd=rows;
       const sel=document.getElementById('r-product');
-      sel.innerHTML='<option value="">— Seleccionar producto —</option>';
+      sel.innerHTML='<option value="">'+reviewText('productPlaceholder')+'</option>';
       siteProd.forEach(p=>{
         const opt=document.createElement('option');
         opt.value=p.id; opt.textContent=p.name||p.title||'Produto';
@@ -227,18 +361,13 @@ async function loadTenantReviewContext(){
 }
 loadTenantReviewContext();
 
-// Prevent re-submission from same device
-if(localStorage.getItem(SUBMITTED_KEY)){
-  document.getElementById('form-card').style.display='none';
-  document.getElementById('already-card').style.display='block';
-}
-
 function setStar(n){
   selectedStars=n;
   document.querySelectorAll('.star-btn').forEach((btn,i)=>btn.classList.toggle('active',i<n));
   const hint=document.getElementById('star-hint');
-  hint.textContent=STAR_HINTS[n]||'';
-  hint.style.color=n>=4?'#1A9E5A':n>=3?'#B45309':'var(--red)';
+  const hints=reviewText('starHints')||[];
+  hint.textContent=hints[n]||'';
+  hint.style.color=n>=4?'#1A9E5A':n>=3?'#B45309':'var(--brand)';
 }
 
 function submitReview(){
@@ -249,18 +378,19 @@ function submitReview(){
   const errEl=document.getElementById('form-error');
 
   errEl.style.display='none';
-  if(!selectedStars){errEl.textContent='Por favor, selecciona una valoración con estrellas.';errEl.style.display='block';return;}
-  if(!name){errEl.textContent='Por favor, escribe tu nombre.';errEl.style.display='block';return;}
-  if(!comment){errEl.textContent='Por favor, escribe un comentario.';errEl.style.display='block';return;}
+  if(!TENANT_ID){errEl.textContent=reviewText('noStore');errEl.style.display='block';return;}
+  if(!selectedStars){errEl.textContent=reviewText('starError');errEl.style.display='block';return;}
+  if(!name){errEl.textContent=reviewText('nameError');errEl.style.display='block';return;}
+  if(!comment){errEl.textContent=reviewText('commentError');errEl.style.display='block';return;}
 
   // Build WhatsApp message
   const stars='⭐'.repeat(selectedStars);
-  let msg=`⭐ Nueva valoración — Bocado Brasil\n\n`;
-  msg+=`👤 Nombre: ${name}\n`;
-  msg+=`${stars} Nota: ${selectedStars}/5\n`;
-  if(productName) msg+=`🍽️ Producto: ${productName}\n`;
-  msg+=`💬 Comentario:\n"${comment}"\n\n`;
-  msg+=`📅 Fecha: ${new Date().toLocaleDateString('es-ES')}`;
+  let msg=`⭐ ${reviewText('whatsappTitle')} — ${STORE_NAME}\n\n`;
+  msg+=`👤 ${reviewText('whatsappName')}: ${name}\n`;
+  msg+=`${stars} ${reviewText('whatsappRating')}: ${selectedStars}/5\n`;
+  if(productName) msg+=`🍽️ ${reviewText('whatsappProduct')}: ${productName}\n`;
+  msg+=`💬 ${reviewText('whatsappComment')}:\n"${comment}"\n\n`;
+  msg+=`📅 ${reviewText('whatsappDate')}: ${new Date().toLocaleDateString(REVIEW_LANG==='en'?'en-US':REVIEW_LANG==='fr'?'fr-FR':REVIEW_LANG==='pt'?'pt-PT':'es-ES')}`;
 
   tenantCollection('reviews').add({
     name,
@@ -285,21 +415,8 @@ function submitReview(){
   successCard.style.display='block';
   window.scrollTo({top:0,behavior:'smooth'});
 
-  setTimeout(()=>{
-    // Reset all fields
-    selectedStars=0;
-    document.querySelectorAll('.star-btn').forEach(b=>b.classList.remove('active'));
-    document.getElementById('star-hint').textContent='Toca las estrellas para valorar';
-    document.getElementById('star-hint').style.color='';
-    document.getElementById('r-name').value='';
-    document.getElementById('r-comment').value='';
-    document.getElementById('r-product').value='';
-    document.getElementById('form-error').style.display='none';
-    // Back to clean form
-    successCard.style.display='none';
-    formCard.style.display='block';
-    window.scrollTo({top:0,behavior:'smooth'});
-  },3500);
+  // Keep the confirmation visible. If the customer opens this page again,
+  // they can send another review normally.
 }
 </script>
 </body>

@@ -127,18 +127,26 @@ Modules.Marketing = (function () {
   }
 
   function _reviewAction() {
-    var url = _reviewPublicUrl();
-    if (url) {
-      window.open(url, '_blank');
-      return;
-    }
-    UI.toast('Use esta seção para aprovar e responder avaliações.', 'info');
+    _reviewPublicUrl().then(function (url) {
+      if (url) {
+        window.open(url, '_blank');
+        return;
+      }
+      UI.toast('Configure o link da loja para abrir a página pública de avaliações.', 'info');
+    }).catch(function () {
+      UI.toast('Não foi possível abrir o link de avaliações agora.', 'error');
+    });
   }
 
   function _reviewPublicUrl() {
-    var params = new URLSearchParams(window.location.search || '');
-    var tenant = params.get('tenant') || params.get('tenantId') || params.get('uid') || window.PUBLISHED_TENANT_ID || '';
-    return tenant ? ('review.html?tenant=' + encodeURIComponent(tenant)) : 'review.html';
+    return _safeGetDocRoot('config', 'dominio').then(function (dominio) {
+      dominio = dominio || {};
+      if (dominio.reviewUrl) return dominio.reviewUrl;
+      var publicUrl = String(dominio.publicUrl || dominio.siteUrl || '').replace(/\/+$/, '');
+      if (publicUrl) return publicUrl + '/review';
+      var slug = String(dominio.storeSlug || dominio.slug || dominio.subdomain || '').trim();
+      return slug ? ('https://bocafood.app/' + encodeURIComponent(slug) + '/review') : '';
+    });
   }
 
   function _normalizeMoneyConfig(c) {
@@ -641,11 +649,26 @@ Modules.Marketing = (function () {
         '</div>' + inner +
       '</section>';
     }
+    var previewCard =
+      '<div style="grid-column:1/-1;margin-top:2px;background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;padding:14px;">' +
+        '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">' +
+          '<span style="width:36px;height:36px;border-radius:12px;background:#fff;color:#8A6F5A;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:20px;">storefront</span></span>' +
+          '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">Prévia na loja</div><div style="font-size:12px;color:#6F6860;margin-top:2px;">Como a regra será apresentada.</div></div>' +
+        '</div>' +
+        '<div id="pp-preview-name" style="font-size:16px;font-weight:700;color:#1F1F1F;line-height:1.2;">' + _esc(cfg.programName || 'Programa de Pontos') + '</div>' +
+        '<div id="pp-preview-text" style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:6px;">' + _esc(cfg.storeText || 'Acumule pontos a cada pedido finalizado e use como desconto em compras futuras.') + '</div>' +
+        '<div style="display:flex;flex-direction:column;gap:8px;margin-top:14px;">' +
+          '<div id="pp-preview-earn" style="font-size:13px;color:#1F1F1F;line-height:1.45;">A cada €1,00 em pedidos finalizados, o cliente ganha ' + _esc(cfg.earnPerEuro) + ' ponto.</div>' +
+          '<div id="pp-preview-redeem" style="font-size:13px;color:#1F1F1F;line-height:1.45;">' + _esc(cfg.redeemRate) + ' pontos = €1,00 de desconto.</div>' +
+          '<div id="pp-preview-expire" style="font-size:13px;color:#6F6860;line-height:1.45;' + (cfg.pointsExpire && cfg.pointsExpirationDays > 0 ? '' : 'display:none;') + '">Os pontos expiram em ' + _esc(cfg.pointsExpirationDays || 90) + ' dias.</div>' +
+        '</div>' +
+      '</div>';
     var identity = section('Identidade do programa', 'Controle como o programa aparece para a operação e para o cliente.',
       '<div style="display:grid;grid-template-columns:minmax(160px,.6fr) minmax(220px,1fr);gap:12px;">' +
         select('pp-active', 'Status do programa', '<option value="true"' + (cfg.active !== false ? ' selected' : '') + '>Ativo</option><option value="false"' + (cfg.active === false ? ' selected' : '') + '>Inativo</option>') +
         field('pp-name', 'Nome do programa', cfg.programName || 'Programa de Pontos') +
         '<div style="grid-column:1/-1;"><label style="' + label + '">Texto exibido na loja</label><input id="pp-text" type="text" value="' + _esc(cfg.storeText || '') + '"' + changeAttr() + ' style="' + input + '"></div>' +
+        previewCard +
       '</div>');
     var earn = section('Como o cliente ganha pontos', 'Defina a regra de acúmulo por valor finalizado.',
       '<div style="max-width:320px;">' + field('pp-earn', 'Pontos por €1 gasto', cfg.earnPerEuro, 'number') + '</div>');
@@ -661,22 +684,7 @@ Modules.Marketing = (function () {
         '<div id="pp-expire-days-wrap" style="' + (cfg.pointsExpire ? '' : 'display:none;') + '">' + field('pp-expire-days', 'Prazo para expirar', cfg.pointsExpirationDays || 90, 'number', 'dias') + '</div>' +
         select('pp-auto', 'Aplicação do desconto', '<option value="false"' + (!cfg.autoApply ? ' selected' : '') + '>Manual</option><option value="true"' + (cfg.autoApply ? ' selected' : '') + '>Automática</option>') +
       '</div>');
-    var preview = '<aside style="' + card + 'position:sticky;top:12px;">' +
-      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">' +
-        '<span style="width:36px;height:36px;border-radius:12px;background:#FAF8F4;color:#8A6F5A;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:20px;">storefront</span></span>' +
-        '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">Prévia na loja</div><div style="font-size:12px;color:#6F6860;margin-top:2px;">Como a regra será apresentada.</div></div>' +
-      '</div>' +
-      '<div style="background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;padding:14px;">' +
-        '<div id="pp-preview-name" style="font-size:16px;font-weight:700;color:#1F1F1F;line-height:1.2;">' + _esc(cfg.programName || 'Programa de Pontos') + '</div>' +
-        '<div id="pp-preview-text" style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:6px;">' + _esc(cfg.storeText || 'Acumule pontos a cada pedido finalizado e use como desconto em compras futuras.') + '</div>' +
-        '<div style="display:flex;flex-direction:column;gap:8px;margin-top:14px;">' +
-          '<div id="pp-preview-earn" style="font-size:13px;color:#1F1F1F;line-height:1.45;">A cada €1,00 em pedidos finalizados, o cliente ganha ' + _esc(cfg.earnPerEuro) + ' ponto.</div>' +
-          '<div id="pp-preview-redeem" style="font-size:13px;color:#1F1F1F;line-height:1.45;">' + _esc(cfg.redeemRate) + ' pontos = €1,00 de desconto.</div>' +
-          '<div id="pp-preview-expire" style="font-size:13px;color:#6F6860;line-height:1.45;' + (cfg.pointsExpire && cfg.pointsExpirationDays > 0 ? '' : 'display:none;') + '">Os pontos expiram em ' + _esc(cfg.pointsExpirationDays || 90) + ' dias.</div>' +
-        '</div>' +
-      '</div>' +
-    '</aside>';
-    return '<div style="display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start;">' +
+    return '<div style="display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start;">' +
       '<section style="display:flex;flex-direction:column;gap:14px;">' +
         identity + earn + redeem + validity +
         '<div style="position:sticky;bottom:0;z-index:3;background:linear-gradient(180deg,rgba(250,248,244,0),#FAF8F4 28%);padding-top:14px;">' +
@@ -686,7 +694,6 @@ Modules.Marketing = (function () {
           '</div>' +
         '</div>' +
       '</section>' +
-      preview +
     '</div>';
   }
 

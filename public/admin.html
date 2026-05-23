@@ -253,6 +253,7 @@ button,input,select,textarea{font-family:inherit}
         <button class="nav-item" data-route="loja-online" onclick="AdminApp.toggleNavGroup(event,'loja-online','loja-online/template')"><span class="mi">storefront</span>Loja Online</button>
         <div class="nav-sub">
           <button class="nav-sub-item" data-route="loja-online/template" onclick="Router.navigate('loja-online/template')">Template da loja</button>
+          <button class="nav-sub-item" data-route="loja-online/link-da-loja" onclick="Router.navigate('loja-online/link-da-loja')">Link da loja</button>
           <button class="nav-sub-item" data-route="loja-online/seo" onclick="Router.navigate('loja-online/seo')">SEO da loja</button>
           <button class="nav-sub-item" data-route="loja-online/avaliacoes" onclick="Router.navigate('loja-online/avaliacoes')">Avaliações</button>
         </div>
@@ -334,7 +335,6 @@ button,input,select,textarea{font-family:inherit}
           <button class="nav-sub-item" data-route="configuracoes/geral" onclick="Router.navigate('configuracoes/geral')">Geral</button>
           <button class="nav-sub-item" data-route="configuracoes/conta_usuario" onclick="Router.navigate('configuracoes/conta_usuario')">Usuário</button>
           <button class="nav-sub-item" data-route="configuracoes/tpv" onclick="Router.navigate('configuracoes/tpv')">Venda presencial</button>
-          <button class="nav-sub-item" data-route="configuracoes/dominio" onclick="Router.navigate('configuracoes/dominio')">Link da loja</button>
           <button class="nav-sub-item" data-route="configuracoes/integracoes" onclick="Router.navigate('configuracoes/integracoes')">Integrações</button>
           <button class="nav-sub-item" data-route="configuracoes/plano" onclick="Router.navigate('configuracoes/plano')">Plano</button>
         </div>
@@ -535,6 +535,7 @@ button,input,select,textarea{font-family:inherit}
     var plan = profile.plan ? String(profile.plan) : 'essencial';
     if (plan === 'starter') plan = 'essencial';
     var planLabel = ({ essencial: 'Plano Essencial', compromisso_anual: 'Plano Compromisso Anual', fundadoras: 'Plano Fundadoras' })[plan] || plan;
+    var planSub = _adminSidebarPlanText(profile, planLabel);
     var initials = _adminInitials(storeName);
     var avatar = document.getElementById('store-avatar');
     var storeTitle = document.getElementById('store-name');
@@ -545,7 +546,30 @@ button,input,select,textarea{font-family:inherit}
     if (storeTitle) storeTitle.textContent = storeName;
     if (sidebarAvatar) sidebarAvatar.innerHTML = storeLogo ? _adminSafeImg(storeLogo) : initials;
     if (sidebarName) sidebarName.textContent = storeName;
-    if (sidebarSub) sidebarSub.textContent = planLabel || 'Plano não definido';
+    if (sidebarSub) sidebarSub.textContent = planSub || 'Plano não definido';
+  }
+
+  function _adminSidebarPlanText(profile, planLabel) {
+    profile = profile || {};
+    var billing = profile.billing || {};
+    var days = _adminTrialDaysLeft(profile.trialEndsAt || billing.trialEndsAt || '');
+    if (days > 1) return days + ' dias grátis restantes';
+    if (days === 1) return '1 dia grátis restante';
+    return planLabel || 'Plano não definido';
+  }
+
+  function _adminTrialDaysLeft(value) {
+    if (!value) return null;
+    var date = null;
+    if (value && typeof value.toDate === 'function') date = value.toDate();
+    else if (value && typeof value.seconds === 'number') date = new Date(value.seconds * 1000);
+    else date = new Date(value);
+    if (!date || isNaN(date.getTime())) return null;
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    var end = new Date(date.getTime());
+    end.setHours(0, 0, 0, 0);
+    return Math.ceil((end.getTime() - today.getTime()) / 86400000);
   }
 
   window.AdminApp = {
@@ -655,35 +679,91 @@ button,input,select,textarea{font-family:inherit}
       var toggle = document.querySelector('.sidebar-toggle');
       if (toggle) toggle.title = collapsed ? 'Abrir menu' : 'Encolher menu';
     },
-    _isStoreOnline: function (template, operacao) {
+    _statusMode: function (template, operacao) {
       template = template || {};
       operacao = operacao || {};
-      if (template.statusMode === 'manual_closed' || template.manualClosed === true) return false;
-      if (template.statusMode === 'manual_open' || template.manualOpen === true) return true;
-      if (operacao.isOpen === false) return false;
-      return true;
+      var raw = String(template.statusMode || operacao.statusMode || '').toLowerCase();
+      if (raw === 'manual' || raw === 'manual_open' || raw === 'manual_closed') return 'manual';
+      if (raw === 'auto' || raw === 'automatic' || raw === 'automatico' || raw === 'automático') return 'auto';
+      if (template.manualClosed === true || template.manualOpen === true || typeof operacao.isOpen === 'boolean') return 'manual';
+      return 'auto';
     },
-    _applyStoreOnlineStatus: function (isOpen, saving) {
+    _timeToMinutes: function (value) {
+      var match = String(value || '').match(/^(\d{1,2}):(\d{2})/);
+      if (!match) return null;
+      var hours = Math.max(0, Math.min(23, Number(match[1])));
+      var minutes = Math.max(0, Math.min(59, Number(match[2])));
+      return hours * 60 + minutes;
+    },
+    _weeklyHoursRows: function (template, operacao) {
+      var source = (template && (template.hours || template.weeklyHours)) || (operacao && (operacao.hours || operacao.weeklyHours)) || [];
+      var keys = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+      if (Array.isArray(source)) return source;
+      if (source && typeof source === 'object') {
+        return keys.map(function (key, index) {
+          var row = source[key] || source[String(index)] || source[String(index + 1)] || {};
+          return Object.assign({ day: key }, row);
+        });
+      }
+      return [];
+    },
+    _isOpenBySchedule: function (template, operacao) {
+      var rows = AdminApp._weeklyHoursRows(template, operacao);
+      if (!rows.length) return false;
+      var now = new Date();
+      var index = (now.getDay() + 6) % 7;
+      var row = rows[index] || {};
+      if (row.closed === true || row.enabled === false) return false;
+      var periods = [];
+      if (row.open && row.close) periods.push({ open: row.open, close: row.close });
+      if (row.enabled2 && row.open2 && row.close2) periods.push({ open: row.open2, close: row.close2 });
+      var current = now.getHours() * 60 + now.getMinutes();
+      return periods.some(function (period) {
+        var start = AdminApp._timeToMinutes(period.open);
+        var end = AdminApp._timeToMinutes(period.close);
+        if (start == null || end == null) return false;
+        if (end <= start) return current >= start || current <= end;
+        return current >= start && current <= end;
+      });
+    },
+    _storeOnlineState: function (template, operacao) {
+      template = template || {};
+      operacao = operacao || {};
+      var mode = AdminApp._statusMode(template, operacao);
+      if (mode === 'manual') {
+        if (template.statusMode === 'manual_closed' || template.manualClosed === true) return { isOpen: false, mode: mode };
+        if (template.statusMode === 'manual_open' || template.manualOpen === true) return { isOpen: true, mode: mode };
+        if (typeof operacao.isOpen === 'boolean') return { isOpen: operacao.isOpen, mode: mode };
+      }
+      return { isOpen: AdminApp._isOpenBySchedule(template, operacao), mode: 'auto' };
+    },
+    _isStoreOnline: function (template, operacao) {
+      return AdminApp._storeOnlineState(template, operacao).isOpen;
+    },
+    _applyStoreOnlineStatus: function (isOpen, saving, mode) {
       var status = document.getElementById('store-online-status');
       var btn = document.getElementById('store-online-toggle');
       var label = document.getElementById('store-online-toggle-label');
       var signal = document.getElementById('store-online-signal');
+      var modeLabel = mode === 'manual' ? 'Manual' : 'Automático';
+      var statusText = isOpen ? 'Loja online aberta' : 'Loja online fechada';
+      var title = saving ? 'Atualizando status da loja' : (modeLabel + ' · ' + statusText);
       if (status) {
-        status.textContent = isOpen ? 'Loja online aberta' : 'Loja online fechada';
+        status.textContent = statusText;
         status.classList.toggle('closed', !isOpen);
       }
       if (signal) {
         signal.classList.toggle('closed', !isOpen);
         signal.classList.toggle('saving', !!saving);
         signal.disabled = !!saving;
-        signal.title = saving ? 'Atualizando status da loja' : (isOpen ? 'Loja online aberta' : 'Loja online fechada');
+        signal.title = title;
       }
       if (btn) {
         btn.classList.toggle('closed', !isOpen);
         btn.style.opacity = saving ? '.72' : '';
-        btn.title = saving ? 'Atualizando status da loja' : (isOpen ? 'Loja online aberta' : 'Loja online fechada');
+        btn.title = title;
       }
-      if (label) label.textContent = saving ? 'Salvando...' : (isOpen ? 'Loja ligada' : 'Loja desligada');
+      if (label) label.textContent = saving ? 'Salvando...' : (modeLabel + ' · ' + (isOpen ? 'Loja ligada' : 'Loja desligada'));
     },
     refreshStoreOnlineStatus: function () {
       if (!window.DB || typeof DB.getDocRoot !== 'function') return;
@@ -691,9 +771,10 @@ button,input,select,textarea{font-family:inherit}
         DB.getDocRoot('config', 'template').catch(function () { return {}; }),
         DB.getDocRoot('config', 'operacao').catch(function () { return {}; })
       ]).then(function (r) {
-        AdminApp._applyStoreOnlineStatus(AdminApp._isStoreOnline(r[0], r[1]), false);
+        var state = AdminApp._storeOnlineState(r[0], r[1]);
+        AdminApp._applyStoreOnlineStatus(state.isOpen, false, state.mode);
       }).catch(function () {
-        AdminApp._applyStoreOnlineStatus(true, false);
+        AdminApp._applyStoreOnlineStatus(true, false, 'auto');
       });
     },
     toggleOnlineStore: function () {
@@ -704,9 +785,10 @@ button,input,select,textarea{font-family:inherit}
         DB.getDocRoot('config', 'template').catch(function () { return {}; }),
         DB.getDocRoot('config', 'operacao').catch(function () { return {}; })
       ]).then(function (r) {
-        var isOpen = AdminApp._isStoreOnline(r[0], r[1]);
+        var state = AdminApp._storeOnlineState(r[0], r[1]);
+        var isOpen = state.isOpen;
         var nextOpen = !isOpen;
-        AdminApp._applyStoreOnlineStatus(nextOpen, true);
+        AdminApp._applyStoreOnlineStatus(nextOpen, true, 'manual');
         var statusMode = nextOpen ? 'manual_open' : 'manual_closed';
         return Promise.all([
           DB.setDocRoot('config', 'template', {
@@ -721,7 +803,7 @@ button,input,select,textarea{font-family:inherit}
             updatedAt: new Date().toISOString()
           })
         ]).then(function () {
-          AdminApp._applyStoreOnlineStatus(nextOpen, false);
+          AdminApp._applyStoreOnlineStatus(nextOpen, false, 'manual');
           if (window.UI && UI.toast) UI.toast(nextOpen ? 'Loja online aberta.' : 'Loja online fechada.', 'success');
         });
       }).catch(function (err) {
@@ -832,6 +914,7 @@ button,input,select,textarea{font-family:inherit}
   Router.register('marketing/pontos', Modules.Marketing);
   Router.register('loja-online', Modules.LojaOnline);
   Router.register('loja-online/template', Modules.LojaOnline);
+  Router.register('loja-online/link-da-loja', Modules.Configuracoes);
   Router.register('loja-online/seo', Modules.LojaOnline);
   Router.register('loja-online/avaliacoes', Modules.LojaOnline);
   Router.register('catalogo/seo', Modules.LojaOnline);
