@@ -1,5 +1,24 @@
 # AI Changelog
 
+## 2026-05-23 — Resgate opcional de pontos no carrinho público
+- Arquivos alterados: `public/index.html`, `AI_CHANGELOG.md`.
+- Ponto de retorno salvo antes da implantação: `/private/tmp/bocafood-before-points-redemption-20260523-222725.patch`.
+- Adicionado bloco isolado no carrinho para a cliente escolher se quer usar pontos neste pedido, sem aplicar desconto automaticamente.
+- O desconto por pontos só entra no total quando a cliente está logada, possui saldo suficiente e marca o checkbox `Usar puntos en este pedido`.
+- O cálculo respeita saldo disponível, taxa de conversão, mínimo de pontos para uso, limite percentual configurado e nunca deixa o total negativo.
+- O resumo do carrinho e a mensagem enviada por WhatsApp passaram a exibir a linha `Puntos` somente quando houver resgate ativo.
+- O pedido salvo em `orders` passou a registrar `pointsDiscountTotal` e `pointsRedemption` com pontos usados, desconto, saldo anterior e saldo posterior.
+- Após o pedido ser salvo, o template registra movimento em `points_movements` e atualiza `pointsBalance/points` do cliente em `store_customers` via transação, evitando descontar pontos sem pedido salvo.
+
+## 2026-05-23 — Ajustes finais de copy do carrinho público
+- Arquivos alterados: `public/index.html`, `AI_CHANGELOG.md`.
+- Reaplicadas apenas as melhorias pequenas de orientação do carrinho após a correção de carregamento dos produtos, sem reintroduzir a camada de resgate de pontos no checkout.
+- A lista de endereços salvos deixou de aparecer como `Direcciones guardadas` e passou a orientar a cliente com a pergunta `¿En qué dirección quieres recibir el pedido?`.
+- Incluído texto discreto antes do código postal explicando que a cliente pode preencher um endereço novo quando ainda não tiver endereço salvo.
+- As áreas de retirada e entrega passaram a exibir a pergunta `¿Cuándo quieres recibir tu pedido?` antes da seleção de data e horário.
+- O endereço de retirada ganhou título próprio e os novos textos foram conectados à camada de idioma da loja pública.
+- Ajuste posterior: a área de endereços salvos voltou ao fluxo com pergunta `¿En qué dirección quieres recibir el pedido?` e botão `Elegir dirección guardada`, abrindo um mini modal interno com a lista `Direcciones guardadas`.
+
 ## 2026-05-23 — Status da loja no topo do Admin
 - Arquivos alterados: `public/admin.html`, `public/index.html`, `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
 - O botão do topo do Admin passou a ler se o status da loja está em modo automático ou manual antes de exibir `Loja ligada` ou `Loja desligada`.
@@ -7434,3 +7453,83 @@
 - Ajuste mobile: a busca de produtos da loja pública foi refinada com campo maior para toque, foco mais claro, painel sticky, botão de fechar mais delicado e resultados no mesmo grid dos cards de produto.
 
 - Correção mobile: o card principal voltou a permitir overflow visível no celular e a logo recebeu camada própria, evitando que a parte que sai do card seja cortada.
+
+- Ajuste desktop: a loja pública recebeu uma camada de refinamento exclusiva para desktop, com hero mais proporcional, conteúdo com largura útil limitada, grid de produtos mais equilibrado, tipografia menos exagerada e carrinho lateral mais integrado.
+
+- Correção de carregamento: o template público ganhou timeout de segurança e finalização idempotente do loading, evitando que o overlay borrado permaneça preso no desktop caso imagens, fontes ou alguma etapa visual demorem demais.
+
+- Ajuste visual: removido o blur do overlay de carregamento da loja pública, mantendo apenas fundo claro e spinner para evitar sensação de tela borrada enquanto o conteúdo prepara.
+
+- Correção de carregamento: removido definitivamente o blur do loading, a loja deixa de ficar invisível por classe de carregamento e foi adicionado um fallback inline inicial para esconder o overlay mesmo se o fluxo principal não finalizar.
+
+- Correção desktop: o overlay de carregamento foi desativado apenas na versão desktop e os `backdrop-filter` principais foram neutralizados nessa largura, eliminando a tela borrada no computador sem alterar a experiência mobile.
+
+- Correção desktop: o loading da loja pública agora é removido imediatamente no desktop por script inicial, antes do fluxo principal, mantendo a tela de carregamento apenas para mobile.
+
+- Correção desktop: o carrinho lateral deixou de herdar a altura/overlay dos modais no desktop, removendo o pseudo-fundo borrado do `cart-sheet` e preservando apenas o painel lateral.
+
+- Ajuste desktop: o grid de produtos da loja pública passou a manter três colunas fixas no desktop, evitando que cards fiquem largos demais quando uma categoria tem poucos produtos.
+
+- Ajuste desktop: o modal de produto da loja pública foi refinado com proporção maior e mais equilibrada, imagem lateral mais consistente, corpo com melhor respiro, opções mais legíveis e rodapé de ação alinhado para desktop.
+
+- Ajuste desktop: o modal de produtos combo deixou de virar layout em coluna no desktop; agora mantém imagem lateral, área ampla para escolhas, grupos de opções em duas colunas e botão final ocupando a largura correta.
+
+- Ajuste mobile: o rodapé da loja pública foi refinado com fundo mais premium, logo maior, informações mais organizadas e menor espaçamento final abaixo do rodapé.
+
+- Ajuste desktop: o modal de produto da loja pública passou para composição vertical no desktop, com foto no topo e conteúdo abaixo, reduzindo campos amontoados e melhorando a leitura de produtos simples e combos.
+
+- Ajuste comercial: o modal de promoções da loja pública passou a destacar benefício, economia e quantidade de produtos por oferta, deixando a experiência mais focada em conversão.
+
+- Ajuste comercial: cards de produto com promoção agora exibem benefício/economia de forma discreta, além de preço promocional e preço anterior riscado quando aplicável.
+
+- Ajuste comercial: o modal de produto agora mostra a economia da promoção junto ao preço quando o item possui promoção ativa, preservando a lógica promocional existente.
+
+- Ajuste de checkout: a área de entrega do carrinho da loja pública recebeu uma microcopy dinâmica para orientar a cliente passo a passo, explicando código postal, endereço, data/horário e revisão antes do envio pelo WhatsApp.
+
+- Ajuste de checkout: a validação do código postal agora mostra uma mensagem mais humana quando a loja entrega ou não entrega na região, incluindo zona, valor de entrega e pedido mínimo quando configurados.
+
+- Ajuste de checkout: a lista de endereços salvos no carrinho passou a perguntar em qual endereço a cliente quer receber o pedido, deixando a escolha mais clara e menos administrativa.
+
+- Ajuste de checkout: endereços salvos no carrinho passaram a abrir em um seletor interno compacto, em vez de aparecerem como lista sempre aberta.
+
+- Ajuste de checkout: a opção de guardar endereço para próximas compras agora aparece apenas quando a cliente está preenchendo um endereço novo.
+
+- Ajuste de checkout: a pergunta de data e horário da entrega ganhou o texto `¿Cuándo quieres recibir tu pedido?`, guiando a cliente antes dos campos de agendamento.
+
+- Ajuste visual: a informação de zona e valor da entrega recebeu destaque em formato de pílula leve na cor da marca.
+
+- Ajuste de checkout: removida a mensagem dinâmica de endereço pronto antes da escolha de data e horário, mantendo apenas a pergunta direta de quando a cliente quer receber o pedido.
+
+- Ajuste de checkout: adicionada orientação antes do código postal para explicar que ele deve ser preenchido quando a cliente quer receber o pedido em um endereço novo.
+
+- Ajuste de checkout: a aba de retirada agora identifica claramente o endereço de retirada e também pergunta quando a cliente quer receber o pedido antes de data/horário.
+
+- Ajuste de idioma: as novas orientações do carrinho para endereço salvo, endereço novo, retirada e agendamento passaram a respeitar o idioma ativo da loja pública.
+
+- Ajuste visual: o total do carrinho passou a ficar em preto, evitando que ele use a cor da marca como destaque excessivo.
+
+- Ajuste comercial: removido o totalizador de economia do grupo no modal de promoções; a economia permanece no card de cada produto, onde o valor faz sentido.
+
+- Ajuste visual: o card de Programa de Pontos na loja pública manteve a borda externa leve e passou a usar a linha lateral interna no amarelo das estrelas.
+
+- Ajuste visual: o texto descritivo do card de Programa de Pontos na loja pública passou a usar 13px para melhorar leitura.
+
+- Ajuste mobile: reduzido o respiro final do rodapé da loja pública para diminuir o espaço vazio no fim da página.
+
+- Implementação: o carrinho da loja pública passou a permitir resgate de pontos para clientes logadas, usando a regra do Programa de Pontos para calcular desconto no pedido.
+
+- Implementação: o desconto de pontos aparece no resumo do carrinho, no texto enviado pelo WhatsApp e no pedido salvo em Firestore como `pointsDiscountTotal` e `pointsRedemption`.
+
+- Implementação: ao enviar pedido com pontos, o sistema registra o uso em `points_movements` e reduz o saldo da cliente em `store_customers`, mantendo a visualização local atualizada.
+
+- Ajuste de checkout: o texto antes do código postal agora explica que ele deve ser usado para endereço novo ou quando a cliente ainda não tem endereço cadastrado.
+
+- Correção de vitrine: a loja pública agora mantém uma renderização de segurança para exibir todos os produtos carregados quando nenhum produto casar com as categorias, evitando a sensação de que os produtos do tenant sumiram por inconsistência de categoria.
+
+- Correção de rota local: quando a loja pública é aberta com `?tenant=...`, o template deixa de tentar interpretar `index.html` como slug de loja e passa a carregar diretamente o tenant informado.
+
+- Ajuste de vitrine: a categoria automática de mais pedidos deixou de duplicar a categoria `mais-pedidos` quando ambas existem no tenant.
+
+- Reversão controlada: removida a camada de resgate de pontos dentro do carrinho público para estabilizar o checkout. O Programa de Pontos permanece visível para consulta, mas não altera total, WhatsApp, pedido salvo ou saldo da cliente nesta etapa.
+
+- Correção de conexão da loja pública: o template voltou ao estado versionado antes das mudanças de carrinho/pontos e recebeu apenas ajustes de leitura do tenant por `?tenant=...`, fallback de categoria dos produtos e proteção para exibir produtos carregados mesmo quando a categoria estiver inconsistente.

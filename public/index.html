@@ -6002,6 +6002,22 @@
       color: var(--brand);
     }
 
+    .cart-step-question {
+      color: #1f1f1f;
+      font-size: 13px;
+      font-weight: 560;
+      line-height: 1.3;
+      margin: 3px 0 8px;
+    }
+
+    .cart-new-address-help {
+      color: #2f2925;
+      font-size: 11.5px;
+      font-weight: 430;
+      line-height: 1.35;
+      margin: 4px 0 8px;
+    }
+
     .cart-saved-addresses,
     .cart-save-address {
       display: none;
@@ -6017,6 +6033,97 @@
     .cart-address-book {
       display: grid;
       gap: 6px;
+    }
+
+    .cart-address-picker-trigger {
+      width: 100%;
+      border: 1px solid rgba(var(--brand-rgb), .16);
+      border-radius: 14px;
+      background: rgba(var(--brand-rgb), .055);
+      color: #1f1f1f;
+      padding: 10px 12px;
+      text-align: left;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 540;
+      line-height: 1.25;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      box-shadow: 0 8px 18px rgba(var(--brand-rgb), .06);
+      transition: transform .16s ease, border-color .16s ease, background .16s ease;
+    }
+
+    .cart-address-picker-trigger:after {
+      content: "›";
+      color: var(--brand);
+      font-size: 18px;
+      font-weight: 500;
+      transform: rotate(90deg);
+      line-height: 1;
+    }
+
+    .cart-address-picker-trigger:hover {
+      background: rgba(var(--brand-rgb), .08);
+      border-color: rgba(var(--brand-rgb), .28);
+      transform: translateY(-1px);
+    }
+
+    .cart-address-picker {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 70;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      background: rgba(31, 24, 21, .22);
+      backdrop-filter: blur(8px);
+    }
+
+    .cart-address-picker.show {
+      display: flex;
+    }
+
+    .cart-address-picker-card {
+      width: min(360px, 100%);
+      max-height: min(70dvh, 460px);
+      overflow: auto;
+      border-radius: 20px;
+      border: 1px solid rgba(56, 43, 37, .08);
+      background: #fffdfa;
+      padding: 14px;
+      box-shadow: 0 24px 60px rgba(44, 32, 27, .20);
+    }
+
+    .cart-address-picker-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .cart-address-picker-head strong {
+      color: #1f1f1f;
+      font-size: 13px;
+      font-weight: 620;
+      line-height: 1.25;
+    }
+
+    .cart-address-picker-close {
+      width: 30px;
+      height: 30px;
+      border: 0;
+      border-radius: 999px;
+      background: rgba(56, 43, 37, .06);
+      color: #1f1f1f;
+      font: inherit;
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
     }
 
     .cart-address-book button {
@@ -7309,6 +7416,55 @@
       background: #fffdf9;
     }
 
+    .cart-points-area {
+      display: none;
+      margin: 0 18px 14px;
+      border: 1px solid rgba(var(--brand-rgb), .14);
+      border-radius: 14px;
+      background: rgba(var(--brand-rgb), .045);
+      padding: 10px 11px;
+    }
+
+    .cart-points-area.show {
+      display: block;
+    }
+
+    .cart-points-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      color: #1f1f1f;
+      cursor: pointer;
+    }
+
+    .cart-points-row input {
+      width: 17px;
+      height: 17px;
+      accent-color: var(--brand);
+      margin: 1px 0 0;
+      flex: 0 0 auto;
+    }
+
+    .cart-points-copy {
+      display: grid;
+      gap: 3px;
+      min-width: 0;
+    }
+
+    .cart-points-copy strong {
+      color: #1f1f1f;
+      font-size: 12px;
+      font-weight: 620;
+      line-height: 1.25;
+    }
+
+    .cart-points-copy span {
+      color: #1f1f1f;
+      font-size: 11px;
+      font-weight: 430;
+      line-height: 1.35;
+    }
+
     .coupon-input-wrap {
       grid-template-columns: minmax(0, 1fr) auto;
       gap: 10px;
@@ -7338,13 +7494,15 @@
     }
 
     #promo-discount-row,
-    #coupon-discount-row {
+    #coupon-discount-row,
+    #points-discount-row {
       color: #138a4d;
       font-weight: 650;
     }
 
     #promo-discount-val,
-    #coupon-discount-val {
+    #coupon-discount-val,
+    #points-discount-val {
       color: #138a4d;
       font-weight: 760;
     }
@@ -9383,10 +9541,12 @@
                     <button type="button" data-order-type="delivery">Entrega</button>
                   </div>
                   <div id="pickup-fields">
+                    <div class="cart-step-question" id="pickup-address-title">Dirección de recogida</div>
                     <div class="slot-hint show" id="pickup-address-hint">
                       <span class="pickup-address-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 21s7-5.2 7-12a7 7 0 1 0-14 0c0 6.8 7 12 7 12Z"></path><circle cx="12" cy="9" r="2.4"></circle></svg></span>
                       <span>Retirada no endereço da loja.</span>
                     </div>
+                    <div class="cart-step-question" id="pickup-schedule-title">¿Cuándo quieres recibir tu pedido?</div>
                     <div class="cart-slot-grid">
                       <div>
                         <div class="cart-field-label" id="pickup-date-label">Data de retirada</div>
@@ -9406,9 +9566,19 @@
                   </div>
                   <div id="delivery-fields" class="cart-row-hidden">
                     <div class="cart-saved-addresses" id="cart-saved-addresses">
-                      <div class="cart-field-label">Direcciones guardadas</div>
-                      <div class="cart-address-book" id="cart-address-book"></div>
+                      <div class="cart-step-question" id="saved-addresses-title">¿En qué dirección quieres recibir el pedido?</div>
+                      <button class="cart-address-picker-trigger" type="button" id="cart-address-picker-open">Elegir dirección guardada</button>
+                      <div class="cart-address-picker" id="cart-address-picker" aria-hidden="true">
+                        <div class="cart-address-picker-card" role="dialog" aria-modal="true" aria-labelledby="cart-address-picker-title">
+                          <div class="cart-address-picker-head">
+                            <strong id="cart-address-picker-title">Direcciones guardadas</strong>
+                            <button class="cart-address-picker-close" type="button" id="cart-address-picker-close" aria-label="Cerrar">×</button>
+                          </div>
+                          <div class="cart-address-book" id="cart-address-book"></div>
+                        </div>
+                      </div>
                     </div>
+                    <div class="cart-new-address-help" id="new-address-help">Si quieres recibir el pedido en una dirección nueva o todavía no tienes una dirección guardada, empieza por el código postal.</div>
                     <div class="cart-field-label" id="postal-label">Código postal</div>
                     <input class="cart-field" id="postal-input" placeholder="Código postal" maxlength="12">
                     <div class="zone-info" id="zone-info"></div>
@@ -9455,6 +9625,7 @@
                         </label>
                         <input class="cart-field" id="delivery-save-address-label" placeholder="Nombre de la dirección">
                       </div>
+                      <div class="cart-step-question" id="delivery-schedule-title">¿Cuándo quieres recibir tu pedido?</div>
                       <div class="cart-slot-grid delivery-slot-grid">
                         <div>
                           <div class="cart-field-label" id="delivery-date-label">Data de entrega</div>
@@ -9494,6 +9665,7 @@
                   <div class="cart-summary-row"><span>Subtotal</span><span id="cart-subtotal">€0,00</span></div>
                   <div class="cart-summary-row" id="promo-discount-row" style="display:none"><span>Promoções</span><span id="promo-discount-val">-€0,00</span></div>
                   <div class="cart-summary-row" id="coupon-discount-row" style="display:none"><span>Desconto</span><span id="coupon-discount-val">-€0,00</span></div>
+                  <div class="cart-summary-row" id="points-discount-row" style="display:none"><span id="points-discount-cart-label">Puntos</span><span id="points-discount-val">-€0,00</span></div>
                   <div class="cart-summary-row" id="fee-row" style="display:none"><span>Entrega</span><span id="fee-val">€0,00</span></div>
                   <div class="cart-summary-row" id="savings-row" style="display:none"><span id="savings-label">Economia</span><span id="savings-val">€0,00</span></div>
                   <div class="cart-total"><span>Total</span><span id="cart-total">€0,00</span></div>
@@ -9519,6 +9691,15 @@
                         <button class="coupon-remove" type="button" id="coupon-remove">×</button>
                       </div>
                     </div>
+                  </div>
+                  <div class="cart-points-area" id="cart-points-area">
+                    <label class="cart-points-row" id="cart-points-toggle-row">
+                      <input type="checkbox" id="cart-use-points">
+                      <span class="cart-points-copy">
+                        <strong id="cart-points-title">Usar puntos en este pedido</strong>
+                        <span id="cart-points-help">Puedes guardar tus puntos para acumular más.</span>
+                      </span>
+                    </label>
                   </div>
                   <div class="slot-hint" id="payment-instructions"></div>
                   <div class="cart-field-label" id="customer-whatsapp-label">WhatsApp de contacto</div>
@@ -9631,6 +9812,7 @@
       var modalAddAlsoSelections = {};
       var modalAddAlsoOpen = {};
       var appliedCoupon = null;
+      var usePointsInCart = false;
       var guestCheckoutApproved = false;
       var pendingCheckoutAfterAuth = false;
       var orderType = 'pickup';
@@ -9654,6 +9836,8 @@
       }
 
       function storeSlugFromPath() {
+        var params = new URLSearchParams(window.location.search);
+        if (params.get('tenant') || params.get('tenantId') || params.get('uid') || params.get('t') || params.get('store') || params.get('loja')) return '';
         var path = window.location.pathname || '';
         var legacyMatch = path.match(/^\/loja\/([^/?#]+)/);
         if (legacyMatch) return decodeURIComponent(legacyMatch[1]).toLowerCase().replace(/[^a-z0-9-]/g, '');
@@ -9662,12 +9846,15 @@
         var reserved = {
           admin: true,
           'admin.html': true,
+          'admin-html': true,
           index: true,
           'index.html': true,
+          'index-html': true,
           cadastro: true,
           login: true,
           master: true,
           'master.html': true,
+          'master-html': true,
           termos: true,
           termosdeuso: true,
           privacidade: true,
@@ -10116,7 +10303,7 @@
           perfectWith: 'Combina com', addedWith: 'Adicionado com', comboQtyLabel: 'Quantos você quer?', comboQtyLock: 'Escolha a quantidade para selecionar as opções ↑',
           whatsappHello: 'Olá! Quero fazer um pedido em {name}:', schedule: 'Horário', hours: 'Horários', postal: 'Código postal', zone: 'Zona', address: 'Endereço completo', contact: 'Contato', payment: 'Pagamento', observation: 'Observação', reviewsApproved: '{count} avaliações aprovadas.', footerText: 'Obrigada pela visita.', footerPowered: 'Loja online criada com BocaFood',
           authKicker: 'Acesso', authTitle: 'Entrar', authSignupTitle: 'Criar acesso', authText: 'Entre para acompanhar seus pedidos e usar benefícios da loja.', authSignupText: 'Crie seu acesso para acompanhar pedidos e consultar seus benefícios nesta loja.', authGoogle: 'Continuar com Google', authDivider: 'ou', authEmail: 'seu@email.com', authPassword: 'Senha', authSubmit: 'Entrar', authSignupSubmit: 'Criar acesso', authHelp: 'Ainda não tem conta?', authSignupHelp: 'Já tem conta?', authCreate: 'Criar acesso', authLoginLink: 'Entrar', close: 'Fechar', closeSearch: 'Fechar busca', searchPlaceholder: 'Buscar produto...', searchEmpty: 'Nenhum produto encontrado.', searchHint: 'Digite o nome do produto para buscar.',
-          pointsKicker: 'Fidelidade', pointsTitle: 'Seus pontos', pointsText: 'Consulte seu saldo, desconto disponível e últimos movimentos nesta loja.', pointsBalanceLabel: 'Saldo', pointsBalanceNote: 'pontos disponíveis', pointsDiscountLabel: 'Desconto', pointsRule: '{redeem} pontos = {amount} de desconto.', pointsLookup: 'WhatsApp ou e-mail', pointsCheck: 'Consultar', pointsStatus: 'Informe seu WhatsApp ou e-mail para ver seus pontos.', pointsNotFound: 'Não encontramos pontos para esse contato nesta loja.', pointsUnavailable: 'Não foi possível carregar seus pontos agora. Tente novamente mais tarde.', pointsHistory: 'Histórico', pointsHistoryEmpty: 'Ainda não há movimentos de pontos para este contato.', pointsEarned: 'Pontos ganhos', pointsUsed: 'Pontos usados', pointsLoginRequired: 'Entre ou crie seu acesso para consultar seus pontos nesta loja.', pointsLoginButton: 'Entrar', pointsCreateButton: 'Criar acesso', authError: 'Não foi possível acessar agora. Confira os dados e tente novamente.'
+          pointsKicker: 'Fidelidade', pointsTitle: 'Seus pontos', pointsText: 'Consulte seu saldo, desconto disponível e últimos movimentos nesta loja.', pointsBalanceLabel: 'Saldo', pointsBalanceNote: 'pontos disponíveis', pointsDiscountLabel: 'Desconto', pointsRule: '{redeem} pontos = {amount} de desconto.', pointsLookup: 'WhatsApp ou e-mail', pointsCheck: 'Consultar', pointsStatus: 'Informe seu WhatsApp ou e-mail para ver seus pontos.', pointsNotFound: 'Não encontramos pontos para esse contato nesta loja.', pointsUnavailable: 'Não foi possível carregar seus pontos agora. Tente novamente mais tarde.', pointsHistory: 'Histórico', pointsHistoryEmpty: 'Ainda não há movimentos de pontos para este contato.', pointsEarned: 'Pontos ganhos', pointsUsed: 'Pontos usados', pointsLoginRequired: 'Entre ou crie seu acesso para consultar seus pontos nesta loja.', pointsLoginButton: 'Entrar', pointsCreateButton: 'Criar acesso', pointsDiscountCart: 'Pontos', cartPointsUse: 'Usar pontos neste pedido', cartPointsHelp: 'Você tem {balance} pontos. Pode usar {points} pontos para descontar {amount}, ou guardar para acumular mais.', cartPointsLogin: 'Entre para usar seus pontos neste pedido.', cartPointsUnavailable: 'Você ainda não tem pontos suficientes para usar neste pedido.', authError: 'Não foi possível acessar agora. Confira os dados e tente novamente.'
         },
         'pt-PT': {
           storeOnline: 'Loja Online', loading: 'A carregar loja...', storeNotFound: 'Loja não encontrada', storeUnavailable: 'Esta loja não está disponível de momento.', account: 'Entrar', seePromotions: 'Ver promoções', back: 'Voltar', search: 'Pesquisar', cart: 'Carrinho', moreInfo: 'Mais informações ›',
@@ -10125,14 +10312,14 @@
           open: 'Aberto', closed: 'Fechado', delivery: 'Entrega', pickup: 'Levantamento', from: 'desde', free: 'Grátis', minimum: 'mín.', minimumOrderShort: 'Pedido mín.', preparationTime: 'Preparo', deliveryTime: 'Entrega', deliveryFrom: 'Entrega desde {value}', nextOpening: 'Próximo horário: {value}', advanceDays: '{count} dia{plural} de antecedência',
           loyaltyTitle: 'Ganhe pontos em cada pedido', loyaltyText: 'Entre no clube e troque pontos por descontos.', loyaltyButton: 'Quero participar', loyaltyHint: '',
           cartView: 'Ver pedido', openCart: 'Abrir ›', yourOrder: 'O seu pedido', noItems: 'Nenhum item no pedido', itemSingular: '1 item no pedido', itemPlural: '{count} itens no pedido', emptyOrder: 'O seu pedido ainda está vazio.',
-          receiving: 'Recebimento', required: 'obrigatório', pickupAddress: 'Levantamento no endereço da loja.', selectPickup: 'Selecione um horário de levantamento', selectDelivery: 'Selecione um horário de entrega', selectTime: 'Selecione um horário', pickupDateLabel: 'Data de levantamento', deliveryDateLabel: 'Data de entrega', noSlots: 'Sem horários disponíveis.', noFulfillment: 'Nenhum modo de recebimento está disponível no momento.', receivingTitle: 'Como você quer receber?', receivingSubtitle: 'Selecione antes de confirmar seu pedido.', clearOrder: 'Limpar pedido', pickupTimeLabel: 'Horário de retirada', deliveryTimeLabel: 'Horário de entrega', deliveryAddressLabel: 'Endereço de entrega', addressNumberLabel: 'Número / portal', addressComplementLabel: 'Piso / porta', addressCityLabel: 'Cidade', addressProvinceLabel: 'Província', addressCountryLabel: 'País', orderNoteLabel: 'Observação para o pedido', minimumDeliveryLabel: 'Pedido mínimo para entrega', minOrderLeft: 'Adicione mais {value}', savings: 'Poupa', paymentRequired: 'Selecione uma forma de pagamento.', checkoutChoiceKicker: 'Pedido', checkoutChoiceTitle: 'Como quer continuar?', checkoutChoiceText: 'Entre para acompanhar os seus pedidos e acumular pontos. Se continuar como convidado, os pontos não serão acumulados.', checkoutChoiceLogin: 'Entrar ou criar acesso', checkoutChoiceGuest: 'Continuar como convidado', orderSentKicker: 'Pedido', orderSentTitle: 'Pedido enviado', orderSentSuccess: 'Pedido enviado pelo WhatsApp. Se precisar de ajuda, fale com a loja pela conversa que acabou de abrir.', orderSentHelp: 'Referência do pedido: {ref}. A loja vai continuar o atendimento pelo WhatsApp.', orderSentButton: 'Entendido',
+          receiving: 'Recebimento', required: 'obrigatório', pickupAddress: 'Levantamento no endereço da loja.', selectPickup: 'Selecione um horário de levantamento', selectDelivery: 'Selecione um horário de entrega', selectTime: 'Selecione um horário', pickupDateLabel: 'Data de levantamento', deliveryDateLabel: 'Data de entrega', noSlots: 'Sem horários disponíveis.', noFulfillment: 'Nenhum modo de recebimento está disponível no momento.', receivingTitle: 'Como você quer receber?', receivingSubtitle: 'Selecione antes de confirmar seu pedido.', pickupAddressTitle: 'Endereço de retirada', savedAddressesTitle: 'Em qual endereço você quer receber o pedido?', savedAddressesModalTitle: 'Endereços salvos', chooseSavedAddress: 'Escolher endereço salvo', newAddressHelp: 'Se quiser receber o pedido em um endereço novo ou ainda não tiver endereço salvo, comece pelo código postal.', scheduleQuestion: 'Quando você quer receber seu pedido?', clearOrder: 'Limpar pedido', pickupTimeLabel: 'Horário de retirada', deliveryTimeLabel: 'Horário de entrega', deliveryAddressLabel: 'Endereço de entrega', addressNumberLabel: 'Número / portal', addressComplementLabel: 'Piso / porta', addressCityLabel: 'Cidade', addressProvinceLabel: 'Província', addressCountryLabel: 'País', orderNoteLabel: 'Observação para o pedido', minimumDeliveryLabel: 'Pedido mínimo para entrega', minOrderLeft: 'Adicione mais {value}', savings: 'Poupa', paymentRequired: 'Selecione uma forma de pagamento.', checkoutChoiceKicker: 'Pedido', checkoutChoiceTitle: 'Como quer continuar?', checkoutChoiceText: 'Entre para acompanhar os seus pedidos e acumular pontos. Se continuar como convidado, os pontos não serão acumulados.', checkoutChoiceLogin: 'Entrar ou criar acesso', checkoutChoiceGuest: 'Continuar como convidado', orderSentKicker: 'Pedido', orderSentTitle: 'Pedido enviado', orderSentSuccess: 'Pedido enviado pelo WhatsApp. Se precisar de ajuda, fale com a loja pela conversa que acabou de abrir.', orderSentHelp: 'Referência do pedido: {ref}. A loja vai continuar o atendimento pelo WhatsApp.', orderSentButton: 'Entendido',
           customer: 'Cliente', name: 'Nome', phone: 'WhatsApp', paymentNotes: 'Como vai pagar?', paymentMethod: 'Forma de pagamento', select: 'Selecione', orderNote: 'Observação para o pedido', productNote: 'Observação para este produto',
           coupon: 'Cupão', apply: 'Aplicar', couponApplied: 'Cupão {code} aplicado', subtotal: 'Subtotal', discount: 'Desconto', promotionDiscount: 'Promoções', total: 'Total', sendWhatsApp: 'Enviar pedido pelo WhatsApp', addToOrder: 'Adicionar ao pedido',
           addProduct: 'Adicionar {name}', options: 'Opções', requiredChoice: 'Obrigatório {used}/{needed}', extraOptions: 'opções', addMoreItems: 'Adicione mais itens', productReviews: 'Avaliações do produto', allReviewsTitle: 'Todas as avaliações', reviewFallback: 'Cliente gostou deste produto.', leaveReview: 'Deixar avaliação', shareReviewCta: 'Conte também como foi sua experiência', firstReviewText: 'Ainda não há avaliações publicadas. Seja a primeira pessoa a contar como foi sua experiência.', mostOrderedBadge: 'Mais pedido', addChoices: 'Adicionar:', noteShort: 'Obs:', addFirst: 'Adicione produtos ao pedido primeiro.', selectSlotWarn: 'Selecione um horário para continuar.', minimumDeliveryWarn: 'Pedido mínimo para entrega: {value}.', postalWarn: 'Informe um código postal atendido pela loja.', addressWarn: 'Informe o endereço completo para entrega.',
           perfectWith: 'Combina com', addedWith: 'Adicionado com', comboQtyLabel: 'Quantos quer?', comboQtyLock: 'Escolha a quantidade para selecionar as opções ↑',
           whatsappHello: 'Olá! Quero fazer um pedido em {name}:', schedule: 'Horário', hours: 'Horários', postal: 'Código postal', zone: 'Zona', address: 'Endereço completo', contact: 'Contacto', payment: 'Pagamento', observation: 'Observação', reviewsApproved: '{count} avaliações aprovadas.', footerText: 'Obrigada pela visita.', footerPowered: 'Loja online criada com BocaFood',
           authKicker: 'Acesso', authTitle: 'Entrar', authSignupTitle: 'Criar acesso', authText: 'Entre para acompanhar os seus pedidos e usar benefícios da loja.', authSignupText: 'Crie o seu acesso para acompanhar pedidos e consultar benefícios nesta loja.', authGoogle: 'Continuar com Google', authDivider: 'ou', authEmail: 'seu@email.com', authPassword: 'Senha', authSubmit: 'Entrar', authSignupSubmit: 'Criar acesso', authHelp: 'Ainda não tem conta?', authSignupHelp: 'Já tem conta?', authCreate: 'Criar acesso', authLoginLink: 'Entrar', close: 'Fechar', closeSearch: 'Fechar pesquisa', searchPlaceholder: 'Pesquisar produto...', searchEmpty: 'Nenhum produto encontrado.', searchHint: 'Digite o nome do produto para pesquisar.',
-          pointsKicker: 'Fidelidade', pointsTitle: 'Os seus pontos', pointsText: 'Consulte o saldo, desconto disponível e últimos movimentos nesta loja.', pointsBalanceLabel: 'Saldo', pointsBalanceNote: 'pontos disponíveis', pointsDiscountLabel: 'Desconto', pointsRule: '{redeem} pontos = {amount} de desconto.', pointsLookup: 'WhatsApp ou e-mail', pointsCheck: 'Consultar', pointsStatus: 'Informe o seu WhatsApp ou e-mail para ver os seus pontos.', pointsNotFound: 'Não encontrámos pontos para esse contacto nesta loja.', pointsUnavailable: 'Não foi possível carregar os seus pontos agora. Tente novamente mais tarde.', pointsHistory: 'Histórico', pointsHistoryEmpty: 'Ainda não há movimentos de pontos para este contacto.', pointsEarned: 'Pontos ganhos', pointsUsed: 'Pontos usados', pointsLoginRequired: 'Entre ou crie o seu acesso para consultar os seus pontos nesta loja.', pointsLoginButton: 'Entrar', pointsCreateButton: 'Criar acesso', authError: 'Não foi possível aceder agora. Confira os dados e tente novamente.'
+          pointsKicker: 'Fidelidade', pointsTitle: 'Os seus pontos', pointsText: 'Consulte o saldo, desconto disponível e últimos movimentos nesta loja.', pointsBalanceLabel: 'Saldo', pointsBalanceNote: 'pontos disponíveis', pointsDiscountLabel: 'Desconto', pointsRule: '{redeem} pontos = {amount} de desconto.', pointsLookup: 'WhatsApp ou e-mail', pointsCheck: 'Consultar', pointsStatus: 'Informe o seu WhatsApp ou e-mail para ver os seus pontos.', pointsNotFound: 'Não encontrámos pontos para esse contacto nesta loja.', pointsUnavailable: 'Não foi possível carregar os seus pontos agora. Tente novamente mais tarde.', pointsHistory: 'Histórico', pointsHistoryEmpty: 'Ainda não há movimentos de pontos para este contacto.', pointsEarned: 'Pontos ganhos', pointsUsed: 'Pontos usados', pointsLoginRequired: 'Entre ou crie o seu acesso para consultar os seus pontos nesta loja.', pointsLoginButton: 'Entrar', pointsCreateButton: 'Criar acesso', pointsDiscountCart: 'Pontos', cartPointsUse: 'Usar pontos neste pedido', cartPointsHelp: 'Tem {balance} pontos. Pode usar {points} pontos para descontar {amount}, ou guardar para acumular mais.', cartPointsLogin: 'Entre para usar os seus pontos neste pedido.', cartPointsUnavailable: 'Ainda não tem pontos suficientes para usar neste pedido.', authError: 'Não foi possível aceder agora. Confira os dados e tente novamente.'
         },
         'es-ES': {
           storeOnline: 'Tienda online', loading: 'Cargando tienda...', storeNotFound: 'Tienda no encontrada', storeUnavailable: 'Esta tienda no está disponible en este momento.', account: 'Iniciar sesión', seePromotions: 'Ver promociones', back: 'Volver', search: 'Buscar', cart: 'Carrito', moreInfo: 'Más información ›',
@@ -10141,14 +10328,14 @@
           open: 'Abierto', closed: 'Cerrado', delivery: 'Entrega', pickup: 'Recogida', from: 'desde', free: 'Gratis', minimum: 'mín.', minimumOrderShort: 'Pedido mín.', preparationTime: 'Preparación', deliveryTime: 'Entrega', deliveryFrom: 'Entrega desde {value}', nextOpening: 'Próximo horario: {value}', advanceDays: '{count} día{plural} de antelación',
           loyaltyTitle: 'Gana puntos en cada pedido', loyaltyText: 'Únete al club y cambia puntos por descuentos.', loyaltyButton: 'Quiero participar', loyaltyHint: '',
           cartView: 'Ver pedido', openCart: 'Abrir ›', yourOrder: 'Tu pedido', noItems: 'Ningún artículo en el pedido', itemSingular: '1 artículo en el pedido', itemPlural: '{count} artículos en el pedido', emptyOrder: 'Tu pedido aún está vacío.',
-          receiving: 'Recepción', required: 'obligatorio', pickupAddress: 'Recogida en la dirección de la tienda.', selectPickup: 'Selecciona un horario de recogida', selectDelivery: 'Selecciona un horario de entrega', selectTime: 'Selecciona un horario', pickupDateLabel: 'Fecha de recogida', deliveryDateLabel: 'Fecha de entrega', noSlots: 'No hay horarios disponibles.', noFulfillment: 'No hay ningún modo de entrega o recogida disponible en este momento.', receivingTitle: '¿Cómo quieres recibirlo?', receivingSubtitle: 'Selecciona antes de confirmar tu pedido.', clearOrder: 'Limpiar pedido', pickupTimeLabel: 'Horario de recogida', deliveryTimeLabel: 'Horario de entrega', deliveryAddressLabel: 'Dirección de entrega', addressNumberLabel: 'Número / portal', addressComplementLabel: 'Piso / puerta', addressCityLabel: 'Localidad', addressProvinceLabel: 'Provincia', addressCountryLabel: 'País', orderNoteLabel: 'Observación para el pedido', minimumDeliveryLabel: 'Pedido mínimo de entrega', minOrderLeft: 'Añade {value} más', savings: 'Ahorras', paymentRequired: 'Selecciona una forma de pago.', checkoutChoiceKicker: 'Pedido', checkoutChoiceTitle: '¿Cómo quieres continuar?', checkoutChoiceText: 'Inicia sesión para seguir tus pedidos y acumular puntos. Si continúas como invitado, no acumularás puntos.', checkoutChoiceLogin: 'Entrar o crear acceso', checkoutChoiceGuest: 'Continuar como invitado', orderSentKicker: 'Pedido', orderSentTitle: 'Pedido enviado', orderSentSuccess: 'Pedido enviado por WhatsApp. Si necesitas ayuda, escribe a la tienda en la conversación que se acaba de abrir.', orderSentHelp: 'Referencia del pedido: {ref}. La tienda continuará la atención por WhatsApp.', orderSentButton: 'Entendido',
+          receiving: 'Recepción', required: 'obligatorio', pickupAddress: 'Recogida en la dirección de la tienda.', selectPickup: 'Selecciona un horario de recogida', selectDelivery: 'Selecciona un horario de entrega', selectTime: 'Selecciona un horario', pickupDateLabel: 'Fecha de recogida', deliveryDateLabel: 'Fecha de entrega', noSlots: 'No hay horarios disponibles.', noFulfillment: 'No hay ningún modo de entrega o recogida disponible en este momento.', receivingTitle: '¿Cómo quieres recibirlo?', receivingSubtitle: 'Selecciona antes de confirmar tu pedido.', pickupAddressTitle: 'Dirección de recogida', savedAddressesTitle: '¿En qué dirección quieres recibir el pedido?', savedAddressesModalTitle: 'Direcciones guardadas', chooseSavedAddress: 'Elegir dirección guardada', newAddressHelp: 'Si quieres recibir el pedido en una dirección nueva o todavía no tienes una dirección guardada, empieza por el código postal.', scheduleQuestion: '¿Cuándo quieres recibir tu pedido?', clearOrder: 'Limpiar pedido', pickupTimeLabel: 'Horario de recogida', deliveryTimeLabel: 'Horario de entrega', deliveryAddressLabel: 'Dirección de entrega', addressNumberLabel: 'Número / portal', addressComplementLabel: 'Piso / puerta', addressCityLabel: 'Localidad', addressProvinceLabel: 'Provincia', addressCountryLabel: 'País', orderNoteLabel: 'Observación para el pedido', minimumDeliveryLabel: 'Pedido mínimo de entrega', minOrderLeft: 'Añade {value} más', savings: 'Ahorras', paymentRequired: 'Selecciona una forma de pago.', checkoutChoiceKicker: 'Pedido', checkoutChoiceTitle: '¿Cómo quieres continuar?', checkoutChoiceText: 'Inicia sesión para seguir tus pedidos y acumular puntos. Si continúas como invitado, no acumularás puntos.', checkoutChoiceLogin: 'Entrar o crear acceso', checkoutChoiceGuest: 'Continuar como invitado', orderSentKicker: 'Pedido', orderSentTitle: 'Pedido enviado', orderSentSuccess: 'Pedido enviado por WhatsApp. Si necesitas ayuda, escribe a la tienda en la conversación que se acaba de abrir.', orderSentHelp: 'Referencia del pedido: {ref}. La tienda continuará la atención por WhatsApp.', orderSentButton: 'Entendido',
           customer: 'Cliente', name: 'Nombre', phone: 'WhatsApp', paymentNotes: '¿Cómo vas a pagar?', paymentMethod: 'Forma de pago', select: 'Selecciona', orderNote: 'Observación para el pedido', productNote: 'Observación para este producto',
           coupon: 'Cupón', apply: 'Aplicar', couponApplied: 'Cupón {code} aplicado', subtotal: 'Subtotal', discount: 'Descuento', promotionDiscount: 'Promociones', total: 'Total', sendWhatsApp: 'Enviar pedido por WhatsApp', addToOrder: 'Añadir al pedido',
           addProduct: 'Añadir {name}', options: 'Opciones', requiredChoice: 'Obligatorio {used}/{needed}', extraOptions: 'opciones', addMoreItems: 'Añade más productos', productReviews: 'Reseñas del producto', allReviewsTitle: 'Todas las reseñas', reviewFallback: 'A un cliente le gustó este producto.', leaveReview: 'Dejar reseña', shareReviewCta: 'Cuéntanos también cómo fue tu experiencia', firstReviewText: 'Todavía no hay reseñas publicadas. Sé la primera persona en contar cómo fue tu experiencia.', mostOrderedBadge: 'Más pedido', addChoices: 'Añadir:', noteShort: 'Nota:', addFirst: 'Añade productos al pedido primero.', selectSlotWarn: 'Selecciona un horario para continuar.', minimumDeliveryWarn: 'Pedido mínimo para entrega: {value}.', postalWarn: 'Indica un código postal atendido por la tienda.', addressWarn: 'Indica la dirección completa para la entrega.',
           perfectWith: 'Perfecto con', addedWith: 'Añadido con', comboQtyLabel: '¿Cuántos quieres?', comboQtyLock: 'Elige la cantidad para elegir las opciones ↑',
           whatsappHello: '¡Hola! Quiero hacer un pedido en {name}:', schedule: 'Horario', hours: 'Horarios', postal: 'Código postal', zone: 'Zona', address: 'Dirección completa', contact: 'Contacto', payment: 'Pago', observation: 'Observación', reviewsApproved: '{count} reseñas aprobadas.', footerText: 'Gracias por visitarnos.', footerPowered: 'Tienda online creada con BocaFood',
           authKicker: 'Acceso', authTitle: 'Iniciar sesión', authSignupTitle: 'Crear acceso', authText: 'Entra para seguir tus pedidos y usar beneficios de la tienda.', authSignupText: 'Crea tu acceso para seguir pedidos y consultar tus beneficios en esta tienda.', authGoogle: 'Continuar con Google', authDivider: 'o', authEmail: 'tu@email.com', authPassword: 'Contraseña', authSubmit: 'Iniciar sesión', authSignupSubmit: 'Crear acceso', authHelp: '¿Aún no tienes cuenta?', authSignupHelp: '¿Ya tienes cuenta?', authCreate: 'Crear acceso', authLoginLink: 'Iniciar sesión', close: 'Cerrar', closeSearch: 'Cerrar búsqueda', searchPlaceholder: 'Buscar producto...', searchEmpty: 'No encontramos productos.', searchHint: 'Escribe el nombre del producto para buscar.',
-          pointsKicker: 'Fidelidad', pointsTitle: 'Tus puntos', pointsText: 'Consulta tu saldo, descuento disponible y últimos movimientos en esta tienda.', pointsBalanceLabel: 'Saldo', pointsBalanceNote: 'puntos disponibles', pointsDiscountLabel: 'Descuento', pointsRule: '{redeem} puntos = {amount} de descuento.', pointsLookup: 'WhatsApp o e-mail', pointsCheck: 'Consultar', pointsStatus: 'Introduce tu WhatsApp o e-mail para ver tus puntos.', pointsNotFound: 'No encontramos puntos para este contacto en esta tienda.', pointsUnavailable: 'No fue posible cargar tus puntos ahora. Inténtalo más tarde.', pointsHistory: 'Historial', pointsHistoryEmpty: 'Aún no hay movimientos de puntos para este contacto.', pointsEarned: 'Puntos ganados', pointsUsed: 'Puntos usados', pointsLoginRequired: 'Inicia sesión o crea tu acceso para consultar tus puntos en esta tienda.', pointsLoginButton: 'Iniciar sesión', pointsCreateButton: 'Crear acceso', authError: 'No fue posible acceder ahora. Revisa los datos e inténtalo de nuevo.'
+          pointsKicker: 'Fidelidad', pointsTitle: 'Tus puntos', pointsText: 'Consulta tu saldo, descuento disponible y últimos movimientos en esta tienda.', pointsBalanceLabel: 'Saldo', pointsBalanceNote: 'puntos disponibles', pointsDiscountLabel: 'Descuento', pointsRule: '{redeem} puntos = {amount} de descuento.', pointsLookup: 'WhatsApp o e-mail', pointsCheck: 'Consultar', pointsStatus: 'Introduce tu WhatsApp o e-mail para ver tus puntos.', pointsNotFound: 'No encontramos puntos para este contacto en esta tienda.', pointsUnavailable: 'No fue posible cargar tus puntos ahora. Inténtalo más tarde.', pointsHistory: 'Historial', pointsHistoryEmpty: 'Aún no hay movimientos de puntos para este contacto.', pointsEarned: 'Puntos ganados', pointsUsed: 'Puntos usados', pointsLoginRequired: 'Inicia sesión o crea tu acceso para consultar tus puntos en esta tienda.', pointsLoginButton: 'Iniciar sesión', pointsCreateButton: 'Crear acceso', pointsDiscountCart: 'Puntos', cartPointsUse: 'Usar puntos en este pedido', cartPointsHelp: 'Tienes {balance} puntos. Puedes usar {points} puntos para descontar {amount}, o guardarlos para acumular más.', cartPointsLogin: 'Inicia sesión para usar tus puntos en este pedido.', cartPointsUnavailable: 'Aún no tienes puntos suficientes para usar en este pedido.', authError: 'No fue posible acceder ahora. Revisa los datos e inténtalo de nuevo.'
         },
         en: {
           storeOnline: 'Online store', loading: 'Loading store...', storeNotFound: 'Store not found', storeUnavailable: 'This store is not available right now.', account: 'Sign in', seePromotions: 'View promotions', back: 'Back', search: 'Search', cart: 'Cart', moreInfo: 'More information ›',
@@ -10157,14 +10344,14 @@
           open: 'Open', closed: 'Closed', delivery: 'Delivery', pickup: 'Pickup', from: 'from', free: 'Free', minimum: 'min.', minimumOrderShort: 'Min. order', preparationTime: 'Prep', deliveryTime: 'Delivery', deliveryFrom: 'Delivery from {value}', nextOpening: 'Next hours: {value}', advanceDays: '{count} day{plural} in advance',
           loyaltyTitle: 'Earn points with every order', loyaltyText: 'Join the club and redeem points for discounts.', loyaltyButton: 'Join now', loyaltyHint: '',
           cartView: 'View order', openCart: 'Open ›', yourOrder: 'Your order', noItems: 'No items in the order', itemSingular: '1 item in the order', itemPlural: '{count} items in the order', emptyOrder: 'Your order is still empty.',
-          receiving: 'Fulfilment', required: 'required', pickupAddress: 'Pickup at the store address.', selectPickup: 'Select a pickup time', selectDelivery: 'Select a delivery time', selectTime: 'Select a time', pickupDateLabel: 'Pickup date', deliveryDateLabel: 'Delivery date', noSlots: 'No times available.', noFulfillment: 'No fulfilment option is available right now.', receivingTitle: 'How would you like to receive it?', receivingSubtitle: 'Select this before confirming your order.', clearOrder: 'Clear order', pickupTimeLabel: 'Pickup time', deliveryTimeLabel: 'Delivery time', deliveryAddressLabel: 'Delivery address', addressNumberLabel: 'Number / building', addressComplementLabel: 'Floor / door', addressCityLabel: 'City', addressProvinceLabel: 'Province', addressCountryLabel: 'Country', orderNoteLabel: 'Order note', minimumDeliveryLabel: 'Minimum delivery order', minOrderLeft: 'Add {value} more', savings: 'You save', paymentRequired: 'Select a payment method.', checkoutChoiceKicker: 'Order', checkoutChoiceTitle: 'How do you want to continue?', checkoutChoiceText: 'Sign in to track orders and earn points. If you continue as a guest, points will not be added.', checkoutChoiceLogin: 'Sign in or create access', checkoutChoiceGuest: 'Continue as guest', orderSentKicker: 'Order', orderSentTitle: 'Order sent', orderSentSuccess: 'Order sent via WhatsApp. If you need help, message the store in the conversation that just opened.', orderSentHelp: 'Order reference: {ref}. The store will continue the conversation on WhatsApp.', orderSentButton: 'Got it',
+          receiving: 'Fulfilment', required: 'required', pickupAddress: 'Pickup at the store address.', selectPickup: 'Select a pickup time', selectDelivery: 'Select a delivery time', selectTime: 'Select a time', pickupDateLabel: 'Pickup date', deliveryDateLabel: 'Delivery date', noSlots: 'No times available.', noFulfillment: 'No fulfilment option is available right now.', receivingTitle: 'How would you like to receive it?', receivingSubtitle: 'Select this before confirming your order.', pickupAddressTitle: 'Pickup address', savedAddressesTitle: 'Which address should receive the order?', savedAddressesModalTitle: 'Saved addresses', chooseSavedAddress: 'Choose saved address', newAddressHelp: 'If you want to receive the order at a new address or do not have a saved address yet, start with the postal code.', scheduleQuestion: 'When would you like to receive your order?', clearOrder: 'Clear order', pickupTimeLabel: 'Pickup time', deliveryTimeLabel: 'Delivery time', deliveryAddressLabel: 'Delivery address', addressNumberLabel: 'Number / building', addressComplementLabel: 'Floor / door', addressCityLabel: 'City', addressProvinceLabel: 'Province', addressCountryLabel: 'Country', orderNoteLabel: 'Order note', minimumDeliveryLabel: 'Minimum delivery order', minOrderLeft: 'Add {value} more', savings: 'You save', paymentRequired: 'Select a payment method.', checkoutChoiceKicker: 'Order', checkoutChoiceTitle: 'How do you want to continue?', checkoutChoiceText: 'Sign in to track orders and earn points. If you continue as a guest, points will not be added.', checkoutChoiceLogin: 'Sign in or create access', checkoutChoiceGuest: 'Continue as guest', orderSentKicker: 'Order', orderSentTitle: 'Order sent', orderSentSuccess: 'Order sent via WhatsApp. If you need help, message the store in the conversation that just opened.', orderSentHelp: 'Order reference: {ref}. The store will continue the conversation on WhatsApp.', orderSentButton: 'Got it',
           customer: 'Customer', name: 'Name', phone: 'WhatsApp', paymentNotes: 'How will you pay?', paymentMethod: 'Payment method', select: 'Select', orderNote: 'Order note', productNote: 'Note for this product',
           coupon: 'Coupon', apply: 'Apply', couponApplied: 'Coupon {code} applied', subtotal: 'Subtotal', discount: 'Discount', promotionDiscount: 'Promotions', total: 'Total', sendWhatsApp: 'Send order via WhatsApp', addToOrder: 'Add to order',
           addProduct: 'Add {name}', options: 'Options', requiredChoice: 'Required {used}/{needed}', extraOptions: 'options', addMoreItems: 'Add more items', productReviews: 'Product reviews', allReviewsTitle: 'All reviews', reviewFallback: 'A customer liked this product.', leaveReview: 'Leave a review', shareReviewCta: 'Share your experience too', firstReviewText: 'There are no published reviews yet. Be the first person to share your experience.', mostOrderedBadge: 'Most ordered', addChoices: 'Add:', noteShort: 'Note:', addFirst: 'Add products to the order first.', selectSlotWarn: 'Select a time to continue.', minimumDeliveryWarn: 'Minimum delivery order: {value}.', postalWarn: 'Enter a postal code served by the store.', addressWarn: 'Enter the full delivery address.',
           perfectWith: 'Perfect with', addedWith: 'Added with', comboQtyLabel: 'How many would you like?', comboQtyLock: 'Choose the quantity to select the options ↑',
           whatsappHello: 'Hi! I want to place an order at {name}:', schedule: 'Time', hours: 'Hours', postal: 'Postal code', zone: 'Zone', address: 'Full address', contact: 'Contact', payment: 'Payment', observation: 'Note', reviewsApproved: '{count} approved reviews.', footerText: 'Thanks for visiting us.', footerPowered: 'Online store created with BocaFood',
           authKicker: 'Access', authTitle: 'Sign in', authSignupTitle: 'Create access', authText: 'Sign in to follow your orders and use store benefits.', authSignupText: 'Create access to follow orders and check your benefits in this store.', authGoogle: 'Continue with Google', authDivider: 'or', authEmail: 'your@email.com', authPassword: 'Password', authSubmit: 'Sign in', authSignupSubmit: 'Create access', authHelp: 'No account yet?', authSignupHelp: 'Already have an account?', authCreate: 'Create access', authLoginLink: 'Sign in', close: 'Close', closeSearch: 'Close search', searchPlaceholder: 'Search product...', searchEmpty: 'No products found.', searchHint: 'Type a product name to search.',
-          pointsKicker: 'Loyalty', pointsTitle: 'Your points', pointsText: 'Check your balance, available discount and recent activity in this store.', pointsBalanceLabel: 'Balance', pointsBalanceNote: 'available points', pointsDiscountLabel: 'Discount', pointsRule: '{redeem} points = {amount} discount.', pointsLookup: 'WhatsApp or email', pointsCheck: 'Check', pointsStatus: 'Enter your WhatsApp or email to see your points.', pointsNotFound: 'No points were found for this contact in this store.', pointsUnavailable: 'We could not load your points right now. Please try again later.', pointsHistory: 'History', pointsHistoryEmpty: 'There is no points activity for this contact yet.', pointsEarned: 'Points earned', pointsUsed: 'Points used', pointsLoginRequired: 'Sign in or create your access to check your points in this store.', pointsLoginButton: 'Sign in', pointsCreateButton: 'Create access', authError: 'We could not sign you in right now. Check your details and try again.'
+          pointsKicker: 'Loyalty', pointsTitle: 'Your points', pointsText: 'Check your balance, available discount and recent activity in this store.', pointsBalanceLabel: 'Balance', pointsBalanceNote: 'available points', pointsDiscountLabel: 'Discount', pointsRule: '{redeem} points = {amount} discount.', pointsLookup: 'WhatsApp or email', pointsCheck: 'Check', pointsStatus: 'Enter your WhatsApp or email to see your points.', pointsNotFound: 'No points were found for this contact in this store.', pointsUnavailable: 'We could not load your points right now. Please try again later.', pointsHistory: 'History', pointsHistoryEmpty: 'There is no points activity for this contact yet.', pointsEarned: 'Points earned', pointsUsed: 'Points used', pointsLoginRequired: 'Sign in or create your access to check your points in this store.', pointsLoginButton: 'Sign in', pointsCreateButton: 'Create access', pointsDiscountCart: 'Points', cartPointsUse: 'Use points on this order', cartPointsHelp: 'You have {balance} points. You can use {points} points for {amount} off, or save them to collect more.', cartPointsLogin: 'Sign in to use your points on this order.', cartPointsUnavailable: 'You do not have enough points to use on this order yet.', authError: 'We could not sign you in right now. Check your details and try again.'
         },
         fr: {
           storeOnline: 'Boutique en ligne', loading: 'Chargement de la boutique...', storeNotFound: 'Boutique introuvable', storeUnavailable: 'Cette boutique n’est pas disponible pour le moment.', account: 'Se connecter', seePromotions: 'Voir promotions', back: 'Retour', search: 'Rechercher', cart: 'Panier', moreInfo: 'Plus d’informations ›',
@@ -10173,14 +10360,14 @@
           open: 'Ouvert', closed: 'Fermé', delivery: 'Livraison', pickup: 'Retrait', from: 'dès', free: 'Gratuit', minimum: 'min.', minimumOrderShort: 'Commande min.', preparationTime: 'Préparation', deliveryTime: 'Livraison', deliveryFrom: 'Livraison dès {value}', nextOpening: 'Prochain horaire : {value}', advanceDays: '{count} jour{plural} à l’avance',
           loyaltyTitle: 'Gagnez des points à chaque commande', loyaltyText: 'Rejoignez le club et échangez vos points contre des réductions.', loyaltyButton: 'Je participe', loyaltyHint: '',
           cartView: 'Voir la commande', openCart: 'Ouvrir ›', yourOrder: 'Votre commande', noItems: 'Aucun article dans la commande', itemSingular: '1 article dans la commande', itemPlural: '{count} articles dans la commande', emptyOrder: 'Votre commande est encore vide.',
-          receiving: 'Réception', required: 'obligatoire', pickupAddress: 'Retrait à l’adresse de la boutique.', selectPickup: 'Sélectionnez un horaire de retrait', selectDelivery: 'Sélectionnez un horaire de livraison', selectTime: 'Sélectionnez un horaire', pickupDateLabel: 'Date de retrait', deliveryDateLabel: 'Date de livraison', noSlots: 'Aucun horaire disponible.', noFulfillment: 'Aucun mode de retrait ou livraison n’est disponible pour le moment.', receivingTitle: 'Comment voulez-vous recevoir votre commande ?', receivingSubtitle: 'Sélectionnez avant de confirmer votre commande.', clearOrder: 'Vider la commande', pickupTimeLabel: 'Horaire de retrait', deliveryTimeLabel: 'Horaire de livraison', deliveryAddressLabel: 'Adresse de livraison', addressNumberLabel: 'Numéro / bâtiment', addressComplementLabel: 'Étage / porte', addressCityLabel: 'Ville', addressProvinceLabel: 'Province', addressCountryLabel: 'Pays', orderNoteLabel: 'Remarque pour la commande', minimumDeliveryLabel: 'Commande minimum pour livraison', minOrderLeft: 'Ajoutez encore {value}', savings: 'Vous économisez', paymentRequired: 'Sélectionnez un mode de paiement.', checkoutChoiceKicker: 'Commande', checkoutChoiceTitle: 'Comment voulez-vous continuer ?', checkoutChoiceText: 'Connectez-vous pour suivre vos commandes et cumuler des points. Si vous continuez comme invité, les points ne seront pas ajoutés.', checkoutChoiceLogin: 'Se connecter ou créer un accès', checkoutChoiceGuest: 'Continuer comme invité', orderSentKicker: 'Commande', orderSentTitle: 'Commande envoyée', orderSentSuccess: 'Commande envoyée via WhatsApp. Si vous avez besoin d’aide, écrivez à la boutique dans la conversation ouverte.', orderSentHelp: 'Référence de commande : {ref}. La boutique continuera l’échange sur WhatsApp.', orderSentButton: 'Compris',
+          receiving: 'Réception', required: 'obligatoire', pickupAddress: 'Retrait à l’adresse de la boutique.', selectPickup: 'Sélectionnez un horaire de retrait', selectDelivery: 'Sélectionnez un horaire de livraison', selectTime: 'Sélectionnez un horaire', pickupDateLabel: 'Date de retrait', deliveryDateLabel: 'Date de livraison', noSlots: 'Aucun horaire disponible.', noFulfillment: 'Aucun mode de retrait ou livraison n’est disponible pour le moment.', receivingTitle: 'Comment voulez-vous recevoir votre commande ?', receivingSubtitle: 'Sélectionnez avant de confirmer votre commande.', pickupAddressTitle: 'Adresse de retrait', savedAddressesTitle: 'À quelle adresse voulez-vous recevoir la commande ?', savedAddressesModalTitle: 'Adresses enregistrées', chooseSavedAddress: 'Choisir une adresse enregistrée', newAddressHelp: 'Si vous voulez recevoir la commande à une nouvelle adresse ou si vous n’avez pas encore d’adresse enregistrée, commencez par le code postal.', scheduleQuestion: 'Quand voulez-vous recevoir votre commande ?', clearOrder: 'Vider la commande', pickupTimeLabel: 'Horaire de retrait', deliveryTimeLabel: 'Horaire de livraison', deliveryAddressLabel: 'Adresse de livraison', addressNumberLabel: 'Numéro / bâtiment', addressComplementLabel: 'Étage / porte', addressCityLabel: 'Ville', addressProvinceLabel: 'Province', addressCountryLabel: 'Pays', orderNoteLabel: 'Remarque pour la commande', minimumDeliveryLabel: 'Commande minimum pour livraison', minOrderLeft: 'Ajoutez encore {value}', savings: 'Vous économisez', paymentRequired: 'Sélectionnez un mode de paiement.', checkoutChoiceKicker: 'Commande', checkoutChoiceTitle: 'Comment voulez-vous continuer ?', checkoutChoiceText: 'Connectez-vous pour suivre vos commandes et cumuler des points. Si vous continuez comme invité, les points ne seront pas ajoutés.', checkoutChoiceLogin: 'Se connecter ou créer un accès', checkoutChoiceGuest: 'Continuer comme invité', orderSentKicker: 'Commande', orderSentTitle: 'Commande envoyée', orderSentSuccess: 'Commande envoyée via WhatsApp. Si vous avez besoin d’aide, écrivez à la boutique dans la conversation ouverte.', orderSentHelp: 'Référence de commande : {ref}. La boutique continuera l’échange sur WhatsApp.', orderSentButton: 'Compris',
           customer: 'Client', name: 'Nom', phone: 'WhatsApp', paymentNotes: 'Comment souhaitez-vous payer ?', paymentMethod: 'Mode de paiement', select: 'Sélectionnez', orderNote: 'Remarque pour la commande', productNote: 'Remarque pour ce produit',
           coupon: 'Coupon', apply: 'Appliquer', couponApplied: 'Coupon {code} appliqué', subtotal: 'Sous-total', discount: 'Réduction', promotionDiscount: 'Promotions', total: 'Total', sendWhatsApp: 'Envoyer la commande par WhatsApp', addToOrder: 'Ajouter à la commande',
           addProduct: 'Ajouter {name}', options: 'Options', requiredChoice: 'Obligatoire {used}/{needed}', extraOptions: 'options', addMoreItems: 'Ajouter d’autres articles', productReviews: 'Avis du produit', allReviewsTitle: 'Tous les avis', reviewFallback: 'Un client a aimé ce produit.', leaveReview: 'Laisser un avis', shareReviewCta: 'Racontez vous aussi votre expérience', firstReviewText: 'Aucun avis publié pour le moment. Soyez la première personne à raconter votre expérience.', mostOrderedBadge: 'Le plus commandé', addChoices: 'Ajouter :', noteShort: 'Remarque :', addFirst: 'Ajoutez d’abord des produits à la commande.', selectSlotWarn: 'Sélectionnez un horaire pour continuer.', minimumDeliveryWarn: 'Commande minimum pour livraison : {value}.', postalWarn: 'Indiquez un code postal desservi par la boutique.', addressWarn: 'Indiquez l’adresse complète pour la livraison.',
           perfectWith: 'Parfait avec', addedWith: 'Ajouté avec', comboQtyLabel: 'Combien en voulez-vous ?', comboQtyLock: 'Choisissez la quantité pour sélectionner les options ↑',
           whatsappHello: 'Bonjour ! Je souhaite passer une commande chez {name} :', schedule: 'Horaire', hours: 'Horaires', postal: 'Code postal', zone: 'Zone', address: 'Adresse complète', contact: 'Contact', payment: 'Paiement', observation: 'Remarque', reviewsApproved: '{count} avis approuvés.', footerText: 'Merci pour votre visite.', footerPowered: 'Boutique en ligne créée avec BocaFood',
           authKicker: 'Accès', authTitle: 'Se connecter', authSignupTitle: 'Créer un accès', authText: 'Connectez-vous pour suivre vos commandes et utiliser les avantages de la boutique.', authSignupText: 'Créez votre accès pour suivre vos commandes et consulter vos avantages dans cette boutique.', authGoogle: 'Continuer avec Google', authDivider: 'ou', authEmail: 'votre@email.com', authPassword: 'Mot de passe', authSubmit: 'Se connecter', authSignupSubmit: 'Créer un accès', authHelp: 'Pas encore de compte ?', authSignupHelp: 'Vous avez déjà un compte ?', authCreate: 'Créer un accès', authLoginLink: 'Se connecter', close: 'Fermer', closeSearch: 'Fermer la recherche', searchPlaceholder: 'Rechercher un produit...', searchEmpty: 'Aucun produit trouvé.', searchHint: 'Saisissez le nom du produit à rechercher.',
-          pointsKicker: 'Fidélité', pointsTitle: 'Vos points', pointsText: 'Consultez votre solde, la remise disponible et les derniers mouvements dans cette boutique.', pointsBalanceLabel: 'Solde', pointsBalanceNote: 'points disponibles', pointsDiscountLabel: 'Remise', pointsRule: '{redeem} points = {amount} de remise.', pointsLookup: 'WhatsApp ou e-mail', pointsCheck: 'Consulter', pointsStatus: 'Indiquez votre WhatsApp ou e-mail pour voir vos points.', pointsNotFound: 'Aucun point trouvé pour ce contact dans cette boutique.', pointsUnavailable: 'Impossible de charger vos points maintenant. Réessayez plus tard.', pointsHistory: 'Historique', pointsHistoryEmpty: 'Aucun mouvement de points pour ce contact pour le moment.', pointsEarned: 'Points gagnés', pointsUsed: 'Points utilisés', pointsLoginRequired: 'Connectez-vous ou créez votre accès pour consulter vos points dans cette boutique.', pointsLoginButton: 'Se connecter', pointsCreateButton: 'Créer un accès', authError: 'Connexion impossible pour le moment. Vérifiez les informations et réessayez.'
+          pointsKicker: 'Fidélité', pointsTitle: 'Vos points', pointsText: 'Consultez votre solde, la remise disponible et les derniers mouvements dans cette boutique.', pointsBalanceLabel: 'Solde', pointsBalanceNote: 'points disponibles', pointsDiscountLabel: 'Remise', pointsRule: '{redeem} points = {amount} de remise.', pointsLookup: 'WhatsApp ou e-mail', pointsCheck: 'Consulter', pointsStatus: 'Indiquez votre WhatsApp ou e-mail pour voir vos points.', pointsNotFound: 'Aucun point trouvé pour ce contact dans cette boutique.', pointsUnavailable: 'Impossible de charger vos points maintenant. Réessayez plus tard.', pointsHistory: 'Historique', pointsHistoryEmpty: 'Aucun mouvement de points pour ce contact pour le moment.', pointsEarned: 'Points gagnés', pointsUsed: 'Points utilisés', pointsLoginRequired: 'Connectez-vous ou créez votre accès pour consulter vos points dans cette boutique.', pointsLoginButton: 'Se connecter', pointsCreateButton: 'Créer un accès', pointsDiscountCart: 'Points', cartPointsUse: 'Utiliser des points sur cette commande', cartPointsHelp: 'Vous avez {balance} points. Vous pouvez utiliser {points} points pour obtenir {amount} de remise, ou les garder pour en cumuler davantage.', cartPointsLogin: 'Connectez-vous pour utiliser vos points sur cette commande.', cartPointsUnavailable: 'Vous n’avez pas encore assez de points pour cette commande.', authError: 'Connexion impossible pour le moment. Vérifiez les informations et réessayez.'
         }
       };
 
@@ -10311,6 +10498,13 @@
         var paymentTitle = document.getElementById('cart-payment-title');
         if (paymentTitle) paymentTitle.textContent = t('paymentNotes');
         var labelMap = [
+          ['pickup-address-title', 'pickupAddressTitle'],
+          ['pickup-schedule-title', 'scheduleQuestion'],
+          ['saved-addresses-title', 'savedAddressesTitle'],
+          ['cart-address-picker-title', 'savedAddressesModalTitle'],
+          ['cart-address-picker-open', 'chooseSavedAddress'],
+          ['new-address-help', 'newAddressHelp'],
+          ['delivery-schedule-title', 'scheduleQuestion'],
           ['pickup-date-label', 'pickupDateLabel'],
           ['pickup-time-label', 'pickupTimeLabel'],
           ['delivery-date-label', 'deliveryDateLabel'],
@@ -10339,6 +10533,10 @@
         document.getElementById('customer-note').placeholder = t('orderNote');
         var savingsLabel = document.getElementById('savings-label');
         if (savingsLabel) savingsLabel.textContent = t('savings');
+        var pointsDiscountCartLabel = document.getElementById('points-discount-cart-label');
+        if (pointsDiscountCartLabel) pointsDiscountCartLabel.textContent = t('pointsDiscountCart');
+        var cartPointsTitle = document.getElementById('cart-points-title');
+        if (cartPointsTitle) cartPointsTitle.textContent = t('cartPointsUse');
         var checkoutCopy = [
           ['checkout-choice-kicker', 'textContent', 'checkoutChoiceKicker'],
           ['checkout-choice-title', 'textContent', 'checkoutChoiceTitle'],
@@ -11093,7 +11291,7 @@
       function normalizeCategories() {
         var fromProducts = {};
         products.forEach(function (p) {
-          var id = String(p.category || p.categoryId || 'menu');
+          var id = productCategory(p);
           if (!fromProducts[id]) fromProducts[id] = { id: id, label: id === 'menu' ? t('allProducts') : id.replace(/-/g, ' ') };
         });
         categories = categories.filter(function (c) { return c && c.active !== false && c.visible !== false; }).map(function (c, idx) {
@@ -11114,7 +11312,14 @@
       }
 
       function productCategory(product) {
-        return String(product.category || product.categoryId || 'menu');
+        return String(firstText(
+          product && product.categoryId,
+          product && product.category,
+          product && product.categorySlug,
+          product && product.categoriaId,
+          product && product.categoria,
+          'menu'
+        ));
       }
 
       function featuredProducts() {
@@ -11447,18 +11652,21 @@
         var strip = document.querySelector('.category-strip');
         var hasMost = featuredProducts().length > 0;
         var tabs = [{ id: 'cat-todos', label: t('all') }].concat(hasMost ? [{ id: 'cat-mais-pedidos', label: t('mostOrdered') }] : []).concat(categories.map(function (c) { return { id: 'cat-' + c.id, label: c.label }; }));
-        strip.innerHTML = tabs.map(function (tab, idx) {
+        if (strip) strip.innerHTML = tabs.map(function (tab, idx) {
           return '<button class="category-pill ' + (idx === 0 ? 'active' : '') + '" type="button" data-target="' + text(tab.id) + '">' + text(tab.label) + '</button>';
         }).join('');
 
         var list = document.querySelector('.products-list');
+        if (!list) return;
         var html = '';
         var most = featuredProducts();
         if (most.length) html += categoryHtml('cat-mais-pedidos', t('mostOrdered'), '', most.slice(0, 8), true);
         categories.forEach(function (cat) {
+          if (most.length && String(cat.id) === 'mais-pedidos') return;
           var items = products.filter(function (p) { return productCategory(p) === cat.id && p.menuVisible !== false; });
           if (items.length) html += categoryHtml('cat-' + cat.id, cat.label, t('productsCount', { count: items.length }), items);
         });
+        if (!html && products.length) html = categoryHtml('cat-todos-produtos', t('allProducts'), t('productsCount', { count: products.length }), products);
         list.innerHTML = html || '<div class="cart-empty">' + text(t('noProducts')) + '</div>';
         wireDynamicEvents();
         enableCategoryCarouselDrag();
@@ -13049,10 +13257,20 @@
         var wrap = document.getElementById('cart-saved-addresses');
         var box = document.getElementById('cart-address-book');
         var saveBox = document.getElementById('cart-save-address');
+        var picker = document.getElementById('cart-address-picker');
+        var trigger = document.getElementById('cart-address-picker-open');
         var authUser = storeAuthUser();
         var list = authUser ? customerDeliveryAddresses(currentCustomerRecord()) : [];
         if (wrap) wrap.classList.toggle('show', !!list.length && orderType === 'delivery');
         if (saveBox) saveBox.classList.toggle('show', !!authUser && orderType === 'delivery');
+        if (picker && (!list.length || orderType !== 'delivery')) {
+          picker.classList.remove('show');
+          picker.setAttribute('aria-hidden', 'true');
+        }
+        if (trigger) {
+          var activeAddress = list.find(function (address) { return sameDeliveryAddress(address, deliveryAddressData()); });
+          trigger.textContent = activeAddress ? firstText(activeAddress.label, savedAddressLine(activeAddress), t('chooseSavedAddress')) : t('chooseSavedAddress');
+        }
         if (!box) return;
         if (!list.length) {
           box.innerHTML = '';
@@ -13068,6 +13286,7 @@
             btn.onclick = function () {
               var address = list[Number(btn.getAttribute('data-cart-saved-address'))];
               applyDeliveryAddressToCart(address, true);
+              closeCartAddressPicker();
               var checkbox = document.getElementById('delivery-save-address');
               if (checkbox) checkbox.checked = false;
             };
@@ -13075,6 +13294,20 @@
         }
         var checkbox = document.getElementById('delivery-save-address');
         if (checkbox && !checkbox._touched) checkbox.checked = !list.length;
+      }
+
+      function openCartAddressPicker() {
+        var picker = document.getElementById('cart-address-picker');
+        if (!picker) return;
+        picker.classList.add('show');
+        picker.setAttribute('aria-hidden', 'false');
+      }
+
+      function closeCartAddressPicker() {
+        var picker = document.getElementById('cart-address-picker');
+        if (!picker) return;
+        picker.classList.remove('show');
+        picker.setAttribute('aria-hidden', 'true');
       }
 
       function renderAccountModal() {
@@ -13651,9 +13884,46 @@
         return Math.max(0, Math.min(subtotal, discount));
       }
 
+      function pointsRedemptionInfo() {
+        var config = pointsConfig();
+        if (!loyaltyEnabled() || !config.active) return { available: false, discount: 0, points: 0, balance: 0, customer: null, reason: 'inactive' };
+        var authUser = storeAuthUser();
+        if (!authUser) return { available: false, discount: 0, points: 0, balance: 0, customer: null, reason: 'login' };
+        var customer = currentCustomerRecord();
+        var balance = customerPointsBalance(customer);
+        if (!balance || balance < config.redeemRate || balance < config.minimumPointsToUse) {
+          return { available: false, discount: 0, points: 0, balance: balance, customer: customer, reason: 'points' };
+        }
+        var subtotal = cartTotal();
+        var afterCoupon = Math.max(0, subtotal - couponDiscount(subtotal));
+        var maxByBalance = Math.floor(balance / config.redeemRate);
+        var maxByOrder = Math.floor(afterCoupon);
+        var maxByPct = config.maxDiscountPct > 0 ? Math.floor(afterCoupon * (config.maxDiscountPct / 100)) : maxByOrder;
+        var discount = Math.max(0, Math.min(maxByBalance, maxByOrder, maxByPct));
+        var points = discount > 0 ? discount * config.redeemRate : 0;
+        if (!discount || (config.minimumPointsToUse && points < config.minimumPointsToUse)) {
+          return { available: false, discount: 0, points: 0, balance: balance, customer: customer, reason: 'points' };
+        }
+        return {
+          available: true,
+          discount: discount,
+          points: points,
+          balance: balance,
+          balanceAfter: Math.max(0, balance - points),
+          redeemRate: config.redeemRate,
+          customer: customer,
+          reason: ''
+        };
+      }
+
+      function pointsDiscount() {
+        var info = pointsRedemptionInfo();
+        return usePointsInCart && info.available ? info.discount : 0;
+      }
+
       function cartGrandTotal() {
         var subtotal = cartTotal();
-        return Math.max(0, subtotal - couponDiscount(subtotal) + deliveryFee());
+        return Math.max(0, subtotal - couponDiscount(subtotal) - pointsDiscount() + deliveryFee());
       }
 
       function showCartWarning(message, type) {
@@ -14359,6 +14629,9 @@
         var originalSubtotal = cartOriginalTotal();
         var promoDiscount = cartPromoDiscountTotal();
         var discount = couponDiscount(subtotal);
+        var pointsInfo = pointsRedemptionInfo();
+        if (!pointsInfo.available) usePointsInCart = false;
+        var pointDiscount = pointsDiscount();
         var fee = deliveryFee();
         var grand = cartGrandTotal();
         document.querySelectorAll('.js-cart-count').forEach(function (node) { node.textContent = count; });
@@ -14372,8 +14645,31 @@
         if (promoVal) promoVal.textContent = '-' + money(promoDiscount);
         document.getElementById('coupon-discount-row').style.display = discount ? 'flex' : 'none';
         document.getElementById('coupon-discount-val').textContent = '-' + money(discount);
+        var pointsArea = document.getElementById('cart-points-area');
+        var pointsCheckbox = document.getElementById('cart-use-points');
+        var pointsHelp = document.getElementById('cart-points-help');
+        var pointsTitle = document.getElementById('cart-points-title');
+        if (pointsArea) pointsArea.classList.toggle('show', cart.length > 0 && loyaltyEnabled() && (pointsInfo.available || pointsInfo.reason === 'login' || pointsInfo.balance > 0));
+        if (pointsCheckbox) {
+          pointsCheckbox.checked = !!usePointsInCart && pointsInfo.available;
+          pointsCheckbox.disabled = !pointsInfo.available;
+        }
+        if (pointsTitle) pointsTitle.textContent = pointsInfo.available ? t('cartPointsUse') : t('pointsDiscountCart');
+        if (pointsHelp) {
+          if (pointsInfo.available) {
+            pointsHelp.textContent = t('cartPointsHelp', { balance: pointsInfo.balance, points: pointsInfo.points, amount: money(pointsInfo.discount) });
+          } else if (pointsInfo.reason === 'login') {
+            pointsHelp.textContent = t('cartPointsLogin');
+          } else {
+            pointsHelp.textContent = t('cartPointsUnavailable');
+          }
+        }
+        var pointsRow = document.getElementById('points-discount-row');
+        if (pointsRow) pointsRow.style.display = pointDiscount ? 'flex' : 'none';
+        var pointsVal = document.getElementById('points-discount-val');
+        if (pointsVal) pointsVal.textContent = '-' + money(pointDiscount);
         var savingsRow = document.getElementById('savings-row');
-        var totalSavings = promoDiscount + discount;
+        var totalSavings = promoDiscount + discount + pointDiscount;
         if (savingsRow) savingsRow.style.display = totalSavings ? 'flex' : 'none';
         var savingsVal = document.getElementById('savings-val');
         if (savingsVal) savingsVal.textContent = money(totalSavings);
@@ -14455,6 +14751,7 @@
       function clearCart() {
         cart = [];
         appliedCoupon = null;
+        usePointsInCart = false;
         guestCheckoutApproved = false;
         selectedDeliveryZone = null;
         var couponInput = document.getElementById('coupon-input');
@@ -14540,6 +14837,8 @@
         }
         showCartWarning('');
         var discount = couponDiscount(subtotal);
+        var pointsInfo = pointsRedemptionInfo();
+        var pointDiscount = usePointsInCart && pointsInfo.available ? pointsInfo.discount : 0;
         var promoDiscount = cartPromoDiscountTotal();
         var fee = deliveryFee();
         var orderRef = shortOrderReference();
@@ -14551,6 +14850,7 @@
         lines.push('', 'Subtotal: ' + money(promoDiscount ? cartOriginalTotal() : subtotal));
         if (promoDiscount) lines.push('Promociones: -' + money(promoDiscount));
         if (appliedCoupon && discount) lines.push('Cupón ' + couponCode(appliedCoupon) + ': -' + money(discount));
+        if (pointDiscount) lines.push('Puntos: -' + money(pointDiscount));
         if (orderType === 'delivery' && fee) lines.push('Envío' + (selectedDeliveryZone ? ' (' + selectedDeliveryZone.name + ')' : '') + ': ' + money(fee));
         lines.push('*Total: ' + money(cartGrandTotal()) + '*');
         lines.push('', orderType === 'delivery' ? '📦 Envío a domicilio' : '🏬 Recogida en tienda');
@@ -14591,7 +14891,19 @@
           currentStoreUser = authUser;
           updateStoreUserUi();
         }
-        saveOrder({ orderRef: orderRef, subtotal: subtotal, originalSubtotal: cartOriginalTotal(), promoDiscount: promoDiscount, discount: discount, deliveryFee: fee, total: cartGrandTotal(), customerName: customerName, customerPhone: customerPhone, address: address, deliveryAddress: deliveryAddressData(), postal: postal, payment: payment, note: note, slotKey: slotKey, slotLabel: slotLabelText });
+        var pointsRedemption = pointDiscount ? {
+          used: true,
+          pointsUsed: pointsInfo.points,
+          discount: pointDiscount,
+          balanceBefore: pointsInfo.balance,
+          balanceAfter: pointsInfo.balanceAfter,
+          redeemRate: pointsInfo.redeemRate
+        } : { used: false, pointsUsed: 0, discount: 0 };
+        saveOrder({ orderRef: orderRef, subtotal: subtotal, originalSubtotal: cartOriginalTotal(), promoDiscount: promoDiscount, discount: discount, pointsDiscount: pointDiscount, pointsRedemption: pointsRedemption, deliveryFee: fee, total: cartGrandTotal(), customerName: customerName, customerPhone: customerPhone, address: address, deliveryAddress: deliveryAddressData(), postal: postal, payment: payment, note: note, slotKey: slotKey, slotLabel: slotLabelText }).then(function () {
+          return applyPointsRedemption(orderRef, pointsRedemption);
+        }).catch(function (err) {
+          console.warn('Order save or points redemption error', err);
+        });
         clearCart();
         closeCart();
         if (href) openOrderSuccessModal(orderRef);
@@ -14599,17 +14911,22 @@
       }
 
       function saveOrder(extra) {
-        if (!db || !activeTenantId) return;
+        if (!db || !activeTenantId) return Promise.resolve(null);
+        var authUser = storeAuthUser();
         var data = {
           items: cart.map(function (item) { return { id: item.id, name: item.name, qty: item.qty, price: item.price, originalPrice: item.originalPrice || item.price, promoUnitPrice: item.price, promoDiscountTotal: Math.max(0, num(item.originalPrice || item.price) - num(item.price)) * item.qty, promo: item.promo || null, total: item.qty * item.price, note: item.note || '', choices: item.choices || [] }; }),
           subtotal: extra.subtotal,
           originalSubtotal: extra.originalSubtotal || extra.subtotal,
           promoDiscountTotal: extra.promoDiscount || 0,
-          discountTotal: (extra.promoDiscount || 0) + (extra.discount || 0),
+          discountTotal: (extra.promoDiscount || 0) + (extra.discount || 0) + (extra.pointsDiscount || 0),
           couponDiscountTotal: extra.discount,
+          pointsDiscountTotal: extra.pointsDiscount || 0,
+          pointsRedemption: extra.pointsRedemption || { used: false, pointsUsed: 0, discount: 0 },
           deliveryFee: extra.deliveryFee,
           total: extra.total,
           type: orderType,
+          customerUid: authUser && authUser.uid ? authUser.uid : '',
+          customerEmail: authUser && authUser.email ? authUser.email : '',
           customerName: extra.customerName || 'Cliente',
           customerPhone: extra.customerPhone || '',
           address: extra.address || '',
@@ -14648,9 +14965,67 @@
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
         data.fiscal = ensureOrderFiscalDefaults(data);
-        col('orders').add(data).then(function () {
-          if (data.slotKey) return col('orderSlots').doc(data.slotKey).set({ count: firebase.firestore.FieldValue.increment(1), date: data.scheduleDate, time: data.scheduleTime }, { merge: true });
-        }).catch(function (err) { console.warn('Order save error', err); });
+        return col('orders').add(data).then(function (docRef) {
+          if (data.slotKey) {
+            return col('orderSlots').doc(data.slotKey).set({ count: firebase.firestore.FieldValue.increment(1), date: data.scheduleDate, time: data.scheduleTime }, { merge: true }).then(function () { return docRef; });
+          }
+          return docRef;
+        }).catch(function (err) { console.warn('Order save error', err); throw err; });
+      }
+
+      function syncLocalPointsRedemption(pointsRedemption) {
+        var authUser = storeAuthUser();
+        if (!authUser || !pointsRedemption || !pointsRedemption.used) return;
+        var uid = String(authUser.uid || '');
+        var idx = storeCustomers.findIndex(function (customer) { return String(customer.id || customer.uid || '') === uid; });
+        if (idx < 0) return;
+        var nextBalance = Math.max(0, customerPointsBalance(storeCustomers[idx]) - pointsNumber(pointsRedemption.pointsUsed));
+        storeCustomers[idx] = Object.assign({}, storeCustomers[idx], {
+          pointsBalance: nextBalance,
+          points: nextBalance
+        });
+      }
+
+      function applyPointsRedemption(orderRef, pointsRedemption) {
+        if (!pointsRedemption || !pointsRedemption.used || !pointsRedemption.pointsUsed) return Promise.resolve();
+        var authUser = storeAuthUser();
+        if (!db || !activeTenantId || !authUser || !authUser.uid) return Promise.resolve();
+        var pointsUsed = pointsNumber(pointsRedemption.pointsUsed);
+        var discount = num(pointsRedemption.discount || 0);
+        if (!pointsUsed || !discount) return Promise.resolve();
+        var customerRef = col('store_customers').doc(authUser.uid);
+        var movementRef = col('points_movements').doc();
+        return db.runTransaction(function (transaction) {
+          return transaction.get(customerRef).then(function (snap) {
+            var data = snap.exists ? snap.data() || {} : {};
+            var currentBalance = customerPointsBalance(data);
+            if (currentBalance < pointsUsed) throw new Error('insufficient_points');
+            var nextBalance = Math.max(0, currentBalance - pointsUsed);
+            transaction.set(customerRef, {
+              pointsBalance: nextBalance,
+              points: nextBalance,
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+            transaction.set(movementRef, {
+              customerId: authUser.uid,
+              customerUid: authUser.uid,
+              customerEmail: authUser.email || '',
+              type: 'used',
+              pointsUsed: pointsUsed,
+              points: pointsUsed,
+              discountValue: discount,
+              orderRef: orderRef || '',
+              orderDisplay: orderRef ? '#pedido_' + orderRef : '',
+              description: t('pointsUsed'),
+              source: 'storefront_checkout',
+              createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+          });
+        }).then(function () {
+          syncLocalPointsRedemption(pointsRedemption);
+        }).catch(function (err) {
+          console.warn('Points redemption save error', err);
+        });
       }
 
       function productFiscalSnapshot(product) {
@@ -14890,6 +15265,7 @@
             closeOrderSuccessModal();
             closeStoreInfoModal();
             closeAccountModal();
+            closeCartAddressPicker();
             closeSearchPanel();
           }
         });
@@ -14897,12 +15273,25 @@
         document.getElementById('cart-close').onclick = closeCart;
         var cartPanelClose = document.getElementById('cart-panel-close');
         if (cartPanelClose) cartPanelClose.onclick = closeCart;
+        var cartAddressPickerOpen = document.getElementById('cart-address-picker-open');
+        if (cartAddressPickerOpen) cartAddressPickerOpen.onclick = openCartAddressPicker;
+        var cartAddressPickerClose = document.getElementById('cart-address-picker-close');
+        if (cartAddressPickerClose) cartAddressPickerClose.onclick = closeCartAddressPicker;
+        var cartAddressPicker = document.getElementById('cart-address-picker');
+        if (cartAddressPicker) cartAddressPicker.onclick = function (event) {
+          if (event.target === cartAddressPicker) closeCartAddressPicker();
+        };
         document.getElementById('cart-send').onclick = sendWhatsapp;
         var cartClear = document.getElementById('cart-clear');
         if (cartClear) cartClear.onclick = clearCart;
         document.getElementById('coupon-apply').onclick = applyCouponInput;
         document.getElementById('coupon-remove').onclick = removeCoupon;
         document.getElementById('coupon-input').onkeydown = function (event) { if (event.key === 'Enter') applyCouponInput(); };
+        var cartUsePoints = document.getElementById('cart-use-points');
+        if (cartUsePoints) cartUsePoints.onchange = function () {
+          usePointsInCart = !!cartUsePoints.checked && pointsRedemptionInfo().available;
+          renderCart();
+        };
         document.getElementById('postal-input').oninput = function () {
           validatePostal();
           scheduleDeliveryPostalLookup();
