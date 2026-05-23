@@ -7432,3 +7432,5 @@
 - Ajuste visual: removida a sombra projetada debaixo do card principal da loja pública, preservando apenas acabamento interno suave para manter o topo mais limpo.
 
 - Ajuste mobile: a busca de produtos da loja pública foi refinada com campo maior para toque, foco mais claro, painel sticky, botão de fechar mais delicado e resultados no mesmo grid dos cards de produto.
+
+- Correção mobile: o card principal voltou a permitir overflow visível no celular e a logo recebeu camada própria, evitando que a parte que sai do card seja cortada.

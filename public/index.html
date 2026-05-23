@@ -7895,6 +7895,8 @@
         height: 76px;
         margin-top: -22px;
         border-width: 5px;
+        position: relative;
+        z-index: 3;
         box-shadow: 0 14px 26px rgba(33, 27, 24, .17), 0 0 0 1px rgba(33,27,24,.045);
       }
 
@@ -8753,12 +8755,16 @@
       }
 
       .store-hero,
-      .store-card,
       .featured-card,
       .loyalty-card,
       .store-footer {
         max-width: 100%;
         overflow-x: clip;
+      }
+
+      .store-card {
+        max-width: 100%;
+        overflow: visible;
       }
 
       .phone-screen {
