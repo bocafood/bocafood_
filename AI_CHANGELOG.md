@@ -7398,3 +7398,5 @@
 - Ajuste visual: o modal de produto da loja pública foi refinado no mobile para lidar melhor com muitas opções, com imagem mais controlada, textos menos pesados, seções de variação mais claras, upsell mais compacto, observação menor e rodapé de compra mais alinhado.
 
 - Ajuste visual: o card/carrossel de resenhas da loja pública ficou mais leve e premium, com slides mais compactos, borda suave, quote mais legível, produto citado integrado e CTA de avaliação preservado fora do card.
+
+- Ajuste mobile: o formulário de cadastro de endereço da cliente passou a usar campos mais confortáveis no celular, em duas colunas proporcionais e com fonte mínima de 16px para evitar zoom automático ao tocar nos inputs em iPhone/Safari.
