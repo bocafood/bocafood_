@@ -9,6 +9,10 @@
 - O resumo do carrinho e a mensagem enviada por WhatsApp passaram a exibir a linha `Puntos` somente quando houver resgate ativo.
 - O pedido salvo em `orders` passou a registrar `pointsDiscountTotal` e `pointsRedemption` com pontos usados, desconto, saldo anterior e saldo posterior.
 - Após o pedido ser salvo, o template registra movimento em `points_movements` e atualiza `pointsBalance/points` do cliente em `store_customers` via transação, evitando descontar pontos sem pedido salvo.
+- Correção posterior: o ajuste de estabilidade dos modais ficou restrito ao mobile e o carrinho desktop voltou a ser exibido como sidebar/sticky, sem overlay nem blur sobre a loja.
+- Correção posterior adicional: removida a participação do `.cart-sheet` nas regras globais de modal `100vw/100dvh` e `::before` com blur; essas regras agora existem para o carrinho somente dentro do breakpoint mobile.
+- Ajuste posterior de desktop: recuperada a experiência responsiva da loja pública em telas maiores, com grid mais fluido, carrinho lateral sticky sem overlay, vitrine com cards proporcionais e modal de produto com imagem no topo.
+- Ajuste posterior: recuperada a apresentação promocional mais conversora no modal de promoções, mantendo o badge de benefício e adicionando preço antigo riscado/benefício nos produtos da promoção sem alterar o cálculo.
 
 ## 2026-05-23 — Ajustes finais de copy do carrinho público
 - Arquivos alterados: `public/index.html`, `AI_CHANGELOG.md`.
@@ -7533,3 +7537,7 @@
 - Reversão controlada: removida a camada de resgate de pontos dentro do carrinho público para estabilizar o checkout. O Programa de Pontos permanece visível para consulta, mas não altera total, WhatsApp, pedido salvo ou saldo da cliente nesta etapa.
 
 - Correção de conexão da loja pública: o template voltou ao estado versionado antes das mudanças de carrinho/pontos e recebeu apenas ajustes de leitura do tenant por `?tenant=...`, fallback de categoria dos produtos e proteção para exibir produtos carregados mesmo quando a categoria estiver inconsistente.
+
+- Ajuste comercial: o card de produto e o modal de produto da loja pública passaram a exibir o benefício da promoção ativa junto ao preço, deixando a oportunidade mais evidente sem alterar a regra de cálculo promocional.
+
+- Ajuste de checkout: a opção `Guardar esta dirección para próximas compras` agora aparece apenas quando a cliente está preenchendo um endereço novo no carrinho; ao selecionar um endereço já salvo, o bloco fica oculto e desmarcado.

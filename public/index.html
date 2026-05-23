@@ -790,7 +790,7 @@
       max-width: 238px;
       margin-top: 3px;
       color: #6d635a;
-      font-size: 10.5px;
+      font-size: 13px;
       line-height: 1.3;
       font-weight: 400;
       position: relative;
@@ -1334,6 +1334,23 @@
       font-weight: 400;
       text-decoration: line-through;
       letter-spacing: 0;
+    }
+
+    .product-promo-benefit {
+      margin-top: 5px;
+      width: fit-content;
+      max-width: 100%;
+      padding: 4px 7px;
+      border-radius: 999px;
+      background: rgba(15, 122, 68, .08);
+      color: #0f7a44;
+      font-size: 11.5px;
+      line-height: 1.22;
+      font-weight: 560;
+      display: -webkit-box;
+      -webkit-line-clamp: 1;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
     }
 
     .small-badge {
@@ -2500,6 +2517,60 @@
       letter-spacing: -.025em;
     }
 
+    .promo-product-price-row {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .promo-product-old-price {
+      color: #8b8178;
+      font-size: 11px;
+      font-weight: 400;
+      text-decoration: line-through;
+      text-decoration-thickness: 1px;
+    }
+
+    .promo-product-benefit {
+      color: #0f7a44;
+      font-size: 10.8px;
+      line-height: 1.25;
+      font-weight: 520;
+    }
+
+    .product-price-stack {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .product-old-price {
+      color: #8b8178;
+      font-size: .62em;
+      font-weight: 400;
+      text-decoration: line-through;
+      text-decoration-thickness: 1px;
+    }
+
+    .product-promo-benefit {
+      margin-top: 5px;
+      width: fit-content;
+      max-width: 100%;
+      padding: 4px 7px;
+      border-radius: 999px;
+      background: rgba(15, 122, 68, .08);
+      color: #0f7a44;
+      font-size: 11.5px;
+      line-height: 1.22;
+      font-weight: 560;
+      display: -webkit-box;
+      -webkit-line-clamp: 1;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
     .promo-product-add {
       width: 34px;
       height: 34px;
@@ -3102,6 +3173,20 @@
       color: var(--brand);
       font-size: 10px;
       font-weight: 760;
+    }
+
+    .modal-promo-benefit {
+      display: none;
+      width: fit-content;
+      margin-top: 9px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(15, 122, 68, .08);
+      border: 1px solid rgba(15, 122, 68, .14);
+      color: #0f7a44;
+      font-size: 12px;
+      line-height: 1.15;
+      font-weight: 620;
     }
 
     .modal-note {
@@ -5437,7 +5522,7 @@
 
       .loyalty-text {
         max-width: 560px;
-        font-size: 12.5px;
+        font-size: 13px;
       }
 
       .loyalty-stars {
@@ -7882,7 +7967,6 @@
 
     /* Modais: cobertura estável em telas móveis */
     .product-modal,
-    .cart-sheet,
     .auth-modal {
       width: 100vw;
       height: 100vh;
@@ -7898,7 +7982,6 @@
     }
 
     .product-modal::before,
-    .cart-sheet::before,
     .auth-modal::before {
       content: "";
       position: fixed;
@@ -7949,10 +8032,62 @@
         isolation: isolate;
       }
 
+      .cart-sheet {
+        width: 100vw;
+        height: 100vh;
+        min-height: 100vh;
+        height: 100dvh;
+        min-height: 100dvh;
+        overscroll-behavior: contain;
+      }
+
+      .cart-sheet::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        width: 100vw;
+        height: 100vh;
+        height: 100dvh;
+        background: rgba(20, 15, 12, .44);
+        backdrop-filter: blur(10px);
+        pointer-events: none;
+        z-index: -1;
+      }
+
       .product-modal.open,
       .cart-sheet.open,
       .auth-modal.open {
         display: flex !important;
+      }
+    }
+
+    @media (min-width: 960px) {
+      .cart-sheet,
+      .cart-sheet.open {
+        display: block !important;
+        position: sticky !important;
+        inset: auto !important;
+        top: 86px !important;
+        grid-column: 2;
+        grid-row: 1 / span 2;
+        width: calc(100% - 28px) !important;
+        max-width: none !important;
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        margin-right: 28px;
+        padding: 0 !important;
+        background: transparent !important;
+        transform: none !important;
+        backdrop-filter: none !important;
+        overflow: visible !important;
+        overscroll-behavior: auto;
+        z-index: 18;
+      }
+
+      .cart-sheet::before {
+        content: none !important;
+        display: none !important;
       }
     }
 
@@ -8271,7 +8406,7 @@
         max-width: calc(100% - 56px);
         margin-top: 4px;
         color: #5f554e;
-        font-size: 11.25px;
+        font-size: 13px;
         line-height: 1.32;
       }
 
@@ -8505,7 +8640,7 @@
       }
 
       .loyalty-text {
-        font-size: 11px;
+        font-size: 13px;
       }
 
       .section-head.reviews-section-head {
@@ -9006,6 +9141,169 @@
         padding-bottom: calc(98px + env(safe-area-inset-bottom));
       }
     }
+
+    /* Desktop refinado: mantém o carrinho lateral sem overlay e melhora proporção da vitrine */
+    @media (min-width: 960px) {
+      html,
+      body {
+        overflow-x: hidden;
+      }
+
+      .studio-layout,
+      .phone-stage,
+      .phone-shell {
+        width: 100%;
+        max-width: none;
+      }
+
+      .phone-screen {
+        grid-template-columns: minmax(620px, 1fr) clamp(340px, 27vw, 410px);
+        column-gap: clamp(18px, 2vw, 30px);
+        align-items: start;
+        overflow: visible;
+      }
+
+      .store-hero {
+        min-height: clamp(430px, 57vh, 590px);
+      }
+
+      .floating-nav {
+        grid-template-columns: minmax(620px, 1fr) clamp(340px, 27vw, 410px);
+        column-gap: clamp(18px, 2vw, 30px);
+        padding-left: clamp(22px, 2vw, 34px);
+        padding-right: clamp(22px, 2vw, 34px);
+      }
+
+      .store-card {
+        width: min(690px, calc(100% - clamp(44px, 5vw, 76px)));
+        margin-left: clamp(22px, 2.4vw, 38px);
+        margin-top: clamp(185px, 30vh, 300px);
+        box-shadow: 0 22px 64px rgba(33, 27, 24, .14);
+      }
+
+      .template-content {
+        padding-left: clamp(22px, 2.2vw, 36px);
+        padding-right: 0;
+        gap: 20px;
+      }
+
+      .category-products {
+        grid-template-columns: repeat(auto-fit, minmax(238px, 1fr));
+        gap: clamp(16px, 1.6vw, 24px);
+      }
+
+      .category-products.is-carousel .product-row {
+        flex-basis: min(310px, calc((100% - 36px) / 3));
+      }
+
+      .product-row {
+        min-height: 100%;
+        border-radius: 26px;
+      }
+
+      .product-img-wrap {
+        aspect-ratio: 4 / 3;
+      }
+
+      .product-body {
+        padding: 16px 18px 60px;
+        gap: 6px;
+      }
+
+      .product-title {
+        font-size: clamp(18px, 1.45vw, 22px);
+        line-height: 1.05;
+      }
+
+      .product-desc {
+        min-height: 38px;
+        font-size: 12.5px;
+        line-height: 1.32;
+      }
+
+      .product-price {
+        font-size: clamp(24px, 2vw, 32px);
+      }
+
+      .cart-sheet,
+      .cart-sheet.open {
+        display: block !important;
+        position: sticky !important;
+        top: 86px !important;
+        grid-column: 2;
+        grid-row: 1 / span 2;
+        width: calc(100% - clamp(20px, 2vw, 30px)) !important;
+        margin-right: clamp(20px, 2vw, 30px);
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        padding: 0 !important;
+        background: transparent !important;
+        backdrop-filter: none !important;
+        transform: none !important;
+        overflow: visible !important;
+        isolation: auto !important;
+        z-index: 18;
+      }
+
+      .cart-sheet::before {
+        content: none !important;
+        display: none !important;
+      }
+
+      .cart-panel {
+        width: 100%;
+        max-height: calc(100vh - 108px);
+        overflow: auto;
+        border-radius: 30px;
+        box-shadow: 0 24px 70px rgba(33, 27, 24, .14);
+        scrollbar-width: none;
+      }
+
+      .cart-panel::-webkit-scrollbar {
+        display: none;
+      }
+
+      .product-modal {
+        align-items: center;
+        justify-content: center;
+        padding: 28px;
+      }
+
+      .product-modal .modal-panel {
+        width: min(760px, calc(100vw - 56px));
+        max-height: calc(100vh - 56px);
+        display: flex;
+        flex-direction: column;
+        border-radius: 34px;
+        overflow: hidden;
+      }
+
+      .product-modal .modal-img-wrap,
+      .product-modal .modal-img,
+      .product-modal .modal-fallback {
+        width: 100%;
+        height: clamp(270px, 34vh, 390px);
+        min-height: 270px;
+      }
+
+      .product-modal .modal-body {
+        max-height: calc(100vh - 326px);
+        padding: 24px 26px 0;
+        overflow: auto;
+      }
+
+      .product-modal .modal-footer {
+        margin: 20px -26px 0;
+        padding: 14px 26px 20px;
+      }
+    }
+
+    @media (min-width: 1280px) {
+      .category-products {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
   </style>
   <script>
     if (window.location.hostname === 'cc.bocafood.app' && (window.location.pathname === '/' || window.location.pathname === '')) {
@@ -9278,6 +9576,7 @@
                   <span class="modal-old-price" id="modal-old-price"></span>
                   <span class="modal-price-extra" id="modal-price-extra"></span>
                 </div>
+                <div class="modal-promo-benefit" id="modal-promo-benefit"></div>
                 <div class="modal-combo-qty" id="modal-combo-qty">
                   <span class="modal-combo-label" id="modal-combo-label">¿Cuántos quieres?</span>
                   <div class="modal-combo-stepper">
@@ -11744,27 +12043,33 @@
         var image = imgOf(product) || 'https://images.unsplash.com/photo-1551782450-a2132b4ba21d?auto=format&fit=crop&w=320&q=82';
         var tagData = productPrimaryTagData(product);
         var promo = bestPromotionForProduct(product);
-        var badge = firstText(tagData && tagData.text, promo && promotionBenefitText(promo.promo), product.popular ? 'Top' : '');
+        var badge = firstText(tagData && tagData.text, product.popular ? 'Top' : '');
         var badgeStyle = tagData ? ' style="--badge-bg:' + text(tagData.bg) + ';--badge-text:' + text(tagData.color) + ';"' : '';
         var kicker = productKicker(product);
         var desc = productDesc(product);
         var originalPrice = productPrice(product);
         var finalPrice = promo && promo.calc ? promo.calc.final : originalPrice;
-        var priceHtml = '<span class="product-price">' + money(finalPrice) + '</span>' + (promo && promo.calc && promo.calc.discount > 0 ? '<span class="product-old-price">' + money(originalPrice) + '</span>' : '');
+        var hasDiscount = promo && promo.calc && promo.calc.discount > 0;
+        var benefit = promo && promo.promo ? promotionBenefitText(promo.promo) : '';
+        var priceHtml = '<span class="product-price">' + money(finalPrice) + '</span>' + (hasDiscount ? '<span class="product-old-price">' + money(originalPrice) + '</span>' : '');
         if (kicker && desc && kicker.toLowerCase() === desc.toLowerCase()) kicker = '';
-        return '<article class="product-row" data-product-id="' + text(product.id) + '"><div class="product-img-wrap"><img class="product-img" src="' + text(image) + '" alt="' + text(firstText(product.imageAlt, productName(product))) + '">' + (badge ? '<span class="small-badge"' + badgeStyle + '>' + text(badge) + '</span>' : '') + '</div><div class="product-body"><div class="product-title">' + text(productName(product)) + '</div>' + (kicker ? '<div class="product-kicker">' + text(kicker) + '</div>' : '') + '<div class="product-desc">' + text(desc) + '</div><div class="product-meta"><span class="product-price-stack">' + priceHtml + '</span></div></div><button class="add-btn" type="button" data-product-id="' + text(product.id) + '" aria-label="' + text(t('addProduct', { name: productName(product) })) + '">+</button></article>';
+        return '<article class="product-row" data-product-id="' + text(product.id) + '"><div class="product-img-wrap"><img class="product-img" src="' + text(image) + '" alt="' + text(firstText(product.imageAlt, productName(product))) + '">' + (badge ? '<span class="small-badge"' + badgeStyle + '>' + text(badge) + '</span>' : '') + '</div><div class="product-body"><div class="product-title">' + text(productName(product)) + '</div>' + (kicker ? '<div class="product-kicker">' + text(kicker) + '</div>' : '') + '<div class="product-desc">' + text(desc) + '</div>' + (benefit ? '<div class="product-promo-benefit">' + text(benefit) + '</div>' : '') + '<div class="product-meta"><span class="product-price-stack">' + priceHtml + '</span></div></div><button class="add-btn" type="button" data-product-id="' + text(product.id) + '" aria-label="' + text(t('addProduct', { name: productName(product) })) + '">+</button></article>';
       }
 
       function promoProductCardHtml(product) {
         var image = imgOf(product) || 'https://images.unsplash.com/photo-1551782450-a2132b4ba21d?auto=format&fit=crop&w=320&q=82';
         var promo = bestPromotionForProduct(product);
-        var finalPrice = promo && promo.calc ? promo.calc.final : productPrice(product);
+        var originalPrice = productPrice(product);
+        var finalPrice = promo && promo.calc ? promo.calc.final : originalPrice;
+        var hasDiscount = promo && promo.calc && promo.calc.discount > 0;
+        var benefit = promo && promo.promo ? promotionBenefitText(promo.promo) : '';
         return '<article class="promo-product-card" data-product-id="' + text(product.id) + '">' +
           '<img class="promo-product-img" src="' + text(image) + '" alt="' + text(firstText(product.imageAlt, productName(product))) + '">' +
           '<div class="promo-product-copy">' +
             '<div class="promo-product-name">' + text(productName(product)) + '</div>' +
             '<div class="promo-product-desc">' + text(productDesc(product)) + '</div>' +
-            '<div class="promo-product-price">' + money(finalPrice) + '</div>' +
+            '<div class="promo-product-price-row"><span class="promo-product-price">' + money(finalPrice) + '</span>' + (hasDiscount ? '<span class="promo-product-old-price">' + money(originalPrice) + '</span>' : '') + '</div>' +
+            (benefit ? '<div class="promo-product-benefit">' + text(benefit) + '</div>' : '') +
           '</div>' +
           '<span class="promo-product-add">+</span>' +
         '</article>';
@@ -12226,6 +12531,12 @@
         var extraEl = document.getElementById('modal-price-extra');
         extraEl.textContent = extra ? (extra > 0 ? '+' + money(extra) : '-' + money(Math.abs(extra))) + ' ' + t('extraOptions') : '';
         extraEl.style.display = extra ? 'inline-flex' : 'none';
+        var promoBenefitEl = document.getElementById('modal-promo-benefit');
+        if (promoBenefitEl) {
+          var benefit = promo && promo.promo ? promotionBenefitText(promo.promo) : '';
+          promoBenefitEl.textContent = benefit;
+          promoBenefitEl.style.display = benefit ? 'inline-flex' : 'none';
+        }
         updateModalButton();
       }
 
@@ -13261,14 +13572,20 @@
         var trigger = document.getElementById('cart-address-picker-open');
         var authUser = storeAuthUser();
         var list = authUser ? customerDeliveryAddresses(currentCustomerRecord()) : [];
+        var currentAddress = deliveryAddressData();
+        var activeAddress = list.find(function (address) { return sameDeliveryAddress(address, currentAddress); });
+        var isNewDeliveryAddress = !!authUser && orderType === 'delivery' && !!savedAddressLine(currentAddress) && !activeAddress;
         if (wrap) wrap.classList.toggle('show', !!list.length && orderType === 'delivery');
-        if (saveBox) saveBox.classList.toggle('show', !!authUser && orderType === 'delivery');
+        if (saveBox) saveBox.classList.toggle('show', isNewDeliveryAddress);
+        if (!isNewDeliveryAddress) {
+          var hiddenSaveCheckbox = document.getElementById('delivery-save-address');
+          if (hiddenSaveCheckbox) hiddenSaveCheckbox.checked = false;
+        }
         if (picker && (!list.length || orderType !== 'delivery')) {
           picker.classList.remove('show');
           picker.setAttribute('aria-hidden', 'true');
         }
         if (trigger) {
-          var activeAddress = list.find(function (address) { return sameDeliveryAddress(address, deliveryAddressData()); });
           trigger.textContent = activeAddress ? firstText(activeAddress.label, savedAddressLine(activeAddress), t('chooseSavedAddress')) : t('chooseSavedAddress');
         }
         if (!box) return;
