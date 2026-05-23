@@ -7363,6 +7363,252 @@
         grid-template-columns: 1fr;
       }
     }
+
+    /* Loja publica: primeira dobra mobile */
+    @media (max-width: 959px) {
+      .phone-screen {
+        background: var(--store-bg);
+      }
+
+      .store-hero {
+        min-height: clamp(318px, 56vh, 430px);
+        padding: 12px 14px 0;
+        background-color: var(--store-bg) !important;
+        background-size: 100% 226px !important;
+        background-position: top center !important;
+        background-repeat: no-repeat !important;
+      }
+
+      .store-hero:before {
+        top: 188px;
+        height: 82px;
+        background:
+          radial-gradient(ellipse at center, rgba(var(--brand-rgb), .24), rgba(var(--brand-rgb), 0) 68%),
+          linear-gradient(180deg, rgba(var(--brand-rgb), 0), rgba(var(--brand-rgb), .20) 42%, rgba(var(--store-bg-rgb), 0) 100%);
+        opacity: .88;
+      }
+
+      .store-hero:after {
+        height: 226px;
+        background: var(--hero-mobile-overlay);
+      }
+
+      .floating-nav {
+        padding-top: 4px;
+        gap: 9px;
+      }
+
+      .nav-side {
+        gap: 8px;
+        min-width: 0;
+      }
+
+      .account-pill,
+      .promo-nav-btn {
+        height: 40px;
+        min-height: 40px;
+        font-size: 12px;
+        font-weight: 620;
+        box-shadow: 0 10px 22px rgba(33, 27, 24, .14);
+      }
+
+      .account-pill {
+        max-width: min(168px, 48vw);
+        padding: 4px 12px 4px 5px;
+      }
+
+      .promo-nav-btn {
+        padding: 0 13px;
+      }
+
+      .account-avatar {
+        width: 30px;
+        height: 30px;
+        font-weight: 650;
+      }
+
+      .circle-btn {
+        width: 40px;
+        height: 40px;
+        box-shadow: 0 10px 22px rgba(33, 27, 24, .14);
+      }
+
+      .store-card {
+        margin: 126px 0 9px;
+        padding: 0 14px 12px;
+        min-height: 0;
+        border-radius: 26px;
+        background:
+          radial-gradient(circle at 10% -18%, rgba(var(--brand-rgb), .22), rgba(var(--brand-rgb), .08) 35%, rgba(var(--brand-rgb), 0) 66%),
+          linear-gradient(145deg, rgba(var(--brand-rgb), .105), rgba(255,255,255,.60) 58%),
+          rgba(255, 252, 247, .96) !important;
+        border: 1px solid rgba(var(--brand-rgb), .24);
+        box-shadow: 0 16px 34px rgba(33, 27, 24, .10), inset 0 1px 0 rgba(255,255,255,.78) !important;
+        backdrop-filter: blur(10px);
+      }
+
+      .identity-row {
+        grid-template-columns: 76px minmax(0, 1fr);
+        column-gap: 11px;
+        row-gap: 3px;
+        align-items: start;
+      }
+
+      .store-logo {
+        width: 76px;
+        height: 76px;
+        margin-top: -22px;
+        border-width: 5px;
+        box-shadow: 0 14px 26px rgba(33, 27, 24, .17), 0 0 0 1px rgba(33,27,24,.045);
+      }
+
+      .identity-copy {
+        padding-top: 9px;
+      }
+
+      .store-name {
+        font-size: clamp(20px, 6vw, 24px);
+        line-height: 1.02;
+        font-weight: 700;
+        letter-spacing: -.03em;
+      }
+
+      .verified {
+        width: 15px;
+        height: 15px;
+        font-size: 9px;
+      }
+
+      .store-slogan {
+        margin-top: 3px;
+        max-width: 100%;
+        padding-bottom: 7px;
+        color: #171412;
+        font-size: 12.5px;
+        line-height: 1.32;
+        font-weight: 400;
+      }
+
+      .facts-row,
+      .store-chips {
+        gap: 4px 7px;
+        font-size: 11.25px;
+        line-height: 1.25;
+        color: #5f554e;
+      }
+
+      .facts-row {
+        margin-top: 7px;
+      }
+
+      .store-chips {
+        margin-top: 4px;
+      }
+
+      .info-item.rating-item {
+        font-weight: 620;
+      }
+
+      .store-chip.open,
+      .store-chip.closed,
+      .store-chip.open > span:last-child,
+      .store-chip.closed > span:last-child,
+      .facts-row .rating-item > span:last-child {
+        font-weight: 620;
+      }
+
+      .info-item + .info-item:before,
+      .store-chip + .store-chip:before {
+        width: 3.5px;
+        height: 3.5px;
+        margin-right: 6px;
+        opacity: .30;
+      }
+
+      .more-info {
+        margin-top: 6px;
+        font-size: 11px;
+        font-weight: 650;
+      }
+
+      .template-content {
+        padding: 8px 14px calc(96px + env(safe-area-inset-bottom));
+        gap: 14px;
+      }
+
+      .section-head {
+        margin: 4px 0 8px;
+      }
+
+      .section-head h2 {
+        font-size: 18px;
+        font-weight: 720;
+      }
+
+      .featured-card {
+        margin-bottom: 8px;
+      }
+
+      .category-strip {
+        margin-left: -14px;
+        margin-right: -14px;
+        padding-left: 14px;
+        padding-right: 14px;
+      }
+    }
+
+    @media (max-width: 430px) {
+      .store-hero {
+        min-height: 314px;
+        padding-left: 12px;
+        padding-right: 12px;
+        background-size: 100% 220px !important;
+      }
+
+      .store-hero:before {
+        top: 184px;
+      }
+
+      .store-hero:after {
+        height: 220px;
+      }
+
+      .store-card {
+        margin-top: 122px;
+        margin-bottom: 8px;
+        padding: 0 12px 11px;
+      }
+
+      .identity-row {
+        grid-template-columns: 72px minmax(0, 1fr);
+        column-gap: 10px;
+      }
+
+      .store-logo {
+        width: 72px;
+        height: 72px;
+        margin-top: -20px;
+      }
+
+      .store-name {
+        font-size: clamp(19px, 6.4vw, 23px);
+      }
+
+      .store-slogan {
+        font-size: 12px;
+        line-height: 1.3;
+      }
+
+      .facts-row,
+      .store-chips {
+        font-size: 10.9px;
+      }
+
+      .template-content {
+        padding: 7px 12px calc(96px + env(safe-area-inset-bottom));
+        gap: 13px;
+      }
+    }
   </style>
   <script>
     if (window.location.hostname === 'cc.bocafood.app' && (window.location.pathname === '/' || window.location.pathname === '')) {
@@ -10748,6 +10994,47 @@
         return t('authError');
       }
 
+      function mergeStoreCustomerLocal(customer) {
+        if (!customer) return null;
+        var uid = String(customer.id || customer.uid || '');
+        if (!uid) return customer;
+        var idx = storeCustomers.findIndex(function (item) {
+          return String(item.id || item.uid || '') === uid;
+        });
+        var merged = Object.assign({}, idx >= 0 ? storeCustomers[idx] : {}, customer, { id: uid, uid: customer.uid || uid });
+        if (idx >= 0) storeCustomers[idx] = merged;
+        else storeCustomers.push(merged);
+        return merged;
+      }
+
+      function loadStoreCustomerByAuth(user) {
+        if (!db || !activeTenantId || !user || !user.uid) return Promise.resolve(null);
+        return col('store_customers').doc(user.uid).get().then(function (snap) {
+          if (!snap.exists) return null;
+          return mergeStoreCustomerLocal(Object.assign({ id: snap.id, uid: snap.id }, snap.data() || {}));
+        }).catch(function (err) {
+          console.warn('Store customer load error', err);
+          return null;
+        });
+      }
+
+      function refreshStoreCustomerSession(user) {
+        if (!user) return Promise.resolve(null);
+        return loadStoreCustomerByAuth(user).then(function () {
+          return upsertStoreCustomer(user, 'auth_state');
+        }).then(function () {
+          return loadStoreCustomerByAuth(user);
+        }).then(function (customer) {
+          var current = customer || currentCustomerRecord();
+          applySavedAddressToCart(current, false);
+          renderSavedAddressList(current);
+          renderCheckoutAddressBook();
+          var accountModal = document.getElementById('account-modal');
+          if (accountModal && accountModal.classList.contains('open')) renderAccountModal();
+          return current;
+        });
+      }
+
       function upsertStoreCustomer(user, source) {
         if (!db || !activeTenantId || !user) return Promise.resolve(null);
         var data = {
@@ -10764,11 +11051,7 @@
           data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
         }
         return col('store_customers').doc(user.uid).set(data, { merge: true }).then(function () {
-          var local = Object.assign({ id: user.uid }, data, { createdAt: new Date(), updatedAt: new Date() });
-          var idx = storeCustomers.findIndex(function (customer) { return String(customer.id || customer.uid || '') === String(user.uid); });
-          if (idx >= 0) storeCustomers[idx] = Object.assign({}, storeCustomers[idx], local);
-          else storeCustomers.push(local);
-          return local;
+          return mergeStoreCustomerLocal(Object.assign({ id: user.uid }, data, { createdAt: new Date(), updatedAt: new Date() }));
         }).catch(function (err) {
           console.warn('Store customer save error', err);
           return null;
@@ -10781,7 +11064,9 @@
         var uid = String(authUser.uid || '');
         var email = normalizeContact(authUser.email || '');
         return (storeCustomers || []).find(function (customer) {
-          return uid && String(customer.id || customer.uid || '') === uid || email && normalizeContact(customerContactText(customer)).indexOf(email) >= 0;
+          var matchesUid = uid && String(customer.id || customer.uid || '') === uid;
+          var matchesEmail = email && normalizeContact(customerContactText(customer)).indexOf(email) >= 0;
+          return matchesUid || matchesEmail;
         }) || { id: uid, uid: uid, email: authUser.email || '', name: authUser.displayName || authUser.email || '' };
       }
 
@@ -11687,13 +11972,9 @@
             currentStoreUser = user || null;
             publicAuthResolved = true;
             updateStoreUserUi();
-            if (user) upsertStoreCustomer(user, 'auth_state').then(function () {
-              applySavedAddressToCart(currentCustomerRecord(), false);
-            });
+            if (user) refreshStoreCustomerSession(user);
             var pointsModal = document.getElementById('points-modal');
             if (pointsModal && pointsModal.classList.contains('open')) openPointsModal();
-            var accountModal = document.getElementById('account-modal');
-            if (accountModal && accountModal.classList.contains('open') && user) renderAccountModal();
           });
         });
       }
@@ -12946,7 +13227,6 @@
         if (href) {
           window.open(href + '?text=' + encodeURIComponent(lines.join('\n')), '_blank', 'noopener');
           showCartWarning('');
-          openOrderSuccessModal(orderRef);
         }
         if (authUser) {
           if (orderType === 'delivery') {
@@ -12965,6 +13245,9 @@
           updateStoreUserUi();
         }
         saveOrder({ orderRef: orderRef, subtotal: subtotal, originalSubtotal: cartOriginalTotal(), promoDiscount: promoDiscount, discount: discount, deliveryFee: fee, total: cartGrandTotal(), customerName: customerName, customerPhone: customerPhone, address: address, deliveryAddress: deliveryAddressData(), postal: postal, payment: payment, note: note, slotKey: slotKey, slotLabel: slotLabelText });
+        clearCart();
+        closeCart();
+        if (href) openOrderSuccessModal(orderRef);
         guestCheckoutApproved = false;
       }
 

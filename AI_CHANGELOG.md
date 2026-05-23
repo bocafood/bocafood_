@@ -7362,3 +7362,13 @@
 - Correção: o botão `Añadir dirección` no modal de conta da cliente agora limpa corretamente os campos do formulário antes de cadastrar novo endereço, evitando reabrir o endereço anterior como edição.
 
 - Correção: o WhatsApp da cliente passou a ser preservado ao salvar endereços, não é mais sobrescrito por valor vazio, espelha imediatamente para o checkout e valida o campo antes de gravar no cadastro da cliente.
+
+- Ajuste: após enviar o pedido por WhatsApp, o template público agora salva o pedido, limpa o carrinho, fecha o painel do carrinho e deixa visível apenas o modal de confirmação do pedido enviado.
+
+- Correção: a loja pública passou a buscar diretamente `store_customers/{uid}` quando a sessão da cliente é restaurada pelo Firebase Auth, mesclando WhatsApp e endereços salvos antes de preencher carrinho e modal de conta. Isso evita que, ao atualizar a página publicada, os dados cadastrados pareçam apagados quando a listagem inicial de clientes ainda não trouxe o documento completo.
+
+- Ajuste visual: a primeira dobra mobile da loja pública recebeu uma camada de padronização para hero, card principal, botões superiores, logo, textos de informação e início do conteúdo, reduzindo pesos excessivos, alinhando espaçamentos e mantendo o desktop preservado.
+
+- Ajuste visual posterior: os botões superiores da primeira dobra mobile da loja pública passaram para 40px de altura, com avatar de 30px e texto levemente maior para melhorar toque e legibilidade em celular.
+
+- Ajuste visual posterior: o card principal mobile da loja pública ganhou mais respiro inferior, apresentação curta maior, informações rápidas mais legíveis e peso menor no nome da loja, mantendo a composição compacta da primeira dobra.
