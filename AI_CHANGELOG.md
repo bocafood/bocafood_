@@ -7428,3 +7428,7 @@
 - Ajuste de carregamento: a loja pública recebeu um estado real de preparação, com tela elegante, prévia estrutural, status por etapa e barra de progresso suave enquanto dados, tema, imagens e fontes são carregados antes de exibir o conteúdo final.
 
 - Ajuste visual: o carregamento da loja pública foi simplificado para um spinner elegante com texto curto, mantendo a espera por dados, imagens e fontes sem excesso de informação visual.
+
+- Ajuste visual: removida a sombra projetada debaixo do card principal da loja pública, preservando apenas acabamento interno suave para manter o topo mais limpo.
+
+- Ajuste mobile: a busca de produtos da loja pública foi refinada com campo maior para toque, foco mais claro, painel sticky, botão de fechar mais delicado e resultados no mesmo grid dos cards de produto.

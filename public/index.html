@@ -416,7 +416,7 @@
         linear-gradient(180deg, rgba(255,250,243,.98), rgba(255,246,235,.94));
       border: 1px solid rgba(255, 255, 255, .9);
       border-radius: 28px;
-      box-shadow: 0 22px 46px rgba(33, 27, 24, .18), inset 0 1px 0 rgba(255,255,255,.76);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.76);
       backdrop-filter: blur(16px);
       position: relative;
       z-index: 2;
@@ -892,7 +892,11 @@
 
     .store-search-panel {
       display: none;
-      margin: 0 0 12px;
+      position: sticky;
+      top: 8px;
+      z-index: 13;
+      margin: 0 0 14px;
+      padding-top: 2px;
     }
 
     .store-search-panel.show {
@@ -900,23 +904,31 @@
     }
 
     .store-search-box {
-      min-height: 46px;
+      min-height: 52px;
       display: grid;
-      grid-template-columns: 20px minmax(0, 1fr) 30px;
+      grid-template-columns: 22px minmax(0, 1fr) 34px;
       align-items: center;
-      gap: 10px;
-      padding: 7px 8px 7px 14px;
-      border-radius: 18px;
-      color: #5f554d;
-      background: rgba(255, 255, 255, .78);
-      border: 1px solid rgba(33, 27, 24, .07);
-      box-shadow: 0 10px 24px rgba(33, 27, 24, .055);
+      gap: 11px;
+      padding: 8px 8px 8px 15px;
+      border-radius: 20px;
+      color: #4c433d;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.96), rgba(255,250,245,.92));
+      border: 1px solid rgba(33, 27, 24, .065);
+      box-shadow: 0 12px 28px rgba(33, 27, 24, .07), inset 0 1px 0 rgba(255,255,255,.76);
+      backdrop-filter: blur(16px);
+      transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+    }
+
+    .store-search-panel:focus-within .store-search-box {
+      border-color: rgba(var(--brand-rgb), .24);
+      box-shadow: 0 14px 30px rgba(33, 27, 24, .075), 0 0 0 3px rgba(var(--brand-rgb), .08);
     }
 
     .store-search-box .search-shape {
-      width: 15px;
-      height: 15px;
-      opacity: .68;
+      width: 16px;
+      height: 16px;
+      opacity: .76;
     }
 
     .store-search-input {
@@ -925,8 +937,9 @@
       outline: none;
       color: var(--ink);
       background: transparent;
-      font-size: 13px;
-      font-weight: 650;
+      font-size: 16px;
+      font-weight: 520;
+      line-height: 1.2;
     }
 
     .store-search-input::placeholder {
@@ -935,23 +948,50 @@
     }
 
     .store-search-close {
-      width: 30px;
-      height: 30px;
+      width: 34px;
+      height: 34px;
       border: 0;
       border-radius: 999px;
       display: grid;
       place-items: center;
-      color: #6c625b;
-      background: rgba(33, 27, 24, .055);
-      font-size: 18px;
+      color: #4f453f;
+      background: rgba(33, 27, 24, .052);
+      font-size: 17px;
       line-height: 1;
       cursor: pointer;
+      transition: transform .18s ease, background .18s ease, color .18s ease;
+    }
+
+    .store-search-close:hover {
+      color: var(--brand);
+      background: rgba(var(--brand-rgb), .10);
+      transform: translateY(-1px);
+    }
+
+    .store-search-close:active {
+      transform: scale(.96);
     }
 
     .store-search-results {
       display: grid;
-      gap: 10px;
-      margin-top: 10px;
+      gap: 14px;
+      margin-top: 12px;
+    }
+
+    .store-search-results.category-products {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .search-empty-state {
+      padding: 16px;
+      border-radius: 22px;
+      color: #171412;
+      background: rgba(255,255,255,.78);
+      border: 1px solid rgba(33,27,24,.055);
+      box-shadow: 0 10px 24px rgba(33,27,24,.045);
+      font-size: 13px;
+      line-height: 1.35;
+      font-weight: 520;
     }
 
     .section-head {
@@ -3684,6 +3724,9 @@
       .featured-action { min-height: 32px; padding: 0 12px; border-radius: 13px; font-size: 11px; }
       .featured-img { min-height: 142px; border-radius: 0; }
       .category-strip { margin-left: -12px; margin-right: -12px; padding-left: 12px; padding-right: 12px; }
+      .store-search-panel { top: 6px; margin-bottom: 12px; }
+      .store-search-box { min-height: 50px; border-radius: 18px; }
+      .store-search-results.category-products { gap: 12px; }
       .category-products { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
       .category-products.is-carousel .product-row { flex-basis: calc((100% - 12px) / 2); }
       .product-row { border-radius: 22px; }
@@ -5263,7 +5306,7 @@
           var(--paper);
         border: 1px solid rgba(255, 255, 255, .9);
         border-radius: 34px;
-        box-shadow: 0 26px 72px rgba(33, 27, 24, .16);
+        box-shadow: none;
         backdrop-filter: none;
         position: relative;
         z-index: 2;
@@ -7836,7 +7879,7 @@
         border-radius: 26px;
         background: rgba(255, 252, 247, .98) !important;
         border: 1px solid rgba(var(--brand-rgb), .24);
-        box-shadow: 0 16px 34px rgba(33, 27, 24, .10), inset 0 1px 0 rgba(255,255,255,.78) !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.78) !important;
         backdrop-filter: blur(10px);
       }
 
@@ -8842,7 +8885,7 @@
                 <button class="promo-nav-btn" type="button">Ver promoções</button>
               </div>
               <div class="nav-side">
-                <button class="circle-btn" type="button" aria-label="Buscar"><span class="search-shape"></span></button>
+                <button class="circle-btn" type="button" id="store-search-trigger" aria-label="Buscar" aria-expanded="false" aria-controls="store-search-panel"><span class="search-shape"></span></button>
               </div>
             </div>
 
@@ -8870,7 +8913,7 @@
             <section class="store-search-panel" id="store-search-panel" aria-hidden="true">
               <div class="store-search-box">
                 <span class="search-shape" aria-hidden="true"></span>
-                <input class="store-search-input" id="store-search-input" type="search" autocomplete="off" placeholder="Buscar produto...">
+                <input class="store-search-input" id="store-search-input" type="search" autocomplete="off" enterkeyhint="search" aria-label="Buscar produto" placeholder="Buscar produto...">
                 <button class="store-search-close" type="button" id="store-search-close" aria-label="Fechar busca">×</button>
               </div>
               <div class="store-search-results" id="store-search-results"></div>
@@ -11436,24 +11479,28 @@
         if (!input || !host) return;
         var query = searchText(input.value);
         if (!query) {
+          host.className = 'store-search-results';
           host.innerHTML = '';
           return;
         }
         var matches = products.filter(function (product) {
           return product && product.menuVisible !== false && productSearchText(product).indexOf(query) >= 0;
         }).slice(0, 12);
+        host.className = 'store-search-results' + (matches.length ? ' category-products' : '');
         host.innerHTML = matches.length
           ? matches.map(productRowHtml).join('')
-          : '<div class="cart-empty">' + text(t('searchEmpty')) + '</div>';
+          : '<div class="search-empty-state">' + text(t('searchEmpty')) + '</div>';
         wireDynamicEvents();
       }
 
       function openSearchPanel() {
         var panel = document.getElementById('store-search-panel');
         var input = document.getElementById('store-search-input');
+        var trigger = document.getElementById('store-search-trigger');
         if (!panel || !input) return;
         panel.classList.add('show');
         panel.setAttribute('aria-hidden', 'false');
+        if (trigger) trigger.setAttribute('aria-expanded', 'true');
         renderSearchResults();
         panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
         setTimeout(function () { input.focus(); }, 120);
@@ -11463,11 +11510,16 @@
         var panel = document.getElementById('store-search-panel');
         var input = document.getElementById('store-search-input');
         var host = document.getElementById('store-search-results');
+        var trigger = document.getElementById('store-search-trigger');
         if (!panel) return;
         panel.classList.remove('show');
         panel.setAttribute('aria-hidden', 'true');
+        if (trigger) trigger.setAttribute('aria-expanded', 'false');
         if (input) input.value = '';
-        if (host) host.innerHTML = '';
+        if (host) {
+          host.className = 'store-search-results';
+          host.innerHTML = '';
+        }
       }
 
       function categoryHtml(id, title, subtitle, items, carousel) {
@@ -14688,7 +14740,7 @@
         if (accountButton) accountButton.onclick = openAccountModal;
         var promoButton = document.querySelector('.promo-nav-btn');
         if (promoButton) promoButton.onclick = openPromotionsSection;
-        var searchButton = document.querySelector('.floating-nav .circle-btn');
+        var searchButton = document.getElementById('store-search-trigger');
         if (searchButton) searchButton.onclick = openSearchPanel;
         var searchInput = document.getElementById('store-search-input');
         if (searchInput) {
