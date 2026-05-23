@@ -7541,3 +7541,7 @@
 - Ajuste comercial: o card de produto e o modal de produto da loja pública passaram a exibir o benefício da promoção ativa junto ao preço, deixando a oportunidade mais evidente sem alterar a regra de cálculo promocional.
 
 - Ajuste de checkout: a opção `Guardar esta dirección para próximas compras` agora aparece apenas quando a cliente está preenchendo um endereço novo no carrinho; ao selecionar um endereço já salvo, o bloco fica oculto e desmarcado.
+
+- Ajuste visual: as informações do card principal da loja pública foram padronizadas em 13px e o rodapé deixou de parecer um card arredondado, ficando contínuo com a página, mais compacto e sem espaço vazio no fim.
+
+- Ajuste visual: o rodapé da loja pública recebeu fundo suave na cor da marca, organização sem bolinhas, divisórias leves e respiro inferior para não ficar coberto pela barra fixa no mobile.
