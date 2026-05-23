@@ -7400,3 +7400,7 @@
 - Ajuste visual: o card/carrossel de resenhas da loja pública ficou mais leve e premium, com slides mais compactos, borda suave, quote mais legível, produto citado integrado e CTA de avaliação preservado fora do card.
 
 - Ajuste mobile: o formulário de cadastro de endereço da cliente passou a usar campos mais confortáveis no celular, em duas colunas proporcionais e com fonte mínima de 16px para evitar zoom automático ao tocar nos inputs em iPhone/Safari.
+
+- Ajuste mobile: os campos do carrinho da loja pública foram revisados para celular, com inputs/selects em 16px, altura mínima mais confortável, grade de endereço em duas colunas e campos de data, horário, pagamento, cupom e WhatsApp alinhados para reduzir zoom automático e melhorar o toque.
+
+- Correção visual: os overlays dos modais da loja pública passaram a ocupar `100dvh` com rolagem interna no painel, evitando que o fundo defumado ou o próprio modal pareçam terminar antes do fim da tela no celular.

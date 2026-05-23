@@ -7523,21 +7523,132 @@
 
     @media (max-width: 520px) {
       .cart-payment-row {
-        grid-template-columns: max-content minmax(124px, 150px);
+        grid-template-columns: max-content minmax(136px, 172px);
+        gap: 9px;
       }
 
       .payment-options + .cart-select#payment-method {
         width: auto;
-        min-width: 124px;
-        max-width: 150px;
+        min-width: 136px;
+        max-width: 172px;
       }
 
       .cart-panel {
         max-height: calc(100dvh - 88px);
       }
 
+      .cart-field,
+      .cart-select {
+        min-height: 44px;
+        height: 44px;
+        font-size: 16px;
+        border-radius: 14px;
+      }
+
+      .cart-date-field,
+      #pickup-time,
+      #delivery-time {
+        min-height: 44px;
+        height: 44px;
+        max-height: 44px;
+        line-height: 44px;
+        font-size: 16px;
+      }
+
+      .cart-note {
+        min-height: 76px;
+        height: auto;
+        font-size: 16px;
+      }
+
+      .cart-slot-grid,
+      .delivery-slot-grid {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        max-width: none;
+      }
+
+      .cart-slot-grid > div {
+        grid-template-rows: auto 44px;
+      }
+
+      .cart-address-detail-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 9px;
+      }
+
+      .cart-address-detail-grid > div:nth-child(1),
+      .cart-address-detail-grid > div:nth-child(2),
+      .cart-address-detail-grid > div:nth-child(3),
+      .cart-address-detail-grid > div:nth-child(4),
+      .cart-address-detail-grid > div:nth-child(5) {
+        grid-column: span 1;
+        order: initial;
+      }
+
+      .cart-finalize-card .coupon-input-wrap {
+        max-width: none;
+      }
+
+      .cart-finalize-card #coupon-input {
+        min-height: 44px;
+        height: 44px;
+      }
+
+      .cart-finalize-card .coupon-apply-btn {
+        min-height: 44px;
+      }
+
+      .cart-finalize-card .store-phone-box {
+        min-height: 48px;
+        grid-template-columns: 104px minmax(0, 1fr);
+      }
+
+      .cart-finalize-card .store-phone-box select,
+      .cart-finalize-card .store-phone-box input {
+        min-height: 34px;
+        font-size: 16px;
+      }
+
       .cart-actions {
         grid-template-columns: 1fr;
+      }
+    }
+
+    /* Modais: cobertura estável em telas móveis */
+    .product-modal,
+    .cart-sheet,
+    .auth-modal {
+      width: 100vw;
+      height: 100vh;
+      min-height: 100vh;
+      height: 100dvh;
+      min-height: 100dvh;
+      overscroll-behavior: contain;
+    }
+
+    .product-modal,
+    .auth-modal {
+      overflow: hidden;
+    }
+
+    .auth-panel {
+      max-height: calc(100dvh - 28px);
+      overflow: hidden auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .product-modal .modal-panel {
+      max-height: calc(100dvh - 20px);
+    }
+
+    @media (max-width: 520px) {
+      .auth-modal {
+        padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+      }
+
+      .auth-panel {
+        max-height: calc(100dvh - 20px);
       }
     }
 
