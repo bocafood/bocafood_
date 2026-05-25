@@ -3966,6 +3966,141 @@
       font-weight: 700;
     }
 
+    .cart-upsell-benefits {
+      display: none;
+      gap: 7px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, rgba(31, 169, 113, .10), rgba(255, 248, 235, .92));
+      color: #205d41;
+      font-size: 12px;
+      line-height: 1.35;
+      border: 1px solid rgba(31, 169, 113, .16);
+    }
+
+    .cart-upsell-benefits.show {
+      display: grid;
+    }
+
+    .cart-upsell-benefits span {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .cart-upsell-panel {
+      max-width: 480px;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 18% -12%, rgba(255, 193, 7, .22), transparent 38%),
+        radial-gradient(circle at 100% 14%, rgba(31, 169, 113, .13), transparent 34%),
+        #fff;
+    }
+
+    .cart-upsell-preview {
+      display: grid;
+      grid-template-columns: 116px minmax(0, 1fr);
+      gap: 16px;
+      align-items: center;
+      padding: 14px;
+      border-radius: 24px;
+      background:
+        linear-gradient(135deg, rgba(255, 250, 239, .98), rgba(255, 255, 255, .97));
+      border: 1px solid rgba(33, 27, 24, .075);
+      box-shadow: 0 16px 34px rgba(33, 27, 24, .075);
+    }
+
+    .cart-upsell-image {
+      width: 116px;
+      aspect-ratio: 1;
+      border-radius: 22px;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 30% 18%, rgba(255, 255, 255, .72), transparent 32%),
+        linear-gradient(135deg, rgba(255, 193, 7, .22), rgba(31, 169, 113, .12));
+      display: grid;
+      place-items: center;
+      color: #8A5A10;
+      font-size: 34px;
+      font-weight: 500;
+    }
+
+    .cart-upsell-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .cart-upsell-mini {
+      color: #8A7E7C;
+      font-size: 10px;
+      line-height: 1.3;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      font-weight: 680;
+    }
+
+    .cart-upsell-meta {
+      margin-top: 5px;
+      color: var(--ink);
+      font-size: 22px;
+      line-height: 1.2;
+      font-weight: 720;
+    }
+
+    .cart-upsell-detail {
+      margin-top: 7px;
+      color: #5F554E;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .cart-upsell-pill {
+      display: inline-flex;
+      width: fit-content;
+      margin-top: 10px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(31, 169, 113, .10);
+      color: #10683f;
+      font-size: 11px;
+      line-height: 1;
+      font-weight: 720;
+    }
+
+    .cart-upsell-panel .promo-modal-actions {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 10px;
+      align-items: center;
+    }
+
+    .cart-upsell-panel .auth-submit {
+      background: linear-gradient(135deg, #1fa971, #168d5e);
+      box-shadow: 0 14px 28px rgba(31, 169, 113, .22);
+    }
+
+    @media (max-width: 520px) {
+      .cart-upsell-preview {
+        grid-template-columns: 92px minmax(0, 1fr);
+        padding: 12px;
+      }
+
+      .cart-upsell-image {
+        width: 92px;
+        border-radius: 19px;
+      }
+
+      .cart-upsell-meta {
+        font-size: 18px;
+      }
+
+      .cart-upsell-panel .promo-modal-actions {
+        grid-template-columns: 1fr;
+      }
+    }
+
     .cart-total {
       margin: 0;
       padding-top: 10px;
@@ -5018,11 +5153,29 @@
     }
 
     .modal-upsell-section {
+      position: relative;
+      overflow: hidden;
       background:
-        radial-gradient(circle at 12% 0%, rgba(var(--brand-rgb), .10), rgba(var(--brand-rgb), 0) 42%),
-        linear-gradient(180deg, rgba(255,255,255,.98), rgba(255,250,246,.92));
+        radial-gradient(circle at 12% 0%, rgba(255, 193, 7, .13), rgba(255, 193, 7, 0) 42%),
+        linear-gradient(135deg, rgba(255,253,246,.98), rgba(255,249,240,.96));
       border: none;
-      box-shadow: 0 16px 34px rgba(33, 27, 24, .07);
+      box-shadow: 0 16px 34px rgba(33, 27, 24, .075);
+    }
+
+    .modal-upsell-section::before {
+      content: none;
+    }
+
+    .modal-upsell-section::after {
+      content: "";
+      position: absolute;
+      right: -32px;
+      top: -36px;
+      width: 98px;
+      height: 98px;
+      border-radius: 999px;
+      background: rgba(255, 194, 71, .16);
+      pointer-events: none;
     }
 
     .modal-upsell-section .modal-option-title {
@@ -5034,13 +5187,36 @@
       text-transform: none;
     }
 
+    .modal-upsell-title-copy {
+      display: inline-flex;
+      align-items: center;
+      min-width: 0;
+    }
+
+    .modal-upsell-spark {
+      display: none;
+    }
+
+    .modal-upsell-badge {
+      margin-left: auto;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(22, 160, 93, .09);
+      color: #0E7544;
+      font-size: 9px;
+      font-weight: 680;
+      line-height: 1;
+      letter-spacing: .025em;
+      white-space: nowrap;
+    }
+
     .modal-upsell-section .modal-option {
       min-height: 64px;
       padding: 10px;
       border: 0;
       border-radius: 16px;
       background: rgba(255,255,255,.88);
-      box-shadow: inset 0 0 0 1px rgba(33, 27, 24, .055);
+      box-shadow: inset 0 0 0 1px rgba(33, 27, 24, .045), 0 10px 22px rgba(33, 27, 24, .04);
     }
 
     .modal-upsell-section .modal-option + .modal-option {
@@ -5050,8 +5226,8 @@
     .modal-upsell-section .modal-option.is-selected {
       margin: 0;
       padding: 10px;
-      background: rgba(var(--brand-rgb), .075);
-      box-shadow: inset 0 0 0 1px rgba(var(--brand-rgb), .14), 0 10px 22px rgba(33, 27, 24, .055);
+      background: rgba(22, 160, 93, .085);
+      box-shadow: inset 0 0 0 1px rgba(22, 160, 93, .18), 0 10px 22px rgba(22, 160, 93, .10);
     }
 
     .modal-upsell-section .modal-option-img,
@@ -5063,14 +5239,27 @@
 
     .modal-upsell-section .modal-option-name {
       font-size: 13px;
-      font-weight: 780;
+      font-weight: 720;
       line-height: 1.18;
     }
 
     .modal-upsell-section .modal-option-price {
-      color: var(--brand);
+      color: #0E7544;
       font-size: 12px;
       font-weight: 400;
+    }
+
+    .modal-upsell-saving {
+      display: inline-flex;
+      width: fit-content;
+      margin-top: 4px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(255, 194, 71, .18);
+      color: #84540C;
+      font-size: 10px;
+      font-weight: 620;
+      line-height: 1;
     }
 
     .modal-upsell-variants {
@@ -5330,7 +5519,7 @@
       .store-hero {
         grid-column: 1 / -1;
         grid-row: 1;
-        min-height: clamp(460px, 62vh, 620px);
+        min-height: clamp(340px, 44vh, 460px);
         padding: 28px;
         border-radius: 0;
         overflow: hidden;
@@ -5377,14 +5566,11 @@
 
       .store-card {
         width: min(650px, calc(100% - 32px));
-        margin: clamp(210px, 34vh, 340px) auto 0 18px;
+        margin: clamp(120px, 20vh, 190px) auto 0 18px;
         padding: 24px;
         min-height: auto;
-        background:
-          radial-gradient(circle at 10% -4%, rgba(var(--brand-rgb), .17), rgba(var(--brand-rgb), .055) 32%, rgba(var(--brand-rgb), 0) 58%),
-          linear-gradient(145deg, rgba(var(--brand-rgb), .08), rgba(255,255,255,0) 54%),
-          var(--paper);
-        border: 1px solid rgba(255, 255, 255, .9);
+        background: var(--paper);
+        border: 1px solid rgba(33,27,24,.07);
         border-radius: 34px;
         box-shadow: none;
         backdrop-filter: none;
@@ -5497,7 +5683,7 @@
 
       .template-content {
         grid-column: 1;
-        padding: 0 0 0 28px;
+        padding: 28px 0 0 28px;
         display: grid;
         gap: 18px;
       }
@@ -5540,11 +5726,11 @@
         gap: 0;
         padding: 0;
         border-radius: 28px;
-        box-shadow: 0 20px 48px rgba(33, 27, 24, .09);
+        box-shadow: 0 10px 28px rgba(33, 27, 24, .07);
       }
 
       .featured-copy {
-        padding: 28px 0 28px 28px;
+        padding: 28px 22px 28px 28px;
         align-self: center;
       }
 
@@ -5690,7 +5876,7 @@
         border-radius: 34px;
         background: rgba(255, 253, 249, .96);
         border: 0;
-        box-shadow: 0 28px 86px rgba(33, 27, 24, .24), 0 0 0 1px rgba(255,255,255,.58);
+        box-shadow: 0 8px 28px rgba(33, 27, 24, .09), 0 0 0 1px rgba(255,255,255,.55);
         overflow: visible;
       }
 
@@ -6965,7 +7151,7 @@
         max-height: none;
         overflow: visible;
         border-radius: 30px;
-        box-shadow: 0 28px 86px rgba(33, 27, 24, .18);
+        box-shadow: 0 8px 28px rgba(33, 27, 24, .09);
       }
 
       .cart-panel .cart-actions {
@@ -7866,7 +8052,7 @@
         max-height: none;
         overflow: visible;
         border-radius: 30px;
-        box-shadow: 0 24px 70px rgba(33, 27, 24, .16);
+        box-shadow: 0 8px 24px rgba(33, 27, 24, .09);
       }
     }
 
@@ -8169,7 +8355,7 @@
         min-height: 0;
         border-radius: 26px;
         background: rgba(255, 252, 247, .98) !important;
-        border: 1px solid rgba(var(--brand-rgb), .24);
+        border: 1px solid rgba(33,27,24,.07);
         box-shadow: inset 0 1px 0 rgba(255,255,255,.78) !important;
         backdrop-filter: blur(10px);
       }
@@ -9165,7 +9351,7 @@
       }
 
       .store-hero {
-        min-height: clamp(430px, 57vh, 590px);
+        min-height: clamp(340px, 43vh, 460px);
       }
 
       .floating-nav {
@@ -9178,8 +9364,8 @@
       .store-card {
         width: min(690px, calc(100% - clamp(44px, 5vw, 76px)));
         margin-left: clamp(22px, 2.4vw, 38px);
-        margin-top: clamp(185px, 30vh, 300px);
-        box-shadow: 0 22px 64px rgba(33, 27, 24, .14);
+        margin-top: clamp(110px, 18vh, 180px);
+        box-shadow: 0 8px 24px rgba(33, 27, 24, .09);
       }
 
       .template-content {
@@ -9189,7 +9375,7 @@
       }
 
       .category-products {
-        grid-template-columns: repeat(auto-fit, minmax(238px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
         gap: clamp(16px, 1.6vw, 24px);
       }
 
@@ -9257,7 +9443,7 @@
         max-height: calc(100vh - 108px);
         overflow: auto;
         border-radius: 30px;
-        box-shadow: 0 24px 70px rgba(33, 27, 24, .14);
+        box-shadow: 0 8px 28px rgba(33, 27, 24, .09), 0 0 0 1px rgba(255,255,255,.55);
         scrollbar-width: none;
       }
 
@@ -9302,8 +9488,102 @@
 
     @media (min-width: 1280px) {
       .category-products {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
       }
+    }
+
+    /* ── Refinamentos tipográficos desktop ─────────────────────────────────
+       Reduz pesos excessivos sem tocar no mobile. Princípio: headings usam
+       peso entre 600-650 (legível, firme, não gritante). Corpo e labels
+       usam 400-500. Botões e CTAs ficam em 550-600 (decisivos, não pesados).
+    ────────────────────────────────────────────────────────────────────── */
+    @media (min-width: 960px) {
+      /* Seções e títulos de categoria */
+      .section-head h2           { font-weight: 640; letter-spacing: -.02em }
+      .category-title strong     { font-weight: 640 }
+      .category-title span       { font-weight: 400; opacity: .62 }
+
+      /* Card de produto */
+      .product-title             { font-weight: 600 }
+      .product-price             { font-weight: 620; letter-spacing: -.02em }
+
+      /* Featured card — título grande, mas elegante */
+      .featured-copy h3          { font-weight: 640; letter-spacing: -.025em }
+      .featured-price            { font-weight: 560 }
+      .featured-action           { font-weight: 560; letter-spacing: .01em }
+
+      /* Loyalty card */
+      .loyalty-title             { font-weight: 580 }
+      .loyalty-cta               { font-weight: 540 }
+
+      /* Nav e botões flutuantes */
+      .circle-btn                { font-weight: 500 }
+      .account-pill              { font-weight: 500 }
+
+      /* Sombras suaves nos botões de navegação flutuante */
+      .circle-btn,
+      .account-pill              { box-shadow: 0 4px 14px rgba(33,27,24,.11) }
+
+      /* Sombra da logo suavizada */
+      .store-logo                { box-shadow: 0 6px 18px rgba(33,27,24,.10) }
+
+      /* Store-card — borda sutil em vez de harsh white */
+      .store-card                { border: 1px solid rgba(33,27,24,.07) }
+
+      /* Produto row — sombra mais leve */
+      .product-row               { box-shadow: 0 4px 16px rgba(31,26,21,.055) }
+
+      /* ── Carrinho — parte de baixo do hero, flui com a página ───────── */
+      .cart-sheet,
+      .cart-sheet.open {
+        position: relative !important;
+        top: auto !important;
+        grid-row: 2 !important;
+        align-self: start;
+      }
+
+      /* Remove janela interna: cart-panel expande naturalmente */
+      .cart-panel {
+        max-height: none !important;
+        overflow: visible !important;
+      }
+
+      /* ── Seção de avaliações ──────────────────────────────────────────── */
+
+      /* Cabeçalho: especificidade de .reviews-section-head h2 vence o genérico */
+      .section-head.reviews-section-head h2 { font-weight: 640 }
+
+      /* "Ver todas" — pill ghost em vez de texto puro em brand color bold */
+      .section-head.reviews-section-head a {
+        padding: 4px 13px;
+        border: 1px solid rgba(33,27,24,.13);
+        border-radius: 999px;
+        background: rgba(255,255,255,.72);
+        color: #3f3732;
+        font-size: 11.5px;
+        font-weight: 500;
+        backdrop-filter: blur(6px);
+        transition: background .15s, border-color .15s;
+      }
+      .section-head.reviews-section-head a:hover {
+        background: rgba(255,255,255,.95);
+        border-color: rgba(33,27,24,.22);
+      }
+
+      /* Separador score → citação: hairline neutra visível */
+      .review-score              { border-bottom-color: rgba(33,27,24,.08) }
+
+      /* Borda do card de avaliações: neutro consistente */
+      .reviews-card              { border-color: rgba(33,27,24,.07) }
+
+      /* Número de nota — fundo neutro quente, peso elegante */
+      .score-big                 { font-weight: 640; background: rgba(33,27,24,.05); color: #1a1410 }
+
+      /* Slides — sem gradiente de marca, branco limpo */
+      .review-slide              { flex-basis: min(46%, 310px); background: rgba(255,255,255,.98) }
+
+      /* Quote — ligeiramente maior no desktop, mais respirado */
+      .review-quote              { font-size: 14px; line-height: 1.55 }
     }
   </style>
   <script>
@@ -9618,6 +9898,37 @@
                 <div class="promo-modal-list" id="promotions-list"></div>
                 <div class="promo-modal-actions">
                   <button class="points-secondary" type="button" id="promotions-all-products">Ver todos los productos</button>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <div class="auth-modal" id="cart-upsell-modal" aria-hidden="true">
+            <section class="auth-panel cart-upsell-panel" role="dialog" aria-modal="true" aria-labelledby="cart-upsell-title">
+              <div class="auth-head">
+                <div>
+                  <div class="auth-kicker" id="cart-upsell-kicker">Sugerencia para tu pedido</div>
+                  <h2 class="auth-title" id="cart-upsell-title">Completa tu pedido</h2>
+                  <p class="auth-text" id="cart-upsell-text">Tenemos una sugerencia disponible para este pedido.</p>
+                </div>
+                <button class="auth-close" type="button" id="cart-upsell-close" aria-label="Cerrar">×</button>
+              </div>
+              <div class="auth-body">
+                <div class="cart-upsell-preview">
+                  <div class="cart-upsell-image">
+                    <img id="cart-upsell-img" alt="">
+                    <span id="cart-upsell-fallback">+</span>
+                  </div>
+                  <div>
+                    <div class="cart-upsell-mini">Beneficio disponible</div>
+                    <div class="cart-upsell-meta" id="cart-upsell-meta"></div>
+                    <div class="cart-upsell-detail" id="cart-upsell-detail"></div>
+                    <div class="cart-upsell-pill" id="cart-upsell-pill">Solo para este pedido</div>
+                  </div>
+                </div>
+                <div class="promo-modal-actions">
+                  <button class="points-secondary" type="button" id="cart-upsell-skip">Ahora no</button>
+                  <button class="auth-submit" type="button" id="cart-upsell-accept">Sí, quiero aprovechar</button>
                 </div>
               </div>
             </section>
@@ -9964,6 +10275,8 @@
                 <div class="cart-summary">
                   <div class="cart-summary-row"><span>Subtotal</span><span id="cart-subtotal">€0,00</span></div>
                   <div class="cart-summary-row" id="promo-discount-row" style="display:none"><span>Promoções</span><span id="promo-discount-val">-€0,00</span></div>
+                  <div class="cart-upsell-benefits" id="cart-upsell-benefits"></div>
+                  <div class="cart-summary-row" id="upsell-discount-row" style="display:none"><span>Beneficios</span><span id="upsell-discount-val">-€0,00</span></div>
                   <div class="cart-summary-row" id="coupon-discount-row" style="display:none"><span>Desconto</span><span id="coupon-discount-val">-€0,00</span></div>
                   <div class="cart-summary-row" id="points-discount-row" style="display:none"><span id="points-discount-cart-label">Puntos</span><span id="points-discount-val">-€0,00</span></div>
                   <div class="cart-summary-row" id="fee-row" style="display:none"><span>Entrega</span><span id="fee-val">€0,00</span></div>
@@ -10089,6 +10402,7 @@
       var tenantId = tenantIdFromUrl();
       var activeTenantId = tenantId;
       var cfg = {};
+      var seoCfg = {};
       var products = [];
       var categories = [];
       var variantGroups = [];
@@ -10096,6 +10410,7 @@
       var reviews = [];
       var promotions = [];
       var coupons = [];
+      var upsellRules = [];
       var storeCustomers = [];
       var pointsMovements = [];
       var currentStoreUser = null;
@@ -10112,6 +10427,10 @@
       var modalAddAlsoSelections = {};
       var modalAddAlsoOpen = {};
       var appliedCoupon = null;
+      var selectedCartUpsellRuleIds = [];
+      var dismissedCartUpsellRuleIds = [];
+      var cartUpsellPromptTimer = null;
+      var cartUpsellModalOpen = false;
       var usePointsInCart = false;
       var guestCheckoutApproved = false;
       var pendingCheckoutAfterAuth = false;
@@ -10120,6 +10439,7 @@
       var deliveryZones = [];
       var slotCounts = {};
       var requestedStoreSlug = storeSlugFromPath();
+      var pendingCouponCode = couponCodeFromUrl();
       var marketingTrackingApplied = false;
       var googlePlacesScriptPromise = null;
       var deliveryPostalLookupTimer = null;
@@ -10133,6 +10453,17 @@
       function tenantIdFromUrl() {
         var params = new URLSearchParams(window.location.search);
         return params.get('tenant') || params.get('tenantId') || params.get('uid') || params.get('t') || params.get('store') || params.get('loja') || window.PUBLISHED_TENANT_ID || '';
+      }
+
+      function couponCodeFromUrl() {
+        var params = new URLSearchParams(window.location.search);
+        var code = String(params.get('cupom') || params.get('coupon') || params.get('cupon') || params.get('cupón') || params.get('desconto') || '').trim();
+        if (!code && window.location.hash && window.location.hash.indexOf('?') >= 0) {
+          var hashQuery = window.location.hash.slice(window.location.hash.indexOf('?') + 1);
+          var hashParams = new URLSearchParams(hashQuery);
+          code = String(hashParams.get('cupom') || hashParams.get('coupon') || hashParams.get('cupon') || hashParams.get('cupón') || hashParams.get('desconto') || '').trim();
+        }
+        return code.toUpperCase();
       }
 
       function storeSlugFromPath() {
@@ -10333,7 +10664,16 @@
       }
 
       function num(value) {
-        var n = Number(String(value == null ? 0 : value).replace(',', '.'));
+        if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+        var str = String(value == null ? '' : value).trim();
+        if (!str) return 0;
+        var cleaned = str.replace(/[^\d,.-]/g, '');
+        if (!cleaned) return 0;
+        var lastComma = cleaned.lastIndexOf(',');
+        var lastDot = cleaned.lastIndexOf('.');
+        if (lastComma > lastDot) cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+        else cleaned = cleaned.replace(/,/g, '');
+        var n = Number(cleaned);
         return Number.isFinite(n) ? n : 0;
       }
 
@@ -10599,7 +10939,7 @@
           receiving: 'Recebimento', required: 'obrigatório', pickupAddress: 'Retirada no endereço da loja.', selectPickup: 'Selecione um horário de retirada', selectDelivery: 'Selecione um horário de entrega', selectTime: 'Selecione um horário', pickupDateLabel: 'Data de retirada', deliveryDateLabel: 'Data de entrega', noSlots: 'Sem horários disponíveis.', noFulfillment: 'Nenhum modo de recebimento está disponível no momento.', receivingTitle: 'Como você quer receber?', receivingSubtitle: 'Selecione antes de confirmar seu pedido.', clearOrder: 'Limpar pedido', pickupTimeLabel: 'Horário de retirada', deliveryTimeLabel: 'Horário de entrega', deliveryAddressLabel: 'Endereço de entrega', addressNumberLabel: 'Número / portal', addressComplementLabel: 'Piso / porta', addressCityLabel: 'Cidade', addressProvinceLabel: 'Província', addressCountryLabel: 'País', orderNoteLabel: 'Observação para o pedido', minimumDeliveryLabel: 'Pedido mínimo para entrega', minOrderLeft: 'Adicione mais {value}', savings: 'Você economiza', paymentRequired: 'Selecione uma forma de pagamento.', checkoutChoiceKicker: 'Pedido', checkoutChoiceTitle: 'Como quer continuar?', checkoutChoiceText: 'Entre para acompanhar seus pedidos e acumular pontos. Se continuar como convidado, seus pontos não serão acumulados.', checkoutChoiceLogin: 'Entrar ou criar acesso', checkoutChoiceGuest: 'Continuar como convidado', orderSentKicker: 'Pedido', orderSentTitle: 'Pedido enviado', orderSentSuccess: 'Pedido enviado pelo WhatsApp. Se precisar de ajuda, fale com a loja pela conversa que acabou de abrir.', orderSentHelp: 'Referência do pedido: {ref}. A loja vai continuar o atendimento pelo WhatsApp.', orderSentButton: 'Entendido',
           customer: 'Cliente', name: 'Nome', phone: 'WhatsApp', paymentNotes: 'Como vai pagar?', paymentMethod: 'Forma de pagamento', select: 'Selecione', orderNote: 'Observação para o pedido', productNote: 'Observação para este produto',
           coupon: 'Cupom', apply: 'Aplicar', couponApplied: 'Cupom {code} aplicado', subtotal: 'Subtotal', discount: 'Desconto', promotionDiscount: 'Promoções', total: 'Total', sendWhatsApp: 'Enviar pedido pelo WhatsApp', addToOrder: 'Adicionar ao pedido',
-          addProduct: 'Adicionar {name}', options: 'Opções', requiredChoice: 'Obrigatório {used}/{needed}', extraOptions: 'opções', addMoreItems: 'Adicione mais itens', productReviews: 'Avaliações do produto', allReviewsTitle: 'Todas as avaliações', reviewFallback: 'Cliente gostou deste produto.', leaveReview: 'Deixar avaliação', shareReviewCta: 'Conte também como foi sua experiência', firstReviewText: 'Ainda não há avaliações publicadas. Seja a primeira pessoa a contar como foi sua experiência.', mostOrderedBadge: 'Mais pedido', addChoices: 'Adicionar:', noteShort: 'Obs:', addFirst: 'Adicione produtos ao pedido primeiro.', selectSlotWarn: 'Selecione um horário para continuar.', minimumDeliveryWarn: 'Pedido mínimo para entrega: {value}.', postalWarn: 'Informe um código postal atendido pela loja.', addressWarn: 'Informe o endereço completo para entrega.',
+          addProduct: 'Adicionar {name}', options: 'Opções', requiredChoice: 'Obrigatório {used}/{needed}', extraOptions: 'opções', addMoreItems: 'Adicione mais itens', upsellOffer: 'Boa escolha', saveAmount: 'Economize {amount}', productReviews: 'Avaliações do produto', allReviewsTitle: 'Todas as avaliações', reviewFallback: 'Cliente gostou deste produto.', leaveReview: 'Deixar avaliação', shareReviewCta: 'Conte também como foi sua experiência', firstReviewText: 'Ainda não há avaliações publicadas. Seja a primeira pessoa a contar como foi sua experiência.', mostOrderedBadge: 'Mais pedido', addChoices: 'Adicionar:', noteShort: 'Obs:', addFirst: 'Adicione produtos ao pedido primeiro.', selectSlotWarn: 'Selecione um horário para continuar.', minimumDeliveryWarn: 'Pedido mínimo para entrega: {value}.', postalWarn: 'Informe um código postal atendido pela loja.', addressWarn: 'Informe o endereço completo para entrega.',
           perfectWith: 'Combina com', addedWith: 'Adicionado com', comboQtyLabel: 'Quantos você quer?', comboQtyLock: 'Escolha a quantidade para selecionar as opções ↑',
           whatsappHello: 'Olá! Quero fazer um pedido em {name}:', schedule: 'Horário', hours: 'Horários', postal: 'Código postal', zone: 'Zona', address: 'Endereço completo', contact: 'Contato', payment: 'Pagamento', observation: 'Observação', reviewsApproved: '{count} avaliações aprovadas.', footerText: 'Obrigada pela visita.', footerPowered: 'Loja online criada com BocaFood',
           authKicker: 'Acesso', authTitle: 'Entrar', authSignupTitle: 'Criar acesso', authText: 'Entre para acompanhar seus pedidos e usar benefícios da loja.', authSignupText: 'Crie seu acesso para acompanhar pedidos e consultar seus benefícios nesta loja.', authGoogle: 'Continuar com Google', authDivider: 'ou', authEmail: 'seu@email.com', authPassword: 'Senha', authSubmit: 'Entrar', authSignupSubmit: 'Criar acesso', authHelp: 'Ainda não tem conta?', authSignupHelp: 'Já tem conta?', authCreate: 'Criar acesso', authLoginLink: 'Entrar', close: 'Fechar', closeSearch: 'Fechar busca', searchPlaceholder: 'Buscar produto...', searchEmpty: 'Nenhum produto encontrado.', searchHint: 'Digite o nome do produto para buscar.',
@@ -10615,7 +10955,7 @@
           receiving: 'Recebimento', required: 'obrigatório', pickupAddress: 'Levantamento no endereço da loja.', selectPickup: 'Selecione um horário de levantamento', selectDelivery: 'Selecione um horário de entrega', selectTime: 'Selecione um horário', pickupDateLabel: 'Data de levantamento', deliveryDateLabel: 'Data de entrega', noSlots: 'Sem horários disponíveis.', noFulfillment: 'Nenhum modo de recebimento está disponível no momento.', receivingTitle: 'Como você quer receber?', receivingSubtitle: 'Selecione antes de confirmar seu pedido.', pickupAddressTitle: 'Endereço de retirada', savedAddressesTitle: 'Em qual endereço você quer receber o pedido?', savedAddressesModalTitle: 'Endereços salvos', chooseSavedAddress: 'Escolher endereço salvo', newAddressHelp: 'Se quiser receber o pedido em um endereço novo ou ainda não tiver endereço salvo, comece pelo código postal.', scheduleQuestion: 'Quando você quer receber seu pedido?', clearOrder: 'Limpar pedido', pickupTimeLabel: 'Horário de retirada', deliveryTimeLabel: 'Horário de entrega', deliveryAddressLabel: 'Endereço de entrega', addressNumberLabel: 'Número / portal', addressComplementLabel: 'Piso / porta', addressCityLabel: 'Cidade', addressProvinceLabel: 'Província', addressCountryLabel: 'País', orderNoteLabel: 'Observação para o pedido', minimumDeliveryLabel: 'Pedido mínimo para entrega', minOrderLeft: 'Adicione mais {value}', savings: 'Poupa', paymentRequired: 'Selecione uma forma de pagamento.', checkoutChoiceKicker: 'Pedido', checkoutChoiceTitle: 'Como quer continuar?', checkoutChoiceText: 'Entre para acompanhar os seus pedidos e acumular pontos. Se continuar como convidado, os pontos não serão acumulados.', checkoutChoiceLogin: 'Entrar ou criar acesso', checkoutChoiceGuest: 'Continuar como convidado', orderSentKicker: 'Pedido', orderSentTitle: 'Pedido enviado', orderSentSuccess: 'Pedido enviado pelo WhatsApp. Se precisar de ajuda, fale com a loja pela conversa que acabou de abrir.', orderSentHelp: 'Referência do pedido: {ref}. A loja vai continuar o atendimento pelo WhatsApp.', orderSentButton: 'Entendido',
           customer: 'Cliente', name: 'Nome', phone: 'WhatsApp', paymentNotes: 'Como vai pagar?', paymentMethod: 'Forma de pagamento', select: 'Selecione', orderNote: 'Observação para o pedido', productNote: 'Observação para este produto',
           coupon: 'Cupão', apply: 'Aplicar', couponApplied: 'Cupão {code} aplicado', subtotal: 'Subtotal', discount: 'Desconto', promotionDiscount: 'Promoções', total: 'Total', sendWhatsApp: 'Enviar pedido pelo WhatsApp', addToOrder: 'Adicionar ao pedido',
-          addProduct: 'Adicionar {name}', options: 'Opções', requiredChoice: 'Obrigatório {used}/{needed}', extraOptions: 'opções', addMoreItems: 'Adicione mais itens', productReviews: 'Avaliações do produto', allReviewsTitle: 'Todas as avaliações', reviewFallback: 'Cliente gostou deste produto.', leaveReview: 'Deixar avaliação', shareReviewCta: 'Conte também como foi sua experiência', firstReviewText: 'Ainda não há avaliações publicadas. Seja a primeira pessoa a contar como foi sua experiência.', mostOrderedBadge: 'Mais pedido', addChoices: 'Adicionar:', noteShort: 'Obs:', addFirst: 'Adicione produtos ao pedido primeiro.', selectSlotWarn: 'Selecione um horário para continuar.', minimumDeliveryWarn: 'Pedido mínimo para entrega: {value}.', postalWarn: 'Informe um código postal atendido pela loja.', addressWarn: 'Informe o endereço completo para entrega.',
+          addProduct: 'Adicionar {name}', options: 'Opções', requiredChoice: 'Obrigatório {used}/{needed}', extraOptions: 'opções', addMoreItems: 'Adicione mais itens', upsellOffer: 'Boa escolha', saveAmount: 'Economize {amount}', productReviews: 'Avaliações do produto', allReviewsTitle: 'Todas as avaliações', reviewFallback: 'Cliente gostou deste produto.', leaveReview: 'Deixar avaliação', shareReviewCta: 'Conte também como foi sua experiência', firstReviewText: 'Ainda não há avaliações publicadas. Seja a primeira pessoa a contar como foi sua experiência.', mostOrderedBadge: 'Mais pedido', addChoices: 'Adicionar:', noteShort: 'Obs:', addFirst: 'Adicione produtos ao pedido primeiro.', selectSlotWarn: 'Selecione um horário para continuar.', minimumDeliveryWarn: 'Pedido mínimo para entrega: {value}.', postalWarn: 'Informe um código postal atendido pela loja.', addressWarn: 'Informe o endereço completo para entrega.',
           perfectWith: 'Combina com', addedWith: 'Adicionado com', comboQtyLabel: 'Quantos quer?', comboQtyLock: 'Escolha a quantidade para selecionar as opções ↑',
           whatsappHello: 'Olá! Quero fazer um pedido em {name}:', schedule: 'Horário', hours: 'Horários', postal: 'Código postal', zone: 'Zona', address: 'Endereço completo', contact: 'Contacto', payment: 'Pagamento', observation: 'Observação', reviewsApproved: '{count} avaliações aprovadas.', footerText: 'Obrigada pela visita.', footerPowered: 'Loja online criada com BocaFood',
           authKicker: 'Acesso', authTitle: 'Entrar', authSignupTitle: 'Criar acesso', authText: 'Entre para acompanhar os seus pedidos e usar benefícios da loja.', authSignupText: 'Crie o seu acesso para acompanhar pedidos e consultar benefícios nesta loja.', authGoogle: 'Continuar com Google', authDivider: 'ou', authEmail: 'seu@email.com', authPassword: 'Senha', authSubmit: 'Entrar', authSignupSubmit: 'Criar acesso', authHelp: 'Ainda não tem conta?', authSignupHelp: 'Já tem conta?', authCreate: 'Criar acesso', authLoginLink: 'Entrar', close: 'Fechar', closeSearch: 'Fechar pesquisa', searchPlaceholder: 'Pesquisar produto...', searchEmpty: 'Nenhum produto encontrado.', searchHint: 'Digite o nome do produto para pesquisar.',
@@ -10631,7 +10971,7 @@
           receiving: 'Recepción', required: 'obligatorio', pickupAddress: 'Recogida en la dirección de la tienda.', selectPickup: 'Selecciona un horario de recogida', selectDelivery: 'Selecciona un horario de entrega', selectTime: 'Selecciona un horario', pickupDateLabel: 'Fecha de recogida', deliveryDateLabel: 'Fecha de entrega', noSlots: 'No hay horarios disponibles.', noFulfillment: 'No hay ningún modo de entrega o recogida disponible en este momento.', receivingTitle: '¿Cómo quieres recibirlo?', receivingSubtitle: 'Selecciona antes de confirmar tu pedido.', pickupAddressTitle: 'Dirección de recogida', savedAddressesTitle: '¿En qué dirección quieres recibir el pedido?', savedAddressesModalTitle: 'Direcciones guardadas', chooseSavedAddress: 'Elegir dirección guardada', newAddressHelp: 'Si quieres recibir el pedido en una dirección nueva o todavía no tienes una dirección guardada, empieza por el código postal.', scheduleQuestion: '¿Cuándo quieres recibir tu pedido?', clearOrder: 'Limpiar pedido', pickupTimeLabel: 'Horario de recogida', deliveryTimeLabel: 'Horario de entrega', deliveryAddressLabel: 'Dirección de entrega', addressNumberLabel: 'Número / portal', addressComplementLabel: 'Piso / puerta', addressCityLabel: 'Localidad', addressProvinceLabel: 'Provincia', addressCountryLabel: 'País', orderNoteLabel: 'Observación para el pedido', minimumDeliveryLabel: 'Pedido mínimo de entrega', minOrderLeft: 'Añade {value} más', savings: 'Ahorras', paymentRequired: 'Selecciona una forma de pago.', checkoutChoiceKicker: 'Pedido', checkoutChoiceTitle: '¿Cómo quieres continuar?', checkoutChoiceText: 'Inicia sesión para seguir tus pedidos y acumular puntos. Si continúas como invitado, no acumularás puntos.', checkoutChoiceLogin: 'Entrar o crear acceso', checkoutChoiceGuest: 'Continuar como invitado', orderSentKicker: 'Pedido', orderSentTitle: 'Pedido enviado', orderSentSuccess: 'Pedido enviado por WhatsApp. Si necesitas ayuda, escribe a la tienda en la conversación que se acaba de abrir.', orderSentHelp: 'Referencia del pedido: {ref}. La tienda continuará la atención por WhatsApp.', orderSentButton: 'Entendido',
           customer: 'Cliente', name: 'Nombre', phone: 'WhatsApp', paymentNotes: '¿Cómo vas a pagar?', paymentMethod: 'Forma de pago', select: 'Selecciona', orderNote: 'Observación para el pedido', productNote: 'Observación para este producto',
           coupon: 'Cupón', apply: 'Aplicar', couponApplied: 'Cupón {code} aplicado', subtotal: 'Subtotal', discount: 'Descuento', promotionDiscount: 'Promociones', total: 'Total', sendWhatsApp: 'Enviar pedido por WhatsApp', addToOrder: 'Añadir al pedido',
-          addProduct: 'Añadir {name}', options: 'Opciones', requiredChoice: 'Obligatorio {used}/{needed}', extraOptions: 'opciones', addMoreItems: 'Añade más productos', productReviews: 'Reseñas del producto', allReviewsTitle: 'Todas las reseñas', reviewFallback: 'A un cliente le gustó este producto.', leaveReview: 'Dejar reseña', shareReviewCta: 'Cuéntanos también cómo fue tu experiencia', firstReviewText: 'Todavía no hay reseñas publicadas. Sé la primera persona en contar cómo fue tu experiencia.', mostOrderedBadge: 'Más pedido', addChoices: 'Añadir:', noteShort: 'Nota:', addFirst: 'Añade productos al pedido primero.', selectSlotWarn: 'Selecciona un horario para continuar.', minimumDeliveryWarn: 'Pedido mínimo para entrega: {value}.', postalWarn: 'Indica un código postal atendido por la tienda.', addressWarn: 'Indica la dirección completa para la entrega.',
+          addProduct: 'Añadir {name}', options: 'Opciones', requiredChoice: 'Obligatorio {used}/{needed}', extraOptions: 'opciones', addMoreItems: 'Añade más productos', upsellOffer: 'Buena elección', saveAmount: 'Ahorras {amount}', productReviews: 'Reseñas del producto', allReviewsTitle: 'Todas las reseñas', reviewFallback: 'A un cliente le gustó este producto.', leaveReview: 'Dejar reseña', shareReviewCta: 'Cuéntanos también cómo fue tu experiencia', firstReviewText: 'Todavía no hay reseñas publicadas. Sé la primera persona en contar cómo fue tu experiencia.', mostOrderedBadge: 'Más pedido', addChoices: 'Añadir:', noteShort: 'Nota:', addFirst: 'Añade productos al pedido primero.', selectSlotWarn: 'Selecciona un horario para continuar.', minimumDeliveryWarn: 'Pedido mínimo para entrega: {value}.', postalWarn: 'Indica un código postal atendido por la tienda.', addressWarn: 'Indica la dirección completa para la entrega.',
           perfectWith: 'Perfecto con', addedWith: 'Añadido con', comboQtyLabel: '¿Cuántos quieres?', comboQtyLock: 'Elige la cantidad para elegir las opciones ↑',
           whatsappHello: '¡Hola! Quiero hacer un pedido en {name}:', schedule: 'Horario', hours: 'Horarios', postal: 'Código postal', zone: 'Zona', address: 'Dirección completa', contact: 'Contacto', payment: 'Pago', observation: 'Observación', reviewsApproved: '{count} reseñas aprobadas.', footerText: 'Gracias por visitarnos.', footerPowered: 'Tienda online creada con BocaFood',
           authKicker: 'Acceso', authTitle: 'Iniciar sesión', authSignupTitle: 'Crear acceso', authText: 'Entra para seguir tus pedidos y usar beneficios de la tienda.', authSignupText: 'Crea tu acceso para seguir pedidos y consultar tus beneficios en esta tienda.', authGoogle: 'Continuar con Google', authDivider: 'o', authEmail: 'tu@email.com', authPassword: 'Contraseña', authSubmit: 'Iniciar sesión', authSignupSubmit: 'Crear acceso', authHelp: '¿Aún no tienes cuenta?', authSignupHelp: '¿Ya tienes cuenta?', authCreate: 'Crear acceso', authLoginLink: 'Iniciar sesión', close: 'Cerrar', closeSearch: 'Cerrar búsqueda', searchPlaceholder: 'Buscar producto...', searchEmpty: 'No encontramos productos.', searchHint: 'Escribe el nombre del producto para buscar.',
@@ -10647,7 +10987,7 @@
           receiving: 'Fulfilment', required: 'required', pickupAddress: 'Pickup at the store address.', selectPickup: 'Select a pickup time', selectDelivery: 'Select a delivery time', selectTime: 'Select a time', pickupDateLabel: 'Pickup date', deliveryDateLabel: 'Delivery date', noSlots: 'No times available.', noFulfillment: 'No fulfilment option is available right now.', receivingTitle: 'How would you like to receive it?', receivingSubtitle: 'Select this before confirming your order.', pickupAddressTitle: 'Pickup address', savedAddressesTitle: 'Which address should receive the order?', savedAddressesModalTitle: 'Saved addresses', chooseSavedAddress: 'Choose saved address', newAddressHelp: 'If you want to receive the order at a new address or do not have a saved address yet, start with the postal code.', scheduleQuestion: 'When would you like to receive your order?', clearOrder: 'Clear order', pickupTimeLabel: 'Pickup time', deliveryTimeLabel: 'Delivery time', deliveryAddressLabel: 'Delivery address', addressNumberLabel: 'Number / building', addressComplementLabel: 'Floor / door', addressCityLabel: 'City', addressProvinceLabel: 'Province', addressCountryLabel: 'Country', orderNoteLabel: 'Order note', minimumDeliveryLabel: 'Minimum delivery order', minOrderLeft: 'Add {value} more', savings: 'You save', paymentRequired: 'Select a payment method.', checkoutChoiceKicker: 'Order', checkoutChoiceTitle: 'How do you want to continue?', checkoutChoiceText: 'Sign in to track orders and earn points. If you continue as a guest, points will not be added.', checkoutChoiceLogin: 'Sign in or create access', checkoutChoiceGuest: 'Continue as guest', orderSentKicker: 'Order', orderSentTitle: 'Order sent', orderSentSuccess: 'Order sent via WhatsApp. If you need help, message the store in the conversation that just opened.', orderSentHelp: 'Order reference: {ref}. The store will continue the conversation on WhatsApp.', orderSentButton: 'Got it',
           customer: 'Customer', name: 'Name', phone: 'WhatsApp', paymentNotes: 'How will you pay?', paymentMethod: 'Payment method', select: 'Select', orderNote: 'Order note', productNote: 'Note for this product',
           coupon: 'Coupon', apply: 'Apply', couponApplied: 'Coupon {code} applied', subtotal: 'Subtotal', discount: 'Discount', promotionDiscount: 'Promotions', total: 'Total', sendWhatsApp: 'Send order via WhatsApp', addToOrder: 'Add to order',
-          addProduct: 'Add {name}', options: 'Options', requiredChoice: 'Required {used}/{needed}', extraOptions: 'options', addMoreItems: 'Add more items', productReviews: 'Product reviews', allReviewsTitle: 'All reviews', reviewFallback: 'A customer liked this product.', leaveReview: 'Leave a review', shareReviewCta: 'Share your experience too', firstReviewText: 'There are no published reviews yet. Be the first person to share your experience.', mostOrderedBadge: 'Most ordered', addChoices: 'Add:', noteShort: 'Note:', addFirst: 'Add products to the order first.', selectSlotWarn: 'Select a time to continue.', minimumDeliveryWarn: 'Minimum delivery order: {value}.', postalWarn: 'Enter a postal code served by the store.', addressWarn: 'Enter the full delivery address.',
+          addProduct: 'Add {name}', options: 'Options', requiredChoice: 'Required {used}/{needed}', extraOptions: 'options', addMoreItems: 'Add more items', upsellOffer: 'Smart add-on', saveAmount: 'Save {amount}', productReviews: 'Product reviews', allReviewsTitle: 'All reviews', reviewFallback: 'A customer liked this product.', leaveReview: 'Leave a review', shareReviewCta: 'Share your experience too', firstReviewText: 'There are no published reviews yet. Be the first person to share your experience.', mostOrderedBadge: 'Most ordered', addChoices: 'Add:', noteShort: 'Note:', addFirst: 'Add products to the order first.', selectSlotWarn: 'Select a time to continue.', minimumDeliveryWarn: 'Minimum delivery order: {value}.', postalWarn: 'Enter a postal code served by the store.', addressWarn: 'Enter the full delivery address.',
           perfectWith: 'Perfect with', addedWith: 'Added with', comboQtyLabel: 'How many would you like?', comboQtyLock: 'Choose the quantity to select the options ↑',
           whatsappHello: 'Hi! I want to place an order at {name}:', schedule: 'Time', hours: 'Hours', postal: 'Postal code', zone: 'Zone', address: 'Full address', contact: 'Contact', payment: 'Payment', observation: 'Note', reviewsApproved: '{count} approved reviews.', footerText: 'Thanks for visiting us.', footerPowered: 'Online store created with BocaFood',
           authKicker: 'Access', authTitle: 'Sign in', authSignupTitle: 'Create access', authText: 'Sign in to follow your orders and use store benefits.', authSignupText: 'Create access to follow orders and check your benefits in this store.', authGoogle: 'Continue with Google', authDivider: 'or', authEmail: 'your@email.com', authPassword: 'Password', authSubmit: 'Sign in', authSignupSubmit: 'Create access', authHelp: 'No account yet?', authSignupHelp: 'Already have an account?', authCreate: 'Create access', authLoginLink: 'Sign in', close: 'Close', closeSearch: 'Close search', searchPlaceholder: 'Search product...', searchEmpty: 'No products found.', searchHint: 'Type a product name to search.',
@@ -10663,7 +11003,7 @@
           receiving: 'Réception', required: 'obligatoire', pickupAddress: 'Retrait à l’adresse de la boutique.', selectPickup: 'Sélectionnez un horaire de retrait', selectDelivery: 'Sélectionnez un horaire de livraison', selectTime: 'Sélectionnez un horaire', pickupDateLabel: 'Date de retrait', deliveryDateLabel: 'Date de livraison', noSlots: 'Aucun horaire disponible.', noFulfillment: 'Aucun mode de retrait ou livraison n’est disponible pour le moment.', receivingTitle: 'Comment voulez-vous recevoir votre commande ?', receivingSubtitle: 'Sélectionnez avant de confirmer votre commande.', pickupAddressTitle: 'Adresse de retrait', savedAddressesTitle: 'À quelle adresse voulez-vous recevoir la commande ?', savedAddressesModalTitle: 'Adresses enregistrées', chooseSavedAddress: 'Choisir une adresse enregistrée', newAddressHelp: 'Si vous voulez recevoir la commande à une nouvelle adresse ou si vous n’avez pas encore d’adresse enregistrée, commencez par le code postal.', scheduleQuestion: 'Quand voulez-vous recevoir votre commande ?', clearOrder: 'Vider la commande', pickupTimeLabel: 'Horaire de retrait', deliveryTimeLabel: 'Horaire de livraison', deliveryAddressLabel: 'Adresse de livraison', addressNumberLabel: 'Numéro / bâtiment', addressComplementLabel: 'Étage / porte', addressCityLabel: 'Ville', addressProvinceLabel: 'Province', addressCountryLabel: 'Pays', orderNoteLabel: 'Remarque pour la commande', minimumDeliveryLabel: 'Commande minimum pour livraison', minOrderLeft: 'Ajoutez encore {value}', savings: 'Vous économisez', paymentRequired: 'Sélectionnez un mode de paiement.', checkoutChoiceKicker: 'Commande', checkoutChoiceTitle: 'Comment voulez-vous continuer ?', checkoutChoiceText: 'Connectez-vous pour suivre vos commandes et cumuler des points. Si vous continuez comme invité, les points ne seront pas ajoutés.', checkoutChoiceLogin: 'Se connecter ou créer un accès', checkoutChoiceGuest: 'Continuer comme invité', orderSentKicker: 'Commande', orderSentTitle: 'Commande envoyée', orderSentSuccess: 'Commande envoyée via WhatsApp. Si vous avez besoin d’aide, écrivez à la boutique dans la conversation ouverte.', orderSentHelp: 'Référence de commande : {ref}. La boutique continuera l’échange sur WhatsApp.', orderSentButton: 'Compris',
           customer: 'Client', name: 'Nom', phone: 'WhatsApp', paymentNotes: 'Comment souhaitez-vous payer ?', paymentMethod: 'Mode de paiement', select: 'Sélectionnez', orderNote: 'Remarque pour la commande', productNote: 'Remarque pour ce produit',
           coupon: 'Coupon', apply: 'Appliquer', couponApplied: 'Coupon {code} appliqué', subtotal: 'Sous-total', discount: 'Réduction', promotionDiscount: 'Promotions', total: 'Total', sendWhatsApp: 'Envoyer la commande par WhatsApp', addToOrder: 'Ajouter à la commande',
-          addProduct: 'Ajouter {name}', options: 'Options', requiredChoice: 'Obligatoire {used}/{needed}', extraOptions: 'options', addMoreItems: 'Ajouter d’autres articles', productReviews: 'Avis du produit', allReviewsTitle: 'Tous les avis', reviewFallback: 'Un client a aimé ce produit.', leaveReview: 'Laisser un avis', shareReviewCta: 'Racontez vous aussi votre expérience', firstReviewText: 'Aucun avis publié pour le moment. Soyez la première personne à raconter votre expérience.', mostOrderedBadge: 'Le plus commandé', addChoices: 'Ajouter :', noteShort: 'Remarque :', addFirst: 'Ajoutez d’abord des produits à la commande.', selectSlotWarn: 'Sélectionnez un horaire pour continuer.', minimumDeliveryWarn: 'Commande minimum pour livraison : {value}.', postalWarn: 'Indiquez un code postal desservi par la boutique.', addressWarn: 'Indiquez l’adresse complète pour la livraison.',
+          addProduct: 'Ajouter {name}', options: 'Options', requiredChoice: 'Obligatoire {used}/{needed}', extraOptions: 'options', addMoreItems: 'Ajouter d’autres articles', upsellOffer: 'Bon choix', saveAmount: 'Économisez {amount}', productReviews: 'Avis du produit', allReviewsTitle: 'Tous les avis', reviewFallback: 'Un client a aimé ce produit.', leaveReview: 'Laisser un avis', shareReviewCta: 'Racontez vous aussi votre expérience', firstReviewText: 'Aucun avis publié pour le moment. Soyez la première personne à raconter votre expérience.', mostOrderedBadge: 'Le plus commandé', addChoices: 'Ajouter :', noteShort: 'Remarque :', addFirst: 'Ajoutez d’abord des produits à la commande.', selectSlotWarn: 'Sélectionnez un horaire pour continuer.', minimumDeliveryWarn: 'Commande minimum pour livraison : {value}.', postalWarn: 'Indiquez un code postal desservi par la boutique.', addressWarn: 'Indiquez l’adresse complète pour la livraison.',
           perfectWith: 'Parfait avec', addedWith: 'Ajouté avec', comboQtyLabel: 'Combien en voulez-vous ?', comboQtyLock: 'Choisissez la quantité pour sélectionner les options ↑',
           whatsappHello: 'Bonjour ! Je souhaite passer une commande chez {name} :', schedule: 'Horaire', hours: 'Horaires', postal: 'Code postal', zone: 'Zone', address: 'Adresse complète', contact: 'Contact', payment: 'Paiement', observation: 'Remarque', reviewsApproved: '{count} avis approuvés.', footerText: 'Merci pour votre visite.', footerPowered: 'Boutique en ligne créée avec BocaFood',
           authKicker: 'Accès', authTitle: 'Se connecter', authSignupTitle: 'Créer un accès', authText: 'Connectez-vous pour suivre vos commandes et utiliser les avantages de la boutique.', authSignupText: 'Créez votre accès pour suivre vos commandes et consulter vos avantages dans cette boutique.', authGoogle: 'Continuer avec Google', authDivider: 'ou', authEmail: 'votre@email.com', authPassword: 'Mot de passe', authSubmit: 'Se connecter', authSignupSubmit: 'Créer un accès', authHelp: 'Pas encore de compte ?', authSignupHelp: 'Vous avez déjà un compte ?', authCreate: 'Créer un accès', authLoginLink: 'Se connecter', close: 'Fermer', closeSearch: 'Fermer la recherche', searchPlaceholder: 'Rechercher un produit...', searchEmpty: 'Aucun produit trouvé.', searchHint: 'Saisissez le nom du produit à rechercher.',
@@ -10686,6 +11026,198 @@
       function t(key, vars) {
         var dict = UI_TEXT[currentLanguage()] || UI_TEXT['es-ES'];
         var value = dict[key] || UI_TEXT['es-ES'][key] || key;
+        Object.keys(vars || {}).forEach(function (name) {
+          value = value.replace(new RegExp('\\{' + name + '\\}', 'g'), vars[name]);
+        });
+        return value;
+      }
+
+      var CART_UPSELL_TEXT = {
+        'pt-BR': {
+          kicker: 'Sugestão para seu pedido',
+          defaultTitle: 'Complete seu pedido',
+          defaultText: 'Tem uma oportunidade especial para deixar seu pedido ainda melhor.',
+          benefitLabel: 'Benefício disponível',
+          accept: 'Sim, quero aproveitar',
+          skip: 'Agora não',
+          freeShippingText: 'Hoje você pode receber seu pedido com entrega grátis.',
+          cartGoalText: 'Seu pedido acaba de liberar uma vantagem especial.',
+          giftProductText: 'Você leva {product} de presente para aproveitar mais.',
+          giftDefaultText: 'Tem um presente esperando neste pedido.',
+          bundleText: 'Leve mais unidades e aproveite um preço melhor.',
+          comboText: 'Complete o combo e aproveite mais por menos.',
+          productText: '{product} combina muito bem com o que você escolheu.',
+          defaultOpportunity: 'Tem uma oportunidade especial para melhorar seu pedido.',
+          freeShippingDetail: 'Uma boa forma de fechar a compra economizando na entrega.',
+          cartGoalDetail: 'Aproveite agora e deixe seu pedido mais completo.',
+          giftDetail: 'Um detalhe extra para deixar seu pedido mais especial.',
+          bundleDetail: 'Perfeito para compartilhar, guardar ou repetir depois.',
+          comboDetail: 'Uma combinação pensada para você aproveitar mais.',
+          productDetail: 'Fica perfeito para acompanhar o que você já escolheu.',
+          defaultDetail: 'Você pode aproveitar agora ou seguir com seu pedido como está.',
+          nowPill: 'Só por agora',
+          freeShippingPill: 'Entrega grátis',
+          giftPill: 'Presente incluído',
+          bestPricePill: 'Melhor preço',
+          freeShippingMeta: 'Entrega grátis',
+          giftMeta: '{product} grátis',
+          giftDefaultMeta: 'Presente disponível',
+          bundleMeta: 'Leve {qty}, pague {pay}',
+          comboMeta: 'Combo por {price}',
+          comboDefaultMeta: 'Combo especial',
+          pctMeta: '{value}% de desconto',
+          eurMeta: '{value} de desconto',
+          specialMeta: 'Preço especial'
+        },
+        'pt-PT': {
+          kicker: 'Sugestão para o seu pedido',
+          defaultTitle: 'Complete o seu pedido',
+          defaultText: 'Há uma oportunidade especial para deixar o seu pedido ainda melhor.',
+          benefitLabel: 'Benefício disponível',
+          accept: 'Sim, quero aproveitar',
+          skip: 'Agora não',
+          freeShippingText: 'Hoje pode receber o seu pedido com entrega grátis.',
+          cartGoalText: 'O seu pedido acabou de desbloquear uma vantagem especial.',
+          giftProductText: 'Leva {product} de oferta para aproveitar mais.',
+          giftDefaultText: 'Há uma oferta à espera neste pedido.',
+          bundleText: 'Leve mais unidades e aproveite um preço melhor.',
+          comboText: 'Complete o combo e aproveite mais por menos.',
+          productText: '{product} combina muito bem com o que escolheu.',
+          defaultOpportunity: 'Há uma oportunidade especial para melhorar o seu pedido.',
+          freeShippingDetail: 'Uma boa forma de fechar a compra poupando na entrega.',
+          cartGoalDetail: 'Aproveite agora e deixe o seu pedido mais completo.',
+          giftDetail: 'Um detalhe extra para deixar o seu pedido mais especial.',
+          bundleDetail: 'Perfeito para partilhar, guardar ou repetir depois.',
+          comboDetail: 'Uma combinação pensada para aproveitar mais.',
+          productDetail: 'Fica perfeito para acompanhar o que já escolheu.',
+          defaultDetail: 'Pode aproveitar agora ou seguir com o pedido como está.',
+          nowPill: 'Só por agora',
+          freeShippingPill: 'Entrega grátis',
+          giftPill: 'Oferta incluída',
+          bestPricePill: 'Melhor preço',
+          freeShippingMeta: 'Entrega grátis',
+          giftMeta: '{product} grátis',
+          giftDefaultMeta: 'Oferta disponível',
+          bundleMeta: 'Leve {qty}, pague {pay}',
+          comboMeta: 'Combo por {price}',
+          comboDefaultMeta: 'Combo especial',
+          pctMeta: '{value}% de desconto',
+          eurMeta: '{value} de desconto',
+          specialMeta: 'Preço especial'
+        },
+        'es-ES': {
+          kicker: 'Sugerencia para tu pedido',
+          defaultTitle: 'Completa tu pedido',
+          defaultText: 'Hay una oportunidad especial para mejorar tu pedido.',
+          benefitLabel: 'Beneficio disponible',
+          accept: 'Sí, quiero aprovechar',
+          skip: 'Ahora no',
+          freeShippingText: 'Hoy puedes llevarte tu pedido con envío gratis.',
+          cartGoalText: 'Tu pedido acaba de liberar una ventaja especial.',
+          giftProductText: 'Te llevas {product} de regalo para disfrutar más.',
+          giftDefaultText: 'Tienes un regalo esperando en este pedido.',
+          bundleText: 'Lleva más unidades y aprovecha un precio mejor.',
+          comboText: 'Completa el combo y disfruta más por menos.',
+          productText: '{product} combina muy bien con tu pedido.',
+          defaultOpportunity: 'Hay una oportunidad especial para mejorar tu pedido.',
+          freeShippingDetail: 'Una buena forma de cerrar la compra y ahorrar en la entrega.',
+          cartGoalDetail: 'Aprovéchala ahora y deja tu pedido más completo.',
+          giftDetail: 'Un detalle extra para hacer tu pedido más especial.',
+          bundleDetail: 'Perfecto para compartir, guardar o repetir después.',
+          comboDetail: 'Una combinación pensada para que disfrutes más.',
+          productDetail: 'Queda perfecto para acompañar lo que ya elegiste.',
+          defaultDetail: 'Puedes aprovecharla ahora o seguir con tu pedido como está.',
+          nowPill: 'Solo por ahora',
+          freeShippingPill: 'Envío gratis',
+          giftPill: 'Regalo incluido',
+          bestPricePill: 'Mejor precio',
+          freeShippingMeta: 'Envío gratis',
+          giftMeta: '{product} gratis',
+          giftDefaultMeta: 'Regalo disponible',
+          bundleMeta: 'Lleva {qty}, paga {pay}',
+          comboMeta: 'Combo por {price}',
+          comboDefaultMeta: 'Combo especial',
+          pctMeta: '{value}% de descuento',
+          eurMeta: '{value} de descuento',
+          specialMeta: 'Precio especial'
+        },
+        en: {
+          kicker: 'Suggestion for your order',
+          defaultTitle: 'Complete your order',
+          defaultText: 'There is a special opportunity to make your order even better.',
+          benefitLabel: 'Available benefit',
+          accept: 'Yes, I want it',
+          skip: 'Not now',
+          freeShippingText: 'Today you can get this order with free delivery.',
+          cartGoalText: 'Your order just unlocked a special benefit.',
+          giftProductText: 'You get {product} as a gift to enjoy more.',
+          giftDefaultText: 'There is a gift waiting in this order.',
+          bundleText: 'Add more units and get a better price.',
+          comboText: 'Complete the combo and enjoy more for less.',
+          productText: '{product} goes very well with your order.',
+          defaultOpportunity: 'There is a special opportunity to improve your order.',
+          freeShippingDetail: 'A nice way to finish your purchase and save on delivery.',
+          cartGoalDetail: 'Take advantage now and make your order more complete.',
+          giftDetail: 'An extra treat to make your order more special.',
+          bundleDetail: 'Perfect to share, save or enjoy again later.',
+          comboDetail: 'A combination made so you can enjoy more.',
+          productDetail: 'It is perfect with what you already chose.',
+          defaultDetail: 'You can take it now or continue with your order as it is.',
+          nowPill: 'Just for now',
+          freeShippingPill: 'Free delivery',
+          giftPill: 'Gift included',
+          bestPricePill: 'Better price',
+          freeShippingMeta: 'Free delivery',
+          giftMeta: '{product} free',
+          giftDefaultMeta: 'Gift available',
+          bundleMeta: 'Take {qty}, pay {pay}',
+          comboMeta: 'Combo for {price}',
+          comboDefaultMeta: 'Special combo',
+          pctMeta: '{value}% off',
+          eurMeta: '{value} off',
+          specialMeta: 'Special price'
+        },
+        fr: {
+          kicker: 'Suggestion pour votre commande',
+          defaultTitle: 'Complétez votre commande',
+          defaultText: 'Une belle occasion peut rendre votre commande encore meilleure.',
+          benefitLabel: 'Avantage disponible',
+          accept: 'Oui, j’en profite',
+          skip: 'Pas maintenant',
+          freeShippingText: 'Aujourd’hui, vous pouvez recevoir cette commande avec livraison offerte.',
+          cartGoalText: 'Votre commande vient de débloquer un avantage spécial.',
+          giftProductText: 'Vous recevez {product} en cadeau pour en profiter davantage.',
+          giftDefaultText: 'Un cadeau vous attend dans cette commande.',
+          bundleText: 'Ajoutez plus d’unités et profitez d’un meilleur prix.',
+          comboText: 'Complétez le combo et profitez de plus pour moins.',
+          productText: '{product} accompagne très bien votre commande.',
+          defaultOpportunity: 'Une belle occasion peut améliorer votre commande.',
+          freeShippingDetail: 'Une bonne façon de finaliser l’achat en économisant sur la livraison.',
+          cartGoalDetail: 'Profitez-en maintenant et rendez votre commande plus complète.',
+          giftDetail: 'Une petite attention en plus pour rendre votre commande spéciale.',
+          bundleDetail: 'Parfait pour partager, garder ou reprendre plus tard.',
+          comboDetail: 'Une combinaison pensée pour profiter davantage.',
+          productDetail: 'C’est parfait avec ce que vous avez déjà choisi.',
+          defaultDetail: 'Vous pouvez en profiter maintenant ou continuer avec votre commande actuelle.',
+          nowPill: 'Juste maintenant',
+          freeShippingPill: 'Livraison offerte',
+          giftPill: 'Cadeau inclus',
+          bestPricePill: 'Meilleur prix',
+          freeShippingMeta: 'Livraison offerte',
+          giftMeta: '{product} offert',
+          giftDefaultMeta: 'Cadeau disponible',
+          bundleMeta: 'Prenez {qty}, payez {pay}',
+          comboMeta: 'Combo à {price}',
+          comboDefaultMeta: 'Combo spécial',
+          pctMeta: '{value}% de remise',
+          eurMeta: '{value} de remise',
+          specialMeta: 'Prix spécial'
+        }
+      };
+
+      function cartUpsellText(key, vars) {
+        var dict = CART_UPSELL_TEXT[currentLanguage()] || CART_UPSELL_TEXT['es-ES'];
+        var value = dict[key] || CART_UPSELL_TEXT['es-ES'][key] || key;
         Object.keys(vars || {}).forEach(function (name) {
           value = value.replace(new RegExp('\\{' + name + '\\}', 'g'), vars[name]);
         });
@@ -10784,8 +11316,10 @@
         if (heads[1]) { heads[1].querySelector('h2').textContent = t('reviews'); var reviewsLink = heads[1].querySelector('a'); if (reviewsLink) reviewsLink.textContent = t('seeAll'); }
         var featuredAction = document.querySelector('.featured-action');
         if (featuredAction) featuredAction.textContent = t('featuredAction');
-        document.querySelector('.cart-bar').setAttribute('aria-label', t('cartView'));
-        document.querySelector('.cart-copy strong').textContent = t('cartView');
+        var cartButtonLabel = firstText(cfg.cartButtonText, t('cartView'));
+        var finalButtonLabel = firstText(cfg.mainButtonText, t('sendWhatsApp'));
+        document.querySelector('.cart-bar').setAttribute('aria-label', cartButtonLabel);
+        document.querySelector('.cart-copy strong').textContent = cartButtonLabel;
         document.querySelector('.cart-cta').textContent = t('openCart');
         document.querySelector('.cart-title strong').textContent = t('yourOrder');
         var receivingTitle = document.getElementById('cart-receiving-title');
@@ -10858,7 +11392,7 @@
         document.querySelector('#coupon-discount-row span').textContent = t('discount');
         document.querySelector('#fee-row span').textContent = t('delivery');
         document.querySelector('.cart-total span').textContent = t('total');
-        document.getElementById('cart-send').textContent = t('sendWhatsApp');
+        document.getElementById('cart-send').textContent = finalButtonLabel;
         document.getElementById('modal-add').textContent = t('addToOrder');
         document.querySelector('.store-footer-powered').textContent = t('footerPowered');
       }
@@ -10880,6 +11414,62 @@
         var apple = document.getElementById('site-apple-touch-icon');
         if (fav) fav.href = favicon;
         if (apple) apple.href = favicon;
+      }
+
+      function upsertMeta(selectorType, key, attr, value) {
+        value = firstText(value);
+        if (!value) return;
+        var selector = 'meta[' + selectorType + '="' + key + '"]';
+        var meta = document.head.querySelector(selector);
+        if (!meta) {
+          meta = document.createElement('meta');
+          meta.setAttribute(selectorType, key);
+          document.head.appendChild(meta);
+        }
+        meta.setAttribute(attr || 'content', value);
+      }
+
+      function upsertCanonical(url) {
+        url = firstText(url);
+        if (!url) return;
+        var link = document.head.querySelector('link[rel="canonical"]');
+        if (!link) {
+          link = document.createElement('link');
+          link.setAttribute('rel', 'canonical');
+          document.head.appendChild(link);
+        }
+        link.setAttribute('href', url);
+      }
+
+      function applySeoMeta() {
+        var name = firstText(cfg.publicStoreName, cfg.publicName, cfg.siteName, cfg.businessName, cfg.shortStoreName, 'Boca Food');
+        var city = firstText(seoCfg.city, cfg.city, cfg.storeCity);
+        var keyword = firstText(seoCfg.mainKeyword, cfg.mainKeyword);
+        var hasSeoTitleContext = !!(seoCfg.title || seoCfg.mainKeyword || seoCfg.city);
+        var fallbackTitle = hasSeoTitleContext && name ? (name + (keyword ? ' | ' + keyword : '') + (city ? ' em ' + city : '')) : (name + ' - ' + t('storeOnline'));
+        var fallbackDesc = firstText(cfg.storeDescription, cfg.description, cfg.aboutStore, cfg.slogan);
+        var title = firstText(seoCfg.title, fallbackTitle);
+        var desc = firstText(seoCfg.description, fallbackDesc, name);
+        var shareTitle = firstText(seoCfg.shareCustomEnabled ? seoCfg.shareTitle : '', seoCfg.ogTitle, seoCfg.shareTitle, title);
+        var shareDesc = firstText(seoCfg.shareCustomEnabled ? seoCfg.shareDescription : '', seoCfg.ogDescription, seoCfg.shareDescription, desc);
+        var image = firstText(seoCfg.ogImage, seoCfg.imageUrl, cfg.coverImageUrl, cfg.bannerUrl, cfg.logoUrl, cfg.avatarUrl);
+        var canonical = firstText(seoCfg.canonicalUrl, window.location.origin + window.location.pathname);
+        var keywords = [seoCfg.mainKeyword, seoCfg.city, seoCfg.neighborhoods, seoCfg.deliveryArea].filter(Boolean).join(', ');
+
+        if (title) document.title = title;
+        upsertMeta('name', 'description', 'content', desc);
+        upsertMeta('name', 'keywords', 'content', keywords);
+        upsertMeta('property', 'og:type', 'content', 'website');
+        upsertMeta('property', 'og:title', 'content', shareTitle);
+        upsertMeta('property', 'og:description', 'content', shareDesc);
+        upsertMeta('property', 'og:url', 'content', canonical);
+        upsertMeta('property', 'og:site_name', 'content', name);
+        upsertMeta('property', 'og:image', 'content', image);
+        upsertMeta('name', 'twitter:card', 'content', image ? 'summary_large_image' : 'summary');
+        upsertMeta('name', 'twitter:title', 'content', shareTitle);
+        upsertMeta('name', 'twitter:description', 'content', shareDesc);
+        upsertMeta('name', 'twitter:image', 'content', image);
+        upsertCanonical(canonical);
       }
 
       function weeklyHoursRows() {
@@ -10921,6 +11511,23 @@
         return (parts[0] || 0) * 60 + (isFinite(parts[1]) ? parts[1] : 0);
       }
 
+      function firstTimeValue(row, keys) {
+        row = row || {};
+        for (var i = 0; i < keys.length; i += 1) {
+          var value = row[keys[i]];
+          if (value != null && String(value).trim()) return String(value).trim();
+        }
+        return '';
+      }
+
+      function boolValue(value) {
+        if (value === true || value === false) return value;
+        var normalized = String(value == null ? '' : value).trim().toLowerCase();
+        if (['true', '1', 'yes', 'sim', 'on'].indexOf(normalized) >= 0) return true;
+        if (['false', '0', 'no', 'nao', 'não', 'off'].indexOf(normalized) >= 0) return false;
+        return null;
+      }
+
       function timeFromMinutes(value) {
         value = Math.max(0, Math.min(1439, Number(value) || 0));
         return pad2(Math.floor(value / 60)) + ':' + pad2(value % 60);
@@ -10940,10 +11547,13 @@
         var groups = {};
         rows.slice(0, 7).forEach(function (row, index) {
           row = row || {};
-          if (row.closed || row.enabled === false) return;
           var periods = [];
-          if (row.open && row.close) periods.push(row.open + '-' + row.close);
-          if (row.enabled2 && row.open2 && row.close2) periods.push(row.open2 + '-' + row.close2);
+          var open = firstTimeValue(row, ['open', 'start', 'from', 'abre', 'openingTime', 'startTime']);
+          var close = firstTimeValue(row, ['close', 'end', 'to', 'fecha', 'closingTime', 'endTime']);
+          var open2 = firstTimeValue(row, ['open2', 'start2', 'from2', 'abre2', 'openingTime2', 'secondOpen']);
+          var close2 = firstTimeValue(row, ['close2', 'end2', 'to2', 'fecha2', 'closingTime2', 'secondClose']);
+          if (boolValue(row.closed) !== true && boolValue(row.enabled) !== false && open && close) periods.push(open + '-' + close);
+          if (boolValue(row.closed2) !== true && boolValue(row.enabled2) !== false && open2 && close2) periods.push(open2 + '-' + close2);
           if (!periods.length) return;
           var label = periods.join(' / ');
           if (!groups[label]) groups[label] = [];
@@ -10985,10 +11595,13 @@
         var fallbackStart = configuredTime(type, 'StartTime', type === 'delivery' ? '12:30' : '12:00');
         var fallbackEnd = configuredTime(type, 'EndTime', '22:00');
         if (rows.length && !row) return [];
-        if (row && (row.closed || row.enabled === false)) return [];
         var periods = [];
-        if (row && row.open && row.close) periods.push({ start: row.open, end: row.close });
-        if (row && row.enabled2 && row.open2 && row.close2) periods.push({ start: row.open2, end: row.close2 });
+        var open = firstTimeValue(row, ['open', 'start', 'from', 'abre', 'openingTime', 'startTime']);
+        var close = firstTimeValue(row, ['close', 'end', 'to', 'fecha', 'closingTime', 'endTime']);
+        var open2 = firstTimeValue(row, ['open2', 'start2', 'from2', 'abre2', 'openingTime2', 'secondOpen']);
+        var close2 = firstTimeValue(row, ['close2', 'end2', 'to2', 'fecha2', 'closingTime2', 'secondClose']);
+        if (row && boolValue(row.closed) !== true && boolValue(row.enabled) !== false && open && close) periods.push({ start: open, end: close });
+        if (row && boolValue(row.closed2) !== true && boolValue(row.enabled2) !== false && open2 && close2) periods.push({ start: open2, end: close2 });
         if (!periods.length && !rows.length) periods.push({ start: fallbackStart, end: fallbackEnd });
         return periods;
       }
@@ -11017,6 +11630,14 @@
         if (raw === 'manual_open' || raw === 'manual_closed') return raw;
         if (raw === 'manual') return 'manual';
         if (raw === 'auto' || raw === 'automatic' || raw === 'automatico' || raw === 'automático') return 'auto';
+        var rows = weeklyHoursRows();
+        var hasSchedule = rows.some(function (row) {
+          return row && (
+            (firstTimeValue(row, ['open', 'start', 'from', 'abre', 'openingTime', 'startTime']) && firstTimeValue(row, ['close', 'end', 'to', 'fecha', 'closingTime', 'endTime'])) ||
+            (firstTimeValue(row, ['open2', 'start2', 'from2', 'abre2', 'openingTime2', 'secondOpen']) && firstTimeValue(row, ['close2', 'end2', 'to2', 'fecha2', 'closingTime2', 'secondClose']))
+          );
+        });
+        if (hasSchedule) return 'auto';
         if (cfg.manualClosed === true || cfg.manualOpen === true || typeof cfg.isOpen === 'boolean') return 'manual';
         return 'auto';
       }
@@ -11048,10 +11669,8 @@
       }
 
       function dailyHoursSummary(offset) {
-        var row = hoursRowForOffset(offset || 0);
-        if (row && (row.closed || row.enabled === false)) return t('closed');
         var periods = periodsForOffset(offset || 0, 'pickup').filter(function (period) { return period.start && period.end; });
-        return periods.map(function (period) { return period.start + '-' + period.end; }).join(' / ');
+        return periods.length ? periods.map(function (period) { return period.start + '-' + period.end; }).join(' / ') : t('closed');
       }
 
       function nextHoursLabel() {
@@ -11076,6 +11695,37 @@
         var mode = statusModeValue();
         if (mode === 'manual_closed') return false;
         if (mode === 'manual_open') return true;
+        if (mode === 'auto') {
+          var rows = weeklyHoursRows();
+          if (!rows.length) return false;
+          var now = new Date();
+          var index = dayIndex(now);
+          var row = rows[index] || {};
+          var prevRow = rows[(index + 6) % 7] || {};
+          var current = now.getHours() * 60 + now.getMinutes();
+          function periodsFrom(sourceRow) {
+            var list = [];
+            sourceRow = sourceRow || {};
+            var open = firstTimeValue(sourceRow, ['open', 'start', 'from', 'abre', 'openingTime', 'startTime']);
+            var close = firstTimeValue(sourceRow, ['close', 'end', 'to', 'fecha', 'closingTime', 'endTime']);
+            var open2 = firstTimeValue(sourceRow, ['open2', 'start2', 'from2', 'abre2', 'openingTime2', 'secondOpen']);
+            var close2 = firstTimeValue(sourceRow, ['close2', 'end2', 'to2', 'fecha2', 'closingTime2', 'secondClose']);
+            if (boolValue(sourceRow.closed) !== true && boolValue(sourceRow.enabled) !== false && open && close) list.push({ start: open, end: close });
+            if (boolValue(sourceRow.closed2) !== true && boolValue(sourceRow.enabled2) !== false && open2 && close2) list.push({ start: open2, end: close2 });
+            return list;
+          }
+          function periodIsOpen(period, fromPreviousDay) {
+            var start = minutesFromTime(period.start);
+            var end = minutesFromTime(period.end);
+            if (start == null || end == null) return false;
+            if (start === end) return false;
+            if (end < start) return fromPreviousDay ? current < end : current >= start;
+            if (fromPreviousDay) return false;
+            return current >= start && current <= end;
+          }
+          return periodsFrom(row).some(function (period) { return periodIsOpen(period, false); }) ||
+            periodsFrom(prevRow).some(function (period) { return periodIsOpen(period, true); });
+        }
         var explicit = explicitStoreOpenValue();
         return explicit === null ? false : explicit;
       }
@@ -11635,10 +12285,6 @@
         ranked.forEach(function (p) {
           if (!list.some(function (x) { return String(x.id) === String(p.id); })) list.push(p);
         });
-        if (ranked.length) return list;
-        products.forEach(function (p) {
-          if ((p.featured || p.popular || p.ofertaDoDia) && !list.some(function (x) { return String(x.id) === String(p.id); })) list.push(p);
-        });
         return list;
       }
 
@@ -11713,7 +12359,12 @@
         if (type === 'pct' && percent) return percent + '% OFF';
         if (type === 'eur' || fixed) return '-' + money(fixed);
         if (type === 'fixed' && fixedPrice) return money(fixedPrice);
-        if (type === '2x1' || type === 'b2x1') return '2x1';
+        if (type === 'add1') {
+          var legacyQtyPromo = /^(2x1|2por1|two_for_one|b2x1)$/i.test(String(promo && (promo.type || promo.tipo || promo.discountType || promo.benefitType) || ''));
+          var leve = parseInt(promo && (promo.leveQtd != null ? promo.leveQtd : promo.leve != null ? promo.leve : promo.bundleQty != null ? promo.bundleQty : (legacyQtyPromo ? 2 : 0)), 10) || 0;
+          var pague = parseInt(promo && (promo.pagueQtd != null ? promo.pagueQtd : promo.pague != null ? promo.pague : promo.bundlePay != null ? promo.bundlePay : (legacyQtyPromo ? 1 : 0)), 10) || 0;
+          return leve > 0 && pague > 0 ? ('Lleva ' + leve + ', paga ' + pague) : 'Lleva más';
+        }
         if (type === 'frete' || type === 'free_shipping') return 'Entrega grátis';
         return firstText(promo && promo.benefit, promo && promo.benefitText, promo && promo.customerMessage, t('promotions'));
       }
@@ -11723,7 +12374,7 @@
         if (raw === 'pct' || raw === 'percent' || raw === 'percentual' || raw === 'percentage' || raw === 'desconto_percentual') return 'pct';
         if (raw === 'eur' || raw === 'money' || raw === 'valor' || raw === 'desconto_valor' || raw === 'fixed_discount') return 'eur';
         if (raw === 'fixed' || raw === 'preco_fixo' || raw === 'fixed_price' || raw === 'oferta_dia') return 'fixed';
-        if (raw === '2x1' || raw === '2por1' || raw === 'two_for_one' || raw === 'b2x1') return '2x1';
+        if (raw === '2x1' || raw === '2por1' || raw === 'two_for_one' || raw === 'b2x1') return 'add1';
         if (raw === 'add1' || raw === 'leve_mais' || raw === 'combo_sugerido' || raw === 'combo' || raw === 'bundle_less_pay_more') return 'add1';
         if (raw === 'frete' || raw === 'frete_gratis' || raw === 'free_shipping') return 'frete';
         return 'pct';
@@ -11778,13 +12429,13 @@
         var percent = promotionNumber(promo.valuePercentual != null ? promo.valuePercentual : promo.percent != null ? promo.percent : promo.percentage != null ? promo.percentage : promo.discountPct != null ? promo.discountPct : promo.value);
         var fixedDiscount = promotionNumber(promo.valueDesconto != null ? promo.valueDesconto : promo.amount != null ? promo.amount : promo.discount != null ? promo.discount : promo.value);
         var fixedPrice = promotionNumber(promo.fixedPrice != null ? promo.fixedPrice : promo.finalPrice != null ? promo.finalPrice : promo.offerPrice != null ? promo.offerPrice : promo.priceFixed);
-        var leve = parseInt(promo.leveQtd != null ? promo.leveQtd : promo.leve != null ? promo.leve : promo.bundleQty, 10) || 0;
-        var pague = parseInt(promo.pagueQtd != null ? promo.pagueQtd : promo.pague != null ? promo.pague : promo.bundlePay, 10) || 0;
+        var legacyQtyPromo = /^(2x1|2por1|two_for_one|b2x1)$/i.test(String(promo.type || promo.tipo || promo.discountType || promo.benefitType || ''));
+        var leve = parseInt(promo.leveQtd != null ? promo.leveQtd : promo.leve != null ? promo.leve : promo.bundleQty != null ? promo.bundleQty : (legacyQtyPromo ? 2 : 0), 10) || 0;
+        var pague = parseInt(promo.pagueQtd != null ? promo.pagueQtd : promo.pague != null ? promo.pague : promo.bundlePay != null ? promo.bundlePay : (legacyQtyPromo ? 1 : 0), 10) || 0;
         var final = original;
         if (type === 'pct') final = Math.max(original - (original * percent / 100), 0);
         else if (type === 'eur') final = Math.max(original - fixedDiscount, 0);
         else if (type === 'fixed' && fixedPrice > 0) final = Math.max(fixedPrice, 0);
-        else if (type === '2x1') final = Math.max(original / 2, 0);
         else if (type === 'add1' && leve > 0 && leve > pague) final = Math.max((original * pague) / leve, 0);
         else if (type === 'frete') final = original;
         var discount = Math.max(original - final, 0);
@@ -11822,7 +12473,503 @@
 
       function productPromoPrice(product) {
         var best = bestPromotionForProduct(product);
+        if (best && best.calc && best.calc.type === 'add1') return productPrice(product);
         return best && best.calc ? best.calc.final : productPrice(product);
+      }
+
+      function upsellRuleId(rule) {
+        return String(rule && (rule.id || rule._id || rule.ruleId || rule.upsellRuleId || rule.slug || '') || '');
+      }
+
+      function upsellRuleProductIds(rule) {
+        var ids = [];
+        if (Array.isArray(rule && rule.productIds)) ids = ids.concat(rule.productIds);
+        if (Array.isArray(rule && rule.suggestedProductIds)) ids = ids.concat(rule.suggestedProductIds);
+        if (Array.isArray(rule && rule.suggestedIds)) ids = ids.concat(rule.suggestedIds);
+        if (rule && rule.productId) ids.push(rule.productId);
+        return ids.map(String).filter(Boolean).filter(function (id, pos, arr) { return arr.indexOf(id) === pos; });
+      }
+
+      function upsellRuleBenefitType(rule) {
+        var raw = String(rule && (rule.benefitType || rule.benefit || '') || '').trim().toLowerCase();
+        if (raw === 'percent' || raw === 'percentage') return 'pct';
+        if (raw === 'fixed' || raw === 'amount') return 'eur';
+        if (raw === 'special' || raw === 'fixed_price') return 'special_price';
+        return raw || 'none';
+      }
+
+      function upsellRuleTriggerIds(rule) {
+        var ids = [];
+        if (rule && rule.triggerProductId) ids.push(rule.triggerProductId);
+        if (Array.isArray(rule && rule.triggerProductIds)) ids = ids.concat(rule.triggerProductIds);
+        return ids.map(String).filter(Boolean).filter(function (id, pos, arr) { return arr.indexOf(id) === pos; });
+      }
+
+      function upsellRuleLocations(rule) {
+        var raw = Array.isArray(rule && rule.locations) ? rule.locations : String(firstText(rule && rule.displayLocations, rule && rule.locationsText, '')).split(',');
+        return raw.map(function (item) {
+          var v = String(item || '').trim().toLowerCase().replace(/\s+/g, '');
+          if (v === 'modaldoproduto' || v === 'produto' || v === 'product') return 'detail';
+          if (v === 'popupdoproduto' || v === 'pop-up' || v === 'popup') return 'detail';
+          if (v === 'carrinho' || v === 'basket' || v === 'bag') return 'cart';
+          if (v === 'todos') return 'all';
+          return v;
+        }).filter(Boolean);
+      }
+
+      function upsellRuleDisplayMoment(rule) {
+        var raw = String(rule && (rule.displayMoment || rule.moment || rule.showMoment || '') || '').trim().toLowerCase();
+        if (!raw) {
+          var locations = upsellRuleLocations(rule);
+          if (locations.indexOf('cart') >= 0 || locations.indexOf('checkout') >= 0 || locations.indexOf('finalizar') >= 0) return 'whatsapp';
+        }
+        return raw === 'whatsapp' ? 'whatsapp' : 'trigger';
+      }
+
+      function isUpsellRuleActive(rule) {
+        if (!rule) return false;
+        if (rule.active === false || rule.enabled === false) return false;
+        var status = String(rule.status || rule.state || '').trim().toLowerCase();
+        if (['paused', 'pausada', 'pausado', 'inactive', 'inativa', 'inativo', 'expired', 'expirada', 'expirado', 'draft', 'rascunho', 'cancelled', 'cancelada'].indexOf(status) >= 0) return false;
+        var now = Date.now();
+        var start = dateValue(rule.startDate || rule.startsAt || rule.validFrom);
+        if (start && now < start) return false;
+        var end = dateValue(rule.endDate || rule.endsAt || rule.validUntil || rule.expiry);
+        if (end && now > end + 86400000) return false;
+        var locations = upsellRuleLocations(rule);
+        if (locations.length && !locations.some(function (loc) {
+          return ['detail', 'detalhe', 'product', 'produto', 'modal', 'popup', 'pop-up', 'site', 'todos', 'all'].indexOf(loc) >= 0;
+        })) return false;
+        return true;
+      }
+
+      function isUpsellRuleActiveForCart(rule) {
+        if (!rule) return false;
+        if (rule.active === false || rule.enabled === false) return false;
+        var status = String(rule.status || rule.state || '').trim().toLowerCase();
+        if (['paused', 'pausada', 'pausado', 'inactive', 'inativa', 'inativo', 'expired', 'expirada', 'expirado', 'draft', 'rascunho', 'cancelled', 'cancelada'].indexOf(status) >= 0) return false;
+        var now = Date.now();
+        var start = dateValue(rule.startDate || rule.startsAt || rule.validFrom);
+        if (start && now < start) return false;
+        var end = dateValue(rule.endDate || rule.endsAt || rule.validUntil || rule.expiry);
+        if (end && now > end + 86400000) return false;
+        var locations = upsellRuleLocations(rule);
+        if (locations.length && !locations.some(function (loc) {
+          return ['cart', 'carrinho', 'basket', 'bag', 'checkout', 'finalizar', 'site', 'todos', 'all'].indexOf(loc) >= 0;
+        })) return false;
+        return true;
+      }
+
+      function upsellRuleMatchesProduct(rule, product) {
+        if (!isUpsellRuleActive(rule) || !product) return false;
+        if (upsellRuleDisplayMoment(rule) !== 'trigger') return false;
+        var benefit = upsellRuleBenefitType(rule);
+        if (['none', 'pct', 'eur', 'special_price'].indexOf(benefit) < 0) return false;
+        var triggerIds = upsellRuleTriggerIds(rule);
+        if (triggerIds.length && triggerIds.indexOf(String(product.id)) >= 0) return true;
+        var triggerCategory = firstText(rule && rule.triggerCategory, rule && rule.trigger_category, rule && rule.categoryTrigger);
+        if (triggerCategory && String(product.category || product.categoryId || product.categoria || '').toLowerCase() === triggerCategory.toLowerCase()) return true;
+        return false;
+      }
+
+      function activeUpsellRulesForProduct(product) {
+        return (upsellRules || []).filter(function (rule) { return upsellRuleMatchesProduct(rule, product); }).sort(function (a, b) {
+          return num(b.priority || b.order || b.ordem) - num(a.priority || a.order || a.ordem);
+        });
+      }
+
+      function upsellRuleDiscountForProduct(rule, product) {
+        if (!rule || !product) return 0;
+        var type = upsellRuleBenefitType(rule);
+        var base = productPrice(product);
+        if (type === 'pct') return Math.max(0, base * (num(rule.benefitValue || rule.discountValue || rule.value) / 100));
+        if (type === 'eur') return Math.max(0, num(rule.benefitValue || rule.discountValue || rule.value));
+        if (type === 'special_price') {
+          var special = num(rule.specialPrice || rule.fixedPrice || rule.finalUpsellPrice);
+          return special > 0 ? Math.max(0, base - special) : 0;
+        }
+        return 0;
+      }
+
+      function cartProductIds() {
+        return cart.map(function (item) { return String(item && item.id || ''); }).filter(Boolean);
+      }
+
+      function cartHasProduct(id) {
+        id = String(id || '');
+        return !!id && cartProductIds().indexOf(id) >= 0;
+      }
+
+      function cartHasTriggerForUpsell(rule) {
+        if (!rule) return false;
+        var type = String(rule.type || '').toLowerCase();
+        if (type === 'valor_minimo' || type === 'carrinho') return true;
+        var triggerIds = upsellRuleTriggerIds(rule);
+        if (triggerIds.length && triggerIds.some(cartHasProduct)) return true;
+        var triggerCategory = firstText(rule.triggerCategory, rule.trigger_category, rule.categoryTrigger);
+        if (triggerCategory) {
+          return cart.some(function (item) {
+            var product = findProduct(item && item.id);
+            return product && String(productCategory(product)).toLowerCase() === String(triggerCategory).toLowerCase();
+          });
+        }
+        return true;
+      }
+
+      function cartUpsellRuleName(rule) {
+        return firstText(rule && rule.name, rule && rule.title, rule && rule.message, 'Beneficio de la tienda');
+      }
+
+      function cartUpsellRuleSelected(rule) {
+        var id = upsellRuleId(rule);
+        return !!id && selectedCartUpsellRuleIds.indexOf(id) >= 0;
+      }
+
+      function cartUpsellRuleDismissed(rule) {
+        var id = upsellRuleId(rule);
+        return !!id && dismissedCartUpsellRuleIds.indexOf(id) >= 0;
+      }
+
+      function selectCartUpsellRule(rule) {
+        var id = upsellRuleId(rule);
+        if (!id) return;
+        if (selectedCartUpsellRuleIds.indexOf(id) < 0) selectedCartUpsellRuleIds.push(id);
+        dismissedCartUpsellRuleIds = dismissedCartUpsellRuleIds.filter(function (item) { return item !== id; });
+      }
+
+      function dismissCartUpsellRule(rule) {
+        var id = upsellRuleId(rule);
+        if (!id) return;
+        if (dismissedCartUpsellRuleIds.indexOf(id) < 0) dismissedCartUpsellRuleIds.push(id);
+      }
+
+      function cartUpsellMinValue(rule) {
+        return num(rule && (rule.minCartValue || rule.cartMinValue || rule.cartMin || rule.minimumOrder || rule.minOrder || rule.valorMinimo));
+      }
+
+      function cartUpsellSuggestedProduct(rule) {
+        var ids = upsellRuleProductIds(rule);
+        var giftId = firstText(rule && rule.giftProductId, rule && rule.giftId, rule && rule.cartGoalGiftProductId, '');
+        if (giftId) ids.unshift(giftId);
+        for (var i = 0; i < ids.length; i += 1) {
+          var product = findProduct(ids[i]);
+          if (product) return product;
+        }
+        return null;
+      }
+
+      function cartUpsellGiftApplies(rule, subtotal) {
+        var condition = String(rule && (rule.giftConditionType || rule.giftCondition || '') || '').toLowerCase();
+        if (condition === 'qty') {
+          var qty = num(rule.giftQty || rule.minimumQty || rule.minQty);
+          return !qty || cart.reduce(function (sum, item) { return sum + num(item.qty); }, 0) >= qty;
+        }
+        var min = num(rule && (rule.giftMinCartValue || rule.minCartValue || rule.cartMinValue || rule.minimumOrder || rule.minOrder));
+        return !min || subtotal >= min;
+      }
+
+      function cartUpsellBenefits() {
+        var subtotal = cartTotal();
+        var benefits = {
+          discount: 0,
+          freeShippingRule: null,
+          gifts: [],
+          appliedRules: [],
+          lines: []
+        };
+        if (!cart.length) return benefits;
+        (upsellRules || []).filter(isUpsellRuleActiveForCart).sort(function (a, b) {
+          return num(b.priority || b.order || b.ordem) - num(a.priority || a.order || a.ordem);
+        }).forEach(function (rule) {
+          if (!cartUpsellRuleSelected(rule)) return;
+          if (!cartHasTriggerForUpsell(rule)) return;
+          var benefit = upsellRuleBenefitType(rule);
+          var min = cartUpsellMinValue(rule);
+          if (min && subtotal < min) return;
+          var ruleId = upsellRuleId(rule);
+          var name = cartUpsellRuleName(rule);
+          var discount = 0;
+          if (benefit === 'frete') {
+            if (!benefits.freeShippingRule) {
+              benefits.freeShippingRule = rule;
+              benefits.appliedRules.push(rule);
+              benefits.lines.push(name + ': envío gratis');
+            }
+            return;
+          }
+          if (benefit === 'cart_goal') {
+            var cartGoalType = upsellRuleBenefitType({ benefitType: rule.cartGoalBenefit || rule.cartGoalBenefitType || rule.cartBenefit });
+            var value = num(rule.cartGoalBenefitValue || rule.benefitValue || rule.discountValue || rule.value);
+            if (cartGoalType === 'pct') discount = subtotal * (value / 100);
+            else if (cartGoalType === 'eur') discount = value;
+            else if (cartGoalType === 'gift') benefit = 'gift';
+            else if (cartGoalType === 'frete') {
+              if (!benefits.freeShippingRule) {
+                benefits.freeShippingRule = rule;
+                benefits.appliedRules.push(rule);
+                benefits.lines.push(name + ': envío gratis');
+              }
+              return;
+            }
+          }
+          if (benefit === 'gift') {
+            if (!cartUpsellGiftApplies(rule, subtotal)) return;
+            var gift = cartUpsellSuggestedProduct(rule);
+            if (gift && !benefits.gifts.some(function (item) { return String(item.id) === String(gift.id); })) {
+              benefits.gifts.push({
+                id: gift.id,
+                name: productName(gift),
+                qty: Math.max(1, num(rule.giftProductQty || rule.giftQuantity || 1) || 1),
+                ruleId: ruleId,
+                ruleName: name
+              });
+              benefits.appliedRules.push(rule);
+              benefits.lines.push(name + ': ' + productName(gift) + ' gratis');
+            }
+            return;
+          }
+          var ruleType = String(rule.type || '').toLowerCase();
+          if (benefit === 'bundle_less_pay_more') {
+            var bundleQty = parseInt(rule.bundleQty || rule.leveQtd || 0, 10) || 0;
+            var bundlePay = parseInt(rule.bundlePay || rule.pagueQtd || 0, 10) || 0;
+            if (!(bundleQty > bundlePay && bundlePay > 0)) return;
+            upsellRuleProductIds(rule).forEach(function (productId) {
+              cart.filter(function (item) { return String(item.id) === String(productId); }).forEach(function (item) {
+                var qty = num(item.qty || 0);
+                var unit = cartLineUnitPrice(item);
+                var bundles = Math.floor(qty / bundleQty);
+                if (bundles > 0) discount += bundles * (bundleQty - bundlePay) * unit;
+              });
+            });
+          } else if (benefit === 'combo_fixed') {
+            var ids = upsellRuleProductIds(rule);
+            if (ids.length && ids.every(cartHasProduct)) {
+              var comboOriginal = ids.reduce(function (sum, id) {
+                var line = cart.find(function (item) { return String(item.id) === String(id); });
+                return sum + (line ? cartLineUnitPrice(line) : 0);
+              }, 0);
+              var comboFinal = num(rule.finalUpsellPrice || rule.comboPrice || rule.specialPrice || rule.fixedPrice);
+              if (comboOriginal > 0 && comboFinal > 0) discount = Math.max(0, comboOriginal - comboFinal);
+            }
+          } else if (benefit === 'pct') {
+            if (ruleType !== 'carrinho' && ruleType !== 'valor_minimo') return;
+            discount = subtotal * (num(rule.benefitValue || rule.discountValue || rule.value) / 100);
+          } else if (benefit === 'eur') {
+            if (ruleType !== 'carrinho' && ruleType !== 'valor_minimo') return;
+            discount = num(rule.benefitValue || rule.discountValue || rule.value);
+          }
+          discount = Math.max(0, Math.min(subtotal - benefits.discount, discount));
+          if (discount > 0) {
+            benefits.discount += discount;
+            benefits.appliedRules.push(rule);
+            benefits.lines.push(name + ': -' + money(discount));
+          }
+        });
+        benefits.discount = Math.max(0, Math.min(subtotal, benefits.discount));
+        return benefits;
+      }
+
+      function cartUpsellDiscountTotal() {
+        return cartUpsellBenefits().discount || 0;
+      }
+
+      function cartDiscountableSubtotal() {
+        return Math.max(0, cartTotal() - cartUpsellDiscountTotal());
+      }
+
+      function cartUpsellEligibleForPrompt(rule, targetMoment) {
+        targetMoment = targetMoment === 'whatsapp' ? 'whatsapp' : 'trigger';
+        if (!isUpsellRuleActiveForCart(rule)) return false;
+        if (upsellRuleDisplayMoment(rule) !== targetMoment) return false;
+        if (cartUpsellRuleSelected(rule) || cartUpsellRuleDismissed(rule)) return false;
+        if (!cartHasTriggerForUpsell(rule)) return false;
+        var benefit = upsellRuleBenefitType(rule);
+        if (['frete', 'cart_goal', 'gift', 'bundle_less_pay_more', 'combo_fixed', 'pct', 'eur', 'special_price', 'none'].indexOf(benefit) < 0) return false;
+        var subtotal = cartTotal();
+        var min = cartUpsellMinValue(rule);
+        if ((benefit === 'frete' || benefit === 'cart_goal') && min && subtotal < min) return false;
+        if (benefit === 'gift' && !cartUpsellGiftApplies(rule, subtotal)) return false;
+        if (benefit === 'bundle_less_pay_more') {
+          var bundleQty = parseInt(rule.bundleQty || rule.leveQtd || 0, 10) || 0;
+          var bundlePay = parseInt(rule.bundlePay || rule.pagueQtd || 0, 10) || 0;
+          if (!(bundleQty > bundlePay && bundlePay > 0)) return false;
+          var hasQtyToComplete = upsellRuleProductIds(rule).some(function (productId) {
+            return cart.some(function (item) {
+              return String(item.id) === String(productId) && num(item.qty || 0) < bundleQty;
+            });
+          });
+          return hasQtyToComplete || upsellRuleProductIds(rule).some(cartHasProduct);
+        }
+        if (benefit === 'combo_fixed') {
+          var ids = upsellRuleProductIds(rule);
+          if (!ids.length) return false;
+          return ids.some(cartHasProduct) && ids.some(function (id) { return !cartHasProduct(id); });
+        }
+        if (['pct', 'eur', 'special_price', 'none'].indexOf(benefit) >= 0) {
+          var type = String(rule.type || '').toLowerCase();
+          if ((benefit === 'pct' || benefit === 'eur') && (type === 'carrinho' || type === 'valor_minimo')) return true;
+          var suggested = cartUpsellSuggestedProduct(rule);
+          return !!(suggested && !cartHasProduct(suggested.id));
+        }
+        return true;
+      }
+
+      function nextCartUpsellRuleForPrompt(targetMoment) {
+        return (upsellRules || []).filter(function (rule) { return cartUpsellEligibleForPrompt(rule, targetMoment); }).sort(function (a, b) {
+          return num(b.priority || b.order || b.ordem) - num(a.priority || a.order || a.ordem);
+        })[0] || null;
+      }
+
+      function cartUpsellPromptText(rule) {
+        var benefit = upsellRuleBenefitType(rule);
+        var suggested = cartUpsellSuggestedProduct(rule);
+        if (benefit === 'frete') return cartUpsellText('freeShippingText');
+        if (benefit === 'cart_goal') return firstText(rule.cartGoalMessage, rule.message, cartUpsellText('cartGoalText'));
+        if (benefit === 'gift') return suggested ? cartUpsellText('giftProductText', { product: productName(suggested) }) : cartUpsellText('giftDefaultText');
+        if (benefit === 'bundle_less_pay_more') return cartUpsellText('bundleText');
+        if (benefit === 'combo_fixed') return cartUpsellText('comboText');
+        if (suggested) return cartUpsellText('productText', { product: productName(suggested) });
+        return firstText(rule.message, cartUpsellText('defaultOpportunity'));
+      }
+
+      function cartUpsellDetailText(rule) {
+        var benefit = upsellRuleBenefitType(rule);
+        var suggested = cartUpsellSuggestedProduct(rule);
+        if (benefit === 'frete') return cartUpsellText('freeShippingDetail');
+        if (benefit === 'cart_goal') return cartUpsellText('cartGoalDetail');
+        if (benefit === 'gift') return cartUpsellText('giftDetail');
+        if (benefit === 'bundle_less_pay_more') return cartUpsellText('bundleDetail');
+        if (benefit === 'combo_fixed') return cartUpsellText('comboDetail');
+        if (suggested) return cartUpsellText('productDetail');
+        return cartUpsellText('defaultDetail');
+      }
+
+      function cartUpsellPromptMeta(rule) {
+        var benefit = upsellRuleBenefitType(rule);
+        var suggested = cartUpsellSuggestedProduct(rule);
+        if (benefit === 'frete') return cartUpsellText('freeShippingMeta');
+        if (benefit === 'gift') return suggested ? cartUpsellText('giftMeta', { product: productName(suggested) }) : cartUpsellText('giftDefaultMeta');
+        if (benefit === 'bundle_less_pay_more') return cartUpsellText('bundleMeta', { qty: firstText(rule.bundleQty != null ? String(rule.bundleQty) : '', rule.leveQtd != null ? String(rule.leveQtd) : ''), pay: firstText(rule.bundlePay != null ? String(rule.bundlePay) : '', rule.pagueQtd != null ? String(rule.pagueQtd) : '') });
+        if (benefit === 'combo_fixed') return rule.finalUpsellPrice ? cartUpsellText('comboMeta', { price: money(rule.finalUpsellPrice) }) : cartUpsellText('comboDefaultMeta');
+        if (benefit === 'pct') return cartUpsellText('pctMeta', { value: num(rule.benefitValue || rule.discountValue || rule.value) });
+        if (benefit === 'eur') return cartUpsellText('eurMeta', { value: money(rule.benefitValue || rule.discountValue || rule.value) });
+        if (benefit === 'special_price' && suggested) return cartUpsellText('specialMeta');
+        return '';
+      }
+
+      function closeCartUpsellModal() {
+        var modal = document.getElementById('cart-upsell-modal');
+        if (modal) {
+          modal.classList.remove('open');
+          modal.setAttribute('aria-hidden', 'true');
+        }
+        cartUpsellModalOpen = false;
+      }
+
+      function applyCartUpsellRule(rule) {
+        if (!rule) return;
+        var benefit = upsellRuleBenefitType(rule);
+        var suggested = cartUpsellSuggestedProduct(rule);
+        if (benefit === 'bundle_less_pay_more') {
+          var bundleQty = parseInt(rule.bundleQty || rule.leveQtd || 0, 10) || 0;
+          upsellRuleProductIds(rule).forEach(function (productId) {
+            cart.forEach(function (item) {
+              if (String(item.id) === String(productId) && bundleQty > num(item.qty || 0)) item.qty = bundleQty;
+            });
+          });
+        } else if (benefit === 'combo_fixed') {
+          upsellRuleProductIds(rule).forEach(function (productId) {
+            if (!cartHasProduct(productId)) addToCart(productId, 1, '', [], 0, { disableCartUpsellPrompt: true, disablePromotion: true });
+          });
+        } else if (['pct', 'eur', 'special_price', 'none'].indexOf(benefit) >= 0 && suggested && !cartHasProduct(suggested.id)) {
+          var discount = upsellRuleDiscountForProduct(rule, suggested);
+          addToCart(suggested.id, 1, '', [], -discount, {
+            disableCartUpsellPrompt: true,
+            disablePromotion: true,
+            relationDiscount: discount,
+            originalExtraUnit: 0,
+            upsellRuleId: upsellRuleId(rule),
+            upsellRuleName: cartUpsellRuleName(rule),
+            upsellBenefitType: benefit
+          });
+        }
+        selectCartUpsellRule(rule);
+        closeCartUpsellModal();
+        renderCart();
+      }
+
+      function openCartUpsellModal(rule) {
+        if (!rule || cartUpsellModalOpen) return;
+        var modal = document.getElementById('cart-upsell-modal');
+        if (!modal) return;
+        var title = document.getElementById('cart-upsell-title');
+        var textNode = document.getElementById('cart-upsell-text');
+        var kicker = document.getElementById('cart-upsell-kicker');
+        var benefitLabel = document.querySelector('#cart-upsell-modal .cart-upsell-mini');
+        var skipButton = document.getElementById('cart-upsell-skip');
+        var acceptButton = document.getElementById('cart-upsell-accept');
+        var meta = document.getElementById('cart-upsell-meta');
+        var detail = document.getElementById('cart-upsell-detail');
+        var pill = document.getElementById('cart-upsell-pill');
+        var image = document.getElementById('cart-upsell-img');
+        var fallback = document.getElementById('cart-upsell-fallback');
+        var suggested = cartUpsellSuggestedProduct(rule);
+        if (title) title.textContent = cartUpsellRuleName(rule);
+        if (kicker) kicker.textContent = cartUpsellText('kicker');
+        if (benefitLabel) benefitLabel.textContent = cartUpsellText('benefitLabel');
+        if (skipButton) skipButton.textContent = cartUpsellText('skip');
+        if (acceptButton) acceptButton.textContent = cartUpsellText('accept');
+        if (textNode) textNode.textContent = cartUpsellPromptText(rule);
+        if (meta) {
+          meta.textContent = cartUpsellPromptMeta(rule);
+          meta.style.display = meta.textContent ? '' : 'none';
+        }
+        if (detail) detail.textContent = cartUpsellDetailText(rule);
+        if (pill) {
+          var pillText = cartUpsellText('nowPill');
+          var benefitType = upsellRuleBenefitType(rule);
+          if (benefitType === 'frete') pillText = cartUpsellText('freeShippingPill');
+          else if (benefitType === 'gift') pillText = cartUpsellText('giftPill');
+          else if (benefitType === 'bundle_less_pay_more' || benefitType === 'combo_fixed') pillText = cartUpsellText('bestPricePill');
+          pill.textContent = pillText;
+        }
+        if (image) {
+          var url = suggested ? imgOf(suggested) : '';
+          image.src = url || '';
+          image.style.display = url ? '' : 'none';
+        }
+        if (fallback) fallback.style.display = suggested && imgOf(suggested) ? 'none' : '';
+        modal.dataset.ruleId = upsellRuleId(rule);
+        cartUpsellModalOpen = true;
+        modal.classList.add('open');
+        modal.setAttribute('aria-hidden', 'false');
+      }
+
+      function scheduleCartUpsellPrompt() {
+        if (cartUpsellPromptTimer) clearTimeout(cartUpsellPromptTimer);
+        cartUpsellPromptTimer = setTimeout(function () {
+          return;
+        }, 180);
+      }
+
+      function productPromoLineTotal(product, qty) {
+        qty = Math.max(0, num(qty || 0));
+        if (!product || !qty) return 0;
+        var original = productPrice(product);
+        var best = bestPromotionForProduct(product);
+        if (!best || !best.calc) return original * qty;
+        var min = promotionMinOrder(best.promo);
+        if (min && (original * qty) < min) return original * qty;
+        if (best.calc.type === 'add1') {
+          var leve = parseInt(best.calc.leve || 0, 10) || 0;
+          var pague = parseInt(best.calc.pague || 0, 10) || 0;
+          if (leve > 0 && pague > 0 && leve > pague) {
+            var bundles = Math.floor(qty / leve);
+            var remainder = qty % leve;
+            return ((bundles * pague) + remainder) * original;
+          }
+        }
+        return best.calc.final * qty;
       }
 
       function productPromoLabel(product) {
@@ -12050,7 +13197,7 @@
         var desc = productDesc(product);
         var originalPrice = productPrice(product);
         var finalPrice = promo && promo.calc ? promo.calc.final : originalPrice;
-        var hasDiscount = promo && promo.calc && promo.calc.discount > 0;
+        var hasDiscount = promo && promo.calc && finalPrice < originalPrice;
         var benefit = promo && promo.promo ? promotionBenefitText(promo.promo) : '';
         var priceHtml = '<span class="product-price">' + money(finalPrice) + '</span>' + (hasDiscount ? '<span class="product-old-price">' + money(originalPrice) + '</span>' : '');
         if (kicker && desc && kicker.toLowerCase() === desc.toLowerCase()) kicker = '';
@@ -12062,7 +13209,7 @@
         var promo = bestPromotionForProduct(product);
         var originalPrice = productPrice(product);
         var finalPrice = promo && promo.calc ? promo.calc.final : originalPrice;
-        var hasDiscount = promo && promo.calc && promo.calc.discount > 0;
+        var hasDiscount = promo && promo.calc && finalPrice < originalPrice;
         var benefit = promo && promo.promo ? promotionBenefitText(promo.promo) : '';
         return '<article class="promo-product-card" data-product-id="' + text(product.id) + '">' +
           '<img class="promo-product-img" src="' + text(image) + '" alt="' + text(firstText(product.imageAlt, productName(product))) + '">' +
@@ -12383,7 +13530,59 @@
 
       function addAlsoProducts(product) {
         var ids = Array.isArray(product && product.addAlsoIds) ? product.addAlsoIds : [];
-        return ids.map(findProduct).filter(Boolean);
+        var legacy = ids.map(findProduct).filter(Boolean);
+        if (legacy.length) return legacy;
+        var seen = {};
+        var out = [];
+        activeUpsellRulesForProduct(product).some(function (rule) {
+          return upsellRuleProductIds(rule).some(function (id) {
+            if (String(id) === String(product && product.id)) return false;
+            if (seen[String(id)]) return false;
+            var item = findProduct(id);
+            if (!item) return false;
+            seen[String(id)] = true;
+            out.push(Object.assign({}, item, { __upsellRule: rule }));
+            return true;
+          }) || out.length >= 1;
+        });
+        return out.slice(0, 1);
+      }
+
+      function modalAddAlsoDiscount(product) {
+        if (product && product.__upsellRule) return Math.min(upsellRuleDiscountForProduct(product.__upsellRule, product), productPrice(product));
+        if (!modalProduct) return 0;
+        var raw = modalProduct.addAlsoDiscount;
+        if (raw == null || raw === '') raw = modalProduct.upsellDiscount;
+        return Math.max(0, num(raw));
+      }
+
+      function modalRelatedUnitExtra(productId, product, applyDiscount) {
+        var variantExtra = modalUpsellUnitExtra(productId, product);
+        var discountValue = modalAddAlsoDiscount(product);
+        var base = applyDiscount && discountValue > 0 ? productPrice(product) : productPromoPrice(product);
+        var discount = applyDiscount ? Math.min(discountValue, Math.max(0, base + variantExtra)) : 0;
+        return variantExtra - discount;
+      }
+
+      function modalRelatedUnitPrice(productId, product, applyDiscount) {
+        var base = applyDiscount && modalAddAlsoDiscount(product) > 0 ? productPrice(product) : productPromoPrice(product);
+        return Math.max(0, base + modalRelatedUnitExtra(productId, product, applyDiscount));
+      }
+
+      function modalRelatedOriginalUnitPrice(productId, product) {
+        return Math.max(0, productPrice(product) + modalUpsellUnitExtra(productId, product));
+      }
+
+      function modalRelatedChoicesOriginalTotal() {
+        var total = 0;
+        var seen = {};
+        addAlsoProducts(modalProduct).forEach(function (product) {
+          seen[String(product.id)] = true;
+          total += modalRelatedOriginalUnitPrice(product.id, product) * num(modalAddAlso[product.id]);
+        });
+        var paired = pairingProduct(modalProduct);
+        if (paired && !seen[String(paired.id)]) total += modalRelatedOriginalUnitPrice(paired.id, paired) * num(modalAddAlso[paired.id]);
+        return total;
       }
 
       function pairingProduct(product) {
@@ -12409,12 +13608,12 @@
         addAlsoProducts(modalProduct).forEach(function (product) {
           seen[String(product.id)] = true;
           var qty = num(modalAddAlso[product.id]);
-          total += (productPromoPrice(product) + modalUpsellUnitExtra(product.id, product)) * qty;
+          total += modalRelatedUnitPrice(product.id, product, true) * qty;
         });
         var paired = pairingProduct(modalProduct);
         if (paired && !seen[String(paired.id)]) {
           var pairQty = num(modalAddAlso[paired.id]);
-          total += (productPromoPrice(paired) + modalUpsellUnitExtra(paired.id, paired)) * pairQty;
+          total += modalRelatedUnitPrice(paired.id, paired, false) * pairQty;
         }
         return total;
       }
@@ -12455,12 +13654,30 @@
         addAlsoProducts(modalProduct).forEach(function (product) {
           seen[String(product.id)] = true;
           var qty = num(modalAddAlso[product.id]);
-          if (qty > 0) addToCart(product.id, qty, '', [t('addedWith') + ' ' + productName(modalProduct)].concat(modalUpsellChoiceLabels(product.id, product)), modalUpsellUnitExtra(product.id, product));
+          if (qty > 0) {
+            var discount = Math.min(modalAddAlsoDiscount(product), modalRelatedOriginalUnitPrice(product.id, product));
+            var labels = [t('addedWith') + ' ' + productName(modalProduct)].concat(modalUpsellChoiceLabels(product.id, product));
+            if (discount > 0) labels.push(t('discount') + ': -' + money(discount));
+            addToCart(product.id, qty, '', labels, modalRelatedUnitExtra(product.id, product, true), {
+              originalExtraUnit: modalUpsellUnitExtra(product.id, product),
+              relationDiscount: discount,
+              disablePromotion: discount > 0,
+              upsellRuleId: upsellRuleId(product.__upsellRule),
+              upsellRuleName: firstText(product.__upsellRule && product.__upsellRule.name, product.__upsellRule && product.__upsellRule.title, ''),
+              upsellBenefitType: firstText(product.__upsellRule && product.__upsellRule.benefitType, product.__upsellRule && product.__upsellRule.benefit, ''),
+              relatedToProductId: modalProduct && modalProduct.id || '',
+              relatedToProductName: productName(modalProduct)
+            });
+          }
         });
         var paired = pairingProduct(modalProduct);
         if (paired && !seen[String(paired.id)]) {
           var pairQty = num(modalAddAlso[paired.id]);
-          if (pairQty > 0) addToCart(paired.id, pairQty, '', [t('addedWith') + ' ' + productName(modalProduct)].concat(modalUpsellChoiceLabels(paired.id, paired)), modalUpsellUnitExtra(paired.id, paired));
+          if (pairQty > 0) addToCart(paired.id, pairQty, '', [t('addedWith') + ' ' + productName(modalProduct)].concat(modalUpsellChoiceLabels(paired.id, paired)), modalRelatedUnitExtra(paired.id, paired, false), {
+            originalExtraUnit: modalUpsellUnitExtra(paired.id, paired),
+            relatedToProductId: modalProduct && modalProduct.id || '',
+            relatedToProductName: productName(modalProduct)
+          });
         }
       }
 
@@ -12473,7 +13690,7 @@
       }
 
       function modalGrandTotal() {
-        return productPromoPrice(modalProduct) * modalQty + modalVariantChoicesTotal() + modalRelatedChoicesTotal();
+        return productPromoLineTotal(modalProduct, modalQty) + modalVariantChoicesTotal() + modalRelatedChoicesTotal();
       }
 
       function updateModalQtyDisplays() {
@@ -12522,11 +13739,15 @@
         if (!modalProduct) return;
         var extra = modalChoicesTotal();
         var promo = bestPromotionForProduct(modalProduct);
-        document.getElementById('modal-price').textContent = money(modalGrandTotal());
+        var comboWithoutQty = isComboProduct(modalProduct) && modalQty <= 0;
+        var visibleTotal = comboWithoutQty ? productPromoPrice(modalProduct) : modalGrandTotal();
+        document.getElementById('modal-price').textContent = money(visibleTotal);
         var oldPriceEl = document.getElementById('modal-old-price');
-        var originalTotal = productPrice(modalProduct) * modalQty + modalVariantChoicesTotal() + modalRelatedChoicesTotal();
+        var originalTotal = comboWithoutQty
+          ? productPrice(modalProduct)
+          : productPrice(modalProduct) * modalQty + modalVariantChoicesTotal() + modalRelatedChoicesOriginalTotal();
         if (oldPriceEl) {
-          oldPriceEl.textContent = promo && promo.calc && promo.calc.discount > 0 && modalQty > 0 ? money(originalTotal) : '';
+          oldPriceEl.textContent = promo && promo.calc && visibleTotal < originalTotal ? money(originalTotal) : '';
           oldPriceEl.style.display = oldPriceEl.textContent ? 'inline-flex' : 'none';
         }
         var extraEl = document.getElementById('modal-price-extra');
@@ -12720,13 +13941,16 @@
       function renderModalAddAlso() {
         var host = document.getElementById('modal-addalso');
         var list = addAlsoProducts(modalProduct);
-        var title = firstText(modalProduct && modalProduct.addAlsoTitle, modalProduct && modalProduct.upsellTitle, t('addMoreItems'));
-        host.innerHTML = list.length ? '<section class="modal-option-section modal-upsell-section"><div class="modal-option-title"><span>' + text(title) + '</span></div>' + list.map(function (product) {
+        var ruleTitle = list[0] && list[0].__upsellRule ? firstText(list[0].__upsellRule.message, list[0].__upsellRule.customerMessage, list[0].__upsellRule.name, list[0].__upsellRule.title) : '';
+        var title = firstText(modalProduct && modalProduct.addAlsoTitle, modalProduct && modalProduct.upsellTitle, ruleTitle, t('addMoreItems'));
+        host.innerHTML = list.length ? '<section class="modal-option-section modal-upsell-section"><div class="modal-option-title"><span class="modal-upsell-title-copy"><span class="modal-upsell-spark"></span><span>' + text(title) + '</span></span><span class="modal-upsell-badge">' + text(t('upsellOffer')) + '</span></div>' + list.map(function (product) {
           var qty = num(modalAddAlso[product.id]);
           var image = imgOf(product);
-          var unitPrice = productPromoPrice(product) + modalUpsellUnitExtra(product.id, product);
+          var discount = Math.min(modalAddAlsoDiscount(product), modalRelatedOriginalUnitPrice(product.id, product));
+          var originalUnitPrice = modalRelatedOriginalUnitPrice(product.id, product);
+          var unitPrice = modalRelatedUnitPrice(product.id, product, true);
           var variants = productVariants(product);
-          return '<div class="modal-option ' + (qty ? 'is-selected' : '') + '">' + (image ? '<img class="modal-option-img" src="' + text(image) + '" alt="' + text(productName(product)) + '">' : '<div class="modal-option-fallback">+</div>') + '<div><div class="modal-option-name">' + text(productName(product)) + '</div><div class="modal-option-price">' + money(unitPrice) + (variants.length ? ' · ' + text(t('options')) : '') + '</div></div><div class="modal-stepper"><button type="button" data-a-dec="' + text(product.id) + '">−</button><span class="' + (qty ? 'is-active' : '') + '">' + qty + '</span><button type="button" data-a-inc="' + text(product.id) + '">+</button></div></div>' + modalUpsellVariantsHtml(product);
+          return '<div class="modal-option ' + (qty ? 'is-selected' : '') + '">' + (image ? '<img class="modal-option-img" src="' + text(image) + '" alt="' + text(productName(product)) + '">' : '<div class="modal-option-fallback">+</div>') + '<div><div class="modal-option-name">' + text(productName(product)) + '</div><div class="modal-option-price">' + money(unitPrice) + (discount > 0 ? ' <span style="font-weight:400;text-decoration:line-through;color:#8A7E7C;">' + money(originalUnitPrice) + '</span>' : '') + (variants.length ? ' · ' + text(t('options')) : '') + '</div>' + (discount > 0 ? '<div class="modal-upsell-saving">' + text(t('saveAmount', { amount: money(discount) })) + '</div>' : '') + '</div><div class="modal-stepper"><button type="button" data-a-dec="' + text(product.id) + '">−</button><span class="' + (qty ? 'is-active' : '') + '">' + qty + '</span><button type="button" data-a-inc="' + text(product.id) + '">+</button></div></div>' + modalUpsellVariantsHtml(product);
         }).join('') + '</section>' : '';
         host.querySelectorAll('[data-a-dec]').forEach(function (btn) { btn.onclick = function () { stepModalAddAlso(btn.getAttribute('data-a-dec'), -1); }; });
         host.querySelectorAll('[data-a-inc]').forEach(function (btn) { btn.onclick = function () { stepModalAddAlso(btn.getAttribute('data-a-inc'), 1); }; });
@@ -12748,9 +13972,9 @@
         }
         var qty = num(modalAddAlso[product.id]);
         var image = imgOf(product);
-        var unitPrice = productPromoPrice(product) + modalUpsellUnitExtra(product.id, product);
+        var unitPrice = modalRelatedUnitPrice(product.id, product, false);
         var variants = productVariants(product);
-        host.innerHTML = '<section class="modal-option-section modal-upsell-section"><div class="modal-option-title"><span>' + text(t('perfectWith')) + '</span></div><div class="modal-option ' + (qty ? 'is-selected' : '') + '">' + (image ? '<img class="modal-option-img" src="' + text(image) + '" alt="' + text(productName(product)) + '">' : '<div class="modal-option-fallback">+</div>') + '<div><div class="modal-option-name">' + text(productName(product)) + '</div><div class="modal-option-price">' + money(unitPrice) + (variants.length ? ' · ' + text(t('options')) : '') + '</div></div><div class="modal-stepper"><button type="button" data-pair-dec="' + text(product.id) + '">−</button><span class="' + (qty ? 'is-active' : '') + '">' + qty + '</span><button type="button" data-pair-inc="' + text(product.id) + '">+</button></div></div>' + modalUpsellVariantsHtml(product) + '</section>';
+        host.innerHTML = '<section class="modal-option-section modal-upsell-section"><div class="modal-option-title"><span class="modal-upsell-title-copy"><span class="modal-upsell-spark"></span><span>' + text(t('perfectWith')) + '</span></span></div><div class="modal-option ' + (qty ? 'is-selected' : '') + '">' + (image ? '<img class="modal-option-img" src="' + text(image) + '" alt="' + text(productName(product)) + '">' : '<div class="modal-option-fallback">+</div>') + '<div><div class="modal-option-name">' + text(productName(product)) + '</div><div class="modal-option-price">' + money(unitPrice) + (variants.length ? ' · ' + text(t('options')) : '') + '</div></div><div class="modal-stepper"><button type="button" data-pair-dec="' + text(product.id) + '">−</button><span class="' + (qty ? 'is-active' : '') + '">' + qty + '</span><button type="button" data-pair-inc="' + text(product.id) + '">+</button></div></div>' + modalUpsellVariantsHtml(product) + '</section>';
         host.querySelectorAll('[data-pair-dec]').forEach(function (btn) { btn.onclick = function () { stepModalAddAlso(btn.getAttribute('data-pair-dec'), -1); }; });
         host.querySelectorAll('[data-pair-inc]').forEach(function (btn) { btn.onclick = function () { stepModalAddAlso(btn.getAttribute('data-pair-inc'), 1); }; });
         bindModalUpsellVariantEvents(host);
@@ -13941,8 +15165,37 @@
           earnPerEuro: Math.max(1, pointsNumber(cfg.earnPerEuro || cfg.pointsPerEuro || 1) || 1),
           redeemRate: Math.max(1, pointsNumber(cfg.redeemRate || cfg.pointsPerDiscountEuro || 10) || 10),
           minimumPointsToUse: pointsNumber(cfg.minimumPointsToUse || cfg.minPointsToUse || 0),
-          maxDiscountPct: Math.max(0, Math.min(100, num(cfg.maxDiscountPct || cfg.maxDiscountPercent || 100) || 100))
+          maxDiscountPct: Math.max(0, Math.min(100, num(cfg.maxDiscountPct || cfg.maxDiscountPercent || 100) || 100)),
+          pointsExpire: cfg.pointsExpire === true || String(cfg.pointsExpire).toLowerCase() === 'true',
+          pointsExpirationDays: Math.max(0, pointsNumber(cfg.pointsExpirationDays || cfg.expirationDays || cfg.pointsExpireDays || 0))
         };
+      }
+
+      function pointsRuleText(config) {
+        config = config || pointsConfig();
+        var lang = currentLanguage();
+        var parts = [t('pointsRule', { redeem: config.redeemRate, amount: money(1) })];
+        if (config.minimumPointsToUse > 0) {
+          if (lang === 'pt-BR') parts.push('Resgate a partir de ' + config.minimumPointsToUse + ' pontos.');
+          else if (lang === 'pt-PT') parts.push('Resgate a partir de ' + config.minimumPointsToUse + ' pontos.');
+          else if (lang === 'en') parts.push('Redeem from ' + config.minimumPointsToUse + ' points.');
+          else if (lang === 'fr') parts.push('Utilisable à partir de ' + config.minimumPointsToUse + ' points.');
+          else parts.push('Canje desde ' + config.minimumPointsToUse + ' puntos.');
+        }
+        if (config.maxDiscountPct > 0 && config.maxDiscountPct < 100) {
+          if (lang === 'pt-BR' || lang === 'pt-PT') parts.push('Limite de desconto: ' + config.maxDiscountPct + '% do pedido.');
+          else if (lang === 'en') parts.push('Discount limit: ' + config.maxDiscountPct + '% of the order.');
+          else if (lang === 'fr') parts.push('Limite de remise : ' + config.maxDiscountPct + '% de la commande.');
+          else parts.push('Límite de descuento: ' + config.maxDiscountPct + '% del pedido.');
+        }
+        if (config.pointsExpire && config.pointsExpirationDays > 0) {
+          if (lang === 'pt-BR') parts.push('Os pontos expiram em ' + config.pointsExpirationDays + ' dias.');
+          else if (lang === 'pt-PT') parts.push('Os pontos expiram em ' + config.pointsExpirationDays + ' dias.');
+          else if (lang === 'en') parts.push('Points expire in ' + config.pointsExpirationDays + ' days.');
+          else if (lang === 'fr') parts.push('Les points expirent dans ' + config.pointsExpirationDays + ' jours.');
+          else parts.push('Los puntos caducan en ' + config.pointsExpirationDays + ' días.');
+        }
+        return parts.join(' ');
       }
 
       function normalizeContact(value) {
@@ -14038,7 +15291,7 @@
         var movements = customerPointMovements(customer).slice(0, 8);
         document.getElementById('points-balance').textContent = String(balance);
         document.getElementById('points-discount').textContent = money(discount);
-        document.getElementById('points-rule').textContent = t('pointsRule', { redeem: config.redeemRate, amount: money(1) });
+        document.getElementById('points-rule').textContent = pointsRuleText(config);
         var status = document.getElementById('points-status');
         if (status) {
           status.textContent = firstText(customer && customer.name, customer && customer.customerName, customer && customer.email, t('customer'));
@@ -14063,7 +15316,7 @@
       function openPointsModal() {
         var modal = document.getElementById('points-modal');
         if (!modal) return;
-        document.getElementById('points-rule').textContent = t('pointsRule', { redeem: pointsConfig().redeemRate, amount: money(1) });
+        document.getElementById('points-rule').textContent = pointsRuleText(pointsConfig());
         var authUser = storeAuthUser();
         setPointsLoginVisible(!authUser);
         if (!authUser) {
@@ -14096,15 +15349,22 @@
         modal.setAttribute('aria-hidden', 'true');
       }
 
-      function addToCart(id, qty, note, choices, extraUnit) {
+      function addToCart(id, qty, note, choices, extraUnit, options) {
+        options = options || {};
         var product = findProduct(id);
         if (!product) return;
-        var promo = bestPromotionForProduct(product);
+        var promo = options.disablePromotion ? null : bestPromotionForProduct(product);
         var basePrice = productPrice(product);
         var finalPrice = promo && promo.calc ? promo.calc.final : basePrice;
+        var finalExtraUnit = num(extraUnit);
+        var originalExtraUnit = options.originalExtraUnit != null ? num(options.originalExtraUnit) : finalExtraUnit;
+        var unitPrice = Math.max(0, finalPrice + finalExtraUnit);
+        var originalUnitPrice = Math.max(unitPrice, basePrice + originalExtraUnit);
+        var relationDiscount = Math.max(0, num(options.relationDiscount));
         var choiceText = (choices || []).join(' | ');
         var promoId = promo && promo.promo ? promotionId(promo.promo) : '';
-        var key = String(id) + '::' + String(note || '') + '::' + choiceText + '::' + promoId;
+        var upsellRuleId = options.upsellRuleId || '';
+        var key = String(id) + '::' + String(note || '') + '::' + choiceText + '::' + promoId + '::' + relationDiscount + '::' + upsellRuleId;
         var found = cart.find(function (item) { return item.key === key; });
         if (found) found.qty += qty;
         else cart.push({
@@ -14113,46 +15373,121 @@
           qty: qty,
           note: note || '',
           name: productName(product),
-          price: finalPrice + num(extraUnit),
-          originalPrice: basePrice + num(extraUnit),
+          price: unitPrice,
+          originalPrice: originalUnitPrice,
           choices: choices || [],
+          addAlsoDiscount: relationDiscount,
+          upsellRuleId: upsellRuleId,
+          upsellRuleName: options.upsellRuleName || '',
+          upsellBenefitType: options.upsellBenefitType || '',
+          relatedToProductId: options.relatedToProductId || '',
+          relatedToProductName: options.relatedToProductName || '',
+          internalNote: firstText(product.internalNote, product.internalNotes, product.kitchenNote, ''),
+          productInternalNote: firstText(product.internalNote, product.internalNotes, product.kitchenNote, ''),
           promo: promo && promo.promo ? {
             id: promoId,
             name: promotionTitle(promo.promo),
             type: promo.calc.type,
             discount: promo.calc.discount,
-            benefit: promotionBenefitText(promo.promo)
+            benefit: promotionBenefitText(promo.promo),
+            minOrder: promotionMinOrder(promo.promo),
+            leve: promo.calc.leve || 0,
+            pague: promo.calc.pague || 0
           } : null,
           fiscal: productFiscalSnapshot(product)
         });
         trackMarketingEvent('add_to_cart', {
           currency: 'EUR',
-          value: (finalPrice + num(extraUnit)) * qty,
+          value: unitPrice * qty,
           item_id: String(id),
           item_name: productName(product),
           quantity: qty
         });
         renderCart();
+        if (!options.disableCartUpsellPrompt) scheduleCartUpsellPrompt();
       }
 
       function cartTotal() {
-        return cart.reduce(function (sum, item) { return sum + item.qty * item.price; }, 0);
+        return cart.reduce(function (sum, item) { return sum + item.qty * cartLineUnitPrice(item); }, 0);
       }
 
       function cartOriginalTotal() {
         return cart.reduce(function (sum, item) { return sum + item.qty * num(item.originalPrice != null ? item.originalPrice : item.price); }, 0);
       }
 
+      function cartLinePromoMinOrder(item) {
+        var promo = item && item.promo || {};
+        return num(promo.minOrder || promo.minimumOrder || promo.minCartValue || promo.minCart || promo.minValue || promo.orderMin || promo.valorMinimo || promo.minimumValue);
+      }
+
+      function cartLinePromoApplies(item) {
+        var min = cartLinePromoMinOrder(item);
+        return !min || cartOriginalTotal() >= min;
+      }
+
+      function cartLineUnitPrice(item) {
+        if (!item) return 0;
+        var qty = Math.max(1, num(item.qty || 1));
+        return cartLineTotal(item) / qty;
+      }
+
+      function cartLineTotal(item) {
+        if (!item) return 0;
+        var qty = Math.max(1, num(item.qty || 1));
+        var original = num(item.originalPrice != null ? item.originalPrice : item.price);
+        var current = num(item.price);
+        if (item.promo && !cartLinePromoApplies(item)) return original * qty;
+        if (item.promo && item.promo.type === 'add1') {
+          var leve = parseInt(item.promo.leve || item.promo.leveQtd || 0, 10) || 0;
+          var pague = parseInt(item.promo.pague || item.promo.pagueQtd || 0, 10) || 0;
+          if (leve > 0 && pague > 0 && leve > pague) {
+            var bundles = Math.floor(qty / leve);
+            var remainder = qty % leve;
+            return ((bundles * pague) + remainder) * original;
+          }
+        }
+        return current * qty;
+      }
+
+      function cartLinePromoSaving(item) {
+        if (!item) return 0;
+        var originalTotal = num(item.originalPrice != null ? item.originalPrice : item.price) * num(item.qty || 1);
+        return Math.max(0, originalTotal - cartLineTotal(item));
+      }
+
       function cartPromoDiscountTotal() {
         return cart.reduce(function (sum, item) {
-          return sum + Math.max(0, num(item.originalPrice != null ? item.originalPrice : item.price) - num(item.price)) * item.qty;
+          return sum + cartLinePromoSaving(item);
         }, 0);
       }
 
       function deliveryFee() {
         if (orderType !== 'delivery') return 0;
-        if (activePromotions().some(function (promo) { return promotionType(promo.type || promo.tipo || promo.discountType || promo.benefitType) === 'frete' && promotionAppliesToStorefront(promo); })) return 0;
+        if (cartUpsellBenefits().freeShippingRule) return 0;
+        if (freeShippingPromotionApplies(cartTotal())) return 0;
         return selectedDeliveryZone ? selectedDeliveryZone.fee : num(cfg.deliveryFee || cfg.deliveryFrom || cfg.defaultDeliveryFee);
+      }
+
+      function deliveryBaseFee() {
+        if (orderType !== 'delivery') return 0;
+        return selectedDeliveryZone ? selectedDeliveryZone.fee : num(cfg.deliveryFee || cfg.deliveryFrom || cfg.defaultDeliveryFee);
+      }
+
+      function promotionMinOrder(promo) {
+        return num(promo && (promo.minOrder || promo.minimumOrder || promo.minCartValue || promo.minCart || promo.minValue || promo.orderMin || promo.valorMinimo || promo.minimumValue));
+      }
+
+      function freeShippingPromotionApplies(subtotal) {
+        return !!freeShippingPromotion(subtotal);
+      }
+
+      function freeShippingPromotion(subtotal) {
+        return activePromotions().find(function (promo) {
+          if (promotionType(promo.type || promo.tipo || promo.discountType || promo.benefitType) !== 'frete') return false;
+          if (!promotionAppliesToStorefront(promo)) return false;
+          var min = promotionMinOrder(promo);
+          return !min || num(subtotal) >= min;
+        }) || null;
       }
 
       function deliveryDisplayFee() {
@@ -14185,6 +15520,9 @@
             var dt = new Date(end);
             if (!isNaN(dt.getTime()) && now > dt.getTime() + 86400000) return false;
           }
+          var uses = num(coupon.usesCount || coupon.usedCount || coupon.uses || coupon.totalUses);
+          var maxUses = num(coupon.maxUses || coupon.usageLimit || coupon.limitUses || coupon.maxUsage || coupon.quantidadeMaxima);
+          if (maxUses && uses >= maxUses) return false;
           return true;
         }) || null;
       }
@@ -14194,9 +15532,10 @@
         var min = num(appliedCoupon.minCartValue || appliedCoupon.minimumOrder || appliedCoupon.minOrder);
         if (min && subtotal < min) return 0;
         var type = String(appliedCoupon.type || appliedCoupon.discountType || '').toLowerCase();
-        var percent = num(appliedCoupon.percent || appliedCoupon.percentage || appliedCoupon.valuePercentual);
-        var fixed = num(appliedCoupon.amount || appliedCoupon.value || appliedCoupon.valueDesconto || appliedCoupon.discount);
-        var discount = type.indexOf('percent') >= 0 || percent ? subtotal * (percent / 100) : fixed;
+        var isPercent = type === 'pct' || type === 'percent' || type === 'percentage' || type.indexOf('percent') >= 0;
+        var percent = num(appliedCoupon.percent || appliedCoupon.percentage || appliedCoupon.valuePercentual || (isPercent ? appliedCoupon.value : 0));
+        var fixed = num(appliedCoupon.amount || appliedCoupon.valueDesconto || appliedCoupon.discount || (!isPercent ? appliedCoupon.value : 0));
+        var discount = isPercent || percent ? subtotal * (percent / 100) : fixed;
         var max = num(appliedCoupon.maxDiscount || appliedCoupon.limit);
         if (max) discount = Math.min(discount, max);
         return Math.max(0, Math.min(subtotal, discount));
@@ -14213,7 +15552,8 @@
           return { available: false, discount: 0, points: 0, balance: balance, customer: customer, reason: 'points' };
         }
         var subtotal = cartTotal();
-        var afterCoupon = Math.max(0, subtotal - couponDiscount(subtotal));
+        var afterUpsell = Math.max(0, subtotal - cartUpsellDiscountTotal());
+        var afterCoupon = Math.max(0, afterUpsell - couponDiscount(afterUpsell));
         var maxByBalance = Math.floor(balance / config.redeemRate);
         var maxByOrder = Math.floor(afterCoupon);
         var maxByPct = config.maxDiscountPct > 0 ? Math.floor(afterCoupon * (config.maxDiscountPct / 100)) : maxByOrder;
@@ -14241,7 +15581,8 @@
 
       function cartGrandTotal() {
         var subtotal = cartTotal();
-        return Math.max(0, subtotal - couponDiscount(subtotal) - pointsDiscount() + deliveryFee());
+        var afterUpsell = Math.max(0, subtotal - cartUpsellDiscountTotal());
+        return Math.max(0, afterUpsell - couponDiscount(afterUpsell) - pointsDiscount() + deliveryFee());
       }
 
       function showCartWarning(message, type) {
@@ -14267,6 +15608,28 @@
           showCartWarning('');
         }
         renderCart();
+      }
+
+      function applyCouponFromUrl() {
+        if (!pendingCouponCode) return;
+        var input = document.getElementById('coupon-input');
+        if (input) input.value = pendingCouponCode;
+        var coupon = findCoupon(pendingCouponCode);
+        if (coupon) {
+          appliedCoupon = coupon;
+          pendingCouponCode = '';
+          renderCart();
+        }
+      }
+
+      function applyPendingCouponBeforeCartRender() {
+        if (!pendingCouponCode || appliedCoupon) return;
+        var coupon = findCoupon(pendingCouponCode);
+        if (!coupon) return;
+        appliedCoupon = coupon;
+        pendingCouponCode = '';
+        var input = document.getElementById('coupon-input');
+        if (input) input.value = couponCode(coupon);
       }
 
       function removeCoupon() {
@@ -14631,9 +15994,11 @@
       function paymentMethods() {
         var src = cfg.paymentMethodConfigs || cfg.paymentMethods || [];
         if (typeof src === 'string') src = src.split(/[,;]+/);
-        if (!Array.isArray(src) || !src.length) src = ['Dinheiro', 'Cartão', 'MB Way', 'Bizum'];
+        var hasConfiguredSource = Array.isArray(src) && src.length;
+        if (!hasConfiguredSource) src = ['Dinheiro', 'Cartão', 'MB Way', 'Bizum'];
         return src.map(function (item) {
           if (typeof item === 'string') return { name: item, instructions: '' };
+          if (item && (item.active === false || item.enabled === false)) return null;
           return { name: firstText(item.name, item.label, item.title, item.id), instructions: firstText(item.instructions, item.note, item.description) };
         }).filter(function (item) { return item.name; });
       }
@@ -14665,8 +16030,10 @@
         var option = select.options[select.selectedIndex];
         var info = document.getElementById('payment-instructions');
         var value = option ? option.getAttribute('data-instructions') : '';
-        info.textContent = value || '';
-        info.classList.toggle('show', !!value);
+        var generalNote = firstText(cfg.paymentNote, cfg.note, cfg.payments && cfg.payments.paymentNote, cfg.payments && cfg.payments.note);
+        var message = [value, generalNote].filter(Boolean).join(' ');
+        info.textContent = message || '';
+        info.classList.toggle('show', !!message);
         document.querySelectorAll('[data-payment-option]').forEach(function (btn) {
           btn.classList.toggle('active', btn.getAttribute('data-payment-option') === select.value);
         });
@@ -14837,11 +16204,12 @@
 
       function cartLineBadges(item) {
         var out = [];
+        if (item && item.promo && !cartLinePromoApplies(item)) return '';
         if (item && item.promo && item.promo.benefit) {
           var benefit = String(item.promo.benefit || '');
           out.push('<span class="cart-line-badge">' + text(benefit) + '</span>');
           if (/gratis|grátis|free/i.test(benefit)) out.push('<span class="cart-line-badge is-green">+' + text(benefit.replace(/^(\+)?/,'').trim()) + '</span>');
-        } else if (item && item.originalPrice && item.originalPrice > item.price) {
+        } else if (item && item.originalPrice && item.originalPrice > cartLineUnitPrice(item)) {
           out.push('<span class="cart-line-badge">oferta</span>');
         }
         return out.length ? '<span class="cart-line-badges">' + out.join('') + '</span>' : '';
@@ -14849,7 +16217,8 @@
 
       function cartLinePromoText(item) {
         if (!item) return '';
-        var saving = Math.max(0, num(item.originalPrice || item.price) - num(item.price)) * num(item.qty || 1);
+        if (item.promo && !cartLinePromoApplies(item)) return '';
+        var saving = cartLinePromoSaving(item);
         if (item.promo && item.promo.name) {
           return item.promo.name + (saving ? ' · ' + t('savings').toLowerCase() + ' ' + money(saving) : '');
         }
@@ -14891,7 +16260,7 @@
       function whatsappItemLine(item) {
         var code = cartItemCode(item);
         var choices = (item.choices || []).map(compactChoiceText).filter(Boolean).join(' / ');
-        return '• ' + item.qty + 'x ' + item.name + (code ? ' [' + code + ']' : '') + (choices ? ' (' + choices + ')' : '') + ' — ' + money(item.qty * item.price);
+        return '• ' + item.qty + 'x ' + item.name + (code ? ' [' + code + ']' : '') + (choices ? ' (' + choices + ')' : '') + ' — ' + money(cartLineTotal(item));
       }
 
       function shortOrderReference() {
@@ -14940,13 +16309,16 @@
 
       function renderCart() {
         normalizeOrderType();
+        applyPendingCouponBeforeCartRender();
         var authUser = storeAuthUser();
         if (authUser && !fieldValue('customer-whatsapp')) applySavedAddressToCart(currentCustomerRecord(), false);
         var count = cart.reduce(function (sum, item) { return sum + item.qty; }, 0);
         var subtotal = cartTotal();
         var originalSubtotal = cartOriginalTotal();
         var promoDiscount = cartPromoDiscountTotal();
-        var discount = couponDiscount(subtotal);
+        var upsellBenefits = cartUpsellBenefits();
+        var upsellDiscount = upsellBenefits.discount || 0;
+        var discount = couponDiscount(Math.max(0, subtotal - upsellDiscount));
         var pointsInfo = pointsRedemptionInfo();
         if (!pointsInfo.available) usePointsInCart = false;
         var pointDiscount = pointsDiscount();
@@ -14961,6 +16333,17 @@
         if (promoRow) promoRow.style.display = promoDiscount ? 'flex' : 'none';
         var promoVal = document.getElementById('promo-discount-val');
         if (promoVal) promoVal.textContent = '-' + money(promoDiscount);
+        var upsellBox = document.getElementById('cart-upsell-benefits');
+        if (upsellBox) {
+          upsellBox.classList.toggle('show', !!(upsellBenefits.lines && upsellBenefits.lines.length));
+          upsellBox.innerHTML = (upsellBenefits.lines || []).map(function (line) {
+            return '<span>' + text(line) + '</span>';
+          }).join('');
+        }
+        var upsellRow = document.getElementById('upsell-discount-row');
+        if (upsellRow) upsellRow.style.display = upsellDiscount ? 'flex' : 'none';
+        var upsellVal = document.getElementById('upsell-discount-val');
+        if (upsellVal) upsellVal.textContent = '-' + money(upsellDiscount);
         document.getElementById('coupon-discount-row').style.display = discount ? 'flex' : 'none';
         document.getElementById('coupon-discount-val').textContent = '-' + money(discount);
         var pointsArea = document.getElementById('cart-points-area');
@@ -14987,7 +16370,7 @@
         var pointsVal = document.getElementById('points-discount-val');
         if (pointsVal) pointsVal.textContent = '-' + money(pointDiscount);
         var savingsRow = document.getElementById('savings-row');
-        var totalSavings = promoDiscount + discount + pointDiscount;
+        var totalSavings = promoDiscount + upsellDiscount + discount + pointDiscount;
         if (savingsRow) savingsRow.style.display = totalSavings ? 'flex' : 'none';
         var savingsVal = document.getElementById('savings-val');
         if (savingsVal) savingsVal.textContent = money(totalSavings);
@@ -15016,10 +16399,24 @@
           btn.style.display = fulfillmentEnabled(type) ? '' : 'none';
           btn.disabled = !fulfillmentEnabled(type);
         });
-        document.getElementById('coupon-row').style.display = cfg.allowCoupon === false && !coupons.length ? 'none' : 'block';
+        var couponEnabled = cfg.allowCoupon !== false;
+        if (!couponEnabled) {
+          appliedCoupon = null;
+          var disabledCouponInput = document.getElementById('coupon-input');
+          if (disabledCouponInput) disabledCouponInput.value = '';
+        }
+        document.getElementById('coupon-row').style.display = couponEnabled ? 'block' : 'none';
         var tag = document.getElementById('coupon-applied-tag');
         tag.classList.toggle('show', !!appliedCoupon);
         document.getElementById('coupon-code-label').textContent = appliedCoupon ? couponCode(appliedCoupon) : '';
+        var noteEnabled = cfg.allowCustomerNote !== false;
+        var noteLabel = document.getElementById('order-note-label');
+        var noteField = document.getElementById('customer-note');
+        if (noteLabel) noteLabel.style.display = noteEnabled ? '' : 'none';
+        if (noteField) {
+          noteField.style.display = noteEnabled ? '' : 'none';
+          if (!noteEnabled) noteField.value = '';
+        }
         var checkoutCard = document.querySelector('.cart-checkout');
         if (checkoutCard) checkoutCard.style.display = cart.length ? '' : 'none';
         var orderCard = document.querySelector('.cart-order-card');
@@ -15034,8 +16431,9 @@
           var promoText = cartLinePromoText(item);
           var choicesHtml = (item.choices || []).map(function (choice) { return cartLineChoiceHtml(choice, item.qty); }).join('');
           var noteHtml = item.note ? '<div class="cart-line-note">' + text(t('noteShort')) + ' ' + text(item.note) + '</div>' : '';
-          var oldPrice = item.originalPrice && item.originalPrice > item.price ? '<div class="cart-line-price-old">' + money(item.originalPrice * item.qty) + '</div>' : '';
-          return '<div class="cart-line"><div><div class="cart-line-title-row"><span class="cart-line-name">' + text(item.name) + '</span>' + cartLineBadges(item) + '</div>' + (promoText ? '<div class="cart-line-promo">' + text(promoText) + '</div>' : '') + choicesHtml + noteHtml + '<div class="cart-line-actions"><button type="button" data-dec="' + text(item.key) + '">−</button><span>' + item.qty + '</span><button type="button" data-inc="' + text(item.key) + '">+</button><button class="cart-remove" type="button" data-remove="' + text(item.key) + '">×</button></div></div><div class="cart-line-price">' + oldPrice + '<div class="cart-line-price-current">' + money(item.price * item.qty) + '</div></div></div>';
+          var lineUnitPrice = cartLineUnitPrice(item);
+          var oldPrice = item.originalPrice && item.originalPrice > lineUnitPrice ? '<div class="cart-line-price-old">' + money(item.originalPrice * item.qty) + '</div>' : '';
+          return '<div class="cart-line"><div><div class="cart-line-title-row"><span class="cart-line-name">' + text(item.name) + '</span>' + cartLineBadges(item) + '</div>' + (promoText ? '<div class="cart-line-promo">' + text(promoText) + '</div>' : '') + choicesHtml + noteHtml + '<div class="cart-line-actions"><button type="button" data-dec="' + text(item.key) + '">−</button><span>' + item.qty + '</span><button type="button" data-inc="' + text(item.key) + '">+</button><button class="cart-remove" type="button" data-remove="' + text(item.key) + '">×</button></div></div><div class="cart-line-price">' + oldPrice + '<div class="cart-line-price-current">' + money(cartLineTotal(item)) + '</div></div></div>';
         }).join('') : '<div class="cart-empty">' + text(t('emptyOrder')) + '</div>';
         lines.querySelectorAll('[data-dec]').forEach(function (btn) { btn.onclick = function () { changeLine(btn.getAttribute('data-dec'), -1); }; });
         lines.querySelectorAll('[data-inc]').forEach(function (btn) { btn.onclick = function () { changeLine(btn.getAttribute('data-inc'), 1); }; });
@@ -15051,6 +16449,7 @@
         if (clearButton) clearButton.disabled = !cart.length;
         var actions = document.querySelector('.cart-actions');
         if (actions) actions.classList.toggle('is-empty', !cart.length);
+        if (cart.length) scheduleCartUpsellPrompt();
       }
 
       function changeLine(key, delta) {
@@ -15069,6 +16468,8 @@
       function clearCart() {
         cart = [];
         appliedCoupon = null;
+        selectedCartUpsellRuleIds = [];
+        dismissedCartUpsellRuleIds = [];
         usePointsInCart = false;
         guestCheckoutApproved = false;
         selectedDeliveryZone = null;
@@ -15154,10 +16555,21 @@
           updateStoreUserUi();
         }
         showCartWarning('');
+        var whatsappUpsellRule = nextCartUpsellRuleForPrompt('whatsapp');
+        if (whatsappUpsellRule) {
+          openCartUpsellModal(whatsappUpsellRule);
+          return;
+        }
         var discount = couponDiscount(subtotal);
         var pointsInfo = pointsRedemptionInfo();
         var pointDiscount = usePointsInCart && pointsInfo.available ? pointsInfo.discount : 0;
         var promoDiscount = cartPromoDiscountTotal();
+        var upsellBenefits = cartUpsellBenefits();
+        var upsellDiscount = upsellBenefits.discount || 0;
+        discount = couponDiscount(Math.max(0, subtotal - upsellDiscount));
+        var originalDeliveryFee = deliveryBaseFee();
+        var freeShippingPromo = orderType === 'delivery' ? freeShippingPromotion(subtotal) : null;
+        var freeShippingUpsellRule = orderType === 'delivery' ? upsellBenefits.freeShippingRule : null;
         var fee = deliveryFee();
         var orderRef = shortOrderReference();
         var lines = ['#pedido_' + orderRef, '', 'Quiero hacer un pedido:', ''];
@@ -15167,9 +16579,16 @@
         });
         lines.push('', 'Subtotal: ' + money(promoDiscount ? cartOriginalTotal() : subtotal));
         if (promoDiscount) lines.push('Promociones: -' + money(promoDiscount));
+        if (upsellDiscount) lines.push('Beneficios: -' + money(upsellDiscount));
         if (appliedCoupon && discount) lines.push('Cupón ' + couponCode(appliedCoupon) + ': -' + money(discount));
         if (pointDiscount) lines.push('Puntos: -' + money(pointDiscount));
         if (orderType === 'delivery' && fee) lines.push('Envío' + (selectedDeliveryZone ? ' (' + selectedDeliveryZone.name + ')' : '') + ': ' + money(fee));
+        if (orderType === 'delivery' && (freeShippingPromo || freeShippingUpsellRule) && originalDeliveryFee > 0 && !fee) lines.push('Envío' + (selectedDeliveryZone ? ' (' + selectedDeliveryZone.name + ')' : '') + ': Gratis');
+        if (upsellBenefits.gifts && upsellBenefits.gifts.length) {
+          upsellBenefits.gifts.forEach(function (gift) {
+            lines.push('Regalo: ' + gift.qty + 'x ' + gift.name);
+          });
+        }
         lines.push('*Total: ' + money(cartGrandTotal()) + '*');
         lines.push('', orderType === 'delivery' ? '📦 Envío a domicilio' : '🏬 Recogida en tienda');
         if (orderType === 'delivery') {
@@ -15187,7 +16606,7 @@
         trackMarketingEvent('begin_checkout', {
           currency: 'EUR',
           value: cartGrandTotal(),
-          items: cart.map(function (item) { return { item_id: item.id, item_name: item.name, quantity: item.qty, price: item.price }; })
+          items: cart.map(function (item) { return { item_id: item.id, item_name: item.name, quantity: item.qty, price: cartLineUnitPrice(item) }; })
         });
         if (href) {
           window.open(href + '?text=' + encodeURIComponent(lines.join('\n')), '_blank', 'noopener');
@@ -15217,7 +16636,7 @@
           balanceAfter: pointsInfo.balanceAfter,
           redeemRate: pointsInfo.redeemRate
         } : { used: false, pointsUsed: 0, discount: 0 };
-        saveOrder({ orderRef: orderRef, subtotal: subtotal, originalSubtotal: cartOriginalTotal(), promoDiscount: promoDiscount, discount: discount, pointsDiscount: pointDiscount, pointsRedemption: pointsRedemption, deliveryFee: fee, total: cartGrandTotal(), customerName: customerName, customerPhone: customerPhone, address: address, deliveryAddress: deliveryAddressData(), postal: postal, payment: payment, note: note, slotKey: slotKey, slotLabel: slotLabelText }).then(function () {
+        saveOrder({ orderRef: orderRef, subtotal: subtotal, originalSubtotal: cartOriginalTotal(), promoDiscount: promoDiscount, upsellBenefits: upsellBenefits, upsellDiscount: upsellDiscount, discount: discount, pointsDiscount: pointDiscount, pointsRedemption: pointsRedemption, deliveryFee: fee, originalDeliveryFee: originalDeliveryFee, freeShippingPromotion: freeShippingPromo, freeShippingUpsellRule: freeShippingUpsellRule, total: cartGrandTotal(), customerName: customerName, customerPhone: customerPhone, address: address, deliveryAddress: deliveryAddressData(), postal: postal, payment: payment, note: note, slotKey: slotKey, slotLabel: slotLabelText }).then(function () {
           return applyPointsRedemption(orderRef, pointsRedemption);
         }).catch(function (err) {
           console.warn('Order save or points redemption error', err);
@@ -15231,16 +16650,45 @@
       function saveOrder(extra) {
         if (!db || !activeTenantId) return Promise.resolve(null);
         var authUser = storeAuthUser();
+        var couponToSync = appliedCoupon;
+        var freeShippingPromo = extra.freeShippingPromotion || null;
+        var freeShippingUpsellRule = extra.freeShippingUpsellRule || null;
+        var freeShippingSource = freeShippingUpsellRule || freeShippingPromo;
+        var freeShippingApplied = orderType === 'delivery' && !!freeShippingSource && num(extra.originalDeliveryFee || 0) > 0 && !num(extra.deliveryFee || 0);
+        var upsellBenefits = extra.upsellBenefits || { appliedRules: [], gifts: [], lines: [], discount: 0 };
+        var upsellDiscount = num(extra.upsellDiscount || upsellBenefits.discount || 0);
         var data = {
-          items: cart.map(function (item) { return { id: item.id, name: item.name, qty: item.qty, price: item.price, originalPrice: item.originalPrice || item.price, promoUnitPrice: item.price, promoDiscountTotal: Math.max(0, num(item.originalPrice || item.price) - num(item.price)) * item.qty, promo: item.promo || null, total: item.qty * item.price, note: item.note || '', choices: item.choices || [] }; }),
+          items: cart.map(function (item) {
+            var linePrice = cartLineUnitPrice(item);
+            var linePromo = item.promo && cartLinePromoApplies(item) ? item.promo : null;
+            return { id: item.id, name: item.name, qty: item.qty, price: linePrice, originalPrice: item.originalPrice || item.price, promoUnitPrice: linePrice, promoDiscountTotal: cartLinePromoSaving(item), promo: linePromo, addAlsoDiscount: item.addAlsoDiscount || 0, upsellRuleId: item.upsellRuleId || '', upsellRuleName: item.upsellRuleName || '', upsellBenefitType: item.upsellBenefitType || '', relatedToProductId: item.relatedToProductId || '', relatedToProductName: item.relatedToProductName || '', internalNote: item.internalNote || '', productInternalNote: item.productInternalNote || item.internalNote || '', total: cartLineTotal(item), note: item.note || '', choices: item.choices || [] };
+          }),
           subtotal: extra.subtotal,
           originalSubtotal: extra.originalSubtotal || extra.subtotal,
           promoDiscountTotal: extra.promoDiscount || 0,
-          discountTotal: (extra.promoDiscount || 0) + (extra.discount || 0) + (extra.pointsDiscount || 0),
+          upsellDiscountTotal: upsellDiscount,
+          upsellBenefits: {
+            discount: upsellDiscount,
+            lines: upsellBenefits.lines || [],
+            gifts: upsellBenefits.gifts || [],
+            appliedRuleIds: (upsellBenefits.appliedRules || []).map(upsellRuleId).filter(Boolean),
+            appliedRuleNames: (upsellBenefits.appliedRules || []).map(cartUpsellRuleName).filter(Boolean)
+          },
+          discountTotal: (extra.promoDiscount || 0) + upsellDiscount + (extra.discount || 0) + (extra.pointsDiscount || 0),
           couponDiscountTotal: extra.discount,
           pointsDiscountTotal: extra.pointsDiscount || 0,
           pointsRedemption: extra.pointsRedemption || { used: false, pointsUsed: 0, discount: 0 },
           deliveryFee: extra.deliveryFee,
+          originalDeliveryFee: extra.originalDeliveryFee || extra.deliveryFee || 0,
+          freeShippingApplied: freeShippingApplied,
+          freeShippingPromotionId: freeShippingApplied ? String(freeShippingSource.id || freeShippingSource._id || '') : '',
+          freeShippingPromotionName: freeShippingApplied ? firstText(freeShippingSource.name, freeShippingSource.title, freeShippingSource.label, 'Frete grátis') : '',
+          freeShippingSource: freeShippingApplied && freeShippingUpsellRule ? 'upsell' : (freeShippingApplied ? 'promotion' : ''),
+          freeShippingPromotion: freeShippingApplied ? {
+            id: String(freeShippingSource.id || freeShippingSource._id || ''),
+            name: firstText(freeShippingSource.name, freeShippingSource.title, freeShippingSource.label, 'Frete grátis'),
+            minOrder: freeShippingUpsellRule ? cartUpsellMinValue(freeShippingUpsellRule) : promotionMinOrder(freeShippingPromo)
+          } : null,
           total: extra.total,
           type: orderType,
           customerUid: authUser && authUser.uid ? authUser.uid : '',
@@ -15274,21 +16722,42 @@
           publicOrderCode: extra.orderRef ? 'pedido_' + extra.orderRef : '',
           notes: extra.note || '',
           note: extra.note || '',
-          coupon: appliedCoupon && extra.discount ? { code: couponCode(appliedCoupon), discount: extra.discount } : null,
+          coupon: couponToSync && extra.discount ? { code: couponCode(couponToSync), discount: extra.discount } : null,
           status: 'Pendente',
-          source: 'store',
-          channel: 'template',
+          source: 'cardapio',
+          channel: 'cardapio',
+          originSource: 'storefront',
+          originChannel: 'template',
+          kitchenQueue: true,
+          kitchenStatus: 'Pendente',
           itemCount: cart.length,
           createdAt: firebase.firestore.FieldValue.serverTimestamp(),
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
         data.fiscal = ensureOrderFiscalDefaults(data);
         return col('orders').add(data).then(function (docRef) {
+          var followUps = [];
           if (data.slotKey) {
-            return col('orderSlots').doc(data.slotKey).set({ count: firebase.firestore.FieldValue.increment(1), date: data.scheduleDate, time: data.scheduleTime }, { merge: true }).then(function () { return docRef; });
+            followUps.push(col('orderSlots').doc(data.slotKey).set({ count: firebase.firestore.FieldValue.increment(1), date: data.scheduleDate, time: data.scheduleTime }, { merge: true }));
           }
-          return docRef;
+          if (couponToSync && extra.discount) followUps.push(syncCouponUsage(couponToSync, extra.discount));
+          if (!followUps.length) return docRef;
+          return Promise.all(followUps).then(function () { return docRef; });
         }).catch(function (err) { console.warn('Order save error', err); throw err; });
+      }
+
+      function syncCouponUsage(coupon, discount) {
+        if (!coupon || !(num(discount) > 0) || !db || !activeTenantId) return Promise.resolve();
+        var id = String(coupon.id || coupon._id || coupon.couponId || '');
+        if (!id) return Promise.resolve();
+        return col('coupons').doc(id).set({
+          usesCount: firebase.firestore.FieldValue.increment(1),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true }).then(function () {
+          coupon.usesCount = num(coupon.usesCount || 0) + 1;
+        }).catch(function (err) {
+          console.warn('Coupon usage save error', err);
+        });
       }
 
       function syncLocalPointsRedemption(pointsRedemption) {
@@ -15542,6 +17011,35 @@
           var productSection = document.getElementById('cat-todos');
           if (productSection) productSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
         };
+        function activeCartUpsellModalRule() {
+          var modal = document.getElementById('cart-upsell-modal');
+          var id = modal ? String(modal.dataset.ruleId || '') : '';
+          return (upsellRules || []).find(function (item) { return upsellRuleId(item) === id; }) || null;
+        }
+        var cartUpsellClose = document.getElementById('cart-upsell-close');
+        if (cartUpsellClose) cartUpsellClose.onclick = function () {
+          var rule = activeCartUpsellModalRule();
+          if (rule) dismissCartUpsellRule(rule);
+          closeCartUpsellModal();
+        };
+        var cartUpsellSkip = document.getElementById('cart-upsell-skip');
+        if (cartUpsellSkip) cartUpsellSkip.onclick = function () {
+          var rule = activeCartUpsellModalRule();
+          if (rule) dismissCartUpsellRule(rule);
+          closeCartUpsellModal();
+        };
+        var cartUpsellAccept = document.getElementById('cart-upsell-accept');
+        if (cartUpsellAccept) cartUpsellAccept.onclick = function () {
+          applyCartUpsellRule(activeCartUpsellModalRule());
+        };
+        var cartUpsellModal = document.getElementById('cart-upsell-modal');
+        if (cartUpsellModal) cartUpsellModal.onclick = function (event) {
+          if (event.target === cartUpsellModal) {
+            var rule = activeCartUpsellModalRule();
+            if (rule) dismissCartUpsellRule(rule);
+            closeCartUpsellModal();
+          }
+        };
         var loyaltyButton = document.querySelector('.loyalty-cta');
         if (loyaltyButton) loyaltyButton.onclick = openPointsModal;
         var pointsClose = document.getElementById('points-close');
@@ -15579,6 +17077,7 @@
             closeAuthModal();
             closeCheckoutChoiceModal();
             closePromotionsModal();
+            closeCartUpsellModal();
             closePointsModal();
             closeOrderSuccessModal();
             closeStoreInfoModal();
@@ -15744,20 +17243,22 @@
             for (var i = 0; i < candidates.length; i++) {
               activeTenantId = candidates[i];
               var docs = await Promise.all([
-                safeConfig('geral'), safeConfig('aparencia'), safeConfig('template'), safeConfig('operacao'), safeConfig('horarios'), safeConfig('zonas'), safeConfig('pontos_program'), safeConfig('integracoes'), safeDocs('categories'), safeDocs('products'), safeDocs('variantGroups'), safeDocs('tags'), safeDocs('reviews'), safeDocs('promotions'), safeDocs('promocoes'), safeDocs('coupons'), safeDocs('orderSlots'), safeDocs('store_customers'), safeDocs('points_movements')
+                safeConfig('geral'), safeConfig('aparencia'), safeConfig('template'), safeConfig('operacao'), safeConfig('horarios'), safeConfig('zonas'), safeConfig('pontos_program'), safeConfig('integracoes'), safeConfig('seo'), safeDocs('categories'), safeDocs('products'), safeDocs('variantGroups'), safeDocs('tags'), safeDocs('reviews'), safeDocs('promotions'), safeDocs('promocoes'), safeDocs('coupons'), safeDocs('upsellRules'), safeDocs('orderSlots'), safeDocs('store_customers'), safeDocs('points_movements')
               ]);
               cfg = Object.assign({}, docs[0] || {}, docs[1] || {}, docs[2] || {}, docs[3] || {}, docs[4] || {}, docs[5] || {}, docs[6] || {}, docs[7] || {});
-              categories = docs[8] || [];
-              products = (docs[9] || []).filter(function (p) { return p && p.menuVisible !== false && p.active !== false; });
-              variantGroups = docs[10] || [];
-              productTags = docs[11] || [];
-              reviews = docs[12] || [];
-              promotions = mergePublicPromotions([docs[13] || [], docs[14] || []]);
-              coupons = docs[15] || [];
-              slotCounts = (docs[16] || []).reduce(function (acc, item) { acc[item.id] = num(item.count); return acc; }, {});
-              storeCustomers = docs[17] || [];
-              pointsMovements = docs[18] || [];
-              window.__templateTenantDebug = { requestedTenantId: tenantId, activeTenantId: activeTenantId, configLoaded: Object.keys(cfg).length, categoriesLoaded: categories.length, productsLoaded: products.length, variantGroupsLoaded: variantGroups.length, tagsLoaded: productTags.length, reviewsLoaded: reviews.length, promotionsLoaded: promotions.length, couponsLoaded: coupons.length, customersLoaded: storeCustomers.length, pointsMovementsLoaded: pointsMovements.length };
+              seoCfg = docs[8] || {};
+              categories = docs[9] || [];
+              products = (docs[10] || []).filter(function (p) { return p && p.menuVisible !== false && p.active !== false; });
+              variantGroups = docs[11] || [];
+              productTags = docs[12] || [];
+              reviews = docs[13] || [];
+              promotions = mergePublicPromotions([docs[14] || [], docs[15] || []]);
+              coupons = docs[16] || [];
+              upsellRules = docs[17] || [];
+              slotCounts = (docs[18] || []).reduce(function (acc, item) { acc[item.id] = num(item.count); return acc; }, {});
+              storeCustomers = docs[19] || [];
+              pointsMovements = docs[20] || [];
+              window.__templateTenantDebug = { requestedTenantId: tenantId, activeTenantId: activeTenantId, configLoaded: Object.keys(cfg).length, categoriesLoaded: categories.length, productsLoaded: products.length, variantGroupsLoaded: variantGroups.length, tagsLoaded: productTags.length, reviewsLoaded: reviews.length, promotionsLoaded: promotions.length, couponsLoaded: coupons.length, upsellRulesLoaded: upsellRules.length, customersLoaded: storeCustomers.length, pointsMovementsLoaded: pointsMovements.length };
               if (Object.keys(cfg).length || categories.length || products.length) break;
             }
           }
@@ -15769,6 +17270,7 @@
           applyBrand();
           applyIdentityMeta();
           renderStoreInfo();
+          applySeoMeta();
           applyMarketingTracking();
           renderLoyalty();
           renderFeatured();
@@ -15776,6 +17278,7 @@
           renderReviews();
           renderFooter();
           renderCart();
+          applyCouponFromUrl();
           applyStaticCopy();
           initPublicAuth();
         } catch (err) {
@@ -15790,6 +17293,7 @@
           renderFeatured();
           renderCategoriesAndProducts();
           renderCart();
+          applyCouponFromUrl();
           applyStaticCopy();
           initPublicAuth();
         } finally {

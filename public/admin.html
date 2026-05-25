@@ -392,13 +392,13 @@ button,input,select,textarea{font-family:inherit}
 <script src="js/core/router.js"></script>
 <script src="js/core/image-tools.js"></script>
 <script src="js/modules/dashboard.js?v=20260510-dashboard-principal"></script>
-<script src="js/modules/pedidos.js"></script>
+<script src="js/modules/pedidos.js?v=20260524-review-list-pattern-2"></script>
 <script src="js/modules/pos.js?v=20260512-tpv-shell"></script>
-<script src="js/modules/catalogo.js?v=20260516-store-location-origin"></script>
-<script src="js/modules/loja_online.js"></script>
+<script src="js/modules/catalogo.js?v=20260524-reviews-admin-pattern-2"></script>
+<script src="js/modules/loja_online.js?v=20260524-reviews-admin-pattern-2"></script>
 <script src="js/modules/receitas.js"></script>
 <script src="js/modules/clientes.js"></script>
-<script src="js/modules/marketing.js"></script>
+<script src="js/modules/marketing.js?v=20260524-points-clients-pattern-1"></script>
 <script src="js/modules/plano_voo.js?v=20260510-plano-voo-navegacao-crescimento"></script>
 <script src="js/modules/performance.js?v=20260510-performance-layout"></script>
 <script src="js/services/seasons.ai.js?v=20260511-temporadas-fase9"></script>
@@ -679,13 +679,21 @@ button,input,select,textarea{font-family:inherit}
       var toggle = document.querySelector('.sidebar-toggle');
       if (toggle) toggle.title = collapsed ? 'Abrir menu' : 'Encolher menu';
     },
-    _statusMode: function (template, operacao) {
+    _statusMode: function (template, operacao, horarios) {
       template = template || {};
       operacao = operacao || {};
       var raw = String(template.statusMode || operacao.statusMode || '').toLowerCase();
       if (raw === 'manual' || raw === 'manual_open' || raw === 'manual_closed') return 'manual';
       if (raw === 'auto' || raw === 'automatic' || raw === 'automatico' || raw === 'automático') return 'auto';
-      if (template.manualClosed === true || template.manualOpen === true || typeof operacao.isOpen === 'boolean') return 'manual';
+      var rows = AdminApp._weeklyHoursRows(template, operacao, horarios);
+      var hasSchedule = rows.some(function (row) {
+        return row && (
+          (AdminApp._firstTimeValue(row, ['open', 'start', 'from', 'abre', 'openingTime', 'startTime']) && AdminApp._firstTimeValue(row, ['close', 'end', 'to', 'fecha', 'closingTime', 'endTime'])) ||
+          (AdminApp._firstTimeValue(row, ['open2', 'start2', 'from2', 'abre2', 'openingTime2', 'secondOpen']) && AdminApp._firstTimeValue(row, ['close2', 'end2', 'to2', 'fecha2', 'closingTime2', 'secondClose']))
+        );
+      });
+      if (hasSchedule) return 'auto';
+      if (template.manualClosed === true || template.manualOpen === true || operacao.manualClosed === true || operacao.manualOpen === true || typeof operacao.isOpen === 'boolean') return 'manual';
       return 'auto';
     },
     _timeToMinutes: function (value) {
@@ -695,10 +703,47 @@ button,input,select,textarea{font-family:inherit}
       var minutes = Math.max(0, Math.min(59, Number(match[2])));
       return hours * 60 + minutes;
     },
-    _weeklyHoursRows: function (template, operacao) {
-      var source = (template && (template.hours || template.weeklyHours)) || (operacao && (operacao.hours || operacao.weeklyHours)) || [];
+    _firstTimeValue: function (row, keys) {
+      row = row || {};
+      for (var i = 0; i < keys.length; i += 1) {
+        var value = row[keys[i]];
+        if (value != null && String(value).trim()) return String(value).trim();
+      }
+      return '';
+    },
+    _boolValue: function (value) {
+      if (value === true || value === false) return value;
+      var normalized = String(value == null ? '' : value).trim().toLowerCase();
+      if (['true', '1', 'yes', 'sim', 'on'].indexOf(normalized) >= 0) return true;
+      if (['false', '0', 'no', 'nao', 'não', 'off'].indexOf(normalized) >= 0) return false;
+      return null;
+    },
+    _weeklyHoursRows: function (template, operacao, horarios) {
+      var source = (horarios && (horarios.days || horarios.hours || horarios.weeklyHours)) || (template && (template.hours || template.weeklyHours)) || (operacao && (operacao.hours || operacao.weeklyHours)) || [];
       var keys = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-      if (Array.isArray(source)) return source;
+      var dayAliases = {
+        monday: 0, segunda: 0, 'segunda-feira': 0, segunda_feira: 0,
+        tuesday: 1, terca: 1, terça: 1, 'terça-feira': 1, terca_feira: 1, terça_feira: 1,
+        wednesday: 2, quarta: 2, 'quarta-feira': 2, quarta_feira: 2,
+        thursday: 3, quinta: 3, 'quinta-feira': 3, quinta_feira: 3,
+        friday: 4, sexta: 4, 'sexta-feira': 4, sexta_feira: 4,
+        saturday: 5, sabado: 5, sábado: 5, sunday: 6, domingo: 6
+      };
+      function dayIndex(row, fallbackIndex) {
+        var raw = String((row && (row.day || row.weekday || row.label || row.name || row.id)) || '').trim().toLowerCase();
+        raw = raw.normalize ? raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '') : raw;
+        raw = raw.replace(/\s+/g, '-');
+        if (dayAliases[raw] != null) return dayAliases[raw];
+        return fallbackIndex;
+      }
+      if (Array.isArray(source)) {
+        var ordered = [];
+        source.forEach(function (row, index) {
+          var target = dayIndex(row, index);
+          if (target >= 0 && target <= 6) ordered[target] = row || {};
+        });
+        return keys.map(function (key, index) { return Object.assign({ day: key }, ordered[index] || {}); });
+      }
       if (source && typeof source === 'object') {
         return keys.map(function (key, index) {
           var row = source[key] || source[String(index)] || source[String(index + 1)] || {};
@@ -707,35 +752,46 @@ button,input,select,textarea{font-family:inherit}
       }
       return [];
     },
-    _isOpenBySchedule: function (template, operacao) {
-      var rows = AdminApp._weeklyHoursRows(template, operacao);
+    _isOpenBySchedule: function (template, operacao, horarios) {
+      var rows = AdminApp._weeklyHoursRows(template, operacao, horarios);
       if (!rows.length) return false;
       var now = new Date();
       var index = (now.getDay() + 6) % 7;
       var row = rows[index] || {};
-      if (row.closed === true || row.enabled === false) return false;
-      var periods = [];
-      if (row.open && row.close) periods.push({ open: row.open, close: row.close });
-      if (row.enabled2 && row.open2 && row.close2) periods.push({ open: row.open2, close: row.close2 });
+      var prevRow = rows[(index + 6) % 7] || {};
       var current = now.getHours() * 60 + now.getMinutes();
-      return periods.some(function (period) {
+      function periodsFrom(row) {
+        var list = [];
+        var open = AdminApp._firstTimeValue(row, ['open', 'start', 'from', 'abre', 'openingTime', 'startTime']);
+        var close = AdminApp._firstTimeValue(row, ['close', 'end', 'to', 'fecha', 'closingTime', 'endTime']);
+        var open2 = AdminApp._firstTimeValue(row, ['open2', 'start2', 'from2', 'abre2', 'openingTime2', 'secondOpen']);
+        var close2 = AdminApp._firstTimeValue(row, ['close2', 'end2', 'to2', 'fecha2', 'closingTime2', 'secondClose']);
+        if (AdminApp._boolValue(row.closed) !== true && AdminApp._boolValue(row.enabled) !== false && open && close) list.push({ open: open, close: close });
+        if (AdminApp._boolValue(row.closed2) !== true && AdminApp._boolValue(row.enabled2) !== false && open2 && close2) list.push({ open: open2, close: close2 });
+        return list;
+      }
+      function periodIsOpen(period, fromPreviousDay) {
         var start = AdminApp._timeToMinutes(period.open);
         var end = AdminApp._timeToMinutes(period.close);
         if (start == null || end == null) return false;
-        if (end <= start) return current >= start || current <= end;
+        if (start === end) return false;
+        if (end < start) return fromPreviousDay ? current < end : current >= start;
+        if (fromPreviousDay) return false;
         return current >= start && current <= end;
-      });
+      }
+      return periodsFrom(row).some(function (period) { return periodIsOpen(period, false); }) ||
+        periodsFrom(prevRow).some(function (period) { return periodIsOpen(period, true); });
     },
-    _storeOnlineState: function (template, operacao) {
+    _storeOnlineState: function (template, operacao, horarios) {
       template = template || {};
       operacao = operacao || {};
-      var mode = AdminApp._statusMode(template, operacao);
+      var mode = AdminApp._statusMode(template, operacao, horarios);
       if (mode === 'manual') {
-        if (template.statusMode === 'manual_closed' || template.manualClosed === true) return { isOpen: false, mode: mode };
-        if (template.statusMode === 'manual_open' || template.manualOpen === true) return { isOpen: true, mode: mode };
+        if (template.statusMode === 'manual_closed' || operacao.statusMode === 'manual_closed' || template.manualClosed === true || operacao.manualClosed === true) return { isOpen: false, mode: mode };
+        if (template.statusMode === 'manual_open' || operacao.statusMode === 'manual_open' || template.manualOpen === true || operacao.manualOpen === true) return { isOpen: true, mode: mode };
         if (typeof operacao.isOpen === 'boolean') return { isOpen: operacao.isOpen, mode: mode };
       }
-      return { isOpen: AdminApp._isOpenBySchedule(template, operacao), mode: 'auto' };
+      return { isOpen: AdminApp._isOpenBySchedule(template, operacao, horarios), mode: 'auto' };
     },
     _isStoreOnline: function (template, operacao) {
       return AdminApp._storeOnlineState(template, operacao).isOpen;
@@ -769,12 +825,14 @@ button,input,select,textarea{font-family:inherit}
       if (!window.DB || typeof DB.getDocRoot !== 'function') return;
       Promise.all([
         DB.getDocRoot('config', 'template').catch(function () { return {}; }),
-        DB.getDocRoot('config', 'operacao').catch(function () { return {}; })
+        DB.getDocRoot('config', 'operacao').catch(function () { return {}; }),
+        DB.getDocRoot('config', 'horarios').catch(function () { return {}; })
       ]).then(function (r) {
-        var state = AdminApp._storeOnlineState(r[0], r[1]);
+        var state = AdminApp._storeOnlineState(r[0], r[1], r[2]);
         AdminApp._applyStoreOnlineStatus(state.isOpen, false, state.mode);
-      }).catch(function () {
-        AdminApp._applyStoreOnlineStatus(true, false, 'auto');
+      }).catch(function (err) {
+        console.warn('Erro ao calcular status automático da loja:', err);
+        AdminApp._applyStoreOnlineStatus(false, false, 'auto');
       });
     },
     toggleOnlineStore: function () {
@@ -783,9 +841,10 @@ button,input,select,textarea{font-family:inherit}
       if (signal && signal.disabled) return;
       Promise.all([
         DB.getDocRoot('config', 'template').catch(function () { return {}; }),
-        DB.getDocRoot('config', 'operacao').catch(function () { return {}; })
+        DB.getDocRoot('config', 'operacao').catch(function () { return {}; }),
+        DB.getDocRoot('config', 'horarios').catch(function () { return {}; })
       ]).then(function (r) {
-        var state = AdminApp._storeOnlineState(r[0], r[1]);
+        var state = AdminApp._storeOnlineState(r[0], r[1], r[2]);
         var isOpen = state.isOpen;
         var nextOpen = !isOpen;
         AdminApp._applyStoreOnlineStatus(nextOpen, true, 'manual');
@@ -803,6 +862,11 @@ button,input,select,textarea{font-family:inherit}
             updatedAt: new Date().toISOString()
           })
         ]).then(function () {
+          var statusSelect = document.getElementById('tpl-status-mode');
+          var manualClosedInput = document.getElementById('tpl-manual-closed');
+          if (statusSelect) statusSelect.value = 'manual';
+          if (manualClosedInput) manualClosedInput.checked = !nextOpen;
+          if (window.Modules && Modules.Catalogo && typeof Modules.Catalogo._refreshTemplatePreview === 'function') Modules.Catalogo._refreshTemplatePreview();
           AdminApp._applyStoreOnlineStatus(nextOpen, false, 'manual');
           if (window.UI && UI.toast) UI.toast(nextOpen ? 'Loja online aberta.' : 'Loja online fechada.', 'success');
         });
@@ -905,12 +969,10 @@ button,input,select,textarea{font-family:inherit}
   Router.register('pedidos/cozinha', Modules.Pedidos);
   Router.register('pedidos/lista', Modules.Pedidos);
   Router.register('pedidos/clientes', Modules.Clientes);
-  Router.register('pedidos/avaliacoes', Modules.Pedidos);
   Router.register('catalogo', Modules.Catalogo);
   Router.register('receitas', Modules.Receitas);
   Router.register('clientes', Modules.Clientes);
   Router.register('marketing', Modules.Marketing);
-  Router.register('marketing/avaliacoes', Modules.Marketing);
   Router.register('marketing/pontos', Modules.Marketing);
   Router.register('loja-online', Modules.LojaOnline);
   Router.register('loja-online/template', Modules.LojaOnline);
@@ -919,7 +981,6 @@ button,input,select,textarea{font-family:inherit}
   Router.register('loja-online/avaliacoes', Modules.LojaOnline);
   Router.register('catalogo/seo', Modules.LojaOnline);
   Router.register('catalogo/template', Modules.LojaOnline);
-  Router.register('catalogo/avaliacoes', Modules.LojaOnline);
   Router.register('catalogo/configuracoes', Modules.Catalogo);
   Router.register('crescimento', Modules.PlanoDeVoo);
   Router.register('crescimento/plano-de-voo', Modules.PlanoDeVoo);

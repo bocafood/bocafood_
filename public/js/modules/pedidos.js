@@ -26,7 +26,9 @@ Modules.Pedidos = (function () {
     period: 'all',
     stars: 'all',
     periodStart: '',
-    periodEnd: ''
+    periodEnd: '',
+    page: 1,
+    pageSize: 10
   };
   var _ui = {
     q: '',
@@ -150,6 +152,7 @@ Modules.Pedidos = (function () {
       DB.getAll('reviews').catch(function () { return []; }),
       DB.getAll('products').catch(function () { return []; }),
       DB.getAll('promotions').catch(function () { return []; }),
+      DB.getAll('promocoes').catch(function () { return []; }),
       DB.getDocRoot ? DB.getDocRoot('config', 'geral').catch(function () { return null; }) : Promise.resolve(null),
       DB.getDocRoot ? DB.getDocRoot('config', 'financeiro').catch(function () { return null; }) : Promise.resolve(null),
       DB.getDocRoot ? DB.getDocRoot('config', 'zonas').catch(function () { return null; }) : Promise.resolve(null),
@@ -158,11 +161,11 @@ Modules.Pedidos = (function () {
       _customers = res[0] || [];
       _reviews = res[1] || [];
       _products = (res[2] || []).slice();
-      _promotions = (res[3] || []).slice();
-      _generalConfig = res[4] || {};
-      _financeConfig = res[5] || {};
-      _zones = _normalizeZones(res[6]);
-      _canais = _normalizeCanais(res[7]);
+      _promotions = _mergeManualPromotions(res[3], res[4]);
+      _generalConfig = res[5] || {};
+      _financeConfig = res[6] || {};
+      _zones = _normalizeZones(res[7]);
+      _canais = _normalizeCanais(res[8]);
       _syncOrderCustomerLinks(_orders);
       if (!_paintReviewsHost()) _paintActive();
     }).catch(function () {
@@ -177,6 +180,26 @@ Modules.Pedidos = (function () {
       _syncOrderCustomerLinks(_orders);
       if (!_paintReviewsHost()) _paintActive();
     });
+  }
+
+  function _mergeManualPromotions(primary, legacy) {
+    var out = [];
+    var seen = {};
+    [primary || [], legacy || []].forEach(function (group) {
+      (group || []).forEach(function (promo) {
+        if (!promo) return;
+        var key = String(promo.id || promo._id || promo.promoId || promo.code || promo.slug || [
+          promo.name || promo.title || '',
+          promo.type || promo.tipo || '',
+          promo.startDate || promo.startsAt || '',
+          promo.endDate || promo.endsAt || ''
+        ].join('|'));
+        if (key && seen[key]) return;
+        if (key) seen[key] = true;
+        out.push(promo);
+      });
+    });
+    return out;
   }
 
   function _renderCatalogoAvaliacoes(targetId) {
@@ -632,30 +655,24 @@ Modules.Pedidos = (function () {
     var periodLabel = _reviewPeriodLabel(_reviewUi.period);
     var catalogoMode = !!_reviewsHostId;
     var sectionHint = catalogoMode
-      ? 'Avaliações exibidas na loja pública, com leitura rápida, moderação e foco no que passa confiança.'
-      : 'Avaliações ligadas aos pedidos, com leitura rápida, moderação e foco no que passa confiança.';
-    var chip = 'display:inline-flex;align-items:center;min-height:24px;padding:0 10px;border-radius:999px;background:#fff;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:500;box-shadow:0 1px 2px rgba(31,31,31,.02);';
+      ? 'Aprove comentários confiáveis para aparecerem na loja pública e responda quando quiser reforçar o atendimento.'
+      : 'Acompanhe comentários ligados aos pedidos e use as avaliações para melhorar o atendimento.';
     return '<div class="bf-page" style="padding:0;display:flex;flex-direction:column;gap:16px;min-height:0;flex:1;font-family:Manrope,Inter,sans-serif;">' +
       '<div class="bf-page-header" style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;">' +
         '<div style="min-width:0;flex:1 1 420px;">' +
-          '<h2 style="font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;line-height:1.2;">Avaliações</h2>' +
+          '<h2 style="font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;line-height:1.15;">Avaliações da loja</h2>' +
           '<p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0 0 10px;max-width:760px;">' + sectionHint + '</p>' +
-          '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
-            '<span style="' + chip + '">' + stats.total + ' avaliações</span>' +
-            '<span style="' + chip + '">' + stats.approved + ' aprovadas</span>' +
-            '<span style="' + chip + '">' + stats.pending + ' pendentes</span>' +
-          '</div>' +
         '</div>' +
       '</div>' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;">' +
       _reviewKpiCard('Avaliações', stats.total, periodLabel, 'reviews', '#8A6F5A') +
-      _reviewKpiCard('Aprovadas', stats.approved, 'visíveis no template', 'verified', '#6C8777') +
+      _reviewKpiCard('Aprovadas', stats.approved, 'visíveis na loja pública', 'verified', '#6C8777') +
       _reviewKpiCard('Pendentes', stats.pending, 'aguardando moderação', 'pending_actions', '#A18362') +
       _reviewKpiCard('Nota média', stats.avg ? stats.avg.toFixed(1) + '/5' : '—', 'todas as avaliações', 'star', '#B42318') +
       '</div>' +
       _reviewToolbarHtml(stats) +
       '<section style="display:flex;flex-direction:column;gap:10px;">' +
-        '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">Avaliações dos clientes</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Leia comentários, aprove o que transmite confiança e rejeite o que não deve aparecer na loja.</div></div>' +
+        '<div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;"><div><div style="font-size:14px;font-weight:650;color:#1F1F1F;">Comentários recebidos</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Abra uma avaliação para conferir os detalhes antes de moderar.</div></div><div style="font-size:12px;color:#6F6860;">' + filtered.length + ' exibida' + (filtered.length === 1 ? '' : 's') + '</div></div>' +
         '<div id="reviews-tab-list" style="display:flex;flex-direction:column;gap:12px;"></div>' +
       '</section>' +
       '</div>';
@@ -665,35 +682,44 @@ Modules.Pedidos = (function () {
     var wrap = document.getElementById('reviews-tab-list');
     if (!wrap) return;
     var list = _reviewFilteredList();
-    wrap.innerHTML = list.length ? list.map(function (r) {
+    var paging = _reviewPaging(list);
+    var pageSizeOptions = [10, 12, 24, 48].map(function (n) {
+      return '<option value="' + n + '"' + (Number(_reviewUi.pageSize) === n ? ' selected' : '') + '>' + n + ' / pág.</option>';
+    }).join('');
+    var paginationHtml = paging.total ? '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:14px 2px 0;">' +
+      '<span style="font-size:12px;color:#6F6860;line-height:1.4;">Mostrando <strong style="color:#1F1F1F;font-weight:600;">' + paging.start + '</strong> a <strong style="color:#1F1F1F;font-weight:600;">' + paging.end + '</strong> de <strong style="color:#1F1F1F;font-weight:600;">' + paging.total + '</strong></span>' +
+      '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;">' +
+        '<select onchange="Modules.Pedidos._setReviewPageSize(this.value)" style="' + _reviewAdminSelectStyle('min-width:110px;max-width:110px;height:34px;padding:0 30px 0 10px;font-size:12px;background-color:#fff;color:#6F6860;') + '">' + pageSizeOptions + '</select>' +
+        '<div style="display:flex;align-items:center;gap:6px;">' +
+          '<button type="button" onclick="Modules.Pedidos._setReviewPage(' + (paging.page - 1) + ')" style="height:34px;padding:0 11px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#6F6860;font-size:12px;font-weight:500;cursor:' + (paging.page > 1 ? 'pointer' : 'not-allowed') + ';opacity:' + (paging.page > 1 ? '1' : '.45') + ';"' + (paging.page > 1 ? '' : ' disabled') + '>Anterior</button>' +
+          '<div style="display:flex;align-items:center;gap:6px;"><span style="font-size:12px;color:#A39B90;">' + paging.page + '</span><span style="width:14px;height:2px;border-radius:999px;background:#B42318;display:inline-block;opacity:.65"></span><span style="font-size:12px;color:#A39B90;">' + paging.totalPages + '</span></div>' +
+          '<button type="button" onclick="Modules.Pedidos._setReviewPage(' + (paging.page + 1) + ')" style="height:34px;padding:0 11px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#6F6860;font-size:12px;font-weight:500;cursor:' + (paging.page < paging.totalPages ? 'pointer' : 'not-allowed') + ';opacity:' + (paging.page < paging.totalPages ? '1' : '.45') + ';"' + (paging.page < paging.totalPages ? '' : ' disabled') + '>Próxima</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>' : '';
+    wrap.innerHTML = list.length ? paging.items.map(function (r) {
       var statusInfo = _reviewStatusLabel(r);
       var stars = Number(r.stars || r.rating || 0) || 0;
       var dateTs = _reviewDateTs(r);
       var summaryText = String(r.comment || r.text || '').trim();
-      return '<div onclick="Modules.Pedidos._openReview(\'' + _esc(String(r.id || '')) + '\')" onmouseenter="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 16px 34px rgba(31,31,31,.09)\'" onmouseleave="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'0 12px 30px rgba(31,31,31,.06)\'" style="background:#fff;border:1px solid #EAE4DA;border-radius:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);padding:16px 18px;cursor:pointer;display:flex;flex-direction:column;gap:14px;font-family:Manrope,Inter,sans-serif;overflow:hidden;transition:transform .16s ease,box-shadow .16s ease;">' +
-        '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">' +
-          '<div style="min-width:0;flex:1;">' +
-            '<div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;">Cliente</div>' +
-            '<div style="font-size:16px;font-weight:600;color:#1F1F1F;line-height:1.35;">' + _esc(r.name || r.customerName || 'Cliente') + '</div>' +
-            '<div style="margin-top:6px;color:#B42318;font-size:14px;letter-spacing:1px;line-height:1;">' + _esc('★'.repeat(stars) + '☆'.repeat(5 - stars)) + ' <span style="font-size:12px;color:#6F6860;font-weight:500;">(' + stars + '/5)</span></div>' +
-          '</div>' +
-          '<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;align-items:flex-start;">' +
+      var sourceLabel = _reviewSourceLabel(r);
+      return '<div onclick="Modules.Pedidos._openReview(\'' + _esc(String(r.id || '')) + '\')" onmouseenter="this.style.transform=\'translateY(-1px)\';this.style.boxShadow=\'0 14px 30px rgba(31,31,31,.075)\'" onmouseleave="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'0 10px 24px rgba(31,31,31,.045)\'" style="cursor:pointer;background:#fff;border:1px solid #EAE4DA;border-radius:16px;padding:15px 16px;box-shadow:0 10px 24px rgba(31,31,31,.045);display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;align-items:center;transition:transform .16s ease,box-shadow .16s ease;font-family:Manrope,Inter,sans-serif;">' +
+        '<div style="min-width:0;">' +
+          '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">' +
             '<span style="font-size:11px;font-weight:600;padding:5px 9px;border-radius:999px;background:' + statusInfo.bg + ';color:' + statusInfo.tone + ';border:1px solid #EAE4DA;">' + _esc(statusInfo.label) + '</span>' +
-            '<span style="font-size:11px;font-weight:600;padding:5px 9px;border-radius:999px;background:#fff;color:#6F6860;border:1px solid #EAE4DA;">' + _esc(_reviewSourceLabel(r)) + '</span>' +
+            (sourceLabel ? '<span style="font-size:11px;font-weight:500;padding:5px 9px;border-radius:999px;background:#FAF8F4;color:#6F6860;border:1px solid #EAE4DA;">' + _esc(sourceLabel) + '</span>' : '') +
           '</div>' +
+          '<div style="font-size:15px;font-weight:650;color:#1F1F1F;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(r.name || r.customerName || 'Cliente') + '</div>' +
+          '<div style="margin-top:5px;color:#B42318;font-size:13px;letter-spacing:.8px;line-height:1;">' + _esc('★'.repeat(stars) + '☆'.repeat(5 - stars)) + ' <span style="font-size:12px;color:#6F6860;font-weight:500;">(' + stars + '/5)</span></div>' +
+          (summaryText ? '<div style="margin-top:8px;font-size:13px;color:#3F3430;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">' + _esc(summaryText) + '</div>' : '') +
         '</div>' +
-        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;">' +
-          '<div style="background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;padding:12px 14px;"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Produto</div><div style="font-size:13px;font-weight:600;color:#1F1F1F;line-height:1.35;">' + _esc(r.productName || '—') + '</div></div>' +
-          '<div style="background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;padding:12px 14px;"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Data</div><div style="font-size:13px;font-weight:600;color:#1F1F1F;line-height:1.35;">' + _esc(dateTs ? UI.fmtDate(new Date(dateTs)) : '—') + '</div></div>' +
-          '<div style="background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;padding:12px 14px;"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Origem</div><div style="font-size:13px;font-weight:600;color:#1F1F1F;line-height:1.35;">' + _esc(_reviewSourceLabel(r)) + '</div></div>' +
+        '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;min-width:0;">' +
+          '<div style="min-width:0;"><div style="font-size:11px;color:#6F6860;margin-bottom:3px;">Produto</div><div style="font-size:13px;font-weight:600;color:#1F1F1F;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(r.productName || '—') + '</div></div>' +
+          '<div style="min-width:0;"><div style="font-size:11px;color:#6F6860;margin-bottom:3px;">Data</div><div style="font-size:13px;font-weight:600;color:#1F1F1F;line-height:1.35;white-space:nowrap;">' + _esc(dateTs ? UI.fmtDate(new Date(dateTs)) : '—') + '</div></div>' +
         '</div>' +
-        (summaryText ? '<div style="background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;padding:12px 14px;"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Comentário</div><div style="font-size:14px;color:#1F1F1F;line-height:1.6;">' + _esc(summaryText) + '</div></div>' : '') +
-        '<div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;" onclick="event.stopPropagation()">' +
-          '<button onclick="Modules.Pedidos._approveReview(\'' + _esc(String(r.id || '')) + '\')" style="padding:9px 13px;border:none;border-radius:10px;background:#1A9E5A;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:Manrope,Inter,sans-serif;box-shadow:0 8px 18px rgba(26,158,90,.16);">Aprovar</button>' +
-          '<button onclick="Modules.Pedidos._rejectReview(\'' + _esc(String(r.id || '')) + '\')" style="padding:9px 13px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:Manrope,Inter,sans-serif;box-shadow:0 8px 18px rgba(180,35,24,.16);">Rejeitar</button>' +
-        '</div>' +
+        '<div style="display:flex;justify-content:flex-end;align-items:center;">' + _reviewActionButtons(r, 'list') + '</div>' +
       '</div>';
-    }).join('') : '<section style="background:#fff;border:1px solid #EAE4DA;border-radius:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);text-align:center;padding:48px 20px;"><div style="font-size:15px;font-weight:700;color:#1F1F1F;margin-bottom:4px;">Nenhuma avaliação encontrada</div><div style="font-size:13px;color:#6F6860;line-height:1.45;">Tente ajustar a busca, os filtros ou o período.</div></section>';
+    }).join('') + paginationHtml : '<section style="background:#fff;border:1px solid #EAE4DA;border-radius:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);text-align:center;padding:48px 20px;"><div style="font-size:15px;font-weight:700;color:#1F1F1F;margin-bottom:4px;">Nenhuma avaliação encontrada</div><div style="font-size:13px;color:#6F6860;line-height:1.45;">Tente ajustar a busca, os filtros ou o período.</div></section>';
   }
 
   function _allCustomersStats() {
@@ -821,39 +847,49 @@ Modules.Pedidos = (function () {
     var stars = Number(r.stars || r.rating || 0) || 0;
     var status = _reviewStatusLabel(r);
     var ts = _reviewDateTs(r);
+    var sourceLabel = _reviewSourceLabel(r);
+    var cardStyle = 'background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:15px;padding:12px;box-shadow:0 8px 20px rgba(31,31,31,.035);';
+    var tileStyle = 'background:#FFFCF8;border:1px solid #E8DCD7;border-radius:11px;padding:9px 10px;min-width:0;box-sizing:border-box;';
+    var labelStyle = 'font-size:10px;font-weight:500;color:#7A746B;text-transform:uppercase;letter-spacing:.02em;margin-bottom:4px;';
+    var valueStyle = 'font-size:13px;font-weight:500;color:#1F1F1F;line-height:1.3;overflow-wrap:anywhere;';
+    var starsText = _esc('★'.repeat(Math.max(0, Math.min(5, stars))) + '☆'.repeat(Math.max(0, 5 - Math.max(0, Math.min(5, stars)))));
     UI.modal({
-      title: 'Resumo da Avaliação',
-      body: '<div style="display:flex;flex-direction:column;gap:14px;font-family:Manrope,Inter,sans-serif;">' +
-        '<section style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
-          '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">' +
-            '<div style="min-width:0;flex:1;">' +
-              '<div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;">Cliente</div>' +
-              '<div style="font-size:24px;font-weight:600;line-height:1.1;color:#1F1F1F;">' + _esc(r.name || r.customerName || 'Cliente') + '</div>' +
-              '<div style="margin-top:8px;color:#B42318;font-size:15px;letter-spacing:1px;line-height:1;">' + _esc('★'.repeat(stars) + '☆'.repeat(5 - stars)) + ' <span style="font-size:12px;color:#6F6860;font-weight:500;">(' + stars + '/5)</span></div>' +
+      title: 'Detalhes da avaliação',
+      body: '<div style="display:flex;flex-direction:column;gap:9px;max-width:720px;margin:0 auto;font-family:Manrope,Inter,sans-serif;">' +
+        '<section style="' + cardStyle + '">' +
+          '<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:start;">' +
+            '<div style="min-width:0;">' +
+              '<div style="display:flex;align-items:center;gap:7px;margin-bottom:6px;">' +
+                '<span class="mi" style="width:24px;height:24px;border-radius:8px;background:#FFF7ED;color:#B45309;display:inline-flex;align-items:center;justify-content:center;font-size:14px;line-height:1;overflow:hidden;flex:0 0 auto;">star</span>' +
+                '<span style="font-size:11px;font-weight:600;color:#7A746B;text-transform:uppercase;letter-spacing:.02em;">Avaliação</span>' +
+              '</div>' +
+              '<div style="font-size:19px;font-weight:650;line-height:1.15;color:#1F1F1F;overflow-wrap:anywhere;">' + _esc(r.name || r.customerName || 'Cliente') + '</div>' +
+              '<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:7px;">' +
+                '<span style="color:#B6925E;font-size:13px;letter-spacing:.25px;line-height:1;">' + starsText + '</span>' +
+                '<span style="font-size:12px;color:#6F6860;font-weight:500;">' + stars + '/5</span>' +
+              '</div>' +
             '</div>' +
-            '<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;align-items:flex-start;">' +
+            '<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;align-items:flex-start;max-width:220px;">' +
               '<span style="font-size:11px;font-weight:600;padding:5px 9px;border-radius:999px;background:' + status.bg + ';color:' + status.tone + ';border:1px solid rgba(180,35,24,.12);">' + _esc(status.label) + '</span>' +
-              '<span style="font-size:11px;font-weight:600;padding:5px 9px;border-radius:999px;background:#fff;color:#6F6860;border:1px solid #EAE4DA;">' + _esc(_reviewSourceLabel(r)) + '</span>' +
+              (sourceLabel ? '<span style="font-size:11px;font-weight:500;padding:5px 9px;border-radius:999px;background:#FAF8F4;color:#6F6860;border:1px solid #EAE4DA;">' + _esc(sourceLabel) + '</span>' : '') +
             '</div>' +
           '</div>' +
-        '</section>' +
-        '<section style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
-          '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;">' +
-            '<div style="background:#fff;border:none;border-radius:14px;box-shadow:0 12px 30px rgba(31,31,31,.06);padding:12px 14px;"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Produto</div><div style="font-size:13px;font-weight:600;color:#1F1F1F;line-height:1.35;">' + _esc(r.productName || '—') + '</div></div>' +
-            '<div style="background:#fff;border:none;border-radius:14px;box-shadow:0 12px 30px rgba(31,31,31,.06);padding:12px 14px;"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Data</div><div style="font-size:13px;font-weight:600;color:#1F1F1F;line-height:1.35;">' + _esc(ts ? UI.fmtDate(new Date(ts)) : '—') + '</div></div>' +
-            '<div style="background:#fff;border:none;border-radius:14px;box-shadow:0 12px 30px rgba(31,31,31,.06);padding:12px 14px;"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Origem</div><div style="font-size:13px;font-weight:600;color:#1F1F1F;line-height:1.35;">' + _esc(_reviewSourceLabel(r)) + '</div></div>' +
+          '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-top:10px;">' +
+            '<div style="' + tileStyle + '"><div style="' + labelStyle + '">Produto</div><div style="' + valueStyle + '">' + _esc(r.productName || '—') + '</div></div>' +
+            '<div style="' + tileStyle + '"><div style="' + labelStyle + '">Data</div><div style="' + valueStyle + 'white-space:nowrap;">' + _esc(ts ? UI.fmtDate(new Date(ts)) : '—') + '</div></div>' +
+            (sourceLabel ? '<div style="' + tileStyle + '"><div style="' + labelStyle + '">Origem</div><div style="' + valueStyle + '">' + _esc(sourceLabel) + '</div></div>' : '') +
           '</div>' +
         '</section>' +
-        '<section style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
-          '<div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">Comentário</div>' +
-          '<div style="font-size:14px;color:#1F1F1F;line-height:1.65;">' + _esc(r.comment || r.text || '—') + '</div>' +
+        '<section style="' + cardStyle + '">' +
+          '<div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;">' +
+            '<span class="mi" style="width:24px;height:24px;border-radius:8px;background:#FAF8F4;color:#7A746B;display:inline-flex;align-items:center;justify-content:center;font-size:14px;line-height:1;overflow:hidden;">format_quote</span>' +
+            '<div style="font-size:13px;font-weight:600;color:#1F1F1F;line-height:1.25;">Comentário</div>' +
+          '</div>' +
+          '<div style="background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:11px 12px;font-size:14px;color:#1F1F1F;line-height:1.5;">' + _esc(r.comment || r.text || '—') + '</div>' +
         '</section>' +
       '</div>',
-      footer: '<div style="display:flex;gap:10px;flex-wrap:wrap;">' +
-        '<button onclick="Modules.Pedidos._approveReview(\'' + _esc(String(r.id || '')) + '\')" style="flex:1;min-width:130px;padding:13px;border:none;border-radius:11px;background:#1A9E5A;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:Manrope,Inter,sans-serif;box-shadow:0 8px 18px rgba(26,158,90,.16);">Aprovar</button>' +
-        '<button onclick="Modules.Pedidos._rejectReview(\'' + _esc(String(r.id || '')) + '\')" style="flex:1;min-width:130px;padding:13px;border:none;border-radius:11px;background:#B42318;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:Manrope,Inter,sans-serif;box-shadow:0 8px 18px rgba(180,35,24,.16);">Rejeitar</button>' +
-      '</div>',
-      maxWidth: '960px'
+      footer: _reviewActionButtons(r, 'modal'),
+      maxWidth: '760px'
     });
   }
 
@@ -925,6 +961,29 @@ Modules.Pedidos = (function () {
 
   function _setReviewUi(key, value) {
     _reviewUi[key] = value || '';
+    _reviewUi.page = 1;
+    _paintActive();
+  }
+
+  function _setReviewPage(page) {
+    _reviewUi.page = parseInt(page, 10) || 1;
+    _paintActive();
+  }
+
+  function _setReviewPageSize(size) {
+    _reviewUi.pageSize = parseInt(size, 10) || 10;
+    _reviewUi.page = 1;
+    _paintActive();
+  }
+
+  function _resetReviewFilters() {
+    _reviewUi.query = '';
+    _reviewUi.status = 'all';
+    _reviewUi.period = 'all';
+    _reviewUi.periodStart = '';
+    _reviewUi.periodEnd = '';
+    _reviewUi.stars = 'all';
+    _reviewUi.page = 1;
     _paintActive();
   }
 
@@ -1012,6 +1071,25 @@ Modules.Pedidos = (function () {
     });
   }
 
+  function _reviewPaging(list) {
+    var total = (list || []).length;
+    var pageSize = parseInt(_reviewUi.pageSize, 10) || 10;
+    var totalPages = Math.max(1, Math.ceil(total / pageSize));
+    var page = Math.min(Math.max(parseInt(_reviewUi.page, 10) || 1, 1), totalPages);
+    _reviewUi.page = page;
+    var startIdx = (page - 1) * pageSize;
+    var endIdx = Math.min(startIdx + pageSize, total);
+    return {
+      total: total,
+      page: page,
+      pageSize: pageSize,
+      totalPages: totalPages,
+      start: total ? startIdx + 1 : 0,
+      end: endIdx,
+      items: (list || []).slice(startIdx, endIdx)
+    };
+  }
+
   function _reviewSummary(list) {
     var reviews = Array.isArray(list) ? list : [];
     var approved = reviews.filter(function (r) { return _reviewStatusLabel(r).key === 'approved'; }).length;
@@ -1025,30 +1103,72 @@ Modules.Pedidos = (function () {
     };
   }
 
+  function _reviewAdminPanelStyle(extra) {
+    return 'background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:16px;padding:14px 16px;box-shadow:0 10px 24px rgba(31,31,31,.055);font-family:Manrope,Inter,sans-serif;' + (extra || '');
+  }
+
+  function _reviewAdminInputStyle(extra) {
+    return 'width:100%;height:42px;box-sizing:border-box;padding:10px 13px;border:1px solid #E8DCD7;border-radius:12px;background:#FFFCF8;color:#1F1F1F;font-size:13px;font-weight:400;font-family:Manrope,Inter,sans-serif;outline:none;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;' + (extra || '');
+  }
+
+  function _reviewAdminSelectStyle(extra) {
+    return _reviewAdminInputStyle('appearance:none;-webkit-appearance:none;padding-right:38px;background-color:#FFFCF8;background-image:linear-gradient(45deg,transparent 50%,#7A6F6B 50%),linear-gradient(135deg,#7A6F6B 50%,transparent 50%);background-position:calc(100% - 20px) 18px,calc(100% - 14px) 18px;background-size:6px 6px,6px 6px;background-repeat:no-repeat;' + (extra || ''));
+  }
+
+  function _reviewAdminField(label, html) {
+    return '<label style="display:block;font-size:11px;font-weight:600;color:#6F6860;letter-spacing:.01em;"><span style="display:block;margin-bottom:6px;">' + _esc(label) + '</span>' + html + '</label>';
+  }
+
+  function _reviewHasActiveFilters() {
+    return !!String(_reviewUi.query || '').trim() ||
+      String(_reviewUi.status || 'all') !== 'all' ||
+      String(_reviewUi.period || 'all') !== 'all' ||
+      !!String(_reviewUi.periodStart || '').trim() ||
+      !!String(_reviewUi.periodEnd || '').trim() ||
+      String(_reviewUi.stars || 'all') !== 'all';
+  }
+
   function _reviewToolbarHtml(summary) {
-    var inputStyle = 'width:100%;height:40px;padding:10px 12px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;font-size:14px;font-family:Manrope,Inter,sans-serif;outline:none;color:#1F1F1F;box-shadow:inset 0 1px 0 rgba(255,255,255,.78);box-sizing:border-box;';
-    var chip = 'display:inline-flex;align-items:center;min-height:24px;padding:0 10px;border-radius:999px;background:#fff;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:500;box-shadow:0 1px 2px rgba(31,31,31,.02);';
     var customHtml = _reviewUi.period === 'custom'
-      ? '<div style="grid-column:1 / -1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:-2px;">' +
-          '<input type="date" value="' + _esc(_reviewUi.periodStart || '') + '" onchange="Modules.Pedidos._setReviewUi(\'periodStart\', this.value)" title="Data inicial" style="' + inputStyle + '">' +
-          '<input type="date" value="' + _esc(_reviewUi.periodEnd || '') + '" onchange="Modules.Pedidos._setReviewUi(\'periodEnd\', this.value)" title="Data final" style="' + inputStyle + '">' +
+      ? '<div style="grid-column:1 / -1;display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,220px));gap:10px;margin-top:-2px;">' +
+          _reviewAdminField('Data inicial', '<input type="date" value="' + _esc(_reviewUi.periodStart || '') + '" onchange="Modules.Pedidos._setReviewUi(\'periodStart\', this.value)" style="' + _reviewAdminInputStyle() + '">') +
+          _reviewAdminField('Data final', '<input type="date" value="' + _esc(_reviewUi.periodEnd || '') + '" onchange="Modules.Pedidos._setReviewUi(\'periodEnd\', this.value)" style="' + _reviewAdminInputStyle() + '">') +
         '</div>'
       : '';
-    return '<div style="background:#fff;border:none;border-radius:16px;padding:18px 20px;box-shadow:0 12px 30px rgba(31,31,31,.06);font-family:Manrope,Inter,sans-serif;">' +
-      '<div style="display:grid;grid-template-columns:minmax(320px,1.6fr) minmax(160px,.7fr) minmax(180px,.8fr) minmax(150px,.7fr);gap:10px;align-items:end;">' +
-        '<div><input id="rev-search" type="search" value="' + _esc(_reviewUi.query || '') + '" oninput="Modules.Pedidos._setReviewUi(\'query\', this.value)" placeholder="Buscar avaliações..." style="' + inputStyle + '"></div>' +
-        '<div><select onchange="Modules.Pedidos._setReviewUi(\'status\', this.value)" style="' + inputStyle + '"><option value="all"' + (_reviewUi.status === 'all' ? ' selected' : '') + '>Status: Todas</option><option value="pending"' + (_reviewUi.status === 'pending' ? ' selected' : '') + '>Status: Pendentes</option><option value="approved"' + (_reviewUi.status === 'approved' ? ' selected' : '') + '>Status: Aprovadas</option><option value="rejected"' + (_reviewUi.status === 'rejected' ? ' selected' : '') + '>Status: Rejeitadas</option></select></div>' +
-        '<div><select onchange="Modules.Pedidos._setReviewUi(\'period\', this.value)" style="' + inputStyle + '"><option value="all"' + (_reviewUi.period === 'all' ? ' selected' : '') + '>Período: Todos</option><option value="today"' + (_reviewUi.period === 'today' ? ' selected' : '') + '>Período: Hoje</option><option value="yesterday"' + (_reviewUi.period === 'yesterday' ? ' selected' : '') + '>Período: Ontem</option><option value="last7"' + (_reviewUi.period === 'last7' ? ' selected' : '') + '>Período: Últimos 7 dias</option><option value="last30"' + (_reviewUi.period === 'last30' ? ' selected' : '') + '>Período: Últimos 30 dias</option><option value="thismonth"' + (_reviewUi.period === 'thismonth' ? ' selected' : '') + '>Período: Este mês</option><option value="lastmonth"' + (_reviewUi.period === 'lastmonth' ? ' selected' : '') + '>Período: Mês passado</option><option value="custom"' + (_reviewUi.period === 'custom' ? ' selected' : '') + '>Período: Personalizado</option></select></div>' +
-        '<div><select onchange="Modules.Pedidos._setReviewUi(\'stars\', this.value)" style="' + inputStyle + '"><option value="all"' + (_reviewUi.stars === 'all' ? ' selected' : '') + '>Nota: Todas</option><option value="5"' + (_reviewUi.stars === '5' ? ' selected' : '') + '>Nota: 5 estrelas</option><option value="4"' + (_reviewUi.stars === '4' ? ' selected' : '') + '>Nota: 4 estrelas</option><option value="3"' + (_reviewUi.stars === '3' ? ' selected' : '') + '>Nota: 3 estrelas</option><option value="2"' + (_reviewUi.stars === '2' ? ' selected' : '') + '>Nota: 2 estrelas</option><option value="1"' + (_reviewUi.stars === '1' ? ' selected' : '') + '>Nota: 1 estrela</option></select></div>' +
+    var clearHtml = _reviewHasActiveFilters()
+      ? '<div style="grid-column:1 / -1;display:flex;justify-content:flex-start;margin-top:2px;"><button onclick="Modules.Pedidos._resetReviewFilters()" style="height:36px;border:1px solid #E8DCD7;background:#fff;color:#6F6860;border-radius:10px;padding:0 12px;font-size:12px;font-weight:500;cursor:pointer;font-family:Manrope,Inter,sans-serif;box-shadow:0 1px 2px rgba(31,31,31,.03);">Limpar filtros</button></div>'
+      : '';
+    return '<div style="' + _reviewAdminPanelStyle('border-radius:18px;padding:16px 18px;') + '">' +
+      '<div style="display:grid;grid-template-columns:minmax(260px,1.35fr) minmax(150px,180px) minmax(160px,190px) minmax(130px,160px);gap:10px;align-items:end;">' +
+        '<div>' + _reviewAdminField('Buscar', '<input id="rev-search" type="search" value="' + _esc(_reviewUi.query || '') + '" oninput="Modules.Pedidos._setReviewUi(\'query\', this.value)" placeholder="Cliente, produto ou comentário" style="' + _reviewAdminInputStyle() + '">') + '</div>' +
+        _reviewAdminField('Status', '<select onchange="Modules.Pedidos._setReviewUi(\'status\', this.value)" style="' + _reviewAdminSelectStyle() + '"><option value="all"' + (_reviewUi.status === 'all' ? ' selected' : '') + '>Todas</option><option value="pending"' + (_reviewUi.status === 'pending' ? ' selected' : '') + '>Pendentes</option><option value="approved"' + (_reviewUi.status === 'approved' ? ' selected' : '') + '>Aprovadas</option><option value="rejected"' + (_reviewUi.status === 'rejected' ? ' selected' : '') + '>Rejeitadas</option></select>') +
+        _reviewAdminField('Período', '<select onchange="Modules.Pedidos._setReviewUi(\'period\', this.value)" style="' + _reviewAdminSelectStyle() + '"><option value="all"' + (_reviewUi.period === 'all' ? ' selected' : '') + '>Todos</option><option value="today"' + (_reviewUi.period === 'today' ? ' selected' : '') + '>Hoje</option><option value="yesterday"' + (_reviewUi.period === 'yesterday' ? ' selected' : '') + '>Ontem</option><option value="last7"' + (_reviewUi.period === 'last7' ? ' selected' : '') + '>Últimos 7 dias</option><option value="last30"' + (_reviewUi.period === 'last30' ? ' selected' : '') + '>Últimos 30 dias</option><option value="thismonth"' + (_reviewUi.period === 'thismonth' ? ' selected' : '') + '>Este mês</option><option value="lastmonth"' + (_reviewUi.period === 'lastmonth' ? ' selected' : '') + '>Mês passado</option><option value="custom"' + (_reviewUi.period === 'custom' ? ' selected' : '') + '>Personalizado</option></select>') +
+        _reviewAdminField('Nota', '<select onchange="Modules.Pedidos._setReviewUi(\'stars\', this.value)" style="' + _reviewAdminSelectStyle() + '"><option value="all"' + (_reviewUi.stars === 'all' ? ' selected' : '') + '>Todas</option><option value="5"' + (_reviewUi.stars === '5' ? ' selected' : '') + '>5 estrelas</option><option value="4"' + (_reviewUi.stars === '4' ? ' selected' : '') + '>4 estrelas</option><option value="3"' + (_reviewUi.stars === '3' ? ' selected' : '') + '>3 estrelas</option><option value="2"' + (_reviewUi.stars === '2' ? ' selected' : '') + '>2 estrelas</option><option value="1"' + (_reviewUi.stars === '1' ? ' selected' : '') + '>1 estrela</option></select>') +
         customHtml +
-      '</div>' +
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">' +
-        '<span style="' + chip + '">' + summary.total + ' avaliações</span>' +
-        '<span style="' + chip + '">' + summary.approved + ' aprovadas</span>' +
-        '<span style="' + chip + '">' + summary.pending + ' pendentes</span>' +
-        '<span style="' + chip + '">' + (summary.avg ? summary.avg.toFixed(1) + '/5 média' : 'Sem média') + '</span>' +
+        clearHtml +
       '</div>' +
     '</div>';
+  }
+
+  function _reviewActionButtons(review, context) {
+    var id = _esc(String((review && review.id) || ''));
+    if (!id) return '';
+    var status = _reviewStatusLabel(review).key;
+    var isModal = context === 'modal';
+    var wrapStyle = isModal
+      ? 'display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;'
+      : 'display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;';
+    var baseStyle = isModal
+      ? 'min-width:118px;padding:11px 16px;border:none;border-radius:11px;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:Manrope,Inter,sans-serif;'
+      : 'padding:9px 13px;border:none;border-radius:10px;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:Manrope,Inter,sans-serif;';
+    var buttons = [];
+    if (status !== 'approved') {
+      buttons.push('<button onclick="Modules.Pedidos._approveReview(\'' + id + '\')" style="' + baseStyle + 'background:#1A9E5A;box-shadow:0 8px 18px rgba(26,158,90,.16);">Aprovar</button>');
+    }
+    if (status !== 'rejected') {
+      buttons.push('<button onclick="Modules.Pedidos._rejectReview(\'' + id + '\')" style="' + baseStyle + 'background:#B42318;box-shadow:0 8px 18px rgba(180,35,24,.16);">Rejeitar</button>');
+    }
+    return '<div style="' + wrapStyle + '"' + (isModal ? '' : ' onclick="event.stopPropagation()"') + '>' + buttons.join('') + '</div>';
   }
 
   function _approveReview(id) {
@@ -1149,7 +1269,16 @@ Modules.Pedidos = (function () {
   }
 
   function _isCardapioOrder(order) {
-    return _orderChannelKey(order) === 'cardapio';
+    if (!order) return false;
+    if (order.kitchenQueue === true || order.showInKitchen === true) return true;
+    var channel = String(order.channel || '').trim().toLowerCase();
+    var source = String(order.source || '').trim().toLowerCase();
+    var originChannel = String(order.originChannel || '').trim().toLowerCase();
+    var originSource = String(order.originSource || '').trim().toLowerCase();
+    var keys = [channel, source, originChannel, originSource];
+    return keys.some(function (key) {
+      return key === 'cardapio' || key === 'template' || key === 'store' || key === 'storefront';
+    });
   }
 
   function _cardapioOrders() {
@@ -1607,7 +1736,103 @@ Modules.Pedidos = (function () {
     var pending = Math.max(0, total - paid);
     var method = _firstText(order && order.paymentMethod, order && order.payMethod, order && order.payment, order && order.formaPagamento, order && order.paymentType, '');
     var status = _firstText(order && order.paymentStatus, order && order.payStatus, order && order.statusPayment, order && order.paymentState, '');
-    return { total: total, paid: paid, pending: pending, method: method, status: status };
+    var subtotal = _num(order && (order.subtotal != null ? order.subtotal : order.itemsSubtotal != null ? order.itemsSubtotal : 0));
+    var originalSubtotal = _num(order && (order.originalSubtotal != null ? order.originalSubtotal : order.subtotalOriginal != null ? order.subtotalOriginal : subtotal));
+    var promoDiscount = _num(order && (order.promoDiscountTotal != null ? order.promoDiscountTotal : order.promoDiscount != null ? order.promoDiscount : 0));
+    var couponDiscount = _num(order && (order.couponDiscountTotal != null ? order.couponDiscountTotal : order.couponDiscount != null ? order.couponDiscount : 0));
+    var pointsDiscount = _num(order && (order.pointsDiscountTotal != null ? order.pointsDiscountTotal : order.pointsDiscount != null ? order.pointsDiscount : 0));
+    var deliveryFee = _num(order && (order.deliveryFee != null ? order.deliveryFee : order.shippingFee != null ? order.shippingFee : order.fee != null ? order.fee : 0));
+    var originalDeliveryFee = _num(order && (order.originalDeliveryFee != null ? order.originalDeliveryFee : order.shippingOriginalFee != null ? order.shippingOriginalFee : deliveryFee));
+    var freeShippingApplied = !!(order && (order.freeShippingApplied || order.freeShippingPromotionId || order.freeShippingPromotion));
+    var freeShippingPromotionName = _firstText(order && order.freeShippingPromotionName, order && order.freeShippingPromotion && order.freeShippingPromotion.name, '');
+    var discountTotal = _num(order && (order.discountTotal != null ? order.discountTotal : promoDiscount + couponDiscount + pointsDiscount));
+    var couponCode = order && order.coupon ? _firstText(order.coupon.code, order.coupon.couponCode, order.coupon.name, '') : _firstText(order && order.couponCode, order && order.discountCode, '');
+    return { total: total, paid: paid, pending: pending, method: method, status: status, subtotal: subtotal, originalSubtotal: originalSubtotal, promoDiscount: promoDiscount, couponDiscount: couponDiscount, pointsDiscount: pointsDiscount, deliveryFee: deliveryFee, originalDeliveryFee: originalDeliveryFee, freeShippingApplied: freeShippingApplied, freeShippingPromotionName: freeShippingPromotionName, discountTotal: discountTotal, couponCode: couponCode };
+  }
+
+  function _detailSmallLine(label, value) {
+    if (value === undefined || value === null || value === '') return '';
+    return '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;font-size:12px;line-height:1.35;color:#1F1F1F;">' +
+      '<span style="color:#6F6860;">' + _esc(label) + '</span>' +
+      '<span style="text-align:right;">' + _esc(value) + '</span>' +
+    '</div>';
+  }
+
+  function _detailOrderMetaHTML(order) {
+    var lines = [
+      _detailSmallLine('Código público', _firstText(order && order.publicOrderCode, order && order.orderRef, order && order.orderNumber, '')),
+      _detailSmallLine('Origem', _orderChannelLabel(order)),
+      _detailSmallLine('Itens', order && order.itemCount ? String(order.itemCount) : ((order && order.items && order.items.length) ? String(order.items.length) : ''))
+    ].filter(Boolean);
+    return lines.length ? '<div style="margin-top:10px;display:grid;gap:5px;max-width:360px;">' + lines.join('') + '</div>' : '';
+  }
+
+  function _detailCustomerMetaHTML(order, customer) {
+    var lines = [
+      _detailSmallLine('WhatsApp', _firstText(order && order.customerPhone, order && order.phone, order && order.whatsapp, customer && (customer.phone || customer.whatsapp), '')),
+      _detailSmallLine('E-mail', _firstText(order && order.customerEmail, order && order.email, customer && customer.email, '')),
+      _detailSmallLine('UID cliente', _firstText(order && order.customerUid, order && order.customerId, order && order.clientId, customer && (customer.uid || customer.id), ''))
+    ].filter(Boolean);
+    return lines.length ? '<div style="margin-top:10px;display:grid;gap:5px;">' + lines.join('') + '</div>' : '';
+  }
+
+  function _detailAddressMetaHTML(order) {
+    order = order || {};
+    if (order.type === 'pickup') return '';
+    var deliveryAddress = order.deliveryAddress && typeof order.deliveryAddress === 'object' ? order.deliveryAddress : {};
+    var number = _firstText(order.addressNumber, deliveryAddress.number, '');
+    var complement = _firstText(order.addressComplement, deliveryAddress.complement, '');
+    var city = _firstText(order.addressCity, deliveryAddress.city, deliveryAddress.locality, '');
+    var province = _firstText(order.addressProvince, deliveryAddress.province, deliveryAddress.state, '');
+    var country = _firstText(order.addressCountry, deliveryAddress.country, deliveryAddress.countryCode, '');
+    var placeId = _firstText(order.addressPlaceId, deliveryAddress.placeId, '');
+    var zone = _firstText(order.deliveryZoneName, order.zone, deliveryAddress.zone, '');
+    var lines = [
+      _detailSmallLine('Número', number),
+      _detailSmallLine('Complemento', complement),
+      _detailSmallLine('Zona de entrega', zone),
+      _detailSmallLine('Localidade', [city, province].filter(Boolean).join(' · ')),
+      _detailSmallLine('País', country),
+      _detailSmallLine('Place ID', placeId)
+    ].filter(Boolean);
+    return lines.length ? '<div style="margin-top:8px;display:grid;gap:5px;">' + lines.join('') + '</div>' : '';
+  }
+
+  function _detailPaymentBreakdownHTML(payment) {
+    var rows = [];
+    if (payment.originalSubtotal && payment.originalSubtotal !== payment.subtotal) rows.push(_detailSmallLine('Subtotal original', UI.fmt(payment.originalSubtotal)));
+    if (payment.subtotal) rows.push(_detailSmallLine('Subtotal', UI.fmt(payment.subtotal)));
+    if (payment.promoDiscount) rows.push(_detailSmallLine('Promoções', '-' + UI.fmt(payment.promoDiscount)));
+    if (payment.couponDiscount) rows.push(_detailSmallLine('Cupom' + (payment.couponCode ? ' ' + payment.couponCode : ''), '-' + UI.fmt(payment.couponDiscount)));
+    if (payment.pointsDiscount) rows.push(_detailSmallLine('Pontos', '-' + UI.fmt(payment.pointsDiscount)));
+    if (payment.freeShippingApplied) rows.push(_detailSmallLine('Frete grátis' + (payment.freeShippingPromotionName ? ' · ' + payment.freeShippingPromotionName : ''), payment.originalDeliveryFee ? UI.fmt(payment.originalDeliveryFee) + ' → ' + UI.fmt(0) : UI.fmt(0)));
+    if (payment.deliveryFee) rows.push(_detailSmallLine('Entrega', UI.fmt(payment.deliveryFee)));
+    if (payment.discountTotal && !rows.some(function (line) { return line.indexOf('Promoções') >= 0 || line.indexOf('Cupom') >= 0 || line.indexOf('Pontos') >= 0; })) rows.push(_detailSmallLine('Descontos', '-' + UI.fmt(payment.discountTotal)));
+    return rows.length ? '<div style="margin:10px 0 12px;padding:10px 0;border-top:1px solid #F2EDED;border-bottom:1px solid #F2EDED;display:grid;gap:6px;">' + rows.join('') + '</div>' : '';
+  }
+
+  function _detailChoiceText(choices) {
+    if (!choices) return '';
+    if (Array.isArray(choices)) {
+      return choices.map(function (choice) {
+        if (choice === null || choice === undefined) return '';
+        if (typeof choice === 'object') {
+          var label = _firstText(choice.group, choice.groupName, choice.label, choice.name, '');
+          var value = _firstText(choice.option, choice.optionName, choice.value, choice.text, '');
+          var qty = _num(choice.qty != null ? choice.qty : choice.quantity != null ? choice.quantity : choice.count != null ? choice.count : 0);
+          return [label, value].filter(Boolean).join(': ') + (qty > 1 ? ' x' + qty : '');
+        }
+        return String(choice || '').replace(/\s+/g, ' ').trim();
+      }).filter(Boolean).join(' / ');
+    }
+    if (typeof choices === 'object') {
+      return Object.keys(choices).map(function (key) {
+        var value = choices[key];
+        if (Array.isArray(value)) value = value.join(', ');
+        return key + ': ' + value;
+      }).filter(Boolean).join(' / ');
+    }
+    return String(choices || '').trim();
   }
 
   function _detailItemPricing(item) {
@@ -1630,8 +1855,9 @@ Modules.Pedidos = (function () {
       originalSubtotal: originalSubtotal,
       subtotal: subtotal,
       discount: discount,
-      variants: item.variants || item.selections || item.options || '',
-      note: item.note || item.observation || item.observations || item.comment || ''
+      variants: _detailChoiceText(item.choices) || _detailChoiceText(item.variants) || _detailChoiceText(item.selections) || _detailChoiceText(item.options),
+      note: item.note || item.observation || item.observations || item.comment || '',
+      internalNote: _firstText(item.internalNote, item.productInternalNote, item.internalNotes, item.kitchenNote, '')
     };
   }
 
@@ -1643,6 +1869,7 @@ Modules.Pedidos = (function () {
     var extra = [];
     if (p.variants) extra.push('<div style="font-size:11px;color:#8A7E7C;line-height:1.45;">' + _esc(p.variants) + '</div>');
     if (p.note) extra.push('<div style="font-size:11px;color:#8A7E7C;line-height:1.45;">' + _esc(p.note) + '</div>');
+    if (p.internalNote) extra.push('<div style="margin-top:5px;font-size:11px;color:#6F6860;line-height:1.45;background:#FAF8F8;border:1px solid #F2EDED;border-radius:10px;padding:7px 9px;"><span style="font-weight:700;color:#1A1A1A;">Observação interna:</span> ' + _esc(p.internalNote) + '</div>');
     return '<div class="pm-check-item' + (item.checked ? ' checked' : '') + '" onclick="Modules.Pedidos._toggleItem(\'' + _esc(order.id) + '\',' + idx + ',this)" style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;background:' + (item.checked ? '#EDFAF3' : '#fff') + ';border:1px solid ' + (item.checked ? '#CFE9D8' : '#F2EDED') + ';border-radius:14px;cursor:pointer;transition:background .15s;">' +
       '<input type="checkbox"' + (item.checked ? ' checked' : '') + ' style="margin-top:2px;width:18px;height:18px;accent-color:#1A9E5A;flex-shrink:0;cursor:pointer;">' +
       '<div style="flex:1;min-width:0;">' +
@@ -1733,7 +1960,14 @@ Modules.Pedidos = (function () {
   }
 
   function _orderAddressText(order) {
-    var parts = [order.address, order.complement, order.neighborhood || order.zone, order.postalCode].filter(Boolean);
+    order = order || {};
+    var deliveryAddress = order.deliveryAddress && typeof order.deliveryAddress === 'object' ? order.deliveryAddress : {};
+    var street = _firstText(order.address, order.streetAddress, deliveryAddress.address, deliveryAddress.street, '');
+    var number = _firstText(order.addressNumber, deliveryAddress.number, '');
+    var complement = _firstText(order.addressComplement, order.complement, deliveryAddress.complement, '');
+    var neighborhood = _firstText(order.neighborhood, deliveryAddress.neighborhood, order.deliveryZoneName, order.zone, '');
+    var postal = _firstText(order.postalCode, order.postal, deliveryAddress.postalCode, deliveryAddress.zip, '');
+    var parts = [[street, number].filter(Boolean).join(', '), complement, neighborhood, postal].filter(Boolean);
     return parts.join(' · ');
   }
 
@@ -2147,9 +2381,15 @@ Modules.Pedidos = (function () {
       var itemsHTML = (o.items || []).map(function (item, i) { return _detailItemHTML(item, i, o); }).join('');
       var addressText = o.type === 'pickup' ? _orderPickupText(o) : _orderAddressText(o);
       var deliveryLabel = o.type === 'pickup' ? 'Retirada' : 'Entrega';
+      var detailDateValue = o.type === 'pickup' ? _firstText(o.pickupDate, o.scheduleDate, o.deliveryDate, '') : _firstText(o.deliveryDate, o.scheduleDate, o.pickupDate, '');
+      var detailTimeValue = o.type === 'pickup' ? _firstText(o.pickupTime, o.scheduleTime, o.deliveryTime, '') : _firstText(o.deliveryTime, o.scheduleTime, o.pickupTime, '');
       var customerStateLabel = detailCustomer.linked ? 'Cliente vinculado' : 'Sem vínculo';
       var customerStatusTone = detailCustomer.linked ? '#1A9E5A' : '#8A7E7C';
       var customerStatusBg = detailCustomer.linked ? '#EDFAF3' : '#F2EDED';
+      var orderMetaHTML = _detailOrderMetaHTML(o);
+      var customerMetaHTML = _detailCustomerMetaHTML(o, customer);
+      var addressMetaHTML = _detailAddressMetaHTML(o);
+      var paymentBreakdownHTML = _detailPaymentBreakdownHTML(payment);
       var pointsHtml = Modules.Marketing && typeof Modules.Marketing._pointsOrderBlockHtml === 'function'
         ? Modules.Marketing._pointsOrderBlockHtml(o, customer)
         : '';
@@ -2162,6 +2402,7 @@ Modules.Pedidos = (function () {
               '<div style="font-size:27px;font-weight:800;line-height:1;color:#B42318;">' + UI.fmt(payment.total) + '</div>' +
               '<div style="margin-top:8px;font-size:13px;color:#1A1A1A;font-weight:700;line-height:1.45;">' + _esc(topName) + '</div>' +
               '<div style="margin-top:4px;font-size:12px;color:#8A7E7C;">' + _esc(topDate) + '</div>' +
+              orderMetaHTML +
             '</div>' +
             '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;min-width:160px;">' +
               UI.badge(_orderStatusLabel(o.status), 'blue') +
@@ -2176,6 +2417,7 @@ Modules.Pedidos = (function () {
             '<div style="font-size:10px;font-weight:900;color:#8A7E7C;text-transform:uppercase;margin-bottom:5px;">Cliente</div>' +
             '<div style="font-size:15px;font-weight:900;line-height:1.25;">' + _esc(topName) + '</div>' +
             '<div style="margin-top:6px;display:inline-flex;align-items:center;padding:5px 10px;border-radius:999px;background:' + customerStatusBg + ';color:' + customerStatusTone + ';font-size:11px;font-weight:800;">' + _esc(customerStateLabel) + '</div>' +
+            customerMetaHTML +
             (_orderClientActions(o, customer) || '') +
           '</div>' +
           '<div style="background:#fff;border:1px solid #F2EDED;border-radius:16px;padding:14px;">' +
@@ -2183,9 +2425,10 @@ Modules.Pedidos = (function () {
             '<div style="font-size:14px;font-weight:800;line-height:1.45;">' + _esc(addressText || (o.type === 'pickup' ? 'Retirada no local' : 'Sem endereço')) + '</div>' +
             (o.type === 'delivery' && o.zone ? '<div style="margin-top:6px;font-size:12px;color:#8A7E7C;">Zona: ' + _esc(o.zone) + '</div>' : '') +
             (o.type === 'delivery' && o.postalCode ? '<div style="margin-top:4px;font-size:12px;color:#8A7E7C;">CP: ' + _esc(o.postalCode) + '</div>' : '') +
+            addressMetaHTML +
             '<div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">' +
-              '<div><label style="font-size:10px;font-weight:900;color:#8A7E7C;text-transform:uppercase;display:block;margin-bottom:4px;">Dia</label><input id="detail-delivery-date" type="date" value="' + _esc(_firstText(o.deliveryDate, o.scheduleDate, '')) + '" style="width:100%;padding:9px 10px;border:1.5px solid #D4C8C6;border-radius:10px;font-size:13px;font-family:inherit;background:#fff;outline:none;"></div>' +
-              '<div><label style="font-size:10px;font-weight:900;color:#8A7E7C;text-transform:uppercase;display:block;margin-bottom:4px;">Horário</label><input id="detail-delivery-time" type="time" value="' + _esc(_firstText(o.deliveryTime, o.scheduleTime, '')) + '" style="width:100%;padding:9px 10px;border:1.5px solid #D4C8C6;border-radius:10px;font-size:13px;font-family:inherit;background:#fff;outline:none;"></div>' +
+              '<div><label style="font-size:10px;font-weight:900;color:#8A7E7C;text-transform:uppercase;display:block;margin-bottom:4px;">Dia</label><input id="detail-delivery-date" type="date" value="' + _esc(detailDateValue) + '" style="width:100%;padding:9px 10px;border:1.5px solid #D4C8C6;border-radius:10px;font-size:13px;font-family:inherit;background:#fff;outline:none;"></div>' +
+              '<div><label style="font-size:10px;font-weight:900;color:#8A7E7C;text-transform:uppercase;display:block;margin-bottom:4px;">Horário</label><input id="detail-delivery-time" type="time" value="' + _esc(detailTimeValue) + '" style="width:100%;padding:9px 10px;border:1.5px solid #D4C8C6;border-radius:10px;font-size:13px;font-family:inherit;background:#fff;outline:none;"></div>' +
             '</div>' +
           '</div>' +
           '<div style="background:#fff;border:1px solid #F2EDED;border-radius:16px;padding:14px;">' +
@@ -2194,6 +2437,7 @@ Modules.Pedidos = (function () {
               (payment.method ? UI.badge(_paymentMethodLabel(payment.method), 'gray') : UI.badge('Sem forma definida', 'gray')) +
               (payment.status ? UI.badge(_paymentStatusLabel(payment.status), 'blue') : UI.badge('Sem status', 'gray')) +
             '</div>' +
+            paymentBreakdownHTML +
             '<div style="margin-bottom:10px;">' +
               '<label style="font-size:10px;font-weight:900;color:#8A7E7C;text-transform:uppercase;display:block;margin-bottom:4px;">Forma de pagamento</label>' +
               '<select id="detail-payment-method" style="width:100%;padding:10px 12px;border:1.5px solid #D4C8C6;border-radius:12px;font-size:14px;font-family:inherit;background:#fff;outline:none;">' + _paymentMethodOptions(payment.method) + '</select>' +
@@ -2311,20 +2555,21 @@ Modules.Pedidos = (function () {
     var nextPaymentMethod = String((paymentSel && paymentSel.value) || (order && order.paymentMethod) || '').trim();
     var nextPaymentStatus = String((paymentStatusSel && paymentStatusSel.value) || (order && order.paymentStatus) || 'previsto').trim() || 'previsto';
     var nextPaidAmount = _num((paidAmountInput && paidAmountInput.value) || (order && order.paidAmount) || 0);
-    var nextDeliveryDate = String((scheduleDateSel && scheduleDateSel.value) || (order && order.deliveryDate) || '').trim();
-    var nextDeliveryTime = String((scheduleTimeSel && scheduleTimeSel.value) || (order && order.deliveryTime) || '').trim();
+    var isPickup = order && order.type === 'pickup';
+    var nextScheduleDate = String((scheduleDateSel && scheduleDateSel.value) || (isPickup ? (order && order.pickupDate) : (order && order.deliveryDate)) || (order && order.scheduleDate) || '').trim();
+    var nextScheduleTime = String((scheduleTimeSel && scheduleTimeSel.value) || (isPickup ? (order && order.pickupTime) : (order && order.deliveryTime)) || (order && order.scheduleTime) || '').trim();
     if (nextPaymentStatus === 'pago') nextPaidAmount = _detailPaymentInfo(order || {}).total;
     if (nextPaymentStatus !== 'parcial') nextPaidAmount = nextPaymentStatus === 'pago' ? nextPaidAmount : 0;
     var currentStatus = String(order && order.status || 'Pendente');
     var currentPaymentMethod = String(order && order.paymentMethod || '').trim();
     var currentPaymentStatus = String(order && order.paymentStatus || '').trim();
     var currentPaidAmount = _num(order && order.paidAmount);
-    var currentDeliveryDate = String(order && order.deliveryDate || '').trim();
-    var currentDeliveryTime = String(order && order.deliveryTime || '').trim();
+    var currentScheduleDate = String((isPickup ? (order && order.pickupDate) : (order && order.deliveryDate)) || (order && order.scheduleDate) || '').trim();
+    var currentScheduleTime = String((isPickup ? (order && order.pickupTime) : (order && order.deliveryTime)) || (order && order.scheduleTime) || '').trim();
     var statusChanged = nextStatus !== currentStatus;
     var paymentChanged = nextPaymentMethod !== currentPaymentMethod;
     var paymentMetaChanged = nextPaymentStatus !== currentPaymentStatus || Math.abs(nextPaidAmount - currentPaidAmount) > 0.001;
-    var scheduleChanged = nextDeliveryDate !== currentDeliveryDate || nextDeliveryTime !== currentDeliveryTime;
+    var scheduleChanged = nextScheduleDate !== currentScheduleDate || nextScheduleTime !== currentScheduleTime;
     var tasks = [];
 
     if (statusChanged) {
@@ -2357,15 +2602,30 @@ Modules.Pedidos = (function () {
       }));
     }
     if (scheduleChanged) {
-      tasks.push(DB.update('orders', id, {
-        deliveryDate: nextDeliveryDate,
-        deliveryTime: nextDeliveryTime,
-        slot: [nextDeliveryDate, nextDeliveryTime].filter(Boolean).join(' ').trim()
-      }).then(function () {
+      var schedulePayload = {
+        scheduleDate: nextScheduleDate,
+        scheduleTime: nextScheduleTime,
+        slot: [nextScheduleDate, nextScheduleTime].filter(Boolean).join(' ').trim()
+      };
+      if (isPickup) {
+        schedulePayload.pickupDate = nextScheduleDate;
+        schedulePayload.pickupTime = nextScheduleTime;
+      } else {
+        schedulePayload.deliveryDate = nextScheduleDate;
+        schedulePayload.deliveryTime = nextScheduleTime;
+      }
+      tasks.push(DB.update('orders', id, schedulePayload).then(function () {
         if (order) {
-          order.deliveryDate = nextDeliveryDate;
-          order.deliveryTime = nextDeliveryTime;
-          order.slot = [nextDeliveryDate, nextDeliveryTime].filter(Boolean).join(' ').trim();
+          order.scheduleDate = nextScheduleDate;
+          order.scheduleTime = nextScheduleTime;
+          if (isPickup) {
+            order.pickupDate = nextScheduleDate;
+            order.pickupTime = nextScheduleTime;
+          } else {
+            order.deliveryDate = nextScheduleDate;
+            order.deliveryTime = nextScheduleTime;
+          }
+          order.slot = [nextScheduleDate, nextScheduleTime].filter(Boolean).join(' ').trim();
         }
       }));
     }
@@ -2385,9 +2645,16 @@ Modules.Pedidos = (function () {
         fresh.valuePaid = nextPaidAmount;
         fresh.paid = nextPaymentStatus === 'pago' ? true : (nextPaymentStatus === 'parcial' ? nextPaidAmount : false);
         fresh.payment = nextPaymentStatus;
-        fresh.deliveryDate = nextDeliveryDate;
-        fresh.deliveryTime = nextDeliveryTime;
-        fresh.slot = [nextDeliveryDate, nextDeliveryTime].filter(Boolean).join(' ').trim();
+        fresh.scheduleDate = nextScheduleDate;
+        fresh.scheduleTime = nextScheduleTime;
+        if (isPickup) {
+          fresh.pickupDate = nextScheduleDate;
+          fresh.pickupTime = nextScheduleTime;
+        } else {
+          fresh.deliveryDate = nextScheduleDate;
+          fresh.deliveryTime = nextScheduleTime;
+        }
+        fresh.slot = [nextScheduleDate, nextScheduleTime].filter(Boolean).join(' ').trim();
       }
       _syncOrderFinanceMovement(id, fresh || order || {});
       _refreshDetailView(id);
@@ -2473,8 +2740,12 @@ Modules.Pedidos = (function () {
 
   function _orderScheduleInfo(order) {
     order = order || {};
-    var dateRaw = _firstText(order.deliveryDate, order.deliveryDateISO, order.scheduleDate, '');
-    var timeRaw = _firstText(order.deliveryTime, order.scheduleTime, '');
+    var dateRaw = order.type === 'pickup'
+      ? _firstText(order.pickupDate, order.scheduleDate, order.deliveryDate, order.deliveryDateISO, '')
+      : _firstText(order.deliveryDate, order.deliveryDateISO, order.scheduleDate, order.pickupDate, '');
+    var timeRaw = order.type === 'pickup'
+      ? _firstText(order.pickupTime, order.scheduleTime, order.deliveryTime, '')
+      : _firstText(order.deliveryTime, order.scheduleTime, order.pickupTime, '');
     var slotRaw = _firstText(order.slot, order.schedule, '');
     var dateLabel = '';
     var timeLabel = '';
@@ -2781,22 +3052,45 @@ Modules.Pedidos = (function () {
       var product = (_products || []).find(function (p) { return String(p.id || '') === String(item.productId || ''); }) || {};
       var calc = _manualOrderState.channel === 'cardapio' ? _manualOrderBestPromoForProduct(product) : null;
       var originalPrice = _manualOrderProductBasePrice(product) || _num(item.originalPrice || 0);
-      var finalPrice = calc ? calc.calc.final : _num(item.finalPrice || originalPrice);
       return {
         productId: item.productId,
         name: item.name || _firstText(product.name, product.title, 'Produto'),
         category: item.category || _firstText(product.category, product.categoria, ''),
         quantity: item.quantity || 1,
         originalPrice: originalPrice,
-        finalPrice: finalPrice,
+        finalPrice: calc ? calc.calc.final : _num(item.finalPrice || originalPrice),
+        internalNote: _firstText(item.internalNote, item.productInternalNote, product.internalNote, product.internalNotes, product.kitchenNote, ''),
+        productInternalNote: _firstText(item.productInternalNote, item.internalNote, product.internalNote, product.internalNotes, product.kitchenNote, ''),
         promoId: calc && calc.promo ? String(calc.promo.id || calc.promo._id || calc.promo.slug || '') : (item.promoId || ''),
         promoName: calc && calc.promo ? _firstText(calc.promo.name, calc.promo.title, 'Promoção') : (item.promoName || ''),
         promoType: calc && calc.promo ? String(calc.promo.type || '') : (item.promoType || ''),
+        promoLeve: calc && calc.calc ? _num(calc.calc.leve || 0) : _num(item.promoLeve || 0),
+        promoPague: calc && calc.calc ? _num(calc.calc.pague || 0) : _num(item.promoPague || 0),
+        promoMinOrder: calc && calc.promo ? _manualOrderPromoMinOrder(calc.promo) : _num(item.promoMinOrder || 0),
         priceOrigin: calc && calc.calc.discount > 0 ? 'promo' : (_manualOrderState.channel === 'cardapio' ? 'automático' : 'manual'),
         manualAdjustment: item.manualAdjustment || 0
       };
     });
     var subtotalOriginal = items.reduce(function (sum, item) { return sum + (_num(item.originalPrice) * (item.quantity || 1)); }, 0);
+    items = items.map(function (item) {
+      if (item.promoId && item.promoMinOrder && subtotalOriginal < item.promoMinOrder) {
+        return Object.assign({}, item, {
+          finalPrice: item.originalPrice,
+          promoId: '',
+          promoName: '',
+          promoType: '',
+          priceOrigin: _manualOrderState.channel === 'cardapio' ? 'automático' : 'manual'
+        });
+      }
+      if (item.promoType === 'add1' && item.promoLeve > 0 && item.promoPague > 0 && item.promoLeve > item.promoPague) {
+        var qty = Math.max(1, item.quantity || 1);
+        var bundles = Math.floor(qty / item.promoLeve);
+        var remainder = qty % item.promoLeve;
+        var totalAdd = ((bundles * item.promoPague) + remainder) * _num(item.originalPrice);
+        return Object.assign({}, item, { finalPrice: totalAdd / qty });
+      }
+      return item;
+    });
     var subtotalFinal = items.reduce(function (sum, item) { return sum + (_num(item.finalPrice) * (item.quantity || 1)); }, 0);
     var promoDiscountTotal = Math.max(subtotalOriginal - subtotalFinal, 0);
     var total = Math.max(subtotalFinal + shippingFee + adjustment, 0);
@@ -3101,6 +3395,8 @@ Modules.Pedidos = (function () {
         quantity: 1,
         originalPrice: _manualOrderProductBasePrice(product),
         finalPrice: calc ? calc.final : _manualOrderProductBasePrice(product),
+        internalNote: _firstText(product.internalNote, product.internalNotes, product.kitchenNote, ''),
+        productInternalNote: _firstText(product.internalNote, product.internalNotes, product.kitchenNote, ''),
         promoId: calc && calc.promo ? String(calc.promo.id || calc.promo._id || calc.promo.slug || '') : '',
         promoName: calc && calc.promo ? _firstText(calc.promo.name, calc.promo.title, 'Promoção') : '',
         promoType: calc && calc.promo ? String(calc.promo.type || '') : '',
@@ -3233,7 +3529,8 @@ Modules.Pedidos = (function () {
     var t = _fold(type || '');
     if (t === 'pct' || t === 'percent' || t === 'percentual' || t === 'desconto_percentual') return 'pct';
     if (t === 'eur' || t === 'money' || t === 'valor' || t === 'desconto_valor') return 'eur';
-    if (t === '2x1' || t === '2por1' || t === 'two_for_one') return '2x1';
+    if (t === 'fixed' || t === 'preco_fixo' || t === 'fixed_price' || t === 'oferta_dia') return 'fixed';
+    if (t === '2x1' || t === '2por1' || t === 'two_for_one' || t === 'b2x1') return 'add1';
     if (t === 'add1' || t === 'leve_mais' || t === 'combo_sugerido' || t === 'combo' || t === 'bundle_less_pay_more') return 'add1';
     if (t === 'frete' || t === 'frete_gratis') return 'frete';
     return 'pct';
@@ -3313,12 +3610,14 @@ Modules.Pedidos = (function () {
     if (!(original > 0)) return null;
     var type = _manualOrderPromoNormalizeType(promo.type || promo.tipo || promo.discountType || promo.benefitType || '');
     var value = _manualOrderPromoNumber(promo.valuePercentual != null ? promo.valuePercentual : (promo.discountPct != null ? promo.discountPct : (promo.valueDesconto != null ? promo.valueDesconto : (promo.value != null ? promo.value : 0))));
+    var fixedPrice = _manualOrderPromoNumber(promo.fixedPrice != null ? promo.fixedPrice : (promo.finalPrice != null ? promo.finalPrice : (promo.offerPrice != null ? promo.offerPrice : promo.priceFixed)));
     var final = original;
-    var leve = parseInt(promo.leveQtd != null ? promo.leveQtd : (promo.bundleQty != null ? promo.bundleQty : 0), 10) || 0;
-    var pague = parseInt(promo.pagueQtd != null ? promo.pagueQtd : (promo.bundlePay != null ? promo.bundlePay : 0), 10) || 0;
+    var legacyQtyPromo = /^(2x1|2por1|two_for_one|b2x1)$/i.test(String(promo.type || promo.tipo || promo.discountType || promo.benefitType || ''));
+    var leve = parseInt(promo.leveQtd != null ? promo.leveQtd : (promo.bundleQty != null ? promo.bundleQty : (legacyQtyPromo ? 2 : 0)), 10) || 0;
+    var pague = parseInt(promo.pagueQtd != null ? promo.pagueQtd : (promo.bundlePay != null ? promo.bundlePay : (legacyQtyPromo ? 1 : 0)), 10) || 0;
     if (type === 'pct') final = Math.max(original - (original * value / 100), 0);
     else if (type === 'eur') final = Math.max(original - value, 0);
-    else if (type === '2x1') final = Math.max(original / 2, 0);
+    else if (type === 'fixed' && fixedPrice > 0) final = Math.max(Math.min(fixedPrice, original), 0);
     else if (type === 'add1' && leve > 0 && leve > pague) final = Math.max((original * pague) / leve, 0);
     else if (type === 'frete') final = original;
     var cost = _manualOrderProductCost(product);
@@ -3335,6 +3634,26 @@ Modules.Pedidos = (function () {
       margin: cost > 0 && final > 0 ? ((final - cost) / final) * 100 : null,
       promo: promo
     };
+  }
+
+  function _manualOrderPromoMinOrder(promo) {
+    return _num(promo && (promo.minOrder || promo.minimumOrder || promo.minCartValue || promo.minCart || promo.minValue || promo.orderMin || promo.valorMinimo || promo.minimumValue));
+  }
+
+  function _manualOrderPromoLineTotal(original, qty, calc) {
+    original = _num(original);
+    qty = Math.max(1, _num(qty || 1));
+    if (!calc || !calc.calc) return original * qty;
+    if (calc.calc.type === 'add1') {
+      var leve = parseInt(calc.calc.leve || 0, 10) || 0;
+      var pague = parseInt(calc.calc.pague || 0, 10) || 0;
+      if (leve > 0 && pague > 0 && leve > pague) {
+        var bundles = Math.floor(qty / leve);
+        var remainder = qty % leve;
+        return ((bundles * pague) + remainder) * original;
+      }
+    }
+    return _num(calc.calc.final) * qty;
   }
 
   function _manualOrderBestPromoForProduct(product) {
@@ -3438,7 +3757,7 @@ Modules.Pedidos = (function () {
       var priceHtml = calc && calc.calc.discount > 0
         ? '<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:4px;"><span style="font-size:12px;color:#8A7E7C;text-decoration:line-through;">' + UI.fmt(original) + '</span><span style="font-size:15px;font-weight:900;color:#1A1A1A;">' + UI.fmt(final) + '</span></div>'
         : '<div style="font-size:15px;font-weight:900;color:#1A1A1A;margin-top:4px;">' + UI.fmt(original) + '</div>';
-      var promoText = calc ? (calc.calc.type === 'pct' ? ('-' + Math.round(calc.calc.value) + '%') : calc.calc.type === 'eur' ? ('- ' + UI.fmt(calc.calc.value)) : calc.calc.type === '2x1' ? '2x1' : calc.calc.type === 'add1' ? ('Leve ' + calc.calc.leve + ' pague ' + calc.calc.pague) : 'Oferta') : '';
+      var promoText = calc ? (calc.calc.type === 'pct' ? ('-' + Math.round(calc.calc.value) + '%') : calc.calc.type === 'eur' ? ('- ' + UI.fmt(calc.calc.value)) : calc.calc.type === 'add1' ? ('Leve ' + calc.calc.leve + ' pague ' + calc.calc.pague) : 'Oferta') : '';
       return '<div style="border:1.5px solid #E6DDDB;border-radius:14px;padding:12px;background:#fff;display:flex;flex-direction:column;gap:8px;">' +
         '<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;">' +
           '<div style="min-width:0;">' +
@@ -3475,18 +3794,26 @@ Modules.Pedidos = (function () {
     if (!items.length) {
       return '<div style="padding:14px;border:1px dashed #E6DDDB;border-radius:12px;color:#8A7E7C;font-size:13px;background:#FCFBFB;">Nenhum item selecionado ainda.</div>';
     }
+    var selectedOriginalSubtotal = items.reduce(function (sum, item) {
+      var product = (_products || []).find(function (p) { return String(p.id || '') === String(item.productId || ''); }) || {};
+      var original = _manualOrderProductBasePrice(product) || _num(item.originalPrice || 0);
+      return sum + original * (item.quantity || 1);
+    }, 0);
     return '<div style="display:flex;flex-direction:column;gap:8px;">' + items.map(function (item) {
       var product = (_products || []).find(function (p) { return String(p.id || '') === String(item.productId || ''); }) || {};
       var calc = _manualOrderState.channel === 'cardapio' ? _manualOrderBestPromoForProduct(product) : null;
       var original = _manualOrderProductBasePrice(product) || _num(item.originalPrice || 0);
-      var final = calc ? calc.calc.final : _num(item.finalPrice || original);
+      var minOrder = calc && calc.promo ? _manualOrderPromoMinOrder(calc.promo) : 0;
+      var calcApplies = calc && (!minOrder || selectedOriginalSubtotal >= minOrder);
       var qty = item.quantity || 1;
-      var discount = Math.max(original - final, 0);
+      var lineTotal = calcApplies ? _manualOrderPromoLineTotal(original, qty, calc) : (calc ? original * qty : _num(item.finalPrice || original) * qty);
+      var final = lineTotal / Math.max(1, qty);
+      var discount = Math.max((original * qty) - lineTotal, 0);
       return '<div style="border:1.5px solid #E6DDDB;border-radius:12px;padding:10px 12px;display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;background:#fff;">' +
         '<div style="min-width:0;">' +
           '<div style="font-size:13px;font-weight:800;color:#1A1A1A;">' + _esc(item.name || 'Produto') + '</div>' +
           '<div style="font-size:11px;color:#8A7E7C;margin-top:3px;">' + _esc(_firstText(product.category, item.category, '')) + '</div>' +
-          (calc ? '<div style="font-size:11px;font-weight:700;color:#C4362A;margin-top:4px;">' + _esc(calc.calc.type === 'pct' ? ('-' + Math.round(calc.calc.value) + '%') : calc.calc.type === 'eur' ? ('- ' + UI.fmt(calc.calc.value)) : calc.calc.type === '2x1' ? '2x1' : calc.calc.type === 'add1' ? ('Leve ' + calc.calc.leve + ' pague ' + calc.calc.pague) : 'Oferta') + '</div>' : '') +
+          (calcApplies ? '<div style="font-size:11px;font-weight:700;color:#C4362A;margin-top:4px;">' + _esc(calc.calc.type === 'pct' ? ('-' + Math.round(calc.calc.value) + '%') : calc.calc.type === 'eur' ? ('- ' + UI.fmt(calc.calc.value)) : calc.calc.type === 'add1' ? ('Leve ' + calc.calc.leve + ' pague ' + calc.calc.pague) : 'Oferta') + '</div>' : '') +
         '</div>' +
         '<div style="text-align:right;min-width:110px;">' +
           '<div style="font-size:11px;color:#8A7E7C;">' + qty + 'x</div>' +
@@ -3509,16 +3836,22 @@ Modules.Pedidos = (function () {
     var subtotalFinal = 0;
     var promoDiscount = 0;
     var hasPromo = false;
-    items.forEach(function (item) {
+    var prepared = items.map(function (item) {
       var product = (_products || []).find(function (p) { return String(p.id || '') === String(item.productId || ''); }) || {};
       var calc = _manualOrderState.channel === 'cardapio' ? _manualOrderBestPromoForProduct(product) : null;
       var original = _manualOrderProductBasePrice(product) || _num(item.originalPrice || 0);
-      var final = calc ? calc.calc.final : _num(item.finalPrice || original);
       var qty = item.quantity || 1;
       subtotalOriginal += original * qty;
-      subtotalFinal += final * qty;
-      promoDiscount += Math.max(original - final, 0) * qty;
-      if (calc && calc.calc.discount > 0) hasPromo = true;
+      return { item: item, calc: calc, original: original, qty: qty };
+    });
+    prepared.forEach(function (entry) {
+      var minOrder = entry.calc && entry.calc.promo ? _manualOrderPromoMinOrder(entry.calc.promo) : 0;
+      var calcApplies = entry.calc && (!minOrder || subtotalOriginal >= minOrder);
+      var lineTotal = calcApplies ? _manualOrderPromoLineTotal(entry.original, entry.qty, entry.calc) : (entry.calc ? entry.original * entry.qty : _num(entry.item.finalPrice || entry.original) * entry.qty);
+      var qty = entry.qty;
+      subtotalFinal += lineTotal;
+      promoDiscount += Math.max((entry.original * qty) - lineTotal, 0);
+      if (calcApplies && entry.calc.calc.discount > 0) hasPromo = true;
     });
     var shippingFee = (_manualOrderState.type || 'delivery') === 'delivery' ? _num(_manualOrderState.shippingFee || 0) : 0;
     var adjustment = _num(_manualOrderState.adjustment || 0);
@@ -4078,7 +4411,16 @@ Modules.Pedidos = (function () {
   }
 
   function _num(v) {
-    var n = parseFloat(String(v == null ? '' : v).replace(',', '.'));
+    if (typeof v === 'number') return isFinite(v) ? v : 0;
+    var str = String(v == null ? '' : v).trim();
+    if (!str) return 0;
+    var cleaned = str.replace(/[^\d,.-]/g, '');
+    if (!cleaned) return 0;
+    var lastComma = cleaned.lastIndexOf(',');
+    var lastDot = cleaned.lastIndexOf('.');
+    if (lastComma > lastDot) cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+    else cleaned = cleaned.replace(/,/g, '');
+    var n = parseFloat(cleaned);
     return isNaN(n) ? 0 : n;
   }
 
@@ -4128,6 +4470,13 @@ Modules.Pedidos = (function () {
   }
 
   function _reviewSourceLabel(review) {
+    var raw = String((review && (review.source || review.origin || review.channel || review.from || review.createdFrom)) || '').trim().toLowerCase();
+    if (!raw) return '';
+    if (raw === 'store' || raw === 'storefront' || raw === 'public' || raw === 'template' || raw === 'public-review' || raw === 'review-public') return 'Cardápio';
+    if (raw === 'admin' || raw === 'manual') return 'Admin';
+    if (raw === 'whatsapp') return 'WhatsApp';
+    if (raw === 'order' || raw === 'pedido') return 'Pedido';
+    return raw.charAt(0).toUpperCase() + raw.slice(1);
   }
 
   function _tags(raw) {
@@ -4329,7 +4678,7 @@ Modules.Pedidos = (function () {
     _setKitchenPage: _setKitchenPage, _setKitchenPageSize: _setKitchenPageSize,
     _setClientPage: _setClientPage, _setClientPageSize: _setClientPageSize,
     _clearKitchenFilters: _clearKitchenFilters, _clearOrderFilters: _clearOrderFilters, _clearClientFilters: _clearClientFilters,
-    _setReviewUi: _setReviewUi,
+    _setReviewUi: _setReviewUi, _setReviewPage: _setReviewPage, _setReviewPageSize: _setReviewPageSize,
     _onDragStart: _onDragStart, _onDragEnd: _onDragEnd, _onDrop: _onDrop,
     _openDetail: _openDetail, _toggleItem: _toggleItem, _saveDetail: _saveDetail,
     _saveOrderCustomer: _saveOrderCustomer, _openOrderCustomerModal: _openOrderCustomerModal,
@@ -4360,7 +4709,7 @@ Modules.Pedidos = (function () {
     _closeManualOrderModal: _closeManualOrderModal,
     _openClientProfile: _openClientProfile, _openClientHistory: _openClientHistory, _openClientEdit: _openClientEdit, _openReview: _openReview,
     _renderCatalogoAvaliacoes: _renderCatalogoAvaliacoes,
-    _approveReview: _approveReview, _rejectReview: _rejectReview,
+    _approveReview: _approveReview, _rejectReview: _rejectReview, _resetReviewFilters: _resetReviewFilters,
     _toggleAlarm: _toggleAlarm, _testAlarm: _testAlarm,
     _openKitchenMode: _openKitchenMode, _closeKitchenMode: _closeKitchenMode,
     _closeKitchenDetailPanel: _closeKitchenDetailPanel,

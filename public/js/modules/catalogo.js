@@ -373,8 +373,10 @@ Modules.Catalogo = (function () {
       { label: 'Produtos visíveis', value: visibleCount, icon: 'visibility', color: '#6C8777' },
       { label: 'Pedidos (30 dias)', value: orders30Count, icon: 'receipt_long', color: '#B42318' }
     ];
-    var filterCardStyle = 'background:#fff;border:none;border-radius:16px;padding:18px 20px;box-shadow:0 12px 30px rgba(31,31,31,.06);';
-    var fieldStyle = 'padding:10px 12px;border:1px solid #EAE4DA;border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;width:100%;box-sizing:border-box;color:#1F1F1F;box-shadow:inset 0 1px 0 rgba(255,255,255,.78);transition:border-color .15s ease,box-shadow .15s ease,background .15s ease;';
+    var filterCardStyle = 'background:linear-gradient(180deg,#FFFFFF 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.055);';
+    var fieldStyle = 'padding:10px 12px;border:1px solid #E8DCD7;border-radius:12px;font-size:14px;font-family:inherit;outline:none;background:#FFFCF8;width:100%;box-sizing:border-box;color:#1F1F1F;box-shadow:inset 0 1px 0 rgba(255,255,255,.82);transition:border-color .15s ease,box-shadow .15s ease,background .15s ease;';
+    var selectFieldStyle = fieldStyle + 'appearance:none;-webkit-appearance:none;-moz-appearance:none;padding-right:40px;';
+    var selectArrowHtml = '<span class="mi" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:19px;color:#8A7E7C;pointer-events:none;">expand_more</span>';
     var labelStyle = 'font-size:11px;font-weight:600;color:#6F6860;display:block;margin-bottom:5px;letter-spacing:.02em;';
     var sortOptions = [
       { value: 'order', label: 'Ordem manual' },
@@ -399,32 +401,22 @@ Modules.Catalogo = (function () {
         '</div>' +
       '</div>';
     }).join('') + '</div>';
-    var chipStyle = 'display:inline-flex;align-items:center;min-height:24px;padding:0 10px;border-radius:999px;background:#fff;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:500;box-shadow:0 1px 2px rgba(31,31,31,.02);';
-    var filterSummary = '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
-      '<span style="' + chipStyle + '">' + totalCount + ' produtos</span>' +
-      '<span style="' + chipStyle + '">' + visibleCount + ' visíveis</span>' +
-      '<span style="' + chipStyle + '">' + hiddenCount + ' ocultos</span>' +
-      '<span style="' + chipStyle + '">' + promoCount + ' em promoção</span>' +
-      '<span style="' + chipStyle + '">Página ' + paging.page + ' de ' + paging.totalPages + '</span>' +
-    '</div>';
+    var clearFiltersHtml = (query || _hasActiveProductFilters() || _productView.sort !== 'order') ? '<div style="display:flex;justify-content:flex-start;margin-top:11px;"><button type="button" onclick="Modules.Catalogo._clearProductFilters()" style="height:36px;padding:0 13px;border:1px solid #EADFD8;border-radius:11px;background:#fff;color:#6F6860;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);">Limpar filtros</button></div>' : '';
     var filtersHtml = '<div style="' + filterCardStyle + '">' +
-      '<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-end;">' +
-        '<div style="display:grid;grid-template-columns:minmax(320px,1.6fr) minmax(180px,.8fr) minmax(160px,.7fr) minmax(150px,.7fr) auto auto;gap:10px 12px;flex:1;align-items:end;">' +
-          '<div><input id="catalogo-product-search" type="search" value="' + _esc(query) + '" placeholder="Buscar produtos pelo nome..." autocomplete="off" autocapitalize="off" spellcheck="false" oninput="Modules.Catalogo._filterProdutos(this.value)" style="' + fieldStyle + 'height:40px;"></div>' +
-          '<div><select onchange="Modules.Catalogo._setProductFilter(\'category\',this.value)" style="' + fieldStyle + 'height:40px;">' + categoryOptions + '</select></div>' +
-          '<div><select onchange="Modules.Catalogo._setProductFilter(\'visibility\',this.value)" style="' + fieldStyle + 'height:40px;">' +
-            '<option value="todos"' + (_productFilters.visibility === 'todos' ? ' selected' : '') + '>Status: Todos</option><option value="visiveis"' + (_productFilters.visibility === 'visiveis' ? ' selected' : '') + '>Status: Visíveis</option><option value="ocultos"' + (_productFilters.visibility === 'ocultos' ? ' selected' : '') + '>Status: Ocultos</option></select></div>' +
-          '<div><select onchange="Modules.Catalogo._setProductSort(this.value)" style="' + fieldStyle + 'height:40px;">' + sortOptions + '</select></div>' +
-          '<button type="button" onclick="Modules.Catalogo._openProductsMoreFilters()" style="height:40px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#1F1F1F;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 1px 2px rgba(31,31,31,.03);font-family:inherit;">Filtros</button>' +
-          (query || _hasActiveProductFilters() || _productView.sort !== 'order' ? '<button type="button" onclick="Modules.Catalogo._clearProductFilters()" style="height:40px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#6F6860;font-size:13px;font-weight:500;cursor:pointer;">Limpar filtros</button>' : '') +
-        '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:11px 12px;align-items:end;">' +
+          '<label style="display:block;min-width:0;"><span style="' + labelStyle + '">Buscar</span><input id="catalogo-product-search" type="search" value="' + _esc(query) + '" placeholder="Nome, descrição, tag ou categoria" autocomplete="off" autocapitalize="off" spellcheck="false" oninput="Modules.Catalogo._filterProdutos(this.value)" style="' + fieldStyle + 'height:42px;"></label>' +
+          '<label style="display:block;min-width:0;"><span style="' + labelStyle + '">Categoria</span><span style="position:relative;display:block;"><select onchange="Modules.Catalogo._setProductFilter(\'category\',this.value)" style="' + selectFieldStyle + 'height:42px;">' + categoryOptions + '</select>' + selectArrowHtml + '</span></label>' +
+          '<label style="display:block;min-width:0;"><span style="' + labelStyle + '">Visibilidade</span><span style="position:relative;display:block;"><select onchange="Modules.Catalogo._setProductFilter(\'visibility\',this.value)" style="' + selectFieldStyle + 'height:42px;">' +
+            '<option value="todos"' + (_productFilters.visibility === 'todos' ? ' selected' : '') + '>Status: Todos</option><option value="visiveis"' + (_productFilters.visibility === 'visiveis' ? ' selected' : '') + '>Status: Visíveis</option><option value="ocultos"' + (_productFilters.visibility === 'ocultos' ? ' selected' : '') + '>Status: Ocultos</option></select>' + selectArrowHtml + '</span></label>' +
+          '<label style="display:block;min-width:0;"><span style="' + labelStyle + '">Ordenar por</span><span style="position:relative;display:block;"><select onchange="Modules.Catalogo._setProductSort(this.value)" style="' + selectFieldStyle + 'height:42px;">' + sortOptions + '</select>' + selectArrowHtml + '</span></label>' +
+          '<button type="button" onclick="Modules.Catalogo._openProductsMoreFilters()" style="height:42px;padding:0 14px;border:1px solid #EADFD8;border-radius:12px;background:#fff;color:#1F1F1F;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 1px 2px rgba(31,31,31,.03);font-family:inherit;white-space:nowrap;">Mais filtros</button>' +
       '</div>' +
-      filterSummary +
+      clearFiltersHtml +
     '</div>';
     var paginationHtml = paging.total ? '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:16px 18px;">' +
       '<span style="font-size:12px;color:#6F6860;line-height:1.4;">Mostrando <strong style="color:#1F1F1F;font-weight:600;">' + paging.start + '</strong> a <strong style="color:#1F1F1F;font-weight:600;">' + paging.end + '</strong> de <strong style="color:#1F1F1F;font-weight:600;">' + paging.total + '</strong></span>' +
       '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;">' +
-        '<select onchange="Modules.Catalogo._setProductPageSize(this.value)" style="min-width:110px;max-width:110px;height:34px;padding:0 10px;border:1px solid #EAE4DA;border-radius:10px;font-size:12px;font-family:inherit;outline:none;background:#fff;color:#6F6860;box-sizing:border-box;">' + pageSizeOptions + '</select>' +
+        '<span style="position:relative;display:inline-block;min-width:110px;max-width:110px;"><select onchange="Modules.Catalogo._setProductPageSize(this.value)" style="width:110px;height:34px;padding:0 34px 0 10px;border:1px solid #E8DCD7;border-radius:10px;font-size:12px;font-family:inherit;outline:none;background:#FFFCF8;color:#6F6860;box-sizing:border-box;appearance:none;-webkit-appearance:none;-moz-appearance:none;">' + pageSizeOptions + '</select><span class="mi" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:18px;color:#8A7E7C;pointer-events:none;">expand_more</span></span>' +
         '<div style="display:flex;align-items:center;gap:6px;">' +
           '<button type="button" onclick="Modules.Catalogo._setProductPage(' + (paging.page - 1) + ')" style="height:34px;padding:0 11px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#6F6860;font-size:12px;font-weight:500;cursor:' + (paging.page > 1 ? 'pointer' : 'not-allowed') + ';opacity:' + (paging.page > 1 ? '1' : '.45') + ';"' + (paging.page > 1 ? '' : ' disabled') + '>Anterior</button>' +
           '<div style="display:flex;align-items:center;gap:6px;"><span style="font-size:12px;color:#A39B90;">' + paging.page + '</span><span style="width:14px;height:2px;border-radius:999px;background:#B42318;display:inline-block;opacity:.65"></span><span style="font-size:12px;color:#A39B90;">' + paging.totalPages + '</span></div>' +
@@ -434,11 +426,11 @@ Modules.Catalogo = (function () {
     '</div>' : '';
     var bodyHtml = '';
     if (!visibleProducts.length) {
-      bodyHtml = '<section style="' + filterCardStyle + 'text-align:center;"><div style="font-size:15px;font-weight:700;color:#1F1F1F;margin-bottom:4px;">Nenhum produto encontrado</div><div style="font-size:13px;color:#6F6860;line-height:1.45;">Tente ajustar a busca, os filtros ou a ordenação.</div></section>';
+      bodyHtml = '<section style="' + filterCardStyle + 'text-align:center;padding:28px 18px;"><div style="font-size:15px;font-weight:700;color:#1F1F1F;margin-bottom:5px;">Nenhum produto encontrado</div><div style="font-size:13px;color:#6F6860;line-height:1.45;max-width:420px;margin:0 auto 14px;">Ajuste a busca, limpe os filtros ou cadastre um novo produto para aparecer no cardápio.</div><button type="button" onclick="Modules.Catalogo._openProductModal(null)" style="height:38px;padding:0 14px;border:none;border-radius:12px;background:#B42318;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 8px 18px rgba(180,35,24,.16);">Adicionar produto</button></section>';
     } else if (listMode) {
       bodyHtml = '<section style="display:flex;flex-direction:column;gap:10px;">' +
-        '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">Produtos do cardápio</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Gerencie preços, categorias, visibilidade e destaques da loja.</div></div>' +
-        '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:16px;overflow:hidden;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
+        '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">Lista de produtos</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Gerencie preço, categoria, visibilidade e destaque dos itens da loja.</div></div>' +
+        '<div style="background:#fff;border:1px solid #EADFD8;border-radius:18px;overflow:hidden;box-shadow:0 12px 30px rgba(31,31,31,.055);">' +
         '<div style="overflow:auto;">' +
           '<table class="bf-table" style="width:100%;border-collapse:separate;border-spacing:0;min-width:920px;">' +
             '<thead><tr style="background:#fff;border-bottom:1px solid #EAE4DA;">' +
@@ -457,7 +449,7 @@ Modules.Catalogo = (function () {
       '</div></section>';
     } else {
       bodyHtml = '<section style="display:flex;flex-direction:column;gap:10px;">' +
-        '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">Produtos do cardápio</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Visualize os produtos em cards e edite rapidamente as principais informações.</div></div>' +
+        '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">Lista de produtos</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Visualize os produtos em cards e edite rapidamente as principais informações.</div></div>' +
         '<div id="products-list" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;">' +
         paging.items.map(function (p) { return _productCardHTML(p); }).join('') +
       '</div>' +
@@ -467,12 +459,7 @@ Modules.Catalogo = (function () {
       '<div class="bf-page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
       '<div style="min-width:0;flex:1 1 420px;">' +
           '<h2 style="font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;line-height:1.2;">Produtos</h2>' +
-          '<p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0 0 10px;max-width:760px;">Organize sua vitrine, atualize preços e controle o que aparece na loja.</p>' +
-          '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
-            '<span style="' + chipStyle + '">' + totalCount + ' produtos</span>' +
-            '<span style="' + chipStyle + '">' + visibleCount + ' visíveis</span>' +
-            '<span style="' + chipStyle + '">' + categoryCount + ' categorias</span>' +
-          '</div>' +
+          '<p style="font-size:13px;color:#6F6860;line-height:1.5;margin:0;max-width:720px;">Cadastre e organize os itens que aparecem no cardápio público da sua loja.</p>' +
         '</div>' +
         '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;">' +
           '<button type="button" onclick="Modules.Catalogo._openImportProducts()" class="bf-btn-secondary" style="height:38px;padding:0 14px;border:1px solid #E6E1D8;border-radius:10px;background:#fff;color:#1F1F1F;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 1px 2px rgba(31,31,31,.03);">Importar produtos</button>' +
@@ -925,16 +912,37 @@ Modules.Catalogo = (function () {
     window._pmSeoEdited = {};
 
     var body = `
-      <div style="display:block;">
+      <div class="product-modal-admin" style="display:block;">
+        <style>
+          .product-modal-admin{font-family:Manrope,Inter,sans-serif;color:#1F1F1F;}
+          .product-modal-admin section,.product-modal-admin details{background:linear-gradient(180deg,#FFFFFF 0%,#FFFCFA 100%)!important;border:1px solid #EADFD8!important;border-radius:18px!important;padding:15px!important;box-shadow:0 10px 24px rgba(31,31,31,.045)!important;}
+          .product-modal-admin .pm-section-head{display:flex;align-items:flex-start;gap:10px;margin:0 0 13px;}
+          .product-modal-admin .pm-section-icon{width:34px;height:34px;border-radius:12px;background:#FFF7F4;color:#B42318;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;}
+          .product-modal-admin .pm-section-icon .mi{font-size:18px;}
+          .product-modal-admin .pm-section-title{font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;}
+          .product-modal-admin .pm-section-text{font-size:12px;font-weight:400;color:#6F6860;line-height:1.42;margin-top:3px;max-width:680px;}
+          .product-modal-admin label{color:#7A746B!important;}
+          .product-modal-admin input:not([type=radio]):not([type=checkbox]):not([type=file]),.product-modal-admin select,.product-modal-admin textarea{background:#FFFCF8!important;border:1px solid #E8DCD7!important;border-radius:12px!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.82)!important;min-height:42px!important;padding:10px 12px!important;font-family:Manrope,Inter,sans-serif!important;font-size:14px!important;color:#1F1F1F!important;}
+          .product-modal-admin textarea{line-height:1.45!important;}
+          .product-modal-admin input:not([type=radio]):not([type=checkbox]):not([type=file]):focus,.product-modal-admin select:focus,.product-modal-admin textarea:focus{background:#fff!important;border-color:#D9AAA1!important;box-shadow:0 0 0 3px rgba(180,35,24,.08)!important;}
+          .product-modal-admin select{appearance:none!important;-webkit-appearance:none!important;-moz-appearance:none!important;padding-right:42px!important;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E)!important;background-repeat:no-repeat!important;background-position:right 16px center!important;background-size:14px!important;}
+          .product-modal-admin input[type=radio],.product-modal-admin input[type=checkbox]{accent-color:#B42318;}
+          .product-modal-admin p{font-weight:400!important;}
+          .product-modal-admin details summary::-webkit-details-marker{display:none;}
+          .product-modal-admin details summary span{transition:transform .16s ease;}
+          .product-modal-admin details[open] summary span:last-child{transform:rotate(90deg);}
+          @media(max-width:760px){.product-modal-admin section:first-of-type>div:nth-child(2){grid-template-columns:1fr!important}.product-modal-admin section:first-of-type>div:nth-child(2)>div:first-child{max-width:100%;}.product-modal-admin section:first-of-type [style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important}.product-modal-admin details>div{grid-template-columns:1fr!important}.product-modal-admin button{min-height:42px;}}
+        </style>
         <div style="display:flex;flex-direction:column;gap:14px;">
           <div id="pm-form-error" style="display:none;background:#FDEDEB;border:1px solid #F4C7BF;color:#B42318;padding:10px 12px;border-radius:12px;font-size:12px;font-weight:600;line-height:1.45;"></div>
           <section style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">
+            <div class="pm-section-head"><span class="pm-section-icon"><span class="mi">restaurant_menu</span></span><div><div class="pm-section-title">Dados do produto</div><div class="pm-section-text">Defina como o item aparece no cardápio público, com nome, descrição, imagem, preço e categoria.</div></div></div>
             <div style="display:grid;grid-template-columns:160px 1fr;gap:14px;align-items:start;">
               <div>
                 <label style="font-size:10px;font-weight:600;color:#7A746B;display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em;">Imagem</label>
                 <input type="file" id="pm-img-file" accept="image/jpeg,image/jpg,image/png,image/webp" onchange="Modules.Catalogo._onImgFileChange(event)" style="display:none;">
                 <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
-                  <div style="width:92px;height:92px;border:1px solid #EAE4DA;border-radius:14px;background:#FFF;width:92px;height:92px;overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                  <div id="pm-image-field-preview" style="width:92px;height:92px;border:1px solid #EAE4DA;border-radius:14px;background:#FFF;width:92px;height:92px;overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                     ${(() => { var imageSrc = window._pmImagePreviewUrl || _imageUrlFor(p, 'card') || _imageUrlFor(p, 'main') || _imageUrlFor(p, 'thumb') || ''; return imageSrc ? '<img src="' + _esc(imageSrc) + '" alt="" style="width:100%;height:100%;object-fit:cover;display:block;">' : '<span class="mi" style="font-size:38px;color:#C9BCB8;">image</span>'; })()}
                   </div>
                   <div style="display:flex;flex-direction:column;gap:8px;min-width:0;">
@@ -949,20 +957,21 @@ Modules.Catalogo = (function () {
                 <div><label style="${_fichaLbl()}">Frase que faz vender (microcopy)</label><input id="pm-microcopy" type="text" maxlength="72" value="${_esc(p.microcopy || '')}" placeholder="Ex: Crocante por fora, recheio que surpreende" oninput="Modules.Catalogo._refreshProductPreview()" style="${_fichaInp()}"><p style="font-size:11px;color:#6F6860;margin-top:4px;">Essa frase ajuda o cliente a decidir comprar.</p></div>
                 <div><label style="${_fichaLbl()}">Descrição curta</label><textarea id="pm-short-desc" maxlength="120" oninput="Modules.Catalogo._onProductDescChange();Modules.Catalogo._refreshProductPreview()" style="${_fichaInp()}min-height:72px;resize:vertical;">${_esc(p.shortDesc || p.description || '')}</textarea></div>
                 <div><label style="${_fichaLbl()}">Descrição completa</label><textarea id="pm-full-desc" maxlength="700" oninput="Modules.Catalogo._refreshProductPreview()" style="${_fichaInp()}min-height:88px;resize:vertical;">${_esc(p.fullDesc || p.fullDescription || p.seoDescription || p.shortDesc || p.description || '')}</textarea><p style="font-size:11px;color:#6F6860;margin-top:4px;">Aparece quando o cliente abre o produto para ver os detalhes.</p></div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:end;">
-                <div><label style="${_fichaLbl()}">Preço *</label><input id="pm-price" type="text" inputmode="decimal" value="${_esc(_moneyDisplay(p.price || ''))}" onfocus="Modules.Catalogo._moneyInputFocus(this)" onblur="Modules.Catalogo._moneyInputBlur(this)" oninput="Modules.Catalogo._refreshProductPreview()" placeholder="€0,00" style="${_fichaInp()}font-size:18px;font-weight:700;color:#B42318;text-align:right;"></div>
-                  <div><label style="${_fichaLbl()}">Categoria</label><select id="pm-cat" onchange="Modules.Catalogo._refreshProductPreview()" style="${_fichaInp()}background:#fff;"><option value="">Sem categoria</option>${_categories.map(function (c) { return '<option value="' + c.id + '"' + (p.categoryId === c.id ? ' selected' : '') + '>' + _esc(c.name) + '</option>'; }).join('')}</select></div>
+                <div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;">
+                  <div style="flex:0 0 150px;max-width:100%;"><label style="${_fichaLbl()}">Preço *</label><input id="pm-price" type="text" inputmode="decimal" value="${_esc(_moneyDisplay(p.price || ''))}" onfocus="Modules.Catalogo._moneyInputFocus(this)" onblur="Modules.Catalogo._moneyInputBlur(this)" oninput="Modules.Catalogo._refreshProductPreview()" placeholder="€0,00" style="${_fichaInp()}font-size:17px;font-weight:600;color:#B42318;text-align:right;"></div>
+                  <div style="flex:0 1 280px;max-width:100%;"><label style="${_fichaLbl()}">Categoria</label><select id="pm-cat" onchange="Modules.Catalogo._refreshProductPreview()" style="${_fichaInp()}background:#fff;"><option value="">Sem categoria</option>${_categories.map(function (c) { return '<option value="' + c.id + '"' + (p.categoryId === c.id ? ' selected' : '') + '>' + _esc(c.name) + '</option>'; }).join('')}</select></div>
                 </div>
                 <input id="pm-cost" type="hidden" value="${pricingPreview ? pricingPreview.cost : ''}">
                 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">${pricingChipsHtml}</div>
                 ${promoBlockHtml}
                 <div style="padding:12px 14px;background:#fff;border-radius:14px;box-shadow:0 12px 30px rgba(31,31,31,.06);">
-                  ${_toggleHtml('pm-featured', 'Selecionar para destaque', p.featured === true || p.popular === true, 'Este produto entra na vitrine de destaques da loja e aparece marcado na listagem.')}
+                  ${_toggleHtml('pm-featured', 'Mostrar selo de destaque', p.featured === true || p.popular === true, '')}
                 </div>
               </div>
             </div>
           </section>
           <section style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">
+            <div class="pm-section-head"><span class="pm-section-icon"><span class="mi">tune</span></span><div><div class="pm-section-title">Tipo de produto</div><div class="pm-section-text">Escolha se o item será vendido sozinho ou com escolhas, como combos e menus.</div></div></div>
             <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px;">
               <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;"><input type="radio" name="pm-tipo" value="unico"${tipoUnico ? ' checked' : ''} onchange="Modules.Catalogo._onTipoChange();Modules.Catalogo._refreshProductPreview()" style="accent-color:#B42318;"> Produto simples</label>
               <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;"><input type="radio" name="pm-tipo" value="menu"${tipoMenu ? ' checked' : ''} onchange="Modules.Catalogo._onTipoChange();Modules.Catalogo._refreshProductPreview()" style="accent-color:#B42318;"> Produto com escolhas / combo</label>
@@ -977,6 +986,7 @@ Modules.Catalogo = (function () {
             </div>
           </section>
           <section id="pm-panel-menu" style="display:${tipoMenu ? 'block' : 'none'};background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">
+            <div class="pm-section-head"><span class="pm-section-icon"><span class="mi">splitscreen</span></span><div><div class="pm-section-title">Escolhas do combo</div><div class="pm-section-text">Organize as opções que a cliente escolhe antes de adicionar o produto ao pedido.</div></div></div>
             <div id="pm-menu-groups">${menuGroupsHtml}</div>
             <button type="button" onclick="Modules.Catalogo._addMenuGroup()" style="width:100%;padding:9px;border-radius:10px;border:1px dashed #E3D7C9;background:transparent;font-size:13px;font-weight:600;cursor:pointer;color:#7A746B;font-family:inherit;margin-top:6px;">+ Adicionar grupo ao menu</button>
           </section>
@@ -984,12 +994,7 @@ Modules.Catalogo = (function () {
             ${_upsellBlockHtml('addAlso', addAlsoTitle, 'Produtos únicos extras que o cliente pode adicionar.', addAlsoIds, addAlsoDiscount)}
           </section>
           <section style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;">
-              <div><div style="font-size:13px;font-weight:600;">Mostrar no cardápio</div><div style="font-size:11px;color:#7A746B;">Controle se o cliente vê este produto</div></div>
-              <button type="button" id="pm-visible-toggle" onclick="Modules.Catalogo._toggleVis()" style="width:42px;height:24px;border-radius:12px;border:none;cursor:pointer;position:relative;transition:background .2s;background:${p.menuVisible !== false ? '#B42318' : '#D8CEC2'};"><span style="position:absolute;top:3px;left:3px;width:18px;height:18px;background:#fff;border-radius:50%;transition:transform .2s;display:block;transform:translateX(${p.menuVisible !== false ? '18px' : '0'});box-shadow:0 1px 4px rgba(31,31,31,.12);"></span></button>
-            </div>
-          </section>
-          <section style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">
+            <div class="pm-section-head"><span class="pm-section-icon"><span class="mi">sell</span></span><div><div class="pm-section-title">Organização e escolhas</div><div class="pm-section-text">Use tags e variantes para deixar o produto mais fácil de vender e configurar no pedido.</div></div></div>
             <div style="display:flex;flex-direction:column;gap:14px;">
               <div>
                 <div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;">Tags</div>
@@ -1002,13 +1007,14 @@ Modules.Catalogo = (function () {
             </div>
           </section>
           <section style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">
-            <input id="pm-note" type="text" value="${_esc(p.internalNote || '')}" placeholder="Visível apenas para a equipa" style="${_fichaInp()}background:#fff;">
+            <div class="pm-section-head"><span class="pm-section-icon"><span class="mi">notes</span></span><div><div class="pm-section-title">Observação interna</div><div class="pm-section-text">Anotação para sua equipe. Não aparece para o cliente.</div></div></div>
+            <input id="pm-note" type="text" value="${_esc(p.internalNote || '')}" placeholder="Visível apenas para a equipe" style="${_fichaInp()}background:#fff;">
           </section>
           <details style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">
             <summary style="cursor:pointer;list-style:none;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
               <div>
                 <div style="font-size:11px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;">Dados fiscais</div>
-                <div style="font-size:12px;color:#6F6860;margin-top:4px;">Base preparada para futura faturação. Opcional por enquanto.</div>
+                <div style="font-size:12px;color:#6F6860;margin-top:4px;">Informações usadas para identificar o produto em documentos e controles fiscais.</div>
               </div>
               <span style="font-size:16px;line-height:1;color:#6F6860;">▸</span>
             </summary>
@@ -1036,16 +1042,22 @@ Modules.Catalogo = (function () {
               <div><label style="${_fichaLbl()}">Alt da imagem</label><input id="pm-seo-alt" type="text" maxlength="120" value="${_esc(p.imageAlt || p.name || '')}" oninput="Modules.Catalogo._seoEdited('alt')" style="${_fichaInp()}"></div>
             </div>
           </details>
+          <section style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:4px 0;">
+              <div><div style="font-size:13px;font-weight:600;">Mostrar no cardápio</div><div style="font-size:11px;color:#7A746B;">Quando desligado, o cliente não vê este produto na loja.</div></div>
+              <button type="button" id="pm-visible-toggle" onclick="Modules.Catalogo._toggleVis()" style="width:42px;height:24px;border-radius:12px;border:none;cursor:pointer;position:relative;transition:background .2s;background:${p.menuVisible !== false ? '#B42318' : '#D8CEC2'};"><span style="position:absolute;top:3px;left:3px;width:18px;height:18px;background:#fff;border-radius:50%;transition:transform .2s;display:block;transform:translateX(${p.menuVisible !== false ? '18px' : '0'});box-shadow:0 1px 4px rgba(31,31,31,.12);"></span></button>
+            </div>
+          </section>
         </div>
       </div>`;
 
     var footer = `
-      <div style="display:flex;flex-direction:column;gap:6px;align-items:stretch;">
-        <div style="display:flex;gap:10px;flex-wrap:wrap;">
-          <button onclick="Modules.Catalogo._saveProduct()" style="flex:1;min-width:180px;padding:13px;border-radius:12px;border:none;background:#B42318;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 8px 18px rgba(180,35,24,.18);">Salvar produto</button>
-          <button onclick="if(window._productModal)window._productModal.close()" style="min-width:120px;padding:13px 18px;border-radius:12px;border:1px solid #E6DDD3;background:#fff;color:#1F1F1F;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">Cancelar</button>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;">
+        <div style="font-size:11px;color:#7A746B;line-height:1.4;min-width:220px;flex:1;">Revise os dados antes de salvar. As alterações ficarão visíveis no cardápio do cliente.</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;">
+          <button onclick="if(window._productModal)window._productModal.close()" style="min-width:116px;height:40px;padding:0 16px;border-radius:12px;border:1px solid #E6DDD3;background:#fff;color:#1F1F1F;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;">Cancelar</button>
+          <button onclick="Modules.Catalogo._saveProduct()" style="min-width:152px;height:40px;padding:0 17px;border-radius:12px;border:none;background:#B42318;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 8px 18px rgba(180,35,24,.18);">Salvar produto</button>
         </div>
-        <div style="font-size:11px;color:#7A746B;text-align:center;">As alterações ficarão visíveis no cardápio do cliente.</div>
       </div>`;
 
     window._productModal = UI.modal({ title: id ? 'Editar Produto' : 'Novo Produto', body: body, footer: footer, maxWidth: '1120px' });
@@ -1181,6 +1193,23 @@ Modules.Catalogo = (function () {
     if (input) input.click();
   }
 
+  function _productModalImageSrc(base) {
+    base = base || {};
+    var imageState = window._pmImageState || {};
+    var tempPreview = window._pmImagePreviewUrl || '';
+    if (window._pmImageRemoved) return '';
+    return tempPreview || imageState.imageCardUrl || imageState.cardUrl || imageState.mainUrl || imageState.imageUrl || base.imageCardUrl || base.cardImageUrl || base.imageUrl || base.imageBase64 || base.img || '';
+  }
+
+  function _refreshProductImageField() {
+    var box = document.getElementById('pm-image-field-preview');
+    if (!box) return;
+    var imageSrc = _productModalImageSrc(window._pmProductBase || {});
+    box.innerHTML = imageSrc
+      ? '<img src="' + _esc(imageSrc) + '" alt="" style="width:100%;height:100%;object-fit:cover;display:block;">'
+      : '<span class="mi" style="font-size:38px;color:#C9BCB8;">image</span>';
+  }
+
   function _removeProductImage() {
     window._pmImageState = null;
     window._pmImageRemoved = true;
@@ -1193,6 +1222,7 @@ Modules.Catalogo = (function () {
     if (fileInput) fileInput.value = '';
     var urlEl = document.getElementById('pm-img-url');
     if (urlEl) urlEl.value = '';
+    _refreshProductImageField();
     _refreshProductPreview();
   }
 
@@ -1334,9 +1364,7 @@ Modules.Catalogo = (function () {
         (groupBits.length ? '<div style="font-size:12px;line-height:1.45;color:#6E6563;">' + _esc(groupBits.join(' · ')) + '</div>' : '') +
       '</div>';
     }
-    var imageState = window._pmImageState || {};
-    var tempPreview = window._pmImagePreviewUrl || '';
-    var imageSrc = window._pmImageRemoved ? '' : (tempPreview || imageState.imageCardUrl || imageState.cardUrl || imageState.mainUrl || imageState.imageUrl || p.imageCardUrl || p.imageUrl || p.imageBase64 || '');
+    var imageSrc = _productModalImageSrc(p);
     return {
       name: ((nameEl && nameEl.value) || p.name || 'Nome do produto').trim() || 'Nome do produto',
       microcopy: ((microEl && microEl.value) || p.microcopy || 'Frase de venda curta para apoiar a decisão.').trim() || 'Frase de venda curta para apoiar a decisão.',
@@ -1395,6 +1423,7 @@ Modules.Catalogo = (function () {
   }
 
   function _refreshProductPreview() {
+    _refreshProductImageField();
     var el = document.getElementById('pm-preview-column');
     if (!el) return;
     var base = window._pmProductBase || {};
@@ -1974,7 +2003,7 @@ Modules.Catalogo = (function () {
       '<div style="font-size:11px;color:#6F6860;line-height:1.35;margin-bottom:8px;">' + _esc(help) + '</div>' +
       (isPairing ? '' : '<div style="display:grid;grid-template-columns:minmax(0,1fr) 130px;gap:10px;margin-bottom:10px;">' +
       '<label style="display:block;min-width:0;"><span style="display:block;font-size:10px;font-weight:800;text-transform:uppercase;color:#8A7E7C;margin-bottom:3px;">Texto do bloco</span><input id="pm-upsell-title-' + kind + '" type="text" maxlength="42" value="' + _esc(title) + '" placeholder="Aumentar valor do pedido" style="width:100%;padding:8px;border:1.5px solid #D4C8C6;border-radius:8px;font-size:12px;font-family:inherit;outline:none;"></label>' +
-      '<label style="display:block;min-width:0;"><span style="display:block;font-size:10px;font-weight:800;text-transform:uppercase;color:#8A7E7C;margin-bottom:3px;">Desconto aplicado ao item adicional</span><input id="pm-upsell-discount-' + kind + '" type="number" min="0" step="0.01" value="' + (safeDiscount || '') + '" placeholder="0,00" style="width:100%;padding:8px;border:1.5px solid #D4C8C6;border-radius:8px;font-size:12px;font-family:inherit;outline:none;"></label>' +
+      '<label style="display:block;min-width:0;"><span style="display:block;font-size:10px;font-weight:800;text-transform:uppercase;color:#8A7E7C;margin-bottom:3px;">Desconto</span><input id="pm-upsell-discount-' + kind + '" type="text" inputmode="decimal" value="' + _esc(_moneyDisplay(safeDiscount || '')) + '" placeholder="€0,00" onfocus="Modules.Catalogo._moneyInputFocus(this)" onblur="Modules.Catalogo._moneyInputBlur(this)" style="width:100%;padding:8px;border:1.5px solid #D4C8C6;border-radius:8px;font-size:12px;font-family:inherit;outline:none;text-align:right;"></label>' +
       '</div>') +
       '<div style="font-size:10px;font-weight:800;color:#8A7E7C;text-transform:uppercase;margin-bottom:4px;">' + (isPairing ? 'Produto combinado' : 'Itens sugeridos') + '</div>' +
       '<div id="pm-upsell-selected-' + kind + '" style="max-height:170px;overflow:auto;padding:8px;border:1px solid #F2EDED;border-radius:9px;background:#FCFAFA;margin-bottom:8px;">' + _upsellSelectedHtml(kind, ids, safeDiscount) + '</div>' +
@@ -2130,6 +2159,7 @@ Modules.Catalogo = (function () {
     }
     try {
       window._pmImagePreviewUrl = URL.createObjectURL(file);
+      _refreshProductImageField();
       _refreshProductPreview();
     } catch (e) {}
 
@@ -2380,7 +2410,7 @@ Modules.Catalogo = (function () {
       menuChoiceGroups: tipo === 'menu' ? menuChoiceGroups : [],
       addAlsoIds: [].slice.call(document.querySelectorAll('[data-upsell-selected="addAlso"]')).map(function (x) { return x.dataset.id; }).slice(0, 1),
       addAlsoTitle: ((document.getElementById('pm-upsell-title-addAlso') || {}).value || 'Aumentar valor do pedido').trim(),
-      addAlsoDiscount: parseFloat(String(((document.getElementById('pm-upsell-discount-addAlso') || {}).value || '0')).replace(',', '.')) || 0,
+      addAlsoDiscount: _moneyLike(((document.getElementById('pm-upsell-discount-addAlso') || {}).value || '0')) || 0,
       variants: publicVariants,
       pairing: selectedPairing || '',
       pairingId: selectedPairing || '',
@@ -2483,20 +2513,35 @@ Modules.Catalogo = (function () {
     var cloneName = 'Cópia de ' + String(source.name || 'Produto');
     var clone = {};
     Object.keys(source).forEach(function (key) {
-      if (key === 'id' || key === 'createdAt' || key === 'updatedAt') return;
       clone[key] = source[key];
     });
+    [
+      'id', '_id', 'createdAt', 'updatedAt', 'createdBy', 'updatedBy',
+      'imageUrl', 'imageMainUrl', 'imageCardUrl', 'cardImageUrl',
+      'imageThumbUrl', 'thumbnailUrl', 'thumbUrl', 'imageBase64',
+      'img', 'photoUrl', 'image', 'imagePath', 'imageStoragePath', 'storagePath',
+      'imageWidth', 'imageHeight', 'imageSizeKb', 'imageFormat',
+      'externalFiscalProductId', 'facturaDirectaProductId'
+    ].forEach(function (key) { delete clone[key]; });
     clone.id = _newEntityId('prod');
     clone.name = cloneName;
     clone.slug = _uniqueProductSlug(cloneName, null);
     clone.order = nextOrder;
     clone.createdAt = now;
     clone.updatedAt = now;
-    clone.menuVisible = source.menuVisible !== false;
-    clone.price = isFinite(parseFloat(source.price)) ? parseFloat(source.price) : 0;
+    clone.menuVisible = false;
+    clone.fiscal = Object.assign({}, _ensureProductFiscal(source), {
+      sku: '',
+      externalFiscalProductId: '',
+      facturaDirectaProductId: ''
+    });
     DB.set('products', clone.id, clone).then(function () {
-      UI.toast('Produto duplicado.', 'success');
-      _renderProdutos();
+      UI.toast('Produto duplicado como rascunho independente.', 'success');
+      _products = (_products || []).filter(function (item) { return String(item && item.id) !== String(clone.id); }).concat([clone]).sort(function (a, b) {
+        return (a.order || 0) - (b.order || 0);
+      });
+      _paintProdutos();
+      _openProductModal(clone.id);
     }).catch(function (err) {
       UI.toast('Erro: ' + err.message, 'error');
     });
@@ -2722,14 +2767,15 @@ Modules.Catalogo = (function () {
       '.tpl-image-btn.primary{background:#EEF4FF;color:#3B82F6}' +
       '.tpl-image-btn.ghost{background:#fff;border:1px solid #EAE4DA;color:#6F6860}' +
       '.tpl-image-note{font-size:11px;color:#6F6860;line-height:1.35}' +
-      '.tpl-delivery-zone-grid{display:grid;grid-template-columns:minmax(180px,1fr) minmax(260px,1.4fr) minmax(140px,.65fr) minmax(112px,.45fr);gap:12px;align-items:start}' +
+      '.tpl-delivery-zone-grid{display:grid;grid-template-columns:minmax(190px,.85fr) minmax(280px,1.35fr) minmax(140px,.55fr);gap:12px;align-items:start}' +
       '.tpl-delivery-zone-active{align-self:start}' +
       '.tpl-delivery-zone-active .tpl-toggle{padding:10px 11px;background:#fff;align-items:center;min-height:42px}' +
       '.tpl-delivery-zone-active .tpl-toggle-title{font-size:12px;font-weight:600}' +
       '.tpl-delivery-zone-active .tpl-toggle-hint{display:none}' +
       '.tpl-delivery-zone-delete{min-height:0;padding:6px 10px;border-radius:9px;font-size:11px;line-height:1;white-space:nowrap;flex:0 0 auto}' +
-      '.tpl-hours-day{display:flex;flex-direction:column;gap:10px;background:#fff;border:1px solid #EAE4DA;border-radius:12px;padding:12px;box-shadow:0 1px 2px rgba(31,31,31,.03)}' +
-      '.tpl-hours-day-main{display:grid;grid-template-columns:minmax(180px,1.2fr) minmax(140px,.82fr) minmax(128px,.95fr) minmax(128px,.95fr) minmax(150px,.92fr) minmax(260px,1.25fr);gap:10px;align-items:end}' +
+      '.tpl-hours-day{display:flex;flex-direction:column;gap:8px;background:#fff;border:1px solid #EAE4DA;border-radius:12px;padding:12px;box-shadow:0 1px 2px rgba(31,31,31,.03)}' +
+      '.tpl-hours-day-main{display:grid;grid-template-columns:minmax(180px,1.2fr) minmax(140px,.82fr) minmax(128px,.95fr) minmax(128px,.95fr);gap:10px;align-items:end}' +
+      '.tpl-hours-day-main--second{padding-top:8px;border-top:1px solid rgba(234,228,218,.72)}' +
       '.tpl-hours-day-name{font-size:12px;font-weight:800;color:#1A1A1A;line-height:1.25;padding:2px 0 4px;align-self:center}' +
       '.tpl-hours-day-main .tpl-toggle,.tpl-hours-day-secondary-toggle .tpl-toggle,.tpl-hours-day-closed-toggle .tpl-toggle{padding:8px 10px;background:#fff;min-height:46px;align-items:center}' +
       '.tpl-hours-day-main .tpl-toggle-control,.tpl-hours-day-secondary-toggle .tpl-toggle-control,.tpl-hours-day-closed-toggle .tpl-toggle-control{width:38px;height:22px;margin-top:0}' +
@@ -2741,13 +2787,13 @@ Modules.Catalogo = (function () {
       '.tpl-hours-day-closed-toggle{align-self:end}' +
       '.tpl-hours-day-secondary-toggle{align-self:end}' +
       '.tpl-hours-day-secondary-inline{display:grid;grid-template-columns:repeat(2,minmax(120px,1fr));gap:10px;align-items:end;min-width:0}' +
-      '.tpl-hours-day.is-closed .tpl-hours-day-field,.tpl-hours-day.is-closed .tpl-hours-day-secondary-toggle,.tpl-hours-day.is-closed .tpl-hours-day-secondary-inline{display:none !important}' +
+      '.tpl-hours-day.is-closed [data-hours-main-field],.tpl-hours-day.is-second-closed [data-hours-secondary-fields] .tpl-hours-day-field{opacity:.42;pointer-events:none}' +
       '.tpl-hours-day.is-secondary-off .tpl-hours-day-secondary-inline{display:none !important}' +
-      '.tpl-hours-day.is-closed{opacity:.88}' +
+      '.tpl-hours-day.is-closed [data-hours-main-field] input,.tpl-hours-day.is-second-closed [data-hours-secondary-fields] input{background:#F7F2EE;color:#A09692}' +
       '@media (max-width: 980px){.tpl-hours-day-main{grid-template-columns:repeat(2,minmax(0,1fr));}.tpl-hours-day-name,.tpl-hours-day-secondary-toggle,.tpl-hours-day-secondary-inline{grid-column:1 / -1}.tpl-hours-day-secondary-inline{grid-template-columns:repeat(2,minmax(0,1fr));}}' +
       '@media (max-width: 980px){.tpl-delivery-zone-grid{grid-template-columns:1fr 1fr}.tpl-delivery-zone-active{align-self:end}}' +
       '@media (max-width: 640px){.tpl-delivery-zone-grid{grid-template-columns:1fr}.tpl-delivery-zone-delete{padding:7px 10px}}' +
-      '.tpl-payment-methods{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;align-items:start}.tpl-payment-method-card{border:1px solid #EAE4DA;border-radius:12px;background:#fff;padding:12px;display:flex;flex-direction:column;gap:10px;box-shadow:0 1px 2px rgba(31,31,31,.03)}.tpl-payment-method-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.tpl-payment-method-name{font-size:13px;font-weight:600;color:#1F1F1F;line-height:1.25}.tpl-payment-method-status{font-size:10px;font-weight:600;color:#6F6860;margin-top:3px}.tpl-payment-method-note{font-size:11px;line-height:1.35;color:#6F6860;margin-top:6px}' +
+      '.tpl-payment-methods{display:grid;grid-template-columns:repeat(auto-fit,minmax(265px,1fr));gap:12px;align-items:start}.tpl-payment-method-card{border:1px solid #EADFD8;border-radius:16px;background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);padding:13px;display:flex;flex-direction:column;gap:11px;box-shadow:0 10px 24px rgba(85,46,32,.045),inset 0 1px 0 rgba(255,255,255,.78)}.tpl-payment-method-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.tpl-payment-method-name{font-size:13px;font-weight:650;color:#211815;line-height:1.25}.tpl-payment-method-status{font-size:10.5px;font-weight:500;color:#8A7E7C;margin-top:3px}.tpl-payment-method-note{font-size:11px;line-height:1.35;color:#8A7E7C;margin-top:6px}' +
       '@media (max-width: 640px){.tpl-payment-methods{grid-template-columns:1fr}.tpl-payment-method-head{align-items:center}}' +
       '.tpl-config-page{gap:16px !important}' +
       '.tpl-config-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:2px 0 0}' +
@@ -2779,8 +2825,9 @@ Modules.Catalogo = (function () {
       '.tpl-config-page .tpl-toggle-control{width:18px !important;height:18px !important;margin-top:0 !important}' +
       '.tpl-config-page .tpl-toggle-track{background:#fff !important;border:1px solid #DCCBC4 !important;border-radius:5px !important;box-shadow:inset 0 1px 0 rgba(255,255,255,.78) !important}' +
       '.tpl-config-page .tpl-toggle-track::after{content:"";position:absolute;left:5px;top:2px;width:5px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(42deg);display:none}' +
-      '.tpl-config-page .tpl-toggle-control input:checked + .tpl-toggle-track{background:#B42318 !important;border-color:#B42318 !important}' +
+      '.tpl-config-page .tpl-toggle.is-checked .tpl-toggle-track,.tpl-config-page .tpl-toggle-control input:checked + .tpl-toggle-track{background:#B42318 !important;border-color:#B42318 !important}' +
       '.tpl-config-page .tpl-toggle-control input:checked + .tpl-toggle-track::after{display:block}' +
+      '.tpl-config-page .tpl-toggle.is-checked .tpl-toggle-track::after{display:block}' +
       '.tpl-config-page .tpl-toggle-thumb{display:none !important}' +
       '.tpl-premium-switch{display:inline-flex;align-items:center;justify-content:space-between;gap:14px;min-width:260px;padding:10px 12px;border:1px solid #E8DDD5;border-radius:16px;background:linear-gradient(135deg,#FFFDFC,#FFF7F2);box-shadow:0 8px 18px rgba(85,46,32,.055),inset 0 1px 0 rgba(255,255,255,.76);cursor:pointer;user-select:none}' +
       '.tpl-premium-switch input{position:absolute;opacity:0;pointer-events:none}' +
@@ -2793,6 +2840,7 @@ Modules.Catalogo = (function () {
       '.tpl-premium-switch input:checked ~ .tpl-premium-switch-control::after{transform:translateX(20px)}' +
       '.tpl-premium-switch input:checked + .tpl-premium-switch-copy .tpl-premium-switch-state::before{content:"Ativada"}' +
       '.tpl-premium-switch input:not(:checked) + .tpl-premium-switch-copy .tpl-premium-switch-state::before{content:"Desativada"}' +
+      '.tpl-premium-switch--plain{min-width:0;padding:0;border:0;background:transparent;box-shadow:none;border-radius:0}' +
       '.tpl-config-page .tpl-image-card,.tpl-config-page .tpl-payment-method-card,.tpl-config-page .tpl-hours-day{background:rgba(255,255,255,.68) !important;border-color:#EADFD8 !important;box-shadow:inset 0 1px 0 rgba(255,255,255,.78) !important;border-radius:15px !important}' +
       '.tpl-config-page .tpl-image-preview{background:#FFFCF8 !important;border-color:#E8DCD7 !important}' +
       '.tpl-language-wrap{position:relative;display:block}' +
@@ -2984,15 +3032,49 @@ Modules.Catalogo = (function () {
   function _fieldHtml(id, label, value, placeholder, type) {
     return '<label style="display:block;"><span style="' + _labelStyle() + '">' + _esc(label) + '</span><input id="' + id + '" type="' + (type || 'text') + '" value="' + _esc(value == null ? '' : value) + '" placeholder="' + _esc(placeholder || '') + '" style="' + _inputStyle() + '"></label>';
   }
+  function _operationCardStyle(extra) {
+    return 'background:linear-gradient(180deg,#FFFFFF 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:15px;box-shadow:0 12px 30px rgba(31,31,31,.055);display:flex;flex-direction:column;gap:13px;' + (extra || '');
+  }
+  function _operationFieldStyle(extra) {
+    return 'width:100%;min-height:42px;padding:10px 12px;border:1px solid #E8DCD7;border-radius:12px;font-size:14px;font-family:Manrope,Inter,sans-serif;outline:none;background:#FFFCF8;box-sizing:border-box;color:#1F1F1F;box-shadow:inset 0 1px 0 rgba(255,255,255,.82);' + (extra || '');
+  }
+  function _operationCardHead(icon, title, text) {
+    return '<div style="display:flex;align-items:flex-start;min-width:0;">' +
+      '<div style="min-width:0;"><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">' + _esc(title || '') + '</div>' +
+      (text ? '<div style="font-size:12px;font-weight:400;color:#6F6860;line-height:1.42;margin-top:3px;">' + _esc(text) + '</div>' : '') +
+      '</div>' +
+    '</div>';
+  }
+  function _operationFieldHtml(id, label, value, placeholder, type, extraStyle, note, attrs, wrapStyle) {
+    return '<label style="display:block;min-width:0;' + (wrapStyle || '') + '"><span style="' + _labelStyle() + '">' + _esc(label) + '</span><input id="' + id + '" type="' + (type || 'text') + '" value="' + _esc(value == null ? '' : value) + '" placeholder="' + _esc(placeholder || '') + '" ' + (attrs || '') + ' style="' + _operationFieldStyle(extraStyle || '') + '">' + (note ? '<small style="display:block;margin-top:6px;font-size:11px;font-weight:400;line-height:1.35;color:#8A7E7C;">' + _esc(note) + '</small>' : '') + '</label>';
+  }
+  function _operationMoneyFieldHtml(id, label, value, note, wrapStyle) {
+    return '<label style="display:block;min-width:0;' + (wrapStyle || '') + '"><span style="' + _labelStyle() + '">' + _esc(label) + '</span><input id="' + id + '" type="text" inputmode="decimal" value="' + _esc(_moneyDisplay(value || '')) + '" placeholder="€0,00" onfocus="Modules.Catalogo._moneyInputFocus(this)" onblur="Modules.Catalogo._moneyInputBlur(this);Modules.Catalogo._refreshTemplatePreview()" style="' + _operationFieldStyle('text-align:right;') + '">' + (note ? '<small style="display:block;margin-top:6px;font-size:11px;font-weight:400;line-height:1.35;color:#8A7E7C;">' + _esc(note) + '</small>' : '') + '</label>';
+  }
+  function _operationSelectHtml(id, label, value, options, note, wrapStyle) {
+    return '<label style="display:block;min-width:0;' + (wrapStyle || '') + '"><span style="' + _labelStyle() + '">' + _esc(label) + '</span><span style="position:relative;display:block;"><select id="' + id + '" style="' + _operationFieldStyle('appearance:none;-webkit-appearance:none;-moz-appearance:none;padding-right:40px;') + '">' + options.map(function (o) {
+      return '<option value="' + _esc(o.value) + '"' + (String(value || '') === String(o.value) ? ' selected' : '') + '>' + _esc(o.label) + '</option>';
+    }).join('') + '</select><span class="mi" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:19px;color:#8A7E7C;pointer-events:none;">expand_more</span></span>' + (note ? '<small style="display:block;margin-top:6px;font-size:11px;font-weight:400;line-height:1.35;color:#8A7E7C;">' + _esc(note) + '</small>' : '') + '</label>';
+  }
+  function _operationCheckHtml(id, label, checked, hint) {
+    return '<label style="display:flex;gap:9px;align-items:flex-start;padding:2px 0;cursor:pointer;"><input id="' + id + '" type="checkbox"' + (checked ? ' checked' : '') + ' style="width:17px;height:17px;accent-color:#B42318;margin-top:1px;flex:0 0 auto;"><span style="min-width:0;"><strong style="font-size:13px;font-weight:500;color:#1F1F1F;line-height:1.25;">' + _esc(label) + '</strong>' + (hint ? '<small style="display:block;color:#6F6860;font-size:11px;font-weight:400;margin-top:3px;line-height:1.35;">' + _esc(hint) + '</small>' : '') + '</span></label>';
+  }
+  function _operationGrid(html, min) {
+    return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,' + (min || '180px') + '),1fr));gap:12px;align-items:start;">' + html + '</div>';
+  }
   function _colorFieldHtml(id, label, value, previewLabel) {
     var color = _normalizeHexColor(value) || '#B42318';
     return '<label class="tpl-color-field"><span style="' + _labelStyle() + '">' + _esc(label) + '</span><div class="tpl-color-row"><span class="tpl-color-swatch" data-color-swatch-for="' + _esc(id) + '" style="background:' + _esc(color) + ';"><input id="' + id + '" type="color" value="' + _esc(color) + '" title="' + _esc(previewLabel || label) + '"></span><input id="' + id + '-hex" type="text" value="' + _esc(color) + '" placeholder="#B42318" maxlength="7" style="' + _inputStyle() + 'text-transform:uppercase;"></div></label>';
   }
   function _toggleHtml(id, label, checked, hint) {
-    return '<label class="tpl-toggle"><span class="tpl-toggle-control"><input id="' + id + '" type="checkbox"' + (checked ? ' checked' : '') + '><span class="tpl-toggle-track"></span><span class="tpl-toggle-thumb"></span></span><span><span class="tpl-toggle-title">' + _esc(label) + '</span>' + (hint ? '<span class="tpl-toggle-hint">' + _esc(hint) + '</span>' : '') + '</span></label>';
+    var hoursChange = String(id || '').indexOf('tpl-h-') === 0 ? ' onchange="Modules.Catalogo._onTemplateHoursChange()"' : '';
+    return '<label class="tpl-toggle"><span class="tpl-toggle-control"><input id="' + id + '" type="checkbox"' + (checked ? ' checked' : '') + hoursChange + '><span class="tpl-toggle-track"></span><span class="tpl-toggle-thumb"></span></span><span><span class="tpl-toggle-title">' + _esc(label) + '</span>' + (hint ? '<span class="tpl-toggle-hint">' + _esc(hint) + '</span>' : '') + '</span></label>';
   }
   function _premiumSwitchHtml(id, label, checked, hint) {
     return '<label class="tpl-premium-switch"><input id="' + id + '" type="checkbox"' + (checked ? ' checked' : '') + '><span class="tpl-premium-switch-copy"><span class="tpl-premium-switch-title">' + _esc(label) + '</span><span class="tpl-premium-switch-state"></span>' + (hint ? '<span class="tpl-toggle-hint">' + _esc(hint) + '</span>' : '') + '</span><span class="tpl-premium-switch-control"></span></label>';
+  }
+  function _plainSwitchHtml(id, label, checked, hint) {
+    return '<label class="tpl-premium-switch tpl-premium-switch--plain"><input id="' + id + '" type="checkbox"' + (checked ? ' checked' : '') + '><span class="tpl-premium-switch-copy"><span class="tpl-premium-switch-title">' + _esc(label) + '</span><span class="tpl-premium-switch-state"></span>' + (hint ? '<span class="tpl-toggle-hint">' + _esc(hint) + '</span>' : '') + '</span><span class="tpl-premium-switch-control"></span></label>';
   }
   function _imageConfigHtml(kind, opts) {
     var fileId = opts.fileId;
@@ -3593,10 +3675,10 @@ Modules.Catalogo = (function () {
     return '<div class="tpl-payment-methods">' + methods.map(function (m, idx) {
       return '<div class="tpl-payment-method-card" data-tpl-payment-method="1" data-payment-key="' + _esc(m.key) + '" data-payment-name="' + _esc(m.name) + '" data-payment-finance-active="' + (m.financeActive ? '1' : '0') + '" data-payment-tipo="' + _esc(m.tipo || '') + '" data-payment-tipo-global-slug="' + _esc(m.tipoGlobalSlug || '') + '" data-payment-tipo-global-nome="' + _esc(m.tipoGlobalNome || '') + '">' +
         '<div class="tpl-payment-method-head">' +
-          '<div style="display:flex;align-items:flex-start;gap:10px;min-width:0;"><div style="width:36px;height:36px;border-radius:12px;background:#FAF8F4;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;flex:0 0 auto;"><span class="mi" style="font-size:19px;">account_balance_wallet</span></div><div style="min-width:0;"><div class="tpl-payment-method-name">' + _esc(m.name) + '</div><div class="tpl-payment-method-status">' + (m.financeActive ? 'Cadastrada no Financeiro' : 'Inativa no Financeiro') + '</div></div></div>' +
+          '<div style="min-width:0;"><div class="tpl-payment-method-name">' + _esc(m.name) + '</div><div class="tpl-payment-method-status">' + (m.financeActive ? 'Cadastrada no Financeiro' : 'Inativa no Financeiro') + '</div></div>' +
           _toggleHtml('tpl-pay-method-active-' + idx, 'Disponível na loja', m.active, '') +
         '</div>' +
-        '<label style="display:block;"><span style="' + _labelStyle() + '">Instruções adicionais</span><textarea id="tpl-pay-method-instructions-' + idx + '" rows="3" placeholder="Ex: informe a chave Pix, IBAN, telefone do MB Way ou instruções para pagamento na retirada." style="' + _inputStyle() + 'min-height:78px;resize:vertical;">' + _esc(m.instructions || '') + '</textarea><small class="tpl-payment-method-note">Opcional. Aparece para o cliente ao escolher esta forma de pagamento.</small></label>' +
+        '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Instruções adicionais</span><textarea id="tpl-pay-method-instructions-' + idx + '" rows="3" placeholder="Ex: informe dados para pagamento na retirada ou entrega." style="' + _operationFieldStyle('min-height:78px;resize:vertical;') + '">' + _esc(m.instructions || '') + '</textarea><small class="tpl-payment-method-note">Aparece para o cliente quando essa forma de pagamento for escolhida.</small></label>' +
       '</div>';
     }).join('') + '</div>';
   }
@@ -3622,6 +3704,13 @@ Modules.Catalogo = (function () {
   }
   function _val(id) { return ((document.getElementById(id) || {}).value || '').trim(); }
   function _checked(id) { return !!((document.getElementById(id) || {}).checked); }
+  function _boolValue(value) {
+    if (value === true || value === false) return value;
+    var normalized = String(value == null ? '' : value).trim().toLowerCase();
+    if (['true', '1', 'yes', 'sim', 'on'].indexOf(normalized) >= 0) return true;
+    if (['false', '0', 'no', 'nao', 'não', 'off'].indexOf(normalized) >= 0) return false;
+    return null;
+  }
   function _numVal(id) { return _moneyLike(_val(id)); }
   function _isPublicUrl(value) {
     var v = String(value || '').trim();
@@ -3693,7 +3782,7 @@ Modules.Catalogo = (function () {
     return { code: code || 'ES', cfg: cfg || {}, country: (cfg && cfg.label) || (code === 'PT' ? 'Portugal' : 'Espanha') };
   }
   function _loadStoreConfig() {
-    var keys = ['geral', 'aparencia', 'template', 'pagamentos', 'endereco', 'horarios', 'zonas', 'seo', 'seoTechnical', 'dominio', 'financeiro', 'pontos_program'];
+    var keys = ['geral', 'aparencia', 'template', 'pagamentos', 'endereco', 'horarios', 'zonas', 'seo', 'seoTechnical', 'dominio', 'financeiro', 'pontos_program', 'integracoes'];
     return Promise.all(keys.map(function (k) { return DB.getDocRoot('config', k).catch(function () { return {}; }); })).then(function (docs) {
       _storeConfig = {};
       keys.forEach(function (k, i) { _storeConfig[k] = docs[i] || {}; });
@@ -3761,6 +3850,103 @@ Modules.Catalogo = (function () {
     window._catalogStoreImageState = window._catalogStoreImageState || {};
     return window._catalogStoreImageState;
   }
+  function _setImageElementsById(id, url) {
+    if (!id) return;
+    [].slice.call(document.querySelectorAll('#' + id)).forEach(function (img) {
+      if (!img) return;
+      img.src = url || '';
+      img.style.display = url ? 'block' : 'none';
+    });
+  }
+  function _setPlaceholderElementsById(id, visible) {
+    if (!id) return;
+    [].slice.call(document.querySelectorAll('#' + id)).forEach(function (el) {
+      if (el) el.style.display = visible ? 'block' : 'none';
+    });
+  }
+  function _syncTemplateImageDom(target, url) {
+    url = _cleanPublicUrl(url || '');
+    var previewMap = {
+      logo: 'tpl-preview-logo',
+      favicon: 'tpl-preview-favicon',
+      share: 'seo-preview-share-img',
+      featured: 'tpl-preview-featured-image',
+      promoMobile: 'tpl-preview-mobile-promo-banner',
+      promoDesktop: 'tpl-preview-desktop-promo-banner',
+      bannerMobile: 'tpl-preview-banner-mobile',
+      banner: 'tpl-preview-banner',
+      bannerDesktop: 'tpl-preview-banner-desktop'
+    };
+    var placeholderMap = {
+      logo: 'tpl-preview-logo-placeholder',
+      favicon: 'tpl-preview-favicon-placeholder',
+      featured: 'tpl-preview-featured-image-placeholder',
+      promoMobile: 'tpl-preview-mobile-promo-banner-placeholder',
+      promoDesktop: 'tpl-preview-desktop-promo-banner-placeholder',
+      bannerMobile: 'tpl-preview-banner-mobile-placeholder',
+      banner: 'tpl-preview-banner-desktop-placeholder',
+      bannerDesktop: 'tpl-preview-banner-desktop-placeholder'
+    };
+    var previewId = previewMap[target] || previewMap.banner;
+    var placeholderId = placeholderMap[target] || placeholderMap.banner;
+    _setImageElementsById(previewId, url);
+    _setPlaceholderElementsById(placeholderId, !url);
+    var overlay = document.getElementById(previewId + '-overlay');
+    if (overlay) overlay.style.display = url ? 'block' : 'none';
+    if (target === 'favicon') {
+      var tabIcon = document.getElementById('tpl-preview-favicon-tab-icon');
+      if (tabIcon) { tabIcon.src = url || ''; tabIcon.style.display = url ? 'block' : 'none'; }
+    }
+    if (target === 'logo') {
+      [].slice.call(document.querySelectorAll('.tpl-brand-preview-logo,.tpl-maincard-preview-logo')).forEach(function (el) {
+        el.innerHTML = url ? '<img src="' + _esc(url) + '" alt="">' : '<span class="mi" style="font-size:25px;">storefront</span>';
+      });
+    }
+  }
+  function _imagePersistencePatch(target, url, result) {
+    url = _cleanPublicUrl(url || '');
+    result = result || {};
+    if (target === 'logo') {
+      return {
+        template: { logoUrl: url, logoStoragePath: url ? (result.imageStoragePath || '') : '', logoImagePath: url ? (result.imagePath || result.imageStoragePath || '') : '', logoWidth: url ? (result.imageWidth || 0) : 0, logoHeight: url ? (result.imageHeight || 0) : 0, logoSizeKb: url ? (result.imageSizeKb || 0) : 0, logoFormat: url ? (result.imageFormat || 'webp') : '' },
+        shared: { logoUrl: url }
+      };
+    }
+    if (target === 'favicon') {
+      return {
+        template: { faviconUrl: url, faviconStoragePath: url ? (result.imageStoragePath || '') : '', faviconImagePath: url ? (result.imagePath || result.imageStoragePath || '') : '', faviconWidth: url ? (result.imageWidth || 0) : 0, faviconHeight: url ? (result.imageHeight || 0) : 0, faviconSizeKb: url ? (result.imageSizeKb || 0) : 0, faviconFormat: url ? (result.imageFormat || 'webp') : '' },
+        shared: { faviconUrl: url }
+      };
+    }
+    if (target === 'featured') {
+      return {
+        template: { featuredActionImageUrl: url, featuredImageUrl: url, featuredActionImageStoragePath: url ? (result.imageStoragePath || '') : '', featuredActionImagePath: url ? (result.imagePath || result.imageStoragePath || '') : '', featuredActionImageWidth: url ? (result.imageWidth || 0) : 0, featuredActionImageHeight: url ? (result.imageHeight || 0) : 0, featuredActionImageSizeKb: url ? (result.imageSizeKb || 0) : 0, featuredActionImageFormat: url ? (result.imageFormat || 'webp') : '' },
+        shared: { featuredActionImageUrl: url, featuredImageUrl: url }
+      };
+    }
+    if (target === 'promoMobile') {
+      return {
+        template: { mobilePromoBannerImageUrl: url, promoBannerImageUrl: url, promotionalBannerImageUrl: url, mobilePromoBannerStoragePath: url ? (result.imageStoragePath || '') : '', promoBannerImageStoragePath: url ? (result.imageStoragePath || '') : '', promoBannerImagePath: url ? (result.imagePath || result.imageStoragePath || '') : '', mobilePromoBannerWidth: url ? (result.imageWidth || 0) : 0, mobilePromoBannerHeight: url ? (result.imageHeight || 0) : 0, mobilePromoBannerSizeKb: url ? (result.imageSizeKb || 0) : 0, mobilePromoBannerFormat: url ? (result.imageFormat || 'webp') : '' },
+        shared: { mobilePromoBannerImageUrl: url, promoBannerImageUrl: url }
+      };
+    }
+    if (target === 'promoDesktop') {
+      return {
+        template: { desktopPromoBannerImageUrl: url, promoBannerDesktopImageUrl: url, desktopPromoBannerStoragePath: url ? (result.imageStoragePath || '') : '', promoBannerDesktopStoragePath: url ? (result.imageStoragePath || '') : '', desktopPromoBannerImagePath: url ? (result.imagePath || result.imageStoragePath || '') : '', desktopPromoBannerWidth: url ? (result.imageWidth || 0) : 0, desktopPromoBannerHeight: url ? (result.imageHeight || 0) : 0, desktopPromoBannerSizeKb: url ? (result.imageSizeKb || 0) : 0, desktopPromoBannerFormat: url ? (result.imageFormat || 'webp') : '' },
+        shared: { desktopPromoBannerImageUrl: url, promoBannerDesktopImageUrl: url }
+      };
+    }
+    if (target === 'bannerMobile') {
+      return {
+        template: { coverImageMobileUrl: url, mobileCoverImageUrl: url, bannerMobileUrl: url, bannerMobileStoragePath: url ? (result.imageStoragePath || '') : '', coverImageMobileStoragePath: url ? (result.imageStoragePath || '') : '', bannerMobileImagePath: url ? (result.imagePath || result.imageStoragePath || '') : '', bannerMobileWidth: url ? (result.imageWidth || 0) : 0, bannerMobileHeight: url ? (result.imageHeight || 0) : 0, bannerMobileSizeKb: url ? (result.imageSizeKb || 0) : 0, bannerMobileFormat: url ? (result.imageFormat || 'webp') : '' },
+        shared: { coverImageMobileUrl: url, mobileCoverImageUrl: url, bannerMobileUrl: url }
+      };
+    }
+    return {
+      template: { coverImageUrl: url, bannerUrl: url, bannerStoragePath: url ? (result.imageStoragePath || '') : '', coverImageStoragePath: url ? (result.imageStoragePath || '') : '', bannerImagePath: url ? (result.imagePath || result.imageStoragePath || '') : '', bannerWidth: url ? (result.imageWidth || 0) : 0, bannerHeight: url ? (result.imageHeight || 0) : 0, bannerSizeKb: url ? (result.imageSizeKb || 0) : 0, bannerFormat: url ? (result.imageFormat || 'webp') : '' },
+      shared: { coverImageUrl: url, bannerUrl: url }
+    };
+  }
   function _uploadStoreImage(event, kind) {
     var file = event && event.target && event.target.files ? event.target.files[0] : null;
     if (!file || !window.ImageTools) return;
@@ -3796,34 +3982,15 @@ Modules.Catalogo = (function () {
       if (preview) preview.src = result.imageUrl || '';
       if (tabIcon) { tabIcon.src = result.imageUrl || ''; tabIcon.style.display = result.imageUrl ? 'block' : 'none'; }
       var publicUrl = _cleanPublicUrl(result.imageUrl || '');
+      _syncTemplateImageDom(target, publicUrl);
       var persist = Promise.resolve();
       if (publicUrl && target !== 'share') {
-        var patchTemplate = target === 'logo'
-          ? { logoUrl: publicUrl, logoStoragePath: result.imageStoragePath || '', logoImagePath: result.imagePath || result.imageStoragePath || '', logoWidth: result.imageWidth || 0, logoHeight: result.imageHeight || 0, logoSizeKb: result.imageSizeKb || 0, logoFormat: result.imageFormat || 'webp' }
-          : target === 'favicon'
-            ? { faviconUrl: publicUrl, faviconStoragePath: result.imageStoragePath || '', faviconImagePath: result.imagePath || result.imageStoragePath || '', faviconWidth: result.imageWidth || 0, faviconHeight: result.imageHeight || 0, faviconSizeKb: result.imageSizeKb || 0, faviconFormat: result.imageFormat || 'webp' }
-          : target === 'featured'
-            ? { featuredActionImageUrl: publicUrl, featuredImageUrl: publicUrl, featuredActionImageStoragePath: result.imageStoragePath || '', featuredActionImagePath: result.imagePath || result.imageStoragePath || '', featuredActionImageWidth: result.imageWidth || 0, featuredActionImageHeight: result.imageHeight || 0, featuredActionImageSizeKb: result.imageSizeKb || 0, featuredActionImageFormat: result.imageFormat || 'webp' }
-          : target === 'promoMobile'
-            ? { mobilePromoBannerImageUrl: publicUrl, promoBannerImageUrl: publicUrl, promotionalBannerImageUrl: publicUrl, mobilePromoBannerStoragePath: result.imageStoragePath || '', promoBannerImageStoragePath: result.imageStoragePath || '', promoBannerImagePath: result.imagePath || result.imageStoragePath || '', mobilePromoBannerWidth: result.imageWidth || 0, mobilePromoBannerHeight: result.imageHeight || 0, mobilePromoBannerSizeKb: result.imageSizeKb || 0, mobilePromoBannerFormat: result.imageFormat || 'webp' }
-          : target === 'promoDesktop'
-            ? { desktopPromoBannerImageUrl: publicUrl, promoBannerDesktopImageUrl: publicUrl, desktopPromoBannerStoragePath: result.imageStoragePath || '', promoBannerDesktopStoragePath: result.imageStoragePath || '', desktopPromoBannerImagePath: result.imagePath || result.imageStoragePath || '', desktopPromoBannerWidth: result.imageWidth || 0, desktopPromoBannerHeight: result.imageHeight || 0, desktopPromoBannerSizeKb: result.imageSizeKb || 0, desktopPromoBannerFormat: result.imageFormat || 'webp' }
-          : target === 'bannerMobile'
-            ? { coverImageMobileUrl: publicUrl, mobileCoverImageUrl: publicUrl, bannerMobileUrl: publicUrl, bannerMobileStoragePath: result.imageStoragePath || '', coverImageMobileStoragePath: result.imageStoragePath || '', bannerMobileImagePath: result.imagePath || result.imageStoragePath || '', bannerMobileWidth: result.imageWidth || 0, bannerMobileHeight: result.imageHeight || 0, bannerMobileSizeKb: result.imageSizeKb || 0, bannerMobileFormat: result.imageFormat || 'webp' }
-            : { coverImageUrl: publicUrl, bannerUrl: publicUrl, bannerStoragePath: result.imageStoragePath || '', coverImageStoragePath: result.imageStoragePath || '', bannerImagePath: result.imagePath || result.imageStoragePath || '', bannerWidth: result.imageWidth || 0, bannerHeight: result.imageHeight || 0, bannerSizeKb: result.imageSizeKb || 0, bannerFormat: result.imageFormat || 'webp' };
-        var patchShared = target === 'logo'
-          ? { logoUrl: publicUrl }
-          : target === 'favicon'
-            ? { faviconUrl: publicUrl }
-          : target === 'featured'
-            ? { featuredActionImageUrl: publicUrl, featuredImageUrl: publicUrl }
-          : target === 'promoMobile'
-            ? { mobilePromoBannerImageUrl: publicUrl, promoBannerImageUrl: publicUrl }
-          : target === 'promoDesktop'
-            ? { desktopPromoBannerImageUrl: publicUrl, promoBannerDesktopImageUrl: publicUrl }
-          : target === 'bannerMobile'
-            ? { coverImageMobileUrl: publicUrl, mobileCoverImageUrl: publicUrl, bannerMobileUrl: publicUrl }
-            : { coverImageUrl: publicUrl, bannerUrl: publicUrl };
+        var patches = _imagePersistencePatch(target, publicUrl, result);
+        var patchTemplate = patches.template;
+        var patchShared = patches.shared;
+        _storeConfig.template = Object.assign({}, _storeConfig.template || {}, patchTemplate);
+        _storeConfig.geral = Object.assign({}, _storeConfig.geral || {}, patchShared);
+        _storeConfig.aparencia = Object.assign({}, _storeConfig.aparencia || {}, patchShared);
         persist = Promise.all([
           DB.setDocRoot('config', 'template', patchTemplate),
           DB.setDocRoot('config', 'geral', patchShared),
@@ -3847,10 +4014,10 @@ Modules.Catalogo = (function () {
     });
   }
   function _clearStoreImage(kind) {
-    var target = kind === 'featured' ? 'featured' : (kind === 'promoMobile' ? 'promoMobile' : (kind === 'promoDesktop' ? 'promoDesktop' : (kind === 'bannerMobile' ? 'bannerMobile' : (kind === 'bannerDesktop' ? 'bannerDesktop' : (kind === 'banner' ? 'banner' : (kind === 'favicon' ? 'favicon' : 'logo'))))));
-    var fieldId = target === 'logo' ? 'tpl-logo-url' : (target === 'favicon' ? 'tpl-favicon-url' : (target === 'featured' ? 'tpl-featured-image-url' : (target === 'promoMobile' ? 'tpl-mobile-promo-banner-url' : (target === 'promoDesktop' ? 'tpl-desktop-promo-banner-url' : (target === 'bannerMobile' ? 'tpl-banner-mobile-url' : 'tpl-banner-url')))));
-    var previewId = target === 'logo' ? 'tpl-preview-logo' : (target === 'favicon' ? 'tpl-preview-favicon' : (target === 'featured' ? 'tpl-preview-featured-image' : (target === 'promoMobile' ? 'tpl-preview-mobile-promo-banner' : (target === 'promoDesktop' ? 'tpl-preview-desktop-promo-banner' : (target === 'bannerMobile' ? 'tpl-preview-banner-mobile' : 'tpl-preview-banner-desktop')))));
-    var placeholderId = target === 'logo' ? 'tpl-preview-logo-placeholder' : (target === 'favicon' ? 'tpl-preview-favicon-placeholder' : (target === 'featured' ? 'tpl-preview-featured-image-placeholder' : (target === 'promoMobile' ? 'tpl-preview-mobile-promo-banner-placeholder' : (target === 'promoDesktop' ? 'tpl-preview-desktop-promo-banner-placeholder' : (target === 'bannerMobile' ? 'tpl-preview-banner-mobile-placeholder' : 'tpl-preview-banner-desktop-placeholder')))));
+    var target = kind === 'share' ? 'share' : (kind === 'featured' ? 'featured' : (kind === 'promoMobile' ? 'promoMobile' : (kind === 'promoDesktop' ? 'promoDesktop' : (kind === 'bannerMobile' ? 'bannerMobile' : (kind === 'bannerDesktop' ? 'bannerDesktop' : (kind === 'banner' ? 'banner' : (kind === 'favicon' ? 'favicon' : 'logo')))))));
+    var fieldId = target === 'share' ? 'seo-og-image' : (target === 'logo' ? 'tpl-logo-url' : (target === 'favicon' ? 'tpl-favicon-url' : (target === 'featured' ? 'tpl-featured-image-url' : (target === 'promoMobile' ? 'tpl-mobile-promo-banner-url' : (target === 'promoDesktop' ? 'tpl-desktop-promo-banner-url' : (target === 'bannerMobile' ? 'tpl-banner-mobile-url' : 'tpl-banner-url'))))));
+    var previewId = target === 'share' ? 'seo-preview-share-img' : (target === 'logo' ? 'tpl-preview-logo' : (target === 'favicon' ? 'tpl-preview-favicon' : (target === 'featured' ? 'tpl-preview-featured-image' : (target === 'promoMobile' ? 'tpl-preview-mobile-promo-banner' : (target === 'promoDesktop' ? 'tpl-preview-desktop-promo-banner' : (target === 'bannerMobile' ? 'tpl-preview-banner-mobile' : 'tpl-preview-banner-desktop'))))));
+    var placeholderId = target === 'share' ? 'seo-preview-share-placeholder' : (target === 'logo' ? 'tpl-preview-logo-placeholder' : (target === 'favicon' ? 'tpl-preview-favicon-placeholder' : (target === 'featured' ? 'tpl-preview-featured-image-placeholder' : (target === 'promoMobile' ? 'tpl-preview-mobile-promo-banner-placeholder' : (target === 'promoDesktop' ? 'tpl-preview-desktop-promo-banner-placeholder' : (target === 'bannerMobile' ? 'tpl-preview-banner-mobile-placeholder' : 'tpl-preview-banner-desktop-placeholder'))))));
     var field = document.getElementById(fieldId);
     var preview = document.getElementById(previewId);
     var placeholder = document.getElementById(placeholderId);
@@ -3861,7 +4028,24 @@ Modules.Catalogo = (function () {
     if (tabIcon) { tabIcon.src = ''; tabIcon.style.display = 'none'; }
     var state = _imageUploadState();
     delete state[target];
-    _refreshTemplatePreview();
+    _syncTemplateImageDom(target, '');
+    if (target !== 'share') {
+      var patches = _imagePersistencePatch(target, '', {});
+      _storeConfig.template = Object.assign({}, _storeConfig.template || {}, patches.template);
+      _storeConfig.geral = Object.assign({}, _storeConfig.geral || {}, patches.shared);
+      _storeConfig.aparencia = Object.assign({}, _storeConfig.aparencia || {}, patches.shared);
+      Promise.all([
+        DB.setDocRoot('config', 'template', patches.template),
+        DB.setDocRoot('config', 'geral', patches.shared),
+        DB.setDocRoot('config', 'aparencia', patches.shared)
+      ]).then(function () {
+        UI.toast('Imagem removida com sucesso.', 'success');
+      }).catch(function (err) {
+        UI.toast('Imagem removida da tela, mas não foi possível salvar: ' + (err && err.message ? err.message : err), 'error');
+      });
+    }
+    if (target === 'share') _refreshSeoPreview();
+    else _refreshTemplatePreview();
   }
 
   function _mainCardConfigFromTemplate(tpl) {
@@ -3946,6 +4130,28 @@ Modules.Catalogo = (function () {
     '</label>';
   }
 
+  function _operationPhoneCompositeHtml(id, label, value, placeholder, hint, wrapStyle) {
+    var detected = _detectPhoneCountry(value);
+    var countries = _phoneCountryList();
+    var visibleId = id + '-local';
+    var countryId = id + '-country';
+    var hiddenId = id;
+    var options = countries.map(function (item) {
+      return '<option value="' + _esc(item.code) + '"' + (item.code === detected.country ? ' selected' : '') + '>' + _esc(item.flag + ' ' + item.dial) + '</option>';
+    }).join('');
+    return '<label style="display:block;min-width:0;' + (wrapStyle || '') + '"><span style="' + _labelStyle() + '">' + _esc(label) + '</span>' +
+      '<input id="' + _esc(hiddenId) + '" type="hidden" value="' + _esc(detected.dial + (detected.local || '')) + '">' +
+      '<div style="display:flex;align-items:stretch;gap:8px;min-height:42px;">' +
+        '<span style="position:relative;display:block;flex:0 0 92px;">' +
+          '<select id="' + _esc(countryId) + '" style="' + _operationFieldStyle('height:42px;padding:0 30px 0 10px;font-size:13px;appearance:none;-webkit-appearance:none;-moz-appearance:none;') + '">' + options + '</select>' +
+          '<span class="mi" style="position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:17px;color:#8A7E7C;pointer-events:none;">expand_more</span>' +
+        '</span>' +
+        '<input id="' + _esc(visibleId) + '" type="text" value="' + _esc(detected.local || (_normalizePhoneNumberLocal(value).replace(/^\+/, ''))) + '" placeholder="' + _esc(placeholder || '') + '" inputmode="tel" style="' + _operationFieldStyle('height:42px;min-width:0;flex:1;') + '">' +
+      '</div>' +
+      (hint ? '<small style="display:block;margin-top:6px;font-size:11px;font-weight:400;line-height:1.35;color:#8A7E7C;">' + _esc(hint) + '</small>' : '') +
+    '</label>';
+  }
+
   function _normalizeDeliveryZonePostal(value) {
     return String(value == null ? '' : value).trim().toUpperCase().replace(/[^A-Z0-9]+/g, '');
   }
@@ -3982,10 +4188,9 @@ Modules.Catalogo = (function () {
     var feeText = zone.deliveryFee != null ? String(zone.deliveryFee).replace('.', ',') : '';
     var postalCount = Array.isArray(zone.postalCodes) ? zone.postalCodes.length : 0;
     var active = zone.active !== false;
-    return '<div class="tpl-delivery-zone-card" data-delivery-zone-row data-zone-id="' + _esc(zone.id) + '" style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
+    return '<div class="tpl-delivery-zone-card" data-delivery-zone-row data-zone-id="' + _esc(zone.id) + '" style="' + _operationCardStyle() + '">' +
       '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">' +
-        '<div style="display:flex;align-items:flex-start;gap:10px;min-width:0;">' +
-          '<div style="width:38px;height:38px;border-radius:12px;background:#FAF8F4;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;flex:0 0 auto;"><span class="mi" style="font-size:20px;">map</span></div>' +
+        '<div style="display:flex;align-items:flex-start;min-width:0;">' +
           '<div style="min-width:0;">' +
             '<div style="font-size:12px;font-weight:700;color:#1F1F1F;">Zona ' + (idx + 1) + '</div>' +
             '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:6px;">' +
@@ -4001,9 +4206,9 @@ Modules.Catalogo = (function () {
         '</div>' +
       '</div>' +
       '<div class="tpl-delivery-zone-grid">' +
-        _fieldHtml('tpl-zone-name-' + idx, 'Nome da zona', zone.name || '', 'Ex: Centro, Bairro próximo, Zona 1') +
-        '<label style="display:block;"><span style="' + _labelStyle() + '">CEPs atendidos</span><textarea id="tpl-zone-postals-' + idx + '" rows="2" placeholder="Ex: 31001, 31002, 31003" style="' + _inputStyle() + 'min-height:72px;resize:vertical;">' + _esc(postalText) + '</textarea><small style="display:block;margin-top:6px;font-size:11px;line-height:1.35;color:#8A7E7C;">Separe os CEPs por vírgula.</small></label>' +
-        '<label style="display:block;"><span style="' + _labelStyle() + '">Valor da entrega</span><input id="tpl-zone-fee-' + idx + '" type="text" inputmode="decimal" value="' + _esc(feeText) + '" placeholder="Ex: 5,00" style="' + _inputStyle() + '"><small style="display:block;margin-top:6px;font-size:11px;line-height:1.35;color:#8A7E7C;">Valor aplicado quando o CEP corresponder a esta zona.</small></label>' +
+        _operationFieldHtml('tpl-zone-name-' + idx, 'Nome da zona', zone.name || '', 'Ex: Centro, Bairro próximo, Zona 1', 'text', 'min-width:210px;') +
+        '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">CEPs atendidos</span><textarea id="tpl-zone-postals-' + idx + '" rows="2" placeholder="Ex: 31001, 31002, 31003" style="' + _operationFieldStyle('min-height:72px;resize:vertical;min-width:260px;') + '">' + _esc(postalText) + '</textarea><small style="display:block;margin-top:6px;font-size:11px;font-weight:400;line-height:1.35;color:#8A7E7C;">Separe os CEPs por vírgula.</small></label>' +
+        _operationMoneyFieldHtml('tpl-zone-fee-' + idx, 'Valor da entrega', feeText, 'Valor aplicado quando o CEP corresponder a esta zona.') +
       '</div>' +
     '</div>';
   }
@@ -4143,13 +4348,16 @@ Modules.Catalogo = (function () {
     tpl = tpl || {};
     zonas = zonas || {};
     var area = {};
+    var endereco = _storeConfig.endereco || {};
+    var geral = _storeConfig.geral || {};
+    var atendimentoPostal = endereco.postalCode || endereco.codigoPostal || tpl.postalCode || geral.postalCode || geral.codigoPostal || '';
     if (tpl.deliveryArea && typeof tpl.deliveryArea === 'object') area = Object.assign({}, tpl.deliveryArea);
     else if (zonas.area && typeof zonas.area === 'object') area = Object.assign({}, zonas.area);
     return {
       city: area.city || tpl.deliveryCity || zonas.deliveryCity || '',
       province: area.province || area.state || tpl.deliveryProvince || zonas.deliveryProvince || '',
       country: _normalizeDeliveryAreaCountry(area.country || tpl.deliveryCountry || zonas.deliveryCountry || ''),
-      postalCode: area.postalCode || area.zip || tpl.deliveryPostalCode || zonas.deliveryPostalCode || '',
+      postalCode: atendimentoPostal || area.postalCode || area.zip || tpl.deliveryPostalCode || zonas.deliveryPostalCode || '',
       source: area.source || 'admin_delivery_zones'
     };
   }
@@ -4158,13 +4366,16 @@ Modules.Catalogo = (function () {
     area = area || {};
     return '<section ' + _templatePanelAttrs('operacao') + ' style="' + _cardStyle() + '">' + _sectionTitle('Localização atendida', 'Selecione a cidade atendida antes de cadastrar as zonas de entrega. A província, país e código postal podem ser preenchidos automaticamente pela busca.', 'travel_explore') +
       '<div style="display:flex;flex-direction:column;gap:12px;">' +
-        '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-          '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Cidade base da entrega</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Esses dados alimentam o Master como cidade, província/estado e país operacionais da loja.</div></div>' +
-          _grid(
-            _fieldHtml('tpl-delivery-area-city', 'Cidade atendida', area.city || '', 'Buscar cidade atendida') +
-            _fieldHtml('tpl-delivery-area-province', 'Província / estado', area.province || '', 'Preenchido automaticamente') +
-            _selectHtml('tpl-delivery-area-country', 'País atendido', area.country || '', _templateCountryOptions()) +
-            _fieldHtml('tpl-delivery-area-postal', 'Código postal base', area.postalCode || '', 'Código postal'), '220px') +
+        '<div style="' + _operationCardStyle() + '">' +
+          _operationCardHead('travel_explore', 'Cidade base da entrega', 'Defina a região usada para organizar as zonas atendidas.') +
+          '<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">' +
+            _operationFieldHtml('tpl-delivery-area-city', 'Cidade atendida', area.city || '', 'Buscar cidade atendida', 'text', '', '', '', 'width:260px;flex:0 1 260px;') +
+            _operationFieldHtml('tpl-delivery-area-province', 'Província / estado', area.province || '', 'Província', 'text', '', '', '', 'width:200px;flex:0 1 200px;') +
+            _operationSelectHtml('tpl-delivery-area-country', 'País atendido', area.country || '', _templateCountryOptions(), '', 'width:160px;flex:0 0 160px;') +
+          '</div>' +
+          '<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">' +
+            _operationFieldHtml('tpl-delivery-area-postal', 'Código postal base', area.postalCode || '', 'Código postal', 'text', 'background:#F4F0EA;color:#6F6860;cursor:not-allowed;', 'CEP de atendimento da loja.', 'readonly disabled aria-readonly="true"', 'width:150px;flex:0 0 150px;') +
+          '</div>' +
         '</div>' +
       '</div>' +
     '</section>';
@@ -4288,12 +4499,17 @@ Modules.Catalogo = (function () {
       var geral = _storeConfig.geral || {};
       var app = _storeConfig.aparencia || {};
       var tpl = _storeConfig.template || {};
+      var integracoes = _storeConfig.integracoes || {};
       var end = _storeConfig.endereco || {};
       var pay = _storeConfig.pagamentos || {};
       var financeiro = _storeConfig.financeiro || {};
       var pointsCfg = _storeConfig.pontos_program || {};
       var hor = _storeConfig.horarios || {};
       var zonas = _storeConfig.zonas || {};
+      var inheritedWhatsapp = tpl.whatsapp || geral.whatsapp || integracoes.whatsappFull || integracoes.whatsapp || geral.phone || '';
+      var inheritedInstagram = tpl.instagram || geral.instagram || integracoes.instagram || '';
+      var inheritedFacebook = tpl.facebook || geral.facebook || integracoes.facebook || '';
+      var inheritedTiktok = tpl.tiktok || geral.tiktok || integracoes.tiktok || '';
       var fiscal = _fiscalInfo();
       var regionLabel = fiscal.cfg.regionLabel || (fiscal.code === 'PT' ? 'Distrito' : 'Província/Estado');
       var rawStatusMode = tpl.statusMode || (tpl.manualClosed || tpl.manualOpen ? 'manual' : 'auto');
@@ -4302,17 +4518,23 @@ Modules.Catalogo = (function () {
       var days = ['Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado','Domingo'];
       var hoursHtml = days.map(function (d, idx) {
         var row = (hor.days && hor.days[idx]) || (tpl.hours && tpl.hours[idx]) || {};
+        var rowClosed = _boolValue(row.closed) === true || _boolValue(row.enabled) === false;
+        var rowSecondClosed = _boolValue(row.closed2) === true;
         return '<div class="tpl-hours-day" data-hours-day="' + idx + '">' +
           '<div class="tpl-hours-day-main">' +
             '<div class="tpl-hours-day-name">' + d + '</div>' +
-            '<div class="tpl-hours-day-closed-toggle">' + _toggleHtml('tpl-h-closed-' + idx, 'Fechada', row.closed || row.enabled === false, '') + '</div>' +
+            '<div class="tpl-hours-day-closed-toggle">' + _toggleHtml('tpl-h-closed-' + idx, 'Fechada', rowClosed, '') + '</div>' +
             '<div class="tpl-hours-day-field" data-hours-main-field>' + _fieldHtml('tpl-h-open-' + idx, 'Abre', row.open || '', '10:00', 'time') + '</div>' +
             '<div class="tpl-hours-day-field" data-hours-main-field>' + _fieldHtml('tpl-h-close-' + idx, 'Fecha', row.close || '', '22:00', 'time') + '</div>' +
-            '<div class="tpl-hours-day-secondary-toggle tpl-hours-day-field" data-hours-secondary-toggle>' +
-              _toggleHtml('tpl-h-enabled2-' + idx, '2º período', row.enabled2 !== false && (!!row.open2 || !!row.close2 || row.enabled2 === true), '') +
-            '</div>' +
-            '<div class="tpl-hours-day-secondary-inline tpl-hours-day-field" data-hours-secondary-fields>' +
+            '<input id="tpl-h-enabled2-' + idx + '" type="checkbox" style="display:none;"' + ((!rowSecondClosed && row.open2 && row.close2) ? ' checked' : '') + '>' +
+          '</div>' +
+          '<div class="tpl-hours-day-main tpl-hours-day-main--second" data-hours-secondary-fields>' +
+            '<div class="tpl-hours-day-name">' + d + ' · 2º período</div>' +
+            '<div class="tpl-hours-day-closed-toggle">' + _toggleHtml('tpl-h-closed2-' + idx, 'Fechada', rowSecondClosed, '') + '</div>' +
+            '<div class="tpl-hours-day-field">' +
               _fieldHtml('tpl-h-open2-' + idx, 'Abre 2', row.open2 || '', '18:00', 'time') +
+            '</div>' +
+            '<div class="tpl-hours-day-field">' +
               _fieldHtml('tpl-h-close2-' + idx, 'Fecha 2', row.close2 || '', '22:00', 'time') +
             '</div>' +
           '</div>' +
@@ -4382,7 +4604,7 @@ Modules.Catalogo = (function () {
       content.innerHTML =
         '<div class="bf-page tpl-config-page" style="padding:0;display:flex;flex-direction:column;font-family:Manrope,Inter,sans-serif;">' +
         '<div class="tpl-config-head">' +
-          '<div style="min-width:0;flex:1 1 420px;"><h2 class="tpl-config-title">Template da loja</h2><p class="tpl-config-subtitle">Organize a aparência, os canais e os textos que aparecem na página pública do seu negócio.</p><div class="tpl-config-status"><span class="tpl-config-chip">' + (logo ? 'Logo configurada' : 'Sem logo') + '</span><span class="tpl-config-chip">' + (banner ? 'Capa configurada' : 'Sem capa') + '</span><span class="tpl-config-chip">' + (deliveryEnabled ? 'Entrega ativa' : 'Entrega inativa') + '</span><span class="tpl-config-chip">' + (pickupEnabled ? 'Retirada ativa' : 'Retirada inativa') + '</span></div></div>' +
+          '<div style="min-width:0;flex:1 1 420px;"><h2 class="tpl-config-title">Template da loja</h2><p class="tpl-config-subtitle">Organize a aparência, os canais e os textos que aparecem na página pública do seu negócio.</p><div class="tpl-config-status"><span class="tpl-config-chip" data-template-summary="logo">' + (logo ? 'Logo configurada' : 'Sem logo') + '</span><span class="tpl-config-chip" data-template-summary="cover">' + (banner ? 'Capa configurada' : 'Sem capa') + '</span><span class="tpl-config-chip" data-template-summary="delivery">' + (deliveryEnabled ? 'Entrega ativa' : 'Entrega inativa') + '</span><span class="tpl-config-chip" data-template-summary="pickup">' + (pickupEnabled ? 'Retirada ativa' : 'Retirada inativa') + '</span></div></div>' +
           '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;"><button type="button" class="tpl-config-save" data-save-template-loja="1">Salvar alterações</button></div>' +
         '</div>' +
         _templateSubtabsHtml(_templateActiveTab || 'identidade') +
@@ -4415,9 +4637,9 @@ Modules.Catalogo = (function () {
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">view_quilt</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo do card</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Controle o que aparece no primeiro card visto pelo cliente.</div></div></div>' +
                   '<div style="display:flex;gap:7px;flex-wrap:wrap;">' +
-                    '<span class="tpl-config-chip">' + (mainCard.showLogo || mainCard.showStoreName || mainCard.showSlogan ? 'Identidade ativa' : 'Identidade oculta') + '</span>' +
-                    '<span class="tpl-config-chip">' + (mainCard.showLocation || mainCard.showStoreStatus || mainCard.showOpeningHoursSummary ? 'Status visível' : 'Status oculto') + '</span>' +
-                    '<span class="tpl-config-chip">' + (mainCard.showPickup || mainCard.showDelivery ? 'Canais visíveis' : 'Canais ocultos') + '</span>' +
+                    '<span class="tpl-config-chip" data-template-summary="maincard-identity">' + (mainCard.showLogo || mainCard.showStoreName || mainCard.showSlogan ? 'Identidade ativa' : 'Identidade oculta') + '</span>' +
+                    '<span class="tpl-config-chip" data-template-summary="maincard-status">' + (mainCard.showLocation || mainCard.showStoreStatus || mainCard.showOpeningHoursSummary ? 'Status visível' : 'Status oculto') + '</span>' +
+                    '<span class="tpl-config-chip" data-template-summary="maincard-channels">' + (mainCard.showPickup || mainCard.showDelivery ? 'Canais visíveis' : 'Canais ocultos') + '</span>' +
                   '</div>' +
                 '</div>' +
                 '<div class="tpl-maincard-layout">' +
@@ -4531,111 +4753,54 @@ Modules.Catalogo = (function () {
                 '<button type="button" onclick="Router.navigate(\'marketing/pontos\')" style="height:38px;padding:0 14px;border:none;border-radius:12px;background:#B42318;color:#fff;font-size:12px;font-weight:760;cursor:pointer;font-family:inherit;box-shadow:0 8px 18px rgba(180,35,24,.16);white-space:nowrap;">Configurar pontos</button>' +
               '</div>' +
             '</section>' +
-            '<section ' + _templatePanelAttrs('vitrine') + ' style="' + _cardStyle() + '">' + _sectionTitle('Destaque comercial do topo', 'Escolha o conteúdo do card lateral/comercial exibido ao lado do resumo da loja no desktop e abaixo no mobile.', 'campaign') +
-              '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                '<div style="display:none;">' +
-                  '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">campaign</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo do destaque</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Escolha se o topo terá cupom, promoção, produto ou texto próprio.</div></div></div>' +
-                  '<div style="display:flex;gap:7px;flex-wrap:wrap;">' +
-                    '<span style="' + chipStyle + '">' + (tpl.featuredActionEnabled ? 'Destaque ativo' : 'Destaque oculto') + '</span>' +
-                    '<span style="' + chipStyle + '">' + _esc(featuredType === 'none' ? 'Nenhum' : featuredType === 'coupon' ? 'Cupom' : featuredType === 'promotion' ? 'Promoção' : featuredType === 'featured_product' ? 'Produto' : featuredType === 'most_ordered' ? 'Mais pedido' : 'Personalizado') + '</span>' +
-                    '<span style="' + chipStyle + '">' + (featuredType === 'custom' ? 'Texto manual' : 'Conteúdo vinculado') + '</span>' +
-                  '</div>' +
-                  '<small style="display:block;color:#6F6860;font-size:11px;line-height:1.45;">Se não houver conteúdo válido, o card é ocultado e o resumo principal ocupa mais espaço.</small>' +
-                '</div>' +
-                '<div id="tpl-featured-config" style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                  '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;"><div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Configuração do destaque</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Controle o conteúdo promocional exibido no topo da loja pública.</div></div><div style="min-width:220px;">' + _toggleHtml('tpl-featured-enabled', 'Ativar destaque', !!tpl.featuredActionEnabled, 'Se desativado, o card não aparece no público.') + '</div></div>' +
-                  '<div id="tpl-featured-settings" style="display:' + (tpl.featuredActionEnabled ? 'grid' : 'none') + ';grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;align-items:start;">' +
-                    _selectHtml('tpl-featured-type', 'Tipo de conteúdo do card', featuredType, [
-                    { value: 'none', label: 'Nenhum' },
-                    { value: 'coupon', label: 'Cupom ativo' },
-                    { value: 'promotion', label: 'Promoção ativa' },
-                    { value: 'most_ordered', label: 'Produto mais pedido' },
-                    { value: 'custom', label: 'Texto personalizado' }
-                    ]) +
-                    '<div style="grid-column:1/-1;display:grid;grid-template-columns:minmax(240px,.85fr) minmax(260px,1.15fr);gap:12px;align-items:start;">' +
-                      _imageConfigHtml('featured', { hideUrl: true, cardClass: 'tpl-image-card--featured', previewClass: 'tpl-image-preview--featured', fileId: 'tpl-featured-image-file', urlId: 'tpl-featured-image-url', previewId: 'tpl-preview-featured-image', placeholderId: 'tpl-preview-featured-image-placeholder', label: 'Imagem do card', value: featuredImageUrl, note: 'Opcional. Use uma imagem apetitosa em JPG, PNG ou WebP.', accept: 'image/png,image/jpeg,image/jpg,image/webp' }) +
-                      '<div style="display:grid;gap:10px;">' +
-                        _fieldHtml('tpl-featured-kicker', 'Tag de destaque', tpl.featuredActionKicker || tpl.featuredKicker || '', featuredType === 'coupon' ? 'Cupom especial' : featuredType === 'promotion' ? 'Promoção ativa' : featuredType === 'most_ordered' ? 'Mais pedido' : 'Destaque') +
-                        _fieldHtml('tpl-featured-title', 'Título do card', tpl.featuredActionTitle || '', featuredType === 'coupon' ? 'Cupom disponível' : featuredType === 'promotion' ? 'Promoção da loja' : featuredType === 'most_ordered' ? 'Produto mais pedido' : 'Destaque comercial') +
-                        _textareaHtml('tpl-featured-text', 'Subtítulo do card', tpl.featuredActionText || '', 'Texto curto para explicar o destaque.', 3) +
-                        _fieldHtml('tpl-featured-button-common', 'Texto do CTA', tpl.featuredActionButtonLabel || '', _featuredButtonSuggestion(featuredType, geral.language || tpl.language)) +
-                      '</div>' +
-                    '</div>' +
-                  '<div id="tpl-featured-product-wrap" style="display:' + (featuredType === 'featured_product' ? 'block' : 'none') + ';grid-column:1 / -1;">' +
-                    _productPickerHtml(featuredType === 'featured_product' ? featuredSelectedId : '') +
-                    '<div class="tpl-featured-search-note">A lista mostra apenas produtos do tenant atual. O CTA abre o produto selecionado automaticamente.</div>' +
-                  '</div>' +
-                  '<div id="tpl-featured-most-ordered-wrap" style="display:' + (featuredType === 'most_ordered' ? 'block' : 'none') + ';grid-column:1 / -1;">' +
-                    '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                      _mostOrderedModeHtml(mostOrderedMode) +
-                      '<div id="tpl-most-ordered-auto-note" style="display:' + (mostOrderedMode === 'manual' ? 'none' : 'block') + ';font-size:12px;line-height:1.45;color:#8A7E7C;background:#fff;border:1px solid #EAE4DA;border-radius:10px;padding:10px 12px;">' + (mostOrderedAuto ? ('Produto identificado: ' + _esc(_productPickerValue(mostOrderedAuto.product)) + ' · ' + mostOrderedAuto.qty + ' pedido(s).') : 'Sem histórico suficiente para identificar automaticamente. Use seleção manual ou o card será ocultado no público.') + '</div>' +
-                      '<div id="tpl-most-ordered-manual-wrap" style="display:' + (mostOrderedMode === 'manual' ? 'block' : 'none') + ';">' +
-                        _mostOrderedManualPickerHtml(featuredType === 'most_ordered' ? featuredSelectedId : '') +
-                      '</div>' +
-                      '</div>' +
-                    '<div class="tpl-featured-search-note">No automático, o cálculo usa pedidos reais deste tenant. No manual, a lista mostra apenas produtos do tenant atual.</div>' +
-                  '</div>' +
-                  '<div id="tpl-featured-coupon-wrap" class="tpl-featured-fields" style="display:' + (featuredType === 'coupon' ? 'flex' : 'none') + ';">' +
-                    _couponPickerHtml(featuredCouponId) +
-                    '<div class="tpl-featured-search-note">A lista mostra apenas cupons ativos deste tenant. O CTA aplica o cupom automaticamente no carrinho.</div>' +
-                  '</div>' +
-                  '<div id="tpl-featured-promotion-wrap" class="tpl-featured-fields" style="display:' + (featuredType === 'promotion' ? 'flex' : 'none') + ';">' +
-                    _promotionPickerHtml(featuredPromotionId) +
-                    '<div class="tpl-featured-search-note">A lista mostra apenas promoções ativas deste tenant. O CTA abre a listagem de produtos da promoção automaticamente.</div>' +
-                  '</div>' +
-                  '<div id="tpl-featured-custom-wrap" class="tpl-featured-fields" style="display:' + (featuredType === 'custom' ? 'flex' : 'none') + ';">' +
-                    _selectHtml('tpl-featured-target', 'Ação do botão', featuredTarget, [
-                      { value: '', label: 'Sem ação automática' },
-                      { value: 'promotions', label: 'Abrir promoções' },
-                      { value: 'products', label: 'Ir para seção de produtos' },
-                      { value: 'none', label: 'Ocultar ação' }
-                    ]) +
-                  '</div>' +
-                  '</div>' +
-                '</div>' +
-              '</div>' +
-            '</section>' +
+            '<input id="tpl-featured-enabled" type="checkbox" style="display:none;"' + (tpl.featuredActionEnabled ? ' checked' : '') + '>' +
+            '<input id="tpl-featured-type" type="hidden" value="' + _esc(featuredType) + '">' +
+            '<input id="tpl-featured-image-url" type="hidden" value="' + _esc(featuredImageUrl) + '">' +
+            '<input id="tpl-featured-kicker" type="hidden" value="' + _esc(tpl.featuredActionKicker || tpl.featuredKicker || '') + '">' +
+            '<input id="tpl-featured-title" type="hidden" value="' + _esc(tpl.featuredActionTitle || '') + '">' +
+            '<input id="tpl-featured-text" type="hidden" value="' + _esc(tpl.featuredActionText || '') + '">' +
+            '<input id="tpl-featured-button-common" type="hidden" value="' + _esc(tpl.featuredActionButtonLabel || '') + '">' +
+            '<input id="tpl-featured-product" type="hidden" value="' + _esc(featuredType === 'featured_product' ? featuredSelectedId : '') + '">' +
+            '<input id="tpl-featured-most-ordered-product" type="hidden" value="' + _esc(featuredType === 'most_ordered' ? featuredSelectedId : '') + '">' +
+            '<input id="tpl-most-ordered-mode" type="hidden" value="' + _esc(mostOrderedMode) + '">' +
+            '<input id="tpl-featured-coupon" type="hidden" value="' + _esc(featuredCouponId) + '">' +
+            '<input id="tpl-featured-promotion" type="hidden" value="' + _esc(featuredPromotionId) + '">' +
+            '<input id="tpl-featured-target" type="hidden" value="' + _esc(featuredTarget) + '">' +
             '<section ' + _templatePanelAttrs('operacao') + ' style="' + _cardStyle() + '">' + _sectionTitle('Entrega e retirada', 'Defina como o cliente recebe o pedido e quais prazos aparecem no checkout.', 'delivery_dining') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">local_shipping</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo operacional</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Canais e prazos que aparecem na loja.</div></div></div>' +
                   '<div style="display:flex;gap:7px;flex-wrap:wrap;">' +
-                    '<span style="' + chipStyle + '">' + (pickupEnabled ? 'Retirada ativa' : 'Retirada inativa') + '</span>' +
-                    '<span style="' + chipStyle + '">' + (deliveryEnabled ? 'Entrega ativa' : 'Entrega inativa') + '</span>' +
-                    '<span style="' + chipStyle + '">' + (prepTimeValue || '45') + ' min preparo</span>' +
-                    '<span style="' + chipStyle + '">' + (ordersPerHourValue || '12') + ' pedidos/h</span>' +
+                    '<span data-template-summary="pickup" style="' + chipStyle + '">' + (pickupEnabled ? 'Retirada ativa' : 'Retirada inativa') + '</span>' +
+                    '<span data-template-summary="delivery" style="' + chipStyle + '">' + (deliveryEnabled ? 'Entrega ativa' : 'Entrega inativa') + '</span>' +
+                    '<span data-template-summary="prep-time" style="' + chipStyle + '">' + (prepTimeValue || '45') + ' min preparo</span>' +
+                    '<span data-template-summary="orders-hour" style="' + chipStyle + '">' + (ordersPerHourValue || '12') + ' pedidos/h</span>' +
                   '</div>' +
                   '<small style="display:block;color:#6F6860;font-size:11px;line-height:1.45;">Essas informações alimentam os chips e o resumo do topo da loja.</small>' +
                 '</div>' +
-                '<div style="display:flex;flex-direction:column;gap:10px;">' +
-                  '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px;align-items:start;">' +
-                    '<div style="padding:13px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:10px;">' +
-                      '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Modos de atendimento</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Escolha o que fica disponível no carrinho.</div></div>' +
-                      '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;">' +
-                        _checkHtml('tpl-pickup-enabled', 'Retirada', pickupEnabled, '') +
-                        _checkHtml('tpl-delivery-enabled', 'Entrega', deliveryEnabled, '') +
+                '<div style="display:flex;flex-direction:column;gap:12px;">' +
+                  '<div style="display:flex;gap:12px;align-items:stretch;flex-wrap:wrap;">' +
+                    '<div style="width:220px;flex:0 0 220px;min-height:100%;display:flex;flex-direction:column;gap:13px;padding:4px 2px;">' +
+                      _operationCardHead('room_service', 'Modos de atendimento', 'Escolha o que fica disponível para o cliente no carrinho.') +
+                      '<div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;">' +
+                        _operationCheckHtml('tpl-pickup-enabled', 'Retirada', pickupEnabled, '') +
+                        _operationCheckHtml('tpl-delivery-enabled', 'Entrega', deliveryEnabled, '') +
                       '</div>' +
                     '</div>' +
-                    '<div style="padding:13px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:10px;">' +
-                      '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Prazos e capacidade</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Controle antecedência, preparo e volume por horário.</div></div>' +
-                      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:10px;align-items:start;">' +
-                        '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Antecedência</span><input id="tpl-max-advance-days" type="number" min="0" step="1" value="' + _esc(advanceDaysValue) + '" placeholder="0" style="' + _inputStyle() + '"><small style="display:block;margin-top:6px;font-size:11px;line-height:1.35;color:#8A7E7C;">0 permite hoje.</small></label>' +
-                        _selectHtml('tpl-prep-time', 'Tempo de preparo', prepTimeValue, prepTimeOptions) +
-                        '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Pedidos/hora</span><input id="tpl-orders-per-hour" type="number" min="0" step="1" value="' + _esc(ordersPerHourValue) + '" placeholder="12" style="' + _inputStyle() + '"><small style="display:block;margin-top:6px;font-size:11px;line-height:1.35;color:#8A7E7C;">Limite por horário.</small></label>' +
+                    '<div style="' + _operationCardStyle('width:455px;flex:0 1 455px;min-height:100%;') + '">' +
+                      _operationCardHead('timer', 'Prazos e capacidade', 'Configure quando a loja pode receber pedidos e quanto consegue atender por horário.') +
+                      '<div style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;">' +
+                        _operationFieldHtml('tpl-max-advance-days', 'Antecedência', advanceDaysValue, '0', 'number', '', '0 permite pedidos para hoje.', 'min="0" step="1"', 'width:110px;flex:0 0 110px;') +
+                        _operationSelectHtml('tpl-prep-time', 'Tempo de preparo', prepTimeValue, prepTimeOptions, '', 'width:160px;flex:0 0 160px;') +
+                        _operationFieldHtml('tpl-orders-per-hour', 'Pedidos/hora', ordersPerHourValue, '12', 'number', '', 'Limite por horário.', 'min="1" step="1"', 'width:110px;flex:0 0 110px;') +
                       '</div>' +
                     '</div>' +
-                  '</div>' +
-                  '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px;align-items:start;">' +
-                    '<div id="tpl-delivery-settings-wrap" style="padding:13px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:' + (deliveryEnabled ? 'flex' : 'none') + ';flex-direction:column;gap:10px;">' +
-                      '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Entrega</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Regras usadas quando a entrega estiver ativa.</div></div>' +
-                      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;align-items:start;">' +
-                        '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Pedido mínimo</span><input id="tpl-min-delivery" type="text" inputmode="decimal" value="' + _esc(tpl.minDeliveryOrder || '') + '" placeholder="Ex: 15,00" style="' + _inputStyle() + '"><small style="display:block;margin-top:6px;font-size:11px;line-height:1.35;color:#8A7E7C;">Só para entrega.</small></label>' +
-                        _selectHtml('tpl-delivery-time', 'Tempo de entrega', deliveryTimeValue, deliveryTimeOptions) +
-                      '</div>' +
+                    '<div id="tpl-delivery-settings-wrap" style="' + _operationCardStyle('display:' + (deliveryEnabled ? 'flex' : 'none') + ';width:350px;flex:0 1 350px;min-height:100%;') + '">' +
+                    _operationCardHead('delivery_dining', 'Entrega', 'Defina os valores e prazos usados quando a entrega estiver ativa.') +
+                    '<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">' +
+                      _operationMoneyFieldHtml('tpl-min-delivery', 'Pedido mínimo', tpl.minDeliveryOrder || '', 'Só para entrega.', 'width:132px;flex:0 0 132px;') +
+                      _operationSelectHtml('tpl-delivery-time', 'Tempo de entrega', deliveryTimeValue, deliveryTimeOptions, '', 'width:170px;flex:0 0 170px;') +
                     '</div>' +
-                    '<div id="tpl-pickup-settings-wrap" style="padding:13px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:' + (pickupEnabled ? 'flex' : 'none') + ';flex-direction:column;gap:6px;">' +
-                      '<div style="font-size:12px;font-weight:700;color:#1F1F1F;">Retirada</div>' +
-                      '<div style="font-size:11px;color:#6F6860;line-height:1.35;">Quando ativa, a retirada aparece no carrinho com o endereço da loja.</div>' +
                     '</div>' +
                   '</div>' +
                 '</div>' +
@@ -4648,21 +4813,21 @@ Modules.Catalogo = (function () {
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">schedule</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo dos horários</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Defina abertura automática, fechamento manual e grade semanal.</div></div></div>' +
                   '<div style="display:flex;gap:7px;flex-wrap:wrap;">' +
-                    '<span style="' + chipStyle + '">' + (statusMode === 'manual' ? 'Manual' : 'Automática') + '</span>' +
-                    '<span style="' + chipStyle + '">7 dias</span>' +
+                    '<span data-template-summary="status-mode" style="' + chipStyle + '">' + (statusMode === 'manual' ? 'Manual' : 'Automática') + '</span>' +
+                    '<span data-template-summary="hours-days" style="' + chipStyle + '">7 dias</span>' +
                   '</div>' +
                   '<small style="display:block;color:#6F6860;font-size:11px;line-height:1.45;">O modo automático usa a grade semanal abaixo para mostrar a loja aberta ou fechada.</small>' +
                 '</div>' +
                 '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                  '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Status público da loja</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Escolha se o status segue os horários ou se será controlado manualmente.</div></div>' +
-                    _grid(_selectHtml('tpl-status-mode', 'Status da loja', statusMode, [{ value: 'auto', label: 'Automático pelos horários' }, { value: 'manual', label: 'Manual' }]), '260px') +
-                    '<div id="tpl-manual-status-wrap" style="display:' + (statusMode === 'manual' ? 'block' : 'none') + ';">' +
-                      _toggleHtml('tpl-manual-closed', 'Loja fechada', manualStatusClosed, 'Quando estiver manual, este controle define se a loja aparece aberta ou fechada para clientes.') +
+                  '<div style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;max-width:560px;padding:0 2px;">' +
+                    '<div style="min-width:220px;max-width:260px;flex:0 0 auto;">' +
+                      _operationCardHead('toggle_on', 'Status público da loja', 'Escolha se o status segue os horários ou se será controlado manualmente.') +
                     '</div>' +
+                    _operationSelectHtml('tpl-status-mode', 'Status da loja', statusMode, [{ value: 'auto', label: 'Automático pelos horários' }, { value: 'manual', label: 'Manual' }], '', 'width:240px;flex:0 0 240px;') +
+                    '<input id="tpl-manual-closed" type="checkbox" style="display:none;"' + (manualStatusClosed ? ' checked' : '') + '>' +
                   '</div>' +
-                  '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Grade semanal</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Configure abertura, fechamento e segundo período de cada dia.</div></div>' +
+                  '<div style="' + _operationCardStyle() + '">' +
+                    _operationCardHead('schedule', 'Grade semanal', 'Configure abertura, fechamento e segundo período de cada dia.') +
                     '<div style="display:flex;flex-direction:column;gap:8px;">' + hoursHtml + '</div>' +
                   '</div>' +
                 '</div>' +
@@ -4673,38 +4838,41 @@ Modules.Catalogo = (function () {
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">support_agent</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo dos contatos</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Canais clicáveis e redes exibidos na loja.</div></div></div>' +
                   '<div style="display:flex;gap:7px;flex-wrap:wrap;">' +
-                    '<span style="' + chipStyle + '">' + ((geral.whatsapp || tpl.whatsapp) ? 'WhatsApp' : 'Sem WhatsApp') + '</span>' +
-                    '<span style="' + chipStyle + '">' + ((geral.email || tpl.email) ? 'E-mail' : 'Sem e-mail') + '</span>' +
-                    '<span style="' + chipStyle + '">' + (contactDisplay.showContactsInFooter ? 'Rodapé ativo' : 'Rodapé oculto') + '</span>' +
+                    '<span data-template-summary="whatsapp" style="' + chipStyle + '">' + ((geral.whatsapp || tpl.whatsapp) ? 'WhatsApp' : 'Sem WhatsApp') + '</span>' +
+                    '<span data-template-summary="email" style="' + chipStyle + '">' + ((geral.email || tpl.email) ? 'E-mail' : 'Sem e-mail') + '</span>' +
+                    '<span data-template-summary="contact-footer" style="' + chipStyle + '">' + (contactDisplay.showContactsInFooter ? 'Rodapé ativo' : 'Rodapé oculto') + '</span>' +
                   '</div>' +
                   '<small style="display:block;color:#6F6860;font-size:11px;line-height:1.45;">Esses contatos aparecem na loja pública e podem ser exibidos também no rodapé.</small>' +
                 '</div>' +
                 '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                  '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Canais de atendimento</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Esses dados aparecem nos contatos clicáveis da loja pública.</div></div>' +
-                    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;align-items:start;">' +
-                      _phoneCompositeHtml('tpl-whatsapp', 'WhatsApp principal', geral.whatsapp || tpl.whatsapp || '', '600 000 000', 'Será aberto no WhatsApp quando o cliente clicar.') +
-                      _phoneCompositeHtml('tpl-phone', 'Telefone', geral.phone || tpl.phone || '', '600 000 000', 'Será aberto como ligação no celular.') +
-                      _fieldHtml('tpl-email', 'E-mail de atendimento', geral.email || tpl.email || '', 'hola@loja.com') +
+                  '<div style="' + _operationCardStyle() + '">' +
+                    _operationCardHead('support_agent', 'Canais de atendimento', 'Contatos usados para o cliente falar com a loja.') +
+                    '<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">' +
+                      _operationPhoneCompositeHtml('tpl-whatsapp', 'WhatsApp principal', inheritedWhatsapp, '600 000 000', 'Aberto quando o cliente chama a loja pelo WhatsApp.', 'width:290px;flex:0 0 290px;') +
+                      _operationPhoneCompositeHtml('tpl-phone', 'Telefone', geral.phone || tpl.phone || '', '600 000 000', 'Usado para ligação direta no celular.', 'width:270px;flex:0 0 270px;') +
+                      _operationFieldHtml('tpl-email', 'E-mail de atendimento', geral.email || tpl.email || '', 'hola@loja.com', 'email', '', '', '', 'width:300px;flex:0 0 300px;') +
                     '</div>' +
                   '</div>' +
-                  '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Redes sociais</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Aceita @usuario ou link completo, conforme a rede.</div></div>' +
-                    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;align-items:start;">' +
-                      _fieldHtml('tpl-instagram', 'Instagram', geral.instagram || tpl.instagram || '', '@loja ou https://instagram.com/loja') +
-                      _fieldHtml('tpl-facebook', 'Facebook', geral.facebook || tpl.facebook || '', 'https://facebook.com/sualoja') +
-                      _fieldHtml('tpl-tiktok', 'TikTok', geral.tiktok || tpl.tiktok || '', '@loja ou https://tiktok.com/@loja') +
+                  '<div style="' + _operationCardStyle() + '">' +
+                    _operationCardHead('alternate_email', 'Redes sociais', 'Informe @usuário ou link completo, conforme a rede.') +
+                    '<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">' +
+                      _operationFieldHtml('tpl-instagram', 'Instagram', inheritedInstagram, '@loja ou https://instagram.com/loja', 'text', '', '', '', 'width:260px;flex:0 0 260px;') +
+                      _operationFieldHtml('tpl-facebook', 'Facebook', inheritedFacebook, 'https://facebook.com/sualoja', 'text', '', '', '', 'width:300px;flex:0 0 300px;') +
+                      _operationFieldHtml('tpl-tiktok', 'TikTok', inheritedTiktok, '@loja ou https://tiktok.com/@loja', 'text', '', '', '', 'width:260px;flex:0 0 260px;') +
                     '</div>' +
                   '</div>' +
-                  '<div id="tpl-contact-footer-wrap" style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;"><div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Exibição no rodapé</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Escolha quais canais serão mostrados no rodapé da loja pública.</div></div><div style="min-width:220px;">' + _toggleHtml('tpl-contact-footer-show', 'Mostrar contatos', contactDisplay.showContactsInFooter, '') + '</div></div>' +
-                    '<div id="tpl-contact-footer-options" style="display:' + (contactDisplay.showContactsInFooter ? 'grid' : 'none') + ';grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;">' +
-                      _toggleHtml('tpl-contact-footer-whatsapp', 'Mostrar WhatsApp no rodapé', contactDisplay.showWhatsappInFooter, '') +
-                      _toggleHtml('tpl-contact-footer-phone', 'Mostrar telefone no rodapé', contactDisplay.showPhoneInFooter, '') +
-                      _toggleHtml('tpl-contact-footer-email', 'Mostrar e-mail no rodapé', contactDisplay.showEmailInFooter, '') +
-                      _toggleHtml('tpl-contact-footer-instagram', 'Mostrar Instagram no rodapé', contactDisplay.showInstagramInFooter, '') +
-                      _toggleHtml('tpl-contact-footer-facebook', 'Mostrar Facebook no rodapé', contactDisplay.showFacebookInFooter, '') +
-                      _toggleHtml('tpl-contact-footer-tiktok', 'Mostrar TikTok no rodapé', contactDisplay.showTiktokInFooter, '') +
+                  '<div id="tpl-contact-footer-wrap" style="' + _operationCardStyle() + '">' +
+                    '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;">' +
+                      _operationCardHead('article', 'Exibição no rodapé', 'Escolha quais canais aparecem no rodapé da loja pública.') +
+                      '<div style="flex:0 0 auto;">' + _plainSwitchHtml('tpl-contact-footer-show', 'Mostrar contatos', contactDisplay.showContactsInFooter, '') + '</div>' +
+                    '</div>' +
+                    '<div id="tpl-contact-footer-options" style="display:' + (contactDisplay.showContactsInFooter ? 'grid' : 'none') + ';grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px 14px;">' +
+                      _operationCheckHtml('tpl-contact-footer-whatsapp', 'WhatsApp no rodapé', contactDisplay.showWhatsappInFooter, '') +
+                      _operationCheckHtml('tpl-contact-footer-phone', 'Telefone no rodapé', contactDisplay.showPhoneInFooter, '') +
+                      _operationCheckHtml('tpl-contact-footer-email', 'E-mail no rodapé', contactDisplay.showEmailInFooter, '') +
+                      _operationCheckHtml('tpl-contact-footer-instagram', 'Instagram no rodapé', contactDisplay.showInstagramInFooter, '') +
+                      _operationCheckHtml('tpl-contact-footer-facebook', 'Facebook no rodapé', contactDisplay.showFacebookInFooter, '') +
+                      _operationCheckHtml('tpl-contact-footer-tiktok', 'TikTok no rodapé', contactDisplay.showTiktokInFooter, '') +
                     '</div>' +
                   '</div>' +
                 '</div>' +
@@ -4715,28 +4883,30 @@ Modules.Catalogo = (function () {
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">location_on</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo do endereço</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Local público usado para retirada, comunicação e referência da loja.</div></div></div>' +
                   '<div style="display:flex;gap:7px;flex-wrap:wrap;">' +
-                    '<span style="' + chipStyle + '">' + _esc(end.city || geral.city || tpl.city || 'Sem cidade') + '</span>' +
-                    '<span style="' + chipStyle + '">' + _esc(end.postalCode || tpl.postalCode || 'Sem código postal') + '</span>' +
-                    '<span style="' + chipStyle + '">' + _esc(end.country || geral.country || tpl.country || fiscal.country || 'Sem país') + '</span>' +
+                    '<span data-template-summary="city" style="' + chipStyle + '">' + _esc(end.city || geral.city || tpl.city || 'Sem cidade') + '</span>' +
+                    '<span data-template-summary="postal" style="' + chipStyle + '">' + _esc(end.postalCode || tpl.postalCode || 'Sem código postal') + '</span>' +
+                    '<span data-template-summary="country" style="' + chipStyle + '">' + _esc(end.country || geral.country || tpl.country || fiscal.country || 'Sem país') + '</span>' +
                   '</div>' +
                   '<small style="display:block;color:#6F6860;font-size:11px;line-height:1.45;">Esse endereço é o exibido publicamente na loja e pode ser diferente do endereço fiscal.</small>' +
                 '</div>' +
                 '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                  '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Localização principal</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Endereço exibido para retirada e referência pública.</div></div>' +
-                    _grid(
-                      _fieldHtml('tpl-address', fiscal.cfg.addressLabel || 'Endereço da loja/produção', end.address || tpl.pickupAddress || tpl.address || '', 'Rua...') +
-                      _fieldHtml('tpl-number', 'Número', end.number || end.numero || tpl.number || tpl.numero || '', 'Número') +
-                      _fieldHtml('tpl-neighborhood', 'Bairro / Localidade', end.neighborhood || geral.neighborhood || tpl.neighborhood || '', 'Rochapea') +
-                      _fieldHtml('tpl-reference', 'Referência / complemento', end.reference || end.complemento || tpl.reference || tpl.complemento || '', 'Opcional'), '220px') +
+                  '<div style="' + _operationCardStyle() + '">' +
+                    _operationCardHead('place', 'Localização principal', 'Endereço exibido para retirada e referência pública.') +
+                    '<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">' +
+                      _operationFieldHtml('tpl-address', fiscal.cfg.addressLabel || 'Endereço da loja/produção', end.address || tpl.pickupAddress || tpl.address || '', 'Rua...', 'text', '', '', '', 'width:520px;flex:1 1 420px;') +
+                      _operationFieldHtml('tpl-number', 'Número', end.number || end.numero || tpl.number || tpl.numero || '', 'Nº', 'text', '', '', '', 'width:110px;flex:0 0 110px;') +
+                      _operationFieldHtml('tpl-neighborhood', 'Bairro / Localidade', end.neighborhood || geral.neighborhood || tpl.neighborhood || '', 'Rochapea', 'text', '', '', '', 'width:220px;flex:0 0 220px;') +
+                      _operationFieldHtml('tpl-reference', 'Referência / complemento', end.reference || end.complemento || tpl.reference || tpl.complemento || '', 'Opcional', 'text', '', '', '', 'width:300px;flex:1 1 260px;') +
+                    '</div>' +
                   '</div>' +
-                  '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Cidade e região</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Dados usados em busca local, rodapé e informações da loja.</div></div>' +
-                    _grid(
-                      _fieldHtml('tpl-city', 'Cidade', end.city || geral.city || tpl.city || '', 'Pamplona') +
-                      _fieldHtml('tpl-region', regionLabel, end.region || end.state || end.province || tpl.region || '', regionLabel) +
-                      _fieldHtml('tpl-postal', fiscal.cfg.postalCodeLabel || 'Código postal', end.postalCode || tpl.postalCode || '', '31001') +
-                      _fieldHtml('tpl-country', 'País', end.country || geral.country || tpl.country || fiscal.country, fiscal.country), '220px') +
+                  '<div style="' + _operationCardStyle() + '">' +
+                    _operationCardHead('map', 'Cidade e região', 'Dados usados no rodapé, nas informações da loja e na busca local.') +
+                    '<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">' +
+                      _operationFieldHtml('tpl-city', 'Cidade', end.city || geral.city || tpl.city || '', 'Pamplona', 'text', '', '', '', 'width:220px;flex:0 0 220px;') +
+                      _operationFieldHtml('tpl-region', regionLabel, end.region || end.state || end.province || tpl.region || '', regionLabel, 'text', '', '', '', 'width:220px;flex:0 0 220px;') +
+                      _operationFieldHtml('tpl-postal', fiscal.cfg.postalCodeLabel || 'Código postal', end.postalCode || tpl.postalCode || '', '31001', 'text', '', '', '', 'width:130px;flex:0 0 130px;') +
+                      _operationFieldHtml('tpl-country', 'País', end.country || geral.country || tpl.country || fiscal.country, fiscal.country, 'text', '', '', '', 'width:170px;flex:0 0 170px;') +
+                    '</div>' +
                   '</div>' +
                 '</div>' +
               '</div>' +
@@ -4746,20 +4916,20 @@ Modules.Catalogo = (function () {
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">payments</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo dos pagamentos</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Formas de pagamento visíveis no checkout da loja.</div></div></div>' +
                   '<div style="display:flex;gap:7px;flex-wrap:wrap;">' +
-                    '<span style="' + chipStyle + '">' + paymentMethods.length + ' cadastradas</span>' +
-                    '<span style="' + chipStyle + '">' + paymentMethods.filter(function (m) { return m && m.active; }).length + ' ativas</span>' +
-                    '<span style="' + chipStyle + '">' + ((pay.note || pay.paymentNote || tpl.paymentNote) ? 'Com observação' : 'Sem observação') + '</span>' +
+                    '<span data-template-summary="payment-total" style="' + chipStyle + '">' + paymentMethods.length + ' cadastradas</span>' +
+                    '<span data-template-summary="payment-active" style="' + chipStyle + '">' + paymentMethods.filter(function (m) { return m && m.active; }).length + ' ativas</span>' +
+                    '<span data-template-summary="payment-note" style="' + chipStyle + '">' + ((pay.note || pay.paymentNote || tpl.paymentNote) ? 'Com observação' : 'Sem observação') + '</span>' +
                   '</div>' +
                   '<small style="display:block;color:#6F6860;font-size:11px;line-height:1.45;">As formas disponíveis vêm das configurações financeiras; aqui você escolhe o que aparece para o cliente.</small>' +
                 '</div>' +
                 '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                  '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Formas disponíveis</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Ative somente as opções que o cliente poderá escolher no checkout.</div></div>' +
+                  '<div style="' + _operationCardStyle() + '">' +
+                    _operationCardHead('payments', 'Formas disponíveis', 'Ative somente as opções que o cliente poderá escolher no checkout.') +
                     _paymentMethodsHtml(paymentMethods) +
                   '</div>' +
-                  '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Observação geral</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Texto complementar mostrado ao cliente junto das opções de pagamento.</div></div>' +
-                    _textareaHtml('tpl-payment-note', 'Observação geral sobre pagamento', pay.note || pay.paymentNote || tpl.paymentNote || '', 'Pagamento na entrega ou retirada.', 3) +
+                  '<div style="' + _operationCardStyle() + '">' +
+                    _operationCardHead('notes', 'Observação geral', 'Texto complementar mostrado ao cliente junto das opções de pagamento.') +
+                    '<label style="display:block;min-width:0;max-width:620px;"><span style="' + _labelStyle() + '">Observação sobre pagamento</span><textarea id="tpl-payment-note" rows="3" placeholder="Pagamento na entrega ou retirada." style="' + _operationFieldStyle('min-height:86px;resize:vertical;') + '">' + _esc(pay.note || pay.paymentNote || tpl.paymentNote || '') + '</textarea></label>' +
                   '</div>' +
                 '</div>' +
               '</div>' +
@@ -4769,20 +4939,21 @@ Modules.Catalogo = (function () {
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">shopping_cart_checkout</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo do checkout</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Controle opções simples do carrinho e finalização.</div></div></div>' +
                   '<div style="display:flex;gap:7px;flex-wrap:wrap;">' +
-                    '<span style="' + chipStyle + '">' + (tpl.allowCustomerNote !== false ? 'Observação ativa' : 'Sem observação') + '</span>' +
-                    '<span style="' + chipStyle + '">' + (tpl.allowCoupon ? 'Cupom ativo' : 'Cupom oculto') + '</span>' +
+                    '<span data-template-summary="checkout-note" style="' + chipStyle + '">' + (tpl.allowCustomerNote !== false ? 'Observação ativa' : 'Sem observação') + '</span>' +
+                    '<span data-template-summary="checkout-coupon" style="' + chipStyle + '">' + (tpl.allowCoupon ? 'Cupom ativo' : 'Cupom oculto') + '</span>' +
                   '</div>' +
                   '<small style="display:block;color:#6F6860;font-size:11px;line-height:1.45;">Essas opções aparecem no carrinho antes do cliente enviar o pedido.</small>' +
                 '</div>' +
-                '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                  '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Opções do checkout</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Defina quais campos extras estarão disponíveis na finalização do pedido.</div></div>' +
-                  '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;align-items:start;">' +
-                    _checkHtml('tpl-allow-note', 'Permitir observação do cliente no pedido', tpl.allowCustomerNote !== false, '') +
-                    _checkHtml('tpl-allow-coupon', 'Permitir cupom', !!tpl.allowCoupon, 'Respeita suporte existente de cupons.') +
+                '<div style="' + _operationCardStyle() + '">' +
+                  _operationCardHead('shopping_cart_checkout', 'Opções do checkout', 'Defina quais campos extras estarão disponíveis na finalização do pedido.') +
+                  '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(245px,1fr));gap:8px 14px;align-items:start;">' +
+                    _operationCheckHtml('tpl-allow-note', 'Permitir observação do cliente no pedido', tpl.allowCustomerNote !== false, '') +
+                    _operationCheckHtml('tpl-allow-coupon', 'Permitir cupom', !!tpl.allowCoupon, '') +
                   '</div>' +
-                  _grid(
-                    _fieldHtml('tpl-cart-button', 'Texto do botão Ver pedido', tpl.cartButtonText || '', 'Ver pedido') +
-                    _fieldHtml('tpl-main-button', 'Texto do botão final', tpl.mainButtonText || '', 'Enviar pedido pelo WhatsApp'), '220px') +
+                  '<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">' +
+                    _operationFieldHtml('tpl-cart-button', 'Texto do botão Ver pedido', tpl.cartButtonText || '', 'Ver pedido', 'text', '', '', '', 'width:260px;flex:0 0 260px;') +
+                    _operationFieldHtml('tpl-main-button', 'Texto do botão final', tpl.mainButtonText || '', 'Enviar pedido pelo WhatsApp', 'text', '', '', '', 'width:330px;flex:0 0 330px;') +
+                  '</div>' +
                 '</div>' +
               '</div>' +
             '</section>' +
@@ -4791,15 +4962,17 @@ Modules.Catalogo = (function () {
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">chat</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo do WhatsApp</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Texto do botão flutuante e mensagem inicial enviada pelo cliente.</div></div></div>' +
                   '<div style="display:flex;gap:7px;flex-wrap:wrap;">' +
-                    '<span style="' + chipStyle + '">' + ((tpl.whatsappTooltip || tpl.whatsappFloatingLabel) ? 'Tooltip definido' : 'Sem tooltip') + '</span>' +
-                    '<span style="' + chipStyle + '">' + (tpl.whatsappMessage ? 'Mensagem definida' : 'Mensagem padrão') + '</span>' +
+                    '<span data-template-summary="whatsapp-tooltip" style="' + chipStyle + '">' + ((tpl.whatsappTooltip || tpl.whatsappFloatingLabel) ? 'Tooltip definido' : 'Sem tooltip') + '</span>' +
+                    '<span data-template-summary="whatsapp-message" style="' + chipStyle + '">' + (tpl.whatsappMessage ? 'Mensagem definida' : 'Mensagem padrão') + '</span>' +
                   '</div>' +
                   '<small style="display:block;color:#6F6860;font-size:11px;line-height:1.45;">Esse conteúdo aparece quando o cliente usa o botão flutuante de WhatsApp na loja.</small>' +
                 '</div>' +
-                '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                  '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Botão flutuante</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Configure o texto de apoio e a mensagem inicial enviada no WhatsApp.</div></div>' +
-                  _fieldHtml('tpl-whatsapp-tooltip', 'Texto ao passar o mouse', tpl.whatsappTooltip || tpl.whatsappFloatingLabel || '', 'Quero falar com alguém') +
-                  _textareaHtml('tpl-whatsapp-message', 'Mensagem do botão flutuante do WhatsApp', tpl.whatsappMessage || '', 'Olá, quero falar com a loja.', 4) +
+                '<div style="' + _operationCardStyle() + '">' +
+                  _operationCardHead('chat', 'Botão flutuante', 'Configure o texto de apoio e a mensagem inicial enviada no WhatsApp.') +
+                  '<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">' +
+                    _operationFieldHtml('tpl-whatsapp-tooltip', 'Texto ao passar o mouse', tpl.whatsappTooltip || tpl.whatsappFloatingLabel || '', 'Quero falar com alguém', 'text', '', '', '', 'width:320px;flex:0 0 320px;') +
+                    '<label style="display:block;min-width:0;flex:1 1 420px;"><span style="' + _labelStyle() + '">Mensagem do botão flutuante do WhatsApp</span><textarea id="tpl-whatsapp-message" rows="4" placeholder="Olá, quero falar com a loja." style="' + _operationFieldStyle('min-height:112px;resize:vertical;') + '">' + _esc(tpl.whatsappMessage || '') + '</textarea></label>' +
+                  '</div>' +
                 '</div>' +
               '</div>' +
             '</section>' +
@@ -4808,22 +4981,27 @@ Modules.Catalogo = (function () {
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">info</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo das informações</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Conteúdo do modal público de informações da loja.</div></div></div>' +
                   '<div style="display:flex;gap:7px;flex-wrap:wrap;">' +
-                    '<span style="' + chipStyle + '">' + (tpl.about ? 'Sobre preenchido' : 'Sem sobre') + '</span>' +
-                    '<span style="' + chipStyle + '">' + (tpl.deliveryPolicy ? 'Entrega definida' : 'Sem política') + '</span>' +
-                    '<span style="' + chipStyle + '">' + (tpl.cancelPolicy ? 'Cancelamento definido' : 'Sem cancelamento') + '</span>' +
+                    '<span data-template-summary="about" style="' + chipStyle + '">' + (tpl.about ? 'Sobre preenchido' : 'Sem sobre') + '</span>' +
+                    '<span data-template-summary="delivery-policy" style="' + chipStyle + '">' + (tpl.deliveryPolicy ? 'Entrega definida' : 'Sem política') + '</span>' +
+                    '<span data-template-summary="cancel-policy" style="' + chipStyle + '">' + (tpl.cancelPolicy ? 'Cancelamento definido' : 'Sem cancelamento') + '</span>' +
                   '</div>' +
                   '<small style="display:block;color:#6F6860;font-size:11px;line-height:1.45;">Use textos curtos e claros para reduzir dúvidas antes do pedido.</small>' +
                 '</div>' +
-                '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                  '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Apresentação da loja</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">História, diferenciais e avisos importantes.</div></div>' +
-                    _textareaHtml('tpl-about', 'Sobre a loja', tpl.about || '', 'Conte a história da loja.', 4) +
-                    _textareaHtml('tpl-important', 'Aviso importante', tpl.importantNotice || '', 'Pedidos sujeitos à disponibilidade.', 3) +
+                '<div style="display:grid;grid-template-columns:minmax(0,1fr);gap:12px;">' +
+                  '<div style="' + _operationCardStyle() + '">' +
+                    _operationCardHead('storefront', 'Apresentação da loja', 'Texto principal exibido quando o cliente abre Mais informações.') +
+                    '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Sobre a loja</span><textarea id="tpl-about" rows="4" placeholder="Conte o que sua loja vende e o que o cliente precisa saber antes de pedir." style="' + _operationFieldStyle('min-height:112px;resize:vertical;') + '">' + _esc(tpl.about || '') + '</textarea></label>' +
                   '</div>' +
-                  '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Políticas da loja</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Regras exibidas para entrega e cancelamento.</div></div>' +
-                    _textareaHtml('tpl-delivery-policy', 'Política de entrega', tpl.deliveryPolicy || '', 'Como a entrega funciona.', 4) +
-                    _textareaHtml('tpl-cancel-policy', 'Política de cancelamento', tpl.cancelPolicy || '', 'Como cancelar um pedido.', 4) +
+                  '<div style="' + _operationCardStyle() + '">' +
+                    _operationCardHead('campaign', 'Aviso importante', 'Use apenas quando houver uma informação que o cliente deve ver antes de pedir.') +
+                    '<label style="display:block;min-width:0;max-width:620px;"><span style="' + _labelStyle() + '">Aviso importante</span><textarea id="tpl-important" rows="3" placeholder="Ex.: pedidos sujeitos à disponibilidade." style="' + _operationFieldStyle('min-height:88px;resize:vertical;') + '">' + _esc(tpl.importantNotice || '') + '</textarea></label>' +
+                  '</div>' +
+                  '<div style="' + _operationCardStyle() + '">' +
+                    _operationCardHead('local_shipping', 'Entrega e cancelamento', 'Explique de forma simples como funcionam entrega, retirada e alterações do pedido.') +
+                    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:12px;align-items:start;">' +
+                      '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Política de entrega</span><textarea id="tpl-delivery-policy" rows="4" placeholder="Explique prazos, áreas atendidas e cuidados na entrega." style="' + _operationFieldStyle('min-height:112px;resize:vertical;') + '">' + _esc(tpl.deliveryPolicy || '') + '</textarea></label>' +
+                      '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Política de cancelamento</span><textarea id="tpl-cancel-policy" rows="4" placeholder="Explique quando o cliente pode cancelar ou alterar o pedido." style="' + _operationFieldStyle('min-height:112px;resize:vertical;') + '">' + _esc(tpl.cancelPolicy || '') + '</textarea></label>' +
+                    '</div>' +
                   '</div>' +
                 '</div>' +
               '</div>' +
@@ -4847,6 +5025,10 @@ Modules.Catalogo = (function () {
           el.addEventListener('input', _refreshTemplatePreview);
           el.addEventListener('change', _refreshTemplatePreview);
         });
+        [].slice.call(content.querySelectorAll('[id^="tpl-h-"]')).forEach(function (el) {
+          el.addEventListener('input', _syncHoursDayBlocks);
+          el.addEventListener('change', _syncHoursDayBlocks);
+        });
         [].slice.call(content.querySelectorAll('[data-save-template-loja="1"]')).forEach(function (btn) {
           btn.addEventListener('click', function (ev) { ev.preventDefault(); _saveTemplateLoja(); });
         });
@@ -4859,6 +5041,16 @@ Modules.Catalogo = (function () {
         if (window.BocaPlaces) {
           BocaPlaces.init('tpl-address', {
             onPlace: function (place) {
+              var addressEl = document.getElementById('tpl-address');
+              var streetOnly = place.street || (place.addressLine ? String(place.addressLine).split(',')[0] : '');
+              if (addressEl && streetOnly) {
+                addressEl.value = streetOnly;
+                if (addressEl._bocaPlaceElement) {
+                  try { addressEl._bocaPlaceElement.value = streetOnly; } catch (e) {}
+                }
+                try { addressEl.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {}
+                try { addressEl.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) {}
+              }
               var neighborhoodEl = document.getElementById('tpl-neighborhood');
               var neighborhood = place.neighborhood || place.sublocality || place.district || '';
               if (neighborhoodEl && neighborhood) {
@@ -5116,6 +5308,7 @@ Modules.Catalogo = (function () {
 
   function _refreshTemplatePreview() {
     setTimeout(_syncTemplatePreviewColumn, 0);
+    _refreshTemplateSummaryChips();
     var name = document.getElementById('tpl-preview-name');
     var slogan = document.getElementById('tpl-preview-slogan');
     var btn = document.getElementById('tpl-preview-button');
@@ -5235,6 +5428,9 @@ Modules.Catalogo = (function () {
     var statusText = mode === 'manual' ? 'Manual' : 'Automática pelos horários';
     if (status) status.textContent = statusText + ' · ' + (_checked('tpl-delivery-enabled') ? 'Entrega ativa' : 'Entrega inativa') + ' · ' + (_checked('tpl-pickup-enabled') ? 'Retirada ativa' : 'Retirada inativa');
     if (statusPill) { statusPill.textContent = previewOpen ? 'Abierta' : 'Cerrada'; statusPill.style.color = previewOpen ? '#1A9E5A' : '#B42318'; statusPill.style.background = previewOpen ? '#EDFAF3' : '#FFF0EE'; statusPill.style.display = _checked('tpl-maincard-show-status') ? 'inline-flex' : 'none'; }
+    if (mode === 'auto' && window.AdminApp && typeof AdminApp._applyStoreOnlineStatus === 'function') {
+      AdminApp._applyStoreOnlineStatus(previewOpen, false, 'auto');
+    }
     if (promo) {
       promo.style.display = _checked('tpl-top-promo-enabled') ? 'block' : 'none';
       promo.textContent = _val('tpl-top-promo-text') || 'Banner promocional';
@@ -5357,18 +5553,84 @@ Modules.Catalogo = (function () {
     }
   }
 
+  function _setTemplateSummaryText(key, text) {
+    [].slice.call(document.querySelectorAll('[data-template-summary="' + key + '"]')).forEach(function (el) {
+      el.textContent = text;
+    });
+  }
+
+  function _refreshTemplateSummaryChips() {
+    var logoUrl = _cleanPublicUrl(_val('tpl-logo-url'));
+    var coverUrl = _cleanPublicUrl(_val('tpl-banner-url') || _val('tpl-banner-mobile-url'));
+    var pickupEnabled = _checked('tpl-pickup-enabled');
+    var deliveryEnabled = _checked('tpl-delivery-enabled');
+    var paymentRows = [].slice.call(document.querySelectorAll('[data-tpl-payment-method="1"]'));
+    var activePayments = paymentRows.filter(function (row, idx) {
+      return _checked('tpl-pay-method-active-' + idx);
+    }).length;
+    _setTemplateSummaryText('logo', logoUrl ? 'Logo configurada' : 'Sem logo');
+    _setTemplateSummaryText('cover', coverUrl ? 'Capa configurada' : 'Sem capa');
+    _setTemplateSummaryText('pickup', pickupEnabled ? 'Retirada ativa' : 'Retirada inativa');
+    _setTemplateSummaryText('delivery', deliveryEnabled ? 'Entrega ativa' : 'Entrega inativa');
+    _setTemplateSummaryText('maincard-identity', (_checked('tpl-maincard-show-logo') || _checked('tpl-maincard-show-name') || _checked('tpl-maincard-show-slogan')) ? 'Identidade ativa' : 'Identidade oculta');
+    _setTemplateSummaryText('maincard-status', (_checked('tpl-maincard-show-location') || _checked('tpl-maincard-show-status') || _checked('tpl-maincard-show-hours')) ? 'Status visível' : 'Status oculto');
+    _setTemplateSummaryText('maincard-channels', (_checked('tpl-maincard-show-pickup') || _checked('tpl-maincard-show-delivery')) ? 'Canais visíveis' : 'Canais ocultos');
+    _setTemplateSummaryText('prep-time', (_val('tpl-prep-time') || '45') + ' min preparo');
+    _setTemplateSummaryText('orders-hour', (_val('tpl-orders-per-hour') || '12') + ' pedidos/h');
+    _setTemplateSummaryText('status-mode', (_val('tpl-status-mode') === 'manual') ? 'Manual' : 'Automática');
+    _setTemplateSummaryText('hours-days', '7 dias');
+    _setTemplateSummaryText('whatsapp', (_val('tpl-whatsapp-local') || _val('tpl-whatsapp')) ? 'WhatsApp' : 'Sem WhatsApp');
+    _setTemplateSummaryText('email', _val('tpl-email') ? 'E-mail' : 'Sem e-mail');
+    _setTemplateSummaryText('contact-footer', _checked('tpl-contact-footer-show') ? 'Rodapé ativo' : 'Rodapé oculto');
+    _setTemplateSummaryText('city', _val('tpl-city') || 'Sem cidade');
+    _setTemplateSummaryText('postal', _val('tpl-postal') || 'Sem código postal');
+    _setTemplateSummaryText('country', _val('tpl-country') || 'Sem país');
+    _setTemplateSummaryText('payment-total', paymentRows.length + ' cadastradas');
+    _setTemplateSummaryText('payment-active', activePayments + ' ativas');
+    _setTemplateSummaryText('payment-note', _val('tpl-payment-note') ? 'Com observação' : 'Sem observação');
+    _setTemplateSummaryText('checkout-note', _checked('tpl-allow-note') ? 'Observação ativa' : 'Sem observação');
+    _setTemplateSummaryText('checkout-coupon', _checked('tpl-allow-coupon') ? 'Cupom ativo' : 'Cupom oculto');
+    _setTemplateSummaryText('whatsapp-tooltip', _val('tpl-whatsapp-tooltip') ? 'Tooltip definido' : 'Sem tooltip');
+    _setTemplateSummaryText('whatsapp-message', _val('tpl-whatsapp-message') ? 'Mensagem definida' : 'Mensagem padrão');
+    _setTemplateSummaryText('about', _val('tpl-about') ? 'Sobre preenchido' : 'Sem sobre');
+    _setTemplateSummaryText('delivery-policy', _val('tpl-delivery-policy') ? 'Entrega definida' : 'Sem política');
+    _setTemplateSummaryText('cancel-policy', _val('tpl-cancel-policy') ? 'Cancelamento definido' : 'Sem cancelamento');
+  }
+
+  function _configuredDayClosed(idx) {
+    var input = document.getElementById('tpl-h-closed-' + idx);
+    if (!input) return false;
+    return !!input.checked;
+  }
+
+  function _configuredSecondPeriodClosed(idx) {
+    var input = document.getElementById('tpl-h-closed2-' + idx);
+    return input ? !!input.checked : false;
+  }
+
+  function _onTemplateHoursChange() {
+    _syncHoursDayBlocks();
+    _refreshTemplatePreview();
+  }
+
   function _collectHours() {
     var days = ['Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado','Domingo'];
     return days.map(function (label, idx) {
+      var closed = _configuredDayClosed(idx);
+      var closed2 = _configuredSecondPeriodClosed(idx);
+      var open2 = _val('tpl-h-open2-' + idx);
+      var close2 = _val('tpl-h-close2-' + idx);
+      var secondHasHours = !!(open2 && close2);
       return {
         day: label,
         open: _val('tpl-h-open-' + idx),
         close: _val('tpl-h-close-' + idx),
-        open2: _val('tpl-h-open2-' + idx),
-        close2: _val('tpl-h-close2-' + idx),
-        closed: _checked('tpl-h-closed-' + idx),
-        enabled: !_checked('tpl-h-closed-' + idx),
-        enabled2: _checked('tpl-h-enabled2-' + idx)
+        open2: open2,
+        close2: close2,
+        closed: closed,
+        enabled: !closed,
+        closed2: closed2,
+        enabled2: secondHasHours && !closed2
       };
     });
   }
@@ -5378,24 +5640,45 @@ Modules.Catalogo = (function () {
     if (!isFinite(parts[0])) return null;
     return (parts[0] || 0) * 60 + (isFinite(parts[1]) ? parts[1] : 0);
   }
+  function _firstTimeValue(row, keys) {
+    row = row || {};
+    for (var i = 0; i < keys.length; i += 1) {
+      var value = row[keys[i]];
+      if (value != null && String(value).trim()) return String(value).trim();
+    }
+    return '';
+  }
 
   function _previewStoreOpenNow() {
     var hours = _collectHours();
     var now = new Date();
     var idx = (now.getDay() + 6) % 7;
     var row = hours[idx] || null;
-    if (!row || row.closed || row.enabled === false) return false;
+    var prevRow = hours[(idx + 6) % 7] || null;
+    if (!row) return false;
     var current = now.getHours() * 60 + now.getMinutes();
-    var periods = [];
-    if (row.open && row.close) periods.push({ start: row.open, end: row.close });
-    if (row.enabled2 && row.open2 && row.close2) periods.push({ start: row.open2, end: row.close2 });
-    return periods.some(function (period) {
+    function periodsFrom(sourceRow) {
+      var list = [];
+      sourceRow = sourceRow || {};
+      var open = _firstTimeValue(sourceRow, ['open', 'start', 'from', 'abre', 'openingTime', 'startTime']);
+      var close = _firstTimeValue(sourceRow, ['close', 'end', 'to', 'fecha', 'closingTime', 'endTime']);
+      var open2 = _firstTimeValue(sourceRow, ['open2', 'start2', 'from2', 'abre2', 'openingTime2', 'secondOpen']);
+      var close2 = _firstTimeValue(sourceRow, ['close2', 'end2', 'to2', 'fecha2', 'closingTime2', 'secondClose']);
+      if (_boolValue(sourceRow.closed) !== true && _boolValue(sourceRow.enabled) !== false && open && close) list.push({ start: open, end: close });
+      if (_boolValue(sourceRow.closed2) !== true && _boolValue(sourceRow.enabled2) !== false && open2 && close2) list.push({ start: open2, end: close2 });
+      return list;
+    }
+    function periodIsOpen(period, fromPreviousDay) {
       var start = _minutesFromTime(period.start);
       var end = _minutesFromTime(period.end);
       if (start == null || end == null) return false;
-      if (end <= start) return current >= start || current <= end;
+      if (start === end) return false;
+      if (end < start) return fromPreviousDay ? current < end : current >= start;
+      if (fromPreviousDay) return false;
       return current >= start && current <= end;
-    });
+    }
+    return periodsFrom(row).some(function (period) { return periodIsOpen(period, false); }) ||
+      periodsFrom(prevRow).some(function (period) { return periodIsOpen(period, true); });
   }
 
   function _hoursSummaryFromHours(hours) {
@@ -5404,10 +5687,13 @@ Modules.Catalogo = (function () {
     var groups = {};
     rows.slice(0, 7).forEach(function (row, index) {
       row = row || {};
-      if (row.closed || row.enabled === false) return;
       var periods = [];
-      if (row.open && row.close) periods.push(row.open + '-' + row.close);
-      if (row.enabled2 && row.open2 && row.close2) periods.push(row.open2 + '-' + row.close2);
+      var open = _firstTimeValue(row, ['open', 'start', 'from', 'abre', 'openingTime', 'startTime']);
+      var close = _firstTimeValue(row, ['close', 'end', 'to', 'fecha', 'closingTime', 'endTime']);
+      var open2 = _firstTimeValue(row, ['open2', 'start2', 'from2', 'abre2', 'openingTime2', 'secondOpen']);
+      var close2 = _firstTimeValue(row, ['close2', 'end2', 'to2', 'fecha2', 'closingTime2', 'secondClose']);
+      if (_boolValue(row.closed) !== true && _boolValue(row.enabled) !== false && open && close) periods.push(open + '-' + close);
+      if (_boolValue(row.closed2) !== true && _boolValue(row.enabled2) !== false && open2 && close2) periods.push(open2 + '-' + close2);
       if (!periods.length) return;
       var label = periods.join(' / ');
       if (!groups[label]) groups[label] = [];
@@ -5442,6 +5728,7 @@ Modules.Catalogo = (function () {
     var currentTpl = _storeConfig.template || {};
     var currentGeral = _storeConfig.geral || {};
     var currentApp = _storeConfig.aparencia || {};
+    var currentIntegracoes = _storeConfig.integracoes || {};
     var deliveryArea = _collectDeliveryAreaFromDom(_deliveryAreaFromConfig(currentTpl, _storeConfig.zonas || {}));
     if (collectedDeliveryZones.length) {
       var missingArea = _deliveryAreaMissingItems(deliveryArea);
@@ -5510,6 +5797,9 @@ Modules.Catalogo = (function () {
     var methodIsActive = function (keys) {
       return keys.some(function (key) { return paymentActiveByKey[_paymentMethodKey(key)] === true; });
     };
+    var selectedStatusMode = _val('tpl-status-mode') === 'manual' ? 'manual' : 'auto';
+    var manualClosedValue = selectedStatusMode === 'manual' ? _checked('tpl-manual-closed') : false;
+    var manualOpenValue = selectedStatusMode === 'manual' ? !manualClosedValue : false;
     var template = {
       publicName: _val('tpl-public-name'), publicStoreName: _val('tpl-public-name'), shortName: shortNameValue, shortStoreName: shortNameValue, slogan: _val('tpl-slogan'), description: currentTpl.description || currentGeral.description || '', storeDescription: currentTpl.description || currentGeral.description || '', verifiedBadgeEnabled: _checked('tpl-verified-badge'), storeVerified: _checked('tpl-verified-badge'),
       logoUrl: logoUrl, faviconUrl: faviconUrl, coverImageUrl: coverUrl, bannerUrl: coverUrl, coverImageMobileUrl: coverMobileUrl, mobileCoverImageUrl: coverMobileUrl, bannerMobileUrl: coverMobileUrl, logoStoragePath: images.logo && images.logo.imageStoragePath || currentTpl.logoStoragePath || '', logoImagePath: images.logo && (images.logo.imagePath || images.logo.imageStoragePath) || currentTpl.logoImagePath || currentTpl.logoStoragePath || '', faviconStoragePath: images.favicon && images.favicon.imageStoragePath || currentTpl.faviconStoragePath || currentGeral.faviconStoragePath || '', faviconImagePath: images.favicon && (images.favicon.imagePath || images.favicon.imageStoragePath) || currentTpl.faviconImagePath || currentTpl.faviconStoragePath || currentGeral.faviconStoragePath || '', bannerStoragePath: coverUrl ? (images.banner && images.banner.imageStoragePath || currentTpl.bannerStoragePath || currentTpl.coverImageStoragePath || '') : '', bannerImagePath: coverUrl ? (images.banner && (images.banner.imagePath || images.banner.imageStoragePath) || currentTpl.bannerImagePath || currentTpl.bannerStoragePath || currentTpl.coverImageStoragePath || '') : '', coverImageStoragePath: coverUrl ? (images.banner && images.banner.imageStoragePath || currentTpl.coverImageStoragePath || currentTpl.bannerStoragePath || '') : '', bannerMobileStoragePath: coverMobileUrl ? (images.bannerMobile && images.bannerMobile.imageStoragePath || currentTpl.bannerMobileStoragePath || currentTpl.coverImageMobileStoragePath || '') : '', bannerMobileImagePath: coverMobileUrl ? (images.bannerMobile && (images.bannerMobile.imagePath || images.bannerMobile.imageStoragePath) || currentTpl.bannerMobileImagePath || currentTpl.bannerMobileStoragePath || currentTpl.coverImageMobileStoragePath || '') : '', coverImageMobileStoragePath: coverMobileUrl ? (images.bannerMobile && images.bannerMobile.imageStoragePath || currentTpl.coverImageMobileStoragePath || currentTpl.bannerMobileStoragePath || '') : '',
@@ -5532,7 +5822,7 @@ Modules.Catalogo = (function () {
         showFacebookInFooter: _checked('tpl-contact-footer-facebook'),
         showTiktokInFooter: _checked('tpl-contact-footer-tiktok')
       },
-address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-number'), city: _val('tpl-city'), region: _val('tpl-region'), neighborhood: _val('tpl-neighborhood') || currentTpl.neighborhood || currentGeral.neighborhood || currentApp.neighborhood || '', postalCode: _val('tpl-postal'), country: _val('tpl-country'), reference: _val('tpl-reference'), complemento: _val('tpl-reference'), showAddress: currentTpl.showAddress !== undefined ? currentTpl.showAddress : (currentGeral.showAddress !== undefined ? currentGeral.showAddress : (currentApp.showAddress !== undefined ? currentApp.showAddress : true)), mapsUrl: currentTpl.mapsUrl || currentGeral.mapsUrl || currentApp.mapsUrl || '', deliveryArea: deliveryArea, deliveryCity: deliveryArea.city, deliveryProvince: deliveryArea.province, deliveryCountry: deliveryArea.country, deliveryPostalCode: deliveryArea.postalCode, pickupNote: currentTpl.pickupNote || currentGeral.pickupNote || currentApp.pickupNote || '',      statusMode: (_val('tpl-status-mode') === 'manual' ? 'manual' : 'auto'), manualClosed: (_val('tpl-status-mode') === 'manual' && _checked('tpl-manual-closed')), manualOpen: (_val('tpl-status-mode') === 'manual' && !_checked('tpl-manual-closed')), hours: hours, pickupHours: _val('tpl-pickup-hours'), deliveryHours: _val('tpl-delivery-hours'), openingHoursSummary: _hoursSummaryFromHours(hours), hoursSummary: _hoursSummaryFromHours(hours), todayHoursText: _hoursSummaryFromHours(hours),
+address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-number'), city: _val('tpl-city'), region: _val('tpl-region'), neighborhood: _val('tpl-neighborhood') || currentTpl.neighborhood || currentGeral.neighborhood || currentApp.neighborhood || '', postalCode: _val('tpl-postal'), country: _val('tpl-country'), reference: _val('tpl-reference'), complemento: _val('tpl-reference'), showAddress: currentTpl.showAddress !== undefined ? currentTpl.showAddress : (currentGeral.showAddress !== undefined ? currentGeral.showAddress : (currentApp.showAddress !== undefined ? currentApp.showAddress : true)), mapsUrl: currentTpl.mapsUrl || currentGeral.mapsUrl || currentApp.mapsUrl || '', deliveryArea: deliveryArea, deliveryCity: deliveryArea.city, deliveryProvince: deliveryArea.province, deliveryCountry: deliveryArea.country, deliveryPostalCode: deliveryArea.postalCode, pickupNote: currentTpl.pickupNote || currentGeral.pickupNote || currentApp.pickupNote || '',      statusMode: selectedStatusMode, manualClosed: manualClosedValue, manualOpen: manualOpenValue, hours: hours, pickupHours: _val('tpl-pickup-hours'), deliveryHours: _val('tpl-delivery-hours'), openingHoursSummary: _hoursSummaryFromHours(hours), hoursSummary: _hoursSummaryFromHours(hours), todayHoursText: _hoursSummaryFromHours(hours),
       pickupEnabled: _checked('tpl-pickup-enabled'), deliveryEnabled: _checked('tpl-delivery-enabled'), minDeliveryOrder: _numVal('tpl-min-delivery'), minimumDeliveryOrder: _numVal('tpl-min-delivery'), maxOrdersPerSlot: _numVal('tpl-orders-per-hour'), ordersPerHour: _numVal('tpl-orders-per-hour'), maxAdvanceDays: _numVal('tpl-max-advance-days'), advanceDaysLimit: _numVal('tpl-max-advance-days'), scheduleDays: _numVal('tpl-max-advance-days') + 1, daysToShow: _numVal('tpl-max-advance-days') + 1, minAdvanceDays: 0, minimumAdvanceDays: 0, deliveryFee: document.getElementById('tpl-delivery-fee') ? _numVal('tpl-delivery-fee') : (currentTpl.deliveryFee || currentGeral.deliveryFee || currentApp.deliveryFee || ''), prepTime: _val('tpl-prep-time') || currentTpl.prepTime || currentGeral.prepTime || currentApp.prepTime || '', averagePrepTime: _val('tpl-prep-time') || currentTpl.averagePrepTime || currentGeral.averagePrepTime || currentApp.averagePrepTime || currentTpl.prepTime || '', deliveryTime: _val('tpl-delivery-time') || currentTpl.deliveryTime || currentGeral.deliveryTime || currentApp.deliveryTime || '', averageDeliveryTime: _val('tpl-delivery-time') || currentTpl.averageDeliveryTime || currentGeral.averageDeliveryTime || currentApp.averageDeliveryTime || currentTpl.deliveryTime || '',
       deliveryZones: deliveryZones,
       paymentMethods: paymentMethods, paymentMethodConfigs: paymentMethodConfigs, paymentMethodInstructions: paymentMethodInstructions, paymentNote: _val('tpl-payment-note'),
@@ -5550,6 +5840,29 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var endereco = Object.assign({}, _storeConfig.endereco || {}, { address: template.address, city: template.city, region: template.region, province: template.region, state: template.region, postalCode: template.postalCode, country: template.country, showAddress: template.showAddress, mapsUrl: template.mapsUrl });
     var pagamentos = Object.assign({}, _storeConfig.pagamentos || {}, template.payments, { paymentMethods: paymentMethods, paymentMethodConfigs: paymentMethodConfigs, paymentMethodInstructions: paymentMethodInstructions, paymentNote: template.paymentNote, note: template.paymentNote });
     var horarios = Object.assign({}, _storeConfig.horarios || {}, { days: hours, pickupHours: template.pickupHours, deliveryHours: template.deliveryHours, openingHoursSummary: template.openingHoursSummary, hoursSummary: template.hoursSummary, todayHoursText: template.todayHoursText });
+    var templateWhatsappCountry = _val('tpl-whatsapp-country') || currentIntegracoes.whatsappCountryCode || '';
+    var templateWhatsappLocal = _val('tpl-whatsapp-local') || '';
+    var integracoes = Object.assign({}, currentIntegracoes, {
+      whatsapp: templateWhatsappLocal || currentIntegracoes.whatsapp || '',
+      whatsappCountryCode: templateWhatsappCountry,
+      whatsappFull: [templateWhatsappCountry, templateWhatsappLocal].filter(Boolean).join(' ') || template.whatsapp || currentIntegracoes.whatsappFull || '',
+      instagram: template.instagram,
+      facebook: template.facebook,
+      tiktok: template.tiktok,
+      updatedAt: template.updatedAt
+    });
+    var operacao = Object.assign({}, _storeConfig.operacao || {}, {
+      statusMode: template.statusMode,
+      manualClosed: template.manualClosed,
+      manualOpen: template.manualOpen,
+      isOpen: template.statusMode === 'manual' ? template.manualOpen === true : _previewStoreOpenNow(),
+      hours: hours,
+      weeklyHours: hours,
+      openingHoursSummary: template.openingHoursSummary,
+      hoursSummary: template.hoursSummary,
+      todayHoursText: template.todayHoursText,
+      updatedAt: template.updatedAt
+    });
     var zonas = Object.assign({}, _storeConfig.zonas || {}, { area: template.deliveryArea, list: deliveryZones, deliveryZones: deliveryZones });
     var categoryVisualUpdates = _collectTemplateCategoryVisualUpdates();
     for (var cv = 0; cv < categoryVisualUpdates.length; cv += 1) {
@@ -5566,9 +5879,11 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       DB.setDocRoot('config', 'endereco', endereco),
       DB.setDocRoot('config', 'pagamentos', pagamentos),
       DB.setDocRoot('config', 'horarios', horarios),
+      DB.setDocRoot('config', 'integracoes', integracoes),
+      DB.setDocRoot('config', 'operacao', operacao),
       DB.setDocRoot('config', 'zonas', zonas)
     ].concat(categoryVisualUpdates.map(function (item) { return DB.update('categories', item.id, item.data); }))).then(function () {
-      _storeConfig.template = template; _storeConfig.geral = geral; _storeConfig.aparencia = aparencia; _storeConfig.endereco = endereco; _storeConfig.pagamentos = pagamentos; _storeConfig.horarios = horarios; _storeConfig.zonas = zonas;
+      _storeConfig.template = template; _storeConfig.geral = geral; _storeConfig.aparencia = aparencia; _storeConfig.endereco = endereco; _storeConfig.pagamentos = pagamentos; _storeConfig.horarios = horarios; _storeConfig.integracoes = integracoes; _storeConfig.operacao = operacao; _storeConfig.zonas = zonas;
       if (categoryVisualUpdates.length) {
         _categories = (_categories || []).map(function (cat) {
           var found = categoryVisualUpdates.find(function (item) { return String(item.id) === String(cat.id); });
@@ -5580,34 +5895,55 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       _refreshTemplatePreview();
       return _syncSystemTenantStoreFromTemplate(template);
     }).then(function () {
+      if (window.AdminApp && typeof AdminApp._applyStoreOnlineStatus === 'function') {
+        AdminApp._applyStoreOnlineStatus(template.statusMode === 'manual' ? template.manualOpen === true : _previewStoreOpenNow(), false, template.statusMode === 'manual' ? 'manual' : 'auto');
+      } else if (window.AdminApp && typeof AdminApp.refreshStoreOnlineStatus === 'function') {
+        AdminApp.refreshStoreOnlineStatus();
+      }
       UI.toast('Alterações visíveis na loja salvas.', 'success');
     }).catch(function (err) { UI.toast('Erro: ' + err.message, 'error'); });
   }
 
   function _syncHoursDayBlocks() {
+    var mode = _val('tpl-status-mode') || 'auto';
+    var todayIndex = (new Date().getDay() + 6) % 7;
+    var autoOpenNow = mode === 'auto' ? _previewStoreOpenNow() : null;
     for (var i = 0; i < 7; i += 1) {
       var row = document.querySelector('[data-hours-day="' + i + '"]');
       if (!row) continue;
-      var closed = _checked('tpl-h-closed-' + i);
-      var secondEnabled = _checked('tpl-h-enabled2-' + i);
-      var secondToggle = row.querySelector('[data-hours-secondary-toggle]');
+      var configuredClosed = _configuredDayClosed(i);
+      var runtimeClosed = mode === 'auto' && i === todayIndex && !configuredClosed && autoOpenNow === false;
+      var closed = configuredClosed;
+      var secondClosed = _configuredSecondPeriodClosed(i);
+      var secondEnabledInput = document.getElementById('tpl-h-enabled2-' + i);
+      var secondHasHours = !!(_val('tpl-h-open2-' + i) && _val('tpl-h-close2-' + i));
+      if (secondEnabledInput) secondEnabledInput.checked = secondHasHours && !secondClosed;
       var secondFields = row.querySelector('[data-hours-secondary-fields]');
       var mainFields = [].slice.call(row.querySelectorAll('[data-hours-main-field]'));
       var closedToggle = row.querySelector('.tpl-hours-day-closed-toggle');
+      var firstClosedToggle = document.getElementById('tpl-h-closed-' + i);
+      var secondClosedToggle = document.getElementById('tpl-h-closed2-' + i);
       row.classList.toggle('is-closed', closed);
-      row.classList.toggle('is-secondary-off', closed || !secondEnabled);
+      row.classList.toggle('is-second-closed', secondClosed);
+      row.classList.toggle('is-secondary-off', false);
+      row.classList.toggle('is-auto-runtime-closed', runtimeClosed);
+      row.classList.toggle('is-auto-runtime-open', mode === 'auto' && i === todayIndex && !configuredClosed && autoOpenNow === true);
       if (closedToggle) closedToggle.style.display = 'block';
+      if (firstClosedToggle && firstClosedToggle.closest('.tpl-toggle')) firstClosedToggle.closest('.tpl-toggle').classList.toggle('is-checked', closed);
+      if (secondClosedToggle && secondClosedToggle.closest('.tpl-toggle')) secondClosedToggle.closest('.tpl-toggle').classList.toggle('is-checked', secondClosed);
       mainFields.forEach(function (field) {
         field.style.display = closed ? 'none' : '';
         [].slice.call(field.querySelectorAll('input,select,textarea,button')).forEach(function (el) { el.disabled = closed; });
       });
-      if (secondToggle) {
-        secondToggle.style.display = closed ? 'none' : 'block';
-        [].slice.call(secondToggle.querySelectorAll('input,select,textarea,button')).forEach(function (el) { el.disabled = closed; });
-      }
       if (secondFields) {
-        secondFields.style.display = (!closed && secondEnabled) ? 'grid' : 'none';
-        [].slice.call(secondFields.querySelectorAll('input,select,textarea,button')).forEach(function (el) { el.disabled = closed || !secondEnabled; });
+        secondFields.style.display = 'grid';
+        [].slice.call(secondFields.querySelectorAll('input,select,textarea,button')).forEach(function (el) {
+          if (el.id === 'tpl-h-closed2-' + i) {
+            el.disabled = false;
+          } else {
+            el.disabled = secondClosed;
+          }
+        });
       }
     }
   }
@@ -5641,12 +5977,21 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   }
 
   function _renderSeoLoja() {
+    _ensureTemplateStyles();
     _loadStoreConfig().then(function () {
       var geral = _storeConfig.geral || {};
       var tpl = _storeConfig.template || {};
+      var zonas = _storeConfig.zonas || {};
       var seo = _storeConfig.seo || {};
+      var deliveryArea = _deliveryAreaFromConfig(tpl, zonas);
+      var deliveryZones = _normalizeDeliveryZones(
+        Array.isArray(tpl.deliveryZones) && tpl.deliveryZones.length
+          ? tpl.deliveryZones
+          : (Array.isArray(zonas.list) && zonas.list.length ? zonas.list : (Array.isArray(zonas.deliveryZones) && zonas.deliveryZones.length ? zonas.deliveryZones : []))
+      );
+      var zonesSummary = _deliveryZonesSummary(deliveryZones);
       var businessName = seo.businessName || geral.businessName || tpl.publicName || '';
-      var city = seo.city || geral.city || tpl.city || '';
+      var city = seo.city || deliveryArea.city || geral.city || tpl.city || '';
       var category = seo.mainKeyword || 'Comida brasileira';
       var titleDefault = businessName ? (businessName + ' | ' + category + (city ? ' em ' + city : '')) : 'Título SEO da loja';
       var descDefault = seo.description || geral.description || tpl.storeDescription || tpl.aboutStore || 'Descrição SEO da loja com cidade, produto e diferencial.';
@@ -5658,27 +6003,33 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       var publicWhatsapp = seo.publicWhatsapp || geral.whatsapp || tpl.whatsapp || '';
       var googleMaps = seo.googleMapsUrl || tpl.mapsUrl || '';
       var googleBusiness = seo.googleBusinessUrl || '';
+      var regionDefault = seo.deliveryArea || seo.neighborhoods || zonesSummary || [deliveryArea.city, deliveryArea.province].filter(Boolean).join(' · ') || tpl.neighborhood || geral.neighborhood || tpl.deliveryAreaText || '';
       var storeUrl = _publicStoreUrl();
       var published = !!storeUrl;
       var content = document.getElementById('catalogo-content');
       content.innerHTML =
-        '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px;">' +
-          '<div><div style="font-size:11px;font-weight:600;color:#A39B90;letter-spacing:.02em;margin-bottom:5px;">Cardápio</div><h2 style="font-size:28px;font-weight:600;line-height:1.1;margin:0 0 6px;color:#1F1F1F;">SEO da loja</h2><p style="font-size:15px;color:#6F6860;line-height:1.5;margin:0;max-width:780px;">Organize o título, a descrição e os dados locais da loja para busca e compartilhamento.</p></div>' +
-          '<button type="button" data-save-seo-loja="1" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">Salvar alterações</button>' +
-        '</div>' +
-        '<div style="display:flex;flex-direction:column;gap:14px;">' +
-            '<section style="' + _cardStyle() + '">' + _sectionTitle('Aparência no Google', 'Use o título e a descrição que melhor representam a loja na busca.') + _grid(
-              _fieldHtml('seo-title', 'Título da loja no Google', seo.title || titleDefault, 'Nome da loja | categoria em cidade') +
-              _textareaHtml('seo-description', 'Descrição da loja no Google', seo.description || descDefault, 'Resumo claro com produto, cidade e diferencial.', 4) +
-              _fieldHtml('seo-keyword', 'Palavra-chave principal', seo.mainKeyword || '', 'comida brasileira em Pamplona') +
-              '<div style="grid-column:1/-1;font-size:12px;color:#6F6860;line-height:1.5;">Título ideal: até 60 caracteres. Descrição ideal: até 160 caracteres.</div>' +
-              '<div style="grid-column:1/-1;">' + _seoPreviewGoogleHtml(titleDefault, descDefault, storeUrl, published, seo.title, seo.description) + '</div>', '220px') +
+        '<div class="bf-page tpl-config-page" style="padding:0;display:flex;flex-direction:column;font-family:Manrope,Inter,sans-serif;">' +
+          '<div class="tpl-config-head">' +
+            '<div style="min-width:0;flex:1 1 420px;"><h2 class="tpl-config-title">SEO da loja</h2><p class="tpl-config-subtitle">Preencha estas informações para ajudar sua loja a aparecer melhor no Google e para deixar os links compartilhados mais claros e profissionais.</p><div class="tpl-config-status"><span class="tpl-config-chip" data-seo-summary="title">' + (seo.title ? 'Título configurado' : 'Título pendente') + '</span><span class="tpl-config-chip" data-seo-summary="description">' + (seo.description ? 'Descrição configurada' : 'Descrição pendente') + '</span><span class="tpl-config-chip" data-seo-summary="image">' + (seo.ogImage || seo.imageUrl ? 'Imagem configurada' : 'Sem imagem') + '</span></div></div>' +
+            '<button type="button" class="tpl-config-save" data-save-seo-loja="1">Salvar alterações</button>' +
+          '</div>' +
+          '<div style="display:flex;flex-direction:column;gap:14px;margin-top:16px;">' +
+            '<section class="tpl-config-panel" style="' + _cardStyle() + '">' + _sectionTitle('Aparência no Google', 'Use um título claro e uma descrição curta para apresentar a loja nas buscas.', 'travel_explore') +
+              '<div style="display:grid;grid-template-columns:minmax(0,1.7fr) minmax(160px,.55fr);gap:12px;align-items:start;">' +
+                '<div style="min-width:0;">' + _fieldHtml('seo-title', 'Título da loja no Google', seo.title || titleDefault, 'Nome da loja | categoria em cidade') + '</div>' +
+                '<div style="min-width:0;">' + _fieldHtml('seo-keyword', 'Palavra-chave principal', seo.mainKeyword || '', 'comida brasileira em Pamplona') + '</div>' +
+                '<div style="grid-column:1/-1;">' + _textareaHtml('seo-description', 'Descrição da loja no Google', seo.description || descDefault, 'Resumo claro com produto, cidade e diferencial.', 3) + '</div>' +
+                '<div style="grid-column:1/-1;font-size:12px;color:#6F6860;line-height:1.5;">Título ideal: até 60 caracteres. Descrição ideal: até 160 caracteres.</div>' +
+                '<div style="grid-column:1/-1;">' + _seoPreviewGoogleHtml(titleDefault, descDefault, storeUrl, published, seo.title, seo.description) + '</div>' +
+              '</div>' +
             '</section>' +
-            '<section style="' + _cardStyle() + '">' + _sectionTitle('SEO local', 'Contexto geográfico e dados públicos usados para busca local.') + _grid(
-              _fieldHtml('seo-city', 'Cidade principal atendida', seo.city || geral.city || tpl.city || '', 'Pamplona') +
-              _fieldHtml('seo-neighborhoods', 'Bairros/regiões atendidas', seo.neighborhoods || tpl.deliveryArea || '', 'Centro, Rochapea...') +
-              _fieldHtml('seo-delivery-area', 'Área de entrega', seo.deliveryArea || tpl.deliveryArea || '', 'Centro e arredores') +
-              '<div style="grid-column:1/-1;display:flex;flex-direction:column;gap:10px;padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);">' +
+            '<section class="tpl-config-panel" style="' + _cardStyle() + '">' + _sectionTitle('SEO local', 'Informe a região principal para dar contexto à busca da loja.', 'location_on') +
+              '<div style="display:grid;grid-template-columns:minmax(180px,.45fr) minmax(260px,1fr);gap:12px;align-items:start;">' +
+                _fieldHtml('seo-city', 'Cidade principal atendida', city, 'Pamplona') +
+                _fieldHtml('seo-delivery-area', 'Região atendida', regionDefault, 'Centro, Rochapea, Pamplona e arredores') +
+                '<input id="seo-neighborhoods" type="hidden" value="' + _esc(regionDefault) + '">' +
+              '</div>' +
+              '<div style="display:flex;flex-direction:column;gap:10px;margin-top:12px;padding:13px 14px;border:1px solid #EAE4DA;border-radius:14px;background:#FFFCF8;box-shadow:inset 0 1px 0 rgba(255,255,255,.78);">' +
                 '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">' +
                   '<div style="min-width:0;flex:1;">' +
                     '<div style="' + _labelStyle() + '">Resumo somente leitura</div>' +
@@ -5691,23 +6042,49 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
                   '</div>' +
                   '<button type="button" onclick="Modules.Catalogo._switchSub(\'template\')" style="height:38px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#1F1F1F;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 1px 2px rgba(31,31,31,.03);font-family:inherit;">Editar dados da loja</button>' +
                 '</div>' +
-              '</div>', '220px') +
-            '</section>' +
-            '<section style="' + _cardStyle() + '">' + _sectionTitle('Compartilhamento', 'Preview usado em WhatsApp, Facebook e outros canais.') + _grid(
-              '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                '<label style="display:block;"><span style="' + _labelStyle() + '">Imagem de compartilhamento</span><input type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onchange="Modules.Catalogo._uploadStoreImage(event,\'share\')" style="' + _inputStyle() + 'padding:8px;"><input id="seo-og-image" value="' + _esc(_cleanPublicUrl(seo.ogImage || seo.imageUrl || tpl.bannerUrl || geral.bannerUrl || '')) + '" placeholder="https://..." style="' + _inputStyle() + 'margin-top:8px;"></label>' +
               '</div>' +
-              _checkHtml('seo-share-custom-enabled', 'Usar título e descrição diferentes para compartilhamento', shareCustom, 'Se ativado, WhatsApp e redes usam textos próprios.') +
-              '<div id="seo-share-custom-fields" style="grid-column:1/-1;display:' + (shareCustom ? 'block' : 'none') + ';">' + _grid(
-                _fieldHtml('seo-share-title', 'Título para compartilhamento', shareTitle, 'Nome da loja') +
-                _textareaHtml('seo-share-desc', 'Descrição para compartilhamento', shareDesc, 'Texto curto para redes sociais.', 3),
-                '220px'
-              ) + '</div>' +
-              '<div style="grid-column:1/-1;">' + _seoPreviewHtml(seo, titleDefault, descDefault, storeUrl, published, shareCustom, seo.ogImage || seo.imageUrl || tpl.bannerUrl || geral.bannerUrl || '') + '</div>', '260px') +
             '</section>' +
-            '<div style="display:flex;justify-content:flex-end;"><button type="button" data-save-seo-loja="1" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">Salvar alterações</button></div>' +
+            '<section class="tpl-config-panel" style="' + _cardStyle() + '">' + _sectionTitle('Compartilhamento', 'Defina como a loja aparece quando o link é enviado em WhatsApp e redes sociais.', 'ios_share') +
+              '<div style="display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:12px;align-items:start;">' +
+                '<div class="tpl-image-card">' +
+                  '<div style="display:flex;flex-direction:column;gap:7px;">' +
+                    '<span style="' + _labelStyle() + '">Imagem de compartilhamento</span>' +
+                    '<div class="tpl-image-actions">' +
+                      '<button type="button" class="tpl-image-btn primary" onclick="document.getElementById(\'seo-og-file\').click()">Enviar imagem</button>' +
+                      '<button type="button" class="tpl-image-btn ghost" onclick="Modules.Catalogo._clearStoreImage(\'share\')">Remover imagem</button>' +
+                    '</div>' +
+                    '<input id="seo-og-file" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onchange="Modules.Catalogo._uploadStoreImage(event,\'share\')" style="display:none;">' +
+                    '<input id="seo-og-image" type="hidden" value="' + _esc(_cleanPublicUrl(seo.ogImage || seo.imageUrl || tpl.bannerUrl || geral.bannerUrl || '')) + '">' +
+                    '<div class="tpl-image-note">Imagem recomendada: 1200 × 630 px. Use JPG, PNG ou WebP.</div>' +
+                  '</div>' +
+                '</div>' +
+                '<div style="display:flex;flex-direction:column;gap:12px;min-width:0;">' +
+                  _plainSwitchHtml('seo-share-custom-enabled', 'Usar texto próprio para compartilhamento', shareCustom, 'Quando ativado, WhatsApp e redes usam título e descrição específicos.') +
+                  '<div id="seo-share-custom-fields" style="display:' + (shareCustom ? 'block' : 'none') + ';">' +
+                    '<div style="display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:12px;align-items:start;">' +
+                      _fieldHtml('seo-share-title', 'Título para compartilhamento', shareTitle, 'Nome da loja') +
+                      _textareaHtml('seo-share-desc', 'Descrição para compartilhamento', shareDesc, 'Texto curto para redes sociais.', 3) +
+                    '</div>' +
+                  '</div>' +
+                '</div>' +
+                '<div style="grid-column:1/-1;">' + _seoPreviewHtml(seo, titleDefault, descDefault, storeUrl, published, shareCustom, seo.ogImage || seo.imageUrl || tpl.bannerUrl || geral.bannerUrl || '') + '</div>' +
+              '</div>' +
+            '</section>' +
+            '<div style="display:flex;justify-content:flex-end;"><button type="button" class="tpl-config-save" data-save-seo-loja="1">Salvar alterações</button></div>' +
+          '</div>' +
         '</div>';
       setTimeout(function () {
+        [
+          ['seo-title', 60],
+          ['seo-description', 160],
+          ['seo-keyword', 60],
+          ['seo-city', 80],
+          ['seo-share-title', 70],
+          ['seo-share-desc', 160]
+        ].forEach(function (item) {
+          var el = document.getElementById(item[0]);
+          if (el) el.setAttribute('maxlength', String(item[1]));
+        });
         [].slice.call(content.querySelectorAll('input,textarea,select')).forEach(function (el) {
           el.addEventListener('input', _refreshSeoPreview);
           el.addEventListener('change', _refreshSeoPreview);
@@ -5753,6 +6130,9 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   function _refreshSeoPreview() {
     var title = _val('seo-title') || 'Título SEO da loja';
     var desc = _val('seo-description') || 'Descrição SEO da loja com cidade, produto e diferencial.';
+    var titleChip = document.querySelector('[data-seo-summary="title"]');
+    var descChip = document.querySelector('[data-seo-summary="description"]');
+    var imageChip = document.querySelector('[data-seo-summary="image"]');
     var shareCustom = _checked('seo-share-custom-enabled');
     var shareWrap = document.getElementById('seo-share-custom-fields');
     var storeUrl = _publicStoreUrl();
@@ -5769,6 +6149,9 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var sharePh = document.getElementById('seo-preview-share-placeholder');
     if (shareImg) { shareImg.src = imgUrl || ''; shareImg.style.display = imgUrl ? 'block' : 'none'; }
     if (sharePh) sharePh.style.display = imgUrl ? 'none' : 'inline';
+    if (titleChip) titleChip.textContent = _val('seo-title') ? 'Título configurado' : 'Título pendente';
+    if (descChip) descChip.textContent = _val('seo-description') ? 'Descrição configurada' : 'Descrição pendente';
+    if (imageChip) imageChip.textContent = imgUrl ? 'Imagem configurada' : 'Sem imagem';
   }
 
   function _saveSeoLoja() {
@@ -5783,7 +6166,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       description: _val('seo-description'),
       mainKeyword: _val('seo-keyword'),
       city: _val('seo-city'),
-      neighborhoods: _val('seo-neighborhoods'),
+      neighborhoods: _val('seo-delivery-area'),
       deliveryArea: _val('seo-delivery-area'),
       ogTitle: shareTitle,
       ogDescription: shareDesc,
@@ -5806,19 +6189,97 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   function _renderCatalogoConfiguracoes() {
     var content = document.getElementById('catalogo-content');
     if (!content) return;
+    _ensureCatalogConfigStyles();
     var subs = [{ key: 'categorias', label: 'Categorias' }, { key: 'variantes', label: 'Variantes' }, { key: 'tags', label: 'Tags' }];
     var btn = function (s) {
       var active = _cfgSub === s.key;
-      return '<button onclick="Modules.Catalogo._setCatalogCfgSub(\'' + s.key + '\')" style="height:38px;padding:0 14px;border-radius:10px;border:1px solid ' + (active ? '#B42318' : '#EAE4DA') + ';background:' + (active ? '#B42318' : '#fff') + ';color:' + (active ? '#fff' : '#1F1F1F') + ';font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 1px 2px rgba(31,31,31,.03);font-family:inherit;">' + s.label + '</button>';
+      return '<button class="catalog-config-tab' + (active ? ' active' : '') + '" onclick="Modules.Catalogo._setCatalogCfgSub(\'' + s.key + '\')">' + s.label + '</button>';
     };
-    content.innerHTML = '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px;">' +
-      '<div><div style="font-size:11px;font-weight:600;color:#A39B90;letter-spacing:.02em;margin-bottom:5px;">Cardápio</div><h2 style="font-size:28px;font-weight:600;line-height:1.1;margin:0 0 6px;color:#1F1F1F;">Configurações</h2><p style="font-size:15px;color:#6F6860;line-height:1.5;margin:0;max-width:760px;">Cadastros auxiliares usados pelos produtos e pela organização do cardápio.</p></div>' +
+    content.innerHTML = '<div class="catalog-config-page">' +
+      '<div class="catalog-config-head">' +
+        '<div><h2 class="catalog-config-title">Configurações do cardápio</h2><p class="catalog-config-subtitle">Organize categorias, variações e selos usados para montar os produtos da sua loja.</p></div>' +
       '</div>' +
-      '<div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;">' + subs.map(btn).join('') + '</div>' +
-      '<div id="catalogo-config-inner"><div style="text-align:center;padding:28px;color:#8A7E7C;">Carregando...</div></div>';
+      '<div class="catalog-config-tabs">' + subs.map(btn).join('') + '</div>' +
+      '<div id="catalogo-config-inner"><div class="catalog-config-loading">Carregando...</div></div>' +
+      '</div>';
     if (_cfgSub === 'categorias') _renderCategorias();
     else if (_cfgSub === 'variantes') _renderVariantes();
     else if (_cfgSub === 'tags') _renderTagsTab();
+  }
+
+  function _catalogConfigSectionHead(title, desc, actionHtml) {
+    return '<div class="catalog-config-section-head">' +
+      '<div><h3>' + _esc(title || '') + '</h3>' + (desc ? '<p>' + _esc(desc) + '</p>' : '') + '</div>' +
+      (actionHtml || '') +
+      '</div>';
+  }
+
+  function _catalogConfigPrimaryButton(label, onclick) {
+    return '<button class="catalog-config-primary" onclick="' + onclick + '">' + _esc(label) + '</button>';
+  }
+
+  function _ensureCatalogConfigStyles() {
+    if (document.getElementById('catalog-config-style')) return;
+    var style = document.createElement('style');
+    style.id = 'catalog-config-style';
+    style.textContent = '' +
+      '.catalog-config-page{display:flex;flex-direction:column;gap:16px;}' +
+      '.catalog-config-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;}' +
+      '.catalog-config-title{font-size:22px;font-weight:700;line-height:1.16;margin:0 0 6px;color:#211815;letter-spacing:-.01em;}' +
+      '.catalog-config-subtitle{font-size:13px;color:#756A64;line-height:1.45;margin:0;max-width:720px;}' +
+      '.catalog-config-tabs{display:flex;gap:8px;align-items:center;overflow:auto;padding:8px;background:linear-gradient(135deg,#FFFDFC 0%,#FFF8F3 100%);border:1px solid #E8DDD5;border-radius:16px;box-shadow:0 10px 24px rgba(85,46,32,.045),inset 0 1px 0 rgba(255,255,255,.72);}' +
+      '.catalog-config-tab{height:32px;padding:0 12px;border:1px solid transparent;border-radius:999px;background:rgba(255,255,255,.72);color:#6F6860;font-family:Manrope,Inter,sans-serif;font-size:12px;font-weight:650;white-space:nowrap;cursor:pointer;transition:background .15s,color .15s,box-shadow .15s,border-color .15s,transform .15s;}' +
+      '.catalog-config-tab:hover{background:#fff;color:#211815;border-color:#E8DDD5;box-shadow:0 5px 14px rgba(85,46,32,.06);}' +
+      '.catalog-config-tab.active{background:#B42318;color:#fff;border-color:#B42318;box-shadow:0 8px 18px rgba(180,35,24,.16);}' +
+      '.catalog-config-panel{background:linear-gradient(145deg,#FFFFFF 0%,#FFFDFB 68%,#FFF8F3 100%);border:1px solid #EADFD8;border-radius:18px;padding:16px 18px;box-shadow:0 10px 24px rgba(85,46,32,.045),inset 0 1px 0 rgba(255,255,255,.76);}' +
+      '.catalog-config-section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid rgba(232,221,213,.82);}' +
+      '.catalog-config-section-head h3{font-size:15px;font-weight:700;color:#211815;line-height:1.2;margin:0 0 4px;}' +
+      '.catalog-config-section-head p{font-size:12px;color:#82766F;line-height:1.42;margin:0;max-width:760px;}' +
+      '.catalog-config-primary{height:38px;padding:0 14px;border:none;border-radius:11px;background:#B42318;color:#fff;font-size:13px;font-weight:650;cursor:pointer;box-shadow:0 8px 18px rgba(180,35,24,.16);font-family:Manrope,Inter,sans-serif;white-space:nowrap;transition:transform .15s,box-shadow .15s,background .15s;}' +
+      '.catalog-config-primary:hover{transform:translateY(-1px);box-shadow:0 12px 24px rgba(180,35,24,.20);background:#A61F16;}' +
+      '.catalog-config-list{display:flex;flex-direction:column;gap:9px;}' +
+      '.catalog-config-item{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:14px;padding:12px 13px;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;align-items:center;gap:12px;transition:background .15s,border-color .15s,box-shadow .15s;}' +
+      '.catalog-config-item:hover{background:#fff;border-color:#E1D3CB;box-shadow:0 8px 18px rgba(85,46,32,.045);}' +
+      '.catalog-config-item[draggable="true"]{cursor:grab;}' +
+      '.catalog-config-drag{color:#A39B90;font-size:18px;flex-shrink:0;}' +
+      '.catalog-config-media{width:42px;height:42px;border-radius:13px;background:#fff;border:1px solid #E8DCD7;display:flex;align-items:center;justify-content:center;overflow:hidden;flex:0 0 auto;font-size:18px;color:#6F6860;}' +
+      '.catalog-config-media img{width:100%;height:100%;object-fit:cover;display:block;}' +
+      '.catalog-config-copy{min-width:0;flex:1;}' +
+      '.catalog-config-copy strong{display:block;font-size:14px;font-weight:650;color:#211815;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
+      '.catalog-config-copy small{display:block;font-size:12px;color:#756A64;line-height:1.35;margin-top:3px;}' +
+      '.catalog-config-actions{display:flex;gap:6px;flex-shrink:0;}' +
+      '.catalog-config-icon-btn{width:30px;height:30px;border-radius:9px;border:1px solid #E8DCD7;background:#fff;color:#6F6860;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);}' +
+      '.catalog-config-icon-btn.danger{color:#B42318;}' +
+      '.catalog-config-icon-btn .mi{font-size:14px;}' +
+      '.catalog-config-empty{text-align:center;padding:42px 20px;color:#8A7E7C;font-size:14px;line-height:1.45;font-weight:500;}' +
+      '.catalog-config-loading{text-align:center;padding:28px;color:#8A7E7C;font-size:13px;}' +
+      '.catalog-config-modal-card{background:linear-gradient(145deg,#FFFFFF 0%,#FFFDFB 72%,#FFF8F3 100%);border:1px solid #EADFD8;border-radius:18px;padding:16px;box-shadow:0 10px 24px rgba(85,46,32,.045),inset 0 1px 0 rgba(255,255,255,.76);}' +
+      '.catalog-config-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start;}' +
+      '.catalog-config-grid.compact{grid-template-columns:minmax(0,1fr) 116px 116px;align-items:end;}' +
+      '.catalog-config-field-full{grid-column:1/-1;}' +
+      '.catalog-config-help{font-size:11px;color:#8A7E7C;line-height:1.35;margin-top:5px;}' +
+      '.catalog-config-softbox{padding:12px;border:1px solid #E8DCD7;border-radius:14px;background:#FFFCF8;box-shadow:inset 0 1px 0 rgba(255,255,255,.78);}' +
+      '.catalog-config-checkline{display:flex;align-items:center;gap:8px;min-height:40px;}' +
+      '.catalog-config-checkline input{width:16px;height:16px;accent-color:#B42318;}' +
+      '.catalog-config-checkline label{font-size:13px;font-weight:500;color:#211815;cursor:pointer;}' +
+      '.catalog-config-option-row{display:grid;grid-template-columns:minmax(0,1fr) 96px minmax(0,210px) 32px;gap:10px;align-items:start;padding:12px;border:1px solid #E8DCD7;border-radius:14px;background:#FFFCF8;margin-bottom:9px;max-width:100%;box-sizing:border-box;overflow:hidden;}' +
+      '.catalog-config-option-row>*{min-width:0;}' +
+      '.catalog-config-option-row .option-remove-btn{align-self:end;flex:0 0 auto;}' +
+      '.catalog-config-image-tools{display:grid;grid-template-columns:42px minmax(0,1fr);gap:9px;align-items:center;min-width:0;}' +
+      '.catalog-config-image-preview{width:42px;height:42px;border-radius:11px;border:1px solid #E8DCD7;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;color:#C9BCB8;flex:0 0 auto;}' +
+      '.catalog-config-image-preview img{width:100%;height:100%;object-fit:cover;display:block;}' +
+      '.catalog-config-image-actions{display:flex;gap:7px;flex-wrap:wrap;align-items:center;}' +
+      '.catalog-config-image-btn{height:32px;padding:0 10px;border-radius:10px;font-size:11px;font-weight:650;font-family:Manrope,Inter,sans-serif;cursor:pointer;white-space:nowrap;}' +
+      '.catalog-config-image-btn.primary{border:none;background:#F3E8D7;color:#8A6F5A;}' +
+      '.catalog-config-image-btn.ghost{border:1px solid #E6DDD3;background:#fff;color:#7A746B;}' +
+      '.catalog-config-select-wrap{position:relative;display:block;}' +
+      '.catalog-config-select-wrap select{appearance:none;-webkit-appearance:none;-moz-appearance:none;padding-right:42px !important;background:#fff !important;}' +
+      '.catalog-config-select-arrow{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:19px;color:#6F6860;line-height:1;pointer-events:none;}' +
+      '.catalog-config-chip{display:inline-flex;align-items:center;border-radius:999px;padding:5px 11px;font-size:12px;font-weight:500;line-height:1;white-space:nowrap;}' +
+      '.catalog-config-tag-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 13px;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:14px;box-shadow:0 1px 2px rgba(31,31,31,.03);}' +
+      '@media(max-width:980px){.catalog-config-option-row{grid-template-columns:minmax(0,1fr) 96px 32px;}.catalog-config-option-row>div:nth-child(3){grid-column:1/-1}.catalog-config-option-row .option-remove-btn{grid-column:3;grid-row:1;justify-self:end}}' +
+      '@media(max-width:760px){.catalog-config-section-head{flex-direction:column}.catalog-config-primary{width:100%}.catalog-config-grid,.catalog-config-grid.compact,.catalog-config-option-row{grid-template-columns:1fr}.catalog-config-item,.catalog-config-tag-row{align-items:flex-start}.catalog-config-actions{align-self:flex-start}.catalog-config-option-row .option-remove-btn{grid-column:auto;grid-row:auto;justify-self:start}}';
+    document.head.appendChild(style);
   }
 
   function _setCatalogCfgSub(key) {
@@ -5837,29 +6298,25 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   function _paintCategorias() {
     var content = _catalogTarget();
     if (!content) return;
-    content.innerHTML = '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px;">' +
-      '<button onclick="Modules.Catalogo._openCatModal(null)" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">+ Adicionar categoria</button>' +
-      '</div>' +
-      '<section style="' + _cardStyle() + '">' +
-        _sectionTitle('Categorias (' + _categories.length + ')', 'Arraste para reorganizar e use a edição para ajustar o nome.') +
-        (_categories.length === 0 ? '<div style="text-align:center;padding:48px 20px;color:#8A7E7C;font-size:14px;line-height:1.45;font-weight:600;">Nenhuma categoria ainda</div>' :
-          '<div id="cat-list" style="display:flex;flex-direction:column;gap:10px;">' +
+    content.innerHTML =
+      '<section class="catalog-config-panel">' +
+        _catalogConfigSectionHead('Categorias', 'Organize os grupos que aparecem no cardápio e defina a ordem da loja pública.', _catalogConfigPrimaryButton('+ Adicionar categoria', 'Modules.Catalogo._openCatModal(null)')) +
+        (_categories.length === 0 ? '<div class="catalog-config-empty">Nenhuma categoria ainda</div>' :
+          '<div id="cat-list" class="catalog-config-list">' +
           _categories.map(function (c) {
-            var graphic = _cleanPublicUrl(c.graphicUrl || c.imageUrl || c.iconUrl || c.categoryGraphicUrl || '');
-            var icon = c.icon || c.emoji || c.symbol || '';
-            return '<div draggable="true" data-id="' + c.id + '" style="background:#fff;border:1px solid #EAE4DA;border-radius:14px;padding:14px 14px;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;align-items:center;gap:12px;cursor:grab;transition:background .15s ease;">' +
-              '<span class="mi" style="color:#A39B90;font-size:18px;flex-shrink:0;">drag_indicator</span>' +
-              '<div style="width:44px;height:44px;border-radius:14px;background:#FAF8F4;border:1px solid #EAE4DA;display:flex;align-items:center;justify-content:center;overflow:hidden;flex:0 0 auto;font-size:20px;color:#6F6860;">' + (graphic ? '<img src="' + _esc(graphic) + '" style="width:100%;height:100%;object-fit:cover;">' : _esc(icon || 'Aa')) + '</div>' +
-              '<div style="min-width:0;flex:1;">' +
-                '<div style="font-size:15px;font-weight:600;color:#1F1F1F;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(c.name) + '</div>' +
-                '<div style="font-size:12px;color:#6F6860;line-height:1.35;margin-top:2px;">Categoria visível no cardápio da loja.</div>' +
+            return '<div draggable="true" data-id="' + c.id + '" class="catalog-config-item">' +
+              '<span class="mi catalog-config-drag">drag_indicator</span>' +
+              '<div class="catalog-config-copy">' +
+                '<strong>' + _esc(c.name) + '</strong>' +
+                '<small>Categoria visível no cardápio da loja.</small>' +
               '</div>' +
-              '<div style="display:flex;gap:6px;flex-shrink:0;">' +
-                '<button onclick="Modules.Catalogo._openCatModal(\'' + c.id + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">edit</span></button>' +
-                '<button onclick="Modules.Catalogo._deleteCat(\'' + c.id + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#B42318;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">delete</span></button>' +
+              '<div class="catalog-config-actions">' +
+                '<button class="catalog-config-icon-btn" onclick="Modules.Catalogo._openCatModal(\'' + c.id + '\')"><span class="mi">edit</span></button>' +
+                '<button class="catalog-config-icon-btn danger" onclick="Modules.Catalogo._deleteCat(\'' + c.id + '\')"><span class="mi">delete</span></button>' +
               '</div>' +
             '</div>';
-          }).join('') + '</div></section>');
+          }).join('') + '</div>') +
+      '</section>';
 
     if (_categories.length > 0) {
       var listEl = document.getElementById('cat-list');
@@ -5879,31 +6336,15 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   function _openCatModal(id) {
     _editingId = id;
     var c = id ? (_categories.find(function (x) { return x.id === id; }) || {}) : {};
-    var graphicUrl = _cleanPublicUrl(c.graphicUrl || c.imageUrl || c.iconUrl || c.categoryGraphicUrl || '');
-    window._catalogCategoryGraphicState = {};
     window._catDraftId = id || _newEntityId('cat');
-    var body = '<div>' +
-      '<div style="margin-bottom:12px;"><label style="' + _labelStyle() + '">Nome *</label><input id="cat-name" type="text" value="' + _esc(c.name || '') + '" style="' + _inputStyle() + '"></div>' +
-      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:12px;">' +
-        '<div><label style="' + _labelStyle() + '">Emoji/ícone opcional</label><input id="cat-icon" type="text" value="' + _esc(c.icon || c.emoji || c.symbol || '') + '" placeholder="🍔" style="' + _inputStyle() + '"></div>' +
-        '<div><label style="' + _labelStyle() + '">URL do elemento gráfico</label><input id="cat-graphic-url" type="url" value="' + _esc(graphicUrl) + '" placeholder="https://..." style="' + _inputStyle() + '"></div>' +
-      '</div>' +
-      '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:grid;grid-template-columns:minmax(0,1fr) 96px;gap:12px;align-items:center;">' +
-        '<div style="display:flex;flex-direction:column;gap:8px;">' +
-          '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Elemento gráfico da categoria</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Opcional. Se ficar vazio, o menu mobile mostra apenas texto/emoji.</div></div>' +
-          '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
-            '<button type="button" class="tpl-image-btn primary" onclick="document.getElementById(\'cat-graphic-file\').click()">Enviar imagem</button>' +
-            '<button type="button" class="tpl-image-btn ghost" onclick="Modules.Catalogo._clearCategoryGraphic()">Remover imagem</button>' +
-          '</div>' +
-          '<input id="cat-graphic-file" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onchange="Modules.Catalogo._uploadCategoryGraphic(event)" style="display:none;">' +
-          '<div style="font-size:11px;color:#8A7E7C;line-height:1.35;">Tamanho recomendado: 256 × 256 px, fundo transparente ou recorte quadrado.</div>' +
-        '</div>' +
-        '<div id="cat-graphic-preview" style="width:96px;height:96px;border-radius:24px;background:#FAF8F4;border:1px solid #EAE4DA;display:flex;align-items:center;justify-content:center;overflow:hidden;color:#A39B90;font-size:11px;text-align:center;">' + (graphicUrl ? '<img src="' + _esc(graphicUrl) + '" style="width:100%;height:100%;object-fit:cover;">' : 'Sem imagem') + '</div>' +
+    var body = '<div class="catalog-config-modal-card">' +
+      '<div class="catalog-config-grid">' +
+        '<label class="catalog-config-field-full" style="display:block;"><span style="' + _labelStyle() + '">Nome da categoria *</span><input id="cat-name" type="text" value="' + _esc(c.name || '') + '" style="' + _inputStyle() + '"></label>' +
       '</div>' +
       '</div>';
 
-    var footer = '<button onclick="Modules.Catalogo._saveCat()" style="width:100%;height:40px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:14px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">' + (id ? 'Atualizar' : 'Adicionar') + '</button>';
-    window._catModal = UI.modal({ title: id ? 'Editar Categoria' : 'Nova Categoria', body: body, footer: footer });
+    var footer = '<button onclick="Modules.Catalogo._saveCat()" style="height:40px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:14px;font-weight:650;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">' + (id ? 'Salvar categoria' : 'Adicionar categoria') + '</button>';
+    window._catModal = UI.modal({ title: id ? 'Editar categoria' : 'Nova categoria', body: body, footer: footer });
   }
 
   function _selectCatColor() {}
@@ -6048,16 +6489,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   function _saveCat() {
     var name = (document.getElementById('cat-name') || {}).value || '';
     if (!name) { UI.toast('Nome e obrigatorio', 'error'); return; }
-    if (window._catalogCategoryGraphicPending) { UI.toast('A imagem ainda está sendo enviada. Aguarde um instante.', 'info'); return; }
-    var icon = (document.getElementById('cat-icon') || {}).value || '';
-    var graphicUrl = _cleanPublicUrl((document.getElementById('cat-graphic-url') || {}).value || '');
-    var graphicState = window._catalogCategoryGraphicState || {};
-    var data = { name: name, icon: icon, emoji: icon, symbol: icon, graphicUrl: graphicUrl, imageUrl: graphicUrl, iconUrl: graphicUrl, categoryGraphicUrl: graphicUrl };
-    if (graphicState.imageStoragePath) data.graphicStoragePath = graphicState.imageStoragePath;
-    if (graphicState.imagePath || graphicState.imageStoragePath) data.imagePath = graphicState.imagePath || graphicState.imageStoragePath;
-    if (graphicState.imageWidth) data.graphicWidth = graphicState.imageWidth;
-    if (graphicState.imageHeight) data.graphicHeight = graphicState.imageHeight;
-    if (graphicState.imageFormat) data.graphicFormat = graphicState.imageFormat;
+    var data = { name: name };
     var catId = _editingId || window._catDraftId || _newEntityId('cat');
     data.id = catId;
     var op = _editingId ? DB.update('categories', _editingId, data) : DB.set('categories', catId, data);
@@ -6227,36 +6659,35 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var content = _catalogTarget();
     if (!content) return;
     var isExtras = mode === 'extras';
-    var title = isExtras ? 'Extras' : 'Grupos de Variantes';
-    var addLabel = isExtras ? '+ Novo Extra' : '+ Novo Grupo';
-    content.innerHTML = '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px;">' +
-      '<button onclick="Modules.Catalogo._openVariantModal(null)" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">' + addLabel + '</button>' +
-      '</div>' +
-      '<section style="' + _cardStyle() + '">' +
-        _sectionTitle(title + ' (' + _variants.length + ')', 'Reordene e ajuste os tipos de escolha que aparecem nos produtos.') +
-        (_variants.length === 0 ? '<div style="text-align:center;padding:48px 20px;color:#8A7E7C;font-size:14px;line-height:1.45;font-weight:600;">Nenhum grupo de variantes</div>' :
-          '<div id="variants-list" style="display:flex;flex-direction:column;gap:12px;">' +
+    var title = isExtras ? 'Extras' : 'Variantes';
+    var addLabel = isExtras ? '+ Novo extra' : '+ Novo grupo';
+    content.innerHTML =
+      '<section class="catalog-config-panel">' +
+        _catalogConfigSectionHead(title, 'Configure escolhas como tamanho, sabor, adicionais ou combinações que aparecem nos produtos.', _catalogConfigPrimaryButton(addLabel, 'Modules.Catalogo._openVariantModal(null)')) +
+        (_variants.length === 0 ? '<div class="catalog-config-empty">Nenhum grupo de variantes ainda</div>' :
+          '<div id="variants-list" class="catalog-config-list">' +
           _variants.map(function (vg) {
-            return '<div draggable="true" data-id="' + vg.id + '" style="background:#fff;border:1px solid #EAE4DA;border-radius:14px;padding:14px;box-shadow:0 1px 2px rgba(31,31,31,.03);cursor:grab;transition:background .15s ease;">' +
-              '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px;">' +
+            return '<div draggable="true" data-id="' + vg.id + '" class="catalog-config-item" style="display:block;">' +
+              '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:9px;">' +
               '<div style="display:flex;align-items:flex-start;gap:10px;min-width:0;flex:1;">' +
-              '<span class="mi" style="color:#A39B90;font-size:18px;flex-shrink:0;">drag_indicator</span>' +
-              '<div style="min-width:0;flex:1;">' +
-                '<div style="font-size:15px;font-weight:600;color:#1F1F1F;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(vg.title) + '</div>' +
-              '<div style="font-size:12px;color:#6F6860;line-height:1.35;margin-top:2px;">' + (vg.required ? 'Obrigatório' : 'Opcional') + ' · mínimo ' + (vg.minPerUnit != null ? vg.minPerUnit : vg.min || 0) + ' · máximo ' + (vg.maxPerUnit || vg.max || (vg.multiSelect ? 'vários' : 1)) + ' por item</div>' +
+              '<span class="mi catalog-config-drag">drag_indicator</span>' +
+              '<div class="catalog-config-copy">' +
+                '<strong>' + _esc(vg.title) + '</strong>' +
+              '<small>' + (vg.required ? 'Obrigatório' : 'Opcional') + ' · mínimo ' + (vg.minPerUnit != null ? vg.minPerUnit : vg.min || 0) + ' · máximo ' + (vg.maxPerUnit || vg.max || (vg.multiSelect ? 'vários' : 1)) + ' por item</small>' +
               '</div></div>' +
-              '<div style="display:flex;gap:6px;flex-shrink:0;">' +
-              '<button onclick="Modules.Catalogo._openVariantModal(\'' + vg.id + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">edit</span></button>' +
-              '<button onclick="Modules.Catalogo._deleteVariant(\'' + vg.id + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#B42318;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">delete</span></button>' +
+              '<div class="catalog-config-actions">' +
+              '<button class="catalog-config-icon-btn" onclick="Modules.Catalogo._openVariantModal(\'' + vg.id + '\')"><span class="mi">edit</span></button>' +
+              '<button class="catalog-config-icon-btn danger" onclick="Modules.Catalogo._deleteVariant(\'' + vg.id + '\')"><span class="mi">delete</span></button>' +
               '</div></div>' +
               '<div style="display:flex;gap:6px;flex-wrap:wrap;">' +
               (vg.options || []).map(function (opt) {
                 var price = parseFloat(opt.priceExtra != null ? opt.priceExtra : opt.price || 0) || 0;
                 var priceText = price ? ' (' + (price > 0 ? '+' : '-') + UI.fmt(Math.abs(price)) + ')' : '';
-                return '<span style="font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:#fff;border:1px solid #EAE4DA;color:#1F1F1F;">' + _esc(opt.label || opt.name || '') + priceText + '</span>';
+                return '<span class="catalog-config-chip" style="background:#fff;border:1px solid #E8DCD7;color:#211815;">' + _esc(opt.label || opt.name || '') + priceText + '</span>';
               }).join('') +
               '</div></div>';
-          }).join('') + '</div></section>');
+          }).join('') + '</div>') +
+      '</section>';
 
     if (_variants.length > 0) {
       var listEl = document.getElementById('variants-list');
@@ -6279,15 +6710,19 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     option = option || {};
     var img = option.img || option.imageUrl || option.image || '';
     var price = option.priceExtra != null ? option.priceExtra : option.extraPrice != null ? option.extraPrice : option.price || '';
-    return '<div class="vg-option-row" data-option-index="' + index + '" style="display:grid;grid-template-columns:minmax(0,1.35fr) 110px 118px 30px;gap:10px;align-items:end;padding:10px;border:1px solid #EAE4DA;border-radius:14px;background:#FFFCF8;margin-bottom:8px;">' +
+    return '<div class="vg-option-row catalog-config-option-row" data-option-index="' + index + '">' +
       '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Opção</span><input class="vg-option-label" type="text" value="' + _esc(option.label || option.name || '') + '" placeholder="Ex: Carne, queijo, grande..." style="' + _inputStyle() + '"></label>' +
-      '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Valor extra/desconto</span><input class="vg-option-price" type="number" step="0.01" value="' + _esc(price) + '" placeholder="0,00" style="' + _inputStyle() + '"></label>' +
-      '<div style="display:flex;align-items:center;gap:8px;min-width:0;">' +
+      '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Valor</span><input class="vg-option-price" type="number" step="0.01" value="' + _esc(price) + '" placeholder="0,00" style="' + _inputStyle() + '"></label>' +
+      '<div style="min-width:0;max-width:100%;"><span style="' + _labelStyle() + '">Imagem</span><div class="catalog-config-image-tools">' +
         '<input class="vg-option-img" type="hidden" value="' + _esc(img) + '">' +
-        (img ? '<img class="vg-option-preview" src="' + _esc(img) + '" alt="" style="width:38px;height:38px;border-radius:10px;object-fit:cover;background:#F2EDED;flex-shrink:0;">' : '<span class="vg-option-preview" style="display:none;"></span>') +
-        '<label style="height:38px;padding:0 10px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#6F6860;font-size:12px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;">Foto<input type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onchange="Modules.Catalogo._onVariantOptionImageChange(event)" style="display:none;"></label>' +
-      '</div>' +
-      '<button type="button" onclick="Modules.Catalogo._removeVariantOptionRow(this)" style="width:30px;height:38px;border-radius:10px;border:1px solid #EAE4DA;background:#fff;color:#B42318;cursor:pointer;font-family:inherit;">x</button>' +
+        '<div class="vg-option-preview catalog-config-image-preview">' + (img ? '<img src="' + _esc(img) + '" alt="">' : '<span class="mi" style="font-size:20px;">image</span>') + '</div>' +
+        '<div style="min-width:0;"><div class="catalog-config-image-actions">' +
+          '<button type="button" class="catalog-config-image-btn primary" onclick="this.parentNode.querySelector(\'input[type=file]\').click()">Enviar imagem</button>' +
+          '<button type="button" class="catalog-config-image-btn ghost" onclick="Modules.Catalogo._removeVariantOptionImage(this)">Remover imagem</button>' +
+          '<input type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onchange="Modules.Catalogo._onVariantOptionImageChange(event)" style="display:none;">' +
+        '</div><div class="catalog-config-help">JPG, PNG ou WebP. Opcional.</div></div>' +
+      '</div></div>' +
+      '<button type="button" class="option-remove-btn" onclick="Modules.Catalogo._removeVariantOptionRow(this)" style="width:32px;height:42px;border-radius:10px;border:1px solid #EAE4DA;background:#fff;color:#B42318;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;"><span class="mi" style="font-size:16px;">close</span></button>' +
       '</div>';
   }
 
@@ -6317,20 +6752,24 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       var input = row.querySelector('.vg-option-img');
       var preview = row.querySelector('.vg-option-preview');
       if (input) input.value = url;
-      if (!preview || preview.tagName !== 'IMG') {
-        var img = document.createElement('img');
-        img.className = 'vg-option-preview';
-        img.alt = '';
-        img.style.cssText = 'width:38px;height:38px;border-radius:10px;object-fit:cover;background:#F2EDED;flex-shrink:0;';
-        var parent = input ? input.parentNode : row;
-        parent.insertBefore(img, parent.querySelector('label'));
-        preview = img;
+      if (preview) {
+        preview.innerHTML = '<img src="' + _esc(url) + '" alt="">';
       }
-      preview.src = url;
-      preview.style.display = 'block';
+      UI.toast('Imagem da opção enviada.', 'success');
     }).catch(function (err) {
       UI.toast('Erro ao enviar foto: ' + err.message, 'error');
     });
+  }
+
+  function _removeVariantOptionImage(button) {
+    var row = button && button.closest ? button.closest('.vg-option-row') : null;
+    if (!row) return;
+    var input = row.querySelector('.vg-option-img');
+    var preview = row.querySelector('.vg-option-preview');
+    var file = row.querySelector('input[type="file"]');
+    if (input) input.value = '';
+    if (file) file.value = '';
+    if (preview) preview.innerHTML = '<span class="mi" style="font-size:20px;">image</span>';
   }
 
   function _openVariantModal(id) {
@@ -6343,22 +6782,22 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     if (maxPerUnit < 1) maxPerUnit = 1;
     if (minPerUnit > maxPerUnit) minPerUnit = maxPerUnit;
 
-    var body = '<div>' +
-      '<div style="margin-bottom:12px;"><label style="' + _labelStyle() + '">Título do Grupo *</label>' +
-      '<input id="vg-title" type="text" value="' + _esc(vg.title || '') + '" placeholder="Ex: Tamanho, Molhos..." style="' + _inputStyle() + '"></div>' +
-      '<div style="display:grid;grid-template-columns:1fr 110px 110px;gap:12px;margin-bottom:12px;align-items:end;">' +
-      '<div style="display:flex;align-items:center;gap:8px;padding:10px;background:#FAFAF8;border-radius:10px;border:1px solid #EAE4DA;">' +
+    var body = '<div class="catalog-config-modal-card">' +
+      '<label style="display:block;margin-bottom:12px;"><span style="' + _labelStyle() + '">Nome do grupo *</span>' +
+      '<input id="vg-title" type="text" value="' + _esc(vg.title || '') + '" placeholder="Ex: Tamanho, molhos..." style="' + _inputStyle() + '"></label>' +
+      '<div class="catalog-config-grid compact" style="margin-bottom:12px;">' +
+      '<div class="catalog-config-checkline">' +
       '<input type="checkbox" id="vg-required"' + (vg.required ? ' checked' : '') + ' style="width:16px;height:16px;accent-color:#B42318;">' +
       '<label for="vg-required" style="font-size:13px;font-weight:500;color:#1F1F1F;cursor:pointer;">Obrigatório</label></div>' +
       '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Mínimo por item</span><input id="vg-min" type="number" min="0" step="1" value="' + minPerUnit + '" style="' + _inputStyle() + '"></label>' +
       '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Máximo por item</span><input id="vg-max" type="number" min="1" step="1" value="' + maxPerUnit + '" style="' + _inputStyle() + '"></label>' +
       '</div>' +
-      '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0 8px;"><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;">Opções</div><div style="font-size:12px;color:#6F6860;margin-top:2px;">Use valor positivo para acréscimo e negativo para desconto. A foto é opcional.</div></div><button type="button" onclick="Modules.Catalogo._addVariantOptionRow()" style="height:34px;padding:0 12px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#B42318;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">+ Opção</button></div>' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0 8px;"><div><div style="font-size:13px;font-weight:650;color:#211815;">Opções</div><div class="catalog-config-help">Use valor positivo para acréscimo e negativo para desconto. A foto é opcional.</div></div><button type="button" onclick="Modules.Catalogo._addVariantOptionRow()" style="height:34px;padding:0 12px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#B42318;font-size:12px;font-weight:650;cursor:pointer;font-family:inherit;">+ Opção</button></div>' +
       '<div id="vg-options-list">' + _variantOptionRows(vg.options || []) + '</div>' +
       '</div>';
 
-    var footer = '<button onclick="Modules.Catalogo._saveVariant()" style="width:100%;height:40px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:14px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">' + (id ? 'Atualizar' : 'Criar Grupo') + '</button>';
-    window._variantModal = UI.modal({ title: id ? 'Editar Grupo' : 'Novo Grupo de Variantes', body: body, footer: footer });
+    var footer = '<button onclick="Modules.Catalogo._saveVariant()" style="height:40px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:14px;font-weight:650;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">' + (id ? 'Salvar grupo' : 'Criar grupo') + '</button>';
+    window._variantModal = UI.modal({ title: id ? 'Editar grupo' : 'Novo grupo de variantes', body: body, footer: footer });
   }
 
   function _saveVariant() {
@@ -7604,50 +8043,49 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   function _paintTagsTab() {
     var content = _catalogTarget();
     if (!content) return;
-    content.innerHTML = '<div style="display:flex;align-items:flex-start;justify-content:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:16px;">' +
-      '<button onclick="Modules.Catalogo._openTagModal(null)" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">+ Adicionar tag</button>' +
-      '</div>' +
-      '<section style="' + _cardStyle() + '">' +
-        _sectionTitle('Tags (' + _tags.length + ')', 'As tags aparecem no cardápio com chip discreto e legível.') +
-        (_tags.length === 0 ? '<div style="text-align:center;padding:48px 20px;color:#8A7E7C;font-size:14px;line-height:1.45;font-weight:600;">Nenhuma tag ainda</div>' :
-          '<div style="display:flex;flex-direction:column;gap:10px;">' +
+    content.innerHTML =
+      '<section class="catalog-config-panel">' +
+        _catalogConfigSectionHead('Tags', 'Crie selos visuais para destacar produtos no cardápio.', _catalogConfigPrimaryButton('+ Adicionar tag', 'Modules.Catalogo._openTagModal(null)')) +
+        (_tags.length === 0 ? '<div class="catalog-config-empty">Nenhuma tag ainda</div>' :
+          '<div class="catalog-config-list">' +
           _tags.map(function (tag) {
-            return '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;background:#fff;border:1px solid #EAE4DA;border-radius:14px;box-shadow:0 1px 2px rgba(31,31,31,.03);">' +
+            return '<div class="catalog-config-tag-row">' +
               '<div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1;">' +
-                '<span style="background:' + (tag.bgColor || '#B42318') + ';color:' + (tag.textColor || '#fff') + ';padding:5px 12px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;">' + _esc(tag.text) + '</span>' +
+                '<span class="catalog-config-chip" style="background:' + (tag.bgColor || '#B42318') + ';color:' + (tag.textColor || '#fff') + ';">' + _esc(tag.text) + '</span>' +
                 '<div style="font-size:12px;color:#6F6860;line-height:1.35;">Chip usado para filtros, promoções e destaques visuais.</div>' +
               '</div>' +
-              '<div style="display:flex;gap:6px;flex-shrink:0;">' +
-                '<button onclick="Modules.Catalogo._openTagModal(\'' + tag.id + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">edit</span></button>' +
-                '<button onclick="Modules.Catalogo._deleteTag(\'' + tag.id + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#B42318;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">delete</span></button>' +
+              '<div class="catalog-config-actions">' +
+                '<button class="catalog-config-icon-btn" onclick="Modules.Catalogo._openTagModal(\'' + tag.id + '\')"><span class="mi">edit</span></button>' +
+                '<button class="catalog-config-icon-btn danger" onclick="Modules.Catalogo._deleteTag(\'' + tag.id + '\')"><span class="mi">delete</span></button>' +
               '</div>' +
             '</div>';
-          }).join('') + '</div></section>');
+          }).join('') + '</div>') +
+      '</section>';
   }
 
   function _openTagModal(id) {
     _editingId = id;
     var tag = id ? (_tags.find(function (x) { return x.id === id; }) || {}) : {};
-    var body = '<div>' +
-      '<div style="margin-bottom:12px;"><label style="' + _labelStyle() + '">Texto da Tag *</label>' +
-      '<input id="tag-text" type="text" value="' + _esc(tag.text || '') + '" placeholder="ex: Novo, Promoção..." style="' + _inputStyle() + '"></div>' +
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">' +
-      '<div><label style="' + _labelStyle() + '">Cor de Fundo</label>' +
+    var body = '<div class="catalog-config-modal-card">' +
+      '<label style="display:block;margin-bottom:12px;"><span style="' + _labelStyle() + '">Texto da tag *</span>' +
+      '<input id="tag-text" type="text" value="' + _esc(tag.text || '') + '" placeholder="ex: Novo, Promoção..." style="' + _inputStyle() + '"></label>' +
+      '<div class="catalog-config-grid" style="margin-bottom:12px;">' +
+      '<div><label style="' + _labelStyle() + '">Cor de fundo</label>' +
       '<div style="display:flex;align-items:center;gap:8px;">' +
       '<input type="color" id="tag-bg" value="' + (tag.bgColor || '#B42318') + '" onchange="Modules.Catalogo._updateTagModalPreview()" style="width:40px;height:40px;border:1px solid #EAE4DA;border-radius:10px;cursor:pointer;padding:2px;background:#fff;">' +
       '<input type="text" id="tag-bg-hex" value="' + (tag.bgColor || '#B42318') + '" oninput="document.getElementById(\'tag-bg\').value=this.value;Modules.Catalogo._updateTagModalPreview()" style="flex:1;' + _inputStyle() + '">' +
       '</div></div>' +
-      '<div><label style="' + _labelStyle() + '">Cor do Texto</label>' +
+      '<div><label style="' + _labelStyle() + '">Cor do texto</label>' +
       '<div style="display:flex;align-items:center;gap:8px;">' +
       '<input type="color" id="tag-color" value="' + (tag.textColor || '#ffffff') + '" onchange="Modules.Catalogo._updateTagModalPreview()" style="width:40px;height:40px;border:1px solid #EAE4DA;border-radius:10px;cursor:pointer;padding:2px;background:#fff;">' +
       '<input type="text" id="tag-color-hex" value="' + (tag.textColor || '#ffffff') + '" oninput="document.getElementById(\'tag-color\').value=this.value;Modules.Catalogo._updateTagModalPreview()" style="flex:1;' + _inputStyle() + '">' +
       '</div></div>' +
       '</div>' +
-      '<div style="text-align:center;margin-top:8px;">' +
-      '<span id="tag-modal-preview" style="background:' + (tag.bgColor || '#B42318') + ';color:' + (tag.textColor || '#fff') + ';padding:6px 18px;border-radius:999px;font-size:13px;font-weight:600;">' + _esc(tag.text || 'Prévia') + '</span>' +
+      '<div class="catalog-config-softbox" style="text-align:center;">' +
+      '<span id="tag-modal-preview" class="catalog-config-chip" style="background:' + (tag.bgColor || '#B42318') + ';color:' + (tag.textColor || '#fff') + ';font-size:13px;">' + _esc(tag.text || 'Prévia') + '</span>' +
       '</div></div>';
-    var footer = '<button onclick="Modules.Catalogo._saveTag()" style="width:100%;height:40px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:14px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">' + (id ? 'Atualizar' : 'Criar Tag') + '</button>';
-    window._tagModal = UI.modal({ title: id ? 'Editar Tag' : 'Nova Tag', body: body, footer: footer });
+    var footer = '<button onclick="Modules.Catalogo._saveTag()" style="height:40px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:14px;font-weight:650;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">' + (id ? 'Salvar tag' : 'Criar tag') + '</button>';
+    window._tagModal = UI.modal({ title: id ? 'Editar tag' : 'Nova tag', body: body, footer: footer });
   }
 
   function _updateTagModalPreview() {
@@ -7699,7 +8137,10 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     _switchSub: _switchSub, _setTemplateTab: _setTemplateTab,
     _refreshProductPromotions: _refreshProductPromotions,
     _setCatalogCfgSub: _setCatalogCfgSub,
+    _refreshTemplatePreview: _refreshTemplatePreview,
+    _onTemplateHoursChange: _onTemplateHoursChange,
     _uploadStoreImage: _uploadStoreImage, _saveTemplateLoja: _saveTemplateLoja, _saveSeoLoja: _saveSeoLoja,
+    _clearStoreImage: _clearStoreImage,
     _openProductModal: _openProductModal, _toggleVis: _toggleVis, _saveProduct: _saveProduct, _deleteProduct: _deleteProduct, _duplicateProduct: _duplicateProduct, _openImportProducts: _openImportProducts, _filterProdutos: _filterProdutos, _setProductFilter: _setProductFilter, _setProductSort: _setProductSort, _setProductPage: _setProductPage, _setProductPageSize: _setProductPageSize, _clearProductFilters: _clearProductFilters, _quickUpdateProduct: _quickUpdateProduct,
     _onProductNameChange: _onProductNameChange, _onProductDescChange: _onProductDescChange, _refreshProductPreview: _refreshProductPreview, _moneyInputFocus: _moneyInputFocus, _moneyInputBlur: _moneyInputBlur,
     _seoEdited: _seoEdited, _onTipoChange: _onTipoChange, _onUnicoSrcChange: _onUnicoSrcChange,
@@ -7710,7 +8151,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     _onProntoImgChange: _onProntoImgChange, _onFichaImgChange: _onFichaImgChange,
     _openCatModal: _openCatModal, _selectCatColor: _selectCatColor, _uploadCategoryGraphic: _uploadCategoryGraphic, _clearCategoryGraphic: _clearCategoryGraphic, _uploadTemplateCategoryGraphic: _uploadTemplateCategoryGraphic, _moveTemplateCategory: _moveTemplateCategory, _saveCat: _saveCat, _deleteCat: _deleteCat,
     _openProntosModal: _openProntosModal, _savePronto: _savePronto, _deletePronto: _deletePronto,
-    _openVariantModal: _openVariantModal, _addVariantOptionRow: _addVariantOptionRow, _removeVariantOptionRow: _removeVariantOptionRow, _onVariantOptionImageChange: _onVariantOptionImageChange, _toggleProductVariantPreview: _toggleProductVariantPreview, _saveVariant: _saveVariant, _deleteVariant: _deleteVariant,
+    _openVariantModal: _openVariantModal, _addVariantOptionRow: _addVariantOptionRow, _removeVariantOptionRow: _removeVariantOptionRow, _onVariantOptionImageChange: _onVariantOptionImageChange, _removeVariantOptionImage: _removeVariantOptionImage, _toggleProductVariantPreview: _toggleProductVariantPreview, _saveVariant: _saveVariant, _deleteVariant: _deleteVariant,
     _openItemCustoModal: _openItemCustoModal, _saveItemCusto: _saveItemCusto, _deleteItemCusto: _deleteItemCusto,
     _filterItensCusto: _filterItensCusto, _setItensCustoFilter: _setItensCustoFilter, _onItemTipoChange: _onItemTipoChange,
     _openFichaViewModal: _openFichaViewModal, _editFichaFromView: _editFichaFromView,

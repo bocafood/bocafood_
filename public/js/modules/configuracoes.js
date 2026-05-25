@@ -100,6 +100,80 @@ Modules.Configuracoes = (function () {
     '</style>';
   }
 
+  function _ensureConfigModalStyles() {
+    if (document.getElementById('config-modal-style')) return;
+    var style = document.createElement('style');
+    style.id = 'config-modal-style';
+    style.textContent = '' +
+      '.config-modal-card{background:linear-gradient(180deg,#FFFFFF 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:16px;box-shadow:0 10px 24px rgba(31,31,31,.045),inset 0 1px 0 rgba(255,255,255,.78);font-family:Manrope,Inter,sans-serif;color:#211815;}' +
+      '.config-modal-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start;}' +
+      '.config-modal-grid.compact{grid-template-columns:minmax(0,1fr) 110px 150px;align-items:end;}' +
+      '.config-modal-field-full{grid-column:1/-1;}' +
+      '.config-modal-field{display:block;min-width:0;}' +
+      '.config-modal-field>span{display:block;margin-bottom:5px;font-size:11px;font-weight:700;color:#6F6860;letter-spacing:.02em;text-transform:none;}' +
+      '.config-modal-input,.config-modal-select,.config-modal-textarea{width:100%;box-sizing:border-box;border:1px solid #E8DCD7;border-radius:12px;background:#FFFCF8;color:#211815;font-family:Manrope,Inter,sans-serif;font-size:14px;outline:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.82);transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;}' +
+      '.config-modal-input,.config-modal-select{height:42px;padding:0 12px;}' +
+      '.config-modal-textarea{min-height:86px;padding:10px 12px;line-height:1.45;resize:vertical;}' +
+      '.config-modal-input:focus,.config-modal-select:focus,.config-modal-textarea:focus{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08),inset 0 1px 0 rgba(255,255,255,.82);}' +
+      '.config-modal-select-wrap{position:relative;display:block;}' +
+      '.config-modal-select{appearance:none;-webkit-appearance:none;-moz-appearance:none;padding-right:42px;background:#FFFCF8;}' +
+      '.config-modal-select-arrow{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:19px;color:#6F6860;line-height:1;pointer-events:none;}' +
+      '.config-modal-help{font-size:11px;color:#8A7E7C;line-height:1.35;margin-top:5px;}' +
+      '.config-modal-footer{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;width:100%;}' +
+      '.config-modal-btn{height:40px;padding:0 14px;border-radius:12px;font-family:Manrope,Inter,sans-serif;font-size:13px;font-weight:650;cursor:pointer;}' +
+      '.config-modal-btn.secondary{border:1px solid #E8DCD7;background:#fff;color:#6F6860;}' +
+      '.config-modal-btn.primary{border:none;background:#B42318;color:#fff;box-shadow:0 8px 18px rgba(180,35,24,.16);}' +
+      '@media(max-width:680px){.config-modal-grid,.config-modal-grid.compact{grid-template-columns:1fr}.config-modal-footer{justify-content:stretch}.config-modal-btn{flex:1 1 140px}}';
+    document.head.appendChild(style);
+  }
+
+  function _ensureStoreLinkStyles() {
+    if (document.getElementById('store-link-style')) return;
+    var style = document.createElement('style');
+    style.id = 'store-link-style';
+    style.textContent = '' +
+      '.store-link-page{display:flex;flex-direction:column;gap:16px;max-width:1040px;margin:0 auto;width:100%;font-family:Manrope,Inter,sans-serif;color:#211815;}' +
+      '.store-link-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;}' +
+      '.store-link-head h2{font-size:22px;font-weight:700;line-height:1.15;margin:0 0 6px;color:#1F1F1F;}' +
+      '.store-link-head p{font-size:13px;color:#6F6860;line-height:1.5;margin:0;max-width:680px;}' +
+      '.store-link-chips{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;}' +
+      '.store-link-chip{display:inline-flex;align-items:center;min-height:26px;padding:0 10px;border-radius:999px;background:#fff;border:1px solid #EADFD8;color:#6F6860;font-size:12px;font-weight:600;box-shadow:0 1px 2px rgba(31,31,31,.025);}' +
+      '.store-link-card,.store-link-hero,.store-link-note,.store-link-footer{background:linear-gradient(180deg,#FFFFFF 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;box-shadow:0 10px 24px rgba(31,31,31,.045),inset 0 1px 0 rgba(255,255,255,.78);}' +
+      '.store-link-card{padding:16px 18px;}' +
+      '.store-link-hero{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;padding:18px 20px;}' +
+      '.store-link-hero-copy{min-width:0;}' +
+      '.store-link-hero-copy span{display:block;font-size:12px;font-weight:600;color:#6F6860;margin-bottom:5px;}' +
+      '.store-link-hero-copy strong{display:block;font-size:clamp(21px,2.35vw,30px);font-weight:700;color:#1F1F1F;line-height:1.08;word-break:break-word;}' +
+      '.store-link-hero-copy small{display:block;font-size:12px;color:#8A7E7C;line-height:1.4;margin-top:7px;}' +
+      '.store-link-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid rgba(232,221,213,.82);}' +
+      '.store-link-card-head h3{font-size:15px;font-weight:700;color:#211815;line-height:1.2;margin:0 0 4px;}' +
+      '.store-link-card-head p{font-size:12px;color:#82766F;line-height:1.42;margin:0;max-width:720px;}' +
+      '.store-link-status{display:inline-flex;align-items:center;min-height:28px;padding:0 11px;border-radius:999px;font-size:12px;font-weight:650;border:1px solid #EAE4DA;background:#FAF8F4;color:#6F6860;}' +
+      '.store-link-status.ok{background:#F0FFF4;border-color:#D9F2E3;color:#1F6F43;}' +
+      '.store-link-status.warn{background:#FFF7ED;border-color:#F3D9C7;color:#B45309;}' +
+      '.store-link-status.neutral{background:#FAF8F4;border-color:#EAE4DA;color:#6F6860;}' +
+      '.store-link-field-grid{display:grid;grid-template-columns:minmax(260px,420px);gap:12px;align-items:start;}' +
+      '.store-link-field{display:block;min-width:0;}' +
+      '.store-link-field span{display:block;margin-bottom:5px;font-size:11px;font-weight:700;color:#6F6860;letter-spacing:.02em;}' +
+      '.store-link-field input{width:100%;height:42px;box-sizing:border-box;border:1px solid #E8DCD7;border-radius:12px;background:#FFFCF8;color:#211815;font-family:Manrope,Inter,sans-serif;font-size:14px;outline:none;padding:0 12px;box-shadow:inset 0 1px 0 rgba(255,255,255,.82);transition:border-color .16s,box-shadow .16s,background .16s;}' +
+      '.store-link-field input:focus{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08),inset 0 1px 0 rgba(255,255,255,.82);}' +
+      '.store-link-field small{display:block;font-size:11px;color:#8A7E7C;line-height:1.35;margin-top:5px;}' +
+      '.store-link-url-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;}' +
+      '.store-link-status-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;}' +
+      '.store-link-secondary-btn,.store-link-primary-btn{height:40px;border-radius:12px;font-family:Manrope,Inter,sans-serif;font-size:13px;font-weight:650;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:7px;white-space:nowrap;}' +
+      '.store-link-secondary-btn{padding:0 14px;border:1px solid #E8DCD7;background:#fff;color:#6F6860;box-shadow:0 1px 2px rgba(31,31,31,.03);}' +
+      '.store-link-secondary-btn .mi{font-size:17px;}' +
+      '.store-link-primary-btn{padding:0 16px;border:none;background:#B42318;color:#fff;box-shadow:0 8px 18px rgba(180,35,24,.16);}' +
+      '.store-link-note{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;}' +
+      '.store-link-note>.mi{width:36px;height:36px;border-radius:12px;background:#FFFCF8;color:#B45309;display:flex;align-items:center;justify-content:center;flex:0 0 auto;font-size:21px;}' +
+      '.store-link-note strong{display:block;font-size:13px;font-weight:700;color:#211815;margin-bottom:3px;}' +
+      '.store-link-note p{font-size:12px;color:#6F6860;line-height:1.45;margin:0;}' +
+      '.store-link-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;position:sticky;bottom:0;z-index:2;padding:12px 14px;}' +
+      '.store-link-footer div{font-size:13px;color:#6F6860;line-height:1.45;}' +
+      '@media(max-width:720px){.store-link-hero{grid-template-columns:1fr}.store-link-secondary-btn,.store-link-primary-btn{width:100%}.store-link-field-grid{grid-template-columns:1fr}.store-link-footer{position:static}}';
+    document.head.appendChild(style);
+  }
+
   function _switchSub(key) {
     _activeSub = _normalizeSub(key);
     _renderSub();
@@ -824,15 +898,18 @@ Modules.Configuracoes = (function () {
   }
 
   function _openFornecedorModal(id) {
+    _ensureConfigModalStyles();
     _editingFornecedorId = id;
     var f = id ? (_fornecedores.find(function (x) { return x.id === id; }) || {}) : {};
-    var body = '<div style="display:flex;flex-direction:column;gap:12px;">' +
-      '<label class="bf-field"><span>Nome *</span><input id="forn-name" class="bf-input" type="text" value="' + _esc(f.name || '') + '"></label>' +
-      '<label class="bf-field"><span>Contato (telefone / email)</span><input id="forn-contact" class="bf-input" type="text" value="' + _esc(f.contact || '') + '"></label>' +
-      '<label class="bf-field"><span>Observações</span><textarea id="forn-notes" class="bf-textarea" style="min-height:70px;">' + _esc(f.notes || '') + '</textarea></label>' +
+    var body = '<div class="config-modal-card">' +
+      '<div class="config-modal-grid">' +
+        '<label class="config-modal-field config-modal-field-full"><span>Nome do fornecedor *</span><input id="forn-name" class="config-modal-input" type="text" value="' + _esc(f.name || '') + '" placeholder="Ex.: Mercado Central"></label>' +
+        '<label class="config-modal-field config-modal-field-full"><span>Contato</span><input id="forn-contact" class="config-modal-input" type="text" value="' + _esc(f.contact || '') + '" placeholder="Telefone, WhatsApp ou e-mail"></label>' +
+        '<label class="config-modal-field config-modal-field-full"><span>Observações</span><textarea id="forn-notes" class="config-modal-textarea" placeholder="Anotações úteis para compras, atendimento ou condições combinadas.">' + _esc(f.notes || '') + '</textarea><div class="config-modal-help">Use este campo para detalhes que ajudam no dia a dia da compra.</div></label>' +
+      '</div>' +
       '</div>';
-    var footer = '<button class="bf-btn bf-btn-primary" onclick="Modules.Configuracoes._saveFornecedor()" style="width:100%;">' + (id ? 'Atualizar' : 'Adicionar') + '</button>';
-    window._fornecedorModal = UI.modal({ title: id ? 'Editar Fornecedor' : 'Novo Fornecedor', body: body, footer: footer });
+    var footer = '<div class="config-modal-footer"><button class="config-modal-btn secondary" onclick="if(window._fornecedorModal)window._fornecedorModal.close();">Cancelar</button><button class="config-modal-btn primary" onclick="Modules.Configuracoes._saveFornecedor()">' + (id ? 'Salvar fornecedor' : 'Adicionar fornecedor') + '</button></div>';
+    window._fornecedorModal = UI.modal({ title: id ? 'Editar fornecedor' : 'Novo fornecedor', body: body, footer: footer, maxWidth: '560px' });
   }
 
   function _saveFornecedor() {
@@ -864,23 +941,24 @@ Modules.Configuracoes = (function () {
   }
 
   function _openUnidadeModal(id) {
+    _ensureConfigModalStyles();
     _editingUnidadeId = id;
     var u = id ? (_unidades.find(function (x) { return x.id === id; }) || {}) : {};
-    var body = '<div style="display:flex;flex-direction:column;gap:12px;">' +
-      '<label class="bf-field"><span>Nome *</span><input id="un-name" class="bf-input" type="text" value="' + _esc(u.name || '') + '" placeholder="ex: Quilograma"></label>' +
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
-      '<label class="bf-field"><span>Símbolo *</span>' +
-      '<input id="un-symbol" class="bf-input" type="text" value="' + _esc(u.symbol || '') + '" placeholder="kg"></label>' +
-      '<label class="bf-field"><span>Tipo *</span>' +
-      '<select id="un-type" class="bf-select">' +
+    var body = '<div class="config-modal-card">' +
+      '<div class="config-modal-grid compact">' +
+      '<label class="config-modal-field"><span>Nome *</span><input id="un-name" class="config-modal-input" type="text" value="' + _esc(u.name || '') + '" placeholder="Ex.: Quilograma"></label>' +
+      '<label class="config-modal-field"><span>Símbolo *</span><input id="un-symbol" class="config-modal-input" type="text" value="' + _esc(u.symbol || '') + '" placeholder="kg"></label>' +
+      '<label class="config-modal-field"><span>Tipo *</span><span class="config-modal-select-wrap">' +
+      '<select id="un-type" class="config-modal-select">' +
       '<option value="massa"' + (u.type === 'massa' ? ' selected' : '') + '>Massa</option>' +
       '<option value="volume"' + (u.type === 'volume' ? ' selected' : '') + '>Volume</option>' +
       '<option value="unidade"' + (!u.type || u.type === 'unidade' ? ' selected' : '') + '>Unidade</option>' +
-      '</select></label>' +
+      '</select><span class="mi config-modal-select-arrow">expand_more</span></span></label>' +
+      '<div class="config-modal-help config-modal-field-full">Use unidades para padronizar produtos, ingredientes, receitas e compras.</div>' +
       '</div></div>';
 
-    var footer = '<button class="bf-btn bf-btn-primary" onclick="Modules.Configuracoes._saveUnidade()" style="width:100%;">' + (id ? 'Atualizar' : 'Adicionar') + '</button>';
-    window._unidadeModal = UI.modal({ title: id ? 'Editar Unidade' : 'Nova Unidade de Medida', body: body, footer: footer });
+    var footer = '<div class="config-modal-footer"><button class="config-modal-btn secondary" onclick="if(window._unidadeModal)window._unidadeModal.close();">Cancelar</button><button class="config-modal-btn primary" onclick="Modules.Configuracoes._saveUnidade()">' + (id ? 'Salvar unidade' : 'Adicionar unidade') + '</button></div>';
+    window._unidadeModal = UI.modal({ title: id ? 'Editar unidade' : 'Nova unidade de medida', body: body, footer: footer, maxWidth: '560px' });
   }
 
   function _saveUnidade() {
@@ -913,6 +991,7 @@ Modules.Configuracoes = (function () {
   }
 
   function _renderDominio() {
+    _ensureStoreLinkStyles();
     var c = _config.dominio || {};
     var geral = _config.geral || {};
     var suggestedSlug = _slugify(c.storeSlug || c.slug || c.subdomain || geral.storeSlug || geral.businessName || '');
@@ -922,57 +1001,51 @@ Modules.Configuracoes = (function () {
     var content = document.getElementById('config-content');
     if (!content) return;
     content.className = 'module-content';
-    content.innerHTML = '<div style="display:flex;flex-direction:column;gap:16px;">' +
-      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
-        '<div style="min-width:0;"><h2 style="font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;line-height:1.2;">Link da loja</h2><p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0;">Defina o identificador que completa o endereço público da sua loja no BocaFood.</p></div>' +
-        '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">' +
-          _configChip(slugStatus) +
-          _configChip('bocafood.app') +
+    content.innerHTML = '<div class="store-link-page">' +
+      '<div class="store-link-head">' +
+        '<div style="min-width:0;"><h2>Link da loja</h2><p>Defina o endereço que seus clientes usam para acessar sua loja no BocaFood.</p></div>' +
+        '<div class="store-link-chips">' +
+          '<span class="store-link-chip">' + _esc(slugStatus) + '</span>' +
         '</div>' +
       '</div>' +
-      '<section style="' + _configCardStyle() + 'display:grid;grid-template-columns:minmax(260px,1fr) auto;gap:14px;align-items:center;">' +
-        '<div style="min-width:0;"><div style="font-size:12px;font-weight:600;color:#6F6860;margin-bottom:5px;">Link principal da loja</div><div style="font-size:clamp(20px,2.4vw,30px);font-weight:700;color:#1F1F1F;line-height:1.1;word-break:break-all;">' + _esc(urls.publicUrl.replace(/^https?:\/\//, '')) + '</div><div style="font-size:12px;color:#8A7E7C;line-height:1.4;margin-top:7px;">Esse é o endereço público da loja. A usuária não precisa configurar domínio próprio.</div></div>' +
-        '<button type="button" class="bf-btn bf-btn-secondary" onclick="Modules.Configuracoes._copyDomainValue(\'' + _esc(urls.publicUrl) + '\')"><span class="mi" style="font-size:17px;">content_copy</span>Copiar</button>' +
+      '<section class="store-link-hero">' +
+        '<div class="store-link-hero-copy"><span>Nome público da sua loja</span><strong>' + _esc(suggestedSlug || 'minha-loja') + '</strong><small>Esse nome identifica sua loja no link público e deve ser fácil para a cliente digitar.</small></div>' +
+        '<button type="button" class="store-link-secondary-btn" onclick="Modules.Configuracoes._copyDomainValue(\'' + _esc(urls.publicUrl) + '\')"><span class="mi">content_copy</span>Copiar</button>' +
       '</section>' +
-      '<section style="' + _configCardStyle() + '">' +
-        '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:14px;">' +
-          '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">Identificador da loja</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Esse nome completa o endereço bocafood.app/ e deve ser curto, claro e fácil de escrever.</div></div>' +
-          '<span style="display:inline-flex;align-items:center;min-height:28px;padding:0 11px;border-radius:999px;background:' + (suggestedSlug ? '#F0FFF4' : '#FFF7ED') + ';border:1px solid ' + (suggestedSlug ? '#D9F2E3' : '#F3D9C7') + ';color:' + (suggestedSlug ? '#1F6F43' : '#B45309') + ';font-size:12px;font-weight:700;">' + _esc(slugStatus) + '</span>' +
+      '<section class="store-link-card">' +
+        '<div class="store-link-card-head">' +
+          '<div><h3>Identificador da loja</h3><p>Escolha um nome curto, claro e fácil de escrever. É esse nome que representa sua loja no endereço público.</p></div>' +
+          '<span class="store-link-status ' + (suggestedSlug ? 'ok' : 'warn') + '">' + _esc(slugStatus) + '</span>' +
         '</div>' +
-        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;">' +
-          '<div><label style="' + _configLabelStyle() + '">Nome do link</label><input id="cfg-store-slug" type="text" value="' + _esc(suggestedSlug) + '" placeholder="minha-loja" oninput="Modules.Configuracoes._normalizeDomainSlugField(\'cfg-store-slug\')" style="' + _configInputStyle() + '"><div style="font-size:11px;color:#8A7E7C;line-height:1.4;margin-top:5px;">Use letras, números e hífen. Exemplo: <strong>bocafood.app/minha-loja</strong>.</div></div>' +
+        '<div class="store-link-field-grid">' +
+          '<label class="store-link-field"><span>Nome do link</span><input id="cfg-store-slug" type="text" value="' + _esc(suggestedSlug) + '" placeholder="minha-loja" oninput="Modules.Configuracoes._normalizeDomainSlugField(\'cfg-store-slug\')"><small>Use letras, números e hífen. O sistema monta o endereço completo automaticamente.</small></label>' +
         '</div>' +
       '</section>' +
-      '<section style="' + _configCardStyle() + '">' +
-        '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:14px;">' +
-          '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">Links gerados pelo sistema</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Estes links são gerados automaticamente a partir do identificador da loja.</div></div>' +
-          '<span style="display:inline-flex;align-items:center;min-height:28px;padding:0 11px;border-radius:999px;background:#FAF8F4;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:700;">Gerados automaticamente</span>' +
+      '<section class="store-link-card">' +
+        '<div class="store-link-card-head">' +
+          '<div><h3>Links da loja</h3><p>Depois de salvar o identificador, os links ficam prontos para copiar e compartilhar.</p></div>' +
+          '<span class="store-link-status neutral">Automáticos</span>' +
         '</div>' +
-        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;">' +
+        '<div class="store-link-url-grid">' +
           _domainUrlCard('Loja pública', urls.publicUrl, 'Página pública da loja.', 'storefront', true) +
-          _domainUrlCard('Pedidos', urls.orderUrl, 'Link direto para pedido/cardápio.', 'shopping_bag') +
-          _domainUrlCard('Rastreio', urls.trackUrl, 'Consulta de pedidos pelo cliente.', 'local_shipping') +
           _domainUrlCard('Avaliações', urls.reviewUrl, 'Link para clientes avaliarem a experiência.', 'reviews') +
         '</div>' +
       '</section>' +
-      '<section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">' +
+      '<section class="store-link-status-grid">' +
         _domainStatusCard('Identificador', suggestedSlug || 'Pendente', suggestedSlug ? 'Pronto para salvar.' : 'Informe o nome do link.', suggestedSlug ? '#1F6F43' : '#B45309', suggestedSlug ? 'check_circle' : 'pending') +
-        _domainStatusCard('Domínio BocaFood', 'bocafood.app', 'Usado automaticamente no link público.', '#1F6F43', 'verified') +
+        _domainStatusCard('Endereço completo', urls.publicUrl.replace(/^https?:\/\//, ''), 'Gerado automaticamente a partir do nome do link.', '#1F6F43', 'verified') +
         _domainStatusCard('Links públicos', suggestedSlug ? 'Gerados' : 'Aguardando', suggestedSlug ? 'Prontos para copiar.' : 'Dependem do identificador.', suggestedSlug ? '#6C8777' : '#B45309', 'link') +
       '</section>' +
-      '<section id="store-publication-card" style="' + _configCardStyle() + '">' + _publicationCardHtml(urls, _publicationState(urls)) + '</section>' +
-      '<section style="' + _configCardStyle() + 'display:flex;gap:12px;align-items:flex-start;">' +
-        '<div style="width:38px;height:38px;border-radius:12px;background:#FAF8F4;color:#B45309;display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span class="mi" style="font-size:22px;">info</span></div>' +
-        '<div style="min-width:0;"><div style="font-size:14px;font-weight:700;color:#1F1F1F;margin-bottom:3px;">Link público BocaFood</div><div style="font-size:13px;color:#6F6860;line-height:1.45;">A usuária define apenas o identificador da loja. O endereço final sempre segue o padrão bocafood.app/nome-da-loja, sem domínio personalizado.</div></div>' +
-      '</section>' +
-      '<section style="' + _configCardStyle('12px 14px') + 'display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;position:sticky;bottom:0;z-index:2;">' +
-        '<div style="font-size:13px;color:#6F6860;line-height:1.45;">Esses dados alimentam os links públicos da loja, pedidos, rastreio e avaliações.</div>' +
-        '<button id="config-save" class="bf-btn bf-btn-primary">Salvar link</button>' +
+      '<section id="store-publication-card" class="store-link-card">' + _publicationCardHtml(urls, _publicationState(urls)) + '</section>' +
+      '<section class="store-link-footer">' +
+        '<div>Revise o nome do link antes de salvar.</div>' +
+        '<button id="config-save" class="store-link-primary-btn">Salvar link</button>' +
       '</section>' +
     '</div>';
     document.getElementById('config-save').onclick = function () {
       var slug = _slugify(_val('cfg-store-slug'));
       if (!slug) { UI.toast('Informe o nome do link da loja.', 'error'); return; }
+      if (_isReservedStoreSlug(slug)) { UI.toast('Esse nome não pode ser usado no link da loja.', 'error'); return; }
       var root = _cleanDomain(rootDomain);
       var custom = _cleanDomain(c.customDomain);
       var generated = _domainUrls(slug, root, { customDomain: custom });
@@ -992,7 +1065,9 @@ Modules.Configuracoes = (function () {
         reviewUrl: generated.reviewUrl,
         apiUrl: generated.apiUrl
       };
-      DB.setDocRoot('config', 'dominio', dominioData).then(function () {
+      _validateStoreSlugAvailable(slug).then(function () {
+        return DB.setDocRoot('config', 'dominio', dominioData);
+      }).then(function () {
         _config.dominio = dominioData;
         return _syncStoreSlugUrl(slug, generated);
       }).then(function () {
@@ -1045,11 +1120,12 @@ Modules.Configuracoes = (function () {
     var db = firebase.firestore();
     var now = new Date().toISOString();
     var previousSlug = _slugify((previousStore && previousStore.slug) || '');
+    var publicStatus = store && store.status === 'published' ? 'active' : 'inactive';
     var publicData = {
       tenantId: tenantId,
       slug: slug,
       storeName: store.name || ((_config.geral || {}).businessName) || ((_config.geral || {}).name) || '',
-      status: 'active',
+      status: publicStatus,
       publicUrl: urls.publicUrl,
       updatedAt: now
     };
@@ -1153,7 +1229,7 @@ Modules.Configuracoes = (function () {
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">' +
         _domainStatusCard('URL pública calculada', state.publicUrl || urls.publicUrl, 'Link usado na loja publicada.', '#6C8777', 'link') +
         _domainStatusCard('Status atual', statusMeta.label, statusMeta.hint, statusMeta.color, statusMeta.icon) +
-        _domainStatusCard('Última publicação', _formatPlanDate(state.lastPublishedAt || state.publishedAt), 'Data registrada em system_tenants.', state.lastPublishedAt || state.publishedAt ? '#2F6B57' : '#9A6A2F', 'event_available') +
+        _domainStatusCard('Última publicação', _formatPlanDate(state.lastPublishedAt || state.publishedAt), state.lastPublishedAt || state.publishedAt ? 'Última vez que a loja foi publicada.' : 'Ainda sem publicação registrada.', state.lastPublishedAt || state.publishedAt ? '#2F6B57' : '#9A6A2F', 'event_available') +
       '</div>' +
       (state.lastPublicationError ? '<div style="margin-top:12px;padding:12px 14px;border:1px solid #F0C9C0;border-radius:12px;background:#FFF8F6;color:#7A352B;font-size:13px;line-height:1.45;"><strong>Erro da última publicação:</strong> ' + _esc(state.lastPublicationError) + '</div>' : '') +
       (suspended ? '<div style="margin-top:12px;padding:12px 14px;border:1px solid #F0C9C0;border-radius:12px;background:#FFF8F6;color:#7A352B;font-size:13px;line-height:1.45;">Sua loja está suspensa. Entre em contato com o suporte BocaFood.</div>' : missingHtml) +
@@ -1182,6 +1258,14 @@ Modules.Configuracoes = (function () {
     var slug = _slugify(_val('cfg-store-slug') || c.storeSlug || c.slug || c.subdomain || '');
     var urls = _domainUrls(slug, root, { customDomain: custom });
     var state = _publicationState(urls);
+    if (!slug) {
+      UI.toast('Informe o nome do link da loja.', 'error');
+      return;
+    }
+    if (_isReservedStoreSlug(slug)) {
+      UI.toast('Esse nome não pode ser usado no link da loja.', 'error');
+      return;
+    }
     if (state.suspended) {
       UI.toast('Sua loja está suspensa. Entre em contato com o suporte BocaFood.', 'error');
       return;
@@ -1196,7 +1280,8 @@ Modules.Configuracoes = (function () {
         .catch(function (err) { UI.toast('Erro ao validar publicação: ' + err.message, 'error'); });
       return;
     }
-    DB.setDocRoot('config', 'dominio', {
+    _validateStoreSlugAvailable(slug).then(function () {
+      return DB.setDocRoot('config', 'dominio', {
       storeSlug: slug,
       slug: slug,
       subdomain: slug,
@@ -1211,6 +1296,7 @@ Modules.Configuracoes = (function () {
       trackUrl: urls.trackUrl,
       reviewUrl: urls.reviewUrl,
       apiUrl: urls.apiUrl
+      });
     }).then(function () {
       return _updateStorePublication('published', urls, { publishedAt: new Date().toISOString(), lastPublishedAt: new Date().toISOString(), lastPublicationError: '' }, 'store_published');
     }).then(function () {
@@ -1245,7 +1331,8 @@ Modules.Configuracoes = (function () {
     var now = new Date().toISOString();
     var geral = _config.geral || {};
     var endereco = _config.endereco || {};
-    var store = Object.assign({}, ((_systemTenant && _systemTenant.store) || {}), {
+    var previousStore = Object.assign({}, ((_systemTenant && _systemTenant.store) || {}));
+    var store = Object.assign({}, previousStore, {
       name: geral.businessName || ((_systemTenant.store || {}).name) || '',
       slug: urls && urls.publicUrl ? _slugify(_val('cfg-store-slug') || ((_config.dominio || {}).slug)) : ((_systemTenant.store || {}).slug || ''),
       publicUrl: urls.publicUrl,
@@ -1255,7 +1342,7 @@ Modules.Configuracoes = (function () {
     }, extraStore || {});
     return firebase.firestore().collection('system_tenants').doc(tenantId).set({ store: store, updatedAt: now }, { merge: true }).then(function () {
       _systemTenant.store = store;
-      return _syncPublicStoreSlug(tenantId, store.slug, urls, store, ((_systemTenant && _systemTenant.store) || {}));
+      return _syncPublicStoreSlug(tenantId, store.slug, urls, store, previousStore);
     }).then(function () {
       return _recordActivity({
         action: action,
@@ -1770,6 +1857,47 @@ Modules.Configuracoes = (function () {
       .replace(/^-+|-+$/g, '')
       .replace(/-{2,}/g, '-')
       .slice(0, 48);
+  }
+
+  function _reservedStoreSlugs() {
+    return {
+      admin: true,
+      'admin-html': true,
+      index: true,
+      'index-html': true,
+      cadastro: true,
+      login: true,
+      master: true,
+      'master-html': true,
+      termos: true,
+      termosdeuso: true,
+      privacidade: true,
+      politicadeprivacidade: true,
+      'redefinir-senha': true,
+      rr: true,
+      api: true,
+      review: true,
+      track: true
+    };
+  }
+
+  function _isReservedStoreSlug(slug) {
+    return !!_reservedStoreSlugs()[_slugify(slug)];
+  }
+
+  function _validateStoreSlugAvailable(slug) {
+    var tenantId = window.Auth && Auth.getTenantId ? Auth.getTenantId() : '';
+    if (!tenantId || !window.firebase || !firebase.firestore) return Promise.reject(new Error('Tenant não identificado.'));
+    if (!slug) return Promise.reject(new Error('Informe o nome do link da loja.'));
+    if (_isReservedStoreSlug(slug)) return Promise.reject(new Error('Esse nome não pode ser usado no link da loja.'));
+    return firebase.firestore().collection('public_stores').doc(slug).get().then(function (snap) {
+      if (!snap.exists) return true;
+      var data = snap.data() || {};
+      if (data.tenantId && data.tenantId !== tenantId) {
+        throw new Error('Esse nome de link já está sendo usado por outra loja.');
+      }
+      return true;
+    });
   }
 
   function _cleanDomain(value) {
