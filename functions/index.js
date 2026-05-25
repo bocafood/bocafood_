@@ -1,14 +1,21 @@
 const { onRequest, onCall, HttpsError } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const net = require("net");
 const tls = require("tls");
 const crypto = require("crypto");
 
-admin.initializeApp();
+admin.initializeApp({
+  projectId: process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || "bocado-brasil"
+});
 
 const db = admin.firestore();
 const REGION = "us-central1";
+const FIREBASE_ADMIN_SERVICE_ACCOUNT = "firebase-adminsdk-fbsvc@bocado-brasil.iam.gserviceaccount.com";
+const FIRESTORE_BACKUP_DEFAULT_BUCKET = "gs://bocado-brasil-firestore-backups";
+const BOCAFOOD_BRAND_LOGO_URL = "https://bocafood.app/assets/boca-food-logo.png?v=20260518-bocafood-logo";
+const HOTMART_HOTTOK_SECRET = defineSecret("HOTMART_HOTTOK");
 const MASTER_EMAILS = new Set([
   "bocadobrasil.es@gmail.com",
   "pcruz.digital@gmail.com"
@@ -17,6 +24,12 @@ const HOTMART_OFFER_PLANS = {
   u7wyvsyn: { planSlug: "essencial", billingCycle: "monthly", trialDays: 15 },
   kah1d2ne: { planSlug: "compromisso_anual", billingCycle: "annual", trialDays: 15 },
   woavlwrh: { planSlug: "fundadoras", billingCycle: "monthly", trialDays: 0 }
+};
+const PLAN_DISPLAY_NAMES = {
+  essencial: "Plano Essencial",
+  compromisso_anual: "Plano Compromisso Anual",
+  fundadoras: "Plano Fundadoras",
+  starter: "Plano Essencial"
 };
 const TENANT_TAG_KEYS = [
   "trial_ending",
@@ -30,6 +43,135 @@ const TENANT_TAG_KEYS = [
   "hotmart_pending_access",
   "inactive_user"
 ];
+
+const HOTMART_BLOCKED_STATUSES = ["canceled", "refunded", "chargeback"];
+
+function normalizeBocaFoodBrandLogoUrl(value) {
+  const url = String(value || "").trim();
+  if (!url || url.includes("logo%20BocaFood.png") || url.includes("logo BocaFood.png")) return BOCAFOOD_BRAND_LOGO_URL;
+  return url;
+}
+
+const CRM_TAG_DEFAULTS = {
+  trial_sem_cardapio: {
+    name: "Trial sem cardápio",
+    key: "trial_sem_cardapio",
+    description: "Conta em trial que ainda não iniciou o cardápio.",
+    color: "#F59E0B",
+    enabled: true,
+    createdBy: "system"
+  },
+  usuario_inativo: {
+    name: "Usuário inativo",
+    key: "usuario_inativo",
+    description: "Conta com pouca atividade recente.",
+    color: "#6B7280",
+    enabled: true,
+    createdBy: "system"
+  },
+  potencial_upgrade: {
+    name: "Potencial upgrade",
+    key: "potencial_upgrade",
+    description: "Conta com sinais de maturidade para plano superior.",
+    color: "#2563EB",
+    enabled: true,
+    createdBy: "system"
+  },
+  cardapio_iniciado: {
+    name: "Cardápio iniciado",
+    key: "cardapio_iniciado",
+    description: "Conta que já iniciou cadastro de produtos/cardápio.",
+    color: "#16A34A",
+    enabled: true,
+    createdBy: "system"
+  },
+  loja_publicada: {
+    name: "Loja publicada",
+    key: "loja_publicada",
+    description: "Conta com loja pública publicada.",
+    color: "#059669",
+    enabled: true,
+    createdBy: "system"
+  },
+  risco_cancelamento: {
+    name: "Risco de cancelamento",
+    key: "risco_cancelamento",
+    description: "Conta com sinais de risco comercial ou cobrança crítica.",
+    color: "#DC2626",
+    enabled: true,
+    createdBy: "system"
+  },
+  cliente_avancada: {
+    name: "Cliente avançada",
+    key: "cliente_avancada",
+    description: "Conta com uso avançado do BocaFood.",
+    color: "#7C3AED",
+    enabled: true,
+    createdBy: "system"
+  }
+};
+
+const CRM_TAG_RULE_DEFAULTS = {
+  trial_sem_cardapio_rule: {
+    name: "Marcar trial sem cardápio",
+    description: "Aplica tag CRM quando a conta está em trial há mais de 5 dias e ainda não tem produtos.",
+    enabled: false,
+    audience: "tenants",
+    conditions: [
+      { field: "billing.status", operator: "equals", value: "trial" },
+      { field: "createdAt", operator: "older_than_days", value: 5 },
+      { field: "stats.productsCount", operator: "equals", value: 0 }
+    ],
+    actions: [
+      { type: "add_tag", tagKey: "trial_sem_cardapio" }
+    ],
+    runFrequency: "daily",
+    createdBy: "system"
+  },
+  cardapio_iniciado_rule: {
+    name: "Marcar cardápio iniciado",
+    description: "Remove trial sem cardápio e marca cardápio iniciado quando a conta tem produtos.",
+    enabled: false,
+    audience: "tenants",
+    conditions: [
+      { field: "stats.productsCount", operator: "greater_than", value: 0 }
+    ],
+    actions: [
+      { type: "remove_tag", tagKey: "trial_sem_cardapio" },
+      { type: "add_tag", tagKey: "cardapio_iniciado" }
+    ],
+    runFrequency: "daily",
+    createdBy: "system"
+  },
+  loja_publicada_rule: {
+    name: "Marcar loja publicada",
+    description: "Aplica tag CRM quando a loja está publicada.",
+    enabled: false,
+    audience: "tenants",
+    conditions: [
+      { field: "store.status", operator: "equals", value: "published" }
+    ],
+    actions: [
+      { type: "add_tag", tagKey: "loja_publicada" }
+    ],
+    runFrequency: "daily",
+    createdBy: "system"
+  },
+  risco_cancelamento_rule: {
+    name: "Marcar risco de cancelamento",
+    description: "Aplica tag CRM para contas com cobrança atrasada ou crítica.",
+    enabled: false,
+    audience: "tenants",
+    conditions: [
+      { field: "billing.status", operator: "equals", value: "past_due" }
+    ],
+    actions: [
+      { type: "add_tag", tagKey: "risco_cancelamento" }
+    ],
+    runFrequency: "daily",
+    createdBy: "system"
+  }
+};
 
 const EMAIL_TRIGGER_DEFAULTS = {
   welcome_hotmart_email: {
@@ -101,9 +243,9 @@ const EMAIL_TRIGGER_DEFAULTS = {
   subscription_canceled_email: {
     triggerKey: "subscription_canceled_email",
     tagKey: "subscription_canceled",
-    templateKey: "subscription_canceled",
-    name: "Assinatura cancelada",
-    description: "Envia aviso quando assinatura, reembolso ou chargeback cancelar o acesso.",
+    templateKey: "access_blocked",
+    name: "Acesso bloqueado",
+    description: "Envia aviso quando cancelamento, reembolso ou chargeback bloqueia o acesso.",
     enabled: true,
     delayHours: 0,
     dedupeWindowDays: 30,
@@ -194,6 +336,18 @@ const EMAIL_TEMPLATE_DEFAULTS = {
     ctaUrl: "{{appBaseUrl}}",
     enabled: true,
     availableVariables: ["buyerName", "buyerEmail", "supportEmail", "planName", "productName", "appBaseUrl", "brandName"]
+  },
+  access_blocked: {
+    key: "access_blocked",
+    name: "Acesso bloqueado",
+    description: "Avisa que o acesso foi bloqueado por cancelamento, reembolso ou chargeback.",
+    subject: "Seu acesso ao {{brandName}} foi bloqueado",
+    preheader: "Identificamos uma alteração na sua assinatura Hotmart.",
+    body: "<p>Ola {{buyerName}},</p><p>Identificamos uma alteração na sua assinatura do {{productName}} e o acesso ao Centro de Controle foi bloqueado.</p><p>Motivo: {{blockedReason}}.</p><p>Se acredita que houve um erro ou precisa regularizar o acesso, fale com o suporte BocaFood.</p>",
+    ctaLabel: "Falar com suporte",
+    ctaUrl: "mailto:{{supportEmail}}",
+    enabled: true,
+    availableVariables: ["buyerName", "buyerEmail", "supportEmail", "planName", "productName", "appBaseUrl", "brandName", "billingStatus", "blockedReason", "canceledAt", "hotmartTransaction", "hotmartOfferCode"]
   },
   trial_ending: {
     key: "trial_ending",
@@ -308,6 +462,18 @@ function hotmartOfferPlan(payload) {
   return HOTMART_OFFER_PLANS[hotmartOfferCodeFromPayload(payload)] || null;
 }
 
+function firstHotmartValue(values) {
+  return (values || []).find((item) => item != null && String(item).trim() !== "") || "";
+}
+
+function planSlugFromHotmartName(value) {
+  const name = String(value || "").toLowerCase();
+  if (name.includes("essencial")) return "essencial";
+  if (name.includes("compromisso") || name.includes("anual")) return "compromisso_anual";
+  if (name.includes("fundadora")) return "fundadoras";
+  return "";
+}
+
 function eventDateIso(payload) {
   const data = payload.data || payload || {};
   const candidates = [
@@ -343,6 +509,16 @@ function replaceVariables(text, variables) {
     const value = variables && variables[key] != null ? variables[key] : "";
     return String(value);
   });
+}
+
+function escapeHtml(value) {
+  return String(value || "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;",
+    "'": "&#39;"
+  }[char]));
 }
 
 function cleanHeader(value) {
@@ -417,6 +593,139 @@ async function removeTenantTag(tenantUid, tagKey, data = {}) {
   return true;
 }
 
+function cleanCrmTagKey(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 64);
+}
+
+async function ensureCrmTagDefaults() {
+  const now = nowIso();
+  await Promise.all(Object.keys(CRM_TAG_DEFAULTS).map(async (key) => {
+    const ref = db.collection("system_crm_tags").doc(key);
+    const snap = await ref.get();
+    if (snap.exists) return;
+    await ref.set({
+      ...CRM_TAG_DEFAULTS[key],
+      createdAt: now,
+      updatedAt: now
+    }, { merge: true });
+  }));
+}
+
+async function ensureCrmTagRuleDefaults() {
+  const now = nowIso();
+  await Promise.all(Object.keys(CRM_TAG_RULE_DEFAULTS).map(async (key) => {
+    const ref = db.collection("system_crm_tag_rules").doc(key);
+    const snap = await ref.get();
+    if (snap.exists) return;
+    await ref.set({
+      ...CRM_TAG_RULE_DEFAULTS[key],
+      createdAt: now,
+      updatedAt: now
+    }, { merge: true });
+  }));
+}
+
+function getPathValue(source, path) {
+  const parts = String(path || "").split(".").filter(Boolean);
+  let current = source;
+  for (const part of parts) {
+    if (current == null || typeof current !== "object" || !(part in current)) return undefined;
+    current = current[part];
+  }
+  return current;
+}
+
+function comparableNumber(value) {
+  if (typeof value === "number") return value;
+  const parsed = Number(String(value == null ? "" : value).replace(",", "."));
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function valueExists(value) {
+  return value !== undefined && value !== null && String(value).trim() !== "";
+}
+
+function evaluateCrmCondition(tenant, condition) {
+  const field = String(condition && condition.field || "").trim();
+  const operator = String(condition && condition.operator || "").trim();
+  const expected = condition ? condition.value : undefined;
+  const actual = getPathValue(tenant, field);
+  if (!field || !operator) return false;
+  if (operator === "exists") return valueExists(actual);
+  if (operator === "not_exists") return !valueExists(actual);
+  if (operator === "equals") return String(actual == null ? "" : actual).toLowerCase() === String(expected == null ? "" : expected).toLowerCase();
+  if (operator === "not_equals") return String(actual == null ? "" : actual).toLowerCase() !== String(expected == null ? "" : expected).toLowerCase();
+  if (["greater_than", "greater_or_equal", "less_than", "less_or_equal"].includes(operator)) {
+    const actualNumber = comparableNumber(actual);
+    const expectedNumber = comparableNumber(expected);
+    if (actualNumber == null || expectedNumber == null) return false;
+    if (operator === "greater_than") return actualNumber > expectedNumber;
+    if (operator === "greater_or_equal") return actualNumber >= expectedNumber;
+    if (operator === "less_than") return actualNumber < expectedNumber;
+    if (operator === "less_or_equal") return actualNumber <= expectedNumber;
+  }
+  if (operator === "older_than_days" || operator === "newer_than_days") {
+    const parsed = actual && actual.toDate ? actual.toDate().getTime() : Date.parse(String(actual || ""));
+    const days = comparableNumber(expected);
+    if (Number.isNaN(parsed) || days == null) return false;
+    const ageMs = Date.now() - parsed;
+    const windowMs = days * 86400000;
+    return operator === "older_than_days" ? ageMs > windowMs : ageMs <= windowMs;
+  }
+  return false;
+}
+
+function tenantMatchesCrmRule(tenant, rule) {
+  const conditions = Array.isArray(rule.conditions) ? rule.conditions : [];
+  if (!conditions.length) return false;
+  return conditions.every((condition) => evaluateCrmCondition(tenant, condition));
+}
+
+async function writeCrmTagLog({ ruleId = "", tenantUid = "", action = "", tagKey = "", matched = false, reason = "" }) {
+  await db.collection("system_crm_tag_logs").doc().set({
+    ruleId,
+    tenantUid,
+    action,
+    tagKey,
+    matched: matched === true,
+    reason: String(reason || "").slice(0, 240),
+    createdAt: serverTimestamp()
+  });
+}
+
+async function applyCrmTagToTenant(tenantUid, tagKey, meta = {}) {
+  const cleanKey = cleanCrmTagKey(tagKey);
+  if (!tenantUid || !cleanKey) return false;
+  const now = nowIso();
+  await db.collection("system_tenants").doc(tenantUid).set({
+    crmTags: { [cleanKey]: true },
+    crmTagMeta: {
+      [cleanKey]: {
+        addedAt: meta.addedAt || now,
+        addedBy: meta.addedBy || "system",
+        source: meta.source || "rule"
+      }
+    },
+    updatedAt: now
+  }, { merge: true });
+  return true;
+}
+
+async function removeCrmTagFromTenant(tenantUid, tagKey) {
+  const cleanKey = cleanCrmTagKey(tagKey);
+  if (!tenantUid || !cleanKey) return false;
+  await db.collection("system_tenants").doc(tenantUid).set({
+    crmTags: { [cleanKey]: false },
+    updatedAt: nowIso()
+  }, { merge: true });
+  return true;
+}
+
 function dateOnlyMadrid(date) {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Europe/Madrid",
@@ -473,6 +782,24 @@ function hotmartLogAction(status) {
   }[status] || "hotmart_event_received";
 }
 
+function hotmartBlocksAccess(status) {
+  return HOTMART_BLOCKED_STATUSES.includes(String(status || ""));
+}
+
+function hotmartBlockedReason(status) {
+  return {
+    canceled: "assinatura cancelada",
+    refunded: "compra reembolsada",
+    chargeback: "chargeback registrado"
+  }[String(status || "")] || "assinatura alterada";
+}
+
+function planDisplayName(planSlug) {
+  const normalized = String(planSlug || "").trim();
+  if (!normalized) return "Plano BocaFood";
+  return PLAN_DISPLAY_NAMES[normalized] || normalized.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 function mapHotmartCycle(payload) {
   const offerPlan = hotmartOfferPlan(payload);
   if (offerPlan) return { billingCycle: offerPlan.billingCycle, fallback: false };
@@ -522,27 +849,34 @@ function extractHotmartTrialDays(payload) {
 function extractHotmartBuyer(payload) {
   const data = payload.data || payload;
   const buyer = data.buyer || data.buyer_info || {};
+  const subscriber = data.subscriber || {};
   const purchase = data.purchase || {};
   const subscription = data.subscription || {};
   const product = data.product || {};
   const offer = data.offer || {};
-  const fullName = buyer.name || buyer.full_name || data.buyerName || "";
+  const fullName = buyer.name || buyer.full_name || subscriber.name || data.buyerName || "";
   const cycleInfo = mapHotmartCycle(payload);
   const activatedAt = eventDateIso(payload);
   const trialDays = extractHotmartTrialDays(payload);
   const planName = subscription.plan && subscription.plan.name ? subscription.plan.name : (subscription.plan_name || purchase.plan || data.planName || "Plano BocaFood");
   const offerCode = hotmartOfferCodeFromPayload(payload);
   const offerPlan = hotmartOfferPlan(payload);
-  const planSlug = (offerPlan && offerPlan.planSlug) || slugify(data.planSlug || subscription.plan_slug || (subscription.plan && (subscription.plan.slug || subscription.plan.id || subscription.plan.name)) || offer.planSlug || offerCode || planName) || "essencial";
+  const rawPlanSlug = firstHotmartValue([
+    data.planSlug,
+    subscription.plan_slug,
+    subscription.plan && subscription.plan.slug,
+    offer.planSlug
+  ]);
+  const planSlug = (offerPlan && offerPlan.planSlug) || rawPlanSlug || planSlugFromHotmartName(planName) || slugify(offerCode || planName || (subscription.plan && subscription.plan.id)) || "essencial";
   return {
     buyerName: fullName || "Cliente",
-    buyerEmail: normalizeEmail(buyer.email || data.buyerEmail || data.email),
-    buyerPhone: buyer.phone || buyer.phone_number || data.buyerPhone || "",
-    buyerCountry: buyer.country_iso || buyer.country || data.buyerCountry || "",
+    buyerEmail: normalizeEmail(buyer.email || subscriber.email || data.buyerEmail || data.email),
+    buyerPhone: buyer.phone || buyer.phone_number || (subscriber.phone && (subscriber.phone.phone || subscriber.phone.cell)) || data.buyerPhone || "",
+    buyerCountry: buyer.country_iso || buyer.country || subscriber.country || subscriber.country_iso || data.buyerCountry || "",
     planName,
     planSlug,
     productName: product.name || data.productName || "BocaFood",
-    hotmartSubscriberCode: subscription.subscriber_code || subscription.subscriberCode || subscription.code || data.hotmartSubscriberCode || "",
+    hotmartSubscriberCode: subscription.subscriber_code || subscription.subscriberCode || subscriber.code || subscription.code || data.hotmartSubscriberCode || "",
     hotmartTransaction: purchase.transaction || purchase.transaction_code || data.transaction || data.hotmartTransaction || "",
     hotmartProductId: product.id || product.ucode || data.hotmartProductId || "",
     hotmartOfferCode: offerCode,
@@ -603,8 +937,11 @@ async function findSystemTenantsForHotmart(buyer) {
 async function applyHotmartBillingToTenants({ buyer, status, eventName, eventAt }) {
   const matches = await findSystemTenantsForHotmart(buyer);
   if (!matches.length) return { count: 0, tenantUids: [] };
-  const canceledAt = ["canceled", "refunded", "chargeback"].includes(status) ? eventAt : "";
+  const shouldBlockAccess = hotmartBlocksAccess(status);
+  const canceledAt = shouldBlockAccess ? eventAt : "";
   let activePatch = status === "active" ? {
+    accountStatus: "active",
+    status: "active",
     plan: buyer.planSlug,
     billingCycle: buyer.billingCycle,
     activatedAt: eventAt,
@@ -640,6 +977,12 @@ async function applyHotmartBillingToTenants({ buyer, status, eventName, eventAt 
     },
     updatedAt: eventAt
   };
+  if (shouldBlockAccess) {
+    activePatch.accountStatus = "blocked";
+    activePatch.status = "blocked";
+    activePatch.blockedAt = eventAt;
+    activePatch.blockedReason = `hotmart_${status}`;
+  }
   if (status === "active" && buyer.trialEndsAt) {
     activePatch.trialEndsAt = buyer.trialEndsAt;
     activePatch.billing.trialEndsAt = buyer.trialEndsAt;
@@ -647,6 +990,16 @@ async function applyHotmartBillingToTenants({ buyer, status, eventName, eventAt 
     activePatch.trialEndsAt = admin.firestore.FieldValue.delete();
     activePatch.billing.trialEndsAt = admin.firestore.FieldValue.delete();
   }
+  [
+    "hotmartSubscriberCode",
+    "hotmartTransaction",
+    "hotmartProductId",
+    "hotmartOfferCode",
+    "purchaseStatus",
+    "subscriptionStatus"
+  ].forEach((field) => {
+    if (activePatch.billing && activePatch.billing[field] === "") delete activePatch.billing[field];
+  });
   if (canceledAt) activePatch.canceledAt = canceledAt;
   await Promise.all(matches.map(async (item) => {
     await db.collection("system_tenants").doc(item.id).set(activePatch, { merge: true });
@@ -659,6 +1012,7 @@ async function applyHotmartBillingToTenants({ buyer, status, eventName, eventAt 
       metadata: {
         eventType: eventName,
         billingStatus: status,
+        accountStatus: activePatch.accountStatus || "",
         planSlug: buyer.planSlug,
         billingCycle: buyer.billingCycle,
         transaction: buyer.hotmartTransaction,
@@ -678,9 +1032,13 @@ async function ensureEmailDefaults() {
       fromEmail: "no-reply@bocafood.com",
       replyTo: DEFAULT_SUPPORT_EMAIL,
       supportEmail: DEFAULT_SUPPORT_EMAIL,
-      appBaseUrl: "https://app.bocafood.com",
+      appBaseUrl: "https://bocafood.app",
       brandName: "BocaFood",
-      brandLogoUrl: "https://bocafood.app/assets/boca-food-logo.png",
+      brandLogoUrl: BOCAFOOD_BRAND_LOGO_URL,
+      termsUrl: "https://bocafood.app/termosdeuso",
+      privacyUrl: "https://bocafood.app/politicadeprivacidade",
+      securityText: "o BocaFood nunca solicita senha por e-mail.",
+      footerReasonDefault: "esta mensagem faz parte do seu relacionamento com o BocaFood",
       smtpHost: "",
       smtpPort: 587,
       smtpSecure: "tls",
@@ -744,6 +1102,21 @@ async function ensureEmailTriggerDefaults() {
         createdAt: now,
         updatedAt: now
       }, { merge: true });
+    } else {
+      const current = snap.data() || {};
+      if (
+        key === "subscription_canceled_email" &&
+        current.source === "system" &&
+        current.tagKey === "subscription_canceled" &&
+        current.templateKey === "subscription_canceled"
+      ) {
+        batch.set(ref, {
+          templateKey: "access_blocked",
+          name: "Acesso bloqueado",
+          description: "Envia aviso quando cancelamento, reembolso ou chargeback bloqueia o acesso.",
+          updatedAt: now
+        }, { merge: true });
+      }
     }
   }
   await batch.commit();
@@ -752,16 +1125,24 @@ async function ensureEmailTriggerDefaults() {
 function buildEmailLayout(settings, template, variables) {
   const brandName = variables.brandName || settings.brandName || "BocaFood";
   const supportEmail = variables.supportEmail || settings.supportEmail || settings.replyTo || "";
-  const logoUrl = variables.brandLogoUrl || settings.brandLogoUrl || "https://bocafood.app/assets/boca-food-logo.png";
+  const logoUrl = normalizeBocaFoodBrandLogoUrl(variables.brandLogoUrl || settings.brandLogoUrl);
+  const termsUrl = variables.termsUrl || settings.termsUrl || "";
+  const privacyUrl = variables.privacyUrl || settings.privacyUrl || "";
   const preheader = replaceVariables(template.preheader || "", variables);
   const body = replaceVariables(template.body || template.html || "", variables);
   const ctaLabel = replaceVariables(template.ctaLabel || "", variables);
   const ctaUrl = replaceVariables(template.ctaUrl || "", variables);
   const title = replaceVariables(template.subject || template.name || brandName, variables);
+  const securityText = replaceVariables(variables.securityText || settings.securityText || "o BocaFood nunca solicita senha por e-mail.", variables);
+  const reasonSource = String(template.footerReason || "").trim() || variables.footerReasonDefault || settings.footerReasonDefault || "esta mensagem faz parte do seu relacionamento com o BocaFood";
+  const emailReason = replaceVariables(reasonSource, variables);
+  const termsLink = termsUrl ? `<a href="${escapeHtml(termsUrl)}" style="color:#8A7E7C;text-decoration:none;">Termos de uso</a>` : "Termos de uso";
+  const privacyLink = privacyUrl ? `<a href="${escapeHtml(privacyUrl)}" style="color:#8A7E7C;text-decoration:none;">Política de privacidade</a>` : "Política de privacidade";
   const ctaHtml = ctaLabel && ctaUrl
-    ? `<a href="${ctaUrl}" style="display:inline-block;background:#B42318;color:#ffffff;text-decoration:none;border-radius:14px;padding:14px 22px;font-size:14px;font-weight:700;line-height:1.2;min-width:190px;text-align:center;box-shadow:0 12px 24px rgba(180,35,24,.18);">${ctaLabel}</a>`
+    ? `<div style="margin-top:20px;text-align:left;"><a href="${escapeHtml(ctaUrl)}" target="_blank" rel="noopener" style="display:inline-block;background:linear-gradient(135deg,#C4362A 0%,#A92F25 100%);color:#ffffff;text-decoration:none;border-radius:12px;padding:0 19px;height:44px;line-height:44px;font-size:14px;font-weight:700;min-width:158px;text-align:center;border:1px solid rgba(126,31,24,.16);box-shadow:0 10px 20px rgba(196,54,42,.14),inset 0 1px 0 rgba(255,255,255,.20);">${escapeHtml(ctaLabel)}</a><div style="margin-top:10px;font-size:12px;line-height:1.45;color:#8A7E7C;">Se o botão não abrir, acesse: <a href="${escapeHtml(ctaUrl)}" target="_blank" rel="noopener" style="color:#B42318;text-decoration:none;font-weight:700;">${escapeHtml(ctaUrl)}</a></div></div>`
     : "";
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title></head><body style="margin:0;padding:0;background:#FFF7F6;font-family:Arial,Helvetica,sans-serif;color:#1F1F1F;"><div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">${preheader}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#FFF7F6;padding:26px 12px;"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:580px;background:#ffffff;border-radius:24px;box-shadow:0 18px 46px rgba(31,31,31,.08);overflow:hidden;border:1px solid #F2EDED;"><tr><td style="height:5px;background:#B42318;font-size:1px;line-height:1px;">&nbsp;</td></tr><tr><td style="padding:26px 30px 10px;text-align:left;background:linear-gradient(135deg,#FFFFFF 0%,#FFF8F6 100%);"><img src="${logoUrl}" alt="${brandName}" width="132" style="display:block;width:132px;max-width:46%;height:auto;border:0;outline:none;text-decoration:none;"><div style="margin-top:20px;font-size:11px;line-height:1.3;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#B42318;">SaaS ${brandName}</div><div style="margin-top:8px;font-size:26px;line-height:1.16;font-weight:700;color:#1F1F1F;">${title}</div>${preheader ? `<div style="margin-top:9px;font-size:14px;line-height:1.55;color:#6F6860;">${preheader}</div>` : ""}</td></tr><tr><td style="padding:14px 30px 4px;background:#ffffff;"><div style="border:1px solid #E7DDD1;border-radius:20px;padding:20px;background:linear-gradient(135deg,#FFFFFF 0%,#FAF8F4 100%);font-size:15px;line-height:1.68;color:#3B3533;">${body}${ctaHtml ? `<div style="margin-top:24px;text-align:left;">${ctaHtml}</div>` : ""}</div></td></tr><tr><td style="padding:16px 30px 0;background:#ffffff;"><div style="font-size:12px;line-height:1.5;color:#8A7E7C;background:#FFF8EC;border:1px solid #F5E3BC;border-radius:16px;padding:12px 14px;">Por seguranca, nunca compartilhe sua senha. O BocaFood nao solicita senhas por e-mail.</div></td></tr><tr><td style="padding:20px 30px 30px;background:#ffffff;font-size:12px;line-height:1.5;color:#8A7E7C;">Precisa de ajuda? Escreva para <a href="mailto:${supportEmail}" style="color:#B42318;text-decoration:none;font-weight:700;">${supportEmail}</a>.<br>${brandName}</td></tr></table></td></tr></table></body></html>`;
+  const footerHtml = `<strong style="font-weight:700;color:#5F5552;">Segurança:</strong> ${escapeHtml(securityText)}<br>Precisa de ajuda? Escreva para <a href="mailto:${escapeHtml(supportEmail)}" style="color:#B42318;text-decoration:none;font-weight:700;">${escapeHtml(supportEmail)}</a><br>Você recebeu este e-mail porque ${escapeHtml(emailReason)}.<br>${escapeHtml(brandName)}<br>${termsLink} &middot; ${privacyLink}`;
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title></head><body style="margin:0;padding:0;background:#FAF8F4;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',Arial,sans-serif;color:#1F1F1F;"><div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">${escapeHtml(preheader)}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:radial-gradient(circle at 12% 0%,rgba(196,54,42,.085),transparent 30%),linear-gradient(135deg,#FFFCFB 0%,#FAF8F4 55%,#FFF8F6 100%);padding:28px 12px;"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:580px;background:linear-gradient(145deg,#FFFFFF 0%,#FFFDFB 42%,#FFF8F6 78%,#FAF8F4 100%);border-radius:20px;box-shadow:0 20px 44px rgba(63,38,35,.085),0 2px 8px rgba(31,31,31,.035);overflow:hidden;border:1px solid #EDE6E3;"><tr><td style="height:4px;background:linear-gradient(90deg,#B42318,#B6925E);font-size:1px;line-height:1px;">&nbsp;</td></tr><tr><td style="padding:18px 28px 13px;text-align:left;border-bottom:1px solid rgba(242,237,237,.75);"><img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(brandName)}" width="76" style="display:block;width:76px;max-width:34%;height:auto;border:0;outline:none;text-decoration:none;"></td></tr><tr><td style="padding:20px 28px 0;text-align:left;"><div style="font-size:23px;line-height:1.25;font-weight:700;color:#191514;">${escapeHtml(title)}</div>${preheader ? `<div style="margin-top:8px;max-width:500px;font-size:14.5px;line-height:1.55;color:#6B615F;">${escapeHtml(preheader)}</div>` : ""}<div style="margin-top:18px;font-size:15.5px;line-height:1.68;color:#3F3430;">${body}${ctaHtml}</div></td></tr><tr><td style="padding:18px 28px 28px;background:linear-gradient(135deg,#FFFFFF 0%,#FFF8F6 62%,#FDF1EF 100%);border-top:1px solid rgba(242,237,237,.82);font-size:12px;line-height:1.55;color:#8A7E7C;">${footerHtml}</td></tr></table></td></tr></table></body></html>`;
 }
 
 function smtpRead(socket, timeoutMs = 20000) {
@@ -788,28 +1169,54 @@ function smtpRead(socket, timeoutMs = 20000) {
   });
 }
 
+function maskSmtpUser(user) {
+  const text = String(user || "").trim();
+  if (!text) return "";
+  const parts = text.split("@");
+  if (parts.length === 2) {
+    return `${parts[0].slice(0, 2)}***@${parts[1]}`;
+  }
+  return `${text.slice(0, 2)}***`;
+}
+
+function smtpTransportConfig(settings) {
+  const host = String(settings.smtpHost || "").trim();
+  const port = Number(settings.smtpPort || 587);
+  const requested = String(settings.smtpSecure || "tls").toLowerCase();
+  const secure = port === 465 || requested === "ssl";
+  const requireTLS = !secure && (port === 587 || port === 2525 || requested === "tls");
+  return { host, port, secure, requireTLS };
+}
+
 async function smtpExpect(socket, command, acceptedCodes) {
   if (command) socket.write(`${command}\r\n`);
   const response = await smtpRead(socket);
   const code = Number(String(response).slice(0, 3));
   if (!acceptedCodes.includes(code)) {
-    throw new Error(`smtp_response_${code || "unknown"}`);
+    const error = new Error(`smtp_response_${code || "unknown"}`);
+    error.responseCode = code || 0;
+    error.smtpResponse = String(response || "").slice(0, 500);
+    throw error;
   }
   return response;
 }
 
+async function smtpAuthenticate(socket, user, password) {
+  const plainAuth = Buffer.from(`\u0000${user}\u0000${password}`, "utf8").toString("base64");
+  return smtpExpect(socket, `AUTH PLAIN ${plainAuth}`, [235, 503]);
+}
+
 function smtpConnect(settings) {
   return new Promise((resolve, reject) => {
-    const host = String(settings.smtpHost || "").trim();
-    const port = Number(settings.smtpPort || 587);
-    const secure = String(settings.smtpSecure || "tls").toLowerCase();
+    const transport = smtpTransportConfig(settings);
+    const { host, port, secure } = transport;
     const options = { host, port, servername: host, rejectUnauthorized: false };
-    const socket = secure === "ssl" ? tls.connect(options) : net.connect({ host, port });
+    const socket = secure ? tls.connect(options) : net.connect({ host, port });
     const timer = setTimeout(() => {
       socket.destroy();
       reject(new Error("smtp_connection_timeout"));
     }, 15000);
-    socket.once(secure === "ssl" ? "secureConnect" : "connect", () => {
+    socket.once(secure ? "secureConnect" : "connect", () => {
       clearTimeout(timer);
       resolve(socket);
     });
@@ -834,27 +1241,36 @@ async function smtpStartTls(socket, settings) {
 }
 
 async function sendSmtpEmail({ settings, password, to, subject, html }) {
-  const host = String(settings.smtpHost || "").trim();
-  const port = Number(settings.smtpPort || 587);
-  const secure = String(settings.smtpSecure || "tls").toLowerCase();
+  const transport = smtpTransportConfig(settings);
+  const { host, port, secure, requireTLS } = transport;
   const user = String(settings.smtpUser || "").trim();
   const fromEmail = normalizeEmail(settings.fromEmail);
+  const envelopeFrom = fromEmail;
   const replyTo = normalizeEmail(settings.replyTo || settings.supportEmail || fromEmail);
   const fromName = cleanHeader(settings.fromName || settings.brandName || "BocaFood");
-  if (!host || !port || !fromEmail || !user || !password) throw new Error("smtp_config_incomplete");
+  const trimmedPassword = String(password || "").trim();
+  console.info("[SMTP] send config", {
+    host,
+    port,
+    secure,
+    requireTLS,
+    user: maskSmtpUser(user),
+    fromEmail,
+    envelopeFrom
+  });
+  if (!host || !port || !fromEmail || !user || !trimmedPassword) throw new Error("smtp_config_incomplete");
   if (!normalizeEmail(to)) throw new Error("email_to_required");
 
   let socket = await smtpConnect(settings);
   try {
     await smtpExpect(socket, "", [220]);
     await smtpExpect(socket, "EHLO bocafood.app", [250]);
-    if (secure === "tls") {
+    if (requireTLS) {
       socket = await smtpStartTls(socket, settings);
       await smtpExpect(socket, "EHLO bocafood.app", [250]);
     }
-    const auth = Buffer.from(`\u0000${user}\u0000${password}`, "utf8").toString("base64");
-    await smtpExpect(socket, `AUTH PLAIN ${auth}`, [235, 503]);
-    await smtpExpect(socket, `MAIL FROM:<${fromEmail}>`, [250]);
+    await smtpAuthenticate(socket, user, trimmedPassword);
+    await smtpExpect(socket, `MAIL FROM:<${envelopeFrom}>`, [250]);
     await smtpExpect(socket, `RCPT TO:<${normalizeEmail(to)}>`, [250, 251]);
     await smtpExpect(socket, "DATA", [354]);
     const safeSubject = encodedSubject(subject || "BocaFood");
@@ -872,13 +1288,34 @@ async function sendSmtpEmail({ settings, password, to, subject, html }) {
       body,
       "."
     ].join("\r\n");
-    await smtpExpect(socket, message, [250]);
+    try {
+      await smtpExpect(socket, message, [250]);
+    } catch (error) {
+      const postDataError = String(error && error.message ? error.message : "");
+      if (/smtp_response_535|SSL_read|EOF|ECONNRESET|connection reset/i.test(postDataError)) {
+        return { accepted: true, warning: postDataError };
+      }
+      throw error;
+    }
     try {
       await smtpExpect(socket, "QUIT", [221]);
     } catch (error) {
       // Alguns SMTPs fecham a conexão logo após aceitar DATA; o envio já foi aceito.
     }
-    return true;
+    return { accepted: true };
+  } catch (error) {
+    console.warn("[SMTP] send failed", {
+      host,
+      port,
+      secure,
+      requireTLS,
+      user: maskSmtpUser(user),
+      fromEmail,
+      envelopeFrom,
+      responseCode: error && error.responseCode ? error.responseCode : 0,
+      response: error && error.smtpResponse ? String(error.smtpResponse).slice(0, 240) : String(error && error.message ? error.message : "").slice(0, 240)
+    });
+    throw error;
   } finally {
     try { socket.end(); } catch (error) {}
   }
@@ -888,7 +1325,16 @@ async function loadEmailTemplate(templateKey) {
   await ensureEmailDefaults();
   const snap = await db.collection("system_email_templates").doc(templateKey).get();
   if (!snap.exists) throw new Error(`Template ${templateKey} não encontrado`);
-  return snap.data();
+  const savedTemplate = snap.data() || {};
+  const defaultTemplate = EMAIL_TEMPLATE_DEFAULTS[templateKey] || {};
+  const mergedTemplate = { ...defaultTemplate, ...savedTemplate };
+  if (!String(mergedTemplate.ctaUrl || "").trim() && defaultTemplate.ctaUrl) {
+    mergedTemplate.ctaUrl = defaultTemplate.ctaUrl;
+  }
+  if (!String(mergedTemplate.ctaLabel || "").trim() && defaultTemplate.ctaLabel) {
+    mergedTemplate.ctaLabel = defaultTemplate.ctaLabel;
+  }
+  return mergedTemplate;
 }
 
 async function createEmailFromTemplate({ to, templateKey, variables = {}, origin = "sistema", metadata = {} }) {
@@ -915,9 +1361,13 @@ async function createEmailFromTemplate({ to, templateKey, variables = {}, origin
 
   const mergedVariables = {
     supportEmail: settings.supportEmail || settings.replyTo || "",
-    appBaseUrl: settings.appBaseUrl || "https://app.bocafood.com",
+    appBaseUrl: settings.appBaseUrl || "https://bocafood.app",
     brandName: settings.brandName || settings.fromName || "BocaFood",
-    brandLogoUrl: settings.brandLogoUrl || "https://bocafood.app/assets/boca-food-logo.png",
+    brandLogoUrl: normalizeBocaFoodBrandLogoUrl(settings.brandLogoUrl),
+    termsUrl: settings.termsUrl || "",
+    privacyUrl: settings.privacyUrl || "",
+    securityText: settings.securityText || "o BocaFood nunca solicita senha por e-mail.",
+    footerReasonDefault: settings.footerReasonDefault || "esta mensagem faz parte do seu relacionamento com o BocaFood",
     ...variables
   };
   const subject = replaceVariables(template.subject || "", mergedVariables);
@@ -938,7 +1388,7 @@ async function createEmailFromTemplate({ to, templateKey, variables = {}, origin
   return { ok: true, mailId: mailRef.id, subject };
 }
 
-async function sendEmailFromTemplateViaSmtp({ to, templateKey, variables = {}, source = "hotmart", eventId = "", tenantUid = "", triggerKey = "", tagKey = "" }) {
+async function sendEmailFromTemplateViaSmtp({ to, templateKey, variables = {}, source = "hotmart", eventId = "", tenantUid = "", triggerKey = "", tagKey = "", requireSystemEnabled = true, requireTemplateEnabled = true }) {
   const normalizedTo = normalizeEmail(to);
   const logId = emailLogId({ eventId, templateKey, to: normalizedTo });
   const logRef = db.collection("email_logs").doc(logId);
@@ -978,14 +1428,15 @@ async function sendEmailFromTemplateViaSmtp({ to, templateKey, variables = {}, s
     const secretSnap = await db.collection("system_private_email_secrets").doc("default").get();
     const settings = settingsSnap.exists ? (settingsSnap.data() || {}) : {};
     const secret = secretSnap.exists ? (secretSnap.data() || {}) : {};
+    const settingsTransport = smtpTransportConfig(settings);
 
-    if (!settings.enabled) {
+    if (requireSystemEnabled && !settings.enabled) {
       await logRef.set({ ...baseLog, status: "skipped", error: "system_email_disabled" }, { merge: true });
       return { ok: false, skipped: true, reason: "system_email_disabled" };
     }
 
     const template = await loadEmailTemplate(templateKey);
-    if (template.enabled === false) {
+    if (requireTemplateEnabled && template.enabled === false) {
       await logRef.set({ ...baseLog, status: "skipped", error: "template_disabled" }, { merge: true });
       return { ok: false, skipped: true, reason: "template_disabled" };
     }
@@ -994,26 +1445,42 @@ async function sendEmailFromTemplateViaSmtp({ to, templateKey, variables = {}, s
       supportEmail: settings.supportEmail || settings.replyTo || DEFAULT_SUPPORT_EMAIL,
       appBaseUrl: settings.appBaseUrl || "https://bocafood.app",
       brandName: settings.brandName || settings.fromName || "BocaFood",
-      brandLogoUrl: settings.brandLogoUrl || "https://bocafood.app/assets/boca-food-logo.png",
+      brandLogoUrl: normalizeBocaFoodBrandLogoUrl(settings.brandLogoUrl),
+      termsUrl: settings.termsUrl || "",
+      privacyUrl: settings.privacyUrl || "",
+      securityText: settings.securityText || "o BocaFood nunca solicita senha por e-mail.",
+      footerReasonDefault: settings.footerReasonDefault || "esta mensagem faz parte do seu relacionamento com o BocaFood",
       ...variables
     };
     const subject = replaceVariables(template.subject || template.name || "BocaFood", mergedVariables);
     const html = buildEmailLayout(settings, template, mergedVariables);
-    await sendSmtpEmail({
+    const smtpResult = await sendSmtpEmail({
       settings,
       password: String(secret.smtpPassword || ""),
       to: normalizedTo,
       subject,
       html
     });
-    await logRef.set({ ...baseLog, subject, status: "success" }, { merge: true });
-    return { ok: true, subject };
+    await logRef.set({
+      ...baseLog,
+      subject,
+      status: smtpResult && smtpResult.warning ? "warning" : "success",
+      error: smtpResult && smtpResult.warning ? String(smtpResult.warning).slice(0, 240) : ""
+    }, { merge: true });
+    return {
+      ok: true,
+      subject,
+      warning: smtpResult && smtpResult.warning ? smtpResult.warning : ""
+    };
   } catch (error) {
+    const smtpErrorDetail = error && error.smtpResponse
+      ? `${error.message || "send_failed"}:${String(error.smtpResponse).slice(0, 180)}`
+      : (error && error.message ? error.message : "send_failed");
     await logRef.set({
       ...baseLog,
       subject: "",
       status: "error",
-      error: String(error && error.message ? error.message : "send_failed").slice(0, 240)
+      error: String(smtpErrorDetail).slice(0, 240)
     }, { merge: true });
     return { ok: false, error: error && error.message ? error.message : "send_failed" };
   }
@@ -1028,7 +1495,7 @@ async function findTenantByEmail(email) {
   return found;
 }
 
-exports.requestPasswordResetEmail = onCall({ region: REGION }, async (request) => {
+exports.requestPasswordResetEmail = onCall({ region: REGION, serviceAccount: FIREBASE_ADMIN_SERVICE_ACCOUNT }, async (request) => {
   const email = normalizeEmail(request.data && request.data.email);
   if (!email || !email.includes("@")) {
     throw new HttpsError("invalid-argument", "Informe um e-mail válido.");
@@ -1039,7 +1506,67 @@ exports.requestPasswordResetEmail = onCall({ region: REGION }, async (request) =
   let authUser = null;
   try {
     authUser = await admin.auth().getUserByEmail(email);
+    console.info("[PASSWORD RESET] auth_user_found", { emailHash: safeEventHash, uid: authUser.uid || "" });
   } catch (error) {
+    console.info("[PASSWORD RESET] auth_user_not_found", { emailHash: safeEventHash });
+  }
+
+  const settingsSnap = await db.collection("system_email_settings").doc("default").get();
+  const secretSnap = await db.collection("system_private_email_secrets").doc("default").get();
+  const templateSnap = await db.collection("system_email_templates").doc("password_reset").get();
+  const settings = settingsSnap.exists ? (settingsSnap.data() || {}) : {};
+  const secret = secretSnap.exists ? (secretSnap.data() || {}) : {};
+  const template = templateSnap.exists ? (templateSnap.data() || {}) : {};
+  const resetDiagnostics = {
+    settingsFound: settingsSnap.exists,
+    templateFound: templateSnap.exists,
+    templateEnabled: template.enabled !== false,
+    smtpHostConfigured: !!settings.smtpHost,
+    smtpUserConfigured: !!settings.smtpUser,
+    smtpPasswordConfigured: !!secret.smtpPassword,
+    settingsEnabled: settings.enabled === true
+  };
+  console.info("[PASSWORD RESET] config_check", { emailHash: safeEventHash, ...resetDiagnostics });
+  const appBaseUrl = String(settings.appBaseUrl || "https://bocafood.app").replace(/\/$/, "");
+  let resetPasswordUrl = "";
+  let resetLinkErrorCode = "";
+  try {
+    const generatedResetLink = await admin.auth().generatePasswordResetLink(email, {
+      url: `${appBaseUrl}/redefinir-senha`,
+      handleCodeInApp: false
+    });
+    const generatedUrl = new URL(generatedResetLink);
+    const generatedOobCode = generatedUrl.searchParams.get("oobCode");
+    resetPasswordUrl = generatedOobCode
+      ? `${appBaseUrl}/redefinir-senha?mode=resetPassword&oobCode=${encodeURIComponent(generatedOobCode)}`
+      : generatedResetLink;
+  } catch (error) {
+    try {
+      const generatedResetLink = await admin.auth().generatePasswordResetLink(email);
+      const generatedUrl = new URL(generatedResetLink);
+      const generatedOobCode = generatedUrl.searchParams.get("oobCode");
+      resetPasswordUrl = generatedOobCode
+        ? `${appBaseUrl}/redefinir-senha?mode=resetPassword&oobCode=${encodeURIComponent(generatedOobCode)}`
+        : generatedResetLink;
+      await db.collection("email_logs").doc(emailLogId({ eventId: `${eventId}_continue_url_fallback`, templateKey: "password_reset", to: email })).set({
+        to: email,
+        templateKey: "password_reset",
+        status: "warning",
+        source: "auth",
+        origin: "auth",
+        eventId,
+        error: "password_reset_continue_url_fallback",
+        createdAt: serverTimestamp()
+      }, { merge: true });
+    } catch (fallbackError) {
+      resetLinkErrorCode = fallbackError && fallbackError.code ? fallbackError.code : "unknown";
+      console.info("[PASSWORD RESET] link_not_generated", {
+        emailHash: safeEventHash,
+        code: resetLinkErrorCode
+      });
+    }
+  }
+  if (!resetPasswordUrl) {
     await db.collection("email_logs").doc(emailLogId({ eventId, templateKey: "password_reset", to: email })).set({
       to: email,
       templateKey: "password_reset",
@@ -1047,33 +1574,15 @@ exports.requestPasswordResetEmail = onCall({ region: REGION }, async (request) =
       source: "auth",
       origin: "auth",
       eventId,
-      error: "auth_user_not_found",
+      error: resetLinkErrorCode ? `password_reset_link_not_generated:${resetLinkErrorCode}` : "password_reset_link_not_generated",
       createdAt: serverTimestamp()
     }, { merge: true });
-    return { ok: true };
-  }
-
-  const settingsSnap = await db.collection("system_email_settings").doc("default").get();
-  const settings = settingsSnap.exists ? (settingsSnap.data() || {}) : {};
-  const appBaseUrl = String(settings.appBaseUrl || "https://bocafood.app").replace(/\/$/, "");
-  let resetPasswordUrl = "";
-  try {
-    resetPasswordUrl = await admin.auth().generatePasswordResetLink(email, {
-      url: `${appBaseUrl}/login`,
-      handleCodeInApp: false
-    });
-  } catch (error) {
-    resetPasswordUrl = await admin.auth().generatePasswordResetLink(email);
-    await db.collection("email_logs").doc(emailLogId({ eventId: `${eventId}_continue_url_fallback`, templateKey: "password_reset", to: email })).set({
-      to: email,
-      templateKey: "password_reset",
-      status: "warning",
-      source: "auth",
-      origin: "auth",
-      eventId,
-      error: "password_reset_continue_url_fallback",
-      createdAt: serverTimestamp()
-    }, { merge: true });
+    return {
+      ok: true,
+      smtpSent: false,
+      fallbackRequired: false,
+      debugCode: "password_reset_link_not_generated"
+    };
   }
   const tenant = await findTenantByEmail(email);
   const tenantData = tenant ? tenant.data : {};
@@ -1083,6 +1592,8 @@ exports.requestPasswordResetEmail = onCall({ region: REGION }, async (request) =
     source: "auth",
     eventId,
     tenantUid: tenant ? tenant.id : (authUser.uid || ""),
+    requireSystemEnabled: false,
+    requireTemplateEnabled: false,
     variables: {
       buyerName: tenantData.socialName || tenantData.ownerName || tenantData.fullName || authUser.displayName || "Cliente",
       buyerEmail: email,
@@ -1092,9 +1603,16 @@ exports.requestPasswordResetEmail = onCall({ region: REGION }, async (request) =
       brandName: settings.brandName || settings.fromName || "BocaFood"
     }
   });
-  if (!result.ok && !result.skipped) {
-    throw new HttpsError("internal", "Não foi possível enviar o e-mail de recuperação.");
-  }
+  console.info("[PASSWORD RESET] smtp_result", {
+    emailHash: safeEventHash,
+    ok: result.ok === true,
+    skipped: result.skipped === true,
+    reason: result.reason || "",
+    error: result.error ? String(result.error).slice(0, 120) : ""
+  });
+  const debugCode = result.ok === true && result.skipped !== true
+    ? "smtp_success"
+    : (result.skipped === true ? `smtp_skipped_${result.reason || "unknown"}` : `smtp_error_${result.error || "send_failed"}`);
   await db.collection("system_access_logs").doc().set({
     tenantUid: tenant ? tenant.id : (authUser.uid || ""),
     email,
@@ -1105,10 +1623,22 @@ exports.requestPasswordResetEmail = onCall({ region: REGION }, async (request) =
     summary: "Solicitação de redefinição de senha.",
     source: "auth",
     severity: "info",
-    metadata: { templateKey: "password_reset" },
+    metadata: {
+      templateKey: "password_reset",
+      smtpStatus: result.ok === true && result.skipped !== true ? "success" : "smtp_not_sent",
+      fallbackRequired: false,
+      debugCode,
+      diagnostics: resetDiagnostics
+    },
     createdAt: nowIso()
   });
-  return { ok: true };
+  return {
+    ok: true,
+    smtpSent: result.ok === true && result.skipped !== true,
+    fallbackRequired: false,
+    debugCode,
+    diagnostics: resetDiagnostics
+  };
 });
 
 async function tenantEmailRecentlySent({ tenantUid, triggerKey, dedupeWindowDays }) {
@@ -1139,7 +1669,7 @@ function tenantEmailVariables(tenant, tagKey) {
     supportEmail: DEFAULT_SUPPORT_EMAIL,
     appBaseUrl: "https://bocafood.app",
     brandName: "BocaFood",
-    brandLogoUrl: "https://bocafood.app/assets/boca-food-logo.png",
+    brandLogoUrl: BOCAFOOD_BRAND_LOGO_URL,
     planName: billing.planSlug || tenant.plan || "",
     productName: "BocaFood",
     billingStatus: billing.status || tenant.billingStatus || "",
@@ -1176,11 +1706,263 @@ function handleCors(req, res) {
   return false;
 }
 
+function backupTimestampPath(date = new Date()) {
+  return date.toISOString().replace(/[:.]/g, "-");
+}
+
+function normalizeBackupBucket(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return FIRESTORE_BACKUP_DEFAULT_BUCKET;
+  return raw.startsWith("gs://") ? raw.replace(/\/+$/, "") : `gs://${raw.replace(/^\/+|\/+$/g, "")}`;
+}
+
+async function googleAccessToken() {
+  const response = await fetch("http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token", {
+    headers: { "Metadata-Flavor": "Google" }
+  });
+  if (!response.ok) throw new Error(`metadata_token_${response.status}`);
+  const data = await response.json();
+  if (!data.access_token) throw new Error("metadata_token_missing");
+  return data.access_token;
+}
+
+function firestoreBackupPublicLog(doc) {
+  const data = doc && doc.data ? doc.data() || {} : doc || {};
+  return {
+    id: doc && doc.id ? doc.id : String(data.id || ""),
+    status: String(data.status || ""),
+    source: String(data.source || ""),
+    bucket: String(data.bucket || ""),
+    outputUriPrefix: String(data.outputUriPrefix || ""),
+    operationName: String(data.operationName || ""),
+    error: String(data.error || "").slice(0, 240),
+    startedAt: data.startedAt && data.startedAt.toDate ? data.startedAt.toDate().toISOString() : String(data.startedAt || ""),
+    finishedAt: data.finishedAt && data.finishedAt.toDate ? data.finishedAt.toDate().toISOString() : String(data.finishedAt || ""),
+    createdBy: String(data.createdBy || "")
+  };
+}
+
+async function loadFirestoreBackupSettings() {
+  const ref = db.collection("system_backup_settings").doc("firestore");
+  const snap = await ref.get();
+  const data = snap.exists ? snap.data() || {} : {};
+  return {
+    enabled: data.enabled !== false,
+    bucket: normalizeBackupBucket(data.bucket || FIRESTORE_BACKUP_DEFAULT_BUCKET),
+    retentionDays: Number(data.retentionDays || 30),
+    schedule: String(data.schedule || "daily_0300_europe_madrid"),
+    updatedAt: data.updatedAt || ""
+  };
+}
+
+async function saveFirestoreBackupSettings({ bucket, enabled, retentionDays, updatedBy }) {
+  const payload = {
+    enabled: enabled !== false,
+    bucket: normalizeBackupBucket(bucket),
+    retentionDays: Math.max(1, Math.min(365, Number(retentionDays || 30))),
+    schedule: "daily_0300_europe_madrid",
+    updatedBy: String(updatedBy || ""),
+    updatedAt: serverTimestamp()
+  };
+  await db.collection("system_backup_settings").doc("firestore").set(payload, { merge: true });
+  return payload;
+}
+
+async function runFirestoreExport({ source = "manual", requestedBy = "" } = {}) {
+  const settings = await loadFirestoreBackupSettings();
+  if (source === "schedule" && settings.enabled === false) {
+    const skippedRef = await db.collection("system_firestore_backups").add({
+      status: "skipped",
+      source,
+      bucket: settings.bucket,
+      outputUriPrefix: "",
+      error: "backup_disabled",
+      createdBy: requestedBy,
+      startedAt: serverTimestamp(),
+      finishedAt: serverTimestamp()
+    });
+    return { ok: true, skipped: true, backup: firestoreBackupPublicLog({ id: skippedRef.id, data: () => ({ status: "skipped", source, bucket: settings.bucket, error: "backup_disabled" }) }) };
+  }
+  const projectId = process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || "bocado-brasil";
+  const outputUriPrefix = `${settings.bucket.replace(/\/+$/, "")}/firestore/${backupTimestampPath()}`;
+  const logRef = db.collection("system_firestore_backups").doc();
+  await logRef.set({
+    status: "running",
+    source,
+    bucket: settings.bucket,
+    outputUriPrefix,
+    createdBy: requestedBy,
+    startedAt: serverTimestamp(),
+    error: ""
+  }, { merge: true });
+  try {
+    const token = await googleAccessToken();
+    const url = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/databases/(default):exportDocuments`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ outputUriPrefix })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const message = data && data.error && data.error.message ? data.error.message : `firestore_export_${response.status}`;
+      throw new Error(message);
+    }
+    await logRef.set({
+      status: "started",
+      operationName: String(data.name || ""),
+      finishedAt: serverTimestamp()
+    }, { merge: true });
+    const snap = await logRef.get();
+    return { ok: true, backup: firestoreBackupPublicLog(snap) };
+  } catch (error) {
+    await logRef.set({
+      status: "error",
+      error: String(error && error.message ? error.message : "export_failed").slice(0, 240),
+      finishedAt: serverTimestamp()
+    }, { merge: true });
+    const snap = await logRef.get();
+    return { ok: false, error: String(error && error.message ? error.message : "export_failed").slice(0, 240), backup: firestoreBackupPublicLog(snap) };
+  }
+}
+
+function safeEmailLog(data) {
+  data = data || {};
+  return {
+    to: normalizeEmail(data.to || ""),
+    templateKey: String(data.templateKey || ""),
+    subject: String(data.subject || "").slice(0, 160),
+    status: String(data.status || ""),
+    source: String(data.source || data.origin || ""),
+    eventId: String(data.eventId || "").slice(0, 120),
+    tenantUid: String(data.tenantUid || ""),
+    triggerKey: String(data.triggerKey || ""),
+    tagKey: String(data.tagKey || ""),
+    error: String(data.error || "").slice(0, 240),
+    createdAt: data.createdAt && data.createdAt.toDate ? data.createdAt.toDate().toISOString() : String(data.createdAt || "")
+  };
+}
+
+function safeEmailTemplate(key, data, triggersByTemplate) {
+  data = data || {};
+  const relatedTriggers = triggersByTemplate[key] || [];
+  return {
+    key,
+    name: String(data.name || key),
+    description: String(data.description || "").slice(0, 240),
+    enabled: data.enabled !== false,
+    subject: String(data.subject || "").slice(0, 180),
+    triggerCount: relatedTriggers.length,
+    activeTriggerCount: relatedTriggers.filter((trigger) => trigger.enabled !== false).length
+  };
+}
+
+exports.masterEmailDiagnostics = onRequest({ region: REGION }, async (req, res) => {
+  try {
+    if (handleCors(req, res)) return;
+    if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+    await requireMaster(req);
+    await ensureEmailDefaults();
+    await ensureEmailTriggerDefaults();
+
+    const body = req.body || {};
+    const lookupEmail = normalizeEmail(body.email || "");
+    const [
+      settingsSnap,
+      secretSnap,
+      templatesSnap,
+      triggersSnap,
+      logsSnap
+    ] = await Promise.all([
+      db.collection("system_email_settings").doc("default").get(),
+      db.collection("system_private_email_secrets").doc("default").get(),
+      db.collection("system_email_templates").get(),
+      db.collection("system_email_triggers").get(),
+      db.collection("email_logs").orderBy("createdAt", "desc").limit(40).get()
+    ]);
+
+    const settings = settingsSnap.exists ? (settingsSnap.data() || {}) : {};
+    const secret = secretSnap.exists ? (secretSnap.data() || {}) : {};
+    const triggersByTemplate = {};
+    const triggers = [];
+    triggersSnap.forEach((doc) => {
+      const data = doc.data() || {};
+      const item = {
+        triggerKey: data.triggerKey || doc.id,
+        tagKey: String(data.tagKey || ""),
+        templateKey: String(data.templateKey || ""),
+        name: String(data.name || doc.id),
+        enabled: data.enabled !== false,
+        delayHours: Number(data.delayHours || 0),
+        dedupeWindowDays: Number(data.dedupeWindowDays || 0)
+      };
+      triggers.push(item);
+      if (!triggersByTemplate[item.templateKey]) triggersByTemplate[item.templateKey] = [];
+      triggersByTemplate[item.templateKey].push(item);
+    });
+
+    const templates = [];
+    templatesSnap.forEach((doc) => templates.push(safeEmailTemplate(doc.id, doc.data(), triggersByTemplate)));
+    templates.sort((a, b) => a.key.localeCompare(b.key));
+
+    const logs = [];
+    logsSnap.forEach((doc) => logs.push({ id: doc.id, ...safeEmailLog(doc.data()) }));
+
+    let lookup = null;
+    if (lookupEmail) {
+      lookup = { email: lookupEmail, authUserExists: false, tenantExists: false, tenantUid: "" };
+      try {
+        const user = await admin.auth().getUserByEmail(lookupEmail);
+        lookup.authUserExists = true;
+        lookup.uid = user.uid || "";
+      } catch (error) {
+        lookup.authUserExists = false;
+      }
+      const tenant = await findTenantByEmail(lookupEmail);
+      if (tenant) {
+        lookup.tenantExists = true;
+        lookup.tenantUid = tenant.id;
+      }
+    }
+
+    return res.json({
+      ok: true,
+      settings: {
+        found: settingsSnap.exists,
+        enabled: settings.enabled === true,
+        provider: settings.provider || "smtp",
+        fromName: settings.fromName || "",
+        fromEmail: settings.fromEmail || "",
+        replyTo: settings.replyTo || "",
+        supportEmail: settings.supportEmail || "",
+        appBaseUrl: settings.appBaseUrl || "",
+        brandName: settings.brandName || "",
+        smtpHostConfigured: !!settings.smtpHost,
+        smtpPort: Number(settings.smtpPort || 0),
+        smtpSecure: settings.smtpSecure || "",
+        smtpSecureCalculated: settingsTransport.secure,
+        smtpRequireTLSCalculated: settingsTransport.requireTLS,
+        smtpUserConfigured: !!settings.smtpUser,
+        smtpPasswordConfigured: !!secret.smtpPassword || settings.smtpPasswordConfigured === true
+      },
+      templates,
+      triggers,
+      logs,
+      lookup
+    });
+  } catch (error) {
+    const status = error.message === "forbidden" ? 403 : 401;
+    return res.status(status).json({ error: error.message || "unauthorized" });
+  }
+});
+
 function smtpSocketVerify(config) {
   return new Promise((resolve, reject) => {
-    const host = String(config.smtpHost || "").trim();
-    const port = Number(config.smtpPort || 587);
-    const secure = String(config.smtpSecure || "tls").toLowerCase();
+    const transport = smtpTransportConfig(config);
+    const { host, port, secure, requireTLS } = transport;
     if (!host || !port) return reject(new Error("smtp_host_port_required"));
     const timeout = setTimeout(() => reject(new Error("smtp_connection_timeout")), 9000);
     const done = (fn, socket, value) => {
@@ -1189,8 +1971,22 @@ function smtpSocketVerify(config) {
       fn(value);
     };
     const options = { host, port, servername: host, rejectUnauthorized: false };
-    const socket = secure === "ssl" ? tls.connect(options) : net.connect({ host, port });
-    socket.once(secure === "ssl" ? "secureConnect" : "connect", () => done(resolve, socket, true));
+    const socket = secure ? tls.connect(options) : net.connect({ host, port });
+    socket.once(secure ? "secureConnect" : "connect", async () => {
+      try {
+        await smtpExpect(socket, "", [220]);
+        await smtpExpect(socket, "EHLO bocafood.app", [250]);
+        if (requireTLS) {
+          const secureSocket = await smtpStartTls(socket, config);
+          await smtpExpect(secureSocket, "EHLO bocafood.app", [250]);
+          done(resolve, secureSocket, true);
+          return;
+        }
+        done(resolve, socket, true);
+      } catch (error) {
+        done(reject, socket, error);
+      }
+    });
     socket.once("error", (error) => done(reject, socket, error));
   });
 }
@@ -1201,14 +1997,19 @@ exports.saveEmailSettings = onRequest({ region: REGION }, async (req, res) => {
     if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
     await requireMaster(req);
     const body = req.body || {};
-    const password = String(body.smtpPassword || "");
+    const password = String(body.smtpPassword || "").trim();
     const data = {
       fromName: String(body.fromName || "").trim(),
-      fromEmail: normalizeEmail(body.fromEmail),
+      fromEmail: normalizeEmail(String(body.fromEmail || "").trim()),
       replyTo: normalizeEmail(body.replyTo),
       supportEmail: normalizeEmail(body.supportEmail || body.replyTo),
       appBaseUrl: String(body.appBaseUrl || "").trim(),
       brandName: String(body.brandName || "BocaFood").trim(),
+      brandLogoUrl: normalizeBocaFoodBrandLogoUrl(body.brandLogoUrl),
+      termsUrl: String(body.termsUrl || "").trim(),
+      privacyUrl: String(body.privacyUrl || "").trim(),
+      securityText: String(body.securityText || "o BocaFood nunca solicita senha por e-mail.").trim(),
+      footerReasonDefault: String(body.footerReasonDefault || "esta mensagem faz parte do seu relacionamento com o BocaFood").trim(),
       smtpHost: String(body.smtpHost || "").trim(),
       smtpPort: Number(body.smtpPort || 587),
       smtpSecure: ["tls", "ssl", "none"].includes(String(body.smtpSecure || "").toLowerCase()) ? String(body.smtpSecure).toLowerCase() : "tls",
@@ -1241,6 +2042,15 @@ exports.testSmtpConnection = onRequest({ region: REGION }, async (req, res) => {
     authed = true;
     const settingsSnap = await db.collection("system_email_settings").doc("default").get();
     const settings = settingsSnap.exists ? settingsSnap.data() : {};
+    const transport = smtpTransportConfig(settings);
+    console.info("[SMTP] connection test config", {
+      host: transport.host,
+      port: transport.port,
+      secure: transport.secure,
+      requireTLS: transport.requireTLS,
+      user: maskSmtpUser(settings.smtpUser),
+      fromEmail: normalizeEmail(settings.fromEmail)
+    });
     await smtpSocketVerify(settings);
     await db.collection("email_logs").add({
       to: normalizeEmail(req.body && req.body.to),
@@ -1275,38 +2085,83 @@ exports.sendTestEmail = onRequest({ region: REGION }, async (req, res) => {
     const to = normalizeEmail(body.to);
     const templateKey = String(body.templateKey || "test_email").trim();
     if (!to) return res.status(400).json({ error: "to_required" });
-    const result = await createEmailFromTemplate({
+    const result = await sendEmailFromTemplateViaSmtp({
       to,
       templateKey,
-      origin: "teste",
+      source: "teste",
+      eventId: `manual_test_${templateKey}_${Date.now()}`,
       variables: {
         buyerName: "Patrícia",
         buyerEmail: to,
-        signupUrl: "https://app.bocafood.com/cadastro",
+        signupUrl: "https://bocafood.app/cadastro",
         supportEmail: DEFAULT_SUPPORT_EMAIL,
         planName: "Plano Essencial",
         productName: "BocaFood",
-        resetPasswordUrl: "https://app.bocafood.com/redefinir-senha",
-        appBaseUrl: "https://app.bocafood.com",
+        resetPasswordUrl: "https://bocafood.app/redefinir-senha",
+        appBaseUrl: "https://bocafood.app",
         brandName: "BocaFood",
-        brandLogoUrl: "https://bocafood.app/assets/boca-food-logo.png",
+        brandLogoUrl: BOCAFOOD_BRAND_LOGO_URL,
         ...(body.variables || {})
       }
     });
-    return res.json(result);
+    if (!result.ok) {
+      return res.status(400).json({
+        ok: false,
+        error: result.reason || result.error || "send_test_error"
+      });
+    }
+    return res.json({
+      ok: true,
+      subject: result.subject || "",
+      skipped: result.skipped === true,
+      reason: result.reason || ""
+    });
   } catch (error) {
     return res.status(400).json({ error: error.message || "send_test_error" });
+  }
+});
+
+exports.firestoreBackupAdmin = onRequest({ region: REGION, serviceAccount: FIREBASE_ADMIN_SERVICE_ACCOUNT, timeoutSeconds: 540, memory: "512MiB" }, async (req, res) => {
+  try {
+    if (handleCors(req, res)) return;
+    if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+    const master = await requireMaster(req);
+    const body = req.body || {};
+    const action = String(body.action || "status");
+    if (action === "save_config") {
+      await saveFirestoreBackupSettings({
+        bucket: body.bucket,
+        enabled: body.enabled !== false,
+        retentionDays: body.retentionDays,
+        updatedBy: master.email || ""
+      });
+      const settings = await loadFirestoreBackupSettings();
+      return res.json({ ok: true, settings });
+    }
+    if (action === "run_now") {
+      const result = await runFirestoreExport({ source: "manual", requestedBy: master.email || "" });
+      return res.status(result.ok ? 200 : 500).json(result);
+    }
+    const [settings, logsSnap] = await Promise.all([
+      loadFirestoreBackupSettings(),
+      db.collection("system_firestore_backups").orderBy("startedAt", "desc").limit(20).get()
+    ]);
+    const logs = [];
+    logsSnap.forEach((doc) => logs.push(firestoreBackupPublicLog(doc)));
+    return res.json({ ok: true, settings, logs });
+  } catch (error) {
+    return res.status(400).json({ ok: false, error: String(error && error.message ? error.message : "backup_admin_failed").slice(0, 240) });
   }
 });
 
 function hotmartEmailTemplateForStatus({ status, linkedCount }) {
   if (status === "active") return linkedCount ? "subscription_active" : "welcome_hotmart";
   if (status === "pending_payment" || status === "past_due") return "payment_pending";
-  if (["canceled", "refunded", "chargeback"].includes(status)) return "subscription_canceled";
+  if (hotmartBlocksAccess(status)) return "access_blocked";
   return "";
 }
 
-function hotmartEmailVariables({ buyer, settings, status }) {
+function hotmartEmailVariables({ buyer, settings, status, eventAt = "" }) {
   const appBaseUrl = settings.appBaseUrl || "https://bocafood.app";
   return {
     ...buyer,
@@ -1316,13 +2171,34 @@ function hotmartEmailVariables({ buyer, settings, status }) {
     supportEmail: settings.supportEmail || settings.replyTo || DEFAULT_SUPPORT_EMAIL,
     appBaseUrl,
     brandName: settings.brandName || settings.fromName || "BocaFood",
-    brandLogoUrl: settings.brandLogoUrl || "https://bocafood.app/assets/boca-food-logo.png",
+    brandLogoUrl: normalizeBocaFoodBrandLogoUrl(settings.brandLogoUrl),
     billingStatus: status || "",
     billingCycle: buyer.billingCycle || "",
+    blockedReason: hotmartBlockedReason(status),
+    canceledAt: hotmartBlocksAccess(status) ? eventAt : "",
     trialEndsAt: buyer.trialEndsAt || "",
     hotmartTransaction: buyer.hotmartTransaction || "",
     hotmartOfferCode: buyer.hotmartOfferCode || ""
   };
+}
+
+function readHotmartHottok() {
+  let secretValue = "";
+  try {
+    secretValue = String(HOTMART_HOTTOK_SECRET.value() || "").trim();
+  } catch (error) {
+    secretValue = "";
+  }
+  const envValue = String(process.env.HOTMART_HOTTOK || "").trim();
+  return secretValue || envValue;
+}
+
+function hotmartHottokLooksMisconfigured(value) {
+  const token = String(value || "");
+  if (!token) return false;
+  if (token.length > 240) return true;
+  if (/[\r\n]/.test(token)) return true;
+  return /printf|pbpaste|functions\/\.env|HOTMART_HOTTOK=|firebase\s+deploy|firebase\s+functions/i.test(token);
 }
 
 function cleanSignupText(value, max = 180) {
@@ -1342,6 +2218,15 @@ function cleanLanguageCode(value) {
 function cleanSignupList(value, maxItems = 10) {
   if (!Array.isArray(value)) return [];
   return value.slice(0, maxItems).map((item) => cleanSignupText(item, 120)).filter(Boolean);
+}
+
+function cleanCommunicationPreferences(value) {
+  const prefs = value && typeof value === "object" ? value : {};
+  return {
+    commercialCampaigns: prefs.commercialCampaigns === true,
+    growthTips: prefs.growthTips === true,
+    upgradeOffers: prefs.upgradeOffers === true
+  };
 }
 
 function pendingHotmartIsActive(data) {
@@ -1432,6 +2317,79 @@ exports.completeSignupOnboarding = onCall({ region: REGION }, async (request) =>
   const now = nowIso();
   const tenantRef = db.collection("system_tenants").doc(uid);
 
+  if (stage === "legal_acceptance") {
+    const acceptedTerms = data.acceptedTerms === true;
+    const acceptedPrivacy = data.acceptedPrivacy === true;
+    if (!acceptedTerms || !acceptedPrivacy) {
+      throw new HttpsError("invalid-argument", "Aceite os Termos de uso e a Política de privacidade para continuar.");
+    }
+    const tenantSnap = await tenantRef.get();
+    const tenantData = tenantSnap.exists ? (tenantSnap.data() || {}) : {};
+    const billing = tenantData.billing || {};
+    const activeAccount = tenantData.accountStatus === "active" || tenantData.status === "active" || billing.status === "active";
+    if (!activeAccount) {
+      throw new HttpsError("failed-precondition", "Assinatura de termos disponível apenas para contas com acesso liberado.");
+    }
+    const termsUrl = cleanSignupText(data.termsUrl || "https://bocafood.app/termosdeuso", 240);
+    const privacyUrl = cleanSignupText(data.privacyUrl || "https://bocafood.app/politicadeprivacidade", 240);
+    const acceptance = {
+      termsAccepted: true,
+      privacyAccepted: true,
+      termsUrl,
+      privacyUrl,
+      acceptedAt: now,
+      acceptedByUid: uid,
+      acceptedByEmail: authEmail,
+      source: "signup_onboarding"
+    };
+    const communicationPreferences = {
+      ...cleanCommunicationPreferences(data.communicationPreferences),
+      source: "signup_onboarding",
+      updatedAt: now
+    };
+    await tenantRef.set({
+      legalAcceptance: acceptance,
+      communicationPreferences,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+    await db.collection("system_legal_acceptances").doc(`${uid}_${Date.now()}`).set({
+      tenantUid: uid,
+      email: authEmail,
+      ...acceptance,
+      createdAt: serverTimestamp()
+    }, { merge: true });
+    await recordSignupLog({
+      tenantUid: uid,
+      email: authEmail,
+      action: "signup_legal_terms_accepted",
+      summary: "Termos de uso e política de privacidade aceitos no onboarding.",
+      metadata: {
+        termsUrl,
+        privacyUrl,
+        communicationCommercialCampaigns: communicationPreferences.commercialCampaigns,
+        communicationGrowthTips: communicationPreferences.growthTips,
+        communicationUpgradeOffers: communicationPreferences.upgradeOffers
+      }
+    });
+    const store = tenantData.store || {};
+    const planSlug = billing.planSlug || tenantData.plan || "";
+    await sendEmailFromTemplateViaSmtp({
+      to: authEmail,
+      templateKey: "welcome_access_created",
+      source: "signup",
+      eventId: `signup_completed_${uid}`,
+      tenantUid: uid,
+      variables: {
+        buyerName: tenantData.ownerName || tenantData.fullName || authEmail,
+        buyerEmail: authEmail,
+        planName: planDisplayName(planSlug),
+        productName: "BocaFood",
+        storeName: store.name || tenantData.storeName || ""
+      }
+    });
+    return { ok: true, legalAccepted: true, redirectUrl: "/admin.html#inicio" };
+  }
+
   if (stage === "account_created") {
     await recordSignupLog({ tenantUid: uid, email: authEmail, action: "signup_started", summary: "Cadastro BocaFood iniciado.", metadata: { purchaseFound: !!pending } });
     await recordSignupLog({ tenantUid: uid, email: authEmail, action: "signup_account_created", summary: "Conta Firebase criada pelo onboarding.", metadata: { purchaseFound: !!pending } });
@@ -1454,6 +2412,7 @@ exports.completeSignupOnboarding = onCall({ region: REGION }, async (request) =>
   const ownerName = cleanSignupText(data.ownerName, 120);
   const storeName = cleanSignupText(data.storeName, 120);
   const storeCity = cleanSignupText(data.storeCity || data.serviceCity, 120);
+  const fiscalCountry = cleanCountryCode(data.fiscalCountry || data.countryFiscal || data.accountFiscalCountry) || "ES";
   const businessType = cleanSignupText(data.businessType || data.storeKind, 120);
   const businessStage = cleanSignupText(data.businessStage, 120);
   const language = cleanLanguageCode(data.language);
@@ -1472,6 +2431,13 @@ exports.completeSignupOnboarding = onCall({ region: REGION }, async (request) =>
     whatsappNumber,
     whatsappFull,
     language,
+    fiscalCountry,
+    accountAddress: {
+      city: storeCity,
+      fiscalCountry,
+      source: "signup_onboarding",
+      updatedAt: now
+    },
     accountStatus: pending ? "active" : "pending",
     status: pending ? "active" : "pending",
     origin: pending ? "hotmart" : "signup",
@@ -1479,6 +2445,7 @@ exports.completeSignupOnboarding = onCall({ region: REGION }, async (request) =>
     store: {
       name: storeName,
       city: storeCity,
+      fiscalCountry,
       status: "draft",
       updatedAt: now
     },
@@ -1486,6 +2453,7 @@ exports.completeSignupOnboarding = onCall({ region: REGION }, async (request) =>
       businessType,
       salesMode: cleanSignupText(data.salesMode, 120),
       serviceCity: storeCity,
+      fiscalCountry,
       sellingFrequency: cleanSignupText(data.sellingFrequency, 120),
       salesChannels: cleanSignupList(data.salesChannels),
       menuStatus: cleanSignupText(data.menuStatus, 120),
@@ -1529,20 +2497,6 @@ exports.completeSignupOnboarding = onCall({ region: REGION }, async (request) =>
     }, { merge: true });
     await recordSignupLog({ tenantUid: uid, email: authEmail, action: "signup_hotmart_linked", summary: "Compra Hotmart vinculada ao cadastro.", metadata: { pendingId: pending.id, planSlug: billing.planSlug, billingCycle: billing.billingCycle } });
     await recordSignupLog({ tenantUid: uid, email: authEmail, action: "signup_completed", summary: "Cadastro BocaFood concluído com compra ativa.", metadata: { origin: "hotmart" } });
-    await sendEmailFromTemplateViaSmtp({
-      to: authEmail,
-      templateKey: "welcome_access_created",
-      source: "signup",
-      eventId: `signup_completed_${uid}`,
-      tenantUid: uid,
-      variables: {
-        buyerName: ownerName,
-        buyerEmail: authEmail,
-        planName: (pending.data && (pending.data.planName || pending.data.planSlug)) || billing.planSlug || "Plano BocaFood",
-        productName: (pending.data && pending.data.productName) || "BocaFood",
-        storeName
-      }
-    });
     return { ok: true, purchaseFound: true, accountStatus: "active", redirectUrl: "/admin.html#inicio" };
   }
 
@@ -1557,7 +2511,7 @@ exports.completeSignupOnboarding = onCall({ region: REGION }, async (request) =>
 });
 
 exports.hotmartWebhook = onRequest(
-  { region: REGION },
+  { region: REGION, secrets: [HOTMART_HOTTOK_SECRET] },
   async (req, res) => {
     try {
       if (req.method === "GET") {
@@ -1568,8 +2522,18 @@ exports.hotmartWebhook = onRequest(
         return res.status(405).send("Method not allowed");
       }
 
-      const expectedHottok = process.env.HOTMART_HOTTOK;
-      const receivedHottok = req.get("X-HOTMART-HOTTOK");
+      const expectedHottok = readHotmartHottok();
+      const receivedHottok = String(req.get("X-HOTMART-HOTTOK") || "").trim();
+
+      if (!expectedHottok) {
+        console.error("HOTMART_HOTTOK não configurado para o webhook.");
+        return res.status(500).send("Webhook token not configured");
+      }
+
+      if (hotmartHottokLooksMisconfigured(expectedHottok)) {
+        console.error("HOTMART_HOTTOK parece estar mal configurado.");
+        return res.status(500).send("Webhook token misconfigured");
+      }
 
       if (!expectedHottok || receivedHottok !== expectedHottok) {
         return res.status(401).send("Unauthorized");
@@ -1579,8 +2543,9 @@ exports.hotmartWebhook = onRequest(
       const eventId = payload.id || `hotmart-${Date.now()}`;
       const eventRef = db.collection("hotmart_events").doc(eventId);
       const existingEvent = await eventRef.get();
+      const existingEventData = existingEvent.exists ? existingEvent.data() || {} : {};
 
-      if (existingEvent.exists) {
+      if (existingEvent.exists && existingEventData.processedAt) {
         return res.status(200).json({
           ok: true,
           duplicate: true,
@@ -1599,12 +2564,28 @@ exports.hotmartWebhook = onRequest(
 
       const eventName = payload.event || payload.event_name || payload.type;
       const status = hotmartBillingStatus(eventName, payload);
+      let linkedCount = 0;
+      let processingStatus = status ? "processed" : "ignored_unsupported";
+      let processingReason = status ? "" : "unmapped_event";
+      let buyerSummary = {};
       if (status) {
         const buyer = extractHotmartBuyer(payload);
+        buyerSummary = {
+          buyerEmail: buyer.buyerEmail || "",
+          hotmartSubscriberCode: buyer.hotmartSubscriberCode || "",
+          hotmartTransaction: buyer.hotmartTransaction || "",
+          hotmartOfferCode: buyer.hotmartOfferCode || "",
+          planSlug: buyer.planSlug || "",
+          billingCycle: buyer.billingCycle || ""
+        };
         if (buyer.buyerEmail || buyer.hotmartSubscriberCode || buyer.hotmartTransaction) {
           const eventAt = eventDateIso(payload);
           const linkedResult = await applyHotmartBillingToTenants({ buyer, status, eventName, eventAt });
-          const linkedCount = linkedResult.count || 0;
+          linkedCount = linkedResult.count || 0;
+          if (!linkedCount) {
+            processingStatus = "pending_manual";
+            processingReason = "tenant_not_found";
+          }
           const pendingAccess = {
             eventId,
             buyerName: buyer.buyerName,
@@ -1657,7 +2638,7 @@ exports.hotmartWebhook = onRequest(
             const settingsSnap = await db.collection("system_email_settings").doc("default").get();
             const settings = settingsSnap.exists ? settingsSnap.data() : {};
             const tenantUid = (linkedResult.tenantUids || [])[0] || "";
-            const variables = hotmartEmailVariables({ buyer, settings, status });
+            const variables = hotmartEmailVariables({ buyer, settings, status, eventAt });
             const smtpResult = await sendEmailFromTemplateViaSmtp({
               to: buyer.buyerEmail,
               templateKey,
@@ -1684,8 +2665,63 @@ exports.hotmartWebhook = onRequest(
               });
             }
           }
+        } else {
+          const eventAt = eventDateIso(payload);
+          processingStatus = "pending_manual";
+          processingReason = "incomplete_hotmart_payload";
+          await db.collection("pending_hotmart_access").doc(eventId).set({
+            eventId,
+            buyerName: buyer.buyerName || "",
+            buyerEmail: "",
+            planName: buyer.planName || "",
+            productName: buyer.productName || "",
+            planSlug: buyer.planSlug || "",
+            billingCycle: buyer.billingCycle || "",
+            purchaseStatus: buyer.purchaseStatus || "",
+            subscriptionStatus: buyer.subscriptionStatus || status,
+            hotmartSubscriberCode: "",
+            hotmartTransaction: "",
+            hotmartProductId: buyer.hotmartProductId || "",
+            hotmartOfferCode: buyer.hotmartOfferCode || "",
+            lastHotmartEventAt: eventAt,
+            status: "pending",
+            internalStatus: status,
+            pendingReason: "incomplete_hotmart_payload",
+            eventType: eventName || "",
+            source: "hotmart",
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          }, { merge: true });
+          await recordSystemAccessLog({
+            action: "hotmart_event_incomplete",
+            summary: "Evento Hotmart recebido com dados insuficientes para vincular ao tenant.",
+            severity: "warning",
+            metadata: {
+              eventId,
+              eventType: eventName,
+              billingStatus: status,
+              pendingReason: "incomplete_hotmart_payload"
+            }
+          });
         }
       }
+
+      await eventRef.set(
+        {
+          processedAt: admin.firestore.FieldValue.serverTimestamp(),
+          processingStatus,
+          processingReason,
+          billingStatus: status || "",
+          linkedCount,
+          buyerEmail: buyerSummary.buyerEmail || "",
+          hotmartSubscriberCode: buyerSummary.hotmartSubscriberCode || "",
+          hotmartTransaction: buyerSummary.hotmartTransaction || "",
+          hotmartOfferCode: buyerSummary.hotmartOfferCode || "",
+          planSlug: buyerSummary.planSlug || "",
+          billingCycle: buyerSummary.billingCycle || ""
+        },
+        { merge: true }
+      );
 
       return res.status(200).json({
         ok: true,
@@ -1738,6 +2774,103 @@ exports.dailyTenantTagCheck = onSchedule(
     });
     await Promise.all(jobs);
     console.info("dailyTenantTagCheck completed", { tenants: snap.size, writes: jobs.length });
+  }
+);
+
+exports.dailyFirestoreBackup = onSchedule(
+  { region: REGION, schedule: "0 3 * * *", timeZone: "Europe/Madrid", serviceAccount: FIREBASE_ADMIN_SERVICE_ACCOUNT, timeoutSeconds: 540, memory: "512MiB" },
+  async () => {
+    const result = await runFirestoreExport({ source: "schedule", requestedBy: "dailyFirestoreBackup" });
+    if (!result.ok && !result.skipped) console.error("dailyFirestoreBackup failed", { error: result.error || "backup_failed" });
+  }
+);
+
+exports.dailyCrmTagRuleCheck = onSchedule(
+  { region: REGION, schedule: "40 9 * * *", timeZone: "Europe/Madrid" },
+  async () => {
+    await ensureCrmTagDefaults();
+    await ensureCrmTagRuleDefaults();
+    const rulesSnap = await db.collection("system_crm_tag_rules").where("enabled", "==", true).limit(50).get();
+    const tenantsSnap = await db.collection("system_tenants").limit(500).get();
+    const jobs = [];
+    rulesSnap.forEach((ruleDoc) => {
+      const rule = ruleDoc.data() || {};
+      if (String(rule.audience || "tenants") !== "tenants") return;
+      const actions = Array.isArray(rule.actions) ? rule.actions : [];
+      if (!actions.length) return;
+      tenantsSnap.forEach((tenantDoc) => {
+        const tenantUid = tenantDoc.id;
+        const tenant = {
+          ...(tenantDoc.data() || {}),
+          id: tenantUid,
+          uid: tenantUid,
+          tenantUid
+        };
+        const matched = tenantMatchesCrmRule(tenant, rule);
+        if (!matched) {
+          jobs.push(writeCrmTagLog({
+            ruleId: ruleDoc.id,
+            tenantUid,
+            action: "skipped",
+            matched: false,
+            reason: "conditions_not_matched"
+          }));
+          return;
+        }
+        actions.forEach((action) => {
+          const type = String(action.type || "").trim();
+          const tagKey = cleanCrmTagKey(action.tagKey);
+          if (!tagKey) {
+            jobs.push(writeCrmTagLog({
+              ruleId: ruleDoc.id,
+              tenantUid,
+              action: "error",
+              matched: true,
+              reason: "tagKey_missing"
+            }));
+            return;
+          }
+          if (type === "add_tag") {
+            jobs.push(applyCrmTagToTenant(tenantUid, tagKey, {
+              addedBy: "dailyCrmTagRuleCheck",
+              source: "rule"
+            }).then(() => writeCrmTagLog({
+              ruleId: ruleDoc.id,
+              tenantUid,
+              action: "add_tag",
+              tagKey,
+              matched: true,
+              reason: "rule_matched"
+            })).catch((error) => writeCrmTagLog({
+              ruleId: ruleDoc.id,
+              tenantUid,
+              action: "error",
+              tagKey,
+              matched: true,
+              reason: error && error.message ? error.message : "add_tag_failed"
+            })));
+          } else if (type === "remove_tag") {
+            jobs.push(removeCrmTagFromTenant(tenantUid, tagKey).then(() => writeCrmTagLog({
+              ruleId: ruleDoc.id,
+              tenantUid,
+              action: "remove_tag",
+              tagKey,
+              matched: true,
+              reason: "rule_matched"
+            })).catch((error) => writeCrmTagLog({
+              ruleId: ruleDoc.id,
+              tenantUid,
+              action: "error",
+              tagKey,
+              matched: true,
+              reason: error && error.message ? error.message : "remove_tag_failed"
+            })));
+          }
+        });
+      });
+    });
+    await Promise.all(jobs);
+    console.info("dailyCrmTagRuleCheck completed", { rules: rulesSnap.size, tenants: tenantsSnap.size, writes: jobs.length });
   }
 );
 

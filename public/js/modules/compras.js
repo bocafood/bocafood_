@@ -8,7 +8,6 @@ Modules.Compras = (function () {
   var _itens = [];
   var _fornecedores = [];
   var _unidades = [];
-  var _tipos = [];
   var _categorias = [];
   var _contas = [];
   var _finCategorias = [];
@@ -17,7 +16,7 @@ Modules.Compras = (function () {
   var _editingKind = '';
   var _itensView = 'todos';
   var _registroFilters = { q: '', periodo: 'todos', inicio: '', fim: '', status: '', ordem: 'desc' };
-  var _itensFilters = { q: '', classe: '', tipo: '', categoria: '', fornecedor: '', ativo: 'ativo' };
+  var _itensFilters = { q: '', classe: '', categoria: '', fornecedor: '', ativo: 'ativo' };
   var _simpleListClasseFilter = '';
   var _simpleListQ = '';
   var _fornecedoresFilters = { q: '', status: 'ativo' };
@@ -36,11 +35,11 @@ Modules.Compras = (function () {
   var _sendingFinanceiro = {};
   var _comprasFinanceiroStatus = {};
   var _compraParcelasPreview = []; // preview das parcelas antes de salvar
+  var _selectedCompraIds = {};
   var _pag = {
     registros:    { page: 1, perPage: 25 },
     itens:        { page: 1, perPage: 25 },
     fornecedores: { page: 1, perPage: 25 },
-    tipos:        { page: 1, perPage: 25 },
     categorias:   { page: 1, perPage: 25 }
   };
 
@@ -50,14 +49,8 @@ Modules.Compras = (function () {
     { key: 'fornecedores', label: 'Fornecedores' },
     { key: 'configuracoes', label: 'Configurações' }
   ];
-  var _configSub = 'tipos'; // subtab activo dentro de Configurações
+  var _configSub = 'categorias'; // subtab activo dentro de Configurações
 
-  var DEFAULT_TIPOS_SEED = [
-    { name: 'Ingrediente', classe: 'insumo' }, { name: 'Embalagem', classe: 'insumo' },
-    { name: 'Material operacional', classe: 'insumo' }, { name: 'Escritório / administrativo', classe: 'ambos' },
-    { name: 'Bebida', classe: 'produto' }, { name: 'Sobremesa pronta', classe: 'produto' },
-    { name: 'Produto revenda', classe: 'produto' }
-  ];
   var DEFAULT_CATS_SEED = [
     { name: 'Laticínios', classe: 'insumo' }, { name: 'Secos', classe: 'insumo' },
     { name: 'Proteínas', classe: 'insumo' }, { name: 'Hortifruti', classe: 'insumo' },
@@ -100,16 +93,14 @@ Modules.Compras = (function () {
     if (key === 'unidades') return _renderUnidades();
     if (key === 'configuracoes') return _renderConfiguracoes();
     // rotas legadas (podem vir de Router.navigate ou links antigos)
-    if (key === 'tipos') { _configSub = 'tipos'; _activeSub = 'configuracoes'; return _renderConfiguracoes(); }
     if (key === 'categorias') { _configSub = 'categorias'; _activeSub = 'configuracoes'; return _renderConfiguracoes(); }
   }
 
   function _seedDefaults() {
-    return Promise.all([DB.getAll('compras_tipos'), DB.getAll('compras_categorias'), DB.getAll('unidades_medida')]).then(function (r) {
+    return Promise.all([DB.getAll('compras_categorias'), DB.getAll('unidades_medida')]).then(function (r) {
       var ops = [];
-      if (!(r[0] || []).length) ops = ops.concat(DEFAULT_TIPOS_SEED.map(function (t) { return DB.add('compras_tipos', { name: t.name, classe: t.classe, ativo: true }); }));
-      if (!(r[1] || []).length) ops = ops.concat(DEFAULT_CATS_SEED.map(function (t) { return DB.add('compras_categorias', { name: t.name, classe: t.classe, ativo: true }); }));
-      if (!(r[2] || []).length) ops = ops.concat(DEFAULT_UNIDADES.map(function (u) { return DB.add('unidades_medida', u); }));
+      if (!(r[0] || []).length) ops = ops.concat(DEFAULT_CATS_SEED.map(function (t) { return DB.add('compras_categorias', { name: t.name, classe: t.classe, ativo: true }); }));
+      if (!(r[1] || []).length) ops = ops.concat(DEFAULT_UNIDADES.map(function (u) { return DB.add('unidades_medida', u); }));
       return Promise.all(ops);
     }).catch(function () {});
   }
@@ -121,12 +112,11 @@ Modules.Compras = (function () {
     var perPage = p.perPage;
     var page = p.page;
     var totalPages = Math.ceil(total / perPage);
-    if (totalPages <= 1 && total <= perPage) return '';
     var from = Math.min((page - 1) * perPage + 1, total);
     var to = Math.min(page * perPage, total);
     var btn = 'height:34px;padding:0 11px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#6F6860;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;';
     var activeBtn = btn + 'color:#1F1F1F;border-color:#EAE4DA;font-weight:600;';
-    var perPageSel = '<select onchange="Modules.Compras._setPerPage(\'' + key + '\',this.value)" style="min-width:110px;max-width:110px;height:34px;padding:0 10px;border:1px solid #EAE4DA;border-radius:10px;font-size:12px;font-family:inherit;outline:none;background:#fff;color:#6F6860;box-sizing:border-box;">' +
+    var perPageSel = '<select onchange="Modules.Compras._setPerPage(\'' + key + '\',this.value)" style="min-width:118px;max-width:118px;height:34px;padding:0 38px 0 10px;border:1px solid #EAE4DA;border-radius:10px;font-size:12px;font-family:inherit;outline:none;color:#6F6860;box-sizing:border-box;appearance:none;-webkit-appearance:none;-moz-appearance:none;background-color:#fff;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 14px center;background-size:14px;">' +
       [10, 25, 50].map(function (n) { return '<option value="' + n + '"' + (perPage === n ? ' selected' : '') + '>' + n + ' / pág.</option>'; }).join('') + '</select>';
     var pages = '';
     pages += '<button type="button" onclick="Modules.Compras._changePage(\'' + key + '\',' + (page - 1) + ')" style="' + btn + 'cursor:' + (page > 1 ? 'pointer' : 'not-allowed') + ';opacity:' + (page > 1 ? '1' : '.45') + ';"' + (page > 1 ? '' : ' disabled') + '>Anterior</button>';
@@ -149,7 +139,6 @@ Modules.Compras = (function () {
     if (key === 'registros') _paintRegistrosTable();
     else if (key === 'itens') { var _rit = document.getElementById('compras-itens-table'); if (_rit) _rit.innerHTML = _itensTable(_filteredItens()); }
     else if (key === 'fornecedores') _paintFornecedoresTable();
-    else if (key === 'tipos') _paintSimpleList('tipos');
     else if (key === 'categorias') _paintSimpleList('categorias');
     else if (key === 'configuracoes') _paintConfiguracoes();
   }
@@ -177,38 +166,44 @@ Modules.Compras = (function () {
   function _paintRegistros() {
     var content = document.getElementById('compras-content');
     if (!content) return;
-    var totalComprado = _compras.reduce(function (s, c) { return s + (parseFloat(c.total) || 0); }, 0);
-    var comprasPendentes = _compras.filter(_compraPendente).length;
-    var fieldStyle = 'padding:10px 12px;border:1px solid #EAE4DA;border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;width:100%;box-sizing:border-box;color:#1F1F1F;box-shadow:inset 0 1px 0 rgba(255,255,255,.78);transition:border-color .15s ease,box-shadow .15s ease,background .15s ease;';
-    var selStyle = fieldStyle + 'height:40px;';
-    var limparBtn = 'height:40px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#6F6860;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;white-space:nowrap;';
+    var registroFilterCss = '<style>' +
+      '.registro-filter-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:16px;box-shadow:0 10px 24px rgba(31,31,31,.04);}' +
+      '.registro-filter-grid{display:grid;gap:13px;align-items:end;}' +
+      '.registro-filter-control{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:6px;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;}' +
+      '.registro-filter-control:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
+      '.registro-filter-control input,.registro-filter-control select{width:100%;height:36px;border:0;border-radius:8px;padding:0 8px;font-size:14px;font-family:inherit;outline:none;background:transparent;box-sizing:border-box;color:#1F1F1F;box-shadow:none;}' +
+      '.registro-filter-control select{padding-right:42px;appearance:none;-webkit-appearance:none;-moz-appearance:none;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 16px center;background-size:14px;}' +
+      '.registro-filter-actions{margin-top:12px;display:flex;justify-content:flex-end;}' +
+      '@media(max-width:1180px){.registro-filter-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}}' +
+      '@media(max-width:820px){.registro-filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}' +
+      '@media(max-width:620px){.registro-filter-grid{grid-template-columns:1fr!important}.registro-filter-actions{justify-content:stretch}.registro-filter-actions button{width:100%;}}' +
+      '</style>';
+    var clearRegistrosHtml = _hasActiveRegistroFilters()
+      ? '<div class="registro-filter-actions"><button onclick="Modules.Compras._clearRegistrosFilters()" style="height:40px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;font-size:13px;font-family:inherit;cursor:pointer;background:#fff;color:#6F6860;white-space:nowrap;box-shadow:0 1px 2px rgba(31,31,31,.03);">Limpar filtros</button></div>'
+      : '';
     content.innerHTML = '<div class="bf-page" style="display:flex;flex-direction:column;gap:16px;">' +
       '<div class="bf-page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
         '<div>' +
           '<h2 style="font-size:22px;font-weight:700;line-height:1.15;margin:0 0 6px;color:#1F1F1F;">Registro de compras</h2>' +
           '<p style="font-size:13px;color:#6F6860;line-height:1.5;margin:0;max-width:760px;">Acompanhe compras registradas, status de recebimento e vínculo com o Financeiro.</p>' +
-          '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px;">' +
-            '<span style="display:inline-flex;align-items:center;min-height:24px;padding:0 9px;border-radius:999px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;font-size:12px;font-weight:500;">' + _compras.length + ' compras</span>' +
-            '<span style="display:inline-flex;align-items:center;min-height:24px;padding:0 9px;border-radius:999px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;font-size:12px;font-weight:500;">' + comprasPendentes + ' pendentes</span>' +
-            '<span style="display:inline-flex;align-items:center;min-height:24px;padding:0 9px;border-radius:999px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;font-size:12px;font-weight:500;">Total ' + UI.fmt(totalComprado) + '</span>' +
-          '</div>' +
         '</div>' +
         '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;">' +
           '<button type="button" onclick="Modules.Compras._openCompraModal(null)" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">+ Nova compra</button>' +
         '</div>' +
       '</div>' +
       '<div id="compras-reg-kpis" class="growth-grid" style="margin-bottom:0;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;"></div>' +
-      '<div style="background:#fff;border:none;border-radius:16px;padding:18px 20px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
-      '<div style="display:grid;grid-template-columns:minmax(320px,1.6fr) minmax(150px,.75fr) minmax(160px,.8fr) minmax(140px,.7fr) minmax(140px,.7fr) auto;gap:10px;align-items:end;">' +
-      '<div><input id="compras-reg-search" type="search" value="' + _esc(_registroFilters.q) + '" oninput="Modules.Compras._filterRegistros()" placeholder="Buscar por fornecedor, pedido, item, conta, categoria..." autocomplete="off" style="' + fieldStyle + 'height:40px;"></div>' +
-      '<select id="compras-reg-status" onchange="Modules.Compras._filterRegistros()" style="' + selStyle + '">' +
+      registroFilterCss +
+      '<div class="registro-filter-card">' +
+      '<div class="registro-filter-grid" style="grid-template-columns:minmax(320px,1.45fr) minmax(150px,.72fr) minmax(170px,.82fr) minmax(140px,.68fr) minmax(140px,.68fr);">' +
+      '<div class="registro-filter-control"><input id="compras-reg-search" type="search" value="' + _esc(_registroFilters.q) + '" oninput="Modules.Compras._filterRegistros()" placeholder="Buscar por fornecedor, pedido, item, conta, categoria..." autocomplete="off"></div>' +
+      '<div class="registro-filter-control"><select id="compras-reg-status" onchange="Modules.Compras._filterRegistros()">' +
       '<option value=""' + (!_registroFilters.status ? ' selected' : '') + '>Todos status</option>' +
       '<option value="Cancelada"' + (_registroFilters.status === 'Cancelada' ? ' selected' : '') + '>Cancelada</option>' +
       '<option value="Parcial"' + (_registroFilters.status === 'Parcial' ? ' selected' : '') + '>Parcial</option>' +
       '<option value="Pendente"' + (_registroFilters.status === 'Pendente' ? ' selected' : '') + '>Pendente</option>' +
       '<option value="Recebida"' + (_registroFilters.status === 'Recebida' ? ' selected' : '') + '>Recebida</option>' +
-      '</select>' +
-      '<select id="compras-reg-periodo" onchange="Modules.Compras._filterRegistros()" style="' + selStyle + '">' +
+      '</select></div>' +
+      '<div class="registro-filter-control"><select id="compras-reg-periodo" onchange="Modules.Compras._filterRegistros()">' +
       _periodoOption('todos', 'Todo período') +
       _periodoOption('hoje', 'Hoje') +
       _periodoOption('ontem', 'Ontem') +
@@ -222,12 +217,11 @@ Modules.Compras = (function () {
       _periodoOption('trimestre_atual', 'Este trimestre') +
       _periodoOption('ano_atual', 'Este ano') +
       _periodoOption('ano_passado', 'Ano passado') +
-      '</select>' +
-      '<input id="compras-reg-inicio" type="date" value="' + _esc(_registroFilters.inicio) + '" onchange="Modules.Compras._filterRegistros()" title="Data inicial" style="' + selStyle + '">' +
-      '<input id="compras-reg-fim" type="date" value="' + _esc(_registroFilters.fim) + '" onchange="Modules.Compras._filterRegistros()" title="Data final" style="' + selStyle + '">' +
-      '<button onclick="Modules.Compras._clearRegistrosFilters()" style="' + limparBtn + '">Limpar</button>' +
+      '</select></div>' +
+      '<div class="registro-filter-control"><input id="compras-reg-inicio" type="date" value="' + _esc(_registroFilters.inicio) + '" onchange="Modules.Compras._filterRegistros()" title="Data inicial"></div>' +
+      '<div class="registro-filter-control"><input id="compras-reg-fim" type="date" value="' + _esc(_registroFilters.fim) + '" onchange="Modules.Compras._filterRegistros()" title="Data final"></div>' +
       '</div>' +
-      '<div id="compras-reg-summary" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;"></div>' +
+      clearRegistrosHtml +
       '</div>' +
       '<section style="display:flex;flex-direction:column;gap:10px;">' +
         '<div>' +
@@ -266,12 +260,6 @@ Modules.Compras = (function () {
     var pageData = data.slice((p.page - 1) * p.perPage, p.page * p.perPage);
     var tbl = document.getElementById('compras-reg-table');
     if (!tbl) return;
-    var summary = document.getElementById('compras-reg-summary');
-    if (summary) summary.innerHTML =
-      _chip(data.length + ' compras') +
-      _chip(pendentes + ' pendentes') +
-      _chip('Total ' + UI.fmt(total)) +
-      _chip('Página ' + Math.min(Math.max(1, p.page), Math.max(1, Math.ceil(data.length / p.perPage))) + ' de ' + Math.max(1, Math.ceil(data.length / p.perPage)));
     if (!data.length) {
       tbl.innerHTML = '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
         '<div style="text-align:center;padding:60px 20px;color:#7A746B;">' +
@@ -285,7 +273,10 @@ Modules.Compras = (function () {
     }
     var _dataArrow = _registroFilters.ordem === 'asc' ? ' ↑' : ' ↓';
     var th = 'padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;';
+    var pageIds = pageData.map(function (c) { return c.id; }).filter(Boolean);
+    var allPageSelected = pageIds.length && pageIds.every(function (id) { return !!_selectedCompraIds[id]; });
     var _theadRegistros = '<thead><tr style="background:#fff;border-bottom:1px solid #EAE4DA;">' +
+      '<th style="width:42px;text-align:center;' + th + '"><input type="checkbox" aria-label="Selecionar compras desta página" onchange="Modules.Compras._toggleRegistrosPageSelection(this.checked)"' + (allPageSelected ? ' checked' : '') + ' style="width:16px;height:16px;accent-color:#B42318;cursor:pointer;"></th>' +
       '<th style="text-align:left;' + th + '">Pedido</th>' +
       '<th onclick="Modules.Compras._toggleRegistrosOrdem()" style="text-align:left;cursor:pointer;user-select:none;' + th + '">Data' + _dataArrow + '</th>' +
       '<th style="text-align:left;' + th + '">Fornecedor</th>' +
@@ -296,11 +287,15 @@ Modules.Compras = (function () {
       '<th style="text-align:left;' + th + '">Conta a pagar</th>' +
       '<th style="text-align:right;' + th + '">Ações</th>' +
       '</tr></thead>';
-    tbl.innerHTML = '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:16px;overflow:hidden;box-shadow:0 12px 30px rgba(31,31,31,.06);"><div style="overflow:auto;"><table class="bf-table" style="width:100%;min-width:1040px;border-collapse:separate;border-spacing:0;background:#fff;">' +
+    tbl.innerHTML = _registroBulkActionsHtml(data) +
+      '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:16px;overflow:hidden;box-shadow:0 12px 30px rgba(31,31,31,.06);"><div style="overflow:auto;"><table class="bf-table" style="width:100%;min-width:1090px;border-collapse:separate;border-spacing:0;background:#fff;">' +
       _theadRegistros +
       '<tbody>' + (data.length ? pageData.map(function (c) {
         var f = _byId(_fornecedores, c.fornecedorId);
+        var selected = !!_selectedCompraIds[c.id];
+        var canConfirm = _canConfirmCompraRecebida(c);
         return '<tr onclick="Modules.Compras._openCompraModal(\'' + c.id + '\')" onmouseenter="this.style.background=\'#FBF8F2\'" onmouseleave="this.style.background=\'#fff\'" style="cursor:pointer;background:#fff;border-bottom:1px solid #EAE4DA;transition:background .15s ease;">' +
+          '<td style="padding:13px 16px;vertical-align:middle;text-align:center;" onclick="event.stopPropagation();"><input type="checkbox" aria-label="Selecionar compra" onchange="Modules.Compras._toggleRegistroSelection(\'' + c.id + '\',this.checked)"' + (selected ? ' checked' : '') + ' style="width:16px;height:16px;accent-color:#B42318;cursor:pointer;"></td>' +
           _td('<span style="font-size:11px;font-weight:600;color:#8A7E7C;font-family:monospace;">' + _esc(c.numPedido || '—') + '</span>') +
           _td(c.data ? UI.fmtDate(new Date(c.data)) : '-') +
           _td(_esc(f ? f.name : '-'), true) +
@@ -309,19 +304,38 @@ Modules.Compras = (function () {
           _td('<strong style="color:#1F1F1F;font-weight:600;">' + UI.fmt(c.total || 0) + '</strong>') +
           _td(_statusBadge(c.statusCompra)) +
           _td('<div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;">' + _financeiroBadgeHtml(c) + _financeiroActionHtml(c) + '</div>') +
-          '<td style="padding:13px 16px;vertical-align:middle;text-align:right;white-space:nowrap;" onclick="event.stopPropagation();"><div style="display:inline-flex;align-items:center;gap:6px;"><button type="button" title="Editar" onclick="Modules.Compras._openCompraModal(\'' + c.id + '\')" style="' + _iconBtn('#fff', '#6F6860') + '"><span class="mi" style="font-size:14px;">edit</span></button>' +
+          '<td style="padding:13px 16px;vertical-align:middle;text-align:right;white-space:nowrap;" onclick="event.stopPropagation();"><div style="display:inline-flex;align-items:center;gap:6px;">' +
+          (canConfirm ? '<button type="button" title="Confirmar recebimento" onclick="Modules.Compras._confirmCompraRecebida(\'' + c.id + '\')" style="height:30px;padding:0 10px;border:1px solid #D7EBDD;border-radius:9px;background:#F4FAF7;color:#1E7A50;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">Confirmar</button>' : '') +
+          (_canCancelCompra(c) ? '<button type="button" title="Cancelar compra" onclick="Modules.Compras._cancelCompraStatus(\'' + c.id + '\')" style="height:30px;padding:0 10px;border:1px solid #F0D4CF;border-radius:9px;background:#FFF7F4;color:#B42318;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">Cancelar</button>' : '') +
+          '<button type="button" title="Editar" onclick="Modules.Compras._openCompraModal(\'' + c.id + '\')" style="' + _iconBtn('#fff', '#6F6860') + '"><span class="mi" style="font-size:14px;">edit</span></button>' +
           '<button type="button" title="Excluir" onclick="Modules.Compras._deleteCompra(\'' + c.id + '\')" style="' + _iconBtn('#fff', '#B42318') + '"><span class="mi" style="font-size:14px;">delete</span></button></div></td></tr>';
       }).join('') : '') + '</tbody></table></div>' +
       _pagerHtml('registros', data.length) + '</div>';
   }
 
   function _filterRegistros() {
+    var activeId = document.activeElement ? document.activeElement.id : '';
+    var hadFilters = _hasActiveRegistroFilters();
     _registroFilters.q = (_el('compras-reg-search').value || '').trim();
     _registroFilters.periodo = _el('compras-reg-periodo').value || 'todos';
     _registroFilters.inicio = (_el('compras-reg-inicio').value || '').trim();
     _registroFilters.fim = (_el('compras-reg-fim').value || '').trim();
     _registroFilters.status = _el('compras-reg-status').value || '';
     _pag.registros.page = 1;
+    if (hadFilters !== _hasActiveRegistroFilters()) {
+      _paintRegistros();
+      if (activeId === 'compras-reg-search') {
+        var input = document.getElementById('compras-reg-search');
+        if (input) {
+          try {
+            input.focus();
+            var len = String(input.value || '').length;
+            if (input.setSelectionRange) input.setSelectionRange(len, len);
+          } catch (e) {}
+        }
+      }
+      return;
+    }
     _paintRegistrosTable();
   }
 
@@ -370,6 +384,686 @@ Modules.Compras = (function () {
     _registroFilters.ordem = _registroFilters.ordem === 'desc' ? 'asc' : 'desc';
     _pag.registros.page = 1;
     _paintRegistrosTable();
+  }
+
+  function _registroBulkActionsHtml(data) {
+    var selectedIds = _selectedRegistroIds(data);
+    if (!selectedIds.length) return '';
+    return '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px;padding:12px 14px;border:1px solid #EADFD8;border-radius:16px;background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);box-shadow:0 10px 24px rgba(31,31,31,.04);">' +
+      '<div style="display:flex;flex-direction:column;gap:2px;min-width:220px;"><strong style="font-size:13px;color:#1F1F1F;font-weight:700;">' + selectedIds.length + ' compra(s) selecionada(s)</strong><span style="font-size:12px;color:#6F6860;line-height:1.4;">Altere somente o status de recebimento das compras selecionadas.</span></div>' +
+      '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;">' +
+        '<button type="button" onclick="Modules.Compras._bulkConfirmComprasRecebidas()" style="height:34px;padding:0 12px;border:none;border-radius:10px;background:#1E7A50;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 6px 14px rgba(30,122,80,.14);">Confirmar recebimento</button>' +
+        '<button type="button" onclick="Modules.Compras._bulkCancelCompras()" style="height:34px;padding:0 12px;border:1px solid #F0D4CF;border-radius:10px;background:#FFF7F4;color:#B42318;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Cancelar compras</button>' +
+        '<button type="button" onclick="Modules.Compras._clearRegistrosSelection()" style="height:34px;padding:0 10px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#8A7E7C;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Limpar seleção</button>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function _selectedRegistroIds(data) {
+    var allowed = {};
+    (data || _filteredRegistros()).forEach(function (c) { if (c.id) allowed[c.id] = true; });
+    return Object.keys(_selectedCompraIds || {}).filter(function (id) { return allowed[id]; });
+  }
+
+  function _toggleRegistroSelection(id, checked) {
+    if (!id) return;
+    if (checked) _selectedCompraIds[id] = true;
+    else delete _selectedCompraIds[id];
+    _paintRegistrosTable();
+  }
+
+  function _toggleRegistrosPageSelection(checked) {
+    var data = _filteredRegistros();
+    var p = _pag.registros;
+    data.slice((p.page - 1) * p.perPage, p.page * p.perPage).forEach(function (c) {
+      if (!c.id) return;
+      if (checked) _selectedCompraIds[c.id] = true;
+      else delete _selectedCompraIds[c.id];
+    });
+    _paintRegistrosTable();
+  }
+
+  function _clearRegistrosSelection() {
+    _selectedCompraIds = {};
+    _paintRegistrosTable();
+  }
+
+  function _canConfirmCompraRecebida(c) {
+    var st = String((c && c.statusCompra) || 'Pendente').toLowerCase();
+    return st !== 'recebida' && st !== 'cancelada';
+  }
+
+  function _canCancelCompra(c) {
+    var st = String((c && c.statusCompra) || 'Pendente').toLowerCase();
+    return st !== 'cancelada' && st !== 'recebida' && !_compraTemRecebimento(c);
+  }
+
+  function _isCompraStatusLocked(c) {
+    var st = String((c && c.statusCompra) || 'Pendente').toLowerCase();
+    return st === 'recebida' || st === 'parcial' || st === 'cancelada';
+  }
+
+  function _compraTemRecebimento(c) {
+    if (!c) return false;
+    if (String(c.statusCompra || '').toLowerCase() === 'parcial') return true;
+    if (c.recebimento && Array.isArray(c.recebimento.historico) && c.recebimento.historico.length) return true;
+    return (c.itens || []).some(function (l) {
+      return _num(l.qtyRecebida) > 0 || l.recebido === true || String(l.statusRecebimento || '').toLowerCase() === 'recebida' || String(l.statusRecebimento || '').toLowerCase() === 'parcial';
+    });
+  }
+
+  function _cancelCompraStatus(id) {
+    var compra = _byId(_compras, id);
+    if (!compra) { UI.toast('Compra não encontrada.', 'error'); return; }
+    if (_compraTemRecebimento(compra)) {
+      UI.toast('Esta compra já tem recebimento registrado. Volte para pendente antes de cancelar.', 'error');
+      return;
+    }
+    if (!_canCancelCompra(compra)) {
+      UI.toast('Esta compra não pode ser cancelada por esta ação.', 'info');
+      return;
+    }
+    _cancelarCompraComRegras(compra);
+  }
+
+  function _confirmCompraRecebida(id) {
+    var compra = _byId(_compras, id);
+    if (!compra) { UI.toast('Compra não encontrada.', 'error'); return; }
+    if (!_canConfirmCompraRecebida(compra)) {
+      UI.toast('Esta compra não precisa de confirmação de recebimento.', 'info');
+      return;
+    }
+    _openRecebimentoCompraModal(id);
+  }
+
+  function _openRecebimentoCompraModal(id) {
+    var compra = _byId(_compras, id);
+    if (!compra) { UI.toast('Compra não encontrada.', 'error'); return; }
+    var linhas = (compra.itens || []).map(function (l, idx) {
+      var qty = _num(l.qty || l.quantidade || l.quantidadeComprada || 0);
+      var received = l.qtyRecebida != null ? _num(l.qtyRecebida) : (_isLineReceived(l) ? qty : 0);
+      var pending = Math.max(0, qty - received);
+      return Object.assign({}, l, { _idx: idx, _qtyCompra: qty, _qtyRecebida: Math.min(qty, received), _qtyPendente: pending });
+    });
+    window._compraRecebimentoCtx = { compraId: id, linhas: linhas };
+    var css = '<style>' +
+      '.purchase-receipt-modal{display:flex;flex-direction:column;gap:12px;font-family:Manrope,Inter,sans-serif;}' +
+      '.purchase-receipt-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:14px;box-shadow:0 10px 24px rgba(31,31,31,.04);}' +
+      '.purchase-receipt-head{display:flex;align-items:flex-start;gap:9px;margin-bottom:10px;}' +
+      '.purchase-receipt-head .mi{font-size:18px;color:#6F6860;line-height:1.2;}' +
+      '.purchase-receipt-title{font-size:13px;font-weight:800;color:#1F1F1F;line-height:1.25;margin-bottom:3px;}' +
+      '.purchase-receipt-hint{font-size:12px;color:#8A7E7C;line-height:1.4;}' +
+      '.purchase-receipt-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;}' +
+      '.purchase-receipt-option{border:1px solid #E8DCD7;border-radius:14px;background:#fff;padding:11px;text-align:left;cursor:pointer;font-family:inherit;color:#1F1F1F;}' +
+      '.purchase-receipt-option strong{display:block;font-size:12.5px;font-weight:800;margin-bottom:3px;}' +
+      '.purchase-receipt-option span{display:block;font-size:11.5px;color:#6F6860;line-height:1.35;}' +
+      '.purchase-receipt-option.active{border-color:#D9AAA1;background:#FFF7F4;box-shadow:0 0 0 3px rgba(180,35,24,.06);}' +
+      '.purchase-receipt-lines{display:grid;gap:8px;}' +
+      '.purchase-receipt-line{display:grid;grid-template-columns:26px minmax(0,1fr) 130px;gap:10px;align-items:center;border:1px solid #F0E7E1;background:#fff;border-radius:14px;padding:10px;}' +
+      '.purchase-receipt-line strong{display:block;font-size:12.5px;color:#1F1F1F;font-weight:750;line-height:1.25;}' +
+      '.purchase-receipt-line small{display:block;font-size:11.3px;color:#7A746B;line-height:1.35;margin-top:2px;}' +
+      '.purchase-receipt-history{display:grid;gap:8px;margin-bottom:12px;}' +
+      '.purchase-receipt-history-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;border:1px solid #F0E7E1;background:#fff;border-radius:12px;padding:9px 10px;font-size:12px;color:#6F6860;}' +
+      '.purchase-receipt-history-row strong{color:#1F1F1F;font-size:12px;}' +
+      '.purchase-receipt-history-row span{white-space:nowrap;}' +
+      '.purchase-receipt-line input[type="number"]{width:100%;height:34px;border:1px solid #E8DCD7;border-radius:10px;background:#FFFCF8;padding:0 8px;font-size:13px;font-family:inherit;box-sizing:border-box;outline:none;}' +
+      '.purchase-receipt-line input[type="number"]:focus{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
+      '@media(max-width:720px){.purchase-receipt-options{grid-template-columns:1fr}.purchase-receipt-line{grid-template-columns:26px minmax(0,1fr);}.purchase-receipt-line input[type="number"]{grid-column:2;}}' +
+      '</style>';
+    var rows = linhas.length ? linhas.map(function (l, idx) {
+      var qty = _num(l._qtyCompra);
+      var received = _num(l._qtyRecebida);
+      var pending = Math.max(0, qty - received);
+      var checked = pending > 0;
+      return '<div class="purchase-receipt-line">' +
+        '<input id="receipt-line-check-' + idx + '" type="checkbox" ' + (checked ? 'checked' : '') + ' onchange="Modules.Compras._toggleReceiptLine(' + idx + ',this.checked)" style="width:16px;height:16px;accent-color:#B42318;cursor:pointer;">' +
+        '<div><strong>' + _esc(l.itemNome || l.nome || l.name || 'Item') + '</strong><small>Comprado: ' + _esc(qty || '-') + ' ' + _esc(l.unidadeCompra || l.unidadeBase || '') + ' · Já recebido: ' + _esc(received) + ' · Falta: ' + _esc(pending) + (l.conteudoPorEmbalagem ? ' · ' + _esc(l.conteudoPorEmbalagem) + ' ' + _esc(l.unidadeBase || '') + ' por embalagem' : '') + '</small></div>' +
+        '<input id="receipt-line-qty-' + idx + '" type="number" min="0" step="0.001" max="' + pending + '" value="' + (checked ? pending : 0) + '" oninput="Modules.Compras._syncReceiptLineCheck(' + idx + ')">' +
+      '</div>';
+    }).join('') : '<div style="font-size:13px;color:#6F6860;">Esta compra não tem itens para selecionar.</div>';
+    var historyRows = _receiptHistoryRows(compra, linhas);
+    var body = css + '<div class="purchase-receipt-modal">' +
+      '<section class="purchase-receipt-card">' +
+        '<div class="purchase-receipt-head"><span class="mi">inventory_2</span><div><div class="purchase-receipt-title">Como foi o recebimento?</div><div class="purchase-receipt-hint">Escolha se a compra chegou completa ou parcialmente.</div></div></div>' +
+        '<div class="purchase-receipt-options">' +
+          '<button id="receipt-mode-total" type="button" class="purchase-receipt-option active" onclick="Modules.Compras._setReceiptMode(\'total\')"><strong>Recebida</strong><span>Todos os itens chegaram.</span></button>' +
+          '<button id="receipt-mode-partial" type="button" class="purchase-receipt-option" onclick="Modules.Compras._setReceiptMode(\'partial\')"><strong>Recebida parcial</strong><span>Selecione o que chegou e deixe o restante pendente.</span></button>' +
+        '</div>' +
+      '</section>' +
+      '<section id="receipt-partial-card" class="purchase-receipt-card" style="display:none;">' +
+        '<div class="purchase-receipt-head"><span class="mi">checklist</span><div><div class="purchase-receipt-title">Itens recebidos</div><div class="purchase-receipt-hint">Marque os itens que chegaram. Se chegou só uma parte, ajuste a quantidade recebida.</div></div></div>' +
+        '<div class="purchase-receipt-history">' + historyRows + '</div>' +
+        '<div class="purchase-receipt-lines">' + rows + '</div>' +
+      '</section>' +
+    '</div>';
+    var footer = '<div style="display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;width:100%;">' +
+      '<button type="button" onclick="window._compraRecebimentoModal&&window._compraRecebimentoModal.close()" style="' + _cancelStyle() + '">Fechar</button>' +
+      '<button id="receipt-save-btn" type="button" onclick="Modules.Compras._applyRecebimentoCompraModal()" style="' + _primaryStyle() + '">Confirmar recebimento</button>' +
+    '</div>';
+    window._compraRecebimentoMode = 'total';
+    window._compraRecebimentoModal = UI.modal({ title: 'Confirmar recebimento', body: body, footer: footer, maxWidth: '760px' });
+  }
+
+  function _setReceiptMode(mode) {
+    window._compraRecebimentoMode = mode || 'total';
+    ['total', 'partial', 'cancel'].forEach(function (key) {
+      var el = document.getElementById('receipt-mode-' + key);
+      if (el) el.classList.toggle('active', key === window._compraRecebimentoMode);
+    });
+    var partialCard = document.getElementById('receipt-partial-card');
+    if (partialCard) partialCard.style.display = window._compraRecebimentoMode === 'partial' ? 'block' : 'none';
+    var saveBtn = document.getElementById('receipt-save-btn');
+    if (saveBtn) saveBtn.textContent = window._compraRecebimentoMode === 'partial' ? 'Salvar recebimento parcial' : 'Confirmar recebimento';
+  }
+
+  function _receiptHistoryRows(compra, linhas) {
+    var history = (compra && compra.recebimento && compra.recebimento.historico) || [];
+    var currentRows = (linhas || []).filter(function (l) { return _num(l._qtyRecebida) > 0 || _num(l._qtyPendente) < _num(l._qtyCompra); }).map(function (l) {
+      return {
+        date: (compra.recebimentoAtualizadoEm || (compra.recebimento && compra.recebimento.updatedAt) || '').slice(0, 10),
+        itemNome: l.itemNome || l.nome || l.name || 'Item',
+        received: _num(l._qtyRecebida),
+        pending: _num(l._qtyPendente)
+      };
+    });
+    var rows = history.length ? history : currentRows;
+    if (!rows.length) {
+      return '<div style="border:1px dashed #EADFD8;border-radius:12px;padding:10px 12px;background:#FFFCF8;color:#6F6860;font-size:12px;line-height:1.4;">Ainda não há recebimento registrado para esta compra.</div>';
+    }
+    return rows.map(function (h) {
+      return '<div class="purchase-receipt-history-row">' +
+        '<strong>' + _esc(h.itemNome || h.item || 'Item') + '</strong>' +
+        '<span>Recebido: ' + _esc(h.received != null ? h.received : h.qtyRecebida || 0) + '</span>' +
+        '<span>Falta: ' + _esc(h.pending != null ? h.pending : h.qtyPendente || 0) + '</span>' +
+        '<span style="grid-column:1/-1;color:#8A7E7C;font-size:11px;">' + _esc(h.date ? _formatLocalDate(h.date) : 'Sem data') + '</span>' +
+      '</div>';
+    }).join('');
+  }
+
+  function _toggleReceiptLine(idx, checked) {
+    var ctx = window._compraRecebimentoCtx || {};
+    var line = (ctx.linhas || [])[idx] || {};
+    var input = document.getElementById('receipt-line-qty-' + idx);
+    if (input) input.value = checked ? (_num(line._qtyPendente) || 0) : 0;
+  }
+
+  function _syncReceiptLineCheck(idx) {
+    var input = document.getElementById('receipt-line-qty-' + idx);
+    var check = document.getElementById('receipt-line-check-' + idx);
+    var ctx = window._compraRecebimentoCtx || {};
+    var line = (ctx.linhas || [])[idx] || {};
+    var max = _num(line._qtyPendente);
+    var value = input ? _num(input.value) : 0;
+    if (input && value > max) {
+      input.value = max;
+      value = max;
+      UI.toast('A quantidade recebida não pode ser maior que o saldo pendente deste item.', 'error');
+    }
+    if (check && input) check.checked = value > 0;
+  }
+
+  function _applyRecebimentoCompraModal() {
+    var ctx = window._compraRecebimentoCtx || {};
+    var compra = _byId(_compras, ctx.compraId);
+    if (!compra) { UI.toast('Compra não encontrada.', 'error'); return; }
+    var mode = window._compraRecebimentoMode || 'total';
+    var invalidQty = false;
+    var linhas = (ctx.linhas || []).map(function (l, idx) {
+      var qty = _num(l._qtyCompra);
+      var alreadyReceived = _num(l._qtyRecebida);
+      var pendingBefore = Math.max(0, qty - alreadyReceived);
+      var newReceived = mode === 'total' ? pendingBefore : _num((document.getElementById('receipt-line-qty-' + idx) || {}).value);
+      if (newReceived > pendingBefore) {
+        invalidQty = true;
+      }
+      newReceived = Math.max(0, Math.min(pendingBefore, newReceived));
+      var totalReceived = Math.min(qty, alreadyReceived + newReceived);
+      return { idx: l._idx, qty: qty, received: totalReceived, newlyReceived: newReceived, pending: Math.max(0, qty - totalReceived) };
+    });
+    if (invalidQty) {
+      UI.toast('A quantidade recebida não pode ser maior que o saldo pendente.', 'error');
+      return;
+    }
+    if (mode === 'partial' && !linhas.some(function (l) { return l.received > 0; })) {
+      UI.toast('Informe pelo menos um item recebido.', 'error');
+      return;
+    }
+    var allReceived = linhas.length && linhas.every(function (l) { return l.pending <= 0; });
+    var status = allReceived ? 'Recebida' : 'Parcial';
+    _saveRecebimentoCompra(compra, status, linhas);
+  }
+
+  function _saveRecebimentoCompra(compra, status, recebidas) {
+    if (status === 'Recebida' && (!recebidas || !recebidas.length)) {
+      return _confirmarCompraRecebidaTotal(compra);
+    }
+    var now = new Date().toISOString();
+    var linhas = (compra.itens || []).map(function (l, idx) {
+      var info = (recebidas || []).find(function (r) { return r.idx === idx; });
+      if (!info && status === 'Recebida') {
+        var q = _num(l.qty || l.quantidade || l.quantidadeComprada || 0);
+        info = { qty: q, received: q, pending: 0 };
+      }
+      if (!info && status === 'Cancelada') {
+        var qc = _num(l.qty || l.quantidade || l.quantidadeComprada || 0);
+        info = { qty: qc, received: 0, pending: qc };
+      }
+      if (!info) return Object.assign({}, l);
+      return Object.assign({}, l, {
+        qtyRecebida: info.received,
+        qtyPendente: info.pending,
+        recebido: info.pending <= 0 && info.received > 0,
+        statusRecebimento: status === 'Cancelada' ? 'cancelada' : (info.pending <= 0 ? 'recebida' : (info.received > 0 ? 'parcial' : 'pendente'))
+      });
+    });
+    var summary = linhas.map(function (l) {
+      return {
+        itemId: l.itemId || '',
+        itemNome: l.itemNome || l.nome || l.name || '',
+        qtyCompra: _num(l.qty || l.quantidade || l.quantidadeComprada || 0),
+        qtyRecebida: _num(l.qtyRecebida),
+        qtyPendente: _num(l.qtyPendente),
+        status: l.statusRecebimento || ''
+      };
+    });
+    var existingHistory = (compra.recebimento && compra.recebimento.historico) || [];
+    var newHistory = (recebidas || []).filter(function (r) { return _num(r.newlyReceived != null ? r.newlyReceived : r.received) > 0; }).map(function (r) {
+      var line = linhas[r.idx] || {};
+      return {
+        date: now.slice(0, 10),
+        itemId: line.itemId || '',
+        itemNome: line.itemNome || line.nome || line.name || 'Item',
+        received: _num(r.newlyReceived != null ? r.newlyReceived : r.received),
+        totalReceived: _num(line.qtyRecebida),
+        pending: _num(line.qtyPendente),
+        createdAt: now
+      };
+    });
+    return _ensureFinanceiroGeradoParaRecebimento(compra).then(function () {
+      return _registrarMovimentosEstoqueCompra(compra, linhas, status);
+    }).then(function () {
+      return DB.update('compras', compra.id, {
+      statusCompra: status,
+      itens: linhas,
+      recebimento: {
+        status: status,
+        itens: summary,
+        historico: existingHistory.concat(newHistory),
+        updatedAt: now
+      },
+      recebimentoAtualizadoEm: now
+      });
+    }).then(function () {
+      compra.statusCompra = status;
+      compra.itens = linhas;
+      compra.recebimento = { status: status, itens: summary, historico: existingHistory.concat(newHistory), updatedAt: now };
+      compra.recebimentoAtualizadoEm = now;
+      delete _selectedCompraIds[compra.id];
+      if (window._compraRecebimentoModal) window._compraRecebimentoModal.close();
+      UI.toast(status === 'Cancelada' ? 'Compra cancelada.' : (status === 'Parcial' ? 'Recebimento parcial salvo.' : 'Recebimento confirmado.'), 'success');
+      _paintRegistrosTable();
+    }).catch(function (err) {
+      if (err && err.message === 'validation') return;
+      UI.toast('Erro ao salvar recebimento: ' + (err && err.message ? err.message : err), 'error');
+    });
+  }
+
+  function _confirmarCompraRecebidaTotal(compra, opts) {
+    opts = opts || {};
+    var linhasRecebidas = (compra.itens || []).map(function (l, idx) {
+      var q = _num(l.qty || l.quantidade || l.quantidadeComprada || 0);
+      return { idx: idx, qty: q, received: q, pending: 0 };
+    });
+    return _saveRecebimentoCompra(compra, 'Recebida', linhasRecebidas);
+  }
+
+  function _ensureFinanceiroGeradoParaRecebimento(compra) {
+    if (!compra || !compra.id) return Promise.reject(new Error('Compra sem id.'));
+    if (compra.gerarContaPagar === false) {
+      UI.toast('Para confirmar o recebimento, ative Gerar conta a pagar e complete os dados financeiros da compra.', 'error');
+      _abrirCompraParaCompletarFinanceiro(compra.id);
+      return Promise.reject(new Error('validation'));
+    }
+    return _loadEstadoFinanceiro(compra.id).then(function (estado) {
+      if (estado.hasPending || estado.hasPaid) return true;
+      var missing = _validarCompraParaFinanceiro(compra);
+      if (missing.length) {
+        UI.toast('Complete os dados financeiros antes de confirmar o recebimento.', 'error');
+        _abrirCompraParaCompletarFinanceiro(compra.id);
+        return Promise.reject(new Error('validation'));
+      }
+      return _gerarFinanceiroDaCompraSalva(compra.id, {
+        compra: compra,
+        validationMessage: 'Complete os dados financeiros antes de confirmar o recebimento.'
+      }).then(function () {
+        return _loadEstadoFinanceiro(compra.id).then(function (novoEstado) {
+          if (novoEstado.hasPending || novoEstado.hasPaid) return true;
+          UI.toast('Não foi possível gerar as contas no Financeiro antes do recebimento.', 'error');
+          return Promise.reject(new Error('validation'));
+        });
+      });
+    });
+  }
+
+  function _registrarMovimentosEstoqueCompra(compra, linhas, status) {
+    if (!compra || !compra.id || status === 'Cancelada') return Promise.resolve();
+    var now = new Date().toISOString();
+    var ops = [];
+    (linhas || []).forEach(function (l, idx) {
+      var previous = _num(((compra.itens || [])[idx] || {}).qtyRecebida);
+      var received = Math.max(0, _num(l.qtyRecebida) - previous);
+      if (received <= 0) return;
+      var qtyCompra = _num(l.qty || l.quantidade || l.quantidadeComprada || 0);
+      var factor = qtyCompra > 0 ? received / qtyCompra : 1;
+      var qtyBase = _num(l.qtyBase) * factor;
+      var movementId = compra.id + '_' + idx + '_entrada_compra';
+      ops.push(DB.col('estoque_movimentacoes').doc(movementId).set({
+        id: movementId,
+        tipo: 'entrada',
+        origem: 'compra',
+        sourceCompraId: compra.id,
+        compraId: compra.id,
+        itemId: l.itemId || '',
+        itemNome: l.itemNome || l.nome || l.name || '',
+        quantidadeCompra: qtyCompra,
+        quantidadeRecebida: received,
+        quantidadeBase: qtyBase,
+        unidadeBase: l.unidadeBase || '',
+        unidadeCompra: l.unidadeCompra || '',
+        custoUnitario: _num(l.custoAjustado),
+        totalLinha: _lineTotal(l) * factor,
+        statusCompra: status,
+        data: compra.data || _todayLocal(),
+        createdAt: now,
+        updatedAt: now
+      }, { merge: true }));
+    });
+    return Promise.all(ops);
+  }
+
+  function _registrarEstornoEstoqueCompra(compra, reason) {
+    if (!compra || !compra.id) return Promise.resolve();
+    var now = new Date().toISOString();
+    var ops = [];
+    (compra.itens || []).forEach(function (l, idx) {
+      var received = _num(l.qtyRecebida);
+      if (received <= 0 && !_isLineReceived(l)) return;
+      var qtyCompra = _num(l.qty || l.quantidade || l.quantidadeComprada || 0);
+      if (received <= 0) received = qtyCompra;
+      var factor = qtyCompra > 0 ? received / qtyCompra : 1;
+      var qtyBase = _num(l.qtyBase) * factor;
+      var movementId = compra.id + '_' + idx + '_estorno_' + (reason || 'ajuste');
+      ops.push(DB.col('estoque_movimentacoes').doc(movementId).set({
+        id: movementId,
+        tipo: 'saida',
+        origem: 'estorno_compra',
+        motivo: reason || 'ajuste',
+        sourceCompraId: compra.id,
+        compraId: compra.id,
+        itemId: l.itemId || '',
+        itemNome: l.itemNome || l.nome || l.name || '',
+        quantidadeRecebida: received,
+        quantidadeBase: -Math.abs(qtyBase),
+        unidadeBase: l.unidadeBase || '',
+        unidadeCompra: l.unidadeCompra || '',
+        data: _todayLocal(),
+        createdAt: now,
+        updatedAt: now
+      }, { merge: true }));
+    });
+    return Promise.all(ops);
+  }
+
+  function _cancelarCompraComRegras(compra, opts) {
+    opts = opts || {};
+    var proceed = function () {
+      return _loadEstadoFinanceiro(compra.id).then(function (estado) {
+        return _executarCancelamentoCompra(compra, estado);
+      });
+    };
+    if (opts.silentConfirm) return proceed();
+    return UI.confirm('Cancelar esta compra? Parcelas pendentes serão removidas. Se houver pagamento confirmado, será criado estorno antes do cancelamento.').then(function (yes) {
+      if (!yes) return Promise.reject(new Error('user_cancel'));
+      return proceed().then(function () {
+        UI.toast('Compra cancelada.', 'success');
+        _paintRegistrosTable();
+      });
+    });
+  }
+
+  function _executarCancelamentoCompra(compra, estado) {
+    var now = new Date().toISOString();
+    var today = now.slice(0, 10);
+    var ops = [];
+    (estado.paidContas || []).forEach(function (conta) {
+      var paymovs = (estado.movs || []).filter(function (m) {
+        return m.contaPagarId === conta.id && m.tipo === 'saida' && m.status === 'efetivado';
+      });
+      paymovs.forEach(function (m) {
+        ops.push(DB.add('movimentacoes', {
+          tipo: 'entrada',
+          descricao: 'Estorno: ' + (m.descricao || 'Pagamento de compra'),
+          valor: m.valor,
+          data: today,
+          status: 'efetivado',
+          conta_id: m.conta_id || '',
+          contaPagarId: conta.id,
+          sourceCompraId: compra.id,
+          estornoDeMovId: m.id,
+          origem: 'estorno_cancelamento_compra',
+          createdAt: now
+        }));
+        ops.push(DB.update('movimentacoes', m.id, { estornado: true, estornadoEm: now }));
+      });
+      ops.push(DB.update(conta._col || 'financeiro_apagar', conta.id, { status: 'Estornada', estornadoEm: now }));
+    });
+    (estado.pendingContas || []).forEach(function (conta) {
+      ops.push(DB.remove(conta._col || 'financeiro_apagar', conta.id));
+    });
+    var linhas = (compra.itens || []).map(function (l) {
+      var qty = _num(l.qty || l.quantidade || l.quantidadeComprada || 0);
+      return Object.assign({}, l, {
+        qtyPendente: qty,
+        qtyRecebida: 0,
+        recebido: false,
+        statusRecebimento: 'cancelada'
+      });
+    });
+    ops.push(_registrarEstornoEstoqueCompra(compra, 'cancelamento'));
+    ops.push(DB.update('compras', compra.id, {
+      statusCompra: 'Cancelada',
+      itens: linhas,
+      contaPagarId: '',
+      contaPagarIds: [],
+      contaPagarStatus: 'cancelada',
+      contaPagarEstornadaEm: now,
+      recebimento: {
+        status: 'Cancelada',
+        itens: linhas.map(function (l) {
+          return {
+            itemId: l.itemId || '',
+            itemNome: l.itemNome || l.nome || l.name || '',
+            qtyCompra: _num(l.qty || l.quantidade || l.quantidadeComprada || 0),
+            qtyRecebida: 0,
+            qtyPendente: _num(l.qty || l.quantidade || l.quantidadeComprada || 0),
+            status: 'cancelada'
+          };
+        }),
+        updatedAt: now
+      },
+      recebimentoAtualizadoEm: now,
+      canceledAt: now
+    }));
+    return Promise.all(ops).then(function () {
+      Object.assign(compra, {
+        statusCompra: 'Cancelada',
+        itens: linhas,
+        contaPagarId: '',
+        contaPagarIds: [],
+        contaPagarStatus: 'cancelada',
+        canceledAt: now
+      });
+      delete _selectedCompraIds[compra.id];
+    });
+  }
+
+  function _isLineReceived(line) {
+    if (!line) return false;
+    if (line.recebido === true) return true;
+    return String(line.statusRecebimento || '').toLowerCase() === 'recebida';
+  }
+
+  function _bulkConfirmComprasRecebidas() {
+    var ids = _selectedRegistroIds(_filteredRegistros()).filter(function (id) {
+      return _canConfirmCompraRecebida(_byId(_compras, id));
+    });
+    if (!ids.length) { UI.toast('Nenhuma compra selecionada pode ser confirmada.', 'info'); return; }
+    if (ids.length === 1) {
+      _openRecebimentoCompraModal(ids[0]);
+      return;
+    }
+    _openBulkRecebimentoModal(ids);
+  }
+
+  function _openBulkRecebimentoModal(ids) {
+    ids = (ids || []).filter(Boolean);
+    window._bulkRecebimentoCompraIds = ids;
+    var options = ids.map(function (id) {
+      var c = _byId(_compras, id) || {};
+      var f = _byId(_fornecedores, c.fornecedorId) || {};
+      var label = (c.numPedido ? c.numPedido + ' — ' : '') + (f.name || 'Sem fornecedor') + (c.data ? ' · ' + _formatLocalDate(c.data) : '');
+      return '<option value="' + _esc(id) + '">' + _esc(label) + '</option>';
+    }).join('');
+    var body = '<div style="display:flex;flex-direction:column;gap:12px;">' +
+      '<section style="background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:14px;box-shadow:0 10px 24px rgba(31,31,31,.04);">' +
+        '<div style="font-size:13px;font-weight:800;color:#1F1F1F;line-height:1.25;margin-bottom:4px;">Como foi o recebimento das compras selecionadas?</div>' +
+        '<div style="font-size:12px;color:#6F6860;line-height:1.45;">Se todas chegaram completas, confirme todas de uma vez. Se alguma chegou parcial, escolha a compra para detalhar os itens recebidos.</div>' +
+      '</section>' +
+      '<section style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;">' +
+        '<button type="button" onclick="Modules.Compras._applyBulkRecebimentoTotal()" style="text-align:left;border:1px solid #D7EBDD;border-radius:16px;background:#F4FAF7;color:#1F1F1F;padding:14px;cursor:pointer;font-family:inherit;">' +
+          '<strong style="display:block;font-size:13px;font-weight:800;color:#1E7A50;margin-bottom:4px;">Recebida</strong>' +
+          '<span style="display:block;font-size:12px;color:#5B6F63;line-height:1.4;">Marcar todas as compras selecionadas como recebidas por completo.</span>' +
+        '</button>' +
+        '<div style="border:1px solid #E8DCD7;border-radius:16px;background:#fff;padding:14px;">' +
+          '<strong style="display:block;font-size:13px;font-weight:800;color:#1F1F1F;margin-bottom:4px;">Recebida parcial</strong>' +
+          '<span style="display:block;font-size:12px;color:#6F6860;line-height:1.4;margin-bottom:10px;">Escolha uma compra para informar quais itens chegaram.</span>' +
+          '<select id="bulk-receipt-partial-id" style="width:100%;height:36px;border:1px solid #E8DCD7;border-radius:10px;background:#FFFCF8;color:#1F1F1F;font-size:12px;font-family:inherit;padding:0 10px;box-sizing:border-box;">' + options + '</select>' +
+          '<button type="button" onclick="Modules.Compras._openBulkRecebimentoParcial()" style="margin-top:8px;width:100%;height:34px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#5E514E;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Detalhar parcial</button>' +
+        '</div>' +
+      '</section>' +
+    '</div>';
+    var footer = '<div style="display:flex;justify-content:flex-end;gap:10px;width:100%;"><button type="button" onclick="window._bulkRecebimentoModal&&window._bulkRecebimentoModal.close()" style="' + _cancelStyle() + '">Fechar</button></div>';
+    window._bulkRecebimentoModal = UI.modal({ title: 'Confirmar recebimento', body: body, footer: footer, maxWidth: '720px' });
+  }
+
+  function _applyBulkRecebimentoTotal() {
+    var ids = window._bulkRecebimentoCompraIds || [];
+    if (!ids.length) return;
+    ids.reduce(function (chain, id) {
+      return chain.then(function () {
+        var compra = _byId(_compras, id);
+        if (!compra) return Promise.resolve();
+        return _confirmarCompraRecebidaTotal(compra, { keepModal: true });
+      });
+    }, Promise.resolve()).then(function () {
+      ids.forEach(function (id) { delete _selectedCompraIds[id]; });
+      if (window._bulkRecebimentoModal) window._bulkRecebimentoModal.close();
+      UI.toast('Recebimento confirmado nas compras selecionadas.', 'success');
+      _renderRegistros();
+    }).catch(function (err) {
+      if (err && err.message === 'validation') return;
+      UI.toast('Não foi possível confirmar todas as compras. Revise financeiro e status.', 'error');
+      _paintRegistrosTable();
+    });
+  }
+
+  function _openBulkRecebimentoParcial() {
+    var id = (document.getElementById('bulk-receipt-partial-id') || {}).value || '';
+    if (!id) { UI.toast('Escolha uma compra para detalhar o recebimento parcial.', 'error'); return; }
+    if (window._bulkRecebimentoModal) window._bulkRecebimentoModal.close();
+    _openRecebimentoCompraModal(id);
+  }
+
+  function _bulkCancelCompras() {
+    var ids = _selectedRegistroIds(_filteredRegistros()).filter(function (id) {
+      return _canCancelCompra(_byId(_compras, id));
+    });
+    if (!ids.length) { UI.toast('Nenhuma compra selecionada pode ser cancelada.', 'info'); return; }
+    UI.confirm('Cancelar ' + ids.length + ' compra(s) selecionada(s)? Elas ficarão com status Cancelada.').then(function (yes) {
+      if (!yes) return;
+      ids.reduce(function (chain, id) {
+        return chain.then(function () {
+          var compra = _byId(_compras, id);
+          return compra ? _cancelarCompraComRegras(compra, { silentConfirm: true }) : Promise.resolve();
+        });
+      }, Promise.resolve()).then(function () {
+        UI.toast('Compras canceladas.', 'success');
+        _paintRegistrosTable();
+      });
+    });
+  }
+
+  function _updateComprasStatus(ids, status, successMessage) {
+    ids = (ids || []).filter(Boolean);
+    if (!ids.length) return;
+    Promise.all(ids.map(function (id) {
+      return DB.update('compras', id, _buildCompraStatusPatch(_byId(_compras, id), status));
+    })).then(function () {
+      ids.forEach(function (id) {
+        var compra = _byId(_compras, id);
+        if (compra) Object.assign(compra, _buildCompraStatusPatch(compra, status));
+        delete _selectedCompraIds[id];
+      });
+      UI.toast(successMessage || 'Status atualizado.', 'success');
+      _paintRegistrosTable();
+    }).catch(function (err) {
+      UI.toast('Erro ao atualizar status: ' + (err && err.message ? err.message : err), 'error');
+    });
+  }
+
+  function _buildCompraStatusPatch(compra, status) {
+    var now = new Date().toISOString();
+    var patch = { statusCompra: status };
+    if (!compra || (status !== 'Recebida' && status !== 'Cancelada')) return patch;
+    var linhas = (compra.itens || []).map(function (l) {
+      var qty = _num(l.qty || l.quantidade || l.quantidadeComprada || 0);
+      var received = status === 'Recebida' ? qty : 0;
+      return Object.assign({}, l, {
+        qtyRecebida: received,
+        qtyPendente: Math.max(0, qty - received),
+        recebido: status === 'Recebida' && qty > 0,
+        statusRecebimento: status === 'Recebida' ? 'recebida' : 'cancelada'
+      });
+    });
+    patch.itens = linhas;
+    patch.recebimento = {
+      status: status,
+      itens: linhas.map(function (l) {
+        return {
+          itemId: l.itemId || '',
+          itemNome: l.itemNome || l.nome || l.name || '',
+          qtyCompra: _num(l.qty || l.quantidade || l.quantidadeComprada || 0),
+          qtyRecebida: _num(l.qtyRecebida),
+          qtyPendente: _num(l.qtyPendente),
+          status: l.statusRecebimento || ''
+        };
+      }),
+      updatedAt: now
+    };
+    patch.recebimentoAtualizadoEm = now;
+    return patch;
+  }
+
+  function _toggleCompraItensHelp() {
+    var el = document.getElementById('cp-items-help');
+    if (!el) return;
+    el.style.display = el.style.display === 'block' ? 'none' : 'block';
+  }
+
+  function _toggleItemCostHelp() {
+    var el = document.getElementById('it-cost-help');
+    if (!el) return;
+    el.style.display = el.style.display === 'block' ? 'none' : 'block';
   }
 
   function _periodoMatch(dateStr, periodo) {
@@ -571,15 +1265,31 @@ Modules.Compras = (function () {
     var totals = {};
     (data || []).forEach(function (c) {
       var f = _byId(_fornecedores, c.fornecedorId);
-      var name = (f && f.name) || 'Sem fornecedor';
+      var name = (f && (_supplierCommercialName(f) || f.name)) || 'Sem fornecedor';
       totals[name] = (totals[name] || 0) + (parseFloat(c.total) || 0);
     });
     var best = Object.keys(totals).sort(function (a, b) { return totals[b] - totals[a]; })[0];
     return best ? _esc(best) : '';
   }
 
+  function _supplierCommercialName(f) {
+    f = f || {};
+    var fiscal = f.fiscal || {};
+    return fiscal.commercialName || f.commercialName || f.nomeComercial || '';
+  }
+
   function _periodoOption(value, label) {
     return '<option value="' + value + '"' + (_registroFilters.periodo === value ? ' selected' : '') + '>' + label + '</option>';
+  }
+
+  function _hasActiveRegistroFilters() {
+    return !!(
+      (_registroFilters.q || '').trim() ||
+      (_registroFilters.status || '') ||
+      ((_registroFilters.periodo || 'todos') !== 'todos') ||
+      (_registroFilters.inicio || '') ||
+      (_registroFilters.fim || '')
+    );
   }
 
   function _openCompraModal(id) {
@@ -602,57 +1312,105 @@ Modules.Compras = (function () {
       return '<option value="' + i.id + '" data-unidade="' + _esc(unidade) + '" data-aproveitamento="' + (i.aproveitamento_padrao || 100) + '" data-emb="' + _esc(embPadrao) + '" data-conteudo="' + conteudoPadrao + '" data-classe="' + _esc(i.classe || 'insumo') + '">' + _esc(i.nome || i.name) + '</option>';
     }).join('');
     window._compraAllItems = _itens; // para busca live no modal
-    var body = '<div style="display:flex;flex-direction:column;gap:14px;"><div id="cp-financial-status"></div>' +
+    var secTitle = 'font-size:13px;font-weight:800;color:#1F1F1F;line-height:1.25;margin-bottom:3px;';
+    var secHint = 'font-size:12px;color:#8A7E7C;line-height:1.4;margin-bottom:0;';
+    var modalCss = '<style>' +
+      '.purchase-modal-body{display:flex;flex-direction:column;gap:12px;font-family:Manrope,Inter,sans-serif;}' +
+      '.purchase-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:14px;box-shadow:0 10px 24px rgba(31,31,31,.04);min-width:0;}' +
+      '.purchase-card-head{display:flex;align-items:flex-start;gap:9px;margin-bottom:12px;}' +
+      '.purchase-card-head .mi{font-size:18px;color:#6F6860;line-height:1.2;}' +
+      '.purchase-field-control{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:6px;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;}' +
+      '.purchase-field-control:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
+      '.purchase-field-control input,.purchase-field-control select,.purchase-field-control textarea{width:100%;min-height:36px;border:0;border-radius:8px;padding:0 8px;font-size:14px;font-family:inherit;outline:none;background:transparent;box-sizing:border-box;color:#1F1F1F;box-shadow:none;}' +
+      '.purchase-field-control select{padding-right:42px;appearance:none;-webkit-appearance:none;-moz-appearance:none;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 16px center;background-size:14px;}' +
+      '.purchase-field-control textarea{min-height:74px;padding-top:8px;padding-bottom:8px;resize:vertical;}' +
+      '.purchase-field-grid{display:grid;gap:11px 12px;align-items:end;}' +
+      '.purchase-order-grid{grid-template-columns:minmax(130px,.55fr) minmax(180px,.8fr) minmax(140px,.55fr);}' +
+      '.purchase-supplier-grid{grid-template-columns:minmax(320px,1.3fr) minmax(220px,.82fr);}' +
+      '.purchase-item-grid{grid-template-columns:minmax(260px,1.4fr) minmax(110px,.42fr) minmax(140px,.55fr) minmax(120px,.45fr) minmax(105px,.38fr);}' +
+      '.purchase-price-grid{grid-template-columns:minmax(170px,.8fr) minmax(140px,.55fr) minmax(105px,.4fr) auto;}' +
+      '.purchase-finance-grid{grid-template-columns:minmax(150px,.55fr) minmax(145px,.48fr) minmax(125px,.4fr) minmax(220px,.9fr);}' +
+      '.purchase-check-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;padding:9px 11px;background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;}' +
+      '.purchase-check-row label{display:flex;align-items:center;gap:8px;font-size:13px;color:#1F1F1F;line-height:1.35;font-weight:500;}' +
+      '.purchase-inline-note{font-size:11px;color:#7A746B;line-height:1.45;margin-top:7px;}' +
+      '.purchase-help-btn{border:0;background:transparent;color:#B42318;border-radius:8px;height:auto;padding:0;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;}' +
+      '.purchase-help-box{display:none;margin:0 0 12px;padding:11px 12px;border:1px solid #EADFD8;border-radius:12px;background:#FFFCF8;color:#5A4E4C;font-size:12px;line-height:1.5;}' +
+      '.purchase-help-box strong{color:#1F1F1F;font-weight:700;}' +
+      '@media(max-width:980px){.purchase-order-grid,.purchase-supplier-grid,.purchase-item-grid,.purchase-price-grid,.purchase-finance-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.purchase-price-grid button{grid-column:1/-1;}}' +
+      '@media(max-width:640px){.purchase-card{padding:13px}.purchase-order-grid,.purchase-supplier-grid,.purchase-item-grid,.purchase-price-grid,.purchase-finance-grid{grid-template-columns:1fr}.purchase-card-head{margin-bottom:10px}}' +
+      '</style>';
+    var body = modalCss + '<div class="purchase-modal-body"><div id="cp-financial-status"></div>' +
       (id && c.numPedido ? '<div style="display:inline-flex;align-items:center;gap:8px;align-self:flex-start;padding:4px 10px;background:#fff;border:1px solid #EAE4DA;border-radius:999px;font-size:12px;font-weight:500;color:#6F6860;box-shadow:0 1px 2px rgba(31,31,31,.02);"><span style="font-weight:600;color:#A39B90;font-size:10px;letter-spacing:.04em;">Pedido</span> <strong style="color:#1F1F1F;font-family:monospace;">' + _esc(c.numPedido) + '</strong></div>' : '') +
-      '<section style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
-      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px;">' +
-      _field('cp-data', 'Data *', c.data || '', 'date') +
-      _field('cp-doc', 'Nº documento', c.numDocumento || '') +
-      _select('cp-status', 'Status', _compraStatusOptions(c.statusCompra || 'Pendente')) +
+      '<section class="purchase-card">' +
+      '<div class="purchase-card-head"><span class="mi">receipt_long</span><div><div style="' + secTitle + '">Resumo da compra</div><div style="' + secHint + '">Informe quando a compra aconteceu, quem forneceu e qual documento acompanha esse lançamento.</div></div></div>' +
+      '<div class="purchase-field-grid purchase-order-grid" style="margin-bottom:12px;">' +
+      _purchaseField('cp-data', 'Data *', c.data || '', 'date') +
+      _purchaseField('cp-doc', 'Número do documento', c.numDocumento || '') +
+      _purchaseSelect('cp-status', 'Status', _compraStatusOptions(c.statusCompra || 'Pendente')) +
       '</div>' +
-      '<div style="position:relative;margin-bottom:12px;">' +
-      '<label style="' + _labelStyle() + '">Fornecedor</label>' +
-      '<input id="cp-forn-display" type="text" placeholder="Buscar fornecedor..." autocomplete="off" value="' + _esc(fornAtual.name || '') + '" ' +
-        'oninput="Modules.Compras._compraFornSearch(this.value)" ' +
-        'onfocus="Modules.Compras._compraFornSearch(this.value)" ' +
-        'onblur="setTimeout(function(){var d=document.getElementById(\'cp-forn-dropdown\');if(d)d.style.display=\'none\';},200)" ' +
-        'style="' + _inputStyle() + '">' +
-      '<div id="cp-forn-dropdown" style="display:none;position:absolute;top:calc(100% + 2px);left:0;right:0;background:#fff;border:1px solid #EAE4DA;border-radius:10px;max-height:220px;overflow-y:auto;z-index:9999;box-shadow:0 12px 30px rgba(31,31,31,.12);"></div>' +
-      '<select id="cp-forn" onchange="Modules.Compras._buildParcelasPreview()" style="display:none;"><option value="">Sem fornecedor</option>' + fornecedorOpts + '</select>' +
+      '<div class="purchase-field-grid purchase-supplier-grid" style="margin-bottom:12px;">' +
+      '<div style="position:relative;">' +
+        '<label style="' + _labelStyle() + '">Fornecedor</label>' +
+        '<div class="purchase-field-control">' +
+        '<input id="cp-forn-display" type="text" placeholder="Buscar fornecedor..." autocomplete="off" value="' + _esc(fornAtual.name || '') + '" ' +
+          'oninput="Modules.Compras._compraFornSearch(this.value)" ' +
+          'onfocus="Modules.Compras._compraFornSearch(this.value)" ' +
+          'onblur="setTimeout(function(){var d=document.getElementById(\'cp-forn-dropdown\');if(d)d.style.display=\'none\';},200)">' +
+        '</div>' +
+        '<div id="cp-forn-dropdown" style="display:none;position:absolute;top:calc(100% + 2px);left:0;right:0;background:#fff;border:1px solid #EAE4DA;border-radius:10px;max-height:220px;overflow-y:auto;z-index:9999;box-shadow:0 12px 30px rgba(31,31,31,.12);"></div>' +
+        '<select id="cp-forn" onchange="Modules.Compras._buildParcelasPreview()" style="display:none;"><option value="">Sem fornecedor</option>' + fornecedorOpts + '</select>' +
       '</div>' +
-      '<div>' + _textarea('cp-obs', 'Observações', c.observacoes || '') + '</div>' +
+      '<div><label style="' + _labelStyle() + '">Nome comercial</label><div class="purchase-field-control"><input id="cp-forn-commercial-name" type="text" readonly value="' + _esc(_supplierCommercialName(fornAtual)) + '" placeholder="Preenchido ao selecionar fornecedor" style="color:#6F6860;font-weight:600;cursor:default;"></div></div>' +
+      '</div>' +
+      '<div>' + _purchaseTextarea('cp-obs', 'Observações internas', c.observacoes || '') + '</div>' +
       '</section>' +
-      '<section style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
-      '<div style="font-size:11px;font-weight:600;color:#6F6860;letter-spacing:.04em;margin-bottom:10px;">Itens da compra</div>' +
+      '<section class="purchase-card">' +
+      '<div class="purchase-card-head"><span class="mi">inventory_2</span><div><div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;"><div style="' + secTitle + '">Itens comprados</div><button type="button" class="purchase-help-btn" onclick="Modules.Compras._toggleCompraItensHelp()">Como preencher?</button></div><div style="' + secHint + '">Selecione cada item, informe como veio na compra e o valor pago por embalagem.</div></div></div>' +
+      '<div id="cp-items-help" class="purchase-help-box">' +
+        'Preencha do jeito que o item veio do fornecedor.<br>' +
+        'O sistema usa essas informações para calcular o custo real por unidade.<br><br>' +
+        '<strong>Exemplo:</strong><br>' +
+        'Você comprou 1 saco de batata com 5 kg por €2,50.<br><br>' +
+        '<strong>Preencha assim:</strong><br>' +
+        '• Quantidade comprada: 1<br>' +
+        '• Embalagem: saco<br>' +
+        '• Conteúdo: 5<br>' +
+        '• Unidade base: kg<br>' +
+        '• Preço por embalagem: €2,50<br><br>' +
+        '<strong>Resultado:</strong><br>' +
+        'o sistema calcula automaticamente o custo por kg/unidade.<br><br>' +
+        '<strong>Importante:</strong><br>' +
+        'o preço deve ser o valor pago pela embalagem inteira, e não o valor por kg/unidade.' +
+      '</div>' +
       '<datalist id="cp-emb-list"><option value="un"><option value="unidade"><option value="pacote"><option value="caixa"><option value="fardo"><option value="saco"><option value="garrafa"><option value="lata"><option value="frasco"><option value="bandeja"><option value="botella"><option value="bolsa"><option value="caja"></datalist>' +
-      '<div style="display:grid;grid-template-columns:2.2fr .55fr .78fr .6fr .45fr;gap:8px;align-items:end;margin-bottom:8px;">' +
+      '<div class="purchase-field-grid purchase-item-grid" style="margin-bottom:9px;">' +
       '<div style="position:relative;">' +
       '<label style="' + _labelStyle() + '">Produto / Insumo</label>' +
+      '<div class="purchase-field-control">' +
       '<input id="cp-item-display" type="text" placeholder="Buscar produto ou insumo..." autocomplete="off" ' +
         'oninput="Modules.Compras._compraItemSearch(this.value)" ' +
         'onfocus="Modules.Compras._compraItemSearch(this.value)" ' +
-        'onblur="setTimeout(function(){var d=document.getElementById(\'cp-item-dropdown\');if(d)d.style.display=\'none\';},200)" ' +
-        'style="' + _inputStyle() + '">' +
+        'onblur="setTimeout(function(){var d=document.getElementById(\'cp-item-dropdown\');if(d)d.style.display=\'none\';},200)">' +
+      '</div>' +
       '<div id="cp-item-dropdown" style="display:none;position:absolute;top:calc(100% + 2px);left:0;right:0;background:#fff;border:1px solid #EAE4DA;border-radius:10px;max-height:220px;overflow-y:auto;z-index:9999;box-shadow:0 12px 30px rgba(31,31,31,.12);"></div>' +
       '<select id="cp-item" style="display:none;"><option value="">Selecionar...</option>' + itemOpts + '</select>' +
       '</div>' +
-      _field('cp-qty', 'Qtd. comprada', '', 'number', 'Modules.Compras._calcCompraLinha()') +
-      '<div><label style="' + _labelStyle() + '">Embalagem</label><input id="cp-emb" list="cp-emb-list" placeholder="kg, pacote…" oninput="Modules.Compras._calcCompraLinha()" style="' + _inputStyle() + '"></div>' +
-      _field('cp-conteudo', 'Conteúdo (×)', '1', 'number', 'Modules.Compras._calcCompraLinha()') +
-      '<div><label style="' + _labelStyle() + '">Unid. base</label><input id="cp-unidade-base" readonly placeholder="—" style="' + _inputStyle() + 'background:#FAF8F4;color:#6F6860;font-weight:600;text-align:center;cursor:default;"></div>' +
+      _purchaseField('cp-qty', 'Quantidade comprada', '', 'number', 'Modules.Compras._calcCompraLinha()') +
+      '<div><label style="' + _labelStyle() + '">Embalagem</label><div class="purchase-field-control"><input id="cp-emb" list="cp-emb-list" placeholder="kg, pacote..." oninput="Modules.Compras._calcCompraLinha()"></div></div>' +
+      _purchaseField('cp-conteudo', 'Conteúdo (×)', '1', 'number', 'Modules.Compras._calcCompraLinha()') +
+      '<div><label style="' + _labelStyle() + '">Unidade base</label><div class="purchase-field-control"><input id="cp-unidade-base" readonly placeholder="—" style="color:#6F6860;font-weight:600;text-align:center;cursor:default;"></div></div>' +
       '</div>' +
       (function () {
         var _fc = window.Auth && Auth.getFiscalCountry ? Auth.getFiscalCountry() : 'ES';
         var _fiscalEnabled = window.FiscalConfig ? FiscalConfig.get(_fc).fiscalModuleEnabled : true;
-        var _ivaCols = _fiscalEnabled ? '1fr .75fr .6fr auto' : '1fr .75fr auto';
-        return '<div style="display:grid;grid-template-columns:' + _ivaCols + ';gap:8px;align-items:end;">' +
-          _field('cp-preco', 'Preço/embalagem (€)', '', 'number', 'Modules.Compras._calcCompraLinha()') +
-          _field('cp-desc', 'Desc. un. (€)', '', 'number', 'Modules.Compras._calcCompraLinha()') +
-          (_fiscalEnabled ? _field('cp-iva-line', 'IVA %', c.ivaPct || c.iva || '', 'number', 'Modules.Compras._calcCompraLinha()') : '<input id="cp-iva-line" type="hidden" value="">') +
+        return '<div class="purchase-field-grid purchase-price-grid">' +
+          _purchaseField('cp-preco', 'Preço por embalagem (€)', '', 'number', 'Modules.Compras._calcCompraLinha()') +
+          _purchaseField('cp-desc', 'Desconto unitário (€)', '', 'number', 'Modules.Compras._calcCompraLinha()') +
+          (_fiscalEnabled ? _purchaseField('cp-iva-line', 'IVA %', c.ivaPct || c.iva || '', 'number', 'Modules.Compras._calcCompraLinha()') : '<input id="cp-iva-line" type="hidden" value="">') +
           '<button onclick="Modules.Compras._addCompraLinha()" style="height:40px;padding:0 14px;background:#B42318;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;align-self:end;white-space:nowrap;box-shadow:0 4px 12px rgba(180,35,24,.18);">Adicionar</button>' +
           '</div>';
       }()) +
-      '<div id="cp-preview" style="margin-top:8px;font-size:11px;color:#7A746B;min-height:16px;"></div>' +
+      '<div id="cp-preview" class="purchase-inline-note" style="min-height:16px;"></div>' +
       '</section>' +
       '<div id="cp-preco-hint"></div>' +
       '<div id="cp-lines"></div><div id="cp-total" style="margin:10px 0 14px;text-align:right;font-weight:600;"></div>' +
@@ -660,20 +1418,23 @@ Modules.Compras = (function () {
         var _fc = window.Auth && Auth.getFiscalCountry ? Auth.getFiscalCountry() : 'ES';
         var _fiscalEnabled = window.FiscalConfig ? FiscalConfig.get(_fc).fiscalModuleEnabled : true;
         if (!_fiscalEnabled) return '';
-        return '<section id="cp-fiscal-card" style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
-          '<div style="font-size:11px;font-weight:600;color:#6F6860;letter-spacing:.04em;margin-bottom:10px;">Fiscal</div>' +
-          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">' +
-          '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;"><input id="cp-ded-iva" type="checkbox" ' + (c.dedutivelIva || c.deductibleVat ? 'checked' : '') + ' style="accent-color:#C4362A;width:16px;height:16px;"> Dedutível para IVA</label>' +
-          '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;"><input id="cp-ded-irpf" type="checkbox" ' + (c.dedutivelIrpf || c.deductibleIrpf ? 'checked' : '') + ' style="accent-color:#C4362A;width:16px;height:16px;"> Dedutível para IRPF</label>' +
+        return '<section id="cp-fiscal-card" class="purchase-card">' +
+          '<div class="purchase-card-head"><span class="mi">request_quote</span><div><div style="' + secTitle + '">Dados fiscais</div><div style="' + secHint + '">Classifique a compra para manter impostos e despesas bem organizados.</div></div></div>' +
+          '<div class="purchase-check-row">' +
+          '<label><input id="cp-ded-iva" type="checkbox" ' + (c.dedutivelIva || c.deductibleVat ? 'checked' : '') + ' style="accent-color:#C4362A;width:16px;height:16px;"> Dedutível para IVA</label>' +
+          '<label><input id="cp-ded-irpf" type="checkbox" ' + (c.dedutivelIrpf || c.deductibleIrpf ? 'checked' : '') + ' style="accent-color:#C4362A;width:16px;height:16px;"> Dedutível para IRPF</label>' +
           '</div>' +
-          _select('cp-fiscal-cat', 'Categoria fiscal', _fiscalCategoryOptions(c.categoriaFiscal || c.fiscalCategory || 'outro')) +
-          '<div style="font-size:11px;color:#7A746B;margin-top:6px;">O IVA pode ser informado em cada item da compra. Se estiver vazio, o Fiscal usa o IVA padrão.</div>' +
+          _purchaseSelect('cp-fiscal-cat', 'Categoria fiscal', _fiscalCategoryOptions(c.categoriaFiscal || c.fiscalCategory || 'outro')) +
+          '<div class="purchase-inline-note">Se o IVA do item ficar vazio, o sistema usa a alíquota padrão configurada para a loja.</div>' +
           '</section>';
       }()) +
-      '<section id="cp-financeiro-section" style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
-      '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;margin-bottom:12px;"><input id="cp-gerar-apagar" type="checkbox" ' + (c.gerarContaPagar !== false ? 'checked' : '') + ' onchange="Modules.Compras._buildParcelasPreview()" style="accent-color:#C4362A;width:16px;height:16px;"> Gerar conta a pagar</label>' +
-      '<div style="margin-bottom:12px;">' + _select('cp-cost-class', 'Classificação do custo', _costClassOptions(c.costClass || 'direto')) + '</div>' +
-      '<div style="margin-bottom:12px;">' + _select('cp-forma', 'Forma de pagamento *', _finFormasPagOptions(c.formaPagamento), 'Modules.Compras._buildParcelasPreview()') + '</div>' +
+      '<section id="cp-financeiro-section" class="purchase-card">' +
+      '<div class="purchase-card-head"><span class="mi">payments</span><div><div style="' + secTitle + '">Pagamento e vencimento</div><div style="' + secHint + '">Defina como essa compra entra no financeiro e quando precisa ser paga.</div></div></div>' +
+      '<div class="purchase-check-row"><label><input id="cp-gerar-apagar" type="checkbox" ' + (c.gerarContaPagar !== false ? 'checked' : '') + ' onchange="Modules.Compras._buildParcelasPreview()" style="accent-color:#C4362A;width:16px;height:16px;"> Gerar conta a pagar</label></div>' +
+      '<div class="purchase-field-grid" style="grid-template-columns:minmax(220px,.85fr) minmax(260px,1fr);margin-bottom:12px;">' +
+      _purchaseSelect('cp-cost-class', 'Tipo de custo', _costClassOptions(c.costClass || 'direto')) +
+      _purchaseSelect('cp-forma', 'Forma de pagamento *', _finFormasPagOptions(c.formaPagamento), 'Modules.Compras._buildParcelasPreview()') +
+      '</div>' +
       '<div style="margin-bottom:12px;">' +
       '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:#5A4E4C;cursor:pointer;">' +
       '<input id="cp-teve-entrada" type="checkbox" ' + (c.teveEntrada ? 'checked' : '') + ' onchange="Modules.Compras._toggleEntradaSection()" style="accent-color:#C4362A;width:15px;height:15px;"> Teve entrada?</label>' +
@@ -681,16 +1442,16 @@ Modules.Compras = (function () {
       '<div id="cp-entrada-section" style="display:' + (c.teveEntrada ? 'block' : 'none') + ';margin-bottom:12px;background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;padding:12px;">' +
       '<div style="font-size:11px;font-weight:600;color:#6F6860;letter-spacing:.04em;margin-bottom:10px;">Dados da entrada</div>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
-      _field('cp-entrada-valor', 'Valor da entrada (€) *', c.entradaValor || '', 'number', 'Modules.Compras._buildParcelasPreview()') +
-      _field('cp-entrada-data', 'Data da entrada *', c.entradaData || _todayLocal(), 'date', 'Modules.Compras._buildParcelasPreview()') +
+      _purchaseField('cp-entrada-valor', 'Valor da entrada (€) *', c.entradaValor || '', 'number', 'Modules.Compras._buildParcelasPreview()') +
+      _purchaseField('cp-entrada-data', 'Data da entrada *', c.entradaData || _todayLocal(), 'date', 'Modules.Compras._buildParcelasPreview()') +
       '</div>' +
-      '<div style="margin-top:10px;">' + _select('cp-entrada-forma', 'Forma de pagamento da entrada *', _finFormasPagOptions(c.entradaFormaPagamento), 'Modules.Compras._buildParcelasPreview()') + '</div>' +
+      '<div style="margin-top:10px;">' + _purchaseSelect('cp-entrada-forma', 'Forma de pagamento da entrada *', _finFormasPagOptions(c.entradaFormaPagamento), 'Modules.Compras._buildParcelasPreview()') + '</div>' +
       '</div>' +
-      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1.5fr;gap:12px;align-items:end;">' +
-      _field('cp-venc', 'Vencimento *', c.dueDate || c.data || '', 'date', 'Modules.Compras._buildParcelasPreview()') +
-      _field('cp-prazo', 'Prazo entre parcelas (dias)', c.prazoParcelas || 30, 'number', 'Modules.Compras._buildParcelasPreview()') +
-      _field('cp-parcelas', c.teveEntrada ? 'Parcelas restantes' : 'Parcelas', c.parcelas || 1, 'number', 'Modules.Compras._buildParcelasPreview()') +
-      _select('cp-fin-cat', 'Categoria financeira *', catOpts) +
+      '<div class="purchase-field-grid purchase-finance-grid">' +
+      _purchaseField('cp-venc', 'Vencimento *', c.dueDate || c.data || '', 'date', 'Modules.Compras._buildParcelasPreview()') +
+      _purchaseField('cp-prazo', 'Intervalo entre parcelas (dias)', c.prazoParcelas || 30, 'number', 'Modules.Compras._buildParcelasPreview()') +
+      _purchaseField('cp-parcelas', c.teveEntrada ? 'Parcelas restantes' : 'Parcelas', c.parcelas || 1, 'number', 'Modules.Compras._buildParcelasPreview()') +
+      _purchaseSelect('cp-fin-cat', 'Categoria financeira *', catOpts) +
       '</div><div id="cp-parcelas-preview"></div></section></div>';
     // Rodapé: para edição, começa com loading enquanto carrega estado financeiro
     var footer = id
@@ -702,7 +1463,7 @@ Modules.Compras = (function () {
         '<button onclick="window._compraModal&&window._compraModal.close()" style="' + _cancelStyle() + '">Cancelar</button>' +
         '<button onclick="Modules.Compras._saveCompra()" style="' + _primaryStyle() + '">Registrar compra</button>' +
         '</div>';
-    window._compraModal = UI.modal({ title: id ? 'Editar compra' : 'Nova compra', body: body, footer: footer, maxWidth: '1120px' });
+    window._compraModal = UI.modal({ title: id ? 'Editar registro de compra' : 'Registrar nova compra', body: body, footer: footer, maxWidth: '1120px' });
     // Carrega estado financeiro assíncrono para compras existentes
     if (id) {
       _loadEstadoFinanceiro(id).then(function (estado) {
@@ -801,7 +1562,7 @@ Modules.Compras = (function () {
     var norm = _normalizeStr(q);
     var filtered = norm ? source.filter(function (i) {
       var forn = _byId(_fornecedores, i.fornecedor_padrao_id);
-      var hay = _normalizeStr([i.nome, i.name, i.classe, i.tipo, i.categoria, forn && forn.name].join(' '));
+      var hay = _normalizeStr([i.nome, i.name, i.classe, i.categoria, forn && forn.name].join(' '));
       return hay.indexOf(norm) >= 0;
     }) : source;
     if (!filtered.length) {
@@ -811,7 +1572,7 @@ Modules.Compras = (function () {
     }
     dd.innerHTML = filtered.slice(0, 60).map(function (i) {
       var label = _esc(i.nome || i.name || '');
-      var sub = _esc([i.tipo, i.categoria, i.classe === 'produto' ? 'Produto' : 'Insumo'].filter(Boolean).join(' · '));
+      var sub = _esc([i.categoria, i.classe === 'produto' ? 'Produto' : 'Insumo'].filter(Boolean).join(' · '));
       return '<div onmousedown="Modules.Compras._compraItemSelect(\'' + i.id + '\')" ' +
         'style="padding:9px 14px;cursor:pointer;border-bottom:1px solid #F2EDED;font-size:13px;font-family:inherit;" ' +
         'onmouseover="this.style.background=\'#FFF5F5\'" onmouseout="this.style.background=\'\'">' +
@@ -875,11 +1636,13 @@ Modules.Compras = (function () {
   function _compraFornSelect(id) {
     var sel = document.getElementById('cp-forn');
     var disp = document.getElementById('cp-forn-display');
+    var commercial = document.getElementById('cp-forn-commercial-name');
     var dd = document.getElementById('cp-forn-dropdown');
     if (!sel) return;
     sel.value = id;
     var forn = id ? (_byId(_fornecedores, id) || {}) : null;
     if (disp) disp.value = forn ? (forn.name || '') : '';
+    if (commercial) commercial.value = forn ? (_supplierCommercialName(forn) || '') : '';
     if (dd) dd.style.display = 'none';
     _buildParcelasPreview();
   }
@@ -900,14 +1663,16 @@ Modules.Compras = (function () {
 
   function _phoneField(idPrefix, label, savedValue, defaultDdi) {
     var p = _parsePhoneValue(savedValue, defaultDdi);
-    var selSty = 'flex:0 0 auto;padding:10px 6px;width:88px;border:1.5px solid #D4C8C6;border-radius:9px;font-size:13px;font-family:inherit;outline:none;background:#fff;cursor:pointer;box-sizing:border-box;';
+    var boxSty = 'display:grid;grid-template-columns:112px minmax(0,1fr);gap:8px;align-items:center;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:6px;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;';
+    var selSty = 'width:100%;min-height:36px;border:0;border-right:1px solid #E8DCD7;border-radius:8px;padding:0 26px 0 8px;font-size:13px;font-family:inherit;outline:none;background:transparent;cursor:pointer;box-sizing:border-box;color:#1F1F1F;';
+    var inputSty = 'width:100%;min-height:36px;border:0;border-radius:8px;padding:0 8px;font-size:14px;font-family:inherit;outline:none;background:transparent;box-sizing:border-box;color:#1F1F1F;';
     var opts = PHONE_COUNTRIES.map(function (c) {
       return '<option value="' + c.ddi + '"' + (p.ddi === c.ddi ? ' selected' : '') + '>' + c.flag + ' ' + c.ddi + '</option>';
     }).join('');
     return '<div><label style="' + _labelStyle() + '">' + label + '</label>' +
-      '<div style="display:flex;gap:6px;">' +
+      '<div style="' + boxSty + '" onfocusin="this.style.background=\'#fff\';this.style.borderColor=\'#D9AAA1\';this.style.boxShadow=\'0 0 0 3px rgba(180,35,24,.08)\';" onfocusout="this.style.background=\'#FFFCF8\';this.style.borderColor=\'#E8DCD7\';this.style.boxShadow=\'none\';">' +
       '<select id="' + idPrefix + '-ddi" style="' + selSty + '">' + opts + '</select>' +
-      '<input id="' + idPrefix + '-num" type="tel" value="' + _esc(p.number) + '" placeholder="600 000 000" inputmode="tel" style="' + _inputStyle() + 'flex:1;width:auto;">' +
+      '<input id="' + idPrefix + '-num" type="tel" value="' + _esc(p.number) + '" placeholder="600 000 000" inputmode="tel" autocomplete="tel-national" style="' + inputSty + '">' +
       '</div></div>';
   }
 
@@ -928,14 +1693,103 @@ Modules.Compras = (function () {
       if (mapped) return mapped;
     }
     raw = raw.toUpperCase();
-    if (raw === 'ES' || raw === 'PT') return raw;
+    if (['ES', 'PT', 'BR', 'FR', 'IT', 'DE', 'GB', 'US'].indexOf(raw) >= 0) return raw;
     if (raw === 'PORTUGAL') return 'PT';
     if (raw === 'ESPAÑA' || raw === 'ESPANHA') return 'ES';
-    return '';
+    if (raw === 'BRASIL' || raw === 'BRAZIL') return 'BR';
+    if (raw === 'FRANCIA' || raw === 'FRANCE') return 'FR';
+    if (raw === 'ITALIA' || raw === 'ITALY') return 'IT';
+    if (raw === 'ALEMANIA' || raw === 'GERMANY') return 'DE';
+    if (raw === 'REINO UNIDO' || raw === 'UNITED KINGDOM') return 'GB';
+    if (raw === 'ESTADOS UNIDOS' || raw === 'UNITED STATES') return 'US';
+    return 'ES';
   }
 
   function _defaultPhoneDdiForCountry(countryVal) {
     return _countryCode(countryVal) === 'PT' ? '+351' : '+34';
+  }
+
+  function _defaultSupplierFiscal() {
+    return {
+      legalName: '',
+      commercialName: '',
+      documentType: '',
+      fiscalId: '',
+      countryCode: 'ES',
+      invoiceEmail: '',
+      taxRegime: '',
+      defaultIvaDeductible: true,
+      defaultIrpfDeductible: false,
+      fiscalAddress: {
+        address: '',
+        number: '',
+        complement: '',
+        city: '',
+        province: '',
+        postalCode: '',
+        countryCode: 'ES'
+      },
+      externalFiscalSupplierId: '',
+      facturaDirectaSupplierId: ''
+    };
+  }
+
+  function _ensureSupplierFiscal(f) {
+    f = f || {};
+    var current = Object.assign({}, f.fiscal || {});
+    var currentAddress = Object.assign({}, current.fiscalAddress || {});
+    var countryCode = _countryCode(current.countryCode || f.country || f.pais || 'ES') || 'ES';
+    var defaults = _defaultSupplierFiscal();
+    return Object.assign({}, defaults, current, {
+      legalName: current.legalName || f.legalName || f.name || '',
+      commercialName: current.commercialName || f.commercialName || '',
+      documentType: current.documentType || '',
+      fiscalId: current.fiscalId || f.fiscalId || f.nif || f.taxId || '',
+      countryCode: countryCode,
+      invoiceEmail: current.invoiceEmail || f.invoiceEmail || f.email || '',
+      taxRegime: current.taxRegime || f.taxRegime || '',
+      defaultIvaDeductible: current.defaultIvaDeductible !== false,
+      defaultIrpfDeductible: current.defaultIrpfDeductible === true,
+      fiscalAddress: Object.assign({}, defaults.fiscalAddress, currentAddress, {
+        address: currentAddress.address || f.address || '',
+        number: currentAddress.number || f.number || f.numero || '',
+        complement: currentAddress.complement || f.reference || f.complemento || '',
+        city: currentAddress.city || f.city || f.cidade || '',
+        province: currentAddress.province || f.state || f.estado || '',
+        postalCode: currentAddress.postalCode || f.postalCode || f.codigoPostal || '',
+        countryCode: _countryCode(currentAddress.countryCode || countryCode) || 'ES'
+      }),
+      externalFiscalSupplierId: current.externalFiscalSupplierId || '',
+      facturaDirectaSupplierId: current.facturaDirectaSupplierId || ''
+    });
+  }
+
+  function _supplierDocumentTypeOptions(selected) {
+    return ['', 'NIF', 'NIE', 'CIF', 'VAT'].map(function (x) {
+      return '<option value="' + x + '"' + (selected === x ? ' selected' : '') + '>' + (x || 'Selecionar') + '</option>';
+    }).join('');
+  }
+
+  function _supplierCountryCodeOptions(selected) {
+    return ['ES', 'PT', 'BR', 'FR', 'IT', 'DE', 'GB', 'US'].map(function (x) {
+      return '<option value="' + x + '"' + (selected === x ? ' selected' : '') + '>' + x + '</option>';
+    }).join('');
+  }
+
+  function _supplierTaxRegimeOptions(selected) {
+    var list = [
+      ['', 'Selecionar'],
+      ['autonomo_estimacion_directa', 'Autónomo — estimación directa'],
+      ['autonomo_modulos', 'Autónomo — módulos'],
+      ['sociedad_mercantil', 'Sociedad mercantil'],
+      ['recargo_equivalencia', 'Recargo de equivalencia'],
+      ['exento_iva', 'Exento de IVA'],
+      ['intracomunitario', 'Intracomunitário'],
+      ['otro', 'Outro']
+    ];
+    return list.map(function (x) {
+      return '<option value="' + x[0] + '"' + (selected === x[0] ? ' selected' : '') + '>' + x[1] + '</option>';
+    }).join('');
   }
 
   // ── Google Places Autocomplete ─────────────────────────────────────────────
@@ -967,15 +1821,11 @@ Modules.Compras = (function () {
         if (formattedEl) formattedEl.value = place.formattedAddress || '';
         var countryMap = { Spain: 'España', Portugal: 'Portugal', France: 'Francia',
           Italy: 'Italia', Germany: 'Alemania', 'United Kingdom': 'Reino Unido',
-          'United States': 'Otro', Belgium: 'Bélgica', Netherlands: 'Países Bajos',
+          'United States': 'Estados Unidos', Belgium: 'Bélgica', Netherlands: 'Países Bajos',
           ES: 'España', PT: 'Portugal', FR: 'Francia', IT: 'Italia', DE: 'Alemania',
-          GB: 'Reino Unido', UK: 'Reino Unido', US: 'Otro', BE: 'Bélgica', NL: 'Países Bajos' };
+          GB: 'Reino Unido', UK: 'Reino Unido', US: 'Estados Unidos', BE: 'Bélgica', NL: 'Países Bajos' };
         if (countryEl && (place.country || place.countryCode)) {
-          var mapped = countryMap[place.country] || countryMap[place.countryCode] || 'Otro';
-          var copts = countryEl.options;
-          for (var l = 0; l < copts.length; l++) {
-            if (copts[l].value === mapped) { countryEl.value = copts[l].value; break; }
-          }
+          countryEl.value = countryMap[place.country] || countryMap[place.countryCode] || place.country || place.countryCode || '';
         }
       }
     });
@@ -1221,6 +2071,11 @@ Modules.Compras = (function () {
 
   function _saveCompra() {
     if (_savingCompra) return;
+    var currentCompra = _editingId ? (_byId(_compras, _editingId) || {}) : {};
+    if (_editingId && _isCompraStatusLocked(currentCompra)) {
+      UI.toast('Esta compra está bloqueada pelo status atual. Volte para Pendente antes de editar.', 'error');
+      return;
+    }
     // Bloqueia se há pagamento confirmado (Fluxo 3)
     if (_compraEstadoFinanceiro && _compraEstadoFinanceiro.hasPaid) {
       UI.toast('Esta compra possui pagamento confirmado. Estorne os pagamentos antes de editar.', 'error');
@@ -1234,11 +2089,10 @@ Modules.Compras = (function () {
     var valorSemIva = linhas.reduce(function (s, l) { return s + (_num(l.valorSemIva) || _lineTotal(l)); }, 0);
     var ivaValor = linhas.reduce(function (s, l) { return s + _num(l.ivaValor); }, 0);
     var ivaPctList = linhas.map(function (l) { return _num(l.ivaPct); }).filter(function (v) { return v > 0; });
-    var currentCompra = _editingId ? (_byId(_compras, _editingId) || {}) : {};
     var compraData = {
       data: data,
       fornecedorId: _el('cp-forn').value,
-      statusCompra: _el('cp-status').value || 'Pendente',
+      statusCompra: 'Pendente',
       numDocumento: _el('cp-doc').value,
       observacoes: _el('cp-obs').value,
       total: total,
@@ -1314,28 +2168,25 @@ Modules.Compras = (function () {
 
   // ── Produtos / Insumos ────────────────────────────────────────────────────
   function _renderItens() {
-    Promise.all([DB.getAll('itens_custo'), DB.getAll('fornecedores'), DB.getAll('unidades_medida'), DB.getAll('compras_tipos'), DB.getAll('compras_categorias')]).then(function (r) {
+    Promise.all([DB.getAll('itens_custo'), DB.getAll('fornecedores'), DB.getAll('unidades_medida'), DB.getAll('compras_categorias')]).then(function (r) {
       _itens = (r[0] || []).sort(function (a, b) { return (a.nome || '').localeCompare(b.nome || ''); });
       _fornecedores = r[1] || [];
       _unidades = r[2] || [];
-      _tipos = r[3] || [];
-      _categorias = r[4] || [];
+      _categorias = (r[3] || []).slice().sort(_sortByName);
       _syncItemFiltersToCatalog();
       _paintItens();
     });
   }
 
   function _catalogList(kind, classe, strictClass) {
-    var list = kind === 'tipos' ? _tipos : _categorias;
+    var list = _categorias;
     var classKey = String(classe || '').trim();
     return (list || []).filter(function (item) {
       if (!item || item.ativo === false) return false;
       if (!classKey) return true;
       if (strictClass) return item.classe === classKey;
       return !item.classe || item.classe === classKey || item.classe === 'ambos';
-    }).slice().sort(function (a, b) {
-      return String(a.name || '').localeCompare(String(b.name || ''));
-    });
+    }).slice().sort(_sortByName);
   }
 
   function _catalogNames(kind, classe, strictClass) {
@@ -1359,11 +2210,15 @@ Modules.Compras = (function () {
     return String(name || '').trim().replace(/\s+/g, ' ').toLowerCase();
   }
 
+  function _sortByName(a, b) {
+    return String((a && (a.name || a.nome)) || '').localeCompare(String((b && (b.name || b.nome)) || ''), 'pt', { sensitivity: 'base' });
+  }
+
   function _findCatalogByName(kind, name, classe, strictClass) {
     var norm = _normCatalogName(name);
     if (!norm) return null;
     var classKey = String(classe || '').trim();
-    var source = kind === 'tipos' ? _tipos : _categorias;
+    var source = _categorias;
     return (source || []).find(function (item) {
       if (!item) return false;
       var itemClass = item.classe || '';
@@ -1386,11 +2241,13 @@ Modules.Compras = (function () {
   function _searchableCatalogField(kind, id, label, selected, classe, strictClass) {
     var selectedName = selected || '';
     return '<div style="position:relative;"><label style="' + _labelStyle() + '">' + label + '</label>' +
+      '<div class="supplier-field-control">' +
       '<input id="' + id + '-display" type="text" autocomplete="off" value="' + _esc(selectedName) + '" placeholder="Buscar ou cadastrar..." ' +
         'oninput="Modules.Compras._catalogSearch(\'' + id + '\',\'' + kind + '\',this.value)" ' +
         'onfocus="Modules.Compras._catalogSearch(\'' + id + '\',\'' + kind + '\',this.value)" ' +
         'onblur="setTimeout(function(){var d=document.getElementById(\'' + id + '-dropdown\');if(d)d.style.display=\'none\';},180)" ' +
-        'style="' + _inputStyle() + 'background:#fff;">' +
+        '>' +
+      '</div>' +
       '<input id="' + id + '" type="hidden" value="' + _esc(selectedName) + '" data-kind="' + kind + '" data-classe="' + _esc(classe || '') + '" data-strict-class="' + (strictClass ? '1' : '0') + '">' +
       '<div id="' + id + '-dropdown" style="' + _catalogDropdownStyle() + '"></div>' +
       '</div>';
@@ -1407,11 +2264,13 @@ Modules.Compras = (function () {
   function _searchablePackageField(id, label, selected) {
     var value = _packageValue(selected);
     return '<div style="position:relative;"><label style="' + _labelStyle() + '">' + label + '</label>' +
+      '<div class="supplier-field-control">' +
       '<input id="' + id + '-display" type="text" autocomplete="off" value="' + _esc(value) + '" placeholder="Selecionar embalagem..." ' +
         'oninput="Modules.Compras._packageSearch(\'' + id + '\',this.value)" ' +
         'onfocus="Modules.Compras._packageSearch(\'' + id + '\',this.value)" ' +
         'onblur="setTimeout(function(){var d=document.getElementById(\'' + id + '-dropdown\');if(d)d.style.display=\'none\';},180)" ' +
-        'style="' + _inputStyle() + 'background:#fff;">' +
+        '>' +
+      '</div>' +
       '<input id="' + id + '" type="hidden" value="' + _esc(value) + '">' +
       '<div id="' + id + '-dropdown" style="' + _catalogDropdownStyle() + '"></div>' +
       '</div>';
@@ -1421,9 +2280,7 @@ Modules.Compras = (function () {
     var insumosOnly = _itensView === 'insumos';
     var classe = insumosOnly ? 'insumo' : (_itensFilters.classe || '');
     var strictClass = !!insumosOnly;
-    var tipos = insumosOnly ? _availableInsumoFilterValues('tipo') : _catalogNames('tipos', classe, strictClass);
     var categorias = insumosOnly ? _availableInsumoFilterValues('categoria') : _catalogNames('categorias', classe, strictClass);
-    if (_itensFilters.tipo && tipos.indexOf(_itensFilters.tipo) < 0) _itensFilters.tipo = '';
     if (_itensFilters.categoria && categorias.indexOf(_itensFilters.categoria) < 0) _itensFilters.categoria = '';
   }
 
@@ -1436,15 +2293,12 @@ Modules.Compras = (function () {
   }
 
   function _refreshOpenItemModalCatalog() {
-    var tipoEl = document.getElementById('it-tipo');
     var catEl = document.getElementById('it-categoria');
-    if (!tipoEl && !catEl) return;
+    if (!catEl) return;
     var classeEl = document.getElementById('it-classe');
     var classe = classeEl ? (classeEl.value || 'insumo') : 'insumo';
-    var strictClass = tipoEl && tipoEl.dataset.strictClass === '1' || catEl && catEl.dataset.strictClass === '1';
-    var curTipo = tipoEl ? tipoEl.value : '';
+    var strictClass = catEl && catEl.dataset.strictClass === '1';
     var curCat = catEl ? catEl.value : '';
-    if (tipoEl && curTipo && !_findCatalogByName('tipos', curTipo, classe, strictClass)) _catalogSelect('it-tipo', '');
     if (catEl && curCat && !_findCatalogByName('categorias', curCat, classe, strictClass)) _catalogSelect('it-categoria', '');
   }
 
@@ -1454,13 +2308,12 @@ Modules.Compras = (function () {
     return (_itens || []).filter(function (i) {
       if (insumosOnly && i.classe === 'produto') return false;
       if (_itensFilters.classe && i.classe !== _itensFilters.classe) return false;
-      if (ignoreField !== 'tipo' && _itensFilters.tipo && i.tipo !== _itensFilters.tipo) return false;
       if (ignoreField !== 'categoria' && _itensFilters.categoria && i.categoria !== _itensFilters.categoria) return false;
       if (_itensFilters.ativo === 'ativo' && i.ativo === false) return false;
       if (_itensFilters.ativo === 'inativo' && i.ativo !== false) return false;
       if (!q) return true;
       var forn = _byId(_fornecedores, i.fornecedor_padrao_id);
-      var hay = [i.nome, i.name, i.tipo, i.categoria, i.classe, i.unidade_base, i.unidadeBase, i.unidade_compra_padrao, forn && forn.name].join(' ').toLowerCase();
+      var hay = [i.nome, i.name, i.categoria, i.classe, i.unidade_base, i.unidadeBase, i.unidade_compra_padrao, forn && forn.name].join(' ').toLowerCase();
       return hay.indexOf(q) >= 0;
     });
   }
@@ -1469,23 +2322,20 @@ Modules.Compras = (function () {
     var insumosOnly = _itensView === 'insumos';
     if (insumosOnly) return _availableInsumoFilterValues(field);
     var classe = insumosOnly ? 'insumo' : (_itensFilters.classe || '');
-    return _catalogNames(field === 'tipo' ? 'tipos' : 'categorias', classe, !!insumosOnly);
+    return _catalogNames('categorias', classe, !!insumosOnly);
   }
 
   function _availableInsumoFilterValues(field) {
-    var kind = field === 'tipo' ? 'tipos' : 'categorias';
-    var valueKey = field === 'tipo' ? 'tipo' : 'categoria';
-    var oppositeKey = field === 'tipo' ? 'categoria' : 'tipo';
-    var oppositeVal = _itensFilters[oppositeKey] || '';
-    var catalog = _catalogNames(kind, 'insumo', true);
-    if (!oppositeVal) return catalog;
-    var used = {};
-    (_itens || []).forEach(function (item) {
-      if (!item || item.classe === 'produto') return;
-      if ((item[oppositeKey] || '') !== oppositeVal) return;
-      if (item[valueKey]) used[item[valueKey]] = true;
-    });
-    return catalog.filter(function (name) { return !!used[name]; });
+    return _catalogNames('categorias', 'insumo', true);
+  }
+
+  function _hasActiveItemFilters() {
+    return !!(
+      (_itensFilters.q || '').trim() ||
+      (_itensFilters.classe || '') ||
+      (_itensFilters.categoria || '') ||
+      (_itensFilters.ativo && _itensFilters.ativo !== 'ativo')
+    );
   }
 
   function _renderInsumos() {
@@ -1498,29 +2348,35 @@ Modules.Compras = (function () {
     if (!content) return;
     var insumosOnly = _itensView === 'insumos';
     var title = insumosOnly ? 'Insumos' : 'Produtos / Insumos';
-    var subtitle = insumosOnly ? 'Cadastre os insumos usados na produção com tipo, categoria, unidade e custo atual.' : 'Cadastre e acompanhe produtos e insumos usados em compras, estoque e custos.';
+    var subtitle = insumosOnly ? 'Cadastre os insumos usados na produção com categoria, unidade e custo atual.' : 'Cadastre e acompanhe produtos e insumos usados em compras, estoque e custos.';
     var addLabel = insumosOnly ? '+ Novo insumo' : '+ Novo item';
     var listTitle = insumosOnly ? 'Insumos cadastrados' : 'Produtos / Insumos cadastrados';
-    var listDesc = insumosOnly ? 'Gerencie tipo, categoria, unidade e custo dos insumos usados em receitas.' : 'Veja classe, tipo, categoria, unidade e custo atual dos itens de compra.';
+    var listDesc = insumosOnly ? 'Gerencie categoria, unidade e custo dos insumos usados em receitas.' : 'Veja classe, categoria, unidade e custo atual dos itens de compra.';
     var addFn = insumosOnly ? 'Modules.Compras._openInsumoModal(null)' : 'Modules.Compras._openItemModal(null)';
-    var iS = _inputStyle();
+    var itemFilterCss = '<style>' +
+      '.item-filter-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:16px;box-shadow:0 10px 24px rgba(31,31,31,.04);}' +
+      '.item-filter-grid{display:grid;gap:13px;align-items:end;}' +
+      '.item-filter-control{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:6px;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;}' +
+      '.item-filter-control:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
+      '.item-filter-control input,.item-filter-control select{width:100%;height:36px;border:0;border-radius:8px;padding:0 8px;font-size:14px;font-family:inherit;outline:none;background:transparent;box-sizing:border-box;color:#1F1F1F;box-shadow:none;}' +
+      '.item-filter-control select{padding-right:42px;appearance:none;-webkit-appearance:none;-moz-appearance:none;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 16px center;background-size:14px;}' +
+      '.item-filter-actions{margin-top:12px;display:flex;justify-content:flex-end;}' +
+      '@media(max-width:1120px){.item-filter-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}}' +
+      '@media(max-width:900px){.item-filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}' +
+      '@media(max-width:620px){.item-filter-grid{grid-template-columns:1fr!important}.item-filter-actions{justify-content:stretch}.item-filter-actions button{width:100%;}}' +
+      '</style>';
     _syncItemFiltersToCatalog();
-    var tipoOpts = '<option value="">Todos os tipos</option>' +
-      _availableItemFilterValues('tipo').map(function (name) {
-        return '<option value="' + _esc(name) + '"' + (_itensFilters.tipo === name ? ' selected' : '') + '>' + _esc(name) + '</option>';
-      }).join('');
     var catOpts = '<option value="">Todas categorias</option>' +
       _availableItemFilterValues('categoria').map(function (name) {
         return '<option value="' + _esc(name) + '"' + (_itensFilters.categoria === name ? ' selected' : '') + '>' + _esc(name) + '</option>';
       }).join('');
     var filteredForCounts = _filteredItens();
     var insumosCount = filteredForCounts.length;
-    var ativosCount = filteredForCounts.filter(function (i) { return i.ativo !== false; }).length;
     var produtosCount = filteredForCounts.filter(function (i) { return i.classe === 'produto'; }).length;
     var insumosClassCount = filteredForCounts.filter(function (i) { return i.classe !== 'produto'; }).length;
     var receitasCount = filteredForCounts.filter(function (i) { return i.usar_em_fichas !== false; }).length;
     var revendaCount = filteredForCounts.filter(function (i) { return i.venda_habilitada === true; }).length;
-    var tiposCount = _availableItemFilterValues('tipo').length;
+    var categoriasCount = _availableItemFilterValues('categoria').length;
     var custoMedio = filteredForCounts.length ? filteredForCounts.reduce(function (s, i) { return s + _num(i.custo_atual); }, 0) / filteredForCounts.length : 0;
     var p = _pag.itens;
     var totalPages = Math.max(1, Math.ceil(insumosCount / p.perPage));
@@ -1537,51 +2393,41 @@ Modules.Compras = (function () {
     };
     var metricsHtml = insumosOnly ? '<div class="growth-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">' +
       insumoKpi('Total de insumos', insumosCount, 'inventory_2', '#8A6F5A') +
-      insumoKpi('Tipos', tiposCount, 'category', '#A18362') +
+      insumoKpi('Categorias', categoriasCount, 'category', '#A18362') +
       insumoKpi('Em receitas', receitasCount, 'receipt_long', '#6C8777') +
       insumoKpi('Custo médio', UI.fmt(custoMedio), 'query_stats', '#B42318') +
       '</div>' : '';
-    var classeFilterHtml = insumosOnly ? '' : '<select id="it-f-classe" onchange="Modules.Compras._filterItens()" style="' + iS + 'height:40px;background:#fff;">' +
+    var classeFilterHtml = insumosOnly ? '' : '<div class="item-filter-control"><select id="it-f-classe" onchange="Modules.Compras._filterItens()">' +
       '<option value=""' + (!_itensFilters.classe ? ' selected' : '') + '>Todas classes</option>' +
       '<option value="produto"' + (_itensFilters.classe === 'produto' ? ' selected' : '') + '>Produtos</option>' +
       '<option value="insumo"' + (_itensFilters.classe === 'insumo' ? ' selected' : '') + '>Insumos</option>' +
-      '</select>';
+      '</select></div>';
     var filterGrid = insumosOnly
-      ? 'minmax(320px,1.6fr) minmax(180px,.8fr) minmax(160px,.7fr) minmax(150px,.7fr) auto'
-      : 'minmax(320px,1.6fr) minmax(150px,.75fr) minmax(160px,.8fr) minmax(140px,.7fr) minmax(140px,.7fr) auto';
-    var filterCard = '<div style="background:#fff;border:none;border-radius:16px;padding:18px 20px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
-      '<div style="display:grid;grid-template-columns:' + filterGrid + ';gap:10px;align-items:end;">' +
-        '<div><input id="it-f-q" type="search" placeholder="' + (insumosOnly ? 'Buscar insumos...' : 'Buscar produtos ou insumos...') + '" value="' + _esc(_itensFilters.q) + '" oninput="Modules.Compras._filterItens()" style="width:100%;height:40px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;box-sizing:border-box;color:#1F1F1F;"></div>' +
+      ? 'minmax(320px,1.45fr) minmax(220px,.9fr) minmax(150px,.7fr)'
+      : 'minmax(320px,1.45fr) minmax(170px,.75fr) minmax(220px,.9fr) minmax(150px,.7fr)';
+    var clearFiltersHtml = _hasActiveItemFilters()
+      ? '<div class="item-filter-actions">' +
+          '<button onclick="Modules.Compras._clearItensFilters()" style="height:40px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;font-size:13px;font-family:inherit;cursor:pointer;background:#fff;color:#6F6860;white-space:nowrap;box-shadow:0 1px 2px rgba(31,31,31,.03);">Limpar filtros</button>' +
+        '</div>'
+      : '';
+    var filterCard = itemFilterCss + '<div class="item-filter-card">' +
+      '<div class="item-filter-grid" style="grid-template-columns:' + filterGrid + ';">' +
+        '<div class="item-filter-control"><input id="it-f-q" type="search" placeholder="' + (insumosOnly ? 'Buscar por nome ou categoria...' : 'Buscar por nome, classe ou categoria...') + '" value="' + _esc(_itensFilters.q) + '" oninput="Modules.Compras._filterItens()"></div>' +
         classeFilterHtml +
-        '<select id="it-f-tipo" onchange="Modules.Compras._filterItens()" style="' + iS + 'height:40px;background:#fff;">' + tipoOpts.replace('<option value="">Todos os tipos</option>', '<option value="">Todos os tipos</option>') + '</select>' +
-        '<select id="it-f-cat" onchange="Modules.Compras._filterItens()" style="' + iS + 'height:40px;background:#fff;">' + catOpts.replace('<option value="">Todas categorias</option>', '<option value="">Todas categorias</option>') + '</select>' +
-        '<select id="it-f-ativo" onchange="Modules.Compras._filterItens()" style="' + iS + 'height:40px;background:#fff;">' +
+        '<div class="item-filter-control"><select id="it-f-cat" onchange="Modules.Compras._filterItens()">' + catOpts.replace('<option value="">Todas categorias</option>', '<option value="">Todas categorias</option>') + '</select></div>' +
+        '<div class="item-filter-control"><select id="it-f-ativo" onchange="Modules.Compras._filterItens()">' +
           '<option value="">Todos</option>' +
           '<option value="ativo"' + (_itensFilters.ativo === 'ativo' ? ' selected' : '') + '>Ativo</option>' +
           '<option value="inativo"' + (_itensFilters.ativo === 'inativo' ? ' selected' : '') + '>Inativo</option>' +
-        '</select>' +
-        '<button onclick="Modules.Compras._clearItensFilters()" style="height:40px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;font-size:13px;font-family:inherit;cursor:pointer;background:#fff;color:#6F6860;white-space:nowrap;box-shadow:0 1px 2px rgba(31,31,31,.03);">Limpar filtros</button>' +
+        '</select></div>' +
       '</div>' +
-      '<div style="margin-top:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">' +
-        '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
-          '<span style="display:inline-flex;align-items:center;min-height:24px;padding:0 9px;border-radius:999px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;font-size:12px;font-weight:500;">' + insumosCount + ' itens</span>' +
-          '<span style="display:inline-flex;align-items:center;min-height:24px;padding:0 9px;border-radius:999px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;font-size:12px;font-weight:500;">' + ativosCount + ' ativos</span>' +
-          (insumosOnly
-            ? '<span style="display:inline-flex;align-items:center;min-height:24px;padding:0 9px;border-radius:999px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;font-size:12px;font-weight:500;">' + receitasCount + ' em receitas</span><span style="display:inline-flex;align-items:center;min-height:24px;padding:0 9px;border-radius:999px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;font-size:12px;font-weight:500;">' + revendaCount + ' em revenda</span>'
-            : '<span style="display:inline-flex;align-items:center;min-height:24px;padding:0 9px;border-radius:999px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;font-size:12px;font-weight:500;">' + produtosCount + ' produtos</span><span style="display:inline-flex;align-items:center;min-height:24px;padding:0 9px;border-radius:999px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;font-size:12px;font-weight:500;">' + insumosClassCount + ' insumos</span>') +
-        '</div>' +
-      '</div>' +
+      clearFiltersHtml +
     '</div>';
     content.innerHTML = '<div class="bf-page" style="display:flex;flex-direction:column;gap:16px;">' +
       '<div class="bf-page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
         '<div>' +
           '<h2 style="font-size:22px;font-weight:700;line-height:1.15;margin:0 0 6px;color:#1F1F1F;">' + _esc(title) + '</h2>' +
           '<p style="font-size:13px;color:#6F6860;line-height:1.5;margin:0;max-width:760px;">' + _esc(subtitle) + '</p>' +
-          '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px;">' +
-            '<span style="display:inline-flex;align-items:center;min-height:24px;padding:0 9px;border-radius:999px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;font-size:12px;font-weight:500;">' + insumosCount + (insumosOnly ? ' insumos' : ' itens') + '</span>' +
-            '<span style="display:inline-flex;align-items:center;min-height:24px;padding:0 9px;border-radius:999px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;font-size:12px;font-weight:500;">' + ativosCount + ' ativos</span>' +
-            '<span style="display:inline-flex;align-items:center;min-height:24px;padding:0 9px;border-radius:999px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;font-size:12px;font-weight:500;">' + tiposCount + ' tipos</span>' +
-          '</div>' +
         '</div>' +
         '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;">' +
           '<button type="button" onclick="' + addFn + '" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">' + _esc(addLabel) + '</button>' +
@@ -1614,10 +2460,10 @@ Modules.Compras = (function () {
     var perPageOptions = [10, 25, 50].map(function (n) {
       return '<option value="' + n + '"' + (Number(p.perPage) === n ? ' selected' : '') + '>' + n + ' / pág.</option>';
     }).join('');
-    var paginationHtml = total ? '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:16px 18px;">' +
+    var paginationHtml = total ? '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:16px 18px;border-top:1px solid #F1E8E3;background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);">' +
       '<span style="font-size:12px;color:#6F6860;line-height:1.4;">Mostrando <strong style="color:#1F1F1F;font-weight:600;">' + start + '</strong> a <strong style="color:#1F1F1F;font-weight:600;">' + end + '</strong> de <strong style="color:#1F1F1F;font-weight:600;">' + total + '</strong></span>' +
       '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;">' +
-        '<select onchange="Modules.Compras._setPerPage(\'itens\',this.value)" style="min-width:110px;max-width:110px;height:34px;padding:0 10px;border:1px solid #EAE4DA;border-radius:10px;font-size:12px;font-family:inherit;outline:none;background:#fff;color:#6F6860;box-sizing:border-box;">' + perPageOptions + '</select>' +
+        '<select onchange="Modules.Compras._setPerPage(\'itens\',this.value)" style="min-width:118px;max-width:118px;height:34px;padding:0 38px 0 10px;border:1px solid #EAE4DA;border-radius:10px;font-size:12px;font-family:inherit;outline:none;color:#6F6860;box-sizing:border-box;appearance:none;-webkit-appearance:none;-moz-appearance:none;background-color:#fff;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 14px center;background-size:14px;">' + perPageOptions + '</select>' +
         '<div style="display:flex;align-items:center;gap:6px;">' +
           '<button type="button" onclick="Modules.Compras._changePage(\'itens\',' + (currentPage - 1) + ')" style="height:34px;padding:0 11px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#6F6860;font-size:12px;font-weight:500;cursor:' + (currentPage > 1 ? 'pointer' : 'not-allowed') + ';opacity:' + (currentPage > 1 ? '1' : '.45') + ';"' + (currentPage > 1 ? '' : ' disabled') + '>Anterior</button>' +
           '<div style="display:flex;align-items:center;gap:6px;"><span style="font-size:12px;color:#A39B90;">' + currentPage + '</span><span style="width:14px;height:2px;border-radius:999px;background:#B42318;display:inline-block;opacity:.65"></span><span style="font-size:12px;color:#A39B90;">' + totalPages + '</span></div>' +
@@ -1627,7 +2473,7 @@ Modules.Compras = (function () {
     '</div>' : '';
     var pageData = data.slice((currentPage - 1) * p.perPage, currentPage * p.perPage);
     var insumosOnly = _itensView === 'insumos';
-    var headers = insumosOnly ? ['ITEM', 'CLASSE', 'TIPO', 'CATEGORIA', 'UNIDADE', 'CUSTO ATUAL', 'AÇÕES'] : ['Nome', 'Classe', 'Tipo', 'Categoria', 'Unidade', 'Custo atual', 'Venda', ''];
+    var headers = insumosOnly ? ['ITEM', 'CLASSE', 'CATEGORIA', 'UNIDADE', 'CUSTO ATUAL', 'AÇÕES'] : ['Nome', 'Classe', 'Categoria', 'Unidade', 'Custo atual', 'Venda', ''];
     var emptyTitle = insumosOnly ? 'Nenhum insumo encontrado' : 'Nenhum item encontrado';
     var emptyAction = insumosOnly ? 'Novo insumo' : 'Novo item';
     if (!data.length) {
@@ -1646,7 +2492,6 @@ Modules.Compras = (function () {
         '<th style="width:44px;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;"><input type="checkbox" disabled style="width:16px;height:16px;accent-color:#B42318;"></th>' +
         '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">ITEM</th>' +
         '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">CLASSE</th>' +
-        '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">TIPO</th>' +
         '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">CATEGORIA</th>' +
         '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">UNIDADE</th>' +
         '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">CUSTO ATUAL</th>' +
@@ -1663,7 +2508,6 @@ Modules.Compras = (function () {
             '</div>' +
           '</td>' +
           '<td style="padding:14px 16px;vertical-align:middle;">' + (i.classe === 'produto' ? _statusChip('Produto', '#3B5B82', '#5B7FA6') : _statusChip('Insumo', '#9A5B13', '#D97706')) + '</td>' +
-          '<td style="padding:14px 16px;vertical-align:middle;">' + _chip(i.tipo || '-') + '</td>' +
           '<td style="padding:14px 16px;vertical-align:middle;">' + _chip(i.categoria || '-') + '</td>' +
           '<td style="padding:14px 16px;vertical-align:middle;font-size:14px;font-weight:600;color:#1F1F1F;">' + _esc(i.unidade_base || i.unidadeBase || '-') + '</td>' +
           '<td style="padding:14px 16px;vertical-align:middle;font-size:14px;font-weight:600;color:#1F1F1F;">' + (i.custo_atual ? '€' + Number(i.custo_atual).toFixed(Number(i.custo_atual) < 0.01 ? 6 : 4) : '-') + '</td>' +
@@ -1678,17 +2522,17 @@ Modules.Compras = (function () {
 
   function _filterItens() {
     var activeId = document.activeElement ? document.activeElement.id : '';
+    var previousClasse = _itensFilters.classe || '';
     _itensFilters.q = (_el('it-f-q').value || '').trim();
     var classeEl = document.getElementById('it-f-classe');
     _itensFilters.classe = classeEl ? (classeEl.value || '') : (_itensView === 'insumos' ? '' : _itensFilters.classe || '');
-    var tipoEl = document.getElementById('it-f-tipo');
-    _itensFilters.tipo = tipoEl ? (tipoEl.value || '') : '';
+    var classeChanged = previousClasse !== (_itensFilters.classe || '');
     _itensFilters.categoria = _el('it-f-cat').value || '';
     var ativoEl = document.getElementById('it-f-ativo');
     _itensFilters.ativo = ativoEl ? ativoEl.value : 'ativo';
     _syncItemFiltersToCatalog();
     _pag.itens.page = 1;
-    if (_itensView === 'insumos') {
+    if (_itensView === 'insumos' || classeChanged) {
       _paintItens();
       if (activeId === 'it-f-q') {
         var input = document.getElementById('it-f-q');
@@ -1707,7 +2551,7 @@ Modules.Compras = (function () {
   }
 
   function _clearItensFilters() {
-    _itensFilters = { q: '', classe: '', tipo: '', categoria: '', fornecedor: '', ativo: '' };
+    _itensFilters = { q: '', classe: '', categoria: '', fornecedor: '', ativo: '' };
     _pag.itens.page = 1;
     _paintItens();
   }
@@ -1717,7 +2561,6 @@ Modules.Compras = (function () {
     var defaultClasse = 'insumo';
     var item = id ? (_byId(_itens, id) || {}) : {
       classe: defaultClasse,
-      tipo: '',
       categoria: '',
       ativo: true,
       aproveitamento_padrao: 100
@@ -1735,58 +2578,105 @@ Modules.Compras = (function () {
     var imgSrc = item.imageBase64 || item.imageUrl || '';
     var costText = item.custo_atual ? '€' + Number(item.custo_atual).toFixed(Number(item.custo_atual) < 0.01 ? 6 : 4) + '/' + _esc(item.unidade_base || '') : '-';
     var lastPurchaseText = item.ultima_compra_data ? UI.fmtDate(new Date(item.ultima_compra_data)) : '-';
-    var sectionTitle = 'font-size:14px;font-weight:600;color:#1F1F1F;line-height:1.3;margin-bottom:4px;';
-    var sectionHint = 'font-size:13px;color:#6F6860;line-height:1.45;margin-bottom:14px;';
-    var cardStyle = 'background:#fff;border:none;border-radius:16px;padding:18px;box-shadow:0 12px 30px rgba(31,31,31,.06);';
-    var softCardStyle = 'background:#fff;border:none;border-radius:16px;padding:18px;box-shadow:0 12px 30px rgba(31,31,31,.06);';
-    var metricStyle = 'background:#fff;border:none;border-radius:14px;padding:12px;box-shadow:0 12px 30px rgba(31,31,31,.06);';
-    var body = '<div style="display:grid;gap:16px;">' +
-      '<div style="' + softCardStyle + '">' +
-      '<div style="display:grid;grid-template-columns:minmax(180px,.65fr) 1.35fr;gap:16px;align-items:end;">' +
-      '<div><label style="' + _labelStyle() + '">Classe do cadastro *</label>' +
-      '<select id="it-classe" onchange="Modules.Compras._toggleItemClasse()" style="' + _inputStyle() + '">' +
+    var sectionTitle = 'font-size:13px;font-weight:800;color:#1F1F1F;line-height:1.25;margin-bottom:3px;';
+    var sectionHint = 'font-size:12px;color:#8A7E7C;line-height:1.4;margin-bottom:11px;';
+    var itemModalCss = '<style>' +
+      '.item-modal-body{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px;font-family:Manrope,Inter,sans-serif;}' +
+      '.item-modal-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:14px;box-shadow:0 10px 24px rgba(31,31,31,.04);min-width:0;}' +
+      '.item-modal-main,.item-modal-cost{grid-column:1/-1}.item-modal-usage{grid-column:1/span 6}.item-modal-sale{grid-column:7/-1}' +
+      '.item-modal-head{display:flex;align-items:flex-start;gap:9px;margin-bottom:12px}.item-modal-head .mi{font-size:18px;color:#6F6860;line-height:1.2}' +
+      '.item-modal-grid{display:grid;gap:11px 12px;align-items:end}.item-modal-id-grid{grid-template-columns:minmax(150px,.38fr) minmax(320px,1fr) minmax(220px,.68fr)}.item-modal-tax-grid{grid-template-columns:minmax(210px,.62fr) minmax(250px,.78fr);justify-content:start;margin-top:11px}.item-modal-cost-grid{grid-template-columns:minmax(160px,.42fr) minmax(280px,.9fr);justify-content:start}.item-modal-pack-grid{grid-template-columns:minmax(190px,.55fr) minmax(140px,.36fr);justify-content:start}.item-modal-metrics{display:grid;grid-template-columns:minmax(160px,.55fr) minmax(150px,.45fr) minmax(150px,.45fr);gap:12px;align-items:stretch;justify-content:start}' +
+      '.item-modal-metric{background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;padding:10px 12px;box-shadow:0 1px 2px rgba(31,31,31,.03)}' +
+      '.item-usage-grid{display:grid;grid-template-columns:minmax(250px,1fr) minmax(220px,.78fr);gap:12px;align-items:stretch;}' +
+      '.item-usage-panel{background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;padding:12px;box-shadow:0 1px 2px rgba(31,31,31,.03);}' +
+      '.item-usage-panel-title{font-size:12px;font-weight:800;color:#1F1F1F;line-height:1.25;margin-bottom:5px;}' +
+      '.item-usage-panel-text{font-size:12px;color:#6F6860;line-height:1.45;margin:0;}' +
+      '.item-usage-check{display:flex;align-items:flex-start;gap:10px;font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.35;margin-top:11px;}' +
+      '.item-help-btn{border:0;background:transparent;color:#B42318;border-radius:8px;height:auto;padding:0;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;}' +
+      '.item-help-box{display:none;margin:0 0 12px;padding:11px 12px;border:1px solid #EADFD8;border-radius:12px;background:#FFFCF8;color:#5A4E4C;font-size:12px;line-height:1.5;}' +
+      '.item-help-box strong{color:#1F1F1F;font-weight:700;}' +
+      '.supplier-field-control{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:6px;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease}.supplier-field-control:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08)}.supplier-field-control input,.supplier-field-control select,.supplier-field-control textarea{width:100%;min-height:36px;border:0;border-radius:8px;padding:0 8px;font-size:14px;font-family:inherit;outline:none;background:transparent;box-sizing:border-box;color:#1F1F1F;box-shadow:none}.supplier-field-control select{padding-right:42px;appearance:none;-webkit-appearance:none;-moz-appearance:none;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 16px center;background-size:14px}' +
+      '@media(max-width:900px){.item-modal-usage,.item-modal-sale{grid-column:1/-1}.item-modal-id-grid,.item-modal-cost-grid,.item-modal-pack-grid{grid-template-columns:1fr 1fr}.item-modal-metrics{grid-template-columns:1fr}}@media(max-width:640px){.item-modal-body{grid-template-columns:1fr}.item-modal-card{grid-column:1/-1!important;padding:13px}.item-modal-id-grid,.item-modal-tax-grid,.item-modal-cost-grid,.item-modal-pack-grid,.item-usage-grid{grid-template-columns:1fr}}' +
+      '</style>';
+    var body = itemModalCss + '<div class="item-modal-body">' +
+      '<div class="item-modal-card item-modal-main">' +
+      '<div class="item-modal-head"><span class="mi">inventory_2</span><div><div style="' + sectionTitle + '">Dados do item</div><div style="' + sectionHint + 'margin-bottom:0;">Informe como este item deve aparecer nas compras e no controle da loja.</div></div></div>' +
+      '<div class="item-modal-grid item-modal-id-grid">' +
+      '<div><label style="' + _labelStyle() + '">Classe do item *</label>' +
+      '<div class="supplier-field-control"><select id="it-classe" onchange="Modules.Compras._toggleItemClasse()">' +
       '<option value="insumo"' + (item.classe !== 'produto' ? ' selected' : '') + '>Insumo</option>' +
       '<option value="produto"' + (item.classe === 'produto' ? ' selected' : '') + '>Produto</option>' +
-      '</select></div>' +
-      '<div>' + _field('it-nome', 'Nome *', item.nome || item.name || '') + '</div>' +
+      '</select></div></div>' +
+      '<div>' + _supplierField('it-nome', 'Nome *', item.nome || item.name || '') + '</div>' +
+      _searchableCatalogField('categorias', 'it-categoria', 'Categoria *', item.categoria || '', classeItem, strictCatalog) +
       '</div>' +
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;">' + _searchableCatalogField('tipos', 'it-tipo', 'Tipo *', item.tipo || '', classeItem, strictCatalog) + _searchableCatalogField('categorias', 'it-categoria', 'Categoria *', item.categoria || '', classeItem, strictCatalog) + '</div>' +
       '</div>' +
-      '<div style="' + cardStyle + '">' +
-      '<div style="' + sectionTitle + '">Compra e custo</div>' +
-      '<div id="it-custo-hint" style="' + sectionHint + '">Dados usados em compras, fornecedores, custos, receitas e cálculo financeiro.</div>' +
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;align-items:start;">' +
-        _select('it-unidade', 'Unidade base *', '<option value="">Selecionar...</option>' + unidadeOpts) +
+      '<div class="item-modal-card item-modal-cost">' +
+      '<div class="item-modal-head"><span class="mi">payments</span><div><div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;"><div style="' + sectionTitle + '">Compra e custo</div>' + (classeItem === 'produto' ? '' : '<button id="it-cost-help-btn" type="button" class="item-help-btn" onclick="Modules.Compras._toggleItemCostHelp()">Como preencher?</button>') + '</div>' +
+      '<div id="it-custo-hint" style="' + sectionHint + '">Defina como este item costuma ser comprado e qual fornecedor você usa com mais frequência.</div>' +
+      '</div></div>' +
+      '<div id="it-cost-help" class="item-help-box" style="' + (classeItem === 'produto' ? 'display:none!important;' : '') + '">' +
+        'Use esta parte para dizer como você costuma comprar esse item.<br><br>' +
+        '<strong>Exemplo:</strong><br>' +
+        'Você compra batata em saco fechado, mas usa a batata por quilo nas receitas.<br><br>' +
+        'Então o sistema precisa saber:<br>' +
+        '• como vem a compra: saco<br>' +
+        '• quanto vem dentro: 5 kg<br><br>' +
+        'Assim, quando você informar o preço do saco, o BocaFood calcula sozinho quanto custa cada kg.<br><br>' +
+        '<strong>Exemplo preenchido:</strong><br>' +
+        '• Unidade base: Quilograma (kg)<br>' +
+        '• Embalagem de compra padrão: saco<br>' +
+        '• Conteúdo por embalagem: 5<br><br>' +
+        'Se você compra por unidade, cadastre como unidade.<br>' +
+        'Se compra por quilo, cadastre como kg.<br>' +
+        'Se compra por litro, cadastre como litro.' +
+      '</div>' +
+      '<div class="item-modal-grid item-modal-cost-grid" style="margin-bottom:11px;align-items:start;">' +
+        _supplierSelect('it-unidade', 'Unidade base *', '<option value="">Selecionar...</option>' + unidadeOpts) +
         '<div style="position:relative;"><label style="' + _labelStyle() + '">Fornecedor padrão</label>' +
+          '<div class="supplier-field-control">' +
           '<input id="it-forn-display" type="text" placeholder="Buscar fornecedor..." autocomplete="off" value="' + _esc(fornAtual.name || '') + '" ' +
             'oninput="Modules.Compras._itemFornSearch(this.value)" ' +
             'onfocus="Modules.Compras._itemFornSearch(this.value)" ' +
             'onblur="setTimeout(function(){var d=document.getElementById(\'it-forn-dropdown\');if(d)d.style.display=\'none\';},200)" ' +
-            'style="' + _inputStyle() + '">' +
+            '>' +
+          '</div>' +
           '<div id="it-forn-dropdown" style="display:none;position:absolute;top:calc(100% + 2px);left:0;right:0;z-index:9999;background:#fff;border:1px solid #EAE4DA;border-radius:10px;max-height:220px;overflow-y:auto;box-shadow:0 12px 30px rgba(31,31,31,.12);"></div>' +
           '<select id="it-forn" style="display:none;"><option value="">Sem fornecedor padrão</option>' + fornOpts + '</select>' +
         '</div>' +
       '</div>' +
-      '<div style="display:grid;grid-template-columns:1.5fr .6fr;gap:12px;margin-bottom:12px;">' +
+      '<div class="item-modal-grid item-modal-pack-grid" style="margin-bottom:11px;">' +
       _searchablePackageField('it-emb-padrao', 'Embalagem de compra padrão', item.unidade_compra_padrao || '') +
-      _field('it-conteudo-padrao', 'Conteúdo por embalagem (×)', item.conteudo_por_embalagem_padrao || 1, 'number') +
+      _supplierField('it-conteudo-padrao', 'Conteúdo por embalagem (×)', item.conteudo_por_embalagem_padrao || 1, 'number') +
       '</div>' +
-      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;align-items:stretch;">' +
-      '<label style="' + metricStyle + 'display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;"><input id="it-ativo" type="checkbox" ' + (item.ativo !== false ? 'checked' : '') + ' style="accent-color:#C4362A;width:17px;height:17px;"> Cadastro ativo</label>' +
-      '<div style="' + metricStyle + '"><div style="' + sectionTitle + 'margin-bottom:6px;">Custo atual</div><strong style="font-size:17px;color:#1A1A1A;">' + costText + '</strong></div>' +
-      '<div style="' + metricStyle + '"><div style="' + sectionTitle + 'margin-bottom:6px;">Última compra</div><strong style="font-size:17px;color:#1A1A1A;">' + lastPurchaseText + '</strong></div>' +
+      '<div class="item-modal-metrics">' +
+      '<label class="item-modal-metric" style="display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;"><input id="it-ativo" type="checkbox" ' + (item.ativo !== false ? 'checked' : '') + ' style="accent-color:#C4362A;width:17px;height:17px;"> Cadastro ativo</label>' +
+      '<div class="item-modal-metric"><div style="' + sectionTitle + 'margin-bottom:6px;">Custo atual</div><strong style="font-size:17px;color:#1A1A1A;">' + costText + '</strong></div>' +
+      '<div class="item-modal-metric"><div style="' + sectionTitle + 'margin-bottom:6px;">Última compra</div><strong style="font-size:17px;color:#1A1A1A;">' + lastPurchaseText + '</strong></div>' +
       '</div>' +
       '</div>' +
-      '<div id="it-insumo-fields" style="display:none;' + cardStyle + '">' +
-      '<div style="' + sectionTitle + '">Uso em receitas</div>' +
-      '<div style="' + sectionHint + '">Configura o rendimento do insumo para fichas técnicas, perdas e custos de produção.</div>' +
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:end;">' + _field('it-aprov', 'Aproveitamento (%)', item.aproveitamento_padrao || 100, 'number') +
-      '<label style="background:#F8F4F3;border:1px solid #EFE6E3;border-radius:14px;padding:16px;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;"><input id="it-fichas" type="checkbox" ' + (item.usar_em_fichas !== false ? 'checked' : '') + ' style="accent-color:#C4362A;width:17px;height:17px;"> Usar em receitas</label></div>' +
+      '<div id="it-insumo-fields" class="item-modal-card item-modal-usage" style="display:none;">' +
+      '<div class="item-modal-head"><span class="mi">restaurant</span><div><div style="' + sectionTitle + '">Uso em receitas</div>' +
+      '<div style="' + sectionHint + '">Defina se este item entra nas receitas e quanto dele é aproveitado na preparação.</div>' +
+      '</div></div>' +
+      '<div class="item-usage-grid">' +
+        '<div class="item-usage-panel">' +
+          '<div class="item-usage-panel-title">Ingrediente das receitas</div>' +
+          '<p class="item-usage-panel-text">Quando marcado, este item aparece para ser escolhido nas receitas da loja. O custo dele entra no cálculo de quanto cada produto custa para ser feito.</p>' +
+          '<label class="item-usage-check"><input id="it-fichas" type="checkbox" ' + (item.usar_em_fichas !== false ? 'checked' : '') + ' style="accent-color:#C4362A;width:17px;height:17px;flex:0 0 auto;margin-top:1px;"> Pode ser usado em receitas</label>' +
+        '</div>' +
+        '<div class="item-usage-panel">' +
+          '<div class="item-usage-panel-title">Aproveitamento do item</div>' +
+          _supplierField('it-aprov', 'Aproveitamento (%)', item.aproveitamento_padrao || 100, 'number') +
+          '<p class="item-usage-panel-text" style="margin-top:7px;">Use 100% quando tudo é aproveitado. Se parte do item se perde ao limpar, descascar ou preparar, informe uma porcentagem menor.</p>' +
+        '</div>' +
       '</div>' +
-      '<div id="it-produto-fields" style="display:none;' + cardStyle + '">' +
-      '<div style="' + sectionTitle + '">Produto para revenda direta</div>' +
-      '<div style="' + sectionHint + '">Produto comprado para venda unitária. Não entra em receitas. Estoque baixa por unidade vendida. Imagem, preço de venda e descrição são geridos no módulo de Cardápio / Venda.</div>' +
-      '<label style="background:#FFF7F5;border:1px solid #F0C7C1;border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;"><input id="it-venda" type="checkbox" ' + (item.venda_habilitada ? 'checked' : '') + ' style="accent-color:#C4362A;width:18px;height:18px;"> Alimentar cardápio / venda como produto único</label>' +
+      '</div>' +
+      '<div id="it-produto-fields" class="item-modal-card item-modal-sale" style="display:none;">' +
+      '<div class="item-modal-head"><span class="mi">storefront</span><div><div style="' + sectionTitle + '">Venda direta</div>' +
+      '<div style="' + sectionHint + '">Use quando este item é comprado pronto e vendido diretamente para clientes.</div>' +
+      '</div></div>' +
+      '<label class="item-modal-metric" style="display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;"><input id="it-venda" type="checkbox" ' + (item.venda_habilitada ? 'checked' : '') + ' style="accent-color:#C4362A;width:18px;height:18px;"> Vender este item pronto</label>' +
       '</div>' +
       '</div>';
     var footer = id
@@ -1801,7 +2691,7 @@ Modules.Compras = (function () {
         '<button onclick="Modules.Compras._saveItem()" style="' + _primaryStyle() + '">Adicionar</button>' +
         '</div>';
     var modalTitle = (strictCatalog || classeItem === 'insumo')
-      ? (id ? 'Editar Insumo' : 'Novo Insumo')
+      ? (id ? 'Editar Insumo/Produto Pronto' : 'Novo Insumo/Produto Pronto')
       : (id ? 'Editar Produto / Insumo' : 'Novo Produto / Insumo');
     window._itemCompraModal = UI.modal({ title: modalTitle, body: body, footer: footer, maxWidth: '1120px' });
     setTimeout(_toggleItemClasse, 20);
@@ -1863,8 +2753,7 @@ Modules.Compras = (function () {
       return _dropdownItemHtml(item.name || '-', item.classe === 'ambos' ? 'Disponível para todos' : (item.classe || classe), 'Modules.Compras._catalogSelect(\'' + id + '\',\'' + _escJs(item.name || '') + '\')');
     }).join('');
     if (norm && !exact) {
-      var label = kind === 'tipos' ? '+ Cadastrar novo tipo: ' : '+ Cadastrar nova categoria: ';
-      html += _dropdownItemHtml(label + String(q || '').trim(), 'Criar para a classe atual', 'Modules.Compras._catalogQuickCreate(\'' + id + '\',\'' + kind + '\',\'' + _escJs(q) + '\')', '#C4362A');
+      html += _dropdownItemHtml('+ Cadastrar nova categoria: ' + String(q || '').trim(), 'Criar para a classe atual', 'Modules.Compras._catalogQuickCreate(\'' + id + '\',\'' + kind + '\',\'' + _escJs(q) + '\')', '#C4362A');
     }
     if (!filtered.length && !norm) {
       html += '<div style="padding:10px 12px;color:#8A7E7C;font-size:13px;">Nenhum cadastro disponível.</div>';
@@ -1883,6 +2772,7 @@ Modules.Compras = (function () {
   }
 
   function _catalogQuickCreate(id, kind, rawName) {
+    if (kind !== 'categorias') return;
     var name = String(rawName || '').trim().replace(/\s+/g, ' ');
     if (!name) return;
     var classeEl = document.getElementById('it-classe');
@@ -1894,13 +2784,12 @@ Modules.Compras = (function () {
       _catalogSelect(id, existing.name || name);
       return;
     }
-    var col = kind === 'tipos' ? 'compras_tipos' : 'compras_categorias';
+    var col = 'compras_categorias';
     DB.add(col, { name: name, classe: classe, ativo: true }).then(function () {
-      UI.toast((kind === 'tipos' ? 'Tipo' : 'Categoria') + ' cadastrado!', 'success');
-      return Promise.all([DB.getAll('compras_tipos'), DB.getAll('compras_categorias')]);
-    }).then(function (r) {
-      _tipos = r[0] || [];
-      _categorias = r[1] || [];
+      UI.toast('Categoria cadastrada!', 'success');
+      return DB.getAll('compras_categorias');
+    }).then(function (data) {
+      _categorias = (data || []).slice().sort(_sortByName);
       _catalogSelect(id, name);
       _syncItemFiltersToCatalog();
     }).catch(function (err) {
@@ -1939,12 +2828,11 @@ Modules.Compras = (function () {
       var classe = document.getElementById('it-classe');
       if (classe) {
         classe.value = 'insumo';
-        var wrap = classe.parentNode;
-        while (wrap && wrap.tagName && wrap.tagName.toLowerCase() !== 'div') wrap = wrap.parentNode;
-        if (wrap) wrap.style.display = 'none';
+        classe.disabled = true;
+        classe.title = 'No módulo Produção, este cadastro fica definido como insumo.';
       }
       var headings = document.querySelectorAll('h2');
-      if (headings.length) headings[headings.length - 1].textContent = id ? 'Editar Insumo' : 'Novo Insumo';
+      if (headings.length) headings[headings.length - 1].textContent = id ? 'Editar Insumo/Produto Pronto' : 'Novo Insumo/Produto Pronto';
       _toggleItemClasse();
     }, 30);
   }
@@ -1982,18 +2870,15 @@ Modules.Compras = (function () {
     var custoHint = document.getElementById('it-custo-hint');
     if (custoHint) {
       custoHint.textContent = classe === 'produto'
-        ? 'Dados usados em compras, fornecedores, controlo de estoque e custo por unidade vendável.'
-        : 'Dados usados em compras, fornecedores, custos, receitas e cálculo financeiro.';
+        ? 'Defina como este produto é comprado antes de ser vendido pronto para clientes.'
+        : 'Defina como este insumo costuma ser comprado e usado na produção da loja.';
     }
-    // Actualizar campos de Tipo e Categoria conforme classe
-    var tipoEl = document.getElementById('it-tipo');
+    var costHelpBtn = document.getElementById('it-cost-help-btn');
+    var costHelpBox = document.getElementById('it-cost-help');
+    if (costHelpBtn) costHelpBtn.style.display = classe === 'produto' ? 'none' : '';
+    if (costHelpBox && classe === 'produto') costHelpBox.style.display = 'none';
+    // Atualizar categoria conforme classe
     var catEl = document.getElementById('it-categoria');
-    if (tipoEl) {
-      tipoEl.dataset.classe = classe;
-      if (tipoEl.dataset.strictClass !== '1') tipoEl.dataset.strictClass = classe === 'insumo' ? '1' : '0';
-      var tipoStrict = tipoEl.dataset.strictClass === '1';
-      if (tipoEl.value && !_findCatalogByName('tipos', tipoEl.value, classe, tipoStrict)) _catalogSelect('it-tipo', '');
-    }
     if (catEl) {
       catEl.dataset.classe = classe;
       if (catEl.dataset.strictClass !== '1') catEl.dataset.strictClass = classe === 'insumo' ? '1' : '0';
@@ -2030,7 +2915,6 @@ Modules.Compras = (function () {
     var data = {
       nome: nome,
       classe: classe,
-      tipo: _el('it-tipo').value,
       categoria: _el('it-categoria').value,
       unidade_base: _el('it-unidade').value,
       fornecedor_padrao_id: _el('it-forn').value,
@@ -2118,34 +3002,32 @@ Modules.Compras = (function () {
   function _paintFornecedores() {
     var content = document.getElementById('compras-content');
     if (!content) return;
-    var totalFornecedores = _fornecedores.length;
-    var fornecedoresAtivos = _fornecedores.filter(function (f) { return f.ativo !== false; }).length;
-    var fornecedoresInativos = _fornecedores.filter(function (f) { return f.ativo === false; }).length;
-    var iS = _inputStyle();
-    var selStyle = iS + 'height:40px;background:#fff;';
+    var filterCss = '<style>' +
+      '.supplier-filter-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:14px;box-shadow:0 10px 24px rgba(31,31,31,.04);}' +
+      '.supplier-filter-grid{display:grid;grid-template-columns:minmax(320px,1.6fr) minmax(150px,.75fr) auto;gap:10px;align-items:end;}' +
+      '.supplier-filter-control{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:6px;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;}' +
+      '.supplier-filter-control:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
+      '.supplier-filter-control input,.supplier-filter-control select{width:100%;height:36px;border:0;border-radius:8px;padding:0 8px;font-size:14px;font-family:inherit;outline:none;background:transparent;box-sizing:border-box;color:#1F1F1F;box-shadow:none;}' +
+      '.supplier-filter-control select{padding-right:42px;appearance:none;-webkit-appearance:none;-moz-appearance:none;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 16px center;background-size:14px;}' +
+      '@media(max-width:720px){.supplier-filter-grid{grid-template-columns:1fr}.supplier-filter-grid button{width:100%;}}' +
+      '</style>';
     var limparBtn = 'height:40px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#6F6860;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;white-space:nowrap;box-shadow:0 1px 2px rgba(31,31,31,.03);';
-    var filterCard = '<div style="background:#fff;border:none;border-radius:16px;padding:18px 20px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
-      '<div style="display:grid;grid-template-columns:minmax(320px,1.6fr) minmax(150px,.75fr) auto;gap:10px;align-items:end;">' +
-      '<div><input id="fo-f-q" type="search" placeholder="Buscar por nome, contato, NIF ou categorias..." autocomplete="off" value="' + _esc(_fornecedoresFilters.q) + '" oninput="Modules.Compras._filterFornecedores()" style="' + iS + 'height:40px;"></div>' +
-      '<select id="fo-f-status" onchange="Modules.Compras._filterFornecedores()" style="' + selStyle + '">' +
-      '<option value=""' + (_fornecedoresFilters.status === '' ? ' selected' : '') + '>Todos status</option>' +
-      '<option value="ativo"' + (_fornecedoresFilters.status === 'ativo' ? ' selected' : '') + '>Status: Ativos</option>' +
-      '<option value="inativo"' + (_fornecedoresFilters.status === 'inativo' ? ' selected' : '') + '>Status: Inativos</option>' +
-      '</select>' +
+    var filterCard = filterCss + '<div class="supplier-filter-card">' +
+      '<div class="supplier-filter-grid">' +
+      '<div class="supplier-filter-control"><input id="fo-f-q" type="search" placeholder="Buscar por nome, contato, documento ou endereço..." autocomplete="off" value="' + _esc(_fornecedoresFilters.q) + '" oninput="Modules.Compras._filterFornecedores()"></div>' +
+      '<div class="supplier-filter-control"><select id="fo-f-status" onchange="Modules.Compras._filterFornecedores()">' +
+      '<option value=""' + (_fornecedoresFilters.status === '' ? ' selected' : '') + '>Todos</option>' +
+      '<option value="ativo"' + (_fornecedoresFilters.status === 'ativo' ? ' selected' : '') + '>Ativos</option>' +
+      '<option value="inativo"' + (_fornecedoresFilters.status === 'inativo' ? ' selected' : '') + '>Inativos</option>' +
+      '</select></div>' +
       '<button onclick="Modules.Compras._clearFornecedoresFilters()" style="' + limparBtn + '">Limpar filtros</button>' +
       '</div>' +
-      '<div id="compras-forn-summary" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;"></div>' +
       '</div>';
     content.innerHTML = '<div class="bf-page" style="display:flex;flex-direction:column;gap:16px;">' +
       '<div class="bf-page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
         '<div>' +
           '<h2 style="font-size:22px;font-weight:700;line-height:1.15;margin:0 0 6px;color:#1F1F1F;">Fornecedores</h2>' +
-          '<p style="font-size:13px;color:#6F6860;line-height:1.5;margin:0;max-width:760px;">Organize contatos, dados fiscais e padrões de pagamento usados no registro de compras.</p>' +
-          '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px;">' +
-            '<span style="display:inline-flex;align-items:center;min-height:24px;padding:0 9px;border-radius:999px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;font-size:12px;font-weight:500;">' + totalFornecedores + ' fornecedores</span>' +
-            '<span style="display:inline-flex;align-items:center;min-height:24px;padding:0 9px;border-radius:999px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;font-size:12px;font-weight:500;">' + fornecedoresAtivos + ' ativos</span>' +
-            '<span style="display:inline-flex;align-items:center;min-height:24px;padding:0 9px;border-radius:999px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;font-size:12px;font-weight:500;">' + fornecedoresInativos + ' inativos</span>' +
-          '</div>' +
+          '<p style="font-size:13px;color:#6F6860;line-height:1.5;margin:0;max-width:760px;">Cadastre quem vende produtos, ingredientes, embalagens ou serviços para sua loja.</p>' +
         '</div>' +
         '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;">' +
           '<button type="button" onclick="Modules.Compras._openFornecedorModal(null)" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">+ Adicionar fornecedor</button>' +
@@ -2155,7 +3037,7 @@ Modules.Compras = (function () {
       '<section style="display:flex;flex-direction:column;gap:10px;">' +
         '<div>' +
           '<div style="font-size:14px;font-weight:700;color:#1F1F1F;line-height:1.3;">Fornecedores cadastrados</div>' +
-          '<p style="font-size:13px;color:#6F6860;line-height:1.45;margin:3px 0 0;">Veja contato, pagamento padrão, status e ações de cada fornecedor.</p>' +
+          '<p style="font-size:13px;color:#6F6860;line-height:1.45;margin:3px 0 0;">Veja contatos, documentos, forma de pagamento e status de cada fornecedor.</p>' +
         '</div>' +
         '<div id="compras-forn-table"></div>' +
       '</section>' +
@@ -2178,21 +3060,12 @@ Modules.Compras = (function () {
     var tbl = document.getElementById('compras-forn-table');
     if (!tbl) return;
     var data = _filteredFornecedores();
-    var ativos = data.filter(function (f) { return f.ativo !== false; }).length;
-    var inativos = data.filter(function (f) { return f.ativo === false; }).length;
-    var comPagamento = data.filter(function (f) { return f.defaultPaymentMethod || f.formaPagamentoPadrao || f.paymentDays || f.prazoPagamento; }).length;
-    var summary = document.getElementById('compras-forn-summary');
-    if (summary) summary.innerHTML =
-      _chip(data.length + ' fornecedores') +
-      _chip(ativos + ' ativos') +
-      _chip(inativos + ' inativos') +
-      _chip(comPagamento + ' com padrão de pagamento');
     if (!data.length) {
       tbl.innerHTML = '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
         '<div style="text-align:center;padding:60px 20px;color:#7A746B;">' +
           '<div style="width:54px;height:54px;border-radius:16px;background:#FAF8F4;border:1px solid #EAE4DA;display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;"><span class="mi" style="font-size:26px;color:#A39B90;">storefront</span></div>' +
           '<p style="font-size:15px;font-weight:600;color:#1F1F1F;margin:0 0 6px;">Nenhum fornecedor encontrado</p>' +
-          '<p style="font-size:13px;color:#7A746B;margin:0 0 16px;">Tente ajustar a busca ou os filtros.</p>' +
+          '<p style="font-size:13px;color:#7A746B;margin:0 0 16px;">Ajuste a busca, limpe os filtros ou cadastre um novo fornecedor.</p>' +
           '<button type="button" onclick="Modules.Compras._openFornecedorModal(null)" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(180,35,24,.18);">Adicionar fornecedor</button>' +
         '</div>' +
       '</div>';
@@ -2222,7 +3095,7 @@ Modules.Compras = (function () {
         '<td style="padding:14px 16px;vertical-align:middle;min-width:280px;">' +
           '<div style="min-width:0;">' +
             '<div style="font-size:15px;font-weight:600;line-height:1.25;color:#1F1F1F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px;">' + _esc(f.name || '-') + '</div>' +
-            '<div style="font-size:12px;line-height:1.4;color:#6F6860;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:300px;">' + _esc(f.nif || f.taxId || location || 'Sem dados fiscais') + '</div>' +
+            '<div style="font-size:12px;line-height:1.4;color:#6F6860;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:300px;">' + _esc(f.nif || f.taxId || location || 'Documento não informado') + '</div>' +
           '</div>' +
         '</td>' +
         '<td style="padding:14px 16px;vertical-align:middle;font-size:13px;color:#1F1F1F;line-height:1.45;">' + (contato || '-') + '</td>' +
@@ -2270,76 +3143,106 @@ Modules.Compras = (function () {
     var states = ['Álava', 'Albacete', 'Alicante', 'Almería', 'Asturias', 'Ávila', 'Badajoz', 'Barcelona', 'Burgos', 'Cáceres', 'Cádiz', 'Cantabria', 'Castellón', 'Ciudad Real', 'Córdoba', 'A Coruña', 'Cuenca', 'Girona', 'Granada', 'Guadalajara', 'Gipuzkoa', 'Huelva', 'Huesca', 'Illes Balears', 'Jaén', 'León', 'Lleida', 'Lugo', 'Madrid', 'Málaga', 'Murcia', 'Navarra', 'Ourense', 'Palencia', 'Las Palmas', 'Pontevedra', 'La Rioja', 'Salamanca', 'Santa Cruz de Tenerife', 'Segovia', 'Sevilla', 'Soria', 'Tarragona', 'Teruel', 'Toledo', 'Valencia', 'Valladolid', 'Bizkaia', 'Zamora', 'Zaragoza', 'Ceuta', 'Melilla'];
     var countries = ['España', 'Portugal', 'Francia', 'Italia', 'Alemania', 'Bélgica', 'Países Bajos', 'Reino Unido', 'Otro'];
     var stateDatalist = '<datalist id="fo-state-list">' + states.map(function (s) { return '<option value="' + _esc(s) + '">'; }).join('') + '</datalist>';
-    var countryOpts = countries.map(function (c) { return '<option value="' + _esc(c) + '"' + (selectedCountry === c ? ' selected' : '') + '>' + _esc(c) + '</option>'; }).join('');
+    var countryOptions = countries.map(function (c) { return '<option value="' + _esc(c) + '">'; }).join('');
+    var countryDatalist = '<datalist id="fo-country-list">' + countryOptions + '</datalist>';
+    var supplierFiscal = _ensureSupplierFiscal(f);
     var _fornNifCfg = (function () {
       var code = window.FiscalConfig ? FiscalConfig.countryToCode(selectedCountry) : null;
-      return window.FiscalConfig ? FiscalConfig.get(code || 'ES') : { fiscalDocumentLabel: 'NIF / CIF', fiscalDocumentPlaceholder: 'B12345678 ou 12345678Z', fiscalDocumentHint: 'NIF, NIE ou CIF espanhol.' };
+      return window.FiscalConfig ? FiscalConfig.get(code || 'ES') : { fiscalDocumentLabel: 'NIF / CIF', fiscalDocumentPlaceholder: 'B12345678 ou 12345678Z' };
     }());
-    var card = 'background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);';
-    var headCard = card;
-    var secTitle = 'font-size:11px;font-weight:600;color:#6F6860;letter-spacing:.04em;margin-bottom:6px;';
-    var secHint = 'font-size:12px;color:#7A746B;line-height:1.5;margin-bottom:16px;';
-    var g2 = 'display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;';
-    var g3 = 'display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;';
-    var iS = _inputStyle();
+    var secTitle = 'font-size:13px;font-weight:800;color:#1F1F1F;line-height:1.25;margin-bottom:3px;';
+    var secHint = 'font-size:12px;color:#8A7E7C;line-height:1.4;margin-bottom:11px;';
     var phoneDefaultDdi = _defaultPhoneDdiForCountry(selectedCountry);
-    var body = '<div style="display:grid;gap:14px;">' +
+    var modalCss = '<style>' +
+      '.supplier-modal-body{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px;font-family:Manrope,Inter,sans-serif;}' +
+      '.supplier-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:14px;box-shadow:0 10px 24px rgba(31,31,31,.04);min-width:0;}' +
+      '.supplier-card-main{grid-column:1/-1;background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);}' +
+      '.supplier-card-address,.supplier-card-contact{grid-column:1/-1;}' +
+      '.supplier-card-payment{grid-column:1/span 5;}' +
+      '.supplier-card-notes{grid-column:6/-1;}' +
+      '.supplier-card-head{display:flex;align-items:flex-start;gap:9px;margin-bottom:12px;}' +
+      '.supplier-card-head .mi{font-size:18px;color:#6F6860;line-height:1.2;}' +
+      '.supplier-field-control{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:6px;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;}' +
+      '.supplier-field-control:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
+      '.supplier-field-control input,.supplier-field-control select,.supplier-field-control textarea{width:100%;min-height:36px;border:0;border-radius:8px;padding:0 8px;font-size:14px;font-family:inherit;outline:none;background:transparent;box-sizing:border-box;color:#1F1F1F;box-shadow:none;}' +
+      '.supplier-field-control select{padding-right:42px;appearance:none;-webkit-appearance:none;-moz-appearance:none;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 16px center;background-size:14px;}' +
+      '.supplier-field-control textarea{min-height:78px;padding-top:8px;padding-bottom:8px;resize:vertical;}' +
+      '.supplier-field-grid{display:grid;gap:11px 12px;align-items:end;}' +
+      '.supplier-fiscal-main{grid-template-columns:minmax(260px,1.35fr) minmax(210px,.95fr) minmax(190px,.85fr);margin-bottom:11px;}' +
+      '.supplier-fiscal-doc{grid-template-columns:minmax(130px,.5fr) minmax(190px,.78fr) minmax(140px,.45fr) minmax(210px,.8fr);}' +
+      '.supplier-address-grid{grid-template-columns:minmax(90px,.32fr) minmax(170px,.72fr) minmax(125px,.42fr) minmax(190px,.8fr) minmax(145px,.52fr);}' +
+      '.supplier-contact-grid{grid-template-columns:minmax(260px,.86fr) minmax(240px,.78fr) minmax(260px,1fr);}' +
+      '.supplier-payment-grid{grid-template-columns:minmax(250px,1fr) minmax(120px,.34fr);}' +
+      '.supplier-check-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;padding:9px 11px;background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;}' +
+      '.supplier-check-row label{display:flex;align-items:center;gap:8px;font-size:13px;color:#1F1F1F;line-height:1.35;}' +
+      '@media(max-width:980px){.supplier-card-payment,.supplier-card-notes{grid-column:1/-1}.supplier-fiscal-main,.supplier-fiscal-doc,.supplier-address-grid,.supplier-contact-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.supplier-payment-grid{grid-template-columns:minmax(0,1fr) 140px;}}' +
+      '@media(max-width:640px){.supplier-modal-body{grid-template-columns:1fr}.supplier-card{grid-column:1/-1!important;padding:13px}.supplier-fiscal-main,.supplier-fiscal-doc,.supplier-address-grid,.supplier-contact-grid,.supplier-payment-grid{grid-template-columns:1fr}.supplier-card-head{margin-bottom:10px}}' +
+      '</style>';
+    var body = modalCss + '<div class="supplier-modal-body">' +
 
-      '<div style="' + headCard + '">' +
-      '<div style="' + secTitle + '">Dados do fornecedor</div>' +
-      '<div style="' + secHint + '">Informações principais para compras, fiscal e geração de contas a pagar.</div>' +
-      '<div style="margin-bottom:14px;">' + _field('fo-name', 'Nome *', f.name || '') + '</div>' +
-      '<div style="' + g2 + '">' +
-      _field('fo-contact', 'Pessoa de contato', f.contact || '') +
+      '<div class="supplier-card supplier-card-main">' +
+      '<div class="supplier-card-head"><span class="mi">badge</span><div><div style="' + secTitle + '">Dados fiscais</div><div style="' + secHint + 'margin-bottom:0;">Preencha os dados que identificam o fornecedor em compras, pagamentos e documentos da sua loja.</div></div></div>' +
+      '<div class="supplier-field-grid supplier-fiscal-main">' +
+      _supplierField('fo-name', 'Nome fiscal / fornecedor *', f.name || '') +
+      _supplierField('fo-fiscal-commercial-name', 'Nome comercial', supplierFiscal.commercialName || '') +
+      _supplierField('fo-contact', 'Pessoa de contato', f.contact || '') +
+      '</div>' +
+      '<div class="supplier-field-grid supplier-fiscal-doc">' +
+      _supplierSelect('fo-fiscal-doc-type', 'Tipo de documento', _supplierDocumentTypeOptions(supplierFiscal.documentType)) +
       '<div><label id="fo-nif-label" style="' + _labelStyle() + '">' + _esc(_fornNifCfg.fiscalDocumentLabel) + '</label>' +
-      '<input id="fo-nif" value="' + _esc(f.nif || f.taxId || '') + '" placeholder="' + _esc(_fornNifCfg.fiscalDocumentPlaceholder) + '" maxlength="20" style="' + iS + '">' +
-      '<div id="fo-nif-hint" style="font-size:11px;color:#8A7E7C;margin-top:5px;">' + _esc(_fornNifCfg.fiscalDocumentHint) + '</div></div>' +
+      '<div class="supplier-field-control"><input id="fo-nif" value="' + _esc(f.nif || f.taxId || '') + '" placeholder="' + _esc(_fornNifCfg.fiscalDocumentPlaceholder) + '" maxlength="20"></div>' +
+      '</div>' +
+      _supplierSelect('fo-fiscal-country-code', 'País fiscal', _supplierCountryCodeOptions(supplierFiscal.countryCode)) +
+      _supplierSelect('fo-fiscal-tax-regime', 'Regime fiscal', _supplierTaxRegimeOptions(supplierFiscal.taxRegime || '')) +
+      '</div>' +
+      '<div class="supplier-check-row">' +
+      '<label><input id="fo-fiscal-iva-deductible" type="checkbox" ' + (supplierFiscal.defaultIvaDeductible !== false ? 'checked' : '') + ' style="accent-color:#B42318;width:16px;height:16px;"> IVA dedutível por padrão</label>' +
+      '<label><input id="fo-fiscal-irpf-deductible" type="checkbox" ' + (supplierFiscal.defaultIrpfDeductible === true ? 'checked' : '') + ' style="accent-color:#B42318;width:16px;height:16px;"> IRPF dedutível por padrão</label>' +
       '</div></div>' +
 
-      '<div style="' + card + '">' +
-      '<div style="' + secTitle + '">Endereço</div>' +
-      '<div style="' + secHint + '">Localização fiscal do fornecedor.' + (window.BocaPlaces && BocaPlaces.getKey() ? ' <span style="color:#1A9E5A;font-weight:600;">● Autocomplete ativo</span>' : '') + '</div>' +
-      '<div style="margin-bottom:14px;">' +
+      '<div class="supplier-card supplier-card-address">' +
+      '<div class="supplier-card-head"><span class="mi">location_on</span><div><div style="' + secTitle + '">Endereço</div><div style="' + secHint + 'margin-bottom:0;">Endereço principal usado em compras e dados fiscais do fornecedor.' + (window.BocaPlaces && BocaPlaces.getKey() ? ' <span style="color:#1A9E5A;font-weight:600;">Autocomplete ativo</span>' : '') + '</div></div></div>' +
+      '<div style="margin-bottom:12px;">' +
       '<label style="' + _labelStyle() + '">Endereço</label>' +
-      '<input id="fo-address" type="text" value="' + _esc(f.address || '') + '" placeholder="Rua, número..." autocomplete="off" style="' + iS + '">' +
+      '<div class="supplier-field-control"><input id="fo-address" type="text" value="' + _esc(f.address || '') + '" placeholder="Rua, número..." autocomplete="off"></div>' +
       '<input id="fo-city" type="hidden" value="' + _esc(f.city || f.cidade || '') + '">' +
       '<input id="fo-formatted-address" type="hidden" value="' + _esc(f.formattedAddress || '') + '">' +
       '<input id="fo-latitude" type="hidden" value="' + _esc(f.latitude || '') + '">' +
       '<input id="fo-longitude" type="hidden" value="' + _esc(f.longitude || '') + '">' +
       '<input id="fo-place-id" type="hidden" value="' + _esc(f.placeId || '') + '">' +
       stateDatalist + '</div>' +
-      '<div style="' + g3 + '">' +
-      _field('fo-number', 'Número', f.number || f.numero || '') +
-      _field('fo-neighborhood', 'Bairro / Localidade', f.bairro || f.neighborhood || '') +
-      _field('fo-postal', 'Código postal', f.postalCode || f.codigoPostal || '') +
+      '<div class="supplier-field-grid supplier-address-grid">' +
+      _supplierField('fo-number', 'Número', f.number || f.numero || '') +
+      _supplierField('fo-neighborhood', 'Bairro / Localidade', f.bairro || f.neighborhood || '') +
+      _supplierField('fo-postal', 'Código postal', f.postalCode || f.codigoPostal || '') +
       '<div><label id="fo-state-label" style="' + _labelStyle() + '">' + _esc(_fornNifCfg.regionLabel || 'Estado / Província') + '</label>' +
-      '<input id="fo-state" list="fo-state-list" value="' + _esc(selectedState) + '" placeholder="Selecionar ou digitar..." style="' + iS + '"></div>' +
-      _select('fo-country', 'País', countryOpts, 'Modules.Compras._onFornecedorCountryChange()') +
+      '<div class="supplier-field-control"><input id="fo-state" list="fo-state-list" value="' + _esc(selectedState) + '" placeholder="Selecionar ou digitar..."></div></div>' +
+      '<div><label style="' + _labelStyle() + '">País</label><div class="supplier-field-control"><input id="fo-country" list="fo-country-list" value="' + _esc(selectedCountry) + '" placeholder="País" oninput="Modules.Compras._onFornecedorCountryChange()"></div>' + countryDatalist + '</div>' +
       '</div>' +
-      '<div style="margin-top:12px;">' + _field('fo-reference', 'Referência / complemento', f.reference || f.complemento || '', 'Loja, andar, porta, observação de entrega...') + '</div>' +
+      '<div style="margin-top:11px;">' + _supplierField('fo-reference', 'Referência / complemento', f.reference || f.complemento || '', 'text', null, 'Loja, andar, porta, observação de entrega...') + '</div>' +
       '</div>' +
 
-      '<div style="' + card + '">' +
-      '<div style="' + secTitle + '">Contato</div>' +
-      '<div style="' + g2 + '">' +
+      '<div class="supplier-card supplier-card-contact">' +
+      '<div class="supplier-card-head"><span class="mi">call</span><div><div style="' + secTitle + '">Contato</div><div style="' + secHint + 'margin-bottom:0;">Canais usados para conversar com o fornecedor.</div></div></div>' +
+      '<div class="supplier-field-grid supplier-contact-grid">' +
       _phoneField('fo-whatsapp', 'WhatsApp', f.whatsapp || '', phoneDefaultDdi) +
       _phoneField('fo-phone', 'Telefone', f.phone || '', phoneDefaultDdi) +
+      '<div><label style="' + _labelStyle() + '">E-mail</label>' +
+      '<div class="supplier-field-control"><input id="fo-email" type="email" value="' + _esc(f.email || '') + '" placeholder="fornecedor@email.com"></div></div>' +
       '</div>' +
-      '<div style="margin-top:14px;"><label style="' + _labelStyle() + '">E-mail</label>' +
-      '<input id="fo-email" type="email" value="' + _esc(f.email || '') + '" placeholder="fornecedor@email.com" style="' + iS + '"></div>' +
       '</div>' +
 
-      '<div style="' + card + '">' +
-      '<div style="' + secTitle + '">Compras e pagamento</div>' +
-      '<div style="' + secHint + '">Padrões usados ao lançar uma compra e gerar contas a pagar.</div>' +
-      '<div style="' + g2 + '">' +
-      _select('fo-payment-method', 'Forma de pagamento padrão', _finFormasPagOptions(f.defaultPaymentMethod || f.formaPagamentoPadrao)) +
-      _field('fo-payment-days', 'Prazo padrão (dias)', f.paymentDays || f.prazoPagamento || '', 'number') +
+      '<div class="supplier-card supplier-card-payment">' +
+      '<div class="supplier-card-head"><span class="mi">payments</span><div><div style="' + secTitle + '">Compras e pagamento</div><div style="' + secHint + 'margin-bottom:0;">Padrões usados ao lançar uma compra e gerar contas a pagar.</div></div></div>' +
+      '<div class="supplier-field-grid supplier-payment-grid">' +
+      _supplierSelect('fo-payment-method', 'Forma de pagamento padrão', _finFormasPagOptions(f.defaultPaymentMethod || f.formaPagamentoPadrao)) +
+      _supplierField('fo-payment-days', 'Prazo padrão (dias)', f.paymentDays || f.prazoPagamento || '', 'number') +
       '</div></div>' +
 
-      '<div style="' + card + '">' +
-      _textarea('fo-notes', 'Observações internas', f.notes || '') +
-      '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;margin-top:14px;">' +
+      '<div class="supplier-card supplier-card-notes">' +
+      '<div class="supplier-card-head"><span class="mi">notes</span><div><div style="' + secTitle + '">Observações</div><div style="' + secHint + 'margin-bottom:0;">Notas internas e status do fornecedor.</div></div></div>' +
+      _supplierTextarea('fo-notes', 'Observações internas', f.notes || '') +
+      '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;margin-top:12px;color:#1F1F1F;">' +
       '<input id="fo-ativo" type="checkbox" ' + (f.ativo !== false ? 'checked' : '') + ' style="accent-color:#C4362A;width:16px;height:16px;"> Fornecedor ativo</label>' +
       '</div></div>';
 
@@ -2365,11 +3268,9 @@ Modules.Compras = (function () {
     if (!cfg) return;
     var nifLabel = document.getElementById('fo-nif-label');
     var nifEl = document.getElementById('fo-nif');
-    var nifHint = document.getElementById('fo-nif-hint');
     var stateLabel = document.getElementById('fo-state-label');
     if (nifLabel) nifLabel.textContent = cfg.fiscalDocumentLabel;
     if (nifEl) nifEl.placeholder = cfg.fiscalDocumentPlaceholder;
-    if (nifHint) nifHint.textContent = cfg.fiscalDocumentHint;
     if (stateLabel) stateLabel.textContent = cfg.regionLabel || 'Estado / Província';
     var defaultDdi = _defaultPhoneDdiForCountry(countryVal);
     ['fo-whatsapp', 'fo-phone'].forEach(function (prefix) {
@@ -2399,6 +3300,26 @@ Modules.Compras = (function () {
     if (!phoneOk(whatsapp)) { UI.toast('WhatsApp inválido.', 'error'); var wn = document.getElementById('fo-whatsapp-num'); if (wn) wn.focus(); return; }
     if (!phoneOk(phone)) { UI.toast('Telefone inválido.', 'error'); var pn = document.getElementById('fo-phone-num'); if (pn) pn.focus(); return; }
     if (!emailOk) { UI.toast('E-mail inválido.', 'error'); _el('fo-email').focus(); return; }
+    var current = _editingId ? (_byId(_fornecedores, _editingId) || {}) : {};
+    var fiscal = _ensureSupplierFiscal(current);
+    fiscal.legalName = (_el('fo-fiscal-legal-name') && _el('fo-fiscal-legal-name').value) || name;
+    fiscal.commercialName = (_el('fo-fiscal-commercial-name') && _el('fo-fiscal-commercial-name').value) || '';
+    fiscal.documentType = (_el('fo-fiscal-doc-type') && _el('fo-fiscal-doc-type').value) || '';
+    fiscal.fiscalId = ((_el('fo-fiscal-id') && _el('fo-fiscal-id').value) || nif || '').trim().toUpperCase().replace(/\s|-/g, '');
+    fiscal.countryCode = _countryCode((_el('fo-fiscal-country-code') && _el('fo-fiscal-country-code').value) || _foCountry || fiscal.countryCode) || 'ES';
+    fiscal.invoiceEmail = (_el('fo-fiscal-invoice-email') && _el('fo-fiscal-invoice-email').value) || email;
+    fiscal.taxRegime = (_el('fo-fiscal-tax-regime') && _el('fo-fiscal-tax-regime').value) || '';
+    fiscal.defaultIvaDeductible = !!(_el('fo-fiscal-iva-deductible') && _el('fo-fiscal-iva-deductible').checked);
+    fiscal.defaultIrpfDeductible = !!(_el('fo-fiscal-irpf-deductible') && _el('fo-fiscal-irpf-deductible').checked);
+    fiscal.fiscalAddress = {
+      address: (_el('fo-fiscal-address') && _el('fo-fiscal-address').value) || (_el('fo-address') && _el('fo-address').value) || '',
+      number: (_el('fo-fiscal-number') && _el('fo-fiscal-number').value) || (_el('fo-number') && _el('fo-number').value) || '',
+      complement: (_el('fo-fiscal-complement') && _el('fo-fiscal-complement').value) || (_el('fo-reference') && _el('fo-reference').value) || '',
+      city: (_el('fo-fiscal-city') && _el('fo-fiscal-city').value) || (_el('fo-city') && _el('fo-city').value) || '',
+      province: (_el('fo-fiscal-province') && _el('fo-fiscal-province').value) || (_el('fo-state') && _el('fo-state').value) || '',
+      postalCode: (_el('fo-fiscal-postal') && _el('fo-fiscal-postal').value) || (_el('fo-postal') && _el('fo-postal').value) || '',
+      countryCode: fiscal.countryCode || 'ES'
+    };
     var data = {
       name: name,
       contact: _el('fo-contact').value,
@@ -2428,7 +3349,8 @@ Modules.Compras = (function () {
       defaultPaymentMethod: _el('fo-payment-method').value,
       paymentDays: parseInt(_el('fo-payment-days').value || '0', 10) || 0,
       notes: _el('fo-notes').value,
-      ativo: _el('fo-ativo').checked
+      ativo: _el('fo-ativo').checked,
+      fiscal: fiscal
     };
     var op = _editingId ? DB.update('fornecedores', _editingId, data) : DB.add('fornecedores', data);
     op.then(function () { UI.toast('Fornecedor salvo!', 'success'); if (window._fornecedorCompraModal) window._fornecedorCompraModal.close(); _renderFornecedores(); });
@@ -2456,15 +3378,31 @@ Modules.Compras = (function () {
   function _openUnidadeModal(id) {
     _editingId = id;
     var u = id ? (_byId(_unidades, id) || {}) : { type: 'unidade' };
-    var body = '<div>' + _field('un-name', 'Nome *', u.name || '') +
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' + _field('un-symbol', 'Símbolo *', u.symbol || '') +
-      _select('un-type', 'Tipo', '<option value="massa"' + (u.type === 'massa' ? ' selected' : '') + '>Massa</option><option value="volume"' + (u.type === 'volume' ? ' selected' : '') + '>Volume</option><option value="unidade"' + (u.type === 'unidade' ? ' selected' : '') + '>Unidade</option>') + '</div></div>';
+    var unidadeModalCss = '<style>' +
+      '.compras-unit-modal{display:grid;gap:14px;font-family:Manrope,Inter,sans-serif;}' +
+      '.compras-unit-card{background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);}' +
+      '.compras-unit-grid{display:grid;grid-template-columns:minmax(220px,1fr) minmax(120px,.38fr) minmax(150px,.45fr);gap:12px;align-items:start;}' +
+      '.compras-unit-field label{font-size:11px;font-weight:600;color:#7A746B;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.02em;}' +
+      '.compras-unit-field input,.compras-unit-field select{width:100%;height:40px;padding:10px;border:1px solid #E6DDD3;border-radius:10px;font-size:14px;font-family:inherit;outline:none;box-sizing:border-box;color:#1F1F1F;background:#fff;transition:border-color .16s ease,box-shadow .16s ease;}' +
+      '.compras-unit-field input:focus,.compras-unit-field select:focus{border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
+      '.compras-unit-field select{padding-right:42px;appearance:none;-webkit-appearance:none;-moz-appearance:none;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 16px center;background-size:14px;}' +
+      '@media(max-width:700px){.compras-unit-grid{grid-template-columns:1fr}}' +
+      '</style>';
+    var body = unidadeModalCss + '<div class="compras-unit-modal">' +
+      '<div class="compras-unit-card">' +
+        '<div class="compras-unit-grid">' +
+          '<div class="compras-unit-field"><label>Nome *</label><input id="un-name" type="text" value="' + _esc(u.name || '') + '" placeholder="Ex.: Quilograma"></div>' +
+          '<div class="compras-unit-field"><label>Símbolo *</label><input id="un-symbol" type="text" value="' + _esc(u.symbol || '') + '" placeholder="Ex.: kg"></div>' +
+          '<div class="compras-unit-field"><label>Tipo</label><select id="un-type"><option value="massa"' + (u.type === 'massa' ? ' selected' : '') + '>Massa</option><option value="volume"' + (u.type === 'volume' ? ' selected' : '') + '>Volume</option><option value="unidade"' + (u.type === 'unidade' ? ' selected' : '') + '>Unidade</option></select></div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
     var footer = id
       ? '<div style="display:flex;align-items:center;gap:8px;">' +
         '<button onclick="Modules.Compras._deleteUnidade(\'' + id + '\')" style="' + _dangerStyle() + '">Excluir</button>' +
         '<span style="flex:1;"></span>' +
         '<button onclick="window._unidadeCompraModal&&window._unidadeCompraModal.close()" style="' + _cancelStyle() + '">Cancelar</button>' +
-        '<button onclick="Modules.Compras._saveUnidade()" style="' + _primaryStyle() + '">Atualizar</button>' +
+        '<button onclick="Modules.Compras._saveUnidade()" style="' + _primaryStyle() + '">Salvar alterações</button>' +
         '</div>'
       : '<div style="display:flex;justify-content:flex-end;gap:8px;">' +
         '<button onclick="window._unidadeCompraModal&&window._unidadeCompraModal.close()" style="' + _cancelStyle() + '">Cancelar</button>' +
@@ -2490,13 +3428,13 @@ Modules.Compras = (function () {
     });
   }
 
-  // ── Tipos & Categorias ────────────────────────────────────────────────────
-  // ── Configurações (Tipos + Categorias em subtabs) ─────────────────────────
+  // ── Categorias ────────────────────────────────────────────────────────────
+  // ── Configurações ─────────────────────────────────────────────────────────
   function _renderConfiguracoes() {
-    Promise.all([DB.getAll('compras_tipos'), DB.getAll('compras_categorias')]).then(function (r) {
-      _tipos = r[0] || [];
-      _categorias = r[1] || [];
-      _editingKind = _configSub;
+    DB.getAll('compras_categorias').then(function (data) {
+      _categorias = (data || []).slice().sort(_sortByName);
+      _configSub = 'categorias';
+      _editingKind = 'categorias';
       _paintConfiguracoes();
     });
   }
@@ -2504,38 +3442,74 @@ Modules.Compras = (function () {
   function _paintConfiguracoes() {
     var content = document.getElementById('compras-content');
     if (!content) return;
-    _editingKind = _configSub;
-    var tabBtn = function (key, label) {
-      var active = _configSub === key;
-      return '<button onclick="Modules.Compras._switchConfigSub(\'' + key + '\')" style="height:38px;padding:0 14px;border-radius:10px;border:1px solid ' + (active ? '#B42318' : '#EAE4DA') + ';background:' + (active ? '#B42318' : '#fff') + ';color:' + (active ? '#fff' : '#1F1F1F') + ';font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 1px 2px rgba(31,31,31,.03);font-family:inherit;">' + label + '</button>';
-    };
-    content.innerHTML = '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px;">' +
-      '<div><div style="font-size:11px;font-weight:600;color:#A39B90;letter-spacing:.02em;margin-bottom:5px;">Compras</div><h2 style="font-size:28px;font-weight:600;line-height:1.1;margin:0 0 6px;color:#1F1F1F;">Configurações</h2><p style="font-size:15px;color:#6F6860;line-height:1.5;margin:0;max-width:760px;">Cadastros auxiliares usados nas compras, produtos e insumos.</p></div>' +
-      '</div>';
-    content.innerHTML += '<div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;">' + tabBtn('tipos', 'Tipos') + tabBtn('categorias', 'Categorias') + '</div>' +
+    _configSub = 'categorias';
+    _editingKind = 'categorias';
+    content.innerHTML =
+      '<style>' +
+        '.compras-config-wrap{display:flex;flex-direction:column;gap:16px;}' +
+        '.compras-config-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;}' +
+        '.compras-config-eyebrow{font-size:11px;font-weight:700;color:#A39B90;letter-spacing:.04em;margin-bottom:5px;text-transform:uppercase;}' +
+        '.compras-config-title{font-size:22px;font-weight:700;line-height:1.15;margin:0 0 6px;color:#1F1F1F;}' +
+        '.compras-config-subtitle{font-size:13px;color:#6F6860;line-height:1.5;margin:0;max-width:760px;}' +
+        '.compras-config-filter{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:14px;box-shadow:0 10px 24px rgba(31,31,31,.04);}' +
+        '.compras-config-filter-grid{display:grid;grid-template-columns:minmax(260px,1fr) auto;gap:12px;align-items:end;}' +
+        '.compras-config-control{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:0 12px;min-height:42px;display:flex;align-items:center;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;}' +
+        '.compras-config-control:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
+        '.compras-config-control input{width:100%;border:0;background:transparent;outline:none;font-size:14px;font-family:inherit;color:#1F1F1F;height:40px;}' +
+        '.compras-config-chip-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;}' +
+        '.compras-config-chip{height:34px;padding:0 12px;border-radius:999px;border:1px solid #EADFD8;background:#fff;color:#6F6860;font-size:12px;font-weight:650;cursor:pointer;font-family:inherit;transition:background .16s ease,border-color .16s ease,color .16s ease;}' +
+        '.compras-config-chip.active{background:#FFF3F1;border-color:#D9AAA1;color:#B42318;}' +
+        '.compras-config-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:18px 20px;box-shadow:0 10px 24px rgba(31,31,31,.04);}' +
+        '.compras-config-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:14px;}' +
+        '.compras-config-card-head>div{margin-bottom:0!important;}' +
+        '.compras-config-primary{height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;transition:transform .16s ease,box-shadow .16s ease,background .16s ease;}' +
+        '.compras-config-primary:hover{background:#9F1F16;transform:translateY(-1px);box-shadow:0 8px 18px rgba(180,35,24,.22);}' +
+        '.compras-config-list{display:flex;flex-direction:column;gap:10px;}' +
+        '.compras-config-row{background:#fff;border:1px solid #EADFD8;border-radius:14px;padding:13px 14px;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;align-items:center;gap:12px;transition:background .15s ease,box-shadow .15s ease,transform .15s ease;}' +
+        '.compras-config-row:hover{background:#FFFCF8;box-shadow:0 8px 18px rgba(31,31,31,.04);transform:translateY(-1px);}' +
+        '.compras-config-row-title{font-size:15px;font-weight:650;color:#1F1F1F;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
+        '.compras-config-row-text{font-size:12px;color:#6F6860;line-height:1.35;margin-top:2px;}' +
+        '.compras-config-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}' +
+        '.compras-simple-modal{display:grid;gap:14px;font-family:Manrope,Inter,sans-serif;}' +
+        '.compras-simple-card{background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);}' +
+        '.compras-simple-grid{display:grid;grid-template-columns:minmax(240px,1fr) minmax(150px,.46fr);gap:12px;align-items:start;}' +
+        '.compras-simple-field label{font-size:11px;font-weight:600;color:#7A746B;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.02em;}' +
+        '.compras-simple-field input,.compras-simple-field select{width:100%;height:40px;padding:10px;border:1px solid #E6DDD3;border-radius:10px;font-size:14px;font-family:inherit;outline:none;box-sizing:border-box;color:#1F1F1F;background:#fff;transition:border-color .16s ease,box-shadow .16s ease;}' +
+        '.compras-simple-field input:focus,.compras-simple-field select:focus{border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
+        '.compras-simple-field select{padding-right:42px;appearance:none;-webkit-appearance:none;-moz-appearance:none;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 16px center;background-size:14px;}' +
+        '.compras-simple-active{margin-top:10px;display:inline-flex;align-items:center;gap:9px;font-size:13px;font-weight:600;color:#1F1F1F;min-height:32px;}' +
+        '.compras-simple-active input{width:16px;height:16px;accent-color:#C4362A;}' +
+        '@media(max-width:760px){.compras-config-filter-grid,.compras-simple-grid{grid-template-columns:1fr}.compras-config-chip-row{justify-content:flex-start}.compras-config-row{align-items:flex-start;flex-direction:column}.compras-config-actions{justify-content:flex-start}}' +
+      '</style>' +
+      '<div class="compras-config-wrap">' +
+        '<div class="compras-config-head">' +
+          '<div><h2 class="compras-config-title">Configurações</h2><p class="compras-config-subtitle">Organize seus itens de compra para encontrar tudo mais rápido e manter seus custos bem separados.</p></div>' +
+        '</div>' +
+      '</div>' +
       '<div id="compras-config-sub"></div>';
     _paintSimpleList(_configSub);
   }
 
   function _switchConfigSub(sub) {
-    _configSub = sub;
-    _editingKind = sub;
+    _configSub = 'categorias';
+    _editingKind = 'categorias';
     _simpleListQ = '';
     _simpleListClasseFilter = '';
     _paintConfiguracoes();
   }
 
   function _renderSimpleList(kind) {
+    kind = 'categorias';
     _editingKind = kind;
-    var col = kind === 'tipos' ? 'compras_tipos' : 'compras_categorias';
+    var col = 'compras_categorias';
     DB.getAll(col).then(function (data) {
-      if (kind === 'tipos') _tipos = data || [];
-      else _categorias = data || [];
+      _categorias = (data || []).slice().sort(_sortByName);
       _paintSimpleList(kind);
     });
   }
 
   function _paintSimpleList(kind) {
+    kind = 'categorias';
     _editingKind = kind;
     var inConfig = _activeSub === 'configuracoes';
     var target = inConfig
@@ -2544,21 +3518,21 @@ Modules.Compras = (function () {
     if (!target) return;
     var chipBtn = function (classe, label) {
       var active = _simpleListClasseFilter === classe || (!classe && !_simpleListClasseFilter);
-      return '<button onclick="Modules.Compras._setSimpleListClasse(\'' + kind + '\',\'' + classe + '\')" style="height:34px;padding:0 12px;border-radius:10px;border:1px solid ' + (active ? '#B42318' : '#EAE4DA') + ';background:' + (active ? '#B42318' : '#fff') + ';color:' + (active ? '#fff' : '#1F1F1F') + ';font-size:12px;font-weight:500;cursor:pointer;box-shadow:0 1px 2px rgba(31,31,31,.03);font-family:inherit;">' + label + '</button>';
+      return '<button class="compras-config-chip ' + (active ? 'active' : '') + '" onclick="Modules.Compras._setSimpleListClasse(\'' + kind + '\',\'' + classe + '\')">' + label + '</button>';
     };
-    var filterBlock = '<div style="' + _cardStyle() + 'margin-bottom:16px;">' +
-      '<div style="display:grid;grid-template-columns:minmax(260px,1fr) auto;gap:10px;align-items:end;">' +
-        '<input id="sl-search-' + kind + '" type="search" placeholder="Buscar por nome ou classe..." value="' + _esc(_simpleListQ) + '" oninput="Modules.Compras._setSimpleListQ(\'' + kind + '\',this.value)" style="' + _inputStyle() + 'height:40px;">' +
-        '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+    var filterBlock = '<div class="compras-config-filter" style="margin:16px 0;">' +
+      '<div class="compras-config-filter-grid">' +
+        '<div><label style="' + _labelStyle() + '">Buscar</label><div class="compras-config-control"><input id="sl-search-' + kind + '" type="search" placeholder="Buscar por nome..." value="' + _esc(_simpleListQ) + '" oninput="Modules.Compras._setSimpleListQ(\'' + kind + '\',this.value)"></div></div>' +
+        '<div><label style="' + _labelStyle() + '">Aplicação</label><div class="compras-config-chip-row">' +
           chipBtn('', 'Todos') + chipBtn('insumo', 'Insumo') + chipBtn('produto', 'Produto') +
-        '</div>' +
+        '</div></div>' +
       '</div>' +
     '</div>';
     var tableWrap = '<div id="compras-simpleList-table-' + kind + '"></div>';
     if (inConfig) {
       target.innerHTML = filterBlock + tableWrap;
     } else {
-      target.innerHTML = _head(kind === 'tipos' ? 'Tipos' : 'Categorias', '+ Adicionar', 'Modules.Compras._openSimpleModal(null)') +
+      target.innerHTML = _head('Categorias', '+ Adicionar', 'Modules.Compras._openSimpleModal(null)') +
         filterBlock + tableWrap;
     }
     _repaintSimpleTable(kind);
@@ -2567,7 +3541,8 @@ Modules.Compras = (function () {
   function _repaintSimpleTable(kind) {
     var wrap = document.getElementById('compras-simpleList-table-' + kind);
     if (!wrap) return;
-    var all = (kind === 'tipos' ? _tipos : _categorias).slice().sort(function (a, b) { return (a.name || '').localeCompare(b.name || ''); });
+    kind = 'categorias';
+    var all = _categorias.slice().sort(_sortByName);
     var filtered = _simpleListClasseFilter ? all.filter(function (x) { return (x.classe || '') === _simpleListClasseFilter; }) : all;
     if (_simpleListQ) {
       var sq = _simpleListQ.toLowerCase();
@@ -2581,21 +3556,18 @@ Modules.Compras = (function () {
     var totalPages = p ? Math.max(1, Math.ceil(filtered.length / p.perPage)) : 1;
     if (p && p.page > totalPages) p.page = totalPages;
     var pageData = p ? filtered.slice((p.page - 1) * p.perPage, p.page * p.perPage) : filtered;
-    var title = kind === 'tipos' ? 'Tipos' : 'Categorias';
-    var desc = kind === 'tipos'
-      ? 'Cadastros usados para classificar produtos e insumos nas compras.'
-      : 'Agrupamentos usados para organizar produtos e insumos nas compras.';
-    var addLabel = kind === 'tipos' ? '+ Adicionar tipo' : '+ Adicionar categoria';
-    var empty = '<div style="text-align:center;padding:48px 20px;color:#8A7E7C;font-size:14px;line-height:1.45;font-weight:600;">Nenhum registro cadastrado.</div>';
+    var title = 'Categorias';
+    var desc = 'Categorias organizam itens parecidos no mesmo grupo.';
+    var addLabel = '+ Adicionar categoria';
+    var empty = '<div style="text-align:center;padding:42px 20px;color:#8A7E7C;font-size:14px;line-height:1.45;font-weight:600;">Nenhuma categoria cadastrada ainda. Crie a primeira para organizar melhor seus itens de compra.</div>';
     var list = pageData.map(function (x) {
       var classe = x.classe === 'produto' ? 'Produto' : x.classe === 'insumo' ? 'Insumo' : 'Todos';
       var ativo = x.ativo === false ? 'Inativo' : 'Ativo';
-      return '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:14px;padding:14px 14px;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;align-items:center;gap:12px;transition:background .15s ease;">' +
+      return '<div class="compras-config-row">' +
         '<div style="min-width:0;flex:1;">' +
-          '<div style="font-size:15px;font-weight:600;color:#1F1F1F;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(x.name || '-') + '</div>' +
-          '<div style="font-size:12px;color:#6F6860;line-height:1.35;margin-top:2px;">Cadastro usado em compras e produtos/insumos.</div>' +
+          '<div class="compras-config-row-title">' + _esc(x.name || '-') + '</div>' +
         '</div>' +
-        '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">' +
+        '<div class="compras-config-actions">' +
           _catalogLikeChip(classe, x.classe === 'produto' ? '#2F5F93' : (x.classe === 'insumo' ? '#8A6F5A' : '#6F6860')) +
           _catalogLikeChip(ativo, x.ativo === false ? '#B42318' : '#1F6F43') +
           '<button onclick="Modules.Compras._openSimpleModal(\'' + x.id + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">edit</span></button>' +
@@ -2603,12 +3575,12 @@ Modules.Compras = (function () {
         '</div>' +
       '</div>';
     }).join('');
-    wrap.innerHTML = '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px;">' +
-      '<button onclick="Modules.Compras._openSimpleModal(null)" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">' + addLabel + '</button>' +
-      '</div>' +
-      '<section style="' + _cardStyle() + '">' +
-        _sectionTitle(title + ' (' + filtered.length + ')', desc) +
-        (filtered.length === 0 ? empty : '<div style="display:flex;flex-direction:column;gap:10px;">' + list + '</div>') +
+    wrap.innerHTML = '<section class="compras-config-card">' +
+        '<div class="compras-config-card-head">' +
+          _sectionTitle(title + ' (' + filtered.length + ')', desc) +
+          '<button type="button" class="compras-config-primary" onclick="Modules.Compras._openSimpleModal(null)">' + addLabel + '</button>' +
+        '</div>' +
+        (filtered.length === 0 ? empty : '<div class="compras-config-list">' + list + '</div>') +
       '</section>' +
       _pagerHtml(kind, filtered.length);
   }
@@ -2625,29 +3597,32 @@ Modules.Compras = (function () {
 
   function _openSimpleModal(id) {
     _editingId = id;
-    var list = _editingKind === 'tipos' ? _tipos : _categorias;
+    _editingKind = 'categorias';
+    var list = _categorias;
     var item = id ? (_byId(list, id) || {}) : { ativo: true, classe: _simpleListClasseFilter || 'insumo' };
-    var iS = _inputStyle();
-    var body = '<div style="display:grid;gap:12px;">' +
-      _field('sl-name', 'Nome *', item.name || '') +
-      '<div><label style="' + _labelStyle() + '">Classe</label><select id="sl-classe" style="' + iS + 'background:#fff;">' +
+    var body = '<div class="compras-simple-modal">' +
+      '<div class="compras-simple-card">' +
+        '<div class="compras-simple-grid">' +
+          '<div class="compras-simple-field"><label>Nome *</label><input id="sl-name" type="text" value="' + _esc(item.name || '') + '" placeholder="Ex.: Congelados"></div>' +
+          '<div class="compras-simple-field"><label>Aplicação</label><select id="sl-classe">' +
       '<option value="insumo"' + ((item.classe || '') === 'insumo' ? ' selected' : '') + '>Insumo</option>' +
       '<option value="produto"' + (item.classe === 'produto' ? ' selected' : '') + '>Produto</option>' +
       '</select></div>' +
-      '<div style="display:flex;align-items:center;gap:8px;padding:10px;background:#FAFAF8;border-radius:10px;border:1px solid #EAE4DA;">' +
-      '<input id="sl-ativo" type="checkbox" ' + (item.ativo !== false ? 'checked' : '') + ' style="width:16px;height:16px;accent-color:#C4362A;">' +
-      '<label for="sl-ativo" style="font-size:13px;font-weight:500;color:#1F1F1F;cursor:pointer;">Ativo</label></div></div>';
-    var footer = '<button onclick="Modules.Compras._saveSimple()" style="width:100%;height:40px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:14px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">' + (id ? 'Atualizar' : 'Adicionar') + '</button>';
-    var kindLabel = _editingKind === 'tipos' ? 'Tipo' : 'Categoria';
-    window._simpleCompraModal = UI.modal({ title: id ? 'Editar ' + kindLabel : 'Novo ' + kindLabel, body: body, footer: footer });
+        '</div>' +
+        '<label class="compras-simple-active"><input id="sl-ativo" type="checkbox" ' + (item.ativo !== false ? 'checked' : '') + '> Manter ativo</label>' +
+      '</div>' +
+    '</div>';
+    var footer = '<div style="display:flex;justify-content:flex-end;gap:8px;"><button type="button" onclick="window._simpleCompraModal&&window._simpleCompraModal.close()" style="' + _cancelStyle() + '">Cancelar</button><button onclick="Modules.Compras._saveSimple()" style="' + _primaryStyle() + '">' + (id ? 'Salvar alterações' : 'Adicionar') + '</button></div>';
+    window._simpleCompraModal = UI.modal({ title: id ? 'Editar Categoria' : 'Nova Categoria', body: body, footer: footer });
   }
 
   function _saveSimple() {
     var name = (_el('sl-name').value || '').trim().replace(/\s+/g, ' ');
     if (!name) { UI.toast('Nome obrigatório', 'error'); return; }
-    var col = _editingKind === 'tipos' ? 'compras_tipos' : 'compras_categorias';
+    _editingKind = 'categorias';
+    var col = 'compras_categorias';
     var classeVal = _el('sl-classe').value || 'insumo';
-    var currentList = _editingKind === 'tipos' ? _tipos : _categorias;
+    var currentList = _categorias;
     var norm = _normCatalogName(name);
     var duplicate = (currentList || []).find(function (item) {
       return item && item.id !== _editingId && (item.classe || '') === classeVal && _normCatalogName(item.name) === norm;
@@ -2661,24 +3636,23 @@ Modules.Compras = (function () {
       UI.toast('Salvo!', 'success');
       if (window._simpleCompraModal) window._simpleCompraModal.close();
       _renderSimpleList(_editingKind);
-      return Promise.all([DB.getAll('compras_tipos'), DB.getAll('compras_categorias')]).then(function (r) {
-        _tipos = r[0] || [];
-        _categorias = r[1] || [];
+      return DB.getAll('compras_categorias').then(function (data) {
+        _categorias = (data || []).slice().sort(_sortByName);
         _refreshItemViews();
       });
     }).catch(function (err) { UI.toast('Erro: ' + err.message, 'error'); });
   }
 
   function _deleteSimple(id) {
-    var col = _editingKind === 'tipos' ? 'compras_tipos' : 'compras_categorias';
+    _editingKind = 'categorias';
+    var col = 'compras_categorias';
     UI.confirm('Eliminar este registro?').then(function (yes) {
       if (!yes) return;
       if (window._simpleCompraModal) window._simpleCompraModal.close();
       DB.remove(col, id).then(function () {
         _renderSimpleList(_editingKind);
-        return Promise.all([DB.getAll('compras_tipos'), DB.getAll('compras_categorias')]).then(function (r) {
-          _tipos = r[0] || [];
-          _categorias = r[1] || [];
+        return DB.getAll('compras_categorias').then(function (data) {
+          _categorias = (data || []).slice().sort(_sortByName);
           _refreshItemViews();
         });
       }).catch(function (err) { UI.toast('Erro: ' + err.message, 'error'); });
@@ -2750,46 +3724,62 @@ Modules.Compras = (function () {
     });
   }
 
+  function _lockCompraModalFields(allowStatus) {
+    var bodyEl = document.querySelector('.purchase-modal-body');
+    if (!bodyEl) return;
+    var lockedEls = bodyEl.querySelectorAll('input,select,textarea,button');
+    for (var k = 0; k < lockedEls.length; k++) {
+      if (allowStatus && lockedEls[k].id === 'cp-status') continue;
+      lockedEls[k].disabled = true;
+      lockedEls[k].style.opacity = '0.55';
+      lockedEls[k].style.cursor = 'not-allowed';
+      lockedEls[k].style.pointerEvents = 'none';
+    }
+    if (allowStatus) {
+      var statusEl = document.getElementById('cp-status');
+      if (statusEl) {
+        statusEl.style.opacity = '';
+        statusEl.style.cursor = '';
+        statusEl.style.pointerEvents = '';
+      }
+    }
+  }
+
   // Atualiza o banner e o rodapé do modal de compra com base no estado financeiro
   function _updateCompraModalUI(id, estado) {
     var bannerEl = document.getElementById('cp-financial-status');
     var footerEl = document.getElementById('cp-footer-wrap');
     if (!bannerEl && !footerEl) return;
+    var compra = _byId(_compras, id) || {};
+    var statusLocked = _isCompraStatusLocked(compra);
     if (estado.hasPaid) {
       if (bannerEl) bannerEl.innerHTML =
         '<div style="background:#FFF0EE;border:1px solid #F1C4BC;border-radius:12px;padding:14px 16px;margin-bottom:14px;">' +
         '<div style="font-size:13px;font-weight:600;color:#C4362A;margin-bottom:5px;">⚠ Esta compra possui pagamento confirmado.</div>' +
-        '<div style="font-size:13px;color:#5A4E4C;line-height:1.5;">Para alterar valores, itens ou parcelas, primeiro estorne os pagamentos vinculados. O sistema manterá o histórico financeiro e liberará a compra para edição.</div>' +
+        '<div style="font-size:13px;color:#5A4E4C;line-height:1.5;">Para alterar valores, itens, parcelas ou voltar a compra para pendente, primeiro estorne os pagamentos vinculados. O sistema mantém o histórico financeiro.</div>' +
         '</div>';
       if (footerEl) footerEl.innerHTML =
         '<div style="display:flex;justify-content:flex-end;gap:8px;">' +
         '<button onclick="window._compraModal&&window._compraModal.close()" style="' + _cancelStyle() + '">Fechar</button>' +
-        '<button onclick="Modules.Compras._saveStatusOnly(\'' + id + '\')" style="background:#2563EB;color:#fff;border:none;padding:13px 22px;border-radius:11px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">Salvar status</button>' +
-        '<button onclick="Modules.Compras._estornarPagamentosModal(\'' + id + '\')" style="background:#C4362A;color:#fff;border:none;padding:13px 22px;border-radius:11px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">Estornar pagamentos e liberar edição</button>' +
+        '<button onclick="Modules.Compras._estornarPagamentosModal(\'' + id + '\')" style="background:#C4362A;color:#fff;border:none;padding:13px 22px;border-radius:11px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">Estornar pagamentos e voltar para pendente</button>' +
         '</div>';
-      // Bloqueia todos os campos estruturais — mantém apenas cp-status editável
-      var formEl = bannerEl ? bannerEl.parentElement : null;
-      if (formEl) {
-        var lockedEls = formEl.querySelectorAll('input,select,textarea,button');
-        for (var k = 0; k < lockedEls.length; k++) {
-          if (lockedEls[k].id === 'cp-status') continue; // status sempre editável
-          lockedEls[k].disabled = true;
-          lockedEls[k].style.opacity = '0.55';
-          lockedEls[k].style.cursor = 'not-allowed';
-          lockedEls[k].style.pointerEvents = 'none';
-        }
-        // Restaura aparência normal do campo Status
-        var statusEl = document.getElementById('cp-status');
-        if (statusEl) {
-          statusEl.style.opacity = '';
-          statusEl.style.cursor = '';
-          statusEl.style.pointerEvents = '';
-        }
-      }
+      _lockCompraModalFields(false);
+    } else if (statusLocked) {
+      if (bannerEl) bannerEl.innerHTML =
+        '<div style="background:#FFF8F1;border:1px solid #F1D6C8;border-radius:12px;padding:12px 16px;margin-bottom:14px;">' +
+        '<div style="font-size:13px;font-weight:700;color:#8A5A2A;margin-bottom:4px;">Compra com status ' + _esc(compra.statusCompra || '') + '</div>' +
+        '<div style="font-size:13px;color:#5A4E4C;line-height:1.5;">Para editar os campos do registro, primeiro volte a compra para Pendente. Se houver recebimento de estoque registrado, o sistema cria um ajuste de estorno para manter o histórico.</div>' +
+        '</div>';
+      if (footerEl) footerEl.innerHTML =
+        '<div style="display:flex;justify-content:flex-end;gap:8px;">' +
+        '<button onclick="window._compraModal&&window._compraModal.close()" style="' + _cancelStyle() + '">Fechar</button>' +
+        '<button onclick="Modules.Compras._voltarCompraParaPendente(\'' + id + '\')" style="' + _primaryStyle() + '">Voltar para pendente</button>' +
+        '</div>';
+      _lockCompraModalFields(false);
     } else if (estado.hasPending) {
       if (bannerEl) bannerEl.innerHTML =
         '<div style="background:#FFF8F1;border:1px solid #F1D6C8;border-radius:12px;padding:12px 16px;margin-bottom:14px;">' +
-        '<div style="font-size:13px;color:#8A5A2A;">Esta compra possui parcelas pendentes no financeiro. Salve a compra e use \'Atualizar Financeiro\' na listagem para sincronizar as contas a pagar.</div>' +
+        '<div style="font-size:13px;color:#8A5A2A;">Esta compra já gerou contas a pagar no financeiro, se precisar editar, clique em Atualizar compra para salvar as mudanças e sincronizar as parcelas.</div>' +
         '</div>';
       if (footerEl) footerEl.innerHTML = _compraFooterEditHtml(id);
     } else {
@@ -2833,6 +3823,10 @@ Modules.Compras = (function () {
     var statusEl = document.getElementById('cp-status');
     if (!statusEl) { UI.toast('Campo de status não encontrado.', 'error'); return; }
     var newStatus = statusEl.value;
+    if (newStatus !== 'Pendente') {
+      UI.toast('Para recebida, parcial ou cancelada, use as ações da listagem de compras.', 'error');
+      return;
+    }
     DB.update('compras', id, { statusCompra: newStatus }).then(function () {
       var compra = _byId(_compras, id);
       if (compra) compra.statusCompra = newStatus;
@@ -2841,6 +3835,60 @@ Modules.Compras = (function () {
       if (window._compraModal) window._compraModal.close();
     }).catch(function (err) {
       UI.toast('Erro ao salvar status: ' + (err && err.message ? err.message : err), 'error');
+    });
+  }
+
+  function _voltarCompraParaPendente(id) {
+    var compra = _byId(_compras, id);
+    if (!compra) { UI.toast('Compra não encontrada.', 'error'); return; }
+    _loadEstadoFinanceiro(id).then(function (estado) {
+      if (estado.hasPaid) {
+        UI.toast('Esta compra possui pagamento confirmado. Estorne os pagamentos antes de voltar para pendente.', 'error');
+        return;
+      }
+      return UI.confirm('Voltar esta compra para Pendente? O registro será liberado para edição e qualquer recebimento de estoque será estornado no histórico.').then(function (yes) {
+        if (!yes) return;
+        return _registrarEstornoEstoqueCompra(compra, 'voltar_pendente').then(function () {
+          var linhas = (compra.itens || []).map(function (l) {
+            return Object.assign({}, l, {
+              qtyRecebida: 0,
+              qtyPendente: _num(l.qty || l.quantidade || l.quantidadeComprada || 0),
+              recebido: false,
+              statusRecebimento: 'pendente'
+            });
+          });
+          var now = new Date().toISOString();
+          return DB.update('compras', id, {
+            statusCompra: 'Pendente',
+            itens: linhas,
+            recebimento: {
+              status: 'Pendente',
+              itens: linhas.map(function (l) {
+                return {
+                  itemId: l.itemId || '',
+                  itemNome: l.itemNome || l.nome || l.name || '',
+                  qtyCompra: _num(l.qty || l.quantidade || l.quantidadeComprada || 0),
+                  qtyRecebida: 0,
+                  qtyPendente: _num(l.qty || l.quantidade || l.quantidadeComprada || 0),
+                  status: 'pendente'
+                };
+              }),
+              updatedAt: now
+            },
+            recebimentoAtualizadoEm: now,
+            reabertaEm: now
+          }).then(function () {
+            compra.statusCompra = 'Pendente';
+            compra.itens = linhas;
+            UI.toast('Compra voltou para pendente e foi liberada para edição.', 'success');
+            if (window._compraModal) window._compraModal.close();
+            _paintRegistrosTable();
+          });
+        });
+      });
+    }).catch(function (err) {
+      if (err && err.message === 'user_cancel') return;
+      UI.toast('Não foi possível voltar a compra para pendente.', 'error');
     });
   }
 
@@ -2886,12 +3934,41 @@ Modules.Compras = (function () {
     estado.pendingContas.forEach(function (conta) {
       ops.push(DB.remove(conta._col || 'financeiro_apagar', conta.id));
     });
-    // 4. Limpar vínculos da compra (mantém sourceCompraId nas contas para histórico)
-    ops.push(DB.update('compras', compraId, { contaPagarId: '', contaPagarIds: [], contaPagarEstornadaEm: now }));
+    var compra = _byId(_compras, compraId) || {};
+    var linhas = (compra.itens || []).map(function (l) {
+      return Object.assign({}, l, {
+        qtyRecebida: 0,
+        qtyPendente: _num(l.qty || l.quantidade || l.quantidadeComprada || 0),
+        recebido: false,
+        statusRecebimento: 'pendente'
+      });
+    });
+    ops.push(_registrarEstornoEstoqueCompra(compra, 'estorno_pagamento'));
+    // 4. Limpar vínculos da compra (mantém sourceCompraId nas contas para histórico) e voltar para pendente
+    ops.push(DB.update('compras', compraId, {
+      statusCompra: 'Pendente',
+      itens: linhas,
+      contaPagarId: '',
+      contaPagarIds: [],
+      contaPagarStatus: '',
+      contaPagarEstornadaEm: now,
+      recebimento: {
+        status: 'Pendente',
+        updatedAt: now
+      },
+      reabertaEm: now
+    }));
 
     Promise.all(ops).then(function () {
       _compraEstadoFinanceiro = { hasPaid: false, hasPending: false, paidContas: [], pendingContas: [], contas: [], movs: [] };
-      UI.toast('Pagamentos estornados. A compra foi liberada para edição.', 'success');
+      if (compra) {
+        compra.statusCompra = 'Pendente';
+        compra.itens = linhas;
+        compra.contaPagarId = '';
+        compra.contaPagarIds = [];
+        compra.contaPagarStatus = '';
+      }
+      UI.toast('Pagamentos estornados. A compra voltou para pendente e foi liberada para edição.', 'success');
       var bannerEl = document.getElementById('cp-financial-status');
       var footerEl = document.getElementById('cp-footer-wrap');
       if (bannerEl) bannerEl.innerHTML =
@@ -3659,9 +4736,30 @@ Modules.Compras = (function () {
     return '<div><label style="' + _labelStyle() + '">' + label + '</label><textarea id="' + id + '" style="' + _inputStyle() + 'min-height:74px;resize:vertical;">' + _esc(value || '') + '</textarea></div>';
   }
   function _select(id, label, options, onchange) {
-    return '<div><label style="' + _labelStyle() + '">' + label + '</label><select id="' + id + '"' + (onchange ? ' onchange="' + onchange + '"' : '') + ' style="' + _inputStyle() + 'background:#fff;">' + options + '</select></div>';
+    return '<div><label style="' + _labelStyle() + '">' + label + '</label><select id="' + id + '"' + (onchange ? ' onchange="' + onchange + '"' : '') + ' style="' + _selectStyle() + '">' + options + '</select></div>';
+  }
+  function _purchaseField(id, label, value, type, oninput, placeholder) {
+    return '<div><label style="' + _labelStyle() + '">' + label + '</label><div class="purchase-field-control"><input id="' + id + '" type="' + (type || 'text') + '" value="' + _esc(value == null ? '' : value) + '"' + (placeholder ? ' placeholder="' + _esc(placeholder) + '"' : '') + (oninput ? ' oninput="' + oninput + '"' : '') + '></div></div>';
+  }
+  function _purchaseSelect(id, label, options, onchange) {
+    return '<div><label style="' + _labelStyle() + '">' + label + '</label><div class="purchase-field-control"><select id="' + id + '"' + (onchange ? ' onchange="' + onchange + '"' : '') + '>' + options + '</select></div></div>';
+  }
+  function _purchaseTextarea(id, label, value) {
+    return '<div><label style="' + _labelStyle() + '">' + label + '</label><div class="purchase-field-control"><textarea id="' + id + '">' + _esc(value || '') + '</textarea></div></div>';
+  }
+  function _supplierField(id, label, value, type, oninput, placeholder) {
+    return '<div><label style="' + _labelStyle() + '">' + label + '</label><div class="supplier-field-control"><input id="' + id + '" type="' + (type || 'text') + '" value="' + _esc(value == null ? '' : value) + '"' + (placeholder ? ' placeholder="' + _esc(placeholder) + '"' : '') + (oninput ? ' oninput="' + oninput + '"' : '') + '></div></div>';
+  }
+  function _supplierSelect(id, label, options, onchange) {
+    return '<div><label style="' + _labelStyle() + '">' + label + '</label><div class="supplier-field-control"><select id="' + id + '"' + (onchange ? ' onchange="' + onchange + '"' : '') + '>' + options + '</select></div></div>';
+  }
+  function _supplierTextarea(id, label, value) {
+    return '<div><label style="' + _labelStyle() + '">' + label + '</label><div class="supplier-field-control"><textarea id="' + id + '">' + _esc(value || '') + '</textarea></div></div>';
   }
   function _inputStyle() { return 'width:100%;padding:10px 12px;border:1px solid #EAE4DA;border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;box-sizing:border-box;color:#1F1F1F;box-shadow:inset 0 1px 0 rgba(255,255,255,.78);'; }
+  function _selectStyle() {
+    return _inputStyle() + 'padding-right:46px;appearance:none;-webkit-appearance:none;-moz-appearance:none;background-color:#fff;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 18px center;background-size:14px;';
+  }
   function _labelStyle() { return 'font-size:11px;font-weight:600;color:#6F6860;display:block;margin-bottom:5px;letter-spacing:.02em;'; }
   function _primaryStyle() { return 'padding:13px 22px;border-radius:12px;border:none;background:#B42318;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 8px 18px rgba(180,35,24,.18);'; }
   function _cancelStyle() { return 'padding:13px 20px;border-radius:12px;border:1px solid #E6DDD3;background:#fff;color:#1F1F1F;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;'; }
@@ -3743,21 +4841,30 @@ Modules.Compras = (function () {
     _openCompraModal: _openCompraModal, _saveCompra: _saveCompra, _deleteCompra: _deleteCompra,
     _abrirAtualizacaoFinanceiroPrompt: _abrirAtualizacaoFinanceiroPrompt, _confirmarAtualizacaoFinanceiro: _confirmarAtualizacaoFinanceiro,
     _enviarCompraFinanceiro:_enviarCompraFinanceiro, _enviarCompraFinanceiroFromList:_enviarCompraFinanceiroFromList, _atualizarCompraFinanceiro:_atualizarCompraFinanceiro, _enviarCompraFinanceiroFromModal:_enviarCompraFinanceiroFromModal, _atualizarCompraFinanceiroFromModal:_atualizarCompraFinanceiroFromModal,
-    _saveStatusOnly: _saveStatusOnly, _estornarPagamentosModal: _estornarPagamentosModal,
+    _saveStatusOnly: _saveStatusOnly, _voltarCompraParaPendente: _voltarCompraParaPendente, _estornarPagamentosModal: _estornarPagamentosModal,
     _onCompraItemChange: _onCompraItemChange, _calcCompraLinha: _calcCompraLinha, _addCompraLinha: _addCompraLinha, _removeCompraLinha: _removeCompraLinha,
     _buildParcelasPreview: _buildParcelasPreview, _onParcelaValorChange: _onParcelaValorChange, _onParcelaVencChange: _onParcelaVencChange, _toggleEntradaSection: _toggleEntradaSection,
     _filterRegistros: _filterRegistros, _changePage: _changePage, _setPerPage: _setPerPage,
+    _toggleRegistroSelection: _toggleRegistroSelection, _toggleRegistrosPageSelection: _toggleRegistrosPageSelection,
+    _clearRegistrosSelection: _clearRegistrosSelection, _confirmCompraRecebida: _confirmCompraRecebida,
+    _cancelCompraStatus: _cancelCompraStatus,
+    _openRecebimentoCompraModal: _openRecebimentoCompraModal, _setReceiptMode: _setReceiptMode,
+    _toggleReceiptLine: _toggleReceiptLine, _syncReceiptLineCheck: _syncReceiptLineCheck,
+    _applyRecebimentoCompraModal: _applyRecebimentoCompraModal,
+    _bulkConfirmComprasRecebidas: _bulkConfirmComprasRecebidas, _openBulkRecebimentoModal: _openBulkRecebimentoModal,
+    _applyBulkRecebimentoTotal: _applyBulkRecebimentoTotal, _openBulkRecebimentoParcial: _openBulkRecebimentoParcial,
+    _bulkCancelCompras: _bulkCancelCompras,
     _filterItemSelect: _filterItemSelect, _compraItemSearch: _compraItemSearch, _compraItemSelect: _compraItemSelect,
     _compraFornSearch: _compraFornSearch, _compraFornSelect: _compraFornSelect,
     _itemFornSearch: _itemFornSearch, _itemFornSelect: _itemFornSelect,
     _catalogSearch: _catalogSearch, _catalogSelect: _catalogSelect, _catalogQuickCreate: _catalogQuickCreate, _packageSearch: _packageSearch, _packageSelect: _packageSelect,
     _setSimpleListClasse: _setSimpleListClasse,
-    _openItemModal: _openItemModal, _openInsumoModal: _openInsumoModal, _saveItem: _saveItem, _deleteItem: _deleteItem, _toggleItemClasse: _toggleItemClasse, _onItemImgFileChange: _onItemImgFileChange, _filterItens: _filterItens, _renderInsumos: _renderInsumos,
+    _openItemModal: _openItemModal, _openInsumoModal: _openInsumoModal, _saveItem: _saveItem, _deleteItem: _deleteItem, _toggleItemClasse: _toggleItemClasse, _toggleItemCostHelp: _toggleItemCostHelp, _onItemImgFileChange: _onItemImgFileChange, _filterItens: _filterItens, _renderInsumos: _renderInsumos,
     _openFornecedorModal: _openFornecedorModal, _saveFornecedor: _saveFornecedor, _deleteFornecedor: _deleteFornecedor, _onFornecedorCountryChange: _onFornecedorCountryChange,
     _openUnidadeModal: _openUnidadeModal, _saveUnidade: _saveUnidade, _deleteUnidade: _deleteUnidade,
     _openSimpleModal: _openSimpleModal, _saveSimple: _saveSimple, _deleteSimple: _deleteSimple, _renderUnidades: _renderUnidades, _renderSimpleList: _renderSimpleList,
     _switchConfigSub: _switchConfigSub, _setSimpleListQ: _setSimpleListQ, _repaintSimpleTable: _repaintSimpleTable,
-    _paintRegistrosTable: _paintRegistrosTable, _clearRegistrosFilters: _clearRegistrosFilters, _toggleRegistrosOrdem: _toggleRegistrosOrdem,
+    _paintRegistrosTable: _paintRegistrosTable, _clearRegistrosFilters: _clearRegistrosFilters, _toggleRegistrosOrdem: _toggleRegistrosOrdem, _toggleCompraItensHelp: _toggleCompraItensHelp,
     _clearItensFilters: _clearItensFilters,
     _filterFornecedores: _filterFornecedores, _paintFornecedoresTable: _paintFornecedoresTable, _clearFornecedoresFilters: _clearFornecedoresFilters,
     _initAddressAutocomplete: _initAddressAutocomplete

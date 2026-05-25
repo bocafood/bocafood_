@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BocaFood</title>
+  <link rel="icon" type="image/png" href="/assets/boca-food-favicon.png">
+  <link rel="apple-touch-icon" href="/assets/boca-food-favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <style>
+    :root{--red:#B42318;--ink:#251D1A;--muted:#766A66;--line:#EAE4DA;--bg:#FFF9F7;--shadow:0 18px 54px rgba(31,31,31,.08)}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;background:linear-gradient(180deg,#FCF7F5 0%,#FFF9F7 100%);color:var(--ink);font-family:'Manrope','Inter',system-ui,sans-serif}
+    .wrap{width:min(840px,100%);margin:0 auto;padding:22px 22px 42px}
+    .brand{display:flex;justify-content:center;margin:0 0 6px}
+    .brand img{width:118px;height:auto;object-fit:contain}
+    .page-card{background:linear-gradient(135deg,#FFFFFF 0%,#FAF8F4 100%);border:1px solid var(--line);border-radius:24px;box-shadow:var(--shadow);overflow:hidden}
+    .page-head{padding:30px 32px 20px;border-bottom:1px solid rgba(234,228,218,.82)}
+    .kicker{display:block;color:var(--red);font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px}
+    h1{margin:0;font-size:30px;line-height:1.16;font-weight:760;letter-spacing:0;color:#231A18}
+    .summary{margin:10px 0 0;color:var(--muted);font-size:14px;line-height:1.55;max-width:680px}
+    .content{padding:28px 32px 34px;background:#fff}
+    .content :where(p,li){font-size:15px;line-height:1.72;color:#443936}
+    .content p{margin:0 0 15px}
+    .content h2{font-size:20px;line-height:1.3;margin:26px 0 10px;color:#261D1A}
+    .content h3{font-size:17px;line-height:1.35;margin:22px 0 8px;color:#261D1A}
+    .content a{color:var(--red);font-weight:700;text-decoration:none}
+    .content ul,.content ol{padding-left:22px;margin:0 0 16px}
+    .state{padding:24px 32px;color:var(--muted);font-size:14px}
+    .footer{padding:18px 4px 0;text-align:center;color:#9A8D89;font-size:12px}
+    .footer a{color:var(--red);font-weight:800;text-decoration:none}
+    @media(max-width:640px){
+      .wrap{padding:16px 14px 28px}
+      .brand img{width:104px}
+      .page-head,.content,.state{padding-left:20px;padding-right:20px}
+      h1{font-size:24px}
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="brand"><img src="/assets/boca-food-logo.png" alt="BocaFood"></div>
+    <article class="page-card" id="page-card">
+      <div class="state">Carregando documento...</div>
+    </article>
+    <div class="footer"><a href="/cadastro">Cadastro</a> · <a href="/login">Centro de Controle</a></div>
+  </main>
+  <script>
+  (function(){
+    'use strict';
+    var firebaseConfig={
+      apiKey:'AIzaSyAZk2mEPXR-VQOOEJWfcdhqoJOhHWjzda4',
+      authDomain:'bocado-brasil.firebaseapp.com',
+      projectId:'bocado-brasil',
+      storageBucket:'bocado-brasil.firebasestorage.app',
+      messagingSenderId:'1083383234261',
+      appId:'1:1083383234261:web:b73a9e9f7df73233d6ec5c'
+    };
+    var knownPages={
+      '/termosdeuso':'termos-de-uso-bocafood',
+      '/termos':'termos-de-uso-bocafood',
+      '/politicadeprivacidade':'politica-de-privacidade-bocafood',
+      '/privacidade':'politica-de-privacidade-bocafood',
+      '/rr':'politica-de-privacidade-bocafood'
+    };
+    function esc(value){
+      return String(value==null?'':value).replace(/[&<>"']/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch];});
+    }
+    function normalizePath(value){
+      var path=String(value||'/').split('?')[0].split('#')[0].replace(/\/+$/,'');
+      return path || '/';
+    }
+    function renderPage(page){
+      var title=page.title||'BocaFood';
+      document.title=title+' — BocaFood';
+      var summary=page.summary?'<p class="summary">'+esc(page.summary)+'</p>':'';
+      document.getElementById('page-card').innerHTML=
+        '<header class="page-head"><span class="kicker">Documento BocaFood</span><h1>'+esc(title)+'</h1>'+summary+'</header>'+
+        '<section class="content">'+(page.contentHtml||'<p>Documento sem conteúdo publicado.</p>')+'</section>';
+    }
+    function renderError(message){
+      document.getElementById('page-card').innerHTML='<div class="state">'+esc(message)+'</div>';
+    }
+    async function loadPage(){
+      try{
+        if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        var db=firebase.firestore();
+        var path=normalizePath(window.location.pathname).toLowerCase();
+        var key=knownPages[path];
+        var doc=null;
+        if(key){
+          var direct=await db.collection('system_pages').doc(key).get();
+          if(direct.exists) doc=direct;
+        }
+        if(!doc){
+          var snap=await db.collection('system_pages').where('slug','==',path).where('status','==','published').limit(1).get();
+          if(!snap.empty) doc=snap.docs[0];
+        }
+        if(!doc || !doc.exists) return renderError('Documento não encontrado ou ainda não publicado.');
+        var page=doc.data()||{};
+        if(page.status!=='published') return renderError('Documento ainda não publicado.');
+        renderPage(page);
+      }catch(error){
+        console.error('[SystemPage] erro ao carregar pagina', error);
+        renderError('Não foi possível carregar este documento agora.');
+      }
+    }
+    loadPage();
+  })();
+  </script>
+</body>
+</html>

@@ -20,7 +20,47 @@
         "destination": "/admin.html"
       },
       {
+        "source": "/redefinir-senha",
+        "destination": "/redefinir-senha.html"
+      },
+      {
+        "source": "/master",
+        "destination": "/master.html"
+      },
+      {
+        "source": "/termosdeuso",
+        "destination": "/system-page.html"
+      },
+      {
+        "source": "/termos",
+        "destination": "/system-page.html"
+      },
+      {
+        "source": "/politicadeprivacidade",
+        "destination": "/system-page.html"
+      },
+      {
+        "source": "/privacidade",
+        "destination": "/system-page.html"
+      },
+      {
+        "source": "/rr",
+        "destination": "/system-page.html"
+      },
+      {
         "source": "/loja/**",
+        "destination": "/index.html"
+      },
+      {
+        "source": "/*/review",
+        "destination": "/review.html"
+      },
+      {
+        "source": "/*/review.html",
+        "destination": "/review.html"
+      },
+      {
+        "source": "/**",
         "destination": "/index.html"
       }
     ],

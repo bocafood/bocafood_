@@ -16,6 +16,7 @@ Modules.Catalogo = (function () {
   var _recipeCategories = [];
   var _recipeComponents = [];
   var _fichaPag = { page: 1, perPage: 10 };
+  var _fichaFilters = { q: '' };
   var _editingId = null;
   var _deliveryZonesDraft = [];
   var _deliveryZonesDraftDirty = false;
@@ -34,6 +35,14 @@ Modules.Catalogo = (function () {
   function _newEntityId(prefix) {
     var safePrefix = prefix || 'entity';
     return safePrefix + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+
+  function firstText() {
+    for (var i = 0; i < arguments.length; i += 1) {
+      if (typeof arguments[i] === 'string' && arguments[i].trim()) return arguments[i].trim();
+      if (arguments[i] !== null && arguments[i] !== undefined && typeof arguments[i] !== 'object' && String(arguments[i]).trim()) return String(arguments[i]).trim();
+    }
+    return '';
   }
 
   function _metricIconSVG(name) {
@@ -364,8 +373,10 @@ Modules.Catalogo = (function () {
       { label: 'Produtos visíveis', value: visibleCount, icon: 'visibility', color: '#6C8777' },
       { label: 'Pedidos (30 dias)', value: orders30Count, icon: 'receipt_long', color: '#B42318' }
     ];
-    var filterCardStyle = 'background:#fff;border:none;border-radius:16px;padding:18px 20px;box-shadow:0 12px 30px rgba(31,31,31,.06);';
-    var fieldStyle = 'padding:10px 12px;border:1px solid #EAE4DA;border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;width:100%;box-sizing:border-box;color:#1F1F1F;box-shadow:inset 0 1px 0 rgba(255,255,255,.78);transition:border-color .15s ease,box-shadow .15s ease,background .15s ease;';
+    var filterCardStyle = 'background:linear-gradient(180deg,#FFFFFF 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.055);';
+    var fieldStyle = 'padding:10px 12px;border:1px solid #E8DCD7;border-radius:12px;font-size:14px;font-family:inherit;outline:none;background:#FFFCF8;width:100%;box-sizing:border-box;color:#1F1F1F;box-shadow:inset 0 1px 0 rgba(255,255,255,.82);transition:border-color .15s ease,box-shadow .15s ease,background .15s ease;';
+    var selectFieldStyle = fieldStyle + 'appearance:none;-webkit-appearance:none;-moz-appearance:none;padding-right:40px;';
+    var selectArrowHtml = '<span class="mi" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:19px;color:#8A7E7C;pointer-events:none;">expand_more</span>';
     var labelStyle = 'font-size:11px;font-weight:600;color:#6F6860;display:block;margin-bottom:5px;letter-spacing:.02em;';
     var sortOptions = [
       { value: 'order', label: 'Ordem manual' },
@@ -390,32 +401,22 @@ Modules.Catalogo = (function () {
         '</div>' +
       '</div>';
     }).join('') + '</div>';
-    var chipStyle = 'display:inline-flex;align-items:center;min-height:24px;padding:0 10px;border-radius:999px;background:#fff;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:500;box-shadow:0 1px 2px rgba(31,31,31,.02);';
-    var filterSummary = '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
-      '<span style="' + chipStyle + '">' + totalCount + ' produtos</span>' +
-      '<span style="' + chipStyle + '">' + visibleCount + ' visíveis</span>' +
-      '<span style="' + chipStyle + '">' + hiddenCount + ' ocultos</span>' +
-      '<span style="' + chipStyle + '">' + promoCount + ' em promoção</span>' +
-      '<span style="' + chipStyle + '">Página ' + paging.page + ' de ' + paging.totalPages + '</span>' +
-    '</div>';
+    var clearFiltersHtml = (query || _hasActiveProductFilters() || _productView.sort !== 'order') ? '<div style="display:flex;justify-content:flex-start;margin-top:11px;"><button type="button" onclick="Modules.Catalogo._clearProductFilters()" style="height:36px;padding:0 13px;border:1px solid #EADFD8;border-radius:11px;background:#fff;color:#6F6860;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);">Limpar filtros</button></div>' : '';
     var filtersHtml = '<div style="' + filterCardStyle + '">' +
-      '<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-end;">' +
-        '<div style="display:grid;grid-template-columns:minmax(320px,1.6fr) minmax(180px,.8fr) minmax(160px,.7fr) minmax(150px,.7fr) auto auto;gap:10px 12px;flex:1;align-items:end;">' +
-          '<div><input id="catalogo-product-search" type="search" value="' + _esc(query) + '" placeholder="Buscar produtos pelo nome..." autocomplete="off" autocapitalize="off" spellcheck="false" oninput="Modules.Catalogo._filterProdutos(this.value)" style="' + fieldStyle + 'height:40px;"></div>' +
-          '<div><select onchange="Modules.Catalogo._setProductFilter(\'category\',this.value)" style="' + fieldStyle + 'height:40px;">' + categoryOptions + '</select></div>' +
-          '<div><select onchange="Modules.Catalogo._setProductFilter(\'visibility\',this.value)" style="' + fieldStyle + 'height:40px;">' +
-            '<option value="todos"' + (_productFilters.visibility === 'todos' ? ' selected' : '') + '>Status: Todos</option><option value="visiveis"' + (_productFilters.visibility === 'visiveis' ? ' selected' : '') + '>Status: Visíveis</option><option value="ocultos"' + (_productFilters.visibility === 'ocultos' ? ' selected' : '') + '>Status: Ocultos</option></select></div>' +
-          '<div><select onchange="Modules.Catalogo._setProductSort(this.value)" style="' + fieldStyle + 'height:40px;">' + sortOptions + '</select></div>' +
-          '<button type="button" onclick="Modules.Catalogo._openProductsMoreFilters()" style="height:40px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#1F1F1F;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 1px 2px rgba(31,31,31,.03);font-family:inherit;">Filtros</button>' +
-          (query || _hasActiveProductFilters() || _productView.sort !== 'order' ? '<button type="button" onclick="Modules.Catalogo._clearProductFilters()" style="height:40px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#6F6860;font-size:13px;font-weight:500;cursor:pointer;">Limpar filtros</button>' : '') +
-        '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:11px 12px;align-items:end;">' +
+          '<label style="display:block;min-width:0;"><span style="' + labelStyle + '">Buscar</span><input id="catalogo-product-search" type="search" value="' + _esc(query) + '" placeholder="Nome, descrição, tag ou categoria" autocomplete="off" autocapitalize="off" spellcheck="false" oninput="Modules.Catalogo._filterProdutos(this.value)" style="' + fieldStyle + 'height:42px;"></label>' +
+          '<label style="display:block;min-width:0;"><span style="' + labelStyle + '">Categoria</span><span style="position:relative;display:block;"><select onchange="Modules.Catalogo._setProductFilter(\'category\',this.value)" style="' + selectFieldStyle + 'height:42px;">' + categoryOptions + '</select>' + selectArrowHtml + '</span></label>' +
+          '<label style="display:block;min-width:0;"><span style="' + labelStyle + '">Visibilidade</span><span style="position:relative;display:block;"><select onchange="Modules.Catalogo._setProductFilter(\'visibility\',this.value)" style="' + selectFieldStyle + 'height:42px;">' +
+            '<option value="todos"' + (_productFilters.visibility === 'todos' ? ' selected' : '') + '>Status: Todos</option><option value="visiveis"' + (_productFilters.visibility === 'visiveis' ? ' selected' : '') + '>Status: Visíveis</option><option value="ocultos"' + (_productFilters.visibility === 'ocultos' ? ' selected' : '') + '>Status: Ocultos</option></select>' + selectArrowHtml + '</span></label>' +
+          '<label style="display:block;min-width:0;"><span style="' + labelStyle + '">Ordenar por</span><span style="position:relative;display:block;"><select onchange="Modules.Catalogo._setProductSort(this.value)" style="' + selectFieldStyle + 'height:42px;">' + sortOptions + '</select>' + selectArrowHtml + '</span></label>' +
+          '<button type="button" onclick="Modules.Catalogo._openProductsMoreFilters()" style="height:42px;padding:0 14px;border:1px solid #EADFD8;border-radius:12px;background:#fff;color:#1F1F1F;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 1px 2px rgba(31,31,31,.03);font-family:inherit;white-space:nowrap;">Mais filtros</button>' +
       '</div>' +
-      filterSummary +
+      clearFiltersHtml +
     '</div>';
     var paginationHtml = paging.total ? '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:16px 18px;">' +
       '<span style="font-size:12px;color:#6F6860;line-height:1.4;">Mostrando <strong style="color:#1F1F1F;font-weight:600;">' + paging.start + '</strong> a <strong style="color:#1F1F1F;font-weight:600;">' + paging.end + '</strong> de <strong style="color:#1F1F1F;font-weight:600;">' + paging.total + '</strong></span>' +
       '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;">' +
-        '<select onchange="Modules.Catalogo._setProductPageSize(this.value)" style="min-width:110px;max-width:110px;height:34px;padding:0 10px;border:1px solid #EAE4DA;border-radius:10px;font-size:12px;font-family:inherit;outline:none;background:#fff;color:#6F6860;box-sizing:border-box;">' + pageSizeOptions + '</select>' +
+        '<span style="position:relative;display:inline-block;min-width:110px;max-width:110px;"><select onchange="Modules.Catalogo._setProductPageSize(this.value)" style="width:110px;height:34px;padding:0 34px 0 10px;border:1px solid #E8DCD7;border-radius:10px;font-size:12px;font-family:inherit;outline:none;background:#FFFCF8;color:#6F6860;box-sizing:border-box;appearance:none;-webkit-appearance:none;-moz-appearance:none;">' + pageSizeOptions + '</select><span class="mi" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:18px;color:#8A7E7C;pointer-events:none;">expand_more</span></span>' +
         '<div style="display:flex;align-items:center;gap:6px;">' +
           '<button type="button" onclick="Modules.Catalogo._setProductPage(' + (paging.page - 1) + ')" style="height:34px;padding:0 11px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#6F6860;font-size:12px;font-weight:500;cursor:' + (paging.page > 1 ? 'pointer' : 'not-allowed') + ';opacity:' + (paging.page > 1 ? '1' : '.45') + ';"' + (paging.page > 1 ? '' : ' disabled') + '>Anterior</button>' +
           '<div style="display:flex;align-items:center;gap:6px;"><span style="font-size:12px;color:#A39B90;">' + paging.page + '</span><span style="width:14px;height:2px;border-radius:999px;background:#B42318;display:inline-block;opacity:.65"></span><span style="font-size:12px;color:#A39B90;">' + paging.totalPages + '</span></div>' +
@@ -425,11 +426,11 @@ Modules.Catalogo = (function () {
     '</div>' : '';
     var bodyHtml = '';
     if (!visibleProducts.length) {
-      bodyHtml = '<section style="' + filterCardStyle + 'text-align:center;"><div style="font-size:15px;font-weight:700;color:#1F1F1F;margin-bottom:4px;">Nenhum produto encontrado</div><div style="font-size:13px;color:#6F6860;line-height:1.45;">Tente ajustar a busca, os filtros ou a ordenação.</div></section>';
+      bodyHtml = '<section style="' + filterCardStyle + 'text-align:center;padding:28px 18px;"><div style="font-size:15px;font-weight:700;color:#1F1F1F;margin-bottom:5px;">Nenhum produto encontrado</div><div style="font-size:13px;color:#6F6860;line-height:1.45;max-width:420px;margin:0 auto 14px;">Ajuste a busca, limpe os filtros ou cadastre um novo produto para aparecer no cardápio.</div><button type="button" onclick="Modules.Catalogo._openProductModal(null)" style="height:38px;padding:0 14px;border:none;border-radius:12px;background:#B42318;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 8px 18px rgba(180,35,24,.16);">Adicionar produto</button></section>';
     } else if (listMode) {
       bodyHtml = '<section style="display:flex;flex-direction:column;gap:10px;">' +
-        '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">Produtos do cardápio</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Gerencie preços, categorias, visibilidade e destaques da loja.</div></div>' +
-        '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:16px;overflow:hidden;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
+        '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">Lista de produtos</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Gerencie preço, categoria, visibilidade e destaque dos itens da loja.</div></div>' +
+        '<div style="background:#fff;border:1px solid #EADFD8;border-radius:18px;overflow:hidden;box-shadow:0 12px 30px rgba(31,31,31,.055);">' +
         '<div style="overflow:auto;">' +
           '<table class="bf-table" style="width:100%;border-collapse:separate;border-spacing:0;min-width:920px;">' +
             '<thead><tr style="background:#fff;border-bottom:1px solid #EAE4DA;">' +
@@ -448,7 +449,7 @@ Modules.Catalogo = (function () {
       '</div></section>';
     } else {
       bodyHtml = '<section style="display:flex;flex-direction:column;gap:10px;">' +
-        '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">Produtos do cardápio</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Visualize os produtos em cards e edite rapidamente as principais informações.</div></div>' +
+        '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">Lista de produtos</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Visualize os produtos em cards e edite rapidamente as principais informações.</div></div>' +
         '<div id="products-list" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;">' +
         paging.items.map(function (p) { return _productCardHTML(p); }).join('') +
       '</div>' +
@@ -458,12 +459,7 @@ Modules.Catalogo = (function () {
       '<div class="bf-page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
       '<div style="min-width:0;flex:1 1 420px;">' +
           '<h2 style="font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;line-height:1.2;">Produtos</h2>' +
-          '<p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0 0 10px;max-width:760px;">Organize sua vitrine, atualize preços e controle o que aparece na loja.</p>' +
-          '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
-            '<span style="' + chipStyle + '">' + totalCount + ' produtos</span>' +
-            '<span style="' + chipStyle + '">' + visibleCount + ' visíveis</span>' +
-            '<span style="' + chipStyle + '">' + categoryCount + ' categorias</span>' +
-          '</div>' +
+          '<p style="font-size:13px;color:#6F6860;line-height:1.5;margin:0;max-width:720px;">Cadastre e organize os itens que aparecem no cardápio público da sua loja.</p>' +
         '</div>' +
         '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;">' +
           '<button type="button" onclick="Modules.Catalogo._openImportProducts()" class="bf-btn-secondary" style="height:38px;padding:0 14px;border:1px solid #E6E1D8;border-radius:10px;background:#fff;color:#1F1F1F;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 1px 2px rgba(31,31,31,.03);">Importar produtos</button>' +
@@ -860,8 +856,8 @@ Modules.Catalogo = (function () {
 
   function _buildProductModal(p, id) {
     p = _normalizeProduct(p);
-    var tipoUnico = !p.type || p.type === 'unico';
-    var tipoMenu = p.type === 'menu';
+    var tipoMenu = p.type === 'menu' || p.productType === 'combo';
+    var tipoUnico = !tipoMenu;
     var unicoSubReceita = !p.unicoSource || p.unicoSource === 'receita';
     var unicoSubPronto = p.unicoSource === 'produto_pronto' || p.unicoSource === 'compras_produto';
     var fichaOptions = _fichas.map(function (f) {
@@ -873,9 +869,12 @@ Modules.Catalogo = (function () {
     }).join('');
     var menuGroups = _normalizeMenuGroups(p);
     var menuGroupsHtml = menuGroups.map(function (group, i) { return _menuGroupRowHtml(i, group); }).join('');
-    var addAlsoIds = (p.addAlsoIds || []).map(String).filter(function (id) { return _isSimpleUpsellProduct(_productForId(id)); });
+    var availableUpsellIds = {};
+    _upsellProductPool().forEach(function (item) { availableUpsellIds[String(item.id)] = true; });
+    var addAlsoIds = (p.addAlsoIds || []).map(String).filter(function (id) { return availableUpsellIds[String(id)]; }).slice(0, 1);
     var addAlsoTitle = p.addAlsoTitle || p.upsellTitle || 'Aumentar valor do pedido';
     var addAlsoDiscount = parseFloat(String(p.addAlsoDiscount || p.upsellDiscount || 0).replace(',', '.')) || 0;
+    var pairingId = firstText(p.pairing, p.pairingId, p.pairingProductId, '');
     var pricingPreview = _productPricingPreview(p);
     var promoBlockHtml = _promoBlockHtml(p);
     var pricingChipsHtml = pricingPreview
@@ -890,12 +889,18 @@ Modules.Catalogo = (function () {
         '<span style="background:' + (tag.bgColor || '#F7F1F0') + ';color:' + (tag.textColor || '#5E5553') + ';padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;">' + _esc(tag.text) + '</span>' +
         '</label>';
     }).join(''));
-    var variantsHtml = (_variants.length === 0 ? '<p style="font-size:12px;color:#8A7E7C;margin:0;">Nenhum grupo de variantes criado ainda.</p>' : '<div id="pm-variant-checks">' + _variants.map(function (vg) {
-      var checked = p.variantGroupIds && p.variantGroupIds.indexOf(vg.id) >= 0;
-      return '<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:6px 0;">' +
-        '<input type="checkbox" class="pm-variant-check" data-vgid="' + vg.id + '"' + (checked ? ' checked' : '') + ' style="width:15px;height:15px;accent-color:#B42318;">' +
-        _esc(vg.title) + '</label>';
+    var variantsHtml = (_variants.length === 0 ? '<p style="font-size:12px;color:#8A7E7C;margin:0;">Nenhum grupo de variantes criado ainda.</p>' : '<div id="pm-variant-checks" style="display:grid;gap:8px;">' + _variants.map(function (vg) {
+      var checked = (p.variantGroupIds || []).map(String).indexOf(String(vg.id)) >= 0;
+      return '<div style="border:1px solid #EAE4DA;border-radius:12px;background:#FFFCF8;padding:9px 10px;">' +
+        '<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">' +
+        '<input type="checkbox" class="pm-variant-check" data-vgid="' + vg.id + '"' + (checked ? ' checked' : '') + ' onchange="Modules.Catalogo._toggleProductVariantPreview(this)" style="width:15px;height:15px;accent-color:#B42318;">' +
+        '<span style="font-weight:650;color:#1F1F1F;">' + _esc(vg.title) + '</span>' +
+        '<span style="font-size:11px;color:#8A7E7C;">' + (vg.required ? 'Obrigatória' : 'Opcional') + ' · mín. ' + (vg.minPerUnit != null ? vg.minPerUnit : vg.min || 0) + ' · máx. ' + (vg.maxPerUnit || vg.max || 1) + '</span>' +
+        '</label>' +
+        _productVariantOptionsPreviewHtml(vg, checked) +
+        '</div>';
     }).join('') + '</div>');
+    var productFiscal = _ensureProductFiscal(p);
 
     window._pmMenuGroupCount = menuGroups.length;
     window._pmVisible = p.menuVisible !== false;
@@ -907,16 +912,37 @@ Modules.Catalogo = (function () {
     window._pmSeoEdited = {};
 
     var body = `
-      <div style="display:block;">
+      <div class="product-modal-admin" style="display:block;">
+        <style>
+          .product-modal-admin{font-family:Manrope,Inter,sans-serif;color:#1F1F1F;}
+          .product-modal-admin section,.product-modal-admin details{background:linear-gradient(180deg,#FFFFFF 0%,#FFFCFA 100%)!important;border:1px solid #EADFD8!important;border-radius:18px!important;padding:15px!important;box-shadow:0 10px 24px rgba(31,31,31,.045)!important;}
+          .product-modal-admin .pm-section-head{display:flex;align-items:flex-start;gap:10px;margin:0 0 13px;}
+          .product-modal-admin .pm-section-icon{width:34px;height:34px;border-radius:12px;background:#FFF7F4;color:#B42318;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;}
+          .product-modal-admin .pm-section-icon .mi{font-size:18px;}
+          .product-modal-admin .pm-section-title{font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;}
+          .product-modal-admin .pm-section-text{font-size:12px;font-weight:400;color:#6F6860;line-height:1.42;margin-top:3px;max-width:680px;}
+          .product-modal-admin label{color:#7A746B!important;}
+          .product-modal-admin input:not([type=radio]):not([type=checkbox]):not([type=file]),.product-modal-admin select,.product-modal-admin textarea{background:#FFFCF8!important;border:1px solid #E8DCD7!important;border-radius:12px!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.82)!important;min-height:42px!important;padding:10px 12px!important;font-family:Manrope,Inter,sans-serif!important;font-size:14px!important;color:#1F1F1F!important;}
+          .product-modal-admin textarea{line-height:1.45!important;}
+          .product-modal-admin input:not([type=radio]):not([type=checkbox]):not([type=file]):focus,.product-modal-admin select:focus,.product-modal-admin textarea:focus{background:#fff!important;border-color:#D9AAA1!important;box-shadow:0 0 0 3px rgba(180,35,24,.08)!important;}
+          .product-modal-admin select{appearance:none!important;-webkit-appearance:none!important;-moz-appearance:none!important;padding-right:42px!important;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E)!important;background-repeat:no-repeat!important;background-position:right 16px center!important;background-size:14px!important;}
+          .product-modal-admin input[type=radio],.product-modal-admin input[type=checkbox]{accent-color:#B42318;}
+          .product-modal-admin p{font-weight:400!important;}
+          .product-modal-admin details summary::-webkit-details-marker{display:none;}
+          .product-modal-admin details summary span{transition:transform .16s ease;}
+          .product-modal-admin details[open] summary span:last-child{transform:rotate(90deg);}
+          @media(max-width:760px){.product-modal-admin section:first-of-type>div:nth-child(2){grid-template-columns:1fr!important}.product-modal-admin section:first-of-type>div:nth-child(2)>div:first-child{max-width:100%;}.product-modal-admin section:first-of-type [style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important}.product-modal-admin details>div{grid-template-columns:1fr!important}.product-modal-admin button{min-height:42px;}}
+        </style>
         <div style="display:flex;flex-direction:column;gap:14px;">
           <div id="pm-form-error" style="display:none;background:#FDEDEB;border:1px solid #F4C7BF;color:#B42318;padding:10px 12px;border-radius:12px;font-size:12px;font-weight:600;line-height:1.45;"></div>
           <section style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">
+            <div class="pm-section-head"><span class="pm-section-icon"><span class="mi">restaurant_menu</span></span><div><div class="pm-section-title">Dados do produto</div><div class="pm-section-text">Defina como o item aparece no cardápio público, com nome, descrição, imagem, preço e categoria.</div></div></div>
             <div style="display:grid;grid-template-columns:160px 1fr;gap:14px;align-items:start;">
               <div>
                 <label style="font-size:10px;font-weight:600;color:#7A746B;display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em;">Imagem</label>
                 <input type="file" id="pm-img-file" accept="image/jpeg,image/jpg,image/png,image/webp" onchange="Modules.Catalogo._onImgFileChange(event)" style="display:none;">
                 <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
-                  <div style="width:92px;height:92px;border:1px solid #EAE4DA;border-radius:14px;background:#FFF;width:92px;height:92px;overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                  <div id="pm-image-field-preview" style="width:92px;height:92px;border:1px solid #EAE4DA;border-radius:14px;background:#FFF;width:92px;height:92px;overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                     ${(() => { var imageSrc = window._pmImagePreviewUrl || _imageUrlFor(p, 'card') || _imageUrlFor(p, 'main') || _imageUrlFor(p, 'thumb') || ''; return imageSrc ? '<img src="' + _esc(imageSrc) + '" alt="" style="width:100%;height:100%;object-fit:cover;display:block;">' : '<span class="mi" style="font-size:38px;color:#C9BCB8;">image</span>'; })()}
                   </div>
                   <div style="display:flex;flex-direction:column;gap:8px;min-width:0;">
@@ -930,20 +956,22 @@ Modules.Catalogo = (function () {
                 <div><label style="${_fichaLbl()}">Nome do produto *</label><input id="pm-name" type="text" maxlength="55" value="${_esc(p.name || '')}" oninput="Modules.Catalogo._onProductNameChange();Modules.Catalogo._refreshProductPreview()" style="${_fichaInp()}"></div>
                 <div><label style="${_fichaLbl()}">Frase que faz vender (microcopy)</label><input id="pm-microcopy" type="text" maxlength="72" value="${_esc(p.microcopy || '')}" placeholder="Ex: Crocante por fora, recheio que surpreende" oninput="Modules.Catalogo._refreshProductPreview()" style="${_fichaInp()}"><p style="font-size:11px;color:#6F6860;margin-top:4px;">Essa frase ajuda o cliente a decidir comprar.</p></div>
                 <div><label style="${_fichaLbl()}">Descrição curta</label><textarea id="pm-short-desc" maxlength="120" oninput="Modules.Catalogo._onProductDescChange();Modules.Catalogo._refreshProductPreview()" style="${_fichaInp()}min-height:72px;resize:vertical;">${_esc(p.shortDesc || p.description || '')}</textarea></div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:end;">
-                <div><label style="${_fichaLbl()}">Preço *</label><input id="pm-price" type="text" inputmode="decimal" value="${_esc(_moneyDisplay(p.price || ''))}" onfocus="Modules.Catalogo._moneyInputFocus(this)" onblur="Modules.Catalogo._moneyInputBlur(this)" oninput="Modules.Catalogo._refreshProductPreview()" placeholder="€0,00" style="${_fichaInp()}font-size:18px;font-weight:700;color:#B42318;text-align:right;"></div>
-                  <div><label style="${_fichaLbl()}">Categoria</label><select id="pm-cat" onchange="Modules.Catalogo._refreshProductPreview()" style="${_fichaInp()}background:#fff;"><option value="">Sem categoria</option>${_categories.map(function (c) { return '<option value="' + c.id + '"' + (p.categoryId === c.id ? ' selected' : '') + '>' + _esc(c.name) + '</option>'; }).join('')}</select></div>
+                <div><label style="${_fichaLbl()}">Descrição completa</label><textarea id="pm-full-desc" maxlength="700" oninput="Modules.Catalogo._refreshProductPreview()" style="${_fichaInp()}min-height:88px;resize:vertical;">${_esc(p.fullDesc || p.fullDescription || p.seoDescription || p.shortDesc || p.description || '')}</textarea><p style="font-size:11px;color:#6F6860;margin-top:4px;">Aparece quando o cliente abre o produto para ver os detalhes.</p></div>
+                <div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;">
+                  <div style="flex:0 0 150px;max-width:100%;"><label style="${_fichaLbl()}">Preço *</label><input id="pm-price" type="text" inputmode="decimal" value="${_esc(_moneyDisplay(p.price || ''))}" onfocus="Modules.Catalogo._moneyInputFocus(this)" onblur="Modules.Catalogo._moneyInputBlur(this)" oninput="Modules.Catalogo._refreshProductPreview()" placeholder="€0,00" style="${_fichaInp()}font-size:17px;font-weight:600;color:#B42318;text-align:right;"></div>
+                  <div style="flex:0 1 280px;max-width:100%;"><label style="${_fichaLbl()}">Categoria</label><select id="pm-cat" onchange="Modules.Catalogo._refreshProductPreview()" style="${_fichaInp()}background:#fff;"><option value="">Sem categoria</option>${_categories.map(function (c) { return '<option value="' + c.id + '"' + (p.categoryId === c.id ? ' selected' : '') + '>' + _esc(c.name) + '</option>'; }).join('')}</select></div>
                 </div>
                 <input id="pm-cost" type="hidden" value="${pricingPreview ? pricingPreview.cost : ''}">
                 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">${pricingChipsHtml}</div>
                 ${promoBlockHtml}
                 <div style="padding:12px 14px;background:#fff;border-radius:14px;box-shadow:0 12px 30px rgba(31,31,31,.06);">
-                  ${_toggleHtml('pm-featured', 'Selecionar para destaque', p.featured === true || p.popular === true, 'Este produto entra na vitrine de destaques da loja e aparece marcado na listagem.')}
+                  ${_toggleHtml('pm-featured', 'Mostrar selo de destaque', p.featured === true || p.popular === true, '')}
                 </div>
               </div>
             </div>
           </section>
           <section style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">
+            <div class="pm-section-head"><span class="pm-section-icon"><span class="mi">tune</span></span><div><div class="pm-section-title">Tipo de produto</div><div class="pm-section-text">Escolha se o item será vendido sozinho ou com escolhas, como combos e menus.</div></div></div>
             <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px;">
               <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;"><input type="radio" name="pm-tipo" value="unico"${tipoUnico ? ' checked' : ''} onchange="Modules.Catalogo._onTipoChange();Modules.Catalogo._refreshProductPreview()" style="accent-color:#B42318;"> Produto simples</label>
               <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;"><input type="radio" name="pm-tipo" value="menu"${tipoMenu ? ' checked' : ''} onchange="Modules.Catalogo._onTipoChange();Modules.Catalogo._refreshProductPreview()" style="accent-color:#B42318;"> Produto com escolhas / combo</label>
@@ -958,6 +986,7 @@ Modules.Catalogo = (function () {
             </div>
           </section>
           <section id="pm-panel-menu" style="display:${tipoMenu ? 'block' : 'none'};background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">
+            <div class="pm-section-head"><span class="pm-section-icon"><span class="mi">splitscreen</span></span><div><div class="pm-section-title">Escolhas do combo</div><div class="pm-section-text">Organize as opções que a cliente escolhe antes de adicionar o produto ao pedido.</div></div></div>
             <div id="pm-menu-groups">${menuGroupsHtml}</div>
             <button type="button" onclick="Modules.Catalogo._addMenuGroup()" style="width:100%;padding:9px;border-radius:10px;border:1px dashed #E3D7C9;background:transparent;font-size:13px;font-weight:600;cursor:pointer;color:#7A746B;font-family:inherit;margin-top:6px;">+ Adicionar grupo ao menu</button>
           </section>
@@ -965,12 +994,7 @@ Modules.Catalogo = (function () {
             ${_upsellBlockHtml('addAlso', addAlsoTitle, 'Produtos únicos extras que o cliente pode adicionar.', addAlsoIds, addAlsoDiscount)}
           </section>
           <section style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;">
-              <div><div style="font-size:13px;font-weight:600;">Mostrar no cardápio</div><div style="font-size:11px;color:#7A746B;">Controle se o cliente vê este produto</div></div>
-              <button type="button" id="pm-visible-toggle" onclick="Modules.Catalogo._toggleVis()" style="width:42px;height:24px;border-radius:12px;border:none;cursor:pointer;position:relative;transition:background .2s;background:${p.menuVisible !== false ? '#B42318' : '#D8CEC2'};"><span style="position:absolute;top:3px;left:3px;width:18px;height:18px;background:#fff;border-radius:50%;transition:transform .2s;display:block;transform:translateX(${p.menuVisible !== false ? '18px' : '0'});box-shadow:0 1px 4px rgba(31,31,31,.12);"></span></button>
-            </div>
-          </section>
-          <section style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">
+            <div class="pm-section-head"><span class="pm-section-icon"><span class="mi">sell</span></span><div><div class="pm-section-title">Organização e escolhas</div><div class="pm-section-text">Use tags e variantes para deixar o produto mais fácil de vender e configurar no pedido.</div></div></div>
             <div style="display:flex;flex-direction:column;gap:14px;">
               <div>
                 <div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;">Tags</div>
@@ -983,8 +1007,25 @@ Modules.Catalogo = (function () {
             </div>
           </section>
           <section style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">
-            <input id="pm-note" type="text" value="${_esc(p.internalNote || '')}" placeholder="Visível apenas para a equipa" style="${_fichaInp()}background:#fff;">
+            <div class="pm-section-head"><span class="pm-section-icon"><span class="mi">notes</span></span><div><div class="pm-section-title">Observação interna</div><div class="pm-section-text">Anotação para sua equipe. Não aparece para o cliente.</div></div></div>
+            <input id="pm-note" type="text" value="${_esc(p.internalNote || '')}" placeholder="Visível apenas para a equipe" style="${_fichaInp()}background:#fff;">
           </section>
+          <details style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">
+            <summary style="cursor:pointer;list-style:none;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+              <div>
+                <div style="font-size:11px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;">Dados fiscais</div>
+                <div style="font-size:12px;color:#6F6860;margin-top:4px;">Informações usadas para identificar o produto em documentos e controles fiscais.</div>
+              </div>
+              <span style="font-size:16px;line-height:1;color:#6F6860;">▸</span>
+            </summary>
+            <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1.4fr .7fr 1fr 1fr;gap:10px;">
+              <div><label style="${_fichaLbl()}">SKU / Código interno</label><input id="pm-fiscal-sku" type="text" maxlength="60" value="${_esc(productFiscal.sku || '')}" style="${_fichaInp()}"></div>
+              <div><label style="${_fichaLbl()}">Nome fiscal</label><input id="pm-fiscal-name" type="text" maxlength="120" value="${_esc(productFiscal.fiscalName || '')}" placeholder="${_esc(p.name || '')}" style="${_fichaInp()}"></div>
+              <div><label style="${_fichaLbl()}">IVA</label><input id="pm-fiscal-iva" type="number" step="0.01" min="0" value="${_esc(productFiscal.ivaRate)}" style="${_fichaInp()}"></div>
+              <div><label style="${_fichaLbl()}">Categoria fiscal</label><select id="pm-fiscal-tax-category" style="${_fichaInp()}background:#fff;"><option value="prepared_food"${productFiscal.taxCategory === 'prepared_food' ? ' selected' : ''}>Comida preparada</option><option value="food"${productFiscal.taxCategory === 'food' ? ' selected' : ''}>Alimento</option><option value="beverage"${productFiscal.taxCategory === 'beverage' ? ' selected' : ''}>Bebida</option><option value="service"${productFiscal.taxCategory === 'service' ? ' selected' : ''}>Serviço</option><option value="other"${productFiscal.taxCategory === 'other' ? ' selected' : ''}>Outro</option></select></div>
+              <div><label style="${_fichaLbl()}">Unidade fiscal</label><select id="pm-fiscal-unit-code" style="${_fichaInp()}background:#fff;"><option value="unit"${productFiscal.unitCode === 'unit' ? ' selected' : ''}>Unidade</option><option value="kg"${productFiscal.unitCode === 'kg' ? ' selected' : ''}>Quilo</option><option value="g"${productFiscal.unitCode === 'g' ? ' selected' : ''}>Grama</option><option value="l"${productFiscal.unitCode === 'l' ? ' selected' : ''}>Litro</option><option value="ml"${productFiscal.unitCode === 'ml' ? ' selected' : ''}>Mililitro</option></select></div>
+            </div>
+          </details>
           <details style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">
             <summary style="cursor:pointer;list-style:none;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
               <div>
@@ -1001,16 +1042,22 @@ Modules.Catalogo = (function () {
               <div><label style="${_fichaLbl()}">Alt da imagem</label><input id="pm-seo-alt" type="text" maxlength="120" value="${_esc(p.imageAlt || p.name || '')}" oninput="Modules.Catalogo._seoEdited('alt')" style="${_fichaInp()}"></div>
             </div>
           </details>
+          <section style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:4px 0;">
+              <div><div style="font-size:13px;font-weight:600;">Mostrar no cardápio</div><div style="font-size:11px;color:#7A746B;">Quando desligado, o cliente não vê este produto na loja.</div></div>
+              <button type="button" id="pm-visible-toggle" onclick="Modules.Catalogo._toggleVis()" style="width:42px;height:24px;border-radius:12px;border:none;cursor:pointer;position:relative;transition:background .2s;background:${p.menuVisible !== false ? '#B42318' : '#D8CEC2'};"><span style="position:absolute;top:3px;left:3px;width:18px;height:18px;background:#fff;border-radius:50%;transition:transform .2s;display:block;transform:translateX(${p.menuVisible !== false ? '18px' : '0'});box-shadow:0 1px 4px rgba(31,31,31,.12);"></span></button>
+            </div>
+          </section>
         </div>
       </div>`;
 
     var footer = `
-      <div style="display:flex;flex-direction:column;gap:6px;align-items:stretch;">
-        <div style="display:flex;gap:10px;flex-wrap:wrap;">
-          <button onclick="Modules.Catalogo._saveProduct()" style="flex:1;min-width:180px;padding:13px;border-radius:12px;border:none;background:#B42318;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 8px 18px rgba(180,35,24,.18);">Salvar produto</button>
-          <button onclick="if(window._productModal)window._productModal.close()" style="min-width:120px;padding:13px 18px;border-radius:12px;border:1px solid #E6DDD3;background:#fff;color:#1F1F1F;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">Cancelar</button>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;">
+        <div style="font-size:11px;color:#7A746B;line-height:1.4;min-width:220px;flex:1;">Revise os dados antes de salvar. As alterações ficarão visíveis no cardápio do cliente.</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;">
+          <button onclick="if(window._productModal)window._productModal.close()" style="min-width:116px;height:40px;padding:0 16px;border-radius:12px;border:1px solid #E6DDD3;background:#fff;color:#1F1F1F;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;">Cancelar</button>
+          <button onclick="Modules.Catalogo._saveProduct()" style="min-width:152px;height:40px;padding:0 17px;border-radius:12px;border:none;background:#B42318;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 8px 18px rgba(180,35,24,.18);">Salvar produto</button>
         </div>
-        <div style="font-size:11px;color:#7A746B;text-align:center;">As alterações ficarão visíveis no cardápio do cliente.</div>
       </div>`;
 
     window._productModal = UI.modal({ title: id ? 'Editar Produto' : 'Novo Produto', body: body, footer: footer, maxWidth: '1120px' });
@@ -1036,7 +1083,38 @@ Modules.Catalogo = (function () {
     p.type = p.type || (p.category === 'menu' ? 'menu' : 'unico');
     p.featured = p.featured === true || p.popular === true;
     p.popular = p.popular === true || p.featured === true;
+    p.fiscal = _ensureProductFiscal(p);
     return p;
+  }
+
+  function _defaultProductFiscal() {
+    return {
+      sku: '',
+      fiscalName: '',
+      ivaRate: 10,
+      ivaIncluded: true,
+      taxCategory: 'prepared_food',
+      unitCode: 'unit',
+      externalFiscalProductId: '',
+      facturaDirectaProductId: ''
+    };
+  }
+
+  function _ensureProductFiscal(product) {
+    var p = product || {};
+    var current = Object.assign({}, p.fiscal || {});
+    var defaults = _defaultProductFiscal();
+    var iva = current.ivaRate != null && current.ivaRate !== '' ? parseFloat(current.ivaRate) : defaults.ivaRate;
+    return Object.assign({}, defaults, current, {
+      sku: current.sku || p.sku || p.codigo || '',
+      fiscalName: current.fiscalName || p.fiscalName || '',
+      ivaRate: isFinite(iva) ? iva : defaults.ivaRate,
+      ivaIncluded: current.ivaIncluded !== false,
+      taxCategory: current.taxCategory || defaults.taxCategory,
+      unitCode: current.unitCode || defaults.unitCode,
+      externalFiscalProductId: current.externalFiscalProductId || '',
+      facturaDirectaProductId: current.facturaDirectaProductId || ''
+    });
   }
 
   function _productPricingPreview(p) {
@@ -1115,6 +1193,23 @@ Modules.Catalogo = (function () {
     if (input) input.click();
   }
 
+  function _productModalImageSrc(base) {
+    base = base || {};
+    var imageState = window._pmImageState || {};
+    var tempPreview = window._pmImagePreviewUrl || '';
+    if (window._pmImageRemoved) return '';
+    return tempPreview || imageState.imageCardUrl || imageState.cardUrl || imageState.mainUrl || imageState.imageUrl || base.imageCardUrl || base.cardImageUrl || base.imageUrl || base.imageBase64 || base.img || '';
+  }
+
+  function _refreshProductImageField() {
+    var box = document.getElementById('pm-image-field-preview');
+    if (!box) return;
+    var imageSrc = _productModalImageSrc(window._pmProductBase || {});
+    box.innerHTML = imageSrc
+      ? '<img src="' + _esc(imageSrc) + '" alt="" style="width:100%;height:100%;object-fit:cover;display:block;">'
+      : '<span class="mi" style="font-size:38px;color:#C9BCB8;">image</span>';
+  }
+
   function _removeProductImage() {
     window._pmImageState = null;
     window._pmImageRemoved = true;
@@ -1127,6 +1222,7 @@ Modules.Catalogo = (function () {
     if (fileInput) fileInput.value = '';
     var urlEl = document.getElementById('pm-img-url');
     if (urlEl) urlEl.value = '';
+    _refreshProductImageField();
     _refreshProductPreview();
   }
 
@@ -1268,9 +1364,7 @@ Modules.Catalogo = (function () {
         (groupBits.length ? '<div style="font-size:12px;line-height:1.45;color:#6E6563;">' + _esc(groupBits.join(' · ')) + '</div>' : '') +
       '</div>';
     }
-    var imageState = window._pmImageState || {};
-    var tempPreview = window._pmImagePreviewUrl || '';
-    var imageSrc = window._pmImageRemoved ? '' : (tempPreview || imageState.imageCardUrl || imageState.cardUrl || imageState.mainUrl || imageState.imageUrl || p.imageCardUrl || p.imageUrl || p.imageBase64 || '');
+    var imageSrc = _productModalImageSrc(p);
     return {
       name: ((nameEl && nameEl.value) || p.name || 'Nome do produto').trim() || 'Nome do produto',
       microcopy: ((microEl && microEl.value) || p.microcopy || 'Frase de venda curta para apoiar a decisão.').trim() || 'Frase de venda curta para apoiar a decisão.',
@@ -1329,6 +1423,7 @@ Modules.Catalogo = (function () {
   }
 
   function _refreshProductPreview() {
+    _refreshProductImageField();
     var el = document.getElementById('pm-preview-column');
     if (!el) return;
     var base = window._pmProductBase || {};
@@ -1609,6 +1704,127 @@ Modules.Catalogo = (function () {
     });
   }
 
+  function _variantGroupToPublicVariant(group) {
+    if (!group) return null;
+    var options = (group.options || []).map(function (option) {
+      var label = _variantOptionLabel(option);
+      if (!label) return null;
+      var price = _variantOptionPrice(option);
+      return {
+        name: label,
+        label: label,
+        priceExtra: price,
+        price: price,
+        img: _variantOptionImage(option)
+      };
+    }).filter(Boolean);
+    if (!options.length) return null;
+    var max = parseInt(group.maxPerUnit || group.max || (group.multiSelect ? options.length : 1), 10) || 1;
+    var min = parseInt(group.minPerUnit != null ? group.minPerUnit : group.min != null ? group.min : (group.required ? 1 : 0), 10);
+    if (min < 0) min = 0;
+    if (max < 1) max = 1;
+    if (min > max) min = max;
+    return {
+      id: group.id || ('vg_' + _toSlug(group.title || group.name || 'opcao')),
+      title: group.title || group.name || 'Escolha',
+      required: group.required === true || min > 0,
+      minPerUnit: min,
+      maxPerUnit: max,
+      options: options
+    };
+  }
+
+  function _menuGroupToPublicVariant(group, index) {
+    if (!group) return null;
+    var options = (group.options || []).map(function (option) {
+      var label = _variantOptionLabel(option) || _labelForMenuRef(option.ref);
+      if (!label) return null;
+      var price = _variantOptionPrice(option);
+      return {
+        ref: option.ref || '',
+        name: label,
+        label: label,
+        priceExtra: price,
+        price: price,
+        img: _variantOptionImage(option) || _imgForEntity(_entityForMenuRef(option.ref)) || ''
+      };
+    }).filter(Boolean);
+    if (!options.length) return null;
+    var max = parseInt(group.max || group.qty || group.min || 1, 10) || 1;
+    var min = parseInt(group.min == null ? max : group.min, 10);
+    if (min < 0) min = 0;
+    return {
+      id: group.id || ('menu_' + index),
+      title: group.title || group.name || 'Escolha',
+      required: min > 0,
+      maxPerUnit: Math.max(1, max),
+      minPerUnit: min,
+      options: options
+    };
+  }
+
+  function _publicVariantsForProduct(menuChoiceGroups, variantGroupIds) {
+    var variants = [];
+    (menuChoiceGroups || []).forEach(function (group, index) {
+      var mapped = _menuGroupToPublicVariant(group, index);
+      if (mapped) variants.push(mapped);
+    });
+    (variantGroupIds || []).forEach(function (id) {
+      var group = (_variants || []).find(function (item) { return String(item.id) === String(id); });
+      var mapped = _variantGroupToPublicVariant(group);
+      if (mapped && !variants.some(function (item) { return String(item.id) === String(mapped.id); })) variants.push(mapped);
+    });
+    return variants;
+  }
+
+  function _variantOptionLabel(option) {
+    return option && String(option.label || option.name || option.title || option.text || option.nome || '').trim();
+  }
+
+  function _variantOptionPrice(option) {
+    var raw = option && (option.priceExtra != null ? option.priceExtra : option.extraPrice != null ? option.extraPrice : option.price != null ? option.price : option.valorExtra != null ? option.valorExtra : option.valor != null ? option.valor : 0);
+    var value = parseFloat(String(raw || 0).replace(',', '.'));
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  function _variantOptionImage(option) {
+    var raw = option && (option.img || option.imageUrl || option.imageCardUrl || option.cardImageUrl || option.imageThumbUrl || option.thumbnailUrl || option.thumbUrl || option.photoUrl || option.image || option.url || '');
+    raw = String(raw || '').trim();
+    if (!raw || raw === 'undefined' || raw === 'null' || raw === '#') return '';
+    return raw;
+  }
+
+  function _productVariantOptionsPreviewHtml(group, visible) {
+    var mapped = _variantGroupToPublicVariant(group);
+    var options = Array.isArray(mapped && mapped.options) ? mapped.options : (Array.isArray(group && group.options) ? group.options : []);
+    if (!options.length) {
+      return '<div data-product-variant-preview data-empty="1" style="display:' + (visible ? 'block' : 'none') + ';margin:8px 0 0 23px;font-size:12px;color:#8A7E7C;">Nenhuma opção cadastrada neste grupo.</div>';
+    }
+    return '<div data-product-variant-preview style="display:' + (visible ? 'grid' : 'none') + ';grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin:9px 0 0 23px;gap:7px;">' +
+      options.map(function (option) {
+        var label = _variantOptionLabel(option);
+        if (!label) return '';
+        var price = _variantOptionPrice(option);
+        var priceText = price > 0 ? '+' + UI.fmt(price) : price < 0 ? '-' + UI.fmt(Math.abs(price)) : 'Sem acréscimo';
+        var priceColor = price > 0 ? '#7A2E22' : price < 0 ? '#1F6B45' : '#8A7E7C';
+        var img = _variantOptionImage(option);
+        return '<div style="display:flex;align-items:center;gap:8px;min-height:38px;padding:6px 8px;border-radius:12px;background:#fff;border:1px solid #EAE4DA;color:#1F1F1F;box-shadow:0 1px 2px rgba(31,31,31,.03);">' +
+          (img ? '<img src="' + _esc(img) + '" alt="" style="width:30px;height:30px;border-radius:9px;object-fit:cover;flex-shrink:0;background:#F8F2EF;">' : '') +
+          '<div style="min-width:0;display:flex;flex-direction:column;gap:2px;">' +
+            '<span style="font-size:12px;font-weight:650;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(label) + '</span>' +
+            '<span style="font-size:11px;font-weight:700;line-height:1.15;color:' + priceColor + ';">' + _esc(priceText) + '</span>' +
+          '</div>' +
+        '</div>';
+      }).join('') +
+      '</div>';
+  }
+
+  function _toggleProductVariantPreview(input) {
+    var row = input && input.closest ? input.closest('div') : null;
+    var preview = row ? row.querySelector('[data-product-variant-preview]') : null;
+    if (preview) preview.style.display = input.checked ? (preview.dataset.empty ? 'block' : 'grid') : 'none';
+  }
+
   // Change E: SEO auto-update tracking
   function _seoEdited(field) {
     window._pmSeoEdited = window._pmSeoEdited || {};
@@ -1735,7 +1951,7 @@ Modules.Catalogo = (function () {
     return _products.filter(function (p) {
       p = _normalizeProduct(p);
       var isCurrent = _editingId && String(p.id) === String(_editingId);
-      return !isCurrent && _isSimpleUpsellProduct(p);
+      return !isCurrent && p.active !== false && p.menuVisible !== false;
     }).map(function (p) {
       p = _normalizeProduct(p);
       return { id: String(p.id), name: p.name || 'Produto', price: p.price || 0, img: _imageUrlFor(p, 'thumb') || _imageUrlFor(p, 'card') || _imageUrlFor(p, 'main') };
@@ -1749,6 +1965,13 @@ Modules.Catalogo = (function () {
       var p = _productForId(id) || {};
       var img = _imgForEntity(p);
       var imgHtml = img ? '<img src="' + _esc(img) + '" style="width:34px;height:34px;border-radius:8px;object-fit:cover;background:#F2EDED;flex-shrink:0;" onerror="this.style.display=\'none\';">' : '<div style="width:34px;height:34px;border-radius:8px;background:#F2EDED;display:flex;align-items:center;justify-content:center;color:#B9AAA6;flex-shrink:0;"><span class="mi" style="font-size:17px;">restaurant</span></div>';
+      if (kind === 'pairing') {
+        return '<div data-upsell-selected="' + kind + '" data-id="' + _esc(id) + '" style="display:grid;grid-template-columns:34px 1fr 26px;align-items:center;gap:9px;padding:8px 10px;border:1px solid #F2EDED;border-radius:9px;background:#fff;margin-bottom:6px;">' +
+          imgHtml +
+          '<div style="min-width:0;"><div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(p.name || id) + '</div><div style="font-size:11px;color:#6E6563;margin-top:2px;">Aparece como sugestão no bloco Perfecto con.</div></div>' +
+          '<button type="button" onclick="Modules.Catalogo._removeUpsellProduct(\'' + kind + '\', \'' + _esc(id) + '\')" style="width:26px;height:26px;border-radius:7px;border:none;background:#FFF0EE;color:#B42318;cursor:pointer;font-size:13px;flex-shrink:0;">x</button>' +
+          '</div>';
+      }
       var original = _moneyLike(p.price || 0);
       var disc = Math.max(_moneyLike(discount || 0), 0);
       var finalPrice = Math.max(original - disc, 0);
@@ -1763,7 +1986,7 @@ Modules.Catalogo = (function () {
   function _upsellCandidatesHtml(kind, ids) {
     var selected = {};
     (ids || []).forEach(function (id) { selected[String(id)] = true; });
-    var rows = _upsellProductPool().filter(function (p) { return !selected[p.id]; }).sort(function (a, b) { return String(a.name || '').localeCompare(String(b.name || '')); });
+    var rows = _upsellProductPool().filter(function (p) { return kind === 'addAlso' || !selected[p.id]; }).sort(function (a, b) { return String(a.name || '').localeCompare(String(b.name || '')); });
     if (!rows.length) return '<div style="font-size:12px;color:#8A7E7C;padding:10px;">Nenhum produto disponível.</div>';
     return rows.map(function (p) {
       var imgHtml = p.img ? '<img src="' + _esc(p.img) + '" style="width:30px;height:30px;border-radius:7px;object-fit:cover;background:#F2EDED;flex-shrink:0;" onerror="this.style.display=\'none\';">' : '<span class="mi" style="font-size:17px;color:#B9AAA6;">restaurant</span>';
@@ -1774,14 +1997,15 @@ Modules.Catalogo = (function () {
 
   function _upsellBlockHtml(kind, title, help, ids, discount) {
     var safeDiscount = parseFloat(String(discount || 0).replace(',', '.')) || 0;
+    var isPairing = kind === 'pairing';
     return '<div style="background:#fff;border:1px solid #F2EDED;border-radius:12px;padding:10px;min-width:0;">' +
       '<div style="font-size:13px;font-weight:800;margin-bottom:2px;">' + _esc(title) + '</div>' +
       '<div style="font-size:11px;color:#6F6860;line-height:1.35;margin-bottom:8px;">' + _esc(help) + '</div>' +
-      '<div style="display:grid;grid-template-columns:minmax(0,1fr) 130px;gap:10px;margin-bottom:10px;">' +
+      (isPairing ? '' : '<div style="display:grid;grid-template-columns:minmax(0,1fr) 130px;gap:10px;margin-bottom:10px;">' +
       '<label style="display:block;min-width:0;"><span style="display:block;font-size:10px;font-weight:800;text-transform:uppercase;color:#8A7E7C;margin-bottom:3px;">Texto do bloco</span><input id="pm-upsell-title-' + kind + '" type="text" maxlength="42" value="' + _esc(title) + '" placeholder="Aumentar valor do pedido" style="width:100%;padding:8px;border:1.5px solid #D4C8C6;border-radius:8px;font-size:12px;font-family:inherit;outline:none;"></label>' +
-      '<label style="display:block;min-width:0;"><span style="display:block;font-size:10px;font-weight:800;text-transform:uppercase;color:#8A7E7C;margin-bottom:3px;">Desconto aplicado ao item adicional</span><input id="pm-upsell-discount-' + kind + '" type="number" min="0" step="0.01" value="' + (safeDiscount || '') + '" placeholder="0,00" style="width:100%;padding:8px;border:1.5px solid #D4C8C6;border-radius:8px;font-size:12px;font-family:inherit;outline:none;"></label>' +
-      '</div>' +
-      '<div style="font-size:10px;font-weight:800;color:#8A7E7C;text-transform:uppercase;margin-bottom:4px;">Itens sugeridos</div>' +
+      '<label style="display:block;min-width:0;"><span style="display:block;font-size:10px;font-weight:800;text-transform:uppercase;color:#8A7E7C;margin-bottom:3px;">Desconto</span><input id="pm-upsell-discount-' + kind + '" type="text" inputmode="decimal" value="' + _esc(_moneyDisplay(safeDiscount || '')) + '" placeholder="€0,00" onfocus="Modules.Catalogo._moneyInputFocus(this)" onblur="Modules.Catalogo._moneyInputBlur(this)" style="width:100%;padding:8px;border:1.5px solid #D4C8C6;border-radius:8px;font-size:12px;font-family:inherit;outline:none;text-align:right;"></label>' +
+      '</div>') +
+      '<div style="font-size:10px;font-weight:800;color:#8A7E7C;text-transform:uppercase;margin-bottom:4px;">' + (isPairing ? 'Produto combinado' : 'Itens sugeridos') + '</div>' +
       '<div id="pm-upsell-selected-' + kind + '" style="max-height:170px;overflow:auto;padding:8px;border:1px solid #F2EDED;border-radius:9px;background:#FCFAFA;margin-bottom:8px;">' + _upsellSelectedHtml(kind, ids, safeDiscount) + '</div>' +
       '<input data-upsell-search="' + kind + '" oninput="Modules.Catalogo._filterUpsellProducts(\'' + kind + '\')" placeholder="Buscar produto..." style="width:100%;padding:9px;border:1.5px solid #D4C8C6;border-radius:9px;font-size:12px;font-family:inherit;outline:none;margin-bottom:6px;">' +
       '<div id="pm-upsell-candidates-' + kind + '" style="max-height:150px;overflow:auto;border:1px solid #F2EDED;border-radius:9px;background:#fff;">' + _upsellCandidatesHtml(kind, ids) + '</div>' +
@@ -1800,7 +2024,7 @@ Modules.Catalogo = (function () {
   function _addUpsellProduct(kind, id) {
     var selectedBox = document.getElementById('pm-upsell-selected-' + kind);
     if (!selectedBox) return;
-    if (kind === 'pairing') selectedBox.innerHTML = '';
+    if (kind === 'pairing' || kind === 'addAlso') selectedBox.innerHTML = '';
     if (selectedBox.querySelector('[data-id="' + String(id).replace(/"/g, '\\"') + '"]')) return;
     var empty = selectedBox.querySelector('[data-upsell-empty]');
     if (empty) empty.remove();
@@ -1935,6 +2159,7 @@ Modules.Catalogo = (function () {
     }
     try {
       window._pmImagePreviewUrl = URL.createObjectURL(file);
+      _refreshProductImageField();
       _refreshProductPreview();
     } catch (e) {}
 
@@ -2138,6 +2363,10 @@ Modules.Catalogo = (function () {
         return;
       }
     }
+    var publicVariants = _publicVariantsForProduct(menuChoiceGroups, variantGroupIds);
+    var selectedTags = tags.filter(function (tag) { return tag && tag.text; });
+    var primaryTag = selectedTags[0] || {};
+    var selectedPairing = firstText(base.pairing, base.pairingId, base.pairingProductId, '');
 
     // Change E: SEO
     var seoTitle = (document.getElementById('pm-seo-title') || {}).value || name;
@@ -2146,6 +2375,17 @@ Modules.Catalogo = (function () {
     seoSlug = _uniqueProductSlug(seoSlug, _editingId);
     var seoKw = (document.getElementById('pm-seo-kw') || {}).value || '';
     var seoAlt = (document.getElementById('pm-seo-alt') || {}).value || name;
+    var fiscalBase = _ensureProductFiscal(base);
+    var fiscalIvaRaw = (document.getElementById('pm-fiscal-iva') || {}).value;
+    var fiscalIva = parseFloat(String(fiscalIvaRaw == null ? '' : fiscalIvaRaw).replace(',', '.'));
+    var fiscal = Object.assign({}, fiscalBase, {
+      sku: ((document.getElementById('pm-fiscal-sku') || {}).value || '').trim(),
+      fiscalName: ((document.getElementById('pm-fiscal-name') || {}).value || '').trim(),
+      ivaRate: isFinite(fiscalIva) ? fiscalIva : fiscalBase.ivaRate,
+      ivaIncluded: true,
+      taxCategory: ((document.getElementById('pm-fiscal-tax-category') || {}).value || fiscalBase.taxCategory || 'prepared_food'),
+      unitCode: ((document.getElementById('pm-fiscal-unit-code') || {}).value || fiscalBase.unitCode || 'unit')
+    });
 
     var data = {
       name: name,
@@ -2161,18 +2401,26 @@ Modules.Catalogo = (function () {
       menuVisible: window._pmVisible !== false,
       // Change B
       type: tipo,
+      productType: tipo === 'menu' ? 'combo' : 'simple',
       unicoSource: tipo === 'unico' ? unicoSrc : null,
       fichaId: (tipo === 'unico' && unicoSrc === 'receita') ? ((document.getElementById('pm-ficha-id') || {}).value || '') : '',
       produtoProntoId: (tipo === 'unico' && (unicoSrc === 'produto_pronto' || unicoSrc === 'compras_produto')) ? selectedProntoId : '',
       sourceItemId: (tipo === 'unico' && unicoSrc === 'compras_produto') ? selectedProntoId : '',
       menuItems: tipo === 'menu' ? menuItems : [],
       menuChoiceGroups: tipo === 'menu' ? menuChoiceGroups : [],
-      addAlsoIds: [].slice.call(document.querySelectorAll('[data-upsell-selected="addAlso"]')).map(function (x) { return x.dataset.id; }),
+      addAlsoIds: [].slice.call(document.querySelectorAll('[data-upsell-selected="addAlso"]')).map(function (x) { return x.dataset.id; }).slice(0, 1),
       addAlsoTitle: ((document.getElementById('pm-upsell-title-addAlso') || {}).value || 'Aumentar valor do pedido').trim(),
-      addAlsoDiscount: parseFloat(String(((document.getElementById('pm-upsell-discount-addAlso') || {}).value || '0')).replace(',', '.')) || 0,
-      pairing: null,
+      addAlsoDiscount: _moneyLike(((document.getElementById('pm-upsell-discount-addAlso') || {}).value || '0')) || 0,
+      variants: publicVariants,
+      pairing: selectedPairing || '',
+      pairingId: selectedPairing || '',
+      pairingProductId: selectedPairing || '',
       // Change C
       tags: tags,
+      badgeText: firstText(primaryTag.text, base.badgeText, base.tag, ''),
+      tag: firstText(primaryTag.text, base.tag, base.badgeText, ''),
+      badgeColor: firstText(primaryTag.bgColor, base.badgeColor, ''),
+      badgeTextColor: firstText(primaryTag.textColor, base.badgeTextColor, ''),
       // Change D
       variantGroupIds: variantGroupIds,
       featured: !!(document.getElementById('pm-featured') && document.getElementById('pm-featured').checked),
@@ -2182,7 +2430,8 @@ Modules.Catalogo = (function () {
       seoDescription: seoDesc,
       slug: seoSlug,
       seoKeyword: seoKw,
-      imageAlt: seoAlt
+      imageAlt: seoAlt,
+      fiscal: fiscal
     };
 
     var imgState = window._pmImageState || null;
@@ -2264,20 +2513,35 @@ Modules.Catalogo = (function () {
     var cloneName = 'Cópia de ' + String(source.name || 'Produto');
     var clone = {};
     Object.keys(source).forEach(function (key) {
-      if (key === 'id' || key === 'createdAt' || key === 'updatedAt') return;
       clone[key] = source[key];
     });
+    [
+      'id', '_id', 'createdAt', 'updatedAt', 'createdBy', 'updatedBy',
+      'imageUrl', 'imageMainUrl', 'imageCardUrl', 'cardImageUrl',
+      'imageThumbUrl', 'thumbnailUrl', 'thumbUrl', 'imageBase64',
+      'img', 'photoUrl', 'image', 'imagePath', 'imageStoragePath', 'storagePath',
+      'imageWidth', 'imageHeight', 'imageSizeKb', 'imageFormat',
+      'externalFiscalProductId', 'facturaDirectaProductId'
+    ].forEach(function (key) { delete clone[key]; });
     clone.id = _newEntityId('prod');
     clone.name = cloneName;
     clone.slug = _uniqueProductSlug(cloneName, null);
     clone.order = nextOrder;
     clone.createdAt = now;
     clone.updatedAt = now;
-    clone.menuVisible = source.menuVisible !== false;
-    clone.price = isFinite(parseFloat(source.price)) ? parseFloat(source.price) : 0;
+    clone.menuVisible = false;
+    clone.fiscal = Object.assign({}, _ensureProductFiscal(source), {
+      sku: '',
+      externalFiscalProductId: '',
+      facturaDirectaProductId: ''
+    });
     DB.set('products', clone.id, clone).then(function () {
-      UI.toast('Produto duplicado.', 'success');
-      _renderProdutos();
+      UI.toast('Produto duplicado como rascunho independente.', 'success');
+      _products = (_products || []).filter(function (item) { return String(item && item.id) !== String(clone.id); }).concat([clone]).sort(function (a, b) {
+        return (a.order || 0) - (b.order || 0);
+      });
+      _paintProdutos();
+      _openProductModal(clone.id);
     }).catch(function (err) {
       UI.toast('Erro: ' + err.message, 'error');
     });
@@ -2463,8 +2727,10 @@ Modules.Catalogo = (function () {
       '.tpl-toggle-title{font-size:13px;font-weight:600;color:#1F1F1F;display:block}' +
       '.tpl-toggle-hint{display:block;color:#6F6860;font-size:11px;margin-top:2px;line-height:1.35}' +
       '.tpl-color-field{display:block}' +
-      '.tpl-color-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}' +
-      '.tpl-color-swatch{width:40px;height:40px;border-radius:10px;border:1px solid #EAE4DA;box-shadow:inset 0 0 0 1px rgba(255,255,255,.32);flex:0 0 auto}' +
+      '.tpl-color-row{display:flex;gap:9px;align-items:center;flex-wrap:nowrap}' +
+      '.tpl-color-swatch{position:relative;width:44px;height:42px;border-radius:11px;border:1.5px solid #D4C8C6;box-shadow:inset 0 0 0 2px rgba(255,255,255,.62),0 6px 14px rgba(31,31,31,.06);flex:0 0 44px;overflow:hidden;cursor:pointer}' +
+      '.tpl-color-swatch input{position:absolute;inset:-6px;width:calc(100% + 12px);height:calc(100% + 12px);border:0;padding:0;opacity:0;cursor:pointer}' +
+      '.tpl-color-row input[type="text"]{min-width:0;flex:1}' +
       '.tpl-opacity-field{display:flex;flex-direction:column;gap:8px}' +
       '.tpl-opacity-row{display:flex;gap:10px;align-items:center}' +
       '.tpl-opacity-range{flex:1;accent-color:#B42318}' +
@@ -2501,14 +2767,15 @@ Modules.Catalogo = (function () {
       '.tpl-image-btn.primary{background:#EEF4FF;color:#3B82F6}' +
       '.tpl-image-btn.ghost{background:#fff;border:1px solid #EAE4DA;color:#6F6860}' +
       '.tpl-image-note{font-size:11px;color:#6F6860;line-height:1.35}' +
-      '.tpl-delivery-zone-grid{display:grid;grid-template-columns:minmax(180px,1fr) minmax(260px,1.4fr) minmax(140px,.65fr) minmax(112px,.45fr);gap:12px;align-items:start}' +
+      '.tpl-delivery-zone-grid{display:grid;grid-template-columns:minmax(190px,.85fr) minmax(280px,1.35fr) minmax(140px,.55fr);gap:12px;align-items:start}' +
       '.tpl-delivery-zone-active{align-self:start}' +
       '.tpl-delivery-zone-active .tpl-toggle{padding:10px 11px;background:#fff;align-items:center;min-height:42px}' +
       '.tpl-delivery-zone-active .tpl-toggle-title{font-size:12px;font-weight:600}' +
       '.tpl-delivery-zone-active .tpl-toggle-hint{display:none}' +
       '.tpl-delivery-zone-delete{min-height:0;padding:6px 10px;border-radius:9px;font-size:11px;line-height:1;white-space:nowrap;flex:0 0 auto}' +
-      '.tpl-hours-day{display:flex;flex-direction:column;gap:10px;background:#fff;border:1px solid #EAE4DA;border-radius:12px;padding:12px;box-shadow:0 1px 2px rgba(31,31,31,.03)}' +
-      '.tpl-hours-day-main{display:grid;grid-template-columns:minmax(180px,1.2fr) minmax(140px,.82fr) minmax(128px,.95fr) minmax(128px,.95fr) minmax(150px,.92fr) minmax(260px,1.25fr);gap:10px;align-items:end}' +
+      '.tpl-hours-day{display:flex;flex-direction:column;gap:8px;background:#fff;border:1px solid #EAE4DA;border-radius:12px;padding:12px;box-shadow:0 1px 2px rgba(31,31,31,.03)}' +
+      '.tpl-hours-day-main{display:grid;grid-template-columns:minmax(180px,1.2fr) minmax(140px,.82fr) minmax(128px,.95fr) minmax(128px,.95fr);gap:10px;align-items:end}' +
+      '.tpl-hours-day-main--second{padding-top:8px;border-top:1px solid rgba(234,228,218,.72)}' +
       '.tpl-hours-day-name{font-size:12px;font-weight:800;color:#1A1A1A;line-height:1.25;padding:2px 0 4px;align-self:center}' +
       '.tpl-hours-day-main .tpl-toggle,.tpl-hours-day-secondary-toggle .tpl-toggle,.tpl-hours-day-closed-toggle .tpl-toggle{padding:8px 10px;background:#fff;min-height:46px;align-items:center}' +
       '.tpl-hours-day-main .tpl-toggle-control,.tpl-hours-day-secondary-toggle .tpl-toggle-control,.tpl-hours-day-closed-toggle .tpl-toggle-control{width:38px;height:22px;margin-top:0}' +
@@ -2520,25 +2787,175 @@ Modules.Catalogo = (function () {
       '.tpl-hours-day-closed-toggle{align-self:end}' +
       '.tpl-hours-day-secondary-toggle{align-self:end}' +
       '.tpl-hours-day-secondary-inline{display:grid;grid-template-columns:repeat(2,minmax(120px,1fr));gap:10px;align-items:end;min-width:0}' +
-      '.tpl-hours-day.is-closed .tpl-hours-day-field,.tpl-hours-day.is-closed .tpl-hours-day-secondary-toggle,.tpl-hours-day.is-closed .tpl-hours-day-secondary-inline{display:none !important}' +
+      '.tpl-hours-day.is-closed [data-hours-main-field],.tpl-hours-day.is-second-closed [data-hours-secondary-fields] .tpl-hours-day-field{opacity:.42;pointer-events:none}' +
       '.tpl-hours-day.is-secondary-off .tpl-hours-day-secondary-inline{display:none !important}' +
-      '.tpl-hours-day.is-closed{opacity:.88}' +
+      '.tpl-hours-day.is-closed [data-hours-main-field] input,.tpl-hours-day.is-second-closed [data-hours-secondary-fields] input{background:#F7F2EE;color:#A09692}' +
       '@media (max-width: 980px){.tpl-hours-day-main{grid-template-columns:repeat(2,minmax(0,1fr));}.tpl-hours-day-name,.tpl-hours-day-secondary-toggle,.tpl-hours-day-secondary-inline{grid-column:1 / -1}.tpl-hours-day-secondary-inline{grid-template-columns:repeat(2,minmax(0,1fr));}}' +
       '@media (max-width: 980px){.tpl-delivery-zone-grid{grid-template-columns:1fr 1fr}.tpl-delivery-zone-active{align-self:end}}' +
       '@media (max-width: 640px){.tpl-delivery-zone-grid{grid-template-columns:1fr}.tpl-delivery-zone-delete{padding:7px 10px}}' +
-      '.tpl-payment-methods{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;align-items:start}.tpl-payment-method-card{border:1px solid #EAE4DA;border-radius:12px;background:#fff;padding:12px;display:flex;flex-direction:column;gap:10px;box-shadow:0 1px 2px rgba(31,31,31,.03)}.tpl-payment-method-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.tpl-payment-method-name{font-size:13px;font-weight:600;color:#1F1F1F;line-height:1.25}.tpl-payment-method-status{font-size:10px;font-weight:600;color:#6F6860;margin-top:3px}.tpl-payment-method-note{font-size:11px;line-height:1.35;color:#6F6860;margin-top:6px}' +
+      '.tpl-payment-methods{display:grid;grid-template-columns:repeat(auto-fit,minmax(265px,1fr));gap:12px;align-items:start}.tpl-payment-method-card{border:1px solid #EADFD8;border-radius:16px;background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);padding:13px;display:flex;flex-direction:column;gap:11px;box-shadow:0 10px 24px rgba(85,46,32,.045),inset 0 1px 0 rgba(255,255,255,.78)}.tpl-payment-method-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.tpl-payment-method-name{font-size:13px;font-weight:650;color:#211815;line-height:1.25}.tpl-payment-method-status{font-size:10.5px;font-weight:500;color:#8A7E7C;margin-top:3px}.tpl-payment-method-note{font-size:11px;line-height:1.35;color:#8A7E7C;margin-top:6px}' +
       '@media (max-width: 640px){.tpl-payment-methods{grid-template-columns:1fr}.tpl-payment-method-head{align-items:center}}' +
-      '.tpl-subtabs{display:flex;gap:6px;align-items:center;overflow:auto;padding:4px;background:#fff;border:1px solid #EAE4DA;border-radius:12px;box-shadow:0 1px 2px rgba(31,31,31,.03)}' +
-      '.tpl-subtab{height:34px;padding:0 12px;border:none;border-radius:9px;background:transparent;color:#6F6860;font-family:Manrope,Inter,sans-serif;font-size:12px;font-weight:700;white-space:nowrap;cursor:pointer;transition:background .15s,color .15s,box-shadow .15s}' +
-      '.tpl-subtab:hover{background:#FAF8F4;color:#1F1F1F}' +
-      '.tpl-subtab.active{background:#B42318;color:#fff;box-shadow:0 4px 12px rgba(180,35,24,.18)}' +
+      '.tpl-config-page{gap:16px !important}' +
+      '.tpl-config-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:2px 0 0}' +
+      '.tpl-config-title{font-size:22px;font-weight:760;line-height:1.16;margin:0 0 6px;color:#211815;letter-spacing:-.01em}' +
+      '.tpl-config-subtitle{font-size:13px;color:#756A64;line-height:1.45;margin:0;max-width:720px}' +
+      '.tpl-config-status{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}' +
+      '.tpl-config-chip{display:inline-flex;align-items:center;min-height:24px;padding:0 9px;border-radius:999px;background:rgba(255,255,255,.74);border:1px solid #E9DDD7;color:#6F625C;font-size:11px;font-weight:650;box-shadow:inset 0 1px 0 rgba(255,255,255,.72)}' +
+      '.tpl-config-save{height:39px;padding:0 15px;border:none;border-radius:12px;background:#B42318;color:#fff;font-size:13px;font-weight:650;cursor:pointer;box-shadow:0 8px 18px rgba(180,35,24,.16);font-family:inherit;transition:transform .15s,box-shadow .15s,background .15s}' +
+      '.tpl-config-save:hover{transform:translateY(-1px);box-shadow:0 12px 24px rgba(180,35,24,.20);background:#A61F16}' +
+      '.tpl-subtabs{display:flex;gap:8px;align-items:center;overflow:auto;padding:9px;background:linear-gradient(135deg,#FFFDFC 0%,#FFF7F2 58%,#F8EFE8 100%);border:1px solid #E8DDD5;border-radius:18px;box-shadow:0 10px 26px rgba(85,46,32,.055),inset 0 1px 0 rgba(255,255,255,.72)}' +
+      '.tpl-subtab{height:32px;padding:0 12px;border:1px solid transparent;border-radius:999px;background:rgba(255,255,255,.72);color:#6F6860;font-family:Manrope,Inter,sans-serif;font-size:12px;font-weight:720;white-space:nowrap;cursor:pointer;transition:background .15s,color .15s,box-shadow .15s,border-color .15s,transform .15s}' +
+      '.tpl-subtab:hover{background:#fff;color:#211815;border-color:#E8DDD5;box-shadow:0 5px 14px rgba(85,46,32,.06)}' +
+      '.tpl-subtab.active{background:#B42318;color:#fff;border-color:#B42318;box-shadow:0 8px 18px rgba(180,35,24,.18)}' +
       '[data-template-panel]{display:none}' +
       '[data-template-panel].active{display:block}' +
+      '.tpl-config-panel{background:linear-gradient(145deg,#FFFFFF 0%,#FFFDFB 68%,#FFF8F3 100%) !important;border:1px solid #E8DDD5 !important;border-radius:20px !important;padding:16px 18px !important;box-shadow:0 10px 26px rgba(85,46,32,.052),inset 0 1px 0 rgba(255,255,255,.76) !important}' +
+      '.tpl-config-panel>div:first-child{margin-bottom:14px !important;padding-bottom:12px;border-bottom:1px solid rgba(232,221,213,.82)}' +
+      '.tpl-config-panel h3{font-size:15px !important;font-weight:760 !important;color:#211815 !important;letter-spacing:-.005em}' +
+      '.tpl-config-panel p{font-size:12px !important;color:#82766F !important;line-height:1.42 !important;max-width:780px}' +
+      '.tpl-config-page input:not([type="checkbox"]):not([type="color"]):not([type="range"]),.tpl-config-page textarea,.tpl-config-page select{background:#FFFCF7 !important;border:1px solid #E8DDD5 !important;border-radius:12px !important;box-shadow:inset 0 1px 0 rgba(255,255,255,.78),0 1px 0 rgba(120,70,50,.03) !important;color:#211815 !important}' +
+      '.tpl-config-page input:not([type="checkbox"]):not([type="color"]):not([type="range"]):focus,.tpl-config-page textarea:focus,.tpl-config-page select:focus{border-color:#D7A49C !important;background:#fff !important;box-shadow:0 0 0 3px rgba(180,35,24,.08),inset 0 1px 0 rgba(255,255,255,.78) !important}' +
+      '.tpl-config-page label span[style*="letter-spacing"]{color:#5E534D !important;font-weight:750 !important}' +
+      '.tpl-config-page [style*="padding:14px"][style*="border:1px solid #EAE4DA"]{background:rgba(255,255,255,.66) !important;border-color:#EADFD8 !important;border-radius:15px !important;box-shadow:inset 0 1px 0 rgba(255,255,255,.78) !important}' +
+      '.tpl-config-page [style*="font-size:12px"][style*="font-weight:700"]{font-size:12.5px !important;font-weight:780 !important;color:#2A211E !important}' +
+      '.tpl-config-page [style*="font-size:11px"][style*="color:#6F6860"]{color:#8A7E7C !important;line-height:1.32 !important}' +
+      '.tpl-config-page .tpl-toggle{background:#FFFDFC !important;border-color:#E8DDD5 !important;border-radius:13px !important;padding:10px 11px !important;box-shadow:inset 0 1px 0 rgba(255,255,255,.74) !important;align-items:center !important}' +
+      '.tpl-config-page .tpl-toggle-title{font-size:12.5px !important;font-weight:720 !important;color:#2A211E !important}' +
+      '.tpl-config-page .tpl-toggle-hint{font-size:10.5px !important;color:#9A8E89 !important;margin-top:1px !important}' +
+      '.tpl-config-page .tpl-toggle-control{width:18px !important;height:18px !important;margin-top:0 !important}' +
+      '.tpl-config-page .tpl-toggle-track{background:#fff !important;border:1px solid #DCCBC4 !important;border-radius:5px !important;box-shadow:inset 0 1px 0 rgba(255,255,255,.78) !important}' +
+      '.tpl-config-page .tpl-toggle-track::after{content:"";position:absolute;left:5px;top:2px;width:5px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(42deg);display:none}' +
+      '.tpl-config-page .tpl-toggle.is-checked .tpl-toggle-track,.tpl-config-page .tpl-toggle-control input:checked + .tpl-toggle-track{background:#B42318 !important;border-color:#B42318 !important}' +
+      '.tpl-config-page .tpl-toggle-control input:checked + .tpl-toggle-track::after{display:block}' +
+      '.tpl-config-page .tpl-toggle.is-checked .tpl-toggle-track::after{display:block}' +
+      '.tpl-config-page .tpl-toggle-thumb{display:none !important}' +
+      '.tpl-premium-switch{display:inline-flex;align-items:center;justify-content:space-between;gap:14px;min-width:260px;padding:10px 12px;border:1px solid #E8DDD5;border-radius:16px;background:linear-gradient(135deg,#FFFDFC,#FFF7F2);box-shadow:0 8px 18px rgba(85,46,32,.055),inset 0 1px 0 rgba(255,255,255,.76);cursor:pointer;user-select:none}' +
+      '.tpl-premium-switch input{position:absolute;opacity:0;pointer-events:none}' +
+      '.tpl-premium-switch-copy{display:flex;flex-direction:column;gap:2px;min-width:0}' +
+      '.tpl-premium-switch-title{font-size:12.5px;font-weight:760;color:#211815;line-height:1.2}' +
+      '.tpl-premium-switch-state{font-size:10.5px;font-weight:700;color:#8A7E7C;line-height:1.2}' +
+      '.tpl-premium-switch-control{width:48px;height:28px;border-radius:999px;background:#EEE5DF;border:1px solid #D8C9C0;box-shadow:inset 0 1px 2px rgba(33,27,24,.10);position:relative;flex:0 0 auto;transition:background .18s,border-color .18s,box-shadow .18s}' +
+      '.tpl-premium-switch-control::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 5px 12px rgba(33,27,24,.18);transition:transform .18s}' +
+      '.tpl-premium-switch input:checked ~ .tpl-premium-switch-control{background:#B42318;border-color:#B42318;box-shadow:0 7px 18px rgba(180,35,24,.20),inset 0 1px 0 rgba(255,255,255,.18)}' +
+      '.tpl-premium-switch input:checked ~ .tpl-premium-switch-control::after{transform:translateX(20px)}' +
+      '.tpl-premium-switch input:checked + .tpl-premium-switch-copy .tpl-premium-switch-state::before{content:"Ativada"}' +
+      '.tpl-premium-switch input:not(:checked) + .tpl-premium-switch-copy .tpl-premium-switch-state::before{content:"Desativada"}' +
+      '.tpl-premium-switch--plain{min-width:0;padding:0;border:0;background:transparent;box-shadow:none;border-radius:0}' +
+      '.tpl-config-page .tpl-image-card,.tpl-config-page .tpl-payment-method-card,.tpl-config-page .tpl-hours-day{background:rgba(255,255,255,.68) !important;border-color:#EADFD8 !important;box-shadow:inset 0 1px 0 rgba(255,255,255,.78) !important;border-radius:15px !important}' +
+      '.tpl-config-page .tpl-image-preview{background:#FFFCF8 !important;border-color:#E8DCD7 !important}' +
+      '.tpl-language-wrap{position:relative;display:block}' +
+      '.tpl-language-select{appearance:none;-webkit-appearance:none;-moz-appearance:none;padding-right:42px !important;background:#fff !important}' +
+      '.tpl-language-arrow{position:absolute;right:15px;top:50%;transform:translateY(-50%);font-size:19px;color:#6F6860;line-height:1;pointer-events:none;z-index:2}' +
+      '.tpl-section-heading{display:flex;align-items:flex-start;gap:9px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid rgba(232,221,213,.82)}' +
+      '.tpl-section-heading .mi{font-size:18px;color:#8A7E7C;line-height:1.15;margin-top:1px;opacity:.9}' +
+      '.tpl-section-heading h3{font-size:15px;font-weight:760;margin:0 0 4px;color:#211815;letter-spacing:-.005em}' +
+      '.tpl-section-heading p{font-size:12px;color:#82766F;line-height:1.42;margin:0;max-width:780px}' +
+      '.tpl-mini-title{display:flex;align-items:flex-start;gap:8px;min-width:0}' +
+      '.tpl-mini-title .mi{width:18px;height:18px;color:#8A7E7C;display:inline-flex;align-items:center;justify-content:center;font-size:17px;line-height:1;flex:0 0 auto;margin-top:1px}' +
+      '.tpl-mini-title strong{display:block;font-size:12.5px;font-weight:780;color:#2A211E;line-height:1.2}' +
+      '.tpl-mini-title small{display:block;font-size:11px;color:#8A7E7C;line-height:1.32;margin-top:2px}' +
+      '.tpl-identity-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,.92fr);gap:14px;align-items:start}' +
+      '.tpl-identity-stack{display:flex;flex-direction:column;gap:12px;min-width:0}' +
+      '.tpl-identity-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}' +
+      '.tpl-identity-fields .tpl-field-full{grid-column:1/-1}' +
+      '.tpl-identity-layout{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(300px,.92fr);gap:18px;align-items:start}' +
+      '.tpl-identity-workspace .tpl-identity-layout{display:block}' +
+      '.tpl-identity-main{display:flex;flex-direction:column;gap:13px;min-width:0}' +
+      '.tpl-identity-main-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px 14px;align-items:start}' +
+      '.tpl-identity-main-grid .tpl-field-full{grid-column:1/-1}' +
+      '.tpl-identity-workspace{grid-template-columns:minmax(0,1fr) minmax(300px,.46fr);gap:20px;align-items:start;overflow:visible}' +
+      '.tpl-identity-workspace.active{display:grid !important}' +
+      '.tpl-identity-left{display:flex;flex-direction:column;gap:14px;min-width:0}' +
+      '.tpl-identity-assets{min-width:0;border-left:1px solid rgba(232,221,213,.78);padding-left:18px}' +
+      '.tpl-identity-assets .tpl-image-grid-media{grid-template-columns:minmax(0,1fr) minmax(128px,150px);gap:12px;align-items:start}' +
+      '.tpl-identity-assets .tpl-image-card{padding:12px !important}' +
+      '.tpl-identity-assets .tpl-image-card--logo{border:0 !important;box-shadow:none !important;background:transparent !important}' +
+      '.tpl-identity-assets .tpl-image-card--favicon{border:0 !important;box-shadow:none !important;background:transparent !important}' +
+      '.tpl-identity-assets .tpl-image-preview--logo{min-height:154px !important;height:154px !important}' +
+      '.tpl-identity-assets .tpl-image-preview--favicon{width:76px !important;height:76px !important;min-height:76px !important}' +
+      '.tpl-identity-files .tpl-image-preview{border:0 !important;box-shadow:none !important;background:transparent !important}' +
+      '.tpl-identity-help{display:block;font-size:10.5px;color:#8A7E7C;line-height:1.35;margin-top:5px}' +
+      '.tpl-brand-preview{display:grid;grid-template-columns:58px minmax(0,1fr);gap:12px;align-items:center;padding:13px;border:1px solid #EADFD8;border-radius:16px;background:linear-gradient(145deg,#FFFFFF 0%,#FFFCF8 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.78)}' +
+      '.tpl-brand-preview-logo{width:58px;height:58px;border-radius:16px;border:1px solid #E8DCD7;background:#FFFCF8;display:flex;align-items:center;justify-content:center;overflow:hidden;color:#8A7E7C;flex:0 0 auto}' +
+      '.tpl-brand-preview-logo img{width:100%;height:100%;object-fit:contain;display:block}' +
+      '.tpl-brand-preview-name{font-size:15px;font-weight:800;color:#211815;line-height:1.18;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+      '.tpl-brand-preview-text{font-size:12px;color:#6F6860;line-height:1.35;margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}' +
+      '.tpl-brand-preview-accent{width:48px;height:5px;border-radius:999px;margin-top:9px;background:#B42318}' +
+      '.tpl-identity-files{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(180px,.75fr);gap:12px;align-items:stretch}' +
+      '.tpl-identity-files .tpl-image-card{height:100%;min-height:0;justify-content:flex-start}' +
+      '.tpl-identity-files .tpl-image-card--logo,.tpl-identity-files .tpl-image-card--favicon{padding:12px !important}' +
+      '.tpl-identity-files .tpl-image-card--logo,.tpl-identity-files .tpl-image-card--favicon{border:0 !important;box-shadow:none !important;background:transparent !important}' +
+      '.tpl-identity-files .tpl-image-preview--logo{min-height:136px !important;height:136px !important;padding:12px !important}' +
+      '.tpl-identity-files .tpl-image-card--favicon{align-items:flex-start;justify-content:flex-start}' +
+      '.tpl-identity-files .tpl-image-card--favicon .tpl-image-browser-tab{margin-top:0 !important;width:100%;height:42px;align-self:stretch}' +
+      '.tpl-identity-files .tpl-image-preview--favicon{width:86px !important;height:86px !important;min-height:86px !important;padding:10px !important;align-self:center}' +
+      '.tpl-identity-files .tpl-image-url{display:none !important}' +
+      '.tpl-config-panel[data-template-panel="identidade"]{padding:18px 20px !important}' +
+      '.tpl-identity-left .tpl-config-panel{padding:18px 20px !important}' +
+      '.tpl-config-panel[data-template-panel="identidade"] [style*="padding:14px"][style*="border:1px solid #EAE4DA"]:not(.tpl-image-card){background:transparent !important;border:0 !important;border-radius:0 !important;box-shadow:none !important;padding:0 0 15px !important;border-bottom:1px solid rgba(232,221,213,.78) !important}' +
+      '.tpl-identity-left .tpl-config-panel [style*="padding:14px"][style*="border:1px solid #EAE4DA"]:not(.tpl-image-card){background:transparent !important;border:0 !important;border-radius:0 !important;box-shadow:none !important;padding:0 0 15px !important;border-bottom:1px solid rgba(232,221,213,.78) !important}' +
+      '.tpl-config-panel[data-template-panel="identidade"] [style*="padding:14px"][style*="border:1px solid #EAE4DA"]:not(.tpl-image-card):last-child{border-bottom:0 !important;padding-bottom:0 !important}' +
+      '.tpl-identity-left .tpl-config-panel [style*="padding:14px"][style*="border:1px solid #EAE4DA"]:not(.tpl-image-card):last-child{border-bottom:0 !important;padding-bottom:0 !important}' +
+      '.tpl-config-panel[data-template-panel="identidade"] .tpl-image-card{box-shadow:none !important;background:#FFFCF8 !important}' +
+      '.tpl-identity-left .tpl-config-panel .tpl-image-card{box-shadow:none !important;background:#FFFCF8 !important}' +
+      '.tpl-config-panel[data-template-panel="identidade"] .tpl-toggle{padding:8px 0 !important;background:transparent !important;border:0 !important;border-radius:0 !important;box-shadow:none !important}' +
+      '.tpl-identity-left .tpl-config-panel .tpl-toggle{padding:8px 0 !important;background:transparent !important;border:0 !important;border-radius:0 !important;box-shadow:none !important}' +
+      '.tpl-config-panel[data-template-panel="identidade"] .tpl-toggle + .tpl-toggle{border-top:1px solid rgba(232,221,213,.62) !important}' +
+      '.tpl-identity-left .tpl-config-panel .tpl-toggle + .tpl-toggle{border-top:1px solid rgba(232,221,213,.62) !important}' +
+      '.tpl-maincard-controls .tpl-toggle + .tpl-toggle{border-top:0 !important}' +
+      '.tpl-maincard-layout{display:block}' +
+      '.tpl-maincard-controls{min-width:0}' +
+      '.tpl-maincard-columns{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;align-items:start}' +
+      '.tpl-maincard-column{display:flex;flex-direction:column;gap:10px;min-width:0}' +
+      '.tpl-maincard-column-title{font-size:10.5px;font-weight:800;color:#8A7E7C;text-transform:uppercase;letter-spacing:.05em;margin:0 0 1px}' +
+      '.tpl-maincard-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;align-items:start}' +
+      '.tpl-maincard-row + .tpl-maincard-columns{margin-top:12px}' +
+      '.tpl-maincard-preview-shell{position:relative !important;min-width:0;width:100%;border-left:0;padding-left:20px;align-self:stretch;z-index:8;background:transparent;overflow:visible}' +
+      '.tpl-maincard-preview-label{font-size:10.5px;font-weight:800;color:#8A7E7C;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}' +
+      '.tpl-maincard-preview-phone{position:relative;width:100%;max-height:calc(100vh - 56px);overflow:hidden;border:1px solid #E8DCD7;border-radius:26px;background:#FFFAF3;box-shadow:0 18px 46px rgba(72,48,38,.10);will-change:top,left,width}' +
+      '.tpl-maincard-preview-hero{min-height:256px;padding:14px 14px 0;position:relative;background:linear-gradient(180deg,rgba(28,18,10,.20) 0%,rgba(28,18,10,.03) 54%,rgba(255,250,243,0) 100%),linear-gradient(135deg,#DAC4AF,#F7E8DB);background-position:center 22%;background-size:cover}' +
+      '.tpl-maincard-preview-nav{display:flex;align-items:center;justify-content:space-between;position:relative;z-index:2}' +
+      '.tpl-maincard-preview-nav-left,.tpl-maincard-preview-nav-side{display:flex;align-items:center;gap:9px}' +
+      '.tpl-maincard-preview-pill,.tpl-maincard-preview-circle{background:rgba(255,255,255,.92);box-shadow:0 8px 18px rgba(33,27,24,.14);color:#211B18}' +
+      '.tpl-maincard-preview-pill{height:34px;border-radius:999px;padding:4px 10px 4px 4px;display:inline-flex;align-items:center;gap:7px;font-size:10px;font-weight:760}' +
+      '.tpl-maincard-preview-avatar{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;color:#fff;background:var(--tpl-preview-brand,#B42318);font-size:9px;font-weight:820}' +
+      '.tpl-maincard-preview-avatar svg{width:14px;height:14px;display:block;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}' +
+      '.tpl-maincard-preview-circle{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-size:16px;font-weight:900}' +
+      '.tpl-maincard-preview-card{margin:132px -14px 0;padding:0 16px 0;min-height:156px;background:#FFFAF3;border-radius:32px 32px 0 0;box-shadow:0 -18px 38px rgba(33,27,24,.10);position:relative;z-index:2}' +
+      '.tpl-maincard-preview-head{display:grid;grid-template-columns:88px minmax(0,1fr);gap:12px;align-items:start}' +
+      '.tpl-maincard-preview-logo{width:88px;height:88px;margin-top:-34px;border-radius:50%;background:#fff;border:6px solid #FFFAF3;display:flex;align-items:center;justify-content:center;overflow:hidden;color:#8A7E7C;box-shadow:0 16px 28px rgba(33,27,24,.18)}' +
+      '.tpl-maincard-preview-logo img{width:100%;height:100%;object-fit:cover;display:block}' +
+      '.tpl-maincard-preview-copy{min-width:0;padding-top:14px;padding-bottom:13px;position:relative}' +
+      '.tpl-maincard-preview-copy::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;border-radius:999px;background:linear-gradient(90deg,rgba(33,27,24,.11),rgba(33,27,24,.035),rgba(33,27,24,0));box-shadow:0 8px 16px rgba(33,27,24,.045)}' +
+      '.tpl-maincard-preview-name{margin:0;font-size:24px;font-weight:850;color:#211B18;line-height:.98;letter-spacing:-.035em;word-break:break-word}' +
+      '.tpl-maincard-preview-slogan{margin:5px 0 0;max-width:228px;font-size:12px;font-weight:650;color:#6F665D;line-height:1.35;text-align:left;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}' +
+      '.tpl-maincard-preview-facts{margin-top:8px;display:flex;align-items:center;gap:8px;color:#6C625B;font-size:11px;font-weight:720;white-space:nowrap;overflow:hidden}' +
+      '.tpl-maincard-preview-star{color:#211B18;font-size:11px;line-height:1;margin-right:-4px}' +
+      '.tpl-maincard-preview-facts b{color:#211B18}' +
+      '.tpl-maincard-preview-dot{width:4px;height:4px;border-radius:50%;background:#B7AA9D;flex:0 0 auto}' +
+      '.tpl-maincard-preview-more{margin-top:5px;display:inline-flex;align-items:center;gap:5px;color:#B42318;text-decoration:none;font-size:11px;font-weight:760}' +
+      '.tpl-maincard-preview-chips{display:flex;align-items:center;gap:8px;margin-top:7px;color:#675E55;font-size:10.5px;font-weight:650;white-space:nowrap;overflow:hidden}' +
+      '.tpl-maincard-preview-chip{display:inline-flex;align-items:center;min-width:0;color:inherit;font-size:inherit;font-weight:inherit;white-space:nowrap;letter-spacing:-.01em;background:transparent;padding:0;border-radius:0}' +
+      '.tpl-maincard-preview-chip.open{color:#227554;font-weight:720}.tpl-maincard-preview-chip.closed{color:#9D2525;font-weight:720}' +
+      '.tpl-maincard-preview-chip + .tpl-maincard-preview-chip::before{content:"";width:4px;height:4px;margin-right:8px;border-radius:50%;background:#B7AA9D;flex:0 0 auto}' +
+      '@media(max-width:760px){.tpl-identity-workspace.active{display:block !important}.tpl-identity-left{gap:14px}.tpl-maincard-preview-shell{position:static !important;border-left:0;border-top:0;padding-left:0;padding-top:16px;margin-top:14px}.tpl-maincard-preview-phone{position:relative;top:auto}.tpl-maincard-columns,.tpl-maincard-row{grid-template-columns:1fr}}' +
+      '.tpl-config-panel[data-template-panel="identidade"] .tpl-section-heading{margin-bottom:10px !important}' +
+      '.tpl-identity-left .tpl-config-panel .tpl-section-heading{margin-bottom:10px !important}' +
+      '.tpl-config-panel[data-template-panel="identidade"] [style*="display:flex;flex-direction:column;gap:12px;"]{gap:10px !important}' +
+      '.tpl-identity-left .tpl-config-panel [style*="display:flex;flex-direction:column;gap:12px;"]{gap:10px !important}' +
+      '@media(max-width:760px){.tpl-identity-grid,.tpl-identity-layout{grid-template-columns:1fr}.tpl-identity-fields,.tpl-identity-main-grid{grid-template-columns:1fr}.tpl-identity-assets{border-left:0;border-top:1px solid rgba(232,221,213,.78);padding-left:0;padding-top:16px}.tpl-identity-files{grid-template-columns:1fr}}' +
+      '@media(max-width:760px){.tpl-config-head{align-items:flex-start}.tpl-config-save{width:100%}.tpl-subtabs{padding:8px}.tpl-config-panel{padding:14px !important}}' +
       '.tpl-image-url{width:100%;padding:10px 12px;border:1px solid #EAE4DA;border-radius:10px;font-size:14px;font-family:Manrope,Inter,sans-serif;outline:none;background:#fff;box-sizing:border-box;color:#1F1F1F;box-shadow:inset 0 1px 0 rgba(255,255,255,.78);}';
     document.head.appendChild(style);
   }
-  function _sectionTitle(title, desc) {
-    return '<div style="margin-bottom:14px;"><h3 style="font-size:14px;font-weight:600;margin:0 0 4px;color:#1F1F1F;">' + _esc(title) + '</h3><p style="font-size:13px;color:#6F6860;line-height:1.5;margin:0;">' + _esc(desc || '') + '</p></div>';
+  function _sectionTitle(title, desc, icon) {
+    if (icon) {
+      return '<div class="tpl-section-heading"><span class="mi">' + _esc(icon) + '</span><div><h3>' + _esc(title) + '</h3>' + (desc ? '<p>' + _esc(desc || '') + '</p>' : '') + '</div></div>';
+    }
+    return '<div style="margin-bottom:14px;"><h3 style="font-size:14px;font-weight:600;margin:0' + (desc ? ' 0 4px' : '') + ';color:#1F1F1F;">' + _esc(title) + '</h3>' + (desc ? '<p style="font-size:13px;color:#6F6860;line-height:1.5;margin:0;">' + _esc(desc || '') + '</p>' : '') + '</div>';
+  }
+  function _templateMiniTitle(icon, title, desc) {
+    return '<div class="tpl-mini-title"><span class="mi">' + _esc(icon || 'tune') + '</span><div><strong>' + _esc(title || '') + '</strong>' + (desc ? '<small>' + _esc(desc) + '</small>' : '') + '</div></div>';
   }
 
   function _templateSubtabsHtml(active) {
@@ -2567,20 +2984,97 @@ Modules.Catalogo = (function () {
     [].slice.call(content.querySelectorAll('[data-template-panel]')).forEach(function (panel) {
       panel.classList.toggle('active', panel.getAttribute('data-template-panel') === key);
     });
+    _syncTemplatePreviewColumn();
+  }
+  function _syncTemplatePreviewColumn() {
+    var content = document.getElementById('catalogo-content');
+    if (!content) return;
+    var workspace = content.querySelector('.tpl-identity-workspace.active');
+    var left = workspace && workspace.querySelector('.tpl-identity-left');
+    var shell = workspace && workspace.querySelector('.tpl-maincard-preview-shell');
+    var phone = shell && shell.querySelector('.tpl-maincard-preview-phone');
+    if (!workspace || !left || !shell || !phone) return;
+    if (window.innerWidth <= 760) {
+      shell.style.minHeight = '';
+      phone.style.position = '';
+      phone.style.top = '';
+      phone.style.left = '';
+      phone.style.width = '';
+      return;
+    }
+    var leftHeight = left.scrollHeight || left.offsetHeight || 0;
+    shell.style.minHeight = leftHeight + 'px';
+    phone.style.width = shell.clientWidth + 'px';
+    var shellRect = shell.getBoundingClientRect();
+    var viewportTop = 70;
+    var phoneHeight = phone.offsetHeight || 0;
+    var shellBottom = shellRect.top + leftHeight;
+    if (shellRect.top >= viewportTop) {
+      phone.style.position = 'relative';
+      phone.style.top = '';
+      phone.style.left = '';
+      return;
+    }
+    if (shellBottom - phoneHeight <= viewportTop) {
+      phone.style.position = 'absolute';
+      phone.style.top = Math.max(0, leftHeight - phoneHeight) + 'px';
+      phone.style.left = '20px';
+      return;
+    }
+    phone.style.position = 'fixed';
+    phone.style.top = viewportTop + 'px';
+    phone.style.left = shellRect.left + 'px';
   }
   function _templatePanelAttrs(key) {
-    return 'data-template-panel="' + key + '"' + ((_templateActiveTab || 'identidade') === key ? ' class="active"' : '');
+    return 'data-template-panel="' + key + '" class="tpl-config-panel' + (((_templateActiveTab || 'identidade') === key) ? ' active' : '') + '"';
   }
 
   function _fieldHtml(id, label, value, placeholder, type) {
     return '<label style="display:block;"><span style="' + _labelStyle() + '">' + _esc(label) + '</span><input id="' + id + '" type="' + (type || 'text') + '" value="' + _esc(value == null ? '' : value) + '" placeholder="' + _esc(placeholder || '') + '" style="' + _inputStyle() + '"></label>';
   }
+  function _operationCardStyle(extra) {
+    return 'background:linear-gradient(180deg,#FFFFFF 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:15px;box-shadow:0 12px 30px rgba(31,31,31,.055);display:flex;flex-direction:column;gap:13px;' + (extra || '');
+  }
+  function _operationFieldStyle(extra) {
+    return 'width:100%;min-height:42px;padding:10px 12px;border:1px solid #E8DCD7;border-radius:12px;font-size:14px;font-family:Manrope,Inter,sans-serif;outline:none;background:#FFFCF8;box-sizing:border-box;color:#1F1F1F;box-shadow:inset 0 1px 0 rgba(255,255,255,.82);' + (extra || '');
+  }
+  function _operationCardHead(icon, title, text) {
+    return '<div style="display:flex;align-items:flex-start;min-width:0;">' +
+      '<div style="min-width:0;"><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">' + _esc(title || '') + '</div>' +
+      (text ? '<div style="font-size:12px;font-weight:400;color:#6F6860;line-height:1.42;margin-top:3px;">' + _esc(text) + '</div>' : '') +
+      '</div>' +
+    '</div>';
+  }
+  function _operationFieldHtml(id, label, value, placeholder, type, extraStyle, note, attrs, wrapStyle) {
+    return '<label style="display:block;min-width:0;' + (wrapStyle || '') + '"><span style="' + _labelStyle() + '">' + _esc(label) + '</span><input id="' + id + '" type="' + (type || 'text') + '" value="' + _esc(value == null ? '' : value) + '" placeholder="' + _esc(placeholder || '') + '" ' + (attrs || '') + ' style="' + _operationFieldStyle(extraStyle || '') + '">' + (note ? '<small style="display:block;margin-top:6px;font-size:11px;font-weight:400;line-height:1.35;color:#8A7E7C;">' + _esc(note) + '</small>' : '') + '</label>';
+  }
+  function _operationMoneyFieldHtml(id, label, value, note, wrapStyle) {
+    return '<label style="display:block;min-width:0;' + (wrapStyle || '') + '"><span style="' + _labelStyle() + '">' + _esc(label) + '</span><input id="' + id + '" type="text" inputmode="decimal" value="' + _esc(_moneyDisplay(value || '')) + '" placeholder="€0,00" onfocus="Modules.Catalogo._moneyInputFocus(this)" onblur="Modules.Catalogo._moneyInputBlur(this);Modules.Catalogo._refreshTemplatePreview()" style="' + _operationFieldStyle('text-align:right;') + '">' + (note ? '<small style="display:block;margin-top:6px;font-size:11px;font-weight:400;line-height:1.35;color:#8A7E7C;">' + _esc(note) + '</small>' : '') + '</label>';
+  }
+  function _operationSelectHtml(id, label, value, options, note, wrapStyle) {
+    return '<label style="display:block;min-width:0;' + (wrapStyle || '') + '"><span style="' + _labelStyle() + '">' + _esc(label) + '</span><span style="position:relative;display:block;"><select id="' + id + '" style="' + _operationFieldStyle('appearance:none;-webkit-appearance:none;-moz-appearance:none;padding-right:40px;') + '">' + options.map(function (o) {
+      return '<option value="' + _esc(o.value) + '"' + (String(value || '') === String(o.value) ? ' selected' : '') + '>' + _esc(o.label) + '</option>';
+    }).join('') + '</select><span class="mi" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:19px;color:#8A7E7C;pointer-events:none;">expand_more</span></span>' + (note ? '<small style="display:block;margin-top:6px;font-size:11px;font-weight:400;line-height:1.35;color:#8A7E7C;">' + _esc(note) + '</small>' : '') + '</label>';
+  }
+  function _operationCheckHtml(id, label, checked, hint) {
+    return '<label style="display:flex;gap:9px;align-items:flex-start;padding:2px 0;cursor:pointer;"><input id="' + id + '" type="checkbox"' + (checked ? ' checked' : '') + ' style="width:17px;height:17px;accent-color:#B42318;margin-top:1px;flex:0 0 auto;"><span style="min-width:0;"><strong style="font-size:13px;font-weight:500;color:#1F1F1F;line-height:1.25;">' + _esc(label) + '</strong>' + (hint ? '<small style="display:block;color:#6F6860;font-size:11px;font-weight:400;margin-top:3px;line-height:1.35;">' + _esc(hint) + '</small>' : '') + '</span></label>';
+  }
+  function _operationGrid(html, min) {
+    return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,' + (min || '180px') + '),1fr));gap:12px;align-items:start;">' + html + '</div>';
+  }
   function _colorFieldHtml(id, label, value, previewLabel) {
     var color = _normalizeHexColor(value) || '#B42318';
-    return '<label class="tpl-color-field"><span style="' + _labelStyle() + '">' + _esc(label) + '</span><div class="tpl-color-row"><input id="' + id + '" type="color" value="' + _esc(color) + '" style="width:48px;height:40px;border:1.5px solid #D4C8C6;border-radius:10px;background:#fff;padding:3px;cursor:pointer;"><input id="' + id + '-hex" type="text" value="' + _esc(color) + '" placeholder="#B42318" maxlength="7" style="' + _inputStyle() + 'text-transform:uppercase;"><span id="' + id + '-swatch" title="' + _esc(previewLabel || label) + '" class="tpl-color-swatch" style="background:' + _esc(color) + ';"></span></div></label>';
+    return '<label class="tpl-color-field"><span style="' + _labelStyle() + '">' + _esc(label) + '</span><div class="tpl-color-row"><span class="tpl-color-swatch" data-color-swatch-for="' + _esc(id) + '" style="background:' + _esc(color) + ';"><input id="' + id + '" type="color" value="' + _esc(color) + '" title="' + _esc(previewLabel || label) + '"></span><input id="' + id + '-hex" type="text" value="' + _esc(color) + '" placeholder="#B42318" maxlength="7" style="' + _inputStyle() + 'text-transform:uppercase;"></div></label>';
   }
   function _toggleHtml(id, label, checked, hint) {
-    return '<label class="tpl-toggle"><span class="tpl-toggle-control"><input id="' + id + '" type="checkbox"' + (checked ? ' checked' : '') + '><span class="tpl-toggle-track"></span><span class="tpl-toggle-thumb"></span></span><span><span class="tpl-toggle-title">' + _esc(label) + '</span>' + (hint ? '<span class="tpl-toggle-hint">' + _esc(hint) + '</span>' : '') + '</span></label>';
+    var hoursChange = String(id || '').indexOf('tpl-h-') === 0 ? ' onchange="Modules.Catalogo._onTemplateHoursChange()"' : '';
+    return '<label class="tpl-toggle"><span class="tpl-toggle-control"><input id="' + id + '" type="checkbox"' + (checked ? ' checked' : '') + hoursChange + '><span class="tpl-toggle-track"></span><span class="tpl-toggle-thumb"></span></span><span><span class="tpl-toggle-title">' + _esc(label) + '</span>' + (hint ? '<span class="tpl-toggle-hint">' + _esc(hint) + '</span>' : '') + '</span></label>';
+  }
+  function _premiumSwitchHtml(id, label, checked, hint) {
+    return '<label class="tpl-premium-switch"><input id="' + id + '" type="checkbox"' + (checked ? ' checked' : '') + '><span class="tpl-premium-switch-copy"><span class="tpl-premium-switch-title">' + _esc(label) + '</span><span class="tpl-premium-switch-state"></span>' + (hint ? '<span class="tpl-toggle-hint">' + _esc(hint) + '</span>' : '') + '</span><span class="tpl-premium-switch-control"></span></label>';
+  }
+  function _plainSwitchHtml(id, label, checked, hint) {
+    return '<label class="tpl-premium-switch tpl-premium-switch--plain"><input id="' + id + '" type="checkbox"' + (checked ? ' checked' : '') + '><span class="tpl-premium-switch-copy"><span class="tpl-premium-switch-title">' + _esc(label) + '</span><span class="tpl-premium-switch-state"></span>' + (hint ? '<span class="tpl-toggle-hint">' + _esc(hint) + '</span>' : '') + '</span><span class="tpl-premium-switch-control"></span></label>';
   }
   function _imageConfigHtml(kind, opts) {
     var fileId = opts.fileId;
@@ -2594,6 +3088,9 @@ Modules.Catalogo = (function () {
     var previewClass = opts.previewClass ? ' ' + opts.previewClass : '';
     var fitClass = opts.fit === 'contain' ? ' tpl-image-preview--contain' : '';
     var extraHtml = opts.extraHtml || '';
+    var urlInputType = opts.hideUrl ? 'hidden' : 'text';
+    var urlInputStyle = opts.hideUrl ? 'display:none;' : 'margin-top:2px;';
+    var previewHtml = opts.hidePreview ? '' : '<div class="tpl-image-preview' + previewClass + fitClass + '"><img id="' + previewId + '" src="' + _esc(currentUrl) + '" style="display:' + (currentUrl ? 'block' : 'none') + ';"><span class="tpl-image-overlay" id="' + previewId + '-overlay" style="position:absolute;inset:0;display:' + (currentUrl ? 'block' : 'none') + ';background:rgba(0,0,0,.08);pointer-events:none;"></span><span id="' + placeholderId + '" style="position:absolute;font-size:11px;color:#6F6860;' + (currentUrl ? 'display:none;' : '') + '">' + _esc(placeholder) + '</span></div>';
     return '<div class="tpl-image-card' + cardClass + '">' +
       '<div style="display:flex;flex-direction:column;gap:6px;">' +
         '<span style="' + _labelStyle() + '">' + _esc(opts.label || '') + '</span>' +
@@ -2602,10 +3099,10 @@ Modules.Catalogo = (function () {
           '<button type="button" class="tpl-image-btn ghost" onclick="Modules.Catalogo._clearStoreImage(\'' + kind + '\')">Remover imagem</button>' +
         '</div>' +
         '<input id="' + fileId + '" type="file" accept="' + _esc(accept) + '" onchange="Modules.Catalogo._uploadStoreImage(event,\'' + kind + '\')" style="display:none;">' +
-        '<input id="' + urlId + '" value="' + _esc(currentUrl) + '" placeholder="https://..." class="tpl-image-url" style="margin-top:2px;">' +
+        '<input id="' + urlId + '" type="' + urlInputType + '" value="' + _esc(currentUrl) + '" placeholder="https://..." class="tpl-image-url" style="' + urlInputStyle + '">' +
         '<div class="tpl-image-note">' + _esc(opts.note || '') + '</div>' +
       '</div>' +
-      '<div class="tpl-image-preview' + previewClass + fitClass + '"><img id="' + previewId + '" src="' + _esc(currentUrl) + '" style="display:' + (currentUrl ? 'block' : 'none') + ';"><span class="tpl-image-overlay" id="' + previewId + '-overlay" style="position:absolute;inset:0;display:' + (currentUrl ? 'block' : 'none') + ';background:rgba(0,0,0,.08);pointer-events:none;"></span><span id="' + placeholderId + '" style="position:absolute;font-size:11px;color:#6F6860;' + (currentUrl ? 'display:none;' : '') + '">' + _esc(placeholder) + '</span></div>' +
+      previewHtml +
       extraHtml +
     '</div>';
   }
@@ -2806,11 +3303,14 @@ Modules.Catalogo = (function () {
     return _featuredComboboxHtml({ kind: 'mostOrderedProduct', inputId: 'tpl-most-ordered-product-picker', hiddenId: 'tpl-featured-most-ordered-product', dropdownId: 'tpl-most-ordered-product-dropdown', label: 'Selecionar produto', displayValue: selectedProduct ? _productPickerValue(selectedProduct) : '', hiddenValue: selectedProduct ? String(selectedProduct.id || '') : '', placeholder: 'Digite o nome do produto...' });
   }
   function _isTemplateMarketingActive(item) {
-    if (!item || item.active === false || item.enabled === false) return false;
+    if (!item || item.active === false) return false;
+    if (item.active == null && item.enabled === false) return false;
+    var status = String(item.status || item.state || '').trim().toLowerCase();
+    if (['pausada', 'pausado', 'paused', 'inativa', 'inativo', 'inactive', 'finalizada', 'finalizado', 'expired', 'expirada', 'expirado', 'cancelada', 'cancelado', 'canceled'].indexOf(status) >= 0) return false;
     var today = new Date();
     today.setHours(0, 0, 0, 0);
-    var start = item.startDate || item.startsAt || item.validFrom || '';
-    var end = item.endDate || item.endsAt || item.expiry || item.validUntil || '';
+    var start = item.startDate || item.startsAt || item.validFrom || item.dataInicio || item.inicio || '';
+    var end = item.endDate || item.endsAt || item.expiry || item.validUntil || item.dataFim || item.fim || '';
     if (start) {
       var sd = new Date(start);
       if (!isNaN(sd.getTime()) && sd > today) return false;
@@ -2822,6 +3322,104 @@ Modules.Catalogo = (function () {
     }
     if (item.maxUses && item.usesCount >= item.maxUses) return false;
     return true;
+  }
+  function _templateMarketingId(item) {
+    return String(item && (item.id || item._id || item.promoId || item.promotionId || item.code || item.slug || '') || '').trim();
+  }
+  function _normalizeTemplatePromotionType(type) {
+    var t = String(type || '').trim().toLowerCase();
+    if (t === 'percentual' || t === 'percentage' || t === 'percent' || t === 'desconto_percentual') return 'pct';
+    if (t === 'valor_fixo' || t === 'fixed' || t === 'fixed_amount' || t === 'desconto_valor') return 'eur';
+    if (t === 'b2x1' || t === 'pack' || t === 'leve_2_pague_1') return '2x1';
+    if (t === 'extra_combo' || t === 'upgrade' || t === 'leve_pague' || t === 'leve_mais') return 'add1';
+    if (t === 'gratis_entrega' || t === 'frete_gratis') return 'free_shipping';
+    return t || 'pct';
+  }
+  function _normalizeTemplatePromotion(promo, idx) {
+    if (!promo) return promo;
+    var id = _templateMarketingId(promo) || ('promotion-' + idx);
+    var rawStatus = String(promo.status || promo.state || '').trim().toLowerCase();
+    var active = promo.active;
+    if (active == null && promo.enabled != null) active = promo.enabled;
+    if (typeof active === 'string') active = !['false', '0', 'no', 'nao', 'não', 'inactive', 'inativo', 'inativa'].includes(active.trim().toLowerCase());
+    if (active == null && rawStatus) {
+      active = ['pausada', 'pausado', 'paused', 'inativa', 'inativo', 'inactive', 'finalizada', 'finalizado', 'expired', 'expirada', 'expirado', 'cancelada', 'cancelado', 'canceled'].indexOf(rawStatus) < 0;
+    }
+    if (active == null) active = true;
+    var productIds = [];
+    ['productIds', 'selectedProductIds', 'products', 'items'].forEach(function (key) {
+      if (Array.isArray(promo[key])) {
+        promo[key].forEach(function (item) {
+          productIds.push(typeof item === 'object' ? (item.id || item.productId || item.produtoId || item.ref) : item);
+        });
+      }
+    });
+    if (promo.productId) productIds.push(promo.productId);
+    if (promo.produtoId) productIds.push(promo.produtoId);
+    productIds = productIds.map(String).filter(Boolean).filter(function (value, pos, arr) { return arr.indexOf(value) === pos; });
+    return Object.assign({}, promo, {
+      id: id,
+      name: promo.name || promo.title || promo.nome || promo.label || promo.description || ('Promoção ' + (idx + 1)),
+      type: _normalizeTemplatePromotionType(promo.type || promo.tipo || promo.discountType),
+      active: active !== false,
+      enabled: active !== false,
+      startDate: promo.startDate || promo.startsAt || promo.validFrom || promo.dataInicio || promo.inicio || '',
+      endDate: promo.endDate || promo.endsAt || promo.expiry || promo.validUntil || promo.dataFim || promo.fim || '',
+      applyTo: promo.applyTo || (promo.scope === 'produtos_selecionados' || promo.scope === 'selected_products' || productIds.length ? 'selected' : 'all'),
+      scope: promo.scope || (productIds.length ? 'produtos_selecionados' : 'todos_produtos'),
+      productIds: productIds
+    });
+  }
+  function _deriveTemplatePromotionFromProduct(product, idx) {
+    if (!product || !product.promo || typeof product.promo !== 'object') return null;
+    var promo = _normalizeTemplatePromotion(product.promo, idx);
+    if (!promo) return null;
+    var productId = String(product.id || product.productId || product._id || idx || '');
+    promo.id = _templateMarketingId(promo) || ('product_' + productId);
+    promo.applyTo = promo.applyTo || 'selected';
+    promo.scope = promo.scope || 'produtos_selecionados';
+    promo.productIds = (promo.productIds || []).concat([productId]).map(String).filter(Boolean).filter(function (value, pos, arr) { return arr.indexOf(value) === pos; });
+    promo.productId = promo.productId || productId;
+    promo.productName = promo.productName || product.name || product.title || product.nome || '';
+    promo.active = promo.active !== false;
+    promo.enabled = promo.active;
+    return promo;
+  }
+  function _mergeTemplatePromotions(groups) {
+    var out = [];
+    var seen = {};
+    (groups || []).forEach(function (group) {
+      (group || []).forEach(function (promo) {
+        var normalized = _normalizeTemplatePromotion(promo, out.length);
+        if (!normalized) return;
+        var id = _templateMarketingId(normalized);
+        var key = id || [
+          normalized.name || normalized.title || '',
+          normalized.type || '',
+          normalized.startDate || '',
+          normalized.endDate || '',
+          normalized.valuePercentual != null ? normalized.valuePercentual : '',
+          normalized.valueDesconto != null ? normalized.valueDesconto : ''
+        ].join('|');
+        if (seen[key]) {
+          var existing = seen[key];
+          existing.productIds = (existing.productIds || []).concat(normalized.productIds || []).map(String).filter(Boolean).filter(function (value, pos, arr) { return arr.indexOf(value) === pos; });
+          if (normalized.active !== false) {
+            existing.active = true;
+            existing.enabled = true;
+          }
+          if (!existing.name && normalized.name) existing.name = normalized.name;
+          if (!existing.title && normalized.title) existing.title = normalized.title;
+          if (!existing.description && normalized.description) existing.description = normalized.description;
+          if (!existing.productId && normalized.productId) existing.productId = normalized.productId;
+          if (!existing.productName && normalized.productName) existing.productName = normalized.productName;
+          return;
+        }
+        seen[key] = normalized;
+        out.push(normalized);
+      });
+    });
+    return out;
   }
   function _featuredMarketingOptionsHtml(list, query, selectedId, emptyLabel, labelFn) {
     var q = String(query || '').trim().toLowerCase();
@@ -2893,6 +3491,10 @@ Modules.Catalogo = (function () {
   function _activePromotionOptions() {
     return (_promotions || []).filter(_isTemplateMarketingActive);
   }
+  function _promotionPickerOptions() {
+    var active = _activePromotionOptions();
+    return active.length ? active : (_promotions || []);
+  }
   function _promotionTypeLabel(type) {
     var t = String(type || '').toLowerCase();
     if (t === 'pct') return 'Desconto (%)';
@@ -2913,7 +3515,7 @@ Modules.Catalogo = (function () {
   }
   function _promotionPickerValue(p) {
     var desc = p.description || p.shortDescription || p.text || p.customerMessage || p.benefit || p.benefitText || '';
-    return [p.name || p.title || p.id, _promotionTypeLabel(p.type), _promotionBenefitText(p), desc].filter(Boolean).join(' · ');
+    return [p.name || p.title || _templateMarketingId(p), _promotionTypeLabel(p.type), _promotionBenefitText(p), desc].filter(Boolean).join(' · ');
   }
   function _promotionByPickerText(text) {
     var value = String(text || '').trim().toLowerCase();
@@ -2924,14 +3526,53 @@ Modules.Catalogo = (function () {
         String(p.title || '').toLowerCase() === value;
     }) || null;
   }
+  function _promotionProductOptionItems() {
+    var seen = {};
+    var items = [];
+    _activePromotionOptions().forEach(function (promo) {
+      _activeProductOptions().forEach(function (product) {
+        if (!_promoAppliesToProduct(promo, product)) return;
+        var id = String(product.id || '');
+        if (!id || seen[id]) return;
+        seen[id] = true;
+        items.push({
+          product: product,
+          promotion: promo,
+          label: _productPickerValue(product),
+          sub: 'Vinculado a ' + _promotionLabel(promo)
+        });
+      });
+    });
+    return items.sort(function (a, b) {
+      return String(a.label || '').localeCompare(String(b.label || ''), undefined, { sensitivity: 'base' });
+    });
+  }
+  function _mobilePromoProductPickerHtml(selectedId) {
+    var selected = String(selectedId || '').trim();
+    var items = _promotionProductOptionItems();
+    var selectedItem = items.find(function (item) { return String(item.product && item.product.id || '') === selected; });
+    if (!items.length) {
+      return _featuredComboboxHtml({ kind: 'mobilePromoProduct', inputId: 'tpl-mobile-promo-banner-product-picker', hiddenId: 'tpl-mobile-promo-banner-product', dropdownId: 'tpl-mobile-promo-banner-product-dropdown', label: 'Produto da promoção', placeholder: 'Nenhum produto vinculado a promoção', disabled: true });
+    }
+    return _featuredComboboxHtml({
+      kind: 'mobilePromoProduct',
+      inputId: 'tpl-mobile-promo-banner-product-picker',
+      hiddenId: 'tpl-mobile-promo-banner-product',
+      dropdownId: 'tpl-mobile-promo-banner-product-dropdown',
+      label: 'Produto da promoção',
+      displayValue: selectedItem ? selectedItem.label : '',
+      hiddenValue: selectedItem ? String(selectedItem.product.id || '') : '',
+      placeholder: 'Buscar produto vinculado a promoção...'
+    });
+  }
   function _promotionPickerHtml(selectedId) {
     var selected = String(selectedId || '').trim();
-    var promotions = _activePromotionOptions();
-    var selectedPromotion = promotions.find(function (p) { return String(p.id || '') === selected; });
+    var promotions = _promotionPickerOptions();
+    var selectedPromotion = promotions.find(function (p) { return _templateMarketingId(p) === selected; });
     if (!promotions.length) {
       return _featuredComboboxHtml({ kind: 'promotion', inputId: 'tpl-featured-promotion-picker', hiddenId: 'tpl-featured-promotion', dropdownId: 'tpl-featured-promotion-dropdown', label: 'Selecionar promoção ativa', placeholder: 'Nenhuma promoção ativa disponível', disabled: true });
     }
-    return _featuredComboboxHtml({ kind: 'promotion', inputId: 'tpl-featured-promotion-picker', hiddenId: 'tpl-featured-promotion', dropdownId: 'tpl-featured-promotion-dropdown', label: 'Selecionar promoção ativa', displayValue: selectedPromotion ? _promotionPickerValue(selectedPromotion) : '', hiddenValue: selectedPromotion ? String(selectedPromotion.id || '') : '', placeholder: 'Digite nome, tipo, descrição ou benefício...' });
+    return _featuredComboboxHtml({ kind: 'promotion', inputId: 'tpl-featured-promotion-picker', hiddenId: 'tpl-featured-promotion', dropdownId: 'tpl-featured-promotion-dropdown', label: 'Selecionar promoção ativa', displayValue: selectedPromotion ? _promotionPickerValue(selectedPromotion) : '', hiddenValue: selectedPromotion ? _templateMarketingId(selectedPromotion) : '', placeholder: 'Digite nome, tipo, descrição ou benefício...' });
   }
   function _templateLanguage() {
     return _normalizeTemplateLanguage(_val('tpl-language') || (((_storeConfig.geral || {}).language) || ((_storeConfig.template || {}).language) || 'es-ES'));
@@ -2943,11 +3584,11 @@ Modules.Catalogo = (function () {
   }
   function _templateLanguageOptions() {
     return [
-      { value: 'pt-BR', label: 'Português Brasil — pt-BR' },
-      { value: 'pt-PT', label: 'Português Portugal — pt-PT' },
-      { value: 'es-ES', label: 'Español — es-ES' },
-      { value: 'en', label: 'English — en' },
-      { value: 'fr', label: 'Français — fr' }
+      { value: 'pt-BR', label: 'Português Brasil' },
+      { value: 'pt-PT', label: 'Português Portugal' },
+      { value: 'es-ES', label: 'Español' },
+      { value: 'en', label: 'English' },
+      { value: 'fr', label: 'Français' }
     ];
   }
   function _featuredButtonSuggestion(type, lang) {
@@ -3034,10 +3675,10 @@ Modules.Catalogo = (function () {
     return '<div class="tpl-payment-methods">' + methods.map(function (m, idx) {
       return '<div class="tpl-payment-method-card" data-tpl-payment-method="1" data-payment-key="' + _esc(m.key) + '" data-payment-name="' + _esc(m.name) + '" data-payment-finance-active="' + (m.financeActive ? '1' : '0') + '" data-payment-tipo="' + _esc(m.tipo || '') + '" data-payment-tipo-global-slug="' + _esc(m.tipoGlobalSlug || '') + '" data-payment-tipo-global-nome="' + _esc(m.tipoGlobalNome || '') + '">' +
         '<div class="tpl-payment-method-head">' +
-          '<div style="display:flex;align-items:flex-start;gap:10px;min-width:0;"><div style="width:36px;height:36px;border-radius:12px;background:#FAF8F4;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;flex:0 0 auto;"><span class="mi" style="font-size:19px;">account_balance_wallet</span></div><div style="min-width:0;"><div class="tpl-payment-method-name">' + _esc(m.name) + '</div><div class="tpl-payment-method-status">' + (m.financeActive ? 'Cadastrada no Financeiro' : 'Inativa no Financeiro') + '</div></div></div>' +
+          '<div style="min-width:0;"><div class="tpl-payment-method-name">' + _esc(m.name) + '</div><div class="tpl-payment-method-status">' + (m.financeActive ? 'Cadastrada no Financeiro' : 'Inativa no Financeiro') + '</div></div>' +
           _toggleHtml('tpl-pay-method-active-' + idx, 'Disponível na loja', m.active, '') +
         '</div>' +
-        '<label style="display:block;"><span style="' + _labelStyle() + '">Instruções adicionais</span><textarea id="tpl-pay-method-instructions-' + idx + '" rows="3" placeholder="Ex: informe a chave Pix, IBAN, telefone do MB Way ou instruções para pagamento na retirada." style="' + _inputStyle() + 'min-height:78px;resize:vertical;">' + _esc(m.instructions || '') + '</textarea><small class="tpl-payment-method-note">Opcional. Aparece para o cliente ao escolher esta forma de pagamento.</small></label>' +
+        '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Instruções adicionais</span><textarea id="tpl-pay-method-instructions-' + idx + '" rows="3" placeholder="Ex: informe dados para pagamento na retirada ou entrega." style="' + _operationFieldStyle('min-height:78px;resize:vertical;') + '">' + _esc(m.instructions || '') + '</textarea><small class="tpl-payment-method-note">Aparece para o cliente quando essa forma de pagamento for escolhida.</small></label>' +
       '</div>';
     }).join('') + '</div>';
   }
@@ -3063,6 +3704,13 @@ Modules.Catalogo = (function () {
   }
   function _val(id) { return ((document.getElementById(id) || {}).value || '').trim(); }
   function _checked(id) { return !!((document.getElementById(id) || {}).checked); }
+  function _boolValue(value) {
+    if (value === true || value === false) return value;
+    var normalized = String(value == null ? '' : value).trim().toLowerCase();
+    if (['true', '1', 'yes', 'sim', 'on'].indexOf(normalized) >= 0) return true;
+    if (['false', '0', 'no', 'nao', 'não', 'off'].indexOf(normalized) >= 0) return false;
+    return null;
+  }
   function _numVal(id) { return _moneyLike(_val(id)); }
   function _isPublicUrl(value) {
     var v = String(value || '').trim();
@@ -3134,7 +3782,7 @@ Modules.Catalogo = (function () {
     return { code: code || 'ES', cfg: cfg || {}, country: (cfg && cfg.label) || (code === 'PT' ? 'Portugal' : 'Espanha') };
   }
   function _loadStoreConfig() {
-    var keys = ['geral', 'aparencia', 'template', 'pagamentos', 'endereco', 'horarios', 'zonas', 'seo', 'seoTechnical', 'dominio', 'financeiro'];
+    var keys = ['geral', 'aparencia', 'template', 'pagamentos', 'endereco', 'horarios', 'zonas', 'seo', 'seoTechnical', 'dominio', 'financeiro', 'pontos_program', 'integracoes'];
     return Promise.all(keys.map(function (k) { return DB.getDocRoot('config', k).catch(function () { return {}; }); })).then(function (docs) {
       _storeConfig = {};
       keys.forEach(function (k, i) { _storeConfig[k] = docs[i] || {}; });
@@ -3202,32 +3850,131 @@ Modules.Catalogo = (function () {
     window._catalogStoreImageState = window._catalogStoreImageState || {};
     return window._catalogStoreImageState;
   }
+  function _setImageElementsById(id, url) {
+    if (!id) return;
+    [].slice.call(document.querySelectorAll('#' + id)).forEach(function (img) {
+      if (!img) return;
+      img.src = url || '';
+      img.style.display = url ? 'block' : 'none';
+    });
+  }
+  function _setPlaceholderElementsById(id, visible) {
+    if (!id) return;
+    [].slice.call(document.querySelectorAll('#' + id)).forEach(function (el) {
+      if (el) el.style.display = visible ? 'block' : 'none';
+    });
+  }
+  function _syncTemplateImageDom(target, url) {
+    url = _cleanPublicUrl(url || '');
+    var previewMap = {
+      logo: 'tpl-preview-logo',
+      favicon: 'tpl-preview-favicon',
+      share: 'seo-preview-share-img',
+      featured: 'tpl-preview-featured-image',
+      promoMobile: 'tpl-preview-mobile-promo-banner',
+      promoDesktop: 'tpl-preview-desktop-promo-banner',
+      bannerMobile: 'tpl-preview-banner-mobile',
+      banner: 'tpl-preview-banner',
+      bannerDesktop: 'tpl-preview-banner-desktop'
+    };
+    var placeholderMap = {
+      logo: 'tpl-preview-logo-placeholder',
+      favicon: 'tpl-preview-favicon-placeholder',
+      featured: 'tpl-preview-featured-image-placeholder',
+      promoMobile: 'tpl-preview-mobile-promo-banner-placeholder',
+      promoDesktop: 'tpl-preview-desktop-promo-banner-placeholder',
+      bannerMobile: 'tpl-preview-banner-mobile-placeholder',
+      banner: 'tpl-preview-banner-desktop-placeholder',
+      bannerDesktop: 'tpl-preview-banner-desktop-placeholder'
+    };
+    var previewId = previewMap[target] || previewMap.banner;
+    var placeholderId = placeholderMap[target] || placeholderMap.banner;
+    _setImageElementsById(previewId, url);
+    _setPlaceholderElementsById(placeholderId, !url);
+    var overlay = document.getElementById(previewId + '-overlay');
+    if (overlay) overlay.style.display = url ? 'block' : 'none';
+    if (target === 'favicon') {
+      var tabIcon = document.getElementById('tpl-preview-favicon-tab-icon');
+      if (tabIcon) { tabIcon.src = url || ''; tabIcon.style.display = url ? 'block' : 'none'; }
+    }
+    if (target === 'logo') {
+      [].slice.call(document.querySelectorAll('.tpl-brand-preview-logo,.tpl-maincard-preview-logo')).forEach(function (el) {
+        el.innerHTML = url ? '<img src="' + _esc(url) + '" alt="">' : '<span class="mi" style="font-size:25px;">storefront</span>';
+      });
+    }
+  }
+  function _imagePersistencePatch(target, url, result) {
+    url = _cleanPublicUrl(url || '');
+    result = result || {};
+    if (target === 'logo') {
+      return {
+        template: { logoUrl: url, logoStoragePath: url ? (result.imageStoragePath || '') : '', logoImagePath: url ? (result.imagePath || result.imageStoragePath || '') : '', logoWidth: url ? (result.imageWidth || 0) : 0, logoHeight: url ? (result.imageHeight || 0) : 0, logoSizeKb: url ? (result.imageSizeKb || 0) : 0, logoFormat: url ? (result.imageFormat || 'webp') : '' },
+        shared: { logoUrl: url }
+      };
+    }
+    if (target === 'favicon') {
+      return {
+        template: { faviconUrl: url, faviconStoragePath: url ? (result.imageStoragePath || '') : '', faviconImagePath: url ? (result.imagePath || result.imageStoragePath || '') : '', faviconWidth: url ? (result.imageWidth || 0) : 0, faviconHeight: url ? (result.imageHeight || 0) : 0, faviconSizeKb: url ? (result.imageSizeKb || 0) : 0, faviconFormat: url ? (result.imageFormat || 'webp') : '' },
+        shared: { faviconUrl: url }
+      };
+    }
+    if (target === 'featured') {
+      return {
+        template: { featuredActionImageUrl: url, featuredImageUrl: url, featuredActionImageStoragePath: url ? (result.imageStoragePath || '') : '', featuredActionImagePath: url ? (result.imagePath || result.imageStoragePath || '') : '', featuredActionImageWidth: url ? (result.imageWidth || 0) : 0, featuredActionImageHeight: url ? (result.imageHeight || 0) : 0, featuredActionImageSizeKb: url ? (result.imageSizeKb || 0) : 0, featuredActionImageFormat: url ? (result.imageFormat || 'webp') : '' },
+        shared: { featuredActionImageUrl: url, featuredImageUrl: url }
+      };
+    }
+    if (target === 'promoMobile') {
+      return {
+        template: { mobilePromoBannerImageUrl: url, promoBannerImageUrl: url, promotionalBannerImageUrl: url, mobilePromoBannerStoragePath: url ? (result.imageStoragePath || '') : '', promoBannerImageStoragePath: url ? (result.imageStoragePath || '') : '', promoBannerImagePath: url ? (result.imagePath || result.imageStoragePath || '') : '', mobilePromoBannerWidth: url ? (result.imageWidth || 0) : 0, mobilePromoBannerHeight: url ? (result.imageHeight || 0) : 0, mobilePromoBannerSizeKb: url ? (result.imageSizeKb || 0) : 0, mobilePromoBannerFormat: url ? (result.imageFormat || 'webp') : '' },
+        shared: { mobilePromoBannerImageUrl: url, promoBannerImageUrl: url }
+      };
+    }
+    if (target === 'promoDesktop') {
+      return {
+        template: { desktopPromoBannerImageUrl: url, promoBannerDesktopImageUrl: url, desktopPromoBannerStoragePath: url ? (result.imageStoragePath || '') : '', promoBannerDesktopStoragePath: url ? (result.imageStoragePath || '') : '', desktopPromoBannerImagePath: url ? (result.imagePath || result.imageStoragePath || '') : '', desktopPromoBannerWidth: url ? (result.imageWidth || 0) : 0, desktopPromoBannerHeight: url ? (result.imageHeight || 0) : 0, desktopPromoBannerSizeKb: url ? (result.imageSizeKb || 0) : 0, desktopPromoBannerFormat: url ? (result.imageFormat || 'webp') : '' },
+        shared: { desktopPromoBannerImageUrl: url, promoBannerDesktopImageUrl: url }
+      };
+    }
+    if (target === 'bannerMobile') {
+      return {
+        template: { coverImageMobileUrl: url, mobileCoverImageUrl: url, bannerMobileUrl: url, bannerMobileStoragePath: url ? (result.imageStoragePath || '') : '', coverImageMobileStoragePath: url ? (result.imageStoragePath || '') : '', bannerMobileImagePath: url ? (result.imagePath || result.imageStoragePath || '') : '', bannerMobileWidth: url ? (result.imageWidth || 0) : 0, bannerMobileHeight: url ? (result.imageHeight || 0) : 0, bannerMobileSizeKb: url ? (result.imageSizeKb || 0) : 0, bannerMobileFormat: url ? (result.imageFormat || 'webp') : '' },
+        shared: { coverImageMobileUrl: url, mobileCoverImageUrl: url, bannerMobileUrl: url }
+      };
+    }
+    return {
+      template: { coverImageUrl: url, bannerUrl: url, bannerStoragePath: url ? (result.imageStoragePath || '') : '', coverImageStoragePath: url ? (result.imageStoragePath || '') : '', bannerImagePath: url ? (result.imagePath || result.imageStoragePath || '') : '', bannerWidth: url ? (result.imageWidth || 0) : 0, bannerHeight: url ? (result.imageHeight || 0) : 0, bannerSizeKb: url ? (result.imageSizeKb || 0) : 0, bannerFormat: url ? (result.imageFormat || 'webp') : '' },
+      shared: { coverImageUrl: url, bannerUrl: url }
+    };
+  }
   function _uploadStoreImage(event, kind) {
     var file = event && event.target && event.target.files ? event.target.files[0] : null;
     if (!file || !window.ImageTools) return;
-    var target = kind === 'banner' || kind === 'bannerDesktop' || kind === 'bannerMobile' || kind === 'promoMobile' || kind === 'share' || kind === 'favicon' ? kind : 'logo';
+    var target = kind === 'banner' || kind === 'bannerDesktop' || kind === 'bannerMobile' || kind === 'promoMobile' || kind === 'promoDesktop' || kind === 'featured' || kind === 'share' || kind === 'favicon' ? kind : 'logo';
     var imageKind = target === 'logo' || target === 'favicon' ? 'logo' : 'banner';
-    var storageFolder = target === 'logo' || target === 'favicon' ? 'logos' : (target === 'promoMobile' || target === 'share' ? 'featured' : 'banners');
-    ImageTools.process(file, { kind: target === 'promoMobile' || target === 'share' ? 'featured' : imageKind, folder: storageFolder, entityId: 'catalogo-' + target }).then(function (result) {
+    var storageFolder = target === 'logo' || target === 'favicon' ? 'logos' : (target === 'promoMobile' || target === 'promoDesktop' || target === 'featured' || target === 'share' ? 'featured' : 'banners');
+    ImageTools.process(file, { kind: target === 'promoMobile' || target === 'promoDesktop' || target === 'featured' || target === 'share' ? 'featured' : imageKind, folder: storageFolder, entityId: 'catalogo-' + target }).then(function (result) {
       _imageUploadState()[target] = result;
-      var fieldId = target === 'logo'
-        ? 'tpl-logo-url'
-        : (target === 'favicon'
-          ? 'tpl-favicon-url'
-          : (target === 'share'
-          ? 'seo-og-image'
-          : (target === 'promoMobile'
-          ? 'tpl-mobile-promo-banner-url'
-          : (target === 'bannerMobile' ? 'tpl-banner-mobile-url' : 'tpl-banner-url'))));
-      var previewId = target === 'logo'
-        ? 'tpl-preview-logo'
-        : (target === 'favicon'
-          ? 'tpl-preview-favicon'
-          : (target === 'share'
-          ? 'seo-preview-share-img'
-          : (target === 'promoMobile'
-          ? 'tpl-preview-mobile-promo-banner'
-          : (target === 'bannerMobile' ? 'tpl-preview-banner-mobile' : 'tpl-preview-banner'))));
+      var fieldMap = {
+        logo: 'tpl-logo-url',
+        favicon: 'tpl-favicon-url',
+        share: 'seo-og-image',
+        featured: 'tpl-featured-image-url',
+        promoMobile: 'tpl-mobile-promo-banner-url',
+        promoDesktop: 'tpl-desktop-promo-banner-url',
+        bannerMobile: 'tpl-banner-mobile-url'
+      };
+      var previewMap = {
+        logo: 'tpl-preview-logo',
+        favicon: 'tpl-preview-favicon',
+        share: 'seo-preview-share-img',
+        featured: 'tpl-preview-featured-image',
+        promoMobile: 'tpl-preview-mobile-promo-banner',
+        promoDesktop: 'tpl-preview-desktop-promo-banner',
+        bannerMobile: 'tpl-preview-banner-mobile'
+      };
+      var fieldId = fieldMap[target] || 'tpl-banner-url';
+      var previewId = previewMap[target] || 'tpl-preview-banner';
       var field = document.getElementById(fieldId);
       var preview = document.getElementById(previewId);
       var tabIcon = target === 'favicon' ? document.getElementById('tpl-preview-favicon-tab-icon') : null;
@@ -3235,26 +3982,15 @@ Modules.Catalogo = (function () {
       if (preview) preview.src = result.imageUrl || '';
       if (tabIcon) { tabIcon.src = result.imageUrl || ''; tabIcon.style.display = result.imageUrl ? 'block' : 'none'; }
       var publicUrl = _cleanPublicUrl(result.imageUrl || '');
+      _syncTemplateImageDom(target, publicUrl);
       var persist = Promise.resolve();
       if (publicUrl && target !== 'share') {
-        var patchTemplate = target === 'logo'
-          ? { logoUrl: publicUrl, logoStoragePath: result.imageStoragePath || '', logoImagePath: result.imagePath || result.imageStoragePath || '', logoWidth: result.imageWidth || 0, logoHeight: result.imageHeight || 0, logoSizeKb: result.imageSizeKb || 0, logoFormat: result.imageFormat || 'webp' }
-          : target === 'favicon'
-            ? { faviconUrl: publicUrl, faviconStoragePath: result.imageStoragePath || '', faviconImagePath: result.imagePath || result.imageStoragePath || '', faviconWidth: result.imageWidth || 0, faviconHeight: result.imageHeight || 0, faviconSizeKb: result.imageSizeKb || 0, faviconFormat: result.imageFormat || 'webp' }
-          : target === 'promoMobile'
-            ? { mobilePromoBannerImageUrl: publicUrl, promoBannerImageUrl: publicUrl, promotionalBannerImageUrl: publicUrl, mobilePromoBannerStoragePath: result.imageStoragePath || '', promoBannerImageStoragePath: result.imageStoragePath || '', promoBannerImagePath: result.imagePath || result.imageStoragePath || '', mobilePromoBannerWidth: result.imageWidth || 0, mobilePromoBannerHeight: result.imageHeight || 0, mobilePromoBannerSizeKb: result.imageSizeKb || 0, mobilePromoBannerFormat: result.imageFormat || 'webp' }
-          : target === 'bannerMobile'
-            ? { coverImageMobileUrl: publicUrl, mobileCoverImageUrl: publicUrl, bannerMobileUrl: publicUrl, bannerMobileStoragePath: result.imageStoragePath || '', coverImageMobileStoragePath: result.imageStoragePath || '', bannerMobileImagePath: result.imagePath || result.imageStoragePath || '', bannerMobileWidth: result.imageWidth || 0, bannerMobileHeight: result.imageHeight || 0, bannerMobileSizeKb: result.imageSizeKb || 0, bannerMobileFormat: result.imageFormat || 'webp' }
-            : { coverImageUrl: publicUrl, bannerUrl: publicUrl, bannerStoragePath: result.imageStoragePath || '', coverImageStoragePath: result.imageStoragePath || '', bannerImagePath: result.imagePath || result.imageStoragePath || '', bannerWidth: result.imageWidth || 0, bannerHeight: result.imageHeight || 0, bannerSizeKb: result.imageSizeKb || 0, bannerFormat: result.imageFormat || 'webp' };
-        var patchShared = target === 'logo'
-          ? { logoUrl: publicUrl }
-          : target === 'favicon'
-            ? { faviconUrl: publicUrl }
-          : target === 'promoMobile'
-            ? { mobilePromoBannerImageUrl: publicUrl, promoBannerImageUrl: publicUrl }
-          : target === 'bannerMobile'
-            ? { coverImageMobileUrl: publicUrl, mobileCoverImageUrl: publicUrl, bannerMobileUrl: publicUrl }
-            : { coverImageUrl: publicUrl, bannerUrl: publicUrl };
+        var patches = _imagePersistencePatch(target, publicUrl, result);
+        var patchTemplate = patches.template;
+        var patchShared = patches.shared;
+        _storeConfig.template = Object.assign({}, _storeConfig.template || {}, patchTemplate);
+        _storeConfig.geral = Object.assign({}, _storeConfig.geral || {}, patchShared);
+        _storeConfig.aparencia = Object.assign({}, _storeConfig.aparencia || {}, patchShared);
         persist = Promise.all([
           DB.setDocRoot('config', 'template', patchTemplate),
           DB.setDocRoot('config', 'geral', patchShared),
@@ -3278,10 +4014,10 @@ Modules.Catalogo = (function () {
     });
   }
   function _clearStoreImage(kind) {
-    var target = kind === 'promoMobile' ? 'promoMobile' : (kind === 'bannerMobile' ? 'bannerMobile' : (kind === 'bannerDesktop' ? 'bannerDesktop' : (kind === 'banner' ? 'banner' : (kind === 'favicon' ? 'favicon' : 'logo'))));
-    var fieldId = target === 'logo' ? 'tpl-logo-url' : (target === 'favicon' ? 'tpl-favicon-url' : (target === 'promoMobile' ? 'tpl-mobile-promo-banner-url' : (target === 'bannerMobile' ? 'tpl-banner-mobile-url' : 'tpl-banner-url')));
-    var previewId = target === 'logo' ? 'tpl-preview-logo' : (target === 'favicon' ? 'tpl-preview-favicon' : (target === 'promoMobile' ? 'tpl-preview-mobile-promo-banner' : (target === 'bannerMobile' ? 'tpl-preview-banner-mobile' : 'tpl-preview-banner-desktop')));
-    var placeholderId = target === 'logo' ? 'tpl-preview-logo-placeholder' : (target === 'favicon' ? 'tpl-preview-favicon-placeholder' : (target === 'promoMobile' ? 'tpl-preview-mobile-promo-banner-placeholder' : (target === 'bannerMobile' ? 'tpl-preview-banner-mobile-placeholder' : 'tpl-preview-banner-desktop-placeholder')));
+    var target = kind === 'share' ? 'share' : (kind === 'featured' ? 'featured' : (kind === 'promoMobile' ? 'promoMobile' : (kind === 'promoDesktop' ? 'promoDesktop' : (kind === 'bannerMobile' ? 'bannerMobile' : (kind === 'bannerDesktop' ? 'bannerDesktop' : (kind === 'banner' ? 'banner' : (kind === 'favicon' ? 'favicon' : 'logo')))))));
+    var fieldId = target === 'share' ? 'seo-og-image' : (target === 'logo' ? 'tpl-logo-url' : (target === 'favicon' ? 'tpl-favicon-url' : (target === 'featured' ? 'tpl-featured-image-url' : (target === 'promoMobile' ? 'tpl-mobile-promo-banner-url' : (target === 'promoDesktop' ? 'tpl-desktop-promo-banner-url' : (target === 'bannerMobile' ? 'tpl-banner-mobile-url' : 'tpl-banner-url'))))));
+    var previewId = target === 'share' ? 'seo-preview-share-img' : (target === 'logo' ? 'tpl-preview-logo' : (target === 'favicon' ? 'tpl-preview-favicon' : (target === 'featured' ? 'tpl-preview-featured-image' : (target === 'promoMobile' ? 'tpl-preview-mobile-promo-banner' : (target === 'promoDesktop' ? 'tpl-preview-desktop-promo-banner' : (target === 'bannerMobile' ? 'tpl-preview-banner-mobile' : 'tpl-preview-banner-desktop'))))));
+    var placeholderId = target === 'share' ? 'seo-preview-share-placeholder' : (target === 'logo' ? 'tpl-preview-logo-placeholder' : (target === 'favicon' ? 'tpl-preview-favicon-placeholder' : (target === 'featured' ? 'tpl-preview-featured-image-placeholder' : (target === 'promoMobile' ? 'tpl-preview-mobile-promo-banner-placeholder' : (target === 'promoDesktop' ? 'tpl-preview-desktop-promo-banner-placeholder' : (target === 'bannerMobile' ? 'tpl-preview-banner-mobile-placeholder' : 'tpl-preview-banner-desktop-placeholder'))))));
     var field = document.getElementById(fieldId);
     var preview = document.getElementById(previewId);
     var placeholder = document.getElementById(placeholderId);
@@ -3292,7 +4028,24 @@ Modules.Catalogo = (function () {
     if (tabIcon) { tabIcon.src = ''; tabIcon.style.display = 'none'; }
     var state = _imageUploadState();
     delete state[target];
-    _refreshTemplatePreview();
+    _syncTemplateImageDom(target, '');
+    if (target !== 'share') {
+      var patches = _imagePersistencePatch(target, '', {});
+      _storeConfig.template = Object.assign({}, _storeConfig.template || {}, patches.template);
+      _storeConfig.geral = Object.assign({}, _storeConfig.geral || {}, patches.shared);
+      _storeConfig.aparencia = Object.assign({}, _storeConfig.aparencia || {}, patches.shared);
+      Promise.all([
+        DB.setDocRoot('config', 'template', patches.template),
+        DB.setDocRoot('config', 'geral', patches.shared),
+        DB.setDocRoot('config', 'aparencia', patches.shared)
+      ]).then(function () {
+        UI.toast('Imagem removida com sucesso.', 'success');
+      }).catch(function (err) {
+        UI.toast('Imagem removida da tela, mas não foi possível salvar: ' + (err && err.message ? err.message : err), 'error');
+      });
+    }
+    if (target === 'share') _refreshSeoPreview();
+    else _refreshTemplatePreview();
   }
 
   function _mainCardConfigFromTemplate(tpl) {
@@ -3302,6 +4055,7 @@ Modules.Catalogo = (function () {
       showLogo: main.showLogo !== undefined ? !!main.showLogo : true,
       showStoreName: main.showStoreName !== undefined ? !!main.showStoreName : false,
       showSlogan: main.showSlogan !== undefined ? !!main.showSlogan : false,
+      showRating: main.showRating !== undefined ? !!main.showRating : true,
       showMoreInfoButton: main.showMoreInfoButton !== undefined ? !!main.showMoreInfoButton : (tpl.topShowMoreInfo !== false),
       showLocation: main.showLocation !== undefined ? !!main.showLocation : (tpl.topShowRegion !== false),
       showStoreStatus: main.showStoreStatus !== undefined ? !!main.showStoreStatus : (tpl.topShowRegion !== false),
@@ -3376,6 +4130,28 @@ Modules.Catalogo = (function () {
     '</label>';
   }
 
+  function _operationPhoneCompositeHtml(id, label, value, placeholder, hint, wrapStyle) {
+    var detected = _detectPhoneCountry(value);
+    var countries = _phoneCountryList();
+    var visibleId = id + '-local';
+    var countryId = id + '-country';
+    var hiddenId = id;
+    var options = countries.map(function (item) {
+      return '<option value="' + _esc(item.code) + '"' + (item.code === detected.country ? ' selected' : '') + '>' + _esc(item.flag + ' ' + item.dial) + '</option>';
+    }).join('');
+    return '<label style="display:block;min-width:0;' + (wrapStyle || '') + '"><span style="' + _labelStyle() + '">' + _esc(label) + '</span>' +
+      '<input id="' + _esc(hiddenId) + '" type="hidden" value="' + _esc(detected.dial + (detected.local || '')) + '">' +
+      '<div style="display:flex;align-items:stretch;gap:8px;min-height:42px;">' +
+        '<span style="position:relative;display:block;flex:0 0 92px;">' +
+          '<select id="' + _esc(countryId) + '" style="' + _operationFieldStyle('height:42px;padding:0 30px 0 10px;font-size:13px;appearance:none;-webkit-appearance:none;-moz-appearance:none;') + '">' + options + '</select>' +
+          '<span class="mi" style="position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:17px;color:#8A7E7C;pointer-events:none;">expand_more</span>' +
+        '</span>' +
+        '<input id="' + _esc(visibleId) + '" type="text" value="' + _esc(detected.local || (_normalizePhoneNumberLocal(value).replace(/^\+/, ''))) + '" placeholder="' + _esc(placeholder || '') + '" inputmode="tel" style="' + _operationFieldStyle('height:42px;min-width:0;flex:1;') + '">' +
+      '</div>' +
+      (hint ? '<small style="display:block;margin-top:6px;font-size:11px;font-weight:400;line-height:1.35;color:#8A7E7C;">' + _esc(hint) + '</small>' : '') +
+    '</label>';
+  }
+
   function _normalizeDeliveryZonePostal(value) {
     return String(value == null ? '' : value).trim().toUpperCase().replace(/[^A-Z0-9]+/g, '');
   }
@@ -3412,10 +4188,9 @@ Modules.Catalogo = (function () {
     var feeText = zone.deliveryFee != null ? String(zone.deliveryFee).replace('.', ',') : '';
     var postalCount = Array.isArray(zone.postalCodes) ? zone.postalCodes.length : 0;
     var active = zone.active !== false;
-    return '<div class="tpl-delivery-zone-card" data-delivery-zone-row data-zone-id="' + _esc(zone.id) + '" style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
+    return '<div class="tpl-delivery-zone-card" data-delivery-zone-row data-zone-id="' + _esc(zone.id) + '" style="' + _operationCardStyle() + '">' +
       '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">' +
-        '<div style="display:flex;align-items:flex-start;gap:10px;min-width:0;">' +
-          '<div style="width:38px;height:38px;border-radius:12px;background:#FAF8F4;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;flex:0 0 auto;"><span class="mi" style="font-size:20px;">map</span></div>' +
+        '<div style="display:flex;align-items:flex-start;min-width:0;">' +
           '<div style="min-width:0;">' +
             '<div style="font-size:12px;font-weight:700;color:#1F1F1F;">Zona ' + (idx + 1) + '</div>' +
             '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:6px;">' +
@@ -3431,9 +4206,9 @@ Modules.Catalogo = (function () {
         '</div>' +
       '</div>' +
       '<div class="tpl-delivery-zone-grid">' +
-        _fieldHtml('tpl-zone-name-' + idx, 'Nome da zona', zone.name || '', 'Ex: Centro, Bairro próximo, Zona 1') +
-        '<label style="display:block;"><span style="' + _labelStyle() + '">CEPs atendidos</span><textarea id="tpl-zone-postals-' + idx + '" rows="2" placeholder="Ex: 31001, 31002, 31003" style="' + _inputStyle() + 'min-height:72px;resize:vertical;">' + _esc(postalText) + '</textarea><small style="display:block;margin-top:6px;font-size:11px;line-height:1.35;color:#8A7E7C;">Separe os CEPs por vírgula.</small></label>' +
-        '<label style="display:block;"><span style="' + _labelStyle() + '">Valor da entrega</span><input id="tpl-zone-fee-' + idx + '" type="text" inputmode="decimal" value="' + _esc(feeText) + '" placeholder="Ex: 5,00" style="' + _inputStyle() + '"><small style="display:block;margin-top:6px;font-size:11px;line-height:1.35;color:#8A7E7C;">Valor aplicado quando o CEP corresponder a esta zona.</small></label>' +
+        _operationFieldHtml('tpl-zone-name-' + idx, 'Nome da zona', zone.name || '', 'Ex: Centro, Bairro próximo, Zona 1', 'text', 'min-width:210px;') +
+        '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">CEPs atendidos</span><textarea id="tpl-zone-postals-' + idx + '" rows="2" placeholder="Ex: 31001, 31002, 31003" style="' + _operationFieldStyle('min-height:72px;resize:vertical;min-width:260px;') + '">' + _esc(postalText) + '</textarea><small style="display:block;margin-top:6px;font-size:11px;font-weight:400;line-height:1.35;color:#8A7E7C;">Separe os CEPs por vírgula.</small></label>' +
+        _operationMoneyFieldHtml('tpl-zone-fee-' + idx, 'Valor da entrega', feeText, 'Valor aplicado quando o CEP corresponder a esta zona.') +
       '</div>' +
     '</div>';
   }
@@ -3447,7 +4222,7 @@ Modules.Catalogo = (function () {
     var disabledAttr = locationReady ? '' : ' disabled aria-disabled="true"';
     var disabledStyle = locationReady ? 'background:#B42318;color:#fff;box-shadow:0 4px 12px rgba(180,35,24,.18);cursor:pointer;' : 'background:#D8CEC2;color:#fff;box-shadow:none;cursor:not-allowed;opacity:.72;';
     var body = zones.length ? zones.map(_deliveryZoneCardHtml).join('') : '<div style="border:1px dashed #EAE4DA;background:#FAF8F4;border-radius:14px;padding:18px;color:#6F6860;font-size:13px;line-height:1.45;text-align:center;">' + (locationReady ? 'Nenhuma zona cadastrada ainda. Clique em <strong>Adicionar zona</strong> para começar.' : 'Cadastre primeiro a <strong>Localização atendida</strong> acima para liberar as zonas de entrega.') + '</div>';
-    return '<section ' + _templatePanelAttrs('operacao') + ' style="' + _cardStyle() + '">' + _sectionTitle('Zonas de entrega', 'Configure os CEPs atendidos e o valor de entrega de cada zona.') +
+    return '<section ' + _templatePanelAttrs('operacao') + ' style="' + _cardStyle() + '">' + _sectionTitle('Zonas de entrega', 'Configure os CEPs atendidos e o valor de entrega de cada zona.', 'local_shipping') +
       '<div style="display:flex;flex-direction:column;gap:12px;">' +
         (!locationReady ? '<div style="border:1px solid #F1D7B8;background:#FFF8ED;border-radius:12px;padding:12px 14px;color:#7A4E13;font-size:12px;line-height:1.45;">Para cadastrar zonas, preencha antes Cidade atendida, Província / estado, País atendido e Código postal base.</div>' : '') +
         '<div style="display:none;">' +
@@ -3573,28 +4348,34 @@ Modules.Catalogo = (function () {
     tpl = tpl || {};
     zonas = zonas || {};
     var area = {};
+    var endereco = _storeConfig.endereco || {};
+    var geral = _storeConfig.geral || {};
+    var atendimentoPostal = endereco.postalCode || endereco.codigoPostal || tpl.postalCode || geral.postalCode || geral.codigoPostal || '';
     if (tpl.deliveryArea && typeof tpl.deliveryArea === 'object') area = Object.assign({}, tpl.deliveryArea);
     else if (zonas.area && typeof zonas.area === 'object') area = Object.assign({}, zonas.area);
     return {
       city: area.city || tpl.deliveryCity || zonas.deliveryCity || '',
       province: area.province || area.state || tpl.deliveryProvince || zonas.deliveryProvince || '',
       country: _normalizeDeliveryAreaCountry(area.country || tpl.deliveryCountry || zonas.deliveryCountry || ''),
-      postalCode: area.postalCode || area.zip || tpl.deliveryPostalCode || zonas.deliveryPostalCode || '',
+      postalCode: atendimentoPostal || area.postalCode || area.zip || tpl.deliveryPostalCode || zonas.deliveryPostalCode || '',
       source: area.source || 'admin_delivery_zones'
     };
   }
 
   function _deliveryAreaHtml(area) {
     area = area || {};
-    return '<section ' + _templatePanelAttrs('operacao') + ' style="' + _cardStyle() + '">' + _sectionTitle('Localização atendida', 'Selecione a cidade atendida antes de cadastrar as zonas de entrega. A província, país e código postal podem ser preenchidos automaticamente pela busca.') +
+    return '<section ' + _templatePanelAttrs('operacao') + ' style="' + _cardStyle() + '">' + _sectionTitle('Localização atendida', 'Selecione a cidade atendida antes de cadastrar as zonas de entrega. A província, país e código postal podem ser preenchidos automaticamente pela busca.', 'travel_explore') +
       '<div style="display:flex;flex-direction:column;gap:12px;">' +
-        '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-          '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Cidade base da entrega</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Esses dados alimentam o Master como cidade, província/estado e país operacionais da loja.</div></div>' +
-          _grid(
-            _fieldHtml('tpl-delivery-area-city', 'Cidade atendida', area.city || '', 'Buscar cidade atendida') +
-            _fieldHtml('tpl-delivery-area-province', 'Província / estado', area.province || '', 'Preenchido automaticamente') +
-            _selectHtml('tpl-delivery-area-country', 'País atendido', area.country || '', _templateCountryOptions()) +
-            _fieldHtml('tpl-delivery-area-postal', 'Código postal base', area.postalCode || '', 'Código postal'), '220px') +
+        '<div style="' + _operationCardStyle() + '">' +
+          _operationCardHead('travel_explore', 'Cidade base da entrega', 'Defina a região usada para organizar as zonas atendidas.') +
+          '<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">' +
+            _operationFieldHtml('tpl-delivery-area-city', 'Cidade atendida', area.city || '', 'Buscar cidade atendida', 'text', '', '', '', 'width:260px;flex:0 1 260px;') +
+            _operationFieldHtml('tpl-delivery-area-province', 'Província / estado', area.province || '', 'Província', 'text', '', '', '', 'width:200px;flex:0 1 200px;') +
+            _operationSelectHtml('tpl-delivery-area-country', 'País atendido', area.country || '', _templateCountryOptions(), '', 'width:160px;flex:0 0 160px;') +
+          '</div>' +
+          '<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">' +
+            _operationFieldHtml('tpl-delivery-area-postal', 'Código postal base', area.postalCode || '', 'Código postal', 'text', 'background:#F4F0EA;color:#6F6860;cursor:not-allowed;', 'CEP de atendimento da loja.', 'readonly disabled aria-readonly="true"', 'width:150px;flex:0 0 150px;') +
+          '</div>' +
         '</div>' +
       '</div>' +
     '</section>';
@@ -3688,41 +4469,72 @@ Modules.Catalogo = (function () {
     Promise.all([
       _loadStoreConfig(),
       DB.getAll('products').catch(function () { return []; }),
+      DB.getAll('produtos').catch(function () { return []; }),
+      DB.getAll('produtos_prontos').catch(function () { return []; }),
+      DB.getAll('fichasTecnicas').catch(function () { return []; }),
+      DB.getAll('categories').catch(function () { return []; }),
       DB.getAll('coupons').catch(function () { return []; }),
       DB.getAll('promotions').catch(function () { return []; }),
+      DB.getAll('promocoes').catch(function () { return []; }),
       DB.getAll('orders').catch(function () { return []; })
     ]).then(function (results) {
       var productList = results[1] || [];
-      _coupons = results[2] || [];
-      _promotions = results[3] || [];
-      _orders = results[4] || [];
+      var marketingProductSources = []
+        .concat(results[1] || [])
+        .concat(results[2] || [])
+        .concat(results[3] || [])
+        .concat(results[4] || []);
+      _categories = (results[5] || []).slice().sort(function (a, b) {
+        return (a.order || 0) - (b.order || 0) || String(a.name || a.label || '').localeCompare(String(b.name || b.label || ''));
+      });
+      _coupons = results[6] || [];
+      _promotions = _mergeTemplatePromotions([
+        results[7] || [],
+        results[8] || [],
+        marketingProductSources.map(_deriveTemplatePromotionFromProduct).filter(Boolean)
+      ]);
+      _orders = results[9] || [];
       _products = productList.slice().sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
       _ensureTemplateStyles();
       var geral = _storeConfig.geral || {};
       var app = _storeConfig.aparencia || {};
       var tpl = _storeConfig.template || {};
+      var integracoes = _storeConfig.integracoes || {};
       var end = _storeConfig.endereco || {};
       var pay = _storeConfig.pagamentos || {};
       var financeiro = _storeConfig.financeiro || {};
+      var pointsCfg = _storeConfig.pontos_program || {};
       var hor = _storeConfig.horarios || {};
       var zonas = _storeConfig.zonas || {};
+      var inheritedWhatsapp = tpl.whatsapp || geral.whatsapp || integracoes.whatsappFull || integracoes.whatsapp || geral.phone || '';
+      var inheritedInstagram = tpl.instagram || geral.instagram || integracoes.instagram || '';
+      var inheritedFacebook = tpl.facebook || geral.facebook || integracoes.facebook || '';
+      var inheritedTiktok = tpl.tiktok || geral.tiktok || integracoes.tiktok || '';
       var fiscal = _fiscalInfo();
       var regionLabel = fiscal.cfg.regionLabel || (fiscal.code === 'PT' ? 'Distrito' : 'Província/Estado');
-      var statusMode = tpl.statusMode || (tpl.manualClosed ? 'manual_closed' : 'auto');
+      var rawStatusMode = tpl.statusMode || (tpl.manualClosed || tpl.manualOpen ? 'manual' : 'auto');
+      var statusMode = rawStatusMode === 'manual' || rawStatusMode === 'manual_closed' || rawStatusMode === 'manual_open' ? 'manual' : 'auto';
+      var manualStatusClosed = rawStatusMode === 'manual_closed' || tpl.manualClosed === true;
       var days = ['Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado','Domingo'];
       var hoursHtml = days.map(function (d, idx) {
         var row = (hor.days && hor.days[idx]) || (tpl.hours && tpl.hours[idx]) || {};
+        var rowClosed = _boolValue(row.closed) === true || _boolValue(row.enabled) === false;
+        var rowSecondClosed = _boolValue(row.closed2) === true;
         return '<div class="tpl-hours-day" data-hours-day="' + idx + '">' +
           '<div class="tpl-hours-day-main">' +
             '<div class="tpl-hours-day-name">' + d + '</div>' +
-            '<div class="tpl-hours-day-closed-toggle">' + _toggleHtml('tpl-h-closed-' + idx, 'Fechada', row.closed || row.enabled === false, '') + '</div>' +
+            '<div class="tpl-hours-day-closed-toggle">' + _toggleHtml('tpl-h-closed-' + idx, 'Fechada', rowClosed, '') + '</div>' +
             '<div class="tpl-hours-day-field" data-hours-main-field>' + _fieldHtml('tpl-h-open-' + idx, 'Abre', row.open || '', '10:00', 'time') + '</div>' +
             '<div class="tpl-hours-day-field" data-hours-main-field>' + _fieldHtml('tpl-h-close-' + idx, 'Fecha', row.close || '', '22:00', 'time') + '</div>' +
-            '<div class="tpl-hours-day-secondary-toggle tpl-hours-day-field" data-hours-secondary-toggle>' +
-              _toggleHtml('tpl-h-enabled2-' + idx, '2º período', row.enabled2 !== false && (!!row.open2 || !!row.close2 || row.enabled2 === true), '') +
-            '</div>' +
-            '<div class="tpl-hours-day-secondary-inline tpl-hours-day-field" data-hours-secondary-fields>' +
+            '<input id="tpl-h-enabled2-' + idx + '" type="checkbox" style="display:none;"' + ((!rowSecondClosed && row.open2 && row.close2) ? ' checked' : '') + '>' +
+          '</div>' +
+          '<div class="tpl-hours-day-main tpl-hours-day-main--second" data-hours-secondary-fields>' +
+            '<div class="tpl-hours-day-name">' + d + ' · 2º período</div>' +
+            '<div class="tpl-hours-day-closed-toggle">' + _toggleHtml('tpl-h-closed2-' + idx, 'Fechada', rowSecondClosed, '') + '</div>' +
+            '<div class="tpl-hours-day-field">' +
               _fieldHtml('tpl-h-open2-' + idx, 'Abre 2', row.open2 || '', '18:00', 'time') +
+            '</div>' +
+            '<div class="tpl-hours-day-field">' +
               _fieldHtml('tpl-h-close2-' + idx, 'Fecha 2', row.close2 || '', '22:00', 'time') +
             '</div>' +
           '</div>' +
@@ -3731,11 +4543,15 @@ Modules.Catalogo = (function () {
       var logo = app.logoUrl || geral.logoUrl || tpl.logoUrl || '';
       var banner = app.coverImageUrl || geral.coverImageUrl || tpl.coverImageUrl || app.bannerUrl || geral.bannerUrl || tpl.bannerUrl || '';
       var bannerMobile = app.coverImageMobileUrl || geral.coverImageMobileUrl || tpl.coverImageMobileUrl || app.mobileCoverImageUrl || geral.mobileCoverImageUrl || tpl.mobileCoverImageUrl || app.bannerMobileUrl || geral.bannerMobileUrl || tpl.bannerMobileUrl || '';
-      var featuredType = tpl.featuredActionType || 'none';
+      var featuredType = tpl.featuredActionType === 'featured_product' ? 'none' : (tpl.featuredActionType || 'none');
       var featuredTarget = featuredType === 'custom' ? (tpl.featuredActionTarget || '') : '';
       var featuredCouponId = tpl.featuredActionCouponId || tpl.featuredCouponId || '';
       var featuredPromotionId = tpl.featuredActionPromotionId || tpl.featuredPromotionId || '';
+      var featuredImageUrl = _cleanPublicUrl(tpl.featuredActionImageUrl || tpl.featuredImageUrl || '');
       var mostOrderedMode = tpl.mostOrderedMode || tpl.featuredMostOrderedMode || 'auto';
+      var mobilePromoTarget = tpl.mobilePromoBannerTarget || tpl.promoBannerTarget || ((tpl.mobilePromoBannerProductId || tpl.promoBannerProductId) ? 'product' : 'promotion');
+      var mobilePromoPromotionId = tpl.mobilePromoBannerPromotionId || tpl.promoBannerPromotionId || tpl.mobilePromoPromotionId || '';
+      var mobilePromoProductId = tpl.mobilePromoBannerProductId || tpl.promoBannerProductId || '';
       var mostOrderedAuto = _mostOrderedProductFromOrders();
       var productOptions = [{ value: '', label: 'Selecionar produto' }].concat((_products || []).filter(function (p) { return p && p.menuVisible !== false; }).map(function (p) {
         return { value: String(p.id), label: p.name || p.title || String(p.id) };
@@ -3780,286 +4596,211 @@ Modules.Catalogo = (function () {
         { value: '60-75', label: '60-75 min' },
         { value: '75-90', label: '75-90 min' }
       ];
-      var chipStyle = 'display:inline-flex;align-items:center;min-height:24px;padding:0 10px;border-radius:999px;background:#fff;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:500;box-shadow:0 1px 2px rgba(31,31,31,.02);';
+      var chipStyle = 'display:inline-flex;align-items:center;min-height:25px;padding:0 10px;border-radius:999px;background:#FFFDFC;border:1px solid #E9DDD7;color:#6F625C;font-size:11px;font-weight:650;box-shadow:0 1px 2px rgba(80,42,28,.03);';
+      var identityName = geral.businessName || tpl.publicName || 'Boca Food';
+      var identityText = geral.slogan || tpl.slogan || 'Adicione uma apresentação curta.';
+      var identityColor = _normalizeHexColor(tpl.brandColor || tpl.primaryColor || geral.primaryColor || '#B42318') || '#B42318';
       var content = document.getElementById('catalogo-content');
       content.innerHTML =
-        '<div class="bf-page" style="padding:0;display:flex;flex-direction:column;gap:16px;font-family:Manrope,Inter,sans-serif;">' +
-        '<div class="bf-page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
-          '<div style="min-width:0;flex:1 1 420px;"><h2 style="font-size:22px;font-weight:700;line-height:1.2;margin:0 0 6px;color:#1F1F1F;">Template da loja</h2><p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0 0 10px;max-width:760px;">Organize identidade, topo, operação, contatos, pagamentos e textos exibidos na loja pública.</p><div style="display:flex;gap:8px;flex-wrap:wrap;"><span style="' + chipStyle + '">' + (logo ? 'Logo configurada' : 'Sem logo') + '</span><span style="' + chipStyle + '">' + (banner ? 'Capa configurada' : 'Sem capa') + '</span><span style="' + chipStyle + '">' + (deliveryEnabled ? 'Entrega ativa' : 'Entrega inativa') + '</span><span style="' + chipStyle + '">' + (pickupEnabled ? 'Retirada ativa' : 'Retirada inativa') + '</span></div></div>' +
-          '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;"><button type="button" data-save-template-loja="1" onmouseenter="this.style.transform=\'translateY(-1px)\';this.style.boxShadow=\'0 8px 18px rgba(180,35,24,.20)\';" onmouseleave="this.style.transform=\'none\';this.style.boxShadow=\'0 4px 12px rgba(180,35,24,.18)\';" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">Salvar alterações</button></div>' +
+        '<div class="bf-page tpl-config-page" style="padding:0;display:flex;flex-direction:column;font-family:Manrope,Inter,sans-serif;">' +
+        '<div class="tpl-config-head">' +
+          '<div style="min-width:0;flex:1 1 420px;"><h2 class="tpl-config-title">Template da loja</h2><p class="tpl-config-subtitle">Organize a aparência, os canais e os textos que aparecem na página pública do seu negócio.</p><div class="tpl-config-status"><span class="tpl-config-chip" data-template-summary="logo">' + (logo ? 'Logo configurada' : 'Sem logo') + '</span><span class="tpl-config-chip" data-template-summary="cover">' + (banner ? 'Capa configurada' : 'Sem capa') + '</span><span class="tpl-config-chip" data-template-summary="delivery">' + (deliveryEnabled ? 'Entrega ativa' : 'Entrega inativa') + '</span><span class="tpl-config-chip" data-template-summary="pickup">' + (pickupEnabled ? 'Retirada ativa' : 'Retirada inativa') + '</span></div></div>' +
+          '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;"><button type="button" class="tpl-config-save" data-save-template-loja="1">Salvar alterações</button></div>' +
         '</div>' +
         _templateSubtabsHtml(_templateActiveTab || 'identidade') +
         '<div style="display:flex;flex-direction:column;gap:14px;">' +
-            '<section ' + _templatePanelAttrs('identidade') + ' style="' + _cardStyle() + '">' + _sectionTitle('Identidade visual', 'Dados visuais e públicos usados no cabeçalho da loja.') +
-              '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:14px;align-items:start;">' +
-                '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                  '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Dados públicos</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Nome, frase e idioma usados na loja pública.</div></div>' +
-                    _grid(
-                      _fieldHtml('tpl-public-name', 'Nome público da loja', geral.businessName || tpl.publicName || '', 'Boca Food') +
-                      _fieldHtml('tpl-slogan', 'Slogan/frase curta', geral.slogan || tpl.slogan || '', 'Comida feita com carinho') +
-                      _selectHtml('tpl-language', 'Idioma principal da loja', _normalizeTemplateLanguage(geral.language || geral.defaultLanguage || tpl.language || 'es-ES'), _templateLanguageOptions()) +
-                      _toggleHtml('tpl-verified-badge', 'Selo verificado', tpl.verifiedBadgeEnabled === true || tpl.storeVerified === true, 'Exibe o selo ao lado do nome da loja no mobile.'), '220px') +
+            '<div data-template-panel="identidade" class="tpl-identity-workspace' + (((_templateActiveTab || 'identidade') === 'identidade') ? ' active' : '') + '">' +
+            '<div class="tpl-identity-left">' +
+            '<section class="tpl-config-panel" style="' + _cardStyle() + '">' + _sectionTitle('Identidade visual', '', 'palette') +
+              '<input id="tpl-verified-badge" type="checkbox" style="display:none;"' + ((tpl.verifiedBadgeEnabled === true || tpl.storeVerified === true) ? ' checked' : '') + '>' +
+              '<input id="tpl-public-name" type="hidden" value="' + _esc(identityName) + '">' +
+              '<div class="tpl-identity-layout">' +
+                '<div class="tpl-identity-main">' +
+                  '<div class="tpl-brand-preview">' +
+                    '<div class="tpl-brand-preview-logo">' + (logo ? '<img src="' + _esc(_cleanPublicUrl(logo)) + '" alt="">' : '<span class="mi" style="font-size:25px;">storefront</span>') + '</div>' +
+                    '<div style="min-width:0;"><div class="tpl-brand-preview-name">' + _esc(identityName) + '</div><div class="tpl-brand-preview-text">' + _esc(identityText) + '</div><div class="tpl-brand-preview-accent" style="background:' + _esc(identityColor) + ';"></div></div>' +
                   '</div>' +
-                  '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Cor da marca</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">A cor principal alimenta botões, chips e destaques da loja.</div></div>' +
-                    _colorFieldHtml('tpl-primary-color', 'Cor principal', tpl.brandColor || tpl.primaryColor || geral.primaryColor || '#B42318', 'Cor principal da identidade visual da loja. Usada nos pills, bordas e destaques da loja pública.') +
-                  '</div>' +
-                '</div>' +
-                '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                  '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Arquivos da marca</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Logo e favicon usados no topo, menus, rodapé e aba do navegador.</div></div>' +
-                  '<div class="tpl-image-grid-media">' +
-                    _imageConfigHtml('logo', { cardClass: 'tpl-image-card--logo', previewClass: 'tpl-image-preview--logo', fit: 'contain', fileId: 'tpl-logo-file', urlId: 'tpl-logo-url', previewId: 'tpl-preview-logo', placeholderId: 'tpl-preview-logo-placeholder', label: 'Logo', value: logo, note: 'Use imagem quadrada, preferencialmente 512x512 px. Formatos aceitos: JPG, PNG ou WebP.', accept: 'image/png,image/jpeg,image/jpg,image/webp' }) +
-                    _imageConfigHtml('favicon', { cardClass: 'tpl-image-card--favicon', previewClass: 'tpl-image-preview--favicon', fit: 'contain', fileId: 'tpl-favicon-file', urlId: 'tpl-favicon-url', previewId: 'tpl-preview-favicon', placeholderId: 'tpl-preview-favicon-placeholder', label: 'Favicon', value: _cleanPublicUrl(tpl.faviconUrl || geral.faviconUrl || app.faviconUrl || ''), note: 'Use imagem quadrada, preferencialmente 64x64 px ou 512x512 px. Formatos aceitos: JPG, PNG ou WebP.', accept: 'image/png,image/jpeg,image/jpg,image/webp', extraHtml: '<div class="tpl-image-browser-tab" style="margin-top:12px;"><span class="tpl-image-browser-icon"><img id="tpl-preview-favicon-tab-icon" src="' + _esc(_cleanPublicUrl(tpl.faviconUrl || geral.faviconUrl || app.faviconUrl || '')) + '" alt="" style="display:' + (_cleanPublicUrl(tpl.faviconUrl || geral.faviconUrl || app.faviconUrl || '') ? 'block' : 'none') + ';"></span><span class="tpl-image-browser-text">Aba do navegador</span></div>' }) +
+                  '<div class="tpl-identity-main-grid">' +
+                    '<label class="tpl-field-full" style="display:block;"><span style="' + _labelStyle() + '">Apresentação curta</span><textarea id="tpl-slogan" rows="3" style="' + _inputStyle() + 'min-height:86px;resize:vertical;line-height:1.45;">' + _esc(geral.slogan || tpl.slogan || '') + '</textarea><small class="tpl-identity-help">Uma frase curta para apresentar sua loja na página pública.</small></label>' +
+                    '<label style="display:block;"><span style="' + _labelStyle() + '">Idioma principal da loja</span><span class="tpl-language-wrap"><select id="tpl-language" class="tpl-language-select" style="' + _inputStyle() + 'padding-right:42px;appearance:none;-webkit-appearance:none;-moz-appearance:none;background:#fff;">' + _templateLanguageOptions().map(function (o) { return '<option value="' + _esc(o.value) + '"' + (String(_normalizeTemplateLanguage(geral.language || geral.defaultLanguage || tpl.language || 'es-ES')) === String(o.value) ? ' selected' : '') + '>' + _esc(o.label) + '</option>'; }).join('') + '</select><span class="mi tpl-language-arrow">expand_more</span></span><small class="tpl-identity-help">Idioma usado nos textos principais da loja pública.</small></label>' +
+                    '<div>' + _colorFieldHtml('tpl-primary-color', 'Cor da marca', tpl.brandColor || tpl.primaryColor || geral.primaryColor || '#B42318', 'Cor da marca usada em botões e destaques.') + '<small class="tpl-identity-help">Use uma cor que combine com a identidade da sua marca.</small></div>' +
+                    '<div class="tpl-field-full tpl-identity-files">' +
+                      _imageConfigHtml('logo', { hideUrl: true, cardClass: 'tpl-image-card--logo', previewClass: 'tpl-image-preview--logo', fit: 'contain', fileId: 'tpl-logo-file', urlId: 'tpl-logo-url', previewId: 'tpl-preview-logo', placeholderId: 'tpl-preview-logo-placeholder', label: 'Logo da loja', value: logo, note: 'Tamanho recomendado: 500 × 500 px. Use JPG, PNG ou WebP.', accept: 'image/png,image/jpeg,image/jpg,image/webp' }) +
+                      _imageConfigHtml('favicon', { hideUrl: true, hidePreview: true, cardClass: 'tpl-image-card--favicon', previewClass: 'tpl-image-preview--favicon', fit: 'contain', fileId: 'tpl-favicon-file', urlId: 'tpl-favicon-url', previewId: 'tpl-preview-favicon', placeholderId: 'tpl-preview-favicon-placeholder', label: 'Favicon', value: _cleanPublicUrl(tpl.faviconUrl || geral.faviconUrl || app.faviconUrl || ''), note: 'Favicon recomendado: 32 × 32 px. Use PNG, JPG ou WebP.', accept: 'image/png,image/jpeg,image/jpg,image/webp', extraHtml: '<div class="tpl-image-browser-tab" style="margin-top:12px;"><span class="tpl-image-browser-icon"><img id="tpl-preview-favicon-tab-icon" src="' + _esc(_cleanPublicUrl(tpl.faviconUrl || geral.faviconUrl || app.faviconUrl || '')) + '" alt="" style="display:' + (_cleanPublicUrl(tpl.faviconUrl || geral.faviconUrl || app.faviconUrl || '') ? 'block' : 'none') + ';"></span><span class="tpl-image-browser-text">Aba</span></div>' }) +
+                    '</div>' +
                   '</div>' +
                 '</div>' +
               '</div>' +
             '</section>' +
-            '<section ' + _templatePanelAttrs('identidade') + ' style="' + _cardStyle() + '">' + _sectionTitle('Card principal da loja', 'Configure quais informações aparecem no topo da loja pública.') +
+            '<section class="tpl-config-panel" style="' + _cardStyle() + '">' + _sectionTitle('Card principal da loja', '', 'view_quilt') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">view_quilt</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo do card</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Controle o que aparece no primeiro card visto pelo cliente.</div></div></div>' +
                   '<div style="display:flex;gap:7px;flex-wrap:wrap;">' +
-                    '<span style="' + chipStyle + '">' + (mainCard.showLogo || mainCard.showStoreName || mainCard.showSlogan ? 'Identidade ativa' : 'Identidade oculta') + '</span>' +
-                    '<span style="' + chipStyle + '">' + (mainCard.showLocation || mainCard.showStoreStatus || mainCard.showOpeningHoursSummary ? 'Status visível' : 'Status oculto') + '</span>' +
-                    '<span style="' + chipStyle + '">' + (mainCard.showPickup || mainCard.showDelivery ? 'Canais visíveis' : 'Canais ocultos') + '</span>' +
+                    '<span class="tpl-config-chip" data-template-summary="maincard-identity">' + (mainCard.showLogo || mainCard.showStoreName || mainCard.showSlogan ? 'Identidade ativa' : 'Identidade oculta') + '</span>' +
+                    '<span class="tpl-config-chip" data-template-summary="maincard-status">' + (mainCard.showLocation || mainCard.showStoreStatus || mainCard.showOpeningHoursSummary ? 'Status visível' : 'Status oculto') + '</span>' +
+                    '<span class="tpl-config-chip" data-template-summary="maincard-channels">' + (mainCard.showPickup || mainCard.showDelivery ? 'Canais visíveis' : 'Canais ocultos') + '</span>' +
                   '</div>' +
                 '</div>' +
-                '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                  '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;"><div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Identidade no card</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Mostre a marca e a chamada principal no topo da loja.</div></div></div>' +
-                    _grid(
-                      _toggleHtml('tpl-maincard-show-logo', 'Logo', mainCard.showLogo, '') +
-                      _toggleHtml('tpl-maincard-show-name', 'Nome da loja', mainCard.showStoreName, '') +
-                      _toggleHtml('tpl-maincard-show-slogan', 'Slogan/frase curta', mainCard.showSlogan, '') +
-                      _toggleHtml('tpl-maincard-show-more-info', 'Botão “Mais informação”', mainCard.showMoreInfoButton, ''), '190px') +
-                  '</div>' +
-                  '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px;align-items:start;">' +
-                    '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                      '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Localização e status</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Contexto público de funcionamento.</div></div>' +
-                      '<div style="display:flex;flex-direction:column;gap:10px;">' +
+                '<div class="tpl-maincard-layout">' +
+                '<div class="tpl-maincard-controls" style="display:flex;flex-direction:column;gap:12px;">' +
+                  '<div class="tpl-maincard-columns">' +
+                    '<div class="tpl-maincard-column">' +
+                      '<div class="tpl-maincard-column-title">Identidade</div>' +
+                        _toggleHtml('tpl-maincard-show-logo', 'Logo', mainCard.showLogo, '') +
+                        _toggleHtml('tpl-maincard-show-name', 'Nome da loja', mainCard.showStoreName, '') +
+                        _toggleHtml('tpl-maincard-show-slogan', 'Slogan/frase curta', mainCard.showSlogan, '') +
+                        _toggleHtml('tpl-maincard-show-rating', 'Nota de avaliação', mainCard.showRating, '') +
+                        _toggleHtml('tpl-maincard-show-more-info', 'Botão “Mais informação”', mainCard.showMoreInfoButton, '') +
+                    '</div>' +
+                    '<div class="tpl-maincard-column">' +
+                      '<div class="tpl-maincard-column-title">Localização</div>' +
                         _toggleHtml('tpl-maincard-show-location', 'Cidade/localização', mainCard.showLocation, '') +
                         _toggleHtml('tpl-maincard-show-status', 'Status da loja', mainCard.showStoreStatus, '') +
                         _toggleHtml('tpl-maincard-show-hours', 'Horário resumido', mainCard.showOpeningHoursSummary, '') +
-                      '</div>' +
                     '</div>' +
-                    '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                      '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Entrega e retirada</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Chips operacionais mostrados ao cliente.</div></div>' +
-                      '<div style="display:flex;flex-direction:column;gap:10px;">' +
+                    '<div class="tpl-maincard-column">' +
+                      '<div class="tpl-maincard-column-title">Atendimento</div>' +
                         _toggleHtml('tpl-maincard-show-pickup', 'Retirada', mainCard.showPickup, '') +
                         _toggleHtml('tpl-maincard-show-delivery', 'Entrega', mainCard.showDelivery, '') +
                         _toggleHtml('tpl-maincard-show-prep', 'Tempo de preparo', mainCard.showPreparationTime, '') +
+                    '</div>' +
+                    '<div class="tpl-maincard-column">' +
+                      '<div class="tpl-maincard-column-title">Pedido</div>' +
                         _toggleHtml('tpl-maincard-show-delivery-time', 'Tempo de entrega', mainCard.showDeliveryTime, '') +
                         _toggleHtml('tpl-maincard-show-min-order', 'Pedido mínimo', mainCard.showMinimumOrder, '') +
                         _toggleHtml('tpl-maincard-show-advance-days', 'Antecedência mínima', mainCard.showAdvanceDays, '') +
-                      '</div>' +
                     '</div>' +
                   '</div>' +
+                '</div>' +
                 '</div>' +
               '</div>' +
             '</section>' +
-            '<section ' + _templatePanelAttrs('identidade') + ' style="' + _cardStyle() + '">' + _sectionTitle('Topo da loja', 'Controle o topo atual da loja pública sem trocar o design geral.') +
+            '<section class="tpl-config-panel" style="' + _cardStyle() + '">' + _sectionTitle('Imagem de capa', '', 'wallpaper') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                '<div style="display:none;">' +
-                  '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">web_asset</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo do topo</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Controle faixa, capa e elementos de navegação da loja.</div></div></div>' +
-                  '<div style="display:flex;gap:7px;flex-wrap:wrap;">' +
-                    '<span style="' + chipStyle + '">' + (tpl.topPromoEnabled ? 'Banner ativo' : 'Sem banner') + '</span>' +
-                    '<span style="' + chipStyle + '">' + (tpl.topUseCover !== false ? 'Capa ativa' : 'Sem capa') + '</span>' +
-                    '<span style="' + chipStyle + '">' + (tpl.topShowChips !== false ? 'Chips visíveis' : 'Chips ocultos') + '</span>' +
+                '<div id="tpl-cover-config" style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
+                  '<div style="display:flex;align-items:flex-start;justify-content:flex-start;gap:12px;flex-wrap:wrap;">' +
+                    _premiumSwitchHtml('tpl-top-use-cover', 'Mostrar imagem de capa', tpl.topUseCover !== false, '') +
                   '</div>' +
-                '</div>' +
-                '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                  '<div id="tpl-promo-config" style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;"><div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Banner promocional</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Faixa curta exibida acima da loja.</div></div><div style="min-width:220px;">' + _toggleHtml('tpl-top-promo-enabled', 'Mostrar banner', !!tpl.topPromoEnabled, '') + '</div></div>' +
-                    '<div id="tpl-promo-settings" style="display:' + (tpl.topPromoEnabled ? 'grid' : 'none') + ';grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;align-items:start;">' +
-                      _fieldHtml('tpl-top-promo-text', 'Texto do banner promocional', tpl.topPromoText || '', 'Entrega grátis acima de €30') +
-                      _colorFieldHtml('tpl-top-promo-color', 'Cor do banner promocional', tpl.topPromoColor || '#B42318', '') +
-                      _colorFieldHtml('tpl-top-promo-text-color', 'Cor da letra do banner promocional', tpl.topPromoTextColor || tpl.promoBannerTextColor || tpl.bannerPromoTextColor || '#FFFFFF', '') +
-                      _toggleHtml('tpl-top-promo-closable', 'Permitir fechar banner', tpl.topPromoClosable !== false, '') +
-                      '<div id="tpl-promo-banner-preview" style="grid-column:1 / -1;display:flex;align-items:center;justify-content:center;min-height:52px;padding:10px 14px;border-radius:12px;border:1px solid #EAE4DA;background:' + _esc(_normalizeHexColor(tpl.topPromoColor || '#B42318')) + ';color:' + _esc(_normalizeHexColor(tpl.topPromoTextColor || tpl.promoBannerTextColor || tpl.bannerPromoTextColor || '#FFFFFF')) + ';font-size:13px;font-weight:800;line-height:1.25;text-align:center;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);">Entrega grátis acima de €30</div>' +
-                    '</div>' +
-                  '</div>' +
-                  '<div id="tpl-mobile-promo-config" style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;"><div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Banner promocional visual</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Banner premium exibido na página mobile, abaixo das categorias. Opcional.</div></div><div style="min-width:220px;">' + _toggleHtml('tpl-mobile-promo-banner-enabled', 'Mostrar no mobile', tpl.mobilePromoBannerEnabled !== false && !!(tpl.mobilePromoBannerImageUrl || tpl.promoBannerImageUrl || tpl.promotionalBannerImageUrl), '') + '</div></div>' +
-                    '<div style="display:grid;grid-template-columns:minmax(260px,1.1fr) minmax(220px,.9fr);gap:12px;align-items:start;">' +
-                      _imageConfigHtml('promoMobile', { fileId: 'tpl-mobile-promo-banner-file', urlId: 'tpl-mobile-promo-banner-url', previewId: 'tpl-preview-mobile-promo-banner', placeholderId: 'tpl-preview-mobile-promo-banner-placeholder', label: 'Imagem do banner promocional mobile', value: tpl.mobilePromoBannerImageUrl || tpl.promoBannerImageUrl || tpl.promotionalBannerImageUrl || '', placeholder: 'Sem banner promocional', note: 'Tamanho recomendado: 1080 × 420 px. Use imagem com produto/combinação em destaque.' }) +
-                      '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                        _fieldHtml('tpl-mobile-promo-banner-badge', 'Selo do banner', tpl.mobilePromoBannerBadge || tpl.promoBannerBadge || '', 'Mais pedido') +
-                        _fieldHtml('tpl-mobile-promo-banner-title', 'Título do banner', tpl.mobilePromoBannerTitle || tpl.promoBannerTitle || '', 'Combo Burger Clássico') +
-                        _textareaHtml('tpl-mobile-promo-banner-text', 'Texto curto', tpl.mobilePromoBannerText || tpl.promoBannerSubtitle || '', 'Burger + batata + refrigerante', 2) +
-                        _fieldHtml('tpl-mobile-promo-banner-button', 'Texto do botão', tpl.mobilePromoBannerButtonText || tpl.promoBannerButtonText || '', 'Ver detalhes') +
-                      '</div>' +
-                    '</div>' +
-                  '</div>' +
-                  '<div id="tpl-cover-config" style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;"><div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Imagem de capa</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Imagem pública do topo com versão desktop, mobile e sobreposição.</div></div><div style="min-width:220px;">' + _toggleHtml('tpl-top-use-cover', 'Usar capa', tpl.topUseCover !== false, '') + '</div></div>' +
-                    '<div id="tpl-cover-settings" style="display:' + (tpl.topUseCover !== false ? 'grid' : 'none') + ';grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;align-items:start;">' +
-                      _imageConfigHtml('bannerDesktop', { fileId: 'tpl-banner-desktop-file', urlId: 'tpl-banner-url', previewId: 'tpl-preview-banner-desktop', placeholderId: 'tpl-preview-banner-desktop-placeholder', label: 'Imagem de capa desktop', value: banner, placeholder: 'Sem imagem de capa desktop', note: 'Tamanho recomendado: 1600 × 520 px.' }) +
-                      _imageConfigHtml('bannerMobile', { fileId: 'tpl-banner-mobile-file', urlId: 'tpl-banner-mobile-url', previewId: 'tpl-preview-banner-mobile', placeholderId: 'tpl-preview-banner-mobile-placeholder', label: 'Imagem de capa mobile', value: bannerMobile || banner, placeholder: 'Sem imagem de capa mobile', note: 'Tamanho recomendado: 1080 × 720 px.' }) +
-                      '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                        _colorFieldHtml('tpl-banner-overlay-color', 'Cor da sobreposição da capa', tpl.bannerOverlayColor || tpl.coverOverlayColor || tpl.heroOverlayColor || '#000000', 'Prévia da sobreposição da capa') +
-                        _opacityFieldHtml('tpl-banner-overlay-opacity', 'Opacidade da sobreposição (%)', tpl.bannerOverlayOpacity != null ? tpl.bannerOverlayOpacity : (tpl.bannerOverlayTransparency != null ? (100 - Number(tpl.bannerOverlayTransparency)) : 14)) +
-                      '</div>' +
-                    '</div>' +
-                  '</div>' +
-                  '<div id="tpl-top-elements-config" style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Elementos visíveis no topo</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Itens auxiliares exibidos no cabeçalho da loja pública.</div></div>' +
-                    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;">' +
-                      _toggleHtml('tpl-top-show-region', 'Mostrar cidade/região', tpl.topShowRegion !== false, '') +
-                      _toggleHtml('tpl-top-more-info', 'Mostrar botão “Mais informações”', tpl.topShowMoreInfo !== false, '') +
-                      _toggleHtml('tpl-top-chips', 'Mostrar chips de entrega/retirada', tpl.topShowChips !== false, '') +
-                    '</div>' +
-                  '</div>' +
-                '</div>' +
-              '</div>' +
-            '</section>' +
-            '<section ' + _templatePanelAttrs('vitrine') + ' style="' + _cardStyle() + '">' + _sectionTitle('Menu de categorias', 'Controle os elementos gráficos opcionais das categorias no template mobile. Se não houver imagem, o menu usa emoji ou apenas texto.') +
-              '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                _templateCategoryVisualsHtml() +
-              '</div>' +
-            '</section>' +
-            '<section ' + _templatePanelAttrs('vitrine') + ' style="' + _cardStyle() + '">' + _sectionTitle('Destaque comercial do topo', 'Escolha o conteúdo do card lateral/comercial exibido ao lado do resumo da loja no desktop e abaixo no mobile.') +
-              '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                '<div style="display:none;">' +
-                  '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">campaign</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo do destaque</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Escolha se o topo terá cupom, promoção, produto ou texto próprio.</div></div></div>' +
-                  '<div style="display:flex;gap:7px;flex-wrap:wrap;">' +
-                    '<span style="' + chipStyle + '">' + (tpl.featuredActionEnabled ? 'Destaque ativo' : 'Destaque oculto') + '</span>' +
-                    '<span style="' + chipStyle + '">' + _esc(featuredType === 'none' ? 'Nenhum' : featuredType === 'coupon' ? 'Cupom' : featuredType === 'promotion' ? 'Promoção' : featuredType === 'featured_product' ? 'Produto' : featuredType === 'most_ordered' ? 'Mais pedido' : 'Personalizado') + '</span>' +
-                    '<span style="' + chipStyle + '">' + (featuredType === 'custom' ? 'Texto manual' : 'Conteúdo vinculado') + '</span>' +
-                  '</div>' +
-                  '<small style="display:block;color:#6F6860;font-size:11px;line-height:1.45;">Se não houver conteúdo válido, o card é ocultado e o resumo principal ocupa mais espaço.</small>' +
-                '</div>' +
-                '<div id="tpl-featured-config" style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                  '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;"><div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Configuração do destaque</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Controle o conteúdo promocional exibido no topo da loja pública.</div></div><div style="min-width:220px;">' + _toggleHtml('tpl-featured-enabled', 'Ativar destaque', !!tpl.featuredActionEnabled, 'Se desativado, o card não aparece no público.') + '</div></div>' +
-                  '<div id="tpl-featured-settings" style="display:' + (tpl.featuredActionEnabled ? 'grid' : 'none') + ';grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;align-items:start;">' +
-                    _selectHtml('tpl-featured-type', 'Tipo de conteúdo do card', featuredType, [
-                    { value: 'none', label: 'Nenhum' },
-                    { value: 'coupon', label: 'Cupom ativo' },
-                    { value: 'promotion', label: 'Promoção ativa' },
-                    { value: 'featured_product', label: 'Produto destaque' },
-                    { value: 'most_ordered', label: 'Produto mais pedido' },
-                    { value: 'custom', label: 'Texto personalizado' }
-                  ]) +
-                  '<div id="tpl-featured-product-wrap" style="display:' + (featuredType === 'featured_product' ? 'block' : 'none') + ';grid-column:1 / -1;">' +
-                    _productPickerHtml(featuredType === 'featured_product' ? featuredSelectedId : '') +
-                    '<div class="tpl-featured-search-note">A lista mostra apenas produtos do tenant atual. O CTA abre o produto selecionado automaticamente.</div>' +
-                    '<div style="margin-top:12px;">' + _fieldHtml('tpl-featured-button-product', 'Texto do botão opcional', featuredType === 'featured_product' ? (tpl.featuredActionButtonLabel || '') : '', _featuredButtonSuggestion('featured_product', geral.language || tpl.language)) + '</div>' +
-                  '</div>' +
-                  '<div id="tpl-featured-most-ordered-wrap" style="display:' + (featuredType === 'most_ordered' ? 'block' : 'none') + ';grid-column:1 / -1;">' +
+                  '<div id="tpl-cover-settings" style="display:' + (tpl.topUseCover !== false ? 'grid' : 'none') + ';grid-template-columns:minmax(260px,1.1fr) minmax(220px,.9fr);gap:12px;align-items:start;">' +
                     '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                      _mostOrderedModeHtml(mostOrderedMode) +
-                      '<div id="tpl-most-ordered-auto-note" style="display:' + (mostOrderedMode === 'manual' ? 'none' : 'block') + ';font-size:12px;line-height:1.45;color:#8A7E7C;background:#fff;border:1px solid #EAE4DA;border-radius:10px;padding:10px 12px;">' + (mostOrderedAuto ? ('Produto identificado: ' + _esc(_productPickerValue(mostOrderedAuto.product)) + ' · ' + mostOrderedAuto.qty + ' pedido(s).') : 'Sem histórico suficiente para identificar automaticamente. Use seleção manual ou o card será ocultado no público.') + '</div>' +
-                      '<div id="tpl-most-ordered-manual-wrap" style="display:' + (mostOrderedMode === 'manual' ? 'block' : 'none') + ';">' +
-                        _mostOrderedManualPickerHtml(featuredType === 'most_ordered' ? featuredSelectedId : '') +
+                      _imageConfigHtml('bannerDesktop', { hideUrl: true, fileId: 'tpl-banner-desktop-file', urlId: 'tpl-banner-url', previewId: 'tpl-preview-banner-desktop', placeholderId: 'tpl-preview-banner-desktop-placeholder', label: 'Imagem de capa desktop', value: banner, placeholder: 'Sem imagem de capa desktop', note: 'Tamanho recomendado: 1600 × 520 px. Use uma imagem horizontal para o topo da loja.' }) +
+                      _imageConfigHtml('bannerMobile', { hideUrl: true, fileId: 'tpl-banner-mobile-file', urlId: 'tpl-banner-mobile-url', previewId: 'tpl-preview-banner-mobile', placeholderId: 'tpl-preview-banner-mobile-placeholder', label: 'Imagem de capa mobile', value: bannerMobile, placeholder: 'Sem imagem de capa mobile', note: 'Tamanho recomendado: 1080 × 720 px. Use uma imagem que continue bonita em tela vertical.' }) +
+                    '</div>' +
+                    '<div style="display:flex;flex-direction:column;gap:12px;">' +
+                      _colorFieldHtml('tpl-banner-overlay-color', 'Cor da sobreposição da capa', tpl.bannerOverlayColor || tpl.coverOverlayColor || tpl.heroOverlayColor || '#000000', 'Prévia da sobreposição da capa') +
+                      _opacityFieldHtml('tpl-banner-overlay-opacity', 'Opacidade da sobreposição (%)', tpl.bannerOverlayOpacity != null ? tpl.bannerOverlayOpacity : (tpl.bannerOverlayTransparency != null ? (100 - Number(tpl.bannerOverlayTransparency)) : 14)) +
+                    '</div>' +
+                  '</div>' +
+                '</div>' +
+              '</div>' +
+            '</section>' +
+            '<input id="tpl-top-promo-enabled" type="checkbox" style="display:none;">' +
+            '<input id="tpl-mobile-promo-banner-enabled" type="checkbox" style="display:none;">' +
+            '<input id="tpl-top-promo-closable" type="checkbox" style="display:none;"' + (tpl.topPromoClosable !== false ? ' checked' : '') + '>' +
+            '<input id="tpl-top-promo-text" type="hidden" value="' + _esc(tpl.topPromoText || '') + '">' +
+            '<input id="tpl-top-promo-color" type="hidden" value="' + _esc(tpl.topPromoColor || '#B42318') + '">' +
+            '<input id="tpl-top-promo-text-color" type="hidden" value="' + _esc(tpl.topPromoTextColor || tpl.promoBannerTextColor || tpl.bannerPromoTextColor || '#FFFFFF') + '">' +
+            '<input id="tpl-mobile-promo-banner-url" type="hidden" value="' + _esc(tpl.mobilePromoBannerImageUrl || tpl.promoBannerImageUrl || tpl.promotionalBannerImageUrl || '') + '">' +
+            '<input id="tpl-desktop-promo-banner-url" type="hidden" value="' + _esc(tpl.desktopPromoBannerImageUrl || tpl.promoBannerDesktopImageUrl || '') + '">' +
+            '<input id="tpl-mobile-promo-banner-badge" type="hidden" value="' + _esc(tpl.mobilePromoBannerBadge || tpl.promoBannerBadge || '') + '">' +
+            '<input id="tpl-mobile-promo-banner-title" type="hidden" value="' + _esc(tpl.mobilePromoBannerTitle || tpl.promoBannerTitle || '') + '">' +
+            '<input id="tpl-mobile-promo-banner-text" type="hidden" value="' + _esc(tpl.mobilePromoBannerText || tpl.promoBannerSubtitle || '') + '">' +
+            '<input id="tpl-mobile-promo-banner-button" type="hidden" value="' + _esc(tpl.mobilePromoBannerButtonText || tpl.promoBannerButtonText || '') + '">' +
+            '<input id="tpl-mobile-promo-banner-promotion" type="hidden" value="' + _esc(mobilePromoPromotionId) + '">' +
+            '<input id="tpl-mobile-promo-banner-product" type="hidden" value="' + _esc(mobilePromoProductId) + '">' +
+            '<input id="tpl-mobile-promo-banner-target" type="hidden" value="' + _esc(mobilePromoTarget) + '">' +
+            '<input id="tpl-top-show-region" type="checkbox" style="display:none;"' + (tpl.topShowRegion !== false ? ' checked' : '') + '>' +
+            '<input id="tpl-top-more-info" type="checkbox" style="display:none;"' + (tpl.topShowMoreInfo !== false ? ' checked' : '') + '>' +
+            '<input id="tpl-top-chips" type="checkbox" style="display:none;"' + (tpl.topShowChips !== false ? ' checked' : '') + '>' +
+            '</div>' +
+            '<aside class="tpl-maincard-preview-shell">' +
+              '<div class="tpl-maincard-preview-phone">' +
+                '<div id="tpl-maincard-preview-hero" class="tpl-maincard-preview-hero" style="' + (bannerMobile || banner ? 'background-image:linear-gradient(180deg,rgba(28,18,10,.20) 0%,rgba(28,18,10,.03) 54%,rgba(255,250,243,0) 100%),url(&quot;' + _esc(_cleanPublicUrl(bannerMobile || banner)) + '&quot;);' : '') + '">' +
+                  '<div class="tpl-maincard-preview-nav"><div class="tpl-maincard-preview-nav-left"><span class="tpl-maincard-preview-circle">‹</span><span class="tpl-maincard-preview-pill"><span id="tpl-maincard-preview-avatar" class="tpl-maincard-preview-avatar"><svg viewBox="0 0 24 24"><path d="M20 21a8 8 0 0 0-16 0"></path><circle cx="12" cy="8" r="4"></circle></svg></span>Entrar</span></div><div class="tpl-maincard-preview-nav-side"><span class="tpl-maincard-preview-circle"><span class="mi" style="font-size:15px;">search</span></span><span class="tpl-maincard-preview-circle"><span class="mi" style="font-size:15px;">shopping_bag</span></span></div></div>' +
+                  '<div class="tpl-maincard-preview-card">' +
+                    '<div class="tpl-maincard-preview-head">' +
+                      '<div id="tpl-maincard-preview-logo" class="tpl-maincard-preview-logo">' + (logo ? '<img src="' + _esc(_cleanPublicUrl(logo)) + '" alt="">' : '<span class="mi" style="font-size:25px;">storefront</span>') + '</div>' +
+                      '<div class="tpl-maincard-preview-copy">' +
+                        '<div id="tpl-maincard-preview-name" class="tpl-maincard-preview-name">' + _esc(identityName) + '</div>' +
+                        '<div id="tpl-maincard-preview-slogan" class="tpl-maincard-preview-slogan">' + _esc(identityText) + '</div>' +
+                        '<div id="tpl-maincard-preview-facts" class="tpl-maincard-preview-facts"></div>' +
+                        '<div id="tpl-maincard-preview-chips" class="tpl-maincard-preview-chips"></div>' +
+                        '<span id="tpl-maincard-preview-more" class="tpl-maincard-preview-more">Mais informações ›</span>' +
                       '</div>' +
-                      _fieldHtml('tpl-featured-button-most', 'Texto do botão opcional', featuredType === 'most_ordered' ? (tpl.featuredActionButtonLabel || '') : '', _featuredButtonSuggestion('most_ordered', geral.language || tpl.language)) +
                     '</div>' +
-                    '<div class="tpl-featured-search-note">No automático, o cálculo usa pedidos reais deste tenant. No manual, a lista mostra apenas produtos do tenant atual.</div>' +
-                  '</div>' +
-                  '<div id="tpl-featured-coupon-wrap" class="tpl-featured-fields" style="display:' + (featuredType === 'coupon' ? 'flex' : 'none') + ';">' +
-                    _couponPickerHtml(featuredCouponId) +
-                    '<div class="tpl-featured-search-note">A lista mostra apenas cupons ativos deste tenant. O CTA aplica o cupom automaticamente no carrinho.</div>' +
-                    _fieldHtml('tpl-featured-button', 'Texto do botão opcional', tpl.featuredActionButtonLabel || '', _featuredButtonSuggestion('coupon', geral.language || tpl.language)) +
-                  '</div>' +
-                  '<div id="tpl-featured-promotion-wrap" class="tpl-featured-fields" style="display:' + (featuredType === 'promotion' ? 'flex' : 'none') + ';">' +
-                    _promotionPickerHtml(featuredPromotionId) +
-                    '<div class="tpl-featured-search-note">A lista mostra apenas promoções ativas deste tenant. O CTA abre a listagem de produtos da promoção automaticamente.</div>' +
-                    _fieldHtml('tpl-featured-button-promotion', 'Texto do botão opcional', tpl.featuredActionButtonLabel || '', _featuredButtonSuggestion('promotion', geral.language || tpl.language)) +
-                  '</div>' +
-                  '<div id="tpl-featured-custom-wrap" class="tpl-featured-fields" style="display:' + (featuredType === 'custom' ? 'flex' : 'none') + ';">' +
-                    _fieldHtml('tpl-featured-title', 'Título do card', tpl.featuredActionTitle || '', 'Destaque comercial') +
-                    _textareaHtml('tpl-featured-text', 'Texto do card', tpl.featuredActionText || '', 'Resumo curto do destaque.', 3) +
-                    _fieldHtml('tpl-featured-button-custom', 'Texto do botão', tpl.featuredActionButtonLabel || '', 'Ver destaque') +
-                    _selectHtml('tpl-featured-target', 'Ação do botão', featuredTarget, [
-                      { value: '', label: 'Sem ação automática' },
-                      { value: 'promotions', label: 'Abrir promoções' },
-                      { value: 'products', label: 'Ir para seção de produtos' },
-                      { value: 'none', label: 'Ocultar ação' }
-                    ]) +
-                  '</div>' +
                   '</div>' +
                 '</div>' +
               '</div>' +
+            '</aside>' +
+            '</div>' +
+            '<section ' + _templatePanelAttrs('vitrine') + ' style="' + _cardStyle() + '">' + _sectionTitle('Ordem das categorias', 'Arraste para definir a sequência que aparece no menu e nas seções da loja pública.', 'swap_vert') +
+              '<div style="display:grid;gap:12px;">' +
+                _templateCategoryOrderHtml() +
+              '</div>' +
             '</section>' +
-            '<section ' + _templatePanelAttrs('vitrine') + ' style="' + _cardStyle() + '">' + _sectionTitle('Destaques da vitrine', 'Escolha produtos para aparecerem no topo da listagem pública.') +
+            '<section ' + _templatePanelAttrs('vitrine') + ' style="' + _cardStyle() + '">' + _sectionTitle('Programa de pontos', 'O card público usa as regras configuradas em Ações de Vendas → Programa de Pontos.', 'loyalty') +
+              '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;">' +
+                '<div style="min-width:0;">' +
+                  '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:9px;">' +
+                    '<span style="' + chipStyle + '">' + (pointsCfg.active === false ? 'Oculto no público' : 'Ativo no público') + '</span>' +
+                    '<span style="' + chipStyle + '">' + _esc(pointsCfg.programName || 'Programa de Pontos') + '</span>' +
+                  '</div>' +
+                  '<div style="font-size:13px;font-weight:760;color:#1F1F1F;line-height:1.25;">' + _esc(pointsCfg.programName || 'Programa de Pontos') + '</div>' +
+                  '<div style="font-size:12px;color:#6F6860;line-height:1.45;margin-top:4px;">' + _esc(pointsCfg.storeText || 'Configure o texto e as regras do programa no módulo de pontos. O card da loja pública será atualizado automaticamente.') + '</div>' +
+                  '<div style="font-size:11px;color:#8A7E7C;line-height:1.4;margin-top:8px;">' + _esc((pointsCfg.earnPerEuro || 1) + ' ponto(s) a cada €1 · ' + (pointsCfg.redeemRate || 10) + ' pontos = €1 de desconto') + '</div>' +
+                '</div>' +
+                '<button type="button" onclick="Router.navigate(\'marketing/pontos\')" style="height:38px;padding:0 14px;border:none;border-radius:12px;background:#B42318;color:#fff;font-size:12px;font-weight:760;cursor:pointer;font-family:inherit;box-shadow:0 8px 18px rgba(180,35,24,.16);white-space:nowrap;">Configurar pontos</button>' +
+              '</div>' +
+            '</section>' +
+            '<input id="tpl-featured-enabled" type="checkbox" style="display:none;"' + (tpl.featuredActionEnabled ? ' checked' : '') + '>' +
+            '<input id="tpl-featured-type" type="hidden" value="' + _esc(featuredType) + '">' +
+            '<input id="tpl-featured-image-url" type="hidden" value="' + _esc(featuredImageUrl) + '">' +
+            '<input id="tpl-featured-kicker" type="hidden" value="' + _esc(tpl.featuredActionKicker || tpl.featuredKicker || '') + '">' +
+            '<input id="tpl-featured-title" type="hidden" value="' + _esc(tpl.featuredActionTitle || '') + '">' +
+            '<input id="tpl-featured-text" type="hidden" value="' + _esc(tpl.featuredActionText || '') + '">' +
+            '<input id="tpl-featured-button-common" type="hidden" value="' + _esc(tpl.featuredActionButtonLabel || '') + '">' +
+            '<input id="tpl-featured-product" type="hidden" value="' + _esc(featuredType === 'featured_product' ? featuredSelectedId : '') + '">' +
+            '<input id="tpl-featured-most-ordered-product" type="hidden" value="' + _esc(featuredType === 'most_ordered' ? featuredSelectedId : '') + '">' +
+            '<input id="tpl-most-ordered-mode" type="hidden" value="' + _esc(mostOrderedMode) + '">' +
+            '<input id="tpl-featured-coupon" type="hidden" value="' + _esc(featuredCouponId) + '">' +
+            '<input id="tpl-featured-promotion" type="hidden" value="' + _esc(featuredPromotionId) + '">' +
+            '<input id="tpl-featured-target" type="hidden" value="' + _esc(featuredTarget) + '">' +
+            '<section ' + _templatePanelAttrs('operacao') + ' style="' + _cardStyle() + '">' + _sectionTitle('Entrega e retirada', 'Defina como o cliente recebe o pedido e quais prazos aparecem no checkout.', 'delivery_dining') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 '<div style="display:none;">' +
-                  '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">stars</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo da vitrine</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Defina quais produtos ganham destaque antes da lista completa.</div></div></div>' +
+                  '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">local_shipping</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo operacional</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Canais e prazos que aparecem na loja.</div></div></div>' +
                   '<div style="display:flex;gap:7px;flex-wrap:wrap;">' +
-                    '<span style="' + chipStyle + '">' + (tpl.showFeaturedProducts === true ? 'Automático ativo' : 'Seleção manual') + '</span>' +
-                    '<span style="' + chipStyle + '">' + showcaseIds.length + ' de 3 escolhidos</span>' +
-                    '<span style="' + chipStyle + '">' + ((_products || []).filter(function (p) { return p && p.menuVisible !== false; }).length) + ' produtos disponíveis</span>' +
-                  '</div>' +
-                  '<small style="display:block;color:#6F6860;font-size:11px;line-height:1.45;">Use produtos marcados no cadastro ou escolha até 3 itens manualmente para a vitrine.</small>' +
-                '</div>' +
-                '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                  '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;"><div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Produtos em destaque</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Escolha a origem da vitrine e os produtos que aparecem em destaque.</div></div><div style="min-width:240px;">' + _toggleHtml('tpl-show-featured-products', 'Usar marcados no cadastro', tpl.showFeaturedProducts === true, 'Puxa automaticamente produtos marcados como destaque.') + '</div></div>' +
-                  '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;align-items:start;">' +
-                    '<div style="display:flex;flex-direction:column;gap:8px;">' +
-                      '<div style="font-size:11px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;">Posição 1</div>' +
-                      _showcaseProductPickerHtml(1, showcaseIds[0] || '') +
-                    '</div>' +
-                    '<div style="display:flex;flex-direction:column;gap:8px;">' +
-                      '<div style="font-size:11px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;">Posição 2</div>' +
-                      _showcaseProductPickerHtml(2, showcaseIds[1] || '') +
-                    '</div>' +
-                    '<div style="display:flex;flex-direction:column;gap:8px;">' +
-                      '<div style="font-size:11px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;">Posição 3</div>' +
-                      _showcaseProductPickerHtml(3, showcaseIds[2] || '') +
-                    '</div>' +
-                  '</div>' +
-                '</div>' +
-              '</div>' +
-            '</section>' +
-            '<section ' + _templatePanelAttrs('vitrine') + ' style="' + _cardStyle() + '">' + _sectionTitle('Programa de fidelidade', 'Bloco exibido no mobile abaixo dos dados principais da loja.') +
-              '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                  '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;"><div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Clube de pontos</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Ative somente se a loja usar programa de pontos.</div></div><div style="min-width:220px;">' + _toggleHtml('tpl-loyalty-enabled', 'Mostrar fidelidade', tpl.loyaltyEnabled === true || tpl.pointsProgramEnabled === true, '') + '</div></div>' +
-                  _grid(
-                    _fieldHtml('tpl-loyalty-name', 'Nome do programa', tpl.loyaltyProgramName || tpl.pointsProgramName || '', 'Clube da loja') +
-                    _fieldHtml('tpl-loyalty-text', 'Texto curto do programa', tpl.loyaltyShortText || tpl.loyaltyText || '', 'Peça, acumule pontos e ganhe descontos exclusivos.') +
-                    _fieldHtml('tpl-loyalty-button', 'Texto do botão', tpl.loyaltyButtonText || '', 'Ver meus pontos'), '220px') +
-                '</div>' +
-              '</div>' +
-            '</section>' +
-            '<section ' + _templatePanelAttrs('operacao') + ' style="' + _cardStyle() + '">' + _sectionTitle('Entrega e retirada', 'Configure como o cliente pode receber o pedido, os prazos operacionais e as informações exibidas na loja.') +
-              '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                '<div style="display:none;">' +
-                  '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">local_shipping</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo operacional</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Canais, prazos e textos que aparecem na loja.</div></div></div>' +
-                  '<div style="display:flex;gap:7px;flex-wrap:wrap;">' +
-                    '<span style="' + chipStyle + '">' + (pickupEnabled ? 'Retirada ativa' : 'Retirada inativa') + '</span>' +
-                    '<span style="' + chipStyle + '">' + (deliveryEnabled ? 'Entrega ativa' : 'Entrega inativa') + '</span>' +
-                    '<span style="' + chipStyle + '">' + (prepTimeValue || '45') + ' min preparo</span>' +
-                    '<span style="' + chipStyle + '">' + (ordersPerHourValue || '12') + ' pedidos/h</span>' +
+                    '<span data-template-summary="pickup" style="' + chipStyle + '">' + (pickupEnabled ? 'Retirada ativa' : 'Retirada inativa') + '</span>' +
+                    '<span data-template-summary="delivery" style="' + chipStyle + '">' + (deliveryEnabled ? 'Entrega ativa' : 'Entrega inativa') + '</span>' +
+                    '<span data-template-summary="prep-time" style="' + chipStyle + '">' + (prepTimeValue || '45') + ' min preparo</span>' +
+                    '<span data-template-summary="orders-hour" style="' + chipStyle + '">' + (ordersPerHourValue || '12') + ' pedidos/h</span>' +
                   '</div>' +
                   '<small style="display:block;color:#6F6860;font-size:11px;line-height:1.45;">Essas informações alimentam os chips e o resumo do topo da loja.</small>' +
                 '</div>' +
                 '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                  '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Modos de atendimento</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Ative os canais disponíveis para o cliente.</div></div>' +
-                    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;">' +
-                      _checkHtml('tpl-pickup-enabled', 'Ativar retirada', pickupEnabled, '') +
-                      _checkHtml('tpl-delivery-enabled', 'Ativar entrega', deliveryEnabled, '') +
+                  '<div style="display:flex;gap:12px;align-items:stretch;flex-wrap:wrap;">' +
+                    '<div style="width:220px;flex:0 0 220px;min-height:100%;display:flex;flex-direction:column;gap:13px;padding:4px 2px;">' +
+                      _operationCardHead('room_service', 'Modos de atendimento', 'Escolha o que fica disponível para o cliente no carrinho.') +
+                      '<div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;">' +
+                        _operationCheckHtml('tpl-pickup-enabled', 'Retirada', pickupEnabled, '') +
+                        _operationCheckHtml('tpl-delivery-enabled', 'Entrega', deliveryEnabled, '') +
+                      '</div>' +
                     '</div>' +
-                  '</div>' +
-                  '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Capacidade e prazos</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Defina antecedência, preparo e volume de atendimento.</div></div>' +
-                    _grid(
-                      '<label style="display:block;"><span style="' + _labelStyle() + '">Dias mínimos de antecedência</span><input id="tpl-max-advance-days" type="number" min="0" step="1" value="' + _esc(advanceDaysValue) + '" placeholder="0" style="' + _inputStyle() + '"><small style="display:block;margin-top:6px;font-size:11px;line-height:1.35;color:#8A7E7C;">Use 0 para pedidos no mesmo dia.</small></label>' +
-                      _selectHtml('tpl-prep-time', 'Tempo médio de preparo', prepTimeValue, prepTimeOptions) +
-                      '<label style="display:block;"><span style="' + _labelStyle() + '">Pedidos por hora</span><input id="tpl-orders-per-hour" type="number" min="0" step="1" value="' + _esc(ordersPerHourValue) + '" placeholder="12" style="' + _inputStyle() + '"><small style="display:block;margin-top:6px;font-size:11px;line-height:1.35;color:#8A7E7C;">Capacidade por horário disponível.</small></label>', '220px') +
-                  '</div>' +
-                  '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px;align-items:start;">' +
-                    '<div id="tpl-delivery-settings-wrap" style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:' + (deliveryEnabled ? 'flex' : 'none') + ';flex-direction:column;gap:12px;">' +
-                      '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Entrega</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Regras e texto exibidos quando a entrega estiver ativa.</div></div>' +
-                      _grid(
-                        '<label style="display:block;"><span style="' + _labelStyle() + '">Pedido mínimo</span><input id="tpl-min-delivery" type="text" inputmode="decimal" value="' + _esc(tpl.minDeliveryOrder || '') + '" placeholder="Ex: 15,00" style="' + _inputStyle() + '"><small style="display:block;margin-top:6px;font-size:11px;line-height:1.35;color:#8A7E7C;">Valor mínimo para liberar entrega.</small></label>' +
-                        _selectHtml('tpl-delivery-time', 'Tempo médio de entrega', deliveryTimeValue, deliveryTimeOptions), '180px') +
-                      '<label style="display:block;"><span style="' + _labelStyle() + '">Texto de entrega</span><textarea id="tpl-delivery-text" rows="3" placeholder="Entregamos na área selecionada." style="' + _inputStyle() + 'min-height:84px;resize:vertical;">' + _esc(tpl.deliveryText || '') + '</textarea></label>' +
+                    '<div style="' + _operationCardStyle('width:455px;flex:0 1 455px;min-height:100%;') + '">' +
+                      _operationCardHead('timer', 'Prazos e capacidade', 'Configure quando a loja pode receber pedidos e quanto consegue atender por horário.') +
+                      '<div style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;">' +
+                        _operationFieldHtml('tpl-max-advance-days', 'Antecedência', advanceDaysValue, '0', 'number', '', '0 permite pedidos para hoje.', 'min="0" step="1"', 'width:110px;flex:0 0 110px;') +
+                        _operationSelectHtml('tpl-prep-time', 'Tempo de preparo', prepTimeValue, prepTimeOptions, '', 'width:160px;flex:0 0 160px;') +
+                        _operationFieldHtml('tpl-orders-per-hour', 'Pedidos/hora', ordersPerHourValue, '12', 'number', '', 'Limite por horário.', 'min="1" step="1"', 'width:110px;flex:0 0 110px;') +
+                      '</div>' +
                     '</div>' +
-                    '<div id="tpl-pickup-settings-wrap" style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:' + (pickupEnabled ? 'flex' : 'none') + ';flex-direction:column;gap:12px;">' +
-                      '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Retirada</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Texto e instruções mostrados quando a retirada estiver ativa.</div></div>' +
-                      '<label style="display:block;"><span style="' + _labelStyle() + '">Texto de retirada</span><textarea id="tpl-pickup-text" rows="3" placeholder="Retire no endereço informado." style="' + _inputStyle() + 'min-height:84px;resize:vertical;">' + _esc(tpl.pickupText || '') + '</textarea></label>' +
+                    '<div id="tpl-delivery-settings-wrap" style="' + _operationCardStyle('display:' + (deliveryEnabled ? 'flex' : 'none') + ';width:350px;flex:0 1 350px;min-height:100%;') + '">' +
+                    _operationCardHead('delivery_dining', 'Entrega', 'Defina os valores e prazos usados quando a entrega estiver ativa.') +
+                    '<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">' +
+                      _operationMoneyFieldHtml('tpl-min-delivery', 'Pedido mínimo', tpl.minDeliveryOrder || '', 'Só para entrega.', 'width:132px;flex:0 0 132px;') +
+                      _operationSelectHtml('tpl-delivery-time', 'Tempo de entrega', deliveryTimeValue, deliveryTimeOptions, '', 'width:170px;flex:0 0 170px;') +
+                    '</div>' +
                     '</div>' +
                   '</div>' +
                 '</div>' +
@@ -4067,210 +4808,258 @@ Modules.Catalogo = (function () {
             '</section>' +
             _deliveryAreaHtml(deliveryArea) +
             _deliveryZonesHtml() +
-            '<section ' + _templatePanelAttrs('operacao') + ' style="' + _cardStyle() + '">' + _sectionTitle('Horários e status', 'Funcionamento da loja e mensagens especiais.') +
+            '<section ' + _templatePanelAttrs('operacao') + ' style="' + _cardStyle() + '">' + _sectionTitle('Horários e status', 'Funcionamento da loja e mensagens especiais.', 'schedule') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 '<div style="display:none;">' +
-                  '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">schedule</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo dos horários</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Defina abertura automática, fechamento manual e horários especiais.</div></div></div>' +
+                  '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">schedule</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo dos horários</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Defina abertura automática, fechamento manual e grade semanal.</div></div></div>' +
                   '<div style="display:flex;gap:7px;flex-wrap:wrap;">' +
-                    '<span style="' + chipStyle + '">' + (statusMode === 'manual_closed' ? 'Fechada manualmente' : statusMode === 'manual_open' ? 'Aberta manualmente' : 'Automática') + '</span>' +
-                    '<span style="' + chipStyle + '">' + ((tpl.specialHoursText || '').trim() ? 'Aviso especial' : 'Sem aviso') + '</span>' +
-                    '<span style="' + chipStyle + '">7 dias</span>' +
+                    '<span data-template-summary="status-mode" style="' + chipStyle + '">' + (statusMode === 'manual' ? 'Manual' : 'Automática') + '</span>' +
+                    '<span data-template-summary="hours-days" style="' + chipStyle + '">7 dias</span>' +
                   '</div>' +
                   '<small style="display:block;color:#6F6860;font-size:11px;line-height:1.45;">O modo automático usa a grade semanal abaixo para mostrar a loja aberta ou fechada.</small>' +
                 '</div>' +
                 '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                  '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Status público da loja</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Escolha se o status segue os horários ou se será controlado manualmente.</div></div>' +
-                    _grid(_selectHtml('tpl-status-mode', 'Status da loja', statusMode, [{ value: 'auto', label: 'Automático pelos horários' }, { value: 'manual_open', label: 'Aberta manualmente' }, { value: 'manual_closed', label: 'Fechada temporariamente' }]), '260px') +
+                  '<div style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;max-width:560px;padding:0 2px;">' +
+                    '<div style="min-width:220px;max-width:260px;flex:0 0 auto;">' +
+                      _operationCardHead('toggle_on', 'Status público da loja', 'Escolha se o status segue os horários ou se será controlado manualmente.') +
+                    '</div>' +
+                    _operationSelectHtml('tpl-status-mode', 'Status da loja', statusMode, [{ value: 'auto', label: 'Automático pelos horários' }, { value: 'manual', label: 'Manual' }], '', 'width:240px;flex:0 0 240px;') +
+                    '<input id="tpl-manual-closed" type="checkbox" style="display:none;"' + (manualStatusClosed ? ' checked' : '') + '>' +
                   '</div>' +
-                  '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Grade semanal</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Configure abertura, fechamento e segundo período de cada dia.</div></div>' +
+                  '<div style="' + _operationCardStyle() + '">' +
+                    _operationCardHead('schedule', 'Grade semanal', 'Configure abertura, fechamento e segundo período de cada dia.') +
                     '<div style="display:flex;flex-direction:column;gap:8px;">' + hoursHtml + '</div>' +
-                  '</div>' +
-                  '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Aviso de horário especial</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Use para feriados, pausas ou mudanças temporárias.</div></div>' +
-                    _textareaHtml('tpl-special-hours', 'Texto para horários especiais', tpl.specialHoursText || '', 'Fechamos em feriados...', 3) +
                   '</div>' +
                 '</div>' +
               '</div>' +
             '</section>' +
-            '<section ' + _templatePanelAttrs('atendimento') + ' style="' + _cardStyle() + '">' + _sectionTitle('Contato', 'Configure os canais que o cliente pode usar para falar com a loja.') +
+            '<section ' + _templatePanelAttrs('atendimento') + ' style="' + _cardStyle() + '">' + _sectionTitle('Contato', 'Configure os canais que o cliente pode usar para falar com a loja.', 'support_agent') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">support_agent</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo dos contatos</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Canais clicáveis e redes exibidos na loja.</div></div></div>' +
                   '<div style="display:flex;gap:7px;flex-wrap:wrap;">' +
-                    '<span style="' + chipStyle + '">' + ((geral.whatsapp || tpl.whatsapp) ? 'WhatsApp' : 'Sem WhatsApp') + '</span>' +
-                    '<span style="' + chipStyle + '">' + ((geral.email || tpl.email) ? 'E-mail' : 'Sem e-mail') + '</span>' +
-                    '<span style="' + chipStyle + '">' + (contactDisplay.showContactsInFooter ? 'Rodapé ativo' : 'Rodapé oculto') + '</span>' +
+                    '<span data-template-summary="whatsapp" style="' + chipStyle + '">' + ((geral.whatsapp || tpl.whatsapp) ? 'WhatsApp' : 'Sem WhatsApp') + '</span>' +
+                    '<span data-template-summary="email" style="' + chipStyle + '">' + ((geral.email || tpl.email) ? 'E-mail' : 'Sem e-mail') + '</span>' +
+                    '<span data-template-summary="contact-footer" style="' + chipStyle + '">' + (contactDisplay.showContactsInFooter ? 'Rodapé ativo' : 'Rodapé oculto') + '</span>' +
                   '</div>' +
                   '<small style="display:block;color:#6F6860;font-size:11px;line-height:1.45;">Esses contatos aparecem na loja pública e podem ser exibidos também no rodapé.</small>' +
                 '</div>' +
                 '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                  '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Canais de atendimento</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Esses dados aparecem nos contatos clicáveis da loja pública.</div></div>' +
-                    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;align-items:start;">' +
-                      _phoneCompositeHtml('tpl-whatsapp', 'WhatsApp principal', geral.whatsapp || tpl.whatsapp || '', '600 000 000', 'Será aberto no WhatsApp quando o cliente clicar.') +
-                      _phoneCompositeHtml('tpl-phone', 'Telefone', geral.phone || tpl.phone || '', '600 000 000', 'Será aberto como ligação no celular.') +
-                      _fieldHtml('tpl-email', 'E-mail de atendimento', geral.email || tpl.email || '', 'hola@loja.com') +
+                  '<div style="' + _operationCardStyle() + '">' +
+                    _operationCardHead('support_agent', 'Canais de atendimento', 'Contatos usados para o cliente falar com a loja.') +
+                    '<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">' +
+                      _operationPhoneCompositeHtml('tpl-whatsapp', 'WhatsApp principal', inheritedWhatsapp, '600 000 000', 'Aberto quando o cliente chama a loja pelo WhatsApp.', 'width:290px;flex:0 0 290px;') +
+                      _operationPhoneCompositeHtml('tpl-phone', 'Telefone', geral.phone || tpl.phone || '', '600 000 000', 'Usado para ligação direta no celular.', 'width:270px;flex:0 0 270px;') +
+                      _operationFieldHtml('tpl-email', 'E-mail de atendimento', geral.email || tpl.email || '', 'hola@loja.com', 'email', '', '', '', 'width:300px;flex:0 0 300px;') +
                     '</div>' +
                   '</div>' +
-                  '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Redes sociais</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Aceita @usuario ou link completo, conforme a rede.</div></div>' +
-                    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;align-items:start;">' +
-                      _fieldHtml('tpl-instagram', 'Instagram', geral.instagram || tpl.instagram || '', '@loja ou https://instagram.com/loja') +
-                      _fieldHtml('tpl-facebook', 'Facebook', geral.facebook || tpl.facebook || '', 'https://facebook.com/sualoja') +
-                      _fieldHtml('tpl-tiktok', 'TikTok', geral.tiktok || tpl.tiktok || '', '@loja ou https://tiktok.com/@loja') +
+                  '<div style="' + _operationCardStyle() + '">' +
+                    _operationCardHead('alternate_email', 'Redes sociais', 'Informe @usuário ou link completo, conforme a rede.') +
+                    '<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">' +
+                      _operationFieldHtml('tpl-instagram', 'Instagram', inheritedInstagram, '@loja ou https://instagram.com/loja', 'text', '', '', '', 'width:260px;flex:0 0 260px;') +
+                      _operationFieldHtml('tpl-facebook', 'Facebook', inheritedFacebook, 'https://facebook.com/sualoja', 'text', '', '', '', 'width:300px;flex:0 0 300px;') +
+                      _operationFieldHtml('tpl-tiktok', 'TikTok', inheritedTiktok, '@loja ou https://tiktok.com/@loja', 'text', '', '', '', 'width:260px;flex:0 0 260px;') +
                     '</div>' +
                   '</div>' +
-                  '<div id="tpl-contact-footer-wrap" style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;"><div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Exibição no rodapé</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Escolha quais canais serão mostrados no rodapé da loja pública.</div></div><div style="min-width:220px;">' + _toggleHtml('tpl-contact-footer-show', 'Mostrar contatos', contactDisplay.showContactsInFooter, '') + '</div></div>' +
-                    '<div id="tpl-contact-footer-options" style="display:' + (contactDisplay.showContactsInFooter ? 'grid' : 'none') + ';grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;">' +
-                      _toggleHtml('tpl-contact-footer-whatsapp', 'Mostrar WhatsApp no rodapé', contactDisplay.showWhatsappInFooter, '') +
-                      _toggleHtml('tpl-contact-footer-phone', 'Mostrar telefone no rodapé', contactDisplay.showPhoneInFooter, '') +
-                      _toggleHtml('tpl-contact-footer-email', 'Mostrar e-mail no rodapé', contactDisplay.showEmailInFooter, '') +
-                      _toggleHtml('tpl-contact-footer-instagram', 'Mostrar Instagram no rodapé', contactDisplay.showInstagramInFooter, '') +
-                      _toggleHtml('tpl-contact-footer-facebook', 'Mostrar Facebook no rodapé', contactDisplay.showFacebookInFooter, '') +
-                      _toggleHtml('tpl-contact-footer-tiktok', 'Mostrar TikTok no rodapé', contactDisplay.showTiktokInFooter, '') +
+                  '<div id="tpl-contact-footer-wrap" style="' + _operationCardStyle() + '">' +
+                    '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;">' +
+                      _operationCardHead('article', 'Exibição no rodapé', 'Escolha quais canais aparecem no rodapé da loja pública.') +
+                      '<div style="flex:0 0 auto;">' + _plainSwitchHtml('tpl-contact-footer-show', 'Mostrar contatos', contactDisplay.showContactsInFooter, '') + '</div>' +
+                    '</div>' +
+                    '<div id="tpl-contact-footer-options" style="display:' + (contactDisplay.showContactsInFooter ? 'grid' : 'none') + ';grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px 14px;">' +
+                      _operationCheckHtml('tpl-contact-footer-whatsapp', 'WhatsApp no rodapé', contactDisplay.showWhatsappInFooter, '') +
+                      _operationCheckHtml('tpl-contact-footer-phone', 'Telefone no rodapé', contactDisplay.showPhoneInFooter, '') +
+                      _operationCheckHtml('tpl-contact-footer-email', 'E-mail no rodapé', contactDisplay.showEmailInFooter, '') +
+                      _operationCheckHtml('tpl-contact-footer-instagram', 'Instagram no rodapé', contactDisplay.showInstagramInFooter, '') +
+                      _operationCheckHtml('tpl-contact-footer-facebook', 'Facebook no rodapé', contactDisplay.showFacebookInFooter, '') +
+                      _operationCheckHtml('tpl-contact-footer-tiktok', 'TikTok no rodapé', contactDisplay.showTiktokInFooter, '') +
                     '</div>' +
                   '</div>' +
                 '</div>' +
               '</div>' +
             '</section>' +
-            '<section ' + _templatePanelAttrs('atendimento') + ' style="' + _cardStyle() + '">' + _sectionTitle('Endereço', 'Localização pública da loja.') +
+            '<section ' + _templatePanelAttrs('atendimento') + ' style="' + _cardStyle() + '">' + _sectionTitle('Endereço', 'Localização pública da loja.', 'location_on') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">location_on</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo do endereço</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Local público usado para retirada, comunicação e referência da loja.</div></div></div>' +
                   '<div style="display:flex;gap:7px;flex-wrap:wrap;">' +
-                    '<span style="' + chipStyle + '">' + _esc(end.city || geral.city || tpl.city || 'Sem cidade') + '</span>' +
-                    '<span style="' + chipStyle + '">' + _esc(end.postalCode || tpl.postalCode || 'Sem código postal') + '</span>' +
-                    '<span style="' + chipStyle + '">' + _esc(end.country || geral.country || tpl.country || fiscal.country || 'Sem país') + '</span>' +
+                    '<span data-template-summary="city" style="' + chipStyle + '">' + _esc(end.city || geral.city || tpl.city || 'Sem cidade') + '</span>' +
+                    '<span data-template-summary="postal" style="' + chipStyle + '">' + _esc(end.postalCode || tpl.postalCode || 'Sem código postal') + '</span>' +
+                    '<span data-template-summary="country" style="' + chipStyle + '">' + _esc(end.country || geral.country || tpl.country || fiscal.country || 'Sem país') + '</span>' +
                   '</div>' +
                   '<small style="display:block;color:#6F6860;font-size:11px;line-height:1.45;">Esse endereço é o exibido publicamente na loja e pode ser diferente do endereço fiscal.</small>' +
                 '</div>' +
                 '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                  '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Localização principal</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Endereço exibido para retirada e referência pública.</div></div>' +
-                    _grid(
-                      _fieldHtml('tpl-address', fiscal.cfg.addressLabel || 'Endereço da loja/produção', end.address || tpl.pickupAddress || tpl.address || '', 'Rua...') +
-                      _fieldHtml('tpl-number', 'Número', end.number || end.numero || tpl.number || tpl.numero || '', 'Número') +
-                      _fieldHtml('tpl-neighborhood', 'Bairro / Localidade', end.neighborhood || geral.neighborhood || tpl.neighborhood || '', 'Rochapea') +
-                      _fieldHtml('tpl-reference', 'Referência / complemento', end.reference || end.complemento || tpl.reference || tpl.complemento || '', 'Opcional'), '220px') +
+                  '<div style="' + _operationCardStyle() + '">' +
+                    _operationCardHead('place', 'Localização principal', 'Endereço exibido para retirada e referência pública.') +
+                    '<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">' +
+                      _operationFieldHtml('tpl-address', fiscal.cfg.addressLabel || 'Endereço da loja/produção', end.address || tpl.pickupAddress || tpl.address || '', 'Rua...', 'text', '', '', '', 'width:520px;flex:1 1 420px;') +
+                      _operationFieldHtml('tpl-number', 'Número', end.number || end.numero || tpl.number || tpl.numero || '', 'Nº', 'text', '', '', '', 'width:110px;flex:0 0 110px;') +
+                      _operationFieldHtml('tpl-neighborhood', 'Bairro / Localidade', end.neighborhood || geral.neighborhood || tpl.neighborhood || '', 'Rochapea', 'text', '', '', '', 'width:220px;flex:0 0 220px;') +
+                      _operationFieldHtml('tpl-reference', 'Referência / complemento', end.reference || end.complemento || tpl.reference || tpl.complemento || '', 'Opcional', 'text', '', '', '', 'width:300px;flex:1 1 260px;') +
+                    '</div>' +
                   '</div>' +
-                  '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Cidade e região</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Dados usados em busca local, rodapé e informações da loja.</div></div>' +
-                    _grid(
-                      _fieldHtml('tpl-city', 'Cidade', end.city || geral.city || tpl.city || '', 'Pamplona') +
-                      _fieldHtml('tpl-region', regionLabel, end.region || end.state || end.province || tpl.region || '', regionLabel) +
-                      _fieldHtml('tpl-postal', fiscal.cfg.postalCodeLabel || 'Código postal', end.postalCode || tpl.postalCode || '', '31001') +
-                      _fieldHtml('tpl-country', 'País', end.country || geral.country || tpl.country || fiscal.country, fiscal.country), '220px') +
+                  '<div style="' + _operationCardStyle() + '">' +
+                    _operationCardHead('map', 'Cidade e região', 'Dados usados no rodapé, nas informações da loja e na busca local.') +
+                    '<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">' +
+                      _operationFieldHtml('tpl-city', 'Cidade', end.city || geral.city || tpl.city || '', 'Pamplona', 'text', '', '', '', 'width:220px;flex:0 0 220px;') +
+                      _operationFieldHtml('tpl-region', regionLabel, end.region || end.state || end.province || tpl.region || '', regionLabel, 'text', '', '', '', 'width:220px;flex:0 0 220px;') +
+                      _operationFieldHtml('tpl-postal', fiscal.cfg.postalCodeLabel || 'Código postal', end.postalCode || tpl.postalCode || '', '31001', 'text', '', '', '', 'width:130px;flex:0 0 130px;') +
+                      _operationFieldHtml('tpl-country', 'País', end.country || geral.country || tpl.country || fiscal.country, fiscal.country, 'text', '', '', '', 'width:170px;flex:0 0 170px;') +
+                    '</div>' +
                   '</div>' +
                 '</div>' +
               '</div>' +
             '</section>' +
-            '<section ' + _templatePanelAttrs('checkout') + ' style="' + _cardStyle() + '">' + _sectionTitle('Pagamentos exibidos na loja', 'Formas cadastradas em Configurações > Financeiro. Ative apenas as que estarão disponíveis para o cliente.') +
+            '<section ' + _templatePanelAttrs('checkout') + ' style="' + _cardStyle() + '">' + _sectionTitle('Pagamentos exibidos na loja', 'Formas cadastradas em Configurações > Financeiro. Ative apenas as que estarão disponíveis para o cliente.', 'payments') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">payments</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo dos pagamentos</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Formas de pagamento visíveis no checkout da loja.</div></div></div>' +
                   '<div style="display:flex;gap:7px;flex-wrap:wrap;">' +
-                    '<span style="' + chipStyle + '">' + paymentMethods.length + ' cadastradas</span>' +
-                    '<span style="' + chipStyle + '">' + paymentMethods.filter(function (m) { return m && m.active; }).length + ' ativas</span>' +
-                    '<span style="' + chipStyle + '">' + ((pay.note || pay.paymentNote || tpl.paymentNote) ? 'Com observação' : 'Sem observação') + '</span>' +
+                    '<span data-template-summary="payment-total" style="' + chipStyle + '">' + paymentMethods.length + ' cadastradas</span>' +
+                    '<span data-template-summary="payment-active" style="' + chipStyle + '">' + paymentMethods.filter(function (m) { return m && m.active; }).length + ' ativas</span>' +
+                    '<span data-template-summary="payment-note" style="' + chipStyle + '">' + ((pay.note || pay.paymentNote || tpl.paymentNote) ? 'Com observação' : 'Sem observação') + '</span>' +
                   '</div>' +
                   '<small style="display:block;color:#6F6860;font-size:11px;line-height:1.45;">As formas disponíveis vêm das configurações financeiras; aqui você escolhe o que aparece para o cliente.</small>' +
                 '</div>' +
                 '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                  '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Formas disponíveis</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Ative somente as opções que o cliente poderá escolher no checkout.</div></div>' +
+                  '<div style="' + _operationCardStyle() + '">' +
+                    _operationCardHead('payments', 'Formas disponíveis', 'Ative somente as opções que o cliente poderá escolher no checkout.') +
                     _paymentMethodsHtml(paymentMethods) +
                   '</div>' +
-                  '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Observação geral</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Texto complementar mostrado ao cliente junto das opções de pagamento.</div></div>' +
-                    _textareaHtml('tpl-payment-note', 'Observação geral sobre pagamento', pay.note || pay.paymentNote || tpl.paymentNote || '', 'Pagamento na entrega ou retirada.', 3) +
+                  '<div style="' + _operationCardStyle() + '">' +
+                    _operationCardHead('notes', 'Observação geral', 'Texto complementar mostrado ao cliente junto das opções de pagamento.') +
+                    '<label style="display:block;min-width:0;max-width:620px;"><span style="' + _labelStyle() + '">Observação sobre pagamento</span><textarea id="tpl-payment-note" rows="3" placeholder="Pagamento na entrega ou retirada." style="' + _operationFieldStyle('min-height:86px;resize:vertical;') + '">' + _esc(pay.note || pay.paymentNote || tpl.paymentNote || '') + '</textarea></label>' +
                   '</div>' +
                 '</div>' +
               '</div>' +
             '</section>' +
-            '<section ' + _templatePanelAttrs('checkout') + ' style="' + _cardStyle() + '">' + _sectionTitle('Finalização do pedido', 'Configurações ligadas ao carrinho e checkout.') +
+            '<section ' + _templatePanelAttrs('checkout') + ' style="' + _cardStyle() + '">' + _sectionTitle('Finalização do pedido', 'Configurações ligadas ao carrinho e checkout.', 'shopping_cart_checkout') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">shopping_cart_checkout</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo do checkout</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Controle opções simples do carrinho e finalização.</div></div></div>' +
                   '<div style="display:flex;gap:7px;flex-wrap:wrap;">' +
-                    '<span style="' + chipStyle + '">' + (tpl.allowCustomerNote !== false ? 'Observação ativa' : 'Sem observação') + '</span>' +
-                    '<span style="' + chipStyle + '">' + (tpl.allowCoupon ? 'Cupom ativo' : 'Cupom oculto') + '</span>' +
+                    '<span data-template-summary="checkout-note" style="' + chipStyle + '">' + (tpl.allowCustomerNote !== false ? 'Observação ativa' : 'Sem observação') + '</span>' +
+                    '<span data-template-summary="checkout-coupon" style="' + chipStyle + '">' + (tpl.allowCoupon ? 'Cupom ativo' : 'Cupom oculto') + '</span>' +
                   '</div>' +
                   '<small style="display:block;color:#6F6860;font-size:11px;line-height:1.45;">Essas opções aparecem no carrinho antes do cliente enviar o pedido.</small>' +
                 '</div>' +
-                '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                  '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Opções do checkout</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Defina quais campos extras estarão disponíveis na finalização do pedido.</div></div>' +
-                  '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;align-items:start;">' +
-                    _checkHtml('tpl-allow-note', 'Permitir observação do cliente no pedido', tpl.allowCustomerNote !== false, '') +
-                    _checkHtml('tpl-allow-coupon', 'Permitir cupom', !!tpl.allowCoupon, 'Respeita suporte existente de cupons.') +
+                '<div style="' + _operationCardStyle() + '">' +
+                  _operationCardHead('shopping_cart_checkout', 'Opções do checkout', 'Defina quais campos extras estarão disponíveis na finalização do pedido.') +
+                  '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(245px,1fr));gap:8px 14px;align-items:start;">' +
+                    _operationCheckHtml('tpl-allow-note', 'Permitir observação do cliente no pedido', tpl.allowCustomerNote !== false, '') +
+                    _operationCheckHtml('tpl-allow-coupon', 'Permitir cupom', !!tpl.allowCoupon, '') +
                   '</div>' +
-                  _grid(
-                    _fieldHtml('tpl-cart-button', 'Texto do botão Ver pedido', tpl.cartButtonText || '', 'Ver pedido') +
-                    _fieldHtml('tpl-main-button', 'Texto do botão final', tpl.mainButtonText || '', 'Enviar pedido pelo WhatsApp'), '220px') +
+                  '<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">' +
+                    _operationFieldHtml('tpl-cart-button', 'Texto do botão Ver pedido', tpl.cartButtonText || '', 'Ver pedido', 'text', '', '', '', 'width:260px;flex:0 0 260px;') +
+                    _operationFieldHtml('tpl-main-button', 'Texto do botão final', tpl.mainButtonText || '', 'Enviar pedido pelo WhatsApp', 'text', '', '', '', 'width:330px;flex:0 0 330px;') +
+                  '</div>' +
                 '</div>' +
               '</div>' +
             '</section>' +
-            '<section ' + _templatePanelAttrs('atendimento') + ' style="' + _cardStyle() + '">' + _sectionTitle('WhatsApp da loja', 'Mensagem usada pelo botão flutuante do WhatsApp na loja pública.') +
+            '<section ' + _templatePanelAttrs('atendimento') + ' style="' + _cardStyle() + '">' + _sectionTitle('WhatsApp da loja', 'Mensagem usada pelo botão flutuante do WhatsApp na loja pública.', 'chat') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">chat</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo do WhatsApp</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Texto do botão flutuante e mensagem inicial enviada pelo cliente.</div></div></div>' +
                   '<div style="display:flex;gap:7px;flex-wrap:wrap;">' +
-                    '<span style="' + chipStyle + '">' + ((tpl.whatsappTooltip || tpl.whatsappFloatingLabel) ? 'Tooltip definido' : 'Sem tooltip') + '</span>' +
-                    '<span style="' + chipStyle + '">' + (tpl.whatsappMessage ? 'Mensagem definida' : 'Mensagem padrão') + '</span>' +
+                    '<span data-template-summary="whatsapp-tooltip" style="' + chipStyle + '">' + ((tpl.whatsappTooltip || tpl.whatsappFloatingLabel) ? 'Tooltip definido' : 'Sem tooltip') + '</span>' +
+                    '<span data-template-summary="whatsapp-message" style="' + chipStyle + '">' + (tpl.whatsappMessage ? 'Mensagem definida' : 'Mensagem padrão') + '</span>' +
                   '</div>' +
                   '<small style="display:block;color:#6F6860;font-size:11px;line-height:1.45;">Esse conteúdo aparece quando o cliente usa o botão flutuante de WhatsApp na loja.</small>' +
                 '</div>' +
-                '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                  '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Botão flutuante</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Configure o texto de apoio e a mensagem inicial enviada no WhatsApp.</div></div>' +
-                  _fieldHtml('tpl-whatsapp-tooltip', 'Texto ao passar o mouse', tpl.whatsappTooltip || tpl.whatsappFloatingLabel || '', 'Quero falar com alguém') +
-                  _textareaHtml('tpl-whatsapp-message', 'Mensagem do botão flutuante do WhatsApp', tpl.whatsappMessage || '', 'Olá, quero falar com a loja.', 4) +
+                '<div style="' + _operationCardStyle() + '">' +
+                  _operationCardHead('chat', 'Botão flutuante', 'Configure o texto de apoio e a mensagem inicial enviada no WhatsApp.') +
+                  '<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">' +
+                    _operationFieldHtml('tpl-whatsapp-tooltip', 'Texto ao passar o mouse', tpl.whatsappTooltip || tpl.whatsappFloatingLabel || '', 'Quero falar com alguém', 'text', '', '', '', 'width:320px;flex:0 0 320px;') +
+                    '<label style="display:block;min-width:0;flex:1 1 420px;"><span style="' + _labelStyle() + '">Mensagem do botão flutuante do WhatsApp</span><textarea id="tpl-whatsapp-message" rows="4" placeholder="Olá, quero falar com a loja." style="' + _operationFieldStyle('min-height:112px;resize:vertical;') + '">' + _esc(tpl.whatsappMessage || '') + '</textarea></label>' +
+                  '</div>' +
                 '</div>' +
               '</div>' +
             '</section>' +
-            '<section ' + _templatePanelAttrs('textos') + ' style="' + _cardStyle() + '">' + _sectionTitle('Mais informações', 'Textos exibidos quando o cliente abre o modal de informações da loja.') +
+            '<section ' + _templatePanelAttrs('textos') + ' style="' + _cardStyle() + '">' + _sectionTitle('Mais informações', 'Textos exibidos quando o cliente abre o modal de informações da loja.', 'info') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
                 '<div style="display:none;">' +
                   '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">info</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo das informações</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Conteúdo do modal público de informações da loja.</div></div></div>' +
                   '<div style="display:flex;gap:7px;flex-wrap:wrap;">' +
-                    '<span style="' + chipStyle + '">' + (tpl.about ? 'Sobre preenchido' : 'Sem sobre') + '</span>' +
-                    '<span style="' + chipStyle + '">' + (tpl.deliveryPolicy ? 'Entrega definida' : 'Sem política') + '</span>' +
-                    '<span style="' + chipStyle + '">' + (tpl.cancelPolicy ? 'Cancelamento definido' : 'Sem cancelamento') + '</span>' +
+                    '<span data-template-summary="about" style="' + chipStyle + '">' + (tpl.about ? 'Sobre preenchido' : 'Sem sobre') + '</span>' +
+                    '<span data-template-summary="delivery-policy" style="' + chipStyle + '">' + (tpl.deliveryPolicy ? 'Entrega definida' : 'Sem política') + '</span>' +
+                    '<span data-template-summary="cancel-policy" style="' + chipStyle + '">' + (tpl.cancelPolicy ? 'Cancelamento definido' : 'Sem cancelamento') + '</span>' +
                   '</div>' +
                   '<small style="display:block;color:#6F6860;font-size:11px;line-height:1.45;">Use textos curtos e claros para reduzir dúvidas antes do pedido.</small>' +
                 '</div>' +
-                '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                  '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Apresentação da loja</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">História, diferenciais e avisos importantes.</div></div>' +
-                    _textareaHtml('tpl-about', 'Sobre a loja', tpl.about || '', 'Conte a história da loja.', 4) +
-                    _textareaHtml('tpl-important', 'Aviso importante', tpl.importantNotice || '', 'Pedidos sujeitos à disponibilidade.', 3) +
+                '<div style="display:grid;grid-template-columns:minmax(0,1fr);gap:12px;">' +
+                  '<div style="' + _operationCardStyle() + '">' +
+                    _operationCardHead('storefront', 'Apresentação da loja', 'Texto principal exibido quando o cliente abre Mais informações.') +
+                    '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Sobre a loja</span><textarea id="tpl-about" rows="4" placeholder="Conte o que sua loja vende e o que o cliente precisa saber antes de pedir." style="' + _operationFieldStyle('min-height:112px;resize:vertical;') + '">' + _esc(tpl.about || '') + '</textarea></label>' +
                   '</div>' +
-                  '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;gap:12px;">' +
-                    '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Políticas da loja</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Regras exibidas para entrega e cancelamento.</div></div>' +
-                    _textareaHtml('tpl-delivery-policy', 'Política de entrega', tpl.deliveryPolicy || '', 'Como a entrega funciona.', 4) +
-                    _textareaHtml('tpl-cancel-policy', 'Política de cancelamento', tpl.cancelPolicy || '', 'Como cancelar um pedido.', 4) +
+                  '<div style="' + _operationCardStyle() + '">' +
+                    _operationCardHead('campaign', 'Aviso importante', 'Use apenas quando houver uma informação que o cliente deve ver antes de pedir.') +
+                    '<label style="display:block;min-width:0;max-width:620px;"><span style="' + _labelStyle() + '">Aviso importante</span><textarea id="tpl-important" rows="3" placeholder="Ex.: pedidos sujeitos à disponibilidade." style="' + _operationFieldStyle('min-height:88px;resize:vertical;') + '">' + _esc(tpl.importantNotice || '') + '</textarea></label>' +
+                  '</div>' +
+                  '<div style="' + _operationCardStyle() + '">' +
+                    _operationCardHead('local_shipping', 'Entrega e cancelamento', 'Explique de forma simples como funcionam entrega, retirada e alterações do pedido.') +
+                    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:12px;align-items:start;">' +
+                      '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Política de entrega</span><textarea id="tpl-delivery-policy" rows="4" placeholder="Explique prazos, áreas atendidas e cuidados na entrega." style="' + _operationFieldStyle('min-height:112px;resize:vertical;') + '">' + _esc(tpl.deliveryPolicy || '') + '</textarea></label>' +
+                      '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Política de cancelamento</span><textarea id="tpl-cancel-policy" rows="4" placeholder="Explique quando o cliente pode cancelar ou alterar o pedido." style="' + _operationFieldStyle('min-height:112px;resize:vertical;') + '">' + _esc(tpl.cancelPolicy || '') + '</textarea></label>' +
+                    '</div>' +
                   '</div>' +
                 '</div>' +
               '</div>' +
               '<input id="tpl-footer" type="hidden" value="' + _esc(tpl.footerText || '') + '">' +
             '</section>' +
-            '<div style="display:flex;justify-content:flex-end;"><button type="button" data-save-template-loja="1" onmouseenter="this.style.transform=\'translateY(-1px)\';this.style.boxShadow=\'0 8px 18px rgba(180,35,24,.20)\';" onmouseleave="this.style.transform=\'none\';this.style.boxShadow=\'0 4px 12px rgba(180,35,24,.18)\';" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">Salvar alterações</button></div>' +
+            '<div style="display:flex;justify-content:flex-end;"><button type="button" class="tpl-config-save" data-save-template-loja="1">Salvar alterações</button></div>' +
         '</div></div>';
       _setTemplateTab(_templateActiveTab || 'identidade');
       setTimeout(function () {
+        if (!content._tplPreviewScrollBound) {
+          content._tplPreviewScrollBound = true;
+          var syncPreview = function () {
+            if (window.requestAnimationFrame) window.requestAnimationFrame(_syncTemplatePreviewColumn);
+            else _syncTemplatePreviewColumn();
+          };
+          content.addEventListener('scroll', syncPreview, { passive: true });
+          window.addEventListener('scroll', syncPreview, { passive: true });
+          window.addEventListener('resize', syncPreview);
+        }
         [].slice.call(content.querySelectorAll('input,textarea,select')).forEach(function (el) {
           el.addEventListener('input', _refreshTemplatePreview);
           el.addEventListener('change', _refreshTemplatePreview);
+        });
+        [].slice.call(content.querySelectorAll('[id^="tpl-h-"]')).forEach(function (el) {
+          el.addEventListener('input', _syncHoursDayBlocks);
+          el.addEventListener('change', _syncHoursDayBlocks);
         });
         [].slice.call(content.querySelectorAll('[data-save-template-loja="1"]')).forEach(function (btn) {
           btn.addEventListener('click', function (ev) { ev.preventDefault(); _saveTemplateLoja(); });
         });
         _bindColorField('tpl-primary-color');
         _bindOpacityField('tpl-banner-overlay-opacity');
+        _bindTemplateCategoryOrder();
         _refreshTemplatePreview();
+        _syncTemplatePreviewColumn();
+        setTimeout(_syncTemplatePreviewColumn, 160);
         if (window.BocaPlaces) {
-          BocaPlaces.init('tpl-address');
+          BocaPlaces.init('tpl-address', {
+            onPlace: function (place) {
+              var addressEl = document.getElementById('tpl-address');
+              var streetOnly = place.street || (place.addressLine ? String(place.addressLine).split(',')[0] : '');
+              if (addressEl && streetOnly) {
+                addressEl.value = streetOnly;
+                if (addressEl._bocaPlaceElement) {
+                  try { addressEl._bocaPlaceElement.value = streetOnly; } catch (e) {}
+                }
+                try { addressEl.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {}
+                try { addressEl.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) {}
+              }
+              var neighborhoodEl = document.getElementById('tpl-neighborhood');
+              var neighborhood = place.neighborhood || place.sublocality || place.district || '';
+              if (neighborhoodEl && neighborhood) {
+                neighborhoodEl.value = neighborhood;
+                try { neighborhoodEl.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {}
+                try { neighborhoodEl.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) {}
+              }
+            }
+          });
           BocaPlaces.init('tpl-delivery-area-city');
         }
       }, 80);
@@ -4298,15 +5087,25 @@ Modules.Catalogo = (function () {
     var hex = document.getElementById(id + '-hex');
     if (!picker || !hex || picker._boundColor) return;
     picker._boundColor = true;
+    var swatch = document.querySelector('[data-color-swatch-for="' + id + '"]');
+    var syncSwatch = function (value) {
+      var color = _normalizeHexColor(value);
+      if (color && swatch) swatch.style.background = color;
+    };
     picker.addEventListener('input', function () {
       hex.value = _normalizeHexColor(picker.value) || '#B42318';
+      syncSwatch(hex.value);
       _refreshTemplatePreview();
     });
     hex.addEventListener('input', function () {
       var color = _normalizeHexColor(hex.value);
-      if (color) picker.value = color;
+      if (color) {
+        picker.value = color;
+        syncSwatch(color);
+      }
       _refreshTemplatePreview();
     });
+    syncSwatch(picker.value || hex.value);
   }
   function _bindOpacityField(id) {
     var num = document.getElementById(id);
@@ -4378,6 +5177,12 @@ Modules.Catalogo = (function () {
   function _bindFeaturedPromotionPicker() {
     _bindFeaturedCombobox('promotion', 'tpl-featured-promotion-picker', 'tpl-featured-promotion', 'tpl-featured-promotion-dropdown');
   }
+  function _bindMobilePromoPromotionPicker() {
+    _bindFeaturedCombobox('promotion', 'tpl-mobile-promo-banner-promotion-picker', 'tpl-mobile-promo-banner-promotion', 'tpl-mobile-promo-banner-promotion-dropdown');
+  }
+  function _bindMobilePromoProductPicker() {
+    _bindFeaturedCombobox('mobilePromoProduct', 'tpl-mobile-promo-banner-product-picker', 'tpl-mobile-promo-banner-product', 'tpl-mobile-promo-banner-product-dropdown');
+  }
   function _bindShowcaseProductPickers() {
     [1, 2, 3].forEach(function (index) {
       _bindFeaturedCombobox('showcaseProduct', 'tpl-showcase-product-picker-' + index, 'tpl-showcase-product-' + index, 'tpl-showcase-product-dropdown-' + index);
@@ -4396,9 +5201,9 @@ Modules.Catalogo = (function () {
       });
     }
     if (kind === 'promotion') {
-      return _activePromotionOptions().map(function (p) {
+      return _promotionPickerOptions().map(function (p) {
         return {
-          value: String(p.id || ''),
+          value: _templateMarketingId(p),
           label: _promotionPickerValue(p),
           sub: [p.name || p.title, _promotionTypeLabel(p.type), _promotionBenefitText(p)].filter(Boolean).join(' · '),
           search: [p.name, p.title, p.description, p.text, p.customerMessage, p.rulesText, _promotionTypeLabel(p.type), _promotionBenefitText(p), _promotionPickerValue(p)].filter(Boolean).join(' ')
@@ -4415,6 +5220,16 @@ Modules.Catalogo = (function () {
         };
       });
     }
+    if (kind === 'mobilePromoProduct') {
+      return _promotionProductOptionItems().map(function (item) {
+        return {
+          value: String(item.product && item.product.id || ''),
+          label: item.label,
+          sub: item.sub,
+          search: [item.label, item.sub, item.product && item.product.name, item.product && item.product.title].filter(Boolean).join(' ')
+        };
+      });
+    }
     return _activeProductOptions().map(function (p) {
       return {
         value: String(p.id || ''),
@@ -4427,6 +5242,7 @@ Modules.Catalogo = (function () {
   function _featuredComboboxEmptyText(kind) {
     if (kind === 'coupon') return 'Nenhum cupom ativo encontrado.';
     if (kind === 'promotion') return 'Nenhuma promoção ativa encontrada.';
+    if (kind === 'mobilePromoProduct') return 'Nenhum produto vinculado a promoção encontrado.';
     return 'Nenhum produto encontrado.';
   }
   function _closeFeaturedComboboxes(except) {
@@ -4491,6 +5307,8 @@ Modules.Catalogo = (function () {
   }
 
   function _refreshTemplatePreview() {
+    setTimeout(_syncTemplatePreviewColumn, 0);
+    _refreshTemplateSummaryChips();
     var name = document.getElementById('tpl-preview-name');
     var slogan = document.getElementById('tpl-preview-slogan');
     var btn = document.getElementById('tpl-preview-button');
@@ -4517,7 +5335,16 @@ Modules.Catalogo = (function () {
     var featuredText = document.getElementById('tpl-preview-featured-text');
     var featuredBtn = document.getElementById('tpl-preview-featured-btn');
     var shortName = document.getElementById('tpl-preview-short');
+    var logoDot = document.getElementById('tpl-preview-logo-dot');
     var statusPill = document.getElementById('tpl-preview-status-pill');
+    var mainCardPreviewHero = document.getElementById('tpl-maincard-preview-hero');
+    var mainCardPreviewAvatar = document.getElementById('tpl-maincard-preview-avatar');
+    var mainCardPreviewLogo = document.getElementById('tpl-maincard-preview-logo');
+    var mainCardPreviewName = document.getElementById('tpl-maincard-preview-name');
+    var mainCardPreviewSlogan = document.getElementById('tpl-maincard-preview-slogan');
+    var mainCardPreviewFacts = document.getElementById('tpl-maincard-preview-facts');
+    var mainCardPreviewMore = document.getElementById('tpl-maincard-preview-more');
+    var mainCardPreviewChips = document.getElementById('tpl-maincard-preview-chips');
     var promoSettings = document.getElementById('tpl-promo-settings');
     var coverSettings = document.getElementById('tpl-cover-settings');
     var coverConfig = document.getElementById('tpl-cover-config');
@@ -4530,12 +5357,35 @@ Modules.Catalogo = (function () {
     var featuredCustomWrap = document.getElementById('tpl-featured-custom-wrap');
     var deliverySettingsWrap = document.getElementById('tpl-delivery-settings-wrap');
     var pickupSettingsWrap = document.getElementById('tpl-pickup-settings-wrap');
-    _syncPhoneCompositeFields();
-    if (name) name.textContent = _val('tpl-public-name') || 'Nome da loja';
-    if (shortName) shortName.textContent = _val('tpl-short-name') || _val('tpl-public-name') || 'Loja';
-    if (slogan) slogan.textContent = _val('tpl-slogan') || 'Slogan da loja';
+    var mobilePromoTarget = _val('tpl-mobile-promo-banner-target') || 'promotion';
+    var mobilePromoPromotionWrap = document.getElementById('tpl-mobile-promo-banner-promotion-wrap');
+    var mobilePromoProductWrap = document.getElementById('tpl-mobile-promo-banner-product-wrap');
+    var mobilePromoAllNote = document.getElementById('tpl-mobile-promo-banner-all-note');
     var primaryInput = _normalizeHexColor(_val('tpl-primary-color-hex') || _val('tpl-primary-color')) || '#B42318';
-    var palette = _deriveStorePalette(primaryInput);
+    var palette = _deriveStorePalette(primaryInput) || _deriveStorePalette('#B42318');
+    _syncPhoneCompositeFields();
+    if (name) {
+      name.textContent = _val('tpl-public-name') || 'Nome da loja';
+      name.style.display = _checked('tpl-maincard-show-name') ? 'block' : 'none';
+    }
+    if (mainCardPreviewName) {
+      mainCardPreviewName.textContent = _val('tpl-public-name') || 'Nome da loja';
+      mainCardPreviewName.style.display = _checked('tpl-maincard-show-name') ? 'block' : 'none';
+    }
+    if (mainCardPreviewAvatar) {
+      mainCardPreviewAvatar.style.background = palette.primaryColor;
+      mainCardPreviewAvatar.style.color = palette.primaryContrast;
+      mainCardPreviewAvatar.innerHTML = '<svg viewBox="0 0 24 24"><path d="M20 21a8 8 0 0 0-16 0"></path><circle cx="12" cy="8" r="4"></circle></svg>';
+    }
+    if (shortName) shortName.textContent = _val('tpl-short-name') || _val('tpl-public-name') || 'Loja';
+    if (slogan) {
+      slogan.textContent = _val('tpl-slogan') || 'Slogan da loja';
+      slogan.style.display = _checked('tpl-maincard-show-slogan') ? 'block' : 'none';
+    }
+    if (mainCardPreviewSlogan) {
+      mainCardPreviewSlogan.textContent = _val('tpl-slogan') || 'Apresentação curta da loja';
+      mainCardPreviewSlogan.style.display = _checked('tpl-maincard-show-slogan') ? 'block' : 'none';
+    }
     var colorPreview = document.getElementById('tpl-primary-color-preview');
     var palettePreview = document.getElementById('tpl-preview-palette');
     if (colorPreview) {
@@ -4572,9 +5422,15 @@ Modules.Catalogo = (function () {
     }
     if (btn) { btn.textContent = _val('tpl-main-button') || 'Pedir pelo WhatsApp'; btn.style.background = palette.primaryColor; btn.style.color = palette.primaryContrast; }
     var mode = _val('tpl-status-mode') || 'auto';
-    var statusText = mode === 'manual_open' ? 'Aberta manualmente' : (mode === 'manual_closed' ? 'Fechada temporariamente' : 'Automática pelos horários');
+    var manualStatusWrap = document.getElementById('tpl-manual-status-wrap');
+    if (manualStatusWrap) manualStatusWrap.style.display = mode === 'manual' ? 'block' : 'none';
+    var previewOpen = mode === 'manual' ? !_checked('tpl-manual-closed') : _previewStoreOpenNow();
+    var statusText = mode === 'manual' ? 'Manual' : 'Automática pelos horários';
     if (status) status.textContent = statusText + ' · ' + (_checked('tpl-delivery-enabled') ? 'Entrega ativa' : 'Entrega inativa') + ' · ' + (_checked('tpl-pickup-enabled') ? 'Retirada ativa' : 'Retirada inativa');
-    if (statusPill) { statusPill.textContent = mode === 'manual_closed' ? 'Cerrada' : 'Abierta'; statusPill.style.color = mode === 'manual_closed' ? '#B42318' : '#1A9E5A'; statusPill.style.background = mode === 'manual_closed' ? '#FFF0EE' : '#EDFAF3'; }
+    if (statusPill) { statusPill.textContent = previewOpen ? 'Abierta' : 'Cerrada'; statusPill.style.color = previewOpen ? '#1A9E5A' : '#B42318'; statusPill.style.background = previewOpen ? '#EDFAF3' : '#FFF0EE'; statusPill.style.display = _checked('tpl-maincard-show-status') ? 'inline-flex' : 'none'; }
+    if (mode === 'auto' && window.AdminApp && typeof AdminApp._applyStoreOnlineStatus === 'function') {
+      AdminApp._applyStoreOnlineStatus(previewOpen, false, 'auto');
+    }
     if (promo) {
       promo.style.display = _checked('tpl-top-promo-enabled') ? 'block' : 'none';
       promo.textContent = _val('tpl-top-promo-text') || 'Banner promocional';
@@ -4596,32 +5452,81 @@ Modules.Catalogo = (function () {
     if (featuredCouponWrap) featuredCouponWrap.style.display = featuredEnabled && featuredType === 'coupon' ? 'flex' : 'none';
     if (featuredPromotionWrap) featuredPromotionWrap.style.display = featuredEnabled && featuredType === 'promotion' ? 'flex' : 'none';
     if (featuredCustomWrap) featuredCustomWrap.style.display = featuredEnabled && featuredType === 'custom' ? 'flex' : 'none';
+    if (mobilePromoPromotionWrap) mobilePromoPromotionWrap.style.display = mobilePromoTarget === 'promotion' ? 'block' : 'none';
+    if (mobilePromoProductWrap) mobilePromoProductWrap.style.display = mobilePromoTarget === 'product' ? 'block' : 'none';
+    if (mobilePromoAllNote) mobilePromoAllNote.style.display = mobilePromoTarget === 'all_promotions' ? 'block' : 'none';
     if (deliverySettingsWrap) deliverySettingsWrap.style.display = _checked('tpl-delivery-enabled') ? 'flex' : 'none';
     if (pickupSettingsWrap) pickupSettingsWrap.style.display = _checked('tpl-pickup-enabled') ? 'flex' : 'none';
     if (document.getElementById('tpl-featured-product-picker') || document.getElementById('tpl-featured-product')) _bindFeaturedProductPicker();
     if (document.getElementById('tpl-most-ordered-product-picker') || document.getElementById('tpl-featured-most-ordered-product')) _bindMostOrderedProductPicker();
     if (document.getElementById('tpl-featured-coupon-picker') || document.getElementById('tpl-featured-coupon')) _bindFeaturedCouponPicker();
     if (document.getElementById('tpl-featured-promotion-picker') || document.getElementById('tpl-featured-promotion')) _bindFeaturedPromotionPicker();
+    if (document.getElementById('tpl-mobile-promo-banner-promotion-picker') || document.getElementById('tpl-mobile-promo-banner-promotion')) _bindMobilePromoPromotionPicker();
+    if (document.getElementById('tpl-mobile-promo-banner-product-picker') || document.getElementById('tpl-mobile-promo-banner-product')) _bindMobilePromoProductPicker();
     if (document.getElementById('tpl-showcase-product-picker-1') || document.getElementById('tpl-showcase-product-1')) _bindShowcaseProductPickers();
-    if (region) { region.style.display = _checked('tpl-top-show-region') ? 'block' : 'none'; region.textContent = [_val('tpl-city'), _val('tpl-region')].filter(Boolean).join(' · ') || 'Cidade/região'; }
-    if (more) more.style.display = _checked('tpl-top-more-info') ? 'inline-block' : 'none';
+    if (region) { region.style.display = _checked('tpl-maincard-show-location') ? 'block' : 'none'; region.textContent = [_val('tpl-city'), _val('tpl-region')].filter(Boolean).join(' · ') || 'Cidade/região'; }
+    if (more) more.style.display = _checked('tpl-maincard-show-more-info') ? 'inline-block' : 'none';
+    if (mainCardPreviewMore) mainCardPreviewMore.style.display = _checked('tpl-maincard-show-more-info') ? 'inline-flex' : 'none';
     if (calc) calc.style.display = 'none';
     if (coverConfig) coverConfig.style.display = 'flex';
     if (coverSettings) coverSettings.style.display = _checked('tpl-top-use-cover') ? 'grid' : 'none';
     if (elementsConfig) elementsConfig.style.display = 'flex';
     if (chips) {
-      chips.style.display = _checked('tpl-top-chips') ? 'flex' : 'none';
+      var showPreviewChips = _checked('tpl-maincard-show-pickup') || _checked('tpl-maincard-show-delivery') || _checked('tpl-maincard-show-prep') || _checked('tpl-maincard-show-delivery-time') || _checked('tpl-maincard-show-min-order') || _checked('tpl-maincard-show-advance-days');
+      chips.style.display = showPreviewChips ? 'flex' : 'none';
       var previewZones = _collectDeliveryZonesFromDom();
       var storedDeliveryFee = _minActiveDeliveryZoneFee(previewZones);
       if (storedDeliveryFee == null || storedDeliveryFee === '') storedDeliveryFee = _val('tpl-delivery-fee') || ((_storeConfig && _storeConfig.template && _storeConfig.template.deliveryFee) || (_storeConfig && _storeConfig.geral && _storeConfig.geral.deliveryFee) || '');
-      chips.innerHTML = (_checked('tpl-delivery-enabled') ? '<span style="font-size:10px;font-weight:800;background:' + _esc(palette.chipSoft) + ';color:' + _esc(palette.primaryDark) + ';border-radius:999px;padding:5px 8px;">Entrega ' + (storedDeliveryFee !== '' && storedDeliveryFee != null ? _fmtMoneyDisplay(storedDeliveryFee) : '') + '</span>' : '') +
-        (_checked('tpl-pickup-enabled') ? '<span style="font-size:10px;font-weight:800;background:' + _esc(palette.chipSoft) + ';color:' + _esc(palette.primaryDark) + ';border-radius:999px;padding:5px 8px;">Retirada</span>' : '') +
-        (_val('tpl-min-delivery') ? '<span style="font-size:10px;font-weight:800;background:' + _esc(palette.chipSoft) + ';color:' + _esc(palette.primaryDark) + ';border-radius:999px;padding:5px 8px;">Mín. ' + _fmtMoneyDisplay(_val('tpl-min-delivery')) + '</span>' : '');
+      chips.innerHTML = (_checked('tpl-maincard-show-delivery') && _checked('tpl-delivery-enabled') ? '<span style="font-size:10px;font-weight:800;background:' + _esc(palette.chipSoft) + ';color:' + _esc(palette.primaryDark) + ';border-radius:999px;padding:5px 8px;">Entrega ' + (storedDeliveryFee !== '' && storedDeliveryFee != null ? _fmtMoneyDisplay(storedDeliveryFee) : '') + '</span>' : '') +
+        (_checked('tpl-maincard-show-pickup') && _checked('tpl-pickup-enabled') ? '<span style="font-size:10px;font-weight:800;background:' + _esc(palette.chipSoft) + ';color:' + _esc(palette.primaryDark) + ';border-radius:999px;padding:5px 8px;">Retirada</span>' : '') +
+        (_checked('tpl-maincard-show-prep') && _val('tpl-prep-time') ? '<span style="font-size:10px;font-weight:800;background:' + _esc(palette.chipSoft) + ';color:' + _esc(palette.primaryDark) + ';border-radius:999px;padding:5px 8px;">Preparo ' + _esc(_val('tpl-prep-time')) + ' min</span>' : '') +
+        (_checked('tpl-maincard-show-delivery-time') && _val('tpl-delivery-time') ? '<span style="font-size:10px;font-weight:800;background:' + _esc(palette.chipSoft) + ';color:' + _esc(palette.primaryDark) + ';border-radius:999px;padding:5px 8px;">Entrega ' + _esc(_val('tpl-delivery-time')) + '</span>' : '') +
+        (_checked('tpl-maincard-show-min-order') && _val('tpl-min-delivery') ? '<span style="font-size:10px;font-weight:800;background:' + _esc(palette.chipSoft) + ';color:' + _esc(palette.primaryDark) + ';border-radius:999px;padding:5px 8px;">Mín. ' + _fmtMoneyDisplay(_val('tpl-min-delivery')) + '</span>' : '') +
+        (_checked('tpl-maincard-show-advance-days') && _val('tpl-max-advance-days') ? '<span style="font-size:10px;font-weight:800;background:' + _esc(palette.chipSoft) + ';color:' + _esc(palette.primaryDark) + ';border-radius:999px;padding:5px 8px;">Antecedência ' + _esc(_val('tpl-max-advance-days')) + ' dia(s)</span>' : '');
     }
+    var bannerUrl = _cleanPublicUrl(_val('tpl-banner-url'));
+    var bannerMobileUrl = _cleanPublicUrl(_val('tpl-banner-mobile-url'));
     var logoUrl = _cleanPublicUrl(_val('tpl-logo-url'));
     if (logo) { logo.style.display = logoUrl ? 'block' : 'none'; logo.src = logoUrl || ''; }
-    var bannerUrl = _cleanPublicUrl(_val('tpl-banner-url'));
-    var bannerMobileUrl = _cleanPublicUrl(_val('tpl-banner-mobile-url')) || bannerUrl;
+    if (logoDot) logoDot.style.display = _checked('tpl-maincard-show-logo') ? 'inline-flex' : 'none';
+    if (mainCardPreviewLogo) {
+      mainCardPreviewLogo.style.display = _checked('tpl-maincard-show-logo') ? 'flex' : 'none';
+      mainCardPreviewLogo.innerHTML = logoUrl ? '<img src="' + _esc(logoUrl) + '" alt="">' : '<span class="mi" style="font-size:25px;">storefront</span>';
+    }
+    if (mainCardPreviewHero) {
+      var mainPreviewCoverUrl = bannerMobileUrl || bannerUrl;
+      mainCardPreviewHero.style.backgroundImage = mainPreviewCoverUrl && _checked('tpl-top-use-cover')
+        ? 'linear-gradient(180deg,' + bannerOverlayRgba + ' 0%,rgba(' + bannerOverlayRgb.r + ',' + bannerOverlayRgb.g + ',' + bannerOverlayRgb.b + ',' + (Math.max(0, Math.min(1, bannerOverlayOpacity / 100)) * .45) + ') 54%,rgba(' + bannerOverlayRgb.r + ',' + bannerOverlayRgb.g + ',' + bannerOverlayRgb.b + ',0) 100%),url("' + mainPreviewCoverUrl.replace(/"/g, '\\"') + '")'
+        : 'linear-gradient(180deg,rgba(28,18,10,.20) 0%,rgba(28,18,10,.03) 54%,rgba(255,250,243,0) 100%),linear-gradient(135deg,#DAC4AF,#F7E8DB)';
+    }
+    if (mainCardPreviewFacts) {
+      var previewFacts = _checked('tpl-maincard-show-rating') ? ['<span class="tpl-maincard-preview-star">★</span><b>4,8</b>'] : [];
+      var previewRegion = [_val('tpl-city'), _val('tpl-region')].filter(Boolean).join(' · ');
+      var previewPrep = _val('tpl-prep-time');
+      var previewDeliveryTime = _val('tpl-delivery-time');
+      var previewMinimum = _val('tpl-min-delivery');
+      var previewAdvanceDays = Number(_val('tpl-max-advance-days'));
+      var previewHours = _val('tpl-opening-hours-summary') || _val('tpl-hours-summary') || '';
+      if (_checked('tpl-maincard-show-location') && previewRegion) previewFacts.push('<span>' + _esc(previewRegion) + '</span>');
+      if (_checked('tpl-maincard-show-prep') && previewPrep) previewFacts.push('<span>' + _esc(String(previewPrep).indexOf('min') >= 0 ? previewPrep : previewPrep + ' min') + '</span>');
+      if (_checked('tpl-maincard-show-delivery-time') && previewDeliveryTime) previewFacts.push('<span>' + _esc(String(previewDeliveryTime).indexOf('min') >= 0 ? previewDeliveryTime : previewDeliveryTime + ' min') + '</span>');
+      if (_checked('tpl-maincard-show-min-order') && previewMinimum) previewFacts.push('<span>mín. ' + _fmtMoneyDisplay(previewMinimum) + '</span>');
+      if (_checked('tpl-maincard-show-advance-days') && previewAdvanceDays) previewFacts.push('<span>' + previewAdvanceDays + ' dia' + (previewAdvanceDays === 1 ? '' : 's') + ' de antecedência</span>');
+      if (_checked('tpl-maincard-show-hours') && previewHours) previewFacts.push('<span>' + _esc(previewHours) + '</span>');
+      mainCardPreviewFacts.style.display = previewFacts.length ? 'flex' : 'none';
+      mainCardPreviewFacts.innerHTML = previewFacts.join('<span class="tpl-maincard-preview-dot"></span>');
+    }
+    if (mainCardPreviewChips) {
+      var previewCardChips = [];
+      var previewZonesForMainCard = _collectDeliveryZonesFromDom();
+      var previewMainDeliveryFee = _minActiveDeliveryZoneFee(previewZonesForMainCard);
+      if (previewMainDeliveryFee == null || previewMainDeliveryFee === '') previewMainDeliveryFee = _val('tpl-delivery-fee') || ((_storeConfig && _storeConfig.template && _storeConfig.template.deliveryFee) || (_storeConfig && _storeConfig.geral && _storeConfig.geral.deliveryFee) || '');
+      if (_checked('tpl-maincard-show-status')) previewCardChips.push({ label: previewOpen ? 'Aberto' : 'Fechado', tone: previewOpen ? 'open' : 'closed' });
+      if (_checked('tpl-maincard-show-delivery') && _checked('tpl-delivery-enabled')) previewCardChips.push({ label: 'Entrega ' + (previewMainDeliveryFee !== '' && previewMainDeliveryFee != null ? _fmtMoneyDisplay(previewMainDeliveryFee) : 'desde'), tone: '' });
+      if (_checked('tpl-maincard-show-pickup') && _checked('tpl-pickup-enabled')) previewCardChips.push({ label: 'Retirada', tone: '' });
+      mainCardPreviewChips.style.display = previewCardChips.length ? 'flex' : 'none';
+      mainCardPreviewChips.innerHTML = previewCardChips.map(function (chip) { return '<span class="tpl-maincard-preview-chip ' + _esc(chip.tone || '') + '">' + _esc(chip.label) + '</span>'; }).join('');
+    }
     if (banner) { banner.style.display = bannerUrl && _checked('tpl-top-use-cover') ? 'block' : 'none'; banner.src = bannerUrl || ''; }
     if (bannerDesktop) { bannerDesktop.style.display = bannerUrl && _checked('tpl-top-use-cover') ? 'block' : 'none'; bannerDesktop.src = bannerUrl || ''; }
     if (bannerDesktopPlaceholder) bannerDesktopPlaceholder.style.display = bannerUrl && _checked('tpl-top-use-cover') ? 'none' : 'block';
@@ -4640,7 +5545,7 @@ Modules.Catalogo = (function () {
       if (featuredTitle) { featuredTitle.textContent = _val('tpl-featured-title') || (featuredType === 'coupon' ? 'Cupom disponível' : featuredType === 'promotion' ? 'Promoção ativa' : featuredType === 'custom' ? 'Destaque comercial' : featuredType === 'most_ordered' ? 'Produto mais pedido' : 'Produto destaque'); featuredTitle.style.color = palette.primaryColor; }
       if (featuredText) featuredText.textContent = _val('tpl-featured-text') || 'Resumo do destaque escolhido para o topo.';
       if (featuredBtn) {
-        var btnText = featuredType === 'promotion' ? _val('tpl-featured-button-promotion') : (featuredType === 'custom' ? _val('tpl-featured-button-custom') : (featuredType === 'featured_product' ? _val('tpl-featured-button-product') : (featuredType === 'most_ordered' ? _val('tpl-featured-button-most') : _val('tpl-featured-button'))));
+        var btnText = _val('tpl-featured-button-common') || (featuredType === 'promotion' ? _val('tpl-featured-button-promotion') : (featuredType === 'custom' ? _val('tpl-featured-button-custom') : (featuredType === 'featured_product' ? _val('tpl-featured-button-product') : (featuredType === 'most_ordered' ? _val('tpl-featured-button-most') : _val('tpl-featured-button')))));
         featuredBtn.textContent = btnText || _featuredButtonSuggestion(featuredType) || 'Ver destaque';
         featuredBtn.style.background = palette.primaryColor;
         featuredBtn.style.color = palette.primaryContrast;
@@ -4648,24 +5553,174 @@ Modules.Catalogo = (function () {
     }
   }
 
+  function _setTemplateSummaryText(key, text) {
+    [].slice.call(document.querySelectorAll('[data-template-summary="' + key + '"]')).forEach(function (el) {
+      el.textContent = text;
+    });
+  }
+
+  function _refreshTemplateSummaryChips() {
+    var logoUrl = _cleanPublicUrl(_val('tpl-logo-url'));
+    var coverUrl = _cleanPublicUrl(_val('tpl-banner-url') || _val('tpl-banner-mobile-url'));
+    var pickupEnabled = _checked('tpl-pickup-enabled');
+    var deliveryEnabled = _checked('tpl-delivery-enabled');
+    var paymentRows = [].slice.call(document.querySelectorAll('[data-tpl-payment-method="1"]'));
+    var activePayments = paymentRows.filter(function (row, idx) {
+      return _checked('tpl-pay-method-active-' + idx);
+    }).length;
+    _setTemplateSummaryText('logo', logoUrl ? 'Logo configurada' : 'Sem logo');
+    _setTemplateSummaryText('cover', coverUrl ? 'Capa configurada' : 'Sem capa');
+    _setTemplateSummaryText('pickup', pickupEnabled ? 'Retirada ativa' : 'Retirada inativa');
+    _setTemplateSummaryText('delivery', deliveryEnabled ? 'Entrega ativa' : 'Entrega inativa');
+    _setTemplateSummaryText('maincard-identity', (_checked('tpl-maincard-show-logo') || _checked('tpl-maincard-show-name') || _checked('tpl-maincard-show-slogan')) ? 'Identidade ativa' : 'Identidade oculta');
+    _setTemplateSummaryText('maincard-status', (_checked('tpl-maincard-show-location') || _checked('tpl-maincard-show-status') || _checked('tpl-maincard-show-hours')) ? 'Status visível' : 'Status oculto');
+    _setTemplateSummaryText('maincard-channels', (_checked('tpl-maincard-show-pickup') || _checked('tpl-maincard-show-delivery')) ? 'Canais visíveis' : 'Canais ocultos');
+    _setTemplateSummaryText('prep-time', (_val('tpl-prep-time') || '45') + ' min preparo');
+    _setTemplateSummaryText('orders-hour', (_val('tpl-orders-per-hour') || '12') + ' pedidos/h');
+    _setTemplateSummaryText('status-mode', (_val('tpl-status-mode') === 'manual') ? 'Manual' : 'Automática');
+    _setTemplateSummaryText('hours-days', '7 dias');
+    _setTemplateSummaryText('whatsapp', (_val('tpl-whatsapp-local') || _val('tpl-whatsapp')) ? 'WhatsApp' : 'Sem WhatsApp');
+    _setTemplateSummaryText('email', _val('tpl-email') ? 'E-mail' : 'Sem e-mail');
+    _setTemplateSummaryText('contact-footer', _checked('tpl-contact-footer-show') ? 'Rodapé ativo' : 'Rodapé oculto');
+    _setTemplateSummaryText('city', _val('tpl-city') || 'Sem cidade');
+    _setTemplateSummaryText('postal', _val('tpl-postal') || 'Sem código postal');
+    _setTemplateSummaryText('country', _val('tpl-country') || 'Sem país');
+    _setTemplateSummaryText('payment-total', paymentRows.length + ' cadastradas');
+    _setTemplateSummaryText('payment-active', activePayments + ' ativas');
+    _setTemplateSummaryText('payment-note', _val('tpl-payment-note') ? 'Com observação' : 'Sem observação');
+    _setTemplateSummaryText('checkout-note', _checked('tpl-allow-note') ? 'Observação ativa' : 'Sem observação');
+    _setTemplateSummaryText('checkout-coupon', _checked('tpl-allow-coupon') ? 'Cupom ativo' : 'Cupom oculto');
+    _setTemplateSummaryText('whatsapp-tooltip', _val('tpl-whatsapp-tooltip') ? 'Tooltip definido' : 'Sem tooltip');
+    _setTemplateSummaryText('whatsapp-message', _val('tpl-whatsapp-message') ? 'Mensagem definida' : 'Mensagem padrão');
+    _setTemplateSummaryText('about', _val('tpl-about') ? 'Sobre preenchido' : 'Sem sobre');
+    _setTemplateSummaryText('delivery-policy', _val('tpl-delivery-policy') ? 'Entrega definida' : 'Sem política');
+    _setTemplateSummaryText('cancel-policy', _val('tpl-cancel-policy') ? 'Cancelamento definido' : 'Sem cancelamento');
+  }
+
+  function _configuredDayClosed(idx) {
+    var input = document.getElementById('tpl-h-closed-' + idx);
+    if (!input) return false;
+    return !!input.checked;
+  }
+
+  function _configuredSecondPeriodClosed(idx) {
+    var input = document.getElementById('tpl-h-closed2-' + idx);
+    return input ? !!input.checked : false;
+  }
+
+  function _onTemplateHoursChange() {
+    _syncHoursDayBlocks();
+    _refreshTemplatePreview();
+  }
+
   function _collectHours() {
     var days = ['Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado','Domingo'];
     return days.map(function (label, idx) {
+      var closed = _configuredDayClosed(idx);
+      var closed2 = _configuredSecondPeriodClosed(idx);
+      var open2 = _val('tpl-h-open2-' + idx);
+      var close2 = _val('tpl-h-close2-' + idx);
+      var secondHasHours = !!(open2 && close2);
       return {
         day: label,
         open: _val('tpl-h-open-' + idx),
         close: _val('tpl-h-close-' + idx),
-        open2: _val('tpl-h-open2-' + idx),
-        close2: _val('tpl-h-close2-' + idx),
-        closed: _checked('tpl-h-closed-' + idx),
-        enabled: !_checked('tpl-h-closed-' + idx),
-        enabled2: _checked('tpl-h-enabled2-' + idx)
+        open2: open2,
+        close2: close2,
+        closed: closed,
+        enabled: !closed,
+        closed2: closed2,
+        enabled2: secondHasHours && !closed2
       };
     });
   }
 
+  function _minutesFromTime(value) {
+    var parts = String(value || '').split(':').map(Number);
+    if (!isFinite(parts[0])) return null;
+    return (parts[0] || 0) * 60 + (isFinite(parts[1]) ? parts[1] : 0);
+  }
+  function _firstTimeValue(row, keys) {
+    row = row || {};
+    for (var i = 0; i < keys.length; i += 1) {
+      var value = row[keys[i]];
+      if (value != null && String(value).trim()) return String(value).trim();
+    }
+    return '';
+  }
+
+  function _previewStoreOpenNow() {
+    var hours = _collectHours();
+    var now = new Date();
+    var idx = (now.getDay() + 6) % 7;
+    var row = hours[idx] || null;
+    var prevRow = hours[(idx + 6) % 7] || null;
+    if (!row) return false;
+    var current = now.getHours() * 60 + now.getMinutes();
+    function periodsFrom(sourceRow) {
+      var list = [];
+      sourceRow = sourceRow || {};
+      var open = _firstTimeValue(sourceRow, ['open', 'start', 'from', 'abre', 'openingTime', 'startTime']);
+      var close = _firstTimeValue(sourceRow, ['close', 'end', 'to', 'fecha', 'closingTime', 'endTime']);
+      var open2 = _firstTimeValue(sourceRow, ['open2', 'start2', 'from2', 'abre2', 'openingTime2', 'secondOpen']);
+      var close2 = _firstTimeValue(sourceRow, ['close2', 'end2', 'to2', 'fecha2', 'closingTime2', 'secondClose']);
+      if (_boolValue(sourceRow.closed) !== true && _boolValue(sourceRow.enabled) !== false && open && close) list.push({ start: open, end: close });
+      if (_boolValue(sourceRow.closed2) !== true && _boolValue(sourceRow.enabled2) !== false && open2 && close2) list.push({ start: open2, end: close2 });
+      return list;
+    }
+    function periodIsOpen(period, fromPreviousDay) {
+      var start = _minutesFromTime(period.start);
+      var end = _minutesFromTime(period.end);
+      if (start == null || end == null) return false;
+      if (start === end) return false;
+      if (end < start) return fromPreviousDay ? current < end : current >= start;
+      if (fromPreviousDay) return false;
+      return current >= start && current <= end;
+    }
+    return periodsFrom(row).some(function (period) { return periodIsOpen(period, false); }) ||
+      periodsFrom(prevRow).some(function (period) { return periodIsOpen(period, true); });
+  }
+
+  function _hoursSummaryFromHours(hours) {
+    var dayLabels = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+    var rows = Array.isArray(hours) ? hours : [];
+    var groups = {};
+    rows.slice(0, 7).forEach(function (row, index) {
+      row = row || {};
+      var periods = [];
+      var open = _firstTimeValue(row, ['open', 'start', 'from', 'abre', 'openingTime', 'startTime']);
+      var close = _firstTimeValue(row, ['close', 'end', 'to', 'fecha', 'closingTime', 'endTime']);
+      var open2 = _firstTimeValue(row, ['open2', 'start2', 'from2', 'abre2', 'openingTime2', 'secondOpen']);
+      var close2 = _firstTimeValue(row, ['close2', 'end2', 'to2', 'fecha2', 'closingTime2', 'secondClose']);
+      if (_boolValue(row.closed) !== true && _boolValue(row.enabled) !== false && open && close) periods.push(open + '-' + close);
+      if (_boolValue(row.closed2) !== true && _boolValue(row.enabled2) !== false && open2 && close2) periods.push(open2 + '-' + close2);
+      if (!periods.length) return;
+      var label = periods.join(' / ');
+      if (!groups[label]) groups[label] = [];
+      groups[label].push(index);
+    });
+    function compactDays(indexes) {
+      var parts = [];
+      var start = null;
+      var prev = null;
+      indexes.forEach(function (idx) {
+        if (start === null) { start = idx; prev = idx; return; }
+        if (idx === prev + 1) { prev = idx; return; }
+        parts.push(start === prev ? dayLabels[start] : dayLabels[start] + '-' + dayLabels[prev]);
+        start = idx;
+        prev = idx;
+      });
+      if (start !== null) parts.push(start === prev ? dayLabels[start] : dayLabels[start] + '-' + dayLabels[prev]);
+      return parts.join(', ');
+    }
+    var summary = Object.keys(groups).map(function (label) {
+      return compactDays(groups[label]) + ': ' + label;
+    });
+    return summary.length ? summary.join(' · ') : 'Fechado na semana';
+  }
+
   function _saveTemplateLoja() {
-    if (!_validatePublicUrls([{ id: 'tpl-logo-url', label: 'Logo' }, { id: 'tpl-favicon-url', label: 'Favicon' }, { id: 'tpl-banner-url', label: 'Imagem de capa desktop' }, { id: 'tpl-banner-mobile-url', label: 'Imagem de capa mobile' }, { id: 'tpl-mobile-promo-banner-url', label: 'Banner promocional mobile' }])) return;
+    if (!_validatePublicUrls([{ id: 'tpl-logo-url', label: 'Logo' }, { id: 'tpl-favicon-url', label: 'Favicon' }, { id: 'tpl-banner-url', label: 'Imagem de capa desktop' }, { id: 'tpl-banner-mobile-url', label: 'Imagem de capa mobile' }, { id: 'tpl-featured-image-url', label: 'Imagem do destaque' }, { id: 'tpl-mobile-promo-banner-url', label: 'Banner promocional mobile' }, { id: 'tpl-desktop-promo-banner-url', label: 'Banner promocional desktop' }])) return;
     var fiscal = _fiscalInfo();
     var hours = _collectHours();
     var collectedDeliveryZones = _collectDeliveryZonesFromDom();
@@ -4673,6 +5728,7 @@ Modules.Catalogo = (function () {
     var currentTpl = _storeConfig.template || {};
     var currentGeral = _storeConfig.geral || {};
     var currentApp = _storeConfig.aparencia || {};
+    var currentIntegracoes = _storeConfig.integracoes || {};
     var deliveryArea = _collectDeliveryAreaFromDom(_deliveryAreaFromConfig(currentTpl, _storeConfig.zonas || {}));
     if (collectedDeliveryZones.length) {
       var missingArea = _deliveryAreaMissingItems(deliveryArea);
@@ -4689,25 +5745,21 @@ Modules.Catalogo = (function () {
     var logoUrl = _cleanPublicUrl(_val('tpl-logo-url'));
     var faviconUrl = _cleanPublicUrl(_val('tpl-favicon-url')) || currentTpl.faviconUrl || currentGeral.faviconUrl || currentApp.faviconUrl || '';
     var coverUrl = _cleanPublicUrl(_val('tpl-banner-url'));
-    var coverMobileUrl = _cleanPublicUrl(_val('tpl-banner-mobile-url')) || coverUrl;
+    var coverMobileUrl = _cleanPublicUrl(_val('tpl-banner-mobile-url'));
     var mobilePromoBannerUrl = _cleanPublicUrl(_val('tpl-mobile-promo-banner-url'));
-    var showcaseIds = ['tpl-showcase-product-1', 'tpl-showcase-product-2', 'tpl-showcase-product-3'].map(function (id) {
-      return String(_val(id) || '').trim();
-    }).filter(Boolean).filter(function (id, idx, arr) {
-      return arr.indexOf(id) === idx;
-    }).slice(0, 3);
+    var desktopPromoBannerUrl = _cleanPublicUrl(_val('tpl-desktop-promo-banner-url'));
+    var showcaseIds = [];
     var bannerOverlayColor = _normalizeHexColor(_val('tpl-banner-overlay-color')) || _normalizeHexColor(currentTpl.bannerOverlayColor || currentTpl.coverOverlayColor || currentTpl.heroOverlayColor) || '#000000';
     var bannerOverlayOpacityRaw = Number(_val('tpl-banner-overlay-opacity'));
     var bannerOverlayOpacity = isFinite(bannerOverlayOpacityRaw) ? bannerOverlayOpacityRaw : Number(currentTpl.bannerOverlayOpacity != null ? currentTpl.bannerOverlayOpacity : currentTpl.coverOverlayOpacity != null ? currentTpl.coverOverlayOpacity : currentTpl.heroOverlayOpacity != null ? currentTpl.heroOverlayOpacity : 14);
     if (!isFinite(bannerOverlayOpacity)) bannerOverlayOpacity = 14;
     var promoTextColor = _normalizeHexColor(_val('tpl-top-promo-text-color')) || _normalizeHexColor(currentTpl.topPromoTextColor || currentTpl.promoBannerTextColor || currentTpl.bannerPromoTextColor) || '#FFFFFF';
+    var mobilePromoBannerPromotionId = String(_val('tpl-mobile-promo-banner-promotion') || '').trim();
+    var mobilePromoBannerProductId = String(_val('tpl-mobile-promo-banner-product') || '').trim();
+    var mobilePromoBannerTarget = _val('tpl-mobile-promo-banner-target') || 'promotion';
     var featuredType = _val('tpl-featured-type') || 'none';
-    var featuredButtonLabel = '';
-    if (featuredType === 'coupon') featuredButtonLabel = _val('tpl-featured-button');
-    if (featuredType === 'promotion') featuredButtonLabel = _val('tpl-featured-button-promotion');
-    if (featuredType === 'featured_product') featuredButtonLabel = _val('tpl-featured-button-product');
-    if (featuredType === 'most_ordered') featuredButtonLabel = _val('tpl-featured-button-most');
-    if (featuredType === 'custom') featuredButtonLabel = _val('tpl-featured-button-custom');
+    var featuredButtonLabel = _val('tpl-featured-button-common') || _val('tpl-featured-button') || _val('tpl-featured-button-promotion') || _val('tpl-featured-button-product') || _val('tpl-featured-button-most') || _val('tpl-featured-button-custom');
+    var featuredImageUrl = _cleanPublicUrl(_val('tpl-featured-image-url'));
     var featuredTarget = featuredType === 'custom' ? _val('tpl-featured-target') : '';
     var mostOrderedMode = _val('tpl-most-ordered-mode') || 'auto';
     var featuredProductId = featuredType === 'featured_product' ? _val('tpl-featured-product') : (featuredType === 'most_ordered' && mostOrderedMode === 'manual' ? _val('tpl-featured-most-ordered-product') : '');
@@ -4715,6 +5767,7 @@ Modules.Catalogo = (function () {
       showLogo: _checked('tpl-maincard-show-logo'),
       showStoreName: _checked('tpl-maincard-show-name'),
       showSlogan: _checked('tpl-maincard-show-slogan'),
+      showRating: _checked('tpl-maincard-show-rating'),
       showMoreInfoButton: _checked('tpl-maincard-show-more-info'),
       showLocation: _checked('tpl-maincard-show-location'),
       showStoreStatus: _checked('tpl-maincard-show-status'),
@@ -4744,17 +5797,19 @@ Modules.Catalogo = (function () {
     var methodIsActive = function (keys) {
       return keys.some(function (key) { return paymentActiveByKey[_paymentMethodKey(key)] === true; });
     };
+    var selectedStatusMode = _val('tpl-status-mode') === 'manual' ? 'manual' : 'auto';
+    var manualClosedValue = selectedStatusMode === 'manual' ? _checked('tpl-manual-closed') : false;
+    var manualOpenValue = selectedStatusMode === 'manual' ? !manualClosedValue : false;
     var template = {
       publicName: _val('tpl-public-name'), publicStoreName: _val('tpl-public-name'), shortName: shortNameValue, shortStoreName: shortNameValue, slogan: _val('tpl-slogan'), description: currentTpl.description || currentGeral.description || '', storeDescription: currentTpl.description || currentGeral.description || '', verifiedBadgeEnabled: _checked('tpl-verified-badge'), storeVerified: _checked('tpl-verified-badge'),
       logoUrl: logoUrl, faviconUrl: faviconUrl, coverImageUrl: coverUrl, bannerUrl: coverUrl, coverImageMobileUrl: coverMobileUrl, mobileCoverImageUrl: coverMobileUrl, bannerMobileUrl: coverMobileUrl, logoStoragePath: images.logo && images.logo.imageStoragePath || currentTpl.logoStoragePath || '', logoImagePath: images.logo && (images.logo.imagePath || images.logo.imageStoragePath) || currentTpl.logoImagePath || currentTpl.logoStoragePath || '', faviconStoragePath: images.favicon && images.favicon.imageStoragePath || currentTpl.faviconStoragePath || currentGeral.faviconStoragePath || '', faviconImagePath: images.favicon && (images.favicon.imagePath || images.favicon.imageStoragePath) || currentTpl.faviconImagePath || currentTpl.faviconStoragePath || currentGeral.faviconStoragePath || '', bannerStoragePath: coverUrl ? (images.banner && images.banner.imageStoragePath || currentTpl.bannerStoragePath || currentTpl.coverImageStoragePath || '') : '', bannerImagePath: coverUrl ? (images.banner && (images.banner.imagePath || images.banner.imageStoragePath) || currentTpl.bannerImagePath || currentTpl.bannerStoragePath || currentTpl.coverImageStoragePath || '') : '', coverImageStoragePath: coverUrl ? (images.banner && images.banner.imageStoragePath || currentTpl.coverImageStoragePath || currentTpl.bannerStoragePath || '') : '', bannerMobileStoragePath: coverMobileUrl ? (images.bannerMobile && images.bannerMobile.imageStoragePath || currentTpl.bannerMobileStoragePath || currentTpl.coverImageMobileStoragePath || '') : '', bannerMobileImagePath: coverMobileUrl ? (images.bannerMobile && (images.bannerMobile.imagePath || images.bannerMobile.imageStoragePath) || currentTpl.bannerMobileImagePath || currentTpl.bannerMobileStoragePath || currentTpl.coverImageMobileStoragePath || '') : '', coverImageMobileStoragePath: coverMobileUrl ? (images.bannerMobile && images.bannerMobile.imageStoragePath || currentTpl.coverImageMobileStoragePath || currentTpl.bannerMobileStoragePath || '') : '',
-      topPromoEnabled: _checked('tpl-top-promo-enabled'), showPromoBanner: _checked('tpl-top-promo-enabled'), topPromoText: _val('tpl-top-promo-text'), promoBannerText: _val('tpl-top-promo-text'), topPromoColor: _val('tpl-top-promo-color') || primary, promoBannerColor: _val('tpl-top-promo-color') || primary, topPromoTextColor: promoTextColor, promoBannerTextColor: promoTextColor, bannerPromoTextColor: promoTextColor, topPromoClosable: _checked('tpl-top-promo-closable'), promoBannerDismissible: _checked('tpl-top-promo-closable'), topUseCover: _checked('tpl-top-use-cover'), useCoverImage: _checked('tpl-top-use-cover'), topShowRegion: _checked('tpl-top-show-region'), showCityRegion: _checked('tpl-top-show-region'), topShowMoreInfo: _checked('tpl-top-more-info'), showMoreInfoButton: _checked('tpl-top-more-info'), topShowChips: _checked('tpl-top-chips'), showDeliveryPickupChips: _checked('tpl-top-chips'),
-      mobilePromoBannerEnabled: _checked('tpl-mobile-promo-banner-enabled'), promotionalBannerEnabled: _checked('tpl-mobile-promo-banner-enabled'), promoVisualBannerEnabled: _checked('tpl-mobile-promo-banner-enabled'), mobilePromoBannerImageUrl: mobilePromoBannerUrl, promoBannerImageUrl: mobilePromoBannerUrl, promotionalBannerImageUrl: mobilePromoBannerUrl, mobilePromoBannerStoragePath: mobilePromoBannerUrl ? (images.promoMobile && images.promoMobile.imageStoragePath || currentTpl.mobilePromoBannerStoragePath || currentTpl.promoBannerImageStoragePath || '') : '', promoBannerImageStoragePath: mobilePromoBannerUrl ? (images.promoMobile && images.promoMobile.imageStoragePath || currentTpl.promoBannerImageStoragePath || currentTpl.mobilePromoBannerStoragePath || '') : '', promoBannerImagePath: mobilePromoBannerUrl ? (images.promoMobile && (images.promoMobile.imagePath || images.promoMobile.imageStoragePath) || currentTpl.promoBannerImagePath || currentTpl.promoBannerImageStoragePath || currentTpl.mobilePromoBannerStoragePath || '') : '', mobilePromoBannerBadge: _val('tpl-mobile-promo-banner-badge'), promoBannerBadge: _val('tpl-mobile-promo-banner-badge'), mobilePromoBannerTitle: _val('tpl-mobile-promo-banner-title'), promoBannerTitle: _val('tpl-mobile-promo-banner-title'), mobilePromoBannerText: _val('tpl-mobile-promo-banner-text'), promoBannerSubtitle: _val('tpl-mobile-promo-banner-text'), mobilePromoBannerButtonText: _val('tpl-mobile-promo-banner-button'), promoBannerButtonText: _val('tpl-mobile-promo-banner-button'),
+      topPromoEnabled: false, showPromoBanner: false, desktopPromoBannerEnabled: false, promoBannerDesktopEnabled: false, topPromoText: _val('tpl-top-promo-text'), promoBannerText: _val('tpl-top-promo-text'), topPromoColor: _val('tpl-top-promo-color') || primary, promoBannerColor: _val('tpl-top-promo-color') || primary, topPromoTextColor: promoTextColor, promoBannerTextColor: promoTextColor, bannerPromoTextColor: promoTextColor, topPromoClosable: _checked('tpl-top-promo-closable'), promoBannerDismissible: _checked('tpl-top-promo-closable'), topUseCover: _checked('tpl-top-use-cover'), useCoverImage: _checked('tpl-top-use-cover'), topShowRegion: _checked('tpl-top-show-region'), showCityRegion: _checked('tpl-top-show-region'), topShowMoreInfo: _checked('tpl-top-more-info'), showMoreInfoButton: _checked('tpl-top-more-info'), topShowChips: _checked('tpl-top-chips'), showDeliveryPickupChips: _checked('tpl-top-chips'),
+      mobilePromoBannerEnabled: false, promotionalBannerEnabled: false, promoVisualBannerEnabled: false, mobilePromoBannerImageUrl: mobilePromoBannerUrl, promoBannerImageUrl: mobilePromoBannerUrl, promotionalBannerImageUrl: mobilePromoBannerUrl, desktopPromoBannerImageUrl: desktopPromoBannerUrl, promoBannerDesktopImageUrl: desktopPromoBannerUrl, mobilePromoBannerStoragePath: mobilePromoBannerUrl ? (images.promoMobile && images.promoMobile.imageStoragePath || currentTpl.mobilePromoBannerStoragePath || currentTpl.promoBannerImageStoragePath || '') : '', promoBannerImageStoragePath: mobilePromoBannerUrl ? (images.promoMobile && images.promoMobile.imageStoragePath || currentTpl.promoBannerImageStoragePath || currentTpl.mobilePromoBannerStoragePath || '') : '', promoBannerImagePath: mobilePromoBannerUrl ? (images.promoMobile && (images.promoMobile.imagePath || images.promoMobile.imageStoragePath) || currentTpl.promoBannerImagePath || currentTpl.promoBannerImageStoragePath || currentTpl.mobilePromoBannerStoragePath || '') : '', desktopPromoBannerStoragePath: desktopPromoBannerUrl ? (images.promoDesktop && images.promoDesktop.imageStoragePath || currentTpl.desktopPromoBannerStoragePath || currentTpl.promoBannerDesktopStoragePath || '') : '', promoBannerDesktopStoragePath: desktopPromoBannerUrl ? (images.promoDesktop && images.promoDesktop.imageStoragePath || currentTpl.promoBannerDesktopStoragePath || currentTpl.desktopPromoBannerStoragePath || '') : '', desktopPromoBannerImagePath: desktopPromoBannerUrl ? (images.promoDesktop && (images.promoDesktop.imagePath || images.promoDesktop.imageStoragePath) || currentTpl.desktopPromoBannerImagePath || currentTpl.promoBannerDesktopImagePath || currentTpl.desktopPromoBannerStoragePath || '') : '', mobilePromoBannerBadge: _val('tpl-mobile-promo-banner-badge'), promoBannerBadge: _val('tpl-mobile-promo-banner-badge'), mobilePromoBannerTitle: _val('tpl-mobile-promo-banner-title'), promoBannerTitle: _val('tpl-mobile-promo-banner-title'), mobilePromoBannerText: _val('tpl-mobile-promo-banner-text'), promoBannerSubtitle: _val('tpl-mobile-promo-banner-text'), mobilePromoBannerButtonText: _val('tpl-mobile-promo-banner-button'), promoBannerButtonText: _val('tpl-mobile-promo-banner-button'), mobilePromoBannerPromotionId: mobilePromoBannerPromotionId, promoBannerPromotionId: mobilePromoBannerPromotionId, mobilePromoBannerProductId: mobilePromoBannerProductId, promoBannerProductId: mobilePromoBannerProductId, mobilePromoBannerTarget: mobilePromoBannerTarget, promoBannerTarget: mobilePromoBannerTarget,
       bannerOverlayColor: bannerOverlayColor, coverOverlayColor: bannerOverlayColor, heroOverlayColor: bannerOverlayColor, topBannerOverlayColor: bannerOverlayColor,
       bannerOverlayOpacity: bannerOverlayOpacity, coverOverlayOpacity: bannerOverlayOpacity, heroOverlayOpacity: bannerOverlayOpacity, topBannerOverlayOpacity: bannerOverlayOpacity,
       mainCardConfig: mainCardConfig, topShowRegion: mainCardConfig.showLocation || mainCardConfig.showStoreStatus, showCityRegion: mainCardConfig.showLocation || mainCardConfig.showStoreStatus, topShowMoreInfo: mainCardConfig.showMoreInfoButton, showMoreInfoButton: mainCardConfig.showMoreInfoButton, topShowChips: mainCardConfig.showPickup || mainCardConfig.showDelivery || mainCardConfig.showPreparationTime || mainCardConfig.showDeliveryTime || mainCardConfig.showMinimumOrder || mainCardConfig.showAdvanceDays, showDeliveryPickupChips: mainCardConfig.showPickup || mainCardConfig.showDelivery || mainCardConfig.showPreparationTime || mainCardConfig.showDeliveryTime || mainCardConfig.showMinimumOrder || mainCardConfig.showAdvanceDays,
-      featuredActionEnabled: _checked('tpl-featured-enabled'), featuredActionType: featuredType, featuredActionTitle: featuredType === 'custom' ? _val('tpl-featured-title') : '', featuredActionText: featuredType === 'custom' ? _val('tpl-featured-text') : '', featuredActionButtonLabel: featuredButtonLabel, featuredActionTarget: featuredTarget, featuredActionProductId: featuredProductId, featuredProductId: featuredType === 'featured_product' ? featuredProductId : '', mostOrderedProductId: featuredType === 'most_ordered' ? featuredProductId : '', mostOrderedMode: featuredType === 'most_ordered' ? mostOrderedMode : '', featuredMostOrderedMode: featuredType === 'most_ordered' ? mostOrderedMode : '', featuredActionCouponId: featuredType === 'coupon' ? _val('tpl-featured-coupon') : '', featuredCouponId: featuredType === 'coupon' ? _val('tpl-featured-coupon') : '', featuredActionPromotionId: featuredType === 'promotion' ? _val('tpl-featured-promotion') : '', featuredPromotionId: featuredType === 'promotion' ? _val('tpl-featured-promotion') : '',
-      showFeaturedProducts: _checked('tpl-show-featured-products'),
-      loyaltyEnabled: _checked('tpl-loyalty-enabled'), pointsProgramEnabled: _checked('tpl-loyalty-enabled'), loyaltyProgramName: _val('tpl-loyalty-name'), pointsProgramName: _val('tpl-loyalty-name'), loyaltyShortText: _val('tpl-loyalty-text'), loyaltyText: _val('tpl-loyalty-text'), loyaltyButtonText: _val('tpl-loyalty-button'),
+      featuredActionEnabled: _checked('tpl-featured-enabled'), featuredActionType: featuredType, featuredActionKicker: _val('tpl-featured-kicker'), featuredKicker: _val('tpl-featured-kicker'), featuredActionTitle: _val('tpl-featured-title'), featuredActionText: _val('tpl-featured-text'), featuredActionButtonLabel: featuredButtonLabel, featuredActionImageUrl: featuredImageUrl, featuredImageUrl: featuredImageUrl, featuredActionImageStoragePath: images.featured && images.featured.imageStoragePath || currentTpl.featuredActionImageStoragePath || '', featuredActionImagePath: images.featured && (images.featured.imagePath || images.featured.imageStoragePath) || currentTpl.featuredActionImagePath || currentTpl.featuredActionImageStoragePath || '', featuredActionTarget: featuredTarget, featuredActionProductId: featuredProductId, featuredProductId: featuredType === 'featured_product' ? featuredProductId : '', mostOrderedProductId: featuredType === 'most_ordered' ? featuredProductId : '', mostOrderedMode: featuredType === 'most_ordered' ? mostOrderedMode : '', featuredMostOrderedMode: featuredType === 'most_ordered' ? mostOrderedMode : '', featuredActionCouponId: featuredType === 'coupon' ? _val('tpl-featured-coupon') : '', featuredCouponId: featuredType === 'coupon' ? _val('tpl-featured-coupon') : '', featuredActionPromotionId: featuredType === 'promotion' ? _val('tpl-featured-promotion') : '', featuredPromotionId: featuredType === 'promotion' ? _val('tpl-featured-promotion') : '',
+      showFeaturedProducts: true,
       featuredProductIds: showcaseIds, highlightProductIds: showcaseIds, showcaseProductIds: showcaseIds,
       primaryColor: primary, brandColor: primary, themeColor: primary, accentColor: primary, secondaryColor: currentTpl.secondaryColor || currentGeral.secondaryColor || currentApp.secondaryColor || palette.primaryDark, colorPalette: palette, supportColors: palette, language: languageValue, defaultLanguage: languageValue, mainLanguage: languageValue, storeLanguage: languageValue, fiscalCountry: fiscalCountryValue, fiscalDocument: fiscalDocValue,
       whatsapp: _val('tpl-whatsapp'), phone: _val('tpl-phone'), email: _val('tpl-email'), instagram: _val('tpl-instagram'), facebook: _val('tpl-facebook'), tiktok: _val('tpl-tiktok'),
@@ -4767,8 +5822,8 @@ Modules.Catalogo = (function () {
         showFacebookInFooter: _checked('tpl-contact-footer-facebook'),
         showTiktokInFooter: _checked('tpl-contact-footer-tiktok')
       },
-address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-number'), city: _val('tpl-city'), region: _val('tpl-region'), neighborhood: _val('tpl-neighborhood') || currentTpl.neighborhood || currentGeral.neighborhood || currentApp.neighborhood || '', postalCode: _val('tpl-postal'), country: _val('tpl-country'), reference: _val('tpl-reference'), complemento: _val('tpl-reference'), showAddress: currentTpl.showAddress !== undefined ? currentTpl.showAddress : (currentGeral.showAddress !== undefined ? currentGeral.showAddress : (currentApp.showAddress !== undefined ? currentApp.showAddress : true)), mapsUrl: currentTpl.mapsUrl || currentGeral.mapsUrl || currentApp.mapsUrl || '', deliveryArea: deliveryArea, deliveryCity: deliveryArea.city, deliveryProvince: deliveryArea.province, deliveryCountry: deliveryArea.country, deliveryPostalCode: deliveryArea.postalCode, pickupNote: currentTpl.pickupNote || currentGeral.pickupNote || currentApp.pickupNote || '',      statusMode: _val('tpl-status-mode') || 'auto', manualClosed: (_val('tpl-status-mode') === 'manual_closed'), manualOpen: (_val('tpl-status-mode') === 'manual_open'), hours: hours, pickupHours: _val('tpl-pickup-hours'), deliveryHours: _val('tpl-delivery-hours'), specialHoursText: _val('tpl-special-hours'),
-      pickupEnabled: _checked('tpl-pickup-enabled'), deliveryEnabled: _checked('tpl-delivery-enabled'), minDeliveryOrder: _numVal('tpl-min-delivery'), minimumDeliveryOrder: _numVal('tpl-min-delivery'), maxOrdersPerSlot: _numVal('tpl-orders-per-hour'), ordersPerHour: _numVal('tpl-orders-per-hour'), maxAdvanceDays: _numVal('tpl-max-advance-days'), advanceDaysLimit: _numVal('tpl-max-advance-days'), deliveryFee: document.getElementById('tpl-delivery-fee') ? _numVal('tpl-delivery-fee') : (currentTpl.deliveryFee || currentGeral.deliveryFee || currentApp.deliveryFee || ''), deliveryText: _val('tpl-delivery-text'), pickupText: _val('tpl-pickup-text'), prepTime: _val('tpl-prep-time') || currentTpl.prepTime || currentGeral.prepTime || currentApp.prepTime || '', averagePrepTime: _val('tpl-prep-time') || currentTpl.averagePrepTime || currentGeral.averagePrepTime || currentApp.averagePrepTime || currentTpl.prepTime || '', deliveryTime: _val('tpl-delivery-time') || currentTpl.deliveryTime || currentGeral.deliveryTime || currentApp.deliveryTime || '', averageDeliveryTime: _val('tpl-delivery-time') || currentTpl.averageDeliveryTime || currentGeral.averageDeliveryTime || currentApp.averageDeliveryTime || currentTpl.deliveryTime || '',
+address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-number'), city: _val('tpl-city'), region: _val('tpl-region'), neighborhood: _val('tpl-neighborhood') || currentTpl.neighborhood || currentGeral.neighborhood || currentApp.neighborhood || '', postalCode: _val('tpl-postal'), country: _val('tpl-country'), reference: _val('tpl-reference'), complemento: _val('tpl-reference'), showAddress: currentTpl.showAddress !== undefined ? currentTpl.showAddress : (currentGeral.showAddress !== undefined ? currentGeral.showAddress : (currentApp.showAddress !== undefined ? currentApp.showAddress : true)), mapsUrl: currentTpl.mapsUrl || currentGeral.mapsUrl || currentApp.mapsUrl || '', deliveryArea: deliveryArea, deliveryCity: deliveryArea.city, deliveryProvince: deliveryArea.province, deliveryCountry: deliveryArea.country, deliveryPostalCode: deliveryArea.postalCode, pickupNote: currentTpl.pickupNote || currentGeral.pickupNote || currentApp.pickupNote || '',      statusMode: selectedStatusMode, manualClosed: manualClosedValue, manualOpen: manualOpenValue, hours: hours, pickupHours: _val('tpl-pickup-hours'), deliveryHours: _val('tpl-delivery-hours'), openingHoursSummary: _hoursSummaryFromHours(hours), hoursSummary: _hoursSummaryFromHours(hours), todayHoursText: _hoursSummaryFromHours(hours),
+      pickupEnabled: _checked('tpl-pickup-enabled'), deliveryEnabled: _checked('tpl-delivery-enabled'), minDeliveryOrder: _numVal('tpl-min-delivery'), minimumDeliveryOrder: _numVal('tpl-min-delivery'), maxOrdersPerSlot: _numVal('tpl-orders-per-hour'), ordersPerHour: _numVal('tpl-orders-per-hour'), maxAdvanceDays: _numVal('tpl-max-advance-days'), advanceDaysLimit: _numVal('tpl-max-advance-days'), scheduleDays: _numVal('tpl-max-advance-days') + 1, daysToShow: _numVal('tpl-max-advance-days') + 1, minAdvanceDays: 0, minimumAdvanceDays: 0, deliveryFee: document.getElementById('tpl-delivery-fee') ? _numVal('tpl-delivery-fee') : (currentTpl.deliveryFee || currentGeral.deliveryFee || currentApp.deliveryFee || ''), prepTime: _val('tpl-prep-time') || currentTpl.prepTime || currentGeral.prepTime || currentApp.prepTime || '', averagePrepTime: _val('tpl-prep-time') || currentTpl.averagePrepTime || currentGeral.averagePrepTime || currentApp.averagePrepTime || currentTpl.prepTime || '', deliveryTime: _val('tpl-delivery-time') || currentTpl.deliveryTime || currentGeral.deliveryTime || currentApp.deliveryTime || '', averageDeliveryTime: _val('tpl-delivery-time') || currentTpl.averageDeliveryTime || currentGeral.averageDeliveryTime || currentApp.averageDeliveryTime || currentTpl.deliveryTime || '',
       deliveryZones: deliveryZones,
       paymentMethods: paymentMethods, paymentMethodConfigs: paymentMethodConfigs, paymentMethodInstructions: paymentMethodInstructions, paymentNote: _val('tpl-payment-note'),
       payments: { cash: methodIsActive(['dinheiro', 'efectivo', 'efetivo', 'cash']), card: methodIsActive(['cartao', 'tarjeta', 'card']), bizum: methodIsActive(['bizum']), mbway: methodIsActive(['mb-way', 'mbway']), transfer: methodIsActive(['transferencia', 'transfer', 'bank-transfer']), localTransfer: methodIsActive(['transferencia', 'transfer', 'bank-transfer']), online: methodIsActive(['pagamento-online', 'pago-online', 'online']), note: _val('tpl-payment-note'), paymentMethods: paymentMethods, paymentMethodConfigs: paymentMethodConfigs, paymentMethodInstructions: paymentMethodInstructions, paymentNote: _val('tpl-payment-note') },
@@ -4784,7 +5839,30 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var aparencia = Object.assign({}, currentApp, { logoUrl: template.logoUrl, faviconUrl: template.faviconUrl, faviconStoragePath: template.faviconStoragePath, coverImageUrl: template.coverImageUrl, bannerUrl: template.bannerUrl, coverImageMobileUrl: template.coverImageMobileUrl, mobileCoverImageUrl: template.mobileCoverImageUrl, bannerMobileUrl: template.bannerMobileUrl, primaryColor: template.primaryColor, secondaryColor: template.secondaryColor, colorPalette: palette, supportColors: palette, visualName: template.publicName });
     var endereco = Object.assign({}, _storeConfig.endereco || {}, { address: template.address, city: template.city, region: template.region, province: template.region, state: template.region, postalCode: template.postalCode, country: template.country, showAddress: template.showAddress, mapsUrl: template.mapsUrl });
     var pagamentos = Object.assign({}, _storeConfig.pagamentos || {}, template.payments, { paymentMethods: paymentMethods, paymentMethodConfigs: paymentMethodConfigs, paymentMethodInstructions: paymentMethodInstructions, paymentNote: template.paymentNote, note: template.paymentNote });
-    var horarios = Object.assign({}, _storeConfig.horarios || {}, { days: hours, pickupHours: template.pickupHours, deliveryHours: template.deliveryHours, specialHoursText: template.specialHoursText });
+    var horarios = Object.assign({}, _storeConfig.horarios || {}, { days: hours, pickupHours: template.pickupHours, deliveryHours: template.deliveryHours, openingHoursSummary: template.openingHoursSummary, hoursSummary: template.hoursSummary, todayHoursText: template.todayHoursText });
+    var templateWhatsappCountry = _val('tpl-whatsapp-country') || currentIntegracoes.whatsappCountryCode || '';
+    var templateWhatsappLocal = _val('tpl-whatsapp-local') || '';
+    var integracoes = Object.assign({}, currentIntegracoes, {
+      whatsapp: templateWhatsappLocal || currentIntegracoes.whatsapp || '',
+      whatsappCountryCode: templateWhatsappCountry,
+      whatsappFull: [templateWhatsappCountry, templateWhatsappLocal].filter(Boolean).join(' ') || template.whatsapp || currentIntegracoes.whatsappFull || '',
+      instagram: template.instagram,
+      facebook: template.facebook,
+      tiktok: template.tiktok,
+      updatedAt: template.updatedAt
+    });
+    var operacao = Object.assign({}, _storeConfig.operacao || {}, {
+      statusMode: template.statusMode,
+      manualClosed: template.manualClosed,
+      manualOpen: template.manualOpen,
+      isOpen: template.statusMode === 'manual' ? template.manualOpen === true : _previewStoreOpenNow(),
+      hours: hours,
+      weeklyHours: hours,
+      openingHoursSummary: template.openingHoursSummary,
+      hoursSummary: template.hoursSummary,
+      todayHoursText: template.todayHoursText,
+      updatedAt: template.updatedAt
+    });
     var zonas = Object.assign({}, _storeConfig.zonas || {}, { area: template.deliveryArea, list: deliveryZones, deliveryZones: deliveryZones });
     var categoryVisualUpdates = _collectTemplateCategoryVisualUpdates();
     for (var cv = 0; cv < categoryVisualUpdates.length; cv += 1) {
@@ -4801,9 +5879,11 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       DB.setDocRoot('config', 'endereco', endereco),
       DB.setDocRoot('config', 'pagamentos', pagamentos),
       DB.setDocRoot('config', 'horarios', horarios),
+      DB.setDocRoot('config', 'integracoes', integracoes),
+      DB.setDocRoot('config', 'operacao', operacao),
       DB.setDocRoot('config', 'zonas', zonas)
     ].concat(categoryVisualUpdates.map(function (item) { return DB.update('categories', item.id, item.data); }))).then(function () {
-      _storeConfig.template = template; _storeConfig.geral = geral; _storeConfig.aparencia = aparencia; _storeConfig.endereco = endereco; _storeConfig.pagamentos = pagamentos; _storeConfig.horarios = horarios; _storeConfig.zonas = zonas;
+      _storeConfig.template = template; _storeConfig.geral = geral; _storeConfig.aparencia = aparencia; _storeConfig.endereco = endereco; _storeConfig.pagamentos = pagamentos; _storeConfig.horarios = horarios; _storeConfig.integracoes = integracoes; _storeConfig.operacao = operacao; _storeConfig.zonas = zonas;
       if (categoryVisualUpdates.length) {
         _categories = (_categories || []).map(function (cat) {
           var found = categoryVisualUpdates.find(function (item) { return String(item.id) === String(cat.id); });
@@ -4815,34 +5895,55 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       _refreshTemplatePreview();
       return _syncSystemTenantStoreFromTemplate(template);
     }).then(function () {
+      if (window.AdminApp && typeof AdminApp._applyStoreOnlineStatus === 'function') {
+        AdminApp._applyStoreOnlineStatus(template.statusMode === 'manual' ? template.manualOpen === true : _previewStoreOpenNow(), false, template.statusMode === 'manual' ? 'manual' : 'auto');
+      } else if (window.AdminApp && typeof AdminApp.refreshStoreOnlineStatus === 'function') {
+        AdminApp.refreshStoreOnlineStatus();
+      }
       UI.toast('Alterações visíveis na loja salvas.', 'success');
     }).catch(function (err) { UI.toast('Erro: ' + err.message, 'error'); });
   }
 
   function _syncHoursDayBlocks() {
+    var mode = _val('tpl-status-mode') || 'auto';
+    var todayIndex = (new Date().getDay() + 6) % 7;
+    var autoOpenNow = mode === 'auto' ? _previewStoreOpenNow() : null;
     for (var i = 0; i < 7; i += 1) {
       var row = document.querySelector('[data-hours-day="' + i + '"]');
       if (!row) continue;
-      var closed = _checked('tpl-h-closed-' + i);
-      var secondEnabled = _checked('tpl-h-enabled2-' + i);
-      var secondToggle = row.querySelector('[data-hours-secondary-toggle]');
+      var configuredClosed = _configuredDayClosed(i);
+      var runtimeClosed = mode === 'auto' && i === todayIndex && !configuredClosed && autoOpenNow === false;
+      var closed = configuredClosed;
+      var secondClosed = _configuredSecondPeriodClosed(i);
+      var secondEnabledInput = document.getElementById('tpl-h-enabled2-' + i);
+      var secondHasHours = !!(_val('tpl-h-open2-' + i) && _val('tpl-h-close2-' + i));
+      if (secondEnabledInput) secondEnabledInput.checked = secondHasHours && !secondClosed;
       var secondFields = row.querySelector('[data-hours-secondary-fields]');
       var mainFields = [].slice.call(row.querySelectorAll('[data-hours-main-field]'));
       var closedToggle = row.querySelector('.tpl-hours-day-closed-toggle');
+      var firstClosedToggle = document.getElementById('tpl-h-closed-' + i);
+      var secondClosedToggle = document.getElementById('tpl-h-closed2-' + i);
       row.classList.toggle('is-closed', closed);
-      row.classList.toggle('is-secondary-off', closed || !secondEnabled);
+      row.classList.toggle('is-second-closed', secondClosed);
+      row.classList.toggle('is-secondary-off', false);
+      row.classList.toggle('is-auto-runtime-closed', runtimeClosed);
+      row.classList.toggle('is-auto-runtime-open', mode === 'auto' && i === todayIndex && !configuredClosed && autoOpenNow === true);
       if (closedToggle) closedToggle.style.display = 'block';
+      if (firstClosedToggle && firstClosedToggle.closest('.tpl-toggle')) firstClosedToggle.closest('.tpl-toggle').classList.toggle('is-checked', closed);
+      if (secondClosedToggle && secondClosedToggle.closest('.tpl-toggle')) secondClosedToggle.closest('.tpl-toggle').classList.toggle('is-checked', secondClosed);
       mainFields.forEach(function (field) {
         field.style.display = closed ? 'none' : '';
         [].slice.call(field.querySelectorAll('input,select,textarea,button')).forEach(function (el) { el.disabled = closed; });
       });
-      if (secondToggle) {
-        secondToggle.style.display = closed ? 'none' : 'block';
-        [].slice.call(secondToggle.querySelectorAll('input,select,textarea,button')).forEach(function (el) { el.disabled = closed; });
-      }
       if (secondFields) {
-        secondFields.style.display = (!closed && secondEnabled) ? 'grid' : 'none';
-        [].slice.call(secondFields.querySelectorAll('input,select,textarea,button')).forEach(function (el) { el.disabled = closed || !secondEnabled; });
+        secondFields.style.display = 'grid';
+        [].slice.call(secondFields.querySelectorAll('input,select,textarea,button')).forEach(function (el) {
+          if (el.id === 'tpl-h-closed2-' + i) {
+            el.disabled = false;
+          } else {
+            el.disabled = secondClosed;
+          }
+        });
       }
     }
   }
@@ -4876,12 +5977,21 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   }
 
   function _renderSeoLoja() {
+    _ensureTemplateStyles();
     _loadStoreConfig().then(function () {
       var geral = _storeConfig.geral || {};
       var tpl = _storeConfig.template || {};
+      var zonas = _storeConfig.zonas || {};
       var seo = _storeConfig.seo || {};
+      var deliveryArea = _deliveryAreaFromConfig(tpl, zonas);
+      var deliveryZones = _normalizeDeliveryZones(
+        Array.isArray(tpl.deliveryZones) && tpl.deliveryZones.length
+          ? tpl.deliveryZones
+          : (Array.isArray(zonas.list) && zonas.list.length ? zonas.list : (Array.isArray(zonas.deliveryZones) && zonas.deliveryZones.length ? zonas.deliveryZones : []))
+      );
+      var zonesSummary = _deliveryZonesSummary(deliveryZones);
       var businessName = seo.businessName || geral.businessName || tpl.publicName || '';
-      var city = seo.city || geral.city || tpl.city || '';
+      var city = seo.city || deliveryArea.city || geral.city || tpl.city || '';
       var category = seo.mainKeyword || 'Comida brasileira';
       var titleDefault = businessName ? (businessName + ' | ' + category + (city ? ' em ' + city : '')) : 'Título SEO da loja';
       var descDefault = seo.description || geral.description || tpl.storeDescription || tpl.aboutStore || 'Descrição SEO da loja com cidade, produto e diferencial.';
@@ -4893,27 +6003,33 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       var publicWhatsapp = seo.publicWhatsapp || geral.whatsapp || tpl.whatsapp || '';
       var googleMaps = seo.googleMapsUrl || tpl.mapsUrl || '';
       var googleBusiness = seo.googleBusinessUrl || '';
+      var regionDefault = seo.deliveryArea || seo.neighborhoods || zonesSummary || [deliveryArea.city, deliveryArea.province].filter(Boolean).join(' · ') || tpl.neighborhood || geral.neighborhood || tpl.deliveryAreaText || '';
       var storeUrl = _publicStoreUrl();
       var published = !!storeUrl;
       var content = document.getElementById('catalogo-content');
       content.innerHTML =
-        '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px;">' +
-          '<div><div style="font-size:11px;font-weight:600;color:#A39B90;letter-spacing:.02em;margin-bottom:5px;">Cardápio</div><h2 style="font-size:28px;font-weight:600;line-height:1.1;margin:0 0 6px;color:#1F1F1F;">SEO da loja</h2><p style="font-size:15px;color:#6F6860;line-height:1.5;margin:0;max-width:780px;">Organize o título, a descrição e os dados locais da loja para busca e compartilhamento.</p></div>' +
-          '<button type="button" data-save-seo-loja="1" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">Salvar alterações</button>' +
-        '</div>' +
-        '<div style="display:flex;flex-direction:column;gap:14px;">' +
-            '<section style="' + _cardStyle() + '">' + _sectionTitle('Aparência no Google', 'Use o título e a descrição que melhor representam a loja na busca.') + _grid(
-              _fieldHtml('seo-title', 'Título da loja no Google', seo.title || titleDefault, 'Nome da loja | categoria em cidade') +
-              _textareaHtml('seo-description', 'Descrição da loja no Google', seo.description || descDefault, 'Resumo claro com produto, cidade e diferencial.', 4) +
-              _fieldHtml('seo-keyword', 'Palavra-chave principal', seo.mainKeyword || '', 'comida brasileira em Pamplona') +
-              '<div style="grid-column:1/-1;font-size:12px;color:#6F6860;line-height:1.5;">Título ideal: até 60 caracteres. Descrição ideal: até 160 caracteres.</div>' +
-              '<div style="grid-column:1/-1;">' + _seoPreviewGoogleHtml(titleDefault, descDefault, storeUrl, published, seo.title, seo.description) + '</div>', '220px') +
+        '<div class="bf-page tpl-config-page" style="padding:0;display:flex;flex-direction:column;font-family:Manrope,Inter,sans-serif;">' +
+          '<div class="tpl-config-head">' +
+            '<div style="min-width:0;flex:1 1 420px;"><h2 class="tpl-config-title">SEO da loja</h2><p class="tpl-config-subtitle">Preencha estas informações para ajudar sua loja a aparecer melhor no Google e para deixar os links compartilhados mais claros e profissionais.</p><div class="tpl-config-status"><span class="tpl-config-chip" data-seo-summary="title">' + (seo.title ? 'Título configurado' : 'Título pendente') + '</span><span class="tpl-config-chip" data-seo-summary="description">' + (seo.description ? 'Descrição configurada' : 'Descrição pendente') + '</span><span class="tpl-config-chip" data-seo-summary="image">' + (seo.ogImage || seo.imageUrl ? 'Imagem configurada' : 'Sem imagem') + '</span></div></div>' +
+            '<button type="button" class="tpl-config-save" data-save-seo-loja="1">Salvar alterações</button>' +
+          '</div>' +
+          '<div style="display:flex;flex-direction:column;gap:14px;margin-top:16px;">' +
+            '<section class="tpl-config-panel" style="' + _cardStyle() + '">' + _sectionTitle('Aparência no Google', 'Use um título claro e uma descrição curta para apresentar a loja nas buscas.', 'travel_explore') +
+              '<div style="display:grid;grid-template-columns:minmax(0,1.7fr) minmax(160px,.55fr);gap:12px;align-items:start;">' +
+                '<div style="min-width:0;">' + _fieldHtml('seo-title', 'Título da loja no Google', seo.title || titleDefault, 'Nome da loja | categoria em cidade') + '</div>' +
+                '<div style="min-width:0;">' + _fieldHtml('seo-keyword', 'Palavra-chave principal', seo.mainKeyword || '', 'comida brasileira em Pamplona') + '</div>' +
+                '<div style="grid-column:1/-1;">' + _textareaHtml('seo-description', 'Descrição da loja no Google', seo.description || descDefault, 'Resumo claro com produto, cidade e diferencial.', 3) + '</div>' +
+                '<div style="grid-column:1/-1;font-size:12px;color:#6F6860;line-height:1.5;">Título ideal: até 60 caracteres. Descrição ideal: até 160 caracteres.</div>' +
+                '<div style="grid-column:1/-1;">' + _seoPreviewGoogleHtml(titleDefault, descDefault, storeUrl, published, seo.title, seo.description) + '</div>' +
+              '</div>' +
             '</section>' +
-            '<section style="' + _cardStyle() + '">' + _sectionTitle('SEO local', 'Contexto geográfico e dados públicos usados para busca local.') + _grid(
-              _fieldHtml('seo-city', 'Cidade principal atendida', seo.city || geral.city || tpl.city || '', 'Pamplona') +
-              _fieldHtml('seo-neighborhoods', 'Bairros/regiões atendidas', seo.neighborhoods || tpl.deliveryArea || '', 'Centro, Rochapea...') +
-              _fieldHtml('seo-delivery-area', 'Área de entrega', seo.deliveryArea || tpl.deliveryArea || '', 'Centro e arredores') +
-              '<div style="grid-column:1/-1;display:flex;flex-direction:column;gap:10px;padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);">' +
+            '<section class="tpl-config-panel" style="' + _cardStyle() + '">' + _sectionTitle('SEO local', 'Informe a região principal para dar contexto à busca da loja.', 'location_on') +
+              '<div style="display:grid;grid-template-columns:minmax(180px,.45fr) minmax(260px,1fr);gap:12px;align-items:start;">' +
+                _fieldHtml('seo-city', 'Cidade principal atendida', city, 'Pamplona') +
+                _fieldHtml('seo-delivery-area', 'Região atendida', regionDefault, 'Centro, Rochapea, Pamplona e arredores') +
+                '<input id="seo-neighborhoods" type="hidden" value="' + _esc(regionDefault) + '">' +
+              '</div>' +
+              '<div style="display:flex;flex-direction:column;gap:10px;margin-top:12px;padding:13px 14px;border:1px solid #EAE4DA;border-radius:14px;background:#FFFCF8;box-shadow:inset 0 1px 0 rgba(255,255,255,.78);">' +
                 '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">' +
                   '<div style="min-width:0;flex:1;">' +
                     '<div style="' + _labelStyle() + '">Resumo somente leitura</div>' +
@@ -4926,23 +6042,49 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
                   '</div>' +
                   '<button type="button" onclick="Modules.Catalogo._switchSub(\'template\')" style="height:38px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#1F1F1F;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 1px 2px rgba(31,31,31,.03);font-family:inherit;">Editar dados da loja</button>' +
                 '</div>' +
-              '</div>', '220px') +
-            '</section>' +
-            '<section style="' + _cardStyle() + '">' + _sectionTitle('Compartilhamento', 'Preview usado em WhatsApp, Facebook e outros canais.') + _grid(
-              '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                '<label style="display:block;"><span style="' + _labelStyle() + '">Imagem de compartilhamento</span><input type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onchange="Modules.Catalogo._uploadStoreImage(event,\'share\')" style="' + _inputStyle() + 'padding:8px;"><input id="seo-og-image" value="' + _esc(_cleanPublicUrl(seo.ogImage || seo.imageUrl || tpl.bannerUrl || geral.bannerUrl || '')) + '" placeholder="https://..." style="' + _inputStyle() + 'margin-top:8px;"></label>' +
               '</div>' +
-              _checkHtml('seo-share-custom-enabled', 'Usar título e descrição diferentes para compartilhamento', shareCustom, 'Se ativado, WhatsApp e redes usam textos próprios.') +
-              '<div id="seo-share-custom-fields" style="grid-column:1/-1;display:' + (shareCustom ? 'block' : 'none') + ';">' + _grid(
-                _fieldHtml('seo-share-title', 'Título para compartilhamento', shareTitle, 'Nome da loja') +
-                _textareaHtml('seo-share-desc', 'Descrição para compartilhamento', shareDesc, 'Texto curto para redes sociais.', 3),
-                '220px'
-              ) + '</div>' +
-              '<div style="grid-column:1/-1;">' + _seoPreviewHtml(seo, titleDefault, descDefault, storeUrl, published, shareCustom, seo.ogImage || seo.imageUrl || tpl.bannerUrl || geral.bannerUrl || '') + '</div>', '260px') +
             '</section>' +
-            '<div style="display:flex;justify-content:flex-end;"><button type="button" data-save-seo-loja="1" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">Salvar alterações</button></div>' +
+            '<section class="tpl-config-panel" style="' + _cardStyle() + '">' + _sectionTitle('Compartilhamento', 'Defina como a loja aparece quando o link é enviado em WhatsApp e redes sociais.', 'ios_share') +
+              '<div style="display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:12px;align-items:start;">' +
+                '<div class="tpl-image-card">' +
+                  '<div style="display:flex;flex-direction:column;gap:7px;">' +
+                    '<span style="' + _labelStyle() + '">Imagem de compartilhamento</span>' +
+                    '<div class="tpl-image-actions">' +
+                      '<button type="button" class="tpl-image-btn primary" onclick="document.getElementById(\'seo-og-file\').click()">Enviar imagem</button>' +
+                      '<button type="button" class="tpl-image-btn ghost" onclick="Modules.Catalogo._clearStoreImage(\'share\')">Remover imagem</button>' +
+                    '</div>' +
+                    '<input id="seo-og-file" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onchange="Modules.Catalogo._uploadStoreImage(event,\'share\')" style="display:none;">' +
+                    '<input id="seo-og-image" type="hidden" value="' + _esc(_cleanPublicUrl(seo.ogImage || seo.imageUrl || tpl.bannerUrl || geral.bannerUrl || '')) + '">' +
+                    '<div class="tpl-image-note">Imagem recomendada: 1200 × 630 px. Use JPG, PNG ou WebP.</div>' +
+                  '</div>' +
+                '</div>' +
+                '<div style="display:flex;flex-direction:column;gap:12px;min-width:0;">' +
+                  _plainSwitchHtml('seo-share-custom-enabled', 'Usar texto próprio para compartilhamento', shareCustom, 'Quando ativado, WhatsApp e redes usam título e descrição específicos.') +
+                  '<div id="seo-share-custom-fields" style="display:' + (shareCustom ? 'block' : 'none') + ';">' +
+                    '<div style="display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:12px;align-items:start;">' +
+                      _fieldHtml('seo-share-title', 'Título para compartilhamento', shareTitle, 'Nome da loja') +
+                      _textareaHtml('seo-share-desc', 'Descrição para compartilhamento', shareDesc, 'Texto curto para redes sociais.', 3) +
+                    '</div>' +
+                  '</div>' +
+                '</div>' +
+                '<div style="grid-column:1/-1;">' + _seoPreviewHtml(seo, titleDefault, descDefault, storeUrl, published, shareCustom, seo.ogImage || seo.imageUrl || tpl.bannerUrl || geral.bannerUrl || '') + '</div>' +
+              '</div>' +
+            '</section>' +
+            '<div style="display:flex;justify-content:flex-end;"><button type="button" class="tpl-config-save" data-save-seo-loja="1">Salvar alterações</button></div>' +
+          '</div>' +
         '</div>';
       setTimeout(function () {
+        [
+          ['seo-title', 60],
+          ['seo-description', 160],
+          ['seo-keyword', 60],
+          ['seo-city', 80],
+          ['seo-share-title', 70],
+          ['seo-share-desc', 160]
+        ].forEach(function (item) {
+          var el = document.getElementById(item[0]);
+          if (el) el.setAttribute('maxlength', String(item[1]));
+        });
         [].slice.call(content.querySelectorAll('input,textarea,select')).forEach(function (el) {
           el.addEventListener('input', _refreshSeoPreview);
           el.addEventListener('change', _refreshSeoPreview);
@@ -4988,6 +6130,9 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   function _refreshSeoPreview() {
     var title = _val('seo-title') || 'Título SEO da loja';
     var desc = _val('seo-description') || 'Descrição SEO da loja com cidade, produto e diferencial.';
+    var titleChip = document.querySelector('[data-seo-summary="title"]');
+    var descChip = document.querySelector('[data-seo-summary="description"]');
+    var imageChip = document.querySelector('[data-seo-summary="image"]');
     var shareCustom = _checked('seo-share-custom-enabled');
     var shareWrap = document.getElementById('seo-share-custom-fields');
     var storeUrl = _publicStoreUrl();
@@ -5004,6 +6149,9 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var sharePh = document.getElementById('seo-preview-share-placeholder');
     if (shareImg) { shareImg.src = imgUrl || ''; shareImg.style.display = imgUrl ? 'block' : 'none'; }
     if (sharePh) sharePh.style.display = imgUrl ? 'none' : 'inline';
+    if (titleChip) titleChip.textContent = _val('seo-title') ? 'Título configurado' : 'Título pendente';
+    if (descChip) descChip.textContent = _val('seo-description') ? 'Descrição configurada' : 'Descrição pendente';
+    if (imageChip) imageChip.textContent = imgUrl ? 'Imagem configurada' : 'Sem imagem';
   }
 
   function _saveSeoLoja() {
@@ -5018,7 +6166,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       description: _val('seo-description'),
       mainKeyword: _val('seo-keyword'),
       city: _val('seo-city'),
-      neighborhoods: _val('seo-neighborhoods'),
+      neighborhoods: _val('seo-delivery-area'),
       deliveryArea: _val('seo-delivery-area'),
       ogTitle: shareTitle,
       ogDescription: shareDesc,
@@ -5041,19 +6189,97 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   function _renderCatalogoConfiguracoes() {
     var content = document.getElementById('catalogo-content');
     if (!content) return;
+    _ensureCatalogConfigStyles();
     var subs = [{ key: 'categorias', label: 'Categorias' }, { key: 'variantes', label: 'Variantes' }, { key: 'tags', label: 'Tags' }];
     var btn = function (s) {
       var active = _cfgSub === s.key;
-      return '<button onclick="Modules.Catalogo._setCatalogCfgSub(\'' + s.key + '\')" style="height:38px;padding:0 14px;border-radius:10px;border:1px solid ' + (active ? '#B42318' : '#EAE4DA') + ';background:' + (active ? '#B42318' : '#fff') + ';color:' + (active ? '#fff' : '#1F1F1F') + ';font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 1px 2px rgba(31,31,31,.03);font-family:inherit;">' + s.label + '</button>';
+      return '<button class="catalog-config-tab' + (active ? ' active' : '') + '" onclick="Modules.Catalogo._setCatalogCfgSub(\'' + s.key + '\')">' + s.label + '</button>';
     };
-    content.innerHTML = '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px;">' +
-      '<div><div style="font-size:11px;font-weight:600;color:#A39B90;letter-spacing:.02em;margin-bottom:5px;">Cardápio</div><h2 style="font-size:28px;font-weight:600;line-height:1.1;margin:0 0 6px;color:#1F1F1F;">Configurações</h2><p style="font-size:15px;color:#6F6860;line-height:1.5;margin:0;max-width:760px;">Cadastros auxiliares usados pelos produtos e pela organização do cardápio.</p></div>' +
+    content.innerHTML = '<div class="catalog-config-page">' +
+      '<div class="catalog-config-head">' +
+        '<div><h2 class="catalog-config-title">Configurações do cardápio</h2><p class="catalog-config-subtitle">Organize categorias, variações e selos usados para montar os produtos da sua loja.</p></div>' +
       '</div>' +
-      '<div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;">' + subs.map(btn).join('') + '</div>' +
-      '<div id="catalogo-config-inner"><div style="text-align:center;padding:28px;color:#8A7E7C;">Carregando...</div></div>';
+      '<div class="catalog-config-tabs">' + subs.map(btn).join('') + '</div>' +
+      '<div id="catalogo-config-inner"><div class="catalog-config-loading">Carregando...</div></div>' +
+      '</div>';
     if (_cfgSub === 'categorias') _renderCategorias();
     else if (_cfgSub === 'variantes') _renderVariantes();
     else if (_cfgSub === 'tags') _renderTagsTab();
+  }
+
+  function _catalogConfigSectionHead(title, desc, actionHtml) {
+    return '<div class="catalog-config-section-head">' +
+      '<div><h3>' + _esc(title || '') + '</h3>' + (desc ? '<p>' + _esc(desc) + '</p>' : '') + '</div>' +
+      (actionHtml || '') +
+      '</div>';
+  }
+
+  function _catalogConfigPrimaryButton(label, onclick) {
+    return '<button class="catalog-config-primary" onclick="' + onclick + '">' + _esc(label) + '</button>';
+  }
+
+  function _ensureCatalogConfigStyles() {
+    if (document.getElementById('catalog-config-style')) return;
+    var style = document.createElement('style');
+    style.id = 'catalog-config-style';
+    style.textContent = '' +
+      '.catalog-config-page{display:flex;flex-direction:column;gap:16px;}' +
+      '.catalog-config-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;}' +
+      '.catalog-config-title{font-size:22px;font-weight:700;line-height:1.16;margin:0 0 6px;color:#211815;letter-spacing:-.01em;}' +
+      '.catalog-config-subtitle{font-size:13px;color:#756A64;line-height:1.45;margin:0;max-width:720px;}' +
+      '.catalog-config-tabs{display:flex;gap:8px;align-items:center;overflow:auto;padding:8px;background:linear-gradient(135deg,#FFFDFC 0%,#FFF8F3 100%);border:1px solid #E8DDD5;border-radius:16px;box-shadow:0 10px 24px rgba(85,46,32,.045),inset 0 1px 0 rgba(255,255,255,.72);}' +
+      '.catalog-config-tab{height:32px;padding:0 12px;border:1px solid transparent;border-radius:999px;background:rgba(255,255,255,.72);color:#6F6860;font-family:Manrope,Inter,sans-serif;font-size:12px;font-weight:650;white-space:nowrap;cursor:pointer;transition:background .15s,color .15s,box-shadow .15s,border-color .15s,transform .15s;}' +
+      '.catalog-config-tab:hover{background:#fff;color:#211815;border-color:#E8DDD5;box-shadow:0 5px 14px rgba(85,46,32,.06);}' +
+      '.catalog-config-tab.active{background:#B42318;color:#fff;border-color:#B42318;box-shadow:0 8px 18px rgba(180,35,24,.16);}' +
+      '.catalog-config-panel{background:linear-gradient(145deg,#FFFFFF 0%,#FFFDFB 68%,#FFF8F3 100%);border:1px solid #EADFD8;border-radius:18px;padding:16px 18px;box-shadow:0 10px 24px rgba(85,46,32,.045),inset 0 1px 0 rgba(255,255,255,.76);}' +
+      '.catalog-config-section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid rgba(232,221,213,.82);}' +
+      '.catalog-config-section-head h3{font-size:15px;font-weight:700;color:#211815;line-height:1.2;margin:0 0 4px;}' +
+      '.catalog-config-section-head p{font-size:12px;color:#82766F;line-height:1.42;margin:0;max-width:760px;}' +
+      '.catalog-config-primary{height:38px;padding:0 14px;border:none;border-radius:11px;background:#B42318;color:#fff;font-size:13px;font-weight:650;cursor:pointer;box-shadow:0 8px 18px rgba(180,35,24,.16);font-family:Manrope,Inter,sans-serif;white-space:nowrap;transition:transform .15s,box-shadow .15s,background .15s;}' +
+      '.catalog-config-primary:hover{transform:translateY(-1px);box-shadow:0 12px 24px rgba(180,35,24,.20);background:#A61F16;}' +
+      '.catalog-config-list{display:flex;flex-direction:column;gap:9px;}' +
+      '.catalog-config-item{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:14px;padding:12px 13px;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;align-items:center;gap:12px;transition:background .15s,border-color .15s,box-shadow .15s;}' +
+      '.catalog-config-item:hover{background:#fff;border-color:#E1D3CB;box-shadow:0 8px 18px rgba(85,46,32,.045);}' +
+      '.catalog-config-item[draggable="true"]{cursor:grab;}' +
+      '.catalog-config-drag{color:#A39B90;font-size:18px;flex-shrink:0;}' +
+      '.catalog-config-media{width:42px;height:42px;border-radius:13px;background:#fff;border:1px solid #E8DCD7;display:flex;align-items:center;justify-content:center;overflow:hidden;flex:0 0 auto;font-size:18px;color:#6F6860;}' +
+      '.catalog-config-media img{width:100%;height:100%;object-fit:cover;display:block;}' +
+      '.catalog-config-copy{min-width:0;flex:1;}' +
+      '.catalog-config-copy strong{display:block;font-size:14px;font-weight:650;color:#211815;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
+      '.catalog-config-copy small{display:block;font-size:12px;color:#756A64;line-height:1.35;margin-top:3px;}' +
+      '.catalog-config-actions{display:flex;gap:6px;flex-shrink:0;}' +
+      '.catalog-config-icon-btn{width:30px;height:30px;border-radius:9px;border:1px solid #E8DCD7;background:#fff;color:#6F6860;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);}' +
+      '.catalog-config-icon-btn.danger{color:#B42318;}' +
+      '.catalog-config-icon-btn .mi{font-size:14px;}' +
+      '.catalog-config-empty{text-align:center;padding:42px 20px;color:#8A7E7C;font-size:14px;line-height:1.45;font-weight:500;}' +
+      '.catalog-config-loading{text-align:center;padding:28px;color:#8A7E7C;font-size:13px;}' +
+      '.catalog-config-modal-card{background:linear-gradient(145deg,#FFFFFF 0%,#FFFDFB 72%,#FFF8F3 100%);border:1px solid #EADFD8;border-radius:18px;padding:16px;box-shadow:0 10px 24px rgba(85,46,32,.045),inset 0 1px 0 rgba(255,255,255,.76);}' +
+      '.catalog-config-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start;}' +
+      '.catalog-config-grid.compact{grid-template-columns:minmax(0,1fr) 116px 116px;align-items:end;}' +
+      '.catalog-config-field-full{grid-column:1/-1;}' +
+      '.catalog-config-help{font-size:11px;color:#8A7E7C;line-height:1.35;margin-top:5px;}' +
+      '.catalog-config-softbox{padding:12px;border:1px solid #E8DCD7;border-radius:14px;background:#FFFCF8;box-shadow:inset 0 1px 0 rgba(255,255,255,.78);}' +
+      '.catalog-config-checkline{display:flex;align-items:center;gap:8px;min-height:40px;}' +
+      '.catalog-config-checkline input{width:16px;height:16px;accent-color:#B42318;}' +
+      '.catalog-config-checkline label{font-size:13px;font-weight:500;color:#211815;cursor:pointer;}' +
+      '.catalog-config-option-row{display:grid;grid-template-columns:minmax(0,1fr) 96px minmax(0,210px) 32px;gap:10px;align-items:start;padding:12px;border:1px solid #E8DCD7;border-radius:14px;background:#FFFCF8;margin-bottom:9px;max-width:100%;box-sizing:border-box;overflow:hidden;}' +
+      '.catalog-config-option-row>*{min-width:0;}' +
+      '.catalog-config-option-row .option-remove-btn{align-self:end;flex:0 0 auto;}' +
+      '.catalog-config-image-tools{display:grid;grid-template-columns:42px minmax(0,1fr);gap:9px;align-items:center;min-width:0;}' +
+      '.catalog-config-image-preview{width:42px;height:42px;border-radius:11px;border:1px solid #E8DCD7;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;color:#C9BCB8;flex:0 0 auto;}' +
+      '.catalog-config-image-preview img{width:100%;height:100%;object-fit:cover;display:block;}' +
+      '.catalog-config-image-actions{display:flex;gap:7px;flex-wrap:wrap;align-items:center;}' +
+      '.catalog-config-image-btn{height:32px;padding:0 10px;border-radius:10px;font-size:11px;font-weight:650;font-family:Manrope,Inter,sans-serif;cursor:pointer;white-space:nowrap;}' +
+      '.catalog-config-image-btn.primary{border:none;background:#F3E8D7;color:#8A6F5A;}' +
+      '.catalog-config-image-btn.ghost{border:1px solid #E6DDD3;background:#fff;color:#7A746B;}' +
+      '.catalog-config-select-wrap{position:relative;display:block;}' +
+      '.catalog-config-select-wrap select{appearance:none;-webkit-appearance:none;-moz-appearance:none;padding-right:42px !important;background:#fff !important;}' +
+      '.catalog-config-select-arrow{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:19px;color:#6F6860;line-height:1;pointer-events:none;}' +
+      '.catalog-config-chip{display:inline-flex;align-items:center;border-radius:999px;padding:5px 11px;font-size:12px;font-weight:500;line-height:1;white-space:nowrap;}' +
+      '.catalog-config-tag-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 13px;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:14px;box-shadow:0 1px 2px rgba(31,31,31,.03);}' +
+      '@media(max-width:980px){.catalog-config-option-row{grid-template-columns:minmax(0,1fr) 96px 32px;}.catalog-config-option-row>div:nth-child(3){grid-column:1/-1}.catalog-config-option-row .option-remove-btn{grid-column:3;grid-row:1;justify-self:end}}' +
+      '@media(max-width:760px){.catalog-config-section-head{flex-direction:column}.catalog-config-primary{width:100%}.catalog-config-grid,.catalog-config-grid.compact,.catalog-config-option-row{grid-template-columns:1fr}.catalog-config-item,.catalog-config-tag-row{align-items:flex-start}.catalog-config-actions{align-self:flex-start}.catalog-config-option-row .option-remove-btn{grid-column:auto;grid-row:auto;justify-self:start}}';
+    document.head.appendChild(style);
   }
 
   function _setCatalogCfgSub(key) {
@@ -5072,29 +6298,25 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   function _paintCategorias() {
     var content = _catalogTarget();
     if (!content) return;
-    content.innerHTML = '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px;">' +
-      '<button onclick="Modules.Catalogo._openCatModal(null)" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">+ Adicionar categoria</button>' +
-      '</div>' +
-      '<section style="' + _cardStyle() + '">' +
-        _sectionTitle('Categorias (' + _categories.length + ')', 'Arraste para reorganizar e use a edição para ajustar o nome.') +
-        (_categories.length === 0 ? '<div style="text-align:center;padding:48px 20px;color:#8A7E7C;font-size:14px;line-height:1.45;font-weight:600;">Nenhuma categoria ainda</div>' :
-          '<div id="cat-list" style="display:flex;flex-direction:column;gap:10px;">' +
+    content.innerHTML =
+      '<section class="catalog-config-panel">' +
+        _catalogConfigSectionHead('Categorias', 'Organize os grupos que aparecem no cardápio e defina a ordem da loja pública.', _catalogConfigPrimaryButton('+ Adicionar categoria', 'Modules.Catalogo._openCatModal(null)')) +
+        (_categories.length === 0 ? '<div class="catalog-config-empty">Nenhuma categoria ainda</div>' :
+          '<div id="cat-list" class="catalog-config-list">' +
           _categories.map(function (c) {
-            var graphic = _cleanPublicUrl(c.graphicUrl || c.imageUrl || c.iconUrl || c.categoryGraphicUrl || '');
-            var icon = c.icon || c.emoji || c.symbol || '';
-            return '<div draggable="true" data-id="' + c.id + '" style="background:#fff;border:1px solid #EAE4DA;border-radius:14px;padding:14px 14px;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;align-items:center;gap:12px;cursor:grab;transition:background .15s ease;">' +
-              '<span class="mi" style="color:#A39B90;font-size:18px;flex-shrink:0;">drag_indicator</span>' +
-              '<div style="width:44px;height:44px;border-radius:14px;background:#FAF8F4;border:1px solid #EAE4DA;display:flex;align-items:center;justify-content:center;overflow:hidden;flex:0 0 auto;font-size:20px;color:#6F6860;">' + (graphic ? '<img src="' + _esc(graphic) + '" style="width:100%;height:100%;object-fit:cover;">' : _esc(icon || 'Aa')) + '</div>' +
-              '<div style="min-width:0;flex:1;">' +
-                '<div style="font-size:15px;font-weight:600;color:#1F1F1F;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(c.name) + '</div>' +
-                '<div style="font-size:12px;color:#6F6860;line-height:1.35;margin-top:2px;">Categoria visível no cardápio da loja.</div>' +
+            return '<div draggable="true" data-id="' + c.id + '" class="catalog-config-item">' +
+              '<span class="mi catalog-config-drag">drag_indicator</span>' +
+              '<div class="catalog-config-copy">' +
+                '<strong>' + _esc(c.name) + '</strong>' +
+                '<small>Categoria visível no cardápio da loja.</small>' +
               '</div>' +
-              '<div style="display:flex;gap:6px;flex-shrink:0;">' +
-                '<button onclick="Modules.Catalogo._openCatModal(\'' + c.id + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">edit</span></button>' +
-                '<button onclick="Modules.Catalogo._deleteCat(\'' + c.id + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#B42318;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">delete</span></button>' +
+              '<div class="catalog-config-actions">' +
+                '<button class="catalog-config-icon-btn" onclick="Modules.Catalogo._openCatModal(\'' + c.id + '\')"><span class="mi">edit</span></button>' +
+                '<button class="catalog-config-icon-btn danger" onclick="Modules.Catalogo._deleteCat(\'' + c.id + '\')"><span class="mi">delete</span></button>' +
               '</div>' +
             '</div>';
-          }).join('') + '</div></section>');
+          }).join('') + '</div>') +
+      '</section>';
 
     if (_categories.length > 0) {
       var listEl = document.getElementById('cat-list');
@@ -5114,31 +6336,15 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   function _openCatModal(id) {
     _editingId = id;
     var c = id ? (_categories.find(function (x) { return x.id === id; }) || {}) : {};
-    var graphicUrl = _cleanPublicUrl(c.graphicUrl || c.imageUrl || c.iconUrl || c.categoryGraphicUrl || '');
-    window._catalogCategoryGraphicState = {};
     window._catDraftId = id || _newEntityId('cat');
-    var body = '<div>' +
-      '<div style="margin-bottom:12px;"><label style="' + _labelStyle() + '">Nome *</label><input id="cat-name" type="text" value="' + _esc(c.name || '') + '" style="' + _inputStyle() + '"></div>' +
-      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:12px;">' +
-        '<div><label style="' + _labelStyle() + '">Emoji/ícone opcional</label><input id="cat-icon" type="text" value="' + _esc(c.icon || c.emoji || c.symbol || '') + '" placeholder="🍔" style="' + _inputStyle() + '"></div>' +
-        '<div><label style="' + _labelStyle() + '">URL do elemento gráfico</label><input id="cat-graphic-url" type="url" value="' + _esc(graphicUrl) + '" placeholder="https://..." style="' + _inputStyle() + '"></div>' +
-      '</div>' +
-      '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:grid;grid-template-columns:minmax(0,1fr) 96px;gap:12px;align-items:center;">' +
-        '<div style="display:flex;flex-direction:column;gap:8px;">' +
-          '<div><div style="font-size:12px;font-weight:700;color:#1F1F1F;">Elemento gráfico da categoria</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Opcional. Se ficar vazio, o menu mobile mostra apenas texto/emoji.</div></div>' +
-          '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
-            '<button type="button" class="tpl-image-btn primary" onclick="document.getElementById(\'cat-graphic-file\').click()">Enviar imagem</button>' +
-            '<button type="button" class="tpl-image-btn ghost" onclick="Modules.Catalogo._clearCategoryGraphic()">Remover imagem</button>' +
-          '</div>' +
-          '<input id="cat-graphic-file" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onchange="Modules.Catalogo._uploadCategoryGraphic(event)" style="display:none;">' +
-          '<div style="font-size:11px;color:#8A7E7C;line-height:1.35;">Tamanho recomendado: 256 × 256 px, fundo transparente ou recorte quadrado.</div>' +
-        '</div>' +
-        '<div id="cat-graphic-preview" style="width:96px;height:96px;border-radius:24px;background:#FAF8F4;border:1px solid #EAE4DA;display:flex;align-items:center;justify-content:center;overflow:hidden;color:#A39B90;font-size:11px;text-align:center;">' + (graphicUrl ? '<img src="' + _esc(graphicUrl) + '" style="width:100%;height:100%;object-fit:cover;">' : 'Sem imagem') + '</div>' +
+    var body = '<div class="catalog-config-modal-card">' +
+      '<div class="catalog-config-grid">' +
+        '<label class="catalog-config-field-full" style="display:block;"><span style="' + _labelStyle() + '">Nome da categoria *</span><input id="cat-name" type="text" value="' + _esc(c.name || '') + '" style="' + _inputStyle() + '"></label>' +
       '</div>' +
       '</div>';
 
-    var footer = '<button onclick="Modules.Catalogo._saveCat()" style="width:100%;height:40px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:14px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">' + (id ? 'Atualizar' : 'Adicionar') + '</button>';
-    window._catModal = UI.modal({ title: id ? 'Editar Categoria' : 'Nova Categoria', body: body, footer: footer });
+    var footer = '<button onclick="Modules.Catalogo._saveCat()" style="height:40px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:14px;font-weight:650;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">' + (id ? 'Salvar categoria' : 'Adicionar categoria') + '</button>';
+    window._catModal = UI.modal({ title: id ? 'Editar categoria' : 'Nova categoria', body: body, footer: footer });
   }
 
   function _selectCatColor() {}
@@ -5174,6 +6380,70 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   function _templateCategoryUploadState() {
     window._catalogTemplateCategoryGraphicState = window._catalogTemplateCategoryGraphicState || {};
     return window._catalogTemplateCategoryGraphicState;
+  }
+
+  function _templateCategoryOrderHtml() {
+    var cats = (_categories || []).filter(function (cat) {
+      return cat && cat.active !== false && cat.visible !== false;
+    }).slice().sort(function (a, b) {
+      return (a.order || 0) - (b.order || 0) || String(a.name || a.label || '').localeCompare(String(b.name || b.label || ''));
+    });
+    if (!cats.length) {
+      return '<div style="padding:22px;border:1px dashed #E6DAD4;border-radius:16px;background:#FFFCF8;color:#7A6F69;font-size:13px;line-height:1.45;text-align:center;">Crie categorias no cardápio para organizar a ordem que aparece na loja pública.</div>';
+    }
+    return '<div id="tpl-category-order-list" style="display:grid;gap:9px;">' + cats.map(function (cat) {
+      var name = cat.name || cat.label || cat.nome || 'Categoria';
+      var count = (_products || []).filter(function (p) {
+        return String(p.categoryId || p.category || '') === String(cat.id || cat.slug || cat.name || '');
+      }).length;
+      return '<div draggable="true" data-id="' + _esc(cat.id) + '" data-template-category-order="1" style="display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:center;background:#FFFCF8;border:1px solid #EADFD8;border-radius:14px;padding:10px 12px;box-shadow:0 1px 2px rgba(31,31,31,.03);cursor:grab;">' +
+        '<span class="mi" style="font-size:18px;color:#A39B90;">drag_indicator</span>' +
+        '<div style="min-width:0;">' +
+          '<div style="font-size:13px;font-weight:760;color:#1F1F1F;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(name) + '</div>' +
+          '<div style="font-size:11px;color:#8A7E7C;line-height:1.3;margin-top:2px;">' + (count === 1 ? '1 produto nessa categoria' : count + ' produtos nessa categoria') + '</div>' +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:5px;">' +
+          '<button type="button" title="Subir categoria" onclick="event.stopPropagation();Modules.Catalogo._moveTemplateCategory(\'' + _esc(cat.id) + '\', -1)" style="width:28px;height:28px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;display:flex;align-items:center;justify-content:center;cursor:pointer;font-family:inherit;"><span class="mi" style="font-size:16px;">keyboard_arrow_up</span></button>' +
+          '<button type="button" title="Descer categoria" onclick="event.stopPropagation();Modules.Catalogo._moveTemplateCategory(\'' + _esc(cat.id) + '\', 1)" style="width:28px;height:28px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;display:flex;align-items:center;justify-content:center;cursor:pointer;font-family:inherit;"><span class="mi" style="font-size:16px;">keyboard_arrow_down</span></button>' +
+        '</div>' +
+      '</div>';
+    }).join('') + '</div>';
+  }
+
+  function _saveTemplateCategoryOrder(orders) {
+    _categories = (_categories || []).map(function (cat) {
+      var found = orders.find(function (o) { return String(o.id) === String(cat.id); });
+      return found ? Object.assign({}, cat, { order: found.order }) : cat;
+    }).sort(function (a, b) { return (a.order || 0) - (b.order || 0) || String(a.name || a.label || '').localeCompare(String(b.name || b.label || '')); });
+    return Promise.all(orders.map(function (o) { return DB.update('categories', o.id, { order: o.order }); }))
+      .then(function () { UI.toast('Ordem das categorias salva.', 'success'); })
+      .catch(function (err) { UI.toast('Erro ao salvar ordem: ' + err.message, 'error'); });
+  }
+
+  function _bindTemplateCategoryOrder() {
+    var listEl = document.getElementById('tpl-category-order-list');
+    if (!listEl) return;
+    makeSortable(listEl, function (orders) {
+      _saveTemplateCategoryOrder(orders);
+    });
+  }
+
+  function _moveTemplateCategory(id, direction) {
+    var cats = (_categories || []).filter(function (cat) {
+      return cat && cat.active !== false && cat.visible !== false;
+    }).slice().sort(function (a, b) {
+      return (a.order || 0) - (b.order || 0) || String(a.name || a.label || '').localeCompare(String(b.name || b.label || ''));
+    });
+    var index = cats.findIndex(function (cat) { return String(cat.id) === String(id); });
+    var next = index + (Number(direction) || 0);
+    if (index < 0 || next < 0 || next >= cats.length) return;
+    var moved = cats.splice(index, 1)[0];
+    cats.splice(next, 0, moved);
+    _saveTemplateCategoryOrder(cats.map(function (cat, idx) { return { id: cat.id, order: idx }; }))
+      .then(function () {
+        _templateActiveTab = 'vitrine';
+        _renderTemplateLoja();
+      });
   }
 
   function _uploadTemplateCategoryGraphic(event, catId) {
@@ -5219,16 +6489,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   function _saveCat() {
     var name = (document.getElementById('cat-name') || {}).value || '';
     if (!name) { UI.toast('Nome e obrigatorio', 'error'); return; }
-    if (window._catalogCategoryGraphicPending) { UI.toast('A imagem ainda está sendo enviada. Aguarde um instante.', 'info'); return; }
-    var icon = (document.getElementById('cat-icon') || {}).value || '';
-    var graphicUrl = _cleanPublicUrl((document.getElementById('cat-graphic-url') || {}).value || '');
-    var graphicState = window._catalogCategoryGraphicState || {};
-    var data = { name: name, icon: icon, emoji: icon, symbol: icon, graphicUrl: graphicUrl, imageUrl: graphicUrl, iconUrl: graphicUrl, categoryGraphicUrl: graphicUrl };
-    if (graphicState.imageStoragePath) data.graphicStoragePath = graphicState.imageStoragePath;
-    if (graphicState.imagePath || graphicState.imageStoragePath) data.imagePath = graphicState.imagePath || graphicState.imageStoragePath;
-    if (graphicState.imageWidth) data.graphicWidth = graphicState.imageWidth;
-    if (graphicState.imageHeight) data.graphicHeight = graphicState.imageHeight;
-    if (graphicState.imageFormat) data.graphicFormat = graphicState.imageFormat;
+    var data = { name: name };
     var catId = _editingId || window._catDraftId || _newEntityId('cat');
     data.id = catId;
     var op = _editingId ? DB.update('categories', _editingId, data) : DB.set('categories', catId, data);
@@ -5398,34 +6659,35 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var content = _catalogTarget();
     if (!content) return;
     var isExtras = mode === 'extras';
-    var title = isExtras ? 'Extras' : 'Grupos de Variantes';
-    var addLabel = isExtras ? '+ Novo Extra' : '+ Novo Grupo';
-    content.innerHTML = '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px;">' +
-      '<button onclick="Modules.Catalogo._openVariantModal(null)" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">' + addLabel + '</button>' +
-      '</div>' +
-      '<section style="' + _cardStyle() + '">' +
-        _sectionTitle(title + ' (' + _variants.length + ')', 'Reordene e ajuste os tipos de escolha que aparecem nos produtos.') +
-        (_variants.length === 0 ? '<div style="text-align:center;padding:48px 20px;color:#8A7E7C;font-size:14px;line-height:1.45;font-weight:600;">Nenhum grupo de variantes</div>' :
-          '<div id="variants-list" style="display:flex;flex-direction:column;gap:12px;">' +
+    var title = isExtras ? 'Extras' : 'Variantes';
+    var addLabel = isExtras ? '+ Novo extra' : '+ Novo grupo';
+    content.innerHTML =
+      '<section class="catalog-config-panel">' +
+        _catalogConfigSectionHead(title, 'Configure escolhas como tamanho, sabor, adicionais ou combinações que aparecem nos produtos.', _catalogConfigPrimaryButton(addLabel, 'Modules.Catalogo._openVariantModal(null)')) +
+        (_variants.length === 0 ? '<div class="catalog-config-empty">Nenhum grupo de variantes ainda</div>' :
+          '<div id="variants-list" class="catalog-config-list">' +
           _variants.map(function (vg) {
-            return '<div draggable="true" data-id="' + vg.id + '" style="background:#fff;border:1px solid #EAE4DA;border-radius:14px;padding:14px;box-shadow:0 1px 2px rgba(31,31,31,.03);cursor:grab;transition:background .15s ease;">' +
-              '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px;">' +
+            return '<div draggable="true" data-id="' + vg.id + '" class="catalog-config-item" style="display:block;">' +
+              '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:9px;">' +
               '<div style="display:flex;align-items:flex-start;gap:10px;min-width:0;flex:1;">' +
-              '<span class="mi" style="color:#A39B90;font-size:18px;flex-shrink:0;">drag_indicator</span>' +
-              '<div style="min-width:0;flex:1;">' +
-                '<div style="font-size:15px;font-weight:600;color:#1F1F1F;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(vg.title) + '</div>' +
-                '<div style="font-size:12px;color:#6F6860;line-height:1.35;margin-top:2px;">' + (vg.required ? 'Obrigatório' : 'Opcional') + ' · ' + (vg.multiSelect ? 'Seleção múltipla' : 'Seleção única') + '</div>' +
+              '<span class="mi catalog-config-drag">drag_indicator</span>' +
+              '<div class="catalog-config-copy">' +
+                '<strong>' + _esc(vg.title) + '</strong>' +
+              '<small>' + (vg.required ? 'Obrigatório' : 'Opcional') + ' · mínimo ' + (vg.minPerUnit != null ? vg.minPerUnit : vg.min || 0) + ' · máximo ' + (vg.maxPerUnit || vg.max || (vg.multiSelect ? 'vários' : 1)) + ' por item</small>' +
               '</div></div>' +
-              '<div style="display:flex;gap:6px;flex-shrink:0;">' +
-              '<button onclick="Modules.Catalogo._openVariantModal(\'' + vg.id + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">edit</span></button>' +
-              '<button onclick="Modules.Catalogo._deleteVariant(\'' + vg.id + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#B42318;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">delete</span></button>' +
+              '<div class="catalog-config-actions">' +
+              '<button class="catalog-config-icon-btn" onclick="Modules.Catalogo._openVariantModal(\'' + vg.id + '\')"><span class="mi">edit</span></button>' +
+              '<button class="catalog-config-icon-btn danger" onclick="Modules.Catalogo._deleteVariant(\'' + vg.id + '\')"><span class="mi">delete</span></button>' +
               '</div></div>' +
               '<div style="display:flex;gap:6px;flex-wrap:wrap;">' +
               (vg.options || []).map(function (opt) {
-                return '<span style="font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:#fff;border:1px solid #EAE4DA;color:#1F1F1F;">' + _esc(opt.label) + (opt.price ? ' (+' + UI.fmt(opt.price) + ')' : '') + '</span>';
+                var price = parseFloat(opt.priceExtra != null ? opt.priceExtra : opt.price || 0) || 0;
+                var priceText = price ? ' (' + (price > 0 ? '+' : '-') + UI.fmt(Math.abs(price)) + ')' : '';
+                return '<span class="catalog-config-chip" style="background:#fff;border:1px solid #E8DCD7;color:#211815;">' + _esc(opt.label || opt.name || '') + priceText + '</span>';
               }).join('') +
               '</div></div>';
-          }).join('') + '</div></section>');
+          }).join('') + '</div>') +
+      '</section>';
 
     if (_variants.length > 0) {
       var listEl = document.getElementById('variants-list');
@@ -5437,42 +6699,130 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     }
   }
 
+  function _variantOptionRows(options) {
+    options = options && options.length ? options : [{ label: '', price: 0, img: '' }];
+    return options.map(function (option, index) {
+      return _variantOptionRowHtml(option, index);
+    }).join('');
+  }
+
+  function _variantOptionRowHtml(option, index) {
+    option = option || {};
+    var img = option.img || option.imageUrl || option.image || '';
+    var price = option.priceExtra != null ? option.priceExtra : option.extraPrice != null ? option.extraPrice : option.price || '';
+    return '<div class="vg-option-row catalog-config-option-row" data-option-index="' + index + '">' +
+      '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Opção</span><input class="vg-option-label" type="text" value="' + _esc(option.label || option.name || '') + '" placeholder="Ex: Carne, queijo, grande..." style="' + _inputStyle() + '"></label>' +
+      '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Valor</span><input class="vg-option-price" type="number" step="0.01" value="' + _esc(price) + '" placeholder="0,00" style="' + _inputStyle() + '"></label>' +
+      '<div style="min-width:0;max-width:100%;"><span style="' + _labelStyle() + '">Imagem</span><div class="catalog-config-image-tools">' +
+        '<input class="vg-option-img" type="hidden" value="' + _esc(img) + '">' +
+        '<div class="vg-option-preview catalog-config-image-preview">' + (img ? '<img src="' + _esc(img) + '" alt="">' : '<span class="mi" style="font-size:20px;">image</span>') + '</div>' +
+        '<div style="min-width:0;"><div class="catalog-config-image-actions">' +
+          '<button type="button" class="catalog-config-image-btn primary" onclick="this.parentNode.querySelector(\'input[type=file]\').click()">Enviar imagem</button>' +
+          '<button type="button" class="catalog-config-image-btn ghost" onclick="Modules.Catalogo._removeVariantOptionImage(this)">Remover imagem</button>' +
+          '<input type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onchange="Modules.Catalogo._onVariantOptionImageChange(event)" style="display:none;">' +
+        '</div><div class="catalog-config-help">JPG, PNG ou WebP. Opcional.</div></div>' +
+      '</div></div>' +
+      '<button type="button" class="option-remove-btn" onclick="Modules.Catalogo._removeVariantOptionRow(this)" style="width:32px;height:42px;border-radius:10px;border:1px solid #EAE4DA;background:#fff;color:#B42318;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;"><span class="mi" style="font-size:16px;">close</span></button>' +
+      '</div>';
+  }
+
+  function _addVariantOptionRow(option) {
+    var host = document.getElementById('vg-options-list');
+    if (!host) return;
+    var index = host.querySelectorAll('.vg-option-row').length;
+    host.insertAdjacentHTML('beforeend', _variantOptionRowHtml(option || {}, index));
+  }
+
+  function _removeVariantOptionRow(button) {
+    var row = button && button.closest ? button.closest('.vg-option-row') : null;
+    var host = document.getElementById('vg-options-list');
+    if (row) row.remove();
+    if (host && !host.querySelector('.vg-option-row')) _addVariantOptionRow();
+  }
+
+  function _onVariantOptionImageChange(event) {
+    var file = event && event.target && event.target.files ? event.target.files[0] : null;
+    var row = event && event.target && event.target.closest ? event.target.closest('.vg-option-row') : null;
+    if (!file || !row || !window.ImageTools) return;
+    var draftId = _editingId || window._variantDraftId || _newEntityId('variant');
+    window._variantDraftId = draftId;
+    ImageTools.process(file, { kind: 'product', folder: 'variants', entityId: draftId + '-' + (row.dataset.optionIndex || 'option') }).then(function (result) {
+      var url = result && (result.imageUrl || result.url || result.downloadURL) || '';
+      if (!url) return;
+      var input = row.querySelector('.vg-option-img');
+      var preview = row.querySelector('.vg-option-preview');
+      if (input) input.value = url;
+      if (preview) {
+        preview.innerHTML = '<img src="' + _esc(url) + '" alt="">';
+      }
+      UI.toast('Imagem da opção enviada.', 'success');
+    }).catch(function (err) {
+      UI.toast('Erro ao enviar foto: ' + err.message, 'error');
+    });
+  }
+
+  function _removeVariantOptionImage(button) {
+    var row = button && button.closest ? button.closest('.vg-option-row') : null;
+    if (!row) return;
+    var input = row.querySelector('.vg-option-img');
+    var preview = row.querySelector('.vg-option-preview');
+    var file = row.querySelector('input[type="file"]');
+    if (input) input.value = '';
+    if (file) file.value = '';
+    if (preview) preview.innerHTML = '<span class="mi" style="font-size:20px;">image</span>';
+  }
+
   function _openVariantModal(id) {
     _editingId = id;
     var vg = id ? (_variants.find(function (x) { return x.id === id; }) || {}) : {};
-    var opts = (vg.options || []).map(function (o) { return o.label + (o.price ? ':' + o.price : ''); }).join('\n');
+    window._variantDraftId = id || _newEntityId('variant');
+    var minPerUnit = parseInt(vg.minPerUnit != null ? vg.minPerUnit : vg.min != null ? vg.min : (vg.required ? 1 : 0), 10);
+    var maxPerUnit = parseInt(vg.maxPerUnit || vg.max || (vg.multiSelect ? Math.max(1, (vg.options || []).length) : 1), 10) || 1;
+    if (minPerUnit < 0) minPerUnit = 0;
+    if (maxPerUnit < 1) maxPerUnit = 1;
+    if (minPerUnit > maxPerUnit) minPerUnit = maxPerUnit;
 
-    var body = '<div>' +
-      '<div style="margin-bottom:12px;"><label style="' + _labelStyle() + '">Título do Grupo *</label>' +
-      '<input id="vg-title" type="text" value="' + _esc(vg.title || '') + '" placeholder="Ex: Tamanho, Molhos..." style="' + _inputStyle() + '"></div>' +
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">' +
-      '<div style="display:flex;align-items:center;gap:8px;padding:10px;background:#FAFAF8;border-radius:10px;border:1px solid #EAE4DA;">' +
+    var body = '<div class="catalog-config-modal-card">' +
+      '<label style="display:block;margin-bottom:12px;"><span style="' + _labelStyle() + '">Nome do grupo *</span>' +
+      '<input id="vg-title" type="text" value="' + _esc(vg.title || '') + '" placeholder="Ex: Tamanho, molhos..." style="' + _inputStyle() + '"></label>' +
+      '<div class="catalog-config-grid compact" style="margin-bottom:12px;">' +
+      '<div class="catalog-config-checkline">' +
       '<input type="checkbox" id="vg-required"' + (vg.required ? ' checked' : '') + ' style="width:16px;height:16px;accent-color:#B42318;">' +
       '<label for="vg-required" style="font-size:13px;font-weight:500;color:#1F1F1F;cursor:pointer;">Obrigatório</label></div>' +
-      '<div style="display:flex;align-items:center;gap:8px;padding:10px;background:#FAFAF8;border-radius:10px;border:1px solid #EAE4DA;">' +
-      '<input type="checkbox" id="vg-multi"' + (vg.multiSelect ? ' checked' : '') + ' style="width:16px;height:16px;accent-color:#B42318;">' +
-      '<label for="vg-multi" style="font-size:13px;font-weight:500;color:#1F1F1F;cursor:pointer;">Seleção múltipla</label></div>' +
+      '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Mínimo por item</span><input id="vg-min" type="number" min="0" step="1" value="' + minPerUnit + '" style="' + _inputStyle() + '"></label>' +
+      '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Máximo por item</span><input id="vg-max" type="number" min="1" step="1" value="' + maxPerUnit + '" style="' + _inputStyle() + '"></label>' +
       '</div>' +
-      '<div><label style="' + _labelStyle() + '">Opções (uma por linha, formato: Label ou Label:Preço)</label>' +
-      '<textarea id="vg-options" style="' + _inputStyle() + 'min-height:100px;resize:vertical;" placeholder="Pequeno\nMedio:2\nGrande:4">' + opts + '</textarea></div>' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0 8px;"><div><div style="font-size:13px;font-weight:650;color:#211815;">Opções</div><div class="catalog-config-help">Use valor positivo para acréscimo e negativo para desconto. A foto é opcional.</div></div><button type="button" onclick="Modules.Catalogo._addVariantOptionRow()" style="height:34px;padding:0 12px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#B42318;font-size:12px;font-weight:650;cursor:pointer;font-family:inherit;">+ Opção</button></div>' +
+      '<div id="vg-options-list">' + _variantOptionRows(vg.options || []) + '</div>' +
       '</div>';
 
-    var footer = '<button onclick="Modules.Catalogo._saveVariant()" style="width:100%;height:40px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:14px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">' + (id ? 'Atualizar' : 'Criar Grupo') + '</button>';
-    window._variantModal = UI.modal({ title: id ? 'Editar Grupo' : 'Novo Grupo de Variantes', body: body, footer: footer });
+    var footer = '<button onclick="Modules.Catalogo._saveVariant()" style="height:40px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:14px;font-weight:650;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">' + (id ? 'Salvar grupo' : 'Criar grupo') + '</button>';
+    window._variantModal = UI.modal({ title: id ? 'Editar grupo' : 'Novo grupo de variantes', body: body, footer: footer });
   }
 
   function _saveVariant() {
     var title = (document.getElementById('vg-title') || {}).value || '';
     if (!title) { UI.toast('Titulo e obrigatorio', 'error'); return; }
-    var lines = ((document.getElementById('vg-options') || {}).value || '').split('\n').filter(function (l) { return l.trim(); });
-    var options = lines.map(function (l) {
-      var parts = l.split(':');
-      return { label: parts[0].trim(), price: parts[1] ? parseFloat(parts[1]) : 0 };
-    });
+    var min = parseInt((document.getElementById('vg-min') || {}).value || 0, 10);
+    var max = parseInt((document.getElementById('vg-max') || {}).value || 1, 10);
+    if (min < 0) min = 0;
+    if (max < 1) max = 1;
+    if (min > max) min = max;
+    var options = [].slice.call(document.querySelectorAll('.vg-option-row')).map(function (row) {
+      var label = ((row.querySelector('.vg-option-label') || {}).value || '').trim();
+      var price = parseFloat(String(((row.querySelector('.vg-option-price') || {}).value || '0')).replace(',', '.')) || 0;
+      var img = ((row.querySelector('.vg-option-img') || {}).value || '').trim();
+      return label ? { label: label, name: label, price: price, priceExtra: price, img: img } : null;
+    }).filter(Boolean);
+    if (!options.length) { UI.toast('Adicione pelo menos uma opção.', 'error'); return; }
     var data = {
       title: title,
-      required: !!(document.getElementById('vg-required') || {}).checked,
-      multiSelect: !!(document.getElementById('vg-multi') || {}).checked,
+      required: !!(document.getElementById('vg-required') || {}).checked || min > 0,
+      minPerUnit: min,
+      maxPerUnit: max,
+      min: min,
+      max: max,
+      multiSelect: max > 1,
       options: options
     };
     var op = _editingId ? DB.update('variantGroups', _editingId, data) : DB.add('variantGroups', data);
@@ -5700,16 +7050,18 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var content = document.getElementById('catalogo-content');
     if (!content) return;
     var totalCount = _fichas.length;
+    var filtered = _filteredFichas();
+    var filteredCount = filtered.length;
     var p = _fichaPag || (_fichaPag = { page: 1, perPage: 10 });
-    var totalPages = Math.max(1, Math.ceil(totalCount / p.perPage));
+    var totalPages = Math.max(1, Math.ceil(filteredCount / p.perPage));
     var currentPage = Math.min(p.page, totalPages);
     if (p.page !== currentPage) p.page = currentPage;
-    var start = totalCount ? ((currentPage - 1) * p.perPage + 1) : 0;
-    var end = totalCount ? Math.min(currentPage * p.perPage, totalCount) : 0;
+    var start = filteredCount ? ((currentPage - 1) * p.perPage + 1) : 0;
+    var end = filteredCount ? Math.min(currentPage * p.perPage, filteredCount) : 0;
     var pageOptions = [10, 25, 50].map(function (n) {
       return '<option value="' + n + '"' + (Number(p.perPage) === n ? ' selected' : '') + '>' + n + ' / pág.</option>';
     }).join('');
-    var pageData = _fichas.slice((currentPage - 1) * p.perPage, currentPage * p.perPage);
+    var pageData = filtered.slice((currentPage - 1) * p.perPage, currentPage * p.perPage);
     var rows = pageData.map(function (f) {
       var ci = _calcFichaCosts(f);
       var yieldLabel = (f.yieldQuantity || f.yield || 1) + ' ' + (f.yieldUnit || 'porções');
@@ -5733,34 +7085,46 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
         '</td>' +
       '</tr>';
     }).join('');
+    var hasFilters = !!(_fichaFilters.q || '').trim();
+    var clearFiltersHtml = hasFilters
+      ? '<div class="recipes-filter-actions"><button onclick="Modules.Catalogo._clearFichasFilters()" style="height:40px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;font-size:13px;font-family:inherit;cursor:pointer;background:#fff;color:#6F6860;white-space:nowrap;box-shadow:0 1px 2px rgba(31,31,31,.03);">Limpar filtros</button></div>'
+      : '';
+    var recipesCss = '<style>' +
+      '.recipes-page{display:flex;flex-direction:column;gap:16px;}' +
+      '.recipes-page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;}' +
+      '.recipes-page-title{font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;line-height:1.15;}' +
+      '.recipes-page-subtitle{font-size:13px;color:#6F6860;line-height:1.5;margin:0;max-width:760px;}' +
+      '.recipes-primary-btn{height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;transition:transform .16s ease,box-shadow .16s ease,background .16s ease;}' +
+      '.recipes-primary-btn:hover{background:#9F1F16;transform:translateY(-1px);box-shadow:0 8px 18px rgba(180,35,24,.22);}' +
+      '.recipes-filter-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:14px;box-shadow:0 10px 24px rgba(31,31,31,.04);}' +
+      '.recipes-filter-grid{display:grid;grid-template-columns:minmax(320px,1fr);gap:10px;align-items:end;}' +
+      '.recipes-filter-control{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:6px;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;}' +
+      '.recipes-filter-control:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
+      '.recipes-filter-control input{width:100%;height:36px;border:0;border-radius:8px;padding:0 8px;font-size:14px;font-family:inherit;outline:none;background:transparent;box-sizing:border-box;color:#1F1F1F;box-shadow:none;}' +
+      '.recipes-filter-actions{display:flex;justify-content:flex-start;margin-top:12px;}' +
+      '.recipes-select{min-width:110px;max-width:110px;height:34px;padding:0 34px 0 10px;border:1px solid #EAE4DA;border-radius:10px;font-size:12px;font-family:inherit;outline:none;background-color:#fff;color:#6F6860;box-sizing:border-box;appearance:none;-webkit-appearance:none;-moz-appearance:none;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 14px center;background-size:14px;}' +
+      '@media(max-width:680px){.recipes-filter-grid{grid-template-columns:1fr}.recipes-primary-btn,.recipes-filter-actions button{width:100%;}}' +
+      '</style>';
+    var emptyHtml = totalCount === 0
+      ? '<section style="background:#fff;border:1px solid #EAE4DA;border-radius:16px;padding:42px 20px;box-shadow:0 12px 30px rgba(31,31,31,.06);text-align:center;"><div style="font-size:15px;font-weight:700;color:#1F1F1F;margin-bottom:4px;">Nenhuma receita ainda</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-bottom:16px;">Crie a primeira ficha técnica para começar a calcular rendimento e custo.</div><button onclick="Modules.Catalogo._openFichaModal(null)" class="recipes-primary-btn">+ Nova receita</button></section>'
+      : '<section style="background:#fff;border:1px solid #EAE4DA;border-radius:16px;padding:42px 20px;box-shadow:0 12px 30px rgba(31,31,31,.06);text-align:center;"><div style="font-size:15px;font-weight:700;color:#1F1F1F;margin-bottom:4px;">Nenhuma receita encontrada</div><div style="font-size:13px;color:#6F6860;line-height:1.45;">Ajuste a busca ou limpe os filtros para ver outras receitas.</div></section>';
     content.innerHTML =
-      '<div style="display:flex;flex-direction:column;gap:16px;">' +
-      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
+      recipesCss +
+      '<div class="recipes-page">' +
+      '<div class="recipes-page-head">' +
         '<div style="min-width:0;flex:1 1 420px;">' +
-          '<h2 style="font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;line-height:1.2;">Receitas de produção</h2>' +
-          '<p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0 0 10px;max-width:760px;">Crie fichas técnicas para calcular rendimento, ingredientes e custo real de cada receita.</p>' +
-          '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
-            '<span style="display:inline-flex;align-items:center;min-height:24px;padding:0 10px;border-radius:999px;background:#fff;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:500;box-shadow:0 1px 2px rgba(31,31,31,.02);">' + totalCount + ' receitas</span>' +
-            '<span style="display:inline-flex;align-items:center;min-height:24px;padding:0 10px;border-radius:999px;background:#fff;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:500;box-shadow:0 1px 2px rgba(31,31,31,.02);">' + _recipeCategories.length + ' categorias</span>' +
-            '<span style="display:inline-flex;align-items:center;min-height:24px;padding:0 10px;border-radius:999px;background:#fff;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:500;box-shadow:0 1px 2px rgba(31,31,31,.02);">' + _recipeComponents.length + ' componentes</span>' +
-          '</div>' +
+          '<h2 class="recipes-page-title">Receitas de produção</h2>' +
+          '<p class="recipes-page-subtitle">Crie fichas técnicas para calcular rendimento, ingredientes e custo real de cada receita.</p>' +
         '</div>' +
-        '<button onclick="Modules.Catalogo._openFichaModal(null)" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">+ Nova receita</button>' +
+        '<button onclick="Modules.Catalogo._openFichaModal(null)" class="recipes-primary-btn">+ Nova receita</button>' +
       '</div>' +
-      '<div style="background:#fff;border:none;border-radius:16px;padding:18px 20px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
-        '<div style="display:grid;grid-template-columns:minmax(320px,1.6fr) auto;gap:10px;align-items:end;">' +
-          '<div><input id="fichas-search" type="search" placeholder="Buscar receita..." oninput="Modules.Catalogo._filterFichas()" style="width:100%;height:40px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;box-sizing:border-box;color:#1F1F1F;box-shadow:inset 0 1px 0 rgba(255,255,255,.78);"></div>' +
-          '<button onclick="Modules.Catalogo._clearFichasFilters()" style="height:40px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;font-size:13px;font-family:inherit;cursor:pointer;background:#fff;color:#6F6860;white-space:nowrap;box-shadow:0 1px 2px rgba(31,31,31,.03);">Limpar filtros</button>' +
+      '<div class="recipes-filter-card">' +
+        '<div class="recipes-filter-grid">' +
+          '<div><label style="' + _fichaLbl() + '">Buscar</label><div class="recipes-filter-control"><input id="fichas-search" type="search" placeholder="Buscar por nome ou categoria..." value="' + _esc(_fichaFilters.q || '') + '" oninput="Modules.Catalogo._filterFichas()" autocomplete="off"></div></div>' +
         '</div>' +
-        '<div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' +
-          '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
-            '<span style="display:inline-flex;align-items:center;min-height:24px;padding:0 10px;border-radius:999px;background:#fff;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:500;box-shadow:0 1px 2px rgba(31,31,31,.02);">' + totalCount + ' receitas</span>' +
-            '<span style="display:inline-flex;align-items:center;min-height:24px;padding:0 10px;border-radius:999px;background:#fff;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:500;box-shadow:0 1px 2px rgba(31,31,31,.02);">' + _recipeCategories.length + ' categorias</span>' +
-            '<span style="display:inline-flex;align-items:center;min-height:24px;padding:0 10px;border-radius:999px;background:#fff;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:500;box-shadow:0 1px 2px rgba(31,31,31,.02);">' + _recipeComponents.length + ' componentes</span>' +
-          '</div>' +
-        '</div>' +
+        clearFiltersHtml +
       '</div>' +
-      (totalCount === 0 ? '<section style="background:#fff;border:none;border-radius:16px;padding:18px 20px;box-shadow:0 12px 30px rgba(31,31,31,.06);text-align:center;"><div style="font-size:15px;font-weight:700;color:#1F1F1F;margin-bottom:4px;">Nenhuma receita ainda</div><div style="font-size:13px;color:#6F6860;line-height:1.45;">Crie a primeira ficha técnica para começar a calcular rendimento e custo.</div></section>' :
+      (filteredCount === 0 ? emptyHtml :
         '<section style="display:flex;flex-direction:column;gap:10px;">' +
         '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">Receitas cadastradas</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Acompanhe rendimento, custo total e custo por unidade de cada ficha técnica.</div></div>' +
         '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);overflow:hidden;">' +
@@ -5778,9 +7142,9 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
             '</table>' +
           '</div>' +
           '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:16px 18px;">' +
-            '<span style="font-size:12px;color:#6F6860;line-height:1.4;">Mostrando <strong style="color:#1F1F1F;font-weight:600;">' + start + '</strong> a <strong style="color:#1F1F1F;font-weight:600;">' + end + '</strong> de <strong style="color:#1F1F1F;font-weight:600;">' + totalCount + '</strong></span>' +
+            '<span style="font-size:12px;color:#6F6860;line-height:1.4;">Mostrando <strong style="color:#1F1F1F;font-weight:600;">' + start + '</strong> a <strong style="color:#1F1F1F;font-weight:600;">' + end + '</strong> de <strong style="color:#1F1F1F;font-weight:600;">' + filteredCount + '</strong></span>' +
             '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;">' +
-              '<select onchange="Modules.Catalogo._setFichaPageSize(this.value)" style="min-width:110px;max-width:110px;height:34px;padding:0 10px;border:1px solid #EAE4DA;border-radius:10px;font-size:12px;font-family:inherit;outline:none;background:#fff;color:#6F6860;box-sizing:border-box;">' + pageOptions + '</select>' +
+              '<select onchange="Modules.Catalogo._setFichaPageSize(this.value)" class="recipes-select">' + pageOptions + '</select>' +
               '<div style="display:flex;align-items:center;gap:6px;">' +
                 '<button type="button" onclick="Modules.Catalogo._setFichaPage(' + (currentPage - 1) + ')" style="height:34px;padding:0 11px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#6F6860;font-size:12px;font-weight:500;cursor:' + (currentPage > 1 ? 'pointer' : 'not-allowed') + ';opacity:' + (currentPage > 1 ? '1' : '.45') + ';"' + (currentPage > 1 ? '' : ' disabled') + '>Anterior</button>' +
                 '<div style="display:flex;align-items:center;gap:6px;"><span style="font-size:12px;color:#A39B90;">' + currentPage + '</span><span style="width:14px;height:2px;border-radius:999px;background:#B42318;display:inline-block;opacity:.65"></span><span style="font-size:12px;color:#A39B90;">' + totalPages + '</span></div>' +
@@ -5810,13 +7174,38 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     };
   }
 
-  function _filterFichas() {
-    var search = ((document.getElementById('fichas-search') || {}).value || '').toLowerCase();
-    var list = document.getElementById('fichas-list');
-    if (!list) return;
-    list.querySelectorAll('[data-ficha-name]').forEach(function (el) {
-      el.style.display = (el.dataset.fichaName || '').indexOf(search) >= 0 ? 'table-row' : 'none';
+  function _filteredFichas() {
+    var q = String((_fichaFilters && _fichaFilters.q) || '').trim().toLowerCase();
+    if (!q) return _fichas.slice();
+    return _fichas.filter(function (f) {
+      var hay = [
+        f.name,
+        f.category,
+        f.yieldUnit,
+        f.internalNotes,
+        f.productionNotes,
+        f.preparationMode
+      ].join(' ').toLowerCase();
+      return hay.indexOf(q) >= 0;
     });
+  }
+
+  function _filterFichas() {
+    var activeId = document.activeElement ? document.activeElement.id : '';
+    _fichaFilters.q = ((document.getElementById('fichas-search') || {}).value || '').trim();
+    if (!_fichaPag) _fichaPag = { page: 1, perPage: 10 };
+    _fichaPag.page = 1;
+    _paintFichas();
+    if (activeId === 'fichas-search') {
+      var input = document.getElementById('fichas-search');
+      if (input) {
+        try {
+          input.focus();
+          var len = String(input.value || '').length;
+          if (input.setSelectionRange) input.setSelectionRange(len, len);
+        } catch (e) {}
+      }
+    }
   }
 
   function _setFichaPageSize(n) {
@@ -5834,8 +7223,9 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   }
 
   function _clearFichasFilters() {
-    var input = document.getElementById('fichas-search');
-    if (input) input.value = '';
+    _fichaFilters.q = '';
+    if (!_fichaPag) _fichaPag = { page: 1, perPage: 10 };
+    _fichaPag.page = 1;
     _paintFichas();
   }
 
@@ -5924,10 +7314,10 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     if (!comps.length && Array.isArray(f.ingredients) && f.ingredients.length) {
       comps = [{ name: 'Outro', note: '', ingredients: f.ingredients }];
     }
-    if (!comps.length) comps = [{ name: 'Massa', note: '', ingredients: [] }];
+    if (!comps.length) comps = [{ name: _defaultRecipeComponentName(), note: '', ingredients: [] }];
     return comps.map(function (comp) {
       return {
-        name: comp.name || comp.componentName || 'Outro',
+        name: comp.name || comp.componentName || '',
         note: comp.note || comp.observation || comp.observacao || '',
         ingredients: (comp.ingredients || []).map(function (ing) {
           return {
@@ -6084,7 +7474,6 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     window._fichaCompCount = 0;
 
     var CATS = (_recipeCategories || []).map(function (c) { return c.name || c.label || ''; }).filter(Boolean);
-    if (!CATS.length) CATS = ['Salgado', 'Doce', 'Massa', 'Recheio', 'Molho', 'Bebida', 'Acompanhamento', 'Outro'];
     if (f.category && CATS.indexOf(f.category) < 0) CATS.unshift(f.category);
     var YIELD_UNITS = ['unidades', 'porções', 'gramas', 'kg', 'ml', 'litros'];
     var CONSERV = ['Ambiente', 'Refrigerado', 'Congelado'];
@@ -6115,8 +7504,8 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var summary = _fichaSummaryData(f);
     var costBadge = summary.costs.costPerYield > 0 ? UI.fmt(summary.costs.costPerYield) : '—';
 
-    var sectionHead = function (title, desc) {
-      return '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px;"><div><div style="font-size:14px;font-weight:600;line-height:1.3;color:#1F1F1F;">' + _esc(title) + '</div><div style="font-size:13px;line-height:1.45;color:#6F6860;margin-top:4px;">' + _esc(desc || '') + '</div></div></div>';
+    var sectionHead = function (icon, title, desc) {
+      return '<div class="recipe-modal-head"><span class="mi">' + _esc(icon) + '</span><div><div class="recipe-modal-title">' + _esc(title) + '</div><div class="recipe-modal-desc">' + _esc(desc || '') + '</div></div></div>';
     };
 
     var componentRows = _normalizeFichaComponents(f).map(function (comp, i) {
@@ -6124,81 +7513,166 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       return _fichaComponentHtml(i, comp);
     }).join('');
 
-    var body = '<div>' +
+    var modalCss = '<style>' +
+      '.recipe-modal-body{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px;font-family:Manrope,Inter,sans-serif;}' +
+      '.recipe-modal-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:14px;box-shadow:0 10px 24px rgba(31,31,31,.04);min-width:0;}' +
+      '.recipe-modal-main,.recipe-modal-ingredients,.recipe-modal-cost,.recipe-modal-production{grid-column:1/-1}.recipe-modal-yield{grid-column:1/span 6}.recipe-modal-image{grid-column:7/-1}' +
+      '.recipe-modal-head{display:flex;align-items:flex-start;gap:9px;margin-bottom:12px;}' +
+      '.recipe-modal-head .mi{font-size:18px;color:#6F6860;line-height:1.2;}' +
+      '.recipe-modal-title{font-size:13px;font-weight:800;line-height:1.25;color:#1F1F1F;margin-bottom:3px;}' +
+      '.recipe-modal-desc{font-size:12px;line-height:1.4;color:#8A7E7C;margin:0;max-width:760px;}' +
+      '.recipe-modal-grid{display:grid;gap:11px 12px;align-items:end}.recipe-modal-main-grid{grid-template-columns:minmax(280px,1fr) minmax(180px,.55fr)}.recipe-yield-grid{grid-template-columns:minmax(140px,.42fr) minmax(190px,.62fr)}#fc-peso-section{grid-template-columns:minmax(150px,.5fr) minmax(190px,.65fr)!important;}.recipe-production-top{margin-bottom:12px}.recipe-production-top .recipe-modal-head{margin-bottom:0}.recipe-production-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,.68fr);gap:12px;align-items:start}.recipe-production-group{background:#FFFCF8;border:1px solid #EADFD8;border-radius:16px;padding:12px;box-shadow:0 1px 2px rgba(31,31,31,.03);min-width:0}.recipe-production-group-title{font-size:11px;font-weight:800;color:#1F1F1F;line-height:1.25;margin-bottom:9px}.recipe-production-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(112px,.42fr);gap:9px;align-items:end}.recipe-production-full{grid-column:1/-1}' +
+      '.recipe-cost-layout{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(260px,.72fr);gap:12px;align-items:stretch;}' +
+      '.recipe-cost-group{background:#FFFCF8;border:1px solid #EADFD8;border-radius:16px;padding:12px;box-shadow:0 1px 2px rgba(31,31,31,.03);min-width:0;}' +
+      '.recipe-cost-group-title{font-size:11px;font-weight:800;color:#1F1F1F;line-height:1.25;margin-bottom:9px;}' +
+      '.recipe-cost-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;}' +
+      '.recipe-cost-results{display:grid;grid-template-columns:1fr;gap:9px;}' +
+      '.recipe-cost-card{background:#fff;border:1px solid #EAE4DA;border-radius:14px;padding:10px 12px;box-shadow:0 1px 2px rgba(31,31,31,.03);min-width:0;}' +
+      '.recipe-cost-card.is-total{background:linear-gradient(180deg,#FFF7F5 0%,#fff 100%);border-color:#E7C6C0;}' +
+      '.recipe-help-note{margin-top:10px;font-size:11px;color:#6F6860;line-height:1.45;}' +
+      '.recipe-help-btn{border:0;background:transparent;color:#B42318;border-radius:8px;height:auto;padding:0;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;}' +
+      '.recipe-help-box{display:none;margin:0 0 12px;padding:11px 12px;border:1px solid #EADFD8;border-radius:12px;background:#FFFCF8;color:#5A4E4C;font-size:12px;line-height:1.5;}' +
+      '.recipe-help-box strong{color:#1F1F1F;font-weight:700;}' +
+      '.recipe-dashed-btn{width:100%;height:38px;padding:0 12px;border-radius:10px;border:1px dashed #D8CCC5;background:#fff;font-size:12px;font-weight:600;cursor:pointer;color:#6F6860;font-family:inherit;margin-top:10px;}' +
+      '.recipe-dashed-btn:hover{background:#FFFCF8;border-color:#D9AAA1;color:#B42318;}' +
+      '.recipe-component{background:#fff;border:1px solid #EAE4DA;border-radius:16px;padding:13px;box-shadow:0 1px 2px rgba(31,31,31,.03);}' +
+      '.recipe-component-head{display:grid;grid-template-columns:minmax(220px,1fr) minmax(180px,.8fr) 34px;gap:10px;align-items:end;margin-bottom:12px;}' +
+      '.recipe-ingredient-row{display:grid;grid-template-columns:minmax(210px,1.2fr) minmax(86px,.42fr) minmax(62px,.28fr) minmax(72px,.32fr) minmax(82px,.34fr) 30px;gap:8px;align-items:center;padding:9px;border:1px solid #EAE4DA;border-radius:12px;background:#FFFCF8;box-shadow:none;}' +
+      '.supplier-field-control{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:6px;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease}.supplier-field-control:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08)}.supplier-field-control input,.supplier-field-control select,.supplier-field-control textarea{width:100%;min-height:36px;border:0;border-radius:8px;padding:0 8px;font-size:14px;font-family:inherit;outline:none;background:transparent;box-sizing:border-box;color:#1F1F1F;box-shadow:none}.supplier-field-control select{padding-right:42px;appearance:none;-webkit-appearance:none;-moz-appearance:none;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 16px center;background-size:14px}.supplier-field-control textarea{min-height:72px;padding-top:8px;padding-bottom:8px;resize:vertical}.supplier-field-control input[type=file]{padding-top:7px;}' +
+      '.recipe-footer{display:flex;align-items:center;gap:8px;}' +
+      '.recipe-footer-note{font-size:11px;color:#6F6860;margin-right:auto;}' +
+      '.recipe-cancel-btn{height:38px;padding:0 14px;border-radius:10px;border:1px solid #E6E1D8;background:#fff;color:#6F6860;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;}' +
+      '.recipe-delete-btn{height:38px;padding:0 14px;border-radius:10px;border:1px solid #F1D3CF;background:#FFF7F5;color:#B42318;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;}' +
+      '.recipe-save-btn{height:38px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;}' +
+      '.recipe-save-btn:hover{background:#9F1F16;}' +
+      '@media(max-width:900px){.recipe-modal-yield,.recipe-modal-image{grid-column:1/-1}.recipe-modal-main-grid,.recipe-yield-grid,.recipe-production-grid{grid-template-columns:1fr 1fr}.recipe-production-layout,.recipe-cost-layout{grid-template-columns:1fr}.recipe-ingredient-row{grid-template-columns:minmax(210px,1fr) 90px 62px 72px 82px 30px}}@media(max-width:640px){.recipe-modal-body{grid-template-columns:1fr}.recipe-modal-card{grid-column:1/-1!important;padding:13px}.recipe-modal-main-grid,.recipe-yield-grid,#fc-peso-section,.recipe-production-grid,.recipe-component-head,.recipe-ingredient-row,.recipe-cost-grid{grid-template-columns:1fr!important}.recipe-footer{align-items:stretch;flex-direction:column}.recipe-footer-note{margin-right:0;text-align:center}.recipe-save-btn,.recipe-cancel-btn,.recipe-delete-btn{width:100%;}}' +
+      '</style>';
 
-      '<div style="margin-bottom:20px;background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' + sectionHead('Identidade', 'Resumo da receita e do custo por unidade.') +
-      '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px;">' +
-      '<div style="font-size:13px;color:#6F6860;">Resumo da receita e do custo por unidade.</div>' +
-      '<div style="background:#fff;border:1px solid #E6E1D8;border-radius:999px;padding:8px 12px;font-size:12px;font-weight:500;color:#B42318;">Custo por unidade: ' + costBadge + '</div>' +
-      '</div>' +
-      '<div style="margin-bottom:12px;"><label style="' + _fichaLbl() + '">Nome da receita *</label>' +
-      '<input id="fc-name" type="text" value="' + _esc(f.name || '') + '" style="' + _fichaInp() + '"></div>' +
-      '<div style="margin-bottom:12px;">' +
+    var body = modalCss + '<div class="recipe-modal-body">' +
+
+      '<div class="recipe-modal-card recipe-modal-main">' + sectionHead('receipt_long', 'Dados da receita', 'Dê um nome claro para encontrar esta receita depois.') +
+      '<div class="recipe-modal-grid recipe-modal-main-grid">' +
+      '<div><label style="' + _fichaLbl() + '">Nome da receita *</label>' +
+      '<div class="supplier-field-control"><input id="fc-name" type="text" value="' + _esc(f.name || '') + '"></div></div>' +
       '<div><label style="' + _fichaLbl() + '">Categoria</label>' +
-      '<select id="fc-category" style="' + _fichaInp() + 'background:#fff;"><option value="">Selecionar...</option>' + catOpts + '</select></div>' +
+      '<div class="supplier-field-control"><select id="fc-category"><option value="">Selecionar...</option>' + catOpts + '</select></div></div>' +
       '</div>' +
-      '<div style="margin-bottom:12px;"><label style="' + _fichaLbl() + '">Imagem</label>' +
-      '<input type="file" id="fc-img-file" accept="image/jpeg,image/jpg,image/png,image/webp" onchange="Modules.Catalogo._onFichaImgChange(event)" style="' + _fichaInp() + 'padding:8px;background:#fff;">' +
-      '<div style="margin-top:6px;font-size:11px;line-height:1.45;color:#8A7E7C;">' + _imageUploadTip('product') + '</div>' +
-      '<img id="fc-img-preview" src="' + imgSrc + '" style="max-width:100%;max-height:110px;border-radius:9px;margin-top:8px;' + imgPreviewStyle + '"></div>' +
-      '<div><label style="' + _fichaLbl() + '">Observação interna</label>' +
-      '<textarea id="fc-notes" style="' + _fichaInp() + 'min-height:58px;resize:vertical;">' + _esc(f.internalNotes || '') + '</textarea></div>' +
+      '<div style="margin-top:11px;"><label style="' + _fichaLbl() + '">Anotações da receita</label>' +
+      '<div class="supplier-field-control"><textarea id="fc-notes">' + _esc(f.internalNotes || '') + '</textarea></div></div>' +
       '</div>' +
 
-      '<div style="margin-bottom:20px;background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' + sectionHead('Rendimento', 'Defina a quantidade produzida e o tipo de saída.') +
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">' +
+      '<div class="recipe-modal-card recipe-modal-yield">' +
+      '<div class="recipe-modal-head"><span class="mi">scale</span><div><div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;"><div class="recipe-modal-title">Rendimento</div><button type="button" class="recipe-help-btn" onclick="Modules.Catalogo._toggleFichaYieldHelp()">Como preencher?</button></div><div class="recipe-modal-desc">Informe quanto esta receita rende quando fica pronta.</div></div></div>' +
+      '<div id="fc-yield-help" class="recipe-help-box">' +
+        'Aqui você dirá quanto essa receita depois de pronta.<br><br>' +
+        '<strong>Exemplo:</strong><br>' +
+        'Você faz uma massa e, no final, consegue montar 20 salgados.<br><br>' +
+        '<strong>Preencha assim:</strong><br>' +
+        '• Rendimento: 20<br>' +
+        '• Tipo de rendimento: unidades<br>' +
+        '• Peso por unidade: só preencha se cada unidade tiver um peso padrão<br><br>' +
+        'O BocaFood usa esse rendimento para calcular quanto custa cada unidade produzida.<br><br>' +
+        'Se a receita rende unidades, use "unidades".<br>' +
+        'Se rende uma quantidade em kg, use "kg".<br>' +
+        'Se rende uma quantidade em litros, use "litros".<br><br>' +
+        '<strong>Importante:</strong><br>' +
+        'preencha o rendimento real depois de pronta, não a quantidade de ingredientes usados.' +
+      '</div>' +
+      '<div class="recipe-modal-grid recipe-yield-grid">' +
       '<div><label style="' + _fichaLbl() + '">Rendimento *</label>' +
-      '<input id="fc-yield-qty" type="text" value="' + _esc(f.yieldQuantity || f.yield || '') + '" oninput="Modules.Catalogo._updateFichaPesoTotal()" style="' + _fichaInp() + '"></div>' +
+      '<div class="supplier-field-control"><input id="fc-yield-qty" type="text" value="' + _esc(f.yieldQuantity || f.yield || '') + '" oninput="Modules.Catalogo._updateFichaPesoTotal()"></div></div>' +
       '<div><label style="' + _fichaLbl() + '">Tipo de rendimento *</label>' +
-      '<select id="fc-yield-unit" onchange="Modules.Catalogo._onYieldUnitChange()" style="' + _fichaInp() + 'background:#fff;">' + yieldUnitOpts + '</select></div>' +
+      '<div class="supplier-field-control"><select id="fc-yield-unit" onchange="Modules.Catalogo._onYieldUnitChange()">' + yieldUnitOpts + '</select></div></div>' +
       '</div>' +
-      '<div id="fc-peso-section" style="display:' + (showPeso ? 'grid' : 'none') + ';grid-template-columns:1fr 1fr;gap:12px;margin-bottom:4px;">' +
+      '<div id="fc-peso-section" class="recipe-modal-grid" style="display:' + (showPeso ? 'grid' : 'none') + ';grid-template-columns:1fr 1fr;gap:12px;margin-top:11px;">' +
       '<div><label style="' + _fichaLbl() + '">Peso por unidade (g)</label>' +
-      '<input id="fc-unit-weight" type="text" value="' + _esc(f.unitWeightGrams || '') + '" placeholder="Ex: 120" oninput="Modules.Catalogo._updateFichaPesoTotal()" style="' + _fichaInp() + '"></div>' +
+      '<div class="supplier-field-control"><input id="fc-unit-weight" type="text" value="' + _esc(f.unitWeightGrams || '') + '" placeholder="Ex: 120" oninput="Modules.Catalogo._updateFichaPesoTotal()"></div></div>' +
       '<div><label style="' + _fichaLbl() + '">Peso total produzido</label>' +
-      '<input id="fc-peso-total" type="text" readonly style="' + _fichaInp() + 'background:#F8F6F5;color:#8A7E7C;" placeholder="Calculado automaticamente"></div>' +
+      '<div class="supplier-field-control"><input id="fc-peso-total" type="text" readonly placeholder="Calculado automaticamente" style="color:#8A7E7C;"></div></div>' +
       '</div>' +
+      '<div style="margin-top:12px;background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;padding:10px 12px;box-shadow:0 1px 2px rgba(31,31,31,.03);"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Custo por unidade</div><strong style="font-size:17px;color:#1A1A1A;">' + costBadge + '</strong></div>' +
       '</div>' +
 
-      '<div style="margin-bottom:20px;background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' + sectionHead('Ingredientes', 'Monte os componentes e insumos desta receita.') +
+      '<div class="recipe-modal-card recipe-modal-image">' + sectionHead('image', 'Imagem', 'Adicione uma foto para reconhecer esta receita com mais facilidade.') +
+      '<label style="' + _fichaLbl() + '">Foto da receita</label>' +
+      '<div class="supplier-field-control"><input type="file" id="fc-img-file" accept="image/jpeg,image/jpg,image/png,image/webp" onchange="Modules.Catalogo._onFichaImgChange(event)"></div>' +
+      '<div style="margin-top:6px;font-size:11px;line-height:1.45;color:#8A7E7C;">' + _imageUploadTip('product') + '</div>' +
+      '<img id="fc-img-preview" src="' + imgSrc + '" style="max-width:100%;max-height:110px;border-radius:9px;margin-top:8px;' + imgPreviewStyle + '">' +
+      '</div>' +
+
+      '<div class="recipe-modal-card recipe-modal-ingredients">' +
+      '<div class="recipe-modal-head"><span class="mi">restaurant</span><div><div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;"><div class="recipe-modal-title">Ingredientes</div><button type="button" class="recipe-help-btn" onclick="Modules.Catalogo._toggleFichaIngredientsHelp()">Como preencher?</button></div><div class="recipe-modal-desc">Liste o que entra na preparação e a quantidade usada.</div></div></div>' +
+      '<div id="fc-ingredients-help" class="recipe-help-box">' +
+        'Informe aqui o que entra em cada etapa da receita.<br><br>' +
+        'Primeiro escolha a etapa da receita, como massa, recheio, cobertura ou finalização.<br>' +
+        'Essas etapas são cadastradas em Produção &gt; Configurações.<br><br>' +
+        'Depois adicione os ingredientes usados nessa etapa.<br><br>' +
+        '<strong>Exemplo:</strong><br>' +
+        'Na etapa "Massa", você pode adicionar farinha, leite, manteiga e sal.<br><br>' +
+        'Preencha a quantidade que realmente entra na receita.<br><br>' +
+        '<strong>Importante:</strong><br>' +
+        'não informe como você compra o ingrediente.<br>' +
+        'Informe quanto você usa na produção.<br><br>' +
+        '<strong>Exemplo:</strong><br>' +
+        'se você compra farinha em saco de 5 kg, mas usa 500 g na massa, coloque 500 g aqui.' +
+      '</div>' +
       '<div id="fc-components" style="display:flex;flex-direction:column;gap:12px;">' + componentRows + '</div>' +
-      '<button type="button" onclick="Modules.Catalogo._addFichaComponent()" style="width:100%;padding:10px;border-radius:10px;border:1.5px dashed #D4C8C6;background:transparent;font-size:13px;font-weight:700;cursor:pointer;color:#8A7E7C;font-family:inherit;margin-top:10px;">+ Adicionar componente</button>' +
+      '<button type="button" onclick="Modules.Catalogo._addFichaComponent()" class="recipe-dashed-btn">+ Adicionar componente</button>' +
       '</div>' +
 
-      '<div style="margin-bottom:20px;background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' + sectionHead('Custos', 'Acompanhe custo total, por unidade e por quilo.') +
-      '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;">' +
-      '<div style="background:#fff;border:none;border-radius:16px;padding:12px;box-shadow:0 12px 30px rgba(31,31,31,.06);"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Ingredientes</div><div id="fc-cost-ingredients" style="font-size:18px;font-weight:600;color:#1F1F1F;">€0,00</div></div>' +
-      '<div style="background:#fff;border:none;border-radius:16px;padding:12px;box-shadow:0 12px 30px rgba(31,31,31,.06);"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Embalagem</div><div id="fc-cost-packaging" style="font-size:18px;font-weight:600;color:#1F1F1F;">€0,00</div></div>' +
-      '<div style="background:#fff;border:none;border-radius:16px;padding:12px;box-shadow:0 12px 30px rgba(31,31,31,.06);"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Custo direto</div><div id="fc-cost-direct" style="font-size:18px;font-weight:600;color:#1F1F1F;">€0,00</div></div>' +
-      '<div style="background:#fff;border:none;border-radius:16px;padding:12px;box-shadow:0 12px 30px rgba(31,31,31,.06);"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Custos indiretos estimados <span id="fc-indirect-pct"></span></div><div id="fc-cost-indirect" style="font-size:18px;font-weight:600;color:#B42318;">€0,00</div><div id="fc-indirect-mode" style="font-size:10px;color:#6F6860;margin-top:3px;">Modo: Manual</div></div>' +
-      '<div style="background:#fff;border:none;border-radius:16px;padding:12px;box-shadow:0 12px 30px rgba(31,31,31,.06);"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Custo total</div><div id="fc-cost-total" style="font-size:18px;font-weight:600;color:#B42318;">€0,00</div></div>' +
-      '<div style="background:#fff;border:none;border-radius:16px;padding:12px;box-shadow:0 12px 30px rgba(31,31,31,.06);"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Por <span id="fc-cost-unit-label">unidade</span></div><div id="fc-cost-unit" style="font-size:18px;font-weight:600;color:#1F1F1F;">€0,00</div></div>' +
-      '<div style="background:#fff;border:none;border-radius:16px;padding:12px;box-shadow:0 12px 30px rgba(31,31,31,.06);"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Por kg / L</div><div id="fc-cost-kg" style="font-size:18px;font-weight:600;color:#1F1F1F;">—</div></div>' +
+      '<div class="recipe-modal-card recipe-modal-cost">' + sectionHead('payments', 'Custos', 'Veja quanto esta receita custa para produzir.') +
+      '<div class="recipe-cost-layout">' +
+      '<div class="recipe-cost-group"><div class="recipe-cost-group-title">Composição do custo</div><div class="recipe-cost-grid">' +
+      '<div class="recipe-cost-card"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Ingredientes</div><div id="fc-cost-ingredients" style="font-size:18px;font-weight:600;color:#1F1F1F;">€0,00</div></div>' +
+      '<div class="recipe-cost-card"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Embalagem</div><div id="fc-cost-packaging" style="font-size:18px;font-weight:600;color:#1F1F1F;">€0,00</div></div>' +
+      '<div class="recipe-cost-card"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Custo direto</div><div id="fc-cost-direct" style="font-size:18px;font-weight:600;color:#1F1F1F;">€0,00</div></div>' +
+      '<div class="recipe-cost-card"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Outros custos <span id="fc-indirect-pct"></span></div><div id="fc-cost-indirect" style="font-size:18px;font-weight:600;color:#B42318;">€0,00</div><div id="fc-indirect-mode" style="font-size:10px;color:#6F6860;margin-top:3px;">Critério: Manual</div></div>' +
+      '</div></div>' +
+      '<div class="recipe-cost-group"><div class="recipe-cost-group-title">Resultado da receita</div><div class="recipe-cost-results">' +
+      '<div class="recipe-cost-card is-total"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Custo total</div><div id="fc-cost-total" style="font-size:20px;font-weight:700;color:#B42318;">€0,00</div></div>' +
+      '<div class="recipe-cost-card"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Por <span id="fc-cost-unit-label">unidade</span></div><div id="fc-cost-unit" style="font-size:18px;font-weight:600;color:#1F1F1F;">€0,00</div></div>' +
+      '<div class="recipe-cost-card"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Por kg / L</div><div id="fc-cost-kg" style="font-size:18px;font-weight:600;color:#1F1F1F;">—</div></div>' +
+      '</div></div>' +
       '</div>' +
-      '<div style="margin-top:10px;font-size:11px;color:#6F6860;font-style:italic;">A perda vem do cadastro do insumo. Custos indiretos estimados usam o modo definido em Configurações.</div>' +
+      '<div class="recipe-help-note">Os custos são atualizados conforme os ingredientes e quantidades informadas nesta receita.</div>' +
       '</div>' +
 
-      '<div style="margin-bottom:8px;background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' + sectionHead('Produção', 'Orientações internas para preparo, conservação e validade.') +
-      '<div style="margin-bottom:12px;"><label style="' + _fichaLbl() + '">Modo de preparo</label>' +
-      '<textarea id="fc-prep" placeholder="Descreva o passo a passo da produção desta receita." style="' + _fichaInp() + 'min-height:100px;resize:vertical;">' + _esc(f.preparationMode || '') + '</textarea></div>' +
-      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px;">' +
-      '<div><label style="' + _fichaLbl() + '">Conservação</label>' +
-      '<select id="fc-conserv" style="' + _fichaInp() + 'background:#fff;"><option value="">Selecionar...</option>' + conservOpts + '</select></div>' +
-      '<div><label style="' + _fichaLbl() + '">Validade (número)</label>' +
-      '<input id="fc-shelf-val" type="text" value="' + _esc(f.shelfLifeValue || '') + '" placeholder="Ex: 30" style="' + _fichaInp() + '"></div>' +
-      '<div><label style="' + _fichaLbl() + '">Validade (unidade)</label>' +
-      '<select id="fc-shelf-unit" style="' + _fichaInp() + 'background:#fff;">' + shelfUnitOpts + '</select></div>' +
+      '<div class="recipe-modal-card recipe-modal-production">' +
+      '<div class="recipe-production-top">' + sectionHead('restaurant_menu', 'Produção', 'Registre orientações de preparo, armazenamento e validade.') + '</div>' +
+      '<div class="recipe-production-layout">' +
+      '<div class="recipe-production-group"><div class="recipe-production-group-title">Preparo</div>' +
+      '<div style="margin-bottom:10px;"><label style="' + _fichaLbl() + '">Modo de preparo</label>' +
+      '<div class="supplier-field-control"><textarea id="fc-prep" placeholder="Descreva o passo a passo da produção desta receita." style="min-height:104px;">' + _esc(f.preparationMode || '') + '</textarea></div></div>' +
+      '<div><label style="' + _fichaLbl() + '">Cuidados no preparo</label>' +
+      '<div class="supplier-field-control"><textarea id="fc-prod-notes" placeholder="Ex: ponto da massa, cuidado no forno, embalagem final.">' + _esc(f.productionNotes || '') + '</textarea></div></div>' +
       '</div>' +
-      '<div><label style="' + _fichaLbl() + '">Observações de produção</label>' +
-      '<textarea id="fc-prod-notes" style="' + _fichaInp() + 'min-height:60px;resize:vertical;">' + _esc(f.productionNotes || '') + '</textarea></div>' +
+      '<div class="recipe-production-group"><div class="recipe-production-group-title">Conservação e validade</div>' +
+      '<div class="recipe-production-grid">' +
+      '<div class="recipe-production-full"><label style="' + _fichaLbl() + '">Conservação</label>' +
+      '<div class="supplier-field-control"><select id="fc-conserv"><option value="">Selecionar...</option>' + conservOpts + '</select></div></div>' +
+      '<div><label style="' + _fichaLbl() + '">Validade</label>' +
+      '<div class="supplier-field-control"><input id="fc-shelf-val" type="text" value="' + _esc(f.shelfLifeValue || '') + '" placeholder="Ex: 30"></div></div>' +
+      '<div><label style="' + _fichaLbl() + '">Unidade</label>' +
+      '<div class="supplier-field-control"><select id="fc-shelf-unit">' + shelfUnitOpts + '</select></div></div>' +
+      '</div>' +
+      '<div style="font-size:11px;color:#6F6860;line-height:1.45;margin-top:9px;">Use esta parte para registrar como a receita deve ser guardada e por quanto tempo pode ser usada.</div>' +
+      '</div>' +
+      '</div>' +
       '</div>' +
 
       '</div>';
 
-    var footer = '<div style="display:flex;flex-direction:column;gap:6px;align-items:stretch;">' +
-      '<button onclick="Modules.Catalogo._saveFicha()" style="width:100%;height:40px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:14px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">Salvar receita</button>' +
-      '<div style="font-size:11px;color:#6F6860;text-align:center;">Atualiza custos automaticamente</div>' +
-      '</div>';
+    var footer = id
+      ? '<div class="recipe-footer">' +
+        '<button onclick="Modules.Catalogo._deleteFicha(\'' + id + '\')" class="recipe-delete-btn">Excluir</button>' +
+        '<span style="flex:1;"></span>' +
+        '<button onclick="window._fichaModal&&window._fichaModal.close()" class="recipe-cancel-btn">Cancelar</button>' +
+        '<button onclick="Modules.Catalogo._saveFicha()" class="recipe-save-btn">Atualizar receita</button>' +
+        '</div>'
+      : '<div class="recipe-footer" style="justify-content:flex-end;">' +
+        '<button onclick="window._fichaModal&&window._fichaModal.close()" class="recipe-cancel-btn">Cancelar</button>' +
+        '<button onclick="Modules.Catalogo._saveFicha()" class="recipe-save-btn">Adicionar receita</button>' +
+        '</div>';
     window._fichaModal = UI.modal({ title: id ? 'Editar Receita' : 'Nova Receita', body: body, footer: footer, maxWidth: '1120px' });
     setTimeout(function () { _updateFichaCost(); _updateFichaPesoTotal(); }, 80);
   }
@@ -6214,7 +7688,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   function _recipeComponentOptionsHtml(selected) {
     var names = _recipeComponentNames(selected);
     if (!names.length) {
-      return '<option value="">Cadastre componentes primeiro</option>';
+      return '<option value="">Cadastre etapas em Produção > Configurações</option>';
     }
     return '<option value="">Selecionar componente...</option>' + names.map(function (name) {
       return '<option value="' + _esc(name) + '"' + (name === selected ? ' selected' : '') + '>' + _esc(name) + '</option>';
@@ -6224,6 +7698,18 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   function _defaultRecipeComponentName() {
     var first = (_recipeComponents || []).find(function (c) { return (c.name || c.label || '').trim(); });
     return first ? (first.name || first.label || '').trim() : '';
+  }
+
+  function _toggleFichaYieldHelp() {
+    var el = document.getElementById('fc-yield-help');
+    if (!el) return;
+    el.style.display = el.style.display === 'block' ? 'none' : 'block';
+  }
+
+  function _toggleFichaIngredientsHelp() {
+    var el = document.getElementById('fc-ingredients-help');
+    if (!el) return;
+    el.style.display = el.style.display === 'block' ? 'none' : 'block';
   }
 
   function _fichaComponentHtml(compIdx, comp) {
@@ -6238,14 +7724,14 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       window._fichaIngCount = blankIdx + 1;
       rows = _fichaIngRow(blankIdx, compIdx, '', 0);
     }
-    return '<div id="fc-comp-' + compIdx + '" class="fc-component" data-comp-idx="' + compIdx + '" style="background:#fff;border:none;border-radius:16px;padding:14px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
-      '<div style="display:grid;grid-template-columns:1fr 1fr 34px;gap:10px;align-items:end;margin-bottom:12px;">' +
-      '<div><label style="' + _fichaLbl() + '">Nome do componente</label><select data-comp-name="' + compIdx + '" onchange="Modules.Catalogo._updateFichaCost()" style="' + _fichaInp() + 'background:#fff;">' + _recipeComponentOptionsHtml((comp.name || '').trim()) + '</select></div>' +
-      '<div><label style="' + _fichaLbl() + '">Observação opcional</label><input data-comp-note="' + compIdx + '" value="' + _esc(comp.note || '') + '" placeholder="Ex: usar fria" style="' + _fichaInp() + '"></div>' +
+    return '<div id="fc-comp-' + compIdx + '" class="fc-component recipe-component" data-comp-idx="' + compIdx + '">' +
+      '<div class="recipe-component-head">' +
+      '<div><label style="' + _fichaLbl() + '">Etapa da receita</label><div class="supplier-field-control"><select data-comp-name="' + compIdx + '" onchange="Modules.Catalogo._updateFichaCost()">' + _recipeComponentOptionsHtml((comp.name || '').trim()) + '</select></div></div>' +
+      '<div><label style="' + _fichaLbl() + '">Anotação</label><div class="supplier-field-control"><input data-comp-note="' + compIdx + '" value="' + _esc(comp.note || '') + '" placeholder="Ex: usar fria"></div></div>' +
       '<button type="button" onclick="Modules.Catalogo._removeFichaComponent(' + compIdx + ')" title="Remover componente" style="width:34px;height:34px;border-radius:9px;border:1px solid #E6E1D8;background:#fff;color:#B42318;cursor:pointer;font-size:14px;box-shadow:0 1px 2px rgba(31,31,31,.03);">✕</button>' +
       '</div>' +
       '<div id="fc-comp-ings-' + compIdx + '" style="display:flex;flex-direction:column;gap:8px;">' + rows + '</div>' +
-      '<button type="button" onclick="Modules.Catalogo._addFichaIng(' + compIdx + ')" style="width:100%;height:38px;padding:0 12px;border-radius:10px;border:1px dashed #E6E1D8;background:#fff;font-size:12px;font-weight:500;cursor:pointer;color:#6F6860;font-family:inherit;margin-top:10px;">+ Adicionar insumo neste componente</button>' +
+      '<button type="button" onclick="Modules.Catalogo._addFichaIng(' + compIdx + ')" class="recipe-dashed-btn">+ Adicionar ingrediente nesta parte</button>' +
       '</div>';
   }
 
@@ -6262,12 +7748,12 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       : '<span style="color:#D4C8C6;font-size:11px;">—</span>';
     var costHtml = costVal > 0 ? '€' + costVal.toFixed(costVal < 0.01 ? 6 : 2) : '—';
 
-    return '<div id="fc-ing-' + idx + '" data-comp-row="' + compIdx + '" style="display:grid;grid-template-columns:minmax(200px,1.4fr) 90px 72px 88px 84px 30px;gap:8px;align-items:center;padding:10px 10px;border:none;border-radius:12px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);">' +
-      '<div><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Insumo</div>' +
-      '<select data-ing-idx="' + idx + '" onchange="Modules.Catalogo._onFichaIngChange(\'' + idx + '\')" style="width:100%;height:38px;padding:0 10px;border:1px solid #E6E1D8;border-radius:8px;font-size:13px;font-family:inherit;outline:none;background:#fff;">' + opts + '</select></div>' +
-      '<div><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Qtd</div>' +
-      '<input type="text" data-ing-qty="' + idx + '" value="' + (qty || '') + '" placeholder="0" oninput="Modules.Catalogo._updateFichaCost()" style="width:100%;height:38px;padding:0 10px;border:1px solid #E6E1D8;border-radius:8px;font-size:13px;font-family:inherit;outline:none;background:#fff;"></div>' +
-      '<div><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Unid.</div><div id="fc-ing-unit-' + idx + '" style="font-size:12px;color:#1F1F1F;font-weight:600;">' + _esc(unidade) + '</div></div>' +
+    return '<div id="fc-ing-' + idx + '" class="recipe-ingredient-row" data-comp-row="' + compIdx + '">' +
+      '<div><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Ingrediente</div>' +
+      '<div class="supplier-field-control"><select data-ing-idx="' + idx + '" onchange="Modules.Catalogo._onFichaIngChange(\'' + idx + '\')">' + opts + '</select></div></div>' +
+      '<div><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Quantidade</div>' +
+      '<div class="supplier-field-control"><input type="text" data-ing-qty="' + idx + '" value="' + (qty || '') + '" placeholder="0" oninput="Modules.Catalogo._updateFichaCost()"></div></div>' +
+      '<div><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Unidade</div><div id="fc-ing-unit-' + idx + '" style="font-size:12px;color:#1F1F1F;font-weight:600;">' + _esc(unidade) + '</div></div>' +
       '<div><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Perda</div><div id="fc-ing-loss-' + idx + '" style="white-space:nowrap;">' + perdaHtml + '</div></div>' +
       '<div><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Custo</div><div id="fc-ing-cost-' + idx + '" style="font-size:12px;color:#1F1F1F;font-weight:600;white-space:nowrap;">' + costHtml + '</div></div>' +
       '<div style="text-align:right;"><button type="button" onclick="Modules.Catalogo._removeFichaIng(' + idx + ')" style="width:26px;height:26px;border-radius:7px;border:1px solid #E6E1D8;background:#fff;color:#B42318;cursor:pointer;font-size:12px;box-shadow:0 1px 2px rgba(31,31,31,.03);">✕</button></div>' +
@@ -6557,50 +8043,49 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   function _paintTagsTab() {
     var content = _catalogTarget();
     if (!content) return;
-    content.innerHTML = '<div style="display:flex;align-items:flex-start;justify-content:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:16px;">' +
-      '<button onclick="Modules.Catalogo._openTagModal(null)" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">+ Adicionar tag</button>' +
-      '</div>' +
-      '<section style="' + _cardStyle() + '">' +
-        _sectionTitle('Tags (' + _tags.length + ')', 'As tags aparecem no cardápio com chip discreto e legível.') +
-        (_tags.length === 0 ? '<div style="text-align:center;padding:48px 20px;color:#8A7E7C;font-size:14px;line-height:1.45;font-weight:600;">Nenhuma tag ainda</div>' :
-          '<div style="display:flex;flex-direction:column;gap:10px;">' +
+    content.innerHTML =
+      '<section class="catalog-config-panel">' +
+        _catalogConfigSectionHead('Tags', 'Crie selos visuais para destacar produtos no cardápio.', _catalogConfigPrimaryButton('+ Adicionar tag', 'Modules.Catalogo._openTagModal(null)')) +
+        (_tags.length === 0 ? '<div class="catalog-config-empty">Nenhuma tag ainda</div>' :
+          '<div class="catalog-config-list">' +
           _tags.map(function (tag) {
-            return '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;background:#fff;border:1px solid #EAE4DA;border-radius:14px;box-shadow:0 1px 2px rgba(31,31,31,.03);">' +
+            return '<div class="catalog-config-tag-row">' +
               '<div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1;">' +
-                '<span style="background:' + (tag.bgColor || '#B42318') + ';color:' + (tag.textColor || '#fff') + ';padding:5px 12px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;">' + _esc(tag.text) + '</span>' +
+                '<span class="catalog-config-chip" style="background:' + (tag.bgColor || '#B42318') + ';color:' + (tag.textColor || '#fff') + ';">' + _esc(tag.text) + '</span>' +
                 '<div style="font-size:12px;color:#6F6860;line-height:1.35;">Chip usado para filtros, promoções e destaques visuais.</div>' +
               '</div>' +
-              '<div style="display:flex;gap:6px;flex-shrink:0;">' +
-                '<button onclick="Modules.Catalogo._openTagModal(\'' + tag.id + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">edit</span></button>' +
-                '<button onclick="Modules.Catalogo._deleteTag(\'' + tag.id + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#B42318;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">delete</span></button>' +
+              '<div class="catalog-config-actions">' +
+                '<button class="catalog-config-icon-btn" onclick="Modules.Catalogo._openTagModal(\'' + tag.id + '\')"><span class="mi">edit</span></button>' +
+                '<button class="catalog-config-icon-btn danger" onclick="Modules.Catalogo._deleteTag(\'' + tag.id + '\')"><span class="mi">delete</span></button>' +
               '</div>' +
             '</div>';
-          }).join('') + '</div></section>');
+          }).join('') + '</div>') +
+      '</section>';
   }
 
   function _openTagModal(id) {
     _editingId = id;
     var tag = id ? (_tags.find(function (x) { return x.id === id; }) || {}) : {};
-    var body = '<div>' +
-      '<div style="margin-bottom:12px;"><label style="' + _labelStyle() + '">Texto da Tag *</label>' +
-      '<input id="tag-text" type="text" value="' + _esc(tag.text || '') + '" placeholder="ex: Novo, Promoção..." style="' + _inputStyle() + '"></div>' +
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">' +
-      '<div><label style="' + _labelStyle() + '">Cor de Fundo</label>' +
+    var body = '<div class="catalog-config-modal-card">' +
+      '<label style="display:block;margin-bottom:12px;"><span style="' + _labelStyle() + '">Texto da tag *</span>' +
+      '<input id="tag-text" type="text" value="' + _esc(tag.text || '') + '" placeholder="ex: Novo, Promoção..." style="' + _inputStyle() + '"></label>' +
+      '<div class="catalog-config-grid" style="margin-bottom:12px;">' +
+      '<div><label style="' + _labelStyle() + '">Cor de fundo</label>' +
       '<div style="display:flex;align-items:center;gap:8px;">' +
       '<input type="color" id="tag-bg" value="' + (tag.bgColor || '#B42318') + '" onchange="Modules.Catalogo._updateTagModalPreview()" style="width:40px;height:40px;border:1px solid #EAE4DA;border-radius:10px;cursor:pointer;padding:2px;background:#fff;">' +
       '<input type="text" id="tag-bg-hex" value="' + (tag.bgColor || '#B42318') + '" oninput="document.getElementById(\'tag-bg\').value=this.value;Modules.Catalogo._updateTagModalPreview()" style="flex:1;' + _inputStyle() + '">' +
       '</div></div>' +
-      '<div><label style="' + _labelStyle() + '">Cor do Texto</label>' +
+      '<div><label style="' + _labelStyle() + '">Cor do texto</label>' +
       '<div style="display:flex;align-items:center;gap:8px;">' +
       '<input type="color" id="tag-color" value="' + (tag.textColor || '#ffffff') + '" onchange="Modules.Catalogo._updateTagModalPreview()" style="width:40px;height:40px;border:1px solid #EAE4DA;border-radius:10px;cursor:pointer;padding:2px;background:#fff;">' +
       '<input type="text" id="tag-color-hex" value="' + (tag.textColor || '#ffffff') + '" oninput="document.getElementById(\'tag-color\').value=this.value;Modules.Catalogo._updateTagModalPreview()" style="flex:1;' + _inputStyle() + '">' +
       '</div></div>' +
       '</div>' +
-      '<div style="text-align:center;margin-top:8px;">' +
-      '<span id="tag-modal-preview" style="background:' + (tag.bgColor || '#B42318') + ';color:' + (tag.textColor || '#fff') + ';padding:6px 18px;border-radius:999px;font-size:13px;font-weight:600;">' + _esc(tag.text || 'Prévia') + '</span>' +
+      '<div class="catalog-config-softbox" style="text-align:center;">' +
+      '<span id="tag-modal-preview" class="catalog-config-chip" style="background:' + (tag.bgColor || '#B42318') + ';color:' + (tag.textColor || '#fff') + ';font-size:13px;">' + _esc(tag.text || 'Prévia') + '</span>' +
       '</div></div>';
-    var footer = '<button onclick="Modules.Catalogo._saveTag()" style="width:100%;height:40px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:14px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">' + (id ? 'Atualizar' : 'Criar Tag') + '</button>';
-    window._tagModal = UI.modal({ title: id ? 'Editar Tag' : 'Nova Tag', body: body, footer: footer });
+    var footer = '<button onclick="Modules.Catalogo._saveTag()" style="height:40px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:14px;font-weight:650;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">' + (id ? 'Salvar tag' : 'Criar tag') + '</button>';
+    window._tagModal = UI.modal({ title: id ? 'Editar tag' : 'Nova tag', body: body, footer: footer });
   }
 
   function _updateTagModalPreview() {
@@ -6652,22 +8137,26 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     _switchSub: _switchSub, _setTemplateTab: _setTemplateTab,
     _refreshProductPromotions: _refreshProductPromotions,
     _setCatalogCfgSub: _setCatalogCfgSub,
+    _refreshTemplatePreview: _refreshTemplatePreview,
+    _onTemplateHoursChange: _onTemplateHoursChange,
     _uploadStoreImage: _uploadStoreImage, _saveTemplateLoja: _saveTemplateLoja, _saveSeoLoja: _saveSeoLoja,
+    _clearStoreImage: _clearStoreImage,
     _openProductModal: _openProductModal, _toggleVis: _toggleVis, _saveProduct: _saveProduct, _deleteProduct: _deleteProduct, _duplicateProduct: _duplicateProduct, _openImportProducts: _openImportProducts, _filterProdutos: _filterProdutos, _setProductFilter: _setProductFilter, _setProductSort: _setProductSort, _setProductPage: _setProductPage, _setProductPageSize: _setProductPageSize, _clearProductFilters: _clearProductFilters, _quickUpdateProduct: _quickUpdateProduct,
-    _onProductNameChange: _onProductNameChange, _onProductDescChange: _onProductDescChange,
+    _onProductNameChange: _onProductNameChange, _onProductDescChange: _onProductDescChange, _refreshProductPreview: _refreshProductPreview, _moneyInputFocus: _moneyInputFocus, _moneyInputBlur: _moneyInputBlur,
     _seoEdited: _seoEdited, _onTipoChange: _onTipoChange, _onUnicoSrcChange: _onUnicoSrcChange,
     _addMenuGroup: _addMenuGroup, _removeMenuGroup: _removeMenuGroup,
     _addMenuOption: _addMenuOption, _removeMenuOption: _removeMenuOption, _filterMenuOptions: _filterMenuOptions,
     _addUpsellProduct: _addUpsellProduct, _removeUpsellProduct: _removeUpsellProduct, _filterUpsellProducts: _filterUpsellProducts,
     _onImgFileChange: _onImgFileChange, _openProductImagePicker: _openProductImagePicker, _removeProductImage: _removeProductImage,
     _onProntoImgChange: _onProntoImgChange, _onFichaImgChange: _onFichaImgChange,
-    _openCatModal: _openCatModal, _selectCatColor: _selectCatColor, _uploadCategoryGraphic: _uploadCategoryGraphic, _clearCategoryGraphic: _clearCategoryGraphic, _uploadTemplateCategoryGraphic: _uploadTemplateCategoryGraphic, _saveCat: _saveCat, _deleteCat: _deleteCat,
+    _openCatModal: _openCatModal, _selectCatColor: _selectCatColor, _uploadCategoryGraphic: _uploadCategoryGraphic, _clearCategoryGraphic: _clearCategoryGraphic, _uploadTemplateCategoryGraphic: _uploadTemplateCategoryGraphic, _moveTemplateCategory: _moveTemplateCategory, _saveCat: _saveCat, _deleteCat: _deleteCat,
     _openProntosModal: _openProntosModal, _savePronto: _savePronto, _deletePronto: _deletePronto,
-    _openVariantModal: _openVariantModal, _saveVariant: _saveVariant, _deleteVariant: _deleteVariant,
+    _openVariantModal: _openVariantModal, _addVariantOptionRow: _addVariantOptionRow, _removeVariantOptionRow: _removeVariantOptionRow, _onVariantOptionImageChange: _onVariantOptionImageChange, _removeVariantOptionImage: _removeVariantOptionImage, _toggleProductVariantPreview: _toggleProductVariantPreview, _saveVariant: _saveVariant, _deleteVariant: _deleteVariant,
     _openItemCustoModal: _openItemCustoModal, _saveItemCusto: _saveItemCusto, _deleteItemCusto: _deleteItemCusto,
     _filterItensCusto: _filterItensCusto, _setItensCustoFilter: _setItensCustoFilter, _onItemTipoChange: _onItemTipoChange,
     _openFichaViewModal: _openFichaViewModal, _editFichaFromView: _editFichaFromView,
     _openFichaModal: _openFichaModal, _addFichaComponent: _addFichaComponent, _removeFichaComponent: _removeFichaComponent, _addFichaIng: _addFichaIng, _removeFichaIng: _removeFichaIng,
+    _toggleFichaYieldHelp: _toggleFichaYieldHelp, _toggleFichaIngredientsHelp: _toggleFichaIngredientsHelp,
     _updateFichaCost: _updateFichaCost, _updateFichaPesoTotal: _updateFichaPesoTotal, _onYieldUnitChange: _onYieldUnitChange,
     _onFichaIngChange: _onFichaIngChange, _onFichaImgChange: _onFichaImgChange,
     _saveFicha: _saveFicha, _deleteFicha: _deleteFicha,

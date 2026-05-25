@@ -7,10 +7,9 @@ window.Auth = (function () {
   let _adminProfile = null;
   let _authSessionSeq = 0;
   const MASTER_EMAIL = 'bocadobrasil.es@gmail.com';
-  const BOOTSTRAP_ADMIN_EMAILS = ['bocadobrasil.es@gmail.com', 'pcruz.digital@gmail.com'];
 
   function isAllowedAdminRole(role) {
-    return ['master_admin', 'store_owner', 'store_staff'].indexOf((role || '').toString()) >= 0;
+    return ['master_admin', 'store_owner', 'store_staff', 'admin'].indexOf((role || '').toString()) >= 0;
   }
 
   function normalizeRole(role) {
@@ -18,6 +17,7 @@ window.Auth = (function () {
     if (!r || r === 'tenant_owner' || r === 'owner') return 'store_owner';
     if (r === 'manager') return 'store_staff';
     if (r === 'master') return 'master_admin';
+    if (r === 'admin') return 'admin';
     return r;
   }
 
@@ -256,25 +256,44 @@ window.Auth = (function () {
         return;
       }
 
-      if (BOOTSTRAP_ADMIN_EMAILS.indexOf(user.email || '') >= 0) {
-        _currentUser = user;
-        _adminProfile = { authUid: user.uid, uid: user.uid, tenantId: user.uid, role: user.email === MASTER_EMAIL ? 'master_admin' : 'store_owner', bootstrap: true, email: user.email || '' };
+      if (user.email === MASTER_EMAIL) {
         console.info('[Auth] bootstrap lookup system_tenants', { email: user.email || '', uid: user.uid, path: 'system_tenants/' + user.uid });
         resolveSystemTenantForBootstrap(user).then(function (resolved) {
           if (sessionSeq !== _authSessionSeq || !firebase.auth().currentUser || firebase.auth().currentUser.uid !== user.uid) return;
-          if (resolved && resolved.selected) {
-            var data = resolved.selected.data || {};
-            var bootstrapRole = user.email === MASTER_EMAIL ? 'master_admin' : normalizeRole(data.role || _adminProfile.role);
-            _adminProfile = normalizeBillingProfile(Object.assign({}, data, {
-              authUid: user.uid,
+          if (!(resolved && resolved.selected)) {
+            console.warn('[Auth] bootstrap access denied', {
+              email: user.email || '',
               uid: user.uid,
-              tenantId: user.uid,
-              masterTenantId: resolved.selected.id,
-              role: bootstrapRole,
-              bootstrap: true,
-              email: user.email || data.email || ''
-            }));
+              reason: 'missing_master_tenant'
+            });
+            return firebase.auth().signOut().then(function () {
+              if (window.AdminApp && AdminApp.showAccessDenied) AdminApp.showAccessDenied('missing_master');
+            });
           }
+          var data = resolved.selected.data || {};
+          var status = String(data.status || data.accountStatus || '').toLowerCase();
+          if (status !== 'active') {
+            console.warn('[Auth] bootstrap access denied', {
+              email: user.email || '',
+              uid: user.uid,
+              masterTenantId: resolved.selected.id,
+              status: status || '(ausente)',
+              reason: 'inactive'
+            });
+            return firebase.auth().signOut().then(function () {
+              if (window.AdminApp && AdminApp.showAccessDenied) AdminApp.showAccessDenied('inactive');
+            });
+          }
+          _currentUser = user;
+          _adminProfile = normalizeBillingProfile(Object.assign({}, data, {
+            authUid: user.uid,
+            uid: user.uid,
+            tenantId: resolved.selected.id,
+            masterTenantId: resolved.selected.id,
+            role: 'master_admin',
+            bootstrap: true,
+            email: user.email || data.email || ''
+          }));
           console.info('[Auth] bootstrap access granted', {
             email: user.email || '',
             uid: user.uid,

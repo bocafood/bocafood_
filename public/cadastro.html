@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Cadastro BocaFood</title>
-  <link rel="icon" type="image/png" href="assets/boca-food-favicon.png">
-  <link rel="apple-touch-icon" href="assets/boca-food-favicon.png">
+  <link rel="icon" type="image/png" href="/assets/boca-food-favicon.png">
+  <link rel="apple-touch-icon" href="/assets/boca-food-favicon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -28,7 +28,7 @@
     *{box-sizing:border-box}
     body{margin:0;min-height:100vh;font-family:'Manrope','Inter',sans-serif;background:linear-gradient(180deg,#FCF7F5 0%,#FFF9F7 100%);color:var(--ink)}
     .topbar{width:min(var(--content-width),100%);margin:0 auto;padding:4px var(--content-pad) 0;display:flex;align-items:center;justify-content:center}
-    .brand-logo{width:82px;height:auto;object-fit:contain;background:transparent;border:0;padding:0}
+    .brand-logo{width:104px;height:auto;object-fit:contain;background:transparent;border:0;padding:0}
     .page{min-height:calc(100vh - 44px);display:block;width:min(900px,100%);margin:0 auto;padding:0 24px 24px}
     .page-title,.preview-banner,.progress-card,.panel{width:min(var(--content-width),100%);margin-left:auto;margin-right:auto}
     .page-title{margin-top:-10px;margin-bottom:10px;padding:0 var(--content-pad)}
@@ -45,6 +45,24 @@
     .step-pills{display:none}
     .panel{position:relative;background:linear-gradient(135deg,#FFFFFF 0%,#FAF8F4 100%);border:1px solid #EAE4DA;border-radius:22px;box-shadow:var(--shadow);min-height:0;display:flex;flex-direction:column;overflow:hidden}
     .panel::before{content:'';position:absolute;inset:0 0 auto;height:2px;background:linear-gradient(90deg,rgba(196,54,42,.42),rgba(182,146,94,.34))}
+    .panel.access-panel{border-color:#E6DCD7;box-shadow:0 18px 44px rgba(31,31,31,.07)}
+    .panel.access-panel::before{height:3px;background:linear-gradient(90deg,var(--red),#B6925E)}
+    .panel.access-panel .question{font-size:25px;margin-top:23px;margin-bottom:6px;font-weight:760}
+    .panel.access-panel .hint{font-size:13.5px;margin-bottom:10px}
+    .panel.access-panel .step-main{padding-bottom:12px}
+    .panel.access-panel .actions{padding-top:10px;padding-bottom:12px;background:linear-gradient(180deg,#FFFFFF 0%,#FFFCFB 100%)}
+    .panel.responsible-panel{border-color:#E6DCD7;box-shadow:0 18px 44px rgba(31,31,31,.07)}
+    .panel.responsible-panel::before{height:3px;background:linear-gradient(90deg,var(--red),#B6925E)}
+    .panel.responsible-panel .question{font-size:25px;margin-top:23px;margin-bottom:6px;font-weight:760}
+    .panel.responsible-panel .hint{font-size:13.5px;margin-bottom:10px}
+    .panel.responsible-panel .step-main{padding-bottom:12px}
+    .panel.responsible-panel .actions{padding-top:10px;padding-bottom:12px;background:linear-gradient(180deg,#FFFFFF 0%,#FFFCFB 100%)}
+    .panel.store-panel{border-color:#E6DCD7;box-shadow:0 18px 44px rgba(31,31,31,.07)}
+    .panel.store-panel::before{height:3px;background:linear-gradient(90deg,var(--red),#B6925E)}
+    .panel.store-panel .question{font-size:25px;margin-top:23px;margin-bottom:6px;font-weight:760}
+    .panel.store-panel .hint{font-size:13.5px;margin-bottom:10px}
+    .panel.store-panel .step-main{padding-bottom:12px}
+    .panel.store-panel .actions{padding-top:10px;padding-bottom:12px;background:linear-gradient(180deg,#FFFFFF 0%,#FFFCFB 100%)}
     .question{font-family:'Manrope','Inter',sans-serif;font-size:24px;line-height:1.16;margin:22px 24px 7px;font-weight:700;letter-spacing:0;color:#261D1A}
     .hint{font-size:13px;line-height:1.45;color:var(--muted);margin:0 24px 8px;max-width:620px}
     .step-note{font-size:12px;line-height:1.42;color:#8A7D79;margin:0 22px 12px;display:none}
@@ -52,13 +70,94 @@
     .step-main{padding:0 24px 10px}
     .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
     .responsible-grid{grid-template-columns:minmax(0,1.35fr) minmax(190px,.85fr)}
+    .responsible-block{grid-column:1/-1;display:grid;grid-template-columns:inherit;gap:12px;padding-top:2px}
+    .responsible-block + .responsible-block{margin-top:2px;padding-top:12px;border-top:1px solid rgba(239,228,225,.86)}
+    .responsible-block-title{grid-column:1/-1;margin:0 0 -2px;color:#8A7E7A;font-size:10.5px;font-weight:850;letter-spacing:.07em;text-transform:uppercase}
     .store-step{gap:14px}
     .signup-section{grid-column:1/-1;display:flex;flex-direction:column;gap:8px;margin-top:2px}
     .boxed-step{gap:12px}
     .boxed-step .signup-section{padding:13px 14px 14px;border:1px solid rgba(196,54,42,.24);border-radius:17px;background:linear-gradient(135deg,#FFFFFF 0%,#FFFCFB 100%);gap:10px}
     .boxed-step .signup-section-title{font-size:11px;font-weight:900;color:#473D3A}
     .boxed-step .signup-section-help{font-size:11.5px;color:#9A8D89}
+    .business-step .signup-section{border-color:#ECE2DE;background:linear-gradient(135deg,#FFFFFF 0%,#FFFEFD 100%)}
+    .business-step .signup-section-title{color:#5B504C;font-weight:850}
+    .business-step .choice{border-color:#E6DDD9;background:#fff;color:#4D423F;font-weight:650}
+    .business-step .choice:has(input:checked){border-color:rgba(196,54,42,.72);background:#FFF5F2;box-shadow:0 0 0 3px rgba(196,54,42,.045)}
     .sales-step{gap:12px}
+    .sales-map-step{gap:10px}
+    .sales-map-step .signup-section{border-color:#ECE2DE;background:linear-gradient(135deg,#FFFFFF 0%,#FFFEFD 100%);padding:11px 12px 12px;gap:8px}
+    .sales-map-step .signup-section-title{color:#5B504C;font-weight:850}
+    .sales-ruler{position:relative;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px;padding-top:6px}
+    .sales-ruler::before{content:'';position:absolute;left:9%;right:9%;top:17px;height:1px;background:#E9DED9}
+    .sales-ruler-option{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:6px;padding:0 2px;color:#625652;font-size:11.2px;font-weight:720;text-align:center;line-height:1.18;cursor:pointer}
+    .sales-ruler-option input{position:absolute;opacity:0;pointer-events:none}
+    .sales-ruler-dot{width:12px;height:12px;border-radius:999px;background:#fff;border:1.5px solid #DCCFCB;display:block;box-shadow:0 3px 8px rgba(31,31,31,.035)}
+    .sales-ruler-option:has(input:checked){color:#3F3430}
+    .sales-ruler-option:has(input:checked) .sales-ruler-dot{width:14px;height:14px;border-color:var(--red);background:var(--red);box-shadow:0 6px 12px rgba(196,54,42,.13)}
+    .sales-channel-grid{grid-template-columns:repeat(auto-fit,minmax(145px,1fr))}
+    .sales-channel-grid .choice{gap:7px;min-height:36px;padding:7px 30px 7px 10px}
+    .menu-status-grid{grid-template-columns:1fr}
+    .menu-status-grid .choice{min-height:36px;justify-content:flex-start;text-align:left;padding-top:7px;padding-bottom:7px}
+    .sales-map-step .choice{border-color:#E6DDD9;background:#fff;color:#4D423F;font-weight:650}
+    .sales-map-step .choice span{text-transform:none;letter-spacing:0;color:#4D423F;font-size:12.4px;font-weight:650}
+    .sales-map-step .choice:has(input:checked){border-color:rgba(196,54,42,.72);background:#FFF5F2;box-shadow:0 0 0 3px rgba(196,54,42,.04)}
+    .sales-map-summary{grid-column:1/-1;margin-top:0;padding:11px 12px;border:1px solid #EDE3DF;border-radius:15px;background:linear-gradient(135deg,#FFFFFF 0%,#FFFCFB 100%);color:#5A4E4A}
+    .sales-map-summary-title{font-size:10.8px;font-weight:850;letter-spacing:.055em;text-transform:uppercase;color:#5B504C;margin-bottom:7px}
+    .sales-map-summary-text{font-size:12px;line-height:1.48;color:#7D706C;margin:0}
+    .sales-map-summary-list{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none;font-size:11.8px;line-height:1.35}
+    .sales-map-summary-list li{padding:6px 8px;border:1px solid #EFE4E1;border-radius:999px;background:#fff;color:#6E625E}
+    .sales-map-summary-list strong{color:#3F3430;font-weight:850}
+    .operation-step{gap:10px}
+    .operation-step .signup-section{border-color:#ECE2DE;background:linear-gradient(135deg,#FFFFFF 0%,#FFFEFD 100%);padding:11px 12px 12px;gap:8px}
+    .operation-step .signup-section-title{color:#5B504C;font-weight:850}
+    .operation-step .choice{border-color:#E6DDD9;background:#fff;color:#4D423F;font-weight:650;min-height:36px;padding:7px 30px 7px 10px}
+    .operation-step .choice span{text-transform:none;letter-spacing:0;color:#4D423F;font-size:12.4px;font-weight:650}
+    .operation-step .choice:has(input:checked){border-color:rgba(196,54,42,.72);background:#FFF5F2;box-shadow:0 0 0 3px rgba(196,54,42,.04)}
+    .operation-chip-grid{grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:8px}
+    .operation-ruler{position:relative;display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:7px;padding-top:6px}
+    .operation-ruler::before{content:'';position:absolute;left:7%;right:7%;top:17px;height:1px;background:#E9DED9}
+    .operation-ruler-option{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:6px;padding:0 2px;color:#625652;font-size:11.2px;font-weight:720;text-align:center;line-height:1.18;cursor:pointer}
+    .operation-ruler-option input{position:absolute;opacity:0;pointer-events:none}
+    .operation-ruler-dot{width:12px;height:12px;border-radius:999px;background:#fff;border:1.5px solid #DCCFCB;display:block;box-shadow:0 3px 8px rgba(31,31,31,.035)}
+    .operation-ruler-option:has(input:checked){color:#3F3430}
+    .operation-ruler-option:has(input:checked) .operation-ruler-dot{width:14px;height:14px;border-color:var(--red);background:var(--red);box-shadow:0 6px 12px rgba(196,54,42,.13)}
+    .operation-summary{grid-column:1/-1;margin-top:0;padding:11px 12px;border:1px solid #EDE3DF;border-radius:15px;background:linear-gradient(135deg,#FFFFFF 0%,#FFFCFB 100%);color:#5A4E4A}
+    .operation-summary-title{font-size:10.8px;font-weight:850;letter-spacing:.055em;text-transform:uppercase;color:#5B504C;margin-bottom:7px}
+    .operation-summary-text{font-size:12px;line-height:1.48;color:#7D706C;margin:0}
+    .operation-summary-list{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none;font-size:11.8px;line-height:1.35}
+    .operation-summary-list li{padding:6px 8px;border:1px solid #EFE4E1;border-radius:999px;background:#fff;color:#6E625E}
+    .operation-summary-list strong{color:#3F3430;font-weight:850}
+    .moment-map-step{gap:10px}
+    .moment-map-step .signup-section{border-color:#ECE2DE;background:linear-gradient(135deg,#FFFFFF 0%,#FFFEFD 100%);padding:11px 12px 12px;gap:8px}
+    .moment-map-step .signup-section-title{color:#5B504C;font-weight:850}
+    .moment-map-step .choice{border-color:#E6DDD9;background:#fff;color:#4D423F;font-weight:650;min-height:36px;padding:7px 30px 7px 10px}
+    .moment-map-step .choice span{text-transform:none;letter-spacing:0;color:#4D423F;font-size:12.4px;font-weight:650}
+    .moment-map-step .choice:has(input:checked){border-color:rgba(196,54,42,.72);background:#FFF5F2;box-shadow:0 0 0 3px rgba(196,54,42,.04)}
+    .moment-chip-grid{grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px}
+    .moment-ruler{position:relative;display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:7px;padding-top:6px}
+    .moment-ruler::before{content:'';position:absolute;left:7%;right:7%;top:17px;height:1px;background:#E9DED9}
+    .moment-ruler-option{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:6px;padding:0 2px;color:#625652;font-size:11.2px;font-weight:720;text-align:center;line-height:1.18;cursor:pointer}
+    .moment-ruler-option input{position:absolute;opacity:0;pointer-events:none}
+    .moment-ruler-dot{width:12px;height:12px;border-radius:999px;background:#fff;border:1.5px solid #DCCFCB;display:block;box-shadow:0 3px 8px rgba(31,31,31,.035)}
+    .moment-ruler-option:has(input:checked){color:#3F3430}
+    .moment-ruler-option:has(input:checked) .moment-ruler-dot{width:14px;height:14px;border-color:var(--red);background:var(--red);box-shadow:0 6px 12px rgba(196,54,42,.13)}
+    .store-map-step .signup-section{gap:10px}
+    .store-map-step .store-fields{grid-template-columns:1.2fr .9fr .8fr;gap:10px}
+    .store-map-step .choice-grid{grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:8px}
+    .store-map-step .choice{min-height:38px;padding:8px 34px 8px 11px;border-color:#E9DED9;background:#fff;font-size:12.2px;font-weight:700;line-height:1.18}
+    .store-map-step .choice span{display:flex;align-items:center;min-height:24px}
+    .store-map-summary{grid-column:1/-1;margin-top:0;padding:11px 12px;border:1px solid #EDE3DF;border-radius:15px;background:linear-gradient(135deg,#FFFFFF 0%,#FFFCFB 100%);color:#5A4E4A}
+    .store-map-summary-title{font-size:10.8px;font-weight:850;letter-spacing:.055em;text-transform:uppercase;color:#5B504C;margin-bottom:7px}
+    .store-map-summary-text{font-size:12px;line-height:1.48;color:#7D706C;margin:0}
+    .store-map-summary-list{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none;font-size:11.8px;line-height:1.35}
+    .store-map-summary-list li{padding:6px 8px;border:1px solid #EFE4E1;border-radius:999px;background:#fff;color:#6E625E}
+    .store-map-summary-list strong{color:#3F3430;font-weight:850}
+    .moment-summary{grid-column:1/-1;margin-top:0;padding:11px 12px;border:1px solid #EDE3DF;border-radius:15px;background:linear-gradient(135deg,#FFFFFF 0%,#FFFCFB 100%);color:#5A4E4A}
+    .moment-summary-title{font-size:10.8px;font-weight:850;letter-spacing:.055em;text-transform:uppercase;color:#5B504C;margin-bottom:7px}
+    .moment-summary-text{font-size:12px;line-height:1.48;color:#7D706C;margin:0}
+    .moment-summary-list{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none;font-size:11.8px;line-height:1.35}
+    .moment-summary-list li{padding:6px 8px;border:1px solid #EFE4E1;border-radius:999px;background:#fff;color:#6E625E}
+    .moment-summary-list strong{color:#3F3430;font-weight:850}
     .signup-section-head{display:flex;flex-direction:column;gap:3px}
     .signup-section-title{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#6D625E}
     .signup-section-help{font-size:12px;line-height:1.4;color:#8A7E7A}
@@ -67,6 +166,7 @@
     label.full{grid-column:1/-1}
     label span{font-size:11px;font-weight:750;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
     .field-note{font-size:11px;line-height:1.35;color:#958884;font-weight:500}
+    .step-soft-note{margin-top:10px;padding:8px 10px;border-radius:12px;background:#FFFCFB;border:1px solid #EFE4E1;color:#8A7E7A;font-size:11.5px;line-height:1.4}
     input,select{width:100%;height:44px;border:1.5px solid #E5D8D5;border-radius:12px;background:#fff;color:var(--ink);font:inherit;font-size:14px;padding:0 13px;outline:none;appearance:none}
     select{background-image:linear-gradient(45deg,transparent 50%,#8A7D79 50%),linear-gradient(135deg,#8A7D79 50%,transparent 50%);background-position:calc(100% - 18px) 19px,calc(100% - 13px) 19px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:34px}
     input:focus,select:focus{border-color:var(--red);box-shadow:0 0 0 4px rgba(196,54,42,.08)}
@@ -87,11 +187,39 @@
     .store-step .choice:has(input:checked)::after{content:'✓';position:absolute;right:11px;top:50%;transform:translateY(-50%);width:17px;height:17px;border-radius:999px;background:var(--red);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900}
     .actions{display:flex;gap:12px;justify-content:flex-end;margin-top:auto;padding:8px 24px 10px;background:#fff;border-top:1px solid rgba(240,230,227,.62)}
     button{border:none;border-radius:13px;height:44px;padding:0 18px;font-weight:800;font-size:14px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;text-align:center}
+    button:focus-visible{outline:3px solid rgba(196,54,42,.18);outline-offset:2px}
     .primary{background:var(--red);color:#fff;box-shadow:0 10px 20px rgba(196,54,42,.16)}
     .secondary{background:#fff;color:var(--ink);border:1.5px solid var(--line)}
-    .google-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:7px;background:#fff;color:#5E514E;border:1.5px solid #E5D8D5;box-shadow:none;margin-bottom:8px;font-size:13px;font-weight:600}
-    .google-btn:hover{border-color:#D9C8C4;background:#FFFCFB}
+    .access-welcome{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;margin-bottom:2px;padding:13px 14px;border:1px solid #EAD9D3;border-radius:17px;background:radial-gradient(circle at 92% 16%,rgba(196,54,42,.13),transparent 32%),linear-gradient(135deg,#FFF8F6 0%,#FFFFFF 58%,#FAF8F4 100%);overflow:hidden}
+    .access-welcome::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(180deg,var(--red),#B6925E)}
+    .access-welcome-kicker{margin:0 0 3px;color:var(--red);font-size:10.5px;font-weight:900;letter-spacing:.075em;text-transform:uppercase}
+    .access-welcome-title{margin:0;color:#261D1A;font-size:15px;font-weight:850;line-height:1.22}
+    .access-welcome-text{margin:3px 0 0;color:#6F625E;font-size:12.2px;line-height:1.42}
+    .access-welcome-mark{width:42px;height:42px;border-radius:15px;background:#fff;color:var(--red);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:850;box-shadow:0 12px 24px rgba(196,54,42,.11);border:1px solid rgba(196,54,42,.14)}
+    .access-step{display:flex;flex-direction:column;gap:10px}
+    .responsible-step{display:flex;flex-direction:column;gap:10px}
+    .responsible-step .responsible-grid{gap:11px 12px}
+    .responsible-step .responsible-block{padding:12px;border:1px solid #ECE2DE;border-radius:16px;background:linear-gradient(135deg,#FFFFFF 0%,#FFFEFD 100%)}
+    .responsible-step .responsible-block + .responsible-block{margin-top:0;padding-top:12px;border-top:1px solid #ECE2DE}
+    .responsible-step .step-soft-note{display:block;margin:0;padding:9px 11px;border:1px solid #EFE4E1;border-radius:13px;background:#FFFCFB;color:#7B6E6A;font-size:11.8px;line-height:1.4}
+    .responsible-inline{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,360px);gap:12px;align-items:start}
+    .signup-phone-box{display:grid;grid-template-columns:112px minmax(0,1fr);gap:8px;align-items:center;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:6px;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease}
+    .signup-phone-box select,.signup-phone-box input{border:0;background:transparent;box-shadow:none;min-height:36px;height:36px;padding-top:0;padding-bottom:0}
+    .signup-phone-box select{border-right:1px solid #E8DCD7;border-radius:8px;padding-left:8px;padding-right:30px}
+    .signup-phone-box input{padding-left:8px}
+    .signup-phone-box:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08)}
+    .access-step .purchase-email-notice{display:grid;grid-template-columns:30px 1fr;gap:10px;align-items:start;margin:0;padding:11px 12px;border-color:#EFD8D3;background:linear-gradient(135deg,#FFF9F7 0%,#FFFFFF 100%);box-shadow:0 8px 20px rgba(31,31,31,.035)}
+    .access-step .purchase-email-notice::before{content:'!';width:30px;height:30px;border-radius:11px;background:#FFF0EE;color:var(--red);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900}
+    .access-step .purchase-email-notice strong{display:block;margin-bottom:2px;color:#2D2321;font-size:12.5px;line-height:1.25}
+    .access-step .google-btn{margin:0}
+    .access-step .divider{margin:0;color:#A09692}
+    .access-step .form-grid{gap:11px 12px}
+    .access-step .mini-note{margin-top:0}
+    .google-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;background:#fff;color:#5E514E;border:1.5px solid #E5D8D5;box-shadow:0 8px 18px rgba(31,31,31,.035);margin-bottom:8px;font-size:13px;font-weight:650;transition:border-color .16s ease,background .16s ease,transform .16s ease,box-shadow .16s ease}
+    .google-btn:hover{border-color:#D9C8C4;background:#FFFCFB;transform:translateY(-1px);box-shadow:0 12px 24px rgba(31,31,31,.055)}
     .google-mark{width:16px;height:16px;display:block;flex:0 0 auto}
+    .purchase-email-notice{margin:0 0 10px;padding:10px 12px;border:1px solid rgba(196,54,42,.16);border-radius:13px;background:#FFFCFB;color:#5F514E;font-size:12px;line-height:1.42}
+    .purchase-email-notice strong{color:#3F3430;font-weight:850}
     .divider{display:flex;align-items:center;gap:9px;color:#A89C98;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin:0 0 10px}
     .divider::before,.divider::after{content:'';height:1px;background:var(--line);flex:1}
     button:disabled{opacity:.55;cursor:not-allowed;box-shadow:none}
@@ -100,6 +228,16 @@
     .message.error{background:#FFF0EE;color:#9B271D;border:1px solid #F4C6BF}
     .message.info{background:#F4FAF7;color:#245A49;border:1px solid #CFE8DC}
     .success-box{background:linear-gradient(135deg,#FFFFFF 0%,#FFFCFB 100%);border:1px solid rgba(196,54,42,.24);border-radius:18px;padding:16px;color:#3F3633;line-height:1.5}
+    .final-step{display:flex;flex-direction:column;gap:10px}
+    .final-step .success-box,.final-step .purchase-alert{margin:0}
+    .purchase-alert{background:linear-gradient(135deg,#FFFFFF 0%,#FFF8F6 100%);border:1px solid #F1B8B0;border-radius:18px;padding:18px;color:#3F3633;line-height:1.5;box-shadow:0 14px 34px rgba(155,39,29,.07)}
+    .purchase-alert-head{display:flex;align-items:flex-start;gap:12px}
+    .purchase-alert-icon{width:36px;height:36px;border-radius:13px;background:#FFF0EE;color:#9B271D;display:flex;align-items:center;justify-content:center;font-weight:900;flex:0 0 auto}
+    .purchase-alert-title{font-size:18px;font-weight:850;color:#261D1A;line-height:1.24;margin:0 0 6px}
+    .purchase-alert-text{font-size:13.5px;color:#6F625E;line-height:1.55;margin:0}
+    .purchase-alert-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+    .purchase-alert-actions button,.purchase-alert-actions a{min-height:42px;border-radius:12px;padding:0 14px;font-size:13px;font-weight:800;text-decoration:none}
+    .purchase-alert-actions a{display:inline-flex;align-items:center;justify-content:center;background:#fff;color:#9B271D;border:1.5px solid #F1B8B0}
     .success-head{display:flex;align-items:flex-start;gap:12px}
     .success-icon{width:34px;height:34px;border-radius:12px;background:#FFF4F2;color:var(--red);display:flex;align-items:center;justify-content:center;font-weight:900;flex:0 0 auto}
     .success-title{font-size:17px;font-weight:850;color:#261D1A;line-height:1.25;margin:0 0 4px}
@@ -107,10 +245,26 @@
     .success-list{display:grid;gap:8px;margin-top:14px}
     .success-item{display:flex;align-items:center;gap:9px;background:#fff;border:1px solid #EFE4E1;border-radius:13px;padding:9px 10px;font-size:12.5px;color:#4E423F;font-weight:650}
     .success-item::before{content:'✓';width:17px;height:17px;border-radius:999px;background:var(--red);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;flex:0 0 auto}
+    .legal-sign-box{margin-top:11px;padding:11px 12px;border:1px solid rgba(196,54,42,.16);border-radius:13px;background:#FFFCFB;color:#5E514E;font-size:12.5px;line-height:1.42}
+    .legal-sign-title{display:block;margin:0 0 2px;color:#2D2321;font-size:12.8px;font-weight:820;line-height:1.25}
+    .legal-sign-text{margin:0 0 8px;color:#7B6E6A;font-size:12px;line-height:1.38}
+    .legal-sign-links{display:flex;align-items:center;gap:16px;margin:0 0 9px;font-size:12.5px}
+    .legal-sign-box a{color:var(--red);font-weight:800;text-decoration:none}
+    .legal-sign-check{display:grid;grid-template-columns:16px 1fr;align-items:start;column-gap:9px;margin:0;font-weight:650;color:#3F3633;text-align:left}
+    .legal-sign-check input{width:16px;height:16px;margin:1px 0 0;accent-color:var(--red);appearance:auto;-webkit-appearance:checkbox;padding:0;border:0;background:transparent;cursor:pointer}
+    .legal-sign-check span{line-height:1.32;min-width:0}
+    .communication-pref-box{margin-top:10px;padding:11px 12px;border:1px solid #EFE4E1;border-radius:13px;background:#FFFFFF;color:#5E514E;font-size:12.5px;line-height:1.42}
+    .communication-pref-title{display:block;margin:0 0 3px;color:#2D2321;font-size:12.8px;font-weight:820;line-height:1.25}
+    .communication-pref-subtitle{margin:0 0 9px;color:#7B6E6A;font-size:12px;line-height:1.38}
+    .communication-pref-list{display:grid;gap:8px;margin:0 0 10px}
+    .communication-pref-check{display:grid;grid-template-columns:16px 1fr;align-items:start;column-gap:9px;margin:0;color:#3F3633;font-size:12.5px;font-weight:650;text-align:left}
+    .communication-pref-check input{width:16px;height:16px;margin:1px 0 0;accent-color:var(--red);appearance:auto;-webkit-appearance:checkbox;padding:0;border:0;background:transparent;cursor:pointer}
+    .communication-pref-check span{line-height:1.32;min-width:0}
+    .communication-pref-note{margin:0;color:#7B6E6A;font-size:11.8px;line-height:1.45}
     .mini-note{font-size:12px;color:var(--muted);line-height:1.45;margin-top:8px}
     @media(max-width:880px){
       .topbar{padding:10px 16px 0;justify-content:center}
-      .brand-logo{width:76px}
+      .brand-logo{width:96px}
       .page{padding:0 16px 18px}
       .page-title{padding:0 4px;text-align:center}
       .page-title h1{font-size:26px}
@@ -121,20 +275,36 @@
       .step-note{margin-left:20px;margin-right:20px}
       .step-main{padding:0 20px 6px}
       .form-grid{grid-template-columns:1fr}
+      .responsible-inline{grid-template-columns:1fr}
+      .signup-phone-box{grid-template-columns:100px minmax(0,1fr)}
       .store-fields{grid-template-columns:1fr}
       .store-step .choice-grid{grid-template-columns:1fr}
+      .sales-ruler{display:flex;overflow-x:auto;padding-bottom:4px;scroll-snap-type:x proximity}
+      .sales-ruler::before{display:none}
+      .sales-ruler-option{min-width:108px;scroll-snap-align:start;padding:7px;border:1px solid #E9DED9;border-radius:13px;background:#fff}
+      .sales-ruler-option:has(input:checked){border-color:rgba(196,54,42,.72);background:#FFF5F2}
+      .operation-ruler{display:flex;overflow-x:auto;padding-bottom:4px;scroll-snap-type:x proximity}
+      .operation-ruler::before{display:none}
+      .operation-ruler-option{min-width:104px;scroll-snap-align:start;padding:7px;border:1px solid #E9DED9;border-radius:13px;background:#fff}
+      .operation-ruler-option:has(input:checked){border-color:rgba(196,54,42,.72);background:#FFF5F2}
+      .moment-ruler{display:flex;overflow-x:auto;padding-bottom:4px;scroll-snap-type:x proximity}
+      .moment-ruler::before{display:none}
+      .moment-ruler-option{min-width:112px;scroll-snap-align:start;padding:7px;border:1px solid #E9DED9;border-radius:13px;background:#fff}
+      .moment-ruler-option:has(input:checked){border-color:rgba(196,54,42,.72);background:#FFF5F2}
       .actions{flex-direction:column;padding:12px 20px}.actions button{width:100%}
+      .panel.access-panel .question{font-size:23px}
+      .panel.responsible-panel .question{font-size:23px}
+      .panel.store-panel .question{font-size:23px}
+      .access-welcome{grid-template-columns:1fr;padding-right:13px}
+      .access-welcome-mark{display:none}
     }
   </style>
 </head>
 <body>
   <header class="topbar">
-    <img class="brand-logo" src="assets/boca-food-logo.png" alt="BocaFood">
+    <img class="brand-logo" src="/assets/boca-food-logo.png" alt="BocaFood">
   </header>
   <main class="page">
-    <section class="page-title">
-      <span class="page-kicker">Primeiro acesso</span>
-    </section>
     <div class="preview-banner" id="preview-banner">Modo prévia ativo: navegue pelas etapas sem criar conta, salvar dados ou consultar Hotmart.</div>
     <div class="progress-card">
       <div class="progress-meta">
@@ -161,7 +331,9 @@
   <script>
   (function(){
     'use strict';
-    var isPreview = new URLSearchParams(window.location.search).get('preview') === '1';
+    var previewParams = new URLSearchParams(window.location.search);
+    var isPreview = previewParams.get('preview') === '1';
+    var previewHasPurchase = isPreview && (previewParams.get('purchase') === '1' || previewParams.get('success') === '1');
     var BB_FB_CFG = {
       apiKey: 'AIzaSyAZk2mEPXR-VQOOEJWfcdhqoJOhHWjzda4',
       authDomain: 'bocado-brasil.firebaseapp.com',
@@ -176,7 +348,16 @@
       step: 0,
       loading: false,
       authCreated: false,
-      purchaseFound: false,
+      purchaseFound: previewHasPurchase,
+      legalAccepted: false,
+      legalSigned: false,
+      termsUrl: 'https://bocafood.app/termosdeuso',
+      privacyUrl: 'https://bocafood.app/privacidade',
+      communicationPreferences: {
+        commercialCampaigns: false,
+        growthTips: false,
+        upgradeOffers: false
+      },
       data: {
         email: isPreview ? 'preview@bocafood.local' : '',
         password: isPreview ? 'preview123' : '',
@@ -189,6 +370,7 @@
         businessType: isPreview ? 'Marmitas / pratos prontos' : '',
         salesMode: isPreview ? 'Delivery' : '',
         storeCity: isPreview ? 'Madrid' : '',
+        fiscalCountry: 'ES',
         sellingFrequency: isPreview ? 'Vendo toda semana' : '',
         salesChannels: isPreview ? ['WhatsApp'] : [],
         menuStatus: isPreview ? 'Tenho uma lista simples' : '',
@@ -203,35 +385,106 @@
         weeklyTimeAvailable: isPreview ? '2 a 5 horas' : ''
       }
     };
+    var SIGNUP_GOOGLE_PENDING_KEY = 'bocafood.signup.googlePending';
     var steps = [
-      ['Crie seu acesso ao BocaFood','Use o mesmo e-mail usado na compra para liberar seu acesso. Continue com Google ou crie uma senha usando esse mesmo e-mail.'],
-      ['Dados do usuário responsável','Esses dados serão usados no perfil do usuário que vai administrar o Centro de Controle.'],
-      ['Dados da loja','Essas informações ajudam a configurar sua loja inicial no BocaFood. Você poderá editar tudo depois no Centro de Controle.'],
-      ['Como sua loja vende hoje','Essas respostas ajudam o BocaFood a configurar sua loja e sugerir próximos passos mais úteis.'],
-      ['Estrutura e capacidade','Agora vamos entender sua operação para guiar melhor sua evolução.'],
-      ['Momento do negócio','Últimas perguntas para montar um diagnóstico inicial simples.'],
-      ['Finalização','Seu acesso foi criado e os dados principais foram salvos.']
+      ['Crie seu acesso',''],
+      ['Dados do responsável pela conta',''],
+      ['Sobre sua loja',''],
+      ['Como sua loja vende hoje',''],
+      ['Estrutura e capacidade',''],
+      ['Momento do negócio',''],
+      ['Finalização','']
     ];
     var stepNavLabels = ['Acesso','Você','Negócio','Vendas','Estrutura','Momento','Finalização'];
     var countries = [
       ['ES','Espanha'],['PT','Portugal'],['BR','Brasil'],['FR','França'],['IT','Itália'],['DE','Alemanha'],['GB','Reino Unido'],['US','Estados Unidos'],['OTHER','Outro']
     ];
+    var fiscalCountries = [['ES','Espanha'],['PT','Portugal']];
     var languages = [['pt-BR','🇧🇷 Português'],['es-ES','🇪🇸 Espanhol']];
     var phoneCodes = [['+34','🇪🇸 +34'],['+351','🇵🇹 +351'],['+55','🇧🇷 +55'],['+33','🇫🇷 +33'],['+39','🇮🇹 +39'],['+49','🇩🇪 +49'],['+44','🇬🇧 +44'],['+1','🇺🇸 +1']];
     var businessTypes = ['Salgados / snacks','Doces / confeitaria','Marmitas / pratos prontos','Comida por encomenda','Bolos','Bebidas','Cestas / kits','Outro'];
     var salesModes = ['Delivery','Retirada','Atendimento presencial','Eventos / encomendas'];
+    var businessTypeLabels = [
+      { value: 'Salgados / snacks', label: 'Salgados e snacks' },
+      { value: 'Doces / confeitaria', label: 'Doces e confeitaria' },
+      { value: 'Marmitas / pratos prontos', label: 'Marmitas e pratos prontos' },
+      { value: 'Comida por encomenda', label: 'Comida por encomenda' },
+      { value: 'Bolos', label: 'Bolos' },
+      { value: 'Bebidas', label: 'Bebidas' },
+      { value: 'Cestas / kits', label: 'Cestas e kits' },
+      { value: 'Outro', label: 'Outro' }
+    ];
+    var salesModeLabels = [
+      { value: 'Delivery', label: 'Delivery' },
+      { value: 'Retirada', label: 'Retirada' },
+      { value: 'Atendimento presencial', label: 'Atendimento presencial' },
+      { value: 'Eventos / encomendas', label: 'Eventos e encomendas' }
+    ];
     var sellingFrequencies = ['Ainda não comecei','Vendo de vez em quando','Vendo toda semana','Vendo quase todos os dias','Vendo todos os dias'];
     var salesChannels = ['WhatsApp','Instagram','Loja física','Site próprio','Marketplace / app de entrega','Ainda não recebo pedidos'];
     var menuStatuses = ['Tenho cardápio completo','Tenho uma lista simples','Tenho só no WhatsApp/Instagram','Ainda não tenho'];
     var orderControls = ['Uso um sistema','Uso planilha ou caderno','Organizo pelo WhatsApp','Ainda não controlo'];
+    var sellingFrequencyLabels = [
+      { value: 'Ainda não comecei', label: 'Ainda não comecei' },
+      { value: 'Vendo de vez em quando', label: 'De vez em quando' },
+      { value: 'Vendo toda semana', label: 'Toda semana' },
+      { value: 'Vendo quase todos os dias', label: 'Quase todos os dias' },
+      { value: 'Vendo todos os dias', label: 'Todos os dias' }
+    ];
+    var salesChannelLabels = [
+      { value: 'WhatsApp', label: 'WhatsApp' },
+      { value: 'Instagram', label: 'Instagram' },
+      { value: 'Loja física', label: 'Loja física' },
+      { value: 'Site próprio', label: 'Site próprio' },
+      { value: 'Marketplace / app de entrega', label: 'Marketplace ou app de entrega' },
+      { value: 'Ainda não recebo pedidos', label: 'Ainda não recebo pedidos' }
+    ];
+    var menuStatusLabels = [
+      { value: 'Tenho cardápio completo', label: 'Tenho cardápio completo' },
+      { value: 'Tenho uma lista simples', label: 'Tenho uma lista simples' },
+      { value: 'Tenho só no WhatsApp/Instagram', label: 'Tenho só no WhatsApp ou Instagram' },
+      { value: 'Ainda não tenho', label: 'Ainda não tenho' }
+    ];
     var productionPlaces = ['Em casa','Em cozinha compartilhada','Em cozinha própria','Em loja/ponto físico','Ainda não tenho estrutura definida'];
     var dailyCapacities = ['Até 5 pedidos','6 a 10 pedidos','11 a 20 pedidos','21 a 40 pedidos','Mais de 40 pedidos','Ainda não sei'];
     var teamStructures = ['Trabalho sozinha','Tenho ajuda da família','Tenho 1 pessoa ajudando','Tenho equipe pequena','Tenho equipe estruturada'];
     var costKnowledges = ['Sim, tenho ficha técnica/custo calculado','Tenho uma ideia aproximada','Não sei direito','Nunca calculei'];
+    var productionPlaceLabels = [
+      { value: 'Em casa', label: 'Em casa' },
+      { value: 'Em cozinha compartilhada', label: 'Cozinha compartilhada' },
+      { value: 'Em cozinha própria', label: 'Cozinha própria' },
+      { value: 'Em loja/ponto físico', label: 'Loja ou ponto físico' },
+      { value: 'Ainda não tenho estrutura definida', label: 'Ainda não tenho estrutura definida' }
+    ];
+    var dailyCapacityLabels = [
+      { value: 'Até 5 pedidos', label: 'Até 5 pedidos' },
+      { value: '6 a 10 pedidos', label: '6 a 10 pedidos' },
+      { value: '11 a 20 pedidos', label: '11 a 20 pedidos' },
+      { value: '21 a 40 pedidos', label: '21 a 40 pedidos' },
+      { value: 'Mais de 40 pedidos', label: 'Mais de 40 pedidos' },
+      { value: 'Ainda não sei', label: 'Ainda não sei' }
+    ];
+    var teamStructureLabels = [
+      { value: 'Trabalho sozinha', label: 'Trabalho sozinha' },
+      { value: 'Tenho ajuda da família', label: 'Tenho ajuda da família' },
+      { value: 'Tenho 1 pessoa ajudando', label: 'Tenho 1 pessoa ajudando' },
+      { value: 'Tenho equipe pequena', label: 'Tenho equipe pequena' },
+      { value: 'Tenho equipe estruturada', label: 'Tenho equipe estruturada' }
+    ];
+    var costKnowledgeLabels = [
+      { value: 'Sim, tenho ficha técnica/custo calculado', label: 'Tenho ficha técnica ou custo calculado' },
+      { value: 'Tenho uma ideia aproximada', label: 'Tenho uma ideia aproximada' },
+      { value: 'Não sei direito', label: 'Não sei direito' },
+      { value: 'Nunca calculei', label: 'Nunca calculei' }
+    ];
     var mainChallenges = ['Conseguir mais clientes','Organizar pedidos','Criar cardápio','Calcular preços e custos','Divulgar melhor','Ter constância nas vendas','Controlar dinheiro','Profissionalizar o negócio','Ainda estou começando e preciso de direção'];
     var mainGoals = ['Começar a vender','Vender mais pelo WhatsApp/Instagram','Organizar meu delivery','Publicar minha loja online','Controlar custos e lucro','Criar promoções','Profissionalizar tudo','Escalar o negócio'];
     var businessStages = ['Ideia','Começando','Já vendo, mas ainda desorganizada','Vendo bem, mas preciso profissionalizar','Quero crescer e escalar'];
     var weeklyTimes = ['Menos de 2 horas','2 a 5 horas','5 a 10 horas','Mais de 10 horas','Depende da semana'];
+    var mainChallengeLabels = mainChallenges.map(function(item){ return { value: item, label: item }; });
+    var mainGoalLabels = mainGoals.map(function(item){ return { value: item, label: item }; });
+    var businessStageLabels = businessStages.map(function(item){ return { value: item, label: item }; });
+    var weeklyTimeLabels = weeklyTimes.map(function(item){ return { value: item, label: item }; });
 
     function esc(value){return String(value == null ? '' : value).replace(/[&<>"']/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch];});}
     function options(items, selected){return items.map(function(item){return '<option value="'+esc(item[0])+'" '+(item[0]===selected?'selected':'')+'>'+esc(item[1])+'</option>';}).join('');}
@@ -240,11 +493,154 @@
         return '<label class="choice"><input type="radio" name="'+esc(name)+'" value="'+esc(item)+'" '+(item===selected?'checked':'')+'><span>'+esc(item)+'</span></label>';
       }).join('')+'</div>';
     }
+    function choiceOptionsLabeled(name, items, selected){
+      return '<div class="choice-grid">'+items.map(function(item){
+        return '<label class="choice"><input type="radio" name="'+esc(name)+'" value="'+esc(item.value)+'" '+(item.value===selected?'checked':'')+'><span>'+esc(item.label)+'</span></label>';
+      }).join('')+'</div>';
+    }
+    function salesRulerOptions(name, items, selected){
+      return '<div class="sales-ruler">'+items.map(function(item,index){
+        return '<label class="sales-ruler-option"><input type="radio" name="'+esc(name)+'" value="'+esc(item.value)+'" '+(item.value===selected?'checked':'')+'><span class="sales-ruler-dot" aria-hidden="true"></span><span>'+esc(item.label)+'</span></label>';
+      }).join('')+'</div>';
+    }
     function multiChoiceOptions(name, items, selected){
       selected=Array.isArray(selected)?selected:(selected?[selected]:[]);
       return '<div class="choice-grid">'+items.map(function(item){
         return '<label class="choice"><input type="checkbox" name="'+esc(name)+'" value="'+esc(item)+'" '+(selected.indexOf(item)>=0?'checked':'')+'><span>'+esc(item)+'</span></label>';
       }).join('')+'</div>';
+    }
+    function multiChoiceOptionsLabeled(name, items, selected){
+      selected=Array.isArray(selected)?selected:(selected?[selected]:[]);
+      return '<div class="choice-grid">'+items.map(function(item){
+        return '<label class="choice"><input type="checkbox" name="'+esc(name)+'" value="'+esc(item.value)+'" '+(selected.indexOf(item.value)>=0?'checked':'')+'><span>'+esc(item.label)+'</span></label>';
+      }).join('')+'</div>';
+    }
+    function salesChannelOptions(name, items, selected){
+      selected=Array.isArray(selected)?selected:(selected?[selected]:[]);
+      return '<div class="choice-grid sales-channel-grid">'+items.map(function(item){
+        return '<label class="choice"><input type="checkbox" name="'+esc(name)+'" value="'+esc(item.value)+'" '+(selected.indexOf(item.value)>=0?'checked':'')+'><span>'+esc(item.label)+'</span></label>';
+      }).join('')+'</div>';
+    }
+    function menuStatusOptions(name, items, selected){
+      return '<div class="choice-grid menu-status-grid">'+items.map(function(item){
+        return '<label class="choice"><input type="radio" name="'+esc(name)+'" value="'+esc(item.value)+'" '+(item.value===selected?'checked':'')+'><span>'+esc(item.label)+'</span></label>';
+      }).join('')+'</div>';
+    }
+    function compactRadioOptions(name, items, selected, className){
+      return '<div class="choice-grid '+esc(className||'')+'">'+items.map(function(item){
+        return '<label class="choice"><input type="radio" name="'+esc(name)+'" value="'+esc(item.value)+'" '+(item.value===selected?'checked':'')+'><span>'+esc(item.label)+'</span></label>';
+      }).join('')+'</div>';
+    }
+    function operationRulerOptions(name, items, selected){
+      return '<div class="operation-ruler">'+items.map(function(item){
+        return '<label class="operation-ruler-option"><input type="radio" name="'+esc(name)+'" value="'+esc(item.value)+'" '+(item.value===selected?'checked':'')+'><span class="operation-ruler-dot" aria-hidden="true"></span><span>'+esc(item.label)+'</span></label>';
+      }).join('')+'</div>';
+    }
+    function momentRulerOptions(name, items, selected){
+      return '<div class="moment-ruler">'+items.map(function(item){
+        return '<label class="moment-ruler-option"><input type="radio" name="'+esc(name)+'" value="'+esc(item.value)+'" '+(item.value===selected?'checked':'')+'><span class="moment-ruler-dot" aria-hidden="true"></span><span>'+esc(item.label)+'</span></label>';
+      }).join('')+'</div>';
+    }
+    function displayLabel(items, value){
+      var found = items.find(function(item){ return item.value === value; });
+      return found ? found.label : value;
+    }
+    function displaySelectLabel(items, value){
+      var found = items.find(function(item){ return item[0] === value; });
+      return found ? found[1] : value;
+    }
+    function storeMapSummaryHtml(){
+      var d = state.data;
+      var name = d.storeName || '';
+      var city = d.storeCity || '';
+      var fiscalCountry = d.fiscalCountry ? displaySelectLabel(fiscalCountries, d.fiscalCountry) : '';
+      var types = Array.isArray(d.businessType) ? d.businessType : (d.businessType ? [d.businessType] : []);
+      var modes = Array.isArray(d.salesMode) ? d.salesMode : (d.salesMode ? [d.salesMode] : []);
+      var typeText = types.map(function(value){ return displayLabel(businessTypeLabels, value); }).join(', ');
+      var modeText = modes.map(function(value){ return displayLabel(salesModeLabels, value); }).join(', ');
+      if(!name && !city && !fiscalCountry && !typeText && !modeText){
+        return '<p class="store-map-summary-text">Complete as respostas acima para montarmos a base inicial da sua loja.</p>';
+      }
+      return '<ul class="store-map-summary-list">'
+        +(name?'<li><strong>Loja:</strong> '+esc(name)+'</li>':'')
+        +(city?'<li><strong>Cidade:</strong> '+esc(city)+'</li>':'')
+        +(fiscalCountry?'<li><strong>País fiscal:</strong> '+esc(fiscalCountry)+'</li>':'')
+        +(typeText?'<li><strong>Produtos:</strong> '+esc(typeText)+'</li>':'')
+        +(modeText?'<li><strong>Venda:</strong> '+esc(modeText)+'</li>':'')
+        +'</ul>';
+    }
+    function updateStoreMapSummary(){
+      if(state.step!==2) return;
+      sync();
+      var el = document.getElementById('store-map-summary-content');
+      if(el) el.innerHTML = storeMapSummaryHtml();
+    }
+    function salesSummaryHtml(){
+      var d = state.data;
+      var rhythm = d.sellingFrequency ? displayLabel(sellingFrequencyLabels, d.sellingFrequency) : '';
+      var channels = Array.isArray(d.salesChannels) ? d.salesChannels : (d.salesChannels ? [d.salesChannels] : []);
+      var channelText = channels.map(function(value){ return displayLabel(salesChannelLabels, value); }).join(', ');
+      var menu = d.menuStatus ? displayLabel(menuStatusLabels, d.menuStatus) : '';
+      var orders = d.orderControl || '';
+      if(!rhythm && !channelText && !menu && !orders){
+        return '<p class="sales-map-summary-text">Complete as respostas acima para montarmos seu mapa de vendas.</p>';
+      }
+      return '<ul class="sales-map-summary-list">'
+        +(rhythm?'<li><strong>Ritmo:</strong> '+esc(rhythm)+'</li>':'')
+        +(channelText?'<li><strong>Canais:</strong> '+esc(channelText)+'</li>':'')
+        +(menu?'<li><strong>Cardápio:</strong> '+esc(menu)+'</li>':'')
+        +(orders?'<li><strong>Pedidos:</strong> '+esc(orders)+'</li>':'')
+        +'</ul>';
+    }
+    function updateSalesMapSummary(){
+      if(state.step!==3) return;
+      sync();
+      var el = document.getElementById('sales-map-summary-content');
+      if(el) el.innerHTML = salesSummaryHtml();
+    }
+    function operationSummaryHtml(){
+      var d = state.data;
+      var production = d.productionPlace ? displayLabel(productionPlaceLabels, d.productionPlace) : '';
+      var capacity = d.dailyCapacity ? displayLabel(dailyCapacityLabels, d.dailyCapacity) : '';
+      var team = d.teamStructure ? displayLabel(teamStructureLabels, d.teamStructure) : '';
+      var costs = d.costKnowledge ? displayLabel(costKnowledgeLabels, d.costKnowledge) : '';
+      if(!production && !capacity && !team && !costs){
+        return '<p class="operation-summary-text">Complete as respostas acima para montarmos o raio-X da sua operação.</p>';
+      }
+      return '<ul class="operation-summary-list">'
+        +(production?'<li><strong>Produção:</strong> '+esc(production)+'</li>':'')
+        +(capacity?'<li><strong>Capacidade:</strong> '+esc(capacity)+'</li>':'')
+        +(team?'<li><strong>Equipe:</strong> '+esc(team)+'</li>':'')
+        +(costs?'<li><strong>Custos:</strong> '+esc(costs)+'</li>':'')
+        +'</ul>';
+    }
+    function updateOperationSummary(){
+      if(state.step!==4) return;
+      sync();
+      var el = document.getElementById('operation-summary-content');
+      if(el) el.innerHTML = operationSummaryHtml();
+    }
+    function momentSummaryHtml(){
+      var d = state.data;
+      var challenge = d.mainChallenge ? displayLabel(mainChallengeLabels, d.mainChallenge) : '';
+      var goal = d.mainGoal ? displayLabel(mainGoalLabels, d.mainGoal) : '';
+      var stage = d.businessStage ? displayLabel(businessStageLabels, d.businessStage) : '';
+      var time = d.weeklyTimeAvailable ? displayLabel(weeklyTimeLabels, d.weeklyTimeAvailable) : '';
+      if(!challenge && !goal && !stage && !time){
+        return '<p class="moment-summary-text">Complete as respostas acima para montarmos o radar do seu momento.</p>';
+      }
+      return '<ul class="moment-summary-list">'
+        +(challenge?'<li><strong>Desafio:</strong> '+esc(challenge)+'</li>':'')
+        +(goal?'<li><strong>Objetivo:</strong> '+esc(goal)+'</li>':'')
+        +(stage?'<li><strong>Fase:</strong> '+esc(stage)+'</li>':'')
+        +(time?'<li><strong>Tempo:</strong> '+esc(time)+'</li>':'')
+        +'</ul>';
+    }
+    function updateMomentSummary(){
+      if(state.step!==5) return;
+      sync();
+      var el = document.getElementById('moment-summary-content');
+      if(el) el.innerHTML = momentSummaryHtml();
     }
     function radioVal(name){var el=document.querySelector('input[name="'+name+'"]:checked');return el?el.value:'';}
     function checkedVals(name){return Array.prototype.slice.call(document.querySelectorAll('input[name="'+name+'"]:checked')).map(function(el){return el.value;});}
@@ -264,9 +660,15 @@
     }
     function val(id){var el=document.getElementById(id);return el?el.value.trim():'';}
     function setMsg(text,type){var el=document.getElementById('form-message');el.textContent=text||'';el.className='message '+(text?'show ':'')+(type||'info');}
-    function setLoading(on){state.loading=on;document.getElementById('next-btn').disabled=on;document.getElementById('back-btn').disabled=on;document.getElementById('next-btn').textContent=on?'Salvando...':(state.step===6?'Entrar no BocaFood':'Continuar');}
+    function updatePrimaryButton(){
+      var btn=document.getElementById('next-btn');
+      var finalSuccess=state.step===6&&state.purchaseFound;
+      btn.textContent=state.loading?'Salvando...':(finalSuccess?(isPreview?'Simular aceite':'Entrar no BocaFood'):'Continuar');
+      btn.disabled=!!state.loading||(finalSuccess&&!state.legalAccepted)||(state.step===0&&!isAccessStepValid());
+    }
+    function setLoading(on){state.loading=on;document.getElementById('back-btn').disabled=on;updatePrimaryButton();}
     function sync(){
-      ['email','password','confirmPassword','ownerName','whatsappCountryCode','whatsappNumber','language','storeName','storeCity'].forEach(function(key){
+      ['email','password','confirmPassword','ownerName','whatsappCountryCode','whatsappNumber','language','storeName','storeCity','fiscalCountry'].forEach(function(key){
         var el=document.getElementById(key); if(el) state.data[key]=el.value.trim();
       });
       [['sellingFrequency','sellingFrequency'],['menuStatus','menuStatus'],['orderControl','orderControl'],['productionPlace','productionPlace'],['dailyCapacity','dailyCapacity'],['teamStructure','teamStructure'],['costKnowledge','costKnowledge'],['mainChallenge','mainChallenge'],['mainGoal','mainGoal'],['businessStage','businessStage'],['weeklyTimeAvailable','weeklyTimeAvailable']].forEach(function(pair){
@@ -282,39 +684,99 @@
       document.getElementById('progress-percent').textContent=progress+'% concluído';
       document.getElementById('progress-fill').style.width=progress+'%';
     }
+    function scrollToStepTop(){
+      window.requestAnimationFrame(function(){
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    }
     function render(){
       setMsg('');
       renderPills();
-      document.getElementById('preview-banner').className='preview-banner '+(isPreview?'show':'');
+      var previewBanner=document.getElementById('preview-banner');
+      previewBanner.className='preview-banner '+(isPreview?'show':'');
+      if(isPreview) previewBanner.textContent=previewHasPurchase?'Modo prévia ativo: simulando compra ativa para visualizar a finalização com aceite dos termos. Nenhum dado será salvo.':'Modo prévia ativo: simulando e-mail sem compra ativa. Use ?preview=1&purchase=1 para ver a finalização com aceite.';
       document.getElementById('step-title').textContent=steps[state.step][0];
       document.getElementById('step-hint').textContent=steps[state.step][1];
+      var panel=document.querySelector('.panel');
+      if(panel) panel.className='panel '+(state.step===0?'access-panel':(state.step===1?'responsible-panel':(state.step>=2?'store-panel':'')));
       var note=document.getElementById('step-note');
       note.textContent='';
       note.className='step-note';
+      var finalBlocked = state.step === 6 && !state.purchaseFound;
       document.getElementById('back-btn').style.display=state.step===0?'none':'inline-flex';
-      document.getElementById('next-btn').textContent=state.step===6?(isPreview?'Rever prévia':'Entrar no BocaFood'):'Continuar';
+      document.getElementById('next-btn').style.display=finalBlocked?'none':'inline-flex';
+      updatePrimaryButton();
       var d=state.data;
       var body='';
       if(state.step===0){
-        body=(isPreview?'':'<button class="google-btn" id="google-signup-btn" type="button"><svg class="google-mark" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"/></svg>Continuar com Google</button><div class="divider">ou entre com e-mail</div>')+'<div class="form-grid"><label class="full"><span>E-mail da compra</span><input id="email" type="email" autocomplete="email" placeholder="seu@email.com" value="'+esc(d.email)+'"></label><label><span>Senha</span><input id="password" type="password" autocomplete="new-password" placeholder="Crie uma senha" value="'+esc(d.password)+'"></label><label><span>Confirmar senha</span><input id="confirmPassword" type="password" autocomplete="new-password" placeholder="Repita a senha" value="'+esc(d.confirmPassword)+'"></label></div><div class="mini-note">'+(isPreview?'Modo prévia: estes dados não serão salvos.':'O acesso só será liberado se o e-mail for o mesmo usado na compra.<br>Já tem acesso? <a href="/admin.html" style="color:#C4362A;font-weight:800;text-decoration:none;">Entrar no Centro de Controle</a>')+'</div>';
+        body='<div class="access-step"><div class="access-welcome"><div><div class="access-welcome-kicker">Boas-vindas</div><h3 class="access-welcome-title">Vamos começar pelo seu acesso</h3><p class="access-welcome-text">Em poucos minutos você entra no BocaFood e prepara a base da sua loja.</p></div><div class="access-welcome-mark">✓</div></div><div class="purchase-email-notice"><span><strong>Importante</strong>O acesso só será liberado se o e-mail for o mesmo usado na compra.</span></div>'+(isPreview?'':'<button class="google-btn" id="google-signup-btn" type="button"><svg class="google-mark" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"/></svg>Continuar com Google</button><div class="divider">ou crie acesso com e-mail e senha</div>')+'<div class="form-grid"><label class="full"><span>E-mail usado na compra</span><input id="email" type="email" autocomplete="email" placeholder="exemplo@email.com" value="'+esc(d.email)+'"></label><label><span>Senha</span><input id="password" type="password" autocomplete="new-password" placeholder="Crie uma senha" value="'+esc(d.password)+'"></label><label><span>Confirmar senha</span><input id="confirmPassword" type="password" autocomplete="new-password" placeholder="Repita a senha" value="'+esc(d.confirmPassword)+'"></label></div><div class="mini-note">'+(isPreview?'Modo prévia: estes dados não serão salvos.':'Já criou seu acesso? <a href="/admin.html" style="color:#C4362A;font-weight:800;text-decoration:none;">Entrar no Centro de Controle</a>')+'</div></div>';
       }else if(state.step===1){
-        body='<div class="form-grid responsible-grid"><label class="full"><span>Nome completo do usuário</span><input id="ownerName" value="'+esc(d.ownerName)+'"></label><label><span>WhatsApp do usuário</span><div class="phone-field"><select id="whatsappCountryCode">'+options(phoneCodes,d.whatsappCountryCode)+'</select><input id="whatsappNumber" inputmode="tel" value="'+esc(d.whatsappNumber)+'" placeholder="600 000 000"></div><small class="field-note">Usaremos esse número para suporte e comunicações sobre a conta.</small></label><label><span>Idioma da conta</span><select id="language">'+options(languages,d.language)+'</select></label></div>';
+        body='<div class="responsible-step"><div class="access-welcome"><div><div class="access-welcome-kicker">Responsável</div><h3 class="access-welcome-title">Agora precisamos saber quem administra a conta</h3><p class="access-welcome-text">Esses dados ajudam o BocaFood a identificar a pessoa responsável pelo acesso e pelas comunicações importantes.</p></div><div class="access-welcome-mark">✓</div></div><div class="form-grid responsible-grid"><div class="responsible-block"><div class="responsible-block-title">Dados do responsável</div><label class="full"><span>Nome completo do responsável</span><input id="ownerName" value="'+esc(d.ownerName)+'"></label><div class="responsible-inline"><label><span>WhatsApp do responsável</span><div class="signup-phone-box"><select id="whatsappCountryCode" aria-label="Código do país">'+options(phoneCodes,d.whatsappCountryCode)+'</select><input id="whatsappNumber" inputmode="tel" autocomplete="tel-national" value="'+esc(d.whatsappNumber)+'" placeholder="600 000 000"></div><small class="field-note">Usaremos esse número apenas para suporte, segurança e comunicações importantes da conta.</small></label></div></div></div><div class="step-soft-note">Você poderá alterar esses dados depois em Configurações.</div></div>';
       }else if(state.step===2){
-        body='<div class="form-grid store-step boxed-step moment-step"><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Identificação da loja</div></div><div class="store-fields"><label><span>Nome da loja</span><input id="storeName" value="'+esc(d.storeName)+'" placeholder="Ex.: Boca Burger"></label><label><span>Cidade principal de atendimento</span><input id="storeCity" value="'+esc(d.storeCity)+'" placeholder="Ex.: Madrid"></label></div></div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">O que você vende ou pretende vender?</div><div class="signup-section-help">Escolha uma ou mais opções.</div></div>'+multiChoiceOptions('businessType',businessTypes,d.businessType)+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Como sua loja atende hoje?</div><div class="signup-section-help">Você pode marcar mais de uma opção.</div></div>'+multiChoiceOptions('salesMode',salesModes,d.salesMode)+'</div></div>';
+        body='<div class="responsible-step"><div class="access-welcome"><div><div class="access-welcome-kicker">Loja</div><h3 class="access-welcome-title">Vamos preparar a base da sua loja</h3><p class="access-welcome-text">Essas respostas ajudam o BocaFood a criar uma configuração inicial mais próxima do seu negócio.</p></div><div class="access-welcome-mark">✓</div></div><div class="form-grid store-step boxed-step business-step store-map-step"><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Informações básicas</div><div class="signup-section-help">Comece pelo nome, cidade principal e país fiscal da loja.</div></div><div class="store-fields"><label><span>Nome da loja</span><input id="storeName" value="'+esc(d.storeName)+'" placeholder="Ex.: Boca Burger"></label><label><span>Cidade onde você atende</span><input id="storeCity" value="'+esc(d.storeCity)+'" placeholder="Ex.: Madrid"></label><label><span>País fiscal</span><select id="fiscalCountry">'+options(fiscalCountries,d.fiscalCountry)+'</select></label></div></div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Produtos principais</div><div class="signup-section-help">Escolha uma ou mais opções.</div></div>'+multiChoiceOptionsLabeled('businessType',businessTypeLabels,d.businessType)+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Forma de venda</div><div class="signup-section-help">Marque como sua loja vende hoje.</div></div>'+multiChoiceOptionsLabeled('salesMode',salesModeLabels,d.salesMode)+'</div><div class="store-map-summary"><div class="store-map-summary-title">Mapa inicial da loja</div><div id="store-map-summary-content">'+storeMapSummaryHtml()+'</div></div></div></div>';
       }else if(state.step===3){
-        body='<div class="form-grid store-step boxed-step sales-step moment-step"><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Ritmo de vendas</div><div class="signup-section-help">Escolha a opção que mais combina com o momento atual.</div></div>'+choiceOptions('sellingFrequency',sellingFrequencies,d.sellingFrequency)+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Canais de pedido</div><div class="signup-section-help">Marque por onde você recebe pedidos hoje.</div></div>'+multiChoiceOptions('salesChannels',salesChannels,d.salesChannels)+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Cardápio</div><div class="signup-section-help">Isso ajuda a entender quanto falta para publicar sua loja.</div></div>'+choiceOptions('menuStatus',menuStatuses,d.menuStatus)+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Controle de pedidos</div><div class="signup-section-help">Como você organiza os pedidos hoje?</div></div>'+choiceOptions('orderControl',orderControls,d.orderControl)+'</div></div>';
+        body='<div class="responsible-step"><div class="access-welcome"><div><div class="access-welcome-kicker">Vendas</div><h3 class="access-welcome-title">Vamos entender como sua loja vende hoje</h3><p class="access-welcome-text">Essas respostas ajudam o BocaFood a preparar uma configuração inicial mais útil para sua rotina.</p></div><div class="access-welcome-mark">✓</div></div><div class="form-grid store-step boxed-step sales-step sales-map-step"><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Ritmo de vendas</div><div class="signup-section-help">Escolha a opção que mais combina com sua rotina atual.</div></div>'+salesRulerOptions('sellingFrequency',sellingFrequencyLabels,d.sellingFrequency)+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Canais de pedido</div><div class="signup-section-help">Marque por onde você recebe pedidos hoje.</div></div>'+salesChannelOptions('salesChannels',salesChannelLabels,d.salesChannels)+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Cardápio</div><div class="signup-section-help">Isso ajuda o BocaFood a entender quanto falta para sua loja ficar pronta para vender.</div></div>'+menuStatusOptions('menuStatus',menuStatusLabels,d.menuStatus)+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Controle de pedidos</div><div class="signup-section-help">Como você organiza os pedidos hoje?</div></div>'+choiceOptions('orderControl',orderControls,d.orderControl)+'</div><div class="sales-map-summary"><div class="sales-map-summary-title">Seu mapa de vendas até aqui</div><div id="sales-map-summary-content">'+salesSummaryHtml()+'</div></div></div></div>';
       }else if(state.step===4){
-        body='<div class="form-grid store-step boxed-step moment-step"><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Local de produção</div><div class="signup-section-help">Escolha onde os produtos são preparados hoje.</div></div>'+choiceOptions('productionPlace',productionPlaces,d.productionPlace)+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Capacidade diária</div><div class="signup-section-help">Quantos pedidos você consegue atender em um dia sem se enrolar?</div></div>'+choiceOptions('dailyCapacity',dailyCapacities,d.dailyCapacity)+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Equipe</div><div class="signup-section-help">Marque como você trabalha hoje.</div></div>'+choiceOptions('teamStructure',teamStructures,d.teamStructure)+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Custos</div><div class="signup-section-help">Isso ajuda o BocaFood a entender sua maturidade de preço e margem.</div></div>'+choiceOptions('costKnowledge',costKnowledges,d.costKnowledge)+'</div></div>';
+        body='<div class="responsible-step"><div class="access-welcome"><div><div class="access-welcome-kicker">Estrutura</div><h3 class="access-welcome-title">Vamos montar o raio-X da sua operação</h3><p class="access-welcome-text">Essas informações ajudam o BocaFood a entender sua capacidade, equipe e rotina de produção.</p></div><div class="access-welcome-mark">✓</div></div><div class="form-grid store-step boxed-step operation-step"><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Local de produção</div><div class="signup-section-help">Onde seus produtos são preparados hoje?</div></div>'+compactRadioOptions('productionPlace',productionPlaceLabels,d.productionPlace,'operation-chip-grid')+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Capacidade diária</div><div class="signup-section-help">Quantos pedidos você consegue atender em um dia normal, sem se enrolar?</div></div>'+operationRulerOptions('dailyCapacity',dailyCapacityLabels,d.dailyCapacity)+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Equipe</div><div class="signup-section-help">Como você trabalha hoje?</div></div>'+operationRulerOptions('teamStructure',teamStructureLabels,d.teamStructure)+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Custos</div><div class="signup-section-help">Isso ajuda o BocaFood a entender sua maturidade de preço e margem.</div></div>'+compactRadioOptions('costKnowledge',costKnowledgeLabels,d.costKnowledge,'operation-chip-grid')+'</div><div class="operation-summary"><div class="operation-summary-title">Raio-X da sua operação</div><div id="operation-summary-content">'+operationSummaryHtml()+'</div></div></div></div>';
       }else if(state.step===5){
-        body='<div class="form-grid store-step boxed-step moment-step"><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Principal desafio</div><div class="signup-section-help">Escolha o ponto que mais precisa de atenção agora.</div></div>'+choiceOptions('mainChallenge',mainChallenges,d.mainChallenge)+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Objetivo principal</div><div class="signup-section-help">Isso ajuda o BocaFood a priorizar os próximos passos.</div></div>'+choiceOptions('mainGoal',mainGoals,d.mainGoal)+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Fase do negócio</div><div class="signup-section-help">Marque a fase que melhor descreve seu momento atual.</div></div>'+choiceOptions('businessStage',businessStages,d.businessStage)+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Tempo disponível</div><div class="signup-section-help">Quanto tempo você consegue dedicar por semana para organizar o negócio?</div></div>'+choiceOptions('weeklyTimeAvailable',weeklyTimes,d.weeklyTimeAvailable)+'</div></div>';
+        body='<div class="responsible-step"><div class="access-welcome"><div><div class="access-welcome-kicker">Momento</div><h3 class="access-welcome-title">Vamos entender sua prioridade agora</h3><p class="access-welcome-text">Essas últimas respostas ajudam o BocaFood a orientar melhor os próximos passos da sua loja.</p></div><div class="access-welcome-mark">✓</div></div><div class="form-grid store-step boxed-step moment-map-step"><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Principal desafio</div><div class="signup-section-help">Escolha o ponto que mais precisa de atenção agora.</div></div>'+compactRadioOptions('mainChallenge',mainChallengeLabels,d.mainChallenge,'moment-chip-grid')+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Objetivo principal</div><div class="signup-section-help">Isso ajuda o BocaFood a priorizar os próximos passos.</div></div>'+compactRadioOptions('mainGoal',mainGoalLabels,d.mainGoal,'moment-chip-grid')+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Fase do negócio</div><div class="signup-section-help">Marque a fase que melhor descreve seu momento atual.</div></div>'+momentRulerOptions('businessStage',businessStageLabels,d.businessStage)+'</div><div class="signup-section"><div class="signup-section-head"><div class="signup-section-title">Tempo disponível</div><div class="signup-section-help">Quanto tempo você consegue dedicar por semana para organizar o negócio?</div></div>'+momentRulerOptions('weeklyTimeAvailable',weeklyTimeLabels,d.weeklyTimeAvailable)+'</div><div class="moment-summary"><div class="moment-summary-title">Radar do seu momento</div><div id="moment-summary-content">'+momentSummaryHtml()+'</div></div></div></div>';
       }else{
-        body='<div class="success-box"><div class="success-head"><div class="success-icon">✓</div><div><h3 class="success-title">Seu acesso está pronto.</h3><p class="success-text">Salvamos os dados principais e criamos a base inicial da sua loja como rascunho.</p></div></div><div class="success-list"><div class="success-item">Acesso criado</div><div class="success-item">Dados principais salvos</div><div class="success-item">Loja criada como rascunho</div></div></div>';
-        if(!state.purchaseFound) body+='<div class="message show error">Não encontramos uma compra ativa para este e-mail. Use o mesmo e-mail da compra ou fale com o suporte: teajudo@bocafood.app.</div>';
+        if(state.purchaseFound){
+          body='<div class="final-step"><div class="access-welcome"><div><div class="access-welcome-kicker">Tudo pronto</div><h3 class="access-welcome-title">Seu Centro de Controle já pode ser aberto</h3><p class="access-welcome-text">Antes de entrar, confirme os documentos e suas preferências de comunicação.</p></div><div class="access-welcome-mark">✓</div></div><div class="success-box"><div class="success-head"><div class="success-icon">✓</div><div><h3 class="success-title">Seu acesso está pronto.</h3><p class="success-text">Salvamos os dados principais e criamos a base inicial da sua loja como rascunho.</p></div></div><div class="success-list"><div class="success-item">Acesso criado</div><div class="success-item">Dados principais salvos</div><div class="success-item">Loja criada como rascunho</div></div><div class="legal-sign-box"><strong class="legal-sign-title">Confirme os termos para continuar</strong><p class="legal-sign-text">Para entrar no BocaFood, leia e aceite os documentos abaixo.</p><div class="legal-sign-links"><a href="'+esc(state.termsUrl)+'" target="_blank" rel="noopener">Termos de Uso</a><a href="'+esc(state.privacyUrl)+'" target="_blank" rel="noopener">Política de Privacidade</a></div><label class="legal-sign-check"><input id="legal-acceptance" type="checkbox" '+(state.legalAccepted?'checked':'')+'> <span>Li e aceito os <a href="'+esc(state.termsUrl)+'" target="_blank" rel="noopener">Termos de Uso</a> e a <a href="'+esc(state.privacyUrl)+'" target="_blank" rel="noopener">Política de Privacidade</a> do BocaFood.</span></label></div><div class="communication-pref-box"><strong class="communication-pref-title">Preferências de comunicação</strong><p class="communication-pref-subtitle">Quer continuar recebendo ideias, melhorias e oportunidades para vender mais com o BocaFood?</p><div class="communication-pref-list"><label class="communication-pref-check"><input id="communication-pref-commercialCampaigns" type="checkbox" '+(state.communicationPreferences.commercialCampaigns?'checked':'')+'> <span>Quero receber novidades, conteúdos e campanhas comerciais</span></label><label class="communication-pref-check"><input id="communication-pref-growthTips" type="checkbox" '+(state.communicationPreferences.growthTips?'checked':'')+'> <span>Quero receber dicas práticas para melhorar minha loja</span></label><label class="communication-pref-check"><input id="communication-pref-upgradeOffers" type="checkbox" '+(state.communicationPreferences.upgradeOffers?'checked':'')+'> <span>Quero receber ofertas, promoções e convites para upgrade</span></label></div><p class="communication-pref-note">Mesmo que você desative essas opções, ainda enviaremos comunicações essenciais sobre conta, segurança, cobrança, senha, plano e obrigações legais.</p></div></div></div>';
+        }else{
+          body='<div class="final-step"><div class="access-welcome"><div><div class="access-welcome-kicker">Atenção</div><h3 class="access-welcome-title">Precisamos confirmar sua compra</h3><p class="access-welcome-text">O acesso ao painel depende de uma compra ativa vinculada ao mesmo e-mail.</p></div><div class="access-welcome-mark">!</div></div><div class="purchase-alert"><div class="purchase-alert-head"><div class="purchase-alert-icon">!</div><div><h3 class="purchase-alert-title">Não encontramos uma compra ativa para este e-mail</h3><p class="purchase-alert-text">Use o mesmo e-mail da compra para liberar seu acesso. Se precisar, fale com o suporte: <strong>teajudo@bocafood.app</strong></p></div></div><div class="purchase-alert-actions"><button class="secondary" id="retry-email-btn" type="button">Tentar outro e-mail</button><a href="mailto:teajudo@bocafood.app">Falar com suporte</a></div></div></div>';
+        }
       }
       document.getElementById('step-body').innerHTML=body;
       var googleBtn=document.getElementById('google-signup-btn');
       if(googleBtn) googleBtn.addEventListener('click',signInWithGoogle);
+      bindAccessStepInputs();
+      var retryEmailBtn=document.getElementById('retry-email-btn');
+      if(retryEmailBtn) retryEmailBtn.addEventListener('click',function(){state.step=0;render();});
+      var legalAcceptance=document.getElementById('legal-acceptance');
+      if(legalAcceptance) legalAcceptance.addEventListener('change',function(){state.legalAccepted=!!legalAcceptance.checked;updatePrimaryButton();});
+      ['commercialCampaigns','growthTips','upgradeOffers'].forEach(function(key){
+        var pref=document.getElementById('communication-pref-'+key);
+        if(pref) pref.addEventListener('change',function(){state.communicationPreferences[key]=!!pref.checked;});
+      });
+      if(state.step===2){
+        ['storeName','storeCity','fiscalCountry'].forEach(function(id){
+          var el=document.getElementById(id);
+          if(el) el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', updateStoreMapSummary);
+        });
+        Array.prototype.slice.call(document.querySelectorAll('input[name="businessType"],input[name="salesMode"]')).forEach(function(el){
+          el.addEventListener('change', updateStoreMapSummary);
+        });
+      }
       if(state.step===3) bindSalesChannelExclusivity();
+      if(state.step===3){
+        Array.prototype.slice.call(document.querySelectorAll('input[name="sellingFrequency"],input[name="salesChannels"],input[name="menuStatus"],input[name="orderControl"]')).forEach(function(el){
+          el.addEventListener('change', updateSalesMapSummary);
+        });
+      }
+      if(state.step===4){
+        Array.prototype.slice.call(document.querySelectorAll('input[name="productionPlace"],input[name="dailyCapacity"],input[name="teamStructure"],input[name="costKnowledge"]')).forEach(function(el){
+          el.addEventListener('change', updateOperationSummary);
+        });
+      }
+      if(state.step===5){
+        Array.prototype.slice.call(document.querySelectorAll('input[name="mainChallenge"],input[name="mainGoal"],input[name="businessStage"],input[name="weeklyTimeAvailable"]')).forEach(function(el){
+          el.addEventListener('change', updateMomentSummary);
+        });
+      }
+      scrollToStepTop();
+    }
+    function isAccessStepValid(){
+      var d=state.data;
+      return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(d.email||'')&&String(d.password||'').length>=6&&d.password===d.confirmPassword;
+    }
+    function bindAccessStepInputs(){
+      if(state.step!==0)return;
+      ['email','password','confirmPassword'].forEach(function(id){
+        var el=document.getElementById(id);
+        if(el) el.addEventListener('input',function(){sync();updatePrimaryButton();});
+      });
+      updatePrimaryButton();
     }
     function validate(){
       sync();
@@ -324,8 +786,8 @@
         if(d.password.length<6) return 'A senha precisa ter pelo menos 6 caracteres.';
         if(d.password!==d.confirmPassword) return 'A confirmação de senha não confere.';
       }
-      if(state.step===1 && (!d.ownerName || !d.whatsappNumber || !d.language)) return 'Preencha nome, WhatsApp e idioma da conta.';
-      if(state.step===2 && (!d.storeName || !(Array.isArray(d.businessType)?d.businessType.length:d.businessType) || !(Array.isArray(d.salesMode)?d.salesMode.length:d.salesMode) || !d.storeCity)) return 'Preencha nome, produtos, atendimento e cidade da loja.';
+      if(state.step===1 && (!d.ownerName || !d.whatsappNumber)) return 'Preencha nome e WhatsApp do responsável.';
+      if(state.step===2 && (!d.storeName || !(Array.isArray(d.businessType)?d.businessType.length:d.businessType) || !(Array.isArray(d.salesMode)?d.salesMode.length:d.salesMode) || !d.storeCity || !d.fiscalCountry)) return 'Preencha nome, produtos, atendimento, cidade e país fiscal da loja.';
       if(state.step===5 && !d.businessStage) return 'Selecione a fase do negócio.';
       return '';
     }
@@ -333,7 +795,7 @@
       if(isPreview){
         sync();
         state.authCreated=true;
-        state.purchaseFound=false;
+        state.purchaseFound=previewHasPurchase;
         state.step=1;
         render();
         return Promise.resolve();
@@ -356,9 +818,11 @@
       if(isPreview) return;
       if(state.loading) return;
       setLoading(true);
+      setMsg('Abrindo Google para continuar o cadastro...','info');
       var provider=new firebase.auth.GoogleAuthProvider();
       provider.setCustomParameters({prompt:'select_account'});
       return firebase.auth().signInWithPopup(provider).then(function(result){
+        try{localStorage.removeItem(SIGNUP_GOOGLE_PENDING_KEY);}catch(e){}
         var user=result.user;
         state.authCreated=true;
         state.data.email=user&&user.email?user.email:'';
@@ -370,18 +834,51 @@
         });
       }).catch(function(err){
         var code=err&&err.code?err.code:'';
+        if(code==='auth/popup-blocked'||code==='auth/cancelled-popup-request'||code==='auth/operation-not-supported-in-this-environment'){
+          try{localStorage.setItem(SIGNUP_GOOGLE_PENDING_KEY,'1');}catch(e){}
+          return firebase.auth().signInWithRedirect(provider);
+        }
         if(code==='auth/popup-closed-by-user') setMsg('Login com Google cancelado. Você também pode criar acesso com e-mail e senha.','error');
         else if(code==='auth/account-exists-with-different-credential') setMsg('Já existe uma conta com esse e-mail usando outro método de acesso. Entre pelo Centro de Controle ou recupere sua senha.','error');
-        else setMsg('Não foi possível entrar com Google. Tente novamente ou use e-mail e senha.','error');
+        else if(code==='auth/unauthorized-domain') setMsg('Este domínio ainda não está autorizado no Firebase Auth para login com Google.','error');
+        else if(code==='auth/operation-not-allowed') setMsg('O login com Google ainda não está ativado no Firebase Auth.','error');
+        else if(code==='auth/network-request-failed') setMsg('Falha de conexão ao abrir o Google. Verifique a rede e tente novamente.','error');
+        else setMsg('Não foi possível entrar com Google. Código: '+(code||'erro_desconhecido')+'.','error');
       }).finally(function(){setLoading(false);});
+    }
+    function handleGoogleRedirectResult(){
+      if(isPreview) return;
+      var pending=false;
+      try{pending=localStorage.getItem(SIGNUP_GOOGLE_PENDING_KEY)==='1';}catch(e){}
+      firebase.auth().getRedirectResult().then(function(result){
+        var user=(result&&result.user)||firebase.auth().currentUser;
+        if(!pending||!user) return;
+        try{localStorage.removeItem(SIGNUP_GOOGLE_PENDING_KEY);}catch(e){}
+        state.authCreated=true;
+        state.data.email=user.email||'';
+        if(user.displayName&&!state.data.ownerName) state.data.ownerName=user.displayName;
+        setLoading(true);
+        setMsg('Google conectado. Preparando seu cadastro...','info');
+        return completeSignup({stage:'account_created',email:state.data.email}).then(function(response){
+          state.purchaseFound=!!(response.data&&response.data.purchaseFound);
+          state.step=1;
+          render();
+        }).finally(function(){setLoading(false);});
+      }).catch(function(err){
+        try{localStorage.removeItem(SIGNUP_GOOGLE_PENDING_KEY);}catch(e){}
+        setMsg('Não foi possível concluir o acesso com Google. Tente novamente ou use e-mail e senha.','error');
+        console.error(err);
+      });
     }
     function finish(){
       sync();
       if(isPreview){
-        state.purchaseFound=false;
+        state.purchaseFound=previewHasPurchase;
+        state.legalAccepted=false;
+        state.legalSigned=false;
         state.step=6;
         render();
-        setMsg('Prévia concluída. Nenhuma conta foi criada e nenhum dado foi salvo.','info');
+        setMsg(previewHasPurchase?'Prévia de compra ativa concluída. Nenhuma conta foi criada e nenhum dado foi salvo.':'Prévia sem compra ativa concluída. Nenhuma conta foi criada e nenhum dado foi salvo.','info');
         return Promise.resolve();
       }
       setLoading(true);
@@ -395,11 +892,12 @@
       return completeSignup(payload).then(function(result){
         var data=result.data||{};
         state.purchaseFound=!!data.purchaseFound;
+        state.legalAccepted=false;
+        state.legalSigned=false;
         if(data.ok){
           state.step=6;render();
         }else{
           state.step=6;render();
-          setMsg(data.message||'Não encontramos uma compra ativa para este e-mail.','error');
         }
       }).catch(function(){
         setMsg('Não foi possível finalizar o cadastro. Tente novamente em instantes.','error');
@@ -408,8 +906,32 @@
     document.getElementById('next-btn').addEventListener('click',function(){
       if(state.loading) return;
       if(state.step===6){
-        if(isPreview){state.step=0;render();return;}
-        if(state.purchaseFound) window.location.href='/admin.html#inicio';
+        if(state.purchaseFound) {
+          var legalEl=document.getElementById('legal-acceptance');
+          state.legalAccepted=!!(legalEl&&legalEl.checked);
+          if(!state.legalAccepted){setMsg('Para entrar no Centro de Controle, aceite os Termos de uso e a Política de privacidade.','error');return;}
+          if(isPreview){
+            state.legalSigned=true;
+            setMsg('Aceite simulado com sucesso. Nenhum dado foi salvo na prévia.','info');
+            return;
+          }
+          setLoading(true);
+          completeSignup({
+            stage:'legal_acceptance',
+            email:state.data.email,
+            acceptedTerms:true,
+            acceptedPrivacy:true,
+            termsUrl:state.termsUrl,
+            privacyUrl:state.privacyUrl,
+            communicationPreferences:state.communicationPreferences
+          }).then(function(){
+            state.legalSigned=true;
+            window.location.href='/admin.html#inicio';
+          }).catch(function(){
+            setMsg('Não foi possível registrar a assinatura dos termos. Tente novamente.','error');
+          }).finally(function(){setLoading(false);});
+        }
+        if(isPreview){state.step=0;render();}
         return;
       }
       var error=validate();
@@ -420,6 +942,7 @@
     });
     document.getElementById('back-btn').addEventListener('click',function(){if(state.loading)return;sync();state.step=Math.max(0,state.step-1);render();});
     render();
+    handleGoogleRedirectResult();
   })();
   </script>
 </body>

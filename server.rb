@@ -269,6 +269,11 @@ def email_public_settings_from_body(body)
     'supportEmail' => support_email.empty? ? reply_to : support_email,
     'appBaseUrl' => body['appBaseUrl'].to_s.strip,
     'brandName' => body['brandName'].to_s.strip.empty? ? 'BocaFood' : body['brandName'].to_s.strip,
+    'brandLogoUrl' => normalize_bocafood_brand_logo_url(body['brandLogoUrl']),
+    'termsUrl' => body['termsUrl'].to_s.strip,
+    'privacyUrl' => body['privacyUrl'].to_s.strip,
+    'securityText' => body['securityText'].to_s.strip.empty? ? 'o BocaFood nunca solicita senha por e-mail.' : body['securityText'].to_s.strip,
+    'footerReasonDefault' => body['footerReasonDefault'].to_s.strip.empty? ? 'esta mensagem faz parte do seu relacionamento com o BocaFood' : body['footerReasonDefault'].to_s.strip,
     'smtpHost' => body['smtpHost'].to_s.strip,
     'smtpPort' => smtp_port,
     'smtpSecure' => smtp_secure,
@@ -276,6 +281,16 @@ def email_public_settings_from_body(body)
     'enabled' => body['enabled'] == true,
     'provider' => 'smtp'
   }
+end
+
+def bocafood_brand_logo_url
+  'https://bocafood.app/assets/boca-food-logo.png?v=20260518-bocafood-logo'
+end
+
+def normalize_bocafood_brand_logo_url(value)
+  url = value.to_s.strip
+  return bocafood_brand_logo_url if url.empty? || url.include?('logo%20BocaFood.png') || url.include?('logo BocaFood.png')
+  url
 end
 
 def email_secret_configured?
@@ -300,9 +315,13 @@ def default_email_settings
     'fromEmail' => 'no-reply@bocafood.com',
     'replyTo' => 'teajudo@bocafood.app',
     'supportEmail' => 'teajudo@bocafood.app',
-    'appBaseUrl' => 'https://app.bocafood.com',
+    'appBaseUrl' => 'https://bocafood.app',
     'brandName' => 'BocaFood',
-    'brandLogoUrl' => 'https://bocafood.app/assets/boca-food-logo.png',
+    'termsUrl' => 'https://bocafood.app/termosdeuso',
+    'privacyUrl' => 'https://bocafood.app/politicadeprivacidade',
+    'securityText' => 'o BocaFood nunca solicita senha por e-mail.',
+    'footerReasonDefault' => 'esta mensagem faz parte do seu relacionamento com o BocaFood',
+    'brandLogoUrl' => bocafood_brand_logo_url,
     'smtpHost' => '',
     'smtpPort' => 587,
     'smtpSecure' => 'tls',
@@ -452,6 +471,18 @@ def default_email_templates
       'availableVariables' => ['buyerName', 'buyerEmail', 'supportEmail', 'planName', 'productName', 'appBaseUrl', 'brandName']
     },
     {
+      'key' => 'access_blocked',
+      'name' => 'Acesso bloqueado',
+      'description' => 'Avisa que o acesso foi bloqueado por cancelamento, reembolso ou chargeback.',
+      'subject' => 'Seu acesso ao {{brandName}} foi bloqueado',
+      'preheader' => 'Identificamos uma alteração na sua assinatura Hotmart.',
+      'body' => '<p>Ola {{buyerName}},</p><p>Identificamos uma alteração na sua assinatura do {{productName}} e o acesso ao Centro de Controle foi bloqueado.</p><p>Motivo: {{blockedReason}}.</p><p>Se acredita que houve um erro ou precisa regularizar o acesso, fale com o suporte BocaFood.</p>',
+      'ctaLabel' => 'Falar com suporte',
+      'ctaUrl' => 'mailto:{{supportEmail}}',
+      'enabled' => true,
+      'availableVariables' => ['buyerName', 'buyerEmail', 'supportEmail', 'planName', 'productName', 'appBaseUrl', 'brandName', 'billingStatus', 'blockedReason', 'canceledAt', 'hotmartTransaction', 'hotmartOfferCode']
+    },
+    {
       'key' => 'trial_ending',
       'name' => 'Trial acabando',
       'description' => 'Aviso enviado quando o periodo de teste esta perto do fim.',
@@ -595,9 +626,9 @@ def default_email_triggers
     {
       'triggerKey' => 'subscription_canceled_email',
       'tagKey' => 'subscription_canceled',
-      'templateKey' => 'subscription_canceled',
-      'name' => 'Assinatura cancelada',
-      'description' => 'Envia aviso quando assinatura, reembolso ou chargeback cancelar o acesso.',
+      'templateKey' => 'access_blocked',
+      'name' => 'Acesso bloqueado',
+      'description' => 'Envia aviso quando cancelamento, reembolso ou chargeback bloqueia o acesso.',
       'enabled' => true,
       'delayHours' => 0,
       'dedupeWindowDays' => 30,
@@ -621,7 +652,21 @@ def ensure_email_trigger_defaults!
   default_email_triggers.each do |trigger|
     key = trigger['triggerKey']
     existing = firestore_get_document('system_email_triggers', key)
-    firestore_upsert_document('system_email_triggers', key, trigger) unless existing
+    if existing
+      if key == 'subscription_canceled_email' &&
+         existing['source'].to_s == 'system' &&
+         existing['tagKey'].to_s == 'subscription_canceled' &&
+         existing['templateKey'].to_s == 'subscription_canceled'
+        firestore_upsert_document('system_email_triggers', key, {
+          'templateKey' => 'access_blocked',
+          'name' => 'Acesso bloqueado',
+          'description' => 'Envia aviso quando cancelamento, reembolso ou chargeback bloqueia o acesso.',
+          'updatedAt' => Time.now.utc.iso8601
+        })
+      end
+    else
+      firestore_upsert_document('system_email_triggers', key, trigger)
+    end
   end
 end
 
@@ -659,6 +704,444 @@ def save_email_trigger_payload!(body)
   payload
 end
 
+def normalize_system_page_url(value)
+  value.to_s.strip.sub(%r{/\z}, '').downcase
+end
+
+def system_page_possible_urls(page)
+  slug = page['slug'].to_s.strip
+  key = page['key'].to_s.strip
+  values = []
+  values << slug unless slug.empty?
+  values << "/#{key}" unless key.empty?
+  values += values.map { |path| path.start_with?('http') ? path : "https://bocafood.app#{path.start_with?('/') ? path : "/#{path}"}" }
+  values.map { |value| normalize_system_page_url(value) }.reject(&:empty?).uniq
+end
+
+def system_page_link_usages(page, email_settings)
+  urls = system_page_possible_urls(page)
+  usages = []
+  terms_url = normalize_system_page_url(email_settings['termsUrl'])
+  privacy_url = normalize_system_page_url(email_settings['privacyUrl'])
+  if !terms_url.empty? && urls.include?(terms_url)
+    usages << {
+      'title' => 'Rodapé dos e-mails transacionais',
+      'description' => 'Usada no campo Termos de uso das configurações globais de e-mail.',
+      'field' => 'system_email_settings/default.termsUrl'
+    }
+  end
+  if !privacy_url.empty? && urls.include?(privacy_url)
+    usages << {
+      'title' => 'Rodapé dos e-mails transacionais',
+      'description' => 'Usada no campo Política de privacidade das configurações globais de e-mail.',
+      'field' => 'system_email_settings/default.privacyUrl'
+    }
+  end
+  if urls.include?('https://bocafood.app/termosdeuso') || urls.include?('https://bocafood.app/termos')
+    usages << {
+      'title' => 'Cadastro / primeiro acesso',
+      'description' => 'Pode aparecer como link de Termos de Uso no aceite do onboarding, conforme URL configurada no cadastro publicado.',
+      'field' => 'public/cadastro.html'
+    }
+  end
+  if urls.include?('https://bocafood.app/politicadeprivacidade')
+    usages << {
+      'title' => 'Cadastro / primeiro acesso',
+      'description' => 'Pode aparecer como link de Política de Privacidade no aceite do onboarding, conforme URL configurada no cadastro publicado.',
+      'field' => 'public/cadastro.html'
+    }
+  end
+  usages.uniq { |usage| [usage['title'], usage['field'], usage['description']] }
+end
+
+def load_system_pages_payload
+  docs = firestore_list_documents('system_pages')
+  settings_doc = firestore_get_document('system_email_settings', 'default')
+  email_settings = settings_doc ? default_email_settings.merge(firestore_fields_to_hash(settings_doc['fields'] || {})) : default_email_settings
+  pages = docs.map do |doc|
+    fields = firestore_fields_to_hash(doc['fields'] || {})
+    fields['id'] = File.basename(doc['name'].to_s)
+    fields['key'] ||= fields['id']
+    fields['linkedIn'] = system_page_link_usages(fields, email_settings)
+    fields
+  end
+  pages.sort_by { |page| [page['order'].to_i, page['title'].to_s.downcase] }
+end
+
+def system_page_key(value)
+  value.to_s.strip.downcase
+       .gsub(/[áàãâä]/, 'a')
+       .gsub(/[éèêë]/, 'e')
+       .gsub(/[íìîï]/, 'i')
+       .gsub(/[óòõôö]/, 'o')
+       .gsub(/[úùûü]/, 'u')
+       .gsub(/[ç]/, 'c')
+       .gsub(/[^a-z0-9]+/, '-')
+       .gsub(/^-+|-+$/, '')
+end
+
+def sanitize_system_page_html(value)
+  value.to_s
+       .gsub(%r{<script\b[^>]*>.*?</script>}im, '')
+       .gsub(%r{<iframe\b[^>]*>.*?</iframe>}im, '')
+       .gsub(/\son[a-z]+\s*=\s*(['"]).*?\1/im, '')
+       .gsub(/\sjavascript:/i, '')
+end
+
+def save_system_page_payload!(body)
+  title = body['title'].to_s.strip
+  key = system_page_key(body['key'].to_s.empty? ? title : body['key'])
+  raise WEBrick::HTTPStatus::BadRequest, 'Chave da página obrigatória.' if key.empty?
+  raise WEBrick::HTTPStatus::BadRequest, 'Título da página obrigatório.' if title.empty?
+
+  slug = body['slug'].to_s.strip
+  slug = "/#{system_page_key(title)}" if slug.empty?
+  slug = "/#{slug}" unless slug.start_with?('/')
+  status = body['status'].to_s.strip
+  status = 'draft' unless %w[draft published archived].include?(status)
+
+  payload = {
+    'key' => key,
+    'title' => title,
+    'slug' => slug,
+    'status' => status,
+    'summary' => body['summary'].to_s.strip,
+    'category' => body['category'].to_s.strip.empty? ? 'legal' : body['category'].to_s.strip,
+    'order' => body['order'].to_i,
+    'seoTitle' => body['seoTitle'].to_s.strip,
+    'seoDescription' => body['seoDescription'].to_s.strip,
+    'contentHtml' => sanitize_system_page_html(body['contentHtml']),
+    'source' => 'master_local'
+  }
+  firestore_upsert_document('system_pages', key, payload)
+  payload
+end
+
+def delete_system_page_payload!(body)
+  key = system_page_key(body['key'])
+  raise WEBrick::HTTPStatus::BadRequest, 'Chave da página obrigatória.' if key.empty?
+
+  firestore_delete_document('system_pages', key)
+  { 'key' => key }
+end
+
+def crm_tag_defaults
+  [
+    { 'key' => 'trial_sem_cardapio', 'name' => 'Trial sem cardápio', 'description' => 'Conta em trial que ainda não iniciou o cardápio.', 'color' => '#F59E0B', 'enabled' => true, 'createdBy' => 'system' },
+    { 'key' => 'usuario_inativo', 'name' => 'Usuário inativo', 'description' => 'Conta com pouca atividade recente.', 'color' => '#6B7280', 'enabled' => true, 'createdBy' => 'system' },
+    { 'key' => 'potencial_upgrade', 'name' => 'Potencial upgrade', 'description' => 'Conta com sinais de maturidade para plano superior.', 'color' => '#2563EB', 'enabled' => true, 'createdBy' => 'system' },
+    { 'key' => 'cardapio_iniciado', 'name' => 'Cardápio iniciado', 'description' => 'Conta que já iniciou cadastro de produtos/cardápio.', 'color' => '#16A34A', 'enabled' => true, 'createdBy' => 'system' },
+    { 'key' => 'loja_publicada', 'name' => 'Loja publicada', 'description' => 'Conta com loja pública publicada.', 'color' => '#059669', 'enabled' => true, 'createdBy' => 'system' },
+    { 'key' => 'risco_cancelamento', 'name' => 'Risco de cancelamento', 'description' => 'Conta com sinais de risco comercial ou cobrança crítica.', 'color' => '#DC2626', 'enabled' => true, 'createdBy' => 'system' },
+    { 'key' => 'cliente_avancada', 'name' => 'Cliente avançada', 'description' => 'Conta com uso avançado do BocaFood.', 'color' => '#7C3AED', 'enabled' => true, 'createdBy' => 'system' }
+  ]
+end
+
+def crm_rule_defaults
+  [
+    {
+      'ruleId' => 'trial_sem_cardapio_rule',
+      'name' => 'Marcar trial sem cardápio',
+      'description' => 'Aplica tag CRM quando a conta está em trial há mais de 5 dias e ainda não tem produtos.',
+      'enabled' => false,
+      'audience' => 'tenants',
+      'conditions' => [
+        { 'field' => 'billing.status', 'operator' => 'equals', 'value' => 'trial' },
+        { 'field' => 'createdAt', 'operator' => 'older_than_days', 'value' => 5 },
+        { 'field' => 'stats.productsCount', 'operator' => 'equals', 'value' => 0 }
+      ],
+      'actions' => [{ 'type' => 'add_tag', 'tagKey' => 'trial_sem_cardapio' }],
+      'runFrequency' => 'daily',
+      'createdBy' => 'system'
+    },
+    {
+      'ruleId' => 'cardapio_iniciado_rule',
+      'name' => 'Marcar cardápio iniciado',
+      'description' => 'Remove trial sem cardápio e marca cardápio iniciado quando a conta tem produtos.',
+      'enabled' => false,
+      'audience' => 'tenants',
+      'conditions' => [{ 'field' => 'stats.productsCount', 'operator' => 'greater_than', 'value' => 0 }],
+      'actions' => [{ 'type' => 'remove_tag', 'tagKey' => 'trial_sem_cardapio' }, { 'type' => 'add_tag', 'tagKey' => 'cardapio_iniciado' }],
+      'runFrequency' => 'daily',
+      'createdBy' => 'system'
+    }
+  ]
+end
+
+def clean_crm_tag_key(value)
+  value.to_s.strip.downcase.gsub(/[^a-z0-9_]+/, '_').gsub(/^_+|_+$/, '')[0, 64].to_s
+end
+
+def ensure_crm_tag_defaults!
+  crm_tag_defaults.each do |tag|
+    key = tag['key']
+    existing = firestore_get_document('system_crm_tags', key)
+    firestore_upsert_document('system_crm_tags', key, tag) unless existing
+  end
+end
+
+def ensure_crm_rule_defaults!
+  crm_rule_defaults.each do |rule|
+    key = rule['ruleId']
+    existing = firestore_get_document('system_crm_tag_rules', key)
+    firestore_upsert_document('system_crm_tag_rules', key, rule) unless existing
+  end
+end
+
+def load_crm_tags_payload
+  ensure_crm_tag_defaults!
+  firestore_list_documents('system_crm_tags').map do |doc|
+    fields = firestore_fields_to_hash(doc['fields'] || {})
+    fields['id'] = File.basename(doc['name'].to_s)
+    fields['key'] ||= fields['id']
+    fields
+  end.sort_by { |item| item['name'].to_s.downcase }
+end
+
+def save_crm_tag_payload!(body)
+  key = clean_crm_tag_key(body['key'])
+  raise WEBrick::HTTPStatus::BadRequest, 'Chave da tag CRM obrigatória.' if key.empty?
+  payload = {
+    'key' => key,
+    'name' => body['name'].to_s.strip.empty? ? key : body['name'].to_s.strip,
+    'description' => body['description'].to_s.strip,
+    'color' => body['color'].to_s.strip.empty? ? '#6B7280' : body['color'].to_s.strip,
+    'enabled' => body['enabled'] != false,
+    'createdBy' => body['createdBy'].to_s.strip.empty? ? 'master' : body['createdBy'].to_s.strip
+  }
+  firestore_upsert_document('system_crm_tags', key, payload)
+  payload
+end
+
+def normalize_crm_rule_items(items)
+  Array(items).map do |item|
+    next nil unless item.is_a?(Hash)
+    normalized = {}
+    item.each { |k, v| normalized[k.to_s] = v }
+    normalized
+  end.compact
+end
+
+def load_crm_rules_payload
+  ensure_crm_rule_defaults!
+  firestore_list_documents('system_crm_tag_rules').map do |doc|
+    fields = firestore_fields_to_hash(doc['fields'] || {})
+    fields['id'] = File.basename(doc['name'].to_s)
+    fields['ruleId'] ||= fields['id']
+    fields
+  end.sort_by { |item| item['name'].to_s.downcase }
+end
+
+def save_crm_rule_payload!(body)
+  rule_id = clean_crm_tag_key(body['ruleId'])
+  raise WEBrick::HTTPStatus::BadRequest, 'ruleId obrigatório.' if rule_id.empty?
+  payload = {
+    'ruleId' => rule_id,
+    'name' => body['name'].to_s.strip.empty? ? rule_id : body['name'].to_s.strip,
+    'description' => body['description'].to_s.strip,
+    'enabled' => body['enabled'] == true,
+    'audience' => body['audience'].to_s.strip.empty? ? 'tenants' : body['audience'].to_s.strip,
+    'conditions' => normalize_crm_rule_items(body['conditions']),
+    'actions' => normalize_crm_rule_items(body['actions']),
+    'runFrequency' => body['runFrequency'].to_s.strip.empty? ? 'daily' : body['runFrequency'].to_s.strip,
+    'createdBy' => body['createdBy'].to_s.strip.empty? ? 'master' : body['createdBy'].to_s.strip
+  }
+  firestore_upsert_document('system_crm_tag_rules', rule_id, payload)
+  payload
+end
+
+def apply_crm_tag_to_tenant!(body)
+  uid = body['tenantUid'].to_s.strip
+  tag_key = clean_crm_tag_key(body['tagKey'])
+  action = body['action'].to_s.strip == 'remove_tag' ? 'remove_tag' : 'add_tag'
+  raise WEBrick::HTTPStatus::BadRequest, 'tenantUid obrigatório.' if uid.empty?
+  raise WEBrick::HTTPStatus::BadRequest, 'tagKey obrigatório.' if tag_key.empty?
+  doc = firestore_get_document('system_tenants', uid)
+  raise WEBrick::HTTPStatus::BadRequest, 'Conta não encontrada em system_tenants.' unless doc
+  tenant = firestore_fields_to_hash(doc['fields'] || {})
+  crm_tags = tenant['crmTags'].is_a?(Hash) ? tenant['crmTags'] : {}
+  crm_meta = tenant['crmTagMeta'].is_a?(Hash) ? tenant['crmTagMeta'] : {}
+  crm_tags[tag_key] = action == 'add_tag'
+  if action == 'add_tag'
+    crm_meta[tag_key] = {
+      'addedAt' => Time.now.utc.iso8601,
+      'addedBy' => body['addedBy'].to_s.strip.empty? ? 'master' : body['addedBy'].to_s.strip,
+      'source' => 'manual'
+    }
+  end
+  firestore_upsert_document('system_tenants', uid, {
+    'crmTags' => crm_tags,
+    'crmTagMeta' => crm_meta
+  })
+  firestore_upsert_document('system_crm_tag_logs', SecureRandom.uuid, {
+    'tenantUid' => uid,
+    'action' => action,
+    'tagKey' => tag_key,
+    'matched' => true,
+    'reason' => 'manual_master'
+  })
+  { 'tenantUid' => uid, 'tagKey' => tag_key, 'action' => action }
+end
+
+def crm_nested_value(source, path)
+  current = source
+  path.to_s.split('.').each do |part|
+    return nil unless current.is_a?(Hash)
+    return nil unless current.key?(part)
+    current = current[part]
+  end
+  current
+end
+
+def crm_value_present?(value)
+  return false if value.nil?
+  return !value.strip.empty? if value.is_a?(String)
+  return !value.empty? if value.respond_to?(:empty?)
+  true
+end
+
+def crm_number(value)
+  return value.to_f if value.is_a?(Numeric)
+  Float(value.to_s)
+rescue
+  nil
+end
+
+def crm_time(value)
+  return value if value.is_a?(Time)
+  return nil if value.nil? || value.to_s.strip.empty?
+  Time.parse(value.to_s)
+rescue
+  nil
+end
+
+def crm_condition_matches?(tenant, condition)
+  return false unless condition.is_a?(Hash)
+  field = condition['field'].to_s.strip
+  operator = condition['operator'].to_s.strip
+  expected = condition['value']
+  actual = crm_nested_value(tenant, field)
+
+  case operator
+  when 'equals'
+    actual.to_s == expected.to_s
+  when 'not_equals'
+    actual.to_s != expected.to_s
+  when 'greater_than', 'greater_or_equal', 'less_than', 'less_or_equal'
+    left = crm_number(actual)
+    right = crm_number(expected)
+    return false if left.nil? || right.nil?
+    case operator
+    when 'greater_than' then left > right
+    when 'greater_or_equal' then left >= right
+    when 'less_than' then left < right
+    else left <= right
+    end
+  when 'exists'
+    crm_value_present?(actual)
+  when 'not_exists'
+    !crm_value_present?(actual)
+  when 'older_than_days', 'newer_than_days'
+    date = crm_time(actual)
+    days = crm_number(expected)
+    return false if date.nil? || days.nil?
+    threshold = Time.now.utc - (days * 86_400)
+    operator == 'older_than_days' ? date < threshold : date >= threshold
+  else
+    false
+  end
+end
+
+def crm_rule_matches?(tenant, rule)
+  conditions = normalize_crm_rule_items(rule['conditions'])
+  return false if conditions.empty?
+  conditions.all? { |condition| crm_condition_matches?(tenant, condition) }
+end
+
+def apply_crm_rule_action_to_tenant!(uid, action, rule_id, added_by)
+  tag_key = clean_crm_tag_key(action['tagKey'])
+  type = action['type'].to_s.strip == 'remove_tag' ? 'remove_tag' : 'add_tag'
+  raise WEBrick::HTTPStatus::BadRequest, 'tagKey da ação obrigatório.' if tag_key.empty?
+
+  doc = firestore_get_document('system_tenants', uid)
+  raise WEBrick::HTTPStatus::BadRequest, 'Conta não encontrada em system_tenants.' unless doc
+  tenant = firestore_fields_to_hash(doc['fields'] || {})
+  crm_tags = tenant['crmTags'].is_a?(Hash) ? tenant['crmTags'] : {}
+  crm_meta = tenant['crmTagMeta'].is_a?(Hash) ? tenant['crmTagMeta'] : {}
+  crm_tags[tag_key] = type == 'add_tag'
+  if type == 'add_tag'
+    crm_meta[tag_key] = {
+      'addedAt' => Time.now.utc.iso8601,
+      'addedBy' => added_by.to_s.strip.empty? ? 'crm_rule' : added_by.to_s.strip,
+      'source' => 'rule',
+      'ruleId' => rule_id
+    }
+  end
+  firestore_upsert_document('system_tenants', uid, {
+    'crmTags' => crm_tags,
+    'crmTagMeta' => crm_meta
+  })
+  firestore_upsert_document('system_crm_tag_logs', SecureRandom.uuid, {
+    'ruleId' => rule_id,
+    'tenantUid' => uid,
+    'action' => type,
+    'tagKey' => tag_key,
+    'matched' => true,
+    'reason' => 'manual_rule_validation'
+  })
+  { 'tenantUid' => uid, 'action' => type, 'tagKey' => tag_key, 'ruleId' => rule_id }
+end
+
+def run_crm_tag_rules_payload!(body)
+  ensure_crm_tag_defaults!
+  ensure_crm_rule_defaults!
+  tenant_uid_filter = body['tenantUid'].to_s.strip
+  rule_id_filter = clean_crm_tag_key(body['ruleId'])
+  added_by = body['addedBy'].to_s.strip.empty? ? 'crm_rule_validation' : body['addedBy'].to_s.strip
+
+  rules = load_crm_rules_payload.select { |rule| rule['enabled'] == true }
+  rules = rules.select { |rule| rule['ruleId'].to_s == rule_id_filter } unless rule_id_filter.empty?
+  raise WEBrick::HTTPStatus::BadRequest, 'Nenhuma regra CRM ativa encontrada para executar.' if rules.empty?
+
+  tenant_docs = if tenant_uid_filter.empty?
+                  firestore_list_documents('system_tenants')
+                else
+                  doc = firestore_get_document('system_tenants', tenant_uid_filter)
+                  raise WEBrick::HTTPStatus::BadRequest, 'Conta não encontrada em system_tenants.' unless doc
+                  [doc]
+                end
+
+  processed = []
+  rules.each do |rule|
+    tenant_docs.each do |tenant_doc|
+      uid = File.basename(tenant_doc['name'].to_s)
+      tenant = firestore_fields_to_hash(tenant_doc['fields'] || {})
+      tenant['id'] = uid
+      tenant['uid'] = uid
+      tenant['tenantUid'] = uid
+      matched = crm_rule_matches?(tenant, rule)
+      unless matched
+        firestore_upsert_document('system_crm_tag_logs', SecureRandom.uuid, {
+          'ruleId' => rule['ruleId'],
+          'tenantUid' => uid,
+          'action' => 'skipped',
+          'matched' => false,
+          'reason' => 'conditions_not_matched'
+        }) unless tenant_uid_filter.empty? || rule_id_filter.empty?
+        processed << { 'tenantUid' => uid, 'ruleId' => rule['ruleId'], 'matched' => false, 'actions' => [] }
+        next
+      end
+
+      actions = normalize_crm_rule_items(rule['actions']).map do |action|
+        apply_crm_rule_action_to_tenant!(uid, action, rule['ruleId'], added_by)
+      end
+      processed << { 'tenantUid' => uid, 'ruleId' => rule['ruleId'], 'matched' => true, 'actions' => actions }
+    end
+  end
+
+  { 'processed' => processed }
+end
+
 def load_email_templates_payload
   ensure_email_template_defaults!
   docs = firestore_list_documents('system_email_templates')
@@ -683,6 +1166,13 @@ def save_email_template_payload!(body)
   key = body['key'].to_s.strip
   raise WEBrick::HTTPStatus::BadRequest, 'Template inválido.' if key.empty?
   raise WEBrick::HTTPStatus::BadRequest, 'Nome e assunto são obrigatórios.' if body['name'].to_s.strip.empty? || body['subject'].to_s.strip.empty?
+  existing_doc = firestore_get_document('system_email_templates', key)
+  existing = existing_doc ? firestore_fields_to_hash(existing_doc['fields'] || {}) : {}
+  default = default_email_templates.find { |template| template['key'].to_s == key } || {}
+  available_variables = Array(body.key?('availableVariables') ? body['availableVariables'] : (existing['availableVariables'] || default['availableVariables']))
+  cta_url = body['ctaUrl'].to_s.strip
+  cta_url = '{{resetPasswordUrl}}' if cta_url.empty? && key == 'password_reset'
+  cta_url = default['ctaUrl'].to_s if cta_url.empty? && !default['ctaUrl'].to_s.empty?
 
   payload = {
     'key' => key,
@@ -693,9 +1183,10 @@ def save_email_template_payload!(body)
     'body' => body['body'].to_s,
     'html' => body['html'].to_s.empty? ? body['body'].to_s : body['html'].to_s,
     'ctaLabel' => body['ctaLabel'].to_s,
-    'ctaUrl' => body['ctaUrl'].to_s,
+    'ctaUrl' => cta_url,
+    'footerReason' => body['footerReason'].to_s,
     'enabled' => body['enabled'] != false,
-    'availableVariables' => Array(body['availableVariables'])
+    'availableVariables' => available_variables
   }
   firestore_upsert_document('system_email_templates', key, payload)
   payload
@@ -724,15 +1215,23 @@ end
 def build_test_email_layout(settings, template, variables)
   brand_name = variables['brandName'].to_s.empty? ? 'BocaFood' : variables['brandName'].to_s
   support_email = variables['supportEmail'].to_s
-  logo_url = variables['brandLogoUrl'].to_s.empty? ? 'https://bocafood.app/assets/boca-food-logo.png' : variables['brandLogoUrl'].to_s
+  logo_url = normalize_bocafood_brand_logo_url(variables['brandLogoUrl'])
+  terms_url = variables['termsUrl'].to_s
+  privacy_url = variables['privacyUrl'].to_s
+  security_text = email_replace_variables(variables['securityText'].to_s.empty? ? 'o BocaFood nunca solicita senha por e-mail.' : variables['securityText'].to_s, variables)
+  reason_source = template['footerReason'].to_s.strip.empty? ? variables['footerReasonDefault'].to_s : template['footerReason'].to_s
+  email_reason = email_replace_variables(reason_source.empty? ? 'esta mensagem faz parte do seu relacionamento com o BocaFood' : reason_source, variables)
   title = CGI.escapeHTML(email_replace_variables(template['subject'] || 'Teste de envio BocaFood', variables))
   preheader = CGI.escapeHTML(email_replace_variables(template['preheader'] || '', variables))
   body = email_replace_variables(template['body'] || template['html'] || default_test_email_template['body'], variables)
   cta_label = CGI.escapeHTML(email_replace_variables(template['ctaLabel'] || '', variables))
   cta_url = CGI.escapeHTML(email_replace_variables(template['ctaUrl'] || '', variables))
-  cta_html = cta_label.empty? || cta_url.empty? ? '' : %Q(<div style="margin-top:24px;text-align:left;"><a href="#{cta_url}" style="display:inline-block;background:#B42318;color:#ffffff;text-decoration:none;border-radius:14px;padding:14px 22px;font-size:14px;font-weight:700;line-height:1.2;min-width:190px;text-align:center;box-shadow:0 12px 24px rgba(180,35,24,.18);">#{cta_label}</a></div>)
+  cta_html = cta_label.empty? || cta_url.empty? ? '' : %Q(<div style="margin-top:20px;text-align:left;"><a href="#{cta_url}" target="_blank" rel="noopener" style="display:inline-block;background:linear-gradient(135deg,#C4362A 0%,#A92F25 100%);color:#ffffff;text-decoration:none;border-radius:12px;padding:0 19px;height:44px;line-height:44px;font-size:14px;font-weight:700;min-width:158px;text-align:center;border:1px solid rgba(126,31,24,.16);box-shadow:0 10px 20px rgba(196,54,42,.14),inset 0 1px 0 rgba(255,255,255,.20);">#{cta_label}</a><div style="margin-top:10px;font-size:12px;line-height:1.45;color:#8A7E7C;">Se o botão não abrir, acesse: <a href="#{cta_url}" target="_blank" rel="noopener" style="color:#B42318;text-decoration:none;font-weight:700;">#{cta_url}</a></div></div>)
+  terms_link = terms_url.empty? ? 'Termos de uso' : %Q(<a href="#{CGI.escapeHTML(terms_url)}" style="color:#8A7E7C;text-decoration:none;">Termos de uso</a>)
+  privacy_link = privacy_url.empty? ? 'Política de privacidade' : %Q(<a href="#{CGI.escapeHTML(privacy_url)}" style="color:#8A7E7C;text-decoration:none;">Política de privacidade</a>)
+  footer_html = %Q(<div style="font-size:11px;line-height:1.55;color:#8A7E7C;"><strong style="font-weight:700;color:#5F5552;">Segurança:</strong> #{CGI.escapeHTML(security_text)}<br>Precisa de ajuda? Escreva para <a href="mailto:#{CGI.escapeHTML(support_email)}" style="color:#B42318;text-decoration:none;font-weight:700;">#{CGI.escapeHTML(support_email)}</a><br>Você recebeu este e-mail porque #{CGI.escapeHTML(email_reason)}.<br>#{CGI.escapeHTML(brand_name)}<br>#{terms_link} &middot; #{privacy_link}</div>)
 
-  %Q(<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>#{title}</title></head><body style="margin:0;padding:0;background:#FFF7F6;font-family:Arial,Helvetica,sans-serif;color:#1F1F1F;"><div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">#{preheader}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#FFF7F6;padding:26px 12px;"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:580px;background:#ffffff;border-radius:24px;box-shadow:0 18px 46px rgba(31,31,31,.08);overflow:hidden;border:1px solid #F2EDED;"><tr><td style="height:5px;background:#B42318;font-size:1px;line-height:1px;">&nbsp;</td></tr><tr><td style="padding:26px 30px 10px;text-align:left;background:linear-gradient(135deg,#FFFFFF 0%,#FFF8F6 100%);"><img src="#{CGI.escapeHTML(logo_url)}" alt="#{CGI.escapeHTML(brand_name)}" width="132" style="display:block;width:132px;max-width:46%;height:auto;border:0;outline:none;text-decoration:none;"><div style="margin-top:20px;font-size:11px;line-height:1.3;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#B42318;">SaaS #{CGI.escapeHTML(brand_name)}</div><div style="margin-top:8px;font-size:26px;line-height:1.16;font-weight:700;color:#1F1F1F;">#{title}</div>#{preheader.empty? ? '' : %Q(<div style="margin-top:9px;font-size:14px;line-height:1.55;color:#6F6860;">#{preheader}</div>)}</td></tr><tr><td style="padding:14px 30px 4px;background:#ffffff;"><div style="border:1px solid #E7DDD1;border-radius:20px;padding:20px;background:linear-gradient(135deg,#FFFFFF 0%,#FAF8F4 100%);font-size:15px;line-height:1.68;color:#3B3533;">#{body}#{cta_html}</div></td></tr><tr><td style="padding:16px 30px 0;background:#ffffff;"><div style="font-size:12px;line-height:1.5;color:#8A7E7C;background:#FFF8EC;border:1px solid #F5E3BC;border-radius:16px;padding:12px 14px;">Por seguranca, nunca compartilhe sua senha. O BocaFood nao solicita senhas por e-mail.</div></td></tr><tr><td style="padding:20px 30px 30px;background:#ffffff;font-size:12px;line-height:1.5;color:#8A7E7C;">Precisa de ajuda? Escreva para <a href="mailto:#{CGI.escapeHTML(support_email)}" style="color:#B42318;text-decoration:none;font-weight:700;">#{CGI.escapeHTML(support_email)}</a>.<br>#{CGI.escapeHTML(brand_name)}</td></tr></table></td></tr></table></body></html>)
+  %Q(<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>#{title}</title></head><body style="margin:0;padding:0;background:#FAF8F4;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',Arial,sans-serif;color:#1F1F1F;"><div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">#{preheader}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:radial-gradient(circle at 12% 0%,rgba(196,54,42,.085),transparent 30%),linear-gradient(135deg,#FFFCFB 0%,#FAF8F4 55%,#FFF8F6 100%);padding:28px 12px;"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:580px;background:linear-gradient(145deg,#FFFFFF 0%,#FFFDFB 42%,#FFF8F6 78%,#FAF8F4 100%);border-radius:20px;box-shadow:0 20px 44px rgba(63,38,35,.085),0 2px 8px rgba(31,31,31,.035);overflow:hidden;border:1px solid #EDE6E3;"><tr><td style="height:4px;background:linear-gradient(90deg,#B42318,#B6925E);font-size:1px;line-height:1px;">&nbsp;</td></tr><tr><td style="padding:18px 28px 13px;text-align:left;border-bottom:1px solid rgba(242,237,237,.75);"><img src="#{CGI.escapeHTML(logo_url)}" alt="#{CGI.escapeHTML(brand_name)}" width="76" style="display:block;width:76px;max-width:34%;height:auto;border:0;outline:none;text-decoration:none;"></td></tr><tr><td style="padding:20px 28px 0;text-align:left;"><div style="font-size:23px;line-height:1.25;font-weight:700;color:#191514;">#{title}</div>#{preheader.empty? ? '' : %Q(<div style="margin-top:8px;max-width:500px;font-size:14.5px;line-height:1.55;color:#6B615F;">#{preheader}</div>)}<div style="margin-top:18px;font-size:15.5px;line-height:1.68;color:#3F3430;">#{body}#{cta_html}</div></td></tr><tr><td style="padding:18px 28px 28px;background:linear-gradient(135deg,#FFFFFF 0%,#FFF8F6 62%,#FDF1EF 100%);border-top:1px solid rgba(242,237,237,.82);">#{footer_html}</td></tr></table></td></tr></table></body></html>)
 end
 
 def encoded_email_subject(value)
@@ -857,14 +1356,18 @@ def send_test_email!(body)
   variables = {
     'buyerName' => 'Patrícia',
     'buyerEmail' => to,
-    'signupUrl' => 'https://app.bocafood.com/cadastro',
+    'signupUrl' => 'https://bocafood.app/cadastro',
     'supportEmail' => settings['supportEmail'].to_s.empty? ? settings['replyTo'].to_s : settings['supportEmail'].to_s,
     'planName' => 'Plano Essencial',
     'productName' => 'BocaFood',
-    'resetPasswordUrl' => 'https://app.bocafood.com/redefinir-senha',
-    'appBaseUrl' => settings['appBaseUrl'].to_s.empty? ? 'https://app.bocafood.com' : settings['appBaseUrl'].to_s,
+    'resetPasswordUrl' => 'https://bocafood.app/redefinir-senha',
+    'appBaseUrl' => settings['appBaseUrl'].to_s.empty? ? 'https://bocafood.app' : settings['appBaseUrl'].to_s,
     'brandName' => settings['brandName'].to_s.empty? ? 'BocaFood' : settings['brandName'].to_s,
-    'brandLogoUrl' => settings['brandLogoUrl'].to_s.empty? ? 'https://bocafood.app/assets/boca-food-logo.png' : settings['brandLogoUrl'].to_s
+    'brandLogoUrl' => normalize_bocafood_brand_logo_url(settings['brandLogoUrl']),
+    'termsUrl' => settings['termsUrl'].to_s,
+    'privacyUrl' => settings['privacyUrl'].to_s,
+    'securityText' => settings['securityText'].to_s.empty? ? 'o BocaFood nunca solicita senha por e-mail.' : settings['securityText'].to_s,
+    'footerReasonDefault' => settings['footerReasonDefault'].to_s.empty? ? 'esta mensagem faz parte do seu relacionamento com o BocaFood' : settings['footerReasonDefault'].to_s
   }
   subject = email_replace_variables(template['subject'] || 'Teste de envio BocaFood', variables)
   html = build_test_email_layout(settings, template, variables)
@@ -895,7 +1398,7 @@ def public_store_slug(value)
 end
 
 def public_store_url(slug)
-  slug.to_s.empty? ? '' : "https://bocafood.app/loja/#{slug}"
+  slug.to_s.empty? ? '' : "https://bocafood.app/#{slug}"
 end
 
 def public_store_name(tenant)
@@ -1632,7 +2135,7 @@ def firebase_create_or_update_auth_user(tenant)
   final_uid = existing['uid'] if existing && !existing['uid'].to_s.strip.empty?
   desired_display_name = tenant['name'].to_s.strip.empty? ? tenant['businessName'].to_s.strip : tenant['name'].to_s.strip
   desired_display_name = tenant['ownerName'].to_s.strip if desired_display_name.empty?
-  disabled = %w[disabled blocked canceled].include?(tenant['status'].to_s.strip)
+  disabled = %w[disabled blocked canceled archived].include?(tenant['status'].to_s.strip)
   api_key = firebase_web_api_key
   auth_headers = google_auth_headers.merge('Content-Type' => 'application/json')
 
@@ -2172,6 +2675,56 @@ def pending_hotmart_reason(item)
   return 'assinatura cancelada sem tenant localizado' if status == 'canceled_without_tenant'
   return 'e-mail diferente do cadastro' if status == 'email_mismatch'
   'ação manual necessária'
+end
+
+def master_support_tickets
+  tenants = firestore_list_documents('system_tenants').map do |doc|
+    uid = doc['name'].to_s.split('/').last.to_s
+    data = firestore_fields_to_hash(doc['fields'] || {})
+    next if firebase_customer_marker?(data)
+    store = data['store'].is_a?(Hash) ? data['store'] : {}
+    {
+      'uid' => uid,
+      'email' => data['email'].to_s,
+      'storeName' => store['name'].to_s.empty? ? (data['businessName'].to_s.empty? ? data['ownerName'].to_s : data['businessName'].to_s) : store['name'].to_s
+    }
+  end.compact
+
+  tickets = []
+  tenants.each do |tenant|
+    tenant_uid = tenant['uid'].to_s
+    next if tenant_uid.empty?
+    begin
+      firestore_list_documents("tenants/#{tenant_uid}/support_tickets").each do |doc|
+        ticket_id = doc['name'].to_s.split('/').last.to_s
+        data = firestore_fields_to_hash(doc['fields'] || {})
+        tickets << {
+          'id' => ticket_id,
+          'ticketPath' => "tenants/#{tenant_uid}/support_tickets/#{ticket_id}",
+          'tenantUid' => data['tenantUid'].to_s.empty? ? tenant_uid : data['tenantUid'].to_s,
+          'tenantEmail' => tenant['email'].to_s,
+          'accountEmail' => data['accountEmail'].to_s,
+          'storeName' => data['storeName'].to_s.empty? ? tenant['storeName'].to_s : data['storeName'].to_s,
+          'ticketCode' => data['ticketCode'].to_s,
+          'type' => data['type'].to_s.empty? ? 'other' : data['type'].to_s,
+          'priority' => data['priority'].to_s.empty? ? 'normal' : data['priority'].to_s,
+          'subject' => data['subject'].to_s,
+          'message' => data['message'].to_s,
+          'contactEmail' => data['contactEmail'].to_s,
+          'contactWhatsapp' => data['contactWhatsapp'].to_s,
+          'status' => data['status'].to_s.empty? ? 'open' : data['status'].to_s,
+          'source' => data['source'].to_s,
+          'pageUrl' => data['pageUrl'].to_s,
+          'userAgent' => data['userAgent'].to_s,
+          'createdAt' => data['createdAt'].to_s,
+          'updatedAt' => data['updatedAt'].to_s
+        }
+      end
+    rescue => e
+      log_master("support tickets read warning tenantUid=#{tenant_uid} #{e.class}: #{e.message}")
+    end
+  end
+  tickets.sort_by { |ticket| ticket['createdAt'].to_s }.reverse.first(200)
 end
 
 def system_tenants_users
@@ -3477,6 +4030,17 @@ server.mount_proc '/api/master/users' do |req, res|
   end
 end
 
+server.mount_proc '/api/master/support/tickets' do |req, res|
+  begin
+    next json_response(res, 405, { ok: false, error: 'GET required', tickets: [] }) unless req.request_method == 'GET'
+    tickets = master_support_tickets
+    log_master("master support tickets read path=tenants/{tenantUid}/support_tickets count=#{tickets.length}")
+    json_response(res, 200, { ok: true, tickets: tickets, count: tickets.length })
+  rescue => e
+    json_response(res, 400, { ok: false, error: e.message, tickets: [] })
+  end
+end
+
 server.mount_proc '/api/master/tenants/action' do |req, res|
   begin
     next json_response(res, 405, { ok: false, error: 'POST required' }) unless req.request_method == 'POST'
@@ -3557,6 +4121,11 @@ server.mount_proc '/api/master/tenants/action' do |req, res|
       tenant['archivedAt'] = Time.now.utc.iso8601
       tenant['updatedAt'] = tenant['archivedAt']
       master_replace_tenant(store, tenant) if master_find_tenant(store, uid: uid, email: body['email'])
+      begin
+        firebase_create_or_update_auth_user(tenant)
+      rescue => e
+        log_master("archive firebase auth warning uid=#{tenant['id']} #{e.class}: #{e.message}")
+      end
       firestore_upsert_document('system_tenants', tenant['id'] || uid, {
         'accountStatus' => 'archived',
         'status' => 'archived',
@@ -3880,6 +4449,58 @@ end
 server.mount_proc '/api/master/email/templates', &email_templates_handler
 server.mount_proc '/api/master/email/templates/', &email_templates_handler
 
+system_pages_handler = proc do |req, res|
+  apply_cors_headers(res, req['Origin'] || req['origin'])
+  if req.request_method == 'OPTIONS'
+    res.status = 204
+    res.body = ''
+    next
+  end
+
+  begin
+    unless local_master_request?(req)
+      next json_response_cors(req, res, 403, email_read_error('Endpoint restrito ao Master local.'))
+    end
+
+    case req.request_method
+    when 'GET'
+      json_response_cors(req, res, 200, {
+        ok: true,
+        pages: load_system_pages_payload
+      })
+    when 'POST'
+      body = read_json(req)
+      if body['action'].to_s == 'delete'
+        deleted = delete_system_page_payload!(body)
+        json_response_cors(req, res, 200, {
+          ok: true,
+          message: 'Página excluída.',
+          page: deleted
+        })
+      else
+        page = save_system_page_payload!(body)
+        json_response_cors(req, res, 200, {
+          ok: true,
+          message: 'Página salva.',
+          page: page
+        })
+      end
+    else
+      json_response_cors(req, res, 405, email_read_error('Endpoint existe, mas exige método GET ou POST.'))
+    end
+  rescue WEBrick::HTTPStatus::BadRequest => e
+    json_response_cors(req, res, 400, email_read_error(e.message))
+  rescue => e
+    debug = email_settings_debug(e)
+    log_email_settings("system pages erro tecnico #{debug}")
+    message = email_master_credential_error?(e) ? email_master_credential_message : 'Não foi possível salvar ou carregar páginas do sistema.'
+    json_response_cors(req, res, 400, email_read_error(message, debug))
+  end
+end
+
+server.mount_proc '/api/master/system-pages', &system_pages_handler
+server.mount_proc '/api/master/system-pages/', &system_pages_handler
+
 email_triggers_handler = proc do |req, res|
   apply_cors_headers(res, req['Origin'] || req['origin'])
   if req.request_method == 'OPTIONS'
@@ -3921,6 +4542,132 @@ end
 
 server.mount_proc '/api/master/email/triggers', &email_triggers_handler
 server.mount_proc '/api/master/email/triggers/', &email_triggers_handler
+
+crm_tags_handler = proc do |req, res|
+  apply_cors_headers(res, req['Origin'] || req['origin'])
+  if req.request_method == 'OPTIONS'
+    res.status = 204
+    res.body = ''
+    next
+  end
+
+  begin
+    unless local_master_request?(req)
+      next json_response_cors(req, res, 403, email_read_error('Endpoint restrito ao Master local.'))
+    end
+
+    case req.request_method
+    when 'GET'
+      json_response_cors(req, res, 200, { ok: true, tags: load_crm_tags_payload })
+    when 'POST'
+      tag = save_crm_tag_payload!(read_json(req))
+      json_response_cors(req, res, 200, { ok: true, message: 'Tag CRM salva.', tag: tag })
+    else
+      json_response_cors(req, res, 405, email_read_error('Endpoint existe, mas exige método GET ou POST.'))
+    end
+  rescue WEBrick::HTTPStatus::BadRequest => e
+    json_response_cors(req, res, 400, email_read_error(e.message))
+  rescue => e
+    debug = email_settings_debug(e)
+    log_email_settings("crm tags erro tecnico #{debug}")
+    message = email_master_credential_error?(e) ? email_master_credential_message : 'Não foi possível carregar as tags CRM.'
+    json_response_cors(req, res, 400, email_read_error(message, debug))
+  end
+end
+
+server.mount_proc '/api/master/crm/tags', &crm_tags_handler
+server.mount_proc '/api/master/crm/tags/', &crm_tags_handler
+
+crm_rules_handler = proc do |req, res|
+  apply_cors_headers(res, req['Origin'] || req['origin'])
+  if req.request_method == 'OPTIONS'
+    res.status = 204
+    res.body = ''
+    next
+  end
+
+  begin
+    unless local_master_request?(req)
+      next json_response_cors(req, res, 403, email_read_error('Endpoint restrito ao Master local.'))
+    end
+
+    case req.request_method
+    when 'GET'
+      json_response_cors(req, res, 200, { ok: true, rules: load_crm_rules_payload })
+    when 'POST'
+      rule = save_crm_rule_payload!(read_json(req))
+      json_response_cors(req, res, 200, { ok: true, message: 'Regra CRM salva.', rule: rule })
+    else
+      json_response_cors(req, res, 405, email_read_error('Endpoint existe, mas exige método GET ou POST.'))
+    end
+  rescue WEBrick::HTTPStatus::BadRequest => e
+    json_response_cors(req, res, 400, email_read_error(e.message))
+  rescue => e
+    debug = email_settings_debug(e)
+    log_email_settings("crm rules erro tecnico #{debug}")
+    message = email_master_credential_error?(e) ? email_master_credential_message : 'Não foi possível carregar as regras CRM.'
+    json_response_cors(req, res, 400, email_read_error(message, debug))
+  end
+end
+
+server.mount_proc '/api/master/crm/tag-rules', &crm_rules_handler
+server.mount_proc '/api/master/crm/tag-rules/', &crm_rules_handler
+
+crm_tenant_tags_handler = proc do |req, res|
+  apply_cors_headers(res, req['Origin'] || req['origin'])
+  if req.request_method == 'OPTIONS'
+    res.status = 204
+    res.body = ''
+    next
+  end
+
+  begin
+    unless local_master_request?(req)
+      next json_response_cors(req, res, 403, email_read_error('Endpoint restrito ao Master local.'))
+    end
+    next json_response_cors(req, res, 405, email_read_error('Endpoint existe, mas exige método POST.')) unless req.request_method == 'POST'
+    result = apply_crm_tag_to_tenant!(read_json(req))
+    json_response_cors(req, res, 200, { ok: true, message: 'Tag CRM aplicada à conta.', result: result })
+  rescue WEBrick::HTTPStatus::BadRequest => e
+    json_response_cors(req, res, 400, email_read_error(e.message))
+  rescue => e
+    debug = email_settings_debug(e)
+    log_email_settings("crm tenant tag erro tecnico #{debug}")
+    message = email_master_credential_error?(e) ? email_master_credential_message : 'Não foi possível aplicar a tag CRM.'
+    json_response_cors(req, res, 400, email_read_error(message, debug))
+  end
+end
+
+server.mount_proc '/api/master/crm/tenant-tags', &crm_tenant_tags_handler
+server.mount_proc '/api/master/crm/tenant-tags/', &crm_tenant_tags_handler
+
+crm_run_tag_rules_handler = proc do |req, res|
+  apply_cors_headers(res, req['Origin'] || req['origin'])
+  if req.request_method == 'OPTIONS'
+    res.status = 204
+    res.body = ''
+    next
+  end
+
+  begin
+    unless local_master_request?(req)
+      next json_response_cors(req, res, 403, email_read_error('Endpoint restrito ao Master local.'))
+    end
+    next json_response_cors(req, res, 405, email_read_error('Endpoint existe, mas exige método POST.')) unless req.request_method == 'POST'
+    result = run_crm_tag_rules_payload!(read_json(req))
+    json_response_cors(req, res, 200, { ok: true, message: 'Regras CRM executadas para validação local.', result: result })
+  rescue WEBrick::HTTPStatus::BadRequest => e
+    json_response_cors(req, res, 400, email_read_error(e.message))
+  rescue => e
+    debug = email_settings_debug(e)
+    log_email_settings("crm run tag rules erro tecnico #{debug}")
+    message = email_master_credential_error?(e) ? email_master_credential_message : 'Não foi possível executar as regras CRM.'
+    json_response_cors(req, res, 400, email_read_error(message, debug))
+  end
+end
+
+server.mount_proc '/api/master/crm/run-tag-rules', &crm_run_tag_rules_handler
+server.mount_proc '/api/master/crm/run-tag-rules/', &crm_run_tag_rules_handler
 
 email_logs_handler = proc do |req, res|
   apply_cors_headers(res, req['Origin'] || req['origin'])

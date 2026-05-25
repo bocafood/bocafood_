@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Master BocaFood</title>
+  <link rel="icon" type="image/png" href="/assets/boca-food-favicon.png">
+  <link rel="apple-touch-icon" href="/assets/boca-food-favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{--bg:#fff7f5;--card:#fff;--line:#f1d9d4;--soft:#fff0ed;--text:#241817;--muted:#7d6864;--red:#d92d20;--red-dark:#b42318;--green:#14804a;--yellow:#946200;--shadow:0 18px 45px rgba(96,38,26,.08)}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;background:linear-gradient(180deg,#fff8f6 0%,#fff2ef 100%);font-family:Manrope,Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--text)}
+    button,input{font:inherit}
+    .wrap{width:min(1120px,calc(100% - 32px));margin:0 auto;padding:28px 0 44px}
+    .top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:22px}
+    .brand{display:flex;align-items:center;gap:14px}
+    .brand img{width:72px;height:auto;display:block}
+    .eyebrow{font-size:11px;font-weight:800;letter-spacing:.1em;color:var(--red);text-transform:uppercase;margin:0 0 4px}
+    h1{font-size:28px;line-height:1.15;margin:0;font-weight:800}
+    .subtitle{margin:4px 0 0;color:var(--muted);font-size:14px}
+    .userbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+    .pill{border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 11px;font-size:12px;color:var(--muted)}
+    .btn{border:0;border-radius:14px;padding:11px 14px;font-weight:800;cursor:pointer;background:var(--red);color:#fff;box-shadow:0 10px 24px rgba(217,45,32,.18)}
+    .btn:hover{background:var(--red-dark)}
+    .btn.secondary{background:#fff;color:var(--text);border:1px solid var(--line);box-shadow:none}
+    .btn:disabled{opacity:.55;cursor:not-allowed}
+    .login{min-height:100vh;display:grid;place-items:center;padding:24px}
+    .login-card{width:min(430px,100%);background:var(--card);border:1px solid var(--line);border-radius:24px;box-shadow:var(--shadow);padding:30px;text-align:center}
+    .login-card img{width:92px;margin:0 auto 10px;display:block}
+    .login-card h1{font-size:25px;margin-bottom:8px}
+    .login-card p{color:var(--muted);font-size:14px;line-height:1.55;margin:0 0 20px}
+    .grid{display:grid;grid-template-columns:1.1fr .9fr;gap:18px;align-items:start}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:22px;box-shadow:var(--shadow);padding:22px}
+    .card h2{font-size:18px;margin:0 0 4px}
+    .card p{color:var(--muted);font-size:13px;line-height:1.5;margin:0}
+    .status-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:16px}
+    .metric{border:1px solid var(--line);border-radius:16px;background:#fffaf9;padding:13px}
+    .metric span{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:800}
+    .metric strong{display:block;font-size:16px;margin-top:5px}
+    .ok{color:var(--green)}.bad{color:var(--red)}.warn{color:var(--yellow)}
+    .toolbar{display:flex;gap:10px;align-items:end;margin-top:18px;flex-wrap:wrap}
+    .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:16px}
+    label{display:grid;gap:7px;text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.07em;font-weight:800}
+    input,select{height:43px;border:1px solid var(--line);border-radius:13px;background:#fff;padding:0 12px;color:var(--text);min-width:0}
+    input:focus,select:focus{outline:2px solid rgba(217,45,32,.14);border-color:#e16a5f}
+    table{width:100%;border-collapse:collapse;margin-top:14px;font-size:13px}
+    th{text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding:10px;border-bottom:1px solid var(--line)}
+    td{padding:11px 10px;border-bottom:1px solid #f6e4e0;vertical-align:top}
+    .badge{display:inline-flex;align-items:center;border-radius:999px;padding:5px 8px;font-size:11px;font-weight:800;background:#f5f5f5;color:#64514d}
+    .badge.on{background:#e8f7ef;color:var(--green)}
+    .badge.off{background:#fff0ed;color:var(--red)}
+    .badge.warn{background:#fff7df;color:var(--yellow)}
+    .logs{max-height:560px;overflow:auto}
+    .message{display:none;margin-top:14px;border-radius:14px;padding:12px 14px;font-size:13px;line-height:1.45;background:#fff7df;color:#6f4a00;border:1px solid #f6dc8b}
+    .message.show{display:block}
+    .hidden{display:none!important}
+    .section-title{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:10px}
+    .empty{padding:18px;border:1px dashed var(--line);border-radius:16px;color:var(--muted);font-size:13px;text-align:center;margin-top:14px}
+    @media(max-width:820px){.wrap{width:min(100% - 20px,620px);padding-top:18px}.top{align-items:flex-start;flex-direction:column}.grid{grid-template-columns:1fr}.status-grid,.form-grid{grid-template-columns:1fr}.toolbar{align-items:stretch}.toolbar label,.toolbar input,.toolbar button{width:100%;min-width:0}.userbar{justify-content:flex-start}.brand img{width:60px}}
+  </style>
+</head>
+<body>
+  <main id="login-view" class="login">
+    <section class="login-card">
+      <img src="/assets/boca-food-logo.png" alt="BocaFood">
+      <p class="eyebrow">Master restrito</p>
+      <h1>Acesso interno BocaFood</h1>
+      <p>Entre com uma conta autorizada para consultar o diagnóstico de produção.</p>
+      <button id="google-login" class="btn" type="button">Entrar com Google</button>
+      <div id="login-message" class="message"></div>
+    </section>
+  </main>
+
+  <main id="app-view" class="wrap hidden">
+    <header class="top">
+      <div class="brand">
+        <img src="/assets/boca-food-logo.png" alt="BocaFood">
+        <div>
+          <p class="eyebrow">Master produção</p>
+          <h1>Diagnóstico de e-mails</h1>
+          <p class="subtitle">Ambiente publicado, restrito por autenticação e allowlist Master.</p>
+        </div>
+      </div>
+      <div class="userbar">
+        <span id="session-email" class="pill">Validando sessão</span>
+        <button id="refresh" class="btn secondary" type="button">Atualizar</button>
+        <button id="logout" class="btn secondary" type="button">Sair</button>
+      </div>
+    </header>
+
+    <section class="grid">
+      <article class="card">
+        <div class="section-title">
+          <div>
+            <h2>Configuração SMTP</h2>
+            <p>Resumo seguro da configuração usada pelas Functions em produção.</p>
+          </div>
+        </div>
+        <div id="settings-grid" class="status-grid"></div>
+        <div class="form-grid">
+          <label>Remetente nome
+            <input id="smtp-from-name" placeholder="BocaFood">
+          </label>
+          <label>Remetente e-mail
+            <input id="smtp-from-email" type="email" placeholder="contato@dominio.com">
+          </label>
+          <label>Responder para
+            <input id="smtp-reply-to" type="email" placeholder="teajudo@bocafood.app">
+          </label>
+          <label>Suporte
+            <input id="smtp-support-email" type="email" placeholder="teajudo@bocafood.app">
+          </label>
+          <label>URL base
+            <input id="smtp-app-base-url" placeholder="https://bocado-brasil.web.app">
+          </label>
+          <label>Marca
+            <input id="smtp-brand-name" placeholder="BocaFood">
+          </label>
+          <label>SMTP host
+            <input id="smtp-host" placeholder="smtpout.secureserver.net">
+          </label>
+          <label>SMTP porta
+            <input id="smtp-port" inputmode="numeric" placeholder="587">
+          </label>
+          <label>Segurança
+            <select id="smtp-secure">
+              <option value="tls">TLS</option>
+              <option value="ssl">SSL</option>
+              <option value="none">Nenhuma</option>
+            </select>
+          </label>
+          <label>Usuário SMTP
+            <input id="smtp-user" autocomplete="off" placeholder="usuario@dominio.com">
+          </label>
+          <label>Senha SMTP
+            <input id="smtp-password" type="password" autocomplete="new-password" placeholder="Preencha para atualizar">
+          </label>
+          <label>Status
+            <select id="smtp-enabled">
+              <option value="true">Ativo</option>
+              <option value="false">Inativo</option>
+            </select>
+          </label>
+        </div>
+        <div class="toolbar">
+          <button id="save-smtp" class="btn secondary" type="button">Salvar SMTP produção</button>
+        </div>
+        <div class="toolbar">
+          <label>Testar e-mail
+            <input id="test-email" type="email" placeholder="email@destino.com">
+          </label>
+          <button id="send-test" class="btn" type="button">Enviar teste SMTP</button>
+        </div>
+        <div class="toolbar">
+          <label>Consultar Auth/Tenant
+            <input id="lookup-email" type="email" placeholder="email@conta.com">
+          </label>
+          <button id="lookup" class="btn secondary" type="button">Consultar</button>
+        </div>
+        <div id="lookup-result" class="message"></div>
+        <div id="action-message" class="message"></div>
+      </article>
+
+      <article class="card">
+        <h2>Templates e gatilhos</h2>
+        <p>Mostra quais templates existem e se há gatilhos por etiqueta conectados.</p>
+        <div id="templates"></div>
+      </article>
+    </section>
+
+    <section class="card" style="margin-top:18px">
+      <div class="section-title">
+        <div>
+          <h2>Logs recentes de e-mail</h2>
+          <p>Últimos registros de `email_logs`, sem HTML, senha ou payload sensível.</p>
+        </div>
+      </div>
+      <div id="logs" class="logs"></div>
+    </section>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script>
+    var FB_CFG={apiKey:'AIzaSyAZk2mEPXR-VQOOEJWfcdhqoJOhHWjzda4',authDomain:'bocado-brasil.firebaseapp.com',projectId:'bocado-brasil',storageBucket:'bocado-brasil.firebasestorage.app',messagingSenderId:'1083383234261',appId:'1:1083383234261:web:b73a9e9f7df73233d6ec5c'};
+    if(!firebase.apps.length)firebase.initializeApp(FB_CFG);
+    var auth=firebase.auth();
+    var FN_BASE='https://us-central1-bocado-brasil.cloudfunctions.net/';
+    var state={data:null};
+    function esc(value){return String(value==null?'':value).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+    function msg(id,text){var el=document.getElementById(id);if(!el)return;el.textContent=text;el.className='message show';}
+    function clearMsg(id){var el=document.getElementById(id);if(!el)return;el.textContent='';el.className='message';}
+    async function token(){var user=auth.currentUser;if(!user)throw new Error('missing_user');return user.getIdToken();}
+    async function call(name,body){var idToken=await token();var res=await fetch(FN_BASE+name,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+idToken},body:JSON.stringify(body||{})});var json=await res.json().catch(function(){return{};});if(!res.ok)throw new Error(json.error||('HTTP '+res.status));return json;}
+    function metric(label,value,cls){return '<div class="metric"><span>'+esc(label)+'</span><strong class="'+esc(cls||'')+'">'+esc(value)+'</strong></div>';}
+    function setValue(id,value){var el=document.getElementById(id);if(el)el.value=value==null?'':String(value);}
+    function renderSettings(settings){settings=settings||{};document.getElementById('settings-grid').innerHTML=[
+      metric('Sistema',settings.enabled?'Ativo':'Inativo',settings.enabled?'ok':'warn'),
+      metric('SMTP host',settings.smtpHostConfigured?'Configurado':'Ausente',settings.smtpHostConfigured?'ok':'bad'),
+      metric('Usuário SMTP',settings.smtpUserConfigured?'Configurado':'Ausente',settings.smtpUserConfigured?'ok':'bad'),
+      metric('Senha SMTP',settings.smtpPasswordConfigured?'Configurada':'Ausente',settings.smtpPasswordConfigured?'ok':'bad'),
+      metric('Porta',settings.smtpPort||'Não definida',''),
+      metric('Segurança',settings.smtpSecure||'Não definida','')
+    ].join('');
+      setValue('smtp-from-name',settings.fromName||'');
+      setValue('smtp-from-email',settings.fromEmail||'');
+      setValue('smtp-reply-to',settings.replyTo||'');
+      setValue('smtp-support-email',settings.supportEmail||'');
+      setValue('smtp-app-base-url',settings.appBaseUrl||'');
+      setValue('smtp-brand-name',settings.brandName||'');
+      setValue('smtp-host',settings.smtpHost||'');
+      setValue('smtp-port',settings.smtpPort||587);
+      setValue('smtp-secure',settings.smtpSecure||'tls');
+      setValue('smtp-user',settings.smtpUser||'');
+      setValue('smtp-password','');
+      setValue('smtp-enabled',settings.enabled?'true':'false');
+    }
+    function renderTemplates(templates){templates=templates||[];if(!templates.length){document.getElementById('templates').innerHTML='<div class="empty">Nenhum template encontrado.</div>';return;}document.getElementById('templates').innerHTML='<table><thead><tr><th>Template</th><th>Status</th><th>Gatilhos</th></tr></thead><tbody>'+templates.map(function(t){var triggerLabel=t.activeTriggerCount? t.activeTriggerCount+' ativo(s)' : (t.triggerCount?t.triggerCount+' inativo(s)':'Sem gatilho');var triggerCls=t.activeTriggerCount?'on':(t.triggerCount?'warn':'off');return '<tr><td><strong>'+esc(t.name)+'</strong><br><span class="subtitle">'+esc(t.key)+'</span></td><td><span class="badge '+(t.enabled?'on':'off')+'">'+(t.enabled?'Ativo':'Inativo')+'</span></td><td><span class="badge '+triggerCls+'">'+esc(triggerLabel)+'</span></td></tr>';}).join('')+'</tbody></table>';}
+    function renderLogs(logs){logs=logs||[];if(!logs.length){document.getElementById('logs').innerHTML='<div class="empty">Nenhum log encontrado.</div>';return;}document.getElementById('logs').innerHTML='<table><thead><tr><th>Data</th><th>Template</th><th>Para</th><th>Status</th><th>Erro</th></tr></thead><tbody>'+logs.map(function(log){var cls=log.status==='success'||log.status==='ok'?'on':(log.status==='error'?'off':'warn');return '<tr><td>'+esc(log.createdAt||'')+'</td><td><strong>'+esc(log.templateKey)+'</strong><br><span class="subtitle">'+esc(log.source)+'</span></td><td>'+esc(log.to)+'</td><td><span class="badge '+cls+'">'+esc(log.status||'')+'</span></td><td>'+esc(log.error||'')+'</td></tr>';}).join('')+'</tbody></table>';}
+    function renderLookup(lookup){if(!lookup){clearMsg('lookup-result');return;}msg('lookup-result','Auth: '+(lookup.authUserExists?'encontrado':'não encontrado')+' · Tenant: '+(lookup.tenantExists?'encontrado':'não encontrado')+(lookup.tenantUid?' · UID '+lookup.tenantUid:''));}
+    async function load(extra,options){if(!(options&&options.keepMessage))clearMsg('action-message');var data=await call('masterEmailDiagnostics',extra||{});state.data=data;renderSettings(data.settings);renderTemplates(data.templates);renderLogs(data.logs);renderLookup(data.lookup);}
+    async function sendTest(){
+      var btn=document.getElementById('send-test');
+      var to=document.getElementById('test-email').value.trim();
+      if(!to){msg('action-message','Informe um e-mail de destino.');return;}
+      btn.disabled=true;
+      btn.textContent='Enviando...';
+      msg('action-message','Enviando teste SMTP para '+to+'...');
+      try{
+        var result=await call('sendTestEmail',{to:to,templateKey:'test_email'});
+        var note=result.warning?' Enviado com aviso: '+result.warning:'';
+        msg('action-message','Teste SMTP processado com sucesso.'+note);
+        await load(null,{keepMessage:true});
+      }catch(error){
+        msg('action-message','Erro no teste SMTP: '+error.message);
+      }finally{
+        btn.disabled=false;
+        btn.textContent='Enviar teste SMTP';
+      }
+    }
+    async function saveSmtp(){
+      var btn=document.getElementById('save-smtp');
+      var payload={
+        fromName:document.getElementById('smtp-from-name').value.trim(),
+        fromEmail:document.getElementById('smtp-from-email').value.trim(),
+        replyTo:document.getElementById('smtp-reply-to').value.trim(),
+        supportEmail:document.getElementById('smtp-support-email').value.trim(),
+        appBaseUrl:document.getElementById('smtp-app-base-url').value.trim(),
+        brandName:document.getElementById('smtp-brand-name').value.trim()||'BocaFood',
+        smtpHost:document.getElementById('smtp-host').value.trim(),
+        smtpPort:Number(document.getElementById('smtp-port').value||587),
+        smtpSecure:document.getElementById('smtp-secure').value,
+        smtpUser:document.getElementById('smtp-user').value.trim(),
+        smtpPassword:document.getElementById('smtp-password').value,
+        enabled:document.getElementById('smtp-enabled').value==='true'
+      };
+      if(!payload.smtpHost||!payload.smtpUser||!payload.fromEmail){msg('action-message','Preencha host, usuário SMTP e remetente antes de salvar.');return;}
+      btn.disabled=true;
+      btn.textContent='Salvando...';
+      msg('action-message','Salvando configuração SMTP de produção...');
+      try{
+        await call('saveEmailSettings',payload);
+        msg('action-message','Configuração SMTP de produção salva. Agora envie um teste SMTP.');
+        await load(null,{keepMessage:true});
+      }catch(error){
+        msg('action-message','Erro ao salvar SMTP: '+error.message);
+      }finally{
+        btn.disabled=false;
+        btn.textContent='Salvar SMTP produção';
+      }
+    }
+    async function lookup(){var email=document.getElementById('lookup-email').value.trim();if(!email){msg('lookup-result','Informe um e-mail para consultar.');return;}try{await load({email:email});}catch(error){msg('lookup-result','Erro na consulta: '+error.message);}}
+    document.getElementById('google-login').onclick=function(){auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(function(error){msg('login-message',error.message||'Não foi possível entrar.');});};
+    document.getElementById('logout').onclick=function(){auth.signOut();};
+    document.getElementById('refresh').onclick=function(){load().catch(function(error){msg('action-message','Erro ao carregar: '+error.message);});};
+    document.getElementById('save-smtp').onclick=saveSmtp;
+    document.getElementById('send-test').onclick=sendTest;
+    document.getElementById('lookup').onclick=lookup;
+    auth.onAuthStateChanged(function(user){document.getElementById('login-view').classList.toggle('hidden',!!user);document.getElementById('app-view').classList.toggle('hidden',!user);if(!user)return;document.getElementById('session-email').textContent=user.email||'Sessão Master';load().catch(function(error){msg('action-message','Acesso negado ou erro ao carregar diagnóstico: '+error.message);});});
+  </script>
+</body>
+</html>

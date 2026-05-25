@@ -181,6 +181,7 @@ Modules.Clientes = (function () {
     var _tenantFc = window.Auth && Auth.getFiscalCountry ? Auth.getFiscalCountry() : 'ES';
     var _defaultCountry = _tenantFc === 'PT' ? 'Portugal' : 'España';
     var c = id ? (_clientes.find(function (x) { return x.id === id; }) || {}) : { status: 'ativo', origin: _defaultChannel(), acceptsMarketing: false, country: _defaultCountry };
+    var clientFiscal = _ensureClientFiscal(c);
     var _cliCountry = c.country || _defaultCountry;
     var _cliCode = window.FiscalConfig ? FiscalConfig.countryToCode(_cliCountry) : null;
     var _cliNifCfg = window.FiscalConfig ? FiscalConfig.get(_cliCode || _cliCountry || 'ES')
@@ -216,6 +217,31 @@ Modules.Clientes = (function () {
       '<div><label style="' + _label() + '">País</label><select id="cli-country" onchange="Modules.Clientes._onClienteCountryChange()" style="' + _input() + 'background:#fff;">' + _countryOptions(_cliCountry) + '</select></div>' +
       _field('cli-reference', 'Referência / complemento', c.reference || c.complement || '') +
       '</div></div>' +
+      '<details class="bf-card" style="padding:16px;">' +
+      '<summary style="cursor:pointer;list-style:none;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">' +
+      '<div><div style="' + _sectionTitle() + 'margin-bottom:4px;">Dados fiscais</div><div style="font-size:12px;color:#7A746B;line-height:1.45;">Opcional. Use apenas quando o cliente precisar de dados para faturação completa.</div></div>' +
+      '<span style="font-size:16px;color:#6F6860;line-height:1;">▸</span>' +
+      '</summary>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-top:14px;">' +
+      _select('cli-fiscal-customer-type', 'Tipo de cliente', _customerTypeOptions(clientFiscal.customerType)) +
+      _field('cli-fiscal-legal-name', 'Nome fiscal', clientFiscal.legalName || '') +
+      _field('cli-fiscal-commercial-name', 'Nome comercial', clientFiscal.commercialName || '') +
+      _select('cli-fiscal-doc-type', 'Tipo de documento', _documentTypeOptions(clientFiscal.documentType)) +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr 120px;gap:12px;margin-top:12px;">' +
+      _field('cli-fiscal-id-structured', 'Documento fiscal', clientFiscal.fiscalId || '') +
+      _field('cli-fiscal-invoice-email', 'E-mail de faturação', clientFiscal.invoiceEmail || '', 'email') +
+      _select('cli-fiscal-country-code', 'País fiscal', _countryCodeOptions(clientFiscal.countryCode)) +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:1.4fr .6fr 1fr 1fr 1fr 120px;gap:12px;margin-top:12px;">' +
+      _field('cli-fiscal-address', 'Endereço fiscal', clientFiscal.fiscalAddress.address || '') +
+      _field('cli-fiscal-number', 'Número', clientFiscal.fiscalAddress.number || '') +
+      _field('cli-fiscal-complement', 'Complemento', clientFiscal.fiscalAddress.complement || '') +
+      _field('cli-fiscal-city', 'Localidade', clientFiscal.fiscalAddress.city || '') +
+      _field('cli-fiscal-province', 'Província', clientFiscal.fiscalAddress.province || '') +
+      _field('cli-fiscal-postal', 'Código postal', clientFiscal.fiscalAddress.postalCode || '') +
+      '</div>' +
+      '</details>' +
       '<div class="bf-card" style="padding:16px;">' +
       '<div style="' + _sectionTitle() + '">Marketing e relacionamento</div>' +
       '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#1F1F1F;margin-bottom:12px;"><input id="cli-marketing" type="checkbox" ' + (c.acceptsMarketing ? 'checked' : '') + ' style="accent-color:#B42318;width:16px;height:16px;"> Aceita receber promoções</label>' +
@@ -259,6 +285,23 @@ Modules.Clientes = (function () {
     }
     var current = _editingId ? (_clientes.find(function (c) { return c.id === _editingId; }) || {}) : {};
     var channel = _val('cli-origin') || _defaultChannel();
+    var fiscal = _ensureClientFiscal(current);
+    fiscal.customerType = _val('cli-fiscal-customer-type') || fiscal.customerType || 'person';
+    fiscal.legalName = _val('cli-fiscal-legal-name');
+    fiscal.commercialName = _val('cli-fiscal-commercial-name');
+    fiscal.documentType = _val('cli-fiscal-doc-type');
+    fiscal.fiscalId = _val('cli-fiscal-id-structured') || _val('cli-fiscal');
+    fiscal.countryCode = _countryIso(_val('cli-fiscal-country-code') || _val('cli-country') || fiscal.countryCode);
+    fiscal.invoiceEmail = _val('cli-fiscal-invoice-email') || _val('cli-email');
+    fiscal.fiscalAddress = {
+      address: _val('cli-fiscal-address') || _val('cli-address'),
+      number: _val('cli-fiscal-number') || _val('cli-number'),
+      complement: _val('cli-fiscal-complement') || _val('cli-reference'),
+      city: _val('cli-fiscal-city'),
+      province: _val('cli-fiscal-province') || _val('cli-state'),
+      postalCode: _val('cli-fiscal-postal') || _val('cli-zip'),
+      countryCode: fiscal.countryCode || 'ES'
+    };
     var data = {
       name: name,
       phone: _val('cli-phone'),
@@ -287,7 +330,8 @@ Modules.Clientes = (function () {
       points: parseInt(_val('cli-points') || '0', 10) || 0,
       notes: _val('cli-notes'),
       ordersCount: current.ordersCount || 0,
-      totalSpent: current.totalSpent || 0
+      totalSpent: current.totalSpent || 0,
+      fiscal: fiscal
     };
     var op = _editingId ? DB.update('store_customers', _editingId, data) : DB.add('store_customers', data);
     op.then(function () {
@@ -782,6 +826,89 @@ Modules.Clientes = (function () {
     if (lc === 'españa') return /^\d{5}$/.test(raw);
     if (lc === 'portugal') return /^\d{4}-\d{3}$/.test(raw) || /^\d{4}$/.test(raw);
     return raw.length >= 3 && raw.length <= 12;
+  }
+  function _countryIso(value) {
+    var raw = String(value || '').trim();
+    var up = raw.toUpperCase();
+    if (['ES', 'PT', 'BR', 'FR', 'IT', 'DE', 'GB', 'US'].indexOf(up) >= 0) return up;
+    if (window.FiscalConfig && FiscalConfig.countryToCode) {
+      var mapped = FiscalConfig.countryToCode(raw);
+      if (mapped) return mapped;
+    }
+    var lc = raw.toLowerCase();
+    if (lc.indexOf('portugal') >= 0) return 'PT';
+    if (lc.indexOf('brasil') >= 0 || lc.indexOf('brazil') >= 0) return 'BR';
+    if (lc.indexOf('fran') >= 0) return 'FR';
+    if (lc.indexOf('ital') >= 0) return 'IT';
+    if (lc.indexOf('alem') >= 0 || lc.indexOf('germany') >= 0) return 'DE';
+    if (lc.indexOf('reino') >= 0 || lc.indexOf('kingdom') >= 0) return 'GB';
+    if (lc.indexOf('unidos') >= 0 || lc.indexOf('states') >= 0) return 'US';
+    return 'ES';
+  }
+  function _defaultClientFiscal() {
+    return {
+      customerType: 'person',
+      legalName: '',
+      commercialName: '',
+      documentType: '',
+      fiscalId: '',
+      countryCode: 'ES',
+      invoiceEmail: '',
+      fiscalAddress: {
+        address: '',
+        number: '',
+        complement: '',
+        city: '',
+        province: '',
+        postalCode: '',
+        countryCode: 'ES'
+      },
+      externalFiscalCustomerId: '',
+      facturaDirectaCustomerId: ''
+    };
+  }
+  function _ensureClientFiscal(c) {
+    c = c || {};
+    var current = Object.assign({}, c.fiscal || {});
+    var currentAddress = Object.assign({}, current.fiscalAddress || {});
+    var countryCode = _countryIso(current.countryCode || c.country || (window.Auth && Auth.getFiscalCountry ? Auth.getFiscalCountry() : 'ES'));
+    var defaults = _defaultClientFiscal();
+    return Object.assign({}, defaults, current, {
+      customerType: current.customerType || 'person',
+      legalName: current.legalName || c.legalName || c.name || '',
+      commercialName: current.commercialName || c.commercialName || '',
+      documentType: current.documentType || '',
+      fiscalId: current.fiscalId || c.fiscalId || c.nifCif || '',
+      countryCode: countryCode,
+      invoiceEmail: current.invoiceEmail || c.invoiceEmail || c.email || '',
+      fiscalAddress: Object.assign({}, defaults.fiscalAddress, currentAddress, {
+        address: currentAddress.address || c.address || '',
+        number: currentAddress.number || c.number || c.numero || '',
+        complement: currentAddress.complement || c.reference || c.complement || '',
+        city: currentAddress.city || c.city || c.cidade || '',
+        province: currentAddress.province || c.province || c.state || '',
+        postalCode: currentAddress.postalCode || c.postalCode || '',
+        countryCode: _countryIso(currentAddress.countryCode || countryCode)
+      }),
+      externalFiscalCustomerId: current.externalFiscalCustomerId || '',
+      facturaDirectaCustomerId: current.facturaDirectaCustomerId || ''
+    });
+  }
+  function _customerTypeOptions(selected) {
+    var list = [
+      ['person', 'Pessoa física'],
+      ['autonomo', 'Autónomo'],
+      ['company', 'Empresa']
+    ];
+    return list.map(function (x) { return '<option value="' + x[0] + '"' + (selected === x[0] ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('');
+  }
+  function _documentTypeOptions(selected) {
+    var list = ['', 'NIF', 'NIE', 'CIF', 'VAT'];
+    return list.map(function (x) { return '<option value="' + x + '"' + (selected === x ? ' selected' : '') + '>' + (x || 'Selecionar') + '</option>'; }).join('');
+  }
+  function _countryCodeOptions(selected) {
+    var list = [['ES', 'ES'], ['PT', 'PT'], ['BR', 'BR'], ['FR', 'FR'], ['IT', 'IT'], ['DE', 'DE'], ['GB', 'GB'], ['US', 'US']];
+    return list.map(function (x) { return '<option value="' + x[0] + '"' + (selected === x[0] ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('');
   }
   function _clean(v) { return String(v || '').trim().toLowerCase(); }
   function _title(v) { return String(v || '').replace(/_/g, ' ').replace(/\b\w/g, function (m) { return m.toUpperCase(); }); }
