@@ -8,6 +8,7 @@ Modules.Pedidos = (function () {
   var _customers = [];
   var _reviews = [];
   var _products = [];
+  var _stockRecipes = [];
   var _promotions = [];
   var _generalConfig = {};
   var _financeConfig = {};
@@ -151,6 +152,7 @@ Modules.Pedidos = (function () {
       DB.getAll('store_customers').catch(function () { return []; }),
       DB.getAll('reviews').catch(function () { return []; }),
       DB.getAll('products').catch(function () { return []; }),
+      DB.getAll('fichasTecnicas').catch(function () { return []; }),
       DB.getAll('promotions').catch(function () { return []; }),
       DB.getAll('promocoes').catch(function () { return []; }),
       DB.getDocRoot ? DB.getDocRoot('config', 'geral').catch(function () { return null; }) : Promise.resolve(null),
@@ -161,17 +163,19 @@ Modules.Pedidos = (function () {
       _customers = res[0] || [];
       _reviews = res[1] || [];
       _products = (res[2] || []).slice();
-      _promotions = _mergeManualPromotions(res[3], res[4]);
-      _generalConfig = res[5] || {};
-      _financeConfig = res[6] || {};
-      _zones = _normalizeZones(res[7]);
-      _canais = _normalizeCanais(res[8]);
+      _stockRecipes = (res[3] || []).slice();
+      _promotions = _mergeManualPromotions(res[4], res[5]);
+      _generalConfig = res[6] || {};
+      _financeConfig = res[7] || {};
+      _zones = _normalizeZones(res[8]);
+      _canais = _normalizeCanais(res[9]);
       _syncOrderCustomerLinks(_orders);
       if (!_paintReviewsHost()) _paintActive();
     }).catch(function () {
       _customers = [];
       _reviews = [];
       _products = [];
+      _stockRecipes = [];
       _promotions = [];
       _generalConfig = {};
       _financeConfig = {};
@@ -1762,9 +1766,22 @@ Modules.Pedidos = (function () {
     var lines = [
       _detailSmallLine('Código público', _firstText(order && order.publicOrderCode, order && order.orderRef, order && order.orderNumber, '')),
       _detailSmallLine('Origem', _orderChannelLabel(order)),
-      _detailSmallLine('Itens', order && order.itemCount ? String(order.itemCount) : ((order && order.items && order.items.length) ? String(order.items.length) : ''))
+      _detailSmallLine('Itens', order && order.itemCount ? String(order.itemCount) : ((order && order.items && order.items.length) ? String(order.items.length) : '')),
+      _detailSmallLine('Estoque', _orderStockStatusText(order))
     ].filter(Boolean);
     return lines.length ? '<div style="margin-top:10px;display:grid;gap:5px;max-width:360px;">' + lines.join('') + '</div>' : '';
+  }
+
+  function _orderStockStatusText(order) {
+    if (!order) return '';
+    if (order.stockMovementCreated) {
+      var count = _num(order.stockMovementCount);
+      return 'Baixa gerada' + (count ? ' · ' + count + ' item' + (count === 1 ? '' : 's') : '');
+    }
+    var skipped = _num(order.stockMovementSkippedCount);
+    if (skipped > 0) return skipped + ' item' + (skipped === 1 ? '' : 's') + ' sem vínculo de estoque';
+    if (_statusTriggersStockMovement(order.status)) return 'Aguardando baixa de estoque';
+    return '';
   }
 
   function _detailCustomerMetaHTML(order, customer) {
@@ -2821,6 +2838,10 @@ Modules.Pedidos = (function () {
     return DB.update('orders', orderId, { status: nextStatus }).then(function () {
       var order = _orders.find(function (x) { return String(x.id || '') === String(orderId || ''); });
       if (order) order.status = nextStatus;
+      return _syncOrderStockMovement(orderId, order, nextStatus).then(function () {
+        return order;
+      });
+    }).then(function (order) {
       if (typeof _paintActive === 'function') _paintActive();
       if (_kitchenModeOverlay) {
         var board = document.getElementById('kitchen-full-board');
@@ -2841,6 +2862,323 @@ Modules.Pedidos = (function () {
       UI.toast('Erro ao atualizar: ' + err.message, 'error');
       return false;
     });
+  }
+
+  function _syncOrderStockMovement(orderId, order, status) {
+    if (_statusCancelsStockMovement(status)) return _reverseOrderStockMovements(orderId, order);
+    if (!_statusTriggersStockMovement(status)) return Promise.resolve(null);
+    if (!order || !orderId) return Promise.resolve(null);
+    return _createOrderStockMovements(orderId, order).then(function (patch) {
+      if (!patch || !Object.keys(patch).length) return null;
+      Object.keys(patch).forEach(function (key) { order[key] = patch[key]; });
+      return DB.update('orders', orderId, patch).then(function () {
+        return patch;
+      });
+    }).catch(function (err) {
+      console.warn('Erro ao gerar baixa de estoque do pedido', err);
+      return null;
+    });
+  }
+
+  function _statusTriggersStockMovement(status) {
+    var key = _fold(status || '');
+    return ['confirmado', 'em preparacao', 'em camino', 'listo para recoger', 'entregado', 'entregue', 'concluido', 'finalizado'].indexOf(key) >= 0;
+  }
+
+  function _statusCancelsStockMovement(status) {
+    var key = _fold(status || '');
+    return ['cancelado', 'cancelada', 'canceled', 'cancelled'].indexOf(key) >= 0;
+  }
+
+  function _createOrderStockMovements(orderId, order) {
+    if (order && order.stockMovementCreated) return Promise.resolve({});
+    return _ensureProductsLoadedForStock().then(function () {
+      return DB.getAll('stock_movements').catch(function () { return []; });
+    }).then(function (existing) {
+      var existingMatches = (existing || []).filter(function (movement) {
+        return movement && (movement.type === 'saida_venda' || movement.type === 'saida_base_venda') && String(movement.orderId || '') === String(orderId || '');
+      });
+      if (existingMatches.length) {
+        return {
+          stockMovementCreated: true,
+          stockMovementCreatedAt: order.stockMovementCreatedAt || _nowIso(),
+          stockMovementCount: existingMatches.length,
+          stockMovementSkippedCount: _num(order.stockMovementSkippedCount || 0)
+        };
+      }
+
+      var now = _nowIso();
+      var items = Array.isArray(order.items) ? order.items : [];
+      var ops = [];
+      var skipped = [];
+      items.forEach(function (item, idx) {
+        var product = _findProductForOrderItem(item) || {};
+        var refs = _orderItemStockRefs(item, product);
+        if (!refs.length) {
+          skipped.push(_firstText(item && item.name, item && item.productName, product.name, product.title, 'Item sem nome'));
+          return;
+        }
+        refs.forEach(function (ref, refIdx) {
+          if (_num(ref.quantity) <= 0) return;
+          var movementId = _stockMovementOrderId(orderId, idx + '_' + refIdx);
+          var isBase = ref.stockItemType === 'base_producao';
+          ops.push(DB.col('stock_movements').doc(movementId).set({
+            id: movementId,
+            type: isBase ? 'saida_base_venda' : 'saida_venda',
+            movementGroup: 'order',
+            orderId: orderId,
+            orderNumber: _orderDisplayId(order),
+            orderStatus: order.status || '',
+            productId: ref.productId || '',
+            productName: ref.productName || 'Produto',
+            fichaTecnicaId: ref.fichaId || '',
+            fichaTecnicaNome: ref.fichaNome || '',
+            baseProductionId: ref.baseProductionId || '',
+            baseProductionName: ref.baseProductionName || '',
+            componentName: ref.componentName || '',
+            sourceItemId: ref.readyItemId || '',
+            produtoProntoId: ref.readyItemId || '',
+            stockItemId: ref.baseProductionId || ref.fichaId || ref.readyItemId || ref.productId || '',
+            stockItemType: ref.stockItemType || (ref.fichaId ? 'produto_produzido' : 'produto_pronto'),
+            itemClass: ref.stockItemType || (ref.fichaId ? 'produto_produzido' : 'produto_pronto'),
+            classe: ref.stockItemType || (ref.fichaId ? 'produto_produzido' : 'produto_pronto'),
+            quantity: _num(ref.quantity),
+            unit: ref.unit || 'unidades',
+            unitCost: _num(ref.unitCost),
+            totalCost: _num(ref.unitCost) > 0 ? _num(ref.quantity) * _num(ref.unitCost) : 0,
+            parentOrderItemId: _firstText(item && item.productId, item && item.id, product.id, ''),
+            parentOrderItemName: _firstText(item && item.name, item && item.productName, product.name, product.title, ''),
+            stockSource: ref.source || 'item',
+            movementDate: _firstText(order.deliveryDate, order.pickupDate, order.scheduleDate, order.createdAt, now).slice(0, 10),
+            createdAt: now,
+            updatedAt: now
+          }, { merge: true }));
+        });
+      });
+
+      if (!ops.length) {
+        if (!skipped.length) return {};
+        return {
+          stockMovementSkippedCount: skipped.length,
+          stockMovementSkippedItems: skipped.slice(0, 12),
+          stockMovementWarning: 'Itens sem vínculo com ficha técnica, base de produção ou produto pronto.'
+        };
+      }
+
+      return Promise.all(ops).then(function () {
+        var patch = {
+          stockMovementCreated: true,
+          stockMovementCreatedAt: order.stockMovementCreatedAt || now,
+          stockMovementUpdatedAt: now,
+          stockMovementCount: ops.length,
+          stockMovementSkippedCount: skipped.length
+        };
+        if (skipped.length) {
+          patch.stockMovementSkippedItems = skipped.slice(0, 12);
+          patch.stockMovementWarning = 'Itens sem vínculo com ficha técnica, base de produção ou produto pronto.';
+        } else {
+          patch.stockMovementSkippedItems = [];
+          patch.stockMovementWarning = '';
+        }
+        return patch;
+      });
+    });
+  }
+
+  function _reverseOrderStockMovements(orderId, order) {
+    if (!order || !orderId || !order.stockMovementCreated || order.stockMovementReversed) return Promise.resolve(null);
+    return DB.getAll('stock_movements').catch(function () { return []; }).then(function (existing) {
+      var exits = (existing || []).filter(function (movement) {
+        return movement && (movement.type === 'saida_venda' || movement.type === 'saida_base_venda') && String(movement.orderId || '') === String(orderId || '');
+      });
+      if (!exits.length) return {};
+      var already = (existing || []).some(function (movement) {
+        return movement && movement.type === 'estorno_venda' && String(movement.orderId || '') === String(orderId || '');
+      });
+      if (already) return {
+        stockMovementReversed: true,
+        stockMovementReversedAt: order.stockMovementReversedAt || _nowIso()
+      };
+      var now = _nowIso();
+      var ops = exits.map(function (movement, idx) {
+        var id = _stockMovementOrderId(orderId, idx + '_estorno').replace('_saida_venda', '_estorno_venda');
+        return DB.col('stock_movements').doc(id).set(Object.assign({}, movement, {
+          id: id,
+          type: 'estorno_venda',
+          movementGroup: 'order',
+          reversalOf: movement.id || '',
+          reversalReason: 'cancelamento_pedido',
+          movementDate: now.slice(0, 10),
+          createdAt: now,
+          updatedAt: now
+        }), { merge: true });
+      });
+      return Promise.all(ops).then(function () {
+        return {
+          stockMovementReversed: true,
+          stockMovementReversedAt: now,
+          stockMovementReversalCount: ops.length
+        };
+      });
+    }).then(function (patch) {
+      if (!patch || !Object.keys(patch).length) return null;
+      Object.keys(patch).forEach(function (key) { order[key] = patch[key]; });
+      return DB.update('orders', orderId, patch).then(function () { return patch; });
+    }).catch(function (err) {
+      console.warn('Erro ao estornar baixa de estoque do pedido', err);
+      return null;
+    });
+  }
+
+  function _orderItemStockRefs(item, product) {
+    var mainQty = _orderItemStockQuantity(item);
+    var direct = _stockRefFromProductLike(item, product, mainQty, 'item');
+    var choices = _extractStockChoiceRefs(item, product, mainQty);
+    if (choices.length) return choices;
+    if (Array.isArray(direct)) return direct;
+    return direct ? [direct] : [];
+  }
+
+  function _extractStockChoiceRefs(item, product, mainQty) {
+    var sources = [];
+    ['choices', 'variants', 'selections', 'options', 'selectedOptions', 'comboItems', 'comboSelections', 'items'].forEach(function (key) {
+      var value = item && item[key];
+      if (Array.isArray(value)) sources = sources.concat(value);
+    });
+    if (!sources.length && product) {
+      ['comboItems', 'menuItems', 'itemsIncluded', 'components'].forEach(function (key) {
+        var value = product[key];
+        if (Array.isArray(value)) sources = sources.concat(value);
+      });
+    }
+    var refs = [];
+    sources.forEach(function (choice) {
+      if (!choice || typeof choice !== 'object') return;
+      var choiceProduct = _findProductForOrderItem(choice) || _findProductByAnyId(_firstText(choice.productId, choice.id, choice.itemId, choice.value, choice.optionId, '')) || {};
+      var qty = _num(choice.quantity != null ? choice.quantity : choice.qty != null ? choice.qty : choice.count != null ? choice.count : choice.amount);
+      if (qty <= 0) qty = 1;
+      var ref = _stockRefFromProductLike(choice, choiceProduct, mainQty * qty, 'combo');
+      if (Array.isArray(ref)) refs = refs.concat(ref);
+      else if (ref) refs.push(ref);
+    });
+    return refs;
+  }
+
+  function _stockRefFromProductLike(item, product, quantity, source) {
+    var fichaId = _firstText(item && item.fichaTecnicaId, item && item.fichaId, item && item.recipeId, product && product.fichaTecnicaId, product && product.fichaId, product && product.recipeId, '');
+    var baseRefs = fichaId ? _baseStockRefsFromRecipe(item, product, quantity, source, fichaId) : [];
+    if (baseRefs.length) return baseRefs;
+    var readyItemId = fichaId ? '' : _firstText(item && item.sourceItemId, item && item.produtoProntoId, item && item.readyProductId, product && product.sourceItemId, product && product.produtoProntoId, product && product.readyProductId, '');
+    if (!fichaId && !readyItemId) return null;
+    return {
+      fichaId: fichaId,
+      fichaNome: '',
+      readyItemId: readyItemId,
+      productId: _firstText(item && item.productId, item && item.id, product && product.id, ''),
+      productName: _firstText(item && item.name, item && item.productName, product && product.name, product && product.title, 'Produto'),
+      quantity: quantity,
+      unit: _firstText(item && item.unit, product && product.stockUnit, product && product.yieldUnit, product && product.unit, 'unidades'),
+      unitCost: _orderItemStockUnitCost(item, product),
+      stockItemType: fichaId ? 'produto_produzido' : 'produto_pronto',
+      source: source
+    };
+  }
+
+  function _baseStockRefsFromRecipe(item, product, quantity, source, fichaId) {
+    var recipe = _findStockRecipeById(fichaId);
+    var components = recipe && Array.isArray(recipe.components) ? recipe.components : [];
+    var baseComponents = components.filter(function (comp) { return comp && (comp.stockControl || comp.controlsStock); });
+    if (!baseComponents.length) return [];
+    var recipeYield = _num(recipe.yieldQuantity || recipe.yield || recipe.rendimento || product && (product.yieldQuantity || product.yield)) || 1;
+    var soldQty = _num(quantity) || 1;
+    return baseComponents.map(function (comp, idx) {
+      var baseYield = _num(comp.baseYieldQuantity || comp.stockYieldQuantity);
+      if (baseYield <= 0) baseYield = recipeYield;
+      var qty = _roundStockQty((baseYield / Math.max(1, recipeYield)) * soldQty);
+      var totalCost = _componentStockCost(comp);
+      var unitCost = baseYield > 0 ? totalCost / baseYield : 0;
+      return {
+        fichaId: fichaId,
+        fichaNome: recipe.name || recipe.title || '',
+        readyItemId: '',
+        productId: _firstText(item && item.productId, item && item.id, product && product.id, ''),
+        productName: _firstText(item && item.name, item && item.productName, product && product.name, product && product.title, 'Produto'),
+        baseProductionId: (fichaId || 'receita') + ':' + (comp.name || 'etapa_' + idx),
+        baseProductionName: comp.name || 'Base de produção',
+        componentName: comp.name || '',
+        quantity: qty,
+        unit: comp.baseYieldUnit || comp.stockYieldUnit || recipe.yieldUnit || 'unidades',
+        unitCost: unitCost,
+        stockItemType: 'base_producao',
+        source: source === 'combo' ? 'combo_base_producao' : 'base_producao'
+      };
+    }).filter(function (ref) { return _num(ref.quantity) > 0; });
+  }
+
+  function _findStockRecipeById(id) {
+    var wanted = String(id || '').trim();
+    if (!wanted) return null;
+    return (_stockRecipes || []).find(function (recipe) {
+      return String(recipe.id || '') === wanted || String(recipe.fichaTecnicaId || '') === wanted || String(recipe.recipeId || '') === wanted;
+    }) || null;
+  }
+
+  function _componentStockCost(comp) {
+    return (comp && Array.isArray(comp.ingredients) ? comp.ingredients : []).reduce(function (sum, ing) {
+      return sum + _num(ing.totalCost || ing.plannedTotalCost || ing.costTotal || ing.custoTotal);
+    }, 0);
+  }
+
+  function _roundStockQty(value) {
+    return Math.round((_num(value) + Number.EPSILON) * 10000) / 10000;
+  }
+
+  function _findProductByAnyId(id) {
+    var wanted = String(id || '').trim();
+    if (!wanted) return null;
+    return (_products || []).find(function (p) {
+      return String(p.id || '') === wanted || String(p.productId || '') === wanted || String(p.sourceItemId || '') === wanted || String(p.produtoProntoId || '') === wanted || String(p.fichaId || p.fichaTecnicaId || '') === wanted;
+    }) || null;
+  }
+
+  function _ensureProductsLoadedForStock() {
+    if ((_products || []).length && (_stockRecipes || []).length) return Promise.resolve(_products);
+    return Promise.all([
+      (_products || []).length ? Promise.resolve(_products) : DB.getAll('products').catch(function () { return []; }),
+      (_stockRecipes || []).length ? Promise.resolve(_stockRecipes) : DB.getAll('fichasTecnicas').catch(function () { return []; })
+    ]).then(function (res) {
+      _products = (res[0] || []).slice();
+      _stockRecipes = (res[1] || []).slice();
+      return _products;
+    });
+  }
+
+  function _orderItemStockQuantity(item) {
+    return _num(item && (item.quantity != null ? item.quantity : item.qty != null ? item.qty : item.qtd != null ? item.qtd : item.amount)) || 1;
+  }
+
+  function _orderItemStockUnitCost(item, product) {
+    return _num(
+      _firstText(
+        item && item.stockUnitCost,
+        item && item.unitCost,
+        product && product.stockUnitCost,
+        product && product.costPerYield,
+        product && product.custoUnitario,
+        product && product.custoAtual,
+        product && product.custo,
+        product && product.cost,
+        ''
+      )
+    );
+  }
+
+  function _stockMovementOrderId(orderId, idx) {
+    return String(orderId || 'pedido').replace(/[^\w-]/g, '_') + '_' + idx + '_saida_venda';
+  }
+
+  function _nowIso() {
+    return new Date().toISOString();
   }
   function _waFromDetail(id) {
     var o = _orders.find(function (x) { return x.id === id; });
@@ -4583,12 +4921,22 @@ Modules.Pedidos = (function () {
     return 'previsto';
   }
 
+  function _orderPaymentStatus(order) {
+    order = order || {};
+    var direct = _firstText(order.paymentStatus, order.paymentState, order.statusPayment, order.payStatus, '');
+    if (direct) return String(direct).trim();
+    var legacy = String(order.payment || '').trim();
+    var key = _fold(legacy);
+    if (key === 'pago' || key === 'parcial' || key === 'previsto') return legacy;
+    return 'previsto';
+  }
+
   function _syncOrderFinanceMovement(orderId, order) {
     orderId = String(orderId || '');
     if (!orderId) return Promise.resolve(false);
     order = order || {};
     var total = _num(order.total != null ? order.total : order.finalSubtotal != null ? order.finalSubtotal : order.subtotal != null ? order.subtotal : 0);
-    var paymentStatus = String(order.paymentStatus || order.paymentState || order.payment || '').trim() || 'previsto';
+    var paymentStatus = _orderPaymentStatus(order);
     var paidAmount = _num(order.paidAmount != null ? order.paidAmount : order.amountPaid != null ? order.amountPaid : order.valuePaid != null ? order.valuePaid : 0);
     if (paymentStatus === 'pago') paidAmount = total;
     if (paymentStatus !== 'parcial') paidAmount = paymentStatus === 'pago' ? total : 0;

@@ -294,6 +294,7 @@ Modules.Compras = (function () {
         var f = _byId(_fornecedores, c.fornecedorId);
         var selected = !!_selectedCompraIds[c.id];
         var canConfirm = _canConfirmCompraRecebida(c);
+        var canGenerateStock = _canGenerateStockCompra(c);
         return '<tr onclick="Modules.Compras._openCompraModal(\'' + c.id + '\')" onmouseenter="this.style.background=\'#FBF8F2\'" onmouseleave="this.style.background=\'#fff\'" style="cursor:pointer;background:#fff;border-bottom:1px solid #EAE4DA;transition:background .15s ease;">' +
           '<td style="padding:13px 16px;vertical-align:middle;text-align:center;" onclick="event.stopPropagation();"><input type="checkbox" aria-label="Selecionar compra" onchange="Modules.Compras._toggleRegistroSelection(\'' + c.id + '\',this.checked)"' + (selected ? ' checked' : '') + ' style="width:16px;height:16px;accent-color:#B42318;cursor:pointer;"></td>' +
           _td('<span style="font-size:11px;font-weight:600;color:#8A7E7C;font-family:monospace;">' + _esc(c.numPedido || '—') + '</span>') +
@@ -306,6 +307,7 @@ Modules.Compras = (function () {
           _td('<div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;">' + _financeiroBadgeHtml(c) + _financeiroActionHtml(c) + '</div>') +
           '<td style="padding:13px 16px;vertical-align:middle;text-align:right;white-space:nowrap;" onclick="event.stopPropagation();"><div style="display:inline-flex;align-items:center;gap:6px;">' +
           (canConfirm ? '<button type="button" title="Confirmar recebimento" onclick="Modules.Compras._confirmCompraRecebida(\'' + c.id + '\')" style="height:30px;padding:0 10px;border:1px solid #D7EBDD;border-radius:9px;background:#F4FAF7;color:#1E7A50;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">Confirmar</button>' : '') +
+          (canGenerateStock ? '<button type="button" title="Gerar entrada de estoque" onclick="Modules.Compras._gerarEntradaEstoqueCompra(\'' + c.id + '\')" style="height:30px;padding:0 10px;border:1px solid #D7EBDD;border-radius:9px;background:#F4FAF7;color:#1E7A50;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">Gerar estoque</button>' : '') +
           (_canCancelCompra(c) ? '<button type="button" title="Cancelar compra" onclick="Modules.Compras._cancelCompraStatus(\'' + c.id + '\')" style="height:30px;padding:0 10px;border:1px solid #F0D4CF;border-radius:9px;background:#FFF7F4;color:#B42318;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">Cancelar</button>' : '') +
           '<button type="button" title="Editar" onclick="Modules.Compras._openCompraModal(\'' + c.id + '\')" style="' + _iconBtn('#fff', '#6F6860') + '"><span class="mi" style="font-size:14px;">edit</span></button>' +
           '<button type="button" title="Excluir" onclick="Modules.Compras._deleteCompra(\'' + c.id + '\')" style="' + _iconBtn('#fff', '#B42318') + '"><span class="mi" style="font-size:14px;">delete</span></button></div></td></tr>';
@@ -449,6 +451,17 @@ Modules.Compras = (function () {
     if (c.recebimento && Array.isArray(c.recebimento.historico) && c.recebimento.historico.length) return true;
     return (c.itens || []).some(function (l) {
       return _num(l.qtyRecebida) > 0 || l.recebido === true || String(l.statusRecebimento || '').toLowerCase() === 'recebida' || String(l.statusRecebimento || '').toLowerCase() === 'parcial';
+    });
+  }
+
+  function _canGenerateStockCompra(c) {
+    if (!c || !c.id || c.stockMovementCreated) return false;
+    var st = String(c.statusCompra || '').toLowerCase();
+    if (st !== 'recebida' && st !== 'parcial') return false;
+    return (c.itens || []).some(function (l) {
+      if (_num(l.qtyRecebida) > 0) return true;
+      if (st === 'recebida' && _num(l.qty || l.qtdComprada || l.quantidade || l.quantidadeComprada || 0) > 0) return true;
+      return l.recebido === true || String(l.statusRecebimento || '').toLowerCase() === 'recebida';
     });
   }
 
@@ -679,25 +692,28 @@ Modules.Compras = (function () {
         createdAt: now
       };
     });
+    var stockPatch = {};
     return _ensureFinanceiroGeradoParaRecebimento(compra).then(function () {
       return _registrarMovimentosEstoqueCompra(compra, linhas, status);
-    }).then(function () {
-      return DB.update('compras', compra.id, {
-      statusCompra: status,
-      itens: linhas,
-      recebimento: {
-        status: status,
-        itens: summary,
-        historico: existingHistory.concat(newHistory),
-        updatedAt: now
-      },
-      recebimentoAtualizadoEm: now
-      });
+    }).then(function (patch) {
+      stockPatch = patch || {};
+      return DB.update('compras', compra.id, Object.assign({
+        statusCompra: status,
+        itens: linhas,
+        recebimento: {
+          status: status,
+          itens: summary,
+          historico: existingHistory.concat(newHistory),
+          updatedAt: now
+        },
+        recebimentoAtualizadoEm: now
+      }, stockPatch));
     }).then(function () {
       compra.statusCompra = status;
       compra.itens = linhas;
       compra.recebimento = { status: status, itens: summary, historico: existingHistory.concat(newHistory), updatedAt: now };
       compra.recebimentoAtualizadoEm = now;
+      Object.assign(compra, stockPatch);
       delete _selectedCompraIds[compra.id];
       if (window._compraRecebimentoModal) window._compraRecebimentoModal.close();
       UI.toast(status === 'Cancelada' ? 'Compra cancelada.' : (status === 'Parcial' ? 'Recebimento parcial salvo.' : 'Recebimento confirmado.'), 'success');
@@ -746,39 +762,113 @@ Modules.Compras = (function () {
   }
 
   function _registrarMovimentosEstoqueCompra(compra, linhas, status) {
-    if (!compra || !compra.id || status === 'Cancelada') return Promise.resolve();
+    if (!compra || !compra.id || status === 'Cancelada') return Promise.resolve({});
     var now = new Date().toISOString();
-    var ops = [];
-    (linhas || []).forEach(function (l, idx) {
-      var previous = _num(((compra.itens || [])[idx] || {}).qtyRecebida);
-      var received = Math.max(0, _num(l.qtyRecebida) - previous);
-      if (received <= 0) return;
-      var qtyCompra = _num(l.qty || l.quantidade || l.quantidadeComprada || 0);
-      var factor = qtyCompra > 0 ? received / qtyCompra : 1;
-      var qtyBase = _num(l.qtyBase) * factor;
-      var movementId = compra.id + '_' + idx + '_entrada_compra';
-      ops.push(DB.col('estoque_movimentacoes').doc(movementId).set({
-        id: movementId,
-        tipo: 'entrada',
-        origem: 'compra',
-        sourceCompraId: compra.id,
-        compraId: compra.id,
-        itemId: l.itemId || '',
-        itemNome: l.itemNome || l.nome || l.name || '',
-        quantidadeCompra: qtyCompra,
-        quantidadeRecebida: received,
-        quantidadeBase: qtyBase,
-        unidadeBase: l.unidadeBase || '',
-        unidadeCompra: l.unidadeCompra || '',
-        custoUnitario: _num(l.custoAjustado),
-        totalLinha: _lineTotal(l) * factor,
-        statusCompra: status,
-        data: compra.data || _todayLocal(),
-        createdAt: now,
-        updatedAt: now
-      }, { merge: true }));
+    var statusLower = String(status || compra.statusCompra || '').toLowerCase();
+    return DB.getAll('stock_movements').catch(function () { return []; }).then(function (existing) {
+      var existingById = {};
+      (existing || []).forEach(function (m) {
+        if (m && m.id) existingById[m.id] = m;
+      });
+
+      var ops = [];
+      var createdOrUpdated = 0;
+      var receivedTotal = 0;
+      (linhas || []).forEach(function (l, idx) {
+        var received = _num(l.qtyRecebida);
+        var qtyCompra = _num(l.qty || l.qtdComprada || l.quantidade || l.quantidadeComprada || 0);
+        if (received <= 0 && statusLower === 'recebida') received = qtyCompra;
+        if (received <= 0) return;
+
+        var originalQtyBase = _num(l.qtyBase);
+        var factor = qtyCompra > 0 ? Math.min(1, received / qtyCompra) : 1;
+        var quantityBase = originalQtyBase > 0 ? originalQtyBase * factor : received;
+        var unit = l.unidadeBase || l.unidadeCompra || 'un';
+        var totalCost = _lineTotal(l) * factor;
+        var unitCost = _num(l.custoAjustado) || (quantityBase > 0 ? totalCost / quantityBase : 0);
+        if (!totalCost && unitCost && quantityBase) totalCost = unitCost * quantityBase;
+        var itemRef = l.itemId ? (_byId(_itens, l.itemId) || {}) : {};
+        var itemClass = String(l.itemClass || l.classe || itemRef.classe || 'insumo').toLowerCase();
+        var movementId = compra.id + '_' + idx + '_entrada_compra';
+        var existingMovement = existingById[movementId] || {};
+        receivedTotal += quantityBase;
+        createdOrUpdated++;
+        ops.push(DB.col('stock_movements').doc(movementId).set({
+          id: movementId,
+          type: 'entrada_compra',
+          movementGroup: 'purchase',
+          purchaseId: compra.id,
+          purchaseNumber: compra.numPedido || '',
+          purchaseDocument: compra.numDocumento || '',
+          purchaseLineIndex: idx,
+          itemId: l.itemId || '',
+          itemName: l.itemNome || l.nome || l.name || 'Item',
+          itemClass: itemClass,
+          classe: itemClass,
+          quantity: quantityBase,
+          unit: unit,
+          unitCost: unitCost,
+          totalCost: totalCost,
+          receivedPackages: received,
+          purchasedPackages: qtyCompra,
+          purchaseUnit: l.unidadeCompra || '',
+          batchNumber: l.batchNumber || l.lote || l.lot || '',
+          expiresAt: l.expiresAt || l.validade || l.expirationDate || '',
+          movementDate: compra.data || _todayLocal(),
+          createdAt: existingMovement.createdAt || now,
+          updatedAt: now
+        }, { merge: true }));
+      });
+
+      if (!ops.length) return {};
+      return Promise.all(ops).then(function () {
+        return {
+          stockMovementCreated: true,
+          stockMovementCreatedAt: compra.stockMovementCreatedAt || now,
+          stockMovementUpdatedAt: now,
+          stockMovementCount: createdOrUpdated,
+          stockMovementQuantity: receivedTotal
+        };
+      });
     });
-    return Promise.all(ops);
+  }
+
+  function _gerarEntradaEstoqueCompra(id) {
+    var compra = _byId(_compras, id);
+    if (!compra) { UI.toast('Compra não encontrada.', 'error'); return; }
+    if (!_canGenerateStockCompra(compra)) {
+      UI.toast('Esta compra não tem entrada de estoque pendente.', 'info');
+      return;
+    }
+    var st = compra.statusCompra || 'Recebida';
+    var linhas = (compra.itens || []).map(function (l) {
+      var qty = _num(l.qty || l.qtdComprada || l.quantidade || l.quantidadeComprada || 0);
+      if (_num(l.qtyRecebida) > 0) return Object.assign({}, l);
+      if (String(st).toLowerCase() === 'recebida') {
+        return Object.assign({}, l, {
+          qtyRecebida: qty,
+          qtyPendente: 0,
+          recebido: qty > 0,
+          statusRecebimento: qty > 0 ? 'recebida' : (l.statusRecebimento || '')
+        });
+      }
+      return Object.assign({}, l);
+    });
+    _registrarMovimentosEstoqueCompra(compra, linhas, st).then(function (patch) {
+      patch = patch || {};
+      if (!Object.keys(patch).length) {
+        UI.toast('Nenhuma entrada de estoque foi criada.', 'info');
+        return;
+      }
+      return DB.update('compras', compra.id, Object.assign({ itens: linhas }, patch)).then(function () {
+        compra.itens = linhas;
+        Object.assign(compra, patch);
+        UI.toast('Entrada de estoque gerada.', 'success');
+        _paintRegistrosTable();
+      });
+    }).catch(function (err) {
+      UI.toast('Erro ao gerar entrada de estoque: ' + (err && err.message ? err.message : err), 'error');
+    });
   }
 
   function _registrarEstornoEstoqueCompra(compra, reason) {
@@ -792,21 +882,33 @@ Modules.Compras = (function () {
       if (received <= 0) received = qtyCompra;
       var factor = qtyCompra > 0 ? received / qtyCompra : 1;
       var qtyBase = _num(l.qtyBase) * factor;
+      var totalCost = _lineTotal(l) * factor;
+      var unitCost = _num(l.custoAjustado) || (qtyBase > 0 ? totalCost / qtyBase : 0);
+      var itemRef = l.itemId ? (_byId(_itens, l.itemId) || {}) : {};
+      var itemClass = String(l.itemClass || l.classe || itemRef.classe || 'insumo').toLowerCase();
       var movementId = compra.id + '_' + idx + '_estorno_' + (reason || 'ajuste');
-      ops.push(DB.col('estoque_movimentacoes').doc(movementId).set({
+      ops.push(DB.col('stock_movements').doc(movementId).set({
         id: movementId,
-        tipo: 'saida',
-        origem: 'estorno_compra',
-        motivo: reason || 'ajuste',
-        sourceCompraId: compra.id,
-        compraId: compra.id,
+        type: 'estorno_compra',
+        movementGroup: 'purchase',
+        reason: reason || 'ajuste',
+        purchaseId: compra.id,
+        purchaseNumber: compra.numPedido || '',
+        purchaseDocument: compra.numDocumento || '',
+        purchaseLineIndex: idx,
         itemId: l.itemId || '',
-        itemNome: l.itemNome || l.nome || l.name || '',
-        quantidadeRecebida: received,
-        quantidadeBase: -Math.abs(qtyBase),
-        unidadeBase: l.unidadeBase || '',
-        unidadeCompra: l.unidadeCompra || '',
-        data: _todayLocal(),
+        itemName: l.itemNome || l.nome || l.name || '',
+        itemClass: itemClass,
+        classe: itemClass,
+        quantity: Math.abs(qtyBase),
+        unit: l.unidadeBase || l.unidadeCompra || 'un',
+        unitCost: unitCost,
+        totalCost: unitCost > 0 ? Math.abs(qtyBase) * unitCost : totalCost,
+        receivedPackages: received,
+        purchaseUnit: l.unidadeCompra || '',
+        batchNumber: l.batchNumber || l.lote || l.lot || '',
+        expiresAt: l.expiresAt || l.validade || l.expirationDate || '',
+        movementDate: _todayLocal(),
         createdAt: now,
         updatedAt: now
       }, { merge: true }));
@@ -1328,6 +1430,7 @@ Modules.Compras = (function () {
       '.purchase-order-grid{grid-template-columns:minmax(130px,.55fr) minmax(180px,.8fr) minmax(140px,.55fr);}' +
       '.purchase-supplier-grid{grid-template-columns:minmax(320px,1.3fr) minmax(220px,.82fr);}' +
       '.purchase-item-grid{grid-template-columns:minmax(260px,1.4fr) minmax(110px,.42fr) minmax(140px,.55fr) minmax(120px,.45fr) minmax(105px,.38fr);}' +
+      '.purchase-lot-grid{grid-template-columns:minmax(160px,.55fr) minmax(150px,.45fr);}' +
       '.purchase-price-grid{grid-template-columns:minmax(170px,.8fr) minmax(140px,.55fr) minmax(105px,.4fr) auto;}' +
       '.purchase-finance-grid{grid-template-columns:minmax(150px,.55fr) minmax(145px,.48fr) minmax(125px,.4fr) minmax(220px,.9fr);}' +
       '.purchase-check-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;padding:9px 11px;background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;}' +
@@ -1399,6 +1502,10 @@ Modules.Compras = (function () {
       '<div><label style="' + _labelStyle() + '">Embalagem</label><div class="purchase-field-control"><input id="cp-emb" list="cp-emb-list" placeholder="kg, pacote..." oninput="Modules.Compras._calcCompraLinha()"></div></div>' +
       _purchaseField('cp-conteudo', 'Conteúdo (×)', '1', 'number', 'Modules.Compras._calcCompraLinha()') +
       '<div><label style="' + _labelStyle() + '">Unidade base</label><div class="purchase-field-control"><input id="cp-unidade-base" readonly placeholder="—" style="color:#6F6860;font-weight:600;text-align:center;cursor:default;"></div></div>' +
+      '</div>' +
+      '<div class="purchase-field-grid purchase-lot-grid" style="margin:0 0 9px;">' +
+        _purchaseField('cp-lote', 'Lote', '') +
+        _purchaseField('cp-validade', 'Validade', '', 'date') +
       '</div>' +
       (function () {
         var _fc = window.Auth && Auth.getFiscalCountry ? Auth.getFiscalCountry() : 'ES';
@@ -1917,6 +2024,8 @@ Modules.Compras = (function () {
     var precoUnit = _num(_el('cp-preco').value);  // preço por embalagem
     var descontoUnitario = _num(_el('cp-desc').value);
     var ivaPct = _num(_el('cp-iva-line').value);
+    var batchNumber = ((_el('cp-lote') || {}).value || '').trim();
+    var expiresAt = ((_el('cp-validade') || {}).value || '').trim();
     var preview = document.getElementById('cp-preview');
     if (!preview || !qty || !precoUnit || !sel || !sel.value) { if (preview) preview.innerHTML = ''; return; }
     var qtyBase = qty * conteudo * _convFactor(emb, unidadeBase);
@@ -1976,6 +2085,8 @@ Modules.Compras = (function () {
     window._compraLinhas.push({
       itemId: sel.value,
       itemNome: opt ? opt.text : '',
+      itemClass: (opt && opt.dataset.classe) || 'insumo',
+      classe: (opt && opt.dataset.classe) || 'insumo',
       qtdComprada: qty,
       unidadeCompra: emb,
       conteudoPorEmbalagem: conteudo,
@@ -1997,7 +2108,11 @@ Modules.Compras = (function () {
       qtyBase: qtyBase,
       aproveitamento: aproveitamento,
       custoAjustado: custoAjustado,
-      custoBaseUnitario: custoAjustado
+      custoBaseUnitario: custoAjustado,
+      batchNumber: batchNumber,
+      lote: batchNumber,
+      expiresAt: expiresAt,
+      validade: expiresAt
     });
     // Limpa formulário
     sel.value = '';
@@ -2010,6 +2125,8 @@ Modules.Compras = (function () {
     if (conteudoEl) { conteudoEl.value = '1'; conteudoEl.disabled = false; conteudoEl.style.opacity = ''; conteudoEl.style.cursor = ''; }
     _el('cp-preco').value = '';
     _el('cp-desc').value = '';
+    _el('cp-lote').value = '';
+    _el('cp-validade').value = '';
     var ubEl = document.getElementById('cp-unidade-base');
     if (ubEl) ubEl.value = '';
     var hintEl = document.getElementById('cp-preco-hint');
@@ -2052,8 +2169,11 @@ Modules.Compras = (function () {
           + (descontoTotalLinha > 0 ? '<small style="color:#C4362A;display:block;">Desc. un.: -' + UI.fmt(descontoUnitarioLinha || descontoTotalLinha) + '</small><small style="color:#C4362A;display:block;">Desc. total: -' + UI.fmt(descontoTotalLinha) + '</small>' : '')
           + '<small style="color:#8A7E7C;display:block;">Total: ' + UI.fmt(totalLinha) + (l.ivaPct ? ' · IVA ' + l.ivaPct + '%' : '') + '</small>';
         var custo = l.custoAjustado || 0;
+        var loteInfo = (l.batchNumber || l.lote || l.expiresAt || l.validade)
+          ? '<small style="display:block;color:#8A7E7C;font-weight:400;margin-top:3px;">' + (l.batchNumber || l.lote ? 'Lote ' + _esc(l.batchNumber || l.lote) : '') + ((l.batchNumber || l.lote) && (l.expiresAt || l.validade) ? ' · ' : '') + (l.expiresAt || l.validade ? 'Val. ' + _esc(l.expiresAt || l.validade) : '') + '</small>'
+          : '';
         return '<tr style="background:#fff;border-bottom:1px solid #EAE4DA;">' +
-          _td(_esc(l.itemNome), true) +
+          _td(_esc(l.itemNome) + loteInfo, true) +
           _td(compraCell) +
           _td('<span style="color:#5B7A67;font-weight:600;">' + estoqueCell + '</span>') +
           _td(precoCell) +
@@ -4847,6 +4967,7 @@ Modules.Compras = (function () {
     _filterRegistros: _filterRegistros, _changePage: _changePage, _setPerPage: _setPerPage,
     _toggleRegistroSelection: _toggleRegistroSelection, _toggleRegistrosPageSelection: _toggleRegistrosPageSelection,
     _clearRegistrosSelection: _clearRegistrosSelection, _confirmCompraRecebida: _confirmCompraRecebida,
+    _gerarEntradaEstoqueCompra: _gerarEntradaEstoqueCompra,
     _cancelCompraStatus: _cancelCompraStatus,
     _openRecebimentoCompraModal: _openRecebimentoCompraModal, _setReceiptMode: _setReceiptMode,
     _toggleReceiptLine: _toggleReceiptLine, _syncReceiptLineCheck: _syncReceiptLineCheck,

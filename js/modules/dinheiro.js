@@ -6,6 +6,7 @@ Modules.Dinheiro = (function () {
   var _activeSub = 'resumo';
   var _data = {};
   var _priceView = { page: 1, pageSize: 12 };
+  var _priceCompositionChannel = '0';
   var _priceListFilters = { q: '', price: 'todos', status: 'todos' };
 
   var TABS = [
@@ -88,11 +89,16 @@ Modules.Dinheiro = (function () {
   }
 
   function _normalizeFiscalConfig(c) {
-    return Object.assign({
+    c = c || {};
+    var normalized = Object.assign({
       ivaPadrao: 21,
       irpfPadrao: 15,
       usarCalculoFiscal: true
-    }, c || {});
+    }, c);
+    normalized.ivaPadrao = _num(c.ivaPadrao != null && c.ivaPadrao !== '' ? c.ivaPadrao : (c.defaultIvaRate != null && c.defaultIvaRate !== '' ? c.defaultIvaRate : normalized.ivaPadrao));
+    normalized.irpfPadrao = _num(c.irpfPadrao != null && c.irpfPadrao !== '' ? c.irpfPadrao : normalized.irpfPadrao);
+    normalized.usarCalculoFiscal = c.usarCalculoFiscal !== false;
+    return normalized;
   }
 
   function _normalizeChannels(c) {
@@ -100,12 +106,12 @@ Modules.Dinheiro = (function () {
     var hasCardapio = list.some(function (ch) { return _isCardapioChannel(ch); });
     var hasTpv = list.some(function (ch) { return _isTpvChannel(ch); });
     if (!hasCardapio) list.unshift({ name: 'Cardápio', commissionPct: 0, fixedFee: 0, taxPct: 0, locked: true });
-    if (!hasTpv) list.splice(1, 0, { name: 'TPV', commissionPct: 0, fixedFee: 0, taxPct: 0, locked: true });
+    if (!hasTpv) list.splice(1, 0, { name: 'Venda presencial', commissionPct: 0, fixedFee: 0, taxPct: 0, locked: true });
     return list.map(function (ch) {
       var cardapio = _isCardapioChannel(ch);
       var tpv = _isTpvChannel(ch);
       return {
-        name: cardapio ? 'Cardápio' : (tpv ? 'TPV' : (ch.name || '')),
+        name: cardapio ? 'Cardápio' : (tpv ? 'Venda presencial' : (ch.name || '')),
         commissionPct: (cardapio || tpv) ? 0 : _num(ch.commissionPct),
         fixedFee: (cardapio || tpv) ? 0 : _num(ch.fixedFee),
         taxPct: (cardapio || tpv) ? 0 : _num(ch.taxPct),
@@ -116,6 +122,13 @@ Modules.Dinheiro = (function () {
 
   function _productsAnalysis() {
     return (_data.products || []).map(function (p) { return _analyzeProduct(p, _cardapioChannel()); });
+  }
+
+  function _productsAnalysisForChannel(channel) {
+    channel = channel || _cardapioChannel();
+    return (_data.products || []).map(function (p) {
+      return _analyzeProduct(Object.assign({}, p, { price: _priceForChannel(p, channel) }), channel);
+    });
   }
 
   function _defaultChannel() {
@@ -129,15 +142,15 @@ Modules.Dinheiro = (function () {
   function _analyzeProduct(p, channel) {
     var cost = _productCost(p);
     var price = _num(p.price || p.preco || p.salePrice);
-    var fee = _feesForPrice(price, channel);
+    var fee = _feesForPrice(price, channel, p);
     var totalWithFees = cost.total + fee.total;
     var profit = price - totalWithFees;
     var margin = price > 0 ? (profit / price) * 100 : 0;
     var markup = cost.total > 0 ? price / cost.total : 0;
     var desired = _num(_data.dinheiro.desiredMarginPct || 60);
     var minMargin = _num(_data.dinheiro.minMarginPct || 40);
-    var minimum = _priceForMargin(cost.total, minMargin, channel, { round: false });
-    var suggested = _suggestedPrice(cost.total, desired, channel);
+    var minimum = _priceForMargin(cost.total, minMargin, channel, { round: false }, p);
+    var suggested = _suggestedPrice(cost.total, desired, channel, p);
     var status = _status(price, cost.total, margin, minMargin, profit);
     return {
       product: p,
@@ -312,10 +325,10 @@ Modules.Dinheiro = (function () {
     return { modeUsed: 'Automático', percent: (indirect / direct) * 100, fallback: false, months: months };
   }
 
-  function _feesForPrice(price, channel) {
-    var items = _feeBreakdown(price, channel);
+  function _feesForPrice(price, channel, product) {
+    var items = _feeBreakdown(price, channel, product);
     var total = items.reduce(function (sum, item) { return sum + item.value; }, 0);
-    var fixed = _num((channel || {}).fixedFee || _data.dinheiro.fixedOrderFee || 0);
+    var fixed = _fixedFeeForChannel(channel);
     return { pct: price > 0 ? (total - fixed) / price * 100 : 0, fixed: fixed, total: total, items: items };
   }
 
@@ -323,29 +336,32 @@ Modules.Dinheiro = (function () {
     return _data.fiscal && _data.fiscal.usarCalculoFiscal !== false;
   }
 
-  function _fiscalIvaPct() {
-    return _fiscalEnabled() ? _num(_data.fiscal.ivaPadrao) : 0;
+  function _fiscalIvaPct(product) {
+    if (!_fiscalEnabled()) return 0;
+    var fiscal = product && product.fiscal && typeof product.fiscal === 'object' ? product.fiscal : {};
+    var productRate = fiscal.ivaRate != null ? fiscal.ivaRate : product && product.ivaRate;
+    return productRate != null && productRate !== '' ? _num(productRate) : _num(_data.fiscal.ivaPadrao);
   }
 
   function _fiscalIrpfPct() {
     return _fiscalEnabled() ? _num(_data.fiscal.irpfPadrao) : 0;
   }
 
-  function _feeParts(channel) {
+  function _feeParts(channel, product) {
     channel = channel || {};
     var commissionPct = _num(channel.commissionPct);
     var channelTaxPct = _num(channel.taxPct);
     var pct = commissionPct;
     if (commissionPct > 0) pct += commissionPct * channelTaxPct / 100;
     else pct += channelTaxPct;
-    if (_fiscalEnabled()) pct += _fiscalIvaPct();
+    if (_fiscalEnabled()) pct += _fiscalIvaPct(product);
     if (_isOwnChannel(channel)) {
       pct += _num(_data.dinheiro.cardFeePct) + _num(_data.dinheiro.estimatedTaxReservePct) + _num(_data.dinheiro.otherFeesPct);
     }
-    return { pct: pct, fixed: _num(channel.fixedFee || _data.dinheiro.fixedOrderFee || 0) };
+    return { pct: pct, fixed: _fixedFeeForChannel(channel) };
   }
 
-  function _feeBreakdown(price, channel) {
+  function _feeBreakdown(price, channel, product) {
     channel = channel || {};
     var list = [];
     var commissionPct = _num(channel.commissionPct);
@@ -357,14 +373,22 @@ Modules.Dinheiro = (function () {
     } else if (channelTaxPct > 0) {
       list.push({ label: 'Imposto do canal', value: price * channelTaxPct / 100, color: '#A855F7', percentBase: price });
     }
-    if (_fiscalEnabled()) _pushFee(list, 'IVA aplicado', price * _fiscalIvaPct() / 100, '#0EA5E9', price);
+    if (_fiscalEnabled()) _pushFee(list, 'IVA aplicado', price * _fiscalIvaPct(product) / 100, '#0EA5E9', price);
     if (_isOwnChannel(channel)) {
       _pushFee(list, 'Taxa de cartão', price * _num(_data.dinheiro.cardFeePct) / 100, '#2563EB', price);
       _pushFee(list, 'Reserva impostos', price * _num(_data.dinheiro.estimatedTaxReservePct) / 100, '#0891B2', price);
       _pushFee(list, 'Outras taxas', price * _num(_data.dinheiro.otherFeesPct) / 100, '#64748B', price);
     }
-    _pushFee(list, 'Taxa fixa', _num(channel.fixedFee || _data.dinheiro.fixedOrderFee || 0), '#F97316', price);
+    _pushFee(list, 'Taxa fixa', _fixedFeeForChannel(channel), '#F97316', price);
     return list;
+  }
+
+  function _fixedFeeForChannel(channel) {
+    channel = channel || {};
+    if (_isOwnChannel(channel)) {
+      return _num(channel.fixedFee || _data.dinheiro.fixedOrderFee || 0);
+    }
+    return _num(channel.fixedFee);
   }
 
   function _isCardapioChannel(channel) {
@@ -374,7 +398,7 @@ Modules.Dinheiro = (function () {
 
   function _isTpvChannel(channel) {
     var name = String((channel || {}).name || '').toLowerCase().trim();
-    return name === 'tpv';
+    return name === 'tpv' || name === 'venda presencial';
   }
 
   function _isOwnChannel(channel) {
@@ -386,10 +410,10 @@ Modules.Dinheiro = (function () {
     if (value > 0) list.push({ label: label, value: value, color: color, percentBase: percentBase });
   }
 
-  function _priceForMargin(cost, marginPct, channel, opts) {
+  function _priceForMargin(cost, marginPct, channel, opts, product) {
     if (cost <= 0) return 0;
     opts = opts || {};
-    var parts = _feeParts(channel);
+    var parts = _feeParts(channel, product);
     var pctFees = parts.pct / 100;
     var fixed = parts.fixed;
     var target = _num(marginPct) / 100;
@@ -399,11 +423,11 @@ Modules.Dinheiro = (function () {
     return _roundPrice(raw);
   }
 
-  function _suggestedPrice(cost, marginPct, channel) {
+  function _suggestedPrice(cost, marginPct, channel, product) {
     if (cost <= 0) return 0;
     var markup = Math.max(_num(_data.dinheiro.defaultMarkup || 3), 0);
     var byMarkup = _roundPrice(cost * (markup || 1));
-    var byMargin = _priceForMargin(cost, marginPct, channel);
+    var byMargin = _priceForMargin(cost, marginPct, channel, {}, product);
     return Math.max(byMarkup, byMargin);
   }
 
@@ -437,52 +461,57 @@ Modules.Dinheiro = (function () {
     var noPrice = rows.filter(function (r) { return !r.price; });
     var healthy = rows.filter(function (r) { return r.status === 'saudável'; });
     var validRows = rows.filter(function (r) { return r.totalCost > 0 && r.price > 0; });
+    var belowSuggested = validRows.filter(function (r) { return r.suggestedPrice > 0 && r.price < r.suggestedPrice; });
     var avgProfit = validRows.length ? validRows.reduce(function (s, r) { return s + (r.profit || 0); }, 0) / validRows.length : null;
     var channels = _channelDiagnostics(rows);
     var worstChannel = channels.slice().sort(function (a, b) { return b.impactPct - a.impactPct || b.fixedFee - a.fixedFee; })[0];
+    var worstChannelLabel = worstChannel && (worstChannel.impactPct > 0 || worstChannel.fixedFee > 0)
+      ? 'Atenção em ' + worstChannel.name + ': este canal é o que mais pesa na margem, com cerca de ' + worstChannel.impactPct.toFixed(1).replace('.', ',') + '% sobre a venda' + (worstChannel.fixedFee > 0 ? ' e ' + UI.fmt(worstChannel.fixedFee) + ' por pedido' : '') + '.'
+      : '';
     var priorities = _financialPriorities(rows, channels);
     var riskCount = loss.length + low.length + noCost.length + noPrice.length;
     var kpis = [
-      _radarKpi('Produtos analisados', rows.length, 'Base do Cardápio', 'neutral', 'inventory_2'),
-      _radarKpi('Risco crítico', riskCount, loss.length ? loss.length + ' com prejuízo' : 'custo, preço ou margem', riskCount ? 'danger' : 'success', 'warning'),
-      _radarKpi('Margem baixa', low.length, attention.length ? attention.length + ' em atenção' : 'abaixo do mínimo', low.length ? 'danger' : 'success', 'trending_down'),
-      _radarKpi('Sem custo', noCost.length, 'Não entram no lucro', noCost.length ? 'warning' : 'success', 'link_off'),
-      _radarKpi('Saudáveis', healthy.length, 'margem dentro da regra', healthy.length ? 'success' : 'neutral', 'check_circle'),
-      _radarKpi('Lucro médio', avgProfit == null ? 'sem dados' : UI.fmt(avgProfit), validRows.length + ' produtos válidos', avgProfit == null ? 'neutral' : (avgProfit < 0 ? 'danger' : 'success'), 'query_stats')
+      _radarKpi('Produtos analisados', rows.length, 'Produtos do Cardápio', 'neutral', 'inventory_2'),
+      _radarKpi('Risco crítico', riskCount, loss.length ? loss.length + ' podem dar prejuízo' : 'olhar custo, preço ou margem', riskCount ? 'danger' : 'success', 'warning'),
+      _radarKpi('Margem baixa', low.length, attention.length ? attention.length + ' pedem atenção' : 'abaixo do ideal', low.length ? 'danger' : 'success', 'trending_down'),
+      _radarKpi('Sem custo', noCost.length, 'precisam ser completados', noCost.length ? 'warning' : 'success', 'link_off'),
+      _radarKpi('Saudáveis', healthy.length, 'com boa margem', healthy.length ? 'success' : 'neutral', 'check_circle'),
+      _radarKpi('Lucro médio', avgProfit == null ? 'sem dados' : UI.fmt(avgProfit), validRows.length + ' com custo e preço', avgProfit == null ? 'neutral' : (avgProfit < 0 ? 'danger' : 'success'), 'query_stats')
     ].join('');
     var priorityHtml = [
-      _prioritySummary(noCost.length, 'produtos precisam de custo', 'Vincular custo', 'sem-custo', 'Não entram no cálculo de lucro'),
-      _prioritySummary(low.length, 'produtos com margem baixa', 'Revisar preços', 'margem-baixa'),
-      _prioritySummary(noPrice.length, 'produtos sem preço', 'Ver produtos', 'sem-preco')
+      _prioritySummary(noCost.length, 'produtos ainda sem custo', 'Completar custo', 'sem-custo', 'Sem custo, fica difícil saber se o produto dá lucro'),
+      _prioritySummary(low.length, 'produtos com margem apertada', 'Revisar preços', 'margem-baixa'),
+      _prioritySummary(noPrice.length, 'produtos sem preço', 'Ver produtos', 'sem-preco'),
+      _prioritySummary(belowSuggested.length, 'produtos abaixo do preço sugerido', 'Ver produtos', 'abaixo-recomendado', 'O preço atual pode estar deixando pouco espaço para lucro')
     ].join('');
     var channelImpact = channels.map(function (c) {
       var tone = c.status === 'margem baixa' ? '#B42318' : (c.status === 'atenção' ? '#D97706' : (c.status === 'melhor canal' || c.status === 'saudável' ? '#1F6F43' : '#6F6860'));
-      return '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:14px;padding:14px;box-shadow:0 1px 2px rgba(31,31,31,.03);display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:start;">' +
-        '<div style="min-width:0;"><div style="font-size:15px;font-weight:600;color:#1F1F1F;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(c.name) + '</div><div style="font-size:12px;color:#6F6860;line-height:1.45;margin-top:6px;">Comissão: ' + c.commissionPct.toFixed(1).replace('.', ',') + '% · Imposto: ' + c.commissionTaxPct.toFixed(1).replace('.', ',') + '%</div><div style="font-size:12px;color:#6F6860;line-height:1.45;">Taxa fixa: ' + UI.fmt(c.fixedFee) + '</div><div style="font-size:12px;color:#6F6860;line-height:1.45;">Margem após comissão: ' + (c.avgMargin == null ? 'sem dados' : c.avgMargin.toFixed(1).replace('.', ',') + '%') + '</div></div>' +
-        '<div style="text-align:right;"><div style="font-size:11px;color:#6F6860;font-weight:600;letter-spacing:.04em;text-transform:uppercase;">Impacto</div><div style="color:' + tone + ';font-size:20px;font-weight:700;line-height:1;margin-top:6px;">' + c.impactPct.toFixed(1).replace('.', ',') + '%</div><div style="margin-top:8px;">' + _channelStatusBadge(c.status) + '</div></div>' +
+      return '<div style="' + _radarInnerCardStyle('display:grid;grid-template-columns:minmax(0,1fr) minmax(82px,max-content);gap:14px;align-items:start;') + '">' +
+        '<div style="min-width:0;">' +
+          '<div style="font-size:14px;font-weight:650;color:#1F1F1F;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:10px;">' + _esc(c.name) + '</div>' +
+          '<div style="display:grid;grid-template-columns:repeat(2,minmax(82px,max-content));gap:8px 12px;align-items:start;">' +
+            _radarMiniMetric('Comissão', c.commissionPct.toFixed(1).replace('.', ',') + '%') +
+            _radarMiniMetric('Imposto', c.commissionTaxPct.toFixed(1).replace('.', ',') + '%') +
+            _radarMiniMetric('Taxa fixa', UI.fmt(c.fixedFee)) +
+            _radarMiniMetric('Margem', c.avgMargin == null ? 'sem dados' : c.avgMargin.toFixed(1).replace('.', ',') + '%') +
+          '</div>' +
+        '</div>' +
+        '<div style="text-align:right;min-width:82px;"><div style="font-size:10.5px;color:#6F6860;font-weight:650;letter-spacing:.04em;text-transform:uppercase;">Impacto</div><div style="color:' + tone + ';font-size:20px;font-weight:720;line-height:1;margin-top:6px;">' + c.impactPct.toFixed(1).replace('.', ',') + '%</div><div style="margin-top:8px;">' + _channelStatusBadge(c.status) + '</div></div>' +
       '</div>';
     }).join('');
-    var summary = '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
-      _radarChip(rows.length + ' produtos') +
-      _radarChip(validRows.length + ' com custo e preço') +
-      _radarChip(noCost.length + ' sem custo') +
-      _radarChip(noPrice.length + ' sem preço') +
-      (worstChannel ? _radarChip('Maior comissão: ' + worstChannel.name) : '') +
-    '</div>';
     _content('<div class="bf-page" style="display:flex;flex-direction:column;gap:16px;">' +
       '<div class="bf-page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
         '<div style="min-width:0;flex:1 1 420px;">' +
           '<h2 style="font-size:22px;font-weight:700;line-height:1.2;margin:0 0 6px;color:#1F1F1F;">Radar</h2>' +
-          '<p style="font-size:13px;font-weight:400;color:#6F6860;line-height:1.45;max-width:760px;margin:0 0 10px;">Analise custos, preço de venda, margem mínima e impacto dos canais nos produtos do Cardápio.</p>' +
-          summary +
+          '<p style="font-size:13px;font-weight:400;color:#6F6860;line-height:1.45;max-width:760px;margin:0;">Veja onde ajustar custo, preço e margem para vender com mais segurança.</p>' +
         '</div>' +
       '</div>' +
       '<div class="growth-grid" style="margin-bottom:0;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">' + kpis + '</div>' +
-      '<div style="display:grid;grid-template-columns:minmax(280px,.85fr) minmax(360px,1.15fr);gap:14px;margin-bottom:0;">' +
-      '<section style="' + _cardStyle() + '">' + _sectionTitle('Prioridades financeiras', 'Ações que destravam cálculo de lucro, preço sugerido e margem mínima.') + (priorityHtml || '<div style="color:#1F6F43;font-size:14px;font-weight:600;">Nenhuma prioridade crítica com os dados atuais.</div>') + '</section>' +
-      '<section style="' + _cardStyle() + '">' + _sectionTitle('Comissões por canal', 'Impacto percentual e margem estimada depois das taxas configuradas.') + (channelImpact ? '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;">' + channelImpact + '</div>' : '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:14px;padding:16px;color:#6F6860;box-shadow:0 1px 2px rgba(31,31,31,.03);">Nenhum canal com comissão ou taxa fixa configurada.</div>') + '</section>' +
+      '<div style="display:grid;grid-template-columns:minmax(280px,.85fr) minmax(360px,1.15fr);gap:14px;margin-bottom:0;align-items:start;">' +
+      '<section style="' + _priorityFinanceCardStyle() + '">' + _sectionTitle('Prioridades financeiras', 'Comece por estes pontos para proteger o lucro da loja.', 'priority_high') + (priorityHtml || '<div style="color:#1F6F43;font-size:14px;font-weight:600;">Nenhuma revisão urgente com os dados atuais.</div>') + '</section>' +
+      '<section style="' + _radarPatternCardStyle() + '">' + _radarSectionTitle('Canais de venda', 'Compare onde a venda fica mais pesada para a margem.', 'toll') + (worstChannelLabel ? _radarChannelHighlight(worstChannelLabel) : '') + (channelImpact ? '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;align-items:stretch;">' + channelImpact + '</div>' : _radarEmptyBox('Quando você configurar taxas dos canais de venda, o impacto na margem aparece aqui.')) + '</section>' +
       '</div>' +
-      '<section style="' + _cardStyle() + '">' + _sectionTitle('Produtos que merecem atenção', 'Produtos com menor margem, ausência de custo ou preço abaixo do recomendado.') + _priorityProducts(priorities) + '</section>' +
+      '<section style="' + _radarPatternCardStyle() + '">' + _radarSectionTitle('Produtos para revisar primeiro', 'Veja por quais produtos começar para melhorar preço, custo ou margem.', 'manage_search') + _priorityProducts(priorities) + '</section>' +
       '</div>');
   }
 
@@ -553,15 +582,19 @@ Modules.Dinheiro = (function () {
   }
 
   function _priorityProducts(items) {
-    if (!items.length) return '<div style="color:#1F6F43;font-size:14px;font-weight:600;">Nenhuma prioridade crítica com os dados atuais.</div>';
-    return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;">' + items.map(function (item) {
+    if (!items.length) return _radarEmptyBox('Nenhuma revisão urgente com os dados atuais.');
+    return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px;">' + items.map(function (item) {
       var r = item.row;
       var img = _productImage(r.product);
       var tone = !r.totalCost ? '#D97706' : (r.margin < 0 ? '#B42318' : (r.margin < _num(_data.dinheiro.minMarginPct || 40) ? '#B42318' : '#6F6860'));
-      return '<div style="border:1px solid #EAE4DA;border-radius:16px;padding:12px;background:#fff;box-shadow:0 12px 30px rgba(31,31,31,.06);display:grid;grid-template-columns:48px minmax(0,1fr);gap:10px;align-items:center;transition:transform .16s ease,box-shadow .16s ease;" onmouseenter="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 16px 34px rgba(31,31,31,.09)\'" onmouseleave="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'0 12px 30px rgba(31,31,31,.06)\'">' +
-        '<div style="width:48px;height:48px;border-radius:12px;background:#FAF8F4;border:1px solid #EAE4DA;overflow:hidden;display:flex;align-items:center;justify-content:center;">' + (img ? '<img src="' + _esc(img) + '" style="width:100%;height:100%;object-fit:cover;">' : '<span class="mi" style="font-size:18px;color:#C9BCB8;">restaurant_menu</span>') + '</div>' +
-        '<div style="min-width:0;"><div style="font-size:11px;color:#6F6860;font-weight:600;letter-spacing:.04em;text-transform:uppercase;">' + _esc(item.label) + '</div><strong style="display:block;font-size:15px;font-weight:600;line-height:1.25;color:#1F1F1F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(r.product.name || 'Produto') + '</strong><div style="font-size:12px;color:' + tone + ';font-weight:600;margin-top:3px;">' + (r.totalCost ? 'Margem ' + r.margin.toFixed(1).replace('.', ',') + '%' : 'sem custo definido') + '</div>' +
-        '<button onclick="Modules.Dinheiro._goPriceFilter(\'' + item.filter + '\')" style="margin-top:8px;height:32px;padding:0 11px;background:#B42318;color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(180,35,24,.18);">' + _esc(item.action) + '</button></div>' +
+      return '<div style="' + _radarInnerCardStyle('display:grid;grid-template-columns:52px minmax(0,1fr);gap:12px;align-items:center;') + '" onmouseenter="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 16px 34px rgba(31,31,31,.085)\'" onmouseleave="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'0 10px 24px rgba(31,31,31,.045)\'">' +
+        '<div style="width:52px;height:52px;border-radius:15px;background:#FFFCF8;border:1px solid #E8DCD7;overflow:hidden;display:flex;align-items:center;justify-content:center;">' + (img ? '<img src="' + _esc(img) + '" style="width:100%;height:100%;object-fit:cover;">' : '<span class="mi" style="font-size:19px;color:#C9BCB8;">restaurant_menu</span>') + '</div>' +
+        '<div style="min-width:0;">' +
+          '<div style="font-size:10.5px;color:#6F6860;font-weight:650;letter-spacing:.04em;text-transform:uppercase;margin-bottom:3px;">' + _esc(item.label) + '</div>' +
+          '<strong style="display:block;font-size:14.5px;font-weight:650;line-height:1.25;color:#1F1F1F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(r.product.name || 'Produto') + '</strong>' +
+          '<div style="font-size:12px;color:' + tone + ';font-weight:650;margin-top:4px;">' + (r.totalCost ? 'Margem ' + r.margin.toFixed(1).replace('.', ',') + '%' : 'sem custo definido') + '</div>' +
+          '<button onclick="Modules.Dinheiro._goPriceFilter(\'' + item.filter + '\')" style="margin-top:9px;height:32px;padding:0 12px;background:#B42318;color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:650;cursor:pointer;font-family:inherit;box-shadow:0 7px 16px rgba(180,35,24,.14);">' + _esc(item.action) + '</button>' +
+        '</div>' +
         '</div>';
     }).join('') + '</div>';
   }
@@ -580,23 +613,29 @@ Modules.Dinheiro = (function () {
   }
 
   function _renderPrecos() {
-    var rows = _productsAnalysis();
+    var channels = _data.canais || [_defaultChannel()];
+    var selectedChannel = String(_priceCompositionChannel || '0');
+    var channelIndex = parseInt(selectedChannel, 10) || 0;
+    if (!channels[channelIndex]) channelIndex = 0;
+    _priceCompositionChannel = String(channelIndex);
+    var selectedChannelObj = channels[channelIndex] || _defaultChannel();
+    var channelOptions = channels.map(function (ch, idx) {
+      return '<option value="' + idx + '"' + (idx === channelIndex ? ' selected' : '') + '>' + _esc(ch.name || ('Canal ' + (idx + 1))) + '</option>';
+    }).join('');
+    var rows = _productsAnalysisForChannel(selectedChannelObj);
     var filter = _pendingPriceFilter();
     var filteredRows = _applyPriceFilter(rows, filter);
     var paging = _pricePaging(filteredRows);
-    var validRows = filteredRows.filter(function (r) { return r.totalCost > 0 && r.price > 0; });
-    var low = filteredRows.filter(function (r) { return r.status === 'margem baixa' || r.status === 'prejuízo'; }).length;
-    var noCost = filteredRows.filter(function (r) { return !r.totalCost; }).length;
-    var noPrice = filteredRows.filter(function (r) { return !r.price; }).length;
-    var belowSuggested = filteredRows.filter(function (r) { return r.totalCost > 0 && r.price > 0 && r.suggestedPrice > 0 && r.price < r.suggestedPrice; }).length;
-    var avgMargin = validRows.length ? validRows.reduce(function (s, r) { return s + r.margin; }, 0) / validRows.length : null;
-    var fieldStyle = 'padding:10px 12px;border:1px solid #EAE4DA;border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;width:100%;box-sizing:border-box;color:#1F1F1F;box-shadow:inset 0 1px 0 rgba(255,255,255,.78);transition:border-color .15s ease,box-shadow .15s ease,background .15s ease;';
+    var fieldStyle = _listingFieldStyle();
+    var filterSelectStyle = _listingSelectStyle('height:42px;');
+    var selectStyle = _listingSelectStyle('min-width:110px;max-width:110px;height:34px;font-size:12px;color:#6F6860;');
     var appliedFilter = filter && filter !== 'todos';
+    var hasFilters = appliedFilter || channelIndex !== 0;
     var pageSizeOptions = [10, 12, 24, 48].map(function (n) { return '<option value="' + n + '"' + (Number(_priceView.pageSize) === n ? ' selected' : '') + '>' + n + ' / pág.</option>'; }).join('');
     var paginationHtml = paging.total ? '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:16px 18px;">' +
       '<span style="font-size:12px;color:#6F6860;line-height:1.4;">Mostrando <strong style="color:#1F1F1F;font-weight:600;">' + paging.start + '</strong> a <strong style="color:#1F1F1F;font-weight:600;">' + paging.end + '</strong> de <strong style="color:#1F1F1F;font-weight:600;">' + paging.total + '</strong></span>' +
       '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;">' +
-        '<select onchange="Modules.Dinheiro._setPricePageSize(this.value)" style="min-width:110px;max-width:110px;height:34px;padding:0 10px;border:1px solid #EAE4DA;border-radius:10px;font-size:12px;font-family:inherit;outline:none;background:#fff;color:#6F6860;box-sizing:border-box;">' + pageSizeOptions + '</select>' +
+        '<select onchange="Modules.Dinheiro._setPricePageSize(this.value)" style="' + selectStyle + '">' + pageSizeOptions + '</select>' +
         '<div style="display:flex;align-items:center;gap:6px;">' +
           '<button type="button" onclick="Modules.Dinheiro._setPricePage(' + (paging.page - 1) + ')" style="height:34px;padding:0 11px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#6F6860;font-size:12px;font-weight:500;cursor:' + (paging.page > 1 ? 'pointer' : 'not-allowed') + ';opacity:' + (paging.page > 1 ? '1' : '.45') + ';"' + (paging.page > 1 ? '' : ' disabled') + '>Anterior</button>' +
           '<div style="display:flex;align-items:center;gap:6px;"><span style="font-size:12px;color:#A39B90;">' + paging.page + '</span><span style="width:14px;height:2px;border-radius:999px;background:#B42318;display:inline-block;opacity:.65"></span><span style="font-size:12px;color:#A39B90;">' + paging.totalPages + '</span></div>' +
@@ -604,43 +643,29 @@ Modules.Dinheiro = (function () {
         '</div>' +
       '</div>' +
     '</div>' : '';
-    var filterNotice = appliedFilter ? '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:#FFF7ED;border:1px solid #F1D6C8;border-radius:14px;padding:12px 14px;color:#8A4A18;font-size:13px;font-weight:600;">Filtro aplicado: ' + _esc(_filterLabel(filter)) + '<button onclick="Modules.Dinheiro._goPriceFilter(\'todos\')" style="height:34px;padding:0 12px;border:1px solid #EAE4DA;background:#fff;color:#B42318;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);">Limpar</button></div>' : '';
-    var summary = '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
-      _radarChip(filteredRows.length + ' produtos') +
-      _radarChip(validRows.length + ' com custo e preço') +
-      _radarChip(noCost + ' sem custo') +
-      _radarChip(noPrice + ' sem preço') +
-      _radarChip(low + ' em risco') +
-      _radarChip(belowSuggested + ' abaixo do sugerido') +
-      (avgMargin == null ? _radarChip('margem média sem dados') : _radarChip('margem média ' + avgMargin.toFixed(1).replace('.', ',') + '%')) +
-    '</div>';
+    var filterNotice = hasFilters ? '<div style="display:flex;align-items:center;gap:8px;color:#8A4A18;font-size:12.5px;line-height:1.4;margin-top:10px;"><span class="mi" style="font-size:16px;color:#D97706;">filter_alt</span><span>' + (appliedFilter ? 'Mostrando ' + _esc(_filterLabel(filter)) + ' em ' + _esc(selectedChannelObj.name || 'Canal') + '.' : 'Mostrando preços de ' + _esc(selectedChannelObj.name || 'Canal') + '.') + '</span></div>' : '';
     _content('<div class="bf-page" style="display:flex;flex-direction:column;gap:16px;">' +
       '<div class="bf-page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
         '<div style="min-width:0;flex:1 1 420px;">' +
           '<h2 style="font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;line-height:1.2;">Composição do Preço</h2>' +
-          '<p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0 0 10px;max-width:760px;">Compare custo, preço atual, lucro, margem mínima e preço sugerido por produto.</p>' +
-          '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
-            _radarChip(filteredRows.length + ' produtos') +
-            _radarChip(validRows.length + ' com custo e preço') +
-            _radarChip(low + ' em risco') +
-          '</div>' +
+          '<p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0;max-width:760px;">Veja quanto cada produto custa, quanto sobra na venda e quais preços pedem revisão.</p>' +
         '</div>' +
         '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;">' +
           '<button type="button" onclick="Modules.Dinheiro._switchSub(\'resumo\')" style="height:38px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#1F1F1F;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 1px 2px rgba(31,31,31,.03);font-family:inherit;">Ver Radar</button>' +
           '<button type="button" onclick="Modules.Dinheiro._switchSub(\'regras\')" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">Regras de preço</button>' +
         '</div>' +
       '</div>' +
-      '<div style="' + _cardStyle() + '">' +
-        '<div style="display:grid;grid-template-columns:minmax(320px,1.6fr) auto;gap:10px;align-items:end;">' +
-          '<div><input id="din-prod-search" type="search" oninput="Modules.Dinheiro._filterProducts()" placeholder="Buscar produto..." autocomplete="off" style="' + fieldStyle + 'height:40px;"></div>' +
-          '<button type="button" onclick="Modules.Dinheiro._goPriceFilter(\'todos\')" style="height:40px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#6F6860;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);">Limpar filtros</button>' +
+      '<div style="' + _listingFilterCardStyle() + '">' +
+        '<div style="display:grid;grid-template-columns:minmax(280px,1fr) minmax(180px,240px) auto;gap:10px 12px;align-items:end;">' +
+          '<label style="display:block;min-width:0;"><span style="' + _listingLabelStyle() + '">Buscar produto</span><input id="din-prod-search" type="search" oninput="Modules.Dinheiro._filterProducts()" placeholder="Digite o nome do produto" autocomplete="off" style="' + fieldStyle + 'height:42px;"></label>' +
+          '<label style="display:block;min-width:0;"><span style="' + _listingLabelStyle() + '">Canal de venda</span><select id="din-price-channel" onchange="Modules.Dinheiro._setPriceCompositionChannel(this.value)" style="' + filterSelectStyle + '">' + channelOptions + '</select></label>' +
+          (hasFilters ? '<button type="button" onclick="Modules.Dinheiro._clearPriceCompositionFilters()" style="height:38px;padding:0 13px;border:1px solid #E8DCD7;border-radius:12px;background:#fff;color:#B42318;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);">Limpar filtros</button>' : '') +
         '</div>' +
-        summary +
+        filterNotice +
       '</div>' +
-      filterNotice +
-      (filteredRows.length === 0 ? '<section style="' + _cardStyle() + 'text-align:center;"><div style="font-size:15px;font-weight:700;color:#1F1F1F;margin-bottom:4px;">Nenhum produto encontrado</div><div style="font-size:13px;color:#6F6860;line-height:1.45;">Tente ajustar a busca ou remover os filtros aplicados.</div></section>' :
+      (filteredRows.length === 0 ? '<section style="' + _listingEmptyCardStyle() + '"><div style="font-size:15px;font-weight:700;color:#1F1F1F;margin-bottom:4px;">Nenhum produto encontrado</div><div style="font-size:13px;color:#6F6860;line-height:1.45;">Ajuste a busca ou limpe os filtros para ver os produtos novamente.</div></section>' :
         '<section style="display:flex;flex-direction:column;gap:10px;">' +
-          '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">Produtos analisados</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Acompanhe custo total, preço atual, lucro, margem e preço sugerido por produto.</div></div>' +
+          '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">Produtos analisados</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Clique em um produto para ver a composição do preço com mais detalhes.</div></div>' +
           '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:16px;overflow:hidden;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
             '<div style="overflow:auto;"><table class="bf-table" style="width:100%;border-collapse:separate;border-spacing:0;min-width:1120px;">' +
               '<thead><tr style="background:#fff;border-bottom:1px solid #EAE4DA;">' +
@@ -695,6 +720,19 @@ Modules.Dinheiro = (function () {
     var size = parseInt(value, 10);
     if (!isFinite(size) || size <= 0) return;
     _priceView.pageSize = size;
+    _priceView.page = 1;
+    _renderPrecos();
+  }
+
+  function _setPriceCompositionChannel(value) {
+    _priceCompositionChannel = String(value || '0');
+    _priceView.page = 1;
+    _renderPrecos();
+  }
+
+  function _clearPriceCompositionFilters() {
+    _priceCompositionChannel = '0';
+    try { sessionStorage.removeItem('dinheiro_price_filter'); } catch (e) {}
     _priceView.page = 1;
     _renderPrecos();
   }
@@ -759,54 +797,39 @@ Modules.Dinheiro = (function () {
       return Object.assign({}, r, { channelPrice: price, channel: ch });
     });
     var filteredRows = _filterPriceListRows(rows);
-    var priced = filteredRows.filter(function (r) { return _num(r.channelPrice) > 0; }).length;
-    var avgPrice = priced ? filteredRows.reduce(function (s, r) { return s + _num(r.channelPrice); }, 0) / priced : 0;
-    var noPrice = filteredRows.length - priced;
-    var riskCount = filteredRows.filter(function (r) { return r.status === 'margem baixa' || r.status === 'prejuízo'; }).length;
     var hasFilters = !!(_priceListFilters.q || _priceListFilters.price !== 'todos' || _priceListFilters.status !== 'todos');
-    var fieldStyle = 'padding:10px 12px;border:1px solid #EAE4DA;border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;width:100%;box-sizing:border-box;color:#1F1F1F;box-shadow:inset 0 1px 0 rgba(255,255,255,.78);';
-    var headerChips = '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
-      _radarChip(filteredRows.length + ' produtos') +
-      _radarChip(priced + ' com preço') +
-      _radarChip('média ' + UI.fmt(avgPrice)) +
-    '</div>';
+    var fieldStyle = _listingFieldStyle();
+    var selectStyle = _listingSelectStyle();
+    var filterNotice = hasFilters ? '<div style="display:flex;align-items:center;gap:8px;color:#8A4A18;font-size:12.5px;line-height:1.4;margin-top:10px;"><span class="mi" style="font-size:16px;color:#D97706;">filter_alt</span><span>Lista filtrada. Limpe os filtros para ver todos os produtos deste canal.</span></div>' : '';
     _content('<div class="bf-page" style="display:flex;flex-direction:column;gap:16px;">' +
       '<div class="bf-page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
         '<div style="min-width:0;flex:1 1 420px;">' +
           '<h2 style="font-size:22px;font-weight:700;line-height:1.2;margin:0 0 6px;color:#1F1F1F;">Lista de Preço</h2>' +
-          '<p style="font-size:13px;font-weight:400;color:#6F6860;line-height:1.45;max-width:760px;margin:0 0 10px;">Veja e imprima os preços finais por canal de venda.</p>' +
-          headerChips +
+          '<p style="font-size:13px;font-weight:400;color:#6F6860;line-height:1.45;max-width:760px;margin:0;">Monte uma lista clara de preços por canal para consultar ou imprimir quando precisar.</p>' +
         '</div>' +
         '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;">' +
           '<button type="button" onclick="Modules.Dinheiro._switchSub(\'precos\')" style="height:38px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#1F1F1F;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 1px 2px rgba(31,31,31,.03);font-family:inherit;">Ver composição</button>' +
           '<button type="button" onclick="Modules.Dinheiro._printPriceList()" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">Imprimir</button>' +
         '</div>' +
       '</div>' +
-      '<div style="' + _cardStyle() + '">' +
+      '<div style="' + _listingFilterCardStyle() + '">' +
         '<div style="display:grid;grid-template-columns:minmax(320px,1.6fr) minmax(180px,.8fr) minmax(170px,.75fr) minmax(170px,.75fr) auto;gap:10px;align-items:end;">' +
-          '<div><label style="font-size:11px;font-weight:600;color:#6F6860;display:block;margin-bottom:5px;letter-spacing:.02em;">Busca</label><input id="din-list-search" type="search" value="' + _esc(_priceListFilters.q || '') + '" oninput="Modules.Dinheiro._setPriceListFilter(\'q\',this.value)" placeholder="Buscar produto..." autocomplete="off" style="' + fieldStyle + 'height:40px;"></div>' +
-          '<div><label style="font-size:11px;font-weight:600;color:#6F6860;display:block;margin-bottom:5px;letter-spacing:.02em;">Canal</label><select id="din-list-channel" onchange="Modules.Dinheiro._renderListaPrecos()" style="' + fieldStyle + 'height:40px;">' + opts + '</select></div>' +
-          '<div><label style="font-size:11px;font-weight:600;color:#6F6860;display:block;margin-bottom:5px;letter-spacing:.02em;">Preço</label><select onchange="Modules.Dinheiro._setPriceListFilter(\'price\',this.value)" style="' + fieldStyle + 'height:40px;"><option value="todos"' + (_priceListFilters.price === 'todos' ? ' selected' : '') + '>Todos os preços</option><option value="com-preco"' + (_priceListFilters.price === 'com-preco' ? ' selected' : '') + '>Com preço</option><option value="sem-preco"' + (_priceListFilters.price === 'sem-preco' ? ' selected' : '') + '>Sem preço</option></select></div>' +
-          '<div><label style="font-size:11px;font-weight:600;color:#6F6860;display:block;margin-bottom:5px;letter-spacing:.02em;">Margem</label><select onchange="Modules.Dinheiro._setPriceListFilter(\'status\',this.value)" style="' + fieldStyle + 'height:40px;"><option value="todos"' + (_priceListFilters.status === 'todos' ? ' selected' : '') + '>Todos status</option><option value="risco"' + (_priceListFilters.status === 'risco' ? ' selected' : '') + '>Em risco</option><option value="saudavel"' + (_priceListFilters.status === 'saudavel' ? ' selected' : '') + '>Saudáveis</option><option value="sem-dados"' + (_priceListFilters.status === 'sem-dados' ? ' selected' : '') + '>Sem dados</option></select></div>' +
-          '<button type="button" onclick="Modules.Dinheiro._clearPriceListFilters()" style="height:40px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#6F6860;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);opacity:' + (hasFilters ? '1' : '.55') + ';">Limpar filtros</button>' +
+          '<label style="display:block;min-width:0;"><span style="' + _listingLabelStyle() + '">Buscar produto</span><input id="din-list-search" type="search" value="' + _esc(_priceListFilters.q || '') + '" oninput="Modules.Dinheiro._setPriceListFilter(\'q\',this.value)" placeholder="Digite o nome do produto" autocomplete="off" style="' + fieldStyle + 'height:42px;"></label>' +
+          '<label style="display:block;min-width:0;"><span style="' + _listingLabelStyle() + '">Canal</span><select id="din-list-channel" onchange="Modules.Dinheiro._renderListaPrecos()" style="' + selectStyle + 'height:42px;">' + opts + '</select></label>' +
+          '<label style="display:block;min-width:0;"><span style="' + _listingLabelStyle() + '">Preço</span><select onchange="Modules.Dinheiro._setPriceListFilter(\'price\',this.value)" style="' + selectStyle + 'height:42px;"><option value="todos"' + (_priceListFilters.price === 'todos' ? ' selected' : '') + '>Todos os preços</option><option value="com-preco"' + (_priceListFilters.price === 'com-preco' ? ' selected' : '') + '>Com preço</option><option value="sem-preco"' + (_priceListFilters.price === 'sem-preco' ? ' selected' : '') + '>Sem preço</option></select></label>' +
+          '<label style="display:block;min-width:0;"><span style="' + _listingLabelStyle() + '">Margem</span><select onchange="Modules.Dinheiro._setPriceListFilter(\'status\',this.value)" style="' + selectStyle + 'height:42px;"><option value="todos"' + (_priceListFilters.status === 'todos' ? ' selected' : '') + '>Todas</option><option value="risco"' + (_priceListFilters.status === 'risco' ? ' selected' : '') + '>Em risco</option><option value="saudavel"' + (_priceListFilters.status === 'saudavel' ? ' selected' : '') + '>Saudáveis</option><option value="sem-dados"' + (_priceListFilters.status === 'sem-dados' ? ' selected' : '') + '>Sem dados</option></select></label>' +
+          (hasFilters ? '<button type="button" onclick="Modules.Dinheiro._clearPriceListFilters()" style="height:38px;padding:0 13px;border:1px solid #E8DCD7;border-radius:12px;background:#fff;color:#B42318;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);">Limpar filtros</button>' : '') +
         '</div>' +
-        '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px;">' +
-          _radarChip(filteredRows.length + ' produtos') +
-          _radarChip(priced + ' com preço') +
-          _radarChip(noPrice + ' sem preço') +
-          _radarChip(riskCount + ' em risco') +
-          _radarChip('média ' + UI.fmt(avgPrice)) +
-          _radarChip('canal ' + (ch.name || 'Canal')) +
-        '</div>' +
+        filterNotice +
       '</div>' +
-      '<div id="din-price-list-print" style="' + _cardStyle() + '">' +
+      '<div id="din-price-list-print" style="' + _listingFilterCardStyle() + '">' +
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap;">' +
-          '<div><h3 style="font-size:14px;font-weight:700;margin:0 0 4px;color:#1F1F1F;">' + _esc(ch.name || 'Canal') + '</h3><p style="font-size:13px;color:#6F6860;line-height:1.5;margin:0;">Produtos e valores para este canal de venda.</p></div>' +
+          '<div><h3 style="font-size:14px;font-weight:700;margin:0 0 4px;color:#1F1F1F;">' + _esc(ch.name || 'Canal') + '</h3><p style="font-size:13px;color:#6F6860;line-height:1.5;margin:0;">Lista pronta para consultar ou imprimir.</p></div>' +
           '<strong style="font-size:12px;font-weight:600;color:#6F6860;">' + UI.fmtDate(new Date()) + '</strong>' +
         '</div>' +
         (filteredRows.length
           ? '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;">' + filteredRows.map(_priceListCard).join('') + '</div>'
-          : '<div style="text-align:center;padding:44px 20px;color:#6F6860;"><div style="font-size:15px;font-weight:700;color:#1F1F1F;margin-bottom:4px;">Nenhum produto encontrado</div><div style="font-size:13px;line-height:1.45;">Ajuste a busca ou os filtros para ver a lista de preços.</div></div>') +
+          : '<div style="text-align:center;padding:40px 20px;color:#6F6860;"><div style="font-size:15px;font-weight:700;color:#1F1F1F;margin-bottom:4px;">Nenhum produto encontrado</div><div style="font-size:13px;line-height:1.45;">Ajuste a busca ou limpe os filtros para montar a lista de preços.</div></div>') +
       '</div>' +
     '</div>');
   }
@@ -877,34 +900,52 @@ Modules.Dinheiro = (function () {
 
   function _openProductModal(id) {
     if (!id) return;
-    var row = (window._dinProducts || _productsAnalysis()).find(function (item) {
-      return String(item.product.id) === String(id);
+    var product = (_data.products || []).find(function (item) {
+      return String(item.id) === String(id);
     });
-    if (!row) {
+    if (!product) {
       UI.toast('Produto não encontrado nesta lista.', 'error');
       return;
     }
-    var p = row.product || {};
     var channels = _data.canais || [_defaultChannel()];
-    var initialChannel = channels.findIndex(function (ch) { return _isCardapioChannel(ch); });
-    if (initialChannel < 0) initialChannel = 0;
+    var initialChannel = parseInt(_priceCompositionChannel, 10);
+    if (!isFinite(initialChannel) || !channels[initialChannel]) {
+      initialChannel = channels.findIndex(function (ch) { return _isCardapioChannel(ch); });
+      if (initialChannel < 0) initialChannel = 0;
+    }
     var channelOpts = channels.map(function (ch, idx) {
       return '<option value="' + idx + '">' + _esc(ch.name || ('Canal ' + (idx + 1))) + '</option>';
     }).join('');
-    var html = '<div id="din-price-modal" onclick="Modules.Dinheiro._closeProductModal(event)" style="position:fixed;inset:0;z-index:10000;background:rgba(26,26,26,.58);display:flex;align-items:center;justify-content:center;padding:24px;">' +
-      '<div style="width:min(900px,100%);max-height:88vh;overflow:auto;background:#fff;border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.28);padding:24px;position:relative;" onclick="event.stopPropagation()">' +
-      '<button onclick="Modules.Dinheiro._closeProductModal()" style="position:absolute;right:18px;top:18px;width:38px;height:38px;border:none;border-radius:50%;background:#F2EDED;color:#1A1A1A;font-size:24px;font-weight:800;cursor:pointer;">×</button>' +
-      '<h2 style="font-size:24px;font-weight:900;margin-bottom:4px;">' + _esc(p.name || 'Produto') + '</h2>' +
-      '<p style="color:#8A7E7C;margin-bottom:18px;">Preço, custo, margem e recomendação por canal de venda.</p>' +
+    var modalCss = '<style>' +
+      '.din-price-modal-shell{width:min(1040px,100%);max-height:90vh;overflow:auto;background:#FFFCFA;border:1px solid #EADFD8;border-radius:20px;box-shadow:0 24px 70px rgba(31,31,31,.22);position:relative;font-family:Manrope,Inter,sans-serif;}' +
+      '.din-price-modal-head{padding:20px 22px 14px;border-bottom:1px solid #F0E6E3;display:flex;align-items:flex-start;justify-content:space-between;gap:18px;background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);}' +
+      '.din-price-modal-title{font-size:20px;font-weight:700;line-height:1.18;color:#1F1F1F;margin:0;}' +
+      '.din-price-modal-subtitle{font-size:13px;font-weight:400;line-height:1.45;color:#6F6860;margin:6px 0 0;max-width:640px;}' +
+      '.din-price-modal-close{width:34px;height:34px;border:0;border-radius:12px;background:#F8F1ED;color:#5F514D;font-size:18px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;}' +
+      '.din-price-modal-body{padding:16px 18px;display:flex;flex-direction:column;gap:12px;}' +
+      '.din-price-modal-foot{padding:14px 18px 18px;display:flex;gap:10px;justify-content:flex-end;border-top:1px solid #F0E6E3;background:#FFFCFA;}' +
+      '@media(max-width:720px){#din-price-modal{padding:12px!important;align-items:flex-start!important}.din-price-modal-shell{max-height:calc(100dvh - 24px);border-radius:18px}.din-price-modal-head{padding:18px 16px 12px}.din-price-modal-body{padding:14px}.din-price-current-grid{grid-template-columns:1fr!important}.din-price-modal-foot{padding:12px 14px 14px;flex-direction:column-reverse}.din-price-modal-foot button{width:100%}}' +
+      '</style>';
+    var html = '<div id="din-price-modal" onclick="Modules.Dinheiro._closeProductModal(event)" style="position:fixed;inset:0;z-index:10000;background:rgba(26,26,26,.48);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:24px;">' +
+      modalCss +
+      '<div class="din-price-modal-shell" onclick="event.stopPropagation()">' +
+      '<div class="din-price-modal-head">' +
+      '<div style="display:flex;gap:12px;align-items:flex-start;min-width:0;">' +
+      '<span class="mi" style="width:34px;height:34px;border-radius:12px;background:#F8F1ED;color:#8A6F5A;display:inline-flex;align-items:center;justify-content:center;font-size:18px;flex:0 0 auto;">receipt_long</span>' +
+      '<div style="min-width:0;"><h2 class="din-price-modal-title">' + _esc(product.name || 'Produto') + '</h2>' +
+      '<p class="din-price-modal-subtitle">Veja preço, custo, margem e recomendação por canal de venda.</p></div>' +
+      '</div>' +
+      '<button class="din-price-modal-close" onclick="Modules.Dinheiro._closeProductModal()" aria-label="Fechar">×</button>' +
+      '</div>' +
       '<input id="din-modal-product-id" type="hidden" value="' + _esc(id) + '">' +
-      '<div id="din-price-modal-body"></div>' +
-      '<div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end;">' +
-      '<button onclick="Modules.Dinheiro._closeProductModal()" style="background:#fff;color:#1A1A1A;border:1.5px solid #D4C8C6;padding:12px 18px;border-radius:10px;font-weight:800;cursor:pointer;font-family:inherit;">Cancelar</button>' +
-      '<button onclick="Modules.Dinheiro._saveProductPrice(\'' + _esc(id) + '\')" style="background:#C4362A;color:#fff;border:none;padding:12px 20px;border-radius:10px;font-weight:900;cursor:pointer;font-family:inherit;">Salvar preço</button>' +
+      '<div id="din-price-modal-body" class="din-price-modal-body"></div>' +
+      '<div class="din-price-modal-foot">' +
+      '<button onclick="Modules.Dinheiro._closeProductModal()" style="height:40px;background:#fff;color:#1F1F1F;border:1px solid #E8DCD7;padding:0 16px;border-radius:12px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);">Cancelar</button>' +
+      '<button onclick="Modules.Dinheiro._saveProductPrice(\'' + _esc(id) + '\')" style="height:40px;background:#B42318;color:#fff;border:none;padding:0 18px;border-radius:12px;font-weight:650;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(180,35,24,.18);">Salvar preço</button>' +
       '</div>' +
       '</div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
-    _renderProductPriceModal(row, initialChannel, channelOpts, { useChannelPrice: true });
+    _renderProductPriceModal({ product: product }, initialChannel, channelOpts, { useChannelPrice: true });
     var input = document.getElementById('din-modal-price');
     if (input) input.focus();
   }
@@ -915,60 +956,72 @@ Modules.Dinheiro = (function () {
     opts = opts || {};
     var channels = _data.canais || [_defaultChannel()];
     var ch = channels[channelIndex] || _defaultChannel();
-    var typedPrice = _num((document.getElementById('din-modal-price') || {}).value);
+    var typedPrice = _moneyInputValue((document.getElementById('din-modal-price') || {}).value);
     var currentPrice = opts.useChannelPrice ? _priceForChannel(row.product, ch) : (typedPrice || _priceForChannel(row.product, ch));
     var analysis = _analyzeProduct(Object.assign({}, row.product, { price: currentPrice }), ch);
     var desiredMarginRule = _num(_data.dinheiro.desiredMarginPct || 60);
     var minMarginRule = _num(_data.dinheiro.minMarginPct || 40);
-    var minimumRulePrice = analysis.minimumPrice || _priceForMargin(analysis.totalCost, minMarginRule, ch, { round: false });
+    var minimumRulePrice = analysis.minimumPrice || _priceForMargin(analysis.totalCost, minMarginRule, ch, { round: false }, row.product);
     var minMarkup = analysis.totalCost > 0 ? minimumRulePrice / analysis.totalCost : 0;
     var recommendedMarkup = analysis.totalCost > 0 ? analysis.suggestedPrice / analysis.totalCost : 0;
-    var minFee = _feesForPrice(minimumRulePrice, ch);
-    var suggestedFee = _feesForPrice(analysis.suggestedPrice, ch);
+    var minFee = _feesForPrice(minimumRulePrice, ch, row.product);
+    var suggestedFee = _feesForPrice(analysis.suggestedPrice, ch, row.product);
     var minMarkupMargin = minimumRulePrice > 0 ? ((minimumRulePrice - analysis.totalCost - minFee.total) / minimumRulePrice) * 100 : 0;
     var recommendedMarkupMargin = analysis.suggestedPrice > 0 ? ((analysis.suggestedPrice - analysis.totalCost - suggestedFee.total) / analysis.suggestedPrice) * 100 : 0;
+    var suggestedWarning = _suggestedPriceWarning(analysis, ch);
     var fiscalCards = _fiscalEnabled()
       ? _priceMetric('Lucro antes de impostos', UI.fmt(analysis.profit), 'por unidade') +
         _priceMetric('Lucro depois fiscal', UI.fmt(_afterFiscalProfit(analysis)), 'estimativa')
       : _priceMetric('Lucro estimado', UI.fmt(analysis.profit), 'por unidade');
     body.innerHTML =
-      '<section style="border:1px solid #F0E6E3;border-radius:14px;padding:14px;margin-bottom:14px;">' +
-      '<h3 style="font-size:16px;font-weight:900;margin-bottom:12px;">1. Preço atual</h3>' +
-      '<div style="display:grid;grid-template-columns:1.1fr 1fr 1fr;gap:12px;align-items:end;margin-bottom:12px;">' +
-      '<label style="' + _labelWrap() + '"><span style="' + _label() + '">Canal de venda</span><select id="din-modal-channel" onchange="Modules.Dinheiro._updateProductPriceModal(true)" style="' + _input() + '">' + channelOpts.replace('value="' + channelIndex + '"', 'value="' + channelIndex + '" selected') + '</select></label>' +
-      '<label style="' + _labelWrap() + '"><span style="' + _label() + '">Preço de venda (€)</span><input id="din-modal-price" type="number" min="0" step="0.01" onchange="Modules.Dinheiro._updateProductPriceModal(false)" value="' + _esc(currentPrice || '') + '" style="' + _input() + 'font-size:18px;font-weight:800;"></label>' +
-      _priceMetric('Status', _statusBadge(analysis.status), ch.name || 'canal') +
+      '<section style="' + _priceModalCardStyle() + '">' +
+      _priceModalSectionTitle('Preço atual', 'Escolha o canal e confira como o preço se comporta na margem.', 'sell') +
+      '<div class="din-price-current-grid" style="display:grid;grid-template-columns:minmax(220px,.9fr) minmax(150px,170px) minmax(160px,.6fr);gap:12px;align-items:end;justify-content:start;margin-bottom:12px;">' +
+      '<label style="' + _labelWrap() + '"><span style="' + _priceModalLabel() + '">Canal de venda</span><select id="din-modal-channel" onchange="Modules.Dinheiro._updateProductPriceModal(true)" style="' + _priceModalSelect() + '">' + channelOpts.replace('value="' + channelIndex + '"', 'value="' + channelIndex + '" selected') + '</select></label>' +
+      '<label style="' + _labelWrap() + '"><span style="' + _priceModalLabel() + '">Preço de venda</span><input id="din-modal-price" type="text" inputmode="decimal" onchange="Modules.Dinheiro._updateProductPriceModal(false)" onfocus="Modules.Dinheiro._moneyInputFocus(this)" onblur="Modules.Dinheiro._moneyInputBlurOnly(this);Modules.Dinheiro._updateProductPriceModal(false)" value="' + _esc(_moneyDisplay(currentPrice, true)) + '" placeholder="€0,00" style="' + _priceModalInput('font-size:17px;font-weight:650;text-align:right;') + '"></label>' +
+      _priceStatusMetric(analysis.status, ch.name || 'canal') +
       '</div>' +
-      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;">' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px;">' +
       _priceMetric('Custo', UI.fmt(analysis.totalCost), analysis.costSource) +
       fiscalCards +
       _priceMetric('Margem', (analysis.margin || 0).toFixed(1).replace('.', ',') + '%', 'real') +
       _priceMetric('Markup', analysis.markup ? analysis.markup.toFixed(2).replace('.', ',') + 'x' : '—', 'real') +
       '</div></section>' +
-      '<section style="border:1px solid #F0E6E3;border-radius:14px;padding:14px;margin-bottom:14px;">' +
-      '<h3 style="font-size:16px;font-weight:900;margin-bottom:12px;">2. Distribuição do preço</h3>' +
+      '<section style="' + _priceModalCardStyle() + '">' +
+      _priceModalSectionTitle('Distribuição do preço', 'Veja quanto do preço vai para custo, taxas e resultado.', 'donut_large') +
       _priceDistribution(analysis) +
       '</section>' +
-      '<section style="border:1px solid #F0E6E3;border-radius:14px;padding:14px;">' +
-      '<h3 style="font-size:16px;font-weight:900;margin-bottom:12px;">3. Preço mínimo e preço recomendado</h3>' +
-      '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;">' +
+      '<section style="' + _priceModalCardStyle() + '">' +
+      _priceModalSectionTitle('Preço mínimo e recomendado', 'Use esta leitura para decidir se vale ajustar o preço do produto.', 'trending_up') +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">' +
       _priceMetric('Markup mínimo', minMarkup ? minMarkup.toFixed(2).replace('.', ',') + 'x' : '—', minMarkup ? 'margem mínima ' + minMarginRule.toFixed(1).replace('.', ',') + '%' : 'regra de preço') +
       _priceMetric('Preço mínimo', UI.fmt(minimumRulePrice), 'margem aprox. ' + minMarkupMargin.toFixed(1).replace('.', ',') + '%') +
       _priceMetric('Markup recomendado', recommendedMarkup ? recommendedMarkup.toFixed(2).replace('.', ',') + 'x' : '—', recommendedMarkup ? 'margem desejada ' + desiredMarginRule.toFixed(1).replace('.', ',') + '%' : 'regra de preço') +
       _priceMetric('Preço sugerido', UI.fmt(analysis.suggestedPrice), 'margem aprox. ' + recommendedMarkupMargin.toFixed(1).replace('.', ',') + '%') +
-      '</div></section>';
+      '</div>' + suggestedWarning + '</section>';
+  }
+
+  function _suggestedPriceWarning(analysis, channel) {
+    var currentPrice = _num(analysis.price);
+    var suggested = _num(analysis.suggestedPrice);
+    if (!currentPrice || !suggested || suggested <= currentPrice * 3) return '';
+    var parts = _feeParts(channel, analysis.product);
+    var feeText = parts.pct > 0 ? ' As taxas e impostos deste canal somam cerca de ' + parts.pct.toFixed(1).replace('.', ',') + '% sobre a venda.' : '';
+    return '<div style="margin-top:12px;display:flex;gap:10px;align-items:flex-start;background:#FFF7ED;border:1px solid #FED7AA;border-radius:14px;padding:12px 14px;color:#7C2D12;font-size:13px;line-height:1.45;">' +
+      '<span class="mi" style="font-size:18px;color:#D97706;line-height:1.2;">warning</span>' +
+      '<span><strong style="font-weight:700;">Preço sugerido muito acima do preço atual.</strong> Isso acontece quando a margem desejada, as taxas e os impostos deixam pouco espaço para lucro nesse canal.' + feeText + '</span>' +
+      '</div>';
   }
 
   function _updateProductPriceModal(useChannelPrice) {
     var id = _val('din-modal-product-id');
-    var rows = window._dinProducts || _productsAnalysis();
-    var row = rows.find(function (item) { return String(item.product.id) === String(id); });
-    if (!row) return;
+    var product = (_data.products || []).find(function (item) { return String(item.id) === String(id); });
+    if (!product) return;
     var channel = parseInt(_val('din-modal-channel'), 10) || 0;
     var opts = (_data.canais || [_defaultChannel()]).map(function (ch, idx) {
       return '<option value="' + idx + '">' + _esc(ch.name || ('Canal ' + (idx + 1))) + '</option>';
     }).join('');
-    _renderProductPriceModal(row, channel, opts, { useChannelPrice: !!useChannelPrice });
+    _renderProductPriceModal({ product: product }, channel, opts, { useChannelPrice: !!useChannelPrice });
   }
 
   function _breakEvenPrice(cost, channel) {
@@ -986,7 +1039,7 @@ Modules.Dinheiro = (function () {
       { label: 'Embalagem', value: analysis.packagingCost, color: '#E6A93B', percentBase: price, group: 'cost' },
       { label: 'Custos indiretos', value: analysis.indirectCost, color: '#6B7280', percentBase: price, group: 'cost' }
     ].filter(function (p) { return p.value > 0; });
-    (_feeBreakdown(price, analysis.channel) || []).forEach(function (fee) {
+    (_feeBreakdown(price, analysis.channel, analysis.product) || []).forEach(function (fee) {
       parts.push(Object.assign({}, fee, { group: fee.label === 'IVA aplicado' || fee.label === 'Imposto sobre comissão' ? 'tax' : 'fee' }));
     });
     var irpf = _irpfEstimatedOnProfit(analysis);
@@ -1010,14 +1063,14 @@ Modules.Dinheiro = (function () {
     }
     function metricsHTML(value, base, mutedPct) {
       var pct = (base || price) > 0 ? (value / (base || price)) * 100 : 0;
-      return '<span style="font-weight:900;">' + UI.fmt(value) + '</span>' +
-        '<span style="color:#1A1A1A;font-weight:' + (mutedPct ? '700' : '900') + ';"> · ' + pct.toFixed(1).replace('.', ',') + '%</span>' +
+      return '<span style="font-weight:700;">' + UI.fmt(value) + '</span>' +
+        '<span style="color:#1A1A1A;font-weight:' + (mutedPct ? '500' : '650') + ';"> · ' + pct.toFixed(1).replace('.', ',') + '%</span>' +
         '<span style="color:#8A7E7C;font-weight:500;"> · ' + markupText(value) + '</span>';
     }
     function summaryCard(label, value, color) {
-      return '<div style="background:#F8F6F5;border:1px solid #F0E6E3;border-radius:12px;padding:10px 12px;">' +
-        '<div style="font-size:10px;font-weight:900;text-transform:uppercase;color:#8A7E7C;margin-bottom:5px;">' + _esc(label) + '</div>' +
-        '<div style="display:flex;align-items:center;gap:7px;"><i style="width:9px;height:9px;border-radius:50%;background:' + color + ';display:inline-block;"></i><strong style="font-size:17px;">' + UI.fmt(value) + '</strong></div>' +
+      return '<div style="background:#FFFCF8;border:1px solid #E8DCD7;border-radius:14px;padding:10px 12px;box-shadow:0 1px 2px rgba(31,31,31,.03);">' +
+        '<div style="font-size:10.5px;font-weight:650;letter-spacing:.04em;text-transform:uppercase;color:#6F6860;margin-bottom:6px;">' + _esc(label) + '</div>' +
+        '<div style="display:flex;align-items:center;gap:7px;"><i style="width:9px;height:9px;border-radius:50%;background:' + color + ';display:inline-block;"></i><strong style="font-size:17px;font-weight:700;color:#1F1F1F;">' + UI.fmt(value) + '</strong></div>' +
         '<div style="font-size:11px;color:#8A7E7C;margin-top:4px;">' + pctText(value) + ' do preço · <span style="font-weight:500;">' + markupText(value) + '</span> do markup</div>' +
         '</div>';
     }
@@ -1030,7 +1083,7 @@ Modules.Dinheiro = (function () {
       opts = opts || {};
       var base = p.percentBase || price;
       var separate = p.label.indexOf('Comissão ') === 0 || p.label === 'Imposto sobre comissão';
-      return '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:' + (separate ? '10px 0' : '7px 0') + ';border-bottom:1px solid #F2EDED;' + (separate ? 'background:#FBF8FF;margin:0 -8px;padding-left:8px;padding-right:8px;border-radius:8px;' : '') + '"><span style="display:flex;align-items:center;gap:8px;"><i style="width:10px;height:10px;border-radius:50%;background:' + p.color + ';display:inline-block;"></i>' + _esc(p.label) + '</span><span style="white-space:nowrap;">' + metricsHTML(p.value, base, opts.mutedPct) + '</span></div>';
+      return '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:' + (separate ? '10px 8px' : '8px 0') + ';border-bottom:1px solid #F2EDED;' + (separate ? 'background:#FFFCF8;border-radius:10px;' : '') + '"><span style="display:flex;align-items:center;gap:8px;font-size:13px;color:#1F1F1F;line-height:1.35;"><i style="width:9px;height:9px;border-radius:50%;background:' + p.color + ';display:inline-block;flex:0 0 auto;"></i>' + _esc(p.label) + '</span><span style="white-space:nowrap;font-size:13px;color:#1F1F1F;">' + metricsHTML(p.value, base, opts.mutedPct) + '</span></div>';
     }
     var costLikeParts = parts.filter(function (p) { return p.group !== 'result'; });
     var resultParts = parts.filter(function (p) { return p.group === 'result'; });
@@ -1039,7 +1092,7 @@ Modules.Dinheiro = (function () {
       return rowHTML(p, { mutedPct: true });
     }).join('');
     if (costLikeParts.length) {
-      rows += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:4px 0 6px;padding:10px 0 8px;border-top:2px solid #E8DEDC;border-bottom:1px solid #F2EDED;"><span style="font-weight:900;">Soma dos custos</span><span style="white-space:nowrap;">' + metricsHTML(costLikeTotal, price, true) + '</span></div>';
+      rows += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:6px 0;padding:10px 0 8px;border-top:1px solid #E8DCD7;border-bottom:1px solid #F2EDED;"><span style="font-weight:700;color:#1F1F1F;">Soma dos custos</span><span style="white-space:nowrap;font-size:13px;color:#1F1F1F;">' + metricsHTML(costLikeTotal, price, true) + '</span></div>';
     }
     rows += resultParts.map(function (p) {
       return rowHTML(p, { mutedPct: false });
@@ -1051,8 +1104,8 @@ Modules.Dinheiro = (function () {
       summaryCard(analysis.profit < 0 ? 'Prejuízo' : 'Resultado', resultTotal, analysis.profit < 0 ? '#991B1B' : '#1A9E5A') +
       summaryCard('Total distribuído', distributedTotal, '#1A1A1A') +
       '</div>';
-    var totalRow = parts.length ? '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;padding:10px 0 0;border-top:2px solid #E8DEDC;"><span style="font-weight:900;">Soma total</span><span style="white-space:nowrap;">' + metricsHTML(distributedTotal, price, false) + '</span></div>' : '';
-    return summaries + '<div style="display:flex;overflow:hidden;border-radius:999px;background:transparent;margin-bottom:10px;">' + bar + '</div>' + rows + totalRow + empty;
+    var totalRow = parts.length ? '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;padding:10px 0 0;border-top:1px solid #E8DCD7;"><span style="font-weight:700;color:#1F1F1F;">Soma total</span><span style="white-space:nowrap;font-size:13px;color:#1F1F1F;">' + metricsHTML(distributedTotal, price, false) + '</span></div>' : '';
+    return summaries + '<div style="display:flex;overflow:hidden;border-radius:999px;background:#F8F1ED;margin-bottom:10px;">' + bar + '</div>' + rows + totalRow + empty;
   }
 
   function _irpfEstimatedOnProfit(analysis) {
@@ -1075,7 +1128,7 @@ Modules.Dinheiro = (function () {
   }
 
   function _saveProductPrice(id) {
-    var price = _num(_val('din-modal-price'));
+    var price = _moneyInputValue(_val('din-modal-price'));
     if (!price || price <= 0) {
       UI.toast('Informe um preço de venda válido.', 'error');
       return;
@@ -1109,50 +1162,82 @@ Modules.Dinheiro = (function () {
     if (el) el.remove();
   }
 
+  function _priceModalCardStyle() {
+    return 'background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:14px;box-shadow:0 10px 24px rgba(31,31,31,.045);';
+  }
+
+  function _priceModalSectionTitle(title, desc, icon) {
+    return '<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:13px;">' +
+      '<span class="mi" style="width:31px;height:31px;border-radius:12px;background:#FAF8F4;color:#8A6F5A;display:inline-flex;align-items:center;justify-content:center;font-size:17px;flex:0 0 auto;">' + _esc(icon || 'insights') + '</span>' +
+      '<div style="min-width:0;"><h3 style="font-size:15px;font-weight:700;line-height:1.2;margin:0;color:#1F1F1F;">' + _esc(title) + '</h3>' +
+      '<p style="font-size:12.5px;font-weight:400;color:#6F6860;line-height:1.45;margin:5px 0 0;max-width:620px;">' + _esc(desc || '') + '</p></div>' +
+    '</div>';
+  }
+
+  function _priceModalLabel() {
+    return 'display:block;font-size:11px;font-weight:650;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;';
+  }
+
+  function _priceModalInput(extra) {
+    return 'width:100%;height:42px;border:1px solid #E8DCD7;border-radius:12px;background:#FFFCF8;padding:0 12px;color:#1F1F1F;font-size:14px;font-family:inherit;outline:none;box-sizing:border-box;' + (extra || '');
+  }
+
+  function _priceModalSelect(extra) {
+    return _priceModalInput('appearance:none;-webkit-appearance:none;background-color:#FFFCF8;background-image:linear-gradient(45deg,transparent 50%,#8A7E7C 50%),linear-gradient(135deg,#8A7E7C 50%,transparent 50%);background-position:calc(100% - 18px) 18px,calc(100% - 13px) 18px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:36px;' + (extra || ''));
+  }
+
   function _priceMetric(label, value, note) {
-    return '<div style="background:#F8F6F5;border-radius:12px;padding:12px;min-height:76px;">' +
-      '<div style="font-size:11px;font-weight:900;color:#8A7E7C;text-transform:uppercase;">' + _esc(label) + '</div>' +
-      '<div style="font-size:20px;font-weight:900;color:#1A1A1A;margin-top:6px;">' + value + '</div>' +
-      '<div style="font-size:11px;color:#8A7E7C;margin-top:2px;">' + _esc(note || '') + '</div>' +
+    return '<div style="background:#FFFCF8;border:1px solid #E8DCD7;border-radius:14px;padding:11px 12px;min-height:74px;box-shadow:0 1px 2px rgba(31,31,31,.03);">' +
+      '<div style="font-size:10.5px;font-weight:650;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;">' + _esc(label) + '</div>' +
+      '<div style="font-size:19px;font-weight:700;color:#1F1F1F;margin-top:6px;line-height:1.05;">' + value + '</div>' +
+      '<div style="font-size:11.5px;color:#6F6860;margin-top:4px;line-height:1.35;">' + _esc(note || '') + '</div>' +
       '</div>';
+  }
+
+  function _priceStatusMetric(status, channelName) {
+    return '<div style="background:#FFFCF8;border:1px solid #E8DCD7;border-radius:14px;padding:11px 12px;min-height:74px;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;flex-direction:column;justify-content:center;">' +
+      '<div style="font-size:10.5px;font-weight:650;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">Status</div>' +
+      '<div style="display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap;">' + _statusBadge(status) +
+        '<span style="font-size:12.5px;color:#6F6860;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px;">' + _esc(channelName || 'canal') + '</span>' +
+      '</div>' +
+    '</div>';
   }
 
   function _renderSimulador() {
     var channelOpts = (_data.canais || []).map(function (ch, idx) { return '<option value="' + idx + '">' + _esc(ch.name) + '</option>'; }).join('');
-    var inputStyle = 'width:100%;height:40px;padding:10px 12px;border:1px solid #EAE4DA;border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;box-sizing:border-box;color:#1F1F1F;box-shadow:inset 0 1px 0 rgba(255,255,255,.78);';
-    var labelStyle = 'display:block;font-size:11px;font-weight:600;color:#6F6860;margin-bottom:5px;letter-spacing:.02em;';
+    var inputStyle = _listingFieldStyle('height:42px;');
+    var selectStyle = _listingSelectStyle('height:42px;');
+    var labelStyle = _listingLabelStyle();
     function simField(id, label, value, type, readonly) {
-      return '<label style="display:block;"><span style="' + labelStyle + '">' + _esc(label) + '</span><input id="' + id + '" type="' + (type || 'text') + '" value="' + _esc(value == null ? '' : value) + '"' + (readonly ? ' readonly' : '') + ' style="' + inputStyle + (readonly ? 'background:#FAF8F4;color:#6F6860;' : '') + '"></label>';
+      return '<label style="display:block;min-width:0;"><span style="' + labelStyle + '">' + _esc(label) + '</span><input id="' + id + '" type="' + (type || 'text') + '" value="' + _esc(value == null ? '' : value) + '"' + (readonly ? ' readonly' : '') + ' style="' + inputStyle + (readonly ? 'background:#FAF8F4;color:#6F6860;' : '') + '"></label>';
+    }
+    function simMoneyField(id, label, value) {
+      return '<label style="display:block;min-width:0;"><span style="' + labelStyle + '">' + _esc(label) + '</span><input id="' + id + '" type="text" inputmode="decimal" value="' + _esc(_moneyDisplay(value, true)) + '" placeholder="€0,00" onfocus="Modules.Dinheiro._moneyInputFocus(this)" onblur="Modules.Dinheiro._moneyInputBlur(this)" style="' + inputStyle + 'text-align:right;"></label>';
     }
     _content('<div class="bf-page" style="display:flex;flex-direction:column;gap:16px;">' +
       '<div class="bf-page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
         '<div style="min-width:0;flex:1 1 420px;">' +
           '<h2 style="font-size:22px;font-weight:700;line-height:1.2;margin:0 0 6px;color:#1F1F1F;">Simulador</h2>' +
-          '<p style="font-size:13px;font-weight:400;color:#6F6860;line-height:1.45;max-width:760px;margin:0 0 10px;">Simule preço, desconto, custo, comissões e impostos antes de alterar produtos reais.</p>' +
-          '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
-            _radarChip('simulação livre') +
-            _radarChip('sem alterar produtos') +
-            _radarChip('fiscal configurado') +
-          '</div>' +
+          '<p style="font-size:13px;font-weight:400;color:#6F6860;line-height:1.45;max-width:760px;margin:0;">Teste preço, desconto e taxas antes de mudar qualquer produto da loja.</p>' +
         '</div>' +
         '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;">' +
           '<button type="button" onclick="Modules.Dinheiro._switchSub(\'precos\')" style="height:38px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#1F1F1F;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 1px 2px rgba(31,31,31,.03);font-family:inherit;">Ver composição</button>' +
           '<button type="button" onclick="Modules.Dinheiro._switchSub(\'regras\')" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">Regras de preço</button>' +
         '</div>' +
       '</div>' +
-      '<section style="' + _cardStyle() + '">' +
-      _sectionTitle('Parâmetros da simulação', 'Informe os valores para calcular preço líquido, taxas, impostos, lucro, margem e markup.') +
-      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;">' +
-      simField('sim-price', 'Preço de venda', '10', 'number') +
-      simField('sim-cost', 'Custo do produto', '3', 'number') +
+      '<section style="' + _listingFilterCardStyle() + '">' +
+      _sectionTitle('Dados para testar', 'Preencha os valores e veja na hora como eles afetam lucro e margem.', 'calculate') +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,180px));gap:12px;align-items:end;">' +
+      simMoneyField('sim-price', 'Preço de venda', 10) +
+      simMoneyField('sim-cost', 'Custo do produto', 3) +
       simField('sim-discount', 'Desconto %', '0', 'number') +
-      '<label style="display:block;"><span style="' + labelStyle + '">Canal de venda</span><select id="sim-channel" onchange="Modules.Dinheiro._applySimulatorChannel()" style="' + inputStyle + '">' + channelOpts + '</select></label>' +
+      '<label style="display:block;min-width:0;"><span style="' + labelStyle + '">Canal de venda</span><select id="sim-channel" onchange="Modules.Dinheiro._applySimulatorChannel()" style="' + selectStyle + '">' + channelOpts + '</select></label>' +
       simField('sim-commission', 'Comissão %', '0', 'number') +
       simField('sim-commission-tax', 'Imposto sobre comissão %', '0', 'number') +
-      simField('sim-fixed', 'Taxa fixa', '0', 'number') +
+      simMoneyField('sim-fixed', 'Taxa fixa', 0) +
       simField('sim-iva-readonly', 'IVA configurado %', _fiscalIvaPct(), 'text', true) +
       simField('sim-irpf-readonly', 'Imposto de renda %', _fiscalIrpfPct(), 'text', true) +
-      '</div></section><section id="sim-result" style="' + _cardStyle() + '"></section></div>');
+      '</div></section><section id="sim-result" style="' + _listingFilterCardStyle() + '"></section></div>');
     ['sim-price','sim-cost','sim-discount','sim-commission','sim-commission-tax','sim-fixed'].forEach(function (id) {
       var el = document.getElementById(id);
       if (el) el.oninput = _updateSimulador;
@@ -1167,18 +1252,18 @@ Modules.Dinheiro = (function () {
     var fixed = document.getElementById('sim-fixed');
     if (commission) commission.value = _num(ch.commissionPct);
     if (commissionTax) commissionTax.value = _num(ch.taxPct || (ch.commissionPct ? 21 : 0));
-    if (fixed) fixed.value = _num(ch.fixedFee);
+    if (fixed) fixed.value = _moneyDisplay(_num(ch.fixedFee), true);
     _updateSimulador();
   }
 
   function _updateSimulador() {
-    var price = _num(_val('sim-price'));
+    var price = _moneyInputValue(_val('sim-price'));
     var discount = _num(_val('sim-discount'));
     var netPrice = price * (1 - discount / 100);
-    var cost = _num(_val('sim-cost'));
+    var cost = _moneyInputValue(_val('sim-cost'));
     var commission = netPrice * _num(_val('sim-commission')) / 100;
     var commissionTax = commission * _num(_val('sim-commission-tax')) / 100;
-    var fixed = _num(_val('sim-fixed'));
+    var fixed = _moneyInputValue(_val('sim-fixed'));
     var fees = commission + commissionTax + fixed;
     var profitBeforeFiscal = netPrice - cost - fees;
     var iva = netPrice * _fiscalIvaPct() / 100;
@@ -1223,38 +1308,34 @@ Modules.Dinheiro = (function () {
   function _renderRegras() {
     var c = _data.dinheiro;
     var channels = _data.canais || [];
-    var inputStyle = 'width:100%;height:40px;padding:10px 12px;border:1px solid #EAE4DA;border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;box-sizing:border-box;color:#1F1F1F;box-shadow:inset 0 1px 0 rgba(255,255,255,.78);';
-    var labelStyle = 'display:block;font-size:11px;font-weight:600;color:#6F6860;margin-bottom:5px;letter-spacing:.02em;';
+    var inputStyle = _listingFieldStyle('height:42px;');
+    var selectStyle = _listingSelectStyle('height:42px;');
+    var labelStyle = _listingLabelStyle();
     function ruleField(id, label, value, type) {
-      return '<label style="display:block;"><span style="' + labelStyle + '">' + _esc(label) + '</span><input id="' + id + '" type="' + (type || 'text') + '" value="' + _esc(value == null ? '' : value) + '" style="' + inputStyle + '"></label>';
+      return '<label style="display:block;min-width:0;"><span style="' + labelStyle + '">' + _esc(label) + '</span><input id="' + id + '" type="' + (type || 'text') + '" value="' + _esc(value == null ? '' : value) + '" style="' + inputStyle + '"></label>';
     }
     _content('<div class="bf-page" style="display:flex;flex-direction:column;gap:16px;">' +
       '<div class="bf-page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
         '<div style="min-width:0;flex:1 1 420px;">' +
           '<h2 style="font-size:22px;font-weight:700;line-height:1.2;margin:0 0 6px;color:#1F1F1F;">Regras de preço</h2>' +
-          '<p style="font-size:13px;font-weight:400;color:#6F6860;line-height:1.45;max-width:760px;margin:0 0 10px;">Defina margem mínima, margem desejada, arredondamento e taxas por canal de venda.</p>' +
-          '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
-            _radarChip('margem desejada ' + _esc(c.desiredMarginPct) + '%') +
-            _radarChip('margem mínima ' + _esc(c.minMarginPct) + '%') +
-            _radarChip(channels.length + ' canais') +
-          '</div>' +
+          '<p style="font-size:13px;font-weight:400;color:#6F6860;line-height:1.45;max-width:760px;margin:0;">Defina a margem que sua loja quer proteger e as taxas usadas nos cálculos de preço.</p>' +
         '</div>' +
         '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;">' +
           '<button type="button" onclick="Modules.Dinheiro._switchSub(\'resumo\')" style="height:38px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#1F1F1F;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 1px 2px rgba(31,31,31,.03);font-family:inherit;">Ver Radar</button>' +
           '<button type="button" onclick="Modules.Dinheiro._saveRegras()" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">Salvar regras</button>' +
         '</div>' +
       '</div>' +
-      '<section style="' + _cardStyle() + '">' +
-      _sectionTitle('Regras gerais', 'Parâmetros usados para calcular preço mínimo, preço sugerido e alertas de margem.') +
-      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">' +
+      '<section style="' + _listingFilterCardStyle() + '">' +
+      _sectionTitle('Regras gerais', 'Use estes valores como referência para sugerir preços e apontar margens apertadas.', 'tune') +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,210px));gap:12px;align-items:end;">' +
       ruleField('dn-margin', 'Margem desejada padrão %', c.desiredMarginPct, 'number') +
       ruleField('dn-min-margin', 'Margem mínima aceitável %', c.minMarginPct, 'number') +
       ruleField('dn-markup', 'Markup padrão', c.defaultMarkup, 'number') +
-      '<label style="display:block;"><span style="' + labelStyle + '">Arredondamento de preço</span><select id="dn-round" style="' + inputStyle + '"><option value="90"' + (c.rounding === '90' ? ' selected' : '') + '>Terminar em ,90</option><option value="95"' + (c.rounding === '95' ? ' selected' : '') + '>Terminar em ,95</option><option value="cheio"' + (c.rounding === 'cheio' ? ' selected' : '') + '>Número cheio</option></select></label>' +
+      '<label style="display:block;min-width:0;"><span style="' + labelStyle + '">Arredondamento de preço</span><select id="dn-round" style="' + selectStyle + '"><option value="90"' + (c.rounding === '90' ? ' selected' : '') + '>Terminar em ,90</option><option value="95"' + (c.rounding === '95' ? ' selected' : '') + '>Terminar em ,95</option><option value="cheio"' + (c.rounding === 'cheio' ? ' selected' : '') + '>Número cheio</option></select></label>' +
       '</div></section>' +
-      '<section style="' + _cardStyle() + '">' +
+      '<section style="' + _listingFilterCardStyle() + '">' +
       '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap;">' +
-        '<div>' + _sectionTitle('Canais de venda', 'Defina taxas dos canais cadastrados em Configurações. Cardápio é fixo e automático.') + '</div>' +
+        '<div>' + _sectionTitle('Canais de venda', 'Informe as taxas de cada canal para entender o impacto real na margem.', 'storefront') + '</div>' +
         '<button type="button" onclick="Router.navigate(\'configuracoes/canais_venda\')" style="height:38px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#1F1F1F;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 1px 2px rgba(31,31,31,.03);font-family:inherit;">Gerenciar canais</button>' +
       '</div>' +
       '<div id="dn-channel-list" style="display:grid;gap:10px;">' + _channelRows(channels) + '</div>' +
@@ -1267,14 +1348,14 @@ Modules.Dinheiro = (function () {
     if (!list.length) list = _normalizeChannels({});
     return list.map(function (ch, idx) {
       var locked = ch.locked || _isCardapioChannel(ch);
-      var inputStyle = 'width:100%;height:40px;padding:10px 12px;border:1px solid #EAE4DA;border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;box-sizing:border-box;color:#1F1F1F;box-shadow:inset 0 1px 0 rgba(255,255,255,.78);';
-      var labelStyle = 'display:block;font-size:11px;font-weight:600;color:#6F6860;margin-bottom:5px;letter-spacing:.02em;';
-      return '<div data-dn-channel-row="' + idx + '" style="display:grid;grid-template-columns:1.5fr .75fr .75fr .75fr 38px;gap:10px;align-items:end;background:#fff;border:1px solid #EAE4DA;border-radius:16px;padding:12px;box-shadow:0 12px 30px rgba(31,31,31,.06);transition:transform .16s ease,box-shadow .16s ease;" onmouseenter="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 16px 34px rgba(31,31,31,.09)\'" onmouseleave="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'0 12px 30px rgba(31,31,31,.06)\'">' +
-        '<label style="display:block;"><span style="' + labelStyle + '">Canal</span><input id="dn-ch-name-' + idx + '" value="' + _esc(ch.name || '') + '" readonly style="' + inputStyle + 'background:#FAF8F4;font-weight:700;color:#1F1F1F;"></label>' +
-        '<label style="display:block;"><span style="' + labelStyle + '">Comissão %</span><input id="dn-ch-commission-' + idx + '" type="number" value="' + _esc(ch.commissionPct || 0) + '" ' + (locked ? 'readonly' : '') + ' style="' + inputStyle + '"></label>' +
-        '<label style="display:block;"><span style="' + labelStyle + '">Taxa fixa</span><input id="dn-ch-fixed-' + idx + '" type="number" value="' + _esc(ch.fixedFee || 0) + '" ' + (locked ? 'readonly' : '') + ' style="' + inputStyle + '"></label>' +
-        '<label style="display:block;"><span style="' + labelStyle + '">Imposto comissão %</span><input id="dn-ch-tax-' + idx + '" type="number" value="' + _esc(ch.taxPct || 0) + '" ' + (locked ? 'readonly' : '') + ' style="' + inputStyle + '"></label>' +
-        '<span title="' + (locked ? 'Canal fixo do Cardápio' : 'Canal cadastrado em Configurações') + '" style="height:40px;border-radius:10px;background:' + (locked ? '#F0FAF4' : '#FAF8F4') + ';color:' + (locked ? '#1F6F43' : '#6F6860') + ';border:1px solid #EAE4DA;display:inline-flex;align-items:center;justify-content:center;font-weight:700;">✓</span>' +
+      var inputStyle = _listingFieldStyle('height:42px;');
+      var labelStyle = _listingLabelStyle();
+      return '<div data-dn-channel-row="' + idx + '" style="display:grid;grid-template-columns:minmax(180px,1.2fr) minmax(116px,.6fr) minmax(116px,.6fr) minmax(134px,.7fr) 38px;gap:10px;align-items:end;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:16px;padding:12px;box-shadow:0 10px 24px rgba(31,31,31,.045);transition:transform .16s ease,box-shadow .16s ease;" onmouseenter="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 16px 34px rgba(31,31,31,.085)\'" onmouseleave="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'0 10px 24px rgba(31,31,31,.045)\'">' +
+        '<label style="display:block;min-width:0;"><span style="' + labelStyle + '">Canal</span><input id="dn-ch-name-' + idx + '" value="' + _esc(ch.name || '') + '" readonly style="' + inputStyle + 'background:#fff;font-weight:600;color:#1F1F1F;"></label>' +
+        '<label style="display:block;min-width:0;"><span style="' + labelStyle + '">Comissão %</span><input id="dn-ch-commission-' + idx + '" type="number" value="' + _esc(ch.commissionPct || 0) + '" ' + (locked ? 'readonly' : '') + ' style="' + inputStyle + (locked ? 'background:#FAF8F4;color:#6F6860;' : '') + '"></label>' +
+        '<label style="display:block;min-width:0;"><span style="' + labelStyle + '">Taxa fixa</span><input id="dn-ch-fixed-' + idx + '" type="text" inputmode="decimal" value="' + _esc(_moneyDisplay(ch.fixedFee || 0, true)) + '" ' + (locked ? 'readonly' : 'onfocus="Modules.Dinheiro._moneyInputFocus(this)" onblur="Modules.Dinheiro._moneyInputBlurOnly(this)"') + ' style="' + inputStyle + 'text-align:right;' + (locked ? 'background:#FAF8F4;color:#6F6860;' : '') + '"></label>' +
+        '<label style="display:block;min-width:0;"><span style="' + labelStyle + '">Imposto comissão %</span><input id="dn-ch-tax-' + idx + '" type="number" value="' + _esc(ch.taxPct || 0) + '" ' + (locked ? 'readonly' : '') + ' style="' + inputStyle + (locked ? 'background:#FAF8F4;color:#6F6860;' : '') + '"></label>' +
+        '<span title="' + (locked ? 'Canal fixo do Cardápio' : 'Canal cadastrado em Configurações') + '" style="height:42px;border-radius:12px;background:' + (locked ? '#F0FAF4' : '#fff') + ';color:' + (locked ? '#1F6F43' : '#6F6860') + ';border:1px solid #E8DCD7;display:inline-flex;align-items:center;justify-content:center;font-weight:700;">✓</span>' +
       '</div>';
     }).join('');
   }
@@ -1285,7 +1366,7 @@ Modules.Dinheiro = (function () {
       return {
         name: _val('dn-ch-name-' + idx),
         commissionPct: _num(_val('dn-ch-commission-' + idx)),
-        fixedFee: _num(_val('dn-ch-fixed-' + idx)),
+        fixedFee: _moneyInputValue(_val('dn-ch-fixed-' + idx)),
         taxPct: _num(_val('dn-ch-tax-' + idx)),
         locked: _isCardapioChannel({ name: _val('dn-ch-name-' + idx) })
       };
@@ -1371,8 +1452,76 @@ Modules.Dinheiro = (function () {
 
   function _cardStyle() { return 'background:#fff;border:none;border-radius:16px;padding:18px 20px;box-shadow:0 12px 30px rgba(31,31,31,.06);'; }
 
-  function _sectionTitle(title, desc) {
-    return '<div style="margin-bottom:14px;"><h3 style="font-size:14px;font-weight:600;margin:0 0 4px;color:#1F1F1F;">' + _esc(title) + '</h3><p style="font-size:13px;color:#6F6860;line-height:1.5;margin:0;">' + _esc(desc || '') + '</p></div>';
+  function _priorityFinanceCardStyle() {
+    return 'background:#fff;border:1px solid #EADFD8;border-radius:16px;padding:18px 20px;box-shadow:0 12px 30px rgba(31,31,31,.06);';
+  }
+
+  function _listingFilterCardStyle() {
+    return 'background:linear-gradient(180deg,#FFFFFF 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:16px 18px;box-shadow:0 14px 34px rgba(31,31,31,.055);';
+  }
+
+  function _listingEmptyCardStyle() {
+    return 'background:linear-gradient(180deg,#FFFFFF 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:32px 22px;text-align:center;box-shadow:0 14px 34px rgba(31,31,31,.055);';
+  }
+
+  function _listingLabelStyle() {
+    return 'display:block;font-size:11px;font-weight:600;color:#6F6860;margin-bottom:6px;letter-spacing:.02em;';
+  }
+
+  function _listingFieldStyle(extra) {
+    return 'padding:10px 12px;border:1px solid #E8DCD7;border-radius:12px;font-size:14px;font-family:inherit;outline:none;background:#FFFCF8;width:100%;box-sizing:border-box;color:#1F1F1F;box-shadow:inset 0 1px 0 rgba(255,255,255,.78);transition:border-color .15s ease,box-shadow .15s ease,background .15s ease;' + (extra || '');
+  }
+
+  function _listingSelectStyle(extra) {
+    return _listingFieldStyle('appearance:none;-webkit-appearance:none;padding-right:34px;background-color:#FFFCF8;background-image:linear-gradient(45deg,transparent 50%,#8A7E7C 50%),linear-gradient(135deg,#8A7E7C 50%,transparent 50%);background-position:calc(100% - 18px) 50%,calc(100% - 13px) 50%;background-size:5px 5px,5px 5px;background-repeat:no-repeat;' + (extra || ''));
+  }
+
+  function _radarPatternCardStyle() {
+    return 'background:linear-gradient(180deg,#FFFFFF 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:18px 20px;box-shadow:0 14px 34px rgba(31,31,31,.055);';
+  }
+
+  function _radarInnerCardStyle(extra) {
+    return 'background:#FFFCF8;border:1px solid #E8DCD7;border-radius:15px;padding:13px;box-shadow:0 10px 24px rgba(31,31,31,.045);transition:transform .16s ease,box-shadow .16s ease;' + (extra || '');
+  }
+
+  function _radarMiniMetric(label, value) {
+    return '<div style="min-width:0;background:#fff;border:1px solid rgba(232,220,215,.72);border-radius:12px;padding:7px 9px;"><div style="font-size:10px;color:#8A7E7C;font-weight:620;line-height:1.15;margin-bottom:3px;">' + _esc(label) + '</div><div style="font-size:12.5px;color:#1F1F1F;font-weight:620;line-height:1.2;white-space:nowrap;">' + _esc(value) + '</div></div>';
+  }
+
+  function _radarEmptyBox(text) {
+    return '<div style="background:#FFFCF8;border:1px dashed #E8DCD7;border-radius:16px;padding:14px 16px;color:#6F6860;font-size:13px;line-height:1.45;display:flex;align-items:center;gap:10px;min-height:54px;">' +
+      '<span class="mi" style="width:28px;height:28px;border-radius:11px;background:#fff;color:#8A7E7C;display:inline-flex;align-items:center;justify-content:center;font-size:16px;flex:0 0 auto;">info</span>' +
+      '<span>' + _esc(text) + '</span>' +
+    '</div>';
+  }
+
+  function _radarChannelHighlight(text) {
+    return '<div style="margin-bottom:10px;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:14px;padding:10px 12px;color:#1F1F1F;font-size:12.5px;line-height:1.4;display:flex;align-items:center;gap:9px;">' +
+      '<span class="mi" style="width:26px;height:26px;border-radius:10px;background:#fff;color:#8A6F5A;display:inline-flex;align-items:center;justify-content:center;font-size:16px;flex:0 0 auto;">trending_down</span>' +
+      '<span>' + _esc(text) + '</span>' +
+    '</div>';
+  }
+
+  function _radarSectionTitle(title, desc, icon) {
+    return '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px;">' +
+      '<div style="min-width:0;display:flex;align-items:flex-start;gap:10px;">' +
+        (icon ? '<span class="mi" style="width:31px;height:31px;border-radius:12px;background:#FAF8F4;color:#8A6F5A;display:inline-flex;align-items:center;justify-content:center;font-size:17px;flex:0 0 auto;">' + _esc(icon) + '</span>' : '') +
+        '<div style="min-width:0;">' +
+          '<h3 style="font-size:15px;font-weight:700;margin:0;color:#1F1F1F;line-height:1.2;">' + _esc(title) + '</h3>' +
+          '<p style="font-size:12.5px;color:#6F6860;line-height:1.45;margin:5px 0 0;max-width:560px;">' + _esc(desc || '') + '</p>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function _sectionTitle(title, desc, icon) {
+    if (!icon) {
+      return '<div style="margin-bottom:14px;"><h3 style="font-size:14px;font-weight:600;margin:0 0 4px;color:#1F1F1F;">' + _esc(title) + '</h3><p style="font-size:13px;color:#6F6860;line-height:1.5;margin:0;">' + _esc(desc || '') + '</p></div>';
+    }
+    return '<div style="margin-bottom:14px;display:flex;align-items:flex-start;gap:10px;">' +
+      (icon ? '<span class="mi" style="width:31px;height:31px;border-radius:12px;background:#FAF8F4;color:#8A6F5A;display:inline-flex;align-items:center;justify-content:center;font-size:17px;flex:0 0 auto;">' + _esc(icon) + '</span>' : '') +
+      '<div style="min-width:0;"><h3 style="font-size:14px;font-weight:600;margin:0 0 4px;color:#1F1F1F;">' + _esc(title) + '</h3><p style="font-size:13px;color:#6F6860;line-height:1.5;margin:0;">' + _esc(desc || '') + '</p></div>' +
+    '</div>';
   }
 
   function _dinheiroSubtabsHtml() {
@@ -1422,6 +1571,31 @@ Modules.Dinheiro = (function () {
   function _priceTd(v) { return '<td style="padding:13px 16px;vertical-align:middle;font-size:13px;color:#1F1F1F;white-space:nowrap;">' + v + '</td>'; }
   function _byId(list, id) { return (list || []).find(function (x) { return String(x.id) === String(id); }) || null; }
   function _num(v) { return parseFloat(String(v == null ? '' : v).replace(',', '.')) || 0; }
+  function _moneyInputValue(value) {
+    var raw = String(value == null ? '' : value).trim();
+    if (!raw) return 0;
+    raw = raw.replace(/[^\d,.-]/g, '');
+    if (raw.indexOf(',') >= 0) raw = raw.replace(/\./g, '').replace(',', '.');
+    return parseFloat(raw) || 0;
+  }
+  function _moneyDisplay(value, showZero) {
+    var n = _moneyInputValue(value);
+    return n > 0 || showZero ? '€' + n.toFixed(2).replace('.', ',') : '';
+  }
+  function _moneyInputFocus(el) {
+    if (!el) return;
+    el.value = String(el.value || '').replace(/^\s*€\s*/, '');
+    if (el.select) el.select();
+  }
+  function _moneyInputBlur(el) {
+    if (!el) return;
+    el.value = _moneyDisplay(el.value, true);
+    _updateSimulador();
+  }
+  function _moneyInputBlurOnly(el) {
+    if (!el) return;
+    el.value = _moneyDisplay(el.value, true);
+  }
   function _val(id) { var el = document.getElementById(id); return el ? el.value : ''; }
   function _esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (m) {
@@ -1438,6 +1612,8 @@ Modules.Dinheiro = (function () {
     _filterProducts: _filterProducts,
     _setPricePage: _setPricePage,
     _setPricePageSize: _setPricePageSize,
+    _setPriceCompositionChannel: _setPriceCompositionChannel,
+    _clearPriceCompositionFilters: _clearPriceCompositionFilters,
     _openProductModal: _openProductModal,
     _updateProductPriceModal: _updateProductPriceModal,
     _saveProductPrice: _saveProductPrice,
@@ -1451,6 +1627,9 @@ Modules.Dinheiro = (function () {
     _clearPriceListFilters: _clearPriceListFilters,
     _printPriceList: _printPriceList,
     _applySimulatorChannel: _applySimulatorChannel,
-    _updateSimulador: _updateSimulador
+    _updateSimulador: _updateSimulador,
+    _moneyInputFocus: _moneyInputFocus,
+    _moneyInputBlur: _moneyInputBlur,
+    _moneyInputBlurOnly: _moneyInputBlurOnly
   };
 })();

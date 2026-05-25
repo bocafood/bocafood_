@@ -1578,18 +1578,39 @@ Modules.Configuracoes = (function () {
   function _renderCanaisVenda() {
     var c = _config.canais_venda || {};
     var list = (Array.isArray(c.list) ? c.list : []).filter(function (ch) { return !_isSystemChannel(ch); });
+    var inputStyle = 'width:100%;height:42px;border:1px solid #E8DCD7;border-radius:12px;background:#FFFCF8;padding:0 12px;color:#2F2523;font-size:14px;outline:none;box-sizing:border-box;';
+    var labelStyle = 'display:block;font-size:11px;font-weight:600;color:#6F6860;letter-spacing:.02em;margin:0 0 6px;';
     var rows = list.map(function (ch, idx) {
-      return '<div class="channel-row bf-panel" data-channel-row="' + idx + '" style="grid-column:1/-1;display:grid;grid-template-columns:minmax(240px,1fr) 34px;gap:10px;align-items:end;background:#fff;padding:12px;">' +
-        _field('ch-name-' + idx, 'Canal de venda', ch.name || '', 'WhatsApp, Marketplace, iFood...') +
-        '<button class="bf-btn bf-btn-danger" type="button" onclick="Modules.Configuracoes._removeCanalVenda(' + idx + ')" title="Remover canal" style="width:34px;min-height:38px;height:38px;padding:0;">×</button>' +
+      return '<div class="channel-row" data-channel-row="' + idx + '" style="display:grid;grid-template-columns:minmax(180px,1fr) 38px;gap:10px;align-items:end;background:linear-gradient(180deg,#FFFFFF 0%,#FFFCF8 100%);border:1px solid #EADFD8;border-radius:14px;padding:12px;box-shadow:0 10px 24px rgba(47,37,35,.045);">' +
+        '<label style="min-width:0;">' +
+          '<span style="' + labelStyle + '">Canal de venda</span>' +
+          '<input id="ch-name-' + idx + '" type="text" value="' + _esc(ch.name || '') + '" placeholder="Ex.: Instagram, marketplace, app de entrega" style="' + inputStyle + '">' +
+        '</label>' +
+        '<button class="bf-btn bf-btn-danger" type="button" onclick="Modules.Configuracoes._removeCanalVenda(' + idx + ')" title="Remover canal" style="width:38px;min-height:42px;height:42px;padding:0;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;">' +
+          '<span class="mi" style="font-size:18px;">delete_outline</span>' +
+        '</button>' +
       '</div>';
     }).join('');
     var content = document.getElementById('config-content');
-    content.innerHTML = '<div class="settings-card bf-card">' +
-      '<div class="settings-card-head"><h2>Canais de venda</h2><p>Cadastre os canais além dos canais fixos do sistema. Cardápio e Venda presencial aparecem automaticamente em Regras de preço.</p></div>' +
-      '<div style="background:#F0FAF4;border:1px solid #BDE7CA;border-radius:14px;padding:12px 14px;margin-bottom:14px;color:#1F6F43;font-size:13px;font-weight:600;">Cardápio e Venda presencial são fixos e não precisam ser cadastrados aqui.</div>' +
-      '<div id="channels-list" class="settings-grid">' + (rows || '<div style="grid-column:1/-1;text-align:center;padding:40px 20px;color:#8A7E7C;font-size:14px;font-weight:600;">Nenhum canal adicional cadastrado.</div>') + '</div>' +
-      '<div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;"><button class="bf-btn bf-btn-secondary" type="button" onclick="Modules.Configuracoes._addCanalVenda()">+ Adicionar canal</button><button class="bf-btn bf-btn-primary" type="button" onclick="Modules.Configuracoes._saveCanaisVenda()">Salvar canais</button></div>' +
+    content.innerHTML = '<div style="display:flex;flex-direction:column;gap:16px;max-width:980px;width:100%;margin:0 auto;">' +
+      '<section class="settings-card bf-card" style="background:linear-gradient(180deg,#FFFFFF 0%,#FFFCF9 100%);border:1px solid #EADFD8;border-radius:18px;padding:18px 20px;box-shadow:0 16px 38px rgba(47,37,35,.055);">' +
+        '<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:14px;">' +
+          '<span class="mi" style="width:34px;height:34px;border-radius:12px;background:#F8F1ED;color:#8F3E32;display:inline-flex;align-items:center;justify-content:center;font-size:19px;flex:0 0 auto;">storefront</span>' +
+          '<div style="min-width:0;">' +
+            '<h2 style="margin:0;color:#2F2523;font-size:20px;line-height:1.2;font-weight:700;">Canais de venda</h2>' +
+            '<p style="margin:6px 0 0;color:#6F6860;font-size:13px;line-height:1.45;max-width:660px;">Cadastre os lugares onde sua loja também recebe pedidos, como Instagram, marketplace ou aplicativo de entrega.</p>' +
+          '</div>' +
+        '</div>' +
+        '<div style="display:flex;gap:10px;align-items:flex-start;background:#FFF7F2;border:1px solid #F0DED5;border-radius:14px;padding:12px 14px;margin-bottom:14px;color:#5D504B;font-size:13px;line-height:1.45;">' +
+          '<span class="mi" style="font-size:18px;color:#A84A3E;line-height:1.2;">info</span>' +
+          '<span>Cardápio e Venda presencial já fazem parte do BocaFood. Cadastre aqui apenas canais adicionais.</span>' +
+        '</div>' +
+        '<div id="channels-list" style="display:grid;grid-template-columns:1fr;gap:10px;">' + (rows || '<div style="text-align:center;padding:34px 20px;color:#7C706B;font-size:14px;line-height:1.45;background:#FFFCF8;border:1px dashed #E4D4CC;border-radius:14px;"><strong style="display:block;color:#443836;font-size:14px;margin-bottom:4px;">Nenhum canal adicional cadastrado.</strong>Adicione apenas se sua loja vender por outro canal além do Cardápio e da Venda presencial.</div>') + '</div>' +
+        '<div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;align-items:center;justify-content:space-between;">' +
+          '<button class="bf-btn bf-btn-secondary" type="button" onclick="Modules.Configuracoes._addCanalVenda()" style="display:inline-flex;align-items:center;gap:6px;"><span class="mi" style="font-size:17px;">add</span>Adicionar canal</button>' +
+          '<button class="bf-btn bf-btn-primary" type="button" onclick="Modules.Configuracoes._saveCanaisVenda()">Salvar canais</button>' +
+        '</div>' +
+      '</section>' +
       '</div>';
   }
 

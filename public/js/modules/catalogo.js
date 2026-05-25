@@ -7537,6 +7537,8 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       '.recipe-dashed-btn:hover{background:#FFFCF8;border-color:#D9AAA1;color:#B42318;}' +
       '.recipe-component{background:#fff;border:1px solid #EAE4DA;border-radius:16px;padding:13px;box-shadow:0 1px 2px rgba(31,31,31,.03);}' +
       '.recipe-component-head{display:grid;grid-template-columns:minmax(220px,1fr) minmax(180px,.8fr) 34px;gap:10px;align-items:end;margin-bottom:12px;}' +
+      '.recipe-component-base{display:grid;grid-template-columns:minmax(220px,1fr) minmax(110px,.35fr) minmax(120px,.4fr);gap:10px;align-items:end;background:#FFFCF8;border:1px solid #EAE4DA;border-radius:14px;padding:10px;margin-bottom:12px;}' +
+      '.recipe-component-base label{display:flex;align-items:center;gap:8px;font-size:12px;color:#1F1F1F;font-weight:500;line-height:1.35;}' +
       '.recipe-ingredient-row{display:grid;grid-template-columns:minmax(210px,1.2fr) minmax(86px,.42fr) minmax(62px,.28fr) minmax(72px,.32fr) minmax(82px,.34fr) 30px;gap:8px;align-items:center;padding:9px;border:1px solid #EAE4DA;border-radius:12px;background:#FFFCF8;box-shadow:none;}' +
       '.supplier-field-control{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:6px;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease}.supplier-field-control:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08)}.supplier-field-control input,.supplier-field-control select,.supplier-field-control textarea{width:100%;min-height:36px;border:0;border-radius:8px;padding:0 8px;font-size:14px;font-family:inherit;outline:none;background:transparent;box-sizing:border-box;color:#1F1F1F;box-shadow:none}.supplier-field-control select{padding-right:42px;appearance:none;-webkit-appearance:none;-moz-appearance:none;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 16px center;background-size:14px}.supplier-field-control textarea{min-height:72px;padding-top:8px;padding-bottom:8px;resize:vertical}.supplier-field-control input[type=file]{padding-top:7px;}' +
       '.recipe-footer{display:flex;align-items:center;gap:8px;}' +
@@ -7545,7 +7547,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       '.recipe-delete-btn{height:38px;padding:0 14px;border-radius:10px;border:1px solid #F1D3CF;background:#FFF7F5;color:#B42318;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;}' +
       '.recipe-save-btn{height:38px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;}' +
       '.recipe-save-btn:hover{background:#9F1F16;}' +
-      '@media(max-width:900px){.recipe-modal-yield,.recipe-modal-image{grid-column:1/-1}.recipe-modal-main-grid,.recipe-yield-grid,.recipe-production-grid{grid-template-columns:1fr 1fr}.recipe-production-layout,.recipe-cost-layout{grid-template-columns:1fr}.recipe-ingredient-row{grid-template-columns:minmax(210px,1fr) 90px 62px 72px 82px 30px}}@media(max-width:640px){.recipe-modal-body{grid-template-columns:1fr}.recipe-modal-card{grid-column:1/-1!important;padding:13px}.recipe-modal-main-grid,.recipe-yield-grid,#fc-peso-section,.recipe-production-grid,.recipe-component-head,.recipe-ingredient-row,.recipe-cost-grid{grid-template-columns:1fr!important}.recipe-footer{align-items:stretch;flex-direction:column}.recipe-footer-note{margin-right:0;text-align:center}.recipe-save-btn,.recipe-cancel-btn,.recipe-delete-btn{width:100%;}}' +
+      '@media(max-width:900px){.recipe-modal-yield,.recipe-modal-image{grid-column:1/-1}.recipe-modal-main-grid,.recipe-yield-grid,.recipe-production-grid{grid-template-columns:1fr 1fr}.recipe-production-layout,.recipe-cost-layout{grid-template-columns:1fr}.recipe-ingredient-row{grid-template-columns:minmax(210px,1fr) 90px 62px 72px 82px 30px}}@media(max-width:640px){.recipe-modal-body{grid-template-columns:1fr}.recipe-modal-card{grid-column:1/-1!important;padding:13px}.recipe-modal-main-grid,.recipe-yield-grid,#fc-peso-section,.recipe-production-grid,.recipe-component-head,.recipe-component-base,.recipe-ingredient-row,.recipe-cost-grid{grid-template-columns:1fr!important}.recipe-footer{align-items:stretch;flex-direction:column}.recipe-footer-note{margin-right:0;text-align:center}.recipe-save-btn,.recipe-cancel-btn,.recipe-delete-btn{width:100%;}}' +
       '</style>';
 
     var body = modalCss + '<div class="recipe-modal-body">' +
@@ -7729,6 +7731,11 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       '<div><label style="' + _fichaLbl() + '">Etapa da receita</label><div class="supplier-field-control"><select data-comp-name="' + compIdx + '" onchange="Modules.Catalogo._updateFichaCost()">' + _recipeComponentOptionsHtml((comp.name || '').trim()) + '</select></div></div>' +
       '<div><label style="' + _fichaLbl() + '">Anotação</label><div class="supplier-field-control"><input data-comp-note="' + compIdx + '" value="' + _esc(comp.note || '') + '" placeholder="Ex: usar fria"></div></div>' +
       '<button type="button" onclick="Modules.Catalogo._removeFichaComponent(' + compIdx + ')" title="Remover componente" style="width:34px;height:34px;border-radius:9px;border:1px solid #E6E1D8;background:#fff;color:#B42318;cursor:pointer;font-size:14px;box-shadow:0 1px 2px rgba(31,31,31,.03);">✕</button>' +
+      '</div>' +
+      '<div class="recipe-component-base">' +
+        '<label><input type="checkbox" data-comp-stock="' + compIdx + '"' + (comp.stockControl || comp.controlsStock ? ' checked' : '') + ' style="accent-color:#B42318;width:15px;height:15px;"> Controlar esta etapa como base de produção</label>' +
+        '<div><label style="' + _fichaLbl() + '">Rendimento da base</label><div class="supplier-field-control"><input type="text" data-comp-stock-qty="' + compIdx + '" value="' + _esc(comp.baseYieldQuantity || comp.stockYieldQuantity || '') + '" placeholder="Ex: 5"></div></div>' +
+        '<div><label style="' + _fichaLbl() + '">Unidade</label><div class="supplier-field-control"><input type="text" data-comp-stock-unit="' + compIdx + '" value="' + _esc(comp.baseYieldUnit || comp.stockYieldUnit || '') + '" placeholder="kg, L, un"></div></div>' +
       '</div>' +
       '<div id="fc-comp-ings-' + compIdx + '" style="display:flex;flex-direction:column;gap:8px;">' + rows + '</div>' +
       '<button type="button" onclick="Modules.Catalogo._addFichaIng(' + compIdx + ')" class="recipe-dashed-btn">+ Adicionar ingrediente nesta parte</button>' +
@@ -7933,6 +7940,9 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
         var compIdx = compEl.dataset.compIdx;
         var compName = ((container.querySelector('[data-comp-name="' + compIdx + '"]') || {}).value || '').trim();
         var compNote = ((container.querySelector('[data-comp-note="' + compIdx + '"]') || {}).value || '').trim();
+        var compStockControl = !!((container.querySelector('[data-comp-stock="' + compIdx + '"]') || {}).checked);
+        var compBaseYieldQuantity = _parseFichaNum((container.querySelector('[data-comp-stock-qty="' + compIdx + '"]') || {}).value);
+        var compBaseYieldUnit = ((container.querySelector('[data-comp-stock-unit="' + compIdx + '"]') || {}).value || '').trim();
         var compIngredients = [];
         compEl.querySelectorAll('[data-ing-idx]').forEach(function (sel) {
           var idx = sel.dataset.ingIdx;
@@ -7958,7 +7968,20 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
         });
         if (compIngredients.length) {
           if (!compName) missingComponentName = true;
-          components.push({ name: compName, note: compNote, ingredients: compIngredients });
+          components.push({
+            name: compName,
+            note: compNote,
+            ingredients: compIngredients,
+            stockControl: compStockControl,
+            controlsStock: compStockControl,
+            stockItemType: compStockControl ? 'base_producao' : '',
+            itemClass: compStockControl ? 'base_producao' : '',
+            classe: compStockControl ? 'base_producao' : '',
+            baseYieldQuantity: compStockControl ? compBaseYieldQuantity : null,
+            stockYieldQuantity: compStockControl ? compBaseYieldQuantity : null,
+            baseYieldUnit: compStockControl ? compBaseYieldUnit : '',
+            stockYieldUnit: compStockControl ? compBaseYieldUnit : ''
+          });
         }
       });
     }

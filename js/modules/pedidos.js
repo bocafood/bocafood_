@@ -4583,12 +4583,22 @@ Modules.Pedidos = (function () {
     return 'previsto';
   }
 
+  function _orderPaymentStatus(order) {
+    order = order || {};
+    var direct = _firstText(order.paymentStatus, order.paymentState, order.statusPayment, order.payStatus, '');
+    if (direct) return String(direct).trim();
+    var legacy = String(order.payment || '').trim();
+    var key = _fold(legacy);
+    if (key === 'pago' || key === 'parcial' || key === 'previsto') return legacy;
+    return 'previsto';
+  }
+
   function _syncOrderFinanceMovement(orderId, order) {
     orderId = String(orderId || '');
     if (!orderId) return Promise.resolve(false);
     order = order || {};
     var total = _num(order.total != null ? order.total : order.finalSubtotal != null ? order.finalSubtotal : order.subtotal != null ? order.subtotal : 0);
-    var paymentStatus = String(order.paymentStatus || order.paymentState || order.payment || '').trim() || 'previsto';
+    var paymentStatus = _orderPaymentStatus(order);
     var paidAmount = _num(order.paidAmount != null ? order.paidAmount : order.amountPaid != null ? order.amountPaid : order.valuePaid != null ? order.valuePaid : 0);
     if (paymentStatus === 'pago') paidAmount = total;
     if (paymentStatus !== 'parcial') paidAmount = paymentStatus === 'pago' ? total : 0;

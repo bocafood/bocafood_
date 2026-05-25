@@ -1,5 +1,141 @@
 # AI Changelog
 
+## 2026-05-25 — Produção: bases intermediárias e estoque por etapa
+- Arquivos alterados: `public/js/modules/catalogo.js`, `public/js/modules/receitas.js`, `public/js/modules/estoque.js`, `public/js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- As etapas da ficha técnica podem ser marcadas como `Base de produção`, com rendimento e unidade próprios, para casos como massas, recheios e preparos intermediários.
+- Ao finalizar uma ordem de produção, além da saída dos ingredientes e da entrada do produto produzido, o sistema cria movimentações `entrada_base_producao` para as etapas marcadas como base.
+- O Estoque passou a reconhecer e separar `Bases de produção` de `Insumos`, `Produtos prontos` e `Produtos produzidos`, mantendo o saldo calculado por movimentações.
+- A necessidade de produção agora também considera bases abaixo do mínimo quando houver configuração de estoque para esse tipo.
+- Quando um pedido confirmado vende um produto ligado a uma ficha técnica com bases marcadas, a baixa de estoque passa a gerar `saida_base_venda` para essas bases; fichas sem bases continuam usando a regra anterior de baixa do produto produzido/produto pronto.
+- O estorno de pedidos cancelados também contempla as saídas de base geradas pela venda, evitando duplicidade e preservando o histórico em `stock_movements`.
+- `Produção > Ordens` passou a permitir criar uma ordem própria de `Base de produção`, escolhendo uma etapa marcada na ficha técnica, salvando snapshot apenas daquela base e gerando entrada da base ao finalizar.
+- Ordens de base não criam entrada de produto final; elas registram saída dos ingredientes da base e entrada da própria base intermediária.
+- Impacto esperado: a operação consegue controlar preparos intermediários como itens de produção e consumir essas bases quando o produto final é montado no pedido, sem criar inventário avançado ou novas regras globais.
+
+## 2026-05-25 — Produção: Lista de Compras e necessidade de produção
+- Arquivos alterados: `public/admin.html`, `public/js/modules/receitas.js`, `AI_CHANGELOG.md`.
+- Criada a aba `Produção > Lista de Compras`, com geração de sugestão por `Produção planejada`, `Estoque mínimo` ou os dois critérios combinados.
+- A lista permite filtrar a classe entre `Insumos`, `Produtos prontos` ou ambos, usando ordens planejadas, mínimos de estoque e saldo calculado por `stock_movements`.
+- `Produção > Ordens` passou a mostrar um bloco de `Necessidade de produção` para produtos produzidos abaixo do estoque mínimo.
+- O bloco de necessidade permite gerar uma ordem planejada diretamente, usando a ficha técnica vinculada e a quantidade faltante.
+- Impacto esperado: a usuária consegue transformar planejamento de produção e estoque mínimo em uma lista objetiva de compras e em novas ordens planejadas sem criar estoque avançado ou alterar regras de baixa.
+
+## 2026-05-25 — Estoque: inventário, estornos e baixa ampliada
+- Arquivos alterados: `public/admin.html`, `public/js/modules/estoque.js`, `public/js/modules/compras.js`, `public/js/modules/pedidos.js`, `public/js/modules/receitas.js`, `AI_CHANGELOG.md`.
+- `Estoque > Itens` passou a separar os saldos em `Insumos`, `Produtos prontos` e `Produtos produzidos`, preservando o cálculo por movimentações em `stock_movements`.
+- O agrupamento de estoque agora usa `stockItemType`, separando `insumo`, `produto_pronto` e `produto_produzido` para evitar mistura entre itens comprados prontos e produtos fabricados por ficha técnica.
+- O detalhe do item ganhou ação `Ajustar saldo`, permitindo informar a contagem real do estoque físico.
+- O ajuste não salva saldo fixo; ele cria uma nova movimentação `ajuste_entrada` ou `ajuste_saida` com saldo anterior, saldo contado, diferença, motivo, observação e data da contagem.
+- Adicionada ação de inventário em lote para ajustar vários itens de uma vez usando movimentações de ajuste, sem gravar saldo fixo.
+- Adicionada configuração simples de estoque mínimo por item em `stock_settings`, apenas como referência visual para itens abaixo do mínimo.
+- Criada a aba `Estoque > Movimentações`, listando entradas, saídas, ajustes e estornos usados no cálculo do saldo.
+- Estornos de compras agora são gravados em `stock_movements` como `estorno_compra`, em vez da coleção legada, permitindo que o saldo enxergue a reversão.
+- Cancelamento de pedido com baixa de estoque criada agora gera `estorno_venda`, preservando histórico e evitando saldo negativo indevido.
+- Cancelamento de ordem de produção com movimentações criadas agora gera estornos de ingredientes/produto produzido e marca a ordem como cancelada.
+- A baixa por venda passou a tentar quebrar itens de combo/opções selecionadas quando houver vínculo com ficha técnica ou produto pronto, sem bloquear o pedido quando algum item não tiver vínculo.
+- O modal de registro de compra ganhou campos simples de lote e validade por item; esses dados são salvos na linha e carregados para as movimentações como `batchNumber`/`expiresAt`.
+- A produção passou a salvar `classe/itemClass` nas movimentações de ingredientes e produto produzido, e o Estoque agora respeita essa classe antes de inferir o tipo pelo movimento.
+- `Estoque > Itens` agora carrega cadastros de apoio (`itens_custo`, `fichasTecnicas` e `products`) para resolver a classe real quando movimentações antigas não trouxerem `classe`, exibindo a coluna como `Classe`.
+- Impacto esperado: o estoque básico fica mais auditável e reversível, com tipos separados, inventário simples, mínimo visual, estornos e leitura geral de movimentações sem criar controle avançado de estoque.
+
+## 2026-05-25 — Fase 5 de Estoque: baixa por venda
+- Arquivos alterados: `public/js/modules/pedidos.js`, `public/js/modules/estoque.js`, `AI_CHANGELOG.md`.
+- Ao mudar um pedido para um status confirmado/concluído, o módulo `Pedidos` passa a gerar movimentações em `tenants/{tenantId}/stock_movements` com `type: "saida_venda"` e `movementGroup: "order"`.
+- Cada item vendido com vínculo de ficha técnica/produto produzido gera uma saída determinística por pedido/item, com `orderId`, `productId`, `productName`, `fichaTecnicaId`, quantidade, unidade, custo estimado e data da movimentação.
+- A duplicidade é evitada pela flag do pedido (`stockMovementCreated`, `stockMovementCreatedAt`, `stockMovementCount`) e por id determinístico da movimentação (`pedido_item_saida_venda`).
+- Itens vendidos sem vínculo com ficha técnica/produto produzido não bloqueiam o pedido; o pedido recebe contador e aviso de itens não baixados para conferência posterior.
+- `Estoque > Itens` agora considera `saida_venda` como saída de produto produzido e mostra a origem `Venda` no saldo e no detalhe do item.
+- Ajuste posterior: produtos prontos comprados também passam a gerar baixa por venda quando o produto do cardápio estiver ligado a `sourceItemId`/`produtoProntoId`; as entradas de compra novas gravam `itemClass/classe` para o estoque agrupar produto pronto separado de insumo.
+- Impacto esperado: produtos produzidos passam a baixar do estoque calculado quando uma venda é confirmada/concluída, sem baixar ingredientes diretamente e sem criar inventário, conferência, alertas ou estoque mínimo.
+
+## 2026-05-25 — Fase 6 de Estoque: entrada por compras
+- Arquivos alterados: `public/js/modules/compras.js`, `public/js/modules/estoque.js`, `AI_CHANGELOG.md`.
+- Ao confirmar recebimento de uma compra, o módulo `Compras` passa a gerar movimentações em `tenants/{tenantId}/stock_movements` com `type: "entrada_compra"` e `movementGroup: "purchase"`.
+- Cada item recebido gera uma movimentação determinística por compra/linha, com `purchaseId`, `itemId`, `itemName`, quantidade em unidade base, unidade, custo unitário, custo total e data da compra.
+- A duplicidade é evitada usando o mesmo id de movimentação por compra/item e salvando flags na compra (`stockMovementCreated`, `stockMovementCreatedAt`, `stockMovementUpdatedAt`, `stockMovementCount`, `stockMovementQuantity`).
+- Compras antigas recebidas/parciais sem flag passam a mostrar a ação opcional `Gerar estoque`, sem criar movimentações automaticamente em histórico antigo.
+- `Estoque > Itens` agora considera `entrada_compra` como entrada, além de `entrada_producao` e `saida_producao`, e mostra a origem como `Compra` ou `Produção` no detalhe.
+- Impacto esperado: compras recebidas passam a alimentar o estoque calculado, preservando pedidos, vendas, financeiro, inventário, alertas, conferência, regras e estrutura multi-tenant.
+
+## 2026-05-25 — Fase 5 de Produção Operacional: Estoque básico
+- Arquivos alterados: `public/admin.html`, `public/js/modules/estoque.js`, `AI_CHANGELOG.md`.
+- Criado o menu principal `Estoque`, com a tela `Estoque > Itens` ligada ao Admin.
+- O módulo calcula o saldo em memória a partir de `tenants/{tenantId}/stock_movements`, somando `entrada_producao` e subtraindo `saida_producao`, sem salvar saldo e sem alterar movimentações existentes.
+- A tabela agrupa ingredientes por `ingredientId`/`ingredientName` e produtos produzidos por `fichaTecnicaId`/`fichaTecnicaNome`, mostrando saldo atual, unidade, valor estimado, última movimentação e origem.
+- O valor estimado usa `unitCost` para ingredientes e `estimatedUnitCost` para produtos produzidos quando disponíveis; itens sem custo aparecem como `sem custo informado`.
+- Cada item abre um detalhe com saldo, entradas, saídas, valor estimado, última atualização e histórico das movimentações usadas no cálculo.
+- Impacto esperado: a usuária passa a ter uma primeira leitura de estoque baseada na produção, sem criar inventário, conferência, alertas, baixa por venda, compras, pedidos ou financeiro.
+
+## 2026-05-25 — Fase 4 de Produção Operacional
+- Arquivos alterados: `public/admin.html`, `public/js/modules/receitas.js`, `AI_CHANGELOG.md`.
+- O módulo `Produção` ganhou a aba `Movimentações`, listando registros recentes de produção com filtro por tipo, data, item, quantidade e origem da ordem.
+- Ao finalizar uma ordem de produção, o sistema agora cria registros em `tenants/{tenantId}/stock_movements`: uma saída planejada para cada ingrediente do snapshot e uma entrada para o lote produzido.
+- As movimentações usam somente os dados salvos na ordem/snapshot, sem recalcular pela ficha técnica atual e sem criar saldo, inventário, conferência, alertas ou baixa por venda.
+- A ordem recebe `stockMovementCreated`, `stockMovementCreatedAt`, `stockMovementCount`, `stockMovementIngredientCount` e `stockMovementProductCount`, evitando geração duplicada.
+- O modal da ordem passou a mostrar indicador de movimentação, quantidade de registros criados e resumo de ingredientes consumidos/produto produzido.
+- Impacto esperado: Produção passa a registrar uma base simples de movimentações para preparar a futura camada de estoque, preservando compras, pedidos, financeiro, permissões e demais módulos.
+
+## 2026-05-25 — Fase 3 de Produção Operacional
+- Arquivos alterados: `public/js/modules/receitas.js`, `AI_CHANGELOG.md`.
+- As ordens concluídas em `Produção > Ordens` passaram a exibir uma leitura operacional do resultado do lote, comparando planejado e produzido sem recalcular pela ficha técnica atual.
+- A finalização da produção agora salva `productionResultStatus`, `productionResultLabel` e `productionResultMessage` em `production_orders`, classificando o lote como `dentro_do_esperado`, `rendimento_menor`, `rendimento_muito_menor` ou `rendimento_maior`.
+- A listagem e o modal de detalhes receberam badges de resultado, diferença em quantidade e percentual, custo previsto por unidade, custo real estimado por unidade, variação de custo e perda real quando informada.
+- A análise deixa claro que é uma leitura operacional do lote e ainda não representa fechamento financeiro, baixa de ingredientes ou movimentação de estoque.
+- Impacto esperado: a usuária consegue entender rapidamente se a produção rendeu como esperado antes da futura camada de estoque.
+
+## 2026-05-25 — Fase 2 de Produção Operacional
+- Arquivos alterados: `public/js/modules/receitas.js`, `AI_CHANGELOG.md`.
+- As ordens de produção planejadas agora podem ser finalizadas com quantidade produzida real, data real da produção, perdas reais opcionais, observação da produção e responsável pela conclusão.
+- Ao concluir uma ordem, o documento em `production_orders` recebe `status: "concluida"` e os campos de resultado do lote, incluindo diferença de rendimento, percentual de rendimento real, custo previsto por unidade, custo real estimado por unidade e variação percentual do custo.
+- O cálculo usa somente os dados salvos na própria ordem e no snapshot da ficha técnica, sem recalcular pela ficha atual e sem movimentar estoque.
+- A listagem e o modal de detalhes passaram a mostrar quantidade planejada, quantidade produzida, diferença de rendimento, custo previsto e custo real estimado, com aviso claro de que esta fase ainda não baixa ingredientes nem gera entrada de produto pronto.
+- Impacto esperado: Produção passa a registrar o resultado real de um lote sem alterar compras, pedidos, financeiro, permissões, estoque ou fichas técnicas existentes.
+
+## 2026-05-25 — Padrão de listagem em Composição do Preço
+- Arquivos alterados: `public/js/modules/dinheiro.js`, `js/modules/dinheiro.js`, `AI_CHANGELOG.md`.
+- A aba `Composição do Preço` recebeu o padrão documentado de página de listagem, com topo mais limpo, card de filtros compacto, campo de busca off-white, botão `Limpar filtros` condicional, estado vazio mais claro e select de paginação com seta no padrão dos modais.
+- A aba `Lista de Preço` recebeu o mesmo padrão visual de listagem, preservando a lógica de canal, filtros, geração da lista e impressão.
+- A tela `Simulador` foi alinhada ao mesmo padrão visual, com topo sem chips repetidos, card de entrada em degradê suave, campos off-white, select no padrão e KPIs de resultado preservados.
+- No card `Dados para testar`, os campos de dinheiro do Simulador passaram a usar formato de moeda com `€`, vírgula decimal e leitura numérica preservada para os cálculos.
+- A tela `Regras de preço` também foi alinhada ao padrão, com topo limpo, cards em degradê suave, campos off-white, selects com seta no padrão, canais mais compactos e taxa fixa em formato moeda sem alterar o salvamento.
+- Em `Composição do Preço`, o card de filtros ganhou seleção de `Canal de venda`; ao trocar o canal, a tabela recalcula preço, taxas, lucro, margem e preços sugeridos para o canal escolhido.
+- O ajuste preserva cálculos, filtros existentes, paginação, Firebase, rotas, permissões e estrutura de dados.
+- Impacto esperado: a composição de preço fica mais alinhada ao padrão BocaFood e mais fácil de consultar sem competir visualmente com totalizadores repetidos.
+
+## 2026-05-25 — Canais de venda visível em Configurações
+- Arquivos alterados: `public/admin.html`, `admin.html`, `AI_CHANGELOG.md`.
+- O submenu lateral de `Configurações` passou a exibir o item `Canais de venda`, apontando para a rota existente `configuracoes/canais_venda`.
+- Impacto esperado: a usuária consegue acessar o cadastro de canais diretamente pelo menu lateral, sem alterar rota, módulo, Firebase, permissões ou lógica da tela.
+
+## 2026-05-25 — Padrão visual no Radar de Preços e Margem
+- Arquivos alterados: `public/js/modules/dinheiro.js`, `js/modules/dinheiro.js`, `AI_CHANGELOG.md`.
+- A aba `Preços e Margem > Radar` recebeu refinamento visual nos blocos `Comissões por canal` e `Produtos que merecem atenção`, aproximando-os do padrão documentado de cadastro do Admin com cards em degradê sutil, borda suave, campos/tiles off-white, sombra leve e melhor hierarquia.
+- Os cards de KPI e o card `Prioridades financeiras` foram preservados como estavam, conforme solicitado.
+- As informações de comissão, imposto, taxa fixa, margem, produto e ação foram reorganizadas visualmente sem alterar cálculo, Firebase, rotas, permissões, estrutura de dados ou componentes internos.
+- Ajuste posterior: o Radar foi refinado de forma mais fiel ao padrão documentado, com títulos de seção mais claros, tiles internos proporcionais, menor peso visual, sem ícone repetitivo em subcards simples e copy menos técnica.
+- Correção visual posterior: o grid do Radar deixou de esticar o card `Comissões por canal` para a altura de `Prioridades financeiras`, e o estado vazio foi compactado para evidenciar melhor o padrão visual aplicado.
+- Ajuste posterior: adicionada a seção `Leitura do Radar`, sem alterar KPIs ou cálculos, para dar hierarquia de cadastro/diagnóstico à tela e reduzir a sensação de dashboard técnico.
+- Ajuste posterior: removidos os chips totalizadores do topo e, após revisão visual, removido também o card `Leitura do Radar` para manter a tela mais direta.
+- Ajuste posterior: os cards do Radar receberam elementos gráficos discretos ao lado dos títulos e o card `Prioridades financeiras` ganhou borda suave, seguindo o padrão visual documentado.
+- Ajuste posterior: `Prioridades financeiras` passou a mostrar também produtos abaixo do preço sugerido, o bloco de canais ganhou destaque discreto para o canal com maior impacto na margem e `Produtos que merecem atenção` foi renomeado para `Produtos para revisar primeiro`, deixando mais clara a função de cada bloco.
+- Ajuste posterior: a copy do Radar foi suavizada para falar com a usuária de forma mais prática, reduzindo termos técnicos e focando em lucro, preço, custo, margem e próximos passos.
+- Impacto esperado: o Radar fica mais alinhado ao padrão BocaFood e mais fácil de ler, mantendo a lógica financeira existente intacta.
+
+## 2026-05-25 — Sidebar por ambientes no Admin
+- Arquivos alterados: `public/admin.html`, `admin.html`, `public/js/core/router.js`, `js/core/router.js`, `AI_CHANGELOG.md`.
+- A sidebar do Admin ganhou um seletor visual de ambientes com `Operação` e `Inteligência`, usando o estado inicial estreito com dois botões verticais e palavras rotacionadas.
+- Os menus atuais do sistema foram mantidos como fonte de verdade dentro do ambiente `Operação`, preservando rotas, cliques, ícones, ordem e permissões já existentes; `Maturidade do Negócio` e `Configurações` continuam fora dos novos ambientes.
+- O ambiente `Inteligência` foi criado como navegação separada com itens próprios (`Visão Geral`, `Vendas`, `Financeiro`, `Marketing`, `Clientes`, `Cardápio` e `Operação`) e telas placeholder simples.
+- Foram adicionados os estados de sidebar `selector`, `operation-expanded`, `operation-collapsed`, `intelligence-expanded` e `intelligence-collapsed`, com botão de voltar ao seletor e recolher/expandir por ambiente.
+- Ajuste posterior: no estado fechado geral, `Maturidade do Negócio` passou a mostrar somente o elemento gráfico e os blocos de avatar, ajuda e logout ficam ocultos para manter o seletor mais limpo.
+- Ajuste posterior: `Performance` passou a ficar fixa abaixo de `Maturidade do Negócio`, com menos protagonismo visual, e `Configurações` também passa a mostrar somente o elemento gráfico quando a sidebar está fechada.
+- Ajuste posterior: a rolagem visual do menu lateral foi ocultada, o ícone fechado de `Maturidade do Negócio` recebeu tratamento mais premium e o acesso fechado de `Performance` foi contido no eixo da sidebar com ícone mais discreto.
+- Correção posterior: ao fechar a sidebar enquanto `Maturidade`, `Performance` ou `Configurações` estiverem abertas, o menu volta ao seletor geral com `Operação` e `Inteligência`, evitando o estado interno recolhido de Operação.
+- Correção posterior: os submenus de `Configurações` ficam ocultos no estado fechado geral, mesmo quando a rota ativa expande o grupo internamente, impedindo vazamento visual de itens para fora da sidebar.
+- Ajuste posterior: o texto de status `Automático · Loja ligada` foi removido visualmente do topo, mantendo apenas o botão de status, e a sidebar fechada recebeu logo menor, atalhos fixos mais proporcionais e menos bordas pesadas.
+- Ajuste posterior: removidas as linhas divisórias da logo e do rodapé da sidebar, além das bordas visuais dos botões superiores `Ver loja` e liga/desliga, deixando o topo e a navegação mais leves.
+- Impacto esperado: a navegação passa a separar operação diária e inteligência analítica sem alterar módulos, Firebase, rotas existentes, permissões ou componentes internos.
+
 ## 2026-05-24 — Configuração do Programa de Pontos no padrão de Usuário
 - Arquivos alterados: `public/js/modules/marketing.js`, `js/modules/marketing.js`, `public/admin.html`, `admin.html`, `AI_CHANGELOG.md`.
 - A tela `Programa de Pontos > Configuração` foi reorganizada no padrão visual usado em `Configurações > Usuário`, com card principal mais limpo, campos off-white, bordas suaves, sombra leve e rodapé de salvamento mais alinhado.
@@ -7828,6 +7964,36 @@
 - A copy foi ajustada para dar protagonismo ao identificador/subdomínio da usuária, deixando o domínio BocaFood apenas como endereço gerado pelo sistema.
 - Impacto esperado: a gestão do link público fica mais premium e clara para a usuária, sem alterar lógica de slug, publicação, Firebase, rotas, permissões ou estrutura de dados.
 
+## 2026-05-25 — Padrão visual em Financeiro > Visão Geral
+- Arquivos alterados: `public/js/modules/financeiro.js`, `js/modules/financeiro.js`, `AI_CHANGELOG.md`.
+- A aba `Financeiro > Visão Geral` recebeu o padrão visual documentado no topo, filtros e cards de conteúdo: cards com degradê suave, borda `#EADFD8`, sombra leve, campos off-white, selects com seta alinhada e títulos com ícones discretos.
+- Os campos de período, conta bancária e datas foram reorganizados em largura proporcional ao conteúdo, com botão `Limpar filtros` exibido apenas quando houver filtro aplicado.
+- Os cards de KPI/indicadores principais foram preservados como estavam, sem alteração de lógica, cálculos, rotas, Firebase, permissões ou estrutura de dados.
+- Ajuste visual posterior: o card `Saldo projetado` passou a usar um ícone mais neutro de linha do tempo.
+- Validação funcional: corrigida a leitura de saídas parciais para considerar `valorPago` no saldo/resultado e ajustado o total `A pagar` para usar saldo restante em contas parciais.
+- Ajuste posterior: o título `Visão Geral` foi movido para fora do card, seguindo o padrão de título externo das abas administrativas.
+- A aba `Fluxo de Caixa` teve apenas o título da página e o card de filtros alinhados ao padrão: título externo limpo, card com degradê/borda suave, campos off-white, selects com seta alinhada, status sem pílulas e remoção dos totalizadores em pílula do topo. A listagem foi preservada.
+- A aba `Entradas` recebeu o mesmo padrão visual do `Fluxo de Caixa` no card de filtros: card com degradê/borda suave, campos off-white, selects com seta alinhada, contas bancárias sem pílulas, botão `Limpar filtros` condicional e remoção dos totalizadores em pílula. A listagem foi preservada.
+- Ajuste visual posterior: o KPI `A receber` passou a usar um ícone mais adequado para pendências/ações previstas.
+
+## 2026-05-25 — Correções de cálculo no modal de Composição do Preço
+- Arquivos alterados: `public/js/modules/dinheiro.js`, `js/modules/dinheiro.js`, `AI_CHANGELOG.md`.
+- O modal de composição passou a abrir no mesmo canal de venda selecionado na aba e a recalcular sempre a partir do produto original salvo, evitando usar dados temporários da tabela filtrada.
+- A configuração fiscal agora aceita o formato novo (`defaultIvaRate`) e o formato legado (`ivaPadrao`), além de respeitar o IVA específico do produto quando cadastrado em `product.fiscal.ivaRate`.
+- A taxa fixa global deixou de se sobrepor a canais adicionais com taxa fixa própria zerada; canais próprios continuam podendo usar a taxa fixa global quando aplicável.
+- Quando o preço sugerido fica muito acima do preço atual, o modal passa a exibir um aviso explicando que a sugestão foi impactada por margem desejada, taxas e impostos do canal.
+- Refinamento visual: o modal passou a seguir o padrão documentado de modais do Admin, com shell off-white, cabeçalho limpo, cards em degradê suave, campos off-white proporcionais, select com seta alinhada e distribuição do preço preservada em leitura mais leve.
+- O campo editável `Preço de venda` do modal passou a usar formato de moeda (`€0,00`) e salvar com o parser monetário do módulo.
+- O card `Status` do modal passou a mostrar a pílula de status e o nome do canal na mesma linha.
+- Impacto esperado: preço atual, margem, lucro, preço mínimo e preço sugerido ficam mais coerentes por canal, sem alterar rotas, Firebase, permissões ou estrutura de dados.
+
+## 2026-05-25 — Padrão visual em Configurações > Canais de venda
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- A aba `Configurações > Canais de venda` recebeu o padrão visual aprovado para cards de configuração: card principal com degradê leve, ícone discreto no título, aviso informativo mais humano, campos off-white, bordas suaves e ações alinhadas.
+- A lista de canais adicionais ficou mais compacta e clara, preservando os mesmos IDs, funções de adicionar/remover/salvar e a lógica que mantém `Cardápio` e `Venda presencial` como canais fixos.
+- Correção: o botão `Adicionar canal` voltou a abrir uma nova linha usando o helper correto de escape do módulo.
+- Impacto esperado: a tela fica mais premium e coerente com as demais páginas de Configurações, sem alterar rotas, Firebase, permissões ou estrutura de dados.
+
 ## 2026-05-24 — Documentação do template público da loja
 - Arquivos alterados: `PUBLIC_STORE_TEMPLATE_GUIDE.md`, `AI_CHANGELOG.md`.
 - Criado guia consolidado do template público da loja com padrões de mobile, desktop, card principal, cards de produto, modal de produto, promoções, Programa de Pontos, avaliações, carrinho, rodapé, WhatsApp, idiomas, loading e checklist de validação.
@@ -7904,3 +8070,83 @@
 - Refinamento de copy: os textos do modal de upsell deixaram de explicar a regra de forma técnica e passaram a usar uma linguagem mais comercial, natural e orientada a desejo para a cliente final.
 - Ajuste de tom: removida a frase impessoal “recomendação da loja” no modal de upsell; a copy agora fala de forma direta com a cliente.
 - Internacionalização: as copies do modal de upsell do carrinho passaram a usar textos localizados em `pt-BR`, `pt-PT`, `es-ES`, `en` e `fr`, respeitando o idioma principal configurado na loja.
+
+## 2026-05-25 — Fase 1 de Produção Operacional
+- Arquivos alterados: `public/admin.html`, `public/js/modules/receitas.js`, `AI_CHANGELOG.md`.
+- O módulo `Produção` ganhou a nova aba `Ordens`, mantendo `Receitas`, `Insumos` e `Configurações` funcionando nas rotas atuais.
+- Foi criada a base de ordens planejadas em `tenants/{tenantId}/production_orders`, com ficha técnica selecionada, quantidade planejada, data prevista, observação, status inicial `planejada`, custo previsto e responsável pela criação.
+- Ao criar uma ordem, o sistema salva um snapshot da ficha técnica no momento do planejamento, incluindo rendimento, unidade, ingredientes, quantidades previstas e custos usados no cálculo.
+- A tela lista as ordens criadas e permite abrir os detalhes da ordem, deixando claro que esta fase ainda não movimenta estoque, não baixa ingredientes e não gera entrada de produto pronto.
+- Impacto esperado: Produção passa a ter uma primeira base operacional para planejamento, preparando o caminho para lote, produção realizada e estoque em fases futuras.
+
+## 2026-05-25 — Padrão de listagem em Financeiro > Saídas
+- Arquivos alterados: `public/js/modules/financeiro.js`, `js/modules/financeiro.js`, `AI_CHANGELOG.md`.
+- A tela `Financeiro > Saídas` recebeu o mesmo padrão visual aplicado em `Fluxo de caixa` e `Entradas` no título e no card de filtros.
+- O card de filtros passou a usar fundo branco/off-white, borda suave, campos off-white, seletor com seta interna, checkboxes leves e botão `Limpar filtros` somente quando houver filtro aplicado.
+- Foram removidos os totalizadores em pílula do card de filtros; a listagem, paginação, KPIs e lógica financeira foram preservados.
+- O elemento gráfico do KPI `A pagar` foi trocado para um ícone de pagamento pendente mais direto e coerente com a leitura da tela.
+
+## 2026-05-25 — Padrão de configurações em Financeiro
+- Arquivos alterados: `public/js/modules/financeiro.js`, `js/modules/financeiro.js`, `AI_CHANGELOG.md`.
+- A aba `Financeiro > Configurações` foi alinhada ao padrão documentado de telas de configuração operacional, com topo direto, sem totalizadores em pílula e navegação interna mais compacta.
+- Os cards de categorias, formas de pagamento, contas bancárias e custos indiretos passaram a usar fundo branco/off-white, borda suave, sombra leve, elementos gráficos discretos e linhas de listagem mais limpas.
+- A copy foi suavizada para explicar o uso prático das configurações financeiras, sem linguagem técnica de estrutura interna.
+- A alteração preserva rotas, permissões, Firebase, estrutura de dados, lógica de salvamento, categorias, formas de pagamento, contas e custos indiretos.
+- Ajuste visual posterior: no `Fluxo de Caixa`, o KPI `Previstos` passou a usar um elemento gráfico mais alinhado visualmente.
+
+## 2026-05-25 — Validação do modal de Entradas financeiras
+- Arquivos alterados: `public/js/modules/financeiro.js`, `js/modules/financeiro.js`, `AI_CHANGELOG.md`.
+- O modal de `Entradas` foi revisado campo a campo, incluindo descrição, valor, cliente, categoria, forma de pagamento, conta, status, data, recorrência, parcelamento, comprovante e observações.
+- A leitura de valores monetários passou a aceitar valores digitados com símbolo de euro, separador de milhar e vírgula decimal, evitando erro em entradas como `€ 1.234,56`.
+- A confirmação de recebimento passou a validar o saldo pendente real, impedindo receber valor maior do que falta e corrigindo o recebimento de entradas parciais para somar ao valor já recebido.
+- Impacto esperado: recebimentos previstos e parciais ficam mais consistentes no fluxo de caixa, sem alterar rotas, permissões, Firebase ou estrutura das coleções.
+
+## 2026-05-25 — Status financeiro inicial em pedidos do cardápio
+- Arquivos alterados: `public/index.html`, `public/js/modules/pedidos.js`, `js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- Os pedidos criados pelo template público agora salvam explicitamente `paymentStatus` e `paymentState` como `previsto`, mantendo `payment` e `paymentMethod` apenas como forma de pagamento escolhida pela cliente.
+- Também foram inicializados os campos de valor recebido como zero para evitar mistura entre forma de pagamento e status financeiro quando o pedido for sincronizado com `movimentacoes`.
+- A sincronização do pedido com o financeiro passou a tratar `payment` como status apenas em pedidos legados onde o valor seja claramente `pago`, `parcial` ou `previsto`; métodos como `Dinheiro` e `Cartão` não são mais interpretados como status.
+- Impacto esperado: ao confirmar ou salvar o pedido no Admin, a entrada financeira nasce prevista de forma consistente, sem interpretar `Dinheiro`, `Cartão` ou outro método como status de pagamento.
+
+## 2026-05-25 — Padrão visual no modal de Entradas financeiras
+- Arquivos alterados: `public/js/modules/financeiro.js`, `js/modules/financeiro.js`, `AI_CHANGELOG.md`.
+- O modal `Financeiro > Entradas` foi alinhado ao padrão documentado de modais de cadastro, com cards em degradê suave, borda clara, sombra leve, campos off-white, selects com seta interna e rodapé mais organizado.
+- Os campos foram reorganizados para ocupar largura proporcional ao conteúdo: número, documento, valor, data, categoria, forma de pagamento e conta deixam de ocupar espaço maior do que o necessário.
+- Checkboxes de recorrência e parcelamento ficaram mais leves, sem aparência de mini-card, e os blocos de status, datas, conta, comprovante e observações ganharam hierarquia mais clara.
+- Correção posterior: o modal passou a usar a classe de ícones real do Admin (`mi` / Material Icons Round), evitando que nomes de ícones apareçam como texto, e o card introdutório extra foi removido para deixar o primeiro card concentrar os dados principais como definido na documentação.
+- O modal `Detalhes da entrada` também foi refinado no mesmo padrão, com cards em degradê suave, tiles off-white, ícones corretos, resumo financeiro mais leve, observações em bloco próprio e ações alinhadas no rodapé.
+- Impacto esperado: o cadastro de entradas fica mais premium, compacto e fácil de preencher, preservando lógica, cálculos, Firebase, rotas, permissões e estrutura de dados.
+
+## 2026-05-25 — Validação das Saídas financeiras
+- Arquivos alterados: `public/js/modules/financeiro.js`, `js/modules/financeiro.js`, `AI_CHANGELOG.md`.
+- A aba `Financeiro > Saídas` foi revisada no fluxo de conexão entre `contas_pagar`, `financeiro_apagar` e `movimentacoes`.
+- Saídas criadas diretamente como pagas agora sincronizam uma movimentação de caixa do tipo `saida`, preservando vínculo com conta, forma de pagamento, categoria, fornecedor e documento de origem.
+- A baixa de parcelas passou a usar o valor real da parcela/conta, e não o total original da compra, evitando que uma parcela paga integralmente fique marcada como parcial.
+- A baixa parcial foi ajustada para permitir completar uma saída que já tinha pagamento anterior, mantendo saldo restante, valor pago acumulado e histórico de movimentações consistentes.
+- Ao salvar uma saída já paga, a tela agora exige conta bancária para que a baixa entre conectada ao caixa.
+- A confirmação em lote passou a ignorar saídas sem conta bancária definida quando não há conta única ativa, reduzindo risco de movimentações financeiras sem conta de saída.
+- Impacto esperado: Saídas, Compras e Fluxo de caixa ficam conectados de forma mais consistente, sem alterar rotas, permissões, Firebase ou estrutura das coleções.
+
+## 2026-05-25 — Padrão visual no modal de Saídas financeiras
+- Arquivos alterados: `public/js/modules/financeiro.js`, `js/modules/financeiro.js`, `AI_CHANGELOG.md`.
+- O modal `Financeiro > Saídas` foi alinhado ao padrão documentado de modais de cadastro, com cards em degradê suave, bordas claras, sombra leve, campos off-white e selects com seta interna.
+- Os campos de número, documento, valor, fornecedor, categoria, forma de pagamento, conta, datas, recorrência e parcelamento foram reorganizados para ocupar largura proporcional ao conteúdo.
+- Checkboxes de recorrência e parcelamento ficaram mais leves, sem aparência de mini-card, e os blocos de status, datas e observações ganharam hierarquia mais clara.
+- O rodapé passou a usar a orientação `Revise os dados antes de salvar.` com ações alinhadas no padrão dos demais modais.
+- Impacto esperado: o cadastro de saídas fica mais premium, compacto e consistente com Entradas, preservando lógica, cálculos, Firebase, rotas, permissões e estrutura de dados.
+
+## 2026-05-25 — Padrão visual no modal Detalhes da saída
+- Arquivos alterados: `public/js/modules/financeiro.js`, `js/modules/financeiro.js`, `AI_CHANGELOG.md`.
+- O modal `Detalhes da saída` foi alinhado ao padrão visual de `Detalhes da entrada`, com cards em degradê suave, tiles off-white, ícones corretos, pílulas leves e ações no rodapé.
+- As seções de resumo, identificação, pagamento, informações adicionais e observações foram reorganizadas para reduzir peso visual e melhorar leitura.
+- O título do modal passou de `Resumo da saída` para `Detalhes da saída`, mantendo as mesmas ações de pagar, editar, excluir e fechar.
+- Ajuste posterior: em `Informações adicionais`, `Valor total original` e `Origem` passaram a aparecer em sequência para ficarem lado a lado quando houver espaço.
+- Impacto esperado: a consulta de saídas fica mais consistente com o restante do Financeiro, sem alterar lógica, baixa, Firebase, rotas, permissões ou estrutura de dados.
+
+## 2026-05-25 — Padrão visual nos modais de Configurações financeiras
+- Arquivos alterados: `public/js/modules/financeiro.js`, `js/modules/financeiro.js`, `AI_CHANGELOG.md`.
+- O modal de categorias em `Configurações financeiras` deixou de exibir o título duplicado do topo, mantendo apenas o título interno do card.
+- O modal `Nova Forma de Pagamento` foi alinhado ao padrão documentado de modais, com cards em degradê suave, campos off-white, largura proporcional ao conteúdo, checkboxes leves e rodapé com orientação antes de salvar.
+- O campo visual `Tipo global *` foi removido da visão da usuária; o controle interno segue preservado de forma oculta para manter compatibilidade com a lógica de salvamento e regras de conta bancária.
+- A copy de conta bancária deixou de mencionar tipo global e passou a explicar o uso de forma simples.
+- Impacto esperado: as configurações financeiras ficam mais limpas e consistentes com o padrão BocaFood, sem alterar Firebase, rotas, permissões ou estrutura de dados.

@@ -51,15 +51,56 @@ button,input,select,textarea{font-family:inherit}
 .login-secondary{width:100%;height:42px;border:1px solid #E3DAD1;background:#fff;color:#2A2620;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer}
 .login-back{margin-top:10px}
 .app-shell{min-height:100vh;display:grid;grid-template-columns:252px 1fr;transition:grid-template-columns .2s ease}
-.app-shell.sidebar-collapsed{grid-template-columns:72px 1fr}
+.app-shell.sidebar-collapsed,.app-shell.sidebar-env-collapsed{grid-template-columns:72px 1fr}
+.app-shell.sidebar-env-selector{grid-template-columns:82px 1fr}
 .sidebar{background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
-.brand{height:70px;display:flex;align-items:center;gap:10px;padding:0 18px;border-bottom:1px solid var(--line)}
+.brand{height:70px;display:flex;align-items:center;gap:10px;padding:0 18px;border-bottom:none}
 .brand img{width:104px;height:46px;object-fit:contain}
 .brand strong{font-family:'Manrope','Inter',sans-serif;font-size:21px;font-weight:600;color:var(--red)}
-.app-shell.sidebar-collapsed .brand{justify-content:center;padding:0 10px}
-.app-shell.sidebar-collapsed .brand img{width:48px;height:44px}
-.nav{padding:12px 10px;overflow-y:auto;flex:1}
+.app-shell.sidebar-collapsed .brand,.app-shell.sidebar-env-collapsed .brand,.app-shell.sidebar-env-selector .brand{justify-content:center;padding:0 8px;height:50px;border-bottom:none}
+.app-shell.sidebar-collapsed .brand img,.app-shell.sidebar-env-collapsed .brand img,.app-shell.sidebar-env-selector .brand img{width:42px;height:36px}
+.nav{padding:12px 10px;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;flex:1}
+.nav::-webkit-scrollbar{display:none}
 .nav-section{display:none}
+.sidebar-env-selector-box{display:none;flex:1;min-height:320px;border:1px solid #EAE4DA;border-radius:16px;overflow:hidden;background:#fff;box-shadow:0 10px 26px rgba(31,31,31,.045)}
+.sidebar-env-selector-btn{flex:1;border:none;background:linear-gradient(180deg,#FFFFFF 0%,#FCF8F2 100%);color:#2A2620;display:flex;align-items:center;justify-content:center;cursor:pointer;font-family:'Manrope','Inter',sans-serif;transition:background .16s ease,color .16s ease,box-shadow .16s ease}
+.sidebar-env-selector-btn + .sidebar-env-selector-btn{border-top:1px solid #EAE4DA}
+.sidebar-env-selector-btn:hover{background:#FFF8F6;color:var(--red);box-shadow:inset 3px 0 0 rgba(180,35,24,.26)}
+.sidebar-env-selector-label{white-space:nowrap;transform:rotate(-90deg);font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+.sidebar-env-panel{display:none;flex-direction:column;gap:10px;min-height:0}
+.sidebar-env-head{display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid #EAE4DA;padding:3px 2px 10px;margin-bottom:2px}
+.sidebar-env-back,.sidebar-env-toggle{border:none;background:transparent;color:#6F6860;font-family:inherit;font-size:11.5px;font-weight:750;display:inline-flex;align-items:center;gap:5px;cursor:pointer;padding:7px 6px;border-radius:10px}
+.sidebar-env-back:hover,.sidebar-env-toggle:hover{background:#FAF8F4;color:var(--red)}
+.sidebar-env-title{font-family:'Manrope','Inter',sans-serif;font-size:13px;font-weight:800;color:#1F1F1F;line-height:1}
+.sidebar-env-content{display:flex;flex-direction:column;gap:0;min-height:0}
+.sidebar-env-footer{border-top:1px solid #EAE4DA;margin-top:4px;padding-top:9px}
+.app-shell.sidebar-env-selector .nav{display:flex;flex-direction:column;gap:8px;padding:3px 8px 9px;overflow:hidden}
+.app-shell.sidebar-env-selector .sidebar-env-selector-box{display:flex!important;flex:1 1 auto;min-height:220px;flex-direction:column}
+.app-shell.sidebar-env-selector .sidebar-footer{display:none!important}
+.app-shell.sidebar-env-selector .nav-item-maturity{justify-content:center;padding:0;min-height:48px;width:48px;margin:0 auto 4px;border:none;border-radius:17px;background:linear-gradient(145deg,#FFFFFF 0%,#FFF8F6 100%);box-shadow:0 12px 24px rgba(117,83,67,.075),inset 0 1px 0 rgba(255,255,255,.95)}
+.app-shell.sidebar-env-selector .nav-item-maturity span:not(.mi){display:none}
+.app-shell.sidebar-env-selector .nav-item-maturity .mi{margin:0;width:32px;height:32px;flex-basis:32px;border-radius:13px;background:#FFF7F5;box-shadow:none;font-size:19px}
+.app-shell.sidebar-env-selector .nav-item-maturity:hover{background:#FFF8F6;transform:translateY(-1px)}
+.app-shell.sidebar-env-selector .nav-item-maturity.active{box-shadow:0 14px 26px rgba(180,35,24,.10),inset 0 1px 0 rgba(255,255,255,.95)}
+.app-shell.sidebar-env-selector .nav-item-performance,.app-shell.sidebar-env-selector .nav-item-system-config{justify-content:center;padding:0;width:48px;min-height:48px;margin:0 auto 4px;border:none;border-radius:17px}
+.app-shell.sidebar-env-selector .nav-item-performance span:not(.mi),.app-shell.sidebar-env-selector .nav-item-system-config span:not(.mi){display:none}
+.app-shell.sidebar-env-selector .nav-item-performance .mi,.app-shell.sidebar-env-selector .nav-item-system-config .mi{margin:0}
+.app-shell.sidebar-env-selector .nav-sub{display:none!important}
+.app-shell.sidebar-env-operation:not(.sidebar-env-collapsed) .sidebar-env-operation-panel,
+.app-shell.sidebar-env-intelligence:not(.sidebar-env-collapsed) .sidebar-env-intelligence-panel,
+.app-shell.sidebar-env-operation.sidebar-env-collapsed .sidebar-env-operation-panel,
+.app-shell.sidebar-env-intelligence.sidebar-env-collapsed .sidebar-env-intelligence-panel{display:flex}
+.app-shell.sidebar-env-collapsed .nav{padding:12px 8px;overflow:hidden}
+.app-shell.sidebar-env-collapsed .sidebar-env-head{justify-content:center;border-bottom:none;padding:0;margin-bottom:8px}
+.app-shell.sidebar-env-collapsed .sidebar-env-title,.app-shell.sidebar-env-collapsed .sidebar-env-back span:not(.mi),.app-shell.sidebar-env-collapsed .sidebar-env-toggle span:not(.mi){display:none}
+.app-shell.sidebar-env-collapsed .sidebar-env-back,.app-shell.sidebar-env-collapsed .sidebar-env-toggle{width:100%;height:38px;justify-content:center;padding:0}
+.app-shell.sidebar-env-collapsed .sidebar-env-content{gap:3px}
+.app-shell.sidebar-env-collapsed .sidebar-env-footer{border-top:none;margin-top:8px;padding-top:0}
+.app-shell.sidebar-env-collapsed .nav-sub,.app-shell.sidebar-env-collapsed .sidebar-footer{display:none!important}
+.app-shell.sidebar-env-collapsed .nav-item{justify-content:center;padding:10px 8px;font-size:0;gap:0;min-height:42px}
+.app-shell.sidebar-env-collapsed .nav-item .mi{font-size:20px;width:20px;flex-basis:20px}
+.app-shell.sidebar-env-collapsed .nav-badge{display:none!important}
+.app-shell.sidebar-env-selector .sidebar-env-panel{display:none!important}
 .nav-item,.nav-sub-item{width:100%;border:none;background:transparent;color:#2A2620;display:flex;align-items:center;gap:9px;text-align:left;text-decoration:none;border-radius:10px;padding:8px 10px;font-size:12.8px;font-weight:500;cursor:pointer;min-height:37px;line-height:1.2}
 .nav-item:hover,.nav-sub-item:hover{background:#F9F7F2}
 .nav-item.active,.nav-sub-item.active{background:#FCEEEE;color:var(--red);box-shadow:inset 0 0 0 1px rgba(180,35,24,.05)}
@@ -69,6 +110,14 @@ button,input,select,textarea{font-family:inherit}
 .nav-item.nav-item-maturity:hover{background:linear-gradient(135deg,#FFFFFF 0%,#F7F1E8 100%)}
 .nav-item.nav-item-maturity.active{background:linear-gradient(135deg,#FFF8F6 0%,#FCEEEE 100%);border-color:#F2C5BE;color:var(--red);box-shadow:0 12px 26px rgba(180,35,24,.10),inset 0 0 0 1px rgba(180,35,24,.05)}
 .nav-item.nav-item-maturity.active .mi{background:#fff;color:var(--red);box-shadow:0 8px 18px rgba(180,35,24,.10)}
+.nav-item.nav-item-performance{min-height:39px;margin:-2px 0 10px;border:1px solid #EFE7E2;background:#fff;box-shadow:0 6px 16px rgba(31,31,31,.035);font-weight:650;color:#4A423C}
+.nav-item.nav-item-performance .mi{width:24px;height:24px;flex-basis:24px;border-radius:10px;background:#FAF8F4;color:#8A6F5A;font-size:15px;opacity:1}
+.nav-item.nav-item-performance:hover{background:#FFFCFB;color:var(--red)}
+.nav-item.nav-item-performance.active{background:#FFF8F6;border-color:#F2D6D1;color:var(--red);box-shadow:0 9px 20px rgba(180,35,24,.075)}
+.nav-item.nav-item-performance.active .mi{background:#fff;color:var(--red)}
+.app-shell.sidebar-env-selector .nav-item-performance{background:#fff;box-shadow:0 8px 18px rgba(31,31,31,.035)}
+.app-shell.sidebar-env-selector .nav-item-performance .mi{width:30px;height:30px;flex-basis:30px;background:#FAF8F4;color:#6F6860;font-size:18px;box-shadow:none}
+.app-shell.sidebar-env-selector .nav-item-performance:hover{background:#FFFCFB;color:var(--red);transform:translateY(-1px)}
 .nav-badge{margin-left:auto;display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 7px;border-radius:999px;background:#FBEDEB;color:var(--red);font-size:11px;font-weight:600;line-height:1}
 .nav-group.expanded .nav-sub{display:block}
 .nav-sub{display:none;margin:2px 0 8px 24px;border-left:1px solid var(--line);padding-left:8px}
@@ -79,7 +128,7 @@ button,input,select,textarea{font-family:inherit}
 .app-shell.sidebar-collapsed .nav-section,.app-shell.sidebar-collapsed .nav-sub,.app-shell.sidebar-collapsed .sidebar-footer{display:none!important}
 .app-shell.sidebar-collapsed .nav-item{justify-content:center;padding:10px 8px;font-size:0;gap:0;min-height:42px}
 .app-shell.sidebar-collapsed .nav-item .mi{font-size:20px}
-.sidebar-footer{border-top:1px solid var(--line);padding:11px 11px 22px;display:flex;flex-direction:column;gap:8px;background:#fff}
+.sidebar-footer{border-top:none;padding:11px 11px 22px;display:flex;flex-direction:column;gap:8px;background:#fff}
 .sidebar-footer-card{border:1px solid var(--line);background:#fff;border-radius:13px;padding:10px}
 .sidebar-footer-title{font-size:10px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px}
 .sidebar-footer-name{font-size:13px;font-weight:600;color:var(--dark);line-height:1.35}
@@ -123,7 +172,7 @@ button,input,select,textarea{font-family:inherit}
 .mobile-menu{display:none}
 .topbar-left{display:flex;align-items:center;gap:10px}
 .topbar-title{font-size:12px;color:#6B7280;font-weight:500;letter-spacing:.01em}
-.store-btn{border:1px solid var(--line);background:#fff;color:var(--dark);border-radius:10px;padding:7px 11px;font-size:12px;font-weight:500;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(31,31,31,.03)}
+.store-btn{border:none;background:#fff;color:var(--dark);border-radius:10px;padding:7px 11px;font-size:12px;font-weight:500;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(31,31,31,.03)}
 .store-btn:hover{background:#FAFAFB}
 .topbar-right{display:flex;align-items:center;gap:12px}
 .store-status{display:inline-flex;align-items:center;gap:5px;font-size:9.5px;font-weight:600;color:#1A9E5A}
@@ -131,13 +180,14 @@ button,input,select,textarea{font-family:inherit}
 .store-status.closed{color:#B42318}
 .store-status.closed::before{background:#B42318}
 .store-online-control{display:inline-flex;align-items:center;gap:7px}
-.store-online-signal{position:relative;width:30px;height:30px;border-radius:11px;border:1px solid rgba(26,158,90,.20);background:linear-gradient(180deg,#F4FCF7 0%,#EAF8F0 100%);color:#1A9E5A;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 8px 18px rgba(26,158,90,.09),inset 0 1px 0 rgba(255,255,255,.95);transition:background .15s ease,border-color .15s ease,color .15s ease,box-shadow .15s ease,transform .15s ease;flex:0 0 auto;cursor:pointer;padding:0;font-family:inherit}
+.store-online-signal{position:relative;width:30px;height:30px;border-radius:11px;border:none;background:linear-gradient(180deg,#F4FCF7 0%,#EAF8F0 100%);color:#1A9E5A;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 8px 18px rgba(26,158,90,.09),inset 0 1px 0 rgba(255,255,255,.95);transition:background .15s ease,border-color .15s ease,color .15s ease,box-shadow .15s ease,transform .15s ease;flex:0 0 auto;cursor:pointer;padding:0;font-family:inherit}
 .store-online-signal .mi{font-size:17px}
 .store-online-signal::after{content:'';position:absolute;width:6px;height:6px;border-radius:50%;background:#1A9E5A;box-shadow:0 0 0 3px rgba(26,158,90,.11);transform:translate(9px,-9px)}
 .store-online-signal.closed{border-color:rgba(180,35,24,.22);background:linear-gradient(180deg,#FFF8F6 0%,#FCEEEE 100%);color:#B42318;box-shadow:0 10px 22px rgba(180,35,24,.10),inset 0 1px 0 rgba(255,255,255,.95)}
 .store-online-signal.closed::after{background:#B42318;box-shadow:0 0 0 3px rgba(180,35,24,.13)}
 .store-online-signal.saving{opacity:.72;transform:scale(.98)}
 .store-online-signal:disabled{cursor:wait;filter:saturate(.8)}
+.store-online-btn{display:none!important}
 .store-online-btn{position:relative;border:none;background:#fff;color:#166534;border-radius:999px;padding:6px 12px;font-size:11.5px;font-weight:800;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 8px 18px rgba(26,158,90,.07),inset 0 1px 0 rgba(255,255,255,.95);font-family:inherit;min-height:30px;transition:box-shadow .15s ease,filter .15s ease,background .15s ease,color .15s ease;pointer-events:none}
 .store-online-btn.closed{background:#fff;color:#B42318;box-shadow:0 10px 22px rgba(180,35,24,.08),inset 0 1px 0 rgba(255,255,255,.95)}
 .store-online-signal:hover{transform:translateY(-1px);box-shadow:0 12px 22px rgba(31,31,31,.10),inset 0 1px 0 rgba(255,255,255,.95)}
@@ -174,7 +224,7 @@ button,input,select,textarea{font-family:inherit}
 .bf-table tbody tr:hover td{background:transparent}
 @media(max-width:900px){
   .app-shell{grid-template-columns:1fr}
-  .app-shell.sidebar-collapsed{grid-template-columns:1fr}
+  .app-shell.sidebar-collapsed,.app-shell.sidebar-env-collapsed,.app-shell.sidebar-env-selector{grid-template-columns:1fr}
   .sidebar{position:fixed;z-index:100;left:0;top:0;transform:translateX(-100%);transition:transform .22s;width:264px}
   .app-shell.nav-open .sidebar{transform:translateX(0)}
   .mobile-menu{display:flex;align-items:center;justify-content:center}
@@ -225,6 +275,22 @@ button,input,select,textarea{font-family:inherit}
       </div>
 
       <div class="nav-group">
+        <button class="nav-item nav-item-performance" data-route="crescimento/performance" onclick="Router.navigate('crescimento/performance')"><span class="mi">analytics</span><span>Performance</span></button>
+      </div>
+
+      <div class="sidebar-env-selector-box" aria-label="Escolha o ambiente de navegação">
+        <button class="sidebar-env-selector-btn" type="button" onclick="AdminApp.selectSidebarEnvironment('operation')"><span class="sidebar-env-selector-label">Operação</span></button>
+        <button class="sidebar-env-selector-btn" type="button" onclick="AdminApp.selectSidebarEnvironment('intelligence')"><span class="sidebar-env-selector-label">Inteligência</span></button>
+      </div>
+
+      <div class="sidebar-env-panel sidebar-env-operation-panel">
+        <div class="sidebar-env-head">
+          <button class="sidebar-env-back" type="button" onclick="AdminApp.showSidebarSelector()"><span class="mi">arrow_back</span><span>Voltar</span></button>
+          <span class="sidebar-env-title">Operação</span>
+        </div>
+        <div class="sidebar-env-content">
+
+      <div class="nav-group">
         <button class="nav-item" data-route="dashboard" onclick="Router.navigate('dashboard')"><span class="mi">dashboard</span><span>Início</span></button>
       </div>
 
@@ -263,8 +329,19 @@ button,input,select,textarea{font-family:inherit}
         <button class="nav-item" data-route="receitas" onclick="AdminApp.toggleNavGroup(event,'receitas','receitas/receitas')"><span class="mi">receipt_long</span>Produção</button>
         <div class="nav-sub">
           <button class="nav-sub-item" data-route="receitas/receitas" onclick="Router.navigate('receitas/receitas')">Receitas</button>
+          <button class="nav-sub-item" data-route="receitas/ordens" onclick="Router.navigate('receitas/ordens')">Ordens</button>
+          <button class="nav-sub-item" data-route="receitas/lista-compras" onclick="Router.navigate('receitas/lista-compras')">Lista de Compras</button>
+          <button class="nav-sub-item" data-route="receitas/movimentacoes" onclick="Router.navigate('receitas/movimentacoes')">Movimentações</button>
           <button class="nav-sub-item" data-route="receitas/insumos" onclick="Router.navigate('receitas/insumos')">Insumos</button>
           <button class="nav-sub-item" data-route="receitas/configuracoes" onclick="Router.navigate('receitas/configuracoes')">Configurações</button>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <button class="nav-item" data-route="estoque" onclick="AdminApp.toggleNavGroup(event,'estoque','estoque/itens')"><span class="mi">inventory_2</span>Estoque</button>
+        <div class="nav-sub">
+          <button class="nav-sub-item" data-route="estoque/itens" onclick="Router.navigate('estoque/itens')">Itens</button>
+          <button class="nav-sub-item" data-route="estoque/movimentacoes" onclick="Router.navigate('estoque/movimentacoes')">Movimentações</button>
         </div>
       </div>
 
@@ -303,7 +380,6 @@ button,input,select,textarea{font-family:inherit}
         <button class="nav-item" data-route="crescimento" onclick="AdminApp.toggleNavGroup(event,'crescimento','crescimento/plano-de-voo',true)"><span class="mi">trending_up</span>Crescimento</button>
         <div class="nav-sub">
           <button class="nav-sub-item" data-route="crescimento/plano-de-voo" onclick="Router.navigate('crescimento/plano-de-voo')">Plano de Voo</button>
-          <button class="nav-sub-item" data-route="crescimento/performance" onclick="Router.navigate('crescimento/performance')">Performance</button>
           <button class="nav-sub-item" data-route="crescimento/temporadas" onclick="Router.navigate('crescimento/temporadas')">Temporadas</button>
         </div>
       </div>
@@ -328,14 +404,53 @@ button,input,select,textarea{font-family:inherit}
           <button class="nav-sub-item" data-route="fiscal/configuracoes" onclick="Router.navigate('fiscal/configuracoes')">Configurações fiscais</button>
         </div>
       </div>
+        </div>
+        <div class="sidebar-env-footer">
+          <button class="sidebar-env-toggle" type="button" onclick="AdminApp.collapseSidebarEnvironment()"><span class="mi">keyboard_double_arrow_left</span><span>Recolher</span></button>
+        </div>
+      </div>
+
+      <div class="sidebar-env-panel sidebar-env-intelligence-panel">
+        <div class="sidebar-env-head">
+          <button class="sidebar-env-back" type="button" onclick="AdminApp.showSidebarSelector()"><span class="mi">arrow_back</span><span>Voltar</span></button>
+          <span class="sidebar-env-title">Inteligência</span>
+        </div>
+        <div class="sidebar-env-content">
+          <div class="nav-group">
+            <button class="nav-item" data-route="inteligencia" onclick="Router.navigate('inteligencia')"><span class="mi">insights</span><span>Visão Geral</span></button>
+          </div>
+          <div class="nav-group">
+            <button class="nav-item" data-route="inteligencia/vendas" onclick="Router.navigate('inteligencia/vendas')"><span class="mi">query_stats</span><span>Vendas</span></button>
+          </div>
+          <div class="nav-group">
+            <button class="nav-item" data-route="inteligencia/financeiro" onclick="Router.navigate('inteligencia/financeiro')"><span class="mi">account_balance_wallet</span><span>Financeiro</span></button>
+          </div>
+          <div class="nav-group">
+            <button class="nav-item" data-route="inteligencia/marketing" onclick="Router.navigate('inteligencia/marketing')"><span class="mi">campaign</span><span>Marketing</span></button>
+          </div>
+          <div class="nav-group">
+            <button class="nav-item" data-route="inteligencia/clientes" onclick="Router.navigate('inteligencia/clientes')"><span class="mi">groups</span><span>Clientes</span></button>
+          </div>
+          <div class="nav-group">
+            <button class="nav-item" data-route="inteligencia/cardapio" onclick="Router.navigate('inteligencia/cardapio')"><span class="mi">restaurant_menu</span><span>Cardápio</span></button>
+          </div>
+          <div class="nav-group">
+            <button class="nav-item" data-route="inteligencia/operacao" onclick="Router.navigate('inteligencia/operacao')"><span class="mi">settings_suggest</span><span>Operação</span></button>
+          </div>
+        </div>
+        <div class="sidebar-env-footer">
+          <button class="sidebar-env-toggle" type="button" onclick="AdminApp.collapseSidebarEnvironment()"><span class="mi">keyboard_double_arrow_left</span><span>Recolher</span></button>
+        </div>
+      </div>
 
       <div class="nav-group">
-        <button class="nav-item" data-route="configuracoes" onclick="AdminApp.toggleNavGroup(event,'configuracoes','configuracoes/geral')"><span class="mi">settings</span>Configurações</button>
+        <button class="nav-item nav-item-system-config" data-route="configuracoes" onclick="AdminApp.toggleNavGroup(event,'configuracoes','configuracoes/geral')"><span class="mi">settings</span><span>Configurações</span></button>
         <div class="nav-sub">
           <button class="nav-sub-item" data-route="configuracoes/geral" onclick="Router.navigate('configuracoes/geral')">Geral</button>
           <button class="nav-sub-item" data-route="configuracoes/conta_usuario" onclick="Router.navigate('configuracoes/conta_usuario')">Usuário</button>
           <button class="nav-sub-item" data-route="configuracoes/tpv" onclick="Router.navigate('configuracoes/tpv')">Venda presencial</button>
           <button class="nav-sub-item" data-route="configuracoes/integracoes" onclick="Router.navigate('configuracoes/integracoes')">Integrações</button>
+          <button class="nav-sub-item" data-route="configuracoes/canais_venda" onclick="Router.navigate('configuracoes/canais_venda')">Canais de venda</button>
           <button class="nav-sub-item" data-route="configuracoes/plano" onclick="Router.navigate('configuracoes/plano')">Plano</button>
         </div>
       </div>
@@ -397,6 +512,7 @@ button,input,select,textarea{font-family:inherit}
 <script src="js/modules/catalogo.js?v=20260524-reviews-admin-pattern-2"></script>
 <script src="js/modules/loja_online.js?v=20260524-reviews-admin-pattern-2"></script>
 <script src="js/modules/receitas.js"></script>
+<script src="js/modules/estoque.js"></script>
 <script src="js/modules/clientes.js"></script>
 <script src="js/modules/marketing.js?v=20260524-points-clients-pattern-1"></script>
 <script src="js/modules/plano_voo.js?v=20260510-plano-voo-navegacao-crescimento"></script>
@@ -572,6 +688,44 @@ button,input,select,textarea{font-family:inherit}
     return Math.ceil((end.getTime() - today.getTime()) / 86400000);
   }
 
+  function _adminApplySidebarState(mode, state, persist) {
+    var shell = document.getElementById('admin-shell');
+    if (!shell) return;
+    mode = mode === 'intelligence' ? 'intelligence' : (mode === 'operation' ? 'operation' : 'selector');
+    state = state === 'collapsed' ? 'collapsed' : (mode === 'selector' ? null : 'expanded');
+    shell.classList.remove('sidebar-collapsed', 'sidebar-env-selector', 'sidebar-env-operation', 'sidebar-env-intelligence', 'sidebar-env-collapsed');
+    shell.classList.add(mode === 'selector' ? 'sidebar-env-selector' : ('sidebar-env-' + mode));
+    if (state === 'collapsed') shell.classList.add('sidebar-env-collapsed');
+    if (persist !== false) {
+      localStorage.setItem('admin.sidebarMode', mode);
+      if (state) localStorage.setItem('admin.sidebarState', state);
+      else localStorage.removeItem('admin.sidebarState');
+      localStorage.setItem('admin.sidebarCollapsed', state === 'collapsed' ? '1' : '0');
+    }
+    var icon = document.getElementById('sidebar-toggle-icon');
+    var toggle = document.querySelector('.sidebar-toggle');
+    if (icon) icon.textContent = mode === 'selector' ? 'view_sidebar' : (state === 'collapsed' ? 'keyboard_double_arrow_right' : 'keyboard_double_arrow_left');
+    if (toggle) toggle.title = mode === 'selector' ? 'Abrir Operação' : (state === 'collapsed' ? 'Expandir menu' : 'Recolher menu');
+    document.querySelectorAll('.sidebar-env-footer .sidebar-env-toggle .mi').forEach(function (el) {
+      el.textContent = state === 'collapsed' ? 'keyboard_double_arrow_right' : 'keyboard_double_arrow_left';
+    });
+    document.querySelectorAll('.sidebar-env-footer .sidebar-env-toggle span:not(.mi)').forEach(function (el) {
+      el.textContent = state === 'collapsed' ? 'Expandir' : 'Recolher';
+    });
+  }
+
+  function _adminSidebarModeForRoute(route) {
+    route = String(route || '').replace(/^#/, '');
+    if (route.indexOf('inteligencia') === 0) return 'intelligence';
+    if (route && route !== 'crescimento/maturidade' && route !== 'crescimento/performance' && route.indexOf('configuracoes') !== 0) return 'operation';
+    return '';
+  }
+
+  function _adminIsFixedSidebarRoute(route) {
+    route = String(route || '').replace(/^#/, '');
+    return route === 'crescimento/maturidade' || route === 'crescimento/performance' || route.indexOf('configuracoes') === 0;
+  }
+
   window.AdminApp = {
     resetStoreIdentity: _adminResetStoreIdentity,
     showLogin: function () {
@@ -582,15 +736,10 @@ button,input,select,textarea{font-family:inherit}
     showApp: function () {
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('admin-shell').style.display = 'grid';
-      var shell = document.getElementById('admin-shell');
-      if (shell) {
-        var collapsed = localStorage.getItem('admin.sidebarCollapsed') === '1';
-        shell.classList.toggle('sidebar-collapsed', collapsed);
-        var icon = document.getElementById('sidebar-toggle-icon');
-        if (icon) icon.textContent = collapsed ? 'keyboard_double_arrow_right' : 'keyboard_double_arrow_left';
-        var toggle = document.querySelector('.sidebar-toggle');
-        if (toggle) toggle.title = collapsed ? 'Abrir menu' : 'Encolher menu';
-      }
+      var routeMode = _adminSidebarModeForRoute(window.location.hash.replace('#', '') || '');
+      var mode = routeMode || localStorage.getItem('admin.sidebarMode') || 'selector';
+      var state = mode === 'selector' ? null : (localStorage.getItem('admin.sidebarState') || (localStorage.getItem('admin.sidebarCollapsed') === '1' ? 'collapsed' : 'expanded'));
+      _adminApplySidebarState(mode, state);
       var profile = Auth.getAdminProfile ? Auth.getAdminProfile() : null;
       if (!profile || !profile.tenantId) {
         _adminResetStoreIdentity();
@@ -668,16 +817,39 @@ button,input,select,textarea{font-family:inherit}
     toggleNav: function () {
       document.getElementById('admin-shell').classList.toggle('nav-open');
     },
+    showSidebarSelector: function () {
+      _adminApplySidebarState('selector', null);
+    },
+    selectSidebarEnvironment: function (mode) {
+      _adminApplySidebarState(mode === 'intelligence' ? 'intelligence' : 'operation', 'expanded');
+    },
+    collapseSidebarEnvironment: function () {
+      var shell = document.getElementById('admin-shell');
+      if (!shell) return;
+      var mode = shell.classList.contains('sidebar-env-intelligence') ? 'intelligence' : 'operation';
+      var isCollapsed = shell.classList.contains('sidebar-env-collapsed');
+      _adminApplySidebarState(mode, isCollapsed ? 'expanded' : 'collapsed');
+    },
+    syncSidebarForRoute: function (route) {
+      var mode = _adminSidebarModeForRoute(route);
+      if (!mode) return;
+      var shell = document.getElementById('admin-shell');
+      var state = shell && shell.classList.contains('sidebar-env-collapsed') ? 'collapsed' : (localStorage.getItem('admin.sidebarState') || 'expanded');
+      _adminApplySidebarState(mode, state, false);
+    },
     toggleSidebar: function () {
       var shell = document.getElementById('admin-shell');
       if (!shell) return;
-      shell.classList.toggle('sidebar-collapsed');
-      var collapsed = shell.classList.contains('sidebar-collapsed');
-      localStorage.setItem('admin.sidebarCollapsed', collapsed ? '1' : '0');
-      var icon = document.getElementById('sidebar-toggle-icon');
-      if (icon) icon.textContent = collapsed ? 'keyboard_double_arrow_right' : 'keyboard_double_arrow_left';
-      var toggle = document.querySelector('.sidebar-toggle');
-      if (toggle) toggle.title = collapsed ? 'Abrir menu' : 'Encolher menu';
+      var currentRoute = window.Router && typeof Router.current === 'function' ? Router.current() : (window.location.hash.replace('#', '') || '');
+      if (_adminIsFixedSidebarRoute(currentRoute)) {
+        _adminApplySidebarState('selector', null);
+        return;
+      }
+      if (shell.classList.contains('sidebar-env-selector')) {
+        _adminApplySidebarState('operation', 'expanded');
+        return;
+      }
+      AdminApp.collapseSidebarEnvironment();
     },
     _statusMode: function (template, operacao, horarios) {
       template = template || {};
@@ -884,13 +1056,8 @@ button,input,select,textarea{font-family:inherit}
       var currentBase = current.split('/')[0];
       var isDoubleClick = !!(event && event.detail && event.detail > 1);
 
-      if (shell && shell.classList.contains('sidebar-collapsed')) {
-        shell.classList.remove('sidebar-collapsed');
-        localStorage.setItem('admin.sidebarCollapsed', '0');
-        var icon = document.getElementById('sidebar-toggle-icon');
-        if (icon) icon.textContent = 'keyboard_double_arrow_left';
-        var toggle = document.querySelector('.sidebar-toggle');
-        if (toggle) toggle.title = 'Encolher menu';
+      if (shell && (shell.classList.contains('sidebar-collapsed') || shell.classList.contains('sidebar-env-collapsed') || shell.classList.contains('sidebar-env-selector'))) {
+        _adminApplySidebarState('operation', 'expanded');
         if (currentBase !== base || (forceFallback && current !== fallbackRoute)) Router.navigate(fallbackRoute);
         return;
       }
@@ -962,6 +1129,38 @@ button,input,select,textarea{font-family:inherit}
     }
   };
 
+  Modules.Inteligencia = {
+    render: function (sub) {
+      var app = document.getElementById('app');
+      if (!app) return;
+      var key = (sub || 'visao-geral').replace(/^\/+/, '') || 'visao-geral';
+      var map = {
+        'visao-geral': ['Inteligência', 'Visão consolidada dos principais indicadores do negócio.'],
+        'vendas': ['Inteligência de Vendas', 'Área destinada à análise dos números comerciais da loja.'],
+        'financeiro': ['Inteligência Financeira', 'Área destinada à leitura de resultados, margem e saúde financeira.'],
+        'marketing': ['Inteligência de Marketing', 'Área destinada à análise de campanhas, promoções e recorrência.'],
+        'clientes': ['Inteligência de Clientes', 'Área destinada à leitura de comportamento, recompra e relacionamento.'],
+        'cardapio': ['Inteligência de Cardápio', 'Área destinada à análise de produtos, categorias e oportunidades do cardápio.'],
+        'operacao': ['Inteligência de Operação', 'Área destinada à análise de rotina, capacidade e eficiência operacional.']
+      };
+      var item = map[key] || map['visao-geral'];
+      app.innerHTML =
+        '<div style="padding:24px;max-width:920px;">' +
+          '<section style="background:#fff;border:1px solid #EAE4DA;border-radius:22px;box-shadow:0 16px 40px rgba(31,31,31,.06);padding:24px;">' +
+            '<div style="display:flex;align-items:flex-start;gap:14px;">' +
+              '<span class="mi" style="width:42px;height:42px;border-radius:15px;background:#FAF8F4;color:#B42318;display:inline-flex;align-items:center;justify-content:center;font-size:22px;flex:0 0 auto;">insights</span>' +
+              '<div style="min-width:0;">' +
+                '<p style="margin:0 0 7px;color:#B42318;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;">Inteligência</p>' +
+                '<h1 style="margin:0;color:#1F1F1F;font-size:28px;line-height:1.1;font-weight:760;">' + item[0] + '</h1>' +
+                '<p style="margin:10px 0 0;color:#5F5750;font-size:14px;line-height:1.55;max-width:620px;">' + item[1] + '</p>' +
+              '</div>' +
+            '</div>' +
+            '<div style="margin-top:22px;border:1px dashed #E3D8CF;border-radius:16px;background:#FFFCFB;padding:16px;color:#6F6860;font-size:13px;line-height:1.5;">Esta área será implementada futuramente. Por enquanto, a navegação já está preparada sem alterar os módulos atuais.</div>' +
+          '</section>' +
+        '</div>';
+    }
+  };
+
   Router.register('dashboard', Modules.Dashboard);
   Router.register('venda-presencial', Modules.POS);
   Router.register('tpv', Modules.POS);
@@ -971,6 +1170,9 @@ button,input,select,textarea{font-family:inherit}
   Router.register('pedidos/clientes', Modules.Clientes);
   Router.register('catalogo', Modules.Catalogo);
   Router.register('receitas', Modules.Receitas);
+  Router.register('estoque', Modules.Estoque);
+  Router.register('estoque/itens', Modules.Estoque);
+  Router.register('estoque/movimentacoes', Modules.Estoque);
   Router.register('clientes', Modules.Clientes);
   Router.register('marketing', Modules.Marketing);
   Router.register('marketing/pontos', Modules.Marketing);
@@ -1004,6 +1206,13 @@ button,input,select,textarea{font-family:inherit}
   Router.register('suporte/chamado', Modules.Suporte);
   Router.register('suporte/chamados', Modules.Suporte);
   Router.register('suporte/guias', Modules.Suporte);
+  Router.register('inteligencia', Modules.Inteligencia);
+  Router.register('inteligencia/vendas', Modules.Inteligencia);
+  Router.register('inteligencia/financeiro', Modules.Inteligencia);
+  Router.register('inteligencia/marketing', Modules.Inteligencia);
+  Router.register('inteligencia/clientes', Modules.Inteligencia);
+  Router.register('inteligencia/cardapio', Modules.Inteligencia);
+  Router.register('inteligencia/operacao', Modules.Inteligencia);
 
   document.querySelectorAll('.nav-item,.nav-sub-item').forEach(function (btn) {
     btn.addEventListener('click', function () {

@@ -1,0 +1,841 @@
+// js/modules/estoque.js
+window.Modules = window.Modules || {};
+Modules.Estoque = (function () {
+  'use strict';
+
+  var _activeSub = 'itens';
+  var _movements = [];
+  var _items = [];
+  var _settings = {};
+  var _classMaps = { itens: {}, receitas: {}, produtos: {} };
+  var _filters = { q: '', type: 'todos', stockKind: 'todos' };
+
+  function render(sub) {
+    _activeSub = sub || 'itens';
+    var app = document.getElementById('app');
+    if (!app) return;
+    app.innerHTML =
+      '<div id="stock-root" class="module-page stock-page">' +
+        _styles() +
+        '<section class="stock-header">' +
+          '<div>' +
+            '<p class="stock-eyebrow">ESTOQUE</p>' +
+            '<h1>Itens em estoque</h1>' +
+            '<p>Saldo calculado pelas entradas, saídas e ajustes registrados. Separe insumos, produtos prontos e produtos produzidos para conferir com mais clareza.</p>' +
+          '</div>' +
+        '</section>' +
+        '<div id="stock-content" class="stock-content"><div class="loading-inline">Carregando estoque...</div></div>' +
+      '</div>';
+    _loadItems();
+  }
+
+  function _loadItems() {
+    var content = document.getElementById('stock-content');
+    if (content) content.innerHTML = '<div class="loading-inline">Carregando estoque...</div>';
+    Promise.all([
+      DB.getAll('stock_movements').catch(function () { return []; }),
+      DB.getAll('stock_settings').catch(function () { return []; }),
+      DB.getAll('itens_custo').catch(function () { return []; }),
+      DB.getAll('fichasTecnicas').catch(function () { return []; }),
+      DB.getAll('products').catch(function () { return []; })
+    ]).then(function (results) {
+      var movements = results[0] || [];
+      var settings = results[1] || [];
+      _classMaps = _buildClassMaps(results[2] || [], results[3] || [], results[4] || []);
+      _settings = {};
+      settings.forEach(function (item) {
+        if (item && item.stockKey) _settings[item.stockKey] = item;
+      });
+      _movements = (movements || []).slice();
+      _items = _buildStockItems(_movements);
+      if (_activeSub === 'movimentacoes') _paintMovements();
+      else _paintItems();
+    });
+  }
+
+  function _buildStockItems(movements) {
+    var map = {};
+    (movements || []).forEach(function (movement) {
+      var entry = _movementEntry(movement);
+      if (!entry.key) return;
+      if (!map[entry.key]) {
+        map[entry.key] = {
+          key: entry.key,
+          itemId: entry.itemId,
+          itemName: entry.itemName,
+          itemType: entry.itemType,
+          stockItemType: entry.stockItemType,
+          stockClass: entry.stockClass,
+          unit: entry.unit,
+          balance: 0,
+          entries: 0,
+          exits: 0,
+          estimatedValue: 0,
+          hasCost: false,
+          lastUnitCost: null,
+          lastCostAt: '',
+          lastMovementAt: '',
+          origins: {},
+          movements: []
+        };
+      }
+
+      var item = map[entry.key];
+      item.unit = item.unit || entry.unit;
+      item.stockItemType = item.stockItemType || entry.stockItemType;
+      item.stockClass = item.stockClass || entry.stockClass;
+      item.balance += entry.direction * entry.quantity;
+      if (entry.direction > 0) item.entries += entry.quantity;
+      if (entry.direction < 0) item.exits += entry.quantity;
+      if (entry.hasCost) {
+        item.hasCost = true;
+        if (!_dateValue(item.lastCostAt) || _dateValue(entry.date) >= _dateValue(item.lastCostAt)) {
+          item.lastUnitCost = entry.unitCost;
+          item.lastCostAt = entry.date;
+        }
+      }
+      if (entry.origin) item.origins[entry.origin] = true;
+      item.movements.push(entry);
+      if (!_dateValue(item.lastMovementAt) || _dateValue(entry.date) >= _dateValue(item.lastMovementAt)) {
+        item.lastMovementAt = entry.date;
+      }
+    });
+
+    return Object.keys(map).map(function (key) {
+      var item = map[key];
+      item.balance = _round(item.balance);
+      item.entries = _round(item.entries);
+      item.exits = _round(item.exits);
+      item.estimatedValue = item.hasCost ? _round(item.balance * item.lastUnitCost) : null;
+      item.originText = Object.keys(item.origins).length
+        ? Object.keys(item.origins).slice(0, 3).join(', ') + (Object.keys(item.origins).length > 3 ? ' +' + (Object.keys(item.origins).length - 3) : '')
+        : 'Produção';
+      var setting = _settings[item.key] || {};
+      item.minStock = _num(setting.minStock);
+      item.minStockEnabled = item.minStock > 0;
+      item.isBelowMin = item.minStockEnabled && item.balance <= item.minStock;
+      item.movements.sort(function (a, b) { return _dateValue(b.date) - _dateValue(a.date); });
+      return item;
+    }).sort(function (a, b) {
+      return String(a.itemName || '').localeCompare(String(b.itemName || ''), 'pt-BR');
+    });
+  }
+
+  function _buildClassMaps(costItems, recipes, products) {
+    var maps = { itens: {}, receitas: {}, produtos: {} };
+    (costItems || []).forEach(function (item) {
+      if (!item || !item.id) return;
+      maps.itens[String(item.id)] = _normalizeStockClass(item.stockItemType || item.itemClass || item.classe || '');
+    });
+    (recipes || []).forEach(function (item) {
+      if (!item || !item.id) return;
+      maps.receitas[String(item.id)] = _normalizeStockClass(item.stockItemType || item.itemClass || item.classe || 'produto_produzido');
+    });
+    (products || []).forEach(function (item) {
+      if (!item || !item.id) return;
+      maps.produtos[String(item.id)] = _normalizeStockClass(item.stockItemType || item.itemClass || item.classe || (item.fichaTecnicaId || item.fichaId ? 'produto_produzido' : 'produto'));
+    });
+    return maps;
+  }
+
+  function _movementEntry(movement) {
+    var type = movement && movement.type;
+    var isPurchaseEntry = type === 'entrada_compra';
+    var isProductionEntry = type === 'entrada_producao';
+    var isBaseProductionEntry = type === 'entrada_base_producao';
+    var isBaseSaleExit = type === 'saida_base_venda';
+    var isSaleExit = type === 'saida_venda' || isBaseSaleExit;
+    var isPurchaseReversal = type === 'estorno_compra';
+    var isSaleReversal = type === 'estorno_venda';
+    var isProductionIngredientReversal = type === 'estorno_producao_ingrediente';
+    var isProductionProductReversal = type === 'estorno_producao_produto';
+    var isBaseProductionReversal = type === 'estorno_base_producao';
+    var isAdjustmentEntry = type === 'ajuste_entrada';
+    var isAdjustmentExit = type === 'ajuste_saida';
+    var isEntry = isProductionEntry || isBaseProductionEntry || isPurchaseEntry || isSaleReversal || isProductionIngredientReversal || isAdjustmentEntry;
+    var isExit = type === 'saida_producao' || isSaleExit || isPurchaseReversal || isProductionProductReversal || isBaseProductionReversal || isAdjustmentExit;
+    if (!isEntry && !isExit) return {};
+
+    var directClass = _normalizeStockClass(movement.stockItemType || movement.itemClass || movement.classe || '');
+    var saleReadyItemId = (isSaleExit || isSaleReversal) ? (movement.sourceItemId || movement.produtoProntoId || '') : '';
+    var saleIsReadyProduct = (isSaleExit || isSaleReversal) && !!saleReadyItemId && !movement.fichaTecnicaId;
+    var adjustmentStockType = String(movement.stockItemType || '').trim();
+    var isBaseStockMovement = isBaseProductionEntry || isBaseProductionReversal || isBaseSaleExit || ((isSaleReversal || isSaleExit) && !!movement.baseProductionId);
+    var itemId = isBaseStockMovement
+      ? (movement.baseProductionId || movement.componentName || '')
+      : ((isProductionEntry || isProductionProductReversal)
+      ? (movement.fichaTecnicaId || '')
+      : ((isSaleExit || isSaleReversal) ? (movement.fichaTecnicaId || saleReadyItemId || movement.productId || '') : ((isAdjustmentEntry || isAdjustmentExit) ? (movement.itemId || '') : ((isPurchaseEntry || isPurchaseReversal) ? (movement.itemId || '') : (movement.ingredientId || '')))));
+    var itemName = isBaseStockMovement
+      ? (movement.baseProductionName || movement.componentName || 'Base de produção')
+      : ((isProductionEntry || isProductionProductReversal)
+      ? (movement.fichaTecnicaNome || 'Produto produzido')
+      : ((isSaleExit || isSaleReversal) ? (movement.productName || 'Produto vendido') : ((isAdjustmentEntry || isAdjustmentExit) ? (movement.itemName || 'Item ajustado') : ((isPurchaseEntry || isPurchaseReversal) ? (movement.itemName || 'Ingrediente') : (movement.ingredientName || 'Ingrediente')))));
+    var lookupClass = _lookupStockClass(movement, itemId, {
+      isProductionEntry: isProductionEntry,
+      isProductionProductReversal: isProductionProductReversal,
+      isBaseProductionEntry: isBaseProductionEntry,
+      isBaseProductionReversal: isBaseProductionReversal,
+      isSaleExit: isSaleExit,
+      isSaleReversal: isSaleReversal,
+      isPurchaseEntry: isPurchaseEntry,
+      isPurchaseReversal: isPurchaseReversal
+    });
+    var stockClass = directClass || lookupClass || (isBaseStockMovement ? 'base_producao' : ((isProductionEntry || isProductionProductReversal) ? 'produto_produzido' : (saleIsReadyProduct ? 'produto' : 'insumo')));
+    var movementIsReadyProduct = stockClass === 'produto' || stockClass === 'produto_pronto';
+    var movementIsProducedProduct = stockClass === 'produto_produzido';
+    var movementIsBaseProduct = stockClass === 'base_producao';
+    var movementIsSupply = stockClass === 'insumo';
+    var purchaseIsProduct = (isPurchaseEntry || isPurchaseReversal) && movementIsReadyProduct;
+    var itemType = (isProductionEntry || isProductionProductReversal || isBaseStockMovement || isSaleExit || isSaleReversal || purchaseIsProduct || adjustmentStockType.indexOf('produto') === 0 || movementIsProducedProduct || movementIsBaseProduct) ? 'produto' : 'ingrediente';
+    var quantity = (isProductionEntry || isProductionProductReversal || isBaseProductionEntry || isBaseProductionReversal) ? _num(movement.quantityProduced || movement.quantity) : _num(movement.quantity);
+    var unit = (isProductionEntry || isProductionProductReversal || isBaseProductionEntry || isBaseProductionReversal) ? (movement.yieldUnit || movement.unit || '') : (movement.unit || '');
+    var unitCost = (isProductionEntry || isProductionProductReversal || isBaseProductionEntry || isBaseProductionReversal) ? _num(movement.estimatedUnitCost || movement.unitCost) : _num(movement.unitCost);
+    var hasCost = unitCost > 0;
+    var label = isPurchaseEntry ? 'Entrada de compra' : (isPurchaseReversal ? 'Estorno de compra' : (isBaseProductionEntry ? 'Entrada de base de produção' : (isBaseProductionReversal ? 'Estorno de base de produção' : (isBaseSaleExit ? 'Saída de base por venda' : (isProductionEntry ? 'Entrada de produção' : (isProductionProductReversal ? 'Estorno de produto produzido' : (isSaleExit ? 'Saída por venda' : (isSaleReversal ? 'Estorno de venda' : (isProductionIngredientReversal ? 'Estorno de ingrediente' : (isAdjustmentEntry ? 'Ajuste de entrada' : (isAdjustmentExit ? 'Ajuste de saída' : 'Saída para produção')))))))))));
+    var origin = (isPurchaseEntry || isPurchaseReversal) ? 'Compra' : ((isSaleExit || isSaleReversal) ? 'Venda' : ((isAdjustmentEntry || isAdjustmentExit) ? 'Ajuste' : 'Produção'));
+    var originDetail = (isPurchaseEntry || isPurchaseReversal)
+      ? ('Compra' + (movement.purchaseNumber ? ' ' + movement.purchaseNumber : '') + (movement.purchaseDocument ? ' · ' + movement.purchaseDocument : ''))
+      : ((isSaleExit || isSaleReversal) ? ('Pedido' + (movement.orderNumber ? ' ' + movement.orderNumber : '')) : ((isAdjustmentEntry || isAdjustmentExit) ? (movement.reason || 'Contagem manual') : (movement.productionOrderName || movement.fichaTecnicaNome || 'Ordem de produção')));
+    var stockItemType = movementIsSupply
+      ? 'insumo'
+      : (movementIsReadyProduct
+        ? 'produto_pronto'
+        : (movementIsBaseProduct
+          ? 'base_producao'
+          : (movementIsProducedProduct
+          ? 'produto_produzido'
+          : ((isProductionEntry || isProductionProductReversal) ? 'produto_produzido' : (saleIsReadyProduct || purchaseIsProduct ? 'produto_pronto' : (adjustmentStockType || (itemType === 'ingrediente' ? 'insumo' : 'produto_produzido')))))));
+
+    return {
+      id: movement.id || '',
+      key: stockItemType + ':' + (itemId || itemName),
+      itemId: itemId,
+      itemName: itemName,
+      itemType: itemType,
+      stockClass: stockClass,
+      movementType: type,
+      direction: isEntry ? 1 : -1,
+      label: label,
+      quantity: Math.abs(quantity),
+      unit: unit,
+      unitCost: unitCost,
+      totalCost: _num(isEntry ? movement.estimatedTotalCost : movement.totalCost) || (hasCost ? Math.abs(quantity) * unitCost : 0),
+      hasCost: hasCost,
+      date: movement.movementDate || movement.createdAt || movement.updatedAt || '',
+      origin: origin,
+      originDetail: originDetail,
+      productionOrderId: movement.productionOrderId || '',
+      purchaseId: movement.purchaseId || '',
+      orderId: movement.orderId || '',
+      stockItemType: stockItemType,
+      batchNumber: movement.batchNumber || '',
+      expiresAt: movement.expiresAt || ''
+    };
+  }
+
+  function _lookupStockClass(movement, itemId, flags) {
+    movement = movement || {};
+    flags = flags || {};
+    if (flags.isBaseProductionEntry || flags.isBaseProductionReversal || movement.baseProductionId) {
+      return 'base_producao';
+    }
+    if ((flags.isProductionEntry || flags.isProductionProductReversal) && movement.fichaTecnicaId) {
+      return _classMaps.receitas[String(movement.fichaTecnicaId || '')] || '';
+    }
+    if (movement.sourceItemId || movement.produtoProntoId) {
+      return _classMaps.itens[String(movement.sourceItemId || movement.produtoProntoId || '')] || 'produto';
+    }
+    if ((flags.isPurchaseEntry || flags.isPurchaseReversal) && itemId) {
+      return _classMaps.itens[String(itemId || '')] || '';
+    }
+    if (movement.ingredientId) {
+      return _classMaps.itens[String(movement.ingredientId || '')] || 'insumo';
+    }
+    if ((flags.isSaleExit || flags.isSaleReversal) && movement.productId) {
+      return _classMaps.produtos[String(movement.productId || '')] || '';
+    }
+    if (itemId) {
+      return _classMaps.itens[String(itemId || '')] || _classMaps.receitas[String(itemId || '')] || _classMaps.produtos[String(itemId || '')] || '';
+    }
+    return '';
+  }
+
+  function _paintItems() {
+    var content = document.getElementById('stock-content');
+    if (!content) return;
+    var visible = _filteredItems();
+    var rows = visible.map(function (item) {
+      return '<tr onclick="Modules.Estoque._openItemDetails(\'' + _escJs(item.key) + '\')" class="stock-row">' +
+        '<td><div class="stock-item-name">' + _esc(item.itemName) + '</div><div class="stock-item-note">' + _esc(item.itemId || 'Sem código vinculado') + '</div></td>' +
+        '<td><span class="stock-badge ' + _stockKindClass(item.stockItemType) + '">' + _stockClassLabel(item.stockClass || item.stockItemType) + '</span>' + (item.stockItemType && item.stockClass && item.stockItemType !== item.stockClass ? '<div class="stock-item-note">' + _esc(_stockKindLabel(item.stockItemType)) + '</div>' : '') + '</td>' +
+        '<td><strong>' + _fmtQty(item.balance) + '</strong> <span>' + _esc(item.unit || '') + '</span>' + (item.isBelowMin ? '<div class="stock-item-note stock-alert-text">Abaixo do mínimo</div>' : '') + '</td>' +
+        '<td>' + (item.hasCost ? _money(item.estimatedValue) : '<span class="stock-muted">sem custo informado</span>') + '</td>' +
+        '<td>' + _fmtDate(item.lastMovementAt) + '</td>' +
+        '<td><span class="stock-origin">' + _esc(item.originText) + '</span></td>' +
+      '</tr>';
+    }).join('');
+
+    content.innerHTML =
+      _viewTabsHtml() +
+      _stockKindTabsHtml() +
+      '<section class="stock-filter-card">' +
+        '<div class="stock-filter-grid">' +
+          '<label><span>Buscar</span><input type="search" value="' + _esc(_filters.q) + '" placeholder="Buscar item..." oninput="Modules.Estoque._setFilter(\'q\', this.value)"></label>' +
+          '<label><span>Tipo</span><select onchange="Modules.Estoque._setFilter(\'type\', this.value)">' +
+            '<option value="todos"' + (_filters.type === 'todos' ? ' selected' : '') + '>Todos</option>' +
+            '<option value="ingrediente"' + (_filters.type === 'ingrediente' ? ' selected' : '') + '>Ingredientes</option>' +
+            '<option value="produto"' + (_filters.type === 'produto' ? ' selected' : '') + '>Produtos</option>' +
+          '</select></label>' +
+          (_hasFilters() ? '<button type="button" onclick="Modules.Estoque._clearFilters()">Limpar filtros</button>' : '') +
+        '</div>' +
+      '</section>' +
+      '<section class="stock-card">' +
+        '<div class="stock-card-head">' +
+          '<div><h2>Saldo por item</h2><p>Entradas, saídas e ajustes são somados a partir das movimentações do estoque.</p></div>' +
+          '<div class="stock-head-actions"><span>' + visible.length + ' item' + (visible.length === 1 ? '' : 's') + '</span><button type="button" onclick="Modules.Estoque._openInventoryModal()">Inventário em lote</button></div>' +
+        '</div>' +
+        (visible.length ? '<div class="stock-table-wrap"><table class="stock-table"><thead><tr><th>Item</th><th>Classe</th><th>Saldo atual</th><th>Valor estimado</th><th>Última movimentação</th><th>Origem</th></tr></thead><tbody>' + rows + '</tbody></table></div>' : _emptyState()) +
+      '</section>';
+  }
+
+  function _viewTabsHtml() {
+    return '<section class="stock-view-tabs">' +
+      '<button type="button" class="' + (_activeSub !== 'movimentacoes' ? 'active' : '') + '" onclick="Modules.Estoque._setView(\'itens\')">Itens</button>' +
+      '<button type="button" class="' + (_activeSub === 'movimentacoes' ? 'active' : '') + '" onclick="Modules.Estoque._setView(\'movimentacoes\')">Movimentações</button>' +
+    '</section>';
+  }
+
+  function _setView(view) {
+    _activeSub = view === 'movimentacoes' ? 'movimentacoes' : 'itens';
+    if (_activeSub === 'movimentacoes') _paintMovements();
+    else _paintItems();
+  }
+
+  function _paintMovements() {
+    var content = document.getElementById('stock-content');
+    if (!content) return;
+    var entries = (_movements || []).map(_movementEntry).filter(function (entry) { return entry.key; }).sort(function (a, b) { return _dateValue(b.date) - _dateValue(a.date); });
+    var rows = entries.map(function (entry) {
+      return '<tr>' +
+        '<td>' + _fmtDate(entry.date) + '</td>' +
+        '<td><span class="stock-badge ' + (entry.direction > 0 ? 'product' : 'ingredient') + '">' + _esc(entry.label) + '</span></td>' +
+        '<td><div class="stock-item-name">' + _esc(entry.itemName) + '</div><div class="stock-item-note">' + _esc(_stockClassLabel(entry.stockClass || entry.stockItemType)) + (entry.batchNumber ? ' · lote ' + _esc(entry.batchNumber) : '') + (entry.expiresAt ? ' · validade ' + _esc(_fmtDate(entry.expiresAt)) : '') + '</div></td>' +
+        '<td class="' + (entry.direction > 0 ? 'stock-positive' : 'stock-negative') + '">' + (entry.direction > 0 ? '+' : '-') + _fmtQty(entry.quantity) + ' ' + _esc(entry.unit || '') + '</td>' +
+        '<td>' + (entry.hasCost ? _money(entry.totalCost) : '<span class="stock-muted">sem custo</span>') + '</td>' +
+        '<td><span class="stock-origin">' + _esc(entry.originDetail || entry.origin || '') + '</span></td>' +
+      '</tr>';
+    }).join('');
+    content.innerHTML =
+      _viewTabsHtml() +
+      '<section class="stock-card">' +
+        '<div class="stock-card-head">' +
+          '<div><h2>Movimentações do estoque</h2><p>Histórico de entradas, saídas, estornos e ajustes usados para calcular os saldos.</p></div>' +
+          '<span>' + entries.length + ' movimento' + (entries.length === 1 ? '' : 's') + '</span>' +
+        '</div>' +
+        (entries.length ? '<div class="stock-table-wrap"><table class="stock-table"><thead><tr><th>Data</th><th>Tipo</th><th>Item</th><th>Quantidade</th><th>Valor</th><th>Origem</th></tr></thead><tbody>' + rows + '</tbody></table></div>' : _emptyState()) +
+      '</section>';
+  }
+
+  function _stockKindTabsHtml() {
+    var tabs = [
+      ['todos', 'Todos'],
+      ['insumo', 'Insumos'],
+      ['produto_pronto', 'Produtos prontos'],
+      ['produto_produzido', 'Produtos produzidos'],
+      ['base_producao', 'Bases de produção']
+    ];
+    return '<section class="stock-kind-tabs">' + tabs.map(function (tab) {
+      var active = _filters.stockKind === tab[0];
+      return '<button type="button" class="' + (active ? 'active' : '') + '" onclick="Modules.Estoque._setStockKind(\'' + tab[0] + '\')">' + _esc(tab[1]) + '</button>';
+    }).join('') + '</section>';
+  }
+
+  function _filteredItems() {
+    var q = _norm(_filters.q);
+    return (_items || []).filter(function (item) {
+      var typeOk = _filters.type === 'todos' || item.itemType === _filters.type;
+      var kindOk = _filters.stockKind === 'todos' || item.stockItemType === _filters.stockKind;
+      var qOk = !q || _norm(item.itemName + ' ' + item.itemId + ' ' + item.originText).indexOf(q) >= 0;
+      return typeOk && kindOk && qOk;
+    });
+  }
+
+  function _setStockKind(value) {
+    _filters.stockKind = value || 'todos';
+    _paintItems();
+  }
+
+  function _setFilter(key, value) {
+    _filters[key] = value || (key === 'type' || key === 'stockKind' ? 'todos' : '');
+    _paintItems();
+  }
+
+  function _clearFilters() {
+    _filters = { q: '', type: 'todos', stockKind: 'todos' };
+    _paintItems();
+  }
+
+  function _openItemDetails(key) {
+    var item = (_items || []).find(function (it) { return it.key === key; });
+    if (!item) return;
+    var movementRows = item.movements.map(function (movement) {
+      return '<div class="stock-movement-line">' +
+        '<div><strong>' + _esc(movement.label) + '</strong><span>' + _fmtDate(movement.date) + ' · ' + _esc(movement.originDetail || movement.origin || 'Produção') + '</span></div>' +
+        '<div class="' + (movement.direction > 0 ? 'stock-positive' : 'stock-negative') + '">' + (movement.direction > 0 ? '+' : '-') + _fmtQty(movement.quantity) + ' ' + _esc(movement.unit || '') + '</div>' +
+      '</div>';
+    }).join('');
+    var body = _styles() +
+      '<div class="stock-detail">' +
+        '<section class="stock-detail-hero">' +
+          '<div><p>' + _stockKindLabel(item.stockItemType) + '</p><h2>' + _esc(item.itemName) + '</h2></div>' +
+          '<span class="stock-badge ' + _stockKindClass(item.stockItemType) + '">' + _esc(item.unit || 'sem unidade') + '</span>' +
+        '</section>' +
+        '<section class="stock-detail-grid">' +
+          _detailMetric('Saldo atual', _fmtQty(item.balance) + ' ' + _esc(item.unit || ''), 'Saldo calculado pelas movimentações.') +
+          _detailMetric('Entradas', _fmtQty(item.entries) + ' ' + _esc(item.unit || ''), 'Quantidade registrada como entrada.') +
+          _detailMetric('Saídas', _fmtQty(item.exits) + ' ' + _esc(item.unit || ''), 'Quantidade registrada como saída.') +
+          _detailMetric('Valor estimado', item.hasCost ? _money(item.estimatedValue) : 'sem custo informado', 'Usa o custo informado nas movimentações.') +
+          _detailMetric('Estoque mínimo', item.minStockEnabled ? (_fmtQty(item.minStock) + ' ' + _esc(item.unit || '')) : 'não definido', item.isBelowMin ? 'Este item está abaixo do mínimo.' : 'Referência para conferência rápida.') +
+        '</section>' +
+        '<section class="stock-detail-card">' +
+          '<div class="stock-card-head compact"><div><h2>Movimentações relacionadas</h2><p>Histórico usado para calcular este saldo.</p></div><span>' + item.movements.length + '</span></div>' +
+          '<div class="stock-movement-list">' + (movementRows || '<p class="stock-muted">Nenhuma movimentação encontrada.</p>') + '</div>' +
+        '</section>' +
+        '<p class="stock-footnote">O saldo continua sendo calculado por movimentações. O ajuste de inventário registra uma nova entrada ou saída para igualar o sistema à contagem real.</p>' +
+      '</div>';
+    window._stockDetailModal = UI.modal({ title: 'Detalhe do estoque', body: body, footer: '<div class="stock-modal-footer"><button class="stock-secondary" onclick="if(window._stockDetailModal){window._stockDetailModal.close();}">Fechar</button><button class="stock-secondary" onclick="Modules.Estoque._openMinimumModal(\'' + _escJs(item.key) + '\')">Estoque mínimo</button><button class="stock-primary" onclick="Modules.Estoque._openAdjustmentModal(\'' + _escJs(item.key) + '\')">Ajustar saldo</button></div>', maxWidth: '900px' });
+  }
+
+  function _detailMetric(label, value, note) {
+    return '<div class="stock-detail-metric"><span>' + _esc(label) + '</span><strong>' + value + '</strong><p>' + _esc(note) + '</p></div>';
+  }
+
+  function _openAdjustmentModal(key) {
+    var item = (_items || []).find(function (it) { return it.key === key; });
+    if (!item) return;
+    var current = _fmtQty(item.balance) + ' ' + (item.unit || '');
+    var body = _styles() +
+      '<div class="stock-adjust">' +
+        '<section class="stock-detail-hero compact">' +
+          '<div><p>' + _stockKindLabel(item.stockItemType) + '</p><h2>' + _esc(item.itemName) + '</h2></div>' +
+          '<span class="stock-badge ' + _stockKindClass(item.stockItemType) + '">' + _esc(item.unit || 'sem unidade') + '</span>' +
+        '</section>' +
+        '<section class="stock-adjust-card">' +
+          '<div class="stock-adjust-head"><h3>Contagem de estoque</h3><p>Informe o saldo real encontrado. O BocaFood cria uma movimentação de ajuste para aproximar o sistema da contagem física.</p></div>' +
+          '<div class="stock-adjust-grid">' +
+            '<label><span>Saldo no sistema</span><input type="text" value="' + _esc(current) + '" disabled></label>' +
+            '<label><span>Saldo contado *</span><input id="stock-adjust-counted" type="number" step="0.001" min="0" value="' + _esc(String(item.balance || 0)) + '" oninput="Modules.Estoque._updateAdjustmentPreview(\'' + _escJs(key) + '\')"></label>' +
+            '<label><span>Data da contagem</span><input id="stock-adjust-date" type="date" value="' + _today() + '"></label>' +
+            '<label><span>Motivo</span><select id="stock-adjust-reason"><option value="Contagem de inventário">Contagem de inventário</option><option value="Correção operacional">Correção operacional</option><option value="Perda identificada">Perda identificada</option><option value="Sobra identificada">Sobra identificada</option></select></label>' +
+            '<label class="full"><span>Observação</span><textarea id="stock-adjust-notes" placeholder="Ex: contagem feita no fechamento do dia"></textarea></label>' +
+          '</div>' +
+          '<div id="stock-adjust-preview" class="stock-adjust-preview"></div>' +
+        '</section>' +
+      '</div>';
+    window._stockAdjustmentModal = UI.modal({
+      title: 'Ajustar estoque',
+      body: body,
+      footer: '<div class="stock-modal-footer"><button class="stock-secondary" onclick="if(window._stockAdjustmentModal){window._stockAdjustmentModal.close();}">Cancelar</button><button class="stock-primary" onclick="Modules.Estoque._saveAdjustment(\'' + _escJs(key) + '\')">Salvar ajuste</button></div>',
+      maxWidth: '760px'
+    });
+    setTimeout(function () { _updateAdjustmentPreview(key); }, 20);
+  }
+
+  function _updateAdjustmentPreview(key) {
+    var item = (_items || []).find(function (it) { return it.key === key; });
+    var el = document.getElementById('stock-adjust-preview');
+    if (!item || !el) return;
+    var counted = _num((document.getElementById('stock-adjust-counted') || {}).value);
+    var diff = _round(counted - _num(item.balance));
+    if (!diff) {
+      el.innerHTML = '<span class="stock-muted">O saldo contado é igual ao saldo do sistema. Nenhum ajuste será criado.</span>';
+      return;
+    }
+    el.innerHTML = '<strong class="' + (diff > 0 ? 'stock-positive' : 'stock-negative') + '">' + (diff > 0 ? '+' : '-') + _fmtQty(Math.abs(diff)) + ' ' + _esc(item.unit || '') + '</strong>' +
+      '<span>' + (diff > 0 ? 'Será registrada uma entrada de ajuste.' : 'Será registrada uma saída de ajuste.') + '</span>';
+  }
+
+  function _saveAdjustment(key) {
+    var item = (_items || []).find(function (it) { return it.key === key; });
+    if (!item) return;
+    var countedEl = document.getElementById('stock-adjust-counted');
+    var counted = _num(countedEl && countedEl.value);
+    if (counted < 0) { UI.toast('Informe um saldo contado válido.', 'error'); return; }
+    var diff = _round(counted - _num(item.balance));
+    if (!diff) { UI.toast('O saldo contado é igual ao saldo atual.', 'info'); return; }
+    var now = new Date().toISOString();
+    var qty = Math.abs(diff);
+    var unitCost = _num(item.lastUnitCost);
+    var movement = {
+      type: diff > 0 ? 'ajuste_entrada' : 'ajuste_saida',
+      movementGroup: 'inventory_adjustment',
+      itemId: item.itemId || '',
+      itemName: item.itemName || '',
+      itemType: item.itemType || '',
+      stockItemType: item.stockItemType || (item.itemType === 'ingrediente' ? 'insumo' : 'produto_produzido'),
+      quantity: qty,
+      unit: item.unit || '',
+      unitCost: unitCost,
+      totalCost: unitCost > 0 ? qty * unitCost : 0,
+      previousBalance: _num(item.balance),
+      countedBalance: counted,
+      balanceAfter: counted,
+      reason: ((document.getElementById('stock-adjust-reason') || {}).value || 'Contagem de inventário'),
+      notes: ((document.getElementById('stock-adjust-notes') || {}).value || '').trim(),
+      movementDate: ((document.getElementById('stock-adjust-date') || {}).value || _today()),
+      createdAt: now,
+      updatedAt: now
+    };
+    DB.add('stock_movements', movement).then(function () {
+      UI.toast('Ajuste de estoque registrado.', 'success');
+      if (window._stockAdjustmentModal) window._stockAdjustmentModal.close();
+      if (window._stockDetailModal) window._stockDetailModal.close();
+      _loadItems();
+    }).catch(function (err) {
+      UI.toast('Erro ao ajustar estoque: ' + (err && err.message ? err.message : err), 'error');
+    });
+  }
+
+  function _openMinimumModal(key) {
+    var item = (_items || []).find(function (it) { return it.key === key; });
+    if (!item) return;
+    var body = _styles() +
+      '<div class="stock-adjust">' +
+        '<section class="stock-detail-hero compact">' +
+          '<div><p>' + _stockKindLabel(item.stockItemType) + '</p><h2>' + _esc(item.itemName) + '</h2></div>' +
+          '<span class="stock-badge ' + _stockKindClass(item.stockItemType) + '">' + _esc(item.unit || 'sem unidade') + '</span>' +
+        '</section>' +
+        '<section class="stock-adjust-card">' +
+          '<div class="stock-adjust-head"><h3>Estoque mínimo</h3><p>Defina uma quantidade de referência para saber quando este item merece atenção.</p></div>' +
+          '<div class="stock-adjust-grid min-grid">' +
+            '<label><span>Saldo atual</span><input type="text" value="' + _esc(_fmtQty(item.balance) + ' ' + (item.unit || '')) + '" disabled></label>' +
+            '<label><span>Quantidade mínima</span><input id="stock-min-value" type="number" step="0.001" min="0" value="' + _esc(String(item.minStock || '')) + '"></label>' +
+          '</div>' +
+        '</section>' +
+      '</div>';
+    window._stockMinimumModal = UI.modal({
+      title: 'Estoque mínimo',
+      body: body,
+      footer: '<div class="stock-modal-footer"><button class="stock-secondary" onclick="if(window._stockMinimumModal){window._stockMinimumModal.close();}">Cancelar</button><button class="stock-primary" onclick="Modules.Estoque._saveMinimum(\'' + _escJs(key) + '\')">Salvar mínimo</button></div>',
+      maxWidth: '620px'
+    });
+  }
+
+  function _saveMinimum(key) {
+    var item = (_items || []).find(function (it) { return it.key === key; });
+    if (!item) return;
+    var minStock = _num((document.getElementById('stock-min-value') || {}).value);
+    if (minStock < 0) { UI.toast('Informe uma quantidade mínima válida.', 'error'); return; }
+    var id = _stockSettingId(key);
+    var now = new Date().toISOString();
+    DB.col('stock_settings').doc(id).set({
+      id: id,
+      stockKey: key,
+      itemId: item.itemId || '',
+      itemName: item.itemName || '',
+      itemType: item.itemType || '',
+      stockItemType: item.stockItemType || '',
+      unit: item.unit || '',
+      minStock: minStock,
+      updatedAt: now,
+      createdAt: (_settings[key] && _settings[key].createdAt) || now
+    }, { merge: true }).then(function () {
+      UI.toast('Estoque mínimo salvo.', 'success');
+      if (window._stockMinimumModal) window._stockMinimumModal.close();
+      if (window._stockDetailModal) window._stockDetailModal.close();
+      _loadItems();
+    }).catch(function (err) {
+      UI.toast('Erro ao salvar mínimo: ' + (err && err.message ? err.message : err), 'error');
+    });
+  }
+
+  function _openInventoryModal() {
+    var visible = _filteredItems();
+    if (!visible.length) { UI.toast('Não há itens para inventariar neste filtro.', 'info'); return; }
+    var rows = visible.map(function (item, idx) {
+      return '<div class="stock-inventory-row" data-key="' + _esc(item.key) + '">' +
+        '<div><strong>' + _esc(item.itemName) + '</strong><span>' + _stockKindLabel(item.stockItemType) + ' · saldo atual ' + _fmtQty(item.balance) + ' ' + _esc(item.unit || '') + '</span></div>' +
+        '<input id="stock-count-' + idx + '" data-key="' + _esc(item.key) + '" type="number" step="0.001" min="0" value="' + _esc(String(item.balance || 0)) + '">' +
+      '</div>';
+    }).join('');
+    var body = _styles() +
+      '<section class="stock-adjust-card">' +
+        '<div class="stock-adjust-head"><h3>Inventário em lote</h3><p>Informe a contagem real dos itens visíveis. O BocaFood cria ajustes apenas para os itens com diferença.</p></div>' +
+        '<div class="stock-inventory-list">' + rows + '</div>' +
+      '</section>';
+    window._stockInventoryModal = UI.modal({
+      title: 'Inventário em lote',
+      body: body,
+      footer: '<div class="stock-modal-footer"><button class="stock-secondary" onclick="if(window._stockInventoryModal){window._stockInventoryModal.close();}">Cancelar</button><button class="stock-primary" onclick="Modules.Estoque._saveInventory()">Salvar inventário</button></div>',
+      maxWidth: '820px'
+    });
+  }
+
+  function _saveInventory() {
+    var inputs = [].slice.call(document.querySelectorAll('[id^="stock-count-"]'));
+    var now = new Date().toISOString();
+    var sessionId = 'inv_' + Date.now();
+    var ops = [];
+    inputs.forEach(function (input, idx) {
+      var key = input.getAttribute('data-key');
+      var item = (_items || []).find(function (it) { return it.key === key; });
+      if (!item) return;
+      var counted = _num(input.value);
+      if (counted < 0) return;
+      var diff = _round(counted - _num(item.balance));
+      if (!diff) return;
+      var qty = Math.abs(diff);
+      var unitCost = _num(item.lastUnitCost);
+      var id = sessionId + '_' + idx + '_' + (diff > 0 ? 'entrada' : 'saida');
+      ops.push(DB.col('stock_movements').doc(id).set({
+        id: id,
+        type: diff > 0 ? 'ajuste_entrada' : 'ajuste_saida',
+        movementGroup: 'inventory_count',
+        inventorySessionId: sessionId,
+        itemId: item.itemId || '',
+        itemName: item.itemName || '',
+        itemType: item.itemType || '',
+        stockItemType: item.stockItemType || '',
+        quantity: qty,
+        unit: item.unit || '',
+        unitCost: unitCost,
+        totalCost: unitCost > 0 ? qty * unitCost : 0,
+        previousBalance: _num(item.balance),
+        countedBalance: counted,
+        balanceAfter: counted,
+        reason: 'Inventário em lote',
+        movementDate: _today(),
+        createdAt: now,
+        updatedAt: now
+      }, { merge: true }));
+    });
+    if (!ops.length) { UI.toast('Nenhuma diferença encontrada no inventário.', 'info'); return; }
+    Promise.all(ops).then(function () {
+      UI.toast('Inventário salvo com ' + ops.length + ' ajuste' + (ops.length === 1 ? '' : 's') + '.', 'success');
+      if (window._stockInventoryModal) window._stockInventoryModal.close();
+      _loadItems();
+    }).catch(function (err) {
+      UI.toast('Erro ao salvar inventário: ' + (err && err.message ? err.message : err), 'error');
+    });
+  }
+
+  function _emptyState() {
+    return '<div class="stock-empty">' +
+      '<span class="mi">inventory_2</span>' +
+      '<strong>Nenhum saldo calculado ainda</strong>' +
+      '<p>Quando a produção gerar movimentações, os itens aparecerão aqui automaticamente.</p>' +
+    '</div>';
+  }
+
+  function _hasFilters() {
+    return !!(_filters.q || _filters.type !== 'todos' || _filters.stockKind !== 'todos');
+  }
+
+  function _typeLabel(type) {
+    return type === 'produto' ? 'Produto produzido' : 'Ingrediente';
+  }
+
+  function _stockKindLabel(kind) {
+    if (kind === 'produto_pronto') return 'Produto pronto';
+    if (kind === 'produto_produzido') return 'Produto produzido';
+    if (kind === 'base_producao') return 'Base de produção';
+    return 'Insumo';
+  }
+
+  function _stockClassLabel(kind) {
+    if (kind === 'produto' || kind === 'produto_pronto') return 'Produto';
+    if (kind === 'produto_produzido') return 'Produto produzido';
+    if (kind === 'base_producao') return 'Base de produção';
+    return 'Insumo';
+  }
+
+  function _stockKindClass(kind) {
+    if (kind === 'produto_pronto') return 'ready-product';
+    if (kind === 'produto_produzido') return 'product';
+    if (kind === 'base_producao') return 'base-product';
+    return 'ingredient';
+  }
+
+  function _normalizeStockClass(value) {
+    var key = _norm(value || '').replace(/\s+/g, '_');
+    if (!key) return '';
+    if (key === 'insumo' || key === 'ingrediente' || key === 'ingredient') return 'insumo';
+    if (key === 'produto' || key === 'produto_pronto' || key === 'ready_product') return 'produto';
+    if (key === 'produto_produzido' || key === 'produzido' || key === 'produced_product' || key === 'ficha_tecnica') return 'produto_produzido';
+    if (key === 'base_producao' || key === 'base' || key === 'semiacabado' || key === 'preparo_intermediario') return 'base_producao';
+    return key;
+  }
+
+  function _stockSettingId(key) {
+    return String(key || 'item').replace(/[^\w-]/g, '_').slice(0, 140);
+  }
+
+  function _num(value) {
+    var raw = String(value == null ? '' : value).trim();
+    if (!raw) return 0;
+    raw = raw.replace(/[^\d,.-]/g, '');
+    if (raw.indexOf(',') >= 0 && raw.indexOf('.') >= 0) raw = raw.replace(/\./g, '').replace(',', '.');
+    else if (raw.indexOf(',') >= 0) raw = raw.replace(',', '.');
+    return parseFloat(raw) || 0;
+  }
+
+  function _round(value) {
+    return Math.round((_num(value) + Number.EPSILON) * 10000) / 10000;
+  }
+
+  function _fmtQty(value) {
+    var n = _round(value);
+    return n.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 3 });
+  }
+
+  function _money(value) {
+    if (value == null || isNaN(Number(value))) return 'sem custo informado';
+    return '€\u00a0' + Number(value || 0).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  }
+
+  function _fmtDate(raw) {
+    if (!raw) return '—';
+    var d = null;
+    if (raw && typeof raw.toDate === 'function') d = raw.toDate();
+    else if (raw instanceof Date) d = raw;
+    else d = new Date(raw);
+    return d && !isNaN(d.getTime()) ? UI.fmtDate(d) : '—';
+  }
+
+  function _dateValue(raw) {
+    if (!raw) return 0;
+    if (raw && typeof raw.toDate === 'function') return raw.toDate().getTime();
+    var d = raw instanceof Date ? raw : new Date(raw);
+    return d && !isNaN(d.getTime()) ? d.getTime() : 0;
+  }
+
+  function _norm(value) {
+    return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  }
+
+  function _esc(value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, function (m) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m];
+    });
+  }
+
+  function _escJs(value) {
+    return String(value == null ? '' : value).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/\r/g, '');
+  }
+
+  function _today() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function _styles() {
+    return '<style>' +
+      '.stock-page{padding:24px;display:flex;flex-direction:column;gap:16px;color:#1F1F1F;}' +
+      '.stock-header{background:#fff;border:1px solid #EAE4DA;border-radius:18px;padding:20px 22px;box-shadow:0 14px 34px rgba(31,31,31,.055);display:flex;align-items:flex-start;justify-content:space-between;gap:16px;}' +
+      '.stock-eyebrow{margin:0 0 6px;font-size:11px;letter-spacing:.08em;color:#B42318;font-weight:650;}' +
+      '.stock-header h1{margin:0;color:#1F1F1F;font-size:24px;line-height:1.16;font-weight:750;letter-spacing:0;}' +
+      '.stock-header p{margin:6px 0 0;color:#6F6860;font-size:13px;line-height:1.45;font-weight:400;max-width:720px;}' +
+      '.stock-content{display:flex;flex-direction:column;gap:14px;}' +
+      '.stock-kind-tabs{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:#fff;border:1px solid #EAE4DA;border-radius:18px;padding:10px;box-shadow:0 10px 24px rgba(31,31,31,.04);}' +
+      '.stock-kind-tabs button{height:36px;padding:0 13px;border:1px solid #EAE4DA;border-radius:999px;background:#FFFCF8;color:#6F6860;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .16s,border-color .16s,color .16s,box-shadow .16s;}' +
+      '.stock-kind-tabs button.active{background:#1F1F1F;border-color:#1F1F1F;color:#fff;box-shadow:0 8px 18px rgba(31,31,31,.12);}' +
+      '.stock-view-tabs{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}' +
+      '.stock-view-tabs button{height:38px;padding:0 14px;border:1px solid #EAE4DA;border-radius:12px;background:#fff;color:#6F6860;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;box-shadow:0 8px 18px rgba(31,31,31,.035);}' +
+      '.stock-view-tabs button.active{background:#B42318;border-color:#B42318;color:#fff;box-shadow:0 8px 18px rgba(180,35,24,.14);}' +
+      '.stock-filter-card,.stock-card,.stock-detail-card{background:#fff;border:1px solid #EAE4DA;border-radius:18px;box-shadow:0 14px 34px rgba(31,31,31,.055);}' +
+      '.stock-filter-card{padding:16px;}' +
+      '.stock-filter-grid{display:grid;grid-template-columns:minmax(220px,1fr) 210px auto;gap:12px;align-items:end;}' +
+      '.stock-filter-grid label{display:flex;flex-direction:column;gap:6px;font-size:11px;font-weight:600;color:#6F6860;letter-spacing:.02em;}' +
+      '.stock-filter-grid input,.stock-filter-grid select{height:40px;width:100%;box-sizing:border-box;border:1px solid #E8DCD7;border-radius:12px;background:#FFFCF8;color:#1F1F1F;font-size:14px;font-weight:400;font-family:inherit;outline:none;padding:0 12px;}' +
+      '.stock-filter-grid select{appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,#8A7E7C 50%),linear-gradient(135deg,#8A7E7C 50%,transparent 50%);background-position:calc(100% - 18px) 17px,calc(100% - 13px) 17px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:38px;}' +
+      '.stock-filter-grid button{height:40px;padding:0 14px;border:1px solid #EAE4DA;border-radius:12px;background:#fff;color:#B42318;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;}' +
+      '.stock-card{padding:0;overflow:hidden;}' +
+      '.stock-card-head{padding:18px 18px 14px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;border-bottom:1px solid #F0E7E1;}' +
+      '.stock-card-head.compact{padding:0 0 12px;border-bottom:0;}' +
+      '.stock-card-head h2{margin:0;color:#1F1F1F;font-size:17px;font-weight:720;letter-spacing:0;}' +
+      '.stock-card-head p{margin:4px 0 0;color:#6F6860;font-size:13px;line-height:1.4;font-weight:400;}' +
+      '.stock-card-head>span{font-size:12px;color:#6F6860;border:1px solid #EAE4DA;border-radius:999px;padding:5px 9px;background:#FFFCF8;white-space:nowrap;}' +
+      '.stock-head-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;}' +
+      '.stock-head-actions span{font-size:12px;color:#6F6860;border:1px solid #EAE4DA;border-radius:999px;padding:5px 9px;background:#FFFCF8;white-space:nowrap;}' +
+      '.stock-head-actions button{height:34px;padding:0 12px;border:none;border-radius:10px;background:#1F1F1F;color:#fff;font-size:12px;font-weight:650;font-family:inherit;cursor:pointer;box-shadow:0 8px 18px rgba(31,31,31,.12);}' +
+      '.stock-table-wrap{overflow:auto;}' +
+      '.stock-table{width:100%;border-collapse:collapse;font-size:13px;}' +
+      '.stock-table th{padding:12px 14px;text-align:left;color:#6F6860;font-size:11px;text-transform:uppercase;letter-spacing:.04em;font-weight:650;background:#FFFCF8;border-bottom:1px solid #EAE4DA;white-space:nowrap;}' +
+      '.stock-table td{padding:13px 14px;border-bottom:1px solid #F1E9E3;color:#1F1F1F;vertical-align:middle;}' +
+      '.stock-row{cursor:pointer;transition:background .15s ease;}' +
+      '.stock-row:hover{background:#FFFCF8;}' +
+      '.stock-item-name{font-size:14px;font-weight:650;color:#1F1F1F;line-height:1.25;}' +
+      '.stock-item-note,.stock-muted{font-size:12px;color:#6F6860;font-weight:400;line-height:1.35;}' +
+      '.stock-alert-text{color:#B42318;margin-top:3px;}' +
+      '.stock-badge{display:inline-flex;align-items:center;justify-content:center;height:26px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;}' +
+      '.stock-badge.ingredient{background:#FFF4EE;color:#8F3D22;border:1px solid #F3D8CA;}' +
+      '.stock-badge.ready-product{background:#F5F0FF;color:#5D3D9B;border:1px solid #E1D6F8;}' +
+      '.stock-badge.product{background:#EEF8F2;color:#246B43;border:1px solid #D4EADB;}' +
+      '.stock-badge.base-product{background:#FFF8E8;color:#7A4E12;border:1px solid #F3DCA8;}' +
+      '.stock-origin{font-size:12px;color:#6F6860;}' +
+      '.stock-empty{padding:42px 20px;text-align:center;color:#6F6860;display:flex;flex-direction:column;align-items:center;gap:8px;}' +
+      '.stock-empty .mi{font-size:30px;color:#B42318;opacity:.72;}' +
+      '.stock-empty strong{font-size:15px;color:#1F1F1F;font-weight:650;}' +
+      '.stock-empty p{margin:0;font-size:13px;line-height:1.4;}' +
+      '.stock-detail{display:flex;flex-direction:column;gap:14px;}' +
+      '.stock-detail-hero{background:linear-gradient(135deg,#FFF8F6,#fff);border:1px solid #EAE4DA;border-radius:18px;padding:18px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}' +
+      '.stock-detail-hero.compact{padding:15px;}' +
+      '.stock-detail-hero p{margin:0 0 5px;color:#B42318;font-size:11px;font-weight:650;letter-spacing:.08em;text-transform:uppercase;}' +
+      '.stock-detail-hero h2{margin:0;font-size:22px;line-height:1.16;color:#1F1F1F;font-weight:750;}' +
+      '.stock-detail-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;}' +
+      '.stock-detail-metric{background:#FFFCF8;border:1px solid #EAE4DA;border-radius:16px;padding:14px;}' +
+      '.stock-detail-metric span{display:block;color:#6F6860;font-size:12px;font-weight:500;margin-bottom:5px;}' +
+      '.stock-detail-metric strong{display:block;color:#1F1F1F;font-size:18px;font-weight:720;line-height:1.2;}' +
+      '.stock-detail-metric p{margin:5px 0 0;color:#6F6860;font-size:12px;line-height:1.35;}' +
+      '.stock-detail-card{padding:16px;}' +
+      '.stock-movement-list{display:flex;flex-direction:column;gap:8px;}' +
+      '.stock-movement-line{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;background:#FFFCF8;border:1px solid #F0E7E1;border-radius:14px;}' +
+      '.stock-movement-line strong{display:block;font-size:13px;color:#1F1F1F;font-weight:650;}' +
+      '.stock-movement-line span{display:block;margin-top:2px;font-size:12px;color:#6F6860;}' +
+      '.stock-positive,.stock-negative{font-size:13px;font-weight:650;white-space:nowrap;}' +
+      '.stock-positive{color:#246B43;}.stock-negative{color:#B42318;}' +
+      '.stock-footnote{margin:0;color:#6F6860;font-size:12px;line-height:1.45;}' +
+      '.stock-modal-footer{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;}' +
+      '.stock-primary{height:40px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:14px;font-weight:650;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;}' +
+      '.stock-secondary{height:40px;padding:0 14px;border-radius:10px;border:1px solid #EAE4DA;background:#fff;color:#1F1F1F;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;}' +
+      '.stock-adjust{display:flex;flex-direction:column;gap:14px;}' +
+      '.stock-adjust-card{background:#fff;border:1px solid #EAE4DA;border-radius:18px;padding:16px;box-shadow:0 10px 24px rgba(31,31,31,.04);}' +
+      '.stock-adjust-head h3{margin:0;color:#1F1F1F;font-size:16px;font-weight:720;}' +
+      '.stock-adjust-head p{margin:4px 0 14px;color:#6F6860;font-size:13px;line-height:1.45;}' +
+      '.stock-adjust-grid{display:grid;grid-template-columns:minmax(150px,.5fr) minmax(150px,.5fr) minmax(160px,.45fr) minmax(220px,.7fr);gap:12px;align-items:end;}' +
+      '.stock-adjust-grid.min-grid{grid-template-columns:minmax(160px,.55fr) minmax(160px,.45fr);}' +
+      '.stock-adjust-grid label{display:flex;flex-direction:column;gap:6px;font-size:11px;font-weight:600;color:#6F6860;letter-spacing:.02em;}' +
+      '.stock-adjust-grid label.full{grid-column:1/-1;}' +
+      '.stock-adjust-grid input,.stock-adjust-grid select,.stock-adjust-grid textarea{width:100%;box-sizing:border-box;border:1px solid #E8DCD7;border-radius:12px;background:#FFFCF8;color:#1F1F1F;font-size:14px;font-weight:400;font-family:inherit;outline:none;padding:0 12px;min-height:40px;}' +
+      '.stock-adjust-grid textarea{min-height:74px;padding-top:10px;resize:vertical;}' +
+      '.stock-adjust-grid input:disabled{color:#6F6860;background:#FAF8F4;}' +
+      '.stock-adjust-preview{margin-top:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid #F0E7E1;border-radius:14px;background:#FFFCF8;padding:11px 12px;font-size:13px;}' +
+      '.stock-adjust-preview strong{font-size:15px;}' +
+      '.stock-adjust-preview span{color:#6F6860;font-size:12px;line-height:1.35;}' +
+      '.stock-inventory-list{display:flex;flex-direction:column;gap:8px;max-height:58vh;overflow:auto;padding-right:2px;}' +
+      '.stock-inventory-row{display:grid;grid-template-columns:minmax(0,1fr) 150px;gap:12px;align-items:center;padding:10px 12px;border:1px solid #F0E7E1;border-radius:14px;background:#FFFCF8;}' +
+      '.stock-inventory-row strong{display:block;font-size:13px;color:#1F1F1F;font-weight:650;line-height:1.25;}' +
+      '.stock-inventory-row span{display:block;margin-top:3px;font-size:12px;color:#6F6860;line-height:1.35;}' +
+      '.stock-inventory-row input{width:100%;height:38px;border:1px solid #E8DCD7;border-radius:11px;background:#fff;color:#1F1F1F;font-size:14px;font-family:inherit;padding:0 10px;box-sizing:border-box;}' +
+      '@media(max-width:760px){.stock-page{padding:16px;}.stock-header{padding:18px;}.stock-filter-grid{grid-template-columns:1fr;}.stock-detail-grid{grid-template-columns:1fr 1fr;}.stock-table{min-width:760px;}}' +
+      '@media(max-width:760px){.stock-adjust-grid{grid-template-columns:1fr 1fr;}.stock-kind-tabs{overflow:auto;flex-wrap:nowrap}.stock-kind-tabs button{white-space:nowrap;}}' +
+      '@media(max-width:520px){.stock-detail-grid{grid-template-columns:1fr;}.stock-detail-hero{flex-direction:column;}.stock-header h1{font-size:22px;}.stock-adjust-grid{grid-template-columns:1fr;}}' +
+      '</style>';
+  }
+
+  return {
+    render: render,
+    _setFilter: _setFilter,
+    _setStockKind: _setStockKind,
+    _clearFilters: _clearFilters,
+    _openItemDetails: _openItemDetails,
+    _openAdjustmentModal: _openAdjustmentModal,
+    _updateAdjustmentPreview: _updateAdjustmentPreview,
+    _saveAdjustment: _saveAdjustment,
+    _openMinimumModal: _openMinimumModal,
+    _saveMinimum: _saveMinimum,
+    _openInventoryModal: _openInventoryModal,
+    _saveInventory: _saveInventory,
+    _setView: _setView
+  };
+})();

@@ -22,6 +22,9 @@ window.Router = (function () {
     AdminApp.showApp();
 
     var hash = window.location.hash.replace('#', '') || 'dashboard';
+    if (window.AdminApp && typeof AdminApp.syncSidebarForRoute === 'function') {
+      AdminApp.syncSidebarForRoute(hash);
+    }
     var parts = hash.split('/');
     var base = parts[0];
     var sub = parts.slice(1).join('/');

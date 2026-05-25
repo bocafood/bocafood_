@@ -96,7 +96,24 @@ Modules.Financeiro = (function () {
     n = parseFloat(n) || 0;
     return '€\u00a0' + n.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   }
-  function _parseNum(v) { return parseFloat(String(v || '').replace(',', '.')) || 0; }
+  function _parseNum(v) {
+    var raw = String(v == null ? '' : v).trim();
+    if (!raw) return 0;
+    raw = raw.replace(/[^\d,.-]/g, '');
+    if (!raw) return 0;
+    var lastComma = raw.lastIndexOf(',');
+    var lastDot = raw.lastIndexOf('.');
+    if (lastComma >= 0 && lastDot >= 0) {
+      if (lastComma > lastDot) raw = raw.replace(/\./g, '').replace(',', '.');
+      else raw = raw.replace(/,/g, '');
+    } else if (lastComma >= 0) {
+      raw = raw.replace(/\./g, '').replace(',', '.');
+    } else if (lastDot >= 0) {
+      var parts = raw.split('.');
+      if (parts.length > 2 || (parts.length === 2 && parts[1].length === 3 && parts[0].length <= 3)) raw = raw.replace(/\./g, '');
+    }
+    return parseFloat(raw) || 0;
+  }
   function _tenantFiscalCountry() {
     return (window.Auth && Auth.getFiscalCountry) ? (Auth.getFiscalCountry() || 'ES') : 'ES';
   }
@@ -118,10 +135,20 @@ Modules.Financeiro = (function () {
   function _lbl() { return 'font-size:11px;font-weight:600;color:#6F6860;display:block;margin-bottom:5px;letter-spacing:.02em;'; }
   function _g2()  { return 'display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;'; }
   function _g3()  { return 'display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px;'; }
+  function _modalCardStyle() { return 'background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:18px;box-shadow:0 14px 34px rgba(31,31,31,.055);'; }
+  function _modalFieldStyle(extra) { return 'width:100%;box-sizing:border-box;height:42px;padding:0 12px;border:1px solid #E8DCD7;border-radius:12px;background:#FFFCF8;color:#1F1F1F;font-size:14px;font-weight:400;font-family:inherit;outline:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.8);transition:border-color .15s ease,box-shadow .15s ease,background .15s ease;' + (extra || ''); }
+  function _modalSelectStyle(extra) { return _modalFieldStyle('appearance:none;-webkit-appearance:none;background-color:#FFFCF8;background-image:linear-gradient(45deg,transparent 50%,#8A7E7C 50%),linear-gradient(135deg,#8A7E7C 50%,transparent 50%);background-position:calc(100% - 18px) 18px,calc(100% - 13px) 18px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:38px;' + (extra || '')); }
+  function _modalIconTitle(icon, title, help) {
+    return '<div style="display:flex;align-items:flex-start;gap:9px;margin-bottom:14px;"><span class="mi" style="font-size:18px;color:#6F6860;line-height:1.2;margin-top:1px;">'+_esc(icon)+'</span><div style="min-width:0;"><div style="font-size:13px;font-weight:650;color:#1F1F1F;line-height:1.25;">'+_esc(title)+'</div>'+(help?'<div style="font-size:12px;color:#8A7E7C;line-height:1.4;margin-top:3px;">'+_esc(help)+'</div>':'')+'</div></div>';
+  }
 
   function _statusCP(cp) {
-    if (cp.status === 'parcial') return 'parcial';
-    if (cp.status === 'pago') return 'pago';
+    var st = String((cp && cp.status) || '').toLowerCase();
+    if (st === 'estornada' || st === 'estornado') return 'estornada';
+    if (st === 'cancelada' || st === 'cancelado') return 'cancelada';
+    if (st === 'parcial') return 'parcial';
+    if (st === 'pago' || st === 'paga') return 'pago';
+    if (st === 'vencido' || st === 'vencida') return 'vencido';
     if (cp.data_pagamento) return 'pago';
     if (cp.vencimento && cp.vencimento < _today()) return 'vencido';
     return 'pendente';
@@ -156,14 +183,17 @@ Modules.Financeiro = (function () {
     if(!valorParcela && (m&&m.parcelaNumero)) valorParcela=_parseNum(m.valor);
     if(!valorParcela) valorParcela=valorTotalOriginal;
     var valorRecebido=_parseNum(m && (m.valorRecebido || m.valor_recebido_total));
+    var valorPago=_parseNum(m && (m.valorPago || m.valor_pago_total));
     if(!valorRecebido && st==='efetivado') valorRecebido=valorParcela;
+    if(!valorPago && st==='efetivado') valorPago=valorParcela;
     var saldoRestante=_parseNum(m && (m.saldoRestante || m.saldo_restante));
-    if(!saldoRestante && st==='parcial') saldoRestante=Math.max(0,valorTotalOriginal-valorRecebido);
+    if(!saldoRestante && st==='parcial') saldoRestante=Math.max(0,valorTotalOriginal-(m && m.tipo === 'saida' ? valorPago : valorRecebido));
     return {
       status: st,
       valorTotalOriginal: valorTotalOriginal,
       valorParcela: valorParcela,
       valorRecebido: valorRecebido,
+      valorPago: valorPago,
       saldoRestante: saldoRestante,
       displayValor: st==='parcial' ? valorTotalOriginal : (st==='efetivado' ? valorRecebido : valorParcela),
       valorRow: valorParcela || valorTotalOriginal
@@ -176,11 +206,12 @@ Modules.Financeiro = (function () {
     var valorParcela=_parseNum(cp && (cp.valorParcela || cp.valor_parcela || cp.valor));
     if(!valorParcela && (cp&&cp.parcelaNumero)) valorParcela=_parseNum(cp.valor);
     if(!valorParcela) valorParcela=valorTotalOriginal;
+    var payableTotal=valorParcela || _parseNum(cp && cp.valor) || valorTotalOriginal;
     var valorPago=_parseNum(cp && (cp.valorPago || cp.valor_pago_total));
-    if(!valorPago && st==='pago') valorPago=valorParcela;
+    if(!valorPago && st==='pago') valorPago=payableTotal;
     var saldoRestante=_parseNum(cp && (cp.saldoRestante || cp.saldo_restante));
-    if(!saldoRestante && st==='parcial') saldoRestante=Math.max(0,valorTotalOriginal-valorPago);
-    var valorVencido=(st==='vencido')?Math.max(0,valorTotalOriginal-valorPago):0;
+    if(!saldoRestante && st==='parcial') saldoRestante=Math.max(0,payableTotal-valorPago);
+    var valorVencido=(st==='vencido')?Math.max(0,payableTotal-valorPago):0;
     return {
       status: st,
       valorTotalOriginal: valorTotalOriginal,
@@ -188,8 +219,8 @@ Modules.Financeiro = (function () {
       valorPago: valorPago,
       saldoRestante: saldoRestante,
       valorVencido: valorVencido,
-      displayValor: st==='parcial' ? valorTotalOriginal : (st==='pago' ? valorPago : valorParcela),
-      valorRow: valorParcela || valorTotalOriginal
+      displayValor: st==='parcial' ? payableTotal : (st==='pago' ? valorPago : payableTotal),
+      valorRow: payableTotal
     };
   }
 
@@ -331,6 +362,7 @@ Modules.Financeiro = (function () {
     return function (m) {
       var valor=_parseNum(m.valor);
       var recebido=_parseNum(m.valorRecebido || m.valor_recebido_total);
+      var pago=_parseNum(m.valorPago || m.valor_pago_total);
       var saldo=_parseNum(m.saldoRestante || m.saldo_restante);
       var normStatus=String(m.status||'').toLowerCase();
       if(normStatus!=='previsto'&&normStatus!=='parcial') normStatus='efetivado';
@@ -342,7 +374,8 @@ Modules.Financeiro = (function () {
         valorTotalOriginal: _parseNum(m.valorTotalOriginal || m.valor_total_original || valor),
         valorParcela: _parseNum(m.valorParcela || m.valor_parcela || valor),
         valorRecebido: recebido || (normStatus==='efetivado' ? valor : 0),
-        saldoRestante: saldo || (normStatus==='parcial' ? Math.max(0,valor-recebido) : (normStatus==='previsto' ? valor : 0)),
+        valorPago: pago || (normStatus==='efetivado' ? valor : 0),
+        saldoRestante: saldo || (normStatus==='parcial' ? Math.max(0,valor-(tipo === 'saida' ? pago : recebido)) : (normStatus==='previsto' ? valor : 0)),
         status: normStatus,
         conta_id: m.conta_id || m.contaId || '',
         categoria: m.categoria || m.category || '',
@@ -548,7 +581,10 @@ Modules.Financeiro = (function () {
       }
     });
     var cps = _visaoCPFiltradas();
-    var totalAPagar = cps.reduce(function (s, cp) { return s + _cpValorInfo(cp).valorRow; }, 0);
+    var totalAPagar = cps.reduce(function (s, cp) {
+      var info = _cpValorInfo(cp);
+      return s + (_statusCP(cp) === 'parcial' ? info.saldoRestante : info.valorRow);
+    }, 0);
     var vencidas = cps.filter(function (cp) {
       var st = _statusCP(cp);
       return st === 'vencido' || (st === 'pendente' && cp.vencimento && cp.vencimento < _today());
@@ -641,12 +677,17 @@ Modules.Financeiro = (function () {
     var contaSel = _visaoContaSelecionada();
     var periodoLabel = (_VISAO_PERIODOS.find(function (p) { return p.value === _visaoFiltro.periodo; }) || {}).label || 'Todo período';
     var showCustom = _visaoFiltro.periodo === 'personalizado';
-    var cardStyle = 'background:#fff;border:none;border-radius:16px;padding:18px 20px;box-shadow:0 12px 30px rgba(31,31,31,.06);';
-    var inputStyle = 'width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#1F1F1F;font-size:14px;font-weight:400;font-family:inherit;outline:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.78);';
-    var labelStyle = 'font-size:11px;font-weight:600;color:#6F6860;letter-spacing:.02em;display:block;margin-bottom:5px;';
+    var cardStyle = 'background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:18px 20px;box-shadow:0 12px 30px rgba(31,31,31,.055);';
+    var inputStyle = 'width:100%;box-sizing:border-box;padding:0 12px;border:1px solid #E8DCD7;border-radius:12px;background:#FFFCF8;color:#1F1F1F;font-size:14px;font-weight:400;font-family:inherit;outline:none;height:42px;';
+    var selectStyle = inputStyle + 'appearance:none;-webkit-appearance:none;background-color:#FFFCF8;background-image:linear-gradient(45deg,transparent 50%,#8A7E7C 50%),linear-gradient(135deg,#8A7E7C 50%,transparent 50%);background-position:calc(100% - 18px) 18px,calc(100% - 13px) 18px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:36px;';
+    var labelStyle = 'font-size:11px;font-weight:650;color:#6F6860;letter-spacing:.04em;text-transform:uppercase;display:block;margin-bottom:6px;';
+    var hasVisaoFilter = _visaoFiltro.periodo !== 'todos' || !!_visaoFiltro.inicio || !!_visaoFiltro.fim || _visaoFiltro.conta !== 'todas';
     var chip = function (txt) { return '<span style="display:inline-flex;align-items:center;min-height:24px;padding:0 10px;border-radius:999px;background:#fff;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:500;box-shadow:0 1px 2px rgba(31,31,31,.02);">'+_esc(txt)+'</span>'; };
-    var sectionTitle = function (title, desc) {
-      return '<div style="margin-bottom:14px;"><h3 style="font-size:14px;font-weight:700;color:#1F1F1F;margin:0 0 4px;line-height:1.2;">'+_esc(title)+'</h3><p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0;">'+_esc(desc||'')+'</p></div>';
+    var sectionTitle = function (title, desc, icon) {
+      return '<div style="margin-bottom:14px;display:flex;align-items:flex-start;gap:10px;">'+
+        (icon ? '<span class="mi" style="width:31px;height:31px;border-radius:12px;background:#FAF8F4;color:#8A6F5A;display:inline-flex;align-items:center;justify-content:center;font-size:17px;flex:0 0 auto;">'+_esc(icon)+'</span>' : '')+
+        '<div style="min-width:0;"><h3 style="font-size:15px;font-weight:700;color:#1F1F1F;margin:0 0 4px;line-height:1.2;">'+_esc(title)+'</h3><p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0;max-width:680px;">'+_esc(desc||'')+'</p></div>'+
+      '</div>';
     };
     var metricBadge = function (txt,bg,fg) { return '<span style="display:inline-flex;align-items:center;min-height:26px;padding:0 10px;border-radius:999px;background:'+bg+';color:'+fg+';font-size:12px;font-weight:700;">'+_esc(txt)+'</span>'; };
     var heroMetric = function (title, value, desc, icon, color, badge) {
@@ -673,7 +714,7 @@ Modules.Financeiro = (function () {
     };
     var healthBg = resumo.saude === 'Crítica' ? '#FFF0EE' : (resumo.saude === 'Atenção' ? '#FFF7E6' : '#EDFAF3');
     var healthFg = resumo.saude === 'Crítica' ? '#B42318' : (resumo.saude === 'Atenção' ? '#B45309' : '#1F6F43');
-    var contasSelect = '<select onchange="Modules.Financeiro._setVisaoFiltro(\'conta\',this.value)" style="'+inputStyle+'height:40px;">'+
+    var contasSelect = '<select onchange="Modules.Financeiro._setVisaoFiltro(\'conta\',this.value)" style="'+selectStyle+'">'+
       '<option value="todas"'+(_visaoFiltro.conta==='todas'?' selected':'')+'>Todas as contas</option>'+
       _visaoContasAtivas().map(function (c) {
         return '<option value="'+_esc(c.id)+'"'+(_visaoFiltro.conta===c.id?' selected':'')+'>'+_esc(c.nome||'Conta')+'</option>';
@@ -681,9 +722,15 @@ Modules.Financeiro = (function () {
     '</select>';
     content.innerHTML=
       '<div style="display:flex;flex-direction:column;gap:16px;">'+
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">'+
+        '<div style="min-width:0;flex:1 1 420px;">'+
+          '<h2 style="font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;line-height:1.15;">Visão Geral</h2>'+
+          '<p style="font-size:13px;color:#6F6860;line-height:1.5;margin:0;max-width:760px;">Veja o saldo, o desempenho do período e as contas ativas com filtros por período e conta bancária.</p>'+
+        '</div>'+
+      '</div>'+
       '<section style="'+cardStyle+'">'+
         '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:14px;">'+
-          sectionTitle('Visão Geral', 'Veja o saldo, o desempenho do período e as contas ativas com filtros por período e conta bancária.')+
+          sectionTitle('Filtros da visão geral', 'Use os filtros para olhar uma conta, um período ou uma data específica.', 'filter_alt')+
           '<div style="display:flex;align-items:flex-start;gap:10px;min-width:240px;max-width:360px;background:'+healthBg+';color:'+healthFg+';border-radius:14px;padding:12px 14px;">'+
             '<span class="mi" style="font-size:22px;margin-top:1px;">'+(resumo.saude === 'Saudável' ? 'verified' : 'warning')+'</span>'+
             '<div>'+
@@ -693,19 +740,17 @@ Modules.Financeiro = (function () {
             '</div>'+
           '</div>'+
         '</div>'+
-        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px;align-items:end;">'+
-          '<div><label style="'+labelStyle+'">Período</label><select id="visao-periodo" onchange="Modules.Financeiro._setVisaoFiltro(\'periodo\',this.value)" style="'+inputStyle+'height:40px;">'+
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),max-content));gap:12px;align-items:end;justify-content:start;">'+
+          '<div><label style="'+labelStyle+'">Período</label><select id="visao-periodo" onchange="Modules.Financeiro._setVisaoFiltro(\'periodo\',this.value)" style="'+selectStyle+'">'+
             _VISAO_PERIODOS.map(function (p) { return '<option value="'+p.value+'"'+(_visaoFiltro.periodo===p.value?' selected':'')+'>'+p.label+'</option>'; }).join('')+
           '</select></div>'+
           '<div><label style="'+labelStyle+'">Conta Bancária</label>'+contasSelect+'</div>'+
-          '<div style="display:flex;align-items:flex-end;">'+
-            '<button onclick="Modules.Financeiro._limparVisaoFiltros()" style="width:100%;height:40px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;font-size:12px;font-weight:700;color:#6F6860;background:#fff;cursor:pointer;font-family:inherit;">Limpar</button>'+
-          '</div>'+
+          (hasVisaoFilter ? '<div style="display:flex;align-items:flex-end;"><button onclick="Modules.Financeiro._limparVisaoFiltros()" style="height:38px;padding:0 14px;border:1px solid #E8DCD7;border-radius:12px;font-size:12.5px;font-weight:600;color:#B42318;background:#fff;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);">Limpar filtros</button></div>' : '')+
         '</div>'+
         (showCustom
-          ? '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;max-width:520px;">'+
-              '<div><label style="'+labelStyle+'">Data inicial</label><input type="date" value="'+_esc(_visaoFiltro.inicio||'')+'" onchange="Modules.Financeiro._setVisaoFiltro(\'inicio\',this.value)" style="'+inputStyle+'height:40px;"></div>'+
-              '<div><label style="'+labelStyle+'">Data final</label><input type="date" value="'+_esc(_visaoFiltro.fim||'')+'" onchange="Modules.Financeiro._setVisaoFiltro(\'fim\',this.value)" style="'+inputStyle+'height:40px;"></div>'+
+          ? '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),170px));gap:12px;margin-top:12px;max-width:360px;">'+
+              '<div><label style="'+labelStyle+'">Data inicial</label><input type="date" value="'+_esc(_visaoFiltro.inicio||'')+'" onchange="Modules.Financeiro._setVisaoFiltro(\'inicio\',this.value)" style="'+inputStyle+'"></div>'+
+              '<div><label style="'+labelStyle+'">Data final</label><input type="date" value="'+_esc(_visaoFiltro.fim||'')+'" onchange="Modules.Financeiro._setVisaoFiltro(\'fim\',this.value)" style="'+inputStyle+'"></div>'+
             '</div>'
           : '')+
         '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">'+
@@ -718,7 +763,7 @@ Modules.Financeiro = (function () {
       '<section style="display:flex;flex-direction:column;gap:12px;">'+
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;">'+
         heroMetric('Saldo total', _fmtVal(resumo.saldoAtual), 'Saldo disponível nas contas selecionadas.', 'account_balance_wallet', resumo.saldoAtual>=0?'#1F6F43':'#B42318', metricBadge(contaSel?contaSel.nome:'Todas as contas','#fff','#6F6860'))+
-        heroMetric('Saldo projetado', _fmtVal(resumo.saldoProjetado), 'Considera entradas previstas e contas a pagar.', 'monitoring', resumo.saldoProjetado>=0?'#6C8777':'#B42318', resumo.saldoProjetado<0?metricBadge('Atenção: saldo negativo','#FFF0EE','#B42318'):metricBadge('Projeção saudável','#EDFAF3','#1F6F43'))+
+        heroMetric('Saldo projetado', _fmtVal(resumo.saldoProjetado), 'Considera entradas previstas e contas a pagar.', 'timeline', resumo.saldoProjetado>=0?'#6C8777':'#B42318', resumo.saldoProjetado<0?metricBadge('Atenção: saldo negativo','#FFF0EE','#B42318'):metricBadge('Projeção saudável','#EDFAF3','#1F6F43'))+
         heroMetric('A pagar', _fmtVal(resumo.totalAPagar), 'Total pendente de pagamento.', 'receipt_long', resumo.vencidas.length>0?'#B42318':'#B45309', resumo.vencidas.length?metricBadge(resumo.vencidas.length+' vencida(s)','#FFF0EE','#B42318'):metricBadge('Sem vencidas','#EDFAF3','#1F6F43'))+
       '</div>'+
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;">'+
@@ -731,7 +776,7 @@ Modules.Financeiro = (function () {
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:18px;align-items:start;">'+
         '<section style="'+cardStyle+'">'+
           '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;gap:12px;flex-wrap:wrap;">'+
-            sectionTitle('Movimentações recentes', 'Movimentos do período e da conta selecionada.')+
+            sectionTitle('Movimentações recentes', 'Movimentos do período e da conta selecionada.', 'receipt_long')+
             '<button onclick="Modules.Financeiro._switchSub(\'fluxo-caixa\')" style="font-size:12px;color:#B42318;background:none;border:none;cursor:pointer;font-weight:700;font-family:inherit;">Ver todas</button>'+
           '</div>'+
           (recentes.length===0
@@ -763,7 +808,7 @@ Modules.Financeiro = (function () {
         '</section>'+
         '<section style="'+cardStyle+'">'+
           '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;gap:12px;flex-wrap:wrap;">'+
-            sectionTitle('Contas bancárias', 'Saldo atual e atividade por conta.')+
+            sectionTitle('Contas bancárias', 'Saldo atual e atividade por conta.', 'account_balance')+
             '<button onclick="Modules.Financeiro._abrirGestaoContasBancarias()" style="font-size:12px;color:#B42318;background:none;border:none;cursor:pointer;font-weight:700;font-family:inherit;">Gerir</button>'+
           '</div>'+
           (contasVisao.length===0
@@ -922,11 +967,12 @@ Modules.Financeiro = (function () {
     var vm=_buildFluxoModel();
     var showCustom=_fluxoFiltro.periodo==='custom';
     var contasAtivas=(_contasBancarias||[]).filter(function(c){ return c.ativo!==false; }).slice().sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||''); });
-    var cardStyle='background:#fff;border:none;border-radius:16px;padding:18px 20px;box-shadow:0 12px 30px rgba(31,31,31,.06);';
-    var inputStyle='width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#1F1F1F;font-size:14px;font-weight:400;font-family:inherit;outline:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.78);';
-    var labelStyle='font-size:11px;font-weight:600;color:#6F6860;letter-spacing:.02em;display:block;margin-bottom:5px;';
-    var chip=function(txt){ return '<span style="display:inline-flex;align-items:center;min-height:24px;padding:0 10px;border-radius:999px;background:#fff;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:500;box-shadow:0 1px 2px rgba(31,31,31,.02);">'+_esc(txt)+'</span>'; };
-    var sectionTitle=function(title,desc){ return '<div style="margin-bottom:14px;"><h3 style="font-size:14px;font-weight:700;color:#1F1F1F;margin:0 0 4px;line-height:1.2;">'+_esc(title)+'</h3><p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0;">'+_esc(desc||'')+'</p></div>'; };
+    var cardStyle='background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:18px 20px;box-shadow:0 12px 30px rgba(31,31,31,.055);';
+    var inputStyle='width:100%;box-sizing:border-box;padding:0 12px;border:1px solid #E8DCD7;border-radius:12px;background:#FFFCF8;color:#1F1F1F;font-size:14px;font-weight:400;font-family:inherit;outline:none;height:42px;';
+    var selectStyle=inputStyle+'appearance:none;-webkit-appearance:none;background-color:#FFFCF8;background-image:linear-gradient(45deg,transparent 50%,#8A7E7C 50%),linear-gradient(135deg,#8A7E7C 50%,transparent 50%);background-position:calc(100% - 18px) 18px,calc(100% - 13px) 18px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:36px;';
+    var labelStyle='font-size:11px;font-weight:650;color:#6F6860;letter-spacing:.04em;text-transform:uppercase;display:block;margin-bottom:6px;';
+    var hasFluxoFilter=!!(_fluxoFiltro.busca||_fluxoFiltro.periodo!=='todos'||_fluxoFiltro.inicio||_fluxoFiltro.fim||_fluxoFiltro.conta!=='todas'||!_fluxoFiltro.status.efetivado||!_fluxoFiltro.status.previsto||!_fluxoFiltro.status.vencido);
+    var sectionTitle=function(title,desc){ return '<div style="margin-bottom:14px;"><h3 style="font-size:15px;font-weight:700;color:#1F1F1F;margin:0 0 4px;line-height:1.2;">'+_esc(title)+'</h3><p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0;max-width:680px;">'+_esc(desc||'')+'</p></div>'; };
     var metric=function(title,value,desc,icon,color){
       return '<div style="display:flex;align-items:flex-start;gap:14px;background:#FAF8F4;border:none;border-radius:16px;padding:18px;box-shadow:0 12px 30px rgba(31,31,31,.06);min-height:118px;overflow:hidden;transition:transform .16s ease,box-shadow .16s ease,background .16s ease;" onmouseenter="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 16px 34px rgba(31,31,31,.09)\';this.style.background=\'#fff\'" onmouseleave="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'0 12px 30px rgba(31,31,31,.06)\';this.style.background=\'#FAF8F4\'">'+
         '<div style="width:48px;height:48px;border-radius:14px;background:transparent;color:'+color+';display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span class="mi" style="font-size:26px;">'+icon+'</span></div>'+
@@ -938,39 +984,44 @@ Modules.Financeiro = (function () {
       '</div>';
     };
     var statusCheck=function(key,label){
-      return '<label style="display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:#1F1F1F;background:#FAF8F4;border:1px solid #EAE4DA;border-radius:999px;padding:7px 10px;cursor:pointer;"><input type="checkbox" '+(_fluxoFiltro.status[key]?'checked':'')+' onchange="Modules.Financeiro._setFluxoFiltro(\'status.'+key+'\',this.checked)" style="accent-color:#B42318;"> '+label+'</label>';
+      return '<label style="display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:#1F1F1F;cursor:pointer;white-space:nowrap;"><input type="checkbox" '+(_fluxoFiltro.status[key]?'checked':'')+' onchange="Modules.Financeiro._setFluxoFiltro(\'status.'+key+'\',this.checked)" style="accent-color:#B42318;width:16px;height:16px;"> '+label+'</label>';
     };
     content.innerHTML=
       '<div style="display:flex;flex-direction:column;gap:16px;">'+
-        '<section style="'+cardStyle+'">'+
-          '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px;">'+
-            sectionTitle('Fluxo de Caixa','Acompanhe entradas, saídas e saldo acumulado conforme período, status e conta bancária.')+
-            '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">'+
-              chip(vm.periodoLabel)+chip(vm.contaLabel)+chip(vm.rows.length+' evento(s)')+chip('Página '+_fluxoPaging(vm.rows).page+' de '+_fluxoPaging(vm.rows).totalPages)+
-            '</div>'+
+        '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">'+
+          '<div style="min-width:0;flex:1 1 420px;">'+
+            '<h2 style="font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;line-height:1.15;">Fluxo de Caixa</h2>'+
+            '<p style="font-size:13px;color:#6F6860;line-height:1.5;margin:0;max-width:760px;">Acompanhe entradas, saídas e saldo acumulado conforme período, status e conta bancária.</p>'+
           '</div>'+
-          '<div style="display:grid;grid-template-columns:minmax(240px,1.1fr) repeat(3,minmax(170px,1fr));gap:12px;align-items:end;">'+
-            '<div><label style="'+labelStyle+'">Busca</label><input id="fluxo-busca" type="search" value="'+_esc(_fluxoFiltro.busca||'')+'" oninput="Modules.Financeiro._setFluxoFiltro(\'busca\',this.value)" placeholder="Buscar por descrição, categoria ou tipo..." style="'+inputStyle+'height:40px;"></div>'+
-            '<div><label style="'+labelStyle+'">Período</label><select onchange="Modules.Financeiro._setFluxoFiltro(\'periodo\',this.value)" style="'+inputStyle+'height:40px;">'+_periodoOptionsHtml(_fluxoFiltro.periodo)+'</select></div>'+
-            '<div><label style="'+labelStyle+'">Conta Bancária</label><select onchange="Modules.Financeiro._setFluxoFiltro(\'conta\',this.value)" style="'+inputStyle+'height:40px;">'+
+        '</div>'+
+        '<section style="'+cardStyle+'">'+
+          '<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:14px;">'+
+            '<span class="mi" style="width:31px;height:31px;border-radius:12px;background:#FAF8F4;color:#8A6F5A;display:inline-flex;align-items:center;justify-content:center;font-size:17px;flex:0 0 auto;">filter_alt</span>'+
+            '<div style="min-width:0;">'+sectionTitle('Filtros do fluxo','Use os filtros para olhar um período, uma conta ou uma situação específica do caixa.')+'</div>'+
+          '</div>'+
+          '<div style="display:grid;grid-template-columns:minmax(240px,1fr) minmax(180px,220px) minmax(220px,280px) auto;gap:12px;align-items:end;justify-content:start;">'+
+            '<div><label style="'+labelStyle+'">Busca</label><input id="fluxo-busca" type="search" value="'+_esc(_fluxoFiltro.busca||'')+'" oninput="Modules.Financeiro._setFluxoFiltro(\'busca\',this.value)" placeholder="Buscar descrição, categoria ou tipo" style="'+inputStyle+'"></div>'+
+            '<div><label style="'+labelStyle+'">Período</label><select onchange="Modules.Financeiro._setFluxoFiltro(\'periodo\',this.value)" style="'+selectStyle+'">'+_periodoOptionsHtml(_fluxoFiltro.periodo)+'</select></div>'+
+            '<div><label style="'+labelStyle+'">Conta Bancária</label><select onchange="Modules.Financeiro._setFluxoFiltro(\'conta\',this.value)" style="'+selectStyle+'">'+
               '<option value="todas"'+(_fluxoFiltro.conta==='todas'?' selected':'')+'>Todas as contas</option>'+
               contasAtivas.map(function(c){ return '<option value="'+_esc(c.id)+'"'+(_fluxoFiltro.conta===c.id?' selected':'')+'>'+_esc(c.nome||'Conta')+'</option>'; }).join('')+
             '</select></div>'+
-            '<div style="display:flex;align-items:flex-end;"><button onclick="Modules.Financeiro._limparFluxoFiltros()" style="width:100%;height:40px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;font-size:12px;font-weight:700;color:#6F6860;background:#fff;cursor:pointer;font-family:inherit;">Limpar</button></div>'+
+            (hasFluxoFilter?'<div style="display:flex;align-items:flex-end;"><button onclick="Modules.Financeiro._limparFluxoFiltros()" style="height:38px;padding:0 14px;border:1px solid #E8DCD7;border-radius:12px;font-size:12.5px;font-weight:600;color:#B42318;background:#fff;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);">Limpar filtros</button></div>':'')+
           '</div>'+
-          '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">'+
-            statusCheck('efetivado','Efetivado')+statusCheck('previsto','Previsto')+statusCheck('vencido','Vencido')+
+          '<div style="margin-top:12px;display:grid;grid-template-columns:minmax(220px,max-content);gap:6px;">'+
+            '<span style="'+labelStyle+'margin-bottom:0;">Status</span>'+
+            '<div style="min-height:42px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:0 12px;">'+statusCheck('efetivado','Efetivado')+statusCheck('previsto','Previsto')+statusCheck('vencido','Vencido')+'</div>'+
           '</div>'+
           (showCustom?'<div style="display:grid;grid-template-columns:repeat(2,minmax(160px,220px));gap:12px;margin-top:12px;">'+
-            '<div><label style="'+labelStyle+'">Data inicial</label><input type="date" value="'+_esc(_fluxoFiltro.inicio||'')+'" onchange="Modules.Financeiro._setFluxoFiltro(\'inicio\',this.value)" style="'+inputStyle+'height:40px;"></div>'+
-            '<div><label style="'+labelStyle+'">Data final</label><input type="date" value="'+_esc(_fluxoFiltro.fim||'')+'" onchange="Modules.Financeiro._setFluxoFiltro(\'fim\',this.value)" style="'+inputStyle+'height:40px;"></div>'+
+            '<div><label style="'+labelStyle+'">Data inicial</label><input type="date" value="'+_esc(_fluxoFiltro.inicio||'')+'" onchange="Modules.Financeiro._setFluxoFiltro(\'inicio\',this.value)" style="'+inputStyle+'"></div>'+
+            '<div><label style="'+labelStyle+'">Data final</label><input type="date" value="'+_esc(_fluxoFiltro.fim||'')+'" onchange="Modules.Financeiro._setFluxoFiltro(\'fim\',this.value)" style="'+inputStyle+'"></div>'+
           '</div>':'')+
         '</section>'+
         '<section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;">'+
           metric('Saldo filtrado', _fmtVal(vm.saldoFiltrado), 'Resultado acumulado dos eventos exibidos.', 'account_balance_wallet', vm.saldoFiltrado>=0?'#1F6F43':'#B42318')+
           metric('Entradas', _fmtVal(vm.entradaTotal), vm.efetivados+' evento(s) efetivado(s) no recorte.', 'south_west', '#1F6F43')+
           metric('Saídas', _fmtVal(vm.saidaTotal), vm.vencidos?vm.vencidos+' evento(s) vencido(s) no recorte.':'Sem vencidos no recorte.', 'north_east', vm.vencidos?'#B42318':'#B45309')+
-          metric('Previstos', String(vm.previstos), 'Entradas e saídas ainda não efetivadas.', 'event_upcoming', '#6C8777')+
+          metric('Previstos', String(vm.previstos), 'Entradas e saídas ainda não efetivadas.', 'pending_actions', '#6C8777')+
         '</section>'+
         '<section style="'+cardStyle+'padding:0;overflow:hidden;">'+
           '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:18px 20px;border-bottom:1px solid #EAE4DA;">'+
@@ -1242,12 +1293,12 @@ Modules.Financeiro = (function () {
     },0);
     var paging=_movPaging(filtered);
     var pageItems=paging.items;
-    var cardStyle='background:#fff;border:none;border-radius:16px;padding:18px 20px;box-shadow:0 12px 30px rgba(31,31,31,.06);';
-    var inputStyle='width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#1F1F1F;font-size:14px;font-weight:400;font-family:inherit;outline:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.78);';
-    var labelStyle='font-size:11px;font-weight:600;color:#6F6860;letter-spacing:.02em;display:block;margin-bottom:5px;';
-    var chipStyle='display:inline-flex;align-items:center;min-height:24px;padding:0 10px;border-radius:999px;background:#fff;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:500;box-shadow:0 1px 2px rgba(31,31,31,.02);';
-    var chip=function(txt){ return '<span style="'+chipStyle+'">'+_esc(txt)+'</span>'; };
-    var sectionTitle=function(title,desc){ return '<div style="margin-bottom:14px;"><h3 style="font-size:14px;font-weight:700;color:#1F1F1F;margin:0 0 4px;line-height:1.2;">'+_esc(title)+'</h3><p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0;">'+_esc(desc||'')+'</p></div>'; };
+    var cardStyle='background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:18px 20px;box-shadow:0 12px 30px rgba(31,31,31,.055);';
+    var inputStyle='width:100%;box-sizing:border-box;padding:0 12px;border:1px solid #E8DCD7;border-radius:12px;background:#FFFCF8;color:#1F1F1F;font-size:14px;font-weight:400;font-family:inherit;outline:none;height:42px;';
+    var selectStyle=inputStyle+'appearance:none;-webkit-appearance:none;background-color:#FFFCF8;background-image:linear-gradient(45deg,transparent 50%,#8A7E7C 50%),linear-gradient(135deg,#8A7E7C 50%,transparent 50%);background-position:calc(100% - 18px) 18px,calc(100% - 13px) 18px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:36px;';
+    var labelStyle='font-size:11px;font-weight:650;color:#6F6860;letter-spacing:.04em;text-transform:uppercase;display:block;margin-bottom:6px;';
+    var hasMovFilter=!!(_movFiltro.busca||_movFiltro.periodo!=='mes'||_movFiltro.inicio||_movFiltro.fim||(_movFiltro.contas&&_movFiltro.contas.length)||_movFiltro.status);
+    var sectionTitle=function(title,desc){ return '<div style="margin-bottom:14px;"><h3 style="font-size:15px;font-weight:700;color:#1F1F1F;margin:0 0 4px;line-height:1.2;">'+_esc(title)+'</h3><p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0;max-width:680px;">'+_esc(desc||'')+'</p></div>'; };
     var metric=function(title,value,desc,icon,color){
       return '<div style="display:flex;align-items:flex-start;gap:14px;background:#FAF8F4;border:none;border-radius:16px;padding:18px;box-shadow:0 12px 30px rgba(31,31,31,.06);min-height:118px;overflow:hidden;transition:transform .16s ease,box-shadow .16s ease,background .16s ease;" onmouseenter="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 16px 34px rgba(31,31,31,.09)\';this.style.background=\'#fff\'" onmouseleave="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'0 12px 30px rgba(31,31,31,.06)\';this.style.background=\'#FAF8F4\'">'+
         '<div style="width:48px;height:48px;border-radius:14px;background:transparent;color:'+color+';display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span class="mi" style="font-size:26px;">'+icon+'</span></div>'+
@@ -1259,8 +1310,8 @@ Modules.Financeiro = (function () {
       '</div>';
     };
     var contasFiltro=(_contasBancarias||[]).filter(function(c){ return c.ativo!==false; }).slice().sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||''); });
-    var contasHtml='<label style="display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:#1F1F1F;background:#FAF8F4;border:1px solid #EAE4DA;border-radius:999px;padding:7px 10px;cursor:pointer;"><input type="checkbox" '+((!_movFiltro.contas||!_movFiltro.contas.length)?'checked':'')+' onchange="Modules.Financeiro._setMovFiltro(\'contas\',[])" style="accent-color:#B42318;"> Todas</label>'+
-      contasFiltro.map(function(c){ return '<label style="display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:#1F1F1F;background:#FAF8F4;border:1px solid #EAE4DA;border-radius:999px;padding:7px 10px;cursor:pointer;"><input type="checkbox" '+((_movFiltro.contas||[]).indexOf(c.id)>=0?'checked':'')+' onchange="Modules.Financeiro._toggleMovConta(\''+c.id+'\',this.checked)" style="accent-color:#B42318;"> '+_esc(c.nome)+'</label>'; }).join('');
+    var contasHtml='<label style="display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:#1F1F1F;cursor:pointer;white-space:nowrap;"><input type="checkbox" '+((!_movFiltro.contas||!_movFiltro.contas.length)?'checked':'')+' onchange="Modules.Financeiro._setMovFiltro(\'contas\',[])" style="accent-color:#B42318;width:16px;height:16px;"> Todas</label>'+
+      contasFiltro.map(function(c){ return '<label style="display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:#1F1F1F;cursor:pointer;white-space:nowrap;"><input type="checkbox" '+((_movFiltro.contas||[]).indexOf(c.id)>=0?'checked':'')+' onchange="Modules.Financeiro._toggleMovConta(\''+c.id+'\',this.checked)" style="accent-color:#B42318;width:16px;height:16px;"> '+_esc(c.nome)+'</label>'; }).join('');
     var showCustom=_movFiltro.periodo==='custom';
     var pageSizeOptions=[8,12,24,48].map(function(n){ return '<option value="'+n+'"'+(Number(_movView.pageSize)===n?' selected':'')+'>'+n+' / pág.</option>'; }).join('');
     var paginationHtml=paging.total?'<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:16px 18px;">'+
@@ -1281,31 +1332,34 @@ Modules.Financeiro = (function () {
         '<button onclick="Modules.Financeiro._openMovModal(null,null)" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">+ Nova Entrada</button>'+
       '</div>'+
       '<section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;">'+
-        metric('A receber', _fmtVal(totalPrevisto), 'Entradas previstas no recorte.', 'event_upcoming', '#6C8777')+
+        metric('A receber', _fmtVal(totalPrevisto), 'Entradas previstas no recorte.', 'pending_actions', '#6C8777')+
         metric('Recebido', _fmtVal(totalEfetivado), 'Valor já efetivado no caixa.', 'south_west', '#1F6F43')+
         metric('Parcial pendente', _fmtVal(totalParcial), 'Saldo restante de recebimentos parciais.', 'hourglass_top', '#B45309')+
         metric('Registros', String(filtered.length), 'Entradas encontradas pelos filtros.', 'receipt_long', '#8A6F5A')+
       '</section>'+
       '<section style="'+cardStyle+'">'+
-        '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px;">'+
-          sectionTitle('Filtros','Refine por período, status, conta bancária e busca.')+
-          '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">'+chip(filtered.length+' entrada(s)')+chip('Página '+paging.page+' de '+paging.totalPages)+chip((_movFiltro.contas&&_movFiltro.contas.length)?_movFiltro.contas.length+' conta(s)':'Todas as contas')+'</div>'+
+        '<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:14px;">'+
+          '<span class="mi" style="width:31px;height:31px;border-radius:12px;background:#FAF8F4;color:#8A6F5A;display:inline-flex;align-items:center;justify-content:center;font-size:17px;flex:0 0 auto;">filter_alt</span>'+
+          '<div style="min-width:0;">'+sectionTitle('Filtros de entradas','Refine por período, status, conta bancária e busca.')+'</div>'+
         '</div>'+
-        '<div style="display:grid;grid-template-columns:minmax(240px,1.4fr) minmax(150px,.7fr) minmax(150px,.7fr) auto;gap:12px;align-items:end;">'+
-          '<div><label style="'+labelStyle+'">Busca</label><input id="mov-busca" type="search" value="'+_esc(_movFiltro.busca||'')+'" oninput="Modules.Financeiro._setMovFiltro(\'busca\',this.value)" placeholder="Descrição, cliente, documento, forma, conta ou valor..." style="'+inputStyle+'height:40px;"></div>'+
-          '<div><label style="'+labelStyle+'">Período</label><select onchange="Modules.Financeiro._setMovFiltro(\'periodo\',this.value)" style="'+inputStyle+'height:40px;">'+_periodoOptionsHtml(_movFiltro.periodo)+'</select></div>'+
-          '<div><label style="'+labelStyle+'">Status</label><select onchange="Modules.Financeiro._setMovFiltro(\'status\',this.value)" style="'+inputStyle+'height:40px;">'+
+        '<div style="display:grid;grid-template-columns:minmax(240px,1fr) minmax(180px,220px) minmax(170px,210px) auto;gap:12px;align-items:end;justify-content:start;">'+
+          '<div><label style="'+labelStyle+'">Busca</label><input id="mov-busca" type="search" value="'+_esc(_movFiltro.busca||'')+'" oninput="Modules.Financeiro._setMovFiltro(\'busca\',this.value)" placeholder="Descrição, cliente, documento, forma, conta ou valor" style="'+inputStyle+'"></div>'+
+          '<div><label style="'+labelStyle+'">Período</label><select onchange="Modules.Financeiro._setMovFiltro(\'periodo\',this.value)" style="'+selectStyle+'">'+_periodoOptionsHtml(_movFiltro.periodo)+'</select></div>'+
+          '<div><label style="'+labelStyle+'">Status</label><select onchange="Modules.Financeiro._setMovFiltro(\'status\',this.value)" style="'+selectStyle+'">'+
             '<option value=""'+(!_movFiltro.status?' selected':'')+'>Qualquer status</option>'+
             '<option value="efetivado"'+(_movFiltro.status==='efetivado'?' selected':'')+'>Recebido</option>'+
             '<option value="previsto"'+(_movFiltro.status==='previsto'?' selected':'')+'>A receber</option>'+
             '<option value="parcial"'+(_movFiltro.status==='parcial'?' selected':'')+'>Parcial</option>'+
           '</select></div>'+
-          '<div style="display:flex;align-items:flex-end;"><button onclick="Modules.Financeiro._limparMovFiltros()" style="height:40px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;font-size:12px;font-weight:700;color:#6F6860;background:#fff;cursor:pointer;font-family:inherit;">Limpar</button></div>'+
+          (hasMovFilter?'<div style="display:flex;align-items:flex-end;"><button onclick="Modules.Financeiro._limparMovFiltros()" style="height:38px;padding:0 14px;border:1px solid #E8DCD7;border-radius:12px;font-size:12.5px;font-weight:600;color:#B42318;background:#fff;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);">Limpar filtros</button></div>':'')+
         '</div>'+
-        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">'+contasHtml+'</div>'+
+        '<div style="margin-top:12px;display:grid;grid-template-columns:minmax(260px,max-content);gap:6px;">'+
+          '<span style="'+labelStyle+'margin-bottom:0;">Contas bancárias</span>'+
+          '<div style="min-height:42px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:8px 12px;">'+contasHtml+'</div>'+
+        '</div>'+
         (showCustom?'<div style="display:grid;grid-template-columns:repeat(2,minmax(160px,220px));gap:12px;margin-top:12px;">'+
-          '<div><label style="'+labelStyle+'">Data inicial</label><input type="date" value="'+_esc(_movFiltro.inicio||'')+'" onchange="Modules.Financeiro._setMovFiltro(\'inicio\',this.value)" style="'+inputStyle+'height:40px;"></div>'+
-          '<div><label style="'+labelStyle+'">Data final</label><input type="date" value="'+_esc(_movFiltro.fim||'')+'" onchange="Modules.Financeiro._setMovFiltro(\'fim\',this.value)" style="'+inputStyle+'height:40px;"></div>'+
+          '<div><label style="'+labelStyle+'">Data inicial</label><input type="date" value="'+_esc(_movFiltro.inicio||'')+'" onchange="Modules.Financeiro._setMovFiltro(\'inicio\',this.value)" style="'+inputStyle+'"></div>'+
+          '<div><label style="'+labelStyle+'">Data final</label><input type="date" value="'+_esc(_movFiltro.fim||'')+'" onchange="Modules.Financeiro._setMovFiltro(\'fim\',this.value)" style="'+inputStyle+'"></div>'+
         '</div>':'')+
         (_movSelecionadas.length?'<div style="margin-top:14px;padding:12px 14px;border:1px solid #EAE4DA;border-radius:14px;background:#FAF8F4;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;"><span style="font-size:12px;color:#6F6860;font-weight:600;">'+_movSelecionadas.length+' entrada(s) selecionada(s)</span><div style="display:flex;gap:8px;flex-wrap:wrap;"><button onclick="Modules.Financeiro._openBulkEntradaModal()" style="border:none;background:#EEF4FF;color:#2563EB;border-radius:10px;padding:9px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Alterar em massa</button><button onclick="Modules.Financeiro._bulkMovStatus(\'efetivado\')" style="border:none;background:#16A34A;color:#fff;border-radius:10px;padding:9px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Marcar recebido</button><button onclick="Modules.Financeiro._bulkMovStatus(\'previsto\')" style="border:none;background:#3B82F6;color:#fff;border-radius:10px;padding:9px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Marcar previsto</button><button onclick="Modules.Financeiro._bulkDeleteMov()" style="border:none;background:#FFF0EE;color:#C4362A;border-radius:10px;padding:9px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Excluir</button><button onclick="Modules.Financeiro._clearMovSelection()" style="border:1px solid #EAE4DA;background:#fff;color:#6F6860;border-radius:10px;padding:9px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Limpar seleção</button></div></div>':'')+
       '</section>'+
@@ -1433,10 +1487,11 @@ Modules.Financeiro = (function () {
       : st==='parcial'
         ? {label:'Recebido parcialmente',bg:'#FEF9C3',fg:'#B45309'}
         : {label:'Já recebido',bg:'#DCFCE7',fg:'#16A34A'};
+    var cardStyle=_modalCardStyle();
     var detailItem=function(label,value,wide){
-      return '<div style="'+(wide?'grid-column:1/-1;':'')+'min-width:0;">'+
-        '<div style="font-size:11px;font-weight:700;color:#8A7E7C;text-transform:uppercase;letter-spacing:.03em;margin-bottom:4px;">'+_esc(label)+'</div>'+
-        '<div style="font-size:14px;font-weight:650;color:#1F1F1F;line-height:1.35;word-break:break-word;">'+(value||'--')+'</div>'+
+      return '<div style="'+(wide?'grid-column:1/-1;':'')+'min-width:0;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:10px 11px;">'+
+        '<div style="font-size:10.5px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.03em;margin-bottom:4px;">'+_esc(label)+'</div>'+
+        '<div style="font-size:13.5px;font-weight:500;color:#1F1F1F;line-height:1.35;word-break:break-word;">'+(value||'--')+'</div>'+
       '</div>';
     };
     var tipoLabel=m.parcelamento?'Parcelada':(m.recorrencia?'Recorrente':'Entrada única');
@@ -1450,34 +1505,34 @@ Modules.Financeiro = (function () {
     var totalParcelas=(m.parcelamento&&m.parcelamento.parcelas)||m.numeroParcelas||'';
     var infoCards=[];
     if(info.valorTotalOriginal){
-      infoCards.push('<div><div style="font-size:11px;font-weight:700;color:#8A7E7C;text-transform:uppercase;margin-bottom:3px;">Valor total original</div><div style="font-size:14px;font-weight:600;color:#1F2937;">'+_fmtVal(info.valorTotalOriginal)+'</div></div>');
+      infoCards.push(detailItem('Valor total original',_fmtVal(info.valorTotalOriginal)));
     }
     if(info.valorParcela && (hasParcelamento || hasRecorrencia)){
-      infoCards.push('<div><div style="font-size:11px;font-weight:700;color:#8A7E7C;text-transform:uppercase;margin-bottom:3px;">Valor da parcela</div><div style="font-size:14px;font-weight:600;color:#1F2937;">'+_fmtVal(info.valorParcela)+'</div></div>');
+      infoCards.push(detailItem('Valor da parcela',_fmtVal(info.valorParcela)));
     }
     if(hasRecorrencia){
-      infoCards.push('<div><div style="font-size:11px;font-weight:700;color:#8A7E7C;text-transform:uppercase;margin-bottom:3px;">Recorrência</div><div style="font-size:14px;font-weight:600;color:#1F2937;">'+_esc((m.recorrencia.frequencia||'')+(m.recorrencia.data_fim?' até '+_fmtDateDisplay(m.recorrencia.data_fim):''))+'</div></div>');
+      infoCards.push(detailItem('Recorrência',_esc((m.recorrencia.frequencia||'')+(m.recorrencia.data_fim?' até '+_fmtDateDisplay(m.recorrencia.data_fim):''))));
     }
     if(hasParcelamento && (parcelaAtual || totalParcelas)){
-      infoCards.push('<div><div style="font-size:11px;font-weight:700;color:#8A7E7C;text-transform:uppercase;margin-bottom:3px;">Parcelamento</div><div style="font-size:14px;font-weight:600;color:#1F2937;">'+_esc('Parcela '+(parcelaAtual||'?')+' de '+(totalParcelas||'?'))+'</div></div>');
+      infoCards.push(detailItem('Parcelamento',_esc('Parcela '+(parcelaAtual||'?')+' de '+(totalParcelas||'?'))));
     }
     if(m.parcelamento && m.parcelamento.proxima_data){
-      infoCards.push('<div><div style="font-size:11px;font-weight:700;color:#8A7E7C;text-transform:uppercase;margin-bottom:3px;">Próxima</div><div style="font-size:14px;font-weight:600;color:#1F2937;">'+_esc(_fmtDateDisplay(m.parcelamento.proxima_data))+'</div></div>');
+      infoCards.push(detailItem('Próxima',_esc(_fmtDateDisplay(m.parcelamento.proxima_data))));
     }
     if(st==='parcial'){
-      infoCards.push('<div><div style="font-size:11px;font-weight:700;color:#8A7E7C;text-transform:uppercase;margin-bottom:3px;">Valor recebido</div><div style="font-size:18px;font-weight:700;color:#16A34A;">'+_fmtVal(recebido)+'</div></div>');
-      infoCards.push('<div><div style="font-size:11px;font-weight:700;color:#8A7E7C;text-transform:uppercase;margin-bottom:3px;">Saldo pendente</div><div style="font-size:18px;font-weight:700;color:#B45309;">'+_fmtVal(pendente)+'</div></div>');
+      infoCards.push(detailItem('Valor recebido','<span style="color:#1F6F43;">'+_fmtVal(recebido)+'</span>'));
+      infoCards.push(detailItem('Saldo pendente','<span style="color:#B45309;">'+_fmtVal(pendente)+'</span>'));
     }
     if(st==='efetivado' && recebido){
-      infoCards.push('<div><div style="font-size:11px;font-weight:700;color:#8A7E7C;text-transform:uppercase;margin-bottom:3px;">Valor recebido</div><div style="font-size:18px;font-weight:700;color:#16A34A;">'+_fmtVal(recebido)+'</div></div>');
+      infoCards.push(detailItem('Valor recebido','<span style="color:#1F6F43;">'+_fmtVal(recebido)+'</span>'));
     }
     var body=
       '<div style="display:flex;flex-direction:column;gap:14px;">'+
-        '<div style="background:#FAF8F4;border:none;border-radius:16px;padding:20px;box-shadow:0 12px 30px rgba(31,31,31,.06);">'+
+        '<div style="'+cardStyle+'">'+
           '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">'+
             '<div style="min-width:0;">'+
-              '<div style="font-size:11px;font-weight:700;color:#8A7E7C;text-transform:uppercase;letter-spacing:.04em;margin-bottom:7px;">Resumo da entrada</div>'+
-              '<div style="font-size:clamp(26px,4vw,36px);line-height:1;font-weight:700;color:#1F1F1F;letter-spacing:0;">'+totalValor+'</div>'+
+              '<div style="display:flex;align-items:center;gap:9px;margin-bottom:10px;"><span class="mi" style="font-size:18px;color:#6F6860;">receipt_long</span><div style="font-size:13px;font-weight:650;color:#1F1F1F;">Resumo da entrada</div></div>'+
+              '<div style="font-size:clamp(25px,4vw,34px);line-height:1;font-weight:650;color:#1F1F1F;letter-spacing:0;">'+totalValor+'</div>'+
               '<div style="margin-top:8px;font-size:13px;color:#6F6860;line-height:1.4;">'+
                 (st==='parcial'
                   ? _esc(_fmtVal(recebido)+' recebidos · '+_fmtVal(pendente)+' pendentes')
@@ -1485,15 +1540,15 @@ Modules.Financeiro = (function () {
               '</div>'+
             '</div>'+
             '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">'+
-              '<span style="background:'+statusInfo.bg+';color:'+statusInfo.fg+';padding:6px 12px;border-radius:999px;font-size:11px;font-weight:700;">'+statusInfo.label+'</span>'+
-              '<span style="background:#fff;border:1px solid #EAE4DA;color:#6F6860;padding:6px 12px;border-radius:999px;font-size:11px;font-weight:700;">'+_esc(tipoLabel)+'</span>'+
+              '<span style="background:'+statusInfo.bg+';color:'+statusInfo.fg+';padding:6px 12px;border-radius:999px;font-size:11px;font-weight:600;">'+statusInfo.label+'</span>'+
+              '<span style="background:#FFFCF8;border:1px solid #E8DCD7;color:#6F6860;padding:6px 12px;border-radius:999px;font-size:11px;font-weight:600;">'+_esc(tipoLabel)+'</span>'+
             '</div>'+
           '</div>'+
         '</div>'+
 
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;">'+
-          '<div style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">'+
-            '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;"><div style="font-size:12px;font-weight:800;color:#1F1F1F;">Identificação</div>'+_badgeEntradaStatus(st)+'</div>'+
+          '<div style="'+cardStyle+'">'+
+            _modalIconTitle('badge','Identificação','Dados usados para localizar esta entrada no financeiro.')+
             '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">'+
               detailItem('Número interno',_esc(m.numeroSequencial||'--'))+
               detailItem('Documento',_esc(m.numeroDocumento||m.numDocumento||'--'))+
@@ -1501,8 +1556,8 @@ Modules.Financeiro = (function () {
               detailItem('Tipo',_esc(tipoLabel))+
             '</div>'+
           '</div>'+
-          '<div style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">'+
-            '<div style="font-size:12px;font-weight:800;color:#1F1F1F;margin-bottom:12px;">Recebimento</div>'+
+          '<div style="'+cardStyle+'">'+
+            _modalIconTitle('payments','Recebimento','Cliente, forma de pagamento e conta onde o valor entra.')+
             '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">'+
               detailItem('Quem pagou',_esc(pessoa||'--'),true)+
               detailItem('Categoria',_esc(m.categoria||'--'))+
@@ -1512,27 +1567,27 @@ Modules.Financeiro = (function () {
           '</div>'+
         '</div>'+
         (infoCards.length
-          ? '<div style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);"><div style="font-size:12px;font-weight:800;color:#1F1F1F;margin-bottom:12px;">Informações adicionais</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">'+infoCards.join('')+'</div></div>'
+          ? '<div style="'+cardStyle+'">'+_modalIconTitle('calendar_month','Informações adicionais','Valores, parcelas e recorrências ligados a esta entrada.')+'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">'+infoCards.join('')+'</div></div>'
           : '')+
         (m.observacoes && String(m.observacoes).trim()
-          ? '<div style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);"><div style="font-size:11px;font-weight:700;color:#8A7E7C;text-transform:uppercase;margin-bottom:10px;">Observações</div><div style="font-size:14px;line-height:1.5;color:#1F2937;white-space:pre-wrap;word-break:break-word;">'+_esc(m.observacoes)+'</div></div>'
+          ? '<div style="'+cardStyle+'">'+_modalIconTitle('notes','Observações','Anotações internas registradas nesta entrada.')+'<div style="background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:12px;font-size:13.5px;line-height:1.5;color:#1F1F1F;white-space:pre-wrap;word-break:break-word;">'+_esc(m.observacoes)+'</div></div>'
           : '')+
       '</div>';
     var footer='<div style="display:flex;flex-direction:column;gap:8px;">'+
       '<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;">'+
       (st==='parcial'
-        ? '<button onclick="Modules.Financeiro._closeMovDetalhe();Modules.Financeiro._openEfetivarEntradasModal(\''+m.id+'\')" style="padding:12px 16px;border-radius:12px;border:none;background:#16A34A;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 8px 18px rgba(22,163,74,.16);">Receber restante</button>'
+        ? '<button onclick="Modules.Financeiro._closeMovDetalhe();Modules.Financeiro._openEfetivarEntradasModal(\''+m.id+'\')" style="height:42px;padding:0 16px;border-radius:12px;border:none;background:#1F8F56;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(31,143,86,.16);">Receber restante</button>'
         : (st==='previsto'
-          ? '<button onclick="Modules.Financeiro._closeMovDetalhe();Modules.Financeiro._openEfetivarEntradasModal(\''+m.id+'\')" style="padding:12px 16px;border-radius:12px;border:none;background:#16A34A;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 8px 18px rgba(22,163,74,.16);">Marcar como recebido</button>'
+          ? '<button onclick="Modules.Financeiro._closeMovDetalhe();Modules.Financeiro._openEfetivarEntradasModal(\''+m.id+'\')" style="height:42px;padding:0 16px;border-radius:12px;border:none;background:#1F8F56;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(31,143,86,.16);">Marcar como recebido</button>'
           : ''))+
       (st!=='efetivado'
-        ? '<button onclick="Modules.Financeiro._closeMovDetalhe();Modules.Financeiro._openMovModal(\''+m.id+'\')" style="padding:12px 16px;border-radius:12px;border:1px solid #EAE4DA;background:#fff;color:#1F1F1F;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Editar</button>'
+        ? '<button onclick="Modules.Financeiro._closeMovDetalhe();Modules.Financeiro._openMovModal(\''+m.id+'\')" style="height:42px;padding:0 16px;border-radius:12px;border:1px solid #E6DDD3;background:#fff;color:#1F1F1F;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Editar</button>'
         : '')+
-      '<button onclick="Modules.Financeiro._deleteMov(\''+m.id+'\')" style="padding:12px 16px;border-radius:12px;border:none;background:#FFF0EE;color:#C4362A;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Excluir</button>'+
-      '<button onclick="Modules.Financeiro._closeMovDetalhe();" style="padding:12px 16px;border-radius:12px;border:1px solid #EAE4DA;background:#fff;color:#1F1F1F;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Fechar</button>'+
+      '<button onclick="Modules.Financeiro._deleteMov(\''+m.id+'\')" style="height:42px;padding:0 16px;border-radius:12px;border:none;background:#FFF0EE;color:#B42318;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Excluir</button>'+
+      '<button onclick="Modules.Financeiro._closeMovDetalhe();" style="height:42px;padding:0 16px;border-radius:12px;border:1px solid #E6DDD3;background:#fff;color:#1F1F1F;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Fechar</button>'+
       '</div>'+
     '</div>';
-    window._movDetalheModal=UI.modal({title:'Resumo da entrada',body:body,footer:footer,maxWidth:'760px'});
+    window._movDetalheModal=UI.modal({title:'Detalhes da entrada',body:body,footer:footer,maxWidth:'820px'});
   }
 
   function _closeMovDetalhe() {
@@ -1603,11 +1658,11 @@ Modules.Financeiro = (function () {
     box.innerHTML=
       '<div style="position:relative;">'+
       '<label style="'+_lbl()+'">'+(isEntrada?'Cliente':'Fornecedor')+'</label>'+
-      '<input id="mov-pessoa-novo" type="text" value="'+_esc(selected?_pessoaLabel(selected):(selectedName||''))+'" placeholder="'+(isEntrada?'Buscar cliente...':'Buscar fornecedor...')+'" autocomplete="off" oninput="Modules.Financeiro._financePessoaSearch(\'mov\',this.value)" onfocus="Modules.Financeiro._financePessoaSearch(\'mov\',this.value)" onblur="setTimeout(function(){var d=document.getElementById(\'mov-pessoa-dropdown\');if(d)d.style.display=\'none\';},200)" style="'+_inp()+'">'+
+      '<input id="mov-pessoa-novo" type="text" value="'+_esc(selected?_pessoaLabel(selected):(selectedName||''))+'" placeholder="'+(isEntrada?'Buscar cliente...':'Buscar fornecedor...')+'" autocomplete="off" oninput="Modules.Financeiro._financePessoaSearch(\'mov\',this.value)" onfocus="Modules.Financeiro._financePessoaSearch(\'mov\',this.value)" onblur="setTimeout(function(){var d=document.getElementById(\'mov-pessoa-dropdown\');if(d)d.style.display=\'none\';},200)" style="'+_modalFieldStyle()+'">'+
       '<input id="mov-pessoa-id" type="hidden" value="'+_esc(selectedId||'')+'">'+
-      '<div id="mov-pessoa-dropdown" style="display:none;position:absolute;top:calc(100% + 2px);left:0;right:0;background:#fff;border:1.5px solid #D4C8C6;border-radius:9px;max-height:220px;overflow-y:auto;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.12);"></div>'+
+      '<div id="mov-pessoa-dropdown" style="display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;background:#fff;border:1px solid #E8DCD7;border-radius:12px;max-height:220px;overflow-y:auto;z-index:9999;box-shadow:0 14px 34px rgba(31,31,31,.12);"></div>'+
       '</div>'+
-      '<div style="font-size:11px;color:#8A7E7C;margin-top:4px;">'+(isEntrada?'Quem pagou essa entrada':'Para quem você está pagando')+'</div>';
+      '<div style="font-size:11px;color:#8A7E7C;margin-top:5px;">'+(isEntrada?'Quem pagou essa entrada.':'Para quem você está pagando.')+'</div>';
   }
 
   function _openMovModal(id,tipoPreset) {
@@ -1627,99 +1682,99 @@ Modules.Financeiro = (function () {
     var primeiraParcela=(m.parcelamento&&m.parcelamento.primeira_data)||m.data||_today();
     var valorParcela=parcelas?_fmtVal((_parseNum(m.valor)||0)/_parseNum(parcelas)):'';
     var numeroPreview=id?(m.numeroSequencial||''):('EN-'+String((parseInt(_configFin.entradaSeq||0,10)||0)+1).padStart(6,'0'));
+    var cardStyle=_modalCardStyle();
+    var fieldStyle=_modalFieldStyle();
+    var selectStyle=_modalSelectStyle();
+    var shortField=_modalFieldStyle('max-width:160px;');
+    var docField=_modalFieldStyle('max-width:220px;');
+    var dateField=_modalFieldStyle('max-width:168px;');
+    var statusOptionStyle='display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:#1F1F1F;cursor:pointer;min-height:34px;';
+    var cleanCheckboxStyle='display:flex;align-items:center;gap:9px;font-size:13px;font-weight:500;color:#1F1F1F;cursor:pointer;min-height:32px;';
     var body=
       '<div style="display:flex;flex-direction:column;gap:16px;">'+
-        '<div style="background:#FAF8F4;border:none;border-radius:16px;padding:18px 20px;box-shadow:0 12px 30px rgba(31,31,31,.06);display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;">'+
-          '<div style="min-width:0;">'+
-            '<div style="font-size:11px;font-weight:700;color:#8A7E7C;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;">'+(id?'Edição de entrada':'Nova entrada')+'</div>'+
-            '<div style="font-size:18px;font-weight:700;color:#1F1F1F;line-height:1.25;">'+_esc(m.descricao||'Informe os dados principais da entrada')+'</div>'+
-            '<div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:5px;">Organize identificação, recebimento e datas antes de salvar no financeiro.</div>'+
+        '<div style="'+cardStyle+'">'+
+          '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px;">'+
+            _modalIconTitle('receipt_long','Dados principais','Organize de onde vem o valor, quando ele entra e como deve aparecer no caixa.').replace('margin-bottom:14px;','margin-bottom:0;')+
+            '<span style="display:inline-flex;align-items:center;min-height:28px;padding:0 11px;border-radius:999px;background:#FFFCF8;border:1px solid #E8DCD7;color:#6F6860;font-size:12px;font-weight:600;white-space:nowrap;">'+_esc(numeroPreview||'Automático')+'</span>'+
           '</div>'+
-          '<span style="display:inline-flex;align-items:center;min-height:28px;padding:0 11px;border-radius:999px;background:#fff;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:700;">'+_esc(numeroPreview||'Automático')+'</span>'+
-        '</div>'+
-        '<div style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">'+
-          '<div style="font-size:12px;font-weight:800;color:#1F1F1F;margin-bottom:4px;">Identificação da entrada</div>'+
-          '<div style="font-size:12px;color:#6F6860;line-height:1.4;margin-bottom:12px;">Nome, valor, documento e cliente.</div>'+
           '<div style="display:flex;flex-direction:column;gap:12px;">'+
-            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">'+
-              '<div><label style="'+_lbl()+'">Número interno</label><input id="mov-numero" type="text" value="'+_esc(numeroPreview||'Automático')+'" readonly style="'+_inp()+'background:#F8F6F5;color:#5A4E4C;font-weight:700;"></div>'+
-              '<div><label style="'+_lbl()+'">Número do documento</label><input id="mov-doc" type="text" value="'+_esc(m.numeroDocumento||m.numDocumento||'')+'" placeholder="Recibo, referência..." style="'+_inp()+'"></div>'+
+            '<div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;">'+
+              '<div style="flex:0 0 160px;max-width:160px;"><label style="'+_lbl()+'">Número interno</label><input id="mov-numero" type="text" value="'+_esc(numeroPreview||'Automático')+'" readonly style="'+shortField+'background:#F7F2EF;color:#5A4E4C;font-weight:600;"></div>'+
+              '<div style="flex:0 1 220px;max-width:220px;"><label style="'+_lbl()+'">Número do documento</label><input id="mov-doc" type="text" value="'+_esc(m.numeroDocumento||m.numDocumento||'')+'" placeholder="Recibo, referência..." style="'+docField+'"></div>'+
             '</div>'+
-            '<div><label style="'+_lbl()+'">Descrição / observação *</label><input id="mov-desc" type="text" value="'+_esc(m.descricao||'')+'" placeholder="Ex: Venda, recebimento..." style="'+_inp()+'"></div>'+
-            '<div style="display:grid;grid-template-columns:.75fr 1.25fr;gap:12px;">'+
-              '<div><label style="'+_lbl()+'">Valor total *</label><input id="mov-valor" type="text" value="'+_esc(m.valor||'')+'" oninput="Modules.Financeiro._renderMovPreviews()" placeholder="0,00" style="'+_inp()+'"></div>'+
-              '<div id="mov-pessoa-box"></div>'+
+            '<div><label style="'+_lbl()+'">Descrição / observação *</label><input id="mov-desc" type="text" value="'+_esc(m.descricao||'')+'" placeholder="Ex: venda no cardápio, recebimento de encomenda..." style="'+fieldStyle+'"></div>'+
+            '<div style="display:flex;gap:12px;align-items:start;flex-wrap:wrap;">'+
+              '<div style="flex:0 0 170px;max-width:170px;"><label style="'+_lbl()+'">Valor total *</label><input id="mov-valor" type="text" value="'+_esc(m.valor||'')+'" oninput="Modules.Financeiro._renderMovPreviews()" placeholder="€ 0,00" style="'+shortField+'"></div>'+
+              '<div id="mov-pessoa-box" style="flex:1 1 260px;min-width:240px;"></div>'+
             '</div>'+
-            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">'+
-              '<div><label style="'+_lbl()+'">Categoria de entrada *</label><select id="mov-cat" onchange="Modules.Financeiro._toggleMovNovaCat()" style="'+_inp()+'background:#fff;">'+catOpts+'</select><input id="mov-cat-nova" type="text" placeholder="Nome da nova categoria..." style="'+_inp()+'display:none;margin-top:8px;"></div>'+
-              '<div><label style="'+_lbl()+'">Forma de pagamento *</label><select id="mov-forma" onchange="Modules.Financeiro._applyFormaPadraoConta(\'mov\')" style="'+_inp()+'background:#fff;">'+fOpts+'</select></div>'+
+            '<div style="display:flex;gap:12px;align-items:start;flex-wrap:wrap;">'+
+              '<div style="flex:1 1 220px;max-width:300px;"><label style="'+_lbl()+'">Categoria de entrada *</label><select id="mov-cat" onchange="Modules.Financeiro._toggleMovNovaCat()" style="'+selectStyle+'">'+catOpts+'</select><input id="mov-cat-nova" type="text" placeholder="Nome da nova categoria..." style="'+fieldStyle+'display:none;margin-top:8px;"></div>'+
+              '<div style="flex:1 1 190px;max-width:260px;"><label style="'+_lbl()+'">Forma de pagamento *</label><select id="mov-forma" onchange="Modules.Financeiro._applyFormaPadraoConta(\'mov\')" style="'+selectStyle+'">'+fOpts+'</select></div>'+
             '</div>'+
           '</div>'+
         '</div>'+
-        '<div style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">'+
+        '<div style="'+cardStyle+'">'+
           '<div style="display:grid;grid-template-columns:minmax(0,1.1fr) minmax(220px,.9fr);gap:14px;align-items:start;">'+
             '<div>'+
-              '<div style="font-size:12px;font-weight:800;color:#1F1F1F;margin-bottom:4px;">Status da entrada</div>'+
-              '<div style="font-size:12px;color:#6F6860;line-height:1.4;margin-bottom:12px;">Defina se o valor ainda será recebido ou já entrou no caixa.</div>'+
+              _modalIconTitle('task_alt','Status da entrada','Defina se o valor ainda será recebido ou se já entrou no caixa.')+
               '<input type="hidden" id="mov-status" value="'+_esc(statusSel)+'">'+
-              '<div style="display:grid;grid-template-columns:repeat(2,minmax(120px,1fr));gap:10px;">'+
-                '<label style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:700;cursor:pointer;background:#FAF8F4;border:1px solid #EAE4DA;border-radius:12px;padding:11px 12px;"><input type="radio" name="mov-status-radio" value="previsto" '+(statusSel==='previsto'?'checked':'')+' onchange="Modules.Financeiro._selectMovStatus(\'previsto\')" style="accent-color:#B42318;"> A receber</label>'+
-                '<label style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:700;cursor:pointer;background:#FAF8F4;border:1px solid #EAE4DA;border-radius:12px;padding:11px 12px;"><input type="radio" name="mov-status-radio" value="efetivado" '+(statusSel==='efetivado'?'checked':'')+' onchange="Modules.Financeiro._selectMovStatus(\'efetivado\')" style="accent-color:#B42318;"> Já recebido</label>'+
+              '<div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;">'+
+                '<label style="'+statusOptionStyle+'"><input type="radio" name="mov-status-radio" value="previsto" '+(statusSel==='previsto'?'checked':'')+' onchange="Modules.Financeiro._selectMovStatus(\'previsto\')" style="accent-color:#B42318;width:16px;height:16px;"> A receber</label>'+
+                '<label style="'+statusOptionStyle+'"><input type="radio" name="mov-status-radio" value="efetivado" '+(statusSel==='efetivado'?'checked':'')+' onchange="Modules.Financeiro._selectMovStatus(\'efetivado\')" style="accent-color:#B42318;width:16px;height:16px;"> Já recebido</label>'+
               '</div>'+
               '<div id="mov-status-help" style="margin-top:8px;font-size:11px;color:#8A7E7C;">Escolha o status da entrada antes de salvar.</div>'+
             '</div>'+
             '<div>'+
-              '<div style="font-size:12px;font-weight:800;color:#1F1F1F;margin-bottom:4px;">Datas e conta</div>'+
-              '<div style="font-size:12px;color:#6F6860;line-height:1.4;margin-bottom:12px;">Quando receber e para qual conta entra.</div>'+
+              _modalIconTitle('event','Datas e conta','Quando receber e para qual conta o valor entra.')+
               '<div style="display:flex;flex-direction:column;gap:12px;">'+
-                '<div id="mov-data-box"><label id="mov-data-label" style="'+_lbl()+'">'+(statusSel==='efetivado'?'Data de recebimento':'Data prevista')+' *</label><input id="mov-data" type="date" value="'+_esc(m.data||_today())+'" style="'+_inp()+'"><div id="mov-data-help" style="font-size:11px;color:#8A7E7C;margin-top:4px;">'+(statusSel==='efetivado'?'Quando o valor entrou no caixa.':'Quando você espera receber.')+'</div></div>'+
-                '<div><label style="'+_lbl()+'">Conta bancária *</label><select id="mov-conta" required style="'+_inp()+'background:#fff;"><option value="">Para onde entrou o dinheiro</option>'+_contasBancarias.filter(function(c){ return c.ativo!==false || c.id===m.conta_id; }).map(function(c){ return '<option value="'+c.id+'"'+(m.conta_id===c.id?' selected':'')+'>'+_esc(c.nome)+'</option>'; }).join('')+'</select></div>'+
+                '<div id="mov-data-box"><label id="mov-data-label" style="'+_lbl()+'">'+(statusSel==='efetivado'?'Data de recebimento':'Data prevista')+' *</label><input id="mov-data" type="date" value="'+_esc(m.data||_today())+'" style="'+dateField+'"><div id="mov-data-help" style="font-size:11px;color:#8A7E7C;margin-top:5px;">'+(statusSel==='efetivado'?'Quando o valor entrou no caixa.':'Quando você espera receber.')+'</div></div>'+
+                '<div><label style="'+_lbl()+'">Conta bancária *</label><select id="mov-conta" required style="'+selectStyle+'max-width:260px;"><option value="">Para onde entrou o dinheiro</option>'+_contasBancarias.filter(function(c){ return c.ativo!==false || c.id===m.conta_id; }).map(function(c){ return '<option value="'+c.id+'"'+(m.conta_id===c.id?' selected':'')+'>'+_esc(c.nome)+'</option>'; }).join('')+'</select></div>'+
               '</div>'+
             '</div>'+
           '</div>'+
         '</div>'+
-        '<div id="mov-tipo-box" style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">'+
-          '<div style="font-size:12px;font-weight:800;color:#1F1F1F;margin-bottom:4px;">Recorrência e parcelamento</div>'+
-          '<div style="font-size:12px;color:#6F6860;line-height:1.4;margin-bottom:12px;">Use apenas quando a entrada precisa gerar várias ocorrências.</div>'+
+        '<div id="mov-tipo-box" style="'+cardStyle+'">'+
+          _modalIconTitle('calendar_month','Recorrência e parcelamento','Use quando o recebimento precisa aparecer em mais de uma data.')+
           '<div style="display:flex;flex-direction:column;gap:10px;">'+
-            '<label style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:700;cursor:pointer;background:#FAF8F4;border:1px solid #EAE4DA;border-radius:12px;padding:11px 12px;"><input type="checkbox" id="mov-recorrente"'+(rec?' checked':'')+' onchange="Modules.Financeiro._toggleMovRecorrente()" style="accent-color:#B42318;"> Pagamento recorrente</label>'+
+            '<label style="'+cleanCheckboxStyle+'"><input type="checkbox" id="mov-recorrente"'+(rec?' checked':'')+' onchange="Modules.Financeiro._toggleMovRecorrente()" style="accent-color:#B42318;width:16px;height:16px;"> Pagamento recorrente</label>'+
             '<div id="mov-rec-box" style="display:'+(rec?'block':'none')+';">'+
-              '<div style="'+_g2()+'">'+
-                '<div><label style="'+_lbl()+'">Frequência</label><select id="mov-rec-freq" onchange="Modules.Financeiro._renderMovPreviews()" style="'+_inp()+'background:#fff;">'+
+              '<div style="display:grid;grid-template-columns:minmax(150px,180px) minmax(150px,180px) minmax(0,1fr);gap:12px;margin-bottom:12px;align-items:end;">'+
+                '<div><label style="'+_lbl()+'">Frequência</label><select id="mov-rec-freq" onchange="Modules.Financeiro._renderMovPreviews()" style="'+selectStyle+'">'+
                   '<option value="semanal"'+(recFreq==='semanal'?' selected':'')+'>Semanal</option>'+
                   '<option value="mensal"'+(recFreq==='mensal'?' selected':'')+'>Mensal</option>'+
                   '<option value="anual"'+(recFreq==='anual'?' selected':'')+'>Anual</option>'+
                 '</select></div>'+
-                '<div><label style="'+_lbl()+'">Número de repetições *</label><input id="mov-rec-reps" type="number" min="1" value="'+_esc(recReps)+'" placeholder="Ex: 6" oninput="Modules.Financeiro._renderMovPreviews()" style="'+_inp()+'"></div>'+
+                '<div><label style="'+_lbl()+'">Repetições *</label><input id="mov-rec-reps" type="number" min="1" value="'+_esc(recReps)+'" placeholder="Ex: 6" oninput="Modules.Financeiro._renderMovPreviews()" style="'+shortField+'"></div>'+
               '</div>'+
               '<div id="mov-rec-preview" style="margin-top:10px;"></div>'+
             '</div>'+
-            '<label style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:700;cursor:pointer;background:#FAF8F4;border:1px solid #EAE4DA;border-radius:12px;padding:11px 12px;"><input type="checkbox" id="mov-parcelado"'+(parc?' checked':'')+' onchange="Modules.Financeiro._toggleMovParcelado()" style="accent-color:#B42318;"> Dividir em parcelas</label>'+
+            '<label style="'+cleanCheckboxStyle+'"><input type="checkbox" id="mov-parcelado"'+(parc?' checked':'')+' onchange="Modules.Financeiro._toggleMovParcelado()" style="accent-color:#B42318;width:16px;height:16px;"> Dividir em parcelas</label>'+
             '<div id="mov-parc-box" style="display:'+(parc?'block':'none')+';">'+
-              '<div style="'+_g2()+'">'+
-                '<div><label style="'+_lbl()+'">Número de parcelas *</label><input id="mov-parc-qtd" type="number" min="2" value="'+_esc(parcelas)+'" placeholder="Ex: 3" oninput="Modules.Financeiro._renderMovPreviews()" style="'+_inp()+'"></div>'+
-                '<div><label style="'+_lbl()+'">Valor por parcela</label><input id="mov-parc-valor" type="text" value="'+_esc(valorParcela)+'" readonly style="'+_inp()+'background:#F8F6F5;"></div>'+
+              '<div style="display:grid;grid-template-columns:minmax(150px,180px) minmax(150px,180px) minmax(0,1fr);gap:12px;margin-bottom:12px;align-items:end;">'+
+                '<div><label style="'+_lbl()+'">Parcelas *</label><input id="mov-parc-qtd" type="number" min="2" value="'+_esc(parcelas)+'" placeholder="Ex: 3" oninput="Modules.Financeiro._renderMovPreviews()" style="'+shortField+'"></div>'+
+                '<div><label style="'+_lbl()+'">Valor por parcela</label><input id="mov-parc-valor" type="text" value="'+_esc(valorParcela)+'" readonly style="'+shortField+'background:#F7F2EF;"></div>'+
               '</div>'+
               '<div id="mov-parc-preview" style="margin-top:10px;"></div>'+
             '</div>'+
           '</div>'+
         '</div>'+
-        '<div style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">'+
-          '<div style="font-size:12px;font-weight:800;color:#1F1F1F;margin-bottom:4px;">Comprovante e observações</div>'+
-          '<div style="font-size:12px;color:#6F6860;line-height:1.4;margin-bottom:12px;">Anexo opcional e notas internas para consulta futura.</div>'+
-          '<div style="margin-bottom:12px;"><label style="'+_lbl()+'">Comprovante / fatura</label><input id="mov-anexo" type="file" style="'+_inp()+'padding:8px;background:#fff;"><div style="font-size:11px;color:#8A7E7C;margin-top:4px;">Upload real ainda não configurado; o nome do arquivo fica preparado no cadastro.</div></div>'+
-          '<textarea id="mov-obs" placeholder="Opcional..." style="'+_inp()+'min-height:72px;resize:vertical;">'+_esc(m.observacoes||'')+'</textarea>'+
+        '<div style="'+cardStyle+'">'+
+          _modalIconTitle('description','Comprovante e observações','Guarde uma referência do recebimento e anotações úteis para consulta.')+
+          '<div style="display:grid;grid-template-columns:minmax(220px,280px) minmax(0,1fr);gap:12px;align-items:start;">'+
+            '<div><label style="'+_lbl()+'">Comprovante / fatura</label><input id="mov-anexo" type="file" style="'+_modalFieldStyle('height:auto;min-height:42px;padding:8px;background:#FFFCF8;')+'"><div style="font-size:11px;color:#8A7E7C;margin-top:5px;">O nome do arquivo fica preparado no cadastro.</div></div>'+
+            '<div><label style="'+_lbl()+'">Observações</label><textarea id="mov-obs" placeholder="Opcional..." style="'+_modalFieldStyle('height:auto;min-height:82px;padding:10px 12px;resize:vertical;')+'">'+_esc(m.observacoes||'')+'</textarea></div>'+
+          '</div>'+
         '</div>'+
       '</div>';
     var footer=
-      '<div style="display:flex;flex-direction:column;gap:6px;align-items:stretch;">'+
-        '<div style="display:flex;gap:10px;flex-wrap:wrap;">'+
-          '<button id="mov-save-btn" onclick="Modules.Financeiro._saveMov()" style="flex:1;min-width:180px;padding:13px;border-radius:12px;border:none;background:#16A34A;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 8px 18px rgba(22,163,74,.16);">'+(id?'Atualizar entrada':'Salvar entrada')+'</button>'+
-          '<button onclick="if(window._movModal)window._movModal.close()" style="min-width:120px;padding:13px 18px;border-radius:12px;border:1px solid #E6DDD3;background:#fff;color:#1F1F1F;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">Cancelar</button>'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;width:100%;">'+
+        '<div style="font-size:11px;color:#7A746B;">Revise os dados antes de salvar.</div>'+
+        '<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;">'+
+          '<button onclick="if(window._movModal)window._movModal.close()" style="height:42px;padding:0 16px;border-radius:12px;border:1px solid #E6DDD3;background:#fff;color:#1F1F1F;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Cancelar</button>'+
+          '<button id="mov-save-btn" onclick="Modules.Financeiro._saveMov()" style="height:42px;padding:0 18px;border-radius:12px;border:none;background:#B42318;color:#fff;font-size:13px;font-weight:650;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(180,35,24,.18);">'+(id?'Salvar alterações':'Salvar entrada')+'</button>'+
         '</div>'+
-        '<div style="font-size:11px;color:#7A746B;text-align:center;">As alterações atualizam o financeiro e o fluxo de caixa.</div>'+
       '</div>';
-    window._movModal=UI.modal({title:id?'Editar Entrada':'Nova Entrada',body:body,footer:footer,maxWidth:'720px'});
+    window._movModal=UI.modal({title:id?'Editar Entrada':'Nova Entrada',body:body,footer:footer,maxWidth:'820px'});
     setTimeout(function(){
       _renderMovPessoaField(tipo,m.pessoaId||'',m.pessoaNome||'');
       _selectMovStatus(statusSel||'');
@@ -2086,24 +2141,29 @@ Modules.Financeiro = (function () {
     var valor=_parseNum((document.getElementById('mov-ef-valor')||{}).value);
     var data=(document.getElementById('mov-ef-data')||{}).value||'';
     var conta=(document.getElementById('mov-ef-conta')||{}).value||'';
-    var total=entradas.reduce(function(s,m){ return s+_parseNum(m.valor); },0);
+    var total=entradas.reduce(function(s,m){ return s+_movEntradaPendente(m); },0);
     if(!valor||valor<=0){ UI.toast('Informe o valor recebido','error'); return; }
     if(!data){ UI.toast('Informe a data de recebimento','error'); return; }
     if(!conta){ UI.toast('Informe a conta destino','error'); return; }
+    if(valor>total){ UI.toast('O valor recebido não pode ser maior que o valor pendente','error'); return; }
     if(entradas.length>1&&!confirm('Confirmar recebimento de '+entradas.length+' entradas selecionadas?')) return;
     var parcial=entradas.length===1&&valor<total;
     var ops=[];
     if(parcial){
       var m=entradas[0];
       var saldo=+(total-valor).toFixed(2);
-      window._movRecebimentoParcial={orig:m,saldo:saldo,update:{status:'parcial',valorRecebido:valor,valor_recebido_total:valor,saldoRestante:saldo,saldo_restante:saldo,valorTotalOriginal:_parseNum(m.valorTotalOriginal||m.valor),data_recebimento:data,conta_id:conta,updatedAt:new Date().toISOString()}};
+      var infoParcial=_movValorInfo(m);
+      var valorRecebidoTotal=+((infoParcial.valorRecebido||0)+valor).toFixed(2);
+      window._movRecebimentoParcial={orig:m,saldo:saldo,update:{status:'parcial',valorRecebido:valorRecebidoTotal,valor_recebido_total:valorRecebidoTotal,saldoRestante:saldo,saldo_restante:saldo,valorTotalOriginal:infoParcial.valorTotalOriginal||_parseNum(m.valorTotalOriginal||m.valor),data_recebimento:data,conta_id:conta,updatedAt:new Date().toISOString()}};
       if(window._movEfModal) window._movEfModal.close();
       _openRecebimentoParcialModal();
       return;
     }
     entradas.forEach(function(m){
-      var valorEf=_parseNum(m.valorParcela||m.valor);
-      ops.push(DB.update('movimentacoes',m.id,{status:'efetivado',valorRecebido:valorEf,valor_recebido_total:valorEf,saldoRestante:0,saldo_restante:0,valorTotalOriginal:_parseNum(m.valorTotalOriginal||m.valor),data_recebimento:data,data:data,conta_id:conta,updatedAt:new Date().toISOString()}));
+      var info=_movValorInfo(m);
+      var pendente=_movEntradaPendente(m);
+      var valorEf=+((info.status==='parcial' ? info.valorRecebido : 0)+pendente).toFixed(2);
+      ops.push(DB.update('movimentacoes',m.id,{status:'efetivado',valorRecebido:valorEf,valor_recebido_total:valorEf,saldoRestante:0,saldo_restante:0,valorTotalOriginal:info.valorTotalOriginal||_parseNum(m.valorTotalOriginal||m.valor),data_recebimento:data,data:data,conta_id:conta,updatedAt:new Date().toISOString()}));
     });
     Promise.all(ops).then(function(){
       if(window._movEfModal) window._movEfModal.close();
@@ -2278,12 +2338,12 @@ Modules.Financeiro = (function () {
     var paging=_cpPaging(filtered);
     var pageItems=paging.items;
     var showCustom=_cpFiltro.periodo==='custom';
-    var cardStyle='background:#fff;border:none;border-radius:16px;padding:18px 20px;box-shadow:0 12px 30px rgba(31,31,31,.06);';
-    var inputStyle='width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#1F1F1F;font-size:14px;font-weight:400;font-family:inherit;outline:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.78);';
-    var labelStyle='font-size:11px;font-weight:600;color:#6F6860;letter-spacing:.02em;display:block;margin-bottom:5px;';
-    var chipStyle='display:inline-flex;align-items:center;min-height:24px;padding:0 10px;border-radius:999px;background:#fff;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:500;box-shadow:0 1px 2px rgba(31,31,31,.02);';
-    var chip=function(txt){ return '<span style="'+chipStyle+'">'+_esc(txt)+'</span>'; };
-    var sectionTitle=function(title,desc){ return '<div style="margin-bottom:14px;"><h3 style="font-size:14px;font-weight:700;color:#1F1F1F;margin:0 0 4px;line-height:1.2;">'+_esc(title)+'</h3><p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0;">'+_esc(desc||'')+'</p></div>'; };
+    var cardStyle='background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:18px 20px;box-shadow:0 12px 30px rgba(31,31,31,.055);';
+    var inputStyle='width:100%;box-sizing:border-box;padding:0 12px;border:1px solid #E8DCD7;border-radius:12px;background:#FFFCF8;color:#1F1F1F;font-size:14px;font-weight:400;font-family:inherit;outline:none;height:42px;';
+    var selectStyle=inputStyle+'appearance:none;-webkit-appearance:none;background-color:#FFFCF8;background-image:linear-gradient(45deg,transparent 50%,#8A7E7C 50%),linear-gradient(135deg,#8A7E7C 50%,transparent 50%);background-position:calc(100% - 18px) 18px,calc(100% - 13px) 18px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:36px;';
+    var labelStyle='font-size:11px;font-weight:650;color:#6F6860;letter-spacing:.04em;text-transform:uppercase;display:block;margin-bottom:6px;';
+    var hasCPFilter=!!(_cpFiltro.busca||_cpFiltro.periodo!=='mes'||_cpFiltro.inicio||_cpFiltro.fim||(_cpFiltro.contas&&_cpFiltro.contas.length)||!(_cpFiltro.status||{}).pago||!(_cpFiltro.status||{}).pendente||!(_cpFiltro.status||{}).parcial||!(_cpFiltro.status||{}).vencido);
+    var sectionTitle=function(title,desc){ return '<div style="margin-bottom:14px;"><h3 style="font-size:15px;font-weight:700;color:#1F1F1F;margin:0 0 4px;line-height:1.2;">'+_esc(title)+'</h3><p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0;max-width:680px;">'+_esc(desc||'')+'</p></div>'; };
     var metric=function(title,value,desc,icon,color){
       return '<div style="display:flex;align-items:flex-start;gap:14px;background:#FAF8F4;border:none;border-radius:16px;padding:18px;box-shadow:0 12px 30px rgba(31,31,31,.06);min-height:118px;overflow:hidden;transition:transform .16s ease,box-shadow .16s ease,background .16s ease;" onmouseenter="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 16px 34px rgba(31,31,31,.09)\';this.style.background=\'#fff\'" onmouseleave="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'0 12px 30px rgba(31,31,31,.06)\';this.style.background=\'#FAF8F4\'">'+
         '<div style="width:48px;height:48px;border-radius:14px;background:transparent;color:'+color+';display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span class="mi" style="font-size:26px;">'+icon+'</span></div>'+
@@ -2295,10 +2355,10 @@ Modules.Financeiro = (function () {
       '</div>';
     };
     var statusCheck=function(key,label){
-      return '<label style="display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:#1F1F1F;background:#FAF8F4;border:1px solid #EAE4DA;border-radius:999px;padding:7px 10px;cursor:pointer;"><input type="checkbox" '+((_cpFiltro.status||{})[key]?'checked':'')+' onchange="Modules.Financeiro._toggleCPStatus(\''+key+'\',this.checked)" style="accent-color:#B42318;"> '+_esc(label)+'</label>';
+      return '<label style="display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:#1F1F1F;cursor:pointer;white-space:nowrap;"><input type="checkbox" '+((_cpFiltro.status||{})[key]?'checked':'')+' onchange="Modules.Financeiro._toggleCPStatus(\''+key+'\',this.checked)" style="accent-color:#B42318;width:16px;height:16px;"> '+_esc(label)+'</label>';
     };
-    var contasHtml='<label style="display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:#1F1F1F;background:#FAF8F4;border:1px solid #EAE4DA;border-radius:999px;padding:7px 10px;cursor:pointer;"><input type="checkbox" '+((!_cpFiltro.contas||!_cpFiltro.contas.length)?'checked':'')+' onchange="Modules.Financeiro._setCPFiltro(\'contas\',[])" style="accent-color:#B42318;"> Todas</label>'+
-      contasOrdenadas.map(function(c){ return '<label style="display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:#1F1F1F;background:#FAF8F4;border:1px solid #EAE4DA;border-radius:999px;padding:7px 10px;cursor:pointer;"><input type="checkbox" '+((_cpFiltro.contas||[]).indexOf(c.id)>=0?'checked':'')+' onchange="Modules.Financeiro._toggleCPConta(\''+c.id+'\',this.checked)" style="accent-color:#B42318;"> '+_esc(c.nome)+'</label>'; }).join('');
+    var contasHtml='<label style="display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:#1F1F1F;cursor:pointer;white-space:nowrap;"><input type="checkbox" '+((!_cpFiltro.contas||!_cpFiltro.contas.length)?'checked':'')+' onchange="Modules.Financeiro._setCPFiltro(\'contas\',[])" style="accent-color:#B42318;width:16px;height:16px;"> Todas</label>'+
+      contasOrdenadas.map(function(c){ return '<label style="display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:#1F1F1F;cursor:pointer;white-space:nowrap;"><input type="checkbox" '+((_cpFiltro.contas||[]).indexOf(c.id)>=0?'checked':'')+' onchange="Modules.Financeiro._toggleCPConta(\''+c.id+'\',this.checked)" style="accent-color:#B42318;width:16px;height:16px;"> '+_esc(c.nome)+'</label>'; }).join('');
     var pageSizeOptions=[8,12,24,48].map(function(n){ return '<option value="'+n+'"'+(Number(_cpView.pageSize)===n?' selected':'')+'>'+n+' / pág.</option>'; }).join('');
     var paginationHtml=paging.total?'<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:16px 18px;">'+
       '<span style="font-size:12px;color:#6F6860;line-height:1.4;">Mostrando <strong style="color:#1F1F1F;font-weight:600;">'+paging.start+'</strong> a <strong style="color:#1F1F1F;font-weight:600;">'+paging.end+'</strong> de <strong style="color:#1F1F1F;font-weight:600;">'+paging.total+'</strong></span>'+
@@ -2318,28 +2378,34 @@ Modules.Financeiro = (function () {
         '<button onclick="Modules.Financeiro._openCPModal(null)" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">+ Nova Saída</button>'+
       '</div>'+
       '<section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;">'+
-        metric('A pagar', _fmtVal(totalAPagar), 'Saídas previstas no recorte.', 'event_upcoming', '#B45309')+
+        metric('A pagar', _fmtVal(totalAPagar), 'Saídas previstas no recorte.', 'payments', '#B45309')+
         metric('Pago', _fmtVal(totalPago), 'Valor já baixado do caixa.', 'task_alt', '#1F6F43')+
         metric('Parcial pendente', _fmtVal(totalParcial), 'Saldo restante de pagamentos parciais.', 'hourglass_top', '#6C8777')+
         metric('Vencido', _fmtVal(totalVencido), 'Contas vencidas no período.', 'priority_high', '#B42318')+
       '</section>'+
       '<section style="'+cardStyle+'">'+
-        '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px;">'+
-          sectionTitle('Filtros','Refine por período, status, conta bancária e busca.')+
-          '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">'+chip(filtered.length+' saída(s)')+chip('Página '+paging.page+' de '+paging.totalPages)+chip((_cpFiltro.contas&&_cpFiltro.contas.length)?_cpFiltro.contas.length+' conta(s)':'Todas as contas')+'</div>'+
+        '<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:14px;">'+
+          '<span class="mi" style="width:31px;height:31px;border-radius:12px;background:#FAF8F4;color:#8A6F5A;display:inline-flex;align-items:center;justify-content:center;font-size:17px;flex:0 0 auto;">filter_alt</span>'+
+          '<div style="min-width:0;">'+sectionTitle('Filtros de saídas','Refine por período, status, conta bancária e busca.')+'</div>'+
         '</div>'+
-        '<div style="display:grid;grid-template-columns:minmax(240px,1.4fr) minmax(150px,.7fr) auto;gap:12px;align-items:end;">'+
-          '<div><label style="'+labelStyle+'">Busca</label><input id="cp-busca" type="search" value="'+_esc(_cpFiltro.busca||'')+'" oninput="Modules.Financeiro._setCPFiltro(\'busca\',this.value)" placeholder="Descrição, fornecedor, documento, forma, conta ou valor..." style="'+inputStyle+'height:40px;"></div>'+
-          '<div><label style="'+labelStyle+'">Período</label><select onchange="Modules.Financeiro._setCPFiltro(\'periodo\',this.value)" style="'+inputStyle+'height:40px;">'+_periodoOptionsHtml(_cpFiltro.periodo)+'</select></div>'+
-          '<div style="display:flex;align-items:flex-end;"><button onclick="Modules.Financeiro._limparCPFiltros()" style="height:40px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;font-size:12px;font-weight:700;color:#6F6860;background:#fff;cursor:pointer;font-family:inherit;">Limpar</button></div>'+
+        '<div style="display:grid;grid-template-columns:minmax(240px,1fr) minmax(180px,220px) auto;gap:12px;align-items:end;justify-content:start;">'+
+          '<div><label style="'+labelStyle+'">Busca</label><input id="cp-busca" type="search" value="'+_esc(_cpFiltro.busca||'')+'" oninput="Modules.Financeiro._setCPFiltro(\'busca\',this.value)" placeholder="Descrição, fornecedor, documento, forma, conta ou valor" style="'+inputStyle+'"></div>'+
+          '<div><label style="'+labelStyle+'">Período</label><select onchange="Modules.Financeiro._setCPFiltro(\'periodo\',this.value)" style="'+selectStyle+'">'+_periodoOptionsHtml(_cpFiltro.periodo)+'</select></div>'+
+          (hasCPFilter?'<div style="display:flex;align-items:flex-end;"><button onclick="Modules.Financeiro._limparCPFiltros()" style="height:38px;padding:0 14px;border:1px solid #E8DCD7;border-radius:12px;font-size:12.5px;font-weight:600;color:#B42318;background:#fff;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);">Limpar filtros</button></div>':'')+
         '</div>'+
-        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">'+
-          statusCheck('pago','Já pago')+statusCheck('pendente','A pagar')+statusCheck('parcial','Parcial')+statusCheck('vencido','Vencido')+
+        '<div style="margin-top:12px;display:grid;grid-template-columns:minmax(260px,max-content);gap:6px;">'+
+          '<span style="'+labelStyle+'margin-bottom:0;">Status</span>'+
+          '<div style="min-height:42px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:8px 12px;">'+
+            statusCheck('pago','Já pago')+statusCheck('pendente','A pagar')+statusCheck('parcial','Parcial')+statusCheck('vencido','Vencido')+
+          '</div>'+
         '</div>'+
-        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">'+contasHtml+'</div>'+
+        '<div style="margin-top:12px;display:grid;grid-template-columns:minmax(260px,max-content);gap:6px;">'+
+          '<span style="'+labelStyle+'margin-bottom:0;">Contas bancárias</span>'+
+          '<div style="min-height:42px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:8px 12px;">'+contasHtml+'</div>'+
+        '</div>'+
         (showCustom?'<div style="display:grid;grid-template-columns:repeat(2,minmax(160px,220px));gap:12px;margin-top:12px;">'+
-          '<div><label style="'+labelStyle+'">Data inicial</label><input type="date" value="'+_esc(_cpFiltro.inicio||'')+'" onchange="Modules.Financeiro._setCPFiltro(\'inicio\',this.value)" style="'+inputStyle+'height:40px;"></div>'+
-          '<div><label style="'+labelStyle+'">Data final</label><input type="date" value="'+_esc(_cpFiltro.fim||'')+'" onchange="Modules.Financeiro._setCPFiltro(\'fim\',this.value)" style="'+inputStyle+'height:40px;"></div>'+
+          '<div><label style="'+labelStyle+'">Data inicial</label><input type="date" value="'+_esc(_cpFiltro.inicio||'')+'" onchange="Modules.Financeiro._setCPFiltro(\'inicio\',this.value)" style="'+inputStyle+'"></div>'+
+          '<div><label style="'+labelStyle+'">Data final</label><input type="date" value="'+_esc(_cpFiltro.fim||'')+'" onchange="Modules.Financeiro._setCPFiltro(\'fim\',this.value)" style="'+inputStyle+'"></div>'+
         '</div>':'')+
         (_cpSelecionadas.length?'<div style="margin-top:14px;padding:12px 14px;border:1px solid #EAE4DA;border-radius:14px;background:#FAF8F4;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;"><span style="font-size:12px;color:#6F6860;font-weight:600;">'+_cpSelecionadas.length+' saída(s) selecionada(s)</span><div style="display:flex;gap:8px;flex-wrap:wrap;"><button onclick="Modules.Financeiro._openBulkCPModal()" style="border:none;background:#EEF4FF;color:#2563EB;border-radius:10px;padding:9px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Alterar em massa</button><button onclick="Modules.Financeiro._bulkConfirmarCP()" style="border:none;background:#16A34A;color:#fff;border-radius:10px;padding:9px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Confirmar saída</button><button onclick="Modules.Financeiro._bulkDeleteCP()" style="border:none;background:#FFF0EE;color:#C4362A;border-radius:10px;padding:9px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Excluir</button><button onclick="Modules.Financeiro._clearCPSelection()" style="border:1px solid #EAE4DA;background:#fff;color:#6F6860;border-radius:10px;padding:9px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Limpar seleção</button></div></div>':'')+
       '</section>'+
@@ -2492,19 +2558,23 @@ Modules.Financeiro = (function () {
 
   function _bulkConfirmarCP(){
     if(_bulkCPProcessando){ UI.toast('Aguarde a confirmação em andamento.','warning'); return; }
+    var contasAtivas=(_contasBancarias||[]).filter(function(c){ return c.ativo!==false; });
     var items=_selectedCPItems().filter(function(cp){
       var already=(_movimentacoes||[]).some(function(m){ return m.tipo==='saida' && m.status==='efetivado' && (m.contaPagarId===cp.id || (m.sourceCollection===(cp._colecao||'contas_pagar') && m.sourceId===cp.id)); });
-      return cp._acionavel && _statusCP(cp)!=='pago' && _statusCP(cp)!=='parcial' && !already;
+      var conta=cp.conta_id||cp.contaBancariaId||(contasAtivas.length===1?contasAtivas[0].id:'');
+      return cp._acionavel && _statusCP(cp)!=='pago' && _statusCP(cp)!=='parcial' && !already && !!conta;
     });
     var skipped=_cpSelecionadas.length-items.length;
     if(!items.length){ UI.toast('Nenhuma saída selecionada pode ser confirmada.','error'); return; }
     var today=_today();
     _bulkCPProcessando=true;
     Promise.all(items.map(function(cp){
-      var conta=cp.conta_id||cp.contaBancariaId||'';
-      var upd={status:'pago',data_pagamento:today,valorPago:_parseNum(cp.valor),saldoRestante:0};
+      var conta=cp.conta_id||cp.contaBancariaId||(contasAtivas.length===1?contasAtivas[0].id:'');
+      var info=_cpValorInfo(cp);
+      var dueTotal=_cpPayableTotal(cp,info);
+      var upd={status:'pago',data_pagamento:today,valorPago:dueTotal,valor_pago_total:dueTotal,saldoRestante:0,saldo_restante:0,ultimo_pagamento:today,conta_id:conta,contaBancariaId:conta};
       return DB.update(cp._colecao||'contas_pagar',cp.id,upd).then(function(){
-        return DB.add('movimentacoes',{tipo:'saida',descricao:cp.descricao||'Saída',valor:_parseNum(cp.valor),data:today,status:'efetivado',conta_id:conta,forma_pagamento:cp.formaPagamento||cp.forma_pagamento||'',categoria:cp.categoria||'',contaPagarId:cp.id,sourceCollection:cp._colecao||'contas_pagar',sourceId:cp.id,origem:cp.origem||'financeiro'});
+        return DB.add('movimentacoes',{tipo:'saida',descricao:cp.descricao||'Saída',valor:dueTotal,valorTotalOriginal:dueTotal,valorParcela:dueTotal,valorPago:dueTotal,saldoRestante:0,data:today,status:'efetivado',conta_id:conta,forma_pagamento:cp.formaPagamento||cp.forma_pagamento||'',categoria:cp.categoria||'',contaPagarId:cp.id,sourceCollection:cp._colecao||'contas_pagar',sourceId:cp.id,origem:cp.origem||'financeiro',pessoaTipo:cp.fornecedorId||cp.fornecedorNome||cp.fornecedor?'fornecedor':'nenhum',pessoaId:cp.fornecedorId||'',pessoaNome:cp.fornecedorNome||cp.fornecedor||'',updatedAt:new Date().toISOString()});
       });
     })).then(function(){
       UI.toast(items.length+' saída(s) confirmada(s). '+skipped+' ignorada(s).','success');
@@ -2632,49 +2702,50 @@ Modules.Financeiro = (function () {
         : st==='vencido'
           ? {label:'Vencida',bg:'#FEE2E2',fg:'#DC2626'}
           : {label:'A pagar',bg:'#EFF6FF',fg:'#2563EB'};
+    var cardStyle=_modalCardStyle();
     var detailItem=function(label,value,wide){
-      return '<div style="'+(wide?'grid-column:1/-1;':'')+'min-width:0;">'+
-        '<div style="font-size:11px;font-weight:700;color:#8A7E7C;text-transform:uppercase;letter-spacing:.03em;margin-bottom:4px;">'+_esc(label)+'</div>'+
-        '<div style="font-size:14px;font-weight:650;color:#1F1F1F;line-height:1.35;word-break:break-word;">'+(value||'--')+'</div>'+
+      return '<div style="'+(wide?'grid-column:1/-1;':'')+'min-width:0;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:10px 11px;">'+
+        '<div style="font-size:10.5px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.03em;margin-bottom:4px;">'+_esc(label)+'</div>'+
+        '<div style="font-size:13.5px;font-weight:500;color:#1F1F1F;line-height:1.35;word-break:break-word;">'+(value||'--')+'</div>'+
       '</div>';
     };
     var infoCards=[];
     if(info.valorTotalOriginal){
-      infoCards.push('<div><div style="font-size:11px;font-weight:700;color:#8A7E7C;text-transform:uppercase;margin-bottom:3px;">Valor total original</div><div style="font-size:14px;font-weight:600;color:#1F2937;">'+_fmtVal(info.valorTotalOriginal)+'</div></div>');
+      infoCards.push(detailItem('Valor total original',_fmtVal(info.valorTotalOriginal)));
+    }
+    if(resumo.origem){
+      infoCards.push(detailItem('Origem',_esc(resumo.origem==='compra'?'Compra':'Manual')));
     }
     if(info.valorParcela && (cp.parcelada || cp.parcelaNumero || cp.numeroParcelas)){
-      infoCards.push('<div><div style="font-size:11px;font-weight:700;color:#8A7E7C;text-transform:uppercase;margin-bottom:3px;">Valor da parcela</div><div style="font-size:14px;font-weight:600;color:#1F2937;">'+_fmtVal(info.valorParcela)+'</div></div>');
+      infoCards.push(detailItem('Valor da parcela',_fmtVal(info.valorParcela)));
     }
     if(cp.recorrente){
-      infoCards.push('<div><div style="font-size:11px;font-weight:700;color:#8A7E7C;text-transform:uppercase;margin-bottom:3px;">Recorrência</div><div style="font-size:14px;font-weight:600;color:#1F2937;">'+_esc(cp.periodicidade||'Mensal')+(cp.data_final?' até '+_esc(_fmtDateDisplay(cp.data_final)):'')+'</div></div>');
+      infoCards.push(detailItem('Recorrência',_esc(cp.periodicidade||'Mensal')+(cp.data_final?' até '+_esc(_fmtDateDisplay(cp.data_final)):'') ));
     }
     if(cp.parcelada && (cp.parcelaNumero || cp.numeroParcelas)){
-      infoCards.push('<div><div style="font-size:11px;font-weight:700;color:#8A7E7C;text-transform:uppercase;margin-bottom:3px;">Parcelamento</div><div style="font-size:14px;font-weight:600;color:#1F2937;">'+_esc('Parcela '+(cp.parcelaNumero||'?')+' de '+(cp.numeroParcelas||'?'))+'</div></div>');
+      infoCards.push(detailItem('Parcelamento',_esc('Parcela '+(cp.parcelaNumero||'?')+' de '+(cp.numeroParcelas||'?'))));
     }
     if(cp.parcelada && mov && mov.data){
       var nextLabel=cp.status==='pago' ? 'Último pagamento' : 'Próxima';
-      infoCards.push('<div><div style="font-size:11px;font-weight:700;color:#8A7E7C;text-transform:uppercase;margin-bottom:3px;">'+_esc(nextLabel)+'</div><div style="font-size:14px;font-weight:600;color:#1F2937;">'+_esc(_fmtDateDisplay(mov.data))+'</div></div>');
+      infoCards.push(detailItem(nextLabel,_esc(_fmtDateDisplay(mov.data))));
     }
     if(st==='parcial'){
-      infoCards.push('<div><div style="font-size:11px;font-weight:700;color:#8A7E7C;text-transform:uppercase;margin-bottom:3px;">Valor pago</div><div style="font-size:18px;font-weight:700;color:#16A34A;">'+_fmtVal(pago)+'</div></div>');
-      infoCards.push('<div><div style="font-size:11px;font-weight:700;color:#8A7E7C;text-transform:uppercase;margin-bottom:3px;">Saldo pendente</div><div style="font-size:18px;font-weight:700;color:#B45309;">'+_fmtVal(pendente)+'</div></div>');
+      infoCards.push(detailItem('Valor pago','<span style="color:#1F6F43;">'+_fmtVal(pago)+'</span>'));
+      infoCards.push(detailItem('Saldo pendente','<span style="color:#B45309;">'+_fmtVal(pendente)+'</span>'));
     }
     if(st==='pago' && pago){
-      infoCards.push('<div><div style="font-size:11px;font-weight:700;color:#8A7E7C;text-transform:uppercase;margin-bottom:3px;">Valor pago</div><div style="font-size:18px;font-weight:700;color:#16A34A;">'+_fmtVal(pago)+'</div></div>');
+      infoCards.push(detailItem('Valor pago','<span style="color:#1F6F43;">'+_fmtVal(pago)+'</span>'));
     }
     if(resumo.descricao){
-      infoCards.push('<div><div style="font-size:11px;font-weight:700;color:#8A7E7C;text-transform:uppercase;margin-bottom:3px;">Descrição da saída</div><div style="font-size:14px;font-weight:600;color:#1F2937;word-break:break-word;">'+_esc(resumo.descricao)+'</div></div>');
-    }
-    if(resumo.origem){
-      infoCards.push('<div><div style="font-size:11px;font-weight:700;color:#8A7E7C;text-transform:uppercase;margin-bottom:3px;">Origem</div><div style="font-size:14px;font-weight:600;color:#1F2937;">'+_esc(resumo.origem==='compra'?'Compra':'Manual')+'</div></div>');
+      infoCards.push(detailItem('Descrição da saída',_esc(resumo.descricao),true));
     }
     var body=
       '<div style="display:flex;flex-direction:column;gap:14px;">'+
-        '<div style="background:#FAF8F4;border:none;border-radius:16px;padding:20px;box-shadow:0 12px 30px rgba(31,31,31,.06);">'+
+        '<div style="'+cardStyle+'">'+
           '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">'+
             '<div style="min-width:0;">'+
-              '<div style="font-size:11px;font-weight:700;color:#8A7E7C;text-transform:uppercase;letter-spacing:.04em;margin-bottom:7px;">Resumo da saída</div>'+
-              '<div style="font-size:clamp(26px,4vw,36px);line-height:1;font-weight:700;color:#1F1F1F;letter-spacing:0;">'+_fmtVal(info.valorTotalOriginal)+'</div>'+
+              '<div style="display:flex;align-items:center;gap:9px;margin-bottom:10px;"><span class="mi" style="font-size:18px;color:#6F6860;">north_east</span><div style="font-size:13px;font-weight:650;color:#1F1F1F;">Resumo da saída</div></div>'+
+              '<div style="font-size:clamp(25px,4vw,34px);line-height:1;font-weight:650;color:#1F1F1F;letter-spacing:0;">'+_fmtVal(info.valorTotalOriginal)+'</div>'+
               '<div style="margin-top:8px;font-size:13px;color:#6F6860;line-height:1.4;">'+
                 (st==='parcial'
                   ? _fmtVal(pago)+' pagos · '+_fmtVal(pendente)+' pendentes'
@@ -2682,15 +2753,15 @@ Modules.Financeiro = (function () {
               '</div>'+
             '</div>'+
             '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">'+
-              '<span style="background:'+statusInfo.bg+';color:'+statusInfo.fg+';padding:6px 12px;border-radius:999px;font-size:11px;font-weight:700;">'+statusInfo.label+'</span>'+
-              '<span style="background:#fff;border:1px solid #EAE4DA;color:#6F6860;padding:6px 12px;border-radius:999px;font-size:11px;font-weight:700;">'+_esc(tipoLabel)+'</span>'+
+              '<span style="background:'+statusInfo.bg+';color:'+statusInfo.fg+';padding:6px 12px;border-radius:999px;font-size:11px;font-weight:600;">'+statusInfo.label+'</span>'+
+              '<span style="background:#FFFCF8;border:1px solid #E8DCD7;color:#6F6860;padding:6px 12px;border-radius:999px;font-size:11px;font-weight:600;">'+_esc(tipoLabel)+'</span>'+
             '</div>'+
           '</div>'+
         '</div>'+
 
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;">'+
-          '<div style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">'+
-            '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;"><div style="font-size:12px;font-weight:800;color:#1F1F1F;">Identificação</div>'+_badgeSaidaStatus(st)+'</div>'+
+          '<div style="'+cardStyle+'">'+
+            _modalIconTitle('badge','Identificação','Dados usados para localizar esta saída no financeiro.')+
             '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">'+
               detailItem('Número interno',_esc(resumo.numeroInterno||'--'))+
               detailItem('Documento',_esc(resumo.numeroDocumento||'--'))+
@@ -2698,8 +2769,8 @@ Modules.Financeiro = (function () {
               detailItem('Tipo',_esc(tipoLabel))+
             '</div>'+
           '</div>'+
-          '<div style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">'+
-            '<div style="font-size:12px;font-weight:800;color:#1F1F1F;margin-bottom:12px;">Pagamento</div>'+
+          '<div style="'+cardStyle+'">'+
+            _modalIconTitle('payments','Pagamento','Favorecido, forma de pagamento e conta de onde o valor sai.')+
             '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">'+
               detailItem('Favorecido',_esc(resumo.favorecidoNome||'--'),true)+
               detailItem('Categoria',_esc(resumo.categoriaNome||'--'))+
@@ -2710,28 +2781,28 @@ Modules.Financeiro = (function () {
         '</div>'+
 
         (infoCards.length
-          ? '<div style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);"><div style="font-size:12px;font-weight:800;color:#1F1F1F;margin-bottom:12px;">Informações adicionais</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">'+infoCards.join('')+'</div></div>'
+          ? '<div style="'+cardStyle+'">'+_modalIconTitle('calendar_month','Informações adicionais','Valores, parcelas e recorrências ligados a esta saída.')+'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">'+infoCards.join('')+'</div></div>'
           : '')+
         (resumo.observacao && String(resumo.observacao).trim()
-          ? '<div style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);"><div style="font-size:11px;font-weight:700;color:#8A7E7C;text-transform:uppercase;margin-bottom:10px;">Observações</div><div style="font-size:14px;line-height:1.5;color:#1F2937;white-space:pre-wrap;word-break:break-word;">'+_esc(resumo.observacao)+'</div></div>'
+          ? '<div style="'+cardStyle+'">'+_modalIconTitle('notes','Observações','Anotações internas registradas nesta saída.')+'<div style="background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:12px;font-size:13.5px;line-height:1.5;color:#1F1F1F;white-space:pre-wrap;word-break:break-word;">'+_esc(resumo.observacao)+'</div></div>'
           : '')+
       '</div>';
     var footer='<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;width:100%;">'+
-      '<div style="font-size:12px;color:#6F6860;line-height:1.35;">Ações disponíveis para esta saída.</div>'+
+      '<div style="font-size:11px;color:#7A746B;">Ações disponíveis para esta saída.</div>'+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">'+
       (canManageManualCP && st==='parcial'
-        ? '<button onclick="Modules.Financeiro._closeCPDetalhe();Modules.Financeiro._pagarCP(\''+cp.id+'\')" style="height:40px;padding:0 14px;border-radius:12px;border:none;background:#16A34A;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 8px 18px rgba(22,163,74,.16);">Pagar restante</button>'
+        ? '<button onclick="Modules.Financeiro._closeCPDetalhe();Modules.Financeiro._pagarCP(\''+cp.id+'\')" style="height:42px;padding:0 16px;border-radius:12px;border:none;background:#1F8F56;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(31,143,86,.16);">Pagar restante</button>'
         : (canManageManualCP && (st==='pendente' || st==='vencido')
-          ? '<button onclick="Modules.Financeiro._closeCPDetalhe();Modules.Financeiro._pagarCP(\''+cp.id+'\')" style="height:40px;padding:0 14px;border-radius:12px;border:none;background:#16A34A;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 8px 18px rgba(22,163,74,.16);">Marcar como pago</button>'
+          ? '<button onclick="Modules.Financeiro._closeCPDetalhe();Modules.Financeiro._pagarCP(\''+cp.id+'\')" style="height:42px;padding:0 16px;border-radius:12px;border:none;background:#1F8F56;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(31,143,86,.16);">Marcar como pago</button>'
           : ''))+
       (canManageManualCP && st!=='pago'
-        ? '<button onclick="Modules.Financeiro._closeCPDetalhe();Modules.Financeiro._openCPModal(\''+cp.id+'\')" style="height:40px;padding:0 14px;border-radius:12px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Editar</button>'
+        ? '<button onclick="Modules.Financeiro._closeCPDetalhe();Modules.Financeiro._openCPModal(\''+cp.id+'\')" style="height:42px;padding:0 16px;border-radius:12px;border:1px solid #E6DDD3;background:#fff;color:#1F1F1F;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Editar</button>'
         : '')+
-      (canManageManualCP ? '<button onclick="Modules.Financeiro._deleteCP(\''+cp.id+'\')" style="height:40px;padding:0 14px;border-radius:12px;border:none;background:#FFF0EE;color:#B42318;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Excluir</button>' : '')+
-      '<button onclick="Modules.Financeiro._closeCPDetalhe();" style="height:40px;padding:0 14px;border-radius:12px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Fechar</button>'+
+      (canManageManualCP ? '<button onclick="Modules.Financeiro._deleteCP(\''+cp.id+'\')" style="height:42px;padding:0 16px;border-radius:12px;border:none;background:#FFF0EE;color:#B42318;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Excluir</button>' : '')+
+      '<button onclick="Modules.Financeiro._closeCPDetalhe();" style="height:42px;padding:0 16px;border-radius:12px;border:1px solid #E6DDD3;background:#fff;color:#1F1F1F;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Fechar</button>'+
       '</div>'+
     '</div>';
-    window._cpDetalheModal=UI.modal({title:'Resumo da saída',body:body,footer:footer,maxWidth:'760px'});
+    window._cpDetalheModal=UI.modal({title:'Detalhes da saída',body:body,footer:footer,maxWidth:'820px'});
   }
 
   function _closeCPDetalhe() {
@@ -2758,101 +2829,101 @@ Modules.Financeiro = (function () {
     var recChecked=!!cp.recorrente;
     var parcChecked=!!cp.parcelada;
     var numeroPreview=id?(cp.numeroSequencial||''):('SA-'+String((parseInt(_configFin.saidaSeq||0,10)||0)+1).padStart(6,'0'));
+    var cardStyle=_modalCardStyle();
+    var fieldStyle=_modalFieldStyle();
+    var selectStyle=_modalSelectStyle();
+    var shortField=_modalFieldStyle('max-width:160px;');
+    var docField=_modalFieldStyle('max-width:220px;');
+    var moneyField=_modalFieldStyle('max-width:170px;');
+    var dateField=_modalFieldStyle('max-width:168px;');
+    var statusOptionStyle='display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:#1F1F1F;cursor:pointer;min-height:34px;';
+    var cleanCheckboxStyle='display:flex;align-items:center;gap:9px;font-size:13px;font-weight:500;color:#1F1F1F;cursor:pointer;min-height:32px;';
     var body=
       '<div style="display:flex;flex-direction:column;gap:16px;">'+
-        '<div style="background:#FAF8F4;border:none;border-radius:16px;padding:18px 20px;box-shadow:0 12px 30px rgba(31,31,31,.06);display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;">'+
-          '<div style="min-width:0;">'+
-            '<div style="font-size:11px;font-weight:700;color:#8A7E7C;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;">'+(id?'Edição de saída':'Nova saída')+'</div>'+
-            '<div style="font-size:18px;font-weight:700;color:#1F1F1F;line-height:1.25;">'+_esc(cp.descricao||'Informe os dados principais da saída')+'</div>'+
-            '<div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:5px;">Organize identificação, pagamento e datas antes de salvar no financeiro.</div>'+
+        '<div style="'+cardStyle+'">'+
+          '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px;">'+
+            _modalIconTitle('north_east','Dados principais','Organize para quem será pago, o valor e como essa saída aparece no financeiro.').replace('margin-bottom:14px;','margin-bottom:0;')+
+            '<span style="display:inline-flex;align-items:center;min-height:28px;padding:0 11px;border-radius:999px;background:#FFFCF8;border:1px solid #E8DCD7;color:#6F6860;font-size:12px;font-weight:600;white-space:nowrap;">'+_esc(numeroPreview||'Automático')+'</span>'+
           '</div>'+
-          '<span style="display:inline-flex;align-items:center;min-height:28px;padding:0 11px;border-radius:999px;background:#fff;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:700;">'+_esc(numeroPreview||'Automático')+'</span>'+
-        '</div>'+
-        '<div style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">'+
-          '<div style="font-size:12px;font-weight:800;color:#1F1F1F;margin-bottom:4px;">Identificação da saída</div>'+
-          '<div style="font-size:12px;color:#6F6860;line-height:1.4;margin-bottom:12px;">Nome, valor, documento e favorecido.</div>'+
           '<div style="display:flex;flex-direction:column;gap:12px;">'+
-            '<div><label style="'+_lbl()+'">Descrição da saída *</label><input id="cp-desc" type="text" value="'+_esc(cp.descricao||'')+'" placeholder="Ex: Luz, aluguer, fornecedor..." style="'+_inp()+'"></div>'+
-            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">'+
-              '<div><label style="'+_lbl()+'">Número interno</label><input id="cp-numero" type="text" value="'+_esc(numeroPreview||'Automático')+'" readonly style="'+_inp()+'background:#F8F6F5;color:#5A4E4C;font-weight:700;"></div>'+
-              '<div><label style="'+_lbl()+'">Número do documento</label><input id="cp-num-doc" type="text" value="'+_esc(cp.numeroDocumento||cp.numDocumento||'')+'" placeholder="Fatura, recibo, referência..." style="'+_inp()+'"></div>'+
+            '<div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;">'+
+              '<div style="flex:0 0 160px;max-width:160px;"><label style="'+_lbl()+'">Número interno</label><input id="cp-numero" type="text" value="'+_esc(numeroPreview||'Automático')+'" readonly style="'+shortField+'background:#F7F2EF;color:#5A4E4C;font-weight:600;"></div>'+
+              '<div style="flex:0 1 220px;max-width:220px;"><label style="'+_lbl()+'">Número do documento</label><input id="cp-num-doc" type="text" value="'+_esc(cp.numeroDocumento||cp.numDocumento||'')+'" placeholder="Fatura, recibo..." style="'+docField+'"></div>'+
             '</div>'+
-            '<div style="display:grid;grid-template-columns:.75fr 1.25fr;gap:12px;">'+
-              '<div><label style="'+_lbl()+'">Valor total *</label><input id="cp-valor" type="text" value="'+_esc(cp.valor||'')+'" placeholder="0,00" oninput="Modules.Financeiro._renderCPPreviews()" style="'+_inp()+'"></div>'+
-              '<div style="position:relative;"><label style="'+_lbl()+'">Fornecedor / favorecido</label><input id="cp-forn-novo" type="text" value="'+_esc(fornecedorNomeAtual)+'" placeholder="Buscar fornecedor..." autocomplete="off" oninput="Modules.Financeiro._financePessoaSearch(\'cp\',this.value);Modules.Financeiro._renderCPPreviews()" onfocus="Modules.Financeiro._financePessoaSearch(\'cp\',this.value)" onblur="setTimeout(function(){var d=document.getElementById(\'cp-forn-dropdown\');if(d)d.style.display=\'none\';},200)" style="'+_inp()+'"><input id="cp-forn-id" type="hidden" value="'+_esc(fornecedorId)+'"><div id="cp-forn-dropdown" style="display:none;position:absolute;top:calc(100% + 2px);left:0;right:0;background:#fff;border:1.5px solid #D4C8C6;border-radius:9px;max-height:220px;overflow-y:auto;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.12);"></div></div>'+
+            '<div><label style="'+_lbl()+'">Descrição da saída *</label><input id="cp-desc" type="text" value="'+_esc(cp.descricao||'')+'" placeholder="Ex.: luz, aluguel, fornecedor..." style="'+fieldStyle+'"></div>'+
+            '<div style="display:flex;gap:12px;align-items:start;flex-wrap:wrap;">'+
+              '<div style="flex:0 0 170px;max-width:170px;"><label style="'+_lbl()+'">Valor total *</label><input id="cp-valor" type="text" value="'+_esc(cp.valor||'')+'" placeholder="€ 0,00" oninput="Modules.Financeiro._renderCPPreviews()" style="'+moneyField+'"></div>'+
+              '<div style="position:relative;flex:1 1 280px;min-width:240px;"><label style="'+_lbl()+'">Fornecedor / favorecido</label><input id="cp-forn-novo" type="text" value="'+_esc(fornecedorNomeAtual)+'" placeholder="Buscar fornecedor..." autocomplete="off" oninput="Modules.Financeiro._financePessoaSearch(\'cp\',this.value);Modules.Financeiro._renderCPPreviews()" onfocus="Modules.Financeiro._financePessoaSearch(\'cp\',this.value)" onblur="setTimeout(function(){var d=document.getElementById(\'cp-forn-dropdown\');if(d)d.style.display=\'none\';},200)" style="'+fieldStyle+'"><input id="cp-forn-id" type="hidden" value="'+_esc(fornecedorId)+'"><div id="cp-forn-dropdown" style="display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;background:#fff;border:1px solid #E8DCD7;border-radius:12px;max-height:220px;overflow-y:auto;z-index:9999;box-shadow:0 14px 34px rgba(31,31,31,.12);"></div><div style="font-size:11px;color:#8A7E7C;margin-top:5px;">Para quem você está pagando.</div></div>'+
             '</div>'+
-            '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">'+
-              '<div><label style="'+_lbl()+'">Categoria de saída *</label><select id="cp-cat" onchange="Modules.Financeiro._toggleCPNovaCat()" style="'+_inp()+'background:#fff;">'+catOpts+'</select><input id="cp-cat-nova" type="text" placeholder="Nome da nova categoria..." style="'+_inp()+'display:none;margin-top:8px;"></div>'+
-              '<div><label style="'+_lbl()+'">Forma de pagamento *</label><select id="cp-forma" onchange="Modules.Financeiro._applyFormaPadraoConta(\'cp\')" style="'+_inp()+'background:#fff;">'+fOpts+'</select></div>'+
-              '<div><label style="'+_lbl()+'">Conta bancária</label><select id="cp-conta" style="'+_inp()+'background:#fff;">'+contaOpts+'</select></div>'+
+            '<div style="display:flex;gap:12px;align-items:start;flex-wrap:wrap;">'+
+              '<div style="flex:1 1 220px;max-width:300px;"><label style="'+_lbl()+'">Categoria de saída *</label><select id="cp-cat" onchange="Modules.Financeiro._toggleCPNovaCat()" style="'+selectStyle+'">'+catOpts+'</select><input id="cp-cat-nova" type="text" placeholder="Nome da nova categoria..." style="'+fieldStyle+'display:none;margin-top:8px;"></div>'+
+              '<div style="flex:1 1 190px;max-width:260px;"><label style="'+_lbl()+'">Forma de pagamento *</label><select id="cp-forma" onchange="Modules.Financeiro._applyFormaPadraoConta(\'cp\')" style="'+selectStyle+'">'+fOpts+'</select></div>'+
+              '<div style="flex:1 1 190px;max-width:260px;"><label style="'+_lbl()+'">Conta bancária</label><select id="cp-conta" style="'+selectStyle+'">'+contaOpts+'</select></div>'+
             '</div>'+
           '</div>'+
         '</div>'+
 
-        '<div style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">'+
+        '<div style="'+cardStyle+'">'+
           '<div style="display:grid;grid-template-columns:minmax(0,1.1fr) minmax(220px,.9fr);gap:14px;align-items:start;">'+
             '<div>'+
-              '<div style="font-size:12px;font-weight:800;color:#1F1F1F;margin-bottom:4px;">Status da saída</div>'+
-              '<div style="font-size:12px;color:#6F6860;line-height:1.4;margin-bottom:12px;">Defina se a saída ainda está pendente ou já foi paga.</div>'+
+              _modalIconTitle('task_alt','Status da saída','Defina se a saída ainda será paga ou se já saiu do caixa.')+
               '<input type="hidden" id="cp-status" value="'+_esc(statusSel)+'">'+
-              '<div style="display:grid;grid-template-columns:repeat(2,minmax(120px,1fr));gap:10px;">'+
-                '<label style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:700;cursor:pointer;background:#FAF8F4;border:1px solid #EAE4DA;border-radius:12px;padding:11px 12px;"><input type="radio" name="cp-status-radio" value="pendente" '+(statusSel==='pendente'?'checked':'')+' onchange="Modules.Financeiro._setCPStatus(\'pendente\')" style="accent-color:#B42318;"> A pagar</label>'+
-                '<label style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:700;cursor:pointer;background:#FAF8F4;border:1px solid #EAE4DA;border-radius:12px;padding:11px 12px;"><input type="radio" name="cp-status-radio" value="pago" '+(statusSel==='pago'?'checked':'')+' onchange="Modules.Financeiro._setCPStatus(\'pago\')" style="accent-color:#B42318;"> Já paga</label>'+
+              '<div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;">'+
+                '<label style="'+statusOptionStyle+'"><input type="radio" name="cp-status-radio" value="pendente" '+(statusSel==='pendente'?'checked':'')+' onchange="Modules.Financeiro._setCPStatus(\'pendente\')" style="accent-color:#B42318;width:16px;height:16px;"> A pagar</label>'+
+                '<label style="'+statusOptionStyle+'"><input type="radio" name="cp-status-radio" value="pago" '+(statusSel==='pago'?'checked':'')+' onchange="Modules.Financeiro._setCPStatus(\'pago\')" style="accent-color:#B42318;width:16px;height:16px;"> Já paga</label>'+
               '</div>'+
               '<div id="cp-status-help" style="margin-top:8px;font-size:11px;color:#8A7E7C;">'+(statusSel==='pago'?'A data de pagamento é obrigatória.':'Escolha o status da saída antes de salvar.')+'</div>'+
             '</div>'+
             '<div>'+
-              '<div style="font-size:12px;font-weight:800;color:#1F1F1F;margin-bottom:4px;">Datas</div>'+
-              '<div style="font-size:12px;color:#6F6860;line-height:1.4;margin-bottom:12px;">Vencimento e baixa no caixa.</div>'+
+              _modalIconTitle('event','Datas','Vencimento e baixa no caixa.')+
               '<div style="display:flex;flex-direction:column;gap:12px;">'+
-                '<div><label style="'+_lbl()+'">Vencimento *</label><input id="cp-venc" type="date" value="'+_esc(cp.vencimento||_today())+'" style="'+_inp()+'"></div>'+
-                '<div id="cp-pago-box" style="display:'+(statusSel==='pago'?'block':'none')+';"><label style="'+_lbl()+'">Data de pagamento *</label><input id="cp-pago" type="date" value="'+_esc(cp.data_pagamento||'')+'" style="'+_inp()+'"></div>'+
+                '<div><label style="'+_lbl()+'">Vencimento *</label><input id="cp-venc" type="date" value="'+_esc(cp.vencimento||_today())+'" style="'+dateField+'"></div>'+
+                '<div id="cp-pago-box" style="display:'+(statusSel==='pago'?'block':'none')+';"><label style="'+_lbl()+'">Data de pagamento *</label><input id="cp-pago" type="date" value="'+_esc(cp.data_pagamento||'')+'" style="'+dateField+'"></div>'+
               '</div>'+
             '</div>'+
           '</div>'+
         '</div>'+
 
-        '<div id="cp-tipo-box" style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">'+
-          '<div style="font-size:12px;font-weight:800;color:#1F1F1F;margin-bottom:4px;">Recorrência e parcelamento</div>'+
-          '<div style="font-size:12px;color:#6F6860;line-height:1.4;margin-bottom:12px;">Use apenas quando a saída precisa gerar várias ocorrências.</div>'+
+        '<div id="cp-tipo-box" style="'+cardStyle+'">'+
+          _modalIconTitle('calendar_month','Recorrência e parcelamento','Use quando a saída precisa aparecer em mais de uma data.')+
           '<div style="display:flex;flex-direction:column;gap:10px;">'+
-            '<label style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:700;cursor:pointer;background:#FAF8F4;border:1px solid #EAE4DA;border-radius:12px;padding:11px 12px;"><input type="checkbox" id="cp-recorrente"'+(recChecked?' checked':'')+' onchange="Modules.Financeiro._toggleCPRecorrente()" style="accent-color:#B42318;"> Pagamento recorrente</label>'+
+            '<label style="'+cleanCheckboxStyle+'"><input type="checkbox" id="cp-recorrente"'+(recChecked?' checked':'')+' onchange="Modules.Financeiro._toggleCPRecorrente()" style="accent-color:#B42318;width:16px;height:16px;"> Pagamento recorrente</label>'+
             '<div id="cp-rec-box" style="display:'+(recChecked?'block':'none')+';">'+
-              '<div style="'+_g2()+'">'+
-                '<div><label style="'+_lbl()+'">Frequência</label><select id="cp-periodo" onchange="Modules.Financeiro._renderCPPreviews()" style="'+_inp()+'background:#fff;">'+
+              '<div style="display:grid;grid-template-columns:minmax(150px,180px) minmax(150px,180px) minmax(0,1fr);gap:12px;margin-bottom:12px;align-items:end;">'+
+                '<div><label style="'+_lbl()+'">Frequência</label><select id="cp-periodo" onchange="Modules.Financeiro._renderCPPreviews()" style="'+selectStyle+'">'+
                   '<option value="semanal"'+(recFreq==='semanal'?' selected':'')+'>Semanal</option>'+
                   '<option value="mensal"'+(recFreq==='mensal'?' selected':'')+'>Mensal</option>'+
                   '<option value="anual"'+(recFreq==='anual'?' selected':'')+'>Anual</option>'+
                 '</select></div>'+
-                '<div><label style="'+_lbl()+'">Número de repetições *</label><input id="cp-repeticoes" type="number" min="1" value="'+_esc(cp.repeticoes||'')+'" placeholder="Ex: 6" oninput="Modules.Financeiro._renderCPPreviews()" style="'+_inp()+'"></div>'+
+                '<div><label style="'+_lbl()+'">Repetições *</label><input id="cp-repeticoes" type="number" min="1" value="'+_esc(cp.repeticoes||'')+'" placeholder="Ex.: 6" oninput="Modules.Financeiro._renderCPPreviews()" style="'+shortField+'"></div>'+
               '</div>'+
               '<div id="cp-rec-preview" style="margin-top:10px;"></div>'+
             '</div>'+
-            '<label style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:700;cursor:pointer;background:#FAF8F4;border:1px solid #EAE4DA;border-radius:12px;padding:11px 12px;"><input type="checkbox" id="cp-parcelada"'+(parcChecked?' checked':'')+' onchange="Modules.Financeiro._toggleCPParcelada()" style="accent-color:#B42318;"> Dividir em parcelas</label>'+
+            '<label style="'+cleanCheckboxStyle+'"><input type="checkbox" id="cp-parcelada"'+(parcChecked?' checked':'')+' onchange="Modules.Financeiro._toggleCPParcelada()" style="accent-color:#B42318;width:16px;height:16px;"> Dividir em parcelas</label>'+
             '<div id="cp-parcelas-section" style="display:'+(parcChecked?'block':'none')+';">'+
-              '<div style="'+_g2()+'">'+
-                '<div><label style="'+_lbl()+'">Número de parcelas *</label><input id="cp-num-parcelas" type="number" min="2" value="'+_esc(cp.numeroParcelas||'')+'" placeholder="Ex: 3" oninput="Modules.Financeiro._renderCPPreviews()" style="'+_inp()+'"></div>'+
-                '<div><label style="'+_lbl()+'">Valor por parcela</label><input id="cp-valor-parcela" type="text" readonly value="" style="'+_inp()+'background:#F8F6F5;"></div>'+
+              '<div style="display:grid;grid-template-columns:minmax(150px,180px) minmax(150px,180px) minmax(0,1fr);gap:12px;margin-bottom:12px;align-items:end;">'+
+                '<div><label style="'+_lbl()+'">Parcelas *</label><input id="cp-num-parcelas" type="number" min="2" value="'+_esc(cp.numeroParcelas||'')+'" placeholder="Ex.: 3" oninput="Modules.Financeiro._renderCPPreviews()" style="'+shortField+'"></div>'+
+                '<div><label style="'+_lbl()+'">Valor por parcela</label><input id="cp-valor-parcela" type="text" readonly value="" style="'+moneyField+'background:#F7F2EF;"></div>'+
               '</div>'+
               '<div id="cp-parc-preview" style="margin-top:10px;"></div>'+
             '</div>'+
           '</div>'+
         '</div>'+
 
-        '<div style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">'+
-          '<div style="font-size:12px;font-weight:800;color:#1F1F1F;margin-bottom:4px;">Observações</div>'+
-          '<div style="font-size:12px;color:#6F6860;line-height:1.4;margin-bottom:12px;">Notas internas opcionais para consulta futura.</div>'+
-          '<textarea id="cp-obs" placeholder="Opcional..." style="'+_inp()+'min-height:72px;resize:vertical;">'+_esc(cp.observacoes||'')+'</textarea>'+
+        '<div style="'+cardStyle+'">'+
+          _modalIconTitle('notes','Observações','Anotações internas opcionais para consulta futura.')+
+          '<textarea id="cp-obs" placeholder="Opcional..." style="'+_modalFieldStyle('height:auto;min-height:82px;padding:10px 12px;resize:vertical;')+'">'+_esc(cp.observacoes||'')+'</textarea>'+
         '</div>'+
       '</div>';
-    var footer='<div style="display:flex;flex-direction:column;gap:8px;width:100%;">'+
-      '<div style="display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;">'+
-        '<button onclick="if(window._cpModal)window._cpModal.close();" style="height:40px;padding:0 14px;border-radius:12px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Cancelar</button>'+
-        '<button onclick="Modules.Financeiro._saveCP()" style="height:40px;padding:0 16px;border-radius:12px;border:none;background:#B42318;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 8px 18px rgba(180,35,24,.16);">'+(id?'Atualizar saída':'Salvar saída')+'</button>'+
-      '</div>'+
-      '<div style="font-size:11px;color:#8A7E7C;text-align:right;">As alterações atualizam o financeiro e o fluxo de caixa.</div>'+
-    '</div>';
-    window._cpModal=UI.modal({title:id?'Editar Saída':'Nova Saída',body:body,footer:footer,maxWidth:'720px'});
+    var footer=
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;width:100%;">'+
+        '<div style="font-size:11px;color:#7A746B;">Revise os dados antes de salvar.</div>'+
+        '<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;">'+
+          '<button onclick="if(window._cpModal)window._cpModal.close();" style="height:42px;padding:0 16px;border-radius:12px;border:1px solid #E6DDD3;background:#fff;color:#1F1F1F;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Cancelar</button>'+
+          '<button onclick="Modules.Financeiro._saveCP()" style="height:42px;padding:0 18px;border-radius:12px;border:none;background:#B42318;color:#fff;font-size:13px;font-weight:650;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(180,35,24,.18);">'+(id?'Salvar alterações':'Salvar saída')+'</button>'+
+        '</div>'+
+      '</div>';
+    window._cpModal=UI.modal({title:id?'Editar Saída':'Nova Saída',body:body,footer:footer,maxWidth:'820px'});
     setTimeout(function(){
       _setCPStatus(statusSel||'pendente');
       _toggleCPRecorrente();
@@ -2911,7 +2982,7 @@ Modules.Financeiro = (function () {
     var recSec=document.getElementById('cp-rec-box');
     if(checked && rec) rec.checked=false;
     if(checked && recSec) recSec.style.display='none';
-    if(sec) sec.style.display=checked?'grid':'none';
+    if(sec) sec.style.display=checked?'block':'none';
     _renderCPPreviews();
   }
 
@@ -2937,8 +3008,8 @@ Modules.Financeiro = (function () {
   }
 
   function _cpPreviewCard(title, items) {
-    return '<div style="background:#FAFAF9;border:1px solid #EDE7E4;border-radius:12px;padding:10px 12px;">'+
-      '<div style="font-size:11px;font-weight:700;color:#8A7E7C;text-transform:uppercase;margin-bottom:8px;">'+_esc(title)+'</div>'+
+    return '<div style="background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:10px 12px;">'+
+      '<div style="font-size:11px;font-weight:600;color:#8A7E7C;text-transform:uppercase;margin-bottom:8px;">'+_esc(title)+'</div>'+
       (items.length
         ? '<div style="display:flex;flex-direction:column;gap:6px;">'+items.join('')+'</div>'
         : '<div style="font-size:12px;color:#8A7E7C;">Preencha os campos para ver o preview.</div>')+
@@ -3012,6 +3083,7 @@ Modules.Financeiro = (function () {
     var formaCfg=_formasPagFull(true).find(function(f){ return (f.nome||'')===forma; });
     if(!contaId&&formaCfg&&formaCfg.contaPadraoId) contaId=formaCfg.contaPadraoId;
     if(!contaId&&formaCfg&&(_globalPaymentRequiresAccount(formaCfg.tipoGlobalId || formaCfg.tipoGlobalSlug || formaCfg.tipo || '') || formaCfg.exigeConta)){ UI.toast('Conta bancária obrigatória para esta forma de pagamento','error'); return; }
+    if(status==='pago'&&!contaId){ UI.toast('Informe a conta bancária usada para registrar a saída paga','error'); return; }
     var novoForn=((document.getElementById('cp-forn-novo')||{}).value||'').trim();
     var fornIdSel=(document.getElementById('cp-forn-id')||{}).value||'';
     var fornExistente=fornIdSel?(_fornecedores||[]).find(function(f){ return f.id===fornIdSel; }):(novoForn?(_fornecedores||[]).find(function(f){ return String(f.name||f.nome||'').toLowerCase()===novoForn.toLowerCase(); }):null);
@@ -3056,6 +3128,7 @@ Modules.Financeiro = (function () {
       updatedAt:new Date().toISOString()
     };
     if(!_editingId) obj.createdAt=new Date().toISOString();
+    var savedCpId=_editingId||'';
     var saveCat=(cat==='__nova__')?DB.add('financeiro_categorias',{nome:novaCat,tipo:'saida'}):Promise.resolve();
     saveCat.then(function(){
       if(novoForn&&!fornExistente){
@@ -3138,13 +3211,24 @@ Modules.Financeiro = (function () {
             _loadContasPagar();
             var e2=new Error('conta_nao_existe'); e2._handled=true; throw e2;
           }
-          return DB.update('contas_pagar',_editingId,obj);
+          return DB.update('contas_pagar',_editingId,obj).then(function(){
+            savedCpId=_editingId;
+            return null;
+          });
         });
       }
       return DB.add('contas_pagar',Object.assign({},obj,{
         status:status,
         data_pagamento:status==='pago'?dataPagamento:null
-      }));
+      })).then(function(ref){
+        savedCpId=String((ref&&ref.id)||'');
+        return null;
+      });
+    }).then(function(){
+      if(status==='pago'&&savedCpId){
+        return _syncPaidCPMovement(savedCpId,Object.assign({},obj,{id:savedCpId,_colecao:'contas_pagar'}),'contas_pagar');
+      }
+      return null;
     }).then(function(){
       UI.toast('Saída salva!','success');
       if(window._cpModal) window._cpModal.close();
@@ -3191,21 +3275,22 @@ Modules.Financeiro = (function () {
     var data=(document.getElementById('cp-pay-data')||{}).value||'';
     var contaId=(document.getElementById('cp-pay-conta')||{}).value||'';
     var info=_cpValorInfo(cp);
+    var dueTotal=_cpPayableTotal(cp,info);
     var jaPago=info.valorPago;
-    var pendente=info.saldoRestante;
+    var pendente=info.saldoRestante || Math.max(0,dueTotal-jaPago);
     if(!valorPago||valorPago<=0){ UI.toast('Informe o valor pago','error'); return; }
     if(!data){ UI.toast('Informe a data do pagamento','error'); return; }
     if(!contaId){ UI.toast('Informe a conta bancária usada','error'); return; }
     if(valorPago>pendente) valorPago=pendente;
     var totalPago=jaPago+valorPago;
-    var parcial=totalPago<info.valorTotalOriginal;
+    var parcial=totalPago<dueTotal;
     // Proteção anti-duplicidade: verificar se já existe movimentação efetivada para este item
     var jaRegistrado=(_movimentacoes||[]).some(function(m){
       return m.tipo==='saida'&&m.status==='efetivado'&&(
         (m.sourceCollection===colecao&&m.sourceId===id)||m.contaPagarId===id
       );
     });
-    if(jaRegistrado&&!parcial){
+    if(jaRegistrado&&jaPago<=0&&!parcial){
       UI.toast('Este pagamento já foi registrado anteriormente.','warning');
       return;
     }
@@ -3244,7 +3329,8 @@ Modules.Financeiro = (function () {
       }
       // Conta existe — registrar movimentação e atualizar na coleção de origem
       return DB.add('movimentacoes',mov).then(function(){
-        var upd={valorPago:totalPago,valor_pago_total:totalPago,saldoRestante:Math.max(0,info.valorTotalOriginal-totalPago),saldo_restante:Math.max(0,info.valorTotalOriginal-totalPago),ultimo_pagamento:data,conta_id:contaId,contaBancariaId:contaId,status:parcial?'parcial':'pago',updatedAt:new Date().toISOString()};
+        var saldoAtual=Math.max(0,dueTotal-totalPago);
+        var upd={valorPago:totalPago,valor_pago_total:totalPago,saldoRestante:saldoAtual,saldo_restante:saldoAtual,ultimo_pagamento:data,conta_id:contaId,contaBancariaId:contaId,status:parcial?'parcial':'pago',updatedAt:new Date().toISOString()};
         if(!parcial) upd.data_pagamento=data;
         return DB.update(colecao,id,upd);
       });
@@ -3252,7 +3338,7 @@ Modules.Financeiro = (function () {
       if(window._cpPayModal) window._cpPayModal.close();
       if(parcial){
         UI.confirm('Esta saída não foi paga integralmente. Deseja gerar uma nova parcela com o saldo restante?').then(function(yes){
-          if(yes) _openSaldoRestanteModal(id,Math.max(0,_parseNum(cp.valor)-totalPago));
+          if(yes) _openSaldoRestanteModal(id,Math.max(0,dueTotal-totalPago));
           else { UI.toast('Saída parcial registrada','success'); _loadContasPagar(); }
         });
       } else {
@@ -3284,6 +3370,52 @@ Modules.Financeiro = (function () {
     var parcelar=document.getElementById('cp-rest-parcelar');
     if(unico) unico.style.display=modo==='unico'?'block':'none';
     if(parcelar) parcelar.style.display=modo==='parcelar'?'grid':'none';
+  }
+
+  function _cpPayableTotal(cp, info) {
+    info = info || _cpValorInfo(cp || {});
+    return _parseNum(cp && (cp.valorParcela || cp.valor_parcela || cp.valor)) || info.valorParcela || info.valorRow || info.valorTotalOriginal || 0;
+  }
+
+  function _syncPaidCPMovement(cpId, cp, colecao) {
+    cpId = String(cpId || '');
+    if (!cpId || !cp) return Promise.resolve(false);
+    colecao = colecao || cp._colecao || 'contas_pagar';
+    var info = _cpValorInfo(cp);
+    var dueTotal = _cpPayableTotal(cp, info);
+    var paidValue = _parseNum(cp.valorPago || cp.valor_pago_total) || dueTotal;
+    if (!(paidValue > 0)) return Promise.resolve(false);
+    var data = cp.data_pagamento || cp.ultimo_pagamento || cp.data || _today();
+    var payload = {
+      tipo: 'saida',
+      descricao: 'Pagamento: ' + (cp.descricao || 'Saída'),
+      valor: paidValue,
+      valorTotalOriginal: paidValue,
+      valorParcela: paidValue,
+      valorPago: paidValue,
+      saldoRestante: 0,
+      data: data,
+      categoria: cp.categoria || '',
+      conta_id: cp.conta_id || cp.contaBancariaId || '',
+      forma_pagamento: cp.formaPagamento || cp.forma_pagamento || '',
+      status: 'efetivado',
+      origem: cp._origemFinanceira || 'conta_a_pagar',
+      sourceCollection: colecao,
+      sourceId: cpId,
+      contaPagarId: cpId,
+      compraId: cp.compraId || '',
+      parcelaNumero: cp.parcelaNumero || null,
+      totalParcelas: cp.numeroParcelas || cp.totalParcelas || null,
+      pessoaTipo: cp.fornecedorId || cp.fornecedorNome || cp.fornecedor ? 'fornecedor' : 'nenhum',
+      pessoaId: cp.fornecedorId || '',
+      pessoaNome: cp.fornecedorNome || cp.fornecedor || '',
+      updatedAt: new Date().toISOString()
+    };
+    var found = (_movimentacoes || []).find(function (m) {
+      return m && m.tipo === 'saida' && ((m.sourceCollection === colecao && String(m.sourceId || '') === cpId) || String(m.contaPagarId || '') === cpId);
+    });
+    if (found && found.id) return DB.update('movimentacoes', found.id, payload).then(function () { return true; });
+    return DB.add('movimentacoes', payload).then(function () { return true; });
   }
 
   function _criarSaldoRestanteCP() {
@@ -3410,7 +3542,7 @@ Modules.Financeiro = (function () {
   function _contaCardHtml(c) {
     var r=_contaResumo(c);
     var saldoColor=r.saldo>=0?'#1F6F43':'#B42318';
-    return '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:16px;padding:18px;box-shadow:0 12px 30px rgba(31,31,31,.06);'+(c.ativo===false?'opacity:.58;':'')+'transition:transform .16s ease,box-shadow .16s ease;" onmouseenter="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 16px 34px rgba(31,31,31,.09)\'" onmouseleave="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'0 12px 30px rgba(31,31,31,.06)\'">'+
+    return '<div style="'+_cfgCardStyle('16px 16px')+(c.ativo===false?'opacity:.58;':'')+'transition:transform .16s ease,box-shadow .16s ease,background .16s ease;" onmouseenter="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 16px 34px rgba(31,31,31,.09)\';this.style.background=\'#fff\'" onmouseleave="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'0 12px 30px rgba(31,31,31,.055)\';this.style.background=\'linear-gradient(180deg,#fff 0%,#FFFCFA 100%)\'">'+
       '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px;">'+
         '<div style="min-width:0;">'+
           '<div style="font-size:15px;font-weight:700;color:#1F1F1F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+_esc(c.nome||'Conta')+'</div>'+
@@ -3425,11 +3557,11 @@ Modules.Financeiro = (function () {
       '</div>'+
       '<div style="font-size:28px;font-weight:700;color:'+saldoColor+';line-height:1;margin-bottom:14px;">'+_fmtVal(r.saldo)+'</div>'+
       '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;">'+
-        '<div style="background:#FAF8F4;border-radius:10px;padding:9px 10px;min-width:0;"><div style="font-size:10px;color:#6F6860;font-weight:800;text-transform:uppercase;">Inicial</div><div style="font-size:13px;font-weight:800;color:#1F1F1F;margin-top:3px;">'+_fmtVal(c.saldo_inicial)+'</div></div>'+
-        '<div style="background:#F0FFF4;border-radius:10px;padding:9px 10px;min-width:0;"><div style="font-size:10px;color:#1F6F43;font-weight:800;text-transform:uppercase;">Entradas</div><div style="font-size:13px;font-weight:800;color:#1F6F43;margin-top:3px;">+'+_fmtVal(r.entradas)+'</div></div>'+
-        '<div style="background:#FFF5F5;border-radius:10px;padding:9px 10px;min-width:0;"><div style="font-size:10px;color:#B42318;font-weight:800;text-transform:uppercase;">Saídas</div><div style="font-size:13px;font-weight:800;color:#B42318;margin-top:3px;">-'+_fmtVal(r.saidas)+'</div></div>'+
+        '<div style="background:#FFFCF8;border:1px solid #EADFD8;border-radius:12px;padding:9px 10px;min-width:0;"><div style="font-size:10px;color:#6F6860;font-weight:650;text-transform:uppercase;">Inicial</div><div style="font-size:13px;font-weight:700;color:#1F1F1F;margin-top:3px;">'+_fmtVal(c.saldo_inicial)+'</div></div>'+
+        '<div style="background:#F0FFF4;border:1px solid #D5F3DF;border-radius:12px;padding:9px 10px;min-width:0;"><div style="font-size:10px;color:#1F6F43;font-weight:650;text-transform:uppercase;">Entradas</div><div style="font-size:13px;font-weight:700;color:#1F6F43;margin-top:3px;">+'+_fmtVal(r.entradas)+'</div></div>'+
+        '<div style="background:#FFF5F5;border:1px solid #F4D8D4;border-radius:12px;padding:9px 10px;min-width:0;"><div style="font-size:10px;color:#B42318;font-weight:650;text-transform:uppercase;">Saídas</div><div style="font-size:13px;font-weight:700;color:#B42318;margin-top:3px;">-'+_fmtVal(r.saidas)+'</div></div>'+
       '</div>'+
-      (c.ativo===false?'<div style="margin-top:12px;font-size:11px;font-weight:700;color:#6F6860;background:#FAF8F4;border:1px solid #EAE4DA;border-radius:999px;padding:5px 9px;display:inline-block;">Conta inativa</div>':'')+
+      (c.ativo===false?'<div style="margin-top:12px;font-size:11px;font-weight:600;color:#6F6860;background:#FFFCF8;border:1px solid #EADFD8;border-radius:999px;padding:5px 9px;display:inline-block;">Conta inativa</div>':'')+
     '</div>';
   }
 
@@ -3800,7 +3932,7 @@ function _openContaModal(id) {
   }
 
   function _cfgCardStyle(pad) {
-    return 'background:#fff;border:none;border-radius:16px;padding:'+(pad||'18px 20px')+';box-shadow:0 12px 30px rgba(31,31,31,.06);';
+    return 'background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:'+(pad||'18px 20px')+';box-shadow:0 12px 30px rgba(31,31,31,.055);';
   }
 
   function _cfgChip(txt) {
@@ -3812,7 +3944,26 @@ function _openContaModal(id) {
   }
 
   function _cfgPrimaryButton(label,onClick) {
-    return '<button onclick="'+onClick+'" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">'+_esc(label)+'</button>';
+    return '<button onclick="'+onClick+'" style="height:38px;padding:0 14px;border:none;border-radius:12px;background:#B42318;color:#fff;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">'+_esc(label)+'</button>';
+  }
+
+  function _cfgSectionHead(icon,title,desc) {
+    return '<div style="display:flex;align-items:flex-start;gap:10px;min-width:0;">'+
+      '<span class="mi" style="width:31px;height:31px;border-radius:12px;background:#FAF8F4;color:#8A6F5A;display:inline-flex;align-items:center;justify-content:center;font-size:17px;flex:0 0 auto;">'+_esc(icon||'settings')+'</span>'+
+      '<div style="min-width:0;"><div style="font-size:15px;font-weight:700;color:#1F1F1F;line-height:1.2;">'+_esc(title||'')+'</div>'+
+      (desc?'<p style="font-size:13px;color:#6F6860;line-height:1.45;margin:3px 0 0;max-width:680px;">'+_esc(desc)+'</p>':'')+'</div>'+
+    '</div>';
+  }
+
+  function _cfgListRow(main,sub,actions,accent) {
+    return '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 12px;border:1px solid #EADFD8;border-radius:14px;background:#FFFCF8;transition:background .15s ease,transform .15s ease;" onmouseover="this.style.background=\'#fff\';this.style.transform=\'translateY(-1px)\'" onmouseout="this.style.background=\'#FFFCF8\';this.style.transform=\'translateY(0)\'">'+
+      '<div style="display:flex;align-items:center;gap:10px;min-width:0;">'+
+        '<span style="width:7px;height:28px;border-radius:999px;background:'+(accent||'#EADFD8')+';display:inline-block;flex:0 0 auto;"></span>'+
+        '<div style="min-width:0;"><div style="font-size:13px;font-weight:650;color:#1F1F1F;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_esc(main||'')+'</div>'+
+        (sub?'<div style="font-size:11.5px;color:#6F6860;line-height:1.35;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_esc(sub)+'</div>':'')+'</div>'+
+      '</div>'+
+      '<div style="display:flex;gap:6px;flex-shrink:0;">'+(actions||'')+'</div>'+
+    '</div>';
   }
 
   function _paintConfiguracoes() {
@@ -3823,12 +3974,8 @@ function _openContaModal(id) {
       {key:'contas-bancarias', label:'Contas Bancárias'},
       {key:'custos-ind',   label:'Custos Indiretos'}
     ];
-    var entradaCats=(_categorias||[]).filter(function(c){ return c.tipo==='entrada'; }).length;
-    var saidaCats=(_categorias||[]).filter(function(c){ return c.tipo==='saida'; }).length;
-    var formas=_formasPagFull(true);
-    var activeCount=formas.filter(function(f){ return f.ativo!==false; }).length;
-    var sbSt=function(k){ var a=_cfgSub===k; return 'height:34px;padding:0 12px;border-radius:999px;border:1px solid '+(a?'#B42318':'#EAE4DA')+';background:'+(a?'#B42318':'#fff')+';color:'+(a?'#fff':'#6F6860')+';font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:'+(a?'0 4px 12px rgba(180,35,24,.14)':'none')+';'; };
-    var tabs='<div style="'+_cfgCardStyle('10px')+'display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'+subs.map(function(s){ return '<button onclick="Modules.Financeiro._setCfgSub(\''+s.key+'\')" style="'+sbSt(s.key)+'">'+s.label+'</button>'; }).join('')+'</div>';
+    var sbSt=function(k){ var a=_cfgSub===k; return 'height:34px;padding:0 12px;border-radius:999px;border:1px solid '+(a?'#B42318':'#E8DCD7')+';background:'+(a?'#B42318':'#FFFCF8')+';color:'+(a?'#fff':'#6F6860')+';font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:'+(a?'0 4px 12px rgba(180,35,24,.14)':'0 1px 2px rgba(31,31,31,.02)')+';'; };
+    var tabs='<div style="'+_cfgCardStyle('10px 12px')+'display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'+subs.map(function(s){ return '<button onclick="Modules.Financeiro._setCfgSub(\''+s.key+'\')" style="'+sbSt(s.key)+'">'+s.label+'</button>'; }).join('')+'</div>';
     var inner='';
     if(_cfgSub==='categorias')   inner=_paintCfgCats();
     if(_cfgSub==='contas-bancarias') inner=_paintCfgContasBancarias();
@@ -3837,8 +3984,7 @@ function _openContaModal(id) {
     content.innerHTML=
       '<div style="display:flex;flex-direction:column;gap:16px;">'+
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">'+
-          '<div style="min-width:0;"><h2 style="font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;line-height:1.2;">Configurações</h2><p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0;">Organize categorias, formas de pagamento, contas bancárias e custos usados pelo financeiro.</p></div>'+
-          '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">'+_cfgChip(entradaCats+' categorias de entrada')+_cfgChip(saidaCats+' categorias de saída')+_cfgChip(activeCount+' formas ativas')+'</div>'+
+          '<div style="min-width:0;"><h2 style="font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;line-height:1.15;">Configurações financeiras</h2><p style="font-size:13px;color:#6F6860;line-height:1.5;margin:0;max-width:760px;">Organize as bases usadas para registrar entradas, saídas, pagamentos, contas e custos sem transformar o financeiro em uma tela pesada.</p></div>'+
         '</div>'+
         tabs+
         inner+
@@ -3853,17 +3999,12 @@ function _openContaModal(id) {
       var color=isEntrada?'#1F6F43':'#B42318';
       return '<div style="'+_cfgCardStyle()+'min-width:0;">'+
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px;">'+
-          '<div style="min-width:0;"><div style="font-size:14px;font-weight:700;color:#1F1F1F;">'+(isEntrada?'Receitas / Entradas':'Despesas / Saídas')+'</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">'+(isEntrada?'Categorias usadas em valores recebidos.':'Categorias usadas em contas a pagar e saídas.')+'</div></div>'+
-          '<button onclick="Modules.Financeiro._openCatModal(null,\''+tipo+'\')" style="height:34px;padding:0 12px;border:none;border-radius:10px;background:'+color+';color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">+ Adicionar</button>'+
+          _cfgSectionHead(isEntrada?'south_west':'north_east',isEntrada?'Entradas':'Saídas',isEntrada?'Categorias para separar valores recebidos.':'Categorias para organizar contas a pagar e despesas.')+
+          '<button onclick="Modules.Financeiro._openCatModal(null,\''+tipo+'\')" style="height:34px;padding:0 12px;border:none;border-radius:12px;background:'+color+';color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(31,31,31,.08);">+ Adicionar</button>'+
         '</div>'+
         (lista.length===0?'<div style="border:1px dashed #EAE4DA;border-radius:14px;text-align:center;padding:24px 16px;color:#6F6860;font-size:13px;">Nenhuma categoria cadastrada.</div>':
           '<div style="display:flex;flex-direction:column;gap:8px;">'+
-          lista.slice().sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||''); }).map(function(c){ return '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 12px;border:1px solid #EAE4DA;border-radius:12px;background:#FAF8F4;transition:background .15s ease;" onmouseover="this.style.background=\'#fff\'" onmouseout="this.style.background=\'#FAF8F4\'">'+
-            '<div style="min-width:0;"><div style="font-size:13px;font-weight:700;color:#1F1F1F;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_esc(c.nome)+'</div><div style="font-size:11px;color:#6F6860;margin-top:2px;">'+(tipo==='entrada'?'Receita':'Despesa')+'</div></div>'+
-            '<div style="display:flex;gap:6px;flex-shrink:0;">'+
-              _cfgIconButton('edit','Editar','#fff','#6F6860','Modules.Financeiro._openCatModal(\''+c.id+'\',\''+tipo+'\')')+
-              _cfgIconButton('delete','Excluir','#FFF0EE','#B42318','Modules.Financeiro._deleteCat(\''+c.id+'\')')+
-            '</div></div>'; }).join('')+
+          lista.slice().sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||''); }).map(function(c){ return _cfgListRow(c.nome,(tipo==='entrada'?'Entrada':'Saída'),_cfgIconButton('edit','Editar','#fff','#6F6860','Modules.Financeiro._openCatModal(\''+c.id+'\',\''+tipo+'\')')+_cfgIconButton('delete','Excluir','#FFF0EE','#B42318','Modules.Financeiro._deleteCat(\''+c.id+'\')'),color); }).join('')+
           '</div>')+
       '</div>';
     };
@@ -3876,8 +4017,8 @@ function _openContaModal(id) {
   function _paintCfgContasBancarias() {
     var st=_saldoTotal();
     return '<div style="display:flex;flex-direction:column;gap:14px;">'+
-      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">'+
-        '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">Contas bancárias</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Saldo total: <strong style="color:'+(st>=0?'#1F6F43':'#B42318')+';font-weight:700;">'+_fmtVal(st)+'</strong></div></div>'+
+      '<div style="'+_cfgCardStyle('14px 16px')+'display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">'+
+        _cfgSectionHead('account_balance_wallet','Contas bancárias','Cadastre os lugares por onde o dinheiro entra e sai. Saldo total: '+_fmtVal(st))+
         _cfgPrimaryButton('+ Nova Conta','Modules.Financeiro._openContaModal(null)')+
       '</div>'+
       _contasCardsHtml('44px 20px')+
@@ -3897,7 +4038,16 @@ function _openContaModal(id) {
         '<option value="saida"'+(tipo==='saida'?' selected':'')+'>Despesa (saída)</option>'+
       '</select></div></div></div>';
     var footer='<div style="display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;width:100%;"><button onclick="if(window._catModal)window._catModal.close();" style="height:40px;padding:0 14px;border-radius:12px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Cancelar</button><button onclick="Modules.Financeiro._saveCat()" style="height:40px;padding:0 16px;border-radius:12px;border:none;background:#B42318;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 8px 18px rgba(180,35,24,.16);">Salvar categoria</button></div>';
-    window._catModal=UI.modal({title:id?'Editar Categoria':'Nova Categoria',body:body,footer:footer,maxWidth:'420px'});
+    window._catModal=UI.modal({title:'',body:body,footer:footer,maxWidth:'420px'});
+    if(window._catModal&&window._catModal.el){
+      var catHead=window._catModal.el.querySelector('.bf-modal-head');
+      var catTitle=window._catModal.el.querySelector('.bf-modal-title');
+      if(catTitle) catTitle.remove();
+      if(catHead){
+        catHead.style.justifyContent='flex-end';
+        catHead.style.padding='16px 16px 0';
+      }
+    }
   }
 
   function _saveCat() {
@@ -4005,7 +4155,7 @@ function _openContaModal(id) {
     var formas=_formasPagFull(true);
     return '<div style="'+_cfgCardStyle()+'">'+
       '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap;">'+
-        '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">Formas de pagamento</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Lista editável das formas usadas no financeiro.</div></div>'+
+        _cfgSectionHead('payments','Formas de pagamento','Cadastre as opções que podem aparecer nos registros financeiros e no checkout da loja.')+
         _cfgPrimaryButton('+ Adicionar','Modules.Financeiro._openFormaPagModal(null)')+
       '</div>'+
       (formas.length===0
@@ -4013,16 +4163,10 @@ function _openContaModal(id) {
         : '<div style="display:flex;flex-direction:column;gap:8px;">'+formas.map(function(f,i){
             var typeLabel = f.tipoGlobalNome || _globalTypeLabel('payment', f.tipoGlobalId || f.tipoGlobalSlug || f.tipo || '') || f.tipo || 'outro';
             var exigeConta = !!(f.exigeConta || _globalPaymentRequiresAccount(f.tipoGlobalId || f.tipoGlobalSlug || f.tipo || ''));
-            return '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 12px;border:1px solid #EAE4DA;border-radius:12px;background:#FAF8F4;transition:background .15s ease;" onmouseover="this.style.background=\'#fff\'" onmouseout="this.style.background=\'#FAF8F4\'">'+
-              '<div style="min-width:0;">'+
-                '<div style="font-size:13px;font-weight:700;color:#1F1F1F;">'+_esc(f.nome||'')+'</div>'+
-                '<div style="font-size:11px;color:#6F6860;margin-top:2px;">'+_esc(typeLabel)+' · '+(f.ativo===false?'Inativa':'Ativa')+(exigeConta?' · exige conta':'')+'</div>'+
-              '</div>'+
-              '<div style="display:flex;gap:6px;flex-shrink:0;">'+
+            return _cfgListRow(f.nome||'',typeLabel+' · '+(f.ativo===false?'Inativa':'Ativa')+(exigeConta?' · exige conta':''),
                 _cfgIconButton('edit','Editar','#fff','#6F6860','Modules.Financeiro._openFormaPagModal('+i+')')+
-                _cfgIconButton('delete','Excluir','#FFF0EE','#B42318','Modules.Financeiro._removeFormaPag('+i+')')+
-              '</div>'+
-            '</div>';
+                _cfgIconButton('delete','Excluir','#FFF0EE','#B42318','Modules.Financeiro._removeFormaPag('+i+')'),
+              f.ativo===false?'#C8BDB7':'#1F6F43');
           }).join('')+'</div>')+
     '</div>';
   }
@@ -4033,6 +4177,7 @@ function _openContaModal(id) {
     window._formaPagEditIdx = (idx!=null ? idx : null);
     var currentTipo = valor.tipoGlobalId || valor.tipoGlobalSlug || valor.tipo || '';
     var tipos=_globalFinanceList('payment', false).filter(function(t){ return _globalTypeCountryOk(t.countryFiscal, _tenantFiscalCountry()); });
+    if(!currentTipo && tipos.length) currentTipo=tipos[0].id || tipos[0].slug || tipos[0].name || '';
     var tipoOpts=tipos.map(function(t){
       var selected = String(t.id) === String(currentTipo) || String(t.slug) === String(currentTipo) || String(t.name) === String(currentTipo);
       return '<option value="'+_esc(t.id)+'" data-slug="'+_esc(t.slug)+'" data-name="'+_esc(t.name)+'" data-country="'+_esc(t.countryFiscal)+'" data-required="'+(t.requiresBankAccount ? '1' : '0')+'"'+(selected?' selected':'')+'>'+_esc(t.name)+' — '+_globalFinanceCountryLabel(t.countryFiscal)+'</option>';
@@ -4040,29 +4185,54 @@ function _openContaModal(id) {
     if (currentTipo && !tipos.some(function(t){ return String(t.id) === String(currentTipo) || String(t.slug) === String(currentTipo) || String(t.name) === String(currentTipo); })) {
       tipoOpts += '<option value="'+_esc(currentTipo)+'" selected>'+_esc(valor.tipoGlobalNome || valor.tipo || currentTipo)+' (inativo)</option>';
     }
+    if(!tipoOpts) tipoOpts='<option value="outro" data-slug="outro" data-name="Outro" data-country="ambos" data-required="0" selected>Outro</option>';
     var contaOpts='<option value="">Nenhuma</option>'+(_contasBancarias||[]).filter(function(c){ return c.ativo!==false || c.id===valor.contaPadraoId; }).sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||''); }).map(function(c){ return '<option value="'+c.id+'"'+(valor.contaPadraoId===c.id?' selected':'')+'>'+_esc(c.nome||'')+'</option>'; }).join('');
+    var cardStyle=_modalCardStyle();
+    var fieldStyle=_modalFieldStyle();
+    var selectStyle=_modalSelectStyle();
+    var shortField=_modalFieldStyle('max-width:160px;');
+    var moneyField=_modalFieldStyle('max-width:150px;');
+    var cleanCheckboxStyle='display:flex;align-items:center;gap:9px;font-size:13px;font-weight:500;color:#1F1F1F;cursor:pointer;min-height:32px;';
     var body='<div style="display:flex;flex-direction:column;gap:14px;">'+
-      '<div style="background:#FAF8F4;border:none;border-radius:16px;padding:18px;box-shadow:0 12px 30px rgba(31,31,31,.06);"><div style="font-size:15px;font-weight:800;color:#1F1F1F;">'+(idx!=null?'Editar forma de pagamento':'Nova forma de pagamento')+'</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:5px;">Configure regras de uso, conta padrão e taxas da forma de pagamento.</div></div>'+
-      '<div style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);display:flex;flex-direction:column;gap:12px;">'+
-      '<div><label style="'+_lbl()+'">Nome *</label><input id="forma-pag-nome" type="text" value="'+_esc(valor.nome||'')+'" placeholder="Ex: MB Way" style="'+_inp()+'"></div>'+
-      '<div style="'+_g2()+'">'+
-        '<div><label style="'+_lbl()+'">Tipo global *</label><select id="forma-pag-tipo" onchange="Modules.Financeiro._syncFormaPagTypeRule()" style="'+_inp()+'background:#fff;">'+tipoOpts+'</select></div>'+
-        '<div><label style="'+_lbl()+'">Conta bancária padrão</label><select id="forma-pag-conta" style="'+_inp()+'background:#fff;">'+contaOpts+'</select></div>'+
+      '<div style="'+cardStyle+'">'+
+        _modalIconTitle('payments',idx!=null?'Editar forma de pagamento':'Nova forma de pagamento','Configure como essa forma aparece no financeiro, qual conta usa por padrão e se há taxas.')+
+        '<select id="forma-pag-tipo" onchange="Modules.Financeiro._syncFormaPagTypeRule()" style="display:none;">'+tipoOpts+'</select>'+
+        '<div style="display:flex;flex-direction:column;gap:12px;">'+
+          '<div style="display:flex;gap:12px;align-items:start;flex-wrap:wrap;">'+
+            '<div style="flex:1 1 260px;min-width:240px;"><label style="'+_lbl()+'">Nome *</label><input id="forma-pag-nome" type="text" value="'+_esc(valor.nome||'')+'" placeholder="Ex.: MB Way" style="'+fieldStyle+'"></div>'+
+            '<div style="flex:1 1 220px;max-width:280px;"><label style="'+_lbl()+'">Conta bancária padrão</label><select id="forma-pag-conta" style="'+selectStyle+'">'+contaOpts+'</select></div>'+
+          '</div>'+
+          '<div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;">'+
+            '<div style="flex:0 0 160px;max-width:160px;"><label style="'+_lbl()+'">Prazo em dias</label><input id="forma-pag-prazo" type="number" min="0" value="'+_esc(valor.prazoCompensacaoDias||'')+'" placeholder="0" style="'+shortField+'"></div>'+
+            '<div style="flex:0 0 150px;max-width:150px;"><label style="'+_lbl()+'">Taxa %</label><input id="forma-pag-taxa-pct" type="text" value="'+_esc(valor.taxaPercentual||'')+'" placeholder="0,00" style="'+moneyField+'"></div>'+
+            '<div style="flex:0 0 150px;max-width:150px;"><label style="'+_lbl()+'">Taxa fixa</label><input id="forma-pag-taxa-fixa" type="text" value="'+_esc(valor.taxaFixa||'')+'" placeholder="€ 0,00" style="'+moneyField+'"></div>'+
+          '</div>'+
+        '</div>'+
       '</div>'+
-      '<div style="'+_g3()+'">'+
-        '<div><label style="'+_lbl()+'">Prazo compensação (dias)</label><input id="forma-pag-prazo" type="number" min="0" value="'+_esc(valor.prazoCompensacaoDias||'')+'" style="'+_inp()+'"></div>'+
-        '<div><label style="'+_lbl()+'">Taxa %</label><input id="forma-pag-taxa-pct" type="text" value="'+_esc(valor.taxaPercentual||'')+'" placeholder="0,00" style="'+_inp()+'"></div>'+
-        '<div><label style="'+_lbl()+'">Taxa fixa</label><input id="forma-pag-taxa-fixa" type="text" value="'+_esc(valor.taxaFixa||'')+'" placeholder="0,00" style="'+_inp()+'"></div>'+
+      '<div style="'+cardStyle+'">'+
+        _modalIconTitle('tune','Uso no financeiro','Defina se esta forma está disponível e se precisa de conta bancária.')+
+        '<div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;">'+
+          '<label style="'+cleanCheckboxStyle+'"><input id="forma-pag-ativo" type="checkbox" '+(valor.ativo!==false?'checked':'')+' style="accent-color:#B42318;width:16px;height:16px;"><span>Forma ativa</span></label>'+
+          '<label style="'+cleanCheckboxStyle+'"><input id="forma-pag-exige-conta" type="checkbox" '+((valor.exigeConta || _globalPaymentRequiresAccount(currentTipo))?'checked':'')+' style="accent-color:#B42318;width:16px;height:16px;"><span>Exige conta bancária</span></label>'+
+        '</div>'+
+        '<div id="forma-pag-exige-hint" style="font-size:11px;color:#8A7E7C;margin-top:8px;">Use conta bancária quando o dinheiro precisa entrar ou sair de uma conta específica.</div>'+
       '</div>'+
-      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;">'+
-        '<label style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:700;cursor:pointer;background:#FAF8F4;border:1px solid #EAE4DA;border-radius:12px;padding:11px 12px;"><input id="forma-pag-ativo" type="checkbox" '+(valor.ativo!==false?'checked':'')+' style="accent-color:#B42318;"><span>Forma ativa</span></label>'+
-        '<label style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:700;cursor:pointer;background:#FAF8F4;border:1px solid #EAE4DA;border-radius:12px;padding:11px 12px;"><input id="forma-pag-exige-conta" type="checkbox" '+((valor.exigeConta || _globalPaymentRequiresAccount(currentTipo))?'checked':'')+' style="accent-color:#B42318;"><span>Exige conta bancária</span></label>'+
+      '<div style="'+cardStyle+'">'+
+        _modalIconTitle('notes','Observação','Anotações internas opcionais sobre esta forma de pagamento.')+
+        '<textarea id="forma-pag-obs" placeholder="Opcional..." style="'+_modalFieldStyle('height:auto;min-height:82px;padding:10px 12px;resize:vertical;')+'">'+_esc(valor.observacao||'')+'</textarea>'+
       '</div>'+
-      '<div id="forma-pag-exige-hint" class="global-help" style="margin-top:-4px;">O tipo global define se a forma exige conta bancária/caixa.</div>'+
-      '<div><label style="'+_lbl()+'">Observação</label><textarea id="forma-pag-obs" placeholder="Opcional..." style="'+_inp()+'min-height:70px;resize:vertical;">'+_esc(valor.observacao||'')+'</textarea></div>'+
-    '</div></div>';
-    var footer='<div style="display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;width:100%;"><button onclick="if(window._formaPagModal)window._formaPagModal.close();" style="height:40px;padding:0 14px;border-radius:12px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Cancelar</button><button onclick="Modules.Financeiro._saveFormaPag()" style="height:40px;padding:0 16px;border-radius:12px;border:none;background:#B42318;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 8px 18px rgba(180,35,24,.16);">'+(idx!=null?'Atualizar forma':'Salvar forma')+'</button></div>';
-    window._formaPagModal=UI.modal({title:idx!=null?'Editar Forma de Pagamento':'Nova Forma de Pagamento',body:body,footer:footer,maxWidth:'620px'});
+    '</div>';
+    var footer='<div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;width:100%;"><div style="font-size:11px;color:#7A746B;">Revise os dados antes de salvar.</div><div style="display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;"><button onclick="if(window._formaPagModal)window._formaPagModal.close();" style="height:42px;padding:0 16px;border-radius:12px;border:1px solid #E6DDD3;background:#fff;color:#1F1F1F;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Cancelar</button><button onclick="Modules.Financeiro._saveFormaPag()" style="height:42px;padding:0 18px;border-radius:12px;border:none;background:#B42318;color:#fff;font-size:13px;font-weight:650;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(180,35,24,.18);">'+(idx!=null?'Salvar alterações':'Salvar forma')+'</button></div></div>';
+    window._formaPagModal=UI.modal({title:'',body:body,footer:footer,maxWidth:'720px'});
+    if(window._formaPagModal&&window._formaPagModal.el){
+      var formaHead=window._formaPagModal.el.querySelector('.bf-modal-head');
+      var formaTitle=window._formaPagModal.el.querySelector('.bf-modal-title');
+      if(formaTitle) formaTitle.remove();
+      if(formaHead){
+        formaHead.style.justifyContent='flex-end';
+        formaHead.style.padding='16px 16px 0';
+      }
+    }
     setTimeout(function(){ Modules.Financeiro._syncFormaPagTypeRule(); }, 0);
   }
 
@@ -4122,10 +4292,10 @@ function _openContaModal(id) {
     if (required) {
       chk.checked = true;
       chk.disabled = true;
-      if (hint) hint.textContent = 'Este tipo global exige conta bancária/caixa.';
+      if (hint) hint.textContent = 'Esta forma precisa ficar vinculada a uma conta bancária.';
     } else {
       chk.disabled = false;
-      if (hint) hint.textContent = 'O tipo global define se a forma exige conta bancária/caixa.';
+      if (hint) hint.textContent = 'Use conta bancária quando o dinheiro precisa entrar ou sair de uma conta específica.';
     }
   }
 
@@ -4153,46 +4323,40 @@ function _openContaModal(id) {
     var manualVisible = mode !== 'automatico';
     var autoVisible = mode === 'automatico';
     return '<div style="'+_cfgCardStyle()+'">'+
-      '<div style="margin-bottom:14px;">'+
-        '<div style="font-size:14px;font-weight:700;color:#1F1F1F;margin-bottom:4px;">Custos indiretos do negócio</div>'+
-        '<p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0;">Defina como o sistema calcula seus custos indiretos para estimar lucro e preço dos produtos.</p>'+
-        '<div style="margin-top:8px;font-size:12px;font-weight:600;color:#1F1F1F;">Impacta diretamente no cálculo de lucro dos produtos.</div>'+
-      '</div>'+
+      '<div style="margin-bottom:14px;">'+_cfgSectionHead('price_check','Custos indiretos do negócio','Defina como despesas gerais entram no cálculo de lucro e preço dos produtos.')+'</div>'+
       '<div style="display:flex;flex-direction:column;gap:14px;">'+
-        '<div style="background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;padding:14px 14px 16px;">'+
-          '<div style="font-size:11px;font-weight:800;color:#8A7E7C;text-transform:uppercase;letter-spacing:.03em;margin-bottom:10px;">Decisão principal</div>'+
-          '<div style="font-size:14px;font-weight:700;color:#1F1F1F;margin-bottom:10px;">Como deseja calcular os custos indiretos?</div>'+
+        '<div style="background:#FFFCF8;border:1px solid #EADFD8;border-radius:16px;padding:14px 14px 16px;">'+
+          '<div style="font-size:13px;font-weight:650;color:#1F1F1F;margin-bottom:10px;">Como deseja calcular os custos indiretos?</div>'+
           '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;">'+
-            '<label style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:700;cursor:pointer;background:#fff;border:1px solid #EAE4DA;border-radius:12px;padding:11px 12px;"><input type="radio" name="cfg-ind-mode-radio" value="automatico" '+(mode==='automatico'?'checked':'')+' onchange="Modules.Financeiro._setCfgIndirectMode(this.value)" style="accent-color:#B42318;"> Automático</label>'+
-            '<label style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:700;cursor:pointer;background:#fff;border:1px solid #EAE4DA;border-radius:12px;padding:11px 12px;"><input type="radio" name="cfg-ind-mode-radio" value="manual" '+(mode!=='automatico'?'checked':'')+' onchange="Modules.Financeiro._setCfgIndirectMode(this.value)" style="accent-color:#B42318;"> Manual</label>'+
+            '<label style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:500;cursor:pointer;background:#fff;border:1px solid #E8DCD7;border-radius:12px;padding:11px 12px;"><input type="radio" name="cfg-ind-mode-radio" value="automatico" '+(mode==='automatico'?'checked':'')+' onchange="Modules.Financeiro._setCfgIndirectMode(this.value)" style="accent-color:#B42318;width:16px;height:16px;"> Automático</label>'+
+            '<label style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:500;cursor:pointer;background:#fff;border:1px solid #E8DCD7;border-radius:12px;padding:11px 12px;"><input type="radio" name="cfg-ind-mode-radio" value="manual" '+(mode!=='automatico'?'checked':'')+' onchange="Modules.Financeiro._setCfgIndirectMode(this.value)" style="accent-color:#B42318;width:16px;height:16px;"> Manual</label>'+
           '</div>'+
         '</div>'+
-        '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:14px;padding:14px 14px 16px;">'+
-          '<div style="font-size:11px;font-weight:800;color:#8A7E7C;text-transform:uppercase;letter-spacing:.03em;margin-bottom:10px;">Configuração dinâmica</div>'+
+        '<div style="background:#FFFCF8;border:1px solid #EADFD8;border-radius:16px;padding:14px 14px 16px;">'+
           '<div id="cfg-ind-manual-box" style="display:'+(manualVisible?'block':'none')+';margin-bottom:12px;">'+
             '<label style="'+_lbl()+'">Percentual de custos indiretos</label>'+
-            '<div style="display:flex;align-items:center;gap:8px;max-width:280px;">'+
-              '<input id="cfg-ind-pct" type="text" value="'+_esc(pct)+'" placeholder="Ex: 15" style="'+_inp()+'max-width:120px;">'+
-              '<span style="font-size:18px;font-weight:700;color:#1F1F1F;">%</span>'+
+            '<div style="display:flex;align-items:center;gap:8px;max-width:180px;">'+
+              '<input id="cfg-ind-pct" type="text" value="'+_esc(pct)+'" placeholder="15" style="'+_inp()+'max-width:112px;background:#fff;border-color:#E8DCD7;border-radius:12px;">'+
+              '<span style="font-size:16px;font-weight:600;color:#1F1F1F;">%</span>'+
             '</div>'+
-            '<div style="font-size:11px;color:#8A7E7C;margin-top:4px;">Ex: aluguel, luz, internet, etc.</div>'+
+            '<div style="font-size:11.5px;color:#6F6860;margin-top:5px;">Ex.: aluguel, luz, internet e outras despesas do negócio.</div>'+
           '</div>'+
           '<div id="cfg-ind-auto-box" style="display:'+(autoVisible?'block':'none')+';">'+
-            '<label style="'+_lbl()+'">Período para cálculo automático</label><select id="cfg-ind-months" style="'+_inp()+'background:#fff;max-width:220px;">'+
+            '<label style="'+_lbl()+'">Período para cálculo automático</label><select id="cfg-ind-months" style="'+_inp()+'background:#fff;max-width:220px;border-color:#E8DCD7;border-radius:12px;">'+
               '<option value="3"'+(months==='3'?' selected':'')+'>3 meses</option>'+
               '<option value="6"'+(months==='6'?' selected':'')+'>6 meses</option>'+
               '<option value="12"'+(months==='12'?' selected':'')+'>12 meses</option>'+
             '</select>'+
-            '<div style="font-size:11px;color:#8A7E7C;margin-top:4px;">O sistema vai usar o histórico para estimar o percentual.</div>'+
+            '<div style="font-size:11.5px;color:#6F6860;margin-top:5px;">Usa o histórico recente para estimar uma porcentagem média.</div>'+
           '</div>'+
         '</div>'+
-        '<div style="background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;padding:14px 14px 16px;">'+
-          '<div style="font-size:11px;font-weight:800;color:#8A7E7C;text-transform:uppercase;letter-spacing:.03em;margin-bottom:10px;">Exemplo de impacto</div>'+
-          '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;font-size:12px;color:#1F1F1F;">'+
-            '<div>Produto: <strong>'+_fmtVal(10)+'</strong></div>'+
-            '<div>Custo direto: <strong>'+_fmtVal(4)+'</strong></div>'+
-            '<div>Custo indireto: <strong>'+_fmtVal(1)+'</strong></div>'+
-            '<div>Lucro: <strong>'+_fmtVal(5)+'</strong></div>'+
+        '<div style="background:#FFFCF8;border:1px solid #EADFD8;border-radius:16px;padding:14px 14px 16px;">'+
+          '<div style="font-size:13px;font-weight:650;color:#1F1F1F;margin-bottom:10px;">Exemplo rápido</div>'+
+          '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;font-size:12px;color:#1F1F1F;">'+
+            '<div style="background:#fff;border:1px solid #E8DCD7;border-radius:12px;padding:9px 10px;"><span style="display:block;color:#6F6860;font-size:10.5px;text-transform:uppercase;">Produto</span><strong style="font-weight:650;">'+_fmtVal(10)+'</strong></div>'+
+            '<div style="background:#fff;border:1px solid #E8DCD7;border-radius:12px;padding:9px 10px;"><span style="display:block;color:#6F6860;font-size:10.5px;text-transform:uppercase;">Custo direto</span><strong style="font-weight:650;">'+_fmtVal(4)+'</strong></div>'+
+            '<div style="background:#fff;border:1px solid #E8DCD7;border-radius:12px;padding:9px 10px;"><span style="display:block;color:#6F6860;font-size:10.5px;text-transform:uppercase;">Custo indireto</span><strong style="font-weight:650;">'+_fmtVal(1)+'</strong></div>'+
+            '<div style="background:#fff;border:1px solid #E8DCD7;border-radius:12px;padding:9px 10px;"><span style="display:block;color:#6F6860;font-size:10.5px;text-transform:uppercase;">Lucro</span><strong style="font-weight:650;">'+_fmtVal(5)+'</strong></div>'+
           '</div>'+
         '</div>'+
         '<div style="display:flex;justify-content:flex-end;">'+
