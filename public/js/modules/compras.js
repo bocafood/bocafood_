@@ -637,7 +637,7 @@ Modules.Compras = (function () {
       UI.toast('A quantidade recebida não pode ser maior que o saldo pendente.', 'error');
       return;
     }
-    if (mode === 'partial' && !linhas.some(function (l) { return l.received > 0; })) {
+    if (mode === 'partial' && !linhas.some(function (l) { return l.newlyReceived > 0; })) {
       UI.toast('Informe pelo menos um item recebido.', 'error');
       return;
     }
@@ -1432,15 +1432,19 @@ Modules.Compras = (function () {
       '.purchase-item-grid{grid-template-columns:minmax(260px,1.4fr) minmax(110px,.42fr) minmax(140px,.55fr) minmax(120px,.45fr) minmax(105px,.38fr);}' +
       '.purchase-lot-grid{grid-template-columns:minmax(160px,.55fr) minmax(150px,.45fr);}' +
       '.purchase-price-grid{grid-template-columns:minmax(170px,.8fr) minmax(140px,.55fr) minmax(105px,.4fr) auto;}' +
-      '.purchase-finance-grid{grid-template-columns:minmax(150px,.55fr) minmax(145px,.48fr) minmax(125px,.4fr) minmax(220px,.9fr);}' +
-      '.purchase-check-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;padding:9px 11px;background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;}' +
+      '.purchase-payment-grid{grid-template-columns:minmax(150px,.48fr) minmax(230px,.78fr);justify-content:start;}' +
+      '.purchase-entry-grid{grid-template-columns:minmax(135px,.38fr) minmax(145px,.4fr) minmax(230px,.78fr);justify-content:start;}' +
+      '.purchase-finance-grid{grid-template-columns:minmax(145px,.42fr) minmax(130px,.38fr) minmax(120px,.34fr) minmax(220px,.72fr);justify-content:start;}' +
+      '.purchase-check-row{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;padding:0;background:transparent;border:0;border-radius:0;}' +
       '.purchase-check-row label{display:flex;align-items:center;gap:8px;font-size:13px;color:#1F1F1F;line-height:1.35;font-weight:500;}' +
+      '.purchase-entry-box{margin-bottom:12px;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:14px;padding:12px;}' +
+      '.purchase-entry-title{font-size:12px;font-weight:650;color:#1F1F1F;margin-bottom:8px;line-height:1.25;}' +
       '.purchase-inline-note{font-size:11px;color:#7A746B;line-height:1.45;margin-top:7px;}' +
       '.purchase-help-btn{border:0;background:transparent;color:#B42318;border-radius:8px;height:auto;padding:0;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;}' +
       '.purchase-help-box{display:none;margin:0 0 12px;padding:11px 12px;border:1px solid #EADFD8;border-radius:12px;background:#FFFCF8;color:#5A4E4C;font-size:12px;line-height:1.5;}' +
       '.purchase-help-box strong{color:#1F1F1F;font-weight:700;}' +
-      '@media(max-width:980px){.purchase-order-grid,.purchase-supplier-grid,.purchase-item-grid,.purchase-price-grid,.purchase-finance-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.purchase-price-grid button{grid-column:1/-1;}}' +
-      '@media(max-width:640px){.purchase-card{padding:13px}.purchase-order-grid,.purchase-supplier-grid,.purchase-item-grid,.purchase-price-grid,.purchase-finance-grid{grid-template-columns:1fr}.purchase-card-head{margin-bottom:10px}}' +
+      '@media(max-width:980px){.purchase-order-grid,.purchase-supplier-grid,.purchase-item-grid,.purchase-price-grid,.purchase-payment-grid,.purchase-entry-grid,.purchase-finance-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.purchase-price-grid button{grid-column:1/-1;}}' +
+      '@media(max-width:640px){.purchase-card{padding:13px}.purchase-order-grid,.purchase-supplier-grid,.purchase-item-grid,.purchase-price-grid,.purchase-payment-grid,.purchase-entry-grid,.purchase-finance-grid{grid-template-columns:1fr}.purchase-card-head{margin-bottom:10px}}' +
       '</style>';
     var body = modalCss + '<div class="purchase-modal-body"><div id="cp-financial-status"></div>' +
       (id && c.numPedido ? '<div style="display:inline-flex;align-items:center;gap:8px;align-self:flex-start;padding:4px 10px;background:#fff;border:1px solid #EAE4DA;border-radius:999px;font-size:12px;font-weight:500;color:#6F6860;box-shadow:0 1px 2px rgba(31,31,31,.02);"><span style="font-weight:600;color:#A39B90;font-size:10px;letter-spacing:.04em;">Pedido</span> <strong style="color:#1F1F1F;font-family:monospace;">' + _esc(c.numPedido) + '</strong></div>' : '') +
@@ -1538,7 +1542,7 @@ Modules.Compras = (function () {
       '<section id="cp-financeiro-section" class="purchase-card">' +
       '<div class="purchase-card-head"><span class="mi">payments</span><div><div style="' + secTitle + '">Pagamento e vencimento</div><div style="' + secHint + '">Defina como essa compra entra no financeiro e quando precisa ser paga.</div></div></div>' +
       '<div class="purchase-check-row"><label><input id="cp-gerar-apagar" type="checkbox" ' + (c.gerarContaPagar !== false ? 'checked' : '') + ' onchange="Modules.Compras._buildParcelasPreview()" style="accent-color:#C4362A;width:16px;height:16px;"> Gerar conta a pagar</label></div>' +
-      '<div class="purchase-field-grid" style="grid-template-columns:minmax(220px,.85fr) minmax(260px,1fr);margin-bottom:12px;">' +
+      '<div class="purchase-field-grid purchase-payment-grid" style="margin-bottom:12px;">' +
       _purchaseSelect('cp-cost-class', 'Tipo de custo', _costClassOptions(c.costClass || 'direto')) +
       _purchaseSelect('cp-forma', 'Forma de pagamento *', _finFormasPagOptions(c.formaPagamento), 'Modules.Compras._buildParcelasPreview()') +
       '</div>' +
@@ -1546,13 +1550,13 @@ Modules.Compras = (function () {
       '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:#5A4E4C;cursor:pointer;">' +
       '<input id="cp-teve-entrada" type="checkbox" ' + (c.teveEntrada ? 'checked' : '') + ' onchange="Modules.Compras._toggleEntradaSection()" style="accent-color:#C4362A;width:15px;height:15px;"> Teve entrada?</label>' +
       '</div>' +
-      '<div id="cp-entrada-section" style="display:' + (c.teveEntrada ? 'block' : 'none') + ';margin-bottom:12px;background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;padding:12px;">' +
-      '<div style="font-size:11px;font-weight:600;color:#6F6860;letter-spacing:.04em;margin-bottom:10px;">Dados da entrada</div>' +
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
+      '<div id="cp-entrada-section" class="purchase-entry-box" style="display:' + (c.teveEntrada ? 'block' : 'none') + ';">' +
+      '<div class="purchase-entry-title">Dados da entrada</div>' +
+      '<div class="purchase-field-grid purchase-entry-grid">' +
       _purchaseField('cp-entrada-valor', 'Valor da entrada (€) *', c.entradaValor || '', 'number', 'Modules.Compras._buildParcelasPreview()') +
       _purchaseField('cp-entrada-data', 'Data da entrada *', c.entradaData || _todayLocal(), 'date', 'Modules.Compras._buildParcelasPreview()') +
+      _purchaseSelect('cp-entrada-forma', 'Forma de pagamento da entrada *', _finFormasPagOptions(c.entradaFormaPagamento), 'Modules.Compras._buildParcelasPreview()') +
       '</div>' +
-      '<div style="margin-top:10px;">' + _purchaseSelect('cp-entrada-forma', 'Forma de pagamento da entrada *', _finFormasPagOptions(c.entradaFormaPagamento), 'Modules.Compras._buildParcelasPreview()') + '</div>' +
       '</div>' +
       '<div class="purchase-field-grid purchase-finance-grid">' +
       _purchaseField('cp-venc', 'Vencimento *', c.dueDate || c.data || '', 'date', 'Modules.Compras._buildParcelasPreview()') +
@@ -1592,22 +1596,65 @@ Modules.Compras = (function () {
   // Formas de pagamento reais do módulo Financeiro (com fallback à lista padrão)
   function _finFormasPagOptions(selected) {
     var FALLBACK = ['A definir', 'Cartão', 'Débito direto', 'Dinheiro', 'MB WAY', 'Outro', 'Transferência'];
+    selected = selected || '';
     var list = (_finFormas && _finFormas.length) ? _finFormas.slice() : FALLBACK.slice();
-    if (list.indexOf('A definir') < 0) list.unshift('A definir');
-    return list.map(function (p) {
-      return '<option value="' + _esc(p) + '"' + (selected === p ? ' selected' : '') + '>' + _esc(p) + '</option>';
+    var normalized = [];
+    var seen = {};
+    function addForma(item, force) {
+      var forma = typeof item === 'string'
+        ? { nome: item, ativo: true }
+        : Object.assign({ ativo: true }, item || {});
+      var nome = (forma.nome || forma.name || forma.label || '').trim();
+      if (!nome || seen[nome]) return;
+      if (!force && forma.ativo === false) return;
+      seen[nome] = true;
+      normalized.push({ nome: nome, inactive: forma.ativo === false });
+    }
+    addForma('A definir', true);
+    list.forEach(function (item) { addForma(item, false); });
+    if (selected && !seen[selected]) addForma({ nome: selected, ativo: false }, true);
+    return normalized.map(function (p) {
+      var label = p.nome + (p.inactive ? ' (inativa)' : '');
+      return '<option value="' + _esc(p.nome) + '"' + (selected === p.nome ? ' selected' : '') + '>' + _esc(label) + '</option>';
     }).join('');
   }
 
   // Categorias financeiras do tipo saída (para contas a pagar)
+  function _finCatNature(cat) {
+    var v = String((cat && (cat.financialNature || cat.naturezaFinanceira || cat.nature || cat.tipoFinanceiro)) || '').toLowerCase();
+    if (v === 'custo' || v === 'cost') return 'custo';
+    if (v === 'receita' || v === 'entrada') return 'receita';
+    return 'despesa';
+  }
+
+  function _finCatCostClass(cat) {
+    var v = String((cat && (cat.costClass || cat.classeCusto || cat.classificacaoCusto || cat.classificacao)) || '').toLowerCase();
+    if (v === 'direto' || v === 'direct') return 'direto';
+    if (v === 'indireto' || v === 'indirect') return 'indireto';
+    return 'indireto';
+  }
+
+  function _finCatTypeLabel(cat) {
+    return _finCatNature(cat) === 'custo' ? 'Custo' : 'Despesa';
+  }
+
+  function _finCatClassLabel(cat) {
+    return _finCatCostClass(cat) === 'direto' ? 'direto' : 'indireto';
+  }
+
   function _finCatSaidaOptions(selected) {
     var cats = (_finCategorias || []).filter(function (c) { return c.tipo === 'saida' || c.tipo === 'expense'; });
-    cats = cats.slice().sort(function (a, b) { return (a.nome || a.name || '').localeCompare(b.nome || b.name || ''); });
     var opts = '<option value="">Sem categoria</option>';
-    cats.forEach(function (cat) {
-      var label = cat.nome || cat.name || '';
-      opts += '<option value="' + _esc(cat.id) + '"' + (selected === cat.id ? ' selected' : '') + '>' + _esc(label) + '</option>';
-    });
+    function group(title, nature) {
+      var list = cats.filter(function (cat) { return _finCatNature(cat) === nature; }).slice().sort(function (a, b) { return (a.nome || a.name || '').localeCompare(b.nome || b.name || ''); });
+      if (!list.length) return '';
+      return '<optgroup label="' + _esc(title) + '">' + list.map(function (cat) {
+        var label = (cat.nome || cat.name || '') + ' · ' + _finCatTypeLabel(cat) + ' ' + _finCatClassLabel(cat);
+        return '<option value="' + _esc(cat.id) + '"' + (selected === cat.id ? ' selected' : '') + '>' + _esc(label) + '</option>';
+      }).join('') + '</optgroup>';
+    }
+    opts += group('Despesas', 'despesa');
+    opts += group('Custos', 'custo');
     return opts;
   }
 
@@ -2072,6 +2119,8 @@ Modules.Compras = (function () {
     var conteudo = Math.max(parseFloat((conteudoEl ? conteudoEl.value : '') || '1') || 1, 0.000001);
     var descontoUnitario = _num(_el('cp-desc').value);
     var ivaPct = _num(_el('cp-iva-line').value);
+    var batchNumber = ((_el('cp-lote') || {}).value || '').trim();
+    var expiresAt = ((_el('cp-validade') || {}).value || '').trim();
     var aproveitamento = parseFloat((opt && opt.dataset.aproveitamento) || '100') || 100;
     var qtyBase = qty * conteudo * _convFactor(emb, unidadeBase);
     var totalBruto = qty * precoUnit;
@@ -2241,6 +2290,12 @@ Modules.Compras = (function () {
       entradaContaBancariaNome: currentCompra.entradaContaBancariaNome || '',
       entradaContaBancariaOrigem: currentCompra.entradaContaBancariaOrigem || ''
     };
+    var selectedFinCat = (_finCategorias || []).filter(function (c) { return c.id === compraData.categoriaFinanceiraId; })[0] || null;
+    if (selectedFinCat) {
+      compraData.categoriaFinanceiraNome = selectedFinCat.nome || selectedFinCat.name || '';
+      compraData.categoriaFinanceiraNatureza = _finCatNature(selectedFinCat);
+      compraData.categoriaFinanceiraCostClass = _finCatCostClass(selectedFinCat);
+    }
     if (compraData.gerarContaPagar) {
       if (!_compraParcelasPreview.length) _buildParcelasPreview();
       compraData.parcelasPreview = _compraParcelasPreview.map(function (p) { return Object.assign({}, p); });
@@ -2705,7 +2760,7 @@ Modules.Compras = (function () {
       '.item-modal-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:14px;box-shadow:0 10px 24px rgba(31,31,31,.04);min-width:0;}' +
       '.item-modal-main,.item-modal-cost{grid-column:1/-1}.item-modal-usage{grid-column:1/span 6}.item-modal-sale{grid-column:7/-1}' +
       '.item-modal-head{display:flex;align-items:flex-start;gap:9px;margin-bottom:12px}.item-modal-head .mi{font-size:18px;color:#6F6860;line-height:1.2}' +
-      '.item-modal-grid{display:grid;gap:11px 12px;align-items:end}.item-modal-id-grid{grid-template-columns:minmax(150px,.38fr) minmax(320px,1fr) minmax(220px,.68fr)}.item-modal-tax-grid{grid-template-columns:minmax(210px,.62fr) minmax(250px,.78fr);justify-content:start;margin-top:11px}.item-modal-cost-grid{grid-template-columns:minmax(160px,.42fr) minmax(280px,.9fr);justify-content:start}.item-modal-pack-grid{grid-template-columns:minmax(190px,.55fr) minmax(140px,.36fr);justify-content:start}.item-modal-metrics{display:grid;grid-template-columns:minmax(160px,.55fr) minmax(150px,.45fr) minmax(150px,.45fr);gap:12px;align-items:stretch;justify-content:start}' +
+      '.item-modal-grid{display:grid;gap:11px 12px;align-items:end}.item-modal-id-grid{grid-template-columns:minmax(150px,.38fr) minmax(320px,1fr) minmax(220px,.68fr)}.item-modal-tax-grid{grid-template-columns:minmax(210px,.62fr) minmax(250px,.78fr);justify-content:start;margin-top:11px}.item-modal-cost-grid{grid-template-columns:minmax(160px,.42fr) minmax(280px,.9fr);justify-content:start}.item-modal-pack-grid{grid-template-columns:minmax(190px,.55fr) minmax(140px,.36fr);justify-content:start}.item-modal-stock-grid{grid-template-columns:minmax(140px,.38fr) minmax(140px,.38fr);justify-content:start}.item-modal-metrics{display:grid;grid-template-columns:minmax(160px,.55fr) minmax(150px,.45fr) minmax(150px,.45fr);gap:12px;align-items:stretch;justify-content:start}' +
       '.item-modal-metric{background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;padding:10px 12px;box-shadow:0 1px 2px rgba(31,31,31,.03)}' +
       '.item-usage-grid{display:grid;grid-template-columns:minmax(250px,1fr) minmax(220px,.78fr);gap:12px;align-items:stretch;}' +
       '.item-usage-panel{background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;padding:12px;box-shadow:0 1px 2px rgba(31,31,31,.03);}' +
@@ -2716,7 +2771,7 @@ Modules.Compras = (function () {
       '.item-help-box{display:none;margin:0 0 12px;padding:11px 12px;border:1px solid #EADFD8;border-radius:12px;background:#FFFCF8;color:#5A4E4C;font-size:12px;line-height:1.5;}' +
       '.item-help-box strong{color:#1F1F1F;font-weight:700;}' +
       '.supplier-field-control{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:6px;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease}.supplier-field-control:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08)}.supplier-field-control input,.supplier-field-control select,.supplier-field-control textarea{width:100%;min-height:36px;border:0;border-radius:8px;padding:0 8px;font-size:14px;font-family:inherit;outline:none;background:transparent;box-sizing:border-box;color:#1F1F1F;box-shadow:none}.supplier-field-control select{padding-right:42px;appearance:none;-webkit-appearance:none;-moz-appearance:none;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 16px center;background-size:14px}' +
-      '@media(max-width:900px){.item-modal-usage,.item-modal-sale{grid-column:1/-1}.item-modal-id-grid,.item-modal-cost-grid,.item-modal-pack-grid{grid-template-columns:1fr 1fr}.item-modal-metrics{grid-template-columns:1fr}}@media(max-width:640px){.item-modal-body{grid-template-columns:1fr}.item-modal-card{grid-column:1/-1!important;padding:13px}.item-modal-id-grid,.item-modal-tax-grid,.item-modal-cost-grid,.item-modal-pack-grid,.item-usage-grid{grid-template-columns:1fr}}' +
+      '@media(max-width:900px){.item-modal-usage,.item-modal-sale{grid-column:1/-1}.item-modal-id-grid,.item-modal-cost-grid,.item-modal-pack-grid,.item-modal-stock-grid{grid-template-columns:1fr 1fr}.item-modal-metrics{grid-template-columns:1fr}}@media(max-width:640px){.item-modal-body{grid-template-columns:1fr}.item-modal-card{grid-column:1/-1!important;padding:13px}.item-modal-id-grid,.item-modal-tax-grid,.item-modal-cost-grid,.item-modal-pack-grid,.item-modal-stock-grid,.item-usage-grid{grid-template-columns:1fr}}' +
       '</style>';
     var body = itemModalCss + '<div class="item-modal-body">' +
       '<div class="item-modal-card item-modal-main">' +
@@ -2768,6 +2823,10 @@ Modules.Compras = (function () {
       '<div class="item-modal-grid item-modal-pack-grid" style="margin-bottom:11px;">' +
       _searchablePackageField('it-emb-padrao', 'Embalagem de compra padrão', item.unidade_compra_padrao || '') +
       _supplierField('it-conteudo-padrao', 'Conteúdo por embalagem (×)', item.conteudo_por_embalagem_padrao || 1, 'number') +
+      '</div>' +
+      '<div class="item-modal-grid item-modal-stock-grid" style="margin-bottom:11px;">' +
+      _supplierField('it-stock-min', 'Estoque mínimo', item.minStock || item.estoque_minimo || '', 'number') +
+      _supplierField('it-stock-max', 'Estoque máximo', item.maxStock || item.estoque_maximo || '', 'number') +
       '</div>' +
       '<div class="item-modal-metrics">' +
       '<label class="item-modal-metric" style="display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;"><input id="it-ativo" type="checkbox" ' + (item.ativo !== false ? 'checked' : '') + ' style="accent-color:#C4362A;width:17px;height:17px;"> Cadastro ativo</label>' +
@@ -3032,6 +3091,11 @@ Modules.Compras = (function () {
     var nome = (_el('it-nome').value || '').trim();
     if (!nome) { UI.toast('Nome obrigatório', 'error'); return; }
     var classe = _el('it-classe').value || 'insumo';
+    var minStock = parseFloat((_el('it-stock-min').value || '0').replace(',', '.')) || 0;
+    var maxStock = parseFloat((_el('it-stock-max').value || '0').replace(',', '.')) || 0;
+    if (minStock < 0) { UI.toast('Informe um estoque mínimo válido.', 'error'); return; }
+    if (maxStock < 0) { UI.toast('Informe um estoque máximo válido.', 'error'); return; }
+    if (minStock > 0 && maxStock > 0 && maxStock < minStock) { UI.toast('O estoque máximo não pode ser menor que o mínimo.', 'error'); return; }
     var data = {
       nome: nome,
       classe: classe,
@@ -3040,7 +3104,11 @@ Modules.Compras = (function () {
       fornecedor_padrao_id: _el('it-forn').value,
       ativo: _el('it-ativo').checked,
       unidade_compra_padrao: (_el('it-emb-padrao').value || '').trim(),
-      conteudo_por_embalagem_padrao: parseFloat(_el('it-conteudo-padrao').value || '1') || 1
+      conteudo_por_embalagem_padrao: parseFloat(_el('it-conteudo-padrao').value || '1') || 1,
+      minStock: minStock,
+      maxStock: maxStock,
+      estoque_minimo: minStock,
+      estoque_maximo: maxStock
     };
     if (classe === 'insumo') {
       data.aproveitamento_padrao = parseFloat(_el('it-aprov').value || '100') || 100;
@@ -3053,13 +3121,42 @@ Modules.Compras = (function () {
     }
     var op = _editingId ? DB.update('itens_custo', _editingId, data) : DB.add('itens_custo', data);
     op.then(function (ref) {
-      var id = _editingId || (ref && ref.id) || ''; // eslint-disable-line no-unused-vars
-      return null; // _syncProdutoCatalogo não é chamado daqui; catálogo gerido em módulo próprio
+      var id = _editingId || (ref && ref.id) || '';
+      return _syncItemStockSettings(id, data);
     }).then(function () {
       UI.toast('Cadastro salvo!', 'success');
       if (window._itemCompraModal) window._itemCompraModal.close();
       _renderItens();
     }).catch(function (err) { UI.toast('Erro: ' + err.message, 'error'); });
+  }
+
+  function _stockSettingId(key) {
+    return String(key || 'item').replace(/[^\w-]/g, '_').slice(0, 140);
+  }
+
+  function _itemStockKind(classe) {
+    return String(classe || '').toLowerCase() === 'produto' ? 'produto_pronto' : 'insumo';
+  }
+
+  function _syncItemStockSettings(itemId, item) {
+    if (!itemId) return Promise.resolve();
+    var stockKind = _itemStockKind(item.classe);
+    var key = stockKind + ':' + itemId;
+    var id = _stockSettingId(key);
+    var now = new Date().toISOString();
+    return DB.col('stock_settings').doc(id).set({
+      id: id,
+      stockKey: key,
+      itemId: itemId,
+      itemName: item.nome || item.name || '',
+      itemType: stockKind === 'insumo' ? 'ingrediente' : 'produto',
+      stockItemType: stockKind,
+      unit: item.unidade_base || '',
+      minStock: parseFloat(item.minStock || 0) || 0,
+      maxStock: parseFloat(item.maxStock || 0) || 0,
+      updatedAt: now,
+      createdAt: now
+    }, { merge: true });
   }
 
   function _syncProdutoCatalogo(itemId, item) {
@@ -4395,13 +4492,19 @@ Modules.Compras = (function () {
     var fornNome = _getFornecedorNome(compraData.fornecedorId);
     var descBase = (pcLabel ? 'Pedido de Compra #' + pcLabel + ' — ' : 'Compra — ') + fornNome;
     var catFin = (_finCategorias || []).filter(function (c) { return c.id === compraData.categoriaFinanceiraId; })[0] || null;
+    var catNature = catFin ? _finCatNature(catFin) : (compraData.categoriaFinanceiraNatureza || 'custo');
+    var catCostClass = catFin ? _finCatCostClass(catFin) : (compraData.categoriaFinanceiraCostClass || compraData.costClass || 'direto');
     var base = {
       fornecedorId: compraData.fornecedorId,
       fornecedorNome: fornNome,
       categoriaId: compraData.categoriaFinanceiraId,
       categoriaFinanceiraId: compraData.categoriaFinanceiraId,
-      categoriaFinanceiraNome: catFin ? (catFin.nome || catFin.name || '') : '',
+      categoriaFinanceiraNome: catFin ? (catFin.nome || catFin.name || '') : (compraData.categoriaFinanceiraNome || ''),
       categoriaFinanceiraTipo: 'saida',
+      financialNature: catNature,
+      categoriaFinanceiraNatureza: catNature,
+      costClass: catCostClass,
+      categoriaFinanceiraCostClass: catCostClass,
       tipoMovimento: 'saida',
       origem: 'compra',
       status: 'Pendente',
@@ -4411,7 +4514,6 @@ Modules.Compras = (function () {
       conta_id: compraData.contaBancariaId,
       formaPagamento: compraData.formaPagamento,
       formaPagamentoNome: compraData.formaPagamento || '',
-      costClass: compraData.costClass || 'direto',
       sourceCompraId: compraId,
       compraId: compraId,
       sourceCollection: 'compras',

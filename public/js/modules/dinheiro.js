@@ -301,7 +301,8 @@ Modules.Dinheiro = (function () {
   }
 
   function _indirectCostInfo() {
-    var manual = _num(_data.geral.indirectCostPercent || _data.geral.percentualCustosIndiretos || 0);
+    var manualValue = _data.geral.indirectCostPercent != null ? _data.geral.indirectCostPercent : _data.geral.percentualCustosIndiretos;
+    var manual = _num(manualValue != null ? manualValue : 0);
     var mode = _data.geral.indirectCostMode || _data.geral.custosIndiretosModo || 'manual';
     if (mode !== 'automatico') return { modeUsed: 'Manual', percent: manual, fallback: false };
     var months = parseInt(_data.geral.indirectCostMonths || _data.geral.custosIndiretosMeses, 10) || 6;

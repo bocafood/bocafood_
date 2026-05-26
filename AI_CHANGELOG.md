@@ -1,5 +1,324 @@
 # AI Changelog
 
+## 2026-05-26 — Plano de Voo em Inteligência > Operação
+- Arquivos alterados: `public/admin.html`, `AI_CHANGELOG.md`.
+- O acesso visual ao `Plano de Voo` saiu do grupo `Crescimento` na Operação e passou a ficar dentro de `Inteligência > Operação`.
+- A rota existente `crescimento/plano-de-voo` foi preservada, mantendo compatibilidade com links, módulos e registros já existentes.
+- A sidebar agora reconhece `crescimento/plano-de-voo` e os atalhos `plano-de-voo` como área de Inteligência, abrindo o ambiente correto ao navegar direto pela URL.
+- Ajustado o comportamento de grupos recolhidos para respeitar o ambiente atual quando o grupo pertence à Inteligência.
+- Impacto esperado: o Plano de Voo fica posicionado como leitura/decisão de inteligência operacional, sem alterar Firestore, permissões ou lógica do módulo.
+
+## 2026-05-26 — Abas mais limpas na Performance
+- Arquivos alterados: `public/js/modules/performance.js`, `AI_CHANGELOG.md`.
+- Removida a tarja/fundo coletivo do menu de abas da tela `Performance`, deixando a navegação mais leve e alinhada ao padrão visual limpo do Admin.
+- As abas continuam com estado ativo, borda suave e sombra discreta, sem alterar rotas, lógica, Firestore ou permissões.
+- Ajuste posterior: as copys da Performance foram revisadas para reduzir termos técnicos e orientar melhor a usuária sobre rota, meta do mês, pedidos necessários, ritmo e gastos por categoria.
+- Impacto esperado: a navegação entre `Visão geral`, `Vendas` e `Financeiro` fica menos pesada visualmente e mais elegante.
+
+## 2026-05-26 — Leitura visual da aba Rota no Plano de Voo
+- Arquivos alterados: `public/js/modules/plano_voo.js`, `AI_CHANGELOG.md`.
+- A aba `Rota` passou a mostrar a rota ativa com cards complementares de base usada, ponto de segurança, acompanhamento, resumo mês a mês, cenários não escolhidos e alertas da base.
+- O card `Rotas criadas` agora compara os 3 cenários não escolhidos contra a rota ativa, mostrando diferença de venda, sobra e pedidos por dia.
+- Incluída leitura visual de custos das vendas, despesas diretas e custos diretos para ajudar a usuária entender o que a rota precisa cobrir.
+- O estado sem rota ativa ganhou um card de preparação com ticket médio, vendas por canal, custos/despesas e dias trabalhados.
+- Ajuste posterior: removidos a frase explicativa do card `Base da rota` e o botão `Ver rota ativa`, deixando a aba mais limpa e direta.
+- Ajuste posterior: a aba `Como está indo` foi reorganizada como acompanhamento guiado, com status da rota, leitura do mês atual, ritmo de pedidos, resultado financeiro, comparação simplificada, ano mês a mês e mensagens práticas.
+- A comparação deixou de destacar blocos repetidos e passou a priorizar o que falta vender, pedidos por dia necessários, projeção do mês e diferença contra a rota.
+- Ajuste posterior: removido o card inicial `Como está indo` da aba de acompanhamento, já que o sistema trabalha com uma rota ativa por vez e a leitura deve começar direto pelo status da rota.
+- Ajuste posterior: o acompanhamento saiu da navegação do Plano de Voo e passou para `Performance`, deixando o Plano de Voo focado em criar/consultar a rota e a Performance focada em acompanhar a execução.
+- A tela `Performance` ganhou subabas `Visão geral`, `Vendas`, `Financeiro` e `Rota`, com a aba `Rota` usando a rota ativa para mostrar status, mês atual, ritmo, comparação e leitura prática.
+- A Performance passou a tratar `flight_plan_month_scenarios` como `Rota ativa`, usando a meta do mês dentro de `monthSeries` quando a rota é anual, para evitar comparar o mês contra o total anual da rota.
+- O card de acompanhamento `Como está indo` foi removido da aba `Rota` do Plano de Voo; a rota agora aponta para acompanhar a execução diretamente em `Performance`.
+- Ajuste posterior: a Performance passou a usar `flight_plans` como fallback quando não encontra o documento do mês atual em `flight_plan_month_scenarios`, evitando mostrar “Crie uma rota” quando já existe uma rota anual salva.
+- Ajuste posterior: os canais exibidos na Performance foram alinhados a `Configurações > Canais de venda`; pedidos antigos com origem `template/loja pública` passam a ser lidos como `Cardápio`, evitando mostrar `Melhor canal: Template`.
+- Ajuste posterior: a `Linha do tempo diária` foi removida da aba `Visão geral` da Performance, permanecendo concentrada na aba `Vendas`.
+- Ajuste posterior: o botão superior `Ver Plano de Voo`, os cards de filtro e as pílulas de resumo no topo da Performance foram removidos para deixar a leitura mais direta.
+- Ajuste posterior: os conteúdos de `Rota` e `Visão geral` foram unidos em uma única aba `Visão geral`, removendo a aba separada `Rota` e evitando duplicidade de leitura.
+- Ajuste posterior: os KPIs gerais de vendas/caixa foram removidos da aba `Visão geral`, permanecendo nas abas `Vendas` e `Financeiro` para evitar repetição.
+- Ajuste posterior: o card `Este mês` da Performance passou a mostrar também o `Ticket médio atual`.
+- Ajuste posterior: a aba `Visão geral` foi enxugada para remover informações duplicadas; o card genérico de leitura mensal saiu e o ticket médio ficou somente em `Este mês`.
+- Limpeza técnica posterior: foram removidas sobras internas da antiga experiência de previsão/comparação, incluindo cards e helpers antigos de `Como está indo`, modal legado de `Escolher esta rota`, métricas auxiliares sem uso, helpers vazios e exports obsoletos.
+- Mantidas por compatibilidade as rotas antigas `plano-de-voo/comparacao` e `plano-de-voo/snapshots`, que seguem registradas no Admin e são normalizadas para a aba `Rota`, preservando links antigos do Dashboard e URLs já existentes.
+- Impacto esperado: a aba `Rota` deixa de parecer apenas resumo financeiro e passa a explicar melhor a decisão operacional sem alterar Firestore, rotas, permissões ou motor principal.
+
+## 2026-05-26 — Peso mensal em tempo real no Plano de Voo
+- Arquivos alterados: `public/js/modules/plano_voo.js`, `AI_CHANGELOG.md`.
+- A tabela `Meses mais fortes ou mais fracos` no modal `Criar nova rota` passou a recalcular os cenários enquanto a usuária digita, sem esperar sair do campo.
+- O recálculo preserva o campo em edição e atualiza os cards de cenário, a base e o resumo anual quando a sazonalidade muda.
+- A distribuição mensal agora lê o peso pelo mês real da rota, evitando desalinhamento quando a rota é do restante do ano.
+- Ajuste posterior: os lançamentos únicos de contas a pagar voltaram a levar `dueDate/raw` para o resumo mensal, permitindo aparecer apenas no mês correto.
+- Ajuste posterior: o Plano de Voo passou a respeitar `financialNature` e `costClass` salvos no próprio lançamento quando a categoria não é encontrada pelo ID/nome, evitando que custos/despesas diretas sumam da rota.
+- Ajuste posterior: a leitura de data dos lançamentos financeiros passou a priorizar pagamento/vencimento/data do movimento antes de `createdAt`, evitando que lançamentos caiam no mês de criação por engano.
+- Ajuste posterior: os fatores dos cenários foram atualizados para `Crescimento = 2,0` e `Lucro forte = 3,0`, mantendo `Sobrevivência = 0,90` e `Segurança = 1,00`.
+- Ajuste posterior: o modal `Criar nova rota` passou a avisar quando a previsão de vendas da base não cobre custos e despesas, mostrando quanto falta antes da usuária ativar uma rota.
+- Ajuste posterior: o `Nível de esforço` passou a usar os novos limites por pedidos/dia: até 3 `Leve`, 4 a 8 `Possível`, 9 a 12 `Puxado` e acima de 13 `Muito puxado`.
+- Ajuste posterior: a tela e o modal do Plano de Voo foram revisados contra os padrões de modal, card de filtro e listagem já usados em Compras e Produção, reduzindo pesos tipográficos, adicionando borda suave nos cards e trocando copy técnica por linguagem mais orientada à decisão da usuária.
+- Ajuste posterior: a aba `Escolher rota` ganhou cabeçalho mais claro, card de rota ativa/estado vazio mais limpo, acompanhamento com copy menos técnica e bloco `Rotas criadas` dentro de card próprio no padrão de listagem.
+- Ajuste posterior: o card `Rota ativa` foi reorganizado para preservar a cor do cenário sem amontoar informações, separando cabeçalho, período/acompanhamento, ação e métricas em uma leitura mais compacta.
+- Ajuste posterior: o cabeçalho textual da aba `Escolher rota` foi removido para deixar a tela começar diretamente pela rota ativa ou pelo estado de criação.
+- Ajuste posterior: a aba `Histórico de rotas` foi removida da navegação do Plano de Voo; o card `Rotas criadas` passa a mostrar os 3 cenários não escolhidos quando há rota ativa, sem abrir uma área de histórico separada.
+- Ajuste posterior: quando já existe rota ativa, o botão do card principal passou de `Criar nova rota` para `Ver rota ativa` e abre apenas o resumo salvo, sem liberar edição da criação.
+- Ajuste posterior: a aba `Escolher rota` foi renomeada visualmente para `Rota`, mantendo a rota interna do módulo sem alteração.
+- Impacto esperado: alterações no peso do mês aparecem imediatamente nos resultados da rota, mantendo Firestore, rotas e motor principal sem mudanças estruturais.
+
+## 2026-05-26 — Menu de Marketing e Canais
+- Arquivos alterados: `public/admin.html`, `AI_CHANGELOG.md`.
+- Incluído o novo bloco `Marketing e Canais` na sidebar da Operação, com as entradas `Automação WhatsApp`, `Instagram` e `Tráfego Pago - Facebook`.
+- Incluída a entrada `Missões` no menu para preparar a navegação futura.
+- Criados placeholders simples para as novas rotas, exibindo mensagem de que as áreas ainda estão em construção.
+- Impacto esperado: a equipe já visualiza as futuras áreas no menu sem alterar lógica, Firebase, permissões ou módulos existentes.
+
+## 2026-05-26 — Variantes, combos e pagamento na Venda presencial
+- Arquivos alterados: `public/js/modules/pos.js`, `public/js/modules/configuracoes.js`, `public/js/modules/financeiro.js`, `AI_CHANGELOG.md`.
+- A Venda presencial passou a carregar grupos de variantes e abrir um modal de escolhas antes de adicionar ao carrinho produtos com variantes ou itens de combo.
+- As escolhas selecionadas ficam salvas no item do carrinho e são enviadas junto do pedido criado pela Venda presencial, incluindo acréscimos/descontos das opções.
+- O cálculo de promoção do POS passou a preservar o valor extra das escolhas, aplicando o desconto do produto sem apagar o preço das opções selecionadas.
+- A leitura das formas de pagamento ficou compatível com mais formatos salvos em `Configurações financeiras`, respeitando formas inativas e sem criar formas padrão automáticas.
+- Ajuste posterior: a Venda presencial passou a carregar também a coleção `promocoes`, reconhecer produtos selecionados por `productsSelected`/`suggestedProductIds`, respeitar mais status/canais de promoção e exibir a forma de pagamento como lista selecionável no carrinho.
+- Ajuste posterior: os valores de promoção no POS passaram a aceitar campos formatados como moeda ou porcentagem, evitando que descontos cadastrados com máscara deixem de aparecer.
+- Ajuste posterior: produtos ocultos no cardápio deixaram de aparecer na Venda presencial, em vez de aparecerem como bloqueados.
+- A tela de contas bancárias do Financeiro agora garante que a conta `Caixa venda presencial` exista e apareça quando a Venda presencial estiver ativada.
+- Impacto esperado: produtos com variantes/combos podem ser montados no POS, a forma de pagamento volta a ser selecionável quando cadastrada no Financeiro e a conta do caixa presencial aparece nas configurações financeiras.
+
+## 2026-05-26 — Transferência entre contas no Financeiro
+- Arquivos alterados: `public/js/modules/financeiro.js`, `AI_CHANGELOG.md`.
+- O Financeiro passou a permitir registrar transferência entre contas bancárias ativas, com conta de origem, conta de destino, valor, data e observação.
+- A transferência é salva em `movimentacoes` como `tipo: "transferencia"`, com `contaOrigemId` e `contaDestinoId`, marcada como movimento neutro para não virar receita nem despesa.
+- O saldo das contas bancárias passou a considerar transferências: sai da conta de origem e entra na conta de destino.
+- A exclusão de conta bancária agora considera vínculos de transferência para evitar apagar conta com histórico financeiro ligado.
+- Impacto esperado: a usuária consegue mover dinheiro entre contas sem criar entrada/saída artificial no fluxo operacional.
+
+## 2026-05-26 — Padrão visual aplicado em Venda presencial
+- Arquivos alterados: `public/js/modules/pos.js`, `AI_CHANGELOG.md`.
+- A tela `Venda presencial` passou a seguir o padrão visual usado em filtros, listagens, subabas e modais já definidos no Admin.
+- A busca de produtos foi organizada em card de filtro, as categorias ganharam comportamento visual de subabas e a listagem de vendas registradas recebeu tabela com paginação.
+- Os modais de abrir caixa, reforço/sangria e fechamento foram reorganizados com cards internos, elementos gráficos discretos, campos compactos e ações alinhadas ao padrão de cadastro.
+- Ajuste posterior: as categorias deixaram de exibir barra de rolagem e os botões ativos/ações do caixa passaram a usar o vermelho BocaFood em vez de preto.
+- Ajuste posterior: a Venda presencial deixou de criar formas de pagamento padrão quando não há cadastro no Financeiro; nesse caso, mostra orientação para cadastrar em `Financeiro > Configurações` e bloqueia a finalização da venda até existir uma forma cadastrada.
+- Ajuste posterior: a barra de categorias da Venda presencial passou a mostrar somente categorias cadastradas pela usuária, sem categorias sugeridas ou derivadas automaticamente dos produtos.
+- Impacto esperado: a Venda presencial fica mais consistente com Compras, Produção e Estoque, sem alterar Firebase, rotas, permissões ou regras de caixa/venda.
+
+## 2026-05-26 — Conta financeira padrão da Venda presencial
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `public/js/modules/pos.js`, `public/js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- Ao ativar `Configurações > Venda presencial`, o sistema passa a criar automaticamente a conta `Caixa venda presencial` em `contas_bancarias`, quando ainda não existir.
+- A configuração da Venda presencial salva `cashAccountId` e `cashAccountName`, mantendo essa conta como destino financeiro padrão do canal.
+- As vendas finalizadas pela Venda presencial passam a enviar a conta do caixa para o pedido, e a entrada criada em `movimentacoes` recebe `conta_id` / `contaBancariaId`.
+- O valor inicial informado na abertura do caixa continua sendo dado de conferência da sessão de caixa, não receita financeira.
+- Ajuste posterior: abertura, reforço e sangria passaram a gerar movimentos neutros `caixa_fisico` em `movimentacoes`, ligados à conta da Venda presencial, para mostrar o histórico de onde está o dinheiro sem criar entrada ou saída financeira.
+- A conta `Caixa venda presencial` no Financeiro passou a mostrar a divisão entre dinheiro físico no caixa e dinheiro que permanece na conta, além dos últimos movimentos de abertura/reforço/sangria.
+- Ajuste de validação: movimentos neutros de caixa físico não entram no Fluxo de Caixa como linha de entrada ou saída sem valor; ficam restritos ao histórico da conta.
+- Impacto esperado: entradas da Venda presencial passam a cair numa conta financeira própria, visível nas telas do Financeiro, sem alterar rotas, permissões ou regras Firebase.
+
+## 2026-05-26 — Controle de caixa na Venda presencial
+- Arquivos alterados: `public/js/modules/pos.js`, `AI_CHANGELOG.md`.
+- A tela `Venda presencial` passou a trabalhar com sessões de caixa em `cash_sessions`, permitindo abrir caixa com valor inicial, registrar reforço, registrar sangria e fechar caixa.
+- O fechamento calcula vendas por forma de pagamento, dinheiro esperado, valor contado, diferença de caixa e histórico recente, sem controle de operador nesta etapa.
+- Vendas presenciais finalizadas passam a ficar vinculadas à sessão ativa por `cashSessionId`, alimentando o resumo do caixa e mantendo o pedido como `Entregado` e pago.
+- O documento `config/tpv` continua recebendo o estado resumido do caixa (`cashOpen`, `cashStatus`, `activeCashSessionId`) para compatibilidade com a tela.
+- Impacto esperado: a venda presencial ganha controle básico de abertura/fechamento e conferência de caixa, sem alterar rotas, permissões, financeiro ou regras Firebase.
+
+## 2026-05-26 — Integrações da Venda presencial com estoque e financeiro
+- Arquivos alterados: `public/js/modules/pos.js`, `public/js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- A venda presencial agora cria o pedido já como `Entregado`, mantendo pagamento `pago`, para representar venda de balcão finalizada no momento do registro.
+- A criação do pedido de venda presencial passou a acionar a baixa de estoque do pedido logo após salvar e sincronizar o financeiro, usando a mesma rotina de `saida_venda` já usada nos pedidos.
+- A tela de Venda presencial passou a carregar as formas de pagamento configuradas em `Financeiro > Configurações`, em vez de manter apenas botões fixos de Dinheiro/Cartão/Pix.
+- O pagamento padrão configurado em `Configurações > Venda presencial` agora respeita as formas disponíveis no Financeiro e cai para a primeira forma ativa quando a opção antiga não existe mais.
+- O POS passou a aplicar promoções simples vinculadas ao produto quando estiverem ativas e válidas para Venda presencial: desconto percentual, desconto em valor, preço fixo e Leve X/Pague Y.
+- O carrinho da venda presencial passou a mostrar subtotal, desconto promocional quando houver e total final, enviando `promoDiscountTotal` e `discountTotal` para o pedido.
+- Impacto esperado: venda presencial paga entra no financeiro, baixa estoque e registra o pedido como entregue, reduzindo divergência entre balcão, estoque e histórico de pedidos.
+
+## 2026-05-26 — Mensagem de WhatsApp somente quando o status muda
+- Arquivos alterados: `public/js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- O salvamento do modal `Detalhes do pedido` deixou de abrir a sugestão de envio por WhatsApp quando não há nenhuma alteração no pedido.
+- A atualização central de status agora compara o status atual com o novo status antes de salvar; se for igual, não atualiza o pedido e não abre o prompt de WhatsApp.
+- A regra vale para a listagem de pedidos, atalhos de status, arrastar no modo cozinha e salvamento do detalhe no modo cozinha.
+- O checklist de itens do pedido passou a ser tratado como alteração própria: ao marcar/desmarcar um item, o check é salvo e o botão `Salvar` persiste essa mudança mesmo sem troca de status, sem abrir WhatsApp.
+- No `Modo cozinha`, o botão do detalhe do pedido passou a aparecer como `Fechar`; ao clicar, ele salva o status selecionado quando houver mudança e fecha o painel.
+- Impacto esperado: a mensagem para cliente só aparece quando existe mudança real de status, evitando envio desnecessário ao apenas salvar ou confirmar o mesmo status.
+
+## 2026-05-26 — Retorno e perda de itens do pedido no estoque
+- Arquivos alterados: `public/js/modules/pedidos.js`, `public/js/modules/estoque.js`, `AI_CHANGELOG.md`.
+- O modal `Detalhes do pedido` passou a ter a ação `Retorno/perda` quando o pedido já gerou baixa de estoque.
+- A nova ação permite escolher, item a item, se a quantidade voltou para o estoque ou se virou perda, com observação do ocorrido.
+- O retorno cria movimentação `retorno_venda`, somando novamente no saldo do estoque.
+- A perda cria movimentação `perda_venda` com `stockEffect: none`, registrando o histórico sem baixar o estoque de novo, já que a venda original já havia retirado o item.
+- O modal limita a quantidade tratada ao total que saiu no pedido e considera retornos/perdas anteriores para evitar duplicidade.
+- A tela de estoque passou a reconhecer `retorno_venda` como entrada e `perda_venda` como registro de saída operacional sem impacto duplicado no saldo.
+- Impacto esperado: casos como pedido não retirado podem devolver itens fechados ao estoque e registrar descarte de itens preparados sem depender do cancelamento total do pedido.
+
+## 2026-05-26 — Validação das integrações do cadastro de pedido
+- Arquivos alterados: `public/js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- Mapeadas as conexões do cadastro de pedido manual com cliente, produtos, promoções, pagamento, financeiro, cozinha, fiscal e baixa de estoque por status.
+- O modal `Novo pedido` passou a exibir o campo `Observação do pedido`, que já era lido no salvamento, garantindo que a informação seja enviada para o documento do pedido.
+- O pedido manual passou a carregar dados complementares do cliente selecionado, incluindo documento, fiscal, preferências, alergias, observações, aniversário e aceite de marketing quando disponíveis.
+- Os itens adicionados ao pedido manual passaram a levar também `id`, `qty`, `price`, `total`, vínculos de ficha/produto pronto, custo de estoque e fiscal do produto, melhorando compatibilidade com fiscal, estoque e leitura de itens.
+- Pedidos manuais criados a partir das telas de Cardápio/Pedidos agora salvam explicitamente `kitchenQueue`, `showInKitchen` e `kitchenStatus`, além de `channel/source`, para manter a entrada na cozinha clara.
+- Impacto esperado: o cadastro manual fica mais alinhado ao checkout público e reduz risco de dados não chegarem ao pedido, financeiro, cozinha, fiscal e estoque, sem alterar Firebase, rotas, permissões ou coleções.
+
+## 2026-05-26 — Validação dos campos de cadastro do cliente
+- Arquivos alterados: `public/js/modules/clientes.js`, `public/index.html`, `AI_CHANGELOG.md`.
+- Validado o modal `Novo Cliente/Editar Cliente`, incluindo dados principais, endereço, dados fiscais, marketing, pontos e observações internas.
+- Os campos fiscais estruturados passaram a validar documento, e-mail de faturação e código postal quando preenchidos, mantendo os dados fiscais opcionais para clientes comuns.
+- A validação de código postal agora reconhece também os códigos `ES` e `PT`, além dos nomes dos países, evitando inconsistência entre país fiscal e país exibido.
+- Confirmado que o autocomplete de endereço continua preenchendo número, bairro/zona, código postal, país e província sem alterar a estrutura salva em `store_customers`.
+- A loja pública passou a reconhecer também `number/numero` e `reference/complement` vindos do cadastro administrativo ao montar o endereço legado do cliente, e o pedido público passa a carregar `customerFiscal` quando houver `fiscal` no cliente logado.
+- O cadastro do cliente no Admin recebeu upload/remover de avatar, salvando `avatarUrl` e caminhos de imagem no documento do cliente; o template público passou a usar esse avatar no botão de conta e no resumo do modal da cliente, com fallback para foto do login ou iniciais.
+- O upload do avatar do cliente passou a usar a pasta de Storage `logos`, mesmo padrão dos uploads de logo/avatar já permitidos no Admin, evitando erro de permissão ao trocar a imagem.
+- A lista de clientes e o modal de detalhes passaram a exibir `avatarUrl` quando houver imagem cadastrada, e a troca/remoção do avatar em cliente existente agora atualiza o documento e a lista imediatamente.
+- O avatar do cliente passou a usar moldura circular com fundo transparente quando houver imagem, evitando que avatares redondos/transparentes apareçam dentro de um bloco quadrado colorido.
+- No card `Endereço e entrega`, os campos de província e país deixaram de ser listas manuais e passaram a ser campos somente leitura preenchidos pelo autocomplete do Google, mantendo os mesmos campos salvos no cliente.
+- O campo `Pontos de fidelidade` saiu do modal administrativo de cliente para evitar edição manual; os valores existentes são preservados no salvamento e continuam sob responsabilidade do programa de pontos.
+- A lista `Canal principal` foi conferida e reforçada para seguir `Cardápio`, `Venda presencial` e os canais cadastrados em `config/canais_venda`, sem misturar canais legados já presentes em clientes antigos.
+- Corrigida a origem de formatação dos rótulos do cadastro de clientes para preservar `Cardápio` com acento correto, evitando capitalização indevida depois de letra acentuada.
+- O template público passou a permitir salvar documento, aniversário, aceite de promoções, preferências, alergias e observações no cadastro da cliente; o pedido passa a carregar esses dados quando a cliente estiver logada.
+- A aba `Clientes` passou a seguir o padrão visual de `Produção > Ordens de produção` no topo, card de filtros, tabela e rodapé de paginação, preservando KPIs, filtros, ações e dados existentes.
+- Impacto esperado: o cadastro fica mais consistente e evita salvar dados fiscais inválidos, sem alterar rotas, Firebase, permissões ou coleções.
+
+## 2026-05-25 — Ajustes e validação inicial em Pedidos
+- Arquivos alterados: `public/js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- A tela `Pedidos` e a tela `Cozinha` tiveram o card de filtros alinhado ao padrão documentado de listagens do Admin, com campos off-white, selects com seta interna e botão `Limpar filtros` apenas quando houver filtro aplicado.
+- Ajuste posterior: o card de filtros foi refinado para copiar mais de perto `Produção > Ordens de produção`, com wrapper interno dos campos, foco no bloco off-white, grid proporcional e seta SVG com respiro nos selects.
+- Foram removidos chips/totalizadores repetidos do cabeçalho e do card de filtros, mantendo os KPIs já existentes como resumo principal.
+- A listagem de pedidos e a listagem da cozinha deixaram de mostrar checkboxes sem ação, reduzindo ruído visual sem alterar seleção, status, financeiro ou estoque.
+- As formas de pagamento em `Pedidos` passaram a aceitar corretamente a lista configurada no Financeiro quando os itens estão salvos como objetos, respeitando itens inativos e mantendo o valor selecionado quando for legado.
+- Impacto esperado: o módulo fica mais coerente com o padrão BocaFood e evita forma de pagamento aparecendo como objeto técnico, sem alterar Firebase, rotas, permissões, estrutura dos pedidos ou regras de baixa/financeiro.
+
+## 2026-05-25 — Subabas em Produção > Configurações
+- Arquivos alterados: `public/js/modules/receitas.js`, `AI_CHANGELOG.md`.
+- As subabas de `Produção > Configurações` passaram a seguir o mesmo padrão visual de `Estoque > Itens em estoque`, com faixa clara, borda suave, sombra leve e aba ativa em vermelho BocaFood.
+- As abas foram separadas do card de busca, deixando o filtro mais limpo e a navegação entre áreas mais próxima do padrão aprovado.
+- Impacto esperado: a navegação interna de configurações da produção fica mais consistente com Estoque, sem alterar rotas, permissões, Firebase ou lógica das configurações.
+
+## 2026-05-25 — Padrão visual no modal Detalhes da ordem
+- Arquivos alterados: `public/js/modules/receitas.js`, `AI_CHANGELOG.md`.
+- O modal `Detalhes da ordem` em `Produção > Ordens` foi alinhado ao padrão visual dos modais aprovados do Admin.
+- Os cards receberam cabeçalho com elemento gráfico discreto, títulos menores, textos de apoio mais leves, degradê suave, borda clara e sombra leve.
+- A hierarquia dos blocos foi reorganizada para separar visão da ordem, movimentações do lote, receita usada, ingredientes previstos e observações.
+- Tiles e linhas de ingredientes ficaram mais próximos do padrão BocaFood, com fundo off-white, borda suave e espaçamentos mais compactos.
+- O modal `Finalizar produção` também foi alinhado ao mesmo padrão, separando o preenchimento do resultado real e a leitura operacional em cards com cabeçalho visual.
+- O modal `Lista de compras` recebeu cabeçalhos de card com elementos gráficos discretos em `Resumo da lista` e `Lista para impressão`, mantendo status, impressão e itens salvos.
+- O card `Resumo da lista` foi compactado com grid proporcional para reduzir espaço branco e deixar `Gerada em`, base, classe, itens, status e controle da lista mais alinhados.
+- A tabela de `Lista para impressão` foi compactada com larguras proporcionais para classe, quantidade e origem, deixando mais espaço útil para o nome do item.
+- Impacto esperado: a leitura dos detalhes da ordem fica mais premium e clara sem alterar conclusão da produção, geração de movimentações, estoque, Firebase, rotas ou permissões.
+
+## 2026-05-25 — Padrão visual nos modais de Estoque
+- Arquivos alterados: `public/js/modules/estoque.js`, `AI_CHANGELOG.md`.
+- Os modais de `Itens em estoque`, `Ajustar estoque`, `Estoque mínimo e máximo` e `Inventário em lote` foram refinados para seguir o padrão documentado de modais do Admin.
+- Cards passaram a usar degradê suave, borda clara, sombra leve e hierarquia mais próxima dos modais de cadastro já aprovados.
+- Campos de ajuste, mínimo/máximo e inventário ganharam largura proporcional, foco vermelho discreto, fundo off-white e select com seta alinhada.
+- O detalhe do item ficou mais leve, com métricas organizadas em grid e movimentações em lista compacta.
+- Ajuste posterior: os cards dos modais receberam cabeçalhos com elemento gráfico discreto, títulos e textos na mesma escala dos modais de cadastro aprovados, deixando `Detalhe`, `Ajustar estoque`, `Estoque mínimo e máximo` e `Inventário em lote` mais fiéis ao padrão BocaFood.
+- O card `Movimentações relacionadas` no detalhe do item recebeu busca interna e paginação, preparando a leitura para históricos maiores sem alongar o modal.
+- Impacto esperado: o estoque fica visualmente mais consistente com Compras e Financeiro sem alterar cálculo de saldo, movimentações, inventário, Firebase, rotas ou permissões.
+
+## 2026-05-25 — Refinamento visual do modal Editar registro de compra
+- Arquivos alterados: `public/js/modules/compras.js`, `AI_CHANGELOG.md`.
+- O modal `Editar registro de compra` foi comparado com o padrão documentado de modais de cadastro do Admin.
+- Ajustados os grupos de pagamento para usar grids proporcionais, com `Tipo de custo`, `Forma de pagamento`, entrada, vencimento, parcelas e categoria ocupando largura mais coerente com o conteúdo.
+- Checkboxes simples deixaram de parecer mini-cards, ficando mais leves e alinhados ao padrão definido.
+- A seção de entrada ficou mais compacta e organizada, mantendo os mesmos campos, cálculos, validações, financeiro e entrada de estoque.
+- Impacto esperado: o modal fica mais alinhado, leve e premium sem alterar Firebase, rotas, permissões, cálculos ou estrutura de dados.
+
+## 2026-05-25 — Validação da janela Confirmar recebimento
+- Arquivos alterados: `public/js/modules/compras.js`, `AI_CHANGELOG.md`.
+- Revisada a janela `Confirmar recebimento` no registro de compras e sua conexão com a geração de `entrada_compra` em `stock_movements`.
+- Corrigida a validação do recebimento parcial para exigir uma nova quantidade recebida, evitando salvar um recebimento parcial vazio quando a compra já tinha histórico anterior.
+- Impacto esperado: a confirmação de recebimento continua gerando entrada de estoque, mas evita registros parciais sem novo recebimento real.
+
+## 2026-05-25 — Correção no campo Forma de pagamento em compras
+- Arquivos alterados: `public/js/modules/compras.js`, `AI_CHANGELOG.md`.
+- Corrigido o helper de opções de `Forma de pagamento` usado no registro de compra e no cadastro de fornecedores para ler corretamente as formas cadastradas em `Financeiro > Configurações`.
+- O campo agora trata formas salvas como objetos, exibe apenas formas ativas, preserva valores antigos/inativos quando já estavam salvos e evita opções quebradas como objeto bruto.
+- Impacto esperado: o modal `Editar registro de compra` volta a mostrar e manter a forma de pagamento correta sem alterar financeiro, rotas, permissões, Firebase ou estrutura de dados.
+
+## 2026-05-25 — Correção no botão Adicionar do registro de compra
+- Arquivos alterados: `public/js/modules/compras.js`, `AI_CHANGELOG.md`.
+- Corrigido o botão `Adicionar` no modal `Editar registro de compra`, que podia falhar ao incluir o item porque os campos de lote e validade eram lidos no preview, mas não estavam definidos na ação de adicionar.
+- A correção mantém a lógica atual de cálculo, custo por base, IVA, desconto, parcelas, financeiro e estoque.
+- Impacto esperado: itens voltam a ser adicionados corretamente no registro de compra sem alterar rotas, permissões ou regras Firebase.
+
+## 2026-05-25 — Estoque mínimo e máximo por origem
+- Arquivos alterados: `public/js/modules/estoque.js`, `public/js/modules/compras.js`, `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- O detalhe do item em `Estoque` passou a mostrar e editar a faixa de estoque com `Estoque mínimo` e `Estoque máximo`, salvando ambos em `stock_settings`.
+- O cadastro de `Compras > Produtos / Insumos` recebeu campos de estoque mínimo e máximo, sincronizando a configuração operacional do estoque ao salvar o item.
+- O cadastro de `Produção > Receitas de produção` recebeu estoque mínimo e máximo para o produto produzido e também para bases de produção controladas nas etapas da receita.
+- Quando a faixa é alterada diretamente em `Estoque`, o sistema também atualiza a origem identificável: `itens_custo` para insumos/produtos prontos e `fichasTecnicas` para produtos produzidos/bases de produção.
+- Foi adicionada validação para impedir estoque máximo menor que o mínimo.
+- Impacto esperado: itens que nascem em Compras ou Produção já podem levar sua faixa ideal de estoque para a tela `Estoque`, sem alterar rotas, permissões ou regras Firebase.
+
+## 2026-05-25 — Padrão de listagem em Estoque > Itens
+- Arquivos alterados: `public/js/modules/estoque.js`, `AI_CHANGELOG.md`.
+- A tela `Estoque > Itens em estoque` foi alinhada ao padrão visual das listagens recentes, com card de filtros compacto, tabela com borda suave, hover e rodapé de paginação.
+- O título e subtítulo foram ajustados para a escala padrão de páginas de listagem do Admin.
+- As classes passaram a aparecer como abas compactas separadas, iniciando por `Insumos`, sem a aba `Todos`, com estado ativo discreto em vermelho BocaFood.
+- O card de filtros foi comparado com `Cardápio > Produtos` e ajustado para o mesmo comportamento visual: grid flexível, campos de 42px e `Limpar filtros` abaixo dos campos apenas quando houver filtro ativo.
+- A paginação foi ajustada para o padrão usado em `Produção > Ordens`, com indicador visual compacto entre página atual e total.
+- Os botões superiores `Itens` e `Movimentações` foram removidos da visão principal para reduzir ruído visual.
+- A lógica de cálculo de saldo por `stock_movements`, detalhes do item, inventário, estoque mínimo e ajustes foi preservada.
+- A tela `Movimentações do estoque` também foi alinhada ao mesmo padrão, com título/subtítulo, filtros compactos, tabela, paginação e abas separadas para `Entradas` e `Saídas`.
+- O menu de abas de classes e o menu `Entradas/Saídas` foram ajustados para seguir o mesmo visual de `Cardápio > Configurações`, com faixa clara, borda suave, sombra leve e aba ativa em vermelho.
+- Impacto esperado: a consulta de estoque fica mais organizada por classe, sem alterar Firebase, rotas, permissões ou estrutura de dados.
+
+## 2026-05-25 — Padrão de listagem em Produção > Movimentações
+- Arquivos alterados: `public/js/modules/receitas.js`, `AI_CHANGELOG.md`.
+- A aba `Produção > Movimentações` foi alinhada ao padrão visual usado em `Produção > Ordens`, com topo, filtros compactos, tabela e rodapé de paginação.
+- A tela passou a ter subabas `Entradas` e `Saídas`, separando entradas de produto/base produzida e saídas/estornos relacionados à produção.
+- O menu `Entradas/Saídas` foi ajustado para seguir o mesmo visual de abas de `Cardápio > Configurações`, com faixa clara, borda suave, sombra leve e aba ativa em vermelho.
+- Os filtros ganharam período `De` e `Até`, permitindo consultar movimentações por intervalo sem alterar os registros salvos.
+- O grid do card de filtros foi ajustado para se aproximar do padrão de `Cardápio > Produtos`, mantendo campos compactos e responsivos.
+- Foram mantidos os dados atuais de `stock_movements`; a alteração muda apenas a leitura, a organização visual e os filtros da tela.
+- Impacto esperado: a consulta das movimentações fica mais clara para a operação, sem alterar estoque, compras, pedidos, Firebase, rotas ou permissões.
+
+## 2026-05-25 — Padrão de listagem em Produção > Ordens
+- Arquivos alterados: `public/js/modules/receitas.js`, `AI_CHANGELOG.md`.
+- A tela `Produção > Ordens` foi ajustada para seguir o mesmo padrão visual usado em `Cardápio > Produtos`, sem adicionar KPIs.
+- A lista principal deixou o formato de cards e passou para tabela com contorno, cabeçalho, coluna inicial, linhas com hover suave e rodapé de contagem.
+- Ajuste posterior: adicionados card de filtros com busca/status e paginação no rodapé da listagem, com seletor por página, intervalo exibido e botões `Anterior`/`Próxima`.
+- O card de filtros recebeu o campo `O que será produzido`, permitindo filtrar ordens de `Produto final` ou `Base de produção` sem alterar os dados salvos.
+- A coluna de checkbox desativado foi removida da listagem de ordens por não ter ação em massa nesta tela.
+- O topo e o botão principal foram alinhados ao padrão de listagens do Admin, preservando a necessidade de produção e as ações de detalhe, finalizar, cancelar e gerar movimentações.
+- Impacto esperado: a tela fica mais consistente com as listagens aprovadas sem alterar lógica, Firebase, rotas, permissões ou estrutura de dados.
+
+## 2026-05-25 — Padrão de modal em Produção > Detalhes da receita
+- Arquivos alterados: `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- O modal `Detalhes da receita`, aberto pela listagem de `Produção > Receitas de produção`, foi alinhado ao padrão documentado de modais do Admin.
+- O resumo, rendimento, custos, ingredientes e orientações de produção passaram a usar cards em degradê suave, borda clara, sombra leve e tiles proporcionais.
+- A lista de ingredientes por etapa ficou mais compacta, com custos alinhados e estado vazio mais discreto.
+- O rodapé passou a seguir o padrão com orientação curta, botão secundário e ação principal `Editar receita`, preservando a abertura do modal de edição.
+- Impacto esperado: a leitura dos detalhes da receita fica mais premium e organizada sem alterar lógica, Firebase, rotas, permissões ou estrutura de dados.
+
+## 2026-05-25 — Padrão de listagem em Produção > Receitas
+- Arquivos alterados: `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- A listagem `Produção > Receitas de produção` foi refinada para seguir o padrão documentado de páginas de listagem do Admin.
+- O card de filtros ficou mais compacto, com campo off-white, foco discreto em vermelho e botão `Limpar filtros` condicional preservado.
+- A tabela recebeu borda, raio, sombra e hover mais próximos do padrão BocaFood, com chips de categoria e ações discretas.
+- A coluna de checkbox desativado foi removida da listagem de receitas por não ter ação em massa nesta tela.
+- Os estados vazios foram ajustados para cards mais premium, com ícone discreto, texto prático e CTA para criar a primeira receita quando necessário.
+- Impacto esperado: a tela fica mais alinhada às listagens aprovadas sem alterar lógica, Firebase, rotas, permissões ou estrutura de dados.
+
+## 2026-05-25 — Validação dos custos indiretos do negócio
+- Arquivos alterados: `public/js/modules/catalogo.js`, `public/js/modules/dinheiro.js`, `public/js/modules/plano_voo.js`, `AI_CHANGELOG.md`.
+- Validado o cálculo de custos indiretos em modo manual e automático, mantendo a regra `custos indiretos ÷ custos diretos × 100` para o modo automático.
+- Corrigida a leitura de percentual manual para preservar corretamente o valor `0`, sem cair em campos legados por engano.
+- `Plano de Voo` passou a respeitar o modo automático dos custos indiretos usando o histórico financeiro, em vez de apenas exibir o modo automático com percentual manual salvo.
+- Impacto esperado: receitas, composição de preço e projeções financeiras passam a usar a mesma base de custos indiretos, sem alterar rotas, Firebase, permissões ou estrutura de dados.
+
+## 2026-05-25 — Padrão de modais em Financeiro > Configurações
+- Arquivos alterados: `public/js/modules/financeiro.js`, `AI_CHANGELOG.md`.
+- Os modais de `Categorias`, `Contas bancárias` e `Formas de pagamento` foram alinhados ao padrão documentado de modais do Admin.
+- Categorias passaram a usar título externo, card único com degradê suave, campos off-white, select com seta no padrão, campo `Tipo` proporcional e rodapé com `Salvar alterações`.
+- Contas bancárias passaram a usar cards em degradê suave, campos off-white, select de tipo com seta alinhada, checkbox simples sem mini-card e campos curtos proporcionais.
+- No modal de conta bancária, o select `Tipo` deixou de exibir o sufixo de país em cada opção, mantendo os dados internos preservados.
+- Formas de pagamento mantiveram a lógica existente, mas passaram a usar título externo, card interno sem duplicar o título do modal e CTA padronizado como `Salvar alterações`.
+- Em `Custos indiretos`, o select `Período para cálculo automático` passou a usar a seta e o campo no mesmo padrão visual dos modais.
+- Impacto esperado: os modais de configurações financeiras ficam mais consistentes com o padrão BocaFood sem alterar lógica, Firebase, rotas, permissões ou estrutura de dados.
+
+## 2026-05-25 — Ajuste nos filtros de Financeiro
+- Arquivos alterados: `public/js/modules/financeiro.js`, `AI_CHANGELOG.md`.
+- Removidos os cabeçalhos internos dos cards de filtro em `Financeiro > Visão Geral` e `Financeiro > Fluxo de Caixa`, incluindo o ícone `filter_alt` e os textos explicativos.
+- Os campos, botões, filtros, saúde financeira e lógica das telas foram preservados.
+- Impacto esperado: as áreas de filtro ficam mais leves e diretas, com menos repetição visual.
+
 ## 2026-05-25 — Produção: bases intermediárias e estoque por etapa
 - Arquivos alterados: `public/js/modules/catalogo.js`, `public/js/modules/receitas.js`, `public/js/modules/estoque.js`, `public/js/modules/pedidos.js`, `AI_CHANGELOG.md`.
 - As etapas da ficha técnica podem ser marcadas como `Base de produção`, com rendimento e unidade próprios, para casos como massas, recheios e preparos intermediários.
@@ -10,6 +329,7 @@
 - O estorno de pedidos cancelados também contempla as saídas de base geradas pela venda, evitando duplicidade e preservando o histórico em `stock_movements`.
 - `Produção > Ordens` passou a permitir criar uma ordem própria de `Base de produção`, escolhendo uma etapa marcada na ficha técnica, salvando snapshot apenas daquela base e gerando entrada da base ao finalizar.
 - Ordens de base não criam entrada de produto final; elas registram saída dos ingredientes da base e entrada da própria base intermediária.
+- O card `Planejamento da produção` no modal de nova ordem recebeu ajuda colapsável `Como preencher?`, explicando quando usar produto final ou base de produção.
 - Impacto esperado: a operação consegue controlar preparos intermediários como itens de produção e consumir essas bases quando o produto final é montado no pedido, sem criar inventário avançado ou novas regras globais.
 
 ## 2026-05-25 — Produção: Lista de Compras e necessidade de produção
@@ -8071,6 +8391,16 @@
 - Ajuste de tom: removida a frase impessoal “recomendação da loja” no modal de upsell; a copy agora fala de forma direta com a cliente.
 - Internacionalização: as copies do modal de upsell do carrinho passaram a usar textos localizados em `pt-BR`, `pt-PT`, `es-ES`, `en` e `fr`, respeitando o idioma principal configurado na loja.
 
+## 2026-05-25 — Padrão de listagem em Produção > Lista de Compras
+- Arquivos alterados: `public/js/modules/receitas.js`, `AI_CHANGELOG.md`.
+- A aba `Produção > Lista de Compras` foi reorganizada para listar listas de compras já geradas, seguindo o padrão visual usado em `Produção > Ordens`, com topo, card destacado para gerar lista, card separado de filtros, tabela e rodapé de paginação.
+- O botão `Gerar lista de compras` agora salva uma nova lista em `tenants/{tenantId}/production_purchase_lists`, com critérios usados, itens sugeridos, quantidades, origem, status inicial `pendente` e data de geração.
+- Cada lista gerada abre em modal de detalhes com resumo da geração, controle de status `Pendente/Comprada` e tabela dos itens para comprar, preservando a lista como uma fotografia do momento em que foi criada.
+- O modal também ganhou uma versão de impressão com checkboxes por item, sem conectar a lista ao módulo de compras nem movimentar estoque.
+- O card de filtros do histórico ficou mais compacto, sem cabeçalho explicativo, com busca, origem, classe e status alinhados na mesma linha em desktop.
+- A lógica de sugestão continua usando produção planejada, estoque mínimo ou a combinação dos dois, sem alterar compras, estoque, produção, rotas ou permissões.
+- Impacto esperado: a aba passa a funcionar como histórico operacional de listas geradas, enquanto os itens de cada lista ficam organizados no modal.
+
 ## 2026-05-25 — Fase 1 de Produção Operacional
 - Arquivos alterados: `public/admin.html`, `public/js/modules/receitas.js`, `AI_CHANGELOG.md`.
 - O módulo `Produção` ganhou a nova aba `Ordens`, mantendo `Receitas`, `Insumos` e `Configurações` funcionando nas rotas atuais.
@@ -8127,6 +8457,31 @@
 - A confirmação em lote passou a ignorar saídas sem conta bancária definida quando não há conta única ativa, reduzindo risco de movimentações financeiras sem conta de saída.
 - Impacto esperado: Saídas, Compras e Fluxo de caixa ficam conectados de forma mais consistente, sem alterar rotas, permissões, Firebase ou estrutura das coleções.
 
+## 2026-05-26 — Ajustes no pedido manual
+- Arquivos alterados: `public/js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- A busca de cliente, WhatsApp, e-mail, canal e campos de entrega no modal `Criar pedido manual` foram alinhados ao padrão documentado de campos off-white, foco discreto e larguras proporcionais.
+- O modal passou a exibir seleção de canal de venda e cadastro rápido de cliente; ao salvar, o cliente é criado em `store_customers`, selecionado no pedido e seus dados são herdados pelo fluxo atual.
+- A seleção de `Canal de venda` foi movida para fora e antes do card `Cliente`, deixando a escolha do canal mais clara no início do pedido manual.
+- A busca de cliente deixou de usar o `datalist` nativo do navegador e passou a usar uma lista visual própria, evitando o balão preto fora do padrão BocaFood.
+- Depois de selecionar ou cadastrar uma cliente, o campo de busca é limpo e o nome fica apenas no campo `Nome do cliente`, separando claramente busca e preenchimento do pedido.
+- A associação de histórico de pedidos por cliente foi protegida contra telefones duplicados: pedidos com `customerId/clientId` só aparecem na cliente vinculada, e telefone compartilhado não é usado como vínculo automático.
+- O WhatsApp do cliente e do cadastro rápido passou a seguir o padrão visual de campo dividido por código do país e número.
+- O campo de WhatsApp ganhou mais largura útil para digitação e o seletor de código passou a exibir bandeira junto do DDI.
+- No card `Cliente`, o campo de WhatsApp ganhou mais largura para evitar sobreposição e o e-mail foi movido para a linha debaixo.
+- O pedido manual passou a separar endereço em código postal, rua, número/portal, piso/referência, bairro, localidade, província e país; em retirada, os campos de entrega ficam ocultos.
+- O card `Entrega e horário` foi reorganizado em colunas proporcionais para evitar campos estourando o card e melhorar a leitura dos dados de endereço, prazo e taxa.
+- A distribuição dos campos de `Entrega e horário` foi refinada novamente, com larguras mais coerentes por conteúdo e alinhamento do bloco de preenchimento com o título do card.
+- O autocomplete do Google/BocaPlaces no endereço do pedido manual e do cadastro rápido agora preenche também número, bairro, localidade, província, país e código postal.
+- A inicialização do autocomplete no endereço do card `Entrega e horário` foi corrigida para usar o callback de preenchimento dos campos relacionados também na versão atual do modal.
+- Clientes com endereços salvos agora podem ter o endereço selecionado no pedido manual, ou preencher um novo endereço quando necessário.
+- O texto explicativo do topo do modal `Cliente rápido` foi removido para deixar o cadastro mais limpo.
+- O modal `Cadastrar cliente` do cadastro rápido passou a ter altura máxima pela tela, com topo e rodapé preservados e rolagem apenas no conteúdo central.
+- O WhatsApp do modal `Cliente rápido` ganhou mais largura para o número, o texto do rodapé foi removido e a rolagem visual do conteúdo foi escondida.
+- A taxa de entrega do pedido manual passou a ler as zonas configuradas em `config/zonas` ou no `Template da loja`, com a mesma estrutura usada pelo template público, incluindo CEPs, faixas, zona padrão, valor de entrega e pedido mínimo informativo.
+- A área de produtos ficou focada na barra de busca; os cards grandes de produto foram substituídos por uma lista compacta de resultados para adicionar itens ao pedido.
+- O payload do pedido manual passou a salvar campos de compatibilidade para cupons, pontos, upsell e frete grátis com valores neutros, mantendo promoções automáticas do cardápio quando o canal selecionado for `Cardápio`.
+- Impacto esperado: o pedido manual fica mais consistente com o padrão BocaFood e usa melhor os dados já cadastrados de cliente, canal e entrega, sem alterar rotas, Firebase Rules ou estrutura de dados.
+
 ## 2026-05-25 — Padrão visual no modal de Saídas financeiras
 - Arquivos alterados: `public/js/modules/financeiro.js`, `js/modules/financeiro.js`, `AI_CHANGELOG.md`.
 - O modal `Financeiro > Saídas` foi alinhado ao padrão documentado de modais de cadastro, com cards em degradê suave, bordas claras, sombra leve, campos off-white e selects com seta interna.
@@ -8150,3 +8505,186 @@
 - O campo visual `Tipo global *` foi removido da visão da usuária; o controle interno segue preservado de forma oculta para manter compatibilidade com a lógica de salvamento e regras de conta bancária.
 - A copy de conta bancária deixou de mencionar tipo global e passou a explicar o uso de forma simples.
 - Impacto esperado: as configurações financeiras ficam mais limpas e consistentes com o padrão BocaFood, sem alterar Firebase, rotas, permissões ou estrutura de dados.
+
+## 2026-05-25 — Padrão visual no card de filtros de Clientes
+- Arquivos alterados: `public/js/modules/clientes.js`, `AI_CHANGELOG.md`.
+- O card de filtros da listagem de `Clientes` foi alinhado ao padrão usado em Produção > Ordens, com fundo em degradê suave, borda clara, sombra leve, campos off-white e selects com seta interna.
+- Os filtros foram reorganizados em uma linha proporcional ao conteúdo, e o botão `Limpar filtros` passou a aparecer dentro do card somente quando houver filtro ativo.
+- Os totalizadores em chips dentro do card de filtro foram removidos para reduzir ruído visual.
+- Ajuste posterior: a estrutura dos campos passou a seguir o mesmo modelo de Produção > Ordens, com label externo, wrapper off-white e input/select transparente dentro do campo.
+- Impacto esperado: a listagem de clientes fica mais consistente com o padrão BocaFood sem alterar busca, filtros, Firebase, rotas, permissões ou estrutura de dados.
+
+## 2026-05-25 — Padrão visual no modal Novo cliente
+- Arquivos alterados: `public/js/modules/clientes.js`, `AI_CHANGELOG.md`.
+- O modal `Novo cliente` / `Editar cliente` foi alinhado ao padrão do modal `Compra > Editar registro de compra`, com cards em degradê suave, borda clara, sombra leve e cabeçalhos com elemento gráfico discreto.
+- Os campos passaram a usar visual off-white, foco vermelho discreto, selects com seta interna e labels mais leves.
+- As seções de dados do cliente, endereço/entrega, dados fiscais, marketing/relacionamento e observações receberam hierarquia mais clara e copy mais próxima do padrão BocaFood.
+- Ajuste posterior: o autocomplete de endereço passou a preencher província e país de forma mais robusta, inclusive quando o Google retorna nomes diferentes dos valores da lista; o botão `Atualizar cliente` também foi compactado para seguir o padrão do rodapé de Compras.
+- A lógica de salvamento, validações, BocaPlaces, dados fiscais, marketing, pontos e vínculo com pedidos foi preservada.
+- Impacto esperado: o cadastro de cliente fica mais organizado e consistente com os demais modais do Admin, sem alterar Firebase, rotas, permissões ou estrutura de dados.
+
+## 2026-05-25 — Padrão visual em Detalhes do cliente
+- Arquivos alterados: `public/js/modules/clientes.js`, `AI_CHANGELOG.md`.
+- A página/modal `Detalhes do cliente` foi alinhada ao padrão visual dos modais recentes, com card de topo em degradê suave, borda clara, sombra leve e hierarquia mais compacta.
+- Métricas, perfil e ações rápidas foram reorganizados em cards/tiles proporcionais, com menos peso visual e melhor aproveitamento de largura.
+- Foram adicionados helpers específicos para métricas e linhas de informação no detalhe do cliente, preservando os dados exibidos, histórico, WhatsApp, fluxo de segmento e edição.
+- Impacto esperado: a consulta do cliente fica mais premium e consistente com `Novo cliente` e Compras, sem alterar Firebase, rotas, permissões ou estrutura de dados.
+
+## 2026-05-25 — Ajustes na aba Cozinha de Pedidos
+- Arquivos alterados: `public/js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- O filtro `Canal` foi removido da aba `Cozinha`, e o card de filtros passou a ter `Data` e `Período` para consulta por agenda operacional do pedido.
+- A coluna `Canal` foi removida da listagem da Cozinha, mantendo a tela focada em status, tipo, horário/endereço, total e ações.
+- Os botões da coluna `Ações` passaram a interromper o clique da linha, evitando abertura/ações duplicadas ao usar WhatsApp, ver detalhes ou avançar status.
+- O alarme da cozinha agora fica salvo no navegador e volta ligado após atualizar a página; o som também ficou mais forte e em sequência mais longa para novos pedidos pendentes.
+- Ajuste posterior: o botão de detalhes com ícone de olho foi removido da coluna `Ações`, já que a linha inteira abre o pedido; o botão `Preparar` recebeu um ícone compatível e o erro `_today is not defined` no avanço de status foi corrigido.
+- O botão `+ Novo pedido` foi removido da aba `Cozinha` e reposicionado no topo da aba `Pedidos`, deixando a cozinha focada apenas na produção.
+- Impacto esperado: a Cozinha fica mais objetiva para operação diária, com filtros por data/período e alarme persistente, sem alterar Firebase, rotas, permissões ou estrutura de dados.
+
+## 2026-05-25 — Padrão visual no modal Detalhes do pedido
+- Arquivos alterados: `public/js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- O modal `Detalhes do pedido` foi alinhado ao padrão do modal `Compra > Editar registro de compra`, com CSS próprio, cards em degradê suave, bordas claras, sombra leve e cabeçalhos com elementos gráficos discretos.
+- Os blocos de resumo, cliente, entrega/retirada, pagamento, status, observações e itens foram reorganizados com grids proporcionais e campos dentro de controles off-white.
+- Os campos editáveis mantiveram os mesmos IDs e funções de salvamento para preservar status, pagamento, data/horário, WhatsApp e sincronismos existentes.
+- Ajuste posterior: os cards internos foram redistribuídos para aproveitar melhor a largura do modal, os campos de pagamento passaram a ocupar tamanhos proporcionais e dados técnicos longos deixaram de aparecer para evitar estouro visual.
+- Refinamento posterior: a estrutura foi aproximada do modal `Compra > Editar registro de compra`, reduzindo cards pequenos, agrupando cliente/entrega/status em um card principal e deixando pagamento em um card próprio com campos proporcionais.
+- Compactação posterior: cards, campos, tiles e linhas internas foram reduzidos para aproveitar melhor o espaço; em `Itens do pedido`, valor e subtotal passaram para a mesma linha e cada item deixou de parecer um card separado.
+- As pílulas de status, tipo de atendimento e pagamento foram removidas do resumo para reduzir ruído visual; os campos editáveis continuam nos blocos próprios do modal.
+- O card `Cliente e entrega` passou a ficar ao lado de `Resumo do pedido` no desktop, mantendo empilhamento responsivo em telas menores.
+- Os campos de dia, horário e status em `Cliente e entrega` foram empilhados em um bloco mais compacto para reduzir área solta dentro do card.
+- A informação de entrega/retirada foi integrada ao mesmo bloco visual do cliente, evitando que a retirada apareça como card solto dentro da seção.
+- O card `Pagamento` também passou para o grid superior ao lado de `Cliente e entrega` em telas largas, com fallback responsivo para largura média e mobile.
+- Impacto esperado: o detalhe do pedido fica mais premium, compacto e consistente com o padrão BocaFood, sem alterar Firebase, rotas, permissões ou estrutura de dados.
+
+## 2026-05-25 — Padrão visual no modal Novo pedido
+- Arquivos alterados: `public/js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- O modal `Novo pedido` foi alinhado ao padrão do modal `Compra > Editar registro de compra`, com cards em degradê suave, borda clara, sombra leve, cabeçalhos com elemento gráfico discreto e textos de apoio mais leves.
+- Os blocos de cliente, entrega/horário, produtos e resumo passaram a usar grids proporcionais e campos com aparência off-white, foco vermelho discreto e selects com seta no padrão.
+- Campos curtos como tipo, data, horário, taxa de entrega e hora do pedido foram compactados para ocupar apenas o espaço necessário dentro do card.
+- A lógica de busca de cliente, seleção de produtos, cálculo de promoções, ajuste manual, pagamento e criação do pedido foi preservada.
+- Impacto esperado: a criação manual de pedido fica mais organizada, premium e consistente com Compras, sem alterar Firebase, rotas, permissões ou estrutura de dados.
+
+## 2026-05-26 — Ajustes no endereço do pedido manual
+- Arquivos alterados: `public/js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- A taxa de entrega no modal `Novo pedido` passou a aparecer como valor em moeda, sem o texto auxiliar de zona/entrega abaixo do campo.
+- O campo `Tipo` recebeu mais largura no grid de entrega para seguir melhor o conteúdo do select.
+- A seleção de endereço salvo agora sincroniza diretamente rua, número, complemento, bairro, localidade, província, país e código postal nos campos visíveis do pedido.
+- A leitura de endereços do cliente ficou mais robusta para aceitar variações de campos como `streetAddress`, `addressLine`, `formattedAddress`, `district`, `portal`, `postcode` e similares.
+- O modal `Detalhes do pedido` teve textos de apoio redundantes removidos dos cards `Resumo do pedido`, `Cliente e entrega`, `Pagamento` e do rodapé, além de ocultar o `UID cliente` da visão da usuária.
+- A tela `Modo cozinha` deixou de mostrar o subtítulo e os totalizadores do topo, mantendo apenas o título, ações e colunas operacionais.
+- Os cards do `Modo cozinha` passaram a mostrar o endereço de entrega ou retirada dentro do card, usando os mesmos helpers de endereço já usados no detalhe do pedido.
+- O modal `Detalhes do pedido` passou a permitir editar quantidade e valor unitário dos itens, além de remover produto do pedido com recálculo dos totais.
+- O nome do produto permanece somente leitura no pedido, e o campo de observação do item foi removido para evitar confusão com o cadastro do produto.
+- O campo `Valor unitário` passou a usar formato de moeda e o recálculo preserva descontos de promoções quando houver diferença entre valor original e valor final do item.
+- Impacto esperado: ao selecionar um endereço da lista no pedido manual, os dados aparecem corretamente no formulário, sem alterar Firebase, rotas, permissões ou estrutura do pedido.
+
+## 2026-05-26 — Múltiplos endereços no cadastro de clientes
+- Arquivos alterados: `public/js/modules/clientes.js`, `AI_CHANGELOG.md`.
+- O modal `Novo Cliente` / `Editar Cliente` passou a ter uma carteira de endereços de entrega, com lista de endereços salvos, ação para adicionar, editar, remover e definir o endereço principal.
+- Os endereços são salvos em `deliveryAddresses` e `savedDeliveryAddresses`, mantendo também o primeiro endereço sincronizado nos campos antigos (`address`, `number`, `neighborhood`, `postalCode`, `province`, `country`) para compatibilidade com pedidos e template público.
+- O formulário de endereço usa o mesmo padrão de autocomplete já usado no sistema, preenchendo número, bairro, localidade, província, país e código postal quando disponíveis.
+- O detalhe do cliente passou a exibir todos os endereços de entrega cadastrados, não apenas o endereço principal.
+- Impacto esperado: o Admin, o pedido manual e o template público passam a trabalhar com a mesma estrutura de endereços salvos do cliente, sem alterar rotas, permissões, Firebase Rules ou coleções.
+
+## 2026-05-26 — Edição de variantes no detalhe do pedido
+- Arquivos alterados: `public/js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- O modal `Detalhes do pedido` passou a mostrar a ação `Editar escolhas` nos itens que possuem variantes, opções ou grupos de combo cadastrados no produto.
+- A nova edição abre um modal compacto com as opções do cadastro do produto, respeitando mínimo e máximo por grupo, incluindo acréscimos/descontos e imagem da opção quando existir.
+- Ao salvar, o pedido atualiza somente as escolhas daquele item, recalcula quantidade, valor unitário, subtotal, totais e descontos preservados, sem editar o cadastro do produto.
+- O nome do produto continua somente leitura dentro do pedido; a edição atua apenas sobre escolhas, quantidade, valor unitário e remoção do item.
+- Ajuste posterior: o modal `Editar escolhas` passou a abrir acima do modal `Detalhes do pedido`, corrigindo a sobreposição visual causada pelo `z-index` do modal genérico.
+- Ajuste posterior: o campo `Valor unitário` nos itens do pedido ficou menor e proporcional ao conteúdo esperado.
+- Ajuste posterior: os campos `Qtd.` e `Valor unitário` ficaram mais baixos no item do pedido, reduzindo peso visual na linha.
+- Ajuste posterior: os campos de quantidade e valor unitário foram alinhados visualmente com as ações `Editar escolhas` e `Remover` na linha do item.
+- Ajuste posterior: as ações `Editar escolhas` e `Remover` passaram a ficar lado a lado no item do pedido.
+- Ajuste posterior: o botão `Ver cliente` no detalhe do pedido passou a abrir o modal do cliente acima do modal do pedido, evitando que ele fique escondido atrás.
+- Ajuste posterior: a coluna de valores do item foi reorganizada em três linhas, com `Qtd.`, `Valor unitário` e `Subtotal` empilhados.
+- Ajuste posterior: o botão `Ver cliente` foi reforçado para abrir com camada acima de qualquer modal ativo e recarregar a lista de clientes se o cadastro não estiver em memória.
+- Ajuste posterior: os cards do `Modo cozinha` deixaram de exibir a lista resumida de itens; os itens completos ficam somente no modal de detalhes do pedido.
+- Ajuste posterior: as mensagens de WhatsApp por mudança de status passaram a usar copy de cliente final, sem formato técnico, e respeitam o idioma configurado no template da loja (`es`, `pt` ou `en`).
+- Ajuste posterior: a mensagem de WhatsApp para status `Entregue` passou a incluir o link de avaliação da loja usando o slug público no formato `https://bocafood.app/{slug}/review`.
+- Ajuste posterior: o convite de avaliação passou a explicar que a opinião ajuda outras pessoas a provarem também e abre espaço para a cliente dizer o que pode melhorar.
+- Ajuste posterior: no `Modo cozinha`, o painel de detalhes do pedido passou a abrir sobre um fundo translúcido, preservando a cozinha visível ao fundo em vez de trocar a tela por branco.
+- Ajuste posterior: o painel `Detalhes do pedido` do `Modo cozinha` foi validado e passou a usar os mesmos helpers do pedido completo para endereço, pagamento, observações e escolhas dos itens, exibindo entrega/retirada, WhatsApp, canal, forma/status de pagamento, total e checklist com variantes.
+- Impacto esperado: pedidos com produtos de combo ou variantes podem ser ajustados no Admin com os mesmos dados importantes do cadastro do produto, sem alterar rotas, permissões, Firebase Rules ou estrutura global.
+
+## 2026-05-26 — Fase 1 do novo Plano de Voo
+- Arquivos alterados: `public/js/modules/plano_voo.js`, `AI_CHANGELOG.md`.
+- A experiência principal do Plano de Voo foi reorganizada para decisão operacional, mantendo o motor de cálculo, coleções, rotas, permissões e integrações existentes.
+- As abas foram renomeadas para `Escolher rota`, `Como está indo` e `Histórico de rotas`, reduzindo linguagem de simulador financeiro.
+- A tela inicial passou a destacar a rota ativa quando houver cenário do mês escolhido e exibir quatro cards de rota: `Sobrevivência`, `Segurança`, `Crescimento` e `Lucro forte`.
+- Cada rota mostra faturamento necessário, pedidos por dia, lucro estimado, nível de esforço e CTA `Escolher esta rota`, usando o cálculo atual do módulo.
+- Parâmetros técnicos, canais, custos variáveis, despesas fixas e resumo anual foram movidos para `Ajustes avançados`, colapsado por padrão.
+- Textos como receita projetada, lucro projetado, break-even, salvar previsão e previsões salvas foram trocados por linguagem de rota, venda necessária, sobra esperada e histórico de rotas.
+- Impacto esperado: o módulo passa a comunicar escolha de caminho do negócio antes dos detalhes financeiros, sem alterar Firestore, multi-tenant ou o funcionamento do cálculo atual.
+- Ajuste posterior: a rota deixou de ser apresentada como decisão mensal e passou a ser tratada como rota anual/restante do ano, mantendo o mês apenas como acompanhamento operacional.
+- Foi adicionada a etapa `Confirmar base do cálculo`, mostrando período da rota, ticket médio, custos, compromissos e se já existe histórico anual suficiente.
+- Foi adicionada a etapa `Confirme sua realidade de trabalho`, com dias trabalhados, feriados/dias fechados, férias/pausas e pesos mensais preparados para futura distribuição da rota.
+- O nome padrão passou a seguir o formato `Rota Segurança 2026`, e o CTA de escolha abre a rota anual com o mês apenas como referência de acompanhamento.
+- Ajuste posterior: a tela principal deixou de exibir o formulário de criação aberto e passou a focar em rota ativa, botão `Criar nova rota`, acompanhamento e rotas criadas.
+- O fluxo de criação foi movido para um modal com abas `Criar rota` e `Resumo da rota selecionada`, concentrando base do cálculo, realidade de trabalho, comparação dos 4 cenários, ajustes avançados e confirmação.
+- Ao salvar pelo modal, a rota é ativada, o modal fecha, a rota aparece no topo e permanece no histórico; a rota ativa não fica exposta como formulário editável na tela principal.
+- Cards de rotas criadas passaram a mostrar status, período, meta, resultado e ação `Ver resumo`, com opção de ativar uma rota salva pelo modal de resumo.
+- Ajuste posterior: o card intermediário `Rotas do negócio` foi removido da tela principal para reduzir repetição; o botão `Criar nova rota` permanece no card de rota ativa ou no estado vazio.
+- Ajuste posterior: a aba `Como está indo` passou a mostrar, abaixo do `Resumo comparativo`, uma tabela anual mês a mês com planejado, realizado, diferença e percentual de atingimento.
+- Ajuste posterior: os chips do topo `Rotas do negócio`, `Pedidos por dia` e `Histórico preservado` foram removidos para deixar o cabeçalho mais limpo.
+- Ajuste posterior: o modal `Criar nova rota` recebeu uma ajuda colapsável `Como preencher?`, com orientação detalhada e sem linguagem técnica, e a rolagem interna do corpo do modal foi removida.
+- Ajuste posterior: os canais usados no Plano de Voo foram alinhados à base de `Configurações > Canais de venda`, evitando canais extras vindos de fallback antigo ou do histórico de pedidos.
+- Ajuste posterior: o card `Base da rota` foi limpo, removendo campos duplicados ou sem função na nova experiência (`Período`, `Cenário` e `Nome da rota`) e mantendo apenas ajustes úteis para refinar a previsão.
+- Ajuste posterior: o modal `Criar nova rota` passou a atualizar os 4 cards dos cenários em tempo real quando a base, a realidade de trabalho ou os ajustes avançados mudam; o campo de sobra desejada foi movido para o resumo da rota como meta complementar.
+- Ajuste posterior: em `Vendas por canal`, o campo `Base mensal` foi renomeado para `Venda média mensal` e passou a usar formato de moeda com prefixo `€`.
+- Ajuste posterior: o campo `Férias ou pausas planejadas` foi removido da realidade de trabalho; meses sem operação devem ser representados com peso `0` em `Meses mais fortes ou mais fracos`.
+- Ajuste posterior: o período da rota deixou de ser uma escolha manual. A rota agora é definida automaticamente como `Ano completo` quando criada em janeiro ou `Restante do ano` quando criada a partir de fevereiro.
+- Ajuste posterior: os cálculos anuais passaram a considerar somente os meses reais da rota; quando a rota é do restante do ano, receitas, custos, despesas e recorrências deixam de ser multiplicados por 12.
+- Ajuste posterior: a base do cálculo passou a separar `Despesas previstas da rota` e `Custos previstos da rota`, usando a nova classificação das categorias financeiras (`despesa/custo` e `direto/indireto`) sem duplicar contas a pagar e histórico por nome.
+- Ajuste posterior: a seção `Confirme sua realidade de trabalho` no modal `Criar nova rota` passou a ser colapsável com seta, no mesmo padrão de `Ajustes avançados`, preservando o estado aberto/fechado enquanto os cenários são recalculados.
+- Ajuste posterior: a lista `Como distribuir no ano` foi removida; o Plano de Voo passa a usar sempre ajuste mês a mês pela tabela de sazonalidade.
+- Ajuste posterior: o campo `Ticket médio usado` em `Ajustes avançados` foi compactado para ocupar só o espaço necessário.
+- Ajuste posterior: quando já existe histórico anual suficiente, o card `Ajustes avançados` deixa de aparecer no fluxo de criação da rota.
+- Ajuste posterior: a tabela duplicada `Sazonalidade manual` foi removida de `Ajustes avançados`; a única entrada de peso mensal agora é `Meses mais fortes ou mais fracos` em `Confirme sua realidade de trabalho`.
+- Ajuste posterior: em rotas de `Restante do ano`, os meses anteriores ao mês atual passam a vir com peso `0` e bloqueados na tabela `Meses mais fortes ou mais fracos`.
+- Ajuste posterior: a ajuda de `Meses mais fortes ou mais fracos` passou a orientar que o mês atual também pode receber `0` caso a usuária não queira incluí-lo na rota.
+- Ajuste posterior: em `Vendas por canal`, o texto técnico `Multiplicador anual` foi trocado por `Meses considerados`, mantendo o mesmo cálculo por pesos mensais.
+- Ajuste posterior: a seção `Confirme sua realidade de trabalho` passou a iniciar fechada no modal `Criar nova rota`, mantendo o estado escolhido pela usuária durante os recalculos do modal.
+- Ajuste posterior: `Meses considerados` deixou de mostrar casas decimais quando o peso total dos meses é inteiro.
+- Ajuste posterior: em `Custo dos produtos vendidos`, a origem `Histórico dos pedidos` foi trocada por `Produtos vendidos`, com copy mais clara sobre usar o custo cadastrado nos produtos já vendidos.
+- Ajuste posterior: o Plano de Voo passou a carregar também `contas_pagar` e saídas efetivadas de `movimentacoes` na base financeira, alinhando melhor os valores de `Despesas previstas da rota` e `Custos previstos da rota` com o que aparece no Financeiro.
+- Ajuste posterior: o histórico financeiro usado na rota agora respeita a classificação das categorias (`Despesa` ou `Custo`) também para saídas vindas de `movimentacoes`, mantendo a proteção contra duplicidade com contas a pagar por nome.
+- Ajuste posterior: `Despesas previstas da rota` e `Custos previstos da rota` passaram a considerar somente categorias diretas; categorias indiretas deixam de entrar como lançamento individual e ficam representadas pela provisão percentual de custos indiretos.
+- Ajuste posterior: o campo `Ticket médio usado` passou a usar formato de moeda e o seletor manual `Período do histórico` foi removido; o histórico agora só entra automaticamente quando há um ano completo de vendas.
+- Ajuste posterior: foi validada a conexão dos campos do Plano de Voo atual; os handlers de `Modo do ajuste de crescimento` e `Modo do ajuste de queda` foram exportados corretamente para evitar falha quando esses campos aparecerem no modal.
+- Ajuste posterior: o snapshot da rota passou a preservar explicitamente dias de trabalho, dias fechados, pesos mensais e a classificação/vencimento de despesas e custos, mantendo o detalhamento mensal fiel à base escolhida.
+
+## 2026-05-26 — Categorias financeiras com custos e despesas
+- Arquivos alterados: `public/js/modules/financeiro.js`, `AI_CHANGELOG.md`.
+- O cadastro de categorias financeiras passou a separar saídas entre `Despesa` e `Custo`, mantendo o campo interno `tipo` como `entrada/saida` para não quebrar filtros, contas a pagar, entradas e integrações atuais.
+- A tela de categorias agora mostra `Entradas`, `Despesas` e `Custos` em cards separados; despesas e custos continuam sendo saídas internamente, mas ficam mais claros para a usuária.
+- Categorias de saída agora também salvam a classificação `Direto` ou `Indireto`, preparando a base para separar melhor custos e despesas no Financeiro e no Plano de Voo.
+- Categorias antigas continuam funcionando com fallback visual como `Despesa indireta` até serem revisadas pela usuária.
+- Categorias criadas rapidamente por entradas e saídas receberam defaults seguros (`receita` para entradas e `despesa indireta` para saídas), evitando registros incompletos.
+- Impacto esperado: a usuária consegue organizar melhor o que é custo e o que é despesa sem alterar rotas, permissões, Firebase Rules ou a estrutura principal do financeiro.
+
+## 2026-05-26 — Saídas e compras alinhadas às novas categorias financeiras
+- Arquivos alterados: `public/js/modules/financeiro.js`, `public/js/modules/compras.js`, `AI_CHANGELOG.md`.
+- No modal `Nova Saída`, o campo `Categoria de saída` passou a listar categorias separadas por `Despesas` e `Custos`, exibindo também se cada uma é direta ou indireta.
+- Ao criar uma nova categoria dentro da saída, a usuária pode definir se ela é `Despesa` ou `Custo` e se entra como `Direta` ou `Indireta`; esses dados ficam salvos junto com a categoria e com a própria saída.
+- Quando uma saída é confirmada como paga, a movimentação financeira também herda a mesma categoria, natureza e classe, mantendo a leitura posterior alinhada.
+- Em `Registro de compras`, a categoria financeira também passou a mostrar a classificação completa, evitando confusão na escolha da categoria que será usada para gerar contas a pagar.
+- As contas a pagar geradas por compras agora herdam `financialNature` e `costClass` da categoria financeira escolhida, alinhando Compras, Financeiro e Plano de Voo sem mudar rotas, permissões ou Firebase Rules.
+
+## 2026-05-26 — Proteção contra valores 100x maiores em pedidos e Plano de Voo
+- Arquivos alterados: `public/js/modules/pedidos.js`, `public/js/modules/plano_voo.js`, `AI_CHANGELOG.md`.
+- A sincronização de pedidos com o Financeiro passou a validar o total do pedido contra a soma dos itens antes de criar ou atualizar a entrada financeira.
+- Quando o total salvo está 100 vezes maior que o total esperado pelos itens, o valor é corrigido para euros antes de entrar em `movimentacoes`, evitando casos como `€18,00` virar `€1.800,00`.
+- Ao carregar pedidos, o módulo também tenta corrigir a movimentação financeira de pedidos já salvos com essa escala inflada, sem alterar pedidos com valores coerentes.
+- O mesmo cuidado foi aplicado à leitura de vendas no Plano de Voo, para que pedidos antigos com total inflado não distorçam receita, ticket médio e cenários.
+- Ajuste posterior: nos cards `Escolha a realidade que você quer viver`, `Pedidos por dia` passou a aparecer como número inteiro, arredondado para cima, para representar um ritmo de pedidos mais prático.
+- Ajuste posterior: o card `Custos variáveis` foi renomeado na interface para `Custos que crescem com as vendas`, com copy mais clara sobre custo dos produtos, taxas, comissões e provisão para custos gerais.
+- Ajuste posterior: o card detalhado `Despesas fixas por categoria` deixou de aparecer em `Ajustes avançados`; a soma continua considerada nos cenários e aparece no resumo/base da rota, reduzindo ruído enquanto o histórico ainda não é o foco.
+- Ajuste posterior: a linha `Outros ajustes` foi removida dos custos que crescem com as vendas, evitando duplicidade com a provisão para custos gerais e deixando a rota mais objetiva.
+- Ajuste posterior: foram removidos `Meta complementar de sobra`, `Para buscar a sobra desejada` e os blocos de `Meta de lucro`, deixando os 4 cenários como decisão principal da rota.
+- Ajuste posterior: os cards dos 4 cenários passaram a mostrar uma leitura compacta de `Custos e despesas`, com valor total em destaque e detalhamento discreto de custos das vendas, despesas diretas e custos diretos.
+- Ajuste posterior: o `Resumo anual por mês` passou a detalhar, dentro de cada mês, os valores por categoria do cenário selecionado, separando custos das vendas, despesas diretas e custos diretos.
+- Ajuste posterior: no `Resumo anual por mês`, os detalhes de cada mês passaram a abrir/fechar por linha; ao abrir, aparecem receitas por canal e custos/despesas por categoria.
+- Ajuste posterior: o `Resumo anual por mês` passou a recalcular lucro, custos e despesas usando o peso de cada mês, inclusive zerando meses com peso `0`.
+- Ajuste posterior: lançamentos financeiros únicos deixaram de ser repetidos em todos os meses no `Resumo anual por mês`; agora aparecem apenas no mês do vencimento/data do lançamento. Recorrências continuam repetindo conforme a frequência.
+- Impacto esperado: pedidos e análises deixam de inflar valores por erro de escala sem alterar rotas, permissões, Firebase Rules ou a estrutura dos pedidos.

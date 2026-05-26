@@ -7066,12 +7066,12 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       var ci = _calcFichaCosts(f);
       var yieldLabel = (f.yieldQuantity || f.yield || 1) + ' ' + (f.yieldUnit || 'porções');
       var costUnit = ci.costPerYield > 0 ? UI.fmt(ci.costPerYield) + '/' + (f.yieldUnit ? f.yieldUnit.replace(/s$/, '') : 'porção') : '—';
-      var catChip = f.category ? '<span style="display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;font-size:12px;font-weight:500;line-height:1;">' + _esc(f.category) + '</span>' : '<span style="display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;border:1px solid #EAE4DA;background:#fff;color:#A39B90;font-size:12px;font-weight:500;line-height:1;">Sem categoria</span>';
+      var catChip = f.category ? '<span style="display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;border:1px solid #EADFD8;background:#FFFCF8;color:#6F6860;font-size:12px;font-weight:500;line-height:1;">' + _esc(f.category) + '</span>' : '<span style="display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;border:1px solid #EADFD8;background:#FAF8F4;color:#8A7E7C;font-size:12px;font-weight:500;line-height:1;">Sem categoria</span>';
       var img = f.imageThumbUrl || f.imageCardUrl || f.imageBase64 || f.imageUrl || '';
       var imgHtml = img
-        ? '<img src="' + _esc(img) + '" style="width:48px;height:48px;border-radius:12px;object-fit:cover;background:#fff;border:1px solid #EAE4DA;box-shadow:0 1px 2px rgba(31,31,31,.03);flex-shrink:0;" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';"><div style="width:48px;height:48px;border-radius:12px;background:#FAF8F4;border:1px solid #EAE4DA;box-shadow:0 1px 2px rgba(31,31,31,.03);display:none;align-items:center;justify-content:center;color:#B9AAA6;flex-shrink:0;"><span class="mi" style="font-size:18px;">receipt_long</span></div>'
-        : '<div style="width:48px;height:48px;border-radius:12px;background:#FAF8F4;border:1px solid #EAE4DA;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;align-items:center;justify-content:center;color:#B9AAA6;flex-shrink:0;"><span class="mi" style="font-size:18px;">receipt_long</span></div>';
-      return '<tr data-ficha-name="' + _esc(((f.name || '') + ' ' + (f.category || '')).toLowerCase()) + '" onclick="Modules.Catalogo._openFichaViewModal(\'' + f.id + '\')" style="cursor:pointer;background:#fff;border-bottom:1px solid #EAE4DA;transition:background .15s ease;" onmouseover="this.style.background=\'#FBF8F2\'" onmouseout="this.style.background=\'#fff\'">' +
+        ? '<img src="' + _esc(img) + '" style="width:48px;height:48px;border-radius:12px;object-fit:cover;background:#fff;border:1px solid #EADFD8;box-shadow:0 1px 2px rgba(31,31,31,.03);flex-shrink:0;" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';"><div style="width:48px;height:48px;border-radius:12px;background:#FFFCF8;border:1px solid #EADFD8;box-shadow:0 1px 2px rgba(31,31,31,.03);display:none;align-items:center;justify-content:center;color:#B9AAA6;flex-shrink:0;"><span class="mi" style="font-size:18px;">receipt_long</span></div>'
+        : '<div style="width:48px;height:48px;border-radius:12px;background:#FFFCF8;border:1px solid #EADFD8;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;align-items:center;justify-content:center;color:#B9AAA6;flex-shrink:0;"><span class="mi" style="font-size:18px;">receipt_long</span></div>';
+      return '<tr data-ficha-name="' + _esc(((f.name || '') + ' ' + (f.category || '')).toLowerCase()) + '" onclick="Modules.Catalogo._openFichaViewModal(\'' + f.id + '\')" style="cursor:pointer;background:#fff;border-bottom:1px solid #EADFD8;transition:background .15s ease,box-shadow .15s ease;" onmouseover="this.style.background=\'#FFFCF8\'" onmouseout="this.style.background=\'#fff\'">' +
         '<td style="padding:14px 16px;vertical-align:middle;"><div style="display:flex;align-items:center;gap:12px;min-width:0;">' + imgHtml + '<div style="min-width:0;"><div style="font-size:15px;font-weight:600;line-height:1.25;color:#1F1F1F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px;">' + _esc(f.name || '') + '</div><div style="font-size:12px;line-height:1.4;color:#6F6860;margin-top:3px;">' + _esc(yieldLabel) + '</div></div></div></td>' +
         '<td style="padding:14px 16px;vertical-align:middle;">' + catChip + '</td>' +
         '<td style="padding:14px 16px;vertical-align:middle;font-size:14px;font-weight:600;color:#1F1F1F;">' + _esc(yieldLabel) + '</td>' +
@@ -7079,15 +7079,15 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
         '<td style="padding:14px 16px;vertical-align:middle;font-size:14px;font-weight:600;color:#1F1F1F;">' + costUnit + '</td>' +
         '<td style="padding:14px 16px;vertical-align:middle;text-align:right;">' +
           '<div style="display:inline-flex;gap:6px;" onclick="event.stopPropagation();">' +
-            '<button onclick="event.stopPropagation();Modules.Catalogo._openFichaModal(\'' + f.id + '\');" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">edit</span></button>' +
-            '<button onclick="event.stopPropagation();Modules.Catalogo._deleteFicha(\'' + f.id + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#B42318;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">delete</span></button>' +
+            '<button onclick="event.stopPropagation();Modules.Catalogo._openFichaModal(\'' + f.id + '\');" style="width:30px;height:30px;border-radius:9px;border:1px solid #EADFD8;background:#fff;color:#6F6860;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">edit</span></button>' +
+            '<button onclick="event.stopPropagation();Modules.Catalogo._deleteFicha(\'' + f.id + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EADFD8;background:#fff;color:#B42318;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">delete</span></button>' +
           '</div>' +
         '</td>' +
       '</tr>';
     }).join('');
     var hasFilters = !!(_fichaFilters.q || '').trim();
     var clearFiltersHtml = hasFilters
-      ? '<div class="recipes-filter-actions"><button onclick="Modules.Catalogo._clearFichasFilters()" style="height:40px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;font-size:13px;font-family:inherit;cursor:pointer;background:#fff;color:#6F6860;white-space:nowrap;box-shadow:0 1px 2px rgba(31,31,31,.03);">Limpar filtros</button></div>'
+      ? '<div class="recipes-filter-actions"><button onclick="Modules.Catalogo._clearFichasFilters()" style="height:36px;padding:0 13px;border:1px solid #EADFD8;border-radius:11px;background:#fff;color:#6F6860;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);">Limpar filtros</button></div>'
       : '';
     var recipesCss = '<style>' +
       '.recipes-page{display:flex;flex-direction:column;gap:16px;}' +
@@ -7096,27 +7096,27 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       '.recipes-page-subtitle{font-size:13px;color:#6F6860;line-height:1.5;margin:0;max-width:760px;}' +
       '.recipes-primary-btn{height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;transition:transform .16s ease,box-shadow .16s ease,background .16s ease;}' +
       '.recipes-primary-btn:hover{background:#9F1F16;transform:translateY(-1px);box-shadow:0 8px 18px rgba(180,35,24,.22);}' +
-      '.recipes-filter-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:14px;box-shadow:0 10px 24px rgba(31,31,31,.04);}' +
-      '.recipes-filter-grid{display:grid;grid-template-columns:minmax(320px,1fr);gap:10px;align-items:end;}' +
-      '.recipes-filter-control{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:6px;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;}' +
+      '.recipes-filter-card{background:linear-gradient(180deg,#FFFFFF 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.055);}' +
+      '.recipes-filter-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:11px 12px;align-items:end;}' +
+      '.recipes-filter-control{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:0 12px;min-height:42px;display:flex;align-items:center;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;}' +
       '.recipes-filter-control:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
-      '.recipes-filter-control input{width:100%;height:36px;border:0;border-radius:8px;padding:0 8px;font-size:14px;font-family:inherit;outline:none;background:transparent;box-sizing:border-box;color:#1F1F1F;box-shadow:none;}' +
-      '.recipes-filter-actions{display:flex;justify-content:flex-start;margin-top:12px;}' +
+      '.recipes-filter-control input{width:100%;height:40px;border:0;border-radius:8px;padding:0;font-size:14px;font-family:inherit;outline:none;background:transparent;box-sizing:border-box;color:#1F1F1F;box-shadow:none;}' +
+      '.recipes-filter-actions{display:flex;justify-content:flex-start;margin-top:11px;}' +
       '.recipes-select{min-width:110px;max-width:110px;height:34px;padding:0 34px 0 10px;border:1px solid #EAE4DA;border-radius:10px;font-size:12px;font-family:inherit;outline:none;background-color:#fff;color:#6F6860;box-sizing:border-box;appearance:none;-webkit-appearance:none;-moz-appearance:none;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 14px center;background-size:14px;}' +
       '@media(max-width:680px){.recipes-filter-grid{grid-template-columns:1fr}.recipes-primary-btn,.recipes-filter-actions button{width:100%;}}' +
       '</style>';
     var emptyHtml = totalCount === 0
-      ? '<section style="background:#fff;border:1px solid #EAE4DA;border-radius:16px;padding:42px 20px;box-shadow:0 12px 30px rgba(31,31,31,.06);text-align:center;"><div style="font-size:15px;font-weight:700;color:#1F1F1F;margin-bottom:4px;">Nenhuma receita ainda</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-bottom:16px;">Crie a primeira ficha técnica para começar a calcular rendimento e custo.</div><button onclick="Modules.Catalogo._openFichaModal(null)" class="recipes-primary-btn">+ Nova receita</button></section>'
-      : '<section style="background:#fff;border:1px solid #EAE4DA;border-radius:16px;padding:42px 20px;box-shadow:0 12px 30px rgba(31,31,31,.06);text-align:center;"><div style="font-size:15px;font-weight:700;color:#1F1F1F;margin-bottom:4px;">Nenhuma receita encontrada</div><div style="font-size:13px;color:#6F6860;line-height:1.45;">Ajuste a busca ou limpe os filtros para ver outras receitas.</div></section>';
+      ? '<section style="background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:42px 20px;box-shadow:0 10px 24px rgba(31,31,31,.04);text-align:center;"><div style="width:42px;height:42px;border-radius:14px;background:#FFF3F1;color:#B42318;display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;"><span class="mi" style="font-size:20px;">receipt_long</span></div><div style="font-size:15px;font-weight:700;color:#1F1F1F;margin-bottom:4px;">Nenhuma receita ainda</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin:0 auto 16px;max-width:420px;">Crie a primeira ficha técnica para acompanhar rendimento, ingredientes e custo da produção.</div><button onclick="Modules.Catalogo._openFichaModal(null)" class="recipes-primary-btn">+ Nova receita</button></section>'
+      : '<section style="background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:38px 20px;box-shadow:0 10px 24px rgba(31,31,31,.04);text-align:center;"><div style="width:40px;height:40px;border-radius:14px;background:#FAF8F4;color:#8A7E7C;display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;"><span class="mi" style="font-size:20px;">search_off</span></div><div style="font-size:15px;font-weight:700;color:#1F1F1F;margin-bottom:4px;">Nenhuma receita encontrada</div><div style="font-size:13px;color:#6F6860;line-height:1.45;">Ajuste a busca ou limpe os filtros para ver outras receitas.</div></section>';
     content.innerHTML =
       recipesCss +
-      '<div class="recipes-page">' +
-      '<div class="recipes-page-head">' +
+      '<div class="bf-page recipes-page">' +
+      '<div class="bf-page-header recipes-page-head">' +
         '<div style="min-width:0;flex:1 1 420px;">' +
           '<h2 class="recipes-page-title">Receitas de produção</h2>' +
           '<p class="recipes-page-subtitle">Crie fichas técnicas para calcular rendimento, ingredientes e custo real de cada receita.</p>' +
         '</div>' +
-        '<button onclick="Modules.Catalogo._openFichaModal(null)" class="recipes-primary-btn">+ Nova receita</button>' +
+        '<button onclick="Modules.Catalogo._openFichaModal(null)" class="recipes-primary-btn">Adicionar receita</button>' +
       '</div>' +
       '<div class="recipes-filter-card">' +
         '<div class="recipes-filter-grid">' +
@@ -7126,17 +7126,17 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       '</div>' +
       (filteredCount === 0 ? emptyHtml :
         '<section style="display:flex;flex-direction:column;gap:10px;">' +
-        '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">Receitas cadastradas</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Acompanhe rendimento, custo total e custo por unidade de cada ficha técnica.</div></div>' +
-        '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);overflow:hidden;">' +
+        '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">Lista de receitas</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Acompanhe rendimento, custo total e custo por unidade de cada ficha técnica.</div></div>' +
+        '<div style="background:#fff;border:1px solid #EADFD8;border-radius:18px;box-shadow:0 12px 30px rgba(31,31,31,.055);overflow:hidden;">' +
         '<div style="overflow-x:auto;">' +
-            '<table style="width:100%;border-collapse:separate;border-spacing:0;min-width:920px;">' +
+            '<table class="bf-table" style="width:100%;border-collapse:separate;border-spacing:0;min-width:920px;">' +
               '<thead><tr style="background:#fff;border-bottom:1px solid #EAE4DA;">' +
-                '<th style="padding:12px 16px;text-align:left;font-size:11px;font-weight:600;color:#1F1F1F;letter-spacing:.04em;text-transform:uppercase;">RECEITA</th>' +
-                '<th style="padding:12px 16px;text-align:left;font-size:11px;font-weight:600;color:#1F1F1F;letter-spacing:.04em;text-transform:uppercase;">CATEGORIA</th>' +
-                '<th style="padding:12px 16px;text-align:left;font-size:11px;font-weight:600;color:#1F1F1F;letter-spacing:.04em;text-transform:uppercase;">RENDIMENTO</th>' +
-                '<th style="padding:12px 16px;text-align:left;font-size:11px;font-weight:600;color:#1F1F1F;letter-spacing:.04em;text-transform:uppercase;">CUSTO TOTAL</th>' +
-                '<th style="padding:12px 16px;text-align:left;font-size:11px;font-weight:600;color:#1F1F1F;letter-spacing:.04em;text-transform:uppercase;">CUSTO/UNIDADE</th>' +
-                '<th style="padding:12px 16px;text-align:right;font-size:11px;font-weight:600;color:#1F1F1F;letter-spacing:.04em;text-transform:uppercase;">AÇÕES</th>' +
+                '<th style="padding:12px 16px;text-align:left;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;letter-spacing:.04em;text-transform:uppercase;">Receita</th>' +
+                '<th style="padding:12px 16px;text-align:left;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;letter-spacing:.04em;text-transform:uppercase;">Categoria</th>' +
+                '<th style="padding:12px 16px;text-align:left;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;letter-spacing:.04em;text-transform:uppercase;">Rendimento</th>' +
+                '<th style="padding:12px 16px;text-align:left;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;letter-spacing:.04em;text-transform:uppercase;">Custo total</th>' +
+                '<th style="padding:12px 16px;text-align:left;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;letter-spacing:.04em;text-transform:uppercase;">Custo/unidade</th>' +
+                '<th style="padding:12px 16px;text-align:right;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;letter-spacing:.04em;text-transform:uppercase;">Ações</th>' +
               '</tr></thead>' +
               '<tbody id="fichas-list">' + rows + '</tbody>' +
             '</table>' +
@@ -7239,7 +7239,8 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   }
 
   function _getManualIndirectCostPercent() {
-    return _parseFichaNum(_recipeConfig.indirectCostPercent || _recipeConfig.percentualCustosIndiretos || 0);
+    var value = _recipeConfig.indirectCostPercent != null ? _recipeConfig.indirectCostPercent : _recipeConfig.percentualCustosIndiretos;
+    return _parseFichaNum(value != null ? value : 0);
   }
 
   function _financeRecordDate(item) {
@@ -7374,31 +7375,31 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   function _fichaIngredientsViewHtml(f) {
     var comps = _normalizeFichaComponents(f);
     if (!comps.length) {
-      return '<div style="padding:12px;border:1px dashed #E6E1D8;border-radius:12px;color:#6F6860;font-size:12px;background:#fff;">Nenhum ingrediente cadastrado.</div>';
+      return '<div class="recipe-view-empty">Nenhum ingrediente cadastrado.</div>';
     }
     return comps.map(function (comp) {
       var list = (comp.ingredients || []).map(function (ing) {
         var ins = _itensCusto.find(function (i) { return i.id === ing.insumoId; });
-        return '<div style="display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid #F2E9E2;">' +
-          '<div style="min-width:0;">' +
-          '<div style="font-size:13px;font-weight:600;color:#1F1F1F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc((ins && ins.nome) || ing.supplyName || 'Insumo') + '</div>' +
-          '<div style="font-size:11px;color:#6F6860;">' + _esc(ing.qty || 0) + ' ' + _esc(ing.unit || (ins && ins.unidade_base) || '') + '</div>' +
+        return '<div class="recipe-view-ingredient-row">' +
+          '<div class="recipe-view-ingredient-main">' +
+            '<div class="recipe-view-ingredient-name">' + _esc((ins && ins.nome) || ing.supplyName || 'Insumo') + '</div>' +
+            '<div class="recipe-view-ingredient-meta">' + _esc(ing.qty || 0) + ' ' + _esc(ing.unit || (ins && ins.unidade_base) || '') + '</div>' +
           '</div>' +
-          '<div style="font-size:12px;font-weight:600;color:#B42318;white-space:nowrap;">' + (ing.totalCost != null ? UI.fmt(ing.totalCost) : '€0,00') + '</div>' +
+          '<div class="recipe-view-ingredient-cost">' + (ing.totalCost != null ? UI.fmt(ing.totalCost) : '€0,00') + '</div>' +
           '</div>';
       }).join('');
-      if (!list) list = '<div style="font-size:12px;color:#6F6860;">Sem insumos.</div>';
-      return '<div style="background:#fff;border:none;border-radius:16px;padding:14px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
-        '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:8px;">' +
-        '<div style="min-width:0;">' +
-        '<div style="font-size:14px;font-weight:600;color:#1F1F1F;">' + _esc(comp.name || 'Componente') + '</div>' +
-        (comp.note ? '<div style="font-size:11px;color:#6F6860;margin-top:2px;">' + _esc(comp.note) + '</div>' : '') +
-        '</div>' +
-        '<div style="font-size:12px;font-weight:600;color:#B42318;white-space:nowrap;">' + UI.fmt(_calcFichaComponentCosts([comp]).direct) + '</div>' +
+      if (!list) list = '<div class="recipe-view-empty">Sem ingredientes nesta etapa.</div>';
+      return '<div class="recipe-view-step-card">' +
+        '<div class="recipe-view-step-head">' +
+          '<div class="recipe-view-step-info">' +
+            '<div class="recipe-view-step-title">' + _esc(comp.name || 'Etapa da receita') + '</div>' +
+            (comp.note ? '<div class="recipe-view-step-note">' + _esc(comp.note) + '</div>' : '') +
+          '</div>' +
+          '<div class="recipe-view-step-cost">' + UI.fmt(_calcFichaComponentCosts([comp]).direct) + '</div>' +
         '</div>' +
         list +
         '</div>';
-    }).join('<div style="height:10px;"></div>');
+    }).join('');
   }
 
   function _openFichaViewModal(id) {
@@ -7414,50 +7415,97 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var costPerKg = summary.costPerKg > 0 ? UI.fmt(summary.costPerKg) : '—';
     var totalCost = UI.fmt(summary.costs.totalCost || 0);
     var costPerYield = UI.fmt(summary.costs.costPerYield || 0);
+    var viewCss = '<style>' +
+      '.recipe-view-wrap{display:flex;flex-direction:column;gap:14px;}' +
+      '.recipe-view-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:16px;box-shadow:0 10px 24px rgba(31,31,31,.04);}' +
+      '.recipe-view-head{display:grid;grid-template-columns:112px minmax(0,1fr) auto;gap:14px;align-items:center;}' +
+      '.recipe-view-image{width:112px;height:112px;border-radius:16px;overflow:hidden;background:#FFFCF8;border:1px solid #EADFD8;display:flex;align-items:center;justify-content:center;color:#B9AAA6;box-shadow:0 1px 2px rgba(31,31,31,.03);}' +
+      '.recipe-view-image img{width:100%;height:100%;object-fit:cover;display:block;}' +
+      '.recipe-view-eyebrow{font-size:11px;font-weight:650;color:#6F6860;letter-spacing:.02em;margin-bottom:6px;}' +
+      '.recipe-view-title{font-size:26px;font-weight:700;line-height:1.08;color:#1F1F1F;margin:0 0 9px;word-break:break-word;}' +
+      '.recipe-view-chip{display:inline-flex;align-items:center;min-height:24px;padding:0 10px;border-radius:999px;border:1px solid #EADFD8;background:#FFFCF8;color:#6F6860;font-size:12px;font-weight:500;}' +
+      '.recipe-view-edit{height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;white-space:nowrap;}' +
+      '.recipe-view-section-head{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;}' +
+      '.recipe-view-section-icon{width:32px;height:32px;border-radius:12px;background:#FFF3F1;color:#B42318;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;}' +
+      '.recipe-view-section-title{font-size:14px;font-weight:700;color:#1F1F1F;line-height:1.25;}' +
+      '.recipe-view-section-desc{font-size:12px;color:#6F6860;line-height:1.4;margin-top:3px;}' +
+      '.recipe-view-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}' +
+      '.recipe-view-tile{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:14px;padding:12px;min-width:0;}' +
+      '.recipe-view-tile-label{font-size:10.5px;font-weight:650;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;}' +
+      '.recipe-view-tile-value{font-size:18px;font-weight:650;color:#1F1F1F;line-height:1.15;overflow-wrap:anywhere;}' +
+      '.recipe-view-tile-value.is-accent{color:#B42318;}' +
+      '.recipe-view-tile-value.is-large{font-size:23px;}' +
+      '.recipe-view-steps{display:flex;flex-direction:column;gap:10px;}' +
+      '.recipe-view-step-card{background:#fff;border:1px solid #EADFD8;border-radius:14px;padding:13px 14px;box-shadow:0 1px 2px rgba(31,31,31,.03);}' +
+      '.recipe-view-step-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px;}' +
+      '.recipe-view-step-title{font-size:14px;font-weight:650;color:#1F1F1F;line-height:1.3;}' +
+      '.recipe-view-step-note{font-size:12px;color:#6F6860;line-height:1.35;margin-top:2px;}' +
+      '.recipe-view-step-cost{font-size:12px;font-weight:650;color:#B42318;white-space:nowrap;}' +
+      '.recipe-view-ingredient-row{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid #F2E9E2;}' +
+      '.recipe-view-ingredient-name{font-size:13px;font-weight:600;color:#1F1F1F;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
+      '.recipe-view-ingredient-main{min-width:0;}' +
+      '.recipe-view-ingredient-meta,.recipe-view-step-note{font-size:12px;color:#6F6860;}' +
+      '.recipe-view-ingredient-cost{font-size:12px;font-weight:600;color:#1F1F1F;white-space:nowrap;}' +
+      '.recipe-view-empty{padding:12px;border:1px dashed #EADFD8;border-radius:12px;color:#6F6860;font-size:12px;background:#FFFCF8;}' +
+      '.recipe-view-text{font-size:13px;line-height:1.55;color:#1F1F1F;white-space:pre-wrap;}' +
+      '.recipe-view-note-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;}' +
+      '.recipe-view-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;width:100%;}' +
+      '.recipe-view-footer-note{font-size:11.5px;color:#7A746B;line-height:1.4;}' +
+      '.recipe-view-footer-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;}' +
+      '.recipe-view-secondary{height:40px;padding:0 16px;border-radius:12px;border:1px solid #E6DDD3;background:#fff;color:#1F1F1F;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;}' +
+      '.recipe-view-primary{height:40px;padding:0 18px;border-radius:12px;border:none;background:#B42318;color:#fff;font-size:13px;font-weight:650;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(180,35,24,.18);}' +
+      '@media(max-width:720px){.recipe-view-head{grid-template-columns:1fr}.recipe-view-image{width:100%;height:180px}.recipe-view-edit{width:100%}.recipe-view-tiles{grid-template-columns:1fr}.recipe-view-footer-actions,.recipe-view-secondary,.recipe-view-primary{width:100%;}.recipe-view-footer-actions{justify-content:stretch}}' +
+      '</style>';
     var productionBlocks = [];
-    if (f.preparationMode) productionBlocks.push('<div style="background:#fff;border:none;border-radius:16px;padding:14px;box-shadow:0 12px 30px rgba(31,31,31,.06);"><div style="font-size:11px;font-weight:600;color:#6F6860;letter-spacing:.02em;margin-bottom:6px;">Modo de preparo</div><div style="font-size:13px;line-height:1.55;color:#1F1F1F;white-space:pre-wrap;">' + _esc(f.preparationMode) + '</div></div>');
+    if (f.preparationMode) productionBlocks.push('<div class="recipe-view-card"><div class="recipe-view-tile-label">Modo de preparo</div><div class="recipe-view-text">' + _esc(f.preparationMode) + '</div></div>');
     if (f.conservationType || f.shelfLifeValue || f.shelfLifeUnit) {
-      productionBlocks.push('<div style="background:#fff;border:none;border-radius:16px;padding:14px;box-shadow:0 12px 30px rgba(31,31,31,.06);"><div style="font-size:11px;font-weight:600;color:#6F6860;letter-spacing:.02em;margin-bottom:6px;">Conservação e validade</div><div style="font-size:13px;color:#1F1F1F;line-height:1.55;">' + _esc(f.conservationType || '—') + (f.shelfLifeValue ? ' · ' + _esc(f.shelfLifeValue) + ' ' + _esc(f.shelfLifeUnit || 'dias') : '') + '</div></div>');
+      productionBlocks.push('<div class="recipe-view-card"><div class="recipe-view-tile-label">Conservação e validade</div><div class="recipe-view-text">' + _esc(f.conservationType || '—') + (f.shelfLifeValue ? ' · ' + _esc(f.shelfLifeValue) + ' ' + _esc(f.shelfLifeUnit || 'dias') : '') + '</div></div>');
     }
-    if (f.productionNotes) productionBlocks.push('<div style="background:#fff;border:none;border-radius:16px;padding:14px;box-shadow:0 12px 30px rgba(31,31,31,.06);"><div style="font-size:11px;font-weight:600;color:#6F6860;letter-spacing:.02em;margin-bottom:6px;">Observações</div><div style="font-size:13px;line-height:1.55;color:#1F1F1F;white-space:pre-wrap;">' + _esc(f.productionNotes) + '</div></div>');
-    var body = '<div style="display:flex;flex-direction:column;gap:14px;">' +
-      '<div style="display:grid;grid-template-columns:120px 1fr auto;gap:14px;align-items:center;background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
-      '<div style="width:120px;height:120px;border-radius:16px;overflow:hidden;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
-      (img ? '<img src="' + _esc(img) + '" style="width:100%;height:100%;object-fit:cover;">' : '<span class="mi" style="font-size:36px;color:#B9AAA6;">receipt_long</span>') +
+    if (f.productionNotes) productionBlocks.push('<div class="recipe-view-card"><div class="recipe-view-tile-label">Observações</div><div class="recipe-view-text">' + _esc(f.productionNotes) + '</div></div>');
+    var body = viewCss + '<div class="recipe-view-wrap">' +
+      '<div class="recipe-view-card recipe-view-head">' +
+      '<div class="recipe-view-image">' +
+      (img ? '<img src="' + _esc(img) + '">' : '<span class="mi" style="font-size:34px;">receipt_long</span>') +
       '</div>' +
       '<div style="min-width:0;">' +
-      '<div style="font-size:11px;font-weight:600;color:#6F6860;letter-spacing:.02em;margin-bottom:6px;">Resumo da receita</div>' +
-      '<div style="font-size:28px;font-weight:600;line-height:1.08;color:#1F1F1F;margin-bottom:8px;word-break:break-word;">' + _esc(f.name || 'Receita') + '</div>' +
+      '<div class="recipe-view-eyebrow">Resumo da receita</div>' +
+      '<h3 class="recipe-view-title">' + _esc(f.name || 'Receita') + '</h3>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
-      '<span style="background:#fff;color:#1F1F1F;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:500;border:1px solid #E6E1D8;">' + _esc(cat) + '</span>' +
+      '<span class="recipe-view-chip">' + _esc(cat) + '</span>' +
       '</div>' +
       '</div>' +
-      '<button type="button" onclick="Modules.Catalogo._editFichaFromView(\'' + _esc(id) + '\')" style="align-self:flex-start;height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">Editar receita</button>' +
+      '<button type="button" onclick="Modules.Catalogo._editFichaFromView(\'' + _esc(id) + '\')" class="recipe-view-edit">Editar receita</button>' +
       '</div>' +
-      '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;">' +
-      '<div style="background:#fff;border:none;border-radius:16px;padding:14px;box-shadow:0 12px 30px rgba(31,31,31,.06);"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Rendimento</div><div style="font-size:18px;font-weight:600;color:#1F1F1F;">' + _esc(yieldLabel) + '</div></div>' +
-      '<div style="background:#fff;border:none;border-radius:16px;padding:14px;box-shadow:0 12px 30px rgba(31,31,31,.06);"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Peso por unidade</div><div style="font-size:18px;font-weight:600;color:#1F1F1F;">' + _esc(weightPerUnit) + '</div></div>' +
-      '<div style="background:#fff;border:none;border-radius:16px;padding:14px;box-shadow:0 12px 30px rgba(31,31,31,.06);"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Produção total</div><div style="font-size:18px;font-weight:600;color:#1F1F1F;">' + _esc(prodTotal) + '</div></div>' +
+      '<div class="recipe-view-card">' +
+        '<div class="recipe-view-section-head"><span class="mi recipe-view-section-icon">scale</span><div><div class="recipe-view-section-title">Rendimento</div><div class="recipe-view-section-desc">Quantidade prevista depois da receita pronta.</div></div></div>' +
+        '<div class="recipe-view-tiles">' +
+          '<div class="recipe-view-tile"><div class="recipe-view-tile-label">Rendimento</div><div class="recipe-view-tile-value">' + _esc(yieldLabel) + '</div></div>' +
+          '<div class="recipe-view-tile"><div class="recipe-view-tile-label">Peso por unidade</div><div class="recipe-view-tile-value">' + _esc(weightPerUnit) + '</div></div>' +
+          '<div class="recipe-view-tile"><div class="recipe-view-tile-label">Produção total</div><div class="recipe-view-tile-value">' + _esc(prodTotal) + '</div></div>' +
+        '</div>' +
       '</div>' +
-      '<div style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
-      '<div style="font-size:11px;font-weight:600;color:#6F6860;letter-spacing:.02em;margin-bottom:10px;">Custos</div>' +
-      '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;">' +
-      '<div style="background:#fff;border:none;border-radius:16px;padding:14px;box-shadow:0 12px 30px rgba(31,31,31,.06);"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Custo total</div><div style="font-size:18px;font-weight:600;color:#B42318;">' + totalCost + '</div></div>' +
-      '<div style="background:#fff;border:none;border-radius:16px;padding:14px;box-shadow:0 12px 30px rgba(31,31,31,.06);"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Custo por unidade</div><div style="font-size:24px;font-weight:600;color:#1F1F1F;line-height:1;">' + costPerYield + '</div></div>' +
-      '<div style="background:#fff;border:none;border-radius:16px;padding:14px;box-shadow:0 12px 30px rgba(31,31,31,.06);"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Custo por kg</div><div style="font-size:18px;font-weight:600;color:#1F1F1F;">' + costPerKg + '</div></div>' +
+      '<div class="recipe-view-card">' +
+        '<div class="recipe-view-section-head"><span class="mi recipe-view-section-icon">payments</span><div><div class="recipe-view-section-title">Custos</div><div class="recipe-view-section-desc">Valores usados para acompanhar o custo da produção.</div></div></div>' +
+        '<div class="recipe-view-tiles">' +
+          '<div class="recipe-view-tile"><div class="recipe-view-tile-label">Custo total</div><div class="recipe-view-tile-value is-accent">' + totalCost + '</div></div>' +
+          '<div class="recipe-view-tile"><div class="recipe-view-tile-label">Custo por unidade</div><div class="recipe-view-tile-value is-large">' + costPerYield + '</div></div>' +
+          '<div class="recipe-view-tile"><div class="recipe-view-tile-label">Custo por kg</div><div class="recipe-view-tile-value">' + costPerKg + '</div></div>' +
+        '</div>' +
       '</div>' +
+      '<div class="recipe-view-card">' +
+        '<div class="recipe-view-section-head"><span class="mi recipe-view-section-icon">restaurant</span><div><div class="recipe-view-section-title">Ingredientes</div><div class="recipe-view-section-desc">Itens usados em cada etapa da receita.</div></div></div>' +
+        '<div class="recipe-view-steps">' + _fichaIngredientsViewHtml(f) + '</div>' +
       '</div>' +
-      '<div style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
-      '<div style="font-size:11px;font-weight:600;color:#6F6860;letter-spacing:.02em;margin-bottom:10px;">Ingredientes</div>' +
-      _fichaIngredientsViewHtml(f) +
-      '</div>' +
-      ((productionBlocks.length ? '<div style="display:flex;flex-direction:column;gap:10px;">' + productionBlocks.join('') + '</div>' : '')) +
+      ((productionBlocks.length ? '<div class="recipe-view-note-grid">' + productionBlocks.join('') + '</div>' : '')) +
       '</div>';
-    var footer = '<div style="display:flex;gap:10px;">' +
-      '<button onclick="Modules.Catalogo._editFichaFromView(\'' + _esc(id) + '\')" style="flex:1;padding:13px;border-radius:11px;border:none;background:#B42318;color:#fff;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;">Editar</button>' +
-      '<button onclick="if(window._fichaViewModal){window._fichaViewModal.close();}" style="flex:1;padding:13px;border-radius:11px;border:1.5px solid #D4C8C6;background:#fff;color:#1A1A1A;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Fechar</button>' +
+    var footer = '<div class="recipe-view-footer">' +
+      '<div class="recipe-view-footer-note">Revise os dados antes de editar a receita.</div>' +
+      '<div class="recipe-view-footer-actions">' +
+        '<button onclick="if(window._fichaViewModal){window._fichaViewModal.close();}" class="recipe-view-secondary">Fechar</button>' +
+        '<button onclick="Modules.Catalogo._editFichaFromView(\'' + _esc(id) + '\')" class="recipe-view-primary">Editar receita</button>' +
+      '</div>' +
       '</div>';
-    window._fichaViewModal = UI.modal({ title: 'Resumo da receita', body: body, footer: footer, maxWidth: '860px' });
+    window._fichaViewModal = UI.modal({ title: 'Detalhes da receita', body: body, footer: footer, maxWidth: '860px' });
   }
 
   function _editFichaFromView(id) {
@@ -7521,7 +7569,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       '.recipe-modal-head .mi{font-size:18px;color:#6F6860;line-height:1.2;}' +
       '.recipe-modal-title{font-size:13px;font-weight:800;line-height:1.25;color:#1F1F1F;margin-bottom:3px;}' +
       '.recipe-modal-desc{font-size:12px;line-height:1.4;color:#8A7E7C;margin:0;max-width:760px;}' +
-      '.recipe-modal-grid{display:grid;gap:11px 12px;align-items:end}.recipe-modal-main-grid{grid-template-columns:minmax(280px,1fr) minmax(180px,.55fr)}.recipe-yield-grid{grid-template-columns:minmax(140px,.42fr) minmax(190px,.62fr)}#fc-peso-section{grid-template-columns:minmax(150px,.5fr) minmax(190px,.65fr)!important;}.recipe-production-top{margin-bottom:12px}.recipe-production-top .recipe-modal-head{margin-bottom:0}.recipe-production-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,.68fr);gap:12px;align-items:start}.recipe-production-group{background:#FFFCF8;border:1px solid #EADFD8;border-radius:16px;padding:12px;box-shadow:0 1px 2px rgba(31,31,31,.03);min-width:0}.recipe-production-group-title{font-size:11px;font-weight:800;color:#1F1F1F;line-height:1.25;margin-bottom:9px}.recipe-production-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(112px,.42fr);gap:9px;align-items:end}.recipe-production-full{grid-column:1/-1}' +
+      '.recipe-modal-grid{display:grid;gap:11px 12px;align-items:end}.recipe-modal-main-grid{grid-template-columns:minmax(280px,1fr) minmax(180px,.55fr)}.recipe-yield-grid{grid-template-columns:minmax(140px,.42fr) minmax(190px,.62fr)}.recipe-stock-grid{grid-template-columns:minmax(130px,.38fr) minmax(130px,.38fr);justify-content:start;}#fc-peso-section{grid-template-columns:minmax(150px,.5fr) minmax(190px,.65fr)!important;}.recipe-production-top{margin-bottom:12px}.recipe-production-top .recipe-modal-head{margin-bottom:0}.recipe-production-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,.68fr);gap:12px;align-items:start}.recipe-production-group{background:#FFFCF8;border:1px solid #EADFD8;border-radius:16px;padding:12px;box-shadow:0 1px 2px rgba(31,31,31,.03);min-width:0}.recipe-production-group-title{font-size:11px;font-weight:800;color:#1F1F1F;line-height:1.25;margin-bottom:9px}.recipe-production-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(112px,.42fr);gap:9px;align-items:end}.recipe-production-full{grid-column:1/-1}' +
       '.recipe-cost-layout{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(260px,.72fr);gap:12px;align-items:stretch;}' +
       '.recipe-cost-group{background:#FFFCF8;border:1px solid #EADFD8;border-radius:16px;padding:12px;box-shadow:0 1px 2px rgba(31,31,31,.03);min-width:0;}' +
       '.recipe-cost-group-title{font-size:11px;font-weight:800;color:#1F1F1F;line-height:1.25;margin-bottom:9px;}' +
@@ -7537,7 +7585,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       '.recipe-dashed-btn:hover{background:#FFFCF8;border-color:#D9AAA1;color:#B42318;}' +
       '.recipe-component{background:#fff;border:1px solid #EAE4DA;border-radius:16px;padding:13px;box-shadow:0 1px 2px rgba(31,31,31,.03);}' +
       '.recipe-component-head{display:grid;grid-template-columns:minmax(220px,1fr) minmax(180px,.8fr) 34px;gap:10px;align-items:end;margin-bottom:12px;}' +
-      '.recipe-component-base{display:grid;grid-template-columns:minmax(220px,1fr) minmax(110px,.35fr) minmax(120px,.4fr);gap:10px;align-items:end;background:#FFFCF8;border:1px solid #EAE4DA;border-radius:14px;padding:10px;margin-bottom:12px;}' +
+      '.recipe-component-base{display:grid;grid-template-columns:minmax(220px,1fr) minmax(110px,.35fr) minmax(120px,.4fr) minmax(100px,.32fr) minmax(100px,.32fr);gap:10px;align-items:end;background:#FFFCF8;border:1px solid #EAE4DA;border-radius:14px;padding:10px;margin-bottom:12px;}' +
       '.recipe-component-base label{display:flex;align-items:center;gap:8px;font-size:12px;color:#1F1F1F;font-weight:500;line-height:1.35;}' +
       '.recipe-ingredient-row{display:grid;grid-template-columns:minmax(210px,1.2fr) minmax(86px,.42fr) minmax(62px,.28fr) minmax(72px,.32fr) minmax(82px,.34fr) 30px;gap:8px;align-items:center;padding:9px;border:1px solid #EAE4DA;border-radius:12px;background:#FFFCF8;box-shadow:none;}' +
       '.supplier-field-control{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:6px;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease}.supplier-field-control:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08)}.supplier-field-control input,.supplier-field-control select,.supplier-field-control textarea{width:100%;min-height:36px;border:0;border-radius:8px;padding:0 8px;font-size:14px;font-family:inherit;outline:none;background:transparent;box-sizing:border-box;color:#1F1F1F;box-shadow:none}.supplier-field-control select{padding-right:42px;appearance:none;-webkit-appearance:none;-moz-appearance:none;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 16px center;background-size:14px}.supplier-field-control textarea{min-height:72px;padding-top:8px;padding-bottom:8px;resize:vertical}.supplier-field-control input[type=file]{padding-top:7px;}' +
@@ -7547,7 +7595,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       '.recipe-delete-btn{height:38px;padding:0 14px;border-radius:10px;border:1px solid #F1D3CF;background:#FFF7F5;color:#B42318;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;}' +
       '.recipe-save-btn{height:38px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;}' +
       '.recipe-save-btn:hover{background:#9F1F16;}' +
-      '@media(max-width:900px){.recipe-modal-yield,.recipe-modal-image{grid-column:1/-1}.recipe-modal-main-grid,.recipe-yield-grid,.recipe-production-grid{grid-template-columns:1fr 1fr}.recipe-production-layout,.recipe-cost-layout{grid-template-columns:1fr}.recipe-ingredient-row{grid-template-columns:minmax(210px,1fr) 90px 62px 72px 82px 30px}}@media(max-width:640px){.recipe-modal-body{grid-template-columns:1fr}.recipe-modal-card{grid-column:1/-1!important;padding:13px}.recipe-modal-main-grid,.recipe-yield-grid,#fc-peso-section,.recipe-production-grid,.recipe-component-head,.recipe-component-base,.recipe-ingredient-row,.recipe-cost-grid{grid-template-columns:1fr!important}.recipe-footer{align-items:stretch;flex-direction:column}.recipe-footer-note{margin-right:0;text-align:center}.recipe-save-btn,.recipe-cancel-btn,.recipe-delete-btn{width:100%;}}' +
+      '@media(max-width:900px){.recipe-modal-yield,.recipe-modal-image{grid-column:1/-1}.recipe-modal-main-grid,.recipe-yield-grid,.recipe-stock-grid,.recipe-production-grid{grid-template-columns:1fr 1fr}.recipe-production-layout,.recipe-cost-layout{grid-template-columns:1fr}.recipe-component-base{grid-template-columns:minmax(220px,1fr) minmax(110px,.35fr) minmax(120px,.4fr)}.recipe-ingredient-row{grid-template-columns:minmax(210px,1fr) 90px 62px 72px 82px 30px}}@media(max-width:640px){.recipe-modal-body{grid-template-columns:1fr}.recipe-modal-card{grid-column:1/-1!important;padding:13px}.recipe-modal-main-grid,.recipe-yield-grid,.recipe-stock-grid,#fc-peso-section,.recipe-production-grid,.recipe-component-head,.recipe-component-base,.recipe-ingredient-row,.recipe-cost-grid{grid-template-columns:1fr!important}.recipe-footer{align-items:stretch;flex-direction:column}.recipe-footer-note{margin-right:0;text-align:center}.recipe-save-btn,.recipe-cancel-btn,.recipe-delete-btn{width:100%;}}' +
       '</style>';
 
     var body = modalCss + '<div class="recipe-modal-body">' +
@@ -7591,6 +7639,10 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       '<div class="supplier-field-control"><input id="fc-unit-weight" type="text" value="' + _esc(f.unitWeightGrams || '') + '" placeholder="Ex: 120" oninput="Modules.Catalogo._updateFichaPesoTotal()"></div></div>' +
       '<div><label style="' + _fichaLbl() + '">Peso total produzido</label>' +
       '<div class="supplier-field-control"><input id="fc-peso-total" type="text" readonly placeholder="Calculado automaticamente" style="color:#8A7E7C;"></div></div>' +
+      '</div>' +
+      '<div class="recipe-modal-grid recipe-stock-grid" style="margin-top:11px;">' +
+      '<div><label style="' + _fichaLbl() + '">Estoque mínimo</label><div class="supplier-field-control"><input id="fc-stock-min" type="text" value="' + _esc(f.minStock || f.estoque_minimo || '') + '" placeholder="Ex: 20"></div></div>' +
+      '<div><label style="' + _fichaLbl() + '">Estoque máximo</label><div class="supplier-field-control"><input id="fc-stock-max" type="text" value="' + _esc(f.maxStock || f.estoque_maximo || '') + '" placeholder="Ex: 80"></div></div>' +
       '</div>' +
       '<div style="margin-top:12px;background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;padding:10px 12px;box-shadow:0 1px 2px rgba(31,31,31,.03);"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Custo por unidade</div><strong style="font-size:17px;color:#1A1A1A;">' + costBadge + '</strong></div>' +
       '</div>' +
@@ -7736,6 +7788,8 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
         '<label><input type="checkbox" data-comp-stock="' + compIdx + '"' + (comp.stockControl || comp.controlsStock ? ' checked' : '') + ' style="accent-color:#B42318;width:15px;height:15px;"> Controlar esta etapa como base de produção</label>' +
         '<div><label style="' + _fichaLbl() + '">Rendimento da base</label><div class="supplier-field-control"><input type="text" data-comp-stock-qty="' + compIdx + '" value="' + _esc(comp.baseYieldQuantity || comp.stockYieldQuantity || '') + '" placeholder="Ex: 5"></div></div>' +
         '<div><label style="' + _fichaLbl() + '">Unidade</label><div class="supplier-field-control"><input type="text" data-comp-stock-unit="' + compIdx + '" value="' + _esc(comp.baseYieldUnit || comp.stockYieldUnit || '') + '" placeholder="kg, L, un"></div></div>' +
+        '<div><label style="' + _fichaLbl() + '">Mínimo</label><div class="supplier-field-control"><input type="text" data-comp-stock-min="' + compIdx + '" value="' + _esc(comp.minStock || comp.estoque_minimo || '') + '" placeholder="Ex: 2"></div></div>' +
+        '<div><label style="' + _fichaLbl() + '">Máximo</label><div class="supplier-field-control"><input type="text" data-comp-stock-max="' + compIdx + '" value="' + _esc(comp.maxStock || comp.estoque_maximo || '') + '" placeholder="Ex: 8"></div></div>' +
       '</div>' +
       '<div id="fc-comp-ings-' + compIdx + '" style="display:flex;flex-direction:column;gap:8px;">' + rows + '</div>' +
       '<button type="button" onclick="Modules.Catalogo._addFichaIng(' + compIdx + ')" class="recipe-dashed-btn">+ Adicionar ingrediente nesta parte</button>' +
@@ -7935,6 +7989,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var ingredients = [];
     var components = [];
     var missingComponentName = false;
+    var invalidStockRange = false;
     if (container) {
       container.querySelectorAll('.fc-component').forEach(function (compEl) {
         var compIdx = compEl.dataset.compIdx;
@@ -7943,6 +7998,9 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
         var compStockControl = !!((container.querySelector('[data-comp-stock="' + compIdx + '"]') || {}).checked);
         var compBaseYieldQuantity = _parseFichaNum((container.querySelector('[data-comp-stock-qty="' + compIdx + '"]') || {}).value);
         var compBaseYieldUnit = ((container.querySelector('[data-comp-stock-unit="' + compIdx + '"]') || {}).value || '').trim();
+        var compMinStock = _parseFichaNum((container.querySelector('[data-comp-stock-min="' + compIdx + '"]') || {}).value);
+        var compMaxStock = _parseFichaNum((container.querySelector('[data-comp-stock-max="' + compIdx + '"]') || {}).value);
+        if (compMinStock > 0 && compMaxStock > 0 && compMaxStock < compMinStock) invalidStockRange = true;
         var compIngredients = [];
         compEl.querySelectorAll('[data-ing-idx]').forEach(function (sel) {
           var idx = sel.dataset.ingIdx;
@@ -7980,12 +8038,17 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
             baseYieldQuantity: compStockControl ? compBaseYieldQuantity : null,
             stockYieldQuantity: compStockControl ? compBaseYieldQuantity : null,
             baseYieldUnit: compStockControl ? compBaseYieldUnit : '',
-            stockYieldUnit: compStockControl ? compBaseYieldUnit : ''
+            stockYieldUnit: compStockControl ? compBaseYieldUnit : '',
+            minStock: compStockControl ? compMinStock : 0,
+            maxStock: compStockControl ? compMaxStock : 0,
+            estoque_minimo: compStockControl ? compMinStock : 0,
+            estoque_maximo: compStockControl ? compMaxStock : 0
           });
         }
       });
     }
     if (missingComponentName) { UI.toast('Selecione o componente da receita', 'error'); return; }
+    if (invalidStockRange) { UI.toast('O estoque máximo da base não pode ser menor que o mínimo.', 'error'); return; }
     if (ingredients.length === 0) { UI.toast('Adicione pelo menos 1 insumo', 'error'); return; }
     var componentCosts = _calcFichaComponentCosts(components);
     var indirectCostInfo = _getIndirectCostInfo();
@@ -7993,6 +8056,9 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var indirectCost = componentCosts.direct * (indirectCostPercent / 100);
     var totalCost = componentCosts.direct + indirectCost;
     var unitWeightG = _parseFichaNum((document.getElementById('fc-unit-weight') || {}).value);
+    var minStock = _parseFichaNum((document.getElementById('fc-stock-min') || {}).value);
+    var maxStock = _parseFichaNum((document.getElementById('fc-stock-max') || {}).value);
+    if (minStock > 0 && maxStock > 0 && maxStock < minStock) { UI.toast('O estoque máximo não pode ser menor que o mínimo.', 'error'); return; }
     var data = {
       name: name,
       category: ((document.getElementById('fc-category') || {}).value) || '',
@@ -8012,6 +8078,10 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       indirectCost: indirectCost,
       totalCost: totalCost,
       costPerYield: yieldQty > 0 ? totalCost / yieldQty : 0,
+      minStock: minStock,
+      maxStock: maxStock,
+      estoque_minimo: minStock,
+      estoque_maximo: maxStock,
       internalNotes: ((document.getElementById('fc-notes') || {}).value) || '',
       preparationMode: ((document.getElementById('fc-prep') || {}).value) || '',
       conservationType: ((document.getElementById('fc-conserv') || {}).value) || '',
@@ -8042,10 +8112,54 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     }
     var op = _editingId ? DB.update('fichasTecnicas', _editingId, data) : DB.set('fichasTecnicas', fichaId, data);
     op.then(function () {
+      return _syncRecipeStockSettings(fichaId, data);
+    }).then(function () {
       UI.toast('Receita salva!', 'success');
       if (window._fichaModal) window._fichaModal.close();
       _renderFichas();
     }).catch(function (err) { UI.toast('Erro: ' + err.message, 'error'); });
+  }
+
+  function _stockSettingId(key) {
+    return String(key || 'item').replace(/[^\w-]/g, '_').slice(0, 140);
+  }
+
+  function _syncRecipeStockSettings(fichaId, ficha) {
+    if (!fichaId) return Promise.resolve();
+    var now = new Date().toISOString();
+    var ops = [];
+    var recipeKey = 'produto_produzido:' + fichaId;
+    ops.push(DB.col('stock_settings').doc(_stockSettingId(recipeKey)).set({
+      id: _stockSettingId(recipeKey),
+      stockKey: recipeKey,
+      itemId: fichaId,
+      itemName: ficha.name || '',
+      itemType: 'produto',
+      stockItemType: 'produto_produzido',
+      unit: ficha.yieldUnit || '',
+      minStock: _parseFichaNum(ficha.minStock),
+      maxStock: _parseFichaNum(ficha.maxStock),
+      updatedAt: now,
+      createdAt: now
+    }, { merge: true }));
+    (ficha.components || []).forEach(function (comp, idx) {
+      if (!(comp.stockControl || comp.controlsStock)) return;
+      var baseKey = 'base_producao:' + fichaId + ':' + (comp.name || 'etapa_' + idx);
+      ops.push(DB.col('stock_settings').doc(_stockSettingId(baseKey)).set({
+        id: _stockSettingId(baseKey),
+        stockKey: baseKey,
+        itemId: fichaId + ':' + (comp.name || 'etapa_' + idx),
+        itemName: comp.name || 'Base de produção',
+        itemType: 'base_producao',
+        stockItemType: 'base_producao',
+        unit: comp.baseYieldUnit || comp.stockYieldUnit || ficha.yieldUnit || '',
+        minStock: _parseFichaNum(comp.minStock),
+        maxStock: _parseFichaNum(comp.maxStock),
+        updatedAt: now,
+        createdAt: now
+      }, { merge: true }));
+    });
+    return Promise.all(ops);
   }
 
   function _deleteFicha(id) {

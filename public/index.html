@@ -320,6 +320,15 @@
       stroke-linejoin: round;
     }
 
+    .account-avatar img,
+    .account-summary-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      border-radius: inherit;
+    }
+
     .circle-btn {
       width: 38px;
       height: 38px;
@@ -2845,6 +2854,50 @@
       display: grid;
     }
 
+    .account-profile-form {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .account-profile-form .span-2 {
+      grid-column: 1 / -1;
+    }
+
+    .account-profile-form .auth-field {
+      min-height: 38px;
+      padding: 8px 10px;
+      font-size: 11.5px;
+      border-radius: 13px;
+      background: #fffdf9;
+    }
+
+    .account-profile-form textarea.auth-field {
+      min-height: 68px;
+      resize: vertical;
+      line-height: 1.35;
+    }
+
+    .account-check-row {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      color: #171412;
+      font-size: 11.5px;
+      line-height: 1.35;
+      font-weight: 400;
+      padding: 3px 1px;
+    }
+
+    .account-check-row input {
+      width: 16px;
+      height: 16px;
+      margin: 0;
+      accent-color: var(--brand);
+      flex: 0 0 auto;
+    }
+
     .account-address-form .auth-field {
       min-height: 38px;
       padding: 8px 10px;
@@ -2950,6 +3003,30 @@
     }
 
     @media (max-width: 520px) {
+      .account-profile-form {
+        grid-template-columns: 1fr;
+      }
+
+      .account-profile-form .span-2,
+      .account-profile-form .account-save-row {
+        grid-column: 1 / -1;
+      }
+
+      .account-profile-form .auth-field {
+        min-height: 44px;
+        padding: 10px 11px;
+        font-size: 16px;
+        border-radius: 14px;
+      }
+
+      .account-profile-form textarea.auth-field {
+        min-height: 92px;
+      }
+
+      .account-check-row {
+        font-size: 13px;
+      }
+
       .account-address-form {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 9px;
@@ -10004,6 +10081,21 @@
                     </div>
                     <button class="auth-submit" type="button" id="account-contact-save">Guardar WhatsApp</button>
                   </div>
+                  <div class="account-section-label" id="account-profile-title">Preferencias</div>
+                  <div class="account-profile-form">
+                    <input class="auth-field" id="account-birthday" type="date" aria-label="Cumpleaños">
+                    <input class="auth-field" id="account-document" placeholder="Documento">
+                    <label class="account-check-row">
+                      <input id="account-accepts-marketing" type="checkbox">
+                      <span id="account-marketing-label">Acepto recibir promociones de esta tienda.</span>
+                    </label>
+                    <textarea class="auth-field span-2" id="account-preferences" placeholder="Preferencias"></textarea>
+                    <textarea class="auth-field span-2" id="account-allergies" placeholder="Alergias o restricciones"></textarea>
+                    <textarea class="auth-field span-2" id="account-notes" placeholder="Observaciones"></textarea>
+                    <div class="account-save-row">
+                      <button class="auth-submit" type="button" id="account-profile-save">Guardar preferencias</button>
+                    </div>
+                  </div>
                   <div class="account-saved-addresses" id="account-saved-addresses"></div>
                   <button class="account-add-address" type="button" id="account-address-add">Añadir dirección</button>
                   <div class="account-address-form" id="account-address-form">
@@ -14130,6 +14222,7 @@
           email: user.email || '',
           name: firstText(user.displayName, user.email, ''),
           customerName: firstText(user.displayName, user.email, ''),
+          photoURL: user.photoURL || '',
           authProvider: source || '',
           role: 'customer',
           source: 'storefront',
@@ -14193,8 +14286,11 @@
 
       function updateStoreUserUi() {
         var label = document.querySelector('.account-pill span:last-child');
+        var avatar = document.querySelector('.account-pill .account-avatar');
         var authUser = storeAuthUser();
+        var customer = currentCustomerRecord();
         if (label) label.textContent = authUser ? firstText(authUser.displayName, authUser.email, t('account')) : t('account');
+        if (avatar) avatar.innerHTML = authUser ? customerAvatarHtml(customer, false) : customerAvatarHtml(null, true);
       }
 
       function accountPanelText(key) {
@@ -14210,9 +14306,18 @@
           noAddress: 'Adicione seus endereços de entrega e escolha um deles no checkout.',
           editAddress: 'Editar',
           saveAddress: 'Salvar dados',
-          addressSaved: 'Dados salvos para suas próximas compras.',
+            addressSaved: 'Dados salvos para suas próximas compras.',
             whatsappTitle: 'WhatsApp',
-            whatsappPlaceholder: 'Seu WhatsApp'
+            whatsappPlaceholder: 'Seu WhatsApp',
+            profileTitle: 'Preferências',
+            birthdayPlaceholder: 'Aniversário',
+            documentPlaceholder: 'Documento fiscal',
+            marketingLabel: 'Aceito receber promoções desta loja.',
+            preferencesPlaceholder: 'Preferências',
+            allergiesPlaceholder: 'Alergias ou restrições',
+            notesPlaceholder: 'Observações',
+            saveProfile: 'Salvar preferências',
+            profileSaved: 'Preferências salvas.'
           },
           'pt-PT': {
             kicker: 'Conta',
@@ -14224,9 +14329,18 @@
           noAddress: 'Adicione os seus endereços de entrega e escolha um deles no checkout.',
           editAddress: 'Editar',
           saveAddress: 'Guardar dados',
-          addressSaved: 'Dados guardados para as próximas compras.',
+            addressSaved: 'Dados guardados para as próximas compras.',
             whatsappTitle: 'WhatsApp',
-            whatsappPlaceholder: 'O seu WhatsApp'
+            whatsappPlaceholder: 'O seu WhatsApp',
+            profileTitle: 'Preferências',
+            birthdayPlaceholder: 'Aniversário',
+            documentPlaceholder: 'Documento fiscal',
+            marketingLabel: 'Aceito receber promoções desta loja.',
+            preferencesPlaceholder: 'Preferências',
+            allergiesPlaceholder: 'Alergias ou restrições',
+            notesPlaceholder: 'Observações',
+            saveProfile: 'Guardar preferências',
+            profileSaved: 'Preferências guardadas.'
           },
           'en': {
             kicker: 'Account',
@@ -14238,9 +14352,18 @@
           noAddress: 'Add your delivery addresses and choose one at checkout.',
           editAddress: 'Edit',
           saveAddress: 'Save details',
-          addressSaved: 'Details saved for your next orders.',
+            addressSaved: 'Details saved for your next orders.',
             whatsappTitle: 'WhatsApp',
-            whatsappPlaceholder: 'Your WhatsApp'
+            whatsappPlaceholder: 'Your WhatsApp',
+            profileTitle: 'Preferences',
+            birthdayPlaceholder: 'Birthday',
+            documentPlaceholder: 'Fiscal document',
+            marketingLabel: 'I agree to receive promotions from this store.',
+            preferencesPlaceholder: 'Preferences',
+            allergiesPlaceholder: 'Allergies or restrictions',
+            notesPlaceholder: 'Notes',
+            saveProfile: 'Save preferences',
+            profileSaved: 'Preferences saved.'
           },
           'fr': {
             kicker: 'Compte',
@@ -14252,9 +14375,18 @@
           noAddress: 'Ajoutez vos adresses de livraison et choisissez-en une au moment de commander.',
           editAddress: 'Modifier',
           saveAddress: 'Enregistrer',
-          addressSaved: 'Informations enregistrées pour vos prochaines commandes.',
+            addressSaved: 'Informations enregistrées pour vos prochaines commandes.',
             whatsappTitle: 'WhatsApp',
-            whatsappPlaceholder: 'Votre WhatsApp'
+            whatsappPlaceholder: 'Votre WhatsApp',
+            profileTitle: 'Préférences',
+            birthdayPlaceholder: 'Anniversaire',
+            documentPlaceholder: 'Document fiscal',
+            marketingLabel: 'J’accepte de recevoir les promotions de cette boutique.',
+            preferencesPlaceholder: 'Préférences',
+            allergiesPlaceholder: 'Allergies ou restrictions',
+            notesPlaceholder: 'Remarques',
+            saveProfile: 'Enregistrer les préférences',
+            profileSaved: 'Préférences enregistrées.'
           },
           'es-ES': {
             kicker: 'Cuenta',
@@ -14268,7 +14400,16 @@
           saveAddress: 'Guardar datos',
             addressSaved: 'Datos guardados para tus próximas compras.',
             whatsappTitle: 'WhatsApp',
-            whatsappPlaceholder: 'Tu WhatsApp'
+            whatsappPlaceholder: 'Tu WhatsApp',
+            profileTitle: 'Preferencias',
+            birthdayPlaceholder: 'Cumpleaños',
+            documentPlaceholder: 'Documento fiscal',
+            marketingLabel: 'Acepto recibir promociones de esta tienda.',
+            preferencesPlaceholder: 'Preferencias',
+            allergiesPlaceholder: 'Alergias o restricciones',
+            notesPlaceholder: 'Observaciones',
+            saveProfile: 'Guardar preferencias',
+            profileSaved: 'Preferencias guardadas.'
           }
         };
         return (dict[lang] && dict[lang][key]) || dict['es-ES'][key] || '';
@@ -14277,6 +14418,26 @@
       function customerInitials(customer) {
         var name = firstText(customer && customer.name, customer && customer.customerName, currentStoreUser && currentStoreUser.displayName, currentStoreUser && currentStoreUser.email, 'C');
         return name.split(/\s+/).filter(Boolean).slice(0, 2).map(function (part) { return part.charAt(0).toUpperCase(); }).join('') || 'C';
+      }
+
+      function customerAvatarUrl(customer) {
+        customer = customer || currentCustomerRecord() || {};
+        return firstText(
+          customer.avatarUrl,
+          customer.photoURL,
+          customer.photoUrl,
+          customer.imageUrl,
+          customer.picture,
+          currentStoreUser && currentStoreUser.photoURL,
+          ''
+        );
+      }
+
+      function customerAvatarHtml(customer, fallbackIcon) {
+        var url = customerAvatarUrl(customer);
+        if (url) return '<img src="' + text(url) + '" alt="">';
+        if (fallbackIcon) return '<svg viewBox="0 0 24 24"><path d="M20 21a8 8 0 0 0-16 0"></path><circle cx="12" cy="8" r="4"></circle></svg>';
+        return text(customerInitials(customer));
       }
 
       function customerSavedAddress(customer) {
@@ -14292,8 +14453,8 @@
           id: firstText(data.id, 'legacy'),
           label: firstText(data.label, data.name, data.title, 'Casa'),
           address: firstText(data.address, customer.address, customer.streetAddress, ''),
-          number: firstText(data.number, customer.addressNumber, ''),
-          complement: firstText(data.complement, customer.addressComplement, ''),
+          number: firstText(data.number, customer.addressNumber, customer.number, customer.numero, ''),
+          complement: firstText(data.complement, customer.addressComplement, customer.reference, customer.complement, ''),
           neighborhood: firstText(data.neighborhood, customer.neighborhood, customer.addressNeighborhood, ''),
           city: firstText(data.city, customer.city, customer.addressCity, ''),
           province: firstText(data.province, customer.province, customer.addressProvince, ''),
@@ -14347,8 +14508,8 @@
             id: 'legacy',
             label: 'Casa',
             address: firstText(customer.address, customer.streetAddress, ''),
-            number: firstText(customer.addressNumber, ''),
-            complement: firstText(customer.addressComplement, ''),
+            number: firstText(customer.addressNumber, customer.number, customer.numero, ''),
+            complement: firstText(customer.addressComplement, customer.reference, customer.complement, ''),
             neighborhood: firstText(customer.addressNeighborhood, customer.neighborhood, ''),
             city: firstText(customer.addressCity, customer.city, ''),
             province: firstText(customer.addressProvince, customer.province, ''),
@@ -14699,6 +14860,58 @@
         });
       }
 
+      function accountProfileFromForm() {
+        var current = currentCustomerRecord() || {};
+        var fiscal = Object.assign({}, current.fiscal || {});
+        var documentValue = fieldValue('account-document');
+        fiscal.fiscalId = documentValue || '';
+        fiscal.countryCode = fiscal.countryCode || deliveryCountryCode() || 'ES';
+        return {
+          birthday: fieldValue('account-birthday'),
+          acceptsMarketing: !!(document.getElementById('account-accepts-marketing') && document.getElementById('account-accepts-marketing').checked),
+          preferences: fieldValue('account-preferences'),
+          allergies: fieldValue('account-allergies'),
+          notes: fieldValue('account-notes'),
+          internalNotes: fieldValue('account-notes'),
+          nifCif: documentValue || '',
+          fiscalId: documentValue || '',
+          fiscal: fiscal
+        };
+      }
+
+      function syncLocalCustomerProfile(profile) {
+        var authUser = storeAuthUser();
+        if (!authUser) return;
+        var uid = String(authUser.uid || '');
+        var idx = storeCustomers.findIndex(function (customer) { return String(customer.id || customer.uid || '') === uid; });
+        var patch = Object.assign({
+          id: uid,
+          uid: uid,
+          email: authUser.email || '',
+          name: authUser.displayName || authUser.email || ''
+        }, profile || {});
+        if (idx >= 0) storeCustomers[idx] = Object.assign({}, storeCustomers[idx], patch);
+        else storeCustomers.push(patch);
+      }
+
+      function saveStoreCustomerProfile() {
+        var authUser = storeAuthUser();
+        var profile = accountProfileFromForm();
+        syncLocalCustomerProfile(profile);
+        if (!db || !activeTenantId || !authUser) return Promise.resolve(profile);
+        return col('store_customers').doc(authUser.uid).set(Object.assign({
+          uid: authUser.uid,
+          email: authUser.email || '',
+          name: authUser.displayName || authUser.email || '',
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, profile), { merge: true }).then(function () {
+          return profile;
+        }).catch(function (err) {
+          console.warn('Store customer profile save error', err);
+          throw err;
+        });
+      }
+
       function applySavedAddressToCart(customer, force) {
         customer = customer || currentCustomerRecord();
         var whatsapp = customerWhatsapp(customer);
@@ -14864,7 +15077,7 @@
         if (summary) {
           var summaryNote = balance ? balance + ' ' + t('pointsBalanceNote') : accountPanelText('text');
           summary.innerHTML = '<div class="account-summary-main">' +
-            '<div class="account-summary-avatar">' + text(customerInitials(customer)) + '</div>' +
+            '<div class="account-summary-avatar">' + customerAvatarHtml(customer, false) + '</div>' +
             '<div><div class="account-summary-name">' + text(name) + '</div>' +
             (email ? '<div class="account-summary-email">' + text(email) + '</div>' : '') +
             '</div></div>' +
@@ -14891,6 +15104,40 @@
         if (addressAdd) addressAdd.textContent = 'Añadir dirección';
         var whatsappInput = document.getElementById('account-whatsapp');
         if (whatsappInput) whatsappInput.placeholder = accountPanelText('whatsappPlaceholder');
+        var profileTitle = document.getElementById('account-profile-title');
+        if (profileTitle) profileTitle.textContent = accountPanelText('profileTitle');
+        var birthdayInput = document.getElementById('account-birthday');
+        if (birthdayInput) {
+          birthdayInput.placeholder = accountPanelText('birthdayPlaceholder');
+          birthdayInput.setAttribute('aria-label', accountPanelText('birthdayPlaceholder'));
+          birthdayInput.value = firstText(customer && customer.birthday, '');
+        }
+        var documentInput = document.getElementById('account-document');
+        if (documentInput) {
+          documentInput.placeholder = accountPanelText('documentPlaceholder');
+          documentInput.value = firstText(customer && customer.nifCif, customer && customer.fiscalId, customer && customer.fiscal && customer.fiscal.fiscalId, '');
+        }
+        var marketingLabel = document.getElementById('account-marketing-label');
+        if (marketingLabel) marketingLabel.textContent = accountPanelText('marketingLabel');
+        var marketingInput = document.getElementById('account-accepts-marketing');
+        if (marketingInput) marketingInput.checked = !!(customer && customer.acceptsMarketing);
+        var preferencesInput = document.getElementById('account-preferences');
+        if (preferencesInput) {
+          preferencesInput.placeholder = accountPanelText('preferencesPlaceholder');
+          preferencesInput.value = firstText(customer && customer.preferences, '');
+        }
+        var allergiesInput = document.getElementById('account-allergies');
+        if (allergiesInput) {
+          allergiesInput.placeholder = accountPanelText('allergiesPlaceholder');
+          allergiesInput.value = firstText(customer && customer.allergies, '');
+        }
+        var notesInput = document.getElementById('account-notes');
+        if (notesInput) {
+          notesInput.placeholder = accountPanelText('notesPlaceholder');
+          notesInput.value = firstText(customer && customer.notes, customer && customer.internalNotes, '');
+        }
+        var profileSave = document.getElementById('account-profile-save');
+        if (profileSave) profileSave.textContent = accountPanelText('saveProfile');
         if (addressForm) addressForm.classList.remove('show');
         var pointsButton = document.getElementById('account-points-button');
         if (pointsButton) {
@@ -14976,6 +15223,16 @@
           applySavedAddressToCart(currentCustomerRecord(), false);
         }).catch(function () {
           showAccountAddressStatus('Indica un WhatsApp válido para guardarlo.');
+        });
+      }
+
+      function saveAccountProfile() {
+        showAccountAddressStatus('');
+        saveStoreCustomerProfile().then(function () {
+          renderAccountModal();
+          showAccountAddressStatus(accountPanelText('profileSaved'));
+        }).catch(function () {
+          showAccountAddressStatus('No pudimos guardar estos datos. Inténtalo otra vez.');
         });
       }
 
@@ -16650,6 +16907,7 @@
       function saveOrder(extra) {
         if (!db || !activeTenantId) return Promise.resolve(null);
         var authUser = storeAuthUser();
+        var orderCustomer = currentCustomerRecord();
         var couponToSync = appliedCoupon;
         var freeShippingPromo = extra.freeShippingPromotion || null;
         var freeShippingUpsellRule = extra.freeShippingUpsellRule || null;
@@ -16695,6 +16953,13 @@
           customerEmail: authUser && authUser.email ? authUser.email : '',
           customerName: extra.customerName || 'Cliente',
           customerPhone: extra.customerPhone || '',
+          customerFiscal: orderCustomer && orderCustomer.fiscal ? orderCustomer.fiscal : {},
+          customerDocument: firstText(orderCustomer && orderCustomer.nifCif, orderCustomer && orderCustomer.fiscalId, orderCustomer && orderCustomer.fiscal && orderCustomer.fiscal.fiscalId, ''),
+          customerBirthday: orderCustomer && orderCustomer.birthday ? orderCustomer.birthday : '',
+          customerPreferences: orderCustomer && orderCustomer.preferences ? orderCustomer.preferences : '',
+          customerAllergies: orderCustomer && orderCustomer.allergies ? orderCustomer.allergies : '',
+          customerNotes: orderCustomer && (orderCustomer.notes || orderCustomer.internalNotes) ? (orderCustomer.notes || orderCustomer.internalNotes) : '',
+          customerAcceptsMarketing: !!(orderCustomer && orderCustomer.acceptsMarketing),
           address: extra.address || '',
           deliveryAddress: extra.deliveryAddress || deliveryAddressData(),
           streetAddress: deliveryStreetAddress(),
@@ -16967,6 +17232,8 @@
         if (accountAddressSave) accountAddressSave.onclick = saveAccountDetails;
         var accountContactSave = document.getElementById('account-contact-save');
         if (accountContactSave) accountContactSave.onclick = saveAccountContact;
+        var accountProfileSave = document.getElementById('account-profile-save');
+        if (accountProfileSave) accountProfileSave.onclick = saveAccountProfile;
         var accountAddressAdd = document.getElementById('account-address-add');
         if (accountAddressAdd) accountAddressAdd.onclick = startNewAccountAddress;
         var accountAddressLine = document.getElementById('account-address-line');

@@ -11,16 +11,22 @@ Modules.Pedidos = (function () {
   var _stockRecipes = [];
   var _promotions = [];
   var _generalConfig = {};
+  var _templateConfig = {};
+  var _domainConfig = {};
   var _financeConfig = {};
+  var _tpvConfig = {};
   var _zones = [];
   var _canais = [];
   var _activeTab = 'cozinha';
   var _reviewsHostId = '';
-  var _alarmOn = false;
+  var _alarmOn = _readAlarmPreference();
   var _audioCtx = null;
   var _knownIds = null;
+  var _financeScaleRepairIds = {};
   var _kitchenModeOverlay = null;
   var _kitchenDetailId = null;
+  var _detailChecklistDirty = {};
+  var _manualOrderCustomerListOpen = false;
   var _reviewUi = {
     query: '',
     status: 'all',
@@ -31,10 +37,28 @@ Modules.Pedidos = (function () {
     page: 1,
     pageSize: 10
   };
+
+  function _adminPanelStyle(extra) {
+    return 'background:linear-gradient(180deg,#FFFFFF 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.055);font-family:Manrope,Inter,sans-serif;' + (extra || '');
+  }
+
+  function _adminInputStyle(extra) {
+    return 'width:100%;height:40px;border:0;background:transparent;outline:none;font-size:14px;font-weight:400;font-family:Manrope,Inter,sans-serif;color:#1F1F1F;box-sizing:border-box;' + (extra || '');
+  }
+
+  function _adminSelectStyle(extra) {
+    return _adminInputStyle('appearance:none;-webkit-appearance:none;-moz-appearance:none;padding-right:30px;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 4px center;background-size:14px;' + (extra || ''));
+  }
+
+  function _adminFilterField(label, html) {
+    return '<label style="display:block;min-width:0;"><span style="font-size:11px;font-weight:650;color:#8A7E7C;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;display:block;">' + _esc(label) + '</span><div style="background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:0 12px;min-height:42px;display:flex;align-items:center;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;" onfocusin="this.style.background=\'#fff\';this.style.borderColor=\'#D9AAA1\';this.style.boxShadow=\'0 0 0 3px rgba(180,35,24,.08)\'" onfocusout="this.style.background=\'#FFFCF8\';this.style.borderColor=\'#E8DCD7\';this.style.boxShadow=\'none\'">' + html + '</div></label>';
+  }
   var _ui = {
     q: '',
     status: 'all',
-    channel: 'all'
+    channel: 'all',
+    kitchenDate: '',
+    kitchenPeriod: 'all'
   };
   var _clientPage = 1;
   var _clientPageSize = 10;
@@ -54,7 +78,15 @@ Modules.Pedidos = (function () {
     customerPhone: '',
     customerEmail: '',
     customerAddress: '',
+    customerAddressNumber: '',
+    customerAddressComplement: '',
+    customerNeighborhood: '',
+    customerCity: '',
+    customerProvince: '',
+    customerCountry: '',
+    customerPostalCode: '',
     customerZone: '',
+    selectedDeliveryAddressId: '',
     customerPreferences: '',
     customerNotes: '',
     type: 'delivery',
@@ -87,13 +119,13 @@ Modules.Pedidos = (function () {
   }
 
   var WA_MSGS = {
-    'Pendente': function (o) { return _orderWhatsappMessage(o, 'Pendente', 'Hola, recibimos tu pedido y lo estamos revisando. Te avisaremos en cuanto esté confirmado.'); },
-    'Confirmado': function (o) { return _orderWhatsappMessage(o, 'Confirmado', 'Hola, tu pedido fue confirmado y pronto entrará en preparación.'); },
-    'Em preparação': function (o) { return _orderWhatsappMessage(o, 'Em preparação', 'Hola, tu pedido ya está en preparación.'); },
-    'Em camino': function (o) { return _orderWhatsappMessage(o, 'Em caminho', 'Hola, tu pedido ya salió para entrega.'); },
-    'Listo para recoger': function (o) { return _orderWhatsappMessage(o, 'Pronto para retirada', 'Hola, tu pedido ya está listo para retirar.'); },
-    'Entregado': function (o) { return _orderWhatsappMessage(o, 'Entregue', 'Hola, tu pedido fue entregado. ¡Gracias por comprar con nosotros!'); },
-    'Cancelado': function (o) { return _orderWhatsappMessage(o, 'Cancelado', 'Hola, tu pedido fue cancelado. Si necesitas ayuda, responde a este mensaje.'); }
+    'Pendente': function (o) { return _orderStatusWhatsappMessage(o, 'Pendente'); },
+    'Confirmado': function (o) { return _orderStatusWhatsappMessage(o, 'Confirmado'); },
+    'Em preparação': function (o) { return _orderStatusWhatsappMessage(o, 'Em preparação'); },
+    'Em camino': function (o) { return _orderStatusWhatsappMessage(o, 'Em camino'); },
+    'Listo para recoger': function (o) { return _orderStatusWhatsappMessage(o, 'Listo para recoger'); },
+    'Entregado': function (o) { return _orderStatusWhatsappMessage(o, 'Entregado'); },
+    'Cancelado': function (o) { return _orderStatusWhatsappMessage(o, 'Cancelado'); }
   };
 
   function render(sub) {
@@ -158,7 +190,10 @@ Modules.Pedidos = (function () {
       DB.getDocRoot ? DB.getDocRoot('config', 'geral').catch(function () { return null; }) : Promise.resolve(null),
       DB.getDocRoot ? DB.getDocRoot('config', 'financeiro').catch(function () { return null; }) : Promise.resolve(null),
       DB.getDocRoot ? DB.getDocRoot('config', 'zonas').catch(function () { return null; }) : Promise.resolve(null),
-      DB.getDocRoot ? DB.getDocRoot('config', 'canais_venda').catch(function () { return null; }) : Promise.resolve(null)
+      DB.getDocRoot ? DB.getDocRoot('config', 'template').catch(function () { return null; }) : Promise.resolve(null),
+      DB.getDocRoot ? DB.getDocRoot('config', 'canais_venda').catch(function () { return null; }) : Promise.resolve(null),
+      DB.getDocRoot ? DB.getDocRoot('config', 'dominio').catch(function () { return null; }) : Promise.resolve(null),
+      DB.getDocRoot ? DB.getDocRoot('config', 'tpv').catch(function () { return null; }) : Promise.resolve(null)
     ]).then(function (res) {
       _customers = res[0] || [];
       _reviews = res[1] || [];
@@ -168,17 +203,24 @@ Modules.Pedidos = (function () {
       _generalConfig = res[6] || {};
       _financeConfig = res[7] || {};
       _zones = _normalizeZones(res[8]);
-      _canais = _normalizeCanais(res[9]);
+      if (!_zones.length) _zones = _normalizeZones(res[9]);
+      _templateConfig = res[9] || {};
+      _canais = _normalizeCanais(res[10]);
+      _domainConfig = res[11] || {};
+      _tpvConfig = res[12] || {};
       _syncOrderCustomerLinks(_orders);
       if (!_paintReviewsHost()) _paintActive();
     }).catch(function () {
       _customers = [];
       _reviews = [];
       _products = [];
+      _templateConfig = {};
+      _domainConfig = {};
       _stockRecipes = [];
       _promotions = [];
       _generalConfig = {};
       _financeConfig = {};
+      _tpvConfig = {};
       _zones = [];
       _canais = _normalizeCanais(null);
       _syncOrderCustomerLinks(_orders);
@@ -247,6 +289,7 @@ Modules.Pedidos = (function () {
       _knownIds = new Set(orders.map(function (o) { return o.id; }));
       _orders = (orders || []).map(_ensureOrderFiscalDefaults);
       _syncOrderCustomerLinks(_orders);
+      _repairInflatedFinanceMovements(_orders);
       _paintActive();
     });
   }
@@ -284,27 +327,17 @@ Modules.Pedidos = (function () {
     var total = baseOrders.reduce(function (sum, o) { return sum + _num(o.total || o.amount || o.grandTotal); }, 0);
     var pending = baseOrders.filter(function (o) { return String(o.status || 'Pendente') === 'Pendente'; }).length;
     var preparing = baseOrders.filter(function (o) { return String(o.status || '') === 'Em preparação'; }).length;
-    var ready = baseOrders.filter(function (o) { return String(o.status || '') === 'Listo para recoger'; }).length;
     var active = baseOrders.length;
-    var fieldStyle = 'padding:10px 12px;border:1px solid #EAE4DA;border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;width:100%;box-sizing:border-box;color:#1F1F1F;box-shadow:inset 0 1px 0 rgba(255,255,255,.78);transition:border-color .15s ease,box-shadow .15s ease,background .15s ease;';
-    var cardStyle = 'background:#fff;border:none;border-radius:16px;padding:18px 20px;box-shadow:0 12px 30px rgba(31,31,31,.06);';
-    var chipStyle = 'display:inline-flex;align-items:center;min-height:24px;padding:0 10px;border-radius:999px;background:#fff;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:500;box-shadow:0 1px 2px rgba(31,31,31,.02);';
     return '<div class="bf-page" style="padding:24px;display:flex;flex-direction:column;gap:16px;min-height:0;flex:1;">' +
       '<div class="bf-page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
         '<div style="min-width:0;flex:1 1 420px;">' +
           '<h2 style="font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;line-height:1.2;">Cozinha</h2>' +
-          '<p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0 0 10px;max-width:760px;">Acompanhe pedidos ativos, avance status e opere a produção com leitura rápida.</p>' +
-          '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
-            '<span style="' + chipStyle + '">' + active + ' ativos</span>' +
-            '<span style="' + chipStyle + '">' + pending + ' pendentes</span>' +
-            '<span style="' + chipStyle + '">' + orders.length + ' no filtro</span>' +
-          '</div>' +
+          '<p style="font-size:13px;color:#6F6860;line-height:1.5;margin:0;max-width:760px;">Acompanhe pedidos ativos, avance status e opere a produção com leitura rápida.</p>' +
         '</div>' +
         '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">' +
-          '<button id="alarm-btn" onclick="Modules.Pedidos._toggleAlarm()" title="Ligar ou desligar alarme" style="height:38px;padding:0 12px;border:1px solid #E6E1D8;border-radius:10px;background:#fff;color:#1F1F1F;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 1px 2px rgba(31,31,31,.03);font-family:inherit;display:inline-flex;align-items:center;gap:6px;"><span class="mi" style="font-size:17px;color:#B42318;">notifications</span>Alarme: ' + (_alarmOn ? 'ON' : 'OFF') + '</button>' +
+          '<button id="alarm-btn" onclick="Modules.Pedidos._toggleAlarm()" title="Ligar ou desligar alarme" style="height:38px;padding:0 12px;border:1px solid ' + (_alarmOn ? '#E4CFC8' : '#E6E1D8') + ';border-radius:10px;background:' + (_alarmOn ? '#FFF7F5' : '#fff') + ';color:#1F1F1F;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 1px 2px rgba(31,31,31,.03);font-family:inherit;display:inline-flex;align-items:center;gap:6px;"><span class="mi" style="font-size:17px;color:' + (_alarmOn ? '#B42318' : '#8A7E7C') + ';">notifications</span>Alarme: ' + (_alarmOn ? 'ON' : 'OFF') + '</button>' +
           '<button onclick="Modules.Pedidos._testAlarm()" style="height:38px;padding:0 12px;border:1px solid #E6E1D8;border-radius:10px;background:#fff;color:#1F1F1F;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 1px 2px rgba(31,31,31,.03);font-family:inherit;">Testar</button>' +
           '<button onclick="Modules.Pedidos._openKitchenMode()" style="height:38px;padding:0 14px;border:1px solid #E6E1D8;border-radius:10px;background:#fff;color:#1F1F1F;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 1px 2px rgba(31,31,31,.03);font-family:inherit;">Modo cozinha</button>' +
-          '<button onclick="Modules.Pedidos._openNewOrder()" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(180,35,24,.16);">+ Novo pedido</button>' +
         '</div>' +
       '</div>' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;">' +
@@ -313,24 +346,18 @@ Modules.Pedidos = (function () {
         _kitchenKpiCard('Em preparo', preparing, 'produção em andamento', 'skillet', '#7C3AED') +
         _kitchenKpiCard('Faturamento ativo', active ? UI.fmt(total) : '—', 'pedidos ainda não finalizados', 'payments', '#B42318') +
       '</div>' +
-      '<div style="' + cardStyle + '">' +
-        '<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-end;">' +
-          '<div style="display:grid;grid-template-columns:minmax(min(320px,100%),1.5fr) minmax(min(180px,100%),.8fr) minmax(min(170px,100%),.8fr) auto;gap:10px 12px;flex:1;align-items:end;">' +
-            '<div><input id="pedidos-kitchen-search" type="search" value="' + _esc(_ui.q || '') + '" oninput="Modules.Pedidos._setUi(\'q\', this.value)" placeholder="Buscar pedido, cliente, telefone ou item..." autocomplete="off" style="' + fieldStyle + 'height:40px;"></div>' +
-            '<div><select onchange="Modules.Pedidos._setUi(\'status\', this.value)" style="' + fieldStyle + 'height:40px;">' +
+      '<div style="' + _adminPanelStyle() + '">' +
+        '<div style="display:grid;grid-template-columns:minmax(260px,1fr) minmax(180px,240px) minmax(150px,190px) minmax(160px,220px);gap:11px 12px;align-items:end;">' +
+          _adminFilterField('Buscar', '<input id="pedidos-kitchen-search" type="search" value="' + _esc(_ui.q || '') + '" oninput="Modules.Pedidos._setUi(\'q\', this.value)" placeholder="Pedido, cliente, telefone ou item" autocomplete="off" style="' + _adminInputStyle() + '">') +
+          _adminFilterField('Status', '<select onchange="Modules.Pedidos._setUi(\'status\', this.value)" style="' + _adminSelectStyle() + '">' +
               _orderFilterOptions(['all', 'Pendente', 'Confirmado', 'Em preparação', 'Em camino', 'Listo para recoger'], _ui.status, 'Todos os status') +
-            '</select></div>' +
-            '<div><select onchange="Modules.Pedidos._setUi(\'channel\', this.value)" style="' + fieldStyle + 'height:40px;">' +
-              _orderFilterOptions(['all', 'cardapio'], _ui.channel, 'Canal: Cardápio') +
-            '</select></div>' +
-            ((_ui.q || _ui.status !== 'all' || _ui.channel !== 'all') ? '<button type="button" onclick="Modules.Pedidos._clearKitchenFilters()" style="height:40px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#6F6860;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;">Limpar filtros</button>' : '') +
-          '</div>' +
+            '</select>') +
+          _adminFilterField('Data', '<input type="date" value="' + _esc(_ui.kitchenDate || '') + '" onchange="Modules.Pedidos._setUi(\'kitchenDate\', this.value)" style="' + _adminInputStyle() + '">') +
+          _adminFilterField('Período', '<select onchange="Modules.Pedidos._setUi(\'kitchenPeriod\', this.value)" style="' + _adminSelectStyle() + '">' +
+              _kitchenPeriodOptions(_ui.kitchenPeriod) +
+            '</select>') +
         '</div>' +
-        '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
-          '<span style="' + chipStyle + '">' + active + ' pedidos ativos</span>' +
-          '<span style="' + chipStyle + '">' + ready + ' prontos</span>' +
-          '<span style="' + chipStyle + '">' + orders.length + ' exibidos</span>' +
-        '</div>' +
+        ((_ui.q || _ui.status !== 'all' || _ui.kitchenDate || _ui.kitchenPeriod !== 'all') ? '<div style="display:flex;justify-content:flex-start;margin-top:11px;"><button type="button" onclick="Modules.Pedidos._clearKitchenFilters()" style="height:36px;padding:0 13px;border:1px solid #EADFD8;border-radius:11px;background:#fff;color:#6F6860;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);">Limpar filtros</button></div>' : '') +
       '</div>' +
       '<section style="display:flex;flex-direction:column;gap:10px;min-height:0;">' +
         '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">Pedidos ativos</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Lista operacional da cozinha com ações rápidas de status.</div></div>' +
@@ -342,25 +369,14 @@ Modules.Pedidos = (function () {
   function _renderPedidosPage() {
     var orders = _filteredOrders();
     var stats = _allOrdersStats(orders);
-    var all = _orders || [];
-    var paidOrDelivered = orders.filter(function (o) {
-      var st = String(o.status || '').toLowerCase();
-      return st === 'entregado' || st === 'entregue' || st === 'finalizado';
-    }).length;
-    var pending = orders.filter(function (o) { return String(o.status || 'Pendente') === 'Pendente'; }).length;
-    var cardStyle = 'background:#fff;border:none;border-radius:16px;padding:18px 20px;box-shadow:0 12px 30px rgba(31,31,31,.06);';
-    var fieldStyle = 'padding:10px 12px;border:1px solid #EAE4DA;border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;width:100%;box-sizing:border-box;color:#1F1F1F;box-shadow:inset 0 1px 0 rgba(255,255,255,.78);transition:border-color .15s ease,box-shadow .15s ease,background .15s ease;';
-    var chipStyle = 'display:inline-flex;align-items:center;min-height:24px;padding:0 10px;border-radius:999px;background:#fff;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:500;box-shadow:0 1px 2px rgba(31,31,31,.02);';
     return '<div class="bf-page" style="padding:24px;display:flex;flex-direction:column;gap:16px;min-height:0;flex:1;">' +
       '<div class="bf-page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
         '<div style="min-width:0;flex:1 1 420px;">' +
           '<h2 style="font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;line-height:1.2;">Pedidos</h2>' +
-          '<p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0 0 10px;max-width:760px;">Acompanhe o histórico de pedidos, clientes vinculados, avaliações e canais de venda.</p>' +
-          '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
-            '<span style="' + chipStyle + '">' + all.length + ' pedidos</span>' +
-            '<span style="' + chipStyle + '">' + orders.length + ' exibidos</span>' +
-            '<span style="' + chipStyle + '">' + pending + ' pendentes</span>' +
-          '</div>' +
+          '<p style="font-size:13px;color:#6F6860;line-height:1.5;margin:0;max-width:760px;">Acompanhe o histórico de pedidos, clientes vinculados, avaliações e canais de venda.</p>' +
+        '</div>' +
+        '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">' +
+          '<button onclick="Modules.Pedidos._openNewOrder()" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(180,35,24,.16);">+ Novo pedido</button>' +
         '</div>' +
       '</div>' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;">' +
@@ -369,25 +385,17 @@ Modules.Pedidos = (function () {
         _kitchenKpiCard('Com avaliação', stats.reviewedOrders, 'vinculados a reviews', 'reviews', '#B45309') +
         _kitchenKpiCard('Ticket médio', stats.totalOrders ? UI.fmt(stats.avgTicket) : '—', 'todos os pedidos filtrados', 'payments', '#B42318') +
       '</div>' +
-      '<div style="' + cardStyle + '">' +
-        '<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-end;">' +
-          '<div style="display:grid;grid-template-columns:minmax(min(320px,100%),1.5fr) minmax(min(190px,100%),.8fr) minmax(min(170px,100%),.8fr) auto;gap:10px 12px;flex:1;align-items:end;">' +
-            '<div><input id="pedidos-search" type="search" value="' + _esc(_ui.q) + '" oninput="Modules.Pedidos._setUi(\'q\', this.value)" placeholder="Buscar pedido, cliente, telefone ou item..." autocomplete="off" style="' + fieldStyle + 'height:40px;"></div>' +
-            '<div><select onchange="Modules.Pedidos._setUi(\'status\', this.value)" style="' + fieldStyle + 'height:40px;">' +
+      '<div style="' + _adminPanelStyle() + '">' +
+        '<div style="display:grid;grid-template-columns:minmax(260px,1fr) minmax(180px,240px) minmax(190px,260px);gap:11px 12px;align-items:end;">' +
+          _adminFilterField('Buscar', '<input id="pedidos-search" type="search" value="' + _esc(_ui.q) + '" oninput="Modules.Pedidos._setUi(\'q\', this.value)" placeholder="Pedido, cliente, telefone ou item" autocomplete="off" style="' + _adminInputStyle() + '">') +
+          _adminFilterField('Status', '<select onchange="Modules.Pedidos._setUi(\'status\', this.value)" style="' + _adminSelectStyle() + '">' +
               _orderFilterOptions(['all'].concat(COLUMNS.map(function (c) { return c.key; })), _ui.status, 'Todos os status') +
-            '</select></div>' +
-            '<div><select onchange="Modules.Pedidos._setUi(\'channel\', this.value)" style="' + fieldStyle + 'height:40px;">' +
+            '</select>') +
+          _adminFilterField('Canal', '<select onchange="Modules.Pedidos._setUi(\'channel\', this.value)" style="' + _adminSelectStyle() + '">' +
               _orderFilterOptions(['all', 'cardapio', 'template', 'store', 'whatsapp', 'delivery', 'pickup'], _ui.channel, 'Todos os canais') +
-            '</select></div>' +
-            ((_ui.q || _ui.status !== 'all' || _ui.channel !== 'all') ? '<button type="button" onclick="Modules.Pedidos._clearOrderFilters()" style="height:40px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#6F6860;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;">Limpar filtros</button>' : '') +
-          '</div>' +
+            '</select>') +
         '</div>' +
-        '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
-          '<span style="' + chipStyle + '">' + orders.length + ' pedidos exibidos</span>' +
-          '<span style="' + chipStyle + '">' + paidOrDelivered + ' concluídos</span>' +
-          '<span style="' + chipStyle + '">' + stats.customerHits + ' com cliente</span>' +
-          '<span style="' + chipStyle + '">' + stats.reviewedOrders + ' com avaliação</span>' +
-        '</div>' +
+        ((_ui.q || _ui.status !== 'all' || _ui.channel !== 'all') ? '<div style="display:flex;justify-content:flex-start;margin-top:11px;"><button type="button" onclick="Modules.Pedidos._clearOrderFilters()" style="height:36px;padding:0 13px;border:1px solid #EADFD8;border-radius:11px;background:#fff;color:#6F6860;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);">Limpar filtros</button></div>' : '') +
       '</div>' +
       '<section style="display:flex;flex-direction:column;gap:10px;min-height:0;">' +
         '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">Lista de pedidos</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Histórico operacional com acesso aos detalhes, cliente e comunicação.</div></div>' +
@@ -421,15 +429,11 @@ Modules.Pedidos = (function () {
       var typeLabel = o.type === 'pickup' ? 'Retirada' : 'Entrega';
       var customerLabel = o.customerName || o.clientName || o.name || 'Pedido';
       return '<tr onclick="Modules.Pedidos._openDetail(\'' + _esc(o.id) + '\')" onmouseenter="this.style.background=\'#FBF8F2\'" onmouseleave="this.style.background=\'#fff\'" style="cursor:pointer;background:#fff;border-bottom:1px solid #EAE4DA;transition:background .15s ease;">' +
-        '<td style="padding:14px 16px;vertical-align:middle;"><input type="checkbox" onclick="event.stopPropagation()" style="width:16px;height:16px;accent-color:#B42318;"></td>' +
         '<td style="padding:12px 16px;vertical-align:middle;min-width:260px;">' +
           '<div style="min-width:0;">' +
             '<div style="font-size:15px;font-weight:600;color:#1F1F1F;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(customerLabel) + '</div>' +
             '<div style="font-size:12px;color:#6F6860;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;">' + _esc(_orderDisplayId(o) || _orderScheduleInfo(o).text || 'Pedido') + '</div>' +
           '</div>' +
-        '</td>' +
-        '<td style="padding:13px 16px;vertical-align:middle;">' +
-          '<span style="display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;background:#fff;color:#6F6860;font-size:12px;font-weight:500;border:1px solid #EAE4DA;">' + _esc(_orderChannelLabel(o)) + '</span>' +
         '</td>' +
         '<td style="padding:13px 16px;vertical-align:middle;">' +
           '<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:#fff;color:' + statusMeta.color + ';font-size:12px;font-weight:500;border:1px solid #EAE4DA;"><span style="width:6px;height:6px;border-radius:50%;background:' + statusMeta.color + ';display:inline-block;"></span>' + _esc(_orderStatusLabel(o.status)) + '</span>' +
@@ -441,10 +445,9 @@ Modules.Pedidos = (function () {
         '<td style="padding:13px 16px;vertical-align:middle;white-space:nowrap;font-size:14px;font-weight:600;color:#1F1F1F;">' + UI.fmt(_num(o.total || o.amount || o.grandTotal)) + '</td>' +
         '<td style="padding:13px 16px;vertical-align:middle;text-align:right;white-space:nowrap;">' +
           '<div style="display:inline-flex;align-items:center;gap:6px;" onclick="event.stopPropagation();">' +
-            (phoneHref ? '<a href="' + _esc(phoneHref) + '" target="_blank" rel="noopener" title="WhatsApp" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#1A9E5A;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);text-decoration:none;"><span class="mi" style="font-size:14px;">chat</span></a>' : '') +
-            '<button type="button" title="Ver" onclick="Modules.Pedidos._openDetail(\'' + _esc(o.id) + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">visibility</span></button>' +
-            '<button type="button" title="Preparar" onclick="Modules.Pedidos._quickStatus(\'' + _esc(o.id) + '\', \'Em preparação\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#7C3AED;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">skillet</span></button>' +
-            '<button type="button" title="Pronto" onclick="Modules.Pedidos._quickStatus(\'' + _esc(o.id) + '\', \'Listo para recoger\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#059669;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">done</span></button>' +
+            (phoneHref ? '<a href="' + _esc(phoneHref) + '" target="_blank" rel="noopener" title="WhatsApp" onclick="event.stopPropagation();" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#1A9E5A;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);text-decoration:none;"><span class="mi" style="font-size:14px;">chat</span></a>' : '') +
+            '<button type="button" title="Preparar" onclick="event.stopPropagation();Modules.Pedidos._quickStatus(\'' + _esc(o.id) + '\', \'Em preparação\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#7C3AED;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">restaurant</span></button>' +
+            '<button type="button" title="Pronto" onclick="event.stopPropagation();Modules.Pedidos._quickStatus(\'' + _esc(o.id) + '\', \'Listo para recoger\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#059669;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">done</span></button>' +
           '</div>' +
         '</td>' +
       '</tr>';
@@ -453,9 +456,7 @@ Modules.Pedidos = (function () {
       '<div style="overflow:auto;">' +
         '<table class="bf-table" style="width:100%;border-collapse:separate;border-spacing:0;min-width:980px;">' +
           '<thead><tr style="background:#fff;border-bottom:1px solid #EAE4DA;">' +
-            '<th style="width:44px;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;"><input type="checkbox" disabled style="width:16px;height:16px;accent-color:#B42318;"></th>' +
             '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Pedido</th>' +
-            '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Canal</th>' +
             '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Status</th>' +
             '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Tipo</th>' +
             '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Horário / endereço</th>' +
@@ -477,7 +478,7 @@ Modules.Pedidos = (function () {
   }
 
   function _activeKitchenOrders() {
-    return _baseKitchenOrders().filter(_orderMatchesFilters);
+    return _baseKitchenOrders().filter(_kitchenOrderMatchesFilters).filter(_kitchenDateMatches);
   }
 
   function _renderOrdersList() {
@@ -526,7 +527,7 @@ Modules.Pedidos = (function () {
           '</div>' +
         '</div>' +
         '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;">' +
-          '<button type="button" onmouseenter="this.style.transform=\'translateY(-1px)\';this.style.boxShadow=\'0 8px 18px rgba(180,35,24,.20)\';" onmouseleave="this.style.transform=\'none\';this.style.boxShadow=\'0 4px 12px rgba(180,35,24,.18)\';" onclick="Modules.Pedidos._openClientEdit(null)" class="bf-btn-primary" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">Adicionar cliente</button>' +
+          '<button type="button" onmouseenter="this.style.transform=\'translateY(-1px)\';this.style.boxShadow=\'0 8px 18px rgba(180,35,24,.20)\';" onmouseleave="this.style.transform=\'none\';this.style.boxShadow=\'0 4px 12px rgba(180,35,24,.18)\';" onclick="event.stopPropagation();Modules.Pedidos._openClientEdit(null)" class="bf-btn-primary" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">Adicionar cliente</button>' +
         '</div>' +
       '</div>' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;">' +
@@ -580,7 +581,7 @@ Modules.Pedidos = (function () {
       var reviews = _customerReviewStats(c);
       var avatar = '<div style="width:48px;height:48px;border-radius:12px;background:' + _avatarColor(c.name) + ';color:#fff;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:0 0 auto;border:1px solid #EAE4DA;box-shadow:0 1px 2px rgba(31,31,31,.03);">' + _esc(_initials(c.name)) + '</div>';
       var segmentTone = s.segment === 'vip' ? '#B45309' : s.segment === 'recorrente' ? '#1A9E5A' : s.segment === 'inativo' ? '#6F6860' : '#2563EB';
-      return '<tr onclick="Modules.Pedidos._openClientProfile(\'' + _esc(c.id) + '\')" onmouseenter="this.style.background=\'#FBF8F2\'" onmouseleave="this.style.background=\'#fff\'" style="cursor:pointer;background:#fff;border-bottom:1px solid #EAE4DA;transition:background .15s ease;">' +
+      return '<tr onclick="event.stopPropagation();Modules.Pedidos._openClientProfile(\'' + _esc(c.id) + '\')" onmouseenter="this.style.background=\'#FBF8F2\'" onmouseleave="this.style.background=\'#fff\'" style="cursor:pointer;background:#fff;border-bottom:1px solid #EAE4DA;transition:background .15s ease;">' +
         '<td style="padding:14px 16px;vertical-align:middle;"><input type="checkbox" onclick="event.stopPropagation()" style="width:16px;height:16px;accent-color:#B42318;"></td>' +
         '<td style="padding:12px 16px;vertical-align:middle;min-width:280px;">' +
           '<div style="display:flex;align-items:center;gap:12px;min-width:0;">' + avatar +
@@ -601,9 +602,9 @@ Modules.Pedidos = (function () {
         '</td>' +
         '<td style="padding:13px 16px;vertical-align:middle;text-align:right;white-space:nowrap;">' +
           '<div style="display:inline-flex;align-items:center;gap:6px;" onclick="event.stopPropagation();">' +
-            '<button type="button" title="Ver" onclick="Modules.Pedidos._openClientProfile(\'' + _esc(c.id) + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">visibility</span></button>' +
-            '<button type="button" title="Histórico" onclick="Modules.Pedidos._openClientHistory(\'' + _esc(c.id) + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">history</span></button>' +
-            '<button type="button" title="Editar" onclick="Modules.Pedidos._openClientEdit(\'' + _esc(c.id) + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#B42318;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">edit</span></button>' +
+            '<button type="button" title="Ver" onclick="event.stopPropagation();Modules.Pedidos._openClientProfile(\'' + _esc(c.id) + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">visibility</span></button>' +
+            '<button type="button" title="Histórico" onclick="event.stopPropagation();Modules.Pedidos._openClientHistory(\'' + _esc(c.id) + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">history</span></button>' +
+            '<button type="button" title="Editar" onclick="event.stopPropagation();Modules.Pedidos._openClientEdit(\'' + _esc(c.id) + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#B42318;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">edit</span></button>' +
           '</div>' +
         '</td>' +
       '</tr>';
@@ -755,7 +756,21 @@ Modules.Pedidos = (function () {
 
   function _openClientProfile(id) {
     var c = _customers.find(function (x) { return String(x.id || '') === String(id || ''); });
-    if (!c) return;
+    if (!c && window.DB && DB.getAll) {
+      DB.getAll('store_customers').then(function (rows) {
+        _customers = rows || [];
+        var found = _customers.find(function (x) { return String(x.id || '') === String(id || ''); });
+        if (found) _openClientProfile(id);
+        else UI.toast('Cliente não encontrado no cadastro.', 'error');
+      }).catch(function () {
+        UI.toast('Não foi possível carregar o cadastro do cliente.', 'error');
+      });
+      return;
+    }
+    if (!c) {
+      UI.toast('Cliente não encontrado no cadastro.', 'error');
+      return;
+    }
     var s = _customerStats(c);
     var reviews = _customerReviewStats(c);
     var orders = _ordersForClient(c);
@@ -779,8 +794,8 @@ Modules.Pedidos = (function () {
           '</div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:flex-end;">' +
             (contact ? '<a href="' + _whatsUrl(contact, 'Hola ' + (c.name || '') + ', temos uma novidade para você.') + '" target="_blank" rel="noopener" style="height:36px;display:inline-flex;align-items:center;padding:0 12px;border:none;background:#E8FFF1;color:#1A9E5A;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;text-decoration:none;">WhatsApp</a>' : '<span style="height:36px;display:inline-flex;align-items:center;padding:0 12px;border:none;background:#F2EDED;color:#8A7E7C;border-radius:10px;font-size:12px;font-weight:700;">Sem telefone</span>') +
-            '<button onclick="Modules.Pedidos._openClientHistory(\'' + _esc(c.id) + '\')" style="height:36px;border:1px solid #EAE4DA;background:#fff;color:#1F1F1F;border-radius:10px;padding:0 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Histórico</button>' +
-            '<button onclick="Modules.Pedidos._openClientEdit(\'' + _esc(c.id) + '\')" style="height:36px;border:none;background:#B42318;color:#fff;border-radius:10px;padding:0 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(180,35,24,.16);">Editar</button>' +
+            '<button onclick="event.stopPropagation();Modules.Pedidos._openClientHistory(\'' + _esc(c.id) + '\')" style="height:36px;border:1px solid #EAE4DA;background:#fff;color:#1F1F1F;border-radius:10px;padding:0 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Histórico</button>' +
+            '<button onclick="event.stopPropagation();Modules.Pedidos._openClientEdit(\'' + _esc(c.id) + '\')" style="height:36px;border:none;background:#B42318;color:#fff;border-radius:10px;padding:0 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(180,35,24,.16);">Editar</button>' +
           '</div>' +
         '</div>' +
       '</section>' +
@@ -806,11 +821,14 @@ Modules.Pedidos = (function () {
         }).join('') : '<div style="font-size:13px;color:#8A7E7C;">Sem pedidos vinculados.</div>') +
       '</section>' +
       '</div>';
-    UI.modal({
+    window._orderClientProfileModal = UI.modal({
       title: 'Cliente',
       body: body,
       maxWidth: '760px'
     });
+    if (window._orderClientProfileModal && window._orderClientProfileModal.el) {
+      window._orderClientProfileModal.el.style.setProperty('z-index', _isKitchenModeOpen() ? '20040' : '20040', 'important');
+    }
   }
 
   function _openClientHistory(id) {
@@ -942,6 +960,8 @@ Modules.Pedidos = (function () {
     _ui.q = '';
     _ui.status = 'all';
     _ui.channel = 'all';
+    _ui.kitchenDate = '';
+    _ui.kitchenPeriod = 'all';
     _kitchenPage = 1;
     _paintActive();
   }
@@ -1237,6 +1257,18 @@ Modules.Pedidos = (function () {
     }).join('');
   }
 
+  function _kitchenPeriodOptions(selected) {
+    var rows = [
+      ['all', 'Todo o período'],
+      ['today', 'Hoje'],
+      ['tomorrow', 'Amanhã'],
+      ['next7', 'Próximos 7 dias']
+    ];
+    return rows.map(function (row) {
+      return '<option value="' + row[0] + '"' + (String(selected || 'all') === row[0] ? ' selected' : '') + '>' + row[1] + '</option>';
+    }).join('');
+  }
+
   function _orderStatusOrChannelLabel(v) {
     var key = String(v || '').toLowerCase();
     if (key === 'all') return 'Todos';
@@ -1292,12 +1324,12 @@ Modules.Pedidos = (function () {
   function _matchedCustomer(order) {
     if (!order) return null;
     var id = String(order.customerId || order.clientId || '').trim();
-    var phone = _phone(order.phone || order.customerPhone || order.whatsapp);
+    var phone = _phoneMatchKey(order.phone || order.customerPhone || order.whatsapp);
     var email = _clean(order.email || order.customerEmail);
     var name = _clean(order.customerName || order.clientName || order.name);
+    if (id) return (_customers || []).find(function (c) { return String(c.id || '') === id; }) || null;
     return (_customers || []).find(function (c) {
-      if (id && String(c.id || '') === id) return true;
-      if (phone && _phone(c.phone || c.whatsapp) === phone) return true;
+      if (phone && _customerPhoneMatchIsUnique(phone, c.id) && _phoneMatchKey(c.phone || c.whatsapp) === phone) return true;
       if (email && _clean(c.email || '') === email) return true;
       if (name && _clean(c.name || '') === name) return true;
       return false;
@@ -1306,10 +1338,11 @@ Modules.Pedidos = (function () {
 
   function _matchedCustomerByPhone(order) {
     if (!order) return null;
-    var phone = _phone(order.phone || order.customerPhone || order.whatsapp);
+    var phone = _phoneMatchKey(order.phone || order.customerPhone || order.whatsapp);
     if (!phone) return null;
+    if (!_customerPhoneMatchIsUnique(phone)) return null;
     return (_customers || []).find(function (c) {
-      return _phone(c.phone || c.whatsapp || '') === phone;
+      return _phoneMatchKey(c.phone || c.whatsapp || '') === phone;
     }) || null;
   }
 
@@ -1411,6 +1444,64 @@ Modules.Pedidos = (function () {
     return true;
   }
 
+  function _kitchenOrderMatchesFilters(order) {
+    var q = String(_ui.q || '').trim().toLowerCase();
+    var status = String(_ui.status || 'all').toLowerCase();
+    var orderStatus = String(order.status || 'Pendente').toLowerCase();
+    if (q && _orderSearchHaystack(order).indexOf(q) < 0) return false;
+    if (status !== 'all' && orderStatus !== status.toLowerCase()) return false;
+    return true;
+  }
+
+  function _kitchenDateMatches(order) {
+    var exact = String(_ui.kitchenDate || '').trim();
+    var period = String(_ui.kitchenPeriod || 'all').toLowerCase();
+    var ts = _orderOperationalDateTs(order);
+    if (exact) {
+      var exactStart = new Date(exact + 'T00:00:00').getTime();
+      var exactEnd = new Date(exact + 'T23:59:59.999').getTime();
+      if (!ts || ts < exactStart || ts > exactEnd) return false;
+    }
+    if (period === 'all') return true;
+    var range = _kitchenPeriodRange(period);
+    if (!range.start && !range.end) return true;
+    return !!ts && ts >= range.start && ts <= range.end;
+  }
+
+  function _orderOperationalDateTs(order) {
+    order = order || {};
+    var raw = order.type === 'pickup'
+      ? _firstText(order.pickupDate, order.scheduleDate, order.deliveryDate, order.deliveryDateISO, '')
+      : _firstText(order.deliveryDate, order.deliveryDateISO, order.scheduleDate, order.pickupDate, '');
+    var time = order.type === 'pickup'
+      ? _firstText(order.pickupTime, order.scheduleTime, order.deliveryTime, '')
+      : _firstText(order.deliveryTime, order.scheduleTime, order.pickupTime, '');
+    if (raw) {
+      var d = new Date(String(raw).slice(0, 10) + (time ? 'T' + String(time).slice(0, 5) + ':00' : 'T12:00:00'));
+      if (!isNaN(d.getTime())) return d.getTime();
+    }
+    return _dateTs(order);
+  }
+
+  function _kitchenPeriodRange(period) {
+    var now = new Date();
+    var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    var start = 0;
+    var end = 0;
+    if (period === 'today') {
+      start = today.getTime();
+      end = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999).getTime();
+    } else if (period === 'tomorrow') {
+      var tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+      start = tomorrow.getTime();
+      end = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate(), 23, 59, 59, 999).getTime();
+    } else if (period === 'next7') {
+      start = today.getTime();
+      end = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 6, 23, 59, 59, 999).getTime();
+    }
+    return { start: start, end: end };
+  }
+
   function _filteredOrders() {
     return (_orders || []).slice().filter(_orderMatchesFilters).sort(function (a, b) { return _dateTs(b) - _dateTs(a); });
   }
@@ -1485,7 +1576,6 @@ Modules.Pedidos = (function () {
       var typeTone = o.type === 'pickup' ? '#059669' : '#2563EB';
       var typeLabel = o.type === 'pickup' ? 'Retirada' : 'Entrega';
       return '<tr onclick="Modules.Pedidos._openDetail(\'' + _esc(o.id) + '\')" onmouseenter="this.style.background=\'#FBF8F2\'" onmouseleave="this.style.background=\'#fff\'" style="cursor:pointer;background:#fff;border-bottom:1px solid #EAE4DA;transition:background .15s ease;">' +
-        '<td style="padding:14px 16px;vertical-align:middle;"><input type="checkbox" onclick="event.stopPropagation()" style="width:16px;height:16px;accent-color:#B42318;"></td>' +
         '<td style="padding:12px 16px;vertical-align:middle;min-width:280px;">' +
           '<div style="min-width:0;">' +
             '<div style="font-size:15px;font-weight:600;color:#1F1F1F;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(customerLabel) + '</div>' +
@@ -1508,17 +1598,15 @@ Modules.Pedidos = (function () {
         '</td>' +
         '<td style="padding:13px 16px;vertical-align:middle;text-align:right;white-space:nowrap;">' +
           '<div style="display:inline-flex;align-items:center;gap:6px;" onclick="event.stopPropagation();">' +
-            (phoneHref ? '<a href="' + _esc(phoneHref) + '" target="_blank" rel="noopener" title="WhatsApp" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#1A9E5A;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);text-decoration:none;"><span class="mi" style="font-size:14px;">chat</span></a>' : '') +
-            '<button type="button" title="Ver" onclick="Modules.Pedidos._openDetail(\'' + _esc(o.id) + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">visibility</span></button>' +
+            (phoneHref ? '<a href="' + _esc(phoneHref) + '" target="_blank" rel="noopener" title="WhatsApp" onclick="event.stopPropagation();" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#1A9E5A;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);text-decoration:none;"><span class="mi" style="font-size:14px;">chat</span></a>' : '') +
           '</div>' +
         '</td>' +
       '</tr>';
     }).join('');
     return '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:16px;overflow:hidden;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
       '<div style="overflow:auto;">' +
-        '<table class="bf-table" style="width:100%;border-collapse:separate;border-spacing:0;min-width:1120px;">' +
+        '<table class="bf-table" style="width:100%;border-collapse:separate;border-spacing:0;min-width:1060px;">' +
           '<thead><tr style="background:#fff;border-bottom:1px solid #EAE4DA;">' +
-            '<th style="width:44px;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;"><input type="checkbox" disabled style="width:16px;height:16px;accent-color:#B42318;"></th>' +
             '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Pedido</th>' +
             '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Canal</th>' +
             '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Status</th>' +
@@ -1618,19 +1706,6 @@ Modules.Pedidos = (function () {
 
   function _renderKanbanInto(wrap, orders) {
     if (!wrap) return;
-    var summaryActive = orders.length;
-    var summaryPending = orders.filter(function (o) { return String(o.status || 'Pendente') === 'Pendente'; }).length;
-    var summaryPreparing = orders.filter(function (o) { return String(o.status || '') === 'Em preparação'; }).length;
-    var summaryReady = orders.filter(function (o) { return String(o.status || '') === 'Listo para recoger' || String(o.status || '') === 'Em camino'; }).length;
-    var elActive = document.getElementById('kitchen-mode-active-count');
-    var elPending = document.getElementById('kitchen-mode-pending-count');
-    var elPreparing = document.getElementById('kitchen-mode-preparing-count');
-    var elReady = document.getElementById('kitchen-mode-ready-count');
-    if (elActive) elActive.textContent = summaryActive + ' ativos';
-    if (elPending) elPending.textContent = summaryPending + ' pendentes';
-    if (elPreparing) elPreparing.textContent = summaryPreparing + ' em preparo';
-    if (elReady) elReady.textContent = summaryReady + ' saída/retirada';
-
     wrap.innerHTML = COLUMNS.map(function (col) {
       var colOrders = orders.filter(function (o) { return (o.status || 'Pendente') === col.key; });
       var total = colOrders.reduce(function (sum, o) { return sum + _num(o.total || o.amount || o.grandTotal); }, 0);
@@ -1660,23 +1735,13 @@ Modules.Pedidos = (function () {
   function _openKitchenMode() {
     if (_kitchenModeOverlay) return;
     var active = _activeKitchenOrders();
-    var pending = active.filter(function (o) { return String(o.status || 'Pendente') === 'Pendente'; }).length;
-    var preparing = active.filter(function (o) { return String(o.status || '') === 'Em preparação'; }).length;
-    var ready = active.filter(function (o) { return String(o.status || '') === 'Listo para recoger' || String(o.status || '') === 'Em camino'; }).length;
     var overlay = document.createElement('div');
     overlay.id = 'pedidos-kitchen-overlay';
     overlay.style.cssText = 'position:fixed;inset:0;z-index:20000;background:#fff;display:flex;flex-direction:column;font-family:Manrope,Inter,sans-serif;';
     overlay.innerHTML =
       '<div style="display:flex;align-items:center;justify-content:space-between;gap:18px;padding:18px 24px;border-bottom:1px solid #EAE4DA;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.02);">' +
         '<div style="min-width:0;">' +
-          '<div style="font-size:22px;font-weight:800;color:#1F1F1F;line-height:1.2;margin:0 0 4px;">Modo cozinha</div>' +
-          '<div style="font-size:13px;color:#6F6860;line-height:1.45;">Acompanhe preparo, entrega e retirada com leitura rápida por status.</div>' +
-          '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">' +
-            '<span id="kitchen-mode-active-count" style="display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:999px;background:#FFF7F5;color:#B42318;border:1px solid rgba(180,35,24,.14);font-size:12px;font-weight:800;">' + active.length + ' ativos</span>' +
-            '<span id="kitchen-mode-pending-count" style="display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:999px;background:#FFF7ED;color:#B45309;border:1px solid rgba(180,83,9,.14);font-size:12px;font-weight:800;">' + pending + ' pendentes</span>' +
-            '<span id="kitchen-mode-preparing-count" style="display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:999px;background:#F5F3FF;color:#7C3AED;border:1px solid rgba(124,58,237,.14);font-size:12px;font-weight:800;">' + preparing + ' em preparo</span>' +
-            '<span id="kitchen-mode-ready-count" style="display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:999px;background:#ECFEFF;color:#0891B2;border:1px solid rgba(8,145,178,.14);font-size:12px;font-weight:800;">' + ready + ' saída/retirada</span>' +
-          '</div>' +
+          '<div style="font-size:22px;font-weight:800;color:#1F1F1F;line-height:1.2;margin:0;">Modo cozinha</div>' +
         '</div>' +
         '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">' +
           '<button onclick="Modules.Pedidos._testAlarm()" style="height:38px;padding:0 14px;border:1px solid #E6E1D8;background:#fff;color:#1F1F1F;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);">Testar alarme</button>' +
@@ -1756,9 +1821,9 @@ Modules.Pedidos = (function () {
 
   function _detailSmallLine(label, value) {
     if (value === undefined || value === null || value === '') return '';
-    return '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;font-size:12px;line-height:1.35;color:#1F1F1F;">' +
-      '<span style="color:#6F6860;">' + _esc(label) + '</span>' +
-      '<span style="text-align:right;">' + _esc(value) + '</span>' +
+    return '<div style="display:grid;grid-template-columns:minmax(88px,.46fr) minmax(0,1fr);gap:10px;align-items:flex-start;font-size:12px;line-height:1.35;color:#1F1F1F;min-width:0;">' +
+      '<span style="color:#6F6860;min-width:0;">' + _esc(label) + '</span>' +
+      '<span style="text-align:right;min-width:0;overflow-wrap:anywhere;">' + _esc(value) + '</span>' +
     '</div>';
   }
 
@@ -1774,6 +1839,14 @@ Modules.Pedidos = (function () {
 
   function _orderStockStatusText(order) {
     if (!order) return '';
+    if (order.stockResolutionCount) {
+      var returned = _num(order.stockReturnedQuantity);
+      var lost = _num(order.stockLossQuantity);
+      var parts = [];
+      if (returned) parts.push('retorno ' + returned);
+      if (lost) parts.push('perda ' + lost);
+      return 'Tratado pós-pedido' + (parts.length ? ' · ' + parts.join(' · ') : '');
+    }
     if (order.stockMovementCreated) {
       var count = _num(order.stockMovementCount);
       return 'Baixa gerada' + (count ? ' · ' + count + ' item' + (count === 1 ? '' : 's') : '');
@@ -1787,8 +1860,7 @@ Modules.Pedidos = (function () {
   function _detailCustomerMetaHTML(order, customer) {
     var lines = [
       _detailSmallLine('WhatsApp', _firstText(order && order.customerPhone, order && order.phone, order && order.whatsapp, customer && (customer.phone || customer.whatsapp), '')),
-      _detailSmallLine('E-mail', _firstText(order && order.customerEmail, order && order.email, customer && customer.email, '')),
-      _detailSmallLine('UID cliente', _firstText(order && order.customerUid, order && order.customerId, order && order.clientId, customer && (customer.uid || customer.id), ''))
+      _detailSmallLine('E-mail', _firstText(order && order.customerEmail, order && order.email, customer && customer.email, ''))
     ].filter(Boolean);
     return lines.length ? '<div style="margin-top:10px;display:grid;gap:5px;">' + lines.join('') + '</div>' : '';
   }
@@ -1802,15 +1874,13 @@ Modules.Pedidos = (function () {
     var city = _firstText(order.addressCity, deliveryAddress.city, deliveryAddress.locality, '');
     var province = _firstText(order.addressProvince, deliveryAddress.province, deliveryAddress.state, '');
     var country = _firstText(order.addressCountry, deliveryAddress.country, deliveryAddress.countryCode, '');
-    var placeId = _firstText(order.addressPlaceId, deliveryAddress.placeId, '');
     var zone = _firstText(order.deliveryZoneName, order.zone, deliveryAddress.zone, '');
     var lines = [
       _detailSmallLine('Número', number),
       _detailSmallLine('Complemento', complement),
       _detailSmallLine('Zona de entrega', zone),
       _detailSmallLine('Localidade', [city, province].filter(Boolean).join(' · ')),
-      _detailSmallLine('País', country),
-      _detailSmallLine('Place ID', placeId)
+      _detailSmallLine('País', country)
     ].filter(Boolean);
     return lines.length ? '<div style="margin-top:8px;display:grid;gap:5px;">' + lines.join('') + '</div>' : '';
   }
@@ -1878,27 +1948,421 @@ Modules.Pedidos = (function () {
     };
   }
 
+  function _detailChoiceOptionPrice(option) {
+    var raw = option && (option.priceExtra != null ? option.priceExtra : option.extraPrice != null ? option.extraPrice : option.price != null ? option.price : option.valorExtra != null ? option.valorExtra : option.valor != null ? option.valor : 0);
+    return _num(raw);
+  }
+
+  function _detailChoiceOptionLabel(option) {
+    return _firstText(option && option.label, option && option.name, option && option.title, option && option.text, option && option.nome, option && option.value, '');
+  }
+
+  function _detailChoiceOptionImage(option) {
+    var raw = _firstText(option && option.img, option && option.imageUrl, option && option.imageCardUrl, option && option.cardImageUrl, option && option.imageThumbUrl, option && option.thumbnailUrl, option && option.thumbUrl, option && option.photoUrl, option && option.image, option && option.url, '');
+    if (!raw || raw === 'undefined' || raw === 'null' || raw === '#') return '';
+    return raw;
+  }
+
+  function _normalizeDetailChoiceGroup(group, idx) {
+    if (!group) return null;
+    var options = (group.options || group.items || []).map(function (option, optionIdx) {
+      var label = _detailChoiceOptionLabel(option);
+      if (!label) return null;
+      var id = _firstText(option.id, option.ref, option.value, option.key, label);
+      return {
+        id: id,
+        ref: _firstText(option.ref, option.productId, option.sourceItemId, ''),
+        label: label,
+        priceExtra: _detailChoiceOptionPrice(option),
+        img: _detailChoiceOptionImage(option),
+        order: optionIdx
+      };
+    }).filter(Boolean);
+    if (!options.length) return null;
+    var max = parseInt(group.maxPerUnit != null ? group.maxPerUnit : group.max != null ? group.max : group.qty != null ? group.qty : (group.multiSelect ? options.length : 1), 10);
+    var min = parseInt(group.minPerUnit != null ? group.minPerUnit : group.min != null ? group.min : (group.required ? 1 : 0), 10);
+    if (!isFinite(max) || max < 1) max = 1;
+    if (!isFinite(min) || min < 0) min = 0;
+    if (min > max) min = max;
+    return {
+      id: _firstText(group.id, group.key, 'group_' + idx),
+      title: _firstText(group.title, group.name, group.label, 'Escolha'),
+      min: min,
+      max: max,
+      required: group.required === true || min > 0,
+      options: options
+    };
+  }
+
+  function _detailProductChoiceGroups(product) {
+    product = product || {};
+    var source = [];
+    if (Array.isArray(product.variants) && product.variants.length) source = product.variants;
+    else if (Array.isArray(product.menuChoiceGroups) && product.menuChoiceGroups.length) source = product.menuChoiceGroups;
+    else if (Array.isArray(product.menuItems) && product.menuItems.length) {
+      source = product.menuItems.map(function (item, idx) {
+        var label = _firstText(item.label, item.name, item.title, item.ref, 'Opção ' + (idx + 1));
+        return { title: 'Escolha ' + (idx + 1), min: _num(item.qty || 1) || 1, max: _num(item.qty || 1) || 1, options: [{ id: _firstText(item.ref, label), ref: item.ref || '', label: label, priceExtra: 0 }] };
+      });
+    }
+    return source.map(_normalizeDetailChoiceGroup).filter(Boolean);
+  }
+
+  function _detailChoiceKey(group, option) {
+    return String((group && group.id) || '') + '::' + String((option && (option.id || option.ref || option.label)) || '');
+  }
+
+  function _detailExistingChoiceKeys(item) {
+    var keys = {};
+    var choices = [];
+    ['choices', 'variants', 'selections', 'options', 'selectedOptions'].forEach(function (field) {
+      if (Array.isArray(item && item[field])) choices = choices.concat(item[field]);
+    });
+    choices.forEach(function (choice) {
+      if (!choice || typeof choice !== 'object') return;
+      var groupId = _firstText(choice.groupId, choice.groupKey, choice.group, choice.groupName, '');
+      var optionId = _firstText(choice.optionId, choice.id, choice.ref, choice.value, choice.option, choice.optionName, choice.label, choice.name, '');
+      if (groupId && optionId) keys[String(groupId) + '::' + String(optionId)] = true;
+    });
+    return keys;
+  }
+
+  function _detailChoiceExtraTotal(choices) {
+    if (!Array.isArray(choices)) return 0;
+    return choices.reduce(function (sum, choice) {
+      return sum + _num(choice && (choice.priceExtra != null ? choice.priceExtra : choice.extraPrice != null ? choice.extraPrice : choice.price || 0));
+    }, 0);
+  }
+
+  function _detailItemChoiceList(item) {
+    var fields = ['choices', 'variants', 'selectedOptions', 'selections', 'options'];
+    for (var i = 0; i < fields.length; i++) {
+      var list = item && item[fields[i]];
+      if (Array.isArray(list) && list.length) return list;
+    }
+    return [];
+  }
+
+  function _openDetailChoicesModal(orderId, idx) {
+    var order = (_orders || []).find(function (x) { return String(x.id || '') === String(orderId || ''); });
+    var item = order && Array.isArray(order.items) ? order.items[idx] : null;
+    var product = item ? _findProductForOrderItem(item) : null;
+    var groups = _detailProductChoiceGroups(product);
+    if (!order || !item || !groups.length) {
+      UI.toast('Este item não tem escolhas cadastradas para editar.', 'info');
+      return;
+    }
+    var existing = _detailExistingChoiceKeys(item);
+    var body = '<style>' +
+      '.order-choice-editor{display:grid;gap:12px;font-family:Manrope,Inter,sans-serif;}' +
+      '.order-choice-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:16px;padding:14px;box-shadow:0 10px 22px rgba(31,31,31,.045);}' +
+      '.order-choice-head{display:flex;align-items:flex-start;gap:9px;margin-bottom:10px;}' +
+      '.order-choice-title{font-size:13px;font-weight:760;color:#1F1F1F;line-height:1.25;}' +
+      '.order-choice-help{font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;}' +
+      '.order-choice-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;}' +
+      '.order-choice-option{min-width:0;display:flex;align-items:center;gap:8px;padding:9px 10px;border:1px solid #EADFD8;border-radius:12px;background:#FFFCF8;cursor:pointer;box-sizing:border-box;}' +
+      '.order-choice-option input{width:16px;height:16px;accent-color:#B42318;flex:0 0 auto;}' +
+      '.order-choice-thumb{width:34px;height:34px;border-radius:9px;object-fit:cover;flex:0 0 auto;background:#F7F1EE;}' +
+      '.order-choice-option-name{font-size:12px;color:#1F1F1F;line-height:1.25;}' +
+      '.order-choice-option-price{font-size:11px;color:#6F6860;line-height:1.25;margin-top:2px;}' +
+      '@media(max-width:720px){.order-choice-options{grid-template-columns:1fr;}}' +
+    '</style>' +
+    '<div class="order-choice-editor">' +
+      '<div style="font-size:12px;color:#6F6860;line-height:1.45;">Ajuste somente as escolhas deste item no pedido. O cadastro do produto não será alterado.</div>' +
+      groups.map(function (group, groupIdx) {
+        var inputType = group.max === 1 && group.min > 0 ? 'radio' : 'checkbox';
+        var rule = group.min > 0 ? ('Escolha ' + group.min + (group.max !== group.min ? ' a ' + group.max : '') + '.') : ('Escolha até ' + group.max + '.');
+        return '<div class="order-choice-card" data-choice-group="' + groupIdx + '" data-min="' + _esc(String(group.min)) + '" data-max="' + _esc(String(group.max)) + '">' +
+          '<div class="order-choice-head"><span class="mi" style="font-size:18px;color:#8A7E7C;">tune</span><div><div class="order-choice-title">' + _esc(group.title) + '</div><div class="order-choice-help">' + _esc(rule) + '</div></div></div>' +
+          '<div class="order-choice-options">' +
+            group.options.map(function (option, optionIdx) {
+              var key = _detailChoiceKey(group, option);
+              var checked = existing[key] || existing[String(group.title) + '::' + String(option.label)] || existing[String(group.id) + '::' + String(option.label)] ? ' checked' : '';
+              return '<label class="order-choice-option">' +
+                '<input type="' + inputType + '" name="order-choice-' + groupIdx + '" data-group-index="' + groupIdx + '" data-option-index="' + optionIdx + '"' + checked + '>' +
+                (option.img ? '<img class="order-choice-thumb" src="' + _esc(option.img) + '" alt="">' : '') +
+                '<span style="min-width:0;"><span class="order-choice-option-name">' + _esc(option.label) + '</span>' +
+                (option.priceExtra ? '<span class="order-choice-option-price">' + (option.priceExtra > 0 ? '+' : '') + UI.fmt(option.priceExtra) + '</span>' : '') +
+                '</span>' +
+              '</label>';
+            }).join('') +
+          '</div>' +
+        '</div>';
+      }).join('') +
+    '</div>';
+    window._orderDetailChoicesState = { orderId: orderId, index: idx, groups: groups };
+    window._orderDetailChoicesModal = UI.modal({
+      title: 'Editar escolhas',
+      body: body,
+      footer: '<div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;"><button type="button" onclick="Modules.Pedidos._closeDetailChoicesModal()" style="height:40px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#1F1F1F;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Cancelar</button><button type="button" onclick="Modules.Pedidos._saveDetailChoices()" style="height:40px;padding:0 16px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(180,35,24,.16);">Salvar escolhas</button></div>',
+      maxWidth: '760px'
+    });
+    if (window._orderDetailChoicesModal && window._orderDetailChoicesModal.el) {
+      window._orderDetailChoicesModal.el.style.zIndex = _isKitchenModeOpen() ? '20030' : '9100';
+    }
+  }
+
+  function _closeDetailChoicesModal() {
+    if (window._orderDetailChoicesModal && window._orderDetailChoicesModal.close) window._orderDetailChoicesModal.close();
+    window._orderDetailChoicesModal = null;
+    window._orderDetailChoicesState = null;
+  }
+
+  function _saveDetailChoices() {
+    var state = window._orderDetailChoicesState || {};
+    var order = (_orders || []).find(function (x) { return String(x.id || '') === String(state.orderId || ''); });
+    var item = order && Array.isArray(order.items) ? order.items[state.index] : null;
+    if (!order || !item) return;
+    var choices = [];
+    var invalid = '';
+    (state.groups || []).forEach(function (group, groupIdx) {
+      var checked = Array.prototype.slice.call(document.querySelectorAll('input[data-group-index="' + groupIdx + '"]:checked'));
+      if (checked.length < group.min) invalid = 'Complete "' + group.title + '" antes de salvar.';
+      if (!invalid && checked.length > group.max) invalid = 'Em "' + group.title + '", escolha no máximo ' + group.max + '.';
+      checked.forEach(function (input) {
+        var option = group.options[parseInt(input.getAttribute('data-option-index'), 10)] || {};
+        choices.push({
+          groupId: group.id,
+          group: group.title,
+          groupName: group.title,
+          optionId: option.id,
+          ref: option.ref || '',
+          option: option.label,
+          optionName: option.label,
+          label: option.label,
+          name: option.label,
+          value: option.label,
+          priceExtra: _num(option.priceExtra),
+          img: option.img || '',
+          qty: 1
+        });
+      });
+    });
+    if (invalid) {
+      UI.toast(invalid, 'error');
+      return;
+    }
+    var product = _findProductForOrderItem(item) || {};
+    var items = _detailEditedItems(order);
+    var edited = Object.assign({}, items[state.index] || item);
+    var oldPricing = _detailItemPricing(item);
+    var oldExtra = _detailChoiceExtraTotal(_detailItemChoiceList(item));
+    var newExtra = _detailChoiceExtraTotal(choices);
+    var productBase = _num(product.price != null ? product.price : product.salePrice != null ? product.salePrice : product.preco != null ? product.preco : 0);
+    var finalBase = Math.max(0, (oldPricing.finalUnit || productBase || 0) - oldExtra);
+    var originalBase = Math.max(0, (oldPricing.originalUnit || productBase || finalBase || 0) - oldExtra);
+    var finalUnit = Math.max(0, finalBase + newExtra);
+    var originalUnit = Math.max(finalUnit, originalBase + newExtra);
+    var qty = Math.max(_num(edited.qty || edited.quantity || oldPricing.qty), 0.01);
+    var total = +(qty * finalUnit).toFixed(2);
+    edited = Object.assign({}, edited, {
+      choices: choices,
+      selectedOptions: choices,
+      variants: choices,
+      options: choices,
+      basePrice: finalBase,
+      originalUnitPrice: originalUnit,
+      originalPrice: originalUnit,
+      price: finalUnit,
+      unitPrice: finalUnit,
+      finalPrice: finalUnit,
+      total: total,
+      subtotal: total,
+      lineTotal: total,
+      originalTotal: +(qty * originalUnit).toFixed(2),
+      originalSubtotal: +(qty * originalUnit).toFixed(2)
+    });
+    items[state.index] = edited;
+    var payload = _orderItemTotalsPayload(order, items);
+    payload.updatedAt = _nowIso();
+    DB.update('orders', order.id, payload).then(function () {
+      Object.assign(order, payload);
+      _closeDetailChoicesModal();
+      _syncOrderFinanceMovement(order.id, order);
+      _refreshDetailView(order.id);
+      UI.toast('Escolhas do item atualizadas.', 'success');
+    }).catch(function (err) {
+      UI.toast('Erro ao salvar escolhas: ' + (err && err.message ? err.message : 'falha'), 'error');
+    });
+  }
+
   function _detailItemHTML(item, idx, order) {
     var p = _detailItemPricing(item);
-    var unitHTML = p.discount > 0
-      ? '<div style="font-size:12px;color:#8A7E7C;text-decoration:line-through;">' + UI.fmt(p.originalUnit) + '</div><div style="font-size:13px;font-weight:900;color:#1A1A1A;">' + UI.fmt(p.finalUnit) + '</div>'
-      : '<div style="font-size:13px;font-weight:900;color:#1A1A1A;">' + UI.fmt(p.finalUnit) + '</div>';
+    var product = _findProductForOrderItem(item);
+    var hasChoiceEditor = _detailProductChoiceGroups(product).length > 0;
     var extra = [];
     if (p.variants) extra.push('<div style="font-size:11px;color:#8A7E7C;line-height:1.45;">' + _esc(p.variants) + '</div>');
-    if (p.note) extra.push('<div style="font-size:11px;color:#8A7E7C;line-height:1.45;">' + _esc(p.note) + '</div>');
-    if (p.internalNote) extra.push('<div style="margin-top:5px;font-size:11px;color:#6F6860;line-height:1.45;background:#FAF8F8;border:1px solid #F2EDED;border-radius:10px;padding:7px 9px;"><span style="font-weight:700;color:#1A1A1A;">Observação interna:</span> ' + _esc(p.internalNote) + '</div>');
-    return '<div class="pm-check-item' + (item.checked ? ' checked' : '') + '" onclick="Modules.Pedidos._toggleItem(\'' + _esc(order.id) + '\',' + idx + ',this)" style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;background:' + (item.checked ? '#EDFAF3' : '#fff') + ';border:1px solid ' + (item.checked ? '#CFE9D8' : '#F2EDED') + ';border-radius:14px;cursor:pointer;transition:background .15s;">' +
-      '<input type="checkbox"' + (item.checked ? ' checked' : '') + ' style="margin-top:2px;width:18px;height:18px;accent-color:#1A9E5A;flex-shrink:0;cursor:pointer;">' +
+    if (p.internalNote) extra.push('<div style="margin-top:4px;font-size:11px;color:#6F6860;line-height:1.4;"><span style="font-weight:650;color:#1A1A1A;">Observação interna:</span> ' + _esc(p.internalNote) + '</div>');
+    return '<div class="pm-check-item' + (item.checked ? ' checked' : '') + '" data-detail-item-index="' + idx + '" style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;background:transparent;border:0;border-bottom:1px solid #F2EDED;border-radius:0;transition:background .15s;">' +
+      '<input type="checkbox"' + (item.checked ? ' checked' : '') + ' onclick="event.stopPropagation();Modules.Pedidos._toggleItem(\'' + _esc(order.id) + '\',' + idx + ',this.parentNode)" style="margin-top:10px;width:16px;height:16px;accent-color:#1A9E5A;flex-shrink:0;cursor:pointer;">' +
       '<div style="flex:1;min-width:0;">' +
-        '<div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">' +
+        '<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(130px,150px) auto;gap:10px;align-items:start;">' +
           '<div style="min-width:0;">' +
-            '<div style="font-size:13px;font-weight:900;line-height:1.25;">' + p.qty + 'x ' + _esc(item.name || item.productName || 'Item') + '</div>' +
+            '<div style="font-size:13px;font-weight:700;line-height:1.25;color:#1F1F1F;">' + _esc(item.name || item.productName || 'Item') + '</div>' +
             extra.join('') +
           '</div>' +
-          '<div style="text-align:right;flex-shrink:0;">' + unitHTML + '<div style="margin-top:6px;font-size:12px;color:#8A7E7C;">Subtotal</div><div style="font-size:14px;font-weight:900;color:#C4362A;">' + UI.fmt(p.subtotal) + '</div></div>' +
+          '<div style="display:grid;gap:6px;align-items:start;justify-content:stretch;">' +
+            '<div style="display:grid;grid-template-columns:38px minmax(0,1fr);gap:7px;align-items:center;"><label class="order-detail-label" style="margin-bottom:0;">Qtd.</label><div class="order-detail-field-control order-detail-field-control-sm"><input id="detail-item-qty-' + idx + '" type="number" min="0.01" step="0.01" value="' + _esc(String(p.qty || 1)) + '" onclick="event.stopPropagation()"></div></div>' +
+            '<div><label class="order-detail-label">Valor unitário</label><div class="order-detail-field-control order-detail-field-control-sm"><input id="detail-item-price-' + idx + '" type="text" inputmode="decimal" value="' + _esc(UI.fmt(p.finalUnit || 0)) + '" onclick="event.stopPropagation()" onblur="Modules.Pedidos._formatDetailMoneyField(this)"></div></div>' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:1px;"><span style="font-size:10px;color:#8A7E7C;">Subtotal</span><span style="font-size:13px;font-weight:750;color:#B42318;">' + UI.fmt(p.subtotal) + '</span></div>' +
+          '</div>' +
+          '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;white-space:nowrap;text-align:right;">' +
+            '<div style="display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap;">' +
+              (hasChoiceEditor ? '<button type="button" onclick="event.stopPropagation();Modules.Pedidos._openDetailChoicesModal(\'' + _esc(order.id) + '\',' + idx + ')" style="height:30px;padding:0 9px;border:1px solid #EADFD8;border-radius:9px;background:#FFFCF8;color:#1F1F1F;font-size:12px;font-weight:650;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px;"><span class="mi" style="font-size:14px;">tune</span>Editar escolhas</button>' : '') +
+              '<button type="button" onclick="event.stopPropagation();Modules.Pedidos._removeDetailItem(\'' + _esc(order.id) + '\',' + idx + ')" style="height:30px;padding:0 9px;border:1px solid #F3D6D2;border-radius:9px;background:#FFF7F5;color:#B42318;font-size:12px;font-weight:650;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px;"><span class="mi" style="font-size:14px;">delete</span>Remover</button>' +
+            '</div>' +
+          '</div>' +
         '</div>' +
       '</div>' +
     '</div>';
+  }
+
+  function _canResolveOrderStock(order) {
+    if (!order || !order.id || !order.stockMovementCreated) return false;
+    return !_statusCancelsStockMovement(order.status);
+  }
+
+  function _openOrderStockResolution(orderId) {
+    var order = (_orders || []).find(function (x) { return String(x.id || '') === String(orderId || ''); });
+    if (!order) return;
+    if (!_canResolveOrderStock(order)) {
+      UI.toast('Este pedido ainda não tem baixa de estoque para tratar.', 'info');
+      return;
+    }
+    DB.getAll('stock_movements').catch(function () { return []; }).then(function (rows) {
+      var movements = (rows || []).filter(function (movement) {
+        return movement && (movement.type === 'saida_venda' || movement.type === 'saida_base_venda') && String(movement.orderId || '') === String(orderId || '');
+      });
+      if (!movements.length) {
+        UI.toast('Nenhuma baixa de estoque foi encontrada para este pedido.', 'info');
+        return;
+      }
+      var related = (rows || []).filter(function (movement) {
+        return movement && String(movement.orderId || '') === String(orderId || '') && (movement.type === 'retorno_venda' || movement.type === 'perda_venda');
+      });
+      var handled = {};
+      related.forEach(function (movement) {
+        var key = String(movement.sourceSaleMovementId || movement.reversalOf || '');
+        if (!key) return;
+        handled[key] = (handled[key] || 0) + _num(movement.quantity);
+      });
+      var rowsHtml = movements.map(function (movement, idx) {
+        var key = String(movement.id || _stockMovementOrderId(orderId, idx));
+        var originalQty = _num(movement.quantity);
+        var doneQty = _num(handled[key] || 0);
+        var available = Math.max(0, originalQty - doneQty);
+        var disabled = available <= 0 ? ' disabled' : '';
+        return '<div class="order-stock-resolution-row" data-movement="' + _esc(key) + '" data-max="' + _esc(String(available)) + '">' +
+          '<div style="min-width:0;">' +
+            '<div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.3;">' + _esc(movement.productName || movement.itemName || movement.fichaTecnicaNome || movement.baseProductionName || 'Item') + '</div>' +
+            '<div style="font-size:12px;color:#6F6860;line-height:1.35;margin-top:3px;">Saiu do estoque: ' + _esc(String(originalQty)) + ' ' + _esc(movement.unit || '') + (doneQty ? ' · já tratado: ' + _esc(String(doneQty)) : '') + '</div>' +
+          '</div>' +
+          '<div class="order-stock-resolution-controls">' +
+            '<label><span>Ação</span><select id="stock-resolution-action-' + idx + '"' + disabled + '><option value="">Nada por enquanto</option><option value="return">Voltou para o estoque</option><option value="loss">Virou perda</option></select></label>' +
+            '<label><span>Quantidade</span><input id="stock-resolution-qty-' + idx + '" type="number" min="0" max="' + _esc(String(available)) + '" step="0.001" value="0"' + disabled + '></label>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+      var body = '<style>' +
+        '.order-stock-resolution{display:flex;flex-direction:column;gap:12px;font-family:Manrope,Inter,sans-serif;}' +
+        '.order-stock-resolution-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:16px;padding:14px;box-shadow:0 8px 18px rgba(31,31,31,.035);}' +
+        '.order-stock-resolution-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,.64fr);gap:12px;align-items:end;padding:11px 0;border-bottom:1px solid #F2EDED;}' +
+        '.order-stock-resolution-row:last-child{border-bottom:0;padding-bottom:0;}' +
+        '.order-stock-resolution-controls{display:grid;grid-template-columns:minmax(160px,.72fr) minmax(96px,.36fr);gap:9px;align-items:end;}' +
+        '.order-stock-resolution label span{font-size:10px;font-weight:650;color:#6F6860;display:block;margin-bottom:5px;letter-spacing:.02em;}' +
+        '.order-stock-resolution input,.order-stock-resolution select{width:100%;height:38px;border:1px solid #E8DCD7;border-radius:11px;padding:0 11px;background:#FFFCF8;color:#1F1F1F;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;}' +
+        '.order-stock-resolution select{padding-right:34px;appearance:none;-webkit-appearance:none;-moz-appearance:none;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 13px center;background-size:14px;}' +
+        '.order-stock-resolution textarea{width:100%;min-height:74px;border:1px solid #E8DCD7;border-radius:12px;padding:10px 12px;background:#FFFCF8;color:#1F1F1F;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;resize:vertical;line-height:1.45;}' +
+        '@media(max-width:760px){.order-stock-resolution-row,.order-stock-resolution-controls{grid-template-columns:1fr;}}' +
+      '</style>' +
+      '<div class="order-stock-resolution">' +
+        '<div class="order-stock-resolution-card">' +
+          '<div style="display:flex;align-items:flex-start;gap:9px;margin-bottom:10px;"><span class="mi" style="font-size:18px;color:#6F6860;">inventory_2</span><div><div style="font-size:13px;font-weight:800;color:#1F1F1F;">Retorno ou perda do pedido</div><p style="font-size:12px;color:#6F6860;line-height:1.45;margin:3px 0 0;">Use quando algum item já saiu do estoque, mas depois voltou ou precisou ser descartado.</p></div></div>' +
+          rowsHtml +
+        '</div>' +
+        '<div class="order-stock-resolution-card">' +
+          '<label><span style="font-size:10px;font-weight:650;color:#6F6860;display:block;margin-bottom:5px;">Motivo ou observação</span><textarea id="stock-resolution-note" placeholder="Ex.: cliente não retirou o pedido, refrigerante voltou fechado e salgado foi descartado."></textarea></label>' +
+        '</div>' +
+      '</div>';
+      window._orderStockResolutionModal = UI.modal({
+        title: 'Retorno e perda do pedido',
+        body: body,
+        footer: '<div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;"><button onclick="if(window._orderStockResolutionModal){window._orderStockResolutionModal.close();}" style="height:40px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#1F1F1F;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Cancelar</button><button onclick="Modules.Pedidos._saveOrderStockResolution(\'' + _esc(orderId) + '\')" style="height:40px;padding:0 16px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(180,35,24,.16);">Salvar tratamento</button></div>',
+        maxWidth: '860px'
+      });
+      window._orderStockResolutionData = { orderId: orderId, movements: movements, handled: handled };
+    }).catch(function (err) {
+      UI.toast('Erro ao carregar movimentações: ' + (err && err.message ? err.message : 'falha'), 'error');
+    });
+  }
+
+  function _saveOrderStockResolution(orderId) {
+    var state = window._orderStockResolutionData || {};
+    var order = (_orders || []).find(function (x) { return String(x.id || '') === String(orderId || ''); });
+    if (!order || String(state.orderId || '') !== String(orderId || '')) return;
+    var note = String((document.getElementById('stock-resolution-note') || {}).value || '').trim();
+    var now = _nowIso();
+    var ops = [];
+    var invalidMessage = '';
+    var returnedQty = 0;
+    var lossQty = 0;
+    (state.movements || []).forEach(function (movement, idx) {
+      var action = String((document.getElementById('stock-resolution-action-' + idx) || {}).value || '');
+      var qty = _num((document.getElementById('stock-resolution-qty-' + idx) || {}).value || 0);
+      if (!action || qty <= 0) return;
+      var movementId = String(movement.id || _stockMovementOrderId(orderId, idx));
+      var available = Math.max(0, _num(movement.quantity) - _num((state.handled || {})[movementId] || 0));
+      if (qty - available > 0.0001) {
+        invalidMessage = 'A quantidade informada para ' + (movement.productName || movement.itemName || 'um item') + ' passa do que saiu do estoque.';
+        return;
+      }
+      var type = action === 'return' ? 'retorno_venda' : 'perda_venda';
+      var id = String(orderId || 'pedido').replace(/[^\w-]/g, '_') + '_' + movementId.replace(/[^\w-]/g, '_') + '_' + type + '_' + Date.now() + '_' + idx;
+      if (action === 'return') returnedQty += qty;
+      if (action === 'loss') lossQty += qty;
+      ops.push(DB.col('stock_movements').doc(id).set(Object.assign({}, movement, {
+        id: id,
+        type: type,
+        movementGroup: 'order_resolution',
+        resolutionAction: action,
+        sourceSaleMovementId: movementId,
+        reversalOf: action === 'return' ? movementId : '',
+        stockEffect: action === 'return' ? 'entry' : 'none',
+        quantity: qty,
+        totalCost: _num(movement.unitCost) > 0 ? qty * _num(movement.unitCost) : 0,
+        resolutionReason: note,
+        lossReason: action === 'loss' ? note : '',
+        returnReason: action === 'return' ? note : '',
+        movementDate: _today(),
+        createdAt: now,
+        updatedAt: now
+      }, { merge: true })));
+    });
+    if (invalidMessage) {
+      UI.toast(invalidMessage, 'error');
+      return;
+    }
+    if (!ops.length) {
+      UI.toast('Escolha pelo menos um item para devolver ou registrar como perda.', 'info');
+      return;
+    }
+    Promise.all(ops).then(function () {
+      var patch = {
+        stockResolutionCreated: true,
+        stockResolutionUpdatedAt: now,
+        stockResolutionCount: _num(order.stockResolutionCount || 0) + ops.length,
+        stockReturnedQuantity: _num(order.stockReturnedQuantity || 0) + returnedQty,
+        stockLossQuantity: _num(order.stockLossQuantity || 0) + lossQty
+      };
+      return DB.update('orders', orderId, patch).then(function () {
+        Object.assign(order, patch);
+        if (window._orderStockResolutionModal) window._orderStockResolutionModal.close();
+        UI.toast('Estoque do pedido atualizado.', 'success');
+        _refreshDetailView(orderId);
+      });
+    }).catch(function (err) {
+      UI.toast('Erro ao salvar: ' + (err && err.message ? err.message : 'falha'), 'error');
+    });
   }
 
   function _detailObservationBlocks(order) {
@@ -1916,9 +2380,7 @@ Modules.Pedidos = (function () {
   }
 
   function _detailWhatsappMsg(order, statusLabel) {
-    var statusText = statusLabel || _orderStatusLabel(order.status);
-    var baseText = 'Hola, actualizamos tu pedido.';
-    return _orderWhatsappMessage(order, statusText, baseText);
+    return _orderStatusWhatsappMessage(order, statusLabel || order.status || 'Pendente');
   }
 
   function _showDetailWhatsappPrompt(order, status) {
@@ -1930,8 +2392,8 @@ Modules.Pedidos = (function () {
     el.style.display = 'block';
     el.innerHTML = '<div style="margin-top:12px;border:1px solid #EAE4DA;border-radius:16px;padding:14px;background:#fff;box-shadow:0 12px 30px rgba(31,31,31,.06);display:flex;flex-direction:column;gap:10px;">' +
       '<div style="font-size:11px;font-weight:800;color:#B42318;text-transform:uppercase;letter-spacing:.04em;">Atualização do pedido</div>' +
-      '<div style="font-size:14px;font-weight:800;color:#1F1F1F;">Status atualizado. Deseja avisar o cliente pelo WhatsApp?</div>' +
-      '<div style="font-size:13px;color:#6F6860;line-height:1.45;">' + (phone ? 'O WhatsApp será aberto em uma nova aba com a mensagem pronta.' : 'Sem telefone registrado para este pedido.') + '</div>' +
+      '<div style="font-size:14px;font-weight:800;color:#1F1F1F;">Quer avisar a cliente pelo WhatsApp?</div>' +
+      '<div style="font-size:13px;color:#6F6860;line-height:1.45;">' + (phone ? 'A mensagem já está pronta para enviar.' : 'Este pedido não tem telefone cadastrado.') + '</div>' +
       '<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;">' +
         (phone ? '<button onclick="Modules.Pedidos._sendDetailWhatsapp(\'' + _esc(order.id) + '\', \'' + _esc(status || order.status || '') + '\')" style="height:38px;border:none;background:#1A9E5A;color:#fff;border-radius:10px;padding:0 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(26,158,90,.14);">Enviar WhatsApp</button>' : '<button disabled style="height:38px;border:none;background:#E5E7EB;color:#9CA3AF;border-radius:10px;padding:0 14px;font-size:13px;font-weight:700;cursor:not-allowed;font-family:inherit;">Enviar WhatsApp</button>') +
         '<button onclick="Modules.Pedidos._hideDetailWhatsappPrompt()" style="height:38px;border:1px solid #EAE4DA;background:#fff;color:#1F1F1F;border-radius:10px;padding:0 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Agora não</button>' +
@@ -1962,7 +2424,7 @@ Modules.Pedidos = (function () {
     var phone = _orderPhoneDigits(order);
     if (customer && customer.id) {
       return '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">' +
-        '<button onclick="event.stopPropagation();Modules.Pedidos._openClientProfile(\'' + _esc(customer.id) + '\');" style="height:34px;border:1px solid #EAE4DA;background:#fff;color:#1F1F1F;border-radius:10px;padding:0 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 8px 18px rgba(31,31,31,.05);">Ver cliente</button>' +
+        '<button type="button" onclick="Modules.Pedidos._openClientProfile(\'' + _esc(customer.id) + '\');return false;" style="height:34px;border:1px solid #EAE4DA;background:#fff;color:#1F1F1F;border-radius:10px;padding:0 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 8px 18px rgba(31,31,31,.05);">Ver cliente</button>' +
         (phone ? '<button onclick="Modules.Pedidos._waFromDetail(\'' + _esc(order.id) + '\');event.stopPropagation();" style="height:34px;border:1px solid rgba(26,158,90,.18);background:#E8FFF1;color:#1A9E5A;border-radius:10px;padding:0 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">WhatsApp</button>' : '<span style="font-size:12px;color:#8A7E7C;">Sem telefone registrado</span>') +
       '</div>';
     }
@@ -2164,8 +2626,8 @@ Modules.Pedidos = (function () {
     prompt.id = 'kitchen-whatsapp-prompt';
     prompt.style.cssText = 'position:absolute;left:24px;bottom:24px;z-index:20020;width:min(430px,calc(100vw - 48px));background:#fff;border:1px solid #EAE4DA;border-radius:16px;box-shadow:0 18px 46px rgba(31,31,31,.18);padding:16px;display:flex;flex-direction:column;gap:12px;font-family:Manrope,Inter,sans-serif;';
 
-    var title = 'Status atualizado. Deseja avisar o cliente no WhatsApp?';
-    var subtitle = phone ? (msg || '') : 'Este pedido não tem telefone registrado para aviso por WhatsApp.';
+    var title = 'Quer avisar a cliente pelo WhatsApp?';
+    var subtitle = phone ? (msg || '') : 'Este pedido não tem telefone cadastrado.';
     prompt.innerHTML =
       '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">' +
         '<div style="min-width:0;">' +
@@ -2183,7 +2645,7 @@ Modules.Pedidos = (function () {
     _kitchenModeOverlay.style.position = 'fixed';
     _kitchenModeOverlay.appendChild(prompt);
     if (!phone) {
-      UI.toast('Este pedido não tem telefone registrado para aviso por WhatsApp.', 'info');
+      UI.toast('Este pedido não tem telefone cadastrado.', 'info');
     }
     return true;
   }
@@ -2197,12 +2659,12 @@ Modules.Pedidos = (function () {
     if (!order) return;
     var phone = _orderPhoneDigits(order);
     if (!phone) {
-      UI.toast('Este pedido no tiene teléfono registrado para avisar por WhatsApp.', 'info');
+      UI.toast('Este pedido no tiene teléfono registrado.', 'info');
       return;
     }
     var statusKey = String(status || order.status || 'Pendente');
     var fn = WA_MSGS[statusKey] || WA_MSGS[_orderStatusLabel(statusKey)];
-    var msg = fn ? fn(order) : _orderWhatsappMessage(order, _orderStatusLabel(statusKey), 'Hola, actualizamos tu pedido.');
+    var msg = fn ? fn(order) : _orderStatusWhatsappMessage(order, statusKey);
     _clearKitchenPrompt();
     window.open('https://wa.me/' + phone + '?text=' + encodeURIComponent(msg), '_blank');
   }
@@ -2225,10 +2687,16 @@ Modules.Pedidos = (function () {
     var checkedCount = (order.items || []).filter(function (item) { return !!item.checked; }).length;
     var progress = itemCount ? Math.round((checkedCount / itemCount) * 100) : 0;
     var customerName = _firstText(order.customerName, order.clientName, order.name, 'Cliente');
+    var payment = _detailPaymentInfo(order);
+    var phoneText = _firstText(order.customerPhone, order.phone, order.whatsapp, '');
+    var addressText = order.type === 'pickup' ? _orderPickupText(order) : _orderAddressText(order);
+    var addressLabel = order.type === 'pickup' ? 'Endereço de retirada' : 'Endereço de entrega';
+    var noteText = _firstText(order.note, order.customerNote, order.observation, order.observations, '');
+    var kitchenNoteText = _firstText(order.kitchenNote, order.internalNote, order.notes, '');
     var backdrop = document.createElement('div');
     backdrop.id = 'kitchen-detail-backdrop';
     backdrop.onclick = _closeKitchenDetailPanel;
-    backdrop.style.cssText = 'position:absolute;inset:0;background:#fff;z-index:20011;';
+    backdrop.style.cssText = 'position:absolute;inset:0;background:rgba(31,31,31,.34);backdrop-filter:blur(2px);z-index:20011;';
 
     var panel = document.createElement('aside');
     panel.id = 'kitchen-detail-panel';
@@ -2239,12 +2707,15 @@ Modules.Pedidos = (function () {
       return '<option value="' + c.key + '"' + (String(order.status || '') === c.key ? ' selected' : '') + '>' + c.label + '</option>';
     }).join('');
     var itemsHTML = (order.items || []).map(function (item, i) {
+      var pricing = _detailItemPricing(item);
+      var itemName = _firstText(item.name, item.productName, 'Item');
       return '<label style="display:flex;align-items:flex-start;gap:10px;padding:11px 12px;border:1px solid ' + (item.checked ? '#D9F2E3' : '#EAE4DA') + ';border-radius:12px;background:' + (item.checked ? '#F4FBF6' : '#fff') + ';cursor:pointer;box-shadow:0 6px 14px rgba(31,31,31,.035);">' +
         '<input type="checkbox" ' + (item.checked ? 'checked' : '') + ' onclick="event.stopPropagation();Modules.Pedidos._toggleItem(\'' + _esc(order.id) + '\',' + i + ',this.parentNode)" style="margin-top:2px;width:18px;height:18px;accent-color:#1A9E5A;cursor:pointer;">' +
         '<div style="flex:1;min-width:0;">' +
-          '<div style="font-size:13px;font-weight:800;line-height:1.25;">' + (item.qty || 1) + 'x ' + _esc(item.name || '') + '</div>' +
-          (item.variants ? '<div style="margin-top:3px;font-size:11px;color:#8A7E7C;">' + _esc(item.variants) + '</div>' : '') +
-          (item.note ? '<div style="margin-top:3px;font-size:11px;color:#8A7E7C;">' + _esc(item.note) + '</div>' : '') +
+          '<div style="font-size:13px;font-weight:800;line-height:1.25;">' + _esc(String(pricing.qty || item.qty || 1)) + 'x ' + _esc(itemName) + '</div>' +
+          (pricing.variants ? '<div style="margin-top:3px;font-size:11px;color:#8A7E7C;line-height:1.35;">' + _esc(pricing.variants) + '</div>' : '') +
+          (pricing.note ? '<div style="margin-top:3px;font-size:11px;color:#8A7E7C;line-height:1.35;">' + _esc(pricing.note) + '</div>' : '') +
+          (pricing.internalNote ? '<div style="margin-top:3px;font-size:11px;color:#6F6860;line-height:1.35;">Obs. interna: ' + _esc(pricing.internalNote) + '</div>' : '') +
         '</div>' +
       '</label>';
     }).join('');
@@ -2269,23 +2740,24 @@ Modules.Pedidos = (function () {
         '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;">' +
           '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:14px;padding:12px;box-shadow:0 8px 20px rgba(31,31,31,.035);">' +
             '<div style="font-size:10px;font-weight:700;color:#6F6860;text-transform:uppercase;margin-bottom:4px;">Telefone</div>' +
-            (phoneHref ? '<a href="' + _esc(phoneHref) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-size:13px;font-weight:800;color:#1A9E5A;text-decoration:none;">WhatsApp</a>' : '<div style="font-size:13px;font-weight:800;color:#8A7E7C;">Sem telefone</div>') +
+            (phoneHref ? '<a href="' + _esc(phoneHref) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-size:13px;font-weight:800;color:#1A9E5A;text-decoration:none;">' + _esc(phoneText || 'WhatsApp') + '</a>' : '<div style="font-size:13px;font-weight:800;color:#8A7E7C;">Sem telefone</div>') +
           '</div>' +
           '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:14px;padding:12px;box-shadow:0 8px 20px rgba(31,31,31,.035);">' +
             '<div style="font-size:10px;font-weight:700;color:#6F6860;text-transform:uppercase;margin-bottom:4px;">Canal</div>' +
             '<div style="font-size:13px;font-weight:800;">' + _esc(_orderChannelLabel(order)) + '</div>' +
           '</div>' +
           '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:14px;padding:12px;box-shadow:0 8px 20px rgba(31,31,31,.035);">' +
-            '<div style="font-size:10px;font-weight:700;color:#6F6860;text-transform:uppercase;margin-bottom:4px;">Tipo</div>' +
-            '<div style="font-size:13px;font-weight:800;">' + _esc(order.type === 'pickup' ? 'Retirada' : 'Entrega') + '</div>' +
+            '<div style="font-size:10px;font-weight:700;color:#6F6860;text-transform:uppercase;margin-bottom:4px;">Pagamento</div>' +
+            '<div style="font-size:13px;font-weight:800;">' + _esc(payment.method ? _paymentMethodLabel(payment.method) : 'Sem forma definida') + '</div>' +
+            (payment.status ? '<div style="margin-top:3px;font-size:11px;color:#6F6860;">' + _esc(_paymentStatusLabel(payment.status)) + '</div>' : '') +
           '</div>' +
           '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:14px;padding:12px;box-shadow:0 8px 20px rgba(31,31,31,.035);">' +
             '<div style="font-size:10px;font-weight:700;color:#6F6860;text-transform:uppercase;margin-bottom:4px;">Total</div>' +
-            '<div style="font-size:16px;font-weight:800;color:#B42318;">' + UI.fmt(order.total || 0) + '</div>' +
+            '<div style="font-size:16px;font-weight:800;color:#B42318;">' + UI.fmt(payment.total || order.total || 0) + '</div>' +
           '</div>' +
         '</div>' +
-        (order.address ? '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:14px;padding:12px;box-shadow:0 8px 20px rgba(31,31,31,.035);"><div style="font-size:10px;font-weight:700;color:#6F6860;text-transform:uppercase;margin-bottom:4px;">Endereço</div><div style="font-size:13px;line-height:1.45;color:#1F1F1F;">' + _esc(order.address) + '</div></div>' : '') +
-        (order.note || order.kitchenNote ? '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:14px;padding:12px;box-shadow:0 8px 20px rgba(31,31,31,.035);"><div style="font-size:10px;font-weight:700;color:#6F6860;text-transform:uppercase;margin-bottom:4px;">Observações</div><div style="font-size:13px;line-height:1.45;color:#1F1F1F;">' + _esc(order.note || order.kitchenNote) + '</div></div>' : '') +
+        (addressText ? '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:14px;padding:12px;box-shadow:0 8px 20px rgba(31,31,31,.035);"><div style="font-size:10px;font-weight:700;color:#6F6860;text-transform:uppercase;margin-bottom:4px;">' + _esc(addressLabel) + '</div><div style="font-size:13px;line-height:1.45;color:#1F1F1F;">' + _esc(addressText) + '</div></div>' : '') +
+        ((noteText || kitchenNoteText) ? '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:14px;padding:12px;box-shadow:0 8px 20px rgba(31,31,31,.035);"><div style="font-size:10px;font-weight:700;color:#6F6860;text-transform:uppercase;margin-bottom:4px;">Observações</div>' + (noteText ? '<div style="font-size:13px;line-height:1.45;color:#1F1F1F;">Cliente: ' + _esc(noteText) + '</div>' : '') + (kitchenNoteText ? '<div style="margin-top:' + (noteText ? '6px' : '0') + ';font-size:13px;line-height:1.45;color:#1F1F1F;">Cozinha: ' + _esc(kitchenNoteText) + '</div>' : '') + '</div>' : '') +
         '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:14px;padding:12px;box-shadow:0 8px 20px rgba(31,31,31,.035);">' +
           '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;">' +
             '<div style="font-size:11px;font-weight:800;color:#1F1F1F;">Checklist</div>' +
@@ -2298,7 +2770,7 @@ Modules.Pedidos = (function () {
           '<label style="font-size:11px;font-weight:700;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;">Status</label>' +
           '<select id="kitchen-detail-status" style="width:100%;padding:10px 12px;border:1px solid #EAE4DA;border-radius:10px;font-size:14px;font-family:inherit;background:#fff;outline:none;color:#1F1F1F;">' + statusOptions + '</select>' +
           '<div style="display:flex;gap:10px;">' +
-            '<button onclick="Modules.Pedidos._saveKitchenDetail(\'' + _esc(order.id) + '\')" style="flex:1;height:40px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(180,35,24,.16);">Salvar status</button>' +
+            '<button onclick="Modules.Pedidos._saveKitchenDetail(\'' + _esc(order.id) + '\')" style="flex:1;height:40px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(180,35,24,.16);">Fechar</button>' +
             (phoneHref ? '<button onclick="Modules.Pedidos._waFromKitchenDetail(\'' + _esc(order.id) + '\')" style="height:40px;padding:0 14px;border:none;border-radius:10px;background:#1A9E5A;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(26,158,90,.16);">WhatsApp</button>' : '') +
           '</div>' +
         '</div>' +
@@ -2309,14 +2781,13 @@ Modules.Pedidos = (function () {
   }
 
   function _cardHTML(o) {
-    var items = (o.items || []).slice(0, 2).map(function (i) { return (i.qty || 1) + 'x ' + i.name; }).join(', ');
-    if ((o.items || []).length > 2) items += '…';
     var phoneHref = _orderPhoneHref(o);
     var meta = _statusMeta(o.status);
     var itemCount = (o.items || []).length;
     var checked = (o.items || []).filter(function (i) { return !!i.checked; }).length;
     var progress = itemCount ? Math.round((checked / itemCount) * 100) : 0;
     var schedule = _orderScheduleInfo(o).text;
+    var addressText = o.type === 'pickup' ? _orderPickupText(o) : _orderAddressText(o);
     return '<div class="kcard" draggable="true" data-id="' + o.id + '" ' +
       'ondragstart="Modules.Pedidos._onDragStart(event,\'' + o.id + '\')" ' +
       'ondragend="Modules.Pedidos._onDragEnd(event)" ' +
@@ -2334,11 +2805,11 @@ Modules.Pedidos = (function () {
         '<span style="display:inline-flex;align-items:center;gap:4px;"><span class="mi" style="font-size:14px;color:' + meta.color + ';">schedule</span>' + _esc(schedule) + '</span>' +
         (phoneHref ? '<a href="' + _esc(phoneHref) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:#1A9E5A;text-decoration:none;font-weight:800;">WhatsApp</a>' : '') +
       '</div>' +
+      (addressText ? '<div style="font-size:11px;color:#1F1F1F;background:rgba(255,255,255,.72);border:1px solid rgba(255,255,255,.78);border-radius:11px;padding:7px 8px;margin-bottom:8px;line-height:1.35;display:flex;align-items:flex-start;gap:6px;box-shadow:0 5px 12px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;color:' + meta.color + ';line-height:1.25;">place</span><span style="min-width:0;overflow-wrap:anywhere;">' + _esc(addressText) + '</span></div>' : '') +
       '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px;">' +
         UI.badge(_orderChannelLabel(o), 'gray') +
         _orderPaymentBadge(o) +
       '</div>' +
-      (items ? '<div style="font-size:12px;color:#1F1F1F;background:rgba(255,255,255,.72);border:1px solid rgba(255,255,255,.78);border-radius:12px;padding:8px 9px;margin-bottom:9px;line-height:1.38;box-shadow:0 6px 14px rgba(31,31,31,.035);">' + _esc(items) + '</div>' : '') +
       (itemCount ? '<div style="margin-bottom:9px;"><div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:5px;"><span style="font-size:10px;font-weight:800;color:#6F6860;text-transform:uppercase;">Checklist</span><span style="font-size:10px;font-weight:800;color:' + meta.color + ';">' + checked + '/' + itemCount + '</span></div><div style="height:6px;border-radius:999px;background:rgba(255,255,255,.78);overflow:hidden;border:1px solid rgba(31,31,31,.04);"><div style="height:100%;width:' + progress + '%;background:' + meta.color + ';border-radius:999px;"></div></div></div>' : '') +
       '<div style="display:flex;align-items:center;justify-content:space-between;">' +
       '<span style="font-size:14px;font-weight:800;color:#B42318;">' + UI.fmt(o.total || 0) + '</span>' +
@@ -2410,92 +2881,122 @@ Modules.Pedidos = (function () {
       var pointsHtml = Modules.Marketing && typeof Modules.Marketing._pointsOrderBlockHtml === 'function'
         ? Modules.Marketing._pointsOrderBlockHtml(o, customer)
         : '';
+      var detailCss = '<style>' +
+        '.order-detail-modal-body{display:flex;flex-direction:column;gap:9px;font-family:Manrope,Inter,sans-serif;}' +
+        '.order-detail-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:16px;padding:11px 12px;box-shadow:0 8px 18px rgba(31,31,31,.035);min-width:0;}' +
+        '.order-detail-head{display:flex;align-items:flex-start;gap:8px;margin-bottom:9px;}' +
+        '.order-detail-head .mi{font-size:17px;color:#6F6860;line-height:1.2;}' +
+        '.order-detail-title{font-size:13px;font-weight:800;color:#1F1F1F;line-height:1.25;margin-bottom:3px;}' +
+        '.order-detail-hint{font-size:11px;color:#8A7E7C;line-height:1.35;margin-bottom:0;}' +
+        '.order-detail-grid{display:grid;gap:9px 10px;align-items:start;min-width:0;}' +
+        '.order-detail-top-grid{display:grid;grid-template-columns:minmax(185px,.34fr) minmax(360px,.82fr) minmax(260px,.58fr);gap:9px;align-items:start;}' +
+        '.order-detail-main-grid{grid-template-columns:minmax(0,1fr);align-items:center;}' +
+        '.order-detail-service-grid{grid-template-columns:minmax(0,1fr);}' +
+        '.order-detail-service-row{display:grid;grid-template-columns:minmax(180px,.62fr) minmax(260px,1fr);gap:9px 10px;align-items:start;}' +
+        '.order-detail-schedule-grid{grid-template-columns:minmax(135px,.34fr) minmax(135px,.34fr);align-items:end;justify-content:start;max-width:320px;}' +
+        '.order-detail-schedule-grid .order-detail-status-field{grid-column:1/-1;}' +
+        '.order-detail-payment-grid{grid-template-columns:minmax(0,1fr);align-items:end;justify-content:start;}' +
+        '.order-detail-summary-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:8px;justify-content:start;}' +
+        '.order-detail-field-control{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:11px;padding:5px;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;min-width:0;}' +
+        '.order-detail-field-control:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
+        '.order-detail-field-control input,.order-detail-field-control select{width:100%;min-width:0;min-height:32px;border:0;border-radius:8px;padding:0 8px;font-size:13px;font-family:inherit;outline:none;background:transparent;box-sizing:border-box;color:#1F1F1F;box-shadow:none;}' +
+        '.order-detail-field-control-sm{padding:3px;border-radius:9px;}' +
+        '.order-detail-field-control-sm input{min-height:26px;font-size:12px;padding:0 7px;}' +
+        '.order-detail-field-control select{padding-right:42px;appearance:none;-webkit-appearance:none;-moz-appearance:none;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 16px center;background-size:14px;}' +
+        '.order-detail-label{font-size:10px;font-weight:600;color:#6F6860;display:block;margin-bottom:4px;letter-spacing:.02em;}' +
+        '.order-detail-tile{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:8px 10px;box-shadow:0 1px 2px rgba(31,31,31,.02);min-width:0;}' +
+        '.order-detail-soft-box{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:13px;padding:10px;min-width:0;}' +
+        '.order-detail-soft-title{font-size:10px;font-weight:700;color:#8A7E7C;text-transform:uppercase;letter-spacing:.03em;margin-bottom:5px;}' +
+        '.order-detail-soft-value{font-size:13px;font-weight:600;color:#1F1F1F;line-height:1.35;overflow-wrap:anywhere;}' +
+        '.pm-check-item:last-child{border-bottom:0!important;}' +
+        '@media(max-width:1120px){.order-detail-top-grid{grid-template-columns:minmax(190px,.38fr) minmax(0,1fr)}.order-detail-payment-card{grid-column:1/-1}.order-detail-payment-grid{grid-template-columns:minmax(180px,.64fr) minmax(180px,.64fr) minmax(120px,.36fr);max-width:650px}.order-detail-summary-grid{grid-template-columns:repeat(3,minmax(105px,150px))}}' +
+        '@media(max-width:980px){.order-detail-top-grid,.order-detail-service-grid,.order-detail-service-row{grid-template-columns:1fr}.order-detail-schedule-grid,.order-detail-payment-grid{grid-template-columns:repeat(2,minmax(0,1fr));max-width:none}.order-detail-payment-grid .order-detail-paid-field,.order-detail-schedule-grid .order-detail-status-field{grid-column:1/-1}.order-detail-summary-grid{grid-template-columns:repeat(3,minmax(105px,1fr))}}' +
+        '@media(max-width:640px){.order-detail-card{padding:11px}.order-detail-top-grid,.order-detail-main-grid,.order-detail-service-grid,.order-detail-service-row,.order-detail-schedule-grid,.order-detail-payment-grid,.order-detail-summary-grid,.pm-check-item [style*="grid-template-columns"]{grid-template-columns:1fr!important}.order-detail-head{margin-bottom:8px}}' +
+        '</style>';
 
-      var body = '<div style="display:flex;flex-direction:column;gap:14px;">' +
-        '<section style="background:#fff;border:1px solid #EAE4DA;border-radius:16px;padding:16px 16px 14px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
-          '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">' +
-            '<div style="min-width:0;flex:1;">' +
-              '<div style="font-size:11px;font-weight:700;color:#B42318;text-transform:uppercase;letter-spacing:.04em;margin-bottom:7px;">Detalhes do pedido</div>' +
-              '<div style="font-size:27px;font-weight:800;line-height:1;color:#B42318;">' + UI.fmt(payment.total) + '</div>' +
-              '<div style="margin-top:8px;font-size:13px;color:#1A1A1A;font-weight:700;line-height:1.45;">' + _esc(topName) + '</div>' +
-              '<div style="margin-top:4px;font-size:12px;color:#8A7E7C;">' + _esc(topDate) + '</div>' +
+      var body = detailCss + '<div class="order-detail-modal-body">' +
+        '<div class="order-detail-top-grid">' +
+        '<section class="order-detail-card">' +
+          '<div class="order-detail-grid order-detail-main-grid">' +
+            '<div style="min-width:0;">' +
+              '<div class="order-detail-head"><span class="mi">receipt_long</span><div><div class="order-detail-title">Resumo do pedido</div></div></div>' +
+              '<div style="font-size:24px;font-weight:800;line-height:1;color:#B42318;">' + UI.fmt(payment.total) + '</div>' +
+              '<div style="margin-top:6px;font-size:13px;color:#1A1A1A;font-weight:600;line-height:1.35;">' + _esc(topName) + '</div>' +
+              '<div style="margin-top:3px;font-size:12px;color:#8A7E7C;">' + _esc(topDate) + '</div>' +
               orderMetaHTML +
-            '</div>' +
-            '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;min-width:160px;">' +
-              UI.badge(_orderStatusLabel(o.status), 'blue') +
-              UI.badge(deliveryLabel, o.type === 'pickup' ? 'green' : 'orange') +
-              _orderPaymentBadge(o) +
             '</div>' +
           '</div>' +
         '</section>' +
 
-        '<section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">' +
-          '<div style="background:#fff;border:1px solid #F2EDED;border-radius:16px;padding:14px;">' +
-            '<div style="font-size:10px;font-weight:900;color:#8A7E7C;text-transform:uppercase;margin-bottom:5px;">Cliente</div>' +
-            '<div style="font-size:15px;font-weight:900;line-height:1.25;">' + _esc(topName) + '</div>' +
-            '<div style="margin-top:6px;display:inline-flex;align-items:center;padding:5px 10px;border-radius:999px;background:' + customerStatusBg + ';color:' + customerStatusTone + ';font-size:11px;font-weight:800;">' + _esc(customerStateLabel) + '</div>' +
-            customerMetaHTML +
-            (_orderClientActions(o, customer) || '') +
-          '</div>' +
-          '<div style="background:#fff;border:1px solid #F2EDED;border-radius:16px;padding:14px;">' +
-            '<div style="font-size:10px;font-weight:900;color:#8A7E7C;text-transform:uppercase;margin-bottom:5px;">' + _esc(deliveryLabel) + '</div>' +
-            '<div style="font-size:14px;font-weight:800;line-height:1.45;">' + _esc(addressText || (o.type === 'pickup' ? 'Retirada no local' : 'Sem endereço')) + '</div>' +
-            (o.type === 'delivery' && o.zone ? '<div style="margin-top:6px;font-size:12px;color:#8A7E7C;">Zona: ' + _esc(o.zone) + '</div>' : '') +
-            (o.type === 'delivery' && o.postalCode ? '<div style="margin-top:4px;font-size:12px;color:#8A7E7C;">CP: ' + _esc(o.postalCode) + '</div>' : '') +
-            addressMetaHTML +
-            '<div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">' +
-              '<div><label style="font-size:10px;font-weight:900;color:#8A7E7C;text-transform:uppercase;display:block;margin-bottom:4px;">Dia</label><input id="detail-delivery-date" type="date" value="' + _esc(detailDateValue) + '" style="width:100%;padding:9px 10px;border:1.5px solid #D4C8C6;border-radius:10px;font-size:13px;font-family:inherit;background:#fff;outline:none;"></div>' +
-              '<div><label style="font-size:10px;font-weight:900;color:#8A7E7C;text-transform:uppercase;display:block;margin-bottom:4px;">Horário</label><input id="detail-delivery-time" type="time" value="' + _esc(detailTimeValue) + '" style="width:100%;padding:9px 10px;border:1.5px solid #D4C8C6;border-radius:10px;font-size:13px;font-family:inherit;background:#fff;outline:none;"></div>' +
+        '<section class="order-detail-card">' +
+          '<div class="order-detail-head"><span class="mi">local_shipping</span><div><div class="order-detail-title">Cliente e entrega</div></div></div>' +
+          '<div class="order-detail-soft-box">' +
+            '<div class="order-detail-service-row">' +
+              '<div style="min-width:0;">' +
+                '<div class="order-detail-soft-title">Cliente</div>' +
+                '<div class="order-detail-soft-value">' + _esc(topName) + '</div>' +
+                '<div style="margin-top:5px;display:inline-flex;align-items:center;padding:4px 9px;border-radius:999px;background:' + customerStatusBg + ';color:' + customerStatusTone + ';font-size:10px;font-weight:700;">' + _esc(customerStateLabel) + '</div>' +
+                customerMetaHTML +
+                (_orderClientActions(o, customer) || '') +
+              '</div>' +
+              '<div style="min-width:0;">' +
+                '<div class="order-detail-soft-title">' + _esc(deliveryLabel) + '</div>' +
+                '<div class="order-detail-soft-value">' + _esc(addressText || (o.type === 'pickup' ? 'Retirada no local' : 'Sem endereço')) + '</div>' +
+                (o.type === 'delivery' && o.zone ? '<div style="margin-top:6px;font-size:12px;color:#6F6860;">Zona: ' + _esc(o.zone) + '</div>' : '') +
+                (o.type === 'delivery' && o.postalCode ? '<div style="margin-top:4px;font-size:12px;color:#6F6860;">CP: ' + _esc(o.postalCode) + '</div>' : '') +
+                addressMetaHTML +
+              '</div>' +
             '</div>' +
           '</div>' +
-          '<div style="background:#fff;border:1px solid #F2EDED;border-radius:16px;padding:14px;">' +
-            '<div style="font-size:10px;font-weight:900;color:#8A7E7C;text-transform:uppercase;margin-bottom:5px;">Pagamento</div>' +
+          '<div class="order-detail-grid order-detail-schedule-grid" style="margin-top:9px;">' +
+            '<div><label class="order-detail-label">Dia</label><div class="order-detail-field-control"><input id="detail-delivery-date" type="date" value="' + _esc(detailDateValue) + '"></div></div>' +
+            '<div><label class="order-detail-label">Horário</label><div class="order-detail-field-control"><input id="detail-delivery-time" type="time" value="' + _esc(detailTimeValue) + '"></div></div>' +
+            '<div class="order-detail-status-field"><label class="order-detail-label">Status do pedido</label><div class="order-detail-field-control"><select id="detail-status">' + statusOptions + '</select></div><div id="detail-whatsapp-prompt" style="display:none;"></div></div>' +
+          '</div>' +
+        '</section>' +
+
+        '<section class="order-detail-card order-detail-payment-card">' +
+            '<div class="order-detail-head"><span class="mi">payments</span><div><div class="order-detail-title">Pagamento</div></div></div>' +
             '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">' +
               (payment.method ? UI.badge(_paymentMethodLabel(payment.method), 'gray') : UI.badge('Sem forma definida', 'gray')) +
               (payment.status ? UI.badge(_paymentStatusLabel(payment.status), 'blue') : UI.badge('Sem status', 'gray')) +
             '</div>' +
             paymentBreakdownHTML +
-            '<div style="margin-bottom:10px;">' +
-              '<label style="font-size:10px;font-weight:900;color:#8A7E7C;text-transform:uppercase;display:block;margin-bottom:4px;">Forma de pagamento</label>' +
-              '<select id="detail-payment-method" style="width:100%;padding:10px 12px;border:1.5px solid #D4C8C6;border-radius:12px;font-size:14px;font-family:inherit;background:#fff;outline:none;">' + _paymentMethodOptions(payment.method) + '</select>' +
+            '<div class="order-detail-payment-grid">' +
+              '<div><label class="order-detail-label">Forma de pagamento</label><div class="order-detail-field-control"><select id="detail-payment-method">' + _paymentMethodOptions(payment.method) + '</select></div></div>' +
+              '<div><label class="order-detail-label">Status do pagamento</label><div class="order-detail-field-control"><select id="detail-payment-status" onchange="Modules.Pedidos._detailPaymentSync()">' + _paymentStatusOptions(payment.status || (payment.paid >= payment.total && payment.total > 0 ? 'pago' : payment.paid > 0 ? 'parcial' : 'previsto')) + '</select></div></div>' +
+              '<div id="detail-paid-amount-box" class="order-detail-paid-field" style="display:' + (((payment.status || '').toLowerCase() === 'parcial') ? 'block' : 'none') + ';">' +
+                '<label class="order-detail-label">Valor pago</label><div class="order-detail-field-control"><input id="detail-paid-amount" type="number" step="0.01" value="' + _esc(String(payment.paid || 0)) + '" placeholder="0,00"></div>' +
+              '</div>' +
             '</div>' +
-            '<div style="margin-bottom:10px;">' +
-              '<label style="font-size:10px;font-weight:900;color:#8A7E7C;text-transform:uppercase;display:block;margin-bottom:4px;">Status do pagamento</label>' +
-              '<select id="detail-payment-status" onchange="Modules.Pedidos._detailPaymentSync()" style="width:100%;padding:10px 12px;border:1.5px solid #D4C8C6;border-radius:12px;font-size:14px;font-family:inherit;background:#fff;outline:none;">' + _paymentStatusOptions(payment.status || (payment.paid >= payment.total && payment.total > 0 ? 'pago' : payment.paid > 0 ? 'parcial' : 'previsto')) + '</select>' +
+            '<div class="order-detail-summary-grid">' +
+              '<div class="order-detail-tile"><div style="font-size:10px;font-weight:700;color:#8A7E7C;text-transform:uppercase;margin-bottom:4px;">Valor total</div><div style="font-size:14px;font-weight:700;color:#1A1A1A;">' + UI.fmt(payment.total) + '</div></div>' +
+              '<div class="order-detail-tile"><div style="font-size:10px;font-weight:700;color:#8A7E7C;text-transform:uppercase;margin-bottom:4px;">Valor pago</div><div style="font-size:14px;font-weight:700;color:#1A1A1A;">' + UI.fmt(payment.paid) + '</div></div>' +
+              '<div class="order-detail-tile"><div style="font-size:10px;font-weight:700;color:#8A7E7C;text-transform:uppercase;margin-bottom:4px;">Pendente</div><div style="font-size:14px;font-weight:700;color:#C4362A;">' + UI.fmt(payment.pending) + '</div></div>' +
             '</div>' +
-            '<div id="detail-paid-amount-box" style="margin-bottom:10px;display:' + (((payment.status || '').toLowerCase() === 'parcial') ? 'block' : 'none') + ';">' +
-              '<label style="font-size:10px;font-weight:900;color:#8A7E7C;text-transform:uppercase;display:block;margin-bottom:4px;">Valor pago</label>' +
-              '<input id="detail-paid-amount" type="number" step="0.01" value="' + _esc(String(payment.paid || 0)) + '" placeholder="0,00" style="width:100%;padding:10px 12px;border:1.5px solid #D4C8C6;border-radius:12px;font-size:14px;font-family:inherit;background:#fff;outline:none;">' +
-            '</div>' +
-            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
-              '<div><div style="font-size:10px;font-weight:900;color:#8A7E7C;text-transform:uppercase;margin-bottom:4px;">Valor total</div><div style="font-size:14px;font-weight:900;color:#1A1A1A;">' + UI.fmt(payment.total) + '</div></div>' +
-              '<div><div style="font-size:10px;font-weight:900;color:#8A7E7C;text-transform:uppercase;margin-bottom:4px;">Valor pago</div><div style="font-size:14px;font-weight:900;color:#1A1A1A;">' + UI.fmt(payment.paid) + '</div></div>' +
-              '<div><div style="font-size:10px;font-weight:900;color:#8A7E7C;text-transform:uppercase;margin-bottom:4px;">Pendente</div><div style="font-size:14px;font-weight:900;color:#C4362A;">' + UI.fmt(payment.pending) + '</div></div>' +
-            '</div>' +
-          '</div>' +
-          '<div style="background:#fff;border:1px solid #F2EDED;border-radius:16px;padding:14px;">' +
-            '<div style="font-size:10px;font-weight:900;color:#8A7E7C;text-transform:uppercase;margin-bottom:5px;">Status</div>' +
-            '<select id="detail-status" style="width:100%;padding:10px 12px;border:1.5px solid #D4C8C6;border-radius:12px;font-size:14px;font-family:inherit;background:#fff;outline:none;">' + statusOptions + '</select>' +
-            '<div id="detail-whatsapp-prompt" style="display:none;"></div>' +
-          '</div>' +
         '</section>' +
+        '</div>' +
 
         (pointsHtml ? '<section style="display:grid;grid-template-columns:1fr;gap:12px;">' + pointsHtml + '</section>' : '') +
 
-        '<section style="display:grid;grid-template-columns:1fr;gap:12px;">' +
-          '<div style="background:#fff;border:1px solid #F2EDED;border-radius:16px;padding:14px;">' +
-            '<div style="font-size:10px;font-weight:900;color:#8A7E7C;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Observações</div>' +
+        '<section class="order-detail-grid" style="grid-template-columns:1fr;">' +
+          '<div class="order-detail-card">' +
+            '<div class="order-detail-head"><span class="mi">notes</span><div><div class="order-detail-title">Observações</div></div></div>' +
             _detailObservationBlocks(o) +
           '</div>' +
-          '<div style="background:#fff;border:1px solid #F2EDED;border-radius:16px;padding:14px;">' +
-            '<div style="font-size:10px;font-weight:900;color:#8A7E7C;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Itens do pedido</div>' +
+          '<div class="order-detail-card">' +
+            '<div class="order-detail-head"><span class="mi">restaurant_menu</span><div><div class="order-detail-title">Itens do pedido</div></div></div>' +
             (itemsHTML || '<div style="font-size:13px;color:#8A7E7C;">Sem itens neste pedido.</div>') +
           '</div>' +
         '</section>' +
       '</div>';
 
+      var stockResolutionButton = _canResolveOrderStock(o)
+        ? '<button onclick="Modules.Pedidos._openOrderStockResolution(\'' + _esc(id) + '\')" style="height:40px;padding:0 14px;border:1px solid #EADFD8;border-radius:10px;background:#fff;color:#1F1F1F;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Retorno/perda</button>'
+        : '';
       var footer = '<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;">' +
         '<button onclick="Modules.Pedidos._closeDetailModal()" style="height:40px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#1F1F1F;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Fechar</button>' +
+        stockResolutionButton +
         '<button onclick="Modules.Pedidos._sendDetailWhatsapp(\'' + _esc(id) + '\')" style="height:40px;padding:0 14px;border:none;border-radius:10px;background:#1A9E5A;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(26,158,90,.16);">Enviar WhatsApp</button>' +
         '<button onclick="Modules.Pedidos._saveDetail(\'' + _esc(id) + '\')" style="height:40px;padding:0 16px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(180,35,24,.16);">Salvar</button>' +
       '</div>';
@@ -2512,8 +3013,7 @@ Modules.Pedidos = (function () {
           '<button onclick="Modules.Pedidos._closeDetailModal()" style="width:34px;height:34px;border-radius:10px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;cursor:pointer;font-size:16px;flex-shrink:0;">✕</button>' +
         '</div>' +
         '<div id="pedidos-detail-body" style="padding:16px 20px 20px;overflow:auto;flex:1;min-height:0;background:#FAFAF8;">' + body + '</div>' +
-        '<div style="padding:14px 22px;border-top:1px solid #EAE4DA;background:#fff;flex:0 0 auto;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;">' +
-          '<div style="font-size:12px;color:#6F6860;line-height:1.4;">Salve o status sem sair do modal. O WhatsApp é opcional e abre em nova aba.</div>' +
+        '<div style="padding:14px 22px;border-top:1px solid #EAE4DA;background:#fff;flex:0 0 auto;display:flex;justify-content:flex-end;align-items:center;gap:16px;flex-wrap:wrap;">' +
           footer +
         '</div>' +
       '</div>';
@@ -2552,10 +3052,101 @@ Modules.Pedidos = (function () {
     var items = o.items.slice();
     items[idx] = Object.assign({}, items[idx], { checked: !items[idx].checked });
     o.items = items;
-    DB.update('orders', orderId, { items: items });
+    _detailChecklistDirty[String(orderId || '')] = true;
+    DB.update('orders', orderId, { items: items }).catch(function (err) {
+      UI.toast('Não foi possível salvar o checklist: ' + (err && err.message ? err.message : 'erro'), 'error');
+    });
     el.style.background = items[idx].checked ? '#EDFAF3' : '#F2EDED';
     var cb = el.querySelector('input[type=checkbox]');
     if (cb) cb.checked = items[idx].checked;
+  }
+
+  function _detailEditedItems(order) {
+    var source = Array.isArray(order && order.items) ? order.items : [];
+    return source.map(function (item, idx) {
+      var qtyEl = document.getElementById('detail-item-qty-' + idx);
+      var priceEl = document.getElementById('detail-item-price-' + idx);
+      var pricing = _detailItemPricing(item);
+      var name = String(item.name || item.productName || 'Item').trim() || 'Item';
+      var qty = Math.max(_num(qtyEl ? qtyEl.value : pricing.qty), 0.01);
+      var unit = Math.max(_num(priceEl ? priceEl.value : pricing.finalUnit), 0);
+      var total = qty * unit;
+      return Object.assign({}, item, {
+        name: name,
+        productName: name,
+        qty: qty,
+        quantity: qty,
+        price: unit,
+        unitPrice: unit,
+        finalPrice: unit,
+        total: total,
+        subtotal: total,
+        lineTotal: total
+      });
+    });
+  }
+
+  function _formatDetailMoneyField(el) {
+    if (!el) return;
+    el.value = UI.fmt(_num(el.value));
+  }
+
+  function _orderItemTotalsPayload(order, items) {
+    order = order || {};
+    items = Array.isArray(items) ? items : [];
+    var subtotal = items.reduce(function (sum, item) {
+      return sum + _num(item.total != null ? item.total : item.subtotal != null ? item.subtotal : (_num(item.price || item.finalPrice || item.unitPrice) * _num(item.qty || item.quantity || 1)));
+    }, 0);
+    var originalSubtotal = items.reduce(function (sum, item) {
+      var qty = _num(item.qty || item.quantity || 1) || 1;
+      var originalUnit = _num(item.originalUnitPrice != null ? item.originalUnitPrice : item.originalPrice != null ? item.originalPrice : item.priceOriginal != null ? item.priceOriginal : item.price != null ? item.price : item.finalPrice != null ? item.finalPrice : item.unitPrice || 0);
+      var originalTotal = _num(item.originalTotal != null ? item.originalTotal : item.originalSubtotal != null ? item.originalSubtotal : 0);
+      return sum + (originalTotal || originalUnit * qty);
+    }, 0);
+    if (!originalSubtotal) originalSubtotal = subtotal;
+    var promoDiscount = Math.max(originalSubtotal - subtotal, 0);
+    var deliveryFee = _num(order.deliveryFee != null ? order.deliveryFee : order.shippingFee != null ? order.shippingFee : order.fee || 0);
+    var couponDiscount = _num(order.couponDiscountTotal != null ? order.couponDiscountTotal : order.couponDiscount || 0);
+    var pointsDiscount = _num(order.pointsDiscountTotal != null ? order.pointsDiscountTotal : order.pointsDiscount || 0);
+    var adjustment = _num(order.adjustment || order.manualAdjustment || 0);
+    var total = Math.max(subtotal + deliveryFee + adjustment - couponDiscount - pointsDiscount, 0);
+    return {
+      items: items,
+      itemCount: items.length,
+      itemsCount: items.length,
+      subtotal: subtotal,
+      itemsSubtotal: subtotal,
+      finalSubtotal: subtotal,
+      originalSubtotal: originalSubtotal,
+      subtotalOriginal: originalSubtotal,
+      promoDiscountTotal: promoDiscount,
+      promoDiscount: promoDiscount,
+      discountTotal: promoDiscount + couponDiscount + pointsDiscount,
+      total: total,
+      amount: total,
+      grandTotal: total
+    };
+  }
+
+  function _removeDetailItem(orderId, idx) {
+    var order = _orders.find(function (x) { return String(x.id || '') === String(orderId || ''); });
+    if (!order || !Array.isArray(order.items)) return;
+    var items = _detailEditedItems(order);
+    if (idx < 0 || idx >= items.length) return;
+    if (items.length <= 1) {
+      UI.toast('O pedido precisa ter pelo menos um item.', 'error');
+      return;
+    }
+    items.splice(idx, 1);
+    var payload = _orderItemTotalsPayload(order, items);
+    DB.update('orders', orderId, payload).then(function () {
+      Object.assign(order, payload);
+      _syncOrderFinanceMovement(orderId, order);
+      _refreshDetailView(orderId);
+      UI.toast('Item removido do pedido.', 'success');
+    }).catch(function (err) {
+      UI.toast('Erro ao remover item: ' + (err && err.message ? err.message : 'falha ao salvar'), 'error');
+    });
   }
 
   function _saveDetail(id) {
@@ -2585,8 +3176,28 @@ Modules.Pedidos = (function () {
     var currentScheduleTime = String((isPickup ? (order && order.pickupTime) : (order && order.deliveryTime)) || (order && order.scheduleTime) || '').trim();
     var statusChanged = nextStatus !== currentStatus;
     var paymentChanged = nextPaymentMethod !== currentPaymentMethod;
-    var paymentMetaChanged = nextPaymentStatus !== currentPaymentStatus || Math.abs(nextPaidAmount - currentPaidAmount) > 0.001;
     var scheduleChanged = nextScheduleDate !== currentScheduleDate || nextScheduleTime !== currentScheduleTime;
+    var editedItems = _detailEditedItems(order || {});
+    var itemTotalsPayload = _orderItemTotalsPayload(order || {}, editedItems);
+    var currentItemsJson = JSON.stringify(Array.isArray(order && order.items) ? order.items.map(function (item) {
+      var p = _detailItemPricing(item);
+      return {
+        name: item.name || item.productName || '',
+        qty: _num(p.qty),
+        unit: _num(p.finalUnit)
+      };
+    }) : []);
+    var editedItemsJson = JSON.stringify(editedItems.map(function (item) {
+      return {
+        name: item.name || item.productName || '',
+        qty: _num(item.qty || item.quantity),
+        unit: _num(item.finalPrice || item.price || item.unitPrice)
+      };
+    }));
+    var checklistChanged = !!_detailChecklistDirty[String(id || '')];
+    var itemsChanged = currentItemsJson !== editedItemsJson || checklistChanged;
+    if (itemsChanged && nextPaymentStatus === 'pago') nextPaidAmount = itemTotalsPayload.total;
+    var paymentMetaChanged = nextPaymentStatus !== currentPaymentStatus || Math.abs(nextPaidAmount - currentPaidAmount) > 0.001;
     var tasks = [];
 
     if (statusChanged) {
@@ -2646,8 +3257,14 @@ Modules.Pedidos = (function () {
         }
       }));
     }
+    if (itemsChanged) {
+      tasks.push(DB.update('orders', id, itemTotalsPayload).then(function () {
+        if (order) Object.assign(order, itemTotalsPayload);
+        delete _detailChecklistDirty[String(id || '')];
+      }));
+    }
     if (!tasks.length) {
-      if (order) _showDetailWhatsappPrompt(order, nextStatus);
+      UI.toast('Nenhuma alteração para salvar.', 'info');
       return;
     }
 
@@ -2672,6 +3289,7 @@ Modules.Pedidos = (function () {
           fresh.deliveryTime = nextScheduleTime;
         }
         fresh.slot = [nextScheduleDate, nextScheduleTime].filter(Boolean).join(' ').trim();
+        if (itemsChanged) Object.assign(fresh, itemTotalsPayload);
       }
       _syncOrderFinanceMovement(id, fresh || order || {});
       _refreshDetailView(id);
@@ -2717,7 +3335,9 @@ Modules.Pedidos = (function () {
   function _saveKitchenDetail(id) {
     var sel = document.getElementById('kitchen-detail-status');
     if (!sel) return;
-    _updateOrderStatus(id, sel.value, { toast: 'Status atualizado!', prompt: true });
+    _updateOrderStatus(id, sel.value, { toast: 'Status atualizado!', prompt: true, noChangeToast: false }).then(function () {
+      _closeKitchenDetailPanel();
+    });
   }
 
   function _waFromKitchenDetail(id) {
@@ -2725,7 +3345,7 @@ Modules.Pedidos = (function () {
     if (!o) return;
     var status = (document.getElementById('kitchen-detail-status') || {}).value || o.status;
     var fn = WA_MSGS[status] || WA_MSGS[_orderStatusLabel(status)];
-    var msg = fn ? fn(o) : _orderWhatsappMessage(o, _orderStatusLabel(status), 'Hola, actualizamos tu pedido.');
+    var msg = fn ? fn(o) : _orderStatusWhatsappMessage(o, status);
     var phone = _orderPhoneDigits(o);
     if (!phone) {
       UI.toast('Este pedido no tiene teléfono registrado para avisar por WhatsApp.', 'info');
@@ -2735,7 +3355,7 @@ Modules.Pedidos = (function () {
   }
 
   function _orderBusinessName() {
-    return _firstText(_generalConfig.businessName, _generalConfig.storeName, _generalConfig.name, _generalConfig.title, '');
+    return _firstText(_templateConfig.publicName, _templateConfig.businessName, _templateConfig.storeName, _templateConfig.name, _templateConfig.title, _generalConfig.businessName, _generalConfig.storeName, _generalConfig.name, _generalConfig.title, '');
   }
 
   function _orderDisplayId(order) {
@@ -2796,17 +3416,104 @@ Modules.Pedidos = (function () {
     return UI.badge(_title(raw), 'gray');
   }
 
-  function _orderWhatsappMessage(order, statusLabel, baseText) {
-    var pieces = [];
-    if (baseText) pieces.push(String(baseText).trim());
-    var customer = _firstText(order && order.customerName, order && order.clientName, order && order.name, 'cliente');
+  function _orderWhatsappLanguage() {
+    var raw = _firstText(_templateConfig.language, _templateConfig.defaultLanguage, _templateConfig.mainLanguage, _templateConfig.storeLanguage, _generalConfig.language, _generalConfig.defaultLanguage, 'es');
+    raw = String(raw || '').toLowerCase();
+    if (raw.indexOf('pt') === 0) return 'pt';
+    if (raw.indexOf('en') === 0) return 'en';
+    return 'es';
+  }
+
+  function _waStatusKey(status) {
+    var key = _fold(status || '');
+    if (key.indexOf('confirm') >= 0) return 'confirmed';
+    if (key.indexOf('prepar') >= 0) return 'preparing';
+    if (key.indexOf('camino') >= 0 || key.indexOf('caminho') >= 0 || key.indexOf('entrega') >= 0 && key.indexOf('entregad') < 0) return 'onway';
+    if (key.indexOf('recoger') >= 0 || key.indexOf('retirada') >= 0 || key.indexOf('retirar') >= 0 || key.indexOf('listo') >= 0 || key.indexOf('pronto') >= 0) return 'ready';
+    if (key.indexOf('entregad') >= 0 || key.indexOf('entregue') >= 0 || key.indexOf('delivered') >= 0) return 'delivered';
+    if (key.indexOf('cancel') >= 0) return 'cancelled';
+    return 'pending';
+  }
+
+  function _waText(key) {
+    var lang = _orderWhatsappLanguage();
+    var texts = {
+      es: {
+        greeting: 'Hola',
+        pending: 'Recibimos tu pedido y ya lo estamos revisando. Te avisaremos en cuanto esté confirmado.',
+        confirmed: 'Tu pedido está confirmado. En breve empezamos a prepararlo.',
+        preparing: 'Tu pedido ya está en preparación.',
+        onway: 'Tu pedido ya salió para entrega.',
+        ready: 'Tu pedido está listo para retirar.',
+        delivered: 'Tu pedido fue entregado. Gracias por comprar con nosotros.',
+        reviewCta: 'Tu reseña ayuda a otras personas a animarse a probar también. Y si crees que podemos mejorar algo, cuéntanos: queremos escucharte.',
+        cancelled: 'Tu pedido fue cancelado. Si necesitas ayuda, responde a este mensaje.',
+        order: 'Pedido',
+        store: 'Equipo'
+      },
+      pt: {
+        greeting: 'Olá',
+        pending: 'Recebemos seu pedido e já estamos conferindo tudo. Avisaremos assim que ele for confirmado.',
+        confirmed: 'Seu pedido está confirmado. Em breve começaremos o preparo.',
+        preparing: 'Seu pedido já está em preparo.',
+        onway: 'Seu pedido já saiu para entrega.',
+        ready: 'Seu pedido está pronto para retirada.',
+        delivered: 'Seu pedido foi entregue. Obrigado por comprar com a gente.',
+        reviewCta: 'Sua avaliação ajuda outras pessoas a se animarem a provar também. E se você acha que podemos melhorar algo, conte pra gente: queremos te ouvir.',
+        cancelled: 'Seu pedido foi cancelado. Se precisar de ajuda, responda esta mensagem.',
+        order: 'Pedido',
+        store: 'Equipe'
+      },
+      en: {
+        greeting: 'Hi',
+        pending: 'We received your order and are checking it now. We will let you know as soon as it is confirmed.',
+        confirmed: 'Your order is confirmed. We will start preparing it soon.',
+        preparing: 'Your order is now being prepared.',
+        onway: 'Your order is on its way.',
+        ready: 'Your order is ready for pickup.',
+        delivered: 'Your order was delivered. Thank you for ordering with us.',
+        reviewCta: 'Your review helps other people feel confident to try it too. And if you think we can improve anything, tell us: we want to hear from you.',
+        cancelled: 'Your order was cancelled. If you need help, reply to this message.',
+        order: 'Order',
+        store: 'Team'
+      }
+    };
+    return (texts[lang] || texts.es)[key] || (texts[lang] || texts.es).pending;
+  }
+
+  function _orderStatusWhatsappMessage(order, status) {
+    var key = _waStatusKey(status || (order && order.status));
+    var customer = _firstText(order && order.customerName, order && order.clientName, order && order.name, '');
+    var firstName = customer ? String(customer).trim().split(/\s+/)[0] : '';
     var orderLabel = _orderDisplayId(order);
     var business = _orderBusinessName();
-    if (customer) pieces.push('Cliente: ' + customer + '.');
-    if (orderLabel) pieces.push('Pedido: ' + orderLabel + '.');
-    if (business) pieces.push('Negocio: ' + business + '.');
-    if (statusLabel) pieces.push('Estado: ' + statusLabel + '.');
+    var pieces = [];
+    pieces.push(_waText('greeting') + (firstName ? ', ' + firstName : '') + '.');
+    pieces.push(_waText(key));
+    if (orderLabel) pieces.push(_waText('order') + ' ' + orderLabel + '.');
+    if (key === 'delivered') {
+      var reviewUrl = _orderReviewUrl();
+      if (reviewUrl) pieces.push(_waText('reviewCta') + ' ' + reviewUrl);
+    }
+    if (business) pieces.push(business + '.');
     return pieces.join(' ');
+  }
+
+  function _orderReviewUrl() {
+    var publicUrl = _firstText(_domainConfig.publicUrl, _domainConfig.siteUrl, _templateConfig.publicUrl, _templateConfig.siteUrl, '');
+    var slug = _firstText(_domainConfig.storeSlug, _domainConfig.slug, _domainConfig.subdomain, _templateConfig.storeSlug, _templateConfig.slug, _templateConfig.subdomain, '');
+    if (!slug && publicUrl) {
+      var match = String(publicUrl).match(/bocafood\.app\/([^/?#]+)/i);
+      if (match) slug = match[1];
+    }
+    slug = String(slug || '').toLowerCase().replace(/[^a-z0-9-]/g, '');
+    if (slug) return 'https://bocafood.app/' + encodeURIComponent(slug) + '/review';
+    if (publicUrl) return String(publicUrl).replace(/\/+$/, '') + '/review';
+    return '';
+  }
+
+  function _orderWhatsappMessage(order, statusLabel, baseText) {
+    return _orderStatusWhatsappMessage(order, statusLabel || baseText || (order && order.status));
   }
 
   function _promptOrderWhatsapp(orderOrId, status) {
@@ -2819,13 +3526,13 @@ Modules.Pedidos = (function () {
     }
     var statusKey = String(status || order.status || 'Pendente');
     var fn = WA_MSGS[statusKey] || WA_MSGS[_orderStatusLabel(statusKey)];
-    var msg = fn ? fn(order) : _orderWhatsappMessage(order, _orderStatusLabel(statusKey), 'Hola, actualizamos tu pedido.');
+    var msg = fn ? fn(order) : _orderStatusWhatsappMessage(order, statusKey);
     if (_isKitchenModeOpen() && _showKitchenWhatsappPrompt(order, statusKey, msg)) return Promise.resolve(true);
     var ask = function (text) {
       if (UI && typeof UI.confirm === 'function') return UI.confirm(text);
       return Promise.resolve(window.confirm(text));
     };
-    return ask('Status atualizado. Deseja avisar o cliente no WhatsApp?').then(function (yes) {
+    return ask('Quer avisar a cliente pelo WhatsApp?').then(function (yes) {
       if (!yes) return false;
       window.open('https://wa.me/' + phone + '?text=' + encodeURIComponent(msg), '_blank');
       return true;
@@ -2835,6 +3542,12 @@ Modules.Pedidos = (function () {
   function _updateOrderStatus(orderId, status, opts) {
     opts = opts || {};
     var nextStatus = String(status || 'Pendente');
+    var currentOrder = _orders.find(function (x) { return String(x.id || '') === String(orderId || ''); });
+    var currentStatus = String(currentOrder && currentOrder.status || 'Pendente');
+    if (currentOrder && currentStatus === nextStatus) {
+      if (opts.toast !== false && opts.noChangeToast !== false) UI.toast('Status já estava atualizado.', 'info');
+      return Promise.resolve(currentOrder);
+    }
     return DB.update('orders', orderId, { status: nextStatus }).then(function () {
       var order = _orders.find(function (x) { return String(x.id || '') === String(orderId || ''); });
       if (order) order.status = nextStatus;
@@ -3180,6 +3893,9 @@ Modules.Pedidos = (function () {
   function _nowIso() {
     return new Date().toISOString();
   }
+  function _today() {
+    return new Date().toISOString().slice(0, 10);
+  }
   function _waFromDetail(id) {
     var o = _orders.find(function (x) { return x.id === id; });
     if (!o) return;
@@ -3194,7 +3910,7 @@ Modules.Pedidos = (function () {
     var o = _orders.find(function (x) { return x.id === id; });
     if (!o) return;
     var fn = WA_MSGS[o.status];
-    var msg = fn ? fn(o) : _orderWhatsappMessage(o, _orderStatusLabel(o.status), 'Hola, gracias por tu pedido.');
+    var msg = fn ? fn(o) : _orderStatusWhatsappMessage(o, o.status);
     var phone = _orderPhoneDigits(o);
     if (!phone) { UI.toast('Cliente sem telefone cadastrado.', 'info'); return; }
     window.open('https://wa.me/' + phone + '?text=' + encodeURIComponent(msg), '_blank');
@@ -3363,15 +4079,26 @@ Modules.Pedidos = (function () {
     };
 
     _manualOrderRefresh();
-    setTimeout(function () { if (window.BocaPlaces) BocaPlaces.init('mo-address'); }, 300);
+    setTimeout(function () {
+      if (window.BocaPlaces) {
+        BocaPlaces.init('mo-address', { onPlace: function (data) { _manualOrderApplyPlace('mo-', data, true); } });
+      }
+    }, 300);
   }
 
   function _saveNewOrder() {
     var name = String(_manualOrderState.customerName || (document.getElementById('mo-name') || {}).value || '').trim();
-    var phone = String(_manualOrderState.customerPhone || (document.getElementById('mo-phone') || {}).value || '').trim();
+    var phone = String(_manualOrderState.customerPhone || _manualPhoneFull((document.getElementById('mo-phone-prefix') || {}).value, (document.getElementById('mo-phone-number') || {}).value) || '').trim();
     var email = String(_manualOrderState.customerEmail || (document.getElementById('mo-email') || {}).value || '').trim();
     var address = String(_manualOrderState.customerAddress || (document.getElementById('mo-address') || {}).value || '').trim();
-    var zone = String(_manualOrderState.customerZone || (document.getElementById('mo-zone') || {}).value || '').trim();
+    var addressNumber = String(_manualOrderState.customerAddressNumber || (document.getElementById('mo-address-number') || {}).value || '').trim();
+    var addressComplement = String(_manualOrderState.customerAddressComplement || (document.getElementById('mo-address-complement') || {}).value || '').trim();
+    var neighborhood = String(_manualOrderState.customerNeighborhood || (document.getElementById('mo-neighborhood') || {}).value || '').trim();
+    var city = String(_manualOrderState.customerCity || (document.getElementById('mo-city') || {}).value || '').trim();
+    var province = String(_manualOrderState.customerProvince || (document.getElementById('mo-province') || {}).value || '').trim();
+    var country = String(_manualOrderState.customerCountry || (document.getElementById('mo-country') || {}).value || '').trim();
+    var postalCode = String(_manualOrderState.customerPostalCode || (document.getElementById('mo-postal-code') || {}).value || '').trim();
+    var zone = String(neighborhood || postalCode || _manualOrderState.customerZone || '').trim();
     var type = String((document.getElementById('mo-type') || {}).value || _manualOrderState.type || 'delivery');
     var deliveryDate = String((document.getElementById('mo-delivery-date') || {}).value || _manualOrderState.deliveryDate || '').trim();
     var deliveryTime = String((document.getElementById('mo-delivery-time') || {}).value || _manualOrderState.deliveryTime || '').trim();
@@ -3382,21 +4109,59 @@ Modules.Pedidos = (function () {
     var paymentStatus = String((document.getElementById('mo-payment-status') || {}).value || _manualOrderState.paymentStatus || 'previsto').trim() || 'previsto';
     var paidAmount = _num((document.getElementById('mo-paid-amount') || {}).value || _manualOrderState.paidAmount || 0);
     var adjustment = _num((document.getElementById('mo-adjustment') || {}).value || _manualOrderState.adjustment || 0);
-    var shippingFee = type === 'delivery' ? _num((document.getElementById('mo-shipping') || {}).value || _manualOrderState.shippingFee || 0) : 0;
+    var shippingFee = type === 'delivery' ? _num(_manualOrderState.shippingFee || (document.getElementById('mo-shipping') || {}).value || 0) : 0;
     var context = _orderContext();
-    var channel = context.channel || 'manual';
-    var source = context.source || 'manual';
+    var channel = _manualOrderState.channel || context.channel || 'manual';
+    var source = _manualOrderState.source || context.source || channel || 'manual';
+    var selectedCustomer = _manualOrderSelectedCustomer();
+    var customerFiscal = Object.assign({}, (selectedCustomer && selectedCustomer.fiscal) || {});
+    var customerDocument = _firstText(
+      selectedCustomer && selectedCustomer.nifCif,
+      selectedCustomer && selectedCustomer.fiscalId,
+      selectedCustomer && selectedCustomer.document,
+      selectedCustomer && selectedCustomer.documento,
+      customerFiscal && customerFiscal.fiscalId,
+      ''
+    );
+    var customerPreferences = _firstText(selectedCustomer && selectedCustomer.preferences, _manualOrderState.customerPreferences, '');
+    var customerAllergies = _firstText(selectedCustomer && selectedCustomer.allergies, '');
+    var customerNotes = _firstText(selectedCustomer && (selectedCustomer.notes || selectedCustomer.internalNotes), _manualOrderState.customerNotes, '');
+    var deliveryAddress = type === 'delivery' ? {
+      address: address,
+      number: addressNumber,
+      complement: addressComplement,
+      formattedAddress: address,
+      city: city,
+      province: province,
+      country: country,
+      zone: zone,
+      neighborhood: neighborhood || zone,
+      postalCode: postalCode
+    } : null;
+    var showInKitchen = _isCardapioOrder({ channel: channel, source: source, originChannel: channel, originSource: source });
     var items = (_manualOrderState.items || []).map(function (item) {
       var product = (_products || []).find(function (p) { return String(p.id || '') === String(item.productId || ''); }) || {};
       var calc = _manualOrderState.channel === 'cardapio' ? _manualOrderBestPromoForProduct(product) : null;
       var originalPrice = _manualOrderProductBasePrice(product) || _num(item.originalPrice || 0);
+      var quantity = item.quantity || 1;
+      var finalPrice = calc ? calc.calc.final : _num(item.finalPrice || originalPrice);
       return {
+        id: item.productId,
         productId: item.productId,
         name: item.name || _firstText(product.name, product.title, 'Produto'),
         category: item.category || _firstText(product.category, product.categoria, ''),
-        quantity: item.quantity || 1,
+        quantity: quantity,
+        qty: quantity,
         originalPrice: originalPrice,
-        finalPrice: calc ? calc.calc.final : _num(item.finalPrice || originalPrice),
+        price: finalPrice,
+        finalPrice: finalPrice,
+        total: finalPrice * quantity,
+        fichaTecnicaId: _firstText(product.fichaTecnicaId, product.fichaId, product.recipeId, ''),
+        fichaId: _firstText(product.fichaId, product.fichaTecnicaId, product.recipeId, ''),
+        sourceItemId: _firstText(product.sourceItemId, product.produtoProntoId, product.readyProductId, ''),
+        produtoProntoId: _firstText(product.produtoProntoId, product.sourceItemId, product.readyProductId, ''),
+        stockUnitCost: _num(_firstText(product.stockUnitCost, product.costPerYield, product.custoUnitario, product.custoAtual, product.custo, product.cost, '')),
+        fiscal: Object.assign({}, product.fiscal || {}),
         internalNote: _firstText(item.internalNote, item.productInternalNote, product.internalNote, product.internalNotes, product.kitchenNote, ''),
         productInternalNote: _firstText(item.productInternalNote, item.internalNote, product.internalNote, product.internalNotes, product.kitchenNote, ''),
         promoId: calc && calc.promo ? String(calc.promo.id || calc.promo._id || calc.promo.slug || '') : (item.promoId || ''),
@@ -3405,6 +4170,12 @@ Modules.Pedidos = (function () {
         promoLeve: calc && calc.calc ? _num(calc.calc.leve || 0) : _num(item.promoLeve || 0),
         promoPague: calc && calc.calc ? _num(calc.calc.pague || 0) : _num(item.promoPague || 0),
         promoMinOrder: calc && calc.promo ? _manualOrderPromoMinOrder(calc.promo) : _num(item.promoMinOrder || 0),
+        addAlsoDiscount: 0,
+        upsellRuleId: '',
+        upsellRuleName: '',
+        upsellBenefitType: '',
+        relatedToProductId: '',
+        relatedToProductName: '',
         priceOrigin: calc && calc.calc.discount > 0 ? 'promo' : (_manualOrderState.channel === 'cardapio' ? 'automático' : 'manual'),
         manualAdjustment: item.manualAdjustment || 0
       };
@@ -3449,6 +4220,13 @@ Modules.Pedidos = (function () {
         phone: phone,
         email: email,
         address: address,
+        number: addressNumber,
+        complement: addressComplement,
+        neighborhood: neighborhood,
+        city: city,
+        province: province,
+        country: country,
+        postalCode: postalCode,
         zone: zone,
         channel: channel,
         note: note
@@ -3464,7 +4242,24 @@ Modules.Pedidos = (function () {
         whatsapp: phone,
         customerEmail: email,
         email: email,
+        customerFiscal: customerFiscal,
+        customerDocument: customerDocument,
+        customerBirthday: _firstText(selectedCustomer && selectedCustomer.birthday, ''),
+        customerPreferences: customerPreferences,
+        customerAllergies: customerAllergies,
+        customerNotes: customerNotes,
+        customerAcceptsMarketing: !!(selectedCustomer && selectedCustomer.acceptsMarketing),
         address: address,
+        deliveryAddress: deliveryAddress,
+        streetAddress: address,
+        addressNumber: addressNumber,
+        complement: addressComplement,
+        neighborhood: neighborhood,
+        city: city,
+        province: province,
+        country: country,
+        postalCode: postalCode,
+        deliveryZoneName: zone,
         zone: zone,
         type: type,
         slot: slot,
@@ -3476,7 +4271,17 @@ Modules.Pedidos = (function () {
         subtotalFinal: subtotalFinal,
         promoDiscountTotal: promoDiscountTotal,
         discountTotal: promoDiscountTotal,
+        couponDiscountTotal: 0,
+        pointsDiscountTotal: 0,
+        pointsRedemption: { used: false, pointsUsed: 0, discount: 0 },
+        upsellDiscountTotal: 0,
+        upsellBenefits: { discount: 0, lines: [], gifts: [], appliedRuleIds: [], appliedRuleNames: [] },
         shippingFee: shippingFee,
+        originalDeliveryFee: shippingFee,
+        freeShippingApplied: false,
+        freeShippingPromotionId: '',
+        freeShippingPromotionName: '',
+        freeShippingSource: '',
         manualAdjustmentValue: adjustment,
         total: total,
         paymentMethod: String(_manualOrderState.paymentMethod || ''),
@@ -3499,6 +4304,9 @@ Modules.Pedidos = (function () {
         source: source,
         originChannel: channel,
         originSource: source,
+        kitchenQueue: showInKitchen,
+        showInKitchen: showInKitchen,
+        kitchenStatus: showInKitchen ? 'Pendente' : '',
         priceOrigin: hasPromo ? 'promo' : (_manualOrderState.channel === 'cardapio' ? 'automático' : 'manual'),
         manualAdjustment: channel !== 'cardapio' || adjustment !== 0,
         createdAt: _manualOrderCreatedAt(orderTime)
@@ -3556,7 +4364,15 @@ Modules.Pedidos = (function () {
     _manualOrderState.customerPhone = '';
     _manualOrderState.customerEmail = '';
     _manualOrderState.customerAddress = '';
+    _manualOrderState.customerAddressNumber = '';
+    _manualOrderState.customerAddressComplement = '';
+    _manualOrderState.customerNeighborhood = '';
+    _manualOrderState.customerCity = '';
+    _manualOrderState.customerProvince = '';
+    _manualOrderState.customerCountry = '';
+    _manualOrderState.customerPostalCode = '';
     _manualOrderState.customerZone = '';
+    _manualOrderState.selectedDeliveryAddressId = '';
     _manualOrderState.customerPreferences = '';
     _manualOrderState.customerNotes = '';
     _manualOrderState.type = context.type || 'delivery';
@@ -3575,36 +4391,186 @@ Modules.Pedidos = (function () {
     _manualOrderState.priceOrigin = _manualOrderState.channel === 'cardapio' ? 'automático' : 'manual';
   }
 
+  function _manualOrderSelectedCustomer() {
+    var id = String(_manualOrderState.selectedCustomerId || _manualOrderState.customerId || '').trim();
+    if (id) {
+      var byId = (_customers || []).find(function (c) { return String(c.id || '') === id; });
+      if (byId) return byId;
+    }
+    var phone = _phone(_manualOrderState.customerPhone || '');
+    if (phone) {
+      var byPhone = (_customers || []).find(function (c) { return _phone(c.phone || c.whatsapp || '') === phone; });
+      if (byPhone) return byPhone;
+    }
+    var email = _clean(_manualOrderState.customerEmail || '');
+    if (email) {
+      var byEmail = (_customers || []).find(function (c) { return _clean(c.email || '') === email; });
+      if (byEmail) return byEmail;
+    }
+    return null;
+  }
+
+  function _manualOrderCustomerAddresses(customer) {
+    if (!customer) return [];
+    var list = [];
+    var source = Array.isArray(customer.deliveryAddresses) ? customer.deliveryAddresses : (Array.isArray(customer.savedDeliveryAddresses) ? customer.savedDeliveryAddresses : (Array.isArray(customer.addresses) ? customer.addresses : []));
+    source.forEach(function (addr, index) {
+      if (!addr) return;
+      var address = _firstText(addr.address, addr.street, addr.streetAddress, addr.route, addr.addressLine, addr.line1, addr.formattedAddress, addr.fullAddress, addr.endereco, '');
+      var postalCode = _firstText(addr.postalCode, addr.zip, addr.codigoPostal, addr.postcode, '');
+      var neighborhood = _firstText(addr.neighborhood, addr.zone, addr.bairro, addr.area, addr.district, '');
+      if (!(address || postalCode || neighborhood)) return;
+      list.push({
+        id: String(addr.id || addr.key || ('addr-' + index)),
+        label: _firstText(addr.label, addr.name, addr.nome, index === 0 ? 'Endereço principal' : ('Endereço ' + (index + 1))),
+        address: address,
+        number: _firstText(addr.number, addr.numero, addr.portal, addr.addressNumber, ''),
+        complement: _firstText(addr.complement, addr.piso, addr.floor, addr.reference, addr.addressComplement, ''),
+        neighborhood: neighborhood,
+        city: _firstText(addr.city, addr.locality, addr.cidade, ''),
+        province: _firstText(addr.province, addr.state, addr.estado, addr.region, ''),
+        country: _firstText(addr.country, addr.countryCode, addr.pais, ''),
+        postalCode: postalCode
+      });
+    });
+    if (!list.length) {
+      var legacyAddress = _firstText(customer.address, customer.streetAddress, customer.fullAddress, customer.street, customer.addressLine, customer.formattedAddress, customer.endereco, '');
+      var legacyPostal = _firstText(customer.postalCode, customer.zip, customer.codigoPostal, customer.postcode, '');
+      var legacyZone = _firstText(customer.neighborhood, customer.zone, customer.bairro, customer.area, customer.district, '');
+      if (legacyAddress || legacyPostal || legacyZone) {
+        list.push({
+          id: 'legacy',
+          label: 'Endereço principal',
+          address: legacyAddress,
+          number: _firstText(customer.number, customer.numero, ''),
+          complement: _firstText(customer.complement, customer.reference, customer.piso, ''),
+          neighborhood: legacyZone,
+          city: _firstText(customer.city, customer.cidade, ''),
+          province: _firstText(customer.province, customer.state, customer.estado, ''),
+          country: _firstText(customer.country, customer.pais, ''),
+          postalCode: legacyPostal
+        });
+      }
+    }
+    return list;
+  }
+
+  function _manualOrderAddressLabel(addr) {
+    if (!addr) return '';
+    return [addr.label, [addr.address, addr.number].filter(Boolean).join(' '), addr.neighborhood, addr.postalCode].filter(Boolean).join(' · ');
+  }
+
+  function _manualOrderApplyPlace(prefix, data, syncState) {
+    data = data || {};
+    var values = {
+      number: data.number || '',
+      neighborhood: data.neighborhood || '',
+      city: data.city || '',
+      province: data.province || '',
+      country: data.country || data.countryCode || '',
+      postalCode: data.postalCode || ''
+    };
+    var ids = {
+      number: prefix + 'number',
+      neighborhood: prefix + 'neighborhood',
+      city: prefix + 'city',
+      province: prefix + 'province',
+      country: prefix + 'country',
+      postalCode: prefix + 'postal-code'
+    };
+    Object.keys(ids).forEach(function (key) {
+      var el = document.getElementById(ids[key]);
+      if (el && values[key]) {
+        el.value = values[key];
+        try { el.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {}
+      }
+    });
+    if (syncState) {
+      if (values.number) _manualOrderState.customerAddressNumber = values.number;
+      if (values.neighborhood) {
+        _manualOrderState.customerNeighborhood = values.neighborhood;
+        _manualOrderState.customerZone = values.neighborhood;
+      }
+      if (values.city) _manualOrderState.customerCity = values.city;
+      if (values.province) _manualOrderState.customerProvince = values.province;
+      if (values.country) _manualOrderState.customerCountry = values.country;
+      if (values.postalCode) _manualOrderState.customerPostalCode = values.postalCode;
+      _manualOrderMaybeSyncShipping();
+      _manualOrderRefreshSummary();
+    }
+  }
+
   function _manualOrderField(field, value) {
     if (!field) return;
     _manualOrderState[field] = value;
-    if (field === 'customerName' || field === 'customerPhone' || field === 'customerEmail' || field === 'customerAddress' || field === 'customerZone') {
+    if (field === 'customerName' || field === 'customerPhone' || field === 'customerEmail' || field === 'customerAddress' || field === 'customerAddressNumber' || field === 'customerAddressComplement' || field === 'customerNeighborhood' || field === 'customerCity' || field === 'customerProvince' || field === 'customerCountry' || field === 'customerPostalCode' || field === 'customerZone') {
       _manualOrderState.selectedCustomerId = '';
       _manualOrderState.customerId = '';
-      var map = { customerName: 'mo-name', customerPhone: 'mo-phone', customerEmail: 'mo-email', customerAddress: 'mo-address', customerZone: 'mo-zone' };
+      var map = { customerName: 'mo-name', customerPhone: 'mo-phone-number', customerEmail: 'mo-email', customerAddress: 'mo-address', customerAddressNumber: 'mo-address-number', customerAddressComplement: 'mo-address-complement', customerNeighborhood: 'mo-neighborhood', customerCity: 'mo-city', customerProvince: 'mo-province', customerCountry: 'mo-country', customerPostalCode: 'mo-postal-code', customerZone: 'mo-neighborhood' };
       var el = document.getElementById(map[field]);
       if (el && el.value !== String(value == null ? '' : value)) el.value = value == null ? '' : value;
     }
-    if (field === 'customerZone') _manualOrderMaybeSyncShipping();
+    if (field === 'customerZone' || field === 'customerPostalCode' || field === 'customerNeighborhood') _manualOrderMaybeSyncShipping();
     _manualOrderRefresh();
   }
 
   function _manualOrderSearchCustomers(value) {
     _manualOrderState.customerQuery = String(value == null ? '' : value);
+    _manualOrderCustomerListOpen = true;
     _manualOrderRefreshCustomers();
-    var matches = _manualOrderCustomerMatches();
-    if (!matches.length) return;
-    var q = _fold(_manualOrderState.customerQuery || '');
-    var exact = matches.find(function (c) {
-      return _fold(c.name || c.customerName || c.fullName || '') === q || _fold(c.phone || c.whatsapp || '') === q || _fold(c.email || '') === q;
-    });
-    if (exact) {
-      _manualOrderSelectCustomer(exact.id);
-      return;
-    }
-    if (matches.length === 1) {
-      _manualOrderSelectCustomer(matches[0].id);
-    }
+  }
+
+  function _manualOrderFocusCustomers() {
+    _manualOrderCustomerListOpen = true;
+    _manualOrderRefreshCustomers();
+  }
+
+  function _manualOrderChooseCustomer(id) {
+    _manualOrderCustomerListOpen = false;
+    _manualOrderState.customerQuery = '';
+    _manualOrderSelectCustomer(id);
+    var search = document.getElementById('mo-customer-search');
+    if (search) search.value = '';
+  }
+
+  function _manualOrderSyncPhoneFromParts(prefixId, phoneId, targetField) {
+    var prefix = String((document.getElementById(prefixId) || {}).value || '').trim();
+    var number = String((document.getElementById(phoneId) || {}).value || '').trim();
+    var full = _manualPhoneFull(prefix, number);
+    if (targetField === 'quick') return full;
+    _manualOrderField(targetField || 'customerPhone', full);
+  }
+
+  function _manualPhoneFull(prefix, number) {
+    var p = String(prefix || '').trim();
+    var n = String(number || '').trim();
+    if (!_phone(n)) return '';
+    return [p, n].filter(Boolean).join(' ').trim();
+  }
+
+  function _manualOrderPhoneParts(value) {
+    var raw = String(value || '').trim();
+    var match = raw.match(/^(\+\d{1,4})\s*(.*)$/);
+    return {
+      prefix: match ? match[1] : '+34',
+      number: match ? String(match[2] || '').trim() : raw.replace(/^\+/, '')
+    };
+  }
+
+  function _manualOrderPhonePrefixOptions(selected) {
+    var current = String(selected || '+34');
+    var labels = {
+      '+34': '🇪🇸 +34',
+      '+351': '🇵🇹 +351',
+      '+55': '🇧🇷 +55',
+      '+33': '🇫🇷 +33',
+      '+39': '🇮🇹 +39'
+    };
+    var options = ['+34', '+351', '+55', '+33', '+39'];
+    if (options.indexOf(current) < 0) options.unshift(current);
+    return options.map(function (value) {
+      return '<option value="' + _esc(value) + '"' + (value === current ? ' selected' : '') + '>' + _esc(labels[value] || value) + '</option>';
+    }).join('');
   }
 
   function _manualOrderSearchItems(value) {
@@ -3620,6 +4586,69 @@ Modules.Pedidos = (function () {
     _manualOrderRefresh();
   }
 
+  function _manualOrderSetDeliveryAddress(id) {
+    var value = String(id || '');
+    _manualOrderState.selectedDeliveryAddressId = value;
+    if (!value || value === 'new') {
+      if (value === 'new') {
+        _manualOrderState.customerAddress = '';
+        _manualOrderState.customerAddressNumber = '';
+        _manualOrderState.customerAddressComplement = '';
+        _manualOrderState.customerNeighborhood = '';
+        _manualOrderState.customerCity = '';
+        _manualOrderState.customerProvince = '';
+        _manualOrderState.customerCountry = '';
+        _manualOrderState.customerPostalCode = '';
+        _manualOrderState.customerZone = '';
+        _manualOrderState.shippingFee = 0;
+      }
+      _manualOrderRefresh();
+      _manualOrderSyncAddressFields();
+      setTimeout(function () {
+        if (window.BocaPlaces) {
+          BocaPlaces.init('mo-address', { onPlace: function (data) { _manualOrderApplyPlace('mo-', data, true); } });
+        }
+      }, 80);
+      return;
+    }
+    var customer = _manualOrderSelectedCustomer();
+    var addr = _manualOrderCustomerAddresses(customer).find(function (item) { return String(item.id || '') === value; });
+    if (!addr) return;
+    _manualOrderState.customerAddress = addr.address || '';
+    _manualOrderState.customerAddressNumber = addr.number || '';
+    _manualOrderState.customerAddressComplement = addr.complement || '';
+    _manualOrderState.customerNeighborhood = addr.neighborhood || '';
+    _manualOrderState.customerCity = addr.city || '';
+    _manualOrderState.customerProvince = addr.province || '';
+    _manualOrderState.customerCountry = addr.country || '';
+    _manualOrderState.customerPostalCode = addr.postalCode || '';
+    _manualOrderState.customerZone = addr.neighborhood || addr.postalCode || '';
+    _manualOrderMaybeSyncShipping();
+    _manualOrderRefresh();
+    _manualOrderSyncAddressFields();
+  }
+
+  function _manualOrderSyncAddressFields() {
+    var fields = {
+      'mo-address': _manualOrderState.customerAddress,
+      'mo-address-number': _manualOrderState.customerAddressNumber,
+      'mo-address-complement': _manualOrderState.customerAddressComplement,
+      'mo-neighborhood': _manualOrderState.customerNeighborhood,
+      'mo-city': _manualOrderState.customerCity,
+      'mo-province': _manualOrderState.customerProvince,
+      'mo-country': _manualOrderState.customerCountry,
+      'mo-postal-code': _manualOrderState.customerPostalCode
+    };
+    Object.keys(fields).forEach(function (key) {
+      var el = document.getElementById(key);
+      if (el) el.value = fields[key] || '';
+    });
+    var feeEl = document.getElementById('mo-shipping');
+    if (feeEl) feeEl.value = UI.fmt(_manualOrderState.shippingFee || 0);
+    var feeInfo = document.getElementById('mo-shipping-info');
+    if (feeInfo) feeInfo.textContent = '';
+  }
+
   function _manualOrderSetAdjustment(value) {
     _manualOrderState.adjustment = _num(value);
     _manualOrderRefreshSummary();
@@ -3627,12 +4656,27 @@ Modules.Pedidos = (function () {
 
   function _manualOrderSetShippingFee(value) {
     _manualOrderState.shippingFee = _num(value);
+    var feeEl = document.getElementById('mo-shipping');
+    if (feeEl) feeEl.value = UI.fmt(_manualOrderState.shippingFee || 0);
+    var feeInfo = document.getElementById('mo-shipping-info');
+    if (feeInfo) feeInfo.textContent = '';
     _manualOrderRefreshSummary();
   }
 
   function _manualOrderSetPaymentMethod(value) {
     _manualOrderState.paymentMethod = String(value || '');
     _manualOrderRefreshSummary();
+  }
+
+  function _manualOrderSetChannel(value) {
+    var raw = String(value || 'manual').trim() || 'manual';
+    _manualOrderState.channel = raw;
+    _manualOrderState.source = _manualOrderChannelSource(raw);
+    _manualOrderState.priceOrigin = _fold(raw) === 'cardapio' ? 'automático' : 'manual';
+    _manualOrderRefreshProducts();
+    _manualOrderRefreshSelected();
+    _manualOrderRefreshSummary();
+    _manualOrderSyncInheritedPills();
   }
 
   function _manualOrderSetPaymentStatus(value) {
@@ -3680,11 +4724,20 @@ Modules.Pedidos = (function () {
 
   function _manualOrderMaybeSyncShipping() {
     if ((_manualOrderState.type || 'delivery') !== 'delivery') return;
-    var zone = _manualOrderZoneForText(_manualOrderState.customerZone || '');
-    if (!zone) return;
+    var zone = _manualOrderZoneForText(_manualOrderState.customerPostalCode || _manualOrderState.customerNeighborhood || _manualOrderState.customerZone || _manualOrderState.customerAddress || '');
+    if (!zone) {
+      _manualOrderState.shippingFee = 0;
+      var emptyFeeEl = document.getElementById('mo-shipping');
+      if (emptyFeeEl) emptyFeeEl.value = UI.fmt(0);
+      var emptyInfo = document.getElementById('mo-shipping-info');
+      if (emptyInfo) emptyInfo.textContent = '';
+      return;
+    }
     _manualOrderState.shippingFee = _num(zone.fee);
     var feeEl = document.getElementById('mo-shipping');
-    if (feeEl) feeEl.value = String(_manualOrderState.shippingFee || 0);
+    if (feeEl) feeEl.value = UI.fmt(_manualOrderState.shippingFee || 0);
+    var feeInfo = document.getElementById('mo-shipping-info');
+    if (feeInfo) feeInfo.textContent = '';
   }
 
   function _manualOrderSelectCustomer(id) {
@@ -3695,16 +4748,31 @@ Modules.Pedidos = (function () {
     _manualOrderState.customerName = _firstText(customer.name, customer.customerName, customer.fullName, customer.nome) || '';
     _manualOrderState.customerPhone = _firstText(customer.phone, customer.whatsapp, customer.mobile) || '';
     _manualOrderState.customerEmail = _firstText(customer.email, customer.mail) || '';
-    _manualOrderState.customerAddress = _firstText(customer.address, customer.fullAddress, customer.street, customer.endereco) || '';
-    _manualOrderState.customerZone = _firstText(customer.zone, customer.neighborhood, customer.bairro, customer.area) || '';
+    var addresses = _manualOrderCustomerAddresses(customer);
+    var primaryAddress = addresses[0] || {};
+    _manualOrderState.selectedDeliveryAddressId = primaryAddress.id || '';
+    _manualOrderState.customerAddress = _firstText(primaryAddress.address, customer.address, customer.fullAddress, customer.street, customer.endereco) || '';
+    _manualOrderState.customerAddressNumber = _firstText(primaryAddress.number, customer.number, customer.numero, '') || '';
+    _manualOrderState.customerAddressComplement = _firstText(primaryAddress.complement, customer.complement, customer.reference, '') || '';
+    _manualOrderState.customerNeighborhood = _firstText(primaryAddress.neighborhood, customer.neighborhood, customer.zone, customer.bairro, customer.area) || '';
+    _manualOrderState.customerCity = _firstText(primaryAddress.city, customer.city, customer.cidade, '') || '';
+    _manualOrderState.customerProvince = _firstText(primaryAddress.province, customer.province, customer.state, customer.estado, '') || '';
+    _manualOrderState.customerCountry = _firstText(primaryAddress.country, customer.country, customer.pais, '') || '';
+    _manualOrderState.customerPostalCode = _firstText(primaryAddress.postalCode, customer.postalCode, customer.zip, customer.codigoPostal, '') || '';
+    _manualOrderState.customerZone = _manualOrderState.customerNeighborhood || _manualOrderState.customerPostalCode;
     _manualOrderState.customerPreferences = _firstText(customer.preferences, customer.preference, customer.notes, customer.notesDelivery) || '';
     _manualOrderState.customerNotes = _firstText(customer.notes, customer.obs, customer.observations) || '';
     var fields = {
       'mo-name': _manualOrderState.customerName,
-      'mo-phone': _manualOrderState.customerPhone,
       'mo-email': _manualOrderState.customerEmail,
       'mo-address': _manualOrderState.customerAddress,
-      'mo-zone': _manualOrderState.customerZone
+      'mo-address-number': _manualOrderState.customerAddressNumber,
+      'mo-address-complement': _manualOrderState.customerAddressComplement,
+      'mo-neighborhood': _manualOrderState.customerNeighborhood,
+      'mo-city': _manualOrderState.customerCity,
+      'mo-province': _manualOrderState.customerProvince,
+      'mo-country': _manualOrderState.customerCountry,
+      'mo-postal-code': _manualOrderState.customerPostalCode
     };
     Object.keys(fields).forEach(function (key) {
       var el = document.getElementById(key);
@@ -3714,6 +4782,11 @@ Modules.Pedidos = (function () {
     if (noteEl && !String(noteEl.value || '').trim() && _manualOrderState.customerNotes) {
       noteEl.value = _manualOrderState.customerNotes;
     }
+    var phoneParts = _manualOrderPhoneParts(_manualOrderState.customerPhone);
+    var phonePrefix = document.getElementById('mo-phone-prefix');
+    var phoneNumber = document.getElementById('mo-phone-number');
+    if (phonePrefix) phonePrefix.value = phoneParts.prefix;
+    if (phoneNumber) phoneNumber.value = phoneParts.number;
     _manualOrderMaybeSyncShipping();
     _manualOrderRefresh();
   }
@@ -3768,7 +4841,7 @@ Modules.Pedidos = (function () {
   }
 
   function _manualOrderRefreshCustomers() {
-    var el = document.getElementById('mo-customer-datalist');
+    var el = document.getElementById('mo-customer-results');
     if (el) {
       el.innerHTML = _manualOrderRenderCustomers();
     }
@@ -3777,6 +4850,12 @@ Modules.Pedidos = (function () {
       pill.textContent = _manualOrderState.selectedCustomerId ? ('Cliente: ' + (_manualOrderState.customerName || 'Selecionado')) : 'Nenhum cliente selecionado';
       pill.style.background = _manualOrderState.selectedCustomerId ? '#EDFAF3' : '#F2EDED';
       pill.style.color = _manualOrderState.selectedCustomerId ? '#1A9E5A' : '#8A7E7C';
+    }
+    var addressSelect = document.getElementById('mo-delivery-address');
+    if (addressSelect) {
+      var current = String(addressSelect.value || '');
+      addressSelect.innerHTML = _manualOrderDeliveryAddressOptions();
+      if (current && Array.prototype.some.call(addressSelect.options, function (opt) { return opt.value === current; })) addressSelect.value = current;
     }
   }
 
@@ -3834,7 +4913,11 @@ Modules.Pedidos = (function () {
 
   function _manualOrderSyncInheritedPills() {
     var channel = document.getElementById('mo-header-channel');
-    if (channel) channel.textContent = 'Canal herdado: ' + _manualOrderDisplayChannel(_manualOrderState.channel || 'manual');
+    if (channel) channel.textContent = 'Canal de venda: ' + _manualOrderDisplayChannel(_manualOrderState.channel || 'manual');
+    var channelField = document.getElementById('mo-channel');
+    if (channelField && String(channelField.value || '') !== String(_manualOrderState.channel || 'manual')) {
+      channelField.value = String(_manualOrderState.channel || 'manual');
+    }
   }
 
   function _manualOrderSyncTypeUI() {
@@ -3848,6 +4931,9 @@ Modules.Pedidos = (function () {
       delivery.style.display = 'grid';
       pickup.style.display = 'none';
       if (feeBlock) feeBlock.style.display = isDelivery ? 'block' : 'none';
+      Array.prototype.slice.call(document.querySelectorAll('.mo-delivery-only')).forEach(function (node) {
+        node.style.display = isDelivery ? '' : 'none';
+      });
     }
     var shipping = document.getElementById('mo-shipping');
     if (shipping && (_manualOrderState.type || 'delivery') !== 'delivery') shipping.value = '0';
@@ -3856,11 +4942,28 @@ Modules.Pedidos = (function () {
   function _manualOrderZoneForText(text) {
     var t = _fold(text || '');
     if (!t) return null;
-    return (_zones || []).find(function (z) {
+    var clean = String(text || '').trim().toUpperCase().replace(/\s+/g, '').replace(/[^0-9A-Z*:-]/g, '');
+    var matched = (_zones || []).find(function (z) {
       var name = _fold(z.name || '');
       var zip = _fold(z.postalCode || z.zip || z.code || '');
+      var codes = Array.isArray(z.postalCodes) ? z.postalCodes : [];
+      var codeMatch = codes.some(function (entry) {
+        var raw = String(entry || '').trim().toUpperCase().replace(/\s+/g, '').replace(/[^0-9A-Z*:-]/g, '');
+        if (!raw || !clean) return false;
+        var range = raw.split(/[:-]/);
+        if (range.length === 2 && /^\d+$/.test(clean) && /^\d+$/.test(range[0]) && /^\d+$/.test(range[1])) {
+          var number = Number(clean);
+          return number >= Number(range[0]) && number <= Number(range[1]);
+        }
+        if (raw.indexOf('*') >= 0) return clean.indexOf(raw.replace(/\*/g, '')) === 0;
+        if (/^\d+$/.test(raw) && raw.length < clean.length) return clean.indexOf(raw) === 0;
+        return clean === raw || clean.indexOf(raw) === 0 || clean.replace(/[-:]/g, '') === raw.replace(/[-:]/g, '');
+      });
+      if (codeMatch) return true;
       return name === t || zip === t || name.indexOf(t) >= 0 || zip.indexOf(t) >= 0 || t.indexOf(name) >= 0;
     }) || null;
+    if (matched) return matched;
+    return (_zones || []).find(function (z) { return z.isDefault || !(Array.isArray(z.postalCodes) && z.postalCodes.length) && !z.postalCode; }) || ((_zones || []).length === 1 ? _zones[0] : null);
   }
 
   function _manualOrderPromoNormalizeType(type) {
@@ -4059,62 +5162,54 @@ Modules.Pedidos = (function () {
   }
 
   function _manualOrderRenderCustomers() {
+    if (!_manualOrderCustomerListOpen) return '';
     var list = _manualOrderCustomerMatches();
-    if (!list.length) return '<option value=""></option>';
-    return list.map(function (c) {
+    var query = String(_manualOrderState.customerQuery || '').trim();
+    if (!query) return '';
+    if (!list.length) return '<div style="margin-top:8px;padding:10px 12px;border:1px dashed #E6DDDB;border-radius:12px;color:#8A7E7C;font-size:12px;background:#FCFBFB;">Nenhum cliente encontrado.</div>';
+    return '<div style="margin-top:8px;border:1px solid #E8DCD7;border-radius:12px;background:#fff;overflow:hidden;box-shadow:0 8px 18px rgba(31,31,31,.04);">' + list.map(function (c, index) {
       var name = c.name || c.customerName || c.fullName || 'Cliente';
-      return '<option value="' + _esc(name) + '"></option>';
-    }).join('');
+      var phone = _firstText(c.phone, c.whatsapp, c.mobile, '');
+      var email = _firstText(c.email, c.mail, '');
+      var address = _firstText(c.address, c.neighborhood, c.zone, '');
+      return '<button type="button" onclick="Modules.Pedidos._manualOrderChooseCustomer(\'' + _esc(String(c.id || '')) + '\')" style="width:100%;border:0;border-bottom:' + (index === list.length - 1 ? '0' : '1px solid #F0E8E3') + ';background:#fff;padding:10px 11px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;text-align:left;cursor:pointer;font-family:inherit;">' +
+        '<span style="min-width:0;display:grid;gap:3px;">' +
+          '<span style="font-size:13px;font-weight:650;color:#1A1A1A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(name) + '</span>' +
+          '<span style="font-size:11px;color:#8A7E7C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc([phone, email, address].filter(Boolean).join(' · ')) + '</span>' +
+        '</span>' +
+        '<span class="mi" style="font-size:18px;color:#B42318;">arrow_forward</span>' +
+      '</button>';
+    }).join('') + '</div>';
   }
 
   function _manualOrderRenderProducts() {
     var list = _manualOrderProductMatches();
-    var categories = _manualOrderAvailableCategories();
-    var chips = [
-      { key: 'all', label: 'Todos' },
-      { key: 'promo', label: 'Promoções' },
-      { key: 'popular', label: 'Mais vendidos' },
-      { key: 'category', label: 'Categorias' }
-    ];
-    var filterHtml = '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px;">' + chips.map(function (c) {
-      var active = _manualOrderState.productFilter === c.key;
-      return '<button type="button" onclick="Modules.Pedidos._manualOrderSetProductFilter(\'' + _esc(c.key) + '\')" style="padding:8px 12px;border-radius:999px;border:1.5px solid ' + (active ? '#C4362A' : '#E6DDDB') + ';background:' + (active ? '#FFF8F7' : '#fff') + ';color:' + (active ? '#C4362A' : '#8A7E7C') + ';font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;">' + _esc(c.label) + '</button>';
-    }).join('') + (categories.length ? '<select onchange="Modules.Pedidos._manualOrderSetCategoryFilter(this.value)" style="margin-left:auto;min-width:170px;padding:8px 12px;border:1.5px solid #D4C8C6;border-radius:999px;background:#fff;font-size:12px;font-weight:700;font-family:inherit;outline:none;">' + ['<option value="">Todas as categorias</option>'].concat(categories.map(function (cat) {
-      var sel = _fold(_manualOrderState.productCategory) === _fold(cat) ? ' selected' : '';
-      return '<option value="' + _esc(cat) + '"' + sel + '>' + _esc(cat) + '</option>';
-    })).join('') + '</select>' : '') + '</div>';
-    if (!list.length) return filterHtml + '<div style="padding:14px;border:1px dashed #E6DDDB;border-radius:12px;color:#8A7E7C;font-size:13px;background:#FCFBFB;">Nenhum produto encontrado.</div>';
+    var query = String(_manualOrderState.productQuery || '').trim();
+    if (!query) return '';
+    if (!list.length) return '<div style="margin-top:8px;padding:10px 12px;border:1px dashed #E6DDDB;border-radius:12px;color:#8A7E7C;font-size:12px;background:#FCFBFB;">Nenhum produto encontrado.</div>';
     var selectedMap = {};
     (_manualOrderState.items || []).forEach(function (item) { selectedMap[String(item.productId || '')] = item.quantity || 1; });
-    return filterHtml + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;">' + list.map(function (p) {
+    var visible = list.slice(0, 12);
+    return '<div style="margin-top:8px;border:1px solid #E8DCD7;border-radius:12px;background:#fff;overflow:hidden;box-shadow:0 8px 18px rgba(31,31,31,.04);">' + visible.map(function (p, index) {
       var calc = _manualOrderBestPromoForProduct(p);
       var original = _manualOrderProductBasePrice(p);
       var final = calc ? calc.calc.final : original;
       var selectedQty = selectedMap[String(p.id || '')] || 0;
-      var promoBadge = calc ? '<span style="font-size:10px;font-weight:800;padding:4px 8px;border-radius:999px;background:#FFF0EE;color:#C4362A;">Promoção ativa</span>' : '';
-      var priceHtml = calc && calc.calc.discount > 0
-        ? '<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:4px;"><span style="font-size:12px;color:#8A7E7C;text-decoration:line-through;">' + UI.fmt(original) + '</span><span style="font-size:15px;font-weight:900;color:#1A1A1A;">' + UI.fmt(final) + '</span></div>'
-        : '<div style="font-size:15px;font-weight:900;color:#1A1A1A;margin-top:4px;">' + UI.fmt(original) + '</div>';
       var promoText = calc ? (calc.calc.type === 'pct' ? ('-' + Math.round(calc.calc.value) + '%') : calc.calc.type === 'eur' ? ('- ' + UI.fmt(calc.calc.value)) : calc.calc.type === 'add1' ? ('Leve ' + calc.calc.leve + ' pague ' + calc.calc.pague) : 'Oferta') : '';
-      return '<div style="border:1.5px solid #E6DDDB;border-radius:14px;padding:12px;background:#fff;display:flex;flex-direction:column;gap:8px;">' +
-        '<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;">' +
-          '<div style="min-width:0;">' +
-            '<div style="font-size:13px;font-weight:800;color:#1A1A1A;line-height:1.25;">' + _esc(p.name || p.title || 'Produto') + '</div>' +
-            '<div style="font-size:11px;color:#8A7E7C;margin-top:3px;">' + _esc(_firstText(p.category, p.categoria, 'Sem categoria')) + '</div>' +
-          '</div>' +
-          promoBadge +
-        '</div>' +
-        priceHtml +
-        (promoText ? '<div style="font-size:11px;font-weight:700;color:#C4362A;">' + _esc(promoText) + '</div>' : '') +
-        '<div style="font-size:11px;color:#8A7E7C;line-height:1.4;">' + _esc(_firstText(p.microcopy, p.shortDesc, p.desc, '')) + '</div>' +
-        '<div style="display:flex;justify-content:flex-end;gap:6px;align-items:center;margin-top:auto;">' +
-          (selectedQty > 0
-            ? '<button type="button" onclick="Modules.Pedidos._manualOrderChangeQty(\'' + _esc(String(p.id || '')) + '\',-1)" style="width:28px;height:28px;border-radius:8px;border:1px solid #D4C8C6;background:#fff;cursor:pointer;">−</button>' +
-              '<div style="min-width:34px;text-align:center;font-size:13px;font-weight:800;color:#1A1A1A;">' + selectedQty + '</div>' +
-              '<button type="button" onclick="Modules.Pedidos._manualOrderAddProduct(\'' + _esc(String(p.id || '')) + '\')" style="width:28px;height:28px;border-radius:8px;border:none;background:#C4362A;color:#fff;cursor:pointer;font-weight:900;">+</button>'
-            : '<button type="button" onclick="Modules.Pedidos._manualOrderAddProduct(\'' + _esc(String(p.id || '')) + '\')" style="padding:8px 12px;border-radius:999px;border:none;background:#C4362A;color:#fff;font-size:12px;font-weight:800;cursor:pointer;">Adicionar</button>') +
-        '</div>' +
-      '</div>';
+      return '<button type="button" onclick="Modules.Pedidos._manualOrderAddProduct(\'' + _esc(String(p.id || '')) + '\')" style="width:100%;border:0;border-bottom:' + (index === visible.length - 1 ? '0' : '1px solid #F0E8E3') + ';background:#fff;padding:10px 11px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;text-align:left;cursor:pointer;font-family:inherit;">' +
+        '<span style="min-width:0;display:grid;gap:3px;">' +
+          '<span style="display:flex;align-items:center;gap:7px;min-width:0;">' +
+            '<span style="font-size:13px;font-weight:650;color:#1A1A1A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(p.name || p.title || 'Produto') + '</span>' +
+            (selectedQty ? '<span style="font-size:10px;color:#B42318;background:#FFF0EE;border-radius:999px;padding:3px 7px;white-space:nowrap;">' + selectedQty + ' no pedido</span>' : '') +
+          '</span>' +
+          '<span style="font-size:11px;color:#8A7E7C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(_firstText(p.category, p.categoria, 'Sem categoria')) + (promoText ? ' · ' + _esc(promoText) : '') + '</span>' +
+        '</span>' +
+        '<span style="display:flex;align-items:center;gap:9px;justify-content:flex-end;white-space:nowrap;">' +
+          (calc && calc.calc.discount > 0 ? '<span style="font-size:11px;color:#8A7E7C;text-decoration:line-through;">' + UI.fmt(original) + '</span>' : '') +
+          '<span style="font-size:13px;font-weight:650;color:#1A1A1A;">' + UI.fmt(final) + '</span>' +
+          '<span style="width:26px;height:26px;border-radius:9px;background:#B42318;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;">+</span>' +
+        '</span>' +
+      '</button>';
     }).join('') + '</div>';
   }
 
@@ -4232,11 +5327,11 @@ Modules.Pedidos = (function () {
       '</div>',
       '<div style="grid-column:1/-1;border:1px solid #F2EDED;border-radius:12px;padding:10px 12px;background:#FAF8F8;">',
         '<div style="font-size:11px;color:#8A7E7C;margin-bottom:3px;">Forma de pagamento</div>',
-        '<select id="mo-payment-method" onchange="Modules.Pedidos._manualOrderSetPaymentMethod(this.value)" style="width:100%;padding:10px 12px;border:1.5px solid #D4C8C6;border-radius:10px;font-size:13px;font-weight:700;font-family:inherit;outline:none;background:#fff;">' + _paymentMethodOptions(_manualOrderState.paymentMethod) + '</select>',
+        '<select id="mo-payment-method" onchange="Modules.Pedidos._manualOrderSetPaymentMethod(this.value)" style="' + _adminSelectStyle('height:40px;font-size:13px;') + '">' + _paymentMethodOptions(_manualOrderState.paymentMethod) + '</select>',
       '</div>',
       '<div style="grid-column:1/-1;border:1px solid #F2EDED;border-radius:12px;padding:10px 12px;background:#FAF8F8;">',
         '<div style="font-size:11px;color:#8A7E7C;margin-bottom:3px;">Status do pagamento</div>',
-        '<select id="mo-payment-status" onchange="Modules.Pedidos._manualOrderSetPaymentStatus(this.value)" style="width:100%;padding:10px 12px;border:1.5px solid #D4C8C6;border-radius:10px;font-size:13px;font-weight:700;font-family:inherit;outline:none;background:#fff;">' + _paymentStatusOptions(_manualOrderState.paymentStatus) + '</select>',
+        '<select id="mo-payment-status" onchange="Modules.Pedidos._manualOrderSetPaymentStatus(this.value)" style="' + _adminSelectStyle('height:40px;font-size:13px;') + '">' + _paymentStatusOptions(_manualOrderState.paymentStatus) + '</select>',
       '</div>',
       '<div id="mo-paid-amount-box" style="grid-column:1/-1;border:1px solid #F2EDED;border-radius:12px;padding:10px 12px;background:#FAF8F8;display:' + (_manualOrderState.paymentStatus === 'parcial' ? 'block' : 'none') + ';">',
         '<div style="font-size:11px;color:#8A7E7C;margin-bottom:3px;">Valor pago</div>',
@@ -4247,15 +5342,28 @@ Modules.Pedidos = (function () {
   }
 
   function _normalizeZones(raw) {
-    var list = raw && Array.isArray(raw.list) ? raw.list : [];
-    return list.map(function (z) {
-      return {
-        postalCode: z.postalCode || z.zip || z.code || '',
-        name: z.name || z.zone || z.label || '',
-        fee: _num(z.fee != null ? z.fee : z.shippingFee != null ? z.shippingFee : 0),
-        minOrder: _num(z.minOrder != null ? z.minOrder : z.orderMin != null ? z.orderMin : 0)
-      };
+    var list = [];
+    if (raw && Array.isArray(raw.list)) list = raw.list;
+    else if (raw && Array.isArray(raw.deliveryZones)) list = raw.deliveryZones;
+    else if (raw && Array.isArray(raw.zones)) list = raw.zones;
+    else if (Array.isArray(raw)) list = raw;
+    else if (raw && typeof raw === 'object') list = Object.keys(raw.zones || raw.deliveryZones || {}).map(function (key) {
+      return Object.assign({ id: key }, (raw.zones || raw.deliveryZones || {})[key]);
     });
+    return list.filter(Boolean).map(function (z, idx) {
+      var postal = z.postalCodes || z.ceps || z.codes || z.zipCodes || z.postcodes || z.postalCode || z.cep || z.zip || z.code || '';
+      if (!Array.isArray(postal)) postal = String(postal || '').split(/[,;\s]+/).filter(Boolean);
+      return {
+        id: String(z.id || z.slug || idx),
+        postalCode: z.postalCode || z.zip || z.code || z.cep || '',
+        postalCodes: postal,
+        name: z.name || z.nome || z.zone || z.label || '',
+        fee: _num(z.fee != null ? z.fee : z.price != null ? z.price : z.deliveryFee != null ? z.deliveryFee : z.taxa != null ? z.taxa : z.valor),
+        minOrder: _num(z.minOrder != null ? z.minOrder : z.minimumOrder != null ? z.minimumOrder : z.orderMin != null ? z.orderMin : z.minimo),
+        active: z.active !== false && z.enabled !== false,
+        isDefault: z.default === true || z.isDefault === true || z.primary === true
+      };
+    }).filter(function (z) { return z.active; });
   }
 
   function _ensureOrderFiscalDefaults(order) {
@@ -4388,13 +5496,72 @@ Modules.Pedidos = (function () {
 
   function _manualOrderDisplayChannel(v) {
     var key = _fold(v || '');
-    if (key === 'cardapio') return 'Catálogo';
+    if (key === 'cardapio') return 'Cardápio';
     if (key === 'whatsapp') return 'WhatsApp';
     if (key === 'marketplace') return 'Marketplace';
     if (key === 'balcao') return 'Balcão';
     if (key === 'telefone') return 'Telefone';
+    if (key === 'tpv' || key === 'venda presencial') return 'Venda presencial';
     if (key === 'manual') return 'Manual';
     return _title(v || 'Manual');
+  }
+
+  function _manualOrderChannelSource(value) {
+    var key = _fold(value || '');
+    if (key === 'cardapio') return 'cardapio';
+    if (key === 'venda presencial' || key === 'tpv') return 'TPV';
+    if (key === 'whatsapp') return 'whatsapp';
+    if (key === 'marketplace') return 'marketplace';
+    if (key === 'balcao') return 'balcao';
+    if (key === 'telefone') return 'telefone';
+    if (key === 'manual') return 'manual';
+    return String(value || 'manual').trim() || 'manual';
+  }
+
+  function _manualOrderChannelOptions(selected) {
+    var base = [
+      { value: 'cardapio', label: 'Cardápio' },
+      { value: 'Venda presencial', label: 'Venda presencial' },
+      { value: 'whatsapp', label: 'WhatsApp' },
+      { value: 'manual', label: 'Manual' }
+    ];
+    var seen = {};
+    var options = [];
+    base.forEach(function (item) {
+      var key = _fold(item.value);
+      if (seen[key]) return;
+      seen[key] = true;
+      options.push(item);
+    });
+    (_canais || []).forEach(function (c) {
+      if (!c || c.active === false || c.ativo === false || c.enabled === false) return;
+      var name = _firstText(c.name, c.nome, c.label, c.title, '');
+      if (!name) return;
+      var key = _fold(name);
+      if (seen[key]) return;
+      seen[key] = true;
+      options.push({ value: name, label: name });
+    });
+    var selectedKey = _fold(selected || '');
+    return options.map(function (item) {
+      var value = String(item.value || '');
+      return '<option value="' + _esc(value) + '"' + (selectedKey === _fold(value) ? ' selected' : '') + '>' + _esc(item.label || value) + '</option>';
+    }).join('');
+  }
+
+  function _manualOrderDeliveryAddressOptions() {
+    var customer = _manualOrderSelectedCustomer();
+    var list = _manualOrderCustomerAddresses(customer);
+    var selected = String(_manualOrderState.selectedDeliveryAddressId || '');
+    var html = '';
+    if (list.length) {
+      html += list.map(function (addr) {
+        var id = String(addr.id || '');
+        return '<option value="' + _esc(id) + '"' + (selected === id ? ' selected' : '') + '>' + _esc(_manualOrderAddressLabel(addr)) + '</option>';
+      }).join('');
+    }
+    html += '<option value="new"' + (!selected || selected === 'new' ? ' selected' : '') + '>' + (list.length ? 'Usar novo endereço' : 'Preencher novo endereço') + '</option>';
+    return html;
   }
 
   function _openNewOrder() {
@@ -4413,93 +5580,138 @@ Modules.Pedidos = (function () {
     header.innerHTML = '<div style="min-width:0;">' +
       '<div style="font-size:11px;font-weight:800;color:#B42318;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;">Pedido manual</div>' +
       '<h2 style="font-size:22px;font-weight:800;line-height:1.1;margin:0;color:#1F1F1F;">Criar pedido manual</h2>' +
-      '<div id="mo-header-channel" style="margin-top:8px;display:inline-flex;align-items:center;padding:5px 10px;border-radius:999px;background:#FFF7F5;border:1px solid rgba(180,35,24,.16);font-size:11px;font-weight:800;color:#B42318;">Canal herdado: ' + _esc(_manualOrderDisplayChannel(_manualOrderState.channel)) + '</div>' +
+      '<div id="mo-header-channel" style="margin-top:8px;display:inline-flex;align-items:center;padding:5px 10px;border-radius:999px;background:#FFF7F5;border:1px solid rgba(180,35,24,.16);font-size:11px;font-weight:750;color:#B42318;">Canal de venda: ' + _esc(_manualOrderDisplayChannel(_manualOrderState.channel)) + '</div>' +
     '</div>' +
     '<button type="button" onclick="Modules.Pedidos._closeManualOrderModal()" style="width:34px;height:34px;border-radius:10px;border:1px solid #EAE4DA;background:#fff;color:#1F1F1F;cursor:pointer;font-size:16px;flex-shrink:0;font-family:inherit;">✕</button>';
 
     var body = document.createElement('div');
     body.style.cssText = 'padding:16px 20px 20px;overflow:auto;flex:1;min-height:0;background:#FAF8F5;';
-    body.innerHTML =
-      '<div style="display:grid;grid-template-columns:minmax(0,1.45fr) minmax(340px,.95fr);gap:16px;align-items:start;">' +
+    var phoneParts = _manualOrderPhoneParts(_manualOrderState.customerPhone || '');
+    var modalCss = '<style>' +
+      '.manual-order-body{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(340px,.95fr);gap:14px;align-items:start;font-family:Manrope,Inter,sans-serif;}' +
+      '.manual-order-stack{display:flex;flex-direction:column;gap:12px;}' +
+      '.manual-order-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%)!important;border:1px solid #EADFD8!important;border-radius:18px!important;padding:14px!important;box-shadow:0 10px 24px rgba(31,31,31,.04)!important;display:flex;flex-direction:column;gap:11px;min-width:0;}' +
+      '.manual-order-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:1px;}' +
+      '.manual-order-card-title{display:flex;align-items:flex-start;gap:9px;min-width:0;}' +
+      '.manual-order-card-title .mi{font-size:18px;color:#6F6860;line-height:1.2;}' +
+      '.manual-order-title{font-size:13px;font-weight:800;color:#1F1F1F;line-height:1.25;margin-bottom:3px;}' +
+      '.manual-order-hint{font-size:12px;color:#8A7E7C;line-height:1.4;margin:0;}' +
+      '.manual-order-grid{display:grid;gap:11px 12px;align-items:end;min-width:0;}' +
+      '.manual-order-customer-grid{grid-template-columns:minmax(240px,1fr) minmax(320px,1.15fr);}' +
+      '.manual-order-email-field{grid-column:1/-1;max-width:420px;}' +
+      '.manual-order-service-grid{grid-template-columns:repeat(12,minmax(0,1fr));align-items:end;}' +
+      '.manual-order-delivery-grid{padding-left:27px;}' +
+      '.mo-service-type{grid-column:span 3;}' +
+      '.mo-service-address-select{grid-column:span 6;}' +
+      '.mo-service-postal{grid-column:span 3;}' +
+      '.mo-service-street{grid-column:span 6;}' +
+      '.mo-service-number{grid-column:span 2;}' +
+      '.mo-service-complement{grid-column:span 4;}' +
+      '.mo-service-quarter{grid-column:span 3;}' +
+      '.mo-service-time{grid-column:span 3;}' +
+      '.mo-service-fee{grid-column:span 3;}' +
+      '.mo-service-order-time{grid-column:span 3;}' +
+      '.manual-order-products-grid{grid-template-columns:minmax(0,1fr);}' +
+      '.manual-order-summary-grid{grid-template-columns:minmax(120px,.45fr) minmax(150px,.55fr);}' +
+      '.manual-order-body label{font-size:11px!important;font-weight:650!important;color:#8A7E7C!important;display:block!important;margin-bottom:5px!important;letter-spacing:.02em!important;}' +
+      '.manual-order-body input:not([type=checkbox]),.manual-order-body select,.manual-order-body textarea{width:100%!important;min-height:36px!important;border:1px solid #E8DCD7!important;border-radius:12px!important;padding:0 12px!important;font-size:14px!important;font-family:inherit!important;outline:none!important;background:#FFFCF8!important;color:#1F1F1F!important;box-shadow:none!important;box-sizing:border-box!important;}' +
+      '.manual-order-field-control{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:6px;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;min-width:0;}' +
+      '.manual-order-field-control:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
+      '.manual-order-field-control input:not([type=checkbox]),.manual-order-field-control select,.manual-order-field-control textarea{border:0!important;border-radius:8px!important;background:transparent!important;box-shadow:none!important;padding:0 8px!important;min-height:34px!important;}' +
+      '.manual-order-phone-box{display:grid;grid-template-columns:124px minmax(190px,1fr);gap:8px;align-items:center;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:6px;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;}' +
+      '.manual-order-phone-box:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
+      '.manual-order-phone-box select,.manual-order-phone-box input{border:0!important;background:transparent!important;box-shadow:none!important;min-height:34px!important;border-radius:8px!important;padding:0 8px!important;}' +
+      '.manual-order-phone-box select{border-right:1px solid #E8DCD7!important;border-radius:8px 0 0 8px!important;}' +
+      '.manual-order-field-control textarea{padding-top:8px!important;padding-bottom:8px!important;}' +
+      '.manual-order-body textarea{min-height:72px!important;padding:10px 12px!important;resize:vertical!important;line-height:1.45!important;}' +
+      '.manual-order-body input:not([type=checkbox]):focus,.manual-order-body select:focus,.manual-order-body textarea:focus{background:#fff!important;border-color:#D9AAA1!important;box-shadow:0 0 0 3px rgba(180,35,24,.08)!important;}' +
+      '.manual-order-body select{padding-right:42px!important;appearance:none!important;-webkit-appearance:none!important;-moz-appearance:none!important;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E)!important;background-repeat:no-repeat!important;background-position:right 16px center!important;background-size:14px!important;}' +
+      '.manual-order-search-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end;}' +
+      '.manual-order-channel-row{display:grid;grid-template-columns:minmax(180px,260px);gap:10px;align-items:end;}' +
+      '.manual-order-channel-panel{display:grid;grid-template-columns:minmax(180px,260px);gap:10px;align-items:end;padding:0 2px;}' +
+      '.manual-order-secondary-btn{height:40px;padding:0 13px;border:1px solid #EADFD8;border-radius:10px;background:#fff;color:#1F1F1F;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;box-shadow:0 1px 2px rgba(31,31,31,.03);white-space:nowrap;}' +
+      '.manual-order-pill{display:inline-flex;align-items:center;padding:5px 10px;border-radius:999px;background:#FFF7F5;border:1px solid rgba(180,35,24,.16);font-size:11px;font-weight:700;color:#B42318;}' +
+      '.manual-order-muted-pill{display:inline-flex;align-items:center;padding:5px 10px;border-radius:999px;background:#F8F4F1;border:1px solid #EADFD8;font-size:11px;font-weight:650;color:#6F6860;}' +
+      '.manual-order-filter-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:center;}' +
+      '.manual-order-filter-row button{padding:7px 12px!important;border-radius:999px!important;font-size:12px!important;font-weight:650!important;font-family:inherit!important;cursor:pointer!important;}' +
+      '.manual-order-sticky{display:flex;flex-direction:column;gap:12px;position:sticky;top:0;align-self:start;}' +
+      '@media(max-width:1120px){.manual-order-body{grid-template-columns:1fr}.manual-order-sticky{position:static}.manual-order-service-grid{grid-template-columns:repeat(6,minmax(0,1fr))}.mo-service-type,.mo-service-postal,.mo-service-number,.mo-service-complement,.mo-service-quarter,.mo-service-time,.mo-service-fee,.mo-service-order-time{grid-column:span 3}.mo-service-address-select,.mo-service-street{grid-column:1/-1}}' +
+      '@media(max-width:760px){.manual-order-customer-grid,.manual-order-service-grid,.manual-order-summary-grid,.manual-order-search-row,.manual-order-channel-row,.manual-order-channel-panel{grid-template-columns:1fr}.manual-order-delivery-grid{padding-left:0}.manual-order-email-field{grid-column:auto;max-width:none}.manual-order-phone-box{grid-template-columns:118px minmax(0,1fr)}.mo-service-type,.mo-service-address-select,.mo-service-postal,.mo-service-street,.mo-service-number,.mo-service-complement,.mo-service-quarter,.mo-service-time,.mo-service-fee,.mo-service-order-time{grid-column:auto}.manual-order-secondary-btn{width:100%;}}' +
+      '</style>';
+    body.innerHTML = modalCss +
+      '<div class="manual-order-body">' +
         '<div style="display:flex;flex-direction:column;gap:14px;">' +
-          '<section style="background:#fff;border:1px solid #F2EDED;border-radius:14px;padding:14px 14px 12px;display:flex;flex-direction:column;gap:12px;">' +
-            '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">' +
-              '<div>' +
-                '<div style="font-size:11px;font-weight:900;color:#8A7E7C;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Cliente</div>' +
-                '<div style="font-size:16px;font-weight:800;color:#1A1A1A;">Selecionar ou criar cliente</div>' +
+          '<div class="manual-order-channel-panel">' +
+            '<div><label>Canal de venda</label><div class="manual-order-field-control"><select id="mo-channel" onchange="Modules.Pedidos._manualOrderSetChannel(this.value)">' + _manualOrderChannelOptions(_manualOrderState.channel) + '</select></div></div>' +
+          '</div>' +
+          '<section class="manual-order-card">' +
+            '<div class="manual-order-card-head">' +
+              '<div class="manual-order-card-title"><span class="mi">person_search</span><div><div class="manual-order-title">Cliente</div><p class="manual-order-hint">Busque um cliente já cadastrado ou preencha os dados para este pedido.</p></div></div>' +
+              '<div id="mo-customer-pill" class="manual-order-muted-pill">Nenhum cliente selecionado</div>' +
+            '</div>' +
+            '<div class="manual-order-search-row">' +
+              '<div style="min-width:0;">' +
+                '<label>Buscar cliente existente</label>' +
+                '<div class="manual-order-field-control"><input id="mo-customer-search" type="search" value="' + _esc(_manualOrderState.customerQuery) + '" onfocus="Modules.Pedidos._manualOrderFocusCustomers()" oninput="Modules.Pedidos._manualOrderSearchCustomers(this.value)" placeholder="Buscar por nome, telefone, e-mail ou endereço"></div>' +
+                '<div id="mo-customer-results"></div>' +
               '</div>' +
-              '<div id="mo-customer-pill" style="font-size:11px;font-weight:800;padding:5px 10px;border-radius:999px;background:#F2EDED;color:#8A7E7C;">Nenhum cliente selecionado</div>' +
+              '<button type="button" class="manual-order-secondary-btn" onclick="Modules.Pedidos._openManualOrderQuickCustomer()">+ Cliente rápido</button>' +
             '</div>' +
-            '<div>' +
-              '<label style="font-size:11px;font-weight:700;color:#8A7E7C;display:block;margin-bottom:4px;">Buscar cliente existente</label>' +
-              '<input id="mo-customer-search" type="search" list="mo-customer-datalist" value="' + _esc(_manualOrderState.customerQuery) + '" oninput="Modules.Pedidos._manualOrderSearchCustomers(this.value)" placeholder="Buscar por nome, telefone, e-mail ou zona" style="width:100%;padding:11px 14px;border:1px solid #EAE4DA;border-radius:10px;font-size:13px;font-family:inherit;outline:none;background:#fff;color:#1F1F1F;">' +
-              '<datalist id="mo-customer-datalist"></datalist>' +
-            '</div>' +
-            '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;">' +
-              '<div><label style="font-size:11px;font-weight:700;color:#8A7E7C;display:block;margin-bottom:4px;">Nome do cliente</label><input id="mo-name" type="text" value="' + _esc(_manualOrderState.customerName) + '" placeholder="Nome" oninput="Modules.Pedidos._manualOrderField(\'customerName\', this.value)" style="width:100%;padding:10px;border:1.5px solid #D4C8C6;border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;"></div>' +
-              '<div><label style="font-size:11px;font-weight:700;color:#8A7E7C;display:block;margin-bottom:4px;">Telefone / WhatsApp</label><input id="mo-phone" type="text" value="' + _esc(_manualOrderState.customerPhone) + '" placeholder="' + _esc(_manualOrderPhonePlaceholder()) + '" oninput="Modules.Pedidos._manualOrderField(\'customerPhone\', this.value)" style="width:100%;padding:10px;border:1.5px solid #D4C8C6;border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;"></div>' +
-              '<div><label style="font-size:11px;font-weight:700;color:#8A7E7C;display:block;margin-bottom:4px;">E-mail</label><input id="mo-email" type="email" value="' + _esc(_manualOrderState.customerEmail) + '" placeholder="E-mail" oninput="Modules.Pedidos._manualOrderField(\'customerEmail\', this.value)" style="width:100%;padding:10px;border:1.5px solid #D4C8C6;border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;"></div>' +
-              '<div><label style="font-size:11px;font-weight:700;color:#8A7E7C;display:block;margin-bottom:4px;">Tipo</label><select id="mo-type" onchange="Modules.Pedidos._manualOrderSetType(this.value)" style="width:100%;padding:10px;border:1px solid #EAE4DA;border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;color:#1F1F1F;"><option value="delivery">Entrega</option><option value="pickup">Retirada</option></select></div>' +
-              '<div><label style="font-size:11px;font-weight:700;color:#8A7E7C;display:block;margin-bottom:4px;">Hora do pedido</label><input id="mo-order-time" type="time" value="' + _esc(_manualOrderState.orderTime || _currentTimeValue()) + '" oninput="Modules.Pedidos._manualOrderSetOrderTime(this.value)" style="width:100%;padding:10px;border:1.5px solid #D4C8C6;border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;"></div>' +
+            '<div class="manual-order-grid manual-order-customer-grid">' +
+              '<div><label>Nome do cliente</label><div class="manual-order-field-control"><input id="mo-name" type="text" value="' + _esc(_manualOrderState.customerName) + '" placeholder="Nome" oninput="Modules.Pedidos._manualOrderField(\'customerName\', this.value)"></div></div>' +
+              '<div><label>Telefone / WhatsApp</label><div class="manual-order-phone-box"><select id="mo-phone-prefix" onchange="Modules.Pedidos._manualOrderSyncPhoneFromParts(\'mo-phone-prefix\',\'mo-phone-number\',\'customerPhone\')">' + _manualOrderPhonePrefixOptions(phoneParts.prefix) + '</select><input id="mo-phone-number" type="text" value="' + _esc(phoneParts.number) + '" placeholder="' + _esc(_manualOrderPhonePlaceholder()) + '" oninput="Modules.Pedidos._manualOrderSyncPhoneFromParts(\'mo-phone-prefix\',\'mo-phone-number\',\'customerPhone\')"></div></div>' +
+              '<div class="manual-order-email-field"><label>E-mail</label><div class="manual-order-field-control"><input id="mo-email" type="email" value="' + _esc(_manualOrderState.customerEmail) + '" placeholder="E-mail" oninput="Modules.Pedidos._manualOrderField(\'customerEmail\', this.value)"></div></div>' +
             '</div>' +
           '</section>' +
-          '<section style="background:#fff;border:1px solid #F2EDED;border-radius:14px;padding:14px 14px 12px;display:flex;flex-direction:column;gap:10px;">' +
-            '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">' +
-              '<div>' +
-                '<div style="font-size:11px;font-weight:900;color:#8A7E7C;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Entrega / Retirada</div>' +
-                '<div style="font-size:16px;font-weight:800;color:#1A1A1A;">Definir forma de entrega</div>' +
-              '</div>' +
+          '<section class="manual-order-card">' +
+            '<div class="manual-order-card-head">' +
+              '<div class="manual-order-card-title"><span class="mi">local_shipping</span><div><div class="manual-order-title">Entrega e horário</div><p class="manual-order-hint">Defina como a cliente vai receber o pedido e quando ele deve ser preparado.</p></div></div>' +
             '</div>' +
-            '<div id="mo-delivery-block" style="display:grid;grid-template-columns:2fr 1fr;gap:10px;">' +
-              '<div><label style="font-size:11px;font-weight:700;color:#8A7E7C;display:block;margin-bottom:4px;">Endereço</label><input id="mo-address" type="text" value="' + _esc(_manualOrderState.customerAddress) + '" placeholder="Endereço de entrega" oninput="Modules.Pedidos._manualOrderField(\'customerAddress\', this.value)" style="width:100%;padding:10px;border:1.5px solid #D4C8C6;border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;"></div>' +
-              '<div><label style="font-size:11px;font-weight:700;color:#8A7E7C;display:block;margin-bottom:4px;">Zona / CEP</label><input id="mo-zone" type="text" value="' + _esc(_manualOrderState.customerZone) + '" placeholder="Zona ou CEP" oninput="Modules.Pedidos._manualOrderField(\'customerZone\', this.value);Modules.Pedidos._manualOrderMaybeSyncShipping();" style="width:100%;padding:10px;border:1.5px solid #D4C8C6;border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;"></div>' +
-              '<div style="grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
-                '<div><label style="font-size:11px;font-weight:700;color:#8A7E7C;display:block;margin-bottom:4px;">Dia</label><input id="mo-delivery-date" type="date" value="' + _esc(_manualOrderState.deliveryDate || '') + '" oninput="Modules.Pedidos._manualOrderSetDeliveryDate(this.value)" style="width:100%;padding:10px;border:1.5px solid #D4C8C6;border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;"></div>' +
-                '<div><label style="font-size:11px;font-weight:700;color:#8A7E7C;display:block;margin-bottom:4px;">Horário</label><input id="mo-delivery-time" type="time" value="' + _esc(_manualOrderState.deliveryTime || '') + '" oninput="Modules.Pedidos._manualOrderSetDeliveryTime(this.value)" style="width:100%;padding:10px;border:1.5px solid #D4C8C6;border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;"></div>' +
-              '</div>' +
-              '<div id="mo-delivery-fee-block"><label style="font-size:11px;font-weight:700;color:#8A7E7C;display:block;margin-bottom:4px;">Taxa de entrega</label><input id="mo-shipping" type="number" step="0.01" value="' + _esc(String(_manualOrderState.shippingFee || 0)) + '" oninput="Modules.Pedidos._manualOrderSetShippingFee(this.value)" placeholder="0,00" style="width:100%;padding:10px;border:1.5px solid #D4C8C6;border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;"></div>' +
+            '<div class="manual-order-grid manual-order-service-grid manual-order-delivery-grid" id="mo-delivery-block">' +
+              '<div class="mo-service-type"><label>Tipo</label><div class="manual-order-field-control"><select id="mo-type" onchange="Modules.Pedidos._manualOrderSetType(this.value)"><option value="delivery">Entrega</option><option value="pickup">Retirada</option></select></div></div>' +
+              '<div class="mo-delivery-only mo-service-address-select"><label>Endereço de entrega</label><div class="manual-order-field-control"><select id="mo-delivery-address" onchange="Modules.Pedidos._manualOrderSetDeliveryAddress(this.value)">' + _manualOrderDeliveryAddressOptions() + '</select></div></div>' +
+              '<div class="mo-delivery-only mo-service-postal"><label>Código postal</label><div class="manual-order-field-control"><input id="mo-postal-code" type="text" value="' + _esc(_manualOrderState.customerPostalCode || '') + '" placeholder="CP" oninput="Modules.Pedidos._manualOrderField(\'customerPostalCode\', this.value)"></div></div>' +
+              '<div class="mo-delivery-only mo-service-street"><label>Rua</label><div class="manual-order-field-control"><input id="mo-address" type="text" value="' + _esc(_manualOrderState.customerAddress) + '" placeholder="Endereço de entrega" oninput="Modules.Pedidos._manualOrderField(\'customerAddress\', this.value)"></div></div>' +
+              '<div class="mo-delivery-only mo-service-number"><label>Número / portal</label><div class="manual-order-field-control"><input id="mo-address-number" type="text" value="' + _esc(_manualOrderState.customerAddressNumber || '') + '" placeholder="Nº" oninput="Modules.Pedidos._manualOrderField(\'customerAddressNumber\', this.value)"></div></div>' +
+              '<div class="mo-delivery-only mo-service-complement"><label>Piso / referência</label><div class="manual-order-field-control"><input id="mo-address-complement" type="text" value="' + _esc(_manualOrderState.customerAddressComplement || '') + '" placeholder="Piso, porta ou referência" oninput="Modules.Pedidos._manualOrderField(\'customerAddressComplement\', this.value)"></div></div>' +
+              '<div class="mo-delivery-only mo-service-quarter"><label>Bairro</label><div class="manual-order-field-control"><input id="mo-neighborhood" type="text" value="' + _esc(_manualOrderState.customerNeighborhood || '') + '" placeholder="Bairro" oninput="Modules.Pedidos._manualOrderField(\'customerNeighborhood\', this.value)"></div></div>' +
+              '<div class="mo-delivery-only mo-service-quarter"><label>Localidade</label><div class="manual-order-field-control"><input id="mo-city" type="text" value="' + _esc(_manualOrderState.customerCity || '') + '" placeholder="Cidade" oninput="Modules.Pedidos._manualOrderField(\'customerCity\', this.value)"></div></div>' +
+              '<div class="mo-delivery-only mo-service-quarter"><label>Província</label><div class="manual-order-field-control"><input id="mo-province" type="text" value="' + _esc(_manualOrderState.customerProvince || '') + '" placeholder="Província" oninput="Modules.Pedidos._manualOrderField(\'customerProvince\', this.value)"></div></div>' +
+              '<div class="mo-delivery-only mo-service-quarter"><label>País</label><div class="manual-order-field-control"><input id="mo-country" type="text" value="' + _esc(_manualOrderState.customerCountry || '') + '" placeholder="País" oninput="Modules.Pedidos._manualOrderField(\'customerCountry\', this.value)"></div></div>' +
+              '<div class="mo-service-time"><label>Dia</label><div class="manual-order-field-control"><input id="mo-delivery-date" type="date" value="' + _esc(_manualOrderState.deliveryDate || '') + '" oninput="Modules.Pedidos._manualOrderSetDeliveryDate(this.value)"></div></div>' +
+              '<div class="mo-service-time"><label>Horário</label><div class="manual-order-field-control"><input id="mo-delivery-time" type="time" value="' + _esc(_manualOrderState.deliveryTime || '') + '" oninput="Modules.Pedidos._manualOrderSetDeliveryTime(this.value)"></div></div>' +
+              '<div class="mo-delivery-only mo-service-fee" id="mo-delivery-fee-block"><label>Taxa de entrega</label><div class="manual-order-field-control"><input id="mo-shipping" type="text" inputmode="decimal" value="' + _esc(UI.fmt(_manualOrderState.shippingFee || 0)) + '" readonly placeholder="€0,00"></div><div id="mo-shipping-info" style="display:none;"></div></div>' +
+              '<div class="mo-service-order-time"><label>Hora do pedido</label><div class="manual-order-field-control"><input id="mo-order-time" type="time" value="' + _esc(_manualOrderState.orderTime || _currentTimeValue()) + '" oninput="Modules.Pedidos._manualOrderSetOrderTime(this.value)"></div></div>' +
             '</div>' +
             '<div id="mo-pickup-block" style="display:none;"></div>' +
           '</section>' +
-          '<section style="background:#fff;border:1px solid #F2EDED;border-radius:14px;padding:14px 14px 12px;display:flex;flex-direction:column;gap:10px;">' +
-            '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">' +
-              '<div>' +
-                '<div style="font-size:11px;font-weight:900;color:#8A7E7C;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Produtos</div>' +
-                '<div style="font-size:16px;font-weight:800;color:#1A1A1A;">Adicionar itens ao pedido</div>' +
-              '</div>' +
+          '<section class="manual-order-card">' +
+            '<div class="manual-order-card-head">' +
+              '<div class="manual-order-card-title"><span class="mi">restaurant_menu</span><div><div class="manual-order-title">Produtos</div><p class="manual-order-hint">Busque os itens e adicione ao pedido. Promoções do cardápio continuam sendo calculadas automaticamente.</p></div></div>' +
             '</div>' +
             '<div>' +
-              '<label style="font-size:11px;font-weight:700;color:#8A7E7C;display:block;margin-bottom:4px;">Buscar produto</label>' +
-              '<input id="mo-product-search" type="search" value="' + _esc(_manualOrderState.productQuery) + '" oninput="Modules.Pedidos._manualOrderSearchItems(this.value)" placeholder="Buscar por produto, categoria ou tag" style="width:100%;padding:11px 14px;border:1px solid #EAE4DA;border-radius:10px;font-size:13px;font-family:inherit;outline:none;background:#fff;color:#1F1F1F;">' +
-              '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:center;">' +
-                '<button type="button" onclick="Modules.Pedidos._manualOrderSetProductFilter(\'all\')" style="padding:7px 12px;border-radius:999px;border:1.5px solid ' + (_manualOrderState.productFilter === 'all' ? '#C4362A' : '#E6DDDB') + ';background:' + (_manualOrderState.productFilter === 'all' ? '#FFF8F7' : '#fff') + ';color:' + (_manualOrderState.productFilter === 'all' ? '#C4362A' : '#8A7E7C') + ';font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;">Todos</button>' +
-                '<button type="button" onclick="Modules.Pedidos._manualOrderSetProductFilter(\'promo\')" style="padding:7px 12px;border-radius:999px;border:1.5px solid ' + (_manualOrderState.productFilter === 'promo' ? '#C4362A' : '#E6DDDB') + ';background:' + (_manualOrderState.productFilter === 'promo' ? '#FFF8F7' : '#fff') + ';color:' + (_manualOrderState.productFilter === 'promo' ? '#C4362A' : '#8A7E7C') + ';font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;">Promoções</button>' +
-                '<button type="button" onclick="Modules.Pedidos._manualOrderSetProductFilter(\'popular\')" style="padding:7px 12px;border-radius:999px;border:1.5px solid ' + (_manualOrderState.productFilter === 'popular' ? '#C4362A' : '#E6DDDB') + ';background:' + (_manualOrderState.productFilter === 'popular' ? '#FFF8F7' : '#fff') + ';color:' + (_manualOrderState.productFilter === 'popular' ? '#C4362A' : '#8A7E7C') + ';font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;">Mais vendidos</button>' +
-                '<button type="button" onclick="Modules.Pedidos._manualOrderSetProductFilter(\'category\')" style="padding:7px 12px;border-radius:999px;border:1.5px solid ' + (_manualOrderState.productFilter === 'category' ? '#C4362A' : '#E6DDDB') + ';background:' + (_manualOrderState.productFilter === 'category' ? '#FFF8F7' : '#fff') + ';color:' + (_manualOrderState.productFilter === 'category' ? '#C4362A' : '#8A7E7C') + ';font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;">Categorias</button>' +
-                (_manualOrderState.productFilter === 'category' ? '<select onchange="Modules.Pedidos._manualOrderSetCategoryFilter(this.value)" style="margin-left:auto;min-width:170px;padding:8px 12px;border:1.5px solid #D4C8C6;border-radius:999px;background:#fff;font-size:12px;font-weight:700;font-family:inherit;outline:none;">' + ['<option value="">Todas as categorias</option>'].concat(_manualOrderAvailableCategories().map(function (cat) { return '<option value="' + _esc(cat) + '"' + (_fold(_manualOrderState.productCategory) === _fold(cat) ? ' selected' : '') + '>' + _esc(cat) + '</option>'; })).join('') + '</select>' : '') +
-              '</div>' +
+              '<label>Buscar produto</label>' +
+              '<div class="manual-order-field-control"><input id="mo-product-search" type="search" value="' + _esc(_manualOrderState.productQuery) + '" oninput="Modules.Pedidos._manualOrderSearchItems(this.value)" placeholder="Buscar por produto, categoria ou tag"></div>' +
             '</div>' +
             '<div id="mo-product-results"></div>' +
           '</section>' +
         '</div>' +
-        '<div style="display:flex;flex-direction:column;gap:14px;position:sticky;top:0;align-self:start;">' +
-          '<section style="background:#fff;border:1px solid #F2EDED;border-radius:14px;padding:14px 14px 12px;display:flex;flex-direction:column;gap:10px;">' +
-            '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">' +
-              '<div>' +
-                '<div style="font-size:11px;font-weight:900;color:#8A7E7C;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Resumo</div>' +
-                '<div style="font-size:16px;font-weight:800;color:#1A1A1A;">Itens selecionados</div>' +
-              '</div>' +
+        '<div class="manual-order-sticky">' +
+          '<section class="manual-order-card">' +
+            '<div class="manual-order-card-head">' +
+              '<div class="manual-order-card-title"><span class="mi">receipt_long</span><div><div class="manual-order-title">Resumo</div><p class="manual-order-hint">Revise itens, pagamento e total antes de criar o pedido.</p></div></div>' +
               '<div id="mo-price-origin" style="font-size:11px;font-weight:800;padding:5px 10px;border-radius:999px;background:#FFF0EE;color:#C4362A;">Origem: manual</div>' +
             '</div>' +
             '<div id="mo-selected-items"></div>' +
             '<div id="mo-summary" style="display:grid;grid-template-columns:1fr;gap:10px;"></div>' +
-            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end;">' +
+            '<div class="manual-order-grid manual-order-summary-grid">' +
               '<div>' +
-                '<label style="font-size:11px;font-weight:700;color:#8A7E7C;display:block;margin-bottom:4px;">Ajuste manual</label>' +
+                '<label>Ajuste manual</label>' +
                 '<input id="mo-adjustment" type="number" step="0.01" value="' + _esc(String(_manualOrderState.adjustment || 0)) + '" oninput="Modules.Pedidos._manualOrderSetAdjustment(this.value)" placeholder="0,00" style="width:100%;padding:10px;border:1.5px solid #D4C8C6;border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;">' +
                 '<div id="mo-adjustment-note" style="font-size:11px;color:#8A7E7C;margin-top:6px;line-height:1.4;"></div>' +
               '</div>' +
-              '<div><label style="font-size:11px;font-weight:700;color:#8A7E7C;display:block;margin-bottom:4px;">Total final</label><div id="mo-total-final" style="width:100%;padding:12px 12px;border:1.5px solid #E6DDDB;border-radius:10px;background:#F8F6F5;font-size:18px;font-weight:900;color:#1A1A1A;">€0,00</div></div>' +
+              '<div><label>Total final</label><div id="mo-total-final" style="width:100%;padding:10px 12px;border:1px solid #E8DCD7;border-radius:12px;background:#FFFCF8;font-size:18px;font-weight:800;color:#1A1A1A;box-sizing:border-box;">€0,00</div></div>' +
+              '<div style="grid-column:1/-1;"><label>Observação do pedido</label><textarea id="mo-note" placeholder="Alguma observação para a cozinha ou atendimento">' + _esc(_manualOrderState.customerNotes || '') + '</textarea></div>' +
             '</div>' +
           '</section>' +
         '</div>' +
@@ -4512,7 +5724,7 @@ Modules.Pedidos = (function () {
 
     var footerWrap = document.createElement('div');
     footerWrap.style.cssText = 'padding:16px 20px;border-top:1px solid #EAE4DA;background:#fff;flex:0 0 auto;display:flex;justify-content:space-between;align-items:center;gap:16px;';
-    footerWrap.innerHTML = '<div style="font-size:12px;color:#6F6860;line-height:1.4;">O canal é herdado automaticamente. O pedido calcula promoções e totais ao vivo.</div>' + footer;
+    footerWrap.innerHTML = '<div style="font-size:12px;color:#6F6860;line-height:1.4;">Revise cliente, canal, entrega e itens antes de criar o pedido.</div>' + footer;
 
     modal.appendChild(header);
     modal.appendChild(body);
@@ -4523,7 +5735,11 @@ Modules.Pedidos = (function () {
 
     window._newOrderModal = { close: _closeManualOrderModal, el: overlay };
     _manualOrderRefresh();
-    setTimeout(function () { if (window.BocaPlaces) BocaPlaces.init('mo-address'); }, 300);
+    setTimeout(function () {
+      if (window.BocaPlaces) {
+        BocaPlaces.init('mo-address', { onPlace: function (data) { _manualOrderApplyPlace('mo-', data, true); } });
+      }
+    }, 300);
   }
 
   function _openTpvOrder() {
@@ -4554,7 +5770,7 @@ Modules.Pedidos = (function () {
       type: 'pickup',
       slot: '',
       note: String(data.note || ''),
-      status: 'Pendente',
+      status: String(data.status || 'Entregado'),
       items: items,
       subtotalOriginal: _num(data.subtotalOriginal != null ? data.subtotalOriginal : data.subtotal),
       subtotal: _num(data.subtotal != null ? data.subtotal : data.subtotalOriginal),
@@ -4583,8 +5799,14 @@ Modules.Pedidos = (function () {
       source: 'TPV',
       originChannel: 'TPV',
       originSource: 'TPV',
-      priceOrigin: 'manual',
-      manualAdjustment: true,
+      cashSessionId: String(data.cashSessionId || ''),
+      caixaId: String(data.cashSessionId || ''),
+      cashAccountId: String(data.cashAccountId || (_tpvConfig && _tpvConfig.cashAccountId) || ''),
+      cashAccountName: String(data.cashAccountName || (_tpvConfig && _tpvConfig.cashAccountName) || ''),
+      priceOrigin: _num(data.promoDiscountTotal || 0) > 0 ? 'promo' : 'manual',
+      manualAdjustment: _num(data.manualAdjustmentValue || 0) !== 0,
+      completedAt: new Date().toISOString(),
+      deliveredAt: new Date().toISOString(),
       createdAt: _manualOrderCreatedAt(orderTime)
     };
     payload.fiscal = _ensureOrderFiscalDefaults(payload).fiscal;
@@ -4592,6 +5814,9 @@ Modules.Pedidos = (function () {
       var createdId = (ref && ref.id) ? String(ref.id) : '';
       if (createdId) payload.id = createdId;
       return _syncOrderFinanceMovement(createdId || '', payload).then(function () {
+        return _syncOrderStockMovement(createdId || '', payload, payload.status);
+      }).then(function (stockPatch) {
+        if (stockPatch && typeof stockPatch === 'object') Object.assign(payload, stockPatch);
         return payload;
       });
     });
@@ -4638,10 +5863,17 @@ Modules.Pedidos = (function () {
     var phone = String(data.phone || '').trim();
     var email = String(data.email || '').trim();
     var address = String(data.address || '').trim();
+    var number = String(data.number || '').trim();
+    var complement = String(data.complement || '').trim();
+    var neighborhood = String(data.neighborhood || data.zone || '').trim();
+    var city = String(data.city || '').trim();
+    var province = String(data.province || '').trim();
+    var country = String(data.country || '').trim();
+    var postalCode = String(data.postalCode || '').trim();
     var zone = String(data.zone || '').trim();
     var channel = String(data.channel || 'manual').trim() || 'manual';
     var note = String(data.note || '').trim();
-    var phoneKey = _phone(phone);
+    var phoneKey = _phoneMatchKey(phone);
     var emailKey = _clean(email);
 
     if (selectedId) return Promise.resolve(selectedId);
@@ -4650,7 +5882,7 @@ Modules.Pedidos = (function () {
     return DB.getAll('store_customers').catch(function () { return _customers || []; }).then(function (rows) {
       var list = Array.isArray(rows) ? rows : [];
       var match = list.find(function (c) {
-        if (phoneKey && _phone(c.phone || c.whatsapp || '') === phoneKey) return true;
+        if (phoneKey && _phoneMatchKey(c.phone || c.whatsapp || '') === phoneKey) return true;
         if (!phoneKey && emailKey && _clean(c.email || '') === emailKey) return true;
         return false;
       }) || null;
@@ -4660,8 +5892,26 @@ Modules.Pedidos = (function () {
         whatsapp: phone || (match && (match.whatsapp || match.phone)) || '',
         email: email || (match && match.email) || '',
         address: address || (match && match.address) || '',
-        neighborhood: zone || (match && (match.neighborhood || match.zone)) || '',
-        zone: zone || (match && (match.zone || match.neighborhood)) || '',
+        number: number || (match && (match.number || match.numero)) || '',
+        complement: complement || (match && (match.complement || match.reference)) || '',
+        neighborhood: neighborhood || (match && (match.neighborhood || match.zone)) || '',
+        city: city || (match && (match.city || match.cidade)) || '',
+        province: province || (match && (match.province || match.state || match.estado)) || '',
+        country: country || (match && (match.country || match.pais)) || '',
+        postalCode: postalCode || (match && (match.postalCode || match.zip || match.codigoPostal)) || '',
+        zone: zone || neighborhood || postalCode || (match && (match.zone || match.neighborhood)) || '',
+        deliveryAddresses: (match && Array.isArray(match.deliveryAddresses) && match.deliveryAddresses.length) ? match.deliveryAddresses : (address || postalCode || neighborhood ? [{
+          id: 'principal',
+          label: 'Endereço principal',
+          address: address,
+          number: number,
+          complement: complement,
+          neighborhood: neighborhood,
+          city: city,
+          province: province,
+          country: country,
+          postalCode: postalCode
+        }] : []),
         status: (match && match.status) || 'ativo',
         origin: (match && match.origin) || channel,
         mainChannel: (match && (match.mainChannel || match.channelName || match.channel)) || channel,
@@ -4695,6 +5945,140 @@ Modules.Pedidos = (function () {
     });
   }
 
+  function _openManualOrderQuickCustomer() {
+    var existing = document.getElementById('manual-order-quick-customer');
+    if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+    var phoneParts = _manualOrderPhoneParts(_manualOrderState.customerPhone || '');
+    var overlay = document.createElement('div');
+    overlay.id = 'manual-order-quick-customer';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:7200;background:rgba(31,31,31,.38);display:flex;align-items:center;justify-content:center;padding:16px;';
+    var modal = document.createElement('div');
+    modal.style.cssText = 'width:100%;max-width:760px;max-height:min(90vh,900px);max-height:min(90dvh,900px);background:#fff;border-radius:18px;box-shadow:0 24px 70px rgba(31,31,31,.22);overflow:hidden;font-family:Manrope,Inter,sans-serif;display:flex;flex-direction:column;';
+    modal.innerHTML =
+      '<style>' +
+        '.quick-client-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:14px;box-shadow:0 10px 24px rgba(31,31,31,.04);display:flex;flex-direction:column;gap:12px;}' +
+        '.quick-client-grid{display:grid;grid-template-columns:minmax(220px,.85fr) minmax(320px,1.15fr);gap:12px;align-items:end;}' +
+        '.quick-client-grid .wide{grid-column:1/-1;}' +
+        '.quick-client-field span{font-size:11px;font-weight:650;color:#8A7E7C;display:block;margin-bottom:5px;letter-spacing:.02em;}' +
+        '.quick-client-control{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:6px;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;}' +
+        '.quick-client-control:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
+        '.quick-client-control input{width:100%;height:34px;border:0;background:transparent;outline:none;font-size:14px;font-family:inherit;color:#1F1F1F;padding:0 8px;box-sizing:border-box;}' +
+        '.quick-client-phone{display:grid;grid-template-columns:124px minmax(220px,1fr);gap:8px;align-items:center;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:6px;}' +
+        '.quick-client-phone:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
+        '.quick-client-phone select,.quick-client-phone input{width:100%;height:34px;border:0;background:transparent;outline:none;font-size:14px;font-family:inherit;color:#1F1F1F;padding:0 8px;box-sizing:border-box;}' +
+        '.quick-client-phone select{border-right:1px solid #E8DCD7;}' +
+        '.quick-client-scroll{scrollbar-width:none;-ms-overflow-style:none;}' +
+        '.quick-client-scroll::-webkit-scrollbar{display:none;}' +
+        '@media(max-width:760px){.quick-client-grid{grid-template-columns:1fr;}.quick-client-grid .wide{grid-column:auto;}.quick-client-phone{grid-template-columns:118px minmax(0,1fr);}}' +
+      '</style>' +
+      '<div style="padding:16px 20px;border-bottom:1px solid #F0E8E3;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex:0 0 auto;background:#fff;">' +
+        '<div><div style="font-size:11px;font-weight:750;color:#B42318;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;">Cliente rápido</div><h3 style="margin:0;font-size:20px;line-height:1.15;color:#1F1F1F;">Cadastrar cliente</h3></div>' +
+        '<button type="button" onclick="Modules.Pedidos._closeManualOrderQuickCustomer()" style="width:34px;height:34px;border-radius:10px;border:1px solid #EAE4DA;background:#fff;color:#1F1F1F;cursor:pointer;font-family:inherit;">×</button>' +
+      '</div>' +
+      '<div class="quick-client-scroll" style="padding:14px 16px;background:#FAF8F5;overflow:auto;flex:1 1 auto;min-height:0;">' +
+        '<section class="quick-client-card">' +
+          '<div class="quick-client-grid">' +
+            '<label class="quick-client-field"><span>Nome do cliente</span><div class="quick-client-control"><input id="mo-qc-name" type="text" value="' + _esc(_manualOrderState.customerName || '') + '" placeholder="Nome"></div></label>' +
+            '<label class="quick-client-field"><span>WhatsApp</span><div class="quick-client-phone"><select id="mo-qc-phone-prefix">' + _manualOrderPhonePrefixOptions(phoneParts.prefix) + '</select><input id="mo-qc-phone" type="text" value="' + _esc(phoneParts.number) + '" placeholder="' + _esc(_manualOrderPhonePlaceholder()) + '"></div></label>' +
+            '<label class="quick-client-field wide"><span>E-mail</span><div class="quick-client-control"><input id="mo-qc-email" type="email" value="' + _esc(_manualOrderState.customerEmail || '') + '" placeholder="E-mail"></div></label>' +
+            '<label class="quick-client-field"><span>Código postal</span><div class="quick-client-control"><input id="mo-qc-postal-code" type="text" value="' + _esc(_manualOrderState.customerPostalCode || '') + '" placeholder="CP"></div></label>' +
+            '<label class="quick-client-field wide"><span>Rua</span><div class="quick-client-control"><input id="mo-qc-address" type="text" value="' + _esc(_manualOrderState.customerAddress || '') + '" placeholder="Endereço de entrega"></div></label>' +
+            '<label class="quick-client-field"><span>Número / portal</span><div class="quick-client-control"><input id="mo-qc-number" type="text" value="' + _esc(_manualOrderState.customerAddressNumber || '') + '" placeholder="Nº"></div></label>' +
+            '<label class="quick-client-field"><span>Piso / referência</span><div class="quick-client-control"><input id="mo-qc-complement" type="text" value="' + _esc(_manualOrderState.customerAddressComplement || '') + '" placeholder="Piso, porta ou referência"></div></label>' +
+            '<label class="quick-client-field"><span>Bairro</span><div class="quick-client-control"><input id="mo-qc-neighborhood" type="text" value="' + _esc(_manualOrderState.customerNeighborhood || '') + '" placeholder="Bairro"></div></label>' +
+            '<label class="quick-client-field"><span>Localidade</span><div class="quick-client-control"><input id="mo-qc-city" type="text" value="' + _esc(_manualOrderState.customerCity || '') + '" placeholder="Cidade"></div></label>' +
+            '<label class="quick-client-field"><span>Província</span><div class="quick-client-control"><input id="mo-qc-province" type="text" value="' + _esc(_manualOrderState.customerProvince || '') + '" placeholder="Província"></div></label>' +
+            '<label class="quick-client-field"><span>País</span><div class="quick-client-control"><input id="mo-qc-country" type="text" value="' + _esc(_manualOrderState.customerCountry || '') + '" placeholder="País"></div></label>' +
+          '</div>' +
+        '</section>' +
+      '</div>' +
+      '<div style="padding:13px 20px;border-top:1px solid #F0E8E3;background:#fff;display:flex;justify-content:flex-end;align-items:center;gap:12px;flex:0 0 auto;">' +
+        '<div style="display:flex;gap:10px;"><button type="button" onclick="Modules.Pedidos._closeManualOrderQuickCustomer()" style="height:40px;padding:0 14px;border-radius:10px;border:1px solid #EAE4DA;background:#fff;color:#1F1F1F;font-size:13px;font-weight:650;cursor:pointer;font-family:inherit;">Cancelar</button><button type="button" onclick="Modules.Pedidos._saveManualOrderQuickCustomer()" style="height:40px;padding:0 16px;border-radius:10px;border:0;background:#B42318;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(180,35,24,.16);">Salvar cliente</button></div>' +
+      '</div>';
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    overlay.onclick = function (event) { if (event.target === overlay) _closeManualOrderQuickCustomer(); };
+    setTimeout(function () {
+      if (window.BocaPlaces) {
+        BocaPlaces.init('mo-qc-address', { onPlace: function (data) { _manualOrderApplyPlace('mo-qc-', data, false); } });
+      }
+    }, 200);
+  }
+
+  function _closeManualOrderQuickCustomer() {
+    var el = document.getElementById('manual-order-quick-customer');
+    if (el && el.parentNode) el.parentNode.removeChild(el);
+  }
+
+  function _saveManualOrderQuickCustomer() {
+    var name = String((document.getElementById('mo-qc-name') || {}).value || '').trim();
+    var phone = _manualPhoneFull(String((document.getElementById('mo-qc-phone-prefix') || {}).value || '').trim(), String((document.getElementById('mo-qc-phone') || {}).value || '').trim());
+    var email = String((document.getElementById('mo-qc-email') || {}).value || '').trim();
+    var address = String((document.getElementById('mo-qc-address') || {}).value || '').trim();
+    var number = String((document.getElementById('mo-qc-number') || {}).value || '').trim();
+    var complement = String((document.getElementById('mo-qc-complement') || {}).value || '').trim();
+    var neighborhood = String((document.getElementById('mo-qc-neighborhood') || {}).value || '').trim();
+    var city = String((document.getElementById('mo-qc-city') || {}).value || '').trim();
+    var province = String((document.getElementById('mo-qc-province') || {}).value || '').trim();
+    var country = String((document.getElementById('mo-qc-country') || {}).value || '').trim();
+    var postalCode = String((document.getElementById('mo-qc-postal-code') || {}).value || '').trim();
+    var zone = neighborhood || postalCode;
+    if (!(name || phone || email)) {
+      UI.toast('Informe nome, WhatsApp ou e-mail para cadastrar o cliente.', 'error');
+      return;
+    }
+    var channel = String(_manualOrderState.channel || 'manual');
+    var payload = {
+      name: name || phone || email || 'Cliente',
+      phone: phone,
+      whatsapp: phone,
+      email: email,
+      address: address,
+      number: number,
+      complement: complement,
+      neighborhood: neighborhood,
+      city: city,
+      province: province,
+      country: country,
+      postalCode: postalCode,
+      zone: zone,
+      deliveryAddresses: (address || postalCode || neighborhood) ? [{
+        id: 'principal',
+        label: 'Endereço principal',
+        address: address,
+        number: number,
+        complement: complement,
+        neighborhood: neighborhood,
+        city: city,
+        province: province,
+        country: country,
+        postalCode: postalCode
+      }] : [],
+      status: 'ativo',
+      origin: channel,
+      mainChannel: channel,
+      channelName: channel,
+      acceptsMarketing: false,
+      preferences: '',
+      allergies: '',
+      notes: '',
+      internalNotes: '',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    DB.add('store_customers', payload).then(function (ref) {
+      var id = String((ref && ref.id) || ref || '');
+      var customer = Object.assign({}, payload, { id: id });
+      _customers.push(customer);
+      _manualOrderState.customerQuery = '';
+      _manualOrderSelectCustomer(id);
+      _closeManualOrderQuickCustomer();
+      UI.toast('Cliente cadastrado e selecionado.', 'success');
+    }).catch(function (err) {
+      UI.toast('Erro ao cadastrar cliente: ' + (err && err.message ? err.message : 'falha ao salvar'), 'error');
+    });
+  }
+
   function _manualOrderCanSubmit() {
     var name = String(_manualOrderState.customerName || '').trim();
     var phone = String(_manualOrderState.customerPhone || '').trim();
@@ -4720,32 +6104,65 @@ Modules.Pedidos = (function () {
 
   function _toggleAlarm() {
     _alarmOn = !_alarmOn;
-    var btn = document.getElementById('alarm-btn');
-    if (btn) btn.textContent = '🔔 Alarme: ' + (_alarmOn ? 'ON' : 'OFF');
+    _saveAlarmPreference();
+    _paintAlarmButton();
+    if (_alarmOn && !_audioCtx) {
+      try { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
+    }
     UI.toast('Alarme ' + (_alarmOn ? 'ativado' : 'desativado'), 'info');
   }
 
   function _testAlarm() {
-    _playAlarm();
+    _playAlarm(true);
   }
 
-  function _playAlarm() {
-    if (!_alarmOn) return;
+  function _readAlarmPreference() {
+    try {
+      return window.localStorage && localStorage.getItem('bocafood:kitchenAlarm') === 'on';
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function _saveAlarmPreference() {
+    try {
+      if (window.localStorage) localStorage.setItem('bocafood:kitchenAlarm', _alarmOn ? 'on' : 'off');
+    } catch (e) {}
+  }
+
+  function _paintAlarmButton() {
+    var btn = document.getElementById('alarm-btn');
+    if (!btn) return;
+    btn.innerHTML = '<span class="mi" style="font-size:17px;color:' + (_alarmOn ? '#B42318' : '#8A7E7C') + ';">notifications</span>Alarme: ' + (_alarmOn ? 'ON' : 'OFF');
+    btn.style.background = _alarmOn ? '#FFF7F5' : '#fff';
+    btn.style.borderColor = _alarmOn ? '#E4CFC8' : '#E6E1D8';
+  }
+
+  function _playAlarm(force) {
+    if (!_alarmOn && !force) return;
     try {
       if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      var osc = _audioCtx.createOscillator();
-      var gain = _audioCtx.createGain();
-      osc.connect(gain);
-      gain.connect(_audioCtx.destination);
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(880, _audioCtx.currentTime);
-      osc.frequency.setValueAtTime(660, _audioCtx.currentTime + 0.1);
-      osc.frequency.setValueAtTime(880, _audioCtx.currentTime + 0.2);
-      gain.gain.setValueAtTime(0.4, _audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, _audioCtx.currentTime + 0.4);
-      osc.start(_audioCtx.currentTime);
-      osc.stop(_audioCtx.currentTime + 0.4);
+      if (_audioCtx.state === 'suspended' && _audioCtx.resume) _audioCtx.resume();
+      var start = _audioCtx.currentTime + 0.02;
+      for (var i = 0; i < 7; i++) {
+        _alarmTone(start + i * 0.34, 0.22, i % 2 ? 740 : 980);
+      }
     } catch (e) { console.warn('Audio not available'); }
+  }
+
+  function _alarmTone(start, duration, frequency) {
+    var osc = _audioCtx.createOscillator();
+    var gain = _audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(_audioCtx.destination);
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(frequency, start);
+    osc.frequency.setValueAtTime(frequency * 0.82, start + duration * 0.52);
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(0.55, start + 0.025);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+    osc.start(start);
+    osc.stop(start + duration + 0.03);
   }
 
   function _num(v) {
@@ -4762,12 +6179,79 @@ Modules.Pedidos = (function () {
     return isNaN(n) ? 0 : n;
   }
 
+  function _itemMoneyTotal(item) {
+    item = item || {};
+    var qty = _num(item.qty != null ? item.qty : item.quantity != null ? item.quantity : 1) || 1;
+    var direct = _num(item.total != null ? item.total : item.subtotal != null ? item.subtotal : item.lineTotal != null ? item.lineTotal : 0);
+    if (direct > 0) return direct;
+    var unit = _num(item.finalPrice != null ? item.finalPrice : item.price != null ? item.price : item.unitPrice != null ? item.unitPrice : item.promoUnitPrice != null ? item.promoUnitPrice : 0);
+    return unit * qty;
+  }
+
+  function _normalizeMoneyAgainstExpected(rawValue, expected) {
+    var raw = _num(rawValue);
+    expected = _num(expected);
+    if (!(raw > 0) || !(expected > 0)) return raw;
+    var divided = raw / 100;
+    if (raw > expected * 50 && Math.abs(divided - expected) <= Math.max(0.05, expected * 0.03)) return +divided.toFixed(2);
+    return raw;
+  }
+
+  function _orderItemsSubtotalForMoney(order) {
+    var items = Array.isArray(order && order.items) ? order.items : [];
+    return items.reduce(function (sum, item) { return sum + _itemMoneyTotal(item); }, 0);
+  }
+
+  function _orderFinanceTotal(order) {
+    order = order || {};
+    var raw = order.total != null ? order.total : order.finalSubtotal != null ? order.finalSubtotal : order.subtotal != null ? order.subtotal : 0;
+    var itemsSubtotal = _orderItemsSubtotalForMoney(order);
+    var deliveryFee = _num(order.deliveryFee != null ? order.deliveryFee : order.shippingFee != null ? order.shippingFee : order.fee || 0);
+    var couponDiscount = _num(order.couponDiscountTotal != null ? order.couponDiscountTotal : order.couponDiscount || 0);
+    var pointsDiscount = _num(order.pointsDiscountTotal != null ? order.pointsDiscountTotal : order.pointsDiscount || 0);
+    var expected = itemsSubtotal > 0 ? Math.max(0, itemsSubtotal + deliveryFee - couponDiscount - pointsDiscount) : 0;
+    return _normalizeMoneyAgainstExpected(raw, expected || itemsSubtotal);
+  }
+
+  function _orderHasInflatedMoneyScale(order) {
+    order = order || {};
+    var raw = _num(order.total != null ? order.total : order.finalSubtotal != null ? order.finalSubtotal : order.subtotal != null ? order.subtotal : 0);
+    var normalized = _orderFinanceTotal(order);
+    return raw > 0 && normalized > 0 && raw > normalized * 50 && Math.abs((raw / 100) - normalized) <= Math.max(0.05, normalized * 0.03);
+  }
+
+  function _repairInflatedFinanceMovements(list) {
+    (list || []).forEach(function (order) {
+      var id = String(order && order.id || '');
+      if (!id || _financeScaleRepairIds[id]) return;
+      if (!_orderHasInflatedMoneyScale(order)) return;
+      _financeScaleRepairIds[id] = true;
+      _syncOrderFinanceMovement(id, order).catch(function () {});
+    });
+  }
+
   function _clean(v) {
     return String(v == null ? '' : v).trim().toLowerCase();
   }
 
   function _phone(v) {
     return String(v == null ? '' : v).replace(/\D/g, '');
+  }
+
+  function _phoneMatchKey(v) {
+    var digits = _phone(v);
+    return digits.length >= 6 ? digits : '';
+  }
+
+  function _customerPhoneMatchIsUnique(phone, customerId) {
+    var key = _phoneMatchKey(phone);
+    if (!key) return false;
+    var matches = (_customers || []).filter(function (c) {
+      return _phoneMatchKey(c.phone || c.whatsapp || '') === key;
+    });
+    if (matches.length !== 1) return false;
+    if (!customerId) return true;
+    return String(matches[0].id || '') === String(customerId || '');
   }
 
   function _dateTs(o) {
@@ -4786,11 +6270,13 @@ Modules.Pedidos = (function () {
   function _ordersForClient(c) {
     var id = String(c && c.id || '').trim();
     var name = _clean(c && c.name || '');
-    var phone = _phone(c && c.phone || c && c.whatsapp || '');
+    var phone = _phoneMatchKey(c && (c.phone || c.whatsapp) || '');
     var email = _clean(c && c.email || '');
+    var uniquePhone = phone && _customerPhoneMatchIsUnique(phone, id);
     return (_orders || []).filter(function (o) {
-      if (id && String(o.customerId || o.clientId || '') === id) return true;
-      if (phone && _phone(o.phone || o.customerPhone || o.whatsapp) === phone) return true;
+      var orderCustomerId = String(o.customerId || o.clientId || '').trim();
+      if (orderCustomerId) return !!id && orderCustomerId === id;
+      if (uniquePhone && _phoneMatchKey(o.phone || o.customerPhone || o.whatsapp) === phone) return true;
       if (email && _clean(o.email || o.customerEmail) === email) return true;
       if (name && _clean(o.customerName || o.clientName || o.name) === name) return true;
       return false;
@@ -4835,7 +6321,8 @@ Modules.Pedidos = (function () {
   }
 
   function _paymentMethodLabel(value) {
-    var key = _fold(value || '');
+    var raw = _paymentMethodRaw(value);
+    var key = _fold(raw || '');
     var labels = {
       cash: 'Dinheiro',
       dinheiro: 'Dinheiro',
@@ -4852,17 +6339,26 @@ Modules.Pedidos = (function () {
       other: 'Outro',
       outro: 'Outro'
     };
-    return labels[key] || _title(value || '');
+    return labels[key] || _title(raw || '');
   }
 
   function _paymentMethodOptions(selected) {
     var source = [];
     if (_financeConfig && Array.isArray(_financeConfig.formas_pagamento)) source = _financeConfig.formas_pagamento.slice();
     if (!source.length) source = ['Dinheiro', 'Cartão', 'PIX', 'MB Way', 'Transferência', 'Outro'];
-    var options = [{ value: '', label: 'Sem forma definida' }].concat(source.map(function (item) {
+    var selectedRaw = _paymentMethodRaw(selected);
+    var selectedValue = _paymentMethodValue(selected);
+    var options = [{ value: '', label: 'Sem forma definida' }].concat(source.filter(function (item) {
+      if (!item || typeof item !== 'object') return true;
+      var raw = _paymentMethodRaw(item);
+      return item.ativo !== false || _fold(raw) === _fold(selectedRaw) || _fold(_paymentMethodValue(item)) === _fold(selectedValue);
+    }).map(function (item) {
       return { value: _paymentMethodValue(item), label: _paymentMethodLabel(item) };
     }));
-    var current = _fold(selected || '');
+    if (selectedValue && !options.some(function (opt) { return _fold(opt.value) === _fold(selectedValue); })) {
+      options.push({ value: selectedValue, label: _paymentMethodLabel(selectedRaw || selectedValue) });
+    }
+    var current = _fold(selectedValue || '');
     return options.map(function (opt) {
       var value = String(opt.value || '');
       var sel = current === _fold(value) || (!current && !value) ? ' selected' : '';
@@ -4871,7 +6367,8 @@ Modules.Pedidos = (function () {
   }
 
   function _paymentMethodValue(value) {
-    var key = _fold(value || '');
+    var raw = _paymentMethodRaw(value);
+    var key = _fold(raw || '');
     var map = {
       dinheiro: 'cash',
       cash: 'cash',
@@ -4888,6 +6385,16 @@ Modules.Pedidos = (function () {
       other: 'other'
     };
     return map[key] || key;
+  }
+
+  function _paymentMethodRaw(value) {
+    if (!value) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number') return String(value);
+    if (typeof value === 'object') {
+      return _firstText(value.nome, value.name, value.label, value.title, value.id, value.slug, '');
+    }
+    return String(value || '');
   }
 
   function _paymentStatusOptions(selected) {
@@ -4931,19 +6438,31 @@ Modules.Pedidos = (function () {
     return 'previsto';
   }
 
+  function _orderFinanceAccountId(order) {
+    order = order || {};
+    if (_isTpvOrder(order)) return String(order.cashAccountId || order.tpvCashAccountId || (_tpvConfig && _tpvConfig.cashAccountId) || '');
+    return String(order.conta_id || order.contaBancariaId || order.accountId || '');
+  }
+
+  function _isTpvOrder(order) {
+    var channel = _fold(_firstText(order && order.channel, order && order.source, order && order.originChannel, order && order.originSource, ''));
+    return channel === 'tpv' || channel === 'venda presencial';
+  }
+
   function _syncOrderFinanceMovement(orderId, order) {
     orderId = String(orderId || '');
     if (!orderId) return Promise.resolve(false);
     order = order || {};
-    var total = _num(order.total != null ? order.total : order.finalSubtotal != null ? order.finalSubtotal : order.subtotal != null ? order.subtotal : 0);
+    var total = _orderFinanceTotal(order);
     var paymentStatus = _orderPaymentStatus(order);
-    var paidAmount = _num(order.paidAmount != null ? order.paidAmount : order.amountPaid != null ? order.amountPaid : order.valuePaid != null ? order.valuePaid : 0);
+    var paidAmount = _normalizeMoneyAgainstExpected(order.paidAmount != null ? order.paidAmount : order.amountPaid != null ? order.amountPaid : order.valuePaid != null ? order.valuePaid : 0, total);
     if (paymentStatus === 'pago') paidAmount = total;
     if (paymentStatus !== 'parcial') paidAmount = paymentStatus === 'pago' ? total : 0;
     var finStatus = _paymentStatusFinanceStatus(paymentStatus);
     var data = (finStatus === 'previsto'
       ? (_firstText(order.deliveryDate, order.deliveryDateISO, order.scheduleDate, order.createdAt, _today()))
       : (_firstText(order.paidAt, order.updatedAt, order.createdAt, _today())));
+    var financeAccountId = _orderFinanceAccountId(order);
     var payload = {
       origem: 'pedido',
       pedidoId: orderId,
@@ -4967,6 +6486,10 @@ Modules.Pedidos = (function () {
       phone: String(order.customerPhone || order.phone || order.whatsapp || ''),
       updatedAt: new Date().toISOString()
     };
+    if (financeAccountId) {
+      payload.conta_id = financeAccountId;
+      payload.contaBancariaId = financeAccountId;
+    }
     if (order.financeMovementId) {
       return DB.update('movimentacoes', order.financeMovementId, payload).then(function () { return true; }).catch(function () { return false; });
     }
@@ -5028,7 +6551,7 @@ Modules.Pedidos = (function () {
     _clearKitchenFilters: _clearKitchenFilters, _clearOrderFilters: _clearOrderFilters, _clearClientFilters: _clearClientFilters,
     _setReviewUi: _setReviewUi, _setReviewPage: _setReviewPage, _setReviewPageSize: _setReviewPageSize,
     _onDragStart: _onDragStart, _onDragEnd: _onDragEnd, _onDrop: _onDrop,
-    _openDetail: _openDetail, _toggleItem: _toggleItem, _saveDetail: _saveDetail,
+    _openDetail: _openDetail, _toggleItem: _toggleItem, _removeDetailItem: _removeDetailItem, _openDetailChoicesModal: _openDetailChoicesModal, _saveDetailChoices: _saveDetailChoices, _closeDetailChoicesModal: _closeDetailChoicesModal, _formatDetailMoneyField: _formatDetailMoneyField, _saveDetail: _saveDetail,
     _saveOrderCustomer: _saveOrderCustomer, _openOrderCustomerModal: _openOrderCustomerModal,
     _closeCustomerModal: _closeCustomerModal, _closeDetailModal: _closeDetailModal,
     _showDetailWhatsappPrompt: _showDetailWhatsappPrompt, _hideDetailWhatsappPrompt: _hideDetailWhatsappPrompt,
@@ -5036,12 +6559,17 @@ Modules.Pedidos = (function () {
     _saveKitchenDetail: _saveKitchenDetail, _waFromDetail: _waFromDetail, _waFromKitchenDetail: _waFromKitchenDetail, _whatsapp: _whatsapp, _cancelOrder: _cancelOrder,
     _openNewOrder: _openNewOrder, _openTpvOrder: _openTpvOrder, _createTpvOrder: _createTpvOrder, _saveNewOrder: _saveNewOrder,
     _manualOrderSearchCustomers: _manualOrderSearchCustomers,
+    _manualOrderFocusCustomers: _manualOrderFocusCustomers,
+    _manualOrderChooseCustomer: _manualOrderChooseCustomer,
+    _manualOrderSyncPhoneFromParts: _manualOrderSyncPhoneFromParts,
     _manualOrderSearchItems: _manualOrderSearchItems,
     _manualOrderField: _manualOrderField,
     _manualOrderSetType: _manualOrderSetType,
+    _manualOrderSetDeliveryAddress: _manualOrderSetDeliveryAddress,
     _manualOrderSetAdjustment: _manualOrderSetAdjustment,
     _manualOrderSetShippingFee: _manualOrderSetShippingFee,
     _manualOrderSetPaymentMethod: _manualOrderSetPaymentMethod,
+    _manualOrderSetChannel: _manualOrderSetChannel,
     _manualOrderSetPaymentStatus: _manualOrderSetPaymentStatus,
     _manualOrderSetPaidAmount: _manualOrderSetPaidAmount,
     _manualOrderSetOrderTime: _manualOrderSetOrderTime,
@@ -5054,6 +6582,9 @@ Modules.Pedidos = (function () {
     _manualOrderChangeQty: _manualOrderChangeQty,
     _manualOrderRemoveProduct: _manualOrderRemoveProduct,
     _manualOrderMaybeSyncShipping: _manualOrderMaybeSyncShipping,
+    _openManualOrderQuickCustomer: _openManualOrderQuickCustomer,
+    _closeManualOrderQuickCustomer: _closeManualOrderQuickCustomer,
+    _saveManualOrderQuickCustomer: _saveManualOrderQuickCustomer,
     _closeManualOrderModal: _closeManualOrderModal,
     _openClientProfile: _openClientProfile, _openClientHistory: _openClientHistory, _openClientEdit: _openClientEdit, _openReview: _openReview,
     _renderCatalogoAvaliacoes: _renderCatalogoAvaliacoes,
@@ -5064,9 +6595,11 @@ Modules.Pedidos = (function () {
     _showKitchenWhatsappPrompt: _showKitchenWhatsappPrompt,
     _closeKitchenWhatsappPrompt: _closeKitchenWhatsappPrompt,
     _sendKitchenWhatsapp: _sendKitchenWhatsapp,
-    _detailPaymentSync: _detailPaymentSync,
-    _refreshDetailView: _refreshDetailView,
-    _applyPointsDiscount: _applyPointsDiscount,
-    _quickStatus: _quickStatus
-  };
+	    _detailPaymentSync: _detailPaymentSync,
+	    _refreshDetailView: _refreshDetailView,
+	    _openOrderStockResolution: _openOrderStockResolution,
+	    _saveOrderStockResolution: _saveOrderStockResolution,
+	    _applyPointsDiscount: _applyPointsDiscount,
+	    _quickStatus: _quickStatus
+	  };
 })();

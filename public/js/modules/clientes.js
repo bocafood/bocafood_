@@ -11,17 +11,15 @@ Modules.Clientes = (function () {
   var _pointsConfig = { earnPerEuro: 1, redeemRate: 10, minimumPointsToUse: 50, maxDiscountPct: 20 };
   var _view = [];
   var _editingId = null;
+  var _clienteDeliveryAddresses = [];
+  var _clienteAddressFormOpen = false;
+  var _clienteAddressEditIndex = -1;
   var _filters = { q: '', status: '', segment: '', origin: '' };
+  var _page = { page: 1, perPage: 10 };
 
   function render() {
     var app = document.getElementById('app');
     app.innerHTML = '<section class="module-page">' +
-      '<div class="module-head" style="align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px;">' +
-        '<div style="min-width:0;flex:1 1 420px;"><h1 style="font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;line-height:1.2;">Clientes</h1><p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0 0 10px;max-width:760px;">Base de clientes, histórico de compras, preferências e ações de relacionamento.</p><div id="clientes-head-chips" style="display:flex;gap:8px;flex-wrap:wrap;"></div></div>' +
-        '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;">' +
-          '<button class="bf-btn-primary" onclick="Modules.Clientes._openModal(null)" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;display:inline-flex;align-items:center;gap:8px;"><span class="mi" style="font-size:16px;">person_add</span>Novo Cliente</button>' +
-        '</div>' +
-      '</div>' +
       '<div id="clientes-content" class="module-content"><div class="loading-inline">Carregando...</div></div>' +
       '</section>';
     _load();
@@ -65,18 +63,56 @@ Modules.Clientes = (function () {
     var root = document.getElementById('clientes-content');
     if (!root) return;
     var data = _filtered();
-    var total = _view.length;
-    var recurrent = _view.filter(function (c) { return c._stats.ordersCount >= 2; }).length;
-    var inactive = _view.filter(function (c) { return c._stats.segment === 'inativo'; }).length;
-    var headChips = document.getElementById('clientes-head-chips');
-    if (headChips) {
-      headChips.innerHTML = _chip(total + ' clientes') + _chip(recurrent + ' recorrentes') + _chip(inactive + ' inativos');
-    }
-    root.innerHTML = '<div class="bf-page" style="display:flex;flex-direction:column;gap:16px;">' +
+    var paging = _page || (_page = { page: 1, perPage: 10 });
+    var totalPages = Math.max(1, Math.ceil(data.length / paging.perPage));
+    if (paging.page > totalPages) paging.page = totalPages;
+    if (paging.page < 1) paging.page = 1;
+    var start = data.length ? ((paging.page - 1) * paging.perPage + 1) : 0;
+    var end = data.length ? Math.min(paging.page * paging.perPage, data.length) : 0;
+    var pageData = data.slice((paging.page - 1) * paging.perPage, paging.page * paging.perPage);
+    root.innerHTML = _clientesStyles() + '<div class="bf-page clientes-page">' +
+      '<div class="clientes-head">' +
+        '<div style="min-width:0;flex:1 1 420px;">' +
+          '<h2 class="clientes-title">Clientes</h2>' +
+          '<p class="clientes-subtitle">Base de clientes, histórico de compras, preferências e ações de relacionamento.</p>' +
+        '</div>' +
+        '<button type="button" class="clientes-primary" onclick="Modules.Clientes._openModal(null)"><span class="mi" style="font-size:16px;">person_add</span>Novo Cliente</button>' +
+      '</div>' +
       _kpis() +
       _filtersHTML(data) +
-      '<div id="clientes-list">' + _list(data) + '</div>' +
+      '<div id="clientes-list">' + _list(pageData, data.length, start, end, paging.page, totalPages, paging.perPage) + '</div>' +
       '</div>';
+  }
+
+  function _clientesStyles() {
+    return '<style>' +
+      '.clientes-page{display:flex;flex-direction:column;gap:16px;}' +
+      '.clientes-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;}' +
+      '.clientes-title{font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;line-height:1.15;}' +
+      '.clientes-subtitle{font-size:13px;color:#6F6860;line-height:1.5;margin:0;max-width:760px;}' +
+      '.clientes-primary{height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;transition:transform .16s ease,box-shadow .16s ease,background .16s ease;}' +
+      '.clientes-primary:hover{background:#9F1F16;transform:translateY(-1px);box-shadow:0 8px 18px rgba(180,35,24,.22);}' +
+      '.clientes-filter{background:linear-gradient(180deg,#FFFFFF 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.055);}' +
+      '.clientes-filter-grid{display:grid;grid-template-columns:minmax(260px,1fr) minmax(155px,210px) minmax(165px,220px) minmax(175px,230px);gap:11px 12px;align-items:end;}' +
+      '.clientes-field{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:0 12px;min-height:42px;display:flex;align-items:center;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;}' +
+      '.clientes-field:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
+      '.clientes-field input,.clientes-field select{width:100%;height:40px;border:0;background:transparent;outline:none;font-size:14px;font-family:inherit;color:#1F1F1F;box-sizing:border-box;}' +
+      '.clientes-field select{appearance:none;-webkit-appearance:none;-moz-appearance:none;padding-right:30px;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 4px center;background-size:14px;}' +
+      '.clientes-filter-actions{display:flex;justify-content:flex-start;margin-top:11px;}' +
+      '.clientes-clear{height:36px;padding:0 13px;border:1px solid #EADFD8;border-radius:11px;background:#fff;color:#6F6860;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);}' +
+      '.clientes-table-card{background:#fff;border:1px solid #EADFD8;border-radius:18px;box-shadow:0 12px 30px rgba(31,31,31,.055);overflow:hidden;}' +
+      '.clientes-table-wrap{overflow-x:auto;}' +
+      '.clientes-table{width:100%;border-collapse:separate;border-spacing:0;min-width:940px;}' +
+      '.clientes-table th{padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;text-align:left;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;}' +
+      '.clientes-table th:last-child{text-align:right;}' +
+      '.clientes-table td{padding:14px 16px;vertical-align:middle;border-bottom:1px solid #EADFD8;}' +
+      '.clientes-table tbody tr{cursor:pointer;background:#fff;transition:background .15s ease,box-shadow .15s ease;}' +
+      '.clientes-table tbody tr:hover{background:#FFFCF8;}' +
+      '.clientes-page-select{width:110px;height:34px;padding:0 34px 0 10px;border:1px solid #E8DCD7;border-radius:10px;font-size:12px;font-family:inherit;outline:none;background:#FFFCF8;color:#6F6860;box-sizing:border-box;appearance:none;-webkit-appearance:none;-moz-appearance:none;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 12px center;background-size:14px;}' +
+      '.clientes-page-btn{height:34px;padding:0 11px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#6F6860;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;}' +
+      '.clientes-empty{text-align:center;padding:42px 18px;color:#6F6860;font-size:13px;line-height:1.45;border:1px dashed #EADFD8;border-radius:14px;background:#FFFCF8;}' +
+      '@media(max-width:820px){.clientes-filter-grid{grid-template-columns:1fr}.clientes-primary{width:100%;}}' +
+      '</style>';
   }
 
   function _kpis() {
@@ -96,47 +132,54 @@ Modules.Clientes = (function () {
   }
 
   function _filtersHTML(data) {
-    var fieldStyle = 'padding:10px 12px;border:1px solid #EAE4DA;border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;width:100%;box-sizing:border-box;color:#1F1F1F;box-shadow:inset 0 1px 0 rgba(255,255,255,.78);transition:border-color .15s ease,box-shadow .15s ease,background .15s ease;';
-    return '<div style="background:#fff;border:none;border-radius:16px;padding:18px 20px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
-      '<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-end;">' +
-        '<div style="display:grid;grid-template-columns:minmax(320px,1.6fr) minmax(160px,.75fr) minmax(170px,.8fr) minmax(170px,.8fr);gap:10px 12px;flex:1;align-items:end;">' +
-          '<div><input id="cli-search" type="search" value="' + _esc(_filters.q) + '" oninput="Modules.Clientes._setFilter(\'q\', this.value)" placeholder="Buscar clientes pelo nome, telefone ou email..." autocomplete="off" autocapitalize="off" spellcheck="false" style="' + fieldStyle + 'height:40px;"></div>' +
-          '<div><select id="cli-status-filter" onchange="Modules.Clientes._setFilter(\'status\', this.value)" style="' + fieldStyle + 'height:40px;">' + _filterOptions(['', 'ativo', 'recorrente', 'inativo', 'bloqueado'], _filters.status, 'Status: Todos') + '</select></div>' +
-          '<div><select id="cli-segment-filter" onchange="Modules.Clientes._setFilter(\'segment\', this.value)" style="' + fieldStyle + 'height:40px;">' + _filterOptions(['', 'novo', 'recorrente', 'vip', 'inativo', 'sem_pedido'], _filters.segment, 'Segmento: Todos') + '</select></div>' +
-          '<div><select id="cli-origin-filter" onchange="Modules.Clientes._setFilter(\'origin\', this.value)" style="' + fieldStyle + 'height:40px;">' + _originOptions(_filters.origin) + '</select></div>' +
-        '</div>' +
+    var hasFilters = !!(_filters.q || _filters.status || _filters.segment || _filters.origin);
+    return '<div class="clientes-filter">' +
+      '<div class="clientes-filter-grid">' +
+        _filterField('Buscar', '<div class="clientes-field"><input id="cli-search" type="search" value="' + _esc(_filters.q) + '" oninput="Modules.Clientes._setFilter(\'q\', this.value)" placeholder="Buscar por nome, telefone ou e-mail" autocomplete="off" autocapitalize="off" spellcheck="false"></div>') +
+        _filterField('Status', '<div class="clientes-field"><select id="cli-status-filter" onchange="Modules.Clientes._setFilter(\'status\', this.value)">' + _filterOptions(['', 'ativo', 'recorrente', 'inativo', 'bloqueado'], _filters.status, 'Todos') + '</select></div>') +
+        _filterField('Segmento', '<div class="clientes-field"><select id="cli-segment-filter" onchange="Modules.Clientes._setFilter(\'segment\', this.value)">' + _filterOptions(['', 'novo', 'recorrente', 'vip', 'inativo', 'sem_pedido'], _filters.segment, 'Todos') + '</select></div>') +
+        _filterField('Canal principal', '<div class="clientes-field"><select id="cli-origin-filter" onchange="Modules.Clientes._setFilter(\'origin\', this.value)">' + _originOptions(_filters.origin) + '</select></div>') +
       '</div>' +
-      '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
-        _chip(_view.length + ' clientes') +
-        _chip(data.length + ' encontrados') +
-        _chip(_filters.q || _filters.status || _filters.segment || _filters.origin ? 'Filtros ativos' : 'Sem filtros ativos') +
-      '</div>' +
+      (hasFilters ? '<div class="clientes-filter-actions"><button type="button" class="clientes-clear" onclick="Modules.Clientes._clearFilters()">Limpar filtros</button></div>' : '') +
     '</div>';
   }
 
-  function _list(data) {
+  function _list(data, total, start, end, page, totalPages, perPage) {
     if (!data.length) {
-      return '<section style="background:#fff;border:none;border-radius:16px;padding:28px 22px;text-align:center;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
+      return '<section class="clientes-table-card"><div class="clientes-empty">' +
         '<div style="font-size:15px;font-weight:700;color:#1F1F1F;margin-bottom:4px;">Nenhum cliente encontrado</div>' +
         '<div style="font-size:13px;color:#6F6860;line-height:1.45;">Tente ajustar a busca ou os filtros.</div>' +
-      '</section>';
+      '</div></section>';
     }
+    var pageOptions = [10, 25, 50].map(function (n) {
+      return '<option value="' + n + '"' + (Number(perPage) === n ? ' selected' : '') + '>' + n + ' / pág.</option>';
+    }).join('');
     return '<section style="display:flex;flex-direction:column;gap:10px;">' +
       '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">Clientes cadastrados</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Consulte contatos, relacionamento e histórico de compra.</div></div>' +
-      '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:16px;overflow:hidden;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
-        '<div style="overflow:auto;">' +
-          '<table class="bf-table" style="width:100%;border-collapse:separate;border-spacing:0;min-width:940px;">' +
-            '<thead><tr style="background:#fff;border-bottom:1px solid #EAE4DA;">' +
-              '<th style="width:44px;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;"><input type="checkbox" disabled style="width:16px;height:16px;accent-color:#B42318;"></th>' +
-              '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Cliente</th>' +
-              '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Contato</th>' +
-              '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Segmento</th>' +
-              '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Pedidos</th>' +
-              '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Total</th>' +
-              '<th style="text-align:right;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Ações</th>' +
+      '<div class="clientes-table-card">' +
+        '<div class="clientes-table-wrap">' +
+          '<table class="bf-table clientes-table">' +
+            '<thead><tr>' +
+              '<th>Cliente</th>' +
+              '<th>Contato</th>' +
+              '<th>Segmento</th>' +
+              '<th>Pedidos</th>' +
+              '<th>Total</th>' +
+              '<th>Ações</th>' +
             '</tr></thead>' +
             '<tbody>' + data.map(_rowHTML).join('') + '</tbody>' +
           '</table>' +
+        '</div>' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:16px 18px;">' +
+          '<span style="font-size:12px;color:#6F6860;line-height:1.4;">Mostrando <strong style="color:#1F1F1F;font-weight:600;">' + start + '</strong> a <strong style="color:#1F1F1F;font-weight:600;">' + end + '</strong> de <strong style="color:#1F1F1F;font-weight:600;">' + total + '</strong></span>' +
+          '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;">' +
+            '<select onchange="Modules.Clientes._setPageSize(this.value)" class="clientes-page-select">' + pageOptions + '</select>' +
+            '<div style="display:flex;align-items:center;gap:6px;">' +
+              '<button type="button" class="clientes-page-btn" onclick="Modules.Clientes._setPage(' + (page - 1) + ')" style="cursor:' + (page > 1 ? 'pointer' : 'not-allowed') + ';opacity:' + (page > 1 ? '1' : '.45') + ';"' + (page > 1 ? '' : ' disabled') + '>Anterior</button>' +
+              '<div style="display:flex;align-items:center;gap:6px;"><span style="font-size:12px;color:#A39B90;">' + page + '</span><span style="width:14px;height:2px;border-radius:999px;background:#B42318;display:inline-block;opacity:.65"></span><span style="font-size:12px;color:#A39B90;">' + totalPages + '</span></div>' +
+              '<button type="button" class="clientes-page-btn" onclick="Modules.Clientes._setPage(' + (page + 1) + ')" style="cursor:' + (page < totalPages ? 'pointer' : 'not-allowed') + ';opacity:' + (page < totalPages ? '1' : '.45') + ';"' + (page < totalPages ? '' : ' disabled') + '>Próxima</button>' +
+            '</div>' +
+          '</div>' +
         '</div>' +
       '</div>' +
     '</section>';
@@ -144,29 +187,27 @@ Modules.Clientes = (function () {
 
   function _rowHTML(c) {
     var s = c._stats;
-    var initials = _initials(c.name);
     var wa = _whatsUrl(c.phone, 'Hola ' + (c.name || '') + ', ¿todo bien?');
     var contact = _contactHTML(c, 'Hola ' + (c.name || '') + ', ¿todo bien?');
     var address = _clientAddress(c);
-    return '<tr onclick="Modules.Clientes._openProfile(\'' + c.id + '\')" onmouseenter="this.style.background=\'#FBF8F2\'" onmouseleave="this.style.background=\'#fff\'" style="cursor:pointer;background:#fff;border-bottom:1px solid #EAE4DA;transition:background .15s ease;">' +
-      '<td style="padding:14px 16px;vertical-align:middle;"><input type="checkbox" onclick="event.stopPropagation()" style="width:16px;height:16px;accent-color:#B42318;"></td>' +
-      '<td style="padding:12px 16px;vertical-align:middle;min-width:280px;">' +
+    return '<tr onclick="Modules.Clientes._openProfile(\'' + c.id + '\')">' +
+      '<td style="min-width:280px;">' +
         '<div style="display:flex;align-items:center;gap:12px;min-width:0;">' +
-          '<div style="width:48px;height:48px;border-radius:12px;background:' + _avatarColor(c.name) + ';color:#fff;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 1px 2px rgba(31,31,31,.03);">' + _esc(initials) + '</div>' +
+          _avatarHTML(c, 48, 12, 16) +
           '<div style="min-width:0;flex:1;">' +
             '<div style="font-size:15px;font-weight:600;color:#1F1F1F;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(c.name || 'Cliente') + '</div>' +
             '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:5px;">' + _tags(c.tags).map(function (t) { return UI.badge(t, 'gray'); }).join('') + '</div>' +
           '</div>' +
         '</div>' +
       '</td>' +
-      '<td style="padding:13px 16px;vertical-align:middle;min-width:220px;">' +
+      '<td style="min-width:220px;">' +
         '<div style="font-size:12px;color:#6F6860;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (contact || 'Sem contato') + '</div>' +
         '<div style="font-size:12px;color:#A39B90;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;">' + _esc(address || 'Sem endereço') + '</div>' +
       '</td>' +
-      '<td style="padding:13px 16px;vertical-align:middle;">' + _segmentBadge(s.segment) + '<div style="margin-top:6px;">' + _statusBadge(c.status) + '</div></td>' +
-      '<td style="padding:13px 16px;vertical-align:middle;white-space:nowrap;font-size:14px;font-weight:600;color:#1F1F1F;">' + (s.ordersCount || 0) + '<div style="font-size:12px;color:#6F6860;font-weight:500;margin-top:2px;">Ticket ' + (s.ordersCount ? UI.fmt(s.avgTicket) : '-') + '</div></td>' +
-      '<td style="padding:13px 16px;vertical-align:middle;white-space:nowrap;font-size:14px;font-weight:600;color:#1F1F1F;">' + (s.ordersCount ? UI.fmt(s.totalSpent) : '-') + '</td>' +
-      '<td style="padding:13px 16px;vertical-align:middle;text-align:right;white-space:nowrap;" onclick="event.stopPropagation();">' +
+      '<td>' + _segmentBadge(s.segment) + '<div style="margin-top:6px;">' + _statusBadge(c.status) + '</div></td>' +
+      '<td style="white-space:nowrap;font-size:14px;font-weight:600;color:#1F1F1F;">' + (s.ordersCount || 0) + '<div style="font-size:12px;color:#6F6860;font-weight:500;margin-top:2px;">Ticket ' + (s.ordersCount ? UI.fmt(s.avgTicket) : '-') + '</div></td>' +
+      '<td style="white-space:nowrap;font-size:14px;font-weight:600;color:#1F1F1F;">' + (s.ordersCount ? UI.fmt(s.totalSpent) : '-') + '</td>' +
+      '<td style="text-align:right;white-space:nowrap;" onclick="event.stopPropagation();">' +
         '<div style="display:inline-flex;align-items:center;gap:6px;">' +
           (c.phone ? '<a href="' + wa + '" target="_blank" style="' + _iconBtn('#fff', '#6F6860') + '" title="WhatsApp"><span class="mi" style="font-size:14px;">chat</span></a>' : '') +
           '<button type="button" onclick="Modules.Clientes._openHistory(\'' + c.id + '\')" style="' + _iconBtn('#fff', '#6F6860') + '" title="Histórico"><span class="mi" style="font-size:14px;">history</span></button>' +
@@ -181,15 +222,63 @@ Modules.Clientes = (function () {
     var _tenantFc = window.Auth && Auth.getFiscalCountry ? Auth.getFiscalCountry() : 'ES';
     var _defaultCountry = _tenantFc === 'PT' ? 'Portugal' : 'España';
     var c = id ? (_clientes.find(function (x) { return x.id === id; }) || {}) : { status: 'ativo', origin: _defaultChannel(), acceptsMarketing: false, country: _defaultCountry };
+    _clienteDeliveryAddresses = _normalizeClienteAddresses(c);
+    _clienteAddressFormOpen = false;
+    _clienteAddressEditIndex = -1;
     var clientFiscal = _ensureClientFiscal(c);
     var _cliCountry = c.country || _defaultCountry;
     var _cliCode = window.FiscalConfig ? FiscalConfig.countryToCode(_cliCountry) : null;
     var _cliNifCfg = window.FiscalConfig ? FiscalConfig.get(_cliCode || _cliCountry || 'ES')
       : { fiscalDocumentLabel: 'NIF / CIF', fiscalDocumentPlaceholder: '', fiscalDocumentHint: '', regionLabel: 'Estado / Província' };
     var selectedChannel = c.mainChannel || c.channelName || c.channel || c.origin || _defaultChannel();
-    var body = '<div style="display:flex;flex-direction:column;gap:14px;font-family:Manrope,Inter,sans-serif;">' +
+    var modalCss = '<style>' +
+      '.cliente-modal-body{display:flex;flex-direction:column;gap:12px;font-family:Manrope,Inter,sans-serif;}' +
+      '.cliente-modal-body .bf-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%)!important;border:1px solid #EADFD8!important;border-radius:18px!important;padding:14px!important;box-shadow:0 10px 24px rgba(31,31,31,.04)!important;min-width:0!important;}' +
+      '.cliente-card-head{display:flex;align-items:flex-start;gap:9px;margin-bottom:12px;}' +
+      '.cliente-card-head .mi{font-size:18px;color:#6F6860;line-height:1.2;}' +
+      '.cliente-card-title{font-size:13px;font-weight:800;color:#1F1F1F;line-height:1.25;margin-bottom:3px;}' +
+      '.cliente-card-hint{font-size:12px;color:#8A7E7C;line-height:1.4;margin:0;}' +
+      '.cliente-modal-body .bf-field label{font-size:11px!important;font-weight:650!important;color:#8A7E7C!important;display:block!important;margin-bottom:5px!important;letter-spacing:.02em!important;text-transform:none!important;}' +
+      '.cliente-modal-body .bf-input,.cliente-modal-body .bf-select,.cliente-modal-body .bf-textarea{width:100%!important;min-height:36px!important;border:1px solid #E8DCD7!important;border-radius:12px!important;padding:0 12px!important;font-size:14px!important;font-family:inherit!important;outline:none!important;background:#FFFCF8!important;color:#1F1F1F!important;box-shadow:none!important;box-sizing:border-box!important;}' +
+      '.cliente-modal-body .bf-input:focus,.cliente-modal-body .bf-select:focus,.cliente-modal-body .bf-textarea:focus{background:#fff!important;border-color:#D9AAA1!important;box-shadow:0 0 0 3px rgba(180,35,24,.08)!important;}' +
+      '.cliente-modal-body .bf-select{padding-right:42px!important;appearance:none!important;-webkit-appearance:none!important;-moz-appearance:none!important;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E)!important;background-repeat:no-repeat!important;background-position:right 16px center!important;background-size:14px!important;}' +
+      '.cliente-modal-body .bf-textarea{min-height:74px!important;padding-top:8px!important;padding-bottom:8px!important;resize:vertical!important;}' +
+      '.cliente-avatar-box{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;align-items:center;margin-bottom:12px;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:14px;padding:10px 12px;}' +
+      '.cliente-avatar-preview{width:58px;height:58px;border-radius:50%;background:transparent;border:1px solid #EEE6E4;display:flex;align-items:center;justify-content:center;overflow:hidden;color:#6F6860;box-shadow:0 8px 18px rgba(31,31,31,.035);}' +
+      '.cliente-avatar-preview img{width:100%;height:100%;object-fit:contain;display:block;}' +
+      '.cliente-avatar-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:7px;}' +
+      '.cliente-avatar-btn{height:34px;padding:0 11px;border-radius:10px;border:1px solid #E8DCD7;background:#fff;color:#1F1F1F;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:6px;}' +
+      '.cliente-address-list{display:flex;flex-direction:column;gap:8px;}' +
+      '.cliente-address-card{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:14px;padding:11px 12px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;}' +
+      '.cliente-address-name{font-size:13px;font-weight:750;color:#1F1F1F;line-height:1.25;margin-bottom:3px;}' +
+      '.cliente-address-text{font-size:12px;color:#6F6860;line-height:1.35;overflow-wrap:anywhere;}' +
+      '.cliente-address-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;}' +
+      '.cliente-address-mini{height:30px;padding:0 9px;border-radius:9px;border:1px solid #E8DCD7;background:#fff;color:#6F6860;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:5px;}' +
+      '.cliente-address-add{height:34px;padding:0 11px;border-radius:10px;border:1px solid #E8DCD7;background:#fff;color:#1F1F1F;font-size:12px;font-weight:650;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:6px;}' +
+      '.cliente-address-form{margin-top:12px;background:#fff;border:1px solid #EADFD8;border-radius:16px;padding:13px;box-shadow:0 8px 18px rgba(31,31,31,.035);}' +
+      '.cliente-address-form-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:11px 12px;align-items:end;}' +
+      '.cliente-address-form-grid .wide{grid-column:span 2;}' +
+      '@media(max-width:920px){.cliente-modal-body [style*="grid-template-columns"]{grid-template-columns:repeat(2,minmax(0,1fr))!important;}}' +
+      '@media(max-width:640px){.cliente-modal-body [style*="grid-template-columns"],.cliente-address-form-grid{grid-template-columns:1fr!important;}.cliente-address-form-grid .wide{grid-column:auto;}.cliente-modal-body .bf-card{padding:13px!important;}.cliente-avatar-box{grid-template-columns:auto minmax(0,1fr);}.cliente-address-card{grid-template-columns:1fr;}.cliente-address-actions{justify-content:flex-start;}}' +
+      '</style>';
+    var avatarUrl = c.avatarUrl || c.photoURL || c.photoUrl || '';
+    var body = modalCss + '<div class="cliente-modal-body">' +
       '<div class="bf-card" style="padding:16px;">' +
-      '<div style="' + _sectionTitle() + '">Dados do cliente</div>' +
+      '<div class="cliente-card-head"><span class="mi">person</span><div><div class="cliente-card-title">Dados do cliente</div><p class="cliente-card-hint">Identifique a cliente e mantenha os principais contatos atualizados.</p></div></div>' +
+      '<div class="cliente-avatar-box">' +
+        '<div id="cli-avatar-preview" class="cliente-avatar-preview">' + (avatarUrl ? '<img src="' + _esc(avatarUrl) + '" alt="">' : '<span class="mi" style="font-size:25px;">person</span>') + '</div>' +
+        '<div style="min-width:0;">' +
+          '<div style="font-size:12px;font-weight:700;color:#1F1F1F;line-height:1.25;">Avatar do cliente</div>' +
+          '<div style="font-size:11px;color:#8A7E7C;line-height:1.35;margin-top:2px;">Imagem quadrada, em JPG, PNG ou WebP.</div>' +
+          '<div class="cliente-avatar-actions">' +
+            '<button type="button" class="cliente-avatar-btn" onclick="document.getElementById(\'cli-avatar-file\').click()"><span class="mi" style="font-size:15px;">upload</span>Trocar imagem</button>' +
+            '<button type="button" class="cliente-avatar-btn" onclick="Modules.Clientes._clearClienteAvatarImage()"><span class="mi" style="font-size:15px;">delete</span>Remover</button>' +
+          '</div>' +
+        '</div>' +
+        '<input id="cli-avatar-file" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onchange="Modules.Clientes._uploadClienteAvatarImage(event)" style="display:none;">' +
+        '<input id="cli-avatar-url" type="hidden" value="' + _esc(avatarUrl) + '">' +
+        '<input id="cli-avatar-storage" type="hidden" value="' + _esc(c.avatarStoragePath || c.avatarImagePath || '') + '">' +
+      '</div>' +
       '<div style="display:grid;grid-template-columns:1.3fr .8fr .9fr;gap:12px;margin-bottom:12px;">' +
       _field('cli-name', 'Nome completo *', c.name || '') +
       _field('cli-phone', 'Telefone / WhatsApp', c.phone || '') +
@@ -204,22 +293,12 @@ Modules.Clientes = (function () {
       _field('cli-bday', 'Aniversário', c.birthday || '', 'date') +
       '</div></div>' +
       '<div class="bf-card" style="padding:16px;">' +
-      '<div style="' + _sectionTitle() + '">Endereço e entrega</div>' +
-      _field('cli-address', 'Endereço principal', c.address || '') +
-      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:12px;">' +
-      _field('cli-number', 'Número', c.number || c.numero || '') +
-      _field('cli-hood', 'Bairro / zona', c.neighborhood || c.zone || '') +
-      _field('cli-zip', 'Código postal', c.postalCode || '') +
+      '<div class="cliente-card-head"><span class="mi">location_on</span><div><div class="cliente-card-title">Endereço e entrega</div><p class="cliente-card-hint">Dados usados para localizar a cliente e organizar próximas entregas.</p></div></div>' +
+      '<div id="cli-address-book">' + _clienteAddressesBookHTML() + '</div>' +
       '</div>' +
-      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:12px;">' +
-      '<div><label id="cli-state-label" style="' + _label() + '">' + _esc(_cliNifCfg.regionLabel || 'Estado / Província') + '</label>' +
-        '<select id="cli-state" style="' + _input() + 'background:#fff;">' + _regionOptions(_cliCountry, c.state || c.province || '') + '</select></div>' +
-      '<div><label style="' + _label() + '">País</label><select id="cli-country" onchange="Modules.Clientes._onClienteCountryChange()" style="' + _input() + 'background:#fff;">' + _countryOptions(_cliCountry) + '</select></div>' +
-      _field('cli-reference', 'Referência / complemento', c.reference || c.complement || '') +
-      '</div></div>' +
       '<details class="bf-card" style="padding:16px;">' +
       '<summary style="cursor:pointer;list-style:none;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">' +
-      '<div><div style="' + _sectionTitle() + 'margin-bottom:4px;">Dados fiscais</div><div style="font-size:12px;color:#7A746B;line-height:1.45;">Opcional. Use apenas quando o cliente precisar de dados para faturação completa.</div></div>' +
+      '<div class="cliente-card-head" style="margin-bottom:0;"><span class="mi">request_quote</span><div><div class="cliente-card-title">Dados fiscais</div><p class="cliente-card-hint">Use quando o cliente precisar de dados completos para faturação.</p></div></div>' +
       '<span style="font-size:16px;color:#6F6860;line-height:1;">▸</span>' +
       '</summary>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-top:14px;">' +
@@ -243,29 +322,29 @@ Modules.Clientes = (function () {
       '</div>' +
       '</details>' +
       '<div class="bf-card" style="padding:16px;">' +
-      '<div style="' + _sectionTitle() + '">Marketing e relacionamento</div>' +
+      '<div class="cliente-card-head"><span class="mi">campaign</span><div><div class="cliente-card-title">Marketing e relacionamento</div><p class="cliente-card-hint">Organize preferências, tags e permissões para futuras ações.</p></div></div>' +
       '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#1F1F1F;margin-bottom:12px;"><input id="cli-marketing" type="checkbox" ' + (c.acceptsMarketing ? 'checked' : '') + ' style="accent-color:#B42318;width:16px;height:16px;"> Aceita receber promoções</label>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
       _field('cli-tags', 'Tags', _tags(c.tags).join(', ')) +
       _field('cli-preferences', 'Preferências', c.preferences || '') +
       '</div>' +
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;">' +
+      '<div style="display:grid;grid-template-columns:1fr;gap:12px;margin-top:12px;">' +
       _field('cli-allergies', 'Alergias / restrições', c.allergies || '') +
-      _field('cli-points', 'Pontos de fidelidade', c.points || 0, 'number') +
       '</div></div>' +
       '<div class="bf-card" style="padding:16px;">' +
+      '<div class="cliente-card-head"><span class="mi">notes</span><div><div class="cliente-card-title">Observações internas</div></div></div>' +
       _textarea('cli-notes', 'Observações internas', c.notes || c.internalNotes || '') +
       '</div></div>';
-    var footer = '<div style="display:flex;flex-direction:column;gap:8px;align-items:stretch;font-family:Manrope,Inter,sans-serif;">' +
-      '<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;">' +
-      (id ? '<button class="bf-btn bf-btn-secondary" onclick="Modules.Clientes._deleteCliente(\'' + id + '\')" style="color:#B42318;"><span class="mi" style="font-size:16px;">delete</span>Excluir</button>' : '') +
-      '<button class="bf-btn bf-btn-secondary" onclick="if(window._clienteModal)window._clienteModal.close()">Cancelar</button>' +
-      '<button class="bf-btn bf-btn-primary" onclick="Modules.Clientes._saveCliente()" style="flex:1;">' + (id ? 'Atualizar cliente' : 'Adicionar cliente') + '</button>' +
+    var footer = '<div style="display:flex;align-items:center;gap:10px;justify-content:space-between;width:100%;font-family:Manrope,Inter,sans-serif;flex-wrap:wrap;">' +
+      '<div style="font-size:12px;color:#7A746B;line-height:1.4;">Revise os dados antes de salvar.</div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">' +
+      (id ? '<button class="bf-btn bf-btn-secondary" onclick="Modules.Clientes._deleteCliente(\'' + id + '\')" style="height:40px;padding:0 13px;color:#B42318;font-size:13px;font-weight:600;"><span class="mi" style="font-size:16px;">delete</span>Excluir</button>' : '') +
+      '<button class="bf-btn bf-btn-secondary" onclick="if(window._clienteModal)window._clienteModal.close()" style="height:40px;padding:0 14px;font-size:13px;font-weight:600;">Cancelar</button>' +
+      '<button class="bf-btn bf-btn-primary" onclick="Modules.Clientes._saveCliente()" style="height:40px;padding:0 16px;font-size:13px;font-weight:600;min-width:auto;flex:0 0 auto;">' + (id ? 'Atualizar cliente' : 'Adicionar cliente') + '</button>' +
       '</div>' +
-      '<div style="font-size:11px;color:#7A746B;text-align:center;line-height:1.4;">As alterações ficam vinculadas aos pedidos e ao histórico do cliente.</div>' +
       '</div>';
     window._clienteModal = UI.modal({ title: id ? 'Editar Cliente' : 'Novo Cliente', body: body, footer: footer, maxWidth: '1120px' });
-    setTimeout(function () { if (window.BocaPlaces) BocaPlaces.init('cli-address'); }, 200);
+    setTimeout(_initClientePlaces, 200);
   }
 
   function _saveCliente() {
@@ -273,18 +352,28 @@ Modules.Clientes = (function () {
     if (!name) { UI.toast('Nome é obrigatório', 'error'); return; }
     if (!_validPhone(_val('cli-phone'))) { UI.toast('Telefone inválido. Use apenas números com DDD/código do país.', 'error'); return; }
     if (!_validEmail(_val('cli-email'))) { UI.toast('E-mail inválido', 'error'); return; }
-    var _sCountry = _val('cli-country');
+    var current = _editingId ? (_clientes.find(function (c) { return c.id === _editingId; }) || {}) : {};
+    var channel = _val('cli-origin') || _defaultChannel();
+    var deliveryAddresses = _normalizeClienteAddresses({ deliveryAddresses: _clienteDeliveryAddresses });
+    var primaryAddress = deliveryAddresses[0] || {};
+    var _sCountry = primaryAddress.country || _val('cli-country') || 'España';
     var _sCode = window.FiscalConfig ? FiscalConfig.countryToCode(_sCountry) : null;
     var _sNifCfg = window.FiscalConfig ? FiscalConfig.get(_sCode || _sCountry || 'ES') : null;
     var _nifRaw = (_val('cli-fiscal') || '').trim().toUpperCase().replace(/[\s.-]/g, '');
     var _nifOk = _sNifCfg ? _sNifCfg.validateNif(_nifRaw) : _validFiscalId(_val('cli-fiscal'));
     if (!_nifOk) { UI.toast((_sNifCfg && _sNifCfg.nifErrorMsg) || 'Documento fiscal inválido.', 'error'); return; }
-    if (!_validPostalCode(_val('cli-zip'), _sCountry)) {
-      var _postalMsg = String(_sCountry || '').toLowerCase() === 'portugal' ? 'Código postal inválido para Portugal. Use NNNN-NNN.' : String(_sCountry || '').toLowerCase() === 'españa' ? 'Código postal inválido para Espanha. Use 5 números.' : 'Código postal inválido.';
-      UI.toast(_postalMsg, 'error'); return;
+    var _fiscalCountryCode = _countryIso(_val('cli-fiscal-country-code') || _sCountry || 'ES');
+    var _structuredFiscalRaw = (_val('cli-fiscal-id-structured') || '').trim().toUpperCase().replace(/[\s.-]/g, '');
+    var _structuredFiscalCfg = window.FiscalConfig ? FiscalConfig.get(_fiscalCountryCode || 'ES') : null;
+    var _structuredFiscalOk = _structuredFiscalCfg ? _structuredFiscalCfg.validateNif(_structuredFiscalRaw) : _validFiscalId(_val('cli-fiscal-id-structured'));
+    if (!_structuredFiscalOk) { UI.toast((_structuredFiscalCfg && _structuredFiscalCfg.nifErrorMsg) || 'Documento fiscal inválido.', 'error'); return; }
+    if (!_validEmail(_val('cli-fiscal-invoice-email'))) { UI.toast('E-mail de faturação inválido', 'error'); return; }
+    if (!_validPostalCode(_val('cli-fiscal-postal'), _fiscalCountryCode)) {
+      UI.toast(_postalErrorMessage(_fiscalCountryCode), 'error'); return;
     }
-    var current = _editingId ? (_clientes.find(function (c) { return c.id === _editingId; }) || {}) : {};
-    var channel = _val('cli-origin') || _defaultChannel();
+    if (!_validPostalCode(primaryAddress.postalCode || _val('cli-zip'), _sCountry)) {
+      UI.toast(_postalErrorMessage(_sCountry), 'error'); return;
+    }
     var fiscal = _ensureClientFiscal(current);
     fiscal.customerType = _val('cli-fiscal-customer-type') || fiscal.customerType || 'person';
     fiscal.legalName = _val('cli-fiscal-legal-name');
@@ -294,12 +383,12 @@ Modules.Clientes = (function () {
     fiscal.countryCode = _countryIso(_val('cli-fiscal-country-code') || _val('cli-country') || fiscal.countryCode);
     fiscal.invoiceEmail = _val('cli-fiscal-invoice-email') || _val('cli-email');
     fiscal.fiscalAddress = {
-      address: _val('cli-fiscal-address') || _val('cli-address'),
-      number: _val('cli-fiscal-number') || _val('cli-number'),
-      complement: _val('cli-fiscal-complement') || _val('cli-reference'),
+      address: _val('cli-fiscal-address') || primaryAddress.address || '',
+      number: _val('cli-fiscal-number') || primaryAddress.number || '',
+      complement: _val('cli-fiscal-complement') || primaryAddress.complement || '',
       city: _val('cli-fiscal-city'),
-      province: _val('cli-fiscal-province') || _val('cli-state'),
-      postalCode: _val('cli-fiscal-postal') || _val('cli-zip'),
+      province: _val('cli-fiscal-province') || primaryAddress.province || '',
+      postalCode: _val('cli-fiscal-postal') || primaryAddress.postalCode || '',
       countryCode: fiscal.countryCode || 'ES'
     };
     var data = {
@@ -313,21 +402,27 @@ Modules.Clientes = (function () {
       nifCif: _val('cli-fiscal'),
       fiscalId: _val('cli-fiscal'),
       birthday: _val('cli-bday'),
-      address: _val('cli-address'),
-      number: _val('cli-number'),
-      numero: _val('cli-number'),
-      neighborhood: _val('cli-hood'),
-      zone: _val('cli-hood'),
-      postalCode: _val('cli-zip'),
-      state: _val('cli-state'),
-      province: _val('cli-state'),
-      country: _val('cli-country'),
-      reference: _val('cli-reference'),
+      avatarUrl: _val('cli-avatar-url'),
+      avatarStoragePath: _val('cli-avatar-storage'),
+      avatarImagePath: _val('cli-avatar-storage'),
+      address: primaryAddress.address || '',
+      number: primaryAddress.number || '',
+      numero: primaryAddress.number || '',
+      neighborhood: primaryAddress.neighborhood || '',
+      zone: primaryAddress.neighborhood || '',
+      postalCode: primaryAddress.postalCode || '',
+      state: primaryAddress.province || '',
+      province: primaryAddress.province || '',
+      country: primaryAddress.country || _defaultCountry,
+      reference: primaryAddress.complement || '',
+      deliveryAddresses: deliveryAddresses,
+      savedDeliveryAddresses: deliveryAddresses,
       acceptsMarketing: _checked('cli-marketing'),
       tags: _tags(_val('cli-tags')),
       preferences: _val('cli-preferences'),
       allergies: _val('cli-allergies'),
-      points: parseInt(_val('cli-points') || '0', 10) || 0,
+      points: current.points != null ? current.points : (current.pointsBalance != null ? current.pointsBalance : 0),
+      pointsBalance: current.pointsBalance != null ? current.pointsBalance : (current.points != null ? current.points : 0),
       notes: _val('cli-notes'),
       ordersCount: current.ordersCount || 0,
       totalSpent: current.totalSpent || 0,
@@ -341,32 +436,138 @@ Modules.Clientes = (function () {
     }).catch(function (err) { UI.toast('Erro: ' + err.message, 'error'); });
   }
 
+  function _uploadClienteAvatarImage(event) {
+    var file = event && event.target && event.target.files ? event.target.files[0] : null;
+    if (!file) return;
+    if (!window.ImageTools || !ImageTools.process) {
+      UI.toast('Upload de imagem indisponível no momento.', 'error');
+      if (event && event.target) event.target.value = '';
+      return;
+    }
+    var entityId = 'cliente-avatar-' + (_editingId || Date.now().toString(36));
+    ImageTools.process(file, { kind: 'logo', folder: 'logos', entityId: entityId }).then(function (result) {
+      var url = result && (result.imageUrl || result.mainUrl) || '';
+      var path = result && (result.imageStoragePath || result.imagePath) || '';
+      var urlField = document.getElementById('cli-avatar-url');
+      var pathField = document.getElementById('cli-avatar-storage');
+      var preview = document.getElementById('cli-avatar-preview');
+      if (urlField) urlField.value = url;
+      if (pathField) pathField.value = path;
+      if (preview) preview.innerHTML = url ? '<img src="' + _esc(url) + '" alt="">' : '<span class="mi" style="font-size:25px;">person</span>';
+      _persistClienteAvatar(url, path);
+    }).catch(function (err) {
+      console.error('Upload de avatar do cliente', err);
+      UI.toast(err && err.message ? err.message : 'Erro ao enviar avatar.', 'error');
+      if (event && event.target) event.target.value = '';
+    });
+  }
+
+  function _clearClienteAvatarImage() {
+    var urlField = document.getElementById('cli-avatar-url');
+    var pathField = document.getElementById('cli-avatar-storage');
+    var fileField = document.getElementById('cli-avatar-file');
+    var preview = document.getElementById('cli-avatar-preview');
+    if (urlField) urlField.value = '';
+    if (pathField) pathField.value = '';
+    if (fileField) fileField.value = '';
+    if (preview) preview.innerHTML = '<span class="mi" style="font-size:25px;">person</span>';
+    _persistClienteAvatar('', '');
+  }
+
+  function _persistClienteAvatar(url, path) {
+    if (_editingId) {
+      _syncClienteAvatarLocal(_editingId, url, path);
+      _paint();
+      DB.update('store_customers', _editingId, {
+        avatarUrl: url || '',
+        avatarStoragePath: path || '',
+        avatarImagePath: path || ''
+      }).then(function () {
+        UI.toast(url ? 'Avatar atualizado.' : 'Avatar removido.', 'success');
+      }).catch(function (err) {
+        UI.toast('Erro ao salvar avatar: ' + err.message, 'error');
+      });
+      return;
+    }
+    UI.toast(url ? 'Avatar atualizado. Salve o cliente para concluir.' : 'Avatar removido.', 'success');
+  }
+
+  function _syncClienteAvatarLocal(id, url, path) {
+    [_clientes, _view].forEach(function (list) {
+      (list || []).forEach(function (item) {
+        if (item && item.id === id) {
+          item.avatarUrl = url || '';
+          item.avatarStoragePath = path || '';
+          item.avatarImagePath = path || '';
+        }
+      });
+    });
+  }
+
   function _openProfile(id) {
     var c = _view.find(function (x) { return x.id === id; });
     if (!c) return;
     var s = c._stats;
     var contact = _contactHTML(c, 'Hola ' + (c.name || '') + ', tenemos una novedad para ti.');
     var address = _clientAddress(c);
-    var body = '<div>' +
-      '<div style="display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;margin-bottom:16px;">' +
-      '<div style="width:64px;height:64px;border-radius:18px;background:' + _avatarColor(c.name) + ';color:#fff;font-size:22px;font-weight:900;display:flex;align-items:center;justify-content:center;">' + _esc(_initials(c.name)) + '</div>' +
-      '<div><h2 style="font-size:22px;font-weight:900;margin-bottom:4px;">' + _esc(c.name || 'Cliente') + '</h2><div style="color:#8A7E7C;font-size:13px;">' + (contact || 'Sem contato') + '</div>' + (address ? '<div style="color:#8A7E7C;font-size:13px;margin-top:4px;"><span class="mi" style="font-size:15px;color:#C4362A;vertical-align:-2px;">location_on</span> ' + _esc(address) + '</div>' : '') + '</div>' +
-      '<button class="bf-btn bf-btn-primary" onclick="Modules.Clientes._openModal(\'' + c.id + '\')" style="min-width:180px;">Editar</button>' +
-      '</div>' +
-      '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px;">' +
-      _kpi('Pedidos', s.ordersCount, 'histórico') +
-      _kpi('Total comprado', s.ordersCount ? UI.fmt(s.totalSpent) : '-', 'todos os pedidos') +
-      _kpi('Ticket médio', s.ordersCount ? UI.fmt(s.avgTicket) : '-', 'por pedido') +
-      _kpi('Último pedido', s.lastOrderLabel || '-', s.segmentLabel) +
-      '</div>' +
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">' +
-      '<div style="' + _panel() + '"><h3 style="' + _h3() + '">Perfil</h3>' +
-      _info('Canal principal', c.mainChannel || c.channelName || c.channel || c.origin || '-') + _info('Status', c.status || s.segmentLabel) + _info('NIF / CIF', c.nifCif || c.fiscalId || '-') + _infoHTML('Telefone / WhatsApp', c.phone ? _phoneLink(c, 'Hola ' + (c.name || '') + ', tenemos una novedad para ti.') : '-') + _info('Endereço', address || '-') + _info('Preferências', c.preferences || '-') + _info('Alergias', c.allergies || '-') + '</div>' +
-      '<div style="' + _panel() + '"><h3 style="' + _h3() + '">Ações rápidas</h3>' +
-      (c.phone ? '<a href="' + _whatsUrl(c.phone, 'Hola ' + (c.name || '') + ', tenemos una novedad para ti.') + '" target="_blank" style="' + _actionLink('#E9F8EF', '#1A9E5A') + '"><span class="mi">chat</span> Abrir WhatsApp</a>' : '') +
-      '<button onclick="Modules.Clientes._openHistory(\'' + c.id + '\')" style="' + _actionButton('#EEF4FF', '#2563EB') + '"><span class="mi">history</span> Ver histórico</button>' +
-      '<button onclick="Modules.Clientes._openSegmentFlow(\'' + c.id + '\')" style="' + _actionButton('#FFF8F1', '#B45309') + '"><span class="mi">timeline</span> Ver fluxo do segmento</button>' +
-      '</div></div>' +
+    var profileCss = '<style>' +
+      '.cliente-profile-body{display:flex;flex-direction:column;gap:12px;font-family:Manrope,Inter,sans-serif;}' +
+      '.cliente-profile-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:14px;box-shadow:0 10px 24px rgba(31,31,31,.04);min-width:0;}' +
+      '.cliente-profile-head{display:flex;align-items:flex-start;gap:9px;margin-bottom:12px;}' +
+      '.cliente-profile-head .mi{font-size:18px;color:#6F6860;line-height:1.2;}' +
+      '.cliente-profile-title{font-size:13px;font-weight:800;color:#1F1F1F;line-height:1.25;margin-bottom:3px;}' +
+      '.cliente-profile-hint{font-size:12px;color:#8A7E7C;line-height:1.4;margin:0;}' +
+      '.cliente-profile-grid{display:grid;gap:11px 12px;align-items:start;min-width:0;}' +
+      '.cliente-profile-top{grid-template-columns:auto minmax(0,1fr) auto;align-items:center;}' +
+      '.cliente-profile-metrics{grid-template-columns:repeat(4,minmax(0,1fr));}' +
+      '.cliente-profile-two{grid-template-columns:minmax(0,1.1fr) minmax(260px,.78fr);}' +
+      '.cliente-profile-avatar{width:58px;height:58px;border-radius:50%;background:transparent;color:#fff;font-size:20px;font-weight:750;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 18px rgba(31,31,31,.06);overflow:hidden;}' +
+      '.cliente-profile-avatar img{width:100%;height:100%;object-fit:contain;display:block;}' +
+      '.cliente-profile-metric{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:13px;padding:10px 11px;min-width:0;}' +
+      '.cliente-profile-metric span{font-size:10px;font-weight:700;color:#8A7E7C;text-transform:uppercase;letter-spacing:.03em;display:block;margin-bottom:5px;}' +
+      '.cliente-profile-metric strong{font-size:15px;font-weight:750;color:#1F1F1F;line-height:1.15;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
+      '.cliente-profile-info{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px;}' +
+      '.cliente-profile-info-row{padding:8px 0;border-top:1px solid #F2EDED;min-width:0;}' +
+      '.cliente-profile-info-row div:first-child{font-size:10px;font-weight:700;color:#8A7E7C;text-transform:uppercase;letter-spacing:.03em;margin-bottom:3px;}' +
+      '.cliente-profile-info-row div:last-child{font-size:13px;font-weight:600;color:#1F1F1F;line-height:1.35;overflow-wrap:anywhere;}' +
+      '@media(max-width:760px){.cliente-profile-top,.cliente-profile-metrics,.cliente-profile-two,.cliente-profile-info{grid-template-columns:1fr}.cliente-profile-top{align-items:start}.cliente-profile-avatar{width:54px;height:54px}}' +
+      '</style>';
+    var body = profileCss + '<div class="cliente-profile-body">' +
+      '<section class="cliente-profile-card">' +
+        '<div class="cliente-profile-grid cliente-profile-top">' +
+          _profileAvatarHTML(c) +
+          '<div style="min-width:0;">' +
+            '<h2 style="font-size:22px;font-weight:750;margin:0 0 5px;color:#1F1F1F;line-height:1.12;overflow-wrap:anywhere;">' + _esc(c.name || 'Cliente') + '</h2>' +
+            '<div style="color:#6F6860;font-size:13px;line-height:1.35;">' + (contact || 'Sem contato') + '</div>' +
+            (address ? '<div style="color:#6F6860;font-size:12px;margin-top:4px;line-height:1.35;"><span class="mi" style="font-size:15px;color:#B42318;vertical-align:-3px;">location_on</span> ' + _esc(address) + '</div>' : '') +
+          '</div>' +
+          '<button class="bf-btn bf-btn-primary" onclick="Modules.Clientes._openModal(\'' + c.id + '\')" style="min-width:150px;height:38px;border-radius:10px;font-size:13px;font-weight:600;">Editar</button>' +
+        '</div>' +
+      '</section>' +
+      '<section class="cliente-profile-grid cliente-profile-metrics">' +
+        _profileMetric('Pedidos', s.ordersCount, 'histórico') +
+        _profileMetric('Total comprado', s.ordersCount ? UI.fmt(s.totalSpent) : '-', 'todos os pedidos') +
+        _profileMetric('Ticket médio', s.ordersCount ? UI.fmt(s.avgTicket) : '-', 'por pedido') +
+        _profileMetric('Último pedido', s.lastOrderLabel || '-', s.segmentLabel) +
+      '</section>' +
+      '<section class="cliente-profile-grid cliente-profile-two">' +
+        '<div class="cliente-profile-card"><div class="cliente-profile-head"><span class="mi">badge</span><div><div class="cliente-profile-title">Perfil</div><p class="cliente-profile-hint">Dados principais usados no atendimento e relacionamento.</p></div></div>' +
+          '<div class="cliente-profile-info">' +
+            _profileInfo('Canal principal', c.mainChannel || c.channelName || c.channel || c.origin || '-') +
+            _profileInfo('Status', c.status || s.segmentLabel) +
+            _profileInfo('NIF / CIF', c.nifCif || c.fiscalId || '-') +
+            _profileInfoHTML('Telefone / WhatsApp', c.phone ? _phoneLink(c, 'Hola ' + (c.name || '') + ', tenemos una novedad para ti.') : '-') +
+            _profileInfoHTML('Endereços de entrega', _profileAddressesHTML(c)) +
+            _profileInfo('Preferências', c.preferences || '-') +
+            _profileInfo('Alergias', c.allergies || '-') +
+          '</div>' +
+        '</div>' +
+        '<div class="cliente-profile-card"><div class="cliente-profile-head"><span class="mi">bolt</span><div><div class="cliente-profile-title">Ações rápidas</div><p class="cliente-profile-hint">Atalhos para atendimento e leitura do relacionamento.</p></div></div>' +
+          (c.phone ? '<a href="' + _whatsUrl(c.phone, 'Hola ' + (c.name || '') + ', tenemos una novedad para ti.') + '" target="_blank" style="' + _actionLink('#E9F8EF', '#1A9E5A') + '"><span class="mi">chat</span> Abrir WhatsApp</a>' : '') +
+          '<button onclick="Modules.Clientes._openHistory(\'' + c.id + '\')" style="' + _actionButton('#EEF4FF', '#2563EB') + '"><span class="mi">history</span> Ver histórico</button>' +
+          '<button onclick="Modules.Clientes._openSegmentFlow(\'' + c.id + '\')" style="' + _actionButton('#FFF8F1', '#B45309') + '"><span class="mi">timeline</span> Ver fluxo do segmento</button>' +
+        '</div>' +
+      '</section>' +
       _pointsHistoryHTML(c) +
       _topProductsHTML(s.topProducts) +
       _reviewsHTML(c) +
@@ -434,6 +635,24 @@ Modules.Clientes = (function () {
 
   function _setFilter(key, value) {
     _filters[key] = value || '';
+    _page.page = 1;
+    _paint();
+  }
+
+  function _clearFilters() {
+    _filters = { q: '', status: '', segment: '', origin: '' };
+    _page.page = 1;
+    _paint();
+  }
+
+  function _setPage(page) {
+    _page.page = Math.max(1, parseInt(page, 10) || 1);
+    _paint();
+  }
+
+  function _setPageSize(size) {
+    _page.perPage = parseInt(size, 10) || 10;
+    _page.page = 1;
     _paint();
   }
 
@@ -594,18 +813,24 @@ Modules.Clientes = (function () {
 
   function _originOptions(selected) {
     var origins = _channelNames();
-    (_clientes || []).forEach(function (c) {
-      var v = c.mainChannel || c.channelName || c.channel || c.origin;
-      if (v && origins.indexOf(v) < 0) origins.push(v);
-    });
     return '<option value="">Canal principal</option>' + origins.map(function (o) { return '<option value="' + _esc(o) + '"' + (selected === o ? ' selected' : '') + '>' + _esc(_title(o)) + '</option>'; }).join('');
   }
 
   function _normalizeCanais(raw) {
-    var list = raw && Array.isArray(raw.list) ? raw.list : [];
-    var names = ['Cardápio', 'Loja própria', 'WhatsApp'];
+    var list = [];
+    if (Array.isArray(raw)) list = raw;
+    else if (raw && Array.isArray(raw.list)) list = raw.list;
+    else if (raw && Array.isArray(raw.channels)) list = raw.channels;
+    else if (raw && Array.isArray(raw.items)) list = raw.items;
+    else if (raw && typeof raw === 'object') {
+      list = Object.keys(raw).filter(function (key) {
+        return ['createdAt', 'updatedAt', 'id'].indexOf(key) < 0;
+      }).map(function (key) { return raw[key]; });
+    }
+    var names = ['Cardápio', 'Venda presencial'];
     list.forEach(function (c) {
-      var name = c && (c.name || c.nome || c.label);
+      if (!c || c.active === false || c.enabled === false || c.status === 'inativo') return;
+      var name = typeof c === 'string' ? c : (c.name || c.nome || c.label || c.title);
       if (name && names.indexOf(name) < 0) names.push(name);
     });
     return names.map(function (name) { return { name: name }; });
@@ -613,7 +838,7 @@ Modules.Clientes = (function () {
 
   function _channelNames() {
     var names = (_canais || []).map(function (c) { return c.name || c.nome || c.label; }).filter(Boolean);
-    return names.length ? names : ['Cardápio', 'Loja própria', 'WhatsApp'];
+    return names.length ? names : ['Cardápio', 'Venda presencial'];
   }
 
   function _defaultChannel() {
@@ -659,8 +884,191 @@ Modules.Clientes = (function () {
       if (hint) hint.textContent = cfg.fiscalDocumentHint;
       if (stLbl) stLbl.textContent = cfg.regionLabel || 'Estado / Província';
     }
-    var stateSelect = document.getElementById('cli-state');
-    if (stateSelect) stateSelect.innerHTML = _regionOptions(countryVal, '');
+  }
+
+  function _initClientePlaces() {
+    if (!window.BocaPlaces) return;
+    BocaPlaces.init('cli-address', {
+      onPlace: function (place) {
+        if (!place) return;
+        if (place.number) _setClienteField('cli-number', place.number);
+        if (place.neighborhood) _setClienteField('cli-hood', place.neighborhood);
+        if (place.postalCode) _setClienteField('cli-zip', place.postalCode);
+        if (place.city || place.locality) _setClienteField('cli-city', place.city || place.locality);
+        if (place.country || place.countryCode) {
+          _setClienteCountry(place.country, place.countryCode);
+        }
+        if (place.province) {
+          _setClienteField('cli-state', place.province);
+        }
+      }
+    });
+  }
+
+  function _clienteAddressesBookHTML() {
+    var addresses = _normalizeClienteAddresses({ deliveryAddresses: _clienteDeliveryAddresses });
+    _clienteDeliveryAddresses = addresses;
+    var list = addresses.length ? '<div class="cliente-address-list">' + addresses.map(function (addr, idx) {
+      return '<div class="cliente-address-card">' +
+        '<div style="min-width:0;">' +
+          '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:3px;">' +
+            '<div class="cliente-address-name">' + _esc(addr.label || (idx === 0 ? 'Endereço principal' : 'Endereço ' + (idx + 1))) + '</div>' +
+            (idx === 0 ? '<span style="height:22px;padding:0 8px;border-radius:999px;background:#FFF3F0;color:#B42318;font-size:10px;font-weight:750;display:inline-flex;align-items:center;">Principal</span>' : '') +
+          '</div>' +
+          '<div class="cliente-address-text">' + _esc(_clienteAddressLine(addr) || 'Endereço sem dados completos') + '</div>' +
+        '</div>' +
+        '<div class="cliente-address-actions">' +
+          (idx > 0 ? '<button type="button" class="cliente-address-mini" onclick="Modules.Clientes._setClientePrimaryAddress(' + idx + ')"><span class="mi" style="font-size:14px;">star</span>Principal</button>' : '') +
+          '<button type="button" class="cliente-address-mini" onclick="Modules.Clientes._editClienteDeliveryAddress(' + idx + ')"><span class="mi" style="font-size:14px;">edit</span>Editar</button>' +
+          '<button type="button" class="cliente-address-mini" onclick="Modules.Clientes._removeClienteDeliveryAddress(' + idx + ')" style="color:#B42318;"><span class="mi" style="font-size:14px;">delete</span>Remover</button>' +
+        '</div>' +
+      '</div>';
+    }).join('') + '</div>' : '<div style="background:#FFFCF8;border:1px dashed #E8DCD7;border-radius:14px;padding:13px;color:#6F6860;font-size:13px;line-height:1.4;">Nenhum endereço de entrega cadastrado.</div>';
+    return '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px;">' +
+        '<div style="font-size:12px;color:#6F6860;line-height:1.35;">Cadastre os endereços usados para entrega. O primeiro endereço fica como principal e é usado como referência nos pedidos.</div>' +
+        '<button type="button" class="cliente-address-add" onclick="Modules.Clientes._newClienteDeliveryAddress()"><span class="mi" style="font-size:15px;">add_location_alt</span>Adicionar endereço</button>' +
+      '</div>' +
+      list +
+      (_clienteAddressFormOpen ? _clienteAddressFormHTML() : '');
+  }
+
+  function _clienteAddressFormHTML() {
+    var editing = _clienteAddressEditIndex >= 0 ? (_clienteDeliveryAddresses[_clienteAddressEditIndex] || {}) : {};
+    return '<div class="cliente-address-form">' +
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px;">' +
+        '<div><div class="cliente-card-title" style="margin-bottom:2px;">' + (_clienteAddressEditIndex >= 0 ? 'Editar endereço' : 'Novo endereço') + '</div><p class="cliente-card-hint">Use a busca da rua para preencher bairro, cidade, província, país e código postal quando disponível.</p></div>' +
+        '<button type="button" class="cliente-address-mini" onclick="Modules.Clientes._cancelClienteDeliveryAddress()">Cancelar</button>' +
+      '</div>' +
+      '<div class="cliente-address-form-grid">' +
+        '<div>' + _field('cli-address-label-input', 'Nome do endereço', editing.label || '') + '</div>' +
+        '<div class="wide">' + _field('cli-address', 'Rua', editing.address || '') + '</div>' +
+        _field('cli-number', 'Número / portal', editing.number || '') +
+        _field('cli-reference', 'Piso / referência', editing.complement || '') +
+        _field('cli-hood', 'Bairro / zona', editing.neighborhood || '') +
+        _field('cli-zip', 'Código postal', editing.postalCode || '') +
+        _field('cli-city', 'Localidade', editing.city || '') +
+        '<div><label id="cli-state-label" style="' + _label() + '">Província</label><input id="cli-state" type="text" value="' + _esc(editing.province || '') + '" readonly placeholder="Preenchido pelo endereço" style="' + _input() + 'background:#F7F3EF;color:#6F6860;cursor:default;"></div>' +
+        '<div><label style="' + _label() + '">País</label><input id="cli-country" type="text" value="' + _esc(editing.country || 'España') + '" readonly placeholder="Preenchido pelo endereço" style="' + _input() + 'background:#F7F3EF;color:#6F6860;cursor:default;"></div>' +
+      '</div>' +
+      '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;flex-wrap:wrap;">' +
+        '<button type="button" class="cliente-address-mini" onclick="Modules.Clientes._cancelClienteDeliveryAddress()">Cancelar</button>' +
+        '<button type="button" class="clientes-primary" onclick="Modules.Clientes._saveClienteDeliveryAddress()" style="height:36px;box-shadow:0 8px 18px rgba(180,35,24,.14);"><span class="mi" style="font-size:15px;">check</span>Salvar endereço</button>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function _renderClienteAddressesBook() {
+    var el = document.getElementById('cli-address-book');
+    if (!el) return;
+    el.innerHTML = _clienteAddressesBookHTML();
+    setTimeout(_initClientePlaces, 80);
+  }
+
+  function _newClienteDeliveryAddress() {
+    _clienteAddressFormOpen = true;
+    _clienteAddressEditIndex = -1;
+    _renderClienteAddressesBook();
+  }
+
+  function _editClienteDeliveryAddress(index) {
+    _clienteAddressFormOpen = true;
+    _clienteAddressEditIndex = parseInt(index, 10);
+    _renderClienteAddressesBook();
+  }
+
+  function _cancelClienteDeliveryAddress() {
+    _clienteAddressFormOpen = false;
+    _clienteAddressEditIndex = -1;
+    _renderClienteAddressesBook();
+  }
+
+  function _saveClienteDeliveryAddress() {
+    var address = {
+      id: _clienteAddressEditIndex >= 0 && _clienteDeliveryAddresses[_clienteAddressEditIndex] ? _clienteDeliveryAddresses[_clienteAddressEditIndex].id : ('addr-' + Date.now().toString(36)),
+      label: _val('cli-address-label-input') || (_clienteDeliveryAddresses.length ? 'Endereço ' + (_clienteDeliveryAddresses.length + 1) : 'Endereço principal'),
+      address: _val('cli-address'),
+      number: _val('cli-number'),
+      complement: _val('cli-reference'),
+      neighborhood: _val('cli-hood'),
+      city: _val('cli-city'),
+      province: _val('cli-state'),
+      country: _val('cli-country') || 'España',
+      postalCode: _val('cli-zip')
+    };
+    if (!(address.address || address.postalCode || address.neighborhood)) {
+      UI.toast('Informe pelo menos rua, bairro ou código postal para salvar o endereço.', 'error');
+      return;
+    }
+    if (!_validPostalCode(address.postalCode, address.country)) {
+      UI.toast(_postalErrorMessage(address.country), 'error');
+      return;
+    }
+    if (_clienteAddressEditIndex >= 0) _clienteDeliveryAddresses[_clienteAddressEditIndex] = address;
+    else _clienteDeliveryAddresses.push(address);
+    _clienteDeliveryAddresses = _normalizeClienteAddresses({ deliveryAddresses: _clienteDeliveryAddresses });
+    _clienteAddressFormOpen = false;
+    _clienteAddressEditIndex = -1;
+    _renderClienteAddressesBook();
+  }
+
+  function _removeClienteDeliveryAddress(index) {
+    index = parseInt(index, 10);
+    if (index < 0 || index >= _clienteDeliveryAddresses.length) return;
+    _clienteDeliveryAddresses.splice(index, 1);
+    _clienteDeliveryAddresses = _normalizeClienteAddresses({ deliveryAddresses: _clienteDeliveryAddresses });
+    _clienteAddressFormOpen = false;
+    _clienteAddressEditIndex = -1;
+    _renderClienteAddressesBook();
+  }
+
+  function _setClientePrimaryAddress(index) {
+    index = parseInt(index, 10);
+    if (index <= 0 || index >= _clienteDeliveryAddresses.length) return;
+    var item = _clienteDeliveryAddresses.splice(index, 1)[0];
+    _clienteDeliveryAddresses.unshift(item);
+    _clienteDeliveryAddresses = _normalizeClienteAddresses({ deliveryAddresses: _clienteDeliveryAddresses });
+    _renderClienteAddressesBook();
+  }
+
+  function _setClienteField(id, value) {
+    var el = document.getElementById(id);
+    if (!el || !value) return;
+    el.value = value;
+    try { el.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {}
+    try { el.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) {}
+  }
+
+  function _setClienteCountry(country, code) {
+    var map = {
+      Spain: 'España', ES: 'España',
+      Portugal: 'Portugal', PT: 'Portugal',
+      France: 'Francia', FR: 'Francia',
+      Italy: 'Italia', IT: 'Italia',
+      Germany: 'Alemania', DE: 'Alemania',
+      Netherlands: 'Países Bajos', NL: 'Países Bajos',
+      Belgium: 'Bélgica', BE: 'Bélgica',
+      'United Kingdom': 'Reino Unido', GB: 'Reino Unido', UK: 'Reino Unido',
+      Ireland: 'Irlanda', IE: 'Irlanda'
+    };
+    var target = map[country] || map[code] || country || code || '';
+    _setClienteField('cli-country', target);
+    _onClienteCountryChange();
+  }
+
+  function _setClienteSelectFuzzy(id, value) {
+    var el = document.getElementById(id);
+    if (!el || !value) return;
+    var target = _fold(value);
+    var best = '';
+    Array.prototype.forEach.call(el.options || [], function (opt) {
+      var optText = _fold(opt.textContent || opt.value || '');
+      var optValue = _fold(opt.value || '');
+      if (!best && (optText === target || optValue === target || optText.indexOf(target) >= 0 || target.indexOf(optText) >= 0)) {
+        best = opt.value;
+      }
+    });
+    el.value = best || value;
+    try { el.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) {}
   }
 
   function _countryOptions(selected) {
@@ -774,6 +1182,25 @@ Modules.Clientes = (function () {
   }
 
   function _miniMetric(label, value) { return '<div style="background:#FAF8F4;border:1px solid #EAE4DA;border-radius:12px;padding:10px 11px;min-width:0;"><div style="font-size:10px;color:#6F6860;font-weight:800;text-transform:uppercase;letter-spacing:.04em;line-height:1.2;">' + label + '</div><strong style="display:block;font-size:14px;color:#1F1F1F;margin-top:4px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + value + '</strong></div>'; }
+  function _profileMetric(label, value, sub) {
+    return '<div class="cliente-profile-metric"><span>' + _esc(label) + '</span><strong>' + _esc(String(value == null ? '-' : value)) + '</strong>' + (sub ? '<small style="display:block;margin-top:3px;font-size:11px;color:#8A7E7C;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(sub) + '</small>' : '') + '</div>';
+  }
+  function _profileInfo(label, value) {
+    return '<div class="cliente-profile-info-row"><div>' + _esc(label) + '</div><div>' + _esc(value || '-') + '</div></div>';
+  }
+  function _profileInfoHTML(label, html) {
+    return '<div class="cliente-profile-info-row"><div>' + _esc(label) + '</div><div>' + (html || '-') + '</div></div>';
+  }
+  function _profileAddressesHTML(c) {
+    var addresses = _normalizeClienteAddresses(c || {});
+    if (!addresses.length) return '-';
+    return '<div style="display:flex;flex-direction:column;gap:6px;">' + addresses.map(function (addr, idx) {
+      return '<div style="font-size:12px;color:#1F1F1F;line-height:1.35;font-weight:500;">' +
+        '<span style="color:' + (idx === 0 ? '#B42318' : '#6F6860') + ';font-weight:650;">' + _esc(addr.label || (idx === 0 ? 'Principal' : 'Endereço ' + (idx + 1))) + ':</span> ' +
+        _esc(_clienteAddressLine(addr) || '-') +
+      '</div>';
+    }).join('') + '</div>';
+  }
   function _kpi(label, value, sub, icon, color) {
     return '<div style="display:flex;align-items:center;gap:12px;background:#FAF8F4;border:none;border-radius:16px;padding:15px 16px;box-shadow:0 12px 30px rgba(31,31,31,.06);min-height:78px;overflow:hidden;transition:transform .16s ease,box-shadow .16s ease,background .16s ease;" onmouseenter="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 16px 34px rgba(31,31,31,.09)\';this.style.background=\'#fff\'" onmouseleave="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'0 12px 30px rgba(31,31,31,.06)\';this.style.background=\'#FAF8F4\'">' +
       '<div style="width:46px;height:46px;border-radius:14px;background:transparent;color:' + (color || '#6F6860') + ';display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span class="mi" style="font-size:24px;">' + _esc(icon || 'analytics') + '</span></div>' +
@@ -790,19 +1217,94 @@ Modules.Clientes = (function () {
   function _field(id, label, value, type) { return '<div class="bf-field"><label>' + label + '</label><input id="' + id + '" class="bf-input" type="' + (type || 'text') + '" value="' + _esc(value == null ? '' : value) + '"></div>'; }
   function _textarea(id, label, value) { return '<div class="bf-field"><label>' + label + '</label><textarea id="' + id + '" class="bf-textarea">' + _esc(value || '') + '</textarea></div>'; }
   function _select(id, label, options) { return '<div class="bf-field"><label>' + label + '</label><select id="' + id + '" class="bf-select">' + options + '</select></div>'; }
-  function _input() { return 'width:100%;padding:10px 12px;border:1px solid #EAE4DA;border-radius:10px;font-size:14px;font-family:inherit;outline:none;box-sizing:border-box;background:#fff;color:#1F1F1F;box-shadow:inset 0 1px 0 rgba(255,255,255,.78);transition:border-color .15s ease,box-shadow .15s ease,background .15s ease;'; }
-  function _label() { return 'font-size:10px;font-weight:600;color:#7A746B;display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em;'; }
+  function _input() { return 'width:100%;min-height:36px;padding:0 12px;border:1px solid #E8DCD7;border-radius:12px;font-size:14px;font-family:inherit;outline:none;box-sizing:border-box;background:#FFFCF8;color:#1F1F1F;box-shadow:none;transition:border-color .15s ease,box-shadow .15s ease,background .15s ease;'; }
+  function _label() { return 'font-size:11px;font-weight:650;color:#8A7E7C;display:block;margin-bottom:5px;letter-spacing:.02em;'; }
   function _sectionTitle() { return 'font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:12px;'; }
   function _primaryBtn() { return 'min-width:180px;height:40px;background:#B42318;color:#fff;border:none;padding:0 16px;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(180,35,24,.18);'; }
   function _smallSelect() { return 'height:38px;padding:0 12px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;font-size:13px;font-weight:500;color:#1F1F1F;font-family:inherit;outline:none;box-shadow:0 1px 2px rgba(31,31,31,.03);'; }
   function _iconBtn(bg, color) { return 'width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:' + bg + ';color:' + color + ';cursor:pointer;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;box-shadow:0 1px 2px rgba(31,31,31,.03);'; }
   function _panel() { return 'background:#fff;border:1px solid #EAE4DA;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);'; }
   function _h3() { return 'font-size:14px;font-weight:700;color:#1F1F1F;margin-bottom:10px;'; }
+  function _filterField(label, control) { return '<label style="display:block;min-width:0;"><span style="font-size:11px;font-weight:600;color:#6F6860;display:block;margin-bottom:5px;letter-spacing:.02em;">' + _esc(label) + '</span>' + control + '</label>'; }
+  function _filterBoxStyle() { return 'background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:0 12px;min-height:42px;display:flex;align-items:center;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;'; }
+  function _filterControlStyle() { return 'width:100%;height:40px;border:0;background:transparent;outline:none;font-size:14px;font-family:inherit;color:#1F1F1F;box-sizing:border-box;'; }
+  function _filterSelectControlStyle() { return _filterControlStyle() + 'appearance:none;-webkit-appearance:none;-moz-appearance:none;padding-right:30px;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 4px center;background-size:14px;'; }
   function _actionButton(bg, color) { return 'width:100%;display:flex;align-items:center;gap:8px;margin-top:8px;padding:10px 12px;border-radius:10px;border:1px solid #EAE4DA;background:' + bg + ';color:' + color + ';font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);'; }
   function _actionLink(bg, color) { return _actionButton(bg, color) + 'text-decoration:none;box-sizing:border-box;'; }
   function _avatarColor(name) { var colors = ['#C4362A', '#1A9E5A', '#2563EB', '#7C3AED', '#D97706', '#0891B2']; return colors[(name || 'C').charCodeAt(0) % colors.length]; }
+  function _avatarUrl(c) { return c && (c.avatarUrl || c.photoURL || c.photoUrl || c.imageUrl || c.picture) || ''; }
+  function _avatarHTML(c, size, radius, fontSize) {
+    var url = _avatarUrl(c);
+    var bg = url ? 'transparent' : _avatarColor(c && c.name);
+    var style = 'width:' + size + 'px;height:' + size + 'px;border-radius:50%;background:' + bg + ';color:#fff;font-size:' + fontSize + 'px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 1px 2px rgba(31,31,31,.03);overflow:hidden;';
+    return '<div style="' + style + '">' + (url ? '<img src="' + _esc(url) + '" alt="" style="width:100%;height:100%;object-fit:contain;display:block;">' : _esc(_initials(c && c.name))) + '</div>';
+  }
+  function _profileAvatarHTML(c) {
+    var url = _avatarUrl(c);
+    return '<div class="cliente-profile-avatar">' + (url ? '<img src="' + _esc(url) + '" alt="">' : _esc(_initials(c && c.name))) + '</div>';
+  }
   function _initials(name) { return (name || 'Cliente').split(' ').map(function (w) { return w[0]; }).slice(0, 2).join('').toUpperCase(); }
-  function _clientAddress(c) { return [c.address, c.neighborhood || c.zone, c.postalCode, c.state || c.province, c.country].filter(Boolean).join(', '); }
+  function _clientAddress(c) {
+    var primary = _primaryClientAddress(c || {});
+    return _clienteAddressLine(primary);
+  }
+  function _primaryClientAddress(c) {
+    var addresses = _normalizeClienteAddresses(c || {});
+    if (addresses.length) return addresses[0];
+    return {};
+  }
+  function _normalizeClienteAddresses(c) {
+    c = c || {};
+    var source = Array.isArray(c.deliveryAddresses) ? c.deliveryAddresses
+      : (Array.isArray(c.savedDeliveryAddresses) ? c.savedDeliveryAddresses
+        : (Array.isArray(c.addresses) ? c.addresses : []));
+    var list = [];
+    source.forEach(function (addr, index) {
+      if (!addr) return;
+      var item = _normalizeClienteAddress(addr, index);
+      if (item.address || item.postalCode || item.neighborhood) list.push(item);
+    });
+    if (!list.length) {
+      var legacy = _normalizeClienteAddress({
+        id: 'legacy',
+        label: 'Endereço principal',
+        address: c.address || c.streetAddress || c.fullAddress || c.street || c.endereco || '',
+        number: c.number || c.numero || c.portal || '',
+        complement: c.reference || c.complement || c.piso || '',
+        neighborhood: c.neighborhood || c.zone || c.bairro || c.area || c.district || '',
+        city: c.city || c.locality || c.cidade || '',
+        province: c.province || c.state || c.estado || c.region || '',
+        country: c.country || c.countryCode || c.pais || '',
+        postalCode: c.postalCode || c.zip || c.codigoPostal || c.postcode || ''
+      }, 0);
+      if (legacy.address || legacy.postalCode || legacy.neighborhood) list.push(legacy);
+    }
+    return list.map(function (item, index) {
+      item.label = item.label || (index === 0 ? 'Endereço principal' : 'Endereço ' + (index + 1));
+      return item;
+    });
+  }
+  function _normalizeClienteAddress(addr, index) {
+    return {
+      id: String(addr.id || addr.key || ('addr-' + index)),
+      label: addr.label || addr.name || addr.nome || '',
+      address: addr.address || addr.street || addr.streetAddress || addr.route || addr.addressLine || addr.line1 || addr.formattedAddress || addr.fullAddress || addr.endereco || '',
+      number: addr.number || addr.numero || addr.portal || addr.addressNumber || '',
+      complement: addr.complement || addr.piso || addr.floor || addr.reference || addr.addressComplement || '',
+      neighborhood: addr.neighborhood || addr.zone || addr.bairro || addr.area || addr.district || '',
+      city: addr.city || addr.locality || addr.cidade || '',
+      province: addr.province || addr.state || addr.estado || addr.region || '',
+      country: addr.country || addr.countryCode || addr.pais || 'España',
+      postalCode: addr.postalCode || addr.zip || addr.codigoPostal || addr.postcode || ''
+    };
+  }
+  function _clienteAddressLine(addr) {
+    if (!addr) return '';
+    var line1 = [addr.address, addr.number].filter(Boolean).join(' ');
+    var line2 = [addr.complement, addr.neighborhood, addr.postalCode].filter(Boolean).join(' · ');
+    var line3 = [addr.city, addr.province, addr.country].filter(Boolean).join(', ');
+    return [line1, line2, line3].filter(Boolean).join(' · ');
+  }
   function _phoneLink(c, text) { return '<a href="' + _whatsUrl(c.phone, text || '') + '" target="_blank" onclick="event.stopPropagation();" style="color:#1A9E5A;font-weight:900;text-decoration:none;">' + _esc(c.phone || '') + '</a>'; }
   function _contactHTML(c, text) {
     var parts = [];
@@ -823,9 +1325,15 @@ Modules.Clientes = (function () {
     var raw = String(v || '').trim();
     if (!raw) return true;
     var lc = String(country || '').toLowerCase();
-    if (lc === 'españa') return /^\d{5}$/.test(raw);
-    if (lc === 'portugal') return /^\d{4}-\d{3}$/.test(raw) || /^\d{4}$/.test(raw);
+    if (lc === 'españa' || lc === 'es' || lc === 'spain') return /^\d{5}$/.test(raw);
+    if (lc === 'portugal' || lc === 'pt') return /^\d{4}-\d{3}$/.test(raw) || /^\d{4}$/.test(raw);
     return raw.length >= 3 && raw.length <= 12;
+  }
+  function _postalErrorMessage(country) {
+    var lc = String(country || '').toLowerCase();
+    if (lc === 'portugal' || lc === 'pt') return 'Código postal inválido para Portugal. Use NNNN-NNN.';
+    if (lc === 'españa' || lc === 'es' || lc === 'spain') return 'Código postal inválido para Espanha. Use 5 números.';
+    return 'Código postal inválido.';
   }
   function _countryIso(value) {
     var raw = String(value || '').trim();
@@ -911,7 +1419,15 @@ Modules.Clientes = (function () {
     return list.map(function (x) { return '<option value="' + x[0] + '"' + (selected === x[0] ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('');
   }
   function _clean(v) { return String(v || '').trim().toLowerCase(); }
-  function _title(v) { return String(v || '').replace(/_/g, ' ').replace(/\b\w/g, function (m) { return m.toUpperCase(); }); }
+  function _title(v) {
+    var raw = String(v || '').replace(/_/g, ' ').trim();
+    var key = raw.normalize ? raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() : raw.toLowerCase();
+    if (key === 'cardapio') return 'Cardápio';
+    if (key === 'venda presencial') return 'Venda presencial';
+    return raw.replace(/(^|\s)([a-záéíóúàèìòùâêîôûãõç])/gi, function (_, sep, letter) {
+      return sep + letter.toUpperCase();
+    });
+  }
   function _dateTs(o) { var raw = o.createdAt || o.date || o.data || o.updatedAt || o.paidAt || ''; if (raw && typeof raw.toDate === 'function') return raw.toDate().getTime(); var d = new Date(raw); return isNaN(d.getTime()) ? 0 : d.getTime(); }
   function _fmtDate(o) { var ts = _dateTs(o); return ts ? UI.fmtDate(new Date(ts)) : '-'; }
   function _num(v) { return parseFloat(String(v == null ? '' : v).replace(',', '.')) || 0; }
@@ -926,11 +1442,22 @@ Modules.Clientes = (function () {
     destroy: destroy,
     _openModal: _openModal,
     _saveCliente: _saveCliente,
+    _uploadClienteAvatarImage: _uploadClienteAvatarImage,
+    _clearClienteAvatarImage: _clearClienteAvatarImage,
     _onClienteCountryChange: _onClienteCountryChange,
+    _newClienteDeliveryAddress: _newClienteDeliveryAddress,
+    _editClienteDeliveryAddress: _editClienteDeliveryAddress,
+    _cancelClienteDeliveryAddress: _cancelClienteDeliveryAddress,
+    _saveClienteDeliveryAddress: _saveClienteDeliveryAddress,
+    _removeClienteDeliveryAddress: _removeClienteDeliveryAddress,
+    _setClientePrimaryAddress: _setClientePrimaryAddress,
     _deleteCliente: _deleteCliente,
     _openHistory: _openHistory,
     _openSegmentFlow: _openSegmentFlow,
     _openProfile: _openProfile,
-    _setFilter: _setFilter
+    _setFilter: _setFilter,
+    _clearFilters: _clearFilters,
+    _setPage: _setPage,
+    _setPageSize: _setPageSize
   };
 })();

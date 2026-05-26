@@ -8,22 +8,26 @@ Modules.Estoque = (function () {
   var _items = [];
   var _settings = {};
   var _classMaps = { itens: {}, receitas: {}, produtos: {} };
-  var _filters = { q: '', type: 'todos', stockKind: 'todos' };
+  var _filters = { q: '', type: 'todos', stockKind: 'insumo' };
+  var _itemsPage = { page: 1, perPage: 10 };
+  var _movementFilters = { q: '', direction: 'entrada', origin: 'todos' };
+  var _movementsPage = { page: 1, perPage: 10 };
+  var _detailMovementState = { key: '', q: '', page: 1, perPage: 5 };
 
   function render(sub) {
     _activeSub = sub || 'itens';
     var app = document.getElementById('app');
     if (!app) return;
+    var isMovements = _activeSub === 'movimentacoes';
     app.innerHTML =
       '<div id="stock-root" class="module-page stock-page">' +
         _styles() +
-        '<section class="stock-header">' +
-          '<div>' +
-            '<p class="stock-eyebrow">ESTOQUE</p>' +
-            '<h1>Itens em estoque</h1>' +
-            '<p>Saldo calculado pelas entradas, saídas e ajustes registrados. Separe insumos, produtos prontos e produtos produzidos para conferir com mais clareza.</p>' +
+        '<div class="stock-page-head">' +
+          '<div style="min-width:0;flex:1 1 420px;">' +
+            '<h2>' + (isMovements ? 'Movimentações do estoque' : 'Itens em estoque') + '</h2>' +
+            '<p>' + (isMovements ? 'Acompanhe entradas, saídas, estornos e ajustes usados para calcular os saldos.' : 'Saldo calculado pelas entradas, saídas e ajustes registrados. Separe os itens por classe para conferir com mais clareza.') + '</p>' +
           '</div>' +
-        '</section>' +
+        '</div>' +
         '<div id="stock-content" class="stock-content"><div class="loading-inline">Carregando estoque...</div></div>' +
       '</div>';
     _loadItems();
@@ -112,8 +116,11 @@ Modules.Estoque = (function () {
         : 'Produção';
       var setting = _settings[item.key] || {};
       item.minStock = _num(setting.minStock);
+      item.maxStock = _num(setting.maxStock);
       item.minStockEnabled = item.minStock > 0;
+      item.maxStockEnabled = item.maxStock > 0;
       item.isBelowMin = item.minStockEnabled && item.balance <= item.minStock;
+      item.isAboveMax = item.maxStockEnabled && item.balance > item.maxStock;
       item.movements.sort(function (a, b) { return _dateValue(b.date) - _dateValue(a.date); });
       return item;
     }).sort(function (a, b) {
@@ -145,6 +152,8 @@ Modules.Estoque = (function () {
     var isBaseProductionEntry = type === 'entrada_base_producao';
     var isBaseSaleExit = type === 'saida_base_venda';
     var isSaleExit = type === 'saida_venda' || isBaseSaleExit;
+    var isSaleReturn = type === 'retorno_venda';
+    var isSaleLoss = type === 'perda_venda';
     var isPurchaseReversal = type === 'estorno_compra';
     var isSaleReversal = type === 'estorno_venda';
     var isProductionIngredientReversal = type === 'estorno_producao_ingrediente';
@@ -152,32 +161,33 @@ Modules.Estoque = (function () {
     var isBaseProductionReversal = type === 'estorno_base_producao';
     var isAdjustmentEntry = type === 'ajuste_entrada';
     var isAdjustmentExit = type === 'ajuste_saida';
-    var isEntry = isProductionEntry || isBaseProductionEntry || isPurchaseEntry || isSaleReversal || isProductionIngredientReversal || isAdjustmentEntry;
+    var isEntry = isProductionEntry || isBaseProductionEntry || isPurchaseEntry || isSaleReversal || isSaleReturn || isProductionIngredientReversal || isAdjustmentEntry;
     var isExit = type === 'saida_producao' || isSaleExit || isPurchaseReversal || isProductionProductReversal || isBaseProductionReversal || isAdjustmentExit;
-    if (!isEntry && !isExit) return {};
+    if (!isEntry && !isExit && !isSaleLoss) return {};
 
     var directClass = _normalizeStockClass(movement.stockItemType || movement.itemClass || movement.classe || '');
-    var saleReadyItemId = (isSaleExit || isSaleReversal) ? (movement.sourceItemId || movement.produtoProntoId || '') : '';
-    var saleIsReadyProduct = (isSaleExit || isSaleReversal) && !!saleReadyItemId && !movement.fichaTecnicaId;
+    var isSaleRelated = isSaleExit || isSaleReversal || isSaleReturn || isSaleLoss;
+    var saleReadyItemId = isSaleRelated ? (movement.sourceItemId || movement.produtoProntoId || '') : '';
+    var saleIsReadyProduct = isSaleRelated && !!saleReadyItemId && !movement.fichaTecnicaId;
     var adjustmentStockType = String(movement.stockItemType || '').trim();
     var isBaseStockMovement = isBaseProductionEntry || isBaseProductionReversal || isBaseSaleExit || ((isSaleReversal || isSaleExit) && !!movement.baseProductionId);
     var itemId = isBaseStockMovement
       ? (movement.baseProductionId || movement.componentName || '')
       : ((isProductionEntry || isProductionProductReversal)
       ? (movement.fichaTecnicaId || '')
-      : ((isSaleExit || isSaleReversal) ? (movement.fichaTecnicaId || saleReadyItemId || movement.productId || '') : ((isAdjustmentEntry || isAdjustmentExit) ? (movement.itemId || '') : ((isPurchaseEntry || isPurchaseReversal) ? (movement.itemId || '') : (movement.ingredientId || '')))));
+      : (isSaleRelated ? (movement.fichaTecnicaId || saleReadyItemId || movement.productId || '') : ((isAdjustmentEntry || isAdjustmentExit) ? (movement.itemId || '') : ((isPurchaseEntry || isPurchaseReversal) ? (movement.itemId || '') : (movement.ingredientId || '')))));
     var itemName = isBaseStockMovement
       ? (movement.baseProductionName || movement.componentName || 'Base de produção')
       : ((isProductionEntry || isProductionProductReversal)
       ? (movement.fichaTecnicaNome || 'Produto produzido')
-      : ((isSaleExit || isSaleReversal) ? (movement.productName || 'Produto vendido') : ((isAdjustmentEntry || isAdjustmentExit) ? (movement.itemName || 'Item ajustado') : ((isPurchaseEntry || isPurchaseReversal) ? (movement.itemName || 'Ingrediente') : (movement.ingredientName || 'Ingrediente')))));
+      : (isSaleRelated ? (movement.productName || 'Produto vendido') : ((isAdjustmentEntry || isAdjustmentExit) ? (movement.itemName || 'Item ajustado') : ((isPurchaseEntry || isPurchaseReversal) ? (movement.itemName || 'Ingrediente') : (movement.ingredientName || 'Ingrediente')))));
     var lookupClass = _lookupStockClass(movement, itemId, {
       isProductionEntry: isProductionEntry,
       isProductionProductReversal: isProductionProductReversal,
       isBaseProductionEntry: isBaseProductionEntry,
       isBaseProductionReversal: isBaseProductionReversal,
       isSaleExit: isSaleExit,
-      isSaleReversal: isSaleReversal,
+      isSaleReversal: isSaleReversal || isSaleReturn || isSaleLoss,
       isPurchaseEntry: isPurchaseEntry,
       isPurchaseReversal: isPurchaseReversal
     });
@@ -187,16 +197,16 @@ Modules.Estoque = (function () {
     var movementIsBaseProduct = stockClass === 'base_producao';
     var movementIsSupply = stockClass === 'insumo';
     var purchaseIsProduct = (isPurchaseEntry || isPurchaseReversal) && movementIsReadyProduct;
-    var itemType = (isProductionEntry || isProductionProductReversal || isBaseStockMovement || isSaleExit || isSaleReversal || purchaseIsProduct || adjustmentStockType.indexOf('produto') === 0 || movementIsProducedProduct || movementIsBaseProduct) ? 'produto' : 'ingrediente';
+    var itemType = (isProductionEntry || isProductionProductReversal || isBaseStockMovement || isSaleRelated || purchaseIsProduct || adjustmentStockType.indexOf('produto') === 0 || movementIsProducedProduct || movementIsBaseProduct) ? 'produto' : 'ingrediente';
     var quantity = (isProductionEntry || isProductionProductReversal || isBaseProductionEntry || isBaseProductionReversal) ? _num(movement.quantityProduced || movement.quantity) : _num(movement.quantity);
     var unit = (isProductionEntry || isProductionProductReversal || isBaseProductionEntry || isBaseProductionReversal) ? (movement.yieldUnit || movement.unit || '') : (movement.unit || '');
     var unitCost = (isProductionEntry || isProductionProductReversal || isBaseProductionEntry || isBaseProductionReversal) ? _num(movement.estimatedUnitCost || movement.unitCost) : _num(movement.unitCost);
     var hasCost = unitCost > 0;
-    var label = isPurchaseEntry ? 'Entrada de compra' : (isPurchaseReversal ? 'Estorno de compra' : (isBaseProductionEntry ? 'Entrada de base de produção' : (isBaseProductionReversal ? 'Estorno de base de produção' : (isBaseSaleExit ? 'Saída de base por venda' : (isProductionEntry ? 'Entrada de produção' : (isProductionProductReversal ? 'Estorno de produto produzido' : (isSaleExit ? 'Saída por venda' : (isSaleReversal ? 'Estorno de venda' : (isProductionIngredientReversal ? 'Estorno de ingrediente' : (isAdjustmentEntry ? 'Ajuste de entrada' : (isAdjustmentExit ? 'Ajuste de saída' : 'Saída para produção')))))))))));
-    var origin = (isPurchaseEntry || isPurchaseReversal) ? 'Compra' : ((isSaleExit || isSaleReversal) ? 'Venda' : ((isAdjustmentEntry || isAdjustmentExit) ? 'Ajuste' : 'Produção'));
+    var label = isPurchaseEntry ? 'Entrada de compra' : (isPurchaseReversal ? 'Estorno de compra' : (isBaseProductionEntry ? 'Entrada de base de produção' : (isBaseProductionReversal ? 'Estorno de base de produção' : (isBaseSaleExit ? 'Saída de base por venda' : (isProductionEntry ? 'Entrada de produção' : (isProductionProductReversal ? 'Estorno de produto produzido' : (isSaleReturn ? 'Retorno de venda' : (isSaleLoss ? 'Perda de venda' : (isSaleExit ? 'Saída por venda' : (isSaleReversal ? 'Estorno de venda' : (isProductionIngredientReversal ? 'Estorno de ingrediente' : (isAdjustmentEntry ? 'Ajuste de entrada' : (isAdjustmentExit ? 'Ajuste de saída' : 'Saída para produção')))))))))))));
+    var origin = (isPurchaseEntry || isPurchaseReversal) ? 'Compra' : (isSaleRelated || isSaleReversal ? 'Venda' : ((isAdjustmentEntry || isAdjustmentExit) ? 'Ajuste' : 'Produção'));
     var originDetail = (isPurchaseEntry || isPurchaseReversal)
       ? ('Compra' + (movement.purchaseNumber ? ' ' + movement.purchaseNumber : '') + (movement.purchaseDocument ? ' · ' + movement.purchaseDocument : ''))
-      : ((isSaleExit || isSaleReversal) ? ('Pedido' + (movement.orderNumber ? ' ' + movement.orderNumber : '')) : ((isAdjustmentEntry || isAdjustmentExit) ? (movement.reason || 'Contagem manual') : (movement.productionOrderName || movement.fichaTecnicaNome || 'Ordem de produção')));
+      : ((isSaleRelated || isSaleReversal) ? ('Pedido' + (movement.orderNumber ? ' ' + movement.orderNumber : '') + (isSaleLoss ? ' · perda registrada' : (isSaleReturn ? ' · retorno ao estoque' : ''))) : ((isAdjustmentEntry || isAdjustmentExit) ? (movement.reason || 'Contagem manual') : (movement.productionOrderName || movement.fichaTecnicaNome || 'Ordem de produção')));
     var stockItemType = movementIsSupply
       ? 'insumo'
       : (movementIsReadyProduct
@@ -215,7 +225,7 @@ Modules.Estoque = (function () {
       itemType: itemType,
       stockClass: stockClass,
       movementType: type,
-      direction: isEntry ? 1 : -1,
+      direction: isSaleLoss ? 0 : (isEntry ? 1 : -1),
       label: label,
       quantity: Math.abs(quantity),
       unit: unit,
@@ -265,11 +275,24 @@ Modules.Estoque = (function () {
     var content = document.getElementById('stock-content');
     if (!content) return;
     var visible = _filteredItems();
-    var rows = visible.map(function (item) {
+    var paging = _itemsPage || (_itemsPage = { page: 1, perPage: 10 });
+    paging.perPage = Number(paging.perPage) || 10;
+    var totalPages = Math.max(1, Math.ceil(visible.length / paging.perPage));
+    if (paging.page > totalPages) paging.page = totalPages;
+    if (paging.page < 1) paging.page = 1;
+    var pageStartIndex = (paging.page - 1) * paging.perPage;
+    var pageItems = visible.slice(pageStartIndex, pageStartIndex + paging.perPage);
+    var showingStart = visible.length ? pageStartIndex + 1 : 0;
+    var showingEnd = visible.length ? Math.min(pageStartIndex + pageItems.length, visible.length) : 0;
+    var pageOptions = [10, 25, 50].map(function (size) {
+      return '<option value="' + size + '"' + (paging.perPage === size ? ' selected' : '') + '>' + size + ' por página</option>';
+    }).join('');
+    var hasFilters = _hasFilters();
+    var rows = pageItems.map(function (item) {
       return '<tr onclick="Modules.Estoque._openItemDetails(\'' + _escJs(item.key) + '\')" class="stock-row">' +
         '<td><div class="stock-item-name">' + _esc(item.itemName) + '</div><div class="stock-item-note">' + _esc(item.itemId || 'Sem código vinculado') + '</div></td>' +
         '<td><span class="stock-badge ' + _stockKindClass(item.stockItemType) + '">' + _stockClassLabel(item.stockClass || item.stockItemType) + '</span>' + (item.stockItemType && item.stockClass && item.stockItemType !== item.stockClass ? '<div class="stock-item-note">' + _esc(_stockKindLabel(item.stockItemType)) + '</div>' : '') + '</td>' +
-        '<td><strong>' + _fmtQty(item.balance) + '</strong> <span>' + _esc(item.unit || '') + '</span>' + (item.isBelowMin ? '<div class="stock-item-note stock-alert-text">Abaixo do mínimo</div>' : '') + '</td>' +
+        '<td><strong>' + _fmtQty(item.balance) + '</strong> <span>' + _esc(item.unit || '') + '</span>' + (item.isBelowMin ? '<div class="stock-item-note stock-alert-text">Abaixo do mínimo</div>' : '') + (item.isAboveMax ? '<div class="stock-item-note stock-alert-text">Acima do máximo</div>' : '') + '</td>' +
         '<td>' + (item.hasCost ? _money(item.estimatedValue) : '<span class="stock-muted">sem custo informado</span>') + '</td>' +
         '<td>' + _fmtDate(item.lastMovementAt) + '</td>' +
         '<td><span class="stock-origin">' + _esc(item.originText) + '</span></td>' +
@@ -277,7 +300,6 @@ Modules.Estoque = (function () {
     }).join('');
 
     content.innerHTML =
-      _viewTabsHtml() +
       _stockKindTabsHtml() +
       '<section class="stock-filter-card">' +
         '<div class="stock-filter-grid">' +
@@ -287,16 +309,26 @@ Modules.Estoque = (function () {
             '<option value="ingrediente"' + (_filters.type === 'ingrediente' ? ' selected' : '') + '>Ingredientes</option>' +
             '<option value="produto"' + (_filters.type === 'produto' ? ' selected' : '') + '>Produtos</option>' +
           '</select></label>' +
-          (_hasFilters() ? '<button type="button" onclick="Modules.Estoque._clearFilters()">Limpar filtros</button>' : '') +
         '</div>' +
+        (hasFilters ? '<div class="stock-filter-actions"><button type="button" class="stock-filter-clear" onclick="Modules.Estoque._clearFilters()">Limpar filtros</button></div>' : '') +
       '</section>' +
-      '<section class="stock-card">' +
-        '<div class="stock-card-head">' +
-          '<div><h2>Saldo por item</h2><p>Entradas, saídas e ajustes são somados a partir das movimentações do estoque.</p></div>' +
-          '<div class="stock-head-actions"><span>' + visible.length + ' item' + (visible.length === 1 ? '' : 's') + '</span><button type="button" onclick="Modules.Estoque._openInventoryModal()">Inventário em lote</button></div>' +
-        '</div>' +
-        (visible.length ? '<div class="stock-table-wrap"><table class="stock-table"><thead><tr><th>Item</th><th>Classe</th><th>Saldo atual</th><th>Valor estimado</th><th>Última movimentação</th><th>Origem</th></tr></thead><tbody>' + rows + '</tbody></table></div>' : _emptyState()) +
-      '</section>';
+      (visible.length ?
+        '<section style="display:flex;flex-direction:column;gap:10px;">' +
+          '<div class="stock-list-title"><div><h2>Saldo por item</h2><p>Entradas, saídas e ajustes são somados a partir das movimentações do estoque.</p></div><button type="button" onclick="Modules.Estoque._openInventoryModal()">Inventário em lote</button></div>' +
+          '<div class="stock-table-card">' +
+            '<div class="stock-table-wrap"><table class="stock-table"><thead><tr><th>Item</th><th>Classe</th><th>Saldo atual</th><th>Valor estimado</th><th>Última movimentação</th><th>Origem</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+            '<div class="stock-table-footer">' +
+              '<span>Mostrando <strong>' + showingStart + '</strong> a <strong>' + showingEnd + '</strong> de <strong>' + visible.length + '</strong></span>' +
+              '<div class="stock-pagination">' +
+                '<select onchange="Modules.Estoque._setItemsPageSize(this.value)">' + pageOptions + '</select>' +
+                '<button type="button" ' + (paging.page <= 1 ? 'disabled' : '') + ' onclick="Modules.Estoque._setItemsPage(' + (paging.page - 1) + ')">Anterior</button>' +
+                '<div class="stock-page-indicator"><span>' + paging.page + '</span><i></i><span>' + totalPages + '</span></div>' +
+                '<button type="button" ' + (paging.page >= totalPages ? 'disabled' : '') + ' onclick="Modules.Estoque._setItemsPage(' + (paging.page + 1) + ')">Próxima</button>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+        '</section>' :
+        '<section class="stock-card">' + _emptyState() + '</section>');
   }
 
   function _viewTabsHtml() {
@@ -315,31 +347,71 @@ Modules.Estoque = (function () {
   function _paintMovements() {
     var content = document.getElementById('stock-content');
     if (!content) return;
-    var entries = (_movements || []).map(_movementEntry).filter(function (entry) { return entry.key; }).sort(function (a, b) { return _dateValue(b.date) - _dateValue(a.date); });
-    var rows = entries.map(function (entry) {
+    var entries = _filteredMovements();
+    var paging = _movementsPage || (_movementsPage = { page: 1, perPage: 10 });
+    paging.perPage = Number(paging.perPage) || 10;
+    var totalPages = Math.max(1, Math.ceil(entries.length / paging.perPage));
+    if (paging.page > totalPages) paging.page = totalPages;
+    if (paging.page < 1) paging.page = 1;
+    var pageStartIndex = (paging.page - 1) * paging.perPage;
+    var pageEntries = entries.slice(pageStartIndex, pageStartIndex + paging.perPage);
+    var showingStart = entries.length ? pageStartIndex + 1 : 0;
+    var showingEnd = entries.length ? Math.min(pageStartIndex + pageEntries.length, entries.length) : 0;
+    var pageOptions = [10, 25, 50].map(function (size) {
+      return '<option value="' + size + '"' + (paging.perPage === size ? ' selected' : '') + '>' + size + ' por página</option>';
+    }).join('');
+    var rows = pageEntries.map(function (entry) {
+      var qtyClass = entry.direction > 0 ? 'stock-positive' : (entry.direction < 0 ? 'stock-negative' : '');
+      var qtyPrefix = entry.direction > 0 ? '+' : (entry.direction < 0 ? '-' : '');
       return '<tr>' +
         '<td>' + _fmtDate(entry.date) + '</td>' +
         '<td><span class="stock-badge ' + (entry.direction > 0 ? 'product' : 'ingredient') + '">' + _esc(entry.label) + '</span></td>' +
         '<td><div class="stock-item-name">' + _esc(entry.itemName) + '</div><div class="stock-item-note">' + _esc(_stockClassLabel(entry.stockClass || entry.stockItemType)) + (entry.batchNumber ? ' · lote ' + _esc(entry.batchNumber) : '') + (entry.expiresAt ? ' · validade ' + _esc(_fmtDate(entry.expiresAt)) : '') + '</div></td>' +
-        '<td class="' + (entry.direction > 0 ? 'stock-positive' : 'stock-negative') + '">' + (entry.direction > 0 ? '+' : '-') + _fmtQty(entry.quantity) + ' ' + _esc(entry.unit || '') + '</td>' +
+        '<td class="' + qtyClass + '">' + qtyPrefix + _fmtQty(entry.quantity) + ' ' + _esc(entry.unit || '') + '</td>' +
         '<td>' + (entry.hasCost ? _money(entry.totalCost) : '<span class="stock-muted">sem custo</span>') + '</td>' +
         '<td><span class="stock-origin">' + _esc(entry.originDetail || entry.origin || '') + '</span></td>' +
       '</tr>';
     }).join('');
+    var hasFilters = !!((_movementFilters.q || '').trim() || _movementFilters.direction !== 'todos' || _movementFilters.origin !== 'todos');
     content.innerHTML =
-      _viewTabsHtml() +
-      '<section class="stock-card">' +
-        '<div class="stock-card-head">' +
-          '<div><h2>Movimentações do estoque</h2><p>Histórico de entradas, saídas, estornos e ajustes usados para calcular os saldos.</p></div>' +
-          '<span>' + entries.length + ' movimento' + (entries.length === 1 ? '' : 's') + '</span>' +
+      '<section class="stock-kind-tabs movement-tabs">' +
+        '<button type="button" class="' + (_movementFilters.direction === 'entrada' ? 'active' : '') + '" onclick="Modules.Estoque._setMovementDirection(\'entrada\')">Entradas</button>' +
+        '<button type="button" class="' + (_movementFilters.direction === 'saida' ? 'active' : '') + '" onclick="Modules.Estoque._setMovementDirection(\'saida\')">Saídas</button>' +
+      '</section>' +
+      '<section class="stock-filter-card">' +
+        '<div class="stock-filter-grid movement-grid">' +
+          '<label><span>Buscar</span><input type="search" value="' + _esc(_movementFilters.q || '') + '" placeholder="Buscar item, origem ou tipo..." oninput="Modules.Estoque._setMovementFilter(\'q\', this.value)"></label>' +
+          '<label><span>Origem</span><select onchange="Modules.Estoque._setMovementFilter(\'origin\', this.value)">' +
+            '<option value="todos"' + (_movementFilters.origin === 'todos' ? ' selected' : '') + '>Todas</option>' +
+            '<option value="Compra"' + (_movementFilters.origin === 'Compra' ? ' selected' : '') + '>Compra</option>' +
+            '<option value="Produção"' + (_movementFilters.origin === 'Produção' ? ' selected' : '') + '>Produção</option>' +
+            '<option value="Venda"' + (_movementFilters.origin === 'Venda' ? ' selected' : '') + '>Venda</option>' +
+            '<option value="Ajuste"' + (_movementFilters.origin === 'Ajuste' ? ' selected' : '') + '>Ajuste</option>' +
+          '</select></label>' +
         '</div>' +
-        (entries.length ? '<div class="stock-table-wrap"><table class="stock-table"><thead><tr><th>Data</th><th>Tipo</th><th>Item</th><th>Quantidade</th><th>Valor</th><th>Origem</th></tr></thead><tbody>' + rows + '</tbody></table></div>' : _emptyState()) +
-      '</section>';
+        (hasFilters ? '<div class="stock-filter-actions"><button type="button" class="stock-filter-clear" onclick="Modules.Estoque._clearMovementFilters()">Limpar filtros</button></div>' : '') +
+      '</section>' +
+      (entries.length ?
+        '<section style="display:flex;flex-direction:column;gap:10px;">' +
+          '<div class="stock-list-title"><div><h2>' + (_movementFilters.direction === 'saida' ? 'Saídas do estoque' : 'Entradas do estoque') + '</h2><p>Registros usados para calcular os saldos atuais do estoque.</p></div></div>' +
+          '<div class="stock-table-card">' +
+            '<div class="stock-table-wrap"><table class="stock-table"><thead><tr><th>Data</th><th>Tipo</th><th>Item</th><th>Quantidade</th><th>Valor</th><th>Origem</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+            '<div class="stock-table-footer">' +
+              '<span>Mostrando <strong>' + showingStart + '</strong> a <strong>' + showingEnd + '</strong> de <strong>' + entries.length + '</strong></span>' +
+              '<div class="stock-pagination">' +
+                '<select onchange="Modules.Estoque._setMovementsPageSize(this.value)">' + pageOptions + '</select>' +
+                '<button type="button" ' + (paging.page <= 1 ? 'disabled' : '') + ' onclick="Modules.Estoque._setMovementsPage(' + (paging.page - 1) + ')">Anterior</button>' +
+                '<div class="stock-page-indicator"><span>' + paging.page + '</span><i></i><span>' + totalPages + '</span></div>' +
+                '<button type="button" ' + (paging.page >= totalPages ? 'disabled' : '') + ' onclick="Modules.Estoque._setMovementsPage(' + (paging.page + 1) + ')">Próxima</button>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+        '</section>' :
+        '<section class="stock-card">' + _emptyState() + '</section>');
   }
 
   function _stockKindTabsHtml() {
     var tabs = [
-      ['todos', 'Todos'],
       ['insumo', 'Insumos'],
       ['produto_pronto', 'Produtos prontos'],
       ['produto_produzido', 'Produtos produzidos'],
@@ -361,34 +433,95 @@ Modules.Estoque = (function () {
     });
   }
 
+  function _filteredMovements() {
+    var q = _norm(_movementFilters.q);
+    return (_movements || []).map(_movementEntry).filter(function (entry) {
+      if (!entry.key) return false;
+      if (_movementFilters.direction === 'entrada' && entry.direction <= 0) return false;
+      if (_movementFilters.direction === 'saida' && entry.direction >= 0 && entry.movementType !== 'perda_venda') return false;
+      if (_movementFilters.origin !== 'todos' && entry.origin !== _movementFilters.origin) return false;
+      if (!q) return true;
+      return _norm([
+        entry.label,
+        entry.itemName,
+        entry.origin,
+        entry.originDetail,
+        entry.stockClass,
+        entry.stockItemType
+      ].join(' ')).indexOf(q) >= 0;
+    }).sort(function (a, b) {
+      return _dateValue(b.date) - _dateValue(a.date);
+    });
+  }
+
   function _setStockKind(value) {
     _filters.stockKind = value || 'todos';
+    _itemsPage.page = 1;
     _paintItems();
   }
 
   function _setFilter(key, value) {
     _filters[key] = value || (key === 'type' || key === 'stockKind' ? 'todos' : '');
+    _itemsPage.page = 1;
     _paintItems();
   }
 
   function _clearFilters() {
-    _filters = { q: '', type: 'todos', stockKind: 'todos' };
+    _filters.q = '';
+    _filters.type = 'todos';
+    _itemsPage.page = 1;
     _paintItems();
+  }
+
+  function _setItemsPageSize(value) {
+    _itemsPage.perPage = Number(value) || 10;
+    _itemsPage.page = 1;
+    _paintItems();
+  }
+
+  function _setItemsPage(page) {
+    _itemsPage.page = Math.max(1, Number(page) || 1);
+    _paintItems();
+  }
+
+  function _setMovementFilter(key, value) {
+    _movementFilters[key] = value || (key === 'origin' ? 'todos' : '');
+    _movementsPage.page = 1;
+    _paintMovements();
+  }
+
+  function _setMovementDirection(value) {
+    _movementFilters.direction = value === 'saida' ? 'saida' : 'entrada';
+    _movementsPage.page = 1;
+    _paintMovements();
+  }
+
+  function _clearMovementFilters() {
+    _movementFilters.q = '';
+    _movementFilters.origin = 'todos';
+    _movementsPage.page = 1;
+    _paintMovements();
+  }
+
+  function _setMovementsPageSize(value) {
+    _movementsPage.perPage = Number(value) || 10;
+    _movementsPage.page = 1;
+    _paintMovements();
+  }
+
+  function _setMovementsPage(page) {
+    _movementsPage.page = Math.max(1, Number(page) || 1);
+    _paintMovements();
   }
 
   function _openItemDetails(key) {
     var item = (_items || []).find(function (it) { return it.key === key; });
     if (!item) return;
-    var movementRows = item.movements.map(function (movement) {
-      return '<div class="stock-movement-line">' +
-        '<div><strong>' + _esc(movement.label) + '</strong><span>' + _fmtDate(movement.date) + ' · ' + _esc(movement.originDetail || movement.origin || 'Produção') + '</span></div>' +
-        '<div class="' + (movement.direction > 0 ? 'stock-positive' : 'stock-negative') + '">' + (movement.direction > 0 ? '+' : '-') + _fmtQty(movement.quantity) + ' ' + _esc(movement.unit || '') + '</div>' +
-      '</div>';
-    }).join('');
+    _detailMovementState = { key: key, q: '', page: 1, perPage: 5 };
     var body = _styles() +
       '<div class="stock-detail">' +
         '<section class="stock-detail-hero">' +
-          '<div><p>' + _stockKindLabel(item.stockItemType) + '</p><h2>' + _esc(item.itemName) + '</h2></div>' +
+          '<div class="stock-modal-head" style="margin-bottom:0;"><span class="mi">inventory_2</span><div><p>' + _stockKindLabel(item.stockItemType) + '</p><h2>' + _esc(item.itemName) + '</h2></div></div>' +
           '<span class="stock-badge ' + _stockKindClass(item.stockItemType) + '">' + _esc(item.unit || 'sem unidade') + '</span>' +
         '</section>' +
         '<section class="stock-detail-grid">' +
@@ -397,14 +530,76 @@ Modules.Estoque = (function () {
           _detailMetric('Saídas', _fmtQty(item.exits) + ' ' + _esc(item.unit || ''), 'Quantidade registrada como saída.') +
           _detailMetric('Valor estimado', item.hasCost ? _money(item.estimatedValue) : 'sem custo informado', 'Usa o custo informado nas movimentações.') +
           _detailMetric('Estoque mínimo', item.minStockEnabled ? (_fmtQty(item.minStock) + ' ' + _esc(item.unit || '')) : 'não definido', item.isBelowMin ? 'Este item está abaixo do mínimo.' : 'Referência para conferência rápida.') +
+          _detailMetric('Estoque máximo', item.maxStockEnabled ? (_fmtQty(item.maxStock) + ' ' + _esc(item.unit || '')) : 'não definido', item.isAboveMax ? 'Este item está acima do máximo definido.' : 'Limite recomendado para não comprar ou produzir além do necessário.') +
         '</section>' +
         '<section class="stock-detail-card">' +
-          '<div class="stock-card-head compact"><div><h2>Movimentações relacionadas</h2><p>Histórico usado para calcular este saldo.</p></div><span>' + item.movements.length + '</span></div>' +
-          '<div class="stock-movement-list">' + (movementRows || '<p class="stock-muted">Nenhuma movimentação encontrada.</p>') + '</div>' +
+          '<div class="stock-modal-head"><span class="mi">receipt_long</span><div><div class="stock-modal-title">Movimentações relacionadas</div><div class="stock-modal-hint">Histórico usado para calcular este saldo.</div></div><span style="margin-left:auto;font-size:12px;color:#6F6860;border:1px solid #EAE4DA;border-radius:999px;padding:5px 9px;background:#FFFCF8;white-space:nowrap;">' + item.movements.length + '</span></div>' +
+          '<div class="stock-detail-search"><input id="stock-detail-movement-q" type="search" placeholder="Buscar por data, origem ou tipo..." oninput="Modules.Estoque._setDetailMovementSearch(this.value)"></div>' +
+          '<div id="stock-detail-movement-list" class="stock-movement-list"></div>' +
+          '<div id="stock-detail-movement-footer"></div>' +
         '</section>' +
         '<p class="stock-footnote">O saldo continua sendo calculado por movimentações. O ajuste de inventário registra uma nova entrada ou saída para igualar o sistema à contagem real.</p>' +
       '</div>';
-    window._stockDetailModal = UI.modal({ title: 'Detalhe do estoque', body: body, footer: '<div class="stock-modal-footer"><button class="stock-secondary" onclick="if(window._stockDetailModal){window._stockDetailModal.close();}">Fechar</button><button class="stock-secondary" onclick="Modules.Estoque._openMinimumModal(\'' + _escJs(item.key) + '\')">Estoque mínimo</button><button class="stock-primary" onclick="Modules.Estoque._openAdjustmentModal(\'' + _escJs(item.key) + '\')">Ajustar saldo</button></div>', maxWidth: '900px' });
+    window._stockDetailModal = UI.modal({ title: 'Detalhe do estoque', body: body, footer: '<div class="stock-modal-footer"><button class="stock-secondary" onclick="if(window._stockDetailModal){window._stockDetailModal.close();}">Fechar</button><button class="stock-secondary" onclick="Modules.Estoque._openMinimumModal(\'' + _escJs(item.key) + '\')">Mínimo e máximo</button><button class="stock-primary" onclick="Modules.Estoque._openAdjustmentModal(\'' + _escJs(item.key) + '\')">Ajustar saldo</button></div>', maxWidth: '900px' });
+    _paintDetailMovements();
+  }
+
+  function _filteredDetailMovements(item) {
+    var q = String(_detailMovementState.q || '').toLowerCase();
+    return (item && item.movements ? item.movements : []).filter(function (movement) {
+      if (!q) return true;
+      return [
+        movement.label,
+        movement.origin,
+        movement.originDetail,
+        movement.date,
+        _fmtDate(movement.date),
+        movement.unit,
+        movement.quantity
+      ].join(' ').toLowerCase().indexOf(q) >= 0;
+    });
+  }
+
+  function _detailMovementRow(movement) {
+    return '<div class="stock-movement-line">' +
+      '<div><strong>' + _esc(movement.label) + '</strong><span>' + _fmtDate(movement.date) + ' · ' + _esc(movement.originDetail || movement.origin || 'Produção') + '</span></div>' +
+      '<div class="' + (movement.direction > 0 ? 'stock-positive' : 'stock-negative') + '">' + (movement.direction > 0 ? '+' : '-') + _fmtQty(movement.quantity) + ' ' + _esc(movement.unit || '') + '</div>' +
+    '</div>';
+  }
+
+  function _paintDetailMovements() {
+    var item = (_items || []).find(function (it) { return it.key === _detailMovementState.key; });
+    var listEl = document.getElementById('stock-detail-movement-list');
+    var footerEl = document.getElementById('stock-detail-movement-footer');
+    if (!item || !listEl || !footerEl) return;
+    var data = _filteredDetailMovements(item);
+    var perPage = _detailMovementState.perPage || 5;
+    var totalPages = Math.max(1, Math.ceil(data.length / perPage));
+    _detailMovementState.page = Math.min(Math.max(1, _detailMovementState.page || 1), totalPages);
+    var start = (_detailMovementState.page - 1) * perPage;
+    var pageData = data.slice(start, start + perPage);
+    listEl.innerHTML = pageData.length ? pageData.map(_detailMovementRow).join('') : '<p class="stock-muted">Nenhuma movimentação encontrada.</p>';
+    var from = data.length ? start + 1 : 0;
+    var to = Math.min(start + perPage, data.length);
+    footerEl.innerHTML = '<div class="stock-detail-pagination">' +
+      '<span>Mostrando <strong>' + from + '-' + to + '</strong> de <strong>' + data.length + '</strong></span>' +
+      '<div class="stock-pagination">' +
+        '<button type="button" ' + (_detailMovementState.page <= 1 ? 'disabled' : '') + ' onclick="Modules.Estoque._setDetailMovementPage(' + (_detailMovementState.page - 1) + ')">Anterior</button>' +
+        '<div class="stock-page-indicator"><span>' + _detailMovementState.page + '</span><i></i><span>' + totalPages + '</span></div>' +
+        '<button type="button" ' + (_detailMovementState.page >= totalPages ? 'disabled' : '') + ' onclick="Modules.Estoque._setDetailMovementPage(' + (_detailMovementState.page + 1) + ')">Próxima</button>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function _setDetailMovementSearch(value) {
+    _detailMovementState.q = value || '';
+    _detailMovementState.page = 1;
+    _paintDetailMovements();
+  }
+
+  function _setDetailMovementPage(page) {
+    _detailMovementState.page = Math.max(1, Number(page) || 1);
+    _paintDetailMovements();
   }
 
   function _detailMetric(label, value, note) {
@@ -418,11 +613,11 @@ Modules.Estoque = (function () {
     var body = _styles() +
       '<div class="stock-adjust">' +
         '<section class="stock-detail-hero compact">' +
-          '<div><p>' + _stockKindLabel(item.stockItemType) + '</p><h2>' + _esc(item.itemName) + '</h2></div>' +
+          '<div class="stock-modal-head" style="margin-bottom:0;"><span class="mi">inventory_2</span><div><p>' + _stockKindLabel(item.stockItemType) + '</p><h2>' + _esc(item.itemName) + '</h2></div></div>' +
           '<span class="stock-badge ' + _stockKindClass(item.stockItemType) + '">' + _esc(item.unit || 'sem unidade') + '</span>' +
         '</section>' +
         '<section class="stock-adjust-card">' +
-          '<div class="stock-adjust-head"><h3>Contagem de estoque</h3><p>Informe o saldo real encontrado. O BocaFood cria uma movimentação de ajuste para aproximar o sistema da contagem física.</p></div>' +
+          '<div class="stock-adjust-head"><span class="mi">tune</span><div><h3>Contagem de estoque</h3><p>Informe o saldo real encontrado. O BocaFood cria uma movimentação de ajuste para aproximar o sistema da contagem física.</p></div></div>' +
           '<div class="stock-adjust-grid">' +
             '<label><span>Saldo no sistema</span><input type="text" value="' + _esc(current) + '" disabled></label>' +
             '<label><span>Saldo contado *</span><input id="stock-adjust-counted" type="number" step="0.001" min="0" value="' + _esc(String(item.balance || 0)) + '" oninput="Modules.Estoque._updateAdjustmentPreview(\'' + _escJs(key) + '\')"></label>' +
@@ -503,21 +698,22 @@ Modules.Estoque = (function () {
     var body = _styles() +
       '<div class="stock-adjust">' +
         '<section class="stock-detail-hero compact">' +
-          '<div><p>' + _stockKindLabel(item.stockItemType) + '</p><h2>' + _esc(item.itemName) + '</h2></div>' +
+          '<div class="stock-modal-head" style="margin-bottom:0;"><span class="mi">inventory_2</span><div><p>' + _stockKindLabel(item.stockItemType) + '</p><h2>' + _esc(item.itemName) + '</h2></div></div>' +
           '<span class="stock-badge ' + _stockKindClass(item.stockItemType) + '">' + _esc(item.unit || 'sem unidade') + '</span>' +
         '</section>' +
         '<section class="stock-adjust-card">' +
-          '<div class="stock-adjust-head"><h3>Estoque mínimo</h3><p>Defina uma quantidade de referência para saber quando este item merece atenção.</p></div>' +
+          '<div class="stock-adjust-head"><span class="mi">data_thresholding</span><div><h3>Estoque mínimo e máximo</h3><p>Defina a faixa ideal deste item para saber quando precisa repor ou quando já passou do necessário.</p></div></div>' +
           '<div class="stock-adjust-grid min-grid">' +
             '<label><span>Saldo atual</span><input type="text" value="' + _esc(_fmtQty(item.balance) + ' ' + (item.unit || '')) + '" disabled></label>' +
             '<label><span>Quantidade mínima</span><input id="stock-min-value" type="number" step="0.001" min="0" value="' + _esc(String(item.minStock || '')) + '"></label>' +
+            '<label><span>Quantidade máxima</span><input id="stock-max-value" type="number" step="0.001" min="0" value="' + _esc(String(item.maxStock || '')) + '"></label>' +
           '</div>' +
         '</section>' +
       '</div>';
     window._stockMinimumModal = UI.modal({
-      title: 'Estoque mínimo',
+      title: 'Estoque mínimo e máximo',
       body: body,
-      footer: '<div class="stock-modal-footer"><button class="stock-secondary" onclick="if(window._stockMinimumModal){window._stockMinimumModal.close();}">Cancelar</button><button class="stock-primary" onclick="Modules.Estoque._saveMinimum(\'' + _escJs(key) + '\')">Salvar mínimo</button></div>',
+      footer: '<div class="stock-modal-footer"><button class="stock-secondary" onclick="if(window._stockMinimumModal){window._stockMinimumModal.close();}">Cancelar</button><button class="stock-primary" onclick="Modules.Estoque._saveMinimum(\'' + _escJs(key) + '\')">Salvar faixa</button></div>',
       maxWidth: '620px'
     });
   }
@@ -526,7 +722,10 @@ Modules.Estoque = (function () {
     var item = (_items || []).find(function (it) { return it.key === key; });
     if (!item) return;
     var minStock = _num((document.getElementById('stock-min-value') || {}).value);
+    var maxStock = _num((document.getElementById('stock-max-value') || {}).value);
     if (minStock < 0) { UI.toast('Informe uma quantidade mínima válida.', 'error'); return; }
+    if (maxStock < 0) { UI.toast('Informe uma quantidade máxima válida.', 'error'); return; }
+    if (minStock > 0 && maxStock > 0 && maxStock < minStock) { UI.toast('O estoque máximo não pode ser menor que o mínimo.', 'error'); return; }
     var id = _stockSettingId(key);
     var now = new Date().toISOString();
     DB.col('stock_settings').doc(id).set({
@@ -538,15 +737,64 @@ Modules.Estoque = (function () {
       stockItemType: item.stockItemType || '',
       unit: item.unit || '',
       minStock: minStock,
+      maxStock: maxStock,
       updatedAt: now,
       createdAt: (_settings[key] && _settings[key].createdAt) || now
     }, { merge: true }).then(function () {
-      UI.toast('Estoque mínimo salvo.', 'success');
+      return _syncStockRangeToOrigin(item, minStock, maxStock, now);
+    }).then(function () {
+      UI.toast('Faixa de estoque salva.', 'success');
       if (window._stockMinimumModal) window._stockMinimumModal.close();
       if (window._stockDetailModal) window._stockDetailModal.close();
       _loadItems();
     }).catch(function (err) {
-      UI.toast('Erro ao salvar mínimo: ' + (err && err.message ? err.message : err), 'error');
+      UI.toast('Erro ao salvar faixa de estoque: ' + (err && err.message ? err.message : err), 'error');
+    });
+  }
+
+  function _syncStockRangeToOrigin(item, minStock, maxStock, now) {
+    if (!item || !item.itemId) return Promise.resolve();
+    var patch = {
+      minStock: minStock,
+      maxStock: maxStock,
+      estoque_minimo: minStock,
+      estoque_maximo: maxStock,
+      updatedAt: now
+    };
+    if (item.stockItemType === 'insumo' || item.stockItemType === 'produto_pronto') {
+      return DB.update('itens_custo', item.itemId, patch).catch(function () { return null; });
+    }
+    if (item.stockItemType === 'produto_produzido') {
+      return DB.update('fichasTecnicas', item.itemId, patch).catch(function () { return null; });
+    }
+    if (item.stockItemType === 'base_producao') {
+      return _syncBaseStockRangeToRecipe(item, minStock, maxStock, now);
+    }
+    return Promise.resolve();
+  }
+
+  function _syncBaseStockRangeToRecipe(item, minStock, maxStock, now) {
+    var rawId = String(item.itemId || '');
+    var parts = rawId.split(':');
+    var recipeId = parts.shift() || '';
+    var componentName = parts.join(':');
+    if (!recipeId || !componentName) return Promise.resolve();
+    return DB.getAll('fichasTecnicas').catch(function () { return []; }).then(function (recipes) {
+      var recipe = (recipes || []).find(function (r) { return String(r.id) === String(recipeId); });
+      if (!recipe) return null;
+      var changed = false;
+      var components = (recipe.components || []).map(function (comp) {
+        if (String(comp.name || '') !== String(componentName || '')) return comp;
+        changed = true;
+        return Object.assign({}, comp, {
+          minStock: minStock,
+          maxStock: maxStock,
+          estoque_minimo: minStock,
+          estoque_maximo: maxStock
+        });
+      });
+      if (!changed) return null;
+      return DB.update('fichasTecnicas', recipeId, { components: components, updatedAt: now }).catch(function () { return null; });
     });
   }
 
@@ -560,10 +808,10 @@ Modules.Estoque = (function () {
       '</div>';
     }).join('');
     var body = _styles() +
-      '<section class="stock-adjust-card">' +
-        '<div class="stock-adjust-head"><h3>Inventário em lote</h3><p>Informe a contagem real dos itens visíveis. O BocaFood cria ajustes apenas para os itens com diferença.</p></div>' +
+      '<div class="stock-adjust"><section class="stock-adjust-card">' +
+        '<div class="stock-adjust-head"><span class="mi">fact_check</span><div><h3>Inventário em lote</h3><p>Informe a contagem real dos itens visíveis. O BocaFood cria ajustes apenas para os itens com diferença.</p></div></div>' +
         '<div class="stock-inventory-list">' + rows + '</div>' +
-      '</section>';
+      '</section></div>';
     window._stockInventoryModal = UI.modal({
       title: 'Inventário em lote',
       body: body,
@@ -731,24 +979,27 @@ Modules.Estoque = (function () {
   function _styles() {
     return '<style>' +
       '.stock-page{padding:24px;display:flex;flex-direction:column;gap:16px;color:#1F1F1F;}' +
-      '.stock-header{background:#fff;border:1px solid #EAE4DA;border-radius:18px;padding:20px 22px;box-shadow:0 14px 34px rgba(31,31,31,.055);display:flex;align-items:flex-start;justify-content:space-between;gap:16px;}' +
-      '.stock-eyebrow{margin:0 0 6px;font-size:11px;letter-spacing:.08em;color:#B42318;font-weight:650;}' +
-      '.stock-header h1{margin:0;color:#1F1F1F;font-size:24px;line-height:1.16;font-weight:750;letter-spacing:0;}' +
-      '.stock-header p{margin:6px 0 0;color:#6F6860;font-size:13px;line-height:1.45;font-weight:400;max-width:720px;}' +
+      '.stock-page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;}' +
+      '.stock-page-head h2{font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;line-height:1.15;letter-spacing:0;}' +
+      '.stock-page-head p{font-size:13px;color:#6F6860;line-height:1.5;margin:0;max-width:760px;font-weight:400;}' +
       '.stock-content{display:flex;flex-direction:column;gap:14px;}' +
-      '.stock-kind-tabs{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:#fff;border:1px solid #EAE4DA;border-radius:18px;padding:10px;box-shadow:0 10px 24px rgba(31,31,31,.04);}' +
-      '.stock-kind-tabs button{height:36px;padding:0 13px;border:1px solid #EAE4DA;border-radius:999px;background:#FFFCF8;color:#6F6860;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .16s,border-color .16s,color .16s,box-shadow .16s;}' +
-      '.stock-kind-tabs button.active{background:#1F1F1F;border-color:#1F1F1F;color:#fff;box-shadow:0 8px 18px rgba(31,31,31,.12);}' +
+      '.stock-kind-tabs{display:flex;gap:8px;align-items:center;overflow:auto;padding:8px;background:linear-gradient(135deg,#FFFDFC 0%,#FFF8F3 100%);border:1px solid #E8DDD5;border-radius:16px;box-shadow:0 10px 24px rgba(85,46,32,.045),inset 0 1px 0 rgba(255,255,255,.72);}' +
+      '.stock-kind-tabs button{height:32px;padding:0 12px;border:1px solid transparent;border-radius:999px;background:rgba(255,255,255,.72);color:#6F6860;font-size:12px;font-weight:650;font-family:Manrope,Inter,sans-serif;white-space:nowrap;cursor:pointer;transition:background .15s,color .15s,box-shadow .15s,border-color .15s,transform .15s;}' +
+      '.stock-kind-tabs button:hover{background:#fff;color:#211815;border-color:#E8DDD5;box-shadow:0 5px 14px rgba(85,46,32,.06);}' +
+      '.stock-kind-tabs button.active{background:#B42318;color:#fff;border-color:#B42318;box-shadow:0 8px 18px rgba(180,35,24,.16);}' +
+      '.stock-kind-tabs.movement-tabs{padding:8px;}' +
       '.stock-view-tabs{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}' +
       '.stock-view-tabs button{height:38px;padding:0 14px;border:1px solid #EAE4DA;border-radius:12px;background:#fff;color:#6F6860;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;box-shadow:0 8px 18px rgba(31,31,31,.035);}' +
       '.stock-view-tabs button.active{background:#B42318;border-color:#B42318;color:#fff;box-shadow:0 8px 18px rgba(180,35,24,.14);}' +
       '.stock-filter-card,.stock-card,.stock-detail-card{background:#fff;border:1px solid #EAE4DA;border-radius:18px;box-shadow:0 14px 34px rgba(31,31,31,.055);}' +
       '.stock-filter-card{padding:16px;}' +
-      '.stock-filter-grid{display:grid;grid-template-columns:minmax(220px,1fr) 210px auto;gap:12px;align-items:end;}' +
+      '.stock-filter-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:11px 12px;align-items:end;}' +
+      '.stock-filter-grid.movement-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));}' +
       '.stock-filter-grid label{display:flex;flex-direction:column;gap:6px;font-size:11px;font-weight:600;color:#6F6860;letter-spacing:.02em;}' +
-      '.stock-filter-grid input,.stock-filter-grid select{height:40px;width:100%;box-sizing:border-box;border:1px solid #E8DCD7;border-radius:12px;background:#FFFCF8;color:#1F1F1F;font-size:14px;font-weight:400;font-family:inherit;outline:none;padding:0 12px;}' +
-      '.stock-filter-grid select{appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,#8A7E7C 50%),linear-gradient(135deg,#8A7E7C 50%,transparent 50%);background-position:calc(100% - 18px) 17px,calc(100% - 13px) 17px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:38px;}' +
-      '.stock-filter-grid button{height:40px;padding:0 14px;border:1px solid #EAE4DA;border-radius:12px;background:#fff;color:#B42318;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;}' +
+      '.stock-filter-grid input,.stock-filter-grid select{height:42px;width:100%;box-sizing:border-box;border:1px solid #E8DCD7;border-radius:12px;background:#FFFCF8;color:#1F1F1F;font-size:14px;font-weight:400;font-family:inherit;outline:none;padding:0 12px;box-shadow:inset 0 1px 0 rgba(255,255,255,.82);}' +
+      '.stock-filter-grid select{appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,#8A7E7C 50%),linear-gradient(135deg,#8A7E7C 50%,transparent 50%);background-position:calc(100% - 18px) 18px,calc(100% - 13px) 18px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:38px;}' +
+      '.stock-filter-actions{display:flex;justify-content:flex-start;margin-top:11px;}' +
+      '.stock-filter-clear{height:36px;padding:0 13px;border:1px solid #EADFD8;border-radius:11px;background:#fff;color:#6F6860;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);}' +
       '.stock-card{padding:0;overflow:hidden;}' +
       '.stock-card-head{padding:18px 18px 14px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;border-bottom:1px solid #F0E7E1;}' +
       '.stock-card-head.compact{padding:0 0 12px;border-bottom:0;}' +
@@ -758,12 +1009,27 @@ Modules.Estoque = (function () {
       '.stock-head-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;}' +
       '.stock-head-actions span{font-size:12px;color:#6F6860;border:1px solid #EAE4DA;border-radius:999px;padding:5px 9px;background:#FFFCF8;white-space:nowrap;}' +
       '.stock-head-actions button{height:34px;padding:0 12px;border:none;border-radius:10px;background:#1F1F1F;color:#fff;font-size:12px;font-weight:650;font-family:inherit;cursor:pointer;box-shadow:0 8px 18px rgba(31,31,31,.12);}' +
+      '.stock-list-title{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;}' +
+      '.stock-list-title h2{margin:0;color:#1F1F1F;font-size:14px;font-weight:700;line-height:1.3;}' +
+      '.stock-list-title p{margin:3px 0 0;color:#6F6860;font-size:13px;line-height:1.45;}' +
+      '.stock-list-title button{height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;font-family:inherit;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);}' +
+      '.stock-table-card{background:#fff;border:1px solid #EADFD8;border-radius:18px;box-shadow:0 12px 30px rgba(31,31,31,.055);overflow:hidden;}' +
       '.stock-table-wrap{overflow:auto;}' +
-      '.stock-table{width:100%;border-collapse:collapse;font-size:13px;}' +
-      '.stock-table th{padding:12px 14px;text-align:left;color:#6F6860;font-size:11px;text-transform:uppercase;letter-spacing:.04em;font-weight:650;background:#FFFCF8;border-bottom:1px solid #EAE4DA;white-space:nowrap;}' +
-      '.stock-table td{padding:13px 14px;border-bottom:1px solid #F1E9E3;color:#1F1F1F;vertical-align:middle;}' +
+      '.stock-table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;min-width:920px;}' +
+      '.stock-table th{padding:12px 16px;text-align:left;color:#1F1F1F;font-size:11px;text-transform:uppercase;letter-spacing:.04em;font-weight:600;background:#fff;border-bottom:1px solid #EAE4DA;white-space:nowrap;}' +
+      '.stock-table td{padding:14px 16px;border-bottom:1px solid #EADFD8;color:#1F1F1F;vertical-align:middle;}' +
       '.stock-row{cursor:pointer;transition:background .15s ease;}' +
       '.stock-row:hover{background:#FFFCF8;}' +
+      '.stock-table-footer{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:16px 18px;}' +
+      '.stock-table-footer>span{font-size:12px;color:#6F6860;line-height:1.4;}' +
+      '.stock-table-footer strong{color:#1F1F1F;font-weight:600;}' +
+      '.stock-pagination{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}' +
+      '.stock-pagination select{width:120px;height:34px;padding:0 34px 0 10px;border:1px solid #E8DCD7;border-radius:10px;font-size:12px;font-family:inherit;outline:none;background:#FFFCF8;color:#6F6860;box-sizing:border-box;appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,#8A7E7C 50%),linear-gradient(135deg,#8A7E7C 50%,transparent 50%);background-position:calc(100% - 18px) 14px,calc(100% - 13px) 14px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;}' +
+      '.stock-pagination button{height:34px;padding:0 11px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#6F6860;font-size:12px;font-weight:500;font-family:inherit;cursor:pointer;}' +
+      '.stock-pagination button:disabled{opacity:.45;cursor:not-allowed;}' +
+      '.stock-pagination span{font-size:12px;color:#6F6860;}' +
+      '.stock-page-indicator{display:flex;align-items:center;gap:6px;}' +
+      '.stock-page-indicator i{width:14px;height:2px;border-radius:999px;background:#B42318;display:inline-block;opacity:.65;}' +
       '.stock-item-name{font-size:14px;font-weight:650;color:#1F1F1F;line-height:1.25;}' +
       '.stock-item-note,.stock-muted{font-size:12px;color:#6F6860;font-weight:400;line-height:1.35;}' +
       '.stock-alert-text{color:#B42318;margin-top:3px;}' +
@@ -778,20 +1044,30 @@ Modules.Estoque = (function () {
       '.stock-empty strong{font-size:15px;color:#1F1F1F;font-weight:650;}' +
       '.stock-empty p{margin:0;font-size:13px;line-height:1.4;}' +
       '.stock-detail{display:flex;flex-direction:column;gap:14px;}' +
-      '.stock-detail-hero{background:linear-gradient(135deg,#FFF8F6,#fff);border:1px solid #EAE4DA;border-radius:18px;padding:18px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}' +
+      '.stock-detail-hero{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:16px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;box-shadow:0 10px 24px rgba(31,31,31,.04);}' +
       '.stock-detail-hero.compact{padding:15px;}' +
-      '.stock-detail-hero p{margin:0 0 5px;color:#B42318;font-size:11px;font-weight:650;letter-spacing:.08em;text-transform:uppercase;}' +
-      '.stock-detail-hero h2{margin:0;font-size:22px;line-height:1.16;color:#1F1F1F;font-weight:750;}' +
-      '.stock-detail-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;}' +
-      '.stock-detail-metric{background:#FFFCF8;border:1px solid #EAE4DA;border-radius:16px;padding:14px;}' +
+      '.stock-modal-head{display:flex;align-items:flex-start;gap:9px;margin-bottom:12px;}' +
+      '.stock-modal-head .mi{font-size:18px;color:#6F6860;line-height:1.2;flex:0 0 auto;}' +
+      '.stock-modal-title{font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;margin:0 0 3px;}' +
+      '.stock-modal-hint{font-size:12px;color:#8A7E7C;line-height:1.4;margin:0;}' +
+      '.stock-detail-hero p{margin:0 0 5px;color:#6F6860;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;}' +
+      '.stock-detail-hero h2{margin:0;font-size:19px;line-height:1.18;color:#1F1F1F;font-weight:700;}' +
+      '.stock-detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:stretch;}' +
+      '.stock-detail-metric{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:16px;padding:13px;box-shadow:0 1px 2px rgba(31,31,31,.03);}' +
       '.stock-detail-metric span{display:block;color:#6F6860;font-size:12px;font-weight:500;margin-bottom:5px;}' +
-      '.stock-detail-metric strong{display:block;color:#1F1F1F;font-size:18px;font-weight:720;line-height:1.2;}' +
+      '.stock-detail-metric strong{display:block;color:#1F1F1F;font-size:16px;font-weight:650;line-height:1.2;}' +
       '.stock-detail-metric p{margin:5px 0 0;color:#6F6860;font-size:12px;line-height:1.35;}' +
-      '.stock-detail-card{padding:16px;}' +
+      '.stock-detail-card{padding:16px;background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border-color:#EADFD8;box-shadow:0 10px 24px rgba(31,31,31,.04);}' +
       '.stock-movement-list{display:flex;flex-direction:column;gap:8px;}' +
       '.stock-movement-line{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;background:#FFFCF8;border:1px solid #F0E7E1;border-radius:14px;}' +
       '.stock-movement-line strong{display:block;font-size:13px;color:#1F1F1F;font-weight:650;}' +
       '.stock-movement-line span{display:block;margin-top:2px;font-size:12px;color:#6F6860;}' +
+      '.stock-detail-search{margin:0 0 10px;}' +
+      '.stock-detail-search input{width:100%;height:40px;box-sizing:border-box;border:1px solid #E8DCD7;border-radius:12px;background:#FFFCF8;color:#1F1F1F;font-size:14px;font-weight:400;font-family:inherit;outline:none;padding:0 12px;box-shadow:inset 0 1px 0 rgba(255,255,255,.82);transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;}' +
+      '.stock-detail-search input:focus{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
+      '.stock-detail-pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid #F0E7E1;}' +
+      '.stock-detail-pagination>span{font-size:12px;color:#6F6860;line-height:1.4;}' +
+      '.stock-detail-pagination strong{font-weight:600;color:#1F1F1F;}' +
       '.stock-positive,.stock-negative{font-size:13px;font-weight:650;white-space:nowrap;}' +
       '.stock-positive{color:#246B43;}.stock-negative{color:#B42318;}' +
       '.stock-footnote{margin:0;color:#6F6860;font-size:12px;line-height:1.45;}' +
@@ -799,25 +1075,31 @@ Modules.Estoque = (function () {
       '.stock-primary{height:40px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:14px;font-weight:650;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;}' +
       '.stock-secondary{height:40px;padding:0 14px;border-radius:10px;border:1px solid #EAE4DA;background:#fff;color:#1F1F1F;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;}' +
       '.stock-adjust{display:flex;flex-direction:column;gap:14px;}' +
-      '.stock-adjust-card{background:#fff;border:1px solid #EAE4DA;border-radius:18px;padding:16px;box-shadow:0 10px 24px rgba(31,31,31,.04);}' +
-      '.stock-adjust-head h3{margin:0;color:#1F1F1F;font-size:16px;font-weight:720;}' +
-      '.stock-adjust-head p{margin:4px 0 14px;color:#6F6860;font-size:13px;line-height:1.45;}' +
-      '.stock-adjust-grid{display:grid;grid-template-columns:minmax(150px,.5fr) minmax(150px,.5fr) minmax(160px,.45fr) minmax(220px,.7fr);gap:12px;align-items:end;}' +
-      '.stock-adjust-grid.min-grid{grid-template-columns:minmax(160px,.55fr) minmax(160px,.45fr);}' +
+      '.stock-adjust-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:16px;box-shadow:0 10px 24px rgba(31,31,31,.04);}' +
+      '.stock-adjust-head{display:flex;align-items:flex-start;gap:9px;margin-bottom:12px;}' +
+      '.stock-adjust-head .mi{font-size:18px;color:#6F6860;line-height:1.2;flex:0 0 auto;}' +
+      '.stock-adjust-head h3{margin:0;color:#1F1F1F;font-size:13px;font-weight:700;line-height:1.25;}' +
+      '.stock-adjust-head p{margin:3px 0 0;color:#8A7E7C;font-size:12px;line-height:1.4;}' +
+      '.stock-adjust-grid{display:grid;grid-template-columns:minmax(145px,.4fr) minmax(135px,.36fr) minmax(145px,.38fr) minmax(210px,.64fr);gap:12px;align-items:end;justify-content:start;}' +
+      '.stock-adjust-grid.min-grid{grid-template-columns:minmax(145px,.4fr) minmax(135px,.36fr) minmax(135px,.36fr);justify-content:start;}' +
       '.stock-adjust-grid label{display:flex;flex-direction:column;gap:6px;font-size:11px;font-weight:600;color:#6F6860;letter-spacing:.02em;}' +
       '.stock-adjust-grid label.full{grid-column:1/-1;}' +
-      '.stock-adjust-grid input,.stock-adjust-grid select,.stock-adjust-grid textarea{width:100%;box-sizing:border-box;border:1px solid #E8DCD7;border-radius:12px;background:#FFFCF8;color:#1F1F1F;font-size:14px;font-weight:400;font-family:inherit;outline:none;padding:0 12px;min-height:40px;}' +
+      '.stock-adjust-grid input,.stock-adjust-grid select,.stock-adjust-grid textarea{width:100%;box-sizing:border-box;border:1px solid #E8DCD7;border-radius:12px;background:#FFFCF8;color:#1F1F1F;font-size:14px;font-weight:400;font-family:inherit;outline:none;padding:0 12px;min-height:40px;box-shadow:inset 0 1px 0 rgba(255,255,255,.82);transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;}' +
+      '.stock-adjust-grid input:focus,.stock-adjust-grid select:focus,.stock-adjust-grid textarea:focus{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
+      '.stock-adjust-grid select{appearance:none;-webkit-appearance:none;-moz-appearance:none;padding-right:42px;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 16px center;background-size:14px;}' +
       '.stock-adjust-grid textarea{min-height:74px;padding-top:10px;resize:vertical;}' +
       '.stock-adjust-grid input:disabled{color:#6F6860;background:#FAF8F4;}' +
       '.stock-adjust-preview{margin-top:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid #F0E7E1;border-radius:14px;background:#FFFCF8;padding:11px 12px;font-size:13px;}' +
       '.stock-adjust-preview strong{font-size:15px;}' +
       '.stock-adjust-preview span{color:#6F6860;font-size:12px;line-height:1.35;}' +
       '.stock-inventory-list{display:flex;flex-direction:column;gap:8px;max-height:58vh;overflow:auto;padding-right:2px;}' +
-      '.stock-inventory-row{display:grid;grid-template-columns:minmax(0,1fr) 150px;gap:12px;align-items:center;padding:10px 12px;border:1px solid #F0E7E1;border-radius:14px;background:#FFFCF8;}' +
+      '.stock-inventory-row{display:grid;grid-template-columns:minmax(0,1fr) 135px;gap:12px;align-items:center;padding:10px 12px;border:1px solid #F0E7E1;border-radius:14px;background:#FFFCF8;}' +
       '.stock-inventory-row strong{display:block;font-size:13px;color:#1F1F1F;font-weight:650;line-height:1.25;}' +
       '.stock-inventory-row span{display:block;margin-top:3px;font-size:12px;color:#6F6860;line-height:1.35;}' +
-      '.stock-inventory-row input{width:100%;height:38px;border:1px solid #E8DCD7;border-radius:11px;background:#fff;color:#1F1F1F;font-size:14px;font-family:inherit;padding:0 10px;box-sizing:border-box;}' +
-      '@media(max-width:760px){.stock-page{padding:16px;}.stock-header{padding:18px;}.stock-filter-grid{grid-template-columns:1fr;}.stock-detail-grid{grid-template-columns:1fr 1fr;}.stock-table{min-width:760px;}}' +
+      '.stock-inventory-row input{width:100%;height:38px;border:1px solid #E8DCD7;border-radius:11px;background:#fff;color:#1F1F1F;font-size:14px;font-family:inherit;padding:0 10px;box-sizing:border-box;outline:none;transition:border-color .16s ease,box-shadow .16s ease;}' +
+      '.stock-inventory-row input:focus{border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
+      '@media(max-width:900px){.stock-detail-grid{grid-template-columns:1fr 1fr;}.stock-adjust-grid,.stock-adjust-grid.min-grid{grid-template-columns:1fr 1fr;}}' +
+      '@media(max-width:760px){.stock-page{padding:16px;}.stock-filter-grid,.stock-filter-grid.movement-grid{grid-template-columns:1fr;}.stock-table{min-width:760px;}}' +
       '@media(max-width:760px){.stock-adjust-grid{grid-template-columns:1fr 1fr;}.stock-kind-tabs{overflow:auto;flex-wrap:nowrap}.stock-kind-tabs button{white-space:nowrap;}}' +
       '@media(max-width:520px){.stock-detail-grid{grid-template-columns:1fr;}.stock-detail-hero{flex-direction:column;}.stock-header h1{font-size:22px;}.stock-adjust-grid{grid-template-columns:1fr;}}' +
       '</style>';
@@ -828,7 +1110,16 @@ Modules.Estoque = (function () {
     _setFilter: _setFilter,
     _setStockKind: _setStockKind,
     _clearFilters: _clearFilters,
+    _setItemsPageSize: _setItemsPageSize,
+    _setItemsPage: _setItemsPage,
+    _setMovementFilter: _setMovementFilter,
+    _setMovementDirection: _setMovementDirection,
+    _clearMovementFilters: _clearMovementFilters,
+    _setMovementsPageSize: _setMovementsPageSize,
+    _setMovementsPage: _setMovementsPage,
     _openItemDetails: _openItemDetails,
+    _setDetailMovementSearch: _setDetailMovementSearch,
+    _setDetailMovementPage: _setDetailMovementPage,
     _openAdjustmentModal: _openAdjustmentModal,
     _updateAdjustmentPreview: _updateAdjustmentPreview,
     _saveAdjustment: _saveAdjustment,

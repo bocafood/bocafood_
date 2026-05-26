@@ -377,9 +377,21 @@ button,input,select,textarea{font-family:inherit}
       </div>
 
       <div class="nav-group">
-        <button class="nav-item" data-route="crescimento" onclick="AdminApp.toggleNavGroup(event,'crescimento','crescimento/plano-de-voo',true)"><span class="mi">trending_up</span>Crescimento</button>
+        <button class="nav-item" data-route="marketing-canais" onclick="AdminApp.toggleNavGroup(event,'marketing-canais','marketing-canais/whatsapp')"><span class="mi">hub</span>Marketing e Canais</button>
         <div class="nav-sub">
-          <button class="nav-sub-item" data-route="crescimento/plano-de-voo" onclick="Router.navigate('crescimento/plano-de-voo')">Plano de Voo</button>
+          <button class="nav-sub-item" data-route="marketing-canais/whatsapp" onclick="Router.navigate('marketing-canais/whatsapp')">Automação WhatsApp</button>
+          <button class="nav-sub-item" data-route="marketing-canais/instagram" onclick="Router.navigate('marketing-canais/instagram')">Instagram</button>
+          <button class="nav-sub-item" data-route="marketing-canais/facebook" onclick="Router.navigate('marketing-canais/facebook')">Tráfego Pago - Facebook</button>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <button class="nav-item" data-route="missoes" onclick="Router.navigate('missoes')"><span class="mi">flag</span><span>Missões</span></button>
+      </div>
+
+      <div class="nav-group">
+        <button class="nav-item" data-route="crescimento" onclick="AdminApp.toggleNavGroup(event,'crescimento','crescimento/temporadas',true)"><span class="mi">trending_up</span>Crescimento</button>
+        <div class="nav-sub">
           <button class="nav-sub-item" data-route="crescimento/temporadas" onclick="Router.navigate('crescimento/temporadas')">Temporadas</button>
         </div>
       </div>
@@ -435,7 +447,10 @@ button,input,select,textarea{font-family:inherit}
             <button class="nav-item" data-route="inteligencia/cardapio" onclick="Router.navigate('inteligencia/cardapio')"><span class="mi">restaurant_menu</span><span>Cardápio</span></button>
           </div>
           <div class="nav-group">
-            <button class="nav-item" data-route="inteligencia/operacao" onclick="Router.navigate('inteligencia/operacao')"><span class="mi">settings_suggest</span><span>Operação</span></button>
+            <button class="nav-item" data-route="inteligencia/operacao" onclick="AdminApp.toggleNavGroup(event,'inteligencia/operacao','inteligencia/operacao')"><span class="mi">settings_suggest</span><span>Operação</span></button>
+            <div class="nav-sub">
+              <button class="nav-sub-item" data-route="crescimento/plano-de-voo" onclick="Router.navigate('crescimento/plano-de-voo')">Plano de Voo</button>
+            </div>
           </div>
         </div>
         <div class="sidebar-env-footer">
@@ -716,6 +731,7 @@ button,input,select,textarea{font-family:inherit}
 
   function _adminSidebarModeForRoute(route) {
     route = String(route || '').replace(/^#/, '');
+    if (route.indexOf('crescimento/plano-de-voo') === 0 || route.indexOf('plano-de-voo') === 0) return 'intelligence';
     if (route.indexOf('inteligencia') === 0) return 'intelligence';
     if (route && route !== 'crescimento/maturidade' && route !== 'crescimento/performance' && route.indexOf('configuracoes') !== 0) return 'operation';
     return '';
@@ -1054,11 +1070,13 @@ button,input,select,textarea{font-family:inherit}
       var group = btn ? btn.closest('.nav-group') : null;
       var current = Router.current ? Router.current() : '';
       var currentBase = current.split('/')[0];
+      var currentInGroup = current === base || current.indexOf(base + '/') === 0 || currentBase === base;
       var isDoubleClick = !!(event && event.detail && event.detail > 1);
 
       if (shell && (shell.classList.contains('sidebar-collapsed') || shell.classList.contains('sidebar-env-collapsed') || shell.classList.contains('sidebar-env-selector'))) {
-        _adminApplySidebarState('operation', 'expanded');
-        if (currentBase !== base || (forceFallback && current !== fallbackRoute)) Router.navigate(fallbackRoute);
+        var targetMode = base.indexOf('inteligencia') === 0 || _adminSidebarModeForRoute(fallbackRoute) === 'intelligence' ? 'intelligence' : 'operation';
+        _adminApplySidebarState(targetMode, 'expanded');
+        if (!currentInGroup || (forceFallback && current !== fallbackRoute)) Router.navigate(fallbackRoute);
         return;
       }
 
@@ -1081,7 +1099,7 @@ button,input,select,textarea{font-family:inherit}
         var navSub = group.querySelector('.nav-sub');
         if (navSub) navSub.style.display = 'block';
       }
-      if (currentBase !== base || (forceFallback && current !== fallbackRoute)) Router.navigate(fallbackRoute);
+      if (!currentInGroup || (forceFallback && current !== fallbackRoute)) Router.navigate(fallbackRoute);
     },
     applyFiscalVisibility: function () {
       var fc = window.Auth && Auth.getFiscalCountry ? Auth.getFiscalCountry() : 'ES';
@@ -1161,6 +1179,55 @@ button,input,select,textarea{font-family:inherit}
     }
   };
 
+  Modules.MarketingCanais = {
+    render: function (sub) {
+      var app = document.getElementById('app');
+      if (!app) return;
+      var key = (sub || 'whatsapp').replace(/^\/+/, '') || 'whatsapp';
+      var map = {
+        whatsapp: ['Automação WhatsApp', 'Aqui ficarão as automações para conversar com clientes pelo WhatsApp.'],
+        instagram: ['Instagram', 'Aqui ficarão as conexões e ações para acompanhar o Instagram da loja.'],
+        facebook: ['Tráfego Pago - Facebook', 'Aqui ficarão os recursos para organizar campanhas pagas e acompanhar resultados.']
+      };
+      var item = map[key] || map.whatsapp;
+      app.innerHTML =
+        '<div style="padding:24px;max-width:920px;">' +
+          '<section style="background:#fff;border:1px solid #EAE4DA;border-radius:22px;box-shadow:0 16px 40px rgba(31,31,31,.06);padding:24px;">' +
+            '<div style="display:flex;align-items:flex-start;gap:14px;">' +
+              '<span class="mi" style="width:42px;height:42px;border-radius:15px;background:#FAF8F4;color:#B42318;display:inline-flex;align-items:center;justify-content:center;font-size:22px;flex:0 0 auto;">hub</span>' +
+              '<div style="min-width:0;">' +
+                '<p style="margin:0 0 7px;color:#B42318;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;">Marketing e Canais</p>' +
+                '<h1 style="margin:0;color:#1F1F1F;font-size:28px;line-height:1.1;font-weight:760;">' + item[0] + '</h1>' +
+                '<p style="margin:10px 0 0;color:#5F5750;font-size:14px;line-height:1.55;max-width:620px;">' + item[1] + '</p>' +
+              '</div>' +
+            '</div>' +
+            '<div style="margin-top:22px;border:1px dashed #E3D8CF;border-radius:16px;background:#FFFCFB;padding:16px;color:#6F6860;font-size:13px;line-height:1.5;">Ainda estamos construindo esta área. Por enquanto, ela fica disponível no menu para preparar a navegação.</div>' +
+          '</section>' +
+        '</div>';
+    }
+  };
+
+  Modules.Missoes = {
+    render: function () {
+      var app = document.getElementById('app');
+      if (!app) return;
+      app.innerHTML =
+        '<div style="padding:24px;max-width:920px;">' +
+          '<section style="background:#fff;border:1px solid #EAE4DA;border-radius:22px;box-shadow:0 16px 40px rgba(31,31,31,.06);padding:24px;">' +
+            '<div style="display:flex;align-items:flex-start;gap:14px;">' +
+              '<span class="mi" style="width:42px;height:42px;border-radius:15px;background:#FAF8F4;color:#B42318;display:inline-flex;align-items:center;justify-content:center;font-size:22px;flex:0 0 auto;">flag</span>' +
+              '<div style="min-width:0;">' +
+                '<p style="margin:0 0 7px;color:#B42318;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;">Missões</p>' +
+                '<h1 style="margin:0;color:#1F1F1F;font-size:28px;line-height:1.1;font-weight:760;">Missões</h1>' +
+                '<p style="margin:10px 0 0;color:#5F5750;font-size:14px;line-height:1.55;max-width:620px;">Esta área será usada para guiar ações importantes da loja.</p>' +
+              '</div>' +
+            '</div>' +
+            '<div style="margin-top:22px;border:1px dashed #E3D8CF;border-radius:16px;background:#FFFCFB;padding:16px;color:#6F6860;font-size:13px;line-height:1.5;">Ainda estamos construindo esta área. Por enquanto, ela fica disponível no menu para preparar a navegação.</div>' +
+          '</section>' +
+        '</div>';
+    }
+  };
+
   Router.register('dashboard', Modules.Dashboard);
   Router.register('venda-presencial', Modules.POS);
   Router.register('tpv', Modules.POS);
@@ -1176,6 +1243,11 @@ button,input,select,textarea{font-family:inherit}
   Router.register('clientes', Modules.Clientes);
   Router.register('marketing', Modules.Marketing);
   Router.register('marketing/pontos', Modules.Marketing);
+  Router.register('marketing-canais', Modules.MarketingCanais);
+  Router.register('marketing-canais/whatsapp', Modules.MarketingCanais);
+  Router.register('marketing-canais/instagram', Modules.MarketingCanais);
+  Router.register('marketing-canais/facebook', Modules.MarketingCanais);
+  Router.register('missoes', Modules.Missoes);
   Router.register('loja-online', Modules.LojaOnline);
   Router.register('loja-online/template', Modules.LojaOnline);
   Router.register('loja-online/link-da-loja', Modules.Configuracoes);

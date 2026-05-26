@@ -1672,6 +1672,7 @@ Modules.Configuracoes = (function () {
                 '<div class="tpv-status-wrap"><span class="tpv-status-label">Status</span><div class="tpv-status-field"><label class="tpv-status-row"><input id="cfg-tpv-enabled" type="checkbox"' + (enabled ? ' checked' : '') + '><span>Ativar venda presencial</span></label></div></div>' +
                 '<div class="bf-field"><label>Nome do caixa</label><input id="cfg-tpv-register-name" class="bf-input" value="' + _esc(c.registerName || 'Caixa principal') + '" placeholder="Caixa principal"><div class="tpv-field-help">Nome interno para identificar o caixa usado nas vendas presenciais.</div></div>' +
                 '<div class="bf-field"><label>Pagamento padrão</label><select id="cfg-tpv-default-payment" class="bf-select">' + paymentOptions + '</select></div>' +
+                '<div class="bf-field"><label>Conta financeira</label><input class="bf-input" value="' + _esc(c.cashAccountName || (enabled ? 'Caixa venda presencial' : 'Será criada ao ativar')) + '" readonly><div class="tpv-field-help">As entradas da venda presencial entram nessa conta no Financeiro.</div></div>' +
               '</div>' +
             '</div>' +
             '<div class="tpv-note">Quando ativado, o menu Venda presencial aparece no painel e as vendas feitas ali entram como canal Venda presencial. Quando desativado, esse menu fica oculto e a loja continua usando apenas os canais de venda já configurados.</div>' +
@@ -1683,29 +1684,81 @@ Modules.Configuracoes = (function () {
         '</section>' +
       '</div>';
     document.getElementById('config-save').onclick = function () {
-      _save(_activeSub, {
+      _saveTpvSettings(Object.assign({}, _config.tpv || {}, {
         enabled: _checked('cfg-tpv-enabled'),
         registerName: _val('cfg-tpv-register-name') || 'Caixa principal',
         defaultPaymentMethod: _val('cfg-tpv-default-payment'),
         channel: 'Venda presencial',
         updatedAt: new Date().toISOString()
-      });
+      }));
     };
+  }
+
+  function _saveTpvSettings(data) {
+    data = data || {};
+    _ensureTpvCashAccount(data).then(function (nextData) {
+      _save('tpv', nextData);
+    }).catch(function (err) {
+      UI.toast('Erro ao preparar conta da venda presencial: ' + (err && err.message ? err.message : err), 'error');
+    });
+  }
+
+  function _ensureTpvCashAccount(data) {
+    if (!data || data.enabled !== true) return Promise.resolve(data);
+    var existingId = String(data.cashAccountId || (_config.tpv && _config.tpv.cashAccountId) || '').trim();
+    var now = new Date().toISOString();
+    return DB.getAll('contas_bancarias').catch(function () { return []; }).then(function (accounts) {
+      accounts = Array.isArray(accounts) ? accounts : [];
+      var account = existingId ? accounts.find(function (item) { return String(item.id || '') === existingId; }) : null;
+      if (!account) {
+        account = accounts.find(function (item) {
+          var name = _slugify(item && (item.nome || item.name || ''));
+          return !!(item && (item.tpvDefault === true || item.systemKey === 'tpv_cash' || name === 'caixa-venda-presencial'));
+        });
+      }
+      if (account && account.id) {
+        return Object.assign({}, data, {
+          cashAccountId: String(account.id),
+          cashAccountName: account.nome || account.name || 'Caixa venda presencial'
+        });
+      }
+      var payload = {
+        nome: 'Caixa venda presencial',
+        tipo: 'caixa',
+        ativo: true,
+        saldoInicial: 0,
+        saldo_inicial: 0,
+        tpvDefault: true,
+        systemKey: 'tpv_cash',
+        origem: 'venda_presencial',
+        observacao: 'Conta criada automaticamente para receber as entradas da Venda presencial.',
+        createdAt: now,
+        updatedAt: now
+      };
+      return DB.add('contas_bancarias', payload).then(function (ref) {
+        var id = String((ref && ref.id) || '');
+        return Object.assign({}, data, {
+          cashAccountId: id,
+          cashAccountName: payload.nome
+        });
+      });
+    });
   }
 
   function _tpvFinancePaymentMethods(selected) {
     var current = String(selected || '').trim();
     var financeiro = _config.financeiro || {};
     var source = Array.isArray(financeiro.formas_pagamento) ? financeiro.formas_pagamento
+      : (Array.isArray(financeiro.paymentMethodConfigs) ? financeiro.paymentMethodConfigs
       : (Array.isArray(financeiro.paymentMethods) ? financeiro.paymentMethods
-      : (Array.isArray(financeiro.formasPagamento) ? financeiro.formasPagamento : []));
+      : (Array.isArray(financeiro.formasPagamento) ? financeiro.formasPagamento : [])));
     var methods = source.map(function (item) {
       if (typeof item === 'string') return { name: item, active: true, raw: item };
       var typeName = item && (item.tipoGlobalNome || item.tipo || item.typeName || item.type || '');
       var accountId = item && (item.contaPadraoId || item.defaultAccountId || item.bankAccountId || '');
       return {
         name: item && (item.nome || item.name || item.label || item.id || ''),
-        active: !item || item.ativo !== false,
+        active: !item || (item.ativo !== false && item.active !== false && item.enabled !== false),
         typeName: typeName,
         requiresAccount: !!(item && (item.exigeConta || item.requiresBankAccount)),
         defaultAccountId: accountId,

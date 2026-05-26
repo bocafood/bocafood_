@@ -141,6 +141,75 @@ Modules.Financeiro = (function () {
   function _modalIconTitle(icon, title, help) {
     return '<div style="display:flex;align-items:flex-start;gap:9px;margin-bottom:14px;"><span class="mi" style="font-size:18px;color:#6F6860;line-height:1.2;margin-top:1px;">'+_esc(icon)+'</span><div style="min-width:0;"><div style="font-size:13px;font-weight:650;color:#1F1F1F;line-height:1.25;">'+_esc(title)+'</div>'+(help?'<div style="font-size:12px;color:#8A7E7C;line-height:1.4;margin-top:3px;">'+_esc(help)+'</div>':'')+'</div></div>';
   }
+  function _catNature(c) {
+    var v = String((c && (c.financialNature || c.naturezaFinanceira || c.nature || c.tipoFinanceiro)) || '').toLowerCase();
+    if (v === 'custo' || v === 'cost') return 'custo';
+    if (v === 'receita' || v === 'entrada') return 'receita';
+    return (c && (c.tipo === 'saida' || c.tipo === 'expense')) ? 'despesa' : 'receita';
+  }
+  function _catCostClass(c) {
+    var v = String((c && (c.costClass || c.classeCusto || c.classificacaoCusto || c.classificacao)) || '').toLowerCase();
+    if (v === 'direto' || v === 'direct') return 'direto';
+    if (v === 'indireto' || v === 'indirect') return 'indireto';
+    return 'indireto';
+  }
+  function _catNatureLabel(c) {
+    var n = _catNature(c);
+    if (n === 'custo') return 'Custo';
+    if (n === 'receita') return 'Receita';
+    return 'Despesa';
+  }
+  function _catClassLabel(c) {
+    return _catCostClass(c) === 'direto' ? 'Direto' : 'Indireto';
+  }
+  function _findSaidaCategory(value) {
+    var v = String(value || '');
+    if (!v) return null;
+    return (_categorias || []).find(function (c) {
+      if (!(c && (c.tipo === 'saida' || c.tipo === 'expense'))) return false;
+      return String(c.id || '') === v || String(c.nome || c.name || '') === v;
+    }) || null;
+  }
+  function _categoryOptionLabel(c) {
+    var nome = c && (c.nome || c.name) ? (c.nome || c.name) : '';
+    var nature = _catNatureLabel(c);
+    var costClass = _catNature(c) === 'receita' ? '' : (' ' + _catClassLabel(c).toLowerCase());
+    return nome + ' · ' + nature + costClass;
+  }
+  function _saidaCategoryOptions(selected) {
+    var selectedValue = String(selected || '');
+    var groups = { despesa: [], custo: [] };
+    (_categorias || []).forEach(function (c) {
+      if (!(c && (c.tipo === 'saida' || c.tipo === 'expense'))) return;
+      var nature = _catNature(c) === 'custo' ? 'custo' : 'despesa';
+      groups[nature].push(c);
+    });
+    function renderGroup(title, items) {
+      items = items.slice().sort(function (a, b) { return String(a.nome || a.name || '').localeCompare(String(b.nome || b.name || '')); });
+      if (!items.length) return '';
+      return '<optgroup label="' + _esc(title) + '">' + items.map(function (c) {
+        var value = c.nome || c.name || c.id || '';
+        var selectedOpt = selectedValue === String(value) || selectedValue === String(c.id || '') || selectedValue === String(c.nome || c.name || '');
+        return '<option value="' + _esc(value) + '"' + (selectedOpt ? ' selected' : '') + '>' + _esc(_categoryOptionLabel(c)) + '</option>';
+      }).join('') + '</optgroup>';
+    }
+    return '<option value="">Selecionar categoria...</option>' +
+      renderGroup('Despesas', groups.despesa) +
+      renderGroup('Custos', groups.custo) +
+      '<option value="__nova__">+ Nova categoria</option>';
+  }
+  function _financialMetaFromRecord(record) {
+    record = record || {};
+    var cat = _findSaidaCategory(record.categoriaFinanceiraId || record.categoriaId || record.categoryId || record.categoria || '');
+    var nature = record.financialNature || record.categoriaFinanceiraNatureza || (cat ? _catNature(cat) : 'despesa');
+    var costClass = record.costClass || record.categoriaFinanceiraCostClass || (cat ? _catCostClass(cat) : 'indireto');
+    return {
+      categoriaId: record.categoriaFinanceiraId || record.categoriaId || record.categoryId || (cat ? (cat.id || '') : ''),
+      categoriaNome: record.categoriaFinanceiraNome || record.categoria || (cat ? (cat.nome || cat.name || '') : ''),
+      financialNature: nature,
+      costClass: costClass
+    };
+  }
 
   function _statusCP(cp) {
     var st = String((cp && cp.status) || '').toLowerCase();
@@ -233,10 +302,37 @@ Modules.Financeiro = (function () {
       var info=_movValorInfo(m);
       return s + (m.status==='parcial' ? info.valorPago : info.valorRow);
     },0);
-    return _parseNum(c.saldo_inicial) + ent - sai;
+    var transfers = (_movimentacoes || []).reduce(function (sum, m) {
+      return sum + _transferEffectForAccount(m, c.id);
+    }, 0);
+    return _parseNum(c.saldo_inicial) + ent - sai + transfers;
   }
   function _saldoTotal() {
     return _contasBancarias.filter(function(c){ return c.ativo!==false; }).reduce(function(s,c){ return s+_saldoConta(c); },0);
+  }
+  function _isTransferMov(m) {
+    return String(m && (m.tipo || m.type) || '') === 'transferencia';
+  }
+  function _transferOriginId(m) {
+    return String(m && (m.contaOrigemId || m.originAccountId || m.fromAccountId || '') || '');
+  }
+  function _transferDestinationId(m) {
+    return String(m && (m.contaDestinoId || m.destinationAccountId || m.toAccountId || '') || '');
+  }
+  function _transferTouchesAccount(m, accountId) {
+    var id = String(accountId || '');
+    return _isTransferMov(m) && id && (_transferOriginId(m) === id || _transferDestinationId(m) === id);
+  }
+  function _transferEffectForAccount(m, accountId) {
+    if (!_transferTouchesAccount(m, accountId) || (m.status && m.status !== 'efetivado')) return 0;
+    var value = _parseNum(m.valor);
+    if (_transferOriginId(m) === String(accountId || '')) return -value;
+    if (_transferDestinationId(m) === String(accountId || '')) return value;
+    return 0;
+  }
+  function _transferLabelForAccount(m, accountId) {
+    if (!_isTransferMov(m)) return 'Transferência';
+    return _transferDestinationId(m) === String(accountId || '') ? 'Transferência recebida' : 'Transferência enviada';
   }
   function _mesAtual() { return _today().slice(0,7); }
   function _movMes() {
@@ -520,7 +616,9 @@ Modules.Financeiro = (function () {
     var range = _visaoPeriodRange();
     var contaSel = _visaoFiltro.conta;
     return (_movimentacoes || []).filter(function (m) {
-      if (!_visaoContaMatches(m.conta_id || m.contaBancariaId)) return false;
+      if (_isTransferMov(m)) {
+        if (contaSel && contaSel !== 'todas' && !_transferTouchesAccount(m, contaSel)) return false;
+      } else if (!_visaoContaMatches(m.conta_id || m.contaBancariaId)) return false;
       if (range.start && (!m.data || m.data < range.start)) return false;
       if (range.end && (!m.data || m.data > range.end)) return false;
       return true;
@@ -549,6 +647,7 @@ Modules.Financeiro = (function () {
       var info = _movValorInfo(m);
       if (m.tipo === 'entrada') return s + (m.status === 'parcial' ? info.valorRecebido : info.valorRow);
       if (m.tipo === 'saida') return s - (m.status === 'parcial' ? info.valorPago : info.valorRow);
+      if (_isTransferMov(m)) return s + _transferEffectForAccount(m, c.id);
       return s;
     }, _parseNum(c.saldo_inicial));
   }
@@ -729,8 +828,7 @@ Modules.Financeiro = (function () {
         '</div>'+
       '</div>'+
       '<section style="'+cardStyle+'">'+
-        '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:14px;">'+
-          sectionTitle('Filtros da visão geral', 'Use os filtros para olhar uma conta, um período ou uma data específica.', 'filter_alt')+
+        '<div style="display:flex;justify-content:flex-end;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:14px;">'+
           '<div style="display:flex;align-items:flex-start;gap:10px;min-width:240px;max-width:360px;background:'+healthBg+';color:'+healthFg+';border-radius:14px;padding:12px 14px;">'+
             '<span class="mi" style="font-size:22px;margin-top:1px;">'+(resumo.saude === 'Saudável' ? 'verified' : 'warning')+'</span>'+
             '<div>'+
@@ -783,24 +881,30 @@ Modules.Financeiro = (function () {
             ? '<div style="text-align:center;padding:32px 24px;color:#6F6860;background:#FAF8F4;border:1px dashed #EAE4DA;border-radius:14px;"><div style="font-size:15px;font-weight:700;color:#1F1F1F;margin-bottom:4px;">Nenhuma movimentação no período</div><div style="font-size:13px;line-height:1.5;">Ajuste os filtros ou registre entradas e saídas para acompanhar o fluxo.</div></div>'
             : '<div style="display:flex;flex-direction:column;gap:0;">'+
                 recentes.map(function (m) {
-                  var conta = _contasBancarias.find(function (c) { return c.id === (m.conta_id || m.contaBancariaId); });
-                  var tipo = m.tipo === 'entrada' ? 'Entrada' : 'Saída';
+                  var isTransfer = _isTransferMov(m);
+                  var selectedContaId = contaSel ? contaSel.id : (m.conta_id || m.contaBancariaId || '');
+                  var conta = _contasBancarias.find(function (c) { return c.id === selectedContaId; });
+                  var originName = m.contaOrigemNome || ((_contasBancarias.find(function (c) { return c.id === _transferOriginId(m); }) || {}).nome) || 'Origem';
+                  var destName = m.contaDestinoNome || ((_contasBancarias.find(function (c) { return c.id === _transferDestinationId(m); }) || {}).nome) || 'Destino';
+                  var tipo = isTransfer ? (selectedContaId ? _transferLabelForAccount(m, selectedContaId) : 'Transferência') : (m.tipo === 'entrada' ? 'Entrada' : 'Saída');
                   var st = m.status || 'efetivado';
                   var statusTxt = st === 'efetivado' ? 'Efetivado' : (st === 'parcial' ? 'Parcial' : (st === 'previsto' ? 'Previsto' : st));
                   var statusBg = st === 'efetivado' ? '#DCFCE7' : (st === 'parcial' ? '#FEF3C7' : '#EFF6FF');
                   var statusFg = st === 'efetivado' ? '#166534' : (st === 'parcial' ? '#B45309' : '#2563EB');
-                  var sign = m.tipo === 'saida' ? '-' : '+';
+                  var transferEffect = isTransfer ? _transferEffectForAccount(m, selectedContaId) : 0;
+                  var sign = isTransfer ? (selectedContaId ? (transferEffect < 0 ? '-' : '+') : '') : (m.tipo === 'saida' ? '-' : '+');
                   var info = _movValorInfo(m);
-                  var val = m.tipo === 'entrada' ? (m.status === 'parcial' ? info.valorRecebido : info.displayValor) : (m.status === 'parcial' ? info.valorPago : info.displayValor);
+                  var val = isTransfer ? Math.abs(transferEffect || _parseNum(m.valor)) : (m.tipo === 'entrada' ? (m.status === 'parcial' ? info.valorRecebido : info.displayValor) : (m.status === 'parcial' ? info.valorPago : info.displayValor));
+                  var tone = isTransfer ? '#8A6F5A' : (m.tipo === 'entrada' ? '#1F6F43' : '#B42318');
                   return '<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #EAE4DA;transition:background .15s ease;" onmouseenter="this.style.background=\'#FAF8F4\'" onmouseleave="this.style.background=\'transparent\'">'+
-                    '<div style="width:34px;height:34px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:transparent;color:'+(m.tipo==='entrada'?'#1F6F43':'#B42318')+';font-size:15px;font-weight:700;flex-shrink:0;"><span class="mi" style="font-size:21px;">'+(m.tipo==='entrada'?'south_west':'north_east')+'</span></div>'+
+                    '<div style="width:34px;height:34px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:transparent;color:'+tone+';font-size:15px;font-weight:700;flex-shrink:0;"><span class="mi" style="font-size:21px;">'+(isTransfer?'sync_alt':(m.tipo==='entrada'?'south_west':'north_east'))+'</span></div>'+
                     '<div style="flex:1;min-width:0;">'+
                       '<div style="font-size:13px;font-weight:700;color:#1F1F1F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+_esc(m.descricao||'—')+'</div>'+
                       '<div style="font-size:12px;color:#6F6860;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+
-                        _esc([tipo, conta ? conta.nome : '—', _fmtDateDisplay(m.data), statusTxt].join(' · '))+
+                        _esc([tipo, isTransfer && !selectedContaId ? (originName + ' → ' + destName) : (conta ? conta.nome : '—'), _fmtDateDisplay(m.data), statusTxt].join(' · '))+
                       '</div>'+
                     '</div>'+
-                    '<div style="font-size:14px;font-weight:700;color:'+(m.tipo==='entrada'?'#1F6F43':'#B42318')+';flex-shrink:0;white-space:nowrap;">'+sign+' '+_fmtVal(val)+'</div>'+
+                    '<div style="font-size:14px;font-weight:700;color:'+tone+';flex-shrink:0;white-space:nowrap;">'+(sign ? sign + ' ' : '')+_fmtVal(val)+'</div>'+
                     '<span style="margin-left:8px;background:'+statusBg+';color:'+statusFg+';padding:4px 8px;border-radius:999px;font-size:11px;font-weight:700;flex-shrink:0;">'+_esc(statusTxt)+'</span>'+
                   '</div>';
                 }).join('')+
@@ -900,6 +1004,7 @@ Modules.Financeiro = (function () {
     var busca=_normSearch(_fluxoFiltro.busca||'');
     var eventos=[];
     _movimentacoes.filter(function(m){
+      if(m.tipo!=='entrada'&&m.tipo!=='saida') return false;
       if(!incluiStatus(m.status||'efetivado')) return false;
       if(_fluxoFiltro.conta!=='todas'&&m.conta_id!==_fluxoFiltro.conta) return false;
       if(range.start&&(!m.data||m.data<range.start)) return false;
@@ -995,10 +1100,6 @@ Modules.Financeiro = (function () {
           '</div>'+
         '</div>'+
         '<section style="'+cardStyle+'">'+
-          '<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:14px;">'+
-            '<span class="mi" style="width:31px;height:31px;border-radius:12px;background:#FAF8F4;color:#8A6F5A;display:inline-flex;align-items:center;justify-content:center;font-size:17px;flex:0 0 auto;">filter_alt</span>'+
-            '<div style="min-width:0;">'+sectionTitle('Filtros do fluxo','Use os filtros para olhar um período, uma conta ou uma situação específica do caixa.')+'</div>'+
-          '</div>'+
           '<div style="display:grid;grid-template-columns:minmax(240px,1fr) minmax(180px,220px) minmax(220px,280px) auto;gap:12px;align-items:end;justify-content:start;">'+
             '<div><label style="'+labelStyle+'">Busca</label><input id="fluxo-busca" type="search" value="'+_esc(_fluxoFiltro.busca||'')+'" oninput="Modules.Financeiro._setFluxoFiltro(\'busca\',this.value)" placeholder="Buscar descrição, categoria ou tipo" style="'+inputStyle+'"></div>'+
             '<div><label style="'+labelStyle+'">Período</label><select onchange="Modules.Financeiro._setFluxoFiltro(\'periodo\',this.value)" style="'+selectStyle+'">'+_periodoOptionsHtml(_fluxoFiltro.periodo)+'</select></div>'+
@@ -1998,7 +2099,7 @@ Modules.Financeiro = (function () {
       updatedAt:new Date().toISOString()
     };
     if(!_editingId) obj.createdAt=new Date().toISOString();
-    var saveCat=(cat==='__nova__')?DB.add('financeiro_categorias',{nome:novaCat,tipo:obj.tipo}):Promise.resolve();
+    var saveCat=(cat==='__nova__')?DB.add('financeiro_categorias',{nome:novaCat,tipo:obj.tipo,financialNature:'receita',costClass:''}):Promise.resolve();
     saveCat.then(function(){
       if(pessoaTexto&&!pessoaExistente){
         var col=tipoMov==='entrada'?'store_customers':'fornecedores';
@@ -2572,9 +2673,10 @@ Modules.Financeiro = (function () {
       var conta=cp.conta_id||cp.contaBancariaId||(contasAtivas.length===1?contasAtivas[0].id:'');
       var info=_cpValorInfo(cp);
       var dueTotal=_cpPayableTotal(cp,info);
+      var meta=_financialMetaFromRecord(cp);
       var upd={status:'pago',data_pagamento:today,valorPago:dueTotal,valor_pago_total:dueTotal,saldoRestante:0,saldo_restante:0,ultimo_pagamento:today,conta_id:conta,contaBancariaId:conta};
       return DB.update(cp._colecao||'contas_pagar',cp.id,upd).then(function(){
-        return DB.add('movimentacoes',{tipo:'saida',descricao:cp.descricao||'Saída',valor:dueTotal,valorTotalOriginal:dueTotal,valorParcela:dueTotal,valorPago:dueTotal,saldoRestante:0,data:today,status:'efetivado',conta_id:conta,forma_pagamento:cp.formaPagamento||cp.forma_pagamento||'',categoria:cp.categoria||'',contaPagarId:cp.id,sourceCollection:cp._colecao||'contas_pagar',sourceId:cp.id,origem:cp.origem||'financeiro',pessoaTipo:cp.fornecedorId||cp.fornecedorNome||cp.fornecedor?'fornecedor':'nenhum',pessoaId:cp.fornecedorId||'',pessoaNome:cp.fornecedorNome||cp.fornecedor||'',updatedAt:new Date().toISOString()});
+        return DB.add('movimentacoes',{tipo:'saida',descricao:cp.descricao||'Saída',valor:dueTotal,valorTotalOriginal:dueTotal,valorParcela:dueTotal,valorPago:dueTotal,saldoRestante:0,data:today,status:'efetivado',conta_id:conta,forma_pagamento:cp.formaPagamento||cp.forma_pagamento||'',categoria:meta.categoriaNome||cp.categoria||'',categoriaId:meta.categoriaId,categoriaFinanceiraId:meta.categoriaId,categoriaFinanceiraNome:meta.categoriaNome,financialNature:meta.financialNature,categoriaFinanceiraNatureza:meta.financialNature,costClass:meta.costClass,categoriaFinanceiraCostClass:meta.costClass,contaPagarId:cp.id,sourceCollection:cp._colecao||'contas_pagar',sourceId:cp.id,origem:cp.origem||'financeiro',pessoaTipo:cp.fornecedorId||cp.fornecedorNome||cp.fornecedor?'fornecedor':'nenhum',pessoaId:cp.fornecedorId||'',pessoaNome:cp.fornecedorNome||cp.fornecedor||'',updatedAt:new Date().toISOString()});
       });
     })).then(function(){
       UI.toast(items.length+' saída(s) confirmada(s). '+skipped+' ignorada(s).','success');
@@ -2812,8 +2914,7 @@ Modules.Financeiro = (function () {
   function _openCPModal(id) {
     _editingId=id;
     var cp=id?(_contasPagar.find(function(x){ return x.id===id; })||{}):{};
-    var cats=_catsByTipo('saida');
-    var catOpts='<option value="">Selecionar categoria...</option>'+cats.map(function(c){ return '<option value="'+_esc(c)+'"'+(cp.categoria===c?' selected':'')+'>'+_esc(c)+'</option>'; }).join('')+'<option value="__nova__">+ Nova categoria</option>';
+    var catOpts=_saidaCategoryOptions(cp.categoriaFinanceiraId||cp.categoriaId||cp.categoryId||cp.categoria||'');
     var fornecedorId=cp.fornecedorId||'';
     var fornecedorNomeAtual=cp.fornecedorNome||cp.fornecedor||'';
     if(fornecedorId&&!fornecedorNomeAtual){
@@ -2856,7 +2957,7 @@ Modules.Financeiro = (function () {
               '<div style="position:relative;flex:1 1 280px;min-width:240px;"><label style="'+_lbl()+'">Fornecedor / favorecido</label><input id="cp-forn-novo" type="text" value="'+_esc(fornecedorNomeAtual)+'" placeholder="Buscar fornecedor..." autocomplete="off" oninput="Modules.Financeiro._financePessoaSearch(\'cp\',this.value);Modules.Financeiro._renderCPPreviews()" onfocus="Modules.Financeiro._financePessoaSearch(\'cp\',this.value)" onblur="setTimeout(function(){var d=document.getElementById(\'cp-forn-dropdown\');if(d)d.style.display=\'none\';},200)" style="'+fieldStyle+'"><input id="cp-forn-id" type="hidden" value="'+_esc(fornecedorId)+'"><div id="cp-forn-dropdown" style="display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;background:#fff;border:1px solid #E8DCD7;border-radius:12px;max-height:220px;overflow-y:auto;z-index:9999;box-shadow:0 14px 34px rgba(31,31,31,.12);"></div><div style="font-size:11px;color:#8A7E7C;margin-top:5px;">Para quem você está pagando.</div></div>'+
             '</div>'+
             '<div style="display:flex;gap:12px;align-items:start;flex-wrap:wrap;">'+
-              '<div style="flex:1 1 220px;max-width:300px;"><label style="'+_lbl()+'">Categoria de saída *</label><select id="cp-cat" onchange="Modules.Financeiro._toggleCPNovaCat()" style="'+selectStyle+'">'+catOpts+'</select><input id="cp-cat-nova" type="text" placeholder="Nome da nova categoria..." style="'+fieldStyle+'display:none;margin-top:8px;"></div>'+
+              '<div style="flex:1 1 260px;max-width:340px;"><label style="'+_lbl()+'">Categoria de saída *</label><select id="cp-cat" onchange="Modules.Financeiro._toggleCPNovaCat()" style="'+selectStyle+'">'+catOpts+'</select><input id="cp-cat-nova" type="text" placeholder="Nome da nova categoria..." style="'+fieldStyle+'display:none;margin-top:8px;"><div id="cp-cat-new-meta" style="display:none;grid-template-columns:minmax(130px,160px) minmax(130px,160px);gap:10px;margin-top:8px;"><div><label style="'+_lbl()+'">Tipo</label><select id="cp-cat-nature" style="'+selectStyle+'"><option value="despesa">Despesa</option><option value="custo">Custo</option></select></div><div><label style="'+_lbl()+'">Classe</label><select id="cp-cat-cost-class" style="'+selectStyle+'"><option value="indireto">Indireto</option><option value="direto">Direto</option></select></div></div><div id="cp-cat-help" style="font-size:11px;color:#8A7E7C;margin-top:5px;"></div></div>'+
               '<div style="flex:1 1 190px;max-width:260px;"><label style="'+_lbl()+'">Forma de pagamento *</label><select id="cp-forma" onchange="Modules.Financeiro._applyFormaPadraoConta(\'cp\')" style="'+selectStyle+'">'+fOpts+'</select></div>'+
               '<div style="flex:1 1 190px;max-width:260px;"><label style="'+_lbl()+'">Conta bancária</label><select id="cp-conta" style="'+selectStyle+'">'+contaOpts+'</select></div>'+
             '</div>'+
@@ -2995,7 +3096,17 @@ Modules.Financeiro = (function () {
   function _toggleCPNovaCat() {
     var sel=document.getElementById('cp-cat');
     var inp=document.getElementById('cp-cat-nova');
-    if(inp) inp.style.display=(sel&&sel.value==='__nova__')?'block':'none';
+    var meta=document.getElementById('cp-cat-new-meta');
+    var help=document.getElementById('cp-cat-help');
+    var isNova=!!(sel&&sel.value==='__nova__');
+    if(inp) inp.style.display=isNova?'block':'none';
+    if(meta) meta.style.display=isNova?'grid':'none';
+    if(help){
+      var cat=!isNova&&sel?_findSaidaCategory(sel.value):null;
+      help.textContent=isNova
+        ? 'Escolha se essa nova categoria entra como despesa ou custo, direto ou indireto.'
+        : (cat ? (_catNatureLabel(cat)+' '+_catClassLabel(cat).toLowerCase()+'.') : '');
+    }
   }
 
   function _addPeriodo(data, freq, idx) {
@@ -3097,6 +3208,12 @@ Modules.Financeiro = (function () {
     if(status==='pago' && !dataPagamento){ UI.toast('Informe a data de pagamento','error'); return; }
     var repeticoes=_parseNum((document.getElementById('cp-repeticoes')||{}).value);
     if(rec && repeticoes<1){ UI.toast('Informe o número de repetições','error'); return; }
+    var catMeta=cat==='__nova__'?null:_findSaidaCategory(cat);
+    var newCatNature=(document.getElementById('cp-cat-nature')||{}).value||'despesa';
+    var newCatCostClass=(document.getElementById('cp-cat-cost-class')||{}).value||'indireto';
+    var categoriaNome=cat==='__nova__'?novaCat:(catMeta?(catMeta.nome||catMeta.name||cat):cat);
+    var categoriaNature=cat==='__nova__'?newCatNature:_catNature(catMeta||{tipo:'saida'});
+    var categoriaCostClass=cat==='__nova__'?newCatCostClass:_catCostClass(catMeta||{tipo:'saida'});
     var fornecedorNome=fornExistente?(fornExistente.name||fornExistente.nome||''):(novoForn||'');
     var obj={
       descricao:desc, valor:valor,
@@ -3107,7 +3224,14 @@ Modules.Financeiro = (function () {
       vencimento:vencimento,
       data_inicial:rec?vencimento:'',
       data_pagamento:status==='pago'?dataPagamento:null,
-      categoria:cat==='__nova__'?novaCat:cat,
+      categoria:categoriaNome,
+      categoriaId:catMeta?(catMeta.id||''):'',
+      categoriaFinanceiraId:catMeta?(catMeta.id||''):'',
+      categoriaFinanceiraNome:categoriaNome,
+      financialNature:categoriaNature,
+      categoriaFinanceiraNatureza:categoriaNature,
+      costClass:categoriaCostClass,
+      categoriaFinanceiraCostClass:categoriaCostClass,
       formaPagamento:forma,
       forma_pagamento:forma,
       conta_id:contaId,
@@ -3129,7 +3253,11 @@ Modules.Financeiro = (function () {
     };
     if(!_editingId) obj.createdAt=new Date().toISOString();
     var savedCpId=_editingId||'';
-    var saveCat=(cat==='__nova__')?DB.add('financeiro_categorias',{nome:novaCat,tipo:'saida'}):Promise.resolve();
+    var saveCat=(cat==='__nova__')?DB.add('financeiro_categorias',{nome:novaCat,tipo:'saida',financialNature:categoriaNature,costClass:categoriaCostClass}).then(function(ref){
+      obj.categoriaId=(ref&&ref.id)||'';
+      obj.categoriaFinanceiraId=(ref&&ref.id)||'';
+      return ref;
+    }):Promise.resolve();
     saveCat.then(function(){
       if(novoForn&&!fornExistente){
         return DB.add('fornecedores',{name:novoForn,nome:novoForn,ativo:true}).then(function(ref){
@@ -3386,6 +3514,7 @@ Modules.Financeiro = (function () {
     var paidValue = _parseNum(cp.valorPago || cp.valor_pago_total) || dueTotal;
     if (!(paidValue > 0)) return Promise.resolve(false);
     var data = cp.data_pagamento || cp.ultimo_pagamento || cp.data || _today();
+    var meta = _financialMetaFromRecord(cp);
     var payload = {
       tipo: 'saida',
       descricao: 'Pagamento: ' + (cp.descricao || 'Saída'),
@@ -3395,7 +3524,14 @@ Modules.Financeiro = (function () {
       valorPago: paidValue,
       saldoRestante: 0,
       data: data,
-      categoria: cp.categoria || '',
+      categoria: meta.categoriaNome || cp.categoria || '',
+      categoriaId: meta.categoriaId,
+      categoriaFinanceiraId: meta.categoriaId,
+      categoriaFinanceiraNome: meta.categoriaNome,
+      financialNature: meta.financialNature,
+      categoriaFinanceiraNatureza: meta.financialNature,
+      costClass: meta.costClass,
+      categoriaFinanceiraCostClass: meta.costClass,
       conta_id: cp.conta_id || cp.contaBancariaId || '',
       forma_pagamento: cp.formaPagamento || cp.forma_pagamento || '',
       status: 'efetivado',
@@ -3542,6 +3678,9 @@ Modules.Financeiro = (function () {
   function _contaCardHtml(c) {
     var r=_contaResumo(c);
     var saldoColor=r.saldo>=0?'#1F6F43':'#B42318';
+    var isTpvCash=!!(c.tpvDefault || c.systemKey==='tpv_cash');
+    var physical=isTpvCash?_cashPhysicalBalance(c.id):0;
+    var neutralRows=isTpvCash?_cashNeutralMovements(c.id).slice(0,3):[];
     return '<div style="'+_cfgCardStyle('16px 16px')+(c.ativo===false?'opacity:.58;':'')+'transition:transform .16s ease,box-shadow .16s ease,background .16s ease;" onmouseenter="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 16px 34px rgba(31,31,31,.09)\';this.style.background=\'#fff\'" onmouseleave="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'0 12px 30px rgba(31,31,31,.055)\';this.style.background=\'linear-gradient(180deg,#fff 0%,#FFFCFA 100%)\'">'+
       '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px;">'+
         '<div style="min-width:0;">'+
@@ -3551,6 +3690,7 @@ Modules.Financeiro = (function () {
           '</div>'+
         '</div>'+
         '<div style="display:flex;gap:6px;flex-shrink:0;">'+
+          _cfgIconButton('sync_alt','Transferir','#F4EFEA','#8A6F5A','Modules.Financeiro._openTransferModal(\''+c.id+'\')')+
           _cfgIconButton('edit','Editar','#fff','#6F6860','Modules.Financeiro._openContaModal(\''+c.id+'\')')+
           _cfgIconButton('delete','Excluir','#FFF0EE','#B42318','Modules.Financeiro._deleteConta(\''+c.id+'\')')+
         '</div>'+
@@ -3561,8 +3701,48 @@ Modules.Financeiro = (function () {
         '<div style="background:#F0FFF4;border:1px solid #D5F3DF;border-radius:12px;padding:9px 10px;min-width:0;"><div style="font-size:10px;color:#1F6F43;font-weight:650;text-transform:uppercase;">Entradas</div><div style="font-size:13px;font-weight:700;color:#1F6F43;margin-top:3px;">+'+_fmtVal(r.entradas)+'</div></div>'+
         '<div style="background:#FFF5F5;border:1px solid #F4D8D4;border-radius:12px;padding:9px 10px;min-width:0;"><div style="font-size:10px;color:#B42318;font-weight:650;text-transform:uppercase;">Saídas</div><div style="font-size:13px;font-weight:700;color:#B42318;margin-top:3px;">-'+_fmtVal(r.saidas)+'</div></div>'+
       '</div>'+
+      (isTpvCash
+        ? '<div style="margin-top:10px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">'+
+            '<div style="background:#FFF9EC;border:1px solid #F4E3B8;border-radius:12px;padding:9px 10px;min-width:0;"><div style="font-size:10px;color:#8A6400;font-weight:650;text-transform:uppercase;">Físico no caixa</div><div style="font-size:13px;font-weight:700;color:#1F1F1F;margin-top:3px;">'+_fmtVal(physical)+'</div></div>'+
+            '<div style="background:#F8F7F4;border:1px solid #E6DDD3;border-radius:12px;padding:9px 10px;min-width:0;"><div style="font-size:10px;color:#6F6860;font-weight:650;text-transform:uppercase;">Na conta</div><div style="font-size:13px;font-weight:700;color:#1F1F1F;margin-top:3px;">'+_fmtVal(r.saldo-physical)+'</div></div>'+
+          '</div>'+
+          (neutralRows.length
+            ? '<div style="margin-top:10px;border-top:1px solid #F2EDEA;padding-top:9px;display:flex;flex-direction:column;gap:7px;">'+neutralRows.map(function(m){ return '<div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;font-size:11px;color:#6F6860;"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_esc(_cashMovementLabel(m))+' · '+_esc(_fmtDateDisplay(m.data))+'</span><strong style="font-weight:650;color:'+_cashMovementColor(m)+';">'+(_cashMovementDirection(m)==='out'?'-':'+')+_fmtVal(m.valor)+'</strong></div>'; }).join('')+'</div>'
+            : '')+
+          '<div style="margin-top:9px;font-size:11px;color:#8A7E7C;line-height:1.35;">Abertura, reforço e sangria mostram onde está o dinheiro desta conta. Não entram como receita ou despesa.</div>'
+        : '')+
       (c.ativo===false?'<div style="margin-top:12px;font-size:11px;font-weight:600;color:#6F6860;background:#FFFCF8;border:1px solid #EADFD8;border-radius:999px;padding:5px 9px;display:inline-block;">Conta inativa</div>':'')+
     '</div>';
+  }
+
+  function _cashNeutralMovements(accountId) {
+    return (_movimentacoes || []).filter(function (m) {
+      return String(m.conta_id || m.contaBancariaId || '') === String(accountId || '') && String(m.tipo || '') === 'caixa_fisico';
+    }).sort(function (a, b) {
+      return String(b.createdAt || b.data || '').localeCompare(String(a.createdAt || a.data || ''));
+    });
+  }
+
+  function _cashPhysicalBalance(accountId) {
+    return _cashNeutralMovements(accountId).reduce(function (sum, m) {
+      return sum + (_cashMovementDirection(m) === 'out' ? -_parseNum(m.valor) : _parseNum(m.valor));
+    }, 0);
+  }
+
+  function _cashMovementDirection(m) {
+    return String(m && (m.cashMovementDirection || m.direction) || '') === 'out' || String(m && m.cashMovementType || '') === 'sangria' ? 'out' : 'in';
+  }
+
+  function _cashMovementLabel(m) {
+    var type=String(m && m.cashMovementType || '');
+    if(type==='abertura') return 'Abertura do caixa';
+    if(type==='reforco') return 'Reforço';
+    if(type==='sangria') return 'Sangria';
+    return m && m.descricao || 'Movimento do caixa';
+  }
+
+  function _cashMovementColor(m) {
+    return _cashMovementDirection(m)==='out'?'#B45309':'#1F6F43';
   }
 
   function _contasCardsHtml(emptyPadding) {
@@ -3586,7 +3766,10 @@ Modules.Financeiro = (function () {
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">'+
         '<div><h2 style="font-size:18px;font-weight:800;margin-bottom:4px;">Contas Bancárias</h2>'+
           '<p style="font-size:12px;color:#8A7E7C;">Saldo total: <strong style="color:'+(st>=0?'#16A34A':'#DC2626')+';">'+_fmtVal(st)+'</strong></p></div>'+
-        '<button onclick="Modules.Financeiro._openContaModal(null)" style="background:#C4362A;color:#fff;border:none;padding:10px 18px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">+ Nova Conta</button>'+
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">'+
+          '<button onclick="Modules.Financeiro._openTransferModal()" style="height:38px;padding:0 14px;border:1px solid #EADFD8;border-radius:12px;background:#fff;color:#8A6F5A;font-size:13px;font-weight:650;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(31,31,31,.04);display:inline-flex;align-items:center;gap:7px;"><span class="mi" style="font-size:18px;">sync_alt</span> Transferir</button>'+
+          '<button onclick="Modules.Financeiro._openContaModal(null)" style="background:#C4362A;color:#fff;border:none;padding:0 18px;height:38px;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">+ Nova Conta</button>'+
+        '</div>'+
       '</div>'+
       _contasCardsHtml('60px 20px');
   }
@@ -3629,27 +3812,39 @@ function _openContaModal(id) {
     var bankTypes = _globalFinanceList('bank', false).filter(function(t){ return _globalTypeCountryOk(t.countryFiscal, _tenantFiscalCountry()); });
     var tOpts = bankTypes.map(function (t) {
       var selected = selectedType && (String(t.id) === String(selectedType) || String(t.slug) === String(selectedType) || String(t.name) === String(selectedType));
-      return '<option value="'+_esc(t.id)+'" data-slug="'+_esc(t.slug)+'" data-name="'+_esc(t.name)+'"'+(selected?' selected':'')+'>'+_esc(t.name)+' — '+_globalFinanceCountryLabel(t.countryFiscal)+'</option>';
+      return '<option value="'+_esc(t.id)+'" data-slug="'+_esc(t.slug)+'" data-name="'+_esc(t.name)+'" data-country="'+_esc(t.countryFiscal)+'"'+(selected?' selected':'')+'>'+_esc(t.name)+'</option>';
     }).join('');
     if (selectedType && !bankTypes.some(function (t) { return String(t.id) === String(selectedType) || String(t.slug) === String(selectedType) || String(t.name) === String(selectedType); })) {
       tOpts += '<option value="'+_esc(selectedType)+'" selected>'+_esc(c.tipoGlobalNome || c.tipo || selectedType)+' (legado)</option>';
     }
+    if(!tOpts) tOpts='<option value="corrente" selected>Conta corrente</option>';
+    var cardStyle=_modalCardStyle();
+    var fieldStyle=_modalFieldStyle();
+    var selectStyle=_modalSelectStyle();
+    var moneyField=_modalFieldStyle('max-width:170px;');
+    var cleanCheckboxStyle='display:flex;align-items:center;gap:9px;font-size:13px;font-weight:500;color:#1F1F1F;cursor:pointer;min-height:32px;';
     var body=
       '<div style="display:flex;flex-direction:column;gap:14px;">'+
-        '<div style="background:#FAF8F4;border:none;border-radius:16px;padding:18px;box-shadow:0 12px 30px rgba(31,31,31,.06);"><div style="font-size:15px;font-weight:800;color:#1F1F1F;">'+(id?'Editar conta bancária':'Nova conta bancária')+'</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:5px;">Contas bancárias definem para onde entram e de onde saem os valores.</div></div>'+
-        '<div style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);display:flex;flex-direction:column;gap:12px;">'+
-        '<div><label style="'+_lbl()+'">Nome da conta *</label><input id="cb-nome" type="text" value="'+_esc(c.nome||'')+'" placeholder="Ex: Conta Principal, Caixa..." style="'+_inp()+'"></div>'+
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">'+
-          '<div><label style="'+_lbl()+'">Banco / Instituição</label><input id="cb-banco" type="text" value="'+_esc(c.banco||'')+'" placeholder="Ex: CGD, Millennium..." style="'+_inp()+'"></div>'+
-          '<div><label style="'+_lbl()+'">Tipo</label><select id="cb-tipo" style="'+_inp()+'background:#fff;">'+tOpts+'</select></div>'+
+        '<div style="'+cardStyle+'">'+
+          _modalIconTitle('account_balance_wallet','Dados da conta','Cadastre onde o dinheiro entra ou sai para organizar caixa, pagamentos e recebimentos.')+
+          '<div style="display:flex;flex-direction:column;gap:12px;">'+
+            '<div><label style="'+_lbl()+'">Nome da conta *</label><input id="cb-nome" type="text" value="'+_esc(c.nome||'')+'" placeholder="Ex: Conta principal, Caixa..." style="'+fieldStyle+'"></div>'+
+            '<div style="display:grid;grid-template-columns:minmax(220px,1fr) minmax(170px,.55fr);gap:12px;align-items:end;">'+
+              '<div><label style="'+_lbl()+'">Banco / Instituição</label><input id="cb-banco" type="text" value="'+_esc(c.banco||'')+'" placeholder="Ex: Caixa, Millennium..." style="'+fieldStyle+'"></div>'+
+              '<div style="max-width:220px;"><label style="'+_lbl()+'">Tipo</label><select id="cb-tipo" style="'+selectStyle+'max-width:220px;">'+tOpts+'</select></div>'+
+            '</div>'+
+          '</div>'+
         '</div>'+
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:end;">'+
-          '<div><label style="'+_lbl()+'">Saldo inicial (€)</label><input id="cb-saldo" type="text" value="'+_esc(c.saldo_inicial!=null?c.saldo_inicial:'')+'" placeholder="0,00" style="'+_inp()+'"></div>'+
-          '<div style="border:1px solid #EAE4DA;border-radius:12px;padding:11px 12px;background:#FAF8F4;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:700;color:#1F1F1F;"><input type="checkbox" id="cb-ativo"'+(c.ativo!==false?' checked':'')+' style="width:15px;height:15px;cursor:pointer;accent-color:#B42318;"> Conta ativa</label></div>'+
+        '<div style="'+cardStyle+'">'+
+          _modalIconTitle('tune','Uso no financeiro','Defina o saldo inicial e se esta conta aparece disponível nos lançamentos.')+
+          '<div style="display:flex;align-items:end;gap:18px;flex-wrap:wrap;">'+
+            '<div style="flex:0 0 170px;max-width:170px;"><label style="'+_lbl()+'">Saldo inicial</label><input id="cb-saldo" type="text" value="'+_esc(c.saldo_inicial!=null?c.saldo_inicial:'')+'" placeholder="€ 0,00" style="'+moneyField+'"></div>'+
+            '<label style="'+cleanCheckboxStyle+'"><input type="checkbox" id="cb-ativo"'+(c.ativo!==false?' checked':'')+' style="width:16px;height:16px;cursor:pointer;accent-color:#B42318;"> <span>Conta ativa</span></label>'+
+          '</div>'+
         '</div>'+
-      '</div></div>';
-    var footer='<div style="display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;width:100%;"><button onclick="if(window._contaModal)window._contaModal.close();" style="height:40px;padding:0 14px;border-radius:12px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Cancelar</button><button onclick="Modules.Financeiro._saveConta()" style="height:40px;padding:0 16px;border-radius:12px;border:none;background:#B42318;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 8px 18px rgba(180,35,24,.16);">'+(id?'Atualizar conta':'Salvar conta')+'</button></div>';
-    window._contaModal=UI.modal({title:id?'Editar Conta':'Nova Conta',body:body,footer:footer,maxWidth:'560px'});
+      '</div>';
+    var footer='<div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;width:100%;"><div style="font-size:11px;color:#7A746B;">Revise os dados antes de salvar.</div><div style="display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;"><button onclick="if(window._contaModal)window._contaModal.close();" style="height:42px;padding:0 16px;border-radius:12px;border:1px solid #E6DDD3;background:#fff;color:#1F1F1F;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Cancelar</button><button onclick="Modules.Financeiro._saveConta()" style="height:42px;padding:0 18px;border-radius:12px;border:none;background:#B42318;color:#fff;font-size:13px;font-weight:650;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(180,35,24,.18);">Salvar alterações</button></div></div>';
+    window._contaModal=UI.modal({title:id?'Editar conta bancária':'Nova conta bancária',body:body,footer:footer,maxWidth:'720px'});
   }
 
   function _refreshContasBancariasView() {
@@ -3688,7 +3883,7 @@ function _openContaModal(id) {
   }
 
   function _deleteConta(id) {
-    var relacionadosMov=(_movimentacoes||[]).filter(function(m){ return m.conta_id===id; }).length;
+    var relacionadosMov=(_movimentacoes||[]).filter(function(m){ return m.conta_id===id || m.contaBancariaId===id || _transferTouchesAccount(m,id); }).length;
     var relacionadosCP=(_contasPagar||[]).filter(function(cp){ return cp.conta_id===id || cp.contaId===id || cp.conta_bancaria_id===id || cp.contaBancariaId===id; }).length;
     var totalRelacionados=relacionadosMov+relacionadosCP;
     if(totalRelacionados>0){
@@ -3699,6 +3894,87 @@ function _openContaModal(id) {
       if(!yes) return;
       DB.remove('contas_bancarias',id).then(function(){ UI.toast('Eliminado','info'); _refreshContasBancariasView(); });
     });
+  }
+
+  function _openTransferModal(originId) {
+    var contas=(_contasBancarias||[]).filter(function(c){ return c.ativo!==false; }).slice().sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||''); });
+    if(contas.length<2){ UI.toast('Cadastre pelo menos duas contas ativas para fazer transferência.','warning'); return; }
+    var selectedOrigin=originId&&contas.some(function(c){ return String(c.id)===String(originId); })?String(originId):'';
+    var options=function(selected, excludeId, placeholder){
+      return '<option value="">'+_esc(placeholder||'Selecionar conta')+'</option>'+contas.filter(function(c){ return String(c.id)!==String(excludeId||''); }).map(function(c){ return '<option value="'+_esc(c.id)+'"'+(String(selected||'')===String(c.id)?' selected':'')+'>'+_esc(c.nome||'Conta')+'</option>'; }).join('');
+    };
+    var cardStyle=_modalCardStyle();
+    var fieldStyle=_modalFieldStyle();
+    var selectStyle=_modalSelectStyle();
+    var moneyField=_modalFieldStyle('max-width:170px;');
+    var body='<div style="display:flex;flex-direction:column;gap:14px;">'+
+      '<div style="'+cardStyle+'">'+
+        _modalIconTitle('sync_alt','Transferência entre contas','Use quando o dinheiro sai de uma conta e entra em outra. Isso não vira receita nem despesa.')+
+        '<div style="display:grid;grid-template-columns:minmax(220px,1fr) minmax(220px,1fr);gap:12px;align-items:end;">'+
+          '<div><label style="'+_lbl()+'">Conta de origem *</label><select id="fin-transfer-origin" onchange="Modules.Financeiro._refreshTransferAccounts()" style="'+selectStyle+'">'+options(selectedOrigin,'','De onde sai')+'</select></div>'+
+          '<div><label style="'+_lbl()+'">Conta de destino *</label><select id="fin-transfer-dest" style="'+selectStyle+'">'+options('',selectedOrigin,'Para onde entra')+'</select></div>'+
+        '</div>'+
+      '</div>'+
+      '<div style="'+cardStyle+'">'+
+        _modalIconTitle('payments','Valor e data','Informe o valor transferido e quando a movimentação aconteceu.')+
+        '<div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;">'+
+          '<div style="flex:0 0 170px;max-width:170px;"><label style="'+_lbl()+'">Valor *</label><input id="fin-transfer-value" type="text" placeholder="€ 0,00" style="'+moneyField+'"></div>'+
+          '<div style="flex:0 0 170px;max-width:170px;"><label style="'+_lbl()+'">Data *</label><input id="fin-transfer-date" type="date" value="'+_esc(_today())+'" style="'+_modalFieldStyle('max-width:170px;')+'"></div>'+
+        '</div>'+
+      '</div>'+
+      '<div style="'+cardStyle+'">'+
+        _modalIconTitle('notes','Observação','Use para registrar o motivo da transferência, se precisar consultar depois.')+
+        '<input id="fin-transfer-note" type="text" placeholder="Ex.: sangria para banco, ajuste de caixa..." style="'+fieldStyle+'">'+
+      '</div>'+
+    '</div>';
+    var footer='<div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;width:100%;"><div style="font-size:11px;color:#7A746B;">A transferência ajusta apenas o saldo das contas.</div><div style="display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;"><button onclick="if(window._transferModal)window._transferModal.close();" style="height:42px;padding:0 16px;border-radius:12px;border:1px solid #E6DDD3;background:#fff;color:#1F1F1F;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Cancelar</button><button onclick="Modules.Financeiro._saveTransfer()" style="height:42px;padding:0 18px;border-radius:12px;border:none;background:#B42318;color:#fff;font-size:13px;font-weight:650;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(180,35,24,.18);">Salvar transferência</button></div></div>';
+    window._transferModal=UI.modal({title:'Transferir entre contas',body:body,footer:footer,maxWidth:'760px'});
+  }
+
+  function _refreshTransferAccounts() {
+    var origin=(document.getElementById('fin-transfer-origin')||{}).value||'';
+    var dest=document.getElementById('fin-transfer-dest');
+    if(!dest) return;
+    var current=dest.value||'';
+    var contas=(_contasBancarias||[]).filter(function(c){ return c.ativo!==false && String(c.id)!==String(origin); }).slice().sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||''); });
+    dest.innerHTML='<option value="">Para onde entra</option>'+contas.map(function(c){ return '<option value="'+_esc(c.id)+'"'+(String(current)===String(c.id)?' selected':'')+'>'+_esc(c.nome||'Conta')+'</option>'; }).join('');
+  }
+
+  function _saveTransfer() {
+    var originId=(document.getElementById('fin-transfer-origin')||{}).value||'';
+    var destId=(document.getElementById('fin-transfer-dest')||{}).value||'';
+    var value=_parseNum((document.getElementById('fin-transfer-value')||{}).value);
+    var date=(document.getElementById('fin-transfer-date')||{}).value||_today();
+    var note=((document.getElementById('fin-transfer-note')||{}).value||'').trim();
+    if(!originId){ UI.toast('Selecione a conta de origem.','error'); return; }
+    if(!destId){ UI.toast('Selecione a conta de destino.','error'); return; }
+    if(String(originId)===String(destId)){ UI.toast('Origem e destino precisam ser contas diferentes.','error'); return; }
+    if(!(value>0)){ UI.toast('Informe um valor maior que zero.','error'); return; }
+    var origin=(_contasBancarias||[]).find(function(c){ return String(c.id)===String(originId); })||{};
+    var dest=(_contasBancarias||[]).find(function(c){ return String(c.id)===String(destId); })||{};
+    var now=new Date().toISOString();
+    var payload={
+      tipo:'transferencia',
+      status:'efetivado',
+      descricao:note||('Transferência de '+(origin.nome||'conta de origem')+' para '+(dest.nome||'conta de destino')),
+      valor:value,
+      data:date,
+      contaOrigemId:originId,
+      contaOrigemNome:origin.nome||'',
+      contaDestinoId:destId,
+      contaDestinoNome:dest.nome||'',
+      neutral:true,
+      affectsFinancialResult:false,
+      origem:'transferencia_contas',
+      createdAt:now,
+      updatedAt:now
+    };
+    DB.add('movimentacoes',payload).then(function(){
+      UI.toast('Transferência registrada.','success');
+      if(window._transferModal) window._transferModal.close();
+      if(_activeSub==='configuracoes') _loadConfiguracoes();
+      else _loadContasBancarias();
+    }).catch(function(e){ UI.toast('Erro ao salvar transferência: '+(e&&e.message?e.message:e),'error'); });
   }
 
   // ── COMPRAS ───────────────────────────────────────────────────────────────
@@ -3924,11 +4200,55 @@ function _openContaModal(id) {
   var _cfgSub='categorias';
 
   function _loadConfiguracoes() {
-    Promise.all([DB.getAll('financeiro_categorias'),DB.getDocRoot('config','financeiro'),DB.getDocRoot('config','geral'),DB.getDocRoot('config','custos'),DB.getAll('contas_bancarias'),_loadMovimentacoesData(),DB.getAll('compras'),DB.getSystemConfig()]).then(function(r){
+    Promise.all([DB.getAll('financeiro_categorias'),DB.getDocRoot('config','financeiro'),DB.getDocRoot('config','geral'),DB.getDocRoot('config','custos'),DB.getAll('contas_bancarias'),_loadMovimentacoesData(),DB.getAll('compras'),DB.getSystemConfig(),DB.getDocRoot('config','tpv').catch(function(){ return {}; })]).then(function(r){
       _categorias=r[0]||[]; _setConfigFin(r[1]); _configGeral=r[2]||{}; window._configCustos=r[3]||{}; _contasBancarias=r[4]||[]; _movimentacoes=r[5]||[]; _compras=r[6]||[]; _systemConfig=r[7]||{};
       if(_cfgSub==='fornecedores') _cfgSub='categorias';
-      _paintConfiguracoes();
+      return _ensureTpvCashAccountVisible(r[8] || {}).then(function(){ _paintConfiguracoes(); });
     });
+  }
+
+  function _ensureTpvCashAccountVisible(tpvConfig) {
+    var enabled = !!(tpvConfig && (tpvConfig.enabled === true || tpvConfig.tpvEnabled === true || tpvConfig.active === true));
+    if (!enabled) return Promise.resolve(false);
+    var existingId = String((tpvConfig && (tpvConfig.cashAccountId || tpvConfig.tpvCashAccountId)) || '').trim();
+    var accounts = Array.isArray(_contasBancarias) ? _contasBancarias : [];
+    var account = existingId ? accounts.find(function (item) { return String(item.id || '') === existingId; }) : null;
+    if (!account) {
+      account = accounts.find(function (item) {
+        var name = _simpleKey(item && (item.nome || item.name || ''));
+        return !!(item && (item.tpvDefault === true || item.systemKey === 'tpv_cash' || name === 'caixa-venda-presencial'));
+      });
+    }
+    if (account && account.id) {
+      if (!existingId || String(tpvConfig.cashAccountName || '') !== String(account.nome || account.name || '')) {
+        return DB.setDocRoot('config','tpv',{ cashAccountId:String(account.id), cashAccountName:account.nome || account.name || 'Caixa venda presencial', updatedAt:new Date().toISOString() }).then(function(){ return true; }).catch(function(){ return false; });
+      }
+      return Promise.resolve(true);
+    }
+    var now = new Date().toISOString();
+    var payload = {
+      nome:'Caixa venda presencial',
+      tipo:'caixa',
+      ativo:true,
+      saldoInicial:0,
+      saldo_inicial:0,
+      tpvDefault:true,
+      systemKey:'tpv_cash',
+      origem:'venda_presencial',
+      observacao:'Conta criada automaticamente para receber as entradas da Venda presencial.',
+      createdAt:now,
+      updatedAt:now
+    };
+    return DB.add('contas_bancarias',payload).then(function(ref){
+      var id=String((ref&&ref.id)||'');
+      var saved=Object.assign({},payload,{ id:id });
+      _contasBancarias.push(saved);
+      return DB.setDocRoot('config','tpv',{ cashAccountId:id, cashAccountName:payload.nome, updatedAt:now }).then(function(){ return true; });
+    }).catch(function(){ return false; });
+  }
+
+  function _simpleKey(value) {
+    return String(value == null ? '' : value).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\w]+/g,'-').replace(/^-+|-+$/g,'');
   }
 
   function _cfgCardStyle(pad) {
@@ -3994,23 +4314,32 @@ function _openContaModal(id) {
   function _setCfgSub(k){ _cfgSub=k; _paintConfiguracoes(); }
 
   function _paintCfgCats() {
-    var rg=function(lista,tipo){
+    var rg=function(lista,tipo,title,desc,addNature){
       var isEntrada=tipo==='entrada';
-      var color=isEntrada?'#1F6F43':'#B42318';
+      var isCost=addNature==='custo';
+      var color=isEntrada?'#1F6F43':(isCost?'#B45309':'#B42318');
       return '<div style="'+_cfgCardStyle()+'min-width:0;">'+
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px;">'+
-          _cfgSectionHead(isEntrada?'south_west':'north_east',isEntrada?'Entradas':'Saídas',isEntrada?'Categorias para separar valores recebidos.':'Categorias para organizar contas a pagar e despesas.')+
-          '<button onclick="Modules.Financeiro._openCatModal(null,\''+tipo+'\')" style="height:34px;padding:0 12px;border:none;border-radius:12px;background:'+color+';color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(31,31,31,.08);">+ Adicionar</button>'+
+          _cfgSectionHead(isEntrada?'south_west':(isCost?'price_check':'north_east'),title,desc)+
+          '<button onclick="Modules.Financeiro._openCatModal(null,\''+tipo+'\''+(addNature?',\''+addNature+'\'':'')+')" style="height:34px;padding:0 12px;border:none;border-radius:12px;background:'+color+';color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(31,31,31,.08);">+ Adicionar</button>'+
         '</div>'+
         (lista.length===0?'<div style="border:1px dashed #EAE4DA;border-radius:14px;text-align:center;padding:24px 16px;color:#6F6860;font-size:13px;">Nenhuma categoria cadastrada.</div>':
           '<div style="display:flex;flex-direction:column;gap:8px;">'+
-          lista.slice().sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||''); }).map(function(c){ return _cfgListRow(c.nome,(tipo==='entrada'?'Entrada':'Saída'),_cfgIconButton('edit','Editar','#fff','#6F6860','Modules.Financeiro._openCatModal(\''+c.id+'\',\''+tipo+'\')')+_cfgIconButton('delete','Excluir','#FFF0EE','#B42318','Modules.Financeiro._deleteCat(\''+c.id+'\')'),color); }).join('')+
+          lista.slice().sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||''); }).map(function(c){
+            var sub=tipo==='entrada'?'Entrada':_catClassLabel(c);
+            return _cfgListRow(c.nome,sub,_cfgIconButton('edit','Editar','#fff','#6F6860','Modules.Financeiro._openCatModal(\''+c.id+'\',\''+tipo+'\')')+_cfgIconButton('delete','Excluir','#FFF0EE','#B42318','Modules.Financeiro._deleteCat(\''+c.id+'\')'),color);
+          }).join('')+
           '</div>')+
       '</div>';
     };
-    return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;align-items:start;">'+
-      rg((_categorias||[]).filter(function(c){ return c.tipo==='entrada'; }),'entrada')+
-      rg((_categorias||[]).filter(function(c){ return c.tipo==='saida';   }),'saida')+
+    var entradas=(_categorias||[]).filter(function(c){ return c.tipo==='entrada'; });
+    var saidas=(_categorias||[]).filter(function(c){ return c.tipo==='saida'; });
+    var despesas=saidas.filter(function(c){ return _catNature(c)!=='custo'; });
+    var custos=saidas.filter(function(c){ return _catNature(c)==='custo'; });
+    return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;align-items:start;">'+
+      rg(entradas,'entrada','Entradas','Categorias para separar valores recebidos.')+
+      rg(despesas,'saida','Despesas','Gastos para manter o negócio funcionando.','despesa')+
+      rg(custos,'saida','Custos','Gastos ligados ao que é produzido, comprado ou vendido.','custo')+
     '</div>';
   }
 
@@ -4025,35 +4354,55 @@ function _openContaModal(id) {
     '</div>';
   }
 
-  function _openCatModal(id,tipoPreset) {
+  function _openCatModal(id,tipoPreset,naturePreset) {
     _editingId=id;
     var c=id?((_categorias||[]).find(function(x){ return x.id===id; })||{}):{};
     var tipo=c.tipo||tipoPreset||'entrada';
-    var body='<div style="display:flex;flex-direction:column;gap:14px;">'+
-      '<div style="background:#FAF8F4;border:none;border-radius:16px;padding:18px;box-shadow:0 12px 30px rgba(31,31,31,.06);"><div style="font-size:15px;font-weight:800;color:#1F1F1F;">'+(id?'Editar categoria':'Nova categoria')+'</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:5px;">Categorias organizam entradas, saídas e relatórios financeiros.</div></div>'+
-      '<div style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">'+
-      '<div style="margin-bottom:12px;"><label style="'+_lbl()+'">Nome *</label><input id="cat-nome" type="text" value="'+_esc(c.nome||'')+'" placeholder="Ex: Vendas, Aluguer, Matéria-prima..." style="'+_inp()+'"></div>'+
-      '<div><label style="'+_lbl()+'">Tipo</label><select id="cat-tipo" style="'+_inp()+'background:#fff;">'+
+    var nature=id?_catNature(c):(naturePreset||_catNature(c));
+    if(tipo==='entrada') nature='receita';
+    if(tipo==='saida' && nature==='receita') nature='despesa';
+    var costClass=_catCostClass(c);
+    var showSaida=tipo==='saida';
+    var body='<div style="'+_modalCardStyle()+'">'+
+      _modalIconTitle('category','Categoria financeira','Use categorias para separar o que entra, o que sai e entender melhor onde o dinheiro está indo.')+
+      '<div style="display:grid;grid-template-columns:minmax(220px,1fr) minmax(150px,190px);gap:12px;align-items:end;">'+
+      '<div><label style="'+_lbl()+'">Nome *</label><input id="cat-nome" type="text" value="'+_esc(c.nome||'')+'" placeholder="Ex.: Vendas, Aluguel, Matéria-prima..." style="'+_modalFieldStyle()+'"></div>'+
+      '<div><label style="'+_lbl()+'">Tipo</label><select id="cat-tipo" onchange="Modules.Financeiro._syncCatTypeFields()" style="'+_modalSelectStyle('max-width:190px;')+'">'+
         '<option value="entrada"'+(tipo==='entrada'?' selected':'')+'>Receita (entrada)</option>'+
-        '<option value="saida"'+(tipo==='saida'?' selected':'')+'>Despesa (saída)</option>'+
-      '</select></div></div></div>';
-    var footer='<div style="display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;width:100%;"><button onclick="if(window._catModal)window._catModal.close();" style="height:40px;padding:0 14px;border-radius:12px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Cancelar</button><button onclick="Modules.Financeiro._saveCat()" style="height:40px;padding:0 16px;border-radius:12px;border:none;background:#B42318;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 8px 18px rgba(180,35,24,.16);">Salvar categoria</button></div>';
-    window._catModal=UI.modal({title:'',body:body,footer:footer,maxWidth:'420px'});
-    if(window._catModal&&window._catModal.el){
-      var catHead=window._catModal.el.querySelector('.bf-modal-head');
-      var catTitle=window._catModal.el.querySelector('.bf-modal-title');
-      if(catTitle) catTitle.remove();
-      if(catHead){
-        catHead.style.justifyContent='flex-end';
-        catHead.style.padding='16px 16px 0';
-      }
-    }
+        '<option value="saida"'+(tipo==='saida'?' selected':'')+'>Saída</option>'+
+      '</select></div></div>'+
+      '<div id="cat-saida-fields" style="display:'+(showSaida?'grid':'none')+';grid-template-columns:minmax(180px,220px) minmax(180px,220px);gap:12px;align-items:start;margin-top:14px;">'+
+        '<div><label style="'+_lbl()+'">Essa saída é</label><select id="cat-natureza" style="'+_modalSelectStyle('max-width:220px;')+'">'+
+          '<option value="despesa"'+(nature==='despesa'?' selected':'')+'>Despesa</option>'+
+          '<option value="custo"'+(nature==='custo'?' selected':'')+'>Custo</option>'+
+        '</select><div style="font-size:11px;color:#8A7E7C;margin-top:5px;line-height:1.35;">Despesa mantém o negócio. Custo está ligado ao que é vendido ou produzido.</div></div>'+
+        '<div><label style="'+_lbl()+'">Classificação</label><select id="cat-cost-class" style="'+_modalSelectStyle('max-width:220px;')+'">'+
+          '<option value="direto"'+(costClass==='direto'?' selected':'')+'>Direto</option>'+
+          '<option value="indireto"'+(costClass==='indireto'?' selected':'')+'>Indireto</option>'+
+        '</select><div style="font-size:11px;color:#8A7E7C;margin-top:5px;line-height:1.35;">Direto pertence ao produto, pedido ou venda. Indireto ajuda a operação a funcionar.</div></div>'+
+      '</div></div>';
+    var footer='<div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;width:100%;"><div style="font-size:11px;color:#7A746B;">Revise os dados antes de salvar.</div><div style="display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;"><button onclick="if(window._catModal)window._catModal.close();" style="height:42px;padding:0 16px;border-radius:12px;border:1px solid #E6DDD3;background:#fff;color:#1F1F1F;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Cancelar</button><button onclick="Modules.Financeiro._saveCat()" style="height:42px;padding:0 18px;border-radius:12px;border:none;background:#B42318;color:#fff;font-size:13px;font-weight:650;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(180,35,24,.18);">Salvar alterações</button></div></div>';
+    window._catModal=UI.modal({title:id?'Editar categoria':'Nova categoria',body:body,footer:footer,maxWidth:'520px'});
+  }
+
+  function _syncCatTypeFields() {
+    var tipo=(document.getElementById('cat-tipo')||{}).value||'entrada';
+    var box=document.getElementById('cat-saida-fields');
+    if(box) box.style.display=tipo==='saida'?'grid':'none';
   }
 
   function _saveCat() {
     var nome=((document.getElementById('cat-nome')||{}).value||'').trim();
     if(!nome){ UI.toast('Nome obrigatório','error'); return; }
-    var obj={nome:nome,tipo:(document.getElementById('cat-tipo')||{}).value||'entrada'};
+    var tipo=(document.getElementById('cat-tipo')||{}).value||'entrada';
+    var obj={nome:nome,tipo:tipo};
+    if(tipo==='saida'){
+      obj.financialNature=(document.getElementById('cat-natureza')||{}).value||'despesa';
+      obj.costClass=(document.getElementById('cat-cost-class')||{}).value||'indireto';
+    } else {
+      obj.financialNature='receita';
+      obj.costClass='';
+    }
     (_editingId?DB.update('financeiro_categorias',_editingId,obj):DB.add('financeiro_categorias',obj)).then(function(){
       UI.toast('Categoria salva!','success');
       if(window._catModal) window._catModal.close();
@@ -4195,7 +4544,7 @@ function _openContaModal(id) {
     var cleanCheckboxStyle='display:flex;align-items:center;gap:9px;font-size:13px;font-weight:500;color:#1F1F1F;cursor:pointer;min-height:32px;';
     var body='<div style="display:flex;flex-direction:column;gap:14px;">'+
       '<div style="'+cardStyle+'">'+
-        _modalIconTitle('payments',idx!=null?'Editar forma de pagamento':'Nova forma de pagamento','Configure como essa forma aparece no financeiro, qual conta usa por padrão e se há taxas.')+
+        _modalIconTitle('payments','Dados da forma','Configure como esta forma aparece no financeiro, qual conta usa por padrão e se há taxas.')+
         '<select id="forma-pag-tipo" onchange="Modules.Financeiro._syncFormaPagTypeRule()" style="display:none;">'+tipoOpts+'</select>'+
         '<div style="display:flex;flex-direction:column;gap:12px;">'+
           '<div style="display:flex;gap:12px;align-items:start;flex-wrap:wrap;">'+
@@ -4222,17 +4571,8 @@ function _openContaModal(id) {
         '<textarea id="forma-pag-obs" placeholder="Opcional..." style="'+_modalFieldStyle('height:auto;min-height:82px;padding:10px 12px;resize:vertical;')+'">'+_esc(valor.observacao||'')+'</textarea>'+
       '</div>'+
     '</div>';
-    var footer='<div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;width:100%;"><div style="font-size:11px;color:#7A746B;">Revise os dados antes de salvar.</div><div style="display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;"><button onclick="if(window._formaPagModal)window._formaPagModal.close();" style="height:42px;padding:0 16px;border-radius:12px;border:1px solid #E6DDD3;background:#fff;color:#1F1F1F;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Cancelar</button><button onclick="Modules.Financeiro._saveFormaPag()" style="height:42px;padding:0 18px;border-radius:12px;border:none;background:#B42318;color:#fff;font-size:13px;font-weight:650;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(180,35,24,.18);">'+(idx!=null?'Salvar alterações':'Salvar forma')+'</button></div></div>';
-    window._formaPagModal=UI.modal({title:'',body:body,footer:footer,maxWidth:'720px'});
-    if(window._formaPagModal&&window._formaPagModal.el){
-      var formaHead=window._formaPagModal.el.querySelector('.bf-modal-head');
-      var formaTitle=window._formaPagModal.el.querySelector('.bf-modal-title');
-      if(formaTitle) formaTitle.remove();
-      if(formaHead){
-        formaHead.style.justifyContent='flex-end';
-        formaHead.style.padding='16px 16px 0';
-      }
-    }
+    var footer='<div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;width:100%;"><div style="font-size:11px;color:#7A746B;">Revise os dados antes de salvar.</div><div style="display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;"><button onclick="if(window._formaPagModal)window._formaPagModal.close();" style="height:42px;padding:0 16px;border-radius:12px;border:1px solid #E6DDD3;background:#fff;color:#1F1F1F;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Cancelar</button><button onclick="Modules.Financeiro._saveFormaPag()" style="height:42px;padding:0 18px;border-radius:12px;border:none;background:#B42318;color:#fff;font-size:13px;font-weight:650;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(180,35,24,.18);">Salvar alterações</button></div></div>';
+    window._formaPagModal=UI.modal({title:idx!=null?'Editar forma de pagamento':'Nova forma de pagamento',body:body,footer:footer,maxWidth:'720px'});
     setTimeout(function(){ Modules.Financeiro._syncFormaPagTypeRule(); }, 0);
   }
 
@@ -4342,7 +4682,7 @@ function _openContaModal(id) {
             '<div style="font-size:11.5px;color:#6F6860;margin-top:5px;">Ex.: aluguel, luz, internet e outras despesas do negócio.</div>'+
           '</div>'+
           '<div id="cfg-ind-auto-box" style="display:'+(autoVisible?'block':'none')+';">'+
-            '<label style="'+_lbl()+'">Período para cálculo automático</label><select id="cfg-ind-months" style="'+_inp()+'background:#fff;max-width:220px;border-color:#E8DCD7;border-radius:12px;">'+
+            '<label style="'+_lbl()+'">Período para cálculo automático</label><select id="cfg-ind-months" style="'+_modalSelectStyle('max-width:220px;')+'">'+
               '<option value="3"'+(months==='3'?' selected':'')+'>3 meses</option>'+
               '<option value="6"'+(months==='6'?' selected':'')+'>6 meses</option>'+
               '<option value="12"'+(months==='12'?' selected':'')+'>12 meses</option>'+
@@ -4411,8 +4751,8 @@ function _openContaModal(id) {
     _onCompraInsChange:_onCompraInsChange, _calcCompraLinha:_calcCompraLinha, _saveCompra:_saveCompra, _deleteCompra:_deleteCompra,
     _openCPModal:_openCPModal, _saveCP:_saveCP, _deleteCP:_deleteCP, _confirmDeleteCP:_confirmDeleteCP, _pagarCP:_pagarCP, _savePagamentoCP:_savePagamentoCP, _criarSaldoRestanteCP:_criarSaldoRestanteCP, _toggleSaldoRestanteModo:_toggleSaldoRestanteModo,
     _setCPFiltro:_setCPFiltro, _toggleCPConta:_toggleCPConta, _toggleCPStatus:_toggleCPStatus, _toggleCPOrdem:_toggleCPOrdem, _setCPPage:_setCPPage, _setCPPageSize:_setCPPageSize, _toggleCPSelecionada:_toggleCPSelecionada, _toggleCPTodas:_toggleCPTodas, _clearCPSelection:_clearCPSelection, _openBulkCPModal:_openBulkCPModal, _applyBulkCP:_applyBulkCP, _bulkConfirmarCP:_bulkConfirmarCP, _bulkDeleteCP:_bulkDeleteCP, _openContasVencidas:_openContasVencidas, _openCPDetalheModal:_openCPDetalheModal, _closeCPDetalhe:_closeCPDetalhe, _setCPStatus:_setCPStatus, _renderCPPreviews:_renderCPPreviews, _toggleCPRecorrente:_toggleCPRecorrente, _toggleCPParcelada:_toggleCPParcelada, _toggleCPNovoForn:_toggleCPNovoForn, _toggleCPNovaCat:_toggleCPNovaCat,
-    _openContaModal:_openContaModal, _saveConta:_saveConta, _deleteConta:_deleteConta,
-    _setCfgSub:_setCfgSub, _openCatModal:_openCatModal, _saveCat:_saveCat, _deleteCat:_deleteCat,
+    _openContaModal:_openContaModal, _saveConta:_saveConta, _deleteConta:_deleteConta, _openTransferModal:_openTransferModal, _refreshTransferAccounts:_refreshTransferAccounts, _saveTransfer:_saveTransfer,
+    _setCfgSub:_setCfgSub, _openCatModal:_openCatModal, _syncCatTypeFields:_syncCatTypeFields, _saveCat:_saveCat, _deleteCat:_deleteCat,
     _openFornModal:_openFornModal, _saveForn:_saveForn, _deleteForn:_deleteForn,
     _addFormaPag:_addFormaPag, _removeFormaPag:_removeFormaPag, _openFormaPagModal:_openFormaPagModal, _saveFormaPag:_saveFormaPag, _syncFormaPagTypeRule:_syncFormaPagTypeRule, _setCfgIndirectMode:_setCfgIndirectMode, _saveCustosInd:_saveCustosInd
   };

@@ -5,6 +5,7 @@ Modules.Performance = (function () {
 
   var _loading = false;
   var _state = {
+    tab: 'visao',
     period: 'thismonth',
     start: '',
     end: '',
@@ -21,6 +22,7 @@ Modules.Performance = (function () {
     snapshots: [],
     monthScenarios: [],
     monthScenario: null,
+    channels: [],
     money: { desiredMarginPct: 60, minMarginPct: 40 }
   };
 
@@ -31,9 +33,8 @@ Modules.Performance = (function () {
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
           '<div style="min-width:0;">' +
             '<h1 style="font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 4px;line-height:1.15;">Performance</h1>' +
-            '<p style="font-size:13px;color:#6F6860;margin:0;line-height:1.45;">Acompanhe vendas, entradas, saídas e ritmo do mês com leitura diária e cenário selecionado.</p>' +
+            '<p style="font-size:13px;color:#6F6860;margin:0;line-height:1.45;">Veja se o mês está caminhando dentro da rota escolhida e onde precisa ajustar o ritmo.</p>' +
           '</div>' +
-          '<button onclick="Router.navigate(\'crescimento/plano-de-voo/snapshots\')" style="border:none;background:#B42318;color:#fff;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(180,35,24,.16);">Ver cenário do mês</button>' +
         '</div>' +
         '<div id="perf-content" class="module-content" style="display:flex;flex-direction:column;gap:16px;"><div class="loading-inline">Carregando...</div></div>' +
       '</div>';
@@ -61,7 +62,8 @@ Modules.Performance = (function () {
       _safeAll('flight_plans'),
       _safeAll('flight_plan_month_scenarios'),
       _safeDoc('flight_plan_month_scenarios', _currentMonthKey()),
-      _safeDoc('config', 'dinheiro')
+      _safeDoc('config', 'dinheiro'),
+      _safeDoc('config', 'canais_venda')
     ]).then(function (r) {
       _data.orders = Array.isArray(r[0]) ? r[0] : [];
       _data.entries = _normalizeEntries(r[1], r[2]);
@@ -71,8 +73,9 @@ Modules.Performance = (function () {
         return _ts(b.createdAt) - _ts(a.createdAt);
       }) : [];
       _data.monthScenarios = Array.isArray(r[7]) ? r[7].filter(Boolean) : [];
-      _data.monthScenario = _resolveMonthScenario(_state.scenarioMonthKey, r[8] || null, _data.monthScenarios);
+      _data.monthScenario = _resolveMonthScenario(_state.scenarioMonthKey, r[8] || null, _data.monthScenarios, _data.snapshots);
       _data.money = _normalizeMoney(r[9] || {});
+      _data.channels = _normalizeConfiguredChannels(r[10] || {});
       _loading = false;
     }).catch(function (err) {
       _loading = false;
@@ -92,15 +95,8 @@ Modules.Performance = (function () {
     var vm = _buildModel();
     var html = '' +
       '<div style="display:flex;flex-direction:column;gap:16px;">' +
-        _scenarioBanner(vm) +
-        _filtersCard(vm) +
-        _kpiGrid(vm) +
-        _statusCard(vm) +
-        _dailyCard(vm) +
-        _channelsCard(vm) +
-        _financeCard(vm) +
-        _expensePlanCard(vm) +
-        _categoriesCard(vm) +
+        _tabsCard(vm) +
+        _tabContent(vm) +
       '</div>';
 
     content.innerHTML = _safeHtml(html);
@@ -143,7 +139,12 @@ Modules.Performance = (function () {
 
   function _setScenarioMonth(value) {
     _state.scenarioMonthKey = String(value || _currentMonthKey());
-    _data.monthScenario = _resolveMonthScenario(_state.scenarioMonthKey, _data.monthScenario, _data.monthScenarios);
+    _data.monthScenario = _resolveMonthScenario(_state.scenarioMonthKey, _data.monthScenario, _data.monthScenarios, _data.snapshots);
+    _paint();
+  }
+
+  function _setTab(value) {
+    _state.tab = ['visao', 'vendas', 'financeiro'].indexOf(value) >= 0 ? value : 'visao';
     _paint();
   }
 
@@ -296,16 +297,16 @@ Modules.Performance = (function () {
     var exitCategories = _categoryBreakdown(exits, 'saida');
     var expensePlanRows = _expensePlanRows(exitCategories);
     var monthScenario = _data.monthScenario || null;
-    var scenarioName = monthScenario ? (monthScenario.snapshotName || monthScenario.name || 'Cenário do mês') : '';
-    var scenarioLabel = monthScenario ? _scenarioLabel(monthScenario.scenario) : 'Sem cenário';
+    var scenarioName = monthScenario ? (monthScenario.snapshotName || monthScenario.name || 'Rota ativa') : '';
+    var scenarioLabel = monthScenario ? _scenarioLabel(monthScenario.scenario) : 'Sem rota';
     var scenarioRevenue = monthTarget.revenue;
     var scenarioProfit = monthTarget.profit;
     var scenarioCash = monthTarget.cashFinal;
     var rateLabel;
-    if (!targetRevenue) rateLabel = 'Defina o cenário do mês no Plano de Voo.';
+    if (!targetRevenue) rateLabel = 'Crie uma rota no Plano de Voo para acompanhar se o mês está no caminho certo.';
     else if (progressPct >= 100 && marginPct >= _data.money.desiredMarginPct) rateLabel = 'Bom desempenho: o ritmo e a margem estão saudáveis.';
     else if (progressPct >= 85) rateLabel = 'Atenção: o mês ainda pode fechar bem, mas o ritmo precisa ser mantido.';
-    else rateLabel = 'Atenção: você está abaixo do ritmo esperado para a meta do mês.';
+    else rateLabel = 'O mês está abaixo do ritmo. Vale buscar mais pedidos nos próximos dias.';
     if (targetRevenue && marginPct < _data.money.minMarginPct) {
       rateLabel = 'Margem baixa: o caixa está entrando, mas a margem ficou apertada.';
     }
@@ -367,6 +368,33 @@ Modules.Performance = (function () {
     }
   }
 
+  function _tabsCard(vm) {
+    var tabs = [
+      { key: 'visao', label: 'Visão geral', icon: 'space_dashboard' },
+      { key: 'vendas', label: 'Vendas', icon: 'shopping_bag' },
+      { key: 'financeiro', label: 'Financeiro', icon: 'account_balance_wallet' }
+    ];
+    return '' +
+      '<section style="display:flex;align-items:center;justify-content:flex-start;gap:12px;flex-wrap:wrap;">' +
+        '<div style="display:inline-flex;align-items:center;gap:8px;max-width:100%;overflow:auto;padding:2px 0;">' +
+          tabs.map(function (tab) {
+            var active = _state.tab === tab.key;
+            return '<button type="button" onclick="Modules.Performance._setTab(\'' + tab.key + '\')" style="display:inline-flex;align-items:center;gap:8px;padding:9px 13px;border:1px solid ' + (active ? '#B42318' : '#EAE4DA') + ';border-radius:999px;background:' + (active ? '#B42318' : '#fff') + ';color:' + (active ? '#fff' : '#4F4841') + ';font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:' + (active ? '0 10px 24px rgba(180,35,24,.16)' : '0 8px 18px rgba(31,31,31,.04)') + ';white-space:nowrap;"><span class="mi" style="font-size:17px;">' + _esc(tab.icon) + '</span>' + _esc(tab.label) + '</button>';
+          }).join('') +
+        '</div>' +
+      '</section>';
+  }
+
+  function _tabContent(vm) {
+    if (_state.tab === 'vendas') {
+      return _kpiGrid(vm) + _channelsCard(vm) + _dailyCard(vm);
+    }
+    if (_state.tab === 'financeiro') {
+      return _financeCard(vm) + _expensePlanCard(vm) + _categoriesCard(vm);
+    }
+    return _scenarioBanner(vm) + _routeStatusCard(vm) + _routeThisMonthCard(vm) + _routePaceCard(vm) + _routePracticalCard(vm);
+  }
+
   function _scenarioBanner(vm) {
     if (!vm.monthScenario) {
       return '' +
@@ -374,35 +402,33 @@ Modules.Performance = (function () {
           '<div style="display:flex;align-items:flex-start;gap:12px;min-width:0;flex:1;">' +
             '<div style="width:42px;height:42px;border-radius:14px;color:#B45309;display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span class="mi" style="font-size:24px;">flag</span></div>' +
             '<div style="min-width:0;">' +
-              '<div style="font-size:12px;font-weight:600;color:#B45309;line-height:1.2;margin-bottom:4px;">Cenário do mês</div>' +
-              '<div style="font-size:18px;font-weight:700;color:#1F1F1F;line-height:1.2;">Nenhum cenário selecionado</div>' +
-              '<div style="font-size:13px;color:#6F6860;line-height:1.5;margin-top:5px;">Defina um cenário no Plano de Voo para comparar o mês com meta oficial, lucro projetado e ritmo esperado.</div>' +
+              '<div style="font-size:12px;font-weight:600;color:#B45309;line-height:1.2;margin-bottom:4px;">Rota ativa</div>' +
+              '<div style="font-size:18px;font-weight:700;color:#1F1F1F;line-height:1.2;">Nenhuma rota ativa</div>' +
+              '<div style="font-size:13px;color:#6F6860;line-height:1.5;margin-top:5px;">Crie uma rota no Plano de Voo para saber quanto precisa vender e acompanhar se o mês está no caminho certo.</div>' +
             '</div>' +
           '</div>' +
-          '<button onclick="Router.navigate(\'crescimento/plano-de-voo/snapshots\')" style="border:none;background:#B42318;color:#fff;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Definir cenário</button>' +
+          '<button onclick="Router.navigate(\'crescimento/plano-de-voo\')" style="border:none;background:#B42318;color:#fff;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Criar rota</button>' +
         '</section>';
     }
 
-    var summary = vm.monthScenario.summary || {};
     return '' +
       '<section style="' + _cardStyle() + 'display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
         '<div style="display:flex;align-items:flex-start;gap:12px;min-width:0;flex:1;">' +
           '<div style="width:42px;height:42px;border-radius:14px;color:#6C8777;display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span class="mi" style="font-size:24px;">query_stats</span></div>' +
           '<div style="min-width:0;">' +
-            '<div style="font-size:12px;font-weight:600;color:#6F6860;line-height:1.2;margin-bottom:4px;">Cenário do mês</div>' +
-            '<div style="font-size:18px;font-weight:700;color:#1F1F1F;line-height:1.2;">' + _esc(vm.scenarioName || 'Cenário do mês') + '</div>' +
+            '<div style="font-size:12px;font-weight:600;color:#6F6860;line-height:1.2;margin-bottom:4px;">Rota ativa</div>' +
+            '<div style="font-size:18px;font-weight:700;color:#1F1F1F;line-height:1.2;">' + _esc(vm.scenarioName || 'Rota ativa') + '</div>' +
             '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:9px;">' +
               _chip(_scenarioMonthLabel(vm)) +
               _chip(vm.scenarioLabel) +
-              _chip('Meta ' + _fmtMoney(summary.revenue || 0)) +
-              _chip('Lucro ' + _fmtMoney(summary.profit || 0)) +
+              _chip('Meta do mês ' + _fmtMoney(vm.targetRevenue || 0)) +
+              _chip('Sobra esperada ' + _fmtMoney(vm.targetProfit || 0)) +
             '</div>' +
           '</div>' +
         '</div>' +
         '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:flex-end;">' +
-          '<select onchange="Modules.Performance._setScenarioMonth(this.value)" style="' + _inputStyle() + 'width:auto;min-width:170px;height:40px;">' + _monthScenarioOptions() + '</select>' +
           '<span style="display:inline-flex;align-items:center;min-height:28px;padding:0 11px;border-radius:999px;background:#EDFAF3;color:#1F6F43;font-size:12px;font-weight:700;">' + _esc(vm.periodLabel) + '</span>' +
-          '<button onclick="Router.navigate(\'crescimento/plano-de-voo/snapshots\')" style="border:1px solid #EAE4DA;background:#fff;color:#1F1F1F;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Ver cenário</button>' +
+          '<button onclick="Router.navigate(\'crescimento/plano-de-voo\')" style="border:1px solid #EAE4DA;background:#fff;color:#1F1F1F;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Ver Plano de Voo</button>' +
         '</div>' +
       '</section>';
   }
@@ -469,12 +495,12 @@ Modules.Performance = (function () {
       '<section style="display:flex;flex-direction:column;gap:12px;">' +
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;">' +
           _heroMetric('Vendas realizadas', _fmtMoney(vm.actualRevenue), _trendLabel(vm.actualRevenue, prevRevenue, 'vs período anterior'), 'payments', '#8A6F5A') +
-          _heroMetric('Meta projetada', vm.targetRevenue ? _fmtMoney(vm.targetRevenue) : '—', vm.targetRevenue ? vm.scenarioLabel + ' · meta mensal do cenário' : 'Defina um cenário no Plano de Voo', 'flag', '#6C8777') +
-          _heroMetric('Atingimento', vm.targetRevenue ? vm.progressPct.toFixed(1) + '%' : '—', vm.targetRevenue ? (vm.progressPct >= 100 ? 'Meta batida' : 'Meta do cenário') : 'Sem meta de cenário', 'query_stats', vm.progressPct >= 100 ? '#1F6F43' : '#B45309') +
+          _heroMetric('Meta da rota', vm.targetRevenue ? _fmtMoney(vm.targetRevenue) : '—', vm.targetRevenue ? vm.scenarioLabel + ' · meta do mês' : 'Crie uma rota no Plano de Voo', 'flag', '#6C8777') +
+          _heroMetric('Atingimento', vm.targetRevenue ? vm.progressPct.toFixed(1) + '%' : '—', vm.targetRevenue ? (vm.progressPct >= 100 ? 'Meta batida' : 'Meta da rota') : 'Sem rota ativa', 'query_stats', vm.progressPct >= 100 ? '#1F6F43' : '#B45309') +
         '</div>' +
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;">' +
-          _supportMetric('Meta recalculada', vm.targetRevenue ? _fmtMoney(vm.remainingToTarget) : '—', vm.targetRevenue ? (vm.remainingToTarget > 0 ? 'valor restante para fechar' : 'meta já alcançada') : 'sem cenário definido', 'restart_alt', vm.remainingToTarget > 0 ? '#B45309' : '#1F6F43') +
-          _supportMetric('Necessário por dia', vm.targetRevenue ? _fmtMoney(vm.needPerDay) : '—', vm.targetRevenue ? (vm.daysLeftMonth + ' dia(s) até o fim do mês') : 'sem meta de cenário', 'today', '#B42318') +
+          _supportMetric('Falta vender', vm.targetRevenue ? _fmtMoney(vm.remainingToTarget) : '—', vm.targetRevenue ? (vm.remainingToTarget > 0 ? 'valor restante para fechar' : 'meta já alcançada') : 'sem rota ativa', 'restart_alt', vm.remainingToTarget > 0 ? '#B45309' : '#1F6F43') +
+          _supportMetric('Necessário por dia', vm.targetRevenue ? _fmtMoney(vm.needPerDay) : '—', vm.targetRevenue ? (vm.daysLeftMonth + ' dia(s) até o fim do mês') : 'sem rota ativa', 'today', '#B42318') +
           _supportMetric('Entradas no caixa', _fmtMoney(vm.actualEntries), _trendLabel(vm.actualEntries, prevEntriesTotal, 'vs período anterior'), 'south_west', '#1F6F43') +
           _supportMetric('Saídas no caixa', _fmtMoney(vm.actualExits), _trendLabel(vm.actualExits, prevExitsTotal, 'vs período anterior'), 'north_east', '#B42318') +
           _supportMetric('Saldo líquido', _fmtMoney(vm.netCash), vm.marginPct.toFixed(1) + '% de margem operacional', 'account_balance_wallet', vm.netCash >= 0 ? '#1F6F43' : '#B42318') +
@@ -515,6 +541,151 @@ Modules.Performance = (function () {
           '<span style="display:inline-flex;align-items:center;min-height:28px;padding:0 11px;border-radius:999px;background:#FAF8F4;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:700;">' + _esc(vm.bestDay.label ? ('Melhor dia: ' + vm.bestDay.label) : 'Sem dia suficiente') + '</span>' +
         '</div>' +
       '</section>';
+  }
+
+  function _routeStatusCard(vm) {
+    var status = _routeStatusInfo(vm);
+    var monthRevenue = _monthRevenue(vm);
+    return '' +
+      '<section style="background:linear-gradient(135deg,#fff 0%,' + _esc(status.bg) + ' 100%);border:1px solid ' + _esc(status.border) + ';border-radius:18px;padding:18px 20px;box-shadow:0 12px 30px rgba(31,31,31,.06);display:flex;align-items:stretch;justify-content:space-between;gap:16px;flex-wrap:wrap;overflow:hidden;">' +
+        '<div style="display:flex;gap:13px;align-items:flex-start;min-width:0;flex:1 1 520px;">' +
+          '<div style="width:44px;height:44px;border-radius:15px;background:#fff;color:' + _esc(status.color) + ';display:flex;align-items:center;justify-content:center;border:1px solid ' + _esc(status.border) + ';flex:0 0 auto;"><span class="mi" style="font-size:23px;">' + _esc(status.icon) + '</span></div>' +
+          '<div style="min-width:0;">' +
+            '<div style="font-size:11px;font-weight:600;color:' + _esc(status.color) + ';letter-spacing:.04em;text-transform:uppercase;margin-bottom:5px;">Como está o mês</div>' +
+            '<div style="font-size:22px;font-weight:600;color:#1F1F1F;line-height:1.15;">' + _esc(status.title) + '</div>' +
+            '<div style="font-size:13px;color:#3F3A34;line-height:1.45;margin-top:6px;max-width:780px;">' + _esc(status.text) + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(2,minmax(130px,1fr));gap:10px;min-width:min(100%,300px);">' +
+          _routeMini('Esperado até hoje', _fmtMoney(vm.expectedNow)) +
+          _routeMini('Vendido até hoje', _fmtMoney(monthRevenue), monthRevenue >= vm.expectedNow ? '#1F6F43' : '#B42318') +
+        '</div>' +
+      '</section>';
+  }
+
+  function _routeThisMonthCard(vm) {
+    var monthRevenue = _monthRevenue(vm);
+    var remaining = Math.max(0, _num(vm.targetRevenue) - monthRevenue);
+    var ticket = _monthTicket(vm);
+    var neededOrders = ticket > 0 && remaining > 0 ? Math.max(1, Math.ceil((remaining / ticket) / Math.max(1, vm.daysLeftMonth || 1))) : 0;
+    return '' +
+      '<section style="' + _cardStyle() + '">' +
+        _sectionTitle('Este mês', 'Veja o que já aconteceu, quanto falta vender e o ritmo necessário até o fim do mês.') +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;">' +
+          _miniMetric('Meta do mês', vm.targetRevenue ? _fmtMoney(vm.targetRevenue) : '—', '#6C8777') +
+          _miniMetric('Vendido até agora', _fmtMoney(monthRevenue), monthRevenue >= vm.expectedNow ? '#1F6F43' : '#B42318') +
+          _miniMetric('Ticket médio atual', ticket > 0 ? _fmtMoney(ticket) : 'Sem base', '#8A6F5A') +
+          _miniMetric('Ainda falta vender', remaining > 0 ? _fmtMoney(remaining) : 'Meta alcançada', remaining > 0 ? '#B45309' : '#1F6F43') +
+          _miniMetric('Pedidos por dia daqui pra frente', String(neededOrders), '#B42318') +
+        '</div>' +
+      '</section>';
+  }
+
+  function _routePaceCard(vm) {
+    var monthRevenue = _monthRevenue(vm);
+    var ordersDone = (vm.monthOrders || []).length;
+    var ticket = _monthTicket(vm);
+    var targetOrders = ticket > 0 && vm.targetRevenue ? Math.ceil(vm.targetRevenue / ticket) : 0;
+    return '' +
+      '<section style="' + _cardStyle() + 'background:linear-gradient(135deg,#fff 0%,#FFFCF8 100%);">' +
+        _sectionTitle('Ritmo da rota', 'Compare o volume de pedidos planejado com o que já aconteceu no mês.') +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;">' +
+          _miniMetric('Pedidos previstos no mês', targetOrders ? String(targetOrders) : '—', '#6C8777') +
+          _miniMetric('Pedidos já feitos', String(ordersDone), ordersDone >= targetOrders ? '#1F6F43' : '#B45309') +
+          _miniMetric('Se continuar assim', _fmtMoney(vm.paceProjection || 0), _num(vm.paceProjection) >= _num(vm.targetRevenue) ? '#1F6F43' : '#B42318') +
+        '</div>' +
+      '</section>';
+  }
+
+  function _routeComparisonCard(vm) {
+    var monthRevenue = _monthRevenue(vm);
+    var rows = [
+      { label: 'Vendas', planned: vm.targetRevenue, actual: monthRevenue },
+      { label: 'Lucro esperado', planned: vm.targetProfit, actual: monthRevenue - vm.actualExits },
+      { label: 'Entradas', planned: vm.targetRevenue, actual: vm.actualEntries },
+      { label: 'Saídas', planned: 0, actual: vm.actualExits, inverse: true }
+    ];
+    return '' +
+      '<section style="' + _cardStyle() + '">' +
+        _sectionTitle('O combinado x o que aconteceu', 'Compare o que foi escolhido na rota com o resultado atual do mês.') +
+        '<div style="overflow-x:auto;">' +
+          '<table style="width:100%;border-collapse:collapse;min-width:760px;">' +
+            '<thead><tr style="background:#FAF8F4;">' +
+              ['Indicador', 'Planejado', 'Realizado', 'Diferença', 'Ritmo'].map(function (h) {
+                return '<th style="padding:11px 14px;text-align:left;font-size:11px;font-weight:700;color:#6F6860;text-transform:uppercase;letter-spacing:.02em;">' + h + '</th>';
+              }).join('') +
+            '</tr></thead><tbody>' +
+              rows.map(function (row) {
+                var diff = _num(row.actual) - _num(row.planned);
+                var good = row.inverse ? diff <= 0 : diff >= 0;
+                var pct = row.planned ? (_num(row.actual) / Math.abs(_num(row.planned))) * 100 : 0;
+                return '<tr style="border-top:1px solid #EAE4DA;">' +
+                  '<td style="padding:12px 14px;font-size:13px;font-weight:700;color:#1F1F1F;">' + _esc(row.label) + '</td>' +
+                  '<td style="padding:12px 14px;font-size:13px;color:#1F1F1F;white-space:nowrap;">' + _fmtMoney(row.planned) + '</td>' +
+                  '<td style="padding:12px 14px;font-size:13px;color:#1F1F1F;white-space:nowrap;">' + _fmtMoney(row.actual) + '</td>' +
+                  '<td style="padding:12px 14px;font-size:13px;font-weight:700;color:' + (good ? '#1F6F43' : '#B42318') + ';white-space:nowrap;">' + (diff >= 0 ? '+' : '-') + _fmtMoney(Math.abs(diff)) + '</td>' +
+                  '<td style="padding:12px 14px;font-size:13px;font-weight:600;color:#1F1F1F;">' + (row.planned ? pct.toFixed(1) + '%' : '—') + '</td>' +
+                '</tr>';
+              }).join('') +
+            '</tbody></table>' +
+        '</div>' +
+      '</section>';
+  }
+
+  function _routePracticalCard(vm) {
+    var messages = _routeMessages(vm);
+    return '' +
+      '<section style="' + _cardStyle() + 'background:linear-gradient(135deg,#fff 0%,#FAF8F4 100%);">' +
+        _sectionTitle('Leitura prática', 'Sinais simples para decidir o próximo passo do mês.') +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;">' +
+          messages.map(function (msg) {
+            return '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:14px;padding:12px 13px;display:flex;gap:10px;align-items:flex-start;"><span class="mi" style="font-size:18px;color:' + _esc(msg.color) + ';flex:0 0 auto;">' + _esc(msg.icon) + '</span><div style="font-size:13px;color:#1F1F1F;line-height:1.4;">' + _esc(msg.text) + '</div></div>';
+          }).join('') +
+        '</div>' +
+      '</section>';
+  }
+
+  function _routeMini(label, value, color) {
+    return '<div style="background:rgba(255,255,255,.78);border:1px solid rgba(234,228,218,.8);border-radius:14px;padding:12px;min-width:0;"><div style="font-size:11px;color:#6F6860;font-weight:600;margin-bottom:6px;">' + _esc(label) + '</div><div style="font-size:18px;font-weight:600;color:' + _esc(color || '#1F1F1F') + ';line-height:1.05;overflow-wrap:anywhere;">' + _esc(value) + '</div></div>';
+  }
+
+  function _routeStatusInfo(vm) {
+    var monthRevenue = _monthRevenue(vm);
+    if (!vm.targetRevenue) {
+      return { title: 'Ainda falta uma rota ativa', text: 'Crie uma rota no Plano de Voo para acompanhar se o mês está no caminho certo.', color: '#B45309', bg: '#FFF7ED', border: '#FED7AA', icon: 'info' };
+    }
+    var pct = vm.expectedNow > 0 ? (monthRevenue / vm.expectedNow) * 100 : 0;
+    var diff = monthRevenue - vm.expectedNow;
+    if (pct >= 115) return { title: 'Você está acima da rota', text: 'As vendas estão passando do ritmo esperado. Se mantiver assim, o mês pode terminar melhor que o planejado.', color: '#2563EB', bg: '#EEF4FF', border: '#D6E6FF', icon: 'north_east' };
+    if (pct >= 92) return { title: 'Você está dentro da rota', text: 'O mês está perto do caminho escolhido. Continue acompanhando o ritmo dos pedidos.', color: '#1F6F43', bg: '#F0FAF4', border: '#D9F2E3', icon: 'check_circle' };
+    if (pct >= 75) return { title: 'A rota pede atenção', text: 'As vendas estão um pouco abaixo do esperado. Faltam ' + _fmtMoney(Math.abs(diff)) + ' para voltar ao ritmo de hoje.', color: '#B45309', bg: '#FFF7ED', border: '#FED7AA', icon: 'warning' };
+    return { title: 'Você está abaixo do ritmo', text: 'O mês está distante do caminho escolhido. Faltam ' + _fmtMoney(Math.abs(diff)) + ' para voltar ao ritmo esperado até hoje.', color: '#B42318', bg: '#FFF0EE', border: '#F3C7C1', icon: 'priority_high' };
+  }
+
+  function _routeMessages(vm) {
+    var status = _routeStatusInfo(vm);
+    var monthRevenue = _monthRevenue(vm);
+    var remaining = Math.max(0, _num(vm.targetRevenue) - monthRevenue);
+    var ticket = _monthTicket(vm);
+    var needed = ticket > 0 && remaining > 0 ? Math.max(1, Math.ceil((remaining / ticket) / Math.max(1, vm.daysLeftMonth || 1))) : 0;
+    var out = [{ icon: status.icon, color: status.color, text: status.text }];
+    out.push(remaining > 0
+      ? { icon: 'shopping_bag', color: '#8A6F5A', text: 'Para fechar o mês dentro da rota, faltam ' + _fmtMoney(remaining) + '. Com o ticket atual, isso pede cerca de ' + needed + ' pedidos por dia.' }
+      : { icon: 'celebration', color: '#1F6F43', text: 'A meta de venda do mês já foi alcançada. Agora vale observar se os custos seguem dentro do esperado.' });
+    out.push(_num(vm.paceProjection) < _num(vm.targetRevenue)
+      ? { icon: 'schedule', color: '#B45309', text: 'Mantendo o ritmo atual, o mês pode terminar em ' + _fmtMoney(vm.paceProjection) + ', abaixo do planejado.' }
+      : { icon: 'trending_up', color: '#2563EB', text: 'Mantendo o ritmo atual, o mês pode terminar em ' + _fmtMoney(vm.paceProjection) + '.' });
+    return out;
+  }
+
+  function _monthRevenue(vm) {
+    return _sum(vm && vm.monthOrders || [], 'value');
+  }
+
+  function _monthTicket(vm) {
+    var revenue = _monthRevenue(vm);
+    var count = (vm && vm.monthOrders || []).length;
+    return count && revenue > 0 ? revenue / count : 0;
   }
 
   function _dailyCard(vm) {
@@ -566,7 +737,7 @@ Modules.Performance = (function () {
     return '' +
       '<section style="' + _cardStyle() + '">' +
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px;flex-wrap:wrap;">' +
-          _sectionTitle('Vendas por canal', 'Comparação dos canais de venda dentro do período selecionado.') +
+          _sectionTitle('Vendas por canal', 'Veja por onde as vendas estão chegando no período selecionado.') +
           _chip('Canal filtrado: ' + _channelLabel(_state.channel, vm.channels)) +
         '</div>' +
         (rows.length ? _barList(rows, '#6C8777', function (row) {
@@ -583,7 +754,7 @@ Modules.Performance = (function () {
     return '' +
       '<section style="' + _cardStyle() + '">' +
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px;flex-wrap:wrap;">' +
-          _sectionTitle('Entradas e saídas', 'Leitura do caixa real, com pendências separadas.') +
+          _sectionTitle('Entradas e saídas', 'Veja o que entrou, o que saiu e o que ainda está pendente no caixa.') +
           '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
             '<span style="display:inline-flex;align-items:center;min-height:28px;padding:0 11px;border-radius:999px;background:#EDFAF3;color:#1F6F43;font-size:12px;font-weight:700;">Entradas ' + _fmtMoney(totalEntries) + '</span>' +
             '<span style="display:inline-flex;align-items:center;min-height:28px;padding:0 11px;border-radius:999px;background:#FFF0EE;color:#B42318;font-size:12px;font-weight:700;">Saídas ' + _fmtMoney(totalExits) + '</span>' +
@@ -607,7 +778,7 @@ Modules.Performance = (function () {
     return '' +
       '<section style="' + _cardStyle() + '">' +
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px;flex-wrap:wrap;">' +
-          _sectionTitle('Categorias', 'Troque entre entradas e saídas para ver a concentração por categoria.') +
+          _sectionTitle('Categorias', 'Veja onde o dinheiro está se concentrando por tipo de lançamento.') +
           '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
             '<button onclick="Modules.Performance._setCategoryType(\'entradas\')" style="border:1px solid ' + (vm.selectedCategoryType === 'entradas' ? '#B42318' : '#EAE4DA') + ';background:' + (vm.selectedCategoryType === 'entradas' ? '#FFF0EE' : '#fff') + ';color:' + (vm.selectedCategoryType === 'entradas' ? '#B42318' : '#1F1F1F') + ';border-radius:999px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Entradas</button>' +
             '<button onclick="Modules.Performance._setCategoryType(\'saidas\')" style="border:1px solid ' + (vm.selectedCategoryType === 'saidas' ? '#B42318' : '#EAE4DA') + ';background:' + (vm.selectedCategoryType === 'saidas' ? '#FFF0EE' : '#fff') + ';color:' + (vm.selectedCategoryType === 'saidas' ? '#B42318' : '#1F1F1F') + ';border-radius:999px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Saídas</button>' +
@@ -622,12 +793,12 @@ Modules.Performance = (function () {
   function _expensePlanCard(vm) {
     var rows = vm.expensePlanRows || [];
     var monthScenario = vm.monthScenario || null;
-    var scenarioLabel = monthScenario ? (monthScenario.snapshotName || monthScenario.name || 'Cenário do mês') : 'Sem cenário selecionado';
+    var scenarioLabel = monthScenario ? (monthScenario.snapshotName || monthScenario.name || 'Rota ativa') : 'Sem rota ativa';
     var scenarioMonth = _scenarioMonthLabel(vm);
     return '' +
       '<section style="' + _cardStyle() + '">' +
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px;flex-wrap:wrap;">' +
-          _sectionTitle('Totalizadores por categoria', 'Compare o previsto do cenário com o total real gasto por categoria no período selecionado.') +
+          _sectionTitle('Gastos por categoria', 'Compare o que a rota previa com o que já apareceu no financeiro.') +
           '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
             _chip(scenarioMonth) +
             _chip(scenarioLabel) +
@@ -667,7 +838,7 @@ Modules.Performance = (function () {
               '</tbody>' +
             '</table>' +
           '</div>'
-          : _emptyState('Sem totalizadores por categoria para comparar', 'Defina um cenário do mês e registre saídas por categoria para ver o previsto vs real.')) +
+          : _emptyState('Ainda não há gastos por categoria para comparar', 'Crie uma rota e registre saídas com categoria para acompanhar o planejado contra o realizado.')) +
       '</section>';
   }
 
@@ -752,8 +923,10 @@ Modules.Performance = (function () {
 
   function _channelOptions(orders) {
     var channels = {};
+    var allowed = _configuredChannelMap();
     (orders || []).forEach(function (o) {
       var key = _normalizeChannelKey(o.channel || o.source || '');
+      if (allowed && !allowed[key]) return;
       if (!channels[key]) channels[key] = { key: key, label: _channelDisplay(key), count: 0, revenue: 0 };
       channels[key].count += 1;
       channels[key].revenue += _num(o.finalSubtotal != null ? o.finalSubtotal : o.total != null ? o.total : o.subtotal);
@@ -765,8 +938,10 @@ Modules.Performance = (function () {
 
   function _channelBreakdown(orders) {
     var map = {};
+    var allowed = _configuredChannelMap();
     (orders || []).forEach(function (o) {
       var key = _normalizeChannelKey(o.channel || o.source || '');
+      if (allowed && !allowed[key]) return;
       if (!map[key]) map[key] = { key: key, label: _channelDisplay(key), value: 0, count: 0 };
       map[key].value += _num(o.value || o.total || o.finalSubtotal || o.subtotal);
       map[key].count += 1;
@@ -806,7 +981,7 @@ Modules.Performance = (function () {
           label: label || key,
           planned: 0,
           actual: 0,
-          note: 'Comparação do cenário do mês com o período selecionado'
+          note: 'Comparação da rota com o período selecionado'
         };
       }
       return map[key];
@@ -912,8 +1087,10 @@ Modules.Performance = (function () {
 
   function _bestChannel(orders) {
     var map = {};
+    var allowed = _configuredChannelMap();
     (orders || []).forEach(function (o) {
       var key = _normalizeChannelKey(o.channel || o.source || '');
+      if (allowed && !allowed[key]) return;
       if (!map[key]) map[key] = { label: _channelDisplay(key), value: 0 };
       map[key].value += _num(o.value || o.total || o.finalSubtotal || o.subtotal);
     });
@@ -933,11 +1110,26 @@ Modules.Performance = (function () {
   function _monthScenarioTarget() {
     var snap = _monthScenarioSnapshot();
     var summary = snap && snap.summary ? snap.summary : {};
+    var monthIndex = _monthIndexFromKey(_state.scenarioMonthKey || _currentMonthKey());
+    var monthRow = snap && Array.isArray(snap.monthSeries) ? snap.monthSeries.find(function (m) {
+      return _num(m.monthIndex) === monthIndex;
+    }) : null;
+    var routeRevenue = _num(summary.revenue != null ? summary.revenue : summary.forecastRevenue != null ? summary.forecastRevenue : 0);
+    var monthRevenue = monthRow ? _num(monthRow.revenue) : 0;
+    var monthShare = routeRevenue > 0 && monthRevenue > 0 ? monthRevenue / routeRevenue : 0;
+    var routeProfit = _num(summary.profit != null ? summary.profit : 0);
     return {
-      revenue: _num(summary.revenue != null ? summary.revenue : summary.forecastRevenue != null ? summary.forecastRevenue : 0),
-      profit: _num(summary.profit != null ? summary.profit : 0),
+      revenue: monthRevenue || routeRevenue,
+      profit: monthShare > 0 ? routeProfit * monthShare : routeProfit,
       cashFinal: _num(summary.cashFinal != null ? summary.cashFinal : 0)
     };
+  }
+
+  function _monthIndexFromKey(key) {
+    var parts = String(key || '').split('-');
+    if (parts.length < 2) return new Date().getMonth();
+    var idx = parseInt(parts[1], 10) - 1;
+    return Math.max(0, Math.min(11, isFinite(idx) ? idx : new Date().getMonth()));
   }
 
   function _monthScenarioSnapshot() {
@@ -974,7 +1166,7 @@ Modules.Performance = (function () {
     }).join('');
   }
 
-  function _resolveMonthScenario(selectedMonthKey, currentDoc, allDocs) {
+  function _resolveMonthScenario(selectedMonthKey, currentDoc, allDocs, snapshots) {
     var monthKey = String(selectedMonthKey || _currentMonthKey());
     var candidates = [];
     if (currentDoc) candidates.push(currentDoc);
@@ -996,7 +1188,49 @@ Modules.Performance = (function () {
     var byUpdate = candidates.slice().sort(function (a, b) {
       return _ts(b.updatedAt || b.selectedAt || b.createdAt) - _ts(a.updatedAt || a.selectedAt || a.createdAt);
     })[0];
-    return byUpdate || null;
+    return byUpdate || _monthScenarioFromSnapshot(monthKey, snapshots) || null;
+  }
+
+  function _monthScenarioFromSnapshot(monthKey, snapshots) {
+    var list = (Array.isArray(snapshots) ? snapshots : _data.snapshots || []).filter(Boolean);
+    if (!list.length) return null;
+    var selectedKey = String(monthKey || _currentMonthKey());
+    var monthDate = _dateFromMonthKey(selectedKey);
+    var monthIndex = _monthIndexFromKey(selectedKey);
+    var candidates = list.filter(function (snap) {
+      if (!snap) return false;
+      if (String(snap.targetMonthKey || '') === selectedKey) return true;
+      var start = _dateFromAny(snap.periodStart);
+      var end = _dateFromAny(snap.periodEnd);
+      if (start && end && monthDate && monthDate >= _monthRange(start).start && monthDate <= _monthRange(end).end) return true;
+      if (Array.isArray(snap.monthSeries) && snap.monthSeries.some(function (m) { return _num(m.monthIndex) === monthIndex; })) return true;
+      return false;
+    });
+    var snap = (candidates.length ? candidates : list).slice().sort(function (a, b) {
+      return _ts(b.updatedAt || b.selectedAt || b.createdAt) - _ts(a.updatedAt || a.selectedAt || a.createdAt);
+    })[0];
+    if (!snap) return null;
+    return {
+      monthKey: selectedKey,
+      monthLabel: _monthLabelFromKey(selectedKey),
+      snapshotId: snap.id || '',
+      snapshotName: snap.name || 'Rota ativa',
+      scenario: snap.scenario || 'equilibrium',
+      summary: snap.summary || {},
+      periodType: snap.periodType || 'annual',
+      updatedAt: snap.updatedAt || snap.createdAt || '',
+      selectedAt: snap.selectedAt || snap.updatedAt || snap.createdAt || '',
+      fromSnapshotFallback: true
+    };
+  }
+
+  function _dateFromMonthKey(key) {
+    var parts = String(key || '').split('-');
+    if (parts.length < 2) return null;
+    var year = parseInt(parts[0], 10);
+    var month = parseInt(parts[1], 10) - 1;
+    if (!isFinite(year) || !isFinite(month)) return null;
+    return new Date(year, Math.max(0, Math.min(11, month)), 1);
   }
 
   function _ordersInRange(start, end) {
@@ -1122,26 +1356,58 @@ Modules.Performance = (function () {
   }
 
   function _stateChannelOptionsFallback() {
-    return [{ key: 'all', label: 'Todos' }].concat((_data.orders || []).map(function (o) {
-      var key = _normalizeChannelKey(o.channel || o.source || '');
-      return { key: key, label: _channelDisplay(key) };
-    }).filter(function (v, idx, arr) {
-      return arr.findIndex(function (x) { return x.key === v.key; }) === idx;
-    }));
+    var configured = _configuredChannelOptions();
+    if (configured.length) return [{ key: 'all', label: 'Todos' }].concat(configured);
+    return [{ key: 'all', label: 'Todos' }];
+  }
+
+  function _normalizeConfiguredChannels(cfg) {
+    var list = cfg && Array.isArray(cfg.list) ? cfg.list : [];
+    var out = [];
+    var seen = {};
+    list.forEach(function (ch) {
+      var name = ch && (ch.name || ch.label || ch.key);
+      var key = _normalizeChannelKey(name);
+      if (!key || seen[key]) return;
+      seen[key] = true;
+      out.push({ key: key, label: name || _channelDisplay(key) });
+    });
+    ['cardapio', 'venda-presencial'].forEach(function (key) {
+      if (!seen[key]) {
+        seen[key] = true;
+        out.unshift({ key: key, label: _channelDisplay(key) });
+      }
+    });
+    return out;
+  }
+
+  function _configuredChannelOptions() {
+    return Array.isArray(_data.channels) ? _data.channels : [];
+  }
+
+  function _configuredChannelMap() {
+    var list = _configuredChannelOptions();
+    if (!list.length) return null;
+    var map = {};
+    list.forEach(function (ch) { map[ch.key] = true; });
+    return map;
   }
 
   function _channelDisplay(key) {
     if (!key || key === 'all') return 'Todos';
     if (key === 'cardapio') return 'Cardápio';
-    if (key === 'template') return 'Template';
+    if (key === 'venda-presencial') return 'Venda presencial';
     if (key === 'whatsapp') return 'WhatsApp';
     if (key === 'admin') return 'Admin';
-    return key.replace(/-/g, ' ');
+    var configured = _configuredChannelOptions().find(function (ch) { return ch.key === key; });
+    return configured ? configured.label : key.replace(/-/g, ' ');
   }
 
   function _normalizeChannelKey(v) {
     var key = _normalizeText(v || '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-    return key || 'template';
+    if (!key || key === 'template' || key === 'loja-online' || key === 'loja-publica') return 'cardapio';
+    if (key === 'tpv') return 'venda-presencial';
+    return key;
   }
 
   function _normalizeCategoryName(v) {
@@ -1270,10 +1536,10 @@ Modules.Performance = (function () {
   function _scenarioLabel(value) {
     var key = _normalizeText(value || '');
     if (key === 'survival') return 'Sobrevivência';
-    if (key === 'equilibrium') return 'Equilíbrio';
+    if (key === 'equilibrium') return 'Segurança';
     if (key === 'growth') return 'Crescimento';
-    if (key === 'expansion') return 'Expansão';
-    return 'Sem cenário';
+    if (key === 'expansion') return 'Lucro forte';
+    return 'Sem rota';
   }
 
   function _barSeriesTooltip() {}
@@ -1286,6 +1552,7 @@ Modules.Performance = (function () {
     _setPeriodEnd: _setPeriodEnd,
     _setChannel: _setChannel,
     _setScenarioMonth: _setScenarioMonth,
+    _setTab: _setTab,
     _setCategoryType: _setCategoryType
   };
 })();
