@@ -115,6 +115,18 @@ Modules.Dinheiro = (function () {
         commissionPct: (cardapio || tpv) ? 0 : _num(ch.commissionPct),
         fixedFee: (cardapio || tpv) ? 0 : _num(ch.fixedFee),
         taxPct: (cardapio || tpv) ? 0 : _num(ch.taxPct),
+        minMarginPct: _num(ch.minMarginPct),
+        differentPrice: !!ch.differentPrice,
+        entradaCategoriaId: String(ch.entradaCategoriaId || ch.incomeCategoryId || ch.categoriaEntradaId || ch.financialCategoryId || ch.categoriaFinanceiraId || ''),
+        entradaCategoriaNome: String(ch.entradaCategoriaNome || ch.incomeCategoryName || ch.categoriaEntradaNome || ch.financialCategoryName || ch.categoriaFinanceiraNome || ''),
+        incomeCategoryId: String(ch.incomeCategoryId || ch.entradaCategoriaId || ch.categoriaEntradaId || ch.financialCategoryId || ch.categoriaFinanceiraId || ''),
+        incomeCategoryName: String(ch.incomeCategoryName || ch.entradaCategoriaNome || ch.categoriaEntradaNome || ch.financialCategoryName || ch.categoriaFinanceiraNome || ''),
+        categoriaEntradaId: String(ch.categoriaEntradaId || ch.entradaCategoriaId || ch.incomeCategoryId || ch.financialCategoryId || ch.categoriaFinanceiraId || ''),
+        categoriaEntradaNome: String(ch.categoriaEntradaNome || ch.entradaCategoriaNome || ch.incomeCategoryName || ch.financialCategoryName || ch.categoriaFinanceiraNome || ''),
+        financialCategoryId: String(ch.financialCategoryId || ch.entradaCategoriaId || ch.incomeCategoryId || ch.categoriaEntradaId || ch.categoriaFinanceiraId || ''),
+        financialCategoryName: String(ch.financialCategoryName || ch.entradaCategoriaNome || ch.incomeCategoryName || ch.categoriaEntradaNome || ch.categoriaFinanceiraNome || ''),
+        categoriaFinanceiraId: String(ch.categoriaFinanceiraId || ch.entradaCategoriaId || ch.incomeCategoryId || ch.categoriaEntradaId || ch.financialCategoryId || ''),
+        categoriaFinanceiraNome: String(ch.categoriaFinanceiraNome || ch.entradaCategoriaNome || ch.incomeCategoryName || ch.categoriaEntradaNome || ch.financialCategoryName || ''),
         locked: cardapio || tpv || !!ch.locked
       };
     });
@@ -1348,7 +1360,7 @@ Modules.Dinheiro = (function () {
   function _channelRows(list) {
     if (!list.length) list = _normalizeChannels({});
     return list.map(function (ch, idx) {
-      var locked = ch.locked || _isCardapioChannel(ch);
+      var locked = ch.locked || _isCardapioChannel(ch) || _isTpvChannel(ch);
       var inputStyle = _listingFieldStyle('height:42px;');
       var labelStyle = _listingLabelStyle();
       return '<div data-dn-channel-row="' + idx + '" style="display:grid;grid-template-columns:minmax(180px,1.2fr) minmax(116px,.6fr) minmax(116px,.6fr) minmax(134px,.7fr) 38px;gap:10px;align-items:end;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:16px;padding:12px;box-shadow:0 10px 24px rgba(31,31,31,.045);transition:transform .16s ease,box-shadow .16s ease;" onmouseenter="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 16px 34px rgba(31,31,31,.085)\'" onmouseleave="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'0 10px 24px rgba(31,31,31,.045)\'">' +
@@ -1362,14 +1374,29 @@ Modules.Dinheiro = (function () {
   }
 
   function _collectCanaisVenda() {
+    var existing = _data.canais || [];
     return [].slice.call(document.querySelectorAll('[data-dn-channel-row]')).map(function (row) {
       var idx = row.dataset.dnChannelRow;
+      var name = _val('dn-ch-name-' + idx);
+      var prev = existing.find(function (ch) { return String(ch.name || '').toLowerCase() === String(name || '').toLowerCase(); }) || {};
       return {
-        name: _val('dn-ch-name-' + idx),
+        name: name,
         commissionPct: _num(_val('dn-ch-commission-' + idx)),
         fixedFee: _moneyInputValue(_val('dn-ch-fixed-' + idx)),
         taxPct: _num(_val('dn-ch-tax-' + idx)),
-        locked: _isCardapioChannel({ name: _val('dn-ch-name-' + idx) })
+        minMarginPct: _num(prev.minMarginPct),
+        differentPrice: !!prev.differentPrice,
+        entradaCategoriaId: String(prev.entradaCategoriaId || prev.incomeCategoryId || prev.categoriaEntradaId || prev.financialCategoryId || prev.categoriaFinanceiraId || ''),
+        entradaCategoriaNome: String(prev.entradaCategoriaNome || prev.incomeCategoryName || prev.categoriaEntradaNome || prev.financialCategoryName || prev.categoriaFinanceiraNome || ''),
+        incomeCategoryId: String(prev.incomeCategoryId || prev.entradaCategoriaId || prev.categoriaEntradaId || prev.financialCategoryId || prev.categoriaFinanceiraId || ''),
+        incomeCategoryName: String(prev.incomeCategoryName || prev.entradaCategoriaNome || prev.categoriaEntradaNome || prev.financialCategoryName || prev.categoriaFinanceiraNome || ''),
+        categoriaEntradaId: String(prev.categoriaEntradaId || prev.entradaCategoriaId || prev.incomeCategoryId || prev.financialCategoryId || prev.categoriaFinanceiraId || ''),
+        categoriaEntradaNome: String(prev.categoriaEntradaNome || prev.entradaCategoriaNome || prev.incomeCategoryName || prev.financialCategoryName || prev.categoriaFinanceiraNome || ''),
+        financialCategoryId: String(prev.financialCategoryId || prev.entradaCategoriaId || prev.incomeCategoryId || prev.categoriaEntradaId || prev.categoriaFinanceiraId || ''),
+        financialCategoryName: String(prev.financialCategoryName || prev.entradaCategoriaNome || prev.incomeCategoryName || prev.categoriaEntradaNome || prev.categoriaFinanceiraNome || ''),
+        categoriaFinanceiraId: String(prev.categoriaFinanceiraId || prev.entradaCategoriaId || prev.incomeCategoryId || prev.categoriaEntradaId || prev.financialCategoryId || ''),
+        categoriaFinanceiraNome: String(prev.categoriaFinanceiraNome || prev.entradaCategoriaNome || prev.incomeCategoryName || prev.categoriaEntradaNome || prev.financialCategoryName || ''),
+        locked: _isCardapioChannel({ name: name }) || _isTpvChannel({ name: name }) || !!prev.locked
       };
     }).filter(function (ch) { return !!ch.name; });
   }

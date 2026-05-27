@@ -106,7 +106,9 @@ window.UI = (function () {
   // ── Formatters ─────────────────────────────────────────────────────────────
   function fmt(val) {
     var n = parseFloat(val) || 0;
-    return '€' + n.toFixed(2).replace('.', ',');
+    var parts = n.toFixed(2).split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return '€' + parts[0] + ',' + parts[1];
   }
 
   function fmtDate(ts) {

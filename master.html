@@ -437,6 +437,30 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
         </div>
       </div>
 
+      <div class="card" id="card-openai">
+        <h2>OpenAI / Próxima Jogada</h2>
+        <p>Configure a chave usada pelo backend para melhorar a leitura das próximas jogadas em Temporadas. A chave não fica no navegador nem aparece depois de salva.</p>
+        <div id="openai-status" style="margin-bottom:14px;font-size:12px;font-weight:700;color:#8A7E7C;"></div>
+        <label>
+          <span>Chave da OpenAI</span>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input id="openai-key" type="password" autocomplete="new-password" placeholder="sk-proj-...">
+            <button class="btn secondary" type="button" style="flex-shrink:0;white-space:nowrap;" onclick="toggleOpenAIKeyVisibility()">Mostrar</button>
+          </div>
+          <small style="color:#8A7E7C;font-size:11px;margin-top:4px;display:block;">Deixe em branco para manter a chave já salva. Se a chave foi exposta, revogue no painel da OpenAI antes de salvar uma nova.</small>
+        </label>
+        <div class="form-grid">
+          <label><span>Modelo para Temporadas</span><input id="openai-model" placeholder="gpt-4.1-mini"></label>
+          <label class="check-row" style="align-items:center;margin:0;"><input id="openai-enabled" type="checkbox" checked><span>Usar OpenAI nas Próximas Jogadas</span></label>
+        </div>
+        <div class="actions" style="margin-top:14px;">
+          <button class="btn blue" onclick="saveOpenAIConfig()">Salvar OpenAI</button>
+          <button class="btn secondary" onclick="loadOpenAIConfig()">Recarregar</button>
+          <button class="btn secondary" id="openai-clear-btn" style="display:none;color:#C4362A;border-color:#C4362A;" onclick="clearOpenAIKey()">Remover chave</button>
+        </div>
+        <div class="global-help" style="margin-top:14px;">O Master salva a chave em <strong>system_private_ai_secrets/default</strong>. Em produção, a Function usa primeiro o Secret Manager; se ele não estiver configurado, usa essa chave privada do Firebase.</div>
+      </div>
+
       <div class="card">
         <h2>Diagnóstico técnico</h2>
         <p>Consulte logs, erros e informações úteis para suporte e depuração local.</p>
@@ -1187,6 +1211,7 @@ function openTab(tab){
   }
   if(tab==='configuracoes'){
     loadFirestoreBackup();
+    loadOpenAIConfig();
   }
   if(tab==='paginas-sistema'){
     loadSystemPages();
@@ -4079,6 +4104,51 @@ function esc(s){return String(s||'').replace(/[&<>"']/g,function(m){return({'&':
 function normalizePlanSlug(plan){var value=String(plan||'').trim();return value==='starter'?'essencial':value}
 function planLabel(plan){var value=normalizePlanSlug(plan||'essencial');return {essencial:'Plano Essencial',compromisso_anual:'Plano Compromisso Anual',fundadoras:'Plano Fundadoras'}[value]||value}
 function jsInlineArg(s){return "decodeURIComponent('"+encodeURIComponent(String(s||''))+"')"}
+
+// ── OpenAI global config ─────────────────────────────────────────────────────
+function loadOpenAIConfig(){
+  api('/api/master/ai/settings').then(function(r){
+    var s = r.settings || {};
+    setVal('openai-key','');
+    setVal('openai-model', s.openaiSeasonsModel || 'gpt-4.1-mini');
+    var enabled = document.getElementById('openai-enabled');
+    if(enabled) enabled.checked = s.enabled !== false;
+    var status = document.getElementById('openai-status');
+    if(status){
+      status.innerHTML = s.openaiApiKeyConfigured
+        ? '<span style="color:#1A9E5A;">● Chave configurada</span>'
+        : '<span style="color:#C4362A;">● Nenhuma chave salva</span>';
+    }
+    var clear = document.getElementById('openai-clear-btn');
+    if(clear) clear.style.display = s.openaiApiKeyConfigured ? 'inline-flex' : 'none';
+  }).catch(function(e){toast('Erro OpenAI: '+e.message)});
+}
+function saveOpenAIConfig(){
+  var payload = {
+    openaiApiKey: val('openai-key'),
+    openaiSeasonsModel: val('openai-model') || 'gpt-4.1-mini',
+    enabled: !!(document.getElementById('openai-enabled') && document.getElementById('openai-enabled').checked)
+  };
+  if(payload.openaiApiKey && payload.openaiApiKey.indexOf('sk-') !== 0){
+    toast('A chave da OpenAI deve começar com sk-');
+    return;
+  }
+  api('/api/master/ai/settings',{method:'POST',body:JSON.stringify(payload)})
+    .then(function(r){
+      toast(r.message || 'OpenAI salva com sucesso');
+      loadOpenAIConfig();
+    }).catch(function(e){toast('Erro ao salvar OpenAI: '+e.message)});
+}
+function clearOpenAIKey(){
+  if(!confirm('Remover a chave da OpenAI salva no Firebase?')) return;
+  api('/api/master/ai/settings',{method:'POST',body:JSON.stringify({clearOpenAIKey:true,openaiSeasonsModel:val('openai-model')||'gpt-4.1-mini',enabled:false})})
+    .then(function(){toast('Chave da OpenAI removida');loadOpenAIConfig();})
+    .catch(function(e){toast('Erro ao remover OpenAI: '+e.message)});
+}
+function toggleOpenAIKeyVisibility(){
+  var input=document.getElementById('openai-key');
+  if(input) input.type=input.type==='password'?'text':'password';
+}
 
 // ── Google Maps / Places global config ───────────────────────────────────────
 function _gmapsRef(){

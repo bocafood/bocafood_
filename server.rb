@@ -309,6 +309,59 @@ def email_settings_payload(settings_doc = nil)
   settings
 end
 
+def ai_secret_configured?
+  secret_doc = firestore_get_document('system_private_ai_secrets', 'default')
+  secret = secret_doc ? firestore_fields_to_hash(secret_doc['fields'] || {}) : {}
+  !secret['openaiApiKey'].to_s.strip.empty?
+rescue
+  false
+end
+
+def ai_settings_payload(settings_doc = nil)
+  settings_doc ||= firestore_get_document('system_ai_settings', 'default')
+  settings = settings_doc ? firestore_fields_to_hash(settings_doc['fields'] || {}) : {}
+  {
+    'enabled' => settings.key?('enabled') ? settings['enabled'] : true,
+    'openaiSeasonsModel' => settings['openaiSeasonsModel'].to_s.strip.empty? ? 'gpt-4.1-mini' : settings['openaiSeasonsModel'].to_s.strip,
+    'openaiApiKeyConfigured' => ai_secret_configured?,
+    'updatedAt' => settings['updatedAt'].to_s
+  }
+end
+
+def save_ai_settings!(body)
+  api_key = body['openaiApiKey'].to_s.strip
+  clear_key = body['clearOpenAIKey'] == true
+  model = body['openaiSeasonsModel'].to_s.strip
+  model = 'gpt-4.1-mini' if model.empty?
+  enabled = body.key?('enabled') ? body['enabled'] == true : true
+  raise WEBrick::HTTPStatus::BadRequest, 'A chave da OpenAI deve começar com sk-.' if !api_key.empty? && !api_key.start_with?('sk-')
+
+  settings_doc = firestore_upsert_document('system_ai_settings', 'default', {
+    'enabled' => enabled,
+    'openaiSeasonsModel' => model,
+    'provider' => 'openai',
+    'scope' => 'seasons_next_moves'
+  })
+
+  if clear_key
+    firestore_upsert_document('system_private_ai_secrets', 'default', {
+      'openaiApiKey' => '',
+      'openaiApiKeyConfigured' => false
+    })
+  elsif !api_key.empty?
+    firestore_upsert_document('system_private_ai_secrets', 'default', {
+      'openaiApiKey' => api_key,
+      'openaiApiKeyConfigured' => true
+    })
+  end
+
+  {
+    ok: true,
+    message: 'Configuração da OpenAI salva com sucesso.',
+    settings: ai_settings_payload(settings_doc)
+  }
+end
+
 def default_email_settings
   {
     'fromName' => 'BocaFood',
@@ -4407,6 +4460,41 @@ end
 server.mount_proc '/api/master/email/settings', &email_settings_handler
 server.mount_proc '/api/master/email/settings/', &email_settings_handler
 
+ai_settings_handler = proc do |req, res|
+  apply_cors_headers(res, req['Origin'] || req['origin'])
+  if req.request_method == 'OPTIONS'
+    res.status = 204
+    res.body = ''
+    next
+  end
+
+  begin
+    unless local_master_request?(req)
+      next json_response_cors(req, res, 403, { ok: false, error: 'Endpoint restrito ao Master local.' })
+    end
+
+    case req.request_method
+    when 'GET'
+      json_response_cors(req, res, 200, {
+        ok: true,
+        settings: ai_settings_payload
+      })
+    when 'POST'
+      body = read_json(req)
+      json_response_cors(req, res, 200, save_ai_settings!(body))
+    else
+      json_response_cors(req, res, 405, { ok: false, error: 'Endpoint existe, mas exige método POST.' })
+    end
+  rescue WEBrick::HTTPStatus::BadRequest => e
+    json_response_cors(req, res, 400, { ok: false, error: e.message })
+  rescue => e
+    json_response_cors(req, res, 400, { ok: false, error: e.message })
+  end
+end
+
+server.mount_proc '/api/master/ai/settings', &ai_settings_handler
+server.mount_proc '/api/master/ai/settings/', &ai_settings_handler
+
 email_templates_handler = proc do |req, res|
   apply_cors_headers(res, req['Origin'] || req['origin'])
   if req.request_method == 'OPTIONS'
@@ -4952,24 +5040,91 @@ server.mount_proc '/api/seasons/ai-recommendation' do |req, res|
     context = body['context'] || {}
     raise WEBrick::HTTPStatus::BadRequest, 'context obrigatório' unless context.is_a?(Hash) && !context.empty?
 
-    # Integração futura:
-    # - OPENAI_API_KEY deve ficar somente no ambiente do servidor.
-    # - O frontend nunca deve enviar ou conhecer a chave.
-    # - A resposta da OpenAI deve ser validada como JSON antes de voltar ao admin.
-    # - Se a chamada falhar, o frontend usa fallback local e registra erro técnico no snapshot.
-    if ENV['OPENAI_API_KEY'].to_s.strip.empty?
+    ai_settings = ai_settings_payload
+    if ai_settings['enabled'] == false
+      json_response_cors(req, res, 503, {
+        ok: false,
+        status: 'disabled',
+        error: 'OpenAI desativada no Master.'
+      })
+      next
+    end
+    secret_doc = firestore_get_document('system_private_ai_secrets', 'default')
+    secret = secret_doc ? firestore_fields_to_hash(secret_doc['fields'] || {}) : {}
+    openai_api_key = ENV['OPENAI_API_KEY'].to_s.strip
+    openai_api_key = secret['openaiApiKey'].to_s.strip if openai_api_key.empty?
+    if openai_api_key.empty?
       json_response_cors(req, res, 503, {
         ok: false,
         status: 'not_configured',
-        error: 'OpenAI não configurada no servidor. Defina OPENAI_API_KEY para habilitar a recomendação por IA.'
+        error: 'OpenAI não configurada. Defina OPENAI_API_KEY ou salve a chave pelo Master.'
       })
       next
     end
 
-    json_response_cors(req, res, 501, {
-      ok: false,
-      status: 'prepared',
-      error: 'Endpoint preparado. Implementar chamada server-side para OpenAI e validação do JSON de recomendação.'
+    prompt = context['prompt'].to_s.strip
+    prompt = [
+      'Você é um copiloto operacional para um pequeno negócio de comida.',
+      'Use apenas os dados fornecidos no contexto.',
+      'Não calcule score, meta, risco ou progresso; esses valores já vêm do BocaFood.',
+      'Não invente números, clientes, campanhas ou métricas.',
+      'Responda somente JSON válido com headline, helpingSignals, blockingSignals e nextAction.'
+    ].join("\n") if prompt.empty?
+    safe_context = context.dup
+    safe_context.delete('prompt')
+    uri = URI('https://api.openai.com/v1/chat/completions')
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+    http.read_timeout = 60
+    openai_req = Net::HTTP::Post.new(uri)
+    openai_req['Authorization'] = "Bearer #{openai_api_key}"
+    openai_req['Content-Type'] = 'application/json'
+    model = ENV['OPENAI_SEASONS_MODEL'].to_s.strip
+    model = ENV['OPENAI_MODEL'].to_s.strip if model.empty?
+    model = ai_settings['openaiSeasonsModel'].to_s.strip if model.empty?
+    model = 'gpt-4.1-mini' if model.empty?
+    openai_req.body = JSON.generate({
+      model: model,
+      temperature: 0.25,
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: prompt },
+        {
+          role: 'user',
+          content: [
+            'Analise o contexto agregado da temporada abaixo.',
+            'A resposta deve ser prática, específica e curta.',
+            'Se houver executionPlan.actions, priorize essas jogadas e melhore a clareza sem criar ação inexistente.',
+            'Nunca peça para a usuária conferir dados que já estão no contexto; use os dados recebidos.',
+            JSON.generate(safe_context)
+          ].join("\n\n")
+        }
+      ]
+    })
+    openai_res = http.request(openai_req)
+    openai_body = JSON.parse(openai_res.body || '{}') rescue {}
+    unless openai_res.is_a?(Net::HTTPSuccess)
+      message = openai_body.dig('error', 'message') || "openai_http_#{openai_res.code}"
+      raise message
+    end
+    content = openai_body.dig('choices', 0, 'message', 'content').to_s
+    recommendation = JSON.parse(content) rescue {}
+    headline = recommendation['headline'].to_s.strip[0, 180]
+    next_action = recommendation['nextAction'].to_s.strip[0, 360]
+    raise 'invalid_ai_response' if headline.empty? || next_action.empty?
+    clean_list = lambda do |items|
+      Array(items).map { |item| item.to_s.strip }.reject(&:empty?).first(4)
+    end
+    json_response_cors(req, res, 200, {
+      ok: true,
+      status: 'generated',
+      model: openai_body['model'] || model,
+      recommendation: {
+        headline: headline,
+        helpingSignals: clean_list.call(recommendation['helpingSignals']),
+        blockingSignals: clean_list.call(recommendation['blockingSignals']),
+        nextAction: next_action
+      }
     })
   rescue WEBrick::HTTPStatus::MethodNotAllowed => e
     json_response_cors(req, res, 405, { ok: false, error: e.message })

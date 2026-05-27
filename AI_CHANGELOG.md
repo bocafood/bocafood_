@@ -1,5 +1,197 @@
 # AI Changelog
 
+## 2026-05-27 — Temporadas: OpenAI server-side nas Próximas Jogadas
+- Arquivos alterados: `functions/index.js`, `server.rb`, `admin.html`, `master.html`, `public/js/services/seasons.ai.js`, `TEMPORADAS_FUNCIONAMENTO_MAPEAMENTO.md`, `AI_CHANGELOG.md`.
+- A integração com OpenAI foi ligada de forma segura: o frontend não recebe chave e chama apenas um endpoint server-side com token do usuário logado.
+- No Firebase Functions, foi criado o endpoint `seasonsAiRecommendation`, usando o Secret Manager `OPENAI_API_KEY` e validando a resposta JSON antes de devolver ao Admin.
+- No servidor local, `/api/seasons/ai-recommendation` agora também chama a OpenAI quando `OPENAI_API_KEY` estiver definido no ambiente.
+- O serviço `SeasonsAI` passou a enviar `Authorization: Bearer <idToken>` e `tenantId` junto do contexto agregado da temporada, mantendo fallback local caso a IA falhe ou não esteja configurada.
+- O Master ganhou o card `OpenAI / Próxima Jogada`, com campo para salvar a chave em `system_private_ai_secrets/default`, status configurado/não configurado, modelo usado em Temporadas e opção de remover a chave.
+- A Function usa Secret Manager como prioridade e lê a chave privada salva pelo Master apenas como fallback, sem devolver o segredo para o navegador.
+- A documentação de Temporadas foi atualizada para registrar que a OpenAI melhora linguagem e clareza, mas não calcula score, meta, risco, progresso nem escreve direto no Firestore.
+- Impacto esperado: Próximas Jogadas podem ganhar leitura mais humana e específica usando OpenAI, preservando o motor determinístico, tenant, rotas, permissões e fallback local.
+
+## 2026-05-27 — Temporadas com plano operacional por dificuldade
+- Arquivos alterados: `TEMPORADAS_FUNCIONAMENTO_MAPEAMENTO.md`, `public/js/modules/temporadas.js`, `public/js/services/seasons.ai.js`, `public/css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- A documentação de Temporadas foi atualizada para registrar que a Temporada executa a rota do Plano de Voo, sem criar uma meta paralela.
+- A dificuldade passou a ter definição operacional: `Seguro` mostra até 1 ação principal, `Equilibrado` até 2 ações práticas e `Agressivo` até 3 ações específicas.
+- O módulo agora gera e salva `executionPlan` com tarefas baseadas em pedidos reais e sinais validados, citando produto, canal, horário, cupom, promoção, upsell ou pontos quando esses dados existem.
+- A próxima melhor ação da Temporada passou a exibir um plano prático com motivo simples, evitando recomendações genéricas ou pontuação por cadastro sem pedido.
+- O contexto da IA/fallback passou a receber o plano operacional, mantendo a regra de que IA não calcula score, meta, risco ou progresso.
+- Ajuste posterior: o ticket médio deixou de aparecer automaticamente em `O que está ajudando`; agora só aparece como sinal positivo quando estiver acima da base anterior ou dentro da meta de ticket.
+- Ajuste posterior: os sinais de promoção agora preservam o nome da promoção quando ele vem no pedido ou item; a próxima ação deixa de falar genericamente `a promoção` quando existe uma promoção identificada.
+- Ajuste posterior: recompra deixou de aparecer como ajuda com apenas 1 cliente recorrente; agora precisa de pelo menos 2 clientes recorrentes e taxa mínima de recompra para virar sinal positivo.
+- Ajuste posterior: a aba `Próxima Jogada` deixou de repetir blocos genéricos de diagnóstico e passou a mostrar um checklist operacional por dificuldade, cruzando produto forte, canal, horário, cupom, promoção, upsell, pontos e histórico quando esses sinais existem.
+- Ajuste posterior: removidas frases genéricas contra desconto; as recomendações agora orientam a usar cupom, promoção ou upsell com regra clara, margem conferida e acompanhamento de pedidos.
+- Ajuste posterior: a Temporada passou a carregar produtos, promoções, cupons e upsells disponíveis para avaliar não só o que já foi usado, mas também o que pode ser usado agora.
+- Ajuste posterior: a Próxima Jogada agora calcula preço, custo, margem atual, margem estimada depois da promoção/cupom e desconto máximo saudável antes de recomendar desconto; quando a margem não sustenta, recomenda destaque ou upsell em vez de cupom/promoção.
+- Ajuste posterior: removidas instruções do tipo `confira`, `meça` ou `acompanhe` nas recomendações principais; o texto agora já traz o dado calculado e a ação indicada com base nele.
+- Ajuste posterior: as próximas jogadas passaram a evitar duplicidade de foco; quando a promoção já é a ação principal para o produto forte, o sistema não cria uma segunda jogada repetindo o mesmo produto/promoção com palavras diferentes.
+- Ajuste posterior: a dificuldade passou a controlar a quantidade de próximas jogadas distintas, enquanto o card mostra todas dentro de uma única seção `Próximas jogadas`.
+- Ajuste posterior: a aba `Próxima Jogada` força recálculo visual do plano quando a temporada salva ainda tem uma versão antiga com menos jogadas do que a dificuldade exige.
+- Ajuste posterior: as próximas jogadas receberam textos mais específicos de ação e motivo, incluindo produto, quantidade vendida, receita gerada, canal, horário, margem, desconto estimado e resultado já validado quando esses dados existem.
+- Ajuste posterior: a escolha das próximas jogadas passou a usar ranking de oportunidades, priorizando ações distintas por produto e foco, como promoção validada, upsell disponível, cupom saudável, produto forte, canal/horário, recompra e consistência.
+- Ajuste posterior: a documentação de Temporadas foi ampliada com a definição da Próxima Jogada, regras de ranking, critérios de seleção, padrão de texto, campos necessários para novas ações e a regra atual de meta vinculada ao Plano de Voo.
+- Ajuste posterior: as jogadas recomendadas passaram a gerar `actionTasks` com prazo por dificuldade, status, evidência em pedidos e check automático quando o sistema encontra produto, cupom, promoção, upsell, canal/horário ou recompra compatível.
+- Ajuste posterior: a aba `Próxima Jogada` passou a mostrar cada jogada como card independente, com seu próprio `Por que fazer`, status, prazo e checklist, evitando um card pai com motivo único para todas as ações.
+- Ajuste posterior: a copy da `Próxima Jogada` ficou menos técnica, falando mais sobre vendas, resposta da loja, foco da semana e resultado do negócio, em vez de termos como sinais validados, pedido compatível e cálculo do sistema.
+- Ajuste posterior: jogadas executadas ou vencidas agora saem da rodada atual, entram em `actionTaskHistory` e liberam espaço para uma nova jogada, mantendo o fluxo ativo até o fim da temporada.
+- Ajuste posterior: a documentação passou a mapear quais ações podem ser rastreadas por Ações de Vendas e Pedidos, separando execução, resultado e qualidade da jogada para futuras expansões.
+- Ajuste posterior: documentada a regra de ação existente x ação nova: jogadas podem usar promoções/cupons/upsells já cadastrados ou abrir o modal de criação diretamente do card, salvando vínculo com `seasonId` e `seasonActionId`.
+- Ajuste posterior: documentada a estrutura visual final desejada da aba `Próxima Jogada`, incluindo cabeçalho, jogadas ativas, resultado da jogada, histórico, nova jogada automática, separação por objetivo, regra de dificuldade e botões necessários por tipo de ação.
+- Ajuste posterior: a aba `Próxima Jogada` passou a executar a estrutura documentada, com leitura da semana, cards independentes por jogada, objetivo, resultado, resumo do que aconteceu, histórico, aprendizado e botões que navegam para Promoções, Cupons, Upsell, Produtos, Clientes, Pontos ou Performance.
+- Ajuste posterior: os botões das jogadas salvam um rascunho leve em `sessionStorage` com `seasonId`, `seasonActionId`, tipo e contexto da ação para preparar o vínculo futuro entre Temporadas e as ações criadas.
+- Ajuste posterior: a leitura de canais de venda em Temporadas passou a considerar comissão, taxa fixa, imposto sobre comissão, descontos aplicados, participação no faturamento e receita líquida estimada, evitando recomendar automaticamente canais que vendem muito mas pesam na margem.
+- Ajuste posterior: upsell em Temporadas ficou limitado ao canal `Cardápio`; pedidos de outros canais não validam upsell e as jogadas de upsell passam a indicar explicitamente que a execução é no Cardápio.
+- Ajuste posterior: quando uma jogada abre Promoções, Cupons ou Upsell, o módulo de Marketing consome o rascunho da Temporada, abre automaticamente o modal de cadastro e, ao salvar, grava o vínculo no registro criado e na `actionTask` da temporada.
+- Ajuste posterior: a documentação foi reforçada para registrar o fluxo atual completo de criação vinculada por Próxima Jogada, incluindo campos salvos na ação criada, atualização da tarefa da temporada, diferença entre ação criada e ação com resultado, e a regra de que upsell só valida no canal `Cardápio`.
+- Ajuste posterior: as jogadas passaram a usar uma estrutura prática inspirada em meta SMART, mas sem linguagem técnica, com blocos `Fazer`, `Até quando` e `Vai valer a pena se`; a copy de canal também foi ajustada para explicar ações concretas no Cardápio em vez de falar genericamente em concentrar canal.
+- Ajuste posterior: foi criada e documentada uma matriz de objetivo + estratégia operacional para reordenar as jogadas sugeridas, reduzindo repetição entre temporadas e fazendo `Vender Mais`, `Aumentar Ticket`, `Fidelizar Clientes` e `Melhorar Consistência` priorizarem ações diferentes conforme `Volume`, `Margem` ou `Fidelização`.
+- Ajuste posterior: o modal `Nova Temporada` foi redesenhado para ficar mais visual e orientado à decisão, com painel lateral de contexto, cards com elementos gráficos, dicas de impacto, etapa de data mais clara e resumo final com destaque da rota.
+- Ajuste posterior: a matriz de objetivo + estratégia passou a adaptar também a copy das jogadas, alterando `Fazer`, `Vai valer a pena se`, motivo e checklist conforme a combinação escolhida; também removi a repetição do prazo no status da jogada.
+- Ajuste posterior: documentada a diretriz futura para uso de OpenAI nas Próximas Jogadas: o BocaFood calcula dados e opções seguras, enquanto a IA pode melhorar interpretação e copy sem calcular score, meta, risco, progresso ou inventar ações.
+- Ajuste posterior: no modal `Nova Temporada`, estratégias pouco alinhadas ao objetivo selecionado agora ficam bloqueadas para evitar combinações que geram jogadas confusas; a documentação registra as combinações recomendadas, permitidas e bloqueadas.
+- Ajuste posterior: as Próximas Jogadas passaram a usar um mapa de tipos permitidos por objetivo + estratégia antes do ranking final, evitando sugestões fora do caminho escolhido e dando mais força a cupom, pontos e recompra nas combinações de fidelização.
+- Ajuste posterior: os prazos das jogadas foram separados entre execução e medição: `Seguro` executa em até 7 dias e mede por 15, `Equilibrado` executa em até 5 e mede por 7, `Agressivo` executa em até 3 e mede por 5; ações criadas sem venda passam a poder virar `executed_without_result`.
+- Impacto esperado: a Temporada fica mais funcional e menos conceitual, orientando a usuária com tarefas específicas baseadas no histórico real do tenant.
+
+## 2026-05-27 — Plano de Voo usando vendas recentes como referência inicial
+- Arquivos alterados: `public/js/modules/plano_voo.js`, `AI_CHANGELOG.md`.
+- Em `Vendas por canal`, quando a loja ainda não tem 1 ano completo de histórico, o Plano de Voo continua em modo manual, mas passa a usar as vendas do mês atual como ponto de partida visível por canal.
+- A ajuda do campo informa quando já existe venda no mês e orienta a ajustar a previsão se o mês esperado for maior.
+- Canais vindos de pedidos públicos antigos como `template`, `store` ou `storefront` agora são reconhecidos como `Cardápio`, evitando que vendas reais fiquem fora da base do canal.
+- O chip `Custo do que foi vendido` também deixou de zerar em lojas novas: antes de existir 1 ano completo, ele usa vendas do mês atual quando houver e, se ainda não houver pedidos suficientes, usa a relação custo/preço dos produtos cadastrados.
+- A leitura de custo dos itens vendidos foi ampliada para reconhecer vínculos por ficha técnica/produto pronto e campos como `stockUnitCost`, `costPerYield`, `custoUnitario` e `custoAtual`.
+- Ajuste posterior: corrigido o estado inicial que ficava preso em `0` antes do carregamento do Firestore; após carregar pedidos e produtos, os valores zerados passam a receber a base recente quando existir.
+- Ajuste posterior: o Plano de Voo passou a carregar também `itens_custo` e `fichasTecnicas` para buscar custos na origem do produto quando o custo não está gravado diretamente no item do cardápio.
+- Ajuste posterior: o card `Antes de criar a rota` recebeu uma copy mais simples, orientando a usuária a olhar o desempenho atual da loja e usar esses números como base para criar o Plano de Voo; o mini-card de vendas agora aparece como `Vendas recentes`.
+- Ajuste posterior: a ajuda de `Período da rota` deixou de falar em data de criação e passou a explicar que a rota acompanha o período anual.
+- Ajuste posterior: nos cards `Escolha a realidade que você quer viver`, clicar no card agora apenas seleciona o cenário e atualiza os cálculos; a aba de resumo só abre pelo botão `Escolher cenário`.
+- Ajuste posterior: nos cards de cenário, `Faturamento necessário` passou a mostrar o período da rota e o valor ficou visualmente menor para melhorar a leitura.
+- Ajuste posterior: em `Vendas por canal`, o texto `Meses considerados` deixou de usar o multiplicador do cenário como se fosse quantidade de meses; agora mostra o período real da rota, evitando leituras como 16 meses para uma rota de maio a dezembro.
+- Ajuste posterior: o aviso de vendas abaixo dos custos passou a usar o cenário selecionado em tempo real, em vez de ficar preso no cenário `Segurança`.
+- Ajuste posterior: em `Vendas por canal`, `Projeção do período` passou a mostrar a base do período sem aplicar o multiplicador do cenário; os cenários continuam aplicando seus pesos somente nos cards de rota.
+- Ajuste posterior: o card `Ajustes da rota` voltou a exibir somente `Ticket médio usado`, removendo os campos antigos de modo de crescimento/queda dessa seção.
+- Ajuste posterior: o botão genérico `Ver resumo da rota` foi removido do rodapé do modal; o avanço para o resumo fica pelo botão `Escolher cenário` dentro de cada card.
+- Ajuste posterior: no `Resumo da rota mês a mês`, a porcentagem dos meses foi substituída por `Força do mês` em escala visual de 1 a 10, também aplicada na distribuição mensal do resumo da rota.
+- Ajuste posterior: o card `Ponto de segurança` deixou de misturar ponto de equilíbrio com custos da rota; agora mostra `Total que precisa cobrir`, somando custos das vendas, despesas diretas e custos diretos da própria rota.
+- Ajuste posterior: foi criado um card separado `Ponto de equilíbrio`, acima de `Ponto de segurança`, explicando em linguagem simples a venda mínima estimada para a loja empatar.
+- Ajuste posterior: em `Performance`, a meta da rota passou a ser apresentada como `Meta do mês` e a leitura busca a meta mensal da rota considerando a força/peso daquele mês; rotas antigas sem série mensal usam a distribuição salva ou uma divisão segura pelo período para não aparecerem como ausência de Plano de Voo.
+- Ajuste posterior: o formatador global de moeda passou a aplicar separador de milhar, exibindo valores como `€1.458,65` em vez de `€1458,65`.
+- Ajuste posterior: em `Performance`, a projeção `Mantendo o ritmo atual...` passou a usar somente as vendas do mês atual até hoje, evitando que filtros ou outros períodos distorçam a projeção de fechamento do mês.
+- Impacto esperado: evitar que o card apareça zerado em lojas de teste ou lojas novas que já têm vendas recentes, sem transformar histórico parcial em base automática principal.
+
+## 2026-05-27 — Visão Geral do Financeiro sem card de filtros
+- Arquivos alterados: `public/js/modules/financeiro.js`, `AI_CHANGELOG.md`.
+- Na aba `Financeiro > Visão Geral`, o card que misturava filtros, chips de resumo e datas foi simplificado.
+- A tela passa a mostrar somente o aviso de `Saúde financeira` nessa área, mantendo os demais cards e leituras da visão geral sem alterar cálculos ou dados.
+- Impacto esperado: deixar a abertura do Financeiro mais limpa e menos carregada, priorizando o sinal principal de saúde financeira.
+
+## 2026-05-27 — Canais de venda vinculados à categoria de entrada
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `public/js/modules/pedidos.js`, `public/js/modules/dinheiro.js`, `public/js/modules/plano_voo.js`, `AI_CHANGELOG.md`.
+- Em `Configurações > Canais de venda`, cada canal agora pode ser ligado a uma categoria financeira de entrada; `Cardápio` e `Venda presencial` ficam visíveis como canais fixos e também podem receber esse vínculo.
+- Pedidos manuais e vendas presenciais passam a salvar os metadados da categoria vinculada ao canal, sem mudar a estrutura principal do pedido.
+- A entrada financeira criada ou atualizada a partir do pedido passa a herdar a categoria de entrada do canal, preservando também o nome do canal usado na venda.
+- As regras de preço em `Preço e Margem` foram ajustadas para preservar os novos campos de categoria ao salvar `config/canais_venda`, evitando perda do vínculo.
+- O Plano de Voo mantém os metadados da categoria nos canais e mostra, quando houver, a categoria financeira ligada ao canal na base de vendas por canal.
+- Impacto esperado: vendas por canal passam a cair na categoria correta do Financeiro e a leitura operacional fica mais consistente entre Pedido, Venda presencial, Financeiro e Plano de Voo.
+
+## 2026-05-27 — Campo moeda no recebimento financeiro
+- Arquivos alterados: `public/js/modules/financeiro.js`, `AI_CHANGELOG.md`.
+- No modal `Confirmar recebimento`, o campo `Valor recebido` passou a usar o padrão visual de moeda com prefixo `€`.
+- O campo foi compactado para ocupar apenas o espaço necessário ao valor, preservando a lógica de confirmação de recebimento.
+- Impacto esperado: deixar o preenchimento mais claro e alinhado ao padrão visual dos modais financeiros.
+
+## 2026-05-27 — Plano de Voo com leitura mais premium
+- Arquivos alterados: `public/js/modules/plano_voo.js`, `AI_CHANGELOG.md`.
+- A tela do Plano de Voo recebeu fundo mais quente e contínuo, aproximando a experiência visual da tela de Maturidade.
+- O card de rota ativa virou um bloco principal mais forte, com elemento gráfico maior, gradiente sutil, borda na cor da rota, métricas com mais presença e uma pequena linha de jornada.
+- O estado sem rota ativa também ganhou composição mais premium, com card hero, ícone maior, chips discretos e CTA preservado.
+- Cards de apoio e métricas receberam borda, sombra e fundo mais refinados, sem alterar cálculo, Firestore, rotas ou permissões.
+- Impacto esperado: deixar o Plano de Voo com aparência mais sofisticada e alinhada à experiência visual de Maturidade, mantendo a lógica atual.
+
+## 2026-05-27 — Exclusão de rota no Plano de Voo
+- Arquivos alterados: `public/js/modules/plano_voo.js`, `AI_CHANGELOG.md`.
+- Adicionado botão `Excluir rota` no card da rota ativa e no modal de resumo da rota.
+- A exclusão pede confirmação antes de remover a rota salva em `flight_plans`.
+- Quando a rota excluída é a rota ativa, o vínculo em `flight_plan_month_scenarios` também é removido para não deixar o Plano de Voo apontando para uma rota apagada.
+- Impacto esperado: permitir limpar uma rota criada por engano sem alterar o motor de cálculo, rotas, permissões ou regras Firebase.
+
+## 2026-05-27 — Temporadas vinculadas ao Plano de Voo
+- Arquivos alterados: `public/js/modules/temporadas.js`, `AI_CHANGELOG.md`.
+- A criação de Temporadas deixou de pedir meta fixa ou automática própria; a meta agora vem sempre da rota escolhida no Plano de Voo.
+- O wizard foi simplificado para objetivo, duração, início, dificuldade, estratégia e resumo final, removendo a etapa antiga de `Tipo de meta`.
+- O baseline da temporada passou a buscar `flight_plan_month_scenarios` e `flight_plans`, usando a rota do período como fonte de meta, progresso inicial e falta a cumprir.
+- Temporadas novas salvam `targetMode: "flight_plan"` e o snapshot `planConnection`, preservando campos antigos como `calculatedTargetValue` para compatibilidade com score, progresso e histórico.
+- Se não houver rota do Plano de Voo com venda prevista para o período, a criação da Temporada é bloqueada com orientação para criar a rota primeiro.
+- Ajuste posterior: removida a frase explicativa extra do resumo final do wizard para deixar a tela mais limpa.
+- Ajuste posterior: mensagens internas sobre `baseline` foram trocadas por textos mais claros sobre buscar ou encontrar a rota do Plano de Voo.
+- Impacto esperado: Temporadas passam a ajudar a usuária a executar a rota do Plano de Voo, sem criar uma segunda meta paralela.
+
+## 2026-05-27 — Checklist técnico de implantação de Temporadas
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- Conferido o checklist técnico da implantação: normalizadores de pedidos, sinais de impacto validado, abertura do score, leitura humana da temporada, snapshots, finalização e conexão com Maturidade.
+- Os nomes no módulo seguem o padrão interno do arquivo com prefixo `_`, preservando encapsulamento e sem alterar rotas, imports ou `public/admin.html`.
+- Foram adicionados badges visuais para risco e impacto validado nos cards da temporada ativa, alinhando a interface aos novos dados salvos.
+- Impacto esperado: deixar a implantação fechada visual e tecnicamente sem criar novas rotas ou mexer no menu.
+
+## 2026-05-27 — Maturidade conectada ao fechamento da Temporada
+- Arquivos alterados: `public/js/modules/temporadas.js`, `AI_CHANGELOG.md`.
+- A leitura operacional da temporada ativa continua sendo atualizada sem aplicar impacto direto na Maturidade.
+- A gravação da Maturidade agora fica concentrada nos momentos corretos: abertura da própria página de Maturidade, finalização de temporada ou registro de temporada abandonada.
+- A finalização chama uma rotina dedicada de impacto para Maturidade, preservando o comportamento de snapshots e evolução de Pedras.
+- Temporadas abandonadas, quando registradas com esse status, também entram no cálculo como limitador de evolução.
+- Impacto esperado: evitar que mudanças de uma temporada em andamento alterem a Maturidade antes do fechamento.
+
+## 2026-05-27 — Resumo final mais útil em Temporadas
+- Arquivos alterados: `public/js/modules/temporadas.js`, `AI_CHANGELOG.md`.
+- A finalização da temporada agora salva `nextSeasonSuggestion` como campo próprio, além de manter `finalResult`, `finalScore`, `finalProgressPercent`, `finalMetrics`, `finalSummary`, `scoreBreakdown`, `validatedImpactSignals`, `riskContext` e `seasonReading`.
+- O `finalSummary` passou a usar a leitura humana da temporada e os impactos validados para explicar melhor o que ajudou, o que travou e qual deve ser o próximo foco.
+- O modal de resultado final passa a mostrar uma frase principal mais clara no topo, como encerramento operacional da temporada.
+- Impacto esperado: a temporada finalizada fica mais fácil de entender e mais útil para orientar a próxima temporada sem recalcular histórico antigo.
+
+## 2026-05-27 — Snapshots completos de Temporadas
+- Arquivos alterados: `public/js/modules/temporadas.js`, `AI_CHANGELOG.md`.
+- Novos registros em `tenants/{tenantId}/season_metrics_snapshots` passam a congelar `scoreBreakdown`, `validatedImpactSignals`, `riskContext` e `seasonReading`.
+- Snapshots diários, semanais e finais mantêm a leitura criada naquele momento, evitando que edição posterior de pedidos antigos altere a interpretação histórica da temporada.
+- Snapshots antigos não são migrados nem regravados.
+- Impacto esperado: preservar o resultado histórico auditável de temporadas concluídas e leituras operacionais já registradas.
+
+## 2026-05-27 — Persistência lazy dos novos campos de Temporadas
+- Arquivos alterados: `public/js/modules/temporadas.js`, `AI_CHANGELOG.md`.
+- A coleção `tenants/{tenantId}/seasons` passou a salvar, de forma lazy e compatível, os campos `scoreBreakdown`, `validatedImpactSignals`, `riskContext` e `seasonReading`.
+- Temporadas novas já nascem com os campos preparados; temporada ativa sem esses dados calcula ao carregar e atualiza o documento sem migração pesada.
+- O encerramento da temporada preserva os novos campos junto de `finalMetrics`, `finalScore` e `finalSummary`, sem reescrever histórico antigo finalizado.
+- Impacto esperado: permitir leitura auditável de score, impacto validado, risco e recomendação humana sem quebrar temporadas anteriores.
+
+## 2026-05-26 — Mapa de Temporadas, Missões e Maturidade
+- Arquivos alterados: `MAPA_TEMPORADAS_MATURIDADE_BOCAFOOD.md`, `public/js/modules/temporadas.js`, `public/css/modules/temporadas.css`, `public/js/services/seasons.ai.js`, `AI_CHANGELOG.md`.
+- Criado um documento consolidado sobre o que foi construído em `Temporadas`, `Missões` e `Maturidade do Negócio`, reunindo arquivos, rotas, coleções, campos, fluxo de criação, cálculo de score, snapshots, IA/recomendações e sistema de Pedras.
+- O documento registra como Temporadas usam pedidos, clientes, Plano de Voo, snapshots e maturidade para gerar progresso, risco, resultado final, recomendações e evolução da loja.
+- Também foram registrados limites atuais e próximos passos seguros, diferenciando o que já está implementado do que está apenas preparado na arquitetura.
+- Ajuste posterior: registrada uma seção de implantação segura para evoluir Missoes/Temporadas sem apagar campos atuais, sem alterar score determinístico, sem mexer primeiro em Maturidade e sem transformar financeiro, estoque, compras, produção ou marketing em peso forte antes de validação.
+- Etapa 1 iniciada: a aba `Visão Geral` da Temporada Ativa foi reorganizada em leitura operacional com `Resumo da temporada`, `Meta e progresso`, `Score explicado`, `Risco`, `O que está ajudando`, `O que está travando` e `Próxima melhor ação`.
+- A mudança usa apenas métricas já calculadas em `currentMetrics`, sem alterar criação de temporada, Firestore, score, risco, snapshots, IA ou Maturidade.
+- Etapa 2 iniciada: criada uma camada interna de normalização de pedidos em `temporadas.js`, padronizando status, data, total, canal, cliente, itens, cupom, promoção, upsell e pontos antes de alimentar baseline, score, maturidade e recomendações.
+- Os sinais normalizados de cupom, promoção, upsell, pontos e canais ficam disponíveis em `currentMetrics`, mas ainda não entram como peso forte de score.
+- Etapa 3 iniciada: criada a camada `validatedImpactSignals`, que mede impacto real de cupons, promoções, upsell, pontos, canais e produtos a partir de pedidos válidos normalizados.
+- O `impactScore` desses sinais é auxiliar e não altera o score oficial, progresso, risco, Maturidade ou Pedras.
+- Etapa 4 iniciada: criado `scoreBreakdown` com `coreObjectiveScore`, `validatedImpactBonus`, `riskPenalty`, `finalScore` e `calculationVersion: season_score_v1_1`.
+- O score atual passa a usar a fórmula auditável `objetivo principal + bônus validado - penalidade de risco`, mantendo bônus limitado para não dominar a meta principal.
+- Etapa 4 complementar: criado `seasonReading` com `headline`, `helpingSignals`, `blockingSignals` e `nextAction`, para salvar a leitura humana da temporada sem substituir score, progresso, risco ou métricas.
+- Etapa 5 iniciada: `seasons.ai.js` passou a receber `currentMetrics`, `scoreBreakdown`, `validatedImpactSignals`, `riskContext` e `snapshots`, e o fallback/validação agora trabalham no formato de leitura humana da temporada.
+- A regra foi preservada: IA/fallback apenas explica e recomenda; score, meta, risco e progresso continuam no motor determinístico do BocaFood.
+- Ajuste posterior: documentada e alinhada a matriz de pontuação por objetivo, separando claramente o que entra como score principal, o que pode entrar como bônus validado e o que não pontua em `Vender mais`, `Aumentar ticket`, `Fidelizar clientes` e `Melhorar consistência`.
+- O cálculo do bônus validado foi ajustado para respeitar melhor o objetivo escolhido, evitando premiar cadastro sem pedido real ou desconto que prejudica ticket líquido.
+- Impacto esperado: facilitar a continuidade do módulo de Temporadas/Missões sem confundir score operacional, maturidade acumulada e integrações futuras.
+
+## 2026-05-26 — Mapa de dados e inteligência do BocaFood
+- Arquivos alterados: `MAPA_DADOS_INTELIGENCIA_BOCAFOOD.md`, `AI_CHANGELOG.md`.
+- Criado um documento de rastreio técnico-funcional consolidando os módulos construídos, dados lidos/salvos, coleções principais, conexões entre loja pública, pedidos, financeiro, produção, estoque, marketing, fidelidade, Plano de Voo e Performance.
+- O documento registra as inteligências atuais geradas pelo sistema: rota ativa, acompanhamento de performance, promoções, upsell, pontos, caixa presencial, baixa de estoque, produção, lista de compras, financeiro e estoque por movimentações.
+- Também foram registrados pontos de atenção e limites atuais, como estoque calculado por movimentações, fiscal ainda sem emissão real e coexistência de coleções legadas.
+- Impacto esperado: facilitar as próximas decisões de produto e reduzir risco de quebrar conexões já existentes ao evoluir o sistema.
+
 ## 2026-05-26 — Plano de Voo em Inteligência > Operação
 - Arquivos alterados: `public/admin.html`, `AI_CHANGELOG.md`.
 - O acesso visual ao `Plano de Voo` saiu do grupo `Crescimento` na Operação e passou a ficar dentro de `Inteligência > Operação`.
@@ -8688,3 +8880,10 @@
 - Ajuste posterior: o `Resumo anual por mês` passou a recalcular lucro, custos e despesas usando o peso de cada mês, inclusive zerando meses com peso `0`.
 - Ajuste posterior: lançamentos financeiros únicos deixaram de ser repetidos em todos os meses no `Resumo anual por mês`; agora aparecem apenas no mês do vencimento/data do lançamento. Recorrências continuam repetindo conforme a frequência.
 - Impacto esperado: pedidos e análises deixam de inflar valores por erro de escala sem alterar rotas, permissões, Firebase Rules ou a estrutura dos pedidos.
+
+## 2026-05-27 — Temporadas: jogadas com ação concreta
+- Arquivos alterados: `public/js/modules/temporadas.js`, `TEMPORADAS_FUNCIONAMENTO_MAPEAMENTO.md`, `AI_CHANGELOG.md`.
+- As descrições específicas das próximas jogadas deixaram de ser sobrescritas por textos genéricos da estratégia da temporada.
+- Jogadas de aumento de ticket agora tentam apontar primeiro o upsell existente; se não houver, sugerem um complemento real com produto específico; se faltar base, dizem exatamente que é preciso criar um upsell/complemento antes de medir.
+- A documentação de Temporadas passou a registrar que promoção, cupom, upsell, produto, canal e horário precisam aparecer como objetos concretos na jogada, e que a estratégia pode ajustar prioridade e linguagem sem apagar a recomendação específica.
+- Impacto esperado: os cards da aba `Próxima Jogada` ficam mais executáveis e menos genéricos, com foco em produto, ação e motivo real sem alterar Firestore, rotas, permissões ou o cálculo principal da temporada.

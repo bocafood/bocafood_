@@ -16,6 +16,7 @@ const FIREBASE_ADMIN_SERVICE_ACCOUNT = "firebase-adminsdk-fbsvc@bocado-brasil.ia
 const FIRESTORE_BACKUP_DEFAULT_BUCKET = "gs://bocado-brasil-firestore-backups";
 const BOCAFOOD_BRAND_LOGO_URL = "https://bocafood.app/assets/boca-food-logo.png?v=20260518-bocafood-logo";
 const HOTMART_HOTTOK_SECRET = defineSecret("HOTMART_HOTTOK");
+const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
 const MASTER_EMAILS = new Set([
   "bocadobrasil.es@gmail.com",
   "pcruz.digital@gmail.com"
@@ -1694,6 +1695,66 @@ async function requireMaster(req) {
   return decoded;
 }
 
+async function requireAuthenticatedAdmin(req) {
+  const authHeader = req.get("Authorization") || "";
+  const match = authHeader.match(/^Bearer (.+)$/);
+  if (!match) throw new Error("missing_auth");
+  return admin.auth().verifyIdToken(match[1]);
+}
+
+function validSeasonAIReading(value) {
+  const data = value && typeof value === "object" ? value : {};
+  const cleanList = (items) => Array.isArray(items)
+    ? items.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 4)
+    : [];
+  const headline = String(data.headline || "").trim().slice(0, 180);
+  const nextAction = String(data.nextAction || "").trim().slice(0, 360);
+  if (!headline || !nextAction) throw new Error("invalid_ai_response");
+  return {
+    headline,
+    helpingSignals: cleanList(data.helpingSignals),
+    blockingSignals: cleanList(data.blockingSignals),
+    nextAction
+  };
+}
+
+function safeSeasonAIContext(context) {
+  const out = context && typeof context === "object" ? { ...context } : {};
+  delete out.prompt;
+  return out;
+}
+
+async function loadOpenAIConfig() {
+  let apiKey = String(OPENAI_API_KEY.value() || process.env.OPENAI_API_KEY || "").trim();
+  let model = String(process.env.OPENAI_SEASONS_MODEL || process.env.OPENAI_MODEL || "").trim();
+  let source = apiKey ? "secret_manager" : "";
+  try {
+    const [settingsSnap, secretSnap] = await Promise.all([
+      db.collection("system_ai_settings").doc("default").get(),
+      db.collection("system_private_ai_secrets").doc("default").get()
+    ]);
+    const settings = settingsSnap.exists ? (settingsSnap.data() || {}) : {};
+    const secret = secretSnap.exists ? (secretSnap.data() || {}) : {};
+    if (settings.enabled === false) {
+      return { apiKey: "", model: model || "gpt-4.1-mini", source: "disabled" };
+    }
+    if (!apiKey && secret.openaiApiKey) {
+      apiKey = String(secret.openaiApiKey || "").trim();
+      source = "firestore_private";
+    }
+    if (!model && settings.openaiSeasonsModel) model = String(settings.openaiSeasonsModel || "").trim();
+  } catch (error) {
+    console.warn("[SeasonsAI] failed to load Firestore AI config", {
+      error: String(error && error.message ? error.message : error).slice(0, 180)
+    });
+  }
+  return {
+    apiKey,
+    model: model || "gpt-4.1-mini",
+    source
+  };
+}
+
 function handleCors(req, res) {
   res.set("Access-Control-Allow-Origin", req.get("Origin") || "*");
   res.set("Vary", "Origin");
@@ -1956,6 +2017,79 @@ exports.masterEmailDiagnostics = onRequest({ region: REGION }, async (req, res) 
   } catch (error) {
     const status = error.message === "forbidden" ? 403 : 401;
     return res.status(status).json({ error: error.message || "unauthorized" });
+  }
+});
+
+exports.seasonsAiRecommendation = onRequest({ region: REGION, secrets: [OPENAI_API_KEY], timeoutSeconds: 60, memory: "256MiB" }, async (req, res) => {
+  try {
+    if (handleCors(req, res)) return;
+    if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+    const decoded = await requireAuthenticatedAdmin(req);
+    const body = req.body || {};
+    const context = body.context || {};
+    if (!context || typeof context !== "object" || Array.isArray(context)) {
+      return res.status(400).json({ ok: false, error: "context_required" });
+    }
+    const aiConfig = await loadOpenAIConfig();
+    if (!aiConfig.apiKey) {
+      return res.status(503).json({ ok: false, status: "not_configured", error: "openai_not_configured" });
+    }
+
+    const prompt = String(context.prompt || [
+      "Você é um copiloto operacional para um pequeno negócio de comida.",
+      "Use apenas os dados fornecidos no contexto.",
+      "Não calcule score, meta, risco ou progresso; esses valores já vêm do BocaFood.",
+      "Não invente números, clientes, campanhas ou métricas.",
+      "Responda somente JSON válido com headline, helpingSignals, blockingSignals e nextAction."
+    ].join("\n"));
+    const safeContext = safeSeasonAIContext(context);
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${aiConfig.apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: aiConfig.model,
+        temperature: 0.25,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: prompt },
+          {
+            role: "user",
+            content: [
+              "Analise o contexto agregado da temporada abaixo.",
+              "A resposta deve ser prática, específica e curta.",
+              "Se houver executionPlan.actions, priorize essas jogadas e melhore a clareza sem criar ação inexistente.",
+              "Nunca peça para a usuária conferir dados que já estão no contexto; use os dados recebidos.",
+              JSON.stringify(safeContext)
+            ].join("\n\n")
+          }
+        ]
+      })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const message = data && data.error && data.error.message ? data.error.message : `openai_http_${response.status}`;
+      throw new Error(message);
+    }
+    const content = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+    const parsed = JSON.parse(String(content || "{}"));
+    return res.json({
+      ok: true,
+      status: "generated",
+      model: data.model || aiConfig.model,
+      configSource: aiConfig.source,
+      recommendation: validSeasonAIReading(parsed),
+      tenantId: String(body.tenantId || ""),
+      uid: decoded.uid || ""
+    });
+  } catch (error) {
+    const status = error.message === "missing_auth" ? 401 : 500;
+    console.error("[SeasonsAI] recommendation error", {
+      error: String(error && error.message ? error.message : error).slice(0, 240)
+    });
+    return res.status(status).json({ ok: false, error: error.message || "ai_recommendation_failed" });
   }
 });
 

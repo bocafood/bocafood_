@@ -264,6 +264,7 @@ Modules.Performance = (function () {
     var monthOrders = _ordersInRange(currentMonth.start, currentMonth.end);
     var monthTarget = _monthScenarioTarget();
     var actualRevenue = _sum(orders, 'value');
+    var monthRevenueTotal = _sum(monthOrders, 'value');
     var actualEntries = _sum(entries, 'effectiveValue');
     var actualExits = _sum(exits, 'effectiveValue');
     var pendingReceivables = entries.filter(function (x) { return x.kind === 'entrada' && (x.status === 'previsto' || x.status === 'parcial'); }).reduce(function (s, x) {
@@ -283,10 +284,10 @@ Modules.Performance = (function () {
     var daysLeftMonth = Math.max(0, _diffDays(today, currentMonth.end));
     var daysElapsedMonth = Math.min(_diffDays(currentMonth.start, today) + 1, currentMonth.days);
     var expectedNow = targetRevenue ? (targetRevenue / currentMonth.days) * daysElapsedMonth : 0;
-    var remainingToTarget = targetRevenue ? Math.max(0, targetRevenue - actualRevenue) : 0;
+    var remainingToTarget = targetRevenue ? Math.max(0, targetRevenue - monthRevenueTotal) : 0;
     var needPerDay = targetRevenue && daysLeftMonth ? remainingToTarget / daysLeftMonth : 0;
-    var paceProjection = targetRevenue && daysElapsedMonth ? (actualRevenue / daysElapsedMonth) * currentMonth.days : 0;
-    var progressPct = targetRevenue ? (actualRevenue / targetRevenue) * 100 : 0;
+    var paceProjection = targetRevenue && daysElapsedMonth ? (monthRevenueTotal / daysElapsedMonth) * currentMonth.days : 0;
+    var progressPct = targetRevenue ? (monthRevenueTotal / targetRevenue) * 100 : 0;
     var bestDay = _bestDay(days, orders);
     var bestChannel = _bestChannel(orders);
     var bestCategory = _bestCategory(exits);
@@ -321,6 +322,8 @@ Modules.Performance = (function () {
       scenarioLabel: scenarioLabel,
       targetRevenue: targetRevenue,
       targetProfit: targetProfit,
+      targetMonthStrength: monthTarget.strengthLabel || '',
+      targetMonthLabel: monthTarget.monthLabel || _scenarioMonthLabel(),
       scenarioCash: scenarioCash,
       actualRevenue: actualRevenue,
       actualEntries: actualEntries,
@@ -422,6 +425,7 @@ Modules.Performance = (function () {
               _chip(_scenarioMonthLabel(vm)) +
               _chip(vm.scenarioLabel) +
               _chip('Meta do mês ' + _fmtMoney(vm.targetRevenue || 0)) +
+              (vm.targetMonthStrength ? _chip(vm.targetMonthStrength) : '') +
               _chip('Sobra esperada ' + _fmtMoney(vm.targetProfit || 0)) +
             '</div>' +
           '</div>' +
@@ -495,7 +499,7 @@ Modules.Performance = (function () {
       '<section style="display:flex;flex-direction:column;gap:12px;">' +
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;">' +
           _heroMetric('Vendas realizadas', _fmtMoney(vm.actualRevenue), _trendLabel(vm.actualRevenue, prevRevenue, 'vs período anterior'), 'payments', '#8A6F5A') +
-          _heroMetric('Meta da rota', vm.targetRevenue ? _fmtMoney(vm.targetRevenue) : '—', vm.targetRevenue ? vm.scenarioLabel + ' · meta do mês' : 'Crie uma rota no Plano de Voo', 'flag', '#6C8777') +
+          _heroMetric('Meta do mês', vm.targetRevenue ? _fmtMoney(vm.targetRevenue) : '—', vm.targetRevenue ? 'considera a força do mês na rota' : 'Crie uma rota no Plano de Voo', 'flag', '#6C8777') +
           _heroMetric('Atingimento', vm.targetRevenue ? vm.progressPct.toFixed(1) + '%' : '—', vm.targetRevenue ? (vm.progressPct >= 100 ? 'Meta batida' : 'Meta da rota') : 'Sem rota ativa', 'query_stats', vm.progressPct >= 100 ? '#1F6F43' : '#B45309') +
         '</div>' +
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;">' +
@@ -1116,13 +1120,84 @@ Modules.Performance = (function () {
     }) : null;
     var routeRevenue = _num(summary.revenue != null ? summary.revenue : summary.forecastRevenue != null ? summary.forecastRevenue : 0);
     var monthRevenue = monthRow ? _num(monthRow.revenue) : 0;
-    var monthShare = routeRevenue > 0 && monthRevenue > 0 ? monthRevenue / routeRevenue : 0;
+    var monthWeight = _monthWeightFactorFromSnapshot(snap, monthIndex, monthRow);
+    var monthShare = routeRevenue > 0 && monthRevenue > 0 ? monthRevenue / routeRevenue : _monthShareFromSnapshot(snap, monthIndex);
     var routeProfit = _num(summary.profit != null ? summary.profit : 0);
+    if (!monthRevenue && routeRevenue > 0 && monthShare > 0) monthRevenue = routeRevenue * monthShare;
+    if (!monthRevenue && routeRevenue > 0) monthRevenue = routeRevenue / Math.max(1, _snapshotRouteMonthIndexes(snap).length);
+    var strength = _monthStrengthInfo(monthWeight);
     return {
       revenue: monthRevenue || routeRevenue,
       profit: monthShare > 0 ? routeProfit * monthShare : routeProfit,
-      cashFinal: _num(summary.cashFinal != null ? summary.cashFinal : 0)
+      cashFinal: _num(summary.cashFinal != null ? summary.cashFinal : 0),
+      monthFactor: monthWeight,
+      strengthLabel: strength.label,
+      monthLabel: monthRow && monthRow.label ? monthRow.label : _monthLabelFromKey(_state.scenarioMonthKey || _currentMonthKey())
     };
+  }
+
+  function _monthShareFromSnapshot(snap, monthIndex) {
+    if (!snap) return 0;
+    var indexes = _snapshotRouteMonthIndexes(snap);
+    if (indexes.indexOf(monthIndex) < 0) return 0;
+    var total = indexes.reduce(function (sum, idx) {
+      return sum + Math.max(0, _monthWeightFactorFromSnapshot(snap, idx, null));
+    }, 0);
+    if (total <= 0) return 0;
+    return Math.max(0, _monthWeightFactorFromSnapshot(snap, monthIndex, null)) / total;
+  }
+
+  function _snapshotRouteMonthIndexes(snap) {
+    if (snap && Array.isArray(snap.monthSeries) && snap.monthSeries.length) {
+      return snap.monthSeries.map(function (m) { return _num(m.monthIndex); }).filter(function (idx, pos, arr) {
+        return idx >= 0 && idx <= 11 && arr.indexOf(idx) === pos;
+      });
+    }
+    var count = Math.max(0, Math.min(12, _num(snap && snap.routeMonthCount)));
+    if (count > 0) {
+      var current = new Date().getMonth();
+      var startIdx = Math.max(0, Math.min(11, current - (count - 1)));
+      var byCount = [];
+      for (var c = 0; c < count && startIdx + c <= 11; c += 1) byCount.push(startIdx + c);
+      if (byCount.indexOf(current) < 0) byCount.push(current);
+      return byCount.sort(function (a, b) { return a - b; });
+    }
+    var start = _dateFromAny(snap && snap.periodStart);
+    var end = _dateFromAny(snap && snap.periodEnd);
+    if (start && end) {
+      var arr = [];
+      for (var i = start.getMonth(); i <= end.getMonth(); i += 1) arr.push(i);
+      return arr;
+    }
+    return [new Date().getMonth()];
+  }
+
+  function _monthWeightFactorFromSnapshot(snap, monthIndex, monthRow) {
+    var idx = Math.max(0, Math.min(11, _num(monthIndex)));
+    if (snap && Array.isArray(snap.monthWeights) && snap.monthWeights[idx] != null) return _num(snap.monthWeights[idx]) / 100;
+    if (snap && Array.isArray(snap.seasonality) && snap.seasonality[idx] != null) return _num(snap.seasonality[idx]) / 100;
+    if (monthRow && monthRow.factor != null) {
+      var scenario = _scenarioFactor(snap && snap.scenario);
+      return scenario > 0 ? _num(monthRow.factor) / scenario : _num(monthRow.factor);
+    }
+    return 1;
+  }
+
+  function _scenarioFactor(value) {
+    var key = _normalizeText(value || '');
+    if (key === 'survival') return 0.9;
+    if (key === 'growth') return 2;
+    if (key === 'expansion') return 3;
+    return 1;
+  }
+
+  function _monthStrengthInfo(factor) {
+    var n = _num(factor);
+    var score = n <= 0 ? 0 : Math.max(1, Math.min(10, Math.round(n * 5)));
+    if (!score) return { score: 0, label: 'Mês fora da rota' };
+    if (score <= 3) return { score: score, label: 'Força do mês ' + score + '/10' };
+    if (score <= 6) return { score: score, label: 'Força do mês ' + score + '/10' };
+    return { score: score, label: 'Força do mês ' + score + '/10' };
   }
 
   function _monthIndexFromKey(key) {
@@ -1443,6 +1518,13 @@ Modules.Performance = (function () {
     if (!ts) return null;
     var d = new Date(ts);
     return isFinite(d.getTime()) ? d : null;
+  }
+
+  function _dateFromAny(value) {
+    if (!value) return null;
+    if (value instanceof Date) return isFinite(value.getTime()) ? value : null;
+    if (typeof value.toDate === 'function') return value.toDate();
+    return _dateFromTs(_ts(value));
   }
 
   function _dateKey(date) {

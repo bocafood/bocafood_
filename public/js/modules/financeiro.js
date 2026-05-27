@@ -774,14 +774,7 @@ Modules.Financeiro = (function () {
     var recentes = _visaoMovContaData().slice().sort(function (a, b) { return (b.data || '').localeCompare(a.data || ''); }).slice(0, 6);
     var contasVisao = _visaoPessoasMov();
     var contaSel = _visaoContaSelecionada();
-    var periodoLabel = (_VISAO_PERIODOS.find(function (p) { return p.value === _visaoFiltro.periodo; }) || {}).label || 'Todo período';
-    var showCustom = _visaoFiltro.periodo === 'personalizado';
     var cardStyle = 'background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:18px 20px;box-shadow:0 12px 30px rgba(31,31,31,.055);';
-    var inputStyle = 'width:100%;box-sizing:border-box;padding:0 12px;border:1px solid #E8DCD7;border-radius:12px;background:#FFFCF8;color:#1F1F1F;font-size:14px;font-weight:400;font-family:inherit;outline:none;height:42px;';
-    var selectStyle = inputStyle + 'appearance:none;-webkit-appearance:none;background-color:#FFFCF8;background-image:linear-gradient(45deg,transparent 50%,#8A7E7C 50%),linear-gradient(135deg,#8A7E7C 50%,transparent 50%);background-position:calc(100% - 18px) 18px,calc(100% - 13px) 18px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:36px;';
-    var labelStyle = 'font-size:11px;font-weight:650;color:#6F6860;letter-spacing:.04em;text-transform:uppercase;display:block;margin-bottom:6px;';
-    var hasVisaoFilter = _visaoFiltro.periodo !== 'todos' || !!_visaoFiltro.inicio || !!_visaoFiltro.fim || _visaoFiltro.conta !== 'todas';
-    var chip = function (txt) { return '<span style="display:inline-flex;align-items:center;min-height:24px;padding:0 10px;border-radius:999px;background:#fff;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:500;box-shadow:0 1px 2px rgba(31,31,31,.02);">'+_esc(txt)+'</span>'; };
     var sectionTitle = function (title, desc, icon) {
       return '<div style="margin-bottom:14px;display:flex;align-items:flex-start;gap:10px;">'+
         (icon ? '<span class="mi" style="width:31px;height:31px;border-radius:12px;background:#FAF8F4;color:#8A6F5A;display:inline-flex;align-items:center;justify-content:center;font-size:17px;flex:0 0 auto;">'+_esc(icon)+'</span>' : '')+
@@ -813,49 +806,22 @@ Modules.Financeiro = (function () {
     };
     var healthBg = resumo.saude === 'Crítica' ? '#FFF0EE' : (resumo.saude === 'Atenção' ? '#FFF7E6' : '#EDFAF3');
     var healthFg = resumo.saude === 'Crítica' ? '#B42318' : (resumo.saude === 'Atenção' ? '#B45309' : '#1F6F43');
-    var contasSelect = '<select onchange="Modules.Financeiro._setVisaoFiltro(\'conta\',this.value)" style="'+selectStyle+'">'+
-      '<option value="todas"'+(_visaoFiltro.conta==='todas'?' selected':'')+'>Todas as contas</option>'+
-      _visaoContasAtivas().map(function (c) {
-        return '<option value="'+_esc(c.id)+'"'+(_visaoFiltro.conta===c.id?' selected':'')+'>'+_esc(c.nome||'Conta')+'</option>';
-      }).join('')+
-    '</select>';
     content.innerHTML=
       '<div style="display:flex;flex-direction:column;gap:16px;">'+
       '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">'+
         '<div style="min-width:0;flex:1 1 420px;">'+
           '<h2 style="font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;line-height:1.15;">Visão Geral</h2>'+
-          '<p style="font-size:13px;color:#6F6860;line-height:1.5;margin:0;max-width:760px;">Veja o saldo, o desempenho do período e as contas ativas com filtros por período e conta bancária.</p>'+
+          '<p style="font-size:13px;color:#6F6860;line-height:1.5;margin:0;max-width:760px;">Veja o saldo, o desempenho do período e os principais sinais do financeiro.</p>'+
         '</div>'+
       '</div>'+
       '<section style="'+cardStyle+'">'+
-        '<div style="display:flex;justify-content:flex-end;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:14px;">'+
-          '<div style="display:flex;align-items:flex-start;gap:10px;min-width:240px;max-width:360px;background:'+healthBg+';color:'+healthFg+';border-radius:14px;padding:12px 14px;">'+
-            '<span class="mi" style="font-size:22px;margin-top:1px;">'+(resumo.saude === 'Saudável' ? 'verified' : 'warning')+'</span>'+
-            '<div>'+
-              '<div style="font-size:12px;font-weight:600;line-height:1.2;margin-bottom:3px;">Saúde financeira</div>'+
-              '<div style="font-size:15px;font-weight:700;line-height:1.25;margin-bottom:3px;">'+_esc(resumo.saude)+'</div>'+
-              '<div style="font-size:12px;line-height:1.4;">'+_esc(resumo.saudeText)+'</div>'+
-            '</div>'+
+        '<div style="display:flex;align-items:flex-start;gap:12px;background:'+healthBg+';color:'+healthFg+';border-radius:15px;padding:14px 16px;">'+
+          '<span class="mi" style="font-size:23px;margin-top:1px;">'+(resumo.saude === 'Saudável' ? 'verified' : 'warning')+'</span>'+
+          '<div style="min-width:0;">'+
+            '<div style="font-size:12px;font-weight:600;line-height:1.2;margin-bottom:4px;">Saúde financeira</div>'+
+            '<div style="font-size:16px;font-weight:700;line-height:1.25;margin-bottom:4px;">'+_esc(resumo.saude)+'</div>'+
+            '<div style="font-size:13px;line-height:1.45;">'+_esc(resumo.saudeText)+'</div>'+
           '</div>'+
-        '</div>'+
-        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),max-content));gap:12px;align-items:end;justify-content:start;">'+
-          '<div><label style="'+labelStyle+'">Período</label><select id="visao-periodo" onchange="Modules.Financeiro._setVisaoFiltro(\'periodo\',this.value)" style="'+selectStyle+'">'+
-            _VISAO_PERIODOS.map(function (p) { return '<option value="'+p.value+'"'+(_visaoFiltro.periodo===p.value?' selected':'')+'>'+p.label+'</option>'; }).join('')+
-          '</select></div>'+
-          '<div><label style="'+labelStyle+'">Conta Bancária</label>'+contasSelect+'</div>'+
-          (hasVisaoFilter ? '<div style="display:flex;align-items:flex-end;"><button onclick="Modules.Financeiro._limparVisaoFiltros()" style="height:38px;padding:0 14px;border:1px solid #E8DCD7;border-radius:12px;font-size:12.5px;font-weight:600;color:#B42318;background:#fff;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);">Limpar filtros</button></div>' : '')+
-        '</div>'+
-        (showCustom
-          ? '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),170px));gap:12px;margin-top:12px;max-width:360px;">'+
-              '<div><label style="'+labelStyle+'">Data inicial</label><input type="date" value="'+_esc(_visaoFiltro.inicio||'')+'" onchange="Modules.Financeiro._setVisaoFiltro(\'inicio\',this.value)" style="'+inputStyle+'"></div>'+
-              '<div><label style="'+labelStyle+'">Data final</label><input type="date" value="'+_esc(_visaoFiltro.fim||'')+'" onchange="Modules.Financeiro._setVisaoFiltro(\'fim\',this.value)" style="'+inputStyle+'"></div>'+
-            '</div>'
-          : '')+
-        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">'+
-          chip(periodoLabel)+
-          chip(contaSel ? contaSel.nome : 'Todas as contas')+
-          chip(contasVisao.length+' conta(s)')+
-          chip(recentes.length+' movimento(s) recentes')+
         '</div>'+
       '</section>'+
       '<section style="display:flex;flex-direction:column;gap:12px;">'+
@@ -2226,7 +2192,7 @@ Modules.Financeiro = (function () {
       '<div style="font-size:12px;font-weight:800;color:#1F1F1F;margin-bottom:4px;">Dados do recebimento</div>'+
       '<div style="font-size:12px;color:#6F6860;line-height:1.4;margin-bottom:12px;">Confirme valor, data e conta de destino.</div>'+
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;">'+
-        '<div><label style="'+_lbl()+'">Valor recebido *</label><input id="mov-ef-valor" type="text" value="'+_esc(total)+'" style="'+_inp()+'"></div>'+
+        '<div style="max-width:170px;"><label style="'+_lbl()+'">Valor recebido *</label><div style="display:grid;grid-template-columns:34px minmax(0,1fr);align-items:center;border:1px solid #EAE4DA;border-radius:10px;background:#fff;overflow:hidden;height:40px;"><span style="height:40px;display:flex;align-items:center;justify-content:center;background:#FFFCF8;color:#6F6860;font-size:13px;font-weight:600;border-right:1px solid #EAE4DA;">€</span><input id="mov-ef-valor" type="text" inputmode="decimal" value="'+_esc(_fmtVal(total).replace('€ ',''))+'" style="width:100%;height:40px;box-sizing:border-box;padding:9px 10px;border:0;background:#fff;color:#1F1F1F;font-size:14px;font-weight:400;font-family:inherit;outline:none;text-align:right;"></div></div>'+
         '<div><label style="'+_lbl()+'">Data de recebimento *</label><input id="mov-ef-data" type="date" value="'+_today()+'" style="'+_inp()+'"></div>'+
         '<div><label style="'+_lbl()+'">Conta de destino *</label><select id="mov-ef-conta" style="'+_inp()+'background:#fff;">'+contaOpts+'</select></div>'+
       '</div>'+

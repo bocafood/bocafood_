@@ -13,6 +13,7 @@ Modules.Configuracoes = (function () {
   var _masterTenantControl = {};
   var _publicationProducts = [];
   var _publicationCategories = [];
+  var _financeCategories = [];
 
   var TABS = [
     { key: 'geral', label: 'Geral' },
@@ -188,18 +189,21 @@ Modules.Configuracoes = (function () {
   function _load() {
     var tenantPromise = _loadSystemTenant().catch(function () { return {}; });
     var masterTenantPromise = _loadMasterTenantControl().catch(function () { return {}; });
-    return Promise.all(CONFIG_TABS.map(function (k) { return DB.getDocRoot('config', k); }).concat([tenantPromise, masterTenantPromise]))
+    var financeCategoriesPromise = DB.getAll ? DB.getAll('financeiro_categorias').catch(function () { return []; }) : Promise.resolve([]);
+    return Promise.all(CONFIG_TABS.map(function (k) { return DB.getDocRoot('config', k); }).concat([tenantPromise, masterTenantPromise, financeCategoriesPromise]))
       .then(function (docs) {
         _config = {};
         CONFIG_TABS.forEach(function (k, i) { _config[k] = docs[i] || {}; });
         _systemTenant = docs[CONFIG_TABS.length] || {};
         _masterTenantControl = docs[CONFIG_TABS.length + 1] || _systemTenant || {};
+        _financeCategories = docs[CONFIG_TABS.length + 2] || [];
       })
       .catch(function (err) {
         console.error('Config load error', err);
         _config = {};
         _systemTenant = {};
         _masterTenantControl = {};
+        _financeCategories = [];
       });
   }
 
@@ -1577,18 +1581,24 @@ Modules.Configuracoes = (function () {
 
   function _renderCanaisVenda() {
     var c = _config.canais_venda || {};
-    var list = (Array.isArray(c.list) ? c.list : []).filter(function (ch) { return !_isSystemChannel(ch); });
+    var list = _mergeFixedChannels(Array.isArray(c.list) ? c.list : []);
     var inputStyle = 'width:100%;height:42px;border:1px solid #E8DCD7;border-radius:12px;background:#FFFCF8;padding:0 12px;color:#2F2523;font-size:14px;outline:none;box-sizing:border-box;';
+    var selectStyle = inputStyle + 'appearance:none;-webkit-appearance:none;-moz-appearance:none;padding-right:38px;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 14px center;background-size:14px;';
     var labelStyle = 'display:block;font-size:11px;font-weight:600;color:#6F6860;letter-spacing:.02em;margin:0 0 6px;';
     var rows = list.map(function (ch, idx) {
-      return '<div class="channel-row" data-channel-row="' + idx + '" style="display:grid;grid-template-columns:minmax(180px,1fr) 38px;gap:10px;align-items:end;background:linear-gradient(180deg,#FFFFFF 0%,#FFFCF8 100%);border:1px solid #EADFD8;border-radius:14px;padding:12px;box-shadow:0 10px 24px rgba(47,37,35,.045);">' +
+      var system = _isSystemChannel(ch);
+      return '<div class="channel-row" data-channel-row="' + idx + '" style="display:grid;grid-template-columns:minmax(170px,1fr) minmax(220px,330px) 38px;gap:10px;align-items:end;background:linear-gradient(180deg,#FFFFFF 0%,#FFFCF8 100%);border:1px solid #EADFD8;border-radius:14px;padding:12px;box-shadow:0 10px 24px rgba(47,37,35,.045);">' +
         '<label style="min-width:0;">' +
           '<span style="' + labelStyle + '">Canal de venda</span>' +
-          '<input id="ch-name-' + idx + '" type="text" value="' + _esc(ch.name || '') + '" placeholder="Ex.: Instagram, marketplace, app de entrega" style="' + inputStyle + '">' +
+          '<input id="ch-name-' + idx + '" type="text" value="' + _esc(ch.name || '') + '" placeholder="Ex.: Instagram, marketplace, app de entrega" ' + (system ? 'readonly' : '') + ' style="' + inputStyle + (system ? 'background:#FAF8F4;color:#6F6860;' : '') + '">' +
         '</label>' +
-        '<button class="bf-btn bf-btn-danger" type="button" onclick="Modules.Configuracoes._removeCanalVenda(' + idx + ')" title="Remover canal" style="width:38px;min-height:42px;height:42px;padding:0;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;">' +
+        '<label style="min-width:0;">' +
+          '<span style="' + labelStyle + '">Categoria de entrada</span>' +
+          '<select id="ch-income-category-' + idx + '" style="' + selectStyle + '">' + _entradaCategoryOptions(_channelIncomeCategoryId(ch) || _channelIncomeCategoryName(ch)) + '</select>' +
+        '</label>' +
+        (system ? '<span title="Canal fixo do BocaFood" style="width:38px;height:42px;border-radius:12px;background:#F0FAF4;color:#1F6F43;display:inline-flex;align-items:center;justify-content:center;"><span class="mi" style="font-size:18px;">lock</span></span>' : '<button class="bf-btn bf-btn-danger" type="button" onclick="Modules.Configuracoes._removeCanalVenda(' + idx + ')" title="Remover canal" style="width:38px;min-height:42px;height:42px;padding:0;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;">' +
           '<span class="mi" style="font-size:18px;">delete_outline</span>' +
-        '</button>' +
+        '</button>') +
       '</div>';
     }).join('');
     var content = document.getElementById('config-content');
@@ -1603,7 +1613,7 @@ Modules.Configuracoes = (function () {
         '</div>' +
         '<div style="display:flex;gap:10px;align-items:flex-start;background:#FFF7F2;border:1px solid #F0DED5;border-radius:14px;padding:12px 14px;margin-bottom:14px;color:#5D504B;font-size:13px;line-height:1.45;">' +
           '<span class="mi" style="font-size:18px;color:#A84A3E;line-height:1.2;">info</span>' +
-          '<span>Cardápio e Venda presencial já fazem parte do BocaFood. Cadastre aqui apenas canais adicionais.</span>' +
+          '<span>Defina por onde a venda chega e em qual categoria financeira essa entrada deve aparecer. Cardápio e Venda presencial são canais fixos do BocaFood.</span>' +
         '</div>' +
         '<div id="channels-list" style="display:grid;grid-template-columns:1fr;gap:10px;">' + (rows || '<div style="text-align:center;padding:34px 20px;color:#7C706B;font-size:14px;line-height:1.45;background:#FFFCF8;border:1px dashed #E4D4CC;border-radius:14px;"><strong style="display:block;color:#443836;font-size:14px;margin-bottom:4px;">Nenhum canal adicional cadastrado.</strong>Adicione apenas se sua loja vender por outro canal além do Cardápio e da Venda presencial.</div>') + '</div>' +
         '<div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;align-items:center;justify-content:space-between;">' +
@@ -1620,19 +1630,21 @@ Modules.Configuracoes = (function () {
       var idx = row.dataset.channelRow;
       var name = _val('ch-name-' + idx).trim().replace(/\s+/g, ' ');
       var prev = existing.find(function (ch) { return _normChannelName(ch.name) === _normChannelName(name); }) || {};
-      return {
+      var cat = _findEntradaCategory(_val('ch-income-category-' + idx));
+      return Object.assign({
         name: name,
         commissionPct: parseFloat(String(prev.commissionPct || '0').replace(',', '.')) || 0,
         fixedFee: parseFloat(String(prev.fixedFee || '0').replace(',', '.')) || 0,
         taxPct: parseFloat(String(prev.taxPct || '0').replace(',', '.')) || 0,
         minMarginPct: parseFloat(String(prev.minMarginPct || '0').replace(',', '.')) || 0,
-        differentPrice: !!prev.differentPrice
-      };
-    }).filter(function (ch) { return !!ch.name && !_isSystemChannel(ch); });
+        differentPrice: !!prev.differentPrice,
+        locked: _isSystemChannel({ name: name }) || !!prev.locked
+      }, _incomeCategoryFields(cat));
+    }).filter(function (ch) { return !!ch.name; });
   }
 
   function _saveCanaisVenda() {
-    var data = { list: _fixedChannels().concat(_collectCanaisVenda()) };
+    var data = { list: _mergeFixedChannels(_collectCanaisVenda()) };
     DB.setDocRoot('config', 'canais_venda', data).then(function () {
       _config.canais_venda = data;
       UI.toast('Canais salvos', 'success');
@@ -1647,8 +1659,12 @@ Modules.Configuracoes = (function () {
 
   function _removeCanalVenda(idx) {
     var list = _collectCanaisVenda();
+    if (_isSystemChannel(list[idx])) {
+      UI.toast('Esse canal é fixo do BocaFood.', 'info');
+      return;
+    }
     list.splice(idx, 1);
-    _config.canais_venda = { list: list };
+    _config.canais_venda = { list: _mergeFixedChannels(list) };
     _renderCanaisVenda();
   }
 
@@ -2550,10 +2566,85 @@ Modules.Configuracoes = (function () {
     ];
   }
 
+  function _mergeFixedChannels(current) {
+    current = Array.isArray(current) ? current : [];
+    var custom = current.filter(function (ch) { return ch && !_isSystemChannel(ch); });
+    var fixed = _fixedChannels().map(function (base) {
+      var prev = current.find(function (ch) { return _normChannelName(ch && ch.name) === _normChannelName(base.name) || (_isCardapioChannel(base) && _isCardapioChannel(ch)) || (_isTpvChannel(base) && _isTpvChannel(ch)); }) || {};
+      return Object.assign({}, base, _incomeCategoryFields({
+        id: _channelIncomeCategoryId(prev),
+        nome: _channelIncomeCategoryName(prev)
+      }), { locked: true });
+    });
+    return fixed.concat(custom);
+  }
+
+  function _entradaCategories() {
+    return (_financeCategories || []).filter(function (cat) {
+      return cat && String(cat.tipo || cat.type || '').toLowerCase() === 'entrada';
+    }).sort(function (a, b) {
+      return String(a.nome || a.name || '').localeCompare(String(b.nome || b.name || ''), 'pt', { sensitivity: 'base' });
+    });
+  }
+
+  function _channelIncomeCategoryId(channel) {
+    channel = channel || {};
+    return String(channel.entradaCategoriaId || channel.incomeCategoryId || channel.categoriaEntradaId || channel.financialCategoryId || channel.categoriaFinanceiraId || channel.categoryId || '').trim();
+  }
+
+  function _channelIncomeCategoryName(channel) {
+    channel = channel || {};
+    return String(channel.entradaCategoriaNome || channel.incomeCategoryName || channel.categoriaEntradaNome || channel.financialCategoryName || channel.categoriaFinanceiraNome || channel.categoryName || '').trim();
+  }
+
+  function _findEntradaCategory(value) {
+    var raw = String(value || '').trim();
+    var folded = _normChannelName(raw);
+    if (!raw) return null;
+    return _entradaCategories().find(function (cat) {
+      return String(cat.id || '') === raw || _normChannelName(cat.nome || cat.name || '') === folded;
+    }) || null;
+  }
+
+  function _incomeCategoryFields(category) {
+    var id = String(category && (category.id || category.value) || '').trim();
+    var name = String(category && (category.nome || category.name || category.label || category.title) || '').trim();
+    return {
+      entradaCategoriaId: id,
+      entradaCategoriaNome: name,
+      incomeCategoryId: id,
+      incomeCategoryName: name,
+      categoriaEntradaId: id,
+      categoriaEntradaNome: name,
+      financialCategoryId: id,
+      financialCategoryName: name,
+      categoriaFinanceiraId: id,
+      categoriaFinanceiraNome: name
+    };
+  }
+
+  function _entradaCategoryOptions(selected) {
+    var current = String(selected || '').trim();
+    var currentFold = _normChannelName(current);
+    var matched = !current;
+    var options = '<option value="">Sem categoria vinculada</option>';
+    options += _entradaCategories().map(function (cat) {
+      var id = String(cat.id || '');
+      var name = String(cat.nome || cat.name || 'Categoria');
+      var isSelected = current && (current === id || currentFold === _normChannelName(name));
+      if (isSelected) matched = true;
+      var selectedAttr = isSelected ? ' selected' : '';
+      return '<option value="' + _esc(id) + '"' + selectedAttr + '>' + _esc(name) + '</option>';
+    }).join('');
+    if (current && !matched) {
+      options += '<option value="' + _esc(current) + '" selected>' + _esc(current) + '</option>';
+    }
+    return options;
+  }
+
   function _ensureFixedChannels() {
     var current = (_config.canais_venda && Array.isArray(_config.canais_venda.list)) ? _config.canais_venda.list : [];
-    var custom = current.filter(function (ch) { return !_isSystemChannel(ch); });
-    var data = { list: _fixedChannels().concat(custom) };
+    var data = { list: _mergeFixedChannels(current) };
     _config.canais_venda = data;
     DB.setDocRoot('config', 'canais_venda', data).catch(function (err) {
       console.error('Venda presencial channel sync error', err);

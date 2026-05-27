@@ -1234,12 +1234,12 @@ Modules.Pedidos = (function () {
   }
 
   function _channelNames() {
-    var names = ['Cardápio', 'Loja própria', 'WhatsApp'];
+    var names = [];
     (_canais || []).forEach(function (c) {
       var name = c && (c.name || c.nome || c.label);
       if (name && names.indexOf(name) < 0) names.push(name);
     });
-    return names;
+    return names.length ? names : ['Cardápio', 'Venda presencial'];
   }
 
   function _reviewFilterLabel(v) {
@@ -4113,6 +4113,7 @@ Modules.Pedidos = (function () {
     var context = _orderContext();
     var channel = _manualOrderState.channel || context.channel || 'manual';
     var source = _manualOrderState.source || context.source || channel || 'manual';
+    var channelCategory = _channelIncomeCategoryMeta(_salesChannelByName(channel) || _salesChannelByName(source) || {});
     var selectedCustomer = _manualOrderSelectedCustomer();
     var customerFiscal = Object.assign({}, (selectedCustomer && selectedCustomer.fiscal) || {});
     var customerDocument = _firstText(
@@ -4304,6 +4305,16 @@ Modules.Pedidos = (function () {
         source: source,
         originChannel: channel,
         originSource: source,
+        entradaCategoriaId: channelCategory.id,
+        entradaCategoriaNome: channelCategory.name,
+        incomeCategoryId: channelCategory.id,
+        incomeCategoryName: channelCategory.name,
+        categoriaEntradaId: channelCategory.id,
+        categoriaEntradaNome: channelCategory.name,
+        financialCategoryId: channelCategory.id,
+        financialCategoryName: channelCategory.name,
+        categoriaFinanceiraId: channelCategory.id,
+        categoriaFinanceiraNome: channelCategory.name,
         kitchenQueue: showInKitchen,
         showInKitchen: showInKitchen,
         kitchenStatus: showInKitchen ? 'Pendente' : '',
@@ -5519,33 +5530,25 @@ Modules.Pedidos = (function () {
   }
 
   function _manualOrderChannelOptions(selected) {
-    var base = [
-      { value: 'cardapio', label: 'Cardápio' },
-      { value: 'Venda presencial', label: 'Venda presencial' },
-      { value: 'whatsapp', label: 'WhatsApp' },
-      { value: 'manual', label: 'Manual' }
-    ];
     var seen = {};
     var options = [];
-    base.forEach(function (item) {
-      var key = _fold(item.value);
-      if (seen[key]) return;
-      seen[key] = true;
-      options.push(item);
-    });
     (_canais || []).forEach(function (c) {
       if (!c || c.active === false || c.ativo === false || c.enabled === false) return;
       var name = _firstText(c.name, c.nome, c.label, c.title, '');
       if (!name) return;
-      var key = _fold(name);
+      var key = _channelAliasKey(name);
       if (seen[key]) return;
       seen[key] = true;
-      options.push({ value: name, label: name });
+      options.push({ value: key === 'cardapio' ? 'cardapio' : (key === 'venda-presencial' ? 'Venda presencial' : name), label: _salesChannelDisplayName(name) });
     });
-    var selectedKey = _fold(selected || '');
+    if (!options.length) options = [
+      { value: 'cardapio', label: 'Cardápio' },
+      { value: 'Venda presencial', label: 'Venda presencial' }
+    ];
+    var selectedKey = _channelAliasKey(selected || '');
     return options.map(function (item) {
       var value = String(item.value || '');
-      return '<option value="' + _esc(value) + '"' + (selectedKey === _fold(value) ? ' selected' : '') + '>' + _esc(item.label || value) + '</option>';
+      return '<option value="' + _esc(value) + '"' + (selectedKey === _channelAliasKey(value) ? ' selected' : '') + '>' + _esc(item.label || value) + '</option>';
     }).join('');
   }
 
@@ -5760,6 +5763,7 @@ Modules.Pedidos = (function () {
     var paymentStatus = String(data.paymentStatus || 'pago');
     var paymentMethod = String(data.paymentMethod || '');
     var paidAmount = paymentStatus === 'pago' ? total : _num(data.paidAmount || 0);
+    var channelCategory = _channelIncomeCategoryMeta(_salesChannelByName('Venda presencial') || _salesChannelByName('TPV') || {});
     var payload = {
       customerId: String(data.customerId || ''),
       customerName: String(data.customerName || 'Cliente balcão'),
@@ -5799,6 +5803,16 @@ Modules.Pedidos = (function () {
       source: 'TPV',
       originChannel: 'TPV',
       originSource: 'TPV',
+      entradaCategoriaId: channelCategory.id,
+      entradaCategoriaNome: channelCategory.name,
+      incomeCategoryId: channelCategory.id,
+      incomeCategoryName: channelCategory.name,
+      categoriaEntradaId: channelCategory.id,
+      categoriaEntradaNome: channelCategory.name,
+      financialCategoryId: channelCategory.id,
+      financialCategoryName: channelCategory.name,
+      categoriaFinanceiraId: channelCategory.id,
+      categoriaFinanceiraNome: channelCategory.name,
       cashSessionId: String(data.cashSessionId || ''),
       caixaId: String(data.cashSessionId || ''),
       cashAccountId: String(data.cashAccountId || (_tpvConfig && _tpvConfig.cashAccountId) || ''),
@@ -6312,12 +6326,69 @@ Modules.Pedidos = (function () {
 
   function _normalizeCanais(raw) {
     var list = raw && Array.isArray(raw.list) ? raw.list : [];
-    var names = ['Cardápio', 'Loja própria', 'WhatsApp'];
+    var items = [
+      { name: 'Cardápio', locked: true },
+      { name: 'Venda presencial', locked: true }
+    ];
+    var seen = {};
+    items.forEach(function (item) { seen[_channelAliasKey(item.name)] = true; });
     list.forEach(function (c) {
       var name = c && (c.name || c.nome || c.label);
-      if (name && names.indexOf(name) < 0) names.push(name);
+      if (!name || c.active === false || c.ativo === false || c.enabled === false) return;
+      var key = _channelAliasKey(name);
+      var normalized = Object.assign({}, c, { name: _salesChannelDisplayName(name) });
+      var existingIdx = items.findIndex(function (item) { return _channelAliasKey(item.name) === key; });
+      if (existingIdx >= 0) items[existingIdx] = Object.assign({}, normalized, { name: items[existingIdx].name, locked: items[existingIdx].locked || !!c.locked });
+      else if (!seen[key]) {
+        seen[key] = true;
+        items.push(normalized);
+      }
     });
-    return names.map(function (name) { return { name: name }; });
+    return items;
+  }
+
+  function _channelAliasKey(value) {
+    var key = _fold(value || '').replace(/\s+/g, ' ').trim();
+    if (key === 'tpv' || key === 'venda presencial' || key === 'venda-presencial') return 'venda-presencial';
+    if (key === 'cardapio' || key === 'cardápio' || key === 'template' || key === 'store' || key === 'storefront' || key === 'loja online' || key === 'loja-online' || key === 'public') return 'cardapio';
+    return key;
+  }
+
+  function _salesChannelDisplayName(value) {
+    var key = _channelAliasKey(value);
+    if (key === 'cardapio') return 'Cardápio';
+    if (key === 'venda-presencial') return 'Venda presencial';
+    return _firstText(value && value.name, value && value.nome, value && value.label, value, '');
+  }
+
+  function _salesChannelByName(value) {
+    var key = _channelAliasKey(value);
+    return (_canais || []).find(function (ch) {
+      return _channelAliasKey(_firstText(ch.name, ch.nome, ch.label, ch.key, '')) === key;
+    }) || null;
+  }
+
+  function _channelIncomeCategoryMeta(channel) {
+    channel = channel || {};
+    var id = _firstText(channel.entradaCategoriaId, channel.incomeCategoryId, channel.categoriaEntradaId, channel.financialCategoryId, channel.categoriaFinanceiraId, channel.categoryId, '');
+    var name = _firstText(channel.entradaCategoriaNome, channel.incomeCategoryName, channel.categoriaEntradaNome, channel.financialCategoryName, channel.categoriaFinanceiraNome, channel.categoryName, '');
+    return { id: String(id || '').trim(), name: String(name || '').trim() };
+  }
+
+  function _orderIncomeCategoryMeta(order) {
+    order = order || {};
+    var direct = _channelIncomeCategoryMeta(order);
+    if (direct.id || direct.name) return direct;
+    var channel = _salesChannelByName(_firstText(order.channel, order.source, order.originChannel, order.originSource, ''));
+    return _channelIncomeCategoryMeta(channel || {});
+  }
+
+  function _orderChannelMeta(order) {
+    order = order || {};
+    var raw = _firstText(order.channel, order.source, order.originChannel, order.originSource, '');
+    var channel = _salesChannelByName(raw) || {};
+    var label = _salesChannelDisplayName(_firstText(channel.name, raw, ''));
+    return { raw: raw, label: label, channel: channel };
   }
 
   function _paymentMethodLabel(value) {
@@ -6463,6 +6534,8 @@ Modules.Pedidos = (function () {
       ? (_firstText(order.deliveryDate, order.deliveryDateISO, order.scheduleDate, order.createdAt, _today()))
       : (_firstText(order.paidAt, order.updatedAt, order.createdAt, _today())));
     var financeAccountId = _orderFinanceAccountId(order);
+    var channelMeta = _orderChannelMeta(order);
+    var incomeCategory = _orderIncomeCategoryMeta(order);
     var payload = {
       origem: 'pedido',
       pedidoId: orderId,
@@ -6479,6 +6552,9 @@ Modules.Pedidos = (function () {
       forma_pagamento: _paymentMethodLabel(order.paymentMethod || ''),
       paymentMethod: String(order.paymentMethod || ''),
       paymentStatus: paymentStatus,
+      channel: String(channelMeta.raw || ''),
+      salesChannel: String(channelMeta.label || ''),
+      canalVenda: String(channelMeta.label || ''),
       customerId: String(order.customerId || order.clientId || ''),
       pessoaId: String(order.customerId || order.clientId || ''),
       pessoaNome: String(order.customerName || order.clientName || order.name || ''),
@@ -6489,6 +6565,15 @@ Modules.Pedidos = (function () {
     if (financeAccountId) {
       payload.conta_id = financeAccountId;
       payload.contaBancariaId = financeAccountId;
+    }
+    if (incomeCategory.id || incomeCategory.name) {
+      payload.categoria = String(incomeCategory.name || '');
+      payload.categoriaId = String(incomeCategory.id || '');
+      payload.categoriaFinanceiraId = String(incomeCategory.id || '');
+      payload.categoriaFinanceiraNome = String(incomeCategory.name || '');
+      payload.categoriaFinanceiraTipo = 'entrada';
+      payload.categoriaFinanceiraNatureza = 'receita';
+      payload.financialNature = 'receita';
     }
     if (order.financeMovementId) {
       return DB.update('movimentacoes', order.financeMovementId, payload).then(function () { return true; }).catch(function () { return false; });

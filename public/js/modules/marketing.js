@@ -2924,6 +2924,136 @@ Modules.Marketing = (function () {
     else if (key === 'avaliacoes') _renderAvaliacoes();
   }
 
+  function _seasonActionDraftFor(type) {
+    try {
+      var raw = window.sessionStorage ? window.sessionStorage.getItem('bocafoodSeasonActionDraft') : '';
+      var draft = raw ? JSON.parse(raw) : null;
+      if (!draft || !draft.seasonId || !draft.seasonActionId) return null;
+      if (type && String(draft.type || '') !== String(type || '')) return null;
+      return draft;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  function _markSeasonActionDraftOpened(type) {
+    var draft = _seasonActionDraftFor(type);
+    if (!draft || draft.openedAt) return null;
+    draft.openedAt = new Date().toISOString();
+    try { window.sessionStorage.setItem('bocafoodSeasonActionDraft', JSON.stringify(draft)); } catch (err) {}
+    return draft;
+  }
+
+  function _clearSeasonActionDraft(type) {
+    var draft = _seasonActionDraftFor(type);
+    if (!draft) return;
+    try { window.sessionStorage.removeItem('bocafoodSeasonActionDraft'); } catch (err) {}
+  }
+
+  function _consumeSeasonActionDraftFor(type) {
+    var draft = _markSeasonActionDraftOpened(type);
+    if (!draft) return;
+    setTimeout(function () {
+      if (type === 'promotion') _openPromoModal(null, 'edit');
+      else if (type === 'coupon') _openCuponModal(null, 'edit');
+      else if (type === 'upsell') {
+        _upsellTab = 'sugestoes';
+        _paintUpsell();
+        setTimeout(function () { _openUpsellModal(null, 'edit'); }, 80);
+      }
+      UI.toast('Jogada da temporada vinculada. Ao salvar, o BocaFood guarda essa ação no histórico da Temporada.', 'info');
+    }, 120);
+  }
+
+  function _decorateSeasonActionPayload(data, type) {
+    var draft = _seasonActionDraftFor(type);
+    if (!draft) return data;
+    return Object.assign({}, data, {
+      createdFromSeasonAction: true,
+      seasonId: draft.seasonId || '',
+      seasonActionId: draft.seasonActionId || '',
+      seasonActionType: type || '',
+      seasonActionTitle: draft.title || '',
+      seasonActionSource: draft.source || '',
+      seasonActionProductKey: draft.productKey || '',
+      seasonActionFocusKey: draft.focusKey || ''
+    });
+  }
+
+  function _linkSeasonActionDraft(type, ref, collection, label) {
+    var draft = _seasonActionDraftFor(type);
+    var id = ref && (ref.id || ref._key || ref.path && ref.path.split('/').pop && ref.path.split('/').pop()) || '';
+    if (!draft || !draft.seasonId || !draft.seasonActionId || !id || !window.DB || typeof DB.get !== 'function' || typeof DB.update !== 'function') {
+      _clearSeasonActionDraft(type);
+      return Promise.resolve(null);
+    }
+    return DB.get('seasons', draft.seasonId).then(function (season) {
+      if (!season) return null;
+      var tasks = Array.isArray(season.actionTasks) ? season.actionTasks.slice() : [];
+      var changed = false;
+      tasks = tasks.map(function (task) {
+        if (!task || String(task.actionId || '') !== String(draft.seasonActionId || '')) return task;
+        changed = true;
+        var evidenceList = Array.isArray(task.executionEvidence) ? task.executionEvidence.slice() : [];
+        evidenceList.push({
+          type: type + '_created',
+          collection: collection,
+          actionId: id,
+          label: label || draft.title || '',
+          createdAt: new Date().toISOString()
+        });
+        return Object.assign({}, task, {
+          expectedActionType: type,
+          expectedActionId: id,
+          expectedActionCollection: collection,
+          executionEvidence: evidenceList,
+          executionStatus: 'created_waiting_result'
+        });
+      });
+      if (!changed) return null;
+      return DB.update('seasons', draft.seasonId, { actionTasks: tasks });
+    }).then(function () {
+      _clearSeasonActionDraft(type);
+      return id;
+    }).catch(function (err) {
+      console.warn('[Marketing] season action link failed', err);
+      _clearSeasonActionDraft(type);
+      return null;
+    });
+  }
+
+  function _applySeasonDraftToPromoForm() {
+    var draft = _seasonActionDraftFor('promotion');
+    if (!draft) return;
+    var name = document.getElementById('prm-name');
+    var rules = document.getElementById('prm-rules');
+    if (name && !String(name.value || '').trim()) name.value = draft.title || 'Promoção da Temporada';
+    if (rules && !String(rules.value || '').trim()) rules.value = 'Criada a partir da jogada da Temporada: ' + (draft.title || draft.seasonActionId || '');
+  }
+
+  function _applySeasonDraftToCouponForm() {
+    var draft = _seasonActionDraftFor('coupon');
+    if (!draft) return;
+    var code = document.getElementById('cup-code');
+    if (code && !String(code.value || '').trim()) code.value = _seasonDraftCode(draft);
+  }
+
+  function _applySeasonDraftToUpsellForm() {
+    var draft = _seasonActionDraftFor('upsell');
+    if (!draft) return;
+    var name = document.getElementById('ups-name');
+    var message = document.getElementById('ups-message');
+    if (name && !String(name.value || '').trim()) name.value = draft.title || 'Upsell da Temporada';
+    if (message && !String(message.value || '').trim()) message.value = 'También te puede gustar';
+  }
+
+  function _seasonDraftCode(draft) {
+    var base = String(draft && draft.title || draft && draft.seasonActionId || 'TEMPORADA').toUpperCase();
+    base = base.normalize ? base.normalize('NFD').replace(/[\u0300-\u036f]/g, '') : base;
+    base = base.replace(/[^A-Z0-9]+/g, '').slice(0, 10);
+    return base || 'TEMPORADA';
+  }
+
   function _renderPontos() {
     _pointsLoad().then(function () {
       _paintPontos();
@@ -3048,6 +3178,7 @@ Modules.Marketing = (function () {
           paginationHtml +
         '</div></section>') +
       '</div>';
+    _consumeSeasonActionDraftFor('promotion');
   }
 
   function _esc(s) {
@@ -3471,6 +3602,7 @@ Modules.Marketing = (function () {
     window._promoModal = UI.modal({ title: title, body: body, footer: footer, maxWidth: editMode ? '1120px' : '980px' });
     if (editMode) {
       _renderPromoOfferFields();
+      _applySeasonDraftToPromoForm();
       setTimeout(function () { _refreshPromoPreview(); }, 80);
     }
   }
@@ -3585,10 +3717,13 @@ Modules.Marketing = (function () {
       autoTags: _promoAutoTags({ type: type }).map(function (t) { return t.key; }),
       active: window._promoActive !== false
     };
+    data = _decorateSeasonActionPayload(data, 'promotion');
     var validation = _validatePromoSchedule(data, _editingId);
     if (validation) { UI.toast(validation, 'error'); return; }
     var op = _editingId ? DB.update('promotions', _editingId, data) : DB.add('promotions', data);
-    op.then(function () {
+    op.then(function (ref) {
+      return _editingId ? Promise.resolve(_editingId) : _linkSeasonActionDraft('promotion', ref, 'promotions', data.name);
+    }).then(function () {
       UI.toast('Promoção salva!', 'success');
       if (window._promoModal) window._promoModal.close();
       _renderPromos();
@@ -3812,6 +3947,7 @@ Modules.Marketing = (function () {
           paginationHtml +
         '</div></section>') +
       '</div>';
+    _consumeSeasonActionDraftFor('coupon');
   }
 
   function _couponViewModalHtml(coupon) {
@@ -3941,7 +4077,10 @@ Modules.Marketing = (function () {
         '</div>';
     if (window._cupomModal) window._cupomModal.close();
     window._cupomModal = UI.modal({ title: editMode ? (id ? 'Editar Cupom' : 'Novo Cupom') : 'Detalhes do cupom', body: body, footer: footer, maxWidth: editMode ? '1120px' : '820px' });
-    if (editMode) setTimeout(_refreshCouponValueAdornment, 50);
+    if (editMode) {
+      _applySeasonDraftToCouponForm();
+      setTimeout(_refreshCouponValueAdornment, 50);
+    }
     setTimeout(function () { _renderCouponLink(c); }, 80);
   }
 
@@ -3976,8 +4115,11 @@ Modules.Marketing = (function () {
       expiry: (document.getElementById('cup-expiry') || {}).value || null,
       usesCount: _editingId ? ((_cupons.find(function (c) { return c.id === _editingId; }) || {}).usesCount || 0) : 0
     };
+    data = _decorateSeasonActionPayload(data, 'coupon');
     var op = _editingId ? DB.update('coupons', _editingId, data) : DB.add('coupons', data);
-    op.then(function () {
+    op.then(function (ref) {
+      return _editingId ? Promise.resolve(_editingId) : _linkSeasonActionDraft('coupon', ref, 'coupons', data.code);
+    }).then(function () {
       UI.toast('Cupom salvo!', 'success');
       if (window._cupomModal) window._cupomModal.close();
       _renderCupons();
@@ -5885,6 +6027,7 @@ Modules.Marketing = (function () {
         '</div>' +
         activeContent +
       '</div>';
+      _consumeSeasonActionDraftFor('upsell');
     } catch (err) {
       console.error('[Marketing] _paintUpsell failed', err);
       content.innerHTML = '<div style="' + _marketingCardStyle() + '">' +
@@ -6102,6 +6245,7 @@ Modules.Marketing = (function () {
       footer: footer,
       maxWidth: '1120px'
     });
+    if (editMode) _applySeasonDraftToUpsellForm();
     if (editMode) {
       setTimeout(function () { _syncUpsellDateRules(); _syncUpsellBenefitUI(); _refreshUpsellAnalysis(); }, 100);
     }
@@ -6359,11 +6503,14 @@ Modules.Marketing = (function () {
       autoTag: _upsellTypeInfo(window._upsellType || 'complemento').tag,
       benefitTag: _upsellBenefitInfo(benefitType).tag
     };
+    data = _decorateSeasonActionPayload(data, 'upsell');
     if (data.type === 'complemento' || data.type === 'upgrade' || data.type === 'combo_sugerido' || data.type === 'carrinho' || data.type === 'valor_minimo') {
       // no extra constraint here; template handles visibility rules
     }
     var op = _editingId ? DB.update('upsellRules', _editingId, data) : DB.add('upsellRules', data);
-    op.then(function () {
+    op.then(function (ref) {
+      return _editingId ? Promise.resolve(_editingId) : _linkSeasonActionDraft('upsell', ref, 'upsellRules', data.name);
+    }).then(function () {
       UI.toast('Upsell salvo!', 'success');
       if (window._upsellModal) window._upsellModal.close();
       _renderUpsell();

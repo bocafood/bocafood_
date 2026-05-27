@@ -20,6 +20,13 @@ Modules.Temporadas = (function () {
     businessMaturityEvents: [],
     businessMaturitySnapshots: [],
     pendingStoneCelebration: null,
+    actionContext: {
+      products: [],
+      promotions: [],
+      coupons: [],
+      upsells: [],
+      salesChannels: []
+    },
     snapshots: {
       daily: null,
       weekly: null
@@ -63,11 +70,6 @@ Modules.Temporadas = (function () {
   var DURATIONS = [
     { value: 'sprint', label: 'Sprint', text: '30 dias', days: 30 },
     { value: 'season', label: 'Temporada', text: '90 dias', days: 90 }
-  ];
-
-  var TARGET_MODES = [
-    { value: 'automatic', label: 'Meta automática', text: 'BocaFood calcula com base no histórico recente da loja.' },
-    { value: 'fixed', label: 'Meta fixa', text: 'Você informa a meta manualmente para esta temporada.' }
   ];
 
   var DIFFICULTIES = [
@@ -136,6 +138,7 @@ Modules.Temporadas = (function () {
       _state.businessMaturityError = null;
       _state.businessMaturityEvents = [];
       _state.businessMaturitySnapshots = [];
+      _state.actionContext = { products: [], promotions: [], coupons: [], upsells: [], salesChannels: [] };
       _state.pendingStoneCelebration = null;
       _state.snapshots = { daily: null, weekly: null };
       _paint();
@@ -149,7 +152,10 @@ Modules.Temporadas = (function () {
       _state.seasons = _normalizeSeasons(seasons || _state.seasons || []);
       _refreshSeasonStateFlags();
       if (!_state.activeSeason) return null;
-      return _refreshActiveSeasonMetrics(_state.activeSeason).then(function (season) {
+      return _loadSeasonActionContext().then(function (actionContext) {
+        _state.actionContext = actionContext || _state.actionContext;
+        return _refreshActiveSeasonMetrics(_state.activeSeason, _state.actionContext);
+      }).then(function (season) {
         if (season) {
           _state.activeSeason = season;
           _state.seasons = _state.seasons.map(function (item) {
@@ -159,7 +165,10 @@ Modules.Temporadas = (function () {
         return season;
       });
     }).then(function () {
-      return _loadBusinessMaturity();
+      return _loadBusinessMaturity({
+        persist: _state.pageMode === 'maturity',
+        source: _state.pageMode === 'maturity' ? 'maturity_screen' : 'season_screen_read'
+      });
     }).then(function () {
       _loading = false;
       _paint();
@@ -176,10 +185,78 @@ Modules.Temporadas = (function () {
       _state.businessMaturityError = err;
       _state.businessMaturityEvents = [];
       _state.businessMaturitySnapshots = [];
+      _state.actionContext = { products: [], promotions: [], coupons: [], upsells: [], salesChannels: [] };
       _state.pendingStoneCelebration = null;
       _state.snapshots = { daily: null, weekly: null };
       _paint();
     });
+  }
+
+  function _loadSeasonActionContext() {
+    if (!window.DB || typeof DB.getAll !== 'function') {
+      return Promise.resolve({ products: [], promotions: [], coupons: [], upsells: [], salesChannels: [] });
+    }
+    return Promise.all([
+      DB.getAll('products').catch(function () { return []; }),
+      DB.getAll('promotions').catch(function () { return []; }),
+      DB.getAll('promocoes').catch(function () { return []; }),
+      DB.getAll('coupons').catch(function () { return []; }),
+      DB.getAll('upsellRules').catch(function () { return []; }),
+      (typeof DB.getDocRoot === 'function' ? DB.getDocRoot('config', 'canais_venda') : Promise.resolve(null)).catch(function () { return null; })
+    ]).then(function (res) {
+      return {
+        products: res[0] || [],
+        promotions: _mergePromotionLists(res[1] || [], res[2] || []),
+        coupons: res[3] || [],
+        upsells: res[4] || [],
+        salesChannels: _normalizeSalesChannelsConfig(res[5] || {})
+      };
+    });
+  }
+
+  function _normalizeSalesChannelsConfig(config) {
+    var list = Array.isArray(config && config.list) ? config.list : [];
+    var fixed = [
+      { name: 'Cardápio', key: 'cardapio', commissionPct: 0, fixedFee: 0, taxPct: 0, locked: true },
+      { name: 'Venda presencial', key: 'venda_presencial', commissionPct: 0, fixedFee: 0, taxPct: 0, locked: true }
+    ];
+    var out = [];
+    fixed.concat(list || []).forEach(function (channel) {
+      if (!channel) return;
+      var name = String(channel.name || channel.label || channel.title || '').trim();
+      if (!name) return;
+      var key = _normalizeChannel(channel.key || channel.value || name);
+      if (out.some(function (item) { return item.key === key || _foldText(item.name) === _foldText(name); })) return;
+      out.push({
+        id: channel.id || channel._id || '',
+        key: key,
+        name: name,
+        commissionPct: _number(channel.commissionPct || channel.comissaoPct || channel.feePct, 0),
+        fixedFee: _money(channel.fixedFee || channel.taxaFixa || channel.feeFixed || 0),
+        taxPct: _number(channel.taxPct || channel.commissionTaxPct || channel.impostoPct, 0),
+        minMarginPct: _number(channel.minMarginPct || channel.margemMinimaPct, 0),
+        locked: channel.locked === true
+      });
+    });
+    return out;
+  }
+
+  function _mergePromotionLists(a, b) {
+    var seen = {};
+    var out = [];
+    (a || []).concat(b || []).forEach(function (promo) {
+      if (!promo) return;
+      var key = String(promo.id || promo._id || promo.slug || promo.code || promo.codigo || [
+        promo.name || promo.title || '',
+        promo.type || promo.tipo || '',
+        promo.startDate || promo.startsAt || '',
+        promo.endDate || promo.endsAt || ''
+      ].join('|'));
+      if (key && seen[key]) return;
+      if (key) seen[key] = true;
+      out.push(promo);
+    });
+    return out;
   }
 
   function _paint() {
@@ -305,6 +382,11 @@ Modules.Temporadas = (function () {
       _state.businessMaturityEvents = events;
       _state.businessMaturitySnapshots = snapshots;
       _state.businessMaturityLoading = false;
+      if (opts.persist === false) {
+        _paint();
+        return maturity;
+      }
+
       return _saveBusinessMaturity(maturity, r[4] || null).then(function (savedMaturity) {
         if (savedMaturity && savedMaturity.recentUpgradeEvent) {
           _state.businessMaturityEvents = _normalizeStoneUpgradeEvents([savedMaturity.recentUpgradeEvent].concat(_state.businessMaturityEvents || []));
@@ -372,6 +454,26 @@ Modules.Temporadas = (function () {
         console.warn('Stone upgrade event save skipped', err);
         return maturity;
       });
+    });
+  }
+
+  function _registerSeasonMaturityImpact(season, source) {
+    if (!season || (season.status !== 'finished' && season.status !== 'abandoned')) return Promise.resolve(null);
+    if (season.id) {
+      var found = false;
+      _state.seasons = (_state.seasons || []).map(function (item) {
+        if (item.id !== season.id) return item;
+        found = true;
+        return Object.assign({}, item, season);
+      });
+      if (!found) _state.seasons = [season].concat(_state.seasons || []);
+    }
+    return _loadBusinessMaturity({
+      persist: true,
+      snapshotType: 'season_final',
+      source: source || (season.status === 'abandoned' ? 'season_abandoned' : 'season_final'),
+      relatedSeasonId: season.id || '',
+      season: season
     });
   }
 
@@ -836,23 +938,21 @@ Modules.Temporadas = (function () {
 
   function _maturityValidOrders(orders) {
     return (orders || []).filter(function (order) {
-      if (!order) return false;
-      var status = String(order.status || order.state || order.orderStatus || '').toLowerCase();
-      if (['cancelado', 'cancelada', 'canceled', 'cancelled', 'reembolsado', 'refunded'].indexOf(status) >= 0) return false;
-      return _maturityOrderValue(order) >= 0;
+      var normalized = _normalizeSeasonOrder(order);
+      if (!normalized) return false;
+      if (normalized.status === 'canceled') return false;
+      return normalized.total >= 0;
     });
   }
 
   function _maturityOrderValue(order) {
-    return _money(order.total || order.grandTotal || order.finalTotal || order.amount || order.value || order.subtotal || 0);
+    var normalized = _normalizeSeasonOrder(order);
+    return normalized ? normalized.total : 0;
   }
 
   function _maturityOrderDate(order) {
-    var raw = order && (order.createdAt || order.date || order.data || order.paidAt || order.updatedAt);
-    if (!raw) return null;
-    if (raw && typeof raw.toDate === 'function') return raw.toDate();
-    var d = new Date(raw);
-    return isNaN(d.getTime()) ? null : d;
+    var normalized = _normalizeSeasonOrder(order);
+    return normalized ? normalized.createdAt : null;
   }
 
   function _maturityStrengths(seasonStats, orderStats, loyaltyStats, indexes, scenario) {
@@ -2130,40 +2230,1963 @@ Modules.Temporadas = (function () {
     if (tab === 'next') return _nextMoveTab(season, metrics, recommendation);
     if (tab === 'analysis') return _analysisTab(season, snapshots);
     if (tab === 'final') return _finalResultInline(season);
-    return _overviewTab(season, metrics, snapshots);
+    return _overviewTab(season, metrics, snapshots, recommendation);
   }
 
-  function _overviewTab(season, metrics, snapshots) {
+  function _overviewTab(season, metrics, snapshots, recommendation) {
     var progress = _number(season.progressPercent, 0);
     var primaryLabels = _primaryMetricLabels(season.objective);
+    var expected = _number(metrics.expectedProgress, 0);
+    var score = Math.round(_number(season.currentScore, 0));
+    var scoreBreakdown = _scoreBreakdownForDisplay(season, metrics);
+    var seasonReading = _seasonReadingForDisplay(season, metrics, scoreBreakdown);
     return '' +
-      '<div class="seasons-tab-header"><span class="seasons-section-label">Dados do Sistema</span><h3>Como minha temporada está agora?</h3><p>Leitura automática calculada pelo BocaFood a partir dos dados reais do tenant.</p></div>' +
-      '<div class="seasons-live-grid seasons-overview-grid">' +
-        _metricTile('Progresso', Math.round(progress) + '%', 'trending_up', '', true, _metricBalloon('Progresso', Math.round(progress) + '%', _progressBalloonText(season, metrics, progress))) +
-        _metricTile('Score', Math.round(_number(season.currentScore, 0)), 'speed', '', false, _metricBalloon('Score', Math.round(_number(season.currentScore, 0)) + '/100', _scoreBalloonText(season, metrics))) +
-        _metricTile('Ritmo Atual', _statusScoreLabel(season.currentStatus), 'monitoring', '', false, _metricBalloon('Ritmo Atual', _statusScoreLabel(season.currentStatus), _paceBalloonText(season, metrics, progress))) +
-        _metricTile('Chance de Falha', _riskLabel(season.riskLevel), 'warning', '', false, _metricBalloon('Chance de Falha', _riskLabel(season.riskLevel), _riskBalloonText(season, metrics, progress))) +
-        _metricTile(primaryLabels.current, _formatMetricValue(metrics.currentValue, season.objective), 'radio_button_checked', '', true) +
-        _metricTile(primaryLabels.target, _formatMetricValue(metrics.targetValue, season.objective), 'flag', '', true) +
+      '<div class="seasons-tab-header"><span class="seasons-section-label">Temporada ativa</span><h3>Como estou indo e o que faço hoje?</h3><p>Leitura simples do ritmo da temporada, usando os dados reais que a loja já gerou.</p></div>' +
+      '<div class="seasons-active-reading">' +
+        '<section class="seasons-reading-hero seasons-reading-hero-' + _esc(_seasonSituationTone(season, metrics, progress)) + '">' +
+          '<div>' +
+            '<span class="seasons-section-label">Resumo da temporada</span>' +
+            '<h3>' + _esc(seasonReading.headline) + '</h3>' +
+            '<p>' + _esc(_seasonSituationText(season, metrics, progress)) + '</p>' +
+          '</div>' +
+          '<strong>' + Math.round(progress) + '%</strong>' +
+        '</section>' +
+        '<div class="seasons-reading-grid">' +
+          _readingCard('Meta e progresso', 'flag', [
+            _readingFact('Meta', _formatMetricValue(metrics.targetValue, season.objective)),
+            _readingFact('Atual', _formatMetricValue(metrics.currentValue, season.objective)),
+            _readingFact('Esperado para hoje', expected > 0 ? Math.round(expected) + '%' : 'Em leitura')
+          ], _progressBalloonText(season, metrics, progress)) +
+          _readingCard('Score explicado', 'speed', [
+            _readingFact('Score', score + '/100'),
+            _readingFact('Base do objetivo', scoreBreakdown.coreObjectiveScore + '/100'),
+            _readingFactHtml('Impactos validados', _impactBadge(scoreBreakdown.validatedImpactBonus)),
+            _readingFact('Ajuste por risco', '-' + scoreBreakdown.riskPenalty)
+          ], _scoreBalloonText(season, metrics)) +
+          _readingCard('Risco', 'warning', [
+            _readingFactHtml('Chance de falha', _riskBadge(season.riskLevel)),
+            _readingFact('Dias restantes', String(Math.round(_number(metrics.daysRemaining, 0)))),
+            _readingFact('Ritmo', _statusScoreLabel(season.currentStatus))
+          ], _riskBalloonText(season, metrics, progress)) +
+          _readingCard('Base observada', 'analytics', [
+            _readingFact('Pedidos', String(Math.round(_number(metrics.orders, 0)))),
+            _readingFact('Ticket médio', _fmtMoney(metrics.averageTicket)),
+            _readingFact(primaryLabels.current, _formatMetricValue(metrics.currentValue, season.objective))
+          ], 'Estes números vêm dos pedidos válidos dentro do período da temporada.') +
+        '</div>' +
+        '<div class="seasons-reading-columns">' +
+          _readingListBlock('O que está ajudando', 'thumb_up', seasonReading.helpingSignals) +
+          _readingListBlock('O que está travando', 'report', seasonReading.blockingSignals) +
+        '</div>' +
+        _readingNextAction(season, metrics, recommendation, seasonReading) +
       '</div>' +
-      '<div class="seasons-progress-block seasons-progress-block-inner seasons-chart-clickable" role="button" tabindex="0" onclick="Modules.Temporadas.toggleMetricBalloon(this)" onkeydown="Modules.Temporadas._metricTileKey(event,this)">' +
-        '<div class="seasons-progress-top"><span>Progresso da meta</span></div>' +
-        '<div class="seasons-progress-line"><span style="width:' + _clamp(progress, 0, 100) + '%"></span></div>' +
-        _chartBalloonHtml(_metricBalloon('Progresso da meta', Math.round(progress) + '%', _progressBalloonText(season, metrics, progress))) +
-      '</div>' +
-      _systemStatusBars(season, metrics) +
       _quickAlerts(snapshots);
+  }
+
+  function _seasonSituationTone(season, metrics, progress) {
+    var ratio = _number(metrics.progressRatio, 0);
+    var risk = season.riskLevel || 'unknown';
+    if (progress >= 100 || ratio >= 1.1) return 'good';
+    if (risk === 'high' || risk === 'very_high' || ratio < .5) return 'danger';
+    if (ratio < .8 || risk === 'medium') return 'attention';
+    return 'steady';
+  }
+
+  function _seasonSituationTitle(season, metrics, progress) {
+    var ratio = _number(metrics.progressRatio, 0);
+    if (progress >= 100) return 'Sua temporada já bateu a meta.';
+    if (ratio >= 1.1) return 'Sua temporada está acima do ritmo esperado.';
+    if (ratio >= .8) return 'Sua temporada está perto do ritmo esperado.';
+    if (ratio >= .5) return 'Sua temporada está abaixo do ritmo esperado.';
+    return 'Sua temporada precisa de atenção agora.';
+  }
+
+  function _seasonSituationText(season, metrics, progress) {
+    var expected = _number(metrics.expectedProgress, 0);
+    var current = Math.round(_number(progress, 0));
+    if (progress >= 100) return 'A meta principal foi alcançada. Agora vale manter o ritmo e observar o que puxou esse resultado.';
+    if (expected > 0) return 'Até hoje, o ideal era estar perto de ' + Math.round(expected) + '%. A temporada está em ' + current + '%.';
+    return 'Ainda há poucos dados para comparar com segurança. Conforme novos pedidos entrarem, esta leitura fica mais precisa.';
+  }
+
+  function _readingCard(title, icon, facts, note) {
+    return '' +
+      '<article class="seasons-reading-card">' +
+        '<div class="seasons-reading-card-head">' +
+          '<span>' + _icon(icon) + '</span>' +
+          '<strong>' + _esc(title) + '</strong>' +
+        '</div>' +
+        '<div class="seasons-reading-facts">' + (facts || []).join('') + '</div>' +
+        (note ? '<p>' + _esc(note) + '</p>' : '') +
+      '</article>';
+  }
+
+  function _readingFact(label, value) {
+    return '<div><small>' + _esc(label) + '</small><strong>' + _esc(value === 0 ? '0' : value || '-') + '</strong></div>';
+  }
+
+  function _readingFactHtml(label, html) {
+    return '<div><small>' + _esc(label) + '</small><strong>' + (html || '-') + '</strong></div>';
+  }
+
+  function _riskBadge(risk) {
+    return '<span class="seasons-risk-badge seasons-risk-badge-' + _esc(risk || 'unknown') + '">' + _esc(_riskLabel(risk)) + '</span>';
+  }
+
+  function _impactBadge(value) {
+    var score = Math.max(0, Math.round(_number(value, 0)));
+    var tone = score >= 5 ? 'strong' : (score > 0 ? 'medium' : 'neutral');
+    return '<span class="seasons-impact-badge seasons-impact-badge-' + tone + '">+' + score + '</span>';
+  }
+
+  function _readingListBlock(title, icon, items) {
+    items = items && items.length ? items : ['Ainda não há dados suficientes para destacar este ponto.'];
+    return '' +
+      '<section class="seasons-reading-list">' +
+        '<div class="seasons-reading-card-head"><span>' + _icon(icon) + '</span><strong>' + _esc(title) + '</strong></div>' +
+        '<ul>' + items.slice(0, 4).map(function (item) { return '<li>' + _esc(item) + '</li>'; }).join('') + '</ul>' +
+      '</section>';
+  }
+
+  function _readingNextAction(season, metrics, recommendation, seasonReading) {
+    var executionPlan = _executionPlanForDisplay(season, metrics, seasonReading);
+    var actions = executionPlan.actions || [];
+    var primaryAction = actions[0] || null;
+    var title = recommendation && (recommendation.title || recommendation.headline) ? (recommendation.title || recommendation.headline) : 'Próxima melhor ação';
+    var text = recommendation && (recommendation.description || recommendation.nextAction) ? (recommendation.description || recommendation.nextAction) : ((seasonReading && seasonReading.nextAction) || (primaryAction && primaryAction.description) || _seasonDefaultNextAction(season, metrics));
+    return '' +
+      '<section class="seasons-reading-next">' +
+        '<div class="seasons-reading-card-head"><span>' + _icon('assistant_direction') + '</span><strong>Próxima melhor ação</strong></div>' +
+        '<h4>' + _esc(title) + '</h4>' +
+        '<p>' + _esc(text) + '</p>' +
+        (actions.length ? _executionPlanList(executionPlan) : '') +
+      '</section>';
+  }
+
+  function _executionPlanForDisplay(season, metrics, seasonReading) {
+    return season && season.executionPlan || metrics && metrics.executionPlan || seasonReading && seasonReading.executionPlan || {};
+  }
+
+  function _executionPlanList(executionPlan) {
+    var profile = executionPlan.difficultyProfile || {};
+    var actions = (executionPlan.actions || []).slice(0, 3);
+    if (!actions.length) return '';
+    return '' +
+      '<div class="seasons-execution-plan">' +
+        '<div class="seasons-execution-plan-head">' +
+          '<strong>' + _esc(profile.label ? 'Plano ' + profile.label : 'Plano prático') + '</strong>' +
+          '<span>' + _esc(profile.cadence || 'Ações da temporada') + '</span>' +
+        '</div>' +
+        '<ul>' + actions.map(function (action) {
+          return '<li>' +
+            '<div><strong>' + _esc(action.title || 'Ação') + '</strong><p>' + _esc(action.description || '') + '</p></div>' +
+            (action.why ? '<small>' + _esc(action.why) + '</small>' : '') +
+          '</li>';
+        }).join('') + '</ul>' +
+      '</div>';
+  }
+
+  function _seasonHelpingItems(season, metrics) {
+    var items = [];
+    var topProduct = (metrics.topProducts || [])[0];
+    var strongHour = (metrics.strongHours || [])[0];
+    var ticket = _number(metrics.averageTicket, 0);
+    var baselineTicket = _number(season && season.baselineAverageTicket, 0);
+    var targetTicket = season && season.objective === 'increase_ticket' ? _number(metrics.targetValue || season.calculatedTargetValue, 0) : 0;
+    var recurring = Math.round(_number(metrics.recurringCustomers, 0));
+    var repurchaseRate = _number(metrics.repurchaseRate, 0);
+    var activeDays = Math.round(_number(metrics.activeDays, 0));
+
+    if (topProduct && topProduct.name) items.push(topProduct.name + ' está puxando as vendas desta temporada.');
+    if (strongHour && strongHour.hour !== undefined) items.push('O horário perto de ' + _formatHourLabel(strongHour.hour) + ' aparece como um dos melhores momentos.');
+    if (ticket > 0 && baselineTicket > 0 && ticket > baselineTicket) items.push('O ticket médio está acima da base anterior: ' + _fmtMoney(ticket) + '.');
+    else if (ticket > 0 && targetTicket > 0 && ticket >= targetTicket) items.push('O ticket médio já está no nível esperado para esta temporada.');
+    if (_isMeaningfulRecurrence(recurring, repurchaseRate)) items.push(recurring + ' clientes voltaram a comprar no período.');
+    if (activeDays > 0) items.push('A loja já teve venda em ' + activeDays + ' dia(s) desta temporada.');
+    return items;
+  }
+
+  function _isMeaningfulRecurrence(recurringCustomers, repurchaseRate) {
+    var recurring = Math.round(_number(recurringCustomers, 0));
+    var rate = _number(repurchaseRate, 0);
+    return recurring >= 2 && rate >= .15;
+  }
+
+  function _seasonBlockingItems(season, metrics, progress) {
+    var items = [];
+    var expected = _number(metrics.expectedProgress, 0);
+    var weakDays = Math.round(_number(metrics.weakDays, 0));
+    var ratio = _number(metrics.progressRatio, 0);
+    var orders = Math.round(_number(metrics.orders, 0));
+    var ticket = _number(metrics.averageTicket, 0);
+    var baselineTicket = _number(season.baselineAverageTicket, 0);
+
+    if (expected > 0 && progress < expected) items.push('A temporada está abaixo do ponto esperado para hoje.');
+    if (weakDays > 0) items.push(weakDays + ' dia(s) fraco(s) ou sem venda estão pesando na consistência.');
+    if (orders <= 0) items.push('Ainda não há pedidos válidos dentro do período da temporada.');
+    if (baselineTicket > 0 && ticket > 0 && ticket < baselineTicket) items.push('O ticket médio está abaixo da base usada para criar a temporada.');
+    if (ratio > 0 && ratio < .5) items.push('O ritmo atual está distante do necessário para chegar na meta dentro do prazo.');
+    return items;
+  }
+
+  function _seasonDefaultNextAction(season, metrics) {
+    var topProduct = (metrics.topProducts || [])[0];
+    var strongHour = (metrics.strongHours || [])[0];
+    var parts = [];
+    if (topProduct && topProduct.name) parts.push('reforce ' + topProduct.name);
+    if (strongHour && strongHour.hour !== undefined) parts.push('no horário perto de ' + _formatHourLabel(strongHour.hour));
+    if (season.objective === 'increase_ticket') parts.push('e teste um adicional, combo ou upsell simples');
+    if (season.objective === 'retain_customers') parts.push('e chame clientes que já compraram antes');
+    if (!parts.length) return 'Escolha uma ação simples para hoje: divulgar o produto mais forte, repetir o melhor horário de venda ou recuperar um dia fraco da semana.';
+    return parts.join(' ') + '.';
+  }
+
+  function _objectiveWeightSummary(objective) {
+    var weights = _objectiveWeights(objective);
+    if (!weights.length) return 'Objetivo atual';
+    return weights.map(function (item) { return item.label + ' ' + item.weight; }).join(' · ');
+  }
+
+  function _formatHourLabel(hour) {
+    var n = Math.max(0, Math.min(23, Math.floor(_number(hour, 0))));
+    return String(n).padStart(2, '0') + ':00';
+  }
+
+  function _scoreBreakdownForDisplay(season, metrics) {
+    var breakdown = season.scoreBreakdown || metrics.scoreBreakdown || {};
+    return {
+      coreObjectiveScore: Math.round(_number(breakdown.coreObjectiveScore, _number(season.currentScore, 0))),
+      validatedImpactBonus: Math.round(_number(breakdown.validatedImpactBonus, 0)),
+      riskPenalty: Math.round(_number(breakdown.riskPenalty, 0)),
+      finalScore: Math.round(_number(breakdown.finalScore, _number(season.currentScore, 0))),
+      calculationVersion: breakdown.calculationVersion || 'season_score_v1_1'
+    };
+  }
+
+  function _generateSeasonReading(season, currentMetrics, scoreBreakdown, validatedImpactSignals, riskContext) {
+    return {
+      headline: _buildSeasonHeadline(season, currentMetrics, scoreBreakdown),
+      helpingSignals: _buildHelpingSignals(season, currentMetrics, validatedImpactSignals),
+      blockingSignals: _buildBlockingSignals(season, currentMetrics, validatedImpactSignals, riskContext),
+      nextAction: _buildNextBestAction(season, currentMetrics, validatedImpactSignals, riskContext)
+    };
+  }
+
+  function _buildSeasonHeadline(season, currentMetrics, scoreBreakdown) {
+    var progress = _number(season && season.progressPercent, _number(currentMetrics && currentMetrics.progressPercent, 0));
+    var ratio = _number(currentMetrics && currentMetrics.progressRatio, 0);
+    var finalScore = _number(scoreBreakdown && scoreBreakdown.finalScore, _number(season && season.currentScore, 0));
+    if (progress >= 100) return 'A temporada já bateu a meta';
+    if (ratio >= 1.1 || finalScore >= 85) return 'A temporada está acima do ritmo esperado';
+    if (ratio >= .8 || finalScore >= 65) return 'A temporada está perto do ritmo esperado';
+    if (ratio >= .5 || finalScore >= 40) return 'A temporada está abaixo do ritmo esperado';
+    return 'A temporada precisa de atenção agora';
+  }
+
+  function _buildHelpingSignals(season, currentMetrics, validatedImpactSignals) {
+    var items = _seasonHelpingItems(season, currentMetrics);
+    var signals = validatedImpactSignals || {};
+    var coupon = signals.coupons || {};
+    var promotion = signals.promotions || {};
+    var upsell = signals.upsell || {};
+    var points = signals.points || {};
+    var channel = signals.channels && signals.channels.topChannel;
+    var product = signals.products && signals.products.topProduct;
+
+    if (_number(coupon.usedOrders, 0) > 0) items.push('Cupons apareceram em ' + Math.round(_number(coupon.usedOrders, 0)) + ' pedido(s) válido(s).');
+    if (_number(promotion.usedOrders, 0) > 0) {
+      var promotionName = promotion.topPromotion && promotion.topPromotion.name;
+      items.push((promotionName ? promotionName : 'Promoções') + ' gerou venda real em ' + Math.round(_number(promotion.usedOrders, 0)) + ' pedido(s).');
+    }
+    if (_number(upsell.acceptedOrders, 0) > 0) items.push('Upsell foi aceito em ' + Math.round(_number(upsell.acceptedOrders, 0)) + ' pedido(s).');
+    if (_isMeaningfulRecurrence(points.repeatCustomers, currentMetrics && currentMetrics.repurchaseRate)) items.push('Pontos ajudaram clientes recorrentes a voltar.');
+    if (channel && channel.channel) items.push('O canal ' + _channelLabel(channel.channel) + ' está trazendo a melhor resposta.');
+    if (product && product.name) items.push(product.name + ' aparece como produto forte da temporada.');
+    return _uniqueTextItems(items).slice(0, 5);
+  }
+
+  function _buildBlockingSignals(season, currentMetrics, validatedImpactSignals, riskContext) {
+    var items = _seasonBlockingItems(season, currentMetrics, _number(season && season.progressPercent, 0));
+    var signals = validatedImpactSignals || {};
+    var couponDiscount = _number(signals.coupons && signals.coupons.discountTotal, 0);
+    var promotionDiscount = _number(signals.promotions && signals.promotions.discountTotal, 0);
+    var upsellAdded = _number(signals.upsell && signals.upsell.addedRevenue, 0);
+
+    if (couponDiscount > 0 && couponDiscount > _number(signals.coupons && signals.coupons.revenue, 0) * .25) {
+      items.push('O desconto dos cupons está alto em relação ao que vendeu.');
+    }
+    if (promotionDiscount > 0 && promotionDiscount > _number(signals.promotions && signals.promotions.revenue, 0) * .25) {
+      items.push('As promoções venderam, mas o desconto pode estar pesando demais.');
+    }
+    if (season && season.objective === 'increase_ticket' && promotionDiscount > upsellAdded && promotionDiscount > 0) {
+      items.push('O ticket pode estar subindo menos porque o desconto está pesando mais que os adicionais.');
+    }
+    if (riskContext && riskContext.recentDrop) items.push('Houve queda recente no ritmo da temporada.');
+    return _uniqueTextItems(items).slice(0, 5);
+  }
+
+  function _buildNextBestAction(season, currentMetrics, validatedImpactSignals, riskContext) {
+    var executionPlan = currentMetrics && currentMetrics.executionPlan;
+    var action = executionPlan && executionPlan.actions && executionPlan.actions[0];
+    if (action && action.description) return action.description;
+    var product = validatedImpactSignals && validatedImpactSignals.products && validatedImpactSignals.products.topProduct;
+    var channel = validatedImpactSignals && validatedImpactSignals.channels && validatedImpactSignals.channels.topChannel;
+    var topProduct = product && product.name ? product : (currentMetrics.topProducts || [])[0];
+    var strongHour = (currentMetrics.strongHours || [])[0];
+    var parts = [];
+    if (topProduct && topProduct.name) parts.push('reforce ' + topProduct.name);
+    if (strongHour && strongHour.hour !== undefined) parts.push('perto de ' + _formatHourLabel(strongHour.hour));
+    else if (channel && channel.channel) parts.push('no canal ' + _channelLabel(channel.channel));
+    if (season && season.objective === 'increase_ticket') parts.push('e teste adicional, combo ou upsell simples');
+    if (season && season.objective === 'retain_customers') parts.push('e chame clientes que já compraram antes');
+    if (season && season.objective === 'improve_consistency') parts.push('para recuperar os dias mais fracos');
+    if (!parts.length) return _seasonDefaultNextAction(season, currentMetrics);
+    return parts.join(' ') + '.';
+  }
+
+  function _buildActionOpportunities(metrics, validatedImpactSignals, actionContext, season) {
+    metrics = metrics || {};
+    validatedImpactSignals = validatedImpactSignals || {};
+    actionContext = actionContext || {};
+    var topProductSignal = validatedImpactSignals.products && validatedImpactSignals.products.topProduct || (metrics.topProducts || [])[0] || null;
+    var product = _findActionProduct(topProductSignal, actionContext.products || []);
+    var economics = _productEconomics(product, topProductSignal);
+    var promo = _bestAvailablePromotionForProduct(product, actionContext.promotions || []);
+    var coupon = _bestAvailableCouponForProduct(economics, actionContext.coupons || []);
+    var upsell = _bestAvailableUpsellForProduct(product, actionContext.upsells || []);
+    var complement = _bestComplementProductForProduct(product, economics, actionContext.products || []);
+    var recommended = _chooseRecommendedSalesAction(topProductSignal, economics, promo, coupon, upsell, validatedImpactSignals);
+    var rankedActions = _buildRankedActionOpportunities(metrics, validatedImpactSignals, actionContext, season);
+    return {
+      topProduct: topProductSignal || null,
+      topProductEconomics: economics,
+      availablePromotion: promo,
+      availableCoupon: coupon,
+      availableUpsell: upsell,
+      availableComplement: complement,
+      recommendedAction: recommended,
+      rankedActions: rankedActions
+    };
+  }
+
+  function _buildRankedActionOpportunities(metrics, validatedImpactSignals, actionContext, season) {
+    metrics = metrics || {};
+    var signals = validatedImpactSignals || {};
+    actionContext = actionContext || {};
+    var ranked = [];
+    var products = signals.products && signals.products.products && signals.products.products.length ? signals.products.products : (metrics.topProducts || []);
+    var topChannel = signals.channels && signals.channels.topChannel;
+    var strongHour = (metrics.strongHours || [])[0];
+    var channelLabel = topChannel && topChannel.channel ? _channelLabel(topChannel.channel) : '';
+    var channelAdvice = topChannel && topChannel.actionAdvice ? topChannel.actionAdvice : '';
+    var canUseUpsellChannel = !topChannel || !topChannel.channel || _isCardapioChannel(topChannel.channel);
+    var hourLabel = strongHour && strongHour.hour !== undefined ? _formatHourLabel(strongHour.hour) : '';
+    var usedPromo = signals.promotions && signals.promotions.topPromotion;
+
+    (products || []).slice(0, 6).forEach(function (productSignal, index) {
+      if (!productSignal || !productSignal.name) return;
+      var product = _findActionProduct(productSignal, actionContext.products || []);
+      var economics = _productEconomics(product, productSignal);
+      var promo = _bestAvailablePromotionForProduct(product, actionContext.promotions || []);
+      var coupon = _bestAvailableCouponForProduct(economics, actionContext.coupons || []);
+      var upsell = _bestAvailableUpsellForProduct(product, actionContext.upsells || []);
+      var complement = _bestComplementProductForProduct(product, economics, actionContext.products || []);
+      var productName = productSignal.name;
+      var complementName = complement && complement.product ? _productActionName(complement.product) : '';
+      var productKey = _actionProductKey(productSignal, product);
+      var quantity = Math.round(_number(productSignal.quantity, 0));
+      var revenue = _number(productSignal.revenue, 0);
+      var evidence = productName + ' vendeu ' + quantity + ' unidade(s) e gerou ' + _fmtMoney(revenue) + ' nesta temporada.';
+      var scoreBase = 70 - (index * 4) + Math.min(18, quantity * 2) + Math.min(18, revenue / 10);
+      var productActionTitle = 'Dar protagonismo para ' + productName;
+      var productActionDescription = 'Use ' + productName + ' como produto principal da jogada' + (channelLabel ? ' no canal ' + channelLabel : '') + (hourLabel ? ' perto de ' + hourLabel : '') + '.';
+      var productActionChecklist = [
+        'Produto da jogada: ' + productName + '.',
+        channelLabel ? 'Canal para começar: ' + channelLabel + '.' : 'Canal para começar: canal principal da loja.',
+        hourLabel ? 'Horário com melhor resposta: perto de ' + hourLabel + '.' : 'Horário: use o período com mais pedidos recentes.',
+        economics.hasPriceAndCost ? 'Sobra atual aproximada: ' + Math.round(_number(economics.marginPct, 0)) + '%.' : 'Use sem desconto por enquanto para proteger o resultado da venda.'
+      ];
+      if (season && season.objective === 'increase_ticket') {
+        if (upsell && upsell.name && canUseUpsellChannel) {
+          productActionTitle = 'Usar ' + upsell.name + ' com ' + productName;
+          productActionDescription = 'No Cardápio, ofereça ' + upsell.name + ' quando a cliente escolher ' + productName + '. Essa é a jogada concreta para subir o valor do pedido sem baixar preço.';
+          productActionChecklist = [
+            'Produto que inicia a jogada: ' + productName + '.',
+            'Upsell para oferecer: ' + upsell.name + '.',
+            'Canal da jogada: Cardápio.',
+            hourLabel ? 'Use com mais atenção perto de ' + hourLabel + ', que foi o horário com melhor resposta.' : 'Use antes de finalizar o pedido no Cardápio.',
+            'Não aplique cupom forte nesta jogada; o objetivo é aumentar o pedido com oferta extra.'
+          ];
+        } else if (complementName) {
+          productActionTitle = 'Criar oferta ' + productName + ' + ' + complementName;
+          productActionDescription = 'Monte uma jogada juntando ' + productName + ' com ' + complementName + '. Esse complemento tem preço e custo suficientes para ser usado como oferta de aumento de pedido.';
+          productActionChecklist = [
+            'Produto que inicia a jogada: ' + productName + '.',
+            'Complemento sugerido: ' + complementName + '.',
+            'Ação concreta: criar upsell ou combo no Cardápio com esses dois produtos.',
+            complement.economics && complement.economics.hasPriceAndCost ? 'Sobra aproximada do complemento: ' + Math.round(_number(complement.economics.marginPct, 0)) + '%.' : 'Use o complemento sem desconto até completar preço e custo.',
+            'Vai valer a pena se os pedidos começarem a levar os dois itens juntos.'
+          ];
+        } else {
+          productActionTitle = 'Preparar um complemento para ' + productName;
+          productActionDescription = productName + ' está aparecendo como produto de entrada, mas ainda não encontrei upsell, combo ou complemento pronto para indicar. A jogada concreta agora é cadastrar uma oferta extra para esse produto.';
+          productActionChecklist = [
+            'Produto que inicia a jogada: ' + productName + '.',
+            'Crie um upsell no Cardápio ligado a ' + productName + '.',
+            'Escolha um complemento com preço e custo cadastrados.',
+            'Depois de criar, a próxima venda já pode mostrar se o pedido médio subiu.'
+          ];
+        }
+      }
+
+      if (index === 0 && usedPromo && usedPromo.name && _number(signals.promotions && signals.promotions.usedOrders, 0) > 0) {
+        ranked.push(_rankedAction(
+          110,
+          'promotion_validated',
+          productKey,
+          _seasonAction(
+            'promocao-validada-' + _slugKey(usedPromo.name),
+            'Repetir ' + usedPromo.name,
+            'Use ' + usedPromo.name + ' com ' + productName + ' porque essa combinação já trouxe venda real.',
+            usedPromo.name + ' já ajudou a vender ' + _fmtMoney(_number(usedPromo.revenue, signals.promotions.revenue)) + ' em ' + Math.round(_number(usedPromo.usedOrders || signals.promotions.usedOrders, 0)) + ' pedido(s). Vale repetir o que já mostrou resposta.',
+            'promotions',
+            'high',
+            [
+              'Produto da jogada: ' + productName + '.',
+              'Promoção da jogada: ' + usedPromo.name + '.',
+              'Resultado que ela já trouxe: ' + _fmtMoney(_number(usedPromo.revenue, signals.promotions.revenue)) + ' em vendas.',
+              channelAdvice || (channelLabel ? 'Canal para usar primeiro: ' + channelLabel + '.' : 'Canal para usar primeiro: o canal principal da loja.')
+            ]
+          )
+        ));
+      }
+
+      if (promo && promo.canUse) {
+        ranked.push(_rankedAction(
+          scoreBase + 28,
+          'promotion_available',
+          productKey,
+          _seasonAction(
+            'promocao-produto-' + productKey,
+            'Usar ' + promo.name + ' em ' + productName,
+            'Aplique ' + promo.name + ' em ' + productName + ': o preço ficaria perto de ' + _fmtMoney(promo.finalPrice) + ' e ainda sobra uma margem saudável para vender.',
+            evidence + ' Essa promoção pode dar mais força ao produto sem apertar demais o resultado da venda.',
+            'promotions',
+            'high',
+            [
+              'Produto: ' + productName + '.',
+              'Ação: usar ' + promo.name + '.',
+              'Preço provável com a promoção: ' + _fmtMoney(promo.finalPrice) + '.',
+              'Sobra aproximada depois da promoção: ' + Math.round(_number(promo.marginAfterPct, 0)) + '%.'
+            ]
+          )
+        ));
+      }
+
+      if (upsell && upsell.name && canUseUpsellChannel) {
+        ranked.push(_rankedAction(
+          scoreBase + (signals.upsell && _number(signals.upsell.acceptedOrders, 0) > 0 ? 26 : 18),
+          'upsell',
+          productKey,
+          _seasonAction(
+            'upsell-produto-' + productKey,
+            'Aumentar pedido com ' + upsell.name,
+            'Ofereça ' + upsell.name + ' junto de ' + productName + ' para subir o valor do pedido sem reduzir preço.',
+            evidence + ' Essa jogada ajuda a vender mais em cada pedido sem precisar baixar o preço do produto principal.',
+            'upsell',
+            'high',
+            [
+              'Produto de entrada: ' + productName + '.',
+              'Oferta extra: ' + upsell.name + '.',
+              'Canal da jogada: Cardápio, porque upsell só entra no canal de venda Cardápio.',
+              signals.upsell && _number(signals.upsell.acceptedOrders, 0) > 0 ? 'Clientes já aceitaram essa oferta em ' + Math.round(_number(signals.upsell.acceptedOrders, 0)) + ' pedido(s).' : 'Objetivo: vender algo a mais sem criar desconto.',
+              'Use essa oferta antes de finalizar o pedido.'
+            ]
+          )
+        ));
+      }
+
+      if (coupon && coupon.canUse) {
+        ranked.push(_rankedAction(
+          scoreBase + 16,
+          'coupon',
+          productKey,
+          _seasonAction(
+            'cupom-produto-' + productKey,
+            'Usar cupom ' + coupon.code + ' em ' + productName,
+            'Use o cupom ' + coupon.code + ' em ' + productName + ': o preço ficaria perto de ' + _fmtMoney(coupon.finalPrice) + ' e a venda ainda continua saudável.',
+            evidence + ' O cupom pode ajudar a criar urgência sem transformar a venda em prejuízo.',
+            'coupons',
+            'medium',
+            [
+              'Produto: ' + productName + '.',
+              'Cupom: ' + coupon.code + '.',
+              'Preço provável com cupom: ' + _fmtMoney(coupon.finalPrice) + '.',
+              'Sobra aproximada depois do cupom: ' + Math.round(_number(coupon.marginAfterPct, 0)) + '%.'
+            ]
+          )
+        ));
+      }
+
+      if (economics.hasPriceAndCost && economics.maxHealthyDiscountPct > 0) {
+        ranked.push(_rankedAction(
+          scoreBase + 10,
+          'healthy_discount',
+          productKey,
+          _seasonAction(
+            'desconto-produto-' + productKey,
+            'Desconto pequeno para ' + productName,
+            'Se quiser uma jogada com desconto, use no máximo ' + economics.maxHealthyDiscountPct + '% em ' + productName + '.',
+            'Preço ' + _fmtMoney(economics.price) + ', custo ' + _fmtMoney(economics.cost) + ' e margem atual de ' + Math.round(_number(economics.marginPct, 0)) + '%. Esse limite preserva margem mínima estimada.',
+            'healthy_discount',
+            'medium',
+            [
+              'Produto: ' + productName + '.',
+              'Desconto máximo recomendado: ' + economics.maxHealthyDiscountPct + '%.',
+              'Preço atual: ' + _fmtMoney(economics.price) + '.',
+              'Custo cadastrado: ' + _fmtMoney(economics.cost) + '.'
+            ]
+          )
+        ));
+      }
+
+      ranked.push(_rankedAction(
+        scoreBase,
+        'product_' + productKey,
+        productKey,
+        _seasonAction(
+          'produto-forte-' + productKey,
+          productActionTitle,
+          productActionDescription,
+          evidence + (channelLabel ? ' O canal que mais pode ajudar agora é ' + channelLabel + '.' : ''),
+          'products',
+          'medium',
+          productActionChecklist
+        )
+      ));
+    });
+
+    if (topChannel && topChannel.channel || strongHour && strongHour.hour !== undefined) {
+      var channelProductName = products && products[0] && products[0].name ? products[0].name : '';
+      var isCardapioAction = channelLabel && _isCardapioChannel(topChannel && topChannel.channel);
+      var channelActionTitle = isCardapioAction && channelProductName
+        ? 'Dar mais destaque para ' + channelProductName + ' no Cardápio'
+        : channelLabel && channelProductName
+          ? 'Vender mais ' + channelProductName + ' pelo canal ' + channelLabel
+          : channelLabel
+            ? 'Usar melhor o canal ' + channelLabel
+            : 'Usar o melhor horário';
+      var channelActionDescription = isCardapioAction
+        ? 'Coloque ' + (channelProductName || 'o produto com melhor saída') + ' mais visível no Cardápio e use o horário de maior resposta para puxar mais pedidos.'
+        : channelLabel
+          ? 'Leve ' + (channelProductName || 'o produto com melhor saída') + ' para o canal ' + channelLabel + (hourLabel ? ' perto de ' + hourLabel : '') + ', porque esse caminho já trouxe resposta.'
+          : 'Use o melhor horário da temporada para dar mais força ao produto que já está vendendo.';
+      var channelChecklist = isCardapioAction
+        ? [
+            'No Cardápio, deixe ' + (channelProductName || 'o produto com melhor saída') + ' mais fácil de encontrar.',
+            'Use o card de destaque, a ordem do produto ou uma promoção leve se a margem permitir.',
+            hourLabel ? 'Faça essa ação perto de ' + hourLabel + ', que foi o horário com melhor resposta.' : 'Faça essa ação no período em que os pedidos entram melhor.',
+            'Quando divulgar fora do BocaFood, envie o link do Cardápio direto para a cliente comprar por lá.'
+          ]
+        : [
+            channelLabel ? 'Use o canal ' + channelLabel + ' como primeiro lugar dessa jogada.' : 'Use o canal que mais trouxe pedido.',
+            channelProductName ? 'Produto para oferecer: ' + channelProductName + '.' : 'Produto para oferecer: produto com melhor saída.',
+            hourLabel ? 'Faça a ação perto de ' + hourLabel + '.' : 'Use o período com melhor resposta.',
+            'Mantenha a oferta simples para entender se esse canal continua respondendo.'
+          ];
+      ranked.push(_rankedAction(
+        76,
+        'timing',
+        '',
+        _seasonAction(
+          'canal-horario-ranqueado',
+          channelActionTitle,
+          channelActionDescription,
+          [
+            channelLabel ? channelLabel + ' trouxe ' + Math.round(_number(topChannel.orders, 0)) + ' pedido(s) e ' + _fmtMoney(_number(topChannel.revenue, 0)) : '',
+            topChannel && topChannel.channelCostPct ? 'Taxas estimadas do canal: ' + Math.round(_number(topChannel.channelCostPct, 0)) + '% da venda' : '',
+            topChannel && topChannel.discountTotal > 0 ? 'Descontos ligados ao canal: ' + _fmtMoney(topChannel.discountTotal) : '',
+            hourLabel ? hourLabel + ' concentrou ' + Math.round(_number(strongHour.orders, 0)) + ' pedido(s)' : ''
+          ].filter(Boolean).join('. ') + '.',
+          'timing',
+          'medium',
+          channelChecklist
+        )
+      ));
+    }
+
+    var recurring = Math.round(_number(metrics.recurringCustomers, 0));
+    var repurchaseRate = _number(metrics.repurchaseRate, 0);
+    var points = signals.points || {};
+    if (_isMeaningfulRecurrence(recurring, repurchaseRate) || _number(points.redemptionOrders, 0) > 0 || _number(points.repeatCustomers, 0) >= 2) {
+      ranked.push(_rankedAction(
+        70,
+        'retention',
+        '',
+        _seasonAction(
+          'recompra-ranqueada',
+          'Trazer clientes de volta',
+          'Chame clientes que já compraram antes usando o produto ou benefício que mais respondeu na temporada.',
+          recurring > 0 ? recurring + ' cliente(s) voltaram no período e a recompra está em ' + Math.round(repurchaseRate * 100) + '%.' : 'Pontos ou recompra já apareceram em pedidos válidos desta temporada.',
+          'retention',
+          'medium',
+          [
+            'Público: clientes que já compraram antes.',
+            products && products[0] && products[0].name ? 'Motivo do convite: ' + products[0].name + '.' : 'Motivo do convite: produto com melhor resposta.',
+            _number(points.redemptionOrders, 0) > 0 ? 'Use pontos como benefício, porque houve resgate em ' + Math.round(_number(points.redemptionOrders, 0)) + ' pedido(s).' : 'Objetivo: gerar recompra dentro da temporada.'
+          ]
+        )
+      ));
+    }
+
+    var weakDays = Math.round(_number(metrics.weakDays, 0));
+    if (weakDays > 0) {
+      ranked.push(_rankedAction(
+        64,
+        'consistency',
+        '',
+        _seasonAction(
+          'consistencia-ranqueada',
+          'Puxar um dia fraco',
+          products && products[0] && products[0].name ? 'Use ' + products[0].name + ' para puxar o próximo dia fraco da semana.' : 'Use a melhor oferta disponível para puxar o próximo dia fraco da semana.',
+          weakDays + ' dia(s) fraco(s) ainda aparecem na temporada.',
+          'consistency',
+          'medium',
+          [
+            products && products[0] && products[0].name ? 'Produto da jogada: ' + products[0].name + '.' : 'Produto da jogada: produto com melhor resposta.',
+            channelLabel ? 'Canal da jogada: ' + channelLabel + '.' : 'Canal da jogada: o que mais respondeu.',
+            hourLabel ? 'Horário da jogada: perto de ' + hourLabel + '.' : 'Horário da jogada: melhor período disponível.'
+          ]
+        )
+      ));
+    }
+
+    return _applySeasonActionStrategy(ranked, season).sort(function (a, b) { return b.score - a.score; }).slice(0, 12);
+  }
+
+  function _applySeasonActionStrategy(rankedActions, season) {
+    var profile = _seasonActionStrategyProfile(season || {});
+    return (rankedActions || []).filter(function (item) {
+      return _isSeasonActionAllowedForStrategy(item, profile);
+    }).map(function (item) {
+      var key = _seasonActionStrategyKey(item);
+      var boost = _number(profile.boosts[key], 0);
+      var source = item && item.action && item.action.source || '';
+      if (profile.sources && profile.sources[source] !== undefined) boost += _number(profile.sources[source], 0);
+      var adjusted = Object.assign({}, item);
+      adjusted.score = _number(item && item.score, 0) + boost;
+      adjusted.strategyFit = {
+        objective: season && season.objective || '',
+        build: season && season.build || '',
+        key: key,
+        boost: boost,
+        label: profile.label
+      };
+      adjusted.action = _contextualizeSeasonActionForStrategy(adjusted.action, key, season);
+      return adjusted;
+    });
+  }
+
+  function _isSeasonActionAllowedForStrategy(item, profile) {
+    var key = _seasonActionStrategyKey(item);
+    var allowed = profile && profile.allowedKeys;
+    if (!allowed || !allowed.length) return true;
+    return allowed.indexOf(key) >= 0;
+  }
+
+  function _contextualizeSeasonActionForStrategy(action, key, season) {
+    if (!action) return action;
+    var context = _seasonActionStrategyCopy(key, season || {});
+    if (!context) return action;
+    var next = Object.assign({}, action);
+    next.goalText = context.goal || next.goalText;
+    next.successText = context.success || next.successText;
+    if (context.description && _seasonActionShouldUseStrategyDescription(next)) {
+      next.description = context.description;
+    }
+    if (context.why) next.why = _mergeSeasonActionReason(next.why, context.why);
+    if (context.checklist && context.checklist.length) {
+      next.checklist = _mergeSeasonActionChecklist(next.checklist || [], context.checklist);
+    }
+    return next;
+  }
+
+  function _seasonActionShouldUseStrategyDescription(action) {
+    return !action || !String(action.description || '').trim();
+  }
+
+  function _mergeSeasonActionReason(base, extra) {
+    base = String(base || '').trim();
+    extra = String(extra || '').trim();
+    if (!extra) return base;
+    if (!base) return extra;
+    if (_foldText(base).indexOf(_foldText(extra).slice(0, 42)) >= 0) return base;
+    return base.replace(/\s+$/, '') + ' ' + extra;
+  }
+
+  function _mergeSeasonActionChecklist(base, extra) {
+    var out = [];
+    (base || []).concat(extra || []).forEach(function (item) {
+      var text = String(item || '').trim();
+      if (!text) return;
+      var folded = _foldText(text);
+      if (out.some(function (existing) { return _foldText(existing) === folded; })) return;
+      out.push(text);
+    });
+    return out.slice(0, 5);
+  }
+
+  function _seasonActionStrategyCopy(key, season) {
+    var objective = season && season.objective || '';
+    var build = season && season.build || '';
+    var combo = objective + ':' + build;
+    var copy = {
+      'sell_more:volume': {
+        goal: 'Gerar mais pedidos usando o produto, canal ou horário que já mostrou resposta.',
+        success: 'entrar mais pedidos ligados a essa jogada dentro do prazo.',
+        description: 'Use esta jogada para aumentar movimento onde a loja já mostrou resposta.',
+        why: 'Aqui o foco é volume: repetir o caminho que já trouxe pedido aumenta a chance de vender mais rápido.',
+        checklist: ['Mantenha a ação simples para gerar pedido, não para explicar demais a oferta.']
+      },
+      'sell_more:margin': {
+        goal: 'Vender mais sem trocar crescimento por desconto pesado.',
+        success: 'entrar venda com desconto controlado ou sem desconto.',
+        description: 'Use esta jogada para puxar venda preservando a sobra do produto.',
+        why: 'Como a estratégia é margem, a jogada precisa vender sem deixar o desconto mandar no resultado.',
+        checklist: ['Evite aumentar desconto nesta jogada; prefira destaque, produto forte ou upsell.']
+      },
+      'sell_more:retention': {
+        goal: 'Vender mais chamando quem já conhece a loja.',
+        success: 'cliente conhecido voltar a comprar dentro do prazo.',
+        description: 'Use esta jogada para transformar produto forte em motivo de retorno.',
+        why: 'Aqui vender mais passa por clientes que já têm relação com a loja, não por divulgação genérica.',
+        checklist: ['Use a mensagem ou benefício como convite para recompra.']
+      },
+      'increase_ticket:volume': {
+        goal: 'Fazer mais pedidos virem com algo a mais.',
+        success: 'o pedido médio subir ou aparecer item adicional vendido junto.',
+        description: 'Use esta jogada para aumentar o valor de cada pedido sem complicar a compra.',
+        why: 'O foco é ticket: não basta vender o produto, a jogada precisa adicionar valor ao pedido.',
+        checklist: ['Ofereça complemento, combo ou upsell antes de finalizar o pedido.']
+      },
+      'increase_ticket:margin': {
+        goal: 'Subir o valor do pedido preservando margem.',
+        success: 'entrar pedido maior sem depender de cupom forte.',
+        description: 'Use esta jogada para vender melhor cada pedido, com adicional ou produto de boa sobra.',
+        why: 'Como a estratégia é margem, upsell e adicional fazem mais sentido que baixar preço.',
+        checklist: ['Priorize adicional, combo ou produto complementar em vez de desconto.']
+      },
+      'increase_ticket:retention': {
+        goal: 'Fazer clientes conhecidos comprarem pedidos melhores.',
+        success: 'cliente recorrente comprar com adicional, combo ou ticket maior.',
+        description: 'Use esta jogada para oferecer algo complementar a quem já compra da loja.',
+        why: 'Cliente conhecido tende a aceitar melhor uma sugestão ligada ao que já pediu antes.',
+        checklist: ['Use o produto que a cliente já conhece como entrada para a oferta.']
+      },
+      'retain_customers:volume': {
+        goal: 'Trazer clientes de volta com uma ação fácil de aceitar.',
+        success: 'cliente que já comprou voltar a fazer pedido.',
+        description: 'Use esta jogada para aumentar recompra com uma chamada simples.',
+        why: 'A estratégia de volume aqui depende de retorno: mais clientes conhecidos comprando de novo.',
+        checklist: ['Fale com clientes que já compraram antes e use o produto forte como motivo.']
+      },
+      'retain_customers:margin': {
+        goal: 'Gerar recompra sem dar desconto desnecessário.',
+        success: 'cliente conhecido voltar comprando produto com boa sobra.',
+        description: 'Use esta jogada para trazer cliente de volta protegendo o resultado da venda.',
+        why: 'Como a estratégia é margem, a recompra precisa ser saudável, não só barata.',
+        checklist: ['Prefira benefício leve, pontos ou produto de boa margem.']
+      },
+      'retain_customers:retention': {
+        goal: 'Criar motivo claro para a cliente voltar.',
+        success: 'recompra aparecer com cliente identificado.',
+        description: 'Use esta jogada para transformar relacionamento em novo pedido.',
+        why: 'Essa combinação pede foco direto em recompra, pontos e clientes que já demonstraram interesse.',
+        checklist: ['Use pontos, cupom de retorno ou produto que a cliente costuma repetir.']
+      },
+      'improve_consistency:volume': {
+        goal: 'Preencher dias ou horários fracos com mais movimento.',
+        success: 'entrar pedido no dia ou horário que estava fraco.',
+        description: 'Use esta jogada para levar o produto certo ao momento em que a loja precisa de movimento.',
+        why: 'A consistência melhora quando os pedidos deixam de ficar concentrados em poucos momentos.',
+        checklist: ['Aplique a jogada no dia ou horário mais fraco, não só no horário que já vende bem.']
+      },
+      'improve_consistency:margin': {
+        goal: 'Preencher dias ou horários fracos sem sacrificar margem.',
+        success: 'entrar venda no período fraco com desconto controlado ou sem desconto.',
+        description: 'Use esta jogada para dar movimento nos pontos fracos usando um produto que já responde e preserva resultado.',
+        why: 'Essa jogada faz sentido porque junta consistência com margem: usa algo que já responde, mas sem transformar o dia fraco em venda barata.',
+        checklist: ['Use o produto forte para puxar o período fraco, mas não aumente desconto para forçar venda.']
+      },
+      'improve_consistency:retention': {
+        goal: 'Usar clientes conhecidos para movimentar dias fracos.',
+        success: 'cliente recorrente comprar em um dia ou horário que precisava de movimento.',
+        description: 'Use esta jogada para chamar clientes conhecidos nos momentos em que a loja oscila mais.',
+        why: 'Para ganhar consistência com fidelização, o melhor é usar relacionamento para preencher buracos da semana.',
+        checklist: ['Direcione a chamada para clientes que já compraram e para o dia que precisa de movimento.']
+      }
+    }[combo];
+    if (!copy) return null;
+    if (key === 'upsell' && objective !== 'increase_ticket') {
+      copy = Object.assign({}, copy, {
+        goal: build === 'margin' ? 'Aumentar o valor do pedido sem mexer no preço.' : copy.goal,
+        success: 'aparecer pedido com upsell aceito no Cardápio.'
+      });
+    }
+    return copy;
+  }
+
+  function _seasonActionStrategyKey(item) {
+    var focus = String(item && item.focusKey || '');
+    var source = String(item && item.action && item.action.source || '');
+    if (focus.indexOf('promotion') >= 0 || source === 'promotions') return 'promotion';
+    if (focus === 'coupon' || source === 'coupons') return 'coupon';
+    if (focus === 'upsell' || source === 'upsell') return 'upsell';
+    if (focus === 'healthy_discount' || source === 'healthy_discount') return 'healthy_discount';
+    if (focus.indexOf('product_') === 0 || source === 'products') return 'product';
+    if (focus === 'timing' || source === 'timing') return 'timing';
+    if (focus === 'retention' || source === 'retention' || source === 'points') return 'retention';
+    if (focus === 'consistency' || source === 'consistency') return 'consistency';
+    return source || focus || 'general';
+  }
+
+  function _seasonActionStrategyProfile(season) {
+    var objective = season && season.objective || '';
+    var build = season && season.build || '';
+    var combo = objective + ':' + build;
+    var boosts = {};
+    var sources = {};
+
+    function add(key, value) {
+      boosts[key] = _number(boosts[key], 0) + value;
+    }
+    function addSource(key, value) {
+      sources[key] = _number(sources[key], 0) + value;
+    }
+
+    if (objective === 'sell_more') {
+      add('product', 18);
+      add('timing', 16);
+      add('promotion', 14);
+      add('coupon', 8);
+      add('upsell', 4);
+      add('retention', -4);
+    } else if (objective === 'increase_ticket') {
+      add('upsell', 28);
+      add('healthy_discount', 10);
+      add('product', 8);
+      add('promotion', 2);
+      add('coupon', -10);
+      add('timing', 2);
+      add('retention', -8);
+    } else if (objective === 'retain_customers') {
+      add('retention', 30);
+      add('coupon', 14);
+      add('product', 8);
+      add('promotion', 4);
+      add('timing', 4);
+      add('upsell', -6);
+      addSource('points', 18);
+    } else if (objective === 'improve_consistency') {
+      add('consistency', 30);
+      add('timing', 22);
+      add('product', 12);
+      add('promotion', 6);
+      add('coupon', 2);
+      add('retention', 6);
+      add('upsell', -4);
+    }
+
+    if (build === 'volume') {
+      add('product', 10);
+      add('timing', 8);
+      add('promotion', 8);
+      add('coupon', 5);
+      add('consistency', 5);
+    } else if (build === 'margin') {
+      add('upsell', 12);
+      add('healthy_discount', 10);
+      add('product', 8);
+      add('promotion', -4);
+      add('coupon', -8);
+      add('retention', -2);
+    } else if (build === 'retention') {
+      add('retention', 16);
+      add('coupon', 10);
+      add('consistency', 6);
+      add('product', 3);
+      add('promotion', -2);
+      add('upsell', -4);
+      addSource('points', 12);
+    }
+
+    return {
+      boosts: boosts,
+      sources: sources,
+      allowedKeys: _seasonAllowedActionKeys(combo),
+      label: _objectiveLabel(objective) + ' + ' + _buildLabel(build)
+    };
+  }
+
+  function _seasonAllowedActionKeys(combo) {
+    var map = {
+      'sell_more:volume': ['product', 'timing', 'promotion', 'coupon', 'consistency'],
+      'sell_more:retention': ['retention', 'coupon', 'product', 'promotion', 'timing'],
+      'increase_ticket:margin': ['upsell', 'healthy_discount', 'product', 'promotion'],
+      'increase_ticket:retention': ['upsell', 'retention', 'coupon', 'product'],
+      'retain_customers:retention': ['retention', 'coupon', 'product', 'promotion'],
+      'retain_customers:margin': ['retention', 'healthy_discount', 'product', 'coupon'],
+      'improve_consistency:volume': ['consistency', 'timing', 'product', 'promotion', 'coupon'],
+      'improve_consistency:retention': ['consistency', 'retention', 'coupon', 'product', 'timing']
+    };
+    return map[combo] || [];
+  }
+
+  function _rankedAction(score, focusKey, productKey, action) {
+    return {
+      score: _number(score, 0),
+      focusKey: focusKey || '',
+      productKey: productKey || '',
+      action: action
+    };
+  }
+
+  function _actionProductKey(signal, product) {
+    return _slugKey((product && (product.id || product.productId)) || (signal && (signal.productId || signal.id || signal.name)) || 'produto');
+  }
+
+  function _slugKey(value) {
+    return _foldText(value || 'item').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'item';
+  }
+
+  function _selectRankedSeasonActions(rankedActions, maxActions, excludedIds) {
+    var sorted = (rankedActions || []).slice().sort(function (a, b) { return _number(b.score, 0) - _number(a.score, 0); });
+    var selected = [];
+    var usedIds = {};
+    var usedFocus = {};
+    var usedProducts = {};
+    excludedIds = excludedIds || {};
+
+    function tryAdd(item, strictProduct, strictFocus) {
+      if (!item || !item.action || selected.length >= maxActions) return false;
+      var actionId = String(item.action.id || item.focusKey || selected.length);
+      if (excludedIds[actionId]) return false;
+      if (usedIds[actionId]) return false;
+      if (strictFocus && item.focusKey && usedFocus[item.focusKey]) return false;
+      if (strictProduct && item.productKey && usedProducts[item.productKey]) return false;
+      item.action.focusKey = item.focusKey || '';
+      item.action.productKey = item.productKey || '';
+      selected.push(item.action);
+      usedIds[actionId] = true;
+      if (item.focusKey) usedFocus[item.focusKey] = true;
+      if (item.productKey) usedProducts[item.productKey] = true;
+      return true;
+    }
+
+    sorted.forEach(function (item) { tryAdd(item, true, true); });
+    sorted.forEach(function (item) { tryAdd(item, false, true); });
+    sorted.forEach(function (item) { tryAdd(item, false, false); });
+    return selected.slice(0, maxActions);
+  }
+
+  function _seasonExcludedActionIds(season) {
+    var excluded = {};
+    (season && season.actionTaskHistory || []).forEach(function (task) {
+      if (task && task.actionId) excluded[task.actionId] = true;
+    });
+    (season && season.actionTasks || []).forEach(function (task) {
+      if (task && task.actionId && _isTerminalActionTask(task)) excluded[task.actionId] = true;
+    });
+    return excluded;
+  }
+
+  function _chooseRecommendedSalesAction(topProduct, economics, promo, coupon, upsell, signals) {
+    if (!topProduct || !topProduct.name) return null;
+    var productName = topProduct.name;
+    var usedPromo = signals && signals.promotions && signals.promotions.topPromotion;
+    var topChannel = signals && signals.channels && signals.channels.topChannel;
+    var canUseUpsellChannel = !topChannel || !topChannel.channel || _isCardapioChannel(topChannel.channel);
+    if (usedPromo && usedPromo.name && _number(signals.promotions && signals.promotions.usedOrders, 0) > 0) {
+      return {
+        type: 'promotion_validated',
+        title: 'Repetir ' + usedPromo.name,
+        description: 'Use ' + usedPromo.name + ' com ' + productName + ' nesta jogada. A promoção já vendeu ' + _fmtMoney(_number(usedPromo.revenue, 0)) + ' e deve ser repetida com a mesma regra.',
+        why: usedPromo.name + ' já apareceu em ' + Math.round(_number(usedPromo.usedOrders || signals.promotions.usedOrders, 0)) + ' pedido(s) válido(s), então é uma ação com resposta real, não uma aposta nova.',
+        checklist: [
+          'Produto da jogada: ' + productName + '.',
+          'Promoção da jogada: ' + usedPromo.name + '.',
+          'Resultado já validado: ' + _fmtMoney(_number(usedPromo.revenue, 0)) + ' em vendas.'
+        ]
+      };
+    }
+    if (promo && promo.canUse) {
+      return {
+        type: 'promotion_available',
+        title: 'Usar ' + promo.name,
+        description: 'Use ' + promo.name + ' em ' + productName + ': o desconto estimado é ' + _fmtMoney(promo.discountValue) + ' e mantém margem aproximada de ' + Math.round(promo.marginAfterPct) + '%.',
+        why: 'A promoção está ativa, combina com o produto forte e a margem estimada fica acima do mínimo seguro.',
+        checklist: [
+          'Ative ou destaque ' + promo.name + ' para ' + productName + '.',
+          'Preço estimado depois da promoção: ' + _fmtMoney(promo.finalPrice) + '.',
+          'A margem estimada depois da promoção fica em ' + Math.round(promo.marginAfterPct) + '%, acima do mínimo seguro.'
+        ]
+      };
+    }
+    if (upsell && upsell.name && canUseUpsellChannel) {
+      return {
+        type: 'upsell_available',
+        title: 'Oferecer ' + upsell.name,
+        description: 'Use o upsell ' + upsell.name + ' junto de ' + productName + ' para aumentar o valor do pedido sem reduzir preço.',
+        why: 'Essa é a melhor jogada quando o produto vende, mas não vale reduzir preço: aumenta o pedido sem mexer na margem do produto principal.',
+        checklist: [
+          'Produto principal: ' + productName + '.',
+          'Oferta extra: ' + upsell.name + '.',
+          'Canal: Cardápio, porque upsell só entra no canal de venda Cardápio.',
+          'Objetivo da jogada: subir o valor do pedido sem desconto.'
+        ]
+      };
+    }
+    if (coupon && coupon.canUse) {
+      return {
+        type: 'coupon_available',
+        title: 'Usar cupom ' + coupon.code,
+        description: 'Use o cupom ' + coupon.code + ' com ' + productName + ': o desconto estimado mantém margem aproximada de ' + Math.round(coupon.marginAfterPct) + '%.',
+        why: 'O BocaFood calculou preço, custo e desconto do cupom; a margem estimada depois do cupom continua saudável.',
+        checklist: [
+          'Produto da jogada: ' + productName + '.',
+          'Preço estimado depois do cupom: ' + _fmtMoney(coupon.finalPrice) + '.',
+          'A margem estimada depois do cupom fica em ' + Math.round(coupon.marginAfterPct) + '%.'
+        ]
+      };
+    }
+    if (economics.hasPriceAndCost) {
+      if (economics.maxHealthyDiscountPct > 0) {
+        return {
+          type: 'healthy_discount_available',
+          title: 'Criar desconto pequeno para ' + productName,
+          description: 'Se quiser desconto, use no máximo ' + economics.maxHealthyDiscountPct + '% em ' + productName + '. Acima disso a margem estimada começa a ficar apertada.',
+          why: 'Com preço ' + _fmtMoney(economics.price) + ' e custo ' + _fmtMoney(economics.cost) + ', a margem atual é de ' + Math.round(economics.marginPct) + '%.',
+          checklist: [
+            'Produto da jogada: ' + productName + '.',
+            'Desconto máximo recomendado: ' + economics.maxHealthyDiscountPct + '%.',
+            'Margem atual antes do desconto: ' + Math.round(economics.marginPct) + '%.'
+          ]
+        };
+      }
+      return {
+        type: 'no_discount_margin',
+        title: 'Destacar ' + productName + ' sem desconto',
+        description: 'Não recomendo desconto em ' + productName + ' agora. A margem estimada já está curta; use destaque, combo ou upsell.',
+        why: 'Preço ' + _fmtMoney(economics.price) + ', custo ' + _fmtMoney(economics.cost) + ' e margem atual de ' + Math.round(economics.marginPct) + '%.',
+        checklist: [
+          'Coloque ' + productName + ' em destaque sem reduzir preço.',
+          'Ofereça adicional, combo ou upsell junto.',
+          'Com essa margem, desconto agora reduziria demais o resultado do produto.'
+        ]
+      };
+    }
+    return {
+      type: 'missing_cost',
+      title: 'Destacar ' + productName + ' sem desconto',
+      description: 'Use ' + productName + ' como destaque, mas não recomendo cupom ou promoção até existir preço e custo completos para calcular margem.',
+      why: 'O produto vende, mas falta dado suficiente de custo/preço para indicar desconto saudável.',
+      checklist: [
+        'Destaque ' + productName + ' no cardápio ou no canal mais forte.',
+        'Use upsell ou combo sem mexer no preço se houver opção.',
+        'Complete custo e preço do produto para o BocaFood calcular desconto ideal.'
+      ]
+    };
+  }
+
+  function _findActionProduct(signal, products) {
+    if (!signal) return null;
+    var id = String(signal.productId || signal.id || '').trim();
+    var name = _foldText(signal.name || '');
+    return (products || []).filter(function (product) {
+      if (!product) return false;
+      if (id && String(product.id || product.productId || '') === id) return true;
+      return name && _foldText(product.name || product.nome || product.title || '') === name;
+    })[0] || null;
+  }
+
+  function _productEconomics(product, signal) {
+    var price = _money(_firstValue(product && product.price, product && product.salePrice, product && product.valor, product && product.preco, product && product.precoVenda, signal && signal.unitPrice));
+    var cost = _money(_firstValue(product && product.cost, product && product.custo, product && product.purchasePrice, product && product.custoAtual, product && product.custo_atual, product && product.stockUnitCost, product && product.costPerYield, product && product.precoCompra));
+    var hasPriceAndCost = price > 0 && cost > 0;
+    var marginPct = hasPriceAndCost ? ((price - cost) / price) * 100 : null;
+    var targetMarginPct = 25;
+    var minFinal = hasPriceAndCost ? cost / (1 - targetMarginPct / 100) : 0;
+    var maxDiscountValue = hasPriceAndCost ? Math.max(0, price - minFinal) : 0;
+    var maxHealthyDiscountPct = hasPriceAndCost && price > 0 ? Math.floor(Math.min(20, (maxDiscountValue / price) * 100)) : 0;
+    return {
+      price: price,
+      cost: cost,
+      hasPriceAndCost: hasPriceAndCost,
+      marginPct: marginPct,
+      targetMarginPct: targetMarginPct,
+      maxHealthyDiscountPct: Math.max(0, maxHealthyDiscountPct),
+      maxHealthyDiscountValue: maxDiscountValue
+    };
+  }
+
+  function _bestAvailablePromotionForProduct(product, promotions) {
+    if (!product) return null;
+    var candidates = (promotions || []).map(function (promo) {
+      if (!_actionPromoApplies(promo, product)) return null;
+      var calc = _actionPromoCalc(product, promo);
+      if (!calc) return null;
+      return Object.assign(calc, {
+        id: promo.id || promo._id || '',
+        name: String(promo.name || promo.title || promo.nome || 'Promoção').trim(),
+        promo: promo,
+        canUse: calc.marginAfterPct === null || calc.marginAfterPct >= 25
+      });
+    }).filter(Boolean).sort(function (a, b) {
+      return (b.canUse === true) - (a.canUse === true) || b.discountValue - a.discountValue;
+    });
+    return candidates[0] || null;
+  }
+
+  function _bestAvailableCouponForProduct(economics, coupons) {
+    if (!economics || !economics.hasPriceAndCost) return null;
+    var candidates = (coupons || []).filter(_actionCouponActive).map(function (coupon) {
+      var type = String(coupon.type || coupon.discountType || 'pct');
+      var value = _money(coupon.value != null ? coupon.value : coupon.discountValue);
+      var discount = type === 'eur' ? value : economics.price * value / 100;
+      var finalPrice = Math.max(economics.price - discount, 0);
+      var marginAfterPct = finalPrice > 0 ? ((finalPrice - economics.cost) / finalPrice) * 100 : -100;
+      return {
+        code: String(coupon.code || coupon.codigo || coupon.name || coupon.id || '').trim().toUpperCase(),
+        discountValue: discount,
+        finalPrice: finalPrice,
+        marginAfterPct: marginAfterPct,
+        canUse: marginAfterPct >= 25
+      };
+    }).filter(function (item) { return item.code && item.discountValue > 0; }).sort(function (a, b) {
+      return (b.canUse === true) - (a.canUse === true) || b.marginAfterPct - a.marginAfterPct;
+    });
+    return candidates[0] || null;
+  }
+
+  function _bestAvailableUpsellForProduct(product, upsells) {
+    if (!product) return null;
+    var productId = String(product.id || product.productId || '').trim();
+    var productName = _foldText(product.name || product.nome || product.title || '');
+    return (upsells || []).filter(_actionUpsellActive).filter(function (rule) {
+      var ids = _arrayStrings(rule.triggerProductIds).concat(_arrayStrings(rule.productIds)).concat(_arrayStrings(rule.productsSelected));
+      if (productId && ids.indexOf(productId) >= 0) return true;
+      var text = _foldText([rule.name, rule.title, rule.triggerText, rule.productsText].join(' '));
+      return productName && text.indexOf(productName) >= 0;
+    }).map(function (rule) {
+      return { id: rule.id || rule._id || '', name: String(rule.name || rule.title || 'Upsell').trim(), rule: rule };
+    })[0] || null;
+  }
+
+  function _productActionName(product) {
+    return String(product && (product.name || product.nome || product.title || product.label) || '').trim();
+  }
+
+  function _bestComplementProductForProduct(baseProduct, baseEconomics, products) {
+    if (!baseProduct) return null;
+    var baseId = String(baseProduct.id || baseProduct.productId || '').trim();
+    var baseName = _foldText(_productActionName(baseProduct));
+    var candidates = (products || []).map(function (product) {
+      if (!product) return null;
+      var productId = String(product.id || product.productId || '').trim();
+      var name = _productActionName(product);
+      if (!name) return null;
+      if (baseId && productId && baseId === productId) return null;
+      if (baseName && _foldText(name) === baseName) return null;
+      if (product.hidden === true || product.visible === false || product.showInMenu === false || product.cardapioVisible === false) return null;
+      var status = _foldText(product.status || product.situacao || '');
+      if (['inativo', 'inativa', 'oculto', 'oculta', 'pausado', 'pausada'].indexOf(status) >= 0) return null;
+      var economics = _productEconomics(product, null);
+      var price = _number(economics.price, 0);
+      if (!(price > 0)) return null;
+      var margin = economics.hasPriceAndCost ? _number(economics.marginPct, 0) : 0;
+      var basePrice = _number(baseEconomics && baseEconomics.price, 0);
+      var priceFit = basePrice > 0 ? Math.max(0, 20 - Math.abs(price - (basePrice * .45))) : 5;
+      var score = priceFit + (economics.hasPriceAndCost ? 20 : 4) + Math.max(0, Math.min(25, margin));
+      return { product: product, economics: economics, score: score };
+    }).filter(Boolean).sort(function (a, b) {
+      return _number(b.score, 0) - _number(a.score, 0);
+    });
+    return candidates[0] || null;
+  }
+
+  function _actionPromoApplies(promo, product) {
+    if (!_actionPromoActive(promo)) return false;
+    var ids = _arrayStrings(promo.productIds).concat(_arrayStrings(promo.productsSelected)).concat(_arrayStrings(promo.selectedProductIds)).concat(_arrayStrings(promo.suggestedProductIds));
+    var productId = String(product.id || product.productId || '').trim();
+    if (promo.applyTo === 'all' || promo.scope === 'todos_produtos' || promo.scope === 'all') return true;
+    if (productId && ids.indexOf(productId) >= 0) return true;
+    if (productId && String(promo.productId || promo.suggestedProductId || '') === productId) return true;
+    return !ids.length && !promo.productId && !promo.suggestedProductId;
+  }
+
+  function _actionPromoActive(promo) {
+    if (!promo || promo.active === false) return false;
+    var status = _foldText(promo.status || '');
+    if (['pausada', 'pausado', 'expirada', 'expirado', 'finalizada', 'finalizado', 'inativa', 'inativo'].indexOf(status) >= 0) return false;
+    return _dateWindowActive(promo.startDate || promo.startsAt || promo.from, promo.endDate || promo.endsAt || promo.to);
+  }
+
+  function _actionCouponActive(coupon) {
+    if (!coupon || coupon.active === false) return false;
+    var status = _foldText(coupon.status || '');
+    if (['pausado', 'pausada', 'expirado', 'expirada', 'inativo', 'inativa'].indexOf(status) >= 0) return false;
+    return _dateWindowActive(coupon.startDate || coupon.startsAt || coupon.from, coupon.expiry || coupon.endDate || coupon.endsAt || coupon.to);
+  }
+
+  function _actionUpsellActive(rule) {
+    if (!rule || rule.active === false) return false;
+    var status = _foldText(rule.status || '');
+    return ['pausado', 'pausada', 'expirado', 'expirada', 'inativo', 'inativa'].indexOf(status) < 0 && _dateWindowActive(rule.startDate || rule.startsAt || rule.from, rule.endDate || rule.endsAt || rule.to);
+  }
+
+  function _dateWindowActive(startRaw, endRaw) {
+    var now = new Date();
+    var start = startRaw ? _toDate(startRaw) : null;
+    if (start && now < start) return false;
+    var end = endRaw ? _toDate(endRaw) : null;
+    if (end) {
+      end.setHours(23, 59, 59, 999);
+      if (now > end) return false;
+    }
+    return true;
+  }
+
+  function _actionPromoCalc(product, promo) {
+    var economics = _productEconomics(product, null);
+    if (!(economics.price > 0)) return null;
+    var type = _foldText(promo.type || promo.tipo || promo.discountType || promo.benefitType || '');
+    var value = _money(_firstValue(promo.valuePercentual, promo.discountPct, promo.pctValue, promo.value));
+    var eurValue = _money(_firstValue(promo.valueDesconto, promo.eurValue, promo.fixedDiscount, promo.value));
+    var fixedPrice = _money(_firstValue(promo.fixedPrice, promo.finalPrice, promo.offerPrice, promo.priceFixed));
+    var finalPrice = economics.price;
+    var legacyQtyPromo = /^(2x1|2por1|two_for_one|b2x1)$/.test(type);
+    var leve = parseInt(_firstValue(promo.leveQtd, promo.bundleQty, legacyQtyPromo ? 2 : 0), 10) || 0;
+    var pague = parseInt(_firstValue(promo.pagueQtd, promo.bundlePay, legacyQtyPromo ? 1 : 0), 10) || 0;
+    if (type === 'pct' || type === 'porcentagem' || type === 'percent') finalPrice = Math.max(economics.price - (economics.price * value / 100), 0);
+    else if (type === 'eur' || type === 'valor' || type === 'fixed_discount') finalPrice = Math.max(economics.price - eurValue, 0);
+    else if (type === 'fixed' || type === 'preco_fixo') finalPrice = fixedPrice > 0 ? Math.min(fixedPrice, economics.price) : economics.price;
+    else if ((type === 'add1' || legacyQtyPromo) && leve > 0 && leve > pague) finalPrice = Math.max((economics.price * pague) / leve, 0);
+    var marginAfterPct = economics.hasPriceAndCost && finalPrice > 0 ? ((finalPrice - economics.cost) / finalPrice) * 100 : null;
+    return {
+      finalPrice: finalPrice,
+      discountValue: Math.max(economics.price - finalPrice, 0),
+      marginAfterPct: marginAfterPct
+    };
+  }
+
+  function _arrayStrings(value) {
+    return Array.isArray(value) ? value.map(String).filter(Boolean) : [];
+  }
+
+  function _firstValue() {
+    for (var i = 0; i < arguments.length; i++) {
+      if (arguments[i] !== undefined && arguments[i] !== null && arguments[i] !== '') return arguments[i];
+    }
+    return '';
+  }
+
+  function _foldText(value) {
+    var raw = String(value || '').trim().toLowerCase();
+    return raw.normalize ? raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '') : raw;
+  }
+
+  function _buildSeasonExecutionPlan(season, currentMetrics, validatedImpactSignals, riskContext) {
+    var profile = _difficultyExecutionProfile(season && season.difficulty);
+    var signals = validatedImpactSignals || {};
+    var metrics = currentMetrics || {};
+    var actions = [];
+    var topProduct = signals.products && signals.products.topProduct && signals.products.topProduct.name ? signals.products.topProduct : (metrics.topProducts || [])[0];
+    var topChannel = signals.channels && signals.channels.topChannel;
+    var strongHour = (metrics.strongHours || [])[0];
+    var channelLabel = topChannel && topChannel.channel ? _channelLabel(topChannel.channel) : '';
+    var hourLabel = strongHour && strongHour.hour !== undefined ? _formatHourLabel(strongHour.hour) : '';
+    var opportunities = metrics.actionOpportunities || {};
+    var recommendedAction = opportunities.recommendedAction || null;
+    var economics = opportunities.topProductEconomics || {};
+    var availableComplement = opportunities.availableComplement || null;
+    var complementName = availableComplement && availableComplement.product ? _productActionName(availableComplement.product) : '';
+    var marginText = economics.hasPriceAndCost ? ('preço ' + _fmtMoney(economics.price) + ', custo ' + _fmtMoney(economics.cost) + ' e margem atual de ' + Math.round(_number(economics.marginPct, 0)) + '%') : '';
+    var productEvidence = topProduct && topProduct.name ? (topProduct.name + ' vendeu ' + Math.round(_number(topProduct.quantity, 0)) + ' unidade(s) e gerou ' + _fmtMoney(_number(topProduct.revenue, 0)) + ' nesta temporada') : '';
+    var channelEvidence = topChannel && topChannel.channel ? (channelLabel + ' trouxe ' + Math.round(_number(topChannel.orders, 0)) + ' pedido(s) e ' + _fmtMoney(_number(topChannel.revenue, 0))) : '';
+    var hourEvidence = strongHour && strongHour.hour !== undefined ? (hourLabel + ' concentrou ' + Math.round(_number(strongHour.orders, 0)) + ' pedido(s)') : '';
+    var rankedActions = _selectRankedSeasonActions(_applySeasonActionStrategy(opportunities.rankedActions || [], season), profile.maxActions, _seasonExcludedActionIds(season));
+
+    if (rankedActions.length) {
+      actions = rankedActions;
+      if (actions.length < profile.maxActions) {
+        actions = _completeSeasonActions(actions, profile, season, metrics, signals, opportunities, topProduct, topChannel, strongHour);
+      }
+      return {
+        difficulty: season && season.difficulty || 'balanced',
+        difficultyProfile: profile,
+        actions: actions.slice(0, profile.maxActions),
+        alertThresholds: {
+          progressRatioAttention: profile.progressRatioAttention,
+          progressRatioCritical: profile.progressRatioCritical
+        },
+        source: 'ranked_orders_and_validated_signals'
+      };
+    }
+
+    if (topProduct && topProduct.name && !(recommendedAction && /^promotion_/.test(String(recommendedAction.type || '')))) {
+      var productChecklist = [
+        productEvidence || ('Produto da jogada: ' + topProduct.name + '.'),
+        channelEvidence || (channelLabel ? 'Canal da jogada: ' + channelLabel + '.' : 'Canal da jogada: ainda não há canal dominante, então mantenha o canal principal da loja.'),
+        hourEvidence || (hourLabel ? 'Horário da jogada: perto de ' + hourLabel + '.' : 'Horário da jogada: mantenha o período em que os pedidos entram melhor.')
+      ];
+      if (recommendedAction && recommendedAction.checklist && recommendedAction.checklist.length) {
+        productChecklist = productChecklist.concat(recommendedAction.checklist.slice(0, 2));
+      } else if (marginText) {
+        productChecklist.push('Sem ação de desconto recomendada agora: ' + marginText + '. Use destaque ou upsell primeiro.');
+      } else {
+        productChecklist.push('Sem custo completo para calcular desconto saudável. Use destaque ou upsell sem reduzir preço.');
+      }
+      actions.push(_seasonAction(
+        'produto-forte',
+        'Vender mais ' + topProduct.name,
+        recommendedAction && recommendedAction.description ? recommendedAction.description : ('Hoje, use ' + topProduct.name + ' como produto principal da ação' + (channelLabel ? ' no canal ' + channelLabel : '') + (hourLabel ? ' perto de ' + hourLabel : '') + '.'),
+        recommendedAction && recommendedAction.why ? recommendedAction.why : ((productEvidence || 'Esse produto aparece como uma das melhores respostas da temporada') + (marginText ? ' e tem ' + marginText + '.' : '.')),
+        'products',
+        'high',
+        productChecklist
+      ));
+    }
+
+    if (season && season.objective === 'increase_ticket') {
+      var upsell = signals.upsell || {};
+      if (_number(upsell.acceptedOrders, 0) > 0) {
+        actions.push(_seasonAction(
+          'upsell-validado',
+          'Repetir o upsell que já funcionou',
+          'Ofereça o upsell nos pedidos de hoje para subir o valor do pedido.',
+          'O upsell já foi aceito em ' + Math.round(_number(upsell.acceptedOrders, 0)) + ' pedido(s) válido(s) e acrescentou ' + _fmtMoney(_number(upsell.addedRevenue, 0)) + '.',
+          'upsell',
+          'high',
+          [
+            topProduct && topProduct.name ? 'Produto de entrada: ' + topProduct.name + '.' : 'Use no produto que mais recebe pedidos.',
+            'Esse upsell já acrescentou ' + _fmtMoney(_number(upsell.addedRevenue, 0)) + ' em pedidos válidos.',
+            'Use o adicional antes de finalizar o pedido para subir o valor sem reduzir preço.'
+          ]
+        ));
+      } else if (topProduct && topProduct.name) {
+        var ticketTitle = complementName ? 'Oferecer ' + complementName + ' junto de ' + topProduct.name : 'Criar upsell para ' + topProduct.name;
+        var ticketDescription = complementName
+          ? 'Quando a cliente escolher ' + topProduct.name + ', ofereça ' + complementName + ' como complemento no Cardápio. A jogada é aumentar o pedido com um item concreto, não com desconto.'
+          : 'Ainda não encontrei complemento pronto para ' + topProduct.name + '. Crie um upsell no Cardápio ligado a esse produto antes de tratar essa jogada como pronta.';
+        actions.push(_seasonAction(
+          'ticket-produto',
+          ticketTitle,
+          ticketDescription,
+          complementName ? topProduct.name + ' é o produto de entrada e ' + complementName + ' foi escolhido como complemento possível para subir o valor do pedido.' : 'O objetivo desta temporada é aumentar ticket, mas falta um complemento pronto para transformar isso em venda.',
+          'objective',
+          'medium',
+          complementName ? [
+            'Produto de entrada: ' + topProduct.name + '.',
+            'Complemento da jogada: ' + complementName + '.',
+            'Canal: Cardápio.',
+            'Vai valer a pena se os pedidos começarem a levar os dois itens juntos.'
+          ] : [
+            'Produto de entrada: ' + topProduct.name + '.',
+            'Crie um upsell no Cardápio para esse produto.',
+            'Escolha um complemento com preço e custo cadastrados.',
+            'Depois de criado, o BocaFood mede venda adicional e ticket médio.'
+          ]
+        ));
+      }
+    }
+
+    if (season && season.objective === 'retain_customers') {
+      var points = signals.points || {};
+      actions.push(_seasonAction(
+        'recorrencia',
+        'Chamar quem já comprou',
+        'Hoje, convide clientes que já compraram antes para repetir o pedido ou aproveitar os pontos.',
+        _number(points.repeatCustomers, 0) > 0 ? 'Pontos já ajudaram ' + Math.round(_number(points.repeatCustomers, 0)) + ' cliente(s) recorrente(s).' : 'A temporada mede recompra, então a melhor ação é trazer clientes de volta.',
+        'points',
+        'medium',
+        [
+          'Público da jogada: clientes que já compraram antes.',
+          _number(points.repeatCustomers, 0) > 0 ? 'Sinal atual: pontos ajudaram ' + Math.round(_number(points.repeatCustomers, 0)) + ' cliente(s) recorrente(s).' : 'Motivo: esta temporada precisa gerar recompra.',
+          topProduct && topProduct.name ? 'Produto do convite: ' + topProduct.name + '.' : 'Produto do convite: use o produto com melhor saída.'
+        ]
+      ));
+    }
+
+    if (season && season.objective === 'improve_consistency') {
+      var weakDays = Math.round(_number(metrics.weakDays, 0));
+      actions.push(_seasonAction(
+        'dia-fraco',
+        'Recuperar o próximo dia fraco',
+        productName ? 'Use ' + productName + ' no próximo dia fraco para repetir a combinação que já gerou resposta.' : 'Use a melhor oferta disponível no próximo dia fraco.',
+        weakDays > 0 ? weakDays + ' dia(s) fraco(s) ainda estão pesando na consistência.' : 'A temporada quer espalhar melhor as vendas durante o período.',
+        'consistency',
+        'medium',
+        [
+          topProduct && topProduct.name ? 'Produto da jogada: ' + topProduct.name + '.' : 'Produto da jogada: produto com mais pedidos na temporada.',
+          hourEvidence || (hourLabel ? 'Horário da jogada: perto de ' + hourLabel + '.' : 'Horário da jogada: use o melhor período de venda.'),
+          'Motivo: existem ' + weakDays + ' dia(s) fraco(s) na temporada.'
+        ]
+      ));
+    }
+
+    var coupon = signals.coupons || {};
+    if (_number(coupon.usedOrders, 0) > 0 && profile.maxActions > actions.length) {
+      actions.push(_seasonAction(
+        'cupom-validado',
+        'Usar cupom com direção clara',
+        topProduct && topProduct.name ? 'Se for usar cupom hoje, aplique em ' + topProduct.name + ' ou no canal que já gerou pedido válido.' : 'Se for usar cupom hoje, mantenha no canal ou horário que já gerou pedido válido.',
+        'Cupom apareceu em ' + Math.round(_number(coupon.usedOrders, 0)) + ' pedido(s) e vendeu ' + _fmtMoney(_number(coupon.revenue, 0)) + '.',
+        'coupons',
+        'medium',
+        [
+          topProduct && topProduct.name ? 'Produto da jogada: ' + topProduct.name + '.' : 'Produto da jogada: produto com mais pedidos na temporada.',
+          'Esse cupom já vendeu ' + _fmtMoney(_number(coupon.revenue, 0)) + ' em pedido(s) válido(s).',
+          'Mantenha a regra que já trouxe pedido antes de criar desconto maior.'
+        ]
+      ));
+    }
+
+    var promotion = signals.promotions || {};
+    if (_number(promotion.usedOrders, 0) > 0 && profile.maxActions > actions.length && !actions.some(function (action) { return action.source === 'promotions' || /^promotion_/.test(String(action.id || '')); })) {
+      var topPromotion = promotion.topPromotion || {};
+      var promotionName = String(topPromotion.name || '').trim();
+      actions.push(_seasonAction(
+        'promocao-validada',
+        promotionName ? 'Repetir ' + promotionName + ' com cuidado' : 'Repetir a promoção com cuidado',
+        promotionName ? 'Use ' + promotionName + ' nos produtos ou horários em que ela já vendeu.' : (topProduct && topProduct.name ? 'Crie ou repita uma promoção focada em ' + topProduct.name + ', porque ele é o produto com mais força nesta temporada.' : 'Use a promoção que já gerou pedido válido e mantenha a mesma regra que vendeu.'),
+        promotionName ? promotionName + ' apareceu em pedido(s) válido(s) e ajudou a vender ' + _fmtMoney(_number(topPromotion.revenue, promotion.revenue)) + '.' : 'Promoções apareceram em ' + Math.round(_number(promotion.usedOrders, 0)) + ' pedido(s) válido(s).',
+        'promotions',
+        'medium',
+        [
+          promotionName ? 'Mantenha a promoção ' + promotionName + ' com a mesma regra que já vendeu.' : (topProduct && topProduct.name ? 'Use ' + topProduct.name + ' como base da promoção.' : 'Use a promoção que já teve pedido válido.'),
+          promotionName ? promotionName + ' já vendeu ' + _fmtMoney(_number(topPromotion.revenue, promotion.revenue)) + ' nesta temporada.' : 'Essa promoção já apareceu em pedido válido nesta temporada.',
+          'Não aumente o desconto nesta jogada; repita a regra que já gerou venda.'
+        ]
+      ));
+    }
+
+    if (topProduct && topProduct.name && !_number(coupon.usedOrders, 0) && !_number(promotion.usedOrders, 0) && profile.maxActions > actions.length && !actions.some(function (action) { return action.source === 'sales_actions' || action.source === 'products'; })) {
+      var salesActionDescription = recommendedAction && recommendedAction.description ? recommendedAction.description : ('Teste uma ação de venda simples para ' + topProduct.name + ', usando destaque no cardápio ou upsell sem mexer no preço.');
+      var salesActionChecklist = recommendedAction && recommendedAction.checklist && recommendedAction.checklist.length ? recommendedAction.checklist : [
+        'Use destaque no cardápio para ' + topProduct.name + '.',
+        'Se houver upsell compatível, ofereça junto do produto.',
+        'Use essa jogada porque ela preserva preço e aproveita o produto que já está puxando pedidos.'
+      ];
+      actions.push(_seasonAction(
+        'acao-venda-produto',
+        'Criar uma ação para ' + topProduct.name,
+        salesActionDescription,
+        recommendedAction && recommendedAction.why ? recommendedAction.why : 'O produto já mostrou resposta, mas ainda não há cupom ou promoção validada para ele nesta temporada.',
+        'sales_actions',
+        'medium',
+        salesActionChecklist
+      ));
+    }
+
+    if (actions.length && actions.length < profile.maxActions) {
+      actions = _completeSeasonActions(actions, profile, season, metrics, signals, opportunities, topProduct, topChannel, strongHour);
+    }
+
+    if (!actions.length) {
+      actions.push(_seasonAction(
+        'gerar-base',
+        'Criar base para o BocaFood ler',
+        'Hoje, registre os pedidos com produto, canal e horário corretos para o sistema identificar onde a temporada responde melhor.',
+        'Ainda não há histórico suficiente para recomendar produto, promoção, upsell ou canal específico.',
+        'baseline',
+        'high',
+        [
+          'Use esta jogada para criar a primeira base real de produto e canal.',
+          'Mantenha a temporada rodando por alguns dias.',
+          'Depois volte aqui para ver produto, horário e ação mais fortes.'
+        ]
+      ));
+    }
+
+    return {
+      difficulty: season && season.difficulty || 'balanced',
+      difficultyProfile: profile,
+      actions: actions.slice(0, profile.maxActions),
+      alertThresholds: {
+        progressRatioAttention: profile.progressRatioAttention,
+        progressRatioCritical: profile.progressRatioCritical
+      },
+      source: 'orders_and_validated_signals'
+    };
+  }
+
+  function _completeSeasonActions(actions, profile, season, metrics, signals, opportunities, topProduct, topChannel, strongHour) {
+    var out = (actions || []).slice();
+    var strategyProfile = _seasonActionStrategyProfile(season || {});
+    var productName = topProduct && topProduct.name;
+    var channelLabel = topChannel && topChannel.channel ? _channelLabel(topChannel.channel) : '';
+    var hourLabel = strongHour && strongHour.hour !== undefined ? _formatHourLabel(strongHour.hour) : '';
+    var availableUpsell = opportunities && opportunities.availableUpsell;
+    var availableCoupon = opportunities && opportunities.availableCoupon;
+    var availableComplement = opportunities && opportunities.availableComplement;
+    var complementName = availableComplement && availableComplement.product ? _productActionName(availableComplement.product) : '';
+    var economics = opportunities && opportunities.topProductEconomics || {};
+
+    function has(id) {
+      return out.some(function (action) { return action.id === id; });
+    }
+
+    function add(action) {
+      if (!action || out.length >= profile.maxActions || has(action.id)) return;
+      if (!_isSeasonActionAllowedForStrategy({ focusKey: action.source || '', action: action }, strategyProfile)) return;
+      out.push(action);
+    }
+
+    if (availableUpsell && availableUpsell.name && (!topChannel || !topChannel.channel || _isCardapioChannel(topChannel.channel))) {
+      add(_seasonAction(
+        'upsell-disponivel',
+        'Subir o pedido com ' + availableUpsell.name,
+        productName ? 'Ofereça ' + availableUpsell.name + ' junto de ' + productName + ' para aumentar o valor do pedido sem mexer no preço.' : 'Ofereça ' + availableUpsell.name + ' nos pedidos de hoje para aumentar o valor do pedido.',
+        productName ? productName + ' é o produto de entrada desta jogada; ' + availableUpsell.name + ' aumenta o pedido sem aplicar desconto.' : 'Existe uma regra de upsell disponível para aumentar o pedido sem aplicar desconto.',
+        'upsell',
+        'medium',
+        [
+          productName ? 'Produto de entrada: ' + productName + '.' : 'Produto de entrada: pedido atual.',
+          'Oferta extra: ' + availableUpsell.name + '.',
+          'Canal da jogada: Cardápio, porque upsell só entra no canal de venda Cardápio.',
+          'Efeito esperado: aumentar ticket sem reduzir margem do produto principal.'
+        ]
+      ));
+    }
+
+    if (availableCoupon && availableCoupon.canUse && productName) {
+      add(_seasonAction(
+        'cupom-disponivel',
+        'Usar cupom ' + availableCoupon.code,
+        'Use o cupom ' + availableCoupon.code + ' com ' + productName + ': a margem estimada depois do cupom fica em ' + Math.round(availableCoupon.marginAfterPct) + '%.',
+        'O cupom está ativo e o cálculo de preço/custo indica margem suficiente para essa jogada.',
+        'coupons',
+        'medium',
+        [
+          'Divulgue o cupom ' + availableCoupon.code + ' junto de ' + productName + '.',
+          'Preço estimado depois do cupom: ' + _fmtMoney(availableCoupon.finalPrice) + '.',
+          'Margem estimada depois do cupom: ' + Math.round(availableCoupon.marginAfterPct) + '%.'
+        ]
+      ));
+    }
+
+    if (channelLabel || hourLabel) {
+      var isCardapioAction = channelLabel && topChannel && _isCardapioChannel(topChannel.channel);
+      add(_seasonAction(
+        'canal-horario',
+        isCardapioAction && productName ? 'Dar mais destaque para ' + productName + ' no Cardápio' : (channelLabel && productName ? 'Vender mais ' + productName + ' pelo canal ' + channelLabel : (channelLabel ? 'Usar melhor o canal ' + channelLabel : 'Usar o melhor horário')),
+        isCardapioAction
+          ? 'Deixe ' + (productName || 'o produto com melhor saída') + ' mais visível no Cardápio e use o horário que já trouxe resposta.'
+          : ((channelLabel ? 'Use o canal ' + channelLabel : 'Use o melhor canal da temporada') + (hourLabel ? ' perto de ' + hourLabel : '') + ' com uma ação simples e fácil de reconhecer no resultado.'),
+        [channelLabel ? channelLabel + ' trouxe ' + Math.round(_number(topChannel.orders, 0)) + ' pedido(s) e ' + _fmtMoney(_number(topChannel.revenue, 0)) : '', hourLabel ? hourLabel + ' concentrou ' + Math.round(_number(strongHour.orders, 0)) + ' pedido(s)' : ''].filter(Boolean).join('. ') + '.',
+        'timing',
+        'medium',
+        isCardapioAction ? [
+          'No Cardápio, deixe ' + (productName || 'o produto com melhor saída') + ' mais fácil de encontrar.',
+          'Use o card de destaque, a ordem do produto ou uma promoção leve se a margem permitir.',
+          hourLabel ? 'Faça essa ação perto de ' + hourLabel + '.' : 'Faça essa ação no período em que os pedidos entram melhor.',
+          'Quando divulgar fora do BocaFood, envie o link do Cardápio direto para a cliente comprar por lá.'
+        ] : [
+          channelLabel ? 'Use o canal ' + channelLabel + ' como primeiro lugar dessa jogada.' : 'Use o canal que mais trouxe pedido.',
+          productName ? 'Produto para oferecer: ' + productName + '.' : 'Produto para oferecer: produto com melhor saída.',
+          hourLabel ? 'Faça a ação perto de ' + hourLabel + '.' : 'Use o período com melhor resposta.',
+          'Mantenha a oferta simples para entender se esse canal continua respondendo.'
+        ]
+      ));
+    }
+
+    var recurring = Math.round(_number(metrics && metrics.recurringCustomers, 0));
+    var repurchaseRate = _number(metrics && metrics.repurchaseRate, 0);
+    if (_isMeaningfulRecurrence(recurring, repurchaseRate) || season && season.objective === 'retain_customers') {
+      add(_seasonAction(
+        'recorrencia-extra',
+        'Trazer clientes de volta',
+        productName ? 'Chame clientes que já compraram antes usando ' + productName + ' como motivo do convite.' : 'Chame clientes que já compraram antes para repetir o pedido.',
+        _isMeaningfulRecurrence(recurring, repurchaseRate) ? recurring + ' clientes já voltaram no período, então recompra pode ser usada como jogada.' : 'O objetivo da temporada pede uma jogada de recompra.',
+        'retention',
+        'medium',
+        [
+          'Público da jogada: clientes que já compraram antes.',
+          productName ? 'Ofereça ' + productName + ' como motivo claro para voltar.' : 'Use o produto com melhor saída como motivo claro para voltar.',
+          'Objetivo da jogada: aumentar recompra dentro da temporada.'
+        ]
+      ));
+    }
+
+    var weakDays = Math.round(_number(metrics && metrics.weakDays, 0));
+    if (weakDays > 0) {
+      add(_seasonAction(
+        'consistencia-extra',
+        'Puxar um dia fraco',
+        productName ? 'Use ' + productName + ' para puxar o próximo dia fraco da semana.' : 'Use a melhor oferta disponível para puxar o próximo dia fraco da semana.',
+        weakDays + ' dia(s) fraco(s) ainda aparecem na temporada.',
+        'consistency',
+        'medium',
+        [
+          productName ? 'Produto da jogada: ' + productName + '.' : 'Produto da jogada: produto com melhor resposta.',
+          channelLabel ? 'Canal da jogada: ' + channelLabel + '.' : 'Canal da jogada: o que mais respondeu.',
+          hourLabel ? 'Horário da jogada: perto de ' + hourLabel + '.' : 'Horário da jogada: melhor período de venda.'
+        ]
+      ));
+    }
+
+    if (out.length < profile.maxActions && productName && economics.hasPriceAndCost && economics.maxHealthyDiscountPct > 0) {
+      add(_seasonAction(
+        'desconto-saudavel',
+        'Desconto pequeno para ' + productName,
+        'Se quiser criar uma jogada de desconto, use no máximo ' + economics.maxHealthyDiscountPct + '% em ' + productName + '.',
+        'Com preço ' + _fmtMoney(economics.price) + ' e custo ' + _fmtMoney(economics.cost) + ', esse limite preserva margem mínima estimada.',
+        'healthy_discount',
+        'low',
+        [
+          'Use até ' + economics.maxHealthyDiscountPct + '% de desconto.',
+          'Preço atual: ' + _fmtMoney(economics.price) + '.',
+          'Custo cadastrado: ' + _fmtMoney(economics.cost) + '.'
+        ]
+      ));
+    }
+
+    if (out.length < profile.maxActions && season && season.objective === 'increase_ticket' && productName && complementName) {
+      add(_seasonAction(
+        'complemento-disponivel',
+        'Vender ' + complementName + ' junto de ' + productName,
+        'Use ' + complementName + ' como complemento de ' + productName + ' no Cardápio. Essa jogada aumenta o pedido com produto concreto, sem depender de desconto.',
+        productName + ' é o produto de entrada e ' + complementName + ' é uma opção disponível para subir o valor do pedido.',
+        'upsell',
+        'medium',
+        [
+          'Produto de entrada: ' + productName + '.',
+          'Complemento da jogada: ' + complementName + '.',
+          'Canal: Cardápio.',
+          availableComplement.economics && availableComplement.economics.hasPriceAndCost ? 'Sobra aproximada do complemento: ' + Math.round(_number(availableComplement.economics.marginPct, 0)) + '%.' : 'Use sem desconto até completar preço e custo.',
+          'Vai valer a pena se o pedido médio subir com os dois produtos juntos.'
+        ]
+      ));
+    }
+
+    if (out.length < profile.maxActions) {
+      add(_seasonAction(
+        'base-extra',
+        'Gerar leitura para a próxima decisão',
+        'Use a jogada principal por alguns dias com produto, canal e horário consistentes para o BocaFood comparar o resultado.',
+        'Ainda faltam sinais diferentes suficientes para preencher todas as jogadas com ações mais específicas.',
+        'baseline',
+        'low',
+        [
+          productName ? 'Produto fixo para comparação: ' + productName + '.' : 'Produto fixo para comparação: produto com melhor resposta.',
+          channelLabel ? 'Canal fixo para comparação: ' + channelLabel + '.' : 'Canal fixo para comparação: melhor canal.',
+          hourLabel ? 'Horário fixo para comparação: perto de ' + hourLabel + '.' : 'Horário fixo para comparação: melhor período.'
+        ]
+      ));
+    }
+
+    return out;
+  }
+
+  function _seasonAction(id, title, description, why, source, priority, checklist) {
+    return {
+      id: id,
+      title: title,
+      description: description,
+      why: why,
+      source: source,
+      priority: priority || 'medium',
+      checklist: checklist || []
+    };
+  }
+
+  function _difficultyExecutionProfile(difficulty) {
+    if (difficulty === 'safe') return {
+      label: 'Seguro',
+      cadence: '1 ação principal por vez',
+      maxActions: 1,
+      actionDeadlineDays: 7,
+      executionDeadlineDays: 7,
+      resultWindowDays: 15,
+      progressRatioAttention: .7,
+      progressRatioCritical: .45,
+      description: 'Menos pressão, mais foco e maior tolerância para ajustar o caminho.'
+    };
+    if (difficulty === 'aggressive') return {
+      label: 'Agressivo',
+      cadence: 'até 3 ações específicas',
+      maxActions: 3,
+      actionDeadlineDays: 3,
+      executionDeadlineDays: 3,
+      resultWindowDays: 5,
+      progressRatioAttention: .9,
+      progressRatioCritical: .65,
+      description: 'Mais intensidade e acompanhamento próximo para acelerar o resultado.'
+    };
+    return {
+      label: 'Equilibrado',
+      cadence: 'até 2 ações práticas',
+      maxActions: 2,
+      actionDeadlineDays: 5,
+      executionDeadlineDays: 5,
+      resultWindowDays: 7,
+      progressRatioAttention: .8,
+      progressRatioCritical: .55,
+      description: 'Ritmo constante, com uma ação principal e um apoio.'
+    };
+  }
+
+  function _reconcileSeasonActionTasks(season, executionPlan, currentOrders) {
+    var actions = (executionPlan && executionPlan.actions || []).slice(0, executionPlan && executionPlan.difficultyProfile && executionPlan.difficultyProfile.maxActions || 2);
+    var previous = (season && season.actionTasks || season && season.executionPlan && season.executionPlan.actionTasks || []);
+    var history = _mergeActionTaskHistory(season && season.actionTaskHistory || [], []);
+    var previousMap = {};
+    (previous || []).forEach(function (task) {
+      if (task && task.actionId) previousMap[task.actionId] = task;
+    });
+    var now = new Date();
+    var fallbackProfile = _difficultyExecutionProfile(season && season.difficulty);
+    var difficultyProfile = executionPlan && executionPlan.difficultyProfile || fallbackProfile;
+    var executeDays = Math.max(1, _number(difficultyProfile.executionDeadlineDays || difficultyProfile.actionDeadlineDays, fallbackProfile.executionDeadlineDays || 5));
+    var resultDays = Math.max(executeDays, _number(difficultyProfile.resultWindowDays, fallbackProfile.resultWindowDays || 7));
+    var tasks = actions.map(function (action, index) {
+      var actionId = String(action.id || ('action-' + index));
+      var old = previousMap[actionId] || {};
+      var createdAt = old.createdAt || now.toISOString();
+      var executeDueAt = old.executeDueAt || old.dueAt || _addDaysIso(createdAt, executeDays);
+      var hasExecutionEvidence = Array.isArray(old.executionEvidence) && old.executionEvidence.length > 0 || !!old.expectedActionId || old.executionStatus === 'created_waiting_result';
+      var executionAt = _firstSeasonActionExecutionAt(old);
+      var resultAnchorAt = executionAt || old.resultAnchorAt || createdAt;
+      var resultDueAt = executionAt && !old.resultAnchorAt ? _addDaysIso(executionAt, resultDays) : (old.resultDueAt || _addDaysIso(resultAnchorAt, resultDays));
+      var evidence = _detectSeasonActionEvidence(action, currentOrders || [], createdAt);
+      var status = evidence.found
+        ? 'executed_with_result'
+        : (hasExecutionEvidence && now > (_toDate(resultDueAt) || now)
+          ? 'executed_without_result'
+          : (!hasExecutionEvidence && now > (_toDate(executeDueAt) || now)
+            ? 'not_executed'
+            : (old.status === 'manually_done' ? 'manually_done' : 'pending')));
+      if (old.status === 'executed_with_result' && !evidence.found) status = old.status;
+      return {
+        actionId: actionId,
+        title: action.title || 'Ação',
+        source: action.source || '',
+        focusKey: action.focusKey || '',
+        productKey: action.productKey || '',
+        status: status,
+        statusLabel: _seasonActionTaskStatusLabel(status),
+        createdAt: createdAt,
+        dueAt: executeDueAt,
+        executeDueAt: executeDueAt,
+        resultAnchorAt: resultAnchorAt,
+        resultDueAt: resultDueAt,
+        completedAt: evidence.found ? (old.completedAt || evidence.completedAt || now.toISOString()) : (status === 'executed_with_result' ? old.completedAt || null : null),
+        evidence: evidence.found ? evidence : (old.evidence && old.status === 'executed_with_result' ? old.evidence : null),
+        expectedActionType: old.expectedActionType || '',
+        expectedActionId: old.expectedActionId || '',
+        expectedActionCollection: old.expectedActionCollection || '',
+        executionEvidence: Array.isArray(old.executionEvidence) ? old.executionEvidence : [],
+        executionStatus: old.executionStatus || (hasExecutionEvidence ? 'created_waiting_result' : ''),
+        deadlineDays: executeDays,
+        executionDeadlineDays: executeDays,
+        resultWindowDays: resultDays
+      };
+    });
+    var activeTasks = [];
+    var archived = [];
+    tasks.forEach(function (task) {
+      if (_isTerminalActionTask(task)) archived.push(Object.assign({}, task, { archivedAt: task.archivedAt || new Date().toISOString() }));
+      else activeTasks.push(task);
+    });
+    return {
+      activeTasks: activeTasks,
+      history: _mergeActionTaskHistory(history, archived),
+      hasArchived: archived.length > 0
+    };
+  }
+
+  function _isTerminalActionTask(task) {
+    return task && (task.status === 'executed_with_result' || task.status === 'not_executed' || task.status === 'executed_without_result');
+  }
+
+  function _firstSeasonActionExecutionAt(task) {
+    var evidence = Array.isArray(task && task.executionEvidence) ? task.executionEvidence : [];
+    var first = evidence.map(function (item) {
+      return item && item.createdAt ? String(item.createdAt) : '';
+    }).filter(Boolean).sort()[0];
+    return first || '';
+  }
+
+  function _mergeActionTaskHistory(existing, incoming) {
+    var seen = {};
+    var merged = [];
+    (existing || []).concat(incoming || []).forEach(function (task) {
+      if (!task || !task.actionId) return;
+      var key = task.actionId + '|' + (task.completedAt || task.dueAt || task.archivedAt || '');
+      if (seen[key]) return;
+      seen[key] = true;
+      merged.push(task);
+    });
+    return merged.sort(function (a, b) {
+      return _dateValue(b.completedAt || b.archivedAt || b.dueAt) - _dateValue(a.completedAt || a.archivedAt || a.dueAt);
+    }).slice(0, 40);
+  }
+
+  function _addDaysIso(value, days) {
+    var d = _toDate(value) || new Date();
+    d.setDate(d.getDate() + Math.max(1, Math.round(_number(days, 1))));
+    d.setHours(23, 59, 59, 999);
+    return d.toISOString();
+  }
+
+  function _seasonActionTaskStatusLabel(status) {
+    return ({
+      pending: 'Em andamento',
+      executed_with_result: 'Executada com resultado',
+      executed_without_result: 'Executada sem resultado',
+      manually_done: 'Marcada como feita',
+      not_executed: 'Prazo vencido'
+    })[status] || 'Em andamento';
+  }
+
+  function _detectSeasonActionEvidence(action, orders, createdAt) {
+    var from = _toDate(createdAt) || new Date(0);
+    var allValidOrders = (orders || []).map(_normalizeSeasonOrder).filter(function (order) {
+      return order && !_isCanceledOrder(order) && order.createdAt;
+    }).sort(function (a, b) {
+      return a.createdAt.getTime() - b.createdAt.getTime();
+    });
+    var validOrders = allValidOrders.filter(function (order) {
+      return order && !_isCanceledOrder(order) && order.createdAt && order.createdAt >= from;
+    });
+    if (!validOrders.length) return { found: false };
+    var source = String(action && action.source || '');
+    var text = _foldText([
+      action && action.title,
+      action && action.description,
+      action && action.why,
+      (action && action.checklist || []).join(' ')
+    ].join(' '));
+    var match = null;
+
+    if (source === 'coupons' || text.indexOf('cupom') >= 0) {
+      match = validOrders.filter(function (order) {
+        return order.couponCode && text.indexOf(_foldText(order.couponCode)) >= 0 || _number(order.couponDiscount, 0) > 0 && text.indexOf('cupom') >= 0;
+      })[0] || null;
+      if (match) return _actionEvidence('coupon', match, 'O cupom já apareceu em uma venda.');
+    }
+
+    if (source === 'promotions' || text.indexOf('promocao') >= 0) {
+      match = validOrders.filter(function (order) {
+        if (_number(order.promotionDiscount, 0) > 0 && text.indexOf('promocao') >= 0) return true;
+        if (order.promotionName && text.indexOf(_foldText(order.promotionName)) >= 0) return true;
+        return (order.items || []).some(function (item) {
+          return item.promotionName && text.indexOf(_foldText(item.promotionName)) >= 0 || _number(item.promotionDiscount, 0) > 0 && text.indexOf('promocao') >= 0;
+        });
+      })[0] || null;
+      if (match) return _actionEvidence('promotion', match, 'A promoção já apareceu em uma venda.');
+    }
+
+    if (source === 'upsell' || text.indexOf('upsell') >= 0 || text.indexOf('oferta extra') >= 0) {
+      match = validOrders.filter(function (order) {
+        return _isCardapioChannel(order.channel) && (order.upsellAccepted || _number(order.upsellAddedRevenue, 0) > 0);
+      })[0] || null;
+      if (match) return _actionEvidence('upsell', match, 'A oferta extra já foi aceita e aumentou o pedido.');
+    }
+
+    if (source === 'timing') {
+      match = validOrders.filter(function (order) {
+        var channel = _foldText(_channelLabel(order.channel));
+        var hour = order.createdAt ? _formatHourLabel(order.createdAt.getHours()) : '';
+        return channel && text.indexOf(channel) >= 0 || hour && text.indexOf(_foldText(hour)) >= 0;
+      })[0] || null;
+      if (match) return _actionEvidence('timing', match, 'A venda entrou no canal ou horário indicado.');
+    }
+
+    if (source === 'retention') {
+      match = _findRecurringOrderAfter(allValidOrders, from);
+      if (match) return _actionEvidence('retention', match, 'Uma cliente voltou a comprar depois da jogada.');
+    }
+
+    match = validOrders.filter(function (order) {
+      return (order.items || []).some(function (item) {
+        var name = _foldText(item.name || '');
+        return name && text.indexOf(name) >= 0;
+      });
+    })[0] || null;
+    if (match) return _actionEvidence('product', match, 'O produto indicado já apareceu em uma venda.');
+
+    return { found: false };
+  }
+
+  function _findRecurringOrderAfter(orders, from) {
+    var seen = {};
+    for (var i = 0; i < orders.length; i++) {
+      var key = orders[i].customerKey;
+      if (!key) continue;
+      if (seen[key] && orders[i].createdAt && orders[i].createdAt >= from) return orders[i];
+      seen[key] = true;
+    }
+    return null;
+  }
+
+  function _actionEvidence(type, order, message) {
+    return {
+      found: true,
+      type: type,
+      message: message,
+      orderId: order && order.id || '',
+      orderTotal: order && order.total || 0,
+      completedAt: order && order.createdAt ? order.createdAt.toISOString() : new Date().toISOString()
+    };
+  }
+
+  function _seasonReadingForDisplay(season, metrics, scoreBreakdown) {
+    var reading = season.seasonReading || metrics.seasonReading || null;
+    var executionPlan = _executionPlanForDisplay(season, metrics, reading);
+    if (reading) return {
+      headline: reading.headline || _buildSeasonHeadline(season, metrics, scoreBreakdown),
+      helpingSignals: reading.helpingSignals || [],
+      blockingSignals: reading.blockingSignals || [],
+      nextAction: reading.nextAction || _buildNextBestAction(season, Object.assign({}, metrics, { executionPlan: executionPlan }), metrics.validatedImpactSignals, {}),
+      executionPlan: executionPlan
+    };
+    return _generateSeasonReading(season, metrics, scoreBreakdown, metrics.validatedImpactSignals || {}, {});
+  }
+
+  function _uniqueTextItems(items) {
+    var seen = {};
+    return (items || []).filter(function (item) {
+      var key = String(item || '').trim();
+      if (!key || seen[key]) return false;
+      seen[key] = true;
+      return true;
+    });
+  }
+
+  function _channelLabel(value) {
+    return ({
+      cardapio: 'Cardápio',
+      venda_presencial: 'Venda presencial',
+      pedido_manual: 'Pedido manual',
+      whatsapp: 'WhatsApp',
+      desconhecido: 'não identificado'
+    })[value] || value;
+  }
+
+  function _isCardapioChannel(value) {
+    return _normalizeChannel(value || '') === 'cardapio';
   }
 
   function _nextMoveTab(season, metrics, recommendation) {
     return '' +
       '<div class="seasons-copilot-layout">' +
         '<section class="seasons-copilot-main">' +
-          '<div class="seasons-tab-header"><span class="seasons-section-label">Copiloto IA</span><h3>O que fazer agora?</h3><p>A IA não calcula a temporada. Ela interpreta os dados já calculados e transforma em ação prática.</p></div>' +
-          _nextMoveBlock(recommendation) +
+          '<div class="seasons-tab-header"><span class="seasons-section-label">Próxima Jogada</span><h3>O que fazer agora?</h3><p>Jogadas práticas para ajudar sua loja a avançar nesta temporada, com foco, prazo e leitura do que aconteceu.</p></div>' +
+          _nextMoveBlock(season, metrics, recommendation) +
         '</section>' +
         '<aside class="seasons-system-side">' +
-          '<span class="seasons-section-label">Dados do Sistema</span>' +
+          '<span class="seasons-section-label">Ritmo da temporada</span>' +
           _metricTile('Score', Math.round(_number(season.currentScore, 0)), 'speed') +
           _metricTile('Progresso', Math.round(_number(season.progressPercent, 0)) + '%', 'trending_up') +
           _metricTile('Chance de Falha', _riskLabel(season.riskLevel), 'warning') +
@@ -2380,11 +4403,69 @@ Modules.Temporadas = (function () {
       '</span>';
   }
 
-  function _nextMoveBlock(recommendation) {
+  function _nextMoveBlock(season, metrics, recommendation) {
     recommendation = recommendation || _fallbackRecommendationForUI();
+    var reading = _seasonReadingForDisplay(season || {}, metrics || {}, _scoreBreakdownForDisplay(season || {}, metrics || {}));
+    var executionPlan = _executionPlanForDisplay(season, metrics, reading);
+    if (!executionPlan.actions || !executionPlan.actions.length) {
+      executionPlan = _buildSeasonExecutionPlan(season || {}, metrics || {}, metrics && metrics.validatedImpactSignals || {}, metrics && metrics.riskContext || {});
+    }
+    var profile = executionPlan.difficultyProfile || _difficultyExecutionProfile(season && season.difficulty);
+    if ((executionPlan.actions || []).length < profile.maxActions) {
+      var freshPlan = _buildSeasonExecutionPlan(season || {}, metrics || {}, metrics && metrics.validatedImpactSignals || {}, metrics && metrics.riskContext || {});
+      if ((freshPlan.actions || []).length > (executionPlan.actions || []).length) executionPlan = freshPlan;
+    }
+    var actions = (executionPlan.actions || []).slice(0, profile.maxActions || 2);
+    var taskMap = _seasonActionTaskMap(season, executionPlan, metrics);
+    var history = _seasonActionTaskHistoryForDisplay(season, executionPlan, metrics);
+    if (actions.length) {
+      return '' +
+        _seasonWeeklyReadingHtml(season, metrics, executionPlan, actions) +
+        '<div class="seasons-next-move seasons-next-move-operational">' +
+          '<div class="seasons-next-move-head">' +
+            '<span class="seasons-section-label">Próxima Jogada</span>' +
+            '<strong>' + _esc(actions.length > 1 ? 'Jogadas ativas' : 'Jogada ativa') + '</strong>' +
+          '</div>' +
+          '<p>' + _esc(actions.length > 1 ? 'Cada card tem um foco diferente para você agir sem misturar tudo na mesma decisão.' : 'Esta é a jogada com mais sentido para o momento atual da sua loja.') + '</p>' +
+          '<div class="seasons-next-checklist">' +
+            '<div class="seasons-next-checklist-head"><strong>' + _esc(profile.label ? 'Ritmo ' + profile.label : 'Ritmo da temporada') + '</strong><span>' + _esc(profile.cadence || 'Ações práticas') + '</span></div>' +
+            actions.map(function (action, index) {
+              var steps = (action.checklist || []).slice(0, 4);
+              var task = taskMap[action.id] || {};
+              return '<article>' +
+                '<header><span>' + (index + 1) + '</span><div><strong>' + _esc(action.title || 'Ação') + '</strong><p>' + _esc(action.description || '') + '</p></div></header>' +
+                _seasonActionGoalHtml(action, task, season) +
+                '<div class="seasons-next-reason seasons-next-action-reason"><span>Por que fazer</span><strong>' + _esc(action.why || 'Essa jogada aproveita o que já apareceu melhor nas vendas da sua loja.') + '</strong></div>' +
+                _seasonActionTaskStatusHtml(task) +
+                (steps.length ? '<ul>' + steps.map(function (step) { return '<li>' + _esc(step) + '</li>'; }).join('') + '</ul>' : '') +
+                _seasonActionResultHtml(task) +
+                _seasonActionButtonsHtml(action, task, season) +
+              '</article>';
+            }).join('') +
+          '</div>' +
+          _seasonActionOutcomeSummaryHtml(actions, taskMap, history) +
+          _seasonActionHistoryHtml(history) +
+          _seasonActionLearningHtml(season, metrics, actions, taskMap, history) +
+          '<small>Quando uma jogada entra nas vendas ou passa do prazo, ela sai da rodada atual e vira aprendizado para a próxima decisão.</small>' +
+        '</div>';
+    }
+
+    var isReading = recommendation.headline || recommendation.nextAction;
     var main = recommendation.mainAction || {};
     var steps = Array.isArray(main.howToApply) ? main.howToApply.slice(0, 4) : [];
     var secondary = Array.isArray(recommendation.secondaryActions) ? recommendation.secondaryActions.slice(0, 2) : [];
+
+    if (isReading) {
+      return '' +
+        '<div class="seasons-next-move">' +
+          '<div class="seasons-next-move-head">' +
+            '<span class="seasons-section-label">Próxima Jogada</span>' +
+            '<strong>' + _esc(recommendation.headline || 'Acompanhar a temporada') + '</strong>' +
+          '</div>' +
+          '<p>' + _esc(recommendation.nextAction || 'Use o produto, canal ou horário mais forte da temporada para a próxima ação.') + '</p>' +
+          '<small>Leitura gerada com dados calculados pelo BocaFood. A IA não calcula score, meta, risco ou progresso.</small>' +
+        '</div>';
+    }
 
     return '' +
       '<div class="seasons-next-move">' +
@@ -2404,7 +4485,340 @@ Modules.Temporadas = (function () {
           return '<article><strong>' + _esc(item.title || 'Ação secundária') + '</strong><p>' + _esc(item.description || item.why || '') + '</p></article>';
         }).join('') + '</div>' : '') +
         '<small>Recomendação gerada com base nos dados disponíveis da temporada.</small>' +
+        '</div>';
+  }
+
+  function _seasonActionTaskMap(season, executionPlan, metrics) {
+    var list = (executionPlan && executionPlan.actionTasks) || (season && season.actionTasks) || (metrics && metrics.actionTasks) || [];
+    var map = {};
+    (list || []).forEach(function (task) {
+      if (task && task.actionId) map[task.actionId] = task;
+    });
+    return map;
+  }
+
+  function _seasonActionTaskHistoryForDisplay(season, executionPlan, metrics) {
+    return ((executionPlan && executionPlan.actionTaskHistory) || (season && season.actionTaskHistory) || (metrics && metrics.actionTaskHistory) || []).slice(0, 6);
+  }
+
+  function _seasonWeeklyReadingHtml(season, metrics, executionPlan, actions) {
+    var remaining = _seasonRemainingGoalText(season, metrics);
+    var profile = executionPlan && executionPlan.difficultyProfile || _difficultyExecutionProfile(season && season.difficulty);
+    var focus = _seasonWeeklyFocusText(season, metrics, actions);
+    return '' +
+      '<section class="seasons-weekly-reading">' +
+        '<div>' +
+          '<span class="seasons-section-label">Leitura da semana</span>' +
+          '<h4>' + _esc(remaining.title) + '</h4>' +
+          '<p>' + _esc(focus) + '</p>' +
+        '</div>' +
+        '<aside>' +
+          '<small>Ritmo escolhido</small>' +
+          '<strong>' + _esc(profile.label || 'Temporada') + '</strong>' +
+          '<span>' + _esc(profile.cadence || 'Ações práticas') + '</span>' +
+        '</aside>' +
+      '</section>';
+  }
+
+  function _seasonRemainingGoalText(season, metrics) {
+    metrics = metrics || {};
+    var objective = season && season.objective;
+    var current = _number(metrics.currentValue, 0);
+    var target = _number(metrics.targetValue || season && season.targetValue, 0);
+    var missing = Math.max(0, target - current);
+    if (objective === 'sell_more') {
+      return {
+        title: missing > 0 ? 'Sua temporada precisa vender mais ' + _fmtMoney(missing) + ' até o fim do período.' : 'Sua temporada já passou da meta de venda.'
+      };
+    }
+    if (objective === 'increase_ticket') {
+      return {
+        title: missing > 0 ? 'Falta subir o ticket médio em ' + _fmtMoney(missing) + ' para chegar na meta.' : 'O ticket médio já está no caminho esperado.'
+      };
+    }
+    if (objective === 'retain_customers') {
+      return {
+        title: missing > 0 ? 'Faltam ' + Math.ceil(missing) + ' cliente(s) voltando a comprar nesta temporada.' : 'A recompra já passou da meta definida.'
+      };
+    }
+    if (objective === 'improve_consistency') {
+      return {
+        title: missing > 0 ? 'Faltam ' + Math.ceil(missing) + ' dia(s) com venda para deixar a temporada mais consistente.' : 'A consistência já está dentro da meta.'
+      };
+    }
+    return { title: 'Para esta semana, foque nas jogadas com melhor chance de resposta.' };
+  }
+
+  function _seasonWeeklyFocusText(season, metrics, actions) {
+    var first = (actions || [])[0] || {};
+    var product = _seasonActionProductLabel(first);
+    if (season && season.objective === 'increase_ticket') {
+      return product ? 'O foco agora é vender melhor cada pedido, usando ' + product + ' como entrada para adicionais, combo ou upsell.' : 'O foco agora é vender melhor cada pedido, sem depender só de baixar preço.';
+    }
+    if (season && season.objective === 'retain_customers') {
+      return product ? 'O foco agora é trazer clientes de volta usando ' + product + ' como motivo claro para repetir a compra.' : 'O foco agora é trazer clientes de volta com uma oferta simples e fácil de entender.';
+    }
+    if (season && season.objective === 'improve_consistency') {
+      return product ? 'O foco agora é usar ' + product + ' para puxar os dias ou horários mais fracos.' : 'O foco agora é distribuir melhor as vendas ao longo da semana.';
+    }
+    return product ? 'Para esta semana, use ' + product + ' como produto de força e acompanhe se a jogada vira venda.' : 'Para esta semana, foque nas jogadas abaixo e veja qual responde melhor.';
+  }
+
+  function _seasonActionProductLabel(action) {
+    var text = [
+      action && action.title,
+      action && action.description,
+      action && action.why,
+      (action && action.checklist || []).join(' ')
+    ].join(' ');
+    var match = text.match(/(?:Produto(?: da jogada)?|Produto de entrada|Produto):\s*([^\.]+)/i);
+    if (match && match[1]) return String(match[1]).trim();
+    match = text.match(/(?:Vender mais|Dar protagonismo para|Dar mais destaque para|Usar|Aumentar pedido com)\s+([^\.]+?)(?:\s+no|\s+pelo|\s+em|\s+com|\s+porque|$)/i);
+    return match && match[1] ? String(match[1]).trim() : '';
+  }
+
+  function _seasonActionObjectiveText(action, season) {
+    if (action && action.goalText) return action.goalText;
+    var source = String(action && action.source || '');
+    if (source === 'upsell') return 'Aumentar o valor do pedido sem mexer no preço do produto principal.';
+    if (source === 'coupons') return 'Criar uma chamada de compra com limite de desconto mais controlado.';
+    if (source === 'promotions') return 'Usar uma promoção que pode transformar interesse em venda.';
+    if (source === 'healthy_discount') return 'Testar desconto pequeno sem apertar demais a margem.';
+    if (source === 'timing') return 'Colocar o produto certo no canal e horário que já trouxeram resposta.';
+    if (source === 'retention' || source === 'points') return 'Trazer clientes que já conhecem sua loja para comprar de novo.';
+    if (source === 'consistency') return 'Dar movimento para dias ou horários que ainda estão fracos.';
+    if (season && season.objective === 'increase_ticket') return 'Aumentar o valor médio dos pedidos.';
+    if (season && season.objective === 'retain_customers') return 'Fazer mais clientes voltarem.';
+    if (season && season.objective === 'improve_consistency') return 'Deixar as vendas menos concentradas.';
+    return 'Aumentar venda usando o produto com melhor resposta.';
+  }
+
+  function _seasonActionGoalHtml(action, task, season) {
+    var items = [
+      { label: 'Fazer', value: _seasonActionObjectiveText(action, season) },
+      { label: 'Até quando', value: _seasonActionDeadlineText(task) },
+      { label: 'Vai valer a pena se', value: _seasonActionMeasureText(action, season) }
+    ];
+    return '<div class="seasons-action-objective seasons-action-goal">' +
+      items.map(function (item) {
+        return '<div><span>' + _esc(item.label) + '</span><strong>' + _esc(item.value) + '</strong></div>';
+      }).join('') +
+    '</div>';
+  }
+
+  function _seasonActionDeadlineText(task) {
+    var due = task && (task.executeDueAt || task.dueAt) ? _formatDate(task.executeDueAt || task.dueAt) : '';
+    return due ? 'Colocar em prática até ' + due + '.' : 'Colocar em prática nesta rodada da temporada.';
+  }
+
+  function _seasonActionMeasureText(action, season) {
+    if (action && action.successText) return action.successText;
+    var source = String(action && action.source || '');
+    var product = _seasonActionProductLabel(action);
+    if (source === 'upsell') return 'aparecer pedido com esse extra aceito no Cardápio.';
+    if (source === 'coupons') return 'o cupom entrar em pedidos sem derrubar demais o valor da venda.';
+    if (source === 'promotions') return 'a promoção gerar venda real e manter uma sobra saudável.';
+    if (source === 'healthy_discount') return 'vender mais ' + (product || 'o produto') + ' sem passar do desconto indicado.';
+    if (source === 'timing') return 'entrar venda pelo canal ou horário indicado, de preferência com ' + (product || 'o produto escolhido') + '.';
+    if (source === 'retention' || source === 'points') return 'cliente que já comprou voltar a fazer pedido.';
+    if (source === 'consistency') return 'o dia ou horário fraco receber pedido dentro do prazo.';
+    if (season && season.objective === 'increase_ticket') return 'o pedido médio subir sem depender só de desconto.';
+    if (season && season.objective === 'retain_customers') return 'mais clientes conhecidos voltarem a comprar.';
+    return 'a venda aparecer ligada a essa jogada dentro do prazo.';
+  }
+
+  function _seasonActionResultHtml(task) {
+    if (!task || !task.actionId) return '';
+    var status = task.status || 'pending';
+    var evidence = task.evidence || {};
+    var title = status === 'executed_with_result' ? 'Deu resultado' : (status === 'executed_without_result' ? 'Foi feita, mas não respondeu' : (status === 'not_executed' ? 'Não foi executada no prazo' : 'Ainda em andamento'));
+    var text = '';
+    if (status === 'executed_with_result') {
+      text = (evidence.message || 'A jogada apareceu nas vendas.') + (_number(evidence.orderTotal, 0) > 0 ? ' Pedido ligado: ' + _fmtMoney(evidence.orderTotal) + '.' : '');
+    } else if (status === 'not_executed') {
+      text = 'Não encontramos a ação criada ou aplicada dentro do prazo de execução. Na próxima rodada, vale trocar para uma jogada mais simples.';
+    } else if (status === 'executed_without_result') {
+      text = 'A ação foi colocada em prática, mas não trouxe venda ligada a ela dentro da janela de medição.';
+    } else {
+      text = 'Assim que uma venda ligada a essa jogada aparecer, o BocaFood mostra aqui o resultado.';
+    }
+    return '<div class="seasons-action-result seasons-action-result-' + _esc(status) + '"><span>Resultado</span><strong>' + _esc(title) + '</strong><p>' + _esc(text) + '</p></div>';
+  }
+
+  function _seasonActionOutcomeSummaryHtml(actions, taskMap, history) {
+    var tasks = [];
+    (actions || []).forEach(function (action) {
+      var task = taskMap && taskMap[action.id];
+      if (task) tasks.push(task);
+    });
+    tasks = tasks.concat(history || []);
+    var done = tasks.filter(function (task) { return task.status === 'executed_with_result'; });
+    var expired = tasks.filter(function (task) { return task.status === 'not_executed'; });
+    var pending = tasks.filter(function (task) { return !task.status || task.status === 'pending' || task.status === 'manually_done'; });
+    var revenue = done.reduce(function (sum, task) { return sum + _number(task && task.evidence && task.evidence.orderTotal, 0); }, 0);
+    return '' +
+      '<section class="seasons-action-outcome">' +
+        '<div class="seasons-next-checklist-head"><strong>O que aconteceu</strong><span>Resultado das jogadas</span></div>' +
+        '<div class="seasons-action-outcome-grid">' +
+          '<span><small>Com resultado</small><strong>' + done.length + '</strong></span>' +
+          '<span><small>Sem resposta</small><strong>' + expired.length + '</strong></span>' +
+          '<span><small>Em andamento</small><strong>' + pending.length + '</strong></span>' +
+          '<span><small>Vendas ligadas</small><strong>' + _esc(_fmtMoney(revenue)) + '</strong></span>' +
+        '</div>' +
+      '</section>';
+  }
+
+  function _seasonActionHistoryHtml(history) {
+    if (!history || !history.length) return '';
+    return '' +
+      '<div class="seasons-action-history">' +
+        '<div class="seasons-next-checklist-head"><strong>Jogadas que já passaram</strong><span>Aprendizado guardado</span></div>' +
+        history.slice(0, 4).map(function (task) {
+          var good = task.status === 'executed_with_result';
+          return '<article class="' + (good ? 'is-done' : 'is-expired') + '">' +
+            '<span>' + _icon(good ? 'check_circle' : 'schedule') + '</span>' +
+            '<div><strong>' + _esc(task.title || 'Jogada') + '</strong><p>' + _esc(_seasonActionHistoryText(task)) + '</p></div>' +
+          '</article>';
+        }).join('') +
       '</div>';
+  }
+
+  function _seasonActionHistoryText(task) {
+    if (!task) return '';
+    if (task.status === 'executed_with_result') {
+      return ((task.evidence && task.evidence.message) || 'Essa jogada apareceu nas vendas.') + (_number(task.evidence && task.evidence.orderTotal, 0) > 0 ? ' Resultado ligado: ' + _fmtMoney(task.evidence.orderTotal) + '.' : '');
+    }
+    return 'Saiu da rodada sem venda ligada a ela. Isso ajuda a próxima jogada a mudar foco em vez de repetir a mesma tentativa.';
+  }
+
+  function _seasonActionLearningHtml(season, metrics, actions, taskMap, history) {
+    var lessons = [];
+    var done = (history || []).filter(function (task) { return task.status === 'executed_with_result'; });
+    var expired = (history || []).filter(function (task) { return task.status === 'not_executed'; });
+    var firstAction = (actions || [])[0] || {};
+    var product = _seasonActionProductLabel(firstAction);
+    if (done.length) lessons.push('O que vira venda deve continuar como referência para a próxima rodada.');
+    if (expired.length) lessons.push('O que passou do prazo sem resposta deve mudar produto, canal ou benefício.');
+    if (product) lessons.push(product + ' deve ser observado de perto, porque apareceu como ponto de força para a temporada.');
+    if (!lessons.length) lessons.push('Quando as primeiras jogadas rodarem, esta área vai mostrar o que vale repetir e o que precisa mudar.');
+    return '' +
+      '<section class="seasons-action-learning">' +
+        '<div class="seasons-next-checklist-head"><strong>Aprendizado da temporada</strong><span>Para a próxima decisão</span></div>' +
+        '<ul>' + lessons.slice(0, 3).map(function (item) { return '<li>' + _esc(item) + '</li>'; }).join('') + '</ul>' +
+      '</section>';
+  }
+
+  function _seasonActionTaskStatusHtml(task) {
+    if (!task || !task.actionId) return '';
+    var status = task.status || 'pending';
+    var due = _formatDate(task.executeDueAt || task.dueAt);
+    var resultDue = _formatDate(task.resultDueAt);
+    var evidence = task.evidence && task.evidence.message ? task.evidence.message : '';
+    var text = status === 'executed_with_result'
+      ? (evidence || 'Essa jogada já apareceu nas vendas da loja.')
+      : (status === 'executed_without_result'
+        ? 'A ação foi executada, mas não trouxe venda ligada a ela até ' + (resultDue || 'o fim da medição') + '.'
+        : (status === 'not_executed'
+        ? 'O prazo passou e essa jogada ainda não apareceu nas vendas.'
+        : (task.executionStatus === 'created_waiting_result' ? 'Ação criada. Agora vamos medir resposta até ' + (resultDue || 'o fim da janela') + '.' : 'Execute até ' + (due || 'o prazo da rodada') + '.')));
+    return '' +
+      '<div class="seasons-action-task-status seasons-action-task-status-' + _esc(status) + '">' +
+        '<span>' + _icon(status === 'executed_with_result' ? 'check_circle' : (status === 'not_executed' ? 'error' : 'schedule')) + _esc(task.statusLabel || _seasonActionTaskStatusLabel(status)) + '</span>' +
+        '<small>' + _esc(text) + '</small>' +
+      '</div>';
+  }
+
+  function _seasonActionButtonsHtml(action, task, season) {
+    var buttons = _seasonActionButtons(action, task, season);
+    if (!buttons.length) return '';
+    return '<div class="seasons-action-buttons">' + buttons.map(function (button) {
+      return '<button type="button" class="' + _esc(button.primary ? 'primary' : '') + '" onclick="Modules.Temporadas.handleSeasonActionButton(\'' + _esc(action.id || '') + '\',\'' + _esc(button.type || '') + '\')">' + _icon(button.icon || 'arrow_forward') + _esc(button.label) + '</button>';
+    }).join('') + '</div>';
+  }
+
+  function _seasonActionButtons(action, task, season) {
+    var source = String(action && action.source || '');
+    if (source === 'promotions') return [
+      { type: 'promotion', label: _seasonActionLooksExisting(action) ? 'Ver promoção' : 'Criar promoção', icon: 'local_offer', primary: true },
+      { type: 'catalog', label: 'Ver produto', icon: 'restaurant_menu' }
+    ];
+    if (source === 'coupons' || source === 'healthy_discount') return [
+      { type: 'coupon', label: _seasonActionLooksExisting(action) ? 'Ver cupom' : 'Criar cupom', icon: 'sell', primary: true },
+      { type: 'catalog', label: 'Ver produto', icon: 'restaurant_menu' }
+    ];
+    if (source === 'upsell') return [
+      { type: 'upsell', label: _seasonActionLooksExisting(action) ? 'Ver upsell' : 'Criar upsell', icon: 'add_shopping_cart', primary: true },
+      { type: 'catalog', label: 'Ver produto', icon: 'restaurant_menu' }
+    ];
+    if (source === 'products' || source === 'sales_actions') return [
+      { type: 'catalog', label: 'Aplicar destaque', icon: 'star', primary: true },
+      { type: 'promotion', label: 'Criar promoção', icon: 'local_offer' }
+    ];
+    if (source === 'retention' || source === 'points') return [
+      { type: 'customers', label: 'Ver clientes', icon: 'groups', primary: true },
+      { type: 'points', label: 'Ver pontos', icon: 'loyalty' }
+    ];
+    if (source === 'timing' || source === 'consistency') return [
+      { type: 'performance', label: source === 'consistency' ? 'Ver dias fracos' : 'Ver horários', icon: 'query_stats', primary: true },
+      { type: 'promotion', label: 'Criar ação', icon: 'campaign' }
+    ];
+    return [
+      { type: 'performance', label: 'Ver desempenho', icon: 'analytics', primary: true }
+    ];
+  }
+
+  function _seasonActionLooksExisting(action) {
+    var id = String(action && action.id || '');
+    return id.indexOf('validada') >= 0 || id.indexOf('disponivel') >= 0 || id.indexOf('produto-') >= 0 && String(action && action.title || '').match(/usar|repetir/i);
+  }
+
+  function handleSeasonActionButton(actionId, buttonType) {
+    var season = _state.activeSeason || {};
+    var metrics = season.currentMetrics || {};
+    var reading = _seasonReadingForDisplay(season, metrics, _scoreBreakdownForDisplay(season, metrics));
+    var executionPlan = _executionPlanForDisplay(season, metrics, reading);
+    var action = (executionPlan.actions || []).find(function (item) { return String(item.id || '') === String(actionId || ''); }) || null;
+    var route = _seasonActionButtonRoute(buttonType);
+    try {
+      window.sessionStorage.setItem('bocafoodSeasonActionDraft', JSON.stringify({
+        seasonId: season.id || '',
+        seasonActionId: actionId || '',
+        type: buttonType || '',
+        source: action && action.source || '',
+        productKey: action && action.productKey || '',
+        focusKey: action && action.focusKey || '',
+        title: action && action.title || '',
+        createdAt: new Date().toISOString()
+      }));
+    } catch (err) {}
+    if (window.UI && typeof UI.toast === 'function') {
+      UI.toast(_seasonActionButtonToast(buttonType), 'info');
+    }
+    if (window.Router && typeof Router.navigate === 'function') Router.navigate(route);
+  }
+
+  function _seasonActionButtonRoute(buttonType) {
+    return ({
+      promotion: 'marketing/promocoes',
+      coupon: 'marketing/cupons',
+      upsell: 'marketing/upsell',
+      catalog: 'catalogo/produtos',
+      customers: 'pedidos/clientes',
+      points: 'marketing/pontos',
+      performance: 'crescimento/performance'
+    })[buttonType] || 'crescimento/performance';
+  }
+
+  function _seasonActionButtonToast(buttonType) {
+    return ({
+      promotion: 'Abrindo Promoções com esta jogada como referência.',
+      coupon: 'Abrindo Cupons com esta jogada como referência.',
+      upsell: 'Abrindo Upsell com esta jogada como referência.',
+      catalog: 'Abrindo Produtos para aplicar a jogada.',
+      customers: 'Abrindo Clientes para trabalhar recompra.',
+      points: 'Abrindo Programa de Pontos.',
+      performance: 'Abrindo Performance para comparar os sinais.'
+    })[buttonType] || 'Abrindo a área relacionada.';
   }
 
   function _metricTile(label, value, icon, helpText, highlighted, balloon) {
@@ -2500,6 +4914,9 @@ Modules.Temporadas = (function () {
   }
 
   function _scheduledTargetLabel(season) {
+    if (season.targetMode === 'flight_plan') {
+      return 'Plano de Voo · ' + _formatMetricValue(season.calculatedTargetValue, season.objective);
+    }
     var value = season.targetMode === 'fixed' ? season.targetValue : season.calculatedTargetValue;
     var mode = season.targetMode === 'fixed' ? 'fixa' : 'automática';
     return mode + ' · ' + _formatMetricValue(value, season.objective);
@@ -2550,12 +4967,7 @@ Modules.Temporadas = (function () {
       _state.seasons = _state.seasons.map(function (item) {
         return item.id === finishedSeason.id ? finishedSeason : item;
       });
-      return _loadBusinessMaturity({
-        snapshotType: 'season_final',
-        source: 'season_final',
-        relatedSeasonId: finishedSeason.id || '',
-        season: finishedSeason
-      }).then(function () {
+      return _registerSeasonMaturityImpact(finishedSeason, 'season_final').then(function () {
         return finishedSeason;
       });
     }).then(function (finishedSeason) {
@@ -2879,7 +5291,7 @@ Modules.Temporadas = (function () {
             '<div>' +
               '<span>' + _esc(season.title || 'Temporada sem título') + '</span>' +
               '<h3>' + _esc(_objectiveLabel(season.objective)) + '</h3>' +
-              '<p>' + _esc(_formatPeriod(season.startDate, season.finishedAt || season.endDate)) + '</p>' +
+              '<p>' + _esc(summary.headline || _formatPeriod(season.startDate, season.finishedAt || season.endDate)) + '</p>' +
             '</div>' +
             '<strong>' + Math.round(_number(season.finalScore, season.currentScore || 0)) + '</strong>' +
           '</div>' +
@@ -3007,7 +5419,7 @@ Modules.Temporadas = (function () {
               _helpItem('Ritmo Atual', 'Compara o progresso real com o progresso esperado para este momento da temporada. No início, não deve punir ausência de resultado imediato.', 'Estados: Em início, Excelente, Estável, Instável e Crítico.') +
               _helpItem('Chance de Falha', 'Estima o risco de não atingir a meta considerando histórico, dificuldade da meta, dias restantes e ritmo atual.', 'Estados: Baixo, Médio, Alto e Muito alto. Pode ser alta no começo se a meta estiver muito acima do histórico.') +
               _helpItem('Atual', 'Valor atual acumulado ou calculado até agora.', objective.current) +
-              _helpItem('Meta', 'Valor que precisa ser alcançado até o final da temporada. Pode ser fixa ou automática.', objective.target) +
+              _helpItem('Meta', 'Valor que precisa ser alcançado até o final da temporada. Agora a meta vem da rota escolhida no Plano de Voo.', objective.target) +
             '</div>' +
           '</section>' +
           '<section class="seasons-help-section">' +
@@ -3184,7 +5596,7 @@ Modules.Temporadas = (function () {
         objective: '',
         durationType: '',
         startDate: _todayKey(),
-        targetMode: '',
+        targetMode: 'flight_plan',
         targetValue: '',
         difficulty: '',
         build: ''
@@ -3204,21 +5616,25 @@ Modules.Temporadas = (function () {
 
   function _wizardHtml() {
     var step = _wizard.step;
-    var title = ['Objetivo', 'Duração', 'Data de início', 'Tipo de meta', 'Dificuldade', 'Estratégia operacional', 'Resumo final'][step] || 'Nova Temporada';
-    var totalSteps = 7;
+    var title = ['Objetivo', 'Duração', 'Data de início', 'Dificuldade', 'Estratégia operacional', 'Resumo final'][step] || 'Nova Temporada';
+    var totalSteps = 6;
     return '' +
-      '<div class="seasons-modal" role="dialog" aria-modal="true" aria-label="Nova Temporada">' +
+      '<div class="seasons-modal seasons-create-wizard" role="dialog" aria-modal="true" aria-label="Nova Temporada">' +
         '<div class="seasons-modal-head">' +
           '<div>' +
             '<span class="seasons-section-label">Nova Temporada</span>' +
             '<h2>' + _esc(title) + '</h2>' +
+            '<p>' + _esc(_wizardStepSubtitle(step)) + '</p>' +
           '</div>' +
           '<button class="seasons-icon-button" type="button" onclick="Modules.Temporadas.closeCreateFlow()" aria-label="Fechar">' + _icon('close') + '</button>' +
         '</div>' +
-        '<div class="seasons-stepper">' + [0, 1, 2, 3, 4, 5, 6].map(function (idx) {
-          return '<span class="' + (idx === step ? 'active' : (idx < step ? 'done' : '')) + '"></span>';
+        '<div class="seasons-stepper seasons-stepper-rich">' + [0, 1, 2, 3, 4, 5].map(function (idx) {
+          return '<span class="' + (idx === step ? 'active' : (idx < step ? 'done' : '')) + '"><i></i></span>';
         }).join('') + '</div>' +
-        '<div class="seasons-modal-body">' + _wizardStepHtml(step) + '</div>' +
+        '<div class="seasons-modal-body seasons-wizard-body">' +
+          _wizardDecisionPanel(step) +
+          '<div class="seasons-wizard-main">' + _wizardStepHtml(step) + '</div>' +
+        '</div>' +
         (_wizard.error ? '<div class="seasons-wizard-error">' + _icon('error') + _esc(_wizard.error) + '</div>' : '') +
         '<div class="seasons-modal-foot">' +
           '<button class="seasons-secondary-button" type="button" onclick="Modules.Temporadas._wizardBack()" ' + (step === 0 || _wizard.saving ? 'disabled' : '') + '>Voltar</button>' +
@@ -3227,13 +5643,73 @@ Modules.Temporadas = (function () {
       '</div>';
   }
 
+  function _wizardStepSubtitle(step) {
+    return [
+      'Escolha o foco principal deste ciclo operacional.',
+      'Defina o tamanho da rodada de trabalho.',
+      'Escolha quando a temporada começa a acompanhar a rota.',
+      'Defina a intensidade das jogadas que o BocaFood vai sugerir.',
+      'Escolha o caminho usado para montar as próximas ações.',
+      'Revise a rota, o esforço e a base antes de iniciar.'
+    ][step] || 'Monte uma temporada clara para executar o Plano de Voo.';
+  }
+
+  function _wizardDecisionPanel(step) {
+    var values = _wizard.values || {};
+    var baseline = _wizard.baseline;
+    var plan = baseline && baseline.planConnection ? baseline.planConnection : null;
+    var range = _wizardPeriodRange(values);
+    var facts = [
+      { label: 'Objetivo', value: values.objective ? _objectiveLabel(values.objective) : 'Escolher agora' },
+      { label: 'Ritmo', value: values.difficulty ? _difficultyLabel(values.difficulty) : 'Ainda não definido' },
+      { label: 'Estratégia', value: values.build ? _buildLabel(values.build) : 'Ainda não definida' }
+    ];
+    var routeValue = plan ? _fmtMoney(plan.gapAtStart || plan.routeTarget || 0) : (_wizard.baselineLoading ? 'Buscando rota' : 'Plano de Voo');
+    var guidance = [
+      'Primeiro escolha o que você quer melhorar nesta temporada.',
+      'Sprint é mais rápido. Temporada dá mais tempo para observar resposta.',
+      'A data define quando o BocaFood começa a medir pedidos e jogadas.',
+      'Quanto maior a dificuldade, mais jogadas ficam ativas ao mesmo tempo.',
+      'A estratégia muda a ordem das ações sugeridas: volume, margem ou fidelização.',
+      'Depois de salvar, a temporada vira acompanhamento. Para mudar o caminho, crie outra.'
+    ][step] || '';
+    return '' +
+      '<aside class="seasons-wizard-decision">' +
+        '<div class="seasons-wizard-orbit">' +
+          '<span></span><span></span><span></span>' +
+          _icon(step === 5 ? 'verified' : (step === 2 ? 'event_upcoming' : 'track_changes')) +
+        '</div>' +
+        '<small>Decisão da temporada</small>' +
+        '<h3>' + _esc(_wizardStepDecisionTitle(step)) + '</h3>' +
+        '<p>' + _esc(guidance) + '</p>' +
+        '<div class="seasons-wizard-route">' +
+          '<span>Base da rota</span>' +
+          '<strong>' + _esc(routeValue) + '</strong>' +
+          '<small>' + _esc(range ? _formatDate(range.start) + ' até ' + _formatDate(range.end) : 'Período será calculado') + '</small>' +
+        '</div>' +
+        '<div class="seasons-wizard-facts">' + facts.map(function (item) {
+          return '<div><span>' + _esc(item.label) + '</span><strong>' + _esc(item.value) + '</strong></div>';
+        }).join('') + '</div>' +
+      '</aside>';
+  }
+
+  function _wizardStepDecisionTitle(step) {
+    return [
+      'Qual resultado precisa melhorar?',
+      'Qual o tamanho da rodada?',
+      'Quando começa a execução?',
+      'Qual intensidade combina com sua rotina?',
+      'Por onde o BocaFood deve procurar as jogadas?',
+      'Está pronto para acompanhar?'
+    ][step] || 'Nova temporada';
+  }
+
   function _wizardStepHtml(step) {
     if (step === 0) return _optionGrid(OBJECTIVES, 'objective');
     if (step === 1) return _optionGrid(DURATIONS, 'durationType');
     if (step === 2) return _startDateStep();
-    if (step === 3) return _targetModeStep();
-    if (step === 4) return _optionGrid(DIFFICULTIES, 'difficulty');
-    if (step === 5) return _optionGrid(BUILDS, 'build');
+    if (step === 3) return _optionGrid(DIFFICULTIES, 'difficulty');
+    if (step === 4) return _optionGrid(BUILDS, 'build');
     return _summaryStep();
   }
 
@@ -3241,47 +5717,84 @@ Modules.Temporadas = (function () {
     var duration = _findByValue(DURATIONS, _wizard.values.durationType);
     var range = _wizardPeriodRange(_wizard.values);
     return '' +
-      '<label class="seasons-target-field"><span>Data de início da temporada</span><input id="seasons-start-date" type="date" min="' + _esc(_todayKey()) + '" value="' + _esc(_wizard.values.startDate || _todayKey()) + '" onchange="Modules.Temporadas._wizardSetStartDate(this.value)"></label>' +
-      '<div class="seasons-inline-note">' + _icon('event') + ' ' + _esc(range ? 'A temporada vai de ' + _formatDate(range.start) + ' até ' + _formatDate(range.end) + '.' : 'Escolha a duração para calcular a data final.') + '</div>' +
+      '<div class="seasons-date-card">' +
+        '<div class="seasons-date-mark">' + _icon('event') + '</div>' +
+        '<label class="seasons-target-field"><span>Data de início da temporada</span><input id="seasons-start-date" type="date" min="' + _esc(_todayKey()) + '" value="' + _esc(_wizard.values.startDate || _todayKey()) + '" onchange="Modules.Temporadas._wizardSetStartDate(this.value)"></label>' +
+      '</div>' +
+      '<div class="seasons-inline-note seasons-inline-note-soft">' + _icon('event') + ' ' + _esc(range ? 'A temporada vai de ' + _formatDate(range.start) + ' até ' + _formatDate(range.end) + '.' : 'Escolha a duração para calcular a data final.') + '</div>' +
       (duration ? '<div class="seasons-inline-note">' + _icon('schedule') + ' Se a data for futura, a temporada ficará programada e só começará análises quando virar ativa.</div>' : '');
   }
 
   function _optionGrid(options, field) {
     return '<div class="seasons-option-grid">' + options.map(function (opt) {
       var active = _wizard.values[field] === opt.value;
+      var meta = _wizardOptionMeta(field, opt.value);
+      var disabled = field === 'build' && !_isBuildAllowedForObjective(_wizard.values.objective, opt.value);
       return '' +
-        '<button class="seasons-choice-card ' + (active ? 'active' : '') + '" type="button" onclick="Modules.Temporadas._wizardSelect(\'' + _esc(field) + '\',\'' + _esc(opt.value) + '\')">' +
+        '<button class="seasons-choice-card ' + (active ? 'active ' : '') + (disabled ? 'disabled' : '') + '" type="button" ' + (disabled ? 'disabled aria-disabled="true"' : 'onclick="Modules.Temporadas._wizardSelect(\'' + _esc(field) + '\',\'' + _esc(opt.value) + '\')"') + '>' +
+          '<i>' + _icon(meta.icon) + '</i>' +
           '<strong>' + _esc(opt.label) + '</strong>' +
           '<span>' + _esc(opt.text) + '</span>' +
+          '<small>' + _esc(disabled ? _blockedBuildReason(_wizard.values.objective, opt.value) : meta.hint) + '</small>' +
         '</button>';
     }).join('') + '</div>';
   }
 
-  function _targetModeStep() {
-    return '' +
-      _optionGrid(TARGET_MODES, 'targetMode') +
-      (_wizard.values.targetMode === 'fixed' ? '<label class="seasons-target-field"><span>Valor da meta</span><input id="seasons-target-value" type="number" step="0.01" min="0" value="' + _esc(_wizard.values.targetValue || '') + '" oninput="Modules.Temporadas._wizardSetTargetValue(this.value)" placeholder="Ex: 3000"></label>' : '') +
-      (_wizard.values.targetMode === 'automatic' ? '<div class="seasons-inline-note">' + _icon('info') + ' A meta será calculada a partir do baseline dos últimos 30 ou 90 dias.</div>' : '');
+  function _wizardOptionMeta(field, value) {
+    var map = {
+      objective: {
+        sell_more: { icon: 'trending_up', hint: 'Prioriza produto forte, canal, horário e movimento.' },
+        increase_ticket: { icon: 'analytics', hint: 'Prioriza upsell, adicionais e pedido maior.' },
+        retain_customers: { icon: 'verified', hint: 'Prioriza recompra, pontos e clientes conhecidos.' },
+        improve_consistency: { icon: 'timeline', hint: 'Prioriza dias fracos, regularidade e ritmo.' }
+      },
+      durationType: {
+        sprint: { icon: 'timer', hint: 'Melhor para testar uma jogada rápida.' },
+        season: { icon: 'event_upcoming', hint: 'Melhor para acompanhar mudança com mais calma.' }
+      },
+      difficulty: {
+        safe: { icon: 'schedule', hint: 'Uma jogada principal, menos pressão.' },
+        balanced: { icon: 'speed', hint: 'Duas jogadas diferentes, ritmo constante.' },
+        aggressive: { icon: 'track_changes', hint: 'Até três jogadas, execução mais intensa.' }
+      },
+      build: {
+        volume: { icon: 'trending_up', hint: 'Procura mais pedidos e mais movimento.' },
+        margin: { icon: 'analytics', hint: 'Procura vender melhor, com mais sobra.' },
+        retention: { icon: 'verified', hint: 'Procura trazer clientes de volta.' }
+      }
+    };
+    return map[field] && map[field][value] || { icon: 'track_changes', hint: 'Ajuda o BocaFood a escolher melhores jogadas.' };
   }
 
   function _summaryStep() {
     var values = _wizard.values;
     var duration = _findByValue(DURATIONS, values.durationType);
-    var targetMode = _findByValue(TARGET_MODES, values.targetMode);
     var baseline = _wizard.baseline;
+    var plan = baseline && baseline.planConnection ? baseline.planConnection : null;
     return '' +
+      '<div class="seasons-summary-hero">' +
+        '<div>' +
+          '<small>Temporada pronta para nascer</small>' +
+          '<h3>' + _esc(_objectiveLabel(values.objective)) + '</h3>' +
+          '<p>' + _esc(_buildLabel(values.build)) + ' · ' + _esc(_difficultyLabel(values.difficulty)) + ' · ' + _esc(duration ? duration.text : 'período definido') + '</p>' +
+        '</div>' +
+        '<strong>' + _esc(plan ? _fmtMoney(plan.gapAtStart || plan.routeTarget || 0) : 'Rota') + '</strong>' +
+      '</div>' +
       '<div class="seasons-summary-list">' +
         _summaryRow('Objetivo', _objectiveLabel(values.objective)) +
         _summaryRow('Duração', duration ? duration.label + ' · ' + duration.text : 'Não definido') +
         _summaryRow('Início', values.startDate ? _formatDate(_parseDateInput(values.startDate)) : 'Hoje') +
         _summaryRow('Fim previsto', _wizardPeriodRange(values) ? _formatDate(_wizardPeriodRange(values).end) : 'Não calculado') +
         _summaryRow('Status inicial', _isFutureStart(values.startDate) ? 'Programada' : 'Ativa') +
-        _summaryRow('Tipo de meta', targetMode ? targetMode.label : 'Não definido') +
-        _summaryRow('Meta informada', values.targetMode === 'fixed' ? (_esc(values.targetValue || 'Não definida')) : 'Automática') +
+        _summaryRow('Base da temporada', plan ? (plan.flightPlanName || 'Rota do Plano de Voo') : (_wizard.baselineLoading ? 'Buscando rota...' : 'Plano de Voo não encontrado')) +
+        _summaryRow('Período da rota', plan ? _formatPeriod(plan.periodStart, plan.periodEnd) : (_wizard.baselineLoading ? 'Buscando...' : 'Não calculado')) +
+        _summaryRow('Meta da rota', plan ? _fmtMoney(plan.routeTarget) : (_wizard.baselineLoading ? 'Calculando...' : 'Não calculada')) +
+        _summaryRow('Já realizado', plan ? _fmtMoney(plan.currentValueAtStart) : (_wizard.baselineLoading ? 'Calculando...' : 'Não calculado')) +
+        _summaryRow('Falta cumprir', plan ? _fmtMoney(plan.gapAtStart) : (_wizard.baselineLoading ? 'Calculando...' : 'Não calculado')) +
         _summaryRow('Dificuldade', _difficultyLabel(values.difficulty)) +
         _summaryRow('Estratégia', _buildLabel(values.build)) +
-        _summaryRow('Baseline encontrado', baseline ? _formatBaselineValue(baseline.baselineValue, values.objective) : (_wizard.baselineLoading ? 'Calculando...' : 'Não calculado')) +
-        _summaryRow(values.targetMode === 'fixed' ? 'Meta fixa' : 'Meta calculada', baseline ? _formatBaselineValue(baseline.calculatedTargetValue, values.objective) : (_wizard.baselineLoading ? 'Calculando...' : 'Não calculada')) +
+        _summaryRow('Ponto de partida', baseline ? _formatBaselineValue(baseline.baselineValue, values.objective) : (_wizard.baselineLoading ? 'Calculando...' : 'Não calculado')) +
+        _summaryRow('Meta da temporada', baseline ? _formatBaselineValue(baseline.calculatedTargetValue, values.objective) : (_wizard.baselineLoading ? 'Calculando...' : 'Não calculada')) +
         _summaryRow('Chance de falha inicial', baseline ? _riskLabel(baseline.initialRiskLevel) : (_wizard.baselineLoading ? 'Calculando...' : 'Não calculado')) +
         _summaryRow('Confiabilidade', baseline ? _confidenceLabel(baseline.baselineConfidence) : (_wizard.baselineLoading ? 'Calculando...' : 'Não calculada')) +
       '</div>' +
@@ -3308,7 +5821,7 @@ Modules.Temporadas = (function () {
       alerts.push(_buildMisalignmentMessage(values.objective, values.build));
     }
     if (baseline.baselineConfidence === 'low') {
-      alerts.push('Há poucos pedidos no período usado como base. A meta automática pode ser menos precisa.');
+      alerts.push('Há poucos pedidos dentro desta temporada. A rota continua valendo, mas a leitura inicial pode ficar menos precisa.');
     }
     if (values.durationType === 'sprint' && growth !== null && growth >= 35) {
       alerts.push('Para 30 dias, essa meta exige um ritmo alto desde a primeira semana.');
@@ -3340,6 +5853,16 @@ Modules.Temporadas = (function () {
       (objective === 'improve_consistency' && build === 'margin');
   }
 
+  function _isBuildAllowedForObjective(objective, build) {
+    if (!objective || !build) return true;
+    return !_isBuildMisaligned(objective, build);
+  }
+
+  function _blockedBuildReason(objective, build) {
+    if (!objective) return 'Escolha primeiro o objetivo da temporada.';
+    return _buildMisalignmentMessage(objective, build);
+  }
+
   function _buildMisalignmentMessage(objective, build) {
     if (objective === 'increase_ticket' && build === 'volume') return 'Essa combinação pode funcionar, mas Volume prioriza quantidade de pedidos, não valor por pedido.';
     if (objective === 'sell_more' && build === 'margin') return 'Essa combinação pode funcionar, mas Margem prioriza valor por pedido e produtos premium, não volume total.';
@@ -3350,16 +5873,17 @@ Modules.Temporadas = (function () {
 
   function _wizardSelect(field, value) {
     if (!_wizard || _wizard.saving) return;
+    if (field === 'build' && !_isBuildAllowedForObjective(_wizard.values.objective, value)) {
+      _wizard.error = _blockedBuildReason(_wizard.values.objective, value);
+      _renderWizard();
+      return;
+    }
     _wizard.values[field] = value;
+    if (field === 'objective' && _wizard.values.build && !_isBuildAllowedForObjective(value, _wizard.values.build)) {
+      _wizard.values.build = '';
+    }
     _wizard.error = '';
-    if (field === 'targetMode' && value === 'automatic') _wizard.values.targetValue = '';
     _renderWizard();
-  }
-
-  function _wizardSetTargetValue(value) {
-    if (!_wizard || _wizard.saving) return;
-    _wizard.values.targetValue = value;
-    _wizard.error = '';
   }
 
   function _wizardSetStartDate(value) {
@@ -3385,11 +5909,17 @@ Modules.Temporadas = (function () {
       _renderWizard();
       return;
     }
-    if (_wizard.step < 5) {
+    if (_wizard.step < 4) {
       _wizard.step += 1;
       _wizard.error = '';
       _renderWizard();
-      if (_wizard.step === 5) _prepareBaselineSummary();
+      return;
+    }
+    if (_wizard.step === 4) {
+      _wizard.step = 5;
+      _wizard.error = '';
+      _renderWizard();
+      _prepareBaselineSummary();
       return;
     }
     _startSeasonFromWizard();
@@ -3403,15 +5933,11 @@ Modules.Temporadas = (function () {
       if (!values.startDate) return 'Escolha a data de início.';
       if (_parseDateInput(values.startDate) < _dayStart(new Date())) return 'A data de início não pode ser no passado.';
     }
-    if (step === 3 && !values.targetMode) return 'Escolha o tipo de meta.';
-    if (step === 3 && values.targetMode === 'fixed') {
-      var target = _nullableNumber(values.targetValue);
-      if (target === null || target <= 0) return 'Informe uma meta fixa maior que zero.';
-    }
-    if (step === 4 && !values.difficulty) return 'Escolha uma dificuldade.';
-    if (step === 5 && !values.build) return 'Escolha uma estratégia operacional.';
-    if (step === 6) {
-      var required = [0, 1, 2, 3, 4, 5].map(_validateWizardStep).filter(Boolean);
+    if (step === 3 && !values.difficulty) return 'Escolha uma dificuldade.';
+    if (step === 4 && !values.build) return 'Escolha uma estratégia operacional.';
+    if (step === 4 && !_isBuildAllowedForObjective(values.objective, values.build)) return _blockedBuildReason(values.objective, values.build);
+    if (step === 5) {
+      var required = [0, 1, 2, 3, 4].map(_validateWizardStep).filter(Boolean);
       if (required.length) return required[0];
       if (_periodOverlapsExisting(values)) return 'Já existe uma temporada programada ou ativa nesse período. Escolha outra data.';
     }
@@ -3420,12 +5946,12 @@ Modules.Temporadas = (function () {
 
   function _startSeasonFromWizard() {
     if (_wizard.baselineLoading) {
-      _wizard.error = 'Aguarde o cálculo do baseline.';
+      _wizard.error = 'Aguarde enquanto buscamos a rota do Plano de Voo.';
       _renderWizard();
       return;
     }
     if (!_wizard.baseline) {
-      _wizard.error = 'Não foi possível calcular o baseline.';
+      _wizard.error = 'Não encontramos uma rota válida no Plano de Voo para criar esta Temporada.';
       _renderWizard();
       return;
     }
@@ -3468,9 +5994,10 @@ Modules.Temporadas = (function () {
       build: values.build,
       difficulty: values.difficulty,
       durationType: values.durationType,
-      targetMode: values.targetMode,
-      targetValue: values.targetMode === 'fixed' ? _nullableNumber(values.targetValue) : null,
+      targetMode: 'flight_plan',
+      targetValue: null,
       targetMetric: objective ? objective.metric : '',
+      planConnection: baseline.planConnection || null,
       baselinePeriod: baseline.baselinePeriod || '',
       baselineValue: _nullableNumber(baseline.baselineValue),
       baselineRevenue: _number(baseline.baselineRevenue, 0),
@@ -3489,6 +6016,7 @@ Modules.Temporadas = (function () {
       currentStatus: 'pending',
       riskLevel: baseline.initialRiskLevel || 'unknown',
       progressPercent: 0,
+      actionTasks: [],
       goalReachedAt: null,
       goalCelebrationShownAt: null,
       goalCelebrationPending: false,
@@ -3561,44 +6089,644 @@ Modules.Temporadas = (function () {
       if (!_wizard) return;
       console.error('Temporadas baseline error', err);
       _wizard.baselineLoading = false;
-      _wizard.error = (err && err.message) || 'Erro ao calcular baseline.';
+      _wizard.error = (err && err.message) || 'Não conseguimos preparar esta Temporada agora. Confira se já existe uma rota no Plano de Voo.';
       _renderWizard();
     });
   }
 
   function _calculateBaseline(values) {
     if (!window.DB || typeof DB.getAll !== 'function') return Promise.reject(new Error('DB indisponível.'));
-    return DB.getAll('orders').then(function (orders) {
+    var range = _wizardPeriodRange(values);
+    var monthKey = _seasonMonthKeyFromDate((range && range.start) || values.startDate || new Date());
+    var monthScenarioPromise = DB.getDoc
+      ? DB.getDoc('flight_plan_month_scenarios', monthKey).catch(function () { return null; })
+      : Promise.resolve(null);
+
+    return Promise.all([
+      DB.getAll('orders').catch(function () { return []; }),
+      DB.getAll('flight_plans').catch(function () { return []; }),
+      monthScenarioPromise
+    ]).then(function (result) {
+      var orders = result[0] || [];
+      var flightPlans = result[1] || [];
+      var monthScenario = result[2] || null;
+      var plan = _resolveFlightPlanForSeason(monthKey, monthScenario, flightPlans);
+      if (!plan) {
+        throw new Error('Crie uma rota no Plano de Voo antes de criar uma Temporada.');
+      }
+
+      var summary = _flightPlanSummary(plan, monthScenario);
+      var routeTarget = _seasonRouteRevenueTarget(plan, monthScenario, range);
+      if (routeTarget <= 0) {
+        throw new Error('A rota do Plano de Voo ainda não tem venda prevista para esse período.');
+      }
+
+      var end = range ? range.end : new Date();
+      var now = new Date();
+      var progressEnd = now < end ? now : end;
+      var validOrders = range && progressEnd >= range.start ? _ordersInPeriod(orders, range.start, progressEnd) : [];
       var duration = _findByValue(DURATIONS, values.durationType) || DURATIONS[0];
-      var end = new Date();
-      var start = new Date(end.getTime());
-      start.setDate(start.getDate() - duration.days);
-      var validOrders = _ordersInPeriod(orders || [], start, end);
-      var baseline = _buildBaselineMetrics(validOrders, duration.days);
+      var baseline = _buildBaselineMetrics(validOrders, (duration && duration.days) || 30);
       var baseValue = _baselineValueForObjective(baseline, values.objective);
-      var calculatedTarget = values.targetMode === 'fixed'
-        ? _nullableNumber(values.targetValue)
-        : _automaticTargetValue(baseValue, values.objective, values.difficulty);
-      var risk = values.targetMode === 'fixed'
-        ? _fixedTargetRisk(baseValue, calculatedTarget, baseline.baselineConfidence)
-        : 'low';
+      var currentRevenue = _number(baseline.baselineRevenue, 0);
+      var gap = Math.max(0, routeTarget - currentRevenue);
+      var calculatedTarget = _targetFromFlightPlan(values.objective, routeTarget, gap, summary, baseline, range);
+      var risk = _flightPlanTargetRisk(values.difficulty, calculatedTarget, baseValue, baseline.baselineConfidence);
+      var monthData = monthScenario || {};
+      var planConnection = {
+        source: 'flight_plan',
+        flightPlanId: plan.id || monthData.snapshotId || '',
+        flightPlanName: plan.name || monthData.snapshotName || 'Rota do Plano de Voo',
+        monthScenarioId: monthData.id || monthData.monthKey || monthKey,
+        monthKey: monthKey,
+        scenario: plan.scenario || monthData.scenario || '',
+        periodStart: range ? range.start.toISOString() : (plan.periodStart || ''),
+        periodEnd: range ? range.end.toISOString() : (plan.periodEnd || ''),
+        routePeriodStart: plan.periodStart || '',
+        routePeriodEnd: plan.periodEnd || '',
+        routeTarget: routeTarget,
+        currentValueAtStart: currentRevenue,
+        gapAtStart: gap,
+        suggestedTargetValue: calculatedTarget,
+        targetMetric: (_findByValue(OBJECTIVES, values.objective) || {}).metric || 'revenue'
+      };
 
       return Object.assign({}, baseline, {
-        baselinePeriod: duration.days + 'd',
+        baselinePeriod: 'flight_plan:' + monthKey,
         baselineValue: baseValue,
         calculatedTargetValue: calculatedTarget,
-        initialRiskLevel: risk
+        initialRiskLevel: risk,
+        planConnection: planConnection
       });
     });
   }
 
+  function _seasonMonthKeyFromDate(value) {
+    var d = _toDate(value) || new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  }
+
+  function _resolveFlightPlanForSeason(monthKey, monthScenario, flightPlans) {
+    var plans = Array.isArray(flightPlans) ? flightPlans : [];
+    var snapId = String((monthScenario && monthScenario.snapshotId) || '').trim();
+    if (snapId) {
+      var byId = plans.filter(function (plan) { return String(plan.id || '') === snapId; })[0];
+      if (byId) return byId;
+    }
+    var byMonth = plans.filter(function (plan) {
+      return String(plan.targetMonthKey || '') === monthKey && plan.summary;
+    }).sort(function (a, b) {
+      return _dateValue(b.updatedAt || b.createdAt) - _dateValue(a.updatedAt || a.createdAt);
+    })[0];
+    if (byMonth) return byMonth;
+    if (monthScenario && monthScenario.summary && Object.keys(monthScenario.summary).length) return monthScenario;
+    return plans.filter(function (plan) { return plan && plan.summary; }).sort(function (a, b) {
+      return _dateValue(b.updatedAt || b.selectedAt || b.createdAt) - _dateValue(a.updatedAt || a.selectedAt || a.createdAt);
+    })[0] || null;
+  }
+
+  function _flightPlanSummary(plan, monthScenario) {
+    var planSummary = (plan && plan.summary) || {};
+    var monthSummary = (monthScenario && monthScenario.summary) || {};
+    return Object.keys(monthSummary).length ? Object.assign({}, planSummary, monthSummary) : planSummary;
+  }
+
+  function _seasonRouteRevenueTarget(plan, monthScenario, range) {
+    var summary = _flightPlanSummary(plan, monthScenario);
+    var total = _number(summary.revenue != null ? summary.revenue : summary.forecastRevenue, 0);
+    if (!range) return total;
+    var series = Array.isArray(plan && plan.monthSeries) ? plan.monthSeries : [];
+    if (!series.length) return total;
+    var months = _monthIndexesInRange(range.start, range.end);
+    var seriesTotal = series.reduce(function (sum, row) {
+      return months.indexOf(_number(row.monthIndex, -1)) >= 0 ? sum + _number(row.revenue, 0) : sum;
+    }, 0);
+    return seriesTotal > 0 ? seriesTotal : total;
+  }
+
+  function _monthIndexesInRange(start, end) {
+    var months = [];
+    var cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+    var limit = new Date(end.getFullYear(), end.getMonth(), 1);
+    while (cursor <= limit) {
+      months.push(cursor.getMonth());
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+    return months;
+  }
+
+  function _targetFromFlightPlan(objective, routeTarget, gap, summary, baseline, range) {
+    if (objective === 'sell_more') return Math.max(1, gap || routeTarget);
+    if (objective === 'increase_ticket') {
+      return _number(summary.averageTicket, 0) || _number(baseline.baselineAverageTicket, 0) || 1;
+    }
+    if (objective === 'retain_customers') {
+      var ticket = _number(summary.averageTicket, 0) || _number(baseline.baselineAverageTicket, 0);
+      var estimatedOrders = ticket > 0 ? routeTarget / ticket : _number(summary.ordersPerDay, 0) * _number(summary.workingDays, 0);
+      return Math.max(1, Math.ceil(estimatedOrders * 0.2));
+    }
+    if (objective === 'improve_consistency') {
+      var workingDays = _number(summary.workingDays, 0);
+      if (workingDays > 0) return Math.ceil(workingDays);
+      if (range) return Math.max(1, Math.ceil((range.end.getTime() - range.start.getTime()) / 86400000) + 1);
+      return 1;
+    }
+    return Math.max(1, gap || routeTarget);
+  }
+
+  function _flightPlanTargetRisk(difficulty, target, base, confidence) {
+    if (confidence === 'low') return difficulty === 'aggressive' ? 'medium' : 'low';
+    var growth = _targetGrowthPercent(base, target);
+    if (growth === null) return difficulty === 'aggressive' ? 'medium' : 'low';
+    var add = difficulty === 'aggressive' ? 15 : (difficulty === 'balanced' ? 5 : 0);
+    growth += add;
+    if (growth <= 20) return 'low';
+    if (growth <= 45) return 'medium';
+    if (growth <= 75) return 'high';
+    return 'very_high';
+  }
+
   function _ordersInPeriod(orders, start, end) {
     return (orders || []).filter(function (order) {
-      if (!order || _isCanceledOrder(order)) return false;
-      var date = _orderDate(order);
+      var normalized = _normalizeSeasonOrder(order);
+      if (!normalized || _isCanceledOrder(normalized)) return false;
+      var date = normalized.createdAt;
       if (!date) return false;
       return date >= start && date <= end;
     });
+  }
+
+  function _normalizeSeasonOrder(order) {
+    if (!order) return null;
+    var items = _normalizeOrderItems(order.items || order.itens || order.products || order.cartItems || []);
+    return {
+      id: order.id || order.orderId || order.uid || '',
+      status: _normalizeOrderStatus(order.status || order.state || order.orderStatus || order.kitchenStatus || ''),
+      createdAt: _normalizeOrderDate(order),
+      total: _getOrderTotal(order),
+      channel: _normalizeChannel(order.channel || order.source || order.origin || order.salesChannel || order.canal || ''),
+      customerKey: _getOrderCustomerKey(order),
+      items: items,
+      couponCode: _getCouponCode(order),
+      couponDiscount: _getNumber(order.couponDiscount || order.couponDiscountTotal || order.discountCouponTotal || order.couponValue || 0),
+      promotionName: _getPromotionName(order),
+      promotionDiscount: _getNumber(order.promotionDiscount || order.promotionDiscountTotal || order.promoDiscount || order.promoDiscountTotal || 0),
+      upsellAccepted: _hasAcceptedUpsell(order, items),
+      upsellDiscount: _getNumber(order.upsellDiscount || order.upsellDiscountTotal || 0),
+      upsellAddedRevenue: _getUpsellAddedRevenue(order, items),
+      pointsRedemption: _getNumber(order.pointsRedemption || order.pointsUsed || order.loyaltyPointsUsed || 0),
+      pointsDiscount: _getNumber(order.pointsDiscountTotal || order.pointsDiscount || order.loyaltyDiscount || 0),
+      raw: order
+    };
+  }
+
+  function _normalizeOrderStatus(value) {
+    var raw = String(value || '').trim().toLowerCase();
+    if (!raw) return 'unknown';
+    var compact = raw.normalize ? raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '') : raw;
+    compact = compact.replace(/\s+/g, '_');
+    if (['cancelado', 'cancelada', 'canceled', 'cancelled', 'cancel', 'reembolsado', 'refunded', 'estornado'].indexOf(compact) >= 0) return 'canceled';
+    if (['entregue', 'entregado', 'delivered', 'concluido', 'concluida', 'completed', 'finalizado', 'finalizada'].indexOf(compact) >= 0) return 'delivered';
+    if (['pago', 'paid'].indexOf(compact) >= 0) return 'paid';
+    if (['preparando', 'em_preparo', 'in_progress', 'preparing'].indexOf(compact) >= 0) return 'preparing';
+    if (['pendente', 'pending', 'novo', 'new'].indexOf(compact) >= 0) return 'pending';
+    return compact;
+  }
+
+  function _normalizeOrderDate(order) {
+    var raw = order && (order.canonicalDate || order.createdAt || order.orderDate || order.date || order.data || order.paidAt || order.deliveryDate || order.scheduleDate || order.updatedAt);
+    return _toDate(raw);
+  }
+
+  function _getOrderTotal(order) {
+    return _getNumber(order && (order.total || order.grandTotal || order.finalTotal || order.totalFinal || order.amount || order.value || order.valor || order.subtotalFinal || order.subtotal || 0));
+  }
+
+  function _normalizeChannel(value) {
+    var raw = String(value || '').trim().toLowerCase();
+    if (!raw) return 'desconhecido';
+    var compact = raw.normalize ? raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '') : raw;
+    compact = compact.replace(/[\s-]+/g, '_');
+    if (['template', 'store', 'loja', 'loja_publica', 'public_store', 'cardapio', 'cardapio_publico'].indexOf(compact) >= 0) return 'cardapio';
+    if (['pos', 'tpv', 'venda_presencial', 'balcao', 'balcão'].indexOf(compact) >= 0) return 'venda_presencial';
+    if (['manual', 'admin', 'pedido_manual', 'painel'].indexOf(compact) >= 0) return 'pedido_manual';
+    if (['whatsapp', 'wpp'].indexOf(compact) >= 0) return 'whatsapp';
+    return compact;
+  }
+
+  function _getOrderCustomerKey(order) {
+    var id = String((order && (order.customerId || order.clientId || order.clienteId || order.userId)) || '').trim();
+    if (id) return 'id:' + id;
+    var phone = _normalizePhone(order && (order.customerPhone || order.phone || order.whatsapp || order.customerWhatsapp || order.telefone || ''));
+    if (phone) return 'phone:' + phone;
+    var email = String((order && (order.customerEmail || order.email || order.mail)) || '').trim().toLowerCase();
+    return email ? 'email:' + email : '';
+  }
+
+  function _normalizeOrderItems(items) {
+    if (!Array.isArray(items)) return [];
+    return items.map(function (item) {
+      item = item || {};
+      var quantity = Math.max(1, _getNumber(item.qty || item.quantity || item.qtd || item.quantidade || item.amount || 1));
+      var unitPrice = _getNumber(item.unitPrice || item.price || item.preco || item.valorUnitario || 0);
+      var total = _getNumber(item.total || item.lineTotal || item.priceTotal || item.subtotal || item.valorTotal || 0);
+      if (!total && unitPrice) total = unitPrice * quantity;
+      return {
+        id: item.id || item.productId || item.produtoId || item.itemId || '',
+        productId: item.productId || item.produtoId || item.id || '',
+        name: String(item.name || item.productName || item.nome || item.title || 'Produto sem nome').slice(0, 90),
+        quantity: quantity,
+        unitPrice: unitPrice,
+        total: total,
+        isUpsell: !!(item.isUpsell || item.upsell || item.upsellRuleId || item.source === 'upsell'),
+        couponCode: _getCouponCode(item),
+        promotionName: _getPromotionName(item),
+        promotionDiscount: _getNumber(item.promotionDiscount || item.promotionDiscountTotal || item.promoDiscount || item.discount || 0),
+        upsellDiscount: _getNumber(item.upsellDiscount || item.upsellDiscountTotal || 0)
+      };
+    }).filter(function (item) { return item.name; });
+  }
+
+  function _getCouponCode(order) {
+    if (!order) return '';
+    var coupon = order.coupon || order.cupom || order.appliedCoupon || null;
+    if (typeof coupon === 'string') return coupon.trim();
+    if (coupon && typeof coupon === 'object') return String(coupon.code || coupon.codigo || coupon.id || '').trim();
+    return String(order.couponCode || order.cupomCodigo || order.discountCode || '').trim();
+  }
+
+  function _getPromotionName(order) {
+    if (!order) return '';
+    var promo = order.promotion || order.promo || order.appliedPromotion || order.promocao || null;
+    if (typeof promo === 'string') return promo.trim();
+    if (promo && typeof promo === 'object') {
+      return String(promo.name || promo.title || promo.nome || promo.label || promo.code || promo.id || '').trim();
+    }
+    return String(order.promotionName || order.promoName || order.promotionTitle || order.promoTitle || order.promocaoNome || order.promoCode || order.promotionCode || '').trim();
+  }
+
+  function _hasAcceptedUpsell(order, items) {
+    if (!order) return false;
+    if (order.upsellAccepted === true || order.acceptedUpsell === true || order.upsellApplied === true) return true;
+    if (Array.isArray(order.upsellIds) && order.upsellIds.length) return true;
+    if (Array.isArray(order.acceptedUpsells) && order.acceptedUpsells.length) return true;
+    return (items || []).some(function (item) { return !!item.isUpsell; });
+  }
+
+  function _getUpsellAddedRevenue(order, items) {
+    var direct = _getNumber(order && (order.upsellAddedRevenue || order.upsellRevenue || order.upsellTotal || 0));
+    if (direct) return direct;
+    return (items || []).reduce(function (sum, item) {
+      return sum + (item.isUpsell ? _getNumber(item.total) : 0);
+    }, 0);
+  }
+
+  function _getNumber(value) {
+    return _money(value);
+  }
+
+  function _isValidSeasonOrder(order) {
+    var normalized = order && order.raw ? order : _normalizeSeasonOrder(order);
+    if (!normalized) return false;
+    if (normalized.status === 'canceled') return false;
+    if (!normalized.createdAt) return false;
+    return normalized.total >= 0;
+  }
+
+  function _calculateValidatedImpactSignals(orders, season, baseline, actionContext) {
+    var validOrders = (orders || []).map(_normalizeSeasonOrder).filter(_isValidSeasonOrder);
+    return {
+      coupons: _calculateCouponImpact(validOrders, season, baseline),
+      promotions: _calculatePromotionImpact(validOrders, season, baseline),
+      upsell: _calculateUpsellImpact(validOrders, season, baseline),
+      points: _calculatePointsImpact(validOrders, season, baseline),
+      channels: _calculateChannelImpact(validOrders, season, baseline, actionContext),
+      products: _calculateProductImpact(validOrders, season, baseline)
+    };
+  }
+
+  function _calculateCouponImpact(validOrders, season, baseline) {
+    var used = (validOrders || []).filter(function (order) {
+      return !!order.couponCode || _number(order.couponDiscount, 0) > 0;
+    });
+    var revenue = _sumOrderRevenue(used);
+    var discountTotal = used.reduce(function (sum, order) {
+      return sum + _number(order.couponDiscount, 0);
+    }, 0);
+    return {
+      usedOrders: used.length,
+      revenue: revenue,
+      discountTotal: discountTotal,
+      impactScore: _validatedImpactScore(used.length, revenue, baseline, discountTotal)
+    };
+  }
+
+  function _calculatePromotionImpact(validOrders, season, baseline) {
+    var used = (validOrders || []).filter(function (order) {
+      return _number(order.promotionDiscount, 0) > 0 || (order.items || []).some(function (item) {
+        return _number(item.promotionDiscount, 0) > 0;
+      });
+    });
+    var revenue = _sumOrderRevenue(used);
+    var promotionMap = {};
+    var discountTotal = used.reduce(function (sum, order) {
+      var orderName = String(order.promotionName || '').trim();
+      if (orderName) {
+        if (!promotionMap[orderName]) promotionMap[orderName] = { name: orderName, usedOrders: 0, discountTotal: 0, revenue: 0 };
+        promotionMap[orderName].usedOrders += 1;
+        promotionMap[orderName].discountTotal += _number(order.promotionDiscount, 0);
+        promotionMap[orderName].revenue += _number(order.total, 0);
+      }
+      var itemDiscount = (order.items || []).reduce(function (itemSum, item) {
+        var itemName = String(item.promotionName || '').trim();
+        if (itemName) {
+          if (!promotionMap[itemName]) promotionMap[itemName] = { name: itemName, usedOrders: 0, discountTotal: 0, revenue: 0 };
+          promotionMap[itemName].usedOrders += 1;
+          promotionMap[itemName].discountTotal += _number(item.promotionDiscount, 0);
+          promotionMap[itemName].revenue += _number(item.total, 0);
+        }
+        return itemSum + _number(item.promotionDiscount, 0);
+      }, 0);
+      return sum + _number(order.promotionDiscount, 0) + itemDiscount;
+    }, 0);
+    var topPromotion = Object.keys(promotionMap).map(function (key) {
+      return promotionMap[key];
+    }).sort(function (a, b) {
+      return b.usedOrders - a.usedOrders || b.revenue - a.revenue || b.discountTotal - a.discountTotal;
+    })[0] || null;
+    return {
+      usedOrders: used.length,
+      revenue: revenue,
+      discountTotal: discountTotal,
+      topPromotion: topPromotion,
+      impactScore: _validatedImpactScore(used.length, revenue, baseline, discountTotal)
+    };
+  }
+
+  function _calculateUpsellImpact(validOrders, season, baseline) {
+    var accepted = (validOrders || []).filter(function (order) {
+      return _isCardapioChannel(order.channel) && (!!order.upsellAccepted || _number(order.upsellAddedRevenue, 0) > 0);
+    });
+    var addedRevenue = accepted.reduce(function (sum, order) {
+      return sum + _number(order.upsellAddedRevenue, 0);
+    }, 0);
+    var discountTotal = accepted.reduce(function (sum, order) {
+      return sum + _number(order.upsellDiscount, 0);
+    }, 0);
+    return {
+      acceptedOrders: accepted.length,
+      addedRevenue: addedRevenue,
+      discountTotal: discountTotal,
+      impactScore: _validatedImpactScore(accepted.length, addedRevenue, baseline, discountTotal)
+    };
+  }
+
+  function _calculatePointsImpact(validOrders, season, baseline) {
+    var redemption = (validOrders || []).filter(function (order) {
+      return _number(order.pointsRedemption, 0) > 0 || _number(order.pointsDiscount, 0) > 0;
+    });
+    var customerCounts = {};
+    (validOrders || []).forEach(function (order) {
+      if (!order.customerKey) return;
+      customerCounts[order.customerKey] = (customerCounts[order.customerKey] || 0) + 1;
+    });
+    var repeatMap = {};
+    redemption.forEach(function (order) {
+      if (order.customerKey && customerCounts[order.customerKey] >= 2) repeatMap[order.customerKey] = true;
+    });
+    var discountTotal = redemption.reduce(function (sum, order) {
+      return sum + _number(order.pointsDiscount, 0);
+    }, 0);
+    return {
+      redemptionOrders: redemption.length,
+      repeatCustomers: Object.keys(repeatMap).length,
+      discountTotal: discountTotal,
+      impactScore: _validatedImpactScore(redemption.length, _sumOrderRevenue(redemption), baseline, discountTotal)
+    };
+  }
+
+  function _calculateChannelImpact(validOrders, season, baseline, actionContext) {
+    var map = {};
+    var totalRevenue = (validOrders || []).reduce(function (sum, order) {
+      return sum + _number(order.total, 0);
+    }, 0);
+    (validOrders || []).forEach(function (order) {
+      var channel = order.channel || 'desconhecido';
+      if (!map[channel]) map[channel] = { channel: channel, orders: 0, revenue: 0, couponDiscount: 0, promotionDiscount: 0, upsellDiscount: 0, impactScore: 0 };
+      map[channel].orders += 1;
+      map[channel].revenue += _number(order.total, 0);
+      map[channel].couponDiscount += _number(order.couponDiscount, 0);
+      map[channel].promotionDiscount += _number(order.promotionDiscount, 0);
+      map[channel].upsellDiscount += _number(order.upsellDiscount, 0);
+    });
+    var channels = Object.keys(map).map(function (key) {
+      var item = map[key];
+      var config = _channelConfigFor(key, actionContext && actionContext.salesChannels || []);
+      var channelCosts = _channelCostImpact(item, config);
+      var discountTotal = _number(item.couponDiscount, 0) + _number(item.promotionDiscount, 0) + _number(item.upsellDiscount, 0);
+      var netRevenue = Math.max(0, _number(item.revenue, 0) - channelCosts.totalFees - discountTotal);
+      var globalSharePct = totalRevenue > 0 ? (_number(item.revenue, 0) / totalRevenue) * 100 : 0;
+      item.name = config && config.name || _channelLabel(key);
+      item.config = config || null;
+      item.commissionPct = channelCosts.commissionPct;
+      item.fixedFee = channelCosts.fixedFee;
+      item.taxPct = channelCosts.taxPct;
+      item.totalFees = channelCosts.totalFees;
+      item.channelCostPct = channelCosts.channelCostPct;
+      item.discountTotal = discountTotal;
+      item.netRevenue = netRevenue;
+      item.globalSharePct = globalSharePct;
+      item.healthLabel = _channelHealthLabel(item);
+      item.actionAdvice = _channelActionAdvice(item);
+      item.impactScore = _validatedImpactScore(item.orders, netRevenue, baseline, discountTotal + channelCosts.totalFees);
+      return item;
+    }).sort(function (a, b) {
+      return b.impactScore - a.impactScore || b.netRevenue - a.netRevenue || b.revenue - a.revenue;
+    });
+    var revenueChannels = channels.slice().sort(function (a, b) {
+      return b.revenue - a.revenue || b.orders - a.orders;
+    });
+    return {
+      topChannel: channels[0] || null,
+      bestRevenueChannel: revenueChannels[0] || null,
+      channels: channels.slice(0, 6)
+    };
+  }
+
+  function _channelConfigFor(channel, salesChannels) {
+    var key = _normalizeChannel(channel || '');
+    var folded = _foldText(_channelLabel(key));
+    return (salesChannels || []).filter(function (item) {
+      return item && (item.key === key || _normalizeChannel(item.name || '') === key || _foldText(item.name || '') === folded);
+    })[0] || null;
+  }
+
+  function _channelCostImpact(item, config) {
+    config = config || {};
+    var revenue = _number(item && item.revenue, 0);
+    var orders = Math.max(0, Math.round(_number(item && item.orders, 0)));
+    var commissionPct = _number(config.commissionPct, 0);
+    var fixedFee = _money(config.fixedFee || 0);
+    var taxPct = _number(config.taxPct, 0);
+    var commission = revenue * commissionPct / 100;
+    var commissionTax = commission > 0 ? commission * taxPct / 100 : 0;
+    var fixed = orders * fixedFee;
+    var totalFees = commission + commissionTax + fixed;
+    return {
+      commissionPct: commissionPct,
+      fixedFee: fixedFee,
+      taxPct: taxPct,
+      totalFees: totalFees,
+      channelCostPct: revenue > 0 ? (totalFees / revenue) * 100 : 0
+    };
+  }
+
+  function _channelHealthLabel(item) {
+    var costPct = _number(item && item.channelCostPct, 0);
+    var discountPct = _number(item && item.discountTotal, 0) > 0 && _number(item && item.revenue, 0) > 0 ? (_number(item.discountTotal, 0) / _number(item.revenue, 0)) * 100 : 0;
+    if (costPct >= 30 && discountPct >= 8) return 'vende, mas está pesado';
+    if (costPct >= 30) return 'vende com taxa alta';
+    if (costPct >= 18) return 'atenção na margem';
+    return 'canal saudável';
+  }
+
+  function _channelActionAdvice(item) {
+    var costPct = _number(item && item.channelCostPct, 0);
+    var share = _number(item && item.globalSharePct, 0);
+    var discountPct = _number(item && item.discountTotal, 0) > 0 && _number(item && item.revenue, 0) > 0 ? (_number(item.discountTotal, 0) / _number(item.revenue, 0)) * 100 : 0;
+    var name = item && (item.name || _channelLabel(item.channel)) || 'canal';
+    if (costPct >= 30 && discountPct >= 8) return name + ' vende bem, mas taxa e desconto juntos pesam. Antes de colocar mais promoção nele, reduza o desconto ou use produto com margem maior.';
+    if (costPct >= 30 && share >= 25) return name + ' traz volume, mas cobra caro. Vale apostar com produto de boa margem e evitar promoção forte nesse canal.';
+    if (costPct >= 30) return name + ' tem taxa alta. Use com cuidado e sem desconto adicional até a venda justificar.';
+    if (share >= 25) return name + ' está trazendo parte importante das vendas. Pode receber destaque ou promoção leve se o produto tiver margem.';
+    return name + ' pode ser testado com uma jogada pequena antes de aumentar esforço.';
+  }
+
+  function _calculateProductImpact(validOrders, season, baseline) {
+    var map = {};
+    (validOrders || []).forEach(function (order) {
+      (order.items || []).forEach(function (item) {
+        var key = item.productId || item.id || item.name;
+        if (!key) return;
+        if (!map[key]) map[key] = { productId: item.productId || item.id || '', name: item.name, quantity: 0, revenue: 0, impactScore: 0 };
+        map[key].quantity += _number(item.quantity, 0);
+        map[key].revenue += _number(item.total, 0);
+      });
+    });
+    var products = Object.keys(map).map(function (key) {
+      var item = map[key];
+      item.impactScore = _validatedImpactScore(item.quantity, item.revenue, baseline, 0);
+      return item;
+    }).sort(function (a, b) {
+      return b.revenue - a.revenue || b.quantity - a.quantity;
+    });
+    return {
+      topProduct: products[0] || null,
+      products: products.slice(0, 6)
+    };
+  }
+
+  function _sumOrderRevenue(orders) {
+    return (orders || []).reduce(function (sum, order) {
+      return sum + _number(order && order.total, 0);
+    }, 0);
+  }
+
+  function _validatedImpactScore(count, revenue, baseline, discountTotal) {
+    count = _number(count, 0);
+    revenue = _number(revenue, 0);
+    discountTotal = _number(discountTotal, 0);
+    var baselineRevenue = Math.max(1, _number(baseline && (baseline.revenue || baseline.baselineRevenue), 0));
+    var revenueShare = revenue / baselineRevenue;
+    var score = 0;
+    if (count >= 1 && revenue > 0) score += 1;
+    if (count >= 3) score += 1;
+    if (revenueShare >= .15) score += 1;
+    if (revenueShare >= .30) score += 1;
+    if (!discountTotal || revenue >= discountTotal * 3) score += 1;
+    return Math.round(_clamp(score, 0, 5));
+  }
+
+  function _calculateSeasonScoreBreakdown(season, currentMetrics, validatedImpactSignals, riskContext) {
+    var coreObjectiveScore = _calculateCoreObjectiveScore(season, currentMetrics, riskContext);
+    var validatedImpactBonus = _calculateValidatedImpactBonus(season, validatedImpactSignals);
+    var riskPenalty = _calculateRiskPenalty(season, currentMetrics, riskContext);
+    var finalScore = Math.round(_clamp(coreObjectiveScore + validatedImpactBonus - riskPenalty, 0, 100));
+
+    return {
+      coreObjectiveScore: coreObjectiveScore,
+      validatedImpactBonus: validatedImpactBonus,
+      riskPenalty: riskPenalty,
+      finalScore: finalScore,
+      calculationVersion: 'season_score_v1_1'
+    };
+  }
+
+  function _calculateCoreObjectiveScore(season, currentMetrics, riskContext) {
+    var direct = _number(riskContext && riskContext.coreObjectiveScore, null);
+    if (direct !== null) return Math.round(_clamp(direct, 0, 100));
+    return Math.round(_clamp(_number(currentMetrics && currentMetrics.coreObjectiveScore, 0), 0, 100));
+  }
+
+  function _calculateValidatedImpactBonus(season, signals) {
+    signals = signals || {};
+    var couponScore = _number(signals.coupons && signals.coupons.impactScore, 0);
+    var promotionScore = _number(signals.promotions && signals.promotions.impactScore, 0);
+    var upsellScore = _number(signals.upsell && signals.upsell.impactScore, 0);
+    var pointsScore = _number(signals.points && signals.points.impactScore, 0);
+    var channelScore = _number(signals.channels && signals.channels.topChannel && signals.channels.topChannel.impactScore, 0);
+    var productScore = _number(signals.products && signals.products.topProduct && signals.products.topProduct.impactScore, 0);
+    var consistencyScore = _consistencyValidatedImpactScore(season, signals);
+    var ticketHealthyScore = _ticketHealthyImpactScore(season, signals);
+    var objective = season && season.objective;
+    var bonus = 0;
+
+    if (objective === 'sell_more') {
+      bonus = couponScore * .20 + promotionScore * .25 + channelScore * .20 + productScore * .25 + consistencyScore * .10;
+    } else if (objective === 'increase_ticket') {
+      bonus = upsellScore * .45 + productScore * .20 + ticketHealthyScore * .25 + promotionScore * .10;
+    } else if (objective === 'retain_customers') {
+      bonus = pointsScore * .45 + couponScore * .25 + consistencyScore * .20 + channelScore * .10;
+    } else if (objective === 'improve_consistency') {
+      bonus = consistencyScore * .45 + channelScore * .25 + productScore * .20 + pointsScore * .10;
+    } else {
+      bonus = (couponScore + promotionScore + upsellScore + pointsScore + channelScore + productScore) / 3;
+    }
+
+    return Math.round(_clamp(bonus, 0, 8));
+  }
+
+  function _consistencyValidatedImpactScore(season, signals) {
+    var channelScore = _number(signals && signals.channels && signals.channels.topChannel && signals.channels.topChannel.impactScore, 0);
+    var productScore = _number(signals && signals.products && signals.products.topProduct && signals.products.topProduct.impactScore, 0);
+    var pointsScore = _number(signals && signals.points && signals.points.impactScore, 0);
+    return Math.round(_clamp((channelScore + productScore + pointsScore) / 3, 0, 5));
+  }
+
+  function _ticketHealthyImpactScore(season, signals) {
+    var upsell = signals && signals.upsell || {};
+    var promotions = signals && signals.promotions || {};
+    var addedRevenue = _number(upsell.addedRevenue, 0);
+    var upsellDiscount = _number(upsell.discountTotal, 0);
+    var promoDiscount = _number(promotions.discountTotal, 0);
+    var score = _number(upsell.impactScore, 0);
+    if (addedRevenue > 0 && addedRevenue >= (upsellDiscount + promoDiscount) * 2) score += 1;
+    if (promoDiscount > addedRevenue && addedRevenue > 0) score -= 1;
+    return Math.round(_clamp(score, 0, 5));
+  }
+
+  function _calculateRiskPenalty(season, currentMetrics, riskContext) {
+    riskContext = riskContext || {};
+    var risk = riskContext.riskLevel || season && season.riskLevel || 'unknown';
+    var penalty = ({ low: 0, medium: 2, high: 5, very_high: 8, unknown: 1 })[risk] || 1;
+    var ratio = _number(riskContext.progressRatio, _number(currentMetrics && currentMetrics.progressRatio, 0));
+    var progress = _number(riskContext.progressPercent, _number(currentMetrics && currentMetrics.progressPercent, 0));
+    var daysRemaining = _number(riskContext.daysRemaining, _number(currentMetrics && currentMetrics.daysRemaining, 999));
+
+    if (riskContext.recentDrop) penalty += 2;
+    if (ratio > 0 && ratio < .5) penalty += 3;
+    if (daysRemaining <= 7 && progress < 75) penalty += 2;
+    return Math.round(_clamp(penalty, 0, 12));
   }
 
   function _buildBaselineMetrics(orders, days) {
@@ -3608,14 +6736,16 @@ Modules.Temporadas = (function () {
     var itemCount = 0;
 
     (orders || []).forEach(function (order) {
-      var total = _money(order.total);
+      var normalized = _normalizeSeasonOrder(order);
+      if (!normalized) return;
+      var total = normalized.total;
       revenue += total;
-      itemCount += _orderItemCount(order);
+      itemCount += _orderItemCount(normalized);
 
-      var date = _orderDate(order);
+      var date = normalized.createdAt;
       if (date) activeDayMap[date.toISOString().slice(0, 10)] = true;
 
-      var key = _customerKey(order);
+      var key = normalized.customerKey;
       if (key) customers[key] = (customers[key] || 0) + 1;
     });
 
@@ -3673,18 +6803,19 @@ Modules.Temporadas = (function () {
   }
 
   function _isCanceledOrder(order) {
-    var status = String(order.status || '').trim().toLowerCase();
-    return status === 'cancelado' || status === 'cancelada' || status === 'canceled' || status === 'cancelled';
+    return _normalizeOrderStatus(order && order.status) === 'canceled';
   }
 
   function _orderDate(order) {
-    return _toDate(order.canonicalDate || order.createdAt || order.date || order.data || order.deliveryDate || order.scheduleDate);
+    var normalized = order && order.raw ? order : _normalizeSeasonOrder(order);
+    return normalized ? normalized.createdAt : null;
   }
 
   function _orderHour(order) {
-    var direct = _nullableNumber(order.analyticsHour);
+    var raw = order && order.raw ? order.raw : order;
+    var direct = _nullableNumber(raw && raw.analyticsHour);
     if (direct !== null) return Math.max(0, Math.min(23, Math.floor(direct)));
-    var time = String(order.analyticsTime || order.orderTime || order.saleTime || order.createdTime || order.deliveryTime || order.scheduleTime || order.slotTime || '').trim();
+    var time = String((raw && (raw.analyticsTime || raw.orderTime || raw.saleTime || raw.createdTime || raw.deliveryTime || raw.scheduleTime || raw.slotTime)) || '').trim();
     var match = time.match(/(\d{1,2}):(\d{2})/);
     if (match) return Math.max(0, Math.min(23, parseInt(match[1], 10) || 0));
     var date = _orderDate(order);
@@ -3692,12 +6823,8 @@ Modules.Temporadas = (function () {
   }
 
   function _customerKey(order) {
-    var id = String(order.customerId || order.clientId || '').trim();
-    if (id) return 'id:' + id;
-    var phone = _normalizePhone(order.customerPhone || order.phone || order.whatsapp || order.customerWhatsapp || '');
-    if (phone) return 'phone:' + phone;
-    var email = String(order.customerEmail || order.email || '').trim().toLowerCase();
-    return email ? 'email:' + email : '';
+    var normalized = order && order.raw ? order : _normalizeSeasonOrder(order);
+    return normalized ? normalized.customerKey : '';
   }
 
   function _normalizePhone(value) {
@@ -3723,19 +6850,26 @@ Modules.Temporadas = (function () {
     });
   }
 
-  function _refreshActiveSeasonMetrics(season) {
+  function _refreshActiveSeasonMetrics(season, actionContext) {
     if (!season || season.status !== 'active' || !season.id || !window.DB || typeof DB.getAll !== 'function' || typeof DB.update !== 'function') {
       return Promise.resolve(season);
     }
 
     var updatedSeason = season;
     return _loadScoreOrders(season).then(function (orders) {
-      var result = _calculateSeasonScore(season, orders || []);
+      var result = _calculateSeasonScore(season, orders || [], actionContext || _state.actionContext);
       var updates = {
         currentScore: result.currentScore,
         currentStatus: result.currentStatus,
         riskLevel: result.riskLevel,
         progressPercent: result.progressPercent,
+        scoreBreakdown: result.scoreBreakdown,
+        validatedImpactSignals: result.validatedImpactSignals,
+        riskContext: result.riskContext,
+        seasonReading: result.seasonReading,
+        executionPlan: result.executionPlan,
+        actionTasks: result.actionTasks,
+        actionTaskHistory: result.actionTaskHistory,
         currentMetrics: result.currentMetrics
       };
       _appendGoalReachedPatch(season, result, updates);
@@ -3976,6 +7110,13 @@ Modules.Temporadas = (function () {
     var mainMetrics = _mainMetricsForSnapshot(season, metrics);
     var auxiliaryMetrics = _auxiliaryMetricsForSnapshot(metrics, confidence);
     var alerts = _snapshotAlerts(season, metrics, confidence);
+    var scoreBreakdown = season.scoreBreakdown || season.currentMetrics && season.currentMetrics.scoreBreakdown || null;
+    var validatedImpactSignals = season.validatedImpactSignals || season.currentMetrics && season.currentMetrics.validatedImpactSignals || null;
+    var riskContext = season.riskContext || season.currentMetrics && season.currentMetrics.riskContext || null;
+    var seasonReading = season.seasonReading || season.currentMetrics && season.currentMetrics.seasonReading || null;
+    var executionPlan = season.executionPlan || season.currentMetrics && season.currentMetrics.executionPlan || null;
+    var actionTasks = season.actionTasks || season.currentMetrics && season.currentMetrics.actionTasks || [];
+    var actionTaskHistory = season.actionTaskHistory || season.currentMetrics && season.currentMetrics.actionTaskHistory || [];
 
     return {
       tenantId: _tenantId,
@@ -3992,6 +7133,13 @@ Modules.Temporadas = (function () {
       status: season.currentStatus || 'pending',
       riskLevel: season.riskLevel || 'unknown',
       confidence: confidence,
+      scoreBreakdown: scoreBreakdown,
+      validatedImpactSignals: validatedImpactSignals,
+      riskContext: riskContext,
+      seasonReading: seasonReading,
+      executionPlan: executionPlan,
+      actionTasks: actionTasks,
+      actionTaskHistory: actionTaskHistory,
       metrics: metrics,
       mainMetrics: mainMetrics,
       auxiliaryMetrics: auxiliaryMetrics,
@@ -4054,9 +7202,24 @@ Modules.Temporadas = (function () {
       ordersPreviousPeriod: 0,
       averageTicketChange: 0,
       reviewsAverage: 0,
-      couponUsage: 0,
-      promotionUsage: 0,
-      upsellUsage: 0
+      couponUsage: _number(metrics.couponUsage, 0),
+      couponDiscount: _number(metrics.couponDiscount, 0),
+      promotionUsage: _number(metrics.promotionDiscount, 0) > 0 ? 1 : 0,
+      promotionDiscount: _number(metrics.promotionDiscount, 0),
+      upsellUsage: _number(metrics.upsellAcceptedCount, 0),
+      upsellDiscount: _number(metrics.upsellDiscount, 0),
+      upsellAddedRevenue: _number(metrics.upsellAddedRevenue, 0),
+      pointsRedemption: _number(metrics.pointsRedemption, 0),
+      pointsDiscount: _number(metrics.pointsDiscount, 0),
+      channelBreakdown: metrics.channelBreakdown || [],
+      actionOpportunities: metrics.actionOpportunities || null,
+      validatedImpactSignals: metrics.validatedImpactSignals || season.validatedImpactSignals || null,
+      riskContext: metrics.riskContext || season.riskContext || null,
+      scoreBreakdown: metrics.scoreBreakdown || season.scoreBreakdown || null,
+      seasonReading: metrics.seasonReading || season.seasonReading || null,
+      executionPlan: metrics.executionPlan || season.executionPlan || null,
+      actionTasks: metrics.actionTasks || season.actionTasks || [],
+      actionTaskHistory: metrics.actionTaskHistory || season.actionTaskHistory || []
     };
     if (window.SeasonsAI && typeof SeasonsAI.buildSeasonAIContext === 'function') {
       return SeasonsAI.buildSeasonAIContext(season, metrics, snapshotState || {}, relatedData);
@@ -4081,7 +7244,7 @@ Modules.Temporadas = (function () {
     DB.update('seasons', season.id, {
       aiEnabled: false,
       lastAIRecommendationAt: generatedAt,
-      lastAIRecommendationSummary: recommendation && recommendation.summary ? recommendation.summary : ''
+      lastAIRecommendationSummary: recommendation && (recommendation.headline || recommendation.nextAction || recommendation.summary) ? (recommendation.headline || recommendation.nextAction || recommendation.summary) : ''
     }).catch(function (err) {
       console.warn('Temporadas AI season fields update skipped', err);
     });
@@ -4097,19 +7260,10 @@ Modules.Temporadas = (function () {
       return SeasonsAI.getFallbackRecommendation(_buildAIContext(_state.activeSeason || {}, _state.snapshots || {}));
     }
     return {
-      mainAction: {
-        title: 'Acompanhar a temporada por mais alguns dias',
-        description: 'Ainda há poucos dados disponíveis para recomendar uma ação específica.',
-        why: 'A recomendação usa apenas dados calculados pelo BocaFood.',
-        howToApply: ['Continue registrando pedidos normalmente.', 'Revise progresso, score e risco nos próximos dias.'],
-        metricToWatch: 'Progresso',
-        reviewInDays: 7,
-        riskIfIgnored: 'A temporada pode ficar sem leitura operacional suficiente.'
-      },
-      secondaryActions: [],
-      summary: 'Aguardar mais dados operacionais.',
-      confidence: 'low',
-      dataLimitations: ['Poucos dados disponíveis']
+      headline: 'A temporada precisa de mais dados',
+      helpingSignals: [],
+      blockingSignals: ['Ainda há poucos pedidos válidos para uma leitura específica.'],
+      nextAction: 'Continue registrando pedidos e revise progresso, score e risco nos próximos dias.'
     };
   }
 
@@ -4175,7 +7329,11 @@ Modules.Temporadas = (function () {
       averageItemsPerOrder: metrics.averageItemsPerOrder,
       weeklyRegularity: metrics.weeklyRegularity,
       strongHours: metrics.strongHours || [],
-      weakDays: metrics.weakDays
+      weakDays: metrics.weakDays,
+      scoreBreakdown: metrics.scoreBreakdown || null,
+      validatedImpactSignals: metrics.validatedImpactSignals || null,
+      riskContext: metrics.riskContext || null,
+      seasonReading: metrics.seasonReading || null
     };
   }
 
@@ -4229,12 +7387,18 @@ Modules.Temporadas = (function () {
       if (fresh.status !== 'active') throw new Error('Apenas temporada ativa pode ser finalizada.');
 
       return _loadScoreOrders(fresh).then(function (orders) {
-        var scored = _calculateSeasonScore(fresh, orders || []);
+        var scored = _calculateSeasonScore(fresh, orders || [], _state.actionContext || {});
         var finalSeasonBase = Object.assign({}, fresh, {
           currentScore: scored.currentScore,
           currentStatus: scored.currentStatus,
           riskLevel: scored.riskLevel,
           progressPercent: scored.progressPercent,
+          scoreBreakdown: scored.scoreBreakdown,
+          validatedImpactSignals: scored.validatedImpactSignals,
+          riskContext: scored.riskContext,
+          seasonReading: scored.seasonReading,
+          executionPlan: scored.executionPlan,
+          actionTasks: scored.actionTasks,
           currentMetrics: scored.currentMetrics
         });
         var finalPatch = _buildFinalSeasonPatch(finalSeasonBase);
@@ -4255,6 +7419,7 @@ Modules.Temporadas = (function () {
     var finalScore = _number(season.currentScore, 0);
     var finalResult = _finalResultForSeason(season);
     var finalSummary = _finalSummaryForSeason(season, finalResult);
+    var nextSeasonSuggestion = finalSummary.nextSeasonSuggestion || _nextSeasonSuggestion(season);
 
     return {
       status: 'finished',
@@ -4263,10 +7428,18 @@ Modules.Temporadas = (function () {
       finalProgressPercent: finalProgress,
       finalMetrics: season.currentMetrics || {},
       finalSummary: finalSummary,
+      nextSeasonSuggestion: nextSeasonSuggestion,
       currentScore: Math.round(finalScore),
       currentStatus: season.currentStatus || _statusFromScore(finalScore),
       riskLevel: season.riskLevel || 'unknown',
       progressPercent: finalProgress,
+      scoreBreakdown: season.scoreBreakdown || season.currentMetrics && season.currentMetrics.scoreBreakdown || null,
+      validatedImpactSignals: season.validatedImpactSignals || season.currentMetrics && season.currentMetrics.validatedImpactSignals || null,
+      riskContext: season.riskContext || season.currentMetrics && season.currentMetrics.riskContext || null,
+      seasonReading: season.seasonReading || season.currentMetrics && season.currentMetrics.seasonReading || null,
+      executionPlan: season.executionPlan || season.currentMetrics && season.currentMetrics.executionPlan || null,
+      actionTasks: season.actionTasks || season.currentMetrics && season.currentMetrics.actionTasks || [],
+      actionTaskHistory: season.actionTaskHistory || season.currentMetrics && season.currentMetrics.actionTaskHistory || [],
       currentMetrics: season.currentMetrics || {},
       finishedAt: now
     };
@@ -4286,30 +7459,57 @@ Modules.Temporadas = (function () {
 
   function _finalSummaryForSeason(season, finalResult) {
     var metrics = season.currentMetrics || {};
-    var worked = [];
-    var blocked = [];
+    var signals = season.validatedImpactSignals || metrics.validatedImpactSignals || {};
+    var scoreBreakdown = season.scoreBreakdown || metrics.scoreBreakdown || {};
+    var riskContext = season.riskContext || metrics.riskContext || {};
+    var reading = season.seasonReading || metrics.seasonReading || _generateSeasonReading(season, metrics, scoreBreakdown, signals, riskContext);
+    var worked = _uniqueTextItems(reading.helpingSignals || []);
+    var blocked = _uniqueTextItems(reading.blockingSignals || []);
+    var nextSuggestion = _nextSeasonSuggestion(season);
 
     if (_number(metrics.currentValue, 0) >= _number(metrics.targetValue, 0) && _number(metrics.targetValue, 0) > 0) {
-      worked.push('A métrica principal atingiu a meta definida.');
+      worked.unshift('A meta principal foi atingida.');
     }
-    if (_number(season.currentScore, 0) >= 65) worked.push('O score operacional ficou dentro de uma faixa saudável.');
-    if (_number(metrics.orders, 0) > 0) worked.push('A temporada teve dados reais de pedidos para análise.');
-    if (_number(metrics.activeDays, 0) > 0) worked.push('Houve dias ativos suficientes para medir ritmo operacional.');
-    if (_number(metrics.recurringCustomers, 0) > 0) worked.push('Foram detectados clientes recorrentes durante o período.');
+    if (_number(season.currentScore, 0) >= 65) worked.push('A temporada terminou com ' + Math.round(_number(season.currentScore, 0)) + '/100.');
+    if (_number(metrics.orders, 0) > 0) worked.push('Os pedidos reais deram base para entender o que funcionou.');
+    if (_number(metrics.recurringCustomers, 0) > 0) worked.push('Clientes recorrentes apareceram durante a temporada.');
+    if (signals.coupons && _number(signals.coupons.usedOrders, 0) > 0) {
+      worked.push('Cupom usado em ' + Math.round(_number(signals.coupons.usedOrders, 0)) + ' pedido(s) válido(s).');
+    }
+    if (signals.upsell && _number(signals.upsell.acceptedOrders, 0) > 0) {
+      worked.push('Upsell aceito em ' + Math.round(_number(signals.upsell.acceptedOrders, 0)) + ' pedido(s).');
+    }
+    if (signals.products && signals.products.topProduct) {
+      worked.push(signals.products.topProduct + ' ajudou a puxar a temporada.');
+    }
 
     if (_number(season.progressPercent, 0) < 75) blocked.push('O progresso ficou abaixo de 75% da meta.');
     if (season.riskLevel === 'high' || season.riskLevel === 'very_high') blocked.push('A chance de falha permaneceu elevada no encerramento.');
     if (!_number(metrics.orders, 0)) blocked.push('Faltaram pedidos válidos no período analisado.');
     if (_number(metrics.weeklyRegularity, 1) < .55) blocked.push('A regularidade semanal ficou instável.');
     if (!_number(metrics.recurringCustomers, 0) && season.objective === 'retain_customers') blocked.push('A recorrência de clientes ficou baixa.');
+    if (signals.promotions && _number(signals.promotions.discountTotal, 0) > 0 && _number(metrics.averageTicket, 0) < _number(season.baselineAverageTicket, 0)) {
+      blocked.push('Alguns descontos podem ter reduzido o ticket médio.');
+    }
 
     return {
-      worked: worked.length ? worked : ['Houve base suficiente para encerrar a temporada com leitura objetiva.'],
-      blocked: blocked.length ? blocked : ['Nenhum bloqueio crítico foi detectado nas métricas finais.'],
+      headline: _finalHeadlineForSeason(season, finalResult),
+      worked: _uniqueTextItems(worked).slice(0, 5).length ? _uniqueTextItems(worked).slice(0, 5) : ['Houve base suficiente para encerrar a temporada com leitura objetiva.'],
+      blocked: _uniqueTextItems(blocked).slice(0, 5).length ? _uniqueTextItems(blocked).slice(0, 5) : ['Nenhum bloqueio crítico foi detectado nas métricas finais.'],
       evolution: _finalEvolutionText(season, finalResult),
-      nextSeasonSuggestion: _nextSeasonSuggestion(season),
+      nextAction: reading.nextAction || _nextSeasonReason(season),
+      nextSeasonSuggestion: nextSuggestion,
       suggestionReason: _nextSeasonReason(season)
     };
+  }
+
+  function _finalHeadlineForSeason(season, finalResult) {
+    var score = Math.round(_number(season.currentScore, 0));
+    var progress = _number(season.progressPercent, 0);
+    if (progress >= 100) return 'A temporada terminou com ' + score + '/100 e a meta foi atingida.';
+    if (progress >= 75) return 'A temporada terminou com ' + score + '/100 e chegou perto da meta.';
+    if (score >= 65) return 'A temporada terminou com ' + score + '/100, mas ainda precisa de mais ritmo.';
+    return 'A temporada terminou com ' + score + '/100 e mostrou pontos claros para ajustar.';
   }
 
   function _finalEvolutionText(season, finalResult) {
@@ -4359,6 +7559,10 @@ Modules.Temporadas = (function () {
         payload.metrics = season.finalMetrics || season.currentMetrics || payload.metrics;
         payload.mainMetrics = _mainMetricsForSnapshot(season, payload.metrics || {});
         payload.auxiliaryMetrics = _auxiliaryMetricsForSnapshot(payload.metrics || {}, payload.confidence || 'low');
+        payload.scoreBreakdown = season.scoreBreakdown || payload.metrics && payload.metrics.scoreBreakdown || payload.scoreBreakdown || null;
+        payload.validatedImpactSignals = season.validatedImpactSignals || payload.metrics && payload.metrics.validatedImpactSignals || payload.validatedImpactSignals || null;
+        payload.riskContext = season.riskContext || payload.metrics && payload.metrics.riskContext || payload.riskContext || null;
+        payload.seasonReading = season.seasonReading || payload.metrics && payload.metrics.seasonReading || payload.seasonReading || null;
         payload.insights = _finalInsights(season);
         return DB.add('season_metrics_snapshots', payload);
       });
@@ -4392,12 +7596,13 @@ Modules.Temporadas = (function () {
     return DB.getAll('orders');
   }
 
-  function _calculateSeasonScore(season, allOrders) {
+  function _calculateSeasonScore(season, allOrders, actionContext) {
     var period = _seasonPeriod(season);
     var currentOrders = _ordersInPeriod(allOrders || [], period.start, period.currentEnd);
     var baselineOrders = _ordersInPeriod(allOrders || [], period.baselineStart, period.start);
     var current = _buildRuntimeMetrics(currentOrders, period.elapsedDays || 1);
     var baseline = _buildRuntimeMetrics(baselineOrders, period.durationDays || 30);
+    var validatedImpactSignals = _calculateValidatedImpactSignals(currentOrders, season, baseline, actionContext || {});
     var target = _targetValueForSeason(season);
     var primaryValue = _primaryValueForObjective(current, season.objective);
     var progressPercent = target > 0 ? (primaryValue / target) * 100 : 0;
@@ -4406,12 +7611,66 @@ Modules.Temporadas = (function () {
     var status = pace.status;
     var recentDrop = _hasRecentDrop(season, allOrders || [], period);
     var risk = _riskFromProgress(progressPercent, period, recentDrop, season);
+    var riskContext = {
+      coreObjectiveScore: score,
+      riskLevel: risk,
+      recentDrop: recentDrop,
+      progressRatio: pace.progressRatio,
+      progressPercent: progressPercent,
+      daysRemaining: period.daysRemaining
+    };
+    var scoreBreakdown = _calculateSeasonScoreBreakdown(season, current, validatedImpactSignals, riskContext);
+    var seasonReadingMetrics = Object.assign({}, current, {
+      currentValue: primaryValue,
+      targetValue: target,
+      progressRatio: pace.progressRatio,
+      expectedProgress: pace.expectedProgress,
+      daysRemaining: period.daysRemaining,
+      validatedImpactSignals: validatedImpactSignals,
+      scoreBreakdown: scoreBreakdown,
+      actionOpportunities: _buildActionOpportunities(current, validatedImpactSignals, actionContext || {}, season)
+    });
+    var executionPlan = _buildSeasonExecutionPlan(season, seasonReadingMetrics, validatedImpactSignals, riskContext);
+    seasonReadingMetrics.executionPlan = executionPlan;
+    var seasonReading = _generateSeasonReading(season, seasonReadingMetrics, scoreBreakdown, validatedImpactSignals, {
+      riskLevel: risk,
+      recentDrop: recentDrop,
+      progressRatio: pace.progressRatio,
+      progressPercent: progressPercent,
+      daysRemaining: period.daysRemaining
+    });
+    if (executionPlan.actions && executionPlan.actions[0] && executionPlan.actions[0].description) {
+      seasonReading.nextAction = executionPlan.actions[0].description;
+      seasonReading.executionPlan = executionPlan;
+    }
+    var actionTaskState = _reconcileSeasonActionTasks(season, executionPlan, currentOrders);
+    if (actionTaskState.hasArchived) {
+      var advancedSeason = Object.assign({}, season, {
+        actionTasks: actionTaskState.activeTasks,
+        actionTaskHistory: actionTaskState.history
+      });
+      executionPlan = _buildSeasonExecutionPlan(advancedSeason, seasonReadingMetrics, validatedImpactSignals, riskContext);
+      actionTaskState = _reconcileSeasonActionTasks(advancedSeason, executionPlan, currentOrders);
+    }
+    var actionTasks = actionTaskState.activeTasks;
+    var actionTaskHistory = actionTaskState.history;
+    executionPlan.actionTasks = actionTasks;
+    executionPlan.actionTaskHistory = actionTaskHistory;
+    seasonReadingMetrics.executionPlan = executionPlan;
+    seasonReading.executionPlan = executionPlan;
 
     return {
-      currentScore: Math.round(_clamp(score, 0, 100)),
+      currentScore: scoreBreakdown.finalScore,
       currentStatus: status,
       riskLevel: risk,
       progressPercent: Math.max(0, progressPercent),
+      scoreBreakdown: scoreBreakdown,
+      validatedImpactSignals: validatedImpactSignals,
+      riskContext: riskContext,
+      seasonReading: seasonReading,
+      executionPlan: executionPlan,
+      actionTasks: actionTasks,
+      actionTaskHistory: actionTaskHistory,
       currentMetrics: {
         currentValue: primaryValue,
         targetValue: target,
@@ -4428,6 +7687,23 @@ Modules.Temporadas = (function () {
         strongHours: current.strongHours || [],
         topProducts: current.topProducts || [],
         lowSellingProducts: current.lowSellingProducts || [],
+        channelBreakdown: current.channelBreakdown || [],
+        couponUsage: current.couponUsage || 0,
+        couponDiscount: current.couponDiscount || 0,
+        promotionDiscount: current.promotionDiscount || 0,
+        upsellAcceptedCount: current.upsellAcceptedCount || 0,
+        upsellDiscount: current.upsellDiscount || 0,
+        upsellAddedRevenue: current.upsellAddedRevenue || 0,
+        pointsRedemption: current.pointsRedemption || 0,
+        pointsDiscount: current.pointsDiscount || 0,
+        actionOpportunities: seasonReadingMetrics.actionOpportunities || {},
+        validatedImpactSignals: validatedImpactSignals,
+        riskContext: riskContext,
+        scoreBreakdown: scoreBreakdown,
+        seasonReading: seasonReading,
+        executionPlan: executionPlan,
+        actionTasks: actionTasks,
+        actionTaskHistory: actionTaskHistory,
         elapsedDays: period.elapsedDays,
         daysRemaining: period.daysRemaining,
         expectedProgress: pace.expectedProgress,
@@ -4477,20 +7753,42 @@ Modules.Temporadas = (function () {
     var customers = {};
     var products = {};
     var hours = {};
+    var channels = {};
+    var couponUsage = 0;
+    var couponDiscount = 0;
+    var promotionDiscount = 0;
+    var upsellAcceptedCount = 0;
+    var upsellDiscount = 0;
+    var upsellAddedRevenue = 0;
+    var pointsRedemption = 0;
+    var pointsDiscount = 0;
     (orders || []).forEach(function (order) {
-      var key = _customerKey(order);
+      var normalized = _normalizeSeasonOrder(order);
+      if (!normalized) return;
+      var key = normalized.customerKey;
       if (key) customers[key] = (customers[key] || 0) + 1;
-      _orderProducts(order).forEach(function (product) {
+      if (!channels[normalized.channel]) channels[normalized.channel] = { channel: normalized.channel, orders: 0, revenue: 0 };
+      channels[normalized.channel].orders += 1;
+      channels[normalized.channel].revenue += normalized.total;
+      if (normalized.couponCode || normalized.couponDiscount > 0) couponUsage += 1;
+      couponDiscount += normalized.couponDiscount;
+      promotionDiscount += normalized.promotionDiscount;
+      if (normalized.upsellAccepted) upsellAcceptedCount += 1;
+      upsellDiscount += normalized.upsellDiscount;
+      upsellAddedRevenue += normalized.upsellAddedRevenue;
+      pointsRedemption += normalized.pointsRedemption;
+      pointsDiscount += normalized.pointsDiscount;
+      _orderProducts(normalized).forEach(function (product) {
         var name = product.name || 'Produto sem nome';
         if (!products[name]) products[name] = { name: name, quantity: 0, revenue: 0 };
         products[name].quantity += product.quantity;
         products[name].revenue += product.revenue;
       });
-      var hour = _orderHour(order);
+      var hour = _orderHour(normalized);
       if (hour !== null) {
         if (!hours[hour]) hours[hour] = { hour: hour, orders: 0, revenue: 0 };
         hours[hour].orders += 1;
-        hours[hour].revenue += _money(order.total);
+        hours[hour].revenue += normalized.total;
       }
     });
     var customerKeys = Object.keys(customers);
@@ -4502,6 +7800,9 @@ Modules.Temporadas = (function () {
     var strongHours = Object.keys(hours).map(function (key) { return hours[key]; }).sort(function (a, b) {
       return b.orders - a.orders || b.revenue - a.revenue;
     }).slice(0, 5);
+    var channelBreakdown = Object.keys(channels).map(function (key) { return channels[key]; }).sort(function (a, b) {
+      return b.revenue - a.revenue || b.orders - a.orders;
+    });
 
     return {
       revenue: base.baselineRevenue,
@@ -4516,7 +7817,16 @@ Modules.Temporadas = (function () {
       weeklyRegularity: _weeklyRegularity(orders),
       strongHours: strongHours,
       topProducts: topProducts,
-      lowSellingProducts: []
+      lowSellingProducts: [],
+      channelBreakdown: channelBreakdown,
+      couponUsage: couponUsage,
+      couponDiscount: couponDiscount,
+      promotionDiscount: promotionDiscount,
+      upsellAcceptedCount: upsellAcceptedCount,
+      upsellDiscount: upsellDiscount,
+      upsellAddedRevenue: upsellAddedRevenue,
+      pointsRedemption: pointsRedemption,
+      pointsDiscount: pointsDiscount
     };
   }
 
@@ -4750,21 +8060,24 @@ Modules.Temporadas = (function () {
   }
 
   function _orderItemCount(order) {
-    var items = order.items || order.itens || order.products || [];
-    if (!Array.isArray(items)) return _number(order.itemsCount || order.itemCount || order.quantity || 1, 1);
+    var normalized = order && order.raw ? order : _normalizeSeasonOrder(order);
+    var items = normalized ? normalized.items : [];
+    var raw = normalized && normalized.raw ? normalized.raw : order;
+    if (!Array.isArray(items)) return _number(raw && (raw.itemsCount || raw.itemCount || raw.quantity || 1), 1);
     if (!items.length) return 1;
     return items.reduce(function (sum, item) {
-      return sum + Math.max(1, _number(item.qty || item.quantity || item.qtd || item.quantidade, 1));
+      return sum + Math.max(1, _number(item.quantity, 1));
     }, 0);
   }
 
   function _orderProducts(order) {
-    var items = order.items || order.itens || order.products || [];
+    var normalized = order && order.raw ? order : _normalizeSeasonOrder(order);
+    var items = normalized ? normalized.items : [];
     if (!Array.isArray(items)) return [];
     return items.map(function (item) {
-      var name = item.name || item.productName || item.nome || item.title || '';
-      var quantity = Math.max(1, _number(item.qty || item.quantity || item.qtd || item.quantidade, 1));
-      var revenue = _money(item.total || item.lineTotal || item.priceTotal || item.subtotal || item.price || item.preco || 0);
+      var name = item.name || '';
+      var quantity = Math.max(1, _number(item.quantity, 1));
+      var revenue = _money(item.total || 0);
       return { name: String(name || 'Produto sem nome').slice(0, 90), quantity: quantity, revenue: revenue };
     }).filter(function (item) { return item.name; });
   }
@@ -4787,6 +8100,13 @@ Modules.Temporadas = (function () {
     if (Math.abs(_number(season.progressPercent, 0) - _number(updates.progressPercent, 0)) >= .1) return true;
     if (updates.goalReachedAt && !season.goalReachedAt) return true;
     if (updates.goalCelebrationPending !== undefined && updates.goalCelebrationPending !== season.goalCelebrationPending) return true;
+    if (JSON.stringify(season.scoreBreakdown || null) !== JSON.stringify(updates.scoreBreakdown || null)) return true;
+    if (JSON.stringify(season.validatedImpactSignals || null) !== JSON.stringify(updates.validatedImpactSignals || null)) return true;
+    if (JSON.stringify(season.riskContext || null) !== JSON.stringify(updates.riskContext || null)) return true;
+    if (JSON.stringify(season.seasonReading || null) !== JSON.stringify(updates.seasonReading || null)) return true;
+    if (JSON.stringify(season.executionPlan || null) !== JSON.stringify(updates.executionPlan || null)) return true;
+    if (JSON.stringify(season.actionTasks || null) !== JSON.stringify(updates.actionTasks || null)) return true;
+    if (JSON.stringify(season.actionTaskHistory || null) !== JSON.stringify(updates.actionTaskHistory || null)) return true;
     return JSON.stringify(season.currentMetrics || {}) !== JSON.stringify(updates.currentMetrics || {});
   }
 
@@ -4886,10 +8206,16 @@ Modules.Temporadas = (function () {
           if (next.status !== 'active') return true;
           return _assertNoActiveSeason(id);
         }).then(function () {
-          return DB.update('seasons', id, next);
+          return DB.update('seasons', id, next).then(function () {
+            if (next.status === 'abandoned') return _registerSeasonMaturityImpact(Object.assign({}, next, { id: id }), 'season_abandoned');
+            return null;
+          });
         });
       }
-      return DB.update('seasons', id, next);
+      return DB.update('seasons', id, next).then(function () {
+        if (next.status === 'abandoned') return _registerSeasonMaturityImpact(Object.assign({}, next, { id: id }), 'season_abandoned');
+        return null;
+      });
     }).then(function () {
       return _loadSeasonsPromise();
     });
@@ -4970,6 +8296,7 @@ Modules.Temporadas = (function () {
       targetMode: data.targetMode || '',
       targetValue: _nullableNumber(data.targetValue),
       targetMetric: data.targetMetric || '',
+      planConnection: data.planConnection || null,
       baselinePeriod: data.baselinePeriod || '',
       baselineValue: _nullableNumber(data.baselineValue),
       baselineRevenue: _number(data.baselineRevenue, 0),
@@ -4988,6 +8315,13 @@ Modules.Temporadas = (function () {
       currentStatus: data.currentStatus || (status === 'active' ? 'pending' : 'Inicial'),
       riskLevel: data.riskLevel || data.initialRiskLevel || 'unknown',
       progressPercent: _number(data.progressPercent, 0),
+      scoreBreakdown: data.scoreBreakdown || null,
+      validatedImpactSignals: data.validatedImpactSignals || null,
+      riskContext: data.riskContext || null,
+      seasonReading: data.seasonReading || null,
+      executionPlan: data.executionPlan || null,
+      actionTasks: Array.isArray(data.actionTasks) ? data.actionTasks : [],
+      actionTaskHistory: Array.isArray(data.actionTaskHistory) ? data.actionTaskHistory : [],
       goalReachedAt: data.goalReachedAt || null,
       goalCelebrationShownAt: data.goalCelebrationShownAt || null,
       goalCelebrationPending: data.goalCelebrationPending === true,
@@ -5206,6 +8540,7 @@ Modules.Temporadas = (function () {
     closeStoneEvolutionHistory: closeStoneEvolutionHistory,
     openHelpModal: openHelpModal,
     closeHelpModal: closeHelpModal,
+    handleSeasonActionButton: handleSeasonActionButton,
     toggleMetricBalloon: toggleMetricBalloon,
     openActiveFromCelebration: openActiveFromCelebration,
     checkPendingGoalCelebration: checkPendingGoalCelebration,
@@ -5213,7 +8548,6 @@ Modules.Temporadas = (function () {
     _setModuleTab: _setModuleTab,
     _setSeasonTab: _setSeasonTab,
     _wizardSelect: _wizardSelect,
-    _wizardSetTargetValue: _wizardSetTargetValue,
     _wizardSetStartDate: _wizardSetStartDate,
     _metricTileKey: _metricTileKey,
     _wizardBack: _wizardBack,

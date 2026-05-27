@@ -9,6 +9,8 @@ Modules.PlanoDeVoo = (function () {
   var _data = {
     orders: [],
     products: [],
+    costItems: [],
+    recipes: [],
     movements: [],
     saidas: [],
     apagar: [],
@@ -86,13 +88,14 @@ Modules.PlanoDeVoo = (function () {
     _activeSub = _normalizeRouteSub(sub);
     var app = document.getElementById('app');
     app.innerHTML = '' +
-      '<div id="pv-root" style="display:flex;flex-direction:column;height:100%;">' +
+      '<div id="pv-root" style="display:flex;flex-direction:column;height:100%;background:linear-gradient(180deg,#FFFCF8 0%,#FAF8F4 58%,#F6F1EB 100%);">' +
         '<div id="pv-content-wrap" style="flex:1;overflow-y:auto;padding:24px;">' +
           '<div style="display:flex;flex-direction:column;gap:16px;">' +
             '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
               '<div style="min-width:0;flex:1 1 420px;">' +
-                '<h2 style="font-size:22px;font-weight:600;color:#1F1F1F;margin:0 0 6px;line-height:1.2;">Plano de Voo</h2>' +
-                '<p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0 0 10px;max-width:760px;">Escolha a rota do seu negócio, veja o esforço necessário e preserve a decisão do período.</p>' +
+                '<div style="font-size:11px;font-weight:600;color:#8A6F5A;letter-spacing:.06em;text-transform:uppercase;margin-bottom:5px;">Inteligência operacional</div>' +
+                '<h2 style="font-size:24px;font-weight:600;color:#1F1F1F;margin:0 0 5px;line-height:1.15;">Plano de Voo</h2>' +
+                '<p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0 0 8px;max-width:760px;">Escolha a rota do negócio e acompanhe o ritmo necessário para chegar nela.</p>' +
               '</div>' +
               '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;">' +
                 '<div id="pv-tabs"></div>' +
@@ -162,6 +165,8 @@ Modules.PlanoDeVoo = (function () {
     return Promise.all([
       _safeAll('orders'),
       _safeAll('products'),
+      _safeAll('itens_custo'),
+      _safeAll('fichasTecnicas'),
       _safeAll('movimentacoes'),
       _safeAll('financeiro_saidas'),
       _safeAll('financeiro_apagar'),
@@ -178,21 +183,23 @@ Modules.PlanoDeVoo = (function () {
     ]).then(function (r) {
       _data.orders = r[0] || [];
       _data.products = r[1] || [];
-      _data.movements = r[2] || [];
-      _data.saidas = r[3] || [];
-      _data.contasPagar = r[5] || [];
-      _data.apagar = [].concat(r[4] || [], r[5] || []);
-      _data.categorias = r[6] || [];
-      _data.contas = r[7] || [];
-      _data.geral = _normalizeGeneral(r[8] || {});
-      _data.dinheiro = _normalizeMoney(r[9] || {});
-      _data.financeiro = r[10] || {};
-      _data.custos = r[11] || {};
-      _data.canais = _normalizeChannels(r[12] || {});
-      _data.snapshots = (r[13] || []).slice().sort(function (a, b) {
+      _data.costItems = r[2] || [];
+      _data.recipes = r[3] || [];
+      _data.movements = r[4] || [];
+      _data.saidas = r[5] || [];
+      _data.contasPagar = r[7] || [];
+      _data.apagar = [].concat(r[6] || [], r[7] || []);
+      _data.categorias = r[8] || [];
+      _data.contas = r[9] || [];
+      _data.geral = _normalizeGeneral(r[10] || {});
+      _data.dinheiro = _normalizeMoney(r[11] || {});
+      _data.financeiro = r[12] || {};
+      _data.custos = r[13] || {};
+      _data.canais = _normalizeChannels(r[14] || {});
+      _data.snapshots = (r[15] || []).slice().sort(function (a, b) {
         return _ts(b.createdAt) - _ts(a.createdAt);
       });
-      _data.monthScenario = r[14] || null;
+      _data.monthScenario = r[16] || null;
       _loading = false;
     }).catch(function (err) {
       _loading = false;
@@ -207,15 +214,19 @@ Modules.PlanoDeVoo = (function () {
     _normalizeRouteMonthWeights();
     var channels = _channelCatalog();
     channels.forEach(function (ch) {
+      var hist = _channelHistoryAverage(ch.key, _historyMonthsBack());
+      var recent = _channelCurrentMonthTotal(ch.key);
       if (_state.channelInclude[ch.key] == null) _state.channelInclude[ch.key] = true;
-      if (_state.channelMode[ch.key] == null) _state.channelMode[ch.key] = ch.historyHasData ? 'automatico' : 'manual';
-      if (_state.channelValues[ch.key] == null) _state.channelValues[ch.key] = _channelHistoryAverage(ch.key, _historyMonthsBack()).avg;
+      if (_state.channelMode[ch.key] == null) _state.channelMode[ch.key] = hist.hasData ? 'automatico' : 'manual';
+      if (_state.channelValues[ch.key] == null) _state.channelValues[ch.key] = hist.hasData ? hist.avg : recent;
+      else if (!hist.hasData && recent > 0 && _num(_state.channelValues[ch.key]) <= 0) _state.channelValues[ch.key] = recent;
     });
 
     _buildVariableSeed().forEach(function (row) {
       if (_state.costInclude[row.key] == null) _state.costInclude[row.key] = true;
       if (_state.costMode[row.key] == null) _state.costMode[row.key] = row.mode;
       if (_state.costPct[row.key] == null) _state.costPct[row.key] = row.pct;
+      else if (row.key === 'products' && row.pct > 0 && _num(_state.costPct[row.key]) <= 0 && (_state.costMode[row.key] || row.mode) === 'automatico') _state.costPct[row.key] = row.pct;
     });
 
     _buildFixedSeed().forEach(function (row) {
@@ -271,6 +282,10 @@ Modules.PlanoDeVoo = (function () {
         commissionPct: (cardapio || tpv) ? 0 : _num(ch.commissionPct),
         fixedFee: (cardapio || tpv) ? 0 : _num(ch.fixedFee),
         taxPct: (cardapio || tpv) ? 0 : _num(ch.taxPct),
+        entradaCategoriaId: String(ch.entradaCategoriaId || ch.incomeCategoryId || ch.categoriaEntradaId || ch.financialCategoryId || ch.categoriaFinanceiraId || ''),
+        entradaCategoriaNome: String(ch.entradaCategoriaNome || ch.incomeCategoryName || ch.categoriaEntradaNome || ch.financialCategoryName || ch.categoriaFinanceiraNome || ''),
+        incomeCategoryId: String(ch.incomeCategoryId || ch.entradaCategoriaId || ch.categoriaEntradaId || ch.financialCategoryId || ch.categoriaFinanceiraId || ''),
+        incomeCategoryName: String(ch.incomeCategoryName || ch.entradaCategoriaNome || ch.categoriaEntradaNome || ch.financialCategoryName || ch.categoriaFinanceiraNome || ''),
         locked: cardapio || tpv || !!ch.locked
       };
     });
@@ -334,6 +349,7 @@ Modules.PlanoDeVoo = (function () {
       ? '' +
         _activeRouteCard(_data.monthScenario) +
         _routeBaseReadCard(_data.monthScenario) +
+        _routeBreakEvenCard(_data.monthScenario) +
         _routeSafetyCard(_data.monthScenario) +
         _routeMonthPreviewCard(_data.monthScenario) +
         _routesCreatedCard(_data.monthScenario) +
@@ -363,16 +379,23 @@ Modules.PlanoDeVoo = (function () {
 
   function _noActiveRouteCard() {
     return '' +
-      '<section style="' + _cardStyle() + 'display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
-        '<div style="display:flex;gap:13px;align-items:flex-start;min-width:0;max-width:760px;">' +
-          '<div style="width:42px;height:42px;border-radius:14px;background:#FAF8F4;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;flex:0 0 auto;"><span class="mi" style="font-size:22px;">near_me</span></div>' +
-          '<div style="min-width:0;">' +
-            '<div style="font-size:11px;font-weight:600;color:#B42318;letter-spacing:.04em;text-transform:uppercase;margin-bottom:5px;">Plano de Voo</div>' +
-            '<div style="font-size:20px;font-weight:600;color:#1F1F1F;line-height:1.2;">Nenhuma rota ativa ainda</div>' +
-            '<div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:5px;">Crie uma rota para decidir quanto precisa vender, quantos pedidos precisa fazer por dia e qual resultado quer buscar neste ano.</div>' +
+      '<section style="' + _routeHeroStyle('#8A6F5A', '#F7EFE4') + '">' +
+        '<div style="' + _routeHeroGlow('#8A6F5A') + '"></div>' +
+        '<div style="position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:center;">' +
+          '<div style="display:flex;gap:16px;align-items:center;min-width:0;">' +
+            _routeGraphic('equilibrium') +
+            '<div style="min-width:0;max-width:780px;">' +
+              '<div style="font-size:11px;font-weight:600;color:#8A6F5A;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;">Plano de Voo</div>' +
+              '<div style="font-size:24px;font-weight:600;color:#1F1F1F;line-height:1.12;">Nenhuma rota ativa ainda</div>' +
+              '<div style="font-size:13px;color:#6F6860;line-height:1.5;margin-top:7px;">Crie uma rota para decidir quanto precisa vender, quantos pedidos precisa fazer por dia e qual resultado quer buscar neste ano.</div>' +
+              '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:12px;">' +
+                _snapshotPill('Decisão do período', '#fff', '#8A6F5A', '#E7DDD1') +
+                _snapshotPill('Acompanha execução', '#fff', '#6F6860', '#EAE4DA') +
+              '</div>' +
+            '</div>' +
           '</div>' +
+          '<button type="button" onclick="Modules.PlanoDeVoo._openCreateRouteModal(\'create\')" style="height:42px;padding:0 16px;border:none;border-radius:12px;background:#B42318;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 14px 26px rgba(180,35,24,.20);white-space:nowrap;">Criar nova rota</button>' +
         '</div>' +
-        '<button type="button" onclick="Modules.PlanoDeVoo._openCreateRouteModal(\'create\')" style="height:42px;padding:0 16px;border:none;border-radius:12px;background:#B42318;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 10px 24px rgba(180,35,24,.18);">Criar nova rota</button>' +
       '</section>';
   }
 
@@ -508,7 +531,6 @@ Modules.PlanoDeVoo = (function () {
   function _routeSafetyCard(monthScenario) {
     var forecast = _activeRouteForecast(monthScenario);
     var revenue = _num(forecast.revenueTotal);
-    var breakEven = _num(forecast.breakEvenRevenue);
     var variable = _num(forecast.variableTotal);
     var expenses = _num(forecast.fixedExpensesTotal != null ? forecast.fixedExpensesTotal : 0);
     var financialCosts = _num(forecast.financialCostsTotal || 0);
@@ -531,19 +553,50 @@ Modules.PlanoDeVoo = (function () {
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;align-items:stretch;">' +
           '<div style="border-radius:16px;background:#fff;border:1px solid #F0E7DE;padding:15px;display:flex;flex-direction:column;gap:10px;">' +
             '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;">' +
-              '<span style="font-size:12px;color:#6F6860;">Para não ficar no vermelho</span>' +
-              '<strong style="font-size:20px;font-weight:600;color:#1F1F1F;">' + (breakEven > 0 ? _fmtMoney(breakEven) : 'Sem base') + '</strong>' +
+              '<span style="font-size:12px;color:#6F6860;">Total que precisa cobrir</span>' +
+              '<strong style="font-size:20px;font-weight:600;color:#1F1F1F;">' + (total > 0 ? _fmtMoney(total) : 'Sem base') + '</strong>' +
             '</div>' +
             '<div style="height:8px;background:#F1ECE7;border-radius:999px;overflow:hidden;">' +
-              '<div style="height:100%;width:' + _esc(_routeSafetyBarWidth(revenue, breakEven)) + ';background:' + (gap >= 0 ? '#1F6F43' : '#B42318') + ';border-radius:999px;"></div>' +
+              '<div style="height:100%;width:' + _esc(_routeSafetyBarWidth(revenue, total)) + ';background:' + (gap >= 0 ? '#1F6F43' : '#B42318') + ';border-radius:999px;"></div>' +
             '</div>' +
-            '<div style="font-size:12px;color:#6F6860;line-height:1.4;">' + (gap >= 0 ? 'A rota passa ' + _fmtMoney(Math.abs(gap)) + ' da base de custos e despesas.' : 'Faltam ' + _fmtMoney(Math.abs(gap)) + ' para a rota cobrir tudo que foi considerado.') + '</div>' +
+            '<div style="font-size:12px;color:#6F6860;line-height:1.4;">' + (gap >= 0 ? 'A rota passa ' + _fmtMoney(Math.abs(gap)) + ' do valor que precisa cobrir.' : 'Faltam ' + _fmtMoney(Math.abs(gap)) + ' para cobrir custos e despesas.') + '</div>' +
           '</div>' +
           '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:9px;">' +
             _routeCostBox('Custos das vendas', variable, '#8A6F5A') +
             _routeCostBox('Despesas diretas', expenses, '#B45309') +
             _routeCostBox('Custos diretos', financialCosts, '#6C8777') +
           '</div>' +
+        '</div>' +
+      '</section>';
+  }
+
+  function _routeBreakEvenCard(monthScenario) {
+    var forecast = _activeRouteForecast(monthScenario);
+    var revenue = _num(forecast.revenueTotal);
+    var breakEven = _num(forecast.breakEvenRevenue);
+    if (!(breakEven > 0)) return '';
+    var gap = revenue - breakEven;
+    return '' +
+      '<section style="' + _cardStyle() + 'display:flex;flex-direction:column;gap:14px;background:linear-gradient(135deg,#fff 0%,#F7FBFF 100%);">' +
+        '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">' +
+          '<div style="min-width:0;">' +
+            '<div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;">' +
+              '<span class="mi" style="font-size:20px;color:#2563EB;">balance</span>' +
+              '<h3 style="font-size:15px;font-weight:600;color:#1F1F1F;margin:0;">Ponto de equilíbrio</h3>' +
+            '</div>' +
+            '<p style="font-size:13px;color:#6F6860;line-height:1.45;margin:5px 0 0;max-width:780px;">É a venda mínima estimada para a loja pagar o que precisa e não terminar no prejuízo.</p>' +
+          '</div>' +
+          _snapshotPill(gap >= 0 ? 'Rota passa do equilíbrio' : 'Ainda abaixo do equilíbrio', gap >= 0 ? '#F0FAF4' : '#FFF7ED', gap >= 0 ? '#1F6F43' : '#B45309', gap >= 0 ? '#D9F2E3' : '#FED7AA') +
+        '</div>' +
+        '<div style="border-radius:16px;background:#fff;border:1px solid #E5EEF9;padding:15px;display:flex;flex-direction:column;gap:10px;">' +
+          '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;">' +
+            '<span style="font-size:12px;color:#6F6860;">Venda mínima para empatar</span>' +
+            '<strong style="font-size:20px;font-weight:600;color:#1F1F1F;">' + _fmtMoney(breakEven) + '</strong>' +
+          '</div>' +
+          '<div style="height:8px;background:#EEF4FF;border-radius:999px;overflow:hidden;">' +
+            '<div style="height:100%;width:' + _esc(_routeSafetyBarWidth(revenue, breakEven)) + ';background:' + (gap >= 0 ? '#1F6F43' : '#2563EB') + ';border-radius:999px;"></div>' +
+          '</div>' +
+          '<div style="font-size:12px;color:#6F6860;line-height:1.45;">' + (gap >= 0 ? 'A rota fica ' + _fmtMoney(Math.abs(gap)) + ' acima da venda mínima para empatar.' : 'Faltam ' + _fmtMoney(Math.abs(gap)) + ' para chegar na venda mínima de equilíbrio.') + '</div>' +
         '</div>' +
       '</section>';
   }
@@ -575,17 +628,36 @@ Modules.PlanoDeVoo = (function () {
         '</div>' +
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">' +
           rows.map(function (m) {
-            var weight = _num((m.factor || 1) * 100);
+            var strength = _monthStrengthInfo(m.factor);
             return '<div style="background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:7px;min-width:0;">' +
               '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">' +
                 '<span style="font-size:12px;font-weight:600;color:#1F1F1F;">' + _esc(m.label) + '</span>' +
-                '<span style="font-size:11px;color:#6F6860;">' + _formatMonthFactor(weight) + '%</span>' +
+                '<span style="font-size:11px;color:' + _esc(strength.color) + ';font-weight:600;">' + _esc(strength.label) + '</span>' +
               '</div>' +
+              _monthStrengthBar(strength.score, strength.color) +
               '<div style="font-size:16px;font-weight:600;color:#1F1F1F;line-height:1.1;">' + _fmtMoney(m.revenue) + '</div>' +
             '</div>';
           }).join('') +
         '</div>' +
       '</section>';
+  }
+
+  function _monthStrengthInfo(factor) {
+    var n = _num(factor);
+    var score = n <= 0 ? 0 : Math.max(1, Math.min(10, Math.round(n * 5)));
+    if (!score) return { score: 0, label: 'Sem força', color: '#8A7E7C' };
+    if (score <= 3) return { score: score, label: 'Força ' + score + '/10', color: '#B45309' };
+    if (score <= 6) return { score: score, label: 'Força ' + score + '/10', color: '#6F6860' };
+    if (score <= 8) return { score: score, label: 'Força ' + score + '/10', color: '#1F6F43' };
+    return { score: score, label: 'Força ' + score + '/10', color: '#B42318' };
+  }
+
+  function _monthStrengthBar(score, color) {
+    var html = '<div aria-label="Força do mês" title="Força do mês" style="display:grid;grid-template-columns:repeat(10,1fr);gap:3px;">';
+    for (var i = 1; i <= 10; i += 1) {
+      html += '<span style="height:5px;border-radius:999px;background:' + (i <= score ? _esc(color || '#B42318') : '#E8DED4') + ';opacity:' + (i <= score ? '1' : '.75') + ';"></span>';
+    }
+    return html + '</div>';
   }
 
   function _routeQualityAlertsCard(monthScenario) {
@@ -618,14 +690,14 @@ Modules.PlanoDeVoo = (function () {
           '<span class="mi" style="font-size:20px;color:#8A6F5A;">checklist</span>' +
           '<div style="min-width:0;">' +
             '<h3 style="font-size:15px;font-weight:600;color:#1F1F1F;margin:0 0 4px;">Antes de criar a rota</h3>' +
-            '<p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0;">Quanto melhor estiverem estes dados, mais clara fica a decisão do ano.</p>' +
+            '<p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0;">Veja como está o desempenho atual da loja e use estes números como base para criar seu Plano de Voo.</p>' +
           '</div>' +
         '</div>' +
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:11px;">' +
-          _baseMini('Ticket médio', _averageTicket() ? _fmtMoney(_averageTicket()) : 'Falta base', 'Ajuda a calcular pedidos por dia.') +
-          _baseMini('Vendas por canal', _fmtMoney(forecast.revenueBase || 0), 'Base mensal antes dos cenários.') +
-          _baseMini('Custos e despesas', _fmtMoney(_num(forecast.variableTotal) + _num(forecast.fixedTotal)), 'Mostra o peso que a rota precisa cobrir.') +
-          _baseMini('Dias trabalhados', String(_workingDaysInPeriod()), 'Define o ritmo diário da operação.') +
+          _baseMini('Ticket médio', _averageTicket() ? _fmtMoney(_averageTicket()) : 'Falta base', 'Hoje, cada pedido está ficando perto deste valor.') +
+          _baseMini('Vendas recentes', _fmtMoney(forecast.revenueBase || 0), 'Valor que a loja já mostrou nas vendas mais recentes. Use como base e ajuste se esperar vender mais ou menos.') +
+          _baseMini('Custos e despesas', _fmtMoney(_num(forecast.variableTotal) + _num(forecast.fixedTotal)), 'Valor que a loja precisa cobrir antes de sobrar dinheiro.') +
+          _baseMini('Dias de trabalho', String(_workingDaysInPeriod()), 'Dias disponíveis para vender dentro deste período.') +
         '</div>' +
         (alerts.length ? '<div style="display:flex;gap:8px;flex-wrap:wrap;">' + alerts.map(function (item) { return _snapshotPill(item.title, '#FFF7ED', '#B45309', '#FED7AA'); }).join('') + '</div>' : '') +
       '</section>';
@@ -717,7 +789,7 @@ Modules.PlanoDeVoo = (function () {
 
   function _baseMini(label, value, text) {
     return '' +
-      '<div style="background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;padding:13px 14px;min-height:84px;">' +
+      '<div style="background:linear-gradient(180deg,#fff 0%,#FFFCF8 100%);border:1px solid #EAE4DA;border-radius:14px;padding:13px 14px;min-height:84px;box-shadow:0 8px 18px rgba(31,31,31,.035);">' +
         '<div style="font-size:11px;font-weight:600;color:#6F6860;line-height:1.2;margin-bottom:7px;">' + _esc(label) + '</div>' +
         '<div style="font-size:18px;font-weight:600;color:#1F1F1F;line-height:1.1;overflow-wrap:anywhere;">' + _esc(value) + '</div>' +
         '<div style="font-size:12px;color:#6F6860;line-height:1.35;margin-top:6px;">' + _esc(text || '') + '</div>' +
@@ -725,7 +797,7 @@ Modules.PlanoDeVoo = (function () {
   }
 
   function _routePeriodControl() {
-    return _baseMini('Período da rota', _routePeriodLabel(), 'Definido automaticamente pela data de criação.');
+    return _baseMini('Período da rota', _routePeriodLabel(), 'A rota é criada para acompanhar o período anual.');
   }
 
   function _workDayButtons() {
@@ -754,29 +826,42 @@ Modules.PlanoDeVoo = (function () {
     var revenue = _num(summary.revenue || 0);
     var profit = _num(summary.profit || 0);
     var ordersDay = summary.ordersPerDay != null ? _fmtNum(_num(summary.ordersPerDay), 1) : _ordersPerDayFromRevenue(revenue);
+    var routeId = snap.id || monthScenario.snapshotId || '';
     return '' +
-      '<section style="background:linear-gradient(135deg,#fff 0%,' + _esc(scenario.bg || '#FAF8F4') + ' 100%);border:1px solid ' + _esc(scenario.tone || '#EAE4DA') + '33;border-radius:18px;padding:18px 20px;box-shadow:0 12px 30px rgba(31,31,31,.06);display:flex;flex-direction:column;gap:14px;overflow:hidden;">' +
-        '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
-          '<div style="min-width:0;display:flex;gap:12px;align-items:flex-start;flex:1 1 520px;">' +
-            '<div style="width:42px;height:42px;border-radius:14px;background:#fff;color:' + _esc(scenario.tone || '#B42318') + ';display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;flex:0 0 auto;"><span class="mi" style="font-size:22px;">near_me</span></div>' +
-            '<div style="min-width:0;">' +
-              '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px;">' +
-                '<span style="font-size:11px;font-weight:600;color:' + _esc(scenario.tone || '#B42318') + ';letter-spacing:.04em;text-transform:uppercase;">Rota ativa</span>' +
-                _snapshotPill(_scenarioLabel(scenarioKey), '#fff', scenario.tone, scenario.tone || '#EAE4DA') +
-              '</div>' +
-              '<div style="font-size:19px;font-weight:600;color:#1F1F1F;line-height:1.18;overflow-wrap:anywhere;">' + _esc(monthScenario.snapshotName || snap.name || _scenarioLabel(scenarioKey)) + '</div>' +
-              '<div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:5px;max-width:720px;">Esta rota guia o ano e fica preservada para acompanhamento até você escolher outro caminho.</div>' +
-              '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;">' +
-                _snapshotPill(snap.routePeriodLabel || _routePeriodLabel(), '#fff', '#6F6860', '#EAE4DA') +
-                _snapshotPill('Acompanhamento ' + (monthScenario.monthLabel || _currentMonthLabel()), '#fff', '#6F6860', '#EAE4DA') +
+      '<section style="' + _routeHeroStyle(scenario.tone || '#B42318', scenario.bg || '#FFF0EE') + '">' +
+        '<div style="' + _routeHeroGlow(scenario.tone || '#B42318') + '"></div>' +
+        '<div style="position:relative;display:flex;flex-direction:column;gap:17px;">' +
+          '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap;">' +
+            '<div style="min-width:0;display:flex;gap:16px;align-items:center;flex:1 1 560px;">' +
+              _routeGraphic(scenarioKey) +
+              '<div style="min-width:0;">' +
+                '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">' +
+                  '<span style="font-size:11px;font-weight:600;color:' + _esc(scenario.tone || '#B42318') + ';letter-spacing:.06em;text-transform:uppercase;">Rota ativa</span>' +
+                  _snapshotPill(_scenarioLabel(scenarioKey), '#fff', scenario.tone, scenario.tone || '#EAE4DA') +
+                '</div>' +
+                '<div style="font-size:25px;font-weight:600;color:#1F1F1F;line-height:1.12;overflow-wrap:anywhere;">' + _esc(monthScenario.snapshotName || snap.name || _scenarioLabel(scenarioKey)) + '</div>' +
+                '<div style="font-size:13px;color:#6F6860;line-height:1.5;margin-top:7px;max-width:760px;">Esta é a rota que guia o período. Acompanhe o ritmo e crie uma nova rota quando quiser mudar o caminho.</div>' +
+                '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:12px;">' +
+                  _snapshotPill(snap.routePeriodLabel || _routePeriodLabel(), '#fff', '#6F6860', '#EAE4DA') +
+                  _snapshotPill('Acompanhamento ' + (monthScenario.monthLabel || _currentMonthLabel()), '#fff', '#6F6860', '#EAE4DA') +
+                '</div>' +
               '</div>' +
             '</div>' +
+            (routeId ? '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">' +
+              '<button type="button" onclick="Modules.PlanoDeVoo._openRouteSummaryModal(\'' + _esc(routeId) + '\')" style="height:36px;padding:0 12px;border:1px solid #EAE4DA;background:#fff;color:#1F1F1F;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 6px 14px rgba(31,31,31,.04);">Ver resumo</button>' +
+              '<button type="button" onclick="Modules.PlanoDeVoo._deleteRoute(\'' + _esc(routeId) + '\')" style="height:36px;padding:0 12px;border:1px solid #F3C7C1;background:#FFF7F6;color:#B42318;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Excluir rota</button>' +
+            '</div>' : '') +
           '</div>' +
-        '</div>' +
-        '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;">' +
-          _routeMiniMetric('Você precisa vender', _fmtMoney(revenue), 'meta do período', 'payments', '#8A6F5A') +
-          _routeMiniMetric('Pedidos por dia', ordersDay, 'ritmo necessário', 'receipt_long', '#B42318') +
-          _routeMiniMetric('Pode sobrar', _fmtMoney(profit), profit >= 0 ? 'lucro esperado' : 'atenção ao resultado', 'trending_up', profit >= 0 ? '#1F6F43' : '#B42318') +
+          '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px;">' +
+            _routeMiniMetric('Você precisa vender', _fmtMoney(revenue), 'meta do período', 'payments', '#8A6F5A') +
+            _routeMiniMetric('Pedidos por dia', ordersDay, 'ritmo necessário', 'receipt_long', scenario.tone || '#B42318') +
+            _routeMiniMetric('Pode sobrar', _fmtMoney(profit), profit >= 0 ? 'lucro esperado' : 'atenção ao resultado', 'trending_up', profit >= 0 ? '#1F6F43' : '#B42318') +
+          '</div>' +
+          '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;align-items:center;">' +
+            _routeJourneyStep('Rota criada', true, scenario.tone || '#B42318') +
+            _routeJourneyStep('Rota ativa', true, scenario.tone || '#B42318') +
+            _routeJourneyStep('Acompanhamento', true, scenario.tone || '#B42318') +
+          '</div>' +
         '</div>' +
       '</section>';
   }
@@ -801,7 +886,7 @@ Modules.PlanoDeVoo = (function () {
   }
 
   function _routeCoverageWarningHtml() {
-    var vm = _forecastForScenario('equilibrium');
+    var vm = _forecastForScenario(_state.scenario || 'equilibrium');
     var revenue = _num(vm.revenueTotal);
     var costs = _num(vm.variableTotal) + _num(vm.fixedTotal);
     if (!(costs > 0) || revenue >= costs) return '';
@@ -822,7 +907,7 @@ Modules.PlanoDeVoo = (function () {
     var effort = _effortInfo(vm);
     var active = _state.scenario === key;
     return '' +
-      '<article style="min-width:220px;background:#fff;border:1px solid ' + (active ? _esc(scenario.tone) : '#EAE4DA') + ';border-radius:18px;padding:16px;box-shadow:' + (active ? '0 16px 34px rgba(180,35,24,.12)' : '0 12px 30px rgba(31,31,31,.06)') + ';display:flex;flex-direction:column;gap:13px;transition:transform .16s ease,box-shadow .16s ease;" onmouseenter="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 18px 38px rgba(31,31,31,.10)\'" onmouseleave="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'' + (active ? '0 16px 34px rgba(180,35,24,.12)' : '0 12px 30px rgba(31,31,31,.06)') + '\'">' +
+      '<article onclick="Modules.PlanoDeVoo._setScenario(\'' + _esc(key) + '\')" style="min-width:220px;background:#fff;border:1px solid ' + (active ? _esc(scenario.tone) : '#EAE4DA') + ';border-radius:18px;padding:16px;box-shadow:' + (active ? '0 16px 34px rgba(180,35,24,.12)' : '0 12px 30px rgba(31,31,31,.06)') + ';display:flex;flex-direction:column;gap:13px;transition:transform .16s ease,box-shadow .16s ease;cursor:pointer;" onmouseenter="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 18px 38px rgba(31,31,31,.10)\'" onmouseleave="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'' + (active ? '0 16px 34px rgba(180,35,24,.12)' : '0 12px 30px rgba(31,31,31,.06)') + '\'">' +
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">' +
           '<div style="min-width:0;">' +
             '<div style="font-size:16px;font-weight:600;color:#1F1F1F;line-height:1.2;">' + _esc(_scenarioLabel(key)) + '</div>' +
@@ -831,7 +916,7 @@ Modules.PlanoDeVoo = (function () {
           '<span class="mi" style="font-size:23px;color:' + _esc(scenario.tone || '#B42318') + ';">' + _esc(_scenarioIcon(key)) + '</span>' +
         '</div>' +
         '<div style="display:flex;flex-direction:column;gap:9px;">' +
-          _routeLine('Faturamento necessário', _fmtMoney(vm.revenueTotal)) +
+          _routeLine('Faturamento necessário', _fmtMoney(vm.revenueTotal), null, _routePeriodLabel(), true) +
           _routeLine('Pedidos por dia', _ordersPerDay(vm)) +
           _routeLine('Lucro estimado', _fmtMoney(vm.profit), vm.profit >= 0 ? '#1F6F43' : '#B42318') +
         '</div>' +
@@ -840,7 +925,7 @@ Modules.PlanoDeVoo = (function () {
           '<span style="font-size:12px;color:#6F6860;">Nível de esforço</span>' +
           '<strong style="font-size:13px;color:' + _esc(effort.color) + ';font-weight:600;">' + _esc(effort.label) + '</strong>' +
         '</div>' +
-        '<button type="button" onclick="Modules.PlanoDeVoo._selectRouteForSummary(\'' + _esc(key) + '\')" style="height:40px;border:none;border-radius:12px;background:#B42318;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(180,35,24,.18);">Escolher esta rota</button>' +
+        '<button type="button" onclick="event.stopPropagation();Modules.PlanoDeVoo._selectRouteForSummary(\'' + _esc(key) + '\')" style="height:40px;border:none;border-radius:12px;background:#B42318;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(180,35,24,.18);">Escolher cenário</button>' +
       '</article>';
   }
 
@@ -876,8 +961,8 @@ Modules.PlanoDeVoo = (function () {
 
   function _routeMiniMetric(label, value, sub, icon, color) {
     return '' +
-      '<div style="background:rgba(255,255,255,.72);border:1px solid rgba(234,228,218,.82);border-radius:15px;padding:13px 14px;min-width:0;display:flex;gap:10px;align-items:flex-start;">' +
-        '<span class="mi" style="font-size:21px;color:' + _esc(color || '#B42318') + ';flex:0 0 auto;">' + _esc(icon || 'insights') + '</span>' +
+      '<div style="background:rgba(255,255,255,.78);border:1px solid rgba(234,228,218,.9);border-radius:16px;padding:14px 15px;min-width:0;display:flex;gap:11px;align-items:flex-start;box-shadow:0 10px 22px rgba(31,31,31,.045);backdrop-filter:blur(8px);">' +
+        '<span class="mi" style="font-size:21px;color:' + _esc(color || '#B42318') + ';flex:0 0 auto;margin-top:1px;">' + _esc(icon || 'insights') + '</span>' +
         '<span style="min-width:0;">' +
           '<span style="display:block;font-size:11px;font-weight:600;color:#6F6860;line-height:1.2;">' + _esc(label) + '</span>' +
           '<strong style="display:block;font-size:20px;font-weight:600;color:#1F1F1F;line-height:1.05;margin-top:5px;overflow-wrap:anywhere;">' + _esc(value) + '</strong>' +
@@ -886,11 +971,36 @@ Modules.PlanoDeVoo = (function () {
       '</div>';
   }
 
-  function _routeLine(label, value, color) {
+  function _routeHeroStyle(color, soft) {
+    return 'position:relative;overflow:hidden;background:linear-gradient(135deg,#fff 0%,' + _esc(soft || '#FAF8F4') + ' 100%);border:1px solid ' + _esc(color || '#B42318') + '35;border-radius:22px;padding:22px 24px;box-shadow:0 22px 50px rgba(31,31,31,.08), inset 0 1px 0 rgba(255,255,255,.88);';
+  }
+
+  function _routeHeroGlow(color) {
+    return 'position:absolute;inset:-90px auto auto -70px;width:260px;height:260px;border-radius:999px;background:' + _esc(color || '#B42318') + ';opacity:.09;filter:blur(2px);pointer-events:none;';
+  }
+
+  function _routeGraphic(key) {
+    var scenario = SCENARIOS[key] || SCENARIOS.equilibrium;
+    var color = scenario.tone || '#B42318';
+    return '' +
+      '<span style="width:78px;height:78px;border-radius:24px;background:linear-gradient(145deg,#fff,' + _esc(scenario.bg || '#FAF8F4') + ');border:1px solid ' + _esc(color) + '30;display:flex;align-items:center;justify-content:center;color:' + _esc(color) + ';box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 18px 36px rgba(31,31,31,.08);flex:0 0 auto;">' +
+        '<span class="mi" style="font-size:36px;filter:drop-shadow(0 10px 14px ' + _esc(color) + '24);">near_me</span>' +
+      '</span>';
+  }
+
+  function _routeJourneyStep(label, active, color) {
+    return '' +
+      '<div style="display:flex;align-items:center;gap:8px;min-width:0;color:#6F6860;font-size:12px;line-height:1.2;">' +
+        '<span style="width:9px;height:9px;border-radius:999px;background:' + (active ? _esc(color || '#B42318') : '#D8CEC4') + ';box-shadow:' + (active ? '0 0 0 4px ' + _esc(color || '#B42318') + '14' : 'none') + ';flex:0 0 auto;"></span>' +
+        '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + _esc(label) + '</span>' +
+      '</div>';
+  }
+
+  function _routeLine(label, value, color, helper, compactValue) {
     return '' +
       '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;border-bottom:1px solid #F0EAE1;padding-bottom:8px;">' +
-        '<span style="font-size:12px;color:#6F6860;line-height:1.25;">' + _esc(label) + '</span>' +
-        '<strong style="font-size:15px;font-weight:600;color:' + _esc(color || '#1F1F1F') + ';line-height:1.1;text-align:right;overflow-wrap:anywhere;">' + _esc(value) + '</strong>' +
+        '<span style="font-size:12px;color:#6F6860;line-height:1.25;">' + _esc(label) + (helper ? '<small style="display:block;font-size:11px;color:#8A7E7C;font-weight:400;margin-top:3px;">' + _esc(helper) + '</small>' : '') + '</span>' +
+        '<strong style="font-size:' + (compactValue ? '13px' : '15px') + ';font-weight:600;color:' + _esc(color || '#1F1F1F') + ';line-height:1.1;text-align:right;overflow-wrap:anywhere;">' + _esc(value) + '</strong>' +
       '</div>';
   }
 
@@ -1099,7 +1209,7 @@ Modules.PlanoDeVoo = (function () {
         '<button type="button" onclick="Modules.PlanoDeVoo._closePlanModals()" style="height:38px;padding:0 14px;border:1px solid #EAE4DA;background:#fff;color:#1F1F1F;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Cancelar</button>' +
         (tab === 'summary'
           ? '<button type="button" onclick="Modules.PlanoDeVoo._activateRouteFromModal()" style="height:38px;padding:0 14px;border:none;background:#B42318;color:#fff;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(180,35,24,.18);">Salvar e ativar rota</button>'
-          : '<button type="button" onclick="Modules.PlanoDeVoo._openCreateRouteModal(\'summary\')" style="height:38px;padding:0 14px;border:none;background:#B42318;color:#fff;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(180,35,24,.18);">Ver resumo da rota</button>') +
+          : '') +
       '</div>'
     });
   }
@@ -1176,14 +1286,14 @@ Modules.PlanoDeVoo = (function () {
         _sectionTitle('Distribuição mensal', 'A rota continua anual; esta leitura mostra como a distribuição pode aparecer mês a mês.') +
         '<div style="overflow-x:auto;">' +
           '<table class="bf-table" style="width:100%;border-collapse:separate;border-spacing:0;min-width:720px;">' +
-            '<thead><tr>' + ['Mês', 'Venda estimada', 'Peso', 'Lucro estimado'].map(function (h) {
+            '<thead><tr>' + ['Mês', 'Venda estimada', 'Força do mês', 'Lucro estimado'].map(function (h) {
               return '<th style="padding:10px 12px;border-bottom:1px solid #EAE4DA;text-align:left;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;">' + h + '</th>';
             }).join('') + '</tr></thead>' +
             '<tbody>' + (vm.monthSeries || []).map(function (m) {
               var breakdown = _monthScenarioBreakdown(vm, m);
               var profit = m.revenue - breakdown.total;
-              var monthIndex = m.monthIndex != null ? _num(m.monthIndex) : 0;
-              return '<tr><td style="padding:10px 12px;border-bottom:1px solid #EAE4DA;font-size:13px;font-weight:700;color:#1F1F1F;">' + _esc(m.label) + '</td><td style="padding:10px 12px;border-bottom:1px solid #EAE4DA;font-size:13px;color:#1F1F1F;">' + _fmtMoney(m.revenue) + '</td><td style="padding:10px 12px;border-bottom:1px solid #EAE4DA;font-size:13px;color:#6F6860;">' + _fmtPct(_num(_state.monthWeights[monthIndex] != null ? _state.monthWeights[monthIndex] : 100)) + '</td><td style="padding:10px 12px;border-bottom:1px solid #EAE4DA;font-size:13px;color:' + (profit >= 0 ? '#1F6F43' : '#B42318') + ';font-weight:700;">' + _fmtMoney(profit) + '</td></tr>';
+              var strength = _monthStrengthInfo(m.factor);
+              return '<tr><td style="padding:10px 12px;border-bottom:1px solid #EAE4DA;font-size:13px;font-weight:700;color:#1F1F1F;">' + _esc(m.label) + '</td><td style="padding:10px 12px;border-bottom:1px solid #EAE4DA;font-size:13px;color:#1F1F1F;">' + _fmtMoney(m.revenue) + '</td><td style="padding:10px 12px;border-bottom:1px solid #EAE4DA;font-size:13px;color:#6F6860;min-width:150px;"><div style="display:flex;flex-direction:column;gap:5px;"><span style="font-size:12px;font-weight:600;color:' + _esc(strength.color) + ';">' + _esc(strength.label) + '</span>' + _monthStrengthBar(strength.score, strength.color) + '</div></td><td style="padding:10px 12px;border-bottom:1px solid #EAE4DA;font-size:13px;color:' + (profit >= 0 ? '#1F6F43' : '#B42318') + ';font-weight:700;">' + _fmtMoney(profit) + '</td></tr>';
             }).join('') + '</tbody>' +
           '</table>' +
         '</div>' +
@@ -1232,6 +1342,7 @@ Modules.PlanoDeVoo = (function () {
       body: body,
       maxWidth: '760px',
       footer: '<div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">' +
+        '<button type="button" onclick="Modules.PlanoDeVoo._deleteRoute(\'' + _esc(snap.id || '') + '\')" style="height:38px;padding:0 14px;border:1px solid #F3C7C1;background:#FFF7F6;color:#B42318;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;margin-right:auto;">Excluir rota</button>' +
         '<button type="button" onclick="Modules.PlanoDeVoo._closePlanModals()" style="height:38px;padding:0 14px;border:1px solid #EAE4DA;background:#fff;color:#1F1F1F;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Fechar</button>' +
         (!_isMonthScenarioSnapshot(snap) ? '<button type="button" onclick="Modules.PlanoDeVoo._setMonthScenario(\'' + _esc(snap.id) + '\');Modules.PlanoDeVoo._closePlanModals();" style="height:38px;padding:0 14px;border:none;background:#B42318;color:#fff;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Ativar esta rota</button>' : '') +
       '</div>'
@@ -1321,48 +1432,17 @@ Modules.PlanoDeVoo = (function () {
   }
 
   function _controlsCard(vm) {
-    var annual = _state.periodType === 'annual';
-    var showGrowth = _state.scenario === 'growth' || _state.scenario === 'expansion';
-    var showDecline = _state.scenario === 'survival';
-    var scenarioHelp = _scenarioHelpText();
     var historicalTicket = _historicalAverageTicket();
     return '' +
       '<section style="background:#FAF8F4;border:1px solid #EAE4DA;border-radius:16px;padding:12px 14px;">' +
         '<div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;">' +
           '<div style="min-width:180px;flex:1 1 220px;max-width:320px;">' +
             '<div style="font-size:13px;font-weight:600;color:#1F1F1F;line-height:1.2;">Ajustes da rota</div>' +
-            '<div style="font-size:12px;color:#6F6860;line-height:1.35;margin-top:3px;">Tudo que você muda aqui atualiza os caminhos comparados.</div>' +
+            '<div style="font-size:12px;color:#6F6860;line-height:1.35;margin-top:3px;">Ajuste apenas se o valor médio dos pedidos não representar bem a loja hoje.</div>' +
           '</div>' +
           _moneyField('pl-ticket', 'Ticket médio usado', _averageTicket(), 'Modules.PlanoDeVoo._setAverageTicket(this.value)', 'max-width:170px;flex:0 0 170px;') +
-          (showGrowth ? (
-            '<div style="display:flex;flex-direction:column;gap:6px;flex:1 1 190px;max-width:240px;">' +
-              '<label style="' + _labelStyle() + '">Modo do ajuste de crescimento</label>' +
-              '<select onchange="Modules.PlanoDeVoo._setGrowthSource(this.value)" style="' + _inputStyle() + 'height:38px;">' +
-                '<option value="historical"' + (_state.growthSource === 'historical' ? ' selected' : '') + '>Histórico</option>' +
-                '<option value="manual"' + (_state.growthSource === 'manual' ? ' selected' : '') + '>Manual</option>' +
-              '</select>' +
-              (_state.growthSource === 'manual'
-                ? _inputField('pl-growth', 'Ajuste de crescimento (%)', _state.growthPct, 'number', 'Modules.PlanoDeVoo._setGrowthPct(this.value)')
-                : '<div style="padding:10px 12px;border:1px solid #EAE4DA;border-radius:10px;background:#FAF8F4;font-size:12px;line-height:1.45;color:#6F6860;">' + _esc(_growthHistoricalNote()) + '</div>') +
-            '</div>'
-          ) : '') +
-          (showDecline ? (
-            '<div style="display:flex;flex-direction:column;gap:6px;flex:1 1 190px;max-width:240px;">' +
-              '<label style="' + _labelStyle() + '">Modo do ajuste de queda</label>' +
-              '<select onchange="Modules.PlanoDeVoo._setDeclineSource(this.value)" style="' + _inputStyle() + 'height:38px;">' +
-                '<option value="historical"' + (_state.declineSource === 'historical' ? ' selected' : '') + '>Histórico</option>' +
-                '<option value="manual"' + (_state.declineSource === 'manual' ? ' selected' : '') + '>Manual</option>' +
-              '</select>' +
-              (_state.declineSource === 'manual'
-                ? _inputField('pl-decline', 'Ajuste de queda (%)', _state.declinePct, 'number', 'Modules.PlanoDeVoo._setDeclinePct(this.value)')
-                : '<div style="padding:10px 12px;border:1px solid #EAE4DA;border-radius:10px;background:#FAF8F4;font-size:12px;line-height:1.45;color:#6F6860;">' + _esc(_declineHistoricalNote()) + '</div>') +
-            '</div>'
-          ) : '') +
         '</div>' +
         '<div style="margin-top:8px;font-size:11.5px;color:#6F6860;line-height:1.4;">' + (_hasFullYearSalesHistory() ? ('Já existe um ano de vendas para apoiar a rota. Ticket do histórico: ' + (historicalTicket ? _fmtMoney(historicalTicket) : 'sem base suficiente') + '.') : 'Ainda sem um ano completo de vendas. Preencha a venda média nos canais para montar uma rota mais próxima da realidade.') + ' Se ajustar o ticket, os pedidos por dia mudam nos cards.</div>' +
-        '<div style="margin-top:8px;padding:9px 11px;border-radius:12px;background:#FFF7ED;border:1px solid #FEDF89;color:#B45309;font-size:11.5px;line-height:1.45;">' +
-          _esc(scenarioHelp) +
-        '</div>' +
       '</section>';
   }
 
@@ -1393,16 +1473,18 @@ Modules.PlanoDeVoo = (function () {
     var included = _state.channelInclude[ch.key] !== false;
     var mode = ch.mode || (ch.historyHasData ? 'automatico' : 'manual');
     var base = _num(ch.baseMonthly != null ? ch.baseMonthly : (mode === 'manual' && _state.channelValues[ch.key] != null ? _state.channelValues[ch.key] : ch.historyAvg));
-    var periodValue = annual ? base * ch.periodFactor : base * ch.periodFactor;
+    var periodValue = annual ? _num(ch.basePeriodValue) : base;
     var helper = ch.historyHasData
       ? 'Histórico médio dos últimos ' + ch.lookbackMonths + ' meses: ' + _fmtMoney(ch.historyAvg) + ' por mês'
-      : 'Sem histórico suficiente. Use o valor manual.';
+      : (_num(ch.currentMonthTotal) > 0 ? 'Este mês já vendeu ' + _fmtMoney(ch.currentMonthTotal) + ' neste canal. Ajuste se a previsão do mês for maior.' : 'Sem histórico suficiente. Use o valor manual.');
+    var categoryHelp = ch.incomeCategoryName ? 'Entrada financeira: ' + ch.incomeCategoryName : '';
     return '' +
       '<div style="display:grid;grid-template-columns:28px minmax(240px,1.4fr) minmax(150px,.85fr) minmax(160px,.95fr) minmax(130px,150px);gap:10px;align-items:center;min-width:820px;padding:14px 14px;border:1px solid #EAE4DA;border-radius:14px;background:' + (included ? '#fff' : '#FAF8F4') + ';transition:background .15s ease,box-shadow .15s ease;" onmouseenter="this.style.background=\'#FCFBF8\';this.style.boxShadow=\'0 10px 24px rgba(31,31,31,.05)\'" onmouseleave="this.style.background=\'' + (included ? '#fff' : '#FAF8F4') + '\';this.style.boxShadow=\'none\'">' +
         '<label style="display:flex;align-items:center;justify-content:center;"><input type="checkbox" ' + (included ? 'checked' : '') + ' onchange="Modules.PlanoDeVoo._toggleChannelInclude(\'' + ch.key + '\', this.checked)" style="accent-color:#B42318;width:16px;height:16px;"></label>' +
         '<div style="min-width:0;">' +
           '<div style="font-size:14px;font-weight:600;color:#1F1F1F;">' + _esc(ch.label) + '</div>' +
           '<div style="font-size:12px;color:#6F6860;line-height:1.4;margin-top:3px;">' + _esc(helper) + '</div>' +
+          (categoryHelp ? '<div style="font-size:11.5px;color:#8A7E7C;line-height:1.35;margin-top:3px;">' + _esc(categoryHelp) + '</div>' : '') +
         '</div>' +
         '<div>' +
           '<div style="' + _labelStyle() + 'margin-bottom:4px;">' + (mode === 'manual' ? 'Venda média mensal' : 'Venda média calculada') + '</div>' +
@@ -1416,7 +1498,7 @@ Modules.PlanoDeVoo = (function () {
         '</div>' +
         '<div style="font-size:12px;color:#6F6860;text-align:right;">' +
           '<div style="margin-bottom:4px;padding:5px 8px;border-radius:999px;background:' + (mode === 'manual' ? '#F2F7FF' : '#F0FAF4') + ';color:' + (mode === 'manual' ? '#2F5F93' : '#1F6F43') + ';font-size:11px;font-weight:600;">' + (mode === 'manual' ? 'Manual' : 'Automático') + '</div>' +
-          (annual ? ('Meses considerados: ' + _formatMonthFactor(ch.periodFactor)) : ('Ajuste do cenário: ' + _fmtNum(ch.periodFactor, 2) + 'x')) +
+          (annual ? ('Período: ' + _routeMonthCount() + ' meses') : ('Ajuste do cenário: ' + _fmtNum(ch.periodFactor, 2) + 'x')) +
         '</div>' +
       '</div>';
   }
@@ -1737,6 +1819,7 @@ Modules.PlanoDeVoo = (function () {
     var catalog = _channelCatalog();
     var annual = _state.periodType === 'annual';
     var factors = annual ? _annualMonthFactors() : [_scenarioMultiplier()];
+    var baseFactors = annual ? _annualBaseMonthFactors() : [1];
     return catalog.map(function (ch) {
       var hist = _channelHistoryAverage(ch.key, _historyMonthsBack());
       var mode = _state.channelMode[ch.key] || (hist.hasData ? 'automatico' : 'manual');
@@ -1745,20 +1828,26 @@ Modules.PlanoDeVoo = (function () {
         : _num(hist.avg);
       var periodFactor = annual ? factors.reduce(function (s, f) { return s + f; }, 0) : factors[0];
       var periodValue = baseMonthly * periodFactor;
+      var basePeriodFactor = annual ? baseFactors.reduce(function (s, f) { return s + f; }, 0) : 1;
+      var basePeriodValue = baseMonthly * basePeriodFactor;
       return {
         key: ch.key,
         label: ch.name || ch.label,
         commissionPct: ch.commissionPct || 0,
         fixedFee: ch.fixedFee || 0,
         taxPct: ch.taxPct || 0,
+        incomeCategoryName: ch.entradaCategoriaNome || ch.incomeCategoryName || '',
         locked: !!ch.locked,
         historyAvg: hist.avg,
         historyHasData: hist.hasData,
         lookbackMonths: hist.lookbackMonths,
+        currentMonthTotal: _channelCurrentMonthTotal(ch.key),
         baseMonthly: baseMonthly,
         mode: mode,
         periodValue: periodValue,
         periodFactor: periodFactor,
+        basePeriodValue: basePeriodValue,
+        basePeriodFactor: basePeriodFactor,
         include: _state.channelInclude[ch.key] !== false,
         sharePct: 0
       };
@@ -2240,6 +2329,40 @@ Modules.PlanoDeVoo = (function () {
     });
   }
 
+  function _deleteRoute(id) {
+    id = String(id || '').trim();
+    if (!id) return;
+    var snap = (_data.snapshots || []).find(function (x) { return String(x.id || '') === id; });
+    if (!snap) return;
+    var active = _isMonthScenarioSnapshot(snap);
+    var message = active
+      ? 'Excluir a rota ativa? Ela deixará de guiar o Plano de Voo.'
+      : 'Excluir esta rota salva?';
+    var ask = (window.UI && typeof UI.confirm === 'function')
+      ? UI.confirm(message)
+      : Promise.resolve(window.confirm(message));
+    ask.then(function (yes) {
+      if (!yes) return;
+      var ops = [DB.remove('flight_plans', id)];
+      var monthKey = String((snap && snap.targetMonthKey) || (_data.monthScenario && _data.monthScenario.monthKey) || _currentMonthKey());
+      if (active && monthKey) {
+        ops.push(DB.remove('flight_plan_month_scenarios', monthKey).catch(function () { return null; }));
+      }
+      return Promise.all(ops).then(function () {
+        _data.snapshots = (_data.snapshots || []).filter(function (item) {
+          return String(item.id || '') !== id;
+        });
+        if (active) _data.monthScenario = null;
+        if (_state.compareSnapshotId === id) _state.compareSnapshotId = '';
+        _closePlanModals();
+        UI.toast(active ? 'Rota ativa excluída.' : 'Rota excluída.', 'success');
+        _paintActive();
+      });
+    }).catch(function (err) {
+      UI.toast('Erro ao excluir rota: ' + ((err && err.message) || err), 'error');
+    });
+  }
+
   function _currentMonthKey() {
     var d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
@@ -2282,7 +2405,7 @@ Modules.PlanoDeVoo = (function () {
 
   function _setScenario(v) {
     _state.scenario = SCENARIOS[v] ? v : 'equilibrium';
-    _afterCalculationChange();
+    _afterCalculationChange({ refreshAdvanced: true, keepAdvancedState: true, skipWork: true });
   }
 
   function _setGrowthSource(v) {
@@ -2437,7 +2560,7 @@ Modules.PlanoDeVoo = (function () {
   }
 
   function _cardStyle() {
-    return 'background:#fff;border:1px solid #EADFD8;border-radius:16px;padding:18px 20px;box-shadow:0 12px 30px rgba(31,31,31,.06);';
+    return 'background:rgba(255,255,255,.92);border:1px solid #EADFD8;border-radius:18px;padding:18px 20px;box-shadow:0 14px 34px rgba(31,31,31,.055),inset 0 1px 0 rgba(255,255,255,.88);';
   }
 
   function _inputStyle() {
@@ -2491,6 +2614,10 @@ Modules.PlanoDeVoo = (function () {
 
   function _annualMonthFactors() {
     var scenario = _scenarioMultiplier();
+    return _annualBaseMonthFactors().map(function (f) { return f * scenario; });
+  }
+
+  function _annualBaseMonthFactors() {
     var arr = [];
     var indexes = _routeMonthIndexes();
     for (var p = 0; p < indexes.length; p += 1) {
@@ -2503,7 +2630,7 @@ Modules.PlanoDeVoo = (function () {
       } else {
         f = _num(_state.monthWeights[i] != null ? _state.monthWeights[i] : (_state.seasonality[i] != null ? _state.seasonality[i] : 100)) / 100;
       }
-      arr.push(f * scenario);
+      arr.push(f);
     }
     return arr;
   }
@@ -2615,6 +2742,13 @@ Modules.PlanoDeVoo = (function () {
     });
   }
 
+  function _planningOrders() {
+    return (_data.orders || []).filter(function (o) {
+      var status = _normalizeText(o.status || '');
+      return status !== 'cancelado' && status !== 'cancelada' && status !== 'canceled' && status !== 'cancelled';
+    });
+  }
+
   function _orderDate(o) {
     return _dateFromAny(o.createdAt || o.date || o.created_at || o.orderDate || o.updatedAt);
   }
@@ -2654,7 +2788,10 @@ Modules.PlanoDeVoo = (function () {
   }
 
   function _channelKey(v) {
-    return _normalizeText(v || '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'cardapio';
+    var key = _normalizeText(v || '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'cardapio';
+    if (['template', 'store', 'storefront', 'public', 'publico', 'loja', 'loja-online', 'loja-publica', 'cardapio-online'].indexOf(key) >= 0) return 'cardapio';
+    if (key === 'tpv' || key === 'venda-presencial' || key === 'balcao') return 'venda-presencial';
+    return key;
   }
 
   function _isCardapioChannel(channel) {
@@ -2680,6 +2817,10 @@ Modules.PlanoDeVoo = (function () {
         commissionPct: _num(ch.commissionPct),
         fixedFee: _num(ch.fixedFee),
         taxPct: _num(ch.taxPct),
+        entradaCategoriaId: String(ch.entradaCategoriaId || ch.incomeCategoryId || ch.categoriaEntradaId || ch.financialCategoryId || ch.categoriaFinanceiraId || ''),
+        entradaCategoriaNome: String(ch.entradaCategoriaNome || ch.incomeCategoryName || ch.categoriaEntradaNome || ch.financialCategoryName || ch.categoriaFinanceiraNome || ''),
+        incomeCategoryId: String(ch.incomeCategoryId || ch.entradaCategoriaId || ch.categoriaEntradaId || ch.financialCategoryId || ch.categoriaFinanceiraId || ''),
+        incomeCategoryName: String(ch.incomeCategoryName || ch.entradaCategoriaNome || ch.categoriaEntradaNome || ch.financialCategoryName || ch.categoriaFinanceiraNome || ''),
         locked: !!ch.locked
       });
     });
@@ -2693,6 +2834,7 @@ Modules.PlanoDeVoo = (function () {
   }
 
   function _channelHistoryAverage(key, monthsBack) {
+    key = _channelKey(key);
     var back = monthsBack == null ? _historyMonthsBack() : _num(monthsBack);
     if (back <= 0) {
       return { sum: 0, avg: 0, hasData: false, lookbackMonths: 0 };
@@ -2716,6 +2858,19 @@ Modules.PlanoDeVoo = (function () {
     };
   }
 
+  function _channelCurrentMonthTotal(key) {
+    key = _channelKey(key);
+    var now = new Date();
+    var start = new Date(now.getFullYear(), now.getMonth(), 1);
+    var end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    return _planningOrders().reduce(function (sum, o) {
+      var d = _orderDate(o);
+      if (!d || d < start || d > end) return sum;
+      if (_channelKey(_orderChannelLabel(o)) !== key) return sum;
+      return sum + _orderRevenue(o);
+    }, 0);
+  }
+
   function _monthKey(d) {
     if (!d) return '';
     var dt = _dateFromAny(d);
@@ -2725,7 +2880,7 @@ Modules.PlanoDeVoo = (function () {
 
   function _historicalProductCostPct(monthsBack) {
     var back = monthsBack == null ? _historyMonthsBack() : _num(monthsBack);
-    if (back <= 0) return 0;
+    if (back <= 0) return _currentProductCostPct() || _catalogProductCostPct();
     var range = _completeMonthsRange(back);
     var revenue = 0;
     var cost = 0;
@@ -2738,6 +2893,36 @@ Modules.PlanoDeVoo = (function () {
       });
     });
     return revenue > 0 ? (cost / revenue) * 100 : 0;
+  }
+
+  function _currentProductCostPct() {
+    var now = new Date();
+    var start = new Date(now.getFullYear(), now.getMonth(), 1);
+    var end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    var revenue = 0;
+    var cost = 0;
+    _planningOrders().forEach(function (o) {
+      var d = _orderDate(o);
+      if (!d || d < start || d > end) return;
+      revenue += _orderRevenue(o);
+      (o.items || []).forEach(function (item) {
+        cost += _orderItemCost(item);
+      });
+    });
+    return revenue > 0 && cost > 0 ? (cost / revenue) * 100 : 0;
+  }
+
+  function _catalogProductCostPct() {
+    var revenue = 0;
+    var cost = 0;
+    (_data.products || []).forEach(function (p) {
+      var price = _num(p.price != null ? p.price : (p.preco != null ? p.preco : (p.preco_venda != null ? p.preco_venda : p.salePrice)));
+      var unitCost = _productUnitCost(p);
+      if (!(price > 0) || !(unitCost > 0)) return;
+      revenue += price;
+      cost += unitCost;
+    });
+    return revenue > 0 && cost > 0 ? (cost / revenue) * 100 : 0;
   }
 
   function _channelCommissionPct(channels) {
@@ -2753,13 +2938,41 @@ Modules.PlanoDeVoo = (function () {
 
   function _productById(id) {
     return (_data.products || []).find(function (p) {
-      return String(p.id) === String(id) || String(p.productId) === String(id);
+      var wanted = String(id || '');
+      return String(p.id || '') === wanted ||
+        String(p.productId || '') === wanted ||
+        String(p.sourceItemId || '') === wanted ||
+        String(p.produtoProntoId || '') === wanted ||
+        String(p.readyProductId || '') === wanted ||
+        String(p.fichaId || p.fichaTecnicaId || p.recipeId || '') === wanted;
+    }) || null;
+  }
+
+  function _costItemById(id) {
+    var wanted = String(id || '');
+    if (!wanted) return null;
+    return (_data.costItems || []).find(function (p) {
+      return String(p.id || '') === wanted ||
+        String(p.itemId || '') === wanted ||
+        String(p.productId || '') === wanted ||
+        String(p.catalogProductId || '') === wanted;
+    }) || null;
+  }
+
+  function _recipeById(id) {
+    var wanted = String(id || '');
+    if (!wanted) return null;
+    return (_data.recipes || []).find(function (p) {
+      return String(p.id || '') === wanted ||
+        String(p.fichaId || '') === wanted ||
+        String(p.fichaTecnicaId || '') === wanted ||
+        String(p.recipeId || '') === wanted;
     }) || null;
   }
 
   function _productUnitCost(p) {
     if (!p) return 0;
-    return _num(
+    var direct = _num(
       p.cost != null ? p.cost :
       p.custo != null ? p.custo :
       p.purchasePrice != null ? p.purchasePrice :
@@ -2769,8 +2982,23 @@ Modules.PlanoDeVoo = (function () {
       p.precoCompra != null ? p.precoCompra :
       p.custoCompra != null ? p.custoCompra :
       p.purchase_price != null ? p.purchase_price :
+      p.stockUnitCost != null ? p.stockUnitCost :
+      p.costPerYield != null ? p.costPerYield :
+      p.custoUnitario != null ? p.custoUnitario :
       p.directCost != null ? p.directCost : 0
     );
+    if (direct > 0) return direct;
+    var linkedItem = _costItemById(p.sourceItemId || p.produtoProntoId || p.readyProductId || '');
+    if (linkedItem) {
+      var itemCost = _num(linkedItem.custo_atual != null ? linkedItem.custo_atual : (linkedItem.custoAtual != null ? linkedItem.custoAtual : (linkedItem.preco_compra != null ? linkedItem.preco_compra : linkedItem.purchasePrice)));
+      if (itemCost > 0) return itemCost;
+    }
+    var recipe = _recipeById(p.fichaId || p.fichaTecnicaId || p.recipeId || '');
+    if (recipe) {
+      var recipeCost = _num(recipe.costPerYield != null ? recipe.costPerYield : (recipe.custoUnitario != null ? recipe.custoUnitario : recipe.unitCost));
+      if (recipeCost > 0) return recipeCost;
+    }
+    return 0;
   }
 
   function _orderItemCost(item) {
@@ -2778,11 +3006,18 @@ Modules.PlanoDeVoo = (function () {
     var qty = _num(item.qty != null ? item.qty : (item.quantity != null ? item.quantity : 1)) || 1;
     var productId = item.productId || item.idProduto || item.product_id || item.ref || item.id;
     var product = _productById(productId);
+    if (!product) product = _productById(item.fichaTecnicaId || item.fichaId || item.recipeId || item.sourceItemId || item.produtoProntoId || item.readyProductId || '');
+    if (!product) product = _costItemById(item.sourceItemId || item.produtoProntoId || item.readyProductId || productId || '');
+    if (!product) product = _recipeById(item.fichaTecnicaId || item.fichaId || item.recipeId || '');
     var cost = _productUnitCost(product);
     if (!cost) {
       cost = _num(
+        item.stockUnitCost != null ? item.stockUnitCost :
+        item.costPerYield != null ? item.costPerYield :
+        item.custoUnitario != null ? item.custoUnitario :
         item.cost != null ? item.cost :
         item.custo != null ? item.custo :
+        item.custoAtual != null ? item.custoAtual :
         item.purchasePrice != null ? item.purchasePrice :
         item.preco_compra != null ? item.preco_compra :
         item.valorCusto != null ? item.valorCusto : 0
@@ -3096,5 +3331,6 @@ Modules.PlanoDeVoo = (function () {
     _saveSnapshot: _saveSnapshot,
     _loadSnapshot: _loadSnapshot,
     _setMonthScenario: _setMonthScenario,
+    _deleteRoute: _deleteRoute,
   };
 })();

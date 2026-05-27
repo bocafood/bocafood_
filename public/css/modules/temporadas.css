@@ -1793,6 +1793,329 @@
   line-height: 1.45;
 }
 
+.seasons-active-reading {
+  display: grid;
+  gap: 14px;
+}
+
+.seasons-reading-hero {
+  border: 1px solid rgba(180, 35, 24, .16);
+  background: linear-gradient(135deg, #FFF8F5 0%, #fff 58%, #FFFDF9 100%);
+  border-radius: 18px;
+  padding: 18px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  box-shadow: 0 14px 32px rgba(31, 31, 31, .055);
+}
+
+.seasons-reading-hero h3 {
+  margin: 4px 0 0;
+  color: var(--dark);
+  font-size: 21px;
+  font-weight: 850;
+  line-height: 1.16;
+}
+
+.seasons-reading-hero p {
+  margin: 7px 0 0;
+  color: #3A332D;
+  font-size: 13px;
+  line-height: 1.45;
+  max-width: 720px;
+}
+
+.seasons-reading-hero > strong {
+  min-width: 76px;
+  height: 76px;
+  border-radius: 22px;
+  background: #fff;
+  color: var(--red);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 850;
+  box-shadow: inset 0 0 0 1px rgba(180, 35, 24, .15), 0 10px 24px rgba(31, 31, 31, .06);
+}
+
+.seasons-reading-hero-good {
+  border-color: rgba(34, 139, 82, .18);
+  background: linear-gradient(135deg, #F0FBF5 0%, #fff 62%, #FFFDF9 100%);
+}
+
+.seasons-reading-hero-good > strong {
+  color: #1A7F47;
+  box-shadow: inset 0 0 0 1px rgba(34, 139, 82, .18), 0 10px 24px rgba(31, 31, 31, .06);
+}
+
+.seasons-reading-hero-attention {
+  border-color: rgba(197, 139, 46, .22);
+  background: linear-gradient(135deg, #FFF7E8 0%, #fff 62%, #FFFDF9 100%);
+}
+
+.seasons-reading-hero-attention > strong {
+  color: #A66B13;
+  box-shadow: inset 0 0 0 1px rgba(197, 139, 46, .22), 0 10px 24px rgba(31, 31, 31, .06);
+}
+
+.seasons-reading-hero-danger {
+  border-color: rgba(180, 35, 24, .22);
+  background: linear-gradient(135deg, #FFF0EF 0%, #fff 62%, #FFFDF9 100%);
+}
+
+.seasons-reading-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.seasons-reading-card,
+.seasons-reading-list,
+.seasons-reading-next {
+  border: 1px solid #EAE4DA;
+  background: #fff;
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow: 0 10px 24px rgba(31, 31, 31, .045);
+}
+
+.seasons-reading-card-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 12px;
+}
+
+.seasons-reading-card-head span {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: #FFF6F2;
+  color: var(--red);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.seasons-reading-card-head .mi {
+  font-size: 17px;
+}
+
+.seasons-reading-card-head strong {
+  color: var(--dark);
+  font-size: 14px;
+  font-weight: 850;
+  line-height: 1.18;
+}
+
+.seasons-reading-facts {
+  display: grid;
+  gap: 8px;
+}
+
+.seasons-reading-facts div {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  border-top: 1px solid #F0E9E0;
+  padding-top: 8px;
+}
+
+.seasons-reading-facts div:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.seasons-reading-facts small {
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.25;
+}
+
+.seasons-reading-facts strong {
+  color: var(--dark);
+  font-size: 12.5px;
+  font-weight: 800;
+  line-height: 1.25;
+  text-align: right;
+}
+
+.seasons-risk-badge,
+.seasons-impact-badge {
+  min-height: 24px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11.5px;
+  font-weight: 750;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.seasons-risk-badge-low {
+  background: #ECF9F0;
+  color: #1A7F47;
+}
+
+.seasons-risk-badge-medium,
+.seasons-risk-badge-unknown {
+  background: #FFF5DF;
+  color: #9A6512;
+}
+
+.seasons-risk-badge-high,
+.seasons-risk-badge-very_high {
+  background: #FFF0EF;
+  color: #B42318;
+}
+
+.seasons-impact-badge-neutral {
+  background: #F4F1EC;
+  color: #5C5147;
+}
+
+.seasons-impact-badge-medium {
+  background: #FFF6F2;
+  color: var(--red);
+}
+
+.seasons-impact-badge-strong {
+  background: #ECF9F0;
+  color: #1A7F47;
+}
+
+.seasons-reading-card p {
+  margin: 12px 0 0;
+  color: #3A332D;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.seasons-reading-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.seasons-reading-list ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.seasons-reading-list li {
+  color: #2F2A25;
+  font-size: 12.5px;
+  line-height: 1.42;
+  padding-left: 14px;
+  position: relative;
+}
+
+.seasons-reading-list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: .62em;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--red);
+}
+
+.seasons-reading-next {
+  border-color: rgba(180, 35, 24, .18);
+  background: linear-gradient(135deg, #fff 0%, #FFF8F5 100%);
+}
+
+.seasons-reading-next h4 {
+  margin: 0;
+  color: var(--dark);
+  font-size: 16px;
+  font-weight: 850;
+  line-height: 1.2;
+}
+
+.seasons-reading-next p {
+  margin: 7px 0 0;
+  color: #2F2A25;
+  font-size: 13px;
+  line-height: 1.48;
+}
+
+.seasons-execution-plan {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(180, 35, 24, .12);
+}
+
+.seasons-execution-plan-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.seasons-execution-plan-head strong {
+  color: var(--dark);
+  font-size: 12.5px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.seasons-execution-plan-head span {
+  color: #6F6258;
+  font-size: 11.5px;
+  line-height: 1.25;
+  text-align: right;
+}
+
+.seasons-execution-plan ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.seasons-execution-plan li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .72);
+  border: 1px solid rgba(234, 228, 218, .8);
+}
+
+.seasons-execution-plan li strong {
+  color: var(--dark);
+  font-size: 12.5px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.seasons-execution-plan li p {
+  margin: 3px 0 0;
+  color: #2F2A25;
+  font-size: 12px;
+  line-height: 1.38;
+}
+
+.seasons-execution-plan li small {
+  color: #6F6258;
+  font-size: 11.5px;
+  line-height: 1.35;
+}
+
 .seasons-copilot-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(220px, .65fr);
@@ -2309,6 +2632,434 @@
   margin-top: 5px;
 }
 
+.seasons-next-move-operational {
+  border-color: rgba(180, 35, 24, .16);
+  background: linear-gradient(135deg, #fff 0%, #FFF9F5 100%);
+}
+
+.seasons-weekly-reading {
+  margin-top: 14px;
+  border: 1px solid rgba(180, 35, 24, .14);
+  background: linear-gradient(135deg, rgba(180, 35, 24, .055), rgba(255, 255, 255, .94) 56%), #fff;
+  border-radius: 16px;
+  padding: 15px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  box-shadow: 0 10px 22px rgba(31, 31, 31, .035);
+}
+
+.seasons-weekly-reading h4 {
+  margin: 4px 0 0;
+  color: var(--dark);
+  font-size: 17px;
+  line-height: 1.25;
+  font-weight: 860;
+}
+
+.seasons-weekly-reading p {
+  margin: 7px 0 0;
+  color: #3E362F;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.seasons-weekly-reading aside {
+  min-width: 150px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .82);
+  border: 1px solid rgba(234, 228, 218, .84);
+  padding: 11px 12px;
+  display: grid;
+  gap: 3px;
+}
+
+.seasons-weekly-reading aside small {
+  color: #7A6D63;
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.seasons-weekly-reading aside strong {
+  color: var(--dark);
+  font-size: 14px;
+  font-weight: 860;
+  line-height: 1.2;
+}
+
+.seasons-weekly-reading aside span {
+  color: #5F544B;
+  font-size: 11.5px;
+  line-height: 1.35;
+}
+
+.seasons-next-checklist {
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.seasons-next-checklist-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.seasons-next-checklist-head strong {
+  color: var(--dark);
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1.2;
+}
+
+.seasons-next-checklist-head span {
+  color: #6F6258;
+  font-size: 11.5px;
+  line-height: 1.25;
+  text-align: right;
+}
+
+.seasons-next-checklist article {
+  border: 1px solid rgba(180, 35, 24, .12);
+  background: rgba(255, 255, 255, .92);
+  border-radius: 14px;
+  padding: 13px;
+  box-shadow: 0 10px 20px rgba(31, 31, 31, .035);
+}
+
+.seasons-next-checklist header {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.seasons-next-checklist header > span {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--red);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.seasons-next-checklist header strong {
+  color: var(--dark);
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1.25;
+}
+
+.seasons-next-checklist header p {
+  margin: 3px 0 0;
+  color: #3A332D;
+  font-size: 12px;
+  line-height: 1.38;
+}
+
+.seasons-next-action-reason {
+  margin-left: 34px;
+  background: #FFFDF9;
+}
+
+.seasons-action-objective {
+  margin: 10px 0 0 34px;
+  border-radius: 12px;
+  background: rgba(255, 248, 242, .9);
+  border: 1px solid rgba(180, 35, 24, .10);
+  padding: 9px 10px;
+}
+
+.seasons-action-objective span,
+.seasons-action-result span {
+  display: block;
+  color: #7A6D63;
+  font-size: 10.5px;
+  font-weight: 850;
+  letter-spacing: .045em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.seasons-action-objective strong {
+  display: block;
+  color: #2D2823;
+  font-size: 12px;
+  line-height: 1.38;
+  font-weight: 720;
+}
+
+.seasons-action-goal {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  background: #FFFDF9;
+}
+
+.seasons-action-goal div {
+  min-width: 0;
+}
+
+.seasons-action-goal strong {
+  font-size: 11.8px;
+  font-weight: 690;
+}
+
+.seasons-action-task-status {
+  margin: 9px 0 0 34px;
+  display: grid;
+  gap: 3px;
+  border-radius: 12px;
+  background: rgba(250, 248, 244, .86);
+  padding: 8px 10px;
+}
+
+.seasons-action-task-status span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #4B4038;
+  font-size: 11.5px;
+  font-weight: 760;
+  line-height: 1.2;
+}
+
+.seasons-action-task-status .mi {
+  font-size: 15px;
+}
+
+.seasons-action-task-status small {
+  color: #5C5148;
+  font-size: 11.5px;
+  line-height: 1.35;
+}
+
+.seasons-action-task-status-executed_with_result {
+  background: #EDF8F1;
+}
+
+.seasons-action-task-status-executed_with_result span {
+  color: #17663A;
+}
+
+.seasons-action-task-status-not_executed {
+  background: #FFF3EF;
+}
+
+.seasons-action-task-status-not_executed span {
+  color: #A63824;
+}
+
+.seasons-action-result {
+  margin: 10px 0 0 34px;
+  border-radius: 12px;
+  background: #F8F5EF;
+  padding: 9px 10px;
+}
+
+.seasons-action-result strong {
+  display: block;
+  color: #2D2823;
+  font-size: 12.5px;
+  line-height: 1.25;
+  font-weight: 780;
+}
+
+.seasons-action-result p {
+  margin: 4px 0 0;
+  color: #5C5148;
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+.seasons-action-result-executed_with_result {
+  background: #EDF8F1;
+}
+
+.seasons-action-result-executed_with_result strong {
+  color: #17663A;
+}
+
+.seasons-action-result-not_executed {
+  background: #FFF3EF;
+}
+
+.seasons-action-result-not_executed strong {
+  color: #A63824;
+}
+
+.seasons-action-buttons {
+  margin: 12px 0 0 34px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.seasons-action-buttons button {
+  border: 1px solid rgba(180, 35, 24, .14);
+  background: #fff;
+  color: #2D2823;
+  border-radius: 11px;
+  min-height: 36px;
+  padding: 0 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 740;
+  cursor: pointer;
+  box-shadow: 0 6px 14px rgba(31, 31, 31, .035);
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+}
+
+.seasons-action-buttons button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(180, 35, 24, .26);
+  box-shadow: 0 10px 18px rgba(31, 31, 31, .055);
+}
+
+.seasons-action-buttons button.primary {
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
+}
+
+.seasons-action-buttons .mi {
+  font-size: 16px;
+}
+
+.seasons-action-outcome,
+.seasons-action-learning {
+  margin-top: 14px;
+  border: 1px solid rgba(234, 228, 218, .82);
+  background: rgba(255, 255, 255, .76);
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.seasons-action-outcome-grid {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.seasons-action-outcome-grid span {
+  border-radius: 12px;
+  background: #FFFCF8;
+  padding: 9px 10px;
+  display: grid;
+  gap: 3px;
+}
+
+.seasons-action-outcome-grid small {
+  color: #7A6D63;
+  font-size: 10.5px;
+  line-height: 1.2;
+}
+
+.seasons-action-outcome-grid strong {
+  color: var(--dark);
+  font-size: 14px;
+  font-weight: 850;
+  line-height: 1.2;
+}
+
+.seasons-action-history {
+  margin-top: 14px;
+  display: grid;
+  gap: 8px;
+}
+
+.seasons-action-history article {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  border: 1px solid rgba(234, 228, 218, .82);
+  background: rgba(255, 255, 255, .72);
+  border-radius: 12px;
+  padding: 9px 10px;
+}
+
+.seasons-action-history article > span {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  background: #F7F1E9;
+  color: #6D5B4B;
+}
+
+.seasons-action-history article.is-done > span {
+  background: #EDF8F1;
+  color: #17663A;
+}
+
+.seasons-action-history strong {
+  display: block;
+  color: var(--dark);
+  font-size: 12.5px;
+  font-weight: 780;
+  line-height: 1.25;
+}
+
+.seasons-action-history p {
+  margin: 2px 0 0;
+  color: #5C5148;
+  font-size: 11.5px;
+  line-height: 1.35;
+}
+
+.seasons-action-learning ul {
+  margin: 10px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  list-style: none;
+}
+
+.seasons-action-learning li {
+  position: relative;
+  padding-left: 15px;
+  color: #3D352E;
+  font-size: 12px;
+  line-height: 1.42;
+}
+
+.seasons-action-learning li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: .62em;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--red);
+}
+
+.seasons-next-checklist ul {
+  margin: 10px 0 0 34px;
+  padding: 0;
+  display: grid;
+  gap: 5px;
+  color: #2F2A25;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .seasons-next-meta {
   margin-top: 12px;
   display: flex;
@@ -2541,6 +3292,13 @@
   overflow: hidden;
 }
 
+.seasons-create-wizard {
+  width: min(980px, 100%);
+  background:
+    radial-gradient(circle at 12% 0%, rgba(180, 35, 24, .075), transparent 32%),
+    linear-gradient(180deg, #FFFDF9 0%, #fff 48%, #FCFAF7 100%);
+}
+
 .seasons-modal-head {
   padding: 20px 22px 16px;
   display: flex;
@@ -2550,12 +3308,24 @@
   border-bottom: 1px solid #EFE7DE;
 }
 
+.seasons-create-wizard .seasons-modal-head {
+  background: rgba(255, 255, 255, .7);
+  backdrop-filter: blur(10px);
+}
+
 .seasons-modal-head h2 {
   margin: 0;
   color: var(--dark);
   font-size: 22px;
   font-weight: 900;
   line-height: 1.18;
+}
+
+.seasons-modal-head p {
+  margin: 7px 0 0;
+  color: #6B5F55;
+  font-size: 12.5px;
+  line-height: 1.45;
 }
 
 .seasons-icon-button {
@@ -2588,11 +3358,17 @@
   gap: 7px;
 }
 
+.seasons-stepper-rich {
+  padding-top: 16px;
+}
+
 .seasons-stepper span {
   display: block;
   height: 5px;
   border-radius: 999px;
   background: #EFE7DE;
+  position: relative;
+  overflow: hidden;
 }
 
 .seasons-stepper span.active,
@@ -2600,9 +3376,177 @@
   background: var(--red);
 }
 
+.seasons-stepper-rich span i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(255,255,255,.32), transparent);
+}
+
 .seasons-modal-body {
   padding: 20px 22px;
   overflow: auto;
+}
+
+.seasons-wizard-body {
+  display: grid;
+  grid-template-columns: 290px minmax(0, 1fr);
+  gap: 18px;
+  align-items: stretch;
+}
+
+.seasons-wizard-main {
+  min-width: 0;
+}
+
+.seasons-wizard-decision {
+  border: 1px solid rgba(180, 35, 24, .14);
+  background:
+    linear-gradient(145deg, rgba(180, 35, 24, .07), rgba(255, 255, 255, .9) 58%),
+    #fff;
+  border-radius: 18px;
+  padding: 17px;
+  min-height: 100%;
+  box-shadow: 0 18px 36px rgba(31, 31, 31, .055);
+  position: relative;
+  overflow: hidden;
+}
+
+.seasons-wizard-decision::after {
+  content: "";
+  position: absolute;
+  right: -54px;
+  bottom: -54px;
+  width: 132px;
+  height: 132px;
+  border-radius: 999px;
+  border: 24px solid rgba(180, 35, 24, .055);
+}
+
+.seasons-wizard-orbit {
+  width: 76px;
+  height: 76px;
+  border-radius: 24px;
+  background: #fff;
+  border: 1px solid rgba(180, 35, 24, .14);
+  color: var(--red);
+  display: grid;
+  place-items: center;
+  position: relative;
+  box-shadow: 0 14px 28px rgba(180, 35, 24, .09);
+  margin-bottom: 14px;
+}
+
+.seasons-wizard-orbit .mi {
+  width: 32px;
+  height: 32px;
+  stroke-width: 1.75;
+}
+
+.seasons-wizard-orbit span {
+  position: absolute;
+  border-radius: 999px;
+  background: rgba(180, 35, 24, .18);
+}
+
+.seasons-wizard-orbit span:nth-child(1) {
+  width: 9px;
+  height: 9px;
+  right: 10px;
+  top: 12px;
+}
+
+.seasons-wizard-orbit span:nth-child(2) {
+  width: 6px;
+  height: 6px;
+  left: 13px;
+  bottom: 15px;
+}
+
+.seasons-wizard-orbit span:nth-child(3) {
+  width: 5px;
+  height: 5px;
+  right: 18px;
+  bottom: 11px;
+}
+
+.seasons-wizard-decision > small {
+  display: block;
+  color: var(--red);
+  font-size: 10.5px;
+  font-weight: 900;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+.seasons-wizard-decision h3 {
+  margin: 6px 0 0;
+  color: var(--dark);
+  font-size: 18px;
+  line-height: 1.18;
+  font-weight: 900;
+}
+
+.seasons-wizard-decision p {
+  margin: 9px 0 0;
+  color: #5E544C;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.seasons-wizard-route {
+  margin-top: 14px;
+  border-radius: 15px;
+  background: rgba(255, 255, 255, .78);
+  border: 1px solid rgba(234, 228, 218, .9);
+  padding: 12px;
+  display: grid;
+  gap: 3px;
+}
+
+.seasons-wizard-route span,
+.seasons-wizard-facts span {
+  color: #766A60;
+  font-size: 10.5px;
+  font-weight: 850;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.seasons-wizard-route strong {
+  color: var(--dark);
+  font-size: 19px;
+  line-height: 1.1;
+  font-weight: 900;
+}
+
+.seasons-wizard-route small {
+  color: #6B5F55;
+  font-size: 11.5px;
+  line-height: 1.3;
+}
+
+.seasons-wizard-facts {
+  margin-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.seasons-wizard-facts div {
+  border-radius: 13px;
+  background: rgba(255, 255, 255, .66);
+  border: 1px solid rgba(234, 228, 218, .74);
+  padding: 10px 11px;
+}
+
+.seasons-wizard-facts strong {
+  display: block;
+  margin-top: 3px;
+  color: #2D2823;
+  font-size: 12.5px;
+  line-height: 1.22;
+  font-weight: 820;
 }
 
 .seasons-help-modal {
@@ -2781,7 +3725,7 @@
 }
 
 .seasons-choice-card {
-  min-height: 116px;
+  min-height: 146px;
   border: 1px solid #EAE4DA;
   background: #fff;
   border-radius: 16px;
@@ -2790,6 +3734,38 @@
   cursor: pointer;
   box-shadow: 0 10px 24px rgba(31, 31, 31, .045);
   transition: border-color .15s ease, background .15s ease, box-shadow .15s ease, transform .15s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.seasons-choice-card::after {
+  content: "";
+  position: absolute;
+  inset: auto -28px -42px auto;
+  width: 94px;
+  height: 94px;
+  border-radius: 999px;
+  background: rgba(180, 35, 24, .045);
+}
+
+.seasons-choice-card > i {
+  width: 36px;
+  height: 36px;
+  border-radius: 13px;
+  background: #FFF8F6;
+  border: 1px solid rgba(180, 35, 24, .13);
+  color: var(--red);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+  position: relative;
+  z-index: 1;
+}
+
+.seasons-choice-card > i .mi {
+  width: 19px;
+  height: 19px;
 }
 
 .seasons-choice-card:hover {
@@ -2797,10 +3773,36 @@
   border-color: #D9C9B9;
 }
 
+.seasons-choice-card.disabled,
+.seasons-choice-card:disabled {
+  cursor: not-allowed;
+  opacity: .58;
+  background: #F7F4EF;
+  box-shadow: none;
+}
+
+.seasons-choice-card.disabled:hover,
+.seasons-choice-card:disabled:hover {
+  transform: none;
+  border-color: #EAE4DA;
+}
+
+.seasons-choice-card.disabled > i,
+.seasons-choice-card:disabled > i {
+  color: #9A8F84;
+  background: #F2EEE8;
+  border-color: #E4DDD3;
+}
+
 .seasons-choice-card.active {
   border-color: rgba(180, 35, 24, .38);
-  background: #FFF8F6;
+  background: linear-gradient(145deg, #FFF8F6, #fff 62%);
   box-shadow: 0 12px 28px rgba(180, 35, 24, .10), inset 0 0 0 1px rgba(180, 35, 24, .10);
+}
+
+.seasons-choice-card.active > i {
+  background: var(--red);
+  color: #fff;
 }
 
 .seasons-choice-card strong {
@@ -2810,6 +3812,8 @@
   font-weight: 900;
   line-height: 1.25;
   margin-bottom: 7px;
+  position: relative;
+  z-index: 1;
 }
 
 .seasons-choice-card span {
@@ -2817,13 +3821,54 @@
   color: var(--muted);
   font-size: 12px;
   line-height: 1.48;
+  position: relative;
+  z-index: 1;
+}
+
+.seasons-choice-card small {
+  display: block;
+  margin-top: 10px;
+  color: #3E362F;
+  font-size: 11.5px;
+  line-height: 1.38;
+  font-weight: 760;
+  position: relative;
+  z-index: 1;
+}
+
+.seasons-date-card {
+  border: 1px solid rgba(180, 35, 24, .14);
+  background: #fff;
+  border-radius: 18px;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 260px);
+  gap: 14px;
+  align-items: center;
+  box-shadow: 0 14px 30px rgba(31, 31, 31, .045);
+}
+
+.seasons-date-mark {
+  width: 54px;
+  height: 54px;
+  border-radius: 18px;
+  background: #FFF8F6;
+  border: 1px solid rgba(180, 35, 24, .14);
+  color: var(--red);
+  display: grid;
+  place-items: center;
+}
+
+.seasons-date-mark .mi {
+  width: 25px;
+  height: 25px;
 }
 
 .seasons-target-field {
   display: flex;
   flex-direction: column;
   gap: 7px;
-  margin-top: 14px;
+  margin-top: 0;
 }
 
 .seasons-target-field span {
@@ -2867,6 +3912,12 @@
   border: 1px solid #D8E2F5;
   background: #F4F7FD;
   color: #34518A;
+}
+
+.seasons-inline-note-soft {
+  border-color: rgba(180, 35, 24, .13);
+  background: #FFF8F6;
+  color: #6F332A;
 }
 
 .seasons-lock-note {
@@ -2930,6 +3981,51 @@
   border: 1px solid #EAE4DA;
   border-radius: 16px;
   overflow: hidden;
+  background: #fff;
+}
+
+.seasons-summary-hero {
+  margin-bottom: 12px;
+  border: 1px solid rgba(180, 35, 24, .15);
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, rgba(180, 35, 24, .09), rgba(255, 255, 255, .92) 62%),
+    #fff;
+  padding: 15px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+}
+
+.seasons-summary-hero small {
+  color: var(--red);
+  font-size: 10.5px;
+  font-weight: 900;
+  letter-spacing: .065em;
+  text-transform: uppercase;
+}
+
+.seasons-summary-hero h3 {
+  margin: 5px 0 0;
+  color: var(--dark);
+  font-size: 20px;
+  line-height: 1.15;
+  font-weight: 900;
+}
+
+.seasons-summary-hero p {
+  margin: 6px 0 0;
+  color: #5F554D;
+  font-size: 12.5px;
+  line-height: 1.35;
+}
+
+.seasons-summary-hero > strong {
+  color: var(--dark);
+  font-size: 20px;
+  font-weight: 950;
+  white-space: nowrap;
 }
 
 .seasons-summary-row {
@@ -3368,6 +4464,8 @@
   .seasons-hud,
   .seasons-copilot-layout,
   .seasons-analysis-grid,
+  .seasons-reading-grid,
+  .seasons-reading-columns,
   .stones-card,
   .stones-insights,
   .stones-checklist-list,
@@ -3383,7 +4481,8 @@
   }
 
   .seasons-help-summary,
-  .seasons-help-split {
+  .seasons-help-split,
+  .seasons-wizard-body {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -3501,6 +4600,27 @@
     grid-template-columns: 1fr;
   }
 
+  .seasons-wizard-body {
+    grid-template-columns: 1fr;
+  }
+
+  .seasons-wizard-decision {
+    min-height: auto;
+  }
+
+  .seasons-wizard-facts {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .seasons-date-card,
+  .seasons-summary-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .seasons-summary-hero > strong {
+    white-space: normal;
+  }
+
   .seasons-modal-foot {
     flex-direction: column-reverse;
   }
@@ -3534,12 +4654,30 @@
     padding: 0 22px 18px;
   }
 
+  .seasons-reading-hero {
+    flex-direction: column;
+    padding: 16px;
+  }
+
+  .seasons-reading-hero h3 {
+    font-size: 18px;
+  }
+
+  .seasons-reading-hero > strong {
+    min-width: 62px;
+    height: 62px;
+    border-radius: 18px;
+    font-size: 19px;
+  }
+
   .seasons-hud {
     padding: 22px;
   }
 
   .seasons-hud-metrics,
-  .seasons-status-bars {
+  .seasons-status-bars,
+  .seasons-reading-grid,
+  .seasons-reading-columns {
     grid-template-columns: 1fr 1fr;
   }
 
@@ -3583,7 +4721,34 @@
 
   .seasons-final-grid,
   .seasons-final-columns,
-  .seasons-secondary-actions {
+  .seasons-secondary-actions,
+  .seasons-reading-grid,
+  .seasons-reading-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .seasons-weekly-reading {
+    grid-template-columns: 1fr;
+  }
+
+  .seasons-weekly-reading aside {
+    min-width: 0;
+  }
+
+  .seasons-action-outcome-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .seasons-action-objective,
+  .seasons-next-action-reason,
+  .seasons-action-task-status,
+  .seasons-action-result,
+  .seasons-action-buttons,
+  .seasons-next-checklist ul {
+    margin-left: 0;
+  }
+
+  .seasons-action-goal {
     grid-template-columns: 1fr;
   }
 
@@ -3610,6 +4775,10 @@
 }
 
 @media (max-width: 460px) {
+  .seasons-wizard-facts {
+    grid-template-columns: 1fr;
+  }
+
   .stones-journey {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

@@ -8,10 +8,14 @@ window.SeasonsAI = (function () {
     'Não calcule score, meta, risco ou progresso; esses valores já vêm do BocaFood.',
     'Transforme os dados em orientação prática, simples e executável.',
     'Não invente números, clientes, campanhas ou métricas.',
+    'Quando sugerir ação, use o plano operacional recebido e cite produto, canal, horário, cupom, promoção, upsell ou pontos somente se existirem no contexto.',
     'Não use tom motivacional exagerado, linguagem infantil ou frases de coach.',
     'Não sugira anúncios sem dados de campanha ou marketing.',
     'Não sugira estoque, desperdício ou produção avançada se os dados não forem confiáveis.',
-    'Retorne exatamente um JSON com mainAction, até duas secondaryActions, summary, confidence e dataLimitations.'
+    'Retorne exatamente um JSON com headline, helpingSignals, blockingSignals e nextAction.',
+    'headline deve ser uma frase curta sobre a temporada.',
+    'helpingSignals e blockingSignals devem ser arrays com frases simples.',
+    'nextAction deve ser uma ação prática para a usuária executar agora.'
   ].join('\n');
 
   function buildSeasonAIContext(season, metrics, snapshots, relatedData) {
@@ -42,6 +46,10 @@ window.SeasonsAI = (function () {
         currentStatus: season.currentStatus || '',
         riskLevel: season.riskLevel || '',
         progressPercent: _num(season.progressPercent),
+        scoreBreakdown: _safeObject(relatedData.scoreBreakdown || metrics.scoreBreakdown || season.scoreBreakdown || {}),
+        validatedImpactSignals: _safeObject(relatedData.validatedImpactSignals || metrics.validatedImpactSignals || {}),
+        seasonReading: _safeObject(relatedData.seasonReading || metrics.seasonReading || season.seasonReading || {}),
+        executionPlan: _safeObject(relatedData.executionPlan || metrics.executionPlan || season.executionPlan || {}),
         mainMetrics: _safeObject((snapshots.daily && snapshots.daily.mainMetrics) || {}),
         auxiliaryMetrics: _safeObject((snapshots.daily && snapshots.daily.auxiliaryMetrics) || {}),
         alerts: _safeAlerts((snapshots.daily && snapshots.daily.alerts) || [])
@@ -64,8 +72,28 @@ window.SeasonsAI = (function () {
         reviewsAverage: _num(relatedData.reviewsAverage),
         couponUsage: _num(relatedData.couponUsage),
         promotionUsage: _num(relatedData.promotionUsage),
-        upsellUsage: _num(relatedData.upsellUsage)
+        upsellUsage: _num(relatedData.upsellUsage),
+        couponDiscount: _num(relatedData.couponDiscount),
+        promotionDiscount: _num(relatedData.promotionDiscount),
+        upsellDiscount: _num(relatedData.upsellDiscount),
+        upsellAddedRevenue: _num(relatedData.upsellAddedRevenue),
+        pointsRedemption: _num(relatedData.pointsRedemption),
+        pointsDiscount: _num(relatedData.pointsDiscount),
+        channelBreakdown: relatedData.channelBreakdown || [],
+        actionOpportunities: _safeObject(relatedData.actionOpportunities || metrics.actionOpportunities || {})
       },
+      currentMetrics: _safeObject(metrics),
+      scoreBreakdown: _safeObject(relatedData.scoreBreakdown || metrics.scoreBreakdown || season.scoreBreakdown || {}),
+      validatedImpactSignals: _safeObject(relatedData.validatedImpactSignals || metrics.validatedImpactSignals || {}),
+      executionPlan: _safeObject(relatedData.executionPlan || metrics.executionPlan || season.executionPlan || {}),
+      riskContext: {
+        riskLevel: season.riskLevel || '',
+        currentStatus: season.currentStatus || '',
+        progressPercent: _num(season.progressPercent),
+        progressRatio: _num(metrics.progressRatio),
+        daysRemaining: _num(metrics.daysRemaining)
+      },
+      snapshots: _safeObject(snapshots),
       confidence: {
         baselineConfidence: season.baselineConfidence || 'low',
         dataConfidence: (snapshots.daily && (snapshots.daily.confidence || snapshots.daily.auxiliaryMetrics && snapshots.daily.auxiliaryMetrics.confidence)) || 'low',
@@ -85,15 +113,20 @@ window.SeasonsAI = (function () {
       });
     }
 
-    return fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ context: context })
+    return _requestHeaders().then(function (headers) {
+      return fetch(endpoint, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify({
+          context: context,
+          tenantId: window.Auth && Auth.getTenantId ? Auth.getTenantId() : ''
+        })
+      });
     }).then(function (res) {
       if (!res.ok) throw new Error('AI endpoint HTTP ' + res.status);
       return res.json();
     }).then(function (data) {
-      var recommendation = _validRecommendation(data && (data.recommendation || data));
+      var recommendation = _validSeasonReading(data && (data.recommendation || data));
       return {
         recommendation: recommendation,
         status: 'generated',
@@ -115,7 +148,17 @@ window.SeasonsAI = (function () {
     var objective = context.season && context.season.objective;
     var data = context.operationalData || {};
     var status = context.status || {};
+    var executionPlan = status.executionPlan || context.executionPlan || {};
+    var firstAction = executionPlan.actions && executionPlan.actions[0];
     var progress = _num(status.progressPercent);
+    if (firstAction && firstAction.description) {
+      return _seasonReading(
+        progress < 75 ? 'A temporada precisa de uma ação prática agora' : 'A temporada tem uma próxima ação clara',
+        [firstAction.why || 'A ação vem dos pedidos e sinais validados da temporada.'],
+        [],
+        firstAction.description
+      );
+    }
 
     if (objective === 'increase_ticket') return _ticketRecommendation(data, progress);
     if (objective === 'retain_customers') return _retainRecommendation(data, progress);
@@ -125,102 +168,72 @@ window.SeasonsAI = (function () {
 
   function _sellMoreRecommendation(data, progress) {
     var product = _firstProductName(data);
-    return _recommendation(
-      progress < 75 ? 'Reforçar o melhor produto no melhor período' : 'Manter foco no produto líder da temporada',
-      'Use o produto com melhor sinal de venda como gancho para recuperar ritmo sem depender de desconto agressivo.',
-      'O progresso de vendas está abaixo do ritmo ideal ou ainda precisa manter consistência até o fechamento.',
+    return _seasonReading(
+      progress < 75 ? 'A temporada está abaixo do ritmo esperado' : 'A temporada está mantendo o ritmo de venda',
       [
-        'Escolha o produto com melhor saída nos dados recentes.',
-        'Publique uma oferta simples no melhor dia ou horário identificado.',
-        'Evite desconto agressivo; destaque combinação, praticidade ou preço fechado.',
-        'Acompanhe pedidos e faturamento pelos próximos 7 dias.'
+        product ? product + ' está puxando as vendas.' : 'Há pedidos reais suficientes para acompanhar o ritmo.',
+        data.strongHours && data.strongHours.length ? 'Existe horário com resposta melhor.' : ''
       ],
-      'Faturamento e pedidos',
-      'A temporada pode continuar dependendo de poucos dias fortes.',
       [
-        { title: 'Usar produto líder como gancho', description: product ? 'Produto de referência: ' + product + '.' : 'Use o produto mais vendido disponível nos relatórios.', why: 'Produto com tração reduz esforço de venda.' }
+        progress < 75 ? 'O progresso ainda está abaixo do ideal para este momento.' : '',
+        'Use desconto apenas quando ele tiver regra clara, produto certo e acompanhamento de pedidos.'
       ],
-      data.ordersCurrentPeriod > 0 ? 'medium' : 'low'
+      product ? 'Reforce ' + product + ' no melhor horário identificado nesta temporada.' : 'Reforce o produto com melhor saída nesta temporada.'
     );
   }
 
   function _ticketRecommendation(data, progress) {
     var product = _firstProductName(data);
-    return _recommendation(
-      'Criar combo com o produto mais vendido',
-      'Monte um combo simples com produto líder e um adicional, bebida ou sobremesa.',
-      'O objetivo é aumentar ticket sem reduzir valor por pedido com desconto pesado.',
+    return _seasonReading(
+      'O ticket precisa de uma ação mais clara',
       [
-        'Pegue o produto mais vendido dos últimos dados disponíveis.',
-        'Combine com adicional, bebida ou sobremesa simples.',
-        'Use preço fechado e fácil de entender.',
-        'Acompanhe o ticket médio por 7 dias.'
+        product ? product + ' pode servir de base para combo ou adicional.' : '',
+        data.upsellUsage > 0 ? 'Upsell já apareceu em pedido real.' : ''
       ],
-      'Ticket médio',
-      'Você pode continuar vendendo, mas sem aumentar o valor por pedido.',
       [
-        { title: 'Evitar desconto amplo', description: 'Prefira composição de pedido em vez de cortar preço.', why: 'Desconto pode baixar margem e não elevar ticket.' },
-        { title: 'Destacar adicional simples', description: product ? 'Conecte o adicional ao produto ' + product + '.' : 'Escolha um adicional fácil de vender.', why: 'Reduz fricção na decisão da cliente.' }
+        'Desconto amplo pode vender mais, mas reduzir o ticket líquido.',
+        progress < 75 ? 'O avanço ainda está abaixo do esperado para o objetivo.' : ''
       ],
-      progress > 0 ? 'medium' : 'low'
+      product ? 'Monte uma composição simples com ' + product + ' e um adicional para subir o valor do pedido.' : 'Use adicional ou combo no produto mais vendido para subir o valor do pedido.'
     );
   }
 
   function _retainRecommendation(data, progress) {
-    return _recommendation(
-      'Reativar clientes que já compraram',
-      'Faça uma ação simples para incentivar recompra usando o histórico de clientes recorrentes como agregado.',
-      'A recompra está baixa ou ainda precisa ganhar força dentro da temporada.',
+    return _seasonReading(
+      data.recurringCustomersCount > 0 ? 'A recompra já começou a aparecer' : 'A recompra ainda precisa ganhar força',
       [
-        'Escolha uma mensagem curta para quem já comprou recentemente.',
-        'Ofereça uma vantagem simples e limitada no tempo.',
-        'Se o programa de pontos estiver ativo, lembre o benefício disponível.',
-        'Revise recompra e clientes recorrentes em 7 dias.'
+        data.recurringCustomersCount > 0 ? data.recurringCustomersCount + ' cliente(s) voltaram a comprar.' : '',
+        data.pointsRedemption > 0 ? 'Pontos foram usados em pedido real.' : ''
       ],
-      'Clientes recorrentes e recompra',
-      'A loja pode depender demais de clientes novos e perder frequência.',
       [
-        { title: 'Revisar experiência pós-pedido', description: 'Use avaliações e comentários disponíveis para ajustar a próxima compra.', why: 'Fidelização depende de confiança e repetição.' }
+        data.recurringCustomersCount <= 0 ? 'Ainda há poucos sinais de clientes voltando.' : '',
+        'Cliente cadastrado sem nova compra ainda não valida fidelização.'
       ],
-      data.recurringCustomersCount > 0 ? 'medium' : 'low'
+      'Chame clientes que já compraram antes com uma mensagem curta e uma vantagem simples para voltar.'
     );
   }
 
   function _consistencyRecommendation(data, progress) {
-    return _recommendation(
-      'Criar ação para o dia mais fraco',
-      'Use o produto líder como gancho em um dia com pouca venda para reduzir oscilação.',
-      'A temporada precisa distribuir melhor os dias ativos e reduzir períodos fracos.',
+    return _seasonReading(
+      'A consistência precisa de uma ação nos dias fracos',
       [
-        'Identifique o dia mais fraco disponível nos dados.',
-        'Escolha um produto com boa saída para servir de gancho.',
-        'Faça uma comunicação simples naquele dia.',
-        'Acompanhe dias com venda e regularidade semanal por 7 dias.'
+        data.activeSalesDays > 0 ? 'Já existem dias com venda para comparar.' : '',
+        data.strongHours && data.strongHours.length ? 'Há horário com melhor resposta.' : ''
       ],
-      'Dias com venda',
-      'As vendas podem continuar concentradas em poucos dias.',
       [
-        { title: 'Repetir o melhor horário', description: 'Quando houver horário forte, use esse horário para publicar a ação.', why: 'Aumenta chance de resposta sem criar campanha complexa.' }
+        data.weakDays > 0 ? data.weakDays + ' dia(s) fraco(s) ainda pesam no ritmo.' : '',
+        'Vendas concentradas em poucos dias deixam a temporada mais instável.'
       ],
-      data.activeSalesDays > 0 ? 'medium' : 'low'
+      'Use o produto mais forte em um dia fraco e repita o melhor horário identificado.'
     );
   }
 
-  function _recommendation(title, description, why, howToApply, metricToWatch, riskIfIgnored, secondaryActions, confidence) {
+  function _seasonReading(headline, helpingSignals, blockingSignals, nextAction) {
     return {
-      mainAction: {
-        title: title,
-        description: description,
-        why: why,
-        howToApply: howToApply,
-        metricToWatch: metricToWatch,
-        reviewInDays: 7,
-        riskIfIgnored: riskIfIgnored
-      },
-      secondaryActions: (secondaryActions || []).slice(0, 2),
-      summary: title + '.',
-      confidence: confidence || 'low',
-      dataLimitations: []
+      headline: headline || 'A temporada precisa de leitura nos próximos dias',
+      helpingSignals: _cleanList(helpingSignals).slice(0, 4),
+      blockingSignals: _cleanList(blockingSignals).slice(0, 4),
+      nextAction: nextAction || 'Use o produto, canal ou horário mais forte da temporada para a próxima ação.'
     };
   }
 
@@ -229,13 +242,30 @@ window.SeasonsAI = (function () {
     return cfg.endpoint ? String(cfg.endpoint) : '';
   }
 
-  function _validRecommendation(value) {
+  function _requestHeaders() {
+    var headers = { 'Content-Type': 'application/json' };
+    var user = window.Auth && Auth.getUser ? Auth.getUser() : null;
+    if (!user || typeof user.getIdToken !== 'function') return Promise.resolve(headers);
+    return user.getIdToken().then(function (token) {
+      if (token) headers.Authorization = 'Bearer ' + token;
+      return headers;
+    }).catch(function () {
+      return headers;
+    });
+  }
+
+  function _validSeasonReading(value) {
     value = value || {};
-    if (!value.mainAction || !value.mainAction.title) throw new Error('Resposta de IA inválida.');
-    value.secondaryActions = Array.isArray(value.secondaryActions) ? value.secondaryActions.slice(0, 2) : [];
-    value.confidence = /^(high|medium|low)$/.test(value.confidence) ? value.confidence : 'low';
-    value.dataLimitations = Array.isArray(value.dataLimitations) ? value.dataLimitations : [];
-    return value;
+    if (value.mainAction && !value.nextAction) {
+      value = {
+        headline: value.summary || value.mainAction.title || '',
+        helpingSignals: [],
+        blockingSignals: value.dataLimitations || [],
+        nextAction: value.mainAction.description || value.mainAction.title || ''
+      };
+    }
+    if (!value.headline || !value.nextAction) throw new Error('Resposta de IA inválida.');
+    return _seasonReading(value.headline, value.helpingSignals || [], value.blockingSignals || [], value.nextAction);
   }
 
   function _periodInfo(season, metrics) {
@@ -258,6 +288,17 @@ window.SeasonsAI = (function () {
 
   function _safeObject(obj) {
     return JSON.parse(JSON.stringify(obj || {}));
+  }
+
+  function _cleanList(items) {
+    var seen = {};
+    return (items || []).map(function (item) {
+      return String(item || '').trim();
+    }).filter(function (item) {
+      if (!item || seen[item]) return false;
+      seen[item] = true;
+      return true;
+    });
   }
 
   function _safeAlerts(alerts) {

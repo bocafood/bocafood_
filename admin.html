@@ -527,6 +527,11 @@ button,input,select,textarea{font-family:inherit}
   };
 
   if (!firebase.apps.length) firebase.initializeApp(BB_FB_CFG);
+  window.SeasonsAIConfig = {
+    endpoint: /^(localhost|127\.0\.0\.1)$/i.test(location.hostname)
+      ? '/api/seasons/ai-recommendation'
+      : 'https://us-central1-bocado-brasil.cloudfunctions.net/seasonsAiRecommendation'
+  };
   var functions = firebase.app().functions('us-central1');
 
   function showLoginPanel() {
