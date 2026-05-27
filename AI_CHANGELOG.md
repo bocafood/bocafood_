@@ -1,5 +1,31 @@
 # AI Changelog
 
+## 2026-05-27 — Loja pública: botão Sair na conta
+- Arquivos alterados: `public/index.html`, `AI_CHANGELOG.md`.
+- Recoloquei o botão de sair no modal de conta da loja pública, conectado à lógica já existente `signOutStoreCustomer`.
+- O texto usa o dicionário por idioma já existente (`Cerrar sesión`, `Sign out`, `Se déconnecter`, etc.).
+- Impacto esperado: cliente logada consegue encerrar sessão pela conta pública sem alterar autenticação, Firebase, rotas, pedidos ou carrinho.
+
+## 2026-05-27 — Loja pública: carregamento mobile sem topo vermelho
+- Arquivos alterados: `public/index.html`, `AI_CHANGELOG.md`.
+- Validei que as imagens públicas da capa e da logo do tenant Bocado Brasil estão acessíveis publicamente no Firebase Storage (`200 image/webp`).
+- Removi o radial vermelho do topo do overlay de carregamento da loja pública, trocando por um efeito neutro para o celular não parecer abrir com uma faixa vermelha antes da imagem carregar.
+- Impacto esperado: abertura mobile mais limpa e coerente com o fundo claro da loja, sem alterar imagens, Firestore, rotas, carrinho, produtos ou regras do template.
+
+## 2026-05-27 — Loja pública: botão Ver pontos respeita idioma
+- Arquivos alterados: `public/index.html`, `AI_CHANGELOG.md`.
+- Ajustei a aplicação de idioma do botão `Ver pontos` no modal de conta para atualizar junto com os demais textos estáticos da loja pública.
+- A leitura do idioma principal também passou a considerar campos alternativos (`primaryLanguage`, `templateLanguage`, `publicLanguage`, `idiomaPrincipal`, `idioma`) antes de cair no padrão espanhol.
+- Validei que a loja Bocado Brasil está configurada com `es-ES`, então o botão deve aparecer como `Ver puntos`.
+- Impacto esperado: o botão de pontos acompanha o idioma escolhido no template sem alterar lógica de fidelidade, login, pontos, Firestore ou rotas.
+
+## 2026-05-27 — Loja pública: carrinho persiste ao atualizar
+- Arquivos alterados: `public/index.html`, `AI_CHANGELOG.md`.
+- Adicionei persistência local do carrinho por tenant/slug usando `localStorage`, salvando itens, cupom aplicado, tipo de recebimento, uso de pontos e campos principais do checkout.
+- A loja restaura o carrinho depois que produtos, cupons, zonas, horários e formas de pagamento carregam, mantendo apenas itens cujo produto ainda existe no cardápio.
+- O cache é limpo quando a cliente envia o pedido pelo WhatsApp ou usa `Limpar pedido`.
+- Impacto esperado: ao atualizar ou recarregar a loja pública, o pedido em andamento continua disponível sem alterar Firestore, pedidos, carrinho de envio ou regras do checkout.
+
 ## 2026-05-27 — Loja pública: diagnóstico de slug e dados nulos
 - Arquivos alterados: `public/index.html`, `AI_CHANGELOG.md`.
 - Rastreado o erro `Cannot read properties of null (reading 'name')` no carregamento da loja pública: o slug do tenant `Bocado Brasil` está salvo corretamente como `bocadobrasil`, então a falha atual não vem de slug antigo.

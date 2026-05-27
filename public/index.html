@@ -1933,8 +1933,8 @@
       place-items: center;
       padding: 22px;
       background:
-        radial-gradient(circle at 16% 0%, rgba(var(--brand-rgb), .13), rgba(var(--brand-rgb), 0) 34%),
-        radial-gradient(circle at 92% 12%, rgba(255,255,255,.82), rgba(255,255,255,0) 28%),
+        radial-gradient(circle at 16% 0%, rgba(33,27,24,.035), rgba(33,27,24,0) 34%),
+        radial-gradient(circle at 92% 12%, rgba(255,255,255,.9), rgba(255,255,255,0) 28%),
         linear-gradient(180deg, rgba(255, 250, 243, .99), rgba(255, 246, 238, .97));
       backdrop-filter: blur(14px);
       color: var(--ink);
@@ -10116,6 +10116,7 @@
                 </div>
                 <div class="account-actions">
                   <button class="account-action" type="button" id="account-points-button"><span>Ver puntos</span><span>›</span></button>
+                  <button class="account-action" type="button" id="account-logout-button"><span>Cerrar sesión</span><span>›</span></button>
                 </div>
               </div>
             </section>
@@ -10542,6 +10543,7 @@
       var accountAddressLookupSeq = 0;
       var accountAddressSelectedValue = '';
       var publicStoreResolved = false;
+      var publicCartRestored = false;
 
       function tenantIdFromUrl() {
         var params = new URLSearchParams(window.location.search);
@@ -10803,6 +10805,115 @@
         return String(value == null ? '' : value).replace(/[&<>"']/g, function (c) {
           return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
         });
+      }
+
+      function publicCartStorageKey() {
+        var key = activeTenantId || tenantId || requestedStoreSlug || 'default';
+        return 'bocafood_public_cart_' + String(key).replace(/[^a-z0-9_-]/gi, '_');
+      }
+
+      function savePublicCartState() {
+        if (!publicCartRestored || !window.localStorage) return;
+        var payload = {
+          version: 1,
+          savedAt: Date.now(),
+          cart: cart,
+          orderType: orderType,
+          couponCode: appliedCoupon ? couponCode(appliedCoupon) : '',
+          usePointsInCart: !!usePointsInCart,
+          selectedDeliveryZoneId: selectedDeliveryZone ? selectedDeliveryZone.id : '',
+          fields: {
+            customerWhatsapp: fieldValue('customer-whatsapp'),
+            customerPhone: fieldValue('customer-phone'),
+            customerName: fieldValue('customer-name'),
+            postal: fieldValue('postal-input'),
+            deliveryAddress: fieldValue('delivery-address'),
+            deliveryNumber: fieldValue('delivery-number'),
+            deliveryComplement: fieldValue('delivery-complement'),
+            deliveryCity: fieldValue('delivery-city'),
+            deliveryProvince: fieldValue('delivery-province'),
+            deliveryCountry: fieldValue('delivery-country'),
+            deliveryNeighborhood: fieldValue('delivery-neighborhood'),
+            deliveryFormattedAddress: fieldValue('delivery-formatted-address'),
+            deliveryPlaceId: fieldValue('delivery-place-id'),
+            deliveryLatitude: fieldValue('delivery-latitude'),
+            deliveryLongitude: fieldValue('delivery-longitude'),
+            pickupSlot: fieldValue('pickup-slot'),
+            deliverySlot: fieldValue('delivery-slot'),
+            payment: fieldValue('payment-method'),
+            note: fieldValue('customer-note')
+          }
+        };
+        try {
+          if (cart.length) localStorage.setItem(publicCartStorageKey(), JSON.stringify(payload));
+          else localStorage.removeItem(publicCartStorageKey());
+        } catch (err) {
+          console.warn('Cart cache save error', err);
+        }
+      }
+
+      function restorePublicCartState() {
+        if (publicCartRestored) return;
+        publicCartRestored = true;
+        if (!window.localStorage) return;
+        var payload = null;
+        try {
+          payload = JSON.parse(localStorage.getItem(publicCartStorageKey()) || 'null');
+        } catch (err) {
+          console.warn('Cart cache read error', err);
+        }
+        if (!payload || !Array.isArray(payload.cart)) return;
+        var maxAge = 1000 * 60 * 60 * 24 * 7;
+        if (payload.savedAt && Date.now() - Number(payload.savedAt) > maxAge) {
+          try { localStorage.removeItem(publicCartStorageKey()); } catch (err) {}
+          return;
+        }
+        cart = payload.cart.map(function (item) {
+          if (!item || !item.id || !findProduct(item.id)) return null;
+          return Object.assign({}, item, {
+            key: firstText(item.key, String(item.id) + '::' + String(item.note || '') + '::' + (item.choices || []).join(' | ')),
+            qty: Math.max(1, num(item.qty) || 1),
+            name: firstText(item.name, productName(findProduct(item.id))),
+            price: num(item.price),
+            originalPrice: num(item.originalPrice != null ? item.originalPrice : item.price),
+            choices: Array.isArray(item.choices) ? item.choices : [],
+            note: firstText(item.note, '')
+          });
+        }).filter(Boolean);
+        orderType = payload.orderType === 'delivery' || payload.orderType === 'pickup' ? payload.orderType : orderType;
+        usePointsInCart = !!payload.usePointsInCart;
+        if (payload.couponCode) {
+          var restoredCoupon = coupons.find(function (coupon) { return couponCode(coupon) === String(payload.couponCode).toUpperCase(); });
+          appliedCoupon = restoredCoupon || appliedCoupon;
+        }
+        selectedDeliveryZone = payload.selectedDeliveryZoneId ? deliveryZones.find(function (zone) { return String(zone.id) === String(payload.selectedDeliveryZoneId); }) || null : null;
+        var fields = payload.fields || {};
+        [
+          ['customer-whatsapp', fields.customerWhatsapp],
+          ['customer-phone', fields.customerPhone],
+          ['customer-name', fields.customerName],
+          ['postal-input', fields.postal],
+          ['delivery-address', fields.deliveryAddress],
+          ['delivery-number', fields.deliveryNumber],
+          ['delivery-complement', fields.deliveryComplement],
+          ['delivery-city', fields.deliveryCity],
+          ['delivery-province', fields.deliveryProvince],
+          ['delivery-country', fields.deliveryCountry],
+          ['delivery-neighborhood', fields.deliveryNeighborhood],
+          ['delivery-formatted-address', fields.deliveryFormattedAddress],
+          ['delivery-place-id', fields.deliveryPlaceId],
+          ['delivery-latitude', fields.deliveryLatitude],
+          ['delivery-longitude', fields.deliveryLongitude],
+          ['pickup-slot', fields.pickupSlot],
+          ['delivery-slot', fields.deliverySlot],
+          ['payment-method', fields.payment],
+          ['customer-note', fields.note]
+        ].forEach(function (entry) {
+          if (entry[1]) setFieldValue(entry[0], entry[1], false);
+        });
+        if (!selectedDeliveryZone && fields.postal) selectedDeliveryZone = matchDeliveryZone(fields.postal);
+        syncSlotFieldsFromHidden('pickup');
+        syncSlotFieldsFromHidden('delivery');
       }
 
       function fieldValue(id) {
@@ -11123,7 +11234,7 @@
       };
 
       function currentLanguage() {
-        var raw = firstText(cfg.language, cfg.mainLanguage, cfg.storeLanguage, cfg.defaultLanguage, 'es-ES');
+        var raw = firstText(cfg.language, cfg.mainLanguage, cfg.storeLanguage, cfg.defaultLanguage, cfg.primaryLanguage, cfg.templateLanguage, cfg.publicLanguage, cfg.idiomaPrincipal, cfg.idioma, 'es-ES');
         raw = String(raw || 'es-ES').replace('_', '-');
         if (raw === 'en-US') raw = 'en';
         if (raw === 'pt') raw = 'pt-BR';
@@ -11377,6 +11488,10 @@
         if (authClose) authClose.setAttribute('aria-label', t('close'));
         var accountClose = document.getElementById('account-close');
         if (accountClose) accountClose.setAttribute('aria-label', t('close'));
+        var accountPointsButton = document.getElementById('account-points-button');
+        if (accountPointsButton && accountPointsButton.querySelector('span:first-child')) {
+          accountPointsButton.querySelector('span:first-child').textContent = accountPanelText('points');
+        }
         setAuthMode(authMode);
         [
           ['promotions-kicker', 'textContent', 'promotions'],
@@ -16729,6 +16844,7 @@
         var actions = document.querySelector('.cart-actions');
         if (actions) actions.classList.toggle('is-empty', !cart.length);
         if (cart.length) scheduleCartUpsellPrompt();
+        savePublicCartState();
       }
 
       function changeLine(key, delta) {
@@ -17435,10 +17551,12 @@
         var customerWhatsappInput = document.getElementById('customer-whatsapp');
         if (customerWhatsappInput) customerWhatsappInput.oninput = function () {
           setFieldValue('customer-phone', joinedPhoneValue('customer-whatsapp-country', 'customer-whatsapp'));
+          savePublicCartState();
         };
         var customerWhatsappCountry = document.getElementById('customer-whatsapp-country');
         if (customerWhatsappCountry) customerWhatsappCountry.onchange = function () {
           setFieldValue('customer-phone', joinedPhoneValue('customer-whatsapp-country', 'customer-whatsapp'));
+          savePublicCartState();
         };
         var accountWhatsappInput = document.getElementById('account-whatsapp');
         if (accountWhatsappInput) accountWhatsappInput.oninput = function () {
@@ -17448,6 +17566,7 @@
           setFieldValue('customer-whatsapp-country', phone.country);
           setFieldValue('customer-whatsapp', phone.number);
           setFieldValue('customer-phone', value);
+          savePublicCartState();
         };
         var accountWhatsappCountry = document.getElementById('account-whatsapp-country');
         if (accountWhatsappCountry) accountWhatsappCountry.onchange = function () {
@@ -17457,6 +17576,7 @@
           setFieldValue('customer-whatsapp-country', phone.country);
           setFieldValue('customer-whatsapp', phone.number);
           setFieldValue('customer-phone', value);
+          savePublicCartState();
         };
         ['pickup', 'delivery'].forEach(function (type) {
           var dateInput = document.getElementById(type + '-date');
@@ -17515,6 +17635,7 @@
           addModalRelatedItemsToCart();
           closeProduct();
         };
+        window.addEventListener('beforeunload', savePublicCartState);
       }
 
       function fallbackProducts() {
@@ -17592,6 +17713,8 @@
           renderReviews();
           loadStep = 'renderizar rodape';
           renderFooter();
+          loadStep = 'restaurar carrinho';
+          restorePublicCartState();
           loadStep = 'renderizar carrinho';
           renderCart();
           loadStep = 'aplicar cupom';
