@@ -1849,3 +1849,57 @@ Implementação segura:
 - a resposta precisa ser validada como JSON antes de voltar ao Admin;
 - se a OpenAI falhar, o BocaFood usa fallback local sem travar a Temporada;
 - a IA não escreve direto no Firestore; qualquer persistência continua passando pelo módulo de Temporadas.
+
+### Instruções que a OpenAI deve ler ao gerar texto para Próxima Jogada
+
+Enquanto a chave não estiver configurada, as Próximas Jogadas continuam usando o motor local. Quando a chave for ativada, a IA receberá um contexto já filtrado pelo BocaFood e deve seguir estas instruções.
+
+Ordem de leitura do contexto:
+
+1. `season`: objetivo, estratégia, dificuldade, período, rota do Plano de Voo e meta já calculada.
+2. `status`: score, progresso, risco, leitura atual, score explicado, sinais validados e plano operacional.
+3. `operationalData`: vendas, pedidos, ticket, dias ativos, dias fracos, horários fortes, produtos fortes, recompra, cupons, promoções, upsell, pontos e canais.
+4. `executionPlan`: jogadas que o BocaFood já montou com produto, canal, horário, prazo, motivo, checklist e resultado esperado.
+5. `validatedImpactSignals`: sinais que apareceram em pedido real, como cupom usado, promoção usada, upsell aceito, recompra, pontos resgatados e canal com resultado.
+6. `riskContext`: risco, ritmo, dias restantes e avanço da temporada.
+7. `snapshots`: leituras congeladas do período para não inventar histórico.
+8. `confidence`: nível de confiança dos dados e métricas ausentes.
+
+Regras obrigatórias para a IA:
+
+- usar apenas os dados recebidos no contexto;
+- tratar `executionPlan.actions` como fonte principal da Próxima Jogada;
+- melhorar clareza, prioridade e linguagem, sem trocar a ação por outra inventada;
+- preservar produto, canal, horário, cupom, promoção, upsell ou pontos citados pelo BocaFood;
+- não calcular score, meta, risco, progresso, margem ou prazo;
+- não alterar quantidade de jogadas;
+- não alterar status da jogada;
+- não alterar resultado da jogada;
+- não escrever no Firestore;
+- não inventar produto, cliente, campanha, margem, custo, desconto, cupom, promoção ou upsell;
+- não recomendar desconto sem preço, custo, margem e desconto saudável já calculados pelo BocaFood;
+- lembrar que upsell só entra no canal `Cardápio`;
+- entender que cupom, promoção, upsell e pontos só contam quando aparecem em pedido real ou quando existe evidência de ação criada pelo BocaFood;
+- se uma ação foi criada mas não vendeu, tratar como `executada sem resultado`, não como sucesso;
+- se não houver dados suficientes, recomendar uma jogada simples de aprendizado com baixo risco, sem inventar histórico;
+- evitar frases como `confira`, `meça`, `acompanhe`, `analise depois` ou `veja se`;
+- entregar a leitura já pronta com base nos dados enviados;
+- evitar linguagem técnica como `baseline`, `scoreBreakdown`, `validatedImpactSignals`, `engine`, `payload`, `algoritmo` ou `modelo`;
+- falar com a usuária sobre o negócio dela, com linguagem direta e prática.
+
+Formato de leitura esperado:
+
+- `headline`: uma frase curta dizendo como está a temporada agora.
+- `helpingSignals`: lista curta do que está ajudando, sempre com dado real.
+- `blockingSignals`: lista curta do que está travando ou precisa de atenção.
+- `nextAction`: ação prática para executar agora, dizendo o que fazer, por que fazer, quando agir e como saber se valeu a pena.
+
+Exemplo de leitura correta:
+
+> Coxinha respondeu melhor no Cardápio perto de 20:00. Deixe esse produto mais visível no Cardápio até sexta-feira e use a promoção leve já validada, porque ela trouxe pedidos sem derrubar a margem calculada. Vai valer a pena se entrarem novos pedidos desse produto pelo Cardápio dentro da janela da jogada.
+
+Exemplo de leitura incorreta:
+
+> Faça uma promoção para vender mais e acompanhe os resultados.
+
+Motivo: não diz qual produto, qual canal, qual promoção, qual dado justifica, nem como o BocaFood vai reconhecer resultado.

@@ -10541,6 +10541,7 @@
       var accountAddressLookupTimer = null;
       var accountAddressLookupSeq = 0;
       var accountAddressSelectedValue = '';
+      var publicStoreResolved = false;
 
       function tenantIdFromUrl() {
         var params = new URLSearchParams(window.location.search);
@@ -10593,6 +10594,20 @@
         if (!requestedStoreSlug) return null;
         if (!db) throw new Error(t('storeNotFound'));
         var snap = await db.collection('public_stores').doc(requestedStoreSlug).get();
+        if (!snap.exists && requestedStoreSlug.indexOf('-') >= 0) {
+          var compactSlug = requestedStoreSlug.replace(/-/g, '');
+          if (compactSlug && compactSlug !== requestedStoreSlug) {
+            var compactSnap = await db.collection('public_stores').doc(compactSlug).get();
+            if (compactSnap.exists) {
+              snap = compactSnap;
+              requestedStoreSlug = compactSlug;
+              if (window.history && window.history.replaceState) {
+                var nextPath = '/' + encodeURIComponent(compactSlug) + window.location.search + window.location.hash;
+                window.history.replaceState(null, '', nextPath);
+              }
+            }
+          }
+        }
         if (!snap.exists) throw new Error(t('storeNotFound'));
         var data = snap.data() || {};
         if (String(data.status || '').toLowerCase() !== 'active') throw new Error(t('storeUnavailable'));
@@ -10602,7 +10617,7 @@
         return data;
       }
 
-      function renderStoreNotFound(message) {
+      function renderStoreNotFound(message, title) {
         var loading = document.getElementById('template-loading');
         document.body.classList.remove('public-loading');
         if (loading) {
@@ -10611,7 +10626,7 @@
         }
         var screen = document.querySelector('.phone-screen');
         if (!screen) return;
-        screen.innerHTML = '<div style="min-height:100%;display:grid;place-items:center;padding:34px;text-align:center;background:#fffaf3;color:#211b18;"><div><div style="width:58px;height:58px;border-radius:18px;background:#f7f1e8;display:inline-grid;place-items:center;margin-bottom:16px;font-size:24px;">!</div><h1 style="font-size:24px;margin:0 0 8px;">' + text(t('storeNotFound')) + '</h1><p style="margin:0;color:#766f68;line-height:1.5;">' + text(message || t('storeUnavailable')) + '</p></div></div>';
+        screen.innerHTML = '<div style="min-height:100%;display:grid;place-items:center;padding:34px;text-align:center;background:#fffaf3;color:#211b18;"><div><div style="width:58px;height:58px;border-radius:18px;background:#f7f1e8;display:inline-grid;place-items:center;margin-bottom:16px;font-size:24px;">!</div><h1 style="font-size:24px;margin:0 0 8px;">' + text(title || t('storeNotFound')) + '</h1><p style="margin:0;color:#766f68;line-height:1.5;">' + text(message || t('storeUnavailable')) + '</p></div></div>';
       }
 
       function finishInitialLoading() {
@@ -10960,18 +10975,22 @@
       }
 
       function productName(product) {
+        product = product || {};
         return firstText(product.name, product.nome, product.title, 'Produto');
       }
 
       function productDesc(product) {
+        product = product || {};
         return firstText(product.shortDesc, product.desc, product.description, product.fullDesc, '');
       }
 
       function productKicker(product) {
+        product = product || {};
         return firstText(product.subtitle, product.tagline, product.highlight, product.callout, product.microcopy, '');
       }
 
       function productPrice(product) {
+        product = product || {};
         return num(product.price || product.preco || product.salePrice || product.valor);
       }
 
@@ -13592,6 +13611,7 @@
             : [];
           if (!group || !rawOptions.length) return null;
           var options = rawOptions.map(function (option) {
+            if (!option || typeof option !== 'object') return null;
             var name = firstText(option.name, option.label, option.title, '');
             if (!name) return null;
             return Object.assign({}, option, { name: name });
@@ -16165,7 +16185,7 @@
       function normalizeDeliveryZones() {
         var src = cfg.deliveryZones || cfg.zones || cfg.list || [];
         if (!Array.isArray(src)) src = Object.keys(src || {}).map(function (key) { return Object.assign({ id: key }, src[key]); });
-        deliveryZones = src.filter(Boolean).map(function (zone, idx) {
+        deliveryZones = src.filter(function (zone) { return zone && typeof zone === 'object'; }).map(function (zone, idx) {
           var postal = zone.postalCodes || zone.ceps || zone.codes || zone.zipCodes || zone.postcodes || zone.postalCode || zone.cep || '';
           if (!Array.isArray(postal)) postal = String(postal || '').split(/[,;\s]+/).filter(Boolean);
           postal = postal.concat(buildPostalRanges(zone));
@@ -16254,10 +16274,12 @@
         var hasConfiguredSource = Array.isArray(src) && src.length;
         if (!hasConfiguredSource) src = ['Dinheiro', 'Cartão', 'MB Way', 'Bizum'];
         return src.map(function (item) {
+          if (!item) return null;
           if (typeof item === 'string') return { name: item, instructions: '' };
+          if (typeof item !== 'object') return { name: firstText(String(item), ''), instructions: '' };
           if (item && (item.active === false || item.enabled === false)) return null;
           return { name: firstText(item.name, item.label, item.title, item.id), instructions: firstText(item.instructions, item.note, item.description) };
-        }).filter(function (item) { return item.name; });
+        }).filter(function (item) { return item && item.name; });
       }
 
       function renderPaymentMethods() {
@@ -17508,13 +17530,20 @@
       async function loadConnectedData() {
         bindStaticEvents();
         setInitialLoadingState('start');
+        var loadStep = 'inicio';
         try {
+          publicStoreResolved = false;
           setInitialLoadingState('data');
-          if (requestedStoreSlug) await resolvePublicStore();
+          if (requestedStoreSlug) {
+            loadStep = 'resolver slug publico';
+            await resolvePublicStore();
+            publicStoreResolved = true;
+          }
           if (db && tenantId) {
             var candidates = tenantCandidates(tenantId);
             for (var i = 0; i < candidates.length; i++) {
               activeTenantId = candidates[i];
+              loadStep = 'carregar dados do tenant';
               var docs = await Promise.all([
                 safeConfig('geral'), safeConfig('aparencia'), safeConfig('template'), safeConfig('operacao'), safeConfig('horarios'), safeConfig('zonas'), safeConfig('pontos_program'), safeConfig('integracoes'), safeConfig('seo'), safeDocs('categories'), safeDocs('products'), safeDocs('variantGroups'), safeDocs('tags'), safeDocs('reviews'), safeDocs('promotions'), safeDocs('promocoes'), safeDocs('coupons'), safeDocs('upsellRules'), safeDocs('orderSlots'), safeDocs('store_customers'), safeDocs('points_movements')
               ]);
@@ -17528,7 +17557,7 @@
               promotions = mergePublicPromotions([docs[14] || [], docs[15] || []]);
               coupons = docs[16] || [];
               upsellRules = docs[17] || [];
-              slotCounts = (docs[18] || []).reduce(function (acc, item) { acc[item.id] = num(item.count); return acc; }, {});
+              slotCounts = (docs[18] || []).reduce(function (acc, item) { if (item && item.id) acc[item.id] = num(item.count); return acc; }, {});
               storeCustomers = docs[19] || [];
               pointsMovements = docs[20] || [];
               window.__templateTenantDebug = { requestedTenantId: tenantId, activeTenantId: activeTenantId, configLoaded: Object.keys(cfg).length, categoriesLoaded: categories.length, productsLoaded: products.length, variantGroupsLoaded: variantGroups.length, tagsLoaded: productTags.length, reviewsLoaded: reviews.length, promotionsLoaded: promotions.length, couponsLoaded: coupons.length, upsellRulesLoaded: upsellRules.length, customersLoaded: storeCustomers.length, pointsMovementsLoaded: pointsMovements.length };
@@ -17537,27 +17566,48 @@
           }
           if (!products.length) fallbackProducts();
           setInitialLoadingState('visual');
+          loadStep = 'normalizar zonas de entrega';
           normalizeDeliveryZones();
+          loadStep = 'renderizar pagamentos';
           renderPaymentMethods();
+          loadStep = 'renderizar horarios';
           renderSlots();
+          loadStep = 'aplicar marca';
           applyBrand();
+          loadStep = 'aplicar identidade';
           applyIdentityMeta();
+          loadStep = 'renderizar topo da loja';
           renderStoreInfo();
+          loadStep = 'aplicar seo';
           applySeoMeta();
+          loadStep = 'aplicar rastreamento';
           applyMarketingTracking();
+          loadStep = 'renderizar fidelidade';
           renderLoyalty();
+          loadStep = 'renderizar destaque';
           renderFeatured();
+          loadStep = 'renderizar produtos';
           renderCategoriesAndProducts();
+          loadStep = 'renderizar avaliacoes';
           renderReviews();
+          loadStep = 'renderizar rodape';
           renderFooter();
+          loadStep = 'renderizar carrinho';
           renderCart();
+          loadStep = 'aplicar cupom';
           applyCouponFromUrl();
+          loadStep = 'aplicar textos';
           applyStaticCopy();
+          loadStep = 'iniciar autenticacao publica';
           initPublicAuth();
         } catch (err) {
-          console.warn('Falha ao conectar template fiel:', err);
+          console.warn('Falha ao conectar template fiel:', { step: loadStep, requestedStoreSlug: requestedStoreSlug, publicStoreResolved: publicStoreResolved, error: err });
           if (requestedStoreSlug) {
-            renderStoreNotFound(err && err.message ? err.message : t('storeUnavailable'));
+            if (publicStoreResolved) {
+              renderStoreNotFound('Actualiza la página o inténtalo de nuevo en unos minutos.', 'No pudimos preparar la tienda');
+            } else {
+              renderStoreNotFound(t('storeUnavailable'));
+            }
             return;
           }
           fallbackProducts();

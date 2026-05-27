@@ -19,6 +19,8 @@ Modules.Temporadas = (function () {
     businessMaturityError: null,
     businessMaturityEvents: [],
     businessMaturitySnapshots: [],
+    businessHistory: null,
+    businessHistorySnapshots: [],
     pendingStoneCelebration: null,
     actionContext: {
       products: [],
@@ -98,10 +100,18 @@ Modules.Temporadas = (function () {
       '<span>Nova Temporada</span>' +
     '</button>';
     var heroHtml = isMaturityPage ? '' : '<div class="seasons-hero">' +
-      '<div class="seasons-hero-copy">' +
-        '<div class="seasons-kicker">' + _icon('track_changes') + ' Missões Operacionais</div>' +
-        '<h1>Temporadas</h1>' +
-        '<p>Crie missões de 30 ou 90 dias para acompanhar metas reais do negócio.</p>' +
+      '<div class="seasons-hero-main">' +
+        '<div class="seasons-hero-symbol">' + _icon('assistant_direction') + '</div>' +
+        '<div class="seasons-hero-copy">' +
+          '<div class="seasons-kicker">' + _icon('track_changes') + ' Missões Operacionais</div>' +
+          '<h1>Temporadas</h1>' +
+          '<p>Transforme a rota do Plano de Voo em jogadas de curto prazo, com leitura clara do que fazer agora.</p>' +
+          '<div class="seasons-hero-chips">' +
+            '<span>Rota em ação</span>' +
+            '<span>Jogadas práticas</span>' +
+            '<span>Leitura por pedidos reais</span>' +
+          '</div>' +
+        '</div>' +
       '</div>' +
       heroAction +
     '</div>';
@@ -138,6 +148,7 @@ Modules.Temporadas = (function () {
       _state.businessMaturityError = null;
       _state.businessMaturityEvents = [];
       _state.businessMaturitySnapshots = [];
+      _state.businessHistory = null;
       _state.actionContext = { products: [], promotions: [], coupons: [], upsells: [], salesChannels: [] };
       _state.pendingStoneCelebration = null;
       _state.snapshots = { daily: null, weekly: null };
@@ -185,6 +196,7 @@ Modules.Temporadas = (function () {
       _state.businessMaturityError = err;
       _state.businessMaturityEvents = [];
       _state.businessMaturitySnapshots = [];
+      _state.businessHistory = null;
       _state.actionContext = { products: [], promotions: [], coupons: [], upsells: [], salesChannels: [] };
       _state.pendingStoneCelebration = null;
       _state.snapshots = { daily: null, weekly: null };
@@ -354,6 +366,8 @@ Modules.Temporadas = (function () {
 
     if (!_tenantId || !window.DB || typeof DB.getAll !== 'function') {
       _state.businessMaturity = _initialMaturity();
+      _state.businessHistory = _emptyBusinessHistory();
+      _state.businessHistorySnapshots = [];
       _state.businessMaturityLoading = false;
       return Promise.resolve(_state.businessMaturity);
     }
@@ -366,21 +380,52 @@ Modules.Temporadas = (function () {
       (DB.getDoc ? DB.getDoc('flight_plan_month_scenarios', monthKey).catch(function () { return null; }) : Promise.resolve(null)),
       (DB.getDoc ? DB.getDoc('business_maturity', 'current').catch(function () { return null; }) : Promise.resolve(null)),
       DB.getAll('stone_upgrade_events').catch(function () { return []; }),
-      DB.getAll('business_maturity_snapshots').catch(function () { return []; })
+      DB.getAll('business_maturity_snapshots').catch(function () { return []; }),
+      DB.getAll('reviews').catch(function () { return []; }),
+      DB.getAll('points_movements').catch(function () { return []; }),
+      DB.getAll('promotions').catch(function () { return []; }),
+      DB.getAll('promocoes').catch(function () { return []; }),
+      DB.getAll('coupons').catch(function () { return []; }),
+      DB.getAll('upsellRules').catch(function () { return []; }),
+      DB.getAll('stock_movements').catch(function () { return []; }),
+      DB.getAll('production_orders').catch(function () { return []; }),
+      DB.getAll('compras').catch(function () { return []; }),
+      DB.getAll('movimentacoes').catch(function () { return []; }),
+      DB.getAll('financeiro_entradas').catch(function () { return []; }),
+      DB.getAll('financeiro_saidas').catch(function () { return []; }),
+      DB.getAll('financeiro_apagar').catch(function () { return []; }),
+      DB.getAll('contas_pagar').catch(function () { return []; }),
+      DB.getAll('business_history_snapshots').catch(function () { return []; })
     ]).then(function (r) {
       var events = _normalizeStoneUpgradeEvents(r[5] || []);
       var snapshots = _normalizeMaturitySnapshots(r[6] || []);
+      var historySnapshots = _normalizeBusinessHistorySnapshots(r[21] || []);
       var maturity = _calculateBusinessMaturity({
         seasons: _state.seasons || [],
         orders: r[0] || [],
         customers: r[1] || [],
         flightPlans: r[2] || [],
         monthScenario: r[3] || null,
-        existing: r[4] || null
+        existing: r[4] || null,
+        reviews: r[7] || [],
+        pointsMovements: r[8] || [],
+        promotions: (r[9] || []).concat(r[10] || []),
+        coupons: r[11] || [],
+        upsellRules: r[12] || [],
+        stockMovements: r[13] || [],
+        productionOrders: r[14] || [],
+        purchases: r[15] || [],
+        cashMovements: r[16] || [],
+        financeEntries: r[17] || [],
+        financeExits: r[18] || [],
+        financePayablesLegacy: r[19] || [],
+        payables: r[20] || []
       });
       _state.businessMaturity = maturity;
+      _state.businessHistory = maturity.businessHistory || _emptyBusinessHistory();
       _state.businessMaturityEvents = events;
       _state.businessMaturitySnapshots = snapshots;
+      _state.businessHistorySnapshots = historySnapshots;
       _state.businessMaturityLoading = false;
       if (opts.persist === false) {
         _paint();
@@ -397,17 +442,22 @@ Modules.Temporadas = (function () {
         _state.businessMaturity = savedMaturity || maturity;
         return _ensureBusinessMaturitySnapshots(_state.businessMaturity, _state.businessMaturitySnapshots, opts).then(function (updatedSnapshots) {
           _state.businessMaturitySnapshots = updatedSnapshots;
-          _paint();
-          _triggerStoneUpgradeCelebration(_state.pendingStoneCelebration);
-          return _state.businessMaturity;
+          return _ensureBusinessHistorySnapshots(_state.businessMaturity.businessHistory, _state.businessHistorySnapshots, opts).then(function (updatedHistorySnapshots) {
+            _state.businessHistorySnapshots = updatedHistorySnapshots;
+            _paint();
+            _triggerStoneUpgradeCelebration(_state.pendingStoneCelebration);
+            return _state.businessMaturity;
+          });
         });
       });
     }).catch(function (err) {
       console.warn('Business maturity calculation skipped', err);
       _state.businessMaturity = _initialMaturity();
+      _state.businessHistory = _emptyBusinessHistory();
       _state.businessMaturityLoading = false;
       _state.businessMaturityError = err;
       _state.businessMaturitySnapshots = [];
+      _state.businessHistorySnapshots = [];
       return _state.businessMaturity;
     });
   }
@@ -491,13 +541,15 @@ Modules.Temporadas = (function () {
     var orderStats = _maturityOrderStats(orders);
     var loyaltyStats = _maturityLoyaltyStats(orders, customers);
     var scenario = _maturityScenario(monthScenario, flightPlans);
-    var indexes = _maturityIndexes(seasonStats, orderStats, loyaltyStats, scenario);
+    var dataSignals = _maturityDataSignals(input, orders);
+    var businessHistory = _businessHistoryContext(input, orders);
+    var indexes = _maturityIndexes(seasonStats, orderStats, loyaltyStats, scenario, dataSignals, businessHistory);
     var maturityScore = _maturityScore(indexes);
     var hasEnoughData = seasonStats.total > 0 || orderStats.totalOrders >= 3;
     var previousProgress = _clamp(_number(existing.stoneProgressPercent, 0), 0, 100);
     var progress = hasEnoughData ? _clamp(Math.round((maturityScore * 0.68) + seasonStats.totalImpact), 0, 100) : 0;
-    var strengths = _maturityStrengths(seasonStats, orderStats, loyaltyStats, indexes, scenario);
-    var weaknesses = _maturityWeaknesses(seasonStats, orderStats, loyaltyStats, indexes, scenario);
+    var strengths = _maturityStrengths(seasonStats, orderStats, loyaltyStats, indexes, scenario, dataSignals);
+    var weaknesses = _maturityWeaknesses(seasonStats, orderStats, loyaltyStats, indexes, scenario, dataSignals);
     var lastImpact = seasonStats.lastImpact || _emptySeasonImpact();
     var checklist = _maturityChecklist(currentStone, nextStone, seasonStats, orderStats, loyaltyStats, indexes, scenario);
     var blockers = _stoneUpgradeBlockers(seasonStats, orderStats, indexes, checklist, hasEnoughData);
@@ -522,8 +574,8 @@ Modules.Temporadas = (function () {
       nextStone = upgrade.nextStone;
       progress = upgrade.progress;
       checklist = _maturityChecklist(currentStone, nextStone, seasonStats, orderStats, loyaltyStats, indexes, scenario);
-      strengths = _maturityStrengths(seasonStats, orderStats, loyaltyStats, indexes, scenario);
-      weaknesses = _maturityWeaknesses(seasonStats, orderStats, loyaltyStats, indexes, scenario);
+      strengths = _maturityStrengths(seasonStats, orderStats, loyaltyStats, indexes, scenario, dataSignals);
+      weaknesses = _maturityWeaknesses(seasonStats, orderStats, loyaltyStats, indexes, scenario, dataSignals);
     } else if (upgrade.progress !== undefined) {
       progress = upgrade.progress;
     }
@@ -536,6 +588,8 @@ Modules.Temporadas = (function () {
       previousStoneProgressPercent: previousProgress,
       maturityScore: hasEnoughData ? Math.round(maturityScore) : 0,
       indexes: indexes,
+      dataSignals: dataSignals,
+      businessHistory: businessHistory,
       strengths: strengths,
       weaknesses: weaknesses,
       checklist: checklist,
@@ -571,6 +625,8 @@ Modules.Temporadas = (function () {
       stoneProgressPercent: 0,
       maturityScore: 0,
       indexes: _emptyMaturityIndexes(),
+      dataSignals: _emptyMaturityDataSignals(),
+      businessHistory: _emptyBusinessHistory(),
       strengths: ['Comeco da organizacao do negocio.'],
       weaknesses: ['Ainda faltam dados suficientes para medir evolucao.'],
       lastCalculatedAt: null,
@@ -604,47 +660,733 @@ Modules.Temporadas = (function () {
     };
   }
 
-  function _maturityIndexes(seasonStats, orderStats, loyaltyStats, scenario) {
-    var healthyGrowth = 0;
-    if (orderStats.totalOrders > 0) healthyGrowth += Math.min(34, orderStats.totalOrders * 3);
-    if (orderStats.revenue > 0) healthyGrowth += Math.min(18, orderStats.revenue / 120);
-    if (orderStats.growthPct > 0) healthyGrowth += Math.min(18, orderStats.growthPct * 0.35);
-    if (orderStats.averageTicket > 0) healthyGrowth += Math.min(14, orderStats.averageTicket / 4);
-    if (scenario === 'growth' || scenario === 'expansion') healthyGrowth += Math.min(6, seasonStats.avgRiskScore <= 55 ? 6 : 2);
+  function _emptyMaturityDataSignals() {
+    return {
+      finance: { hasData: false, entries: 0, exits: 0, net: 0, marginPct: 0, pendingPayables: 0, overduePayables: 0, confidence: 'low' },
+      marketing: { hasData: false, activePromotions: 0, activeCoupons: 0, activeUpsells: 0, configuredActions: 0, actionOrders: 0, couponOrders: 0, promotionOrders: 0, upsellOrders: 0, grossRevenue: 0, netRevenue: 0, discountTotal: 0, discountRate: 0, upsellRevenue: 0, impactStatus: 'empty', confidence: 'low' },
+      loyaltyProgram: { hasData: false, movements: 0, generated: 0, redeemed: 0, customers: 0, redemptionOrders: 0, redemptionValue: 0, repeatCustomersWithPoints: 0, impactStatus: 'empty', confidence: 'low' },
+      reviews: { hasData: false, total: 0, approved: 0, averageRating: 0, productMentions: 0, lowRatings: 0, trustStatus: 'empty', confidence: 'low' },
+      operations: { hasData: false, stockMovements: 0, stockEntries: 0, stockExits: 0, productionOrders: 0, plannedProductions: 0, completedProductions: 0, purchases: 0, completedPurchases: 0, operationStatus: 'empty', limiterScore: 0, confidence: 'low' }
+    };
+  }
 
-    var consistency = Math.min(42, orderStats.activeDays * 5) + Math.min(18, orderStats.activeWeeks * 6);
-    if (seasonStats.finished > 0) consistency += Math.min(22, seasonStats.finished * 9);
+  function _maturityDataSignals(input, validOrders) {
+    input = input || {};
+    return {
+      finance: _maturityFinanceStats(input),
+      marketing: _maturityMarketingStats(validOrders || [], input),
+      loyaltyProgram: _maturityPointsStats(validOrders || [], input.pointsMovements || []),
+      reviews: _maturityReviewStats(input.reviews || []),
+      operations: _maturityOperationsStats(input)
+    };
+  }
+
+  function _maturityFinanceStats(input) {
+    input = input || {};
+    var movements = (input.cashMovements || []).map(function (item) { return _maturityFinanceRow(item, 'movimentacoes'); });
+    var entries = movements.filter(function (row) { return row.kind === 'entrada'; })
+      .concat((input.financeEntries || []).map(function (item) { return _maturityFinanceRow(item, 'financeiro_entradas', 'entrada'); }));
+    var exits = movements.filter(function (row) { return row.kind === 'saida'; })
+      .concat((input.financeExits || []).map(function (item) { return _maturityFinanceRow(item, 'financeiro_saidas', 'saida'); }));
+    var payables = (input.payables || []).concat(input.financePayablesLegacy || []);
+    var received = _sumRecentFinance(entries, true);
+    var paid = _sumRecentFinance(exits, true);
+    var pending = 0;
+    var overdue = 0;
+    var pendingCount = 0;
+    var overdueCount = 0;
+    var today = _dayStart(new Date());
+
+    payables.forEach(function (item) {
+      item = item || {};
+      var status = _normalizeText(item.status || item.state || '');
+      if (_maturityFinanceStatusCanceled(status) || _maturityFinanceStatusPaid(status)) return;
+      var total = _money(item.valorParcela != null ? item.valorParcela : item.valor_parcela != null ? item.valor_parcela : item.valorTotalOriginal != null ? item.valorTotalOriginal : item.valor_total_original != null ? item.valor_total_original : item.valor || item.value || 0);
+      var paidValue = _money(item.valorPago != null ? item.valorPago : item.valor_pago_total || 0);
+      var value = _money(item.saldoRestante != null ? item.saldoRestante : item.saldo_restante != null ? item.saldo_restante : item.valorRestante != null ? item.valorRestante : Math.max(0, total - paidValue));
+      if (!value && total && !_maturityFinanceStatusPaid(status)) value = total;
+      pending += value;
+      if (value > 0) pendingCount++;
+      var due = _toDate(item.vencimento || item.dueDate || item.dataVencimento || item.data || item.date);
+      if ((status === 'vencido' || (due && due < today)) && value > 0) {
+        overdue += value;
+        overdueCount++;
+      }
+    });
+
+    var net = received - paid;
+    var marginPct = received > 0 ? (net / received) * 100 : 0;
+    var hasData = entries.length > 0 || exits.length > 0 || payables.length > 0;
+    var rowCount = entries.length + exits.length + payables.length;
+    var cashStatus = !hasData ? 'empty' : (overdue > 0 ? 'critical' : (net < 0 || marginPct < 10 ? 'attention' : 'healthy'));
+    return {
+      hasData: hasData,
+      entries: Math.round(received * 100) / 100,
+      exits: Math.round(paid * 100) / 100,
+      net: Math.round(net * 100) / 100,
+      marginPct: Math.round(marginPct * 10) / 10,
+      pendingPayables: Math.round(pending * 100) / 100,
+      overduePayables: Math.round(overdue * 100) / 100,
+      pendingPayablesCount: pendingCount,
+      overduePayablesCount: overdueCount,
+      cashStatus: cashStatus,
+      confidence: rowCount >= 12 ? 'high' : (rowCount >= 5 ? 'medium' : (hasData ? 'low' : 'low'))
+    };
+  }
+
+  function _maturityFinanceRow(item, source, fallbackKind) {
+    item = item || {};
+    var kind = _normalizeText(item.tipo || item.kind || item.type || fallbackKind || '');
+    if (kind !== 'saida' && kind !== 'entrada') {
+      kind = _money(item.valorPago || item.valor_pago_total || 0) > 0 && source !== 'financeiro_entradas' ? 'saida' : 'entrada';
+    }
+    var status = _normalizeText(item.status || item.state || '');
+    var total = _money(item.valorParcela != null ? item.valorParcela : item.valor_parcela != null ? item.valor_parcela : item.valorTotalOriginal != null ? item.valorTotalOriginal : item.valor_total_original != null ? item.valor_total_original : item.valor != null ? item.valor : item.value);
+    var received = _money(item.valorRecebido != null ? item.valorRecebido : item.valor_recebido_total || 0);
+    var paid = _money(item.valorPago != null ? item.valorPago : item.valor_pago_total || 0);
+    var remaining = _money(item.saldoRestante != null ? item.saldoRestante : item.saldo_restante || 0);
+    var value = kind === 'saida'
+      ? _maturityFinanceEffectiveValue(status, total, paid, remaining, 'saida')
+      : _maturityFinanceEffectiveValue(status, total, received, remaining, 'entrada');
+    return {
+      kind: kind,
+      source: source || '',
+      status: status,
+      value: value,
+      date: _toDate(item.data_recebimento || item.dataPagamento || item.paidAt || item.receivedAt || item.data || item.date || item.createdAt)
+    };
+  }
+
+  function _maturityFinanceEffectiveValue(status, total, paidValue, remaining, kind) {
+    status = _normalizeText(status || '');
+    total = _money(total);
+    paidValue = _money(paidValue);
+    remaining = _money(remaining);
+    if (_maturityFinanceStatusCanceled(status)) return 0;
+    if (status === 'parcial') return paidValue || Math.max(0, total - remaining);
+    if (_maturityFinanceStatusPaid(status)) return paidValue || total;
+    if (status === 'previsto' || status === 'pendente' || status === 'vencido' || status === 'em_aberto' || status === 'a_pagar') return 0;
+    return paidValue || total;
+  }
+
+  function _maturityFinanceStatusPaid(status) {
+    status = _normalizeText(status || '');
+    return ['pago', 'paga', 'efetivado', 'efetivada', 'recebido', 'recebida', 'liquidado', 'liquidada', 'concluido', 'concluida'].indexOf(status) >= 0;
+  }
+
+  function _maturityFinanceStatusCanceled(status) {
+    status = _normalizeText(status || '');
+    return ['cancelado', 'cancelada', 'estornado', 'estornada', 'excluido', 'excluida'].indexOf(status) >= 0;
+  }
+
+  function _sumRecentFinance(rows, onlyEffective) {
+    var start = new Date();
+    start.setDate(start.getDate() - 30);
+    start = _dayStart(start);
+    return (rows || []).reduce(function (sum, row) {
+      if (!row || !row.date || row.date < start) return sum;
+      if (onlyEffective && row.status && ['previsto', 'pendente', 'vencido', 'cancelado'].indexOf(row.status) >= 0) return sum;
+      return sum + _money(row.value);
+    }, 0);
+  }
+
+  function _maturityMarketingStats(validOrders, input) {
+    input = input || {};
+    var promotions = input.promotions || [];
+    var coupons = input.coupons || [];
+    var upsells = input.upsellRules || [];
+    var couponOrders = 0;
+    var promotionOrders = 0;
+    var upsellOrders = 0;
+    var discountTotal = 0;
+    var upsellRevenue = 0;
+    var grossRevenue = 0;
+
+    (validOrders || []).forEach(function (order) {
+      var couponDiscount = _money(order.couponDiscount);
+      var promotionDiscount = _money(order.promotionDiscount);
+      var upsellDiscount = _money(order.upsellDiscount);
+      var addedRevenue = _money(order.upsellAddedRevenue);
+      var hasCoupon = !!order.couponCode || couponDiscount > 0;
+      var hasPromotion = !!order.promotionName || promotionDiscount > 0;
+      var hasUpsell = !!order.upsellAccepted || addedRevenue > 0;
+      if (hasCoupon) couponOrders++;
+      if (hasPromotion) promotionOrders++;
+      if (hasUpsell) upsellOrders++;
+      if (hasCoupon || hasPromotion || hasUpsell) {
+        grossRevenue += _money(order.total || order.revenue || 0);
+      }
+      discountTotal += couponDiscount + promotionDiscount + upsellDiscount;
+      upsellRevenue += addedRevenue;
+    });
+
+    var activePromotions = promotions.filter(_maturityActiveRecord).length;
+    var activeCoupons = coupons.filter(_maturityActiveRecord).length;
+    var activeUpsells = upsells.filter(_maturityActiveRecord).length;
+    var configuredActions = activePromotions + activeCoupons + activeUpsells;
+    var actionOrders = couponOrders + promotionOrders + upsellOrders;
+    var netRevenue = Math.max(0, grossRevenue - discountTotal);
+    var discountRate = grossRevenue > 0 ? (discountTotal / grossRevenue) * 100 : 0;
+    var impactStatus = !actionOrders ? (configuredActions ? 'configured_only' : 'empty') : (discountRate > 30 ? 'heavy_discount' : (netRevenue > 0 ? 'positive' : 'weak'));
+    var hasData = configuredActions + actionOrders > 0;
+    return {
+      hasData: hasData,
+      activePromotions: activePromotions,
+      activeCoupons: activeCoupons,
+      activeUpsells: activeUpsells,
+      configuredActions: configuredActions,
+      actionOrders: actionOrders,
+      couponOrders: couponOrders,
+      promotionOrders: promotionOrders,
+      upsellOrders: upsellOrders,
+      grossRevenue: Math.round(grossRevenue * 100) / 100,
+      netRevenue: Math.round(netRevenue * 100) / 100,
+      discountTotal: Math.round(discountTotal * 100) / 100,
+      discountRate: Math.round(discountRate * 10) / 10,
+      upsellRevenue: Math.round(upsellRevenue * 100) / 100,
+      impactStatus: impactStatus,
+      confidence: actionOrders >= 5 ? 'high' : (actionOrders >= 2 ? 'medium' : (hasData ? 'low' : 'low'))
+    };
+  }
+
+  function _maturityPointsStats(validOrders, movements) {
+    var generated = 0;
+    var redeemed = 0;
+    var customers = {};
+    var redemptionCustomers = {};
+    (movements || []).forEach(function (item) {
+      item = item || {};
+      var points = Math.abs(_number(item.points != null ? item.points : item.amount != null ? item.amount : item.pontos, 0));
+      var type = _normalizeText(item.type || item.tipo || item.kind || '');
+      var key = String(item.customerId || item.clientId || item.userId || item.phone || item.email || '').trim();
+      if (key) customers[key] = true;
+      if (type.indexOf('redeem') >= 0 || type.indexOf('resgat') >= 0 || type.indexOf('uso') >= 0) {
+        redeemed += points;
+        if (key) redemptionCustomers[key] = true;
+      } else {
+        generated += points;
+      }
+    });
+    var redemptionValue = 0;
+    var orderCustomerCounts = {};
+    (validOrders || []).forEach(function (order) {
+      var key = _customerKey(order);
+      if (key) orderCustomerCounts[key] = (orderCustomerCounts[key] || 0) + 1;
+    });
+    var redemptionOrders = (validOrders || []).filter(function (order) {
+      var used = _number(order.pointsRedemption, 0) > 0 || _number(order.pointsDiscount, 0) > 0;
+      if (used) {
+        redemptionValue += _money(order.pointsDiscount);
+        var key = _customerKey(order);
+        if (key) redemptionCustomers[key] = true;
+      }
+      return used;
+    }).length;
+    var repeatCustomersWithPoints = Object.keys(redemptionCustomers).filter(function (key) {
+      return _number(orderCustomerCounts[key], 0) >= 2;
+    }).length;
+    var hasData = movements.length > 0 || redemptionOrders > 0;
+    var impactStatus = !hasData ? 'empty' : (redemptionOrders > 0 ? 'redeemed' : 'generated_only');
+    return {
+      hasData: hasData,
+      movements: movements.length,
+      generated: Math.round(generated),
+      redeemed: Math.round(redeemed),
+      customers: Object.keys(customers).length,
+      redemptionOrders: redemptionOrders,
+      redemptionValue: Math.round(redemptionValue * 100) / 100,
+      repeatCustomersWithPoints: repeatCustomersWithPoints,
+      impactStatus: impactStatus,
+      confidence: redemptionOrders >= 2 || repeatCustomersWithPoints > 0 ? 'medium' : (hasData ? 'low' : 'low')
+    };
+  }
+
+  function _maturityReviewStats(reviews) {
+    var approved = 0;
+    var totalRating = 0;
+    var rated = 0;
+    var productMentions = 0;
+    var lowRatings = 0;
+    (reviews || []).forEach(function (review) {
+      review = review || {};
+      var status = _normalizeText(review.status || '');
+      var isApproved = review.approved === true || status === 'approved' || status === 'aprovado';
+      if (!isApproved) return;
+      approved++;
+      var rating = _number(review.rating != null ? review.rating : review.nota != null ? review.nota : review.stars, 0);
+      if (rating > 0) {
+        totalRating += rating;
+        rated++;
+        if (rating <= 3) lowRatings++;
+      }
+      if (review.productId || review.productName || review.produtoId || review.produtoNome) productMentions++;
+    });
+    var averageRating = rated ? Math.round((totalRating / rated) * 10) / 10 : 0;
+    var trustStatus = !approved ? 'empty' : (averageRating >= 4.5 && approved >= 3 ? 'strong' : (averageRating >= 4 ? 'positive' : 'attention'));
+    return {
+      hasData: approved > 0,
+      total: (reviews || []).length,
+      approved: approved,
+      averageRating: averageRating,
+      productMentions: productMentions,
+      lowRatings: lowRatings,
+      trustStatus: trustStatus,
+      confidence: approved >= 5 ? 'medium' : (approved ? 'low' : 'low')
+    };
+  }
+
+  function _maturityOperationsStats(input) {
+    input = input || {};
+    var productionOrders = input.productionOrders || [];
+    var plannedProductions = productionOrders.filter(function (item) {
+      var status = _normalizeText(item && item.status);
+      return status === 'planejada' || status === 'planned' || status === 'em_producao';
+    }).length;
+    var completedProductions = productionOrders.filter(function (item) {
+      return _normalizeText(item && item.status) === 'concluida' || _normalizeText(item && item.status) === 'completed';
+    }).length;
+    var stockMovements = input.stockMovements || [];
+    var stockEntries = stockMovements.filter(function (item) {
+      var type = _normalizeText(item && (item.type || item.tipo || item.kind || ''));
+      return type.indexOf('entrada') >= 0;
+    }).length;
+    var stockExits = stockMovements.filter(function (item) {
+      var type = _normalizeText(item && (item.type || item.tipo || item.kind || ''));
+      return type.indexOf('saida') >= 0 || type.indexOf('baixa') >= 0;
+    }).length;
+    var purchases = input.purchases || [];
+    var completedPurchases = purchases.filter(function (item) {
+      var status = _normalizeText(item && (item.status || item.state || ''));
+      return status === 'recebida' || status === 'recebido' || status === 'concluida' || status === 'completed' || status === 'paga' || status === 'pago';
+    }).length;
+    var hasData = stockMovements.length > 0 || productionOrders.length > 0 || purchases.length > 0;
+    var confidence = completedProductions >= 2 || stockMovements.length >= 8 || completedPurchases >= 3 ? 'medium' : (hasData ? 'low' : 'low');
+    var limiterScore = 0;
+    if (hasData && confidence === 'low') limiterScore += 8;
+    if (productionOrders.length > 0 && !completedProductions) limiterScore += 6;
+    if (purchases.length > 0 && !completedPurchases) limiterScore += 4;
+    if (stockExits > stockEntries * 2 && stockEntries > 0) limiterScore += 4;
+    var operationStatus = !hasData ? 'empty' : (confidence === 'medium' && completedProductions + completedPurchases > 0 ? 'supporting' : 'needs_history');
+    return {
+      hasData: hasData,
+      stockMovements: stockMovements.length,
+      stockEntries: stockEntries,
+      stockExits: stockExits,
+      productionOrders: productionOrders.length,
+      plannedProductions: plannedProductions,
+      completedProductions: completedProductions,
+      purchases: purchases.length,
+      completedPurchases: completedPurchases,
+      operationStatus: operationStatus,
+      limiterScore: Math.round(_clamp(limiterScore, 0, 20)),
+      confidence: confidence
+    };
+  }
+
+  function _maturityActiveRecord(item) {
+    if (!item || item.active === false || item.ativo === false) return false;
+    var status = _normalizeText(item.status || item.state || '');
+    if (status && ['inactive', 'inativo', 'cancelado', 'expired', 'expirado'].indexOf(status) >= 0) return false;
+    var start = _toDate(item.startDate || item.startsAt || item.from || item.inicio);
+    var end = _toDate(item.endDate || item.endsAt || item.expiry || item.to || item.fim);
+    var now = new Date();
+    if (start && start > now) return false;
+    if (end && end < now) return false;
+    return true;
+  }
+
+  function _emptyBusinessHistory() {
+    return {
+      calculationVersion: 'business_history_v1',
+      generatedAt: null,
+      availableMonths: 0,
+      hasFullYear: false,
+      periods: {},
+      monthly: [],
+      sameMonthLastYear: null,
+      notes: ['Histórico ainda sem base suficiente.']
+    };
+  }
+
+  function _businessHistoryContext(input, validOrders) {
+    input = input || {};
+    var now = new Date();
+    var orders = (validOrders || []).map(_normalizeSeasonOrder).filter(_isValidSeasonOrder);
+    var financeRows = _businessHistoryFinanceRows(input);
+    var periods = _businessHistoryPeriods(now);
+    var result = {
+      calculationVersion: 'business_history_v1',
+      generatedAt: now.toISOString(),
+      availableMonths: 0,
+      hasFullYear: false,
+      periods: {},
+      monthly: [],
+      sameMonthLastYear: null,
+      notes: []
+    };
+
+    Object.keys(periods).forEach(function (key) {
+      var range = periods[key];
+      result.periods[key] = _businessHistoryMetrics(range.start, range.end, orders, financeRows, input);
+    });
+
+    result.monthly = _businessHistoryMonthly(now, orders, financeRows, input);
+    result.availableMonths = result.monthly.filter(function (month) {
+      return _number(month.ordersCount, 0) > 0 || _number(month.revenue, 0) > 0 || _number(month.financialEntries, 0) > 0 || _number(month.financialExits, 0) > 0;
+    }).length;
+    result.hasFullYear = result.availableMonths >= 12;
+    result.sameMonthLastYear = _businessHistorySameMonthLastYear(now, orders, financeRows, input);
+    result.notes = _businessHistoryNotes(result);
+    return result;
+  }
+
+  function _businessHistoryPeriods(now) {
+    var end = _dayEnd(now);
+    var start30 = _addDays(_dayStart(now), -29);
+    var prev30End = _addDays(start30, -1);
+    var prev30Start = _addDays(prev30End, -29);
+    return {
+      rolling_30: { start: start30, end: end },
+      previous_30: { start: prev30Start, end: _dayEnd(prev30End) },
+      rolling_90: { start: _addDays(_dayStart(now), -89), end: end },
+      rolling_180: { start: _addDays(_dayStart(now), -179), end: end },
+      rolling_365: { start: _addDays(_dayStart(now), -364), end: end }
+    };
+  }
+
+  function _businessHistoryMetrics(start, end, orders, financeRows, input) {
+    var periodOrders = (orders || []).filter(function (order) {
+      return order.createdAt && order.createdAt >= start && order.createdAt <= end;
+    });
+    var periodFinance = (financeRows || []).filter(function (row) {
+      return row.date && row.date >= start && row.date <= end;
+    });
+    var orderRevenue = periodOrders.reduce(function (sum, order) { return sum + _money(order.total); }, 0);
+    var activeDays = {};
+    var activeWeeks = {};
+    var customers = {};
+    var productMap = {};
+    var channelMap = {};
+    var discountTotal = 0;
+    var couponOrders = 0;
+    var promotionOrders = 0;
+    var upsellOrders = 0;
+
+    periodOrders.forEach(function (order) {
+      var day = _dateKey(order.createdAt);
+      if (day) activeDays[day] = true;
+      var week = _weekKey(order.createdAt);
+      if (week) activeWeeks[week] = true;
+      var customer = _customerKey(order);
+      if (customer) customers[customer] = (customers[customer] || 0) + 1;
+      var channel = order.channel || 'desconhecido';
+      if (!channelMap[channel]) channelMap[channel] = { key: channel, orders: 0, revenue: 0 };
+      channelMap[channel].orders++;
+      channelMap[channel].revenue += _money(order.total);
+      if (order.couponCode || _money(order.couponDiscount) > 0) couponOrders++;
+      if (order.promotionName || _money(order.promotionDiscount) > 0) promotionOrders++;
+      if (order.upsellAccepted || _money(order.upsellAddedRevenue) > 0) upsellOrders++;
+      discountTotal += _money(order.couponDiscount) + _money(order.promotionDiscount) + _money(order.upsellDiscount);
+      (order.items || []).forEach(function (item) {
+        var id = item.productId || item.id || item.name || item.nome || 'produto';
+        var name = item.name || item.nome || item.productName || 'Produto';
+        var qty = _number(item.quantity != null ? item.quantity : item.qty != null ? item.qty : item.quantidade, 1);
+        var total = _money(item.total != null ? item.total : item.subtotal != null ? item.subtotal : item.price != null ? item.price * qty : 0);
+        if (!productMap[id]) productMap[id] = { id: id, name: name, quantity: 0, revenue: 0 };
+        productMap[id].quantity += qty;
+        productMap[id].revenue += total;
+      });
+    });
+
+    var entries = 0;
+    var exits = 0;
+    periodFinance.forEach(function (row) {
+      if (row.kind === 'entrada') entries += _money(row.value);
+      if (row.kind === 'saida') exits += _money(row.value);
+    });
+    var recurringCustomers = Object.keys(customers).filter(function (key) { return customers[key] >= 2; }).length;
+    var stockMovements = (input.stockMovements || []).filter(function (item) {
+      var d = _toDate(item.movementDate || item.createdAt || item.date || item.data);
+      return d && d >= start && d <= end;
+    }).length;
+    var productionCompleted = (input.productionOrders || []).filter(function (item) {
+      var status = _normalizeText(item && item.status);
+      var d = _toDate(item.completedAt || item.actualDate || item.updatedAt || item.createdAt);
+      return (status === 'concluida' || status === 'completed') && d && d >= start && d <= end;
+    }).length;
+    var reviewsApproved = (input.reviews || []).filter(function (review) {
+      var status = _normalizeText(review && review.status);
+      var d = _toDate(review.createdAt || review.updatedAt || review.date || review.data);
+      var approved = review && (review.approved === true || status === 'approved' || status === 'aprovado');
+      return approved && d && d >= start && d <= end;
+    });
+    var reviewRatingSum = reviewsApproved.reduce(function (sum, review) {
+      return sum + _number(review.rating != null ? review.rating : review.nota != null ? review.nota : review.stars, 0);
+    }, 0);
+
+    return {
+      periodStart: start.toISOString(),
+      periodEnd: end.toISOString(),
+      revenue: Math.round(orderRevenue * 100) / 100,
+      ordersCount: periodOrders.length,
+      averageTicket: periodOrders.length ? Math.round((orderRevenue / periodOrders.length) * 100) / 100 : 0,
+      activeDays: Object.keys(activeDays).length,
+      activeWeeks: Object.keys(activeWeeks).length,
+      recurringCustomers: recurringCustomers,
+      repurchaseRate: Object.keys(customers).length ? Math.round((recurringCustomers / Object.keys(customers).length) * 1000) / 10 : 0,
+      topProducts: _businessHistoryTopList(productMap, 'quantity', 5),
+      topChannels: _businessHistoryTopList(channelMap, 'revenue', 5),
+      discountTotal: Math.round(discountTotal * 100) / 100,
+      couponOrders: couponOrders,
+      promotionOrders: promotionOrders,
+      upsellOrders: upsellOrders,
+      financialEntries: Math.round(entries * 100) / 100,
+      financialExits: Math.round(exits * 100) / 100,
+      financialNet: Math.round((entries - exits) * 100) / 100,
+      financialMarginPct: entries > 0 ? Math.round(((entries - exits) / entries) * 1000) / 10 : 0,
+      reviewsAverage: reviewsApproved.length ? Math.round((reviewRatingSum / reviewsApproved.length) * 10) / 10 : 0,
+      reviewsCount: reviewsApproved.length,
+      productionCompleted: productionCompleted,
+      stockMovements: stockMovements
+    };
+  }
+
+  function _businessHistoryFinanceRows(input) {
+    input = input || {};
+    var movements = (input.cashMovements || []).map(function (item) { return _maturityFinanceRow(item, 'movimentacoes'); });
+    return movements
+      .concat((input.financeEntries || []).map(function (item) { return _maturityFinanceRow(item, 'financeiro_entradas', 'entrada'); }))
+      .concat((input.financeExits || []).map(function (item) { return _maturityFinanceRow(item, 'financeiro_saidas', 'saida'); }));
+  }
+
+  function _businessHistoryMonthly(now, orders, financeRows, input) {
+    var months = [];
+    var cursor = new Date(now.getFullYear(), now.getMonth(), 1);
+    for (var i = 0; i < 12; i++) {
+      var start = new Date(cursor.getFullYear(), cursor.getMonth() - i, 1);
+      var end = _dayEnd(new Date(start.getFullYear(), start.getMonth() + 1, 0));
+      var metrics = _businessHistoryMetrics(start, end, orders, financeRows, input);
+      metrics.monthKey = start.toISOString().slice(0, 7);
+      months.push(metrics);
+    }
+    return months.reverse();
+  }
+
+  function _businessHistorySameMonthLastYear(now, orders, financeRows, input) {
+    var start = new Date(now.getFullYear() - 1, now.getMonth(), 1);
+    var end = _dayEnd(new Date(start.getFullYear(), start.getMonth() + 1, 0));
+    var metrics = _businessHistoryMetrics(start, end, orders, financeRows, input);
+    metrics.monthKey = start.toISOString().slice(0, 7);
+    return metrics.ordersCount || metrics.revenue || metrics.financialEntries || metrics.financialExits ? metrics : null;
+  }
+
+  function _businessHistoryTopList(map, sortKey, limit) {
+    return Object.keys(map || {}).map(function (key) {
+      var item = map[key] || {};
+      return Object.assign({}, item, {
+        revenue: Math.round(_money(item.revenue) * 100) / 100,
+        quantity: Math.round(_number(item.quantity, _number(item.orders, 0)) * 100) / 100
+      });
+    }).sort(function (a, b) {
+      return _number(b[sortKey], 0) - _number(a[sortKey], 0);
+    }).slice(0, limit || 5);
+  }
+
+  function _businessHistoryNotes(history) {
+    history = history || {};
+    var notes = [];
+    if (history.hasFullYear) notes.push('Já existe base de 12 meses para comparação anual.');
+    else notes.push('Histórico anual ainda em formação.');
+    if (history.sameMonthLastYear) notes.push('Existe comparação com o mesmo mês do ano anterior.');
+    var rolling90 = history.periods && history.periods.rolling_90 || {};
+    if (_number(rolling90.ordersCount, 0) > 0) notes.push('Últimos 90 dias já podem apoiar leitura de tendência.');
+    return notes;
+  }
+
+  function _maturityIndexes(seasonStats, orderStats, loyaltyStats, scenario, dataSignals, businessHistory) {
+    dataSignals = dataSignals || _emptyMaturityDataSignals();
+    var financeSignal = dataSignals.finance || {};
+    var marketingSignal = dataSignals.marketing || {};
+    var pointsSignal = dataSignals.loyaltyProgram || {};
+    var reviewsSignal = dataSignals.reviews || {};
+    var operationsSignal = dataSignals.operations || {};
+    var historyContext = _maturityHistoricalIndexContext(businessHistory);
+    var rolling30 = historyContext.rolling30;
+    var previous30 = historyContext.previous30;
+    var rolling90 = historyContext.rolling90;
+    var currentSeasonMonth = historyContext.projectedCurrentMonth;
+    var sameMonthLastYear = historyContext.sameMonthLastYear;
+    var healthyGrowth = historyContext.hasSeasonality
+      ? 38 + _historyComparisonScore(currentSeasonMonth.revenue, sameMonthLastYear.revenue, 24, 18) + _historyComparisonScore(currentSeasonMonth.ordersCount, sameMonthLastYear.ordersCount, 16, 12) + _historyComparisonScore(currentSeasonMonth.averageTicket, sameMonthLastYear.averageTicket, 10, 8)
+      : historyContext.hasRecentComparison
+      ? 34 + _historyComparisonScore(rolling30.revenue, previous30.revenue, 24, 18) + _historyComparisonScore(rolling30.ordersCount, previous30.ordersCount, 16, 12) + _historyComparisonScore(rolling30.averageTicket, previous30.averageTicket, 10, 8)
+      : 0;
+    if (!historyContext.hasRecentComparison && !historyContext.hasSeasonality) {
+      if (orderStats.totalOrders > 0) healthyGrowth += Math.min(34, orderStats.totalOrders * 3);
+      if (orderStats.revenue > 0) healthyGrowth += Math.min(18, orderStats.revenue / 120);
+      if (orderStats.growthPct > 0) healthyGrowth += Math.min(18, orderStats.growthPct * 0.35);
+      if (orderStats.averageTicket > 0) healthyGrowth += Math.min(14, orderStats.averageTicket / 4);
+    }
+    if (scenario === 'growth' || scenario === 'expansion') healthyGrowth += Math.min(6, seasonStats.avgRiskScore <= 55 ? 6 : 2);
+    if (marketingSignal.actionOrders > 0 && marketingSignal.netRevenue > 0) healthyGrowth += Math.min(8, marketingSignal.actionOrders * 1.4);
+    if (marketingSignal.upsellOrders > 0) healthyGrowth += Math.min(5, marketingSignal.upsellOrders * 1.2);
+    if (marketingSignal.impactStatus === 'configured_only') healthyGrowth += 0;
+    if (marketingSignal.impactStatus === 'heavy_discount' || (marketingSignal.discountTotal > orderStats.revenue * .25 && orderStats.revenue > 0)) healthyGrowth -= 6;
+
+    var consistency = historyContext.hasSeasonality
+      ? 30 + _historyComparisonScore(currentSeasonMonth.activeDays, sameMonthLastYear.activeDays, 18, 14) + _historyComparisonScore(currentSeasonMonth.activeWeeks, sameMonthLastYear.activeWeeks, 10, 8) + Math.min(18, _number(rolling90.activeWeeks, 0) * 3)
+      : historyContext.hasTrend
+      ? 28 + Math.min(24, _number(rolling90.activeDays, 0) * 1.5) + Math.min(16, _number(rolling90.activeWeeks, 0) * 3) + _historyComparisonScore(rolling30.activeDays, previous30.activeDays, 14, 12)
+      : Math.min(42, orderStats.activeDays * 5) + Math.min(18, orderStats.activeWeeks * 6);
+    if (historyContext.hasFullYear) consistency += 6;
+    else if (historyContext.availableMonths >= 3) consistency += 3;
+    if (seasonStats.finishedWithResult > 0) consistency += Math.min(22, seasonStats.finishedWithResult * 9);
     if (seasonStats.avgScore > 0) consistency += Math.min(18, seasonStats.avgScore * 0.22);
     consistency += Math.min(10, seasonStats.totalImpact * 0.25);
     consistency -= seasonStats.abandoned * 10;
 
-    var financialHealth = orderStats.totalOrders > 0 ? 42 : 0;
-    if (orderStats.averageTicket > 0) financialHealth += Math.min(18, orderStats.averageTicket / 3);
-    if (scenario === 'survival') financialHealth += 8;
-    if (scenario === 'equilibrium') financialHealth += 10;
+    var historicalFinance = historyContext.hasTrend && (_number(rolling90.financialEntries, 0) > 0 || _number(rolling90.financialExits, 0) > 0);
+    var seasonalFinance = historyContext.hasSeasonality && (_number(sameMonthLastYear.financialEntries, 0) > 0 || _number(sameMonthLastYear.financialExits, 0) > 0);
+    var financialHealth = seasonalFinance
+      ? 44 + _historyComparisonScore(currentSeasonMonth.financialNet, sameMonthLastYear.financialNet, 16, 18) + _historyComparisonScore(currentSeasonMonth.financialEntries, sameMonthLastYear.financialEntries, 10, 8) + _clamp(_number(currentSeasonMonth.financialMarginPct, 0), -60, 60) * .22
+      : historicalFinance
+      ? 44 + _clamp(_number(rolling90.financialMarginPct, 0), -60, 60) * .34 + _historyComparisonScore(rolling30.financialNet, previous30.financialNet, 12, 16)
+      : financeSignal.hasData
+      ? 46 + (financeSignal.net >= 0 ? 12 : -12) + _clamp(financeSignal.marginPct, -60, 60) * .32
+      : (orderStats.totalOrders > 0 ? 42 : 0);
+    if (financeSignal.hasData && financeSignal.entries > 0 && financeSignal.exits <= financeSignal.entries) financialHealth += 6;
+    if (financeSignal.hasData && financeSignal.entries <= 0 && financeSignal.exits > 0) financialHealth -= 8;
+    if (!financeSignal.hasData && orderStats.averageTicket > 0) financialHealth += Math.min(18, orderStats.averageTicket / 3);
+    if (financeSignal.pendingPayables > 0) financialHealth -= Math.min(12, financeSignal.pendingPayables / 90);
+    if (financeSignal.overduePayables > 0) financialHealth -= Math.min(20, financeSignal.overduePayables / 55);
+    if (scenario === 'survival') financialHealth += 6;
+    if (scenario === 'equilibrium') financialHealth += 8;
     if ((scenario === 'growth' || scenario === 'expansion') && seasonStats.avgRiskScore > 70) financialHealth -= 12;
 
     var controlledRisk = seasonStats.total ? Math.max(0, 100 - seasonStats.avgRiskScore) : (orderStats.totalOrders >= 3 ? 45 : 0);
-    controlledRisk += Math.min(14, seasonStats.finished * 5);
+    controlledRisk += Math.min(14, seasonStats.finishedWithResult * 5);
     controlledRisk -= seasonStats.abandoned * 16;
+    if (operationsSignal.operationStatus === 'supporting') controlledRisk += 4;
+    if (operationsSignal.limiterScore > 0) controlledRisk -= Math.min(14, operationsSignal.limiterScore);
 
-    var loyalty = loyaltyStats.uniqueCustomers ? Math.min(70, loyaltyStats.recurringRate * 100) : 0;
-    loyalty += Math.min(20, loyaltyStats.recurringCustomers * 6);
-    if (customers.length >= 5) loyalty += 8;
+    var historicalLoyalty = historyContext.hasTrend && (_number(rolling90.recurringCustomers, 0) > 0 || _number(rolling90.repurchaseRate, 0) > 0);
+    var seasonalLoyalty = historyContext.hasSeasonality && (_number(sameMonthLastYear.recurringCustomers, 0) > 0 || _number(sameMonthLastYear.repurchaseRate, 0) > 0);
+    var loyalty = seasonalLoyalty
+      ? Math.min(54, _number(currentSeasonMonth.repurchaseRate, 0) * .65) + Math.min(18, _number(currentSeasonMonth.recurringCustomers, 0) * 5) + _historyComparisonScore(currentSeasonMonth.recurringCustomers, sameMonthLastYear.recurringCustomers, 12, 7)
+      : historicalLoyalty
+      ? Math.min(58, _number(rolling90.repurchaseRate, 0) * .72) + Math.min(20, _number(rolling90.recurringCustomers, 0) * 5) + _historyComparisonScore(rolling30.recurringCustomers, previous30.recurringCustomers, 10, 6)
+      : (loyaltyStats.uniqueCustomers ? Math.min(70, loyaltyStats.recurringRate * 100) : 0);
+    if (!historicalLoyalty && !seasonalLoyalty) loyalty += Math.min(20, loyaltyStats.recurringCustomers * 6);
+    if (loyaltyStats.uniqueCustomers >= 5 || _number(rolling90.recurringCustomers, 0) >= 3) loyalty += 8;
+    if (pointsSignal.redemptionOrders > 0) loyalty += Math.min(10, pointsSignal.redemptionOrders * 2.5);
+    if (pointsSignal.repeatCustomersWithPoints > 0) loyalty += Math.min(8, pointsSignal.repeatCustomersWithPoints * 4);
+    if (pointsSignal.hasData && !pointsSignal.redemptionOrders) loyalty += 0;
+    if (reviewsSignal.averageRating >= 4 && reviewsSignal.approved >= 2) loyalty += Math.min(8, reviewsSignal.approved * 1.5);
+    if (reviewsSignal.productMentions > 0) loyalty += Math.min(4, reviewsSignal.productMentions);
+    if (reviewsSignal.lowRatings > 0) loyalty -= Math.min(8, reviewsSignal.lowRatings * 2);
 
-    var execution = seasonStats.finished * 18 + seasonStats.totalVictories * 15 + seasonStats.partialVictories * 9;
+    var execution = seasonStats.finishedWithResult * 16 + seasonStats.totalVictories * 15 + seasonStats.partialVictories * 9;
     if (seasonStats.avgScore > 0) execution += Math.min(25, seasonStats.avgScore * 0.28);
     execution += Math.min(24, seasonStats.totalImpact * 0.45);
+    if (operationsSignal.completedProductions > 0 || operationsSignal.completedPurchases > 0) execution += Math.min(6, operationsSignal.completedProductions + operationsSignal.completedPurchases);
+    if (operationsSignal.operationStatus === 'needs_history') execution -= 4;
     execution -= seasonStats.abandoned * 18;
 
     return {
-      healthyGrowth: _maturityIndex(healthyGrowth, orderStats.totalOrders >= 6 ? 'medium' : 'low', _growthNotes(orderStats, scenario)),
-      consistency: _maturityIndex(consistency, orderStats.totalOrders >= 6 || seasonStats.total >= 2 ? 'medium' : 'low', _consistencyNotes(seasonStats, orderStats)),
-      financialHealth: _maturityIndex(financialHealth, orderStats.totalOrders ? 'low' : 'low', ['Esta fase usa pedidos e Plano de Voo como sinal leve; margem complexa fica fora.']),
-      controlledRisk: _maturityIndex(controlledRisk, seasonStats.total ? 'medium' : 'low', _riskNotes(seasonStats)),
-      loyalty: _maturityIndex(loyalty, loyaltyStats.uniqueCustomers >= 5 ? 'medium' : 'low', _loyaltyNotes(loyaltyStats)),
-      execution: _maturityIndex(execution, seasonStats.total ? 'high' : 'low', _executionNotes(seasonStats))
+      healthyGrowth: _maturityIndex(healthyGrowth, historyContext.hasSeasonality ? 'high' : (historyContext.hasRecentComparison ? 'medium' : (orderStats.totalOrders >= 6 ? 'medium' : 'low')), _growthNotes(orderStats, scenario, historyContext)),
+      consistency: _maturityIndex(consistency, historyContext.hasSeasonality ? 'high' : (historyContext.hasTrend || orderStats.totalOrders >= 6 || seasonStats.total >= 2 ? 'medium' : 'low'), _consistencyNotes(seasonStats, orderStats, historyContext)),
+      financialHealth: _maturityIndex(financialHealth, seasonalFinance ? 'high' : (historicalFinance || financeSignal.hasData ? 'medium' : (orderStats.totalOrders ? 'low' : 'low')), _financialNotes(orderStats, financeSignal, historyContext)),
+      controlledRisk: _maturityIndex(controlledRisk, seasonStats.total ? 'medium' : 'low', _riskNotes(seasonStats, operationsSignal)),
+      loyalty: _maturityIndex(loyalty, seasonalLoyalty ? 'high' : (historicalLoyalty || loyaltyStats.uniqueCustomers >= 5 || pointsSignal.hasData || reviewsSignal.hasData ? 'medium' : 'low'), _loyaltyNotes(loyaltyStats, pointsSignal, reviewsSignal, historyContext)),
+      execution: _maturityIndex(execution, seasonStats.total ? 'high' : 'low', _executionNotes(seasonStats, operationsSignal))
     };
+  }
+
+  function _maturityHistoricalIndexContext(history) {
+    history = history || _emptyBusinessHistory();
+    var periods = history.periods || {};
+    var rolling30 = periods.rolling_30 || {};
+    var previous30 = periods.previous_30 || {};
+    var rolling90 = periods.rolling_90 || {};
+    var currentMonth = _businessHistoryCurrentMonth(history);
+    var sameMonthLastYear = history.sameMonthLastYear || {};
+    var monthProgress = _currentMonthProgressRatio();
+    var projectedCurrentMonth = _projectBusinessHistoryMonth(currentMonth, monthProgress);
+    var hasRecent = _number(rolling30.ordersCount, 0) > 0 || _number(rolling30.revenue, 0) > 0;
+    var hasPrevious = _number(previous30.ordersCount, 0) > 0 || _number(previous30.revenue, 0) > 0;
+    var hasTrend = _number(rolling90.ordersCount, 0) > 0 || _number(rolling90.revenue, 0) > 0 || _number(rolling90.financialEntries, 0) > 0 || _number(rolling90.financialExits, 0) > 0;
+    var hasSameMonthLastYear = _number(sameMonthLastYear.ordersCount, 0) > 0 || _number(sameMonthLastYear.revenue, 0) > 0 || _number(sameMonthLastYear.financialEntries, 0) > 0 || _number(sameMonthLastYear.financialExits, 0) > 0;
+    var completedMonths = _businessHistoryCompletedMonths(history);
+    return {
+      rolling30: rolling30,
+      previous30: previous30,
+      rolling90: rolling90,
+      rolling365: periods.rolling_365 || {},
+      currentMonth: currentMonth,
+      projectedCurrentMonth: projectedCurrentMonth,
+      sameMonthLastYear: sameMonthLastYear,
+      monthProgress: monthProgress,
+      availableMonths: _number(history.availableMonths, 0),
+      completedMonths: completedMonths,
+      hasFullYear: !!history.hasFullYear,
+      hasSameMonthLastYear: hasSameMonthLastYear,
+      hasSeasonality: completedMonths >= 12 && hasSameMonthLastYear,
+      hasRecent: hasRecent,
+      hasPrevious: hasPrevious,
+      hasRecentComparison: hasRecent && hasPrevious,
+      hasTrend: hasTrend
+    };
+  }
+
+  function _businessHistoryCurrentMonth(history) {
+    var monthKey = _maturityMonthKey();
+    var list = history && history.monthly || [];
+    return list.filter(function (month) {
+      return month && month.monthKey === monthKey;
+    })[0] || list[list.length - 1] || {};
+  }
+
+  function _businessHistoryCompletedMonths(history) {
+    var currentKey = _maturityMonthKey();
+    var count = (history && history.monthly || []).filter(function (month) {
+      if (!month || !month.monthKey || month.monthKey >= currentKey) return false;
+      return _number(month.ordersCount, 0) > 0 || _number(month.revenue, 0) > 0 || _number(month.financialEntries, 0) > 0 || _number(month.financialExits, 0) > 0;
+    }).length;
+    var same = history && history.sameMonthLastYear;
+    if (same && (_number(same.ordersCount, 0) > 0 || _number(same.revenue, 0) > 0 || _number(same.financialEntries, 0) > 0 || _number(same.financialExits, 0) > 0)) count++;
+    return count;
+  }
+
+  function _currentMonthProgressRatio() {
+    var now = new Date();
+    var daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    return _clamp(now.getDate() / Math.max(daysInMonth, 1), 0.05, 1);
+  }
+
+  function _projectBusinessHistoryMonth(month, progress) {
+    month = month || {};
+    progress = _clamp(_number(progress, 1), 0.05, 1);
+    var projected = Object.assign({}, month);
+    ['revenue', 'ordersCount', 'activeDays', 'activeWeeks', 'recurringCustomers', 'financialEntries', 'financialExits', 'financialNet', 'discountTotal', 'couponOrders', 'promotionOrders', 'upsellOrders', 'productionCompleted', 'stockMovements'].forEach(function (key) {
+      projected[key] = Math.round((_number(month[key], 0) / progress) * 100) / 100;
+    });
+    projected.activeDays = Math.min(projected.activeDays, new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate());
+    projected.activeWeeks = Math.min(projected.activeWeeks, 6);
+    projected.averageTicket = _number(month.ordersCount, 0) ? _number(month.revenue, 0) / Math.max(_number(month.ordersCount, 0), 1) : _number(month.averageTicket, 0);
+    projected.repurchaseRate = _number(month.repurchaseRate, 0);
+    projected.financialMarginPct = _number(projected.financialEntries, 0) > 0 ? Math.round(((_number(projected.financialNet, 0) / _number(projected.financialEntries, 1)) * 100) * 10) / 10 : _number(month.financialMarginPct, 0);
+    return projected;
+  }
+
+  function _historyComparisonScore(current, previous, maxBonus, maxPenalty) {
+    current = _number(current, 0);
+    previous = _number(previous, 0);
+    maxBonus = _number(maxBonus, 0);
+    maxPenalty = _number(maxPenalty, 0);
+    if (!previous && current > 0) return Math.min(maxBonus * .45, maxBonus);
+    if (!previous) return 0;
+    var pct = ((current - previous) / Math.max(Math.abs(previous), 1)) * 100;
+    return _clamp(pct * .28, -maxPenalty, maxBonus);
   }
 
   function _maturityIndex(score, confidence, notes) {
@@ -671,6 +1413,7 @@ Modules.Temporadas = (function () {
       return season && (season.status === 'finished' || season.status === 'abandoned');
     });
     var finished = 0;
+    var finishedWithResult = 0;
     var abandoned = 0;
     var totalVictories = 0;
     var partialVictories = 0;
@@ -687,6 +1430,7 @@ Modules.Temporadas = (function () {
       if (!season) return;
       if (season.status === 'finished') finished++;
       if (season.status === 'abandoned') abandoned++;
+      if (season.status === 'finished' && _seasonHasBusinessResult(season.finalResult)) finishedWithResult++;
       if (season.finalResult === 'Vitória Total') totalVictories++;
       if (season.finalResult === 'Vitória Parcial') partialVictories++;
       if (season.finalResult === 'Temporada Instável') unstable++;
@@ -711,6 +1455,7 @@ Modules.Temporadas = (function () {
     return {
       total: closed.length,
       finished: finished,
+      finishedWithResult: finishedWithResult,
       abandoned: abandoned,
       totalVictories: totalVictories,
       partialVictories: partialVictories,
@@ -724,6 +1469,7 @@ Modules.Temporadas = (function () {
       summary: {
         closedSeasons: closed.length,
         finished: finished,
+        finishedWithResult: finishedWithResult,
         abandoned: abandoned,
         totalVictories: totalVictories,
         partialVictories: partialVictories,
@@ -736,6 +1482,10 @@ Modules.Temporadas = (function () {
     };
   }
 
+  function _seasonHasBusinessResult(result) {
+    return ['Vitória Total', 'Vitória Parcial', 'Temporada Instável'].indexOf(result || '') >= 0;
+  }
+
   function _seasonMaturityImpact(season) {
     season = season || {};
     var result = season.status === 'abandoned' ? 'Abandono' : (season.finalResult || 'Resultado não calculado');
@@ -745,6 +1495,7 @@ Modules.Temporadas = (function () {
     var impact = 0;
     var reasons = [];
     var limiters = [];
+    var hasBusinessResult = _seasonHasBusinessResult(result);
 
     if (result === 'Vitória Total') {
       impact += 13;
@@ -763,10 +1514,14 @@ Modules.Temporadas = (function () {
       limiters.push('Temporada abandonada limita a evolução.');
     }
 
-    if (score >= 85) {
+    if (!hasBusinessResult && result !== 'Abandono' && result !== 'Falha Operacional') {
+      limiters.push('Temporada finalizada sem resultado claro não acelera a Pedra.');
+    }
+
+    if (hasBusinessResult && score >= 85) {
       impact += 5;
       reasons.push('Score final alto aumentou a qualidade do avanço.');
-    } else if (score >= 65) {
+    } else if (hasBusinessResult && score >= 65) {
       impact += 3;
       reasons.push('Score final saudável contribuiu para maturidade.');
     } else if (score > 0 && score < 40) {
@@ -774,10 +1529,10 @@ Modules.Temporadas = (function () {
       limiters.push('Score final baixo reduziu o impacto.');
     }
 
-    if (risk === 'low') {
+    if (hasBusinessResult && risk === 'low') {
       impact += 3;
       reasons.push('Risco baixo deixou o avanço mais saudável.');
-    } else if (risk === 'medium') {
+    } else if (hasBusinessResult && risk === 'medium') {
       impact += 1;
       reasons.push('Risco médio manteve o avanço controlado.');
     } else if (risk === 'high' || risk === 'very_high') {
@@ -785,16 +1540,16 @@ Modules.Temporadas = (function () {
       limiters.push('Chance de falha elevada limitou o avanço.');
     }
 
-    if (difficulty === 'aggressive') {
+    if (hasBusinessResult && difficulty === 'aggressive') {
       if (risk === 'low' || risk === 'medium') {
         impact += 4;
         reasons.push('Dificuldade agressiva bem controlada aumentou a contribuição.');
       } else {
         limiters.push('Dificuldade agressiva com risco alto não acelera a Pedra.');
       }
-    } else if (difficulty === 'balanced') {
+    } else if (hasBusinessResult && difficulty === 'balanced') {
       impact += 2;
-    } else if (difficulty === 'safe') {
+    } else if (hasBusinessResult && difficulty === 'safe') {
       impact += 1;
     }
 
@@ -817,6 +1572,7 @@ Modules.Temporadas = (function () {
 
   function _seasonImpactReason(result, difficulty, risk, impact, reasons, limiters) {
     if (result === 'Abandono') return 'Esta temporada limitou sua evolução porque foi abandonada antes de consolidar resultado.';
+    if (!_seasonHasBusinessResult(result) && result !== 'Falha Operacional') return 'Esta temporada foi encerrada, mas ainda não trouxe resultado claro para acelerar a Pedra.';
     if (result === 'Vitória Total' && difficulty === 'aggressive' && (risk === 'high' || risk === 'very_high')) {
       return 'Vitória Total em dificuldade agressiva aumentou seu progresso, mas o avanço foi limitado por chance de falha elevada.';
     }
@@ -955,31 +1711,53 @@ Modules.Temporadas = (function () {
     return normalized ? normalized.createdAt : null;
   }
 
-  function _maturityStrengths(seasonStats, orderStats, loyaltyStats, indexes, scenario) {
+  function _maturityStrengths(seasonStats, orderStats, loyaltyStats, indexes, scenario, dataSignals) {
+    dataSignals = dataSignals || _emptyMaturityDataSignals();
     var list = [];
-    if (seasonStats.finished > 0) list.push('Temporadas concluídas mostram execução real.');
+    if (seasonStats.finishedWithResult > 0) list.push('Temporadas concluídas com resultado mostram execução real.');
     if (seasonStats.totalVictories > 0 || seasonStats.partialVictories > 0) list.push('Há vitórias totais ou parciais em temporadas.');
-    if (orderStats.activeDays >= 4) list.push('A loja vendeu em mais dias, sinal de consistência.');
+    if (orderStats.activeDays >= 4) list.push('O negócio vendeu em mais dias, sinal de consistência.');
     if (loyaltyStats.recurringCustomers > 0) list.push('Já existem sinais básicos de recorrência de clientes.');
     if (indexes.controlledRisk.score >= 60) list.push('O risco operacional está mais controlado.');
+    if (dataSignals.finance && dataSignals.finance.hasData && dataSignals.finance.net >= 0) list.push('O financeiro já mostra saldo positivo no período recente.');
+    if (dataSignals.marketing && dataSignals.marketing.actionOrders > 0 && dataSignals.marketing.netRevenue > 0) list.push('Ações de venda apareceram em pedidos reais e geraram venda líquida.');
+    if (dataSignals.marketing && dataSignals.marketing.upsellOrders > 0) list.push('Upsell aceito em pedidos reais ajuda a leitura comercial.');
+    if (dataSignals.loyaltyProgram && dataSignals.loyaltyProgram.redemptionOrders > 0) list.push('Pontos usados em pedidos reais reforçam fidelização.');
+    if (dataSignals.reviews && dataSignals.reviews.averageRating >= 4) list.push('Avaliações aprovadas reforçam confiança no negócio.');
+    if (dataSignals.operations && dataSignals.operations.operationStatus === 'supporting') list.push('Produção, compras ou estoque já aparecem como apoio operacional.');
     if (scenario === 'survival') list.push('Meta Survival conta como construção válida nesta fase.');
     if (!list.length) list.push('Começo da organização do negócio registrado.');
     return list.slice(0, 4);
   }
 
-  function _maturityWeaknesses(seasonStats, orderStats, loyaltyStats, indexes) {
+  function _maturityWeaknesses(seasonStats, orderStats, loyaltyStats, indexes, scenario, dataSignals) {
+    dataSignals = dataSignals || _emptyMaturityDataSignals();
     var list = [];
-    if (!seasonStats.finished) list.push('Ainda faltam temporadas concluídas para medir execução.');
+    if (!seasonStats.finishedWithResult) list.push('Ainda faltam temporadas concluídas com resultado para medir execução.');
     if (seasonStats.abandoned > 0) list.push('Temporadas abandonadas reduzem a velocidade de evolução.');
     if (seasonStats.avgRiskScore >= 70) list.push('Risco alto recorrente limita o avanço.');
     if (orderStats.activeDays < 3) list.push('Poucos dias com venda limitam a leitura de consistência.');
     if (!loyaltyStats.recurringCustomers) list.push('Baixa recorrência ainda limita a maturidade.');
+    if (dataSignals.loyaltyProgram && dataSignals.loyaltyProgram.hasData && !dataSignals.loyaltyProgram.redemptionOrders) list.push('Pontos gerados sem resgate ainda são só sinal inicial de fidelização.');
+    if (dataSignals.reviews && dataSignals.reviews.lowRatings > 0) list.push('Avaliações baixas pedem atenção antes de fortalecer confiança.');
     if (indexes.financialHealth.confidence === 'low') list.push('Saúde financeira ainda tem leitura básica nesta fase.');
+    if (dataSignals.finance && dataSignals.finance.overduePayables > 0) list.push('Contas vencidas aparecem como ponto de atenção financeiro.');
+    if (dataSignals.marketing && dataSignals.marketing.impactStatus === 'configured_only') list.push('Há ações de venda cadastradas, mas ainda sem pedido real ligado a elas.');
+    if (dataSignals.marketing && (dataSignals.marketing.impactStatus === 'heavy_discount' || (dataSignals.marketing.discountTotal > orderStats.revenue * .25 && orderStats.revenue > 0))) list.push('Descontos altos podem estar pesando no crescimento saudável.');
+    if (dataSignals.operations && dataSignals.operations.hasData && dataSignals.operations.operationStatus === 'needs_history') list.push('Estoque, compras ou produção ainda têm pouco histórico para sustentar a evolução.');
     return list.slice(0, 4);
   }
 
-  function _growthNotes(orderStats, scenario) {
+  function _growthNotes(orderStats, scenario, historyContext) {
+    historyContext = historyContext || {};
     var notes = [];
+    if (historyContext.hasSeasonality) {
+      notes.push('A leitura compara o mês atual com o mesmo mês do ano anterior.');
+      notes.push('Mês atual projetado: ' + _fmtMoney(historyContext.projectedCurrentMonth && historyContext.projectedCurrentMonth.revenue || 0) + '; mesmo mês anterior: ' + _fmtMoney(historyContext.sameMonthLastYear && historyContext.sameMonthLastYear.revenue || 0) + '.');
+    } else if (historyContext.hasRecentComparison) {
+      notes.push('A leitura compara os últimos 30 dias com os 30 dias anteriores.');
+      notes.push('Últimos 30 dias: ' + _fmtMoney(historyContext.rolling30 && historyContext.rolling30.revenue || 0) + ' em ' + _number(historyContext.rolling30 && historyContext.rolling30.ordersCount, 0) + ' pedido(s).');
+    }
     if (orderStats.totalOrders) notes.push(orderStats.totalOrders + ' pedido(s) válidos analisados.');
     if (orderStats.growthPct > 0) notes.push('Receita recente acima do período anterior.');
     if (scenario) notes.push('Cenário do Plano de Voo usado como contexto: ' + scenario + '.');
@@ -987,8 +1765,33 @@ Modules.Temporadas = (function () {
     return notes;
   }
 
-  function _consistencyNotes(seasonStats, orderStats) {
+  function _marketingNotes(marketingStats) {
+    marketingStats = marketingStats || {};
+    if (!marketingStats.hasData) return ['Sem ação de venda com resultado real ainda.'];
     var notes = [];
+    if (marketingStats.actionOrders > 0) {
+      notes.push(marketingStats.actionOrders + ' pedido(s) tiveram cupom, promoção ou upsell.');
+      notes.push('Venda líquida dessas ações: ' + _fmtMoney(marketingStats.netRevenue) + '.');
+      if (marketingStats.discountRate > 0) notes.push('Desconto médio sobre essas vendas: ' + _number(marketingStats.discountRate, 0).toFixed(1).replace('.', ',') + '%.');
+      if (marketingStats.impactStatus === 'heavy_discount') notes.push('O desconto ficou alto para o volume gerado.');
+      return notes;
+    }
+    notes.push('Existem ações cadastradas, mas nenhuma apareceu em pedido válido ainda.');
+    notes.push('Cadastro sozinho não melhora a Pedra.');
+    return notes;
+  }
+
+  function _consistencyNotes(seasonStats, orderStats, historyContext) {
+    historyContext = historyContext || {};
+    var notes = [];
+    if (historyContext.hasSeasonality) {
+      notes.push('Com 12 meses completos, a consistência compara este mês com o mesmo mês do ano anterior.');
+      notes.push('Projeção do mês atual: ' + _number(historyContext.projectedCurrentMonth && historyContext.projectedCurrentMonth.activeDays, 0).toFixed(0) + ' dia(s) com venda.');
+    } else if (historyContext.hasTrend) {
+      notes.push('A consistência usa a tendência dos últimos 90 dias como base principal.');
+      notes.push(_number(historyContext.rolling90 && historyContext.rolling90.activeDays, 0) + ' dia(s) com venda nos últimos 90 dias.');
+    }
+    if (historyContext.hasFullYear) notes.push('Já existe memória anual para dar mais segurança à leitura.');
     if (orderStats.activeDays) notes.push(orderStats.activeDays + ' dia(s) com venda detectados.');
     if (seasonStats.finished) notes.push(seasonStats.finished + ' temporada(s) concluída(s).');
     if (seasonStats.abandoned) notes.push(seasonStats.abandoned + ' temporada(s) abandonada(s) reduziram o índice.');
@@ -996,19 +1799,78 @@ Modules.Temporadas = (function () {
     return notes;
   }
 
-  function _riskNotes(seasonStats) {
-    if (!seasonStats.total) return ['Sem temporadas suficientes para medir risco com confiança.'];
-    return ['Risco médio calculado a partir das temporadas disponíveis.'];
+  function _riskNotes(seasonStats, operationsSignal) {
+    operationsSignal = operationsSignal || {};
+    if (!seasonStats.total) {
+      var initial = ['Sem temporadas suficientes para medir risco com confiança.'];
+      if (operationsSignal.operationStatus === 'needs_history') initial.push('Operação já tem dados, mas ainda precisa de histórico para reduzir risco.');
+      return initial;
+    }
+    var notes = ['Risco médio calculado a partir das temporadas disponíveis.'];
+    if (operationsSignal.operationStatus === 'supporting') notes.push('Produção, compras ou estoque ajudam a sustentar a operação.');
+    if (operationsSignal.limiterScore > 0) notes.push('Histórico operacional ainda limita a redução de risco.');
+    return notes;
   }
 
-  function _loyaltyNotes(loyaltyStats) {
-    if (!loyaltyStats.uniqueCustomers) return ['Sem clientes suficientes para medir recorrência.'];
-    return [loyaltyStats.recurringCustomers + ' cliente(s) recorrente(s) entre ' + loyaltyStats.uniqueCustomers + ' identificado(s).'];
+  function _financialNotes(orderStats, financeStats, historyContext) {
+    financeStats = financeStats || {};
+    historyContext = historyContext || {};
+    var rolling90 = historyContext.rolling90 || {};
+    if (historyContext.hasSeasonality && (_number(historyContext.sameMonthLastYear && historyContext.sameMonthLastYear.financialEntries, 0) > 0 || _number(historyContext.sameMonthLastYear && historyContext.sameMonthLastYear.financialExits, 0) > 0)) {
+      var seasonalNotes = ['Com 12 meses completos, o financeiro compara o mês atual com o mesmo mês do ano anterior.'];
+      seasonalNotes.push('Mês atual projetado: entrou ' + _fmtMoney(historyContext.projectedCurrentMonth && historyContext.projectedCurrentMonth.financialEntries || 0) + ' e saiu ' + _fmtMoney(historyContext.projectedCurrentMonth && historyContext.projectedCurrentMonth.financialExits || 0) + '.');
+      if (financeStats.overduePayables > 0) seasonalNotes.push('Contas vencidas continuam segurando a evolução.');
+      return seasonalNotes;
+    }
+    if (historyContext.hasTrend && (_number(rolling90.financialEntries, 0) > 0 || _number(rolling90.financialExits, 0) > 0)) {
+      var historyNotes = ['A leitura financeira usa o movimento dos últimos 90 dias quando há histórico suficiente.'];
+      historyNotes.push('Entrou ' + _fmtMoney(rolling90.financialEntries || 0) + ' e saiu ' + _fmtMoney(rolling90.financialExits || 0) + ' nesse período.');
+      if (_number(rolling90.financialMarginPct, 0)) historyNotes.push('Margem aproximada no período: ' + _number(rolling90.financialMarginPct, 0).toFixed(1).replace('.', ',') + '%.');
+      if (financeStats.overduePayables > 0) historyNotes.push('Contas vencidas continuam segurando a evolução.');
+      return historyNotes;
+    }
+    if (financeStats.hasData) {
+      var notes = ['A leitura financeira considera dinheiro recebido, dinheiro pago e contas em aberto.'];
+      if (financeStats.net >= 0) notes.push('Nos últimos lançamentos, entrou mais dinheiro do que saiu.');
+      else notes.push('Nos últimos lançamentos, saiu mais dinheiro do que entrou.');
+      if (financeStats.marginPct) notes.push('Margem recente aproximada: ' + _number(financeStats.marginPct, 0).toFixed(1).replace('.', ',') + '%.');
+      if (financeStats.overduePayables > 0) notes.push('Existem contas vencidas que seguram a evolução.');
+      else if (financeStats.pendingPayables > 0) notes.push('Há contas em aberto para acompanhar.');
+      return notes;
+    }
+    if (orderStats.totalOrders) return ['Sem financeiro suficiente; pedidos e ticket continuam como sinal leve.'];
+    return ['Sem dados financeiros suficientes para medir saúde financeira.'];
   }
 
-  function _executionNotes(seasonStats) {
-    if (!seasonStats.total) return ['Sem temporadas para medir execução.'];
-    return [seasonStats.finished + ' concluída(s), ' + seasonStats.abandoned + ' abandonada(s).'];
+  function _loyaltyNotes(loyaltyStats, pointsSignal, reviewsSignal, historyContext) {
+    historyContext = historyContext || {};
+    var notes = [];
+    var rolling90 = historyContext.rolling90 || {};
+    if (historyContext.hasSeasonality && (_number(historyContext.sameMonthLastYear && historyContext.sameMonthLastYear.recurringCustomers, 0) > 0 || _number(historyContext.sameMonthLastYear && historyContext.sameMonthLastYear.repurchaseRate, 0) > 0)) {
+      notes.push('A fidelização compara recompra deste mês com o mesmo mês do ano anterior.');
+      notes.push('Projeção atual: ' + _number(historyContext.projectedCurrentMonth && historyContext.projectedCurrentMonth.recurringCustomers, 0).toFixed(0) + ' cliente(s) recorrente(s).');
+    } else if (historyContext.hasTrend && (_number(rolling90.recurringCustomers, 0) > 0 || _number(rolling90.repurchaseRate, 0) > 0)) {
+      notes.push('A fidelização olha a recompra observada nos últimos 90 dias.');
+      notes.push(_number(rolling90.recurringCustomers, 0) + ' cliente(s) recorrente(s), com recompra de ' + _number(rolling90.repurchaseRate, 0).toFixed(1).replace('.', ',') + '%.');
+    }
+    if (loyaltyStats.uniqueCustomers) notes.push(loyaltyStats.recurringCustomers + ' cliente(s) recorrente(s) entre ' + loyaltyStats.uniqueCustomers + ' identificado(s).');
+    else notes.push('Sem clientes suficientes para medir recorrência.');
+    if (pointsSignal && pointsSignal.redemptionOrders > 0) notes.push('Pontos foram usados em ' + pointsSignal.redemptionOrders + ' pedido(s) real(is).');
+    else if (pointsSignal && pointsSignal.hasData) notes.push('Pontos foram gerados, mas ainda falta resgate em recompra.');
+    if (reviewsSignal && reviewsSignal.approved > 0) notes.push(reviewsSignal.approved + ' avaliação(ões) aprovada(s), nota média ' + _number(reviewsSignal.averageRating, 0).toFixed(1).replace('.', ',') + '.');
+    if (reviewsSignal && reviewsSignal.productMentions > 0) notes.push('Há avaliação citando produto, o que ajuda a entender confiança e desejo.');
+    return notes;
+  }
+
+  function _executionNotes(seasonStats, operationsSignal) {
+    operationsSignal = operationsSignal || {};
+    var notes = [];
+    if (!seasonStats.total) notes.push('Sem temporadas para medir execução.');
+    else notes.push(seasonStats.finished + ' concluída(s), ' + seasonStats.abandoned + ' abandonada(s).');
+    if (operationsSignal.completedProductions > 0) notes.push(operationsSignal.completedProductions + ' produção(ões) concluída(s) entram como apoio.');
+    if (operationsSignal.completedPurchases > 0) notes.push(operationsSignal.completedPurchases + ' compra(s) recebida(s) entram como apoio.');
+    if (operationsSignal.operationStatus === 'needs_history') notes.push('Operação cadastrada ainda precisa virar rotina consistente.');
+    return notes;
   }
 
   function _stoneUpgradeDecision(existing, ctx) {
@@ -1189,15 +2051,15 @@ Modules.Temporadas = (function () {
       finish_season: function (seasonStats) {
         return _checklistItem({
           id: 'finish_season',
-          title: 'Concluir uma temporada',
-          description: 'Finalizar ciclos operacionais mostra execução e capacidade de acompanhar metas até o fechamento.',
+          title: 'Concluir uma temporada com resultado',
+          description: 'Finalizar ciclos operacionais só fortalece a Pedra quando existe avanço, aprendizado ou resultado real.',
           category: 'execution',
-          completed: seasonStats.finished > 0,
+          completed: seasonStats.finishedWithResult > 0,
           source: 'seasons',
           completedAt: _recentEvidenceDate(seasonStats),
-          evidence: { finishedSeasons: seasonStats.finished },
-          completedEvidence: 'Detectado pelo fechamento de temporada.',
-          pendingEvidence: 'Ainda falta uma temporada concluída para medir execução.'
+          evidence: { finishedSeasons: seasonStats.finished, finishedWithResult: seasonStats.finishedWithResult },
+          completedEvidence: 'Detectado por temporada concluída com resultado operacional.',
+          pendingEvidence: 'Ainda falta uma temporada concluída com resultado real.'
         });
       },
       reduce_initial_instability: function (seasonStats, orderStats) {
@@ -1205,7 +2067,7 @@ Modules.Temporadas = (function () {
         return _checklistItem({
           id: 'reduce_initial_instability',
           title: 'Reduzir instabilidade inicial',
-          description: 'A evolução fica mais forte quando a loja reduz abandono, falhas e risco recorrente.',
+          description: 'A evolução fica mais forte quando o negócio reduz abandono, falhas e risco recorrente.',
           category: 'risk',
           completed: seasonStats.total > 0 && !limited && orderStats.activeDays >= 3,
           limited: limited,
@@ -1314,11 +2176,11 @@ Modules.Temporadas = (function () {
           title: 'Aumentar estabilidade da operação',
           description: 'Estabilidade combina venda em dias diferentes, temporadas concluídas e menor risco.',
           category: 'consistency',
-          completed: orderStats.activeDays >= 5 && seasonStats.finished >= 1 && seasonStats.avgRiskScore <= 65,
+          completed: orderStats.activeDays >= 5 && seasonStats.finishedWithResult >= 1 && seasonStats.avgRiskScore <= 65,
           source: 'orders,seasons',
           completedAt: _recentEvidenceDate(seasonStats),
-          evidence: { activeDays: orderStats.activeDays, finishedSeasons: seasonStats.finished, averageRiskScore: Math.round(seasonStats.avgRiskScore) },
-          completedEvidence: 'Detectado por vendas mais distribuídas e temporada concluída.',
+          evidence: { activeDays: orderStats.activeDays, finishedWithResult: seasonStats.finishedWithResult, averageRiskScore: Math.round(seasonStats.avgRiskScore) },
+          completedEvidence: 'Detectado por vendas mais distribuídas e temporada com resultado.',
           pendingEvidence: 'Ainda falta combinar venda regular, execução e risco controlado.'
         });
       },
@@ -1345,12 +2207,12 @@ Modules.Temporadas = (function () {
           title: 'Concluir temporadas equilibradas',
           description: 'Temporadas equilibradas indicam evolução sustentável, sem depender de pressão excessiva.',
           category: 'execution',
-          completed: seasonStats.finished >= 1 && seasonStats.avgScore >= 60 && seasonStats.avgRiskScore <= 65,
+          completed: seasonStats.finishedWithResult >= 1 && seasonStats.avgScore >= 60 && seasonStats.avgRiskScore <= 65,
           source: 'seasons',
           completedAt: _recentEvidenceDate(seasonStats),
-          evidence: { finishedSeasons: seasonStats.finished, averageScore: Math.round(seasonStats.avgScore), averageRiskScore: Math.round(seasonStats.avgRiskScore) },
-          completedEvidence: 'Detectado por temporada concluída com score e risco saudáveis.',
-          pendingEvidence: 'Ainda falta uma temporada concluída com equilíbrio entre score e risco.'
+          evidence: { finishedWithResult: seasonStats.finishedWithResult, averageScore: Math.round(seasonStats.avgScore), averageRiskScore: Math.round(seasonStats.avgRiskScore) },
+          completedEvidence: 'Detectado por temporada com resultado, score e risco saudáveis.',
+          pendingEvidence: 'Ainda falta uma temporada com resultado e equilíbrio entre score e risco.'
         });
       },
       improve_loyalty: function (seasonStats, orderStats, loyaltyStats) {
@@ -1465,12 +2327,12 @@ Modules.Temporadas = (function () {
           title: 'Manter boa consistência',
           description: 'Consistência forte combina vendas recorrentes e temporadas sem abandono.',
           category: 'consistency',
-          completed: orderStats.activeDays >= 8 && seasonStats.abandoned === 0 && seasonStats.finished >= 2,
+          completed: orderStats.activeDays >= 8 && seasonStats.abandoned === 0 && seasonStats.finishedWithResult >= 2,
           limited: seasonStats.abandoned > 0,
           source: 'orders,seasons',
           completedAt: _recentEvidenceDate(seasonStats),
-          evidence: { activeDays: orderStats.activeDays, finishedSeasons: seasonStats.finished, abandoned: seasonStats.abandoned },
-          completedEvidence: 'Detectado por boa regularidade e temporadas concluídas sem abandono.',
+          evidence: { activeDays: orderStats.activeDays, finishedWithResult: seasonStats.finishedWithResult, abandoned: seasonStats.abandoned },
+          completedEvidence: 'Detectado por boa regularidade e temporadas com resultado sem abandono.',
           pendingEvidence: 'Ainda falta mais histórico consistente.',
           limitedEvidence: 'Abandono recente limita a consistência.'
         });
@@ -1481,11 +2343,11 @@ Modules.Temporadas = (function () {
           title: 'Manter crescimento saudável por mais tempo',
           description: 'Pedras altas exigem histórico mais longo de crescimento com controle.',
           category: 'growth',
-          completed: seasonStats.finished >= 3 && orderStats.growthPct > 0 && seasonStats.avgRiskScore <= 60,
+          completed: seasonStats.finishedWithResult >= 3 && orderStats.growthPct > 0 && seasonStats.avgRiskScore <= 60,
           source: 'orders,seasons',
           completedAt: _recentEvidenceDate(seasonStats),
-          evidence: { finishedSeasons: seasonStats.finished, growthPct: Math.round(orderStats.growthPct), averageRiskScore: Math.round(seasonStats.avgRiskScore) },
-          completedEvidence: 'Detectado por sequência de temporadas com crescimento controlado.',
+          evidence: { finishedWithResult: seasonStats.finishedWithResult, growthPct: Math.round(orderStats.growthPct), averageRiskScore: Math.round(seasonStats.avgRiskScore) },
+          completedEvidence: 'Detectado por sequência de temporadas com resultado e crescimento controlado.',
           pendingEvidence: 'Ainda falta histórico longo de crescimento saudável.'
         });
       },
@@ -1496,7 +2358,7 @@ Modules.Temporadas = (function () {
           title: 'Reduzir instabilidade operacional',
           description: 'Menos temporadas instáveis, falhas e abandonos indicam operação mais madura.',
           category: 'risk',
-          completed: seasonStats.finished >= 2 && !limited && seasonStats.avgRiskScore <= 60,
+          completed: seasonStats.finishedWithResult >= 2 && !limited && seasonStats.avgRiskScore <= 60,
           limited: limited,
           source: 'seasons',
           completedAt: _recentEvidenceDate(seasonStats),
@@ -1542,10 +2404,10 @@ Modules.Temporadas = (function () {
           title: 'Sustentar crescimento com baixo risco',
           description: 'Excelência exige crescer sem aumentar vulnerabilidade operacional.',
           category: 'growth',
-          completed: orderStats.growthPct > 0 && seasonStats.avgRiskScore <= 45 && seasonStats.finished >= 3,
+          completed: orderStats.growthPct > 0 && seasonStats.avgRiskScore <= 45 && seasonStats.finishedWithResult >= 3,
           source: 'orders,seasons',
           completedAt: _recentEvidenceDate(seasonStats),
-          evidence: { growthPct: Math.round(orderStats.growthPct), averageRiskScore: Math.round(seasonStats.avgRiskScore), finishedSeasons: seasonStats.finished },
+          evidence: { growthPct: Math.round(orderStats.growthPct), averageRiskScore: Math.round(seasonStats.avgRiskScore), finishedWithResult: seasonStats.finishedWithResult },
           completedEvidence: 'Detectado por crescimento e risco médio baixo ao longo de temporadas.',
           pendingEvidence: 'Ainda falta crescimento sustentado com risco baixo.'
         });
@@ -1584,10 +2446,10 @@ Modules.Temporadas = (function () {
           title: 'Demonstrar maturidade consistente',
           description: 'Maturidade consistente aparece quando execução, risco, vendas e recorrência caminham juntos.',
           category: 'execution',
-          completed: seasonStats.finished >= 4 && seasonStats.avgScore >= 75 && seasonStats.avgRiskScore <= 55 && loyaltyStats.recurringCustomers >= 3,
+          completed: seasonStats.finishedWithResult >= 4 && seasonStats.avgScore >= 75 && seasonStats.avgRiskScore <= 55 && loyaltyStats.recurringCustomers >= 3,
           source: 'seasons,orders',
           completedAt: _recentEvidenceDate(seasonStats),
-          evidence: { finishedSeasons: seasonStats.finished, averageScore: Math.round(seasonStats.avgScore), recurringCustomers: loyaltyStats.recurringCustomers },
+          evidence: { finishedWithResult: seasonStats.finishedWithResult, averageScore: Math.round(seasonStats.avgScore), recurringCustomers: loyaltyStats.recurringCustomers },
           completedEvidence: 'Detectado por histórico forte de execução, risco e recorrência.',
           pendingEvidence: 'Ainda falta histórico mais longo de maturidade consistente.'
         });
@@ -1758,6 +2620,14 @@ Modules.Temporadas = (function () {
     }).slice(0, 24);
   }
 
+  function _normalizeBusinessHistorySnapshots(snapshots) {
+    return (snapshots || []).filter(function (snapshot) {
+      return snapshot && snapshot.snapshotType && snapshot.periodKey;
+    }).sort(function (a, b) {
+      return _dateValue(b.updatedAt || b.createdAt || b.periodEnd) - _dateValue(a.updatedAt || a.createdAt || a.periodEnd);
+    }).slice(0, 120);
+  }
+
   function _ensureBusinessMaturitySnapshots(maturity, existingSnapshots, opts) {
     opts = opts || {};
     existingSnapshots = _normalizeMaturitySnapshots(existingSnapshots || []);
@@ -1796,6 +2666,83 @@ Modules.Temporadas = (function () {
     });
   }
 
+  function _ensureBusinessHistorySnapshots(history, existingSnapshots, opts) {
+    opts = opts || {};
+    existingSnapshots = _normalizeBusinessHistorySnapshots(existingSnapshots || []);
+    if (!history || !window.DB || typeof DB.set !== 'function') return Promise.resolve(existingSnapshots);
+
+    var currentMonth = _maturityMonthKey();
+    var byId = {};
+    existingSnapshots.forEach(function (snapshot) {
+      if (snapshot && snapshot.id) byId[snapshot.id] = snapshot;
+    });
+
+    var plans = [];
+    (history.monthly || []).forEach(function (month) {
+      if (!month || !month.monthKey) return;
+      var id = _businessHistorySnapshotId('monthly', month.monthKey);
+      var exists = byId[id];
+      if (exists && month.monthKey !== currentMonth) return;
+      plans.push(_businessHistorySnapshotPlan('monthly', month.monthKey, month, opts, exists));
+    });
+
+    Object.keys(history.periods || {}).forEach(function (windowKey) {
+      var metrics = history.periods[windowKey];
+      if (!metrics || !metrics.periodEnd) return;
+      var periodKey = windowKey + '_' + String(metrics.periodEnd).slice(0, 10);
+      var id = _businessHistorySnapshotId('rolling', periodKey);
+      plans.push(_businessHistorySnapshotPlan('rolling', periodKey, Object.assign({ windowKey: windowKey }, metrics), opts, byId[id]));
+    });
+
+    if (!plans.length) return Promise.resolve(existingSnapshots);
+
+    var saved = [];
+    return plans.reduce(function (chain, plan) {
+      return chain.then(function () {
+        return DB.set('business_history_snapshots', plan.id, plan).then(function () {
+          saved.push(plan);
+        }).catch(function (err) {
+          console.warn('Business history snapshot save skipped', err);
+        });
+      });
+    }, Promise.resolve()).then(function () {
+      var merged = {};
+      existingSnapshots.concat(saved).forEach(function (snapshot) {
+        if (snapshot && snapshot.id) merged[snapshot.id] = snapshot;
+      });
+      return _normalizeBusinessHistorySnapshots(Object.keys(merged).map(function (id) { return merged[id]; }));
+    });
+  }
+
+  function _businessHistorySnapshotId(type, key) {
+    return String(type || 'history') + '_' + String(key || 'period')
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+  }
+
+  function _businessHistorySnapshotPlan(type, periodKey, metrics, opts, existing) {
+    opts = opts || {};
+    metrics = metrics || {};
+    var now = new Date().toISOString();
+    var id = _businessHistorySnapshotId(type, periodKey);
+    return {
+      id: id,
+      tenantId: _tenantId,
+      snapshotType: type,
+      periodKey: periodKey,
+      windowKey: metrics.windowKey || '',
+      monthKey: type === 'monthly' ? (metrics.monthKey || periodKey) : '',
+      periodStart: metrics.periodStart || '',
+      periodEnd: metrics.periodEnd || '',
+      metrics: Object.assign({}, metrics),
+      calculationVersion: 'business_history_v1',
+      source: opts.source || 'business_maturity_load',
+      createdAt: existing && existing.createdAt ? existing.createdAt : now,
+      updatedAt: now
+    };
+  }
+
   function _maturitySnapshotPlan(type, maturity, opts, upgradeEvent) {
     opts = opts || {};
     var period = _maturitySnapshotPeriod(type, opts);
@@ -1809,6 +2756,7 @@ Modules.Temporadas = (function () {
       stoneProgressPercent: Math.round(_number(maturity.stoneProgressPercent, 0)),
       maturityScore: Math.round(_number(maturity.maturityScore, 0)),
       indexes: maturity.indexes || _emptyMaturityIndexes(),
+      dataSignals: maturity.dataSignals || _emptyMaturityDataSignals(),
       checklistSummary: maturity.checklistSummary || _maturityChecklistSummary(maturity.checklist || []),
       checklist: maturity.checklist || [],
       blockers: maturity.blockers || [],
@@ -1899,18 +2847,258 @@ Modules.Temporadas = (function () {
         '</div>' +
       '</div>' +
       '<div class="stones-progress-panel">' +
-        '<div class="stones-progress-top"><span>Caminhada das Pedras</span><strong>' + _esc(current) + '</strong></div>' +
+        '<div class="stones-progress-top"><span>Caminho das Pedras</span><strong>' + _esc(current) + '</strong></div>' +
         _stoneJourney(current, next) +
         '<div class="stones-progress-line"><span style="width:' + progress + '%"></span></div>' +
         '<div class="stones-progress-meta"><strong>' + Math.round(progress) + '% até ' + _esc(next) + '</strong><span>As próximas Pedras aparecem como caminho ainda a percorrer.</span></div>' +
       '</div>' +
-      _maturityEvolutionBlock(history) +
+      _maturityChecklistBlock(maturity.checklist || []) +
       '<div class="stones-insights">' +
         _maturityInsightList('Pontos fortes', maturity.strengths || []) +
         _maturityInsightList('Pontos que limitam evolução', maturity.weaknesses || []) +
       '</div>' +
-      _maturityChecklistBlock(maturity.checklist || []) +
+      _maturityDataSignalsBlock(maturity) +
+      _maturityEvolutionBlock(history) +
     '</section>';
+  }
+
+  function _maturityDataSignalsBlock(maturity) {
+    var cards = _maturityDataSignalCards(maturity || _initialMaturity());
+    return '<div class="stones-data-signals">' +
+      '<div class="stones-data-head">' +
+        '<div>' +
+          '<span class="seasons-section-label">O que sustenta sua Pedra</span>' +
+          '<h3>Como a evolução do negócio está sendo lida</h3>' +
+          '<p>A Pedra olha para sinais reais da operação: comida vendendo, cliente voltando, dinheiro entrando, ações que geram pedido e rotina que sustenta a produção e o atendimento. Configurar algo ajuda a organizar, mas só vira maturidade quando traz resultado.</p>' +
+        '</div>' +
+        '<small>Baseada no movimento real do negócio</small>' +
+      '</div>' +
+      '<div class="stones-data-grid">' + cards.map(_maturityDataSignalCard).join('') + '</div>' +
+    '</div>';
+  }
+
+  function _maturityBusinessHistoryBlock(maturity) {
+    var history = maturity && maturity.businessHistory ? maturity.businessHistory : (_state.businessHistory || _emptyBusinessHistory());
+    var periods = history.periods || {};
+    var rolling30 = periods.rolling_30 || {};
+    var previous30 = periods.previous_30 || {};
+    var rolling90 = periods.rolling_90 || {};
+    var rolling365 = periods.rolling_365 || {};
+    var currentMonth = (history.monthly || [])[history.monthly.length - 1] || {};
+    var lastYear = history.sameMonthLastYear || null;
+    var snapshots = _state.businessHistorySnapshots || [];
+    var revenueTrend = _businessHistoryTrend(rolling30.revenue, previous30.revenue);
+    var cards = [
+      {
+        title: 'Últimos 30 dias',
+        meta: _fmtMoney(rolling30.revenue || 0),
+        text: _number(rolling30.ordersCount, 0) ? _number(rolling30.ordersCount, 0) + ' pedido(s), ticket médio de ' + _fmtMoney(rolling30.averageTicket || 0) + ' e ' + _number(rolling30.activeDays, 0) + ' dia(s) com venda.' : 'Ainda não há vendas suficientes nos últimos 30 dias.',
+        tone: revenueTrend.tone,
+        footer: revenueTrend.text
+      },
+      {
+        title: 'Últimos 90 dias',
+        meta: _fmtMoney(rolling90.revenue || 0),
+        text: _number(rolling90.ordersCount, 0) ? 'Mostra se o negócio está criando ritmo além de uma semana boa ou ruim.' : 'A base de 90 dias ainda está se formando.',
+        tone: _number(rolling90.ordersCount, 0) ? 'strong' : 'empty',
+        footer: _number(rolling90.activeWeeks, 0) + ' semana(s) com movimento'
+      },
+      {
+        title: 'Mês atual',
+        meta: currentMonth.monthKey ? _businessHistoryMonthLabel(currentMonth.monthKey) : 'Sem mês',
+        text: _number(currentMonth.ordersCount, 0) ? _fmtMoney(currentMonth.revenue || 0) + ' vendidos neste mês, com ' + _number(currentMonth.ordersCount, 0) + ' pedido(s).' : 'O mês atual ainda não tem movimento suficiente para comparar.',
+        tone: _number(currentMonth.ordersCount, 0) ? 'medium' : 'empty',
+        footer: _number(currentMonth.discountTotal, 0) ? 'Descontos no mês: ' + _fmtMoney(currentMonth.discountTotal) : 'Sem desconto relevante no mês'
+      },
+      {
+        title: 'Memória anual',
+        meta: _number(history.availableMonths, 0) + '/12 meses',
+        text: history.hasFullYear ? 'Já existe um ano de base para comparar o negócio com mais segurança.' : 'O histórico anual ainda está sendo formado. Enquanto isso, a Pedra usa sinais recentes com mais cuidado.',
+        tone: history.hasFullYear ? 'strong' : (_number(history.availableMonths, 0) ? 'light' : 'empty'),
+        footer: lastYear ? 'Já existe comparação com o mesmo mês do ano anterior' : 'Sem comparação anual suficiente'
+      }
+    ];
+    return '<div class="stones-history-used">' +
+      '<div class="stones-data-head">' +
+        '<div>' +
+          '<span class="seasons-section-label">Histórico usado na leitura</span>' +
+          '<h3>O que o BocaFood já consegue comparar</h3>' +
+          '<p>Esta parte mostra a memória que já existe sobre o negócio. Quanto mais meses com movimento real, mais segura fica a leitura da Pedra.</p>' +
+        '</div>' +
+        '<small>' + _number(snapshots.length, 0) + ' registro(s) preservado(s)</small>' +
+      '</div>' +
+      '<div class="stones-history-grid">' + cards.map(_maturityBusinessHistoryCard).join('') + '</div>' +
+      _maturityBusinessHistoryNotes(history, rolling365) +
+    '</div>';
+  }
+
+  function _maturityBusinessHistoryCard(card) {
+    card = card || {};
+    return '<article class="stones-history-card stones-history-card-' + _esc(card.tone || 'empty') + '">' +
+      '<div class="stones-history-card-top">' +
+        '<h4>' + _esc(card.title || '') + '</h4>' +
+        '<strong>' + _esc(card.meta || '') + '</strong>' +
+      '</div>' +
+      '<p>' + _esc(card.text || '') + '</p>' +
+      '<small>' + _esc(card.footer || '') + '</small>' +
+    '</article>';
+  }
+
+  function _maturityBusinessHistoryNotes(history, rolling365) {
+    history = history || {};
+    var notes = (history.notes || []).filter(Boolean).slice(0, 2);
+    if (!notes.length && _number(rolling365.ordersCount, 0)) {
+      notes.push('Os últimos 365 dias já ajudam a enxergar a direção geral do negócio.');
+    }
+    if (!notes.length) notes.push('A memória começa a ficar mais útil conforme pedidos, caixa e operação aparecem mês a mês.');
+    return '<div class="stones-history-notes">' + notes.map(function (note) {
+      return '<span>' + _esc(note) + '</span>';
+    }).join('') + '</div>';
+  }
+
+  function _businessHistoryTrend(current, previous) {
+    current = _money(current);
+    previous = _money(previous);
+    if (!current && !previous) return { tone: 'empty', text: 'Sem comparação recente' };
+    if (!previous) return { tone: 'medium', text: 'Já existe movimento recente para acompanhar' };
+    var diff = current - previous;
+    var pct = previous ? Math.round((diff / previous) * 100) : 0;
+    if (pct > 5) return { tone: 'strong', text: 'Subiu ' + pct + '% contra os 30 dias anteriores' };
+    if (pct < -5) return { tone: 'light', text: 'Caiu ' + Math.abs(pct) + '% contra os 30 dias anteriores' };
+    return { tone: 'medium', text: 'Ficou perto dos 30 dias anteriores' };
+  }
+
+  function _businessHistoryMonthLabel(monthKey) {
+    var parts = String(monthKey || '').split('-');
+    if (parts.length !== 2) return String(monthKey || '');
+    var d = new Date(_number(parts[0], 0), _number(parts[1], 1) - 1, 1);
+    return d.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }).replace('.', '');
+  }
+
+  function _maturityDataSignalCards(maturity) {
+    var signals = maturity.dataSignals || _emptyMaturityDataSignals();
+    var indexes = maturity.indexes || _emptyMaturityIndexes();
+    var seasons = maturity.seasonContributionSummary || _emptySeasonContributionSummary();
+    var finance = signals.finance || {};
+    var marketing = signals.marketing || {};
+    var points = signals.loyaltyProgram || {};
+    var reviews = signals.reviews || {};
+    var operations = signals.operations || {};
+    var healthyScore = _number(indexes.healthyGrowth && indexes.healthyGrowth.score, 0);
+    var consistencyScore = _number(indexes.consistency && indexes.consistency.score, 0);
+    var loyaltyScore = _number(indexes.loyalty && indexes.loyalty.score, 0);
+    var actionOrders = _number(marketing.actionOrders, _number(marketing.couponOrders, 0) + _number(marketing.promotionOrders, 0) + _number(marketing.upsellOrders, 0));
+
+    return [
+      {
+        level: healthyScore || consistencyScore ? 'strong' : 'empty',
+        title: 'Vendas e pedidos',
+        text: healthyScore || consistencyScore ? 'A Pedra sobe melhor quando a venda acontece em mais dias e com algum ritmo. Esse resultado mostra se o negócio está criando constância ou se ainda depende de poucos momentos bons.' : 'Ainda faltam pedidos reais para entender se as vendas estão começando a ganhar ritmo.',
+        meta: healthyScore || consistencyScore ? 'Leitura atual: ' + Math.round(Math.max(healthyScore, consistencyScore)) + '/100' : 'Aguardando vendas reais'
+      },
+      {
+        level: _number(seasons.finished, 0) ? 'strong' : (_number(seasons.closedSeasons, 0) ? 'medium' : 'empty'),
+        title: 'Temporadas',
+        text: _number(seasons.finishedWithResult, 0) ? 'Quando uma temporada termina com resultado, ela mostra que o negócio conseguiu escolher um foco, executar e fechar um ciclo real.' : 'Criar temporada ajuda a organizar o foco. Para fortalecer a Pedra, ela precisa terminar com algum resultado no negócio.',
+        meta: _number(seasons.finishedWithResult, 0) + ' temporada(s) com resultado · ' + _number(seasons.abandoned, 0) + ' abandonada(s)'
+      },
+      {
+        level: finance.hasData ? (finance.cashStatus === 'healthy' ? 'medium' : 'light') : 'empty',
+        title: 'Financeiro',
+        text: finance.hasData ? _maturityFinanceSignalText(finance) : 'Quando houver entradas, saídas e contas acompanhadas, a Pedra entende melhor se a venda está deixando dinheiro no negócio.',
+        meta: finance.hasData ? 'Entrou ' + _fmtMoney(finance.entries) + ' · saiu ' + _fmtMoney(finance.exits) + ' · ficou ' + _fmtMoney(finance.net) : 'Sem caixa recente para ler'
+      },
+      {
+        level: actionOrders ? (marketing.impactStatus === 'heavy_discount' ? 'light' : 'medium') : (marketing.hasData ? 'light' : 'empty'),
+        title: 'Ações de venda',
+        text: _maturityMarketingSignalText(marketing),
+        meta: actionOrders ? actionOrders + ' pedido(s) com ação · ' + _fmtMoney(marketing.netRevenue) + ' vendidos depois dos descontos' : (_number(marketing.configuredActions, _number(marketing.activePromotions, 0) + _number(marketing.activeCoupons, 0) + _number(marketing.activeUpsells, 0)) + ' ação(ões) prontas, ainda sem pedido')
+      },
+      {
+        level: loyaltyScore || points.redemptionOrders ? 'medium' : (points.hasData ? 'light' : 'empty'),
+        title: 'Clientes e pontos',
+        text: _maturityLoyaltySignalText(loyaltyScore, points),
+        meta: points.hasData ? _number(points.customers, 0) + ' cliente(s) com pontos · ' + _number(points.redemptionOrders, 0) + ' pedido(s) usando pontos' : 'Relação com clientes em formação'
+      },
+      {
+        level: reviews.approved ? (reviews.trustStatus === 'attention' ? 'light' : 'medium') : 'empty',
+        title: 'Avaliações',
+        text: _maturityReviewSignalText(reviews),
+        meta: reviews.approved ? _number(reviews.approved, 0) + ' opinião(ões) · nota ' + _number(reviews.averageRating, 0).toFixed(1).replace('.', ',') + ' · ' + _number(reviews.productMentions, 0) + ' citam produto' : 'Ainda sem opinião de cliente'
+      },
+      {
+        level: operations.operationStatus === 'supporting' ? 'medium' : (operations.hasData ? 'light' : 'empty'),
+        title: 'Operação, estoque e produção',
+        text: _maturityOperationsSignalText(operations),
+        meta: operations.hasData ? _number(operations.stockMovements, 0) + ' movimento(s) · ' + _number(operations.completedProductions, 0) + ' produção(ões) feitas · ' + _number(operations.completedPurchases, 0) + ' compra(s) recebidas' : 'Rotina operacional ainda sem histórico'
+      }
+    ];
+  }
+
+  function _maturityDataSignalCard(card) {
+    card = card || {};
+    var level = card.level || 'empty';
+    return '<article class="stones-data-item stones-data-item-' + _esc(level) + '">' +
+      '<div class="stones-data-mark"><span></span></div>' +
+      '<div class="stones-data-copy">' +
+        '<div><h4>' + _esc(card.title || '') + '</h4><small>' + _esc(_maturityDataSignalLevelLabel(level)) + '</small></div>' +
+        '<p>' + _esc(card.text || '') + '</p>' +
+        '<strong>' + _esc(card.meta || '') + '</strong>' +
+      '</div>' +
+    '</article>';
+  }
+
+  function _maturityFinanceSignalText(finance) {
+    finance = finance || {};
+    if (finance.overduePayables > 0) {
+      return 'Entrou dinheiro, mas ainda existem contas vencidas atrapalhando a evolução.';
+    }
+    if (finance.net < 0) {
+      return 'Nos últimos lançamentos, saiu mais dinheiro do que entrou.';
+    }
+    if (finance.pendingPayables > 0) {
+      return 'Sobrou dinheiro no caixa recente, mas ainda há contas em aberto.';
+    }
+    return 'Ajuda a ver se as vendas estão deixando dinheiro no negócio.';
+  }
+
+  function _maturityMarketingSignalText(marketing) {
+    marketing = marketing || {};
+    if (!marketing.hasData) return 'Ainda não há promoção, cupom ou oferta trazendo pedido. A Pedra só considera ação de venda quando ela aparece em uma compra real.';
+    if (!marketing.actionOrders) return 'As ações já estão preparadas, mas ainda não viraram pedido. Por enquanto elas mostram organização, não resultado.';
+    if (marketing.impactStatus === 'heavy_discount') return 'As ações venderam, mas o desconto ficou pesado. Isso ajuda a movimentar, porém pode segurar a evolução saudável.';
+    if (marketing.upsellOrders > 0 && marketing.netRevenue > 0) return 'Ofertas, cupons ou upsell já ajudaram a vender mais em pedidos reais, por isso entram como sinal positivo.';
+    return 'Promoções, cupons ou upsell já apareceram em pedidos reais. Isso mostra que a ação saiu do cadastro e gerou movimento.';
+  }
+
+  function _maturityLoyaltySignalText(loyaltyScore, points) {
+    points = points || {};
+    if (loyaltyScore) return 'Clientes voltando a comprar mostram que existe relação com o negócio, não apenas venda avulsa.';
+    if (points.redemptionOrders > 0) return 'Clientes já voltaram para comprar usando pontos. Isso mostra que o programa começou a puxar recompra.';
+    if (points.hasData) return 'Clientes estão juntando pontos, mas a Pedra só considera isso mais forte quando eles voltam para usar.';
+    return 'Ainda falta cliente voltando para comprar de novo. Quando a recompra aparecer, a fidelização ganha força.';
+  }
+
+  function _maturityReviewSignalText(reviews) {
+    reviews = reviews || {};
+    if (!reviews.approved) return 'Ainda falta opinião de cliente para mostrar confiança para novas pessoas comprarem.';
+    if (reviews.trustStatus === 'attention') return 'Já existem opiniões, mas a nota mostra que a experiência precisa melhorar antes de virar força.';
+    if (reviews.productMentions > 0) return 'Clientes citaram produtos nas avaliações. Isso ajuda outras pessoas a confiar e também mostra o que gera desejo.';
+    return 'Opiniões positivas mostram que a experiência está agradando e ajudam a fortalecer a confiança.';
+  }
+
+  function _maturityOperationsSignalText(operations) {
+    operations = operations || {};
+    if (!operations.hasData) return 'Ainda falta histórico de compras, produção ou estoque para entender se a rotina sustenta as vendas.';
+    if (operations.operationStatus === 'supporting') return 'Compras, produção ou estoque já mostram mais controle. Isso reduz improviso e ajuda a sustentar crescimento.';
+    return 'Já existem registros, mas ainda falta repetir a rotina mais vezes para ela virar uma força real da Pedra.';
+  }
+
+  function _maturityDataSignalLevelLabel(level) {
+    if (level === 'strong') return 'Bom sinal';
+    if (level === 'medium') return 'Ajuda a Pedra';
+    if (level === 'light') return 'Ainda fraco';
+    return 'Ainda sem base';
   }
 
   function _maturityLoadingCard() {
@@ -1953,7 +3141,7 @@ Modules.Temporadas = (function () {
     var latest = (events || [])[0];
     if (!latest) {
       return '<div class="stones-evolution-card stones-evolution-empty">' +
-        '<div><span class="seasons-section-label">Evolução recente</span><h3>Ainda sem subida de Pedra</h3><p>Quando a loja evoluir, o histórico ficará disponível aqui.</p></div>' +
+        '<div><span class="seasons-section-label">Evolução recente</span><h3>Ainda sem subida de Pedra</h3><p>Quando o negócio evoluir, o histórico ficará disponível aqui.</p></div>' +
         '<button class="seasons-secondary-button" type="button" onclick="Modules.Temporadas.openStoneEvolutionHistory()">Histórico de evolução</button>' +
       '</div>';
     }
@@ -1982,7 +3170,6 @@ Modules.Temporadas = (function () {
     return '<div class="stones-checklist" aria-label="Caminho da Pedra">' +
       '<div class="stones-checklist-head">' +
         '<div><span class="seasons-section-label">Caminho da Pedra</span><h3>Marcos reais do negócio</h3></div>' +
-        '<small>Automático</small>' +
       '</div>' +
       '<div class="stones-checklist-list">' +
         checklist.map(_maturityChecklistItem).join('') +
@@ -2154,7 +3341,7 @@ Modules.Temporadas = (function () {
           '<div class="seasons-empty-copy">' +
             '<span class="seasons-section-label">Temporada ativa</span>' +
             '<h2>Nenhuma temporada ativa</h2>' +
-            '<p>A estrutura inicial está pronta. Na próxima fase, esta área exibirá objetivo, estratégia, dificuldade, progresso, score, status e dias restantes.</p>' +
+            '<p>Crie uma temporada para transformar sua rota em ações práticas. O BocaFood acompanha os pedidos reais e mostra o que fazer para avançar.</p>' +
             '<div class="seasons-readiness-row">' +
               '<span>' + _icon('verified') + ' Tenant carregado</span>' +
               '<span>' + _icon('timer') + ' Ciclos de 30 ou 90 dias</span>' +
@@ -2183,6 +3370,7 @@ Modules.Temporadas = (function () {
     var progress = _number(season.progressPercent, 0);
     return '' +
       '<div class="seasons-hud">' +
+        '<div class="seasons-hud-symbol">' + _icon('assistant_direction') + '</div>' +
         '<div class="seasons-hud-main">' +
           '<span class="seasons-section-label">Painel da Temporada</span>' +
           '<h2>' + _esc(season.title || 'Temporada sem título') + '</h2>' +
@@ -2217,8 +3405,7 @@ Modules.Temporadas = (function () {
   function _seasonTabs(season, activeTab) {
     var tabs = [
       { key: 'overview', label: 'Visão Geral', icon: 'dashboard' },
-      { key: 'next', label: 'Próxima Jogada', icon: 'assistant_direction' },
-      { key: 'analysis', label: 'Análises', icon: 'monitoring' }
+      { key: 'next', label: 'Próxima Jogada', icon: 'assistant_direction' }
     ];
     if (season.status === 'finished') tabs.push({ key: 'final', label: 'Resultado Final', icon: 'flag_check' });
     return '<nav class="seasons-inner-tabs" aria-label="Navegação da temporada">' + tabs.map(function (tab) {
@@ -2251,18 +3438,17 @@ Modules.Temporadas = (function () {
           '</div>' +
           '<strong>' + Math.round(progress) + '%</strong>' +
         '</section>' +
+        _seasonSalesPlanChart(season, metrics) +
         '<div class="seasons-reading-grid">' +
           _readingCard('Meta e progresso', 'flag', [
             _readingFact('Meta', _formatMetricValue(metrics.targetValue, season.objective)),
             _readingFact('Atual', _formatMetricValue(metrics.currentValue, season.objective)),
-            _readingFact('Esperado para hoje', expected > 0 ? Math.round(expected) + '%' : 'Em leitura')
+            _readingFact('Esperado para hoje', expected > 0 ? Math.round(expected) + '%' : 'Em início')
           ], _progressBalloonText(season, metrics, progress)) +
-          _readingCard('Score explicado', 'speed', [
+          _readingCard('Score', 'speed', [
             _readingFact('Score', score + '/100'),
-            _readingFact('Base do objetivo', scoreBreakdown.coreObjectiveScore + '/100'),
-            _readingFactHtml('Impactos validados', _impactBadge(scoreBreakdown.validatedImpactBonus)),
-            _readingFact('Ajuste por risco', '-' + scoreBreakdown.riskPenalty)
-          ], _scoreBalloonText(season, metrics)) +
+            _readingFact('Leitura', _scoreSimpleReading(scoreBreakdown, season, metrics))
+          ], _scoreBalloonText(season, metrics, scoreBreakdown)) +
           _readingCard('Risco', 'warning', [
             _readingFactHtml('Chance de falha', _riskBadge(season.riskLevel)),
             _readingFact('Dias restantes', String(Math.round(_number(metrics.daysRemaining, 0)))),
@@ -2270,17 +3456,43 @@ Modules.Temporadas = (function () {
           ], _riskBalloonText(season, metrics, progress)) +
           _readingCard('Base observada', 'analytics', [
             _readingFact('Pedidos', String(Math.round(_number(metrics.orders, 0)))),
-            _readingFact('Ticket médio', _fmtMoney(metrics.averageTicket)),
-            _readingFact(primaryLabels.current, _formatMetricValue(metrics.currentValue, season.objective))
-          ], 'Estes números vêm dos pedidos válidos dentro do período da temporada.') +
+            _readingFact('Ticket médio', _fmtMoney(metrics.averageTicket))
+          ], 'Aqui você vê o retrato das vendas desta temporada até agora: quantos pedidos entraram, quanto cada pedido tem deixado em média e qual resultado está puxando o objetivo escolhido.') +
         '</div>' +
         '<div class="seasons-reading-columns">' +
           _readingListBlock('O que está ajudando', 'thumb_up', seasonReading.helpingSignals) +
           _readingListBlock('O que está travando', 'report', seasonReading.blockingSignals) +
         '</div>' +
-        _readingNextAction(season, metrics, recommendation, seasonReading) +
       '</div>' +
       _quickAlerts(snapshots);
+  }
+
+  function _seasonSalesPlanChart(season, metrics) {
+    var plan = season && season.planConnection || {};
+    var planned = _number(plan.routeTarget, 0);
+    var realized = _number(metrics && metrics.revenue, 0);
+    if (planned <= 0 && season && season.objective === 'sell_more') planned = _number(metrics && metrics.targetValue, 0);
+    if (planned <= 0) return '';
+    var pct = planned > 0 ? _clamp((realized / planned) * 100, 0, 140) : 0;
+    var barPct = Math.min(100, pct);
+    var remaining = Math.max(0, planned - realized);
+    var label = pct >= 100 ? 'Venda do período alcançada' : 'Faltam ' + _fmtMoney(remaining) + ' para a venda planejada do período';
+    return '' +
+      '<section class="seasons-sales-plan-card" aria-label="Venda planejada e realizada">' +
+        '<div class="seasons-sales-plan-head">' +
+          '<div>' +
+            '<span class="seasons-section-label">Venda do período</span>' +
+            '<h3>Planejado x realizado</h3>' +
+            '<p>' + _esc(label) + '</p>' +
+          '</div>' +
+          '<strong>' + Math.round(pct) + '%</strong>' +
+        '</div>' +
+        '<div class="seasons-sales-plan-values">' +
+          '<span><small>Planejado</small><strong>' + _esc(_fmtMoney(planned)) + '</strong></span>' +
+          '<span><small>Realizado</small><strong>' + _esc(_fmtMoney(realized)) + '</strong></span>' +
+        '</div>' +
+        '<div class="seasons-sales-plan-bar"><i style="width:' + barPct + '%"></i></div>' +
+      '</section>';
   }
 
   function _seasonSituationTone(season, metrics, progress) {
@@ -2311,13 +3523,13 @@ Modules.Temporadas = (function () {
 
   function _readingCard(title, icon, facts, note) {
     return '' +
-      '<article class="seasons-reading-card">' +
+      '<article class="seasons-reading-card ' + (note ? 'seasons-reading-card-clickable' : '') + '" ' + (note ? 'role="button" tabindex="0" onclick="Modules.Temporadas.toggleMetricBalloon(this)" onkeydown="Modules.Temporadas._metricTileKey(event,this)"' : '') + '>' +
         '<div class="seasons-reading-card-head">' +
           '<span>' + _icon(icon) + '</span>' +
           '<strong>' + _esc(title) + '</strong>' +
         '</div>' +
         '<div class="seasons-reading-facts">' + (facts || []).join('') + '</div>' +
-        (note ? '<p>' + _esc(note) + '</p>' : '') +
+        (note ? '<div class="seasons-metric-balloon seasons-reading-balloon" hidden><small>Como ler</small><p>' + _esc(note) + '</p></div>' : '') +
       '</article>';
   }
 
@@ -3495,6 +4707,10 @@ Modules.Temporadas = (function () {
     return raw.normalize ? raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '') : raw;
   }
 
+  function _normalizeText(value) {
+    return _foldText(value).replace(/[\s-]+/g, '_');
+  }
+
   function _buildSeasonExecutionPlan(season, currentMetrics, validatedImpactSignals, riskContext) {
     var profile = _difficultyExecutionProfile(season && season.difficulty);
     var signals = validatedImpactSignals || {};
@@ -4182,7 +5398,6 @@ Modules.Temporadas = (function () {
     return '' +
       '<div class="seasons-copilot-layout">' +
         '<section class="seasons-copilot-main">' +
-          '<div class="seasons-tab-header"><span class="seasons-section-label">Próxima Jogada</span><h3>O que fazer agora?</h3><p>Jogadas práticas para ajudar sua loja a avançar nesta temporada, com foco, prazo e leitura do que aconteceu.</p></div>' +
           _nextMoveBlock(season, metrics, recommendation) +
         '</section>' +
         '<aside class="seasons-system-side">' +
@@ -4266,23 +5481,55 @@ Modules.Temporadas = (function () {
     var current = _formatMetricValue(metrics.currentValue, season.objective);
     var target = _formatMetricValue(metrics.targetValue, season.objective);
     var expected = _number(metrics.expectedProgress, 0);
-    var parts = ['Este gráfico mostra quanto da meta principal já foi alcançado. O resultado atual é ' + current + ' de uma meta de ' + target + '.'];
-    if (expected > 0) parts.push('Para este momento da temporada, o ritmo esperado era perto de ' + Math.round(expected) + '%, então a comparação principal é entre o progresso real e esse ponto de referência.');
-    if (progress >= 100) parts.push('Como o progresso chegou a 100% ou mais, a meta da temporada já foi atingida ou superada.');
-    else parts.push('Ainda falta aproximadamente ' + Math.max(0, Math.round(100 - progress)) + '% para chegar à meta. Se esse número ficar distante do ritmo esperado, a temporada tende a exigir ação mais rápida.');
+    var parts = ['Você já chegou em ' + current + ' de uma meta de ' + target + '.'];
+    if (expected <= 0) {
+      return parts.concat(['Como a temporada acabou de começar, ainda não vamos tratar isso como atraso. Hoje é dia de colocar a primeira jogada em movimento.']).join(' ');
+    }
+    parts.push('Para o momento de hoje, o ideal seria estar perto de ' + Math.round(expected) + '%.');
+    if (progress >= 100) parts.push('Você já passou da meta desta temporada. Agora vale manter o que funcionou e cuidar para não perder ritmo.');
+    else parts.push('Ainda falta cerca de ' + Math.max(0, Math.round(100 - progress)) + '% para chegar lá. Use a Próxima Jogada para puxar esse avanço com mais clareza.');
     return parts.join(' ');
   }
 
-  function _scoreBalloonText(season, metrics) {
+  function _scoreSimpleReading(scoreBreakdown, season, metrics) {
+    var finalScore = _number(scoreBreakdown && scoreBreakdown.finalScore, _number(season && season.currentScore, 0));
+    var risk = season && season.riskLevel || metrics && metrics.riskLevel || '';
+    var starting = _statusScoreLabel(season && season.currentStatus) === 'Em início' || _number(metrics && metrics.expectedProgress, 0) <= 0;
+    if (starting && (risk === 'high' || risk === 'very_high')) return 'Rota exigente no início';
+    if (finalScore >= 85) return 'Muito bom';
+    if (finalScore >= 65) return 'No caminho';
+    if (finalScore >= 40) return 'Pede atenção';
+    return 'Precisa de ação';
+  }
+
+  function _scoreBalloonText(season, metrics, scoreBreakdown) {
     var score = _number(season.currentScore, 0);
-    var weights = _objectiveWeights(season.objective).map(function (item) {
-      return item.label + ' ' + item.weight;
-    }).join(', ');
-    var text = 'Este score considera principalmente: ' + (weights || 'as métricas do objetivo atual') + '.';
-    if (score >= 85) return text + ' A nota está alta porque os indicadores principais estão acima do ritmo esperado.';
-    if (score >= 65) return text + ' A nota está dentro de uma faixa estável, com avanço suficiente até agora.';
-    if (score >= 40) return text + ' A nota mostra oscilação: existe avanço, mas ainda abaixo do ideal para este ponto da temporada.';
-    return text + ' A nota está baixa porque os indicadores principais ainda estão longe da meta ou do ritmo esperado.';
+    scoreBreakdown = scoreBreakdown || _scoreBreakdownForDisplay(season, metrics);
+    var starting = _statusScoreLabel(season && season.currentStatus) === 'Em início' || _number(metrics && metrics.expectedProgress, 0) <= 0;
+    var objectiveText = _scoreObjectivePlainText(season && season.objective);
+    var pieces = [
+      'Essa nota ajuda você a sentir se a temporada está indo bem ou se precisa de uma ação mais forte.',
+      objectiveText
+    ];
+    if (scoreBreakdown.validatedImpactBonus > 0) pieces.push('Algumas vendas e ações reais já começaram a ajudar.');
+    if (scoreBreakdown.riskPenalty > 0) {
+      pieces.push(starting
+        ? 'A rota começou exigente, então este é um cuidado inicial, não uma cobrança de atraso.'
+        : 'Quando o ritmo fica distante do necessário, a nota pede mais atenção.');
+    }
+    if (score >= 85) pieces.push('Continue reforçando o que está funcionando.');
+    else if (score >= 65) pieces.push('Você está no caminho; mantenha constância.');
+    else if (score >= 40) pieces.push('Vale agir agora para não deixar a temporada escapar.');
+    else pieces.push('O melhor agora é escolher uma jogada simples e colocar em prática rápido.');
+    return pieces.join(' ');
+  }
+
+  function _scoreObjectivePlainText(objective) {
+    if (objective === 'sell_more') return 'Para esta temporada, o olhar está em vender mais e manter dias com movimento.';
+    if (objective === 'increase_ticket') return 'Para esta temporada, o olhar está em fazer cada pedido valer mais.';
+    if (objective === 'retain_customers') return 'Para esta temporada, o olhar está em fazer clientes voltarem.';
+    if (objective === 'improve_consistency') return 'Para esta temporada, o olhar está em vender com mais regularidade, sem depender de poucos dias bons.';
+    return 'Para esta temporada, o olhar está no caminho escolhido para a sua rota.';
   }
 
   function _paceBalloonText(season, metrics, progress) {
@@ -4387,7 +5634,7 @@ Modules.Temporadas = (function () {
 
   function _validSeasonTab(season, tab) {
     if (tab === 'final' && season.status !== 'finished') return 'overview';
-    return ({ overview: true, next: true, analysis: true, final: true })[tab] ? tab : 'overview';
+    return ({ overview: true, next: true, final: true })[tab] ? tab : 'overview';
   }
 
   function _setSeasonTab(tab) {
@@ -4426,7 +5673,7 @@ Modules.Temporadas = (function () {
             '<span class="seasons-section-label">Próxima Jogada</span>' +
             '<strong>' + _esc(actions.length > 1 ? 'Jogadas ativas' : 'Jogada ativa') + '</strong>' +
           '</div>' +
-          '<p>' + _esc(actions.length > 1 ? 'Cada card tem um foco diferente para você agir sem misturar tudo na mesma decisão.' : 'Esta é a jogada com mais sentido para o momento atual da sua loja.') + '</p>' +
+          '<p>' + _esc(actions.length > 1 ? 'Faça uma jogada por vez, cada uma com um objetivo claro para ajudar sua loja a avançar melhor.' : 'Esta é a jogada que faz mais sentido para o momento atual da sua loja.') + '</p>' +
           '<div class="seasons-next-checklist">' +
             '<div class="seasons-next-checklist-head"><strong>' + _esc(profile.label ? 'Ritmo ' + profile.label : 'Ritmo da temporada') + '</strong><span>' + _esc(profile.cadence || 'Ações práticas') + '</span></div>' +
             actions.map(function (action, index) {
@@ -4512,7 +5759,7 @@ Modules.Temporadas = (function () {
           '<h4>' + _esc(remaining.title) + '</h4>' +
           '<p>' + _esc(focus) + '</p>' +
         '</div>' +
-        '<aside>' +
+        '<aside class="seasons-weekly-rhythm seasons-weekly-rhythm-' + _esc(season && season.difficulty || 'balanced') + '">' +
           '<small>Ritmo escolhido</small>' +
           '<strong>' + _esc(profile.label || 'Temporada') + '</strong>' +
           '<span>' + _esc(profile.cadence || 'Ações práticas') + '</span>' +
@@ -4836,7 +6083,7 @@ Modules.Temporadas = (function () {
   function toggleMetricBalloon(card) {
     if (!card) return;
     var isOpen = card.classList.contains('open');
-    Array.prototype.forEach.call(document.querySelectorAll('.seasons-metric-tile.open, .seasons-status-bar.open, .seasons-progress-block-inner.open'), function (item) {
+    Array.prototype.forEach.call(document.querySelectorAll('.seasons-metric-tile.open, .seasons-status-bar.open, .seasons-progress-block-inner.open, .seasons-reading-card.open'), function (item) {
       if (item !== card) {
         item.classList.remove('open');
         var itemBalloon = item.querySelector('.seasons-metric-balloon');
@@ -5402,48 +6649,47 @@ Modules.Temporadas = (function () {
             _helpSummaryCard('Duração', _durationDays(season) + ' dias') +
           '</section>' +
           '<section class="seasons-help-section">' +
-            '<h3>O que significa este resumo</h3>' +
+            '<h3>O que esta tela te mostra</h3>' +
             '<div class="seasons-help-grid">' +
-              _helpItem('Objetivo: ' + _objectiveLabel(season.objective), 'É o foco principal da temporada. Define qual resultado o sistema vai acompanhar com mais atenção.', objective.focus) +
-              _helpItem('Estratégia: ' + _buildLabel(season.build), 'É a forma como o BocaFood interpreta os dados dentro da temporada.', build) +
-              _helpItem('Dificuldade: ' + _difficultyLabel(season.difficulty), 'Define o nível de exigência da meta, a pressão do ritmo esperado e a tolerância ao risco.', difficulty) +
-              _helpItem('Duração: ' + _durationDays(season) + ' dias', 'Define o período usado para acompanhar a meta e comparar o progresso real com o ritmo esperado.', 'Sprint usa 30 dias. Temporada usa 90 dias.') +
+              _helpItem('Painel da Temporada', 'Mostra o caminho escolhido: objetivo, estratégia, dificuldade, score, progresso e dias restantes.', 'Use este bloco para saber rapidamente se a temporada está andando no ritmo certo.') +
+              _helpItem('Visão Geral', 'Resume como a temporada está hoje, o que está ajudando e o que está travando.', 'Os cards têm explicação extra: clique neles para abrir o balão de ajuda.') +
+              _helpItem('Próxima Jogada', 'Mostra as ações práticas que valem fazer agora, com produto, canal, prazo e motivo quando esses dados existem.', 'É a parte mais operacional da Temporada: aqui fica o que fazer no dia a dia.') +
+              _helpItem('Resultado da jogada', 'Quando uma jogada aparece nos pedidos, o BocaFood mostra se ela deu resultado, não respondeu ou passou do prazo.', 'Assim a próxima decisão aprende com o que aconteceu.') +
             '</div>' +
           '</section>' +
           _helpWeightHighlightsHtml(season) +
           '<section class="seasons-help-section">' +
-            '<h3>Campos principais</h3>' +
+            '<h3>Como ler os cards principais</h3>' +
             '<div class="seasons-help-grid">' +
-              _helpItem('Progresso', 'Mostra quanto da meta já foi alcançado. Pode passar de 100% se a meta for superada. Muda conforme o objetivo da temporada.', objective.progress) +
-              _helpItem('Score', 'Nota de 0 a 100 que combina as métricas principais da temporada. Não é só faturamento: os pesos mudam conforme o objetivo.', objective.score) +
-              _helpItem('Ritmo Atual', 'Compara o progresso real com o progresso esperado para este momento da temporada. No início, não deve punir ausência de resultado imediato.', 'Estados: Em início, Excelente, Estável, Instável e Crítico.') +
-              _helpItem('Chance de Falha', 'Estima o risco de não atingir a meta considerando histórico, dificuldade da meta, dias restantes e ritmo atual.', 'Estados: Baixo, Médio, Alto e Muito alto. Pode ser alta no começo se a meta estiver muito acima do histórico.') +
-              _helpItem('Atual', 'Valor atual acumulado ou calculado até agora.', objective.current) +
-              _helpItem('Meta', 'Valor que precisa ser alcançado até o final da temporada. Agora a meta vem da rota escolhida no Plano de Voo.', objective.target) +
+              _helpItem('Resumo da temporada', 'É a leitura principal do momento: mostra se a temporada está dentro do caminho, abaixo do ritmo ou pedindo atenção.', 'A porcentagem ao lado mostra o avanço da meta principal.') +
+              _helpItem('Meta e progresso', 'Compara o que precisava acontecer com o que já aconteceu até agora.', objective.progress) +
+              _helpItem('Score', 'Mostra uma leitura geral da temporada para o objetivo escolhido.', objective.score) +
+              _helpItem('Risco', 'Mostra a chance de a temporada não chegar onde precisa se continuar no ritmo atual.', 'Risco alto não é erro: é um aviso para agir mais rápido ou escolher uma jogada mais simples.') +
+              _helpItem('Base observada', 'Mostra o retrato das vendas desta temporada até agora.', 'Use para entender o volume de pedidos, o ticket médio e o resultado que está puxando o objetivo escolhido.') +
+              _helpItem('O que ajuda e o que trava', 'Mostra sinais simples do que está puxando a temporada e do que está atrapalhando.', 'Use essa parte para entender por que a Próxima Jogada foi sugerida.') +
             '</div>' +
           '</section>' +
           '<section class="seasons-help-section">' +
-            '<h3>Como ler os gráficos</h3>' +
+            '<h3>Como agir com a Próxima Jogada</h3>' +
             '<div class="seasons-help-intro">' +
-              '<h4>Barras de status</h4>' +
-              '<p>Mostram leituras rápidas de áreas importantes da temporada. Quanto maior a barra, maior o nível daquele indicador.</p>' +
-              '<span>Use as barras para entender onde a temporada está forte e onde precisa de atenção.</span>' +
+              '<h4>Uma jogada por vez</h4>' +
+              '<p>A Próxima Jogada existe para transformar a rota em ação prática. Ela deve dizer o que fazer, por que fazer, até quando fazer e como o BocaFood vai reconhecer se valeu a pena.</p>' +
+              '<span>Quando a dificuldade for maior, podem aparecer mais jogadas, mas cada uma precisa ter um objetivo claro.</span>' +
             '</div>' +
             '<div class="seasons-help-grid">' +
-              _helpItem('Barra de progresso', 'Mostra visualmente quanto da meta já foi alcançado. A barra enche até 100% para facilitar a leitura, mesmo que o progresso real possa passar disso.', objective.progress) +
-              _helpItem('Ritmo operacional', 'Mostra se a temporada está avançando no ritmo necessário para o momento atual.', 'Não é a mesma coisa que a meta final: compara o progresso real com o esperado até hoje.') +
-              _helpItem('Consistência', 'Mostra a regularidade das vendas ao longo da temporada.', 'Uma barra baixa indica vendas muito concentradas em poucos dias ou semanas irregulares.') +
-              _helpItem('Fidelização', 'Mostra sinais de recompra, clientes recorrentes e frequência.', 'Se o objetivo não for fidelização, essa barra entra como apoio para leitura do negócio.') +
-              _helpItem('Chance de falha', 'Mostra o nível visual de risco da temporada não atingir a meta.', 'Nesta barra, valor alto pede atenção: significa maior chance de falha, não melhor desempenho.') +
+              _helpItem('Fazer', 'É a ação principal da jogada.', 'Exemplo: destacar um produto, criar uma promoção, usar um cupom, ativar upsell ou puxar recompra.') +
+              _helpItem('Por que fazer', 'Mostra o dado que justifica a jogada.', 'Pode vir de produto forte, canal que respondeu melhor, horário com pedido, promoção usada ou cliente recorrente.') +
+              _helpItem('Até quando', 'Mostra o prazo para colocar a jogada em prática.', 'O prazo muda conforme a dificuldade: seguro é mais tranquilo, agressivo é mais rápido.') +
+              _helpItem('Vai valer a pena se', 'Mostra como o BocaFood vai reconhecer resposta.', 'O resultado precisa aparecer em pedido real ou em ação criada dentro do BocaFood.') +
             '</div>' +
           '</section>' +
           '<section class="seasons-help-section seasons-help-split">' +
             '<div>' +
-              '<h3>Objetivo desta temporada</h3>' +
+              '<h3>Objetivo</h3>' +
               '<p>' + _esc(objective.focus) + '</p>' +
             '</div>' +
             '<div>' +
-              '<h3>Estratégia operacional</h3>' +
+              '<h3>Estratégia</h3>' +
               '<p>' + _esc(build) + '</p>' +
             '</div>' +
             '<div>' +
@@ -5451,7 +6697,7 @@ Modules.Temporadas = (function () {
               '<p>' + _esc(difficulty) + '</p>' +
             '</div>' +
           '</section>' +
-          '<p class="seasons-help-note">As análises são automáticas. Você não precisa preencher esta tela manualmente. O sistema usa os dados gerados nos pedidos, clientes e demais módulos disponíveis.</p>' +
+          '<p class="seasons-help-note">A Temporada não cria uma meta separada: ela acompanha a rota escolhida no Plano de Voo e usa pedidos reais para orientar as próximas jogadas.</p>' +
         '</div>' +
       '</div>';
   }
@@ -5675,10 +6921,6 @@ Modules.Temporadas = (function () {
     ][step] || '';
     return '' +
       '<aside class="seasons-wizard-decision">' +
-        '<div class="seasons-wizard-orbit">' +
-          '<span></span><span></span><span></span>' +
-          _icon(step === 5 ? 'verified' : (step === 2 ? 'event_upcoming' : 'track_changes')) +
-        '</div>' +
         '<small>Decisão da temporada</small>' +
         '<h3>' + _esc(_wizardStepDecisionTitle(step)) + '</h3>' +
         '<p>' + _esc(guidance) + '</p>' +
@@ -7936,6 +9178,10 @@ Modules.Temporadas = (function () {
     var grace = _criticalGraceDays(period);
     var hasEnoughData = _hasEnoughRuntimeData(current, season);
 
+    if (elapsed <= 1) {
+      return { status: 'starting', expectedProgress: 0, progressRatio: ratio };
+    }
+
     if (!hasEnoughData && elapsed <= 1) {
       return { status: 'starting', expectedProgress: expected, progressRatio: ratio };
     }
@@ -7950,6 +9196,7 @@ Modules.Temporadas = (function () {
   function _expectedProgressForPace(period) {
     var elapsed = Math.max(1, _number(period.elapsedDays, 1));
     var duration = Math.max(1, _number(period.durationDays, 30));
+    if (elapsed <= 1) return 0;
     return Math.min(100, Math.max(0, (elapsed / duration) * 100));
   }
 
@@ -8438,6 +9685,19 @@ Modules.Temporadas = (function () {
   function _dayStart(value) {
     var d = _toDate(value) || new Date();
     return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  }
+
+  function _dayEnd(value) {
+    var d = _dayStart(value);
+    d.setHours(23, 59, 59, 999);
+    return d;
+  }
+
+  function _addDays(value, days) {
+    var d = _toDate(value) || new Date();
+    var next = new Date(d.getTime());
+    next.setDate(next.getDate() + _number(days, 0));
+    return next;
   }
 
   function _weekStart(value) {

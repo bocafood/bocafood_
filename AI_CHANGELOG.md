@@ -1,5 +1,174 @@
 # AI Changelog
 
+## 2026-05-27 — Loja pública: diagnóstico de slug e dados nulos
+- Arquivos alterados: `public/index.html`, `AI_CHANGELOG.md`.
+- Rastreado o erro `Cannot read properties of null (reading 'name')` no carregamento da loja pública: o slug do tenant `Bocado Brasil` está salvo corretamente como `bocadobrasil`, então a falha atual não vem de slug antigo.
+- A resolução por slug agora aceita fallback seguro para a versão sem hífen quando alguém abre um link antigo, por exemplo `/bocado-brasil` tentando encontrar `/bocadobrasil`.
+- Reforcei a montagem inicial para ignorar zonas de entrega, formas de pagamento, variações e slots nulos antes de acessar campos como `name`/`id`.
+- O carregamento agora registra no console a etapa exata em que falhar (`loadStep`) e diferencia slug não encontrado de erro depois que a loja pública já foi resolvida, evitando mascarar falha interna como `Tienda no encontrada`.
+- Impacto esperado: a loja publicada deve carregar mesmo com dados incompletos em coleções/configurações auxiliares; se ainda houver falha, o console passa a indicar o bloco exato sem expor erro técnico para a cliente.
+
+## 2026-05-27 — Loja pública: carregamento tolera produto nulo
+- Arquivos alterados: `public/index.html`, `AI_CHANGELOG.md`.
+- Corrigi os helpers de produto (`productName`, `productDesc`, `productKicker` e `productPrice`) para não quebrarem quando algum vínculo de promoção, upsell, destaque ou renderização chegar com produto nulo.
+- Antes, esse erro caía no `catch` geral do template e aparecia para a cliente como `Tienda no encontrada` com `Cannot read properties of null (reading 'name')`.
+- Impacto esperado: a loja publicada continua carregando mesmo quando algum dado relacionado aponta para produto inexistente ou nulo, sem alterar Firestore, rotas, tenant, carrinho ou pedidos.
+
+## 2026-05-27 — Admin: Ver loja usa publicação atual
+- Arquivos alterados: `public/admin.html`, `AI_CHANGELOG.md`.
+- Ajustei o botão `Ver loja` para consultar `system_tenants/{tenantId}.store` e validar `public_stores/{slug}` no momento do clique, antes de abrir a loja.
+- O botão deixa de depender apenas do perfil em memória, que podia estar com `publicUrl` antigo e abrir uma tela de loja não publicada mesmo quando a publicação atual estava ativa.
+- Ajuste posterior: o botão passou a abrir a aba imediatamente e direcionar depois da validação, usando também `config/dominio` como fonte do slug/URL atual para evitar cair em links antigos salvos no perfil.
+- Impacto esperado: abrir sempre a URL pública ativa da loja publicada, preservando rotas, permissões, tenant e lógica de publicação.
+
+## 2026-05-27 — Performance: primeiros cards mais premium
+- Arquivos alterados: `public/js/modules/performance.js`, `public/css/modules/performance.css`, `AI_CHANGELOG.md`.
+- Reorganizei os dois primeiros cards da `Performance` (`Rota ativa` e `Como está o mês`) para seguir melhor a linguagem visual de `Maturidade`, com fundo em camadas mais sutil, borda fina, linha superior na cor do estado e métricas em subcards leves.
+- O card `Rota ativa` deixou de concentrar muitas pílulas numa linha e passou a separar meta, sobra esperada, cenário e força do mês em blocos legíveis.
+- O card `Como está o mês` ficou menos pesado, sem ícone grande, e passou a destacar esperado, vendido e diferença em três métricas claras.
+- Impacto esperado: deixar a leitura da Performance mais sofisticada, organizada e alinhada ao padrão visual de Maturidade, sem alterar cálculos, Firestore, rotas ou permissões.
+
+## 2026-05-27 — Menu lateral simplificado
+- Arquivos alterados: `public/admin.html`, `AI_CHANGELOG.md`.
+- Removi sobras visuais do antigo seletor de ambientes no menu lateral, incluindo o wrapper interno de Operação e o botão duplicado de recolher.
+- `Performance` e `Maturidade` deixaram de aparecer como atalhos soltos no topo e passaram a ficar dentro do grupo `Crescimento`, junto de `Plano de Voo` e `Temporadas`.
+- Limpei CSS antigo específico dos atalhos soltos, mantendo as rotas registradas e o comportamento de recolher/expandir do menu pela topbar.
+- Ajuste posterior: `Maturidade do Negócio` voltou para o topo do menu com destaque visual próprio, como estava antes, e foi removida de dentro do grupo `Crescimento`.
+- Ajuste posterior: `Performance` também voltou para o topo, logo abaixo de `Maturidade do Negócio`, com destaque visual próprio, e foi removida de dentro de `Crescimento`.
+- Ajuste posterior: no menu recolhido, reduzi a altura dos itens e permiti rolagem vertical invisível para que os ícones não ultrapassem a tela em alturas menores.
+- Impacto esperado: menu lateral mais coerente, sem duplicidade visual e sem a estrutura antiga de Operação/Inteligência aparecendo por trás.
+
+## 2026-05-27 — Início como rotina diária
+- Arquivos alterados: `public/js/modules/dashboard.js`, `public/dashboard-onboarding-preview.html`, `AI_CHANGELOG.md`.
+- Reorganizei a aba `Início` para facilitar a rotina da usuária, com ações rápidas para vender, registrar pedido, lançar entrada financeira e cuidar de compra/estoque.
+- A tela passou a destacar `Hoje para cuidar`, `Rotina da loja`, `Próximo passo` e `Crescimento`, conectando operação diária com Plano de Voo, Temporadas, Performance e Maturidade.
+- Ajuste posterior: removi a frase explicativa do topo para deixar o cabeçalho mais direto.
+- Ajuste posterior: o onboarding de `Primeiros passos` virou uma janela flutuante no canto inferior direito, com progresso, checks, recolhimento e atalho para retomar.
+- Ajuste posterior: o onboarding foi dividido em fases: preparar a base do negócio, criar direção com Plano de Voo/Temporada, preparar a loja online e começar a rotina com compra, pedido e Performance.
+- Também foi adicionado um passeio guiado curto para explicar menus, lógica do painel e a sequência ideal de uso sem alterar rotas ou dados.
+- Ajuste posterior: criei `public/dashboard-onboarding-preview.html`, uma página estática de preview para visualizar o novo Início, checklist flutuante e passeio guiado sem depender de login ou Firebase.
+- Impacto esperado: transformar o Início em uma central prática de trabalho, sem alterar Firestore, permissões, rotas ou a lógica dos módulos existentes.
+
+## 2026-05-27 — Temporadas: card Venda do período premium
+- Arquivos alterados: `public/css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- Refinei o card `Venda do período` com fundo em camadas, barra superior, destaque percentual maior, valores em subcards e barra de progresso mais elegante.
+- Impacto esperado: deixar o comparativo planejado x realizado mais bonito e legível sem alterar dados ou lógica.
+
+## 2026-05-27 — Temporadas: gráfico Planejado x Realizado
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- Adicionei na aba `Visão Geral` um card `Venda do período` comparando venda planejada do Plano de Voo com venda realizada até agora na temporada.
+- O gráfico mostra percentual realizado, valores planejado/realizado e uma barra visual de avanço.
+- Impacto esperado: deixar claro quanto a loja planejou vender no período e quanto já realizou, sem alterar cálculos, Firestore, rotas ou permissões.
+
+## 2026-05-27 — Temporadas: Base observada sem Dias ativos
+- Arquivos alterados: `public/js/modules/temporadas.js`, `AI_CHANGELOG.md`.
+- Removi o item `Dias ativos` do card `Base observada`, deixando apenas pedidos e ticket médio.
+- Impacto esperado: evitar repetição/confusão com a meta de consistência e deixar o card mais simples.
+
+## 2026-05-27 — Temporadas: balões de Meta e Score mais humanos
+- Arquivos alterados: `public/js/modules/temporadas.js`, `AI_CHANGELOG.md`.
+- Reescrevi os balões de `Meta e progresso` e `Score` para falar diretamente com a usuária, sem termos como gráfico, cálculo ou ponto de referência.
+- A copy agora orienta o que a usuária deve sentir e fazer: colocar a primeira jogada em movimento, manter constância ou agir para não deixar a temporada escapar.
+- Impacto esperado: deixar a leitura mais próxima, prática e menos técnica, sem alterar o cálculo real.
+
+## 2026-05-27 — Temporadas: copy de Score e Base observada
+- Arquivos alterados: `public/js/modules/temporadas.js`, `AI_CHANGELOG.md`.
+- Renomeei o card `Score explicado` para `Score`, removendo o termo mais técnico da interface.
+- Reescrevi o `Como ler` de `Base observada` para falar do retrato das vendas da temporada, em vez de explicar a origem técnica dos dados.
+- Impacto esperado: deixar a visão geral mais leve e mais próxima da linguagem da usuária, sem alterar cálculos.
+
+## 2026-05-27 — Temporadas: balão do score menos técnico
+- Arquivos alterados: `public/js/modules/temporadas.js`, `AI_CHANGELOG.md`.
+- Simplifiquei o texto do balão `Como ler` do card `Score explicado`, removendo a explicação de fórmula e pesos técnicos.
+- O texto agora explica em linguagem mais humana que o score mostra se a temporada está caminhando bem para o objetivo escolhido, citando o foco de cada objetivo.
+- Impacto esperado: deixar a leitura do score mais clara para a usuária, sem alterar o cálculo interno.
+
+## 2026-05-27 — Temporadas: score com leitura menos técnica
+- Arquivos alterados: `public/js/modules/temporadas.js`, `AI_CHANGELOG.md`.
+- O card `Score explicado` passou a mostrar para a usuária apenas a nota e uma leitura simples, como `Rota exigente no início`, `No caminho` ou `Pede atenção`.
+- A composição técnica da conta (`Base do objetivo`, `Impactos validados` e `Ajuste por risco`) foi movida para o balão `Como ler` do card.
+- Quando a temporada está no início, o balão passa a chamar o desconto de `Risco inicial da rota`, deixando claro que não é atraso da usuária.
+- Impacto esperado: deixar a visão geral mais humana e menos técnica, preservando o cálculo real do score.
+
+## 2026-05-27 — Temporadas: primeiro dia sem cobrança de atraso
+- Arquivos alterados: `public/js/modules/temporadas.js`, `AI_CHANGELOG.md`.
+- Ajustei a leitura de ritmo para que o primeiro dia da temporada apareça como `Em início`, sem mostrar que a loja já deveria estar perto de 3% da meta.
+- O card `Meta e progresso` passa a mostrar `Esperado para hoje: Em início` no primeiro dia, e o balão explica que a comparação de ritmo começa depois da primeira virada de dia.
+- Impacto esperado: evitar sensação artificial de atraso no dia em que a temporada começa, mantendo cálculos, Firestore, rotas e permissões intactos.
+
+## 2026-05-27 — Temporadas: modal Como ler esta temporada atualizado
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- Atualizei o modal `Ajuda da Temporada / Como ler esta temporada` para explicar a tela atual: Painel da Temporada, Visão Geral, cards com balão de ajuda, Próxima Jogada, resultado da jogada e relação com o Plano de Voo.
+- A copy ficou menos técnica e mais orientada à usuária, explicando como agir com as informações sem falar em gráficos antigos ou abas removidas.
+- O modal recebeu ajustes visuais leves para ficar mais premium e coerente com os cards atuais.
+- Impacto esperado: facilitar a leitura da Temporada sem alterar cálculos, Firestore, rotas, permissões ou lógica das jogadas.
+
+## 2026-05-27 — Temporadas: visão geral mais limpa
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- Removi a aba `Análises` da temporada ativa, mantendo os cálculos e funções internas sem expor a navegação.
+- Os textos explicativos longos dos cards `Meta e progresso`, `Score explicado`, `Risco` e `Base observada` passaram a abrir em balão ao selecionar o card, com hover visual.
+- O card `Resumo da temporada` recebeu visual mais premium, com fundo em camadas, barra superior e destaque de progresso mais elegante.
+- Impacto esperado: reduzir poluição visual na visão geral e manter explicações disponíveis sob demanda, sem alterar Firestore, rotas, permissões ou cálculos.
+
+## 2026-05-27 — Temporadas: Painel da Temporada premium e sem Próxima melhor ação
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- O `Painel da Temporada` recebeu composição visual mais premium, com fundo em camadas, símbolo maior, label em pílula, chips mais leves e métricas com destaque lateral.
+- Removi o card `Próxima melhor ação` da aba de visão geral, mantendo as Próximas Jogadas na aba própria.
+- Impacto esperado: reduzir repetição e deixar a tela mais limpa, sem alterar cálculo, Firestore, rotas, permissões ou geração das jogadas.
+
+## 2026-05-27 — Temporadas: cards das jogadas mais claros
+- Arquivos alterados: `public/css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- Os cards individuais das jogadas ficaram mais escaneáveis, com cabeçalho separado, faixa lateral, fundo em camadas, blocos internos mais leves e checklist com marcação discreta.
+- Impacto esperado: facilitar a leitura do que fazer, por que fazer e como executar cada jogada, sem alterar a lógica das recomendações.
+
+## 2026-05-27 — Temporadas: card Ritmo da temporada premium
+- Arquivos alterados: `public/css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- O card lateral `Ritmo da temporada` recebeu fundo em camadas, barra superior sutil, borda mais elegante e métricas em linhas compactas com ícones alinhados.
+- Impacto esperado: deixar o acompanhamento lateral da aba `Próxima Jogada` mais bonito e coerente com o padrão visual de `Maturidade`, sem alterar dados ou lógica.
+
+## 2026-05-27 — Temporadas: ritmo e copy da Próxima Jogada
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- O bloco `Ritmo escolhido` ganhou cores alinhadas à dificuldade da temporada: seguro, equilibrado ou agressivo.
+- A frase introdutória das jogadas ficou menos técnica e passou a falar diretamente com a usuária sobre executar uma jogada por vez, cada uma com objetivo claro.
+- Impacto esperado: melhorar leitura e hierarquia da aba `Próxima Jogada` sem alterar regras, cálculos, Firestore, rotas ou permissões.
+
+## 2026-05-27 — Temporadas: remoção do cabeçalho da Próxima Jogada
+- Arquivos alterados: `public/js/modules/temporadas.js`, `AI_CHANGELOG.md`.
+- Removi o cabeçalho textual da aba `Próxima Jogada` (`O que fazer agora?` e texto explicativo), mantendo diretamente os cards da leitura e das jogadas.
+- Impacto esperado: reduzir repetição visual e deixar a aba mais limpa, sem alterar lógica, dados, Firestore, rotas ou permissões.
+
+## 2026-05-27 — Temporadas: Leitura da semana mais leve
+- Arquivos alterados: `public/css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- O card `Leitura da semana` na aba `Próxima Jogada` foi separado visualmente do card de jogadas, com margem inferior, fundo mais leve e uma faixa lateral discreta.
+- O design deixou de repetir a mesma base do card principal abaixo, reduzindo sensação de sobreposição e deixando a leitura da semana como orientação de apoio.
+- Impacto esperado: melhorar a hierarquia visual da aba sem alterar lógica, dados, Firestore, rotas ou permissões.
+
+## 2026-05-27 — Temporadas: Próxima Jogada com base visual da Maturidade
+- Arquivos alterados: `public/css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- A aba `Próxima Jogada` recebeu a mesma base visual usada em `Maturidade`: cards com fundo em camadas, borda fina, barra superior de destaque, sombra leve e blocos mais organizados.
+- A leitura da semana, cards de jogadas, status, motivo, resultado, histórico e aprendizado ficaram mais próximos do padrão premium do módulo, sem alterar a lógica das recomendações.
+- Impacto esperado: deixar a aba `Próxima Jogada` mais clara, sofisticada e coerente com `Maturidade`, mantendo Firestore, cálculos, rotas, permissões e fallback da IA intactos.
+
+## 2026-05-27 — Temporadas: alinhamento visual com Maturidade
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- A tela `Temporadas` foi aproximada do padrão visual da tela `Maturidade`, com topo em card premium, símbolo integrado, chips de contexto e copy menos técnica.
+- As abas principais e internas ficaram mais leves, com menos aparência de tarja e mais alinhamento ao padrão de cards usado no módulo.
+- O painel da temporada ativa recebeu hierarquia visual mais clara, incluindo símbolo lateral, métricas em cards suaves e espaçamento mais próximo do card de Maturidade.
+- Impacto esperado: deixar `Temporadas` mais sofisticada e coerente com `Maturidade`, sem alterar cálculos, Firestore, rotas, permissões ou lógica das Próximas Jogadas.
+
+## 2026-05-27 — Temporadas: instruções da OpenAI para Próxima Jogada
+- Arquivos alterados: `public/js/services/seasons.ai.js`, `TEMPORADAS_FUNCIONAMENTO_MAPEAMENTO.md`, `AI_CHANGELOG.md`.
+- As Próximas Jogadas foram mantidas como estão, mas o prompt enviado à OpenAI ficou preparado para quando a chave de API for configurada.
+- Documentei a ordem de leitura do contexto, os dados que a IA pode usar, os limites obrigatórios e o formato esperado da resposta.
+- A IA continua proibida de calcular score, meta, risco, progresso, margem, prazo ou escrever direto no Firestore; ela só melhora leitura e linguagem usando os dados já calculados pelo BocaFood.
+- Impacto esperado: deixar a integração pronta para receber a chave sem mudar a lógica atual das Temporadas.
+
+## 2026-05-27 — Temporadas: modal Nova Temporada sem alvo visual
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- No modal `Nova Temporada`, removi o elemento gráfico de alvo do card `Decisão da temporada` e limpei a decoração circular remanescente no CSS.
+- A estrutura, textos, etapas e lógica do wizard foram preservados.
+- Impacto esperado: deixar o card mais limpo e menos pesado visualmente sem alterar cálculos, Firestore, rotas ou permissões.
+
 ## 2026-05-27 — Temporadas: OpenAI server-side nas Próximas Jogadas
 - Arquivos alterados: `functions/index.js`, `server.rb`, `admin.html`, `master.html`, `public/js/services/seasons.ai.js`, `TEMPORADAS_FUNCIONAMENTO_MAPEAMENTO.md`, `AI_CHANGELOG.md`.
 - A integração com OpenAI foi ligada de forma segura: o frontend não recebe chave e chama apenas um endpoint server-side com token do usuário logado.
@@ -8888,3 +9057,159 @@
 - Jogadas de aumento de ticket agora tentam apontar primeiro o upsell existente; se não houver, sugerem um complemento real com produto específico; se faltar base, dizem exatamente que é preciso criar um upsell/complemento antes de medir.
 - A documentação de Temporadas passou a registrar que promoção, cupom, upsell, produto, canal e horário precisam aparecer como objetos concretos na jogada, e que a estratégia pode ajustar prioridade e linguagem sem apagar a recomendação específica.
 - Impacto esperado: os cards da aba `Próxima Jogada` ficam mais executáveis e menos genéricos, com foco em produto, ação e motivo real sem alterar Firestore, rotas, permissões ou o cálculo principal da temporada.
+
+## 2026-05-27 — Performance alinhada ao padrão visual de Temporadas
+- Arquivos alterados: `public/js/modules/performance.js`, `public/css/modules/performance.css`, `public/admin.html`, `AI_CHANGELOG.md`.
+- A tela `Performance` recebeu um cabeçalho premium com hierarquia visual próxima da tela `Temporadas`, usando ícone, kicker, chips e fundo com degradê leve.
+- As abas de Performance foram limpas para seguir o padrão de navegação em pílulas usado nas telas novas, sem alterar as abas, rotas ou cálculos existentes.
+- O card de rota ativa, o estado sem rota, o status do mês, os cards de métricas e a leitura prática receberam nova composição visual com bordas, sombras suaves, ícones e melhor separação de informação.
+- Foi criado CSS próprio para Performance e carregado no Admin, mantendo o JavaScript responsável apenas pela renderização e preservando as fontes de dados atuais.
+- Ajuste posterior: o hero superior de `Performance` foi removido para deixar a tela mais direta, começando pelas abas e pelo acompanhamento da rota.
+- Ajuste posterior: o card `Rota ativa` deixou de usar elemento gráfico e linha superior, mantendo apenas a cor visual relacionada ao estado/resultado do acompanhamento.
+- Ajuste posterior: a cor do card `Rota ativa` passou a herdar a paleta do cenário escolhido no Plano de Voo: Sobrevivência em laranja, Segurança em azul, Crescimento em verde e Lucro forte em vermelho.
+- Ajuste posterior: o card `Como está o mês` manteve a paleta de andamento do mês e recebeu mais intensidade visual para diferenciar acima da rota, dentro da rota, atenção, abaixo do ritmo e sem rota.
+- Impacto esperado: Performance passa a conversar visualmente com Temporadas e Maturidade, sem mudar Firestore, permissões, multi-tenant ou a lógica de acompanhamento do Plano de Voo.
+
+## 2026-05-27 — Maturidade: documentação e conexão inicial de dados
+- Arquivos alterados: `public/js/modules/temporadas.js`, `MATURIDADE_DADOS_E_EVOLUCAO.md`, `AI_CHANGELOG.md`.
+- Foi criado o documento `MATURIDADE_DADOS_E_EVOLUCAO.md` com o levantamento dos dados que devem alimentar a Maturidade do Negócio, fases de evolução e cuidados para manter score auditável.
+- A Maturidade passou a carregar também dados de avaliações, pontos, promoções, cupons, upsell, estoque, produção, compras, movimentações financeiras, entradas, saídas e contas a pagar.
+- Foi adicionada a camada `dataSignals` em `business_maturity/current`, consolidando sinais de `finance`, `marketing`, `loyaltyProgram`, `reviews` e `operations`.
+- Os snapshots de maturidade passaram a salvar `dataSignals`, preservando a leitura usada no momento do snapshot.
+- A saúde financeira deixou de depender apenas de pedidos quando há dados financeiros disponíveis, usando entradas, saídas, saldo, margem recente, contas pendentes e vencidas como sinal moderado.
+- Fidelização e crescimento passaram a receber sinais leves de pontos, avaliações e upsell aceito em pedidos reais, sem pontuar por cadastro isolado.
+- Impacto esperado: Maturidade começa a enxergar os dados já gerados pelo sistema sem transformar financeiro, estoque, compras ou marketing em peso forte antes da validação completa.
+
+## 2026-05-27 — Maturidade: explicação visual dos dados usados
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/css/modules/temporadas.css`, `MATURIDADE_DADOS_E_EVOLUCAO.md`, `AI_CHANGELOG.md`.
+- Foi adicionada na tela de Maturidade uma seção explicando o que o BocaFood já considera na leitura da Pedra: vendas e pedidos, temporadas, financeiro, ações de venda, clientes e pontos, avaliações, operação, estoque e produção.
+- A interface agora separa sinais de base forte, dados que já ajudam a leitura, contexto inicial e áreas aguardando dados, sem expor nomes técnicos como índices ou `dataSignals`.
+- O novo bloco usa cards leves, marcadores visuais e copy mais clara para a usuária entender por que cada área pesa ou ainda está em formação.
+- A documentação de Maturidade foi marcada com a Fase 2 implementada e descreve a separação visual usada na tela.
+- Impacto esperado: a Maturidade fica mais transparente e fácil de confiar, sem alterar cálculo, Firestore, rotas, permissões ou regras multi-tenant.
+
+## 2026-05-27 — Maturidade: Fase 3 com financeiro real
+- Arquivos alterados: `public/js/modules/temporadas.js`, `MATURIDADE_DADOS_E_EVOLUCAO.md`, `AI_CHANGELOG.md`.
+- A leitura financeira da Maturidade passou a normalizar melhor entradas, saídas, valores recebidos/pagos, lançamentos parciais, contas pendentes, contas vencidas, canceladas e estornadas.
+- O índice de saúde financeira agora usa dinheiro recebido, dinheiro pago, saldo recente, margem aproximada e pendências como peso moderado, sem substituir vendas, pedidos e temporadas como base principal.
+- O card de dados usados mostra a leitura financeira com valores de entrada, saída e saldo recente, além de uma frase mais clara sobre caixa positivo, caixa apertado ou contas vencidas.
+- A documentação de Maturidade foi atualizada com a Fase 3 implementada e com as regras de segurança para não deixar o financeiro dominar o score.
+- Impacto esperado: a Pedra passa a refletir melhor a saúde financeira real da loja, mantendo cálculo auditável e preservando Firestore, rotas, permissões e multi-tenant.
+
+## 2026-05-27 — Maturidade: Fase 4 com ações de venda validadas
+- Arquivos alterados: `public/js/modules/temporadas.js`, `MATURIDADE_DADOS_E_EVOLUCAO.md`, `AI_CHANGELOG.md`.
+- A Maturidade passou a separar ações cadastradas de ações que realmente apareceram em pedidos válidos, evitando pontuar cupom, promoção ou upsell apenas por cadastro.
+- `dataSignals.marketing` agora consolida ações cadastradas, pedidos com ação, venda bruta ligada às ações, venda líquida, desconto total, percentual de desconto, upsell aceito e status de impacto.
+- O crescimento saudável passou a receber bônus moderado somente quando ações geram pedido real e venda líquida, com redução quando o desconto fica pesado.
+- O card `Ações de venda` agora explica se a loja tem apenas ações cadastradas, ações com resultado real ou ações que venderam com desconto alto.
+- A documentação de Maturidade foi atualizada com a Fase 4 implementada e com a regra de que ação cadastrada sem venda vira contexto, não evolução.
+- Impacto esperado: a Pedra fica mais fiel ao resultado real das ações de venda, mantendo cálculo auditável e preservando Firestore, rotas, permissões e multi-tenant.
+
+## 2026-05-27 — Maturidade: Fase 5 com fidelização e avaliações
+- Arquivos alterados: `public/js/modules/temporadas.js`, `MATURIDADE_DADOS_E_EVOLUCAO.md`, `AI_CHANGELOG.md`.
+- A leitura de fidelização passou a separar cliente cadastrado, cliente recorrente, pontos apenas gerados, pontos resgatados em pedido real e recompra apoiada por pontos.
+- `dataSignals.loyaltyProgram` agora registra valor de resgate, clientes com pontos, clientes que resgataram e voltaram a comprar, além de status de impacto.
+- `dataSignals.reviews` passou a registrar avaliações aprovadas, nota média, avaliações que citam produto, notas baixas e status de confiança.
+- O índice de fidelização recebeu peso moderado para resgates reais de pontos, recompra apoiada por pontos, avaliações aprovadas e produtos citados, com ajuste negativo para avaliações baixas.
+- Os cards `Clientes e pontos` e `Avaliações` ganharam copy mais clara sobre o que já fortalece a Pedra e o que ainda é apenas sinal inicial.
+- Impacto esperado: a Maturidade passa a refletir melhor relacionamento real com clientes, sem pontuar cadastro vazio ou pontos sem recompra.
+
+## 2026-05-27 — Maturidade: Fase 6 com operação como limitador
+- Arquivos alterados: `public/js/modules/temporadas.js`, `MATURIDADE_DADOS_E_EVOLUCAO.md`, `AI_CHANGELOG.md`.
+- A leitura operacional passou a separar movimentações de estoque, entradas, saídas, ordens planejadas, produções concluídas, compras registradas e compras recebidas.
+- `dataSignals.operations` agora registra status operacional, confiança e `limiterScore`, usado como apoio ou limitador sem transformar estoque, produção e compras em peso forte.
+- O risco controlado e a execução recebem pequeno apoio quando há rotina operacional registrada e pequena redução quando há dados soltos com pouco histórico.
+- O card `Operação, estoque e produção` ganhou copy para explicar quando esses dados sustentam a loja e quando ainda são apenas contexto.
+- A documentação de Maturidade foi atualizada com a Fase 6 implementada e com as regras de segurança para não premiar cadastro operacional isolado.
+- Impacto esperado: a Pedra passa a considerar a sustentação operacional da loja com prudência, sem quebrar score auditável, rotas, permissões, Firestore ou multi-tenant.
+
+## 2026-05-27 — Maturidade: proteção contra gamificação de uso
+- Arquivos alterados: `public/js/modules/temporadas.js`, `MATURIDADE_DADOS_E_EVOLUCAO.md`, `AI_CHANGELOG.md`.
+- Foi reforçada a regra de que a Maturidade mede evolução real do negócio, e não apenas uso do BocaFood.
+- Temporadas concluídas sem resultado operacional claro deixam de acelerar a Pedra por score, risco ou dificuldade.
+- A leitura de Temporadas agora diferencia temporadas concluídas de temporadas concluídas com resultado, usando estas últimas como prova real de execução.
+- Os Marcos da Pedra que dependem de Temporadas foram ajustados para considerar temporadas concluídas com resultado, evitando concluir marcos por simples uso do módulo.
+- A documentação passou a registrar que usar o sistema é meio para gerar controle e resultado, não o objetivo da Maturidade.
+- Impacto esperado: reduz o risco de a Pedra evoluir por cadastro/uso da ferramenta sem melhora real em vendas, consistência, fidelização, financeiro ou operação.
+
+## 2026-05-27 — Maturidade: copy do bloco de dados usados
+- Arquivos alterados: `public/js/modules/temporadas.js`, `AI_CHANGELOG.md`.
+- A seção `Dados usados na leitura` foi renomeada visualmente para uma leitura mais humana sobre o que sustenta a Pedra.
+- As descrições dos cards deixaram de soar técnicas e passaram a explicar sinais reais do negócio: venda acontecendo, cliente voltando, dinheiro entrando, ações virando pedido e rotina operacional sustentando a loja.
+- As métricas exibidas também foram ajustadas para evitar linguagem interna como força da leitura, contexto operacional vazio ou leitura atualizada pelo painel.
+- Ajuste posterior: as referências a `loja` no bloco de Maturidade foram trocadas por `negócio`, `operação` e `venda de comida`, deixando a copy mais alinhada ao BocaFood.
+- Ajuste posterior: `Caminhada das Pedras` foi trocado para `Caminho das Pedras` e a mensagem de histórico vazio passou a falar em evolução do negócio.
+- Ajuste posterior: os cards de sinais da Pedra receberam textos mais simples para uma pessoa leiga entender rapidamente o que está bom, o que ainda é fraco e o que precisa virar resultado.
+- Impacto esperado: a usuária entende melhor que a Maturidade mede evolução real da loja, não apenas uso do sistema.
+
+## 2026-05-27 — Maturidade: Fase 1 da camada de histórico
+- Arquivos alterados: `public/js/modules/temporadas.js`, `MATURIDADE_DADOS_E_EVOLUCAO.md`, `AI_CHANGELOG.md`.
+- Foi criada a camada `businessHistory` na leitura de Maturidade, sem alterar o score, a Pedra ou os Marcos atuais.
+- O agregador calcula períodos de últimos 30 dias, 30 dias anteriores, 90 dias, 180 dias, 365 dias, últimos 12 meses e mesmo mês do ano anterior quando houver dados.
+- Cada período consolida vendas, pedidos, ticket médio, dias e semanas com venda, recompra, produtos e canais fortes, descontos, ações de venda, financeiro, avaliações, produção e estoque.
+- A documentação foi atualizada com a regra de que o histórico está preparado para as próximas fases, mas ainda não substitui a régua atual.
+- Impacto esperado: a Maturidade passa a ter uma base histórica pronta para evoluir a leitura do negócio sem mudar comportamento atual.
+
+## 2026-05-27 — Maturidade: Fase 2 com snapshots históricos
+- Arquivos alterados: `public/js/modules/temporadas.js`, `MATURIDADE_DADOS_E_EVOLUCAO.md`, `AI_CHANGELOG.md`.
+- Foi criada a persistência de snapshots na coleção `business_history_snapshots`, mantendo separadas a memória mensal e as janelas móveis do negócio.
+- O módulo agora salva snapshots mensais dos últimos 12 meses calculados e snapshots rolling de 30, 90, 180 e 365 dias, além dos 30 dias anteriores.
+- Os IDs são determinísticos para evitar duplicidade; o mês atual pode atualizar, meses passados já salvos ficam preservados e as janelas móveis acompanham a recalculação.
+- A documentação foi atualizada com os campos, regras de segurança e objetivo da nova memória histórica.
+- Impacto esperado: a Maturidade passa a preservar histórico mensal e tendências sem alterar score, Pedra, Marcos, rotas, permissões ou regras multi-tenant.
+
+## 2026-05-27 — Maturidade: Fase 3 com histórico visível
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/css/modules/temporadas.css`, `MATURIDADE_DADOS_E_EVOLUCAO.md`, `AI_CHANGELOG.md`.
+- A tela de Maturidade ganhou o bloco `Histórico usado na leitura`, mostrando últimos 30 dias, comparação com os 30 dias anteriores, últimos 90 dias, mês atual, memória anual e registros históricos preservados.
+- O bloco usa o `businessHistory` já calculado e os snapshots carregados de `business_history_snapshots`, sem alterar cálculo de score, Pedra ou Marcos.
+- O visual segue o padrão premium da Maturidade, com cards leves e copy voltada para explicar a memória real do negócio.
+- Impacto esperado: a usuária entende melhor se a Pedra está lendo tendência recente, mês atual ou histórico anual ainda em formação.
+
+## 2026-05-27 — Maturidade: Fase 4 com comparação histórica
+- Arquivos alterados: `public/js/modules/temporadas.js`, `MATURIDADE_DADOS_E_EVOLUCAO.md`, `AI_CHANGELOG.md`.
+- Parte da régua fixa da Maturidade passou a usar comparação histórica quando há base suficiente, mantendo fallback para negócios novos.
+- Crescimento saudável compara os últimos 30 dias com os 30 dias anteriores em venda, pedidos e ticket médio.
+- Consistência usa a tendência dos últimos 90 dias, dias/semanas com venda e a comparação recente de dias ativos.
+- Saúde financeira passa a usar movimento financeiro dos últimos 90 dias quando existir histórico, e fidelização usa recompra observada nesse mesmo período.
+- As notas internas dos índices agora registram quando a leitura veio do histórico, deixando o score mais auditável.
+- Impacto esperado: a Pedra começa a medir evolução do negócio contra o próprio histórico, sem quebrar Marcos, score auditável, rotas, permissões ou multi-tenant.
+
+## 2026-05-27 — Maturidade: Fase 5 com sazonalidade anual
+- Arquivos alterados: `public/js/modules/temporadas.js`, `MATURIDADE_DADOS_E_EVOLUCAO.md`, `AI_CHANGELOG.md`.
+- A régua da Maturidade passou a usar sazonalidade quando há 12 meses fechados de base e comparação com o mesmo mês do ano anterior.
+- O mês atual é projetado pelo andamento do mês antes da comparação, evitando penalizar o negócio no começo do mês.
+- Crescimento saudável, consistência, saúde financeira e fidelização agora preferem a comparação sazonal quando ela existe; se não existir, voltam para os últimos 30/90 dias ou para a régua antiga.
+- As notas internas dos índices registram quando a leitura usa o mesmo mês do ano anterior, preservando auditoria do score.
+- Impacto esperado: a Pedra passa a respeitar meses fortes e fracos do próprio negócio, sem alterar rotas, permissões, Firestore ou multi-tenant.
+
+## 2026-05-27 — Maturidade: ordem visual dos blocos
+- Arquivos alterados: `public/js/modules/temporadas.js`, `AI_CHANGELOG.md`.
+- O card `Caminho da Pedra / Marcos reais do negócio` foi movido para ficar logo abaixo do gráfico das Pedras.
+- Os cards `Pontos fortes` e `Pontos que limitam evolução` agora aparecem abaixo dos Marcos.
+- O bloco técnico `Histórico usado na leitura` deixou de aparecer na tela principal.
+- O card `Evolução recente` foi movido para o final da Maturidade.
+- Impacto esperado: deixar a tela mais focada na leitura de negócio e menos técnica, sem alterar cálculo, Firestore, rotas ou permissões.
+
+## 2026-05-27 — Maturidade: lista de leitura e hovers
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- Os subcards de `Como a evolução do negócio está sendo lida` passaram a aparecer em lista, com hover e textos mais explicativos sobre por que cada resultado ajuda ou ainda limita a Pedra.
+- As Pedras ativas no `Caminho das Pedras` ganharam hover visual.
+- Os marcos alcançados em `Marcos reais do negócio` também ganharam hover, destacando melhor o que já foi conquistado.
+- O chip `Automático` foi removido do cabeçalho dos Marcos para deixar o card mais limpo.
+- Impacto esperado: melhorar leitura e interação visual da Maturidade sem alterar cálculo, Firestore, rotas ou permissões.
+
+## 2026-05-27 — Menu: Plano de Voo dentro de Crescimento
+- Arquivos alterados: `public/admin.html`, `AI_CHANGELOG.md`.
+- O item `Plano de Voo` foi movido para dentro do submenu `Crescimento` na área de Operação.
+- O item deixou de aparecer dentro de `Inteligência > Operação`, mantendo a mesma rota `crescimento/plano-de-voo`.
+- A detecção de ambiente da sidebar foi ajustada para abrir `Plano de Voo` dentro de Operação.
+- Impacto esperado: deixar a navegação mais coerente com Temporadas e Crescimento, sem alterar rota, módulo ou permissões.
+
+## 2026-05-27 — Menu: remoção do seletor Operação/Inteligência
+- Arquivos alterados: `public/admin.html`, `AI_CHANGELOG.md`.
+- O seletor lateral `Operação / Inteligência` deixou de aparecer.
+- A sidebar passa a abrir diretamente os menus que estavam dentro de Operação.
+- O painel de Inteligência foi removido da navegação lateral, sem remover as rotas registradas.
+- O botão de recolher/expandir agora apenas alterna a sidebar de Operação entre aberta e recolhida, sem voltar para o seletor.
+- O menu `Missões` foi removido da sidebar.
+- Impacto esperado: simplificar a navegação e evitar a tela intermediária de ambientes, mantendo módulos, rotas e permissões existentes.

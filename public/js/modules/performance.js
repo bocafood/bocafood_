@@ -29,14 +29,8 @@ Modules.Performance = (function () {
   function render() {
     var app = document.getElementById('app');
     app.innerHTML = '' +
-      '<div class="module-page perf-root" style="padding:24px;display:flex;flex-direction:column;gap:18px;">' +
-        '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
-          '<div style="min-width:0;">' +
-            '<h1 style="font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 4px;line-height:1.15;">Performance</h1>' +
-            '<p style="font-size:13px;color:#6F6860;margin:0;line-height:1.45;">Veja se o mês está caminhando dentro da rota escolhida e onde precisa ajustar o ritmo.</p>' +
-          '</div>' +
-        '</div>' +
-        '<div id="perf-content" class="module-content" style="display:flex;flex-direction:column;gap:16px;"><div class="loading-inline">Carregando...</div></div>' +
+      '<div class="module-page perf-root perf-page">' +
+        '<div id="perf-content" class="module-content perf-content"><div class="loading-inline">Carregando...</div></div>' +
       '</div>';
 
     _paint();
@@ -94,7 +88,7 @@ Modules.Performance = (function () {
 
     var vm = _buildModel();
     var html = '' +
-      '<div style="display:flex;flex-direction:column;gap:16px;">' +
+      '<div class="perf-stack">' +
         _tabsCard(vm) +
         _tabContent(vm) +
       '</div>';
@@ -378,11 +372,11 @@ Modules.Performance = (function () {
       { key: 'financeiro', label: 'Financeiro', icon: 'account_balance_wallet' }
     ];
     return '' +
-      '<section style="display:flex;align-items:center;justify-content:flex-start;gap:12px;flex-wrap:wrap;">' +
-        '<div style="display:inline-flex;align-items:center;gap:8px;max-width:100%;overflow:auto;padding:2px 0;">' +
+      '<section class="perf-tabs-wrap">' +
+        '<div class="perf-tabs">' +
           tabs.map(function (tab) {
             var active = _state.tab === tab.key;
-            return '<button type="button" onclick="Modules.Performance._setTab(\'' + tab.key + '\')" style="display:inline-flex;align-items:center;gap:8px;padding:9px 13px;border:1px solid ' + (active ? '#B42318' : '#EAE4DA') + ';border-radius:999px;background:' + (active ? '#B42318' : '#fff') + ';color:' + (active ? '#fff' : '#4F4841') + ';font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:' + (active ? '0 10px 24px rgba(180,35,24,.16)' : '0 8px 18px rgba(31,31,31,.04)') + ';white-space:nowrap;"><span class="mi" style="font-size:17px;">' + _esc(tab.icon) + '</span>' + _esc(tab.label) + '</button>';
+            return '<button type="button" class="' + (active ? 'active' : '') + '" onclick="Modules.Performance._setTab(\'' + tab.key + '\')"><span class="mi">' + _esc(tab.icon) + '</span>' + _esc(tab.label) + '</button>';
           }).join('') +
         '</div>' +
       '</section>';
@@ -400,39 +394,35 @@ Modules.Performance = (function () {
 
   function _scenarioBanner(vm) {
     if (!vm.monthScenario) {
+      var emptyStatus = { color: '#B45309', bg: '#FFF7ED', border: '#FED7AA' };
       return '' +
-        '<section style="background:#FFF7ED;border:1px solid #F7D9B6;border-radius:16px;padding:18px 20px;box-shadow:0 12px 30px rgba(31,31,31,.05);display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
-          '<div style="display:flex;align-items:flex-start;gap:12px;min-width:0;flex:1;">' +
-            '<div style="width:42px;height:42px;border-radius:14px;color:#B45309;display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span class="mi" style="font-size:24px;">flag</span></div>' +
-            '<div style="min-width:0;">' +
-              '<div style="font-size:12px;font-weight:600;color:#B45309;line-height:1.2;margin-bottom:4px;">Rota ativa</div>' +
-              '<div style="font-size:18px;font-weight:700;color:#1F1F1F;line-height:1.2;">Nenhuma rota ativa</div>' +
-              '<div style="font-size:13px;color:#6F6860;line-height:1.5;margin-top:5px;">Crie uma rota no Plano de Voo para saber quanto precisa vender e acompanhar se o mês está no caminho certo.</div>' +
+        '<section class="perf-route-banner perf-route-banner-empty" style="--perf-route-color:' + _esc(emptyStatus.color) + ';--perf-route-bg:' + _esc(emptyStatus.bg) + ';--perf-route-border:' + _esc(emptyStatus.border) + ';">' +
+          '<div class="perf-route-main">' +
+            '<div class="perf-route-copy">' +
+              '<span>Rota ativa</span>' +
+              '<strong>Nenhuma rota ativa</strong>' +
+              '<p>Crie uma rota no Plano de Voo para acompanhar o mês com uma meta clara.</p>' +
             '</div>' +
           '</div>' +
-          '<button onclick="Router.navigate(\'crescimento/plano-de-voo\')" style="border:none;background:#B42318;color:#fff;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Criar rota</button>' +
+          '<button class="perf-primary-button" onclick="Router.navigate(\'crescimento/plano-de-voo\')"><span class="mi">add</span>Criar rota</button>' +
         '</section>';
     }
 
+    var routeStatus = _scenarioTone(vm.monthScenario && vm.monthScenario.scenario);
     return '' +
-      '<section style="' + _cardStyle() + 'display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
-        '<div style="display:flex;align-items:flex-start;gap:12px;min-width:0;flex:1;">' +
-          '<div style="width:42px;height:42px;border-radius:14px;color:#6C8777;display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span class="mi" style="font-size:24px;">query_stats</span></div>' +
-          '<div style="min-width:0;">' +
-            '<div style="font-size:12px;font-weight:600;color:#6F6860;line-height:1.2;margin-bottom:4px;">Rota ativa</div>' +
-            '<div style="font-size:18px;font-weight:700;color:#1F1F1F;line-height:1.2;">' + _esc(vm.scenarioName || 'Rota ativa') + '</div>' +
-            '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:9px;">' +
-              _chip(_scenarioMonthLabel(vm)) +
-              _chip(vm.scenarioLabel) +
-              _chip('Meta do mês ' + _fmtMoney(vm.targetRevenue || 0)) +
-              (vm.targetMonthStrength ? _chip(vm.targetMonthStrength) : '') +
-              _chip('Sobra esperada ' + _fmtMoney(vm.targetProfit || 0)) +
-            '</div>' +
+      '<section class="perf-route-banner" style="--perf-route-color:' + _esc(routeStatus.color) + ';--perf-route-bg:' + _esc(routeStatus.bg) + ';--perf-route-border:' + _esc(routeStatus.border) + ';">' +
+        '<div class="perf-route-main">' +
+          '<div class="perf-route-copy">' +
+            '<span>Rota ativa</span>' +
+            '<strong>' + _esc(vm.scenarioName || 'Rota ativa') + '</strong>' +
+            '<p>Esta é a rota escolhida para guiar o mês. A Performance mostra se as vendas estão acompanhando o caminho combinado.</p>' +
           '</div>' +
         '</div>' +
-        '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:flex-end;">' +
-          '<span style="display:inline-flex;align-items:center;min-height:28px;padding:0 11px;border-radius:999px;background:#EDFAF3;color:#1F6F43;font-size:12px;font-weight:700;">' + _esc(vm.periodLabel) + '</span>' +
-          '<button onclick="Router.navigate(\'crescimento/plano-de-voo\')" style="border:1px solid #EAE4DA;background:#fff;color:#1F1F1F;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Ver Plano de Voo</button>' +
+        '<div class="perf-route-summary">' +
+          _routeMini('Meta do mês', _fmtMoney(vm.targetRevenue || 0), routeStatus.color) +
+          _routeMini('Sobra esperada', _fmtMoney(vm.targetProfit || 0), '#1F1F1F') +
+          _routeMini('Cenário', vm.scenarioLabel, routeStatus.color) +
+          _routeMini('Força do mês', vm.targetMonthStrength || _scenarioMonthLabel(vm), '#8A6F5A') +
         '</div>' +
       '</section>';
   }
@@ -551,18 +541,18 @@ Modules.Performance = (function () {
     var status = _routeStatusInfo(vm);
     var monthRevenue = _monthRevenue(vm);
     return '' +
-      '<section style="background:linear-gradient(135deg,#fff 0%,' + _esc(status.bg) + ' 100%);border:1px solid ' + _esc(status.border) + ';border-radius:18px;padding:18px 20px;box-shadow:0 12px 30px rgba(31,31,31,.06);display:flex;align-items:stretch;justify-content:space-between;gap:16px;flex-wrap:wrap;overflow:hidden;">' +
-        '<div style="display:flex;gap:13px;align-items:flex-start;min-width:0;flex:1 1 520px;">' +
-          '<div style="width:44px;height:44px;border-radius:15px;background:#fff;color:' + _esc(status.color) + ';display:flex;align-items:center;justify-content:center;border:1px solid ' + _esc(status.border) + ';flex:0 0 auto;"><span class="mi" style="font-size:23px;">' + _esc(status.icon) + '</span></div>' +
-          '<div style="min-width:0;">' +
-            '<div style="font-size:11px;font-weight:600;color:' + _esc(status.color) + ';letter-spacing:.04em;text-transform:uppercase;margin-bottom:5px;">Como está o mês</div>' +
-            '<div style="font-size:22px;font-weight:600;color:#1F1F1F;line-height:1.15;">' + _esc(status.title) + '</div>' +
-            '<div style="font-size:13px;color:#3F3A34;line-height:1.45;margin-top:6px;max-width:780px;">' + _esc(status.text) + '</div>' +
+      '<section class="perf-status-card" style="--perf-status-bg:' + _esc(status.bg) + ';--perf-status-border:' + _esc(status.border) + ';--perf-status-color:' + _esc(status.color) + ';">' +
+        '<div class="perf-status-main">' +
+          '<div class="perf-status-copy">' +
+            '<span>Como está o mês</span>' +
+            '<strong>' + _esc(status.title) + '</strong>' +
+            '<p>' + _esc(status.text) + '</p>' +
           '</div>' +
         '</div>' +
-        '<div style="display:grid;grid-template-columns:repeat(2,minmax(130px,1fr));gap:10px;min-width:min(100%,300px);">' +
+        '<div class="perf-status-grid">' +
           _routeMini('Esperado até hoje', _fmtMoney(vm.expectedNow)) +
           _routeMini('Vendido até hoje', _fmtMoney(monthRevenue), monthRevenue >= vm.expectedNow ? '#1F6F43' : '#B42318') +
+          _routeMini('Diferença', _fmtMoney(monthRevenue - vm.expectedNow), monthRevenue >= vm.expectedNow ? '#2563EB' : '#B42318') +
         '</div>' +
       '</section>';
   }
@@ -573,9 +563,9 @@ Modules.Performance = (function () {
     var ticket = _monthTicket(vm);
     var neededOrders = ticket > 0 && remaining > 0 ? Math.max(1, Math.ceil((remaining / ticket) / Math.max(1, vm.daysLeftMonth || 1))) : 0;
     return '' +
-      '<section style="' + _cardStyle() + '">' +
+      '<section class="perf-panel" style="' + _cardStyle() + '">' +
         _sectionTitle('Este mês', 'Veja o que já aconteceu, quanto falta vender e o ritmo necessário até o fim do mês.') +
-        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;">' +
+        '<div class="perf-metric-grid">' +
           _miniMetric('Meta do mês', vm.targetRevenue ? _fmtMoney(vm.targetRevenue) : '—', '#6C8777') +
           _miniMetric('Vendido até agora', _fmtMoney(monthRevenue), monthRevenue >= vm.expectedNow ? '#1F6F43' : '#B42318') +
           _miniMetric('Ticket médio atual', ticket > 0 ? _fmtMoney(ticket) : 'Sem base', '#8A6F5A') +
@@ -591,9 +581,9 @@ Modules.Performance = (function () {
     var ticket = _monthTicket(vm);
     var targetOrders = ticket > 0 && vm.targetRevenue ? Math.ceil(vm.targetRevenue / ticket) : 0;
     return '' +
-      '<section style="' + _cardStyle() + 'background:linear-gradient(135deg,#fff 0%,#FFFCF8 100%);">' +
+      '<section class="perf-panel perf-panel-soft" style="' + _cardStyle() + '">' +
         _sectionTitle('Ritmo da rota', 'Compare o volume de pedidos planejado com o que já aconteceu no mês.') +
-        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;">' +
+        '<div class="perf-metric-grid">' +
           _miniMetric('Pedidos previstos no mês', targetOrders ? String(targetOrders) : '—', '#6C8777') +
           _miniMetric('Pedidos já feitos', String(ordersDone), ordersDone >= targetOrders ? '#1F6F43' : '#B45309') +
           _miniMetric('Se continuar assim', _fmtMoney(vm.paceProjection || 0), _num(vm.paceProjection) >= _num(vm.targetRevenue) ? '#1F6F43' : '#B42318') +
@@ -639,18 +629,18 @@ Modules.Performance = (function () {
   function _routePracticalCard(vm) {
     var messages = _routeMessages(vm);
     return '' +
-      '<section style="' + _cardStyle() + 'background:linear-gradient(135deg,#fff 0%,#FAF8F4 100%);">' +
+      '<section class="perf-panel perf-panel-practical" style="' + _cardStyle() + '">' +
         _sectionTitle('Leitura prática', 'Sinais simples para decidir o próximo passo do mês.') +
-        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;">' +
+        '<div class="perf-practical-grid">' +
           messages.map(function (msg) {
-            return '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:14px;padding:12px 13px;display:flex;gap:10px;align-items:flex-start;"><span class="mi" style="font-size:18px;color:' + _esc(msg.color) + ';flex:0 0 auto;">' + _esc(msg.icon) + '</span><div style="font-size:13px;color:#1F1F1F;line-height:1.4;">' + _esc(msg.text) + '</div></div>';
+            return '<div class="perf-practical-item"><span class="mi" style="color:' + _esc(msg.color) + ';">' + _esc(msg.icon) + '</span><div>' + _esc(msg.text) + '</div></div>';
           }).join('') +
         '</div>' +
       '</section>';
   }
 
   function _routeMini(label, value, color) {
-    return '<div style="background:rgba(255,255,255,.78);border:1px solid rgba(234,228,218,.8);border-radius:14px;padding:12px;min-width:0;"><div style="font-size:11px;color:#6F6860;font-weight:600;margin-bottom:6px;">' + _esc(label) + '</div><div style="font-size:18px;font-weight:600;color:' + _esc(color || '#1F1F1F') + ';line-height:1.05;overflow-wrap:anywhere;">' + _esc(value) + '</div></div>';
+    return '<div class="perf-route-mini"><span>' + _esc(label) + '</span><strong style="color:' + _esc(color || '#1F1F1F') + ';">' + _esc(value) + '</strong></div>';
   }
 
   function _routeStatusInfo(vm) {
@@ -848,65 +838,66 @@ Modules.Performance = (function () {
 
   function _barList(rows, color, valueFormatter) {
     var max = rows.reduce(function (m, row) { return Math.max(m, row.value || 0); }, 0) || 1;
-    return '<div style="display:flex;flex-direction:column;gap:10px;">' + rows.map(function (row) {
+    return '<div class="perf-bar-list">' + rows.map(function (row) {
       var pct = Math.max(4, ((row.value || 0) / max) * 100);
       return '' +
-        '<div style="display:grid;grid-template-columns:minmax(0,1.1fr) 1.4fr auto;gap:12px;align-items:center;padding:12px 14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;transition:background .15s ease,transform .15s ease,box-shadow .15s ease;" onmouseenter="this.style.background=\'#FAF8F4\';this.style.transform=\'translateY(-1px)\';this.style.boxShadow=\'0 10px 24px rgba(31,31,31,.05)\'" onmouseleave="this.style.background=\'#fff\';this.style.transform=\'translateY(0)\';this.style.boxShadow=\'none\'">' +
-          '<div style="min-width:0;">' +
-            '<div style="font-size:13px;font-weight:700;color:#1F1F1F;">' + _esc(row.label || '—') + '</div>' +
-            '<div style="font-size:12px;color:#6F6860;line-height:1.4;">' + _esc(row.note || '') + '</div>' +
+        '<div class="perf-bar-row">' +
+          '<div class="perf-bar-copy">' +
+            '<strong>' + _esc(row.label || '—') + '</strong>' +
+            '<span>' + _esc(row.note || '') + '</span>' +
           '</div>' +
-          '<div style="display:flex;align-items:center;gap:10px;min-width:0;">' +
-            '<div style="flex:1;height:9px;background:#EAE4DA;border-radius:999px;overflow:hidden;"><span style="display:block;height:100%;width:' + pct.toFixed(1) + '%;background:' + color + ';border-radius:999px;"></span></div>' +
-            '<div style="font-size:12px;font-weight:700;color:#6F6860;white-space:nowrap;">' + pct.toFixed(0) + '%</div>' +
+          '<div class="perf-bar-track-wrap">' +
+            '<div class="perf-bar-track"><span style="width:' + pct.toFixed(1) + '%;background:' + color + ';"></span></div>' +
+            '<div class="perf-bar-pct">' + pct.toFixed(0) + '%</div>' +
           '</div>' +
-          '<div style="font-size:18px;font-weight:700;color:' + color + ';white-space:nowrap;">' + _esc(valueFormatter(row)) + '</div>' +
+          '<div class="perf-bar-value" style="color:' + color + ';">' + _esc(valueFormatter(row)) + '</div>' +
         '</div>';
     }).join('') + '</div>';
   }
 
   function _miniMetric(label, value, tone) {
     return '' +
-      '<div style="background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;padding:13px 14px;min-height:76px;">' +
-        '<div style="font-size:11px;font-weight:600;color:#6F6860;letter-spacing:.02em;margin-bottom:7px;">' + _esc(label) + '</div>' +
-        '<div style="font-size:22px;font-weight:700;color:' + tone + ';line-height:1.05;overflow-wrap:anywhere;">' + _esc(value) + '</div>' +
+      '<div class="perf-mini-metric">' +
+        '<span>' + _esc(label) + '</span>' +
+        '<strong style="color:' + tone + ';">' + _esc(value) + '</strong>' +
       '</div>';
   }
 
   function _emptyState(title, subtitle) {
     return '' +
-      '<div style="text-align:center;padding:32px 24px;color:#6F6860;background:#FAF8F4;border:1px dashed #EAE4DA;border-radius:14px;">' +
-        '<div style="font-size:15px;font-weight:700;color:#1F1F1F;margin-bottom:4px;">' + _esc(title || 'Sem dados') + '</div>' +
-        '<div style="font-size:13px;line-height:1.5;max-width:640px;margin:0 auto;">' + _esc(subtitle || '') + '</div>' +
+      '<div class="perf-empty-state">' +
+        '<div class="perf-empty-icon"><span class="mi">insights</span></div>' +
+        '<strong>' + _esc(title || 'Sem dados') + '</strong>' +
+        '<p>' + _esc(subtitle || '') + '</p>' +
       '</div>';
   }
 
   function _heroMetric(label, value, sub, icon, color) {
     return '' +
-      '<div style="display:flex;align-items:flex-start;gap:14px;background:#FAF8F4;border:none;border-radius:16px;padding:18px 18px;box-shadow:0 12px 30px rgba(31,31,31,.06);min-height:118px;overflow:hidden;transition:transform .16s ease,box-shadow .16s ease,background .16s ease;" onmouseenter="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 16px 34px rgba(31,31,31,.09)\';this.style.background=\'#fff\'" onmouseleave="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'0 12px 30px rgba(31,31,31,.06)\';this.style.background=\'#FAF8F4\'">' +
-        '<div style="width:48px;height:48px;border-radius:14px;background:transparent;color:' + _esc(color || '#8A6F5A') + ';display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span class="mi" style="font-size:26px;">' + _esc(icon || 'monitoring') + '</span></div>' +
-        '<div style="min-width:0;display:flex;flex-direction:column;gap:6px;">' +
-          '<span style="font-size:12px;font-weight:600;color:#6F6860;line-height:1.15;">' + _esc(label) + '</span>' +
-          '<strong style="font-size:clamp(24px,2.4vw,34px);font-weight:700;color:#1F1F1F;line-height:1.05;letter-spacing:0;overflow-wrap:anywhere;">' + _esc(value) + '</strong>' +
-          '<small style="font-size:12px;color:#6F6860;line-height:1.35;">' + _esc(sub || '') + '</small>' +
+      '<div class="perf-hero-metric" style="--perf-metric-color:' + _esc(color || '#8A6F5A') + ';">' +
+        '<div class="perf-metric-icon"><span class="mi">' + _esc(icon || 'monitoring') + '</span></div>' +
+        '<div class="perf-metric-copy">' +
+          '<span>' + _esc(label) + '</span>' +
+          '<strong>' + _esc(value) + '</strong>' +
+          '<small>' + _esc(sub || '') + '</small>' +
         '</div>' +
       '</div>';
   }
 
   function _supportMetric(label, value, sub, icon, color) {
     return '' +
-      '<div style="display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #EAE4DA;border-radius:14px;padding:13px 14px;min-height:76px;">' +
-        '<div style="width:38px;height:38px;border-radius:12px;background:transparent;color:' + _esc(color || '#6F6860') + ';display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span class="mi" style="font-size:21px;">' + _esc(icon || 'insights') + '</span></div>' +
-        '<div style="min-width:0;display:flex;flex-direction:column;gap:3px;">' +
-          '<span style="font-size:12px;font-weight:600;color:#6F6860;line-height:1.15;">' + _esc(label) + '</span>' +
-          '<strong style="font-size:22px;font-weight:700;color:#1F1F1F;line-height:1.05;overflow-wrap:anywhere;">' + _esc(value) + '</strong>' +
-          '<small style="font-size:12px;color:#6F6860;line-height:1.3;">' + _esc(sub || '') + '</small>' +
+      '<div class="perf-support-metric" style="--perf-metric-color:' + _esc(color || '#6F6860') + ';">' +
+        '<div class="perf-support-icon"><span class="mi">' + _esc(icon || 'insights') + '</span></div>' +
+        '<div class="perf-support-copy">' +
+          '<span>' + _esc(label) + '</span>' +
+          '<strong>' + _esc(value) + '</strong>' +
+          '<small>' + _esc(sub || '') + '</small>' +
         '</div>' +
       '</div>';
   }
 
   function _cardStyle() {
-    return 'background:#fff;border:none;border-radius:16px;padding:18px 20px;box-shadow:0 12px 30px rgba(31,31,31,.06);';
+    return 'background:#fff;border:1px solid #EAE4DA;border-radius:20px;padding:20px;box-shadow:0 18px 44px rgba(31,31,31,.065);';
   }
 
   function _inputStyle() {
@@ -918,11 +909,11 @@ Modules.Performance = (function () {
   }
 
   function _chip(text) {
-    return '<span style="display:inline-flex;align-items:center;min-height:24px;padding:0 10px;border-radius:999px;background:#fff;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:500;box-shadow:0 1px 2px rgba(31,31,31,.02);">' + _esc(text) + '</span>';
+    return '<span class="perf-chip">' + _esc(text) + '</span>';
   }
 
   function _sectionTitle(title, desc) {
-    return '<div style="margin-bottom:14px;"><h3 style="font-size:14px;font-weight:700;color:#1F1F1F;margin:0 0 4px;line-height:1.2;">' + _esc(title) + '</h3><p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0;">' + _esc(desc || '') + '</p></div>';
+    return '<div class="perf-section-title"><h3>' + _esc(title) + '</h3><p>' + _esc(desc || '') + '</p></div>';
   }
 
   function _channelOptions(orders) {
@@ -1622,6 +1613,15 @@ Modules.Performance = (function () {
     if (key === 'growth') return 'Crescimento';
     if (key === 'expansion') return 'Lucro forte';
     return 'Sem rota';
+  }
+
+  function _scenarioTone(value) {
+    var key = _normalizeText(value || '');
+    if (key === 'survival') return { color: '#D97706', bg: '#FFF7ED', border: '#FED7AA' };
+    if (key === 'equilibrium') return { color: '#2563EB', bg: '#EEF4FF', border: '#D6E6FF' };
+    if (key === 'growth') return { color: '#1A9E5A', bg: '#EDFAF3', border: '#CFEFDC' };
+    if (key === 'expansion') return { color: '#C4362A', bg: '#FFF0EE', border: '#F3C7C1' };
+    return { color: '#B45309', bg: '#FFF7ED', border: '#FED7AA' };
   }
 
   function _barSeriesTooltip() {}
