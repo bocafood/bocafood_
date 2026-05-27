@@ -8,6 +8,7 @@
 - O serviço `SeasonsAI` passou a enviar `Authorization: Bearer <idToken>` e `tenantId` junto do contexto agregado da temporada, mantendo fallback local caso a IA falhe ou não esteja configurada.
 - O Master ganhou o card `OpenAI / Próxima Jogada`, com campo para salvar a chave em `system_private_ai_secrets/default`, status configurado/não configurado, modelo usado em Temporadas e opção de remover a chave.
 - A Function usa Secret Manager como prioridade e lê a chave privada salva pelo Master apenas como fallback, sem devolver o segredo para o navegador.
+- Ajuste de deploy: a Function deixou de declarar `OPENAI_API_KEY` como segredo obrigatório, permitindo publicar o backend antes de cadastrar a chave pelo Master. Se existir `OPENAI_API_KEY` no ambiente, ela ainda é usada; caso contrário, a chave salva no Master atende a integração.
 - A documentação de Temporadas foi atualizada para registrar que a OpenAI melhora linguagem e clareza, mas não calcula score, meta, risco, progresso nem escreve direto no Firestore.
 - Impacto esperado: Próximas Jogadas podem ganhar leitura mais humana e específica usando OpenAI, preservando o motor determinístico, tenant, rotas, permissões e fallback local.
 

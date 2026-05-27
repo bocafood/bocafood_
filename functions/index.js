@@ -16,7 +16,6 @@ const FIREBASE_ADMIN_SERVICE_ACCOUNT = "firebase-adminsdk-fbsvc@bocado-brasil.ia
 const FIRESTORE_BACKUP_DEFAULT_BUCKET = "gs://bocado-brasil-firestore-backups";
 const BOCAFOOD_BRAND_LOGO_URL = "https://bocafood.app/assets/boca-food-logo.png?v=20260518-bocafood-logo";
 const HOTMART_HOTTOK_SECRET = defineSecret("HOTMART_HOTTOK");
-const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
 const MASTER_EMAILS = new Set([
   "bocadobrasil.es@gmail.com",
   "pcruz.digital@gmail.com"
@@ -1725,7 +1724,7 @@ function safeSeasonAIContext(context) {
 }
 
 async function loadOpenAIConfig() {
-  let apiKey = String(OPENAI_API_KEY.value() || process.env.OPENAI_API_KEY || "").trim();
+  let apiKey = String(process.env.OPENAI_API_KEY || "").trim();
   let model = String(process.env.OPENAI_SEASONS_MODEL || process.env.OPENAI_MODEL || "").trim();
   let source = apiKey ? "secret_manager" : "";
   try {
@@ -2020,7 +2019,7 @@ exports.masterEmailDiagnostics = onRequest({ region: REGION }, async (req, res) 
   }
 });
 
-exports.seasonsAiRecommendation = onRequest({ region: REGION, secrets: [OPENAI_API_KEY], timeoutSeconds: 60, memory: "256MiB" }, async (req, res) => {
+exports.seasonsAiRecommendation = onRequest({ region: REGION, timeoutSeconds: 60, memory: "256MiB" }, async (req, res) => {
   try {
     if (handleCors(req, res)) return;
     if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });

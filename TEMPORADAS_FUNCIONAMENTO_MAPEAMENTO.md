@@ -1843,7 +1843,7 @@ Implementação segura:
 - no Firebase Functions, usar Secret Manager com `OPENAI_API_KEY`;
 - no servidor local, usar variável de ambiente `OPENAI_API_KEY`;
 - o Master pode salvar uma chave em `system_private_ai_secrets/default` para facilitar configuração operacional;
-- a Function deve usar primeiro o Secret Manager e só usar `system_private_ai_secrets/default.openaiApiKey` como fallback;
+- a Function deve usar `OPENAI_API_KEY` se existir no ambiente e, se não existir, usar `system_private_ai_secrets/default.openaiApiKey`;
 - o Master nunca deve devolver a chave salva para a tela, apenas o status `configurada` ou `não configurada`;
 - o frontend envia apenas contexto agregado da temporada e token do usuário logado;
 - a resposta precisa ser validada como JSON antes de voltar ao Admin;
