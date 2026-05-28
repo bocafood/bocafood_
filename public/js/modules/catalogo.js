@@ -94,7 +94,7 @@ Modules.Catalogo = (function () {
   function _legacyImageUploadBaseUrl() {
     var host = (window.location && window.location.hostname) || 'localhost';
     if (host === 'localhost' || host === '127.0.0.1') return 'http://' + host + ':3000';
-    return 'http://127.0.0.1:3000';
+    return (window.location && window.location.origin) || '';
   }
 
   function _legacyImageUploadPaths() {

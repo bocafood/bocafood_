@@ -9900,8 +9900,6 @@
       <span>Preview separado. O template atual continua preservado em index.html.</span>
     </div>
     <div class="studio-actions">
-      <a class="studio-link" href="template_mobilebocafood.png" target="_blank" rel="noopener">Mockup aprovado</a>
-      <a class="studio-link" href="preview-template.html" target="_blank" rel="noopener">Preview antigo</a>
       <a class="studio-link primary" href="#phone-preview">Ver preview</a>
     </div>
   </header>
@@ -9948,7 +9946,7 @@
             <section class="store-search-panel" id="store-search-panel" aria-hidden="true">
               <div class="store-search-box">
                 <span class="search-shape" aria-hidden="true"></span>
-                <input class="store-search-input" id="store-search-input" type="search" autocomplete="off" enterkeyhint="search" aria-label="Buscar produto" placeholder="Buscar produto...">
+                <input class="store-search-input" id="store-search-input" type="search" autocomplete="off" enterkeyhint="search" aria-label="Buscar producto" placeholder="Buscar producto...">
                 <button class="store-search-close" type="button" id="store-search-close" aria-label="Fechar busca">×</button>
               </div>
               <div class="store-search-results" id="store-search-results"></div>
@@ -9973,11 +9971,11 @@
             <section class="loyalty-card" aria-label="Programa de pontos">
               <span class="loyalty-stars" aria-hidden="true"></span>
               <div>
-                <div class="loyalty-title">Ganhe pontos a cada pedido</div>
-                <div class="loyalty-text">Entre no clube e troque pontos por descontos.</div>
+                <div class="loyalty-title">Gana puntos en cada pedido</div>
+                <div class="loyalty-text">Únete al club y cambia puntos por descuentos.</div>
               </div>
               <div class="loyalty-actions">
-                <button class="loyalty-cta" type="button">Quero participar</button>
+                <button class="loyalty-cta" type="button">Quiero participar</button>
               </div>
             </section>
 
@@ -10093,7 +10091,7 @@
                 <span class="store-footer-mark">BF</span>
                 <span>Boca Food</span>
               </div>
-              <p class="store-footer-text">Pedidos preparados com cuidado, ingredientes selecionados e atendimento direto pela loja.</p>
+              <p class="store-footer-text">Pedidos preparados con cuidado, ingredientes seleccionados y atención directa de la tienda.</p>
               <div class="store-footer-links">
                 <span>Horários</span>
                 <span>Endereço</span>
@@ -10523,7 +10521,7 @@
                       <div class="cart-field-grid">
                         <div>
                           <div class="cart-field-label" id="delivery-address-label">Endereço de entrega</div>
-                          <input class="cart-field" id="delivery-address" placeholder="Endereço completo" autocomplete="street-address">
+                          <input class="cart-field" id="delivery-address" placeholder="Dirección completa" autocomplete="street-address">
                           <div class="slot-hint show cart-address-hint" id="delivery-address-hint">Después del código postal, busca o escribe la calle y el número.</div>
                           <div class="cart-address-suggestions" id="delivery-address-suggestions"></div>
                         </div>
@@ -10622,11 +10620,11 @@
                   <div class="cart-coupon-area">
                     <div class="coupon-row" id="coupon-row">
                       <div class="coupon-input-wrap">
-                        <input class="cart-field" id="coupon-input" placeholder="Cupom" maxlength="30">
+                        <input class="cart-field" id="coupon-input" placeholder="Cupón" maxlength="30">
                         <button class="coupon-apply-btn" type="button" id="coupon-apply">Aplicar</button>
                       </div>
                       <div class="coupon-applied-tag" id="coupon-applied-tag">
-                        <span>Cupom <strong id="coupon-code-label"></strong> aplicado</span>
+                        <span>Cupón <strong id="coupon-code-label"></strong> aplicado</span>
                         <button class="coupon-remove" type="button" id="coupon-remove">×</button>
                       </div>
                     </div>
@@ -10656,14 +10654,14 @@
                     </select>
                     <input id="customer-whatsapp" type="tel" placeholder="Tu WhatsApp" autocomplete="tel-national">
                   </div>
-                  <div class="cart-field-label" id="order-note-label">Observação para o pedido</div>
-                  <textarea class="cart-note" id="customer-note" maxlength="400" placeholder="Observação para o pedido"></textarea>
+                  <div class="cart-field-label" id="order-note-label">Observación para el pedido</div>
+                  <textarea class="cart-note" id="customer-note" maxlength="400" placeholder="Observación para el pedido"></textarea>
                   <div class="checkout-warning" id="checkout-warning"></div>
                 </div>
               </div>
               <div class="cart-actions">
                 <button class="cart-clear" type="button" id="cart-clear">Limpar pedido</button>
-                <button class="cart-send" type="button" id="cart-send">Enviar pedido pelo WhatsApp</button>
+                <button class="cart-send" type="button" id="cart-send">Enviar pedido por WhatsApp</button>
               </div>
             </div>
           </div>
@@ -10701,7 +10699,7 @@
           <p>Mostra nota média, quantidade de avaliações e comentários aprovados, conectados à tela Loja Online > Avaliações.</p>
         </article>
         <article class="spec-card">
-          <strong><span class="spec-dot"></span>Carrinho atual</strong>
+          <strong><span class="spec-dot"></span>Pedido actual</strong>
           <p>O preview propõe só a camada visual. A lógica existente de adicionar, editar quantidade, remover, calcular total e enviar pelo WhatsApp deve ser preservada na implementação real.</p>
         </article>
       </section>
@@ -16290,7 +16288,7 @@
         var coupon = findCoupon(input && input.value);
         if (!coupon) {
           appliedCoupon = null;
-          showCartWarning('Cupom inválido ou indisponível.');
+          showCartWarning(currentLanguage().indexOf('es') === 0 ? 'Cupón inválido o no disponible.' : 'Cupom inválido ou indisponível.');
         } else {
           appliedCoupon = coupon;
           showCartWarning('');

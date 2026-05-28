@@ -9547,6 +9547,12 @@
 - A documentação foi atualizada com os campos, regras de segurança e objetivo da nova memória histórica.
 - Impacto esperado: a Maturidade passa a preservar histórico mensal e tendências sem alterar score, Pedra, Marcos, rotas, permissões ou regras multi-tenant.
 
+## 2026-05-28 — Landing page como página inicial do BocaFood
+- Arquivos alterados: `firebase.json`, `AI_CHANGELOG.md`.
+- A rota raiz `/` do Firebase Hosting agora aponta explicitamente para `public/landing.html`.
+- O template público das lojas continua preservado em `public/index.html` e segue sendo usado nas rotas de loja, reviews e fallback de slugs.
+- Impacto esperado: ao abrir o domínio principal do BocaFood, a usuária vê a landing page institucional, enquanto as lojas publicadas continuam abrindo pelo template público.
+
 ## 2026-05-27 — Maturidade: Fase 3 com histórico visível
 - Arquivos alterados: `public/js/modules/temporadas.js`, `public/css/modules/temporadas.css`, `MATURIDADE_DADOS_E_EVOLUCAO.md`, `AI_CHANGELOG.md`.
 - A tela de Maturidade ganhou o bloco `Histórico usado na leitura`, mostrando últimos 30 dias, comparação com os 30 dias anteriores, últimos 90 dias, mês atual, memória anual e registros históricos preservados.
@@ -9602,3 +9608,35 @@
 - O botão de recolher/expandir agora apenas alterna a sidebar de Operação entre aberta e recolhida, sem voltar para o seletor.
 - O menu `Missões` foi removido da sidebar.
 - Impacto esperado: simplificar a navegação e evitar a tela intermediária de ambientes, mantendo módulos, rotas e permissões existentes.
+
+## 2026-05-28 — Correções da varredura técnica
+- Arquivos alterados: `functions/index.js`, `public/js/modules/catalogo.js`, `public/index.html`, `AI_CHANGELOG.md`.
+- O webhook do Stripe agora também gera a baixa de estoque por venda (`saida_venda` / `saida_base_venda`) quando o pagamento é aprovado, usando os dados do pedido e os vínculos de ficha técnica, base de produção ou produto pronto.
+- A baixa gerada pelo webhook usa IDs determinísticos e marca o pedido com `stockMovementCreated`, evitando duplicidade quando o Admin também carregar o pedido depois.
+- O fallback legado de upload de imagem do catálogo deixou de apontar para `127.0.0.1:3000` em produção e passa a usar a origem atual da página quando não está em ambiente local.
+- O template público deixou de exibir links antigos de preview que apontavam para arquivos inexistentes (`template_mobilebocafood.png` e `preview-template.html`).
+- Impacto esperado: pedidos pagos no Stripe alimentam o estoque sem depender de ação manual no Admin, uploads não tentam acessar localhost em produção e o template público fica sem links de preview quebrados.
+
+## 2026-05-28 — Ajustes pendentes da varredura técnica
+- Arquivos alterados: `public/admin.html`, `public/js/modules/dinheiro.js`, `public/js/modules/pedidos.js`, `public/js/modules/marketing.js`, `public/index.html`, `AI_CHANGELOG.md`.
+- O logout do Admin deixou de navegar para a rota inexistente `inicio` e passa a retornar para `dashboard`.
+- A rota legada `financeiro/custos` deixou de ser acionada pelo módulo de Preço e Margem; o fluxo antigo agora redireciona para `financeiro/configuracoes`.
+- As chamadas de atualização do programa de pontos em Pedidos passaram a usar `_pointsRefresh`, e o módulo Marketing mantém `_refreshPoints` como alias seguro para compatibilidade.
+- Textos estáticos iniciais do template público foram ajustados para espanhol antes das traduções dinâmicas carregarem, reduzindo flashes em português no storefront.
+- O fluxo Stripe foi mantido sem concessão imediata de pontos, porque o programa pontua pedido finalizado/entregue; pedidos pagos entram como confirmados e continuam ganhando pontos quando forem marcados como entregues.
+- Impacto esperado: menos rotas mortas, atualização correta da tela de pontos, template público mais consistente em espanhol e preservação da regra correta de fidelidade.
+
+## 2026-05-28 — Limpeza de rotas e placeholders antigos
+- Arquivos alterados: `public/admin.html`, `public/js/modules/suporte.js`, `AI_CHANGELOG.md`.
+- Foram removidos os placeholders `Modules.Inteligencia` e `Modules.Missoes`, que não aparecem mais no menu lateral atual.
+- Foram removidos registros de rotas antigas sem entrada atual no menu: `tpv`, `missoes`, `inteligencia/*`, `plano-de-voo/*` e `performance`.
+- As rotas atuais foram preservadas, incluindo `venda-presencial`, `crescimento/plano-de-voo`, `crescimento/performance`, `crescimento/maturidade`, `crescimento/temporadas` e `marketing-canais/*`.
+- A copy do shell principal do Admin e da documentação de suporte foi padronizada para `Painel BocaFood`, removendo a mistura `Centro de Control / Centro de Controle`.
+- Impacto esperado: reduzir sobras de navegação antiga e deixar a entrada do Admin mais coerente, sem alterar permissões, Firestore, módulos reais ou rotas atualmente usadas pelo menu.
+
+## 2026-05-28 — Loading inicial do Admin
+- Arquivos alterados: `public/admin.html`, `AI_CHANGELOG.md`.
+- Foi adicionada uma tela inicial de carregamento para cobrir o tempo em que Firebase, autenticação, tenant e módulos do painel estão sendo preparados.
+- A tela aparece por padrão ao abrir o Admin e é removida automaticamente quando o login ou o painel principal ficam prontos.
+- O visual segue a identidade do BocaFood, com logo, spinner e mensagem simples para evitar tela em branco durante a montagem.
+- Impacto esperado: melhorar a percepção de estabilidade ao abrir ou recarregar o Admin, sem alterar rotas, permissões, Firebase ou módulos internos.

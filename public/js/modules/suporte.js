@@ -580,13 +580,13 @@ Modules.Suporte = (function () {
     var body = '';
     if (key === 'configuracoes-usuario') {
       body = '<div class="help-guide-panel-head">' +
-          '<div><h3>Configurações → Usuário</h3><p>Esta tela fala sobre a pessoa que entra no Centro de Controle. Ela não muda o nome da loja nem os dados comerciais do negócio; serve para identificar quem administra a conta, receber avisos importantes e recuperar o acesso quando necessário.</p></div>' +
+          '<div><h3>Configurações → Usuário</h3><p>Esta tela fala sobre a pessoa que entra no Painel BocaFood. Ela não muda o nome da loja nem os dados comerciais do negócio; serve para identificar quem administra a conta, receber avisos importantes e recuperar o acesso quando necessário.</p></div>' +
           _guideBackButtons(moduleKey || 'configuracoes', 'Abrir Usuário', 'configuracoes/conta_usuario') +
         '</div>' +
         '<div class="support-guide-fields">' +
           '<div class="support-guide-field"><strong>Seu nome completo</strong><span>Preencha com o nome da pessoa que administra a conta. Esse campo é sobre você, não sobre a loja. Não coloque aqui o nome do negócio, nome comercial, marca ou nome do cardápio.</span></div>' +
           '<div class="support-guide-field"><strong>Como você quer ser chamada?</strong><span>Use um nome curto ou nome social. Esse nome ajuda a identificar melhor o usuário dentro da conta.</span></div>' +
-          '<div class="support-guide-field"><strong>E-mail de acesso</strong><span>É o e-mail usado para entrar no Centro de Controle. Por segurança, ele aparece bloqueado. Se você precisa trocar o e-mail, abra um chamado ou fale com o suporte para a equipe orientar a mudança corretamente.</span></div>' +
+          '<div class="support-guide-field"><strong>E-mail de acesso</strong><span>É o e-mail usado para entrar no Painel BocaFood. Por segurança, ele aparece bloqueado. Se você precisa trocar o e-mail, abra um chamado ou fale com o suporte para a equipe orientar a mudança corretamente.</span></div>' +
           '<div class="support-guide-field"><strong>Enviar link para redefinir senha</strong><span>Use esse botão se esqueceu a senha ou quer criar uma nova. O BocaFood envia um link para o e-mail de acesso. Depois é só abrir o e-mail, clicar no link e cadastrar a nova senha.</span></div>' +
           '<div class="support-guide-field"><strong>WhatsApp de contato</strong><span>Informe um número onde você consiga receber avisos importantes da conta. Ele pode ser usado para suporte, segurança e comunicação sobre o acesso. Não é o WhatsApp público da loja para pedidos.</span></div>' +
           '<div class="support-guide-field"><strong>Salvar alterações</strong><span>Depois de mudar nome, nome curto ou WhatsApp, clique em Salvar alterações. Se sair da tela sem salvar, as mudanças podem não ficar guardadas.</span></div>' +
@@ -645,7 +645,7 @@ Modules.Suporte = (function () {
         '</div>' +
         '<div class="support-guide-fields">' +
           '<div class="support-guide-field"><strong>Plano atual</strong><span>Mostra o plano associado à sua conta BocaFood. Se a conta ainda estiver dentro do período grátis, o destaque pode mostrar os dias gratuitos restantes em vez de repetir o nome do plano.</span></div>' +
-          '<div class="support-guide-field"><strong>Acesso</strong><span>Indica se sua conta está liberada para usar o Centro de Controle. Quando aparece como ativa, você pode seguir configurando a loja normalmente. Se aparecer pendente ou bloqueada, abra um chamado para a equipe verificar.</span></div>' +
+          '<div class="support-guide-field"><strong>Acesso</strong><span>Indica se sua conta está liberada para usar o Painel BocaFood. Quando aparece como ativa, você pode seguir configurando a loja normalmente. Se aparecer pendente ou bloqueada, abra um chamado para a equipe verificar.</span></div>' +
           '<div class="support-guide-field"><strong>Período grátis</strong><span>Esse aviso aparece somente quando existe período grátis ativo ou quando ele terminou sem acesso liberado. Se o período grátis acabar e a Hotmart mantiver a assinatura ativa, a tela deixa de mostrar mensagens de teste grátis e passa a focar no plano ativo.</span></div>' +
           '<div class="support-guide-field"><strong>Cobrança</strong><span>Mostra o ciclo do plano quando essa informação vem da compra, como mensal ou anual. O BocaFood não mostra cartão, recibo ou lista completa de cobranças dentro do painel, porque esses detalhes ficam no ambiente da Hotmart.</span></div>' +
           '<div class="support-guide-field"><strong>Dados da compra na Hotmart</strong><span>Use esta área para lembrar que pagamentos, recibos, cartão, próxima cobrança e dados financeiros devem ser conferidos no painel da Hotmart. O BocaFood mostra apenas o necessário para indicar plano e acesso.</span></div>' +

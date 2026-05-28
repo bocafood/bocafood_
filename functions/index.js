@@ -2132,6 +2132,318 @@ async function syncStripeFinanceMovements(tenantId, orderId, paymentIntent, conf
   return true;
 }
 
+function stockNum(value) {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  let str = String(value == null ? "" : value).trim();
+  if (!str) return 0;
+  str = str.replace(/[^\d,.-]/g, "");
+  if (!str) return 0;
+  const lastComma = str.lastIndexOf(",");
+  const lastDot = str.lastIndexOf(".");
+  if (lastComma > lastDot) str = str.replace(/\./g, "").replace(",", ".");
+  else str = str.replace(/,/g, "");
+  const n = parseFloat(str);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function stockFirstText(...values) {
+  for (const value of values) {
+    if (value == null) continue;
+    const text = String(value).trim();
+    if (text) return text;
+  }
+  return "";
+}
+
+function stockSafeId(value, fallback = "pedido") {
+  return String(value || fallback).replace(/[^\w-]/g, "_");
+}
+
+function stockRoundQty(value) {
+  return Math.round((stockNum(value) + Number.EPSILON) * 10000) / 10000;
+}
+
+function stockOrderLabel(order, orderId) {
+  return stockFirstText(
+    order && order.publicOrderCode,
+    order && order.orderRef,
+    order && order.orderNumber,
+    order && order.number,
+    order && order.code,
+    order && order.reference,
+    orderId ? `#${String(orderId).slice(-6).toUpperCase()}` : ""
+  );
+}
+
+function stockDateText(...values) {
+  for (const value of values) {
+    if (!value) continue;
+    if (typeof value === "string") {
+      const text = value.trim();
+      if (text) return text.slice(0, 10);
+    }
+    if (value && typeof value.toDate === "function") {
+      try {
+        return value.toDate().toISOString().slice(0, 10);
+      } catch (error) {}
+    }
+    if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0, 10);
+  }
+  return new Date().toISOString().slice(0, 10);
+}
+
+function stockOrderItemQuantity(item) {
+  return stockNum(item && (item.quantity != null ? item.quantity : item.qty != null ? item.qty : item.qtd != null ? item.qtd : item.amount)) || 1;
+}
+
+function stockOrderItemUnitCost(item, product) {
+  return stockNum(stockFirstText(
+    item && item.stockUnitCost,
+    item && item.unitCost,
+    product && product.stockUnitCost,
+    product && product.costPerYield,
+    product && product.custoUnitario,
+    product && product.custoAtual,
+    product && product.custo,
+    product && product.cost,
+    ""
+  ));
+}
+
+function stockFindProductForOrderItem(item, products) {
+  const wantedId = String((item && (item.productId || item.id)) || "").trim();
+  if (wantedId) {
+    const byId = products.find((p) => String(p.id || "") === wantedId);
+    if (byId) return byId;
+  }
+  const name = String((item && (item.name || item.productName)) || "").trim().toLowerCase();
+  if (!name) return null;
+  return products.find((p) => String(p.name || p.title || "").trim().toLowerCase() === name) || null;
+}
+
+function stockFindProductByAnyId(id, products) {
+  const wanted = String(id || "").trim();
+  if (!wanted) return null;
+  return products.find((p) => (
+    String(p.id || "") === wanted ||
+    String(p.productId || "") === wanted ||
+    String(p.sourceItemId || "") === wanted ||
+    String(p.produtoProntoId || "") === wanted ||
+    String(p.fichaId || p.fichaTecnicaId || "") === wanted
+  )) || null;
+}
+
+function stockFindRecipeById(id, recipes) {
+  const wanted = String(id || "").trim();
+  if (!wanted) return null;
+  return recipes.find((recipe) => (
+    String(recipe.id || "") === wanted ||
+    String(recipe.fichaTecnicaId || "") === wanted ||
+    String(recipe.recipeId || "") === wanted
+  )) || null;
+}
+
+function stockComponentCost(component) {
+  return (component && Array.isArray(component.ingredients) ? component.ingredients : []).reduce((sum, ing) => {
+    return sum + stockNum(ing.totalCost || ing.plannedTotalCost || ing.costTotal || ing.custoTotal);
+  }, 0);
+}
+
+function stockBaseRefsFromRecipe(item, product, quantity, source, fichaId, recipes) {
+  const recipe = stockFindRecipeById(fichaId, recipes);
+  const components = recipe && Array.isArray(recipe.components) ? recipe.components : [];
+  const baseComponents = components.filter((comp) => comp && (comp.stockControl || comp.controlsStock));
+  if (!baseComponents.length) return [];
+  const recipeYield = stockNum(recipe.yieldQuantity || recipe.yield || recipe.rendimento || product && (product.yieldQuantity || product.yield)) || 1;
+  const soldQty = stockNum(quantity) || 1;
+  return baseComponents.map((comp, idx) => {
+    let baseYield = stockNum(comp.baseYieldQuantity || comp.stockYieldQuantity);
+    if (baseYield <= 0) baseYield = recipeYield;
+    const qty = stockRoundQty((baseYield / Math.max(1, recipeYield)) * soldQty);
+    const totalCost = stockComponentCost(comp);
+    const unitCost = baseYield > 0 ? totalCost / baseYield : 0;
+    return {
+      fichaId,
+      fichaNome: recipe.name || recipe.title || "",
+      readyItemId: "",
+      productId: stockFirstText(item && item.productId, item && item.id, product && product.id, ""),
+      productName: stockFirstText(item && item.name, item && item.productName, product && product.name, product && product.title, "Produto"),
+      baseProductionId: `${fichaId || "receita"}:${comp.name || `etapa_${idx}`}`,
+      baseProductionName: comp.name || "Base de produção",
+      componentName: comp.name || "",
+      quantity: qty,
+      unit: comp.baseYieldUnit || comp.stockYieldUnit || recipe.yieldUnit || "unidades",
+      unitCost,
+      stockItemType: "base_producao",
+      source: source === "combo" ? "combo_base_producao" : "base_producao"
+    };
+  }).filter((ref) => stockNum(ref.quantity) > 0);
+}
+
+function stockRefFromProductLike(item, product, quantity, source, products, recipes) {
+  const fichaId = stockFirstText(item && item.fichaTecnicaId, item && item.fichaId, item && item.recipeId, product && product.fichaTecnicaId, product && product.fichaId, product && product.recipeId, "");
+  const baseRefs = fichaId ? stockBaseRefsFromRecipe(item, product, quantity, source, fichaId, recipes) : [];
+  if (baseRefs.length) return baseRefs;
+  const readyItemId = fichaId ? "" : stockFirstText(item && item.sourceItemId, item && item.produtoProntoId, item && item.readyProductId, product && product.sourceItemId, product && product.produtoProntoId, product && product.readyProductId, "");
+  if (!fichaId && !readyItemId) return null;
+  return {
+    fichaId,
+    fichaNome: "",
+    readyItemId,
+    productId: stockFirstText(item && item.productId, item && item.id, product && product.id, ""),
+    productName: stockFirstText(item && item.name, item && item.productName, product && product.name, product && product.title, "Produto"),
+    quantity,
+    unit: stockFirstText(item && item.unit, product && product.stockUnit, product && product.yieldUnit, product && product.unit, "unidades"),
+    unitCost: stockOrderItemUnitCost(item, product),
+    stockItemType: fichaId ? "produto_produzido" : "produto_pronto",
+    source
+  };
+}
+
+function stockExtractChoiceRefs(item, product, mainQty, products, recipes) {
+  let sources = [];
+  ["choices", "variants", "selections", "options", "selectedOptions", "comboItems", "comboSelections", "items"].forEach((key) => {
+    const value = item && item[key];
+    if (Array.isArray(value)) sources = sources.concat(value);
+  });
+  if (!sources.length && product) {
+    ["comboItems", "menuItems", "itemsIncluded", "components"].forEach((key) => {
+      const value = product[key];
+      if (Array.isArray(value)) sources = sources.concat(value);
+    });
+  }
+  const refs = [];
+  sources.forEach((choice) => {
+    if (!choice || typeof choice !== "object") return;
+    const choiceProduct = stockFindProductForOrderItem(choice, products) || stockFindProductByAnyId(stockFirstText(choice.productId, choice.id, choice.itemId, choice.value, choice.optionId, ""), products) || {};
+    let qty = stockNum(choice.quantity != null ? choice.quantity : choice.qty != null ? choice.qty : choice.count != null ? choice.count : choice.amount);
+    if (qty <= 0) qty = 1;
+    const ref = stockRefFromProductLike(choice, choiceProduct, mainQty * qty, "combo", products, recipes);
+    if (Array.isArray(ref)) refs.push(...ref);
+    else if (ref) refs.push(ref);
+  });
+  return refs;
+}
+
+function stockOrderItemRefs(item, product, products, recipes) {
+  const mainQty = stockOrderItemQuantity(item);
+  const direct = stockRefFromProductLike(item, product, mainQty, "item", products, recipes);
+  const choices = stockExtractChoiceRefs(item, product, mainQty, products, recipes);
+  if (choices.length) return choices;
+  if (Array.isArray(direct)) return direct;
+  return direct ? [direct] : [];
+}
+
+async function syncStripeOrderStockMovements(tenantId, orderId) {
+  const tenantRef = db.collection("tenants").doc(tenantId);
+  const orderRef = tenantRef.collection("orders").doc(orderId);
+  const orderSnap = await orderRef.get();
+  if (!orderSnap.exists) return false;
+  const order = { id: orderSnap.id, ...(orderSnap.data() || {}) };
+  if (order.stockMovementCreated) return true;
+
+  const existingSnap = await tenantRef.collection("stock_movements").where("orderId", "==", orderId).get();
+  const existing = [];
+  existingSnap.forEach((doc) => {
+    const movement = doc.data() || {};
+    if (movement.type === "saida_venda" || movement.type === "saida_base_venda") existing.push(movement);
+  });
+  if (existing.length) {
+    await orderRef.set({
+      stockMovementCreated: true,
+      stockMovementCreatedAt: order.stockMovementCreatedAt || serverTimestamp(),
+      stockMovementCount: existing.length,
+      stockMovementSkippedCount: stockNum(order.stockMovementSkippedCount || 0),
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+    return true;
+  }
+
+  const [productsSnap, recipesSnap] = await Promise.all([
+    tenantRef.collection("products").get(),
+    tenantRef.collection("fichasTecnicas").get()
+  ]);
+  const products = [];
+  productsSnap.forEach((doc) => products.push({ id: doc.id, ...(doc.data() || {}) }));
+  const recipes = [];
+  recipesSnap.forEach((doc) => recipes.push({ id: doc.id, ...(doc.data() || {}) }));
+
+  const items = Array.isArray(order.items) ? order.items : [];
+  const batch = db.batch();
+  const skipped = [];
+  let count = 0;
+  const nowIso = new Date().toISOString();
+  const movementDate = stockDateText(order.deliveryDate, order.pickupDate, order.scheduleDate, order.createdAt, nowIso);
+
+  items.forEach((item, idx) => {
+    const product = stockFindProductForOrderItem(item, products) || {};
+    const refs = stockOrderItemRefs(item, product, products, recipes);
+    if (!refs.length) {
+      skipped.push(stockFirstText(item && item.name, item && item.productName, product.name, product.title, "Item sem nome"));
+      return;
+    }
+    refs.forEach((ref, refIdx) => {
+      if (stockNum(ref.quantity) <= 0) return;
+      const movementId = `${stockSafeId(orderId)}_${idx}_${refIdx}_saida_venda`;
+      const isBase = ref.stockItemType === "base_producao";
+      batch.set(tenantRef.collection("stock_movements").doc(movementId), {
+        id: movementId,
+        type: isBase ? "saida_base_venda" : "saida_venda",
+        movementGroup: "order",
+        orderId,
+        orderNumber: stockOrderLabel(order, orderId),
+        orderStatus: order.status || "Confirmado",
+        productId: ref.productId || "",
+        productName: ref.productName || "Produto",
+        fichaTecnicaId: ref.fichaId || "",
+        fichaTecnicaNome: ref.fichaNome || "",
+        baseProductionId: ref.baseProductionId || "",
+        baseProductionName: ref.baseProductionName || "",
+        componentName: ref.componentName || "",
+        sourceItemId: ref.readyItemId || "",
+        produtoProntoId: ref.readyItemId || "",
+        stockItemId: ref.baseProductionId || ref.fichaId || ref.readyItemId || ref.productId || "",
+        stockItemType: ref.stockItemType || (ref.fichaId ? "produto_produzido" : "produto_pronto"),
+        itemClass: ref.stockItemType || (ref.fichaId ? "produto_produzido" : "produto_pronto"),
+        classe: ref.stockItemType || (ref.fichaId ? "produto_produzido" : "produto_pronto"),
+        quantity: stockNum(ref.quantity),
+        unit: ref.unit || "unidades",
+        unitCost: stockNum(ref.unitCost),
+        totalCost: stockNum(ref.unitCost) > 0 ? stockNum(ref.quantity) * stockNum(ref.unitCost) : 0,
+        parentOrderItemId: stockFirstText(item && item.productId, item && item.id, product.id, ""),
+        parentOrderItemName: stockFirstText(item && item.name, item && item.productName, product.name, product.title, ""),
+        stockSource: ref.source || "item",
+        movementDate,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+      count += 1;
+    });
+  });
+
+  const patch = {
+    stockMovementSkippedCount: skipped.length,
+    updatedAt: serverTimestamp()
+  };
+  if (count > 0) {
+    patch.stockMovementCreated = true;
+    patch.stockMovementCreatedAt = serverTimestamp();
+    patch.stockMovementUpdatedAt = serverTimestamp();
+    patch.stockMovementCount = count;
+  }
+  if (skipped.length) {
+    patch.stockMovementSkippedItems = skipped.slice(0, 12);
+    patch.stockMovementWarning = "Itens sem vínculo com ficha técnica, base de produção ou produto pronto.";
+  } else {
+    patch.stockMovementSkippedItems = [];
+    patch.stockMovementWarning = "";
+  }
+
+  if (count > 0) await batch.commit();
+  await orderRef.set(patch, { merge: true });
+  return count > 0;
+}
+
 async function requireTenantAdminAccess(req, tenantId) {
   const decoded = await requireAuthenticatedAdmin(req);
   const cleanTenantId = String(tenantId || "").trim();
@@ -2739,6 +3051,7 @@ exports.stripeWebhook = onRequest({ region: REGION, timeoutSeconds: 45, memory: 
         updatedAt: serverTimestamp()
       }, { merge: true });
       await syncStripeFinanceMovements(tenantId, orderId, object, config);
+      await syncStripeOrderStockMovements(tenantId, orderId);
     } else if (event.type === "payment_intent.payment_failed" || event.type === "payment_intent.canceled") {
       await ref.set({
         paymentProvider: "stripe",

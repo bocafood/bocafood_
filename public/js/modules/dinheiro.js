@@ -67,7 +67,7 @@ Modules.Dinheiro = (function () {
     if (_activeSub === 'lista') return _renderListaPrecos();
     if (_activeSub === 'simulador') return _renderSimulador();
     if (_activeSub === 'custos') {
-      Router.navigate('financeiro/custos');
+      Router.navigate('financeiro/configuracoes');
       return;
     }
     if (_activeSub === 'regras') return _renderRegras();

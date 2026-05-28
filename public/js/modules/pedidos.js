@@ -2603,7 +2603,7 @@ Modules.Pedidos = (function () {
             note: notes || order.note || '',
             internalNote: notes || order.internalNote || ''
           }), { id: customerId, name: name, phone: phone, whatsapp: phone }).then(function () {
-            if (typeof Modules.Marketing._refreshPoints === 'function') Modules.Marketing._refreshPoints();
+            if (typeof Modules.Marketing._pointsRefresh === 'function') Modules.Marketing._pointsRefresh();
           }).catch(function () {});
         }
         UI.toast('Cliente vinculado ao pedido.', 'success');
@@ -3562,7 +3562,7 @@ Modules.Pedidos = (function () {
       }
       if (nextStatus === 'Entregado' && Modules.Marketing && typeof Modules.Marketing._pointsGrantForOrder === 'function') {
         Modules.Marketing._pointsGrantForOrder(orderId, order || null, _matchedCustomer(order)).then(function () {
-          if (typeof Modules.Marketing._refreshPoints === 'function') Modules.Marketing._refreshPoints();
+          if (typeof Modules.Marketing._pointsRefresh === 'function') Modules.Marketing._pointsRefresh();
         }).catch(function () {});
       }
       if (order) {

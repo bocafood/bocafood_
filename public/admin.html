@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Centro de Control — BOCA Food</title>
+<title>Painel BocaFood</title>
 <link rel="icon" type="image/png" href="/assets/boca-food-favicon.png">
 <link rel="apple-touch-icon" href="/assets/boca-food-favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -23,6 +23,14 @@
 body{font-family:'Manrope','Inter',sans-serif;background:#fff;color:var(--dark);min-height:100vh;font-size:14px;line-height:1.5}
 button,input,select,textarea{font-family:inherit}
 .mi{font-family:'Material Icons Round';font-style:normal;font-weight:normal;line-height:1;display:inline-flex;align-items:center;justify-content:center;vertical-align:middle}
+.admin-loading-screen{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:28px;background:linear-gradient(135deg,#FBF5F3 0%,#FFF8F6 48%,#FFF 100%);transition:opacity .22s ease,visibility .22s ease}
+.admin-loading-screen.hidden{opacity:0;visibility:hidden;pointer-events:none}
+.admin-loading-card{width:min(360px,calc(100vw - 40px));background:rgba(255,255,255,.92);border:1px solid rgba(180,35,24,.10);border-radius:24px;box-shadow:0 24px 70px rgba(31,31,31,.12);padding:28px 24px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:14px}
+.admin-loading-logo{width:154px;height:70px;object-fit:contain;display:block}
+.admin-loading-spinner{width:34px;height:34px;border-radius:50%;border:3px solid #F2DDD8;border-top-color:var(--red);animation:adminSpin .85s linear infinite}
+.admin-loading-title{font-size:15px;font-weight:760;color:#1F1F1F;line-height:1.2}
+.admin-loading-text{font-size:12.5px;font-weight:500;color:#6F6860;line-height:1.45;max-width:260px}
+@keyframes adminSpin{to{transform:rotate(360deg)}}
 .login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:28px;background:linear-gradient(135deg,#FBF5F3 0%,#FFF8F6 48%,#FFF 100%);font-family:'Manrope','Inter',sans-serif}
 .login-card{width:min(430px,100%);background:#fff;border:1px solid rgba(180,35,24,.10);border-radius:22px;box-shadow:0 18px 60px rgba(31,31,31,.10);padding:30px}
 .login-card *{font-family:'Manrope','Inter',sans-serif}
@@ -204,10 +212,19 @@ button,input,select,textarea{font-family:inherit}
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-functions-compat.js"></script>
 </head>
 <body>
+<div id="admin-loading-screen" class="admin-loading-screen" aria-live="polite" aria-busy="true">
+  <div class="admin-loading-card">
+    <img class="admin-loading-logo" src="/assets/boca-food-logo.png" alt="BOCA Food">
+    <div class="admin-loading-spinner" aria-hidden="true"></div>
+    <div class="admin-loading-title">Preparando seu painel</div>
+    <div class="admin-loading-text">Estamos carregando sua conta e organizando as informações do seu negócio.</div>
+  </div>
+</div>
+
 <div id="login-screen" class="login-screen" style="display:none">
   <form id="login-form" class="login-card">
     <div class="login-brand"><img src="/assets/boca-food-logo.png" alt="BOCA Food"></div>
-    <span class="login-kicker">Centro de Controle</span>
+    <span class="login-kicker">Painel BocaFood</span>
     <div id="login-error" class="login-error"></div>
     <div id="login-panel" class="login-panel">
       <button id="login-google" class="login-google" type="button">
@@ -217,7 +234,7 @@ button,input,select,textarea{font-family:inherit}
       <div class="login-divider">ou entre com e-mail e senha</div>
       <label><span>E-mail de acesso</span><input id="login-email" type="email" autocomplete="email" placeholder="seu@email.com" required></label>
       <label><span>Senha</span><input id="login-pass" type="password" autocomplete="current-password" placeholder="Digite sua senha" required></label>
-      <button class="login-submit" type="submit">Entrar no Centro de Controle</button>
+      <button class="login-submit" type="submit">Entrar no painel</button>
       <div class="login-links">
         <button id="login-reset" class="login-link" type="button">Esqueci minha senha</button>
       </div>
@@ -411,7 +428,7 @@ button,input,select,textarea{font-family:inherit}
       <div class="topbar-left">
         <button class="mobile-menu" onclick="AdminApp.toggleNav()"><span class="mi">menu</span></button>
         <button class="sidebar-toggle" onclick="AdminApp.toggleSidebar()" title="Encolher menu"><span class="mi" id="sidebar-toggle-icon">keyboard_double_arrow_left</span></button>
-        <div class="topbar-title">Centro de Control</div>
+        <div class="topbar-title">Painel BocaFood</div>
       </div>
       <div class="topbar-right">
         <div class="store-online-control">
@@ -642,12 +659,24 @@ button,input,select,textarea{font-family:inherit}
 
   window.AdminApp = {
     resetStoreIdentity: _adminResetStoreIdentity,
+    hideLoading: function () {
+      var loading = document.getElementById('admin-loading-screen');
+      if (loading) loading.classList.add('hidden');
+    },
+    showLoading: function () {
+      var loading = document.getElementById('admin-loading-screen');
+      if (loading) loading.classList.remove('hidden');
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('admin-shell').style.display = 'none';
+    },
     showLogin: function () {
+      this.hideLoading();
       document.getElementById('login-screen').style.display = 'flex';
       document.getElementById('admin-shell').style.display = 'none';
       _adminResetStoreIdentity();
     },
     showApp: function () {
+      this.hideLoading();
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('admin-shell').style.display = 'grid';
       var routeMode = _adminSidebarModeForRoute(window.location.hash.replace('#', '') || '');
@@ -704,13 +733,13 @@ button,input,select,textarea{font-family:inherit}
         } else if (reason === 'inactive' || reason === 'disabled') {
           msg = 'Seu acesso está inativo. Fale com o suporte.';
         } else if (reason === 'customer') {
-          msg = 'Esta conta é de cliente da loja e não tem acesso ao Centro de Control.';
+          msg = 'Esta conta é de cliente da loja e não tem acesso ao painel.';
         } else if (reason === 'not_allowed') {
-          msg = 'Esta conta ainda não tem permissão para o Centro de Control.';
+          msg = 'Esta conta ainda não tem permissão para acessar o painel.';
         } else if (reason === 'error') {
           msg = 'Erro ao verificar o acesso. Verifique sua conexão e tente novamente.';
         } else {
-          msg = 'Esta conta é cliente da loja ou não tem acesso ao Centro de Control.';
+          msg = 'Esta conta é cliente da loja ou não tem acesso ao painel.';
         }
         err.textContent = msg;
         err.style.display = 'block';
@@ -723,7 +752,7 @@ button,input,select,textarea{font-family:inherit}
       }
       Auth.logout().then(function () {
         AdminApp.showLogin();
-        if (window.Router && typeof Router.navigate === 'function') Router.navigate('inicio');
+        if (window.Router && typeof Router.navigate === 'function') Router.navigate('dashboard');
       }).catch(function () {
         if (window.UI && UI.toast) UI.toast('Não foi possível sair agora. Tente novamente.', 'error');
       });
@@ -1082,38 +1111,6 @@ button,input,select,textarea{font-family:inherit}
     }
   };
 
-  Modules.Inteligencia = {
-    render: function (sub) {
-      var app = document.getElementById('app');
-      if (!app) return;
-      var key = (sub || 'visao-geral').replace(/^\/+/, '') || 'visao-geral';
-      var map = {
-        'visao-geral': ['Inteligência', 'Visão consolidada dos principais indicadores do negócio.'],
-        'vendas': ['Inteligência de Vendas', 'Área destinada à análise dos números comerciais da loja.'],
-        'financeiro': ['Inteligência Financeira', 'Área destinada à leitura de resultados, margem e saúde financeira.'],
-        'marketing': ['Inteligência de Marketing', 'Área destinada à análise de campanhas, promoções e recorrência.'],
-        'clientes': ['Inteligência de Clientes', 'Área destinada à leitura de comportamento, recompra e relacionamento.'],
-        'cardapio': ['Inteligência de Cardápio', 'Área destinada à análise de produtos, categorias e oportunidades do cardápio.'],
-        'operacao': ['Inteligência de Operação', 'Área destinada à análise de rotina, capacidade e eficiência operacional.']
-      };
-      var item = map[key] || map['visao-geral'];
-      app.innerHTML =
-        '<div style="padding:24px;max-width:920px;">' +
-          '<section style="background:#fff;border:1px solid #EAE4DA;border-radius:22px;box-shadow:0 16px 40px rgba(31,31,31,.06);padding:24px;">' +
-            '<div style="display:flex;align-items:flex-start;gap:14px;">' +
-              '<span class="mi" style="width:42px;height:42px;border-radius:15px;background:#FAF8F4;color:#B42318;display:inline-flex;align-items:center;justify-content:center;font-size:22px;flex:0 0 auto;">insights</span>' +
-              '<div style="min-width:0;">' +
-                '<p style="margin:0 0 7px;color:#B42318;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;">Inteligência</p>' +
-                '<h1 style="margin:0;color:#1F1F1F;font-size:28px;line-height:1.1;font-weight:760;">' + item[0] + '</h1>' +
-                '<p style="margin:10px 0 0;color:#5F5750;font-size:14px;line-height:1.55;max-width:620px;">' + item[1] + '</p>' +
-              '</div>' +
-            '</div>' +
-            '<div style="margin-top:22px;border:1px dashed #E3D8CF;border-radius:16px;background:#FFFCFB;padding:16px;color:#6F6860;font-size:13px;line-height:1.5;">Esta área será implementada futuramente. Por enquanto, a navegação já está preparada sem alterar os módulos atuais.</div>' +
-          '</section>' +
-        '</div>';
-    }
-  };
-
   Modules.MarketingCanais = {
     render: function (sub) {
       var app = document.getElementById('app');
@@ -1142,30 +1139,8 @@ button,input,select,textarea{font-family:inherit}
     }
   };
 
-  Modules.Missoes = {
-    render: function () {
-      var app = document.getElementById('app');
-      if (!app) return;
-      app.innerHTML =
-        '<div style="padding:24px;max-width:920px;">' +
-          '<section style="background:#fff;border:1px solid #EAE4DA;border-radius:22px;box-shadow:0 16px 40px rgba(31,31,31,.06);padding:24px;">' +
-            '<div style="display:flex;align-items:flex-start;gap:14px;">' +
-              '<span class="mi" style="width:42px;height:42px;border-radius:15px;background:#FAF8F4;color:#B42318;display:inline-flex;align-items:center;justify-content:center;font-size:22px;flex:0 0 auto;">flag</span>' +
-              '<div style="min-width:0;">' +
-                '<p style="margin:0 0 7px;color:#B42318;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;">Missões</p>' +
-                '<h1 style="margin:0;color:#1F1F1F;font-size:28px;line-height:1.1;font-weight:760;">Missões</h1>' +
-                '<p style="margin:10px 0 0;color:#5F5750;font-size:14px;line-height:1.55;max-width:620px;">Esta área será usada para guiar ações importantes da loja.</p>' +
-              '</div>' +
-            '</div>' +
-            '<div style="margin-top:22px;border:1px dashed #E3D8CF;border-radius:16px;background:#FFFCFB;padding:16px;color:#6F6860;font-size:13px;line-height:1.5;">Ainda estamos construindo esta área. Por enquanto, ela fica disponível no menu para preparar a navegação.</div>' +
-          '</section>' +
-        '</div>';
-    }
-  };
-
   Router.register('dashboard', Modules.Dashboard);
   Router.register('venda-presencial', Modules.POS);
-  Router.register('tpv', Modules.POS);
   Router.register('pedidos', Modules.Pedidos);
   Router.register('pedidos/cozinha', Modules.Pedidos);
   Router.register('pedidos/lista', Modules.Pedidos);
@@ -1182,7 +1157,6 @@ button,input,select,textarea{font-family:inherit}
   Router.register('marketing-canais/whatsapp', Modules.MarketingCanais);
   Router.register('marketing-canais/instagram', Modules.MarketingCanais);
   Router.register('marketing-canais/facebook', Modules.MarketingCanais);
-  Router.register('missoes', Modules.Missoes);
   Router.register('loja-online', Modules.LojaOnline);
   Router.register('loja-online/template', Modules.LojaOnline);
   Router.register('loja-online/link-da-loja', Modules.Configuracoes);
@@ -1199,11 +1173,6 @@ button,input,select,textarea{font-family:inherit}
   Router.register('crescimento/performance', Modules.Performance);
   Router.register('crescimento/maturidade', Modules.Temporadas);
   Router.register('crescimento/temporadas', Modules.Temporadas);
-  Router.register('plano-de-voo', Modules.PlanoDeVoo);
-  Router.register('plano-de-voo/simulacao', Modules.PlanoDeVoo);
-  Router.register('plano-de-voo/comparacao', Modules.PlanoDeVoo);
-  Router.register('plano-de-voo/snapshots', Modules.PlanoDeVoo);
-  Router.register('performance', Modules.Performance);
   Router.register('compras', Modules.Compras);
   Router.register('dinheiro', Modules.Dinheiro);
   Router.register('fiscal', Modules.Fiscal);
@@ -1214,13 +1183,6 @@ button,input,select,textarea{font-family:inherit}
   Router.register('suporte/chamados', Modules.Suporte);
   Router.register('suporte/guias', Modules.Suporte);
   Router.register('suporte/documentacao', Modules.Suporte);
-  Router.register('inteligencia', Modules.Inteligencia);
-  Router.register('inteligencia/vendas', Modules.Inteligencia);
-  Router.register('inteligencia/financeiro', Modules.Inteligencia);
-  Router.register('inteligencia/marketing', Modules.Inteligencia);
-  Router.register('inteligencia/clientes', Modules.Inteligencia);
-  Router.register('inteligencia/cardapio', Modules.Inteligencia);
-  Router.register('inteligencia/operacao', Modules.Inteligencia);
 
   document.querySelectorAll('.nav-item,.nav-sub-item').forEach(function (btn) {
     btn.addEventListener('click', function () {

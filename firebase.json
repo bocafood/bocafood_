@@ -12,6 +12,10 @@
     "public": "public",
     "rewrites": [
       {
+        "source": "/",
+        "destination": "/landing.html"
+      },
+      {
         "source": "/cadastro",
         "destination": "/cadastro.html"
       },
