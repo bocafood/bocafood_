@@ -15,6 +15,9 @@ window.Router = (function () {
 
   function resolve() {
     if (!Auth.getUser()) {
+      if (window.Modules && Modules.Dashboard && typeof Modules.Dashboard.destroyGlobalOnboarding === 'function') {
+        Modules.Dashboard.destroyGlobalOnboarding();
+      }
       AdminApp.showLogin();
       return;
     }
@@ -50,6 +53,9 @@ window.Router = (function () {
     if (app) {
       app.innerHTML = '';
       module.render(sub || '');
+    }
+    if (window.Modules && Modules.Dashboard && typeof Modules.Dashboard.renderGlobalOnboarding === 'function') {
+      window.setTimeout(function () { Modules.Dashboard.renderGlobalOnboarding(); }, 0);
     }
     if (window.AdminApp && typeof AdminApp.checkSeasonGoalCelebration === 'function') {
       window.setTimeout(function () { AdminApp.checkSeasonGoalCelebration(); }, 250);

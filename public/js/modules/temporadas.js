@@ -907,6 +907,7 @@ Modules.Temporadas = (function () {
     var rated = 0;
     var productMentions = 0;
     var lowRatings = 0;
+    var attentionRatings = 0;
     (reviews || []).forEach(function (review) {
       review = review || {};
       var status = _normalizeText(review.status || '');
@@ -917,7 +918,8 @@ Modules.Temporadas = (function () {
       if (rating > 0) {
         totalRating += rating;
         rated++;
-        if (rating <= 3) lowRatings++;
+        if (rating <= 2) lowRatings++;
+        else if (rating === 3) attentionRatings++;
       }
       if (review.productId || review.productName || review.produtoId || review.produtoNome) productMentions++;
     });
@@ -930,6 +932,7 @@ Modules.Temporadas = (function () {
       averageRating: averageRating,
       productMentions: productMentions,
       lowRatings: lowRatings,
+      attentionRatings: attentionRatings,
       trustStatus: trustStatus,
       confidence: approved >= 5 ? 'medium' : (approved ? 'low' : 'low')
     };
@@ -1210,6 +1213,7 @@ Modules.Temporadas = (function () {
     var pointsSignal = dataSignals.loyaltyProgram || {};
     var reviewsSignal = dataSignals.reviews || {};
     var operationsSignal = dataSignals.operations || {};
+    var successfulSeasons = _number(seasonStats.successfulSeasons, 0) || (_number(seasonStats.totalVictories, 0) + _number(seasonStats.partialVictories, 0));
     var historyContext = _maturityHistoricalIndexContext(businessHistory);
     var rolling30 = historyContext.rolling30;
     var previous30 = historyContext.previous30;
@@ -1240,7 +1244,8 @@ Modules.Temporadas = (function () {
       : Math.min(42, orderStats.activeDays * 5) + Math.min(18, orderStats.activeWeeks * 6);
     if (historyContext.hasFullYear) consistency += 6;
     else if (historyContext.availableMonths >= 3) consistency += 3;
-    if (seasonStats.finishedWithResult > 0) consistency += Math.min(22, seasonStats.finishedWithResult * 9);
+    if (successfulSeasons > 0) consistency += Math.min(22, successfulSeasons * 9);
+    else if (seasonStats.unstable > 0) consistency += Math.min(6, seasonStats.unstable);
     if (seasonStats.avgScore > 0) consistency += Math.min(18, seasonStats.avgScore * 0.22);
     consistency += Math.min(10, seasonStats.totalImpact * 0.25);
     consistency -= seasonStats.abandoned * 10;
@@ -1264,7 +1269,7 @@ Modules.Temporadas = (function () {
     if ((scenario === 'growth' || scenario === 'expansion') && seasonStats.avgRiskScore > 70) financialHealth -= 12;
 
     var controlledRisk = seasonStats.total ? Math.max(0, 100 - seasonStats.avgRiskScore) : (orderStats.totalOrders >= 3 ? 45 : 0);
-    controlledRisk += Math.min(14, seasonStats.finishedWithResult * 5);
+    controlledRisk += Math.min(14, successfulSeasons * 5);
     controlledRisk -= seasonStats.abandoned * 16;
     if (operationsSignal.operationStatus === 'supporting') controlledRisk += 4;
     if (operationsSignal.limiterScore > 0) controlledRisk -= Math.min(14, operationsSignal.limiterScore);
@@ -1283,9 +1288,9 @@ Modules.Temporadas = (function () {
     if (pointsSignal.hasData && !pointsSignal.redemptionOrders) loyalty += 0;
     if (reviewsSignal.averageRating >= 4 && reviewsSignal.approved >= 2) loyalty += Math.min(8, reviewsSignal.approved * 1.5);
     if (reviewsSignal.productMentions > 0) loyalty += Math.min(4, reviewsSignal.productMentions);
-    if (reviewsSignal.lowRatings > 0) loyalty -= Math.min(8, reviewsSignal.lowRatings * 2);
+    if (reviewsSignal.lowRatings > 0 || reviewsSignal.trustStatus === 'attention') loyalty -= Math.min(8, (_number(reviewsSignal.lowRatings, 0) * 2) + (reviewsSignal.trustStatus === 'attention' ? 2 : 0));
 
-    var execution = seasonStats.finishedWithResult * 16 + seasonStats.totalVictories * 15 + seasonStats.partialVictories * 9;
+    var execution = successfulSeasons * 16 + seasonStats.totalVictories * 15 + seasonStats.partialVictories * 9 + Math.min(12, seasonStats.unstable * 3);
     if (seasonStats.avgScore > 0) execution += Math.min(25, seasonStats.avgScore * 0.28);
     execution += Math.min(24, seasonStats.totalImpact * 0.45);
     if (operationsSignal.completedProductions > 0 || operationsSignal.completedPurchases > 0) execution += Math.min(6, operationsSignal.completedProductions + operationsSignal.completedPurchases);
@@ -1456,6 +1461,7 @@ Modules.Temporadas = (function () {
       total: closed.length,
       finished: finished,
       finishedWithResult: finishedWithResult,
+      successfulSeasons: totalVictories + partialVictories,
       abandoned: abandoned,
       totalVictories: totalVictories,
       partialVictories: partialVictories,
@@ -1470,6 +1476,7 @@ Modules.Temporadas = (function () {
         closedSeasons: closed.length,
         finished: finished,
         finishedWithResult: finishedWithResult,
+        successfulSeasons: totalVictories + partialVictories,
         abandoned: abandoned,
         totalVictories: totalVictories,
         partialVictories: partialVictories,
@@ -1483,7 +1490,7 @@ Modules.Temporadas = (function () {
   }
 
   function _seasonHasBusinessResult(result) {
-    return ['Vitória Total', 'Vitória Parcial', 'Temporada Instável'].indexOf(result || '') >= 0;
+    return ['Vitória Total', 'Vitória Parcial'].indexOf(result || '') >= 0;
   }
 
   function _seasonMaturityImpact(season) {
@@ -1514,7 +1521,9 @@ Modules.Temporadas = (function () {
       limiters.push('Temporada abandonada limita a evolução.');
     }
 
-    if (!hasBusinessResult && result !== 'Abandono' && result !== 'Falha Operacional') {
+    if (result === 'Temporada Instável') {
+      limiters.push('Temporada instável trouxe aprendizado, mas ainda não conta como vitória.');
+    } else if (!hasBusinessResult && result !== 'Abandono' && result !== 'Falha Operacional') {
       limiters.push('Temporada finalizada sem resultado claro não acelera a Pedra.');
     }
 
@@ -1604,6 +1613,7 @@ Modules.Temporadas = (function () {
       closedSeasons: 0,
       finished: 0,
       abandoned: 0,
+      successfulSeasons: 0,
       totalVictories: 0,
       partialVictories: 0,
       unstable: 0,
@@ -1714,7 +1724,7 @@ Modules.Temporadas = (function () {
   function _maturityStrengths(seasonStats, orderStats, loyaltyStats, indexes, scenario, dataSignals) {
     dataSignals = dataSignals || _emptyMaturityDataSignals();
     var list = [];
-    if (seasonStats.finishedWithResult > 0) list.push('Temporadas concluídas com resultado mostram execução real.');
+    if (seasonStats.totalVictories > 0 || seasonStats.partialVictories > 0) list.push('Temporadas com vitória mostram que o negócio já conseguiu transformar foco em resultado.');
     if (seasonStats.totalVictories > 0 || seasonStats.partialVictories > 0) list.push('Há vitórias totais ou parciais em temporadas.');
     if (orderStats.activeDays >= 4) list.push('O negócio vendeu em mais dias, sinal de consistência.');
     if (loyaltyStats.recurringCustomers > 0) list.push('Já existem sinais básicos de recorrência de clientes.');
@@ -1727,25 +1737,27 @@ Modules.Temporadas = (function () {
     if (dataSignals.operations && dataSignals.operations.operationStatus === 'supporting') list.push('Produção, compras ou estoque já aparecem como apoio operacional.');
     if (scenario === 'survival') list.push('Meta Survival conta como construção válida nesta fase.');
     if (!list.length) list.push('Começo da organização do negócio registrado.');
-    return list.slice(0, 4);
+    return list;
   }
 
   function _maturityWeaknesses(seasonStats, orderStats, loyaltyStats, indexes, scenario, dataSignals) {
     dataSignals = dataSignals || _emptyMaturityDataSignals();
     var list = [];
-    if (!seasonStats.finishedWithResult) list.push('Ainda faltam temporadas concluídas com resultado para medir execução.');
+    if (!seasonStats.totalVictories && !seasonStats.partialVictories) list.push('Ainda falta uma temporada com vitória para confirmar avanço real.');
+    if (seasonStats.unstable > 0) list.push('Temporadas instáveis mostram tentativa e aprendizado, mas ainda não contam como vitória.');
+    if (seasonStats.failed > 0) list.push('Falha operacional quase não contribui para a evolução da Pedra.');
     if (seasonStats.abandoned > 0) list.push('Temporadas abandonadas reduzem a velocidade de evolução.');
     if (seasonStats.avgRiskScore >= 70) list.push('Risco alto recorrente limita o avanço.');
     if (orderStats.activeDays < 3) list.push('Poucos dias com venda limitam a leitura de consistência.');
     if (!loyaltyStats.recurringCustomers) list.push('Baixa recorrência ainda limita a maturidade.');
     if (dataSignals.loyaltyProgram && dataSignals.loyaltyProgram.hasData && !dataSignals.loyaltyProgram.redemptionOrders) list.push('Pontos gerados sem resgate ainda são só sinal inicial de fidelização.');
-    if (dataSignals.reviews && dataSignals.reviews.lowRatings > 0) list.push('Avaliações baixas pedem atenção antes de fortalecer confiança.');
+    if (dataSignals.reviews && (dataSignals.reviews.lowRatings > 0 || dataSignals.reviews.trustStatus === 'attention')) list.push('Algumas avaliações mostram que a experiência ainda precisa melhorar para virar confiança forte.');
     if (indexes.financialHealth.confidence === 'low') list.push('Saúde financeira ainda tem leitura básica nesta fase.');
     if (dataSignals.finance && dataSignals.finance.overduePayables > 0) list.push('Contas vencidas aparecem como ponto de atenção financeiro.');
     if (dataSignals.marketing && dataSignals.marketing.impactStatus === 'configured_only') list.push('Há ações de venda cadastradas, mas ainda sem pedido real ligado a elas.');
     if (dataSignals.marketing && (dataSignals.marketing.impactStatus === 'heavy_discount' || (dataSignals.marketing.discountTotal > orderStats.revenue * .25 && orderStats.revenue > 0))) list.push('Descontos altos podem estar pesando no crescimento saudável.');
     if (dataSignals.operations && dataSignals.operations.hasData && dataSignals.operations.operationStatus === 'needs_history') list.push('Estoque, compras ou produção ainda têm pouco histórico para sustentar a evolução.');
-    return list.slice(0, 4);
+    return list;
   }
 
   function _growthNotes(orderStats, scenario, historyContext) {
@@ -2029,7 +2041,7 @@ Modules.Temporadas = (function () {
     if (seasonStats.avgRiskScore >= 70 && !items.some(function (item) { return item.id === 'reduce_operation_risk'; })) {
       items.push(factories.reduce_operation_risk(seasonStats, orderStats, loyaltyStats, indexes, scenario));
     }
-    return items.slice(0, 6);
+    return items;
   }
 
   function _checklistFactories() {
@@ -2038,28 +2050,31 @@ Modules.Temporadas = (function () {
         return _checklistItem({
           id: 'sell_more_days',
           title: 'Manter vendas em mais dias da semana',
-          description: 'A operação ganha maturidade quando vende com mais frequência, não apenas em dias isolados.',
+          description: 'O negócio fica mais forte quando vende em mais dias, não só em um pico isolado.',
           category: 'consistency',
           completed: orderStats.activeDays >= 4,
           source: 'orders',
           completedAt: _recentEvidenceDate(seasonStats),
           evidence: { activeDays: orderStats.activeDays },
-          completedEvidence: 'Detectado por dias com venda no período.',
-          pendingEvidence: 'Ainda há poucos dias com venda para confirmar consistência.'
+          completedEvidence: 'Já houve venda em dias suficientes para mostrar mais ritmo.',
+          pendingEvidence: 'Ainda faltam mais dias com venda para mostrar que o movimento está ficando constante.'
         });
       },
       finish_season: function (seasonStats) {
+        var victories = _number(seasonStats.totalVictories, 0) + _number(seasonStats.partialVictories, 0);
         return _checklistItem({
           id: 'finish_season',
-          title: 'Concluir uma temporada com resultado',
-          description: 'Finalizar ciclos operacionais só fortalece a Pedra quando existe avanço, aprendizado ou resultado real.',
+          title: 'Concluir uma temporada com vitória',
+          description: 'A temporada precisa terminar com avanço real para mostrar que o foco escolhido funcionou.',
           category: 'execution',
-          completed: seasonStats.finishedWithResult > 0,
+          completed: victories > 0,
+          limited: !victories && (_number(seasonStats.unstable, 0) > 0 || _number(seasonStats.failed, 0) > 0),
           source: 'seasons',
           completedAt: _recentEvidenceDate(seasonStats),
-          evidence: { finishedSeasons: seasonStats.finished, finishedWithResult: seasonStats.finishedWithResult },
-          completedEvidence: 'Detectado por temporada concluída com resultado operacional.',
-          pendingEvidence: 'Ainda falta uma temporada concluída com resultado real.'
+          evidence: { finishedSeasons: seasonStats.finished, victories: victories, unstable: seasonStats.unstable, failed: seasonStats.failed },
+          completedEvidence: 'Já existe temporada finalizada com vitória total ou parcial.',
+          pendingEvidence: 'Ainda falta fechar uma temporada com vitória total ou parcial.',
+          limitedEvidence: 'As temporadas trouxeram aprendizado, mas ainda não confirmaram uma vitória.'
         });
       },
       reduce_initial_instability: function (seasonStats, orderStats) {
@@ -2067,44 +2082,44 @@ Modules.Temporadas = (function () {
         return _checklistItem({
           id: 'reduce_initial_instability',
           title: 'Reduzir instabilidade inicial',
-          description: 'A evolução fica mais forte quando o negócio reduz abandono, falhas e risco recorrente.',
+          description: 'O negócio evolui melhor quando consegue terminar os ciclos sem abandono, falha ou risco alto.',
           category: 'risk',
           completed: seasonStats.total > 0 && !limited && orderStats.activeDays >= 3,
           limited: limited,
           source: 'seasons',
           completedAt: _recentEvidenceDate(seasonStats),
           evidence: { abandoned: seasonStats.abandoned, failed: seasonStats.failed, averageRiskScore: Math.round(seasonStats.avgRiskScore) },
-          completedEvidence: 'Detectado por temporada finalizada sem sinais fortes de instabilidade.',
-          pendingEvidence: 'Ainda faltam dados para confirmar menor instabilidade.',
-          limitedEvidence: 'Abandono, falha ou risco alto ainda limitam este marco.'
+          completedEvidence: 'As últimas temporadas não mostram sinais fortes de desorganização.',
+          pendingEvidence: 'Ainda falta fechar mais ciclos para confirmar que a rotina está mais estável.',
+          limitedEvidence: 'Abandono, falha ou risco alto ainda mostram que a rotina precisa ficar mais firme.'
         });
       },
       minimum_order_base: function (seasonStats, orderStats) {
         return _checklistItem({
           id: 'minimum_order_base',
           title: 'Criar base mínima de pedidos',
-          description: 'Uma base inicial de pedidos ajuda o BocaFood a ler evolução real com mais confiança.',
+          description: 'Antes de tirar conclusões, o negócio precisa ter uma base mínima de pedidos reais.',
           category: 'growth',
           completed: orderStats.totalOrders >= 5,
           source: 'orders',
           completedAt: _recentEvidenceDate(seasonStats),
           evidence: { totalOrders: orderStats.totalOrders },
-          completedEvidence: 'Detectado por volume mínimo de pedidos válidos.',
-          pendingEvidence: 'Ainda há poucos pedidos válidos para confirmar a base inicial.'
+          completedEvidence: 'Já existe uma base inicial de pedidos para começar a ler o negócio.',
+          pendingEvidence: 'Ainda há poucos pedidos para entender o comportamento real das vendas.'
         });
       },
       stable_weeks: function (seasonStats, orderStats) {
         return _checklistItem({
           id: 'stable_weeks',
           title: 'Manter semanas mais estáveis',
-          description: 'Semanas com vendas recorrentes indicam mais previsibilidade operacional.',
+          description: 'Vender em semanas diferentes mostra que o movimento não depende de um único momento bom.',
           category: 'consistency',
           completed: orderStats.activeWeeks >= 2 && orderStats.activeDays >= 5,
           source: 'orders',
           completedAt: _recentEvidenceDate(seasonStats),
           evidence: { activeWeeks: orderStats.activeWeeks, activeDays: orderStats.activeDays },
-          completedEvidence: 'Detectado por vendas distribuídas em mais semanas.',
-          pendingEvidence: 'Ainda falta regularidade semanal para confirmar estabilidade.'
+          completedEvidence: 'As vendas já aparecem distribuídas em mais de uma semana.',
+          pendingEvidence: 'Ainda falta repetir vendas em mais semanas para mostrar estabilidade.'
         });
       },
       reduce_oscillation: function (seasonStats, orderStats) {
@@ -2112,76 +2127,77 @@ Modules.Temporadas = (function () {
         return _checklistItem({
           id: 'reduce_oscillation',
           title: 'Reduzir oscilações fortes',
-          description: 'A maturidade aumenta quando o resultado recente não cai de forma brusca contra o histórico.',
+          description: 'O negócio fica mais previsível quando as vendas não caem de forma brusca de um período para outro.',
           category: 'consistency',
           completed: orderStats.previousRevenue > 0 && orderStats.growthPct >= -10,
           limited: limited,
           source: 'orders',
           completedAt: _recentEvidenceDate(seasonStats),
           evidence: { growthPct: Math.round(orderStats.growthPct), previousRevenue: Math.round(orderStats.previousRevenue), currentRevenue: Math.round(orderStats.currentRevenue) },
-          completedEvidence: 'Detectado por variação recente sem queda forte.',
-          pendingEvidence: 'Ainda falta histórico comparável para medir oscilação.',
-          limitedEvidence: 'Queda recente forte limita este marco.'
+          completedEvidence: 'As vendas recentes não mostram uma queda forte.',
+          pendingEvidence: 'Ainda falta histórico para comparar se as vendas estão oscilando muito.',
+          limitedEvidence: 'A queda recente foi forte e ainda pesa na evolução.'
         });
       },
       improve_average_score: function (seasonStats) {
         return _checklistItem({
           id: 'improve_average_score',
-          title: 'Melhorar score médio das temporadas',
-          description: 'Scores mais saudáveis mostram melhor execução dos ciclos operacionais.',
+          title: 'Fechar temporadas mais fortes',
+          description: 'As temporadas precisam terminar com uma leitura mais saudável para mostrar que o foco está virando resultado.',
           category: 'execution',
           completed: seasonStats.avgScore >= 65,
           limited: seasonStats.total > 0 && seasonStats.avgScore > 0 && seasonStats.avgScore < 45,
           source: 'seasons',
           completedAt: _recentEvidenceDate(seasonStats),
           evidence: { averageScore: Math.round(seasonStats.avgScore) },
-          completedEvidence: 'Detectado por score médio saudável nas temporadas.',
-          pendingEvidence: 'O score médio ainda precisa melhorar.',
-          limitedEvidence: 'Score médio baixo limita a evolução.'
+          completedEvidence: 'As temporadas recentes terminaram com uma leitura saudável.',
+          pendingEvidence: 'As temporadas ainda precisam terminar com mais força.',
+          limitedEvidence: 'As temporadas terminaram fracas e isso limita a evolução.'
         });
       },
       reduce_recurring_risk: function (seasonStats) {
         return _checklistItem({
           id: 'reduce_recurring_risk',
           title: 'Reduzir risco recorrente',
-          description: 'Risco controlado evita que crescimento rápido seja confundido com evolução saudável.',
+          description: 'Crescer só ajuda de verdade quando o negócio consegue manter o risco sob controle.',
           category: 'risk',
           completed: seasonStats.total > 0 && seasonStats.avgRiskScore <= 55,
           limited: seasonStats.avgRiskScore >= 70,
           source: 'seasons',
           completedAt: _recentEvidenceDate(seasonStats),
           evidence: { averageRiskScore: Math.round(seasonStats.avgRiskScore) },
-          completedEvidence: 'Detectado por risco médio controlado nas temporadas.',
-          pendingEvidence: 'Ainda falta reduzir o risco médio das temporadas.',
-          limitedEvidence: 'Risco médio alto limita a evolução.'
+          completedEvidence: 'As temporadas mostram um risco mais controlado.',
+          pendingEvidence: 'Ainda falta reduzir a chance de a temporada sair do rumo.',
+          limitedEvidence: 'O risco ainda está alto e segura a evolução.'
         });
       },
       improve_recurrence: function (seasonStats, orderStats, loyaltyStats) {
         return _checklistItem({
           id: 'improve_recurrence',
           title: 'Melhorar recorrência de clientes',
-          description: 'Clientes que voltam indicam maturidade comercial e operação mais confiável.',
+          description: 'Cliente que compra de novo mostra que o negócio está criando relação, não só venda avulsa.',
           category: 'loyalty',
           completed: loyaltyStats.recurringCustomers >= 2 || loyaltyStats.recurringRate >= 0.25,
           source: 'orders',
           completedAt: _recentEvidenceDate(seasonStats),
           evidence: { recurringCustomers: loyaltyStats.recurringCustomers, recurringRate: Math.round(loyaltyStats.recurringRate * 100) },
-          completedEvidence: 'Detectado por clientes recorrentes no histórico de pedidos.',
-          pendingEvidence: 'A recorrência ainda precisa crescer.'
+          completedEvidence: 'Já existem clientes voltando a comprar.',
+          pendingEvidence: 'Ainda falta mais cliente comprando de novo.'
         });
       },
       increase_stability: function (seasonStats, orderStats) {
+        var victories = _number(seasonStats.successfulSeasons, 0) || (_number(seasonStats.totalVictories, 0) + _number(seasonStats.partialVictories, 0));
         return _checklistItem({
           id: 'increase_stability',
           title: 'Aumentar estabilidade da operação',
-          description: 'Estabilidade combina venda em dias diferentes, temporadas concluídas e menor risco.',
+          description: 'A rotina fica mais madura quando vende em dias diferentes, fecha temporadas e reduz risco.',
           category: 'consistency',
-          completed: orderStats.activeDays >= 5 && seasonStats.finishedWithResult >= 1 && seasonStats.avgRiskScore <= 65,
+          completed: orderStats.activeDays >= 5 && victories >= 1 && seasonStats.avgRiskScore <= 65,
           source: 'orders,seasons',
           completedAt: _recentEvidenceDate(seasonStats),
-          evidence: { activeDays: orderStats.activeDays, finishedWithResult: seasonStats.finishedWithResult, averageRiskScore: Math.round(seasonStats.avgRiskScore) },
-          completedEvidence: 'Detectado por vendas mais distribuídas e temporada com resultado.',
-          pendingEvidence: 'Ainda falta combinar venda regular, execução e risco controlado.'
+          evidence: { activeDays: orderStats.activeDays, victories: victories, averageRiskScore: Math.round(seasonStats.avgRiskScore) },
+          completedEvidence: 'O negócio já combina vendas mais distribuídas com uma temporada de vitória.',
+          pendingEvidence: 'Ainda falta juntar venda regular, temporada bem fechada e risco menor.'
         });
       },
       grow_with_control: function (seasonStats, orderStats) {
@@ -2189,58 +2205,59 @@ Modules.Temporadas = (function () {
         return _checklistItem({
           id: 'grow_with_control',
           title: 'Crescer mantendo controle',
-          description: 'Crescimento só fortalece a Pedra quando não vem acompanhado de risco elevado.',
+          description: 'Vender mais é bom, mas precisa acontecer sem deixar o negócio mais vulnerável.',
           category: 'growth',
           completed: orderStats.growthPct > 0 && seasonStats.avgRiskScore <= 65,
           limited: limited,
           source: 'orders,seasons',
           completedAt: _recentEvidenceDate(seasonStats),
           evidence: { growthPct: Math.round(orderStats.growthPct), averageRiskScore: Math.round(seasonStats.avgRiskScore) },
-          completedEvidence: 'Detectado por crescimento recente com risco controlado.',
-          pendingEvidence: 'Ainda falta crescimento recente com risco controlado.',
-          limitedEvidence: 'Crescimento com risco alto não conta como evolução saudável.'
+          completedEvidence: 'As vendas cresceram sem aumentar demais o risco.',
+          pendingEvidence: 'Ainda falta crescer mantendo o negócio sob controle.',
+          limitedEvidence: 'As vendas cresceram, mas com risco alto demais para contar como evolução saudável.'
         });
       },
       balanced_seasons: function (seasonStats) {
+        var victories = _number(seasonStats.successfulSeasons, 0) || (_number(seasonStats.totalVictories, 0) + _number(seasonStats.partialVictories, 0));
         return _checklistItem({
           id: 'balanced_seasons',
           title: 'Concluir temporadas equilibradas',
-          description: 'Temporadas equilibradas indicam evolução sustentável, sem depender de pressão excessiva.',
+          description: 'Uma temporada equilibrada mostra que o negócio avançou sem depender de esforço extremo.',
           category: 'execution',
-          completed: seasonStats.finishedWithResult >= 1 && seasonStats.avgScore >= 60 && seasonStats.avgRiskScore <= 65,
+          completed: victories >= 1 && seasonStats.avgScore >= 60 && seasonStats.avgRiskScore <= 65,
           source: 'seasons',
           completedAt: _recentEvidenceDate(seasonStats),
-          evidence: { finishedWithResult: seasonStats.finishedWithResult, averageScore: Math.round(seasonStats.avgScore), averageRiskScore: Math.round(seasonStats.avgRiskScore) },
-          completedEvidence: 'Detectado por temporada com resultado, score e risco saudáveis.',
-          pendingEvidence: 'Ainda falta uma temporada com resultado e equilíbrio entre score e risco.'
+          evidence: { victories: victories, averageScore: Math.round(seasonStats.avgScore), averageRiskScore: Math.round(seasonStats.avgRiskScore) },
+          completedEvidence: 'Já houve uma temporada com vitória e risco saudável.',
+          pendingEvidence: 'Ainda falta uma temporada com vitória e mais equilíbrio.'
         });
       },
       improve_loyalty: function (seasonStats, orderStats, loyaltyStats) {
         return _checklistItem({
           id: 'improve_loyalty',
           title: 'Melhorar fidelização',
-          description: 'Fidelização mais forte reduz dependência de vendas pontuais.',
+          description: 'Quando mais clientes voltam, o negócio depende menos de vender sempre para pessoas novas.',
           category: 'loyalty',
           completed: loyaltyStats.recurringRate >= 0.30 && loyaltyStats.recurringCustomers >= 2,
           source: 'orders,store_customers',
           completedAt: _recentEvidenceDate(seasonStats),
           evidence: { recurringCustomers: loyaltyStats.recurringCustomers, recurringRate: Math.round(loyaltyStats.recurringRate * 100) },
-          completedEvidence: 'Detectado por taxa de recompra mais forte.',
-          pendingEvidence: 'A fidelização ainda precisa de mais recompra.'
+          completedEvidence: 'A recompra já aparece com mais força.',
+          pendingEvidence: 'Ainda falta mais cliente voltando para comprar.'
         });
       },
       reduce_promotion_dependency: function (seasonStats, orderStats) {
         return _checklistItem({
           id: 'reduce_promotion_dependency',
           title: 'Reduzir dependência de promoções',
-          description: 'Sem dados promocionais completos, esta V1 usa ticket e estabilidade como sinal auxiliar.',
+          description: 'Promoção ajuda quando vende sem derrubar demais o valor dos pedidos.',
           category: 'growth',
           completed: orderStats.currentAverageTicket > 0 && orderStats.previousAverageTicket > 0 && orderStats.currentAverageTicket >= orderStats.previousAverageTicket,
           source: 'orders',
           completedAt: _recentEvidenceDate(seasonStats),
           evidence: { currentAverageTicket: Math.round(orderStats.currentAverageTicket), previousAverageTicket: Math.round(orderStats.previousAverageTicket) },
-          completedEvidence: 'Detectado por ticket médio preservado ou melhorado.',
-          pendingEvidence: 'Ainda falta histórico de ticket para reduzir dependência de promoções.'
+          completedEvidence: 'O valor médio dos pedidos foi preservado ou melhorou.',
+          pendingEvidence: 'Ainda falta entender se as vendas dependem demais de desconto.'
         });
       },
       healthy_growth: function (seasonStats, orderStats) {
@@ -2248,32 +2265,32 @@ Modules.Temporadas = (function () {
         return _checklistItem({
           id: 'healthy_growth',
           title: 'Manter crescimento saudável',
-          description: 'A Pedra evolui melhor quando crescimento, score e risco caminham juntos.',
+          description: 'O melhor crescimento é aquele em que vende mais, mantém ritmo e não aumenta demais o risco.',
           category: 'growth',
           completed: orderStats.growthPct > 0 && seasonStats.avgScore >= 60 && seasonStats.avgRiskScore <= 65,
           limited: limited,
           source: 'orders,seasons',
           completedAt: _recentEvidenceDate(seasonStats),
           evidence: { growthPct: Math.round(orderStats.growthPct), averageScore: Math.round(seasonStats.avgScore), averageRiskScore: Math.round(seasonStats.avgRiskScore) },
-          completedEvidence: 'Detectado por crescimento com score saudável e risco controlado.',
-          pendingEvidence: 'Ainda falta crescimento acompanhado de score e risco saudáveis.',
-          limitedEvidence: 'Crescimento com risco alto limita este marco.'
+          completedEvidence: 'O negócio cresceu com uma leitura saudável e risco controlado.',
+          pendingEvidence: 'Ainda falta crescer com mais equilíbrio.',
+          limitedEvidence: 'O crescimento veio com risco alto e isso segura a evolução.'
         });
       },
       reduce_average_risk: function (seasonStats) {
         return _checklistItem({
           id: 'reduce_average_risk',
-          title: 'Reduzir risco médio',
-          description: 'Menor risco médio indica operação mais previsível e menos vulnerável.',
+          title: 'Diminuir chance de falha',
+          description: 'Quanto menor o risco, mais previsível fica o caminho do negócio.',
           category: 'risk',
           completed: seasonStats.total > 0 && seasonStats.avgRiskScore <= 50,
           limited: seasonStats.avgRiskScore >= 70,
           source: 'seasons',
           completedAt: _recentEvidenceDate(seasonStats),
           evidence: { averageRiskScore: Math.round(seasonStats.avgRiskScore) },
-          completedEvidence: 'Detectado por risco médio baixo nas temporadas.',
-          pendingEvidence: 'O risco médio ainda precisa cair.',
-          limitedEvidence: 'Risco médio elevado limita a evolução.'
+          completedEvidence: 'As temporadas mostram uma chance de falha menor.',
+          pendingEvidence: 'Ainda falta diminuir a chance de a temporada sair do rumo.',
+          limitedEvidence: 'A chance de falha ainda está alta e limita a evolução.'
         });
       },
       ambitious_goals: function (seasonStats, orderStats, loyaltyStats, indexes, scenario) {
@@ -2281,98 +2298,100 @@ Modules.Temporadas = (function () {
         return _checklistItem({
           id: 'ambitious_goals',
           title: 'Sustentar metas mais ousadas',
-          description: 'Metas mais fortes só contam quando aparecem com controle e boa execução.',
+          description: 'Uma meta mais ousada só fortalece o negócio quando vem com controle e boa execução.',
           category: 'execution',
           completed: growthContext && seasonStats.avgScore >= 65 && seasonStats.avgRiskScore <= 60,
           limited: growthContext && seasonStats.avgRiskScore >= 70,
           source: 'flight_plans,seasons',
           completedAt: _recentEvidenceDate(seasonStats),
           evidence: { scenario: scenario || '', averageScore: Math.round(seasonStats.avgScore), averageRiskScore: Math.round(seasonStats.avgRiskScore) },
-          completedEvidence: 'Detectado por contexto de Growth/Expansion com score e risco saudáveis.',
-          pendingEvidence: 'Ainda falta sustentar meta mais ousada com controle.',
-          limitedEvidence: 'Meta ousada com risco alto não acelera a Pedra.'
+          completedEvidence: 'O negócio conseguiu sustentar uma rota mais ambiciosa com controle.',
+          pendingEvidence: 'Ainda falta provar que uma meta mais ousada cabe na rotina.',
+          limitedEvidence: 'A meta ficou ousada demais para o nível de risco atual.'
         });
       },
       financial_stability: function (seasonStats, orderStats) {
         return _checklistItem({
           id: 'financial_stability',
           title: 'Melhorar estabilidade financeira',
-          description: 'Nesta V1, a leitura financeira é conservadora e usa pedidos/ticket como sinal básico.',
+          description: 'A saúde financeira começa a aparecer quando há pedidos, ticket e venda sem queda forte.',
           category: 'financial',
           completed: orderStats.totalOrders >= 8 && orderStats.averageTicket > 0 && orderStats.growthPct >= -10,
           source: 'orders',
           completedAt: _recentEvidenceDate(seasonStats),
           evidence: { totalOrders: orderStats.totalOrders, averageTicket: Math.round(orderStats.averageTicket), growthPct: Math.round(orderStats.growthPct) },
-          completedEvidence: 'Detectado por pedidos, ticket e variação recente sem deterioração forte.',
-          pendingEvidence: 'Ainda falta base financeira normalizada para maior confiança.'
+          completedEvidence: 'Pedidos, ticket e vendas recentes mostram uma base financeira mais firme.',
+          pendingEvidence: 'Ainda falta mais base para entender se a venda está deixando dinheiro.'
         });
       },
       reduce_concentration: function (seasonStats, orderStats) {
         return _checklistItem({
           id: 'reduce_concentration',
           title: 'Reduzir dependência de poucos dias',
-          description: 'Vendas distribuídas reduzem risco de depender de poucos picos.',
+          description: 'O negócio fica menos frágil quando não depende de poucos dias bons para vender.',
           category: 'risk',
           completed: orderStats.activeDays >= 8 && orderStats.activeWeeks >= 3,
           source: 'orders',
           completedAt: _recentEvidenceDate(seasonStats),
           evidence: { activeDays: orderStats.activeDays, activeWeeks: orderStats.activeWeeks },
-          completedEvidence: 'Detectado por vendas distribuídas em mais dias e semanas.',
-          pendingEvidence: 'Ainda há concentração de vendas em poucos dias ou semanas.'
+          completedEvidence: 'As vendas já aparecem em mais dias e semanas.',
+          pendingEvidence: 'As vendas ainda estão concentradas em poucos dias ou semanas.'
         });
       },
       good_consistency: function (seasonStats, orderStats) {
+        var victories = _number(seasonStats.successfulSeasons, 0) || (_number(seasonStats.totalVictories, 0) + _number(seasonStats.partialVictories, 0));
         return _checklistItem({
           id: 'good_consistency',
           title: 'Manter boa consistência',
-          description: 'Consistência forte combina vendas recorrentes e temporadas sem abandono.',
+          description: 'Boa consistência aparece quando o negócio vende com frequência e não abandona os ciclos.',
           category: 'consistency',
-          completed: orderStats.activeDays >= 8 && seasonStats.abandoned === 0 && seasonStats.finishedWithResult >= 2,
+          completed: orderStats.activeDays >= 8 && seasonStats.abandoned === 0 && victories >= 2,
           limited: seasonStats.abandoned > 0,
           source: 'orders,seasons',
           completedAt: _recentEvidenceDate(seasonStats),
-          evidence: { activeDays: orderStats.activeDays, finishedWithResult: seasonStats.finishedWithResult, abandoned: seasonStats.abandoned },
-          completedEvidence: 'Detectado por boa regularidade e temporadas com resultado sem abandono.',
-          pendingEvidence: 'Ainda falta mais histórico consistente.',
-          limitedEvidence: 'Abandono recente limita a consistência.'
+          evidence: { activeDays: orderStats.activeDays, victories: victories, abandoned: seasonStats.abandoned },
+          completedEvidence: 'O negócio já mostra regularidade e vitórias sem abandono.',
+          pendingEvidence: 'Ainda falta repetir esse ritmo por mais tempo.',
+          limitedEvidence: 'Abandono recente ainda atrapalha a consistência.'
         });
       },
       long_healthy_growth: function (seasonStats, orderStats) {
+        var victories = _number(seasonStats.successfulSeasons, 0) || (_number(seasonStats.totalVictories, 0) + _number(seasonStats.partialVictories, 0));
         return _checklistItem({
           id: 'long_healthy_growth',
           title: 'Manter crescimento saudável por mais tempo',
-          description: 'Pedras altas exigem histórico mais longo de crescimento com controle.',
+          description: 'Para chegar mais longe, o negócio precisa crescer com controle por mais tempo.',
           category: 'growth',
-          completed: seasonStats.finishedWithResult >= 3 && orderStats.growthPct > 0 && seasonStats.avgRiskScore <= 60,
+          completed: victories >= 3 && orderStats.growthPct > 0 && seasonStats.avgRiskScore <= 60,
           source: 'orders,seasons',
           completedAt: _recentEvidenceDate(seasonStats),
-          evidence: { finishedWithResult: seasonStats.finishedWithResult, growthPct: Math.round(orderStats.growthPct), averageRiskScore: Math.round(seasonStats.avgRiskScore) },
-          completedEvidence: 'Detectado por sequência de temporadas com resultado e crescimento controlado.',
-          pendingEvidence: 'Ainda falta histórico longo de crescimento saudável.'
+          evidence: { victories: victories, growthPct: Math.round(orderStats.growthPct), averageRiskScore: Math.round(seasonStats.avgRiskScore) },
+          completedEvidence: 'Já existe sequência de vitórias com crescimento controlado.',
+          pendingEvidence: 'Ainda falta manter crescimento saudável por mais tempo.'
         });
       },
       reduce_operational_instability: function (seasonStats) {
         var limited = seasonStats.unstable > 0 || seasonStats.failed > 0 || seasonStats.abandoned > 0;
         return _checklistItem({
           id: 'reduce_operational_instability',
-          title: 'Reduzir instabilidade operacional',
-          description: 'Menos temporadas instáveis, falhas e abandonos indicam operação mais madura.',
+          title: 'Deixar a rotina mais estável',
+          description: 'A rotina amadurece quando as temporadas deixam de terminar instáveis, com falha ou abandono.',
           category: 'risk',
-          completed: seasonStats.finishedWithResult >= 2 && !limited && seasonStats.avgRiskScore <= 60,
+          completed: (_number(seasonStats.successfulSeasons, 0) || (_number(seasonStats.totalVictories, 0) + _number(seasonStats.partialVictories, 0))) >= 2 && !limited && seasonStats.avgRiskScore <= 60,
           limited: limited,
           source: 'seasons',
           completedAt: _recentEvidenceDate(seasonStats),
           evidence: { unstable: seasonStats.unstable, failed: seasonStats.failed, abandoned: seasonStats.abandoned },
-          completedEvidence: 'Detectado por temporadas concluídas sem instabilidade relevante.',
-          pendingEvidence: 'Ainda falta reduzir instabilidade operacional.',
-          limitedEvidence: 'Instabilidade, falha ou abandono ainda limitam este marco.'
+          completedEvidence: 'As temporadas recentes fecharam sem instabilidade relevante.',
+          pendingEvidence: 'Ainda falta reduzir instabilidade na rotina.',
+          limitedEvidence: 'Instabilidade, falha ou abandono ainda mostram que a rotina precisa de ajuste.'
         });
       },
       difficult_seasons: function (seasonStats) {
         return _checklistItem({
           id: 'difficult_seasons',
           title: 'Concluir temporadas difíceis',
-          description: 'Desafios maiores só fortalecem a Pedra quando fecham com risco controlado.',
+          description: 'Desafios maiores ajudam quando o negócio consegue executar sem perder o controle.',
           category: 'execution',
           completed: seasonStats.impacts.some(function (impact) {
             return impact.difficulty === 'aggressive' && impact.impactPercent >= 10 && (impact.riskLevel === 'low' || impact.riskLevel === 'medium');
@@ -2380,91 +2399,93 @@ Modules.Temporadas = (function () {
           source: 'seasons',
           completedAt: _recentEvidenceDate(seasonStats),
           evidence: { aggressiveControlledWins: seasonStats.impacts.filter(function (impact) { return impact.difficulty === 'aggressive' && impact.impactPercent >= 10; }).length },
-          completedEvidence: 'Detectado por temporada agressiva concluída com contribuição saudável.',
-          pendingEvidence: 'Ainda falta concluir desafio maior com baixo risco.'
+          completedEvidence: 'Já houve uma temporada mais intensa fechada com boa contribuição.',
+          pendingEvidence: 'Ainda falta vencer um desafio maior com risco baixo.'
         });
       },
       good_financial_health: function (seasonStats, orderStats) {
         return _checklistItem({
           id: 'good_financial_health',
           title: 'Manter boa saúde financeira',
-          description: 'Nesta V1, saúde financeira alta ainda depende de sinais básicos e deve ser validada depois.',
+          description: 'A saúde financeira melhora quando há volume, ticket e vendas sem queda forte.',
           category: 'financial',
           completed: orderStats.totalOrders >= 12 && orderStats.averageTicket > 0 && orderStats.growthPct >= 0,
           source: 'orders',
           completedAt: _recentEvidenceDate(seasonStats),
           evidence: { totalOrders: orderStats.totalOrders, averageTicket: Math.round(orderStats.averageTicket), growthPct: Math.round(orderStats.growthPct) },
-          completedEvidence: 'Detectado por volume, ticket e crescimento recente sem queda.',
-          pendingEvidence: 'Ainda falta dado financeiro mais confiável para confirmar este marco.'
+          completedEvidence: 'O volume, o ticket e as vendas recentes mostram base financeira melhor.',
+          pendingEvidence: 'Ainda falta mais histórico para confirmar saúde financeira forte.'
         });
       },
       low_risk_growth: function (seasonStats, orderStats) {
+        var victories = _number(seasonStats.successfulSeasons, 0) || (_number(seasonStats.totalVictories, 0) + _number(seasonStats.partialVictories, 0));
         return _checklistItem({
           id: 'low_risk_growth',
           title: 'Sustentar crescimento com baixo risco',
-          description: 'Excelência exige crescer sem aumentar vulnerabilidade operacional.',
+          description: 'Crescer com baixo risco mostra que o negócio consegue avançar sem ficar vulnerável.',
           category: 'growth',
-          completed: orderStats.growthPct > 0 && seasonStats.avgRiskScore <= 45 && seasonStats.finishedWithResult >= 3,
+          completed: orderStats.growthPct > 0 && seasonStats.avgRiskScore <= 45 && victories >= 3,
           source: 'orders,seasons',
           completedAt: _recentEvidenceDate(seasonStats),
-          evidence: { growthPct: Math.round(orderStats.growthPct), averageRiskScore: Math.round(seasonStats.avgRiskScore), finishedWithResult: seasonStats.finishedWithResult },
-          completedEvidence: 'Detectado por crescimento e risco médio baixo ao longo de temporadas.',
-          pendingEvidence: 'Ainda falta crescimento sustentado com risco baixo.'
+          evidence: { growthPct: Math.round(orderStats.growthPct), averageRiskScore: Math.round(seasonStats.avgRiskScore), victories: victories },
+          completedEvidence: 'O negócio cresceu mantendo risco baixo nas temporadas.',
+          pendingEvidence: 'Ainda falta crescer por mais tempo com risco baixo.'
         });
       },
       high_predictability: function (seasonStats, orderStats) {
         return _checklistItem({
           id: 'high_predictability',
           title: 'Manter alta previsibilidade',
-          description: 'Previsibilidade combina semanas ativas, score alto e ausência de abandono.',
+          description: 'Previsibilidade aparece quando as vendas se repetem, as temporadas fecham melhor e não há abandono.',
           category: 'consistency',
           completed: orderStats.activeWeeks >= 4 && seasonStats.avgScore >= 75 && seasonStats.abandoned === 0,
           source: 'orders,seasons',
           completedAt: _recentEvidenceDate(seasonStats),
           evidence: { activeWeeks: orderStats.activeWeeks, averageScore: Math.round(seasonStats.avgScore), abandoned: seasonStats.abandoned },
-          completedEvidence: 'Detectado por regularidade semanal, score alto e sem abandono.',
-          pendingEvidence: 'Ainda falta previsibilidade alta por mais tempo.'
+          completedEvidence: 'As semanas ficaram mais regulares e não houve abandono.',
+          pendingEvidence: 'Ainda falta manter essa previsibilidade por mais tempo.'
         });
       },
       balance_growth_stability: function (seasonStats, orderStats) {
         return _checklistItem({
           id: 'balance_growth_stability',
           title: 'Equilibrar crescimento e estabilidade',
-          description: 'A evolução mais alta combina avanço de resultado com operação consistente.',
+          description: 'O negócio evolui melhor quando cresce e, ao mesmo tempo, mantém a rotina estável.',
           category: 'growth',
           completed: orderStats.growthPct > 0 && orderStats.activeDays >= 8 && seasonStats.avgRiskScore <= 55,
           source: 'orders,seasons',
           completedAt: _recentEvidenceDate(seasonStats),
           evidence: { growthPct: Math.round(orderStats.growthPct), activeDays: orderStats.activeDays, averageRiskScore: Math.round(seasonStats.avgRiskScore) },
-          completedEvidence: 'Detectado por crescimento, dias ativos e risco controlado.',
-          pendingEvidence: 'Ainda falta equilibrar crescimento com estabilidade operacional.'
+          completedEvidence: 'As vendas cresceram com mais dias ativos e risco controlado.',
+          pendingEvidence: 'Ainda falta equilibrar crescimento com uma rotina mais estável.'
         });
       },
       consistent_maturity: function (seasonStats, orderStats, loyaltyStats) {
+        var victories = _number(seasonStats.successfulSeasons, 0) || (_number(seasonStats.totalVictories, 0) + _number(seasonStats.partialVictories, 0));
         return _checklistItem({
           id: 'consistent_maturity',
           title: 'Demonstrar maturidade consistente',
-          description: 'Maturidade consistente aparece quando execução, risco, vendas e recorrência caminham juntos.',
+          description: 'Maturidade consistente aparece quando vendas, clientes voltando, risco baixo e execução caminham juntos.',
           category: 'execution',
-          completed: seasonStats.finishedWithResult >= 4 && seasonStats.avgScore >= 75 && seasonStats.avgRiskScore <= 55 && loyaltyStats.recurringCustomers >= 3,
+          completed: victories >= 4 && seasonStats.avgScore >= 75 && seasonStats.avgRiskScore <= 55 && loyaltyStats.recurringCustomers >= 3,
           source: 'seasons,orders',
           completedAt: _recentEvidenceDate(seasonStats),
-          evidence: { finishedWithResult: seasonStats.finishedWithResult, averageScore: Math.round(seasonStats.avgScore), recurringCustomers: loyaltyStats.recurringCustomers },
-          completedEvidence: 'Detectado por histórico forte de execução, risco e recorrência.',
-          pendingEvidence: 'Ainda falta histórico mais longo de maturidade consistente.'
+          evidence: { victories: victories, averageScore: Math.round(seasonStats.avgScore), recurringCustomers: loyaltyStats.recurringCustomers },
+          completedEvidence: 'O histórico já mostra execução forte, risco controlado e clientes voltando.',
+          pendingEvidence: 'Ainda falta um histórico mais longo com esses sinais juntos.'
         });
       },
       season_partial_win: function (seasonStats) {
         return _checklistItem({
           id: 'season_partial_win',
           title: 'Alcançar Vitória Parcial',
-          description: 'Vitória Parcial mostra avanço real mesmo quando a meta completa ainda não foi atingida.',
+          description: 'Vitória Parcial mostra que houve avanço real, mesmo sem bater a meta completa.',
           category: 'execution',
           completed: seasonStats.partialVictories > 0 || seasonStats.totalVictories > 0,
           source: 'seasons',
           completedAt: _recentEvidenceDate(seasonStats),
           evidence: { partialVictories: seasonStats.partialVictories, totalVictories: seasonStats.totalVictories },
-          completedEvidence: 'Detectado pelo resultado final de temporada.',
+          completedEvidence: 'Já existe uma temporada com vitória parcial ou total.',
           pendingEvidence: 'Ainda falta alcançar uma vitória parcial ou total.'
         });
       },
@@ -2472,13 +2493,13 @@ Modules.Temporadas = (function () {
         return _checklistItem({
           id: 'season_total_win',
           title: 'Alcançar Vitória Total',
-          description: 'Vitória Total confirma execução forte de uma meta operacional.',
+          description: 'Vitória Total mostra que o negócio conseguiu executar a rota e alcançar a meta.',
           category: 'execution',
           completed: seasonStats.totalVictories > 0,
           source: 'seasons',
           completedAt: _recentEvidenceDate(seasonStats),
           evidence: { totalVictories: seasonStats.totalVictories },
-          completedEvidence: 'Detectado por Vitória Total em temporada finalizada.',
+          completedEvidence: 'Já existe Vitória Total em uma temporada finalizada.',
           pendingEvidence: 'Ainda falta uma Vitória Total.'
         });
       },
@@ -2486,32 +2507,32 @@ Modules.Temporadas = (function () {
         return _checklistItem({
           id: 'avoid_abandonment',
           title: 'Evitar abandono de temporada',
-          description: 'Abandono recorrente indica quebra de execução e reduz a velocidade de evolução.',
+          description: 'Quando uma temporada é abandonada, o negócio perde leitura e ritmo de evolução.',
           category: 'execution',
           completed: seasonStats.total > 0 && seasonStats.abandoned === 0,
           limited: seasonStats.abandoned > 0,
           source: 'seasons',
           completedAt: _recentEvidenceDate(seasonStats),
           evidence: { abandoned: seasonStats.abandoned },
-          completedEvidence: 'Detectado por temporadas fechadas sem abandono.',
-          pendingEvidence: 'Ainda falta histórico para confirmar ausência de abandono.',
-          limitedEvidence: 'Temporada abandonada limita a evolução.'
+          completedEvidence: 'As temporadas foram fechadas sem abandono.',
+          pendingEvidence: 'Ainda falta histórico para confirmar que os ciclos estão sendo fechados.',
+          limitedEvidence: 'Temporada abandonada ainda pesa contra a evolução.'
         });
       },
       reduce_operation_risk: function (seasonStats) {
         return _checklistItem({
           id: 'reduce_operation_risk',
           title: 'Reduzir risco da operação',
-          description: 'Risco menor deixa a evolução mais saudável e menos dependente de esforço extremo.',
+          description: 'Com menos risco, o negócio consegue evoluir sem depender de esforço extremo.',
           category: 'risk',
           completed: seasonStats.total > 0 && seasonStats.avgRiskScore <= 55,
           limited: seasonStats.avgRiskScore >= 70,
           source: 'seasons',
           completedAt: _recentEvidenceDate(seasonStats),
           evidence: { averageRiskScore: Math.round(seasonStats.avgRiskScore) },
-          completedEvidence: 'Detectado por chance de falha média controlada.',
-          pendingEvidence: 'Ainda falta reduzir a chance de falha média.',
-          limitedEvidence: 'Chance de falha elevada limita a evolução.'
+          completedEvidence: 'A chance média de falha está mais controlada.',
+          pendingEvidence: 'Ainda falta reduzir a chance de falha nas temporadas.',
+          limitedEvidence: 'A chance de falha ainda está alta e segura a evolução.'
         });
       }
     };
@@ -2868,10 +2889,10 @@ Modules.Temporadas = (function () {
       '<div class="stones-data-head">' +
         '<div>' +
           '<span class="seasons-section-label">O que sustenta sua Pedra</span>' +
-          '<h3>Como a evolução do negócio está sendo lida</h3>' +
-          '<p>A Pedra olha para sinais reais da operação: comida vendendo, cliente voltando, dinheiro entrando, ações que geram pedido e rotina que sustenta a produção e o atendimento. Configurar algo ajuda a organizar, mas só vira maturidade quando traz resultado.</p>' +
+          '<h3>O que já fortalece o negócio</h3>' +
+          '<p>Esta leitura mostra o que já está dando sustentação ao negócio: vendas com ritmo, clientes voltando, dinheiro ficando no caixa, ações que viram pedido e uma rotina que ajuda a entregar melhor.</p>' +
         '</div>' +
-        '<small>Baseada no movimento real do negócio</small>' +
+        '<small>Baseada no que aconteceu no negócio</small>' +
       '</div>' +
       '<div class="stones-data-grid">' + cards.map(_maturityDataSignalCard).join('') + '</div>' +
     '</div>';
@@ -2988,31 +3009,34 @@ Modules.Temporadas = (function () {
     var consistencyScore = _number(indexes.consistency && indexes.consistency.score, 0);
     var loyaltyScore = _number(indexes.loyalty && indexes.loyalty.score, 0);
     var actionOrders = _number(marketing.actionOrders, _number(marketing.couponOrders, 0) + _number(marketing.promotionOrders, 0) + _number(marketing.upsellOrders, 0));
+    var seasonVictories = _number(seasons.successfulSeasons, 0) || (_number(seasons.totalVictories, 0) + _number(seasons.partialVictories, 0));
+    var seasonUnstable = _number(seasons.unstable, 0);
+    var seasonFailed = _number(seasons.failed, 0);
 
     return [
       {
         level: healthyScore || consistencyScore ? 'strong' : 'empty',
         title: 'Vendas e pedidos',
-        text: healthyScore || consistencyScore ? 'A Pedra sobe melhor quando a venda acontece em mais dias e com algum ritmo. Esse resultado mostra se o negócio está criando constância ou se ainda depende de poucos momentos bons.' : 'Ainda faltam pedidos reais para entender se as vendas estão começando a ganhar ritmo.',
-        meta: healthyScore || consistencyScore ? 'Leitura atual: ' + Math.round(Math.max(healthyScore, consistencyScore)) + '/100' : 'Aguardando vendas reais'
+        text: healthyScore || consistencyScore ? 'As vendas já mostram algum ritmo. Isso ajuda a entender se o negócio está criando constância ou se ainda depende de poucos dias bons.' : 'Ainda faltam pedidos para enxergar se as vendas estão começando a ganhar ritmo.',
+        meta: healthyScore || consistencyScore ? 'Ritmo atual: ' + Math.round(Math.max(healthyScore, consistencyScore)) + '/100' : 'Aguardando pedidos'
       },
       {
-        level: _number(seasons.finished, 0) ? 'strong' : (_number(seasons.closedSeasons, 0) ? 'medium' : 'empty'),
+        level: seasonVictories ? 'strong' : (_number(seasons.closedSeasons, 0) ? 'light' : 'empty'),
         title: 'Temporadas',
-        text: _number(seasons.finishedWithResult, 0) ? 'Quando uma temporada termina com resultado, ela mostra que o negócio conseguiu escolher um foco, executar e fechar um ciclo real.' : 'Criar temporada ajuda a organizar o foco. Para fortalecer a Pedra, ela precisa terminar com algum resultado no negócio.',
-        meta: _number(seasons.finishedWithResult, 0) + ' temporada(s) com resultado · ' + _number(seasons.abandoned, 0) + ' abandonada(s)'
+        text: _maturitySeasonSignalText(seasons),
+        meta: seasonVictories + ' vitória(s) · ' + seasonUnstable + ' instável(is) · ' + seasonFailed + ' falha(s)'
       },
       {
         level: finance.hasData ? (finance.cashStatus === 'healthy' ? 'medium' : 'light') : 'empty',
         title: 'Financeiro',
-        text: finance.hasData ? _maturityFinanceSignalText(finance) : 'Quando houver entradas, saídas e contas acompanhadas, a Pedra entende melhor se a venda está deixando dinheiro no negócio.',
-        meta: finance.hasData ? 'Entrou ' + _fmtMoney(finance.entries) + ' · saiu ' + _fmtMoney(finance.exits) + ' · ficou ' + _fmtMoney(finance.net) : 'Sem caixa recente para ler'
+        text: finance.hasData ? _maturityFinanceSignalText(finance) : 'Quando entradas, saídas e contas estiverem acompanhadas, fica mais claro se a venda está deixando dinheiro.',
+        meta: finance.hasData ? 'Entrou ' + _fmtMoney(finance.entries) + ' · saiu ' + _fmtMoney(finance.exits) + ' · ficou ' + _fmtMoney(finance.net) : 'Sem caixa recente'
       },
       {
         level: actionOrders ? (marketing.impactStatus === 'heavy_discount' ? 'light' : 'medium') : (marketing.hasData ? 'light' : 'empty'),
         title: 'Ações de venda',
         text: _maturityMarketingSignalText(marketing),
-        meta: actionOrders ? actionOrders + ' pedido(s) com ação · ' + _fmtMoney(marketing.netRevenue) + ' vendidos depois dos descontos' : (_number(marketing.configuredActions, _number(marketing.activePromotions, 0) + _number(marketing.activeCoupons, 0) + _number(marketing.activeUpsells, 0)) + ' ação(ões) prontas, ainda sem pedido')
+        meta: actionOrders ? actionOrders + ' pedido(s) com ação · ' + _fmtMoney(marketing.netRevenue) + ' depois dos descontos' : _number(marketing.configuredActions, _number(marketing.activePromotions, 0) + _number(marketing.activeCoupons, 0) + _number(marketing.activeUpsells, 0)) + ' ação(ões) prontas, ainda sem venda'
       },
       {
         level: loyaltyScore || points.redemptionOrders ? 'medium' : (points.hasData ? 'light' : 'empty'),
@@ -3028,9 +3052,9 @@ Modules.Temporadas = (function () {
       },
       {
         level: operations.operationStatus === 'supporting' ? 'medium' : (operations.hasData ? 'light' : 'empty'),
-        title: 'Operação, estoque e produção',
+        title: 'Rotina, estoque e produção',
         text: _maturityOperationsSignalText(operations),
-        meta: operations.hasData ? _number(operations.stockMovements, 0) + ' movimento(s) · ' + _number(operations.completedProductions, 0) + ' produção(ões) feitas · ' + _number(operations.completedPurchases, 0) + ' compra(s) recebidas' : 'Rotina operacional ainda sem histórico'
+        meta: operations.hasData ? _number(operations.stockMovements, 0) + ' movimento(s) · ' + _number(operations.completedProductions, 0) + ' produção(ões) · ' + _number(operations.completedPurchases, 0) + ' compra(s)' : 'Rotina ainda sem histórico'
       }
     ];
   }
@@ -3048,34 +3072,52 @@ Modules.Temporadas = (function () {
     '</article>';
   }
 
+  function _maturitySeasonSignalText(seasons) {
+    seasons = seasons || {};
+    var victories = _number(seasons.successfulSeasons, 0) || (_number(seasons.totalVictories, 0) + _number(seasons.partialVictories, 0));
+    var unstable = _number(seasons.unstable, 0);
+    var failed = _number(seasons.failed, 0);
+    var abandoned = _number(seasons.abandoned, 0);
+    if (victories) {
+      return 'Já houve temporada com vitória. Isso mostra que o negócio conseguiu escolher um foco, agir e transformar em avanço real.';
+    }
+    if (unstable || failed) {
+      return 'As temporadas trouxeram aprendizado, mas ainda ficaram instáveis ou falharam. Elas ajudam a enxergar o caminho, mas ainda não mostram vitória.';
+    }
+    if (abandoned) {
+      return 'Houve temporada abandonada. Para fortalecer a Pedra, o negócio precisa fechar um ciclo até o fim e sair dele com avanço real.';
+    }
+    return 'A temporada ajuda a transformar intenção em ação. Para fortalecer a Pedra, precisa terminar com vitória total ou parcial.';
+  }
+
   function _maturityFinanceSignalText(finance) {
     finance = finance || {};
     if (finance.overduePayables > 0) {
-      return 'Entrou dinheiro, mas ainda existem contas vencidas atrapalhando a evolução.';
+      return 'Entrou dinheiro, mas contas vencidas ainda atrapalham a sensação de controle.';
     }
     if (finance.net < 0) {
       return 'Nos últimos lançamentos, saiu mais dinheiro do que entrou.';
     }
     if (finance.pendingPayables > 0) {
-      return 'Sobrou dinheiro no caixa recente, mas ainda há contas em aberto.';
+      return 'Sobrou dinheiro no caixa recente, mas ainda existem contas em aberto para acompanhar.';
     }
-    return 'Ajuda a ver se as vendas estão deixando dinheiro no negócio.';
+    return 'As vendas começam a mostrar se estão deixando dinheiro no negócio, não só movimento.';
   }
 
   function _maturityMarketingSignalText(marketing) {
     marketing = marketing || {};
-    if (!marketing.hasData) return 'Ainda não há promoção, cupom ou oferta trazendo pedido. A Pedra só considera ação de venda quando ela aparece em uma compra real.';
-    if (!marketing.actionOrders) return 'As ações já estão preparadas, mas ainda não viraram pedido. Por enquanto elas mostram organização, não resultado.';
-    if (marketing.impactStatus === 'heavy_discount') return 'As ações venderam, mas o desconto ficou pesado. Isso ajuda a movimentar, porém pode segurar a evolução saudável.';
-    if (marketing.upsellOrders > 0 && marketing.netRevenue > 0) return 'Ofertas, cupons ou upsell já ajudaram a vender mais em pedidos reais, por isso entram como sinal positivo.';
-    return 'Promoções, cupons ou upsell já apareceram em pedidos reais. Isso mostra que a ação saiu do cadastro e gerou movimento.';
+    if (!marketing.hasData) return 'Ainda não há promoção, cupom ou oferta puxando venda. Quando uma ação aparece em pedido real, ela começa a fortalecer o negócio.';
+    if (!marketing.actionOrders) return 'As ações já estão prontas, mas ainda não viraram venda. Por enquanto mostram preparo, não resultado.';
+    if (marketing.impactStatus === 'heavy_discount') return 'As ações venderam, mas o desconto ficou pesado. Isso movimenta, porém pode reduzir o ganho da venda.';
+    if (marketing.upsellOrders > 0 && marketing.netRevenue > 0) return 'Ofertas, cupons ou upsell já ajudaram a vender mais em pedidos reais.';
+    return 'Promoções, cupons ou upsell já apareceram em pedidos. Isso mostra que a ação saiu da ideia e virou movimento.';
   }
 
   function _maturityLoyaltySignalText(loyaltyScore, points) {
     points = points || {};
     if (loyaltyScore) return 'Clientes voltando a comprar mostram que existe relação com o negócio, não apenas venda avulsa.';
     if (points.redemptionOrders > 0) return 'Clientes já voltaram para comprar usando pontos. Isso mostra que o programa começou a puxar recompra.';
-    if (points.hasData) return 'Clientes estão juntando pontos, mas a Pedra só considera isso mais forte quando eles voltam para usar.';
+    if (points.hasData) return 'Clientes estão juntando pontos. Esse sinal fica mais forte quando eles voltam para usar e comprar de novo.';
     return 'Ainda falta cliente voltando para comprar de novo. Quando a recompra aparecer, a fidelização ganha força.';
   }
 
@@ -3083,15 +3125,16 @@ Modules.Temporadas = (function () {
     reviews = reviews || {};
     if (!reviews.approved) return 'Ainda falta opinião de cliente para mostrar confiança para novas pessoas comprarem.';
     if (reviews.trustStatus === 'attention') return 'Já existem opiniões, mas a nota mostra que a experiência precisa melhorar antes de virar força.';
+    if (reviews.attentionRatings > 0 && reviews.averageRating >= 4.5) return 'A maioria das opiniões está muito boa. Existe só um ponto de atenção para acompanhar sem virar limitador.';
     if (reviews.productMentions > 0) return 'Clientes citaram produtos nas avaliações. Isso ajuda outras pessoas a confiar e também mostra o que gera desejo.';
     return 'Opiniões positivas mostram que a experiência está agradando e ajudam a fortalecer a confiança.';
   }
 
   function _maturityOperationsSignalText(operations) {
     operations = operations || {};
-    if (!operations.hasData) return 'Ainda falta histórico de compras, produção ou estoque para entender se a rotina sustenta as vendas.';
-    if (operations.operationStatus === 'supporting') return 'Compras, produção ou estoque já mostram mais controle. Isso reduz improviso e ajuda a sustentar crescimento.';
-    return 'Já existem registros, mas ainda falta repetir a rotina mais vezes para ela virar uma força real da Pedra.';
+    if (!operations.hasData) return 'Ainda falta registrar compras, produção ou estoque para entender se a rotina sustenta as vendas.';
+    if (operations.operationStatus === 'supporting') return 'Compras, produção ou estoque já mostram mais controle. Isso reduz improviso e ajuda a crescer com mais segurança.';
+    return 'Já existem registros, mas ainda falta repetir essa rotina mais vezes para ela virar uma força real do negócio.';
   }
 
   function _maturityDataSignalLevelLabel(level) {
@@ -3130,7 +3173,7 @@ Modules.Temporadas = (function () {
   }
 
   function _maturityInsightList(title, items) {
-    items = (items || []).slice(0, 3);
+    items = (items || []);
     if (!items.length) items = ['Ainda sem dados suficientes para leitura.'];
     return '<div class="stones-insight-list"><h3>' + _esc(title) + '</h3><ul>' + items.map(function (item) {
       return '<li>' + _esc(item) + '</li>';
@@ -3165,11 +3208,11 @@ Modules.Temporadas = (function () {
     checklist = (checklist || []).slice().sort(function (a, b) {
       var weight = { limited: 0, pending: 1, completed: 2 };
       return (weight[a.status] || 1) - (weight[b.status] || 1);
-    }).slice(0, 5);
-    if (!checklist.length) checklist = _initialChecklist().slice(0, 5);
+    });
+    if (!checklist.length) checklist = _initialChecklist();
     return '<div class="stones-checklist" aria-label="Caminho da Pedra">' +
       '<div class="stones-checklist-head">' +
-        '<div><span class="seasons-section-label">Caminho da Pedra</span><h3>Marcos reais do negócio</h3></div>' +
+        '<div><span class="seasons-section-label">Caminho da Pedra</span><h3>Marcos do negócio</h3></div>' +
       '</div>' +
       '<div class="stones-checklist-list">' +
         checklist.map(_maturityChecklistItem).join('') +

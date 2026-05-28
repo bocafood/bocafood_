@@ -174,6 +174,45 @@
     <section class="card" style="margin-top:18px">
       <div class="section-title">
         <div>
+          <h2>Stripe Connect</h2>
+          <p>Configuração global para checkout com cartão. A chave secreta e o webhook ficam guardados apenas nas Functions.</p>
+        </div>
+      </div>
+      <div id="stripe-grid" class="status-grid"></div>
+      <div class="form-grid">
+        <label>Status
+          <select id="stripe-enabled">
+            <option value="true">Ativo</option>
+            <option value="false">Inativo</option>
+          </select>
+        </label>
+        <label>Moeda padrão
+          <select id="stripe-currency">
+            <option value="EUR">EUR</option>
+            <option value="BRL">BRL</option>
+            <option value="USD">USD</option>
+          </select>
+        </label>
+        <label>Chave pública
+          <input id="stripe-publishable-key" autocomplete="off" placeholder="pk_test_...">
+        </label>
+        <label>Chave secreta
+          <input id="stripe-secret-key" type="password" autocomplete="new-password" placeholder="Preencha para atualizar">
+        </label>
+        <label>Webhook secret
+          <input id="stripe-webhook-secret" type="password" autocomplete="new-password" placeholder="whsec_...">
+        </label>
+      </div>
+      <p class="subtitle" style="margin-top:12px">Cada loja conecta a própria conta em Configurações &gt; Integrações pelo botão <strong>Conectar minha conta Stripe</strong>. O checkout usa Stripe Connect para cobrar na conta conectada da loja.</p>
+      <div class="toolbar">
+        <button id="save-stripe" class="btn secondary" type="button">Salvar Stripe Connect</button>
+      </div>
+      <div id="stripe-message" class="message"></div>
+    </section>
+
+    <section class="card" style="margin-top:18px">
+      <div class="section-title">
+        <div>
           <h2>Logs recentes de e-mail</h2>
           <p>Últimos registros de `email_logs`, sem HTML, senha ou payload sensível.</p>
         </div>
@@ -220,8 +259,22 @@
     }
     function renderTemplates(templates){templates=templates||[];if(!templates.length){document.getElementById('templates').innerHTML='<div class="empty">Nenhum template encontrado.</div>';return;}document.getElementById('templates').innerHTML='<table><thead><tr><th>Template</th><th>Status</th><th>Gatilhos</th></tr></thead><tbody>'+templates.map(function(t){var triggerLabel=t.activeTriggerCount? t.activeTriggerCount+' ativo(s)' : (t.triggerCount?t.triggerCount+' inativo(s)':'Sem gatilho');var triggerCls=t.activeTriggerCount?'on':(t.triggerCount?'warn':'off');return '<tr><td><strong>'+esc(t.name)+'</strong><br><span class="subtitle">'+esc(t.key)+'</span></td><td><span class="badge '+(t.enabled?'on':'off')+'">'+(t.enabled?'Ativo':'Inativo')+'</span></td><td><span class="badge '+triggerCls+'">'+esc(triggerLabel)+'</span></td></tr>';}).join('')+'</tbody></table>';}
     function renderLogs(logs){logs=logs||[];if(!logs.length){document.getElementById('logs').innerHTML='<div class="empty">Nenhum log encontrado.</div>';return;}document.getElementById('logs').innerHTML='<table><thead><tr><th>Data</th><th>Template</th><th>Para</th><th>Status</th><th>Erro</th></tr></thead><tbody>'+logs.map(function(log){var cls=log.status==='success'||log.status==='ok'?'on':(log.status==='error'?'off':'warn');return '<tr><td>'+esc(log.createdAt||'')+'</td><td><strong>'+esc(log.templateKey)+'</strong><br><span class="subtitle">'+esc(log.source)+'</span></td><td>'+esc(log.to)+'</td><td><span class="badge '+cls+'">'+esc(log.status||'')+'</span></td><td>'+esc(log.error||'')+'</td></tr>';}).join('')+'</tbody></table>';}
+    function renderStripe(stripe){stripe=stripe||{};document.getElementById('stripe-grid').innerHTML=[
+      metric('Stripe',stripe.enabled?'Ativo':'Inativo',stripe.enabled?'ok':'warn'),
+      metric('Connect',stripe.connectEnabled!==false?'Ativo':'Inativo',stripe.connectEnabled!==false?'ok':'warn'),
+      metric('Chave pública',stripe.publishableKeyConfigured?'Configurada':'Ausente',stripe.publishableKeyConfigured?'ok':'bad'),
+      metric('Chave secreta',stripe.secretKeyConfigured?'Configurada':'Ausente',stripe.secretKeyConfigured?'ok':'bad'),
+      metric('Webhook',stripe.webhookSecretConfigured?'Configurado':'Ausente',stripe.webhookSecretConfigured?'ok':'bad'),
+      metric('Moeda',stripe.currency||'EUR','')
+    ].join('');
+      setValue('stripe-enabled',stripe.enabled?'true':'false');
+      setValue('stripe-currency',stripe.currency||'EUR');
+      setValue('stripe-publishable-key',stripe.publishableKey||'');
+      setValue('stripe-secret-key','');
+      setValue('stripe-webhook-secret','');
+    }
     function renderLookup(lookup){if(!lookup){clearMsg('lookup-result');return;}msg('lookup-result','Auth: '+(lookup.authUserExists?'encontrado':'não encontrado')+' · Tenant: '+(lookup.tenantExists?'encontrado':'não encontrado')+(lookup.tenantUid?' · UID '+lookup.tenantUid:''));}
-    async function load(extra,options){if(!(options&&options.keepMessage))clearMsg('action-message');var data=await call('masterEmailDiagnostics',extra||{});state.data=data;renderSettings(data.settings);renderTemplates(data.templates);renderLogs(data.logs);renderLookup(data.lookup);}
+    async function load(extra,options){if(!(options&&options.keepMessage)){clearMsg('action-message');clearMsg('stripe-message');}var data=await call('masterEmailDiagnostics',extra||{});state.data=data;renderSettings(data.settings);renderTemplates(data.templates);renderLogs(data.logs);renderLookup(data.lookup);call('masterStripeDiagnostics',{}).then(function(s){renderStripe(s.stripe||{});}).catch(function(error){msg('stripe-message','Erro ao carregar Stripe: '+error.message);});}
     async function sendTest(){
       var btn=document.getElementById('send-test');
       var to=document.getElementById('test-email').value.trim();
@@ -273,10 +326,35 @@
       }
     }
     async function lookup(){var email=document.getElementById('lookup-email').value.trim();if(!email){msg('lookup-result','Informe um e-mail para consultar.');return;}try{await load({email:email});}catch(error){msg('lookup-result','Erro na consulta: '+error.message);}}
+    async function saveStripe(){
+      var btn=document.getElementById('save-stripe');
+      var payload={
+        enabled:document.getElementById('stripe-enabled').value==='true',
+        currency:document.getElementById('stripe-currency').value,
+        publishableKey:document.getElementById('stripe-publishable-key').value.trim(),
+        secretKey:document.getElementById('stripe-secret-key').value.trim(),
+        webhookSecret:document.getElementById('stripe-webhook-secret').value.trim()
+      };
+      if(payload.enabled&&!payload.publishableKey){msg('stripe-message','Informe a chave pública antes de ativar o Stripe.');return;}
+      btn.disabled=true;
+      btn.textContent='Salvando...';
+      msg('stripe-message','Salvando Stripe Connect...');
+      try{
+        await call('saveStripeSettings',payload);
+        msg('stripe-message','Stripe Connect salvo. Agora cada loja pode conectar a própria conta em Configurações > Integrações.');
+        await load(null,{keepMessage:true});
+      }catch(error){
+        msg('stripe-message','Erro ao salvar Stripe: '+error.message);
+      }finally{
+        btn.disabled=false;
+        btn.textContent='Salvar Stripe Connect';
+      }
+    }
     document.getElementById('google-login').onclick=function(){auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(function(error){msg('login-message',error.message||'Não foi possível entrar.');});};
     document.getElementById('logout').onclick=function(){auth.signOut();};
     document.getElementById('refresh').onclick=function(){load().catch(function(error){msg('action-message','Erro ao carregar: '+error.message);});};
     document.getElementById('save-smtp').onclick=saveSmtp;
+    document.getElementById('save-stripe').onclick=saveStripe;
     document.getElementById('send-test').onclick=sendTest;
     document.getElementById('lookup').onclick=lookup;
     auth.onAuthStateChanged(function(user){document.getElementById('login-view').classList.toggle('hidden',!!user);document.getElementById('app-view').classList.toggle('hidden',!user);if(!user)return;document.getElementById('session-email').textContent=user.email||'Sessão Master';load().catch(function(error){msg('action-message','Acesso negado ou erro ao carregar diagnóstico: '+error.message);});});

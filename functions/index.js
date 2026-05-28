@@ -1766,6 +1766,418 @@ function handleCors(req, res) {
   return false;
 }
 
+function normalizeCurrency(value) {
+  const raw = String(value || "EUR").trim().toLowerCase();
+  return /^[a-z]{3}$/.test(raw) ? raw : "eur";
+}
+
+function moneyToStripeCents(value) {
+  return Math.max(0, Math.round(Number(value || 0) * 100));
+}
+
+function stripeMoney(value) {
+  return Math.round(Number(value || 0) * 100) / 100;
+}
+
+function safeStripeSettings(settingsSnap, secretSnap) {
+  const settings = settingsSnap && settingsSnap.exists ? (settingsSnap.data() || {}) : {};
+  const secret = secretSnap && secretSnap.exists ? (secretSnap.data() || {}) : {};
+  return {
+    found: !!(settingsSnap && settingsSnap.exists),
+    enabled: settings.enabled === true,
+    connectEnabled: settings.connectEnabled !== false,
+    publishableKeyConfigured: !!settings.publishableKey,
+    secretKeyConfigured: !!secret.secretKey || settings.secretKeyConfigured === true,
+    webhookSecretConfigured: !!secret.webhookSecret || settings.webhookSecretConfigured === true,
+    currency: normalizeCurrency(settings.currency || "EUR").toUpperCase(),
+    mode: settings.mode || (String(settings.publishableKey || "").startsWith("pk_live_") ? "live" : "test"),
+    updatedAt: settings.updatedAt || ""
+  };
+}
+
+function sanitizeGlobalFinanceCountry(value) {
+  const raw = String(value || "ambos").trim().toLowerCase();
+  if (raw === "pt" || raw === "portugal" || raw === "pt-pt") return "PT";
+  if (raw === "es" || raw === "espana" || raw === "espanha" || raw === "spain") return "ES";
+  return "ambos";
+}
+
+function sanitizeGlobalFinanceSlug(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-{2,}/g, "-")
+    .slice(0, 80);
+}
+
+function sanitizeGlobalFinanceItem(item, index, kind) {
+  const data = item && typeof item === "object" ? item : {};
+  const name = String(data.name || data.nome || "").trim().slice(0, 90);
+  if (!name) return null;
+  const slug = sanitizeGlobalFinanceSlug(data.slug || data.code || data.codigo || name);
+  const clean = {
+    id: String(data.id || `gf-${kind}-${slug || index}`).trim().slice(0, 110),
+    name,
+    slug,
+    order: Number.isFinite(Number(data.order)) ? Number(data.order) : (index + 1) * 10,
+    countryFiscal: sanitizeGlobalFinanceCountry(data.countryFiscal || data.fiscalCountry || data.country),
+    active: data.active !== false,
+    notes: String(data.notes || data.observacao || "").trim().slice(0, 260)
+  };
+  if (kind === "payment") {
+    clean.requiresBankAccount = data.requiresBankAccount != null ? data.requiresBankAccount === true : data.exigeConta === true;
+    clean.defaultCompensationDays = Math.max(0, Math.min(365, Number(data.defaultCompensationDays || data.prazoCompensacaoDias || 0) || 0));
+  }
+  return clean;
+}
+
+function sanitizeGlobalFinanceConfig(value) {
+  const data = value && typeof value === "object" ? value : {};
+  const bankAccountTypes = Array.isArray(data.bankAccountTypes) ? data.bankAccountTypes : undefined;
+  const paymentMethodTypes = Array.isArray(data.paymentMethodTypes) ? data.paymentMethodTypes : undefined;
+  const clean = {};
+  if (bankAccountTypes) {
+    clean.bankAccountTypes = bankAccountTypes
+      .slice(0, 120)
+      .map((item, index) => sanitizeGlobalFinanceItem(item, index, "bank"))
+      .filter(Boolean);
+  }
+  if (paymentMethodTypes) {
+    clean.paymentMethodTypes = paymentMethodTypes
+      .slice(0, 120)
+      .map((item, index) => sanitizeGlobalFinanceItem(item, index, "payment"))
+      .filter(Boolean);
+  }
+  return clean;
+}
+
+function sanitizeMasterSystemConfigPatch(body) {
+  const input = body && typeof body === "object" ? body : {};
+  const patch = input.patch && typeof input.patch === "object" ? input.patch : {};
+  const clean = {};
+  if (patch.globalFinance || input.globalFinance) {
+    clean.globalFinance = sanitizeGlobalFinanceConfig(patch.globalFinance || input.globalFinance);
+  }
+  if (!Object.keys(clean).length) throw new Error("empty_system_config_patch");
+  return clean;
+}
+
+async function loadStripePlatformConfig() {
+  const [settingsSnap, secretSnap] = await Promise.all([
+    db.collection("system_stripe_settings").doc("default").get(),
+    db.collection("system_private_stripe_secrets").doc("default").get()
+  ]);
+  const settings = settingsSnap.exists ? (settingsSnap.data() || {}) : {};
+  const secret = secretSnap.exists ? (secretSnap.data() || {}) : {};
+  return {
+    enabled: settings.enabled === true,
+    connectEnabled: settings.connectEnabled !== false,
+    publishableKey: String(settings.publishableKey || "").trim(),
+    secretKey: String(secret.secretKey || "").trim(),
+    webhookSecret: String(secret.webhookSecret || "").trim(),
+    currency: normalizeCurrency(settings.currency || "EUR")
+  };
+}
+
+function stripeFormBody(data) {
+  const params = new URLSearchParams();
+  Object.keys(data || {}).forEach((key) => {
+    if (data[key] === undefined || data[key] === null || data[key] === "") return;
+    params.append(key, String(data[key]));
+  });
+  return params;
+}
+
+async function stripeRequest(path, data, config, stripeAccountId) {
+  const headers = {
+    Authorization: `Bearer ${config.secretKey}`,
+    "Content-Type": "application/x-www-form-urlencoded"
+  };
+  if (stripeAccountId) headers["Stripe-Account"] = stripeAccountId;
+  const response = await fetch(`https://api.stripe.com/v1/${path.replace(/^\/+/, "")}`, {
+    method: "POST",
+    headers,
+    body: stripeFormBody(data)
+  });
+  const json = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = json && json.error && json.error.message ? json.error.message : `stripe_http_${response.status}`;
+    throw new Error(message);
+  }
+  return json;
+}
+
+async function stripeGet(path, config, stripeAccountId) {
+  const headers = { Authorization: `Bearer ${config.secretKey}` };
+  if (stripeAccountId) headers["Stripe-Account"] = stripeAccountId;
+  const response = await fetch(`https://api.stripe.com/v1/${path.replace(/^\/+/, "")}`, { method: "GET", headers });
+  const json = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = json && json.error && json.error.message ? json.error.message : `stripe_http_${response.status}`;
+    throw new Error(message);
+  }
+  return json;
+}
+
+function sanitizeStripeReturnUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "https://cc.bocafood.app/admin.html#configuracoes/integracoes";
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "https:" && url.hostname !== "localhost") return "https://cc.bocafood.app/admin.html#configuracoes/integracoes";
+    return url.toString().slice(0, 500);
+  } catch (error) {
+    return "https://cc.bocafood.app/admin.html#configuracoes/integracoes";
+  }
+}
+
+function stripeCountryFromTenant(tenant, integracoes) {
+  const raw = String(
+    (integracoes && (integracoes.stripeCountry || integracoes.country)) ||
+    tenant.fiscalCountry ||
+    tenant.country ||
+    (tenant.store && (tenant.store.fiscalCountry || tenant.store.country)) ||
+    (tenant.accountAddress && (tenant.accountAddress.fiscalCountry || tenant.accountAddress.country)) ||
+    "ES"
+  ).trim().toUpperCase();
+  if (raw === "PT" || raw === "PORTUGAL") return "PT";
+  return "ES";
+}
+
+function safeStripeAccountStatus(account) {
+  account = account || {};
+  const req = account.requirements || {};
+  return {
+    accountId: String(account.id || ""),
+    chargesEnabled: account.charges_enabled === true,
+    payoutsEnabled: account.payouts_enabled === true,
+    detailsSubmitted: account.details_submitted === true,
+    disabledReason: String(req.disabled_reason || ""),
+    currentlyDue: Array.isArray(req.currently_due) ? req.currently_due.slice(0, 30) : [],
+    eventuallyDue: Array.isArray(req.eventually_due) ? req.eventually_due.slice(0, 30) : [],
+    status: account.charges_enabled === true && account.payouts_enabled === true
+      ? "ready"
+      : (account.details_submitted === true ? "pending_review" : "onboarding_required")
+  };
+}
+
+function stripePaymentMethodPayload(accountId = "", now = serverTimestamp()) {
+  return {
+    nome: "Stripe",
+    tipo: "Cartão",
+    tipoGlobalId: "card",
+    tipoGlobalSlug: "card",
+    tipoGlobalNome: "Cartão",
+    tipoGlobalCountry: "ambos",
+    ativo: true,
+    exigeConta: true,
+    contaPadraoId: accountId || "",
+    provider: "stripe",
+    stripe: true,
+    stripeConnected: true,
+    prazoCompensacaoDias: 0,
+    taxaPercentual: 0,
+    taxaFixa: 0,
+    observacao: "Forma criada automaticamente para pagamentos Stripe Connect.",
+    updatedAt: now,
+    createdAt: now
+  };
+}
+
+function findStripePaymentMethod(financeConfig) {
+  const methods = Array.isArray(financeConfig && financeConfig.formas_pagamento) ? financeConfig.formas_pagamento : [];
+  return methods.find((item) => {
+    if (!item || typeof item !== "object") return false;
+    const name = String(item.nome || item.name || "").trim().toLowerCase();
+    return item.provider === "stripe" || item.stripe === true || item.stripeConnected === true || name === "stripe";
+  }) || null;
+}
+
+async function ensureStripeFinancePaymentMethod(tenantId, accountId = "") {
+  const ref = db.collection("tenants").doc(tenantId).collection("config").doc("financeiro");
+  const snap = await ref.get();
+  const finance = snap.exists ? snap.data() || {} : {};
+  let methods = Array.isArray(finance.formas_pagamento) ? finance.formas_pagamento.slice() : [];
+  let found = false;
+  methods = methods.map((item) => {
+    if (typeof item === "string") item = { nome: item, tipo: "outro", ativo: true };
+    item = { ...(item || {}) };
+    const name = String(item.nome || item.name || "").trim().toLowerCase();
+    const isStripe = item.provider === "stripe" || item.stripe === true || item.stripeConnected === true || name === "stripe";
+    if (!isStripe) return item;
+    found = true;
+    return {
+      ...item,
+      ...stripePaymentMethodPayload(accountId || item.contaPadraoId || ""),
+      taxaPercentual: Number(item.taxaPercentual || item.feePct || 0),
+      taxaFixa: Number(item.taxaFixa || item.fixedFee || 0),
+      createdAt: item.createdAt || serverTimestamp()
+    };
+  });
+  if (!found) methods.push(stripePaymentMethodPayload(accountId));
+  await ref.set({ formas_pagamento: methods, updatedAt: serverTimestamp() }, { merge: true });
+  return methods.find((item) => item && (item.provider === "stripe" || item.stripe === true || String(item.nome || "").toLowerCase() === "stripe")) || null;
+}
+
+function stripeEstimatedFee(amount, method) {
+  amount = Number(amount || 0);
+  method = method || {};
+  const pct = Number(method.taxaPercentual || method.feePct || 0);
+  const fixed = Number(method.taxaFixa || method.fixedFee || 0);
+  return stripeMoney((amount * pct / 100) + fixed);
+}
+
+async function stripePaymentFeeFromCharge(config, stripeAccountId, paymentIntent) {
+  const chargeId = String(paymentIntent && paymentIntent.latest_charge || "");
+  if (!chargeId) return 0;
+  try {
+    const charge = await stripeGet(`charges/${encodeURIComponent(chargeId)}?expand[]=balance_transaction`, config, stripeAccountId);
+    const bt = charge && charge.balance_transaction;
+    if (bt && typeof bt === "object" && Number(bt.fee || 0) > 0) return stripeMoney(Number(bt.fee || 0) / 100);
+  } catch (error) {
+    console.warn("[Stripe] fee lookup failed", { chargeId, error: String(error && error.message ? error.message : error).slice(0, 160) });
+  }
+  return 0;
+}
+
+async function syncStripeFinanceMovements(tenantId, orderId, paymentIntent, config) {
+  const tenantRef = db.collection("tenants").doc(tenantId);
+  const [orderSnap, integrationsSnap, financeSnap] = await Promise.all([
+    tenantRef.collection("orders").doc(orderId).get(),
+    tenantRef.collection("config").doc("integracoes").get(),
+    tenantRef.collection("config").doc("financeiro").get()
+  ]);
+  if (!orderSnap.exists) return false;
+  const order = orderSnap.data() || {};
+  const integrations = integrationsSnap.exists ? integrationsSnap.data() || {} : {};
+  const finance = financeSnap.exists ? financeSnap.data() || {} : {};
+  const stripeAccountId = String(integrations.stripeConnectedAccountId || integrations.stripeAccountId || "").trim();
+  const method = findStripePaymentMethod(finance) || await ensureStripeFinancePaymentMethod(tenantId, integrations.stripeFinanceAccountId || integrations.stripeDefaultAccountId || "");
+  const gross = stripeMoney(Number(paymentIntent.amount_received || paymentIntent.amount || 0) / 100);
+  if (!(gross > 0)) return false;
+  const feeFromStripe = await stripePaymentFeeFromCharge(config, stripeAccountId, paymentIntent);
+  const fee = feeFromStripe > 0 ? feeFromStripe : stripeEstimatedFee(gross, method);
+  const net = stripeMoney(Math.max(0, gross - fee));
+  const accountId = String(integrations.stripeFinanceAccountId || integrations.stripeDefaultAccountId || method.contaPadraoId || "");
+  const baseDate = new Date().toISOString().slice(0, 10);
+  const orderLabel = String(order.publicOrderCode || order.orderRef || order.orderNumber || orderId);
+  const common = {
+    conta_id: accountId,
+    contaBancariaId: accountId,
+    forma_pagamento: "Stripe",
+    paymentMethod: "Stripe",
+    paymentProvider: "stripe",
+    stripePaymentIntentId: paymentIntent.id || "",
+    stripeConnectedAccountId: stripeAccountId,
+    data: baseDate,
+    status: "efetivado",
+    updatedAt: serverTimestamp()
+  };
+  await tenantRef.collection("movimentacoes").doc(`stripe_order_${orderId}_entrada`).set({
+    ...common,
+    origem: "pedido",
+    pedidoId: orderId,
+    pedidoNumero: orderLabel,
+    tipo: "entrada",
+    descricao: `Pedido ${orderLabel} pago no Stripe`,
+    valor: gross,
+    valorTotalOriginal: gross,
+    valorParcela: gross,
+    valorRecebido: gross,
+    saldoRestante: 0,
+    stripeFee: fee,
+    stripeNetAmount: net,
+    pessoaId: String(order.customerId || order.customerUid || order.clientId || ""),
+    pessoaNome: String(order.customerName || order.clientName || order.name || ""),
+    customerId: String(order.customerId || order.customerUid || order.clientId || ""),
+    customerName: String(order.customerName || order.clientName || order.name || ""),
+    createdAt: serverTimestamp()
+  }, { merge: true });
+  if (fee > 0) {
+    await tenantRef.collection("movimentacoes").doc(`stripe_order_${orderId}_taxa`).set({
+      ...common,
+      origem: "stripe_fee",
+      pedidoId: orderId,
+      pedidoNumero: orderLabel,
+      tipo: "saida",
+      descricao: `Taxa Stripe do pedido ${orderLabel}`,
+      valor: fee,
+      valorTotalOriginal: fee,
+      valorParcela: fee,
+      valorPago: fee,
+      saldoRestante: 0,
+      categoria: "Taxas de pagamento",
+      categoriaFinanceiraNome: "Taxas de pagamento",
+      financialNature: "custo",
+      costClass: "indireto",
+      stripeGrossAmount: gross,
+      stripeNetAmount: net,
+      createdAt: serverTimestamp()
+    }, { merge: true });
+  }
+  await tenantRef.collection("orders").doc(orderId).set({
+    financeMovementCreated: true,
+    financeMovementCreatedAt: serverTimestamp(),
+    financeMovementProvider: "stripe",
+    stripeFeeAmount: fee,
+    stripeNetAmount: net,
+    stripeGrossAmount: gross,
+    contaBancariaId: accountId,
+    conta_id: accountId,
+    updatedAt: serverTimestamp()
+  }, { merge: true });
+  return true;
+}
+
+async function requireTenantAdminAccess(req, tenantId) {
+  const decoded = await requireAuthenticatedAdmin(req);
+  const cleanTenantId = String(tenantId || "").trim();
+  if (!cleanTenantId) throw new Error("tenant_required");
+  if (decoded.uid === cleanTenantId) return decoded;
+  const snap = await db.collection("system_tenants").doc(cleanTenantId).get();
+  const data = snap.exists ? snap.data() || {} : {};
+  const decodedEmail = normalizeEmail(decoded.email || "");
+  const tenantEmail = normalizeEmail(data.email || data.ownerEmail || data.adminEmail || "");
+  const authUid = String(data.authUid || data.uid || "").trim();
+  if ((decodedEmail && tenantEmail && decodedEmail === tenantEmail) || (authUid && authUid === decoded.uid)) return decoded;
+  throw new Error("forbidden");
+}
+
+function stripeSignaturePayload(signature) {
+  const parts = String(signature || "").split(",");
+  const out = {};
+  parts.forEach((part) => {
+    const idx = part.indexOf("=");
+    if (idx < 0) return;
+    const key = part.slice(0, idx);
+    const value = part.slice(idx + 1);
+    if (!out[key]) out[key] = [];
+    out[key].push(value);
+  });
+  return out;
+}
+
+function verifyStripeWebhook(rawBody, signature, secret) {
+  if (!secret) throw new Error("stripe_webhook_secret_missing");
+  const parsed = stripeSignaturePayload(signature);
+  const timestamp = parsed.t && parsed.t[0];
+  const signatures = parsed.v1 || [];
+  if (!timestamp || !signatures.length) throw new Error("stripe_signature_missing");
+  const payload = `${timestamp}.${rawBody}`;
+  const expected = crypto.createHmac("sha256", secret).update(payload).digest("hex");
+  const valid = signatures.some((sig) => {
+    try {
+      return crypto.timingSafeEqual(Buffer.from(sig, "hex"), Buffer.from(expected, "hex"));
+    } catch (error) {
+      return false;
+    }
+  });
+  if (!valid) throw new Error("stripe_signature_invalid");
+}
+
 function backupTimestampPath(date = new Date()) {
   return date.toISOString().replace(/[:.]/g, "-");
 }
@@ -2016,6 +2428,332 @@ exports.masterEmailDiagnostics = onRequest({ region: REGION }, async (req, res) 
   } catch (error) {
     const status = error.message === "forbidden" ? 403 : 401;
     return res.status(status).json({ error: error.message || "unauthorized" });
+  }
+});
+
+exports.masterStripeDiagnostics = onRequest({ region: REGION }, async (req, res) => {
+  try {
+    if (handleCors(req, res)) return;
+    if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+    await requireMaster(req);
+    const [settingsSnap, secretSnap] = await Promise.all([
+      db.collection("system_stripe_settings").doc("default").get(),
+      db.collection("system_private_stripe_secrets").doc("default").get()
+    ]);
+    const settings = settingsSnap.exists ? (settingsSnap.data() || {}) : {};
+    return res.json({
+      ok: true,
+      stripe: {
+        ...safeStripeSettings(settingsSnap, secretSnap),
+        publishableKey: settings.publishableKey || "",
+        currency: normalizeCurrency(settings.currency || "EUR").toUpperCase()
+      }
+    });
+  } catch (error) {
+    const status = error.message === "forbidden" ? 403 : 401;
+    return res.status(status).json({ error: error.message || "unauthorized" });
+  }
+});
+
+exports.saveStripeSettings = onRequest({ region: REGION }, async (req, res) => {
+  try {
+    if (handleCors(req, res)) return;
+    if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+    const master = await requireMaster(req);
+    const body = req.body || {};
+    const publishableKey = String(body.publishableKey || "").trim();
+    const secretKey = String(body.secretKey || "").trim();
+    const webhookSecret = String(body.webhookSecret || "").trim();
+    const currency = normalizeCurrency(body.currency || "EUR");
+    if (body.enabled === true && !publishableKey) return res.status(400).json({ error: "stripe_publishable_key_required" });
+    if (publishableKey && !/^pk_(test|live)_/.test(publishableKey)) return res.status(400).json({ error: "stripe_publishable_key_invalid" });
+    if (secretKey && !/^sk_(test|live)_/.test(secretKey)) return res.status(400).json({ error: "stripe_secret_key_invalid" });
+    if (webhookSecret && !/^whsec_/.test(webhookSecret)) return res.status(400).json({ error: "stripe_webhook_secret_invalid" });
+    const currentSecretSnap = await db.collection("system_private_stripe_secrets").doc("default").get();
+    const currentSecret = currentSecretSnap.exists ? currentSecretSnap.data() || {} : {};
+    const settings = {
+      enabled: body.enabled === true,
+      connectEnabled: true,
+      publishableKey,
+      currency,
+      mode: publishableKey.startsWith("pk_live_") ? "live" : "test",
+      secretKeyConfigured: !!secretKey || !!currentSecret.secretKey,
+      webhookSecretConfigured: !!webhookSecret || !!currentSecret.webhookSecret,
+      updatedBy: master.email || "",
+      updatedAt: serverTimestamp()
+    };
+    await Promise.all([
+      db.collection("system_stripe_settings").doc("default").set(settings, { merge: true }),
+      db.collection("system").doc("config").set({
+        stripeEnabled: settings.enabled,
+        stripeConnectEnabled: true,
+        stripePublishableKey: publishableKey,
+        stripeCurrency: currency.toUpperCase(),
+        stripeMode: settings.mode,
+        updatedAt: serverTimestamp()
+      }, { merge: true })
+    ]);
+    const secretPatch = { updatedAt: serverTimestamp(), updatedBy: master.email || "" };
+    if (secretKey) secretPatch.secretKey = secretKey;
+    if (webhookSecret) secretPatch.webhookSecret = webhookSecret;
+    if (secretKey || webhookSecret) {
+      await db.collection("system_private_stripe_secrets").doc("default").set(secretPatch, { merge: true });
+    }
+    return res.json({ ok: true, stripe: safeStripeSettings({ exists: true, data: () => settings }, { exists: true, data: () => Object.assign({}, currentSecret, secretPatch) }) });
+  } catch (error) {
+    const status = error.message === "forbidden" ? 403 : error.message && error.message.indexOf("_invalid") >= 0 ? 400 : 401;
+    return res.status(status).json({ error: error.message || "unauthorized" });
+  }
+});
+
+exports.saveMasterSystemConfig = onRequest({ region: REGION }, async (req, res) => {
+  try {
+    if (handleCors(req, res)) return;
+    if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+    const master = await requireMaster(req);
+    const patch = sanitizeMasterSystemConfigPatch(req.body || {});
+    await db.collection("system").doc("config").set({
+      ...patch,
+      updatedAt: serverTimestamp(),
+      updatedBy: master.email || ""
+    }, { merge: true });
+    return res.json({ ok: true, patch });
+  } catch (error) {
+    const status = error.message === "forbidden" ? 403 : error.message === "empty_system_config_patch" ? 400 : 401;
+    return res.status(status).json({ error: error.message || "unauthorized" });
+  }
+});
+
+exports.createStripeConnectOnboarding = onRequest({ region: REGION, timeoutSeconds: 45, memory: "256MiB" }, async (req, res) => {
+  try {
+    if (handleCors(req, res)) return;
+    if (req.method !== "POST") return res.status(405).json({ ok: false, error: "Method not allowed" });
+    const body = req.body || {};
+    const tenantId = String(body.tenantId || "").trim();
+    const decoded = await requireTenantAdminAccess(req, tenantId);
+    const config = await loadStripePlatformConfig();
+    if (!config.enabled || !config.secretKey) return res.status(503).json({ ok: false, error: "stripe_not_configured" });
+    const [tenantSnap, integrationsSnap] = await Promise.all([
+      db.collection("system_tenants").doc(tenantId).get(),
+      db.collection("tenants").doc(tenantId).collection("config").doc("integracoes").get()
+    ]);
+    const tenant = tenantSnap.exists ? tenantSnap.data() || {} : {};
+    const integrations = integrationsSnap.exists ? integrationsSnap.data() || {} : {};
+    const existingAccountId = String(integrations.stripeConnectedAccountId || integrations.stripeAccountId || "").trim();
+    let accountId = existingAccountId;
+    if (!/^acct_/.test(accountId)) {
+      const account = await stripeRequest("accounts", {
+        type: "express",
+        country: stripeCountryFromTenant(tenant, integrations),
+        email: decoded.email || tenant.email || "",
+        "capabilities[card_payments][requested]": "true",
+        "capabilities[transfers][requested]": "true",
+        "business_profile[name]": (tenant.store && tenant.store.name) || tenant.businessName || tenant.name || "BocaFood"
+      }, config);
+      accountId = account.id || "";
+    }
+    if (!/^acct_/.test(accountId)) return res.status(500).json({ ok: false, error: "stripe_account_not_created" });
+    const returnUrl = sanitizeStripeReturnUrl(body.returnUrl);
+    const refreshUrl = sanitizeStripeReturnUrl(body.refreshUrl || body.returnUrl);
+    const link = await stripeRequest("account_links", {
+      account: accountId,
+      refresh_url: refreshUrl,
+      return_url: returnUrl,
+      type: "account_onboarding"
+    }, config);
+    const patch = {
+      stripeEnabled: true,
+      stripeConnectedAccountId: accountId,
+      stripeAccountId: accountId,
+      stripeConnectStatus: existingAccountId === accountId ? (integrations.stripeConnectStatus || "onboarding_required") : "onboarding_required",
+      stripeConnectUpdatedAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    };
+    await Promise.all([
+      ensureStripeFinancePaymentMethod(tenantId, integrations.stripeFinanceAccountId || integrations.stripeDefaultAccountId || ""),
+      db.collection("tenants").doc(tenantId).collection("config").doc("integracoes").set(patch, { merge: true }),
+      db.collection("system_tenants").doc(tenantId).set({
+        integrations: {
+          stripeEnabled: true,
+          stripeConnectedAccountId: accountId,
+          stripeConnectStatus: patch.stripeConnectStatus
+        },
+        updatedAt: serverTimestamp()
+      }, { merge: true })
+    ]);
+    return res.json({ ok: true, url: link.url || "", accountId, status: patch.stripeConnectStatus });
+  } catch (error) {
+    const message = error && error.message ? error.message : "stripe_connect_failed";
+    const status = message === "forbidden" ? 403 : message === "missing_auth" ? 401 : 500;
+    console.error("[Stripe] connect onboarding failed", { error: String(message).slice(0, 240) });
+    return res.status(status).json({ ok: false, error: message });
+  }
+});
+
+exports.getStripeConnectStatus = onRequest({ region: REGION, timeoutSeconds: 45, memory: "256MiB" }, async (req, res) => {
+  try {
+    if (handleCors(req, res)) return;
+    if (req.method !== "POST") return res.status(405).json({ ok: false, error: "Method not allowed" });
+    const body = req.body || {};
+    const tenantId = String(body.tenantId || "").trim();
+    await requireTenantAdminAccess(req, tenantId);
+    const config = await loadStripePlatformConfig();
+    if (!config.enabled || !config.secretKey) return res.status(503).json({ ok: false, error: "stripe_not_configured" });
+    const integrationsRef = db.collection("tenants").doc(tenantId).collection("config").doc("integracoes");
+    const integrationsSnap = await integrationsRef.get();
+    const integrations = integrationsSnap.exists ? integrationsSnap.data() || {} : {};
+    const accountId = String(integrations.stripeConnectedAccountId || integrations.stripeAccountId || "").trim();
+    if (!/^acct_/.test(accountId)) return res.status(404).json({ ok: false, error: "store_stripe_not_connected" });
+    const account = await stripeGet(`accounts/${encodeURIComponent(accountId)}`, config);
+    const status = safeStripeAccountStatus(account);
+    const patch = {
+      stripeEnabled: status.status === "ready" ? true : integrations.stripeEnabled === true,
+      stripeConnectedAccountId: accountId,
+      stripeAccountId: accountId,
+      stripeConnectStatus: status.status,
+      stripeChargesEnabled: status.chargesEnabled,
+      stripePayoutsEnabled: status.payoutsEnabled,
+      stripeDetailsSubmitted: status.detailsSubmitted,
+      stripeDisabledReason: status.disabledReason,
+      stripeRequirementsDue: status.currentlyDue,
+      stripeConnectUpdatedAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    };
+    await Promise.all([
+      ensureStripeFinancePaymentMethod(tenantId, integrations.stripeFinanceAccountId || integrations.stripeDefaultAccountId || ""),
+      integrationsRef.set(patch, { merge: true }),
+      db.collection("system_tenants").doc(tenantId).set({
+        integrations: {
+          stripeEnabled: patch.stripeEnabled,
+          stripeConnectedAccountId: accountId,
+          stripeConnectStatus: status.status,
+          stripeChargesEnabled: status.chargesEnabled,
+          stripePayoutsEnabled: status.payoutsEnabled
+        },
+        updatedAt: serverTimestamp()
+      }, { merge: true })
+    ]);
+    return res.json({ ok: true, stripe: status });
+  } catch (error) {
+    const message = error && error.message ? error.message : "stripe_status_failed";
+    const status = message === "forbidden" ? 403 : message === "missing_auth" ? 401 : 500;
+    console.error("[Stripe] connect status failed", { error: String(message).slice(0, 240) });
+    return res.status(status).json({ ok: false, error: message });
+  }
+});
+
+exports.createStorefrontStripePaymentIntent = onRequest({ region: REGION, timeoutSeconds: 45, memory: "256MiB" }, async (req, res) => {
+  try {
+    if (handleCors(req, res)) return;
+    if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+    const body = req.body || {};
+    const tenantId = String(body.tenantId || "").trim();
+    const orderId = String(body.orderId || "").trim();
+    if (!tenantId || !orderId) return res.status(400).json({ ok: false, error: "tenant_order_required" });
+    const config = await loadStripePlatformConfig();
+    if (!config.enabled || !config.publishableKey || !config.secretKey) return res.status(503).json({ ok: false, error: "stripe_not_configured" });
+    const [orderSnap, integrationsSnap] = await Promise.all([
+      db.collection("tenants").doc(tenantId).collection("orders").doc(orderId).get(),
+      db.collection("tenants").doc(tenantId).collection("config").doc("integracoes").get()
+    ]);
+    if (!orderSnap.exists) return res.status(404).json({ ok: false, error: "order_not_found" });
+    const order = orderSnap.data() || {};
+    const integrations = integrationsSnap.exists ? integrationsSnap.data() || {} : {};
+    const stripeAccountId = String(integrations.stripeConnectedAccountId || integrations.stripeAccountId || "").trim();
+    if (integrations.stripeEnabled === false || !stripeAccountId) return res.status(503).json({ ok: false, error: "store_stripe_not_connected" });
+    if (!/^acct_/.test(stripeAccountId)) return res.status(400).json({ ok: false, error: "store_stripe_account_invalid" });
+    if (integrations.stripeConnectStatus && integrations.stripeConnectStatus !== "ready") return res.status(503).json({ ok: false, error: "store_stripe_onboarding_pending" });
+    const amount = moneyToStripeCents(order.total);
+    if (amount <= 0) return res.status(400).json({ ok: false, error: "order_total_invalid" });
+    const currency = normalizeCurrency(integrations.stripeCurrency || config.currency || "EUR");
+    const paymentIntent = await stripeRequest("payment_intents", {
+      amount,
+      currency,
+      "automatic_payment_methods[enabled]": "true",
+      description: `BocaFood ${order.publicOrderCode || order.orderRef || orderId}`,
+      "metadata[tenantId]": tenantId,
+      "metadata[orderId]": orderId,
+      "metadata[orderRef]": order.orderRef || "",
+      "metadata[source]": "bocafood_storefront"
+    }, config, stripeAccountId);
+    const financeMethod = await ensureStripeFinancePaymentMethod(tenantId, integrations.stripeFinanceAccountId || integrations.stripeDefaultAccountId || "");
+    await orderSnap.ref.set({
+      paymentProvider: "stripe",
+      paymentMethod: "Cartão",
+      payment: "Cartão",
+      paymentStatus: "pending",
+      paymentState: "pending",
+      financePaymentMethod: "Stripe",
+      forma_pagamento: "Stripe",
+      contaBancariaId: integrations.stripeFinanceAccountId || integrations.stripeDefaultAccountId || financeMethod.contaPadraoId || "",
+      conta_id: integrations.stripeFinanceAccountId || integrations.stripeDefaultAccountId || financeMethod.contaPadraoId || "",
+      stripePaymentIntentId: paymentIntent.id || "",
+      stripeConnectedAccountId: stripeAccountId,
+      stripeCurrency: currency,
+      stripeAmount: amount,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+    return res.json({
+      ok: true,
+      publishableKey: config.publishableKey,
+      connectedAccountId: stripeAccountId,
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id,
+      currency: currency.toUpperCase()
+    });
+  } catch (error) {
+    console.error("[Stripe] create payment intent failed", { error: String(error && error.message ? error.message : error).slice(0, 240) });
+    return res.status(500).json({ ok: false, error: error.message || "stripe_payment_failed" });
+  }
+});
+
+exports.stripeWebhook = onRequest({ region: REGION, timeoutSeconds: 45, memory: "256MiB" }, async (req, res) => {
+  try {
+    if (req.method !== "POST") return res.status(405).send("Method not allowed");
+    const config = await loadStripePlatformConfig();
+    const raw = req.rawBody ? req.rawBody.toString("utf8") : JSON.stringify(req.body || {});
+    verifyStripeWebhook(raw, req.get("stripe-signature") || "", config.webhookSecret);
+    const event = JSON.parse(raw);
+    const object = event && event.data && event.data.object ? event.data.object : {};
+    const metadata = object.metadata || {};
+    const tenantId = String(metadata.tenantId || "").trim();
+    const orderId = String(metadata.orderId || "").trim();
+    if (!tenantId || !orderId) return res.json({ received: true, skipped: "missing_metadata" });
+    const ref = db.collection("tenants").doc(tenantId).collection("orders").doc(orderId);
+    if (event.type === "payment_intent.succeeded") {
+      await ref.set({
+        status: "Confirmado",
+        kitchenStatus: "Pendente",
+        paymentProvider: "stripe",
+        financePaymentMethod: "Stripe",
+        forma_pagamento: "Stripe",
+        paymentStatus: "paid",
+        paymentState: "paid",
+        paid: true,
+        paidAmount: Number(object.amount_received || object.amount || 0) / 100,
+        amountPaid: Number(object.amount_received || object.amount || 0) / 100,
+        valuePaid: Number(object.amount_received || object.amount || 0) / 100,
+        stripePaymentIntentId: object.id || "",
+        stripeLatestChargeId: object.latest_charge || "",
+        paidAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+      await syncStripeFinanceMovements(tenantId, orderId, object, config);
+    } else if (event.type === "payment_intent.payment_failed" || event.type === "payment_intent.canceled") {
+      await ref.set({
+        paymentProvider: "stripe",
+        paymentStatus: event.type === "payment_intent.canceled" ? "canceled" : "failed",
+        paymentState: event.type === "payment_intent.canceled" ? "canceled" : "failed",
+        paid: false,
+        stripePaymentIntentId: object.id || "",
+        stripeFailureMessage: object.last_payment_error && object.last_payment_error.message ? object.last_payment_error.message : "",
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+    }
+    return res.json({ received: true });
+  } catch (error) {
+    console.error("[Stripe] webhook failed", { error: String(error && error.message ? error.message : error).slice(0, 240) });
+    return res.status(400).send(error.message || "stripe_webhook_failed");
   }
 });
 

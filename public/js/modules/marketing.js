@@ -1785,9 +1785,12 @@ Modules.Marketing = (function () {
     var productIds = [];
     if (Array.isArray(promo.productIds)) productIds = productIds.concat(promo.productIds);
     if (promo.productId != null && promo.productId !== '') productIds.push(promo.productId);
+    if (Array.isArray(promo.productsSelected)) productIds = productIds.concat(promo.productsSelected);
     if (Array.isArray(promo.selectedProductIds)) productIds = productIds.concat(promo.selectedProductIds);
     if (Array.isArray(promo.suggestedProductIds)) productIds = productIds.concat(promo.suggestedProductIds);
     if (Array.isArray(promo.suggestedIds)) productIds = productIds.concat(promo.suggestedIds);
+    if (Array.isArray(promo.products)) productIds = productIds.concat(promo.products.map(function (item) { return item && typeof item === 'object' ? item.id || item.productId || item.uid : item; }));
+    if (Array.isArray(promo.items)) productIds = productIds.concat(promo.items.map(function (item) { return item && typeof item === 'object' ? item.id || item.productId || item.uid : item; }));
     productIds = productIds.map(String).filter(Boolean);
     var seen = {};
     productIds = productIds.filter(function (id) { if (seen[id]) return false; seen[id] = true; return true; });
@@ -1978,9 +1981,21 @@ Modules.Marketing = (function () {
 
   function _promoProductIds(promo) {
     if (!promo) return [];
-    if (Array.isArray(promo.productIds) && promo.productIds.length) return promo.productIds.map(String).filter(Boolean);
-    if (promo.productId != null && promo.productId !== '') return [String(promo.productId)];
-    return [];
+    var ids = [];
+    if (Array.isArray(promo.productIds)) ids = ids.concat(promo.productIds);
+    if (promo.productId != null && promo.productId !== '') ids.push(promo.productId);
+    if (Array.isArray(promo.productsSelected)) ids = ids.concat(promo.productsSelected);
+    if (Array.isArray(promo.selectedProductIds)) ids = ids.concat(promo.selectedProductIds);
+    if (Array.isArray(promo.suggestedProductIds)) ids = ids.concat(promo.suggestedProductIds);
+    if (Array.isArray(promo.suggestedIds)) ids = ids.concat(promo.suggestedIds);
+    if (Array.isArray(promo.products)) ids = ids.concat(promo.products.map(function (item) { return item && typeof item === 'object' ? item.id || item.productId || item.uid : item; }));
+    if (Array.isArray(promo.items)) ids = ids.concat(promo.items.map(function (item) { return item && typeof item === 'object' ? item.id || item.productId || item.uid : item; }));
+    var seen = {};
+    return ids.map(String).filter(function (id) {
+      if (!id || seen[id]) return false;
+      seen[id] = true;
+      return true;
+    });
   }
 
   function _promoAppliesToAllProducts(promo) {

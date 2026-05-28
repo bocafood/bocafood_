@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BocaFood — A inteligência que o seu negócio de comida precisa</title>
-  <meta name="description" content="O BocaFood é a plataforma que traz controle, dados e clareza para o seu negócio de comida. Cardápio online, pedidos, financeiro e muito mais.">
+  <title>BocaFood — Controle e clareza para quem vende comida na Europa</title>
+  <meta name="description" content="O BocaFood foi construído para a brasileira que vende comida na Europa. Saiba o que está acontecendo no negócio e cresça com clareza, não no achismo.">
   <link rel="icon" href="assets/boca-food-favicon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,7 +14,6 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      /* Vermelho ajustado para a logo — edite aqui se quiser afinar */
       --red:        #C01820;
       --red-dark:   #9E1018;
       --red-light:  #FCEAEA;
@@ -44,12 +43,6 @@
       line-height: 1.6;
       overflow-x: hidden;
     }
-
-    /* ─── SVG ICONS ───────────────────────────── */
-    .icon { display: block; flex-shrink: 0; }
-    .icon-sm  { width: 18px; height: 18px; }
-    .icon-md  { width: 22px; height: 22px; }
-    .icon-lg  { width: 28px; height: 28px; }
 
     /* ─── NAV ─────────────────────────────────── */
     nav {
@@ -122,40 +115,28 @@
       box-shadow: 0 0 0 3px rgba(192,24,32,.18);
     }
     .hero h1 {
-      font-size: clamp(28px, 3.6vw, 50px); font-weight: 800;
-      line-height: 1.15; letter-spacing: -.022em; color: var(--text); margin-bottom: 24px;
+      font-size: clamp(26px, 3.2vw, 46px); font-weight: 800;
+      line-height: 1.2; letter-spacing: -.022em; color: var(--text); margin-bottom: 24px;
     }
     .hero h1 em { font-style: normal; color: var(--red); }
     .hero-sub { font-size: 17px; color: var(--muted); line-height: 1.7; max-width: 480px; margin-bottom: 36px; }
     .hero-sub strong { color: var(--text); font-weight: 600; }
     .hero-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
-    .hero-footnote { font-size: 13px; color: var(--subtle); }
-    .hero-footnote strong { color: var(--muted); }
+    .hero-specialty { font-size: 13px; color: var(--subtle); font-style: italic; }
 
-    /* Laptop mockup */
+    /* Mockup */
     .hero-visual { display: flex; align-items: center; justify-content: center; position: relative; overflow: visible; }
-    .hero-mockup-wrap {
-      position: relative; width: 540px; max-width: 100%; z-index: 1;
-    }
+    .hero-mockup-wrap { position: relative; width: 540px; max-width: 100%; z-index: 1; }
     .hero-mockup-a,
     .hero-mockup-b {
       width: 100%; display: block;
       mix-blend-mode: multiply;
       filter: drop-shadow(0 28px 56px rgba(0,0,0,.13)) drop-shadow(0 8px 20px rgba(192,24,32,.08));
     }
-    .hero-mockup-b {
-      position: absolute; top: 0; left: 0;
-      animation: imgSwapB 6s linear infinite;
-    }
+    .hero-mockup-b { position: absolute; top: 0; left: 0; animation: imgSwapB 6s linear infinite; }
     .hero-mockup-a { animation: imgSwapA 6s linear infinite; }
-    @keyframes imgSwapA {
-      0%, 40%  { opacity: 1; }
-      55%, 100% { opacity: 0; }
-    }
-    @keyframes imgSwapB {
-      0%, 40%  { opacity: 0; }
-      55%, 100% { opacity: 1; }
-    }
+    @keyframes imgSwapA { 0%,40% { opacity:1; } 55%,100% { opacity:0; } }
+    @keyframes imgSwapB { 0%,40% { opacity:0; } 55%,100% { opacity:1; } }
 
     /* Floating badges */
     .fbadge {
@@ -164,10 +145,7 @@
       display: flex; align-items: center; gap: 11px;
       font-size: 12px; font-weight: 600; color: var(--text); white-space: nowrap; z-index: 2;
     }
-    .fbadge-ic {
-      width: 34px; height: 34px; border-radius: 10px;
-      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-    }
+    .fbadge-ic { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .fbadge strong { display: block; font-size: 12px; font-weight: 700; color: var(--text); }
     .fbadge small  { display: block; font-size: 10.5px; color: var(--muted); font-weight: 400; margin-top: 1px; }
     .fb1 { top: 8%;     right: 0;    animation: fb 5s  ease-in-out infinite; }
@@ -178,7 +156,7 @@
 
     /* ─── MARQUEE ─────────────────────────────── */
     .marquee-bar { background: var(--text); padding: 14px 0; overflow: hidden; }
-    .marquee-track { display: flex; gap: 52px; animation: marquee 24s linear infinite; width: max-content; }
+    .marquee-track { display: flex; gap: 52px; animation: marquee 28s linear infinite; width: max-content; }
     .marquee-item { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 500; color: rgba(255,255,255,.58); flex-shrink: 0; }
     .marquee-sep { width: 4px; height: 4px; border-radius: 50%; background: rgba(255,255,255,.2); flex-shrink: 0; }
     @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
@@ -193,33 +171,116 @@
     }
     .section-label::before { content: ''; width: 22px; height: 2px; background: var(--red); border-radius: 1px; }
     .section-title { font-size: clamp(26px, 3.2vw, 44px); font-weight: 800; line-height: 1.15; letter-spacing: -.022em; color: var(--text); margin-bottom: 16px; }
-    .section-sub   { font-size: 17px; color: var(--muted); line-height: 1.65; max-width: 540px; margin-bottom: 56px; }
+    .section-sub   { font-size: 17px; color: var(--muted); line-height: 1.65; max-width: 560px; margin-bottom: 56px; }
 
-    /* ─── PAIN ───────────────────────────────── */
-    .pain-section { background: var(--bg-warm); }
-    .pain-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 24px; }
-    .pain-card {
-      background: #fff; border: 1.5px solid var(--border);
-      border-radius: var(--r); padding: 36px 28px;
-      position: relative; transition: all .3s; cursor: default; overflow: hidden;
+    /* ─── IDENTIFICAÇÃO ──────────────────────── */
+    .ident-section { padding: 100px 6%; background: #fff; }
+    .ident-inner { max-width: 1220px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 88px; align-items: start; }
+    .ident-lead { font-size: clamp(17px, 1.8vw, 21px); font-weight: 700; color: var(--text); line-height: 1.55; margin-bottom: 24px; }
+    .ident-body { font-size: 16px; color: var(--muted); line-height: 1.8; }
+    .ident-facts { list-style: none; display: flex; flex-direction: column; gap: 12px; padding-top: 8px; }
+    .ident-fact {
+      padding: 18px 22px; background: var(--bg-warm);
+      border: 1.5px solid var(--border); border-left: 3px solid var(--red-border);
+      border-radius: 0 14px 14px 0; font-size: 15px; color: var(--text);
+      line-height: 1.6; transition: all .28s;
     }
-    .pain-card::before {
-      content: ''; position: absolute; left: 0; top: 0; width: 3px; height: 0;
-      background: var(--red); border-radius: 2px 0 0 2px; transition: height .35s;
-    }
-    .pain-card:hover { border-color: var(--red-border); box-shadow: var(--sh); transform: translateY(-5px); }
-    .pain-card:hover::before { height: 100%; }
-    .pain-num  { font-size: 11px; font-weight: 800; color: var(--red); opacity: .5; letter-spacing: 1px; margin-bottom: 16px; }
-    .pain-icon {
-      width: 50px; height: 50px; border-radius: 14px;
-      background: var(--red-light); display: flex; align-items: center; justify-content: center;
-      margin-bottom: 20px; transition: background .3s; color: var(--red);
-    }
-    .pain-card:hover .pain-icon { background: var(--red); color: #fff; }
-    .pain-card h3 { font-size: 18px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; }
-    .pain-card p  { font-size: 14.5px; color: var(--muted); line-height: 1.75; }
+    .ident-fact:hover { border-left-color: var(--red); border-color: var(--red-border); box-shadow: var(--sh-sm); transform: translateX(3px); }
 
-    /* ─── CONCEPT ────────────────────────────── */
+    /* ─── PROBLEMA ───────────────────────────── */
+    .problem-section { padding: 80px 6%; background: var(--bg-warm); }
+    .problem-inner { max-width: 760px; margin: 0 auto; }
+    .problem-body { display: flex; flex-direction: column; gap: 20px; }
+    .problem-body p { font-size: 17px; color: var(--muted); line-height: 1.8; }
+    .problem-body p strong { color: var(--text); font-weight: 600; }
+
+    /* ─── SOLUÇÃO / SISTEMA ──────────────────── */
+    .sol-section { padding: 110px 6% 100px; background: #070B16; position: relative; overflow: hidden; }
+    .sol-glow-a {
+      position: absolute; top: -200px; left: 50%; transform: translateX(-50%);
+      width: 800px; height: 800px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(182,146,94,.07) 0%, transparent 65%); pointer-events: none;
+    }
+    .sol-glow-b {
+      position: absolute; bottom: -150px; right: -100px;
+      width: 500px; height: 500px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(192,24,32,.06) 0%, transparent 65%); pointer-events: none;
+    }
+    .sol-inner { max-width: 1220px; margin: 0 auto; position: relative; z-index: 1; }
+    .sol-header { text-align: center; max-width: 800px; margin: 0 auto 90px; }
+    .sol-eyebrow {
+      display: inline-flex; align-items: center; gap: 10px;
+      font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px;
+      color: var(--gold); margin-bottom: 20px;
+    }
+    .sol-eyebrow::before { content: ''; display: block; width: 20px; height: 1.5px; background: var(--gold); }
+    .sol-title { font-size: clamp(26px, 3vw, 44px); font-weight: 800; color: #fff; line-height: 1.2; letter-spacing: -.022em; margin-bottom: 20px; }
+    .sol-sub { font-size: 16px; line-height: 1.75; color: rgba(255,255,255,.45); }
+    .sol-flow { display: flex; flex-direction: column; }
+    .sol-item {
+      display: grid; grid-template-columns: 1.1fr 1fr;
+      gap: 80px; align-items: center;
+      padding: 64px 0; border-top: 1px solid rgba(255,255,255,.06);
+    }
+    .sol-item:first-child { border-top: none; }
+    .sol-item-rev { grid-template-columns: 1fr 1.1fr; }
+    .sol-item-rev .sol-screen-wrap { order: 2; }
+    .sol-item-rev .sol-copy { order: 1; }
+    .sol-screen {
+      background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.09);
+      border-radius: 18px; overflow: hidden;
+      box-shadow: 0 32px 80px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.05);
+    }
+    .sol-screen-bar {
+      background: rgba(255,255,255,.05); border-bottom: 1px solid rgba(255,255,255,.07);
+      padding: 11px 16px; display: flex; align-items: center; gap: 7px;
+    }
+    .sol-screen-bar span { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,.14); }
+    .sol-screen-body {
+      height: 340px; position: relative; overflow: hidden; background: rgba(255,255,255,.03);
+    }
+    .sol-ph {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+    }
+    .sol-ph span { font-size: 11px; font-family: monospace; color: rgba(255,255,255,.18); letter-spacing: .04em; }
+    .sol-screen-img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; position: relative; z-index: 1; }
+    .sol-step-tag { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+    .sol-step-num { font-size: 12px; font-weight: 800; color: var(--gold); letter-spacing: .08em; }
+    .sol-step-name { font-size: 11px; font-weight: 700; color: rgba(255,255,255,.4); text-transform: uppercase; letter-spacing: 2px; }
+    .sol-h3 { font-size: clamp(19px, 1.9vw, 26px); font-weight: 800; color: #fff; line-height: 1.3; letter-spacing: -.018em; margin-bottom: 16px; }
+    .sol-p { font-size: 15px; line-height: 1.8; color: rgba(255,255,255,.5); margin-bottom: 24px; }
+    .sol-resultado {
+      display: flex; align-items: flex-start; gap: 14px;
+      background: rgba(182,146,94,.07); border: 1px solid rgba(182,146,94,.18);
+      border-radius: 14px; padding: 16px 20px;
+    }
+    .sol-resultado-pill {
+      font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px;
+      color: var(--gold); white-space: nowrap; padding-top: 3px; flex-shrink: 0;
+    }
+    .sol-resultado-txt { font-size: 13.5px; line-height: 1.65; color: rgba(255,255,255,.65); }
+    .sol-summary {
+      margin-top: 80px; background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.08); border-radius: 20px;
+      padding: 32px 48px; display: flex; align-items: center; justify-content: center;
+      gap: 6px; flex-wrap: wrap; text-align: center;
+    }
+    .sol-sum-item { font-size: 15px; color: rgba(255,255,255,.65); }
+    .sol-sum-item strong { color: #fff; font-weight: 700; }
+    .sol-sum-sep { color: var(--gold); opacity: .45; font-size: 18px; padding: 0 6px; }
+    @media (max-width: 960px) {
+      .sol-item, .sol-item-rev { grid-template-columns: 1fr; gap: 36px; }
+      .sol-item-rev .sol-screen-wrap { order: 0; }
+      .sol-item-rev .sol-copy { order: 0; }
+      .sol-summary { flex-direction: column; padding: 28px 24px; }
+      .sol-sum-sep { display: none; }
+    }
+    @media (max-width: 600px) {
+      .sol-screen-body { height: 220px; }
+    }
+
+    /* ─── DESCOBERTA ─────────────────────────── */
     .concept-section { background: var(--dark); padding: 100px 6%; position: relative; overflow: hidden; }
     .concept-glow {
       position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
@@ -228,7 +289,7 @@
     }
     .concept-inner { max-width: 1220px; margin: 0 auto; position: relative; z-index: 1; }
     .concept-tag { font-size: 11.5px; font-weight: 700; color: rgba(192,24,32,.75); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 22px; }
-    .concept-h { font-size: clamp(30px, 4.5vw, 60px); font-weight: 800; color: #fff; line-height: 1.12; letter-spacing: -.03em; margin-bottom: 60px; }
+    .concept-h { font-size: clamp(28px, 4vw, 54px); font-weight: 800; color: #fff; line-height: 1.15; letter-spacing: -.025em; margin-bottom: 60px; }
     .concept-h em { font-style: normal; color: var(--red); }
     .concept-split { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; border-radius: 24px; overflow: hidden; margin-bottom: 72px; }
     .cs { padding: 48px 40px; }
@@ -237,7 +298,7 @@
     .cs-tag { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 18px; }
     .cs-op  .cs-tag { color: rgba(255,255,255,.35); }
     .cs-int .cs-tag { color: var(--red); }
-    .cs h3 { font-size: 24px; font-weight: 800; margin-bottom: 14px; line-height: 1.25; }
+    .cs h3 { font-size: 22px; font-weight: 800; margin-bottom: 14px; line-height: 1.3; }
     .cs-op  h3 { color: rgba(255,255,255,.65); }
     .cs-int h3 { color: #fff; }
     .cs p  { font-size: 14.5px; line-height: 1.7; margin-bottom: 24px; }
@@ -251,11 +312,10 @@
     .cs-op  .cs-dot { background: rgba(255,255,255,.15); }
     .cs-int .cs-dot { background: var(--red); }
     .concept-quote { text-align: center; }
-    .concept-quote blockquote { font-size: clamp(20px, 2.8vw, 32px); font-weight: 700; color: rgba(255,255,255,.82); line-height: 1.45; max-width: 720px; margin: 0 auto 20px; }
-    .concept-quote blockquote em { font-style: normal; color: var(--red); }
-    .concept-quote p { font-size: 15px; color: rgba(255,255,255,.42); margin-bottom: 36px; }
-
-    /* ─── CONCEPT VISUALS ───────────────────── */
+    .concept-quote blockquote { font-size: clamp(16px, 2.2vw, 26px); font-weight: 600; color: rgba(255,255,255,.75); line-height: 1.6; max-width: 760px; margin: 0 auto 20px; font-style: normal; }
+    .concept-quote blockquote em { font-style: normal; color: rgba(255,255,255,.95); font-weight: 700; }
+    .concept-quote p { font-size: 15px; color: rgba(255,255,255,.38); margin-bottom: 36px; }
+    /* Concept visuals */
     .cs-visual { margin-bottom: 24px; border-radius: 14px; height: 158px; position: relative; overflow: hidden; padding: 16px; transition: all .35s; cursor: default; }
     .cs-visual-op  { background: rgba(0,0,0,.22); }
     .cs-visual-int { background: rgba(0,0,0,.18); display: flex; align-items: stretch; }
@@ -281,59 +341,155 @@
     .cs-spark-bar.hi { opacity: 1; }
     .cs-spark-lbl { font-size: 9px; color: rgba(255,255,255,.45); align-self: center; white-space: nowrap; margin-left: 2px; font-weight: 600; }
 
-    /* ─── FEATURES ───────────────────────────── */
-    .features-section { padding: 100px 0; }
-    .features-header { padding: 0 6%; max-width: 1220px; margin: 0 auto 52px; }
-    .features-track { display: flex; gap: 22px; padding: 0 6%; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; scroll-behavior: smooth; }
-    .features-track::-webkit-scrollbar { display: none; }
-    .feat-card {
-      background: var(--bg-warm); border: 1.5px solid var(--border);
-      border-radius: var(--r); padding: 34px 26px;
-      min-width: 296px; max-width: 296px;
-      scroll-snap-align: start; transition: all .3s; cursor: default;
+    /* ─── INTELIGÊNCIA ──────────────────────── */
+    .intel-section { padding: 100px 6%; background: #060912; position: relative; overflow: hidden; border-top: 1px solid rgba(182,146,94,.18); }
+    .intel-glow {
+      position: absolute; top: 50%; right: -200px; transform: translateY(-50%);
+      width: 700px; height: 700px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(182,146,94,.07) 0%, transparent 68%); pointer-events: none;
     }
-    .feat-card:hover { background: #fff; border-color: var(--red-border); box-shadow: var(--sh); transform: translateY(-5px); }
-    .feat-icon {
-      width: 52px; height: 52px; border-radius: 16px; background: var(--red-light);
-      display: flex; align-items: center; justify-content: center;
-      margin-bottom: 20px; transition: background .3s; color: var(--red);
+    .intel-inner { max-width: 1220px; margin: 0 auto; position: relative; z-index: 1; }
+    .intel-header { max-width: 640px; margin-bottom: 64px; }
+    .intel-header .section-label { color: var(--gold); letter-spacing: .05em; }
+    .intel-header .section-label::before { background: var(--gold); }
+    .intel-header .section-title { color: #fff; }
+    .intel-header .section-sub { color: rgba(255,255,255,.45); margin-bottom: 0; }
+    .intel-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 20px; }
+    .intel-card {
+      background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.09);
+      border-radius: 24px; overflow: hidden; transition: all .3s; cursor: default;
     }
-    .feat-card:hover .feat-icon { background: var(--red); color: #fff; }
-    .feat-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 10px; }
-    .feat-card p  { font-size: 13.5px; color: var(--muted); line-height: 1.72; }
-    .feat-nav { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 38px; padding: 0 6%; }
-    .feat-btn { width: 44px; height: 44px; border-radius: 50%; border: 1.5px solid var(--border); background: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all .22s; color: var(--muted); }
-    .feat-btn:hover { border-color: var(--red); color: var(--red); }
-    .feat-dots { display: flex; gap: 6px; }
-    .fdot { width: 6px; height: 6px; border-radius: 3px; background: var(--border); transition: all .3s; cursor: pointer; }
-    .fdot.active { width: 20px; background: var(--red); }
+    .intel-card:hover { background: rgba(255,255,255,.08); border-color: rgba(192,24,32,.35); box-shadow: 0 16px 48px rgba(0,0,0,.3); transform: translateY(-4px); }
+    .intel-top { padding: 28px 28px 0; }
+    .intel-tag {
+      display: inline-flex; align-items: center; gap: 8px; margin-bottom: 14px;
+      font-size: 10.5px; font-weight: 700; color: var(--red); text-transform: uppercase; letter-spacing: 1.4px;
+    }
+    .intel-tag-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--red); flex-shrink: 0; box-shadow: 0 0 6px rgba(192,24,32,.5); }
+    .intel-top h3 { font-size: clamp(17px, 1.6vw, 20px); font-weight: 800; color: #fff; line-height: 1.3; letter-spacing: -.018em; margin-bottom: 22px; }
+    .intel-mini { border-radius: 12px; overflow: hidden; margin-bottom: 24px; }
+    .intel-body { padding: 0 28px 28px; border-top: 1px solid rgba(255,255,255,.07); padding-top: 22px; }
+    .intel-body p { font-size: 14px; color: rgba(255,255,255,.45); line-height: 1.75; margin-bottom: 18px; }
+    .intel-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .intel-item { display: flex; align-items: flex-start; gap: 10px; font-size: 13.5px; color: rgba(255,255,255,.7); line-height: 1.55; }
+    .intel-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--red); flex-shrink: 0; margin-top: 5px; }
+    /* mini visual — plano de voo */
+    .intel-pv { background: rgba(0,0,0,.25); border-radius: 10px; padding: 12px 14px; }
+    .intel-pv-lbl { font-size: 9px; font-weight: 700; color: rgba(255,255,255,.3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+    .intel-pv-track { height: 7px; background: rgba(255,255,255,.1); border-radius: 4px; overflow: hidden; margin-bottom: 7px; }
+    .intel-pv-fill { height: 100%; width: 74%; background: var(--red); border-radius: 4px; }
+    .intel-pv-vals { display: flex; justify-content: space-between; font-size: 10.5px; }
+    .intel-pv-cur { font-weight: 700; color: var(--red); }
+    .intel-pv-meta { color: rgba(255,255,255,.28); }
+    /* mini visual — temporadas */
+    .intel-temp { background: rgba(0,0,0,.25); border-radius: 10px; padding: 12px 14px; }
+    .intel-temp-lbl { font-size: 9px; font-weight: 700; color: rgba(255,255,255,.3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; display: flex; justify-content: space-between; }
+    .intel-temp-grid { display: grid; grid-template-columns: repeat(6,1fr); gap: 3px; }
+    .intel-tc { height: 18px; border-radius: 3px; background: rgba(255,255,255,.07); }
+    .intel-tc.warm { background: rgba(192,24,32,.35); }
+    .intel-tc.hot  { background: var(--red); }
+    /* mini visual — performance */
+    .intel-spark { display: flex; align-items: flex-end; gap: 5px; height: 52px; background: rgba(0,0,0,.25); border-radius: 10px; padding: 10px 12px; }
+    .intel-sb { flex: 1; background: var(--red); border-radius: 2px; opacity: .35; }
+    .intel-sb.med { opacity: .6; }
+    .intel-sb.hi  { opacity: 1; }
+    .intel-spark-lbl { font-size: 9px; color: rgba(255,255,255,.35); align-self: center; white-space: nowrap; margin-left: 4px; font-weight: 600; }
+    /* mini visual — maturidade */
+    .intel-mat { background: rgba(0,0,0,.25); border-radius: 10px; padding: 12px 14px; }
+    .intel-mat-lbl { font-size: 9px; font-weight: 700; color: rgba(255,255,255,.3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; display: flex; justify-content: space-between; }
+    .intel-mat-cur-lbl { color: var(--red); }
+    .intel-mat-steps { display: flex; gap: 4px; align-items: center; }
+    .intel-ms { flex: 1; height: 7px; border-radius: 3px; background: rgba(255,255,255,.1); }
+    .intel-ms.done    { background: rgba(192,24,32,.4); }
+    .intel-ms.current { background: var(--red); box-shadow: 0 0 8px rgba(192,24,32,.5); }
 
-    /* ─── FOR WHO ────────────────────────────── */
-    .forwho-section { background: var(--bg-warm); padding: 100px 6%; }
-    .forwho-inner { max-width: 1220px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; }
-    .forwho-list { list-style: none; display: flex; flex-direction: column; gap: 14px; margin-top: 36px; }
-    .forwho-item { display: flex; align-items: flex-start; gap: 14px; background: #fff; border: 1.5px solid var(--border); border-radius: 14px; padding: 18px 20px; transition: all .28s; }
-    .forwho-item:hover { border-color: var(--red-border); box-shadow: var(--sh-sm); }
-    .fw-check { width: 24px; height: 24px; border-radius: 8px; background: var(--red-light); color: var(--red); display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
-    .forwho-item p { font-size: 14.5px; color: var(--text); line-height: 1.55; }
-    .forwho-item p strong { font-weight: 700; }
-    .forwho-visual { position: relative; }
-    .fw-img-wrap { width: 100%; aspect-ratio: 4/5; border-radius: 28px; overflow: hidden; background: linear-gradient(145deg,#FCEAEA 0%,#FFF5F0 50%,#F5EDE8 100%); display: flex; align-items: center; justify-content: center; position: relative; }
-    .fw-img-wrap img { width: 100%; height: 100%; object-fit: cover; display: none; }
-    .fw-img-wrap img.loaded { display: block; }
-    .fw-placeholder { text-align: center; padding: 40px; }
-    .fw-ph-gfx { width: 80px; height: 80px; border-radius: 50%; background: rgba(192,24,32,.1); display: flex; align-items: center; justify-content: center; margin: 0 auto 18px; color: var(--red); }
-    .fw-ph-text { font-size: 14px; color: var(--muted); }
-    .fw-stat { position: absolute; bottom: 28px; right: -22px; background: #fff; border-radius: 18px; padding: 16px 22px; box-shadow: var(--sh); min-width: 168px; }
-    .fw-stat-v { font-size: 32px; font-weight: 800; color: var(--red); line-height: 1; margin-bottom: 4px; }
-    .fw-stat-l { font-size: 12px; color: var(--muted); }
+    /* ─── O QUE O BOCAFOOD FAZ ───────────────── */
+    .delivers-section { padding: 100px 6%; background: #fff; }
+    .delivers-inner { max-width: 1220px; margin: 0 auto; }
+    .delivers-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 24px; margin-top: 56px; }
+    .deliver-card {
+      background: var(--bg-warm); border: 1.5px solid var(--border);
+      border-radius: var(--r); padding: 36px 28px;
+      position: relative; transition: all .3s; cursor: default; overflow: hidden;
+    }
+    .deliver-card::after {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: var(--red); transform: scaleX(0); transform-origin: left; transition: transform .35s;
+    }
+    .deliver-card:hover { background: #fff; border-color: var(--red-border); box-shadow: var(--sh); transform: translateY(-5px); }
+    .deliver-card:hover::after { transform: scaleX(1); }
+    .deliver-num { font-size: 11px; font-weight: 800; color: var(--red); opacity: .45; letter-spacing: 1px; margin-bottom: 16px; }
+    .deliver-icon {
+      width: 48px; height: 48px; border-radius: 14px;
+      background: var(--red-light); display: flex; align-items: center; justify-content: center;
+      margin-bottom: 18px; transition: background .3s; color: var(--red);
+    }
+    .deliver-card:hover .deliver-icon { background: var(--red); color: #fff; }
+    .deliver-card h3 { font-size: 17px; font-weight: 700; margin-bottom: 10px; line-height: 1.3; color: var(--text); }
+    .deliver-card p  { font-size: 14px; color: var(--muted); line-height: 1.75; }
+
+    /* ─── ESPECIALIDADE ──────────────────────── */
+    .expert-section { padding: 100px 6%; background: var(--bg-warm); }
+    .expert-inner { max-width: 820px; margin: 0 auto; }
+    .expert-body { display: flex; flex-direction: column; gap: 22px; margin-top: 32px; }
+    .expert-body p { font-size: 17px; color: var(--muted); line-height: 1.8; }
+    .expert-body p strong { color: var(--text); font-weight: 600; }
+    .expert-highlight {
+      font-size: clamp(16px, 1.9vw, 22px); font-weight: 600; color: var(--text);
+      line-height: 1.55; background: #fff; border: 1.5px solid var(--red-border);
+      border-radius: 18px; padding: 28px 36px; margin-top: 8px;
+    }
+    .expert-highlight em { font-style: normal; color: var(--red); font-weight: 700; }
+
+    /* ─── PARA QUEM É ────────────────────────── */
+    .forwhosimple-section { padding: 100px 6%; background: #fff; }
+    .forwhosimple-inner { max-width: 760px; margin: 0 auto; }
+    .forwhosimple-inner .section-title { margin-bottom: 32px; }
+    .forwhosimple-body { display: flex; flex-direction: column; gap: 20px; margin-bottom: 48px; }
+    .forwhosimple-body p { font-size: 17px; color: var(--muted); line-height: 1.8; }
+    .forwhosimple-body p strong { color: var(--text); font-weight: 600; }
+    .forwhosimple-body p em { font-style: italic; color: var(--text); }
+    .forwhosimple-not {
+      padding: 20px 24px; background: var(--bg-warm);
+      border: 1.5px solid var(--border); border-radius: 14px;
+      font-size: 15px; color: var(--muted); line-height: 1.6; margin-bottom: 40px;
+    }
+    .forwhosimple-not strong { color: var(--text); font-weight: 700; }
+
+    /* ─── OBJEÇÕES ───────────────────────────── */
+    .obj-section { padding: 100px 6%; background: var(--bg-warm); }
+    .obj-inner { max-width: 1220px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: start; }
+    .obj-header .section-sub { margin-bottom: 0; }
+    .obj-list { display: flex; flex-direction: column; gap: 0; }
+    .obj-item { border-bottom: 1.5px solid var(--border); }
+    .obj-item:first-child { border-top: 1.5px solid var(--border); }
+    .obj-q {
+      width: 100%; display: flex; justify-content: space-between; align-items: center;
+      gap: 20px; padding: 22px 0; background: none; border: none; cursor: pointer;
+      font-family: inherit; font-size: 15.5px; font-weight: 600; color: var(--text);
+      text-align: left; transition: color .2s; line-height: 1.4;
+    }
+    .obj-q:hover { color: var(--red); }
+    .obj-q:hover .obj-arrow { border-color: var(--red-border); color: var(--red); }
+    .obj-arrow {
+      width: 26px; height: 26px; border-radius: 50%; border: 1.5px solid var(--border);
+      display: flex; align-items: center; justify-content: center; color: var(--muted);
+      flex-shrink: 0; transition: all .3s;
+    }
+    .obj-item.open .obj-q { color: var(--red); }
+    .obj-item.open .obj-arrow { border-color: var(--red); color: var(--red); background: var(--red-light); transform: rotate(180deg); }
+    .obj-a { max-height: 0; overflow: hidden; transition: max-height .38s cubic-bezier(.4,0,.2,1); }
+    .obj-a-inner { padding: 0 0 22px; font-size: 15px; color: var(--muted); line-height: 1.75; max-width: 580px; }
+    .obj-item.open .obj-a { max-height: 320px; }
 
     /* ─── PRICING ────────────────────────────── */
-    .pricing-section { padding: 100px 6%; }
+    .pricing-section { padding: 100px 6%; background: #fff; }
     .pricing-inner { max-width: 1220px; margin: 0 auto; }
-    .pricing-header { text-align: center; margin-bottom: 56px; }
+    .pricing-header { text-align: center; margin-bottom: 16px; }
     .pricing-header .section-label { justify-content: center; }
-    .pricing-header .section-sub   { margin: 0 auto; }
+    .pricing-context { max-width: 600px; margin: 0 auto 48px; text-align: center; }
+    .pricing-context p { font-size: 16px; color: var(--muted); line-height: 1.8; }
+    .pricing-context p + p { margin-top: 14px; }
     .pricing-card { max-width: 700px; margin: 0 auto; background: #fff; border: 2px solid var(--border); border-radius: 28px; overflow: hidden; box-shadow: var(--sh-lg); }
     .pricing-top { padding: 48px 48px 40px; background: linear-gradient(140deg,#FFF4F4 0%,#fff 100%); border-bottom: 1.5px solid var(--border); }
     .pricing-plan       { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 20px; }
@@ -353,15 +509,15 @@
     .cta-section { background: var(--red); padding: 100px 6%; position: relative; overflow: hidden; text-align: center; }
     .cta-circle-a { position: absolute; top: -180px; right: -80px; width: 580px; height: 580px; border-radius: 50%; background: rgba(255,255,255,.07); pointer-events: none; }
     .cta-circle-b { position: absolute; bottom: -140px; left: -60px; width: 380px; height: 380px; border-radius: 50%; background: rgba(0,0,0,.1); pointer-events: none; }
-    .cta-inner { max-width: 760px; margin: 0 auto; position: relative; z-index: 1; }
-    .cta-inner h2 { font-size: clamp(28px, 4vw, 52px); font-weight: 800; color: #fff; line-height: 1.15; letter-spacing: -.02em; margin-bottom: 18px; }
-    .cta-inner p  { font-size: 18px; color: rgba(255,255,255,.78); margin-bottom: 42px; line-height: 1.6; }
-    .cta-note { font-size: 13.5px; color: rgba(255,255,255,.52); margin-top: 16px; }
+    .cta-inner { max-width: 720px; margin: 0 auto; position: relative; z-index: 1; }
+    .cta-inner h2 { font-size: clamp(24px, 3.2vw, 44px); font-weight: 800; color: #fff; line-height: 1.25; letter-spacing: -.02em; margin-bottom: 18px; }
+    .cta-inner p  { font-size: 17px; color: rgba(255,255,255,.75); margin-bottom: 42px; line-height: 1.65; }
+    .cta-note { font-size: 13px; color: rgba(255,255,255,.48); margin-top: 16px; font-style: italic; }
 
     /* ─── FOOTER ─────────────────────────────── */
     footer { background: var(--dark); padding: 64px 6% 36px; }
     .footer-inner { max-width: 1220px; margin: 0 auto; }
-    .footer-top { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 48px; padding-bottom: 48px; border-bottom: 1px solid rgba(255,255,255,.08); }
+    .footer-top { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 48px; padding-bottom: 48px; border-bottom: 1px solid rgba(255,255,255,.08); }
     .footer-brand img { height: 30px; margin-bottom: 16px; filter: brightness(0) invert(1); opacity: .82; }
     .footer-brand p { font-size: 13.5px; color: rgba(255,255,255,.38); line-height: 1.7; max-width: 280px; }
     .footer-col h4 { font-size: 11.5px; font-weight: 700; color: rgba(255,255,255,.55); text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 16px; }
@@ -380,14 +536,14 @@
     @media (max-width: 960px) {
       .hero-inner { grid-template-columns: 1fr; gap: 56px; }
       .hero-visual { order: -1; }
-      .phone { width: 240px; height: 498px; }
       .fb1,.fb2,.fb3 { display: none; }
-      .pain-grid { grid-template-columns: 1fr; }
+      .ident-inner { grid-template-columns: 1fr; gap: 48px; }
       .concept-split { grid-template-columns: 1fr; }
+      .intel-grid { grid-template-columns: 1fr; }
       .cs-op  { border-radius: 24px 24px 0 0; }
       .cs-int { border-radius: 0 0 24px 24px; }
-      .forwho-inner { grid-template-columns: 1fr; }
-      .forwho-visual { display: none; }
+      .delivers-grid { grid-template-columns: 1fr 1fr; }
+      .obj-inner { grid-template-columns: 1fr; gap: 48px; }
       .pricing-top, .pricing-bottom { padding: 28px; }
       .pricing-feat-grid { grid-template-columns: 1fr; }
       .footer-top { grid-template-columns: 1fr 1fr; }
@@ -398,10 +554,11 @@
       .hero { padding: 96px 5% 60px; }
       .hero-actions { flex-direction: column; }
       .hero-actions .btn { width: 100%; justify-content: center; }
-      .price-val { font-size: 58px; }
+      .delivers-grid { grid-template-columns: 1fr; }
       .footer-top { grid-template-columns: 1fr; }
       .footer-bottom { flex-direction: column; gap: 10px; text-align: center; }
-      .section { padding: 72px 5%; }
+      .section, .ident-section, .problem-section, .delivers-section,
+      .expert-section, .forwhosimple-section, .obj-section, .pricing-section { padding: 72px 5%; }
     }
   </style>
 </head>
@@ -413,7 +570,7 @@
     <img src="assets/boca-food-logo.png" alt="BocaFood">
   </a>
   <ul class="nav-links">
-    <li><a href="#como-funciona">Como funciona</a></li>
+    <li><a href="#descoberta">Como funciona</a></li>
     <li><a href="#funcionalidades">Funcionalidades</a></li>
     <li><a href="#precos">Preços</a></li>
   </ul>
@@ -430,73 +587,48 @@
   <div class="hero-inner">
 
     <div class="hero-content">
-      <div class="hero-badge">
-        <span class="hero-badge-dot"></span>
-        Para brasileiras que vendem comida na Europa
-      </div>
-
       <h1>
-        Você cuida da comida.<br>
-        O BocaFood cuida<br>
-        <em>do negócio.</em>
+        Você é brasileira, vende comida na Europa<br>
+        e quer que esse negócio<br>
+        <em>cresça de verdade.</em>
       </h1>
 
       <p class="hero-sub">
-        Uma plataforma para brasileiras que vendem comida na Europa e querem ter, de verdade, um negócio que cresce e lucra — <strong>sem precisar de equipe nem de consultoria.</strong>
+        Saber o que está acontecendo no seu negócio muda tudo — o preço que você cobra, o produto que você aposta, a hora de crescer. <strong>O BocaFood foi feito para te dar essa clareza.</strong>
       </p>
 
       <div class="hero-actions">
-        <a href="HOTMART_LINK" class="btn btn-primary btn-lg">Comece grátis →</a>
-        <a href="#como-funciona" class="btn btn-ghost btn-lg">Ver como funciona</a>
+        <a href="HOTMART_LINK" class="btn btn-primary btn-lg">Quero conhecer o BocaFood →</a>
+        <a href="#descoberta" class="btn btn-ghost btn-lg">Ver como funciona</a>
       </div>
-      <p class="hero-footnote">
-        Cancele quando quiser.
-      </p>
+      <p class="hero-specialty">Feito para negócios de comida brasileira na Europa.</p>
     </div>
 
-    <!-- Phone mockup -->
     <div class="hero-visual">
-
-      <!-- Badge 1 — Pedido novo (topo direita) -->
       <div class="fbadge fb1">
         <div class="fbadge-ic" style="background:#D1FAE5">
-          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#065F46" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="4 10 8 14 16 6"/>
-          </svg>
+          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#065F46" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 10 8 14 16 6"/></svg>
         </div>
         <div><strong>Pedido confirmado</strong><small>Ana · Marmita fitness · € 14</small></div>
       </div>
-
-      <!-- Badge 2 — Vendas do dia (meio esquerda) -->
       <div class="fbadge fb2">
         <div class="fbadge-ic" style="background:var(--red-light)">
-          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="var(--red)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="2 14 7 9 11 13 18 5"/><polyline points="14 5 18 5 18 9"/>
-          </svg>
+          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="var(--red)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 14 7 9 11 13 18 5"/><polyline points="14 5 18 5 18 9"/></svg>
         </div>
         <div><strong>€ 147 em vendas</strong><small>hoje até agora</small></div>
       </div>
-
-      <!-- Badge 3 — Mais vendido (baixo direita) -->
       <div class="fbadge fb3">
         <div class="fbadge-ic" style="background:#FEF9C3">
-          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#A16207" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M10 2l2.4 5h5.2l-4.2 3.1 1.6 5L10 12l-5 3.1 1.6-5L2.4 7h5.2z"/>
-          </svg>
+          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#A16207" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2l2.4 5h5.2l-4.2 3.1 1.6 5L10 12l-5 3.1 1.6-5L2.4 7h5.2z"/></svg>
         </div>
         <div><strong>Mais pedido hoje</strong><small>Brigadeiro de colher</small></div>
       </div>
-
-      <!-- Badge 4 — Margem (baixo esquerda) -->
       <div class="fbadge fb4">
         <div class="fbadge-ic" style="background:#ECFDF5">
-          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="10" cy="10" r="8"/><path d="M7 10h6M10 7v6"/>
-          </svg>
+          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><path d="M7 10h6M10 7v6"/></svg>
         </div>
         <div><strong>Margem: 68%</strong><small>este mês</small></div>
       </div>
-
       <div class="hero-mockup-wrap">
         <img src="hero-mockup.png"  class="hero-mockup-a" alt="Painel BocaFood">
         <img src="hero-mockup1.png" class="hero-mockup-b" alt="Painel BocaFood">
@@ -510,131 +642,96 @@
   <div class="marquee-track">
     <div class="marquee-item">
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke="rgba(255,255,255,.4)" stroke-width="1.4"/><path d="M4.5 7l2 2 3-3" stroke="rgba(255,255,255,.6)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      Para brasileiras que vendem na Europa
-    </div>
-    <div class="marquee-sep"></div>
-    <div class="marquee-item">
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="2" y="5" width="10" height="7" rx="1.5" stroke="rgba(255,255,255,.5)" stroke-width="1.4"/><path d="M5 5V3.5a2 2 0 0 1 4 0V5" stroke="rgba(255,255,255,.5)" stroke-width="1.4" stroke-linecap="round"/></svg>
-      Cardápio online profissional
-    </div>
-    <div class="marquee-sep"></div>
+      Para brasileiras que vendem comida na Europa
+    </div><div class="marquee-sep"></div>
     <div class="marquee-item">
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polyline points="2 10 5 6 8 8 12 3" stroke="rgba(255,255,255,.5)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      Inteligência para crescer
-    </div>
-    <div class="marquee-sep"></div>
+      Controle real do negócio
+    </div><div class="marquee-sep"></div>
     <div class="marquee-item">
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="rgba(255,255,255,.5)" stroke-width="1.4"/><path d="M7 4.5v2.8l1.8 1" stroke="rgba(255,255,255,.6)" stroke-width="1.4" stroke-linecap="round"/></svg>
       Precificação real em euros
-    </div>
-    <div class="marquee-sep"></div>
+    </div><div class="marquee-sep"></div>
     <div class="marquee-item">
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 11V8m3 3V5m3 6V7m3 4V3" stroke="rgba(255,255,255,.5)" stroke-width="1.4" stroke-linecap="round"/></svg>
-      Dados que guiam decisões
-    </div>
-    <div class="marquee-sep"></div>
+      Saber os números, não adivinhar
+    </div><div class="marquee-sep"></div>
+    <div class="marquee-item">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="2" y="5" width="10" height="7" rx="1.5" stroke="rgba(255,255,255,.5)" stroke-width="1.4"/><path d="M5 5V3.5a2 2 0 0 1 4 0V5" stroke="rgba(255,255,255,.5)" stroke-width="1.4" stroke-linecap="round"/></svg>
+      Cardápio online profissional
+    </div><div class="marquee-sep"></div>
     <div class="marquee-item">
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2l1.3 2.8 3 .4-2.2 2.1.5 3L7 9l-2.6 1.3.5-3L2.7 5.2l3-.4z" stroke="rgba(255,255,255,.5)" stroke-width="1.3" stroke-linejoin="round"/></svg>
-      Feito para o seu negócio de comida
-    </div>
+      Negócio de comida que cresce e dá lucro
+    </div><div class="marquee-sep"></div>
     <!-- duplicata para loop -->
-    <div class="marquee-sep"></div>
     <div class="marquee-item">
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke="rgba(255,255,255,.4)" stroke-width="1.4"/><path d="M4.5 7l2 2 3-3" stroke="rgba(255,255,255,.6)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      Para brasileiras que vendem na Europa
-    </div>
-    <div class="marquee-sep"></div>
-    <div class="marquee-item">
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="2" y="5" width="10" height="7" rx="1.5" stroke="rgba(255,255,255,.5)" stroke-width="1.4"/><path d="M5 5V3.5a2 2 0 0 1 4 0V5" stroke="rgba(255,255,255,.5)" stroke-width="1.4" stroke-linecap="round"/></svg>
-      Cardápio online profissional
-    </div>
-    <div class="marquee-sep"></div>
+      Para brasileiras que vendem comida na Europa
+    </div><div class="marquee-sep"></div>
     <div class="marquee-item">
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polyline points="2 10 5 6 8 8 12 3" stroke="rgba(255,255,255,.5)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      Inteligência para crescer
-    </div>
-    <div class="marquee-sep"></div>
+      Controle real do negócio
+    </div><div class="marquee-sep"></div>
     <div class="marquee-item">
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="rgba(255,255,255,.5)" stroke-width="1.4"/><path d="M7 4.5v2.8l1.8 1" stroke="rgba(255,255,255,.6)" stroke-width="1.4" stroke-linecap="round"/></svg>
       Precificação real em euros
-    </div>
-    <div class="marquee-sep"></div>
+    </div><div class="marquee-sep"></div>
     <div class="marquee-item">
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 11V8m3 3V5m3 6V7m3 4V3" stroke="rgba(255,255,255,.5)" stroke-width="1.4" stroke-linecap="round"/></svg>
-      Dados que guiam decisões
-    </div>
-    <div class="marquee-sep"></div>
+      Saber os números, não adivinhar
+    </div><div class="marquee-sep"></div>
+    <div class="marquee-item">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="2" y="5" width="10" height="7" rx="1.5" stroke="rgba(255,255,255,.5)" stroke-width="1.4"/><path d="M5 5V3.5a2 2 0 0 1 4 0V5" stroke="rgba(255,255,255,.5)" stroke-width="1.4" stroke-linecap="round"/></svg>
+      Cardápio online profissional
+    </div><div class="marquee-sep"></div>
     <div class="marquee-item">
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2l1.3 2.8 3 .4-2.2 2.1.5 3L7 9l-2.6 1.3.5-3L2.7 5.2l3-.4z" stroke="rgba(255,255,255,.5)" stroke-width="1.3" stroke-linejoin="round"/></svg>
-      Feito para o seu negócio de comida
+      Negócio de comida que cresce e dá lucro
     </div>
   </div>
 </div>
 
-<!-- ═══════════════ PAIN ════════════════════════ -->
-<section class="section pain-section" id="como-funciona">
-  <div class="section-inner">
-    <div class="section-label">O que aparece com o tempo</div>
-    <h2 class="section-title">Isso já aconteceu com você?</h2>
-    <p class="section-sub">Três situações que a maioria das brasileiras enfrenta. Nenhuma delas tem a ver com falta de esforço.</p>
+<!-- ═══════════════ IDENTIFICAÇÃO ═════════════ -->
+<section class="ident-section" id="como-funciona">
+  <div class="ident-inner">
 
-    <div class="pain-grid">
+    <div class="reveal">
+      <p class="ident-lead">Se você vende comida na Europa e ainda não tem clareza sobre quanto o negócio realmente lucra, qual produto vale a pena, quanto precisa vender pra fechar o mês bem — você está operando sem as informações que precisa.</p>
+      <p class="ident-body">Não porque você é desorganizada. Mas porque fazer tudo sozinha não deixa espaço para parar e olhar os números com cuidado.</p>
+    </div>
 
-      <div class="pain-card reveal">
-        <div class="pain-num">01</div>
-        <div class="pain-icon">
-          <!-- Ícone: balança / precificação -->
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 3v18M3 7l4 8M17 7l4 8M3 15h8M13 15h8"/>
-            <circle cx="12" cy="3" r="1" fill="currentColor" stroke="none"/>
-            <path d="M3 7h18"/>
-          </svg>
-        </div>
-        <h3>Cobrar o preço certo é mais difícil do que parece</h3>
-        <p>A referência ainda é o preço do Brasil — e cobrar o que o mercado europeu pede gera medo: de parecer cara demais, de perder cliente. No fim, fica difícil saber se o negócio fecha no lucro ou se está tomando prejuízo sem perceber.</p>
-      </div>
+    <ul class="ident-facts reveal reveal-d1">
+      <li class="ident-fact">Você sabe quanto vendeu esse mês, mas não sabe quanto <strong>sobrou de verdade</strong></li>
+      <li class="ident-fact">Você tem produtos que vendem, mas não sabe quais têm <strong>melhor margem</strong></li>
+      <li class="ident-fact">Você compra ingredientes no feeling, não pelo que <strong>foi realmente usado</strong></li>
+      <li class="ident-fact">Você quer crescer, mas não tem clareza de <strong>quanto precisa vender</strong> para isso acontecer</li>
+    </ul>
 
-      <div class="pain-card reveal reveal-d1">
-        <div class="pain-num">02</div>
-        <div class="pain-icon">
-          <!-- Ícone: seta em círculo / crescimento invisível -->
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="9"/>
-            <path d="M9 9a3 3 0 1 1 3 3v2"/><circle cx="12" cy="17.5" r=".7" fill="currentColor" stroke="none"/>
-          </svg>
-        </div>
-        <h3>Trabalhar muito não é a mesma coisa que crescer</h3>
-        <p>Quando você está dentro do negócio fazendo tudo, é difícil enxergar o que está funcionando e o que não está. Sem dados, as decisões ficam no achismo — e o esforço, por maior que seja, não encontra uma direção clara.</p>
-      </div>
+  </div>
+</section>
 
-      <div class="pain-card reveal reveal-d2">
-        <div class="pain-num">03</div>
-        <div class="pain-icon">
-          <!-- Ícone: ondas / caos -->
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
-            <path d="M3 12c1.5-3 3-3 4.5 0s3 3 4.5 0 3-3 4.5 0 3 3 4.5 0"/>
-            <path d="M3 7c1.5-2 3-2 4.5 0s3 2 4.5 0 3-2 4.5 0 3 2 4.5 0"/>
-            <path d="M3 17c1.5-2 3-2 4.5 0s3 2 4.5 0 3-2 4.5 0 3 2 4.5 0"/>
-          </svg>
-        </div>
-        <h3>Crescer sem estrutura cria mais problema do que resolve</h3>
-        <p>Quando o volume de pedidos aumenta sem um sistema por trás, o que deveria ser uma boa notícia vira pressão. A operação cresce, mas o controle não acompanha — e aí fica difícil manter a qualidade e a cabeça no lugar.</p>
-      </div>
-
+<!-- ═══════════════ O PROBLEMA ════════════════ -->
+<section class="problem-section">
+  <div class="problem-inner reveal">
+    <div class="section-label">A realidade do seu negócio</div>
+    <div class="problem-body">
+      <p>Vender comida na Europa tem mais coisas para lidar do que parece. Você opera em outra moeda, com outras regras e documentação, muitas vezes num idioma que não é o seu — e ainda assim precisa dar conta da produção, dos pedidos, do dinheiro e de fazer o negócio crescer.</p>
+      <p><strong>A maioria das ferramentas do mercado foi feita para outros tipos de negócio.</strong> Não para quem está nessa situação.</p>
     </div>
   </div>
 </section>
 
-<!-- ═══════════════ CONCEPT ════════════════════ -->
-<section class="concept-section">
+<!-- ═══════════════ A DESCOBERTA ══════════════ -->
+<section class="concept-section" id="descoberta">
   <div class="concept-glow"></div>
   <div class="concept-inner">
-    <div class="concept-tag">O lado invisível do negócio</div>
+    <div class="concept-tag">O que sempre fica para depois</div>
     <h2 class="concept-h reveal">
-      Você faz tudo.<br>
-      Mas tem uma parte do negócio<br>
-      que ninguém está olhando —<br>
-      e ela está <em>tomando decisões por você.</em>
+      Todo negócio tem duas partes<br>
+      funcionando ao mesmo tempo.<br>
+      <em>O problema é que uma delas</em><br>
+      <em>sempre fica para depois.</em>
     </h2>
 
     <div class="concept-split reveal">
@@ -648,8 +745,8 @@
           <span class="cs-bubble-time">agora mesmo</span>
         </div>
         <div class="cs-tag">Operação</div>
-        <h3>O lado que você vive todo dia</h3>
-        <p>É tudo que aparece toda manhã e precisa ser feito. Você domina esse lado — é por isso que o negócio existe.</p>
+        <h3>O que você faz todo dia</h3>
+        <p>Produzir, vender, atender, comprar, controlar. Sempre tem urgência. Sempre aparece mais. Você domina esse lado — é por isso que o negócio existe.</p>
         <ul class="cs-list">
           <li><span class="cs-dot"></span>Acordar e já começar a produzir</li>
           <li><span class="cs-dot"></span>Responder cliente por cliente no WhatsApp</li>
@@ -683,194 +780,478 @@
             </div>
           </div>
         </div>
-        <div class="cs-tag">Inteligência</div>
-        <h3>O lado que você ainda não teve tempo de olhar</h3>
-        <p>É o que transforma trabalho em resultado. Sem ele, você trabalha muito mas não sabe para onde está indo.</p>
+        <div class="cs-tag">Análise</div>
+        <h3>O que fica para depois — e não deveria</h3>
+        <p>É o que transforma trabalho em resultado. Quando a análise fica pra depois, você trabalha muito — mas nem sempre na direção certa.</p>
         <ul class="cs-list">
           <li><span class="cs-dot"></span>Qual produto me dá mais lucro de verdade?</li>
           <li><span class="cs-dot"></span>Onde estou perdendo margem sem perceber?</li>
           <li><span class="cs-dot"></span>O que está puxando as minhas vendas?</li>
           <li><span class="cs-dot"></span>Quanto sobrou esse mês — depois de pagar tudo?</li>
-          <li><span class="cs-dot"></span>O que precisa mudar agora para crescer?</li>
+          <li><span class="cs-dot"></span>Quanto preciso vender para crescer?</li>
         </ul>
       </div>
     </div>
 
     <div class="concept-quote reveal">
       <blockquote>
-        "A operação faz o negócio <em>funcionar.</em><br>
-        A inteligência faz o negócio <em>evoluir.</em>"
+        "O BocaFood foi construído para resolver isso: <em>você registra o que acontece no negócio dentro dele,</em> e ele te mostra o que está indo bem, o que não está, e o que você pode fazer a seguir."
       </blockquote>
-      <p>O BocaFood traz os dois lados para dentro da sua rotina — sem equipe, sem consultoria, sem complicar o que não precisa ser complicado.</p>
-      <a href="HOTMART_LINK" class="btn btn-primary btn-lg">Quero conhecer o BocaFood →</a>
+      <p>Quando as duas partes funcionam juntas, você trabalha com direção — não só com esforço.</p>
     </div>
   </div>
 </section>
 
-<!-- ═══════════════ FEATURES ══════════════════ -->
-<section class="features-section" id="funcionalidades">
-  <div class="features-header">
-    <div class="section-label">O que o BocaFood entrega</div>
-    <h2 class="section-title">Tudo que o seu negócio precisa,<br>em um só lugar</h2>
-    <p class="section-sub" style="margin-bottom:0">Nenhuma funcionalidade foi adicionada por acaso. Cada uma existe porque quem vende comida aqui na Europa precisava dela.</p>
-  </div>
+<!-- ═══════════════ SISTEMA — A GRANDE SOLUÇÃO ══════════════ -->
+<section class="sol-section" id="sistema">
+  <div class="sol-glow-a"></div>
+  <div class="sol-glow-b"></div>
+  <div class="sol-inner">
 
-  <div class="features-track" id="featTrack">
-
-    <div class="feat-card">
-      <div class="feat-icon">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 11l19-9-9 19-2-8-8-2z"/>
-        </svg>
-      </div>
-      <h3>Cardápio online profissional</h3>
-      <p>Sua vitrine digital, bonita e fácil de acessar. Sua cliente vê seus produtos, escolhe e faz o pedido — sem depender do WhatsApp.</p>
+    <div class="sol-header reveal">
+      <div class="sol-eyebrow">Como o sistema funciona</div>
+      <h2 class="sol-title">Não é mais uma ferramenta de gestão.<br>É um sistema feito para o seu tipo de negócio.</h2>
+      <p class="sol-sub">Quatro partes conectadas. Cada uma resolve um ângulo diferente. As quatro juntas formam o que a maioria dos negócios de comida nunca teve.</p>
     </div>
 
-    <div class="feat-card">
-      <div class="feat-icon">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/>
-          <path d="M9 9h6M9 13h4"/>
-        </svg>
-      </div>
-      <h3>Gestão de pedidos</h3>
-      <p>Todos os pedidos em um lugar só. Organize, acompanhe e confirme sem perder nada. Chega de pedido esquecido ou cliente sem resposta.</p>
-    </div>
+    <div class="sol-flow">
 
-    <div class="feat-card">
-      <div class="feat-icon">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="9"/>
-          <path d="M12 7v1m0 8v1M9 9.5C9 8.7 10.3 8 12 8s3 .7 3 1.5-1.3 1.5-3 1.5-3 .7-3 1.5S10.3 14 12 14s3-.7 3-1.5"/>
-        </svg>
-      </div>
-      <h3>Precificação real</h3>
-      <p>Calcule o preço certo com base no custo real: ingredientes, embalagem, tempo e margem. Pare de cobrar no feeling.</p>
-    </div>
-
-    <div class="feat-card">
-      <div class="feat-icon">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M4 20V8M9 20V4M14 20v-8M19 20v-5"/>
-        </svg>
-      </div>
-      <h3>Financeiro e inteligência</h3>
-      <p>Saiba onde está o seu dinheiro, qual produto paga as contas e onde você está perdendo margem. Clareza real, não achismo.</p>
-    </div>
-
-    <div class="feat-card">
-      <div class="feat-icon">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>
-          <polyline points="16 7 22 7 22 13"/>
-        </svg>
-      </div>
-      <h3>Performance e crescimento</h3>
-      <p>Acompanhe a evolução com dados reais. Veja o que cresceu, o que parou e o que precisa de atenção agora.</p>
-    </div>
-
-    <div class="feat-card">
-      <div class="feat-icon">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-        </svg>
-      </div>
-      <h3>Programa de pontos</h3>
-      <p>Fidelize suas clientes com um programa de pontos profissional. Quem volta sempre merece um motivo extra para continuar voltando.</p>
-    </div>
-
-    <div class="feat-card">
-      <div class="feat-icon">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-        </svg>
-      </div>
-      <h3>Promoções e upsell</h3>
-      <p>Crie promoções, cupons e estratégias de upsell de forma organizada. Sem improviso, com controle e resultado mensurável.</p>
-    </div>
-
-    <div class="feat-card">
-      <div class="feat-icon">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/>
-        </svg>
-      </div>
-      <h3>Controle de produção</h3>
-      <p>Organize receitas, custos e produção. Saiba quanto custa cada item e quanto precisa produzir para o dia.</p>
-    </div>
-
-  </div>
-
-  <div class="feat-nav">
-    <button class="feat-btn" onclick="scrollFeat(-1)" aria-label="Anterior">
-      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 4 6 9 11 14"/></svg>
-    </button>
-    <div class="feat-dots" id="featDots"></div>
-    <button class="feat-btn" onclick="scrollFeat(1)" aria-label="Próximo">
-      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="7 4 12 9 7 14"/></svg>
-    </button>
-  </div>
-</section>
-
-<!-- ═══════════════ FOR WHO ════════════════════ -->
-<section class="forwho-section">
-  <div class="forwho-inner">
-    <div>
-      <div class="section-label">Para quem é o BocaFood</div>
-      <h2 class="section-title">Isso foi feito<br>para você</h2>
-      <ul class="forwho-list">
-        <li class="forwho-item reveal">
-          <div class="fw-check">
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg>
+      <!-- 01 Plano de Voo -->
+      <div class="sol-item reveal">
+        <div class="sol-screen-wrap">
+          <div class="sol-screen">
+            <div class="sol-screen-bar"><span></span><span></span><span></span></div>
+            <div class="sol-screen-body">
+              <!-- coloque screen-plano-de-voo.png na pasta /public -->
+              <div class="sol-ph">
+                <svg width="36" height="36" viewBox="0 0 36 36" fill="none"><rect x="3" y="6" width="30" height="24" rx="3" stroke="rgba(255,255,255,.18)" stroke-width="1.5"/><circle cx="11" cy="15" r="3" stroke="rgba(255,255,255,.18)" stroke-width="1.5"/><path d="M3 27l9-8 6 6 5-5 10 9" stroke="rgba(255,255,255,.18)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span>screen-plano-de-voo.png</span>
+              </div>
+              <img src="screen-plano-de-voo.png" alt="Plano de Voo" class="sol-screen-img">
+            </div>
           </div>
-          <p>Você <strong>vende comida brasileira na Europa</strong> e quer tratar isso como um negócio de verdade — com estrutura, controle e clareza</p>
-        </li>
-        <li class="forwho-item reveal reveal-d1">
-          <div class="fw-check">
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg>
+        </div>
+        <div class="sol-copy">
+          <div class="sol-step-tag">
+            <span class="sol-step-num">01</span>
+            <span class="sol-step-name">Plano de Voo</span>
           </div>
-          <p>Já se pegou <strong>cobrando no olhômetro</strong> e ficou na dúvida se está saindo no lucro — e quer um jeito simples de calcular o preço certo</p>
-        </li>
-        <li class="forwho-item reveal reveal-d2">
-          <div class="fw-check">
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg>
+          <h3 class="sol-h3">Você troca meta solta por direção clara.</h3>
+          <p class="sol-p">O BocaFood mostra quanto você precisa faturar, quantos pedidos precisa fazer por dia e qual esforço cada cenário exige. Assim, você escolhe se quer cobrir as contas, se pagar melhor, reinvestir ou buscar mais lucro — e passa a trabalhar com um número concreto, não com uma meta no ar.</p>
+          <div class="sol-resultado">
+            <span class="sol-resultado-pill">Resultado</span>
+            <span class="sol-resultado-txt">Mais clareza para vender com direção e menos sensação de estar trabalhando sem saber se vai fechar a conta.</span>
           </div>
-          <p><strong>Trabalha muito</strong> e sabe que não é esforço o que falta — é uma forma real de medir se o negócio está crescendo</p>
-        </li>
-        <li class="forwho-item reveal reveal-d3">
-          <div class="fw-check">
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg>
-          </div>
-          <p>Depende demais do <strong>WhatsApp para vender</strong> e quer uma vitrine online que a sua cliente encontre sozinha</p>
-        </li>
-        <li class="forwho-item reveal reveal-d4">
-          <div class="fw-check">
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg>
-          </div>
-          <p>Quer crescer, mas de um jeito que dê para acompanhar — <strong>com dados, com controle</strong>, sem precisar contratar ninguém para isso</p>
-        </li>
-      </ul>
-    </div>
-
-    <div class="forwho-visual">
-      <div class="fw-img-wrap">
-        <!-- Coloque o src da foto real quando tiver -->
-        <img src="" alt="Empreendedora brasileira">
-        <div class="fw-placeholder">
-          <div class="fw-ph-gfx">
-            <svg width="36" height="36" viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="18" cy="13" r="5"/>
-              <path d="M6 30c0-6.6 5.4-12 12-12s12 5.4 12 12"/>
-            </svg>
-          </div>
-          <p class="fw-ph-text">Sua foto aqui</p>
         </div>
       </div>
-      <div class="fw-stat">
-        <div class="fw-stat-v">Grátis</div>
-        <div class="fw-stat-l">para experimentar tudo</div>
+
+      <!-- 02 Temporadas -->
+      <div class="sol-item sol-item-rev reveal">
+        <div class="sol-screen-wrap">
+          <div class="sol-screen">
+            <div class="sol-screen-bar"><span></span><span></span><span></span></div>
+            <div class="sol-screen-body">
+              <!-- coloque screen-temporadas.png na pasta /public -->
+              <div class="sol-ph">
+                <svg width="36" height="36" viewBox="0 0 36 36" fill="none"><rect x="3" y="6" width="30" height="24" rx="3" stroke="rgba(255,255,255,.18)" stroke-width="1.5"/><circle cx="11" cy="15" r="3" stroke="rgba(255,255,255,.18)" stroke-width="1.5"/><path d="M3 27l9-8 6 6 5-5 10 9" stroke="rgba(255,255,255,.18)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span>screen-temporadas.png</span>
+              </div>
+              <img src="screen-temporadas.png" alt="Temporadas" class="sol-screen-img">
+            </div>
+          </div>
+        </div>
+        <div class="sol-copy">
+          <div class="sol-step-tag">
+            <span class="sol-step-num">02</span>
+            <span class="sol-step-name">Temporadas</span>
+          </div>
+          <h3 class="sol-h3">Você troca ações soltas por foco semanal.</h3>
+          <p class="sol-p">Você escolhe um objetivo — vender mais, aumentar ticket, fidelizar ou ganhar consistência — e cria a temporada para executar o Plano de Voo. O BocaFood acompanha o progresso com dados reais da loja, mostra o que está funcionando, o que está travando e qual é a próxima melhor ação.</p>
+          <div class="sol-resultado">
+            <span class="sol-resultado-pill">Resultado</span>
+            <span class="sol-resultado-txt">Menos decisão no chute e mais ações conectadas ao que realmente pode melhorar o negócio agora.</span>
+          </div>
+        </div>
       </div>
+
+      <!-- 03 Performance -->
+      <div class="sol-item reveal">
+        <div class="sol-screen-wrap">
+          <div class="sol-screen">
+            <div class="sol-screen-bar"><span></span><span></span><span></span></div>
+            <div class="sol-screen-body">
+              <!-- coloque screen-performance.png na pasta /public -->
+              <div class="sol-ph">
+                <svg width="36" height="36" viewBox="0 0 36 36" fill="none"><rect x="3" y="6" width="30" height="24" rx="3" stroke="rgba(255,255,255,.18)" stroke-width="1.5"/><circle cx="11" cy="15" r="3" stroke="rgba(255,255,255,.18)" stroke-width="1.5"/><path d="M3 27l9-8 6 6 5-5 10 9" stroke="rgba(255,255,255,.18)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span>screen-performance.png</span>
+              </div>
+              <img src="screen-performance.png" alt="Performance" class="sol-screen-img">
+            </div>
+          </div>
+        </div>
+        <div class="sol-copy">
+          <div class="sol-step-tag">
+            <span class="sol-step-num">03</span>
+            <span class="sol-step-name">Performance</span>
+          </div>
+          <h3 class="sol-h3">Você troca surpresa no fim do mês por acompanhamento em tempo real.</h3>
+          <p class="sol-p">O BocaFood mostra se o negócio está no ritmo do caminho escolhido: adiantado, dentro do esperado ou atrasado. Você enxerga a tendência antes do mês acabar e ainda tem tempo de corrigir.</p>
+          <div class="sol-resultado">
+            <span class="sol-resultado-pill">Resultado</span>
+            <span class="sol-resultado-txt">Mais controle sobre o mês e mais chance de agir antes que o problema vire prejuízo.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 04 Maturidade -->
+      <div class="sol-item sol-item-rev reveal">
+        <div class="sol-screen-wrap">
+          <div class="sol-screen">
+            <div class="sol-screen-bar"><span></span><span></span><span></span></div>
+            <div class="sol-screen-body">
+              <!-- coloque screen-maturidade.png na pasta /public -->
+              <div class="sol-ph">
+                <svg width="36" height="36" viewBox="0 0 36 36" fill="none"><rect x="3" y="6" width="30" height="24" rx="3" stroke="rgba(255,255,255,.18)" stroke-width="1.5"/><circle cx="11" cy="15" r="3" stroke="rgba(255,255,255,.18)" stroke-width="1.5"/><path d="M3 27l9-8 6 6 5-5 10 9" stroke="rgba(255,255,255,.18)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span>screen-maturidade.png</span>
+              </div>
+              <img src="screen-maturidade.png" alt="Maturidade" class="sol-screen-img">
+            </div>
+          </div>
+        </div>
+        <div class="sol-copy">
+          <div class="sol-step-tag">
+            <span class="sol-step-num">04</span>
+            <span class="sol-step-name">Maturidade</span>
+          </div>
+          <h3 class="sol-h3">Você troca "usei o sistema" por "meu negócio evoluiu".</h3>
+          <p class="sol-p">A Maturidade mostra se o negócio cresceu de verdade: vendas, consistência, clientes que voltam, ações que geram pedidos, saúde financeira e evolução das Temporadas. A fase muda quando o negócio melhora, não quando você clica mais.</p>
+          <div class="sol-resultado">
+            <span class="sol-resultado-pill">Resultado</span>
+            <span class="sol-resultado-txt">Visão clara do que já avançou, do que ainda trava o crescimento e do próximo passo para evoluir com segurança.</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Fechamento: como as 4 partes se conectam -->
+    <div class="sol-summary reveal">
+      <div class="sol-sum-item"><strong>Plano de Voo</strong> mostra para onde ir.</div>
+      <div class="sol-sum-sep" aria-hidden="true">·</div>
+      <div class="sol-sum-item"><strong>Temporadas</strong> mostram o foco de ação.</div>
+      <div class="sol-sum-sep" aria-hidden="true">·</div>
+      <div class="sol-sum-item"><strong>Performance</strong> mostra se o mês está no ritmo.</div>
+      <div class="sol-sum-sep" aria-hidden="true">·</div>
+      <div class="sol-sum-item"><strong>Maturidade</strong> mostra se o negócio está ficando mais forte.</div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════ INTELIGÊNCIA REMOVIDA — redundante com seção Sistema ══════════════ -->
+<section class="intel-section" id="inteligencia" style="display:none">
+  <div class="intel-glow"></div>
+  <div class="intel-inner">
+
+    <div class="intel-header">
+      <div class="section-label">Plano de Voo · Temporadas · Performance · Maturidade</div>
+      <h2 class="section-title">Quatro módulos que a maioria dos negócios de comida nunca teve</h2>
+      <p class="section-sub">Cada um resolve uma parte diferente: onde você quer chegar com números reais, o que fazer em cada período, se está no ritmo — e o quanto o negócio evoluiu de verdade. Tudo conectado, tudo visível.</p>
+    </div>
+
+    <div class="intel-grid">
+
+      <!-- Plano de Voo -->
+      <div class="intel-card reveal">
+        <div class="intel-top">
+          <div class="intel-tag"><span class="intel-tag-dot"></span>Plano de Voo</div>
+          <h3>Você escolhe o nível de resultado que quer — e vê o que ele exige com os seus números reais</h3>
+          <div class="intel-mini">
+            <div class="intel-pv">
+              <div class="intel-pv-lbl">Cenário escolhido</div>
+              <div class="intel-pv-track"><div class="intel-pv-fill"></div></div>
+              <div class="intel-pv-vals"><span class="intel-pv-cur">Crescimento</span><span class="intel-pv-meta">→ 47 pedidos/mês</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="intel-body">
+          <p>Quatro caminhos para o seu negócio: o mínimo para cobrir as contas, o que te paga de verdade, o que permite reinvestir, e o que gera lucro forte. Você escolhe qual quer seguir — e vê o faturamento necessário, os pedidos por dia e o esforço que cada caminho representa. Sem surpresa depois que você já decidiu.</p>
+          <ul class="intel-list">
+            <li class="intel-item"><span class="intel-dot"></span>O faturamento que cada caminho exige, calculado com os seus custos reais</li>
+            <li class="intel-item"><span class="intel-dot"></span>Quantos pedidos por dia para chegar lá</li>
+            <li class="intel-item"><span class="intel-dot"></span>O esforço real de cada nível — antes de você escolher</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Temporadas -->
+      <div class="intel-card reveal reveal-d1">
+        <div class="intel-top">
+          <div class="intel-tag"><span class="intel-tag-dot"></span>Temporadas</div>
+          <h3>A cada período, você tem um objetivo claro — e sabe o que fazer para chegar lá</h3>
+          <div class="intel-mini">
+            <div class="intel-temp">
+              <div class="intel-temp-lbl"><span>Temporadas do ano</span><span style="color:rgba(255,255,255,.28)">objetivo definido</span></div>
+              <div class="intel-temp-grid">
+                <div class="intel-tc"></div><div class="intel-tc warm"></div><div class="intel-tc"></div>
+                <div class="intel-tc hot"></div><div class="intel-tc hot"></div><div class="intel-tc warm"></div>
+                <div class="intel-tc warm"></div><div class="intel-tc"></div><div class="intel-tc"></div>
+                <div class="intel-tc warm"></div><div class="intel-tc hot"></div><div class="intel-tc hot"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="intel-body">
+          <p>Uma temporada é um bloco de tempo com foco definido: vender mais, aumentar o valor médio, fidelizar ou melhorar a consistência. Você escolhe o objetivo. A plataforma te mostra a próxima jogada — a ação concreta certa para esse momento: qual promoção, qual produto, qual canal trabalhar agora.</p>
+          <ul class="intel-list">
+            <li class="intel-item"><span class="intel-dot"></span>Um objetivo por período — sem tentar resolver tudo ao mesmo tempo</li>
+            <li class="intel-item"><span class="intel-dot"></span>A próxima jogada: ação concreta para o que você quer agora</li>
+            <li class="intel-item"><span class="intel-dot"></span>Pontuação ao final para saber se o período entregou resultado</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Performance -->
+      <div class="intel-card reveal">
+        <div class="intel-top">
+          <div class="intel-tag"><span class="intel-tag-dot"></span>Performance</div>
+          <h3>Você sabe no meio do mês se vai fechar no caminho que escolheu</h3>
+          <div class="intel-mini">
+            <div class="intel-spark">
+              <div class="intel-sb" style="height:28%"></div>
+              <div class="intel-sb" style="height:42%"></div>
+              <div class="intel-sb med" style="height:38%"></div>
+              <div class="intel-sb med" style="height:58%"></div>
+              <div class="intel-sb med" style="height:52%"></div>
+              <div class="intel-sb hi" style="height:76%"></div>
+              <div class="intel-sb hi" style="height:100%"></div>
+              <span class="intel-spark-lbl">↑ crescendo</span>
+            </div>
+          </div>
+        </div>
+        <div class="intel-body">
+          <p>O mês em tempo real, cruzado com o cenário que você definiu no Plano de Voo. Está adiantada, no ritmo ou atrasada? O que fecha se continuar assim? Você vê antes do mês acabar — não depois do estrago.</p>
+          <ul class="intel-list">
+            <li class="intel-item"><span class="intel-dot"></span>Se o ritmo atual te leva ao cenário que você escolheu</li>
+            <li class="intel-item"><span class="intel-dot"></span>O que o mês vai fechar se nada mudar</li>
+            <li class="intel-item"><span class="intel-dot"></span>Vendas e financeiro separados — para ver onde está o problema</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Maturidade -->
+      <div class="intel-card reveal reveal-d1">
+        <div class="intel-top">
+          <div class="intel-tag"><span class="intel-tag-dot"></span>Maturidade</div>
+          <h3>Você vê em quantas frentes o negócio realmente evoluiu — não só nas vendas</h3>
+          <div class="intel-mini">
+            <div class="intel-mat">
+              <div class="intel-mat-lbl"><span>Fase de evolução do negócio</span><span class="intel-mat-cur-lbl">Fase 3 de 6</span></div>
+              <div class="intel-mat-steps">
+                <div class="intel-ms done"></div>
+                <div class="intel-ms done"></div>
+                <div class="intel-ms current"></div>
+                <div class="intel-ms"></div>
+                <div class="intel-ms"></div>
+                <div class="intel-ms"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="intel-body">
+          <p>Crescimento não aparece só no faturamento. Aparece também nos períodos concluídos com resultado, na saúde financeira, nas ações que geraram pedidos reais, nos clientes que voltaram a comprar e na consistência da operação. Você avança de fase quando o negócio muda — não quando usa mais a ferramenta.</p>
+          <ul class="intel-list">
+            <li class="intel-item"><span class="intel-dot"></span>Seis dimensões do negócio medidas juntas — não só vendas</li>
+            <li class="intel-item"><span class="intel-dot"></span>Marcos reais que mostram quando o negócio mudou de patamar</li>
+            <li class="intel-item"><span class="intel-dot"></span>Avança de fase só quando os resultados aparecem de verdade</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ O QUE O BOCAFOOD FAZ ══════ -->
+<section class="delivers-section" id="funcionalidades">
+  <div class="delivers-inner">
+    <div class="section-label">O que muda no dia a dia</div>
+    <h2 class="section-title">O que muda quando você para de operar no escuro</h2>
+    <p class="section-sub" style="margin-bottom:0">Seis coisas concretas que passam a existir no seu negócio.</p>
+
+    <div class="delivers-grid">
+
+      <div class="deliver-card reveal">
+        <div class="deliver-num">01</div>
+        <div class="deliver-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 20V8M9 20V4M14 20v-8M19 20v-5"/>
+          </svg>
+        </div>
+        <h3>Você para de fechar o mês no escuro</h3>
+        <p>Entradas, saídas e saldo real em um lugar só. Você sabe quanto cada mês fechou, onde foi o dinheiro e o que ainda está pendente — sem montar planilha.</p>
+      </div>
+
+      <div class="deliver-card reveal reveal-d1">
+        <div class="deliver-num">02</div>
+        <div class="deliver-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/>
+            <path d="M9 9h6M9 13h4"/>
+          </svg>
+        </div>
+        <h3>Seus pedidos em ordem, sem depender do WhatsApp</h3>
+        <p>Tudo organizado, cozinha funcionando, histórico acessível. Você para de usar conversa de mensagem como sistema de controle.</p>
+      </div>
+
+      <div class="deliver-card reveal reveal-d2">
+        <div class="deliver-num">03</div>
+        <div class="deliver-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"/>
+            <path d="M12 7v1m0 8v1M9 9.5C9 8.7 10.3 8 12 8s3 .7 3 1.5-1.3 1.5-3 1.5-3 .7-3 1.5S10.3 14 12 14s3-.7 3-1.5"/>
+          </svg>
+        </div>
+        <h3>Você para de cobrar no chute</h3>
+        <p>Você coloca os ingredientes e quanto gasta em cada produto. O custo real aparece — e você vê se o preço que está cobrando faz sentido ou se está vendendo sem margem sem saber.</p>
+      </div>
+
+      <div class="deliver-card reveal">
+        <div class="deliver-num">04</div>
+        <div class="deliver-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/>
+          </svg>
+        </div>
+        <h3>Você para de comprar ingrediente no chute</h3>
+        <p>Você sabe o que tem, o que está acabando e o que precisa repor — com base no que saiu de verdade, não no que você acha que ainda tem.</p>
+      </div>
+
+      <div class="deliver-card reveal reveal-d1">
+        <div class="deliver-num">05</div>
+        <div class="deliver-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>
+            <polyline points="16 7 22 7 22 13"/>
+          </svg>
+        </div>
+        <h3>Você sabe quanto precisa vender para o mês fechar bem</h3>
+        <p>O Plano de Voo te mostra seu ponto de equilíbrio, quanto para pagar a si mesma e quanto para crescer. Você acompanha se está no ritmo — ou precisa ajustar antes que o mês acabe.</p>
+      </div>
+
+      <div class="deliver-card reveal reveal-d2">
+        <div class="deliver-num">06</div>
+        <div class="deliver-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="3"/>
+            <path d="M3 9h18M9 21V9"/>
+          </svg>
+        </div>
+        <h3>Sua vitrine online, sem precisar de ninguém</h3>
+        <p>Seu cardápio disponível para pedidos, configurado por você. Sem programador, sem plataforma de terceiro, sem pagar comissão por cada venda.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ ESPECIALIDADE ════════════ -->
+<section class="expert-section">
+  <div class="expert-inner">
+    <div class="section-label">Por que o seu negócio é diferente</div>
+    <h2 class="section-title reveal">A maioria das ferramentas não foi feita para o seu negócio.</h2>
+    <div class="expert-body reveal reveal-d1">
+      <p>Se você já tentou usar uma planilha ou outro sistema de gestão para controlar seu negócio de comida, provavelmente sentiu que faltava algo. Não era você — era a ferramenta.</p>
+      <p>A maioria foi feita para restaurante, loja física ou e-commerce. O seu negócio não é nenhum desses. Você produz, vende, entrega — muitas vezes sozinha, em euros, num país que não é o seu.</p>
+      <div class="expert-highlight">
+        <em>Os preços em euros, como funciona o imposto daqui, o jeito de produzir e vender na Europa — tudo isso foi pensado para quem está nessa situação. Em português, do zero, sem adaptação.</em>
+      </div>
+      <p>O resultado é uma ferramenta que entende o seu negócio do jeito que ele é — sem tentar encaixar você num molde que não foi feito para você.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ PARA QUEM É ══════════════ -->
+<section class="forwhosimple-section">
+  <div class="forwhosimple-inner">
+    <div class="section-label">Para quem faz sentido</div>
+    <h2 class="section-title reveal">Direto ao ponto.</h2>
+    <div class="forwhosimple-body reveal reveal-d1">
+      <p>O BocaFood é para você se <strong>vende comida na Europa</strong>, opera sozinha ou com uma equipe pequena, e quer ter controle real do negócio — saber o que está funcionando, o que não está e o que fazer a seguir.</p>
+      <p>Não importa se você vende marmita, doces, salgados, pão de queijo, bolos ou comida congelada. <em>O que importa é que é comida, é na Europa, e você quer que cresça.</em></p>
+    </div>
+    <div class="forwhosimple-not reveal reveal-d2">
+      <strong>Não é para quem quer só um cardápio bonito na internet.</strong> O BocaFood tem isso — mas tem muito mais. Se você só precisa de um link para mandar no WhatsApp, existem opções mais simples e baratas.
+    </div>
+    <div class="reveal reveal-d3">
+      <a href="HOTMART_LINK" class="btn btn-primary btn-lg">Começar com o BocaFood →</a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ OBJEÇÕES ══════════════════ -->
+<section class="obj-section" id="duvidas">
+  <div class="obj-inner">
+
+    <div class="obj-header reveal">
+      <div class="section-label">O que você está se perguntando</div>
+      <h2 class="section-title">Respostas diretas.</h2>
+      <p class="section-sub">Sem enrolação. Se a sua dúvida não está aqui, é só mandar um e-mail.</p>
+      <a href="mailto:teajudo@bocafood.app" class="btn btn-ghost">teajudo@bocafood.app</a>
+    </div>
+
+    <div class="obj-list reveal reveal-d1">
+
+      <div class="obj-item">
+        <button class="obj-q" onclick="toggleObj(this)">
+          Meu negócio ainda é pequeno. Vale a pena?
+          <span class="obj-arrow"><svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 5 7 9 11 5"/></svg></span>
+        </button>
+        <div class="obj-a">
+          <div class="obj-a-inner">Controle não é algo que você implanta quando cresce. É o que ajuda você a crescer com menos desperdício e mais clareza. É muito mais fácil corrigir o rumo de um negócio que está começando do que de um que já cresceu sem estrutura.</div>
+        </div>
+      </div>
+
+      <div class="obj-item">
+        <button class="obj-q" onclick="toggleObj(this)">
+          Não tenho tempo para aprender uma ferramenta nova.
+          <span class="obj-arrow"><svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 5 7 9 11 5"/></svg></span>
+        </button>
+        <div class="obj-a">
+          <div class="obj-a-inner">O BocaFood foi pensado para quem não tem equipe de TI nem tempo sobrando. Não demora para aprender. Se você consegue usar o WhatsApp, consegue usar o BocaFood — sem manual, sem curso, sem precisar pedir ajuda para alguém.</div>
+        </div>
+      </div>
+
+      <div class="obj-item">
+        <button class="obj-q" onclick="toggleObj(this)">
+          Eu já uso planilha para controlar. Por que mudaria?
+          <span class="obj-arrow"><svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 5 7 9 11 5"/></svg></span>
+        </button>
+        <div class="obj-a">
+          <div class="obj-a-inner">Planilha funciona para registrar. O BocaFood conecta os dados e mostra o que eles significam para o negócio — qual produto está perdendo margem, qual dia da semana vende mais, quanto você precisa faturar para o mês fechar no azul. A planilha não faz essas perguntas.</div>
+        </div>
+      </div>
+
+      <div class="obj-item">
+        <button class="obj-q" onclick="toggleObj(this)">
+          Por que só para quem vende comida?
+          <span class="obj-arrow"><svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 5 7 9 11 5"/></svg></span>
+        </button>
+        <div class="obj-a">
+          <div class="obj-a-inner">Porque quem vende comida na Europa tem desafios que ferramentas genéricas não entendem: custo de ingrediente que varia, precificação em euros, produção artesanal, sazonalidade, clientes que pedem pelo WhatsApp. O BocaFood foi construído para esse negócio específico — não para todo tipo de negócio. Isso é o que faz a diferença.</div>
+        </div>
+      </div>
+
+      <div class="obj-item">
+        <button class="obj-q" onclick="toggleObj(this)">
+          E se eu não quiser continuar após o período grátis?
+          <span class="obj-arrow"><svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 5 7 9 11 5"/></svg></span>
+        </button>
+        <div class="obj-a">
+          <div class="obj-a-inner">Você cancela quando quiser, direto da plataforma. Sem burocracia, sem ligação de retenção, sem precisar dar explicação. O BocaFood só faz sentido se for bom para o seu negócio.</div>
+        </div>
+      </div>
+
     </div>
   </div>
 </section>
@@ -879,14 +1260,17 @@
 <section class="pricing-section" id="precos">
   <div class="pricing-inner">
     <div class="pricing-header">
-      <div class="section-label">Preço</div>
+      <div class="section-label">Quanto custa</div>
       <h2 class="section-title">Simples e transparente</h2>
-      <p class="section-sub">Um plano com tudo incluído. Sem surpresa, sem plano escondido, sem letra miúda.</p>
+    </div>
+    <div class="pricing-context reveal">
+      <p>Para ter esse nível de clareza sem uma ferramenta, você precisaria de tempo que não tem — ou de contratar alguém para fazer isso por você.</p>
+      <p>O BocaFood reúne tudo isso em um lugar só, feito para quem vende comida na Europa sem equipe e sem contador.</p>
     </div>
 
     <div class="pricing-card reveal">
       <div class="pricing-top">
-        <div class="pricing-plan">Plano Essencial</div>
+        <div class="pricing-plan">Plano Completo</div>
         <div class="pricing-free-h">Comece <em>grátis</em></div>
         <p class="pricing-free-sub">Explore tudo sem compromisso. Só começa a pagar quando decidir continuar.</p>
         <a href="HOTMART_LINK" class="btn btn-primary pricing-cta-btn">Começar agora →</a>
@@ -899,14 +1283,14 @@
           <div class="pf"><div class="pf-ic"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 5 4 7.5 8.5 2.5"/></svg></div>Gestão de pedidos</div>
           <div class="pf"><div class="pf-ic"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 5 4 7.5 8.5 2.5"/></svg></div>Precificação e custo real</div>
           <div class="pf"><div class="pf-ic"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 5 4 7.5 8.5 2.5"/></svg></div>Controle financeiro</div>
-          <div class="pf"><div class="pf-ic"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 5 4 7.5 8.5 2.5"/></svg></div>Performance e inteligência</div>
+          <div class="pf"><div class="pf-ic"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 5 4 7.5 8.5 2.5"/></svg></div>Performance e análise</div>
+          <div class="pf"><div class="pf-ic"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 5 4 7.5 8.5 2.5"/></svg></div>Plano de voo e metas</div>
           <div class="pf"><div class="pf-ic"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 5 4 7.5 8.5 2.5"/></svg></div>Promoções e cupons</div>
           <div class="pf"><div class="pf-ic"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 5 4 7.5 8.5 2.5"/></svg></div>Programa de pontos</div>
           <div class="pf"><div class="pf-ic"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 5 4 7.5 8.5 2.5"/></svg></div>Controle de estoque</div>
           <div class="pf"><div class="pf-ic"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 5 4 7.5 8.5 2.5"/></svg></div>Gestão de fornecedores</div>
-          <div class="pf"><div class="pf-ic"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 5 4 7.5 8.5 2.5"/></svg></div>Receitas e produção</div>
-          <div class="pf"><div class="pf-ic"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 5 4 7.5 8.5 2.5"/></svg></div>Avaliações de clientes</div>
-          <div class="pf"><div class="pf-ic"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 5 4 7.5 8.5 2.5"/></svg></div>Upsell automático</div>
+          <div class="pf"><div class="pf-ic"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 5 4 7.5 8.5 2.5"/></svg></div>Receitas e fichas técnicas</div>
+          <div class="pf"><div class="pf-ic"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 5 4 7.5 8.5 2.5"/></svg></div>Venda adicional automática</div>
         </div>
       </div>
     </div>
@@ -918,10 +1302,10 @@
   <div class="cta-circle-a"></div>
   <div class="cta-circle-b"></div>
   <div class="cta-inner">
-    <h2>Não espere seu negócio crescer para ter controle.</h2>
-    <p>Use o controle para fazer o seu negócio crescer.</p>
-    <a href="HOTMART_LINK" class="btn btn-white btn-xl">Quero começar com o BocaFood →</a>
-    <p class="cta-note">Comece grátis · Cancele quando quiser</p>
+    <h2>Você já tem o negócio. Já tem a vontade de crescer. O que falta é saber o que está acontecendo dentro dele.</h2>
+    <p>É exatamente isso que o BocaFood resolve.</p>
+    <a href="HOTMART_LINK" class="btn btn-white btn-xl">Começar com o BocaFood</a>
+    <p class="cta-note">Para empreendedoras brasileiras que vendem comida na Europa.</p>
   </div>
 </section>
 
@@ -931,14 +1315,15 @@
     <div class="footer-top">
       <div class="footer-brand">
         <img src="assets/boca-food-logo.png" alt="BocaFood">
-        <p>A plataforma de gestão e inteligência para quem vende comida com paixão e quer crescer com controle.</p>
+        <p>Para a brasileira que vende comida na Europa e quer saber o que está acontecendo no negócio antes de decidir qualquer coisa.</p>
       </div>
       <div class="footer-col">
         <h4>Produto</h4>
         <ul class="footer-links">
-          <li><a href="#como-funciona">Como funciona</a></li>
-          <li><a href="#funcionalidades">Funcionalidades</a></li>
+          <li><a href="#descoberta">Como funciona</a></li>
+          <li><a href="#funcionalidades">O que entrega</a></li>
           <li><a href="#precos">Preços</a></li>
+          <li><a href="#duvidas">Dúvidas</a></li>
         </ul>
       </div>
       <div class="footer-col">
@@ -950,48 +1335,28 @@
     </div>
     <div class="footer-bottom">
       <span>© 2026 BocaFood. Todos os direitos reservados.</span>
-      <span>Feito com cuidado para brasileiras empreendedoras na Europa</span>
+      <span>Feito para brasileiras empreendedoras na Europa</span>
     </div>
   </div>
 </footer>
 
 <script>
-  // ── NAV
+  // ── NAV scroll
   const nav = document.getElementById('nav');
   window.addEventListener('scroll', () => nav.classList.toggle('scrolled', scrollY > 24), { passive: true });
 
-  // ── Phone carousel
-  let cur = 0;
-  const screens = document.querySelectorAll('.app-screen');
-  const pdots   = document.querySelectorAll('.pdot');
-  function goScreen(i) {
-    screens[cur].classList.remove('active'); pdots[cur].classList.remove('active');
-    cur = i;
-    screens[cur].classList.add('active'); pdots[cur].classList.add('active');
+  // ── Objeções accordion
+  function toggleObj(btn) {
+    const item = btn.closest('.obj-item');
+    const isOpen = item.classList.contains('open');
+    document.querySelectorAll('.obj-item.open').forEach(el => el.classList.remove('open'));
+    if (!isOpen) item.classList.add('open');
   }
-  setInterval(() => goScreen((cur + 1) % screens.length), 3600);
-
-  // ── Features carousel
-  const track = document.getElementById('featTrack');
-  const fcards = track.querySelectorAll('.feat-card');
-  const dotsEl = document.getElementById('featDots');
-  fcards.forEach((_, i) => {
-    const d = document.createElement('div');
-    d.className = 'fdot' + (i === 0 ? ' active' : '');
-    d.onclick = () => { track.scrollLeft = i * (fcards[0].offsetWidth + 22); syncDots(); };
-    dotsEl.appendChild(d);
-  });
-  function scrollFeat(dir) { track.scrollLeft += dir * (fcards[0].offsetWidth + 22); syncDots(); }
-  function syncDots() {
-    const idx = Math.round(track.scrollLeft / (fcards[0].offsetWidth + 22));
-    document.querySelectorAll('.fdot').forEach((d, i) => d.classList.toggle('active', i === idx));
-  }
-  track.addEventListener('scroll', syncDots, { passive: true });
 
   // ── Scroll reveal
   const obs = new IntersectionObserver(entries => {
     entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
-  }, { threshold: 0.12, rootMargin: '0px 0px -36px 0px' });
+  }, { threshold: 0.1, rootMargin: '0px 0px -36px 0px' });
   document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
 
   // ── Smooth scroll
@@ -1000,17 +1365,6 @@
       const t = document.querySelector(a.getAttribute('href'));
       if (t) { e.preventDefault(); t.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
     });
-  });
-
-  // ── Imagem real no for-who
-  document.querySelectorAll('.fw-img-wrap img').forEach(img => {
-    if (img.getAttribute('src')) {
-      img.onload = () => {
-        img.classList.add('loaded');
-        const ph = img.closest('.fw-img-wrap').querySelector('.fw-placeholder');
-        if (ph) ph.style.display = 'none';
-      };
-    }
   });
 </script>
 </body>

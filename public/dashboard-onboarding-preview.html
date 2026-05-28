@@ -49,10 +49,11 @@
     .onboarding-pill{position:fixed;right:22px;bottom:22px;z-index:80;box-shadow:0 14px 30px rgba(31,31,31,.16);display:none;align-items:center;gap:8px;height:42px;padding:0 14px;border:none;background:#B42318;color:#fff;border-radius:999px;font-size:12px;font-weight:750;cursor:pointer;font-family:inherit}
     .step{width:100%;text-align:left;border:1px solid #EAE4DA;background:#fff;border-radius:13px;padding:10px;display:flex;gap:9px;align-items:flex-start;cursor:pointer;font-family:inherit;min-width:0}
     .step.done{border-color:#D9F2E3;background:#F4FBF6}
-    .tour-backdrop{position:fixed;inset:0;background:rgba(31,31,31,.28);z-index:90;display:none;align-items:center;justify-content:center;padding:20px}
-    .tour-modal{width:min(560px,100%);background:#fff;border-radius:22px;box-shadow:0 28px 70px rgba(31,31,31,.24);overflow:hidden;border:1px solid rgba(234,228,218,.9)}
-    .tour-row{display:flex;gap:11px;align-items:flex-start;border:1px solid #EFE6DA;background:#FFFEFC;border-radius:14px;padding:11px 12px}
-    @media(max-width:760px){.shell{grid-template-columns:1fr}.sidebar{display:none}.page{padding:16px}.onboarding-float{right:12px;bottom:12px;width:calc(100vw - 24px)}.onboarding-pill{right:12px;bottom:12px}}
+    .welcome-backdrop{position:fixed;inset:0;background:rgba(31,31,31,.34);z-index:95;display:flex;align-items:center;justify-content:center;padding:20px}
+    .welcome-modal{width:min(680px,100%);background:radial-gradient(circle at 8% 0%,rgba(180,35,24,.10),transparent 34%),linear-gradient(145deg,#fff 0%,#FFFDF9 58%,#FAF6EF 100%);border-radius:24px;box-shadow:0 30px 80px rgba(31,31,31,.24);overflow:hidden;border:1px solid #EAE4DA;position:relative}
+    .welcome-modal:before{content:"";position:absolute;inset:0 0 auto;height:4px;background:linear-gradient(90deg,#B42318,#B6925E)}
+    .welcome-point{border:1px solid rgba(234,228,218,.92);background:rgba(255,255,255,.76);border-radius:16px;padding:12px;display:flex;gap:10px;align-items:flex-start;box-shadow:0 10px 22px rgba(31,31,31,.035)}
+    @media(max-width:760px){.shell{grid-template-columns:1fr}.sidebar{display:none}.page{padding:16px}.onboarding-float{right:12px;bottom:12px;width:calc(100vw - 24px)}.onboarding-pill{right:12px;bottom:12px}.welcome-backdrop{padding:12px}.welcome-modal{border-radius:22px;max-height:calc(100dvh - 24px);overflow:auto}}
   </style>
 </head>
 <body>
@@ -60,15 +61,15 @@
     <aside class="sidebar">
       <div class="brand"><img src="/assets/boca-food-logo.png" alt="BocaFood"></div>
       <nav class="nav">
-        <button class="active"><span class="mi">dashboard</span>Início</button>
-        <button><span class="mi">list_alt</span>Pedidos</button>
+        <button class="active" data-route="dashboard"><span class="mi">dashboard</span>Início</button>
+        <button data-route="pedidos"><span class="mi">list_alt</span>Pedidos</button>
         <button><span class="mi">point_of_sale</span>Venda presencial</button>
-        <button><span class="mi">restaurant_menu</span>Cardápio</button>
-        <button><span class="mi">receipt_long</span>Produção</button>
+        <button data-route="catalogo"><span class="mi">restaurant_menu</span>Cardápio</button>
+        <button data-route="receitas"><span class="mi">receipt_long</span>Produção</button>
         <button><span class="mi">inventory_2</span>Estoque</button>
         <button><span class="mi">shopping_cart</span>Compras</button>
-        <button><span class="mi">trending_up</span>Crescimento</button>
-        <button><span class="mi">payments</span>Financeiro</button>
+        <button data-route="crescimento"><span class="mi">trending_up</span>Crescimento</button>
+        <button data-route="financeiro"><span class="mi">payments</span>Financeiro</button>
       </nav>
     </aside>
 
@@ -163,26 +164,53 @@
     </main>
   </div>
 
-  <section id="onboarding" class="dash-card onboarding-float">
+  <div id="welcome" class="welcome-backdrop">
+    <section class="welcome-modal">
+      <div style="padding:24px 24px 18px;position:relative;">
+        <button class="soft-btn" onclick="startWelcomeTour()" aria-label="Fechar" style="position:absolute;right:14px;top:14px;width:34px;height:34px;padding:0;background:rgba(255,255,255,.72);box-shadow:0 8px 18px rgba(31,31,31,.05)"><span class="mi">close</span></button>
+        <div style="display:flex;align-items:flex-start;gap:16px;padding-right:34px;">
+          <span class="mi" style="width:58px;height:58px;border-radius:18px;background:linear-gradient(145deg,#fff,#FFF4F1);border:1px solid #F2D7D2;color:#B42318;box-shadow:inset 0 1px 0 rgba(255,255,255,.92),0 16px 32px rgba(180,35,24,.12);font-size:28px;flex:0 0 auto;">diamond</span>
+          <div>
+            <div style="display:inline-flex;align-items:center;gap:8px;color:#B42318;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin-bottom:9px;"><span aria-hidden="true" style="width:7px;height:7px;border-radius:999px;background:#B6925E;box-shadow:0 0 0 4px rgba(182,146,94,.16);display:inline-flex;flex:0 0 auto;"></span>Primeiros passos do negócio</div>
+            <h2 style="font-size:30px;color:#1F1F1F;line-height:1.08;margin:0;max-width:560px;font-weight:780;">Ana, bora construir seu império de comida na Europa?</h2>
+            <p style="font-size:15px;color:#5F5750;line-height:1.55;margin:9px 0 0;max-width:590px;">Antes de sair clicando, eu vou te mostrar como o BocaFood se organiza. Depois a gente monta a base do seu negócio, cria sua rota e deixa sua venda pronta para acontecer.</p>
+          </div>
+        </div>
+      </div>
+      <div style="padding:0 24px 24px;display:flex;flex-direction:column;gap:14px;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(170px,100%),1fr));gap:10px;">
+          <div class="welcome-point"><span class="mi action-icon" style="width:34px;height:34px;font-size:19px;background:#F5EFE6;color:#8A6F5A">checklist</span><div><strong>Seguir por etapas</strong><div class="section-copy">Cada item abre a tela certa e explica o que precisa ficar pronto naquela parte.</div></div></div>
+          <div class="welcome-point"><span class="mi action-icon" style="width:34px;height:34px;font-size:19px;background:#F5EFE6;color:#8A6F5A">settings</span><div><strong>Montar a base</strong><div class="section-copy">Produtos, canais, custos e dados do negócio entram antes das decisões de crescimento.</div></div></div>
+          <div class="welcome-point"><span class="mi action-icon" style="width:34px;height:34px;font-size:19px;background:#F5EFE6;color:#8A6F5A">route</span><div><strong>Escolher a rota</strong><div class="section-copy">Com a base pronta, o Plano de Voo mostra quanto vender e a Temporada mostra o que fazer agora.</div></div></div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border-top:1px solid rgba(234,228,218,.8);padding-top:14px;">
+          <span style="font-size:12px;color:#6F6860;line-height:1.45;max-width:360px;">Você pode seguir no seu ritmo. O checklist fica disponível em todas as telas.</span>
+          <button class="soft-btn" onclick="startWelcomeTour()" style="height:42px;border:none;background:#B42318;color:#fff;border-radius:12px;font-size:13px;font-weight:800;padding:0 16px;box-shadow:0 12px 24px rgba(180,35,24,.16)">Abrir checklist</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <section id="onboarding" class="dash-card onboarding-float" style="display:none">
     <div style="padding:15px 16px;background:linear-gradient(135deg,#fff 0%,#FFF7EC 100%);">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">
         <div style="display:flex;align-items:center;gap:10px;min-width:0;">
           <span class="mi" style="width:36px;height:36px;border-radius:13px;background:#B42318;color:#fff;font-size:20px;">rocket_launch</span>
-          <div><div style="font-size:15px;font-weight:750;color:#1F1F1F;line-height:1.2;">Preparar a base</div><div style="font-size:12px;color:#6F6860;line-height:1.35;margin-top:2px;">Antes da rota, o BocaFood precisa entender como o negócio vende, custa e opera.</div></div>
+          <div><div style="font-size:15px;font-weight:750;color:#1F1F1F;line-height:1.2;">Preparar a base</div><div style="font-size:12px;color:#6F6860;line-height:1.35;margin-top:2px;">Antes de decidir a rota, deixe claro o que você vende, quanto custa e como o pedido chega.</div></div>
         </div>
         <button class="soft-btn" onclick="collapseOnboarding()" style="width:30px;height:30px;padding:0"><span class="mi">expand_more</span></button>
       </div>
       <div style="display:flex;align-items:center;gap:10px;margin-top:13px;"><div style="height:8px;border-radius:999px;background:#F1ECE4;overflow:hidden;flex:1;"><div style="height:100%;width:30%;background:#B42318;border-radius:999px;"></div></div><span style="font-size:12px;color:#1F1F1F;white-space:nowrap;">5/16</span></div>
-      <button class="soft-btn" onclick="openTour()" style="margin-top:10px;width:100%;height:34px;">Conhecer o painel em 2 minutos</button>
+      <div style="margin-top:10px;border:1px solid #E8DCD7;background:#fff;border-radius:12px;padding:9px 10px;color:#5F5750;font-size:11.5px;line-height:1.35;">Abra cada passo quando estiver pronta. O checklist acompanha o que já foi feito e mostra a próxima parte da base.</div>
     </div>
     <div style="padding:10px;background:#fff;display:flex;flex-direction:column;gap:7px;">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 2px 3px;"><span style="font-size:11px;color:#8A6F5A;text-transform:uppercase;letter-spacing:.03em;">Etapa atual</span><span style="font-size:11px;color:#6F6860;">3/6</span></div>
-      <button class="step done"><span class="mi" style="width:28px;height:28px;border-radius:10px;background:#E8F7EE;color:#1F6F43;font-size:17px;flex:0 0 auto;">check_circle</span><span><strong>Preencher cadastro</strong><br><small>Nome, contato, endereço e dados principais.</small></span></button>
-      <button class="step done"><span class="mi" style="width:28px;height:28px;border-radius:10px;background:#E8F7EE;color:#1F6F43;font-size:17px;flex:0 0 auto;">check_circle</span><span><strong>Criar canais de venda</strong><br><small>Por onde os pedidos chegam e onde entram no financeiro.</small></span></button>
-      <button class="step done"><span class="mi" style="width:28px;height:28px;border-radius:10px;background:#E8F7EE;color:#1F6F43;font-size:17px;flex:0 0 auto;">check_circle</span><span><strong>Configurar preço e margem</strong><br><small>Margem desejada e regras para precificar com segurança.</small></span></button>
-      <button class="step"><span class="mi" style="width:28px;height:28px;border-radius:10px;background:#FAF8F4;color:#B42318;font-size:17px;flex:0 0 auto;">restaurant_menu</span><span><strong>Cadastrar produtos</strong><br><small>O que será vendido no cardápio e nos pedidos.</small></span></button>
-      <button class="step"><span class="mi" style="width:28px;height:28px;border-radius:10px;background:#FAF8F4;color:#B42318;font-size:17px;flex:0 0 auto;">receipt_long</span><span><strong>Cadastrar receitas</strong><br><small>Fichas técnicas para custo, produção e estoque.</small></span></button>
-      <button class="step"><span class="mi" style="width:28px;height:28px;border-radius:10px;background:#FAF8F4;color:#B42318;font-size:17px;flex:0 0 auto;">payments</span><span><strong>Cadastrar custos fixos</strong><br><small>Despesas e custos que a rota precisa considerar.</small></span></button>
+      <button class="step done"><span class="mi" style="width:28px;height:28px;border-radius:10px;background:#E8F7EE;color:#1F6F43;font-size:17px;flex:0 0 auto;">check_circle</span><span><strong>Preencher dados do negócio</strong><br><small>Nome, contato e endereço para deixar tudo identificado.</small></span></button>
+      <button class="step done"><span class="mi" style="width:28px;height:28px;border-radius:10px;background:#E8F7EE;color:#1F6F43;font-size:17px;flex:0 0 auto;">check_circle</span><span><strong>Criar canais de venda</strong><br><small>Mostre de onde os pedidos chegam: cardápio, balcão, Instagram ou outro canal.</small></span></button>
+      <button class="step done"><span class="mi" style="width:28px;height:28px;border-radius:10px;background:#E8F7EE;color:#1F6F43;font-size:17px;flex:0 0 auto;">check_circle</span><span><strong>Definir preço e margem</strong><br><small>Ajude o BocaFood a proteger sua sobra em cada venda.</small></span></button>
+      <button class="step"><span class="mi" style="width:28px;height:28px;border-radius:10px;background:#FAF8F4;color:#B42318;font-size:17px;flex:0 0 auto;">restaurant_menu</span><span><strong>Cadastrar produtos</strong><br><small>Coloque no sistema o que a cliente pode comprar.</small></span></button>
+      <button class="step"><span class="mi" style="width:28px;height:28px;border-radius:10px;background:#FAF8F4;color:#B42318;font-size:17px;flex:0 0 auto;">receipt_long</span><span><strong>Cadastrar receitas</strong><br><small>Mostre o que cada produto consome para enxergar custo, produção e estoque.</small></span></button>
+      <button class="step"><span class="mi" style="width:28px;height:28px;border-radius:10px;background:#FAF8F4;color:#B42318;font-size:17px;flex:0 0 auto;">payments</span><span><strong>Registrar custos fixos</strong><br><small>Inclua contas e compromissos que precisam entrar na rota.</small></span></button>
       <div style="border-top:1px solid #F1ECE4;margin-top:3px;padding-top:8px;display:flex;gap:6px;flex-wrap:wrap;">
         <span style="width:8px;height:8px;border-radius:999px;background:#B42318;display:inline-block"></span>
         <span style="width:8px;height:8px;border-radius:999px;background:#D8CEC3;display:inline-block"></span>
@@ -193,23 +221,6 @@
   </section>
   <button id="onboarding-pill" class="onboarding-pill" onclick="expandOnboarding()"><span class="mi">rocket_launch</span>Base 5/16</button>
 
-  <div id="tour" class="tour-backdrop">
-    <section class="tour-modal">
-      <div style="padding:18px 20px;background:linear-gradient(135deg,#FFFDF8 0%,#FAF1E6 100%);display:flex;align-items:flex-start;justify-content:space-between;gap:14px;">
-        <div><div style="font-size:12px;color:#8A6F5A;text-transform:uppercase;letter-spacing:.03em;">Passeio guiado</div><h2 style="font-size:20px;color:#1F1F1F;line-height:1.15;margin:5px 0 0;font-weight:750;">Como o BocaFood organiza sua rotina</h2></div>
-        <button class="soft-btn" onclick="closeTour()" style="width:34px;height:34px;padding:0"><span class="mi">close</span></button>
-      </div>
-      <div style="padding:16px 20px;display:flex;flex-direction:column;gap:11px;">
-        <div class="tour-row"><span class="mi action-icon" style="width:32px;height:32px;font-size:18px">settings</span><div><strong>Base do negócio</strong><div class="section-copy">Comece em Configurações, Canais de venda, Preço e Margem, Produtos, Receitas e Financeiro.</div></div></div>
-        <div class="tour-row"><span class="mi action-icon" style="width:32px;height:32px;font-size:18px">flight_takeoff</span><div><strong>Plano de Voo</strong><div class="section-copy">Depois da base, crie a rota do período com vendas, pedidos e esforço necessário.</div></div></div>
-        <div class="tour-row"><span class="mi action-icon" style="width:32px;height:32px;font-size:18px">event_available</span><div><strong>Temporadas</strong><div class="section-copy">A Temporada transforma a rota em jogadas práticas para os próximos dias.</div></div></div>
-        <div class="tour-row"><span class="mi action-icon" style="width:32px;height:32px;font-size:18px">storefront</span><div><strong>Loja online</strong><div class="section-copy">Organize cardápio, entrega, retirada e checkout para receber pedidos.</div></div></div>
-        <div class="tour-row"><span class="mi action-icon" style="width:32px;height:32px;font-size:18px">diamond</span><div><strong>Leitura do crescimento</strong><div class="section-copy">Performance mostra o mês, e Maturidade mostra se o negócio está evoluindo de verdade.</div></div></div>
-        <button class="soft-btn" onclick="closeTour()" style="height:40px;border:none;background:#B42318;color:#fff;border-radius:13px;">Entendi</button>
-      </div>
-    </section>
-  </div>
-
   <script>
     function collapseOnboarding(){
       document.getElementById('onboarding').style.display='none';
@@ -219,8 +230,10 @@
       document.getElementById('onboarding').style.display='block';
       document.getElementById('onboarding-pill').style.display='none';
     }
-    function openTour(){document.getElementById('tour').style.display='flex'}
-    function closeTour(){document.getElementById('tour').style.display='none'}
+    function startWelcomeTour(){
+      document.getElementById('welcome').style.display='none';
+      document.getElementById('onboarding').style.display='block';
+    }
   </script>
 </body>
 </html>

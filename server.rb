@@ -101,6 +101,19 @@ def save_store(data)
   File.write(STORE_FILE, JSON.pretty_generate(data))
 end
 
+def deep_merge_hash(base, patch)
+  left = base.is_a?(Hash) ? base.dup : {}
+  return left unless patch.is_a?(Hash)
+  patch.each do |key, value|
+    left[key] = if left[key].is_a?(Hash) && value.is_a?(Hash)
+                  deep_merge_hash(left[key], value)
+                else
+                  value
+                end
+  end
+  left
+end
+
 def log_master(message)
   File.open(LOG_FILE, 'a') { |f| f.puts("[#{Time.now.utc.iso8601}] #{message}") }
 end
@@ -383,6 +396,65 @@ def default_email_settings
     'enabled' => false,
     'provider' => 'smtp'
   }
+end
+
+def safe_stripe_settings(settings_doc = nil, secret_doc = nil)
+  settings = settings_doc ? firestore_fields_to_hash(settings_doc['fields'] || {}) : {}
+  secret = secret_doc ? firestore_fields_to_hash(secret_doc['fields'] || {}) : {}
+  {
+    'enabled' => settings['enabled'] == true,
+    'connectEnabled' => settings.key?('connectEnabled') ? settings['connectEnabled'] != false : true,
+    'publishableKeyConfigured' => !settings['publishableKey'].to_s.strip.empty?,
+    'secretKeyConfigured' => !secret['secretKey'].to_s.strip.empty? || settings['secretKeyConfigured'] == true,
+    'webhookSecretConfigured' => !secret['webhookSecret'].to_s.strip.empty? || settings['webhookSecretConfigured'] == true,
+    'currency' => settings['currency'].to_s.strip.empty? ? 'EUR' : settings['currency'].to_s.strip.upcase,
+    'mode' => settings['mode'].to_s.strip.empty? ? (settings['publishableKey'].to_s.start_with?('pk_live_') ? 'live' : 'test') : settings['mode'].to_s,
+    'publishableKey' => settings['publishableKey'].to_s
+  }
+end
+
+def save_stripe_settings_local(body)
+  publishable_key = body['publishableKey'].to_s.strip
+  secret_key = body['secretKey'].to_s.strip
+  webhook_secret = body['webhookSecret'].to_s.strip
+  currency = body['currency'].to_s.strip.empty? ? 'EUR' : body['currency'].to_s.strip.upcase
+  enabled = body['enabled'] == true || body['enabled'].to_s == 'true'
+
+  raise WEBrick::HTTPStatus::BadRequest, 'stripe_publishable_key_required' if enabled && publishable_key.empty?
+  raise WEBrick::HTTPStatus::BadRequest, 'stripe_publishable_key_invalid' if !publishable_key.empty? && !publishable_key.match?(/\Apk_(test|live)_/)
+  raise WEBrick::HTTPStatus::BadRequest, 'stripe_secret_key_invalid' if !secret_key.empty? && !secret_key.match?(/\Ask_(test|live)_/)
+  raise WEBrick::HTTPStatus::BadRequest, 'stripe_webhook_secret_invalid' if !webhook_secret.empty? && !webhook_secret.match?(/\Awhsec_/)
+  raise WEBrick::HTTPStatus::BadRequest, 'stripe_currency_invalid' unless currency.match?(/\A[A-Z]{3}\z/)
+
+  current_secret_doc = firestore_get_document('system_private_stripe_secrets', 'default')
+  current_secret = current_secret_doc ? firestore_fields_to_hash(current_secret_doc['fields'] || {}) : {}
+  settings = {
+    'enabled' => enabled,
+    'connectEnabled' => true,
+    'publishableKey' => publishable_key,
+    'currency' => currency,
+    'mode' => publishable_key.start_with?('pk_live_') ? 'live' : 'test',
+    'secretKeyConfigured' => !secret_key.empty? || !current_secret['secretKey'].to_s.strip.empty?,
+    'webhookSecretConfigured' => !webhook_secret.empty? || !current_secret['webhookSecret'].to_s.strip.empty?,
+    'updatedBy' => 'master_local'
+  }
+  firestore_upsert_document('system_stripe_settings', 'default', settings)
+  firestore_upsert_document('system', 'config', {
+    'stripeEnabled' => settings['enabled'],
+    'stripeConnectEnabled' => true,
+    'stripePublishableKey' => publishable_key,
+    'stripeCurrency' => currency,
+    'stripeMode' => settings['mode']
+  })
+  unless secret_key.empty? && webhook_secret.empty?
+    secret_patch = { 'updatedBy' => 'master_local' }
+    secret_patch['secretKey'] = secret_key unless secret_key.empty?
+    secret_patch['webhookSecret'] = webhook_secret unless webhook_secret.empty?
+    firestore_upsert_document('system_private_stripe_secrets', 'default', secret_patch)
+  end
+  settings_doc = firestore_get_document('system_stripe_settings', 'default')
+  secret_doc = firestore_get_document('system_private_stripe_secrets', 'default')
+  { 'ok' => true, 'stripe' => safe_stripe_settings(settings_doc, secret_doc) }
 end
 
 def save_email_settings!(body)
@@ -1460,6 +1532,9 @@ def public_store_name(tenant)
 end
 
 def ensure_unique_public_slug!(store, slug, tenant_id)
+  slug = public_store_slug(slug)
+  return if slug.empty?
+
   duplicate = (store['tenants'] || []).find do |tenant|
     tenant['id'].to_s != tenant_id.to_s && public_store_slug(tenant['slug']) == slug
   end
@@ -4367,6 +4442,35 @@ server.mount_proc '/api/master/global_config' do |req, res|
     log_master('global config saved')
   end
   json_response(res, 200, { config: store['global_config'] || {} })
+rescue => e
+  json_response(res, 400, { error: e.message })
+end
+
+server.mount_proc '/api/master/system_config' do |req, res|
+  current_doc = firestore_get_document('system', 'config')
+  current = current_doc ? firestore_fields_to_hash(current_doc['fields'] || {}) : {}
+  if req.request_method == 'POST'
+    body = read_json(req)
+    patch = body['patch'].is_a?(Hash) ? body['patch'] : body
+    raise WEBrick::HTTPStatus::BadRequest, 'Configuração vazia' if patch.empty?
+    current = deep_merge_hash(current, patch)
+    firestore_upsert_document('system', 'config', current)
+    log_master('system config saved')
+  end
+  json_response(res, 200, { config: current })
+rescue => e
+  json_response(res, 400, { error: e.message })
+end
+
+server.mount_proc '/api/master/stripe_settings' do |req, res|
+  if req.request_method == 'POST'
+    body = read_json(req)
+    json_response(res, 200, save_stripe_settings_local(body))
+  else
+    settings_doc = firestore_get_document('system_stripe_settings', 'default')
+    secret_doc = firestore_get_document('system_private_stripe_secrets', 'default')
+    json_response(res, 200, { stripe: safe_stripe_settings(settings_doc, secret_doc) })
+  end
 rescue => e
   json_response(res, 400, { error: e.message })
 end

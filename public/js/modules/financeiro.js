@@ -114,8 +114,29 @@ Modules.Financeiro = (function () {
     }
     return parseFloat(raw) || 0;
   }
+  function _normalizeFiscalCountry(value) {
+    var raw = String(value || '').trim().toLowerCase();
+    if (raw === 'pt' || raw === 'portugal' || raw === 'pt-pt') return 'PT';
+    if (raw === 'es' || raw === 'espana' || raw === 'españa' || raw === 'espanha' || raw === 'spain' || raw === 'es-es') return 'ES';
+    return '';
+  }
   function _tenantFiscalCountry() {
-    return (window.Auth && Auth.getFiscalCountry) ? (Auth.getFiscalCountry() || 'ES') : 'ES';
+    var profile = (window.Auth && Auth.getAdminProfile) ? (Auth.getAdminProfile() || {}) : {};
+    var fromAuth = (window.Auth && Auth.getFiscalCountry) ? Auth.getFiscalCountry() : '';
+    var candidates = [
+      _configGeral && _configGeral.fiscalCountry,
+      _configGeral && _configGeral.defaultFiscalCountry,
+      _configGeral && _configGeral.companyFiscalCountry,
+      profile && profile.fiscalCountry,
+      profile && profile.accountAddress && profile.accountAddress.fiscalCountry,
+      profile && profile.store && profile.store.fiscalCountry,
+      fromAuth
+    ];
+    for (var i = 0; i < candidates.length; i++) {
+      var normalized = _normalizeFiscalCountry(candidates[i]);
+      if (normalized) return normalized;
+    }
+    return 'ES';
   }
   function _dateToYMD(d) {
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -377,11 +398,12 @@ Modules.Financeiro = (function () {
     return ((_systemConfig || {}).globalFinance) || {};
   }
   function _globalTypeCountryOk(country, tenantCountry) {
-    var item = String(country || 'ambos').toLowerCase();
-    var tenant = String(tenantCountry || _tenantFiscalCountry() || 'ES').toUpperCase();
-    if (item === 'ambos' || item === 'both' || item === 'all' || item === '') return true;
-    if (tenant === 'PT') return item === 'pt' || item === 'portugal';
-    return item === 'es' || item === 'espanha';
+    var item = String(country || 'ambos').trim().toLowerCase();
+    var tenant = _normalizeFiscalCountry(tenantCountry || _tenantFiscalCountry()) || 'ES';
+    if (item === 'ambos' || item === 'both' || item === 'all' || item === 'geral' || item === '') return true;
+    var itemCountry = _normalizeFiscalCountry(item);
+    if (!itemCountry) return true;
+    return itemCountry === tenant;
   }
   function _globalTypeResolve(kind, value, includeInactive) {
     var list = _globalFinanceList(kind, includeInactive);
@@ -1405,10 +1427,6 @@ Modules.Financeiro = (function () {
         metric('Registros', String(filtered.length), 'Entradas encontradas pelos filtros.', 'receipt_long', '#8A6F5A')+
       '</section>'+
       '<section style="'+cardStyle+'">'+
-        '<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:14px;">'+
-          '<span class="mi" style="width:31px;height:31px;border-radius:12px;background:#FAF8F4;color:#8A6F5A;display:inline-flex;align-items:center;justify-content:center;font-size:17px;flex:0 0 auto;">filter_alt</span>'+
-          '<div style="min-width:0;">'+sectionTitle('Filtros de entradas','Refine por período, status, conta bancária e busca.')+'</div>'+
-        '</div>'+
         '<div style="display:grid;grid-template-columns:minmax(240px,1fr) minmax(180px,220px) minmax(170px,210px) auto;gap:12px;align-items:end;justify-content:start;">'+
           '<div><label style="'+labelStyle+'">Busca</label><input id="mov-busca" type="search" value="'+_esc(_movFiltro.busca||'')+'" oninput="Modules.Financeiro._setMovFiltro(\'busca\',this.value)" placeholder="Descrição, cliente, documento, forma, conta ou valor" style="'+inputStyle+'"></div>'+
           '<div><label style="'+labelStyle+'">Período</label><select onchange="Modules.Financeiro._setMovFiltro(\'periodo\',this.value)" style="'+selectStyle+'">'+_periodoOptionsHtml(_movFiltro.periodo)+'</select></div>'+
@@ -2451,10 +2469,6 @@ Modules.Financeiro = (function () {
         metric('Vencido', _fmtVal(totalVencido), 'Contas vencidas no período.', 'priority_high', '#B42318')+
       '</section>'+
       '<section style="'+cardStyle+'">'+
-        '<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:14px;">'+
-          '<span class="mi" style="width:31px;height:31px;border-radius:12px;background:#FAF8F4;color:#8A6F5A;display:inline-flex;align-items:center;justify-content:center;font-size:17px;flex:0 0 auto;">filter_alt</span>'+
-          '<div style="min-width:0;">'+sectionTitle('Filtros de saídas','Refine por período, status, conta bancária e busca.')+'</div>'+
-        '</div>'+
         '<div style="display:grid;grid-template-columns:minmax(240px,1fr) minmax(180px,220px) auto;gap:12px;align-items:end;justify-content:start;">'+
           '<div><label style="'+labelStyle+'">Busca</label><input id="cp-busca" type="search" value="'+_esc(_cpFiltro.busca||'')+'" oninput="Modules.Financeiro._setCPFiltro(\'busca\',this.value)" placeholder="Descrição, fornecedor, documento, forma, conta ou valor" style="'+inputStyle+'"></div>'+
           '<div><label style="'+labelStyle+'">Período</label><select onchange="Modules.Financeiro._setCPFiltro(\'periodo\',this.value)" style="'+selectStyle+'">'+_periodoOptionsHtml(_cpFiltro.periodo)+'</select></div>'+
@@ -3629,8 +3643,8 @@ Modules.Financeiro = (function () {
 
   // ── CONTAS BANCÁRIAS ──────────────────────────────────────────────────────
   function _loadContasBancarias() {
-    Promise.all([DB.getAll('contas_bancarias'),_loadMovimentacoesData(),DB.getSystemConfig()]).then(function(r){
-      _contasBancarias=r[0]||[]; _movimentacoes=r[1]||[]; _systemConfig=r[2]||{};
+    Promise.all([DB.getAll('contas_bancarias'),_loadMovimentacoesData(),DB.getSystemConfig(),DB.getDocRoot('config','geral').catch(function(){ return {}; })]).then(function(r){
+      _contasBancarias=r[0]||[]; _movimentacoes=r[1]||[]; _systemConfig=r[2]||{}; _configGeral=r[3]||{};
       _paintContasBancarias();
     });
   }

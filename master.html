@@ -312,6 +312,7 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
     <button class="tab-btn" data-tab="central-ajuda" onclick="openTab('central-ajuda')">Central de Ajuda</button>
     <button class="tab-btn" data-tab="emails-automaticos" onclick="openTab('emails-automaticos')">E-mails automáticos</button>
     <button class="tab-btn" data-tab="configuracoes-globais" onclick="openTab('configuracoes-globais')">Configurações Globais</button>
+    <button class="tab-btn" type="button" onclick="openStripeSettings()">Stripe</button>
     <!-- Legado: backup técnico de código via GitHub oculto da navegação principal. O fluxo atual usa Git/PR fora do Master. -->
   </nav>
 
@@ -862,6 +863,47 @@ pre{background:#171717;color:#f7f7f7;border-radius:12px;padding:14px;overflow:au
       </div>
       <div id="global-finance-content" style="margin-top:16px;"></div>
     </div>
+    <div id="master-stripe-card" class="card" style="margin-top:16px;">
+      <div class="toolbar">
+        <div>
+          <h2>Stripe Connect</h2>
+          <p>Configuração global para pagamento com cartão. Cada loja conecta a própria conta Stripe no Admin.</p>
+        </div>
+        <button class="btn secondary" onclick="loadMasterStripe()">Recarregar Stripe</button>
+      </div>
+      <div id="master-stripe-status" class="signup-summary-metrics" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));margin:0 0 16px;"></div>
+      <div class="form-grid">
+        <label><span>Status</span>
+          <select id="master-stripe-enabled">
+            <option value="true">Ativo</option>
+            <option value="false">Inativo</option>
+          </select>
+        </label>
+        <label><span>Moeda padrão</span>
+          <select id="master-stripe-currency">
+            <option value="EUR">EUR</option>
+            <option value="BRL">BRL</option>
+            <option value="USD">USD</option>
+          </select>
+        </label>
+        <label class="full"><span>Chave pública</span>
+          <input id="master-stripe-publishable-key" autocomplete="off" placeholder="pk_test_...">
+        </label>
+        <label><span>Chave secreta</span>
+          <input id="master-stripe-secret-key" type="password" autocomplete="new-password" placeholder="Preencha somente para atualizar">
+        </label>
+        <label><span>Webhook secret</span>
+          <input id="master-stripe-webhook-secret" type="password" autocomplete="new-password" placeholder="whsec_...">
+        </label>
+      </div>
+      <div class="global-help" style="margin-top:4px;">
+        A chave secreta e o webhook ficam em coleção privada usada pelas Firebase Functions. Não ficam no Admin público.
+      </div>
+      <div class="actions" style="margin-top:12px;">
+        <button id="master-stripe-save" class="btn blue" onclick="saveMasterStripe()">Salvar Stripe Connect</button>
+      </div>
+      <div id="master-stripe-message" class="global-help" style="display:none;margin-top:12px;"></div>
+    </div>
   </section>
 
   <section id="tab-backup" class="tab-panel" hidden>
@@ -1208,6 +1250,7 @@ function openTab(tab){
   }
   if(tab==='configuracoes-globais'){
     loadGlobalFinanceScreen();
+    loadMasterStripe();
   }
   if(tab==='configuracoes'){
     loadFirestoreBackup();
@@ -1222,6 +1265,14 @@ function openTab(tab){
   if(tab==='central-ajuda'){
     loadSupportTickets();
   }
+}
+function openStripeSettings(){
+  openTab('configuracoes-globais');
+  setTimeout(function(){
+    var card = document.getElementById('master-stripe-card');
+    if (card && card.scrollIntoView) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    loadMasterStripe();
+  }, 120);
 }
 var _supportTicketsState = { loaded:false, loading:false, tickets:[] };
 function _supportTicketStatusLabel(status){
@@ -1515,6 +1566,26 @@ function _globalFinanceRef(){
   initFirebase();
   return firebase.firestore().collection('system').doc('config');
 }
+function _globalFinanceLoadSystemConfig(){
+  return api('/api/master/system_config').then(function(r){
+    return r.config || {};
+  }).catch(function(){
+    return waitFirebaseUser(8000).then(function(user){
+      if (!user) throw new Error('Entre no Master para carregar as configurações globais.');
+      return _globalFinanceRef().get().then(function(snap){
+        return snap && snap.exists ? (snap.data() || {}) : {};
+      });
+    });
+  });
+}
+function _globalFinanceSavePatch(patch){
+  var payload = { patch: { globalFinance: patch || {} } };
+  return api('/api/master/system_config', { method: 'POST', body: JSON.stringify(payload) }).catch(function(localErr){
+    return _emailCallFunction('saveMasterSystemConfig', payload).catch(function(fnErr){
+      throw fnErr || localErr;
+    });
+  });
+}
 function _globalFinanceCountryCode(v){
   var s = String(v || 'ambos').toLowerCase();
   if (s === 'ambos' || s === 'both' || s === 'all' || s === '') return 'ambos';
@@ -1699,7 +1770,7 @@ function _ensureGlobalFinanceDefaults() {
   if (!Array.isArray(current.bankAccountTypes) || !current.bankAccountTypes.length) patch.bankAccountTypes = _globalFinanceKindDefaults('bank');
   if (!Array.isArray(current.paymentMethodTypes) || !current.paymentMethodTypes.length) patch.paymentMethodTypes = _globalFinanceKindDefaults('payment');
   if (!Object.keys(patch).length) return Promise.resolve(current);
-  return _globalFinanceRef().set({ globalFinance: patch }, { merge: true }).then(function () {
+  return _globalFinanceSavePatch(patch).then(function () {
     _globalFinanceState.data = Object.assign({}, current, patch);
     return _globalFinanceState.data;
   });
@@ -1709,17 +1780,8 @@ function loadGlobalFinanceScreen(){
   var box = document.getElementById('global-finance-content');
   if (box) box.innerHTML = '<div class="card" style="box-shadow:none;border:1px solid var(--line);"><div class="loading-inline">Carregando configurações globais...</div></div>';
   _globalFinanceState.loading = true;
-  _globalFinanceLoadPromise = waitFirebaseUser(8000).then(function (user) {
-    if (!user) {
-      if (box) box.innerHTML = '<div class="card" style="box-shadow:none;border:1px solid var(--line);"><div class="loading-inline">Aguardando autenticação Firebase...</div></div>';
-      return waitFirebaseUser(8000);
-    }
-    return user;
-  }).then(function (user) {
-    if (!user) throw new Error('Faça login no Master para carregar as configurações globais.');
-    return _globalFinanceRef().get();
-  }).then(function (snap) {
-    var data = snap && snap.exists ? (snap.data() || {}) : {};
+  _globalFinanceLoadPromise = _globalFinanceLoadSystemConfig().then(function (data) {
+    data = data || {};
     _globalFinanceState.data = data.globalFinance || {};
     return _ensureGlobalFinanceDefaults();
   }).then(function () {
@@ -1733,6 +1795,104 @@ function loadGlobalFinanceScreen(){
     _globalFinanceLoadPromise = null;
   });
   return _globalFinanceLoadPromise;
+}
+function _stripeSetVal(id, value){
+  var el = document.getElementById(id);
+  if (el) el.value = value == null ? '' : String(value);
+}
+function _stripeMessage(text, tone){
+  var el = document.getElementById('master-stripe-message');
+  if (!el) return;
+  el.style.display = text ? 'block' : 'none';
+  el.style.borderColor = tone === 'error' ? '#F2C7C1' : (tone === 'success' ? '#BBF7D0' : 'var(--line)');
+  el.style.background = tone === 'error' ? '#FFF0EE' : (tone === 'success' ? '#EDFAF3' : '#fff');
+  el.style.color = tone === 'error' ? '#C4362A' : (tone === 'success' ? '#157347' : 'var(--muted)');
+  el.textContent = text || '';
+}
+function _stripeMetric(label, value, tone){
+  var color = tone === 'ok' ? '#157347' : (tone === 'bad' ? '#C4362A' : (tone === 'warn' ? '#9A6A00' : 'var(--dark)'));
+  var bg = tone === 'ok' ? '#EDFAF3' : (tone === 'bad' ? '#FFF0EE' : (tone === 'warn' ? '#FFF8EC' : '#fff'));
+  return '<div class="signup-summary-metric" style="background:'+bg+';">' +
+    '<span>'+esc(label)+'</span>' +
+    '<strong style="font-size:21px;color:'+color+';">'+esc(value)+'</strong>' +
+  '</div>';
+}
+function renderMasterStripe(stripe){
+  stripe = stripe || {};
+  var status = document.getElementById('master-stripe-status');
+  if (status) {
+    status.innerHTML = [
+      _stripeMetric('Stripe', stripe.enabled ? 'Ativo' : 'Inativo', stripe.enabled ? 'ok' : 'warn'),
+      _stripeMetric('Connect', stripe.connectEnabled !== false ? 'Ativo' : 'Inativo', stripe.connectEnabled !== false ? 'ok' : 'warn'),
+      _stripeMetric('Chave pública', stripe.publishableKeyConfigured ? 'Configurada' : 'Ausente', stripe.publishableKeyConfigured ? 'ok' : 'bad'),
+      _stripeMetric('Chave secreta', stripe.secretKeyConfigured ? 'Configurada' : 'Ausente', stripe.secretKeyConfigured ? 'ok' : 'bad'),
+      _stripeMetric('Webhook', stripe.webhookSecretConfigured ? 'Configurado' : 'Ausente', stripe.webhookSecretConfigured ? 'ok' : 'bad'),
+      _stripeMetric('Moeda', stripe.currency || 'EUR', '')
+    ].join('');
+  }
+  _stripeSetVal('master-stripe-enabled', stripe.enabled ? 'true' : 'false');
+  _stripeSetVal('master-stripe-currency', stripe.currency || 'EUR');
+  _stripeSetVal('master-stripe-publishable-key', stripe.publishableKey || '');
+  _stripeSetVal('master-stripe-secret-key', '');
+  _stripeSetVal('master-stripe-webhook-secret', '');
+}
+function loadMasterStripe(){
+  var status = document.getElementById('master-stripe-status');
+  if (!status) return Promise.resolve();
+  status.innerHTML = '<div class="users-empty" style="grid-column:1/-1;">Carregando Stripe Connect...</div>';
+  _stripeMessage('', '');
+  return api('/api/master/stripe_settings').catch(function(){
+    return _emailCallFunction('masterStripeDiagnostics', {});
+  }).then(function(result){
+    renderMasterStripe((result && result.stripe) || {});
+  }).catch(function(err){
+    status.innerHTML = '<div class="users-empty" style="grid-column:1/-1;">Não foi possível carregar Stripe Connect.</div>';
+    _stripeMessage('Erro ao carregar Stripe: ' + (err && err.message ? err.message : err), 'error');
+  });
+}
+function saveMasterStripe(){
+  var btn = document.getElementById('master-stripe-save');
+  var payload = {
+    enabled: ((document.getElementById('master-stripe-enabled') || {}).value || '') === 'true',
+    currency: ((document.getElementById('master-stripe-currency') || {}).value || 'EUR'),
+    publishableKey: (((document.getElementById('master-stripe-publishable-key') || {}).value || '').trim()),
+    secretKey: (((document.getElementById('master-stripe-secret-key') || {}).value || '').trim()),
+    webhookSecret: (((document.getElementById('master-stripe-webhook-secret') || {}).value || '').trim())
+  };
+  if (payload.enabled && !payload.publishableKey) {
+    _stripeMessage('Informe a chave pública antes de ativar o Stripe.', 'error');
+    return;
+  }
+  if (payload.publishableKey && !/^pk_(test|live)_/.test(payload.publishableKey)) {
+    _stripeMessage('A chave pública deve começar com pk_test_ ou pk_live_.', 'error');
+    return;
+  }
+  if (payload.secretKey && !/^sk_(test|live)_/.test(payload.secretKey)) {
+    _stripeMessage('A chave secreta deve começar com sk_test_ ou sk_live_.', 'error');
+    return;
+  }
+  if (payload.webhookSecret && !/^whsec_/.test(payload.webhookSecret)) {
+    _stripeMessage('O webhook secret deve começar com whsec_.', 'error');
+    return;
+  }
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Salvando...';
+  }
+  _stripeMessage('Salvando Stripe Connect...', '');
+  api('/api/master/stripe_settings', { method: 'POST', body: JSON.stringify(payload) }).catch(function(){
+    return _emailCallFunction('saveStripeSettings', payload);
+  }).then(function(result){
+    _stripeMessage('Stripe Connect salvo. Agora cada loja pode conectar a própria conta em Configurações > Integrações.', 'success');
+    renderMasterStripe((result && result.stripe) || {});
+  }).catch(function(err){
+    _stripeMessage('Erro ao salvar Stripe: ' + (err && err.message ? err.message : err), 'error');
+  }).finally(function(){
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Salvar Stripe Connect';
+    }
+  });
 }
 function _globalFinanceModalFields(kind, item){
   var requireBank = kind === 'payment' && item.requiresBankAccount;
@@ -1786,11 +1946,11 @@ function toggleGlobalFinanceActive(kind, id){
   var idx = list.findIndex(function (x) { return String(x.id || '') === String(id); });
   if (idx < 0) return;
   list[idx].active = !list[idx].active;
-  _globalFinanceRef().set({ globalFinance: (function () {
+  _globalFinanceSavePatch((function () {
     var next = Object.assign({}, _globalFinanceState.data || {});
     next[key] = list;
     return next;
-  })() }, { merge: true }).then(function () {
+  })()).then(function () {
     _globalFinanceState.data = Object.assign({}, _globalFinanceState.data || {});
     _globalFinanceState.data[key] = list;
     toast(list[idx].active ? 'Tipo ativado' : 'Tipo desativado');
@@ -1846,7 +2006,7 @@ function saveGlobalFinanceItem(){
   });
   var patch = {};
   patch[key] = next;
-  _globalFinanceRef().set({ globalFinance: patch }, { merge: true }).then(function () {
+  _globalFinanceSavePatch(patch).then(function () {
     _globalFinanceState.data = Object.assign({}, _globalFinanceState.data || {});
     _globalFinanceState.data[key] = next;
     closeGlobalFinanceModal();

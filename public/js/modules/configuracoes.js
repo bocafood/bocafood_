@@ -14,6 +14,8 @@ Modules.Configuracoes = (function () {
   var _publicationProducts = [];
   var _publicationCategories = [];
   var _financeCategories = [];
+  var _bankAccounts = [];
+  var CONFIG_FN_BASE = 'https://us-central1-bocado-brasil.cloudfunctions.net/';
 
   var TABS = [
     { key: 'geral', label: 'Geral' },
@@ -156,8 +158,17 @@ Modules.Configuracoes = (function () {
       '.store-link-field-grid{display:grid;grid-template-columns:minmax(260px,420px);gap:12px;align-items:start;}' +
       '.store-link-field{display:block;min-width:0;}' +
       '.store-link-field span{display:block;margin-bottom:5px;font-size:11px;font-weight:700;color:#6F6860;letter-spacing:.02em;}' +
+      '.store-link-input-wrap{position:relative;display:block;}' +
       '.store-link-field input{width:100%;height:42px;box-sizing:border-box;border:1px solid #E8DCD7;border-radius:12px;background:#FFFCF8;color:#211815;font-family:Manrope,Inter,sans-serif;font-size:14px;outline:none;padding:0 12px;box-shadow:inset 0 1px 0 rgba(255,255,255,.82);transition:border-color .16s,box-shadow .16s,background .16s;}' +
+      '.store-link-input-wrap input{padding-right:44px;}' +
       '.store-link-field input:focus{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08),inset 0 1px 0 rgba(255,255,255,.82);}' +
+      '.store-link-validation-icon{position:absolute;right:11px;top:50%;transform:translateY(-50%);width:24px;height:24px;border-radius:999px;display:inline-flex!important;align-items:center;justify-content:center;font-size:17px;background:#FAF8F4;color:#8A7E7C;pointer-events:none;}' +
+      '.store-link-field.valid input{border-color:#BEE5CA;background:#F8FFF9;}' +
+      '.store-link-field.valid .store-link-validation-icon{background:#EAF8EF;color:#1F7A43;}' +
+      '.store-link-field.invalid input{border-color:#F1B8AD;background:#FFF8F6;}' +
+      '.store-link-field.invalid .store-link-validation-icon{background:#FFF0EE;color:#B42318;}' +
+      '.store-link-field.valid small{color:#1F6F43;}' +
+      '.store-link-field.invalid small{color:#B42318;}' +
       '.store-link-field small{display:block;font-size:11px;color:#8A7E7C;line-height:1.35;margin-top:5px;}' +
       '.store-link-url-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;}' +
       '.store-link-status-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;}' +
@@ -190,13 +201,15 @@ Modules.Configuracoes = (function () {
     var tenantPromise = _loadSystemTenant().catch(function () { return {}; });
     var masterTenantPromise = _loadMasterTenantControl().catch(function () { return {}; });
     var financeCategoriesPromise = DB.getAll ? DB.getAll('financeiro_categorias').catch(function () { return []; }) : Promise.resolve([]);
-    return Promise.all(CONFIG_TABS.map(function (k) { return DB.getDocRoot('config', k); }).concat([tenantPromise, masterTenantPromise, financeCategoriesPromise]))
+    var bankAccountsPromise = DB.getAll ? DB.getAll('contas_bancarias').catch(function () { return []; }) : Promise.resolve([]);
+    return Promise.all(CONFIG_TABS.map(function (k) { return DB.getDocRoot('config', k); }).concat([tenantPromise, masterTenantPromise, financeCategoriesPromise, bankAccountsPromise]))
       .then(function (docs) {
         _config = {};
         CONFIG_TABS.forEach(function (k, i) { _config[k] = docs[i] || {}; });
         _systemTenant = docs[CONFIG_TABS.length] || {};
         _masterTenantControl = docs[CONFIG_TABS.length + 1] || _systemTenant || {};
         _financeCategories = docs[CONFIG_TABS.length + 2] || [];
+        _bankAccounts = docs[CONFIG_TABS.length + 3] || [];
       })
       .catch(function (err) {
         console.error('Config load error', err);
@@ -204,6 +217,7 @@ Modules.Configuracoes = (function () {
         _systemTenant = {};
         _masterTenantControl = {};
         _financeCategories = [];
+        _bankAccounts = [];
       });
   }
 
@@ -362,19 +376,19 @@ Modules.Configuracoes = (function () {
               '<div class="store-preview-main">' +
                 '<div id="cfg-avatar-preview" class="store-preview-logo">' + (avatarUrl ? '<img src="' + _esc(avatarUrl) + '" alt="">' : '<span class="mi">storefront</span>') + '</div>' +
                 '<div class="store-preview-copy">' +
-                  '<h3 class="store-preview-name">' + _esc(businessNameValue || 'Nome comercial') + '</h3>' +
-                  '<p class="store-preview-description">' + _esc(shortDescription || 'Adicione uma apresentação curta para explicar o que você vende.') + '</p>' +
+                  '<h3 class="store-preview-name" id="cfg-preview-business-name">' + _esc(businessNameValue || 'Nome comercial') + '</h3>' +
+                  '<p class="store-preview-description" id="cfg-preview-description">' + _esc(shortDescription || 'Adicione uma apresentação curta para explicar o que você vende.') + '</p>' +
                 '</div>' +
               '</div>' +
               '<div class="store-preview-meta">' +
                 '<div class="store-preview-badges">' +
-                  '<span class="store-preview-badge"><span class="mi">public</span>' + _esc(fiscalLabel) + '</span>' +
-                  '<span class="store-preview-badge"><span class="mi">badge</span>' + _esc(fiscalDocumentValue || 'Documento não informado') + '</span>' +
+                  '<span class="store-preview-badge"><span class="mi">public</span><span id="cfg-preview-fiscal-country">' + _esc(fiscalLabel) + '</span></span>' +
+                  '<span class="store-preview-badge"><span class="mi">badge</span><span id="cfg-preview-fiscal-doc">' + _esc(fiscalDocumentValue || 'Documento não informado') + '</span></span>' +
                 '</div>' +
                 '<div class="store-preview-details">' +
-                  '<div class="store-preview-detail ' + (previewAddress ? '' : 'muted') + '"><span class="mi">location_on</span><div><small>Endereço</small><strong>' + _esc(previewAddress || 'Não informado') + '</strong></div></div>' +
-                  '<div class="store-preview-detail ' + (previewPhone ? '' : 'muted') + '"><span class="mi">call</span><div><small>Telefone</small><strong>' + _esc(previewPhone || 'Não informado') + '</strong></div></div>' +
-                  '<div class="store-preview-detail ' + (previewWhatsapp ? '' : 'muted') + '"><span class="mi">chat</span><div><small>WhatsApp</small><strong>' + _esc(previewWhatsapp || 'Não informado') + '</strong></div></div>' +
+                  '<div class="store-preview-detail ' + (previewAddress ? '' : 'muted') + '" id="cfg-preview-address-card"><span class="mi">location_on</span><div><small>Endereço</small><strong id="cfg-preview-address">' + _esc(previewAddress || 'Não informado') + '</strong></div></div>' +
+                  '<div class="store-preview-detail ' + (previewPhone ? '' : 'muted') + '" id="cfg-preview-phone-card"><span class="mi">call</span><div><small>Telefone</small><strong id="cfg-preview-phone">' + _esc(previewPhone || 'Não informado') + '</strong></div></div>' +
+                  '<div class="store-preview-detail ' + (previewWhatsapp ? '' : 'muted') + '" id="cfg-preview-whatsapp-card"><span class="mi">chat</span><div><small>WhatsApp</small><strong id="cfg-preview-whatsapp">' + _esc(previewWhatsapp || 'Não informado') + '</strong></div></div>' +
                 '</div>' +
               '</div>' +
             '</div>' +
@@ -530,7 +544,61 @@ Modules.Configuracoes = (function () {
         }
       });
     };
+    _bindGeneralPreviewRefresh(fiscalLabel);
     setTimeout(function () { if (window.BocaPlaces) BocaPlaces.init('cfg-company-address'); }, 100);
+  }
+
+  function _setPreviewText(id, value) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = value;
+  }
+
+  function _setPreviewMuted(cardId, hasValue) {
+    var el = document.getElementById(cardId);
+    if (el) el.classList.toggle('muted', !hasValue);
+  }
+
+  function _refreshGeneralPreview(fiscalLabel) {
+    var name = _val('cfg-business-name') || 'Nome comercial';
+    var description = _val('cfg-description') || 'Adicione uma apresentação curta para explicar o que você vende.';
+    var fiscalDoc = (_val('cfg-company-fiscal-id') || '').toUpperCase() || 'Documento não informado';
+    var address = [
+      _val('cfg-company-address'),
+      _val('cfg-company-number'),
+      _val('cfg-company-neighborhood'),
+      _val('cfg-company-city'),
+      _val('cfg-company-region'),
+      _val('cfg-company-postal')
+    ].filter(Boolean).join(', ');
+    var phone = _phoneFull(_val('cfg-phone-country'), _val('cfg-phone'));
+    var whatsapp = _phoneFull(_val('cfg-whatsapp-country'), _val('cfg-whatsapp'));
+    _setPreviewText('cfg-preview-business-name', name);
+    _setPreviewText('cfg-preview-description', description);
+    _setPreviewText('cfg-preview-fiscal-country', fiscalLabel || 'Espanha');
+    _setPreviewText('cfg-preview-fiscal-doc', fiscalDoc);
+    _setPreviewText('cfg-preview-address', address || 'Não informado');
+    _setPreviewText('cfg-preview-phone', phone || 'Não informado');
+    _setPreviewText('cfg-preview-whatsapp', whatsapp || 'Não informado');
+    _setPreviewMuted('cfg-preview-address-card', !!address);
+    _setPreviewMuted('cfg-preview-phone-card', !!phone);
+    _setPreviewMuted('cfg-preview-whatsapp-card', !!whatsapp);
+  }
+
+  function _bindGeneralPreviewRefresh(fiscalLabel) {
+    var ids = [
+      'cfg-business-name', 'cfg-description', 'cfg-company-fiscal-id',
+      'cfg-company-address', 'cfg-company-number', 'cfg-company-neighborhood',
+      'cfg-company-city', 'cfg-company-region', 'cfg-company-postal',
+      'cfg-phone-country', 'cfg-phone', 'cfg-whatsapp-country', 'cfg-whatsapp'
+    ];
+    var refresh = function () { _refreshGeneralPreview(fiscalLabel); };
+    ids.forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener('input', refresh);
+      el.addEventListener('change', refresh);
+    });
+    refresh();
   }
 
   function _renderContaUsuario() {
@@ -555,20 +623,25 @@ Modules.Configuracoes = (function () {
 
     content.innerHTML =
       _configVisualStyles() +
-      '<div class="config-wrap">' +
-        '<section class="bf-card bf-section account-settings">' +
-          '<div class="bf-section-header">' +
-            '<div><h3 class="bf-section-title">Usuário</h3><p class="bf-section-subtitle">Mantenha seus dados atualizados para receber suporte, avisos importantes e acessar sua conta com segurança.</p></div>' +
+      '<div class="config-wrap" style="max-width:980px;">' +
+        '<section class="settings-card bf-card account-settings" style="background:linear-gradient(180deg,#FFFFFF 0%,#FFFCF9 100%);border:1px solid #EADFD8;border-radius:18px;padding:18px 20px;box-shadow:0 16px 38px rgba(47,37,35,.055);">' +
+          '<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:14px;">' +
+            '<span class="mi" style="width:34px;height:34px;border-radius:12px;background:#F8F1ED;color:#8F3E32;display:inline-flex;align-items:center;justify-content:center;font-size:19px;flex:0 0 auto;">person</span>' +
+            '<div style="min-width:0;">' +
+              '<h2 style="margin:0;color:#2F2523;font-size:20px;line-height:1.2;font-weight:700;">Usuário</h2>' +
+              '<p style="margin:6px 0 0;color:#6F6860;font-size:13px;line-height:1.45;max-width:660px;">Mantenha os dados da pessoa responsável pela conta para suporte, avisos importantes e acesso seguro ao BocaFood.</p>' +
+            '</div>' +
           '</div>' +
-          '<div style="display:grid;grid-template-columns:1fr;gap:12px;">' +
-            '<div class="bf-panel" style="background:#fff;padding:16px;border-color:#EADFD8;box-shadow:0 10px 24px rgba(31,31,31,.04);">' +
-              '<div style="display:flex;align-items:flex-start;gap:9px;margin-bottom:13px;"><span class="mi" style="font-size:18px;color:#6F6860;line-height:1.2;">person</span><div><div style="font-size:13px;font-weight:800;color:#1F1F1F;">Dados do usuário</div><div style="font-size:12px;color:#8A7E7C;line-height:1.35;margin-top:2px;">Informações da pessoa responsável pelo acesso e comunicação da conta.</div></div></div>' +
-              '<div class="bf-form-grid" style="grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 16px;">' +
-                '<div class="bf-field"><label>Seu nome completo</label><input id="cfg-account-owner-name" class="bf-input" value="' + _esc(tenant.ownerName || conta.ownerName || geral.ownerName || '') + '" placeholder="Nome completo"><div class="account-field-help">Nome da pessoa responsável pela conta.</div></div>' +
-                '<div class="bf-field"><label>Como você quer ser chamada?</label><input id="cfg-account-social-name" class="bf-input" value="' + _esc(tenant.preferredName || tenant.socialName || conta.preferredName || conta.socialName || '') + '" placeholder="Nome curto"><div class="account-field-help">Usaremos esse nome nas mensagens e áreas internas do BocaFood.</div></div>' +
+          '<div style="display:flex;gap:10px;align-items:flex-start;background:#FFF7F2;border:1px solid #F0DED5;border-radius:14px;padding:12px 14px;margin-bottom:14px;color:#5D504B;font-size:13px;line-height:1.45;">' +
+            '<span class="mi" style="font-size:18px;color:#A84A3E;line-height:1.2;">info</span>' +
+            '<span>Estes dados identificam quem administra a conta. O e-mail de acesso fica bloqueado por segurança; para trocar, fale com o suporte.</span>' +
+          '</div>' +
+          '<div class="bf-panel" style="background:linear-gradient(180deg,#FFFFFF 0%,#FFFCF8 100%);padding:16px;border:1px solid #EADFD8;border-radius:14px;box-shadow:0 10px 24px rgba(47,37,35,.045);">' +
+            '<div class="bf-form-grid" style="grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 16px;">' +
+              '<div class="bf-field"><label>Seu nome completo</label><input id="cfg-account-owner-name" class="bf-input" value="' + _esc(tenant.ownerName || conta.ownerName || geral.ownerName || '') + '" placeholder="Nome completo"><div class="account-field-help">Nome da pessoa responsável pela conta.</div></div>' +
+              '<div class="bf-field"><label>Como você quer ser chamada?</label><input id="cfg-account-social-name" class="bf-input" value="' + _esc(tenant.preferredName || tenant.socialName || conta.preferredName || conta.socialName || '') + '" placeholder="Nome curto"><div class="account-field-help">Usaremos esse nome nas mensagens e áreas internas do BocaFood.</div></div>' +
               '<div class="bf-field"><label>E-mail de acesso</label><input id="cfg-account-email" class="bf-input" type="email" value="' + _esc(emailValue) + '" readonly placeholder="seu@email.com"><div class="account-field-help">Para trocar este e-mail, fale com o suporte.</div><div class="account-reset-action"><button id="cfg-account-password-reset" type="button" class="account-reset-btn" onclick="Modules.Configuracoes._sendPasswordReset()">Enviar link para redefinir senha</button></div></div>' +
               '<div class="bf-field"><label>WhatsApp de contato</label><div class="account-phone-box"><select id="cfg-account-whatsapp-country" class="bf-select" aria-label="Código do país">' + _phoneCountryOptions(whatsapp.countryCode) + '</select><input id="cfg-account-whatsapp" class="bf-input" type="tel" value="' + _esc(whatsapp.number == null ? '' : whatsapp.number) + '" placeholder="600 000 000" autocomplete="tel-national"></div><div class="account-field-help">Usado para suporte e avisos importantes da sua conta.</div></div>' +
-              '</div>' +
             '</div>' +
           '</div>' +
         '</section>' +
@@ -1022,7 +1095,7 @@ Modules.Configuracoes = (function () {
           '<span class="store-link-status ' + (suggestedSlug ? 'ok' : 'warn') + '">' + _esc(slugStatus) + '</span>' +
         '</div>' +
         '<div class="store-link-field-grid">' +
-          '<label class="store-link-field"><span>Nome do link</span><input id="cfg-store-slug" type="text" value="' + _esc(suggestedSlug) + '" placeholder="minha-loja" oninput="Modules.Configuracoes._normalizeDomainSlugField(\'cfg-store-slug\')"><small>Use letras, números e hífen. O sistema monta o endereço completo automaticamente.</small></label>' +
+          '<label class="store-link-field" id="cfg-store-slug-field"><span>Nome da loja no link</span><span class="store-link-input-wrap"><input id="cfg-store-slug" type="text" value="' + _esc(suggestedSlug) + '" placeholder="nome-da-sua-loja" oninput="Modules.Configuracoes._normalizeDomainSlugField(\'cfg-store-slug\')"><span class="mi store-link-validation-icon" id="cfg-store-slug-icon">close</span></span><small id="cfg-store-slug-help">Use o nome da sua loja de forma curta, com letras, números e hífen.</small></label>' +
         '</div>' +
       '</section>' +
       '<section class="store-link-card">' +
@@ -1048,7 +1121,8 @@ Modules.Configuracoes = (function () {
     '</div>';
     document.getElementById('config-save').onclick = function () {
       var slug = _slugify(_val('cfg-store-slug'));
-      if (!slug) { UI.toast('Informe o nome do link da loja.', 'error'); return; }
+      if (!slug) { UI.toast('Informe o nome da loja para montar o link.', 'error'); return; }
+      if (!_storeSlugVisualValidation(slug).valid) { _updateStoreSlugFeedback(slug); UI.toast(_storeSlugVisualValidation(slug).message, 'error'); return; }
       if (_isReservedStoreSlug(slug)) { UI.toast('Esse nome não pode ser usado no link da loja.', 'error'); return; }
       var root = _cleanDomain(rootDomain);
       var custom = _cleanDomain(c.customDomain);
@@ -1081,6 +1155,7 @@ Modules.Configuracoes = (function () {
         UI.toast('Erro: ' + err.message, 'error');
       });
     };
+    _updateStoreSlugFeedback(suggestedSlug);
     _refreshPublicationReadiness(urls);
   }
 
@@ -1226,6 +1301,7 @@ Modules.Configuracoes = (function () {
       : '<div style="margin-top:12px;padding:12px 14px;border:1px solid #D9F2E3;border-radius:12px;background:#F0FFF4;color:#1F6F43;font-size:13px;line-height:1.45;">Requisitos mínimos completos para publicação.</div>';
     var suspended = status === 'suspended';
     var publishDisabled = suspended ? ' disabled' : '';
+    var publishButton = status === 'published' ? '' : '<button type="button" class="bf-btn bf-btn-primary" onclick="Modules.Configuracoes._publishStore()" ' + publishDisabled + '>Publicar loja</button>';
     return '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:14px;">' +
         '<div style="min-width:0;"><div style="font-size:15px;font-weight:800;color:#1F1F1F;">Publicação da loja</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:3px;">Controle quando sua loja pública fica disponível para clientes.</div></div>' +
         '<span style="display:inline-flex;align-items:center;min-height:28px;padding:0 11px;border-radius:999px;background:' + statusMeta.bg + ';border:1px solid ' + statusMeta.border + ';color:' + statusMeta.color + ';font-size:12px;font-weight:800;">' + _esc(statusMeta.label) + '</span>' +
@@ -1238,7 +1314,7 @@ Modules.Configuracoes = (function () {
       (state.lastPublicationError ? '<div style="margin-top:12px;padding:12px 14px;border:1px solid #F0C9C0;border-radius:12px;background:#FFF8F6;color:#7A352B;font-size:13px;line-height:1.45;"><strong>Erro da última publicação:</strong> ' + _esc(state.lastPublicationError) + '</div>' : '') +
       (suspended ? '<div style="margin-top:12px;padding:12px 14px;border:1px solid #F0C9C0;border-radius:12px;background:#FFF8F6;color:#7A352B;font-size:13px;line-height:1.45;">Sua loja está suspensa. Entre em contato com o suporte BocaFood.</div>' : missingHtml) +
       '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;">' +
-        '<button type="button" class="bf-btn bf-btn-primary" onclick="Modules.Configuracoes._publishStore()" ' + publishDisabled + '>Publicar loja</button>' +
+        publishButton +
         (status === 'published' ? '<button type="button" class="bf-btn bf-btn-secondary" onclick="Modules.Configuracoes._unpublishStore()">Despublicar loja</button>' : '') +
       '</div>';
   }
@@ -1435,9 +1511,17 @@ Modules.Configuracoes = (function () {
     var hasAnalytics = !!(ga || c.gtmId);
     var hasMeta = !!meta;
     var hasSocial = !!(c.whatsapp || c.instagram || c.facebook || c.tiktok);
+    var stripeEnabled = c.stripeEnabled === true;
+    var stripeAccountId = c.stripeConnectedAccountId || c.stripeAccountId || '';
+    var stripeStatus = c.stripeConnectStatus || (stripeAccountId ? 'onboarding_required' : 'not_connected');
+    var stripeReady = stripeStatus === 'ready' && c.stripeChargesEnabled === true;
+    var stripeStatusText = _stripeConnectStatusText(stripeStatus, c);
+    var stripeStatusTone = stripeReady ? '#2F6B57' : (stripeAccountId ? '#9A6A2F' : '#B42318');
+    var stripeFinanceAccountId = c.stripeFinanceAccountId || c.stripeDefaultAccountId || _stripePaymentMethodAccountId();
+    var stripeAccountOptions = _stripeBankAccountOptions(stripeFinanceAccountId);
     var content = document.getElementById('config-content');
     content.innerHTML =
-      '<style>.integrations-info-panel{border:1px solid #EADFD8;border-radius:15px;background:#fff;padding:14px;display:grid;gap:12px}.integrations-info-title{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:13px}.integrations-info-title h3{margin:0;color:#1F1F1F;font-size:16px;font-weight:800;line-height:1.2}.integrations-info-title p{margin:4px 0 0;color:#6F6860;font-size:13px;line-height:1.45;max-width:620px}.integrations-info-title .mi{color:#B42318;font-size:21px;line-height:1.1;opacity:.9}.integrations-info-panel .bf-input,.integrations-info-panel .bf-select{background:#FFFCF8;border-color:#E4D8D3;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease}.integrations-info-panel .bf-input:focus,.integrations-info-panel .bf-select:focus{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);outline:none}.integrations-info-panel .contact-field-help{font-size:10px;line-height:1.3;margin-top:4px;color:#9A8E89;max-width:270px}.integrations-phone-box{display:grid;grid-template-columns:112px minmax(0,1fr);gap:8px;align-items:center;background:#FFFCF8;border:1px solid #E4D8D3;border-radius:12px;padding:6px;transition:border-color .16s ease,box-shadow .16s ease}.integrations-phone-box .bf-select,.integrations-phone-box .bf-input{border:0;background:transparent;box-shadow:none;min-height:36px}.integrations-phone-box .bf-select{border-right:1px solid #E8DCD7;border-radius:8px;padding-left:8px}.integrations-phone-box .bf-input{padding-left:8px}.integrations-phone-box:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08)}@media(max-width:640px){.integrations-info-panel{padding:12px}.integrations-info-title{margin-bottom:11px}.integrations-phone-box{grid-template-columns:100px minmax(0,1fr)}}</style>' +
+      '<style>.integrations-info-panel{border:1px solid #EADFD8;border-radius:15px;background:#fff;padding:14px;display:grid;gap:12px}.integrations-info-title{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:13px}.integrations-info-title h3{margin:0;color:#1F1F1F;font-size:16px;font-weight:800;line-height:1.2}.integrations-info-title p{margin:4px 0 0;color:#6F6860;font-size:13px;line-height:1.45;max-width:620px}.integrations-info-title .mi{color:#B42318;font-size:21px;line-height:1.1;opacity:.9}.integrations-info-panel .bf-input,.integrations-info-panel .bf-select{background:#FFFCF8;border-color:#E4D8D3;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease}.integrations-info-panel .bf-input:focus,.integrations-info-panel .bf-select:focus{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);outline:none}.integrations-info-panel .contact-field-help{font-size:10px;line-height:1.3;margin-top:4px;color:#9A8E89;max-width:270px}.integrations-phone-box{display:grid;grid-template-columns:112px minmax(0,1fr);gap:8px;align-items:center;background:#FFFCF8;border:1px solid #E4D8D3;border-radius:12px;padding:6px;transition:border-color .16s ease,box-shadow .16s ease}.integrations-phone-box .bf-select,.integrations-phone-box .bf-input{border:0;background:transparent;box-shadow:none;min-height:36px}.integrations-phone-box .bf-select{border-right:1px solid #E8DCD7;border-radius:8px;padding-left:8px}.integrations-phone-box .bf-input{padding-left:8px}.integrations-phone-box:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08)}.stripe-connect-card{border:1px solid #EADFD8;border-radius:16px;background:linear-gradient(180deg,#FFFFFF 0%,#FFFCF8 100%);padding:15px;display:grid;gap:12px;box-shadow:0 10px 24px rgba(31,31,31,.045)}.stripe-connect-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.stripe-status-pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:7px 10px;background:#FFF8F3;color:#1F1F1F;font-size:11px;font-weight:760;white-space:nowrap}.stripe-status-dot{width:8px;height:8px;border-radius:99px;background:currentColor}.stripe-connect-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.stripe-connect-actions .bf-btn{min-height:38px}.stripe-account-readonly{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#554B45;background:#FFF8F4;border:1px solid #E8DCD7;border-radius:12px;padding:10px 12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.stripe-connect-note{margin:0;color:#6F6860;font-size:12px;line-height:1.45}.stripe-connect-message{font-size:12px;color:#6F6860;min-height:16px}.stripe-connect-message.error{color:#B42318}.stripe-connect-message.success{color:#2F6B57}@media(max-width:640px){.integrations-info-panel{padding:12px}.integrations-info-title{margin-bottom:11px}.integrations-phone-box{grid-template-columns:100px minmax(0,1fr)}.stripe-connect-top{display:grid}.stripe-status-pill{width:max-content}.stripe-connect-actions .bf-btn{width:100%;justify-content:center}}</style>' +
       '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px;">' +
         '<div><h2 style="margin:0;color:#1F1F1F;font-size:24px;line-height:1.15;font-weight:700;">Integrações</h2><p style="margin:6px 0 0;color:#6F6860;font-size:14px;line-height:1.45;max-width:680px;">Conecte canais, redes sociais e ferramentas de medição usadas na página pública do seu negócio.</p></div>' +
         '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">' +
@@ -1468,11 +1552,25 @@ Modules.Configuracoes = (function () {
               _configInput('cfg-tiktok', 'TikTok', c.tiktok, 'https://tiktok.com/@sua_loja') +
             '</div>' +
           '</section>' +
+          '<section style="' + _configCardStyle('18px 20px') + '"><div class="integrations-info-title"><div><h3>Pagamento online</h3><p>Conecte a conta Stripe da loja para receber cartão antes de confirmar o pedido.</p></div><span class="mi">credit_card</span></div>' +
+            '<div class="stripe-connect-card">' +
+              '<div class="stripe-connect-top"><div><div class="stripe-status-pill" style="color:' + stripeStatusTone + '"><span class="stripe-status-dot"></span>' + _esc(stripeStatusText) + '</div><p class="stripe-connect-note" style="margin-top:9px;">A cliente paga no checkout da loja. O pedido só entra como confirmado quando o cartão for aprovado.</p></div>' +
+              '<label style="display:flex;align-items:center;gap:10px;color:#1F1F1F;font-size:13px;font-weight:650;text-transform:none;letter-spacing:0;"><input id="cfg-stripe-enabled" type="checkbox" ' + (stripeEnabled ? 'checked' : '') + ' style="width:18px;height:18px;accent-color:#B42318;"> Ativar cartão via Stripe</label></div>' +
+              '<div><div class="bf-field-label" style="margin-bottom:6px;">Conta conectada</div><div class="stripe-account-readonly">' + _esc(stripeAccountId || 'Ainda não conectada') + '</div></div>' +
+              '<div class="bf-field"><label>Conta financeira para receber</label><select id="cfg-stripe-finance-account" class="bf-select">' + stripeAccountOptions + '</select><div class="contact-field-help">Escolha onde o dinheiro do cartão entra no Financeiro. As taxas Stripe serão registradas nessa mesma conta.</div></div>' +
+              '<div class="stripe-connect-actions">' +
+                '<button id="cfg-stripe-connect" type="button" class="bf-btn bf-btn-primary"><span class="mi">open_in_new</span>' + (stripeAccountId ? 'Continuar configuração no Stripe' : 'Conectar minha conta Stripe') + '</button>' +
+                '<button id="cfg-stripe-refresh" type="button" class="bf-btn bf-btn-secondary" ' + (stripeAccountId ? '' : 'disabled') + '><span class="mi">sync</span>Atualizar status</button>' +
+              '</div>' +
+              '<div id="cfg-stripe-message" class="stripe-connect-message"></div>' +
+            '</div>' +
+          '</section>' +
         '</div>' +
         '<aside style="' + _configCardStyle('18px 20px') + 'position:sticky;top:82px;">' +
           '<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:14px;"><div style="width:36px;height:36px;border-radius:12px;background:#FAF8F4;color:#B42318;display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span class="mi" style="font-size:20px;">hub</span></div><div><h3 style="margin:0;color:#1F1F1F;font-size:16px;font-weight:700;">O que cada integração faz</h3><p style="margin:4px 0 0;color:#6F6860;font-size:13px;line-height:1.4;">Veja como cada canal ajuda no funcionamento da sua página pública.</p></div></div>' +
           '<div style="display:flex;flex-direction:column;gap:10px;">' +
             _integrationInfoRow('forum', 'WhatsApp', 'Mostra o botão de contato na página pública e nas avaliações.') +
+            _integrationInfoRow('credit_card', 'Stripe', 'Permite cobrar cartão antes de confirmar o pedido no checkout.') +
             _integrationInfoRow('alternate_email', 'Redes sociais', 'Exibe seus canais para o cliente conhecer e acompanhar sua marca.') +
             _integrationInfoRow('analytics', 'Analytics', 'Ajuda a medir visitas, campanhas e resultados.') +
           '</div>' +
@@ -1496,10 +1594,237 @@ Modules.Configuracoes = (function () {
         instagram: _val('cfg-instagram'),
         facebook: _val('cfg-facebook'),
         tiktok: _val('cfg-tiktok'),
+        stripeEnabled: _checked('cfg-stripe-enabled'),
+        stripeConnectedAccountId: stripeAccountId,
+        stripeAccountId: stripeAccountId,
+        stripeConnectStatus: stripeStatus,
+        stripeFinanceAccountId: _val('cfg-stripe-finance-account'),
+        stripeDefaultAccountId: _val('cfg-stripe-finance-account'),
         updatedAt: new Date().toISOString()
       });
-      _save('integracoes', data);
+      _ensureStripeFinancePaymentMethod(data).then(function () {
+        _save('integracoes', data);
+      }).catch(function (err) {
+        UI.toast('Erro ao preparar forma de pagamento Stripe: ' + (err && err.message ? err.message : err), 'error');
+      });
     };
+    var connectBtn = document.getElementById('cfg-stripe-connect');
+    if (connectBtn) connectBtn.onclick = _startStripeConnect;
+    var refreshBtn = document.getElementById('cfg-stripe-refresh');
+    if (refreshBtn) refreshBtn.onclick = _refreshStripeConnectStatus;
+    if (stripeAccountId && window.sessionStorage && sessionStorage.getItem('bf_stripe_connect_refresh') === '1') {
+      sessionStorage.removeItem('bf_stripe_connect_refresh');
+      setTimeout(_refreshStripeConnectStatus, 350);
+    }
+  }
+
+  function _stripeConnectStatusText(status, data) {
+    status = String(status || '').trim();
+    if (status === 'ready' && data && data.stripeChargesEnabled === true) return 'Conta pronta para receber cartão';
+    if (status === 'pending_review') return 'Stripe analisando os dados';
+    if (status === 'onboarding_required') return 'Falta concluir no Stripe';
+    if (status === 'not_connected') return 'Conta ainda não conectada';
+    return 'Conexão Stripe pendente';
+  }
+
+  function _stripeBankAccountOptions(selected) {
+    var current = String(selected || '');
+    var active = (_bankAccounts || []).filter(function (account) {
+      return account && (account.ativo !== false || String(account.id || '') === current);
+    }).sort(function (a, b) {
+      return String(a.nome || a.name || '').localeCompare(String(b.nome || b.name || ''));
+    });
+    var html = '<option value="">Selecionar conta financeira...</option>';
+    html += active.map(function (account) {
+      var id = String(account.id || '');
+      var name = account.nome || account.name || 'Conta';
+      return '<option value="' + _esc(id) + '"' + (id === current ? ' selected' : '') + '>' + _esc(name) + '</option>';
+    }).join('');
+    if (current && !active.some(function (account) { return String(account.id || '') === current; })) {
+      html += '<option value="' + _esc(current) + '" selected>Conta selecionada</option>';
+    }
+    return html;
+  }
+
+  function _stripePaymentMethodAccountId() {
+    var finance = _config.financeiro || {};
+    var methods = Array.isArray(finance.formas_pagamento) ? finance.formas_pagamento : [];
+    var method = methods.find(function (item) {
+      var name = String(item && (item.nome || item.name || '') || '').toLowerCase();
+      return item && (item.provider === 'stripe' || item.stripe === true || item.stripeConnected === true || name === 'stripe');
+    });
+    return method ? String(method.contaPadraoId || method.defaultAccountId || method.bankAccountId || '') : '';
+  }
+
+  function _ensureStripeFinancePaymentMethod(integracoes) {
+    integracoes = integracoes || {};
+    if (integracoes.stripeEnabled !== true) return Promise.resolve(false);
+    var finance = Object.assign({}, _config.financeiro || {});
+    var methods = Array.isArray(finance.formas_pagamento) ? finance.formas_pagamento.slice() : [];
+    var accountId = String(integracoes.stripeFinanceAccountId || integracoes.stripeDefaultAccountId || '').trim();
+    var now = new Date().toISOString();
+    var found = false;
+    methods = methods.map(function (item) {
+      item = typeof item === 'string' ? { nome: item, tipo: 'outro', ativo: true } : Object.assign({}, item || {});
+      var name = String(item.nome || item.name || '').trim().toLowerCase();
+      var isStripe = item.provider === 'stripe' || item.stripe === true || item.stripeConnected === true || name === 'stripe';
+      if (!isStripe) return item;
+      found = true;
+      return Object.assign({}, item, _stripeFinancePaymentPayload(accountId, now), {
+        taxaPercentual: item.taxaPercentual || item.feePct || 0,
+        taxaFixa: item.taxaFixa || item.fixedFee || 0,
+        createdAt: item.createdAt || now
+      });
+    });
+    if (!found) methods.push(_stripeFinancePaymentPayload(accountId, now));
+    methods.sort(function (a, b) { return String(a.nome || '').localeCompare(String(b.nome || '')); });
+    finance.formas_pagamento = methods;
+    _config.financeiro = finance;
+    return DB.setDocRoot('config', 'financeiro', finance).then(function () { return true; });
+  }
+
+  function _stripeFinancePaymentPayload(accountId, now) {
+    return {
+      nome: 'Stripe',
+      tipo: 'Cartão',
+      tipoGlobalId: 'card',
+      tipoGlobalSlug: 'card',
+      tipoGlobalNome: 'Cartão',
+      tipoGlobalCountry: 'ambos',
+      ativo: true,
+      exigeConta: true,
+      contaPadraoId: accountId || '',
+      provider: 'stripe',
+      stripe: true,
+      stripeConnected: true,
+      prazoCompensacaoDias: 0,
+      taxaPercentual: 0,
+      taxaFixa: 0,
+      observacao: 'Forma criada automaticamente para pagamentos Stripe Connect.',
+      updatedAt: now || new Date().toISOString(),
+      createdAt: now || new Date().toISOString()
+    };
+  }
+
+  function _stripeMessage(text, tone) {
+    var el = document.getElementById('cfg-stripe-message');
+    if (!el) return;
+    el.textContent = text || '';
+    el.className = 'stripe-connect-message' + (tone ? ' ' + tone : '');
+  }
+
+  function _configFunctionHeaders() {
+    var user = window.Auth && Auth.getUser ? Auth.getUser() : null;
+    var headers = { 'Content-Type': 'application/json' };
+    if (!user || typeof user.getIdToken !== 'function') return Promise.resolve(headers);
+    return user.getIdToken().then(function (token) {
+      if (token) headers.Authorization = 'Bearer ' + token;
+      return headers;
+    });
+  }
+
+  function _callConfigFunction(name, payload) {
+    return _configFunctionHeaders().then(function (headers) {
+      return fetch(CONFIG_FN_BASE + name, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(payload || {})
+      });
+    }).then(function (response) {
+      return response.json().catch(function () { return {}; }).then(function (json) {
+        if (!response.ok || json.ok === false) throw new Error(json.error || ('function_' + response.status));
+        return json;
+      });
+    });
+  }
+
+  function _stripeReturnUrl() {
+    return window.location.origin + window.location.pathname + '#configuracoes/integracoes';
+  }
+
+  function _startStripeConnect() {
+    var tenantId = window.Auth && Auth.getTenantId ? Auth.getTenantId() : '';
+    if (!tenantId) {
+      UI.toast('Tenant não identificado.', 'error');
+      return;
+    }
+    var btn = document.getElementById('cfg-stripe-connect');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="mi">sync</span>Abrindo Stripe...';
+    }
+    _stripeMessage('Preparando conexão segura com o Stripe...', '');
+    _callConfigFunction('createStripeConnectOnboarding', {
+      tenantId: tenantId,
+      returnUrl: _stripeReturnUrl(),
+      refreshUrl: _stripeReturnUrl()
+    }).then(function (result) {
+      if (result.accountId) {
+        _config.integracoes = Object.assign({}, _config.integracoes || {}, {
+          stripeEnabled: true,
+          stripeConnectedAccountId: result.accountId,
+          stripeAccountId: result.accountId,
+          stripeConnectStatus: result.status || 'onboarding_required'
+        });
+      }
+      if (result.url) {
+        if (window.sessionStorage) sessionStorage.setItem('bf_stripe_connect_refresh', '1');
+        window.location.href = result.url;
+        return;
+      }
+      _stripeMessage('Não foi possível abrir o Stripe agora.', 'error');
+    }).catch(function (err) {
+      _stripeMessage(_stripeConnectErrorMessage(err && err.message), 'error');
+      UI.toast(_stripeConnectErrorMessage(err && err.message), 'error');
+    }).finally(function () {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<span class="mi">open_in_new</span>Conectar minha conta Stripe';
+      }
+    });
+  }
+
+  function _refreshStripeConnectStatus() {
+    var tenantId = window.Auth && Auth.getTenantId ? Auth.getTenantId() : '';
+    if (!tenantId) {
+      UI.toast('Tenant não identificado.', 'error');
+      return;
+    }
+    var btn = document.getElementById('cfg-stripe-refresh');
+    if (btn) btn.disabled = true;
+    _stripeMessage('Consultando status no Stripe...', '');
+    _callConfigFunction('getStripeConnectStatus', { tenantId: tenantId }).then(function (result) {
+      var stripe = result.stripe || {};
+      _config.integracoes = Object.assign({}, _config.integracoes || {}, {
+        stripeEnabled: stripe.status === 'ready' ? true : (_config.integracoes && _config.integracoes.stripeEnabled === true),
+        stripeConnectedAccountId: stripe.accountId || ((_config.integracoes || {}).stripeConnectedAccountId),
+        stripeAccountId: stripe.accountId || ((_config.integracoes || {}).stripeAccountId),
+        stripeConnectStatus: stripe.status || 'onboarding_required',
+        stripeChargesEnabled: stripe.chargesEnabled === true,
+        stripePayoutsEnabled: stripe.payoutsEnabled === true,
+        stripeDetailsSubmitted: stripe.detailsSubmitted === true,
+        stripeDisabledReason: stripe.disabledReason || '',
+        stripeRequirementsDue: stripe.currentlyDue || [],
+        stripeFinanceAccountId: (_config.integracoes || {}).stripeFinanceAccountId || _stripePaymentMethodAccountId(),
+        stripeDefaultAccountId: (_config.integracoes || {}).stripeDefaultAccountId || _stripePaymentMethodAccountId()
+      });
+      _renderIntegracoes();
+      UI.toast(stripe.status === 'ready' ? 'Stripe pronto para receber cartão.' : 'Stripe ainda precisa de ajustes.', stripe.status === 'ready' ? 'success' : 'info');
+    }).catch(function (err) {
+      _stripeMessage(_stripeConnectErrorMessage(err && err.message), 'error');
+      UI.toast(_stripeConnectErrorMessage(err && err.message), 'error');
+    }).finally(function () {
+      if (btn) btn.disabled = false;
+    });
+  }
+
+  function _stripeConnectErrorMessage(code) {
+    code = String(code || '');
+    if (code === 'stripe_not_configured') return 'O Stripe ainda não foi configurado no Master.';
+    if (code === 'store_stripe_not_connected') return 'A conta Stripe da loja ainda não foi conectada.';
+    if (code === 'forbidden') return 'Você não tem permissão para conectar esta loja.';
+    if (code === 'missing_auth') return 'Entre novamente para conectar o Stripe.';
+    return 'Não foi possível conectar o Stripe agora.';
   }
 
   function _renderSeo() {
@@ -1675,23 +2000,27 @@ Modules.Configuracoes = (function () {
     var paymentOptions = _tpvPaymentMethodOptions(c.defaultPaymentMethod || '', paymentMethods);
     var content = document.getElementById('config-content');
     content.innerHTML =
-      '<div style="display:flex;flex-direction:column;gap:22px;max-width:1180px;margin:0 auto;width:100%;">' +
+      '<div style="display:flex;flex-direction:column;gap:16px;max-width:980px;margin:0 auto;width:100%;">' +
         '<style>.tpv-settings .bf-input,.tpv-settings .bf-select{background:#FFFCF8;border-color:#E8DCD7;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease}.tpv-settings .bf-input:focus,.tpv-settings .bf-select:focus{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);outline:none}.tpv-panel{display:grid;grid-template-columns:1fr;gap:14px}.tpv-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px 16px;align-items:start}.tpv-status-wrap{display:flex;flex-direction:column;align-items:flex-start;min-width:0}.tpv-status-field{background:#FFFCF8;border:0;border-radius:12px;padding:0;min-height:42px;display:flex;align-items:center;justify-content:flex-start;width:100%}.tpv-status-row{display:flex;align-items:center;justify-content:flex-start;gap:8px;min-height:42px;white-space:nowrap}.tpv-status-row input{accent-color:#C4362A;width:16px;height:16px;flex:0 0 auto}.tpv-status-row span{font-size:13px;font-weight:800;color:#1F1F1F;line-height:1.2}.tpv-note{font-size:12px;color:#6F6860;line-height:1.48;background:#FFFCF8;border:1px solid #EADFD8;border-radius:14px;padding:10px 12px}.tpv-field-help{font-size:11px;color:#8A7E7C;line-height:1.38;margin-top:5px}.tpv-settings .bf-field label,.tpv-status-label{color:#7E716D;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.045em;margin-bottom:6px;display:block}@media(max-width:900px){.tpv-grid{grid-template-columns:1fr 1fr}.tpv-status-wrap{grid-column:1/-1}}@media(max-width:760px){.tpv-grid{grid-template-columns:1fr}.tpv-status-row{white-space:normal}}</style>' +
-        '<section class="bf-card bf-section tpv-settings">' +
-          '<div class="bf-section-header">' +
-            '<div style="min-width:0;"><h3 class="bf-section-title">Venda presencial</h3><p class="bf-section-subtitle">Configurações usadas para vender presencialmente pela loja.</p></div>' +
-          '</div>' +
-          '<div style="display:grid;grid-template-columns:1fr;gap:12px;">' +
-            '<div class="bf-panel tpv-panel" style="background:#fff;padding:16px;border-color:#EADFD8;box-shadow:0 10px 24px rgba(31,31,31,.04);">' +
-              '<div style="display:flex;align-items:flex-start;gap:9px;margin-bottom:13px;"><span class="mi" style="font-size:18px;color:#6F6860;line-height:1.2;">point_of_sale</span><div><div style="font-size:13px;font-weight:800;color:#1F1F1F;">Informações do caixa</div><div style="font-size:12px;color:#8A7E7C;line-height:1.35;margin-top:2px;">Ative a venda presencial quando a loja também registrar vendas no balcão.</div></div></div>' +
-              '<div class="tpv-grid">' +
-                '<div class="tpv-status-wrap"><span class="tpv-status-label">Status</span><div class="tpv-status-field"><label class="tpv-status-row"><input id="cfg-tpv-enabled" type="checkbox"' + (enabled ? ' checked' : '') + '><span>Ativar venda presencial</span></label></div></div>' +
-                '<div class="bf-field"><label>Nome do caixa</label><input id="cfg-tpv-register-name" class="bf-input" value="' + _esc(c.registerName || 'Caixa principal') + '" placeholder="Caixa principal"><div class="tpv-field-help">Nome interno para identificar o caixa usado nas vendas presenciais.</div></div>' +
-                '<div class="bf-field"><label>Pagamento padrão</label><select id="cfg-tpv-default-payment" class="bf-select">' + paymentOptions + '</select></div>' +
-                '<div class="bf-field"><label>Conta financeira</label><input class="bf-input" value="' + _esc(c.cashAccountName || (enabled ? 'Caixa venda presencial' : 'Será criada ao ativar')) + '" readonly><div class="tpv-field-help">As entradas da venda presencial entram nessa conta no Financeiro.</div></div>' +
-              '</div>' +
+        '<section class="settings-card bf-card tpv-settings" style="background:linear-gradient(180deg,#FFFFFF 0%,#FFFCF9 100%);border:1px solid #EADFD8;border-radius:18px;padding:18px 20px;box-shadow:0 16px 38px rgba(47,37,35,.055);">' +
+          '<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:14px;">' +
+            '<span class="mi" style="width:34px;height:34px;border-radius:12px;background:#F8F1ED;color:#8F3E32;display:inline-flex;align-items:center;justify-content:center;font-size:19px;flex:0 0 auto;">point_of_sale</span>' +
+            '<div style="min-width:0;">' +
+              '<h2 style="margin:0;color:#2F2523;font-size:20px;line-height:1.2;font-weight:700;">Venda presencial</h2>' +
+              '<p style="margin:6px 0 0;color:#6F6860;font-size:13px;line-height:1.45;max-width:660px;">Configure o caixa usado para registrar vendas no balcão e enviar as entradas para o Financeiro.</p>' +
             '</div>' +
-            '<div class="tpv-note">Quando ativado, o menu Venda presencial aparece no painel e as vendas feitas ali entram como canal Venda presencial. Quando desativado, esse menu fica oculto e a loja continua usando apenas os canais de venda já configurados.</div>' +
+          '</div>' +
+          '<div style="display:flex;gap:10px;align-items:flex-start;background:#FFF7F2;border:1px solid #F0DED5;border-radius:14px;padding:12px 14px;margin-bottom:14px;color:#5D504B;font-size:13px;line-height:1.45;">' +
+            '<span class="mi" style="font-size:18px;color:#A84A3E;line-height:1.2;">info</span>' +
+            '<span>Quando ativada, a Venda presencial aparece no menu, cria a conta financeira do caixa e registra as vendas desse canal no painel.</span>' +
+          '</div>' +
+          '<div class="bf-panel tpv-panel" style="background:linear-gradient(180deg,#FFFFFF 0%,#FFFCF8 100%);padding:16px;border:1px solid #EADFD8;border-radius:14px;box-shadow:0 10px 24px rgba(47,37,35,.045);">' +
+            '<div class="tpv-grid">' +
+              '<div class="tpv-status-wrap"><span class="tpv-status-label">Status</span><div class="tpv-status-field"><label class="tpv-status-row"><input id="cfg-tpv-enabled" type="checkbox"' + (enabled ? ' checked' : '') + '><span>Ativar venda presencial</span></label></div></div>' +
+              '<div class="bf-field"><label>Nome do caixa</label><input id="cfg-tpv-register-name" class="bf-input" value="' + _esc(c.registerName || 'Caixa principal') + '" placeholder="Caixa principal"><div class="tpv-field-help">Nome interno para identificar o caixa usado nas vendas presenciais.</div></div>' +
+              '<div class="bf-field"><label>Pagamento padrão</label><select id="cfg-tpv-default-payment" class="bf-select">' + paymentOptions + '</select></div>' +
+              '<div class="bf-field"><label>Conta financeira</label><input class="bf-input" value="' + _esc(c.cashAccountName || (enabled ? 'Caixa venda presencial' : 'Será criada ao ativar')) + '" readonly><div class="tpv-field-help">As entradas da venda presencial entram nessa conta no Financeiro.</div></div>' +
+            '</div>' +
           '</div>' +
         '</section>' +
         '<section class="bf-card bf-actions-row" style="padding:14px 16px;position:sticky;bottom:0;z-index:2;">' +
@@ -1975,6 +2304,26 @@ Modules.Configuracoes = (function () {
     return !!_reservedStoreSlugs()[_slugify(slug)];
   }
 
+  function _storeSlugVisualValidation(slug) {
+    slug = _slugify(slug);
+    if (!slug) return { valid: false, message: 'Digite o nome da sua loja para montar o link.' };
+    if (slug.length < 3) return { valid: false, message: 'Use pelo menos 3 caracteres no nome da loja.' };
+    if (_isReservedStoreSlug(slug)) return { valid: false, message: 'Esse nome não pode ser usado no link da loja.' };
+    return { valid: true, message: 'Nome pronto para usar no link da loja.' };
+  }
+
+  function _updateStoreSlugFeedback(slug) {
+    var field = document.getElementById('cfg-store-slug-field');
+    var icon = document.getElementById('cfg-store-slug-icon');
+    var help = document.getElementById('cfg-store-slug-help');
+    if (!field) return;
+    var result = _storeSlugVisualValidation(slug);
+    field.classList.toggle('valid', result.valid);
+    field.classList.toggle('invalid', !result.valid);
+    if (icon) icon.textContent = result.valid ? 'check' : 'close';
+    if (help) help.textContent = result.message;
+  }
+
   function _validateStoreSlugAvailable(slug) {
     var tenantId = window.Auth && Auth.getTenantId ? Auth.getTenantId() : '';
     if (!tenantId || !window.firebase || !firebase.firestore) return Promise.reject(new Error('Tenant não identificado.'));
@@ -2225,6 +2574,7 @@ Modules.Configuracoes = (function () {
     if (!el) return;
     var normalized = _slugify(el.value);
     if (el.value !== normalized) el.value = normalized;
+    if (id === 'cfg-store-slug') _updateStoreSlugFeedback(normalized);
   }
 
   function _copyDomainValue(value) {

@@ -1,5 +1,368 @@
 # AI Changelog
 
+## 2026-05-28 — Master: reset das contas de usuárias do Admin
+- Arquivos alterados: `.master-store.json`, `backups/admin-users-reset-2026-05-28T18-17-44-207Z.json`, `AI_CHANGELOG.md`.
+- Executei a limpeza das contas de usuárias do Admin, preservando configurações globais do BocaFood.
+- Foram removidos 7 tenants/contas do escopo do Master/Admin e 1 usuário correspondente do Firebase Auth.
+- A lista local `.master-store.json` ficou com `tenants: 0` e mantém os IDs antigos em `deleted_tenants` para impedir reimportação automática.
+- O backup local da execução ficou em `backups/admin-users-reset-2026-05-28T18-17-44-207Z.json`.
+- Validação pós-limpeza retornou `candidates: 0`, `authUsers: 0`, `tenantRootDocs: 0` e `publicStoresToDelete: 0`.
+- Impacto esperado: o fluxo de cadastro de contas pode ser validado do zero sem apagar Stripe, e-mails, páginas, documentação ou configurações globais.
+
+## 2026-05-28 — Master: ferramenta segura para resetar contas de usuárias
+- Arquivos alterados: `tools/reset-admin-users.js`, `AI_CHANGELOG.md`.
+- Criei uma ferramenta interna para limpar somente contas/tenants de usuárias do Admin.
+- A ferramenta gera backup local antes de executar e preserva configurações globais do BocaFood, Stripe, e-mails, páginas do sistema e documentação.
+- O escopo da limpeza é: `.master-store.json` em `tenants`, `system_tenants`, `tenants/{uid}`, `public_stores` vinculados e Firebase Auth dos tenants encontrados.
+- Impacto esperado: permite recomeçar validação do fluxo de cadastro sem apagar configurações estruturais do BocaFood.
+
+## 2026-05-28 — Master: slug vazio não acusa duplicidade
+- Arquivos alterados: `server.rb`, `AI_CHANGELOG.md`.
+- Corrigi a validação de slug público no Master para ignorar lojas sem slug cadastrado.
+- Antes, duas lojas sem slug podiam ser comparadas como slug vazio e gerar o erro `Slug público já está em uso por outra loja`.
+- Impacto esperado: contas sem link público definido podem ser salvas no Master sem falso erro de duplicidade.
+
+## 2026-05-28 — Master: salvamento Stripe pelo servidor local
+- Arquivos alterados: `master.html`, `server.rb`, `AI_CHANGELOG.md`.
+- Criei o endpoint local `/api/master/stripe_settings` para carregar e salvar a configuração global do Stripe pelo Master local.
+- O botão `Salvar Stripe Connect` agora tenta salvar primeiro pelo servidor local em `127.0.0.1:3000` e só usa a Cloud Function como fallback.
+- O endpoint local valida `pk_`, `sk_`, `whsec_` e moeda, preservando segredos já salvos quando o campo fica vazio.
+- Impacto esperado: evita o erro `Failed to fetch` causado pela chamada direta do navegador para a Function, mantendo os dados salvos nas mesmas coleções globais do Firestore.
+
+## 2026-05-28 — Onboarding: preview sem passeio guiado separado
+- Arquivos alterados: `public/dashboard-onboarding-preview.html`, `AI_CHANGELOG.md`.
+- Atualizei o preview estático do onboarding para seguir o fluxo atual do dashboard.
+- Removi do preview a camada visual e o JavaScript do passeio guiado separado.
+- A tela de boas-vindas agora abre diretamente o checklist flutuante.
+- O checklist passou a mostrar a orientação de seguir por etapas, sem botão `Rever passeio guiado`.
+- Impacto esperado: o preview representa a experiência atual do onboarding, com uma única jornada guiada pelo checklist.
+
+## 2026-05-28 — Onboarding: checklist substitui passeio guiado separado
+- Arquivos alterados: `public/js/modules/dashboard.js`, `ONBOARDING_BOCAFOOD.md`, `AI_CHANGELOG.md`.
+- Removi a exibição do passeio guiado separado no onboarding.
+- A tela de boas-vindas agora abre diretamente o checklist flutuante, sem modal de tour antes.
+- O checklist passou a explicar que cada passo abre a tela certa e acompanha o progresso.
+- No painel contínuo, troquei `Rever passeio` por acesso à `Documentação`.
+- Mantive funções antigas do passeio apenas como compatibilidade, mas elas passam a reabrir/expandir o checklist.
+- Atualizei a versão do onboarding para `2026-05-28-v10` e documentei a Fase 9 em `ONBOARDING_BOCAFOOD.md`.
+- Impacto esperado: a usuária segue uma única experiência de primeiros passos, mais simples, sem passeio guiado separado concorrendo com o checklist.
+
+## 2026-05-28 — Master: atalho visível para configuração Stripe
+- Arquivos alterados: `master.html`, `AI_CHANGELOG.md`.
+- Adicionei o botão `Stripe` na navegação superior do Master local.
+- O botão abre `Configurações Globais`, rola direto para o card `Stripe Connect` e recarrega o status da configuração.
+- Também adicionei o identificador `master-stripe-card` ao card de configuração para facilitar acesso direto.
+- Impacto esperado: a configuração do Stripe fica fácil de encontrar no Master local em `http://127.0.0.1:3000/master.html`.
+
+## 2026-05-28 — Suporte: seção Guias substituída por Documentação por módulo
+- Arquivos alterados: `public/js/modules/suporte.js`, `public/admin.html`, `admin.html`, `AI_CHANGELOG.md`.
+- Removi a entrada visual `Guias de uso` da Central de Ajuda e substituí por `Documentação`.
+- A rota nova `suporte/documentacao` abre uma tela em formato de documentação, com menu lateral por módulo e conteúdo à direita.
+- A rota antiga `suporte/guias` foi mantida como compatibilidade, mas agora renderiza a nova documentação em vez do modelo antigo de cards de guias.
+- A documentação inicial cobre Início, Configurações, Cardápio, Produção, Compras, Estoque, Pedidos e Cozinha, Financeiro, Loja Online, Ações de Venda, Crescimento e Suporte.
+- Atualizei a versão do script `suporte.js` no Admin para evitar cache antigo da Central de Ajuda.
+- Ajustei a estrutura para não copiar o menu do BocaFood: agora a documentação usa categorias principais e um índice interno de assuntos por categoria, deixando claro o que ainda será documentado aos poucos.
+- Impacto esperado: a usuária encontra explicações por módulo em um formato mais parecido com central de documentação, com acesso mais rápido e organizado.
+
+## 2026-05-28 — Master local: Stripe Connect visível em Configurações Globais
+- Arquivos alterados: `master.html`, `AI_CHANGELOG.md`.
+- Corrigi o Master local usado em `http://127.0.0.1:3000/master.html`, adicionando o card `Stripe Connect` dentro da aba `Configurações Globais`.
+- O card permite carregar status, ativar/inativar Stripe, definir moeda, chave pública, chave secreta e webhook secret.
+- O carregamento usa `masterStripeDiagnostics` e o salvamento usa `saveStripeSettings`, mantendo chave secreta e webhook em backend/Functions.
+- Adicionei validação visual dos prefixos `pk_`, `sk_` e `whsec_` antes de salvar.
+- Impacto esperado: a configuração global do Stripe aparece no Master real aberto localmente, não apenas no `public/master.html`.
+
+## 2026-05-28 — Onboarding: Fase 8 com leitura de progresso para suporte
+- Arquivos alterados: `public/js/modules/dashboard.js`, `ONBOARDING_BOCAFOOD.md`, `AI_CHANGELOG.md`.
+- Implementei a Fase 8 do onboarding registrando um resumo do progresso no mesmo documento remoto por tenant/usuário.
+- O documento `tenants/{tenantId}/config/onboarding_dashboard_{userId}` agora salva `progressSummary`, `lastRoute`, `lastAction` e `lastActionAt`.
+- O resumo indica fase atual, próximo passo, percentual concluído e próxima rota esperada, inclusive quando a jornada principal já virou rotina contínua.
+- As ações principais do onboarding agora ficam registradas: boas-vindas iniciada, passeio reaberto, rota guiada aberta, avançar/voltar passo, concluir passeio, recolher/expandir painel e reset.
+- Atualizei a versão do onboarding para `2026-05-28-v9` e documentei a Fase 8 em `ONBOARDING_BOCAFOOD.md`.
+- Impacto esperado: suporte e produto conseguem entender onde a usuária parou sem depender apenas do cache local, sem criar nova coleção e sem alterar dados do negócio.
+
+## 2026-05-28 — Onboarding: Fase 7 com reset seguro da jornada
+- Arquivos alterados: `public/js/modules/dashboard.js`, `ONBOARDING_BOCAFOOD.md`, `AI_CHANGELOG.md`.
+- Implementei a Fase 7 do onboarding com controle para refazer os primeiros passos sem limpar cache e sem apagar dados do negócio.
+- O painel `Negócio em movimento` agora tem o botão `Refazer primeiros passos`.
+- Antes de reiniciar, o sistema mostra uma confirmação explicando que apenas o progresso do onboarding do usuário será resetado.
+- O reset limpa estado local e atualiza o documento remoto `tenants/{tenantId}/config/onboarding_dashboard_{userId}` com versão vazia e `resetAt`.
+- Depois do reset, a próxima renderização volta para a tela de boas-vindas da jornada.
+- Atualizei a versão do onboarding para `2026-05-28-v8` e documentei a Fase 7 em `ONBOARDING_BOCAFOOD.md`.
+- Impacto esperado: suporte e usuária podem rever o onboarding completo sem mexer nos dados operacionais da loja.
+
+## 2026-05-28 — Onboarding: Fase 6 com orientação contínua
+- Arquivos alterados: `public/js/modules/dashboard.js`, `ONBOARDING_BOCAFOOD.md`, `AI_CHANGELOG.md`.
+- Implementei a Fase 6 do onboarding para que a janela não desapareça completamente depois que todos os passos forem concluídos.
+- Quando o checklist principal termina, o painel vira `Negócio em movimento`, com uma sugestão leve de próxima ação do dia.
+- A sugestão contínua usa prioridade simples: pedido aberto, venda do dia, entrada financeira, movimento de estoque, Temporadas se a rota estiver abaixo do ritmo, ou Performance quando a rotina já está andando.
+- A pilula recolhida passa a mostrar `Rotina`, e a usuária mantém acesso para rever o passeio guiado ou abrir Maturidade.
+- Atualizei a versão do onboarding para `2026-05-28-v7` e documentei a Fase 6 em `ONBOARDING_BOCAFOOD.md`.
+- Impacto esperado: depois da configuração inicial, o onboarding vira um apoio de rotina sem virar uma lista infinita de tarefas.
+
+## 2026-05-28 — Onboarding: Fase 5 com segunda jornada operacional
+- Arquivos alterados: `public/js/modules/dashboard.js`, `ONBOARDING_BOCAFOOD.md`, `AI_CHANGELOG.md`.
+- Implementei a Fase 5 do onboarding, criando a segunda jornada depois da base, rota e loja pronta.
+- O checklist agora guia a primeira rotina real da usuária: registrar compra, receber compra no estoque, receber primeiro pedido, acompanhar cozinha, conferir financeiro, conferir estoque e olhar crescimento.
+- O Dashboard passou a carregar `stock_movements` para marcar passos ligados a entrada/saída de estoque.
+- Os checks da jornada usam dados reais de compras, pedidos, entradas financeiras, movimentos de estoque e rota/pedido para crescimento.
+- Atualizei a versão do onboarding para `2026-05-28-v6` e documentei a Fase 5 em `ONBOARDING_BOCAFOOD.md`.
+- Impacto esperado: depois de configurar a loja, a usuária é guiada para executar uma operação completa e entender como compra, venda, cozinha, financeiro, estoque e crescimento se conectam.
+
+## 2026-05-28 — Onboarding: Fase 4 com progresso por tenant e usuário
+- Arquivos alterados: `public/js/modules/dashboard.js`, `ONBOARDING_BOCAFOOD.md`, `AI_CHANGELOG.md`.
+- Implementei a Fase 4 do onboarding com persistência do progresso em Firestore por usuário do tenant.
+- O progresso passa a ser salvo em `tenants/{tenantId}/config/onboarding_dashboard_{userId}`, mantendo `localStorage` como fallback imediato.
+- São salvos versão, boas-vindas vistas, tour aberto/concluído, passo atual, checklist recolhido/expandido, usuário, tenant e data de atualização.
+- O estado remoto só é aplicado quando a versão salva bate com a versão atual do onboarding, evitando reaproveitar progresso de uma jornada antiga.
+- Protegi contra sobrescrita: se a usuária interagir enquanto o Firestore ainda carrega, o estado local recente continua valendo.
+- Troquei os controles de recolher/expandir o checklist para usarem funções do módulo, permitindo salvar no Firestore além do navegador.
+- Atualizei a versão do onboarding para `2026-05-28-v5` e documentei a Fase 4 em `ONBOARDING_BOCAFOOD.md`.
+- Impacto esperado: o onboarding mantém progresso por loja/usuário entre sessões e dispositivos quando permitido, sem deixar de funcionar localmente.
+
+## 2026-05-28 — Onboarding: Fase 3 com ação guiada dentro da tela
+- Arquivos alterados: `public/js/modules/dashboard.js`, `ONBOARDING_BOCAFOOD.md`, `AI_CHANGELOG.md`.
+- Implementei a Fase 3 do onboarding, fazendo o botão de cada passo abrir a tela correta sem perder o contexto do passeio.
+- Quando a tela abre, o destaque visual passa a mirar a ação principal daquela tela quando ela existe, como adicionar canal, adicionar produto, criar receita, nova ordem, nova compra, criar rota, nova temporada, publicar link, buscar cliente ou acompanhar cozinha.
+- O modal do tour agora mostra um bloco extra `Ação principal nesta tela` quando a usuária já está na rota do passo, orientando o próximo preenchimento de forma prática.
+- Adicionei fallback seguro: se o seletor da ação principal não existir no estado atual da tela, o passeio volta a destacar o item original e não quebra.
+- Atualizei a versão do onboarding para `2026-05-28-v4` e documentei a Fase 3 em `ONBOARDING_BOCAFOOD.md`.
+- Impacto esperado: o onboarding deixa de ser apenas explicativo e começa a guiar a usuária para a ação concreta dentro de cada módulo.
+
+## 2026-05-28 — Onboarding: Fase 2 com passos detalhados por módulo
+- Arquivos alterados: `public/js/modules/dashboard.js`, `public/dashboard-onboarding-preview.html`, `ONBOARDING_BOCAFOOD.md`, `AI_CHANGELOG.md`.
+- Implementei a Fase 2 do onboarding, aprofundando o passeio guiado com passos específicos por tela e módulo.
+- O tour agora explica Configurações, Canais de venda, Produtos, Categorias, Receitas, Ordens, Lista de compras, Financeiro, Venda presencial, Compras, Estoque, Ações de Venda, Plano de Voo, Temporadas, Performance, Maturidade, Loja Online, Cozinha, Pedidos e Clientes.
+- Corrigi a versão do onboarding para `2026-05-28-v3`, para que a nova jornada possa aparecer para quem já tinha visto a versão anterior.
+- Removi uma sobra duplicada de Maturidade no fim do tour e ajustei o ícone da etapa de Cozinha.
+- Atualizei o preview estático e a documentação `ONBOARDING_BOCAFOOD.md` com o status da Fase 2.
+- Impacto esperado: a usuária passa a entender não só onde fica cada módulo, mas o que fazer em cada tela principal antes de seguir o checklist.
+
+## 2026-05-28 — Onboarding: jornada por camadas antes dos módulos
+- Arquivos alterados: `public/js/modules/dashboard.js`, `public/dashboard-onboarding-preview.html`, `ONBOARDING_BOCAFOOD.md`, `AI_CHANGELOG.md`.
+- Documentei a estratégia do onboarding em `ONBOARDING_BOCAFOOD.md`, separando boas-vindas, lógica da interface, lógica do negócio, módulos principais e checklist flutuante.
+- Reorganizei o passeio guiado para começar explicando como o BocaFood funciona: menu lateral, Início, cards, botões, filtros, listas, modais, cores e status.
+- Só depois o passeio entra na base do negócio, Cardápio, Produção, Financeiro, Crescimento, Loja Online, Pedidos e Maturidade.
+- Ajustei a tela de boas-vindas para explicar que primeiro a usuária entende a tela, depois monta a base e então cria a rota.
+- Refinei o visual do tour com hierarquia mais próxima da Maturidade: modal mais premium, etiqueta de capítulo, cards internos leves e detalhes mais fáceis de ler.
+- Atualizei o preview estático do onboarding para refletir a nova lógica inicial.
+- Impacto esperado: a usuária entende a organização do sistema antes de receber tarefas, reduzindo confusão nos primeiros minutos.
+
+## 2026-05-28 — Financeiro: país fiscal respeitado nas listas globais
+- Arquivos alterados: `public/js/modules/financeiro.js`, `AI_CHANGELOG.md`.
+- Reforcei a identificação do país fiscal usado pelo Financeiro para considerar `config/geral`, perfil do tenant e dados do Auth antes de filtrar tipos globais vindos do Master.
+- A normalização agora entende variações como `ES`, `Espanha`, `España`, `PT` e `Portugal`.
+- Os selects de tipos globais de conta bancária e forma de pagamento passam a mostrar apenas registros do país fiscal da loja ou registros marcados como `Ambos`.
+- Impacto esperado: formas de pagamento cadastradas no Master para Portugal não aparecem em lojas fiscais da Espanha, e vice-versa.
+
+## 2026-05-28 — Master: salvamento global de formas de pagamento via backend seguro
+- Arquivos alterados: `master.html`, `server.rb`, `functions/index.js`, `AI_CHANGELOG.md`.
+- Corrigi o salvamento de `Configurações Globais > Tipos de forma de pagamento` e tipos de conta bancária para não gravar mais direto em `system/config` pelo SDK cliente.
+- Criei a Function `saveMasterSystemConfig`, protegida por autenticação Master, para validar e salvar apenas o bloco `globalFinance` em `system/config`.
+- Adicionei também o endpoint local `/api/master/system_config`, usado pelo Master local para salvar `system/config` com a credencial de serviço quando não há sessão Firebase ativa na página.
+- O Master agora usa o backend local primeiro e a Function como fallback ao criar defaults, ativar/desativar e salvar registros globais de financeiro.
+- Impacto esperado: o erro `Missing or insufficient permissions` deixa de ocorrer no salvamento, mantendo a escrita global restrita a contas Master.
+
+## 2026-05-28 — Onboarding flutuante disponível em todas as telas
+- Arquivos alterados: `public/js/modules/dashboard.js`, `public/js/core/router.js`, `AI_CHANGELOG.md`.
+- A janela flutuante de primeiros passos saiu do conteúdo exclusivo da tela inicial e passou a ser renderizada em uma camada global do Admin.
+- O Router agora atualiza o onboarding global após cada troca de tela e remove a camada quando não há usuário autenticado.
+- O fluxo de boas-vindas, passeio guiado e checklist foi preservado, mas agora acompanha a usuária em qualquer módulo do painel.
+- Mantive rotas, permissões, Firebase e lógica dos passos sem alteração.
+- Impacto esperado: a usuária consegue seguir o onboarding enquanto configura qualquer área do sistema, não apenas na aba Início.
+
+## 2026-05-28 — Onboarding: passeio guiado com passos reais
+- Arquivos alterados: `public/js/modules/dashboard.js`, `public/dashboard-onboarding-preview.html`, `AI_CHANGELOG.md`.
+- Troquei o passeio guiado estático por uma sequência com passos, avanço/volta, contador e destaque visual da área correspondente no menu lateral.
+- Cada passo agora mostra onde olhar, por que aquela área importa e o que fazer ali, passando por Configurações, Cardápio, Produção, Financeiro, Crescimento, Loja Online, Pedidos e Maturidade.
+- Aprofundei cada passo para explicar as principais abas de cada módulo em linguagem simples, com exemplos do que a usuária faz em cada parte.
+- Adicionei uma ação `Abrir área` no passeio real para a usuária poder entrar no módulo destacado sem encerrar o guia.
+- O destaque usa uma camada de spotlight sobre o item do menu, para o passeio realmente guiar a navegação em vez de apenas explicar.
+- O fundo do passeio ficou mais leve e o popup agora é posicionado próximo ao item destacado, em vez de ficar centralizado longe do botão.
+- Bloqueei a rolagem da página enquanto o passeio está aberto para evitar o destaque sair do lugar em relação ao item marcado.
+- Atualizei também o preview do onboarding para demonstrar a nova lógica guiada.
+- Impacto esperado: a usuária entende onde clicar e em qual ordem configurar o negócio, com menos sensação de texto genérico.
+
+## 2026-05-28 — Onboarding: boas-vindas alinhadas à identidade da Maturidade
+- Arquivos alterados: `public/js/modules/dashboard.js`, `public/dashboard-onboarding-preview.html`, `AI_CHANGELOG.md`.
+- Recriei a tela de boas-vindas com visual mais próximo da aba `Maturidade`: borda superior elegante, fundo claro com profundidade, símbolo premium e cards internos mais leves.
+- Reescrevi a copy para falar sobre o negócio da usuária, focando em caminho, decisão, produtos, rotina e crescimento, sem parecer uma apresentação do BocaFood.
+- Simplifiquei a linguagem da abertura para ficar mais próxima da empreendedora: organizar números, entender quanto vender e seguir próximos passos práticos.
+- Atualizei a chamada principal para uma linguagem mais proprietária e aspiracional: construir o império de comida na Europa.
+- Removi o ligature `auto_awesome` do título auxiliar e substituí por um detalhe visual em CSS para evitar texto de ícone quebrado.
+- Atualizei também o preview estático do onboarding para refletir a nova abertura.
+- Impacto esperado: a primeira tela do onboarding fica mais coerente com a identidade principal do produto e mais conectada à realidade da usuária.
+
+## 2026-05-28 — Onboarding inicial mais humano no Dashboard
+- Arquivos alterados: `public/js/modules/dashboard.js`, `public/dashboard-onboarding-preview.html`, `AI_CHANGELOG.md`.
+- Criei um popup inicial de boas-vindas antes do onboarding flutuante, com mensagem personalizada pelo primeiro nome da usuária quando disponível.
+- Ajustei o fluxo para abrir o passeio guiado depois do popup de boas-vindas e só mostrar o checklist flutuante após a conclusão do passeio.
+- Reescrevi as copys do passeio guiado e dos primeiros passos para explicar a jornada do negócio: base, Plano de Voo, Temporada, venda online e rotina.
+- Atualizei também o template/preview `dashboard-onboarding-preview.html` para refletir a mesma sequência visual.
+- Mantive rotas, permissões, Firebase, estrutura global e lógica de conclusão dos passos sem alteração.
+- Impacto esperado: a primeira experiência fica mais acolhedora, clara e guiada, sem parecer uma lista técnica de configuração.
+
+## 2026-05-28 — Stripe Connect integrado ao Financeiro
+- Arquivos alterados: `functions/index.js`, `public/js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- O card `Configurações > Integrações > Pagamento online` agora permite escolher a conta financeira que receberá os pagamentos Stripe.
+- Ao ativar/conectar Stripe, o sistema cria ou atualiza automaticamente a forma de pagamento `Stripe` em `Configurações financeiras > Formas de pagamento`, vinculada ao provider `stripe` e à conta escolhida.
+- O webhook de pagamento aprovado passa a registrar a entrada financeira do pedido em `movimentacoes` e também a saída da taxa Stripe quando houver taxa informada pelo Stripe ou estimada pela configuração da forma de pagamento.
+- A entrada e a taxa usam IDs determinísticos por pedido para evitar duplicidade em reprocessamento de webhook.
+- O pedido passa a receber referências de movimento financeiro, valor bruto Stripe, taxa Stripe, valor líquido e conta financeira usada.
+- Impacto esperado: pagamentos por cartão entram no Financeiro de forma auditável, com taxa registrada e conta financeira configurável por loja.
+
+## 2026-05-28 — Stripe Connect: conexão pela própria loja
+- Arquivos alterados: `functions/index.js`, `public/js/modules/configuracoes.js`, `public/master.html`, `AI_CHANGELOG.md`.
+- Criei o fluxo autenticado para a loja conectar a própria conta Stripe pelo Admin, sem precisar colar manualmente o `acct_...`.
+- Adicionei Functions para criar/reabrir o onboarding do Stripe Connect e para consultar o status real da conta conectada.
+- O card `Configurações > Integrações > Pagamento online` agora mostra status da conexão, botão `Conectar minha conta Stripe`, botão de atualização e o ID da conta conectada como leitura.
+- O checkout público só aceita cartão via Stripe quando a conta conectada está pronta para cobrança, evitando pedido pago apontar para conta incompleta.
+- Atualizei o texto do Master para orientar que cada loja conecta a própria conta pelo Admin.
+- Impacto esperado: a usuária consegue iniciar e concluir a conexão com Stripe dentro do BocaFood, mantendo segredos no backend e cada tenant vinculado à própria conta conectada.
+
+## 2026-05-28 — Stripe Connect no checkout público
+- Arquivos alterados: `functions/index.js`, `public/master.html`, `public/js/modules/configuracoes.js`, `public/index.html`, `AI_CHANGELOG.md`.
+- Criei no Master a configuração global do Stripe Connect com chave pública, chave secreta, webhook secret e moeda padrão, salvando segredos somente em coleção privada acessada pelas Firebase Functions.
+- Adicionei em `Configurações > Integrações` o vínculo da loja com a própria conta conectada Stripe (`acct_...`), mantendo cada tenant isolado.
+- Criei Functions para diagnosticar/salvar Stripe no Master, criar PaymentIntent para o pedido da loja pública e receber webhook de pagamento aprovado/falho.
+- No checkout público, quando a forma de pagamento é cartão com Stripe ativo, o pedido é salvo como pendente, abre o modal seguro de cartão e só é confirmado após pagamento aprovado; se falhar, o pedido permanece pendente e o carrinho não é limpo.
+- O pedido enviado ao fluxo mantém total, frete, descontos, cupom, pontos, itens, tenant/slug, cliente/convidado e referência do pedido no Firestore antes do pagamento.
+- Impacto esperado: cada loja pode receber cartão pela própria conta Stripe Connect, sem expor chave secreta no `public/` e sem confirmar pedido antes da aprovação.
+
+## 2026-05-28 — Loja pública: carrinho mobile mais guiado
+- Arquivos alterados: `public/index.html`, `AI_CHANGELOG.md`.
+- Reorganizei a hierarquia visual do carrinho no mobile para mostrar primeiro o resumo do pedido, depois entrega/retirada e por último pagamento, cupom, pontos, WhatsApp e observação.
+- O fechamento do carrinho passa a ficar no topo do card do pedido no mobile, evitando que o botão de fechar fique abaixo da primeira etapa.
+- Agrupei entrega/retirada e finalização em blocos mais claros, com borda suave, fundo claro e espaçamento mais consistente.
+- Mantive desktop, lógica de carrinho, entrega, pagamento, pontos, cupom, WhatsApp, Firestore, rotas e textos configuráveis sem alteração.
+- Impacto esperado: a cliente entende melhor a sequência para finalizar o pedido no celular, com menos sensação de formulário longo.
+
+## 2026-05-28 — Financeiro: filtros de entradas e saídas mais limpos
+- Arquivos alterados: `public/js/modules/financeiro.js`, `AI_CHANGELOG.md`.
+- Removi o cabeçalho textual com ícone `filter_alt` dos cards de filtros das abas `Entradas` e `Saídas`.
+- Mantive todos os campos de busca, período, status, conta bancária e ações de filtro funcionando como antes.
+- Impacto esperado: telas de Entradas e Saídas ficam mais limpas visualmente, sem alterar cálculos, Firestore, rotas ou permissões.
+
+## 2026-05-28 — Performance: sobra esperada respeita mês da rota
+- Arquivos alterados: `public/js/modules/performance.js`, `AI_CHANGELOG.md`.
+- Corrigi o cálculo do card `Rota ativa` para não usar a receita ou a sobra total da rota quando o mês está marcado como fora da rota.
+- A força do mês agora zera corretamente nesses casos, mantendo `Mês fora da rota` junto de meta e sobra mensais zeradas.
+- Impacto esperado: o card de Performance deixa de mostrar uma `Sobra esperada` inflada para meses que não fazem parte da rota ativa.
+
+## 2026-05-28 — Maturidade: copy dos cards que sustentam a Pedra
+- Arquivos alterados: `public/js/modules/temporadas.js`, `AI_CHANGELOG.md`.
+- Reescrevi os textos do bloco `O que sustenta sua Pedra` para falar mais sobre o negócio da usuária e menos sobre leitura interna do sistema.
+- Ajustei as mensagens de vendas, temporadas, financeiro, ações de venda, clientes, avaliações e rotina para explicar o que cada sinal representa na evolução do negócio.
+- Troquei o título `Como a evolução do negócio está sendo lida` por `O que já fortalece o negócio`.
+- Troquei `Operação, estoque e produção` por `Rotina, estoque e produção`.
+- Impacto esperado: a leitura da Maturidade fica mais clara, humana e orientada ao negócio, sem alterar cálculos, Firestore, rotas ou permissões.
+
+## 2026-05-28 — Maturidade: régua de avaliações menos severa
+- Arquivos alterados: `public/js/modules/temporadas.js`, `AI_CHANGELOG.md`.
+- Ajustei a leitura de avaliações para não tratar nota 3 isolada como avaliação baixa crítica quando a média geral está forte.
+- Notas 1 e 2 continuam entrando como avaliações baixas; nota 3 vira ponto de atenção.
+- O card de limitadores só mostra alerta de avaliação quando houver nota realmente baixa ou média geral em atenção.
+- Impacto esperado: lojas com maioria de notas 5 e média alta não aparecem com limitador indevido de confiança.
+
+## 2026-05-28 — Maturidade: copy dos marcos mais humana
+- Arquivos alterados: `public/js/modules/temporadas.js`, `AI_CHANGELOG.md`.
+- Reescrevi os textos explicativos do card `Marcos do negócio` para falar sobre evolução do negócio da usuária, evitando termos internos como `detectado`, `score`, `V1` e explicações técnicas.
+- Ajustei alguns títulos de marcos para ficarem mais claros, como `Fechar temporadas mais fortes`, `Diminuir chance de falha` e `Deixar a rotina mais estável`.
+- Impacto esperado: a usuária entende melhor por que cada marco importa para o negócio, sem alterar cálculo, Firestore, rotas ou permissões.
+
+## 2026-05-28 — Maturidade: temporadas instáveis não aparecem como sucesso
+- Arquivos alterados: `public/js/modules/temporadas.js`, `AI_CHANGELOG.md`.
+- Separei a leitura de temporadas com vitória (`Vitória Total` e `Vitória Parcial`) das temporadas instáveis ou com falha.
+- Ajustei o card `Temporadas`, os pontos fortes/limitadores e marcos ligados a execução para não tratar `Temporada Instável` como sucesso.
+- O motor ainda considera temporada instável como aprendizado leve, mas ela não completa marcos de vitória nem recebe peso alto de execução.
+- Ajustei a função base de resultado para considerar sucesso real apenas `Vitória Total` e `Vitória Parcial`; `Temporada Instável` agora entra como aprendizado com limitador.
+- Impacto esperado: em cenários com várias temporadas instáveis e falha operacional, a Maturidade mostra atenção/aprendizado, não sucesso.
+
+## 2026-05-28 — Maturidade: título dos marcos simplificado
+- Arquivos alterados: `public/js/modules/temporadas.js`, `AI_CHANGELOG.md`.
+- Troquei o título do card `Marcos reais do negócio` para `Marcos do negócio`.
+- Impacto esperado: copy mais curta e direta na leitura da Maturidade, sem alterar cálculo, dados, rotas ou permissões.
+
+## 2026-05-28 — Maturidade: todos os pontos fortes e limitadores
+- Arquivos alterados: `public/js/modules/temporadas.js`, `AI_CHANGELOG.md`.
+- Removi o limite visual dos cards `Pontos fortes` e `Pontos que limitam evolução`.
+- A tela agora mostra todos os sinais calculados pela Maturidade, igual ao card de marcos.
+- Impacto esperado: a usuária enxerga a leitura completa do negócio, sem alterar o motor de cálculo, Firestore, rotas ou permissões.
+
+## 2026-05-28 — Maturidade: todos os marcos no card
+- Arquivos alterados: `public/js/modules/temporadas.js`, `AI_CHANGELOG.md`.
+- Removi o limite visual de 5 itens no card `Marcos reais do negócio`.
+- O card agora mostra todos os marcos calculados para o caminho da Pedra atual, mantendo a ordem por limitadores, pendentes e concluídos.
+- Impacto esperado: a usuária vê todos os marcos relevantes da evolução, sem alterar o motor de cálculo da Maturidade.
+
+## 2026-05-28 — Loja online: publicação sem botão duplicado
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Ajustei o card `Publicação da loja` para não exibir o botão `Publicar loja` quando a loja já está publicada.
+- A ação de `Despublicar loja` permanece disponível no estado publicado.
+- Impacto esperado: evita ação redundante e deixa o estado publicado mais claro para a usuária, sem alterar regras de publicação, Firestore ou rotas.
+
+## 2026-05-28 — Configurações: padrão visual e validação do link da loja
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Apliquei o padrão visual da aba `Canais de venda` nas abas `Usuário` e `Venda presencial`, mantendo os mesmos campos, salvamento e integrações.
+- Em `Loja online > Link da loja`, renomeei `Nome do link` para `Nome da loja no link`, com orientação mais clara para a usuária.
+- Adicionei feedback em tempo real no campo do link: check verde quando o nome está válido e X vermelho quando está vazio, curto ou reservado.
+- Impacto esperado: telas de Configurações mais consistentes e o link público fica mais fácil de entender antes de salvar, sem alterar Firestore, rotas ou permissões.
+
+## 2026-05-28 — Configurações: prévia da ficha atualiza em tempo real
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Ajustei o card de prévia/ficha em `Configurações > Geral` para atualizar imediatamente nome comercial, apresentação curta, documento fiscal, endereço, telefone e WhatsApp enquanto a usuária edita os campos.
+- A prévia também muda o estado visual de dados preenchidos/não informados sem precisar recarregar a página.
+- Impacto esperado: a usuária vê a ficha do negócio refletir os dados preenchidos em tempo real, sem alterar Firestore, rotas, permissões ou salvamento.
+
+## 2026-05-28 — Promoções: bloqueio reforçado de produto duplicado
+- Arquivos alterados: `public/js/modules/marketing.js`, `AI_CHANGELOG.md`.
+- Confirmei que o módulo de promoções já bloqueava produto repetido em promoções ativas com período sobreposto, incluindo conflitos com promoções para todos os produtos.
+- Reforcei a normalização dos produtos da promoção para também considerar campos legados/alternativos (`productsSelected`, `selectedProductIds`, `suggestedProductIds`, `products`, `items`).
+- Impacto esperado: o Admin não permite salvar ou reativar promoção com o mesmo produto em outra promoção no mesmo período, mesmo em registros antigos com formatos diferentes.
+
+## 2026-05-28 — Loja pública: card de pontos logado mais premium
+- Arquivos alterados: `public/index.html`, `AI_CHANGELOG.md`.
+- Reorganizei o estado logado do card de fidelidade para mostrar os pontos com hierarquia própria, número mais destacado e legenda leve.
+- Ajustei o CTA `Ver más` para ficar mais discreto e premium, sem parecer um botão pesado no card.
+- Impacto esperado: cliente logada entende o saldo de pontos com mais clareza e o card fica mais bonito sem alterar regras do programa.
+
+## 2026-05-28 — Loja pública: card de pontos para cliente logada
+- Arquivos alterados: `public/index.html`, `AI_CHANGELOG.md`.
+- Ajustei o card do programa de pontos para, quando a cliente estiver logada, mostrar o saldo de pontos disponível no lugar do texto de consulta.
+- O CTA do card logado passa a ser `Ver más`/`Ver mais`/`See more`/`Voir plus`, abrindo o mesmo modal de detalhes dos pontos.
+- Impacto esperado: cliente logada entende imediatamente quantos pontos tem e pode abrir os detalhes sem ver uma chamada de consulta desnecessária.
+
+## 2026-05-27 — Loja pública: modal de pontos sem nome da cliente
+- Arquivos alterados: `public/index.html`, `AI_CHANGELOG.md`.
+- Removi a exibição do nome/e-mail da cliente no card `Fidelidad / Tus puntos` quando a cliente está logada.
+- Saldo, desconto disponível, regra de pontos, histórico e mensagens de login/erro continuam funcionando como antes.
+- Impacto esperado: modal de fidelidade mais limpo e focado nos pontos, sem alterar Firestore, autenticação, pedidos ou regras do programa.
+
+## 2026-05-27 — Loja pública: CTA de pontos traduz legado português
+- Arquivos alterados: `public/index.html`, `AI_CHANGELOG.md`.
+- Identifiquei que o texto `ver meus pontos` vinha salvo no Firestore em `config/template.loyaltyButtonText`, por isso aparecia em português mesmo com a loja em espanhol.
+- O botão do card de pontos agora trata frases legadas/default em português (`ver meus pontos`, `ver pontos`, etc.) como texto traduzível e mostra `Ver mis puntos` quando o idioma do template é espanhol.
+- O botão de pontos no modal da conta também passa a usar `Ver mis puntos` em espanhol.
+- Impacto esperado: o template espanhol não exibe mais o CTA de pontos em português, sem alterar regras de pontos, login, Firestore ou carrinho.
+
+## 2026-05-27 — Loja pública: rodapé mobile cobre toda a largura
+- Arquivos alterados: `public/index.html`, `AI_CHANGELOG.md`.
+- Corrigi o rodapé mobile para ocupar a largura completa da tela, sem cortar o fundo no lado direito.
+- O ajuste remove o conflito entre margem negativa, `max-width: 100%` e `overflow-x: clip`, mantendo proteção contra scroll horizontal.
+- Impacto esperado: o fundo do rodapé chega até o final da tela no celular, sem alterar layout desktop, textos, rotas, carrinho ou lógica da loja.
+
+## 2026-05-27 — Loja pública: idioma do template prioriza configuração correta
+- Arquivos alterados: `public/index.html`, `AI_CHANGELOG.md`.
+- Ajustei a resolução de idioma da loja pública para priorizar explicitamente o idioma salvo em `config/template` e `config/geral`, antes do objeto mesclado de configurações.
+- Isso evita que qualquer configuração auxiliar carregada depois sobrescreva textos do template, como o botão `Ver puntos` no modal da conta.
+- Impacto esperado: os textos da loja pública permanecem no idioma principal escolhido no template, sem alterar lógica de pontos, login, Firestore, rotas ou carrinho.
+
+## 2026-05-27 — Loja pública: avatar do cliente não usa logo da loja
+- Arquivos alterados: `public/index.html`, `AI_CHANGELOG.md`.
+- Corrigi a escolha da imagem do avatar do cliente para ignorar URLs iguais à identidade da loja (`logoUrl`, `avatarUrl`, favicon e assets padrão).
+- O salvamento automático do cliente também deixa de gravar `photoURL` quando a imagem recebida do Auth é a própria marca da loja.
+- Impacto esperado: ao atualizar a página, o avatar da cliente não troca para a logo da loja; se não houver foto real da cliente, aparece iniciais/ícone de pessoa.
+
 ## 2026-05-27 — Loja pública: botão Sair na conta
 - Arquivos alterados: `public/index.html`, `AI_CHANGELOG.md`.
 - Recoloquei o botão de sair no modal de conta da loja pública, conectado à lógica já existente `signOutStoreCustomer`.

@@ -1106,6 +1106,8 @@ Modules.Performance = (function () {
     var snap = _monthScenarioSnapshot();
     var summary = snap && snap.summary ? snap.summary : {};
     var monthIndex = _monthIndexFromKey(_state.scenarioMonthKey || _currentMonthKey());
+    var routeIndexes = _snapshotRouteMonthIndexes(snap);
+    var isMonthInRoute = !snap || routeIndexes.indexOf(monthIndex) >= 0;
     var monthRow = snap && Array.isArray(snap.monthSeries) ? snap.monthSeries.find(function (m) {
       return _num(m.monthIndex) === monthIndex;
     }) : null;
@@ -1114,14 +1116,21 @@ Modules.Performance = (function () {
     var monthWeight = _monthWeightFactorFromSnapshot(snap, monthIndex, monthRow);
     var monthShare = routeRevenue > 0 && monthRevenue > 0 ? monthRevenue / routeRevenue : _monthShareFromSnapshot(snap, monthIndex);
     var routeProfit = _num(summary.profit != null ? summary.profit : 0);
-    if (!monthRevenue && routeRevenue > 0 && monthShare > 0) monthRevenue = routeRevenue * monthShare;
-    if (!monthRevenue && routeRevenue > 0) monthRevenue = routeRevenue / Math.max(1, _snapshotRouteMonthIndexes(snap).length);
-    var strength = _monthStrengthInfo(monthWeight);
+    if (!isMonthInRoute || monthWeight <= 0) {
+      monthRevenue = 0;
+      monthShare = 0;
+    } else {
+      if (!monthRevenue && routeRevenue > 0 && monthShare > 0) monthRevenue = routeRevenue * monthShare;
+      if (!monthRevenue && routeRevenue > 0) monthRevenue = routeRevenue / Math.max(1, routeIndexes.length || 1);
+      if (!monthShare && routeRevenue > 0 && monthRevenue > 0) monthShare = monthRevenue / routeRevenue;
+    }
+    var effectiveMonthWeight = (!isMonthInRoute || monthWeight <= 0) ? 0 : monthWeight;
+    var strength = _monthStrengthInfo(effectiveMonthWeight);
     return {
-      revenue: monthRevenue || routeRevenue,
-      profit: monthShare > 0 ? routeProfit * monthShare : routeProfit,
+      revenue: monthRevenue,
+      profit: monthShare > 0 ? routeProfit * monthShare : 0,
       cashFinal: _num(summary.cashFinal != null ? summary.cashFinal : 0),
-      monthFactor: monthWeight,
+      monthFactor: effectiveMonthWeight,
       strengthLabel: strength.label,
       monthLabel: monthRow && monthRow.label ? monthRow.label : _monthLabelFromKey(_state.scenarioMonthKey || _currentMonthKey())
     };
@@ -1251,10 +1260,13 @@ Modules.Performance = (function () {
     });
     if (byLabel) return byLabel;
 
+    var fromSnapshot = _monthScenarioFromSnapshot(monthKey, snapshots);
+    if (fromSnapshot) return fromSnapshot;
+
     var byUpdate = candidates.slice().sort(function (a, b) {
       return _ts(b.updatedAt || b.selectedAt || b.createdAt) - _ts(a.updatedAt || a.selectedAt || a.createdAt);
     })[0];
-    return byUpdate || _monthScenarioFromSnapshot(monthKey, snapshots) || null;
+    return byUpdate || null;
   }
 
   function _monthScenarioFromSnapshot(monthKey, snapshots) {
@@ -1283,6 +1295,12 @@ Modules.Performance = (function () {
       snapshotName: snap.name || 'Rota ativa',
       scenario: snap.scenario || 'equilibrium',
       summary: snap.summary || {},
+      monthSeries: Array.isArray(snap.monthSeries) ? snap.monthSeries : [],
+      monthWeights: Array.isArray(snap.monthWeights) ? snap.monthWeights : [],
+      seasonality: Array.isArray(snap.seasonality) ? snap.seasonality : [],
+      routeMonthCount: snap.routeMonthCount || 0,
+      periodStart: snap.periodStart || '',
+      periodEnd: snap.periodEnd || '',
       periodType: snap.periodType || 'annual',
       updatedAt: snap.updatedAt || snap.createdAt || '',
       selectedAt: snap.selectedAt || snap.updatedAt || snap.createdAt || '',

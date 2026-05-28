@@ -63,6 +63,33 @@ Modules.Suporte = (function () {
       '.support-guide-field{display:grid;grid-template-columns:minmax(170px,.34fr) minmax(0,1fr);gap:14px;align-items:start;border:1px solid #F0E7E1;background:linear-gradient(135deg,#FFFFFF 0%,#FFFCF8 100%);border-radius:15px;padding:13px;font-size:12.8px;line-height:1.52;box-shadow:0 8px 20px rgba(31,31,31,.035);}' +
       '.support-guide-field strong{color:#1F1F1F;font-size:12.8px;font-weight:850;line-height:1.28;}' +
       '.support-guide-field span{color:#625A55;}' +
+      '.docs-shell{display:grid;grid-template-columns:280px minmax(0,1fr);gap:16px;align-items:start;}' +
+      '.docs-sidebar{position:sticky;top:88px;background:#fff;border:1px solid #EAE4DA;border-radius:20px;box-shadow:0 14px 34px rgba(31,31,31,.055);padding:12px;display:flex;flex-direction:column;gap:7px;max-height:calc(100vh - 120px);overflow:auto;}' +
+      '.docs-side-title{font-size:11px;font-weight:850;letter-spacing:.07em;text-transform:uppercase;color:#8A7E7C;padding:6px 8px 4px;}' +
+      '.docs-nav-btn{border:none;background:transparent;border-radius:13px;padding:10px;text-align:left;display:grid;grid-template-columns:30px 1fr;gap:9px;align-items:start;font-family:inherit;cursor:pointer;color:#1F1F1F;transition:background .16s ease,box-shadow .16s ease,transform .16s ease;}' +
+      '.docs-nav-btn:hover{background:#FFFEFC;box-shadow:0 8px 18px rgba(31,31,31,.045);transform:translateY(-1px);}' +
+      '.docs-nav-btn.active{background:linear-gradient(135deg,#FFF7F2 0%,#FFFFFF 100%);box-shadow:inset 3px 0 0 #C4362A;}' +
+      '.docs-nav-btn .mi{width:30px;height:30px;border-radius:11px;background:#FCEEEE;color:#C4362A;display:inline-flex;align-items:center;justify-content:center;font-size:17px;}' +
+      '.docs-nav-btn strong{display:block;font-size:12.8px;font-weight:850;color:#1F1F1F;line-height:1.2;}' +
+      '.docs-nav-btn span:not(.mi){display:block;font-size:11.5px;color:#6F6860;line-height:1.32;margin-top:2px;}' +
+      '.docs-content{min-width:0;display:flex;flex-direction:column;gap:14px;}' +
+      '.docs-panel{background:#fff;border:1px solid #EAE4DA;border-radius:22px;box-shadow:0 14px 34px rgba(31,31,31,.055);padding:20px;}' +
+      '.docs-panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:14px;}' +
+      '.docs-panel h2{font-size:23px;font-weight:850;color:#1F1F1F;line-height:1.12;margin:0 0 6px;}' +
+      '.docs-panel p{font-size:13.5px;line-height:1.56;color:#6F6860;margin:0;}' +
+      '.docs-topic-list{display:grid;gap:10px;}' +
+      '.docs-topic{border:1px solid #EFE6DA;background:linear-gradient(135deg,#FFFFFF 0%,#FFFCF8 100%);border-radius:16px;padding:14px;display:grid;gap:8px;}' +
+      '.docs-topic h3{font-size:14px;font-weight:850;color:#1F1F1F;margin:0;line-height:1.25;}' +
+      '.docs-topic ul{margin:0;padding-left:18px;color:#625A55;font-size:12.8px;line-height:1.52;}' +
+      '.docs-topic li{margin:4px 0;}' +
+      '.docs-section-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:14px 0;}' +
+      '.docs-section-card{border:1px solid #EFE6DA;background:#FFFEFC;border-radius:15px;padding:12px;display:grid;grid-template-columns:30px 1fr;gap:9px;align-items:start;}' +
+      '.docs-section-card .mi{width:30px;height:30px;border-radius:11px;background:#F7F1E8;color:#8A6F5A;display:inline-flex;align-items:center;justify-content:center;font-size:17px;}' +
+      '.docs-section-card strong{display:block;color:#1F1F1F;font-size:12.8px;font-weight:850;line-height:1.25;}' +
+      '.docs-section-card span:not(.mi){display:block;color:#6F6860;font-size:12px;line-height:1.42;margin-top:3px;}' +
+      '.docs-section-status{display:inline-flex;width:max-content;margin-top:7px;border-radius:999px;background:#F7F1E8;color:#8A6F5A;font-size:10.5px;font-weight:850;padding:5px 8px;}' +
+      '.docs-tag-row{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px;}' +
+      '.docs-tag{display:inline-flex;align-items:center;border-radius:999px;background:#F7F1E8;color:#7A6352;font-size:11px;font-weight:800;padding:6px 9px;}' +
       '.help-hero{background:linear-gradient(135deg,#FFFFFF 0%,#FCF8F2 58%,#FFF4F1 100%);border:1px solid #E8DED6;border-radius:24px;padding:24px;box-shadow:0 18px 44px rgba(31,31,31,.07);position:relative;overflow:hidden;display:grid;gap:18px;}' +
       '.help-hero::before{content:"";position:absolute;left:0;top:20px;bottom:20px;width:4px;border-radius:999px;background:#C4362A;}' +
       '.help-hero-main{max-width:760px;}' +
@@ -111,14 +138,14 @@ Modules.Suporte = (function () {
       '.support-empty{border:1px dashed #E0D4CD;border-radius:18px;padding:18px;text-align:center;background:#FFFEFC;color:#6F6860;font-size:13px;line-height:1.45;}' +
       '.support-empty strong{display:block;color:#1F1F1F;font-size:15px;margin-bottom:4px;}' +
       '@media(max-width:1020px){.help-category-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.help-search-row{grid-template-columns:1fr;}.help-search-row .support-primary,.help-search-row .support-secondary{width:100%;}}' +
-      '@media(max-width:860px){.support-page{padding:18px 14px;}.support-hero,.help-hero{grid-template-columns:1fr;padding:18px;}.support-title{font-size:22px;}.support-layout,.support-home-grid,.support-home-grid.three,.help-category-grid,.help-submodule-grid{grid-template-columns:1fr;}.support-grid{grid-template-columns:1fr;}.support-actions{flex-direction:column-reverse;}.support-primary,.support-secondary{width:100%;}.support-guide-item{grid-template-columns:34px 1fr;}.support-guide-item em{grid-column:2;justify-self:start;}.support-guide-field{grid-template-columns:1fr;gap:3px;}.support-ticket-top{flex-direction:column;}.support-ticket-status{align-self:flex-start;}.help-section-head{align-items:flex-start;flex-direction:column;}.help-guide-panel-head{flex-direction:column;}}' +
+      '@media(max-width:860px){.support-page{padding:18px 14px;}.support-hero,.help-hero{grid-template-columns:1fr;padding:18px;}.support-title{font-size:22px;}.support-layout,.support-home-grid,.support-home-grid.three,.help-category-grid,.help-submodule-grid,.docs-shell,.docs-section-grid{grid-template-columns:1fr;}.docs-sidebar{position:relative;top:auto;max-height:none;}.support-grid{grid-template-columns:1fr;}.support-actions{flex-direction:column-reverse;}.support-primary,.support-secondary{width:100%;}.support-guide-item{grid-template-columns:34px 1fr;}.support-guide-item em{grid-column:2;justify-self:start;}.support-guide-field{grid-template-columns:1fr;gap:3px;}.support-ticket-top{flex-direction:column;}.support-ticket-status{align-self:flex-start;}.help-section-head{align-items:flex-start;flex-direction:column;}.help-guide-panel-head{flex-direction:column;}}' +
     '</style>';
   }
 
   function render(sub) {
     if (sub === 'chamado') return renderTicket();
     if (sub === 'chamados') return renderTickets();
-    if (sub === 'guias') return renderGuides();
+    if (sub === 'guias' || sub === 'documentacao') return renderDocumentation();
     return renderCentral();
   }
 
@@ -137,11 +164,11 @@ Modules.Suporte = (function () {
           '<div class="support-hero-badge"><span class="mi">help</span><span>Ajuda e suporte</span></div>' +
         '</section>' +
         '<section class="support-home-grid three">' +
-          '<button class="support-home-card" type="button" onclick="Router.navigate(\'suporte/guias\')">' +
-            '<span class="support-home-icon mi">menu_book</span>' +
-            '<span class="support-home-title">Guias de uso</span>' +
-            '<span class="support-home-copy">Veja, aos poucos, instruções práticas para usar cada módulo do BocaFood.</span>' +
-            '<span class="support-home-action">Ver guias</span>' +
+          '<button class="support-home-card" type="button" onclick="Router.navigate(\'suporte/documentacao\')">' +
+            '<span class="support-home-icon mi">library_books</span>' +
+            '<span class="support-home-title">Documentação</span>' +
+            '<span class="support-home-copy">Consulte o que cada módulo faz, quais dados usa e como ele conversa com o resto do negócio.</span>' +
+            '<span class="support-home-action">Abrir documentação</span>' +
           '</button>' +
           '<button class="support-home-card" type="button" onclick="Router.navigate(\'suporte/chamados\')">' +
             '<span class="support-home-icon mi">confirmation_number</span>' +
@@ -161,6 +188,253 @@ Modules.Suporte = (function () {
           '<div class="support-mini-card"><div class="support-mini-head"><span class="mi">mail</span><span>Contato direto</span></div><p>Se preferir, escreva para <strong>teajudo@bocafood.app</strong> usando o e-mail da conta.</p></div>' +
         '</section>' +
       '</div>';
+  }
+
+  function _documentationModules() {
+    return [
+      {
+        key: 'primeiros-passos',
+        icon: 'rocket_launch',
+        title: 'Primeiros passos',
+        summary: 'Ordem recomendada para sair do zero e deixar o negócio pronto para vender com leitura real.',
+        tags: ['começo', 'base', 'roteiro'],
+        sections: [
+          ['Como o sistema se organiza', 'Entender a lógica geral antes de preencher campos.', 'map'],
+          ['O que configurar primeiro', 'Dados do negócio, canais, produtos, custos e rotina mínima.', 'checklist'],
+          ['Primeira rota e primeira temporada', 'Como criar direção antes de começar a operar no escuro.', 'route'],
+          ['Primeira venda acompanhada', 'Como compra, pedido, financeiro e estoque começam a conversar.', 'point_of_sale']
+        ]
+      },
+      {
+        key: 'base-negocio',
+        icon: 'settings',
+        title: 'Base do negócio',
+        summary: 'Tudo que identifica a loja, a usuária, os canais, pagamentos e regras usadas como base pelos outros módulos.',
+        tags: ['cadastro', 'canais', 'integrações'],
+        sections: [
+          ['Dados da loja', 'Nome, marca, contatos, endereço, país fiscal e apresentação.', 'storefront'],
+          ['Usuária e acesso', 'Dados da pessoa responsável, WhatsApp, e-mail e segurança.', 'person'],
+          ['Canais de venda', 'De onde vêm as vendas e como cada canal conversa com financeiro e relatórios.', 'hub'],
+          ['Pagamentos e integrações', 'Stripe, WhatsApp, redes sociais, pixel e ferramentas externas.', 'credit_card'],
+          ['Venda presencial', 'Quando ativar, como configurar e como entra na rotina.', 'point_of_sale']
+        ]
+      },
+      {
+        key: 'cardapio',
+        icon: 'restaurant_menu',
+        title: 'Cardápio',
+        summary: 'Estrutura de produtos, categorias, preços, variações, combos, fotos, tags e regras para vender melhor.',
+        tags: ['produtos', 'preço', 'venda'],
+        sections: [
+          ['Produtos', 'Cadastro do que a cliente compra e como aparece no pedido.', 'lunch_dining'],
+          ['Categorias', 'Organização visual do cardápio e ordem de exibição.', 'category'],
+          ['Preços, margem e custo', 'Como o preço conversa com regras de margem e ficha técnica.', 'payments'],
+          ['Variações e combos', 'Escolhas obrigatórias, opcionais, adicionais e fotos.', 'tune'],
+          ['Disponibilidade e destaque', 'Produto oculto, produto ativo, tags e selo visual.', 'sell']
+        ]
+      },
+      {
+        key: 'producao',
+        icon: 'receipt_long',
+        title: 'Produção',
+        summary: 'Receitas, fichas técnicas, bases de produção, ordens, lotes, lista de compras e movimentações geradas.',
+        tags: ['receitas', 'lote', 'estoque'],
+        sections: [
+          ['Receitas e fichas técnicas', 'Ingredientes, rendimento, custo previsto e unidade produzida.', 'menu_book'],
+          ['Bases de produção', 'Massas, recheios e etapas intermediárias usadas em outras receitas.', 'bakery_dining'],
+          ['Ordens de produção', 'Planejamento, finalização, rendimento real e leitura do lote.', 'assignment'],
+          ['Lista de compras', 'Necessidade gerada por produção planejada e estoque mínimo.', 'shopping_cart'],
+          ['Movimentações de produção', 'Saída de ingredientes e entrada de produto produzido.', 'sync_alt']
+        ]
+      },
+      {
+        key: 'compras',
+        icon: 'shopping_cart',
+        title: 'Compras',
+        summary: 'Entrada de itens comprados, fornecedores, produtos/insumos, recebimento, pagamento e entrada no estoque.',
+        tags: ['fornecedores', 'recebimento', 'custo'],
+        sections: [
+          ['Registro de compra', 'Itens, quantidades, valores, documento, pagamento e observações.', 'receipt_long'],
+          ['Recebimento', 'Quando a compra vira entrada de estoque.', 'inventory'],
+          ['Fornecedores', 'Dados fiscais, contato, endereço e condições comerciais.', 'store'],
+          ['Produtos e insumos comprados', 'O que entra por compra e pode alimentar receitas, estoque ou venda direta.', 'inventory_2'],
+          ['Financeiro da compra', 'Conta a pagar, forma de pagamento, vencimento e categoria.', 'account_balance_wallet']
+        ]
+      },
+      {
+        key: 'estoque',
+        icon: 'inventory_2',
+        title: 'Estoque',
+        summary: 'Saldo calculado por movimentações de compra, produção, venda, ajustes e inventário.',
+        tags: ['saldo', 'movimentações', 'mínimo'],
+        sections: [
+          ['Tipos de estoque', 'Insumo, produto pronto comprado, produto produzido e base de produção.', 'segment'],
+          ['Itens em estoque', 'Saldo, unidade, valor estimado, mínimo, máximo e última movimentação.', 'inventory_2'],
+          ['Movimentações', 'Entradas, saídas, ajustes, vendas, compras e produção.', 'swap_vert'],
+          ['Ajustes e inventário', 'Correção manual quando a quantidade real não bate.', 'fact_check'],
+          ['Reposição', 'Como mínimo, máximo e lista de compras devem orientar compras e produção.', 'notification_important']
+        ]
+      },
+      {
+        key: 'vendas-atendimento',
+        icon: 'room_service',
+        title: 'Vendas e atendimento',
+        summary: 'Pedidos, venda manual, cozinha, cliente, entrega, pagamento, WhatsApp, baixa de estoque e financeiro.',
+        tags: ['pedido', 'cozinha', 'cliente'],
+        sections: [
+          ['Criar pedido manual', 'Cliente, canal, produtos, entrega, pagamento, descontos e pontos.', 'add_shopping_cart'],
+          ['Pedido recebido', 'Itens, escolhas, observações, status, checklist e comunicação.', 'receipt_long'],
+          ['Modo cozinha', 'Leitura rápida para preparo, retirada e entrega.', 'room_service'],
+          ['Clientes', 'Cadastro, endereços, preferências, histórico e avatar.', 'groups'],
+          ['WhatsApp e avaliação', 'Mensagens por status e pedido de avaliação após entrega.', 'chat']
+        ]
+      },
+      {
+        key: 'financeiro',
+        icon: 'payments',
+        title: 'Financeiro',
+        summary: 'Entradas, saídas, contas, formas de pagamento, canais, transferências, categorias e visão de saúde financeira.',
+        tags: ['caixa', 'entrada', 'saída'],
+        sections: [
+          ['Entradas', 'Dinheiro recebido por pedidos, venda presencial, Stripe ou lançamento manual.', 'south_west'],
+          ['Saídas e contas a pagar', 'Despesas, custos, vencimento, recorrência e pagamento.', 'north_east'],
+          ['Fluxo de caixa', 'O que entra, sai e fica no período.', 'waterfall_chart'],
+          ['Contas e transferências', 'Conta bancária, caixa físico, reforço, sangria e transferência.', 'account_balance'],
+          ['Categorias financeiras', 'Despesa, custo direto, custo indireto e vínculo com Plano de Voo.', 'label']
+        ]
+      },
+      {
+        key: 'loja-online',
+        icon: 'storefront',
+        title: 'Loja Online',
+        summary: 'Template público, identidade visual, link, SEO, atendimento, checkout, avaliações, promoções, fidelidade e carrinho.',
+        tags: ['cardápio público', 'checkout', 'publicação'],
+        sections: [
+          ['Identidade e vitrine', 'Logo, capa, card principal, categorias e card promocional.', 'palette'],
+          ['Link e publicação', 'Slug, status publicado, loja não publicada e domínio.', 'link'],
+          ['Checkout', 'Entrega, retirada, endereço, pagamento, cupom, pontos e WhatsApp.', 'shopping_bag'],
+          ['Avaliações', 'Página de avaliação, resenhas, carrossel e CTA.', 'star'],
+          ['SEO e compartilhamento', 'Título, descrição, imagem e dados herdados.', 'travel_explore']
+        ]
+      },
+      {
+        key: 'acoes-vendas',
+        icon: 'local_offer',
+        title: 'Ações de Venda',
+        summary: 'Promoções, cupons, upsell e pontos usados para vender mais, aumentar ticket ou trazer cliente de volta.',
+        tags: ['promoção', 'cupom', 'upsell'],
+        sections: [
+          ['Promoções', 'Regras, produtos elegíveis, período, conflito e reflexo no pedido.', 'campaign'],
+          ['Cupons', 'Código, link automático, pedido mínimo e aplicação no checkout.', 'confirmation_number'],
+          ['Upsell', 'Gatilho, momento, produto sugerido, desconto e aceite da cliente.', 'add_circle'],
+          ['Programa de pontos', 'Acúmulo, resgate, validade, mínimo e histórico da cliente.', 'loyalty'],
+          ['Resultado das ações', 'Como vendas reais validam ou não uma ação.', 'query_stats']
+        ]
+      },
+      {
+        key: 'crescimento',
+        icon: 'diamond',
+        title: 'Crescimento',
+        summary: 'Plano de Voo, Temporadas, Performance e Maturidade: a camada que transforma dados em direção para o negócio.',
+        tags: ['plano', 'temporada', 'maturidade'],
+        sections: [
+          ['Plano de Voo', 'Rota anual, cenários, base de cálculo e acompanhamento.', 'flight_takeoff'],
+          ['Temporadas', 'Jogadas práticas para alcançar a rota sem criar meta paralela.', 'event_available'],
+          ['Performance', 'Leitura do mês contra a rota e sinais de ritmo.', 'analytics'],
+          ['Maturidade', 'Evolução real do negócio, pedras, marcos e histórico.', 'diamond'],
+          ['Inteligência futura', 'Como dados de vendas, clientes, ações e estoque podem alimentar decisões.', 'psychology']
+        ]
+      },
+      {
+        key: 'suporte',
+        icon: 'support_agent',
+        title: 'Suporte',
+        summary: 'Chamados, acompanhamento e documentação para consultar antes de acionar a equipe.',
+        tags: ['ajuda', 'chamado', 'documentação'],
+        sections: [
+          ['Documentação', 'Onde consultar o funcionamento antes de abrir chamado.', 'library_books'],
+          ['Abrir chamado', 'Como explicar o problema com tela, ação feita e print.', 'support_agent'],
+          ['Meus chamados', 'Como acompanhar status e retorno da equipe.', 'confirmation_number'],
+          ['Segurança', 'O que nunca enviar em uma solicitação.', 'lock']
+        ]
+      }
+    ];
+  }
+
+  function renderDocumentation() {
+    var app = document.getElementById('app');
+    if (!app) return;
+    var modules = _documentationModules();
+    app.innerHTML = '' +
+      '<div class="support-page">' +
+        _baseStyles() +
+        '<section class="help-hero">' +
+          '<div class="help-hero-main">' +
+            '<div class="support-kicker">Documentação</div>' +
+            '<h1 class="support-title">Documentação do sistema</h1>' +
+            '<p class="support-subtitle">Esta área será construída como uma documentação padrão: escolha uma categoria principal e veja o índice dos assuntos que serão detalhados aos poucos.</p>' +
+          '</div>' +
+          '<div class="help-search-row">' +
+            '<input id="help-search" class="help-search" type="search" placeholder="Buscar módulo ou assunto..." oninput="Modules.Suporte._filterGuides(this.value)">' +
+            '<button class="support-primary" type="button" onclick="Router.navigate(\'suporte/chamado\')"><span class="mi">support_agent</span>Abrir chamado</button>' +
+          '</div>' +
+        '</section>' +
+        '<section class="docs-shell">' +
+          '<aside class="docs-sidebar" aria-label="Módulos da documentação">' +
+            '<div class="docs-side-title">Documentação</div>' +
+            modules.map(function (item, index) { return _docNavButton(item, index === 0); }).join('') +
+          '</aside>' +
+          '<main id="docs-content" class="docs-content">' + _docPanel(modules[0]) + '</main>' +
+        '</section>' +
+      '</div>';
+  }
+
+  function _docNavButton(item, active) {
+    var sectionText = (item.sections || []).map(function (section) { return section[0] + ' ' + section[1]; }).join(' ');
+    return '<button class="docs-nav-btn' + (active ? ' active' : '') + '" type="button" data-doc-nav data-doc-key="' + _esc(item.key) + '" data-guide-title="' + _esc(item.title.toLowerCase()) + '" data-guide-copy="' + _esc((item.summary + ' ' + sectionText + ' ' + (item.tags || []).join(' ')).toLowerCase()) + '" onclick="Modules.Suporte._openDocModule(\'' + _esc(item.key) + '\')">' +
+      '<span class="mi">' + _esc(item.icon || 'article') + '</span>' +
+      '<span><strong>' + _esc(item.title) + '</strong><span>' + _esc(item.summary) + '</span></span>' +
+    '</button>';
+  }
+
+  function _docPanel(item) {
+    item = item || _documentationModules()[0];
+    var sections = item.sections || [];
+    return '<article class="docs-panel">' +
+      '<div class="docs-panel-head">' +
+        '<div>' +
+          '<div class="support-kicker">Categoria</div>' +
+          '<h2>' + _esc(item.title) + '</h2>' +
+          '<p>' + _esc(item.summary) + '</p>' +
+          '<div class="docs-tag-row">' + (item.tags || []).map(function (tag) { return '<span class="docs-tag">' + _esc(tag) + '</span>'; }).join('') + '</div>' +
+        '</div>' +
+        '<span class="support-hero-badge"><span class="mi">' + _esc(item.icon || 'article') + '</span><span>Estrutura base</span></span>' +
+      '</div>' +
+      '<section class="docs-topic"><h3>Como esta documentação será organizada</h3><ul>' +
+        '<li>Cada categoria principal terá seus próprios assuntos internos.</li>' +
+        '<li>Cada assunto poderá ganhar passo a passo, campos explicados, conexões com outros módulos e cuidados importantes.</li>' +
+        '<li>Por enquanto, esta tela cria a estrutura para a documentação ser preenchida por partes.</li>' +
+      '</ul></section>' +
+      '<div class="docs-section-grid">' + sections.map(function (section) {
+        return '<div class="docs-section-card">' +
+          '<span class="mi">' + _esc(section[2] || 'article') + '</span>' +
+          '<span><strong>' + _esc(section[0]) + '</strong><span>' + _esc(section[1]) + '</span><em class="docs-section-status">A documentar</em></span>' +
+        '</div>';
+      }).join('') + '</div>' +
+      '<div class="docs-topic-list">' + (item.topics || []).map(function (topic) {
+        return '<section class="docs-topic"><h3>' + _esc(topic[0]) + '</h3><ul>' + (topic[1] || []).map(function (line) { return '<li>' + _esc(line) + '</li>'; }).join('') + '</ul></section>';
+      }).join('') + '</div>' +
+    '</article>';
+  }
+
+  function _openDocModule(key) {
+    var modules = _documentationModules();
+    var item = modules.find(function (doc) { return doc.key === key; }) || modules[0];
+    var box = document.getElementById('docs-content');
+    if (box) box.innerHTML = _docPanel(item);
+    document.querySelectorAll('[data-doc-nav]').forEach(function (btn) {
+      btn.classList.toggle('active', btn.getAttribute('data-doc-key') === item.key);
+    });
   }
 
   function renderGuides() {
@@ -515,6 +789,17 @@ Modules.Suporte = (function () {
 
   function _filterGuides(value) {
     var q = String(value || '').trim().toLowerCase();
+    if (document.getElementById('docs-content')) {
+      var first = null;
+      document.querySelectorAll('[data-doc-nav]').forEach(function (btn) {
+        var haystack = [btn.getAttribute('data-guide-title'), btn.getAttribute('data-guide-copy')].join(' ');
+        var match = !q || haystack.indexOf(q) >= 0;
+        btn.style.display = match ? '' : 'none';
+        if (match && !first) first = btn;
+      });
+      if (q && first) _openDocModule(first.getAttribute('data-doc-key'));
+      return;
+    }
     _showModuleCards(true);
     document.querySelectorAll('[data-guide-card]').forEach(function (card) {
       var haystack = [card.getAttribute('data-guide-title'), card.getAttribute('data-guide-copy')].join(' ');
@@ -768,5 +1053,5 @@ Modules.Suporte = (function () {
 
   function destroy() {}
 
-  return { render: render, destroy: destroy, _openGuideModule: _openGuideModule, _openGuide: _openGuide, _clearGuidePanel: _clearGuidePanel, _filterGuides: _filterGuides };
+  return { render: render, destroy: destroy, _openDocModule: _openDocModule, _openGuideModule: _openGuideModule, _openGuide: _openGuide, _clearGuidePanel: _clearGuidePanel, _filterGuides: _filterGuides };
 })();
