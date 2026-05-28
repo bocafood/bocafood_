@@ -9640,3 +9640,10 @@
 - A tela aparece por padrão ao abrir o Admin e é removida automaticamente quando o login ou o painel principal ficam prontos.
 - O visual segue a identidade do BocaFood, com logo, spinner e mensagem simples para evitar tela em branco durante a montagem.
 - Impacto esperado: melhorar a percepção de estabilidade ao abrir ou recarregar o Admin, sem alterar rotas, permissões, Firebase ou módulos internos.
+
+## 2026-05-28 — Landing como index real do domínio principal
+- Arquivos alterados: `public/index.html`, `public/storefront.html`, `firebase.json`, `AI_CHANGELOG.md`.
+- O template público da loja foi preservado em `public/storefront.html`.
+- A landing page passou a ocupar `public/index.html`, garantindo que a raiz `/` do Firebase Hosting e do domínio `bocafood.app` abra a landing sem ser sobrescrita pelo arquivo estático anterior.
+- As rotas de loja (`/loja/**`) e o fallback de slugs (`/**`) passaram a apontar para `storefront.html`.
+- Impacto esperado: `https://bocafood.app/` abre a landing institucional, enquanto lojas publicadas continuam usando o template público preservado.
