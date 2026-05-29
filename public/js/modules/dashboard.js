@@ -59,6 +59,8 @@ Modules.Dashboard = (function () {
           '.dash-welcome-point{border:1px solid rgba(234,228,218,.92);background:rgba(255,255,255,.76);border-radius:16px;padding:12px;display:flex;gap:10px;align-items:flex-start;box-shadow:0 10px 22px rgba(31,31,31,.035);}' +
           '.dash-tour-tag{display:inline-flex;align-items:center;gap:7px;min-height:25px;padding:0 10px;border-radius:999px;background:#FFF7EC;border:1px solid #EFE1D0;color:#8A6F5A;font-size:11px;font-weight:750;letter-spacing:.03em;text-transform:uppercase;}' +
           '.dash-tour-detail{display:grid;grid-template-columns:minmax(98px,128px) 1fr;gap:8px;align-items:start;font-size:12px;line-height:1.38;border-radius:11px;padding:7px 8px;background:#FFFEFC;}' +
+          '.dash-tour-modal,.dash-welcome-modal,.dash-checklist-modal{scrollbar-width:none;-ms-overflow-style:none;}' +
+          '.dash-tour-modal::-webkit-scrollbar,.dash-welcome-modal::-webkit-scrollbar,.dash-checklist-modal::-webkit-scrollbar{display:none;width:0;height:0;}' +
           '@media(max-width:760px){.dash-onboarding-float{right:12px;bottom:12px;width:calc(100vw - 24px);}.dash-onboarding-pill{right:12px;bottom:12px;}.dash-tour-backdrop,.dash-welcome-backdrop{align-items:flex-end;padding:12px;}.dash-tour-modal,.dash-welcome-modal{border-radius:22px;max-height:calc(100dvh - 24px);overflow:auto;}}' +
         '</style>' +
         '<div id="dashboard-content" style="display:flex;flex-direction:column;gap:16px;"><div class="loading-inline">Carregando...</div></div>' +
@@ -179,6 +181,8 @@ Modules.Dashboard = (function () {
       '.dash-tour-detail{display:grid;grid-template-columns:minmax(98px,128px) 1fr;gap:8px;align-items:start;font-size:12px;line-height:1.38;border-radius:11px;padding:7px 8px;background:#FFFEFC;}' +
       '.dash-checklist-backdrop{position:fixed;inset:0;background:rgba(31,31,31,.18);z-index:92;display:flex;align-items:center;justify-content:center;padding:18px;}' +
       '.dash-checklist-modal{width:min(560px,calc(100vw - 28px));max-height:calc(100dvh - 28px);overflow:auto;background:linear-gradient(180deg,#fff 0%,#FFFEFB 100%);border:1px solid rgba(234,228,218,.95);border-radius:24px;box-shadow:0 26px 70px rgba(31,31,31,.22);}' +
+      '.dash-tour-modal,.dash-welcome-modal,.dash-checklist-modal{scrollbar-width:none;-ms-overflow-style:none;}' +
+      '.dash-tour-modal::-webkit-scrollbar,.dash-welcome-modal::-webkit-scrollbar,.dash-checklist-modal::-webkit-scrollbar{display:none;width:0;height:0;}' +
       '.dash-checklist-detail{display:grid;grid-template-columns:minmax(108px,140px) 1fr;gap:8px;align-items:start;font-size:12.4px;line-height:1.42;border-radius:12px;padding:8px 9px;background:#FFFEFC;border:1px solid #F1ECE4;}' +
       '@media(max-width:760px){.dash-onboarding-float{right:12px;bottom:12px;width:calc(100vw - 24px);}.dash-onboarding-pill{right:12px;bottom:12px;}.dash-tour-backdrop,.dash-welcome-backdrop,.dash-checklist-backdrop{align-items:flex-end;padding:12px;}.dash-tour-modal,.dash-welcome-modal,.dash-checklist-modal{border-radius:22px;max-height:calc(100dvh - 24px);overflow:auto;}.dash-checklist-detail{grid-template-columns:1fr;gap:3px;}}';
     document.head.appendChild(style);
@@ -609,7 +613,7 @@ Modules.Dashboard = (function () {
           '<button type="button" onclick="Modules.Dashboard._collapseOnboarding()" style="width:30px;height:30px;border:none;background:rgba(255,255,255,.7);border-radius:10px;color:#6F6860;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;"><span class="mi" style="font-size:18px;">expand_more</span></button>' +
         '</div>' +
         '<div style="display:flex;align-items:center;gap:10px;margin-top:13px;"><div style="height:8px;border-radius:999px;background:#F1ECE4;overflow:hidden;flex:1;"><div style="height:100%;width:' + pct + '%;background:#B42318;border-radius:999px;"></div></div><span style="font-size:12px;color:#1F1F1F;white-space:nowrap;">' + done + '/' + total + '</span></div>' +
-        '<div style="margin-top:10px;border:1px solid #E8DCD7;background:#fff;border-radius:12px;padding:9px 10px;color:#5F5750;font-size:11.5px;line-height:1.35;">Abra uma etapa para ver os detalhes. O checklist acompanha seu progresso e mostra o próximo passo.</div>' +
+        '<div style="margin-top:10px;border:1px solid #E8DCD7;background:#fff;border-radius:12px;padding:9px 10px;color:#5F5750;font-size:11.5px;line-height:1.35;">Vá etapa por etapa. A lista abaixo mostra seu progresso, a sequência do que precisa ser feito e onde continuar.</div>' +
       '</div>' +
       '<div style="padding:10px;background:#fff;display:flex;flex-direction:column;gap:7px;">' +
           '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 2px 3px;"><span style="font-size:11px;color:#8A6F5A;text-transform:uppercase;letter-spacing:.03em;">Etapa atual</span><span style="font-size:11px;color:#6F6860;">' + phaseDone + '/' + phaseSteps.length + '</span></div>' +
@@ -1083,7 +1087,11 @@ Modules.Dashboard = (function () {
       if (window.localStorage) localStorage.setItem('boca_dashboard_checklist_guide', String(phaseKey || '') + ':' + String(index || 0));
     } catch (err) {}
     _writeLocalOnboardingState({ version: ONBOARDING_VERSION, welcomeSeen: true, tourOpen: false, tourDone: true, collapsed: false }, { action: 'checklist_guide_opened' });
+    var active = _activeChecklistGuide();
+    var route = active && active.step ? active.step.route : '';
+    if (route) _navigateChecklistRoute(route);
     _renderGlobalOnboarding();
+    window.setTimeout(function () { _renderGlobalOnboarding(); }, 180);
   }
 
   function _closeChecklistGuide() {
@@ -1095,14 +1103,17 @@ Modules.Dashboard = (function () {
   function _openChecklistGuideRoute() {
     var active = _activeChecklistGuide();
     var route = active && active.step ? active.step.route : '';
-    _closeChecklistGuide();
     if (!route) return;
+    _navigateChecklistRoute(route);
+    window.setTimeout(function () { _renderGlobalOnboarding(); }, 180);
+  }
+
+  function _navigateChecklistRoute(route) {
     if (window.Router && typeof Router.navigate === 'function') {
       Router.navigate(route);
     } else {
       window.location.hash = '#' + route;
     }
-    window.setTimeout(function () { _renderGlobalOnboarding(); }, 180);
   }
 
   function _checklistGuideForStep(step, phase) {
@@ -1136,12 +1147,12 @@ Modules.Dashboard = (function () {
         intro: 'Canais mostram por onde o pedido chega. Isso ajuda a entender onde vale vender mais e onde a taxa está pesando.',
         fields: [
           ['Nome do canal', 'Use nomes fáceis de reconhecer, como Cardápio, Instagram, WhatsApp, Balcão ou Marketplace.'],
-          ['Categoria financeira', 'Escolha onde o dinheiro desse canal aparece no financeiro. Exemplo: Vendas Cardápio ou Vendas Instagram.'],
+          ['Categoria financeira', 'Escolha onde o dinheiro desse canal aparece no financeiro. Se ainda não existir uma categoria boa, crie ali mesmo no campo. Exemplo: Vendas Cardápio ou Vendas Instagram.'],
           ['Comissão', 'Preencha só se o canal cobra uma porcentagem. Se não cobra, deixe zerado.'],
           ['Taxa fixa', 'Use quando existe um valor fixo por venda ou pedido. Se não existe, deixe zerado.'],
           ['Forma de pagamento', 'Ligue o canal às formas de pagamento que a loja aceita por ali.']
         ],
-        actions: ['Mantenha apenas canais que o negócio realmente usa.', 'Não invente taxa para preencher campo.', 'Salve e depois use esses canais ao criar pedidos e analisar performance.'],
+        actions: ['Mantenha apenas canais que o negócio realmente usa.', 'Se precisar organizar melhor o financeiro, crie a categoria de entrada no próprio campo de categoria.', 'Não invente taxa para preencher campo.', 'Salve e depois use esses canais ao criar pedidos e analisar performance.'],
         ready: 'Está pronto quando os canais reais estão salvos com taxas corretas ou zeradas.'
       },
       'Definir preço e margem': {

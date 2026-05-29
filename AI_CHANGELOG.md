@@ -5,9 +5,20 @@
 - Ajustei o checklist flutuante do Painel BocaFood para abrir uma janela de orientação antes de navegar para a tela.
 - Cada item agora mostra um guia no estilo `Como preencher`, com caminho da tela, campos que precisam atenção, passos práticos e critério para saber quando aquele bloco está pronto.
 - Troquei a microcopy do checklist para orientar a abertura das etapas com linguagem mais direta.
+- Refinei novamente a frase do checklist para reforçar sequência, progresso e onde continuar.
 - Adicionei atualização automática do checklist após salvamentos do painel, para os checks aparecerem sem recarregar a página.
+- Ocultei as barras de rolagem visíveis dos modais do onboarding, mantendo a rolagem interna quando o conteúdo for maior que a tela.
+- Corrigi o clique nos cards do checklist para abrir a tela correspondente e manter o guia de preenchimento aberto no contexto da tela.
 - Atualizei o preview do onboarding para demonstrar o comportamento de clicar no checklist e abrir o guia.
 - Impacto esperado: a usuária recebe explicação contextual no próprio fluxo de primeiros passos, sem depender de procurar a documentação separadamente.
+
+## 2026-05-29 — Configurações: categoria criada em Canais de venda
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `public/js/modules/dashboard.js`, `public/dashboard-onboarding-preview.html`, `AI_CHANGELOG.md`.
+- Incluí a opção `Criar nova categoria...` no campo `Categoria de entrada` da aba `Configurações > Canais de venda`.
+- A nova categoria é salva como categoria financeira de entrada e fica selecionada no canal sem a usuária sair da tela.
+- Incluí na própria linha do canal os campos `Comissão %`, `Taxa fixa` e `Forma de pagamento`, salvando os valores na configuração do canal.
+- Atualizei a explicação do onboarding para informar que a categoria pode ser criada ali mesmo.
+- Impacto esperado: reduzir atrito na configuração dos canais e manter a conexão com o Financeiro mais clara.
 
 ## 2026-05-29 — Landing: ajustes finais de copy sincronizados
 - Arquivos alterados: `public/landing3.html`, `public/index.html`, `public/landing.html`, `AI_CHANGELOG.md`.

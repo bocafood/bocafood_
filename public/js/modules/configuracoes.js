@@ -1912,14 +1912,27 @@ Modules.Configuracoes = (function () {
     var labelStyle = 'display:block;font-size:11px;font-weight:600;color:#6F6860;letter-spacing:.02em;margin:0 0 6px;';
     var rows = list.map(function (ch, idx) {
       var system = _isSystemChannel(ch);
-      return '<div class="channel-row" data-channel-row="' + idx + '" style="display:grid;grid-template-columns:minmax(170px,1fr) minmax(220px,330px) 38px;gap:10px;align-items:end;background:linear-gradient(180deg,#FFFFFF 0%,#FFFCF8 100%);border:1px solid #EADFD8;border-radius:14px;padding:12px;box-shadow:0 10px 24px rgba(47,37,35,.045);">' +
+      var payment = _channelPaymentMethodName(ch);
+      return '<div class="channel-row" data-channel-row="' + idx + '" style="display:grid;grid-template-columns:minmax(150px,1.05fr) minmax(190px,1.15fr) minmax(96px,.52fr) minmax(104px,.56fr) minmax(170px,1fr) 38px;gap:10px;align-items:end;background:linear-gradient(180deg,#FFFFFF 0%,#FFFCF8 100%);border:1px solid #EADFD8;border-radius:14px;padding:12px;box-shadow:0 10px 24px rgba(47,37,35,.045);">' +
         '<label style="min-width:0;">' +
           '<span style="' + labelStyle + '">Canal de venda</span>' +
           '<input id="ch-name-' + idx + '" type="text" value="' + _esc(ch.name || '') + '" placeholder="Ex.: Instagram, marketplace, app de entrega" ' + (system ? 'readonly' : '') + ' style="' + inputStyle + (system ? 'background:#FAF8F4;color:#6F6860;' : '') + '">' +
         '</label>' +
         '<label style="min-width:0;">' +
           '<span style="' + labelStyle + '">Categoria de entrada</span>' +
-          '<select id="ch-income-category-' + idx + '" style="' + selectStyle + '">' + _entradaCategoryOptions(_channelIncomeCategoryId(ch) || _channelIncomeCategoryName(ch)) + '</select>' +
+          '<select id="ch-income-category-' + idx + '" onchange="Modules.Configuracoes._createEntradaCategoryFromChannel(' + idx + ')" style="' + selectStyle + '">' + _entradaCategoryOptions(_channelIncomeCategoryId(ch) || _channelIncomeCategoryName(ch)) + '</select>' +
+        '</label>' +
+        '<label style="min-width:0;">' +
+          '<span style="' + labelStyle + '">Comissão %</span>' +
+          '<input id="ch-commission-' + idx + '" type="text" value="' + _esc(_channelNumberText(ch.commissionPct)) + '" placeholder="0,00" style="' + inputStyle + '">' +
+        '</label>' +
+        '<label style="min-width:0;">' +
+          '<span style="' + labelStyle + '">Taxa fixa</span>' +
+          '<input id="ch-fixed-fee-' + idx + '" type="text" value="' + _esc(_channelNumberText(ch.fixedFee)) + '" placeholder="€ 0,00" style="' + inputStyle + '">' +
+        '</label>' +
+        '<label style="min-width:0;">' +
+          '<span style="' + labelStyle + '">Forma de pagamento</span>' +
+          '<select id="ch-payment-method-' + idx + '" style="' + selectStyle + '">' + _channelPaymentMethodOptions(payment) + '</select>' +
         '</label>' +
         (system ? '<span title="Canal fixo do BocaFood" style="width:38px;height:42px;border-radius:12px;background:#F0FAF4;color:#1F6F43;display:inline-flex;align-items:center;justify-content:center;"><span class="mi" style="font-size:18px;">lock</span></span>' : '<button class="bf-btn bf-btn-danger" type="button" onclick="Modules.Configuracoes._removeCanalVenda(' + idx + ')" title="Remover canal" style="width:38px;min-height:42px;height:42px;padding:0;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;">' +
           '<span class="mi" style="font-size:18px;">delete_outline</span>' +
@@ -1956,13 +1969,18 @@ Modules.Configuracoes = (function () {
       var name = _val('ch-name-' + idx).trim().replace(/\s+/g, ' ');
       var prev = existing.find(function (ch) { return _normChannelName(ch.name) === _normChannelName(name); }) || {};
       var cat = _findEntradaCategory(_val('ch-income-category-' + idx));
+      var paymentMethod = _val('ch-payment-method-' + idx);
       return Object.assign({
         name: name,
-        commissionPct: parseFloat(String(prev.commissionPct || '0').replace(',', '.')) || 0,
-        fixedFee: parseFloat(String(prev.fixedFee || '0').replace(',', '.')) || 0,
+        commissionPct: _parseChannelNumber(_val('ch-commission-' + idx)),
+        fixedFee: _parseChannelNumber(_val('ch-fixed-fee-' + idx)),
         taxPct: parseFloat(String(prev.taxPct || '0').replace(',', '.')) || 0,
         minMarginPct: parseFloat(String(prev.minMarginPct || '0').replace(',', '.')) || 0,
         differentPrice: !!prev.differentPrice,
+        defaultPaymentMethod: paymentMethod,
+        paymentMethod: paymentMethod,
+        formaPagamentoPadrao: paymentMethod,
+        paymentMethodName: paymentMethod,
         locked: _isSystemChannel({ name: name }) || !!prev.locked
       }, _incomeCategoryFields(cat));
     }).filter(function (ch) { return !!ch.name; });
@@ -1991,6 +2009,102 @@ Modules.Configuracoes = (function () {
     list.splice(idx, 1);
     _config.canais_venda = { list: _mergeFixedChannels(list) };
     _renderCanaisVenda();
+  }
+
+  function _createEntradaCategoryFromChannel(idx) {
+    var select = document.getElementById('ch-income-category-' + idx);
+    if (!select || select.value !== '__new__') return;
+    var name = '';
+    try {
+      name = window.prompt ? window.prompt('Nome da nova categoria de entrada:', '') : '';
+    } catch (err) {
+      name = '';
+    }
+    name = String(name || '').trim().replace(/\s+/g, ' ');
+    if (!name) {
+      select.value = '';
+      return;
+    }
+    var existing = _findEntradaCategory(name);
+    if (existing && existing.id) {
+      select.innerHTML = _entradaCategoryOptions(existing.id);
+      select.value = String(existing.id);
+      return;
+    }
+    var now = new Date().toISOString();
+    var payload = {
+      nome: name,
+      name: name,
+      tipo: 'entrada',
+      type: 'entrada',
+      financialNature: 'receita',
+      origem: 'configuracoes_canais_venda',
+      createdAt: now,
+      updatedAt: now
+    };
+    DB.add('financeiro_categorias', payload).then(function (ref) {
+      var id = String((ref && ref.id) || '');
+      var category = Object.assign({}, payload, { id: id });
+      _financeCategories = (_financeCategories || []).concat([category]);
+      Array.prototype.forEach.call(document.querySelectorAll('[id^="ch-income-category-"]'), function (el) {
+        var previous = el === select ? id : el.value;
+        el.innerHTML = _entradaCategoryOptions(previous);
+        el.value = previous;
+      });
+      select.value = id;
+      UI.toast('Categoria adicionada', 'success');
+    }).catch(function (err) {
+      select.value = '';
+      UI.toast('Erro ao criar categoria: ' + (err && err.message ? err.message : err), 'error');
+    });
+  }
+
+  function _channelNumberText(value) {
+    var n = _parseChannelNumber(value);
+    if (!n) return '';
+    return String(n).replace('.', ',');
+  }
+
+  function _parseChannelNumber(value) {
+    var raw = String(value == null ? '' : value).replace(/[^\d,.-]/g, '').replace(',', '.');
+    var n = parseFloat(raw);
+    return isFinite(n) ? n : 0;
+  }
+
+  function _channelPaymentMethodName(channel) {
+    channel = channel || {};
+    return String(channel.defaultPaymentMethod || channel.paymentMethod || channel.formaPagamentoPadrao || channel.paymentMethodName || channel.formaPagamento || '').trim();
+  }
+
+  function _channelPaymentMethodOptions(selected) {
+    var current = String(selected || '').trim();
+    var financeiro = _config.financeiro || {};
+    var source = Array.isArray(financeiro.formas_pagamento) ? financeiro.formas_pagamento
+      : (Array.isArray(financeiro.paymentMethodConfigs) ? financeiro.paymentMethodConfigs
+      : (Array.isArray(financeiro.paymentMethods) ? financeiro.paymentMethods
+      : (Array.isArray(financeiro.formasPagamento) ? financeiro.formasPagamento : [])));
+    var methods = source.map(function (item) {
+      if (typeof item === 'string') return { name: item, active: true };
+      return {
+        name: item && (item.nome || item.name || item.label || item.id || ''),
+        active: !item || (item.ativo !== false && item.active !== false && item.enabled !== false)
+      };
+    }).filter(function (item) {
+      return item.name && (item.active !== false || item.name === current);
+    }).sort(function (a, b) {
+      return String(a.name).localeCompare(String(b.name));
+    });
+    var html = '<option value="">Sem forma vinculada</option>';
+    html += methods.map(function (item) {
+      return '<option value="' + _esc(item.name) + '"' + (item.name === current ? ' selected' : '') + '>' + _esc(item.name + (item.active === false ? ' (inativa)' : '')) + '</option>';
+    }).join('');
+    if (current && !methods.some(function (item) { return item.name === current; })) {
+      html += '<option value="' + _esc(current) + '" selected>' + _esc(current) + ' (não listado no Financeiro)</option>';
+    }
+    if (!methods.length && !current) {
+      html += '<option value="" disabled>Cadastre em Financeiro > Configurações</option>';
+    }
+    return html;
   }
 
   function _renderTpv() {
@@ -2921,10 +3035,10 @@ Modules.Configuracoes = (function () {
     var custom = current.filter(function (ch) { return ch && !_isSystemChannel(ch); });
     var fixed = _fixedChannels().map(function (base) {
       var prev = current.find(function (ch) { return _normChannelName(ch && ch.name) === _normChannelName(base.name) || (_isCardapioChannel(base) && _isCardapioChannel(ch)) || (_isTpvChannel(base) && _isTpvChannel(ch)); }) || {};
-      return Object.assign({}, base, _incomeCategoryFields({
+      return Object.assign({}, base, prev, _incomeCategoryFields({
         id: _channelIncomeCategoryId(prev),
         nome: _channelIncomeCategoryName(prev)
-      }), { locked: true });
+      }), { name: base.name, locked: true });
     });
     return fixed.concat(custom);
   }
@@ -2986,6 +3100,7 @@ Modules.Configuracoes = (function () {
       var selectedAttr = isSelected ? ' selected' : '';
       return '<option value="' + _esc(id) + '"' + selectedAttr + '>' + _esc(name) + '</option>';
     }).join('');
+    options += '<option value="__new__">+ Criar nova categoria...</option>';
     if (current && !matched) {
       options += '<option value="' + _esc(current) + '" selected>' + _esc(current) + '</option>';
     }
@@ -3027,7 +3142,7 @@ Modules.Configuracoes = (function () {
     render: render, destroy: destroy, _switchSub: _switchSub,
     _openUnidadeModal: _openUnidadeModal, _saveUnidade: _saveUnidade, _deleteUnidade: _deleteUnidade,
     _openFornecedorModal: _openFornecedorModal, _saveFornecedor: _saveFornecedor, _deleteFornecedor: _deleteFornecedor,
-    _addCanalVenda: _addCanalVenda, _removeCanalVenda: _removeCanalVenda, _saveCanaisVenda: _saveCanaisVenda,
+    _addCanalVenda: _addCanalVenda, _removeCanalVenda: _removeCanalVenda, _saveCanaisVenda: _saveCanaisVenda, _createEntradaCategoryFromChannel: _createEntradaCategoryFromChannel,
     _uploadAppearanceImage: _uploadAppearanceImage,
     _uploadGeneralAvatarImage: _uploadGeneralAvatarImage,
     _normalizeDomainSlugField: _normalizeDomainSlugField,

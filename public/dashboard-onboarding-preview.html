@@ -55,6 +55,8 @@
     .welcome-point{border:1px solid rgba(234,228,218,.92);background:rgba(255,255,255,.76);border-radius:16px;padding:12px;display:flex;gap:10px;align-items:flex-start;box-shadow:0 10px 22px rgba(31,31,31,.035)}
     .guide-backdrop{position:fixed;inset:0;background:rgba(31,31,31,.18);z-index:96;display:none;align-items:center;justify-content:center;padding:18px}
     .guide-modal{width:min(560px,calc(100vw - 28px));max-height:calc(100dvh - 28px);overflow:auto;background:linear-gradient(180deg,#fff 0%,#FFFEFB 100%);border:1px solid rgba(234,228,218,.95);border-radius:24px;box-shadow:0 26px 70px rgba(31,31,31,.22)}
+    .welcome-modal,.guide-modal{scrollbar-width:none;-ms-overflow-style:none}
+    .welcome-modal::-webkit-scrollbar,.guide-modal::-webkit-scrollbar{display:none;width:0;height:0}
     .guide-tag{display:inline-flex;align-items:center;gap:7px;min-height:25px;padding:0 10px;border-radius:999px;background:#FFF7EC;border:1px solid #EFE1D0;color:#8A6F5A;font-size:11px;font-weight:750;letter-spacing:.03em;text-transform:uppercase}
     .guide-detail{display:grid;grid-template-columns:minmax(108px,140px) 1fr;gap:8px;align-items:start;font-size:12.4px;line-height:1.42;border-radius:12px;padding:8px 9px;background:#FFFEFC;border:1px solid #F1ECE4}
     @media(max-width:760px){.shell{grid-template-columns:1fr}.sidebar{display:none}.page{padding:16px}.onboarding-float{right:12px;bottom:12px;width:calc(100vw - 24px)}.onboarding-pill{right:12px;bottom:12px}.welcome-backdrop,.guide-backdrop{padding:12px;align-items:flex-end}.welcome-modal,.guide-modal{border-radius:22px;max-height:calc(100dvh - 24px);overflow:auto}.guide-detail{grid-template-columns:1fr;gap:3px}}
@@ -205,7 +207,7 @@
         <button class="soft-btn" onclick="collapseOnboarding()" style="width:30px;height:30px;padding:0"><span class="mi">expand_more</span></button>
       </div>
       <div style="display:flex;align-items:center;gap:10px;margin-top:13px;"><div style="height:8px;border-radius:999px;background:#F1ECE4;overflow:hidden;flex:1;"><div style="height:100%;width:30%;background:#B42318;border-radius:999px;"></div></div><span style="font-size:12px;color:#1F1F1F;white-space:nowrap;">5/16</span></div>
-      <div style="margin-top:10px;border:1px solid #E8DCD7;background:#fff;border-radius:12px;padding:9px 10px;color:#5F5750;font-size:11.5px;line-height:1.35;">Abra uma etapa para ver os detalhes. O checklist acompanha seu progresso e mostra o próximo passo.</div>
+      <div style="margin-top:10px;border:1px solid #E8DCD7;background:#fff;border-radius:12px;padding:9px 10px;color:#5F5750;font-size:11.5px;line-height:1.35;">Vá etapa por etapa. A lista abaixo mostra seu progresso, a sequência do que precisa ser feito e onde continuar.</div>
     </div>
     <div style="padding:10px;background:#fff;display:flex;flex-direction:column;gap:7px;">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 2px 3px;"><span style="font-size:11px;color:#8A6F5A;text-transform:uppercase;letter-spacing:.03em;">Etapa atual</span><span style="font-size:11px;color:#6F6860;">3/6</span></div>
@@ -272,7 +274,7 @@
     function openGuide(title){
       var data = {
         'Preencher dados do negócio': ['Aqui ficam nome, contato e endereço principal do negócio.', [['Nome', 'Use o nome que a cliente reconhece.'], ['Contato', 'Informe WhatsApp, telefone e e-mail reais.'], ['Endereço', 'Complete o que a busca não preencher.']], 'Quando nome, contato e endereço estão salvos.'],
-        'Criar canais de venda': ['Mostre por onde chegam os pedidos e quais canais cobram taxa.', [['Canal', 'Mantenha só os canais que o negócio usa.'], ['Comissão', 'Se não cobra, deixe zerado.'], ['Categoria financeira', 'Escolha onde o dinheiro aparece no financeiro.']], 'Quando os canais reais estão salvos.'],
+        'Criar canais de venda': ['Mostre por onde chegam os pedidos e quais canais cobram taxa.', [['Canal', 'Mantenha só os canais que o negócio usa.'], ['Comissão', 'Se não cobra, deixe zerado.'], ['Categoria financeira', 'Escolha onde o dinheiro aparece no financeiro. Se precisar, crie a categoria ali mesmo.']], 'Quando os canais reais estão salvos.'],
         'Definir preço e margem': ['Configure a base para proteger a sobra em cada venda.', [['Margem', 'Informe quanto precisa sobrar.'], ['Taxas', 'Inclua o que realmente pesa no preço.'], ['Canais', 'Confira canais com comissão.']], 'Quando a regra ajuda a formar preço sem esquecer custo.'],
         'Cadastrar produtos': ['Cadastre o que a cliente pode comprar no cardápio.', [['Nome e categoria', 'Use nomes claros e grupos fáceis.'], ['Preço', 'Informe o valor que a cliente paga.'], ['Opções', 'Cadastre sabores, tamanhos e adicionais quando existirem.']], 'Quando os principais produtos têm nome, preço e categoria.'],
         'Cadastrar receitas': ['Mostre o que cada produção usa para entender custo e rendimento.', [['Rendimento', 'Informe quanto a receita rende.'], ['Ingredientes', 'Adicione quantidade e unidade.'], ['Custo', 'Confira se os insumos têm valor.']], 'Quando as principais receitas têm rendimento e ingredientes.'],
