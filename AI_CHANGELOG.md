@@ -1,5 +1,11 @@
 # AI Changelog
 
+## 2026-05-29 — Landing: ajustes finais de copy sincronizados
+- Arquivos alterados: `public/landing3.html`, `public/index.html`, `public/landing.html`, `AI_CHANGELOG.md`.
+- Sincronizei os ajustes finais de copy da nova landing principal para os arquivos publicados.
+- Mantive `landing3.html` como fonte da landing e repliquei para `index.html` e `landing.html`.
+- Impacto esperado: a landing publicada usa a mesma mensagem revisada em todas as entradas.
+
 ## 2026-05-29 — Admin: domínio cc redireciona para o painel
 - Arquivos alterados: `public/landing3.html`, `public/index.html`, `public/landing.html`, `AI_CHANGELOG.md`.
 - Adicionei uma proteção na landing para que acessos pela raiz de `cc.bocafood.app` sejam enviados automaticamente para `/admin.html`.
