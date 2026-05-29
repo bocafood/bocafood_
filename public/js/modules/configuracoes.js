@@ -1914,38 +1914,44 @@ Modules.Configuracoes = (function () {
     var inputStyle = 'width:100%;height:42px;border:1px solid #E8DCD7;border-radius:12px;background:#FFFCF8;padding:0 12px;color:#2F2523;font-size:14px;outline:none;box-sizing:border-box;';
     var selectStyle = inputStyle + 'appearance:none;-webkit-appearance:none;-moz-appearance:none;padding-right:38px;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 14px center;background-size:14px;';
     var labelStyle = 'display:block;font-size:11px;font-weight:600;color:#6F6860;letter-spacing:.02em;margin:0 0 6px;';
+    var compactInputStyle = inputStyle + 'max-width:132px;';
     var rows = list.map(function (ch, idx) {
       var system = _isSystemChannel(ch);
       var payment = _channelPaymentMethodName(ch);
-      return '<div class="channel-row" data-channel-row="' + idx + '" style="display:grid;grid-template-columns:minmax(170px,1.05fr) minmax(220px,1.15fr) minmax(118px,.54fr) minmax(128px,.58fr) minmax(210px,1fr) 38px;gap:10px;align-items:end;background:linear-gradient(180deg,#FFFFFF 0%,#FFFCF8 100%);border:1px solid #EADFD8;border-radius:14px;padding:12px;box-shadow:0 10px 24px rgba(47,37,35,.045);">' +
-        '<label style="min-width:0;">' +
-          '<span style="' + labelStyle + '">Canal de venda</span>' +
-          '<input id="ch-name-' + idx + '" type="text" value="' + _esc(ch.name || '') + '" placeholder="Ex.: Instagram, marketplace, app de entrega" ' + (system ? 'readonly' : '') + ' style="' + inputStyle + (system ? 'background:#FAF8F4;color:#6F6860;' : '') + '">' +
-        '</label>' +
-        '<label style="min-width:0;">' +
-          '<span style="' + labelStyle + '">Categoria de entrada</span>' +
-          '<select id="ch-income-category-' + idx + '" onchange="Modules.Configuracoes._createEntradaCategoryFromChannel(' + idx + ')" style="' + selectStyle + '">' + _entradaCategoryOptions(_channelIncomeCategoryId(ch) || _channelIncomeCategoryName(ch)) + '</select>' +
-        '</label>' +
-        '<label style="min-width:0;">' +
-          '<span style="' + labelStyle + '">Comissão %</span>' +
-          '<input id="ch-commission-' + idx + '" type="text" value="' + _esc(_channelNumberText(ch.commissionPct)) + '" placeholder="0,00" style="' + inputStyle + '">' +
-        '</label>' +
-        '<label style="min-width:0;">' +
-          '<span style="' + labelStyle + '">Taxa fixa</span>' +
-          '<input id="ch-fixed-fee-' + idx + '" type="text" value="' + _esc(_channelNumberText(ch.fixedFee)) + '" placeholder="€ 0,00" style="' + inputStyle + '">' +
-        '</label>' +
-        '<label style="min-width:0;">' +
-          '<span style="' + labelStyle + '">Forma de pagamento</span>' +
-          '<select id="ch-payment-method-' + idx + '" style="' + selectStyle + '">' + _channelPaymentMethodOptions(payment) + '</select>' +
-        '</label>' +
-        (system ? '<span title="Canal fixo do BocaFood" style="width:38px;height:42px;border-radius:12px;background:#F0FAF4;color:#1F6F43;display:inline-flex;align-items:center;justify-content:center;"><span class="mi" style="font-size:18px;">lock</span></span>' : '<button class="bf-btn bf-btn-danger" type="button" onclick="Modules.Configuracoes._removeCanalVenda(' + idx + ')" title="Remover canal" style="width:38px;min-height:42px;height:42px;padding:0;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;">' +
-          '<span class="mi" style="font-size:18px;">delete_outline</span>' +
-        '</button>') +
+      return '<div class="channel-row" data-channel-row="' + idx + '" style="background:linear-gradient(180deg,#FFFFFF 0%,#FFFCF8 100%);border:1px solid #EADFD8;border-radius:14px;padding:13px 14px;box-shadow:0 10px 24px rgba(47,37,35,.045);display:flex;flex-direction:column;gap:12px;">' +
+        '<div class="channel-row-main" style="display:grid;grid-template-columns:minmax(180px,1fr) minmax(220px,1.12fr) minmax(210px,1fr) auto;gap:10px;align-items:end;">' +
+          '<label style="min-width:0;">' +
+            '<span style="' + labelStyle + '">Canal de venda</span>' +
+            '<input id="ch-name-' + idx + '" type="text" value="' + _esc(ch.name || '') + '" placeholder="Ex.: Instagram, marketplace, app de entrega" ' + (system ? 'readonly' : '') + ' style="' + inputStyle + (system ? 'background:#FAF8F4;color:#6F6860;' : '') + '">' +
+          '</label>' +
+          '<label style="min-width:0;">' +
+            '<span style="' + labelStyle + '">Categoria de entrada</span>' +
+            '<select id="ch-income-category-' + idx + '" onchange="Modules.Configuracoes._createEntradaCategoryFromChannel(' + idx + ')" style="' + selectStyle + '">' + _entradaCategoryOptions(_channelIncomeCategoryId(ch) || _channelIncomeCategoryName(ch)) + '</select>' +
+          '</label>' +
+          '<label style="min-width:0;">' +
+            '<span style="' + labelStyle + '">Forma de pagamento</span>' +
+            '<select id="ch-payment-method-' + idx + '" style="' + selectStyle + '">' + _channelPaymentMethodOptions(payment) + '</select>' +
+          '</label>' +
+          (system ? '<span title="Canal fixo do BocaFood" style="width:38px;height:42px;border-radius:12px;background:#F0FAF4;color:#1F6F43;display:inline-flex;align-items:center;justify-content:center;"><span class="mi" style="font-size:18px;">lock</span></span>' : '<button class="bf-btn bf-btn-danger" type="button" onclick="Modules.Configuracoes._removeCanalVenda(' + idx + ')" title="Remover canal" style="width:38px;min-height:42px;height:42px;padding:0;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;">' +
+            '<span class="mi" style="font-size:18px;">delete_outline</span>' +
+          '</button>') +
+        '</div>' +
+        '<div class="channel-row-costs" style="display:grid;grid-template-columns:minmax(92px,132px) minmax(104px,132px) minmax(0,1fr);gap:10px;align-items:end;">' +
+          '<label style="min-width:0;">' +
+            '<span style="' + labelStyle + '">Comissão %</span>' +
+            '<input id="ch-commission-' + idx + '" type="text" value="' + _esc(_channelNumberText(ch.commissionPct)) + '" placeholder="0,00" style="' + compactInputStyle + '">' +
+          '</label>' +
+          '<label style="min-width:0;">' +
+            '<span style="' + labelStyle + '">Taxa fixa</span>' +
+            '<input id="ch-fixed-fee-' + idx + '" type="text" value="' + _esc(_channelNumberText(ch.fixedFee)) + '" placeholder="€ 0,00" style="' + compactInputStyle + '">' +
+          '</label>' +
+          '<div style="align-self:center;color:#8A7E7C;font-size:11px;line-height:1.35;">Deixe zerado quando este canal não cobra comissão ou taxa por venda.</div>' +
+        '</div>' +
       '</div>';
     }).join('');
     var content = document.getElementById('config-content');
-    content.innerHTML = '<div style="display:flex;flex-direction:column;gap:16px;max-width:1180px;width:100%;margin:0 auto;">' +
-      '<style>@media(max-width:1080px){.channel-row{grid-template-columns:repeat(2,minmax(0,1fr)) 38px!important}.channel-row>label:nth-child(1),.channel-row>label:nth-child(2),.channel-row>label:nth-child(5){grid-column:span 2}}@media(max-width:720px){.channel-row{grid-template-columns:1fr!important}.channel-row>label{grid-column:1/-1!important}.channel-row>button,.channel-row>span[title]{justify-self:start}}</style>' +
+    content.innerHTML = '<div style="display:flex;flex-direction:column;gap:16px;max-width:1040px;width:100%;margin:0 auto;">' +
+      '<style>@media(max-width:980px){.channel-row-main{grid-template-columns:1fr 1fr!important}.channel-row-main>label:nth-child(3){grid-column:1/-1}.channel-row-main>button,.channel-row-main>span[title]{justify-self:start}.channel-row-costs{grid-template-columns:minmax(92px,132px) minmax(104px,132px)!important}.channel-row-costs>div{grid-column:1/-1}}@media(max-width:640px){.channel-row-main,.channel-row-costs{grid-template-columns:1fr!important}.channel-row-main>label,.channel-row-costs>label,.channel-row-costs>div{grid-column:1/-1!important}.channel-row-costs input{max-width:100%!important}}</style>' +
       '<section class="settings-card bf-card" style="background:linear-gradient(180deg,#FFFFFF 0%,#FFFCF9 100%);border:1px solid #EADFD8;border-radius:18px;padding:18px 20px;box-shadow:0 16px 38px rgba(47,37,35,.055);">' +
         '<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:14px;">' +
           '<span class="mi" style="width:34px;height:34px;border-radius:12px;background:#F8F1ED;color:#8F3E32;display:inline-flex;align-items:center;justify-content:center;font-size:19px;flex:0 0 auto;">storefront</span>' +

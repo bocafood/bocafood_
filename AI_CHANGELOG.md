@@ -19,7 +19,7 @@
 - Incluí na própria linha do canal os campos `Comissão %`, `Taxa fixa` e `Forma de pagamento`, salvando os valores na configuração do canal.
 - A lista de `Forma de pagamento` agora carrega as opções globais do Master e respeita o país fiscal da loja, evitando exibir métodos de Portugal, como MB Way, quando a loja está configurada para Espanha.
 - Reforcei o mesmo filtro em `Financeiro > Configurações > Formas de Pagamento`, inclusive para opções padrão antigas sem país salvo.
-- Ampliei e deixei responsivo o card de `Canais de venda`, para os campos novos terem espaço suficiente.
+- Reorganizei o card de `Canais de venda` em blocos: dados principais do canal em cima e comissão/taxa em campos compactos abaixo, preservando a largura padrão da tela.
 - Atualizei a explicação do onboarding para informar que a categoria pode ser criada ali mesmo.
 - Impacto esperado: reduzir atrito na configuração dos canais e manter a conexão com o Financeiro mais clara.
 
