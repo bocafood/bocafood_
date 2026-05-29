@@ -1,5 +1,12 @@
 # AI Changelog
 
+## 2026-05-29 — Landing principal definida pela landing3
+- Arquivos alterados: `public/landing3.html`, `public/landing.html`, `public/index.html`, `tools/sync-landing-index.js`, `AI_CHANGELOG.md`.
+- Defini `public/landing3.html` como a nova landing principal do BocaFood.
+- Sincronizei `public/index.html` e `public/landing.html` com o conteúdo da `landing3.html`, para a raiz publicada abrir a nova landing e a versão antiga ser desconsiderada.
+- Ajustei o script de sincronização para usar `landing3.html` como fonte.
+- Impacto esperado: `bocafood.app/` passa a publicar a nova landing, sem manter versões diferentes da página principal.
+
 ## 2026-05-29 — Cadastro: experiência mobile refinada
 - Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
 - Ajustei a etapa `Sobre sua loja` na página de cadastro para que o card `Informações básicas` mostre os campos um embaixo do outro na versão mobile.
