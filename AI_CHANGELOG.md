@@ -1,5 +1,18 @@
 # AI Changelog
 
+## 2026-05-29 — Admin: domínio cc redireciona para o painel
+- Arquivos alterados: `public/landing3.html`, `public/index.html`, `public/landing.html`, `AI_CHANGELOG.md`.
+- Adicionei uma proteção na landing para que acessos pela raiz de `cc.bocafood.app` sejam enviados automaticamente para `/admin.html`.
+- Sincronizei a landing nova com `index.html`, que é o arquivo servido na raiz do Hosting.
+- Impacto esperado: `https://cc.bocafood.app/` abre o Painel BocaFood em vez da landing, desde que o domínio esteja apontado no Firebase/DNS.
+
+## 2026-05-29 — Cadastro: finalização por e-mail sem redirecionamento automático
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Ajustei a etapa final do cadastro para não enviar a usuária diretamente para dentro do Painel BocaFood.
+- Após aceitar os termos, a tela mostra uma confirmação informando que o link de acesso será enviado por e-mail e que o cadastro funciona no celular, mas a primeira configuração fica mais confortável no computador.
+- Criei uma visualização direta da tela final por `cadastro.html?preview=1&purchase=1&done=1`.
+- Impacto esperado: reduzir confusão no fim do cadastro e orientar melhor o próximo passo sem quebrar o fluxo mobile.
+
 ## 2026-05-29 — Cadastro mobile sem estouro lateral nas escolhas
 - Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
 - Corrigi o comportamento mobile das opções de cadastro que apareciam cortadas para a direita nas etapas de loja, vendas, estrutura e momento.

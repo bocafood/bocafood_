@@ -245,6 +245,19 @@
     .success-list{display:grid;gap:8px;margin-top:14px}
     .success-item{display:flex;align-items:center;gap:9px;background:#fff;border:1px solid #EFE4E1;border-radius:13px;padding:9px 10px;font-size:12.5px;color:#4E423F;font-weight:650}
     .success-item::before{content:'✓';width:17px;height:17px;border-radius:999px;background:var(--red);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;flex:0 0 auto}
+    .signup-finished-card{position:relative;overflow:hidden;border:1px solid #EAD9D3;border-radius:20px;background:radial-gradient(circle at 86% 10%,rgba(196,54,42,.12),transparent 28%),linear-gradient(135deg,#FFFFFF 0%,#FFF8F6 56%,#FAF8F4 100%);padding:20px;box-shadow:0 18px 42px rgba(31,31,31,.065)}
+    .signup-finished-card::before{content:'';position:absolute;left:0;right:0;top:0;height:3px;background:linear-gradient(90deg,var(--red),#B6925E)}
+    .signup-finished-kicker{margin:0 0 8px;color:var(--red);font-size:11px;font-weight:900;letter-spacing:.075em;text-transform:uppercase}
+    .signup-finished-title{margin:0;color:#261D1A;font-size:25px;font-weight:850;line-height:1.12;letter-spacing:0}
+    .signup-finished-text{margin:10px 0 0;color:#665A56;font-size:14px;line-height:1.55;max-width:620px}
+    .signup-finished-email{display:inline-flex;max-width:100%;margin-top:12px;padding:8px 10px;border:1px solid #EAD9D3;border-radius:999px;background:#fff;color:#3F3430;font-size:12.5px;font-weight:800;line-height:1.2;overflow-wrap:anywhere}
+    .signup-finished-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+    .signup-finished-step{display:grid;grid-template-columns:32px minmax(0,1fr);gap:10px;align-items:start;padding:12px;border:1px solid #EFE4E1;border-radius:15px;background:rgba(255,255,255,.78)}
+    .signup-finished-step-icon{width:32px;height:32px;border-radius:12px;background:#FFF0EE;color:var(--red);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900}
+    .signup-finished-step strong{display:block;margin:0 0 2px;color:#2D2321;font-size:13px;line-height:1.25}
+    .signup-finished-step span{display:block;color:#746965;font-size:12.2px;line-height:1.42}
+    .signup-finished-note{margin-top:12px;padding:12px;border:1px solid #EDE3DF;border-radius:15px;background:#FFFFFF;color:#5E514E;font-size:12.7px;line-height:1.5}
+    .signup-finished-note strong{color:#2D2321}
     .legal-sign-box{margin-top:11px;padding:11px 12px;border:1px solid rgba(196,54,42,.16);border-radius:13px;background:#FFFCFB;color:#5E514E;font-size:12.5px;line-height:1.42}
     .legal-sign-title{display:block;margin:0 0 2px;color:#2D2321;font-size:12.8px;font-weight:820;line-height:1.25}
     .legal-sign-text{margin:0 0 8px;color:#7B6E6A;font-size:12px;line-height:1.38}
@@ -311,6 +324,10 @@
       .purchase-alert-head,.success-head{gap:10px}
       .purchase-alert-actions{display:grid;grid-template-columns:1fr;gap:9px}
       .purchase-alert-actions button,.purchase-alert-actions a{width:100%}
+      .signup-finished-card{padding:16px;border-radius:18px}
+      .signup-finished-title{font-size:22px}
+      .signup-finished-text{font-size:13.5px}
+      .signup-finished-grid{grid-template-columns:1fr}
       .actions{flex-direction:column;padding:12px 20px}.actions button{width:100%}
       .panel.access-panel .question{font-size:23px}
       .panel.responsible-panel .question{font-size:23px}
@@ -341,6 +358,10 @@
       .moment-step .choice{min-height:48px}
       .sales-ruler-option,.operation-ruler-option,.moment-ruler-option{font-size:11.5px}
       .legal-sign-box,.communication-pref-box,.success-box,.purchase-alert{padding:12px;border-radius:15px}
+      .signup-finished-card{padding:14px}
+      .signup-finished-title{font-size:20px}
+      .signup-finished-step{grid-template-columns:30px minmax(0,1fr);padding:11px}
+      .signup-finished-step-icon{width:30px;height:30px;border-radius:11px}
       .actions{padding:10px 12px 11px}
       button{height:46px}
     }
@@ -380,6 +401,7 @@
     var previewParams = new URLSearchParams(window.location.search);
     var isPreview = previewParams.get('preview') === '1';
     var previewHasPurchase = isPreview && (previewParams.get('purchase') === '1' || previewParams.get('success') === '1');
+    var previewDone = isPreview && (previewParams.get('done') === '1' || previewParams.get('final') === '1');
     var BB_FB_CFG = {
       apiKey: 'AIzaSyAZk2mEPXR-VQOOEJWfcdhqoJOhHWjzda4',
       authDomain: 'bocado-brasil.firebaseapp.com',
@@ -391,12 +413,12 @@
     if (!isPreview && !firebase.apps.length) firebase.initializeApp(BB_FB_CFG);
     var completeSignup = isPreview ? null : firebase.app().functions('us-central1').httpsCallable('completeSignupOnboarding');
     var state = {
-      step: 0,
+      step: previewDone ? 6 : 0,
       loading: false,
       authCreated: false,
-      purchaseFound: previewHasPurchase,
-      legalAccepted: false,
-      legalSigned: false,
+      purchaseFound: previewHasPurchase || previewDone,
+      legalAccepted: previewDone,
+      legalSigned: previewDone,
       termsUrl: 'https://bocafood.app/termosdeuso',
       privacyUrl: 'https://bocafood.app/privacidade',
       communicationPreferences: {
@@ -709,7 +731,7 @@
     function updatePrimaryButton(){
       var btn=document.getElementById('next-btn');
       var finalSuccess=state.step===6&&state.purchaseFound;
-      btn.textContent=state.loading?'Salvando...':(finalSuccess?(isPreview?'Simular aceite':'Entrar no BocaFood'):'Continuar');
+      btn.textContent=state.loading?'Salvando...':(finalSuccess?(isPreview?'Ver tela final':'Finalizar cadastro'):'Continuar');
       btn.disabled=!!state.loading||(finalSuccess&&!state.legalAccepted)||(state.step===0&&!isAccessStepValid());
     }
     function setLoading(on){state.loading=on;document.getElementById('back-btn').disabled=on;updatePrimaryButton();}
@@ -735,26 +757,44 @@
         window.scrollTo({ top: 0, behavior: 'smooth' });
       });
     }
+    function signupFinishedHtml(){
+      var email = state.data.email || 'seu e-mail';
+      return '<div class="final-step signup-finished-step-wrap"><div class="signup-finished-card">'
+        +'<p class="signup-finished-kicker">Cadastro recebido</p>'
+        +'<h3 class="signup-finished-title">Agora é só abrir o link que vai chegar no seu e-mail.</h3>'
+        +'<p class="signup-finished-text">Seu cadastro foi finalizado. Vamos enviar o acesso do Painel BocaFood para o e-mail abaixo, para você entrar com segurança quando estiver pronta.</p>'
+        +'<div class="signup-finished-email">'+esc(email)+'</div>'
+        +'<div class="signup-finished-grid">'
+          +'<div class="signup-finished-step"><div class="signup-finished-step-icon">1</div><div><strong>Confira seu e-mail</strong><span>Procure a mensagem do BocaFood. Se não aparecer em alguns minutos, veja também spam, promoções ou lixo eletrônico.</span></div></div>'
+          +'<div class="signup-finished-step"><div class="signup-finished-step-icon">2</div><div><strong>Abra pelo computador quando puder</strong><span>O cadastro foi feito para funcionar no celular, mas a primeira configuração do Painel BocaFood fica mais confortável em uma tela maior.</span></div></div>'
+          +'<div class="signup-finished-step"><div class="signup-finished-step-icon">3</div><div><strong>Comece pela base do negócio</strong><span>Depois de entrar, o BocaFood vai te guiar pelos primeiros passos: dados da loja, canais, produtos, Plano de Voo e Temporada.</span></div></div>'
+          +'<div class="signup-finished-step"><div class="signup-finished-step-icon">4</div><div><strong>Use o celular na rotina</strong><span>Você pode acompanhar pedidos, loja online e ações do dia a dia pelo celular. O computador é só a melhor escolha para configurar com calma.</span></div></div>'
+        +'</div>'
+        +'<div class="signup-finished-note"><strong>Não precisa entrar agora.</strong> O próximo passo está no seu e-mail. Se precisar de ajuda, fale com <strong>teajudo@bocafood.app</strong>.</div>'
+        +'</div></div>';
+    }
     function render(){
       setMsg('');
       renderPills();
       var previewBanner=document.getElementById('preview-banner');
       previewBanner.className='preview-banner '+(isPreview?'show':'');
-      if(isPreview) previewBanner.textContent=previewHasPurchase?'Modo prévia ativo: simulando compra ativa para visualizar a finalização com aceite dos termos. Nenhum dado será salvo.':'Modo prévia ativo: simulando e-mail sem compra ativa. Use ?preview=1&purchase=1 para ver a finalização com aceite.';
-      document.getElementById('step-title').textContent=steps[state.step][0];
-      document.getElementById('step-hint').textContent=steps[state.step][1];
+      if(isPreview) previewBanner.textContent=previewDone?'Modo prévia ativo: tela final do cadastro. Nenhum dado será salvo.':(previewHasPurchase?'Modo prévia ativo: simulando compra ativa para visualizar a finalização com aceite dos termos. Nenhum dado será salvo.':'Modo prévia ativo: simulando e-mail sem compra ativa. Use ?preview=1&purchase=1 para ver a finalização com aceite.');
+      document.getElementById('step-title').textContent=state.legalSigned?'Cadastro finalizado':steps[state.step][0];
+      document.getElementById('step-hint').textContent=state.legalSigned?'O acesso do Painel BocaFood será enviado para o e-mail usado no cadastro.':steps[state.step][1];
       var panel=document.querySelector('.panel');
-      if(panel) panel.className='panel '+(state.step===0?'access-panel':(state.step===1?'responsible-panel':(state.step>=2?'store-panel':'')));
+      if(panel) panel.className='panel '+(state.legalSigned?'store-panel completed-panel':(state.step===0?'access-panel':(state.step===1?'responsible-panel':(state.step>=2?'store-panel':''))));
       var note=document.getElementById('step-note');
       note.textContent='';
       note.className='step-note';
       var finalBlocked = state.step === 6 && !state.purchaseFound;
-      document.getElementById('back-btn').style.display=state.step===0?'none':'inline-flex';
-      document.getElementById('next-btn').style.display=finalBlocked?'none':'inline-flex';
+      document.getElementById('back-btn').style.display=(state.step===0||state.legalSigned)?'none':'inline-flex';
+      document.getElementById('next-btn').style.display=(finalBlocked||state.legalSigned)?'none':'inline-flex';
       updatePrimaryButton();
       var d=state.data;
       var body='';
-      if(state.step===0){
+      if(state.legalSigned){
+        body=signupFinishedHtml();
+      }else if(state.step===0){
         body='<div class="access-step"><div class="access-welcome"><div><div class="access-welcome-kicker">Boas-vindas</div><h3 class="access-welcome-title">Vamos começar pelo seu acesso</h3><p class="access-welcome-text">Em poucos minutos você entra no BocaFood e prepara a base da sua loja.</p></div><div class="access-welcome-mark">✓</div></div><div class="purchase-email-notice"><span><strong>Importante</strong>O acesso só será liberado se o e-mail for o mesmo usado na compra.</span></div>'+(isPreview?'':'<button class="google-btn" id="google-signup-btn" type="button"><svg class="google-mark" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"/></svg>Continuar com Google</button><div class="divider">ou crie acesso com e-mail e senha</div>')+'<div class="form-grid"><label class="full"><span>E-mail usado na compra</span><input id="email" type="email" autocomplete="email" placeholder="exemplo@email.com" value="'+esc(d.email)+'"></label><label><span>Senha</span><input id="password" type="password" autocomplete="new-password" placeholder="Crie uma senha" value="'+esc(d.password)+'"></label><label><span>Confirmar senha</span><input id="confirmPassword" type="password" autocomplete="new-password" placeholder="Repita a senha" value="'+esc(d.confirmPassword)+'"></label></div><div class="mini-note">'+(isPreview?'Modo prévia: estes dados não serão salvos.':'Já criou seu acesso? <a href="/admin.html" style="color:#C4362A;font-weight:800;text-decoration:none;">Entrar no Centro de Controle</a>')+'</div></div>';
       }else if(state.step===1){
         body='<div class="responsible-step"><div class="access-welcome"><div><div class="access-welcome-kicker">Responsável</div><h3 class="access-welcome-title">Agora precisamos saber quem administra a conta</h3><p class="access-welcome-text">Esses dados ajudam o BocaFood a identificar a pessoa responsável pelo acesso e pelas comunicações importantes.</p></div><div class="access-welcome-mark">✓</div></div><div class="form-grid responsible-grid"><div class="responsible-block"><div class="responsible-block-title">Dados do responsável</div><label class="full"><span>Nome completo do responsável</span><input id="ownerName" value="'+esc(d.ownerName)+'"></label><div class="responsible-inline"><label><span>WhatsApp do responsável</span><div class="signup-phone-box"><select id="whatsappCountryCode" aria-label="Código do país">'+options(phoneCodes,d.whatsappCountryCode)+'</select><input id="whatsappNumber" inputmode="tel" autocomplete="tel-national" value="'+esc(d.whatsappNumber)+'" placeholder="600 000 000"></div><small class="field-note">Usaremos esse número apenas para suporte, segurança e comunicações importantes da conta.</small></label></div></div></div><div class="step-soft-note">Você poderá alterar esses dados depois em Configurações.</div></div>';
@@ -955,10 +995,11 @@
         if(state.purchaseFound) {
           var legalEl=document.getElementById('legal-acceptance');
           state.legalAccepted=!!(legalEl&&legalEl.checked);
-          if(!state.legalAccepted){setMsg('Para entrar no Centro de Controle, aceite os Termos de uso e a Política de privacidade.','error');return;}
+          if(!state.legalAccepted){setMsg('Para finalizar o cadastro, aceite os Termos de uso e a Política de privacidade.','error');return;}
           if(isPreview){
             state.legalSigned=true;
-            setMsg('Aceite simulado com sucesso. Nenhum dado foi salvo na prévia.','info');
+            render();
+            setMsg('Prévia da tela final. Nenhum dado foi salvo.','info');
             return;
           }
           setLoading(true);
@@ -972,7 +1013,7 @@
             communicationPreferences:state.communicationPreferences
           }).then(function(){
             state.legalSigned=true;
-            window.location.href='/admin.html#dashboard';
+            render();
           }).catch(function(){
             setMsg('Não foi possível registrar a assinatura dos termos. Tente novamente.','error');
           }).finally(function(){setLoading(false);});
