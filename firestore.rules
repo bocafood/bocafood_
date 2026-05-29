@@ -104,8 +104,20 @@ service cloud.firestore {
     function isMasterAdmin() {
       return signedIn() && (
         request.auth.token.email == 'bocadobrasil.es@gmail.com' ||
-        request.auth.token.email == 'pcruz.digital@gmail.com'
+        request.auth.token.email == 'pcruz.digital@gmail.com' ||
+        isConfiguredMasterAdmin()
       );
+    }
+
+    function isConfiguredMasterAdmin() {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/system_master_users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/system_master_users/$(request.auth.uid)).data.active != false;
+    }
+
+    match /system_master_users/{userId} {
+      allow read: if isMasterAdmin() || (signedIn() && request.auth.uid == userId);
+      allow write: if isMasterAdmin();
     }
 
     match /system_tenants/{tenantId} {

@@ -263,9 +263,12 @@
     .communication-pref-note{margin:0;color:#7B6E6A;font-size:11.8px;line-height:1.45}
     .mini-note{font-size:12px;color:var(--muted);line-height:1.45;margin-top:8px}
     @media(max-width:880px){
+      body{overflow-x:hidden}
       .topbar{padding:10px 16px 0;justify-content:center}
       .brand-logo{width:96px}
       .page{padding:0 16px 18px}
+      .progress-card{padding:11px 16px 10px;border-radius:16px}
+      .progress-meta{font-size:10.8px;gap:8px}
       .page-title{padding:0 4px;text-align:center}
       .page-title h1{font-size:26px}
       .page-title p{max-width:none}
@@ -277,26 +280,67 @@
       .form-grid{grid-template-columns:1fr}
       .responsible-inline{grid-template-columns:1fr}
       .signup-phone-box{grid-template-columns:100px minmax(0,1fr)}
+      input,select{height:46px;font-size:16px}
+      label span{line-height:1.25}
+      .boxed-step{gap:10px}
+      .boxed-step .signup-section{padding:12px;border-radius:16px;gap:9px}
+      .choice-grid{gap:8px}
+      .choice{min-height:44px;padding-top:10px;padding-bottom:10px}
       .store-fields{grid-template-columns:1fr}
+      .store-map-step .store-fields{grid-template-columns:1fr;gap:11px}
+      .store-map-step .store-fields label{width:100%;min-width:0}
       .store-step .choice-grid{grid-template-columns:1fr}
       .sales-ruler{display:flex;overflow-x:auto;padding-bottom:4px;scroll-snap-type:x proximity}
       .sales-ruler::before{display:none}
-      .sales-ruler-option{min-width:108px;scroll-snap-align:start;padding:7px;border:1px solid #E9DED9;border-radius:13px;background:#fff}
+      .sales-ruler-option{min-width:124px;scroll-snap-align:start;padding:9px 8px;border:1px solid #E9DED9;border-radius:13px;background:#fff}
       .sales-ruler-option:has(input:checked){border-color:rgba(196,54,42,.72);background:#FFF5F2}
       .operation-ruler{display:flex;overflow-x:auto;padding-bottom:4px;scroll-snap-type:x proximity}
       .operation-ruler::before{display:none}
-      .operation-ruler-option{min-width:104px;scroll-snap-align:start;padding:7px;border:1px solid #E9DED9;border-radius:13px;background:#fff}
+      .operation-ruler-option{min-width:118px;scroll-snap-align:start;padding:9px 8px;border:1px solid #E9DED9;border-radius:13px;background:#fff}
       .operation-ruler-option:has(input:checked){border-color:rgba(196,54,42,.72);background:#FFF5F2}
       .moment-ruler{display:flex;overflow-x:auto;padding-bottom:4px;scroll-snap-type:x proximity}
       .moment-ruler::before{display:none}
-      .moment-ruler-option{min-width:112px;scroll-snap-align:start;padding:7px;border:1px solid #E9DED9;border-radius:13px;background:#fff}
+      .moment-ruler-option{min-width:128px;scroll-snap-align:start;padding:9px 8px;border:1px solid #E9DED9;border-radius:13px;background:#fff}
       .moment-ruler-option:has(input:checked){border-color:rgba(196,54,42,.72);background:#FFF5F2}
+      .sales-ruler::-webkit-scrollbar,.operation-ruler::-webkit-scrollbar,.moment-ruler::-webkit-scrollbar{display:none}
+      .sales-ruler,.operation-ruler,.moment-ruler{scrollbar-width:none}
+      .store-map-summary,.sales-map-summary,.operation-summary,.moment-summary{padding:10px 11px;border-radius:14px}
+      .store-map-summary-list,.sales-map-summary-list,.operation-summary-list,.moment-summary-list{display:grid;grid-template-columns:1fr;gap:6px}
+      .purchase-alert-head,.success-head{gap:10px}
+      .purchase-alert-actions{display:grid;grid-template-columns:1fr;gap:9px}
+      .purchase-alert-actions button,.purchase-alert-actions a{width:100%}
       .actions{flex-direction:column;padding:12px 20px}.actions button{width:100%}
       .panel.access-panel .question{font-size:23px}
       .panel.responsible-panel .question{font-size:23px}
       .panel.store-panel .question{font-size:23px}
       .access-welcome{grid-template-columns:1fr;padding-right:13px}
       .access-welcome-mark{display:none}
+    }
+    @media(max-width:520px){
+      .topbar{padding-top:6px}
+      .brand-logo{width:88px}
+      .page{padding:0 10px 14px}
+      .progress-card{margin-bottom:10px;padding-left:12px;padding-right:12px}
+      .progress-meta{align-items:flex-start}
+      .panel{border-radius:18px}
+      .question{font-size:20px;margin:18px 14px 6px}
+      .hint{margin-left:14px;margin-right:14px;font-size:12.8px}
+      .step-note{margin-left:14px;margin-right:14px}
+      .step-main{padding:0 12px 6px}
+      .access-welcome{padding:12px;border-radius:15px}
+      .access-welcome-title{font-size:14.5px}
+      .access-welcome-text{font-size:12px}
+      .responsible-step .responsible-block{padding:11px;border-radius:15px}
+      .signup-phone-box{grid-template-columns:94px minmax(0,1fr);gap:6px;padding:5px}
+      .signup-phone-box select{padding-left:6px;padding-right:28px}
+      .signup-phone-box input{padding-left:6px}
+      .boxed-step .signup-section{padding:11px}
+      .store-step .choice{min-height:44px;font-size:12.4px}
+      .moment-step .choice{min-height:48px}
+      .sales-ruler-option,.operation-ruler-option,.moment-ruler-option{font-size:11px}
+      .legal-sign-box,.communication-pref-box,.success-box,.purchase-alert{padding:12px;border-radius:15px}
+      .actions{padding:10px 12px 11px}
+      button{height:46px}
     }
   </style>
 </head>
@@ -926,7 +970,7 @@
             communicationPreferences:state.communicationPreferences
           }).then(function(){
             state.legalSigned=true;
-            window.location.href='/admin.html#inicio';
+            window.location.href='/admin.html#dashboard';
           }).catch(function(){
             setMsg('Não foi possível registrar a assinatura dos termos. Tente novamente.','error');
           }).finally(function(){setLoading(false);});

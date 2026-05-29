@@ -1,5 +1,64 @@
 # AI Changelog
 
+## 2026-05-29 — Cadastro: experiência mobile refinada
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Ajustei a etapa `Sobre sua loja` na página de cadastro para que o card `Informações básicas` mostre os campos um embaixo do outro na versão mobile.
+- Refinei o CSS responsivo das demais etapas do cadastro, com campos mais confortáveis para toque, fonte adequada para evitar zoom automático no iPhone, cards mais compactos e opções/réguas com melhor leitura no celular.
+- A regra foi aplicada somente no CSS responsivo, preservando o layout desktop.
+- Impacto esperado: melhorar a leitura e o preenchimento no celular, evitando campos apertados, zoom indesejado e escolhas difíceis de tocar.
+
+## 2026-05-29 — Admin: documentação sem listener de pedidos em tempo real
+- Arquivos alterados: `public/admin.html`, `AI_CHANGELOG.md`.
+- Ajustei o Painel BocaFood para não manter o listener em tempo real de pedidos abertos enquanto a usuária está em `Suporte > Documentação`.
+- Ao sair da documentação e voltar para telas operacionais, o listener de pedidos volta a ser iniciado normalmente.
+- Impacto esperado: reduzir a sensação de carregamento contínuo na aba do navegador ao consultar a documentação, sem mexer no conteúdo da documentação nem nas rotas.
+
+## 2026-05-29 — Documentação: canais sem taxa ou comissão
+- Arquivos alterados: `public/js/modules/suporte.js`, `AI_CHANGELOG.md`.
+- Ajustei a explicação de `Base do negócio > Canais de venda` para orientar o que fazer quando um canal não cobra taxa nem comissão.
+- A documentação agora deixa claro que canais sem custo devem ficar zerados nas configurações de margem, e canais com custo precisam ter esse custo registrado para avaliar se vender por ali compensa.
+- Impacto esperado: evitar que a usuária invente taxa ou comissão só para preencher campo.
+
+## 2026-05-29 — Documentação: categoria financeira dos canais
+- Arquivos alterados: `public/js/modules/suporte.js`, `AI_CHANGELOG.md`.
+- Reescrevi a explicação de `Categoria financeira` em `Base do negócio > Canais de venda`.
+- A copy agora explica que a categoria organiza como o dinheiro aparece no financeiro e dá exemplos claros de nomes para usar.
+- Impacto esperado: a usuária entende para que serve a categoria e que nome escolher.
+
+## 2026-05-29 — Documentação: canais fixos corrigidos
+- Arquivos alterados: `public/js/modules/suporte.js`, `AI_CHANGELOG.md`.
+- Corrigi a documentação de `Base do negócio > Canais de venda` para refletir a tela real.
+- A documentação agora explica que os canais fixos são `Cardápio` e `Venda presencial`, enquanto Instagram, WhatsApp, Delivery, Marketplace e outros entram como canais adicionais quando a loja realmente usa.
+- Removi do texto campos que não aparecem diretamente nessa aba, mantendo a explicação focada em canal, categoria financeira, adicionar, remover e salvar.
+- Impacto esperado: a usuária não recebe orientação errada sobre canais pré-preenchidos.
+
+## 2026-05-29 — Documentação: Base do negócio sem bastidor interno
+- Arquivos alterados: `public/js/modules/suporte.js`, `AI_CHANGELOG.md`.
+- Revisei novamente o item `Base do negócio` para remover consequências internas que não importam para a usuária.
+- Troquei frases sobre separação interna da loja e funcionamento do Painel por benefícios práticos: marca correta na loja online, atendimento mais claro, dinheiro mais fácil de conferir e menos retrabalho.
+- Impacto esperado: a documentação fala mais sobre o negócio da usuária e menos sobre a lógica por trás do BocaFood.
+
+## 2026-05-29 — Documentação: Base do negócio consolidada por aba
+- Arquivos alterados: `public/js/modules/suporte.js`, `AI_CHANGELOG.md`.
+- Ajustei `Base do negócio` para explicar os campos de endereço considerando que a busca preenche parte das informações e a usuária completa o que ficar vazio.
+- Consolidei a explicação de categoria financeira, taxas, comissão e forma de pagamento ligada ao canal dentro do próprio card `Canais de venda`.
+- Removi linguagem interna do bloco, trocando termos técnicos por explicações de uso direto para a usuária.
+- Impacto esperado: a documentação fica mais clara por aba, sem separar assuntos que pertencem à mesma configuração.
+
+## 2026-05-29 — Documentação: Base do negócio mais minuciosa
+- Arquivos alterados: `public/js/modules/suporte.js`, `AI_CHANGELOG.md`.
+- Detalhei o item `Base do negócio` em `Suporte > Documentação`.
+- O bloco `O que preencher ou fazer` agora explica campo por campo como preencher dados da loja, endereço, usuárias, canais de venda, categorias financeiras, formas de pagamento, contas financeiras, Stripe, WhatsApp/redes sociais, Google/endereço, venda presencial e link público.
+- Impacto esperado: a usuária entende exatamente o que colocar em cada campo e por que aquela informação importa para a rotina do negócio.
+
+## 2026-05-29 — Documentação: linguagem mais clara para a usuária
+- Arquivos alterados: `public/js/modules/suporte.js`, `DOCUMENTACAO_ADMIN_PADRAO.md`, `AI_CHANGELOG.md`.
+- Removi as pílulas visuais `Documentado` / `A documentar` dos cards da documentação.
+- Revisei os itens já documentados para trocar termos técnicos de bastidor por linguagem do Painel BocaFood, como `Painel BocaFood`, `nome do link`, `loja online`, `área` e `negócio`.
+- Ajustei frases que usavam `pode` de forma insegura, deixando consequências mais claras quando a ação já tem efeito definido.
+- Atualizei o padrão de documentação para registrar que a copy deve falar com a empreendedora, evitar termos técnicos como `tenant`, `slug` e `Admin`, e não usar pílulas internas de status.
+- Impacto esperado: a documentação fica mais natural, firme e fácil de ler para uma usuária leiga.
+
 ## 2026-05-28 — Master: reset das contas de usuárias do Admin
 - Arquivos alterados: `.master-store.json`, `backups/admin-users-reset-2026-05-28T18-17-44-207Z.json`, `AI_CHANGELOG.md`.
 - Executei a limpeza das contas de usuárias do Admin, preservando configurações globais do BocaFood.
@@ -9647,3 +9706,81 @@
 - A landing page passou a ocupar `public/index.html`, garantindo que a raiz `/` do Firebase Hosting e do domínio `bocafood.app` abra a landing sem ser sobrescrita pelo arquivo estático anterior.
 - As rotas de loja (`/loja/**`) e o fallback de slugs (`/**`) passaram a apontar para `storefront.html`.
 - Impacto esperado: `https://bocafood.app/` abre a landing institucional, enquanto lojas publicadas continuam usando o template público preservado.
+
+## 2026-05-28 — Sincronização da landing principal
+- Arquivos alterados: `public/landing.html`, `public/index.html`, `tools/sync-landing-index.js`, `AI_CHANGELOG.md`.
+- Foi definido que `public/landing.html` é a fonte de edição da landing.
+- Foi criado o script `node tools/sync-landing-index.js` para copiar a landing para `public/index.html`, que é o arquivo servido na raiz do Hosting.
+- A versão atual de `landing.html` foi sincronizada para `index.html`, evitando que alterações feitas na landing fiquem fora da página principal publicada.
+- Impacto esperado: manter `bocafood.app/` e o arquivo de trabalho da landing sempre alinhados antes de deploy.
+
+## 2026-05-29 — Redirecionamento inicial do Admin
+- Arquivos alterados: `functions/index.js`, `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Os fluxos de aceite legal, ativação pós-compra e cadastro passaram a redirecionar para `admin.html#dashboard`, que é a rota registrada da tela inicial do painel.
+- O CTA padrão de e-mail também foi ajustado de `#inicio` para `#dashboard`.
+- Impacto esperado: evitar que novos acessos caiam em uma âncora antiga sem rota registrada, preservando Firebase, permissões, tenant e estrutura atual.
+
+## 2026-05-29 — Varredura: correções de segurança e callbacks
+- Arquivos alterados: `.gitignore`, `firestore.rules`, `functions/index.js`, `public/js/modules/catalogo.js`, `public/js/modules/marketing.js`, `AI_CHANGELOG.md`.
+- O módulo Catálogo passou a exportar `_openProductsMoreFilters`, evitando erro ao clicar no botão `Mais filtros` da listagem de produtos.
+- O módulo Marketing passou a exportar os callbacks usados por avaliações e upsell, incluindo filtros de avaliações, abertura de detalhe de avaliação e sincronização dos campos de benefício do upsell.
+- O acesso Master ganhou uma camada configurável em `system_master_users/{uid}` com `active: true`, usada por Functions e regras do Firestore, mantendo os e-mails Master atuais como fallback de compatibilidade.
+- O `.gitignore` foi reforçado para impedir envio acidental de `.env.*`, backups, arquivos `*.save`, `*.backup`, service accounts e `stripe_backup_code.txt`.
+- Impacto esperado: corrigir botões que quebravam em runtime, preparar separação entre Master e acesso de loja/admin, e reduzir risco de credenciais ou backups entrarem no Git.
+
+## 2026-05-29 — Padrão da documentação interna do Admin
+- Arquivos alterados: `DOCUMENTACAO_ADMIN_PADRAO.md`, `AI_CHANGELOG.md`.
+- Foi criado um documento de referência para estruturar a documentação interna do Admin.
+- O padrão define que cada assunto deve explicar o que é, caminho dentro do sistema, por que importa, o que preencher, o que acontece depois, cuidados comuns e como saber se está pronto.
+- A documentação deve falar com uma usuária leiga sobre o negócio dela, evitando linguagem técnica ou corporativa.
+- Impacto esperado: garantir que os próximos conteúdos de `Suporte > Documentação` sejam completos, guiados e consistentes antes de serem levados para a interface.
+
+## 2026-05-29 — Documentação interna: Primeiros passos
+- Arquivos alterados: `public/js/modules/suporte.js`, `AI_CHANGELOG.md`.
+- O item `Primeiros passos` em `Suporte > Documentação` foi preenchido com uma documentação completa para usuárias novas.
+- A documentação agora explica Operação e Crescimento, dados do negócio, canais, pagamentos, contas financeiras, preço e margem, categorias, produtos, insumos, receitas, despesas, Plano de Voo, Temporadas, loja online, ações de venda, primeira venda, compras, produção, estoque, financeiro, clientes e acompanhamento de crescimento.
+- Cada etapa inclui caminhos dentro do Admin, motivo da configuração, o que preencher, o que acontece depois, cuidados comuns e como saber se está pronto.
+- O renderizador da documentação passou a aceitar blocos ricos, mantendo compatibilidade com os módulos ainda não documentados.
+- Impacto esperado: permitir que uma usuária leiga siga uma ordem prática para montar a base do negócio e entender por que cada configuração importa.
+
+## 2026-05-29 — Documentação interna: Base do negócio
+- Arquivos alterados: `public/js/modules/suporte.js`, `AI_CHANGELOG.md`.
+- O item `Base do negócio` em `Suporte > Documentação` passou a seguir o mesmo padrão completo de `Primeiros passos`.
+- A documentação cobre dados da loja, endereço de atendimento, usuários e acesso, canais de venda, categoria financeira do canal, formas de pagamento, contas financeiras, Stripe, WhatsApp/redes sociais, Google/endereço, venda presencial, link público e publicação.
+- Cada bloco explica o caminho no Admin, por que a informação importa, o que preencher, o que acontece depois, cuidados comuns e como saber se está pronto.
+- Impacto esperado: ajudar a usuária a montar uma base confiável para os módulos herdarem dados corretos antes de vender, publicar a loja ou analisar crescimento.
+
+## 2026-05-29 — Documentação interna: Cardápio
+- Arquivos alterados: `public/js/modules/suporte.js`, `AI_CHANGELOG.md`.
+- O item `Cardápio` em `Suporte > Documentação` passou a seguir o padrão completo de documentação guiada.
+- A documentação cobre categorias, cadastro de produto, tipo de produto, preço, custo e margem, imagem, variações, combos, adicionais/upsell, tags, destaque, visibilidade, duplicação, vínculos com produção e estoque, checklist de pronto e erros comuns.
+- Cada bloco explica o caminho no Admin, por que importa para venda e margem, o que preencher, o que acontece depois, cuidados e como saber se está pronto.
+- Impacto esperado: ajudar a usuária a cadastrar produtos de forma mais confiável para loja online, pedidos, produção, estoque, promoções e leituras de crescimento.
+
+## 2026-05-29 — Documentação interna: Produção
+- Arquivos alterados: `public/js/modules/suporte.js`, `AI_CHANGELOG.md`.
+- O item `Produção` em `Suporte > Documentação` passou a seguir o padrão completo de documentação guiada.
+- A documentação cobre insumos, receitas/fichas técnicas, bases de produção, produtos produzidos, ordens, snapshot da ficha técnica, finalização de produção, resultado do lote, movimentações, lista de compras, estoque mínimo e produção por etapas.
+- Cada bloco explica o caminho no Admin, por que importa para custo, rendimento, estoque e compra, o que preencher, o que acontece depois, cuidados e como saber se está pronto.
+- Impacto esperado: ajudar a usuária a controlar produção sem confundir receita, base, produto produzido e produto vendido.
+
+## 2026-05-29 — Documentação interna: Compras
+- Arquivos alterados: `public/js/modules/suporte.js`, `AI_CHANGELOG.md`.
+- O item `Compras` em `Suporte > Documentação` passou a seguir o padrão completo de documentação guiada.
+- A documentação cobre quando registrar compra, criação/edição, itens, fornecedores, recebimento, entrada de estoque, origem dos itens, financeiro da compra, status, atualização de custo, compras antigas, checklist de pronto e erros comuns.
+- Cada bloco explica o caminho no Admin, por que importa para custo, estoque e caixa, o que preencher, o que acontece depois, cuidados e como saber se está pronto.
+- Impacto esperado: ajudar a usuária a registrar compras de forma que alimentem estoque, custo e financeiro sem duplicidade.
+
+## 2026-05-29 — Documentação interna: Estoque
+- Arquivos alterados: `public/js/modules/suporte.js`, `AI_CHANGELOG.md`.
+- O item `Estoque` em `Suporte > Documentação` passou a seguir o padrão completo de documentação guiada.
+- A documentação cobre cálculo de saldo por movimentações, tipos de estoque, itens em estoque, detalhe do item, entrada por compra, entrada e saída por produção, saída por venda, perdas, ajustes, mínimo/máximo, inventário, valor estimado, checklist de pronto e erros comuns.
+- Cada bloco explica o caminho no Admin, por que importa para compra, produção, venda e reposição, o que preencher, o que acontece depois, cuidados e como saber se está pronto.
+- Impacto esperado: ajudar a usuária a entender que estoque nasce das movimentações e que saldo precisa ser explicável pelo histórico.
+
+## 2026-05-29 — Documentação interna: Vendas e atendimento
+- Arquivos alterados: `public/js/modules/suporte.js`, `AI_CHANGELOG.md`.
+- O item `Vendas e atendimento` em `Suporte > Documentação` passou a seguir o padrão completo de documentação guiada.
+- A documentação cobre pedido recebido, pedido manual, cliente no pedido, entrega/retirada, produtos e escolhas, pagamento, promoções/cupons/pontos/upsell, status, modo cozinha, detalhes do pedido, WhatsApp, avaliação, baixa de estoque, estorno/devolução/perda e clientes.
+- Cada bloco explica o caminho no Admin, por que importa para atendimento, cozinha, financeiro, estoque e crescimento, o que preencher, o que acontece depois, cuidados e como saber se está pronto.
+- Impacto esperado: ajudar a usuária a registrar e acompanhar pedidos completos, sem perder dados importantes do cliente, pagamento, entrega, estoque ou avaliação.

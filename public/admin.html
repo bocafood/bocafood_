@@ -706,9 +706,16 @@ button,input,select,textarea{font-family:inherit}
       }
       AdminApp.refreshStoreOnlineStatus();
       AdminApp.applyTpvVisibility();
-      if (!window._adminOpenOrdersListenerBound && DB && typeof DB.listen === 'function') {
+      var currentRoute = window.location.hash.replace('#', '') || 'dashboard';
+      var isDocumentationRoute = currentRoute === 'suporte/documentacao' || currentRoute === 'suporte/guias';
+      if (isDocumentationRoute && window._adminOpenOrdersUnsubscribe) {
+        try { window._adminOpenOrdersUnsubscribe(); } catch (e) {}
+        window._adminOpenOrdersUnsubscribe = null;
+        window._adminOpenOrdersListenerBound = false;
+      }
+      if (!isDocumentationRoute && !window._adminOpenOrdersListenerBound && DB && typeof DB.listen === 'function') {
         window._adminOpenOrdersListenerBound = true;
-        DB.listen('orders', function (orders) {
+        window._adminOpenOrdersUnsubscribe = DB.listen('orders', function (orders) {
           var badge = document.getElementById('nav-open-orders-badge');
           var count = _openOrdersCount(orders);
           if (!badge) return;

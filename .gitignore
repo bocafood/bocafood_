@@ -1,10 +1,18 @@
 .env
+.env.*
 .env.local
 .env.production
+*.env
+*.save
+*.backup
 firebase-service-account.json
 serviceAccountKey.json
+*service-account*.json
+*adminsdk*.json
 *.key
 *.pem
+stripe_backup_code.txt
+functions_backup_hotmart/
 node_modules/
 .DS_Store
 *.log
@@ -28,3 +36,4 @@ temp/
 !assets/boca-food-logo.png
 !assets/boca-food-favicon.png
 .firebase/
+backups/

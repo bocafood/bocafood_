@@ -8279,6 +8279,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     _uploadStoreImage: _uploadStoreImage, _saveTemplateLoja: _saveTemplateLoja, _saveSeoLoja: _saveSeoLoja,
     _clearStoreImage: _clearStoreImage,
     _openProductModal: _openProductModal, _toggleVis: _toggleVis, _saveProduct: _saveProduct, _deleteProduct: _deleteProduct, _duplicateProduct: _duplicateProduct, _openImportProducts: _openImportProducts, _filterProdutos: _filterProdutos, _setProductFilter: _setProductFilter, _setProductSort: _setProductSort, _setProductPage: _setProductPage, _setProductPageSize: _setProductPageSize, _clearProductFilters: _clearProductFilters, _quickUpdateProduct: _quickUpdateProduct,
+    _openProductsMoreFilters: _openProductsMoreFilters,
     _onProductNameChange: _onProductNameChange, _onProductDescChange: _onProductDescChange, _refreshProductPreview: _refreshProductPreview, _moneyInputFocus: _moneyInputFocus, _moneyInputBlur: _moneyInputBlur,
     _seoEdited: _seoEdited, _onTipoChange: _onTipoChange, _onUnicoSrcChange: _onUnicoSrcChange,
     _addMenuGroup: _addMenuGroup, _removeMenuGroup: _removeMenuGroup,

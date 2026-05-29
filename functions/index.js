@@ -285,7 +285,7 @@ const EMAIL_TEMPLATE_DEFAULTS = {
     preheader: "Seu Centro de Controle ja pode ser acessado.",
     body: "<p>Ola {{buyerName}},</p><p>Seu cadastro foi concluido e sua compra foi vinculada com sucesso.</p><p>Sua loja foi criada como rascunho para voce continuar a configuracao no Centro de Controle.</p>",
     ctaLabel: "Abrir Centro de Controle",
-    ctaUrl: "{{appBaseUrl}}/admin.html#inicio",
+    ctaUrl: "{{appBaseUrl}}/admin.html#dashboard",
     enabled: true,
     availableVariables: ["buyerName", "buyerEmail", "supportEmail", "planName", "productName", "appBaseUrl", "brandName", "storeName"]
   },
@@ -1690,8 +1690,21 @@ async function requireMaster(req) {
   const match = authHeader.match(/^Bearer (.+)$/);
   if (!match) throw new Error("missing_auth");
   const decoded = await admin.auth().verifyIdToken(match[1]);
-  if (!MASTER_EMAILS.has(normalizeEmail(decoded.email))) throw new Error("forbidden");
+  if (!(await isMasterUser(decoded))) throw new Error("forbidden");
   return decoded;
+}
+
+async function isMasterUser(decoded) {
+  const email = normalizeEmail(decoded && decoded.email);
+  if (MASTER_EMAILS.has(email)) return true;
+  const uid = String((decoded && decoded.uid) || "").trim();
+  if (!uid) return false;
+  const snap = await db.collection("system_master_users").doc(uid).get().catch(() => null);
+  if (!snap || !snap.exists) return false;
+  const data = snap.data() || {};
+  const savedEmail = normalizeEmail(data.email || "");
+  if (savedEmail && savedEmail !== email) return false;
+  return data.active !== false;
 }
 
 async function requireAuthenticatedAdmin(req) {
@@ -3571,7 +3584,7 @@ exports.completeSignupOnboarding = onCall({ region: REGION }, async (request) =>
         storeName: store.name || tenantData.storeName || ""
       }
     });
-    return { ok: true, legalAccepted: true, redirectUrl: "/admin.html#inicio" };
+    return { ok: true, legalAccepted: true, redirectUrl: "/admin.html#dashboard" };
   }
 
   if (stage === "account_created") {
@@ -3681,7 +3694,7 @@ exports.completeSignupOnboarding = onCall({ region: REGION }, async (request) =>
     }, { merge: true });
     await recordSignupLog({ tenantUid: uid, email: authEmail, action: "signup_hotmart_linked", summary: "Compra Hotmart vinculada ao cadastro.", metadata: { pendingId: pending.id, planSlug: billing.planSlug, billingCycle: billing.billingCycle } });
     await recordSignupLog({ tenantUid: uid, email: authEmail, action: "signup_completed", summary: "Cadastro BocaFood concluído com compra ativa.", metadata: { origin: "hotmart" } });
-    return { ok: true, purchaseFound: true, accountStatus: "active", redirectUrl: "/admin.html#inicio" };
+    return { ok: true, purchaseFound: true, accountStatus: "active", redirectUrl: "/admin.html#dashboard" };
   }
 
   await recordSignupLog({ tenantUid: uid, email: authEmail, action: "signup_without_purchase", summary: "Cadastro concluído sem compra ativa localizada.", severity: "warning", metadata: { origin: "signup" } });
