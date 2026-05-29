@@ -10,6 +10,7 @@ Modules.Configuracoes = (function () {
   var _fornecedores = [];
   var _editingFornecedorId = null;
   var _systemTenant = {};
+  var _systemConfig = {};
   var _masterTenantControl = {};
   var _publicationProducts = [];
   var _publicationCategories = [];
@@ -202,7 +203,8 @@ Modules.Configuracoes = (function () {
     var masterTenantPromise = _loadMasterTenantControl().catch(function () { return {}; });
     var financeCategoriesPromise = DB.getAll ? DB.getAll('financeiro_categorias').catch(function () { return []; }) : Promise.resolve([]);
     var bankAccountsPromise = DB.getAll ? DB.getAll('contas_bancarias').catch(function () { return []; }) : Promise.resolve([]);
-    return Promise.all(CONFIG_TABS.map(function (k) { return DB.getDocRoot('config', k); }).concat([tenantPromise, masterTenantPromise, financeCategoriesPromise, bankAccountsPromise]))
+    var systemConfigPromise = DB.getSystemConfig ? DB.getSystemConfig().catch(function () { return {}; }) : Promise.resolve({});
+    return Promise.all(CONFIG_TABS.map(function (k) { return DB.getDocRoot('config', k); }).concat([tenantPromise, masterTenantPromise, financeCategoriesPromise, bankAccountsPromise, systemConfigPromise]))
       .then(function (docs) {
         _config = {};
         CONFIG_TABS.forEach(function (k, i) { _config[k] = docs[i] || {}; });
@@ -210,11 +212,13 @@ Modules.Configuracoes = (function () {
         _masterTenantControl = docs[CONFIG_TABS.length + 1] || _systemTenant || {};
         _financeCategories = docs[CONFIG_TABS.length + 2] || [];
         _bankAccounts = docs[CONFIG_TABS.length + 3] || [];
+        _systemConfig = docs[CONFIG_TABS.length + 4] || {};
       })
       .catch(function (err) {
         console.error('Config load error', err);
         _config = {};
         _systemTenant = {};
+        _systemConfig = {};
         _masterTenantControl = {};
         _financeCategories = [];
         _bankAccounts = [];
@@ -2076,35 +2080,139 @@ Modules.Configuracoes = (function () {
     return String(channel.defaultPaymentMethod || channel.paymentMethod || channel.formaPagamentoPadrao || channel.paymentMethodName || channel.formaPagamento || '').trim();
   }
 
-  function _channelPaymentMethodOptions(selected) {
-    var current = String(selected || '').trim();
+  function _globalFinanceConfigForSettings() {
+    return ((_systemConfig || {}).globalFinance) || ((_masterTenantControl || {}).globalFinance) || ((_systemTenant || {}).globalFinance) || {};
+  }
+
+  function _normalizePaymentCountry(value) {
+    var raw = String(value || '').trim().toLowerCase();
+    if (!raw) return '';
+    if (raw === 'ambos' || raw === 'both' || raw === 'all' || raw === 'geral') return 'ambos';
+    var code = _countryIso(raw);
+    if (code === 'ES' || code === 'PT') return code;
+    return '';
+  }
+
+  function _tenantFiscalCountryForSettings() {
+    var geral = _config.geral || {};
+    var conta = _config.conta_usuario || {};
+    var endereco = _config.endereco || {};
+    var candidates = [
+      geral.fiscalCountry, geral.countryFiscal, geral.paisFiscal, geral.taxCountry, geral.fiscal_country,
+      conta.fiscalCountry, conta.countryFiscal, conta.paisFiscal, conta.taxCountry, conta.fiscal_country,
+      endereco.fiscalCountry, endereco.countryFiscal, endereco.paisFiscal, endereco.country,
+      (_systemTenant || {}).fiscalCountry, (_systemTenant || {}).countryFiscal, (_systemTenant || {}).paisFiscal, (_systemTenant || {}).country,
+      (_masterTenantControl || {}).fiscalCountry, (_masterTenantControl || {}).countryFiscal, (_masterTenantControl || {}).paisFiscal, (_masterTenantControl || {}).country,
+      geral.country, geral.pais
+    ];
+    for (var i = 0; i < candidates.length; i++) {
+      var code = _countryIso(candidates[i]);
+      if (code === 'PT' || code === 'ES') return code;
+    }
+    return 'ES';
+  }
+
+  function _paymentCountryFromName(name) {
+    var key = _normChannelName(name).normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (key === 'mb way' || key === 'mbway' || key === 'multibanco') return 'PT';
+    if (key === 'bizum') return 'ES';
+    return '';
+  }
+
+  function _paymentMethodCountryAllowed(country, name) {
+    var normalized = _normalizePaymentCountry(country) || _paymentCountryFromName(name);
+    if (!normalized || normalized === 'ambos') return true;
+    return normalized === _tenantFiscalCountryForSettings();
+  }
+
+  function _paymentMethodKey(name) {
+    return _normChannelName(name).normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+
+  function _paymentMethodListForSettings() {
     var financeiro = _config.financeiro || {};
-    var source = Array.isArray(financeiro.formas_pagamento) ? financeiro.formas_pagamento
+    var tenantSource = Array.isArray(financeiro.formas_pagamento) ? financeiro.formas_pagamento
       : (Array.isArray(financeiro.paymentMethodConfigs) ? financeiro.paymentMethodConfigs
       : (Array.isArray(financeiro.paymentMethods) ? financeiro.paymentMethods
       : (Array.isArray(financeiro.formasPagamento) ? financeiro.formasPagamento : [])));
-    var methods = source.map(function (item) {
-      if (typeof item === 'string') return { name: item, active: true };
-      return {
-        name: item && (item.nome || item.name || item.label || item.id || ''),
-        active: !item || (item.ativo !== false && item.active !== false && item.enabled !== false)
-      };
-    }).filter(function (item) {
-      return item.name && (item.active !== false || item.name === current);
+    var globalSource = Array.isArray(_globalFinanceConfigForSettings().paymentMethodTypes) ? _globalFinanceConfigForSettings().paymentMethodTypes : [];
+    var methods = [];
+    function pushMethod(item, origin, idx) {
+      if (typeof item === 'string') item = { name: item, active: true };
+      item = item || {};
+      var name = item.nome || item.name || item.label || item.id || item.slug || '';
+      if (!name) return;
+      var country = item.tipoGlobalCountry || item.countryFiscal || item.fiscalCountry || item.country || item.paisFiscal || '';
+      var active = item.ativo !== false && item.active !== false && item.enabled !== false;
+      if (!active) return;
+      if (!_paymentMethodCountryAllowed(country, name)) return;
+      methods.push({
+        name: String(name).trim(),
+        active: true,
+        origin: origin,
+        order: item.order != null ? Number(item.order) : (item.ordem != null ? Number(item.ordem) : (idx + 1) * 10)
+      });
+    }
+    tenantSource.forEach(function (item, idx) { pushMethod(item, 'tenant', idx); });
+    globalSource.forEach(function (item, idx) { pushMethod(item, 'master', idx); });
+    if (!methods.length) {
+      ['Dinheiro', 'Transferência', 'Cartão', 'Outro'].forEach(function (name, idx) {
+        pushMethod({ name: name, active: true, countryFiscal: 'ambos', order: (idx + 1) * 10 }, 'fallback', idx);
+      });
+      if (_tenantFiscalCountryForSettings() === 'PT') {
+        pushMethod({ name: 'MB Way', active: true, countryFiscal: 'PT', order: 50 }, 'fallback', 5);
+        pushMethod({ name: 'Multibanco', active: true, countryFiscal: 'PT', order: 60 }, 'fallback', 6);
+      }
+      if (_tenantFiscalCountryForSettings() === 'ES') {
+        pushMethod({ name: 'Bizum', active: true, countryFiscal: 'ES', order: 50 }, 'fallback', 5);
+      }
+    }
+    var seen = {};
+    return methods.filter(function (item) {
+      var key = _paymentMethodKey(item.name);
+      if (!key || seen[key]) return false;
+      seen[key] = true;
+      return true;
     }).sort(function (a, b) {
+      var ao = isFinite(a.order) ? a.order : 9999;
+      var bo = isFinite(b.order) ? b.order : 9999;
+      if (ao !== bo) return ao - bo;
       return String(a.name).localeCompare(String(b.name));
     });
+  }
+
+  function _channelPaymentMethodOptions(selected) {
+    var current = String(selected || '').trim();
+    var methods = _paymentMethodListForSettings();
+    var currentAllowed = current && _paymentMethodCountryAllowed('', current);
+    if (currentAllowed && !methods.some(function (item) { return _paymentMethodKey(item.name) === _paymentMethodKey(current); })) {
+      methods.unshift({ name: current, active: false, legacy: true, order: -1 });
+    }
     var html = '<option value="">Sem forma vinculada</option>';
     html += methods.map(function (item) {
-      return '<option value="' + _esc(item.name) + '"' + (item.name === current ? ' selected' : '') + '>' + _esc(item.name + (item.active === false ? ' (inativa)' : '')) + '</option>';
+      var selectedAttr = _paymentMethodKey(item.name) === _paymentMethodKey(current) ? ' selected' : '';
+      var extra = item.legacy ? ' (não listado no Financeiro)' : '';
+      return '<option value="' + _esc(item.name) + '"' + selectedAttr + '>' + _esc(item.name + extra) + '</option>';
     }).join('');
-    if (current && !methods.some(function (item) { return item.name === current; })) {
-      html += '<option value="' + _esc(current) + '" selected>' + _esc(current) + ' (não listado no Financeiro)</option>';
-    }
-    if (!methods.length && !current) {
+    if (!methods.length) {
       html += '<option value="" disabled>Cadastre em Financeiro > Configurações</option>';
     }
     return html;
+  }
+
+  function _tpvFinancePaymentMethods(selected) {
+    var current = String(selected || '').trim();
+    var methods = _paymentMethodListForSettings().map(function (item) {
+      return {
+        name: item.name,
+        active: item.active !== false,
+        legacy: item.legacy
+      };
+    });
+    if (current && _paymentMethodCountryAllowed('', current) && !methods.some(function (item) { return _paymentMethodKey(item.name) === _paymentMethodKey(current); })) {
+      methods.unshift({ name: current, active: false, legacy: true });
+    }
+    return methods;
   }
 
   function _renderTpv() {
@@ -2202,45 +2310,6 @@ Modules.Configuracoes = (function () {
         });
       });
     });
-  }
-
-  function _tpvFinancePaymentMethods(selected) {
-    var current = String(selected || '').trim();
-    var financeiro = _config.financeiro || {};
-    var source = Array.isArray(financeiro.formas_pagamento) ? financeiro.formas_pagamento
-      : (Array.isArray(financeiro.paymentMethodConfigs) ? financeiro.paymentMethodConfigs
-      : (Array.isArray(financeiro.paymentMethods) ? financeiro.paymentMethods
-      : (Array.isArray(financeiro.formasPagamento) ? financeiro.formasPagamento : [])));
-    var methods = source.map(function (item) {
-      if (typeof item === 'string') return { name: item, active: true, raw: item };
-      var typeName = item && (item.tipoGlobalNome || item.tipo || item.typeName || item.type || '');
-      var accountId = item && (item.contaPadraoId || item.defaultAccountId || item.bankAccountId || '');
-      return {
-        name: item && (item.nome || item.name || item.label || item.id || ''),
-        active: !item || (item.ativo !== false && item.active !== false && item.enabled !== false),
-        typeName: typeName,
-        requiresAccount: !!(item && (item.exigeConta || item.requiresBankAccount)),
-        defaultAccountId: accountId,
-        compensationDays: item && (item.prazoCompensacaoDias || item.defaultCompensationDays || item.compensationDays || 0),
-        feePct: item && (item.taxaPercentual || item.feePct || 0),
-        feeFixed: item && (item.taxaFixa || item.fixedFee || 0),
-        raw: item
-      };
-    }).filter(function (item) {
-      return item.name;
-    }).sort(function (a, b) {
-      return String(a.name).localeCompare(String(b.name));
-    });
-    if (!methods.length) {
-      methods = ['Dinheiro', 'Transferência', 'MB Way', 'Multibanco', 'Cartão', 'Cheque', 'Outro'].map(function (name) {
-        return { name: name, active: true, fallback: true };
-      });
-    }
-    var exists = methods.some(function (item) { return item.name === current; });
-    if (current && !exists) {
-      methods.unshift({ name: current, active: false, legacy: true });
-    }
-    return methods;
   }
 
   function _tpvPaymentMethodOptions(selected, methods) {

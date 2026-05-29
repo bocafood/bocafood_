@@ -17,6 +17,7 @@
 - Incluí a opção `Criar nova categoria...` no campo `Categoria de entrada` da aba `Configurações > Canais de venda`.
 - A nova categoria é salva como categoria financeira de entrada e fica selecionada no canal sem a usuária sair da tela.
 - Incluí na própria linha do canal os campos `Comissão %`, `Taxa fixa` e `Forma de pagamento`, salvando os valores na configuração do canal.
+- A lista de `Forma de pagamento` agora carrega as opções globais do Master e respeita o país fiscal da loja, evitando exibir métodos de Portugal, como MB Way, quando a loja está configurada para Espanha.
 - Atualizei a explicação do onboarding para informar que a categoria pode ser criada ali mesmo.
 - Impacto esperado: reduzir atrito na configuração dos canais e manter a conexão com o Financeiro mais clara.
 
