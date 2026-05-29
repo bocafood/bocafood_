@@ -1950,6 +1950,8 @@ Modules.Configuracoes = (function () {
       '</div>';
     }).join('');
     var content = document.getElementById('config-content');
+    var fixedChannelText = _isTpvEnabled() ? 'Cardápio e Venda presencial são canais fixos do BocaFood.' : 'Cardápio é um canal fixo do BocaFood. Venda presencial aparece aqui quando estiver ativada.';
+    var emptyChannelText = _isTpvEnabled() ? 'Adicione apenas se sua loja vender por outro canal além do Cardápio e da Venda presencial.' : 'Adicione apenas se sua loja vender por outro canal além do Cardápio.';
     content.innerHTML = '<div style="display:flex;flex-direction:column;gap:16px;max-width:1040px;width:100%;margin:0 auto;">' +
       '<style>@media(max-width:980px){.channel-row-main{grid-template-columns:1fr 1fr!important}.channel-row-main>label:nth-child(3){grid-column:1/-1}.channel-row-main>button,.channel-row-main>span[title]{justify-self:start}.channel-row-costs{grid-template-columns:minmax(92px,132px) minmax(104px,132px)!important}.channel-row-costs>div{grid-column:1/-1}}@media(max-width:640px){.channel-row-main,.channel-row-costs{grid-template-columns:1fr!important}.channel-row-main>label,.channel-row-costs>label,.channel-row-costs>div{grid-column:1/-1!important}.channel-row-costs input{max-width:100%!important}}</style>' +
       '<section class="settings-card bf-card" style="background:linear-gradient(180deg,#FFFFFF 0%,#FFFCF9 100%);border:1px solid #EADFD8;border-radius:18px;padding:18px 20px;box-shadow:0 16px 38px rgba(47,37,35,.055);">' +
@@ -1962,9 +1964,9 @@ Modules.Configuracoes = (function () {
         '</div>' +
         '<div style="display:flex;gap:10px;align-items:flex-start;background:#FFF7F2;border:1px solid #F0DED5;border-radius:14px;padding:12px 14px;margin-bottom:14px;color:#5D504B;font-size:13px;line-height:1.45;">' +
           '<span class="mi" style="font-size:18px;color:#A84A3E;line-height:1.2;">info</span>' +
-          '<span>Defina por onde a venda chega e em qual categoria financeira essa entrada deve aparecer. Cardápio e Venda presencial são canais fixos do BocaFood.</span>' +
+          '<span>Defina por onde a venda chega e em qual categoria financeira essa entrada deve aparecer. ' + _esc(fixedChannelText) + '</span>' +
         '</div>' +
-        '<div id="channels-list" style="display:grid;grid-template-columns:1fr;gap:10px;">' + (rows || '<div style="text-align:center;padding:34px 20px;color:#7C706B;font-size:14px;line-height:1.45;background:#FFFCF8;border:1px dashed #E4D4CC;border-radius:14px;"><strong style="display:block;color:#443836;font-size:14px;margin-bottom:4px;">Nenhum canal adicional cadastrado.</strong>Adicione apenas se sua loja vender por outro canal além do Cardápio e da Venda presencial.</div>') + '</div>' +
+        '<div id="channels-list" style="display:grid;grid-template-columns:1fr;gap:10px;">' + (rows || '<div style="text-align:center;padding:34px 20px;color:#7C706B;font-size:14px;line-height:1.45;background:#FFFCF8;border:1px dashed #E4D4CC;border-radius:14px;"><strong style="display:block;color:#443836;font-size:14px;margin-bottom:4px;">Nenhum canal adicional cadastrado.</strong>' + _esc(emptyChannelText) + '</div>') + '</div>' +
         '<div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;align-items:center;justify-content:space-between;">' +
           '<button class="bf-btn bf-btn-secondary" type="button" onclick="Modules.Configuracoes._addCanalVenda()" style="display:inline-flex;align-items:center;gap:6px;"><span class="mi" style="font-size:17px;">add</span>Adicionar canal</button>' +
           '<button class="bf-btn bf-btn-primary" type="button" onclick="Modules.Configuracoes._saveCanaisVenda()">Salvar canais</button>' +
@@ -3124,11 +3126,19 @@ Modules.Configuracoes = (function () {
     return _isCardapioChannel(channel) || _isTpvChannel(channel);
   }
 
+  function _isTpvEnabled() {
+    var tpv = _config.tpv || {};
+    return tpv.enabled === true || tpv.tpvEnabled === true || tpv.active === true;
+  }
+
   function _fixedChannels() {
-    return [
-      { name: 'Cardápio', commissionPct: 0, fixedFee: 0, taxPct: 0, minMarginPct: 0, differentPrice: false, locked: true },
-      { name: 'Venda presencial', commissionPct: 0, fixedFee: 0, taxPct: 0, minMarginPct: 0, differentPrice: false, locked: true }
+    var fixed = [
+      { name: 'Cardápio', commissionPct: 0, fixedFee: 0, taxPct: 0, minMarginPct: 0, differentPrice: false, locked: true }
     ];
+    if (_isTpvEnabled()) {
+      fixed.push({ name: 'Venda presencial', commissionPct: 0, fixedFee: 0, taxPct: 0, minMarginPct: 0, differentPrice: false, locked: true });
+    }
+    return fixed;
   }
 
   function _mergeFixedChannels(current) {

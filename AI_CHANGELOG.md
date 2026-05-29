@@ -21,6 +21,7 @@
 - Reforcei o mesmo filtro em `Financeiro > Configurações > Formas de Pagamento`, inclusive para opções padrão antigas sem país salvo.
 - Reorganizei o card de `Canais de venda` em blocos: dados principais do canal em cima e comissão/taxa em campos compactos abaixo, preservando a largura padrão da tela.
 - Troquei a criação rápida de categoria em `Canais de venda` de `prompt` do navegador para modal no padrão visual do sistema.
+- Ajustei o canal fixo `Venda presencial` para aparecer em `Canais de venda` e nas opções de pedido somente quando a Venda presencial estiver ativada.
 - Atualizei a explicação do onboarding para informar que a categoria pode ser criada ali mesmo.
 - Impacto esperado: reduzir atrito na configuração dos canais e manter a conexão com o Financeiro mais clara.
 

@@ -205,9 +205,9 @@ Modules.Pedidos = (function () {
       _zones = _normalizeZones(res[8]);
       if (!_zones.length) _zones = _normalizeZones(res[9]);
       _templateConfig = res[9] || {};
+      _tpvConfig = res[12] || {};
       _canais = _normalizeCanais(res[10]);
       _domainConfig = res[11] || {};
-      _tpvConfig = res[12] || {};
       _syncOrderCustomerLinks(_orders);
       if (!_paintReviewsHost()) _paintActive();
     }).catch(function () {
@@ -1239,7 +1239,8 @@ Modules.Pedidos = (function () {
       var name = c && (c.name || c.nome || c.label);
       if (name && names.indexOf(name) < 0) names.push(name);
     });
-    return names.length ? names : ['Cardápio', 'Venda presencial'];
+    if (names.length) return names;
+    return _isTpvEnabledForChannels() ? ['Cardápio', 'Venda presencial'] : ['Cardápio'];
   }
 
   function _reviewFilterLabel(v) {
@@ -5541,10 +5542,10 @@ Modules.Pedidos = (function () {
       seen[key] = true;
       options.push({ value: key === 'cardapio' ? 'cardapio' : (key === 'venda-presencial' ? 'Venda presencial' : name), label: _salesChannelDisplayName(name) });
     });
-    if (!options.length) options = [
-      { value: 'cardapio', label: 'Cardápio' },
-      { value: 'Venda presencial', label: 'Venda presencial' }
-    ];
+    if (!options.length) {
+      options = [{ value: 'cardapio', label: 'Cardápio' }];
+      if (_isTpvEnabledForChannels()) options.push({ value: 'Venda presencial', label: 'Venda presencial' });
+    }
     var selectedKey = _channelAliasKey(selected || '');
     return options.map(function (item) {
       var value = String(item.value || '');
@@ -6327,9 +6328,9 @@ Modules.Pedidos = (function () {
   function _normalizeCanais(raw) {
     var list = raw && Array.isArray(raw.list) ? raw.list : [];
     var items = [
-      { name: 'Cardápio', locked: true },
-      { name: 'Venda presencial', locked: true }
+      { name: 'Cardápio', locked: true }
     ];
+    if (_isTpvEnabledForChannels()) items.push({ name: 'Venda presencial', locked: true });
     var seen = {};
     items.forEach(function (item) { seen[_channelAliasKey(item.name)] = true; });
     list.forEach(function (c) {
@@ -6359,6 +6360,11 @@ Modules.Pedidos = (function () {
     if (key === 'cardapio') return 'Cardápio';
     if (key === 'venda-presencial') return 'Venda presencial';
     return _firstText(value && value.name, value && value.nome, value && value.label, value, '');
+  }
+
+  function _isTpvEnabledForChannels() {
+    var tpv = _tpvConfig || {};
+    return tpv.enabled === true || tpv.tpvEnabled === true || tpv.active === true;
   }
 
   function _salesChannelByName(value) {
