@@ -2025,21 +2025,45 @@ Modules.Configuracoes = (function () {
   function _createEntradaCategoryFromChannel(idx) {
     var select = document.getElementById('ch-income-category-' + idx);
     if (!select || select.value !== '__new__') return;
-    var name = '';
-    try {
-      name = window.prompt ? window.prompt('Nome da nova categoria de entrada:', '') : '';
-    } catch (err) {
-      name = '';
-    }
+    select.value = '';
+    _openEntradaCategoryModalFromChannel(idx);
+  }
+
+  function _openEntradaCategoryModalFromChannel(idx) {
+    _ensureConfigModalStyles();
+    window._entradaCategoryModalContext = { idx: idx };
+    var body = '<div class="config-modal-card">' +
+      '<div class="config-modal-grid">' +
+        '<label class="config-modal-field config-modal-field-full"><span>Nome da categoria *</span><input id="channel-category-name" class="config-modal-input" type="text" placeholder="Ex.: Vendas Instagram, Vendas Cardápio"></label>' +
+        '<div class="config-modal-help config-modal-field-full">Essa categoria organiza onde o dinheiro desse canal aparece no Financeiro. Use um nome claro para reconhecer a origem da venda.</div>' +
+      '</div>' +
+    '</div>';
+    var footer = '<div class="config-modal-footer"><button class="config-modal-btn secondary" onclick="if(window._entradaCategoryModal)window._entradaCategoryModal.close();">Cancelar</button><button class="config-modal-btn primary" onclick="Modules.Configuracoes._saveEntradaCategoryFromChannel()">Criar categoria</button></div>';
+    window._entradaCategoryModal = UI.modal({ title: 'Nova categoria de entrada', body: body, footer: footer, maxWidth: '520px' });
+    setTimeout(function () {
+      var input = document.getElementById('channel-category-name');
+      if (input) input.focus();
+    }, 80);
+  }
+
+  function _saveEntradaCategoryFromChannel() {
+    var ctx = window._entradaCategoryModalContext || {};
+    var idx = ctx.idx;
+    var select = document.getElementById('ch-income-category-' + idx);
+    var name = _val('channel-category-name');
     name = String(name || '').trim().replace(/\s+/g, ' ');
     if (!name) {
-      select.value = '';
+      UI.toast('Informe o nome da categoria', 'error');
       return;
     }
     var existing = _findEntradaCategory(name);
     if (existing && existing.id) {
-      select.innerHTML = _entradaCategoryOptions(existing.id);
-      select.value = String(existing.id);
+      if (select) {
+        select.innerHTML = _entradaCategoryOptions(existing.id);
+        select.value = String(existing.id);
+      }
+      if (window._entradaCategoryModal) window._entradaCategoryModal.close();
+      UI.toast('Categoria já existia e foi selecionada', 'info');
       return;
     }
     var now = new Date().toISOString();
@@ -2062,10 +2086,11 @@ Modules.Configuracoes = (function () {
         el.innerHTML = _entradaCategoryOptions(previous);
         el.value = previous;
       });
-      select.value = id;
+      if (select) select.value = id;
+      if (window._entradaCategoryModal) window._entradaCategoryModal.close();
       UI.toast('Categoria adicionada', 'success');
     }).catch(function (err) {
-      select.value = '';
+      if (select) select.value = '';
       UI.toast('Erro ao criar categoria: ' + (err && err.message ? err.message : err), 'error');
     });
   }
@@ -3218,7 +3243,7 @@ Modules.Configuracoes = (function () {
     render: render, destroy: destroy, _switchSub: _switchSub,
     _openUnidadeModal: _openUnidadeModal, _saveUnidade: _saveUnidade, _deleteUnidade: _deleteUnidade,
     _openFornecedorModal: _openFornecedorModal, _saveFornecedor: _saveFornecedor, _deleteFornecedor: _deleteFornecedor,
-    _addCanalVenda: _addCanalVenda, _removeCanalVenda: _removeCanalVenda, _saveCanaisVenda: _saveCanaisVenda, _createEntradaCategoryFromChannel: _createEntradaCategoryFromChannel,
+    _addCanalVenda: _addCanalVenda, _removeCanalVenda: _removeCanalVenda, _saveCanaisVenda: _saveCanaisVenda, _createEntradaCategoryFromChannel: _createEntradaCategoryFromChannel, _saveEntradaCategoryFromChannel: _saveEntradaCategoryFromChannel,
     _uploadAppearanceImage: _uploadAppearanceImage,
     _uploadGeneralAvatarImage: _uploadGeneralAvatarImage,
     _normalizeDomainSlugField: _normalizeDomainSlugField,
