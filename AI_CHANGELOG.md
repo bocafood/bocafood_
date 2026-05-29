@@ -16,12 +16,15 @@
 - Arquivos alterados: `public/js/modules/configuracoes.js`, `public/js/modules/dashboard.js`, `public/dashboard-onboarding-preview.html`, `AI_CHANGELOG.md`.
 - Incluí a opção `Criar nova categoria...` no campo `Categoria de entrada` da aba `Configurações > Canais de venda`.
 - A nova categoria é salva como categoria financeira de entrada e fica selecionada no canal sem a usuária sair da tela.
-- Incluí na própria linha do canal os campos `Comissão %`, `Taxa fixa` e `Forma de pagamento`, salvando os valores na configuração do canal.
-- A lista de `Forma de pagamento` agora carrega as opções globais do Master e respeita o país fiscal da loja, evitando exibir métodos de Portugal, como MB Way, quando a loja está configurada para Espanha.
+- Incluí na própria linha do canal os campos `Comissão %`, `Taxa fixa` e `Imposto comissão %`, salvando os valores na configuração do canal.
+- Removi `Forma de pagamento` de `Canais de venda`, porque a forma passa a ser escolhida em cada venda ou pedido.
 - Reforcei o mesmo filtro em `Financeiro > Configurações > Formas de Pagamento`, inclusive para opções padrão antigas sem país salvo.
 - Reorganizei o card de `Canais de venda` em blocos: dados principais do canal em cima e comissão/taxa em campos compactos abaixo, preservando a largura padrão da tela.
 - Troquei a criação rápida de categoria em `Canais de venda` de `prompt` do navegador para modal no padrão visual do sistema.
 - Ajustei o canal fixo `Venda presencial` para aparecer em `Canais de venda` e nas opções de pedido somente quando a Venda presencial estiver ativada.
+- Atualizei o `Como preencher` do onboarding e a documentação para explicar que pagamento não fica preso ao canal.
+- Atualizei o `Como preencher` de `Canais de venda` para explicar comissão, taxa fixa e imposto sobre comissão de forma separada.
+- Reorganizei o checklist inicial para cadastrar `insumos e produtos comprados` antes de `receitas`, deixando `produtos do cardápio` para a fase de loja pronta para vender.
 - Atualizei a explicação do onboarding para informar que a categoria pode ser criada ali mesmo.
 - Impacto esperado: reduzir atrito na configuração dos canais e manter a conexão com o Financeiro mais clara.
 

@@ -23,6 +23,7 @@ Modules.Dashboard = (function () {
     monthScenario: null,
     channels: {},
     moneyConfig: {},
+    purchaseItems: [],
     recipes: [],
     purchases: [],
     stockMovements: [],
@@ -96,6 +97,7 @@ Modules.Dashboard = (function () {
       _safeDocRoot('config', 'operacao'),
       _safeDocRoot('config', 'canais_venda'),
       _safeDocRoot('config', 'dinheiro'),
+      _safeAll('itens_custo'),
       _safeAll('fichasTecnicas'),
       _safeAll('compras'),
       _safeAll('seasons'),
@@ -114,10 +116,11 @@ Modules.Dashboard = (function () {
       _data.operacao = r[12] || {};
       _data.channels = r[13] || {};
       _data.moneyConfig = r[14] || {};
-      _data.recipes = Array.isArray(r[15]) ? r[15] : [];
-      _data.purchases = Array.isArray(r[16]) ? r[16] : [];
-      _data.seasons = Array.isArray(r[17]) ? r[17] : [];
-      _data.stockMovements = Array.isArray(r[18]) ? r[18] : [];
+      _data.purchaseItems = Array.isArray(r[15]) ? r[15] : [];
+      _data.recipes = Array.isArray(r[16]) ? r[16] : [];
+      _data.purchases = Array.isArray(r[17]) ? r[17] : [];
+      _data.seasons = Array.isArray(r[18]) ? r[18] : [];
+      _data.stockMovements = Array.isArray(r[19]) ? r[19] : [];
       _loading = false;
       _loaded = true;
     }).catch(function (err) {
@@ -1150,37 +1153,36 @@ Modules.Dashboard = (function () {
           ['Categoria financeira', 'Escolha onde o dinheiro desse canal aparece no financeiro. Se ainda não existir uma categoria boa, crie ali mesmo no campo. Exemplo: Vendas Cardápio ou Vendas Instagram.'],
           ['Comissão', 'Preencha só se o canal cobra uma porcentagem. Se não cobra, deixe zerado.'],
           ['Taxa fixa', 'Use quando existe um valor fixo por venda ou pedido. Se não existe, deixe zerado.'],
-          ['Forma de pagamento', 'Ligue o canal às formas de pagamento que a loja aceita por ali.']
+          ['Imposto comissão %', 'Use quando existe imposto sobre a comissão cobrada pelo canal. Se não existe ou você ainda não controla isso, deixe zerado.']
         ],
-        actions: ['Mantenha apenas canais que o negócio realmente usa.', 'Se precisar organizar melhor o financeiro, crie a categoria de entrada no próprio campo de categoria.', 'Não invente taxa para preencher campo.', 'Salve e depois use esses canais ao criar pedidos e analisar performance.'],
+        actions: ['Mantenha apenas canais que o negócio realmente usa.', 'Se precisar organizar melhor o financeiro, crie a categoria de entrada no próprio campo de categoria.', 'Não invente taxa para preencher campo.', 'A forma de pagamento será escolhida em cada venda ou pedido, porque pode mudar de cliente para cliente.', 'Salve e depois use esses canais ao criar pedidos e analisar performance.'],
         ready: 'Está pronto quando os canais reais estão salvos com taxas corretas ou zeradas.'
       },
       'Definir preço e margem': {
         icon: 'calculate',
         path: 'Caminho: Preço e margem > Regras',
-        intro: 'Essa tela ajuda a proteger a sobra da venda. Ela mostra se o preço precisa considerar custo, taxa, imposto ou comissão.',
+        intro: 'Essa tela ajuda o BocaFood a sugerir preços sem depender do achismo. Você informa a porcentagem de sobra que quer buscar, o mínimo que aceita e como prefere arredondar os preços.',
         fields: [
-          ['Margem desejada', 'Informe quanto o negócio precisa sobrar depois dos custos principais.'],
-          ['Taxas e impostos', 'Preencha o que realmente entra no preço.'],
-          ['Canais com comissão', 'Confira se canais pagos, marketplace ou cartão estão considerados.'],
-          ['Arredondamento', 'Escolha como prefere deixar os preços mais bonitos para vender.']
+          ['Margem desejada padrão %', 'Informe, em porcentagem, quanto quer que sobre em cada venda depois de pagar os custos do produto. Exemplo: se colocar 60%, em uma venda de €10,00 o ideal é sobrar €6,00 para o negócio.'],
+          ['Margem mínima aceitável %', 'Informe o menor percentual de sobra que ainda aceita antes de o produto virar alerta. Exemplo: se colocar 40%, em uma venda de €10,00 você não quer que sobre menos de €4,00.'],
+          ['Markup padrão', 'Informe um número multiplicador para ajudar a formar preço. Exemplo: se colocar 3 e o produto custa €1,00, a referência de preço fica perto de €3,00. Markup ajuda a chegar no preço; margem mostra quanto sobra.'],
+          ['Arredondamento de preço', 'Escolha como o preço final deve aparecer. Se escolher terminar em ,90, um preço calculado em €4,83 pode virar €4,90 para ficar mais fácil de usar no cardápio.']
         ],
-        actions: ['Use uma margem que faça sentido para o negócio hoje.', 'Confira se produtos com comissão continuam dando sobra.', 'Salve antes de cadastrar muitos produtos, para ter uma base melhor.'],
-        ready: 'Está pronto quando a regra ajuda a formar preço sem deixar custo importante de fora.'
+        actions: ['Comece com uma margem desejada realista para a maioria dos produtos.', 'Defina uma margem mínima para o BocaFood sinalizar produtos que deixam pouca sobra.', 'Use markup como apoio, principalmente enquanto ainda está organizando custos e receitas.', 'Escolha um arredondamento que deixe os preços claros para a cliente.'],
+        ready: 'Está pronto quando a regra mostra quanto você quer que sobre, qual é o mínimo aceitável e como os preços devem ser arredondados.'
       },
-      'Cadastrar produtos': {
-        icon: 'restaurant_menu',
-        path: 'Caminho: Cardápio > Produtos',
-        intro: 'Aqui entram os produtos que a cliente pode comprar. Quanto melhor o cadastro, melhor fica o cardápio, o pedido e a leitura de vendas.',
+      'Cadastrar insumos e produtos comprados': {
+        icon: 'inventory_2',
+        path: 'Caminho: Compras > Produtos / Insumos',
+        intro: 'Aqui entram os ingredientes, embalagens e produtos prontos que o negócio compra. Essa base vem antes da receita, porque a receita precisa saber o que entra na produção.',
         fields: [
-          ['Nome e categoria', 'Use nomes claros e coloque cada produto no grupo certo.'],
-          ['Preço', 'Informe o preço de venda que a cliente vai pagar.'],
-          ['Imagem', 'Use foto quando tiver. Se não tiver, deixe sem imagem até cadastrar uma boa.'],
-          ['Variações e opções', 'Cadastre sabores, tamanhos, adicionais ou escolhas de combo quando existirem.'],
-          ['Visibilidade', 'Deixe marcado apenas o que deve aparecer para venda.']
+          ['Classe do item', 'Separe se é insumo, embalagem ou produto comprado pronto. Isso evita misturar ingrediente com produto de venda.'],
+          ['Unidade base', 'Escolha a unidade usada no custo e na receita, como kg, g, litro, ml ou unidade.'],
+          ['Custo atual', 'Informe quanto esse item custa hoje para que as receitas e margens tenham uma base real.'],
+          ['Fornecedor e categoria', 'Use quando souber de quem compra e em qual grupo esse item deve ficar.']
         ],
-        actions: ['Comece pelos produtos que mais vende.', 'Confira preço e categoria antes de salvar.', 'Depois abra a loja online para ver se o card ficou fácil de comprar.'],
-        ready: 'Está pronto quando os principais produtos aparecem com nome, preço e categoria corretos.'
+        actions: ['Comece pelos ingredientes e embalagens mais usados.', 'Cadastre também produtos comprados prontos, se você vende ou usa algum item já pronto.', 'Depois use esses itens para montar receitas com custo mais confiável.'],
+        ready: 'Está pronto quando os principais insumos, embalagens e produtos comprados estão cadastrados com unidade e custo.'
       },
       'Cadastrar receitas': {
         icon: 'receipt_long',
@@ -1194,6 +1196,20 @@ Modules.Dashboard = (function () {
         ],
         actions: ['Cadastre primeiro as receitas que mais impactam a venda.', 'Use quantidades reais do preparo.', 'Salve e confira se o custo previsto parece próximo da realidade.'],
         ready: 'Está pronto quando as receitas principais têm rendimento e ingredientes cadastrados.'
+      },
+      'Cadastrar produtos do cardápio': {
+        icon: 'restaurant_menu',
+        path: 'Caminho: Cardápio > Produtos',
+        intro: 'Depois dos insumos e receitas, cadastre o que a cliente realmente compra no cardápio. Aqui o produto ganha preço, imagem, opções e visibilidade para venda.',
+        fields: [
+          ['Nome e categoria', 'Use nomes claros e coloque cada produto no grupo certo.'],
+          ['Preço de venda', 'Informe o valor que a cliente vai pagar.'],
+          ['Vínculo com receita ou item pronto', 'Quando existir, ligue o produto ao que foi cadastrado na produção ou nas compras. Isso melhora estoque, custo e margem.'],
+          ['Imagem e opções', 'Use foto quando tiver e cadastre sabores, tamanhos, adicionais ou combos quando existirem.'],
+          ['Visibilidade', 'Deixe marcado apenas o que deve aparecer para venda.']
+        ],
+        actions: ['Comece pelos produtos que a cliente mais pede.', 'Confira se produto produzido tem receita e se produto comprado pronto tem custo.', 'Depois abra o cardápio online para ver se a compra ficou fácil.'],
+        ready: 'Está pronto quando os principais produtos de venda aparecem com nome, preço, categoria e vínculo correto quando existir.'
       },
       'Registrar custos fixos': {
         icon: 'payments',
@@ -2258,6 +2274,7 @@ Modules.Dashboard = (function () {
     var money = _data.moneyConfig || {};
     var hasPriceRules = !!(money.desiredMarginPct || money.minMarginPct || money.defaultMarkup || Object.keys(money).length);
     var hasProducts = (_data.products || []).length > 0;
+    var hasPurchaseItems = (_data.purchaseItems || []).length > 0;
     var hasRecipes = (_data.recipes || []).length > 0;
     var hasCosts = (_data.exits || []).length > 0;
     var hasPlan = !!_data.monthScenario || !!_snapshotForCurrentMonth() || (_data.snapshots || []).length > 0;
@@ -2278,13 +2295,13 @@ Modules.Dashboard = (function () {
         key: 'base',
         title: 'Base do negócio',
         shortTitle: 'Base',
-        text: 'Deixe claro quem é seu negócio, o que vende, quanto custa e por onde os pedidos chegam.',
+        text: 'Deixe claro quem é seu negócio, por onde vende e quais itens formam sua produção.',
         steps: [
           { title: 'Preencher dados do negócio', text: 'Nome, contato e endereço para deixar tudo identificado.', icon: 'badge', route: 'configuracoes/geral', done: !!(g.businessName && (g.phone || g.whatsapp || g.email)) },
           { title: 'Criar canais de venda', text: 'Mostre de onde os pedidos chegam: cardápio, balcão, Instagram ou outro canal.', icon: 'storefront', route: 'configuracoes/canais_venda', done: hasSalesChannels },
           { title: 'Definir preço e margem', text: 'Ajude o BocaFood a proteger sua sobra em cada venda.', icon: 'calculate', route: 'dinheiro/regras', done: hasPriceRules },
-          { title: 'Cadastrar produtos', text: 'Coloque no sistema o que a cliente pode comprar.', icon: 'restaurant_menu', route: 'catalogo/produtos', done: hasProducts },
-          { title: 'Cadastrar receitas', text: 'Mostre o que cada produto consome para enxergar custo, produção e estoque.', icon: 'receipt_long', route: 'receitas/receitas', done: hasRecipes },
+          { title: 'Cadastrar insumos e produtos comprados', text: 'Cadastre ingredientes, embalagens e produtos prontos que entram na operação.', icon: 'inventory_2', route: 'compras/itens', done: hasPurchaseItems },
+          { title: 'Cadastrar receitas', text: 'Monte as receitas usando os insumos e bases cadastradas.', icon: 'receipt_long', route: 'receitas/receitas', done: hasRecipes },
           { title: 'Registrar custos fixos', text: 'Inclua contas e compromissos que precisam entrar na rota.', icon: 'payments', route: 'financeiro/contas-pagar', done: hasCosts }
         ]
       },
@@ -2304,6 +2321,7 @@ Modules.Dashboard = (function () {
         shortTitle: 'Venda',
         text: 'Deixe a experiência pronta para a cliente entender, escolher e pedir.',
         steps: [
+          { title: 'Cadastrar produtos do cardápio', text: 'Agora coloque para venda os produtos que a cliente vai comprar.', icon: 'restaurant_menu', route: 'catalogo/produtos', done: hasProducts },
           { title: 'Organizar cardápio', text: 'Deixe produtos, categorias e destaques fáceis de comprar.', icon: 'menu_book', route: 'catalogo/produtos', done: hasProducts },
           { title: 'Configurar cardápio online', text: 'Use sua identidade, capa, logo e informações para vender com confiança.', icon: 'store', route: 'loja-online/template', done: hasStorefrontIdentity },
           { title: 'Conferir entrega e retirada', text: 'Garanta que a cliente saiba como e quando vai receber o pedido.', icon: 'local_shipping', route: 'loja-online/template', done: hasCheckout }

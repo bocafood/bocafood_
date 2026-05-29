@@ -1917,9 +1917,8 @@ Modules.Configuracoes = (function () {
     var compactInputStyle = inputStyle + 'max-width:132px;';
     var rows = list.map(function (ch, idx) {
       var system = _isSystemChannel(ch);
-      var payment = _channelPaymentMethodName(ch);
       return '<div class="channel-row" data-channel-row="' + idx + '" style="background:linear-gradient(180deg,#FFFFFF 0%,#FFFCF8 100%);border:1px solid #EADFD8;border-radius:14px;padding:13px 14px;box-shadow:0 10px 24px rgba(47,37,35,.045);display:flex;flex-direction:column;gap:12px;">' +
-        '<div class="channel-row-main" style="display:grid;grid-template-columns:minmax(180px,1fr) minmax(220px,1.12fr) minmax(210px,1fr) auto;gap:10px;align-items:end;">' +
+        '<div class="channel-row-main" style="display:grid;grid-template-columns:minmax(180px,1fr) minmax(220px,1.12fr) auto;gap:10px;align-items:end;">' +
           '<label style="min-width:0;">' +
             '<span style="' + labelStyle + '">Canal de venda</span>' +
             '<input id="ch-name-' + idx + '" type="text" value="' + _esc(ch.name || '') + '" placeholder="Ex.: Instagram, marketplace, app de entrega" ' + (system ? 'readonly' : '') + ' style="' + inputStyle + (system ? 'background:#FAF8F4;color:#6F6860;' : '') + '">' +
@@ -1928,15 +1927,11 @@ Modules.Configuracoes = (function () {
             '<span style="' + labelStyle + '">Categoria de entrada</span>' +
             '<select id="ch-income-category-' + idx + '" onchange="Modules.Configuracoes._createEntradaCategoryFromChannel(' + idx + ')" style="' + selectStyle + '">' + _entradaCategoryOptions(_channelIncomeCategoryId(ch) || _channelIncomeCategoryName(ch)) + '</select>' +
           '</label>' +
-          '<label style="min-width:0;">' +
-            '<span style="' + labelStyle + '">Forma de pagamento</span>' +
-            '<select id="ch-payment-method-' + idx + '" style="' + selectStyle + '">' + _channelPaymentMethodOptions(payment) + '</select>' +
-          '</label>' +
           (system ? '<span title="Canal fixo do BocaFood" style="width:38px;height:42px;border-radius:12px;background:#F0FAF4;color:#1F6F43;display:inline-flex;align-items:center;justify-content:center;"><span class="mi" style="font-size:18px;">lock</span></span>' : '<button class="bf-btn bf-btn-danger" type="button" onclick="Modules.Configuracoes._removeCanalVenda(' + idx + ')" title="Remover canal" style="width:38px;min-height:42px;height:42px;padding:0;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;">' +
             '<span class="mi" style="font-size:18px;">delete_outline</span>' +
           '</button>') +
         '</div>' +
-        '<div class="channel-row-costs" style="display:grid;grid-template-columns:minmax(92px,132px) minmax(104px,132px) minmax(0,1fr);gap:10px;align-items:end;">' +
+        '<div class="channel-row-costs" style="display:grid;grid-template-columns:minmax(92px,132px) minmax(104px,132px) minmax(118px,148px) minmax(0,1fr);gap:10px;align-items:end;">' +
           '<label style="min-width:0;">' +
             '<span style="' + labelStyle + '">Comissão %</span>' +
             '<input id="ch-commission-' + idx + '" type="text" value="' + _esc(_channelNumberText(ch.commissionPct)) + '" placeholder="0,00" style="' + compactInputStyle + '">' +
@@ -1945,7 +1940,11 @@ Modules.Configuracoes = (function () {
             '<span style="' + labelStyle + '">Taxa fixa</span>' +
             '<input id="ch-fixed-fee-' + idx + '" type="text" value="' + _esc(_channelNumberText(ch.fixedFee)) + '" placeholder="€ 0,00" style="' + compactInputStyle + '">' +
           '</label>' +
-          '<div style="align-self:center;color:#8A7E7C;font-size:11px;line-height:1.35;">Deixe zerado quando este canal não cobra comissão ou taxa por venda.</div>' +
+          '<label style="min-width:0;">' +
+            '<span style="' + labelStyle + '">Imposto comissão %</span>' +
+            '<input id="ch-tax-' + idx + '" type="text" value="' + _esc(_channelNumberText(ch.taxPct)) + '" placeholder="0,00" style="' + compactInputStyle + '">' +
+          '</label>' +
+          '<div style="align-self:center;color:#8A7E7C;font-size:11px;line-height:1.35;">Deixe zerado quando este canal não cobra comissão, taxa por venda ou imposto sobre a comissão.</div>' +
         '</div>' +
       '</div>';
     }).join('');
@@ -1953,7 +1952,7 @@ Modules.Configuracoes = (function () {
     var fixedChannelText = _isTpvEnabled() ? 'Cardápio e Venda presencial são canais fixos do BocaFood.' : 'Cardápio é um canal fixo do BocaFood. Venda presencial aparece aqui quando estiver ativada.';
     var emptyChannelText = _isTpvEnabled() ? 'Adicione apenas se sua loja vender por outro canal além do Cardápio e da Venda presencial.' : 'Adicione apenas se sua loja vender por outro canal além do Cardápio.';
     content.innerHTML = '<div style="display:flex;flex-direction:column;gap:16px;max-width:1040px;width:100%;margin:0 auto;">' +
-      '<style>@media(max-width:980px){.channel-row-main{grid-template-columns:1fr 1fr!important}.channel-row-main>label:nth-child(3){grid-column:1/-1}.channel-row-main>button,.channel-row-main>span[title]{justify-self:start}.channel-row-costs{grid-template-columns:minmax(92px,132px) minmax(104px,132px)!important}.channel-row-costs>div{grid-column:1/-1}}@media(max-width:640px){.channel-row-main,.channel-row-costs{grid-template-columns:1fr!important}.channel-row-main>label,.channel-row-costs>label,.channel-row-costs>div{grid-column:1/-1!important}.channel-row-costs input{max-width:100%!important}}</style>' +
+      '<style>@media(max-width:860px){.channel-row-main{grid-template-columns:1fr!important}.channel-row-main>button,.channel-row-main>span[title]{justify-self:start}.channel-row-costs{grid-template-columns:minmax(92px,132px) minmax(104px,132px) minmax(118px,148px)!important}.channel-row-costs>div{grid-column:1/-1}}@media(max-width:640px){.channel-row-main,.channel-row-costs{grid-template-columns:1fr!important}.channel-row-main>label,.channel-row-costs>label,.channel-row-costs>div{grid-column:1/-1!important}.channel-row-costs input{max-width:100%!important}}</style>' +
       '<section class="settings-card bf-card" style="background:linear-gradient(180deg,#FFFFFF 0%,#FFFCF9 100%);border:1px solid #EADFD8;border-radius:18px;padding:18px 20px;box-shadow:0 16px 38px rgba(47,37,35,.055);">' +
         '<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:14px;">' +
           '<span class="mi" style="width:34px;height:34px;border-radius:12px;background:#F8F1ED;color:#8F3E32;display:inline-flex;align-items:center;justify-content:center;font-size:19px;flex:0 0 auto;">storefront</span>' +
@@ -1982,18 +1981,13 @@ Modules.Configuracoes = (function () {
       var name = _val('ch-name-' + idx).trim().replace(/\s+/g, ' ');
       var prev = existing.find(function (ch) { return _normChannelName(ch.name) === _normChannelName(name); }) || {};
       var cat = _findEntradaCategory(_val('ch-income-category-' + idx));
-      var paymentMethod = _val('ch-payment-method-' + idx);
       return Object.assign({
         name: name,
         commissionPct: _parseChannelNumber(_val('ch-commission-' + idx)),
         fixedFee: _parseChannelNumber(_val('ch-fixed-fee-' + idx)),
-        taxPct: parseFloat(String(prev.taxPct || '0').replace(',', '.')) || 0,
+        taxPct: _parseChannelNumber(_val('ch-tax-' + idx)),
         minMarginPct: parseFloat(String(prev.minMarginPct || '0').replace(',', '.')) || 0,
         differentPrice: !!prev.differentPrice,
-        defaultPaymentMethod: paymentMethod,
-        paymentMethod: paymentMethod,
-        formaPagamentoPadrao: paymentMethod,
-        paymentMethodName: paymentMethod,
         locked: _isSystemChannel({ name: name }) || !!prev.locked
       }, _incomeCategoryFields(cat));
     }).filter(function (ch) { return !!ch.name; });
@@ -2109,11 +2103,6 @@ Modules.Configuracoes = (function () {
     return isFinite(n) ? n : 0;
   }
 
-  function _channelPaymentMethodName(channel) {
-    channel = channel || {};
-    return String(channel.defaultPaymentMethod || channel.paymentMethod || channel.formaPagamentoPadrao || channel.paymentMethodName || channel.formaPagamento || '').trim();
-  }
-
   function _globalFinanceConfigForSettings() {
     return ((_systemConfig || {}).globalFinance) || ((_masterTenantControl || {}).globalFinance) || ((_systemTenant || {}).globalFinance) || {};
   }
@@ -2213,25 +2202,6 @@ Modules.Configuracoes = (function () {
       if (ao !== bo) return ao - bo;
       return String(a.name).localeCompare(String(b.name));
     });
-  }
-
-  function _channelPaymentMethodOptions(selected) {
-    var current = String(selected || '').trim();
-    var methods = _paymentMethodListForSettings();
-    var currentAllowed = current && _paymentMethodCountryAllowed('', current);
-    if (currentAllowed && !methods.some(function (item) { return _paymentMethodKey(item.name) === _paymentMethodKey(current); })) {
-      methods.unshift({ name: current, active: false, legacy: true, order: -1 });
-    }
-    var html = '<option value="">Sem forma vinculada</option>';
-    html += methods.map(function (item) {
-      var selectedAttr = _paymentMethodKey(item.name) === _paymentMethodKey(current) ? ' selected' : '';
-      var extra = item.legacy ? ' (não listado no Financeiro)' : '';
-      return '<option value="' + _esc(item.name) + '"' + selectedAttr + '>' + _esc(item.name + extra) + '</option>';
-    }).join('');
-    if (!methods.length) {
-      html += '<option value="" disabled>Cadastre em Financeiro > Configurações</option>';
-    }
-    return html;
   }
 
   function _tpvFinancePaymentMethods(selected) {
