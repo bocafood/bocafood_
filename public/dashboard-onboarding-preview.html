@@ -53,7 +53,11 @@
     .welcome-modal{width:min(680px,100%);background:radial-gradient(circle at 8% 0%,rgba(180,35,24,.10),transparent 34%),linear-gradient(145deg,#fff 0%,#FFFDF9 58%,#FAF6EF 100%);border-radius:24px;box-shadow:0 30px 80px rgba(31,31,31,.24);overflow:hidden;border:1px solid #EAE4DA;position:relative}
     .welcome-modal:before{content:"";position:absolute;inset:0 0 auto;height:4px;background:linear-gradient(90deg,#B42318,#B6925E)}
     .welcome-point{border:1px solid rgba(234,228,218,.92);background:rgba(255,255,255,.76);border-radius:16px;padding:12px;display:flex;gap:10px;align-items:flex-start;box-shadow:0 10px 22px rgba(31,31,31,.035)}
-    @media(max-width:760px){.shell{grid-template-columns:1fr}.sidebar{display:none}.page{padding:16px}.onboarding-float{right:12px;bottom:12px;width:calc(100vw - 24px)}.onboarding-pill{right:12px;bottom:12px}.welcome-backdrop{padding:12px}.welcome-modal{border-radius:22px;max-height:calc(100dvh - 24px);overflow:auto}}
+    .guide-backdrop{position:fixed;inset:0;background:rgba(31,31,31,.18);z-index:96;display:none;align-items:center;justify-content:center;padding:18px}
+    .guide-modal{width:min(560px,calc(100vw - 28px));max-height:calc(100dvh - 28px);overflow:auto;background:linear-gradient(180deg,#fff 0%,#FFFEFB 100%);border:1px solid rgba(234,228,218,.95);border-radius:24px;box-shadow:0 26px 70px rgba(31,31,31,.22)}
+    .guide-tag{display:inline-flex;align-items:center;gap:7px;min-height:25px;padding:0 10px;border-radius:999px;background:#FFF7EC;border:1px solid #EFE1D0;color:#8A6F5A;font-size:11px;font-weight:750;letter-spacing:.03em;text-transform:uppercase}
+    .guide-detail{display:grid;grid-template-columns:minmax(108px,140px) 1fr;gap:8px;align-items:start;font-size:12.4px;line-height:1.42;border-radius:12px;padding:8px 9px;background:#FFFEFC;border:1px solid #F1ECE4}
+    @media(max-width:760px){.shell{grid-template-columns:1fr}.sidebar{display:none}.page{padding:16px}.onboarding-float{right:12px;bottom:12px;width:calc(100vw - 24px)}.onboarding-pill{right:12px;bottom:12px}.welcome-backdrop,.guide-backdrop{padding:12px;align-items:flex-end}.welcome-modal,.guide-modal{border-radius:22px;max-height:calc(100dvh - 24px);overflow:auto}.guide-detail{grid-template-columns:1fr;gap:3px}}
   </style>
 </head>
 <body>
@@ -201,16 +205,16 @@
         <button class="soft-btn" onclick="collapseOnboarding()" style="width:30px;height:30px;padding:0"><span class="mi">expand_more</span></button>
       </div>
       <div style="display:flex;align-items:center;gap:10px;margin-top:13px;"><div style="height:8px;border-radius:999px;background:#F1ECE4;overflow:hidden;flex:1;"><div style="height:100%;width:30%;background:#B42318;border-radius:999px;"></div></div><span style="font-size:12px;color:#1F1F1F;white-space:nowrap;">5/16</span></div>
-      <div style="margin-top:10px;border:1px solid #E8DCD7;background:#fff;border-radius:12px;padding:9px 10px;color:#5F5750;font-size:11.5px;line-height:1.35;">Abra cada passo quando estiver pronta. O checklist acompanha o que já foi feito e mostra a próxima parte da base.</div>
+      <div style="margin-top:10px;border:1px solid #E8DCD7;background:#fff;border-radius:12px;padding:9px 10px;color:#5F5750;font-size:11.5px;line-height:1.35;">Abra uma etapa para ver os detalhes. O checklist acompanha seu progresso e mostra o próximo passo.</div>
     </div>
     <div style="padding:10px;background:#fff;display:flex;flex-direction:column;gap:7px;">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 2px 3px;"><span style="font-size:11px;color:#8A6F5A;text-transform:uppercase;letter-spacing:.03em;">Etapa atual</span><span style="font-size:11px;color:#6F6860;">3/6</span></div>
-      <button class="step done"><span class="mi" style="width:28px;height:28px;border-radius:10px;background:#E8F7EE;color:#1F6F43;font-size:17px;flex:0 0 auto;">check_circle</span><span><strong>Preencher dados do negócio</strong><br><small>Nome, contato e endereço para deixar tudo identificado.</small></span></button>
-      <button class="step done"><span class="mi" style="width:28px;height:28px;border-radius:10px;background:#E8F7EE;color:#1F6F43;font-size:17px;flex:0 0 auto;">check_circle</span><span><strong>Criar canais de venda</strong><br><small>Mostre de onde os pedidos chegam: cardápio, balcão, Instagram ou outro canal.</small></span></button>
-      <button class="step done"><span class="mi" style="width:28px;height:28px;border-radius:10px;background:#E8F7EE;color:#1F6F43;font-size:17px;flex:0 0 auto;">check_circle</span><span><strong>Definir preço e margem</strong><br><small>Ajude o BocaFood a proteger sua sobra em cada venda.</small></span></button>
-      <button class="step"><span class="mi" style="width:28px;height:28px;border-radius:10px;background:#FAF8F4;color:#B42318;font-size:17px;flex:0 0 auto;">restaurant_menu</span><span><strong>Cadastrar produtos</strong><br><small>Coloque no sistema o que a cliente pode comprar.</small></span></button>
-      <button class="step"><span class="mi" style="width:28px;height:28px;border-radius:10px;background:#FAF8F4;color:#B42318;font-size:17px;flex:0 0 auto;">receipt_long</span><span><strong>Cadastrar receitas</strong><br><small>Mostre o que cada produto consome para enxergar custo, produção e estoque.</small></span></button>
-      <button class="step"><span class="mi" style="width:28px;height:28px;border-radius:10px;background:#FAF8F4;color:#B42318;font-size:17px;flex:0 0 auto;">payments</span><span><strong>Registrar custos fixos</strong><br><small>Inclua contas e compromissos que precisam entrar na rota.</small></span></button>
+      <button class="step done" onclick="openGuide('Preencher dados do negócio')"><span class="mi" style="width:28px;height:28px;border-radius:10px;background:#E8F7EE;color:#1F6F43;font-size:17px;flex:0 0 auto;">check_circle</span><span><strong>Preencher dados do negócio</strong><br><small>Nome, contato e endereço para deixar tudo identificado.</small></span></button>
+      <button class="step done" onclick="openGuide('Criar canais de venda')"><span class="mi" style="width:28px;height:28px;border-radius:10px;background:#E8F7EE;color:#1F6F43;font-size:17px;flex:0 0 auto;">check_circle</span><span><strong>Criar canais de venda</strong><br><small>Mostre de onde os pedidos chegam: cardápio, balcão, Instagram ou outro canal.</small></span></button>
+      <button class="step done" onclick="openGuide('Definir preço e margem')"><span class="mi" style="width:28px;height:28px;border-radius:10px;background:#E8F7EE;color:#1F6F43;font-size:17px;flex:0 0 auto;">check_circle</span><span><strong>Definir preço e margem</strong><br><small>Ajude o BocaFood a proteger sua sobra em cada venda.</small></span></button>
+      <button class="step" onclick="openGuide('Cadastrar produtos')"><span class="mi" style="width:28px;height:28px;border-radius:10px;background:#FAF8F4;color:#B42318;font-size:17px;flex:0 0 auto;">restaurant_menu</span><span><strong>Cadastrar produtos</strong><br><small>Coloque no sistema o que a cliente pode comprar.</small></span></button>
+      <button class="step" onclick="openGuide('Cadastrar receitas')"><span class="mi" style="width:28px;height:28px;border-radius:10px;background:#FAF8F4;color:#B42318;font-size:17px;flex:0 0 auto;">receipt_long</span><span><strong>Cadastrar receitas</strong><br><small>Mostre o que cada produto consome para enxergar custo, produção e estoque.</small></span></button>
+      <button class="step" onclick="openGuide('Registrar custos fixos')"><span class="mi" style="width:28px;height:28px;border-radius:10px;background:#FAF8F4;color:#B42318;font-size:17px;flex:0 0 auto;">payments</span><span><strong>Registrar custos fixos</strong><br><small>Inclua contas e compromissos que precisam entrar na rota.</small></span></button>
       <div style="border-top:1px solid #F1ECE4;margin-top:3px;padding-top:8px;display:flex;gap:6px;flex-wrap:wrap;">
         <span style="width:8px;height:8px;border-radius:999px;background:#B42318;display:inline-block"></span>
         <span style="width:8px;height:8px;border-radius:999px;background:#D8CEC3;display:inline-block"></span>
@@ -220,6 +224,37 @@
     </div>
   </section>
   <button id="onboarding-pill" class="onboarding-pill" onclick="expandOnboarding()"><span class="mi">rocket_launch</span>Base 5/16</button>
+
+  <div id="guide" class="guide-backdrop">
+    <section class="guide-modal">
+      <div style="padding:18px 20px;background:linear-gradient(135deg,#FFFDF8 0%,#FAF1E6 100%);display:flex;align-items:flex-start;justify-content:space-between;gap:14px;border-bottom:1px solid rgba(234,228,218,.72);">
+        <div>
+          <div class="guide-tag"><span style="width:6px;height:6px;border-radius:999px;background:#B6925E;display:inline-block"></span>Como preencher</div>
+          <h2 id="guide-title" style="font-size:22px;color:#1F1F1F;line-height:1.15;margin:8px 0 0;font-weight:780;">Cadastrar produtos</h2>
+          <p style="font-size:12.5px;color:#5F5750;line-height:1.45;margin:6px 0 0;">Caminho: tela correspondente no Painel BocaFood</p>
+        </div>
+        <button class="soft-btn" onclick="closeGuide()" style="width:34px;height:34px;padding:0;background:#fff"><span class="mi">close</span></button>
+      </div>
+      <div style="padding:17px 20px 18px;display:flex;flex-direction:column;gap:13px;">
+        <div style="display:flex;gap:11px;align-items:flex-start;border:1px solid #EFE6DA;background:#FFFEFC;border-radius:16px;padding:13px;">
+          <span class="mi" style="width:38px;height:38px;border-radius:14px;background:#F5EFE6;color:#8A6F5A;font-size:21px;">checklist</span>
+          <div><div style="font-size:13px;color:#1F1F1F;font-weight:780;line-height:1.25;">O que fazer nesta tela</div><div id="guide-intro" style="font-size:12.5px;color:#5F5750;line-height:1.5;margin-top:4px;">Veja o que precisa ficar pronto antes de avançar para o próximo passo.</div></div>
+        </div>
+        <div style="border:1px solid #EFE6DA;background:#fff;border-radius:16px;padding:12px 13px;">
+          <strong style="display:block;color:#1F1F1F;font-size:12px;margin-bottom:8px;">O que preencher ou conferir</strong>
+          <div id="guide-fields" style="display:flex;flex-direction:column;gap:7px;"></div>
+        </div>
+        <div style="background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;padding:12px 13px;color:#4F4741;font-size:12.5px;line-height:1.45;">
+          <strong style="display:block;color:#1F1F1F;font-size:12px;margin-bottom:3px;">Quando este passo está pronto</strong>
+          <span id="guide-ready">Quando as principais informações estão salvas e fazem sentido para a rotina.</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+          <button class="soft-btn" onclick="closeGuide()" style="height:38px;">Fechar</button>
+          <button class="soft-btn" onclick="closeGuide()" style="height:38px;border:none;background:#B42318;color:#fff;">Abrir tela</button>
+        </div>
+      </div>
+    </section>
+  </div>
 
   <script>
     function collapseOnboarding(){
@@ -233,6 +268,25 @@
     function startWelcomeTour(){
       document.getElementById('welcome').style.display='none';
       document.getElementById('onboarding').style.display='block';
+    }
+    function openGuide(title){
+      var data = {
+        'Preencher dados do negócio': ['Aqui ficam nome, contato e endereço principal do negócio.', [['Nome', 'Use o nome que a cliente reconhece.'], ['Contato', 'Informe WhatsApp, telefone e e-mail reais.'], ['Endereço', 'Complete o que a busca não preencher.']], 'Quando nome, contato e endereço estão salvos.'],
+        'Criar canais de venda': ['Mostre por onde chegam os pedidos e quais canais cobram taxa.', [['Canal', 'Mantenha só os canais que o negócio usa.'], ['Comissão', 'Se não cobra, deixe zerado.'], ['Categoria financeira', 'Escolha onde o dinheiro aparece no financeiro.']], 'Quando os canais reais estão salvos.'],
+        'Definir preço e margem': ['Configure a base para proteger a sobra em cada venda.', [['Margem', 'Informe quanto precisa sobrar.'], ['Taxas', 'Inclua o que realmente pesa no preço.'], ['Canais', 'Confira canais com comissão.']], 'Quando a regra ajuda a formar preço sem esquecer custo.'],
+        'Cadastrar produtos': ['Cadastre o que a cliente pode comprar no cardápio.', [['Nome e categoria', 'Use nomes claros e grupos fáceis.'], ['Preço', 'Informe o valor que a cliente paga.'], ['Opções', 'Cadastre sabores, tamanhos e adicionais quando existirem.']], 'Quando os principais produtos têm nome, preço e categoria.'],
+        'Cadastrar receitas': ['Mostre o que cada produção usa para entender custo e rendimento.', [['Rendimento', 'Informe quanto a receita rende.'], ['Ingredientes', 'Adicione quantidade e unidade.'], ['Custo', 'Confira se os insumos têm valor.']], 'Quando as principais receitas têm rendimento e ingredientes.'],
+        'Registrar custos fixos': ['Inclua contas e compromissos que entram na rota do negócio.', [['Descrição', 'Use um nome fácil de reconhecer.'], ['Valor', 'Informe em moeda.'], ['Vencimento', 'Coloque a data de pagamento.']], 'Quando os principais compromissos estão registrados.']
+      };
+      var item = data[title] || ['Veja o que precisa ficar pronto antes de avançar.', [['Campos principais', 'Preencha com informações reais do negócio.']], 'Quando a tela estiver salva.'];
+      document.getElementById('guide-title').textContent = title;
+      document.getElementById('guide-intro').textContent = item[0];
+      document.getElementById('guide-ready').textContent = item[2];
+      document.getElementById('guide-fields').innerHTML = item[1].map(function(row){ return '<div class="guide-detail"><span style="color:#1F1F1F;font-weight:760;">'+row[0]+'</span><span style="color:#5F5750;">'+row[1]+'</span></div>'; }).join('');
+      document.getElementById('guide').style.display = 'flex';
+    }
+    function closeGuide(){
+      document.getElementById('guide').style.display='none';
     }
   </script>
 </body>

@@ -175,7 +175,10 @@ Modules.Dashboard = (function () {
       '.dash-welcome-point{border:1px solid rgba(234,228,218,.92);background:rgba(255,255,255,.76);border-radius:16px;padding:12px;display:flex;gap:10px;align-items:flex-start;box-shadow:0 10px 22px rgba(31,31,31,.035);}' +
       '.dash-tour-tag{display:inline-flex;align-items:center;gap:7px;min-height:25px;padding:0 10px;border-radius:999px;background:#FFF7EC;border:1px solid #EFE1D0;color:#8A6F5A;font-size:11px;font-weight:750;letter-spacing:.03em;text-transform:uppercase;}' +
       '.dash-tour-detail{display:grid;grid-template-columns:minmax(98px,128px) 1fr;gap:8px;align-items:start;font-size:12px;line-height:1.38;border-radius:11px;padding:7px 8px;background:#FFFEFC;}' +
-      '@media(max-width:760px){.dash-onboarding-float{right:12px;bottom:12px;width:calc(100vw - 24px);}.dash-onboarding-pill{right:12px;bottom:12px;}.dash-tour-backdrop,.dash-welcome-backdrop{align-items:flex-end;padding:12px;}.dash-tour-modal,.dash-welcome-modal{border-radius:22px;max-height:calc(100dvh - 24px);overflow:auto;}}';
+      '.dash-checklist-backdrop{position:fixed;inset:0;background:rgba(31,31,31,.18);z-index:92;display:flex;align-items:center;justify-content:center;padding:18px;}' +
+      '.dash-checklist-modal{width:min(560px,calc(100vw - 28px));max-height:calc(100dvh - 28px);overflow:auto;background:linear-gradient(180deg,#fff 0%,#FFFEFB 100%);border:1px solid rgba(234,228,218,.95);border-radius:24px;box-shadow:0 26px 70px rgba(31,31,31,.22);}' +
+      '.dash-checklist-detail{display:grid;grid-template-columns:minmax(108px,140px) 1fr;gap:8px;align-items:start;font-size:12.4px;line-height:1.42;border-radius:12px;padding:8px 9px;background:#FFFEFC;border:1px solid #F1ECE4;}' +
+      '@media(max-width:760px){.dash-onboarding-float{right:12px;bottom:12px;width:calc(100vw - 24px);}.dash-onboarding-pill{right:12px;bottom:12px;}.dash-tour-backdrop,.dash-welcome-backdrop,.dash-checklist-backdrop{align-items:flex-end;padding:12px;}.dash-tour-modal,.dash-welcome-modal,.dash-checklist-modal{border-radius:22px;max-height:calc(100dvh - 24px);overflow:auto;}.dash-checklist-detail{grid-template-columns:1fr;gap:3px;}}';
     document.head.appendChild(style);
   }
 
@@ -333,7 +336,7 @@ Modules.Dashboard = (function () {
     _ensureOnboardingRemoteLoaded();
     _ensureGlobalOnboardingStyles();
     var vm = _buildModel();
-    var html = _welcomeModal(vm) + _onboarding(vm);
+    var html = _welcomeModal(vm) + _onboarding(vm) + _checklistGuideModal();
     _setTourScrollLock(false);
     if (!html) {
       _setTourScrollLock(false);
@@ -347,6 +350,7 @@ Modules.Dashboard = (function () {
       document.body.appendChild(root);
     }
     root.innerHTML = _safeHtml(html);
+    _setTourScrollLock(!!_activeChecklistGuide());
     _applyTourHighlight();
   }
 
@@ -547,12 +551,12 @@ Modules.Dashboard = (function () {
           '<button type="button" onclick="Modules.Dashboard._collapseOnboarding()" style="width:30px;height:30px;border:none;background:rgba(255,255,255,.7);border-radius:10px;color:#6F6860;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;"><span class="mi" style="font-size:18px;">expand_more</span></button>' +
         '</div>' +
         '<div style="display:flex;align-items:center;gap:10px;margin-top:13px;"><div style="height:8px;border-radius:999px;background:#F1ECE4;overflow:hidden;flex:1;"><div style="height:100%;width:' + pct + '%;background:#B42318;border-radius:999px;"></div></div><span style="font-size:12px;color:#1F1F1F;white-space:nowrap;">' + done + '/' + total + '</span></div>' +
-        '<div style="margin-top:10px;border:1px solid #E8DCD7;background:#fff;border-radius:12px;padding:9px 10px;color:#5F5750;font-size:11.5px;line-height:1.35;">Abra cada passo quando estiver pronta. O checklist acompanha o que já foi feito e mostra a próxima parte da base.</div>' +
+        '<div style="margin-top:10px;border:1px solid #E8DCD7;background:#fff;border-radius:12px;padding:9px 10px;color:#5F5750;font-size:11.5px;line-height:1.35;">Abra uma etapa para ver os detalhes. O checklist acompanha seu progresso e mostra o próximo passo.</div>' +
       '</div>' +
       '<div style="padding:10px;background:#fff;display:flex;flex-direction:column;gap:7px;">' +
           '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 2px 3px;"><span style="font-size:11px;color:#8A6F5A;text-transform:uppercase;letter-spacing:.03em;">Etapa atual</span><span style="font-size:11px;color:#6F6860;">' + phaseDone + '/' + phaseSteps.length + '</span></div>' +
-          phaseSteps.map(function (step) {
-            return '<button type="button" onclick="Router.navigate(\'' + _esc(step.route) + '\')" class="dash-action" style="text-align:left;border:1px solid ' + (step.done ? '#D9F2E3' : '#EAE4DA') + ';background:' + (step.done ? '#F4FBF6' : '#fff') + ';border-radius:13px;padding:10px;display:flex;gap:9px;align-items:flex-start;cursor:pointer;font-family:inherit;min-width:0;">' +
+          phaseSteps.map(function (step, idx) {
+            return '<button type="button" onclick="Modules.Dashboard._openChecklistGuide(\'' + _esc((phase && phase.key) || '') + '\',' + idx + ')" class="dash-action" style="text-align:left;border:1px solid ' + (step.done ? '#D9F2E3' : '#EAE4DA') + ';background:' + (step.done ? '#F4FBF6' : '#fff') + ';border-radius:13px;padding:10px;display:flex;gap:9px;align-items:flex-start;cursor:pointer;font-family:inherit;min-width:0;">' +
               '<span class="mi" style="width:28px;height:28px;border-radius:10px;background:' + (step.done ? '#E8F7EE' : '#FAF8F4') + ';color:' + (step.done ? '#1F6F43' : '#B42318') + ';font-size:17px;flex:0 0 auto;">' + (step.done ? 'check_circle' : step.icon) + '</span>' +
               '<span style="min-width:0;"><strong style="display:block;font-size:12px;color:#1F1F1F;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(step.title) + '</strong><span style="display:block;font-size:11px;color:#6F6860;line-height:1.3;margin-top:2px;">' + _esc(step.text) + '</span></span>' +
             '</button>';
@@ -954,6 +958,349 @@ Modules.Dashboard = (function () {
       '<span class="mi" style="width:34px;height:34px;border-radius:12px;background:#F5EFE6;color:#8A6F5A;display:flex;align-items:center;justify-content:center;font-size:19px;flex:0 0 auto;">' + _esc(icon) + '</span>' +
       '<div style="min-width:0;"><div style="font-size:13px;color:#1F1F1F;font-weight:780;line-height:1.2;">' + _esc(title) + '</div><div style="font-size:12px;color:#5F5750;line-height:1.42;margin-top:4px;">' + _esc(text) + '</div></div>' +
     '</div>';
+  }
+
+  function _activeChecklistGuide() {
+    var raw = '';
+    try { raw = window.localStorage ? localStorage.getItem('boca_dashboard_checklist_guide') : ''; } catch (err) {}
+    if (!raw) return null;
+    var parts = String(raw).split(':');
+    var phaseKey = parts[0] || '';
+    var index = parseInt(parts[1] || '0', 10);
+    var phases = _onboardingSteps();
+    var phase = phases.filter(function (p) { return p && p.key === phaseKey; })[0] || null;
+    if (!phase || !Array.isArray(phase.steps)) return null;
+    var step = phase.steps[index] || null;
+    if (!step) return null;
+    return { phase: phase, step: step, index: index, guide: _checklistGuideForStep(step, phase) };
+  }
+
+  function _checklistGuideModal() {
+    var active = _activeChecklistGuide();
+    if (!active || !active.guide) return '';
+    var guide = active.guide;
+    var fields = Array.isArray(guide.fields) ? guide.fields : [];
+    var actions = Array.isArray(guide.actions) ? guide.actions : [];
+    return '<div id="dash-checklist-guide" class="dash-checklist-backdrop">' +
+      '<section class="dash-checklist-modal">' +
+        '<div style="padding:18px 20px;background:linear-gradient(135deg,#FFFDF8 0%,#FAF1E6 100%);display:flex;align-items:flex-start;justify-content:space-between;gap:14px;border-bottom:1px solid rgba(234,228,218,.72);">' +
+          '<div style="min-width:0;">' +
+            '<div class="dash-tour-tag"><span aria-hidden="true" style="width:6px;height:6px;border-radius:999px;background:#B6925E;display:inline-block;"></span>Como preencher</div>' +
+            '<h2 style="font-size:22px;color:#1F1F1F;line-height:1.15;margin:8px 0 0;font-weight:780;">' + _esc(guide.title || active.step.title) + '</h2>' +
+            '<p style="font-size:12.5px;color:#5F5750;line-height:1.45;margin:6px 0 0;">' + _esc(guide.path || '') + '</p>' +
+          '</div>' +
+          '<button type="button" onclick="Modules.Dashboard._closeChecklistGuide()" aria-label="Fechar" style="width:34px;height:34px;border:none;background:#fff;border-radius:12px;color:#6F6860;cursor:pointer;display:flex;align-items:center;justify-content:center;"><span class="mi" style="font-size:19px;">close</span></button>' +
+        '</div>' +
+        '<div style="padding:17px 20px 18px;display:flex;flex-direction:column;gap:13px;">' +
+          '<div style="display:flex;gap:11px;align-items:flex-start;border:1px solid #EFE6DA;background:#FFFEFC;border-radius:16px;padding:13px;">' +
+            '<span class="mi" style="width:38px;height:38px;border-radius:14px;background:#F5EFE6;color:#8A6F5A;display:flex;align-items:center;justify-content:center;font-size:21px;flex:0 0 auto;">' + _esc(guide.icon || active.step.icon || 'checklist') + '</span>' +
+            '<div style="min-width:0;"><div style="font-size:13px;color:#1F1F1F;font-weight:780;line-height:1.25;">O que fazer nesta tela</div><div style="font-size:12.5px;color:#5F5750;line-height:1.5;margin-top:4px;">' + _esc(guide.intro || '') + '</div></div>' +
+          '</div>' +
+          '<div style="border:1px solid #EFE6DA;background:#fff;border-radius:16px;padding:12px 13px;">' +
+            '<strong style="display:block;color:#1F1F1F;font-size:12px;margin-bottom:8px;">O que preencher ou conferir</strong>' +
+            '<div style="display:flex;flex-direction:column;gap:7px;">' + fields.map(function (detail) {
+              return '<div class="dash-checklist-detail"><span style="color:#1F1F1F;font-weight:760;">' + _esc(detail[0]) + '</span><span style="color:#5F5750;">' + _esc(detail[1]) + '</span></div>';
+            }).join('') + '</div>' +
+          '</div>' +
+          '<div style="border:1px solid #EFE6DA;background:#FFFEFC;border-radius:16px;padding:12px 13px;">' +
+            '<strong style="display:block;color:#1F1F1F;font-size:12px;margin-bottom:8px;">Como fazer sem se perder</strong>' +
+            '<div style="display:flex;flex-direction:column;gap:7px;">' + actions.map(function (item) {
+              return '<div style="display:flex;gap:8px;align-items:flex-start;color:#4F4741;font-size:12.5px;line-height:1.42;"><span class="mi" style="font-size:16px;color:#B6925E;flex:0 0 auto;margin-top:1px;">check_circle</span><span>' + _esc(item) + '</span></div>';
+            }).join('') + '</div>' +
+          '</div>' +
+          '<div style="background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;padding:12px 13px;color:#4F4741;font-size:12.5px;line-height:1.45;">' +
+            '<strong style="display:block;color:#1F1F1F;font-size:12px;margin-bottom:3px;">Quando este passo está pronto</strong>' + _esc(guide.ready || 'Quando as principais informações estiverem salvas e fizerem sentido para a rotina do negócio.') +
+          '</div>' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">' +
+            '<button type="button" onclick="Modules.Dashboard._closeChecklistGuide()" class="dash-soft-btn" style="height:38px;padding:0 13px;border:1px solid #EAE4DA;background:#fff;color:#1F1F1F;border-radius:12px;font-size:12px;font-weight:750;cursor:pointer;font-family:inherit;">Fechar</button>' +
+            '<button type="button" onclick="Modules.Dashboard._openChecklistGuideRoute()" class="dash-soft-btn" style="height:38px;padding:0 14px;border:none;background:#B42318;color:#fff;border-radius:12px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;">Abrir tela</button>' +
+          '</div>' +
+        '</div>' +
+      '</section>' +
+    '</div>';
+  }
+
+  function _openChecklistGuide(phaseKey, index) {
+    try {
+      if (window.localStorage) localStorage.setItem('boca_dashboard_checklist_guide', String(phaseKey || '') + ':' + String(index || 0));
+    } catch (err) {}
+    _writeLocalOnboardingState({ version: ONBOARDING_VERSION, welcomeSeen: true, tourOpen: false, tourDone: true, collapsed: false }, { action: 'checklist_guide_opened' });
+    _renderGlobalOnboarding();
+  }
+
+  function _closeChecklistGuide() {
+    try { if (window.localStorage) localStorage.removeItem('boca_dashboard_checklist_guide'); } catch (err) {}
+    _setTourScrollLock(false);
+    _renderGlobalOnboarding();
+  }
+
+  function _openChecklistGuideRoute() {
+    var active = _activeChecklistGuide();
+    var route = active && active.step ? active.step.route : '';
+    _closeChecklistGuide();
+    if (!route) return;
+    if (window.Router && typeof Router.navigate === 'function') {
+      Router.navigate(route);
+    } else {
+      window.location.hash = '#' + route;
+    }
+    window.setTimeout(function () { _renderGlobalOnboarding(); }, 180);
+  }
+
+  function _checklistGuideForStep(step, phase) {
+    var title = String(step && step.title || '');
+    var base = {
+      title: title,
+      icon: step && step.icon,
+      path: 'Caminho: ' + ((phase && phase.title) || 'Primeiros passos'),
+      intro: 'Abra esta tela para deixar uma parte importante do negócio pronta antes de avançar.',
+      fields: [['Informações principais', 'Preencha os campos que descrevem esta parte do negócio.'], ['Salvar', 'Depois de revisar, salve e volte ao checklist para seguir.']],
+      actions: ['Leia os campos de cima para baixo.', 'Preencha apenas com informações reais do negócio.', 'Se algo ainda não existir, deixe para voltar depois em vez de inventar.'],
+      ready: 'Quando a tela estiver salva com informações reais e úteis para a operação.'
+    };
+    var guides = {
+      'Preencher dados do negócio': {
+        icon: 'badge',
+        path: 'Caminho: Configurações > Geral',
+        intro: 'Aqui você coloca os dados que identificam o negócio e aparecem em partes importantes do Painel BocaFood e da loja online.',
+        fields: [
+          ['Nome do negócio', 'Use o nome que a cliente reconhece. Ele precisa bater com a marca que aparece no cardápio online.'],
+          ['Contato', 'Informe WhatsApp, telefone e e-mail que realmente são usados no atendimento.'],
+          ['Endereço', 'Busque o endereço. O que vier automático fica preenchido; complete número, bairro, referência ou o que faltar.'],
+          ['Dados fiscais', 'Preencha apenas o que o negócio já usa hoje. Se ainda não tiver, volte depois.']
+        ],
+        actions: ['Comece pelo nome e contato.', 'Depois confira o endereço com calma, porque ele alimenta retirada, entrega e informações da loja.', 'Salve e veja se o nome aparece certo no topo do painel.'],
+        ready: 'Está pronto quando nome, contato e endereço principal estão salvos e representam o negócio corretamente.'
+      },
+      'Criar canais de venda': {
+        icon: 'storefront',
+        path: 'Caminho: Configurações > Canais de venda',
+        intro: 'Canais mostram por onde o pedido chega. Isso ajuda a entender onde vale vender mais e onde a taxa está pesando.',
+        fields: [
+          ['Nome do canal', 'Use nomes fáceis de reconhecer, como Cardápio, Instagram, WhatsApp, Balcão ou Marketplace.'],
+          ['Categoria financeira', 'Escolha onde o dinheiro desse canal aparece no financeiro. Exemplo: Vendas Cardápio ou Vendas Instagram.'],
+          ['Comissão', 'Preencha só se o canal cobra uma porcentagem. Se não cobra, deixe zerado.'],
+          ['Taxa fixa', 'Use quando existe um valor fixo por venda ou pedido. Se não existe, deixe zerado.'],
+          ['Forma de pagamento', 'Ligue o canal às formas de pagamento que a loja aceita por ali.']
+        ],
+        actions: ['Mantenha apenas canais que o negócio realmente usa.', 'Não invente taxa para preencher campo.', 'Salve e depois use esses canais ao criar pedidos e analisar performance.'],
+        ready: 'Está pronto quando os canais reais estão salvos com taxas corretas ou zeradas.'
+      },
+      'Definir preço e margem': {
+        icon: 'calculate',
+        path: 'Caminho: Preço e margem > Regras',
+        intro: 'Essa tela ajuda a proteger a sobra da venda. Ela mostra se o preço precisa considerar custo, taxa, imposto ou comissão.',
+        fields: [
+          ['Margem desejada', 'Informe quanto o negócio precisa sobrar depois dos custos principais.'],
+          ['Taxas e impostos', 'Preencha o que realmente entra no preço.'],
+          ['Canais com comissão', 'Confira se canais pagos, marketplace ou cartão estão considerados.'],
+          ['Arredondamento', 'Escolha como prefere deixar os preços mais bonitos para vender.']
+        ],
+        actions: ['Use uma margem que faça sentido para o negócio hoje.', 'Confira se produtos com comissão continuam dando sobra.', 'Salve antes de cadastrar muitos produtos, para ter uma base melhor.'],
+        ready: 'Está pronto quando a regra ajuda a formar preço sem deixar custo importante de fora.'
+      },
+      'Cadastrar produtos': {
+        icon: 'restaurant_menu',
+        path: 'Caminho: Cardápio > Produtos',
+        intro: 'Aqui entram os produtos que a cliente pode comprar. Quanto melhor o cadastro, melhor fica o cardápio, o pedido e a leitura de vendas.',
+        fields: [
+          ['Nome e categoria', 'Use nomes claros e coloque cada produto no grupo certo.'],
+          ['Preço', 'Informe o preço de venda que a cliente vai pagar.'],
+          ['Imagem', 'Use foto quando tiver. Se não tiver, deixe sem imagem até cadastrar uma boa.'],
+          ['Variações e opções', 'Cadastre sabores, tamanhos, adicionais ou escolhas de combo quando existirem.'],
+          ['Visibilidade', 'Deixe marcado apenas o que deve aparecer para venda.']
+        ],
+        actions: ['Comece pelos produtos que mais vende.', 'Confira preço e categoria antes de salvar.', 'Depois abra a loja online para ver se o card ficou fácil de comprar.'],
+        ready: 'Está pronto quando os principais produtos aparecem com nome, preço e categoria corretos.'
+      },
+      'Cadastrar receitas': {
+        icon: 'receipt_long',
+        path: 'Caminho: Produção > Receitas',
+        intro: 'Receitas mostram o que cada produção usa. Isso ajuda a entender custo, rendimento, compras, produção e estoque.',
+        fields: [
+          ['Produto ou base produzida', 'Escolha o que será produzido: massa, recheio, combo, produto pronto ou etapa de receita.'],
+          ['Rendimento', 'Informe quanto essa receita rende no final.'],
+          ['Ingredientes', 'Adicione o que entra na produção com quantidade e unidade.'],
+          ['Custo', 'Confira se os insumos têm custo para o cálculo fazer sentido.']
+        ],
+        actions: ['Cadastre primeiro as receitas que mais impactam a venda.', 'Use quantidades reais do preparo.', 'Salve e confira se o custo previsto parece próximo da realidade.'],
+        ready: 'Está pronto quando as receitas principais têm rendimento e ingredientes cadastrados.'
+      },
+      'Registrar custos fixos': {
+        icon: 'payments',
+        path: 'Caminho: Financeiro > Saídas',
+        intro: 'Aqui entram contas e compromissos que o negócio precisa pagar. Esses valores ajudam o Plano de Voo a mostrar quanto vender para fechar bem.',
+        fields: [
+          ['Descrição', 'Escreva o nome da conta de um jeito fácil de reconhecer.'],
+          ['Valor', 'Informe o valor real em moeda.'],
+          ['Vencimento', 'Coloque a data em que precisa pagar.'],
+          ['Categoria', 'Separe despesa, custo direto ou custo indireto conforme a natureza do gasto.'],
+          ['Recorrência', 'Marque quando a conta se repete todo mês.']
+        ],
+        actions: ['Comece pelas contas que não podem faltar, como aluguel, energia, internet e serviços.', 'Confira se o valor está em moeda e não em centavos.', 'Salve para que a rota anual use uma base mais real.'],
+        ready: 'Está pronto quando os principais compromissos do período estão registrados.'
+      },
+      'Criar Plano de Voo': {
+        icon: 'flight_takeoff',
+        path: 'Caminho: Crescimento > Plano de Voo',
+        intro: 'O Plano de Voo transforma a base do negócio em uma rota para o ano. Ele ajuda a escolher quanto vender, quantos pedidos buscar e qual esforço a rota pede.',
+        fields: [
+          ['Ticket médio', 'Confira o valor médio dos pedidos. Se ainda tiver poucos pedidos, use uma estimativa realista.'],
+          ['Vendas por canal', 'Use o desempenho atual como ponto de partida para a rota.'],
+          ['Custos e despesas', 'Confira se os valores que saem todo mês estão aparecendo corretamente.'],
+          ['Meses fortes e fracos', 'Ajuste os meses que vendem mais, vendem menos ou não serão trabalhados.'],
+          ['Cenário', 'Escolha a realidade que quer buscar: sobrevivência, segurança, crescimento ou lucro forte.']
+        ],
+        actions: ['Confira a base antes de escolher o cenário.', 'Selecione a rota que parece possível para o momento do negócio.', 'Salve e ative a rota para acompanhar depois.'],
+        ready: 'Está pronto quando existe uma rota ativa para guiar o ano ou o restante do ano.'
+      },
+      'Criar primeira Temporada': {
+        icon: 'event_available',
+        path: 'Caminho: Crescimento > Temporadas',
+        intro: 'A Temporada transforma a rota em jogadas de curto prazo. É aqui que o negócio decide o que fazer agora para avançar.',
+        fields: [
+          ['Objetivo', 'Escolha se a temporada vai vender mais, aumentar ticket, fidelizar ou melhorar consistência.'],
+          ['Estratégia', 'Escolha o caminho que combina com o objetivo.'],
+          ['Ritmo', 'Defina quantas jogadas o negócio consegue executar ao mesmo tempo.'],
+          ['Período', 'Use um período curto o bastante para acompanhar e corrigir.']
+        ],
+        actions: ['Escolha um objetivo que conversa com a rota ativa.', 'Não coloque mais ações do que consegue executar.', 'Depois acompanhe a aba Próxima Jogada.'],
+        ready: 'Está pronto quando existe uma temporada ativa com jogadas claras.'
+      },
+      'Organizar cardápio': {
+        icon: 'menu_book',
+        path: 'Caminho: Cardápio > Produtos',
+        intro: 'Organizar o cardápio deixa a compra mais fácil. A cliente precisa encontrar rápido o que quer pedir.',
+        fields: [
+          ['Categorias', 'Agrupe produtos de um jeito natural para a cliente.'],
+          ['Destaques', 'Use destaque em produtos importantes, sem transformar tudo em destaque.'],
+          ['Produtos ocultos', 'Confira se produtos indisponíveis não aparecem para venda.'],
+          ['Preços e opções', 'Veja se variações, combos e adicionais estão claros.']
+        ],
+        actions: ['Abra as categorias como se fosse uma cliente comprando.', 'Deixe os produtos mais importantes fáceis de encontrar.', 'Corrija nomes longos, preço errado ou opções confusas.'],
+        ready: 'Está pronto quando o cardápio está fácil de navegar e comprar.'
+      },
+      'Configurar cardápio online': {
+        icon: 'store',
+        path: 'Caminho: Loja online > Template da loja',
+        intro: 'Essa tela cuida da vitrine pública. Ela precisa passar confiança e explicar bem como comprar.',
+        fields: [
+          ['Identidade', 'Confira nome da loja, logo, capa, cores e apresentação curta.'],
+          ['Vitrine', 'Revise card principal, promoções, programa de pontos e avaliações.'],
+          ['Textos', 'Preencha sobre a loja, política de entrega, cancelamento e aviso importante quando existir.'],
+          ['Publicação', 'Confira o link e publique quando tudo estiver pronto.']
+        ],
+        actions: ['Use a cor da marca com leveza.', 'Revise no celular, porque muitas clientes vão comprar por lá.', 'Publique só depois de conferir produtos, entrega e pagamento.'],
+        ready: 'Está pronto quando a loja online mostra a marca, os produtos e as informações principais sem confundir.'
+      },
+      'Conferir entrega e retirada': {
+        icon: 'local_shipping',
+        path: 'Caminho: Loja online > Operação e Checkout',
+        intro: 'Entrega e retirada precisam deixar claro como a cliente recebe o pedido e quanto isso custa.',
+        fields: [
+          ['Modos de atendimento', 'Ative entrega, retirada ou os dois, conforme o negócio atende.'],
+          ['Endereço de retirada', 'Confira rua, número, bairro e referência quando houver.'],
+          ['Zonas e valores', 'Cadastre onde entrega, a partir de quanto e o valor da entrega.'],
+          ['Horários', 'Defina dias, períodos e antecedência para pedidos.'],
+          ['Pedido mínimo', 'Use quando precisa de valor mínimo para aceitar entrega.']
+        ],
+        actions: ['Teste como cliente: escolha entrega, depois retirada.', 'Confira se o carrinho mostra os campos certos em cada caso.', 'Ajuste horários antes de publicar.'],
+        ready: 'Está pronto quando a cliente consegue escolher entrega ou retirada sem dúvida.'
+      },
+      'Registrar primeira compra': {
+        icon: 'shopping_cart',
+        path: 'Caminho: Compras > Registros',
+        intro: 'Registrar compra mostra o que entrou, quanto custou e ajuda a alimentar estoque e custo.',
+        fields: [
+          ['Fornecedor', 'Informe de quem comprou quando souber.'],
+          ['Itens', 'Adicione insumos ou produtos comprados com quantidade, unidade e valor.'],
+          ['Pagamento', 'Informe forma, conta e vencimento quando fizer sentido.'],
+          ['Status', 'Marque se está comprado, recebido ou pendente.']
+        ],
+        actions: ['Registre a compra do jeito que ela veio na nota ou recibo.', 'Confira quantidade e valor antes de salvar.', 'Depois confirme o recebimento quando os itens entrarem de verdade.'],
+        ready: 'Está pronto quando a primeira compra está salva com itens e valores corretos.'
+      },
+      'Receber a compra no estoque': {
+        icon: 'inventory_2',
+        path: 'Caminho: Compras > Registros',
+        intro: 'Receber a compra confirma que os itens realmente chegaram. Isso separa compra planejada de item disponível.',
+        fields: [
+          ['Itens recebidos', 'Confira se chegou tudo ou se algum item veio diferente.'],
+          ['Quantidade recebida', 'Ajuste a quantidade real quando for diferente da compra.'],
+          ['Valor recebido', 'Confirme o valor em moeda.'],
+          ['Data do recebimento', 'Use a data em que os itens entraram.']
+        ],
+        actions: ['Abra a compra cadastrada.', 'Clique em confirmar recebimento.', 'Revise item por item antes de salvar.'],
+        ready: 'Está pronto quando a compra gerou entrada de estoque sem duplicar.'
+      },
+      'Receber primeiro pedido': {
+        icon: 'receipt_long',
+        path: 'Caminho: Pedidos > Lista ou Venda presencial',
+        intro: 'O pedido é o registro da venda. Ele alimenta cozinha, financeiro, cliente, estoque e leituras de crescimento.',
+        fields: [
+          ['Canal de venda', 'Escolha por onde o pedido chegou.'],
+          ['Cliente', 'Selecione cliente existente ou cadastre rápido quando precisar.'],
+          ['Produtos', 'Busque e adicione os itens vendidos, com variações e escolhas quando existirem.'],
+          ['Entrega ou retirada', 'Informe endereço, horário e taxa quando for entrega.'],
+          ['Pagamento', 'Escolha a forma de pagamento correta.']
+        ],
+        actions: ['Comece pelo canal e cliente.', 'Adicione produtos pela busca.', 'Confira total, entrega, descontos e forma de pagamento antes de salvar.'],
+        ready: 'Está pronto quando o primeiro pedido aparece na listagem com total e status corretos.'
+      },
+      'Acompanhar na cozinha': {
+        icon: 'room_service',
+        path: 'Caminho: Pedidos > Modo cozinha',
+        intro: 'A cozinha ajuda a acompanhar o preparo sem perder horário, endereço, observações e status.',
+        fields: [
+          ['Status', 'Avance o pedido conforme ele anda: pendente, preparo, saída, entregue ou retirado.'],
+          ['Itens', 'Confira produtos, quantidades, variações e observações.'],
+          ['Entrega ou retirada', 'Veja endereço, horário e contato quando precisar.'],
+          ['Checklist', 'Marque etapas internas para não esquecer nada.']
+        ],
+        actions: ['Abra o pedido no modo cozinha.', 'Confira itens antes de preparar.', 'Mude status só quando a etapa realmente acontecer.'],
+        ready: 'Está pronto quando os pedidos em andamento estão acompanhados até finalizar.'
+      },
+      'Conferir dinheiro da venda': {
+        icon: 'payments',
+        path: 'Caminho: Financeiro > Visão geral',
+        intro: 'Depois da venda, confira se o dinheiro entrou na conta certa e se taxas foram consideradas.',
+        fields: [
+          ['Entrada financeira', 'Veja se a venda criou entrada no financeiro.'],
+          ['Conta', 'Confira onde o dinheiro entrou: caixa, banco, Stripe ou venda presencial.'],
+          ['Forma de pagamento', 'Veja se dinheiro, cartão, PIX ou Stripe estão corretos.'],
+          ['Taxas', 'Confira se comissão ou taxa do canal foi registrada quando existir.']
+        ],
+        actions: ['Compare o total do pedido com a entrada financeira.', 'Corrija a forma de pagamento se estiver errada.', 'Use essa conferência para evitar caixa bagunçado.'],
+        ready: 'Está pronto quando a venda aparece no financeiro com valor e conta corretos.'
+      },
+      'Conferir estoque depois da venda': {
+        icon: 'inventory',
+        path: 'Caminho: Estoque > Itens',
+        intro: 'Essa conferência mostra se a venda, compra ou produção mexeu nos itens certos.',
+        fields: [
+          ['Saldo atual', 'Veja quanto ficou de cada item.'],
+          ['Movimentações', 'Confira entradas, saídas, ajustes e origem.'],
+          ['Produto produzido', 'Produtos ligados à produção baixam pelo vínculo correto.'],
+          ['Perdas ou estornos', 'Use quando um item precisa voltar ao estoque ou virar perda.']
+        ],
+        actions: ['Abra o item vendido.', 'Confira se a movimentação apareceu uma vez só.', 'Se faltar vínculo, ajuste o cadastro antes das próximas vendas.'],
+        ready: 'Está pronto quando as movimentações recentes explicam o saldo que aparece.'
+      },
+      'Olhar o crescimento da semana': {
+        icon: 'analytics',
+        path: 'Caminho: Crescimento > Performance',
+        intro: 'Performance mostra se o mês está seguindo a rota e quais sinais merecem atenção agora.',
+        fields: [
+          ['Rota ativa', 'Veja se existe Plano de Voo ativo para comparar o mês.'],
+          ['Vendas do mês', 'Confira vendido, ticket médio e pedidos por dia.'],
+          ['Temporadas', 'Veja se há uma jogada em andamento para melhorar o resultado.'],
+          ['Maturidade', 'Observe se o negócio está evoluindo de verdade, não só usando o sistema.']
+        ],
+        actions: ['Abra Performance no fim da semana.', 'Veja se o mês está dentro da rota.', 'Se estiver abaixo, abra Temporadas para escolher a próxima jogada.'],
+        ready: 'Está pronto quando a rotina já alimenta uma leitura clara de crescimento.'
+      }
+    };
+    return Object.assign(base, guides[title] || {});
   }
 
   function _tourModal() {
@@ -2179,6 +2526,9 @@ Modules.Dashboard = (function () {
     _startWelcomeTour: _startWelcomeTour,
     _openTour: _openTour,
     _openGuidedRoute: _openGuidedRoute,
+    _openChecklistGuide: _openChecklistGuide,
+    _closeChecklistGuide: _closeChecklistGuide,
+    _openChecklistGuideRoute: _openChecklistGuideRoute,
     _nextTourStep: _nextTourStep,
     _prevTourStep: _prevTourStep,
     _closeTour: _closeTour,
