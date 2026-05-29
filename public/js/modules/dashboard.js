@@ -10,6 +10,8 @@ Modules.Dashboard = (function () {
   var _onboardingLocalSeq = 0;
   var _onboardingPersistTimer = null;
   var _onboardingLastAction = '';
+  var _onboardingDataHooksInstalled = false;
+  var _onboardingRefreshTimer = null;
   var _data = {
     orders: [],
     products: [],
@@ -327,6 +329,7 @@ Modules.Dashboard = (function () {
       _removeGlobalOnboarding();
       return;
     }
+    _installOnboardingDataRefreshHooks();
     if (!_loaded) {
       _load().then(_renderGlobalOnboarding).catch(function (err) {
         console.warn('Dashboard onboarding load error', err);
@@ -352,6 +355,61 @@ Modules.Dashboard = (function () {
     root.innerHTML = _safeHtml(html);
     _setTourScrollLock(!!_activeChecklistGuide());
     _applyTourHighlight();
+  }
+
+  function _installOnboardingDataRefreshHooks() {
+    if (_onboardingDataHooksInstalled || !window.DB) return;
+    _onboardingDataHooksInstalled = true;
+    ['add', 'set', 'update', 'remove', 'setDocRoot'].forEach(function (method) {
+      if (!DB[method] || DB[method].__bocaOnboardingWrapped) return;
+      var original = DB[method];
+      var wrapped = function () {
+        var args = Array.prototype.slice.call(arguments);
+        var result = original.apply(DB, args);
+        if (result && typeof result.then === 'function') {
+          return result.then(function (value) {
+            if (!_isOnboardingOwnWrite(method, args)) _scheduleOnboardingDataRefresh();
+            return value;
+          });
+        }
+        if (!_isOnboardingOwnWrite(method, args)) _scheduleOnboardingDataRefresh();
+        return result;
+      };
+      wrapped.__bocaOnboardingWrapped = true;
+      wrapped.__bocaOriginal = original;
+      DB[method] = wrapped;
+    });
+  }
+
+  function _isOnboardingOwnWrite(method, args) {
+    if (method !== 'setDocRoot') return false;
+    var col = String((args && args[0]) || '');
+    var id = String((args && args[1]) || '');
+    return col === 'config' && id.indexOf('onboarding_dashboard_') === 0;
+  }
+
+  function _scheduleOnboardingDataRefresh() {
+    if (_onboardingRefreshTimer) window.clearTimeout(_onboardingRefreshTimer);
+    _onboardingRefreshTimer = window.setTimeout(function () {
+      _onboardingRefreshTimer = null;
+      _refreshOnboardingData();
+    }, 550);
+  }
+
+  function _refreshOnboardingData() {
+    if (!window.Auth || !Auth.getUser || !Auth.getUser()) return;
+    if (_loading) return;
+    _loaded = false;
+    _loadPromise = null;
+    _loading = false;
+    _load().then(function () {
+      _renderGlobalOnboarding();
+      if ((window.Router && Router.current && Router.current() === 'dashboard') || (window.location.hash || '').replace('#', '') === 'dashboard') {
+        _paint();
+      }
+    }).catch(function (err) {
+      console.warn('Dashboard onboarding refresh skipped', err && err.message ? err.message : err);
+    });
   }
 
   function _buildModel() {

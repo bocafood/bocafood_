@@ -5,6 +5,7 @@
 - Ajustei o checklist flutuante do Painel BocaFood para abrir uma janela de orientação antes de navegar para a tela.
 - Cada item agora mostra um guia no estilo `Como preencher`, com caminho da tela, campos que precisam atenção, passos práticos e critério para saber quando aquele bloco está pronto.
 - Troquei a microcopy do checklist para orientar a abertura das etapas com linguagem mais direta.
+- Adicionei atualização automática do checklist após salvamentos do painel, para os checks aparecerem sem recarregar a página.
 - Atualizei o preview do onboarding para demonstrar o comportamento de clicar no checklist e abrir o guia.
 - Impacto esperado: a usuária recebe explicação contextual no próprio fluxo de primeiros passos, sem depender de procurar a documentação separadamente.
 
