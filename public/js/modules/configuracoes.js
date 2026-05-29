@@ -1917,7 +1917,7 @@ Modules.Configuracoes = (function () {
     var rows = list.map(function (ch, idx) {
       var system = _isSystemChannel(ch);
       var payment = _channelPaymentMethodName(ch);
-      return '<div class="channel-row" data-channel-row="' + idx + '" style="display:grid;grid-template-columns:minmax(150px,1.05fr) minmax(190px,1.15fr) minmax(96px,.52fr) minmax(104px,.56fr) minmax(170px,1fr) 38px;gap:10px;align-items:end;background:linear-gradient(180deg,#FFFFFF 0%,#FFFCF8 100%);border:1px solid #EADFD8;border-radius:14px;padding:12px;box-shadow:0 10px 24px rgba(47,37,35,.045);">' +
+      return '<div class="channel-row" data-channel-row="' + idx + '" style="display:grid;grid-template-columns:minmax(170px,1.05fr) minmax(220px,1.15fr) minmax(118px,.54fr) minmax(128px,.58fr) minmax(210px,1fr) 38px;gap:10px;align-items:end;background:linear-gradient(180deg,#FFFFFF 0%,#FFFCF8 100%);border:1px solid #EADFD8;border-radius:14px;padding:12px;box-shadow:0 10px 24px rgba(47,37,35,.045);">' +
         '<label style="min-width:0;">' +
           '<span style="' + labelStyle + '">Canal de venda</span>' +
           '<input id="ch-name-' + idx + '" type="text" value="' + _esc(ch.name || '') + '" placeholder="Ex.: Instagram, marketplace, app de entrega" ' + (system ? 'readonly' : '') + ' style="' + inputStyle + (system ? 'background:#FAF8F4;color:#6F6860;' : '') + '">' +
@@ -1944,7 +1944,8 @@ Modules.Configuracoes = (function () {
       '</div>';
     }).join('');
     var content = document.getElementById('config-content');
-    content.innerHTML = '<div style="display:flex;flex-direction:column;gap:16px;max-width:980px;width:100%;margin:0 auto;">' +
+    content.innerHTML = '<div style="display:flex;flex-direction:column;gap:16px;max-width:1180px;width:100%;margin:0 auto;">' +
+      '<style>@media(max-width:1080px){.channel-row{grid-template-columns:repeat(2,minmax(0,1fr)) 38px!important}.channel-row>label:nth-child(1),.channel-row>label:nth-child(2),.channel-row>label:nth-child(5){grid-column:span 2}}@media(max-width:720px){.channel-row{grid-template-columns:1fr!important}.channel-row>label{grid-column:1/-1!important}.channel-row>button,.channel-row>span[title]{justify-self:start}}</style>' +
       '<section class="settings-card bf-card" style="background:linear-gradient(180deg,#FFFFFF 0%,#FFFCF9 100%);border:1px solid #EADFD8;border-radius:18px;padding:18px 20px;box-shadow:0 16px 38px rgba(47,37,35,.055);">' +
         '<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:14px;">' +
           '<span class="mi" style="width:34px;height:34px;border-radius:12px;background:#F8F1ED;color:#8F3E32;display:inline-flex;align-items:center;justify-content:center;font-size:19px;flex:0 0 auto;">storefront</span>' +

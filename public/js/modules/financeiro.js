@@ -120,6 +120,12 @@ Modules.Financeiro = (function () {
     if (raw === 'es' || raw === 'espana' || raw === 'españa' || raw === 'espanha' || raw === 'spain' || raw === 'es-es') return 'ES';
     return '';
   }
+  function _paymentCountryByName(name) {
+    var key = String(name || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ');
+    if (key === 'mb way' || key === 'mbway' || key === 'multibanco') return 'PT';
+    if (key === 'bizum') return 'ES';
+    return '';
+  }
   function _tenantFiscalCountry() {
     var profile = (window.Auth && Auth.getAdminProfile) ? (Auth.getAdminProfile() || {}) : {};
     var fromAuth = (window.Auth && Auth.getFiscalCountry) ? Auth.getFiscalCountry() : '';
@@ -379,11 +385,18 @@ Modules.Financeiro = (function () {
   }
   function _formasPag() {
     var raw=(_configFin.formas_pagamento && _configFin.formas_pagamento.length) ? _configFin.formas_pagamento : FORMAS_PAG_DEFAULT;
-    return raw.map(function(f){ return typeof f==='string'?f:(f&&f.nome)||''; }).filter(Boolean).sort(function(a,b){ return a.localeCompare(b); });
+    return raw.filter(function(f){ return _formaPagCountryOk(f); }).map(function(f){ return typeof f==='string'?f:(f&&f.nome)||''; }).filter(Boolean).sort(function(a,b){ return a.localeCompare(b); });
+  }
+  function _formaPagCountryOk(f) {
+    var name = typeof f === 'string' ? f : (f && (f.nome || f.name || f.label || f.tipoGlobalNome || f.tipo || ''));
+    var country = typeof f === 'string' ? '' : (f && (f.tipoGlobalCountry || f.countryFiscal || f.fiscalCountry || f.country || ''));
+    country = country || _paymentCountryByName(name);
+    return _globalTypeCountryOk(country, _tenantFiscalCountry());
   }
   function _formasPagFull(includeInactive) {
-    var raw=(_configFin.formas_pagamento && _configFin.formas_pagamento.length) ? _configFin.formas_pagamento : FORMAS_PAG_DEFAULT.map(function(n){ return {nome:n,tipo:'outro',ativo:true}; });
+    var raw=(_configFin.formas_pagamento && _configFin.formas_pagamento.length) ? _configFin.formas_pagamento : FORMAS_PAG_DEFAULT.map(function(n){ return {nome:n,tipo:'outro',ativo:true,tipoGlobalCountry:_paymentCountryByName(n)||'ambos'}; });
     return raw.map(function(f){ return typeof f==='string'?{nome:f,tipo:'outro',ativo:true}:Object.assign({ativo:true,tipo:'outro'},f||{}); })
+      .filter(function(f){ return _formaPagCountryOk(f); })
       .filter(function(f){ return includeInactive || f.ativo!==false; })
       .sort(function(a,b){ return String(a.nome||'').localeCompare(String(b.nome||'')); });
   }
@@ -424,7 +437,7 @@ Modules.Financeiro = (function () {
       out.name = out.name || out.nome || '';
       out.slug = out.slug || out.code || out.codigo || String(out.name || out.id).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').replace(/-{2,}/g, '-');
       out.order = out.order != null ? _parseNum(out.order) : _parseNum(out.ordem);
-      out.countryFiscal = out.countryFiscal || out.fiscalCountry || out.country || 'ambos';
+      out.countryFiscal = out.countryFiscal || out.fiscalCountry || out.country || _paymentCountryByName(out.name) || 'ambos';
       out.active = out.active !== false;
       if (kind === 'payment') {
         out.requiresBankAccount = !!(out.requiresBankAccount != null ? out.requiresBankAccount : out.exigeConta);
@@ -436,7 +449,7 @@ Modules.Financeiro = (function () {
     });
     if (!stored.length) {
       raw = (kind === 'payment' ? FORMAS_PAG_DEFAULT : TIPOS_CONTA).map(function (name, idx) {
-        var normalized = { id: name, name: name, slug: String(name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').replace(/-{2,}/g, '-'), order: (idx + 1) * 10, countryFiscal: 'ambos', active: true };
+        var normalized = { id: name, name: name, slug: String(name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').replace(/-{2,}/g, '-'), order: (idx + 1) * 10, countryFiscal: kind === 'payment' ? (_paymentCountryByName(name) || 'ambos') : 'ambos', active: true };
         if (kind === 'payment') normalized.requiresBankAccount = true;
         return normalized;
       });
