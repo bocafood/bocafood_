@@ -1,5 +1,11 @@
 # AI Changelog
 
+## 2026-05-29 — Cadastro mobile sem estouro lateral nas escolhas
+- Arquivos alterados: `public/cadastro.html`, `AI_CHANGELOG.md`.
+- Corrigi o comportamento mobile das opções de cadastro que apareciam cortadas para a direita nas etapas de loja, vendas, estrutura e momento.
+- As escolhas e réguas no celular agora ficam empilhadas, com texto alinhado à esquerda e quebra correta, evitando largura maior que a tela.
+- Impacto esperado: a página de cadastro fica legível no celular e deixa de parecer cortada ou deslocada horizontalmente.
+
 ## 2026-05-29 — Landing principal definida pela landing3
 - Arquivos alterados: `public/landing3.html`, `public/landing.html`, `public/index.html`, `tools/sync-landing-index.js`, `AI_CHANGELOG.md`.
 - Defini `public/landing3.html` como a nova landing principal do BocaFood.
