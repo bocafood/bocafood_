@@ -1180,11 +1180,12 @@ Modules.Dashboard = (function () {
           ['Categoria', 'Pense na categoria como uma pasta para encontrar o item depois. Use nomes do dia a dia do negócio, como Bebidas, Carnes, Ingredientes secos, Embalagens, Descartáveis ou Congelados.'],
           ['Unidade base', 'Escolha a unidade usada no custo e na receita, como kg, g, litro, ml ou unidade.'],
           ['Fornecedor padrão', 'Preencha com o fornecedor de quem você compra esse item com mais frequência. Isso deixa o registro de compra mais rápido depois.'],
+          ['Preço de compra base', 'Preencha uma primeira base de custo quando ainda não existe compra registrada. Depois que houver compras, esse campo vira custo médio automático e não deve ser alterado pelo cadastro do item.'],
           ['Embalagem de compra padrão', 'Informe como você costuma comprar esse item: saco, caixa, pacote, garrafa, bandeja ou unidade.'],
           ['Conteúdo por embalagem (×)', 'Informe quanto vem dentro dessa embalagem. Exemplo: saco com 5 kg, caixa com 12 unidades ou garrafa com 1 L.'],
           ['Estoque mínimo e máximo', 'Estoque mínimo é a quantidade que acende o alerta para comprar mais. Estoque máximo é a quantidade limite que vale a pena manter guardada para não comprar além do necessário.'],
           ['Cadastro ativo', 'Deixe ativo enquanto o item ainda é usado. Quando parar de usar, desative para manter o histórico organizado.'],
-          ['Custo atual e última compra', 'Esses campos são atualizados automaticamente pelo BocaFood quando você registra compras. Eles mostram o custo mais recente e a última compra encontrada para esse item.'],
+          ['Custo atual e última compra', 'Esses campos são atualizados automaticamente pelo BocaFood quando você registra compras. O custo atual passa a usar a média das compras do item.'],
           ['Pode ser usado em receitas', 'Marque quando o item entra nas receitas. Assim ele aparece como ingrediente e entra no custo de produção.'],
           ['Aproveitamento (%)', 'Use 100% quando tudo entra na receita. Se uma parte se perde, pese antes e depois de preparar. Exemplo: comprou 1 kg e aproveitou 800 g; 800 g é 80% de 1 kg, então preencha 80%.']
         ],

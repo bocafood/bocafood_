@@ -9903,3 +9903,13 @@
 - O cadastro de `Produto` em Compras agora fica focado em compra, custo e estoque do produto comprado pronto.
 - A documentação passou a orientar que, para vender esse item para a cliente, a usuária deve criar o produto em `Cardápio > Produtos` e vincular o produto comprado pronto como origem.
 - Impacto esperado: evitar confusão entre cadastro de item comprado e cadastro do produto de venda no cardápio.
+
+## 2026-05-30 — Compras: preço de compra base e custo médio
+- Arquivos alterados: `public/js/modules/compras.js`, `public/js/modules/dashboard.js`, `public/dashboard-onboarding-preview.html`, `public/js/modules/suporte.js`, `AI_CHANGELOG.md`.
+- Adicionei o campo `Preço de compra base` no modal `Novo/Editar Insumo/Produto Pronto`.
+- O valor salvo alimenta `custo_atual`, `preco_compra` e `purchasePrice`, mantendo uma referência inicial para receitas, margens, estoque e Plano de Voo antes de existir histórico de compras.
+- Quando o item já possui histórico de compra, o campo passa a aparecer como `Custo médio de compra`, fica bloqueado para edição manual e o salvamento do item não sobrescreve o custo calculado.
+- Ao salvar uma compra, o custo do item agora é atualizado pela média ponderada das compras válidas do produto/insumo, usando a quantidade convertida para unidade base.
+- A compra recém-salva entra imediatamente no recálculo da média, evitando depender de recarregamento da listagem.
+- Atualizei onboarding e documentação para explicar que o preço base é a primeira referência de custo e que, depois das compras registradas, o BocaFood passa a usar a média de compra.
+- Impacto esperado: dar base de custo confiável para o primeiro Plano de Voo e para os cálculos de receitas antes de haver histórico suficiente.

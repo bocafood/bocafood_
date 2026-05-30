@@ -2751,7 +2751,9 @@ Modules.Compras = (function () {
     var fornAtual = item.fornecedor_padrao_id ? (_byId(_fornecedores, item.fornecedor_padrao_id) || {}) : {};
     var fornOpts = _options(fornecedoresSorted, item.fornecedor_padrao_id, 'name', 'Sem fornecedor padrão');
     var imgSrc = item.imageBase64 || item.imageUrl || '';
-    var costText = item.custo_atual ? '€' + Number(item.custo_atual).toFixed(Number(item.custo_atual) < 0.01 ? 6 : 4) + '/' + _esc(item.unidade_base || '') : '-';
+    var itemBaseCost = _num(item.custo_atual != null ? item.custo_atual : (item.preco_compra != null ? item.preco_compra : item.purchasePrice));
+    var hasPurchaseCostHistory = _itemHasPurchaseCostHistory(item);
+    var costText = itemBaseCost ? '€' + Number(itemBaseCost).toFixed(Number(itemBaseCost) < 0.01 ? 6 : 4) + '/' + _esc(item.unidade_base || '') : '-';
     var lastPurchaseText = item.ultima_compra_data ? UI.fmtDate(new Date(item.ultima_compra_data)) : '-';
     var sectionTitle = 'font-size:13px;font-weight:800;color:#1F1F1F;line-height:1.25;margin-bottom:3px;';
     var sectionHint = 'font-size:12px;color:#8A7E7C;line-height:1.4;margin-bottom:11px;';
@@ -2760,7 +2762,7 @@ Modules.Compras = (function () {
       '.item-modal-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:14px;box-shadow:0 10px 24px rgba(31,31,31,.04);min-width:0;}' +
       '.item-modal-main,.item-modal-cost{grid-column:1/-1}.item-modal-usage{grid-column:1/-1}' +
       '.item-modal-head{display:flex;align-items:flex-start;gap:9px;margin-bottom:12px}.item-modal-head .mi{font-size:18px;color:#6F6860;line-height:1.2}' +
-      '.item-modal-grid{display:grid;gap:11px 12px;align-items:end}.item-modal-id-grid{grid-template-columns:minmax(150px,.38fr) minmax(320px,1fr) minmax(220px,.68fr)}.item-modal-tax-grid{grid-template-columns:minmax(210px,.62fr) minmax(250px,.78fr);justify-content:start;margin-top:11px}.item-modal-cost-grid{grid-template-columns:minmax(160px,.42fr) minmax(280px,.9fr);justify-content:start}.item-modal-pack-grid{grid-template-columns:minmax(190px,.55fr) minmax(140px,.36fr);justify-content:start}.item-modal-stock-grid{grid-template-columns:minmax(140px,.38fr) minmax(140px,.38fr);justify-content:start}.item-modal-metrics{display:grid;grid-template-columns:minmax(160px,.55fr) minmax(150px,.45fr) minmax(150px,.45fr);gap:12px;align-items:stretch;justify-content:start}' +
+      '.item-modal-grid{display:grid;gap:11px 12px;align-items:end}.item-modal-id-grid{grid-template-columns:minmax(150px,.38fr) minmax(320px,1fr) minmax(220px,.68fr)}.item-modal-tax-grid{grid-template-columns:minmax(210px,.62fr) minmax(250px,.78fr);justify-content:start;margin-top:11px}.item-modal-cost-grid{grid-template-columns:minmax(160px,.42fr) minmax(280px,.9fr) minmax(160px,.42fr);justify-content:start}.item-modal-pack-grid{grid-template-columns:minmax(190px,.55fr) minmax(140px,.36fr);justify-content:start}.item-modal-stock-grid{grid-template-columns:minmax(140px,.38fr) minmax(140px,.38fr);justify-content:start}.item-modal-metrics{display:grid;grid-template-columns:minmax(160px,.55fr) minmax(150px,.45fr) minmax(150px,.45fr);gap:12px;align-items:stretch;justify-content:start}' +
       '.item-modal-metric{background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;padding:10px 12px;box-shadow:0 1px 2px rgba(31,31,31,.03)}' +
       '.item-usage-grid{display:grid;grid-template-columns:minmax(250px,1fr) minmax(220px,.78fr);gap:12px;align-items:stretch;}' +
       '.item-usage-panel{background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;padding:12px;box-shadow:0 1px 2px rgba(31,31,31,.03);}' +
@@ -2773,6 +2775,7 @@ Modules.Compras = (function () {
       '.item-field-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;}' +
       '.item-inline-add{border:1px solid #E8DCD7;background:#fff;color:#B42318;border-radius:999px;height:24px;padding:0 9px;font-size:11px;font-weight:700;font-family:inherit;cursor:pointer;line-height:1;box-shadow:0 1px 2px rgba(31,31,31,.03);}' +
       '.supplier-field-control{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:6px;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease}.supplier-field-control:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08)}.supplier-field-control input,.supplier-field-control select,.supplier-field-control textarea{width:100%;min-height:36px;border:0;border-radius:8px;padding:0 8px;font-size:14px;font-family:inherit;outline:none;background:transparent;box-sizing:border-box;color:#1F1F1F;box-shadow:none}.supplier-field-control select{padding-right:42px;appearance:none;-webkit-appearance:none;-moz-appearance:none;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 16px center;background-size:14px}' +
+      '.supplier-field-control input:disabled{color:#6F6860;cursor:not-allowed;background:rgba(250,248,244,.82)}.item-auto-note{font-size:11px;color:#8A7E7C;line-height:1.35;margin-top:5px;}' +
       '@media(max-width:900px){.item-modal-usage,.item-modal-sale{grid-column:1/-1}.item-modal-id-grid,.item-modal-cost-grid,.item-modal-pack-grid,.item-modal-stock-grid{grid-template-columns:1fr 1fr}.item-modal-metrics{grid-template-columns:1fr}}@media(max-width:640px){.item-modal-body{grid-template-columns:1fr}.item-modal-card{grid-column:1/-1!important;padding:13px}.item-modal-id-grid,.item-modal-tax-grid,.item-modal-cost-grid,.item-modal-pack-grid,.item-modal-stock-grid,.item-usage-grid{grid-template-columns:1fr}}' +
       '</style>';
     var body = itemModalCss + '<div class="item-modal-body">' +
@@ -2790,7 +2793,7 @@ Modules.Compras = (function () {
       '</div>' +
       '<div class="item-modal-card item-modal-cost">' +
       '<div class="item-modal-head"><span class="mi">payments</span><div><div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;"><div style="' + sectionTitle + '">Compra e custo</div>' + (classeItem === 'produto' ? '' : '<button id="it-cost-help-btn" type="button" class="item-help-btn" onclick="Modules.Compras._toggleItemCostHelp()">Como preencher?</button>') + '</div>' +
-      '<div id="it-custo-hint" style="' + sectionHint + '">Defina como este item costuma ser comprado e qual fornecedor você usa com mais frequência.</div>' +
+      '<div id="it-custo-hint" style="' + sectionHint + '">Defina como este item costuma ser comprado, o fornecedor principal e uma primeira base de custo.</div>' +
       '</div></div>' +
       '<div id="it-cost-help" class="item-help-box" style="' + (classeItem === 'produto' ? 'display:none!important;' : '') + '">' +
         'Use esta parte para dizer como você costuma comprar esse item.<br><br>' +
@@ -2803,7 +2806,8 @@ Modules.Compras = (function () {
         '<strong>Exemplo preenchido:</strong><br>' +
         '• Unidade base: Quilograma (kg)<br>' +
         '• Embalagem de compra padrão: saco<br>' +
-        '• Conteúdo por embalagem (×): 5<br><br>' +
+        '• Conteúdo por embalagem (×): 5<br>' +
+        '• Preço de compra base: use uma primeira referência de custo quando ainda não existe compra registrada<br><br>' +
         'Se você compra por unidade, cadastre como unidade.<br>' +
         'Se compra por quilo, cadastre como kg.<br>' +
         'Se compra por litro, cadastre como litro.' +
@@ -2821,6 +2825,7 @@ Modules.Compras = (function () {
           '<div id="it-forn-dropdown" style="display:none;position:absolute;top:calc(100% + 2px);left:0;right:0;z-index:9999;background:#fff;border:1px solid #EAE4DA;border-radius:10px;max-height:220px;overflow-y:auto;box-shadow:0 12px 30px rgba(31,31,31,.12);"></div>' +
           '<select id="it-forn" style="display:none;"><option value="">Sem fornecedor padrão</option>' + fornOpts + '</select>' +
         '</div>' +
+        _itemPurchaseCostField(itemBaseCost, hasPurchaseCostHistory) +
       '</div>' +
       '<div class="item-modal-grid item-modal-pack-grid" style="margin-bottom:11px;">' +
       _searchablePackageField('it-emb-padrao', 'Embalagem de compra padrão', item.unidade_compra_padrao || '') +
@@ -3206,6 +3211,10 @@ Modules.Compras = (function () {
     if (minStock < 0) { UI.toast('Informe um estoque mínimo válido.', 'error'); return; }
     if (maxStock < 0) { UI.toast('Informe um estoque máximo válido.', 'error'); return; }
     if (minStock > 0 && maxStock > 0 && maxStock < minStock) { UI.toast('O estoque máximo não pode ser menor que o mínimo.', 'error'); return; }
+    var currentItem = _editingId ? (_byId(_itens, _editingId) || {}) : {};
+    var hasPurchaseCostHistory = _editingId ? _itemHasPurchaseCostHistory(currentItem) : false;
+    var baseCost = parseFloat((_el('it-base-cost').value || '0').replace(',', '.')) || 0;
+    if (!hasPurchaseCostHistory && baseCost < 0) { UI.toast('Informe um preço de compra base válido.', 'error'); return; }
     var data = {
       nome: nome,
       classe: classe,
@@ -3220,6 +3229,12 @@ Modules.Compras = (function () {
       estoque_minimo: minStock,
       estoque_maximo: maxStock
     };
+    if (!hasPurchaseCostHistory) {
+      data.custo_atual = baseCost;
+      data.preco_compra = baseCost;
+      data.purchasePrice = baseCost;
+      data.custo_informado_manual = baseCost;
+    }
     if (classe === 'insumo') {
       data.aproveitamento_padrao = parseFloat(_el('it-aprov').value || '100') || 100;
       data.usar_em_fichas = _el('it-fichas').checked;
@@ -4760,6 +4775,90 @@ Modules.Compras = (function () {
   }
 
   // Executa o save real da compra (desacoplado da UI)
+  function _isCompraValidForAverageCost(compra) {
+    var st = String((compra && (compra.statusCompra || compra.status || compra.estado)) || '').toLowerCase();
+    return st !== 'cancelada' && st !== 'cancelado' && st !== 'estornada' && st !== 'estornado';
+  }
+
+  function _lineAverageCostInfo(line) {
+    var qtyBase = _num(line && (line.qtyBase != null ? line.qtyBase : (line.quantidadeBase != null ? line.quantidadeBase : line.qtdBase)));
+    var unitCost = _num(line && (line.custoAjustado != null ? line.custoAjustado : (line.custoBaseUnitario != null ? line.custoBaseUnitario : (line.unitCost != null ? line.unitCost : line.custoUnitario))));
+    if (!(unitCost > 0)) {
+      var total = _num(line && (line.valorSemIva != null ? line.valorSemIva : (line.totalLiquido != null ? line.totalLiquido : line.totalLinha)));
+      if (!total) total = _lineTotal(line);
+      if (qtyBase > 0 && total > 0) unitCost = total / qtyBase;
+    }
+    return { qtyBase: qtyBase, unitCost: unitCost };
+  }
+
+  function _calculateAveragePurchaseCost(itemId, compras) {
+    var totalQty = 0;
+    var totalCost = 0;
+    var last = null;
+    (compras || []).filter(_isCompraValidForAverageCost).forEach(function (compra) {
+      (compra.itens || []).forEach(function (line) {
+        if (!line || line.itemId !== itemId) return;
+        var info = _lineAverageCostInfo(line);
+        if (!(info.qtyBase > 0) || !(info.unitCost > 0)) return;
+        totalQty += info.qtyBase;
+        totalCost += info.unitCost * info.qtyBase;
+        var date = compra.data || compra.purchaseDate || compra.createdAt || '';
+        if (!last || String(date || '') >= String(last.date || '')) {
+          last = {
+            date: date,
+            compraId: compra.id || '',
+            total: _lineTotal(line),
+            qtyBase: info.qtyBase,
+            embalagem: line.unidadeCompra || '',
+            conteudo: _num(line.conteudoPorEmbalagem) || 1
+          };
+        }
+      });
+    });
+    var average = totalQty > 0 ? totalCost / totalQty : 0;
+    return { average: average, totalQty: totalQty, last: last };
+  }
+
+  function _updateItemsAveragePurchaseCost(itemIds, currentCompraId, currentCompraData) {
+    var ids = Array.from(new Set((itemIds || []).filter(Boolean)));
+    if (!ids.length) return Promise.resolve();
+    return DB.getAll('compras').then(function (compras) {
+      var list = (compras || []).slice();
+      if (currentCompraId && currentCompraData) {
+        var currentCompra = Object.assign({}, currentCompraData, { id: currentCompraId });
+        var replaced = false;
+        list = list.map(function (compra) {
+          if (compra && compra.id === currentCompraId) {
+            replaced = true;
+            return currentCompra;
+          }
+          return compra;
+        });
+        if (!replaced) list.push(currentCompra);
+      }
+      return Promise.all(ids.map(function (itemId) {
+        var info = _calculateAveragePurchaseCost(itemId, list);
+        if (!(info.average > 0)) return Promise.resolve();
+        var upd = {
+          custo_atual: info.average,
+          preco_compra: info.average,
+          purchasePrice: info.average,
+          custo_medio_compra: info.average,
+          custo_medio_qtd_base: info.totalQty
+        };
+        if (info.last) {
+          upd.ultima_compra_data = info.last.date || '';
+          upd.ultima_compra_id = info.last.compraId || '';
+          upd.ultima_compra_total = info.last.total || 0;
+          upd.ultima_compra_qtd_base = info.last.qtyBase || 0;
+          upd.ultima_embalagem = info.last.embalagem || '';
+          upd.ultimo_conteudo = info.last.conteudo || 1;
+        }
+        return DB.update('itens_custo', itemId, upd);
+      }));
+    });
+  }
+
   function _doSaveCompra(compraData, savingId, total, mode) {
     if (_savingCompra) return;
     _savingCompra = true;
@@ -4781,21 +4880,15 @@ Modules.Compras = (function () {
         if (!compraId && ref && ref.id) compraId = ref.id;
         if (!compraId) throw new Error('Compra salva sem id retornado.');
         stage = 'itens';
-        var updates = (compraData.itens || []).map(function (l) {
-          var upd = {
-            custo_atual: l.custoAjustado,
-            preco_compra: l.custoAjustado,
-            ultima_compra_data: compraData.data,
-            ultima_compra_id: compraId,
-            ultima_compra_total: _lineTotal(l),
-            ultima_compra_qtd_base: l.qtyBase,
-            ultima_embalagem: l.unidadeCompra || '',
-            ultimo_conteudo: _num(l.conteudoPorEmbalagem) || 1
-          };
-          if (compraData.fornecedorId) upd.fornecedor_padrao_id = compraData.fornecedorId;
-          return DB.update('itens_custo', l.itemId, upd);
+        var itemIds = [];
+        var supplierUpdates = (compraData.itens || []).map(function (l) {
+          if (l && l.itemId) itemIds.push(l.itemId);
+          if (!l || !l.itemId || !compraData.fornecedorId) return Promise.resolve();
+          return DB.update('itens_custo', l.itemId, { fornecedor_padrao_id: compraData.fornecedorId });
         });
-        return Promise.all(updates);
+        return Promise.all(supplierUpdates).then(function () {
+          return _updateItemsAveragePurchaseCost(itemIds, compraId, compraData);
+        });
       }).then(function () {
         return null;
       }).then(function () {
@@ -5077,6 +5170,17 @@ Modules.Compras = (function () {
   }
   function _purchaseTextarea(id, label, value) {
     return '<div><label style="' + _labelStyle() + '">' + label + '</label><div class="purchase-field-control"><textarea id="' + id + '">' + _esc(value || '') + '</textarea></div></div>';
+  }
+  function _itemHasPurchaseCostHistory(item) {
+    item = item || {};
+    return !!item.ultima_compra_id || !!item.ultima_compra_data || _num(item.custo_medio_compra) > 0 || _num(item.custo_medio_qtd_base) > 0;
+  }
+  function _itemPurchaseCostField(value, hasHistory) {
+    var label = hasHistory ? 'Custo médio de compra' : 'Preço de compra base';
+    var note = hasHistory
+      ? 'Atualizado automaticamente pela média das compras registradas. Para corrigir este valor, ajuste a compra que gerou o custo.'
+      : 'Use como primeira referência antes de registrar compras. Depois, o BocaFood passa a usar a média das compras.';
+    return '<div><label style="' + _labelStyle() + '">' + label + '</label><div class="supplier-field-control"><input id="it-base-cost" type="number" step="0.01" value="' + _esc(value ? value : '') + '"' + (hasHistory ? ' disabled' : '') + '></div><div class="item-auto-note">' + _esc(note) + '</div></div>';
   }
   function _supplierField(id, label, value, type, oninput, placeholder) {
     return '<div><label style="' + _labelStyle() + '">' + label + '</label><div class="supplier-field-control"><input id="' + id + '" type="' + (type || 'text') + '" value="' + _esc(value == null ? '' : value) + '"' + (placeholder ? ' placeholder="' + _esc(placeholder) + '"' : '') + (oninput ? ' oninput="' + oninput + '"' : '') + '></div></div>';
