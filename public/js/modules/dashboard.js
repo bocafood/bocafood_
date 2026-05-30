@@ -1178,7 +1178,7 @@ Modules.Dashboard = (function () {
           ['Classe do item', 'Escolha Insumo para ingredientes, caixas, potes, sacos, etiquetas e outros itens usados no preparo, montagem ou entrega. Escolha Produto quando o item já chega pronto para vender, como bebida, doce de fornecedor ou produto revendido.'],
           ['Nome', 'Use um nome simples de procurar depois. Exemplos: Farinha de trigo, Caixa para bolo, Guaraná lata ou Brigadeiro fornecedor.'],
           ['Categoria', 'Pense na categoria como uma pasta para encontrar o item depois. Use nomes do dia a dia do negócio, como Bebidas, Carnes, Ingredientes secos, Embalagens, Descartáveis ou Congelados.'],
-          ['Unidade base', 'Escolha a unidade usada no custo e na receita, como kg, g, litro, ml ou unidade.'],
+          ['Unidade base', 'Escolha a unidade em que você compra e controla o custo desse item, como kg, g, litro, ml ou unidade. Se você compra batata por kg, use kg; se compra refrigerante por unidade, use unidade.'],
           ['Fornecedor padrão', 'Preencha com o fornecedor de quem você compra esse item com mais frequência. Isso deixa o registro de compra mais rápido depois.'],
           ['Preço de compra base', 'Preencha uma primeira base de custo quando ainda não existe compra registrada. Depois que houver compras, esse campo vira custo médio automático e não deve ser alterado pelo cadastro do item.'],
           ['Embalagem de compra padrão', 'Informe como você costuma comprar esse item: saco, caixa, pacote, garrafa, bandeja ou unidade.'],

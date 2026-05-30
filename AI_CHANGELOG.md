@@ -9907,9 +9907,11 @@
 ## 2026-05-30 — Compras: preço de compra base e custo médio
 - Arquivos alterados: `public/js/modules/compras.js`, `public/js/modules/dashboard.js`, `public/dashboard-onboarding-preview.html`, `public/js/modules/suporte.js`, `AI_CHANGELOG.md`.
 - Adicionei o campo `Preço de compra base` no modal `Novo/Editar Insumo/Produto Pronto`.
+- O campo passou a seguir o padrão de moeda, com prefixo `€`, entrada decimal e normalização visual no blur.
 - O valor salvo alimenta `custo_atual`, `preco_compra` e `purchasePrice`, mantendo uma referência inicial para receitas, margens, estoque e Plano de Voo antes de existir histórico de compras.
 - Quando o item já possui histórico de compra, o campo passa a aparecer como `Custo médio de compra`, fica bloqueado para edição manual e o salvamento do item não sobrescreve o custo calculado.
 - Ao salvar uma compra, o custo do item agora é atualizado pela média ponderada das compras válidas do produto/insumo, usando a quantidade convertida para unidade base.
 - A compra recém-salva entra imediatamente no recálculo da média, evitando depender de recarregamento da listagem.
 - Atualizei onboarding e documentação para explicar que o preço base é a primeira referência de custo e que, depois das compras registradas, o BocaFood passa a usar a média de compra.
+- Ajustei a explicação de `Unidade base` no onboarding/documentação para deixar claro que ela representa a unidade de compra usada como base de custo, estoque e receitas.
 - Impacto esperado: dar base de custo confiável para o primeiro Plano de Voo e para os cálculos de receitas antes de haver histórico suficiente.
