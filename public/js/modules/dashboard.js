@@ -1078,7 +1078,6 @@ Modules.Dashboard = (function () {
           '</div>' +
           '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">' +
             '<button type="button" onclick="Modules.Dashboard._closeChecklistGuide()" class="dash-soft-btn" style="height:38px;padding:0 13px;border:1px solid #EAE4DA;background:#fff;color:#1F1F1F;border-radius:12px;font-size:12px;font-weight:750;cursor:pointer;font-family:inherit;">Fechar</button>' +
-            '<button type="button" onclick="Modules.Dashboard._openChecklistGuideRoute()" class="dash-soft-btn" style="height:38px;padding:0 14px;border:none;background:#B42318;color:#fff;border-radius:12px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;">Abrir tela</button>' +
           '</div>' +
         '</div>' +
       '</section>' +
@@ -1174,15 +1173,24 @@ Modules.Dashboard = (function () {
       'Cadastrar insumos e produtos comprados': {
         icon: 'inventory_2',
         path: 'Caminho: Compras > Produtos / Insumos',
-        intro: 'Aqui entram os ingredientes, embalagens e produtos prontos que o negócio compra. Essa base vem antes da receita, porque a receita precisa saber o que entra na produção.',
+        intro: 'Aqui entram os ingredientes, materiais de embalagem e produtos prontos que o negócio compra. Nesta primeira etapa, não precisa cadastrar tudo: comece pelos itens dos produtos que mais vendem e pelos insumos necessários para montar 2 ou 3 receitas principais.',
         fields: [
-          ['Classe do item', 'Separe se é insumo, embalagem ou produto comprado pronto. Isso evita misturar ingrediente com produto de venda.'],
+          ['Classe do item', 'Escolha Insumo para ingredientes, caixas, potes, sacos, etiquetas e outros itens usados no preparo, montagem ou entrega. Escolha Produto quando o item já chega pronto para vender, como bebida, doce de fornecedor ou produto revendido.'],
+          ['Nome', 'Use um nome simples de procurar depois. Exemplos: Farinha de trigo, Caixa para bolo, Guaraná lata ou Brigadeiro fornecedor.'],
+          ['Categoria', 'Agrupe itens parecidos. Para materiais de entrega, use uma categoria como Embalagens ou Descartáveis.'],
           ['Unidade base', 'Escolha a unidade usada no custo e na receita, como kg, g, litro, ml ou unidade.'],
-          ['Custo atual', 'Informe quanto esse item custa hoje para que as receitas e margens tenham uma base real.'],
-          ['Fornecedor e categoria', 'Use quando souber de quem compra e em qual grupo esse item deve ficar.']
+          ['Fornecedor padrão', 'Preencha com o fornecedor de quem você compra esse item com mais frequência. Isso deixa o registro de compra mais rápido depois.'],
+          ['Embalagem de compra padrão', 'Informe como o item costuma vir: saco, caixa, pacote, garrafa, bandeja ou unidade.'],
+          ['Conteúdo por embalagem', 'Informe quanto vem dentro dessa embalagem. Exemplo: saco com 5 kg, caixa com 12 unidades ou garrafa com 1 L.'],
+          ['Estoque mínimo e máximo', 'Use para marcar quando precisa comprar mais e qual limite faz sentido manter guardado.'],
+          ['Cadastro ativo', 'Deixe ativo enquanto o item ainda é usado. Quando parar de usar, desative para manter o histórico organizado.'],
+          ['Custo atual e última compra', 'Esses valores ajudam a conferir se o custo está atualizado depois dos registros de compra.'],
+          ['Pode ser usado em receitas', 'Marque quando o item entra nas receitas. Assim ele aparece como ingrediente e entra no custo de produção.'],
+          ['Aproveitamento (%)', 'Use 100% quando tudo é aproveitado. Se existe perda ao limpar, cortar ou preparar, informe uma porcentagem menor.'],
+          ['Vender este item pronto', 'Use apenas em Produto, quando o item comprado já chega pronto para vender direto para a cliente.']
         ],
-        actions: ['Comece pelos ingredientes e embalagens mais usados.', 'Cadastre também produtos comprados prontos, se você vende ou usa algum item já pronto.', 'Depois use esses itens para montar receitas com custo mais confiável.'],
-        ready: 'Está pronto quando os principais insumos, embalagens e produtos comprados estão cadastrados com unidade e custo.'
+        actions: ['Comece pelos ingredientes e materiais de embalagem mais usados.', 'Cadastre também produtos comprados prontos, se você vende ou usa algum item já pronto.', 'Depois use esses itens para montar receitas com custo mais confiável.'],
+        ready: 'Está pronto quando os principais insumos, materiais de embalagem e produtos comprados estão cadastrados com unidade e custo.'
       },
       'Cadastrar receitas': {
         icon: 'receipt_long',
@@ -2300,7 +2308,7 @@ Modules.Dashboard = (function () {
           { title: 'Preencher dados do negócio', text: 'Nome, contato e endereço para deixar tudo identificado.', icon: 'badge', route: 'configuracoes/geral', done: !!(g.businessName && (g.phone || g.whatsapp || g.email)) },
           { title: 'Criar canais de venda', text: 'Mostre de onde os pedidos chegam: cardápio, balcão, Instagram ou outro canal.', icon: 'storefront', route: 'configuracoes/canais_venda', done: hasSalesChannels },
           { title: 'Definir preço e margem', text: 'Ajude o BocaFood a proteger sua sobra em cada venda.', icon: 'calculate', route: 'dinheiro/regras', done: hasPriceRules },
-          { title: 'Cadastrar insumos e produtos comprados', text: 'Cadastre ingredientes, embalagens e produtos prontos que entram na operação.', icon: 'inventory_2', route: 'compras/itens', done: hasPurchaseItems },
+          { title: 'Cadastrar insumos e produtos comprados', text: 'Cadastre ingredientes, materiais de embalagem e produtos prontos que entram na operação.', icon: 'inventory_2', route: 'compras/itens', done: hasPurchaseItems },
           { title: 'Cadastrar receitas', text: 'Monte as receitas usando os insumos e bases cadastradas.', icon: 'receipt_long', route: 'receitas/receitas', done: hasRecipes },
           { title: 'Registrar custos fixos', text: 'Inclua contas e compromissos que precisam entrar na rota.', icon: 'payments', route: 'financeiro/contas-pagar', done: hasCosts }
         ]

@@ -9844,3 +9844,23 @@
 - A documentação cobre pedido recebido, pedido manual, cliente no pedido, entrega/retirada, produtos e escolhas, pagamento, promoções/cupons/pontos/upsell, status, modo cozinha, detalhes do pedido, WhatsApp, avaliação, baixa de estoque, estorno/devolução/perda e clientes.
 - Cada bloco explica o caminho no Admin, por que importa para atendimento, cozinha, financeiro, estoque e crescimento, o que preencher, o que acontece depois, cuidados e como saber se está pronto.
 - Impacto esperado: ajudar a usuária a registrar e acompanhar pedidos completos, sem perder dados importantes do cliente, pagamento, entrega, estoque ou avaliação.
+
+## 2026-05-29 — Onboarding: Produtos / Insumos fiel ao cadastro
+- Arquivos alterados: `public/js/modules/dashboard.js`, `public/dashboard-onboarding-preview.html`, `public/js/modules/suporte.js`, `AI_CHANGELOG.md`.
+- Ajustei a copy do checklist e da documentação de `Compras > Produtos / Insumos` para refletir as classes reais do sistema: `Insumo` e `Produto`.
+- A orientação deixa claro que embalagem não é uma classe separada; caixas, potes, sacos, etiquetas e descartáveis devem ser cadastrados como insumo e organizados por categoria.
+- O “Como preencher” agora cobre os campos reais do modal `Novo Insumo/Produto Pronto`: classe, nome, categoria, unidade base, fornecedor padrão, embalagem de compra, conteúdo por embalagem, estoque mínimo/máximo, cadastro ativo, custo atual, última compra, uso em receitas, aproveitamento e venda de produto pronto.
+- Removi da ajuda desse modal a referência a dados fiscais, porque esses campos não aparecem nessa janela.
+- Impacto esperado: evitar orientação incorreta no onboarding e ajudar a usuária a cadastrar corretamente ingredientes, materiais de embalagem e produtos comprados antes de criar receitas.
+
+## 2026-05-30 — Onboarding: remover botão Abrir tela
+- Arquivos alterados: `public/js/modules/dashboard.js`, `public/dashboard-onboarding-preview.html`, `AI_CHANGELOG.md`.
+- Removi o botão `Abrir tela` do modal de explicação do checklist do onboarding.
+- Mantive o comportamento de abrir a tela correspondente ao clicar no card da etapa do checklist.
+- Impacto esperado: deixar o modal de orientação mais limpo e evitar uma ação duplicada dentro da explicação.
+
+## 2026-05-30 — Onboarding: primeira etapa de Produtos / Insumos
+- Arquivos alterados: `public/js/modules/dashboard.js`, `public/dashboard-onboarding-preview.html`, `AI_CHANGELOG.md`.
+- Ajustei a introdução do passo `Cadastrar insumos e produtos comprados` para deixar claro que a usuária não precisa cadastrar tudo no começo.
+- A orientação agora recomenda começar pelos itens dos produtos que mais vendem e pelos insumos necessários para montar 2 ou 3 receitas principais.
+- Impacto esperado: reduzir a sensação de tarefa grande no onboarding e guiar a usuária para uma base inicial suficiente para avançar.
