@@ -9914,4 +9914,6 @@
 - A compra recém-salva entra imediatamente no recálculo da média, evitando depender de recarregamento da listagem.
 - Atualizei onboarding e documentação para explicar que o preço base é a primeira referência de custo e que, depois das compras registradas, o BocaFood passa a usar a média de compra.
 - Ajustei a explicação de `Unidade base` no onboarding/documentação para deixar claro que ela representa a unidade de compra usada como base de custo, estoque e receitas.
+- Incluí uma orientação mais prática para `Conteúdo por embalagem (×)`, explicando qual número preencher quando a embalagem vem em kg, g, litro, ml ou unidades.
+- Removi os checkboxes sem ação da listagem `Produtos / Insumos cadastrados` e reduzi a exibição visual de casas decimais em custos para evitar valores com zeros excessivos.
 - Impacto esperado: dar base de custo confiável para o primeiro Plano de Voo e para os cálculos de receitas antes de haver histórico suficiente.

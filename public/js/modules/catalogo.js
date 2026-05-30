@@ -7807,7 +7807,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var perdaHtml = perda > 0
       ? '<span style="background:#FFF7ED;color:#D97706;padding:2px 7px;border-radius:12px;font-size:11px;font-weight:700;">' + perda + '%</span>'
       : '<span style="color:#D4C8C6;font-size:11px;">—</span>';
-    var costHtml = costVal > 0 ? '€' + costVal.toFixed(costVal < 0.01 ? 6 : 2) : '—';
+    var costHtml = costVal > 0 ? UI.fmt(costVal) : '—';
 
     return '<div id="fc-ing-' + idx + '" class="recipe-ingredient-row" data-comp-row="' + compIdx + '">' +
       '<div><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Ingrediente</div>' +
@@ -7890,7 +7890,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       var cost = calc.totalCost;
       if (_isPackagingComponent(nameEl ? nameEl.value : '')) packagingCost += cost;
       else ingredientCost += cost;
-      if (costEl) costEl.textContent = cost > 0 ? ('€' + cost.toFixed(cost < 0.01 ? 6 : 2)) : '—';
+      if (costEl) costEl.textContent = cost > 0 ? UI.fmt(cost) : '—';
     });
 
     var directCost = ingredientCost + packagingCost;

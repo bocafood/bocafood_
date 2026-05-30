@@ -1182,7 +1182,7 @@ Modules.Dashboard = (function () {
           ['Fornecedor padrão', 'Preencha com o fornecedor de quem você compra esse item com mais frequência. Isso deixa o registro de compra mais rápido depois.'],
           ['Preço de compra base', 'Preencha uma primeira base de custo quando ainda não existe compra registrada. Depois que houver compras, esse campo vira custo médio automático e não deve ser alterado pelo cadastro do item.'],
           ['Embalagem de compra padrão', 'Informe como você costuma comprar esse item: saco, caixa, pacote, garrafa, bandeja ou unidade.'],
-          ['Conteúdo por embalagem (×)', 'Informe quanto vem dentro dessa embalagem. Exemplo: saco com 5 kg, caixa com 12 unidades ou garrafa com 1 L.'],
+          ['Conteúdo por embalagem (×)', 'Preencha quanto vem dentro da embalagem usando a mesma unidade base. Se a unidade base é kg e vem 400 g, preencha 0,400. Se a unidade base é g e vem 400 g, preencha 400. Se a caixa tem 12 unidades, preencha 12.'],
           ['Estoque mínimo e máximo', 'Estoque mínimo é a quantidade que acende o alerta para comprar mais. Estoque máximo é a quantidade limite que vale a pena manter guardada para não comprar além do necessário.'],
           ['Cadastro ativo', 'Deixe ativo enquanto o item ainda é usado. Quando parar de usar, desative para manter o histórico organizado.'],
           ['Custo atual e última compra', 'Esses campos são atualizados automaticamente pelo BocaFood quando você registra compras. O custo atual passa a usar a média das compras do item.'],

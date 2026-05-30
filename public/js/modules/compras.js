@@ -2664,7 +2664,6 @@ Modules.Compras = (function () {
     return '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);overflow:hidden;">' +
       '<div style="overflow-x:auto;"><table style="width:100%;min-width:920px;border-collapse:separate;border-spacing:0;background:#fff;">' +
       '<thead><tr style="background:#fff;border-bottom:1px solid #EAE4DA;">' +
-        '<th style="width:44px;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;"><input type="checkbox" disabled style="width:16px;height:16px;accent-color:#B42318;"></th>' +
         '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">ITEM</th>' +
         '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">CLASSE</th>' +
         '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">CATEGORIA</th>' +
@@ -2675,7 +2674,6 @@ Modules.Compras = (function () {
       '<tbody>' + pageData.map(function (i) {
         var openFn = _itensView === 'insumos' ? '_openInsumoModal' : '_openItemModal';
         return '<tr data-item-name="' + _esc((i.nome || i.name || '').toLowerCase()) + '" onclick="Modules.Compras.' + openFn + '(\'' + i.id + '\')" style="cursor:pointer;border-bottom:1px solid #EAE4DA;transition:background .15s ease;" onmouseover="this.style.background=\'#FBF8F2\'" onmouseout="this.style.background=\'#fff\'">' +
-          '<td style="width:44px;padding:14px 16px;vertical-align:middle;"><input type="checkbox" disabled style="width:16px;height:16px;accent-color:#B42318;"></td>' +
           '<td style="padding:14px 16px;vertical-align:middle;">' +
             '<div style="min-width:0;">' +
               '<div style="font-size:15px;font-weight:600;line-height:1.25;color:#1F1F1F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px;">' + _esc(i.nome || i.name) + '</div>' +
@@ -2685,7 +2683,7 @@ Modules.Compras = (function () {
           '<td style="padding:14px 16px;vertical-align:middle;">' + (i.classe === 'produto' ? _statusChip('Produto', '#3B5B82', '#5B7FA6') : _statusChip('Insumo', '#9A5B13', '#D97706')) + '</td>' +
           '<td style="padding:14px 16px;vertical-align:middle;">' + _chip(i.categoria || '-') + '</td>' +
           '<td style="padding:14px 16px;vertical-align:middle;font-size:14px;font-weight:600;color:#1F1F1F;">' + _esc(i.unidade_base || i.unidadeBase || '-') + '</td>' +
-          '<td style="padding:14px 16px;vertical-align:middle;font-size:14px;font-weight:600;color:#1F1F1F;">' + (i.custo_atual ? '€' + Number(i.custo_atual).toFixed(Number(i.custo_atual) < 0.01 ? 6 : 4) : '-') + '</td>' +
+          '<td style="padding:14px 16px;vertical-align:middle;font-size:14px;font-weight:600;color:#1F1F1F;">' + (i.custo_atual ? UI.fmt(i.custo_atual) : '-') + '</td>' +
           '<td style="padding:14px 16px;vertical-align:middle;text-align:right;white-space:nowrap;" onclick="event.stopPropagation();"><div style="display:inline-flex;gap:6px;">' +
             '<button onclick="Modules.Compras.' + openFn + '(\'' + i.id + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">edit</span></button>' +
             '<button onclick="Modules.Compras._deleteItem(\'' + i.id + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#B42318;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">delete</span></button>' +
@@ -2808,6 +2806,13 @@ Modules.Compras = (function () {
         '• Embalagem de compra padrão: saco<br>' +
         '• Conteúdo por embalagem (×): 5<br>' +
         '• Preço de compra base: use uma primeira referência de custo quando ainda não existe compra registrada<br><br>' +
+        '<strong>Como preencher o número:</strong><br>' +
+        'Use sempre a mesma unidade escolhida em Unidade base.<br>' +
+        '• Unidade base kg e embalagem com 1 kg: preencha 1<br>' +
+        '• Unidade base kg e embalagem com 400 g: preencha 0,400<br>' +
+        '• Unidade base g e embalagem com 400 g: preencha 400<br>' +
+        '• Unidade base L e embalagem com 500 ml: preencha 0,500<br>' +
+        '• Unidade base unidade e caixa com 12 unidades: preencha 12<br><br>' +
         'Se você compra por unidade, cadastre como unidade.<br>' +
         'Se compra por quilo, cadastre como kg.<br>' +
         'Se compra por litro, cadastre como litro.' +
