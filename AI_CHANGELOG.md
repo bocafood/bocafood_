@@ -9882,3 +9882,24 @@
 - Reescrevi a explicação de `Categoria` em `Produtos / Insumos` para tratar categoria como uma pasta de organização do dia a dia.
 - A copy agora usa exemplos diretos como Bebidas, Carnes, Ingredientes secos, Embalagens, Descartáveis e Congelados.
 - Impacto esperado: deixar o campo mais fácil de entender e preencher sem parecer uma configuração técnica.
+
+## 2026-05-30 — Compras: categoria e fornecedor dentro do item
+- Arquivos alterados: `public/js/modules/compras.js`, `public/js/modules/dashboard.js`, `public/dashboard-onboarding-preview.html`, `public/js/modules/suporte.js`, `AI_CHANGELOG.md`.
+- No modal `Novo Insumo/Produto Pronto`, adicionei o botão `+ categoria` ao lado do campo `Categoria *`.
+- No mesmo modal, adicionei o botão `+ fornecedor` ao lado do campo `Fornecedor padrão`.
+- As criações rápidas usam modal padrão do sistema, salvam o novo cadastro no tenant e selecionam automaticamente o registro criado no item aberto, sem trocar a tela atual.
+- Atualizei a copy do onboarding e da documentação para citar `Conteúdo por embalagem (×)` e explicar que `Custo atual` e `Última compra` são campos atualizados automaticamente pelos registros de compra.
+- Impacto esperado: permitir completar o cadastro do item sem sair do modal e reduzir dúvidas sobre campos automáticos.
+
+## 2026-05-30 — Onboarding: remover campo condicional de produto pronto
+- Arquivos alterados: `public/js/modules/dashboard.js`, `public/dashboard-onboarding-preview.html`, `public/js/modules/suporte.js`, `AI_CHANGELOG.md`.
+- Removi do onboarding a explicação de `Vender este item pronto`, porque esse campo só aparece quando a classe do cadastro é `Produto`.
+- Mantive a explicação na documentação completa, agora deixando claro que o campo é condicional à classe `Produto`.
+- Impacto esperado: evitar que a usuária veja no checklist um campo que não aparece ao cadastrar insumos.
+
+## 2026-05-30 — Compras: remover venda direta do item comprado
+- Arquivos alterados: `public/js/modules/compras.js`, `public/js/modules/suporte.js`, `AI_CHANGELOG.md`.
+- Removi o bloco `Venda direta` e o checkbox `Vender este item pronto` do modal `Novo Insumo/Produto Pronto`.
+- O cadastro de `Produto` em Compras agora fica focado em compra, custo e estoque do produto comprado pronto.
+- A documentação passou a orientar que, para vender esse item para a cliente, a usuária deve criar o produto em `Cardápio > Produtos` e vincular o produto comprado pronto como origem.
+- Impacto esperado: evitar confusão entre cadastro de item comprado e cadastro do produto de venda no cardápio.

@@ -2413,9 +2413,10 @@ Modules.Compras = (function () {
       '</div>';
   }
 
-  function _searchableCatalogField(kind, id, label, selected, classe, strictClass) {
+  function _searchableCatalogField(kind, id, label, selected, classe, strictClass, actionHtml) {
     var selectedName = selected || '';
-    return '<div style="position:relative;"><label style="' + _labelStyle() + '">' + label + '</label>' +
+    return '<div style="position:relative;">' +
+      '<div class="item-field-head"><label style="' + _labelStyle() + 'margin-bottom:0;">' + label + '</label>' + (actionHtml || '') + '</div>' +
       '<div class="supplier-field-control">' +
       '<input id="' + id + '-display" type="text" autocomplete="off" value="' + _esc(selectedName) + '" placeholder="Buscar ou cadastrar..." ' +
         'oninput="Modules.Compras._catalogSearch(\'' + id + '\',\'' + kind + '\',this.value)" ' +
@@ -2550,7 +2551,6 @@ Modules.Compras = (function () {
     var produtosCount = filteredForCounts.filter(function (i) { return i.classe === 'produto'; }).length;
     var insumosClassCount = filteredForCounts.filter(function (i) { return i.classe !== 'produto'; }).length;
     var receitasCount = filteredForCounts.filter(function (i) { return i.usar_em_fichas !== false; }).length;
-    var revendaCount = filteredForCounts.filter(function (i) { return i.venda_habilitada === true; }).length;
     var categoriasCount = _availableItemFilterValues('categoria').length;
     var custoMedio = filteredForCounts.length ? filteredForCounts.reduce(function (s, i) { return s + _num(i.custo_atual); }, 0) / filteredForCounts.length : 0;
     var p = _pag.itens;
@@ -2758,7 +2758,7 @@ Modules.Compras = (function () {
     var itemModalCss = '<style>' +
       '.item-modal-body{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px;font-family:Manrope,Inter,sans-serif;}' +
       '.item-modal-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:14px;box-shadow:0 10px 24px rgba(31,31,31,.04);min-width:0;}' +
-      '.item-modal-main,.item-modal-cost{grid-column:1/-1}.item-modal-usage{grid-column:1/span 6}.item-modal-sale{grid-column:7/-1}' +
+      '.item-modal-main,.item-modal-cost{grid-column:1/-1}.item-modal-usage{grid-column:1/-1}' +
       '.item-modal-head{display:flex;align-items:flex-start;gap:9px;margin-bottom:12px}.item-modal-head .mi{font-size:18px;color:#6F6860;line-height:1.2}' +
       '.item-modal-grid{display:grid;gap:11px 12px;align-items:end}.item-modal-id-grid{grid-template-columns:minmax(150px,.38fr) minmax(320px,1fr) minmax(220px,.68fr)}.item-modal-tax-grid{grid-template-columns:minmax(210px,.62fr) minmax(250px,.78fr);justify-content:start;margin-top:11px}.item-modal-cost-grid{grid-template-columns:minmax(160px,.42fr) minmax(280px,.9fr);justify-content:start}.item-modal-pack-grid{grid-template-columns:minmax(190px,.55fr) minmax(140px,.36fr);justify-content:start}.item-modal-stock-grid{grid-template-columns:minmax(140px,.38fr) minmax(140px,.38fr);justify-content:start}.item-modal-metrics{display:grid;grid-template-columns:minmax(160px,.55fr) minmax(150px,.45fr) minmax(150px,.45fr);gap:12px;align-items:stretch;justify-content:start}' +
       '.item-modal-metric{background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;padding:10px 12px;box-shadow:0 1px 2px rgba(31,31,31,.03)}' +
@@ -2770,6 +2770,8 @@ Modules.Compras = (function () {
       '.item-help-btn{border:0;background:transparent;color:#B42318;border-radius:8px;height:auto;padding:0;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;}' +
       '.item-help-box{display:none;margin:0 0 12px;padding:11px 12px;border:1px solid #EADFD8;border-radius:12px;background:#FFFCF8;color:#5A4E4C;font-size:12px;line-height:1.5;}' +
       '.item-help-box strong{color:#1F1F1F;font-weight:700;}' +
+      '.item-field-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;}' +
+      '.item-inline-add{border:1px solid #E8DCD7;background:#fff;color:#B42318;border-radius:999px;height:24px;padding:0 9px;font-size:11px;font-weight:700;font-family:inherit;cursor:pointer;line-height:1;box-shadow:0 1px 2px rgba(31,31,31,.03);}' +
       '.supplier-field-control{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:6px;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease}.supplier-field-control:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08)}.supplier-field-control input,.supplier-field-control select,.supplier-field-control textarea{width:100%;min-height:36px;border:0;border-radius:8px;padding:0 8px;font-size:14px;font-family:inherit;outline:none;background:transparent;box-sizing:border-box;color:#1F1F1F;box-shadow:none}.supplier-field-control select{padding-right:42px;appearance:none;-webkit-appearance:none;-moz-appearance:none;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 16px center;background-size:14px}' +
       '@media(max-width:900px){.item-modal-usage,.item-modal-sale{grid-column:1/-1}.item-modal-id-grid,.item-modal-cost-grid,.item-modal-pack-grid,.item-modal-stock-grid{grid-template-columns:1fr 1fr}.item-modal-metrics{grid-template-columns:1fr}}@media(max-width:640px){.item-modal-body{grid-template-columns:1fr}.item-modal-card{grid-column:1/-1!important;padding:13px}.item-modal-id-grid,.item-modal-tax-grid,.item-modal-cost-grid,.item-modal-pack-grid,.item-modal-stock-grid,.item-usage-grid{grid-template-columns:1fr}}' +
       '</style>';
@@ -2783,7 +2785,7 @@ Modules.Compras = (function () {
       '<option value="produto"' + (item.classe === 'produto' ? ' selected' : '') + '>Produto</option>' +
       '</select></div></div>' +
       '<div>' + _supplierField('it-nome', 'Nome *', item.nome || item.name || '') + '</div>' +
-      _searchableCatalogField('categorias', 'it-categoria', 'Categoria *', item.categoria || '', classeItem, strictCatalog) +
+      _searchableCatalogField('categorias', 'it-categoria', 'Categoria *', item.categoria || '', classeItem, strictCatalog, '<button type="button" class="item-inline-add" onclick="Modules.Compras._openItemCategoryCreateModal()">+ categoria</button>') +
       '</div>' +
       '</div>' +
       '<div class="item-modal-card item-modal-cost">' +
@@ -2795,20 +2797,20 @@ Modules.Compras = (function () {
         '<strong>Exemplo:</strong><br>' +
         'Você compra batata em saco fechado, mas usa a batata por quilo nas receitas.<br><br>' +
         'Então o sistema precisa saber:<br>' +
-        '• como vem a compra: saco<br>' +
+        '• como você costuma comprar: saco<br>' +
         '• quanto vem dentro: 5 kg<br><br>' +
         'Assim, quando você informar o preço do saco, o BocaFood calcula sozinho quanto custa cada kg.<br><br>' +
         '<strong>Exemplo preenchido:</strong><br>' +
         '• Unidade base: Quilograma (kg)<br>' +
         '• Embalagem de compra padrão: saco<br>' +
-        '• Conteúdo por embalagem: 5<br><br>' +
+        '• Conteúdo por embalagem (×): 5<br><br>' +
         'Se você compra por unidade, cadastre como unidade.<br>' +
         'Se compra por quilo, cadastre como kg.<br>' +
         'Se compra por litro, cadastre como litro.' +
       '</div>' +
       '<div class="item-modal-grid item-modal-cost-grid" style="margin-bottom:11px;align-items:start;">' +
         _supplierSelect('it-unidade', 'Unidade base *', '<option value="">Selecionar...</option>' + unidadeOpts) +
-        '<div style="position:relative;"><label style="' + _labelStyle() + '">Fornecedor padrão</label>' +
+        '<div style="position:relative;"><div class="item-field-head"><label style="' + _labelStyle() + 'margin-bottom:0;">Fornecedor padrão</label><button type="button" class="item-inline-add" onclick="Modules.Compras._openItemSupplierCreateModal()">+ fornecedor</button></div>' +
           '<div class="supplier-field-control">' +
           '<input id="it-forn-display" type="text" placeholder="Buscar fornecedor..." autocomplete="off" value="' + _esc(fornAtual.name || '') + '" ' +
             'oninput="Modules.Compras._itemFornSearch(this.value)" ' +
@@ -2850,12 +2852,6 @@ Modules.Compras = (function () {
           '<p class="item-usage-panel-text" style="margin-top:7px;">Use 100% quando tudo é aproveitado. Se parte do item se perde ao limpar, descascar ou preparar, informe uma porcentagem menor.</p>' +
         '</div>' +
       '</div>' +
-      '</div>' +
-      '<div id="it-produto-fields" class="item-modal-card item-modal-sale" style="display:none;">' +
-      '<div class="item-modal-head"><span class="mi">storefront</span><div><div style="' + sectionTitle + '">Venda direta</div>' +
-      '<div style="' + sectionHint + '">Use quando este item é comprado pronto e vendido diretamente para clientes.</div>' +
-      '</div></div>' +
-      '<label class="item-modal-metric" style="display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;"><input id="it-venda" type="checkbox" ' + (item.venda_habilitada ? 'checked' : '') + ' style="accent-color:#C4362A;width:18px;height:18px;"> Vender este item pronto</label>' +
       '</div>' +
       '</div>';
     var footer = id
@@ -2976,6 +2972,122 @@ Modules.Compras = (function () {
     });
   }
 
+  function _quickCreateModalCss() {
+    return '<style>' +
+      '.item-quick-modal{display:grid;gap:14px;font-family:Manrope,Inter,sans-serif;}' +
+      '.item-quick-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:14px;box-shadow:0 10px 24px rgba(31,31,31,.04);}' +
+      '.item-quick-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start;}' +
+      '.item-quick-field label{font-size:11px;font-weight:600;color:#7A746B;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.02em;}' +
+      '.item-quick-field input,.item-quick-field select{width:100%;height:40px;padding:10px;border:1px solid #E6DDD3;border-radius:10px;font-size:14px;font-family:inherit;outline:none;box-sizing:border-box;color:#1F1F1F;background:#fff;transition:border-color .16s ease,box-shadow .16s ease;}' +
+      '.item-quick-field input:focus,.item-quick-field select:focus{border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
+      '.item-quick-field select{padding-right:42px;appearance:none;-webkit-appearance:none;-moz-appearance:none;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 16px center;background-size:14px;}' +
+      '.item-quick-active{margin-top:10px;display:inline-flex;align-items:center;gap:9px;font-size:13px;font-weight:600;color:#1F1F1F;min-height:32px;}' +
+      '.item-quick-active input{width:16px;height:16px;accent-color:#C4362A;}' +
+      '@media(max-width:720px){.item-quick-grid{grid-template-columns:1fr}}' +
+      '</style>';
+  }
+
+  function _openItemCategoryCreateModal() {
+    var classeEl = document.getElementById('it-classe');
+    var classe = classeEl ? (classeEl.value || 'insumo') : 'insumo';
+    var suggested = ((document.getElementById('it-categoria-display') || {}).value || '').trim();
+    var body = _quickCreateModalCss() + '<div class="item-quick-modal"><div class="item-quick-card">' +
+      '<div class="item-quick-grid">' +
+        '<div class="item-quick-field"><label>Nome da categoria *</label><input id="it-new-cat-name" type="text" value="' + _esc(suggested) + '" placeholder="Ex.: Embalagens"></div>' +
+        '<div class="item-quick-field"><label>Aplicação</label><select id="it-new-cat-classe">' +
+          '<option value="insumo"' + (classe !== 'produto' ? ' selected' : '') + '>Insumo</option>' +
+          '<option value="produto"' + (classe === 'produto' ? ' selected' : '') + '>Produto</option>' +
+        '</select></div>' +
+      '</div>' +
+      '<label class="item-quick-active"><input id="it-new-cat-active" type="checkbox" checked> Manter ativa</label>' +
+      '</div></div>';
+    var footer = '<div style="display:flex;justify-content:flex-end;gap:8px;">' +
+      '<button type="button" onclick="window._itemCategoryModal&&window._itemCategoryModal.close()" style="' + _cancelStyle() + '">Cancelar</button>' +
+      '<button type="button" onclick="Modules.Compras._saveItemCategoryFromModal()" style="' + _primaryStyle() + '">Adicionar categoria</button>' +
+      '</div>';
+    window._itemCategoryModal = UI.modal({ title: 'Nova categoria', body: body, footer: footer, maxWidth: '620px' });
+    setTimeout(function () { var el = document.getElementById('it-new-cat-name'); if (el) el.focus(); }, 80);
+  }
+
+  function _saveItemCategoryFromModal() {
+    var name = ((_el('it-new-cat-name') || {}).value || '').trim().replace(/\s+/g, ' ');
+    var classe = ((_el('it-new-cat-classe') || {}).value || 'insumo');
+    var active = !document.getElementById('it-new-cat-active') || document.getElementById('it-new-cat-active').checked;
+    if (!name) { UI.toast('Nome obrigatório', 'error'); return; }
+    var existing = _findCatalogByName('categorias', name, classe, true);
+    if (existing) {
+      _catalogSelect('it-categoria', existing.name || name);
+      if (window._itemCategoryModal) window._itemCategoryModal.close();
+      UI.toast('Categoria selecionada.', 'success');
+      return;
+    }
+    DB.add('compras_categorias', { name: name, classe: classe, ativo: active }).then(function () {
+      return DB.getAll('compras_categorias');
+    }).then(function (data) {
+      _categorias = (data || []).slice().sort(_sortByName);
+      var classeEl = document.getElementById('it-classe');
+      if (classeEl) {
+        classeEl.value = classe;
+        _toggleItemClasse();
+      }
+      _catalogSelect('it-categoria', name);
+      _syncItemFiltersToCatalog();
+      if (window._itemCategoryModal) window._itemCategoryModal.close();
+      UI.toast('Categoria cadastrada!', 'success');
+    }).catch(function (err) { UI.toast('Erro: ' + err.message, 'error'); });
+  }
+
+  function _openItemSupplierCreateModal() {
+    var suggested = ((document.getElementById('it-forn-display') || {}).value || '').trim();
+    var body = _quickCreateModalCss() + '<div class="item-quick-modal"><div class="item-quick-card">' +
+      '<div class="item-quick-grid">' +
+        '<div class="item-quick-field"><label>Nome do fornecedor *</label><input id="it-new-forn-name" type="text" value="' + _esc(suggested) + '" placeholder="Ex.: Mercado Central"></div>' +
+        '<div class="item-quick-field"><label>Pessoa de contato</label><input id="it-new-forn-contact" type="text" value="" placeholder="Nome do contato"></div>' +
+        '<div class="item-quick-field"><label>WhatsApp</label><input id="it-new-forn-whatsapp" type="text" value="" placeholder="+34 ..."></div>' +
+        '<div class="item-quick-field"><label>E-mail</label><input id="it-new-forn-email" type="email" value="" placeholder="fornecedor@email.com"></div>' +
+      '</div>' +
+      '<label class="item-quick-active"><input id="it-new-forn-active" type="checkbox" checked> Fornecedor ativo</label>' +
+      '</div></div>';
+    var footer = '<div style="display:flex;justify-content:flex-end;gap:8px;">' +
+      '<button type="button" onclick="window._itemSupplierModal&&window._itemSupplierModal.close()" style="' + _cancelStyle() + '">Cancelar</button>' +
+      '<button type="button" onclick="Modules.Compras._saveItemSupplierFromModal()" style="' + _primaryStyle() + '">Adicionar fornecedor</button>' +
+      '</div>';
+    window._itemSupplierModal = UI.modal({ title: 'Novo fornecedor', body: body, footer: footer, maxWidth: '760px' });
+    setTimeout(function () { var el = document.getElementById('it-new-forn-name'); if (el) el.focus(); }, 80);
+  }
+
+  function _saveItemSupplierFromModal() {
+    var name = ((_el('it-new-forn-name') || {}).value || '').trim().replace(/\s+/g, ' ');
+    if (!name) { UI.toast('Nome obrigatório', 'error'); return; }
+    var existing = (_fornecedores || []).find(function (f) { return _normCatalogName(f.name) === _normCatalogName(name); });
+    if (existing) {
+      _itemFornSelect(existing.id);
+      if (window._itemSupplierModal) window._itemSupplierModal.close();
+      UI.toast('Fornecedor selecionado.', 'success');
+      return;
+    }
+    var data = {
+      name: name,
+      contact: ((_el('it-new-forn-contact') || {}).value || '').trim(),
+      whatsapp: ((_el('it-new-forn-whatsapp') || {}).value || '').trim(),
+      email: ((_el('it-new-forn-email') || {}).value || '').trim(),
+      ativo: !document.getElementById('it-new-forn-active') || document.getElementById('it-new-forn-active').checked
+    };
+    DB.add('fornecedores', data).then(function (ref) {
+      return DB.getAll('fornecedores').then(function (list) {
+        _fornecedores = (list || []).sort(function (a, b) { return (a.name || '').localeCompare(b.name || ''); });
+        var createdId = ref && ref.id;
+        if (!createdId) {
+          var created = (_fornecedores || []).find(function (f) { return _normCatalogName(f.name) === _normCatalogName(name); });
+          createdId = created && created.id;
+        }
+        if (createdId) _itemFornSelect(createdId);
+        if (window._itemSupplierModal) window._itemSupplierModal.close();
+        UI.toast('Fornecedor cadastrado!', 'success');
+      });
+    }).catch(function (err) { UI.toast('Erro: ' + err.message, 'error'); });
+  }
+
   function _packageSearch(id, q) {
     var dd = document.getElementById(id + '-dropdown');
     if (!dd) return;
@@ -3019,9 +3131,7 @@ Modules.Compras = (function () {
   function _toggleItemClasse() {
     var classe = _el('it-classe').value || 'insumo';
     var ins = document.getElementById('it-insumo-fields');
-    var prod = document.getElementById('it-produto-fields');
     if (ins) ins.style.display = classe === 'insumo' ? 'block' : 'none';
-    if (prod) prod.style.display = classe === 'produto' ? 'block' : 'none';
     // Produto → unidade base padrão 'un' quando o campo estiver em branco
     if (classe === 'produto') {
       var unidEl = document.getElementById('it-unidade');
@@ -3115,9 +3225,8 @@ Modules.Compras = (function () {
       data.usar_em_fichas = _el('it-fichas').checked;
       data.venda_habilitada = false;
     } else {
-      data.venda_habilitada = _el('it-venda').checked;
+      data.venda_habilitada = false;
       data.usar_em_fichas = false;
-      // Campos de catálogo (imagem, preço de venda, descrição) são geridos no módulo Cardápio/Venda
     }
     var op = _editingId ? DB.update('itens_custo', _editingId, data) : DB.add('itens_custo', data);
     op.then(function (ref) {
@@ -5080,7 +5189,7 @@ Modules.Compras = (function () {
     _filterItemSelect: _filterItemSelect, _compraItemSearch: _compraItemSearch, _compraItemSelect: _compraItemSelect,
     _compraFornSearch: _compraFornSearch, _compraFornSelect: _compraFornSelect,
     _itemFornSearch: _itemFornSearch, _itemFornSelect: _itemFornSelect,
-    _catalogSearch: _catalogSearch, _catalogSelect: _catalogSelect, _catalogQuickCreate: _catalogQuickCreate, _packageSearch: _packageSearch, _packageSelect: _packageSelect,
+    _catalogSearch: _catalogSearch, _catalogSelect: _catalogSelect, _catalogQuickCreate: _catalogQuickCreate, _openItemCategoryCreateModal: _openItemCategoryCreateModal, _saveItemCategoryFromModal: _saveItemCategoryFromModal, _openItemSupplierCreateModal: _openItemSupplierCreateModal, _saveItemSupplierFromModal: _saveItemSupplierFromModal, _packageSearch: _packageSearch, _packageSelect: _packageSelect,
     _setSimpleListClasse: _setSimpleListClasse,
     _openItemModal: _openItemModal, _openInsumoModal: _openInsumoModal, _saveItem: _saveItem, _deleteItem: _deleteItem, _toggleItemClasse: _toggleItemClasse, _toggleItemCostHelp: _toggleItemCostHelp, _onItemImgFileChange: _onItemImgFileChange, _filterItens: _filterItens, _renderInsumos: _renderInsumos,
     _openFornecedorModal: _openFornecedorModal, _saveFornecedor: _saveFornecedor, _deleteFornecedor: _deleteFornecedor, _onFornecedorCountryChange: _onFornecedorCountryChange,
