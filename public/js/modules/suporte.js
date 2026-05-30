@@ -2202,9 +2202,9 @@ Modules.Suporte = (function () {
         '</div>' +
         _guideFields([
           ['Produto pronto ou insumo', 'Produto pronto é algo comprado para vender ou usar como item final, como bebida, doce de fornecedor ou produto revendido. Insumo é o que entra no preparo, montagem ou entrega, como farinha, chocolate, carne, molho, caixa, pote, saco, etiqueta ou descartável.'],
-          ['Classe do item', 'Escolha Insumo para ingredientes e materiais usados na operação. Escolha Produto quando o item já chega pronto para vender. Embalagem não é uma classe separada nessa tela: cadastre como insumo e organize por categoria, como Embalagens ou Descartáveis.'],
+          ['Classe do item', 'Escolha Insumo para ingredientes e materiais usados no preparo, montagem ou entrega. Escolha Produto quando o item já chega pronto para vender. Caixa, pote, saco, etiqueta e descartável entram como insumo e podem ficar em uma categoria própria.'],
           ['Nome do item', 'Use um nome fácil de procurar. Prefira nomes claros, como Farinha de trigo, Batata, Caixa para bolo ou Refrigerante lata. Evite abreviações que você possa esquecer depois.'],
-          ['Categoria', 'Organiza itens parecidos no mesmo grupo. Exemplos: Laticínios, Congelados, Bebidas, Embalagens ou Descartáveis. A categoria ajuda na busca, nos filtros e na leitura dos custos.'],
+          ['Categoria', 'Pense na categoria como uma pasta para encontrar o item depois. Use nomes do dia a dia do negócio, como Bebidas, Carnes, Ingredientes secos, Embalagens, Descartáveis ou Congelados. Isso ajuda na busca, nos filtros e na leitura dos custos.'],
           ['Cadastro ativo', 'Itens ativos aparecem nas buscas e nos formulários de compra. Se você não usa mais um item, prefira desativar em vez de apagar quando ele já apareceu em compras antigas.'],
           ['Compra e custo', 'Use esta área para dizer como você costuma comprar esse item. Isso ajuda o BocaFood a preencher melhor o registro de compras e calcular custo por unidade, kg ou litro.'],
           ['Unidade base', 'É a unidade usada para calcular custo, estoque e receitas. Se você usa batata por quilo nas receitas, escolha kg. Se usa leite por litro, escolha L. Se compra e usa por unidade, escolha unidade.'],
@@ -2212,12 +2212,12 @@ Modules.Suporte = (function () {
           ['Embalagem de compra padrão', 'Informe como o item costuma vir na compra: saco, caixa, pacote, garrafa, bandeja ou unidade. Exemplo: batata em saco, leite em garrafa, ovos em caixa.'],
           ['Conteúdo por embalagem', 'Informe quanto vem dentro da embalagem padrão. Exemplo: saco com 5 kg, garrafa com 1 L ou caixa com 12 unidades. Esse dado ajuda o BocaFood a calcular o custo real.'],
           ['Como preencher?', 'A ajuda aparece para insumos porque eles costumam entrar em receitas. Ela explica o exemplo da batata comprada em saco, mas usada por kg, para mostrar como embalagem e conteúdo trabalham juntos no custo.'],
-          ['Estoque mínimo', 'Informe a quantidade mínima que você quer manter. Quando o saldo ficar abaixo disso, o item merece atenção para compra ou reposição.'],
-          ['Estoque máximo', 'Informe a quantidade máxima que faz sentido guardar. Esse limite evita comprar além do espaço, validade ou necessidade do negócio.'],
+          ['Estoque mínimo', 'Informe a quantidade que marca o momento de comprar mais. Exemplo: se você quer ser avisada quando restarem 2 kg de farinha, coloque 2 como estoque mínimo.'],
+          ['Estoque máximo', 'Informe a maior quantidade que vale a pena manter guardada. Esse limite evita comprar além do espaço, validade ou necessidade do negócio.'],
           ['Custo atual', 'O custo atual ajuda você a acompanhar quanto o item está custando. Ele pode ser atualizado a partir das compras registradas e serve como referência para receitas, margens e decisões de compra.'],
           ['Última compra', 'Mostra a última data de compra registrada para este item. Use para perceber se o custo está recente ou se precisa ser conferido na próxima compra.'],
           ['Uso em receitas', 'Ative quando este item puder entrar na preparação dos seus produtos. Ao ativar, ele aparece na lista de ingredientes das receitas e o BocaFood usa o custo dele para calcular quanto cada produto custa para ser feito.'],
-          ['Aproveitamento (%)', 'Informe quanto do item realmente é aproveitado. Use 100% quando tudo é usado. Se existe perda ao limpar, descascar, cortar ou preparar, use uma porcentagem menor. Exemplo: se de 1 kg você aproveita cerca de 800 g, use 80%.'],
+          ['Aproveitamento (%)', 'Informe quanto do item realmente entra na receita depois de limpar, descascar, cortar ou preparar. O jeito mais simples é pesar antes e depois. Exemplo: você comprou 1 kg e, depois de preparar, aproveitou 800 g. Como 800 g é 80% de 1 kg, preencha 80%. Use 100% quando tudo é aproveitado.'],
           ['Vender este item pronto', 'Esse campo aparece para Produto. Marque quando o item comprado já chega pronto para vender direto para a cliente, sem virar receita de produção.'],
           ['Quando editar', 'Edite quando mudar fornecedor padrão, unidade base, categoria, embalagem ou uso em receitas. Se o item já foi usado em compras e receitas, revise com atenção para não confundir custos antigos com custos novos.'],
           ['Quando não apagar', 'Se o item já apareceu em compras, receitas ou relatórios, prefira desativar. Assim o histórico continua entendível e você evita perder referência de custos anteriores.']

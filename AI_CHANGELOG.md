@@ -9864,3 +9864,21 @@
 - Ajustei a introdução do passo `Cadastrar insumos e produtos comprados` para deixar claro que a usuária não precisa cadastrar tudo no começo.
 - A orientação agora recomenda começar pelos itens dos produtos que mais vendem e pelos insumos necessários para montar 2 ou 3 receitas principais.
 - Impacto esperado: reduzir a sensação de tarefa grande no onboarding e guiar a usuária para uma base inicial suficiente para avançar.
+
+## 2026-05-30 — Onboarding: copy de categoria em Produtos / Insumos
+- Arquivos alterados: `public/js/modules/dashboard.js`, `public/dashboard-onboarding-preview.html`, `public/js/modules/suporte.js`, `AI_CHANGELOG.md`.
+- Ajustei a explicação do campo `Categoria` no passo `Cadastrar insumos e produtos comprados`.
+- A copy agora orienta a escolher onde o item fica mais fácil de encontrar depois, com exemplos práticos, sem usar uma frase rígida sobre agrupar itens.
+- Impacto esperado: deixar a orientação mais simples para uma usuária leiga preencher categorias de ingredientes, materiais de embalagem e produtos comprados.
+
+## 2026-05-30 — Onboarding: compra e estoque em Produtos / Insumos
+- Arquivos alterados: `public/js/modules/dashboard.js`, `public/dashboard-onboarding-preview.html`, `public/js/modules/suporte.js`, `AI_CHANGELOG.md`.
+- Ajustei a copy de `Embalagem de compra padrão` para explicar como a usuária costuma comprar o item, não como o item “vem”.
+- Melhorei a explicação de `Estoque mínimo` e `Estoque máximo`, deixando claro que mínimo acende alerta de compra e máximo é o limite que vale a pena manter guardado.
+- Impacto esperado: reduzir dúvida no preenchimento de itens de compra e deixar a orientação mais próxima da rotina real da usuária.
+
+## 2026-05-30 — Onboarding: categoria como organização do dia a dia
+- Arquivos alterados: `public/js/modules/dashboard.js`, `public/dashboard-onboarding-preview.html`, `public/js/modules/suporte.js`, `AI_CHANGELOG.md`.
+- Reescrevi a explicação de `Categoria` em `Produtos / Insumos` para tratar categoria como uma pasta de organização do dia a dia.
+- A copy agora usa exemplos diretos como Bebidas, Carnes, Ingredientes secos, Embalagens, Descartáveis e Congelados.
+- Impacto esperado: deixar o campo mais fácil de entender e preencher sem parecer uma configuração técnica.
