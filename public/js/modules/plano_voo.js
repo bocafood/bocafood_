@@ -22,6 +22,7 @@ Modules.PlanoDeVoo = (function () {
     financeiro: {},
     custos: {},
     canais: [],
+    tpv: {},
     snapshots: [],
     monthScenario: null
   };
@@ -179,6 +180,7 @@ Modules.PlanoDeVoo = (function () {
       _safeDoc('config', 'custos'),
       _safeDoc('config', 'canais_venda'),
       _safeDoc('config', 'fiscal'),
+      _safeDoc('config', 'tpv'),
       _safeAll('flight_plans'),
       _safeDoc('flight_plan_month_scenarios', _currentMonthKey())
     ]).then(function (r) {
@@ -196,12 +198,13 @@ Modules.PlanoDeVoo = (function () {
       _data.dinheiro = _normalizeMoney(r[11] || {});
       _data.financeiro = r[12] || {};
       _data.custos = r[13] || {};
-      _data.canais = _normalizeChannels(r[14] || {});
+      _data.canais = _normalizeChannels(r[14] || {}, r[16] || {});
       _data.fiscal = _normalizeFiscal(r[15] || {});
-      _data.snapshots = (r[16] || []).slice().sort(function (a, b) {
+      _data.tpv = r[16] || {};
+      _data.snapshots = (r[17] || []).slice().sort(function (a, b) {
         return _ts(b.createdAt) - _ts(a.createdAt);
       });
-      _data.monthScenario = r[17] || null;
+      _data.monthScenario = r[18] || null;
       _loading = false;
     }).catch(function (err) {
       _loading = false;
@@ -279,14 +282,22 @@ Modules.PlanoDeVoo = (function () {
     };
   }
 
-  function _normalizeChannels(c) {
+  function _isTpvEnabledConfig(cfg) {
+    cfg = cfg || {};
+    return cfg.enabled === true || cfg.tpvEnabled === true || cfg.active === true;
+  }
+
+  function _normalizeChannels(c, tpvConfig) {
     c = c || {};
     var list = Array.isArray(c.list) ? c.list.slice() : [];
+    var tpvEnabled = _isTpvEnabledConfig(tpvConfig);
     var hasCardapio = list.some(function (ch) { return _isCardapioChannel(ch); });
     var hasTpv = list.some(function (ch) { return _isTpvChannel(ch); });
     if (!hasCardapio) list.unshift({ name: 'Cardápio', commissionPct: 0, fixedFee: 0, taxPct: 0, locked: true });
-    if (!hasTpv) list.splice(1, 0, { name: 'Venda presencial', commissionPct: 0, fixedFee: 0, taxPct: 0, locked: true });
-    return list.map(function (ch) {
+    if (tpvEnabled && !hasTpv) list.splice(1, 0, { name: 'Venda presencial', commissionPct: 0, fixedFee: 0, taxPct: 0, locked: true });
+    return list.filter(function (ch) {
+      return tpvEnabled || !_isTpvChannel(ch);
+    }).map(function (ch) {
       var cardapio = _isCardapioChannel(ch);
       var tpv = _isTpvChannel(ch);
       var key = _channelKey(cardapio ? 'Cardápio' : (tpv ? 'Venda presencial' : (ch.name || '')));
@@ -577,8 +588,8 @@ Modules.PlanoDeVoo = (function () {
           '</div>' +
           '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:9px;">' +
             _routeCostBox('Custos das vendas', variable, '#8A6F5A') +
-            _routeCostBox('Despesas diretas', expenses, '#B45309') +
-            _routeCostBox('Custos diretos', financialCosts, '#6C8777') +
+            _routeCostBox('Despesas indiretas', expenses, '#B45309') +
+            _routeCostBox('Custos indiretos', financialCosts, '#6C8777') +
           '</div>' +
         '</div>' +
       '</section>';
@@ -598,7 +609,7 @@ Modules.PlanoDeVoo = (function () {
               '<span class="mi" style="font-size:20px;color:#2563EB;">balance</span>' +
               '<h3 style="font-size:15px;font-weight:600;color:#1F1F1F;margin:0;">Ponto de equilíbrio</h3>' +
             '</div>' +
-            '<p style="font-size:13px;color:#6F6860;line-height:1.45;margin:5px 0 0;max-width:780px;">É a venda mínima estimada para a loja pagar o que precisa e não terminar no prejuízo.</p>' +
+            '<p style="font-size:13px;color:#6F6860;line-height:1.45;margin:5px 0 0;max-width:780px;">É a venda mínima estimada para o negócio pagar o que precisa e não terminar no prejuízo.</p>' +
           '</div>' +
           _snapshotPill(gap >= 0 ? 'Rota passa do equilíbrio' : 'Ainda abaixo do equilíbrio', gap >= 0 ? '#F0FAF4' : '#FFF7ED', gap >= 0 ? '#1F6F43' : '#B45309', gap >= 0 ? '#D9F2E3' : '#FED7AA') +
         '</div>' +
@@ -704,13 +715,13 @@ Modules.PlanoDeVoo = (function () {
           '<span class="mi" style="font-size:20px;color:#8A6F5A;">checklist</span>' +
           '<div style="min-width:0;">' +
             '<h3 style="font-size:15px;font-weight:600;color:#1F1F1F;margin:0 0 4px;">Antes de criar a rota</h3>' +
-            '<p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0;">Veja como está o desempenho atual da loja e use estes números como base para criar seu Plano de Voo.</p>' +
+            '<p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0;">Veja como está o desempenho atual do negócio e use estes números como base para criar seu Plano de Voo.</p>' +
           '</div>' +
         '</div>' +
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:11px;">' +
           _baseMini('Ticket médio', _averageTicket() ? _fmtMoney(_averageTicket()) : 'Falta base', 'Hoje, cada pedido está ficando perto deste valor.') +
-          _baseMini('Vendas recentes', _fmtMoney(forecast.revenueBase || 0), 'Valor que a loja já mostrou nas vendas mais recentes. Use como base e ajuste se esperar vender mais ou menos.') +
-          _baseMini('Custos e despesas', _fmtMoney(_num(forecast.variableTotal) + _num(forecast.fixedTotal)), 'Valor que a loja precisa cobrir antes de sobrar dinheiro.') +
+          _baseMini('Vendas recentes', _fmtMoney(forecast.revenueBase || 0), 'Valor que o negócio já mostrou nas vendas mais recentes. Use como base e ajuste se esperar vender mais ou menos.') +
+          _baseMini('Custos e despesas', _fmtMoney(_num(forecast.variableTotal) + _num(forecast.fixedTotal)), 'Valor que o negócio precisa cobrir antes de sobrar dinheiro.') +
           _baseMini('Dias de trabalho', String(_workingDaysInPeriod()), 'Dias disponíveis para vender dentro deste período.') +
         '</div>' +
         (alerts.length ? '<div style="display:flex;gap:8px;flex-wrap:wrap;">' + alerts.map(function (item) { return _snapshotPill(item.title, '#FFF7ED', '#B45309', '#FED7AA'); }).join('') + '</div>' : '') +
@@ -723,7 +734,7 @@ Modules.PlanoDeVoo = (function () {
     if (!_averageTicket()) alerts.push({ title: 'Ticket médio ausente', text: 'Informe ou gere pedidos para o BocaFood estimar melhor quantos pedidos por dia serão necessários.' });
     if (!_num(forecast.revenueBase)) alerts.push({ title: 'Vendas por canal vazias', text: 'Preencha a base mensal dos canais para os cenários começarem de uma previsão realista.' });
     if (!_num(forecast.variableTotal)) alerts.push({ title: 'Custo dos produtos zerado', text: 'Cadastre custos dos produtos para a rota mostrar melhor quanto pode sobrar.' });
-    if (!_num(forecast.fixedTotal)) alerts.push({ title: 'Sem despesas diretas', text: 'Inclua despesas ou custos diretos no Financeiro para a rota considerar o que precisa ser pago.' });
+    if (!_num(forecast.fixedTotal)) alerts.push({ title: 'Sem saídas indiretas', text: 'Inclua despesas ou custos indiretos no Financeiro para a rota considerar o que precisa sair do caixa.' });
     return alerts.slice(0, 4);
   }
 
@@ -744,8 +755,8 @@ Modules.PlanoDeVoo = (function () {
           _routePeriodControl() +
           _baseMini('Ticket médio usado', ticket ? _fmtMoney(ticket) : 'Sem base suficiente', fullYear ? 'Calculado pelo histórico ou ajuste manual.' : 'Pode ser ajustado nos ajustes avançados.') +
           _baseMini('Custos considerados', _fmtMoney(vm.variableTotal), 'Usa custos e margens já cadastrados.') +
-          _baseMini('Despesas previstas da rota', _fmtMoney(vm.fixedExpensesTotal != null ? vm.fixedExpensesTotal : vm.fixedTotal), 'Somente despesas diretas. Indiretas entram pela provisão percentual.') +
-          _baseMini('Custos previstos da rota', _fmtMoney(vm.financialCostsTotal || 0), 'Somente custos diretos. Indiretos entram pela provisão percentual.') +
+          _baseMini('Despesas previstas da rota', _fmtMoney(vm.fixedExpensesTotal != null ? vm.fixedExpensesTotal : vm.fixedTotal), 'Saídas previstas do Financeiro classificadas como despesa indireta.') +
+          _baseMini('Custos previstos da rota', _fmtMoney(vm.financialCostsTotal || 0), 'Saídas previstas do Financeiro classificadas como custo indireto.') +
           _baseMini('Dias trabalhados', String(_workingDaysInPeriod()), 'Usado para calcular pedidos por dia.') +
           _baseMini('Dias fechados', closedDays, 'Feriados ou dias em que não haverá venda.') +
           _baseMini('Força dos meses', _monthWeightsSummary(), 'Mostra se há meses mais fortes ou mais fracos.') +
@@ -959,8 +970,8 @@ Modules.PlanoDeVoo = (function () {
         '</div>' +
         '<div style="display:flex;flex-direction:column;gap:4px;">' +
           smallMoney('Custos das vendas', _num(vm.variableTotal)) +
-          smallMoney('Despesas diretas', _num(vm.fixedExpensesTotal)) +
-          smallMoney('Custos diretos', _num(vm.financialCostsTotal)) +
+          smallMoney('Despesas indiretas', _num(vm.fixedExpensesTotal)) +
+          smallMoney('Custos indiretos', _num(vm.financialCostsTotal)) +
         '</div>' +
       '</div>';
   }
@@ -1452,7 +1463,7 @@ Modules.PlanoDeVoo = (function () {
         '<div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;">' +
           '<div style="min-width:180px;flex:1 1 220px;max-width:320px;">' +
             '<div style="font-size:13px;font-weight:600;color:#1F1F1F;line-height:1.2;">Ajustes da rota</div>' +
-            '<div style="font-size:12px;color:#6F6860;line-height:1.35;margin-top:3px;">Ajuste apenas se o valor médio dos pedidos não representar bem a loja hoje.</div>' +
+            '<div style="font-size:12px;color:#6F6860;line-height:1.35;margin-top:3px;">Ajuste apenas se o valor médio dos pedidos não representar bem o negócio hoje.</div>' +
           '</div>' +
           _moneyField('pl-ticket', 'Ticket médio usado', _averageTicket(), 'Modules.PlanoDeVoo._setAverageTicket(this.value)', 'max-width:170px;flex:0 0 170px;') +
         '</div>' +
@@ -1608,9 +1619,10 @@ Modules.PlanoDeVoo = (function () {
       if (!row || row.include === false) return;
       var value = _fixedRowValueForMonth(row, month);
       if (!(value > 0)) return;
+      var isCost = row.financialNature === 'custo';
       items.push({
-        name: row.name || (row.financialNature === 'custo' ? 'Custo direto' : 'Despesa direta'),
-        group: row.financialNature === 'custo' ? 'Custos diretos' : 'Despesas diretas',
+        name: row.name || (isCost ? 'Custo previsto' : 'Despesa prevista'),
+        group: isCost ? 'Custos indiretos' : 'Despesas indiretas',
         value: value
       });
     });
@@ -1655,7 +1667,7 @@ Modules.PlanoDeVoo = (function () {
         '</summary>' +
         '<div style="margin-top:10px;display:grid;grid-template-columns:minmax(180px,1fr) minmax(210px,1.2fr);gap:12px;align-items:start;">' +
           _monthBreakdownHtml({ items: revenues, total: revenues.reduce(function (s, item) { return s + item.value; }, 0) }, 'Receitas do mês', ['Receitas'], 'Sem receitas previstas neste mês.') +
-          _monthBreakdownHtml({ items: costs, total: breakdown.total }, 'Custos e despesas do mês', ['Custos das vendas', 'Despesas diretas', 'Custos diretos'], 'Sem custos previstos neste mês.') +
+          _monthBreakdownHtml({ items: costs, total: breakdown.total }, 'Custos e despesas do mês', ['Custos das vendas', 'Despesas indiretas', 'Custos indiretos'], 'Sem custos previstos neste mês.') +
         '</div>' +
       '</details>';
   }
@@ -1667,7 +1679,7 @@ Modules.PlanoDeVoo = (function () {
       if (!groups[item.group]) groups[item.group] = [];
       groups[item.group].push(item);
     });
-    order = order || ['Custos das vendas', 'Despesas diretas', 'Custos diretos'];
+    order = order || ['Custos das vendas', 'Despesas indiretas', 'Custos indiretos'];
     var detail = order.map(function (group) {
       var items = groups[group] || [];
       if (!items.length) return '';
@@ -1779,12 +1791,12 @@ Modules.PlanoDeVoo = (function () {
       return s + row.projectedMonthly;
     }, 0);
     var variableTotal = variableRows.reduce(function (s, row) { return s + row.projected; }, 0);
-    var directFixedRows = fixedRows.filter(function (row) { return row.costClass !== 'indireto'; });
-    var monthFixed = directFixedRows.reduce(function (s, row) {
+    var indirectFixedRows = fixedRows.filter(function (row) { return row.costClass === 'indireto'; });
+    var monthFixed = indirectFixedRows.reduce(function (s, row) {
       return s + row.projectedMonthly;
     }, 0);
-    var fixedExpensesTotal = directFixedRows.reduce(function (s, row) { return s + (row.financialNature === 'custo' ? 0 : row.projected); }, 0);
-    var financialCostsTotal = directFixedRows.reduce(function (s, row) { return s + (row.financialNature === 'custo' ? row.projected : 0); }, 0);
+    var fixedExpensesTotal = indirectFixedRows.reduce(function (s, row) { return s + (row.financialNature === 'custo' ? 0 : row.projected); }, 0);
+    var financialCostsTotal = indirectFixedRows.reduce(function (s, row) { return s + (row.financialNature === 'custo' ? row.projected : 0); }, 0);
     var fixedTotal = fixedExpensesTotal + financialCostsTotal;
     var profit = revenueTotal - variableTotal - fixedTotal;
     var cashStart = _currentCash();
@@ -1802,7 +1814,7 @@ Modules.PlanoDeVoo = (function () {
       revenueBase: baseMonthlyRevenue,
       revenueTotal: revenueTotal,
       variableRows: variableRows,
-      fixedRows: directFixedRows,
+      fixedRows: indirectFixedRows,
       payableRows: _openPayablesRows(),
       historyRows: _mergeHistoricalCategories(),
       monthSeries: monthSeries,
@@ -1981,7 +1993,7 @@ Modules.PlanoDeVoo = (function () {
     var rows = [
       { key: 'products', name: 'Custo do que foi vendido', pct: productCostPct, mode: 'automatico', sourceLabel: 'Produtos vendidos', note: productCostPct > 0 ? 'Usa o custo cadastrado nos produtos que já foram vendidos.' : 'Cadastre o custo dos produtos para o BocaFood estimar melhor esta parte.', warning: productCostPct <= 0 ? 'Custo não informado' : '' },
       { key: 'payment', name: 'Taxas de pagamento', pct: paymentPct, mode: 'automatico', sourceLabel: 'Formas de pagamento', note: 'Reserva para taxas cobradas pelas formas de pagamento usadas nas vendas.' },
-      { key: 'channel', name: 'Comissões dos canais', pct: channelCommissionPct, mode: 'automatico', sourceLabel: 'Canais de venda', note: 'Considera canais que cobram comissão sobre o pedido.' },
+      { key: 'channel', name: 'Comissões dos canais', pct: channelCommissionPct, mode: 'automatico', sourceLabel: 'Canais de venda', note: 'Considera comissão, imposto sobre a comissão e taxa fixa configurada nos canais.' },
       { key: 'indirect', name: 'Provisão para custos gerais', pct: indirectPct, mode: indirectInfo.configuredMode === 'automatico' ? 'automatico' : 'manual', sourceLabel: indirectInfo.modeUsed === 'Automático' ? 'Histórico financeiro' : 'Configuração geral', note: indirectInfo.fallback ? 'Usa o percentual configurado para reservar custos gerais, como marketing, perdas, energia ou apoio da operação.' : 'Usa o histórico para estimar uma reserva de custos gerais que acompanham as vendas.' },
       { key: 'tax', name: 'Reserva fiscal', pct: taxReserve.pct, mode: 'automatico', sourceLabel: taxReserve.sourceLabel, note: taxReserve.note }
     ];
@@ -2872,10 +2884,10 @@ Modules.PlanoDeVoo = (function () {
       });
     });
     if (!list.length) {
-      list = [
-        { key: 'cardapio', name: 'Cardápio', commissionPct: 0, fixedFee: 0, taxPct: 0, locked: true },
-        { key: 'venda-presencial', name: 'Venda presencial', commissionPct: 0, fixedFee: 0, taxPct: 0, locked: true }
-      ];
+      list = [{ key: 'cardapio', name: 'Cardápio', commissionPct: 0, fixedFee: 0, taxPct: 0, locked: true }];
+      if (_isTpvEnabledConfig(_data.tpv || {})) {
+        list.push({ key: 'venda-presencial', name: 'Venda presencial', commissionPct: 0, fixedFee: 0, taxPct: 0, locked: true });
+      }
     }
     return list;
   }
@@ -2975,12 +2987,22 @@ Modules.PlanoDeVoo = (function () {
   function _channelCommissionPct(channels) {
     var total = 0;
     var weighted = 0;
+    var fixedFeeTotal = 0;
+    var ticket = _averageTicket();
     (channels || []).forEach(function (ch) {
       if (!ch.include) return;
-      total += ch.periodValue;
-      weighted += ch.periodValue * _num(ch.commissionPct);
+      var periodValue = _num(ch.periodValue);
+      if (!(periodValue > 0)) return;
+      var commissionPct = _num(ch.commissionPct);
+      var commissionTaxPct = commissionPct > 0 ? (commissionPct * _num(ch.taxPct) / 100) : 0;
+      total += periodValue;
+      weighted += periodValue * (commissionPct + commissionTaxPct);
+      if (ticket > 0 && _num(ch.fixedFee) > 0) {
+        fixedFeeTotal += (periodValue / ticket) * _num(ch.fixedFee);
+      }
     });
-    return total > 0 ? weighted / total : _num(_data.dinheiro.marketplaceCommissionPct || 0);
+    if (!(total > 0)) return _num(_data.dinheiro.marketplaceCommissionPct || 0);
+    return (weighted / total) + (fixedFeeTotal > 0 ? (fixedFeeTotal / total) * 100 : 0);
   }
 
   function _productById(id) {
@@ -3017,6 +3039,129 @@ Modules.PlanoDeVoo = (function () {
     }) || null;
   }
 
+  function _stockItemUnitCost(item) {
+    if (!item) return 0;
+    var directCost = _num(item.custo_atual != null ? item.custo_atual : (item.custoAtual != null ? item.custoAtual : (item.stockUnitCost != null ? item.stockUnitCost : 0)));
+    if (_num(item.preco_compra_base_embalagem || item.basePackagePrice) > 0) return directCost;
+    var hasPurchaseHistory = !!item.ultima_compra_id || !!item.ultima_compra_data || _num(item.custo_medio_compra || 0) > 0 || _num(item.custo_medio_qtd_base || 0) > 0;
+    if (hasPurchaseHistory) return directCost;
+    var content = _num(item.conteudo_por_embalagem_padrao || item.conteudoPorEmbalagemPadrao || 1) || 1;
+    var savedPurchase = _num(item.preco_compra || item.purchasePrice || 0);
+    if (content > 1 && directCost > 0 && savedPurchase > 0 && Math.abs(directCost - savedPurchase) < 0.000001) {
+      return directCost / content;
+    }
+    return directCost || _num(item.preco_compra || item.purchasePrice || item.cost || item.custo || 0);
+  }
+
+  function _stockItemLossPercent(item) {
+    if (!item) return 0;
+    if (item.perda_percentual != null) return Math.max(0, _num(item.perda_percentual));
+    if (item.perdaPercentual != null) return Math.max(0, _num(item.perdaPercentual));
+    var aproveitamento = _num(item.aproveitamento_padrao || item.aproveitamentoPadrao || 100) || 100;
+    return Math.max(0, 100 - aproveitamento);
+  }
+
+  function _stockItemClass(item) {
+    return _normalizeText((item && (item.classe || item.itemClass || item.stockItemType || item.tipoCadastro || item.class)) || '');
+  }
+
+  function _isRecipePackagingItem(item) {
+    return _stockItemClass(item) === 'embalagem';
+  }
+
+  function _isRecipePackagingComponent(name) {
+    return _normalizeText(name || '').indexOf('embal') >= 0;
+  }
+
+  function _recipeCostTarget(componentName, item) {
+    return _isRecipePackagingItem(item) || _isRecipePackagingComponent(componentName) ? 'packaging' : 'ingredients';
+  }
+
+  function _recipeYieldUnitKey(unit) {
+    var value = _normalizeText(unit || '').trim();
+    if (!value) return '';
+    if (['un', 'unid', 'unidade', 'unidades', 'porcao', 'porcoes'].indexOf(value) >= 0) return 'count';
+    if (['kg', 'quilo', 'quilos', 'quilograma', 'quilogramas'].indexOf(value) >= 0) return 'kg';
+    if (['g', 'gr', 'grama', 'gramas'].indexOf(value) >= 0) return 'g';
+    if (['l', 'litro', 'litros'].indexOf(value) >= 0) return 'l';
+    if (['ml', 'mililitro', 'mililitros'].indexOf(value) >= 0) return 'ml';
+    return value;
+  }
+
+  function _recipeComponentUsageRatio(component, recipeYieldQty, recipeYieldUnit) {
+    component = component || {};
+    var stageQty = _num(component.stageYieldQuantity || component.baseYieldQuantity || component.stockYieldQuantity || 0);
+    var recipeQty = _num(recipeYieldQty);
+    var stageUnit = component.stageYieldUnit || component.baseYieldUnit || component.stockYieldUnit || '';
+    var recipeUnit = recipeYieldUnit || 'unidades';
+    var compatible = !!stageQty && !!recipeQty && _recipeYieldUnitKey(stageUnit) && _recipeYieldUnitKey(stageUnit) === _recipeYieldUnitKey(recipeUnit);
+    var ratio = compatible ? (recipeQty / stageQty) : 1;
+    return isFinite(ratio) && ratio > 0 ? ratio : 1;
+  }
+
+  function _recipeComponents(recipe) {
+    recipe = recipe || {};
+    var components = Array.isArray(recipe.components) ? recipe.components : [];
+    if (!components.length && Array.isArray(recipe.recipeComponents)) components = recipe.recipeComponents;
+    if (!components.length && Array.isArray(recipe.ingredients) && recipe.ingredients.length) {
+      components = [{ name: 'Receita', ingredients: recipe.ingredients }];
+    }
+    return components || [];
+  }
+
+  function _recipePackagingItems(recipe) {
+    recipe = recipe || {};
+    return Array.isArray(recipe.packagingItems) ? recipe.packagingItems : (Array.isArray(recipe.packaging) ? recipe.packaging : []);
+  }
+
+  function _recipeIngredientLineCost(ingredient) {
+    ingredient = ingredient || {};
+    var item = _costItemById(ingredient.insumoId || ingredient.itemId || ingredient.stockItemId || '');
+    var qty = _num(ingredient.qty != null ? ingredient.qty : ingredient.quantity);
+    var unitCost = _stockItemUnitCost(item) || _num(ingredient.unitCost || ingredient.custoUnitario || 0);
+    var loss = _stockItemLossPercent(item);
+    var factor = 1 - (loss / 100);
+    if (factor <= 0) factor = 1;
+    var grossQty = qty / factor;
+    var calculated = grossQty * unitCost;
+    return calculated > 0 ? calculated : _num(ingredient.totalCost || ingredient.appliedTotalCost || 0);
+  }
+
+  function _recipeCostSummary(recipe) {
+    recipe = recipe || {};
+    var savedTotal = _num(recipe.totalCost || recipe.custoTotal || recipe.plannedCost || 0);
+    var savedUnit = _num(recipe.costPerYield != null ? recipe.costPerYield : (recipe.custoUnitario != null ? recipe.custoUnitario : recipe.unitCost));
+    if (savedUnit > 0) return { totalCost: savedTotal, costPerYield: savedUnit };
+    var yieldQty = _num(recipe.yieldQuantity || recipe.yield || recipe.rendimento || 1) || 1;
+    var yieldUnit = recipe.yieldUnit || recipe.unidadeRendimento || 'unidades';
+    var ingredientsCost = 0;
+    var packagingCost = 0;
+    _recipeComponents(recipe).forEach(function (component) {
+      var ratio = _recipeComponentUsageRatio(component, yieldQty, yieldUnit);
+      var rawIngredients = 0;
+      var rawPackaging = 0;
+      (component.ingredients || []).forEach(function (ingredient) {
+        var item = _costItemById(ingredient.insumoId || ingredient.itemId || ingredient.stockItemId || '');
+        var lineCost = _recipeIngredientLineCost(ingredient);
+        if (_recipeCostTarget(component.name || component.componentName || '', item || ingredient) === 'packaging') rawPackaging += lineCost;
+        else rawIngredients += lineCost;
+      });
+      ingredientsCost += rawIngredients * ratio;
+      packagingCost += rawPackaging * ratio;
+    });
+    _recipePackagingItems(recipe).forEach(function (item) {
+      packagingCost += _recipeIngredientLineCost(item);
+    });
+    var direct = ingredientsCost + packagingCost;
+    var indirectInfo = _indirectCostInfo();
+    var indirect = direct * (_num(indirectInfo.percent) / 100);
+    var total = savedTotal > 0 ? savedTotal : direct + indirect;
+    return {
+      totalCost: total,
+      costPerYield: yieldQty > 0 ? total / yieldQty : 0
+    };
+  }
+
   function _productUnitCost(p) {
     if (!p) return 0;
     var direct = _num(
@@ -3042,7 +3187,8 @@ Modules.PlanoDeVoo = (function () {
     }
     var recipe = _recipeById(p.fichaId || p.fichaTecnicaId || p.recipeId || '');
     if (recipe) {
-      var recipeCost = _num(recipe.costPerYield != null ? recipe.costPerYield : (recipe.custoUnitario != null ? recipe.custoUnitario : recipe.unitCost));
+      var recipeSummary = _recipeCostSummary(recipe);
+      var recipeCost = _num(recipeSummary.costPerYield);
       if (recipeCost > 0) return recipeCost;
     }
     return 0;

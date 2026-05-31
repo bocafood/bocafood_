@@ -1,5 +1,39 @@
 # AI Changelog
 
+## 2026-06-01 — Pedidos: líquido a receber por canal
+- Arquivos alterados: `public/js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- Adicionei no pedido o cálculo financeiro do canal de venda quando houver comissão, imposto sobre comissão ou taxa fixa configurados.
+- O pedido mantém o valor bruto que a cliente paga, mas passa a informar comissão do canal, imposto sobre comissão, taxa fixa, total de taxas e valor líquido a receber.
+- O lançamento enviado ao Financeiro agora usa o valor líquido a receber, preservando no próprio lançamento o valor bruto do pedido e a composição das taxas do canal.
+- O detalhe do pedido passa a mostrar a quebra de comissão, imposto, taxa fixa e líquido a receber quando existir custo de canal.
+- Impacto esperado: pedidos de marketplace ou canais com taxas passam a alimentar o financeiro com o valor real que entra no caixa, sem perder a auditoria do valor bruto vendido.
+
+## 2026-05-31 — Plano de Voo: comissão efetiva dos canais
+- Arquivos alterados: `public/js/modules/plano_voo.js`, `AI_CHANGELOG.md`.
+- Corrigi o cálculo de `Comissões dos canais` no Plano de Voo para considerar a comissão efetiva do canal.
+- Agora o imposto sobre comissão entra sobre o valor da comissão: por exemplo, 30% de comissão com 21% de imposto vira 36,3% de impacto antes de somar eventual taxa fixa.
+- A taxa fixa do canal também passa a entrar como equivalente percentual usando o ticket médio da rota.
+- Impacto esperado: deixar a previsão de custos por canal mais fiel em marketplaces e canais com comissão, imposto sobre comissão e taxa fixa.
+
+## 2026-05-31 — Cardápio: categoria rápida no produto
+- Arquivos alterados: `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Adicionei o botão `+ categoria` ao campo Categoria no modal de cadastro de produto.
+- O botão abre um modal rápido para criar a categoria sem sair do cadastro do produto e já seleciona a nova categoria no campo.
+- Impacto esperado: agilizar o cadastro dos 3 primeiros produtos do cardápio durante o onboarding.
+
+## 2026-05-31 — Cardápio: ajuda no tipo de produto
+- Arquivos alterados: `public/js/modules/catalogo.js`, `public/js/modules/dashboard.js`, `AI_CHANGELOG.md`.
+- Incluí um botão `Como preencher?` no card `Tipo de produto` do modal de cadastro de produto.
+- A ajuda explica Produto simples, Receita, Produto pronto, Produto com escolhas/combos e grupos de escolha com exemplos práticos.
+- Também finalizei a nova estrutura compacta do checklist com o botão `Ver etapas`, evitando seletor pouco claro.
+- Impacto esperado: facilitar o cadastro inicial de produtos e tornar o onboarding mais compreensível sem ocupar a tela inteira.
+
+## 2026-05-31 — Onboarding: explica tipo de produto do cardápio
+- Arquivos alterados: `public/js/modules/dashboard.js`, `AI_CHANGELOG.md`.
+- Reescrevi a explicação do campo `Tipo de produto` no `Como preencher > Cadastrar produtos do cardápio`.
+- A copy agora separa `Produto simples` e `Produto com escolhas / combo`, com exemplos práticos e destaques em negrito.
+- Impacto esperado: facilitar a decisão da usuária ao cadastrar produtos do cardápio.
+
 ## 2026-05-31 — Onboarding: Como preencher dos produtos do cardápio
 - Arquivos alterados: `public/js/modules/dashboard.js`, `AI_CHANGELOG.md`.
 - Validei o `Como preencher > Cadastrar produtos do cardápio` contra os campos reais do modal de produto.
@@ -10264,3 +10298,35 @@
 - O cálculo das receitas agora separa custo de ingredientes e custo de embalagens pelo tipo do item, sem depender apenas do nome da etapa.
 - Estoque e Lista de Compras passam a reconhecer a classe `Embalagem` como tipo próprio, preservando compatibilidade com insumos antigos.
 - Impacto esperado: permitir que caixas, potes, sacos, etiquetas e descartáveis sejam controlados e calculados como embalagem, sem quebrar compras, receitas, produção ou estoque existentes.
+
+## 2026-05-31 — Cardápio: KPIs com Matriz BCG
+- Arquivos alterados: `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Troquei os KPIs da página `Cardápio > Produtos` por uma leitura de Matriz BCG do cardápio.
+- A análise compara pedidos válidos dos últimos 30 dias com os 30 dias anteriores e classifica produtos em `Estrelas`, `Caixa forte`, `Apostas` e `Revisar`.
+- A leitura usa força de venda, crescimento recente e margem/custo do produto como apoio visual, sem criar nova coleção nem alterar pedidos, rotas ou cadastro de produtos.
+- Quando ainda não existe venda recente, os cards mostram a base vazia de forma orientativa até que os pedidos alimentem a análise.
+- Impacto esperado: transformar os cards do topo em uma leitura mais útil para decidir quais produtos destacar, proteger, testar ou revisar.
+
+## 2026-05-31 — Plano de Voo: varredura fina de campos
+- Arquivos alterados: `public/js/modules/plano_voo.js`, `public/js/modules/dashboard.js`, `AI_CHANGELOG.md`.
+- Revisei os campos do fluxo de criação da rota: período, ticket médio, vendas por canal, dias trabalhados, dias fechados, força dos meses, custos variáveis, reserva fiscal, provisão para custos gerais, resumo e snapshot salvo.
+- Ajustei o Plano de Voo para carregar `config/tpv` e só considerar `Venda presencial` como canal fixo quando o módulo estiver ativado, mantendo `Cardápio` como canal fixo padrão.
+- Confirmei que a rota salva preserva período inicial/final, dias de trabalho, dias fechados, pesos mensais, canais, custos variáveis, custos/despesas diretas e resumo financeiro.
+- Ajustei copies pontuais para falar em `negócio` em vez de `loja` na leitura do Plano de Voo e atualizei o onboarding para explicar que venda presencial só entra na previsão quando estiver ativada.
+- Impacto esperado: evitar canal indevido na base da rota, preservar melhor o período da rota nos snapshots e deixar a leitura dos campos mais coerente para a usuária.
+
+## 2026-05-31 — Plano de Voo: custo das receitas no cálculo
+- Arquivos alterados: `public/js/modules/plano_voo.js`, `AI_CHANGELOG.md`.
+- Corrigi a leitura do custo dos produtos no Plano de Voo para produtos do cardápio vinculados a receitas.
+- Antes, o Plano de Voo dependia de campos de custo já salvos na ficha, como `costPerYield`; quando a receita tinha custo calculável por ingredientes, embalagens e rendimento, mas esse campo não estava preenchido, o custo podia aparecer como zero.
+- Agora o Plano de Voo também calcula o custo da receita a partir dos componentes, ingredientes, embalagens, aproveitamento/perda, rendimento global e rendimento de etapa.
+- A correção mantém o uso de custo salvo quando já existir, mas passa a ter fallback calculado para evitar `Custo dos produtos vendidos` zerado quando há receita e produto vinculados.
+- Impacto esperado: o card de custos da rota passa a considerar produtos com receita cadastrada mesmo quando o custo unitário não estava persistido previamente na ficha técnica.
+
+## 2026-05-31 — Plano de Voo: saídas indiretas do Financeiro
+- Arquivos alterados: `public/js/modules/plano_voo.js`, `AI_CHANGELOG.md`.
+- Ajustei a regra das saídas previstas do Financeiro no Plano de Voo.
+- Custos diretos e despesas diretas deixam de entrar como compromisso fixo da rota, porque o custo direto da venda já deve vir do produto, receita, ingrediente, embalagem ou produto pronto.
+- O Plano de Voo passa a considerar como saídas previstas apenas categorias financeiras marcadas como `custo indireto` ou `despesa indireta`.
+- A copy dos cards, resumo dos cenários, resumo mês a mês e alerta de base foi alinhada para falar em despesas/custos indiretos.
+- Impacto esperado: evitar duplicidade entre custo do produto e saídas financeiras diretas, mantendo no plano apenas o que precisa sair do caixa como estrutura indireta do negócio.

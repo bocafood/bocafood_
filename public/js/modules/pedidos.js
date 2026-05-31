@@ -1817,7 +1817,8 @@ Modules.Pedidos = (function () {
     var freeShippingPromotionName = _firstText(order && order.freeShippingPromotionName, order && order.freeShippingPromotion && order.freeShippingPromotion.name, '');
     var discountTotal = _num(order && (order.discountTotal != null ? order.discountTotal : promoDiscount + couponDiscount + pointsDiscount));
     var couponCode = order && order.coupon ? _firstText(order.coupon.code, order.coupon.couponCode, order.coupon.name, '') : _firstText(order && order.couponCode, order && order.discountCode, '');
-    return { total: total, paid: paid, pending: pending, method: method, status: status, subtotal: subtotal, originalSubtotal: originalSubtotal, promoDiscount: promoDiscount, couponDiscount: couponDiscount, pointsDiscount: pointsDiscount, deliveryFee: deliveryFee, originalDeliveryFee: originalDeliveryFee, freeShippingApplied: freeShippingApplied, freeShippingPromotionName: freeShippingPromotionName, discountTotal: discountTotal, couponCode: couponCode };
+    var channelCosts = _orderChannelFinancialPatch(order || {}, total);
+    return { total: total, paid: paid, pending: pending, method: method, status: status, subtotal: subtotal, originalSubtotal: originalSubtotal, promoDiscount: promoDiscount, couponDiscount: couponDiscount, pointsDiscount: pointsDiscount, deliveryFee: deliveryFee, originalDeliveryFee: originalDeliveryFee, freeShippingApplied: freeShippingApplied, freeShippingPromotionName: freeShippingPromotionName, discountTotal: discountTotal, couponCode: couponCode, channelCosts: channelCosts };
   }
 
   function _detailSmallLine(label, value) {
@@ -1896,6 +1897,13 @@ Modules.Pedidos = (function () {
     if (payment.freeShippingApplied) rows.push(_detailSmallLine('Frete grátis' + (payment.freeShippingPromotionName ? ' · ' + payment.freeShippingPromotionName : ''), payment.originalDeliveryFee ? UI.fmt(payment.originalDeliveryFee) + ' → ' + UI.fmt(0) : UI.fmt(0)));
     if (payment.deliveryFee) rows.push(_detailSmallLine('Entrega', UI.fmt(payment.deliveryFee)));
     if (payment.discountTotal && !rows.some(function (line) { return line.indexOf('Promoções') >= 0 || line.indexOf('Cupom') >= 0 || line.indexOf('Pontos') >= 0; })) rows.push(_detailSmallLine('Descontos', '-' + UI.fmt(payment.discountTotal)));
+    var channelCosts = payment.channelCosts || {};
+    if (_num(channelCosts.channelFeeTotal) > 0) {
+      if (_num(channelCosts.channelCommissionAmount) > 0) rows.push(_detailSmallLine('Comissão do canal', '-' + UI.fmt(channelCosts.channelCommissionAmount)));
+      if (_num(channelCosts.channelCommissionTaxAmount) > 0) rows.push(_detailSmallLine('Imposto sobre comissão', '-' + UI.fmt(channelCosts.channelCommissionTaxAmount)));
+      if (_num(channelCosts.channelFixedFeeAmount) > 0) rows.push(_detailSmallLine('Taxa fixa do canal', '-' + UI.fmt(channelCosts.channelFixedFeeAmount)));
+      rows.push(_detailSmallLine('Líquido a receber', UI.fmt(channelCosts.netReceivable)));
+    }
     return rows.length ? '<div style="margin:10px 0 12px;padding:10px 0;border-top:1px solid #F2EDED;border-bottom:1px solid #F2EDED;display:grid;gap:6px;">' + rows.join('') + '</div>' : '';
   }
 
@@ -4323,6 +4331,7 @@ Modules.Pedidos = (function () {
         manualAdjustment: channel !== 'cardapio' || adjustment !== 0,
         createdAt: _manualOrderCreatedAt(orderTime)
       };
+      Object.assign(payload, _orderChannelFinancialPatch(payload, total));
       payload.fiscal = _ensureOrderFiscalDefaults(payload).fiscal;
 
       DB.add('orders', payload).then(function (ref) {
@@ -5824,6 +5833,7 @@ Modules.Pedidos = (function () {
       deliveredAt: new Date().toISOString(),
       createdAt: _manualOrderCreatedAt(orderTime)
     };
+    Object.assign(payload, _orderChannelFinancialPatch(payload, total));
     payload.fiscal = _ensureOrderFiscalDefaults(payload).fiscal;
     return DB.add('orders', payload).then(function (ref) {
       var createdId = (ref && ref.id) ? String(ref.id) : '';
@@ -6505,6 +6515,52 @@ Modules.Pedidos = (function () {
     return 'previsto';
   }
 
+  function _orderChannelFinancialPatch(order, grossTotal) {
+    order = order || {};
+    grossTotal = _num(grossTotal);
+    var meta = _orderChannelMeta(order);
+    var channel = meta.channel || {};
+    var commissionPct = _num(channel.commissionPct != null ? channel.commissionPct : order.channelCommissionPct);
+    var taxPct = _num(channel.taxPct != null ? channel.taxPct : order.channelCommissionTaxPct);
+    var fixedFee = _num(channel.fixedFee != null ? channel.fixedFee : order.channelFixedFee);
+    var commissionAmount = grossTotal > 0 && commissionPct > 0 ? +(grossTotal * commissionPct / 100).toFixed(2) : 0;
+    var commissionTaxAmount = commissionAmount > 0 && taxPct > 0 ? +(commissionAmount * taxPct / 100).toFixed(2) : 0;
+    var fixedFeeAmount = grossTotal > 0 && fixedFee > 0 ? +fixedFee.toFixed(2) : 0;
+    var feeTotal = +(commissionAmount + commissionTaxAmount + fixedFeeAmount).toFixed(2);
+    var net = Math.max(0, +(grossTotal - feeTotal).toFixed(2));
+    var effectivePct = commissionPct + (commissionPct > 0 && taxPct > 0 ? (commissionPct * taxPct / 100) : 0);
+    return {
+      grossOrderTotal: grossTotal,
+      grossAmount: grossTotal,
+      channelFeeTotal: feeTotal,
+      channelFeesTotal: feeTotal,
+      channelCommissionPct: commissionPct,
+      channelCommissionTaxPct: taxPct,
+      channelEffectiveCommissionPct: +effectivePct.toFixed(4),
+      channelFixedFee: fixedFee,
+      channelCommissionAmount: commissionAmount,
+      channelCommissionTaxAmount: commissionTaxAmount,
+      channelFixedFeeAmount: fixedFeeAmount,
+      netReceivable: net,
+      liquidReceivable: net,
+      financialNetAmount: net,
+      channelFeeBreakdown: {
+        channel: String(meta.raw || ''),
+        channelName: String(meta.label || ''),
+        commissionPct: commissionPct,
+        taxPct: taxPct,
+        effectiveCommissionPct: +effectivePct.toFixed(4),
+        fixedFee: fixedFee,
+        commissionAmount: commissionAmount,
+        commissionTaxAmount: commissionTaxAmount,
+        fixedFeeAmount: fixedFeeAmount,
+        totalFees: feeTotal,
+        grossTotal: grossTotal,
+        netReceivable: net
+      }
+    };
+  }
+
   function _orderPaymentStatus(order) {
     order = order || {};
     var direct = _firstText(order.paymentStatus, order.paymentState, order.statusPayment, order.payStatus, '');
@@ -6530,9 +6586,13 @@ Modules.Pedidos = (function () {
     orderId = String(orderId || '');
     if (!orderId) return Promise.resolve(false);
     order = order || {};
-    var total = _orderFinanceTotal(order);
+    var grossTotal = _orderFinanceTotal(order);
+    var channelFinancial = _orderChannelFinancialPatch(order, grossTotal);
+    Object.assign(order, channelFinancial);
+    var total = _num(channelFinancial.netReceivable != null ? channelFinancial.netReceivable : grossTotal);
     var paymentStatus = _orderPaymentStatus(order);
-    var paidAmount = _normalizeMoneyAgainstExpected(order.paidAmount != null ? order.paidAmount : order.amountPaid != null ? order.amountPaid : order.valuePaid != null ? order.valuePaid : 0, total);
+    var grossPaidAmount = _normalizeMoneyAgainstExpected(order.paidAmount != null ? order.paidAmount : order.amountPaid != null ? order.amountPaid : order.valuePaid != null ? order.valuePaid : 0, grossTotal);
+    var paidAmount = grossTotal > 0 && total > 0 ? +(grossPaidAmount * (total / grossTotal)).toFixed(2) : grossPaidAmount;
     if (paymentStatus === 'pago') paidAmount = total;
     if (paymentStatus !== 'parcial') paidAmount = paymentStatus === 'pago' ? total : 0;
     var finStatus = _paymentStatusFinanceStatus(paymentStatus);
@@ -6555,6 +6615,21 @@ Modules.Pedidos = (function () {
       valorParcela: total,
       valorRecebido: paidAmount,
       saldoRestante: Math.max(0, total - paidAmount),
+      valorBrutoPedido: grossTotal,
+      grossOrderTotal: grossTotal,
+      valorLiquidoReceber: total,
+      netReceivable: total,
+      liquidReceivable: total,
+      channelFeeTotal: _num(channelFinancial.channelFeeTotal),
+      channelFeesTotal: _num(channelFinancial.channelFeeTotal),
+      channelCommissionPct: _num(channelFinancial.channelCommissionPct),
+      channelCommissionTaxPct: _num(channelFinancial.channelCommissionTaxPct),
+      channelEffectiveCommissionPct: _num(channelFinancial.channelEffectiveCommissionPct),
+      channelFixedFee: _num(channelFinancial.channelFixedFee),
+      channelCommissionAmount: _num(channelFinancial.channelCommissionAmount),
+      channelCommissionTaxAmount: _num(channelFinancial.channelCommissionTaxAmount),
+      channelFixedFeeAmount: _num(channelFinancial.channelFixedFeeAmount),
+      channelFeeBreakdown: channelFinancial.channelFeeBreakdown || {},
       forma_pagamento: _paymentMethodLabel(order.paymentMethod || ''),
       paymentMethod: String(order.paymentMethod || ''),
       paymentStatus: paymentStatus,

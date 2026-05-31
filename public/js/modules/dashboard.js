@@ -359,7 +359,7 @@ Modules.Dashboard = (function () {
     _ensureGlobalOnboardingStyles();
     var vm = _buildModel();
     _syncSidebarOnboardingChecks(vm);
-    var html = _welcomeModal(vm) + _onboarding(vm) + _checklistGuideModal();
+    var html = _welcomeModal(vm) + _onboarding(vm) + _checklistStepsModal() + _checklistGuideModal();
     _setTourScrollLock(false);
     if (!html) {
       _setTourScrollLock(false);
@@ -625,9 +625,6 @@ Modules.Dashboard = (function () {
     var phaseDone = phaseSteps.filter(function (s) { return s.done; }).length;
     var nextIdx = Math.max(0, phaseSteps.findIndex(function (s) { return !s.done; }));
     var nextStep = phaseSteps[nextIdx] || phaseSteps[0] || {};
-    var stepOptions = phaseSteps.map(function (step, idx) {
-      return '<option value="' + idx + '"' + (idx === nextIdx ? ' selected' : '') + '>' + (step.done ? '✓ ' : '') + _esc(step.title || ('Passo ' + (idx + 1))) + '</option>';
-    }).join('');
     var pct = Math.round((done / total) * 100);
     var collapsed = _readLocalOnboardingState().collapsed;
     return '<div id="dash-onboarding-panel" class="dash-card dash-onboarding-float" style="display:' + (collapsed ? 'none' : 'block') + ';overflow:hidden;border:1px solid rgba(234,228,218,.9);">' +
@@ -640,17 +637,17 @@ Modules.Dashboard = (function () {
           '<button type="button" onclick="Modules.Dashboard._collapseOnboarding()" style="width:30px;height:30px;border:none;background:rgba(255,255,255,.7);border-radius:10px;color:#6F6860;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;"><span class="mi" style="font-size:18px;">expand_more</span></button>' +
         '</div>' +
         '<div style="display:flex;align-items:center;gap:10px;margin-top:13px;"><div style="height:8px;border-radius:999px;background:#F1ECE4;overflow:hidden;flex:1;"><div style="height:100%;width:' + pct + '%;background:#B42318;border-radius:999px;"></div></div><span style="font-size:12px;color:#1F1F1F;white-space:nowrap;">' + done + '/' + total + '</span></div>' +
-        '<div style="margin-top:10px;border:1px solid #E8DCD7;background:#fff;border-radius:12px;padding:9px 10px;color:#5F5750;font-size:11.5px;line-height:1.35;">Vá etapa por etapa. A lista mostra seu progresso e abre o próximo ponto para continuar.</div>' +
+        '<div style="margin-top:10px;border:1px solid #E8DCD7;background:#fff;border-radius:12px;padding:9px 10px;color:#5F5750;font-size:11.5px;line-height:1.35;">Faça um passo por vez. O BocaFood mostra o que vem agora e guarda a sequência para você continuar sem se perder.</div>' +
       '</div>' +
       '<div style="padding:10px;background:#fff;display:flex;flex-direction:column;gap:9px;">' +
           '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 2px;"><span style="font-size:11px;color:#8A6F5A;text-transform:uppercase;letter-spacing:.03em;">Etapa atual</span><span style="font-size:11px;color:#6F6860;">' + phaseDone + '/' + phaseSteps.length + '</span></div>' +
           '<button type="button" onclick="Modules.Dashboard._openChecklistGuide(\'' + _esc((phase && phase.key) || '') + '\',' + nextIdx + ')" class="dash-action" style="text-align:left;border:1px solid ' + (nextStep.done ? '#D9F2E3' : '#EAE4DA') + ';background:' + (nextStep.done ? '#F4FBF6' : '#fff') + ';border-radius:14px;padding:12px;display:flex;gap:10px;align-items:flex-start;cursor:pointer;font-family:inherit;min-width:0;">' +
             '<span class="mi" style="width:32px;height:32px;border-radius:11px;background:' + (nextStep.done ? '#E8F7EE' : '#FAF8F4') + ';color:' + (nextStep.done ? '#1F6F43' : '#B42318') + ';font-size:18px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;">' + (nextStep.done ? 'check_circle' : _esc(nextStep.icon || 'arrow_forward')) + '</span>' +
-            '<span style="min-width:0;"><span style="display:block;font-size:10.5px;color:#8A6F5A;font-weight:800;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Próximo passo</span><strong style="display:block;font-size:13px;color:#1F1F1F;line-height:1.25;">' + _esc(nextStep.title || 'Continuar configuração') + '</strong><span style="display:block;font-size:11.5px;color:#6F6860;line-height:1.35;margin-top:3px;">' + _esc(nextStep.text || 'Abra para ver o que preencher e onde continuar.') + '</span></span>' +
+            '<span style="min-width:0;"><span style="display:block;font-size:10.5px;color:#8A6F5A;font-weight:800;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Agora faça isso</span><strong style="display:block;font-size:13px;color:#1F1F1F;line-height:1.25;">' + _esc(nextStep.title || 'Continuar configuração') + '</strong><span style="display:block;font-size:11.5px;color:#6F6860;line-height:1.35;margin-top:3px;">' + _esc(nextStep.text || 'Abra para ver o que preencher e onde continuar.') + '</span></span>' +
           '</button>' +
-          '<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px;align-items:center;">' +
-            '<select class="dash-onboarding-select" onchange="Modules.Dashboard._openChecklistGuideFromSelect(this,\'' + _esc((phase && phase.key) || '') + '\')" aria-label="Escolher passo do checklist"><option value="">Ver outro passo desta etapa...</option>' + stepOptions + '</select>' +
-            '<button type="button" onclick="Modules.Dashboard._openChecklistGuide(\'' + _esc((phase && phase.key) || '') + '\',' + nextIdx + ')" class="dash-soft-btn" style="height:38px;padding:0 12px;border:1px solid #E8DCD7;background:#fff;color:#1F1F1F;border-radius:12px;font-size:12px;font-weight:750;cursor:pointer;font-family:inherit;white-space:nowrap;">Abrir</button>' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;align-items:center;">' +
+            '<button type="button" onclick="Modules.Dashboard._openChecklistGuide(\'' + _esc((phase && phase.key) || '') + '\',' + nextIdx + ')" class="dash-soft-btn" style="height:38px;padding:0 12px;border:none;background:#B42318;color:#fff;border-radius:12px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;">Abrir passo</button>' +
+            '<button type="button" onclick="Modules.Dashboard._openChecklistSteps(\'' + _esc((phase && phase.key) || '') + '\')" class="dash-soft-btn" style="height:38px;padding:0 12px;border:1px solid #E8DCD7;background:#fff;color:#1F1F1F;border-radius:12px;font-size:12px;font-weight:750;cursor:pointer;font-family:inherit;">Ver etapas</button>' +
           '</div>' +
           '<div style="border-top:1px solid #F1ECE4;margin-top:1px;padding-top:8px;display:flex;gap:6px;flex-wrap:wrap;">' +
             vm.onboarding.map(function (p, idx) {
@@ -1066,6 +1063,40 @@ Modules.Dashboard = (function () {
     return { phase: phase, step: step, index: index, guide: _checklistGuideForStep(step, phase) };
   }
 
+  function _activeChecklistSteps() {
+    var phaseKey = '';
+    try { phaseKey = window.localStorage ? localStorage.getItem('boca_dashboard_checklist_steps') || '' : ''; } catch (err) {}
+    if (!phaseKey) return null;
+    var phases = _onboardingSteps();
+    return phases.filter(function (p) { return p && p.key === phaseKey; })[0] || null;
+  }
+
+  function _checklistStepsModal() {
+    var phase = _activeChecklistSteps();
+    if (!phase || !Array.isArray(phase.steps)) return '';
+    var done = phase.steps.filter(function (step) { return step.done; }).length;
+    return '<div id="dash-checklist-steps" class="dash-checklist-backdrop">' +
+      '<section class="dash-checklist-modal" style="max-width:520px;">' +
+        '<div style="padding:18px 20px;background:linear-gradient(135deg,#FFFDF8 0%,#FAF1E6 100%);display:flex;align-items:flex-start;justify-content:space-between;gap:14px;border-bottom:1px solid rgba(234,228,218,.72);">' +
+          '<div style="min-width:0;">' +
+            '<div class="dash-tour-tag"><span aria-hidden="true" style="width:6px;height:6px;border-radius:999px;background:#B6925E;display:inline-block;"></span>Etapas</div>' +
+            '<h2 style="font-size:21px;color:#1F1F1F;line-height:1.15;margin:8px 0 0;font-weight:780;">' + _esc(phase.title || 'Primeiros passos') + '</h2>' +
+            '<p style="font-size:12.5px;color:#5F5750;line-height:1.45;margin:6px 0 0;">' + done + ' de ' + phase.steps.length + ' concluídos. Abra uma etapa para ver o que preencher.</p>' +
+          '</div>' +
+          '<button type="button" onclick="Modules.Dashboard._closeChecklistSteps()" aria-label="Fechar" style="width:34px;height:34px;border:none;background:#fff;border-radius:12px;color:#6F6860;cursor:pointer;display:flex;align-items:center;justify-content:center;"><span class="mi" style="font-size:19px;">close</span></button>' +
+        '</div>' +
+        '<div class="dash-checklist-body" style="padding:14px 16px 16px;display:flex;flex-direction:column;gap:8px;">' +
+          phase.steps.map(function (step, idx) {
+            return '<button type="button" onclick="Modules.Dashboard._openChecklistGuide(\'' + _esc(phase.key || '') + '\',' + idx + ')" class="dash-action" style="text-align:left;border:1px solid ' + (step.done ? '#D9F2E3' : '#EAE4DA') + ';background:' + (step.done ? '#F4FBF6' : '#fff') + ';border-radius:14px;padding:11px;display:flex;gap:10px;align-items:flex-start;cursor:pointer;font-family:inherit;min-width:0;">' +
+              '<span class="mi" style="width:30px;height:30px;border-radius:11px;background:' + (step.done ? '#E8F7EE' : '#FAF8F4') + ';color:' + (step.done ? '#1F6F43' : '#B42318') + ';font-size:18px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;">' + (step.done ? 'check_circle' : _esc(step.icon || 'arrow_forward')) + '</span>' +
+              '<span style="min-width:0;"><strong style="display:block;font-size:13px;color:#1F1F1F;line-height:1.25;">' + _esc(step.title || '') + '</strong><span style="display:block;font-size:11.5px;color:#6F6860;line-height:1.35;margin-top:3px;">' + _esc(step.text || '') + '</span></span>' +
+            '</button>';
+          }).join('') +
+        '</div>' +
+      '</section>' +
+    '</div>';
+  }
+
   function _checklistGuideModal() {
     var active = _activeChecklistGuide();
     if (!active || !active.guide) return '';
@@ -1113,6 +1144,7 @@ Modules.Dashboard = (function () {
   function _openChecklistGuide(phaseKey, index) {
     try {
       if (window.localStorage) localStorage.setItem('boca_dashboard_checklist_guide', String(phaseKey || '') + ':' + String(index || 0));
+      if (window.localStorage) localStorage.removeItem('boca_dashboard_checklist_steps');
     } catch (err) {}
     _writeLocalOnboardingState({ version: ONBOARDING_VERSION, welcomeSeen: true, tourOpen: false, tourDone: true, collapsed: false }, { action: 'checklist_guide_opened' });
     var active = _activeChecklistGuide();
@@ -1128,6 +1160,19 @@ Modules.Dashboard = (function () {
     var idx = parseInt(raw, 10);
     if (isNaN(idx)) return;
     _openChecklistGuide(phaseKey, idx);
+  }
+
+  function _openChecklistSteps(phaseKey) {
+    try {
+      if (window.localStorage) localStorage.setItem('boca_dashboard_checklist_steps', String(phaseKey || ''));
+    } catch (err) {}
+    _writeLocalOnboardingState({ version: ONBOARDING_VERSION, welcomeSeen: true, tourOpen: false, tourDone: true, collapsed: false }, { action: 'checklist_steps_opened' });
+    _renderGlobalOnboarding();
+  }
+
+  function _closeChecklistSteps() {
+    try { if (window.localStorage) localStorage.removeItem('boca_dashboard_checklist_steps'); } catch (err) {}
+    _renderGlobalOnboarding();
   }
 
   function _closeChecklistGuide() {
@@ -1316,7 +1361,7 @@ Modules.Dashboard = (function () {
           ['Categoria', 'Coloque o produto no grupo certo do cardápio, como Salgados, Doces, Bebidas, Combos ou Pratos.'],
           ['Custo e margem', 'Quando o produto estiver ligado a uma receita ou produto pronto com custo, o BocaFood mostra uma leitura de custo e margem. Se aparecer zerado, revise a receita, o produto pronto ou o preço de compra.'],
           ['Mostrar selo de destaque', 'Ligue quando quiser que o produto tenha um selo visual no cardápio. Use em poucos produtos para não perder força.'],
-          ['Tipo de produto', 'Escolha Produto simples quando ele é vendido sozinho. Escolha Produto com escolhas / combo quando a cliente precisa escolher sabor, tamanho, acompanhamento ou itens do menu.'],
+          ['Tipo de produto', '<div><strong style="color:#1F1F1F;">Produto simples</strong><br>Use quando a cliente compra o item direto, sem precisar escolher nada antes de adicionar ao pedido. Exemplo: uma coxinha, um brigadeiro, uma bebida ou um bolo já definido.</div><div style="margin-top:8px;"><strong style="color:#1F1F1F;">Produto com escolhas / combo</strong><br>Use quando a cliente precisa escolher alguma opção, como sabor, tamanho, recheio, bebida, acompanhamento ou itens de um menu.</div>', true],
           ['Receita', 'Use quando o produto é produzido pelo negócio. Vincule à receita cadastrada para o custo e a margem ficarem mais confiáveis.'],
           ['Produto pronto', 'Use quando o item é comprado pronto e revendido, como bebida, doce de fornecedor ou produto embalado.'],
           ['Escolhas do combo', 'Use quando o produto tem grupos de escolha. Exemplo: escolher bebida, sabor, acompanhamento ou sobremesa.'],
@@ -1365,7 +1410,7 @@ Modules.Dashboard = (function () {
           ['Período da rota', 'A rota é criada para o período anual. Se o ano já começou, ela considera o restante do ano. Use esse campo para entender de qual mês até qual mês a rota está falando.'],
           ['Base da rota', 'Confira o ponto de partida antes de escolher o cenário: ticket médio, vendas por canal, custos, despesas, dias trabalhados, dias fechados e força dos meses.'],
           ['Ticket médio usado', 'Preencha uma estimativa realista do valor médio que cada cliente costuma comprar. Exemplo: se a maioria dos pedidos fica perto de €15,00, use esse valor como ponto de partida. Se esse valor mudar, os pedidos por dia também mudam nos cenários.'],
-          ['Vendas por canal', 'Registre quanto você acredita que cada canal consegue vender por mês, como Cardápio, Instagram, WhatsApp ou venda presencial. Esse valor ajuda o BocaFood a montar a previsão de venda do período.'],
+          ['Vendas por canal', 'Registre quanto você acredita que cada canal consegue vender por mês, como Cardápio, Instagram ou WhatsApp. Venda presencial entra nessa base quando estiver ativada nas configurações. Esse valor ajuda o BocaFood a montar a previsão de venda do período.'],
           ['Custos que acompanham as vendas', 'Confira os custos que aumentam quando vende mais, como custo dos produtos, taxas, comissões e uma reserva para custos gerais. Esses valores são calculados automaticamente pelo BocaFood.'],
           ['Provisão para custos gerais', 'Use para reservar uma parte da venda para custos que nem sempre aparecem item por item, mas que pesam no resultado, como perdas, energia, marketing, ajustes de produção ou apoio da operação. Se estiver em automático, o BocaFood usa a base que já existe. Se estiver manual, informe um percentual prudente para não criar uma rota apertada demais.'],
           ['Reserva fiscal', 'Vem da configuração fiscal do negócio. Ela separa uma parte da venda para impostos, usando IVA e IRPF configurados no Fiscal. Essa reserva não registra pagamento automático; ela serve para o Plano de Voo não tratar como sobra um valor que precisa ficar guardado.'],
@@ -2775,6 +2820,8 @@ Modules.Dashboard = (function () {
     _openGuidedRoute: _openGuidedRoute,
     _openChecklistGuide: _openChecklistGuide,
     _openChecklistGuideFromSelect: _openChecklistGuideFromSelect,
+    _openChecklistSteps: _openChecklistSteps,
+    _closeChecklistSteps: _closeChecklistSteps,
     _closeChecklistGuide: _closeChecklistGuide,
     _openChecklistGuideRoute: _openChecklistGuideRoute,
     _nextTourStep: _nextTourStep,

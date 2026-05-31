@@ -359,22 +359,7 @@ Modules.Catalogo = (function () {
     var visibleProducts = _filterProductList(query);
     var paging = _productPaging(visibleProducts);
     var listMode = (_productView.mode || 'list') !== 'grid';
-    var totalCount = _products.length;
-    var categoryCount = _categories.length;
-    var visibleCount = visibleProducts.filter(function (p) { return p.menuVisible !== false; }).length;
-    var hiddenCount = _products.filter(function (p) { return p && p.menuVisible === false; }).length;
-    var promoCount = visibleProducts.filter(function (p) { return !!_promoStateForProduct(p); }).length;
-    var orders30Count = _countOrdersSinceDays(_orders || [], 30);
-    var openOrders = (_orders || []).filter(function (o) {
-      var st = String(o && (o.status || o.state || o.orderStatus) || '').toLowerCase();
-      return st !== 'cancelado' && st !== 'canceled' && st !== 'cancelled' && st !== 'entregue' && st !== 'finalizado' && st !== 'fechado' && st !== 'closed';
-    }).length;
-    var metrics = [
-      { label: 'Total de produtos', value: totalCount, icon: 'inventory_2', color: '#8A6F5A' },
-      { label: 'Categorias', value: categoryCount, icon: 'category', color: '#A18362' },
-      { label: 'Produtos visíveis', value: visibleCount, icon: 'visibility', color: '#6C8777' },
-      { label: 'Pedidos (30 dias)', value: orders30Count, icon: 'receipt_long', color: '#B42318' }
-    ];
+    var bcgMetrics = _productBcgMetrics(_products || [], _orders || []);
     var filterCardStyle = 'background:linear-gradient(180deg,#FFFFFF 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.055);';
     var fieldStyle = 'padding:10px 12px;border:1px solid #E8DCD7;border-radius:12px;font-size:14px;font-family:inherit;outline:none;background:#FFFCF8;width:100%;box-sizing:border-box;color:#1F1F1F;box-shadow:inset 0 1px 0 rgba(255,255,255,.82);transition:border-color .15s ease,box-shadow .15s ease,background .15s ease;';
     var selectFieldStyle = fieldStyle + 'appearance:none;-webkit-appearance:none;-moz-appearance:none;padding-right:40px;';
@@ -394,15 +379,7 @@ Modules.Catalogo = (function () {
         var value = c.id || c.slug || c.name || '';
         return '<option value="' + _esc(value) + '"' + (_productFilters.category === String(value) ? ' selected' : '') + '>' + _esc(c.name || c.label || value || 'Categoria') + '</option>';
       }).join('');
-    var metricsHtml = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;">' + metrics.map(function (m) {
-      return '<div style="display:flex;align-items:center;gap:12px;background:#FAF8F4;border:none;border-radius:16px;padding:15px 16px;box-shadow:0 12px 30px rgba(31,31,31,.06);min-height:78px;overflow:hidden;transition:transform .16s ease,box-shadow .16s ease,background .16s ease;" onmouseenter="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 16px 34px rgba(31,31,31,.09)\';this.style.background=\'#fff\'" onmouseleave="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'0 12px 30px rgba(31,31,31,.06)\';this.style.background=\'#FAF8F4\'">' +
-        '<div style="width:46px;height:46px;border-radius:14px;background:transparent;color:' + (m.color || '#6F6860') + ';display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span class="mi" style="font-size:24px;">' + _esc(m.icon || 'analytics') + '</span></div>' +
-        '<div style="min-width:0;display:flex;flex-direction:column;gap:3px;">' +
-          '<span style="font-size:12px;font-weight:500;color:#6F6860;line-height:1.15;">' + _esc(m.label) + '</span>' +
-          '<strong style="font-size:34px;font-weight:700;color:#1F1F1F;line-height:1;white-space:nowrap;letter-spacing:0;">' + _esc(String(m.value)) + '</strong>' +
-        '</div>' +
-      '</div>';
-    }).join('') + '</div>';
+    var metricsHtml = _productBcgMetricsHtml(bcgMetrics);
     var clearFiltersHtml = (query || _hasActiveProductFilters() || _productView.sort !== 'order') ? '<div style="display:flex;justify-content:flex-start;margin-top:11px;"><button type="button" onclick="Modules.Catalogo._clearProductFilters()" style="height:36px;padding:0 13px;border:1px solid #EADFD8;border-radius:11px;background:#fff;color:#6F6860;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);">Limpar filtros</button></div>' : '';
     var filtersHtml = '<div style="' + filterCardStyle + '">' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:11px 12px;align-items:end;">' +
@@ -655,6 +632,222 @@ Modules.Catalogo = (function () {
       var d = _toDateSafe(o && (o.createdAt || o.updatedAt || o.date || o.dateTime));
       return d && d.getTime() >= limit;
     }).length;
+  }
+
+  function _orderItemName(item) {
+    return String(item && (item.name || item.productName || item.nome || item.title || item.label || '') || '').trim();
+  }
+
+  function _orderItemTotalValue(item, qty, product) {
+    var rawTotal = item && (item.total != null ? item.total :
+      (item.subtotal != null ? item.subtotal :
+      (item.lineTotal != null ? item.lineTotal :
+      (item.finalTotal != null ? item.finalTotal : null))));
+    var total = _moneyLike(rawTotal);
+    if (total > 0) return total;
+    var price = _moneyLike(item && (item.finalPrice != null ? item.finalPrice :
+      (item.price != null ? item.price :
+      (item.unitPrice != null ? item.unitPrice :
+      (item.valorUnitario != null ? item.valorUnitario : null)))));
+    if (!(price > 0)) price = _moneyLike(product && (product.price != null ? product.price : product.preco));
+    return price > 0 ? price * Math.max(1, qty || 1) : 0;
+  }
+
+  function _productSavedCost(product) {
+    var base = _normalizeProduct(product || {});
+    var fallbackCost = _moneyLike(base.cost != null ? base.cost :
+      (base.custo != null ? base.custo :
+      (base.purchasePrice != null ? base.purchasePrice :
+      (base.custoAtual != null ? base.custoAtual :
+      (base.custo_atual != null ? base.custo_atual : 0)))));
+    var menuGroups = _normalizeMenuGroups(base);
+    var isMenu = base.type === 'menu' || menuGroups.length > 0;
+    if (isMenu) {
+      var total = 0;
+      menuGroups.forEach(function (group) {
+        var groupCosts = [];
+        (group.options || []).forEach(function (opt) {
+          var c = _menuRefCost(opt.ref);
+          if (c > 0) groupCosts.push(c);
+        });
+        if (groupCosts.length) total += Math.min.apply(Math, groupCosts);
+      });
+      return total > 0 ? total : fallbackCost;
+    }
+    var src = base.unicoSource || ((base.produtoProntoId || base.sourceItemId) ? 'pronto' : 'receita');
+    if (src === 'receita') {
+      var fichaId = String(base.fichaId || '').trim();
+      var ficha = _fichas.find(function (f) { return String(f.id) === String(fichaId); });
+      if (ficha && typeof _calcFichaCosts === 'function') {
+        var calc = _calcFichaCosts(ficha);
+        if (calc && calc.costPerYield > 0) return _moneyLike(calc.costPerYield);
+        if (calc && calc.totalCost > 0) return _moneyLike(calc.totalCost);
+      }
+    } else {
+      var prontoId = String(base.produtoProntoId || base.sourceItemId || '').trim();
+      var pronto = _produtosProntos.find(function (pp) { return String(pp.id) === String(prontoId); });
+      if (pronto) {
+        var prontoCost = pronto.purchasePrice != null ? pronto.purchasePrice :
+          (pronto.preco_compra != null ? pronto.preco_compra :
+          (pronto.custo_atual != null ? pronto.custo_atual : pronto.cost || 0));
+        if (_moneyLike(prontoCost) > 0) return _moneyLike(prontoCost);
+      }
+    }
+    return fallbackCost;
+  }
+
+  function _productMarginInfo(product) {
+    var p = _normalizeProduct(product || {});
+    var price = _moneyLike(p.price || p.preco || 0);
+    var cost = _productSavedCost(p);
+    if (!(price > 0) || !(cost > 0)) return { label: 'sem custo completo', margin: null, cost: cost, price: price };
+    var margin = ((price - cost) / price) * 100;
+    return { label: 'margem ' + margin.toFixed(0).replace('.', ',') + '%', margin: margin, cost: cost, price: price };
+  }
+
+  function _productBcgMetrics(products, orders) {
+    var productList = (products || []).map(_normalizeProduct);
+    var productById = {};
+    var productByName = {};
+    var rows = [];
+    productList.forEach(function (p) {
+      var id = String(p.id || '').trim();
+      if (!id) return;
+      productById[id] = p;
+      var nameKey = String(p.name || '').trim().toLowerCase();
+      if (nameKey) productByName[nameKey] = p;
+      rows.push({
+        id: id,
+        product: p,
+        currentRevenue: 0,
+        previousRevenue: 0,
+        currentQty: 0,
+        previousQty: 0,
+        orderHits: {}
+      });
+    });
+    var rowById = {};
+    rows.forEach(function (row) { rowById[row.id] = row; });
+    var now = new Date();
+    now.setHours(23, 59, 59, 999);
+    var currentStart = now.getTime() - (30 * 86400000);
+    var previousStart = now.getTime() - (60 * 86400000);
+
+    (orders || []).filter(_validOrderForProductHistory).forEach(function (order) {
+      var d = _toDateSafe(order && (order.createdAt || order.updatedAt || order.date || order.dateTime || order.created_at));
+      if (!d) return;
+      var ts = d.getTime();
+      if (ts < previousStart || ts > now.getTime()) return;
+      var bucket = ts >= currentStart ? 'current' : 'previous';
+      _orderProductItems(order).forEach(function (item) {
+        var id = _orderItemProductId(item);
+        var product = id ? productById[id] : null;
+        if (!product) {
+          var nameKey = _orderItemName(item).toLowerCase();
+          product = nameKey ? productByName[nameKey] : null;
+          id = product ? String(product.id || '') : '';
+        }
+        if (!product || !rowById[id]) return;
+        var qty = _orderItemQty(item);
+        var total = _orderItemTotalValue(item, qty, product);
+        if (bucket === 'current') {
+          rowById[id].currentRevenue += total;
+          rowById[id].currentQty += qty;
+        } else {
+          rowById[id].previousRevenue += total;
+          rowById[id].previousQty += qty;
+        }
+        if (order && order.id) rowById[id].orderHits[String(order.id)] = true;
+      });
+    });
+
+    var soldRows = rows.filter(function (row) { return row.currentRevenue > 0 || row.currentQty > 0; });
+    var totalCurrentRevenue = soldRows.reduce(function (sum, row) { return sum + row.currentRevenue; }, 0);
+    var averageCurrentRevenue = soldRows.length ? totalCurrentRevenue / soldRows.length : 0;
+    var buckets = {
+      stars: [],
+      cash: [],
+      bets: [],
+      review: []
+    };
+
+    rows.forEach(function (row) {
+      var share = totalCurrentRevenue > 0 ? row.currentRevenue / totalCurrentRevenue : 0;
+      var highShare = row.currentRevenue > 0 && (row.currentRevenue >= averageCurrentRevenue || share >= 0.18);
+      var growthPercent = row.previousRevenue > 0 ? ((row.currentRevenue - row.previousRevenue) / row.previousRevenue) * 100 : (row.currentRevenue > 0 ? 100 : 0);
+      var highGrowth = row.currentRevenue > 0 && (row.previousRevenue <= 0 || growthPercent >= 10);
+      var marginInfo = _productMarginInfo(row.product);
+      row.share = share;
+      row.growthPercent = growthPercent;
+      row.marginInfo = marginInfo;
+      row.orderCount = Object.keys(row.orderHits || {}).length;
+      if (highShare && highGrowth) buckets.stars.push(row);
+      else if (highShare) buckets.cash.push(row);
+      else if (highGrowth) buckets.bets.push(row);
+      else buckets.review.push(row);
+    });
+
+    function sortByRevenue(a, b) {
+      return (b.currentRevenue - a.currentRevenue) || (b.currentQty - a.currentQty) || String(a.product.name || '').localeCompare(String(b.product.name || ''));
+    }
+    function sortByGrowth(a, b) {
+      return (b.growthPercent - a.growthPercent) || sortByRevenue(a, b);
+    }
+    buckets.stars.sort(sortByRevenue);
+    buckets.cash.sort(sortByRevenue);
+    buckets.bets.sort(sortByGrowth);
+    buckets.review.sort(function (a, b) {
+      return (a.currentRevenue - b.currentRevenue) || (a.currentQty - b.currentQty) || String(a.product.name || '').localeCompare(String(b.product.name || ''));
+    });
+    return {
+      productsCount: rows.length,
+      ordersCount: _countOrdersSinceDays(orders || [], 60),
+      hasRecentSales: soldRows.length > 0,
+      buckets: buckets
+    };
+  }
+
+  function _productBcgCardHtml(cfg) {
+    var items = cfg.items || [];
+    var top = items[0] || null;
+    var topName = top ? (top.product.name || 'Produto') : '';
+    var topMeta = top
+      ? _fmtMoneyDisplay(top.currentRevenue || 0) + ' nos últimos 30 dias · ' + (top.marginInfo ? top.marginInfo.label : 'margem não informada')
+      : cfg.empty;
+    return '<div style="display:flex;align-items:flex-start;gap:13px;background:' + cfg.bg + ';border:1px solid ' + cfg.border + ';border-radius:18px;padding:15px 16px;box-shadow:0 12px 30px rgba(31,31,31,.055);min-height:112px;overflow:hidden;transition:transform .16s ease,box-shadow .16s ease,background .16s ease;" onmouseenter="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 16px 34px rgba(31,31,31,.09)\';" onmouseleave="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'0 12px 30px rgba(31,31,31,.055)\';">' +
+      '<div style="width:44px;height:44px;border-radius:15px;background:#fff;color:' + cfg.color + ';display:flex;align-items:center;justify-content:center;flex:0 0 auto;box-shadow:0 6px 16px rgba(31,31,31,.06);"><span class="mi" style="font-size:23px;">' + _esc(cfg.icon) + '</span></div>' +
+      '<div style="min-width:0;display:flex;flex-direction:column;gap:6px;flex:1;">' +
+        '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">' +
+          '<div style="min-width:0;"><div style="font-size:12px;font-weight:800;color:' + cfg.color + ';line-height:1.15;">' + _esc(cfg.title) + '</div><div style="font-size:11px;color:#6F6860;line-height:1.25;margin-top:2px;">' + _esc(cfg.subtitle) + '</div></div>' +
+          '<strong style="font-size:32px;font-weight:800;color:#1F1F1F;line-height:.95;white-space:nowrap;letter-spacing:0;">' + items.length + '</strong>' +
+        '</div>' +
+        '<div style="font-size:12px;color:#1F1F1F;line-height:1.35;min-height:32px;"><strong style="font-weight:750;">' + _esc(topName || cfg.noProductTitle) + '</strong>' + (topMeta ? '<br><span style="color:#6F6860;">' + _esc(topMeta) + '</span>' : '') + '</div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function _productBcgMetricsHtml(data) {
+    data = data || { buckets: {} };
+    var buckets = data.buckets || {};
+    var cards = [
+      { key: 'stars', title: 'Estrelas', subtitle: 'vendem bem e estão crescendo', icon: 'auto_awesome', color: '#16735B', bg: '#F1FAF5', border: '#D9EFE4', empty: 'Ainda não há produto com venda forte e crescimento recente.', noProductTitle: 'Nenhuma estrela ainda' },
+      { key: 'cash', title: 'Caixa forte', subtitle: 'já puxam venda com ritmo estável', icon: 'payments', color: '#8A5A18', bg: '#FFF8E8', border: '#F1E1B8', empty: 'Nenhum produto concentrando venda estável nos últimos pedidos.', noProductTitle: 'Sem caixa forte ainda' },
+      { key: 'bets', title: 'Apostas', subtitle: 'começaram a crescer e merecem atenção', icon: 'rocket_launch', color: '#2F6F9F', bg: '#F0F7FC', border: '#D8EAF5', empty: 'Nenhum produto pequeno ganhou tração recente.', noProductTitle: 'Sem aposta clara' },
+      { key: 'review', title: 'Revisar', subtitle: 'baixo giro, sem venda recente ou custo incompleto', icon: 'manage_search', color: '#B42318', bg: '#FFF5F3', border: '#F0D2CC', empty: 'Tudo com leitura de venda recente no momento.', noProductTitle: 'Nada urgente para revisar' }
+    ];
+    var info = data.hasRecentSales
+      ? 'Matriz BCG do cardápio: compara os últimos 30 dias com os 30 dias anteriores e usa a margem como apoio.'
+      : 'Matriz BCG do cardápio: quando entrarem vendas, os produtos serão separados por força e crescimento.';
+    return '<div style="display:flex;flex-direction:column;gap:10px;">' +
+      '<div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;">' +
+        '<div><div style="font-size:13px;font-weight:800;color:#1F1F1F;">Matriz BCG do cardápio</div><div style="font-size:12px;color:#6F6860;line-height:1.4;margin-top:2px;">' + _esc(info) + '</div></div>' +
+        '<span style="font-size:11px;font-weight:700;color:#8A7E7C;background:#FAF8F4;border:1px solid #EAE4DA;border-radius:999px;padding:6px 9px;">' + (data.ordersCount || 0) + ' pedido(s) na base</span>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;">' + cards.map(function (card) {
+        card.items = buckets[card.key] || [];
+        return _productBcgCardHtml(card);
+      }).join('') + '</div>' +
+    '</div>';
   }
 
   function _sortProductsForView(list) {
@@ -935,6 +1128,8 @@ Modules.Catalogo = (function () {
           .product-modal-admin details summary::-webkit-details-marker{display:none;}
           .product-modal-admin details summary span{transition:transform .16s ease;}
           .product-modal-admin details[open] summary span:last-child{transform:rotate(90deg);}
+          .product-modal-admin .pm-help-btn{height:30px;border:1px solid #E8DCD7;background:#fff;color:#8A6F5A;border-radius:999px;padding:0 10px;font-family:inherit;font-size:11px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:5px;box-shadow:0 1px 2px rgba(31,31,31,.03);}
+          .product-modal-admin .pm-help-btn:hover{background:#FFF8F2;border-color:#E8D1BF;}
           @media(max-width:760px){.product-modal-admin section:first-of-type>div:nth-child(2){grid-template-columns:1fr!important}.product-modal-admin section:first-of-type>div:nth-child(2)>div:first-child{max-width:100%;}.product-modal-admin section:first-of-type [style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important}.product-modal-admin details>div{grid-template-columns:1fr!important}.product-modal-admin button{min-height:42px;}}
         </style>
         <div style="display:flex;flex-direction:column;gap:14px;">
@@ -963,7 +1158,7 @@ Modules.Catalogo = (function () {
                 <div><label style="${_fichaLbl()}">Descrição completa</label><textarea id="pm-full-desc" maxlength="700" oninput="Modules.Catalogo._refreshProductPreview()" style="${_fichaInp()}min-height:88px;resize:vertical;">${_esc(p.fullDesc || p.fullDescription || p.seoDescription || p.shortDesc || p.description || '')}</textarea><p style="font-size:11px;color:#6F6860;margin-top:4px;">Aparece quando o cliente abre o produto para ver os detalhes.</p></div>
                 <div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;">
                   <div style="flex:0 0 150px;max-width:100%;"><label style="${_fichaLbl()}">Preço *</label><input id="pm-price" type="text" inputmode="decimal" value="${_esc(_moneyDisplay(p.price || ''))}" onfocus="Modules.Catalogo._moneyInputFocus(this)" onblur="Modules.Catalogo._moneyInputBlur(this)" oninput="Modules.Catalogo._refreshProductPreview()" placeholder="€0,00" style="${_fichaInp()}font-size:17px;font-weight:600;color:#B42318;text-align:right;"></div>
-                  <div style="flex:0 1 280px;max-width:100%;"><label style="${_fichaLbl()}">Categoria</label><select id="pm-cat" onchange="Modules.Catalogo._refreshProductPreview()" style="${_fichaInp()}background:#fff;"><option value="">Sem categoria</option>${_categories.map(function (c) { return '<option value="' + c.id + '"' + (p.categoryId === c.id ? ' selected' : '') + '>' + _esc(c.name) + '</option>'; }).join('')}</select></div>
+                  <div style="flex:0 1 280px;max-width:100%;"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;"><label style="${_fichaLbl()}margin-bottom:0;">Categoria</label><button type="button" class="pm-help-btn" onclick="Modules.Catalogo._openProductCategoryCreateModal()">+ categoria</button></div><select id="pm-cat" onchange="Modules.Catalogo._refreshProductPreview()" style="${_fichaInp()}background:#fff;"><option value="">Sem categoria</option>${_categories.map(function (c) { return '<option value="' + c.id + '"' + (p.categoryId === c.id ? ' selected' : '') + '>' + _esc(c.name) + '</option>'; }).join('')}</select></div>
                 </div>
                 <input id="pm-cost" type="hidden" value="${pricingPreview ? pricingPreview.cost : ''}">
                 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">${pricingChipsHtml}</div>
@@ -975,7 +1170,7 @@ Modules.Catalogo = (function () {
             </div>
           </section>
           <section style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">
-            <div class="pm-section-head"><span class="pm-section-icon"><span class="mi">tune</span></span><div><div class="pm-section-title">Tipo de produto</div><div class="pm-section-text">Escolha se o item será vendido sozinho ou com escolhas, como combos e menus.</div></div></div>
+            <div class="pm-section-head"><span class="pm-section-icon"><span class="mi">tune</span></span><div style="min-width:0;flex:1;"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><div class="pm-section-title">Tipo de produto</div><button type="button" class="pm-help-btn" onclick="Modules.Catalogo._openProductTypeHelpModal()"><span class="mi" style="font-size:15px;">help</span>Como preencher?</button></div><div class="pm-section-text">Escolha se o item será vendido sozinho ou com escolhas, como combos e menus.</div></div></div>
             <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px;">
               <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;"><input type="radio" name="pm-tipo" value="unico"${tipoUnico ? ' checked' : ''} onchange="Modules.Catalogo._onTipoChange();Modules.Catalogo._refreshProductPreview()" style="accent-color:#B42318;"> Produto simples</label>
               <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;"><input type="radio" name="pm-tipo" value="menu"${tipoMenu ? ' checked' : ''} onchange="Modules.Catalogo._onTipoChange();Modules.Catalogo._refreshProductPreview()" style="accent-color:#B42318;"> Produto com escolhas / combo</label>
@@ -1885,6 +2080,83 @@ Modules.Catalogo = (function () {
     if (rp) rp.style.display = isReceita ? 'block' : 'none';
     if (pp) pp.style.display = isReceita ? 'none' : 'block';
     _refreshProductPreview();
+  }
+
+  function _openProductTypeHelpModal() {
+    var body =
+      '<div style="display:flex;flex-direction:column;gap:12px;font-family:Manrope,Inter,sans-serif;color:#211815;">' +
+        '<section style="border:1px solid #EADFD8;background:#FFFCF8;border-radius:16px;padding:14px;">' +
+          '<div style="font-size:15px;font-weight:850;color:#1F1F1F;margin-bottom:5px;">Antes de escolher, pense em como a cliente compra esse item.</div>' +
+          '<div style="font-size:13px;color:#5F5750;line-height:1.5;">Se ela só clica e adiciona, é simples. Se ela precisa escolher sabor, tamanho, bebida, acompanhamento ou montar um menu, é produto com escolhas.</div>' +
+        '</section>' +
+        _productTypeHelpBlock('Produto simples', 'Use quando o produto é vendido direto, sem escolha obrigatória.', ['Coxinha de frango', 'Brigadeiro', 'Guaraná lata', 'Bolo de pote já definido'], 'Depois escolha se ele vem de uma receita ou de um produto pronto comprado.') +
+        _productTypeHelpBlock('Receita', 'Use quando o produto é preparado pelo negócio.', ['Coxinha feita com massa e recheio', 'Bolo produzido na cozinha', 'Brigadeiro feito por receita'], 'Vincule a receita para o BocaFood puxar custo, rendimento e margem com mais segurança.') +
+        _productTypeHelpBlock('Produto pronto', 'Use quando você compra o item já pronto e revende.', ['Bebida', 'Doce de fornecedor', 'Produto embalado comprado pronto'], 'Vincule ao produto pronto cadastrado em Compras para o custo entrar certo.') +
+        _productTypeHelpBlock('Produto com escolhas / combo', 'Use quando a cliente precisa escolher algo antes de adicionar ao pedido.', ['Escolher sabor', 'Escolher tamanho', 'Escolher bebida do combo', 'Escolher acompanhamento ou sobremesa'], 'Depois crie os grupos em Escolhas do combo. Cada grupo deve deixar claro o que a cliente precisa escolher.') +
+        _productTypeHelpBlock('Escolhas do combo', 'Use para organizar cada pergunta feita à cliente.', ['Bebida: Coca, Guaraná ou água', 'Sabor: frango, carne ou queijo', 'Acompanhamento: batata ou salada'], 'Cada grupo pode ter quantidade mínima e máxima de escolhas. Use nomes simples para a cliente entender rápido.') +
+        '<section style="border:1px solid #EADFD8;background:#fff;border-radius:16px;padding:14px;">' +
+          '<div style="font-size:13px;font-weight:850;color:#1F1F1F;margin-bottom:5px;">Para esta primeira etapa</div>' +
+          '<div style="font-size:13px;color:#5F5750;line-height:1.5;">Cadastre só os 3 produtos principais. Comece pelos produtos mais vendidos, mais representativos ou que vão ajudar a montar o primeiro Plano de Voo.</div>' +
+        '</section>' +
+      '</div>';
+    var footer = '<button type="button" onclick="if(window._productTypeHelpModal)window._productTypeHelpModal.close()" style="height:40px;padding:0 15px;border:none;border-radius:12px;background:#B42318;color:#fff;font-size:13px;font-weight:750;cursor:pointer;font-family:inherit;">Entendi</button>';
+    window._productTypeHelpModal = UI.modal({ title: 'Como preencher tipo de produto', body: body, footer: footer, maxWidth: '660px' });
+  }
+
+  function _productTypeHelpBlock(title, text, examples, note) {
+    return '<section style="border:1px solid #EADFD8;background:#fff;border-radius:16px;padding:14px;">' +
+      '<div style="font-size:14px;font-weight:850;color:#1F1F1F;margin-bottom:4px;">' + _esc(title) + '</div>' +
+      '<div style="font-size:13px;color:#5F5750;line-height:1.5;">' + _esc(text) + '</div>' +
+      '<div style="margin-top:9px;display:flex;flex-wrap:wrap;gap:6px;">' + (examples || []).map(function (item) {
+        return '<span style="display:inline-flex;align-items:center;min-height:24px;padding:0 9px;border-radius:999px;background:#FAF8F4;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:650;">' + _esc(item) + '</span>';
+      }).join('') + '</div>' +
+      '<div style="font-size:12px;color:#8A7E7C;line-height:1.45;margin-top:9px;">' + _esc(note || '') + '</div>' +
+    '</section>';
+  }
+
+  function _openProductCategoryCreateModal() {
+    var body =
+      '<div style="display:flex;flex-direction:column;gap:12px;font-family:Manrope,Inter,sans-serif;color:#211815;">' +
+        '<section style="border:1px solid #EADFD8;background:#FFFCF8;border-radius:16px;padding:14px;">' +
+          '<div style="font-size:14px;font-weight:850;color:#1F1F1F;margin-bottom:4px;">Nova categoria do cardápio</div>' +
+          '<div style="font-size:12.5px;color:#5F5750;line-height:1.45;">Use um nome simples, do jeito que a cliente procura no cardápio. Exemplo: Salgados, Doces, Bebidas, Bolos ou Combos.</div>' +
+        '</section>' +
+        '<label style="display:block;"><span style="' + _fichaLbl() + '">Nome da categoria *</span><input id="pm-new-category-name" type="text" placeholder="Ex.: Salgados" style="' + _fichaInp() + '"></label>' +
+      '</div>';
+    var footer = '<button type="button" onclick="Modules.Catalogo._saveProductCategoryFromModal()" style="height:40px;padding:0 15px;border:none;border-radius:12px;background:#B42318;color:#fff;font-size:13px;font-weight:750;cursor:pointer;font-family:inherit;">Adicionar categoria</button>';
+    window._productCategoryCreateModal = UI.modal({ title: 'Nova categoria', body: body, footer: footer, maxWidth: '560px' });
+    window.setTimeout(function () {
+      var input = document.getElementById('pm-new-category-name');
+      if (input) input.focus();
+    }, 80);
+  }
+
+  function _saveProductCategoryFromModal() {
+    var input = document.getElementById('pm-new-category-name');
+    var name = String((input && input.value) || '').trim();
+    if (!name) {
+      UI.toast('Informe o nome da categoria.', 'error');
+      if (input) input.focus();
+      return;
+    }
+    var id = _newEntityId('cat');
+    var data = { id: id, name: name, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    DB.set('categories', id, data).then(function () {
+      _categories = (_categories || []).concat([data]).sort(function (a, b) {
+        return String(a.name || '').localeCompare(String(b.name || ''));
+      });
+      var select = document.getElementById('pm-cat');
+      if (select) {
+        select.innerHTML = '<option value="">Sem categoria</option>' + _categories.map(function (c) {
+          return '<option value="' + _esc(c.id) + '"' + (String(c.id) === String(id) ? ' selected' : '') + '>' + _esc(c.name) + '</option>';
+        }).join('');
+      }
+      if (window._productCategoryCreateModal) window._productCategoryCreateModal.close();
+      UI.toast('Categoria adicionada.', 'success');
+      _refreshProductPreview();
+    }).catch(function (err) {
+      UI.toast('Erro ao criar categoria: ' + (err && err.message ? err.message : err), 'error');
+    });
   }
 
   function _menuOptionPool() {
@@ -9117,7 +9389,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     _openProductModal: _openProductModal, _toggleVis: _toggleVis, _saveProduct: _saveProduct, _deleteProduct: _deleteProduct, _duplicateProduct: _duplicateProduct, _openImportProducts: _openImportProducts, _filterProdutos: _filterProdutos, _setProductFilter: _setProductFilter, _setProductSort: _setProductSort, _setProductPage: _setProductPage, _setProductPageSize: _setProductPageSize, _clearProductFilters: _clearProductFilters, _quickUpdateProduct: _quickUpdateProduct,
     _openProductsMoreFilters: _openProductsMoreFilters,
     _onProductNameChange: _onProductNameChange, _onProductDescChange: _onProductDescChange, _refreshProductPreview: _refreshProductPreview, _moneyInputFocus: _moneyInputFocus, _moneyInputBlur: _moneyInputBlur,
-    _seoEdited: _seoEdited, _onTipoChange: _onTipoChange, _onUnicoSrcChange: _onUnicoSrcChange,
+    _seoEdited: _seoEdited, _onTipoChange: _onTipoChange, _onUnicoSrcChange: _onUnicoSrcChange, _openProductTypeHelpModal: _openProductTypeHelpModal, _openProductCategoryCreateModal: _openProductCategoryCreateModal, _saveProductCategoryFromModal: _saveProductCategoryFromModal,
     _addMenuGroup: _addMenuGroup, _removeMenuGroup: _removeMenuGroup,
     _addMenuOption: _addMenuOption, _removeMenuOption: _removeMenuOption, _filterMenuOptions: _filterMenuOptions,
     _addUpsellProduct: _addUpsellProduct, _removeUpsellProduct: _removeUpsellProduct, _filterUpsellProducts: _filterUpsellProducts,
