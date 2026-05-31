@@ -298,11 +298,13 @@ Modules.Performance = (function () {
     var scenarioProfit = monthTarget.profit;
     var scenarioCash = monthTarget.cashFinal;
     var rateLabel;
+    var monthStarting = targetRevenue && daysElapsedMonth <= 2 && progressPct < 92;
     if (!targetRevenue) rateLabel = 'Crie uma rota no Plano de Voo para acompanhar se o mês está no caminho certo.';
+    else if (monthStarting) rateLabel = 'O mês acabou de começar. Use estes primeiros dias para observar pedidos, ticket e caixa antes de cobrar ritmo.';
     else if (progressPct >= 100 && marginPct >= _data.money.desiredMarginPct) rateLabel = 'Bom desempenho: o ritmo e a margem estão saudáveis.';
     else if (progressPct >= 85) rateLabel = 'Atenção: o mês ainda pode fechar bem, mas o ritmo precisa ser mantido.';
     else rateLabel = 'O mês está abaixo do ritmo. Vale buscar mais pedidos nos próximos dias.';
-    if (targetRevenue && marginPct < _data.money.minMarginPct) {
+    if (targetRevenue && !monthStarting && marginPct < _data.money.minMarginPct) {
       rateLabel = 'Margem baixa: o caixa está entrando, mas a margem ficou apertada.';
     }
 
@@ -540,6 +542,8 @@ Modules.Performance = (function () {
   function _routeStatusCard(vm) {
     var status = _routeStatusInfo(vm);
     var monthRevenue = _monthRevenue(vm);
+    var early = _isMonthStarting(vm);
+    var compareColor = early ? '#6C8777' : (monthRevenue >= vm.expectedNow ? '#1F6F43' : '#B42318');
     return '' +
       '<section class="perf-status-card" style="--perf-status-bg:' + _esc(status.bg) + ';--perf-status-border:' + _esc(status.border) + ';--perf-status-color:' + _esc(status.color) + ';">' +
         '<div class="perf-status-main">' +
@@ -551,8 +555,8 @@ Modules.Performance = (function () {
         '</div>' +
         '<div class="perf-status-grid">' +
           _routeMini('Esperado até hoje', _fmtMoney(vm.expectedNow)) +
-          _routeMini('Vendido até hoje', _fmtMoney(monthRevenue), monthRevenue >= vm.expectedNow ? '#1F6F43' : '#B42318') +
-          _routeMini('Diferença', _fmtMoney(monthRevenue - vm.expectedNow), monthRevenue >= vm.expectedNow ? '#2563EB' : '#B42318') +
+          _routeMini('Vendido até hoje', _fmtMoney(monthRevenue), compareColor) +
+          _routeMini(early ? 'Referência inicial' : 'Diferença', early ? 'Mês começando' : _fmtMoney(monthRevenue - vm.expectedNow), early ? '#6C8777' : (monthRevenue >= vm.expectedNow ? '#2563EB' : '#B42318')) +
         '</div>' +
       '</section>';
   }
@@ -580,13 +584,14 @@ Modules.Performance = (function () {
     var ordersDone = (vm.monthOrders || []).length;
     var ticket = _monthTicket(vm);
     var targetOrders = ticket > 0 && vm.targetRevenue ? Math.ceil(vm.targetRevenue / ticket) : 0;
+    var early = _isMonthStarting(vm);
     return '' +
       '<section class="perf-panel perf-panel-soft" style="' + _cardStyle() + '">' +
         _sectionTitle('Ritmo da rota', 'Compare o volume de pedidos planejado com o que já aconteceu no mês.') +
         '<div class="perf-metric-grid">' +
           _miniMetric('Pedidos previstos no mês', targetOrders ? String(targetOrders) : '—', '#6C8777') +
-          _miniMetric('Pedidos já feitos', String(ordersDone), ordersDone >= targetOrders ? '#1F6F43' : '#B45309') +
-          _miniMetric('Se continuar assim', _fmtMoney(vm.paceProjection || 0), _num(vm.paceProjection) >= _num(vm.targetRevenue) ? '#1F6F43' : '#B42318') +
+          _miniMetric('Pedidos já feitos', String(ordersDone), early ? '#6C8777' : (ordersDone >= targetOrders ? '#1F6F43' : '#B45309')) +
+          _miniMetric(early ? 'Leitura inicial' : 'Se continuar assim', early ? 'Acompanhar nos próximos dias' : _fmtMoney(vm.paceProjection || 0), early ? '#6C8777' : (_num(vm.paceProjection) >= _num(vm.targetRevenue) ? '#1F6F43' : '#B42318')) +
         '</div>' +
       '</section>';
   }
@@ -650,6 +655,9 @@ Modules.Performance = (function () {
     }
     var pct = vm.expectedNow > 0 ? (monthRevenue / vm.expectedNow) * 100 : 0;
     var diff = monthRevenue - vm.expectedNow;
+    if (_isMonthStarting(vm) && pct < 92) {
+      return { title: 'O mês está começando', text: 'Ainda é cedo para dizer que o mês saiu da rota. Use estes primeiros dias para observar pedidos, ticket médio e caixa.', color: '#6C8777', bg: '#F4F7F2', border: '#DCE6DA', icon: 'schedule' };
+    }
     if (pct >= 115) return { title: 'Você está acima da rota', text: 'As vendas estão passando do ritmo esperado. Se mantiver assim, o mês pode terminar melhor que o planejado.', color: '#2563EB', bg: '#EEF4FF', border: '#D6E6FF', icon: 'north_east' };
     if (pct >= 92) return { title: 'Você está dentro da rota', text: 'O mês está perto do caminho escolhido. Continue acompanhando o ritmo dos pedidos.', color: '#1F6F43', bg: '#F0FAF4', border: '#D9F2E3', icon: 'check_circle' };
     if (pct >= 75) return { title: 'A rota pede atenção', text: 'As vendas estão um pouco abaixo do esperado. Faltam ' + _fmtMoney(Math.abs(diff)) + ' para voltar ao ritmo de hoje.', color: '#B45309', bg: '#FFF7ED', border: '#FED7AA', icon: 'warning' };
@@ -663,6 +671,11 @@ Modules.Performance = (function () {
     var ticket = _monthTicket(vm);
     var needed = ticket > 0 && remaining > 0 ? Math.max(1, Math.ceil((remaining / ticket) / Math.max(1, vm.daysLeftMonth || 1))) : 0;
     var out = [{ icon: status.icon, color: status.color, text: status.text }];
+    if (_isMonthStarting(vm)) {
+      out.push({ icon: 'shopping_bag', color: '#8A6F5A', text: 'Por enquanto, observe quais produtos começam a vender, qual ticket médio aparece e quais canais trazem os primeiros pedidos.' });
+      out.push({ icon: 'event_available', color: '#6C8777', text: 'Depois dos primeiros dias, a Performance começa a pesar melhor se o mês está dentro, em atenção ou abaixo da rota.' });
+      return out;
+    }
     out.push(remaining > 0
       ? { icon: 'shopping_bag', color: '#8A6F5A', text: 'Para fechar o mês dentro da rota, faltam ' + _fmtMoney(remaining) + '. Com o ticket atual, isso pede cerca de ' + needed + ' pedidos por dia.' }
       : { icon: 'celebration', color: '#1F6F43', text: 'A meta de venda do mês já foi alcançada. Agora vale observar se os custos seguem dentro do esperado.' });
@@ -670,6 +683,10 @@ Modules.Performance = (function () {
       ? { icon: 'schedule', color: '#B45309', text: 'Mantendo o ritmo atual, o mês pode terminar em ' + _fmtMoney(vm.paceProjection) + ', abaixo do planejado.' }
       : { icon: 'trending_up', color: '#2563EB', text: 'Mantendo o ritmo atual, o mês pode terminar em ' + _fmtMoney(vm.paceProjection) + '.' });
     return out;
+  }
+
+  function _isMonthStarting(vm) {
+    return !!(vm && vm.targetRevenue && _num(vm.daysElapsedMonth) <= 2);
   }
 
   function _monthRevenue(vm) {

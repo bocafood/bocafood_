@@ -1,5 +1,12 @@
 # AI Changelog
 
+## 2026-06-01 — Performance: leitura mais leve no início do mês
+- Arquivos alterados: `public/js/modules/performance.js`, `AI_CHANGELOG.md`.
+- Ajustei a copy e os status do módulo Performance para tratar os dois primeiros dias do mês como leitura inicial.
+- Quando o mês acabou de começar, a tela deixa de mostrar mensagens pesadas como `Você está abaixo do ritmo` e passa a orientar a usuária a observar pedidos, ticket médio, canais e caixa antes de cobrar o ritmo da rota.
+- Os cards `Como está o mês`, `Ritmo da rota` e `Leitura prática` passam a usar tom neutro no início do mês quando ainda não há base suficiente para marcar atraso.
+- Impacto esperado: evitar uma experiência desanimadora no primeiro dia do mês e deixar a leitura mais justa para a rotina real do negócio.
+
 ## 2026-06-01 — Onboarding: cardápio separado na etapa Loja pronta
 - Arquivos alterados: `public/js/modules/dashboard.js`, `AI_CHANGELOG.md`.
 - Separei o check inicial `Cadastrar produtos do cardápio` do check posterior `Finalizar cardápio de venda`.
