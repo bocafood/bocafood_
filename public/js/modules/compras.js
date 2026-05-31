@@ -2912,9 +2912,9 @@ Modules.Compras = (function () {
         '• Unidade base L e embalagem com 500 ml: preencha 0,500<br>' +
         '• Unidade base unidade e caixa com 12 unidades: preencha 12<br><br>' +
         'Regra simples: converta o conteúdo da embalagem para a unidade base antes de preencher.' +
-      '</div><div class="supplier-field-control"><input id="it-conteudo-padrao" type="number" value="' + _esc(item.conteudo_por_embalagem_padrao || 1) + '" oninput="Modules.Compras._updateItemCurrentCostPreview()"></div></div>' +
-      _supplierField('it-stock-min', 'Estoque mínimo', item.minStock || item.estoque_minimo || '', 'number') +
-      _supplierField('it-stock-max', 'Estoque máximo', item.maxStock || item.estoque_maximo || '', 'number') +
+      '</div><div class="supplier-field-control"><input id="it-conteudo-padrao" type="text" inputmode="decimal" value="' + _esc(item.conteudo_por_embalagem_padrao || 1) + '" oninput="Modules.Compras._updateItemCurrentCostPreview()"></div></div>' +
+      _supplierField('it-stock-min', 'Estoque mínimo', item.minStock || item.estoque_minimo || '', 'decimal') +
+      _supplierField('it-stock-max', 'Estoque máximo', item.maxStock || item.estoque_maximo || '', 'decimal') +
       '</div>' +
       '<div class="item-modal-metrics">' +
       '<label class="item-modal-metric" style="display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;"><input id="it-ativo" type="checkbox" ' + (item.ativo !== false ? 'checked' : '') + ' style="accent-color:#C4362A;width:17px;height:17px;"> Cadastro ativo</label>' +
@@ -2934,7 +2934,7 @@ Modules.Compras = (function () {
         '</div>' +
         '<div class="item-usage-panel">' +
           '<div class="item-usage-panel-title">Aproveitamento do item</div>' +
-          _supplierField('it-aprov', 'Aproveitamento (%)', item.aproveitamento_padrao || 100, 'number', 'Modules.Compras._updateItemCurrentCostPreview()') +
+          _supplierField('it-aprov', 'Aproveitamento (%)', item.aproveitamento_padrao || 100, 'decimal', 'Modules.Compras._updateItemCurrentCostPreview()') +
           '<p class="item-usage-panel-text" style="margin-top:7px;">Use 100% quando tudo é aproveitado. Se parte do item se perde ao limpar, descascar ou preparar, informe uma porcentagem menor.</p>' +
         '</div>' +
       '</div>' +
@@ -3298,6 +3298,10 @@ Modules.Compras = (function () {
     var nome = (_el('it-nome').value || '').trim();
     if (!nome) { UI.toast('Nome obrigatório', 'error'); return; }
     var classe = _el('it-classe').value || 'insumo';
+    var categoria = ((_el('it-categoria') || {}).value || '').trim();
+    var unidadeBase = ((_el('it-unidade') || {}).value || '').trim();
+    if (!categoria) { UI.toast('Selecione ou cadastre uma categoria.', 'error'); return; }
+    if (!unidadeBase) { UI.toast('Selecione a unidade base.', 'error'); return; }
     var minStock = parseFloat((_el('it-stock-min').value || '0').replace(',', '.')) || 0;
     var maxStock = parseFloat((_el('it-stock-max').value || '0').replace(',', '.')) || 0;
     if (minStock < 0) { UI.toast('Informe um estoque mínimo válido.', 'error'); return; }
@@ -3307,14 +3311,14 @@ Modules.Compras = (function () {
     var hasPurchaseCostHistory = _editingId ? _itemHasPurchaseCostHistory(currentItem) : false;
     var basePackageCost = _parseMoneyField((_el('it-base-cost') || {}).value);
     if (!hasPurchaseCostHistory && basePackageCost < 0) { UI.toast('Informe um preço de compra base válido.', 'error'); return; }
-    var contentPerPackage = parseFloat(_el('it-conteudo-padrao').value || '1') || 1;
+    var contentPerPackage = parseFloat(String(_el('it-conteudo-padrao').value || '1').replace(',', '.')) || 1;
     if (contentPerPackage <= 0) { UI.toast('Informe um conteúdo por embalagem válido.', 'error'); return; }
-    var aproveitamento = parseFloat((_el('it-aprov') || {}).value || '100') || 100;
+    var aproveitamento = parseFloat(String((_el('it-aprov') || {}).value || '100').replace(',', '.')) || 100;
     var data = {
       nome: nome,
       classe: classe,
-      categoria: _el('it-categoria').value,
-      unidade_base: _el('it-unidade').value,
+      categoria: categoria,
+      unidade_base: unidadeBase,
       fornecedor_padrao_id: _el('it-forn').value,
       ativo: _el('it-ativo').checked,
       unidade_compra_padrao: (_el('it-emb-padrao').value || '').trim(),
@@ -3385,7 +3389,7 @@ Modules.Compras = (function () {
       stockKey: key,
       itemId: itemId,
       itemName: item.nome || item.name || '',
-      itemType: stockKind === 'produto_pronto' ? 'produto' : 'ingrediente',
+      itemType: stockKind === 'produto_pronto' ? 'produto' : (stockKind === 'embalagem' ? 'embalagem' : 'ingrediente'),
       stockItemType: stockKind,
       unit: item.unidade_base || '',
       minStock: parseFloat(item.minStock || 0) || 0,
@@ -4926,7 +4930,7 @@ Modules.Compras = (function () {
         }
       });
     });
-    var average = totalQty > 0 ? totalCost / totalQty : 0;
+    var average = _roundUnitCost(totalQty > 0 ? totalCost / totalQty : 0);
     return { average: average, totalQty: totalQty, last: last };
   }
 
@@ -5303,7 +5307,12 @@ Modules.Compras = (function () {
     var cont = Math.max(_num(content) || 1, 0.000001);
     var factor = String(classe || '').toLowerCase() === 'insumo' ? ((_num(aproveitamento) || 100) / 100) : 1;
     if (factor <= 0) factor = 1;
-    return pkg > 0 ? (pkg / cont / factor) : 0;
+    return _roundUnitCost(pkg > 0 ? (pkg / cont / factor) : 0);
+  }
+  function _roundUnitCost(value) {
+    var n = _num(value);
+    if (!n) return 0;
+    return Math.round(n * 1000000) / 1000000;
   }
   function _itemPurchaseCostField(value, hasHistory) {
     var label = hasHistory ? 'Custo médio de compra' : 'Preço de compra base';
@@ -5333,7 +5342,7 @@ Modules.Compras = (function () {
     var n = _num(value);
     if (!n) return '-';
     if (Math.abs(n) >= 1) return UI.fmt(n);
-    return '€' + n.toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+    return '€' + n.toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 6 });
   }
   function _normUnitKey(unit) {
     var u = String(unit || '').trim().toLowerCase();
@@ -5376,7 +5385,8 @@ Modules.Compras = (function () {
     el.innerHTML = _itemCostDisplayHtml(unitCost, unit);
   }
   function _supplierField(id, label, value, type, oninput, placeholder) {
-    return '<div><label style="' + _labelStyle() + '">' + label + '</label><div class="supplier-field-control"><input id="' + id + '" type="' + (type || 'text') + '" value="' + _esc(value == null ? '' : value) + '"' + (placeholder ? ' placeholder="' + _esc(placeholder) + '"' : '') + (oninput ? ' oninput="' + oninput + '"' : '') + '></div></div>';
+    var isDecimal = type === 'decimal';
+    return '<div><label style="' + _labelStyle() + '">' + label + '</label><div class="supplier-field-control"><input id="' + id + '" type="' + (isDecimal ? 'text' : (type || 'text')) + '"' + (isDecimal ? ' inputmode="decimal"' : '') + ' value="' + _esc(value == null ? '' : value) + '"' + (placeholder ? ' placeholder="' + _esc(placeholder) + '"' : '') + (oninput ? ' oninput="' + oninput + '"' : '') + '></div></div>';
   }
   function _supplierSelect(id, label, options, onchange) {
     return '<div><label style="' + _labelStyle() + '">' + label + '</label><div class="supplier-field-control"><select id="' + id + '"' + (onchange ? ' onchange="' + onchange + '"' : '') + '>' + options + '</select></div></div>';

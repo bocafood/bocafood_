@@ -45,7 +45,8 @@ Modules.Dinheiro = (function () {
       DB.getDocRoot('config', 'geral'),
       DB.getDocRoot('config', 'dinheiro'),
       DB.getDocRoot('config', 'canais_venda'),
-      DB.getDocRoot('config', 'fiscal')
+      DB.getDocRoot('config', 'fiscal'),
+      DB.getDocRoot('config', 'tpv').catch(function () { return {}; })
     ]).then(function (r) {
       _data = {
         products: r[0] || [],
@@ -55,8 +56,9 @@ Modules.Dinheiro = (function () {
         apagar: r[4] || [],
         geral: r[5] || {},
         dinheiro: _normalizeMoneyConfig(r[6] || {}),
-        canais: _normalizeChannels(r[7] || {}),
-        fiscal: _normalizeFiscalConfig(r[8] || {})
+        canais: _normalizeChannels(r[7] || {}, r[9] || {}),
+        fiscal: _normalizeFiscalConfig(r[8] || {}),
+        tpv: r[9] || {}
       };
     });
   }
@@ -101,13 +103,20 @@ Modules.Dinheiro = (function () {
     return normalized;
   }
 
-  function _normalizeChannels(c) {
+  function _isTpvEnabledConfig(cfg) {
+    cfg = cfg || {};
+    return cfg.enabled === true || cfg.tpvEnabled === true || cfg.active === true;
+  }
+
+  function _normalizeChannels(c, tpvConfig) {
     var list = Array.isArray(c.list) ? c.list : [];
     var hasCardapio = list.some(function (ch) { return _isCardapioChannel(ch); });
     var hasTpv = list.some(function (ch) { return _isTpvChannel(ch); });
     if (!hasCardapio) list.unshift({ name: 'Cardápio', commissionPct: 0, fixedFee: 0, taxPct: 0, locked: true });
-    if (!hasTpv) list.splice(1, 0, { name: 'Venda presencial', commissionPct: 0, fixedFee: 0, taxPct: 0, locked: true });
-    return list.map(function (ch) {
+    if (_isTpvEnabledConfig(tpvConfig) && !hasTpv) list.splice(1, 0, { name: 'Venda presencial', commissionPct: 0, fixedFee: 0, taxPct: 0, locked: true });
+    return list.filter(function (ch) {
+      return _isTpvEnabledConfig(tpvConfig) || !_isTpvChannel(ch);
+    }).map(function (ch) {
       var cardapio = _isCardapioChannel(ch);
       var tpv = _isTpvChannel(ch);
       return {
@@ -1324,8 +1333,8 @@ Modules.Dinheiro = (function () {
     var inputStyle = _listingFieldStyle('height:42px;');
     var selectStyle = _listingSelectStyle('height:42px;');
     var labelStyle = _listingLabelStyle();
-    function ruleField(id, label, value, type) {
-      return '<label style="display:block;min-width:0;"><span style="' + labelStyle + '">' + _esc(label) + '</span><input id="' + id + '" type="' + (type || 'text') + '" value="' + _esc(value == null ? '' : value) + '" style="' + inputStyle + '"></label>';
+    function ruleField(id, label, value) {
+      return '<label style="display:block;min-width:0;"><span style="' + labelStyle + '">' + _esc(label) + '</span><input id="' + id + '" type="text" inputmode="decimal" value="' + _esc(value == null ? '' : value) + '" style="' + inputStyle + '"></label>';
     }
     _content('<div class="bf-page" style="display:flex;flex-direction:column;gap:16px;">' +
       '<div class="bf-page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
@@ -1341,9 +1350,9 @@ Modules.Dinheiro = (function () {
       '<section style="' + _listingFilterCardStyle() + '">' +
       _sectionTitle('Regras gerais', 'Use estes valores como referência para sugerir preços e apontar margens apertadas.', 'tune') +
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,210px));gap:12px;align-items:end;">' +
-      ruleField('dn-margin', 'Margem desejada padrão %', c.desiredMarginPct, 'number') +
-      ruleField('dn-min-margin', 'Margem mínima aceitável %', c.minMarginPct, 'number') +
-      ruleField('dn-markup', 'Markup padrão', c.defaultMarkup, 'number') +
+      ruleField('dn-margin', 'Margem desejada padrão %', c.desiredMarginPct) +
+      ruleField('dn-min-margin', 'Margem mínima aceitável %', c.minMarginPct) +
+      ruleField('dn-markup', 'Markup padrão', c.defaultMarkup) +
       '<label style="display:block;min-width:0;"><span style="' + labelStyle + '">Arredondamento de preço</span><select id="dn-round" style="' + selectStyle + '"><option value="90"' + (c.rounding === '90' ? ' selected' : '') + '>Terminar em ,90</option><option value="95"' + (c.rounding === '95' ? ' selected' : '') + '>Terminar em ,95</option><option value="cheio"' + (c.rounding === 'cheio' ? ' selected' : '') + '>Número cheio</option></select></label>' +
       '</div></section>' +
       '<section style="' + _listingFilterCardStyle() + '">' +
@@ -1365,9 +1374,9 @@ Modules.Dinheiro = (function () {
       var labelStyle = _listingLabelStyle();
       return '<div data-dn-channel-row="' + idx + '" style="display:grid;grid-template-columns:minmax(180px,1.2fr) minmax(116px,.6fr) minmax(116px,.6fr) minmax(134px,.7fr) 38px;gap:10px;align-items:end;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:16px;padding:12px;box-shadow:0 10px 24px rgba(31,31,31,.045);transition:transform .16s ease,box-shadow .16s ease;" onmouseenter="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 16px 34px rgba(31,31,31,.085)\'" onmouseleave="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'0 10px 24px rgba(31,31,31,.045)\'">' +
         '<label style="display:block;min-width:0;"><span style="' + labelStyle + '">Canal</span><input id="dn-ch-name-' + idx + '" value="' + _esc(ch.name || '') + '" readonly style="' + inputStyle + 'background:#fff;font-weight:600;color:#1F1F1F;"></label>' +
-        '<label style="display:block;min-width:0;"><span style="' + labelStyle + '">Comissão %</span><input id="dn-ch-commission-' + idx + '" type="number" value="' + _esc(ch.commissionPct || 0) + '" ' + (locked ? 'readonly' : '') + ' style="' + inputStyle + (locked ? 'background:#FAF8F4;color:#6F6860;' : '') + '"></label>' +
+        '<label style="display:block;min-width:0;"><span style="' + labelStyle + '">Comissão %</span><input id="dn-ch-commission-' + idx + '" type="text" inputmode="decimal" value="' + _esc(ch.commissionPct || 0) + '" ' + (locked ? 'readonly' : '') + ' style="' + inputStyle + (locked ? 'background:#FAF8F4;color:#6F6860;' : '') + '"></label>' +
         '<label style="display:block;min-width:0;"><span style="' + labelStyle + '">Taxa fixa</span><input id="dn-ch-fixed-' + idx + '" type="text" inputmode="decimal" value="' + _esc(_moneyDisplay(ch.fixedFee || 0, true)) + '" ' + (locked ? 'readonly' : 'onfocus="Modules.Dinheiro._moneyInputFocus(this)" onblur="Modules.Dinheiro._moneyInputBlurOnly(this)"') + ' style="' + inputStyle + 'text-align:right;' + (locked ? 'background:#FAF8F4;color:#6F6860;' : '') + '"></label>' +
-        '<label style="display:block;min-width:0;"><span style="' + labelStyle + '">Imposto comissão %</span><input id="dn-ch-tax-' + idx + '" type="number" value="' + _esc(ch.taxPct || 0) + '" ' + (locked ? 'readonly' : '') + ' style="' + inputStyle + (locked ? 'background:#FAF8F4;color:#6F6860;' : '') + '"></label>' +
+        '<label style="display:block;min-width:0;"><span style="' + labelStyle + '">Imposto comissão %</span><input id="dn-ch-tax-' + idx + '" type="text" inputmode="decimal" value="' + _esc(ch.taxPct || 0) + '" ' + (locked ? 'readonly' : '') + ' style="' + inputStyle + (locked ? 'background:#FAF8F4;color:#6F6860;' : '') + '"></label>' +
         '<span title="' + (locked ? 'Canal fixo do Cardápio' : 'Canal cadastrado em Configurações') + '" style="height:42px;border-radius:12px;background:' + (locked ? '#F0FAF4' : '#fff') + ';color:' + (locked ? '#1F6F43' : '#6F6860') + ';border:1px solid #E8DCD7;display:inline-flex;align-items:center;justify-content:center;font-weight:700;">✓</span>' +
       '</div>';
     }).join('');
@@ -1401,6 +1410,22 @@ Modules.Dinheiro = (function () {
     }).filter(function (ch) { return !!ch.name; });
   }
 
+  function _validatePriceRules(dinheiro, canais) {
+    var desired = _num(dinheiro.desiredMarginPct);
+    var min = _num(dinheiro.minMarginPct);
+    var markup = _num(dinheiro.defaultMarkup);
+    if (desired <= 0 || desired >= 95) return 'A margem desejada precisa ficar entre 1% e 94%.';
+    if (min <= 0 || min >= 95) return 'A margem mínima precisa ficar entre 1% e 94%.';
+    if (min > desired) return 'A margem mínima não pode ser maior que a margem desejada.';
+    if (markup <= 0) return 'O markup precisa ser maior que zero.';
+    if (markup > 20) return 'O markup está muito alto. Use um valor menor para evitar preços irreais.';
+    var invalidChannel = (canais || []).find(function (ch) {
+      return _num(ch.commissionPct) < 0 || _num(ch.fixedFee) < 0 || _num(ch.taxPct) < 0 || _num(ch.commissionPct) >= 100 || _num(ch.taxPct) >= 100;
+    });
+    if (invalidChannel) return 'Revise as taxas de ' + (invalidChannel.name || 'um canal') + '. Comissão, taxa fixa e imposto não podem ficar negativos, e percentuais precisam ser menores que 100%.';
+    return '';
+  }
+
   function _saveRegras() {
     var dinheiro = Object.assign({}, _data.dinheiro, {
       desiredMarginPct: _num(_val('dn-margin')),
@@ -1409,12 +1434,17 @@ Modules.Dinheiro = (function () {
       rounding: _val('dn-round') || '90'
     });
     var canais = { list: _collectCanaisVenda() };
+    var validationError = _validatePriceRules(dinheiro, canais.list);
+    if (validationError) {
+      UI.toast(validationError, 'error');
+      return;
+    }
     Promise.all([
       DB.setDocRoot('config', 'dinheiro', dinheiro),
       DB.setDocRoot('config', 'canais_venda', canais)
     ]).then(function () {
       _data.dinheiro = _normalizeMoneyConfig(dinheiro);
-      _data.canais = _normalizeChannels(canais);
+      _data.canais = _normalizeChannels(canais, _data.tpv || {});
       UI.toast('Regras de preço salvas', 'success');
       _renderRegras();
     }).catch(function (err) { UI.toast('Erro: ' + err.message, 'error'); });

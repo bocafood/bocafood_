@@ -1912,6 +1912,8 @@ Modules.Receitas = (function () {
           stockYieldUnit: controls ? (comp.baseYieldUnit || comp.stockYieldUnit || '') : ''
         });
       }),
+      packagingItems: Array.isArray(recipe.packagingItems) ? recipe.packagingItems.slice() : (Array.isArray(recipe.packaging) ? recipe.packaging.slice() : []),
+      packaging: Array.isArray(recipe.packagingItems) ? recipe.packagingItems.slice() : (Array.isArray(recipe.packaging) ? recipe.packaging.slice() : []),
       ingredients: ingredients,
       ingredientCost: ingredientCost || ingredientTotalFallback,
       packagingCost: packagingCost,
@@ -2033,6 +2035,13 @@ Modules.Receitas = (function () {
         });
       });
     }
+    var packagingItems = Array.isArray(recipe.packagingItems) ? recipe.packagingItems : (Array.isArray(recipe.packaging) ? recipe.packaging : []);
+    packagingItems.forEach(function (item) {
+      var exists = out.some(function (ing) {
+        return String(ing.insumoId || ing.itemId || '') === String(item.insumoId || item.itemId || '') && (ing.costType === 'embalagem' || ing.classe === 'embalagem' || ing.itemClass === 'embalagem') && String(ing.componentName || '') === 'Embalagens da receita';
+      });
+      if (!exists) out.push(Object.assign({ componentName: 'Embalagens da receita', itemClass: 'embalagem', classe: 'embalagem', costType: 'embalagem' }, item));
+    });
     return out;
   }
 

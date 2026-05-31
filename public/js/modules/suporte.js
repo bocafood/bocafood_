@@ -1056,11 +1056,11 @@ Modules.Suporte = (function () {
             title: '2. Receitas e fichas técnicas',
             path: 'Produção > Receitas de produção',
             intro: 'A ficha técnica mostra como um produto ou base é feito.',
-            fill: ['nome da receita', 'rendimento final da receita', 'etapas da receita', 'rendimento de cada etapa quando for diferente do rendimento final', 'ingredientes usados', 'quantidade de cada ingrediente', 'unidade do rendimento', 'custo previsto', 'imagem quando ajudar', 'produto produzido vinculado quando existir'],
+            fill: ['nome da receita', 'rendimento final da receita', 'etapas da receita', 'rendimento de cada etapa quando for diferente do rendimento final', 'ingredientes usados', 'quantidade de cada ingrediente', 'embalagens usadas no rendimento global', 'unidade do rendimento', 'custo previsto', 'imagem quando ajudar', 'produto produzido vinculado quando existir'],
             why: 'A ficha técnica ajuda a saber quanto custa produzir, quanto rende e se o preço de venda faz sentido. Quando uma etapa rende mais que a receita final, o custo usado no produto final é proporcional ao que a receita realmente consome.',
             after: 'A receita alimenta produto do cardápio, produção, estoque, lista de compras, preço e margem.',
-            cautions: ['Rendimento errado muda todo o custo.', 'Ingrediente sem custo deixa a ficha incompleta.', 'A receita atual não deve alterar o snapshot de uma ordem antiga já criada.'],
-            ready: 'A receita mostra ingredientes, rendimento e custo previsto de forma coerente.'
+            cautions: ['Rendimento final é obrigatório e muda todo o custo.', 'Ingrediente sem custo deixa a ficha incompleta.', 'Embalagem deve ficar na área de embalagens da receita, não dentro da etapa massa ou recheio.', 'A receita atual não deve alterar o snapshot de uma ordem antiga já criada.'],
+            ready: 'A receita mostra ingredientes, embalagens quando houver, rendimento e custo previsto de forma coerente.'
           },
           {
             title: '3. Bases de produção',

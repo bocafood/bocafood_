@@ -470,6 +470,27 @@ Modules.Configuracoes = (function () {
       '</section>' +
     '</div>';
     document.getElementById('config-save').onclick = function () {
+      var businessName = _val('cfg-business-name').trim();
+      var contactEmail = _val('cfg-email').trim();
+      var adminEmail = _val('cfg-admin-email').trim();
+      if (!businessName) {
+        UI.toast('Informe o nome comercial do negócio.', 'error');
+        var nameInput = document.getElementById('cfg-business-name');
+        if (nameInput) nameInput.focus();
+        return;
+      }
+      if (contactEmail && !_isValidEmail(contactEmail)) {
+        UI.toast('Revise o e-mail de contato.', 'error');
+        var emailInput = document.getElementById('cfg-email');
+        if (emailInput) emailInput.focus();
+        return;
+      }
+      if (adminEmail && !_isValidEmail(adminEmail)) {
+        UI.toast('Revise o e-mail administrativo/fiscal.', 'error');
+        var adminEmailInput = document.getElementById('cfg-admin-email');
+        if (adminEmailInput) adminEmailInput.focus();
+        return;
+      }
       var fiscalId = _val('cfg-company-fiscal-id').toUpperCase();
       if (fiscalCfg && fiscalId && fiscalCfg.validateNif && !fiscalCfg.validateNif(fiscalId.replace(/[\s.-]/g, ''))) {
         UI.toast(fiscalCfg.nifErrorMsg || 'Documento fiscal inválido.', 'error');
@@ -478,7 +499,7 @@ Modules.Configuracoes = (function () {
         return;
       }
       _save('geral', {
-        businessName: _val('cfg-business-name'),
+        businessName: businessName,
         legalName: _val('cfg-legal-name'),
         companyLegalName: _val('cfg-legal-name'),
         description: _val('cfg-description'),
@@ -486,12 +507,12 @@ Modules.Configuracoes = (function () {
         whatsapp: _val('cfg-whatsapp'),
         phoneCountryCode: _val('cfg-phone-country'),
         whatsappCountryCode: _val('cfg-whatsapp-country'),
-        phoneFull: [_val('cfg-phone-country'), _val('cfg-phone')].filter(Boolean).join(' '),
-        whatsappFull: [_val('cfg-whatsapp-country'), _val('cfg-whatsapp')].filter(Boolean).join(' '),
-        email: _val('cfg-email'),
-        adminEmail: _val('cfg-admin-email'),
-        fiscalEmail: _val('cfg-admin-email'),
-        billingEmail: _val('cfg-admin-email'),
+        phoneFull: _phoneFull(_val('cfg-phone-country'), _val('cfg-phone')),
+        whatsappFull: _phoneFull(_val('cfg-whatsapp-country'), _val('cfg-whatsapp')),
+        email: contactEmail,
+        adminEmail: adminEmail,
+        fiscalEmail: adminEmail,
+        billingEmail: adminEmail,
         country: c.country,
         city: c.city,
         language: _val('cfg-language'),
@@ -1934,15 +1955,15 @@ Modules.Configuracoes = (function () {
         '<div class="channel-row-costs" style="display:grid;grid-template-columns:minmax(92px,132px) minmax(104px,132px) minmax(118px,148px) minmax(0,1fr);gap:10px;align-items:end;">' +
           '<label style="min-width:0;">' +
             '<span style="' + labelStyle + '">Comissão %</span>' +
-            '<input id="ch-commission-' + idx + '" type="text" value="' + _esc(_channelNumberText(ch.commissionPct)) + '" placeholder="0,00" style="' + compactInputStyle + '">' +
+            '<input id="ch-commission-' + idx + '" type="text" inputmode="decimal" value="' + _esc(_channelNumberText(ch.commissionPct)) + '" placeholder="0,00" style="' + compactInputStyle + '">' +
           '</label>' +
           '<label style="min-width:0;">' +
             '<span style="' + labelStyle + '">Taxa fixa</span>' +
-            '<input id="ch-fixed-fee-' + idx + '" type="text" value="' + _esc(_channelNumberText(ch.fixedFee)) + '" placeholder="€ 0,00" style="' + compactInputStyle + '">' +
+            '<input id="ch-fixed-fee-' + idx + '" type="text" inputmode="decimal" value="' + _esc(_channelNumberText(ch.fixedFee)) + '" placeholder="€ 0,00" style="' + compactInputStyle + '">' +
           '</label>' +
           '<label style="min-width:0;">' +
             '<span style="' + labelStyle + '">Imposto comissão %</span>' +
-            '<input id="ch-tax-' + idx + '" type="text" value="' + _esc(_channelNumberText(ch.taxPct)) + '" placeholder="0,00" style="' + compactInputStyle + '">' +
+            '<input id="ch-tax-' + idx + '" type="text" inputmode="decimal" value="' + _esc(_channelNumberText(ch.taxPct)) + '" placeholder="0,00" style="' + compactInputStyle + '">' +
           '</label>' +
           '<div style="align-self:center;color:#8A7E7C;font-size:11px;line-height:1.35;">Deixe zerado quando este canal não cobra comissão, taxa por venda ou imposto sobre a comissão.</div>' +
         '</div>' +
@@ -1993,8 +2014,32 @@ Modules.Configuracoes = (function () {
     }).filter(function (ch) { return !!ch.name; });
   }
 
+  function _validateCanaisVenda(list) {
+    var seen = {};
+    for (var i = 0; i < (list || []).length; i++) {
+      var ch = list[i] || {};
+      var key = _normChannelName(ch.name);
+      if (!key) continue;
+      if (seen[key]) return 'Existe mais de um canal com o nome "' + ch.name + '". Deixe cada canal com um nome único.';
+      seen[key] = true;
+      if (_parseChannelNumber(ch.commissionPct) < 0 || _parseChannelNumber(ch.fixedFee) < 0 || _parseChannelNumber(ch.taxPct) < 0) {
+        return 'Revise as taxas de ' + ch.name + '. Se o canal não cobra, deixe o campo zerado.';
+      }
+      if (_parseChannelNumber(ch.commissionPct) >= 100 || _parseChannelNumber(ch.taxPct) >= 100) {
+        return 'Revise os percentuais de ' + ch.name + '. Comissão e imposto sobre comissão precisam ficar abaixo de 100%.';
+      }
+    }
+    return '';
+  }
+
   function _saveCanaisVenda() {
-    var data = { list: _mergeFixedChannels(_collectCanaisVenda()) };
+    var collected = _collectCanaisVenda();
+    var validationError = _validateCanaisVenda(collected);
+    if (validationError) {
+      UI.toast(validationError, 'error');
+      return;
+    }
+    var data = { list: _mergeFixedChannels(collected) };
     DB.setDocRoot('config', 'canais_venda', data).then(function () {
       _config.canais_venda = data;
       UI.toast('Canais salvos', 'success');
@@ -2987,7 +3032,14 @@ Modules.Configuracoes = (function () {
 
   function _phoneFull(code, number) {
     var clean = _cleanPhoneNumber(number);
+    if (!clean) return '';
     return String(code || '') + clean;
+  }
+
+  function _isValidEmail(value) {
+    var email = String(value || '').trim();
+    if (!email) return true;
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   }
 
   function _countryIso(value) {

@@ -1211,7 +1211,8 @@ Modules.Dashboard = (function () {
           ['Anotação da etapa', 'Use para um detalhe específico daquela parte da receita. Exemplo: usar fria, bater por mais tempo ou adicionar no final.'],
           ['Controlar esta etapa como base de produção', 'Marque quando essa etapa vira uma base feita antes e usada depois em outros produtos, como massa, recheio, molho ou creme. Assim ela pode ser acompanhada como produção própria.'],
           ['Rendimento da etapa', '<strong style="color:#1F1F1F;">Informe quanto aquela etapa rende depois de pronta.</strong><br><br><strong style="color:#1F1F1F;">Exemplos:</strong><br>• Massa da coxinha: <strong style="color:#1F1F1F;">15 unidades</strong><br>• Recheio da coxinha: <strong style="color:#1F1F1F;">40 unidades</strong><br>• Creme: <strong style="color:#1F1F1F;">1,5 kg</strong><br>• Molho: <strong style="color:#1F1F1F;">2 litros</strong><br><br>Se a etapa rende igual à receita final, <strong style="color:#1F1F1F;">repita o mesmo número da receita.</strong>', true],
-          ['Ingredientes', 'Escolha os ingredientes e embalagens já cadastrados em Compras > Ingredientes, Embalagens e Produtos. Se um item ainda não aparece aqui, cadastre primeiro nessa tela.'],
+          ['Ingredientes', 'Escolha os ingredientes já cadastrados em Compras > Ingredientes, Embalagens e Produtos. Eles ficam dentro da etapa da receita, como massa, recheio, cobertura ou finalização.'],
+          ['Embalagens da receita', 'Escolha as embalagens separadas das etapas. Elas acompanham o rendimento global da receita. Exemplo: se a receita rende 15 unidades e cada unidade usa 1 saquinho, preencha 15 saquinhos. Se toda a receita vai em 1 caixa, preencha 1 caixa.'],
           ['Quantidade usada', 'Informe quanto realmente entra na receita. Não informe como você compra. Exemplo: se compra farinha em saco de 5 kg, mas usa 500 g na massa, coloque 500 g na receita.'],
           ['Unidade, perda e custo', 'Essas informações aparecem automaticamente a partir do cadastro do ingrediente ou embalagem. A unidade vem do item comprado, a perda vem do aproveitamento e o custo vem do preço de compra ou custo médio.'],
           ['Custos da receita', 'O BocaFood calcula automaticamente ingredientes, embalagem, custo direto, outros custos, custo total e custo por rendimento. Se algum custo aparecer zerado, revise se os ingredientes e embalagens têm preço de compra cadastrado.'],
@@ -1219,8 +1220,8 @@ Modules.Dashboard = (function () {
           ['Cuidados no preparo', 'Anote pontos importantes como ponto da massa, tempo de forno, cuidado ao congelar, embalagem final ou algo que costuma dar erro.'],
           ['Conservação e validade', 'Informe como essa receita deve ser guardada e por quanto tempo pode ser usada. Isso ajuda na rotina de produção e evita perda.']
         ],
-        actions: ['Cadastre primeiro as receitas que mais impactam a venda.', 'Use o rendimento real depois da receita pronta.', 'Confira se os ingredientes escolhidos têm custo cadastrado para o cálculo ficar confiável.', 'Salve e veja se o custo total e o custo por unidade fazem sentido para a produção.'],
-        ready: 'Está pronto quando as receitas principais têm nome, rendimento real, ingredientes com quantidade e custo calculado.'
+        actions: ['Cadastre primeiro as receitas que mais impactam a venda.', 'Use o rendimento real depois da receita pronta.', 'Confira se os ingredientes e embalagens escolhidos têm custo cadastrado para o cálculo ficar confiável.', 'Salve e veja se o custo total e o custo por unidade fazem sentido para a produção.'],
+        ready: 'Está pronto quando as receitas principais têm nome, rendimento real, ingredientes, embalagens quando houver e custo calculado.'
       },
       'Cadastrar produtos do cardápio': {
         icon: 'restaurant_menu',

@@ -1,5 +1,64 @@
 # AI Changelog
 
+## 2026-05-31 — Financeiro: validação de Saídas
+- Arquivos alterados: `public/js/modules/financeiro.js`, `AI_CHANGELOG.md`.
+- Validei a aba `Financeiro > Saídas`, incluindo listagem, filtros, nova saída, editar saída, detalhes, confirmação de pagamento, pagamento parcial, recorrência, parcelamento, categoria, fornecedor, forma de pagamento e conta bancária.
+- Ajustei os campos `Valor total` e `Valor pago` para comportamento de moeda no modal, mantendo vírgula decimal e formatação em euro ao sair do campo.
+- Exibi a frequência do parcelamento no modal de saída, usando a lógica que já existia para calcular vencimentos semanais, mensais ou anuais.
+- Corrigi a movimentação criada ao confirmar pagamento para carregar categoria financeira, natureza, classe de custo, forma de pagamento e conta bancária.
+- Impacto esperado: saídas pagas e parciais ficam mais bem conectadas com fluxo de caixa, visão geral, Plano de Voo, Performance e relatórios financeiros.
+
+## 2026-05-31 — Configurações: validação de Geral
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Validei a tela `Configurações > Geral`, incluindo nome comercial, apresentação, avatar/logo da marca, telefone, WhatsApp, e-mails, documento fiscal, endereço fiscal, país fiscal e prévia lateral.
+- Corrigi a montagem de telefone/WhatsApp para não salvar nem mostrar somente o código do país quando o número estiver vazio.
+- Incluí validação antes de salvar para exigir nome comercial e revisar e-mails com formato inválido.
+- Mantive a validação fiscal existente por país e confirmei a sincronização dos dados principais para `system_tenants`.
+- Impacto esperado: evitar cadastro geral incompleto e impedir que contatos vazios apareçam como `+34`, `+351` ou outro código sem número.
+
+## 2026-05-31 — Configurações: validação de Canais de venda
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Validei a tela `Configurações > Canais de venda`, incluindo nome do canal, categoria de entrada, comissão, taxa fixa, imposto sobre comissão, criação rápida de categoria e canais fixos.
+- Adicionei `inputmode="decimal"` nos campos de taxa para facilitar preenchimento com vírgula no celular.
+- Incluí validação antes de salvar para bloquear nomes duplicados, taxas negativas e percentuais iguais ou acima de 100%.
+- Confirmei que `Venda presencial` só aparece como canal fixo quando a configuração de Venda presencial está ativada.
+- Confirmei que a categoria de entrada continua salvando nos aliases usados por Financeiro, Pedidos, Performance e Preço e Margem.
+- Impacto esperado: evitar canais duplicados ou taxas inválidas e manter a herança correta para pedidos, financeiro e análises.
+
+## 2026-05-31 — Preço e margem: validação das regras de preço
+- Arquivos alterados: `public/js/modules/dinheiro.js`, `AI_CHANGELOG.md`.
+- Validei os campos de `Preço e Margem > Regras de preço`: margem desejada, margem mínima, markup, arredondamento, comissão, taxa fixa e imposto sobre comissão por canal.
+- Ajustei campos percentuais para aceitarem preenchimento com vírgula, sem depender do campo numérico do navegador.
+- Incluí validações antes de salvar para impedir margem mínima maior que a desejada, percentuais fora de faixa, markup zerado ou taxas negativas.
+- Corrigi a lista de canais da tela para respeitar a configuração da Venda presencial, evitando mostrar esse canal quando ele não está ativado.
+- Testei cenários de cálculo com comissão, taxa fixa, imposto sobre comissão e arredondamentos em `,90`, `,95` e número cheio.
+- Impacto esperado: regras de preço mais confiáveis para composição de preço, radar, promoções, upsell, Plano de Voo, Temporadas e Performance.
+
+## 2026-05-31 — Receitas: validação dos campos do cadastro
+- Arquivos alterados: `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Validei o fluxo de cadastro de receita, incluindo nome, categoria, rendimento global, peso, estoque, etapas, ingredientes, embalagens, custos, produção, conservação, imagem, salvamento e duplicação.
+- Corrigi o salvamento de linhas incompletas: ingrediente ou embalagem selecionados sem quantidade, ou quantidade preenchida sem item, agora mostram aviso claro em vez de serem ignorados silenciosamente.
+- Ajustei a leitura das embalagens do modal para ficar restrita à seção da receita aberta, evitando interferência caso exista outro campo parecido na tela.
+- Testei o cálculo com rendimento global diferente do rendimento da etapa, mantendo a embalagem aplicada ao rendimento global.
+- Impacto esperado: evitar receitas salvas com custo incompleto e manter a ficha técnica mais confiável para produção, estoque e lista de compras.
+
+## 2026-05-31 — Compras: validação do cadastro de ingrediente, embalagem e produto pronto
+- Arquivos alterados: `public/js/modules/compras.js`, `AI_CHANGELOG.md`.
+- Revisei o modal de cadastro de itens comprados e corrigi campos marcados como obrigatórios que ainda salvavam vazios, como categoria e unidade base.
+- Ajustei `Conteúdo por embalagem`, `Estoque mínimo`, `Estoque máximo` e `Aproveitamento` para aceitarem preenchimento decimal com vírgula, alinhado ao `Como preencher`.
+- Corrigi a gravação do tipo de estoque para embalagem, mantendo `stockItemType: "embalagem"` e também identificando `itemType` como embalagem.
+- Adicionei arredondamento do custo unitário calculado para evitar valores com casas decimais exageradas, preservando precisão suficiente para kg, gramas, litros e unidades.
+- Validei os cálculos de custo base por embalagem para ingrediente, embalagem e produto pronto, incluindo pacote em gramas, saco em kg e aproveitamento.
+- Impacto esperado: reduzir erro de preenchimento no cadastro inicial e manter custo, receita, compras e estoque mais coerentes.
+
+## 2026-05-31 — Receitas: embalagens no rendimento global
+- Arquivos alterados: `public/js/modules/catalogo.js`, `public/js/modules/receitas.js`, `public/js/modules/dashboard.js`, `public/js/modules/suporte.js`, `public/dashboard-onboarding-preview.html`, `AI_CHANGELOG.md`.
+- Adicionei no modal de receita uma seção própria para `Embalagens da receita`, separada das etapas de ingredientes.
+- As embalagens passam a ser cadastradas sobre o rendimento global da receita, sem sofrer o rateio do rendimento de massa, recheio ou outras etapas.
+- Mantive o custo das embalagens somado ao custo direto da ficha técnica e incluído no snapshot usado por ordens de produção, lista de compras e movimentações.
+- Reforcei o rendimento global como campo obrigatório e atualizei o onboarding/documentação para explicar onde preencher ingredientes, etapas e embalagens.
+- Impacto esperado: calcular melhor receitas como coxinha, onde massa e recheio podem ter rendimentos diferentes, mas a embalagem acompanha o produto final pronto.
+
 ## 2026-05-31 — Produção e Compras: linguagem de ingredientes e embalagens
 - Arquivos alterados: `public/js/modules/compras.js`, `public/js/modules/receitas.js`, `public/js/modules/catalogo.js`, `public/js/modules/dashboard.js`, `public/js/modules/suporte.js`, `public/dashboard-onboarding-preview.html`, `AI_CHANGELOG.md`.
 - Troquei os textos visíveis de `insumo` para `ingrediente` nas telas, modais, filtros, onboarding e documentação.

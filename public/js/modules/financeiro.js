@@ -114,6 +114,20 @@ Modules.Financeiro = (function () {
     }
     return parseFloat(raw) || 0;
   }
+  function _moneyInputDisplay(v) {
+    var n = _parseNum(v);
+    return n ? _fmtVal(n) : '';
+  }
+  function _moneyInputFocus(el) {
+    if (!el) return;
+    var n = _parseNum(el.value);
+    el.value = n ? String(n).replace('.', ',') : '';
+    try { el.select(); } catch (_) {}
+  }
+  function _moneyInputBlur(el) {
+    if (!el) return;
+    el.value = _moneyInputDisplay(el.value);
+  }
   function _normalizeFiscalCountry(value) {
     var raw = String(value || '').trim().toLowerCase();
     if (raw === 'pt' || raw === 'portugal' || raw === 'pt-pt') return 'PT';
@@ -2918,6 +2932,7 @@ Modules.Financeiro = (function () {
     var contaAtual=cp.conta_id||cp.contaBancariaId||'';
     var contaOpts='<option value="">Selecionar conta...</option>'+(_contasBancarias||[]).filter(function(c){ return c.ativo!==false || c.id===contaAtual; }).sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||''); }).map(function(c){ return '<option value="'+c.id+'"'+(contaAtual===c.id?' selected':'')+'>'+_esc(c.nome||'')+'</option>'; }).join('');
     var recFreq=cp.periodicidade||'mensal';
+    var parcFreq=cp.periodicidadeParcelas||cp.parcelasFrequencia||'mensal';
     var statusSel=(cp.status==='pago'||cp.data_pagamento)?'pago':'pendente';
     var ehRec=!!cp.recorrente;
     var recChecked=!!cp.recorrente;
@@ -2946,7 +2961,7 @@ Modules.Financeiro = (function () {
             '</div>'+
             '<div><label style="'+_lbl()+'">Descrição da saída *</label><input id="cp-desc" type="text" value="'+_esc(cp.descricao||'')+'" placeholder="Ex.: luz, aluguel, fornecedor..." style="'+fieldStyle+'"></div>'+
             '<div style="display:flex;gap:12px;align-items:start;flex-wrap:wrap;">'+
-              '<div style="flex:0 0 170px;max-width:170px;"><label style="'+_lbl()+'">Valor total *</label><input id="cp-valor" type="text" value="'+_esc(cp.valor||'')+'" placeholder="€ 0,00" oninput="Modules.Financeiro._renderCPPreviews()" style="'+moneyField+'"></div>'+
+              '<div style="flex:0 0 170px;max-width:170px;"><label style="'+_lbl()+'">Valor total *</label><input id="cp-valor" type="text" inputmode="decimal" value="'+_esc(_moneyInputDisplay(cp.valor||''))+'" placeholder="€ 0,00" onfocus="Modules.Financeiro._moneyInputFocus(this)" onblur="Modules.Financeiro._moneyInputBlur(this);Modules.Financeiro._renderCPPreviews()" oninput="Modules.Financeiro._renderCPPreviews()" style="'+moneyField+'"></div>'+
               '<div style="position:relative;flex:1 1 280px;min-width:240px;"><label style="'+_lbl()+'">Fornecedor / favorecido</label><input id="cp-forn-novo" type="text" value="'+_esc(fornecedorNomeAtual)+'" placeholder="Buscar fornecedor..." autocomplete="off" oninput="Modules.Financeiro._financePessoaSearch(\'cp\',this.value);Modules.Financeiro._renderCPPreviews()" onfocus="Modules.Financeiro._financePessoaSearch(\'cp\',this.value)" onblur="setTimeout(function(){var d=document.getElementById(\'cp-forn-dropdown\');if(d)d.style.display=\'none\';},200)" style="'+fieldStyle+'"><input id="cp-forn-id" type="hidden" value="'+_esc(fornecedorId)+'"><div id="cp-forn-dropdown" style="display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;background:#fff;border:1px solid #E8DCD7;border-radius:12px;max-height:220px;overflow-y:auto;z-index:9999;box-shadow:0 14px 34px rgba(31,31,31,.12);"></div><div style="font-size:11px;color:#8A7E7C;margin-top:5px;">Para quem você está pagando.</div></div>'+
             '</div>'+
             '<div style="display:flex;gap:12px;align-items:start;flex-wrap:wrap;">'+
@@ -2998,6 +3013,11 @@ Modules.Financeiro = (function () {
               '<div style="display:grid;grid-template-columns:minmax(150px,180px) minmax(150px,180px) minmax(0,1fr);gap:12px;margin-bottom:12px;align-items:end;">'+
                 '<div><label style="'+_lbl()+'">Parcelas *</label><input id="cp-num-parcelas" type="number" min="2" value="'+_esc(cp.numeroParcelas||'')+'" placeholder="Ex.: 3" oninput="Modules.Financeiro._renderCPPreviews()" style="'+shortField+'"></div>'+
                 '<div><label style="'+_lbl()+'">Valor por parcela</label><input id="cp-valor-parcela" type="text" readonly value="" style="'+moneyField+'background:#F7F2EF;"></div>'+
+                '<div><label style="'+_lbl()+'">Frequência</label><select id="cp-freq-parcelas" onchange="Modules.Financeiro._renderCPPreviews()" style="'+selectStyle+'">'+
+                  '<option value="semanal"'+(parcFreq==='semanal'?' selected':'')+'>Semanal</option>'+
+                  '<option value="mensal"'+(parcFreq==='mensal'?' selected':'')+'>Mensal</option>'+
+                  '<option value="anual"'+(parcFreq==='anual'?' selected':'')+'>Anual</option>'+
+                '</select></div>'+
               '</div>'+
               '<div id="cp-parc-preview" style="margin-top:10px;"></div>'+
             '</div>'+
@@ -3315,6 +3335,8 @@ Modules.Financeiro = (function () {
             parcelada:true,
             parcelaNumero:i,
             numeroParcelas:n,
+            periodicidadeParcelas:freq,
+            parcelasFrequencia:freq,
             valorTotal:total,
             parcelamentoId:parcelamentoId,
             contaOriginalId:parcelamentoId
@@ -3375,7 +3397,7 @@ Modules.Financeiro = (function () {
       '</div>'+
       '<div style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">'+
       '<div style="'+_g3()+'">'+
-        '<div><label style="'+_lbl()+'">Valor pago *</label><input id="cp-pay-valor" type="text" value="'+_esc(pendente)+'" style="'+_inp()+'"></div>'+
+        '<div><label style="'+_lbl()+'">Valor pago *</label><input id="cp-pay-valor" type="text" inputmode="decimal" value="'+_esc(_moneyInputDisplay(pendente))+'" onfocus="Modules.Financeiro._moneyInputFocus(this)" onblur="Modules.Financeiro._moneyInputBlur(this)" style="'+_inp()+'"></div>'+
         '<div><label style="'+_lbl()+'">Data do pagamento *</label><input id="cp-pay-data" type="date" value="'+_today()+'" style="'+_inp()+'"></div>'+
         '<div><label style="'+_lbl()+'">Conta de saída *</label><select id="cp-pay-conta" style="'+_inp()+'background:#fff;">'+contaOpts+'</select></div>'+
       '</div>'+
@@ -3415,6 +3437,8 @@ Modules.Financeiro = (function () {
       UI.toast('Este pagamento já foi registrado anteriormente.','warning');
       return;
     }
+    var meta=_financialMetaFromRecord(cp);
+    var formaPagamento=cp.formaPagamento||cp.forma_pagamento||'';
     var mov={
       tipo:'saida',
       descricao:'Pagamento: '+(cp.descricao||'Saída'),
@@ -3424,8 +3448,18 @@ Modules.Financeiro = (function () {
       valorPago:valorPago,
       saldoRestante:0,
       data:data,
-      categoria:cp.categoria||'',
+      categoria:meta.categoriaNome||cp.categoria||'',
+      categoriaId:meta.categoriaId,
+      categoriaFinanceiraId:meta.categoriaId,
+      categoriaFinanceiraNome:meta.categoriaNome,
+      financialNature:meta.financialNature,
+      categoriaFinanceiraNatureza:meta.financialNature,
+      costClass:meta.costClass,
+      categoriaFinanceiraCostClass:meta.costClass,
       conta_id:contaId,
+      contaBancariaId:contaId,
+      forma_pagamento:formaPagamento,
+      formaPagamento:formaPagamento,
       status:'efetivado',
       origem:cp._origemFinanceira||'conta_a_pagar',
       sourceCollection:colecao,
@@ -4744,6 +4778,7 @@ function _openContaModal(id) {
     _onCompraInsChange:_onCompraInsChange, _calcCompraLinha:_calcCompraLinha, _saveCompra:_saveCompra, _deleteCompra:_deleteCompra,
     _openCPModal:_openCPModal, _saveCP:_saveCP, _deleteCP:_deleteCP, _confirmDeleteCP:_confirmDeleteCP, _pagarCP:_pagarCP, _savePagamentoCP:_savePagamentoCP, _criarSaldoRestanteCP:_criarSaldoRestanteCP, _toggleSaldoRestanteModo:_toggleSaldoRestanteModo,
     _setCPFiltro:_setCPFiltro, _toggleCPConta:_toggleCPConta, _toggleCPStatus:_toggleCPStatus, _toggleCPOrdem:_toggleCPOrdem, _setCPPage:_setCPPage, _setCPPageSize:_setCPPageSize, _toggleCPSelecionada:_toggleCPSelecionada, _toggleCPTodas:_toggleCPTodas, _clearCPSelection:_clearCPSelection, _openBulkCPModal:_openBulkCPModal, _applyBulkCP:_applyBulkCP, _bulkConfirmarCP:_bulkConfirmarCP, _bulkDeleteCP:_bulkDeleteCP, _openContasVencidas:_openContasVencidas, _openCPDetalheModal:_openCPDetalheModal, _closeCPDetalhe:_closeCPDetalhe, _setCPStatus:_setCPStatus, _renderCPPreviews:_renderCPPreviews, _toggleCPRecorrente:_toggleCPRecorrente, _toggleCPParcelada:_toggleCPParcelada, _toggleCPNovoForn:_toggleCPNovoForn, _toggleCPNovaCat:_toggleCPNovaCat,
+    _moneyInputFocus:_moneyInputFocus, _moneyInputBlur:_moneyInputBlur,
     _openContaModal:_openContaModal, _saveConta:_saveConta, _deleteConta:_deleteConta, _openTransferModal:_openTransferModal, _refreshTransferAccounts:_refreshTransferAccounts, _saveTransfer:_saveTransfer,
     _setCfgSub:_setCfgSub, _openCatModal:_openCatModal, _syncCatTypeFields:_syncCatTypeFields, _saveCat:_saveCat, _deleteCat:_deleteCat,
     _openFornModal:_openFornModal, _saveForn:_saveForn, _deleteForn:_deleteForn,
