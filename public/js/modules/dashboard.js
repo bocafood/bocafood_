@@ -1059,12 +1059,12 @@ Modules.Dashboard = (function () {
         '<div style="padding:17px 20px 18px;display:flex;flex-direction:column;gap:13px;">' +
           '<div style="display:flex;gap:11px;align-items:flex-start;border:1px solid #EFE6DA;background:#FFFEFC;border-radius:16px;padding:13px;">' +
             '<span class="mi" style="width:38px;height:38px;border-radius:14px;background:#F5EFE6;color:#8A6F5A;display:flex;align-items:center;justify-content:center;font-size:21px;flex:0 0 auto;">' + _esc(guide.icon || active.step.icon || 'checklist') + '</span>' +
-            '<div style="min-width:0;"><div style="font-size:13px;color:#1F1F1F;font-weight:780;line-height:1.25;">O que fazer nesta tela</div><div style="font-size:12.5px;color:#5F5750;line-height:1.5;margin-top:4px;">' + _esc(guide.intro || '') + '</div></div>' +
+            '<div style="min-width:0;"><div style="font-size:13px;color:#1F1F1F;font-weight:780;line-height:1.25;">O que fazer nesta tela</div><div style="font-size:12.5px;color:#5F5750;line-height:1.5;margin-top:4px;">' + (guide.introHtml || _esc(guide.intro || '')) + '</div></div>' +
           '</div>' +
           '<div style="border:1px solid #EFE6DA;background:#fff;border-radius:16px;padding:12px 13px;">' +
             '<strong style="display:block;color:#1F1F1F;font-size:12px;margin-bottom:8px;">O que preencher ou conferir</strong>' +
             '<div style="display:flex;flex-direction:column;gap:7px;">' + fields.map(function (detail) {
-              return '<div class="dash-checklist-detail"><span style="color:#1F1F1F;font-weight:760;">' + _esc(detail[0]) + '</span><span style="color:#5F5750;">' + _esc(detail[1]) + '</span></div>';
+              return '<div class="dash-checklist-detail"><span style="color:#1F1F1F;font-weight:760;">' + _esc(detail[0]) + '</span><span style="color:#5F5750;">' + (detail[2] ? detail[1] : _esc(detail[1])) + '</span></div>';
             }).join('') + '</div>' +
           '</div>' +
           '<div style="border:1px solid #EFE6DA;background:#FFFEFC;border-radius:16px;padding:12px 13px;">' +
@@ -1174,8 +1174,9 @@ Modules.Dashboard = (function () {
         icon: 'inventory_2',
         path: 'Caminho: Compras > Produtos / Insumos',
         intro: 'Aqui entram os ingredientes, materiais de embalagem e produtos prontos que o negócio compra. Nesta primeira etapa, não precisa cadastrar tudo: comece pelos itens dos produtos que mais vendem e pelos insumos necessários para montar 2 ou 3 receitas principais.',
+        introHtml: '<div><strong style="color:#1F1F1F;">Aqui entram:</strong> ingredientes, materiais de embalagem e produtos prontos que o negócio compra.</div><div style="margin-top:7px;"><strong style="color:#1F1F1F;">Nesta primeira etapa, não precisa cadastrar tudo.</strong></div><div style="margin-top:7px;">Comece pelos itens dos produtos que mais vendem e pelos insumos necessários para montar <strong style="color:#1F1F1F;">2 ou 3 receitas principais</strong>.</div>',
         fields: [
-          ['Classe do item', 'Escolha Insumo para ingredientes, caixas, potes, sacos, etiquetas e outros itens usados no preparo, montagem ou entrega. Escolha Produto quando o item já chega pronto para vender, como bebida, doce de fornecedor ou produto revendido.'],
+          ['Classe do item', '<div><strong style="color:#1F1F1F;">Insumo:</strong> ingredientes, caixas, potes, sacos, etiquetas e outros itens usados no preparo, montagem ou entrega.</div><div style="margin-top:5px;"><strong style="color:#1F1F1F;">Produto:</strong> item que já chega pronto para vender, como bebida, doce de fornecedor ou produto revendido.</div>', true],
           ['Nome', 'Use um nome simples de procurar depois. Exemplos: Farinha de trigo, Caixa para bolo, Guaraná lata ou Brigadeiro fornecedor.'],
           ['Categoria', 'Pense na categoria como uma pasta para encontrar o item depois. Use nomes do dia a dia do negócio, como Bebidas, Carnes, Ingredientes secos, Embalagens, Descartáveis ou Congelados.'],
           ['Unidade base', 'Escolha a unidade em que você compra e controla o custo desse item, como kg, g, litro, ml ou unidade. Se você compra batata por kg, use kg; se compra refrigerante por unidade, use unidade.'],

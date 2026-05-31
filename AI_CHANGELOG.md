@@ -9916,6 +9916,10 @@
 - Ajustei a explicação de `Unidade base` no onboarding/documentação para deixar claro que ela representa a unidade de compra usada como base de custo, estoque e receitas.
 - Incluí uma orientação mais prática para `Conteúdo por embalagem (×)`, explicando qual número preencher quando a embalagem vem em kg, g, litro, ml ou unidades.
 - Incluí um botão `Como preencher?` próprio ao lado do campo `Conteúdo por embalagem (×)` dentro do modal, abrindo a explicação no mesmo padrão visual usado no cadastro.
+- Ajustei essa ajuda para abrir acima do campo, evitando empurrar a explicação para baixo do preenchimento.
 - Removi os checkboxes sem ação da listagem `Produtos / Insumos cadastrados` e reduzi a exibição visual de casas decimais em custos para evitar valores com zeros excessivos.
 - Ajustei também o `Custo atual` exibido dentro do modal do item para usar moeda curta, sem zeros excessivos.
+- Adicionei um aviso humano antes de salvar mudanças sensíveis em item já usado, explicando que compras antigas ficam como estavam e que receitas podem precisar de revisão quando unidade, embalagem, conteúdo ou aproveitamento mudam.
+- Reforcei visualmente a introdução do onboarding de `Produtos / Insumos`, destacando o que entra nessa seção e que, no início, basta cadastrar os itens necessários para 2 ou 3 receitas principais.
+- Estruturei a explicação de `Classe do item` no mesmo onboarding, separando visualmente o que é `Insumo` e o que é `Produto`.
 - Impacto esperado: dar base de custo confiável para o primeiro Plano de Voo e para os cálculos de receitas antes de haver histórico suficiente.

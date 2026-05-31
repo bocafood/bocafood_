@@ -1174,6 +1174,47 @@ Modules.Compras = (function () {
     el.style.display = el.style.display === 'block' ? 'none' : 'block';
   }
 
+  function _itemHasOperationalHistory(itemId, item) {
+    if (!itemId) return false;
+    item = item || {};
+    if (_itemHasPurchaseCostHistory(item)) return true;
+    return (_compras || []).some(function (compra) {
+      return (compra.itens || []).some(function (line) {
+        return line && String(line.itemId || '') === String(itemId);
+      });
+    });
+  }
+
+  function _normComparable(value) {
+    return String(value == null ? '' : value).trim();
+  }
+
+  function _numComparable(value) {
+    var n = parseFloat(String(value == null ? '' : value).replace(',', '.'));
+    return isNaN(n) ? 0 : Math.round(n * 1000000) / 1000000;
+  }
+
+  function _itemSensitiveChanges(previous, next) {
+    previous = previous || {};
+    next = next || {};
+    var changes = [];
+    if (_normComparable(previous.unidade_base || previous.unidadeBase) !== _normComparable(next.unidade_base)) changes.push('Unidade base');
+    if (_normComparable(previous.unidade_compra_padrao) !== _normComparable(next.unidade_compra_padrao)) changes.push('Embalagem de compra padrão');
+    if (_numComparable(previous.conteudo_por_embalagem_padrao || 1) !== _numComparable(next.conteudo_por_embalagem_padrao || 1)) changes.push('Conteúdo por embalagem');
+    if (String(next.classe || previous.classe || 'insumo') === 'insumo' && _numComparable(previous.aproveitamento_padrao || 100) !== _numComparable(next.aproveitamento_padrao || 100)) changes.push('Aproveitamento');
+    return changes;
+  }
+
+  function _confirmSensitiveItemSave(changes) {
+    var list = (changes || []).map(function (name) { return '• ' + _esc(name); }).join('<br>');
+    return UI.confirm(
+      'Atenção: este item já faz parte da rotina do seu negócio.<br><br>' +
+      'As compras que já foram lançadas ficam guardadas como estavam. A partir de agora, o BocaFood vai usar essa nova configuração nos próximos cálculos.<br><br>' +
+      (list ? '<strong>Você alterou:</strong><br>' + list + '<br><br>' : '') +
+      'Se você mudou a unidade ou o aproveitamento, vale revisar as receitas que usam este item para não misturar kg, g, litros ou unidades de forma errada.'
+    );
+  }
+
   function _periodoMatch(dateStr, periodo) {
     if (!periodo || periodo === 'todos') return true;
     var d = dateStr ? new Date(dateStr + 'T00:00:00') : null;
@@ -2841,8 +2882,7 @@ Modules.Compras = (function () {
       '<div class="item-modal-grid item-modal-pack-grid" style="margin-bottom:11px;">' +
       _searchablePackageField('it-emb-padrao', 'Embalagem de compra padrão', item.unidade_compra_padrao || '') +
       '<div><div class="item-field-head"><label style="' + _labelStyle() + 'margin-bottom:0;">Conteúdo por embalagem (×)</label><button type="button" class="item-help-btn" onclick="Modules.Compras._toggleItemPackageHelp()">Como preencher?</button></div>' +
-      '<div class="supplier-field-control"><input id="it-conteudo-padrao" type="number" value="' + _esc(item.conteudo_por_embalagem_padrao || 1) + '"></div>' +
-      '<div id="it-package-help" class="item-help-box" style="margin-top:8px;">' +
+      '<div id="it-package-help" class="item-help-box" style="margin:0 0 8px;">' +
         'Preencha o número usando a mesma unidade escolhida em <strong>Unidade base</strong>.<br><br>' +
         '• Unidade base kg e embalagem com 1 kg: preencha 1<br>' +
         '• Unidade base kg e embalagem com 400 g: preencha 0,400<br>' +
@@ -2850,7 +2890,7 @@ Modules.Compras = (function () {
         '• Unidade base L e embalagem com 500 ml: preencha 0,500<br>' +
         '• Unidade base unidade e caixa com 12 unidades: preencha 12<br><br>' +
         'Regra simples: converta o conteúdo da embalagem para a unidade base antes de preencher.' +
-      '</div></div>' +
+      '</div><div class="supplier-field-control"><input id="it-conteudo-padrao" type="number" value="' + _esc(item.conteudo_por_embalagem_padrao || 1) + '"></div></div>' +
       '</div>' +
       '<div class="item-modal-grid item-modal-stock-grid" style="margin-bottom:11px;">' +
       _supplierField('it-stock-min', 'Estoque mínimo', item.minStock || item.estoque_minimo || '', 'number') +
@@ -3264,15 +3304,26 @@ Modules.Compras = (function () {
       data.venda_habilitada = false;
       data.usar_em_fichas = false;
     }
-    var op = _editingId ? DB.update('itens_custo', _editingId, data) : DB.add('itens_custo', data);
-    op.then(function (ref) {
-      var id = _editingId || (ref && ref.id) || '';
-      return _syncItemStockSettings(id, data);
-    }).then(function () {
-      UI.toast('Cadastro salvo!', 'success');
-      if (window._itemCompraModal) window._itemCompraModal.close();
-      _renderItens();
-    }).catch(function (err) { UI.toast('Erro: ' + err.message, 'error'); });
+    var sensitiveChanges = _editingId ? _itemSensitiveChanges(currentItem, data) : [];
+    var needsWarning = _editingId && sensitiveChanges.length && _itemHasOperationalHistory(_editingId, currentItem);
+    var proceed = function () {
+      var op = _editingId ? DB.update('itens_custo', _editingId, data) : DB.add('itens_custo', data);
+      op.then(function (ref) {
+        var id = _editingId || (ref && ref.id) || '';
+        return _syncItemStockSettings(id, data);
+      }).then(function () {
+        UI.toast('Cadastro salvo!', 'success');
+        if (window._itemCompraModal) window._itemCompraModal.close();
+        _renderItens();
+      }).catch(function (err) { UI.toast('Erro: ' + err.message, 'error'); });
+    };
+    if (needsWarning) {
+      _confirmSensitiveItemSave(sensitiveChanges).then(function (ok) {
+        if (ok) proceed();
+      });
+      return;
+    }
+    proceed();
   }
 
   function _stockSettingId(key) {
