@@ -9993,3 +9993,13 @@
 - Quando a unidade base for gramas, o sistema também mostra o equivalente por kg, mantendo a referência mais fácil de comparar.
 - Exemplo esperado: um pacote de 200 g por €2,29 pode aparecer como custo por g e também como `€11,45/kg`.
 - Impacto esperado: reduzir confusão no preenchimento de embalagens pequenas sem mudar a fórmula de custo salva.
+
+## 2026-05-31 — Compras/Produção: classe Embalagem
+- Arquivos alterados: `public/js/modules/compras.js`, `public/js/modules/catalogo.js`, `public/js/modules/receitas.js`, `public/js/modules/estoque.js`, `AI_CHANGELOG.md`.
+- Incluí `Embalagem` como classe própria no cadastro de itens, ao lado de `Insumo` e `Produto`.
+- Adicionei categorias iniciais específicas para embalagens, como caixas, potes, sacos e sacolas, etiquetas e descartáveis.
+- O campo `Categoria` agora herda as categorias da classe selecionada, evitando misturar ingredientes, embalagens e produtos comprados prontos.
+- Itens da classe `Embalagem` continuam podendo entrar em receitas, mas passam a ser reconhecidos automaticamente como custo de embalagem.
+- O cálculo das receitas agora separa custo de ingredientes e custo de embalagens pelo tipo do item, sem depender apenas do nome da etapa.
+- Estoque e Lista de Compras passam a reconhecer a classe `Embalagem` como tipo próprio, preservando compatibilidade com insumos antigos.
+- Impacto esperado: permitir que caixas, potes, sacos, etiquetas e descartáveis sejam controlados e calculados como embalagem, sem quebrar compras, receitas, produção ou estoque existentes.

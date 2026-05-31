@@ -682,11 +682,14 @@ Modules.Receitas = (function () {
 
   function _purchaseItemClass(id, fallback) {
     var item = (_purchaseListData.costItems || []).find(function (it) { return String(it.id || '') === String(id || ''); });
-    return _normalizeStockClass((item && (item.classe || item.itemClass || item.stockItemType)) || fallback || 'insumo') === 'produto' ? 'produto' : 'insumo';
+    var cls = _normalizeStockClass((item && (item.classe || item.itemClass || item.stockItemType)) || fallback || 'insumo');
+    if (cls === 'produto') return 'produto';
+    if (cls === 'embalagem') return 'embalagem';
+    return 'insumo';
   }
 
   function _purchaseClassAllowed(itemClass, filter) {
-    if (filter === 'todos') return itemClass === 'insumo' || itemClass === 'produto';
+    if (filter === 'todos') return itemClass === 'insumo' || itemClass === 'embalagem' || itemClass === 'produto';
     return itemClass === filter;
   }
 
@@ -731,6 +734,7 @@ Modules.Receitas = (function () {
     if (cls === 'produto') return 'produto_pronto';
     if (cls === 'produto_produzido') return 'produto_produzido';
     if (cls === 'base_producao') return 'base_producao';
+    if (cls === 'embalagem') return 'embalagem';
     if (cls === 'insumo') return 'insumo';
     if (movement && (movement.baseProductionId || movement.type === 'entrada_base_producao' || movement.type === 'estorno_base_producao')) return 'base_producao';
     if (movement && movement.fichaTecnicaId) return 'produto_produzido';
@@ -743,11 +747,13 @@ Modules.Receitas = (function () {
     if (fb === 'produto') return 'produto_pronto';
     if (fb === 'produto_produzido') return 'produto_produzido';
     if (fb === 'base_producao') return 'base_producao';
+    if (fb === 'embalagem') return 'embalagem';
     if (fb === 'insumo') return 'insumo';
     var first = String(key || '').split(':')[0] || '';
     if (first === 'produto_pronto' || first === 'produto') return 'produto_pronto';
     if (first === 'produto_produzido') return 'produto_produzido';
     if (first === 'base_producao') return 'base_producao';
+    if (first === 'embalagem') return 'embalagem';
     return 'insumo';
   }
 
@@ -831,8 +837,9 @@ Modules.Receitas = (function () {
             '</select></div></label>' +
             '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Classe</span><div class="production-orders-field"><select onchange="Modules.Receitas._setPurchaseListOption(\'classe\', this.value)">' +
               '<option value="insumo"' + (_purchaseListState.classe === 'insumo' ? ' selected' : '') + '>Insumos</option>' +
+              '<option value="embalagem"' + (_purchaseListState.classe === 'embalagem' ? ' selected' : '') + '>Embalagens</option>' +
               '<option value="produto"' + (_purchaseListState.classe === 'produto' ? ' selected' : '') + '>Produtos prontos</option>' +
-              '<option value="todos"' + (_purchaseListState.classe === 'todos' ? ' selected' : '') + '>Insumos e produtos prontos</option>' +
+              '<option value="todos"' + (_purchaseListState.classe === 'todos' ? ' selected' : '') + '>Todos</option>' +
             '</select></div></label>' +
             '<button type="button" class="production-orders-primary" onclick="Modules.Receitas._generatePurchaseList()">Gerar lista</button>' +
           '</div>' +
@@ -849,6 +856,7 @@ Modules.Receitas = (function () {
             '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Classe</span><div class="production-orders-field"><select onchange="Modules.Receitas._setPurchaseListFilter(\'classe\', this.value)">' +
               '<option value="todos"' + (_purchaseListFilters.classe === 'todos' ? ' selected' : '') + '>Todas</option>' +
               '<option value="insumo"' + (_purchaseListFilters.classe === 'insumo' ? ' selected' : '') + '>Insumos</option>' +
+              '<option value="embalagem"' + (_purchaseListFilters.classe === 'embalagem' ? ' selected' : '') + '>Embalagens</option>' +
               '<option value="produto"' + (_purchaseListFilters.classe === 'produto' ? ' selected' : '') + '>Produtos prontos</option>' +
             '</select></div></label>' +
             '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Status</span><div class="production-orders-field"><select onchange="Modules.Receitas._setPurchaseListFilter(\'status\', this.value)">' +
@@ -1080,8 +1088,9 @@ Modules.Receitas = (function () {
   }
 
   function _purchaseListClassLabel(classe) {
+    if (classe === 'embalagem') return 'Embalagens';
     if (classe === 'produto') return 'Produtos prontos';
-    if (classe === 'todos') return 'Insumos e produtos prontos';
+    if (classe === 'todos') return 'Insumos, embalagens e produtos prontos';
     return 'Insumos';
   }
 
@@ -1160,7 +1169,7 @@ Modules.Receitas = (function () {
         var key = setting.stockKey || '';
         var stockKind = _stockKindFromKey(key, setting.stockItemType);
         if (stockKind === 'produto_produzido') return;
-        var itemClass = stockKind === 'produto_pronto' ? 'produto' : 'insumo';
+        var itemClass = stockKind === 'produto_pronto' ? 'produto' : (stockKind === 'embalagem' ? 'embalagem' : 'insumo');
         if (!_purchaseClassAllowed(itemClass, classe)) return;
         var min = _num(setting.minStock);
         if (min <= 0) return;
@@ -1173,7 +1182,7 @@ Modules.Receitas = (function () {
     return Object.keys(map).map(function (key) {
       var item = map[key];
       item.quantity = _round(item.quantity);
-      item.classLabel = item.classe === 'produto' ? 'Produto pronto' : 'Insumo';
+      item.classLabel = item.classe === 'produto' ? 'Produto pronto' : (item.classe === 'embalagem' ? 'Embalagem' : 'Insumo');
       item.originText = Object.keys(item.origins).join(', ');
       item.reason = item.details.slice(0, 2).join(' · ') + (item.details.length > 2 ? ' +' + (item.details.length - 2) : '');
       return item;
@@ -2205,6 +2214,7 @@ Modules.Receitas = (function () {
     var key = String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, '_');
     if (!key) return '';
     if (key === 'insumo' || key === 'ingrediente' || key === 'ingredient') return 'insumo';
+    if (key === 'embalagem' || key === 'embalagens' || key === 'packaging' || key === 'package') return 'embalagem';
     if (key === 'produto' || key === 'produto_pronto' || key === 'ready_product') return 'produto';
     if (key === 'produto_produzido' || key === 'produzido' || key === 'produced_product' || key === 'ficha_tecnica') return 'produto_produzido';
     if (key === 'base_producao' || key === 'base' || key === 'semiacabado' || key === 'preparo_intermediario') return 'base_producao';

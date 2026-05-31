@@ -55,6 +55,9 @@ Modules.Compras = (function () {
     { name: 'Laticínios', classe: 'insumo' }, { name: 'Secos', classe: 'insumo' },
     { name: 'Proteínas', classe: 'insumo' }, { name: 'Hortifruti', classe: 'insumo' },
     { name: 'Temperos', classe: 'insumo' }, { name: 'Outros', classe: 'ambos' },
+    { name: 'Caixas', classe: 'embalagem' }, { name: 'Potes', classe: 'embalagem' },
+    { name: 'Sacos e sacolas', classe: 'embalagem' }, { name: 'Etiquetas', classe: 'embalagem' },
+    { name: 'Descartáveis', classe: 'embalagem' },
     { name: 'Refrigerantes', classe: 'produto' }, { name: 'Sucos', classe: 'produto' },
     { name: 'Doces prontos', classe: 'produto' }, { name: 'Bebidas em geral', classe: 'produto' }
   ];
@@ -99,7 +102,13 @@ Modules.Compras = (function () {
   function _seedDefaults() {
     return Promise.all([DB.getAll('compras_categorias'), DB.getAll('unidades_medida')]).then(function (r) {
       var ops = [];
-      if (!(r[0] || []).length) ops = ops.concat(DEFAULT_CATS_SEED.map(function (t) { return DB.add('compras_categorias', { name: t.name, classe: t.classe, ativo: true }); }));
+      var existingCats = r[0] || [];
+      DEFAULT_CATS_SEED.forEach(function (t) {
+        var found = existingCats.some(function (cat) {
+          return cat && _normCatalogName(cat.name) === _normCatalogName(t.name) && (cat.classe || '') === t.classe;
+        });
+        if (!found) ops.push(DB.add('compras_categorias', { name: t.name, classe: t.classe, ativo: true }));
+      });
       if (!(r[1] || []).length) ops = ops.concat(DEFAULT_UNIDADES.map(function (u) { return DB.add('unidades_medida', u); }));
       return Promise.all(ops);
     }).catch(function () {});
@@ -1201,7 +1210,7 @@ Modules.Compras = (function () {
     if (_normComparable(previous.unidade_base || previous.unidadeBase) !== _normComparable(next.unidade_base)) changes.push('Unidade base');
     if (_normComparable(previous.unidade_compra_padrao) !== _normComparable(next.unidade_compra_padrao)) changes.push('Embalagem de compra padrão');
     if (_numComparable(previous.conteudo_por_embalagem_padrao || 1) !== _numComparable(next.conteudo_por_embalagem_padrao || 1)) changes.push('Conteúdo por embalagem');
-    if (String(next.classe || previous.classe || 'insumo') === 'insumo' && _numComparable(previous.aproveitamento_padrao || 100) !== _numComparable(next.aproveitamento_padrao || 100)) changes.push('Aproveitamento');
+    if (_isSupplyClass(next.classe || previous.classe || 'insumo') && _numComparable(previous.aproveitamento_padrao || 100) !== _numComparable(next.aproveitamento_padrao || 100)) changes.push('Aproveitamento');
     return changes;
   }
 
@@ -1773,7 +1782,7 @@ Modules.Compras = (function () {
     }
     dd.innerHTML = filtered.slice(0, 60).map(function (i) {
       var label = _esc(i.nome || i.name || '');
-      var sub = _esc([i.categoria, i.classe === 'produto' ? 'Produto' : 'Insumo'].filter(Boolean).join(' · '));
+      var sub = _esc([i.categoria, _itemClassLabel(i.classe)].filter(Boolean).join(' · '));
       return '<div onmousedown="Modules.Compras._compraItemSelect(\'' + i.id + '\')" ' +
         'style="padding:9px 14px;cursor:pointer;border-bottom:1px solid #F2EDED;font-size:13px;font-family:inherit;" ' +
         'onmouseover="this.style.background=\'#FFF5F5\'" onmouseout="this.style.background=\'\'">' +
@@ -2436,6 +2445,34 @@ Modules.Compras = (function () {
     return String((a && (a.name || a.nome)) || '').localeCompare(String((b && (b.name || b.nome)) || ''), 'pt', { sensitivity: 'base' });
   }
 
+  function _itemClassLabel(classe) {
+    var key = String(classe || '').toLowerCase();
+    if (key === 'produto') return 'Produto';
+    if (key === 'embalagem') return 'Embalagem';
+    if (key === 'ambos') return 'Todos';
+    return 'Insumo';
+  }
+
+  function _itemClassChipColor(classe) {
+    var key = String(classe || '').toLowerCase();
+    if (key === 'produto') return '#2F5F93';
+    if (key === 'embalagem') return '#9A5B13';
+    if (key === 'ambos') return '#6F6860';
+    return '#8A6F5A';
+  }
+
+  function _isSupplyClass(classe) {
+    var key = String(classe || '').toLowerCase();
+    return key === 'insumo' || key === 'embalagem';
+  }
+
+  function _itemClassOptions(selected) {
+    selected = String(selected || 'insumo').toLowerCase();
+    return '<option value="insumo"' + (selected === 'insumo' ? ' selected' : '') + '>Insumo</option>' +
+      '<option value="embalagem"' + (selected === 'embalagem' ? ' selected' : '') + '>Embalagem</option>' +
+      '<option value="produto"' + (selected === 'produto' ? ' selected' : '') + '>Produto</option>';
+  }
+
   function _findCatalogByName(kind, name, classe, strictClass) {
     var norm = _normCatalogName(name);
     if (!norm) return null;
@@ -2501,8 +2538,8 @@ Modules.Compras = (function () {
 
   function _syncItemFiltersToCatalog() {
     var insumosOnly = _itensView === 'insumos';
-    var classe = insumosOnly ? 'insumo' : (_itensFilters.classe || '');
-    var strictClass = !!insumosOnly;
+    var classe = insumosOnly ? (_itensFilters.classe || '') : (_itensFilters.classe || '');
+    var strictClass = false;
     var categorias = insumosOnly ? _availableInsumoFilterValues('categoria') : _catalogNames('categorias', classe, strictClass);
     if (_itensFilters.categoria && categorias.indexOf(_itensFilters.categoria) < 0) _itensFilters.categoria = '';
   }
@@ -2529,7 +2566,7 @@ Modules.Compras = (function () {
     var insumosOnly = _itensView === 'insumos';
     var q = (_itensFilters.q || '').toLowerCase();
     return (_itens || []).filter(function (i) {
-      if (insumosOnly && i.classe === 'produto') return false;
+      if (insumosOnly && !_isSupplyClass(i.classe || 'insumo')) return false;
       if (_itensFilters.classe && i.classe !== _itensFilters.classe) return false;
       if (ignoreField !== 'categoria' && _itensFilters.categoria && i.categoria !== _itensFilters.categoria) return false;
       if (_itensFilters.ativo === 'ativo' && i.ativo === false) return false;
@@ -2544,12 +2581,13 @@ Modules.Compras = (function () {
   function _availableItemFilterValues(field) {
     var insumosOnly = _itensView === 'insumos';
     if (insumosOnly) return _availableInsumoFilterValues(field);
-    var classe = insumosOnly ? 'insumo' : (_itensFilters.classe || '');
-    return _catalogNames('categorias', classe, !!insumosOnly);
+    return _catalogNames('categorias', _itensFilters.classe || '', false);
   }
 
   function _availableInsumoFilterValues(field) {
-    return _catalogNames('categorias', 'insumo', true);
+    return (_categorias || []).filter(function (item) {
+      return item && item.ativo !== false && (!item.classe || item.classe === 'insumo' || item.classe === 'embalagem' || item.classe === 'ambos');
+    }).map(function (item) { return item.name; }).filter(Boolean).sort();
   }
 
   function _hasActiveItemFilters() {
@@ -2571,10 +2609,10 @@ Modules.Compras = (function () {
     if (!content) return;
     var insumosOnly = _itensView === 'insumos';
     var title = insumosOnly ? 'Insumos' : 'Produtos / Insumos';
-    var subtitle = insumosOnly ? 'Cadastre os insumos usados na produção com categoria, unidade e custo atual.' : 'Cadastre e acompanhe produtos e insumos usados em compras, estoque e custos.';
+    var subtitle = insumosOnly ? 'Cadastre ingredientes e embalagens usados na produção com categoria, unidade e custo atual.' : 'Cadastre e acompanhe produtos, insumos e embalagens usados em compras, estoque e custos.';
     var addLabel = insumosOnly ? '+ Novo insumo' : '+ Novo item';
     var listTitle = insumosOnly ? 'Insumos cadastrados' : 'Produtos / Insumos cadastrados';
-    var listDesc = insumosOnly ? 'Gerencie categoria, unidade e custo dos insumos usados em receitas.' : 'Veja classe, categoria, unidade e custo atual dos itens de compra.';
+    var listDesc = insumosOnly ? 'Gerencie categoria, unidade e custo dos ingredientes e embalagens usados em receitas.' : 'Veja classe, categoria, unidade e custo atual dos itens de compra.';
     var addFn = insumosOnly ? 'Modules.Compras._openInsumoModal(null)' : 'Modules.Compras._openItemModal(null)';
     var itemFilterCss = '<style>' +
       '.item-filter-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:16px;box-shadow:0 10px 24px rgba(31,31,31,.04);}' +
@@ -2599,14 +2637,13 @@ Modules.Compras = (function () {
     var totalPages = Math.max(1, Math.ceil(insumosCount / p.perPage));
     var currentPage = Math.min(p.page, totalPages);
     if (p.page !== currentPage) p.page = currentPage;
-    var classeFilterHtml = insumosOnly ? '' : '<div class="item-filter-control"><select id="it-f-classe" onchange="Modules.Compras._filterItens()">' +
+    var classeFilterHtml = '<div class="item-filter-control"><select id="it-f-classe" onchange="Modules.Compras._filterItens()">' +
       '<option value=""' + (!_itensFilters.classe ? ' selected' : '') + '>Todas classes</option>' +
       '<option value="produto"' + (_itensFilters.classe === 'produto' ? ' selected' : '') + '>Produtos</option>' +
       '<option value="insumo"' + (_itensFilters.classe === 'insumo' ? ' selected' : '') + '>Insumos</option>' +
+      '<option value="embalagem"' + (_itensFilters.classe === 'embalagem' ? ' selected' : '') + '>Embalagens</option>' +
       '</select></div>';
-    var filterGrid = insumosOnly
-      ? 'minmax(320px,1.45fr) minmax(220px,.9fr) minmax(150px,.7fr)'
-      : 'minmax(320px,1.45fr) minmax(170px,.75fr) minmax(220px,.9fr) minmax(150px,.7fr)';
+    var filterGrid = 'minmax(320px,1.45fr) minmax(170px,.75fr) minmax(220px,.9fr) minmax(150px,.7fr)';
     var clearFiltersHtml = _hasActiveItemFilters()
       ? '<div class="item-filter-actions">' +
           '<button onclick="Modules.Compras._clearItensFilters()" style="height:40px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;font-size:13px;font-family:inherit;cursor:pointer;background:#fff;color:#6F6860;white-space:nowrap;box-shadow:0 1px 2px rgba(31,31,31,.03);">Limpar filtros</button>' +
@@ -2706,7 +2743,7 @@ Modules.Compras = (function () {
               '<div style="font-size:12px;line-height:1.4;color:#6F6860;margin-top:3px;">' + _esc(i.unidade_base || i.unidadeBase || '-') + (i.unidade_compra_padrao ? ' · ' + _esc(i.unidade_compra_padrao) : '') + '</div>' +
             '</div>' +
           '</td>' +
-          '<td style="padding:14px 16px;vertical-align:middle;">' + (i.classe === 'produto' ? _statusChip('Produto', '#3B5B82', '#5B7FA6') : _statusChip('Insumo', '#9A5B13', '#D97706')) + '</td>' +
+          '<td style="padding:14px 16px;vertical-align:middle;">' + _statusChip(_itemClassLabel(i.classe), i.classe === 'produto' ? '#3B5B82' : (i.classe === 'embalagem' ? '#7A5417' : '#9A5B13'), i.classe === 'produto' ? '#5B7FA6' : (i.classe === 'embalagem' ? '#C98A2A' : '#D97706')) + '</td>' +
           '<td style="padding:14px 16px;vertical-align:middle;">' + _chip(i.categoria || '-') + '</td>' +
           '<td style="padding:14px 16px;vertical-align:middle;font-size:14px;font-weight:600;color:#1F1F1F;">' + _esc(i.unidade_base || i.unidadeBase || '-') + '</td>' +
           '<td style="padding:14px 16px;vertical-align:middle;">' + _itemCostDisplayHtml(i.custo_atual, i.unidade_base || i.unidadeBase || '', true) + '</td>' +
@@ -2766,7 +2803,7 @@ Modules.Compras = (function () {
     };
     window._itemCompraImageBase64 = item.imageBase64 || '';
     var classeItem = item.classe || 'insumo';
-    var strictCatalog = _itensView === 'insumos' || classeItem === 'insumo';
+    var strictCatalog = _itensView === 'insumos' || _isSupplyClass(classeItem);
     var unidadeOpts = _unidades.map(function (u) {
       var val = u.symbol || u.name;
       return '<option value="' + _esc(val) + '"' + ((item.unidade_base || item.unidadeBase) === val ? ' selected' : '') + '>' + _esc(u.name) + ' (' + _esc(val) + ')</option>';
@@ -2782,6 +2819,11 @@ Modules.Compras = (function () {
     var lastPurchaseText = item.ultima_compra_data ? UI.fmtDate(new Date(item.ultima_compra_data)) : '-';
     var sectionTitle = 'font-size:13px;font-weight:800;color:#1F1F1F;line-height:1.25;margin-bottom:3px;';
     var sectionHint = 'font-size:12px;color:#8A7E7C;line-height:1.4;margin-bottom:11px;';
+    var classDesc = classeItem === 'embalagem'
+      ? 'Embalagem entra separada no custo da receita, como caixa, pote, saco, etiqueta ou descartável.'
+      : (classeItem === 'produto'
+        ? 'Produto comprado pronto é algo que já chega pronto para revender ou usar como item comprado.'
+        : 'Insumo é ingrediente ou material usado no preparo da receita.');
     var itemModalCss = '<style>' +
       '.item-modal-body{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px;font-family:Manrope,Inter,sans-serif;}' +
       '.item-modal-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:14px;box-shadow:0 10px 24px rgba(31,31,31,.04);min-width:0;}' +
@@ -2806,12 +2848,11 @@ Modules.Compras = (function () {
       '</style>';
     var body = itemModalCss + '<div class="item-modal-body">' +
       '<div class="item-modal-card item-modal-main">' +
-      '<div class="item-modal-head"><span class="mi">inventory_2</span><div><div style="' + sectionTitle + '">Dados do item</div><div style="' + sectionHint + 'margin-bottom:0;">Informe como este item deve aparecer nas compras e no controle da loja.</div></div></div>' +
+      '<div class="item-modal-head"><span class="mi">inventory_2</span><div><div style="' + sectionTitle + '">Dados do item</div><div id="it-class-desc" style="' + sectionHint + 'margin-bottom:0;">' + _esc(classDesc) + '</div></div></div>' +
       '<div class="item-modal-grid item-modal-id-grid">' +
       '<div><label style="' + _labelStyle() + '">Classe do item *</label>' +
       '<div class="supplier-field-control"><select id="it-classe" onchange="Modules.Compras._toggleItemClasse()">' +
-      '<option value="insumo"' + (item.classe !== 'produto' ? ' selected' : '') + '>Insumo</option>' +
-      '<option value="produto"' + (item.classe === 'produto' ? ' selected' : '') + '>Produto</option>' +
+      _itemClassOptions(item.classe || 'insumo') +
       '</select></div></div>' +
       '<div>' + _supplierField('it-nome', 'Nome *', item.nome || item.name || '') + '</div>' +
       _searchableCatalogField('categorias', 'it-categoria', 'Categoria *', item.categoria || '', classeItem, strictCatalog, '<button type="button" class="item-inline-add" onclick="Modules.Compras._openItemCategoryCreateModal()">+ categoria</button>') +
@@ -2910,8 +2951,8 @@ Modules.Compras = (function () {
         '<button onclick="window._itemCompraModal&&window._itemCompraModal.close()" style="' + _cancelStyle() + '">Cancelar</button>' +
         '<button onclick="Modules.Compras._saveItem()" style="' + _primaryStyle() + '">Adicionar</button>' +
         '</div>';
-    var modalTitle = (strictCatalog || classeItem === 'insumo')
-      ? (id ? 'Editar Insumo/Produto Pronto' : 'Novo Insumo/Produto Pronto')
+    var modalTitle = (strictCatalog || _isSupplyClass(classeItem))
+      ? (id ? 'Editar Insumo/Embalagem' : 'Novo Insumo/Embalagem')
       : (id ? 'Editar Produto / Insumo' : 'Novo Produto / Insumo');
     window._itemCompraModal = UI.modal({ title: modalTitle, body: body, footer: footer, maxWidth: '1120px' });
     setTimeout(function () { _toggleItemClasse(); _updateItemCurrentCostPreview(); }, 20);
@@ -3040,8 +3081,7 @@ Modules.Compras = (function () {
       '<div class="item-quick-grid">' +
         '<div class="item-quick-field"><label>Nome da categoria *</label><input id="it-new-cat-name" type="text" value="' + _esc(suggested) + '" placeholder="Ex.: Embalagens"></div>' +
         '<div class="item-quick-field"><label>Aplicação</label><select id="it-new-cat-classe">' +
-          '<option value="insumo"' + (classe !== 'produto' ? ' selected' : '') + '>Insumo</option>' +
-          '<option value="produto"' + (classe === 'produto' ? ' selected' : '') + '>Produto</option>' +
+          _itemClassOptions(classe || 'insumo') +
         '</select></div>' +
       '</div>' +
       '<label class="item-quick-active"><input id="it-new-cat-active" type="checkbox" checked> Manter ativa</label>' +
@@ -3161,14 +3201,15 @@ Modules.Compras = (function () {
   function _openInsumoModal(id) {
     _openItemModal(id);
     setTimeout(function () {
+      var item = id ? (_byId(_itens, id) || {}) : {};
       var classe = document.getElementById('it-classe');
       if (classe) {
-        classe.value = 'insumo';
-        classe.disabled = true;
-        classe.title = 'No módulo Produção, este cadastro fica definido como insumo.';
+        classe.value = item.classe === 'embalagem' ? 'embalagem' : 'insumo';
+        classe.disabled = false;
+        classe.title = 'No módulo Produção, use Insumo para ingredientes e Embalagem para caixas, potes, sacos e descartáveis.';
       }
       var headings = document.querySelectorAll('h2');
-      if (headings.length) headings[headings.length - 1].textContent = id ? 'Editar Insumo/Produto Pronto' : 'Novo Insumo/Produto Pronto';
+      if (headings.length) headings[headings.length - 1].textContent = id ? 'Editar Insumo/Embalagem' : 'Novo Insumo/Embalagem';
       _toggleItemClasse();
     }, 30);
   }
@@ -3176,7 +3217,7 @@ Modules.Compras = (function () {
   function _toggleItemClasse() {
     var classe = _el('it-classe').value || 'insumo';
     var ins = document.getElementById('it-insumo-fields');
-    if (ins) ins.style.display = classe === 'insumo' ? 'block' : 'none';
+    if (ins) ins.style.display = _isSupplyClass(classe) ? 'block' : 'none';
     // Produto → unidade base padrão 'un' quando o campo estiver em branco
     if (classe === 'produto') {
       var unidEl = document.getElementById('it-unidade');
@@ -3206,7 +3247,17 @@ Modules.Compras = (function () {
     if (custoHint) {
       custoHint.textContent = classe === 'produto'
         ? 'Defina como este produto é comprado antes de ser vendido pronto para clientes.'
-        : 'Defina como este insumo costuma ser comprado e usado na produção da loja.';
+        : (classe === 'embalagem'
+          ? 'Defina como esta embalagem é comprada para que o custo apareça separado nas receitas.'
+          : 'Defina como este insumo costuma ser comprado e usado na produção da loja.');
+    }
+    var classDesc = document.getElementById('it-class-desc');
+    if (classDesc) {
+      classDesc.textContent = classe === 'embalagem'
+        ? 'Embalagem entra separada no custo da receita, como caixa, pote, saco, etiqueta ou descartável.'
+        : (classe === 'produto'
+          ? 'Produto comprado pronto é algo que já chega pronto para revender ou usar como item comprado.'
+          : 'Insumo é ingrediente ou material usado no preparo da receita.');
     }
     var costHelpBtn = document.getElementById('it-cost-help-btn');
     var costHelpBox = document.getElementById('it-cost-help');
@@ -3216,7 +3267,7 @@ Modules.Compras = (function () {
     var catEl = document.getElementById('it-categoria');
     if (catEl) {
       catEl.dataset.classe = classe;
-      if (catEl.dataset.strictClass !== '1') catEl.dataset.strictClass = classe === 'insumo' ? '1' : '0';
+      if (catEl.dataset.strictClass !== '1') catEl.dataset.strictClass = _isSupplyClass(classe) ? '1' : '0';
       var catStrict = catEl.dataset.strictClass === '1';
       if (catEl.value && !_findCatalogByName('categorias', catEl.value, classe, catStrict)) _catalogSelect('it-categoria', '');
     }
@@ -3282,8 +3333,8 @@ Modules.Compras = (function () {
       data.purchasePrice = baseUnitCost;
       data.custo_informado_manual = baseUnitCost;
     }
-    if (classe === 'insumo') {
-      data.aproveitamento_padrao = aproveitamento;
+    if (_isSupplyClass(classe)) {
+      data.aproveitamento_padrao = classe === 'embalagem' ? 100 : aproveitamento;
       data.usar_em_fichas = _el('it-fichas').checked;
       data.venda_habilitada = false;
     } else {
@@ -3317,7 +3368,10 @@ Modules.Compras = (function () {
   }
 
   function _itemStockKind(classe) {
-    return String(classe || '').toLowerCase() === 'produto' ? 'produto_pronto' : 'insumo';
+    var key = String(classe || '').toLowerCase();
+    if (key === 'produto') return 'produto_pronto';
+    if (key === 'embalagem') return 'embalagem';
+    return 'insumo';
   }
 
   function _syncItemStockSettings(itemId, item) {
@@ -3331,7 +3385,7 @@ Modules.Compras = (function () {
       stockKey: key,
       itemId: itemId,
       itemName: item.nome || item.name || '',
-      itemType: stockKind === 'insumo' ? 'ingrediente' : 'produto',
+      itemType: stockKind === 'produto_pronto' ? 'produto' : 'ingrediente',
       stockItemType: stockKind,
       unit: item.unidade_base || '',
       minStock: parseFloat(item.minStock || 0) || 0,
@@ -3923,7 +3977,7 @@ Modules.Compras = (function () {
       '<div class="compras-config-filter-grid">' +
         '<div><label style="' + _labelStyle() + '">Buscar</label><div class="compras-config-control"><input id="sl-search-' + kind + '" type="search" placeholder="Buscar por nome..." value="' + _esc(_simpleListQ) + '" oninput="Modules.Compras._setSimpleListQ(\'' + kind + '\',this.value)"></div></div>' +
         '<div><label style="' + _labelStyle() + '">Aplicação</label><div class="compras-config-chip-row">' +
-          chipBtn('', 'Todos') + chipBtn('insumo', 'Insumo') + chipBtn('produto', 'Produto') +
+          chipBtn('', 'Todos') + chipBtn('insumo', 'Insumo') + chipBtn('embalagem', 'Embalagem') + chipBtn('produto', 'Produto') +
         '</div></div>' +
       '</div>' +
     '</div>';
@@ -3945,7 +3999,7 @@ Modules.Compras = (function () {
     var filtered = _simpleListClasseFilter ? all.filter(function (x) { return (x.classe || '') === _simpleListClasseFilter; }) : all;
     if (_simpleListQ) {
       var sq = _simpleListQ.toLowerCase();
-      var classeLabel = { insumo: 'insumo', produto: 'produto', ambos: 'ambos' };
+      var classeLabel = { insumo: 'insumo', embalagem: 'embalagem', produto: 'produto', ambos: 'ambos' };
       filtered = filtered.filter(function (x) {
         var hay = [x.name, x.description, x.descricao, classeLabel[x.classe] || ''].join(' ').toLowerCase();
         return hay.indexOf(sq) >= 0;
@@ -3960,14 +4014,14 @@ Modules.Compras = (function () {
     var addLabel = '+ Adicionar categoria';
     var empty = '<div style="text-align:center;padding:42px 20px;color:#8A7E7C;font-size:14px;line-height:1.45;font-weight:600;">Nenhuma categoria cadastrada ainda. Crie a primeira para organizar melhor seus itens de compra.</div>';
     var list = pageData.map(function (x) {
-      var classe = x.classe === 'produto' ? 'Produto' : x.classe === 'insumo' ? 'Insumo' : 'Todos';
+      var classe = _itemClassLabel(x.classe);
       var ativo = x.ativo === false ? 'Inativo' : 'Ativo';
       return '<div class="compras-config-row">' +
         '<div style="min-width:0;flex:1;">' +
           '<div class="compras-config-row-title">' + _esc(x.name || '-') + '</div>' +
         '</div>' +
         '<div class="compras-config-actions">' +
-          _catalogLikeChip(classe, x.classe === 'produto' ? '#2F5F93' : (x.classe === 'insumo' ? '#8A6F5A' : '#6F6860')) +
+          _catalogLikeChip(classe, _itemClassChipColor(x.classe)) +
           _catalogLikeChip(ativo, x.ativo === false ? '#B42318' : '#1F6F43') +
           '<button onclick="Modules.Compras._openSimpleModal(\'' + x.id + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">edit</span></button>' +
           '<button onclick="Modules.Compras._deleteSimple(\'' + x.id + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#B42318;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">delete</span></button>' +
@@ -4004,8 +4058,7 @@ Modules.Compras = (function () {
         '<div class="compras-simple-grid">' +
           '<div class="compras-simple-field"><label>Nome *</label><input id="sl-name" type="text" value="' + _esc(item.name || '') + '" placeholder="Ex.: Congelados"></div>' +
           '<div class="compras-simple-field"><label>Aplicação</label><select id="sl-classe">' +
-      '<option value="insumo"' + ((item.classe || '') === 'insumo' ? ' selected' : '') + '>Insumo</option>' +
-      '<option value="produto"' + (item.classe === 'produto' ? ' selected' : '') + '>Produto</option>' +
+      _itemClassOptions(item.classe || 'insumo') +
       '</select></div>' +
         '</div>' +
         '<label class="compras-simple-active"><input id="sl-ativo" type="checkbox" ' + (item.ativo !== false ? 'checked' : '') + '> Manter ativo</label>' +

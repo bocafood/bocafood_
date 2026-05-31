@@ -195,7 +195,7 @@ Modules.Estoque = (function () {
     var movementIsReadyProduct = stockClass === 'produto' || stockClass === 'produto_pronto';
     var movementIsProducedProduct = stockClass === 'produto_produzido';
     var movementIsBaseProduct = stockClass === 'base_producao';
-    var movementIsSupply = stockClass === 'insumo';
+    var movementIsSupply = stockClass === 'insumo' || stockClass === 'embalagem';
     var purchaseIsProduct = (isPurchaseEntry || isPurchaseReversal) && movementIsReadyProduct;
     var itemType = (isProductionEntry || isProductionProductReversal || isBaseStockMovement || isSaleRelated || purchaseIsProduct || adjustmentStockType.indexOf('produto') === 0 || movementIsProducedProduct || movementIsBaseProduct) ? 'produto' : 'ingrediente';
     var quantity = (isProductionEntry || isProductionProductReversal || isBaseProductionEntry || isBaseProductionReversal) ? _num(movement.quantityProduced || movement.quantity) : _num(movement.quantity);
@@ -209,13 +209,15 @@ Modules.Estoque = (function () {
       : ((isSaleRelated || isSaleReversal) ? ('Pedido' + (movement.orderNumber ? ' ' + movement.orderNumber : '') + (isSaleLoss ? ' · perda registrada' : (isSaleReturn ? ' · retorno ao estoque' : ''))) : ((isAdjustmentEntry || isAdjustmentExit) ? (movement.reason || 'Contagem manual') : (movement.productionOrderName || movement.fichaTecnicaNome || 'Ordem de produção')));
     var stockItemType = movementIsSupply
       ? 'insumo'
+      : (stockClass === 'embalagem'
+        ? 'embalagem'
       : (movementIsReadyProduct
         ? 'produto_pronto'
         : (movementIsBaseProduct
           ? 'base_producao'
           : (movementIsProducedProduct
-          ? 'produto_produzido'
-          : ((isProductionEntry || isProductionProductReversal) ? 'produto_produzido' : (saleIsReadyProduct || purchaseIsProduct ? 'produto_pronto' : (adjustmentStockType || (itemType === 'ingrediente' ? 'insumo' : 'produto_produzido')))))));
+            ? 'produto_produzido'
+            : ((isProductionEntry || isProductionProductReversal) ? 'produto_produzido' : (saleIsReadyProduct || purchaseIsProduct ? 'produto_pronto' : (adjustmentStockType || (itemType === 'ingrediente' ? 'insumo' : 'produto_produzido'))))))));
 
     return {
       id: movement.id || '',
@@ -413,6 +415,7 @@ Modules.Estoque = (function () {
   function _stockKindTabsHtml() {
     var tabs = [
       ['insumo', 'Insumos'],
+      ['embalagem', 'Embalagens'],
       ['produto_pronto', 'Produtos prontos'],
       ['produto_produzido', 'Produtos produzidos'],
       ['base_producao', 'Bases de produção']
@@ -885,6 +888,7 @@ Modules.Estoque = (function () {
   }
 
   function _stockKindLabel(kind) {
+    if (kind === 'embalagem') return 'Embalagem';
     if (kind === 'produto_pronto') return 'Produto pronto';
     if (kind === 'produto_produzido') return 'Produto produzido';
     if (kind === 'base_producao') return 'Base de produção';
@@ -892,6 +896,7 @@ Modules.Estoque = (function () {
   }
 
   function _stockClassLabel(kind) {
+    if (kind === 'embalagem') return 'Embalagem';
     if (kind === 'produto' || kind === 'produto_pronto') return 'Produto';
     if (kind === 'produto_produzido') return 'Produto produzido';
     if (kind === 'base_producao') return 'Base de produção';
@@ -899,6 +904,7 @@ Modules.Estoque = (function () {
   }
 
   function _stockKindClass(kind) {
+    if (kind === 'embalagem') return 'packaging';
     if (kind === 'produto_pronto') return 'ready-product';
     if (kind === 'produto_produzido') return 'product';
     if (kind === 'base_producao') return 'base-product';
@@ -909,6 +915,7 @@ Modules.Estoque = (function () {
     var key = _norm(value || '').replace(/\s+/g, '_');
     if (!key) return '';
     if (key === 'insumo' || key === 'ingrediente' || key === 'ingredient') return 'insumo';
+    if (key === 'embalagem' || key === 'embalagens' || key === 'packaging' || key === 'package') return 'embalagem';
     if (key === 'produto' || key === 'produto_pronto' || key === 'ready_product') return 'produto';
     if (key === 'produto_produzido' || key === 'produzido' || key === 'produced_product' || key === 'ficha_tecnica') return 'produto_produzido';
     if (key === 'base_producao' || key === 'base' || key === 'semiacabado' || key === 'preparo_intermediario') return 'base_producao';
@@ -1035,6 +1042,7 @@ Modules.Estoque = (function () {
       '.stock-alert-text{color:#B42318;margin-top:3px;}' +
       '.stock-badge{display:inline-flex;align-items:center;justify-content:center;height:26px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;}' +
       '.stock-badge.ingredient{background:#FFF4EE;color:#8F3D22;border:1px solid #F3D8CA;}' +
+      '.stock-badge.packaging{background:#FFF8E8;color:#7A4E12;border:1px solid #F3DCA8;}' +
       '.stock-badge.ready-product{background:#F5F0FF;color:#5D3D9B;border:1px solid #E1D6F8;}' +
       '.stock-badge.product{background:#EEF8F2;color:#246B43;border:1px solid #D4EADB;}' +
       '.stock-badge.base-product{background:#FFF8E8;color:#7A4E12;border:1px solid #F3DCA8;}' +

@@ -7332,6 +7332,14 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     return String(name || '').toLowerCase().indexOf('embal') >= 0;
   }
 
+  function _isPackagingItem(item) {
+    return String((item && (item.classe || item.itemClass || item.stockItemType)) || '').toLowerCase() === 'embalagem';
+  }
+
+  function _recipeCostTarget(componentName, item) {
+    return _isPackagingItem(item) || _isPackagingComponent(componentName) ? 'packaging' : 'ingredients';
+  }
+
   function _recipeYieldUnitKey(unit) {
     var value = String(unit || '').trim().toLowerCase();
     if (!value) return '';
@@ -7400,6 +7408,9 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
             grossQuantityCalculated: _parseFichaNum(ing.grossQuantityCalculated || ing.grossQuantity || ing.qty || ing.quantity || 0),
             unitCost: _parseFichaNum(ing.unitCost || 0),
             totalCost: _parseFichaNum(ing.totalCost || 0),
+            itemClass: ing.itemClass || ing.classe || ing.stockItemType || '',
+            classe: ing.classe || ing.itemClass || ing.stockItemType || '',
+            costType: ing.costType || (ing.classe === 'embalagem' || ing.itemClass === 'embalagem' ? 'embalagem' : 'insumo'),
             appliedQty: _parseFichaNum(ing.appliedQty || 0),
             appliedGrossQuantity: _parseFichaNum(ing.appliedGrossQuantity || 0),
             appliedTotalCost: _parseFichaNum(ing.appliedTotalCost || 0),
@@ -7415,21 +7426,28 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var packagingCost = 0;
     var details = [];
     (components || []).forEach(function (comp) {
-      var target = _isPackagingComponent(comp.name) ? 'packaging' : 'ingredients';
       var ratioInfo = _componentUsageRatio(comp, recipeYieldQty, recipeYieldUnit);
       var rawCost = 0;
+      var rawIngredientCost = 0;
+      var rawPackagingCost = 0;
       (comp.ingredients || []).forEach(function (ing) {
         var ins = _itensCusto.find(function (i) { return i.id === ing.insumoId; });
         var calc = _calcFichaIng(ins, ing.qty);
-        rawCost += calc.totalCost || _parseFichaNum(ing.totalCost || 0);
+        var lineCost = calc.totalCost || _parseFichaNum(ing.totalCost || 0);
+        rawCost += lineCost;
+        if (_recipeCostTarget(comp.name, ins || ing) === 'packaging') rawPackagingCost += lineCost;
+        else rawIngredientCost += lineCost;
       });
-      var appliedCost = rawCost * ratioInfo.ratio;
-      if (target === 'packaging') packagingCost += appliedCost;
-      else ingredientCost += appliedCost;
+      var appliedIngredientCost = rawIngredientCost * ratioInfo.ratio;
+      var appliedPackagingCost = rawPackagingCost * ratioInfo.ratio;
+      ingredientCost += appliedIngredientCost;
+      packagingCost += appliedPackagingCost;
       details.push(Object.assign({
         name: comp.name || '',
         rawCost: rawCost,
-        appliedCost: appliedCost
+        appliedCost: rawCost * ratioInfo.ratio,
+        ingredientCost: appliedIngredientCost,
+        packagingCost: appliedPackagingCost
       }, ratioInfo));
     });
     return { ingredients: ingredientCost, packaging: packagingCost, direct: ingredientCost + packagingCost, components: details };
@@ -8117,6 +8135,14 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     return name ? (name + (unit ? ' (' + unit + ')' : '')) : '';
   }
 
+  function _fichaIngredientMeta(ins) {
+    if (!ins) return '';
+    var unit = ins.unidade_base || ins.unidadeBase || '';
+    var cls = _isPackagingItem(ins) ? 'Embalagem' : 'Insumo';
+    var cost = ins.custo_atual ? UI.fmt(ins.custo_atual) + (unit ? '/' + unit : '') : 'sem custo';
+    return [cls, ins.categoria || '', unit ? 'Unidade: ' + unit : '', cost].filter(Boolean).join(' · ');
+  }
+
   function _filterFichaIngredientOptions(idx, query) {
     var hidden = document.querySelector('[data-ing-idx="' + idx + '"]');
     var dropdown = document.getElementById('fc-ing-dropdown-' + idx);
@@ -8128,12 +8154,9 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       return !q || hay.indexOf(q) >= 0 || String(ins.id) === current;
     }).slice(0, 30);
     dropdown.innerHTML = matches.length ? matches.map(function (ins) {
-      var unit = ins.unidade_base || ins.unidadeBase || '';
-      var cost = ins.custo_atual ? UI.fmt(ins.custo_atual) + (unit ? '/' + _esc(unit) : '') : 'sem custo';
-      var meta = [ins.categoria || '', unit ? 'Unidade: ' + unit : '', cost].filter(Boolean).join(' · ');
       return '<div class="recipe-ingredient-option" onmousedown="Modules.Catalogo._selectFichaIngredient(\'' + idx + '\',\'' + _esc(ins.id) + '\')">' +
         '<div class="recipe-ingredient-option-name">' + _esc(ins.nome || ins.name || 'Ingrediente') + '</div>' +
-        '<div class="recipe-ingredient-option-meta">' + _esc(meta) + '</div>' +
+        '<div class="recipe-ingredient-option-meta">' + _esc(_fichaIngredientMeta(ins)) + '</div>' +
       '</div>';
     }).join('') : '<div class="recipe-ingredient-option"><div class="recipe-ingredient-option-name">Nenhum ingrediente encontrado</div><div class="recipe-ingredient-option-meta">Cadastre o item em Compras > Produtos / Insumos.</div></div>';
     dropdown.style.display = 'block';
@@ -8196,7 +8219,6 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
         stageYieldUnit: ((container.querySelector('[data-comp-stock-unit="' + compIdx + '"]') || {}).value || '').trim()
       };
       var ratioInfo = _componentUsageRatio(comp, yieldQty, yieldUnit);
-      var target = _isPackagingComponent(comp.name) ? 'packaging' : 'ingredients';
       compEl.querySelectorAll('[data-ing-idx]').forEach(function (sel) {
         var idx = sel.dataset.ingIdx;
         var insId = sel.value;
@@ -8207,6 +8229,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
         if (!ins || !qty) { if (costEl) costEl.textContent = '—'; return; }
         var calc = _calcFichaIng(ins, qty);
         var cost = calc.totalCost * ratioInfo.ratio;
+        var target = _recipeCostTarget(comp.name, ins);
         if (target === 'packaging') packagingCost += cost;
         else ingredientCost += cost;
         if (costEl) {
@@ -8332,9 +8355,13 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
           if (qty <= 0) return;
           var ins = _itensCusto.find(function (i) { return i.id === insumoId; });
           var calc = _calcFichaIng(ins, qty);
+          var itemClass = ins ? (ins.classe || ins.itemClass || '') : '';
           var ingData = {
             insumoId: insumoId,
             supplyName: ins ? ins.nome : '',
+            itemClass: itemClass || 'insumo',
+            classe: itemClass || 'insumo',
+            costType: itemClass === 'embalagem' ? 'embalagem' : 'insumo',
             qty: qty,
             unit: ins ? (ins.unidade_base || '') : '',
             lossPercent: calc.lossPercent,
