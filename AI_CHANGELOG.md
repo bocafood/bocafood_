@@ -9965,4 +9965,5 @@
 - Arquivos alterados: `public/js/modules/dashboard.js`, `AI_CHANGELOG.md`.
 - Removi do modal `Como preencher > Cadastrar receitas` as frases que explicavam massa, recheio e finalização dentro dos campos `Nome da receita` e `Categoria`.
 - Mantive o campo como `Rendimento da etapa` no cadastro da receita e confirmei que não há mais ocorrência de `Rendimento da base` nesses textos.
+- Reescrevi as orientações de `Rendimento`, `Tipo de rendimento` e `Rendimento da etapa` com destaques, exemplos práticos e foco apenas em como preencher.
 - Impacto esperado: deixar a orientação mais limpa e sem repetir uma regra que já aparece no campo específico de etapa.
