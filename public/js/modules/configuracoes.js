@@ -16,18 +16,20 @@ Modules.Configuracoes = (function () {
   var _publicationCategories = [];
   var _financeCategories = [];
   var _bankAccounts = [];
+  var _fiscalEnabledDraft = null;
   var CONFIG_FN_BASE = 'https://us-central1-bocado-brasil.cloudfunctions.net/';
 
   var TABS = [
     { key: 'geral', label: 'Geral' },
     { key: 'conta_usuario', label: 'Usuário' },
     { key: 'tpv', label: 'Venda presencial' },
+    { key: 'fiscal', label: 'Fiscal' },
     { key: 'integracoes', label: 'Integrações' },
     { key: 'plano', label: 'Plano' },
     { key: 'canais_venda', label: 'Canais de venda' }
   ];
 
-  var CONFIG_TABS = ['geral', 'conta_usuario', 'tpv', 'dominio', 'integracoes', 'pagamentos', 'financeiro', 'endereco', 'seo', 'template', 'canais_venda'];
+  var CONFIG_TABS = ['geral', 'conta_usuario', 'tpv', 'fiscal', 'dominio', 'integracoes', 'pagamentos', 'financeiro', 'endereco', 'seo', 'template', 'canais_venda'];
 
   var DEFAULT_UNIDADES = [
     { name: 'Quilograma', symbol: 'kg', type: 'massa' },
@@ -41,6 +43,7 @@ Modules.Configuracoes = (function () {
 
   function render(sub) {
     _activeSub = _normalizeSub(sub || 'geral');
+    _fiscalEnabledDraft = null;
     var app = document.getElementById('app');
     app.innerHTML = '<section class="module-page">' +
       '<div id="config-content" class="module-content narrow"><div class="loading-inline">Carregando...</div></div>' +
@@ -255,6 +258,7 @@ Modules.Configuracoes = (function () {
     if (_activeSub === 'conta_usuario') return _renderContaUsuario();
     if (_activeSub === 'produtos') { _activeSub = 'geral'; return _renderGeral(); }
     if (_activeSub === 'tpv') return _renderTpv();
+    if (_activeSub === 'fiscal') return _renderFiscalActivation();
     if (_activeSub === 'dominio') return _renderDominio();
     if (_activeSub === 'integracoes') return _renderIntegracoes();
     if (_activeSub === 'plano') return _renderPlano();
@@ -2310,6 +2314,81 @@ Modules.Configuracoes = (function () {
     };
   }
 
+  function _renderFiscalActivation() {
+    var c = _config.fiscal || {};
+    if (typeof _fiscalEnabledDraft !== 'boolean') _fiscalEnabledDraft = c.usarCalculoFiscal === true;
+    var fiscalCountry = _tenantFiscalCountryForSettings();
+    var fiscalCfg = window.FiscalConfig ? FiscalConfig.get(fiscalCountry) : null;
+    var fiscalLabel = fiscalCfg ? fiscalCfg.label : (fiscalCountry === 'PT' ? 'Portugal' : 'Espanha');
+    var enabled = _fiscalEnabledDraft === true;
+    var statusLabel = enabled ? 'Fiscal ativado' : 'Fiscal desligado';
+    var statusText = enabled
+      ? 'O menu Fiscal aparece no painel. Produtos, compras e Plano de Voo passam a considerar IVA, IRPF e reserva fiscal.'
+      : 'O menu Fiscal fica oculto. Produtos, compras e Plano de Voo seguem sem reserva fiscal automática.';
+    var content = document.getElementById('config-content');
+    content.innerHTML =
+      '<div style="display:flex;flex-direction:column;gap:16px;max-width:980px;margin:0 auto;width:100%;">' +
+        '<style>.fiscal-activation .bf-input{background:#FFFCF8;border-color:#E8DCD7}.fiscal-activation-card{background:linear-gradient(180deg,#FFFFFF 0%,#FFFCF9 100%);border:1px solid #EADFD8;border-radius:18px;padding:18px 20px;box-shadow:0 16px 38px rgba(47,37,35,.055)}.fiscal-activation-panel{background:linear-gradient(180deg,#FFFFFF 0%,#FFFCF8 100%);padding:16px;border:1px solid #EADFD8;border-radius:14px;box-shadow:0 10px 24px rgba(47,37,35,.045)}.fiscal-toggle-btn{height:42px;border-radius:999px;border:1px solid #E3D5CF;background:#fff;color:#6F6860;padding:0 14px;font-family:inherit;font-size:13px;font-weight:850;cursor:pointer;display:inline-flex;align-items:center;gap:8px;box-shadow:0 8px 18px rgba(31,31,31,.045)}.fiscal-toggle-btn .mi{font-size:18px}.fiscal-toggle-btn.active{background:#FFF1EE;border-color:#E4B7AE;color:#B42318}.fiscal-toggle-btn.active .mi{color:#1F6F43}.fiscal-activation-grid{display:grid;grid-template-columns:minmax(0,1fr) 210px;gap:14px;align-items:center}.fiscal-activation-info{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:14px}.fiscal-activation-info-card{border:1px solid #EADFD8;border-radius:14px;background:#FFFCF8;padding:12px}.fiscal-activation-info-card span{display:block;color:#8A7E7C;font-size:10px;font-weight:850;letter-spacing:.055em;text-transform:uppercase;margin-bottom:5px}.fiscal-activation-info-card strong{display:block;color:#1F1F1F;font-size:13px;line-height:1.3}.fiscal-activation-help{font-size:12px;color:#6F6860;line-height:1.48;margin-top:7px}@media(max-width:760px){.fiscal-activation-grid,.fiscal-activation-info{grid-template-columns:1fr}.fiscal-toggle-btn{width:100%;justify-content:center}}</style>' +
+        '<section class="fiscal-activation fiscal-activation-card">' +
+          '<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:14px;">' +
+            '<span class="mi" style="width:34px;height:34px;border-radius:12px;background:#F8F1ED;color:#8F3E32;display:inline-flex;align-items:center;justify-content:center;font-size:19px;flex:0 0 auto;">request_quote</span>' +
+            '<div style="min-width:0;">' +
+              '<h2 style="margin:0;color:#2F2523;font-size:20px;line-height:1.2;font-weight:700;">Fiscal</h2>' +
+              '<p style="margin:6px 0 0;color:#6F6860;font-size:13px;line-height:1.45;max-width:680px;">Ative esta parte somente quando quiser acompanhar IVA, IRPF e reserva fiscal no painel.</p>' +
+            '</div>' +
+          '</div>' +
+          '<div style="display:flex;gap:10px;align-items:flex-start;background:#FFF7F2;border:1px solid #F0DED5;border-radius:14px;padding:12px 14px;margin-bottom:14px;color:#5D504B;font-size:13px;line-height:1.45;">' +
+            '<span class="mi" style="font-size:18px;color:#A84A3E;line-height:1.2;">info</span>' +
+            '<span>Quando ativar e salvar, o menu Fiscal aparece no painel. A configuração completa de IVA, IRPF e dados fiscais fica dentro desse módulo.</span>' +
+          '</div>' +
+          '<div class="fiscal-activation-panel">' +
+            '<div class="fiscal-activation-grid">' +
+              '<div style="min-width:0;">' +
+                '<div style="font-size:11px;font-weight:850;color:#7E716D;text-transform:uppercase;letter-spacing:.055em;margin-bottom:6px;">Status do Fiscal</div>' +
+                '<div id="cfg-fiscal-status-title" style="font-size:16px;font-weight:850;color:#1F1F1F;line-height:1.25;">' + _esc(statusLabel) + '</div>' +
+                '<div id="cfg-fiscal-status-text" class="fiscal-activation-help">' + _esc(statusText) + '</div>' +
+              '</div>' +
+              '<button id="cfg-fiscal-toggle" type="button" class="fiscal-toggle-btn' + (enabled ? ' active' : '') + '" onclick="Modules.Configuracoes._toggleFiscalEnabled()"><span class="mi">' + (enabled ? 'toggle_on' : 'toggle_off') + '</span><span>' + (enabled ? 'Desligar Fiscal' : 'Ativar Fiscal') + '</span></button>' +
+            '</div>' +
+            '<div class="fiscal-activation-info">' +
+              '<div class="fiscal-activation-info-card"><span>País fiscal</span><strong>' + _esc(fiscalLabel) + '</strong><div class="fiscal-activation-help">Vem dos dados gerais do negócio.</div></div>' +
+              '<div class="fiscal-activation-info-card"><span>Menu Fiscal</span><strong>' + (enabled ? 'Aparece no painel' : 'Fica oculto') + '</strong><div class="fiscal-activation-help">O menu abre a configuração completa e os acompanhamentos fiscais.</div></div>' +
+              '<div class="fiscal-activation-info-card"><span>Plano de Voo</span><strong>' + (enabled ? 'Considera reserva fiscal' : 'Sem reserva fiscal') + '</strong><div class="fiscal-activation-help">Ajuda a separar dinheiro que pode precisar ficar guardado para impostos.</div></div>' +
+            '</div>' +
+          '</div>' +
+        '</section>' +
+        '<section class="bf-card bf-actions-row" style="padding:14px 16px;position:sticky;bottom:0;z-index:2;">' +
+          '<div style="font-size:13px;color:#6F6860;line-height:1.45;">Depois de salvar, o menu lateral é atualizado automaticamente.</div>' +
+          '<button class="bf-btn bf-btn-primary" id="config-save">Salvar alterações</button>' +
+        '</section>' +
+      '</div>';
+    document.getElementById('config-save').onclick = function () {
+      _save('fiscal', Object.assign({}, _config.fiscal || {}, {
+        usarCalculoFiscal: _fiscalEnabledDraft === true,
+        fiscalDecisionSaved: true,
+        fiscalCountry: fiscalCountry,
+        updatedAt: new Date().toISOString()
+      }));
+    };
+  }
+
+  function _toggleFiscalEnabled() {
+    _fiscalEnabledDraft = _fiscalEnabledDraft !== true;
+    var enabled = _fiscalEnabledDraft === true;
+    var btn = document.getElementById('cfg-fiscal-toggle');
+    var title = document.getElementById('cfg-fiscal-status-title');
+    var text = document.getElementById('cfg-fiscal-status-text');
+    if (btn) {
+      btn.className = 'fiscal-toggle-btn' + (enabled ? ' active' : '');
+      btn.innerHTML = '<span class="mi">' + (enabled ? 'toggle_on' : 'toggle_off') + '</span><span>' + (enabled ? 'Desligar Fiscal' : 'Ativar Fiscal') + '</span>';
+    }
+    if (title) title.textContent = enabled ? 'Fiscal ativado' : 'Fiscal desligado';
+    if (text) text.textContent = enabled
+      ? 'O menu Fiscal aparece no painel. Produtos, compras e Plano de Voo passam a considerar IVA, IRPF e reserva fiscal.'
+      : 'O menu Fiscal fica oculto. Produtos, compras e Plano de Voo seguem sem reserva fiscal automática.';
+    _renderFiscalActivation();
+  }
+
   function _saveTpvSettings(data) {
     data = data || {};
     _ensureTpvCashAccount(data).then(function (nextData) {
@@ -2832,6 +2911,9 @@ Modules.Configuracoes = (function () {
         _ensureFixedChannels();
         if (window.AdminApp && typeof AdminApp.applyTpvVisibility === 'function') AdminApp.applyTpvVisibility();
       }
+      if (key === 'fiscal') {
+        if (window.AdminApp && typeof AdminApp.applyFiscalVisibility === 'function') AdminApp.applyFiscalVisibility();
+      }
       _syncSystemTenantFromConfig(key, data).catch(function (err) {
         console.warn('[Configuracoes] sync system_tenants falhou', { key: key, message: err && err.message ? err.message : String(err || '') });
       });
@@ -3280,6 +3362,7 @@ Modules.Configuracoes = (function () {
     _uploadGeneralAvatarImage: _uploadGeneralAvatarImage,
     _normalizeDomainSlugField: _normalizeDomainSlugField,
     _copyDomainValue: _copyDomainValue,
+    _toggleFiscalEnabled: _toggleFiscalEnabled,
     _sendPasswordReset: _sendPasswordReset,
     _publishStore: _publishStore,
     _unpublishStore: _unpublishStore

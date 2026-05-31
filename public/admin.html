@@ -395,7 +395,7 @@ button,input,select,textarea{font-family:inherit}
           <button class="nav-sub-item" data-route="configuracoes/geral" onclick="Router.navigate('configuracoes/geral')">Geral</button>
           <button class="nav-sub-item" data-route="configuracoes/conta_usuario" onclick="Router.navigate('configuracoes/conta_usuario')">Usuário</button>
           <button class="nav-sub-item" data-route="configuracoes/tpv" onclick="Router.navigate('configuracoes/tpv')">Venda presencial</button>
-          <button class="nav-sub-item" data-route="fiscal/configuracoes" onclick="Router.navigate('fiscal/configuracoes')">Fiscal</button>
+          <button class="nav-sub-item" data-route="configuracoes/fiscal" onclick="Router.navigate('configuracoes/fiscal')">Fiscal</button>
           <button class="nav-sub-item" data-route="configuracoes/integracoes" onclick="Router.navigate('configuracoes/integracoes')">Integrações</button>
           <button class="nav-sub-item" data-route="configuracoes/canais_venda" onclick="Router.navigate('configuracoes/canais_venda')">Canais de venda</button>
           <button class="nav-sub-item" data-route="configuracoes/plano" onclick="Router.navigate('configuracoes/plano')">Plano</button>
@@ -1085,8 +1085,8 @@ button,input,select,textarea{font-family:inherit}
         if (fiscalGroup) fiscalGroup.style.display = enabled ? '' : 'none';
         if ((!supported || !enabled) && window.Router) {
           var current = Router.current ? Router.current() : '';
-          if (current.split('/')[0] === 'fiscal' && current !== 'fiscal/configuracoes') {
-            Router.navigate(supported ? 'fiscal/configuracoes' : 'dashboard');
+          if (current.split('/')[0] === 'fiscal' && current !== 'configuracoes/fiscal') {
+            Router.navigate(supported ? 'configuracoes/fiscal' : 'dashboard');
           }
         }
       }).catch(function () {

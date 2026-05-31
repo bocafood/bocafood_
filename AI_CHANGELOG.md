@@ -1,5 +1,26 @@
 # AI Changelog
 
+## 2026-05-31 — Configurações: Fiscal apenas como ativação
+- Arquivos alterados: `public/admin.html`, `public/js/modules/configuracoes.js`, `public/js/modules/dashboard.js`, `AI_CHANGELOG.md`.
+- Transformei `Configurações > Fiscal` em uma tela de ativação simples, sem abrir o formulário completo de dados fiscais.
+- Removi o desvio de rota que fazia `configuracoes/fiscal` abrir diretamente o módulo `Fiscal`.
+- A ativação agora preserva as configurações fiscais já salvas, marca a decisão do onboarding e atualiza o menu lateral após salvar.
+- O `Como preencher > Configurar fiscal` foi ajustado para orientar primeiro a ativação e depois o preenchimento completo em `Fiscal > Configurações fiscais`.
+- Impacto esperado: manter o mesmo fluxo da Venda Presencial, onde Configurações ativa o módulo e o menu principal aparece somente quando a usuária escolhe usar.
+
+## 2026-05-31 — Fiscal: remove ativação da configuração interna
+- Arquivos alterados: `public/js/modules/fiscal.js`, `AI_CHANGELOG.md`.
+- Removi o checkbox `Usar controle fiscal` de dentro da tela `Fiscal > Configurações fiscais`.
+- O salvamento dessa tela preserva o estado de ativação já existente, sem permitir desligar o módulo por dentro da configuração fiscal.
+- Impacto esperado: deixar a tela fiscal focada nos dados fiscais, mantendo a ativação em uma etapa separada.
+
+## 2026-05-31 — Fiscal: rota de configuração alinhada à Venda Presencial
+- Arquivos alterados: `public/admin.html`, `public/js/modules/dashboard.js`, `AI_CHANGELOG.md`.
+- Corrigi o acesso de configuração do Fiscal para usar `Configurações > Fiscal`, com rota `configuracoes/fiscal`, no mesmo padrão de `Configurações > Venda presencial`.
+- O checklist do onboarding agora abre a configuração fiscal por essa rota de Configurações.
+- O menu principal `Fiscal` continua reservado para acompanhamento e só aparece depois que o controle fiscal está ativado.
+- Impacto esperado: deixar Fiscal com o mesmo comportamento de ativação da Venda Presencial: configura primeiro, depois o módulo aparece no menu principal.
+
 ## 2026-05-31 — Onboarding: Fiscal em duas etapas
 - Arquivos alterados: `public/js/modules/dashboard.js`, `AI_CHANGELOG.md`.
 - Reescrevi o `Como preencher > Configurar fiscal` para separar a decisão de ativação dos campos fiscais.

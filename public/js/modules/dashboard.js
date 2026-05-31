@@ -1190,38 +1190,18 @@ Modules.Dashboard = (function () {
       },
       'Configurar fiscal': {
         icon: 'request_quote',
-        path: 'Caminho: Fiscal > Configurações fiscais',
-        intro: '<div><strong style="color:#1F1F1F;">Primeiro decida se o controle fiscal faz parte da sua rotina agora.</strong></div><div style="margin-top:7px;">Se ativar, o BocaFood passa a considerar IVA e IRPF nas leituras, nos produtos, nas compras e no Plano de Voo. Se deixar desligado, essa parte fica guardada para configurar depois.</div>',
+        path: 'Caminho: Configurações > Fiscal',
+        intro: '<div><strong style="color:#1F1F1F;">Primeiro decida se o Fiscal vai entrar na sua rotina agora.</strong></div><div style="margin-top:7px;">Essa etapa só liga ou desliga o módulo. Se ativar, o menu Fiscal aparece no Painel BocaFood para preencher IVA, IRPF e os dados fiscais com calma.</div>',
         fields: [
-          ['1. Ativação', '<div><strong style="color:#1F1F1F;">Comece por aqui.</strong> Ligue o controle fiscal somente se você quer que IVA e IRPF entrem nas contas do negócio agora. Quando ativar e salvar, o menu Fiscal aparece no painel para acompanhar IVA, IRPF e resumo trimestral.</div>', true],
-          ['Usar controle fiscal', 'Ative quando quiser que IVA e IRPF entrem nas leituras fiscais, nos preços e no Plano de Voo. Se deixar desligado, o BocaFood não faz reserva fiscal automática.'],
-          ['Se deixar desligado', 'O restante dos campos pode ficar para depois. O Plano de Voo não vai separar reserva fiscal, os produtos não vão puxar IVA padrão e as compras não vão pedir dados fiscais.'],
-          ['Se ativar', 'Preencha os campos abaixo antes de seguir para ingredientes, embalagens, produtos, receitas, cardápio e Plano de Voo. Assim a base fiscal já entra nas próximas etapas.'],
-          ['2. Base fiscal que será usada', '<div><strong style="color:#1F1F1F;">Preencha esta parte apenas se o controle fiscal estiver ativado.</strong> Ela define a base que o BocaFood usa para reservar impostos e preencher produtos e compras com mais segurança.</div>', true],
-          ['País fiscal', 'Esse campo vem das Configurações gerais do negócio. Se o país estiver errado, ajuste primeiro os dados do negócio em Configurações > Geral.'],
-          ['Moeda', 'Escolha a moeda usada no negócio. Para Espanha e Portugal, normalmente será EUR.'],
-          ['IVA padrão (%)', 'Informe a porcentagem de IVA mais comum para o que você vende ou compra. Esse valor vira a base da reserva fiscal quando o item não tiver uma porcentagem própria.'],
-          ['IRPF padrão (%)', 'Informe a porcentagem usada como referência para reservar imposto sobre a sobra estimada. Esse valor ajuda o Plano de Voo a não contar como sobra um dinheiro que pode precisar ficar guardado.'],
-          ['Preços incluem IVA', 'Marque Sim quando os preços que a cliente vê já incluem IVA. Marque Não se você trabalha com preço sem IVA e adiciona o imposto depois.'],
-          ['Tipo de fatura padrão', 'Escolha o tipo de documento que o negócio costuma usar como padrão. Use a opção que combina com a sua rotina de venda e faturação.'],
-          ['Emissão', 'Escolha como a emissão deve ser tratada nesta etapa. Enquanto a integração fiscal final não estiver ativa, deixe no modo que mantém os dados preparados sem emitir documento automaticamente.'],
-          ['Série', 'Preencha a série usada nos documentos fiscais quando o negócio já trabalha com essa organização. Se ainda não usa série, deixe em branco até definir com o contador.'],
-          ['Próximo número', 'Preencha o próximo número da sequência fiscal quando já existe uma numeração em uso. Se ainda não emite documentos por aqui, deixe a sequência inicial preparada.'],
-          ['Nome fiscal', 'Preencha o nome que aparece nos documentos fiscais do negócio. Normalmente é o nome legal, nome da atividade ou nome registrado.'],
-          ['Nome comercial', 'Preencha o nome pelo qual as clientes conhecem o negócio. Pode ser diferente do nome fiscal.'],
-          ['Tipo de documento', 'Escolha se o documento fiscal é NIF, NIE, CIF ou outro tipo aceito no país fiscal escolhido.'],
-          ['NIF / NIE / CIF', 'Preencha o número fiscal do negócio ou da responsável pela atividade. Confira com atenção, porque esse dado identifica quem emite a fatura.'],
-          ['Regime fiscal', 'Preencha o regime quando já souber qual é o enquadramento usado pelo negócio. Se tiver dúvida, confirme com o contador antes de usar em documentos reais.'],
-          ['E-mail para faturas', 'Informe o e-mail que deve receber ou aparecer nas comunicações fiscais do negócio.'],
-          ['Endereço fiscal', 'Preencha a rua do endereço fiscal. Use o endereço que deve aparecer nos documentos do negócio.'],
-          ['Número', 'Informe o número do endereço fiscal.'],
-          ['Complemento', 'Use para piso, porta, sala, referência ou outra informação que ajude a completar o endereço.'],
-          ['Cidade', 'Informe a cidade do endereço fiscal.'],
-          ['Província', 'Informe a província, distrito ou região correspondente ao endereço fiscal.'],
-          ['Código postal', 'Informe o código postal do endereço fiscal.']
+          ['1. Ativação', '<div><strong style="color:#1F1F1F;">Comece por aqui.</strong> Em Configurações > Fiscal você apenas escolhe se esta parte vai aparecer no painel agora.</div>', true],
+          ['Status do Fiscal', 'Use o botão para ativar ou desligar o módulo. Ele não é um campo de imposto; ele só define se o Fiscal entra na rotina do negócio.'],
+          ['Se deixar desligado', 'O Painel BocaFood segue sem separar reserva fiscal no Plano de Voo e sem pedir IVA/IRPF nos cadastros. Você pode ativar depois.'],
+          ['Se ativar', 'O menu Fiscal aparece no painel. Depois disso, abra Fiscal > Configurações fiscais para preencher IVA, IRPF, dados fiscais e preferências de documentos.'],
+          ['País fiscal', 'Vem dos dados gerais do negócio. Se estiver errado, ajuste primeiro em Configurações > Geral.'],
+          ['Depois de salvar', 'O menu lateral é atualizado. Se o Fiscal estiver ativado, siga para o módulo Fiscal e complete a configuração antes de cadastrar produtos, compras e Plano de Voo.']
         ],
-        actions: ['Primeiro escolha se vai ativar o controle fiscal agora.', 'Se ativar, preencha IVA, IRPF e os dados fiscais antes de seguir para as próximas etapas.', 'Salve para liberar o menu Fiscal e para a reserva fiscal entrar no Plano de Voo.', 'Se não for usar agora, mantenha desligado e siga o checklist sem preencher o restante.'],
-        ready: 'Está pronto quando você decidiu se vai usar o controle fiscal agora. Se ativou, também precisa salvar IVA, IRPF e os dados fiscais principais.'
+        actions: ['Escolha se o Fiscal entra na rotina agora.', 'Salve a decisão em Configurações > Fiscal.', 'Se ativar, abra Fiscal > Configurações fiscais e preencha IVA, IRPF e dados fiscais.', 'Se não for usar agora, mantenha desligado e siga o checklist.'],
+        ready: 'Está pronto quando você salvou se o Fiscal será usado agora. Se ativou, o próximo passo é completar o módulo Fiscal.'
       },
       'Cadastrar ingredientes, embalagens e produtos comprados': {
         icon: 'inventory_2',
@@ -2394,7 +2374,7 @@ Modules.Dashboard = (function () {
     var money = _data.moneyConfig || {};
     var hasPriceRules = !!(money.desiredMarginPct || money.minMarginPct || money.defaultMarkup || Object.keys(money).length);
     var fiscal = _data.fiscalConfig || {};
-    var hasFiscalConfig = fiscal.usarCalculoFiscal === true && !!(fiscal.defaultIvaRate || fiscal.ivaPadrao || fiscal.irpfPadrao);
+    var hasFiscalConfig = fiscal.fiscalDecisionSaved === true || fiscal.usarCalculoFiscal === true;
     var hasProducts = (_data.products || []).length > 0;
     var hasPurchaseItems = (_data.purchaseItems || []).length > 0;
     var hasRecipes = (_data.recipes || []).length > 0;
@@ -2422,7 +2402,7 @@ Modules.Dashboard = (function () {
           { title: 'Preencher dados do negócio', text: 'Nome, contato e endereço para deixar tudo identificado.', icon: 'badge', route: 'configuracoes/geral', done: !!(g.businessName && (g.phone || g.whatsapp || g.email)) },
           { title: 'Criar canais de venda', text: 'Mostre de onde os pedidos chegam: cardápio, balcão, Instagram ou outro canal.', icon: 'storefront', route: 'configuracoes/canais_venda', done: hasSalesChannels },
           { title: 'Definir preço e margem', text: 'Ajude o BocaFood a proteger sua sobra em cada venda.', icon: 'calculate', route: 'dinheiro/regras', done: hasPriceRules },
-          { title: 'Configurar fiscal', text: 'Informe IVA e IRPF para a rota não contar como sobra um dinheiro que precisa ficar reservado.', icon: 'request_quote', route: 'fiscal/configuracoes', done: hasFiscalConfig },
+          { title: 'Configurar fiscal', text: 'Decida se IVA, IRPF e reserva fiscal entram na rotina do negócio agora.', icon: 'request_quote', route: 'configuracoes/fiscal', done: hasFiscalConfig },
           { title: 'Cadastrar ingredientes, embalagens e produtos comprados', text: 'Cadastre ingredientes, embalagens e produtos prontos que entram na operação.', icon: 'inventory_2', route: 'compras/itens', done: hasPurchaseItems },
           { title: 'Cadastrar receitas', text: 'Monte as receitas usando os ingredientes, embalagens e bases cadastradas.', icon: 'receipt_long', route: 'receitas/receitas', done: hasRecipes },
           { title: 'Cadastrar produtos do cardápio', text: 'Coloque para venda os produtos que a cliente vai comprar.', icon: 'restaurant_menu', route: 'catalogo/produtos', done: hasProducts },

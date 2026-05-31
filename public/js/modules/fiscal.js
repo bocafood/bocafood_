@@ -170,10 +170,6 @@ Modules.Fiscal = (function () {
             '<div><div style="font-size:15px;font-weight:700;color:#1F1F1F;">Dados de faturação</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:3px;">Configurações básicas para preparar faturas simplificadas e completas no futuro.</div></div>' +
             '<div style="' + _softGroupStyle() + '">' +
               '<div style="font-size:12px;font-weight:700;color:#1F1F1F;margin-bottom:12px;">Regras padrão</div>' +
-              '<label style="display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;padding:11px 12px;border-radius:14px;background:#fff;border:1px solid #EAE4DA;color:#1F1F1F;font-size:13px;font-weight:700;line-height:1.35;">' +
-                '<input id="fis-enabled" type="checkbox" ' + (c.usarCalculoFiscal === true ? 'checked' : '') + ' style="accent-color:#B42318;width:17px;height:17px;margin-top:1px;flex:0 0 auto;">' +
-                '<span><span style="display:block;">Usar controle fiscal</span><small style="display:block;margin-top:3px;color:#6F6860;font-size:12px;font-weight:500;line-height:1.4;">Ative quando quiser que IVA e IRPF entrem nas leituras fiscais, preços e Plano de Voo.</small></span>' +
-              '</label>' +
               '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;">' +
                 _readonlyField('País fiscal', inheritedCountryLabel, 'Vem das Configurações gerais do negócio.') +
                 _select('fis-currency', 'Moeda', _currencyOptions(c.currency)) +
@@ -278,7 +274,7 @@ Modules.Fiscal = (function () {
       ivaPadrao: iva,
       irpfPadrao: irpf,
       trimestreAtual: current.trimestreAtual || _currentQuarterKey(),
-      usarCalculoFiscal: !!(_el('fis-enabled') && _el('fis-enabled').checked)
+      usarCalculoFiscal: current.usarCalculoFiscal === true
     });
     DB.setDocRoot('config', 'fiscal', data).then(function () {
       UI.toast('Configuração fiscal salva.', 'success');
