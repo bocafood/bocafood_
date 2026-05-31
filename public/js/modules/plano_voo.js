@@ -529,9 +529,6 @@ Modules.PlanoDeVoo = (function () {
     var summary = snap.summary || {};
     var ticket = _num(summary.averageTicket || _averageTicket());
     var workingDays = _num(summary.workingDays || _workingDaysInPeriod());
-    var channels = Array.isArray(snap.channels) && snap.channels.length ? snap.channels : (forecast.channels || []);
-    var channelTotal = channels.reduce(function (s, ch) { return s + (ch.include === false ? 0 : _num(ch.periodValue)); }, 0);
-    var channelLabel = channels.filter(function (ch) { return ch.include !== false && _num(ch.periodValue) > 0; }).slice(0, 3).map(function (ch) { return ch.label || ch.name || ch.key; }).join(', ') || 'Sem canais informados';
     var monthsText = snap.routeMonthCount ? snap.routeMonthCount + ' meses' : _routeMonthCount() + ' meses';
     return '' +
       '<section style="' + _cardStyle() + 'display:flex;flex-direction:column;gap:14px;">' +
@@ -548,7 +545,6 @@ Modules.PlanoDeVoo = (function () {
           _baseMini('Ticket médio', ticket > 0 ? _fmtMoney(ticket) : 'Sem base', 'Valor médio usado para estimar pedidos.') +
           _baseMini('Dias de venda', workingDays ? String(workingDays) : 'Sem base', 'Dias úteis considerados na rota.') +
           _baseMini('Meses considerados', monthsText, 'Período que a rota acompanha.') +
-          _baseMini('Vendas por canal', channelTotal > 0 ? _fmtMoney(channelTotal) : 'Sem previsão', channelLabel) +
         '</div>' +
       '</section>';
   }
@@ -1342,13 +1338,14 @@ Modules.PlanoDeVoo = (function () {
     if (!snap) return;
     var forecast = _snapshotToForecast(snap);
     var scenario = SCENARIOS[snap.scenario] || SCENARIOS.equilibrium;
+    var summary = snap.summary || {};
     var body = '' +
       '<div style="display:flex;flex-direction:column;gap:14px;max-height:72vh;overflow:auto;padding-right:2px;">' +
         '<section style="' + _cardStyle() + '">' +
           '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:14px;">' +
             '<div style="min-width:0;">' +
               '<h3 style="font-size:16px;font-weight:700;color:#1F1F1F;margin:0 0 4px;">' + _esc(snap.name || 'Rota salva') + '</h3>' +
-              '<p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0;">Resumo da rota salva. Para mudar o caminho, crie uma nova rota.</p>' +
+              '<p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0;">Detalhes salvos quando esta rota foi criada. Esta tela é apenas para consulta.</p>' +
             '</div>' +
             _snapshotPill(_isMonthScenarioSnapshot(snap) ? 'Ativa' : 'Salva', _isMonthScenarioSnapshot(snap) ? '#F0FAF4' : '#FAF8F4', _isMonthScenarioSnapshot(snap) ? '#1F6F43' : '#6F6860', _isMonthScenarioSnapshot(snap) ? '#D9F2E3' : '#EAE4DA') +
           '</div>' +
@@ -1360,21 +1357,131 @@ Modules.PlanoDeVoo = (function () {
           '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;">' +
             _baseMini('Faturamento necessário', _fmtMoney(forecast.revenueTotal), 'Meta da rota.') +
             _baseMini('Pode sobrar', _fmtMoney(forecast.profit), 'Lucro estimado.') +
-            _baseMini('Pedidos por dia', _ordersPerDayFromRevenue(forecast.revenueTotal), 'Ritmo médio esperado.') +
+            _baseMini('Pedidos por dia', summary.ordersPerDay != null ? _fmtNum(summary.ordersPerDay, 1) : _ordersPerDayFromRevenue(forecast.revenueTotal), 'Ritmo médio esperado.') +
             _baseMini('Caixa final', _fmtMoney(forecast.cashFinal), 'Estimativa ao fim do período.') +
           '</div>' +
         '</section>' +
+        _routeSavedBaseDetails(snap, forecast) +
+        _routeSavedChannelsDetails(snap) +
+        _routeSavedCostsDetails(snap, forecast) +
+        _routeSavedMonthlyDetails(forecast) +
       '</div>';
     UI.modal({
-      title: 'Resumo da rota',
+      title: 'Detalhes da rota',
       body: body,
-      maxWidth: '760px',
+      maxWidth: '1040px',
       footer: '<div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">' +
-        '<button type="button" onclick="Modules.PlanoDeVoo._deleteRoute(\'' + _esc(snap.id || '') + '\')" style="height:38px;padding:0 14px;border:1px solid #F3C7C1;background:#FFF7F6;color:#B42318;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;margin-right:auto;">Excluir rota</button>' +
         '<button type="button" onclick="Modules.PlanoDeVoo._closePlanModals()" style="height:38px;padding:0 14px;border:1px solid #EAE4DA;background:#fff;color:#1F1F1F;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Fechar</button>' +
-        (!_isMonthScenarioSnapshot(snap) ? '<button type="button" onclick="Modules.PlanoDeVoo._setMonthScenario(\'' + _esc(snap.id) + '\');Modules.PlanoDeVoo._closePlanModals();" style="height:38px;padding:0 14px;border:none;background:#B42318;color:#fff;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Ativar esta rota</button>' : '') +
       '</div>'
     });
+  }
+
+  function _routeSavedBaseDetails(snap, forecast) {
+    snap = snap || {};
+    forecast = forecast || _snapshotToForecast(snap);
+    var summary = snap.summary || {};
+    var workDays = Array.isArray(snap.workDays) ? snap.workDays : [];
+    var dayNames = { 0: 'Domingo', 1: 'Segunda', 2: 'Terça', 3: 'Quarta', 4: 'Quinta', 5: 'Sexta', 6: 'Sábado' };
+    var workLabel = workDays.length ? workDays.map(function (d) { return dayNames[d] || d; }).join(', ') : 'Não informado';
+    return '' +
+      '<section style="' + _cardStyle() + '">' +
+        _sectionTitle('Base cadastrada', 'Ponto de partida usado quando a rota foi criada.') +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;">' +
+          _baseMini('Período da rota', _snapshotPeriodLabel(snap), 'Período anual ou restante do ano salvo na rota.') +
+          _baseMini('Ticket médio usado', summary.averageTicket ? _fmtMoney(summary.averageTicket) : 'Sem base', 'Valor usado para estimar os pedidos necessários.') +
+          _baseMini('Dias trabalhados', summary.workingDays ? String(summary.workingDays) : 'Sem base', workLabel) +
+          _baseMini('Dias fechados', snap.plannedClosedDays || 'Nenhum informado', 'Feriados ou pausas considerados na rota.') +
+          _baseMini('Histórico anual', _num(snap.historyMonths) >= 12 ? 'Disponível' : 'Ainda não completo', 'Define se a rota usou histórico anual completo ou base manual.') +
+          _baseMini('Meses considerados', String(snap.routeMonthCount || (forecast.monthSeries || []).length || _routeMonthCount()), 'Quantidade de meses que entram nesta rota.') +
+        '</div>' +
+      '</section>';
+  }
+
+  function _routeSavedChannelsDetails(snap) {
+    var channels = (snap && Array.isArray(snap.channels)) ? snap.channels.filter(function (ch) { return ch && ch.include !== false; }) : [];
+    return '' +
+      '<section style="' + _cardStyle() + '">' +
+        _sectionTitle('Vendas por canal', 'Valores usados como base para distribuir a venda da rota.') +
+        (channels.length ? '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:separate;border-spacing:0;min-width:760px;">' +
+          '<thead><tr>' + ['Canal', 'Base mensal', 'Valor no período', 'Comissão efetiva'].map(_routeSavedTh).join('') + '</tr></thead>' +
+          '<tbody>' + channels.map(function (ch) {
+            var commission = _num(ch.commissionPct);
+            var tax = _num(ch.taxPct);
+            var effective = commission + (commission > 0 && tax > 0 ? commission * tax / 100 : 0);
+            return '<tr>' +
+              _routeSavedTd(ch.label || ch.name || ch.key || 'Canal', true) +
+              _routeSavedTd(_fmtMoney(ch.baseMonthly || 0)) +
+              _routeSavedTd(_fmtMoney(ch.periodValue || 0)) +
+              _routeSavedTd(effective > 0 ? _fmtPct(effective) + (_num(ch.fixedFee) > 0 ? ' + ' + _fmtMoney(ch.fixedFee) + ' fixo' : '') : 'Sem comissão') +
+            '</tr>';
+          }).join('') + '</tbody></table></div>' : _routeSavedEmpty('Nenhum canal com valor salvo nesta rota.')) +
+      '</section>';
+  }
+
+  function _routeSavedCostsDetails(snap, forecast) {
+    var variableRows = (forecast && forecast.variableRows) || [];
+    var fixedRows = (forecast && forecast.fixedRows) || [];
+    return '' +
+      '<section style="' + _cardStyle() + '">' +
+        _sectionTitle('Custos e compromissos salvos', 'Custos que acompanham as vendas e saídas previstas consideradas na rota.') +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;">' +
+          '<div style="background:#FFFCF8;border:1px solid #E8DCD7;border-radius:14px;padding:12px;">' +
+            '<div style="font-size:13px;font-weight:700;color:#1F1F1F;margin-bottom:8px;">Custos que acompanham as vendas</div>' +
+            (variableRows.length ? variableRows.map(function (row) {
+              return _routeSavedLine(row.name || 'Custo', _fmtMoney(row.projected || 0), (row.pct != null ? _fmtPct(row.displayPct != null ? row.displayPct : row.pct) : '') + (row.sourceLabel ? ' · ' + row.sourceLabel : ''));
+            }).join('') : _routeSavedEmpty('Nenhum custo variável salvo.')) +
+          '</div>' +
+          '<div style="background:#FFFCF8;border:1px solid #E8DCD7;border-radius:14px;padding:12px;">' +
+            '<div style="font-size:13px;font-weight:700;color:#1F1F1F;margin-bottom:8px;">Saídas previstas</div>' +
+            (fixedRows.length ? fixedRows.map(function (row) {
+              var label = (row.financialNature === 'custo' ? 'Custo' : 'Despesa') + (row.costClass ? ' ' + row.costClass : '');
+              return _routeSavedLine(row.name || 'Saída', _fmtMoney(row.projected || row.value || 0), label + (row.recurrenceLabel ? ' · ' + row.recurrenceLabel : ''));
+            }).join('') : _routeSavedEmpty('Nenhuma saída prevista salva.')) +
+          '</div>' +
+        '</div>' +
+      '</section>';
+  }
+
+  function _routeSavedMonthlyDetails(forecast) {
+    var months = (forecast && forecast.monthSeries) || [];
+    return '' +
+      '<section style="' + _cardStyle() + '">' +
+        _sectionTitle('Resumo mês a mês', 'Distribuição salva para acompanhar a rota ao longo do período.') +
+        (months.length ? '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:separate;border-spacing:0;min-width:820px;">' +
+          '<thead><tr>' + ['Mês', 'Receita', 'Custos e despesas', 'Lucro', 'Força do mês'].map(_routeSavedTh).join('') + '</tr></thead>' +
+          '<tbody>' + months.map(function (m) {
+            var breakdown = _monthScenarioBreakdown(forecast, m);
+            var profit = _num(m.revenue) - _num(breakdown.total);
+            var strength = _monthStrengthInfo(m.factor);
+            return '<tr>' +
+              _routeSavedTd(m.label || 'Mês', true) +
+              _routeSavedTd(_fmtMoney(m.revenue || 0)) +
+              _routeSavedTd(_fmtMoney(breakdown.total || 0)) +
+              _routeSavedTd(_fmtMoney(profit), true, profit >= 0 ? '#1F6F43' : '#B42318') +
+              _routeSavedTd(strength.label) +
+            '</tr>';
+          }).join('') + '</tbody></table></div>' : _routeSavedEmpty('Sem distribuição mensal salva.')) +
+      '</section>';
+  }
+
+  function _routeSavedTh(label) {
+    return '<th style="padding:10px 12px;border-bottom:1px solid #EAE4DA;text-align:left;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">' + _esc(label) + '</th>';
+  }
+
+  function _routeSavedTd(value, strong, color) {
+    return '<td style="padding:10px 12px;border-bottom:1px solid #EAE4DA;font-size:13px;color:' + _esc(color || '#1F1F1F') + ';font-weight:' + (strong ? '700' : '500') + ';vertical-align:top;">' + _esc(value) + '</td>';
+  }
+
+  function _routeSavedLine(label, value, meta) {
+    return '<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:start;padding:8px 0;border-bottom:1px solid #F2EDEA;">' +
+      '<div style="min-width:0;"><div style="font-size:13px;font-weight:650;color:#1F1F1F;line-height:1.25;">' + _esc(label) + '</div>' +
+      (meta ? '<div style="font-size:11.5px;color:#6F6860;line-height:1.35;margin-top:3px;">' + _esc(meta) + '</div>' : '') + '</div>' +
+      '<div style="font-size:13px;font-weight:750;color:#1F1F1F;white-space:nowrap;">' + _esc(value) + '</div>' +
+    '</div>';
+  }
+
+  function _routeSavedEmpty(text) {
+    return '<div style="padding:18px;border:1px dashed #EADFD8;border-radius:12px;background:#fff;color:#8A7E7C;font-size:13px;line-height:1.45;text-align:center;">' + _esc(text) + '</div>';
   }
 
   function _activateRouteFromModal() {

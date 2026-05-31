@@ -1430,15 +1430,22 @@ Modules.Dashboard = (function () {
       'Criar primeira Temporada': {
         icon: 'event_available',
         path: 'Caminho: Crescimento > Temporadas',
-        intro: 'A Temporada transforma a rota em jogadas de curto prazo. É aqui que o negócio decide o que fazer agora para avançar.',
+        introHtml: '<div><strong style="color:#1F1F1F;">A Temporada transforma o Plano de Voo em ação.</strong></div><div style="margin-top:7px;">Ela não cria uma nova meta separada. A meta vem da rota ativa. Aqui você escolhe o foco dos próximos dias para saber o que fazer agora, com prazo, ritmo e próximas jogadas.</div><div style="margin-top:7px;">Use a primeira Temporada para colocar o negócio em movimento sem tentar resolver tudo ao mesmo tempo.</div>',
         fields: [
-          ['Objetivo', 'Escolha se a temporada vai vender mais, aumentar ticket, fidelizar ou melhorar consistência.'],
-          ['Estratégia', 'Escolha o caminho que combina com o objetivo.'],
-          ['Ritmo', 'Defina quantas jogadas o negócio consegue executar ao mesmo tempo.'],
-          ['Período', 'Use um período curto o bastante para acompanhar e corrigir.']
+          ['Nova Temporada', 'Clique no botão para abrir o fluxo de criação. A criação acontece em etapas para você escolher uma decisão por vez.'],
+          ['Objetivo', '<strong style="color:#1F1F1F;">Escolha o que mais precisa melhorar agora.</strong><br><br><strong style="color:#1F1F1F;">Vender Mais</strong>: quando precisa aumentar faturamento, pedidos e dias com venda.<br><strong style="color:#1F1F1F;">Aumentar Ticket</strong>: quando precisa fazer cada pedido valer mais, com adicionais, combos ou upsell.<br><strong style="color:#1F1F1F;">Fidelizar Clientes</strong>: quando quer trazer clientes de volta, usar pontos, cupom de retorno e recompra.<br><strong style="color:#1F1F1F;">Melhorar Consistência</strong>: quando as vendas estão muito concentradas em poucos dias ou horários.', true],
+          ['Duração', '<strong style="color:#1F1F1F;">Escolha por quanto tempo essa rodada vai acontecer.</strong><br><br><strong style="color:#1F1F1F;">Sprint de 30 dias</strong>: boa para testar uma ação rápida e corrigir logo.<br><strong style="color:#1F1F1F;">Temporada de 90 dias</strong>: boa para acompanhar mudança com mais calma e criar rotina.', true],
+          ['Data de início', 'Escolha quando a Temporada começa. Se começar hoje, ela já fica ativa. Se escolher uma data futura, ela fica programada e começa a acompanhar quando chegar a data.'],
+          ['Dificuldade / Ritmo', '<strong style="color:#1F1F1F;">Escolha o ritmo que cabe na sua rotina.</strong><br><br><strong style="color:#1F1F1F;">Seguro</strong>: 1 jogada ativa, executar em até 7 dias e medir por 15 dias.<br><strong style="color:#1F1F1F;">Equilibrado</strong>: 2 jogadas ativas, executar em até 5 dias e medir por 7 dias.<br><strong style="color:#1F1F1F;">Agressivo</strong>: até 3 jogadas ativas, executar em até 3 dias e medir por 5 dias.', true],
+          ['Estratégia operacional', '<strong style="color:#1F1F1F;">Escolha por onde a Temporada deve procurar as jogadas.</strong><br><br><strong style="color:#1F1F1F;">Volume</strong>: foca em mais pedidos, mais movimento e mais dias com venda.<br><strong style="color:#1F1F1F;">Margem</strong>: foca em vender melhor, proteger a sobra e evitar ações que comem resultado.<br><strong style="color:#1F1F1F;">Fidelização</strong>: foca em clientes que voltam, pontos, cupons de retorno e relacionamento.', true],
+          ['Estratégias disponíveis', 'Nem toda estratégia combina com todo objetivo. Quando uma opção não aparece disponível, escolha outro caminho que converse melhor com o objetivo escolhido.'],
+          ['Resumo final', 'Antes de salvar, confira objetivo, duração, início, fim previsto, dificuldade, estratégia e a base da rota. Essa tela mostra quanto ainda precisa avançar dentro do Plano de Voo.'],
+          ['Base da rota', 'A Temporada usa a rota ativa do Plano de Voo para saber o período, a venda prevista e o que falta cumprir. Se não existir rota ativa, crie o Plano de Voo primeiro.'],
+          ['Salvar Temporada', 'Use depois de revisar tudo. Depois de iniciada, a Temporada vira acompanhamento e não fica aberta para edição constante. Para mudar o caminho, crie outra Temporada.'],
+          ['Próxima Jogada', 'Depois de salvar, abra a aba Próxima Jogada. Ela mostra o que fazer agora, por que fazer, até quando executar e como o resultado será acompanhado.']
         ],
-        actions: ['Escolha um objetivo que conversa com a rota ativa.', 'Não coloque mais ações do que consegue executar.', 'Depois acompanhe a aba Próxima Jogada.'],
-        ready: 'Está pronto quando existe uma temporada ativa com jogadas claras.'
+        actions: ['Crie primeiro uma rota ativa no Plano de Voo.', 'Escolha o objetivo mais importante para este momento do negócio.', 'Escolha uma dificuldade que você consegue cumprir na vida real.', 'Use uma estratégia que combine com o objetivo escolhido.', 'Revise o resumo final antes de salvar.', 'Depois acompanhe a aba Próxima Jogada para executar as ações da Temporada.'],
+        ready: 'Está pronto quando existe uma Temporada ativa ligada ao Plano de Voo, com objetivo, duração, ritmo, estratégia e Próxima Jogada para executar.'
       },
       'Organizar cardápio': {
         icon: 'menu_book',
@@ -2518,7 +2525,7 @@ Modules.Dashboard = (function () {
         text: 'Com a base pronta, transforme seus números em uma direção para seguir.',
         steps: [
           { title: 'Criar Plano de Voo', text: 'Escolha a realidade que você quer buscar no ano.', icon: 'flight_takeoff', route: 'crescimento/plano-de-voo', done: hasPlan },
-          { title: 'Criar primeira Temporada', text: 'Traga a rota para uma meta curta, com jogadas para colocar em prática.', icon: 'event_available', route: 'crescimento/temporadas', done: hasSeason }
+          { title: 'Criar primeira Temporada', text: 'Transforme a rota em jogadas práticas para executar agora.', icon: 'event_available', route: 'crescimento/temporadas', done: hasSeason }
         ]
       },
       {

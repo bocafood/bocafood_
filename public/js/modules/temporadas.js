@@ -3385,11 +3385,6 @@ Modules.Temporadas = (function () {
             '<span class="seasons-section-label">Temporada ativa</span>' +
             '<h2>Nenhuma temporada ativa</h2>' +
             '<p>Crie uma temporada para transformar sua rota em ações práticas. O BocaFood acompanha os pedidos reais e mostra o que fazer para avançar.</p>' +
-            '<div class="seasons-readiness-row">' +
-              '<span>' + _icon('verified') + ' Tenant carregado</span>' +
-              '<span>' + _icon('timer') + ' Ciclos de 30 ou 90 dias</span>' +
-              '<span>' + _icon('analytics') + ' Dados reais do sistema</span>' +
-            '</div>' +
           '</div>' +
         '</div>' +
       '</section>';
@@ -6948,8 +6943,11 @@ Modules.Temporadas = (function () {
     var baseline = _wizard.baseline;
     var plan = baseline && baseline.planConnection ? baseline.planConnection : null;
     var range = _wizardPeriodRange(values);
+    var duration = _findByValue(DURATIONS, values.durationType);
     var facts = [
       { label: 'Objetivo', value: values.objective ? _objectiveLabel(values.objective) : 'Escolher agora' },
+      { label: 'Duração', value: duration ? duration.label + ' · ' + duration.text : 'Ainda não definida' },
+      { label: 'Início', value: values.startDate ? _formatDate(_parseDateInput(values.startDate)) : 'Hoje' },
       { label: 'Ritmo', value: values.difficulty ? _difficultyLabel(values.difficulty) : 'Ainda não definido' },
       { label: 'Estratégia', value: values.build ? _buildLabel(values.build) : 'Ainda não definida' }
     ];

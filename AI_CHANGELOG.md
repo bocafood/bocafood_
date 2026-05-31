@@ -1,5 +1,29 @@
 # AI Changelog
 
+## 2026-06-01 — Temporadas: card Decisão da temporada completo
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/css/modules/temporadas.css`, `AI_CHANGELOG.md`.
+- Ajustei o card `Decisão da temporada` dentro do modal `Nova Temporada` para mostrar também `Duração` e `Início`, além de objetivo, ritmo e estratégia.
+- O grid dos campos do card foi reorganizado em duas colunas, com fonte e quebra de texto ajustadas para evitar corte visual.
+- Impacto esperado: a usuária consegue revisar todos os campos principais da Temporada durante a criação, sem perder informações no card lateral.
+
+## 2026-06-01 — Temporadas: limpeza do estado sem temporada ativa
+- Arquivos alterados: `public/js/modules/temporadas.js`, `AI_CHANGELOG.md`.
+- Removi do card `Temporada ativa` vazio as informações `Tenant carregado`, `Ciclos de 30 ou 90 dias` e `Dados reais do sistema`.
+- Impacto esperado: deixar o estado inicial de Temporadas mais limpo e menos técnico para a usuária.
+
+## 2026-06-01 — Plano de Voo: remove canal da Base da rota
+- Arquivos alterados: `public/js/modules/plano_voo.js`, `AI_CHANGELOG.md`.
+- Removi o mini-card `Vendas por canal` da seção `Base da rota`.
+- As vendas por canal continuam disponíveis nos detalhes da rota e nos ajustes de criação, mas deixam de aparecer nesse resumo principal.
+- Impacto esperado: deixar a `Base da rota` mais objetiva e evitar repetição visual.
+
+## 2026-06-01 — Plano de Voo: detalhes da rota ativa
+- Arquivos alterados: `public/js/modules/plano_voo.js`, `AI_CHANGELOG.md`.
+- Ajustei o botão `Ver resumo` do card `Rota ativa` para abrir uma ficha somente leitura da rota salva.
+- O modal agora mostra os dados usados quando a rota foi cadastrada: base, período, ticket médio, dias trabalhados, dias fechados, canais, custos, compromissos e resumo mês a mês.
+- Removi desse modal ações de edição, troca de cenário ou ativação de outra rota; ele fica apenas para consulta da rota cadastrada.
+- Impacto esperado: permitir que a usuária revise o que foi decidido no cadastro da rota sem confundir com o fluxo de criação.
+
 ## 2026-06-01 — Plano de Voo: recorrências no mês correto
 - Arquivos alterados: `public/js/modules/plano_voo.js`, `AI_CHANGELOG.md`.
 - Corrigi a leitura de custos e despesas recorrentes/parceladas no resumo mês a mês do Plano de Voo.
@@ -10364,3 +10388,11 @@
 - O Plano de Voo passa a considerar como saídas previstas apenas categorias financeiras marcadas como `custo indireto` ou `despesa indireta`.
 - A copy dos cards, resumo dos cenários, resumo mês a mês e alerta de base foi alinhada para falar em despesas/custos indiretos.
 - Impacto esperado: evitar duplicidade entre custo do produto e saídas financeiras diretas, mantendo no plano apenas o que precisa sair do caixa como estrutura indireta do negócio.
+
+## 2026-06-01 — Onboarding: Como preencher Criar primeira Temporada
+- Arquivos alterados: `public/js/modules/dashboard.js`, `AI_CHANGELOG.md`.
+- Validei o conteúdo do `Como preencher > Criar primeira Temporada` contra o fluxo real do modal `Nova Temporada`.
+- Ajustei a copy para deixar claro que a Temporada não cria uma meta separada: ela usa a rota ativa do Plano de Voo e transforma essa rota em jogadas práticas.
+- A documentação agora explica campo por campo: objetivo, duração, data de início, dificuldade/ritmo, estratégia operacional, estratégias disponíveis, resumo final, base da rota, salvamento e Próxima Jogada.
+- Também corrigi o texto do checklist para remover a ideia de `meta curta` e falar em transformar a rota em ações executáveis.
+- Impacto esperado: orientar melhor a usuária na criação da primeira Temporada, reduzindo confusão entre Plano de Voo, meta e execução operacional.

@@ -4273,6 +4273,7 @@
 .seasons-wizard-facts {
   margin-top: 10px;
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -4287,9 +4288,10 @@
   display: block;
   margin-top: 3px;
   color: #2D2823;
-  font-size: 12.5px;
+  font-size: 12px;
   line-height: 1.22;
   font-weight: 820;
+  overflow-wrap: anywhere;
 }
 
 .seasons-help-modal {
