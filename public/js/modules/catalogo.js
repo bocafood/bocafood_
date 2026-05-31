@@ -7298,13 +7298,27 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var factor = 1 - (loss / 100);
     if (factor <= 0) factor = 1;
     var grossQty = qty / factor;
-    var unitCost = ins ? _parseFichaNum(ins.custo_atual || ins.custoAtual || 0) : 0;
+    var unitCost = _recipeIngredientUnitCost(ins);
     return {
       lossPercent: loss,
       grossQuantity: grossQty,
       unitCost: unitCost,
       totalCost: grossQty * unitCost
     };
+  }
+
+  function _recipeIngredientUnitCost(ins) {
+    if (!ins) return 0;
+    var directCost = _parseFichaNum(ins.custo_atual || ins.custoAtual || 0);
+    if (_parseFichaNum(ins.preco_compra_base_embalagem || ins.basePackagePrice) > 0) return directCost;
+    var hasPurchaseHistory = !!ins.ultima_compra_id || !!ins.ultima_compra_data || _parseFichaNum(ins.custo_medio_compra || 0) > 0 || _parseFichaNum(ins.custo_medio_qtd_base || 0) > 0;
+    if (hasPurchaseHistory) return directCost;
+    var content = _parseFichaNum(ins.conteudo_por_embalagem_padrao || ins.conteudoPorEmbalagemPadrao || 1) || 1;
+    var savedPurchase = _parseFichaNum(ins.preco_compra || ins.purchasePrice || 0);
+    if (content > 1 && directCost > 0 && savedPurchase > 0 && Math.abs(directCost - savedPurchase) < 0.000001) {
+      return directCost / content;
+    }
+    return directCost;
   }
 
   function _isPackagingComponent(name) {
@@ -7593,8 +7607,12 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       '.recipe-component-base{display:grid;grid-template-columns:minmax(220px,1fr) minmax(110px,.35fr) minmax(120px,.4fr) minmax(100px,.32fr) minmax(100px,.32fr);gap:10px;align-items:end;background:#FFFCF8;border:1px solid #EAE4DA;border-radius:14px;padding:10px;margin-bottom:12px;}' +
       '.recipe-component-base label{display:flex;align-items:center;gap:8px;font-size:12px;color:#1F1F1F;font-weight:500;line-height:1.35;}' +
       '.recipe-ingredient-row{display:grid;grid-template-columns:minmax(210px,1.2fr) minmax(86px,.42fr) minmax(62px,.28fr) minmax(72px,.32fr) minmax(82px,.34fr) 30px;gap:8px;align-items:center;padding:9px;border:1px solid #EAE4DA;border-radius:12px;background:#FFFCF8;box-shadow:none;}' +
-      '.recipe-ingredient-search{margin-bottom:6px;}' +
-      '.recipe-ingredient-search input{min-height:30px;font-size:12px;}' +
+      '.recipe-ingredient-picker{position:relative;}' +
+      '.recipe-ingredient-dropdown{display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:10020;background:#fff;border:1px solid #EADFD8;border-radius:12px;max-height:220px;overflow-y:auto;box-shadow:0 14px 32px rgba(31,31,31,.14);}' +
+      '.recipe-ingredient-option{padding:9px 11px;border-bottom:1px solid #F2E9E2;cursor:pointer;background:#fff;}' +
+      '.recipe-ingredient-option:hover{background:#FFFCF8;}' +
+      '.recipe-ingredient-option-name{font-size:13px;font-weight:650;color:#1F1F1F;line-height:1.25;}' +
+      '.recipe-ingredient-option-meta{font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;}' +
       '.supplier-field-control{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:6px;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease}.supplier-field-control:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08)}.supplier-field-control input,.supplier-field-control select,.supplier-field-control textarea{width:100%;min-height:36px;border:0;border-radius:8px;padding:0 8px;font-size:14px;font-family:inherit;outline:none;background:transparent;box-sizing:border-box;color:#1F1F1F;box-shadow:none}.supplier-field-control select{padding-right:42px;appearance:none;-webkit-appearance:none;-moz-appearance:none;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 16px center;background-size:14px}.supplier-field-control textarea{min-height:72px;padding-top:8px;padding-bottom:8px;resize:vertical}.supplier-field-control input[type=file]{padding-top:7px;}' +
       '.recipe-footer{display:flex;align-items:center;gap:8px;}' +
       '.recipe-footer-note{font-size:11px;color:#6F6860;margin-right:auto;}' +
@@ -7965,8 +7983,6 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   }
 
   function _fichaIngRow(idx, compIdx, selectedId, qty) {
-    var insOptions = window._fichaInsOptions || '';
-    var opts = '<option value="">Selecionar insumo</option>' + insOptions.replace('value="' + selectedId + '"', 'value="' + selectedId + '" selected');
     var ins = selectedId ? _itensCusto.find(function (i) { return i.id === selectedId; }) : null;
     var unidade = ins ? (ins.unidade_base || 'un') : '—';
     var calc = _calcFichaIng(ins, qty);
@@ -7979,8 +7995,11 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
 
     return '<div id="fc-ing-' + idx + '" class="recipe-ingredient-row" data-comp-row="' + compIdx + '">' +
       '<div><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Ingrediente</div>' +
-      '<div class="supplier-field-control recipe-ingredient-search"><input type="text" placeholder="Buscar ingrediente..." oninput="Modules.Catalogo._filterFichaIngredientOptions(\'' + idx + '\', this.value)"></div>' +
-      '<div class="supplier-field-control"><select data-ing-idx="' + idx + '" onchange="Modules.Catalogo._onFichaIngChange(\'' + idx + '\')">' + opts + '</select></div></div>' +
+      '<div class="recipe-ingredient-picker">' +
+        '<div class="supplier-field-control"><input id="fc-ing-display-' + idx + '" type="text" autocomplete="off" value="' + _esc(_fichaIngredientDisplayName(ins)) + '" placeholder="Buscar ingrediente..." oninput="Modules.Catalogo._filterFichaIngredientOptions(\'' + idx + '\', this.value)" onfocus="Modules.Catalogo._filterFichaIngredientOptions(\'' + idx + '\', this.value)" onblur="setTimeout(function(){var d=document.getElementById(\'fc-ing-dropdown-' + idx + '\');if(d)d.style.display=\'none\';},180)"></div>' +
+        '<input type="hidden" data-ing-idx="' + idx + '" value="' + _esc(selectedId || '') + '">' +
+        '<div id="fc-ing-dropdown-' + idx + '" class="recipe-ingredient-dropdown"></div>' +
+      '</div></div>' +
       '<div><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Quantidade</div>' +
       '<div class="supplier-field-control"><input type="text" data-ing-qty="' + idx + '" value="' + (qty || '') + '" placeholder="0" oninput="Modules.Catalogo._updateFichaCost()"></div></div>' +
       '<div><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Unidade</div><div id="fc-ing-unit-' + idx + '" style="font-size:12px;color:#1F1F1F;font-weight:600;">' + _esc(unidade) + '</div></div>' +
@@ -8009,20 +8028,44 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     _updateFichaCost();
   }
 
+  function _fichaIngredientDisplayName(ins) {
+    if (!ins) return '';
+    var name = ins.nome || ins.name || '';
+    var unit = ins.unidade_base || ins.unidadeBase || '';
+    return name ? (name + (unit ? ' (' + unit + ')' : '')) : '';
+  }
+
   function _filterFichaIngredientOptions(idx, query) {
-    var select = document.querySelector('[data-ing-idx="' + idx + '"]');
-    if (!select) return;
-    var current = select.value || '';
+    var hidden = document.querySelector('[data-ing-idx="' + idx + '"]');
+    var dropdown = document.getElementById('fc-ing-dropdown-' + idx);
+    if (!hidden || !dropdown) return;
+    var current = hidden.value || '';
     var q = String(query || '').trim().toLowerCase();
-    var options = _itensCusto.filter(function (ins) {
+    var matches = _itensCusto.filter(function (ins) {
       var hay = [ins.nome, ins.name, ins.categoria, ins.unidade_base, ins.unidadeBase].join(' ').toLowerCase();
       return !q || hay.indexOf(q) >= 0 || String(ins.id) === current;
-    }).map(function (ins) {
-      var selected = String(ins.id) === String(current) ? ' selected' : '';
-      return '<option value="' + ins.id + '"' + selected + ' data-aprov="' + (ins.aproveitamento_padrao || 100) + '" data-custo="' + (ins.custo_atual || 0) + '" data-unidade="' + _esc(ins.unidade_base || 'un') + '">' + _esc(ins.nome) + ' (' + _esc(ins.unidade_base || '') + ')</option>';
-    }).join('');
-    select.innerHTML = '<option value="">Selecionar insumo</option>' + options;
-    if (current) select.value = current;
+    }).slice(0, 30);
+    dropdown.innerHTML = matches.length ? matches.map(function (ins) {
+      var unit = ins.unidade_base || ins.unidadeBase || '';
+      var cost = ins.custo_atual ? UI.fmt(ins.custo_atual) + (unit ? '/' + _esc(unit) : '') : 'sem custo';
+      var meta = [ins.categoria || '', unit ? 'Unidade: ' + unit : '', cost].filter(Boolean).join(' · ');
+      return '<div class="recipe-ingredient-option" onmousedown="Modules.Catalogo._selectFichaIngredient(\'' + idx + '\',\'' + _esc(ins.id) + '\')">' +
+        '<div class="recipe-ingredient-option-name">' + _esc(ins.nome || ins.name || 'Ingrediente') + '</div>' +
+        '<div class="recipe-ingredient-option-meta">' + _esc(meta) + '</div>' +
+      '</div>';
+    }).join('') : '<div class="recipe-ingredient-option"><div class="recipe-ingredient-option-name">Nenhum ingrediente encontrado</div><div class="recipe-ingredient-option-meta">Cadastre o item em Compras > Produtos / Insumos.</div></div>';
+    dropdown.style.display = 'block';
+  }
+
+  function _selectFichaIngredient(idx, id) {
+    var hidden = document.querySelector('[data-ing-idx="' + idx + '"]');
+    var display = document.getElementById('fc-ing-display-' + idx);
+    var dropdown = document.getElementById('fc-ing-dropdown-' + idx);
+    var ins = _itensCusto.find(function (i) { return String(i.id) === String(id); });
+    if (hidden) hidden.value = id || '';
+    if (display) display.value = _fichaIngredientDisplayName(ins);
+    if (dropdown) dropdown.style.display = 'none';
+    _onFichaIngChange(idx);
   }
 
   function _addFichaComponent() {
@@ -8483,7 +8526,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     _openRecipeCategoryCreateModal: _openRecipeCategoryCreateModal, _saveRecipeCategoryFromModal: _saveRecipeCategoryFromModal,
     _openRecipeComponentCreateModal: _openRecipeComponentCreateModal, _saveRecipeComponentFromModal: _saveRecipeComponentFromModal,
     _updateFichaCost: _updateFichaCost, _updateFichaPesoTotal: _updateFichaPesoTotal, _onYieldUnitChange: _onYieldUnitChange,
-    _onFichaIngChange: _onFichaIngChange, _filterFichaIngredientOptions: _filterFichaIngredientOptions, _onFichaImgChange: _onFichaImgChange,
+    _onFichaIngChange: _onFichaIngChange, _filterFichaIngredientOptions: _filterFichaIngredientOptions, _selectFichaIngredient: _selectFichaIngredient, _onFichaImgChange: _onFichaImgChange,
     _saveFicha: _saveFicha, _deleteFicha: _deleteFicha,
     _filterFichas: _filterFichas, _renderFichas: _renderFichas, _setFichaPageSize: _setFichaPageSize, _setFichaPage: _setFichaPage, _clearFichasFilters: _clearFichasFilters,
     _openTagModal: _openTagModal, _saveTag: _saveTag, _deleteTag: _deleteTag, _updateTagModalPreview: _updateTagModalPreview

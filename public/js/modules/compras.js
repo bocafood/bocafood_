@@ -2796,9 +2796,10 @@ Modules.Compras = (function () {
     var fornAtual = item.fornecedor_padrao_id ? (_byId(_fornecedores, item.fornecedor_padrao_id) || {}) : {};
     var fornOpts = _options(fornecedoresSorted, item.fornecedor_padrao_id, 'name', 'Sem fornecedor padrão');
     var imgSrc = item.imageBase64 || item.imageUrl || '';
-    var itemBaseCost = _num(item.custo_atual != null ? item.custo_atual : (item.preco_compra != null ? item.preco_compra : item.purchasePrice));
+    var itemBaseCost = _itemBasePackageCost(item);
     var hasPurchaseCostHistory = _itemHasPurchaseCostHistory(item);
-    var costText = itemBaseCost ? UI.fmt(itemBaseCost) + '/' + _esc(item.unidade_base || '') : '-';
+    var currentUnitCost = _num(item.custo_atual != null ? item.custo_atual : (item.preco_compra != null ? item.preco_compra : item.purchasePrice));
+    var costText = currentUnitCost ? UI.fmt(currentUnitCost) + '/' + _esc(item.unidade_base || '') : '-';
     var lastPurchaseText = item.ultima_compra_data ? UI.fmtDate(new Date(item.ultima_compra_data)) : '-';
     var sectionTitle = 'font-size:13px;font-weight:800;color:#1F1F1F;line-height:1.25;margin-bottom:3px;';
     var sectionHint = 'font-size:12px;color:#8A7E7C;line-height:1.4;margin-bottom:11px;';
@@ -2852,7 +2853,7 @@ Modules.Compras = (function () {
         '• Unidade base: Quilograma (kg)<br>' +
         '• Embalagem de compra padrão: saco<br>' +
         '• Conteúdo por embalagem (×): 5<br>' +
-        '• Preço de compra base: use uma primeira referência de custo quando ainda não existe compra registrada<br><br>' +
+        '• Preço de compra base: valor pago pela embalagem inteira quando ainda não existe compra registrada<br><br>' +
         '<strong>Como preencher o número:</strong><br>' +
         'Use sempre a mesma unidade escolhida em Unidade base.<br>' +
         '• Unidade base kg e embalagem com 1 kg: preencha 1<br>' +
@@ -3272,8 +3273,11 @@ Modules.Compras = (function () {
     if (minStock > 0 && maxStock > 0 && maxStock < minStock) { UI.toast('O estoque máximo não pode ser menor que o mínimo.', 'error'); return; }
     var currentItem = _editingId ? (_byId(_itens, _editingId) || {}) : {};
     var hasPurchaseCostHistory = _editingId ? _itemHasPurchaseCostHistory(currentItem) : false;
-    var baseCost = _parseMoneyField((_el('it-base-cost') || {}).value);
-    if (!hasPurchaseCostHistory && baseCost < 0) { UI.toast('Informe um preço de compra base válido.', 'error'); return; }
+    var basePackageCost = _parseMoneyField((_el('it-base-cost') || {}).value);
+    if (!hasPurchaseCostHistory && basePackageCost < 0) { UI.toast('Informe um preço de compra base válido.', 'error'); return; }
+    var contentPerPackage = parseFloat(_el('it-conteudo-padrao').value || '1') || 1;
+    if (contentPerPackage <= 0) { UI.toast('Informe um conteúdo por embalagem válido.', 'error'); return; }
+    var aproveitamento = parseFloat((_el('it-aprov') || {}).value || '100') || 100;
     var data = {
       nome: nome,
       classe: classe,
@@ -3282,20 +3286,23 @@ Modules.Compras = (function () {
       fornecedor_padrao_id: _el('it-forn').value,
       ativo: _el('it-ativo').checked,
       unidade_compra_padrao: (_el('it-emb-padrao').value || '').trim(),
-      conteudo_por_embalagem_padrao: parseFloat(_el('it-conteudo-padrao').value || '1') || 1,
+      conteudo_por_embalagem_padrao: contentPerPackage,
       minStock: minStock,
       maxStock: maxStock,
       estoque_minimo: minStock,
       estoque_maximo: maxStock
     };
     if (!hasPurchaseCostHistory) {
-      data.custo_atual = baseCost;
-      data.preco_compra = baseCost;
-      data.purchasePrice = baseCost;
-      data.custo_informado_manual = baseCost;
+      var baseUnitCost = _itemBaseUnitCostFromPackage(basePackageCost, contentPerPackage, aproveitamento, classe);
+      data.preco_compra_base_embalagem = basePackageCost;
+      data.basePackagePrice = basePackageCost;
+      data.custo_atual = baseUnitCost;
+      data.preco_compra = baseUnitCost;
+      data.purchasePrice = baseUnitCost;
+      data.custo_informado_manual = baseUnitCost;
     }
     if (classe === 'insumo') {
-      data.aproveitamento_padrao = parseFloat(_el('it-aprov').value || '100') || 100;
+      data.aproveitamento_padrao = aproveitamento;
       data.usar_em_fichas = _el('it-fichas').checked;
       data.venda_habilitada = false;
     } else {
@@ -5245,11 +5252,30 @@ Modules.Compras = (function () {
     item = item || {};
     return !!item.ultima_compra_id || !!item.ultima_compra_data || _num(item.custo_medio_compra) > 0 || _num(item.custo_medio_qtd_base) > 0;
   }
+  function _itemBasePackageCost(item) {
+    item = item || {};
+    var explicitPackage = _num(item.preco_compra_base_embalagem != null ? item.preco_compra_base_embalagem : item.basePackagePrice);
+    if (explicitPackage > 0) return explicitPackage;
+    var content = Math.max(_num(item.conteudo_por_embalagem_padrao || item.conteudoPorEmbalagemPadrao || 1) || 1, 0.000001);
+    var unitCost = _num(item.custo_atual != null ? item.custo_atual : (item.preco_compra != null ? item.preco_compra : item.purchasePrice));
+    if (!unitCost) return 0;
+    var aproveitamento = _num(item.aproveitamento_padrao || item.aproveitamentoPadrao || 100) || 100;
+    var factor = (String(item.classe || '').toLowerCase() === 'insumo') ? (aproveitamento / 100) : 1;
+    if (factor <= 0) factor = 1;
+    return unitCost * content * factor;
+  }
+  function _itemBaseUnitCostFromPackage(packageCost, content, aproveitamento, classe) {
+    var pkg = _num(packageCost);
+    var cont = Math.max(_num(content) || 1, 0.000001);
+    var factor = String(classe || '').toLowerCase() === 'insumo' ? ((_num(aproveitamento) || 100) / 100) : 1;
+    if (factor <= 0) factor = 1;
+    return pkg > 0 ? (pkg / cont / factor) : 0;
+  }
   function _itemPurchaseCostField(value, hasHistory) {
     var label = hasHistory ? 'Custo médio de compra' : 'Preço de compra base';
     var note = hasHistory
       ? 'Atualizado automaticamente pela média das compras registradas. Para corrigir este valor, ajuste a compra que gerou o custo.'
-      : 'Use como primeira referência antes de registrar compras. Depois, o BocaFood passa a usar a média das compras.';
+      : 'Informe o valor pago pela embalagem inteira. O BocaFood divide pelo conteúdo da embalagem para chegar ao custo por kg, litro ou unidade.';
     return '<div><label style="' + _labelStyle() + '">' + label + '</label><div class="item-money-control"><span class="item-money-prefix">€</span><input id="it-base-cost" type="text" inputmode="decimal" value="' + _esc(_moneyFieldText(value)) + '" placeholder="0,00" onblur="Modules.Compras._formatItemMoneyField(this)"' + (hasHistory ? ' disabled' : '') + '></div><div class="item-auto-note">' + _esc(note) + '</div></div>';
   }
   function _moneyFieldText(value) {

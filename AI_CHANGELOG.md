@@ -9932,4 +9932,7 @@
 - Corrigi o modal `Detalhes da receita` para recalcular e exibir o custo de cada ingrediente dentro da etapa, usando a mesma base de cálculo que já alimentava o total da etapa.
 - Ajustei a copy do campo `Nome da receita` no onboarding para orientar que o nome deve ser da receita principal, deixando massa, recheio e finalização para `Etapa da receita`.
 - Ajustei a copy de `Categoria` no mesmo onboarding para agrupar receitas principais, deixando claro que massa, recheio e finalização pertencem às etapas internas da receita.
+- Unifiquei o preenchimento de `Ingrediente` no cadastro da receita em um único campo pesquisável, removendo a experiência duplicada de busca separada + lista.
+- Corrigi o cálculo do `Preço de compra base` em Produtos / Insumos: o valor informado passa a representar a embalagem inteira, e o sistema divide pelo `Conteúdo por embalagem (×)` para salvar o custo por unidade base usado nas receitas.
+- Adicionei compatibilidade no cálculo das receitas para itens antigos sem histórico de compra que foram salvos antes dessa correção, evitando que o custo da embalagem inteira seja usado como custo por kg/L/unidade.
 - Impacto esperado: dar base de custo confiável para o primeiro Plano de Voo e para os cálculos de receitas antes de haver histórico suficiente.
