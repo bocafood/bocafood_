@@ -9915,5 +9915,7 @@
 - Atualizei onboarding e documentação para explicar que o preço base é a primeira referência de custo e que, depois das compras registradas, o BocaFood passa a usar a média de compra.
 - Ajustei a explicação de `Unidade base` no onboarding/documentação para deixar claro que ela representa a unidade de compra usada como base de custo, estoque e receitas.
 - Incluí uma orientação mais prática para `Conteúdo por embalagem (×)`, explicando qual número preencher quando a embalagem vem em kg, g, litro, ml ou unidades.
+- Incluí um botão `Como preencher?` próprio ao lado do campo `Conteúdo por embalagem (×)` dentro do modal, abrindo a explicação no mesmo padrão visual usado no cadastro.
 - Removi os checkboxes sem ação da listagem `Produtos / Insumos cadastrados` e reduzi a exibição visual de casas decimais em custos para evitar valores com zeros excessivos.
+- Ajustei também o `Custo atual` exibido dentro do modal do item para usar moeda curta, sem zeros excessivos.
 - Impacto esperado: dar base de custo confiável para o primeiro Plano de Voo e para os cálculos de receitas antes de haver histórico suficiente.

@@ -1168,6 +1168,12 @@ Modules.Compras = (function () {
     el.style.display = el.style.display === 'block' ? 'none' : 'block';
   }
 
+  function _toggleItemPackageHelp() {
+    var el = document.getElementById('it-package-help');
+    if (!el) return;
+    el.style.display = el.style.display === 'block' ? 'none' : 'block';
+  }
+
   function _periodoMatch(dateStr, periodo) {
     if (!periodo || periodo === 'todos') return true;
     var d = dateStr ? new Date(dateStr + 'T00:00:00') : null;
@@ -2751,7 +2757,7 @@ Modules.Compras = (function () {
     var imgSrc = item.imageBase64 || item.imageUrl || '';
     var itemBaseCost = _num(item.custo_atual != null ? item.custo_atual : (item.preco_compra != null ? item.preco_compra : item.purchasePrice));
     var hasPurchaseCostHistory = _itemHasPurchaseCostHistory(item);
-    var costText = itemBaseCost ? '€' + Number(itemBaseCost).toFixed(Number(itemBaseCost) < 0.01 ? 6 : 4) + '/' + _esc(item.unidade_base || '') : '-';
+    var costText = itemBaseCost ? UI.fmt(itemBaseCost) + '/' + _esc(item.unidade_base || '') : '-';
     var lastPurchaseText = item.ultima_compra_data ? UI.fmtDate(new Date(item.ultima_compra_data)) : '-';
     var sectionTitle = 'font-size:13px;font-weight:800;color:#1F1F1F;line-height:1.25;margin-bottom:3px;';
     var sectionHint = 'font-size:12px;color:#8A7E7C;line-height:1.4;margin-bottom:11px;';
@@ -2834,7 +2840,17 @@ Modules.Compras = (function () {
       '</div>' +
       '<div class="item-modal-grid item-modal-pack-grid" style="margin-bottom:11px;">' +
       _searchablePackageField('it-emb-padrao', 'Embalagem de compra padrão', item.unidade_compra_padrao || '') +
-      _supplierField('it-conteudo-padrao', 'Conteúdo por embalagem (×)', item.conteudo_por_embalagem_padrao || 1, 'number') +
+      '<div><div class="item-field-head"><label style="' + _labelStyle() + 'margin-bottom:0;">Conteúdo por embalagem (×)</label><button type="button" class="item-help-btn" onclick="Modules.Compras._toggleItemPackageHelp()">Como preencher?</button></div>' +
+      '<div class="supplier-field-control"><input id="it-conteudo-padrao" type="number" value="' + _esc(item.conteudo_por_embalagem_padrao || 1) + '"></div>' +
+      '<div id="it-package-help" class="item-help-box" style="margin-top:8px;">' +
+        'Preencha o número usando a mesma unidade escolhida em <strong>Unidade base</strong>.<br><br>' +
+        '• Unidade base kg e embalagem com 1 kg: preencha 1<br>' +
+        '• Unidade base kg e embalagem com 400 g: preencha 0,400<br>' +
+        '• Unidade base g e embalagem com 400 g: preencha 400<br>' +
+        '• Unidade base L e embalagem com 500 ml: preencha 0,500<br>' +
+        '• Unidade base unidade e caixa com 12 unidades: preencha 12<br><br>' +
+        'Regra simples: converta o conteúdo da embalagem para a unidade base antes de preencher.' +
+      '</div></div>' +
       '</div>' +
       '<div class="item-modal-grid item-modal-stock-grid" style="margin-bottom:11px;">' +
       _supplierField('it-stock-min', 'Estoque mínimo', item.minStock || item.estoque_minimo || '', 'number') +
@@ -5316,7 +5332,7 @@ Modules.Compras = (function () {
     _itemFornSearch: _itemFornSearch, _itemFornSelect: _itemFornSelect,
     _catalogSearch: _catalogSearch, _catalogSelect: _catalogSelect, _catalogQuickCreate: _catalogQuickCreate, _openItemCategoryCreateModal: _openItemCategoryCreateModal, _saveItemCategoryFromModal: _saveItemCategoryFromModal, _openItemSupplierCreateModal: _openItemSupplierCreateModal, _saveItemSupplierFromModal: _saveItemSupplierFromModal, _packageSearch: _packageSearch, _packageSelect: _packageSelect,
     _setSimpleListClasse: _setSimpleListClasse,
-    _openItemModal: _openItemModal, _openInsumoModal: _openInsumoModal, _saveItem: _saveItem, _deleteItem: _deleteItem, _toggleItemClasse: _toggleItemClasse, _toggleItemCostHelp: _toggleItemCostHelp, _formatItemMoneyField: _formatItemMoneyField, _onItemImgFileChange: _onItemImgFileChange, _filterItens: _filterItens, _renderInsumos: _renderInsumos,
+    _openItemModal: _openItemModal, _openInsumoModal: _openInsumoModal, _saveItem: _saveItem, _deleteItem: _deleteItem, _toggleItemClasse: _toggleItemClasse, _toggleItemCostHelp: _toggleItemCostHelp, _toggleItemPackageHelp: _toggleItemPackageHelp, _formatItemMoneyField: _formatItemMoneyField, _onItemImgFileChange: _onItemImgFileChange, _filterItens: _filterItens, _renderInsumos: _renderInsumos,
     _openFornecedorModal: _openFornecedorModal, _saveFornecedor: _saveFornecedor, _deleteFornecedor: _deleteFornecedor, _onFornecedorCountryChange: _onFornecedorCountryChange,
     _openUnidadeModal: _openUnidadeModal, _saveUnidade: _saveUnidade, _deleteUnidade: _deleteUnidade,
     _openSimpleModal: _openSimpleModal, _saveSimple: _saveSimple, _deleteSimple: _deleteSimple, _renderUnidades: _renderUnidades, _renderSimpleList: _renderSimpleList,
