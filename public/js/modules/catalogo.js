@@ -7077,7 +7077,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
         '<td style="padding:14px 16px;vertical-align:middle;"><div style="display:flex;align-items:center;gap:12px;min-width:0;">' + imgHtml + '<div style="min-width:0;"><div style="font-size:15px;font-weight:600;line-height:1.25;color:#1F1F1F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px;">' + _esc(f.name || '') + '</div><div style="font-size:12px;line-height:1.4;color:#6F6860;margin-top:3px;">' + _esc(yieldLabel) + '</div></div></div></td>' +
         '<td style="padding:14px 16px;vertical-align:middle;">' + catChip + '</td>' +
         '<td style="padding:14px 16px;vertical-align:middle;font-size:14px;font-weight:600;color:#1F1F1F;">' + _esc(yieldLabel) + '</td>' +
-        '<td style="padding:14px 16px;vertical-align:middle;font-size:14px;font-weight:600;color:#1F1F1F;">' + UI.fmt(ci.totalCost) + '</td>' +
+        '<td style="padding:14px 16px;vertical-align:middle;font-size:14px;font-weight:600;color:#1F1F1F;">' + _fmtFichaMoney(ci.totalCost) + '</td>' +
         '<td style="padding:14px 16px;vertical-align:middle;font-size:14px;font-weight:600;color:#1F1F1F;">' + costUnit + '</td>' +
         '<td style="padding:14px 16px;vertical-align:middle;text-align:right;">' +
           '<div style="display:inline-flex;gap:6px;" onclick="event.stopPropagation();">' +
@@ -7171,15 +7171,15 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var indirect = costs.direct * (indirectInfo.percent / 100);
     var totalCost = costs.direct + indirect;
     return {
-      ingredientCost: costs.ingredients,
-      packagingCost: costs.packaging,
-      directCost: costs.direct,
+      ingredientCost: _roundFichaCost(costs.ingredients, 4),
+      packagingCost: _roundFichaCost(costs.packaging, 4),
+      directCost: _roundFichaCost(costs.direct, 4),
       componentCostBreakdown: costs.components || [],
       indirectCostModeUsed: indirectInfo.modeUsed,
       indirectCostPercent: indirectInfo.percent,
-      indirectCost: indirect,
-      totalCost: totalCost,
-      costPerYield: yieldQty > 0 ? totalCost / yieldQty : 0
+      indirectCost: _roundFichaCost(indirect, 4),
+      totalCost: _roundFichaCost(totalCost, 4),
+      costPerYield: yieldQty > 0 ? _roundFichaCost(totalCost / yieldQty, 4) : 0
     };
   }
 
@@ -7241,6 +7241,15 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   function _parseFichaNum(val) {
     if (val == null || val === '') return 0;
     return parseFloat(String(val).replace(',', '.')) || 0;
+  }
+  function _roundFichaCost(value, decimals) {
+    var n = _parseFichaNum(value);
+    var places = decimals == null ? 4 : decimals;
+    var factor = Math.pow(10, places);
+    return Math.round((n + Number.EPSILON) * factor) / factor;
+  }
+  function _fmtFichaMoney(value) {
+    return UI.fmt(_roundFichaCost(value, 2));
   }
 
   function _getIndirectCostPercent() {
@@ -7308,9 +7317,9 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var unitCost = _recipeIngredientUnitCost(ins);
     return {
       lossPercent: loss,
-      grossQuantity: grossQty,
-      unitCost: unitCost,
-      totalCost: grossQty * unitCost
+      grossQuantity: _roundFichaCost(grossQty, 6),
+      unitCost: _roundFichaCost(unitCost, 6),
+      totalCost: _roundFichaCost(grossQty * unitCost, 4)
     };
   }
 
@@ -7433,7 +7442,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
         lossPercent: _parseFichaNum(item.lossPercent || 0),
         grossQuantityCalculated: _parseFichaNum(item.grossQuantityCalculated || item.grossQuantity || item.qty || item.quantity || 0),
         unitCost: _parseFichaNum(item.unitCost || 0),
-        totalCost: _parseFichaNum(item.totalCost || 0),
+        totalCost: _roundFichaCost(item.totalCost || 0, 4),
         itemClass: 'embalagem',
         classe: 'embalagem',
         costType: 'embalagem'
@@ -7466,10 +7475,10 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       packagingCost += appliedPackagingCost;
       details.push(Object.assign({
         name: comp.name || '',
-        rawCost: rawCost,
-        appliedCost: rawCost * ratioInfo.ratio,
-        ingredientCost: appliedIngredientCost,
-        packagingCost: appliedPackagingCost
+        rawCost: _roundFichaCost(rawCost, 4),
+        appliedCost: _roundFichaCost(rawCost * ratioInfo.ratio, 4),
+        ingredientCost: _roundFichaCost(appliedIngredientCost, 4),
+        packagingCost: _roundFichaCost(appliedPackagingCost, 4)
       }, ratioInfo));
     });
     (packagingItems || []).forEach(function (item) {
@@ -7477,7 +7486,12 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       var calc = _calcFichaIng(ins, item.qty);
       packagingCost += calc.totalCost || _parseFichaNum(item.totalCost || 0);
     });
-    return { ingredients: ingredientCost, packaging: packagingCost, direct: ingredientCost + packagingCost, components: details };
+    return {
+      ingredients: _roundFichaCost(ingredientCost, 4),
+      packaging: _roundFichaCost(packagingCost, 4),
+      direct: _roundFichaCost(ingredientCost + packagingCost, 4),
+      components: details
+    };
   }
 
   function _fichaLbl() { return 'font-size:11px;font-weight:600;color:#7A746B;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.02em;'; }
@@ -7525,7 +7539,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
             '<div class="recipe-view-ingredient-name">' + _esc((ins && ins.nome) || ing.supplyName || 'Ingrediente') + '</div>' +
             '<div class="recipe-view-ingredient-meta">' + _esc(qty ? qty.toLocaleString('pt-BR', { maximumFractionDigits: 3 }) : 0) + ' ' + _esc(ing.unit || (ins && ins.unidade_base) || '') + (ratioInfo.proportional ? ' usados nesta receita' : '') + '</div>' +
           '</div>' +
-          '<div class="recipe-view-ingredient-cost">' + (lineCost > 0 ? UI.fmt(lineCost) : '€0,00') + '</div>' +
+          '<div class="recipe-view-ingredient-cost">' + (lineCost > 0 ? _fmtFichaMoney(lineCost) : '€0,00') + '</div>' +
           '</div>';
       }).join('');
       if (!list) list = '<div class="recipe-view-empty">Sem ingredientes nesta etapa.</div>';
@@ -7540,7 +7554,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
             (comp.note ? '<div class="recipe-view-step-note">' + _esc(comp.note) + '</div>' : '') +
             yieldNote +
           '</div>' +
-          '<div class="recipe-view-step-cost">' + UI.fmt(stepCost) + '</div>' +
+          '<div class="recipe-view-step-cost">' + _fmtFichaMoney(stepCost) + '</div>' +
         '</div>' +
         list +
         '</div>';
@@ -7559,7 +7573,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
           '<div class="recipe-view-ingredient-name">' + _esc((ins && ins.nome) || item.supplyName || 'Embalagem') + '</div>' +
           '<div class="recipe-view-ingredient-meta">' + _esc(qty ? qty.toLocaleString('pt-BR', { maximumFractionDigits: 3 }) : 0) + ' ' + _esc(item.unit || (ins && ins.unidade_base) || '') + ' no rendimento global</div>' +
         '</div>' +
-        '<div class="recipe-view-ingredient-cost">' + (calc.totalCost > 0 ? UI.fmt(calc.totalCost) : UI.fmt(_parseFichaNum(item.totalCost || 0))) + '</div>' +
+        '<div class="recipe-view-ingredient-cost">' + (calc.totalCost > 0 ? _fmtFichaMoney(calc.totalCost) : _fmtFichaMoney(_parseFichaNum(item.totalCost || 0))) + '</div>' +
         '</div>';
     }).join('');
   }
@@ -7574,9 +7588,9 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       ? (summary.totalProduced >= 1000 ? (summary.totalProduced / 1000).toFixed(2) + ' kg' : summary.totalProduced.toFixed(0) + ' g')
       : '—';
     var weightPerUnit = summary.unitWeight > 0 ? summary.unitWeight + ' g' : '—';
-    var costPerKg = summary.costPerKg > 0 ? UI.fmt(summary.costPerKg) : '—';
-    var totalCost = UI.fmt(summary.costs.totalCost || 0);
-    var costPerYield = UI.fmt(summary.costs.costPerYield || 0);
+    var costPerKg = summary.costPerKg > 0 ? _fmtFichaMoney(summary.costPerKg) : '—';
+    var totalCost = _fmtFichaMoney(summary.costs.totalCost || 0);
+    var costPerYield = _fmtFichaMoney(summary.costs.costPerYield || 0);
     var viewCss = '<style>' +
       '.recipe-view-wrap{display:flex;flex-direction:column;gap:14px;}' +
       '.recipe-view-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:16px;box-shadow:0 10px 24px rgba(31,31,31,.04);}' +
@@ -7713,7 +7727,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
 
     var showPeso = !f.yieldUnit || f.yieldUnit === 'unidades' || f.yieldUnit === 'porções';
     var summary = _fichaSummaryData(f);
-    var costBadge = summary.costs.costPerYield > 0 ? UI.fmt(summary.costs.costPerYield) : '—';
+    var costBadge = summary.costs.costPerYield > 0 ? _fmtFichaMoney(summary.costs.costPerYield) : '—';
 
     var sectionHead = function (icon, title, desc) {
       return '<div class="recipe-modal-head"><span class="mi">' + _esc(icon) + '</span><div><div class="recipe-modal-title">' + _esc(title) + '</div><div class="recipe-modal-desc">' + _esc(desc || '') + '</div></div></div>';
@@ -8165,7 +8179,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var perdaHtml = perda > 0
       ? '<span style="background:#FFF7ED;color:#D97706;padding:2px 7px;border-radius:12px;font-size:11px;font-weight:700;">' + perda + '%</span>'
       : '<span style="color:#D4C8C6;font-size:11px;">—</span>';
-    var costHtml = costVal > 0 ? UI.fmt(costVal) : '—';
+    var costHtml = costVal > 0 ? _fmtFichaMoney(costVal) : '—';
 
     return '<div id="fc-ing-' + idx + '" class="recipe-ingredient-row" data-comp-row="' + compIdx + '">' +
       '<div><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Ingrediente</div>' +
@@ -8213,7 +8227,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     if (!ins) return '';
     var unit = ins.unidade_base || ins.unidadeBase || '';
     var cls = _isPackagingItem(ins) ? 'Embalagem' : 'Ingrediente';
-    var cost = ins.custo_atual ? UI.fmt(ins.custo_atual) + (unit ? '/' + unit : '') : 'sem custo';
+    var cost = ins.custo_atual ? _fmtFichaMoney(ins.custo_atual) + (unit ? '/' + unit : '') : 'sem custo';
     return [cls, ins.categoria || '', unit ? 'Unidade: ' + unit : '', cost].filter(Boolean).join(' · ');
   }
 
@@ -8252,7 +8266,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var item = selectedId ? _itensCusto.find(function (i) { return String(i.id) === String(selectedId); }) : null;
     var unidade = item ? (item.unidade_base || 'un') : '—';
     var calc = _calcFichaIng(item, qty);
-    var costHtml = calc.totalCost > 0 ? UI.fmt(calc.totalCost) : '—';
+    var costHtml = calc.totalCost > 0 ? _fmtFichaMoney(calc.totalCost) : '—';
     return '<div id="fc-pkg-' + idx + '" class="recipe-packaging-row">' +
       '<div><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Embalagem</div>' +
       '<div class="recipe-ingredient-picker">' +
@@ -8384,7 +8398,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
         if (target === 'packaging') packagingCost += cost;
         else ingredientCost += cost;
         if (costEl) {
-          costEl.textContent = cost > 0 ? UI.fmt(cost) : '—';
+          costEl.textContent = cost > 0 ? _fmtFichaMoney(cost) : '—';
           costEl.title = ratioInfo.proportional ? 'Custo proporcional usado nesta receita.' : '';
         }
       });
@@ -8400,7 +8414,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       if (!item || !qty) { if (costEl) costEl.textContent = '—'; return; }
       var calc = _calcFichaIng(item, qty);
       packagingCost += calc.totalCost;
-      if (costEl) costEl.textContent = calc.totalCost > 0 ? UI.fmt(calc.totalCost) : '—';
+      if (costEl) costEl.textContent = calc.totalCost > 0 ? _fmtFichaMoney(calc.totalCost) : '—';
     });
 
     var directCost = ingredientCost + packagingCost;
@@ -8420,14 +8434,14 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var labelEl = document.getElementById('fc-cost-unit-label');
     var kgEl = document.getElementById('fc-cost-kg');
 
-    if (ingredientsEl) ingredientsEl.textContent = UI.fmt(ingredientCost);
-    if (packagingEl) packagingEl.textContent = UI.fmt(packagingCost);
-    if (directEl) directEl.textContent = UI.fmt(directCost);
-    if (indirectEl) indirectEl.textContent = UI.fmt(indirect);
+    if (ingredientsEl) ingredientsEl.textContent = _fmtFichaMoney(ingredientCost);
+    if (packagingEl) packagingEl.textContent = _fmtFichaMoney(packagingCost);
+    if (directEl) directEl.textContent = _fmtFichaMoney(directCost);
+    if (indirectEl) indirectEl.textContent = _fmtFichaMoney(indirect);
     if (indirectPctEl) indirectPctEl.textContent = '(' + (indirectInfo.percent || 0).toFixed(2).replace('.', ',') + '%)';
     if (indirectModeEl) indirectModeEl.textContent = 'Modo: ' + indirectInfo.modeUsed + (indirectInfo.fallback ? ' (fallback)' : '');
-    if (totalEl) totalEl.textContent = UI.fmt(total);
-    if (unitEl) unitEl.textContent = UI.fmt(costPerUnit);
+    if (totalEl) totalEl.textContent = _fmtFichaMoney(total);
+    if (unitEl) unitEl.textContent = _fmtFichaMoney(costPerUnit);
     if (labelEl) labelEl.textContent = yieldUnit.replace(/ões$/, 'ão').replace(/es$/, '').replace(/s$/, '') || 'unidade';
 
     var unitWeightG = _parseFichaNum((document.getElementById('fc-unit-weight') || {}).value);
@@ -8440,7 +8454,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
 
     if (kgEl) {
       if (totalG > 0 && total > 0) {
-        kgEl.textContent = UI.fmt((total / totalG) * 1000);
+        kgEl.textContent = _fmtFichaMoney((total / totalG) * 1000);
       } else {
         kgEl.textContent = '—';
       }
@@ -8534,11 +8548,11 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
             unit: ins ? (ins.unidade_base || '') : '',
             lossPercent: calc.lossPercent,
             grossQuantityCalculated: calc.grossQuantity,
-            unitCost: calc.unitCost,
-            totalCost: calc.totalCost,
+            unitCost: _roundFichaCost(calc.unitCost, 6),
+            totalCost: _roundFichaCost(calc.totalCost, 4),
             rawQty: qty,
             rawGrossQuantity: calc.grossQuantity,
-            rawTotalCost: calc.totalCost
+            rawTotalCost: _roundFichaCost(calc.totalCost, 4)
           };
           compIngredients.push(ingData);
         });
@@ -8608,11 +8622,11 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
         unit: item ? (item.unidade_base || '') : '',
         lossPercent: calc.lossPercent,
         grossQuantityCalculated: calc.grossQuantity,
-        unitCost: calc.unitCost,
-        totalCost: calc.totalCost,
+        unitCost: _roundFichaCost(calc.unitCost, 6),
+        totalCost: _roundFichaCost(calc.totalCost, 4),
         rawQty: qty,
         rawGrossQuantity: calc.grossQuantity,
-        rawTotalCost: calc.totalCost,
+        rawTotalCost: _roundFichaCost(calc.totalCost, 4),
         recipeYieldQuantity: yieldQty,
         recipeYieldUnit: yieldUnit
       };
@@ -8628,10 +8642,10 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
         ingredients.push(Object.assign({ componentName: comp.name || '' }, ing, {
           qty: _parseFichaNum(ing.qty) * ratio,
           grossQuantityCalculated: _parseFichaNum(ing.grossQuantityCalculated) * ratio,
-          totalCost: _parseFichaNum(ing.totalCost) * ratio,
+          totalCost: _roundFichaCost(_parseFichaNum(ing.totalCost) * ratio, 4),
           rawQty: _parseFichaNum(ing.qty),
           rawGrossQuantity: _parseFichaNum(ing.grossQuantityCalculated),
-          rawTotalCost: _parseFichaNum(ing.totalCost)
+          rawTotalCost: _roundFichaCost(ing.totalCost, 4)
         }));
       });
     });
@@ -8659,17 +8673,17 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       packagingItems: packagingItems,
       packaging: packagingItems,
       ingredients: ingredients,
-      ingredientCost: componentCosts.ingredients,
-      packagingCost: componentCosts.packaging,
-      directCost: componentCosts.direct,
+      ingredientCost: _roundFichaCost(componentCosts.ingredients, 4),
+      packagingCost: _roundFichaCost(componentCosts.packaging, 4),
+      directCost: _roundFichaCost(componentCosts.direct, 4),
       componentCostBreakdown: componentCosts.components || [],
       indirectCostModeUsed: indirectCostInfo.modeUsed,
       indirectCostModeConfigured: indirectCostInfo.configuredMode,
       indirectCostFallback: !!indirectCostInfo.fallback,
       indirectCostPercent: indirectCostPercent,
-      indirectCost: indirectCost,
-      totalCost: totalCost,
-      costPerYield: yieldQty > 0 ? totalCost / yieldQty : 0,
+      indirectCost: _roundFichaCost(indirectCost, 4),
+      totalCost: _roundFichaCost(totalCost, 4),
+      costPerYield: yieldQty > 0 ? _roundFichaCost(totalCost / yieldQty, 4) : 0,
       minStock: minStock,
       maxStock: maxStock,
       estoque_minimo: minStock,
@@ -8897,10 +8911,10 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
         ingredients.push(Object.assign({ componentName: comp.name || '' }, ing, {
           qty: _parseFichaNum(ing.qty) * ratio,
           grossQuantityCalculated: _parseFichaNum(ing.grossQuantityCalculated) * ratio,
-          totalCost: _parseFichaNum(ing.totalCost) * ratio,
+          totalCost: _roundFichaCost(_parseFichaNum(ing.totalCost) * ratio, 4),
           rawQty: _parseFichaNum(ing.qty),
           rawGrossQuantity: _parseFichaNum(ing.grossQuantityCalculated),
-          rawTotalCost: _parseFichaNum(ing.totalCost)
+          rawTotalCost: _roundFichaCost(ing.totalCost, 4)
         }));
       });
     });

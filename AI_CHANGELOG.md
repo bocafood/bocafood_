@@ -1,5 +1,11 @@
 # AI Changelog
 
+## 2026-05-31 — Receitas: arredondamento visual dos custos
+- Arquivos alterados: `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Corrigi a exibição de custos no cadastro, listagem e detalhes de receitas para mostrar valores em moeda com 2 casas decimais.
+- Arredondei os custos calculados da ficha técnica antes de salvar os totais, custo por rendimento, custo de ingredientes e custo de embalagens.
+- Impacto esperado: impedir que `Custo total` e custos relacionados apareçam com uma sequência longa de casas decimais e manter a leitura da receita mais limpa.
+
 ## 2026-05-31 — Financeiro: validação de Saídas
 - Arquivos alterados: `public/js/modules/financeiro.js`, `AI_CHANGELOG.md`.
 - Validei a aba `Financeiro > Saídas`, incluindo listagem, filtros, nova saída, editar saída, detalhes, confirmação de pagamento, pagamento parcial, recorrência, parcelamento, categoria, fornecedor, forma de pagamento e conta bancária.
