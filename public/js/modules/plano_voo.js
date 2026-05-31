@@ -1641,6 +1641,7 @@ Modules.PlanoDeVoo = (function () {
     var monthIndex = month.monthIndex != null ? _num(month.monthIndex) : -1;
     var due = _dateFromAny(row.dueDate || (row.raw && (row.raw.vencimento || row.raw.dueDate || row.raw.data || row.raw.date)));
     var currentYear = new Date().getFullYear();
+    var monthEnd = monthIndex >= 0 ? new Date(currentYear, monthIndex + 1, 0, 23, 59, 59, 999) : null;
     if (recurrence === 'única') {
       if (!due || due.getMonth() !== monthIndex || due.getFullYear() !== currentYear) return 0;
       return _num(row.value || row.projected);
@@ -1649,6 +1650,7 @@ Modules.PlanoDeVoo = (function () {
       if (due && (due.getMonth() !== monthIndex || due.getFullYear() !== currentYear)) return 0;
       return _num(row.value || row.projected);
     }
+    if (due && monthEnd && due > monthEnd) return 0;
     return _num(row.projectedMonthly);
   }
 
@@ -2079,8 +2081,12 @@ Modules.PlanoDeVoo = (function () {
       if (seen[id]) return;
       seen[id] = true;
       var name = cp.name || cp.title || cp.descricao || cp.description || cp.nome || 'Conta a pagar';
-      var value = _num(cp.valorTotalOriginal || cp.valor || cp.amount || cp.total || cp.valorParcela || cp.valor_parcela || 0);
-      var recurrence = _normalizeRecurrence(cp.recorrente ? (cp.frequencia || cp.recorrencia || 'mensal') : (cp.frequencia || cp.recorrencia || 'única'));
+      var isParcel = !!(cp.parcelada || cp.parcelaNumero || cp.numeroParcelas || cp.parcelamentoId);
+      var isGeneratedRecurrence = !!(cp.recorrente && (cp.recorrenciaId || cp.contaOriginalId));
+      var value = isParcel
+        ? _num(cp.valorParcela || cp.valor_parcela || cp.valor || cp.amount || cp.total || cp.valorTotalOriginal || 0)
+        : _num(cp.valor || cp.amount || cp.total || cp.valorParcela || cp.valor_parcela || cp.valorTotalOriginal || 0);
+      var recurrence = _normalizeRecurrence(isGeneratedRecurrence ? 'única' : (cp.recorrente ? (cp.frequencia || cp.recorrencia || 'mensal') : (cp.frequencia || cp.recorrencia || 'única')));
       var recurrenceLabel = _recurrenceLabel(recurrence);
       var periodFactor = _periodRecurrenceFactor(recurrence);
       var projectedMonthly = value * periodFactor.monthly;
@@ -2156,7 +2162,10 @@ Modules.PlanoDeVoo = (function () {
   }
 
   function _outflowValue(s) {
-    var value = _num(s.valorTotalOriginal || s.valor || s.amount || s.total || 0);
+    var isParcel = !!(s.parcelada || s.parcelaNumero || s.numeroParcelas || s.parcelamentoId || (s.parcelamento && s.parcelamento.parcelas));
+    var value = isParcel
+      ? _num(s.valorParcela || s.valor_parcela || s.valor || s.amount || s.total || s.valorTotalOriginal || 0)
+      : _num(s.valor || s.amount || s.total || s.valorParcela || s.valor_parcela || s.valorTotalOriginal || 0);
     var paid = _num(s.valorPago || s.valor_pago_total || 0);
     var status = String(s.status || '').toLowerCase();
     if (status === 'parcial') return paid || value;
@@ -3425,7 +3434,10 @@ Modules.PlanoDeVoo = (function () {
 
   function _movementValueOut(m) {
     var st = _normalizeText(m.status || '');
-    var value = _num(m.valorPago || m.valor_pago_total || m.valorTotalOriginal || m.valorParcela || m.valor || 0);
+    var isParcel = !!(m.parcelada || m.parcelaNumero || m.numeroParcelas || m.parcelamentoId || (m.parcelamento && m.parcelamento.parcelas));
+    var value = isParcel
+      ? _num(m.valorPago || m.valor_pago_total || m.valorParcela || m.valor_parcela || m.valor || m.valorTotalOriginal || 0)
+      : _num(m.valorPago || m.valor_pago_total || m.valor || m.valorParcela || m.valor_parcela || m.valorTotalOriginal || 0);
     if (!value && st === 'pago') value = _num(m.valor || 0);
     return value;
   }

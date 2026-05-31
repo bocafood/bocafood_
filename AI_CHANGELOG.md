@@ -1,5 +1,13 @@
 # AI Changelog
 
+## 2026-06-01 — Plano de Voo: recorrências no mês correto
+- Arquivos alterados: `public/js/modules/plano_voo.js`, `AI_CHANGELOG.md`.
+- Corrigi a leitura de custos e despesas recorrentes/parceladas no resumo mês a mês do Plano de Voo.
+- Recorrências já materializadas pelo Financeiro passam a entrar como ocorrências únicas no mês do vencimento, em vez de repetir novamente em todos os meses da rota.
+- Parcelamentos passam a usar o valor da parcela no Plano de Voo, não o valor total original da conta.
+- Recorrências mensais ou semanais não aparecem antes do primeiro vencimento informado.
+- Impacto esperado: despesas e custos recorrentes ficam distribuídos no mês correto e o resumo mensal deixa de concentrar ou multiplicar valores indevidamente.
+
 ## 2026-06-01 — Plano de Voo: leitura da comissão efetiva
 - Arquivos alterados: `public/js/modules/plano_voo.js`, `AI_CHANGELOG.md`.
 - Ajustei a linha `Comissões dos canais` em `Custos que acompanham as vendas`.
