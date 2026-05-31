@@ -45,7 +45,8 @@ Modules.Fiscal = (function () {
       DB.getAll('compras'),
       DB.getAll('financeiro_saidas'),
       DB.getAll('financeiro_apagar'),
-      DB.getAll('fornecedores')
+      DB.getAll('fornecedores'),
+      DB.getDocRoot('config', 'geral').catch(function () { return {}; })
     ]).then(function (r) {
       _data = {
         config: _normalizeConfig(r[0] || {}),
@@ -54,8 +55,11 @@ Modules.Fiscal = (function () {
         compras: r[3] || [],
         saidas: r[4] || [],
         apagar: r[5] || [],
-        fornecedores: r[6] || []
+        fornecedores: r[6] || [],
+        geral: r[7] || {}
       };
+      _data.config.countryCode = _inheritedFiscalCountry(_data.config);
+      _data.config.legalBusiness = Object.assign({}, _data.config.legalBusiness || {}, { countryCode: _data.config.countryCode });
     });
   }
 
@@ -105,7 +109,7 @@ Modules.Fiscal = (function () {
       ivaPadrao: 10,
       irpfPadrao: 15,
       trimestreAtual: _currentQuarterKey(),
-      usarCalculoFiscal: true
+      usarCalculoFiscal: false
     };
   }
 
@@ -128,7 +132,7 @@ Modules.Fiscal = (function () {
       ivaPadrao: iva || defaults.defaultIvaRate,
       irpfPadrao: _num(c.irpfPadrao != null ? c.irpfPadrao : defaults.irpfPadrao),
       trimestreAtual: c.trimestreAtual || defaults.trimestreAtual,
-      usarCalculoFiscal: c.usarCalculoFiscal !== false
+      usarCalculoFiscal: c.usarCalculoFiscal === true
     });
     normalized.legalBusiness.countryCode = _normalizeCountryCode(normalized.legalBusiness.countryCode || normalized.countryCode);
     return normalized;
@@ -148,12 +152,14 @@ Modules.Fiscal = (function () {
     var fd = c.facturaDirecta || {};
     var legal = c.legalBusiness || {};
     var fdStatus = fd.connectionStatus === 'connected' ? 'Conectado' : 'Não conectado';
+    var inheritedCountry = _inheritedFiscalCountry(c);
+    var inheritedCountryLabel = _countryLabel(inheritedCountry);
     _content(
       '<div style="display:flex;flex-direction:column;gap:16px;">' +
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
           '<div style="min-width:0;"><h2 style="font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;line-height:1.2;">Configuração fiscal</h2><p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0;max-width:680px;">Prepare os dados de faturação do seu negócio para uma futura integração fiscal. Esta tela ainda não emite faturas nem envia documentos para nenhum provedor.</p></div>' +
           '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">' +
-            _chip(_countryLabel(c.countryCode)) +
+            _chip(inheritedCountryLabel) +
             _chip((c.defaultIvaRate || 0) + '% IVA') +
             _chip(_invoiceModeLabel(c.invoiceMode)) +
             _chip('FacturaDirecta: ' + fdStatus) +
@@ -165,11 +171,11 @@ Modules.Fiscal = (function () {
             '<div style="' + _softGroupStyle() + '">' +
               '<div style="font-size:12px;font-weight:700;color:#1F1F1F;margin-bottom:12px;">Regras padrão</div>' +
               '<label style="display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;padding:11px 12px;border-radius:14px;background:#fff;border:1px solid #EAE4DA;color:#1F1F1F;font-size:13px;font-weight:700;line-height:1.35;">' +
-                '<input id="fis-enabled" type="checkbox" ' + (c.usarCalculoFiscal !== false ? 'checked' : '') + ' style="accent-color:#B42318;width:17px;height:17px;margin-top:1px;flex:0 0 auto;">' +
+                '<input id="fis-enabled" type="checkbox" ' + (c.usarCalculoFiscal === true ? 'checked' : '') + ' style="accent-color:#B42318;width:17px;height:17px;margin-top:1px;flex:0 0 auto;">' +
                 '<span><span style="display:block;">Usar controle fiscal</span><small style="display:block;margin-top:3px;color:#6F6860;font-size:12px;font-weight:500;line-height:1.4;">Ative quando quiser que IVA e IRPF entrem nas leituras fiscais, preços e Plano de Voo.</small></span>' +
               '</label>' +
               '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;">' +
-                _select('fis-country', 'País fiscal', _countryOptions(c.countryCode)) +
+                _readonlyField('País fiscal', inheritedCountryLabel, 'Vem das Configurações gerais do negócio.') +
                 _select('fis-currency', 'Moeda', _currencyOptions(c.currency)) +
                 _field('fis-default-iva', 'IVA padrão (%)', c.defaultIvaRate, 'number') +
                 _field('fis-irpf', 'IRPF padrão (%)', c.irpfPadrao, 'number') +
@@ -233,7 +239,7 @@ Modules.Fiscal = (function () {
     var now = new Date().toISOString();
     var iva = _num(_val('fis-default-iva')) || 10;
     var irpf = _num(_val('fis-irpf'));
-    var country = _normalizeCountryCode(_val('fis-country') || current.countryCode);
+    var country = _inheritedFiscalCountry(current);
     var data = Object.assign({}, current, {
       countryCode: country,
       currency: _normalizeCurrency(_val('fis-currency') || current.currency),
@@ -278,6 +284,7 @@ Modules.Fiscal = (function () {
       UI.toast('Configuração fiscal salva.', 'success');
       _data.config = _normalizeConfig(data);
       _renderSub();
+      if (window.AdminApp && typeof AdminApp.applyFiscalVisibility === 'function') AdminApp.applyFiscalVisibility();
     }).catch(function (err) { UI.toast('Erro: ' + err.message, 'error'); });
   }
 
@@ -1039,6 +1046,17 @@ Modules.Fiscal = (function () {
     return ['ES', 'PT', 'BR', 'FR', 'IT', 'DE', 'GB', 'US'].indexOf(v) >= 0 ? v : 'ES';
   }
 
+  function _inheritedFiscalCountry(current) {
+    var g = _data.geral || {};
+    var address = g.companyAddress || g.businessAddress || {};
+    return _normalizeCountryCode(
+      g.fiscalCountry || g.countryFiscal || g.paisFiscal || g.taxCountry || g.fiscal_country ||
+      g.companyCountry || address.country || g.country || g.pais ||
+      (current && current.countryCode) ||
+      'ES'
+    );
+  }
+
   function _normalizeCurrency(value) {
     var v = String(value || 'EUR').trim().toUpperCase();
     return ['EUR', 'BRL', 'USD', 'GBP'].indexOf(v) >= 0 ? v : 'EUR';
@@ -1183,6 +1201,12 @@ Modules.Fiscal = (function () {
   function _thStyle() { return 'padding:12px 14px;text-align:left;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid #EAE4DA;background:#fff;'; }
   function _tdStyle() { return 'padding:12px 14px;font-size:13px;border-bottom:1px solid #F2EDEA;'; }
   function _field(id, label, value, type) { return '<div><label style="' + _labelStyle() + '">' + label + '</label><input id="' + id + '" type="' + (type || 'text') + '" value="' + _esc(value == null ? '' : value) + '" style="' + _inputStyle() + '"></div>'; }
+  function _readonlyField(label, value, help) {
+    return '<div><label style="' + _labelStyle() + '">' + _esc(label) + '</label>' +
+      '<div style="' + _inputStyle() + 'display:flex;align-items:center;min-height:40px;background:#FAF8F4;color:#1F1F1F;font-weight:700;">' + _esc(value || 'Não informado') + '</div>' +
+      (help ? '<div style="font-size:11px;color:#8A7E7C;line-height:1.35;margin-top:5px;">' + _esc(help) + '</div>' : '') +
+      '</div>';
+  }
   function _select(id, label, options) { return '<div><label style="' + _labelStyle() + '">' + label + '</label><select id="' + id + '" style="' + _inputStyle() + 'background:#fff;">' + options + '</select></div>'; }
   function _readonlyMini(label, value) {
     return '<div style="background:#FAF8F4;border:1px solid #EAE4DA;border-radius:12px;padding:10px 12px;">' +

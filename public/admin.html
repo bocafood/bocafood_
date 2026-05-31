@@ -379,7 +379,7 @@ button,input,select,textarea{font-family:inherit}
         </div>
       </div>
 
-      <div class="nav-group" id="nav-group-fiscal">
+      <div class="nav-group" id="nav-group-fiscal" style="display:none">
         <button class="nav-item" data-route="fiscal" onclick="AdminApp.toggleNavGroup(event,'fiscal','fiscal/resumo')"><span class="mi">receipt_long</span>Fiscal</button>
         <div class="nav-sub">
           <button class="nav-sub-item" data-route="fiscal/resumo" onclick="Router.navigate('fiscal/resumo')">Resumo trimestral</button>
@@ -395,6 +395,7 @@ button,input,select,textarea{font-family:inherit}
           <button class="nav-sub-item" data-route="configuracoes/geral" onclick="Router.navigate('configuracoes/geral')">Geral</button>
           <button class="nav-sub-item" data-route="configuracoes/conta_usuario" onclick="Router.navigate('configuracoes/conta_usuario')">Usuário</button>
           <button class="nav-sub-item" data-route="configuracoes/tpv" onclick="Router.navigate('configuracoes/tpv')">Venda presencial</button>
+          <button class="nav-sub-item" data-route="fiscal/configuracoes" onclick="Router.navigate('fiscal/configuracoes')">Fiscal</button>
           <button class="nav-sub-item" data-route="configuracoes/integracoes" onclick="Router.navigate('configuracoes/integracoes')">Integrações</button>
           <button class="nav-sub-item" data-route="configuracoes/canais_venda" onclick="Router.navigate('configuracoes/canais_venda')">Canais de venda</button>
           <button class="nav-sub-item" data-route="configuracoes/plano" onclick="Router.navigate('configuracoes/plano')">Plano</button>
@@ -710,6 +711,7 @@ button,input,select,textarea{font-family:inherit}
         _adminApplyStoreIdentity(profile, null, null);
       }
       AdminApp.refreshStoreOnlineStatus();
+      AdminApp.applyFiscalVisibility();
       AdminApp.applyTpvVisibility();
       var currentRoute = window.location.hash.replace('#', '') || 'dashboard';
       var isDocumentationRoute = currentRoute === 'suporte/documentacao' || currentRoute === 'suporte/guias';
@@ -1072,11 +1074,24 @@ button,input,select,textarea{font-family:inherit}
       var fc = window.Auth && Auth.getFiscalCountry ? Auth.getFiscalCountry() : 'ES';
       var cfg = window.FiscalConfig ? FiscalConfig.get(fc) : { fiscalModuleEnabled: true };
       var fiscalGroup = document.getElementById('nav-group-fiscal');
-      if (fiscalGroup) fiscalGroup.style.display = cfg.fiscalModuleEnabled ? '' : 'none';
-      if (!cfg.fiscalModuleEnabled && window.Router) {
-        var current = Router.current ? Router.current() : '';
-        if (current.split('/')[0] === 'fiscal') Router.navigate('dashboard');
+      if (!window.DB || typeof DB.getDocRoot !== 'function') {
+        if (fiscalGroup) fiscalGroup.style.display = 'none';
+        return;
       }
+      DB.getDocRoot('config', 'fiscal').then(function (fiscalCfg) {
+        fiscalCfg = fiscalCfg || {};
+        var supported = cfg.fiscalModuleEnabled !== false;
+        var enabled = supported && fiscalCfg.usarCalculoFiscal === true;
+        if (fiscalGroup) fiscalGroup.style.display = enabled ? '' : 'none';
+        if ((!supported || !enabled) && window.Router) {
+          var current = Router.current ? Router.current() : '';
+          if (current.split('/')[0] === 'fiscal' && current !== 'fiscal/configuracoes') {
+            Router.navigate(supported ? 'fiscal/configuracoes' : 'dashboard');
+          }
+        }
+      }).catch(function () {
+        if (fiscalGroup) fiscalGroup.style.display = 'none';
+      });
     },
     applyTpvVisibility: function () {
       var group = document.getElementById('nav-group-tpv');

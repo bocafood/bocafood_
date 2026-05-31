@@ -1,5 +1,36 @@
 # AI Changelog
 
+## 2026-05-31 — Onboarding: Fiscal em duas etapas
+- Arquivos alterados: `public/js/modules/dashboard.js`, `AI_CHANGELOG.md`.
+- Reescrevi o `Como preencher > Configurar fiscal` para separar a decisão de ativação dos campos fiscais.
+- A orientação agora explica primeiro o que acontece ao ativar ou deixar desligado o controle fiscal.
+- Os campos de IVA, IRPF, emissão e dados fiscais ficaram apresentados como a segunda parte do checklist, usada apenas se o controle fiscal for ativado.
+- Impacto esperado: evitar que a usuária preencha dados fiscais sem entender antes se precisa ativar esse controle na rotina.
+
+## 2026-05-31 — Fiscal: ativação igual à Venda Presencial
+- Arquivos alterados: `public/admin.html`, `public/js/modules/fiscal.js`, `public/js/modules/catalogo.js`, `public/js/modules/compras.js`, `public/js/modules/plano_voo.js`, `public/js/modules/dashboard.js`, `AI_CHANGELOG.md`.
+- Alinhei o Fiscal ao comportamento da Venda Presencial: a configuração fica acessível em `Configurações > Fiscal` e o menu principal `Fiscal` só aparece quando o controle fiscal está ativado.
+- O Fiscal deixou de nascer ativo por padrão; agora precisa ser ativado explicitamente no checkbox `Usar controle fiscal`.
+- Ao ativar ou desativar, o menu lateral é atualizado sem precisar recarregar a página.
+- Produto do cardápio, compras, Plano de Voo e onboarding agora consideram o Fiscal ativo somente quando `usarCalculoFiscal` está verdadeiro.
+- Impacto esperado: evitar que a usuária veja um módulo fiscal ativo sem ter escolhido usar esse controle.
+
+## 2026-05-31 — Fiscal: país herdado das configurações gerais
+- Arquivos alterados: `public/js/modules/fiscal.js`, `public/js/modules/dashboard.js`, `AI_CHANGELOG.md`.
+- Removi a escolha editável de país dentro de `Fiscal > Configurações fiscais`.
+- O país fiscal agora é exibido como informação herdada de `Configurações > Geral`, evitando conflito entre o país do negócio e a configuração fiscal.
+- Ao salvar a configuração fiscal, o país gravado usa a base das configurações gerais.
+- Atualizei o `Como preencher` para orientar a usuária a corrigir o país nos dados gerais do negócio.
+- Impacto esperado: evitar configuração duplicada e reduzir risco de IVA, IRPF e formas financeiras ficarem ligados ao país errado.
+
+## 2026-05-31 — Onboarding: cardápio antes do Plano de Voo
+- Arquivos alterados: `public/js/modules/dashboard.js`, `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Reordenei o onboarding para cadastrar produtos do cardápio antes da criação do Plano de Voo.
+- Removi a etapa duplicada de cadastro de produtos da fase de loja online, mantendo ali apenas a organização do cardápio.
+- Completei o `Como preencher > Cadastrar produtos do cardápio` com os campos reais do modal, incluindo tipo de produto, vínculo com receita/produto pronto, combos, extras, tags, variantes, dados fiscais, SEO e visibilidade.
+- O cadastro de produto do cardápio agora herda o IVA padrão configurado em Fiscal ao preencher os dados fiscais do produto.
+- Impacto esperado: criar uma base mais confiável para preço, custo, margem e Plano de Voo antes de ativar a rota.
+
 ## 2026-05-31 — Onboarding: Como preencher completo
 - Arquivos alterados: `public/js/modules/dashboard.js`, `AI_CHANGELOG.md`.
 - Revisei o `Como preencher` das etapas afetadas por Fiscal, Ingredientes/Embalagens/Produtos e Plano de Voo contra os campos reais das telas.

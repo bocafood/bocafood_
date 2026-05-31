@@ -61,8 +61,12 @@ Modules.Dashboard = (function () {
           '.dash-welcome-point{border:1px solid rgba(234,228,218,.92);background:rgba(255,255,255,.76);border-radius:16px;padding:12px;display:flex;gap:10px;align-items:flex-start;box-shadow:0 10px 22px rgba(31,31,31,.035);}' +
           '.dash-tour-tag{display:inline-flex;align-items:center;gap:7px;min-height:25px;padding:0 10px;border-radius:999px;background:#FFF7EC;border:1px solid #EFE1D0;color:#8A6F5A;font-size:11px;font-weight:750;letter-spacing:.03em;text-transform:uppercase;}' +
           '.dash-tour-detail{display:grid;grid-template-columns:minmax(98px,128px) 1fr;gap:8px;align-items:start;font-size:12px;line-height:1.38;border-radius:11px;padding:7px 8px;background:#FFFEFC;}' +
-          '.dash-tour-modal,.dash-welcome-modal,.dash-checklist-modal{scrollbar-width:none;-ms-overflow-style:none;}' +
-          '.dash-tour-modal::-webkit-scrollbar,.dash-welcome-modal::-webkit-scrollbar,.dash-checklist-modal::-webkit-scrollbar{display:none;width:0;height:0;}' +
+          '.dash-checklist-backdrop{position:fixed;inset:0;background:rgba(31,31,31,.18);z-index:92;display:flex;align-items:center;justify-content:center;padding:18px;overflow:hidden;}' +
+          '.dash-checklist-modal{width:min(560px,calc(100vw - 28px));max-height:calc(100dvh - 28px);display:flex;flex-direction:column;overflow:hidden;background:linear-gradient(180deg,#fff 0%,#FFFEFB 100%);border:1px solid rgba(234,228,218,.95);border-radius:24px;box-shadow:0 26px 70px rgba(31,31,31,.22);}' +
+          '.dash-checklist-body{min-height:0;overflow:auto;scrollbar-width:none;-ms-overflow-style:none;}' +
+          '.dash-checklist-body::-webkit-scrollbar{display:none;width:0;height:0;}' +
+          '.dash-tour-modal,.dash-welcome-modal{scrollbar-width:none;-ms-overflow-style:none;}' +
+          '.dash-tour-modal::-webkit-scrollbar,.dash-welcome-modal::-webkit-scrollbar{display:none;width:0;height:0;}' +
           '@media(max-width:760px){.dash-onboarding-float{right:12px;bottom:12px;width:calc(100vw - 24px);}.dash-onboarding-pill{right:12px;bottom:12px;}.dash-tour-backdrop,.dash-welcome-backdrop{align-items:flex-end;padding:12px;}.dash-tour-modal,.dash-welcome-modal{border-radius:22px;max-height:calc(100dvh - 24px);overflow:auto;}}' +
         '</style>' +
         '<div id="dashboard-content" style="display:flex;flex-direction:column;gap:16px;"><div class="loading-inline">Carregando...</div></div>' +
@@ -186,12 +190,14 @@ Modules.Dashboard = (function () {
       '.dash-welcome-point{border:1px solid rgba(234,228,218,.92);background:rgba(255,255,255,.76);border-radius:16px;padding:12px;display:flex;gap:10px;align-items:flex-start;box-shadow:0 10px 22px rgba(31,31,31,.035);}' +
       '.dash-tour-tag{display:inline-flex;align-items:center;gap:7px;min-height:25px;padding:0 10px;border-radius:999px;background:#FFF7EC;border:1px solid #EFE1D0;color:#8A6F5A;font-size:11px;font-weight:750;letter-spacing:.03em;text-transform:uppercase;}' +
       '.dash-tour-detail{display:grid;grid-template-columns:minmax(98px,128px) 1fr;gap:8px;align-items:start;font-size:12px;line-height:1.38;border-radius:11px;padding:7px 8px;background:#FFFEFC;}' +
-      '.dash-checklist-backdrop{position:fixed;inset:0;background:rgba(31,31,31,.18);z-index:92;display:flex;align-items:center;justify-content:center;padding:18px;}' +
-      '.dash-checklist-modal{width:min(560px,calc(100vw - 28px));max-height:calc(100dvh - 28px);overflow:auto;background:linear-gradient(180deg,#fff 0%,#FFFEFB 100%);border:1px solid rgba(234,228,218,.95);border-radius:24px;box-shadow:0 26px 70px rgba(31,31,31,.22);}' +
-      '.dash-tour-modal,.dash-welcome-modal,.dash-checklist-modal{scrollbar-width:none;-ms-overflow-style:none;}' +
-      '.dash-tour-modal::-webkit-scrollbar,.dash-welcome-modal::-webkit-scrollbar,.dash-checklist-modal::-webkit-scrollbar{display:none;width:0;height:0;}' +
+      '.dash-checklist-backdrop{position:fixed;inset:0;background:rgba(31,31,31,.18);z-index:92;display:flex;align-items:center;justify-content:center;padding:18px;overflow:hidden;}' +
+      '.dash-checklist-modal{width:min(560px,calc(100vw - 28px));max-height:calc(100dvh - 28px);display:flex;flex-direction:column;overflow:hidden;background:linear-gradient(180deg,#fff 0%,#FFFEFB 100%);border:1px solid rgba(234,228,218,.95);border-radius:24px;box-shadow:0 26px 70px rgba(31,31,31,.22);}' +
+      '.dash-checklist-body{min-height:0;overflow:auto;scrollbar-width:none;-ms-overflow-style:none;}' +
+      '.dash-checklist-body::-webkit-scrollbar{display:none;width:0;height:0;}' +
+      '.dash-tour-modal,.dash-welcome-modal{scrollbar-width:none;-ms-overflow-style:none;}' +
+      '.dash-tour-modal::-webkit-scrollbar,.dash-welcome-modal::-webkit-scrollbar{display:none;width:0;height:0;}' +
       '.dash-checklist-detail{display:grid;grid-template-columns:minmax(108px,140px) 1fr;gap:8px;align-items:start;font-size:12.4px;line-height:1.42;border-radius:12px;padding:8px 9px;background:#FFFEFC;border:1px solid #F1ECE4;}' +
-      '@media(max-width:760px){.dash-onboarding-float{right:12px;bottom:12px;width:calc(100vw - 24px);}.dash-onboarding-pill{right:12px;bottom:12px;}.dash-tour-backdrop,.dash-welcome-backdrop,.dash-checklist-backdrop{align-items:flex-end;padding:12px;}.dash-tour-modal,.dash-welcome-modal,.dash-checklist-modal{border-radius:22px;max-height:calc(100dvh - 24px);overflow:auto;}.dash-checklist-detail{grid-template-columns:1fr;gap:3px;}}';
+      '@media(max-width:760px){.dash-onboarding-float{right:12px;bottom:12px;width:calc(100vw - 24px);}.dash-onboarding-pill{right:12px;bottom:12px;}.dash-tour-backdrop,.dash-welcome-backdrop,.dash-checklist-backdrop{align-items:flex-end;padding:12px;}.dash-tour-modal,.dash-welcome-modal{border-radius:22px;max-height:calc(100dvh - 24px);overflow:auto;}.dash-checklist-modal{border-radius:22px;max-height:calc(100dvh - 24px);}.dash-checklist-detail{grid-template-columns:1fr;gap:3px;}}';
     document.head.appendChild(style);
   }
 
@@ -1068,7 +1074,7 @@ Modules.Dashboard = (function () {
           '</div>' +
           '<button type="button" onclick="Modules.Dashboard._closeChecklistGuide()" aria-label="Fechar" style="width:34px;height:34px;border:none;background:#fff;border-radius:12px;color:#6F6860;cursor:pointer;display:flex;align-items:center;justify-content:center;"><span class="mi" style="font-size:19px;">close</span></button>' +
         '</div>' +
-        '<div style="padding:17px 20px 18px;display:flex;flex-direction:column;gap:13px;">' +
+        '<div class="dash-checklist-body" style="padding:17px 20px 18px;display:flex;flex-direction:column;gap:13px;">' +
           '<div style="display:flex;gap:11px;align-items:flex-start;border:1px solid #EFE6DA;background:#FFFEFC;border-radius:16px;padding:13px;">' +
             '<span class="mi" style="width:38px;height:38px;border-radius:14px;background:#F5EFE6;color:#8A6F5A;display:flex;align-items:center;justify-content:center;font-size:21px;flex:0 0 auto;">' + _esc(guide.icon || active.step.icon || 'checklist') + '</span>' +
             '<div style="min-width:0;"><div style="font-size:13px;color:#1F1F1F;font-weight:780;line-height:1.25;">O que fazer nesta tela</div><div style="font-size:12.5px;color:#5F5750;line-height:1.5;margin-top:4px;">' + (guide.introHtml || _esc(guide.intro || '')) + '</div></div>' +
@@ -1185,10 +1191,14 @@ Modules.Dashboard = (function () {
       'Configurar fiscal': {
         icon: 'request_quote',
         path: 'Caminho: Fiscal > Configurações fiscais',
-        intro: '<div><strong style="color:#1F1F1F;">Aqui você informa como o negócio deve reservar impostos nas leituras do BocaFood.</strong></div><div style="margin-top:7px;">Essa etapa deixa o Plano de Voo mais realista, porque IVA e IRPF entram antes de calcular quanto pode sobrar.</div>',
+        intro: '<div><strong style="color:#1F1F1F;">Primeiro decida se o controle fiscal faz parte da sua rotina agora.</strong></div><div style="margin-top:7px;">Se ativar, o BocaFood passa a considerar IVA e IRPF nas leituras, nos produtos, nas compras e no Plano de Voo. Se deixar desligado, essa parte fica guardada para configurar depois.</div>',
         fields: [
+          ['1. Ativação', '<div><strong style="color:#1F1F1F;">Comece por aqui.</strong> Ligue o controle fiscal somente se você quer que IVA e IRPF entrem nas contas do negócio agora. Quando ativar e salvar, o menu Fiscal aparece no painel para acompanhar IVA, IRPF e resumo trimestral.</div>', true],
           ['Usar controle fiscal', 'Ative quando quiser que IVA e IRPF entrem nas leituras fiscais, nos preços e no Plano de Voo. Se deixar desligado, o BocaFood não faz reserva fiscal automática.'],
-          ['País fiscal', 'Escolha o país onde o negócio declara impostos. Isso ajuda a mostrar documentos e campos mais próximos da sua realidade.'],
+          ['Se deixar desligado', 'O restante dos campos pode ficar para depois. O Plano de Voo não vai separar reserva fiscal, os produtos não vão puxar IVA padrão e as compras não vão pedir dados fiscais.'],
+          ['Se ativar', 'Preencha os campos abaixo antes de seguir para ingredientes, embalagens, produtos, receitas, cardápio e Plano de Voo. Assim a base fiscal já entra nas próximas etapas.'],
+          ['2. Base fiscal que será usada', '<div><strong style="color:#1F1F1F;">Preencha esta parte apenas se o controle fiscal estiver ativado.</strong> Ela define a base que o BocaFood usa para reservar impostos e preencher produtos e compras com mais segurança.</div>', true],
+          ['País fiscal', 'Esse campo vem das Configurações gerais do negócio. Se o país estiver errado, ajuste primeiro os dados do negócio em Configurações > Geral.'],
           ['Moeda', 'Escolha a moeda usada no negócio. Para Espanha e Portugal, normalmente será EUR.'],
           ['IVA padrão (%)', 'Informe a porcentagem de IVA mais comum para o que você vende ou compra. Esse valor vira a base da reserva fiscal quando o item não tiver uma porcentagem própria.'],
           ['IRPF padrão (%)', 'Informe a porcentagem usada como referência para reservar imposto sobre a sobra estimada. Esse valor ajuda o Plano de Voo a não contar como sobra um dinheiro que pode precisar ficar guardado.'],
@@ -1210,8 +1220,8 @@ Modules.Dashboard = (function () {
           ['Província', 'Informe a província, distrito ou região correspondente ao endereço fiscal.'],
           ['Código postal', 'Informe o código postal do endereço fiscal.']
         ],
-        actions: ['Ative o controle fiscal se ele fizer parte da sua rotina.', 'Preencha IVA e IRPF com os percentuais que você usa como referência.', 'Salve antes de criar o Plano de Voo para a reserva fiscal entrar na rota.'],
-        ready: 'Está pronto quando o controle fiscal está configurado com IVA, IRPF e dados principais do negócio.'
+        actions: ['Primeiro escolha se vai ativar o controle fiscal agora.', 'Se ativar, preencha IVA, IRPF e os dados fiscais antes de seguir para as próximas etapas.', 'Salve para liberar o menu Fiscal e para a reserva fiscal entrar no Plano de Voo.', 'Se não for usar agora, mantenha desligado e siga o checklist sem preencher o restante.'],
+        ready: 'Está pronto quando você decidiu se vai usar o controle fiscal agora. Se ativou, também precisa salvar IVA, IRPF e os dados fiscais principais.'
       },
       'Cadastrar ingredientes, embalagens e produtos comprados': {
         icon: 'inventory_2',
@@ -1276,13 +1286,26 @@ Modules.Dashboard = (function () {
         path: 'Caminho: Cardápio > Produtos',
         intro: 'Depois dos ingredientes, embalagens e receitas, cadastre o que a cliente realmente compra no cardápio. Aqui o produto ganha preço, imagem, opções e visibilidade para venda.',
         fields: [
-          ['Nome e categoria', 'Use nomes claros e coloque cada produto no grupo certo.'],
-          ['Preço de venda', 'Informe o valor que a cliente vai pagar.'],
-          ['Vínculo com receita ou item pronto', 'Quando existir, ligue o produto ao que foi cadastrado na produção ou nas compras. Isso melhora estoque, custo e margem.'],
-          ['Imagem e opções', 'Use foto quando tiver e cadastre sabores, tamanhos, adicionais ou combos quando existirem.'],
-          ['Visibilidade', 'Deixe marcado apenas o que deve aparecer para venda.']
+          ['Imagem', 'Adicione uma foto quando tiver. A imagem ajuda a cliente entender o produto mais rápido e deixa o cardápio mais confiável.'],
+          ['Nome do produto', 'Use o nome que a cliente vai reconhecer no cardápio. Exemplo: Coxinha de Frango, Brigadeiro, Bolo de Prestígio ou Guaraná lata.'],
+          ['Frase que faz vender', 'Escreva uma frase curta que ajude a cliente decidir. Fale do sabor, textura, recheio ou benefício principal.'],
+          ['Descrição curta', 'Use para explicar o produto em poucas palavras. Essa descrição aparece no card do produto.'],
+          ['Descrição completa', 'Use para detalhes que aparecem quando a cliente abre o produto, como ingredientes principais, tamanho, recheio ou cuidado importante.'],
+          ['Preço', 'Informe o valor que a cliente vai pagar. Esse preço ajuda o Plano de Voo a entender ticket, venda esperada e margem.'],
+          ['Categoria', 'Coloque o produto no grupo certo do cardápio, como Salgados, Doces, Bebidas, Combos ou Pratos.'],
+          ['Tipo de produto', 'Escolha Produto simples quando ele é vendido sozinho. Escolha Produto com escolhas / combo quando a cliente precisa escolher sabor, tamanho, acompanhamento ou itens do menu.'],
+          ['Receita', 'Use quando o produto é produzido pelo negócio. Vincule à receita cadastrada para o custo e a margem ficarem mais confiáveis.'],
+          ['Produto pronto', 'Use quando o item é comprado pronto e revendido, como bebida, doce de fornecedor ou produto embalado.'],
+          ['Escolhas do combo', 'Use quando o produto tem grupos de escolha. Exemplo: escolher bebida, sabor, acompanhamento ou sobremesa.'],
+          ['Produtos extras', 'Use para sugerir um item junto ao produto principal e aumentar o valor do pedido.'],
+          ['Tags', 'Marque selos visuais que ajudam a destacar o produto, como novidade, mais vendido ou destaque.'],
+          ['Variantes', 'Marque grupos de opções já cadastrados, como tamanho, sabor, adicionais ou acompanhamentos.'],
+          ['Observação interna', 'Use para uma anotação da equipe. Essa informação não aparece para a cliente.'],
+          ['Dados fiscais', 'Quando o controle fiscal estiver ativo, revise SKU, nome fiscal, IVA, categoria fiscal e unidade fiscal. O IVA começa com o padrão configurado em Fiscal e pode ser ajustado no produto quando necessário.'],
+          ['SEO opcional', 'Use somente se quiser preparar o produto para aparecer melhor no Google: título, descrição, URL, palavra-chave e texto alternativo da imagem.'],
+          ['Mostrar no cardápio', 'Deixe ligado apenas para produtos que a cliente pode ver e comprar agora. Desligue quando o produto ainda não deve aparecer.']
         ],
-        actions: ['Comece pelos produtos que a cliente mais pede.', 'Confira se produto produzido tem receita e se produto comprado pronto tem custo.', 'Depois abra o cardápio online para ver se a compra ficou fácil.'],
+        actions: ['Cadastre primeiro os produtos principais que a cliente mais pede.', 'Vincule produto produzido à receita e produto comprado pronto ao item de compra.', 'Confira preço, custo e margem antes de criar o Plano de Voo.', 'Deixe visível apenas o que já pode ser vendido.'],
         ready: 'Está pronto quando os principais produtos de venda aparecem com nome, preço, categoria e vínculo correto quando existir.'
       },
       'Registrar custos e despesas fixas': {
@@ -2371,7 +2394,7 @@ Modules.Dashboard = (function () {
     var money = _data.moneyConfig || {};
     var hasPriceRules = !!(money.desiredMarginPct || money.minMarginPct || money.defaultMarkup || Object.keys(money).length);
     var fiscal = _data.fiscalConfig || {};
-    var hasFiscalConfig = fiscal.usarCalculoFiscal !== false && !!(fiscal.defaultIvaRate || fiscal.ivaPadrao || fiscal.irpfPadrao);
+    var hasFiscalConfig = fiscal.usarCalculoFiscal === true && !!(fiscal.defaultIvaRate || fiscal.ivaPadrao || fiscal.irpfPadrao);
     var hasProducts = (_data.products || []).length > 0;
     var hasPurchaseItems = (_data.purchaseItems || []).length > 0;
     var hasRecipes = (_data.recipes || []).length > 0;
@@ -2402,6 +2425,7 @@ Modules.Dashboard = (function () {
           { title: 'Configurar fiscal', text: 'Informe IVA e IRPF para a rota não contar como sobra um dinheiro que precisa ficar reservado.', icon: 'request_quote', route: 'fiscal/configuracoes', done: hasFiscalConfig },
           { title: 'Cadastrar ingredientes, embalagens e produtos comprados', text: 'Cadastre ingredientes, embalagens e produtos prontos que entram na operação.', icon: 'inventory_2', route: 'compras/itens', done: hasPurchaseItems },
           { title: 'Cadastrar receitas', text: 'Monte as receitas usando os ingredientes, embalagens e bases cadastradas.', icon: 'receipt_long', route: 'receitas/receitas', done: hasRecipes },
+          { title: 'Cadastrar produtos do cardápio', text: 'Coloque para venda os produtos que a cliente vai comprar.', icon: 'restaurant_menu', route: 'catalogo/produtos', done: hasProducts },
           { title: 'Registrar custos e despesas fixas', text: 'Inclua contas e compromissos que precisam entrar na rota.', icon: 'payments', route: 'financeiro/contas-pagar', done: hasCosts }
         ]
       },
@@ -2421,7 +2445,6 @@ Modules.Dashboard = (function () {
         shortTitle: 'Venda',
         text: 'Deixe a experiência pronta para a cliente entender, escolher e pedir.',
         steps: [
-          { title: 'Cadastrar produtos do cardápio', text: 'Agora coloque para venda os produtos que a cliente vai comprar.', icon: 'restaurant_menu', route: 'catalogo/produtos', done: hasProducts },
           { title: 'Organizar cardápio', text: 'Deixe produtos, categorias e destaques fáceis de comprar.', icon: 'menu_book', route: 'catalogo/produtos', done: hasProducts },
           { title: 'Configurar cardápio online', text: 'Use sua identidade, capa, logo e informações para vender com confiança.', icon: 'store', route: 'loja-online/template', done: hasStorefrontIdentity },
           { title: 'Conferir entrega e retirada', text: 'Garanta que a cliente saiba como e quando vai receber o pedido.', icon: 'local_shipping', route: 'loja-online/template', done: hasCheckout }

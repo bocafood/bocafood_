@@ -1571,7 +1571,7 @@ Modules.Compras = (function () {
         _purchaseField('cp-validade', 'Validade', '', 'date') +
       '</div>' +
       (function () {
-        var _fiscalEnabled = _fiscalConfig.usarCalculoFiscal !== false;
+        var _fiscalEnabled = _fiscalConfig.usarCalculoFiscal === true;
         return '<div class="purchase-field-grid purchase-price-grid">' +
           _purchaseField('cp-preco', 'Preço por embalagem (€)', '', 'number', 'Modules.Compras._calcCompraLinha()') +
           _purchaseField('cp-desc', 'Desconto unitário (€)', '', 'number', 'Modules.Compras._calcCompraLinha()') +
@@ -1584,7 +1584,7 @@ Modules.Compras = (function () {
       '<div id="cp-preco-hint"></div>' +
       '<div id="cp-lines"></div><div id="cp-total" style="margin:10px 0 14px;text-align:right;font-weight:600;"></div>' +
       (function () {
-        var _fiscalEnabled = _fiscalConfig.usarCalculoFiscal !== false;
+        var _fiscalEnabled = _fiscalConfig.usarCalculoFiscal === true;
         if (!_fiscalEnabled) return '';
         return '<section id="cp-fiscal-card" class="purchase-card">' +
           '<div class="purchase-card-head"><span class="mi">request_quote</span><div><div style="' + secTitle + '">Dados fiscais</div><div style="' + secHint + '">Classifique a compra para manter impostos e despesas bem organizados.</div></div></div>' +
@@ -2324,7 +2324,7 @@ Modules.Compras = (function () {
     var valorSemIva = linhas.reduce(function (s, l) { return s + (_num(l.valorSemIva) || _lineTotal(l)); }, 0);
     var ivaValor = linhas.reduce(function (s, l) { return s + _num(l.ivaValor); }, 0);
     var ivaPctList = linhas.map(function (l) { return _num(l.ivaPct); }).filter(function (v) { return v > 0; });
-    var fiscalEnabled = _fiscalConfig.usarCalculoFiscal !== false;
+    var fiscalEnabled = _fiscalConfig.usarCalculoFiscal === true;
     var compraData = {
       data: data,
       fornecedorId: _el('cp-forn').value,

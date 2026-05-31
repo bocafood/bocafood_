@@ -29,6 +29,7 @@ Modules.Catalogo = (function () {
   var _cfgSub = 'categorias';
   var _storeConfig = {};
   var _recipeConfig = { indirectCostPercent: 0 };
+  var _fiscalConfig = {};
   var _financeSaidas = [];
   var _financeApagar = [];
   var USE_FIREBASE_STORAGE_UPLOAD = true;
@@ -843,7 +844,8 @@ Modules.Catalogo = (function () {
       DB.getAll('itens_custo'),
       DB.getAll('variantGroups'),
       DB.getAll('tags'),
-      DB.getAll('promotions')
+      DB.getAll('promotions'),
+      DB.getDocRoot ? DB.getDocRoot('config', 'fiscal').catch(function () { return {}; }) : Promise.resolve({})
     ]).then(function (r) {
       _categories = r[0] || [];
       _fichas = r[1] || [];
@@ -851,6 +853,7 @@ Modules.Catalogo = (function () {
       _variants = r[3] || [];
       _tags = r[4] || [];
       _promotions = r[5] || [];
+      _fiscalConfig = r[6] || {};
       _buildProductModal(p, id);
     });
   }
@@ -1089,10 +1092,13 @@ Modules.Catalogo = (function () {
   }
 
   function _defaultProductFiscal() {
+    var cfg = _fiscalConfig || {};
+    var fiscalEnabled = cfg.usarCalculoFiscal === true;
+    var cfgIva = parseFloat(String(cfg.defaultIvaRate != null ? cfg.defaultIvaRate : cfg.ivaPadrao != null ? cfg.ivaPadrao : '').replace(',', '.'));
     return {
       sku: '',
       fiscalName: '',
-      ivaRate: 10,
+      ivaRate: fiscalEnabled ? (isFinite(cfgIva) ? cfgIva : 10) : 0,
       ivaIncluded: true,
       taxCategory: 'prepared_food',
       unitCode: 'unit',

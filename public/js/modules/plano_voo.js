@@ -271,7 +271,7 @@ Modules.PlanoDeVoo = (function () {
     c = c || {};
     var iva = _num(c.defaultIvaRate != null ? c.defaultIvaRate : (c.ivaPadrao != null ? c.ivaPadrao : 0));
     return {
-      usarCalculoFiscal: c.usarCalculoFiscal !== false,
+      usarCalculoFiscal: c.usarCalculoFiscal === true,
       defaultIvaRate: iva,
       ivaPadrao: iva,
       pricesIncludeIva: c.pricesIncludeIva !== false,
@@ -1939,14 +1939,14 @@ Modules.PlanoDeVoo = (function () {
 
   function _taxReserveInfo() {
     var fiscal = _data.fiscal || {};
-    if (fiscal.usarCalculoFiscal === false) {
+    if (fiscal.usarCalculoFiscal !== true) {
       return {
         pct: 0,
         sourceLabel: 'Módulo fiscal',
         note: 'Controle fiscal desativado. O Plano de Voo não reserva valor fiscal nesta linha.'
       };
     }
-    if (fiscal.usarCalculoFiscal !== false) {
+    if (fiscal.usarCalculoFiscal === true) {
       var iva = _num(fiscal.defaultIvaRate != null ? fiscal.defaultIvaRate : fiscal.ivaPadrao);
       var irpf = _num(fiscal.irpfPadrao);
       if (iva > 0 || irpf > 0) {
