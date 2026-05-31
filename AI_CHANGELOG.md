@@ -9986,3 +9986,10 @@
 - A aba mostra as embalagens disponíveis no campo `Embalagem de compra padrão` do cadastro de insumos e produtos comprados.
 - A lista reaproveita as opções já usadas pelo módulo de Compras, evitando criar uma fonte paralela ou alterar a lógica de cadastro.
 - Impacto esperado: deixar visível dentro das configurações de Produção quais embalagens de compra podem ser usadas no preenchimento dos insumos.
+
+## 2026-05-31 — Compras: leitura do custo por unidade e por kg
+- Arquivos alterados: `public/js/modules/compras.js`, `AI_CHANGELOG.md`.
+- Ajustei a exibição de `Custo atual` no cadastro e na listagem de insumos/produtos para mostrar o valor conforme a `Unidade base` escolhida.
+- Quando a unidade base for gramas, o sistema também mostra o equivalente por kg, mantendo a referência mais fácil de comparar.
+- Exemplo esperado: um pacote de 200 g por €2,29 pode aparecer como custo por g e também como `€11,45/kg`.
+- Impacto esperado: reduzir confusão no preenchimento de embalagens pequenas sem mudar a fórmula de custo salva.

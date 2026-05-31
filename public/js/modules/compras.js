@@ -2709,7 +2709,7 @@ Modules.Compras = (function () {
           '<td style="padding:14px 16px;vertical-align:middle;">' + (i.classe === 'produto' ? _statusChip('Produto', '#3B5B82', '#5B7FA6') : _statusChip('Insumo', '#9A5B13', '#D97706')) + '</td>' +
           '<td style="padding:14px 16px;vertical-align:middle;">' + _chip(i.categoria || '-') + '</td>' +
           '<td style="padding:14px 16px;vertical-align:middle;font-size:14px;font-weight:600;color:#1F1F1F;">' + _esc(i.unidade_base || i.unidadeBase || '-') + '</td>' +
-          '<td style="padding:14px 16px;vertical-align:middle;font-size:14px;font-weight:600;color:#1F1F1F;">' + (i.custo_atual ? UI.fmt(i.custo_atual) : '-') + '</td>' +
+          '<td style="padding:14px 16px;vertical-align:middle;">' + _itemCostDisplayHtml(i.custo_atual, i.unidade_base || i.unidadeBase || '', true) + '</td>' +
           '<td style="padding:14px 16px;vertical-align:middle;text-align:right;white-space:nowrap;" onclick="event.stopPropagation();"><div style="display:inline-flex;gap:6px;">' +
             '<button onclick="Modules.Compras.' + openFn + '(\'' + i.id + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">edit</span></button>' +
             '<button onclick="Modules.Compras._deleteItem(\'' + i.id + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#B42318;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">delete</span></button>' +
@@ -2778,7 +2778,7 @@ Modules.Compras = (function () {
     var itemBaseCost = _itemBasePackageCost(item);
     var hasPurchaseCostHistory = _itemHasPurchaseCostHistory(item);
     var currentUnitCost = _num(item.custo_atual != null ? item.custo_atual : (item.preco_compra != null ? item.preco_compra : item.purchasePrice));
-    var costText = currentUnitCost ? UI.fmt(currentUnitCost) + '/' + _esc(item.unidade_base || '') : '-';
+    var costText = _itemCostDisplayHtml(currentUnitCost, item.unidade_base || item.unidadeBase || '');
     var lastPurchaseText = item.ultima_compra_data ? UI.fmtDate(new Date(item.ultima_compra_data)) : '-';
     var sectionTitle = 'font-size:13px;font-weight:800;color:#1F1F1F;line-height:1.25;margin-bottom:3px;';
     var sectionHint = 'font-size:12px;color:#8A7E7C;line-height:1.4;margin-bottom:11px;';
@@ -2789,6 +2789,7 @@ Modules.Compras = (function () {
       '.item-modal-head{display:flex;align-items:flex-start;gap:9px;margin-bottom:12px}.item-modal-head .mi{font-size:18px;color:#6F6860;line-height:1.2}' +
       '.item-modal-grid{display:grid;gap:11px 12px;align-items:end}.item-modal-id-grid{grid-template-columns:minmax(150px,.38fr) minmax(320px,1fr) minmax(220px,.68fr)}.item-modal-tax-grid{grid-template-columns:minmax(210px,.62fr) minmax(250px,.78fr);justify-content:start;margin-top:11px}.item-modal-cost-grid{grid-template-columns:minmax(160px,.42fr) minmax(280px,.9fr) minmax(160px,.42fr);justify-content:start}.item-modal-pack-grid{grid-template-columns:minmax(190px,.62fr) minmax(170px,.56fr) minmax(120px,.34fr) minmax(120px,.34fr);justify-content:start;align-items:start}.item-modal-stock-grid{grid-template-columns:minmax(140px,.38fr) minmax(140px,.38fr);justify-content:start}.item-modal-metrics{display:grid;grid-template-columns:minmax(160px,.55fr) minmax(150px,.45fr) minmax(150px,.45fr);gap:12px;align-items:stretch;justify-content:start}' +
       '.item-modal-metric{background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;padding:10px 12px;box-shadow:0 1px 2px rgba(31,31,31,.03)}' +
+      '.item-current-cost{display:flex;flex-direction:column;gap:3px;line-height:1.2}.item-current-cost-main{font-size:17px;font-weight:800;color:#1A1A1A}.item-current-cost-sub{font-size:12px;font-weight:600;color:#6F6860}' +
       '.item-usage-grid{display:grid;grid-template-columns:minmax(250px,1fr) minmax(220px,.78fr);gap:12px;align-items:stretch;}' +
       '.item-usage-panel{background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;padding:12px;box-shadow:0 1px 2px rgba(31,31,31,.03);}' +
       '.item-usage-panel-title{font-size:12px;font-weight:800;color:#1F1F1F;line-height:1.25;margin-bottom:5px;}' +
@@ -2876,7 +2877,7 @@ Modules.Compras = (function () {
       '</div>' +
       '<div class="item-modal-metrics">' +
       '<label class="item-modal-metric" style="display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;"><input id="it-ativo" type="checkbox" ' + (item.ativo !== false ? 'checked' : '') + ' style="accent-color:#C4362A;width:17px;height:17px;"> Cadastro ativo</label>' +
-      '<div class="item-modal-metric"><div style="' + sectionTitle + 'margin-bottom:6px;">Custo atual</div><strong id="it-current-cost-preview" style="font-size:17px;color:#1A1A1A;">' + costText + '</strong></div>' +
+      '<div class="item-modal-metric"><div style="' + sectionTitle + 'margin-bottom:6px;">Custo atual</div><div id="it-current-cost-preview" class="item-current-cost">' + costText + '</div></div>' +
       '<div class="item-modal-metric"><div style="' + sectionTitle + 'margin-bottom:6px;">Última compra</div><strong style="font-size:17px;color:#1A1A1A;">' + lastPurchaseText + '</strong></div>' +
       '</div>' +
       '</div>' +
@@ -5275,6 +5276,36 @@ Modules.Compras = (function () {
     el.value = _moneyFieldText(_parseMoneyField(el.value));
     _updateItemCurrentCostPreview();
   }
+  function _fmtCostValue(value) {
+    var n = _num(value);
+    if (!n) return '-';
+    if (Math.abs(n) >= 1) return UI.fmt(n);
+    return '€' + n.toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+  }
+  function _normUnitKey(unit) {
+    var u = String(unit || '').trim().toLowerCase();
+    if (u === 'grama' || u === 'gramas' || u === 'gr') return 'g';
+    if (u === 'quilograma' || u === 'quilogramas' || u === 'kgs') return 'kg';
+    return u;
+  }
+  function _kgEquivalentCost(unitCost, unit) {
+    var key = _normUnitKey(unit);
+    if (key === 'kg') return _num(unitCost);
+    if (key === 'g') return _num(unitCost) * 1000;
+    return 0;
+  }
+  function _itemCostDisplayHtml(unitCost, unit, compact) {
+    var n = _num(unitCost);
+    if (!n) return '-';
+    var unitLabel = String(unit || '').trim();
+    var main = _fmtCostValue(n) + (unitLabel ? '/' + _esc(unitLabel) : '');
+    var kgCost = _kgEquivalentCost(n, unitLabel);
+    var showKg = kgCost > 0 && _normUnitKey(unitLabel) !== 'kg';
+    var mainStyle = compact ? 'font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;' : '';
+    var subStyle = compact ? 'font-size:11px;font-weight:600;color:#6F6860;line-height:1.25;margin-top:2px;' : '';
+    return '<span class="item-current-cost-main" style="' + mainStyle + '">' + main + '</span>' +
+      (showKg ? '<span class="item-current-cost-sub" style="' + subStyle + '">Também ' + _fmtCostValue(kgCost) + '/kg</span>' : '');
+  }
   function _updateItemCurrentCostPreview() {
     var el = document.getElementById('it-current-cost-preview');
     if (!el) return;
@@ -5289,7 +5320,7 @@ Modules.Compras = (function () {
     var aproveitamento = parseFloat(String(aproveitamentoEl ? aproveitamentoEl.value : '100').replace(',', '.')) || 100;
     var unitCost = _itemBaseUnitCostFromPackage(packageCost, content, aproveitamento, classe);
     var unit = unitEl ? (unitEl.value || '') : '';
-    el.textContent = unitCost > 0 ? (UI.fmt(unitCost) + (unit ? '/' + unit : '')) : '-';
+    el.innerHTML = _itemCostDisplayHtml(unitCost, unit);
   }
   function _supplierField(id, label, value, type, oninput, placeholder) {
     return '<div><label style="' + _labelStyle() + '">' + label + '</label><div class="supplier-field-control"><input id="' + id + '" type="' + (type || 'text') + '" value="' + _esc(value == null ? '' : value) + '"' + (placeholder ? ' placeholder="' + _esc(placeholder) + '"' : '') + (oninput ? ' oninput="' + oninput + '"' : '') + '></div></div>';
