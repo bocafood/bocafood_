@@ -8765,13 +8765,44 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
         createdAt: now
       }, { merge: true }));
     });
-    return Promise.all(ops);
+    return _removeRecipeBaseStockSettings(fichaId).then(function () {
+      return Promise.all(ops);
+    });
+  }
+
+  function _removeRecipeBaseStockSettings(fichaId) {
+    return DB.getAll('stock_settings').catch(function () { return []; }).then(function (settings) {
+      var prefix = 'base_producao:' + fichaId + ':';
+      var removals = (settings || []).filter(function (setting) {
+        return String(setting.stockKey || '').indexOf(prefix) === 0 || String(setting.itemId || '').indexOf(fichaId + ':') === 0;
+      }).map(function (setting) {
+        return DB.remove('stock_settings', setting.id).catch(function () { return null; });
+      });
+      return Promise.all(removals);
+    });
+  }
+
+  function _removeRecipeStockSettings(fichaId) {
+    return DB.getAll('stock_settings').catch(function () { return []; }).then(function (settings) {
+      var productKey = 'produto_produzido:' + fichaId;
+      var basePrefix = 'base_producao:' + fichaId + ':';
+      var removals = (settings || []).filter(function (setting) {
+        var key = String(setting.stockKey || '');
+        var itemId = String(setting.itemId || '');
+        return key === productKey || key.indexOf(basePrefix) === 0 || itemId === fichaId || itemId.indexOf(fichaId + ':') === 0;
+      }).map(function (setting) {
+        return DB.remove('stock_settings', setting.id).catch(function () { return null; });
+      });
+      return Promise.all(removals);
+    });
   }
 
   function _deleteFicha(id) {
     UI.confirm('Eliminar esta receita?').then(function (yes) {
       if (!yes) return;
-      DB.remove('fichasTecnicas', id).then(function () { UI.toast('Eliminado', 'info'); _renderFichas(); });
+      DB.remove('fichasTecnicas', id).then(function () {
+        return _removeRecipeStockSettings(id);
+      }).then(function () { UI.toast('Eliminado', 'info'); _renderFichas(); });
     });
   }
 

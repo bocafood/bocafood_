@@ -1344,6 +1344,89 @@ Modules.Financeiro = (function () {
     if(forma&&forma.contaPadraoId) contaEl.value=forma.contaPadraoId;
   }
 
+  function _contaBancariaOptions(selectedId) {
+    selectedId = selectedId || '';
+    return '<option value="">Selecionar conta...</option>' + (_contasBancarias || []).filter(function (c) {
+      return c.ativo !== false || c.id === selectedId;
+    }).sort(function (a, b) {
+      return (a.nome || '').localeCompare(b.nome || '');
+    }).map(function (c) {
+      return '<option value="' + c.id + '"' + (selectedId === c.id ? ' selected' : '') + '>' + _esc(c.nome || '') + '</option>';
+    }).join('');
+  }
+
+  function _quickBankTypeOptions(selectedType) {
+    selectedType = selectedType || '';
+    var bankTypes = _globalFinanceList('bank', false).filter(function (t) { return _globalTypeCountryOk(t.countryFiscal, _tenantFiscalCountry()); });
+    var opts = bankTypes.map(function (t) {
+      var selected = selectedType && (String(t.id) === String(selectedType) || String(t.slug) === String(selectedType) || String(t.name) === String(selectedType));
+      return '<option value="' + _esc(t.id) + '" data-slug="' + _esc(t.slug) + '" data-name="' + _esc(t.name) + '" data-country="' + _esc(t.countryFiscal) + '"' + (selected ? ' selected' : '') + '>' + _esc(t.name) + '</option>';
+    }).join('');
+    return opts || '<option value="corrente" selected>Conta corrente</option>';
+  }
+
+  function _openQuickContaModal(scope) {
+    window._quickContaScope = scope || 'cp';
+    var cardStyle = _modalCardStyle();
+    var fieldStyle = _modalFieldStyle();
+    var selectStyle = _modalSelectStyle('max-width:220px;');
+    var body =
+      '<div style="display:flex;flex-direction:column;gap:14px;">' +
+        '<div style="' + cardStyle + '">' +
+          _modalIconTitle('account_balance_wallet', 'Nova conta bancária', 'Cadastre rapidamente a conta que será usada nesta saída.') +
+          '<div style="display:flex;flex-direction:column;gap:12px;">' +
+            '<div><label style="' + _lbl() + '">Nome da conta *</label><input id="quick-conta-nome" type="text" placeholder="Ex.: Conta principal, Caixa..." style="' + fieldStyle + '"></div>' +
+            '<div style="display:grid;grid-template-columns:minmax(220px,1fr) minmax(170px,.55fr);gap:12px;align-items:end;">' +
+              '<div><label style="' + _lbl() + '">Banco / Instituição</label><input id="quick-conta-banco" type="text" placeholder="Opcional" style="' + fieldStyle + '"></div>' +
+              '<div style="max-width:220px;"><label style="' + _lbl() + '">Tipo</label><select id="quick-conta-tipo" style="' + selectStyle + '">' + _quickBankTypeOptions('') + '</select></div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    var footer = '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;flex-wrap:wrap;">' +
+      '<span style="font-size:12px;color:#6F6860;line-height:1.4;">Depois de salvar, a conta fica selecionada nesta saída.</span>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;"><button type="button" onclick="if(window._quickContaModal)window._quickContaModal.close()" style="height:40px;padding:0 14px;border-radius:12px;border:1px solid #EAE4DA;background:#fff;color:#1F1F1F;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Cancelar</button><button type="button" onclick="Modules.Financeiro._saveQuickConta()" style="height:40px;padding:0 16px;border-radius:12px;border:none;background:#B42318;color:#fff;font-size:13px;font-weight:650;cursor:pointer;font-family:inherit;box-shadow:0 8px 18px rgba(180,35,24,.16);">Salvar conta</button></div>' +
+    '</div>';
+    window._quickContaModal = UI.modal({ title: 'Nova conta bancária', body: body, footer: footer, maxWidth: '640px' });
+  }
+
+  function _saveQuickConta() {
+    var nome = ((document.getElementById('quick-conta-nome') || {}).value || '').trim();
+    if (!nome) { UI.toast('Informe o nome da conta bancária.', 'error'); return; }
+    var tipoSel = document.getElementById('quick-conta-tipo') || {};
+    var selectedOption = tipoSel.selectedOptions && tipoSel.selectedOptions[0] ? tipoSel.selectedOptions[0] : null;
+    var tipoId = (tipoSel.value || '').trim();
+    var globalTipo = _globalTypeResolve('bank', tipoId, true) || (selectedOption ? _globalTypeResolve('bank', selectedOption.dataset.slug || selectedOption.dataset.name || selectedOption.textContent || '', true) : null);
+    var obj = {
+      nome: nome,
+      banco: (document.getElementById('quick-conta-banco') || {}).value || '',
+      tipo: globalTipo ? (globalTipo.name || globalTipo.nome || tipoId) : tipoId,
+      tipoGlobalId: globalTipo ? globalTipo.id : (tipoId || ''),
+      tipoGlobalSlug: globalTipo ? globalTipo.slug : (selectedOption ? (selectedOption.dataset.slug || '') : ''),
+      tipoGlobalNome: globalTipo ? globalTipo.name : (selectedOption ? (selectedOption.dataset.name || tipoId) : tipoId),
+      tipoGlobalCountry: globalTipo ? globalTipo.countryFiscal : (selectedOption ? (selectedOption.dataset.country || 'ambos') : 'ambos'),
+      saldo_inicial: 0,
+      ativo: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    DB.add('contas_bancarias', obj).then(function (ref) {
+      var id = String((ref && ref.id) || '');
+      var saved = Object.assign({ id: id }, obj);
+      _contasBancarias = (_contasBancarias || []).filter(function (c) { return String(c.id || '') !== id; }).concat(saved);
+      var scope = window._quickContaScope || 'cp';
+      var select = document.getElementById(scope === 'cp' ? 'cp-conta' : 'mov-conta');
+      if (select) {
+        select.innerHTML = _contaBancariaOptions(id);
+        select.value = id;
+      }
+      UI.toast('Conta bancária adicionada.', 'success');
+      if (window._quickContaModal) window._quickContaModal.close();
+    }).catch(function (e) {
+      UI.toast('Erro: ' + e.message, 'error');
+    });
+  }
+
   // ── MOVIMENTAÇÕES ─────────────────────────────────────────────────────────
   var _movFiltro={tipo:'todos',periodo:'mes',inicio:'',fim:'',contas:[],status:'',busca:'',ordem:'desc'};
   var _movSelecionadas=[];
@@ -2930,7 +3013,7 @@ Modules.Financeiro = (function () {
     }
     var fOpts=_formaOptions(cp.formaPagamento||cp.forma_pagamento||'');
     var contaAtual=cp.conta_id||cp.contaBancariaId||'';
-    var contaOpts='<option value="">Selecionar conta...</option>'+(_contasBancarias||[]).filter(function(c){ return c.ativo!==false || c.id===contaAtual; }).sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||''); }).map(function(c){ return '<option value="'+c.id+'"'+(contaAtual===c.id?' selected':'')+'>'+_esc(c.nome||'')+'</option>'; }).join('');
+    var contaOpts=_contaBancariaOptions(contaAtual);
     var recFreq=cp.periodicidade||'mensal';
     var parcFreq=cp.periodicidadeParcelas||cp.parcelasFrequencia||'mensal';
     var statusSel=(cp.status==='pago'||cp.data_pagamento)?'pago':'pendente';
@@ -2967,7 +3050,7 @@ Modules.Financeiro = (function () {
             '<div style="display:flex;gap:12px;align-items:start;flex-wrap:wrap;">'+
               '<div style="flex:1 1 260px;max-width:340px;"><label style="'+_lbl()+'">Categoria de saída *</label><select id="cp-cat" onchange="Modules.Financeiro._toggleCPNovaCat()" style="'+selectStyle+'">'+catOpts+'</select><input id="cp-cat-nova" type="text" placeholder="Nome da nova categoria..." style="'+fieldStyle+'display:none;margin-top:8px;"><div id="cp-cat-new-meta" style="display:none;grid-template-columns:minmax(130px,160px) minmax(130px,160px);gap:10px;margin-top:8px;"><div><label style="'+_lbl()+'">Tipo</label><select id="cp-cat-nature" style="'+selectStyle+'"><option value="despesa">Despesa</option><option value="custo">Custo</option></select></div><div><label style="'+_lbl()+'">Classe</label><select id="cp-cat-cost-class" style="'+selectStyle+'"><option value="indireto">Indireto</option><option value="direto">Direto</option></select></div></div><div id="cp-cat-help" style="font-size:11px;color:#8A7E7C;margin-top:5px;"></div></div>'+
               '<div style="flex:1 1 190px;max-width:260px;"><label style="'+_lbl()+'">Forma de pagamento *</label><select id="cp-forma" onchange="Modules.Financeiro._applyFormaPadraoConta(\'cp\')" style="'+selectStyle+'">'+fOpts+'</select></div>'+
-              '<div style="flex:1 1 190px;max-width:260px;"><label style="'+_lbl()+'">Conta bancária</label><select id="cp-conta" style="'+selectStyle+'">'+contaOpts+'</select></div>'+
+              '<div style="flex:1 1 220px;max-width:300px;"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;"><label style="'+_lbl()+'margin-bottom:0;">Conta bancária</label><button type="button" onclick="Modules.Financeiro._openQuickContaModal(\'cp\')" style="border:none;background:transparent;color:#B42318;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;padding:0 0 5px;">+ conta bancária</button></div><select id="cp-conta" style="'+selectStyle+'">'+contaOpts+'</select></div>'+
             '</div>'+
           '</div>'+
         '</div>'+
@@ -4779,6 +4862,7 @@ function _openContaModal(id) {
     _openCPModal:_openCPModal, _saveCP:_saveCP, _deleteCP:_deleteCP, _confirmDeleteCP:_confirmDeleteCP, _pagarCP:_pagarCP, _savePagamentoCP:_savePagamentoCP, _criarSaldoRestanteCP:_criarSaldoRestanteCP, _toggleSaldoRestanteModo:_toggleSaldoRestanteModo,
     _setCPFiltro:_setCPFiltro, _toggleCPConta:_toggleCPConta, _toggleCPStatus:_toggleCPStatus, _toggleCPOrdem:_toggleCPOrdem, _setCPPage:_setCPPage, _setCPPageSize:_setCPPageSize, _toggleCPSelecionada:_toggleCPSelecionada, _toggleCPTodas:_toggleCPTodas, _clearCPSelection:_clearCPSelection, _openBulkCPModal:_openBulkCPModal, _applyBulkCP:_applyBulkCP, _bulkConfirmarCP:_bulkConfirmarCP, _bulkDeleteCP:_bulkDeleteCP, _openContasVencidas:_openContasVencidas, _openCPDetalheModal:_openCPDetalheModal, _closeCPDetalhe:_closeCPDetalhe, _setCPStatus:_setCPStatus, _renderCPPreviews:_renderCPPreviews, _toggleCPRecorrente:_toggleCPRecorrente, _toggleCPParcelada:_toggleCPParcelada, _toggleCPNovoForn:_toggleCPNovoForn, _toggleCPNovaCat:_toggleCPNovaCat,
     _moneyInputFocus:_moneyInputFocus, _moneyInputBlur:_moneyInputBlur,
+    _openQuickContaModal:_openQuickContaModal, _saveQuickConta:_saveQuickConta,
     _openContaModal:_openContaModal, _saveConta:_saveConta, _deleteConta:_deleteConta, _openTransferModal:_openTransferModal, _refreshTransferAccounts:_refreshTransferAccounts, _saveTransfer:_saveTransfer,
     _setCfgSub:_setCfgSub, _openCatModal:_openCatModal, _syncCatTypeFields:_syncCatTypeFields, _saveCat:_saveCat, _deleteCat:_deleteCat,
     _openFornModal:_openFornModal, _saveForn:_saveForn, _deleteForn:_deleteForn,

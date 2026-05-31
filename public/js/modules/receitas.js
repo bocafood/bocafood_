@@ -329,7 +329,13 @@ Modules.Receitas = (function () {
       '.purchase-list-row{background:#fff;border:1px solid #EADFD8;border-radius:14px;padding:14px;box-shadow:0 1px 2px rgba(31,31,31,.03);display:grid;grid-template-columns:minmax(220px,1fr) minmax(110px,150px) minmax(100px,140px) minmax(150px,.7fr);gap:12px;align-items:center;}' +
       '.production-need-list{display:flex;flex-direction:column;gap:8px;}' +
       '.production-need-row{background:#FFFCF8;border:1px solid #EADFD8;border-radius:14px;padding:12px;display:grid;grid-template-columns:minmax(220px,1fr) minmax(120px,160px) auto;gap:12px;align-items:center;}' +
-      '@media(max-width:820px){.production-orders-row,.stock-movement-row,.purchase-list-row,.production-need-row{grid-template-columns:1fr}.production-orders-filter-grid,.purchase-list-filter-grid,.stock-movement-filter-grid,.purchase-list-controls,.purchase-generate-card,.purchase-generate-form{grid-template-columns:1fr}.production-modal-grid,.production-detail-grid,.purchase-list-summary-grid,.production-ingredient-row{grid-template-columns:1fr}.production-orders-primary{width:100%;}}' +
+      '.production-plan-modal{display:flex;flex-direction:column;gap:14px;}' +
+      '.production-plan-list{display:flex;flex-direction:column;gap:10px;}' +
+      '.production-plan-row{display:grid;grid-template-columns:minmax(260px,1fr) minmax(110px,150px) minmax(150px,180px);gap:12px;align-items:end;background:#FFFCF8;border:1px solid #EADFD8;border-radius:14px;padding:12px;}' +
+      '.production-plan-check{display:flex;align-items:center;gap:10px;min-width:0;cursor:pointer;}' +
+      '.production-plan-check strong{display:block;font-size:14px;color:#1F1F1F;font-weight:650;line-height:1.25;}' +
+      '.production-plan-check small{display:block;font-size:12px;color:#6F6860;font-weight:500;line-height:1.35;margin-top:3px;}' +
+      '@media(max-width:820px){.production-orders-row,.stock-movement-row,.purchase-list-row,.production-need-row,.production-plan-row{grid-template-columns:1fr}.production-orders-filter-grid,.purchase-list-filter-grid,.stock-movement-filter-grid,.purchase-list-controls,.purchase-generate-card,.purchase-generate-form{grid-template-columns:1fr}.production-modal-grid,.production-detail-grid,.purchase-list-summary-grid,.production-ingredient-row{grid-template-columns:1fr}.production-orders-primary{width:100%;}}' +
       '</style>';
   }
 
@@ -418,11 +424,13 @@ Modules.Receitas = (function () {
         '<div class="bf-page-header production-orders-head">' +
           '<div style="min-width:0;flex:1 1 420px;">' +
             '<h2 class="production-orders-title">Ordens de produção</h2>' +
-            '<p class="production-orders-subtitle">Planeje o que será produzido a partir das receitas cadastradas. Nesta fase, a ordem ainda não movimenta estoque nem baixa ingredientes.</p>' +
+            '<p class="production-orders-subtitle">Planeje o que será produzido a partir das receitas cadastradas e acompanhe o resultado de cada lote.</p>' +
           '</div>' +
-          '<button type="button" class="production-orders-primary" onclick="Modules.Receitas._openProductionOrderModal()">Nova ordem</button>' +
+          '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;">' +
+            '<button type="button" class="production-orders-secondary" onclick="Modules.Receitas._openProductionPlanningModal()">Gerar planejamento</button>' +
+            '<button type="button" class="production-orders-primary" onclick="Modules.Receitas._openProductionOrderModal()">Nova ordem</button>' +
+          '</div>' +
         '</div>' +
-        _productionNeedsHtml() +
         filterCard +
         (rows ?
           '<section style="display:flex;flex-direction:column;gap:10px;">' +
@@ -1244,39 +1252,159 @@ Modules.Receitas = (function () {
     }).join('');
     return '<section class="production-orders-card">' +
       '<div class="production-orders-card-head">' +
-        '<div><div class="production-orders-section-title">Necessidade de produção</div><div class="production-orders-section-desc">Produtos produzidos e bases abaixo do estoque mínimo aparecem aqui para virar ordem planejada.</div></div>' +
+        '<div><div class="production-orders-section-title">Necessidade de produção</div><div class="production-orders-section-desc">Receitas abaixo do estoque mínimo aparecem aqui para virar ordem planejada.</div></div>' +
       '</div>' +
       '<div class="production-need-list">' + rows + '</div>' +
     '</section>';
   }
 
+  function _openProductionPlanningModal() {
+    var needs = (_productionNeedData.items || []).slice();
+    var plannedDate = _today();
+    if (!needs.length) {
+      UI.toast('Nenhuma receita está abaixo do estoque mínimo agora.', 'info');
+      return;
+    }
+    var rows = needs.map(function (need, idx) {
+      return '<div class="production-plan-row" data-plan-idx="' + idx + '" data-recipe-id="' + _esc(need.recipeId || '') + '">' +
+        '<label class="production-plan-check"><input type="checkbox" data-plan-check="' + idx + '" checked onchange="Modules.Receitas._updateProductionPlanningPreview()" style="accent-color:#B42318;width:16px;height:16px;">' +
+          '<span><strong>' + _esc(need.name || 'Receita') + '</strong><small>Saldo ' + _esc(_fmtQty(need.balance)) + ' · mínimo ' + _esc(_fmtQty(need.minStock)) + ' ' + _esc(need.unit || '') + '</small></span></label>' +
+        '<label><span style="' + _labelStyle() + '">Produzir</span><div class="production-orders-field"><input type="text" data-plan-qty="' + idx + '" value="' + _esc(_fmtQty(need.missing)) + '" oninput="Modules.Receitas._updateProductionPlanningPreview()"></div></label>' +
+        '<label><span style="' + _labelStyle() + '">Data prevista</span><div class="production-orders-field"><input type="date" data-plan-date="' + idx + '" value="' + _esc(plannedDate) + '"></div></label>' +
+      '</div>';
+    }).join('');
+    var body = '<div class="production-plan-modal">' +
+      '<section class="production-modal-card">' +
+        '<div class="production-modal-head"><span class="mi">assignment_add</span><div><div class="production-modal-card-title">Escolha o que vai produzir</div>' +
+        '<div class="production-modal-card-desc">Selecione as receitas abaixo do estoque mínimo e ajuste a quantidade antes de gerar as ordens.</div></div></div>' +
+        '<div class="production-plan-list">' + rows + '</div>' +
+      '</section>' +
+      '<section class="production-modal-card">' +
+        '<div class="production-modal-head"><span class="mi">notes</span><div><div class="production-modal-card-title">Observação do planejamento</div>' +
+        '<div class="production-modal-card-desc">Essa observação será copiada para as ordens criadas agora.</div></div></div>' +
+        '<textarea id="production-plan-notes" placeholder="Opcional..." style="' + _inputStyle() + 'min-height:76px;resize:vertical;"></textarea>' +
+      '</section>' +
+      '<div id="production-plan-preview"></div>' +
+    '</div>';
+    var footer = '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;flex-wrap:wrap;">' +
+      '<span style="font-size:12px;color:#6F6860;line-height:1.4;">Será criada uma ordem planejada para cada receita selecionada.</span>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;"><button type="button" onclick="if(window._productionPlanningModal)window._productionPlanningModal.close()" class="production-orders-secondary">Cancelar</button><button type="button" onclick="Modules.Receitas._createProductionOrdersFromPlanning()" class="production-orders-primary">Gerar ordens</button></div>' +
+    '</div>';
+    window._productionPlanningModal = UI.modal({ title: 'Gerar planejamento', body: _ordersStyles() + body, footer: footer, maxWidth: '940px' });
+    setTimeout(_updateProductionPlanningPreview, 0);
+  }
+
+  function _selectedProductionPlanningItems() {
+    var needs = (_productionNeedData.items || []);
+    var rows = Array.prototype.slice.call(document.querySelectorAll('[data-plan-idx]'));
+    return rows.map(function (row) {
+      var idx = Number(row.getAttribute('data-plan-idx'));
+      var need = needs[idx] || {};
+      var checked = !!((document.querySelector('[data-plan-check="' + idx + '"]') || {}).checked);
+      var qty = _num((document.querySelector('[data-plan-qty="' + idx + '"]') || {}).value);
+      var date = ((document.querySelector('[data-plan-date="' + idx + '"]') || {}).value || '').trim();
+      var recipe = (_productionRecipes || []).find(function (item) { return String(item.id || '') === String(need.recipeId || ''); }) || null;
+      return { idx: idx, need: need, recipe: recipe, checked: checked, qty: qty, date: date };
+    }).filter(function (item) { return item.checked; });
+  }
+
+  function _updateProductionPlanningPreview() {
+    var el = document.getElementById('production-plan-preview');
+    if (!el) return;
+    var selected = _selectedProductionPlanningItems().filter(function (item) { return item.recipe && item.qty > 0; });
+    var totalCost = selected.reduce(function (sum, item) {
+      return sum + _num(_buildProductionSnapshot(item.recipe, item.qty).plannedCost);
+    }, 0);
+    el.innerHTML = '<section class="production-modal-card">' +
+      '<div class="production-modal-head"><span class="mi">fact_check</span><div><div class="production-modal-card-title">Resumo antes de gerar</div>' +
+      '<div class="production-modal-card-desc">' + (selected.length ? 'Revise o total de ordens e o custo previsto antes de confirmar.' : 'Selecione pelo menos uma receita para gerar o planejamento.') + '</div></div></div>' +
+      '<div class="production-detail-grid">' +
+        _detailTile('Ordens selecionadas', String(selected.length)) +
+        _detailTile('Custo previsto', _money(totalCost)) +
+        _detailTile('Base', 'Estoque mínimo') +
+      '</div>' +
+    '</section>';
+  }
+
+  function _createProductionOrdersFromPlanning() {
+    var selected = _selectedProductionPlanningItems();
+    if (!selected.length) { UI.toast('Selecione pelo menos uma receita.', 'error'); return; }
+    var invalid = selected.find(function (item) { return !item.recipe || item.qty <= 0 || !item.date; });
+    if (invalid) { UI.toast('Revise as receitas selecionadas, quantidades e datas.', 'error'); return; }
+    var user = window.Auth && Auth.getUser ? Auth.getUser() : null;
+    var notes = ((document.getElementById('production-plan-notes') || {}).value || '').trim();
+    var now = new Date().toISOString();
+    var ops = selected.map(function (item) {
+      var snapshot = _buildProductionSnapshot(item.recipe, item.qty);
+      return DB.add('production_orders', {
+        fichaTecnicaId: item.recipe.id || '',
+        fichaTecnicaNome: item.recipe.name || '',
+        productionMode: 'produto_final',
+        baseProductionId: '',
+        baseProductionName: '',
+        plannedQuantity: item.qty,
+        plannedDate: item.date,
+        status: 'planejada',
+        notes: notes || 'Planejamento gerado a partir das receitas abaixo do estoque mínimo.',
+        recipeSnapshot: snapshot.recipeSnapshot,
+        plannedCost: snapshot.plannedCost,
+        plannedIngredients: snapshot.plannedIngredients,
+        createdBy: user && user.uid ? user.uid : '',
+        createdFrom: 'stock_minimum_planning',
+        updatedAt: now
+      });
+    });
+    Promise.all(ops).then(function () {
+      UI.toast(selected.length + ' ordem(ns) de produção criada(s).', 'success');
+      if (window._productionPlanningModal) window._productionPlanningModal.close();
+      _renderProductionOrders();
+    }).catch(function (err) {
+      UI.toast('Erro: ' + err.message, 'error');
+    });
+  }
+
   function _buildProductionNeeds(recipes, movements, settings) {
     var balances = _buildSimpleStockBalances(movements || []);
-    return (settings || []).map(function (setting) {
+    var settingByRecipe = {};
+    (settings || []).forEach(function (setting) {
       var key = setting.stockKey || '';
       var stockKind = _stockKindFromKey(key, setting.stockItemType);
-      if (stockKind !== 'produto_produzido' && stockKind !== 'base_producao') return null;
+      if (stockKind !== 'produto_produzido') return;
       var parts = String(key || '').split(':');
-      var recipeId = stockKind === 'base_producao'
-        ? (parts[1] || String(setting.itemId || '').split(':')[1] || setting.recipeId || '')
-        : (setting.itemId || parts[1] || '');
-      var recipe = (recipes || []).find(function (item) { return String(item.id || '') === String(recipeId || ''); }) || {};
-      var min = _num(setting.minStock);
+      var recipeId = setting.itemId || parts[1] || '';
+      if (!recipeId) return;
+      settingByRecipe[String(recipeId)] = setting;
+    });
+    var seen = {};
+    return (recipes || []).map(function (recipe) {
+      if (!_isProductionNeedRecipe(recipe) || seen[String(recipe.id || '')]) return null;
+      seen[String(recipe.id || '')] = true;
+      var setting = settingByRecipe[String(recipe.id || '')] || {};
+      var key = 'produto_produzido:' + String(recipe.id || '');
+      var min = _num(recipe.minStock || recipe.estoque_minimo);
+      if (!(min > 0)) min = _num(setting.minStock);
       if (min <= 0) return null;
       var balance = _num((balances[key] || {}).balance);
       var missing = _round(Math.max(0, min - balance));
       if (missing <= 0) return null;
       return {
-        recipeId: recipeId,
-        stockKind: stockKind,
-        baseProductionId: stockKind === 'base_producao' ? String(key || '') : '',
-        name: setting.itemName || recipe.name || 'Receita',
+        recipeId: recipe.id || '',
+        stockKind: 'produto_produzido',
+        baseProductionId: '',
+        name: recipe.name || setting.itemName || 'Receita',
         minStock: min,
         balance: balance,
         missing: missing,
         unit: setting.unit || (balances[key] || {}).unit || recipe.yieldUnit || 'unidades'
       };
     }).filter(Boolean).sort(function (a, b) { return b.missing - a.missing; });
+  }
+
+  function _isProductionNeedRecipe(recipe) {
+    if (!recipe || !recipe.id) return false;
+    if (recipe.ativo === false || recipe.active === false || recipe.deleted === true || recipe.isDeleted === true || recipe.archived === true) return false;
+    if (String(recipe.recipeType || '').toLowerCase() === 'base_producao') return false;
+    return true;
   }
 
   function _createProductionOrderFromNeed(recipeId, quantity, stockKind, baseProductionId) {
@@ -2725,6 +2853,9 @@ Modules.Receitas = (function () {
     _switchConfigSub: _switchConfigSub,
     _setConfigSearch: _setConfigSearch,
     _openProductionOrderModal: _openProductionOrderModal,
+    _openProductionPlanningModal: _openProductionPlanningModal,
+    _updateProductionPlanningPreview: _updateProductionPlanningPreview,
+    _createProductionOrdersFromPlanning: _createProductionOrdersFromPlanning,
     _setProductionOrderFilter: _setProductionOrderFilter,
     _clearProductionOrderFilters: _clearProductionOrderFilters,
     _setProductionOrderPageSize: _setProductionOrderPageSize,

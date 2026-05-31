@@ -1,5 +1,27 @@
 # AI Changelog
 
+## 2026-05-31 — Financeiro: conta rápida em Nova Saída
+- Arquivos alterados: `public/js/modules/financeiro.js`, `AI_CHANGELOG.md`.
+- Adicionei o atalho `+ conta bancária` no campo `Conta bancária` do modal `Nova Saída`.
+- A criação rápida salva uma nova conta sem fechar a saída e já seleciona a conta recém-criada no lançamento.
+- Mantive o modal rápido separado do modal completo de contas para não interferir no estado da saída aberta.
+- Impacto esperado: agilizar o cadastro de saídas quando a conta bancária ainda não existe.
+
+## 2026-05-31 — Produção: planejamento por modal
+- Arquivos alterados: `public/js/modules/receitas.js`, `AI_CHANGELOG.md`.
+- Removi o card fixo `Necessidade de produção` da tela de ordens.
+- Adicionei o botão `Gerar planejamento` ao lado de `Nova ordem`.
+- O novo modal lista somente receitas abaixo do estoque mínimo, permite selecionar quais serão produzidas, ajustar quantidade, data prevista e observação.
+- Ao confirmar, o sistema cria uma ordem planejada para cada receita selecionada, preservando o snapshot da ficha técnica.
+- Impacto esperado: deixar a tela de ordens mais limpa e transformar estoque baixo em planejamento de produção de forma mais controlada.
+
+## 2026-05-31 — Produção: necessidade baseada em receitas ativas
+- Arquivos alterados: `public/js/modules/receitas.js`, `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Corrigi a lista `Necessidade de produção` para considerar somente receitas finais ativas com estoque mínimo configurado.
+- A lista deixou de puxar bases/etapas da receita, como massa ou recheio, e também deixou de depender de configurações antigas de estoque que podiam ficar salvas após uma receita ser excluída.
+- Ao excluir uma receita, as configurações de estoque relacionadas à receita e às bases dela também são removidas.
+- Impacto esperado: o planejamento de produção mostra apenas as receitas que realmente existem e precisam ser produzidas.
+
 ## 2026-05-31 — Receitas: arredondamento visual dos custos
 - Arquivos alterados: `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
 - Corrigi a exibição de custos no cadastro, listagem e detalhes de receitas para mostrar valores em moeda com 2 casas decimais.
