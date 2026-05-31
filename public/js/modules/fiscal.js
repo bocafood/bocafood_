@@ -271,6 +271,7 @@ Modules.Fiscal = (function () {
       },
       createdAt: current.createdAt || now,
       updatedAt: now,
+      fiscalSettingsSaved: true,
       ivaPadrao: iva,
       irpfPadrao: irpf,
       trimestreAtual: current.trimestreAtual || _currentQuarterKey(),

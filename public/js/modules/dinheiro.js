@@ -93,13 +93,13 @@ Modules.Dinheiro = (function () {
   function _normalizeFiscalConfig(c) {
     c = c || {};
     var normalized = Object.assign({
-      ivaPadrao: 21,
-      irpfPadrao: 15,
-      usarCalculoFiscal: true
+      ivaPadrao: 0,
+      irpfPadrao: 0,
+      usarCalculoFiscal: false
     }, c);
     normalized.ivaPadrao = _num(c.ivaPadrao != null && c.ivaPadrao !== '' ? c.ivaPadrao : (c.defaultIvaRate != null && c.defaultIvaRate !== '' ? c.defaultIvaRate : normalized.ivaPadrao));
     normalized.irpfPadrao = _num(c.irpfPadrao != null && c.irpfPadrao !== '' ? c.irpfPadrao : normalized.irpfPadrao);
-    normalized.usarCalculoFiscal = c.usarCalculoFiscal !== false;
+    normalized.usarCalculoFiscal = c.usarCalculoFiscal === true;
     return normalized;
   }
 
@@ -355,7 +355,7 @@ Modules.Dinheiro = (function () {
   }
 
   function _fiscalEnabled() {
-    return _data.fiscal && _data.fiscal.usarCalculoFiscal !== false;
+    return _data.fiscal && _data.fiscal.usarCalculoFiscal === true;
   }
 
   function _fiscalIvaPct(product) {

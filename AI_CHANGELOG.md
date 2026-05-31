@@ -1,5 +1,39 @@
 # AI Changelog
 
+## 2026-05-31 — Onboarding: Como preencher dos produtos do cardápio
+- Arquivos alterados: `public/js/modules/dashboard.js`, `AI_CHANGELOG.md`.
+- Validei o `Como preencher > Cadastrar produtos do cardápio` contra os campos reais do modal de produto.
+- Ajustei a orientação inicial para pedir, neste primeiro momento, apenas os 3 produtos principais.
+- Completei a explicação de custo/margem, selo de destaque e produtos extras/upsell.
+- Impacto esperado: guiar melhor a primeira configuração do cardápio sem exigir cadastro completo logo no começo.
+
+## 2026-05-31 — Fiscal: validação de heranças e destinos
+- Arquivos alterados: `public/js/modules/dinheiro.js`, `public/js/modules/dashboard.js`, `public/js/modules/fiscal.js`, `AI_CHANGELOG.md`.
+- Validei o caminho dos campos fiscais desde `Configurações > Fiscal` e `Fiscal > Configurações fiscais` até Produtos, Compras, Plano de Voo, Preço e Margem e Onboarding.
+- Corrigi `Preço e Margem`, que ainda tratava o Fiscal como ativo por padrão quando a configuração não trazia ativação explícita.
+- Separei melhor no checklist a decisão de ativar o Fiscal e a conclusão da configuração fiscal completa, reconhecendo também configurações antigas que já tinham IVA, IRPF ou dados fiscais salvos.
+- Impacto esperado: evitar cálculo fiscal antes da ativação e manter IVA/IRPF/reserva fiscal entrando somente nos fluxos corretos.
+
+## 2026-05-31 — Onboarding: configuração fiscal condicional
+- Arquivos alterados: `public/js/modules/dashboard.js`, `public/js/modules/fiscal.js`, `AI_CHANGELOG.md`.
+- Separei o checklist fiscal em dois passos: ativar o Fiscal em `Configurações > Fiscal` e preencher os dados em `Fiscal > Configurações fiscais`.
+- O passo `Preencher configuração fiscal` só aparece quando o Fiscal estiver ativado.
+- Ao salvar a configuração fiscal completa, o documento passa a marcar `fiscalSettingsSaved`, permitindo concluir o checklist.
+- Impacto esperado: evitar mostrar campos fiscais antes da ativação e guiar a usuária para completar IVA, IRPF e dados fiscais no momento certo.
+
+## 2026-05-31 — Onboarding: corrige HTML no Como preencher
+- Arquivos alterados: `public/js/modules/dashboard.js`, `AI_CHANGELOG.md`.
+- Corrigi textos do `Como preencher` que tinham marcações HTML salvas no campo comum de copy.
+- As instruções de Fiscal, custos/despesas e Plano de Voo agora renderizam os destaques corretamente, sem mostrar tags como `<div>` ou `<strong>` para a usuária.
+- Impacto esperado: deixar o modal de ajuda legível e com aparência correta.
+
+## 2026-05-31 — Onboarding: checklist flutuante compacto
+- Arquivos alterados: `public/js/modules/dashboard.js`, `AI_CHANGELOG.md`.
+- Reestruturei o checklist flutuante para não listar todos os passos da etapa ao mesmo tempo.
+- O painel agora mostra o próximo passo principal, o progresso da etapa e um seletor compacto para abrir outros passos quando necessário.
+- Mantive o clique abrindo a tela correspondente e o modal `Como preencher` do passo escolhido.
+- Impacto esperado: melhorar a experiência em telas menores e evitar que o checklist ocupe altura demais.
+
 ## 2026-05-31 — Configurações: Fiscal apenas como ativação
 - Arquivos alterados: `public/admin.html`, `public/js/modules/configuracoes.js`, `public/js/modules/dashboard.js`, `AI_CHANGELOG.md`.
 - Transformei `Configurações > Fiscal` em uma tela de ativação simples, sem abrir o formulário completo de dados fiscais.

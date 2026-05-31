@@ -197,6 +197,7 @@ Modules.Dashboard = (function () {
       '.dash-tour-modal,.dash-welcome-modal{scrollbar-width:none;-ms-overflow-style:none;}' +
       '.dash-tour-modal::-webkit-scrollbar,.dash-welcome-modal::-webkit-scrollbar{display:none;width:0;height:0;}' +
       '.dash-checklist-detail{display:grid;grid-template-columns:minmax(108px,140px) 1fr;gap:8px;align-items:start;font-size:12.4px;line-height:1.42;border-radius:12px;padding:8px 9px;background:#FFFEFC;border:1px solid #F1ECE4;}' +
+      '.dash-onboarding-select{width:100%;height:38px;border:1px solid #E8DCD7;border-radius:12px;background:#FFFCF8;color:#2F2927;font-family:inherit;font-size:12px;font-weight:650;padding:0 34px 0 11px;appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,#8A7E7C 50%),linear-gradient(135deg,#8A7E7C 50%,transparent 50%);background-position:calc(100% - 17px) 16px,calc(100% - 12px) 16px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;outline:none;}' +
       '@media(max-width:760px){.dash-onboarding-float{right:12px;bottom:12px;width:calc(100vw - 24px);}.dash-onboarding-pill{right:12px;bottom:12px;}.dash-tour-backdrop,.dash-welcome-backdrop,.dash-checklist-backdrop{align-items:flex-end;padding:12px;}.dash-tour-modal,.dash-welcome-modal{border-radius:22px;max-height:calc(100dvh - 24px);overflow:auto;}.dash-checklist-modal{border-radius:22px;max-height:calc(100dvh - 24px);}.dash-checklist-detail{grid-template-columns:1fr;gap:3px;}}';
     document.head.appendChild(style);
   }
@@ -622,6 +623,11 @@ Modules.Dashboard = (function () {
     var phase = _currentOnboardingPhase(vm.onboarding);
     var phaseSteps = (phase && phase.steps) || flat;
     var phaseDone = phaseSteps.filter(function (s) { return s.done; }).length;
+    var nextIdx = Math.max(0, phaseSteps.findIndex(function (s) { return !s.done; }));
+    var nextStep = phaseSteps[nextIdx] || phaseSteps[0] || {};
+    var stepOptions = phaseSteps.map(function (step, idx) {
+      return '<option value="' + idx + '"' + (idx === nextIdx ? ' selected' : '') + '>' + (step.done ? '✓ ' : '') + _esc(step.title || ('Passo ' + (idx + 1))) + '</option>';
+    }).join('');
     var pct = Math.round((done / total) * 100);
     var collapsed = _readLocalOnboardingState().collapsed;
     return '<div id="dash-onboarding-panel" class="dash-card dash-onboarding-float" style="display:' + (collapsed ? 'none' : 'block') + ';overflow:hidden;border:1px solid rgba(234,228,218,.9);">' +
@@ -634,17 +640,19 @@ Modules.Dashboard = (function () {
           '<button type="button" onclick="Modules.Dashboard._collapseOnboarding()" style="width:30px;height:30px;border:none;background:rgba(255,255,255,.7);border-radius:10px;color:#6F6860;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;"><span class="mi" style="font-size:18px;">expand_more</span></button>' +
         '</div>' +
         '<div style="display:flex;align-items:center;gap:10px;margin-top:13px;"><div style="height:8px;border-radius:999px;background:#F1ECE4;overflow:hidden;flex:1;"><div style="height:100%;width:' + pct + '%;background:#B42318;border-radius:999px;"></div></div><span style="font-size:12px;color:#1F1F1F;white-space:nowrap;">' + done + '/' + total + '</span></div>' +
-        '<div style="margin-top:10px;border:1px solid #E8DCD7;background:#fff;border-radius:12px;padding:9px 10px;color:#5F5750;font-size:11.5px;line-height:1.35;">Vá etapa por etapa. A lista abaixo mostra seu progresso, a sequência do que precisa ser feito e onde continuar.</div>' +
+        '<div style="margin-top:10px;border:1px solid #E8DCD7;background:#fff;border-radius:12px;padding:9px 10px;color:#5F5750;font-size:11.5px;line-height:1.35;">Vá etapa por etapa. A lista mostra seu progresso e abre o próximo ponto para continuar.</div>' +
       '</div>' +
-      '<div style="padding:10px;background:#fff;display:flex;flex-direction:column;gap:7px;">' +
-          '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 2px 3px;"><span style="font-size:11px;color:#8A6F5A;text-transform:uppercase;letter-spacing:.03em;">Etapa atual</span><span style="font-size:11px;color:#6F6860;">' + phaseDone + '/' + phaseSteps.length + '</span></div>' +
-          phaseSteps.map(function (step, idx) {
-            return '<button type="button" onclick="Modules.Dashboard._openChecklistGuide(\'' + _esc((phase && phase.key) || '') + '\',' + idx + ')" class="dash-action" style="text-align:left;border:1px solid ' + (step.done ? '#D9F2E3' : '#EAE4DA') + ';background:' + (step.done ? '#F4FBF6' : '#fff') + ';border-radius:13px;padding:10px;display:flex;gap:9px;align-items:flex-start;cursor:pointer;font-family:inherit;min-width:0;">' +
-              '<span class="mi" style="width:28px;height:28px;border-radius:10px;background:' + (step.done ? '#E8F7EE' : '#FAF8F4') + ';color:' + (step.done ? '#1F6F43' : '#B42318') + ';font-size:17px;flex:0 0 auto;">' + (step.done ? 'check_circle' : step.icon) + '</span>' +
-              '<span style="min-width:0;"><strong style="display:block;font-size:12px;color:#1F1F1F;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(step.title) + '</strong><span style="display:block;font-size:11px;color:#6F6860;line-height:1.3;margin-top:2px;">' + _esc(step.text) + '</span></span>' +
-            '</button>';
-          }).join('') +
-          '<div style="border-top:1px solid #F1ECE4;margin-top:3px;padding-top:8px;display:flex;gap:6px;flex-wrap:wrap;">' +
+      '<div style="padding:10px;background:#fff;display:flex;flex-direction:column;gap:9px;">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 2px;"><span style="font-size:11px;color:#8A6F5A;text-transform:uppercase;letter-spacing:.03em;">Etapa atual</span><span style="font-size:11px;color:#6F6860;">' + phaseDone + '/' + phaseSteps.length + '</span></div>' +
+          '<button type="button" onclick="Modules.Dashboard._openChecklistGuide(\'' + _esc((phase && phase.key) || '') + '\',' + nextIdx + ')" class="dash-action" style="text-align:left;border:1px solid ' + (nextStep.done ? '#D9F2E3' : '#EAE4DA') + ';background:' + (nextStep.done ? '#F4FBF6' : '#fff') + ';border-radius:14px;padding:12px;display:flex;gap:10px;align-items:flex-start;cursor:pointer;font-family:inherit;min-width:0;">' +
+            '<span class="mi" style="width:32px;height:32px;border-radius:11px;background:' + (nextStep.done ? '#E8F7EE' : '#FAF8F4') + ';color:' + (nextStep.done ? '#1F6F43' : '#B42318') + ';font-size:18px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;">' + (nextStep.done ? 'check_circle' : _esc(nextStep.icon || 'arrow_forward')) + '</span>' +
+            '<span style="min-width:0;"><span style="display:block;font-size:10.5px;color:#8A6F5A;font-weight:800;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Próximo passo</span><strong style="display:block;font-size:13px;color:#1F1F1F;line-height:1.25;">' + _esc(nextStep.title || 'Continuar configuração') + '</strong><span style="display:block;font-size:11.5px;color:#6F6860;line-height:1.35;margin-top:3px;">' + _esc(nextStep.text || 'Abra para ver o que preencher e onde continuar.') + '</span></span>' +
+          '</button>' +
+          '<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px;align-items:center;">' +
+            '<select class="dash-onboarding-select" onchange="Modules.Dashboard._openChecklistGuideFromSelect(this,\'' + _esc((phase && phase.key) || '') + '\')" aria-label="Escolher passo do checklist"><option value="">Ver outro passo desta etapa...</option>' + stepOptions + '</select>' +
+            '<button type="button" onclick="Modules.Dashboard._openChecklistGuide(\'' + _esc((phase && phase.key) || '') + '\',' + nextIdx + ')" class="dash-soft-btn" style="height:38px;padding:0 12px;border:1px solid #E8DCD7;background:#fff;color:#1F1F1F;border-radius:12px;font-size:12px;font-weight:750;cursor:pointer;font-family:inherit;white-space:nowrap;">Abrir</button>' +
+          '</div>' +
+          '<div style="border-top:1px solid #F1ECE4;margin-top:1px;padding-top:8px;display:flex;gap:6px;flex-wrap:wrap;">' +
             vm.onboarding.map(function (p, idx) {
               var pDone = (p.steps || []).every(function (s) { return s.done; });
               var active = phase && p.key === phase.key;
@@ -1114,6 +1122,14 @@ Modules.Dashboard = (function () {
     window.setTimeout(function () { _renderGlobalOnboarding(); }, 180);
   }
 
+  function _openChecklistGuideFromSelect(select, phaseKey) {
+    var raw = select && select.value != null ? String(select.value) : '';
+    if (raw === '') return;
+    var idx = parseInt(raw, 10);
+    if (isNaN(idx)) return;
+    _openChecklistGuide(phaseKey, idx);
+  }
+
   function _closeChecklistGuide() {
     try { if (window.localStorage) localStorage.removeItem('boca_dashboard_checklist_guide'); } catch (err) {}
     _setTourScrollLock(false);
@@ -1191,7 +1207,7 @@ Modules.Dashboard = (function () {
       'Configurar fiscal': {
         icon: 'request_quote',
         path: 'Caminho: Configurações > Fiscal',
-        intro: '<div><strong style="color:#1F1F1F;">Primeiro decida se o Fiscal vai entrar na sua rotina agora.</strong></div><div style="margin-top:7px;">Essa etapa só liga ou desliga o módulo. Se ativar, o menu Fiscal aparece no Painel BocaFood para preencher IVA, IRPF e os dados fiscais com calma.</div>',
+        introHtml: '<div><strong style="color:#1F1F1F;">Primeiro decida se o Fiscal vai entrar na sua rotina agora.</strong></div><div style="margin-top:7px;">Essa etapa só liga ou desliga o módulo. Se ativar, o menu Fiscal aparece no Painel BocaFood para preencher IVA, IRPF e os dados fiscais com calma.</div>',
         fields: [
           ['1. Ativação', '<div><strong style="color:#1F1F1F;">Comece por aqui.</strong> Em Configurações > Fiscal você apenas escolhe se esta parte vai aparecer no painel agora.</div>', true],
           ['Status do Fiscal', 'Use o botão para ativar ou desligar o módulo. Ele não é um campo de imposto; ele só define se o Fiscal entra na rotina do negócio.'],
@@ -1202,6 +1218,31 @@ Modules.Dashboard = (function () {
         ],
         actions: ['Escolha se o Fiscal entra na rotina agora.', 'Salve a decisão em Configurações > Fiscal.', 'Se ativar, abra Fiscal > Configurações fiscais e preencha IVA, IRPF e dados fiscais.', 'Se não for usar agora, mantenha desligado e siga o checklist.'],
         ready: 'Está pronto quando você salvou se o Fiscal será usado agora. Se ativou, o próximo passo é completar o módulo Fiscal.'
+      },
+      'Preencher configuração fiscal': {
+        icon: 'request_quote',
+        path: 'Caminho: Fiscal > Configurações fiscais',
+        introHtml: '<div><strong style="color:#1F1F1F;">Agora complete os dados fiscais do negócio.</strong></div><div style="margin-top:7px;">Este passo aparece somente quando o Fiscal está ativado. Preencha com atenção, porque esses dados ajudam a reservar impostos no Plano de Voo e a trazer IVA/IRPF para produtos, compras e leituras fiscais.</div>',
+        fields: [
+          ['País fiscal', 'Vem dos dados gerais do negócio. Se estiver errado, volte em Configurações > Geral e corrija antes de seguir.'],
+          ['Moeda', 'Escolha a moeda usada no negócio. Para Espanha e Portugal, normalmente será EUR.'],
+          ['IVA padrão (%)', 'Informe a porcentagem de IVA mais comum para o que você vende ou compra. Ela serve como base quando um produto, ingrediente, embalagem ou compra não tiver um IVA próprio.'],
+          ['IRPF padrão (%)', 'Informe a porcentagem que você quer usar como referência para reservar imposto sobre a sobra estimada. Isso ajuda a não tratar como sobra um dinheiro que pode precisar ficar guardado.'],
+          ['Preços incluem IVA', 'Escolha Sim quando o preço que a cliente vê já tem IVA dentro. Escolha Não se você trabalha com preço sem IVA e adiciona o imposto depois.'],
+          ['Tipo de fatura padrão', 'Escolha o tipo de documento que combina com a sua rotina. Se ainda não emite documento pelo BocaFood, deixe preparado com a opção mais próxima do que usa hoje.'],
+          ['Emissão', 'Escolha como a emissão deve ser tratada nesta etapa. Enquanto a integração final não estiver ativa, mantenha como preparação interna.'],
+          ['Série', 'Preencha a série dos documentos fiscais se o negócio já usa essa organização. Se ainda não usa, deixe a série inicial preparada.'],
+          ['Próximo número', 'Informe o próximo número da sequência fiscal quando já existe uma numeração em uso. Se ainda não usa, mantenha a sequência inicial.'],
+          ['Nome fiscal', 'Preencha o nome que aparece nos documentos fiscais. Pode ser o nome completo da responsável ou a denominação social.'],
+          ['Nome comercial', 'Preencha o nome pelo qual as clientes conhecem o negócio.'],
+          ['Tipo de documento', 'Escolha se o documento fiscal é NIF, NIE, CIF ou outro tipo aceito no país fiscal.'],
+          ['NIF / NIE / CIF', 'Preencha o número fiscal com cuidado. Esse dado identifica quem emite o documento.'],
+          ['Regime fiscal', 'Preencha o regime fiscal usado pelo negócio. Se ainda não tiver certeza, confirme antes de usar em documentos reais.'],
+          ['E-mail para faturas', 'Informe o e-mail que deve receber ou aparecer nas comunicações fiscais.'],
+          ['Endereço fiscal', 'Preencha o endereço que deve aparecer nos documentos fiscais: rua, número, complemento, cidade, província e código postal.']
+        ],
+        actions: ['Confira primeiro se o país fiscal está correto.', 'Preencha IVA e IRPF antes de seguir para produtos, compras e Plano de Voo.', 'Complete os dados fiscais do negócio para deixar a base pronta.', 'Salve a configuração fiscal no final.'],
+        ready: 'Está pronto quando IVA, IRPF e os principais dados fiscais foram revisados e salvos em Fiscal > Configurações fiscais.'
       },
       'Cadastrar ingredientes, embalagens e produtos comprados': {
         icon: 'inventory_2',
@@ -1264,7 +1305,7 @@ Modules.Dashboard = (function () {
       'Cadastrar produtos do cardápio': {
         icon: 'restaurant_menu',
         path: 'Caminho: Cardápio > Produtos',
-        intro: 'Depois dos ingredientes, embalagens e receitas, cadastre o que a cliente realmente compra no cardápio. Aqui o produto ganha preço, imagem, opções e visibilidade para venda.',
+        introHtml: '<div><strong style="color:#1F1F1F;">Aqui entra o que a cliente realmente compra no cardápio.</strong></div><div style="margin-top:7px;">Nesta primeira etapa, não precisa cadastrar tudo. Comece pelos <strong style="color:#1F1F1F;">3 produtos principais</strong>: aqueles que mais vendem, que você mais quer vender ou que melhor representam o negócio.</div><div style="margin-top:7px;">Depois você completa o restante do cardápio com calma.</div>',
         fields: [
           ['Imagem', 'Adicione uma foto quando tiver. A imagem ajuda a cliente entender o produto mais rápido e deixa o cardápio mais confiável.'],
           ['Nome do produto', 'Use o nome que a cliente vai reconhecer no cardápio. Exemplo: Coxinha de Frango, Brigadeiro, Bolo de Prestígio ou Guaraná lata.'],
@@ -1273,11 +1314,13 @@ Modules.Dashboard = (function () {
           ['Descrição completa', 'Use para detalhes que aparecem quando a cliente abre o produto, como ingredientes principais, tamanho, recheio ou cuidado importante.'],
           ['Preço', 'Informe o valor que a cliente vai pagar. Esse preço ajuda o Plano de Voo a entender ticket, venda esperada e margem.'],
           ['Categoria', 'Coloque o produto no grupo certo do cardápio, como Salgados, Doces, Bebidas, Combos ou Pratos.'],
+          ['Custo e margem', 'Quando o produto estiver ligado a uma receita ou produto pronto com custo, o BocaFood mostra uma leitura de custo e margem. Se aparecer zerado, revise a receita, o produto pronto ou o preço de compra.'],
+          ['Mostrar selo de destaque', 'Ligue quando quiser que o produto tenha um selo visual no cardápio. Use em poucos produtos para não perder força.'],
           ['Tipo de produto', 'Escolha Produto simples quando ele é vendido sozinho. Escolha Produto com escolhas / combo quando a cliente precisa escolher sabor, tamanho, acompanhamento ou itens do menu.'],
           ['Receita', 'Use quando o produto é produzido pelo negócio. Vincule à receita cadastrada para o custo e a margem ficarem mais confiáveis.'],
           ['Produto pronto', 'Use quando o item é comprado pronto e revendido, como bebida, doce de fornecedor ou produto embalado.'],
           ['Escolhas do combo', 'Use quando o produto tem grupos de escolha. Exemplo: escolher bebida, sabor, acompanhamento ou sobremesa.'],
-          ['Produtos extras', 'Use para sugerir um item junto ao produto principal e aumentar o valor do pedido.'],
+          ['Produtos extras', 'Use para sugerir um item junto ao produto principal e aumentar o valor do pedido. Escolha o produto extra, defina o texto da oferta e informe desconto somente quando fizer sentido.'],
           ['Tags', 'Marque selos visuais que ajudam a destacar o produto, como novidade, mais vendido ou destaque.'],
           ['Variantes', 'Marque grupos de opções já cadastrados, como tamanho, sabor, adicionais ou acompanhamentos.'],
           ['Observação interna', 'Use para uma anotação da equipe. Essa informação não aparece para a cliente.'],
@@ -1285,13 +1328,13 @@ Modules.Dashboard = (function () {
           ['SEO opcional', 'Use somente se quiser preparar o produto para aparecer melhor no Google: título, descrição, URL, palavra-chave e texto alternativo da imagem.'],
           ['Mostrar no cardápio', 'Deixe ligado apenas para produtos que a cliente pode ver e comprar agora. Desligue quando o produto ainda não deve aparecer.']
         ],
-        actions: ['Cadastre primeiro os produtos principais que a cliente mais pede.', 'Vincule produto produzido à receita e produto comprado pronto ao item de compra.', 'Confira preço, custo e margem antes de criar o Plano de Voo.', 'Deixe visível apenas o que já pode ser vendido.'],
-        ready: 'Está pronto quando os principais produtos de venda aparecem com nome, preço, categoria e vínculo correto quando existir.'
+        actions: ['Cadastre primeiro só 3 produtos principais.', 'Escolha produtos que já vendem, que representam bem o negócio ou que você quer usar como base do Plano de Voo.', 'Vincule produto produzido à receita e produto comprado pronto ao item de compra.', 'Confira preço, custo e margem antes de criar o Plano de Voo.', 'Deixe visível apenas o que já pode ser vendido.'],
+        ready: 'Está pronto para esta primeira etapa quando 3 produtos principais aparecem com nome, preço, categoria e vínculo correto quando existir.'
       },
       'Registrar custos e despesas fixas': {
         icon: 'payments',
         path: 'Caminho: Financeiro > Saídas',
-        intro: '<div><strong style="color:#1F1F1F;">Aqui entram custos fixos e despesas fixas</strong>: valores que o negócio já sabe que precisa pagar ou que costumam se repetir.</div><div style="margin-top:7px;">Comece por aluguel, energia, internet, serviços, taxas, fornecedores fixos, assinaturas e compromissos que precisam entrar na conta do mês.</div><div style="margin-top:7px;"><strong style="color:#1F1F1F;">Custos variáveis de previsão</strong>, aqueles que mudam conforme o volume de venda, são ajustados depois no Plano de Voo.</div>',
+        introHtml: '<div><strong style="color:#1F1F1F;">Aqui entram custos fixos e despesas fixas</strong>: valores que o negócio já sabe que precisa pagar ou que costumam se repetir.</div><div style="margin-top:7px;">Comece por aluguel, energia, internet, serviços, taxas, fornecedores fixos, assinaturas e compromissos que precisam entrar na conta do mês.</div><div style="margin-top:7px;"><strong style="color:#1F1F1F;">Custos variáveis de previsão</strong>, aqueles que mudam conforme o volume de venda, são ajustados depois no Plano de Voo.</div>',
         fields: [
           ['Número interno', 'É criado automaticamente pelo BocaFood para organizar as saídas. Não precisa preencher.'],
           ['Número do documento', 'Use quando tiver uma fatura, recibo, nota ou referência do pagamento. Se não tiver, deixe em branco.'],
@@ -1316,7 +1359,7 @@ Modules.Dashboard = (function () {
       'Criar Plano de Voo': {
         icon: 'flight_takeoff',
         path: 'Caminho: Crescimento > Plano de Voo',
-        intro: '<div><strong style="color:#1F1F1F;">O Plano de Voo cria a rota do ano.</strong></div><div style="margin-top:7px;">Ele usa a base atual do negócio de comida para mostrar quanto precisa vender, quantos pedidos precisa buscar e qual rota combina melhor com o momento.</div><div style="margin-top:7px;">Antes de salvar, confira se os números parecem reais. Depois de ativada, a rota vira acompanhamento; para mudar o caminho, crie uma nova rota.</div>',
+        introHtml: '<div><strong style="color:#1F1F1F;">O Plano de Voo cria a rota do ano.</strong></div><div style="margin-top:7px;">Ele usa a base atual do negócio de comida para mostrar quanto precisa vender, quantos pedidos precisa buscar e qual rota combina melhor com o momento.</div><div style="margin-top:7px;">Antes de salvar, confira se os números parecem reais. Depois de ativada, a rota vira acompanhamento; para mudar o caminho, crie uma nova rota.</div>',
         fields: [
           ['Criar nova rota', 'Clique no botão para abrir o fluxo de criação. A tela principal fica para acompanhar a rota depois que ela for ativada.'],
           ['Período da rota', 'A rota é criada para o período anual. Se o ano já começou, ela considera o restante do ano. Use esse campo para entender de qual mês até qual mês a rota está falando.'],
@@ -2374,7 +2417,15 @@ Modules.Dashboard = (function () {
     var money = _data.moneyConfig || {};
     var hasPriceRules = !!(money.desiredMarginPct || money.minMarginPct || money.defaultMarkup || Object.keys(money).length);
     var fiscal = _data.fiscalConfig || {};
+    var fiscalEnabled = fiscal.usarCalculoFiscal === true;
     var hasFiscalConfig = fiscal.fiscalDecisionSaved === true || fiscal.usarCalculoFiscal === true;
+    var hasFiscalSettings = fiscalEnabled && (
+      fiscal.fiscalSettingsSaved === true ||
+      fiscal.defaultIvaRate != null ||
+      fiscal.ivaPadrao != null ||
+      fiscal.irpfPadrao != null ||
+      !!(fiscal.legalBusiness && (fiscal.legalBusiness.legalName || fiscal.legalBusiness.fiscalId))
+    );
     var hasProducts = (_data.products || []).length > 0;
     var hasPurchaseItems = (_data.purchaseItems || []).length > 0;
     var hasRecipes = (_data.recipes || []).length > 0;
@@ -2392,22 +2443,28 @@ Modules.Dashboard = (function () {
     var hasStockMovement = (_data.stockMovements || []).length > 0;
     var hasPurchaseStockEntry = (_data.stockMovements || []).some(function (m) { return String(m && m.type || '') === 'entrada_compra'; });
     var hasSaleStockExit = (_data.stockMovements || []).some(function (m) { return String(m && m.type || '') === 'saida_venda'; });
+    var baseSteps = [
+      { title: 'Preencher dados do negócio', text: 'Nome, contato e endereço para deixar tudo identificado.', icon: 'badge', route: 'configuracoes/geral', done: !!(g.businessName && (g.phone || g.whatsapp || g.email)) },
+      { title: 'Criar canais de venda', text: 'Mostre de onde os pedidos chegam: cardápio, balcão, Instagram ou outro canal.', icon: 'storefront', route: 'configuracoes/canais_venda', done: hasSalesChannels },
+      { title: 'Definir preço e margem', text: 'Ajude o BocaFood a proteger sua sobra em cada venda.', icon: 'calculate', route: 'dinheiro/regras', done: hasPriceRules },
+      { title: 'Configurar fiscal', text: 'Decida se IVA, IRPF e reserva fiscal entram na rotina do negócio agora.', icon: 'request_quote', route: 'configuracoes/fiscal', done: hasFiscalConfig }
+    ];
+    if (fiscalEnabled) {
+      baseSteps.push({ title: 'Preencher configuração fiscal', text: 'Complete IVA, IRPF e dados fiscais antes de seguir com produtos, compras e Plano de Voo.', icon: 'request_quote', route: 'fiscal/configuracoes', done: hasFiscalSettings });
+    }
+    baseSteps = baseSteps.concat([
+      { title: 'Cadastrar ingredientes, embalagens e produtos comprados', text: 'Cadastre ingredientes, embalagens e produtos prontos que entram na operação.', icon: 'inventory_2', route: 'compras/itens', done: hasPurchaseItems },
+      { title: 'Cadastrar receitas', text: 'Monte as receitas usando os ingredientes, embalagens e bases cadastradas.', icon: 'receipt_long', route: 'receitas/receitas', done: hasRecipes },
+      { title: 'Cadastrar produtos do cardápio', text: 'Coloque para venda os produtos que a cliente vai comprar.', icon: 'restaurant_menu', route: 'catalogo/produtos', done: hasProducts },
+      { title: 'Registrar custos e despesas fixas', text: 'Inclua contas e compromissos que precisam entrar na rota.', icon: 'payments', route: 'financeiro/contas-pagar', done: hasCosts }
+    ]);
     return [
       {
         key: 'base',
         title: 'Base do negócio',
         shortTitle: 'Base',
         text: 'Deixe claro quem é seu negócio, por onde vende e quais itens formam sua produção.',
-        steps: [
-          { title: 'Preencher dados do negócio', text: 'Nome, contato e endereço para deixar tudo identificado.', icon: 'badge', route: 'configuracoes/geral', done: !!(g.businessName && (g.phone || g.whatsapp || g.email)) },
-          { title: 'Criar canais de venda', text: 'Mostre de onde os pedidos chegam: cardápio, balcão, Instagram ou outro canal.', icon: 'storefront', route: 'configuracoes/canais_venda', done: hasSalesChannels },
-          { title: 'Definir preço e margem', text: 'Ajude o BocaFood a proteger sua sobra em cada venda.', icon: 'calculate', route: 'dinheiro/regras', done: hasPriceRules },
-          { title: 'Configurar fiscal', text: 'Decida se IVA, IRPF e reserva fiscal entram na rotina do negócio agora.', icon: 'request_quote', route: 'configuracoes/fiscal', done: hasFiscalConfig },
-          { title: 'Cadastrar ingredientes, embalagens e produtos comprados', text: 'Cadastre ingredientes, embalagens e produtos prontos que entram na operação.', icon: 'inventory_2', route: 'compras/itens', done: hasPurchaseItems },
-          { title: 'Cadastrar receitas', text: 'Monte as receitas usando os ingredientes, embalagens e bases cadastradas.', icon: 'receipt_long', route: 'receitas/receitas', done: hasRecipes },
-          { title: 'Cadastrar produtos do cardápio', text: 'Coloque para venda os produtos que a cliente vai comprar.', icon: 'restaurant_menu', route: 'catalogo/produtos', done: hasProducts },
-          { title: 'Registrar custos e despesas fixas', text: 'Inclua contas e compromissos que precisam entrar na rota.', icon: 'payments', route: 'financeiro/contas-pagar', done: hasCosts }
-        ]
+        steps: baseSteps
       },
       {
         key: 'route',
@@ -2717,6 +2774,7 @@ Modules.Dashboard = (function () {
     _openTour: _openTour,
     _openGuidedRoute: _openGuidedRoute,
     _openChecklistGuide: _openChecklistGuide,
+    _openChecklistGuideFromSelect: _openChecklistGuideFromSelect,
     _closeChecklistGuide: _closeChecklistGuide,
     _openChecklistGuideRoute: _openChecklistGuideRoute,
     _nextTourStep: _nextTourStep,
