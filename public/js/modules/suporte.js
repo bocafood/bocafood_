@@ -324,13 +324,13 @@ Modules.Suporte = (function () {
             ready: 'Os principais produtos têm preço, categoria e estão marcados para aparecer quando devem ser vendidos.'
           },
           {
-            title: '9. Cadastrar insumos',
-            path: 'Produção > Insumos',
-            intro: 'Aqui você cadastra os itens usados para produzir ou comprar para a operação.',
+            title: '9. Cadastrar ingredientes e embalagens',
+            path: 'Produção > Ingredientes e Embalagens',
+            intro: 'Aqui você cadastra o que entra no preparo, na montagem e na entrega dos produtos.',
             fill: ['farinha', 'leite', 'frango', 'chocolate', 'embalagem', 'óleo', 'queijo ou outros itens usados no negócio'],
-            why: 'Os insumos ajudam a montar receitas, registrar compras, calcular custo e movimentar estoque.',
+            why: 'Ingredientes e embalagens ajudam a montar receitas, registrar compras, calcular custo e movimentar estoque.',
             after: 'Eles entram em fichas técnicas, compras, produção e estoque.',
-            cautions: ['Usar unidade correta.', 'Não duplicar o mesmo insumo com nomes diferentes.', 'Informar custo quando tiver.'],
+            cautions: ['Usar unidade correta.', 'Não duplicar o mesmo ingrediente ou embalagem com nomes diferentes.', 'Informar custo quando tiver.'],
             ready: 'Os principais ingredientes e embalagens usados nas receitas já estão cadastrados.'
           },
           {
@@ -448,7 +448,7 @@ Modules.Suporte = (function () {
             title: '20. Acompanhar estoque',
             path: 'Estoque > Itens em estoque',
             intro: 'Aqui você acompanha o saldo dos itens.',
-            fill: ['insumos', 'produtos prontos', 'produtos produzidos', 'bases de produção', 'mínimo', 'máximo', 'movimentações'],
+            fill: ['ingredientes', 'embalagens', 'produtos prontos', 'produtos produzidos', 'bases de produção', 'mínimo', 'máximo', 'movimentações'],
             why: 'O estoque ajuda a evitar vender sem ter item, comprar demais ou perder controle do que foi produzido.',
             after: 'As movimentações aparecem em Estoque > Movimentações e vêm de compras, produção, vendas e ajustes.',
             cautions: ['Saldo é calculado por movimentações.', 'Se algo físico não bater, usar ajuste ou inventário.', 'Mínimo e máximo devem vir da origem do item quando possível.'],
@@ -499,7 +499,7 @@ Modules.Suporte = (function () {
               'Financeiro > Configurações > Contas bancárias',
               'Cardápio > Configurações > Categorias',
               'Cardápio > Produtos',
-              'Produção > Insumos',
+              'Produção > Ingredientes e Embalagens',
               'Produção > Receitas de produção',
               'Financeiro > Saídas',
               'Crescimento > Plano de Voo',
@@ -984,7 +984,7 @@ Modules.Suporte = (function () {
             subtopics: [
               { title: 'Produto produzido', text: 'Deve apontar para ficha técnica ou produto produzido para baixar estoque corretamente quando vender.' },
               { title: 'Produto pronto comprado', text: 'Deve apontar para item comprado pronto quando a venda baixa esse item direto do estoque.' },
-              { title: 'Insumo', text: 'Normalmente é usado em produção e compras, não como produto final vendido para a cliente.' }
+              { title: 'Ingrediente ou embalagem', text: 'Normalmente entra no preparo, montagem ou entrega. Não é o produto final vendido para a cliente.' }
             ],
             why: 'Se o vínculo estiver errado, o pedido entra, mas o estoque não baixa do lugar certo.',
             after: 'Vendas confirmadas geram saída de estoque do produto vendido quando houver vínculo correto.',
@@ -1043,13 +1043,13 @@ Modules.Suporte = (function () {
         ],
         topics: [
           {
-            title: '1. Insumos',
-            path: 'Produção > Insumos',
-            intro: 'Insumos são os itens usados para produzir ou manter a operação funcionando.',
-            fill: ['nome do insumo', 'tipo', 'categoria', 'unidade base', 'custo atual quando existir', 'fornecedor padrão quando houver', 'estoque mínimo e máximo se for controlado'],
-            why: 'Sem insumos bem cadastrados, a ficha técnica não consegue calcular custo e a lista de compras fica fraca.',
-            after: 'O insumo entra em receitas, compras, estoque, produção e cálculo de custo.',
-            cautions: ['Não duplicar o mesmo insumo com nomes diferentes.', 'Usar unidade base correta.', 'Conferir custo quando registrar compra.', 'Separar ingrediente, embalagem e material operacional quando fizer sentido.'],
+            title: '1. Ingredientes e embalagens',
+            path: 'Produção > Ingredientes e Embalagens',
+            intro: 'Ingredientes e embalagens são os itens que entram no preparo, montagem ou entrega dos produtos.',
+            fill: ['nome do ingrediente ou embalagem', 'classe do item', 'categoria', 'unidade base', 'custo atual quando existir', 'fornecedor padrão quando houver', 'estoque mínimo e máximo se for controlado'],
+            why: 'Sem ingredientes e embalagens bem cadastrados, a ficha técnica não consegue calcular custo e a lista de compras fica fraca.',
+            after: 'O item entra em receitas, compras, estoque, produção e cálculo de custo.',
+            cautions: ['Não duplicar o mesmo ingrediente ou embalagem com nomes diferentes.', 'Usar unidade base correta.', 'Conferir custo quando registrar compra.', 'Separar ingrediente, embalagem e produto pronto quando fizer sentido.'],
             ready: 'Os principais ingredientes, embalagens e itens usados nas receitas já aparecem na lista.'
           },
           {
@@ -1174,7 +1174,7 @@ Modules.Suporte = (function () {
           {
             title: '13. Como saber que Produção está pronta',
             lines: [
-              'Os principais insumos estão cadastrados.',
+              'Os principais ingredientes e embalagens estão cadastrados.',
               'As receitas importantes têm ingredientes, rendimento e custo previsto.',
               'Bases de produção estão separadas quando o negócio trabalha por etapas.',
               'Produtos produzidos têm vínculo com ficha técnica.',
@@ -1206,13 +1206,13 @@ Modules.Suporte = (function () {
         key: 'compras',
         icon: 'shopping_cart',
         title: 'Compras',
-        summary: 'Entrada de itens comprados, fornecedores, produtos/insumos, recebimento, pagamento e entrada no estoque.',
+        summary: 'Entrada de itens comprados, fornecedores, ingredientes, embalagens, produtos prontos, recebimento, pagamento e entrada no estoque.',
         tags: ['fornecedores', 'recebimento', 'custo'],
         sections: [
           ['Registro de compra', 'Itens, quantidades, valores, documento, pagamento e observações.', 'receipt_long'],
           ['Recebimento', 'Quando a compra vira entrada de estoque.', 'inventory'],
           ['Fornecedores', 'Dados fiscais, contato, endereço e condições comerciais.', 'store'],
-          ['Produtos e insumos comprados', 'O que entra por compra e alimenta receitas, estoque ou venda direta.', 'inventory_2'],
+          ['Ingredientes, embalagens e produtos comprados', 'O que entra por compra e alimenta receitas, estoque ou venda direta.', 'inventory_2'],
           ['Financeiro da compra', 'Conta a pagar, forma de pagamento, vencimento e categoria.', 'account_balance_wallet']
         ],
         intro: [
@@ -1248,7 +1248,7 @@ Modules.Suporte = (function () {
             fill: ['item cadastrado', 'classe do item', 'quantidade', 'unidade', 'valor unitário', 'desconto quando existir', 'subtotal'],
             why: 'O item comprado atualiza custo, entrar no estoque e alimentar receitas ou produtos prontos.',
             after: 'Quando a compra é recebida, cada item gera uma movimentação de entrada no estoque.',
-            cautions: ['Escolher o item correto, não apenas escrever um nome parecido.', 'Separar insumo de produto pronto comprado.', 'Conferir se o valor unitário está em moeda e não multiplicado errado.'],
+            cautions: ['Escolher o item correto, não apenas escrever um nome parecido.', 'Separar ingrediente, embalagem e produto pronto comprado.', 'Conferir se o valor unitário está em moeda e não multiplicado errado.'],
             ready: 'Cada item da compra está identificado e com quantidade e valor corretos.'
           },
           {
@@ -1282,11 +1282,12 @@ Modules.Suporte = (function () {
             ready: 'A compra recebida mostra entrada de estoque sem duplicidade.'
           },
           {
-            title: '7. Produtos e insumos comprados',
-            path: 'Produção > Insumos ou Cardápio > Produtos',
+            title: '7. Ingredientes, embalagens e produtos comprados',
+            path: 'Produção > Ingredientes e Embalagens ou Cardápio > Produtos',
             intro: 'Antes de comprar, o item precisa existir na origem correta.',
             subtopics: [
-              { title: 'Insumo', text: 'Ingrediente, embalagem ou material usado em receita, produção ou operação.' },
+              { title: 'Ingrediente', text: 'Item usado no preparo da receita, como farinha, leite, carne, chocolate ou tempero.' },
+              { title: 'Embalagem', text: 'Item usado para montar ou entregar o produto, como caixa, pote, saco, etiqueta ou descartável.' },
               { title: 'Produto pronto comprado', text: 'Item comprado pronto para vender, como bebida ou produto embalado.' },
               { title: 'Material operacional', text: 'Item usado na rotina, mas que não necessariamente vira produto vendido.' }
             ],
@@ -1373,7 +1374,7 @@ Modules.Suporte = (function () {
         summary: 'Saldo calculado por movimentações de compra, produção, venda, ajustes e inventário.',
         tags: ['saldo', 'movimentações', 'mínimo'],
         sections: [
-          ['Tipos de estoque', 'Insumo, produto pronto comprado, produto produzido e base de produção.', 'segment'],
+          ['Tipos de estoque', 'Ingrediente, embalagem, produto pronto comprado, produto produzido e base de produção.', 'segment'],
           ['Itens em estoque', 'Saldo, unidade, valor estimado, mínimo, máximo e última movimentação.', 'inventory_2'],
           ['Movimentações', 'Entradas, saídas, ajustes, vendas, compras e produção.', 'swap_vert'],
           ['Ajustes e inventário', 'Correção manual quando a quantidade real não bate.', 'fact_check'],
@@ -1403,7 +1404,8 @@ Modules.Suporte = (function () {
             path: 'Estoque > Itens em estoque',
             intro: 'Os itens aparecem separados por classe para não misturar coisas diferentes.',
             subtopics: [
-              { title: 'Insumo', text: 'Ingrediente, embalagem ou item usado em receita, produção ou operação.' },
+              { title: 'Ingrediente', text: 'Item usado no preparo da receita, como farinha, leite, carne, chocolate ou tempero.' },
+              { title: 'Embalagem', text: 'Item usado para montar ou entregar o produto, como caixa, pote, saco, etiqueta ou descartável.' },
               { title: 'Produto pronto comprado', text: 'Item comprado pronto para revender, como bebida ou produto embalado.' },
               { title: 'Produto produzido', text: 'Item que entrou no estoque depois de uma produção concluída.' },
               { title: 'Base de produção', text: 'Massa, recheio, molho ou etapa intermediária que entra em outro produto.' }
@@ -1420,7 +1422,7 @@ Modules.Suporte = (function () {
             fill: ['item', 'tipo de estoque', 'saldo atual', 'unidade', 'valor estimado em estoque', 'última movimentação', 'origem das movimentações'],
             why: 'Ela ajuda a ver rapidamente o que tem, o que está baixo e o que precisa de atenção.',
             after: 'Ao clicar em um item, você vê detalhes e movimentações relacionadas.',
-            cautions: ['Saldo sem custo informado mostra valor estimado incompleto.', 'Se o tipo estiver errado, revisar a origem do produto/insumo.', 'Não usar estoque como cadastro duplicado do produto.'],
+            cautions: ['Saldo sem custo informado mostra valor estimado incompleto.', 'Se o tipo estiver errado, revisar a origem do item.', 'Não usar estoque como cadastro duplicado do produto.'],
             ready: 'A lista mostra itens com saldo, unidade e tipo corretos.'
           },
           {
@@ -1500,7 +1502,7 @@ Modules.Suporte = (function () {
             fill: ['estoque mínimo', 'estoque máximo', 'unidade', 'item de origem'],
             why: 'Mínimo evita faltar item. Máximo ajuda a não comprar ou produzir demais.',
             after: 'Produção e lista de compras usam esses limites para sugerir reposição.',
-            cautions: ['O valor deve ser alterado na origem do item quando possível.', 'Mínimo de produto produzido sugere produção.', 'Mínimo de insumo sugere compra.'],
+            cautions: ['O valor deve ser alterado na origem do item quando possível.', 'Mínimo de produto produzido sugere produção.', 'Mínimo de ingrediente ou embalagem sugere compra.'],
             ready: 'Itens importantes têm mínimo e máximo coerentes com a rotina.'
           },
           {
@@ -1544,7 +1546,7 @@ Modules.Suporte = (function () {
               'Achar que compra registrada já entrou no estoque sem confirmar recebimento.',
               'Finalizar produção duas vezes.',
               'Produto vendido sem vínculo com estoque.',
-              'Produto pronto comprado cadastrado como insumo.',
+              'Produto pronto comprado cadastrado como ingrediente ou embalagem.',
               'Produto produzido sem ficha técnica.',
               'Usar ajuste para corrigir tudo sem investigar.',
               'Não registrar perda.',
@@ -1976,7 +1978,7 @@ Modules.Suporte = (function () {
         '<section id="help-category-grid" class="help-category-grid">' +
           _guideCategoryCard('primeiros-passos', 'rocket_launch', 'Primeiros passos', 'Comece pelo essencial: revise seu acesso, complete os dados principais da loja e saiba o que fazer antes de publicar.', 'Disponível', '1 guia', true) +
           _guideCategoryCard('configuracoes', 'settings', 'Configurações', 'Entenda Geral, Usuário, Venda presencial, Integrações e Meu plano sem misturar dados da loja, acesso e assinatura.', 'Disponível', '5 guias', true) +
-          _guideCategoryCard('compras', 'shopping_cart', 'Compras', 'Entenda fornecedores, produtos e insumos, registro de compras e configurações para manter custos e pagamentos organizados.', 'Disponível', '4 guias', true) +
+          _guideCategoryCard('compras', 'shopping_cart', 'Compras', 'Entenda fornecedores, ingredientes, embalagens, produtos comprados, registro de compras e configurações para manter custos e pagamentos organizados.', 'Disponível', '4 guias', true) +
           _guideCategoryCard('loja-online', 'storefront', 'Loja Online', 'Vai reunir orientações sobre aparência da loja, link público, publicação, avaliações e informações que aparecem para seus clientes.', 'Em breve', '', false) +
           _guideCategoryCard('cardapio', 'restaurant_menu', 'Cardápio', 'Vai explicar como organizar produtos, categorias, fotos, preços, fichas técnicas e custos sem misturar cadastro com controle financeiro.', 'Em breve', '', false) +
           _guideCategoryCard('pedidos', 'receipt_long', 'Pedidos', 'Vai mostrar como acompanhar pedidos recebidos, entender status e manter a operação organizada durante o atendimento.', 'Em breve', '', false) +
@@ -2023,12 +2025,12 @@ Modules.Suporte = (function () {
         '</div>';
     } else if (key === 'compras') {
       body = '<div class="help-guide-panel-head">' +
-          '<div><h3>Compras</h3><p>Use estes guias para cadastrar fornecedores, organizar produtos e insumos, registrar compras e manter os custos da loja mais fáceis de acompanhar.</p></div>' +
+          '<div><h3>Compras</h3><p>Use estes guias para cadastrar fornecedores, organizar ingredientes, embalagens e produtos comprados, registrar compras e acompanhar custos com mais clareza.</p></div>' +
           '<button class="support-secondary" type="button" onclick="Modules.Suporte._clearGuidePanel()">Voltar às áreas</button>' +
         '</div>' +
         '<div class="help-submodule-grid">' +
           _submoduleCard('compras-registro', 'receipt_long', 'Registro de compras', 'Como lançar uma compra, preencher itens recebidos, documento, pagamento e contas a pagar.', 'compras') +
-          _submoduleCard('compras-produtos-insumos', 'inventory_2', 'Produtos / Insumos', 'Como cadastrar itens comprados, unidade base, embalagem padrão, fornecedor e uso em receitas.', 'compras') +
+          _submoduleCard('compras-produtos-insumos', 'inventory_2', 'Ingredientes, Embalagens e Produtos', 'Como cadastrar itens comprados, unidade base, embalagem padrão, fornecedor e uso em receitas.', 'compras') +
           _submoduleCard('compras-fornecedores', 'storefront', 'Fornecedores', 'Como preencher dados fiscais, endereço, contato e condições de pagamento dos fornecedores.', 'compras') +
           _submoduleCard('compras-configuracoes', 'category', 'Configurações', 'Como organizar categorias e opções usadas nos cadastros e filtros de compras.', 'compras') +
         '</div>';
@@ -2182,7 +2184,7 @@ Modules.Suporte = (function () {
           ['Quantidade comprada', 'Informe quantas embalagens, caixas, sacos, unidades ou pacotes foram comprados. Se você comprou 3 sacos de farinha, a quantidade comprada é 3.'],
           ['Embalagem', 'Descreva como o item veio na compra: saco, caixa, garrafa, pacote, bandeja ou unidade. Esse campo ajuda a entender o preço informado e a leitura do estoque.'],
           ['Conteúdo da embalagem', 'Informe quanto vem dentro de cada embalagem. Exemplo: um saco com 5 kg, uma garrafa com 1 L ou uma caixa com 12 unidades. Esse número é usado para calcular quanto custa cada kg, litro ou unidade.'],
-          ['Unidade usada no custo', 'É a unidade que o BocaFood usa para custo, estoque e receitas: kg, g, L, ml ou unidade. Ela vem do cadastro do item. Se estiver errada, ajuste primeiro em Produtos / Insumos.'],
+          ['Unidade usada no custo', 'É a unidade que o BocaFood usa para custo, estoque e receitas: kg, g, L, ml ou unidade. Ela vem do cadastro do item. Se estiver errada, ajuste primeiro em Ingredientes, Embalagens e Produtos.'],
           ['Preço por embalagem', 'Informe o valor pago pela embalagem inteira, não o valor por kg, litro ou unidade. Exemplo: se o saco de 5 kg custou €2,50, preencha €2,50 no preço da embalagem.'],
           ['Desconto por embalagem', 'Use apenas quando o fornecedor deu desconto em cada embalagem ou unidade comprada. Se o desconto foi no total da compra, revise se faz sentido dividir o valor entre os itens antes de preencher.'],
           ['IVA do item', 'Quando aparecer, use para informar o imposto aplicado ao item. Se você não tiver certeza, mantenha o padrão da loja e revise depois com a pessoa que acompanha sua parte fiscal.'],
@@ -2197,12 +2199,12 @@ Modules.Suporte = (function () {
         ]);
     } else if (key === 'compras-produtos-insumos') {
       body = '<div class="help-guide-panel-head">' +
-          '<div><h3>Compras → Produtos / Insumos</h3><p>Use esta tela para cadastrar os itens que o negócio compra. Esses cadastros ajudam no registro de compras, no cálculo de custo e, quando for insumo, na preparação de receitas.</p></div>' +
-          _guideBackButtons(moduleKey || 'compras', 'Abrir Produtos / Insumos', 'compras/itens') +
+          '<div><h3>Compras → Ingredientes, Embalagens e Produtos</h3><p>Use esta tela para cadastrar os itens que o negócio compra. Esses cadastros ajudam no registro de compras, no cálculo de custo e na preparação de receitas.</p></div>' +
+          _guideBackButtons(moduleKey || 'compras', 'Abrir Ingredientes, Embalagens e Produtos', 'compras/itens') +
         '</div>' +
         _guideFields([
-          ['Produto pronto ou insumo', 'Produto pronto é algo comprado para vender ou usar como item final, como bebida, doce de fornecedor ou produto revendido. Insumo é o que entra no preparo, montagem ou entrega, como farinha, chocolate, carne, molho, caixa, pote, saco, etiqueta ou descartável.'],
-          ['Classe do item', 'Escolha Insumo para ingredientes e materiais usados no preparo, montagem ou entrega. Escolha Produto quando o item já chega pronto para vender. Caixa, pote, saco, etiqueta e descartável entram como insumo e podem ficar em uma categoria própria.'],
+          ['Ingrediente, embalagem ou produto pronto', 'Ingrediente é o que entra no preparo, como farinha, chocolate, carne ou molho. Embalagem é o que entra na montagem ou entrega, como caixa, pote, saco, etiqueta ou descartável. Produto pronto é algo comprado para vender direto, como bebida, doce de fornecedor ou produto revendido.'],
+          ['Classe do item', 'Escolha Ingrediente para itens usados no preparo. Escolha Embalagem para itens usados na montagem ou entrega. Escolha Produto pronto quando o item já chega pronto para vender. Essa separação deixa receitas, compras e estoque mais fáceis de entender.'],
           ['Nome do item', 'Use um nome fácil de procurar. Prefira nomes claros, como Farinha de trigo, Batata, Caixa para bolo ou Refrigerante lata. Evite abreviações que você possa esquecer depois.'],
           ['Categoria', 'Pense na categoria como uma pasta para encontrar o item depois. Use nomes do dia a dia do negócio, como Bebidas, Carnes, Ingredientes secos, Embalagens, Descartáveis ou Congelados. Isso ajuda na busca, nos filtros e na leitura dos custos.'],
           ['Cadastro ativo', 'Itens ativos aparecem nas buscas e nos formulários de compra. Se você não usa mais um item, prefira desativar em vez de apagar quando ele já apareceu em compras antigas.'],
@@ -2212,7 +2214,7 @@ Modules.Suporte = (function () {
           ['Preço de compra base', 'Preencha uma primeira base de custo quando ainda não existe compra registrada. Esse valor já ajuda receitas, cardápio e Plano de Voo a começarem com uma referência real. Depois que compras forem registradas, o campo vira custo médio automático e passa a ser protegido para evitar alteração manual por engano.'],
           ['Embalagem de compra padrão', 'Informe como você costuma comprar esse item: saco, caixa, pacote, garrafa, bandeja ou unidade. Exemplo: batata em saco, leite em garrafa, ovos em caixa.'],
           ['Conteúdo por embalagem (×)', 'Preencha quanto vem dentro da embalagem usando a mesma unidade escolhida em Unidade base. Se a unidade base é kg e a embalagem vem com 1 kg, preencha 1. Se a unidade base é kg e vem 400 g, preencha 0,400. Se a unidade base é g e vem 400 g, preencha 400. Se a unidade base é L e vem 500 ml, preencha 0,500. Se a caixa vem com 12 unidades, preencha 12.'],
-          ['Como preencher?', 'A ajuda aparece para insumos porque eles costumam entrar em receitas. Ela explica o exemplo da batata comprada em saco, mas usada por kg, para mostrar como embalagem e conteúdo trabalham juntos no custo.'],
+          ['Como preencher?', 'A ajuda aparece principalmente para ingredientes e embalagens porque esses itens entram no custo das receitas. Ela explica o exemplo da batata comprada em saco, mas usada por kg, para mostrar como embalagem e conteúdo trabalham juntos no custo.'],
           ['Estoque mínimo', 'Informe a quantidade que marca o momento de comprar mais. Exemplo: se você quer ser avisada quando restarem 2 kg de farinha, coloque 2 como estoque mínimo.'],
           ['Estoque máximo', 'Informe a maior quantidade que vale a pena manter guardada. Esse limite evita comprar além do espaço, validade ou necessidade do negócio.'],
           ['Custo atual', 'Esse campo é atualizado automaticamente pelo BocaFood quando você registra compras. Ele usa a média de compra do item e serve como referência para receitas, margens, cardápio e Plano de Voo. Se precisar corrigir o custo, ajuste a compra que gerou o valor.'],
@@ -2255,15 +2257,15 @@ Modules.Suporte = (function () {
           _guideBackButtons(moduleKey || 'compras', 'Abrir Configurações', 'compras/configuracoes') +
         '</div>' +
         _guideFields([
-          ['Para que serve', 'Configurações de compras organizam os cadastros usados em Produtos / Insumos, Fornecedores e Registro de compras. O objetivo é deixar a operação mais fácil de procurar, filtrar e conferir.'],
+          ['Para que serve', 'Configurações de compras organizam os cadastros usados em Ingredientes, Embalagens e Produtos, Fornecedores e Registro de compras. O objetivo é deixar a operação mais fácil de procurar, filtrar e conferir.'],
           ['Categorias', 'Categorias organizam itens parecidos no mesmo grupo. Exemplos: Bebidas, Laticínios, Carnes, Embalagens, Congelados e Descartáveis. Use nomes simples e consistentes.'],
           ['Como escolher uma categoria', 'Pense em como você procura os itens na prática. Se você quer encontrar ingredientes por tipo de compra, use categorias como Hortifruti, Secos, Proteínas ou Embalagens. Evite criar categorias muito parecidas.'],
           ['Ordem da lista', 'As categorias aparecem em ordem alfabética para facilitar a busca. Se uma categoria não aparecer onde você espera, confira se o nome está escrito da forma desejada e se ela está ativa.'],
           ['Busca e filtros', 'Use a busca para encontrar uma categoria pelo nome. O botão Limpar filtros aparece somente quando há algo filtrando a lista. Se nada aparecer, limpe os filtros ou revise a palavra buscada.'],
-          ['Nova categoria', 'Crie uma categoria quando precisar agrupar itens de um jeito que ainda não existe. Use um nome curto e fácil de entender. A categoria criada poderá aparecer nos cadastros de Produtos / Insumos e nos filtros.'],
+          ['Nova categoria', 'Crie uma categoria quando precisar agrupar itens de um jeito que ainda não existe. Use um nome curto e fácil de entender. A categoria criada poderá aparecer nos cadastros de Ingredientes, Embalagens e Produtos e nos filtros.'],
           ['Editar categoria', 'Use para corrigir nome, ajustar status ou padronizar a organização. Se a categoria já estiver em uso, prefira renomear com cuidado para não confundir relatórios e buscas.'],
           ['Excluir categoria', 'Use exclusão apenas quando a categoria foi criada por engano ou não está em uso. Se ela já organiza itens existentes, avalie deixar inativa ou ajustar o nome para preservar a leitura do histórico.'],
-          ['Categorias e classe do item', 'A classe do item separa Produto pronto de Insumo. A categoria apenas agrupa itens parecidos. Exemplo: um insumo e um produto pronto podem estar em grupos diferentes conforme a organização da loja.'],
+          ['Categorias e classe do item', 'A classe do item separa Ingrediente, Embalagem e Produto pronto. A categoria apenas agrupa itens parecidos. Exemplo: uma farinha, uma caixa e uma bebida podem estar em grupos diferentes conforme a organização do negócio.'],
           ['Unidades de medida', 'As unidades aparecem nos cadastros e compras para indicar como o item é medido, como kg, g, L, ml ou unidade. Elas ajudam o sistema a calcular custos e quantidades de forma coerente.'],
           ['Boas práticas', 'Comece com poucas categorias bem claras. Depois, se a lista crescer, crie novas categorias. Muitas categorias parecidas deixam a busca mais difícil e podem espalhar custos que deveriam estar juntos.']
         ]);

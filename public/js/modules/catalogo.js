@@ -6841,7 +6841,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     });
   }
 
-  // ── ITENS DE CUSTO (replaces Insumos) ─────────────────────────────────────
+  // ── ITENS DE CUSTO ────────────────────────────────────────────────────────
   var _itensCusto = [];
   var _itensCustoFilter = 'todos';
 
@@ -7122,7 +7122,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
           '<p class="recipes-page-subtitle">Crie fichas técnicas para calcular rendimento, ingredientes e custo real de cada receita.</p>' +
         '</div>' +
 	      '<div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;justify-content:flex-end;">' +
-	        '<button onclick="Router.navigate(\'receitas/insumos\')" class="recipes-secondary-btn"><span class="mi" style="font-size:16px;">inventory_2</span>Adicionar insumo</button>' +
+	        '<button onclick="Router.navigate(\'receitas/insumos\')" class="recipes-secondary-btn"><span class="mi" style="font-size:16px;">inventory_2</span>Adicionar ingrediente</button>' +
 	        '<button onclick="Modules.Catalogo._openFichaModal(null)" class="recipes-primary-btn">Adicionar receita</button>' +
 	      '</div>' +
       '</div>' +
@@ -7495,7 +7495,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
         var qty = (_parseFichaNum(ing.qty || 0) * ratioInfo.ratio);
         return '<div class="recipe-view-ingredient-row">' +
           '<div class="recipe-view-ingredient-main">' +
-            '<div class="recipe-view-ingredient-name">' + _esc((ins && ins.nome) || ing.supplyName || 'Insumo') + '</div>' +
+            '<div class="recipe-view-ingredient-name">' + _esc((ins && ins.nome) || ing.supplyName || 'Ingrediente') + '</div>' +
             '<div class="recipe-view-ingredient-meta">' + _esc(qty ? qty.toLocaleString('pt-BR', { maximumFractionDigits: 3 }) : 0) + ' ' + _esc(ing.unit || (ins && ins.unidade_base) || '') + (ratioInfo.proportional ? ' usados nesta receita' : '') + '</div>' +
           '</div>' +
           '<div class="recipe-view-ingredient-cost">' + (lineCost > 0 ? UI.fmt(lineCost) : '€0,00') + '</div>' +
@@ -8123,7 +8123,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       ? '<span style="background:#FFF7ED;color:#D97706;padding:2px 7px;border-radius:12px;font-size:11px;font-weight:700;">' + perda + '%</span>'
       : '<span style="color:#D4C8C6;font-size:11px;">—</span>';
     if (ins && !ins.custo_atual) {
-      UI.toast('⚠️ ' + _esc(ins.nome || 'Insumo') + ' não tem preço cadastrado. Custo pode ficar incorreto.', 'warning');
+      UI.toast('⚠️ ' + _esc(ins.nome || 'Ingrediente') + ' não tem preço cadastrado. Custo pode ficar incorreto.', 'warning');
     }
     _updateFichaCost();
   }
@@ -8138,7 +8138,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   function _fichaIngredientMeta(ins) {
     if (!ins) return '';
     var unit = ins.unidade_base || ins.unidadeBase || '';
-    var cls = _isPackagingItem(ins) ? 'Embalagem' : 'Insumo';
+    var cls = _isPackagingItem(ins) ? 'Embalagem' : 'Ingrediente';
     var cost = ins.custo_atual ? UI.fmt(ins.custo_atual) + (unit ? '/' + unit : '') : 'sem custo';
     return [cls, ins.categoria || '', unit ? 'Unidade: ' + unit : '', cost].filter(Boolean).join(' · ');
   }
@@ -8158,7 +8158,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
         '<div class="recipe-ingredient-option-name">' + _esc(ins.nome || ins.name || 'Ingrediente') + '</div>' +
         '<div class="recipe-ingredient-option-meta">' + _esc(_fichaIngredientMeta(ins)) + '</div>' +
       '</div>';
-    }).join('') : '<div class="recipe-ingredient-option"><div class="recipe-ingredient-option-name">Nenhum ingrediente encontrado</div><div class="recipe-ingredient-option-meta">Cadastre o item em Compras > Produtos / Insumos.</div></div>';
+    }).join('') : '<div class="recipe-ingredient-option"><div class="recipe-ingredient-option-name">Nenhum ingrediente encontrado</div><div class="recipe-ingredient-option-meta">Cadastre o item em Compras > Ingredientes, Embalagens e Produtos.</div></div>';
     dropdown.style.display = 'block';
   }
 
@@ -8434,7 +8434,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
         }));
       });
     });
-    if (ingredients.length === 0) { UI.toast('Adicione pelo menos 1 insumo', 'error'); return; }
+    if (ingredients.length === 0) { UI.toast('Adicione pelo menos 1 ingrediente ou embalagem', 'error'); return; }
     var componentCosts = _calcFichaComponentCosts(components, yieldQty, yieldUnit);
     var indirectCostInfo = _getIndirectCostInfo();
     var indirectCostPercent = indirectCostInfo.percent;

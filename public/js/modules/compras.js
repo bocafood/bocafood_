@@ -45,7 +45,7 @@ Modules.Compras = (function () {
 
   var TABS = [
     { key: 'registros',    label: 'Registro de compras' },
-    { key: 'itens',        label: 'Produtos / Insumos' },
+    { key: 'itens',        label: 'Ingredientes, Embalagens e Produtos' },
     { key: 'fornecedores', label: 'Fornecedores' },
     { key: 'configuracoes', label: 'Configurações' }
   ];
@@ -1548,9 +1548,9 @@ Modules.Compras = (function () {
       '<datalist id="cp-emb-list"><option value="un"><option value="unidade"><option value="pacote"><option value="caixa"><option value="fardo"><option value="saco"><option value="garrafa"><option value="lata"><option value="frasco"><option value="bandeja"><option value="botella"><option value="bolsa"><option value="caja"></datalist>' +
       '<div class="purchase-field-grid purchase-item-grid" style="margin-bottom:9px;">' +
       '<div style="position:relative;">' +
-      '<label style="' + _labelStyle() + '">Produto / Insumo</label>' +
+      '<label style="' + _labelStyle() + '">Item comprado</label>' +
       '<div class="purchase-field-control">' +
-      '<input id="cp-item-display" type="text" placeholder="Buscar produto ou insumo..." autocomplete="off" ' +
+      '<input id="cp-item-display" type="text" placeholder="Buscar ingrediente, embalagem ou produto pronto..." autocomplete="off" ' +
         'oninput="Modules.Compras._compraItemSearch(this.value)" ' +
         'onfocus="Modules.Compras._compraItemSearch(this.value)" ' +
         'onblur="setTimeout(function(){var d=document.getElementById(\'cp-item-dropdown\');if(d)d.style.display=\'none\';},200)">' +
@@ -1716,7 +1716,7 @@ Modules.Compras = (function () {
 
   function _fiscalCategoryOptions(selected) {
     return [
-      ['insumo', 'Insumo'],
+      ['insumo', 'Ingrediente'],
       ['embalagem', 'Embalagem'],
       ['produto_pronto', 'Produto pronto'],
       ['despesa_operacional', 'Despesa operacional'],
@@ -1764,7 +1764,7 @@ Modules.Compras = (function () {
     return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   }
 
-  // Combobox: filtra e mostra o dropdown de Produto/Insumo no modal de compra
+  // Combobox: filtra e mostra o dropdown de item comprado no modal de compra
   function _compraItemSearch(q) {
     var dd = document.getElementById('cp-item-dropdown');
     if (!dd) return;
@@ -2164,7 +2164,7 @@ Modules.Compras = (function () {
   function _addCompraLinha() {
     var sel = document.getElementById('cp-item');
     var opt = sel ? sel.options[sel.selectedIndex] : null;
-    if (!sel || !sel.value) { UI.toast('Selecione um produto/insumo', 'error'); return; }
+    if (!sel || !sel.value) { UI.toast('Selecione um item comprado', 'error'); return; }
     var qty = parseFloat(_el('cp-qty').value || '0') || 0;
     var precoUnit = _num(_el('cp-preco').value);  // preço por embalagem
     if (qty <= 0 || precoUnit <= 0) { UI.toast('Quantidade e preço por embalagem são obrigatórios', 'error'); return; }
@@ -2397,7 +2397,7 @@ Modules.Compras = (function () {
     });
   }
 
-  // ── Produtos / Insumos ────────────────────────────────────────────────────
+  // ── Ingredientes, Embalagens e Produtos ───────────────────────────────────
   function _renderItens() {
     Promise.all([DB.getAll('itens_custo'), DB.getAll('fornecedores'), DB.getAll('unidades_medida'), DB.getAll('compras_categorias')]).then(function (r) {
       _itens = (r[0] || []).sort(function (a, b) { return (a.nome || '').localeCompare(b.nome || ''); });
@@ -2450,7 +2450,7 @@ Modules.Compras = (function () {
     if (key === 'produto') return 'Produto';
     if (key === 'embalagem') return 'Embalagem';
     if (key === 'ambos') return 'Todos';
-    return 'Insumo';
+    return 'Ingrediente';
   }
 
   function _itemClassChipColor(classe) {
@@ -2468,9 +2468,9 @@ Modules.Compras = (function () {
 
   function _itemClassOptions(selected) {
     selected = String(selected || 'insumo').toLowerCase();
-    return '<option value="insumo"' + (selected === 'insumo' ? ' selected' : '') + '>Insumo</option>' +
+    return '<option value="insumo"' + (selected === 'insumo' ? ' selected' : '') + '>Ingrediente</option>' +
       '<option value="embalagem"' + (selected === 'embalagem' ? ' selected' : '') + '>Embalagem</option>' +
-      '<option value="produto"' + (selected === 'produto' ? ' selected' : '') + '>Produto</option>';
+      '<option value="produto"' + (selected === 'produto' ? ' selected' : '') + '>Produto pronto</option>';
   }
 
   function _findCatalogByName(kind, name, classe, strictClass) {
@@ -2608,11 +2608,11 @@ Modules.Compras = (function () {
     var content = document.getElementById('compras-content');
     if (!content) return;
     var insumosOnly = _itensView === 'insumos';
-    var title = insumosOnly ? 'Insumos' : 'Produtos / Insumos';
-    var subtitle = insumosOnly ? 'Cadastre ingredientes e embalagens usados na produção com categoria, unidade e custo atual.' : 'Cadastre e acompanhe produtos, insumos e embalagens usados em compras, estoque e custos.';
-    var addLabel = insumosOnly ? '+ Novo insumo' : '+ Novo item';
-    var listTitle = insumosOnly ? 'Insumos cadastrados' : 'Produtos / Insumos cadastrados';
-    var listDesc = insumosOnly ? 'Gerencie categoria, unidade e custo dos ingredientes e embalagens usados em receitas.' : 'Veja classe, categoria, unidade e custo atual dos itens de compra.';
+    var title = insumosOnly ? 'Ingredientes e Embalagens' : 'Ingredientes, Embalagens e Produtos';
+    var subtitle = insumosOnly ? 'Cadastre ingredientes e embalagens usados na produção com categoria, unidade e custo atual.' : 'Cadastre e acompanhe ingredientes, embalagens e produtos prontos usados em compras, estoque e custos.';
+    var addLabel = insumosOnly ? '+ Novo ingrediente/embalagem' : '+ Novo item';
+    var listTitle = insumosOnly ? 'Ingredientes e embalagens cadastrados' : 'Itens comprados cadastrados';
+    var listDesc = insumosOnly ? 'Gerencie categoria, unidade e custo dos ingredientes e embalagens usados em receitas.' : 'Veja classe, categoria, unidade e custo atual dos itens comprados.';
     var addFn = insumosOnly ? 'Modules.Compras._openInsumoModal(null)' : 'Modules.Compras._openItemModal(null)';
     var itemFilterCss = '<style>' +
       '.item-filter-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:16px;box-shadow:0 10px 24px rgba(31,31,31,.04);}' +
@@ -2640,7 +2640,7 @@ Modules.Compras = (function () {
     var classeFilterHtml = '<div class="item-filter-control"><select id="it-f-classe" onchange="Modules.Compras._filterItens()">' +
       '<option value=""' + (!_itensFilters.classe ? ' selected' : '') + '>Todas classes</option>' +
       '<option value="produto"' + (_itensFilters.classe === 'produto' ? ' selected' : '') + '>Produtos</option>' +
-      '<option value="insumo"' + (_itensFilters.classe === 'insumo' ? ' selected' : '') + '>Insumos</option>' +
+      '<option value="insumo"' + (_itensFilters.classe === 'insumo' ? ' selected' : '') + '>Ingredientes</option>' +
       '<option value="embalagem"' + (_itensFilters.classe === 'embalagem' ? ' selected' : '') + '>Embalagens</option>' +
       '</select></div>';
     var filterGrid = 'minmax(320px,1.45fr) minmax(170px,.75fr) minmax(220px,.9fr) minmax(150px,.7fr)';
@@ -2712,8 +2712,8 @@ Modules.Compras = (function () {
     var pageData = data.slice((currentPage - 1) * p.perPage, currentPage * p.perPage);
     var insumosOnly = _itensView === 'insumos';
     var headers = insumosOnly ? ['ITEM', 'CLASSE', 'CATEGORIA', 'UNIDADE', 'CUSTO ATUAL', 'AÇÕES'] : ['Nome', 'Classe', 'Categoria', 'Unidade', 'Custo atual', 'Venda', ''];
-    var emptyTitle = insumosOnly ? 'Nenhum insumo encontrado' : 'Nenhum item encontrado';
-    var emptyAction = insumosOnly ? 'Novo insumo' : 'Novo item';
+    var emptyTitle = insumosOnly ? 'Nenhum ingrediente ou embalagem encontrado' : 'Nenhum item encontrado';
+    var emptyAction = insumosOnly ? 'Novo ingrediente/embalagem' : 'Novo item';
     if (!data.length) {
       return '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
         '<div style="text-align:center;padding:60px 20px;color:#7A746B;">' +
@@ -2823,7 +2823,7 @@ Modules.Compras = (function () {
       ? 'Embalagem entra separada no custo da receita, como caixa, pote, saco, etiqueta ou descartável.'
       : (classeItem === 'produto'
         ? 'Produto comprado pronto é algo que já chega pronto para revender ou usar como item comprado.'
-        : 'Insumo é ingrediente ou material usado no preparo da receita.');
+        : 'Ingrediente é usado no preparo da receita.');
     var itemModalCss = '<style>' +
       '.item-modal-body{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px;font-family:Manrope,Inter,sans-serif;}' +
       '.item-modal-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:14px;box-shadow:0 10px 24px rgba(31,31,31,.04);min-width:0;}' +
@@ -2924,7 +2924,7 @@ Modules.Compras = (function () {
       '</div>' +
       '<div id="it-insumo-fields" class="item-modal-card item-modal-usage" style="display:none;">' +
       '<div class="item-modal-head"><span class="mi">restaurant</span><div><div style="' + sectionTitle + '">Uso em receitas</div>' +
-      '<div style="' + sectionHint + '">Defina se este item entra nas receitas e quanto dele é aproveitado na preparação.</div>' +
+      '<div style="' + sectionHint + '">Defina se este ingrediente ou embalagem entra nas receitas e quanto dele é aproveitado na preparação.</div>' +
       '</div></div>' +
       '<div class="item-usage-grid">' +
         '<div class="item-usage-panel">' +
@@ -2952,8 +2952,8 @@ Modules.Compras = (function () {
         '<button onclick="Modules.Compras._saveItem()" style="' + _primaryStyle() + '">Adicionar</button>' +
         '</div>';
     var modalTitle = (strictCatalog || _isSupplyClass(classeItem))
-      ? (id ? 'Editar Insumo/Embalagem' : 'Novo Insumo/Embalagem')
-      : (id ? 'Editar Produto / Insumo' : 'Novo Produto / Insumo');
+      ? (id ? 'Editar Ingrediente/Embalagem' : 'Novo Ingrediente/Embalagem')
+      : (id ? 'Editar item comprado' : 'Novo item comprado');
     window._itemCompraModal = UI.modal({ title: modalTitle, body: body, footer: footer, maxWidth: '1120px' });
     setTimeout(function () { _toggleItemClasse(); _updateItemCurrentCostPreview(); }, 20);
   }
@@ -3206,10 +3206,10 @@ Modules.Compras = (function () {
       if (classe) {
         classe.value = item.classe === 'embalagem' ? 'embalagem' : 'insumo';
         classe.disabled = false;
-        classe.title = 'No módulo Produção, use Insumo para ingredientes e Embalagem para caixas, potes, sacos e descartáveis.';
+        classe.title = 'No módulo Produção, use Ingrediente para alimentos de preparo e Embalagem para caixas, potes, sacos e descartáveis.';
       }
       var headings = document.querySelectorAll('h2');
-      if (headings.length) headings[headings.length - 1].textContent = id ? 'Editar Insumo/Embalagem' : 'Novo Insumo/Embalagem';
+      if (headings.length) headings[headings.length - 1].textContent = id ? 'Editar Ingrediente/Embalagem' : 'Novo Ingrediente/Embalagem';
       _toggleItemClasse();
     }, 30);
   }
@@ -3249,7 +3249,7 @@ Modules.Compras = (function () {
         ? 'Defina como este produto é comprado antes de ser vendido pronto para clientes.'
         : (classe === 'embalagem'
           ? 'Defina como esta embalagem é comprada para que o custo apareça separado nas receitas.'
-          : 'Defina como este insumo costuma ser comprado e usado na produção da loja.');
+          : 'Defina como este ingrediente costuma ser comprado e usado na produção.');
     }
     var classDesc = document.getElementById('it-class-desc');
     if (classDesc) {
@@ -3257,7 +3257,7 @@ Modules.Compras = (function () {
         ? 'Embalagem entra separada no custo da receita, como caixa, pote, saco, etiqueta ou descartável.'
         : (classe === 'produto'
           ? 'Produto comprado pronto é algo que já chega pronto para revender ou usar como item comprado.'
-          : 'Insumo é ingrediente ou material usado no preparo da receita.');
+          : 'Ingrediente é usado no preparo da receita.');
     }
     var costHelpBtn = document.getElementById('it-cost-help-btn');
     var costHelpBox = document.getElementById('it-cost-help');
@@ -3977,7 +3977,7 @@ Modules.Compras = (function () {
       '<div class="compras-config-filter-grid">' +
         '<div><label style="' + _labelStyle() + '">Buscar</label><div class="compras-config-control"><input id="sl-search-' + kind + '" type="search" placeholder="Buscar por nome..." value="' + _esc(_simpleListQ) + '" oninput="Modules.Compras._setSimpleListQ(\'' + kind + '\',this.value)"></div></div>' +
         '<div><label style="' + _labelStyle() + '">Aplicação</label><div class="compras-config-chip-row">' +
-          chipBtn('', 'Todos') + chipBtn('insumo', 'Insumo') + chipBtn('embalagem', 'Embalagem') + chipBtn('produto', 'Produto') +
+          chipBtn('', 'Todos') + chipBtn('insumo', 'Ingrediente') + chipBtn('embalagem', 'Embalagem') + chipBtn('produto', 'Produto pronto') +
         '</div></div>' +
       '</div>' +
     '</div>';
@@ -3999,7 +3999,7 @@ Modules.Compras = (function () {
     var filtered = _simpleListClasseFilter ? all.filter(function (x) { return (x.classe || '') === _simpleListClasseFilter; }) : all;
     if (_simpleListQ) {
       var sq = _simpleListQ.toLowerCase();
-      var classeLabel = { insumo: 'insumo', embalagem: 'embalagem', produto: 'produto', ambos: 'ambos' };
+      var classeLabel = { insumo: 'ingrediente', embalagem: 'embalagem', produto: 'produto', ambos: 'ambos' };
       filtered = filtered.filter(function (x) {
         var hay = [x.name, x.description, x.descricao, classeLabel[x.classe] || ''].join(' ').toLowerCase();
         return hay.indexOf(sq) >= 0;

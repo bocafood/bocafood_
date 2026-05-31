@@ -1170,13 +1170,13 @@ Modules.Dashboard = (function () {
         actions: ['Comece com uma margem desejada realista para a maioria dos produtos.', 'Defina uma margem mínima para o BocaFood sinalizar produtos que deixam pouca sobra.', 'Use markup como apoio, principalmente enquanto ainda está organizando custos e receitas.', 'Escolha um arredondamento que deixe os preços claros para a cliente.'],
         ready: 'Está pronto quando a regra mostra quanto você quer que sobre, qual é o mínimo aceitável e como os preços devem ser arredondados.'
       },
-      'Cadastrar insumos e produtos comprados': {
+      'Cadastrar ingredientes, embalagens e produtos comprados': {
         icon: 'inventory_2',
-        path: 'Caminho: Compras > Produtos / Insumos',
-        intro: 'Aqui entram os ingredientes, materiais de embalagem e produtos prontos que o negócio compra. Nesta primeira etapa, não precisa cadastrar tudo: comece pelos itens dos produtos que mais vendem e pelos insumos necessários para montar 2 ou 3 receitas principais.',
-        introHtml: '<div><strong style="color:#1F1F1F;">Aqui entram:</strong> ingredientes, materiais de embalagem e produtos prontos que o negócio compra.</div><div style="margin-top:7px;"><strong style="color:#1F1F1F;">Nesta primeira etapa, não precisa cadastrar tudo.</strong></div><div style="margin-top:7px;">Comece pelos itens dos produtos que mais vendem e pelos insumos necessários para montar <strong style="color:#1F1F1F;">2 ou 3 receitas principais</strong>.</div>',
+        path: 'Caminho: Compras > Ingredientes, Embalagens e Produtos',
+        intro: 'Aqui entram os ingredientes, embalagens e produtos prontos que o negócio compra. Nesta primeira etapa, não precisa cadastrar tudo: comece pelos itens dos produtos que mais vendem e pelos ingredientes necessários para montar 2 ou 3 receitas principais.',
+        introHtml: '<div><strong style="color:#1F1F1F;">Aqui entram:</strong> ingredientes, embalagens e produtos prontos que o negócio compra.</div><div style="margin-top:7px;"><strong style="color:#1F1F1F;">Nesta primeira etapa, não precisa cadastrar tudo.</strong></div><div style="margin-top:7px;">Comece pelos itens dos produtos que mais vendem e pelos ingredientes necessários para montar <strong style="color:#1F1F1F;">2 ou 3 receitas principais</strong>.</div>',
         fields: [
-          ['Classe do item', '<div><strong style="color:#1F1F1F;">Insumo:</strong> ingredientes, caixas, potes, sacos, etiquetas e outros itens usados no preparo, montagem ou entrega.</div><div style="margin-top:5px;"><strong style="color:#1F1F1F;">Produto:</strong> item que já chega pronto para vender, como bebida, doce de fornecedor ou produto revendido.</div>', true],
+          ['Classe do item', '<div><strong style="color:#1F1F1F;">Ingrediente:</strong> alimento ou base usada no preparo da receita.</div><div style="margin-top:5px;"><strong style="color:#1F1F1F;">Embalagem:</strong> caixas, potes, sacos, etiquetas, descartáveis e outros materiais que entram no custo do produto.</div><div style="margin-top:5px;"><strong style="color:#1F1F1F;">Produto pronto:</strong> item que já chega pronto para vender, como bebida, doce de fornecedor ou produto revendido.</div>', true],
           ['Nome', 'Use um nome simples de procurar depois. Exemplos: Farinha de trigo, Caixa para bolo, Guaraná lata ou Brigadeiro fornecedor.'],
           ['Categoria', 'Pense na categoria como uma pasta para encontrar o item depois. Use nomes do dia a dia do negócio, como Bebidas, Carnes, Ingredientes secos, Embalagens, Descartáveis ou Congelados.'],
           ['Unidade base', 'Escolha a unidade em que você compra e controla o custo desse item, como kg, g, litro, ml ou unidade. Se você compra batata por kg, use kg; se compra refrigerante por unidade, use unidade.'],
@@ -1191,7 +1191,7 @@ Modules.Dashboard = (function () {
           ['Aproveitamento (%)', 'Use 100% quando tudo entra na receita. Se uma parte se perde, pese antes e depois de preparar. Exemplo: comprou 1 kg e aproveitou 800 g; 800 g é 80% de 1 kg, então preencha 80%.']
         ],
         actions: ['Comece pelos ingredientes e materiais de embalagem mais usados.', 'Cadastre também produtos comprados prontos, se você vende ou usa algum item já pronto.', 'Depois use esses itens para montar receitas com custo mais confiável.'],
-        ready: 'Está pronto quando os principais insumos, materiais de embalagem e produtos comprados estão cadastrados com unidade e custo.'
+        ready: 'Está pronto quando os principais ingredientes, embalagens e produtos comprados estão cadastrados com unidade e custo.'
       },
       'Cadastrar receitas': {
         icon: 'receipt_long',
@@ -1211,10 +1211,10 @@ Modules.Dashboard = (function () {
           ['Anotação da etapa', 'Use para um detalhe específico daquela parte da receita. Exemplo: usar fria, bater por mais tempo ou adicionar no final.'],
           ['Controlar esta etapa como base de produção', 'Marque quando essa etapa vira uma base feita antes e usada depois em outros produtos, como massa, recheio, molho ou creme. Assim ela pode ser acompanhada como produção própria.'],
           ['Rendimento da etapa', '<strong style="color:#1F1F1F;">Informe quanto aquela etapa rende depois de pronta.</strong><br><br><strong style="color:#1F1F1F;">Exemplos:</strong><br>• Massa da coxinha: <strong style="color:#1F1F1F;">15 unidades</strong><br>• Recheio da coxinha: <strong style="color:#1F1F1F;">40 unidades</strong><br>• Creme: <strong style="color:#1F1F1F;">1,5 kg</strong><br>• Molho: <strong style="color:#1F1F1F;">2 litros</strong><br><br>Se a etapa rende igual à receita final, <strong style="color:#1F1F1F;">repita o mesmo número da receita.</strong>', true],
-          ['Ingredientes', 'Escolha os insumos já cadastrados em Compras > Produtos / Insumos. Se um ingrediente ainda não aparece aqui, cadastre primeiro na tela de Produtos / Insumos.'],
+          ['Ingredientes', 'Escolha os ingredientes e embalagens já cadastrados em Compras > Ingredientes, Embalagens e Produtos. Se um item ainda não aparece aqui, cadastre primeiro nessa tela.'],
           ['Quantidade usada', 'Informe quanto realmente entra na receita. Não informe como você compra. Exemplo: se compra farinha em saco de 5 kg, mas usa 500 g na massa, coloque 500 g na receita.'],
-          ['Unidade, perda e custo', 'Essas informações aparecem automaticamente a partir do cadastro do insumo. A unidade vem do item comprado, a perda vem do aproveitamento e o custo vem do preço de compra ou custo médio.'],
-          ['Custos da receita', 'O BocaFood calcula automaticamente ingredientes, embalagem, custo direto, outros custos, custo total e custo por rendimento. Se algum custo aparecer zerado, revise se os insumos têm preço de compra cadastrado.'],
+          ['Unidade, perda e custo', 'Essas informações aparecem automaticamente a partir do cadastro do ingrediente ou embalagem. A unidade vem do item comprado, a perda vem do aproveitamento e o custo vem do preço de compra ou custo médio.'],
+          ['Custos da receita', 'O BocaFood calcula automaticamente ingredientes, embalagem, custo direto, outros custos, custo total e custo por rendimento. Se algum custo aparecer zerado, revise se os ingredientes e embalagens têm preço de compra cadastrado.'],
           ['Modo de preparo', 'Escreva o passo a passo da produção de forma prática, para qualquer pessoa conseguir repetir o preparo do mesmo jeito.'],
           ['Cuidados no preparo', 'Anote pontos importantes como ponto da massa, tempo de forno, cuidado ao congelar, embalagem final ou algo que costuma dar erro.'],
           ['Conservação e validade', 'Informe como essa receita deve ser guardada e por quanto tempo pode ser usada. Isso ajuda na rotina de produção e evita perda.']
@@ -1225,7 +1225,7 @@ Modules.Dashboard = (function () {
       'Cadastrar produtos do cardápio': {
         icon: 'restaurant_menu',
         path: 'Caminho: Cardápio > Produtos',
-        intro: 'Depois dos insumos e receitas, cadastre o que a cliente realmente compra no cardápio. Aqui o produto ganha preço, imagem, opções e visibilidade para venda.',
+        intro: 'Depois dos ingredientes, embalagens e receitas, cadastre o que a cliente realmente compra no cardápio. Aqui o produto ganha preço, imagem, opções e visibilidade para venda.',
         fields: [
           ['Nome e categoria', 'Use nomes claros e coloque cada produto no grupo certo.'],
           ['Preço de venda', 'Informe o valor que a cliente vai pagar.'],
@@ -1323,7 +1323,7 @@ Modules.Dashboard = (function () {
         intro: 'Registrar compra mostra o que entrou, quanto custou e ajuda a alimentar estoque e custo.',
         fields: [
           ['Fornecedor', 'Informe de quem comprou quando souber.'],
-          ['Itens', 'Adicione insumos ou produtos comprados com quantidade, unidade e valor.'],
+          ['Itens', 'Adicione ingredientes, embalagens ou produtos comprados com quantidade, unidade e valor.'],
           ['Pagamento', 'Informe forma, conta e vencimento quando fizer sentido.'],
           ['Status', 'Marque se está comprado, recebido ou pendente.']
         ],
@@ -1731,7 +1731,7 @@ Modules.Dashboard = (function () {
         detailTitle: 'O que ela mostra',
         details: [
           ['Origem', 'pode nascer do planejamento de producao ou necessidade minima.'],
-          ['Classe', 'separa insumos, produtos prontos e produtos produzidos.'],
+          ['Classe', 'separa ingredientes, embalagens, produtos prontos e produtos produzidos.'],
           ['Status', 'ajuda a controlar se ja comprou ou ainda esta pendente.'],
           ['Impressao', 'lista simples com checkbox para usar fora da tela.']
         ],
@@ -1837,7 +1837,7 @@ Modules.Dashboard = (function () {
         chapter: 'Compras',
         title: 'Compras mostram o que entrou para produzir e vender',
         where: 'Compras · Registro de compras',
-        text: 'Aqui voce registra compra de insumo, produto pronto ou item usado na operacao. Quando recebido, isso pode alimentar o estoque.',
+        text: 'Aqui voce registra compra de ingrediente, embalagem, produto pronto ou item usado na operacao. Quando recebido, isso pode alimentar o estoque.',
         detailTitle: 'O que conferir',
         details: [
           ['Fornecedor', 'de quem voce comprou.'],
@@ -1859,10 +1859,10 @@ Modules.Dashboard = (function () {
         chapter: 'Estoque',
         title: 'Estoque mostra o que existe pelo movimento real',
         where: 'Estoque · Itens',
-        text: 'O saldo nasce das entradas e saidas registradas. Ele separa insumos, produtos prontos e produtos produzidos para nao misturar tudo.',
+        text: 'O saldo nasce das entradas e saidas registradas. Ele separa ingredientes, embalagens, produtos prontos e produtos produzidos para nao misturar tudo.',
         detailTitle: 'O que observar',
         details: [
-          ['Insumos', 'ingredientes e materiais usados na producao.'],
+          ['Ingredientes', 'alimentos e bases usados na producao.'],
           ['Produto pronto', 'item comprado para revender ou usar sem produzir.'],
           ['Produto produzido', 'item que entrou a partir de ordem de producao.'],
           ['Minimo e maximo', 'ajuda a saber quando precisa repor ou evitar excesso.']
@@ -2325,8 +2325,8 @@ Modules.Dashboard = (function () {
           { title: 'Preencher dados do negócio', text: 'Nome, contato e endereço para deixar tudo identificado.', icon: 'badge', route: 'configuracoes/geral', done: !!(g.businessName && (g.phone || g.whatsapp || g.email)) },
           { title: 'Criar canais de venda', text: 'Mostre de onde os pedidos chegam: cardápio, balcão, Instagram ou outro canal.', icon: 'storefront', route: 'configuracoes/canais_venda', done: hasSalesChannels },
           { title: 'Definir preço e margem', text: 'Ajude o BocaFood a proteger sua sobra em cada venda.', icon: 'calculate', route: 'dinheiro/regras', done: hasPriceRules },
-          { title: 'Cadastrar insumos e produtos comprados', text: 'Cadastre ingredientes, materiais de embalagem e produtos prontos que entram na operação.', icon: 'inventory_2', route: 'compras/itens', done: hasPurchaseItems },
-          { title: 'Cadastrar receitas', text: 'Monte as receitas usando os insumos e bases cadastradas.', icon: 'receipt_long', route: 'receitas/receitas', done: hasRecipes },
+          { title: 'Cadastrar ingredientes, embalagens e produtos comprados', text: 'Cadastre ingredientes, embalagens e produtos prontos que entram na operação.', icon: 'inventory_2', route: 'compras/itens', done: hasPurchaseItems },
+          { title: 'Cadastrar receitas', text: 'Monte as receitas usando os ingredientes, embalagens e bases cadastradas.', icon: 'receipt_long', route: 'receitas/receitas', done: hasRecipes },
           { title: 'Registrar custos fixos', text: 'Inclua contas e compromissos que precisam entrar na rota.', icon: 'payments', route: 'financeiro/contas-pagar', done: hasCosts }
         ]
       },

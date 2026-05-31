@@ -1,5 +1,12 @@
 # AI Changelog
 
+## 2026-05-31 — Produção e Compras: linguagem de ingredientes e embalagens
+- Arquivos alterados: `public/js/modules/compras.js`, `public/js/modules/receitas.js`, `public/js/modules/catalogo.js`, `public/js/modules/dashboard.js`, `public/js/modules/suporte.js`, `public/dashboard-onboarding-preview.html`, `AI_CHANGELOG.md`.
+- Troquei os textos visíveis de `insumo` para `ingrediente` nas telas, modais, filtros, onboarding e documentação.
+- Atualizei os nomes de páginas e modais para refletir `Ingredientes`, `Embalagens` e `Produtos prontos`, mantendo a classe interna `insumo` onde ela é contrato de dados e cálculo.
+- Revisei o `Como preencher` do cadastro de itens comprados para explicar a diferença entre ingrediente, embalagem e produto pronto.
+- Impacto esperado: deixar a linguagem mais clara para a usuária sem quebrar receitas, compras, estoque, custos ou rotas existentes.
+
 ## 2026-05-29 — Onboarding: checklist abre guia de preenchimento
 - Arquivos alterados: `public/js/modules/dashboard.js`, `public/dashboard-onboarding-preview.html`, `AI_CHANGELOG.md`.
 - Ajustei o checklist flutuante do Painel BocaFood para abrir uma janela de orientação antes de navegar para a tela.

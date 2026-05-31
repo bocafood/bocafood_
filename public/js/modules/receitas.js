@@ -35,13 +35,13 @@ Modules.Receitas = (function () {
     { key: 'ordens', label: 'Ordens' },
     { key: 'lista-compras', label: 'Lista de Compras' },
     { key: 'movimentacoes', label: 'Movimentações' },
-    { key: 'insumos', label: 'Insumos' },
+    { key: 'insumos', label: 'Ingredientes e Embalagens' },
     { key: 'configuracoes', label: 'Configurações' }
   ];
   var CONFIG_TABS = [
     { key: 'componentes', label: 'Etapas da receita' },
     { key: 'categorias-receita', label: 'Categorias da receita' },
-    { key: 'categorias-insumos', label: 'Categorias de insumos' },
+    { key: 'categorias-insumos', label: 'Categorias de ingredientes e embalagens' },
     { key: 'embalagens-compra', label: 'Embalagem de Compra' },
     { key: 'unidades', label: 'Unidades' }
   ];
@@ -68,18 +68,18 @@ Modules.Receitas = (function () {
         add: '+ Adicionar categoria'
       },
       'tipos-insumos': {
-        title: 'Tipos de insumos',
-        desc: 'Classifique os insumos usados na produção para manter compras e receitas mais organizadas.',
+        title: 'Tipos de ingredientes e embalagens',
+        desc: 'Classifique ingredientes e embalagens usados na produção para manter compras e receitas mais organizadas.',
         add: '+ Adicionar tipo'
       },
       'categorias-insumos': {
-        title: 'Categorias de insumos',
-        desc: 'Categorias organizam insumos parecidos no mesmo grupo.',
+        title: 'Categorias de ingredientes e embalagens',
+        desc: 'Categorias organizam ingredientes e embalagens parecidos no mesmo grupo.',
         add: '+ Adicionar categoria'
       },
       'embalagens-compra': {
         title: 'Embalagem de compra',
-        desc: 'Opções que aparecem no campo Embalagem de compra padrão do cadastro de insumos e produtos comprados.',
+        desc: 'Opções que aparecem no campo Embalagem de compra padrão do cadastro de ingredientes, embalagens e produtos comprados.',
         add: ''
       },
       unidades: {
@@ -836,7 +836,7 @@ Modules.Receitas = (function () {
               '<option value="ambos"' + (_purchaseListState.source === 'ambos' ? ' selected' : '') + '>Produção planejada + estoque mínimo</option>' +
             '</select></div></label>' +
             '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Classe</span><div class="production-orders-field"><select onchange="Modules.Receitas._setPurchaseListOption(\'classe\', this.value)">' +
-              '<option value="insumo"' + (_purchaseListState.classe === 'insumo' ? ' selected' : '') + '>Insumos</option>' +
+              '<option value="insumo"' + (_purchaseListState.classe === 'insumo' ? ' selected' : '') + '>Ingredientes</option>' +
               '<option value="embalagem"' + (_purchaseListState.classe === 'embalagem' ? ' selected' : '') + '>Embalagens</option>' +
               '<option value="produto"' + (_purchaseListState.classe === 'produto' ? ' selected' : '') + '>Produtos prontos</option>' +
               '<option value="todos"' + (_purchaseListState.classe === 'todos' ? ' selected' : '') + '>Todos</option>' +
@@ -855,7 +855,7 @@ Modules.Receitas = (function () {
             '</select></div></label>' +
             '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Classe</span><div class="production-orders-field"><select onchange="Modules.Receitas._setPurchaseListFilter(\'classe\', this.value)">' +
               '<option value="todos"' + (_purchaseListFilters.classe === 'todos' ? ' selected' : '') + '>Todas</option>' +
-              '<option value="insumo"' + (_purchaseListFilters.classe === 'insumo' ? ' selected' : '') + '>Insumos</option>' +
+              '<option value="insumo"' + (_purchaseListFilters.classe === 'insumo' ? ' selected' : '') + '>Ingredientes</option>' +
               '<option value="embalagem"' + (_purchaseListFilters.classe === 'embalagem' ? ' selected' : '') + '>Embalagens</option>' +
               '<option value="produto"' + (_purchaseListFilters.classe === 'produto' ? ' selected' : '') + '>Produtos prontos</option>' +
             '</select></div></label>' +
@@ -1090,8 +1090,8 @@ Modules.Receitas = (function () {
   function _purchaseListClassLabel(classe) {
     if (classe === 'embalagem') return 'Embalagens';
     if (classe === 'produto') return 'Produtos prontos';
-    if (classe === 'todos') return 'Insumos, embalagens e produtos prontos';
-    return 'Insumos';
+    if (classe === 'todos') return 'Ingredientes, embalagens e produtos prontos';
+    return 'Ingredientes';
   }
 
   function _purchaseListStatusLabel(status) {
@@ -1182,7 +1182,7 @@ Modules.Receitas = (function () {
     return Object.keys(map).map(function (key) {
       var item = map[key];
       item.quantity = _round(item.quantity);
-      item.classLabel = item.classe === 'produto' ? 'Produto pronto' : (item.classe === 'embalagem' ? 'Embalagem' : 'Insumo');
+      item.classLabel = item.classe === 'produto' ? 'Produto pronto' : (item.classe === 'embalagem' ? 'Embalagem' : 'Ingrediente');
       item.originText = Object.keys(item.origins).join(', ');
       item.reason = item.details.slice(0, 2).join(' · ') + (item.details.length > 2 ? ' +' + (item.details.length - 2) : '');
       return item;
@@ -2489,8 +2489,8 @@ Modules.Receitas = (function () {
 
   function _ingredientCatalogConfig(kind) {
     return kind === 'tipos'
-      ? { col: 'compras_tipos', title: 'Tipos de insumos', singular: 'tipo', list: _ingredientTypes }
-      : { col: 'compras_categorias', title: 'Categorias de insumos', singular: 'categoria', list: _ingredientCategories };
+      ? { col: 'compras_tipos', title: 'Tipos de ingredientes', singular: 'tipo', list: _ingredientTypes }
+      : { col: 'compras_categorias', title: 'Categorias de ingredientes', singular: 'categoria', list: _ingredientCategories };
   }
 
   function _renderIngredientCatalog(kind) {
@@ -2555,7 +2555,7 @@ Modules.Receitas = (function () {
         return item && item.id !== _editingIngredientCatalogId && item.classe === 'insumo' && _normName(item.name) === norm;
       });
       if (duplicate) {
-        UI.toast('Já existe ' + cfg.singular + ' de insumo com esse nome.', 'error');
+        UI.toast('Já existe ' + cfg.singular + ' de ingrediente com esse nome.', 'error');
         return null;
       }
       var data = { name: name, classe: 'insumo', ativo: (document.getElementById('ric-ativo') || {}).checked !== false };
@@ -2572,7 +2572,7 @@ Modules.Receitas = (function () {
 
   function _deleteIngredientCatalog(kind, id) {
     var cfg = _ingredientCatalogConfig(kind);
-    UI.confirm('Eliminar este ' + cfg.singular + ' de insumo?').then(function (yes) {
+    UI.confirm('Eliminar este ' + cfg.singular + ' de ingrediente?').then(function (yes) {
       if (!yes) return;
       if (window._ingredientCatalogModal) window._ingredientCatalogModal.close();
       DB.remove(cfg.col, id).then(function () {
@@ -2601,7 +2601,7 @@ Modules.Receitas = (function () {
     var options = _purchasePackageOptions().map(function (name) {
       return {
         name: _capitalizeLabel(name),
-        description: 'Disponível no cadastro de insumos e produtos comprados.',
+        description: 'Disponível no cadastro de ingredientes, embalagens e produtos comprados.',
         type: 'embalagem'
       };
     });
