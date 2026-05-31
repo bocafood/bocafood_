@@ -15,6 +15,7 @@ Modules.Catalogo = (function () {
   var _orders = [];
   var _recipeCategories = [];
   var _recipeComponents = [];
+  var _recipeUnits = [];
   var _fichaPag = { page: 1, perPage: 10 };
   var _fichaFilters = { q: '' };
   var _editingId = null;
@@ -7032,7 +7033,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
 
   // ── FICHAS TÉCNICAS ───────────────────────────────────────────────────────
   function _renderFichas() {
-    Promise.all([DB.getAll('fichasTecnicas'), DB.getAll('itens_custo'), DB.getDocRoot('config', 'geral'), DB.getAll('recipe_categories'), DB.getAll('recipe_components'), DB.getAll('financeiro_saidas'), DB.getAll('financeiro_apagar')]).then(function (r) {
+    Promise.all([DB.getAll('fichasTecnicas'), DB.getAll('itens_custo'), DB.getDocRoot('config', 'geral'), DB.getAll('recipe_categories'), DB.getAll('recipe_components'), DB.getAll('financeiro_saidas'), DB.getAll('financeiro_apagar'), DB.getAll('unidades_medida')]).then(function (r) {
       _fichas = r[0] || [];
       _itensCusto = (r[1] || []).filter(function (item) {
         return item.ativo !== false && item.classe !== 'produto' && item.usar_em_fichas !== false;
@@ -7042,6 +7043,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       _recipeComponents = r[4] || [];
       _financeSaidas = r[5] || [];
       _financeApagar = r[6] || [];
+      _recipeUnits = r[7] || [];
       _paintFichas();
     });
   }
@@ -7521,15 +7523,11 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     window._fichaIngCount = 0;
     window._fichaCompCount = 0;
 
-    var CATS = (_recipeCategories || []).map(function (c) { return c.name || c.label || ''; }).filter(Boolean);
-    if (f.category && CATS.indexOf(f.category) < 0) CATS.unshift(f.category);
     var YIELD_UNITS = ['unidades', 'porções', 'gramas', 'kg', 'ml', 'litros'];
     var CONSERV = ['Ambiente', 'Refrigerado', 'Congelado'];
     var SHELF_UNITS = ['horas', 'dias', 'meses'];
 
-    var catOpts = CATS.map(function (c) {
-      return '<option value="' + c + '"' + (f.category === c ? ' selected' : '') + '>' + c + '</option>';
-    }).join('');
+    var catOpts = _recipeCategoryOptionsHtml(f.category || '');
     var yieldUnitOpts = YIELD_UNITS.map(function (u) {
       return '<option value="' + u + '"' + ((f.yieldUnit || 'unidades') === u ? ' selected' : '') + '>' + u + '</option>';
     }).join('');
@@ -7581,13 +7579,20 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       '.recipe-help-btn{border:0;background:transparent;color:#B42318;border-radius:8px;height:auto;padding:0;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;}' +
       '.recipe-help-box{display:none;margin:0 0 12px;padding:11px 12px;border:1px solid #EADFD8;border-radius:12px;background:#FFFCF8;color:#5A4E4C;font-size:12px;line-height:1.5;}' +
       '.recipe-help-box strong{color:#1F1F1F;font-weight:700;}' +
+      '.recipe-inline-label{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px;}' +
+      '.recipe-inline-add{height:24px;padding:0 8px;border-radius:999px;border:1px solid #EADFD8;background:#fff;color:#B42318;font-size:11px;font-weight:700;line-height:1;cursor:pointer;font-family:inherit;white-space:nowrap;box-shadow:0 1px 2px rgba(31,31,31,.03);}' +
+      '.recipe-inline-add:hover{background:#FFF3F1;border-color:#F2B8B2;}' +
       '.recipe-dashed-btn{width:100%;height:38px;padding:0 12px;border-radius:10px;border:1px dashed #D8CCC5;background:#fff;font-size:12px;font-weight:600;cursor:pointer;color:#6F6860;font-family:inherit;margin-top:10px;}' +
       '.recipe-dashed-btn:hover{background:#FFFCF8;border-color:#D9AAA1;color:#B42318;}' +
+      '.recipe-add-stage-btn{height:42px;border-style:solid;border-color:#E7C6C0;background:linear-gradient(180deg,#FFF7F5 0%,#fff 100%);color:#B42318;font-size:13px;font-weight:700;box-shadow:0 6px 14px rgba(180,35,24,.08);}' +
+      '.recipe-add-stage-btn:hover{background:#FFF3F1;border-color:#D9AAA1;color:#9F1F16;}' +
       '.recipe-component{background:#fff;border:1px solid #EAE4DA;border-radius:16px;padding:13px;box-shadow:0 1px 2px rgba(31,31,31,.03);}' +
       '.recipe-component-head{display:grid;grid-template-columns:minmax(220px,1fr) minmax(180px,.8fr) 34px;gap:10px;align-items:end;margin-bottom:12px;}' +
       '.recipe-component-base{display:grid;grid-template-columns:minmax(220px,1fr) minmax(110px,.35fr) minmax(120px,.4fr) minmax(100px,.32fr) minmax(100px,.32fr);gap:10px;align-items:end;background:#FFFCF8;border:1px solid #EAE4DA;border-radius:14px;padding:10px;margin-bottom:12px;}' +
       '.recipe-component-base label{display:flex;align-items:center;gap:8px;font-size:12px;color:#1F1F1F;font-weight:500;line-height:1.35;}' +
       '.recipe-ingredient-row{display:grid;grid-template-columns:minmax(210px,1.2fr) minmax(86px,.42fr) minmax(62px,.28fr) minmax(72px,.32fr) minmax(82px,.34fr) 30px;gap:8px;align-items:center;padding:9px;border:1px solid #EAE4DA;border-radius:12px;background:#FFFCF8;box-shadow:none;}' +
+      '.recipe-ingredient-search{margin-bottom:6px;}' +
+      '.recipe-ingredient-search input{min-height:30px;font-size:12px;}' +
       '.supplier-field-control{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:6px;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease}.supplier-field-control:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08)}.supplier-field-control input,.supplier-field-control select,.supplier-field-control textarea{width:100%;min-height:36px;border:0;border-radius:8px;padding:0 8px;font-size:14px;font-family:inherit;outline:none;background:transparent;box-sizing:border-box;color:#1F1F1F;box-shadow:none}.supplier-field-control select{padding-right:42px;appearance:none;-webkit-appearance:none;-moz-appearance:none;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 16px center;background-size:14px}.supplier-field-control textarea{min-height:72px;padding-top:8px;padding-bottom:8px;resize:vertical}.supplier-field-control input[type=file]{padding-top:7px;}' +
       '.recipe-footer{display:flex;align-items:center;gap:8px;}' +
       '.recipe-footer-note{font-size:11px;color:#6F6860;margin-right:auto;}' +
@@ -7604,7 +7609,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       '<div class="recipe-modal-grid recipe-modal-main-grid">' +
       '<div><label style="' + _fichaLbl() + '">Nome da receita *</label>' +
       '<div class="supplier-field-control"><input id="fc-name" type="text" value="' + _esc(f.name || '') + '"></div></div>' +
-      '<div><label style="' + _fichaLbl() + '">Categoria</label>' +
+      '<div><div class="recipe-inline-label"><label style="' + _fichaLbl() + 'margin-bottom:0;">Categoria</label><button type="button" class="recipe-inline-add" onclick="Modules.Catalogo._openRecipeCategoryCreateModal()">+ categoria</button></div>' +
       '<div class="supplier-field-control"><select id="fc-category"><option value="">Selecionar...</option>' + catOpts + '</select></div></div>' +
       '</div>' +
       '<div style="margin-top:11px;"><label style="' + _fichaLbl() + '">Anotações da receita</label>' +
@@ -7671,7 +7676,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
         'se você compra farinha em saco de 5 kg, mas usa 500 g na massa, coloque 500 g aqui.' +
       '</div>' +
       '<div id="fc-components" style="display:flex;flex-direction:column;gap:12px;">' + componentRows + '</div>' +
-      '<button type="button" onclick="Modules.Catalogo._addFichaComponent()" class="recipe-dashed-btn">+ Adicionar componente</button>' +
+      '<button type="button" onclick="Modules.Catalogo._addFichaComponent()" class="recipe-dashed-btn recipe-add-stage-btn">+ Adicionar Etapa</button>' +
       '</div>' +
 
       '<div class="recipe-modal-card recipe-modal-cost">' + sectionHead('payments', 'Custos', 'Veja quanto esta receita custa para produzir.') +
@@ -7732,11 +7737,37 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   }
 
   function _recipeComponentNames(selected) {
-    var names = (_recipeComponents || []).map(function (c) {
-      return (c.name || c.label || '').trim();
-    }).filter(Boolean);
-    if (selected && names.indexOf(selected) < 0) names.push(selected);
+    var seen = {};
+    var names = [];
+    (_recipeComponents || []).forEach(function (c) {
+      var name = (c.name || c.label || '').trim();
+      var key = name.toLowerCase();
+      if (!name || seen[key]) return;
+      seen[key] = true;
+      names.push(name);
+    });
+    if (selected && !seen[String(selected).toLowerCase()]) names.push(selected);
     return names;
+  }
+
+  function _recipeCategoryNames(selected) {
+    var seen = {};
+    var names = [];
+    (_recipeCategories || []).forEach(function (c) {
+      var name = (c.name || c.label || '').trim();
+      var key = name.toLowerCase();
+      if (!name || seen[key]) return;
+      seen[key] = true;
+      names.push(name);
+    });
+    if (selected && !seen[String(selected).toLowerCase()]) names.unshift(selected);
+    return names;
+  }
+
+  function _recipeCategoryOptionsHtml(selected) {
+    return _recipeCategoryNames(selected).map(function (name) {
+      return '<option value="' + _esc(name) + '"' + (name === selected ? ' selected' : '') + '>' + _esc(name) + '</option>';
+    }).join('');
   }
 
   function _recipeComponentOptionsHtml(selected) {
@@ -7747,6 +7778,34 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     return '<option value="">Selecionar componente...</option>' + names.map(function (name) {
       return '<option value="' + _esc(name) + '"' + (name === selected ? ' selected' : '') + '>' + _esc(name) + '</option>';
     }).join('');
+  }
+
+  function _recipeUnitOptionsHtml(selected) {
+    var fallback = [
+      { name: 'Quilograma', symbol: 'kg' },
+      { name: 'Grama', symbol: 'g' },
+      { name: 'Litro', symbol: 'L' },
+      { name: 'Mililitro', symbol: 'ml' },
+      { name: 'Unidade', symbol: 'unidade' }
+    ];
+    var units = (_recipeUnits && _recipeUnits.length ? _recipeUnits : fallback).slice().sort(function (a, b) {
+      return String(a.name || a.label || a.symbol || '').localeCompare(String(b.name || b.label || b.symbol || ''));
+    });
+    var seen = {};
+    var options = units.map(function (u) {
+      var value = String(u.symbol || u.value || u.name || '').trim();
+      if (!value) return '';
+      var key = value.toLowerCase();
+      if (seen[key]) return '';
+      seen[key] = true;
+      var label = String(u.name || u.label || value).trim();
+      var text = label && label !== value ? label + ' (' + value + ')' : value;
+      return '<option value="' + _esc(value) + '"' + (String(selected || '') === value ? ' selected' : '') + '>' + _esc(text) + '</option>';
+    }).filter(Boolean).join('');
+    if (selected && !seen[String(selected).toLowerCase()]) {
+      options = '<option value="' + _esc(selected) + '" selected>' + _esc(selected) + '</option>' + options;
+    }
+    return '<option value="">Selecionar...</option>' + options;
   }
 
   function _defaultRecipeComponentName() {
@@ -7766,6 +7825,113 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     el.style.display = el.style.display === 'block' ? 'none' : 'block';
   }
 
+  function _recipeQuickCreateCss() {
+    return '<style>' +
+      '.recipe-quick-modal{font-family:Manrope,Inter,sans-serif;}' +
+      '.recipe-quick-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:16px;padding:14px;box-shadow:0 10px 24px rgba(31,31,31,.04);}' +
+      '.recipe-quick-field label{display:block;font-size:11px;font-weight:700;color:#6F6860;margin-bottom:5px;letter-spacing:.02em;}' +
+      '.recipe-quick-field input{width:100%;height:40px;border:1px solid #E8DCD7;border-radius:12px;padding:0 11px;font-size:14px;font-family:inherit;outline:none;background:#FFFCF8;color:#1F1F1F;box-sizing:border-box;}' +
+      '.recipe-quick-field input:focus{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
+      '.recipe-quick-hint{font-size:12px;line-height:1.45;color:#6F6860;margin-top:9px;}' +
+      '</style>';
+  }
+
+  function _openRecipeCategoryCreateModal() {
+    var body = _recipeQuickCreateCss() +
+      '<div class="recipe-quick-modal"><div class="recipe-quick-card">' +
+        '<div class="recipe-quick-field"><label>Nome da categoria *</label><input id="recipe-new-category-name" type="text" placeholder="Ex.: Massas, Recheios ou Doces"></div>' +
+        '<div class="recipe-quick-hint">Use uma categoria simples para encontrar receitas parecidas depois.</div>' +
+      '</div></div>';
+    var footer = '<div style="display:flex;justify-content:flex-end;gap:8px;">' +
+      '<button type="button" onclick="window._recipeCategoryModal&&window._recipeCategoryModal.close()" style="height:38px;padding:0 14px;border-radius:10px;border:1px solid #E6E1D8;background:#fff;color:#6F6860;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;">Cancelar</button>' +
+      '<button type="button" onclick="Modules.Catalogo._saveRecipeCategoryFromModal()" style="height:38px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">Adicionar categoria</button>' +
+      '</div>';
+    window._recipeCategoryModal = UI.modal({ title: 'Nova categoria de receita', body: body, footer: footer, maxWidth: '560px' });
+    setTimeout(function () { var el = document.getElementById('recipe-new-category-name'); if (el) el.focus(); }, 80);
+  }
+
+  function _saveRecipeCategoryFromModal() {
+    var name = ((document.getElementById('recipe-new-category-name') || {}).value || '').trim().replace(/\s+/g, ' ');
+    if (!name) { UI.toast('Nome obrigatório', 'error'); return; }
+    var existing = (_recipeCategories || []).find(function (c) {
+      return String(c.name || c.label || '').trim().toLowerCase() === name.toLowerCase();
+    });
+    if (existing) {
+      _selectRecipeCategory(existing.name || existing.label || name);
+      if (window._recipeCategoryModal) window._recipeCategoryModal.close();
+      UI.toast('Categoria selecionada.', 'success');
+      return;
+    }
+    var id = _newEntityId('recipe-cat');
+    var data = { id: id, name: name, label: name, active: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    DB.set('recipe_categories', id, data).then(function () {
+      return DB.getAll('recipe_categories');
+    }).then(function (rows) {
+      _recipeCategories = rows || [];
+      _selectRecipeCategory(name);
+      if (window._recipeCategoryModal) window._recipeCategoryModal.close();
+      UI.toast('Categoria cadastrada!', 'success');
+    }).catch(function (err) { UI.toast('Erro: ' + err.message, 'error'); });
+  }
+
+  function _selectRecipeCategory(name) {
+    var select = document.getElementById('fc-category');
+    if (!select) return;
+    select.innerHTML = '<option value="">Selecionar...</option>' + _recipeCategoryOptionsHtml(name);
+    select.value = name;
+  }
+
+  function _openRecipeComponentCreateModal(compIdx) {
+    window._recipeComponentTargetIdx = compIdx;
+    var body = _recipeQuickCreateCss() +
+      '<div class="recipe-quick-modal"><div class="recipe-quick-card">' +
+        '<div class="recipe-quick-field"><label>Nome da etapa *</label><input id="recipe-new-component-name" type="text" placeholder="Ex.: Massa, Recheio ou Finalização"></div>' +
+        '<div class="recipe-quick-hint">Use a etapa para separar as partes da receita e organizar onde cada ingrediente entra.</div>' +
+      '</div></div>';
+    var footer = '<div style="display:flex;justify-content:flex-end;gap:8px;">' +
+      '<button type="button" onclick="window._recipeComponentModal&&window._recipeComponentModal.close()" style="height:38px;padding:0 14px;border-radius:10px;border:1px solid #E6E1D8;background:#fff;color:#6F6860;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;">Cancelar</button>' +
+      '<button type="button" onclick="Modules.Catalogo._saveRecipeComponentFromModal()" style="height:38px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">Adicionar etapa</button>' +
+      '</div>';
+    window._recipeComponentModal = UI.modal({ title: 'Nova etapa da receita', body: body, footer: footer, maxWidth: '560px' });
+    setTimeout(function () { var el = document.getElementById('recipe-new-component-name'); if (el) el.focus(); }, 80);
+  }
+
+  function _saveRecipeComponentFromModal() {
+    var name = ((document.getElementById('recipe-new-component-name') || {}).value || '').trim().replace(/\s+/g, ' ');
+    if (!name) { UI.toast('Nome obrigatório', 'error'); return; }
+    var existing = (_recipeComponents || []).find(function (c) {
+      return String(c.name || c.label || '').trim().toLowerCase() === name.toLowerCase();
+    });
+    if (existing) {
+      _refreshRecipeComponentSelects(existing.name || existing.label || name, window._recipeComponentTargetIdx);
+      if (window._recipeComponentModal) window._recipeComponentModal.close();
+      UI.toast('Etapa selecionada.', 'success');
+      return;
+    }
+    var id = _newEntityId('recipe-comp');
+    var data = { id: id, name: name, label: name, active: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    DB.set('recipe_components', id, data).then(function () {
+      return DB.getAll('recipe_components');
+    }).then(function (rows) {
+      _recipeComponents = rows || [];
+      _refreshRecipeComponentSelects(name, window._recipeComponentTargetIdx);
+      if (window._recipeComponentModal) window._recipeComponentModal.close();
+      UI.toast('Etapa cadastrada!', 'success');
+    }).catch(function (err) { UI.toast('Erro: ' + err.message, 'error'); });
+  }
+
+  function _refreshRecipeComponentSelects(selectedName, targetIdx) {
+    var selects = [].slice.call(document.querySelectorAll('[data-comp-name]'));
+    selects.forEach(function (select) {
+      var current = select.value || '';
+      var compIdx = select.getAttribute('data-comp-name');
+      var nextValue = String(compIdx) === String(targetIdx) ? selectedName : current;
+      select.innerHTML = _recipeComponentOptionsHtml(nextValue);
+      select.value = nextValue;
+    });
+    _updateFichaCost();
+  }
+
   function _fichaComponentHtml(compIdx, comp) {
     comp = comp || { name: _defaultRecipeComponentName(), note: '', ingredients: [] };
     var rows = (comp.ingredients || []).map(function (ing) {
@@ -7780,14 +7946,14 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     }
     return '<div id="fc-comp-' + compIdx + '" class="fc-component recipe-component" data-comp-idx="' + compIdx + '">' +
       '<div class="recipe-component-head">' +
-      '<div><label style="' + _fichaLbl() + '">Etapa da receita</label><div class="supplier-field-control"><select data-comp-name="' + compIdx + '" onchange="Modules.Catalogo._updateFichaCost()">' + _recipeComponentOptionsHtml((comp.name || '').trim()) + '</select></div></div>' +
+      '<div><div class="recipe-inline-label"><label style="' + _fichaLbl() + 'margin-bottom:0;">Etapa da receita</label><button type="button" class="recipe-inline-add" onclick="Modules.Catalogo._openRecipeComponentCreateModal(' + compIdx + ')">+ etapa</button></div><div class="supplier-field-control"><select data-comp-name="' + compIdx + '" onchange="Modules.Catalogo._updateFichaCost()">' + _recipeComponentOptionsHtml((comp.name || '').trim()) + '</select></div></div>' +
       '<div><label style="' + _fichaLbl() + '">Anotação</label><div class="supplier-field-control"><input data-comp-note="' + compIdx + '" value="' + _esc(comp.note || '') + '" placeholder="Ex: usar fria"></div></div>' +
       '<button type="button" onclick="Modules.Catalogo._removeFichaComponent(' + compIdx + ')" title="Remover componente" style="width:34px;height:34px;border-radius:9px;border:1px solid #E6E1D8;background:#fff;color:#B42318;cursor:pointer;font-size:14px;box-shadow:0 1px 2px rgba(31,31,31,.03);">✕</button>' +
       '</div>' +
       '<div class="recipe-component-base">' +
         '<label><input type="checkbox" data-comp-stock="' + compIdx + '"' + (comp.stockControl || comp.controlsStock ? ' checked' : '') + ' style="accent-color:#B42318;width:15px;height:15px;"> Controlar esta etapa como base de produção</label>' +
         '<div><label style="' + _fichaLbl() + '">Rendimento da base</label><div class="supplier-field-control"><input type="text" data-comp-stock-qty="' + compIdx + '" value="' + _esc(comp.baseYieldQuantity || comp.stockYieldQuantity || '') + '" placeholder="Ex: 5"></div></div>' +
-        '<div><label style="' + _fichaLbl() + '">Unidade</label><div class="supplier-field-control"><input type="text" data-comp-stock-unit="' + compIdx + '" value="' + _esc(comp.baseYieldUnit || comp.stockYieldUnit || '') + '" placeholder="kg, L, un"></div></div>' +
+        '<div><label style="' + _fichaLbl() + '">Unidade</label><div class="supplier-field-control"><select data-comp-stock-unit="' + compIdx + '">' + _recipeUnitOptionsHtml(comp.baseYieldUnit || comp.stockYieldUnit || '') + '</select></div></div>' +
         '<div><label style="' + _fichaLbl() + '">Mínimo</label><div class="supplier-field-control"><input type="text" data-comp-stock-min="' + compIdx + '" value="' + _esc(comp.minStock || comp.estoque_minimo || '') + '" placeholder="Ex: 2"></div></div>' +
         '<div><label style="' + _fichaLbl() + '">Máximo</label><div class="supplier-field-control"><input type="text" data-comp-stock-max="' + compIdx + '" value="' + _esc(comp.maxStock || comp.estoque_maximo || '') + '" placeholder="Ex: 8"></div></div>' +
       '</div>' +
@@ -7811,6 +7977,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
 
     return '<div id="fc-ing-' + idx + '" class="recipe-ingredient-row" data-comp-row="' + compIdx + '">' +
       '<div><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Ingrediente</div>' +
+      '<div class="supplier-field-control recipe-ingredient-search"><input type="text" placeholder="Buscar ingrediente..." oninput="Modules.Catalogo._filterFichaIngredientOptions(\'' + idx + '\', this.value)"></div>' +
       '<div class="supplier-field-control"><select data-ing-idx="' + idx + '" onchange="Modules.Catalogo._onFichaIngChange(\'' + idx + '\')">' + opts + '</select></div></div>' +
       '<div><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Quantidade</div>' +
       '<div class="supplier-field-control"><input type="text" data-ing-qty="' + idx + '" value="' + (qty || '') + '" placeholder="0" oninput="Modules.Catalogo._updateFichaCost()"></div></div>' +
@@ -7838,6 +8005,22 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       UI.toast('⚠️ ' + _esc(ins.nome || 'Insumo') + ' não tem preço cadastrado. Custo pode ficar incorreto.', 'warning');
     }
     _updateFichaCost();
+  }
+
+  function _filterFichaIngredientOptions(idx, query) {
+    var select = document.querySelector('[data-ing-idx="' + idx + '"]');
+    if (!select) return;
+    var current = select.value || '';
+    var q = String(query || '').trim().toLowerCase();
+    var options = _itensCusto.filter(function (ins) {
+      var hay = [ins.nome, ins.name, ins.categoria, ins.unidade_base, ins.unidadeBase].join(' ').toLowerCase();
+      return !q || hay.indexOf(q) >= 0 || String(ins.id) === current;
+    }).map(function (ins) {
+      var selected = String(ins.id) === String(current) ? ' selected' : '';
+      return '<option value="' + ins.id + '"' + selected + ' data-aprov="' + (ins.aproveitamento_padrao || 100) + '" data-custo="' + (ins.custo_atual || 0) + '" data-unidade="' + _esc(ins.unidade_base || 'un') + '">' + _esc(ins.nome) + ' (' + _esc(ins.unidade_base || '') + ')</option>';
+    }).join('');
+    select.innerHTML = '<option value="">Selecionar insumo</option>' + options;
+    if (current) select.value = current;
   }
 
   function _addFichaComponent() {
@@ -8295,8 +8478,10 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     _openFichaViewModal: _openFichaViewModal, _editFichaFromView: _editFichaFromView,
     _openFichaModal: _openFichaModal, _addFichaComponent: _addFichaComponent, _removeFichaComponent: _removeFichaComponent, _addFichaIng: _addFichaIng, _removeFichaIng: _removeFichaIng,
     _toggleFichaYieldHelp: _toggleFichaYieldHelp, _toggleFichaIngredientsHelp: _toggleFichaIngredientsHelp,
+    _openRecipeCategoryCreateModal: _openRecipeCategoryCreateModal, _saveRecipeCategoryFromModal: _saveRecipeCategoryFromModal,
+    _openRecipeComponentCreateModal: _openRecipeComponentCreateModal, _saveRecipeComponentFromModal: _saveRecipeComponentFromModal,
     _updateFichaCost: _updateFichaCost, _updateFichaPesoTotal: _updateFichaPesoTotal, _onYieldUnitChange: _onYieldUnitChange,
-    _onFichaIngChange: _onFichaIngChange, _onFichaImgChange: _onFichaImgChange,
+    _onFichaIngChange: _onFichaIngChange, _filterFichaIngredientOptions: _filterFichaIngredientOptions, _onFichaImgChange: _onFichaImgChange,
     _saveFicha: _saveFicha, _deleteFicha: _deleteFicha,
     _filterFichas: _filterFichas, _renderFichas: _renderFichas, _setFichaPageSize: _setFichaPageSize, _setFichaPage: _setFichaPage, _clearFichasFilters: _clearFichasFilters,
     _openTagModal: _openTagModal, _saveTag: _saveTag, _deleteTag: _deleteTag, _updateTagModalPreview: _updateTagModalPreview

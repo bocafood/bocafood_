@@ -2807,7 +2807,7 @@ Modules.Compras = (function () {
       '.item-modal-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:14px;box-shadow:0 10px 24px rgba(31,31,31,.04);min-width:0;}' +
       '.item-modal-main,.item-modal-cost{grid-column:1/-1}.item-modal-usage{grid-column:1/-1}' +
       '.item-modal-head{display:flex;align-items:flex-start;gap:9px;margin-bottom:12px}.item-modal-head .mi{font-size:18px;color:#6F6860;line-height:1.2}' +
-      '.item-modal-grid{display:grid;gap:11px 12px;align-items:end}.item-modal-id-grid{grid-template-columns:minmax(150px,.38fr) minmax(320px,1fr) minmax(220px,.68fr)}.item-modal-tax-grid{grid-template-columns:minmax(210px,.62fr) minmax(250px,.78fr);justify-content:start;margin-top:11px}.item-modal-cost-grid{grid-template-columns:minmax(160px,.42fr) minmax(280px,.9fr) minmax(160px,.42fr);justify-content:start}.item-modal-pack-grid{grid-template-columns:minmax(190px,.55fr) minmax(140px,.36fr);justify-content:start}.item-modal-stock-grid{grid-template-columns:minmax(140px,.38fr) minmax(140px,.38fr);justify-content:start}.item-modal-metrics{display:grid;grid-template-columns:minmax(160px,.55fr) minmax(150px,.45fr) minmax(150px,.45fr);gap:12px;align-items:stretch;justify-content:start}' +
+      '.item-modal-grid{display:grid;gap:11px 12px;align-items:end}.item-modal-id-grid{grid-template-columns:minmax(150px,.38fr) minmax(320px,1fr) minmax(220px,.68fr)}.item-modal-tax-grid{grid-template-columns:minmax(210px,.62fr) minmax(250px,.78fr);justify-content:start;margin-top:11px}.item-modal-cost-grid{grid-template-columns:minmax(160px,.42fr) minmax(280px,.9fr) minmax(160px,.42fr);justify-content:start}.item-modal-pack-grid{grid-template-columns:minmax(190px,.62fr) minmax(170px,.56fr) minmax(120px,.34fr) minmax(120px,.34fr);justify-content:start;align-items:start}.item-modal-stock-grid{grid-template-columns:minmax(140px,.38fr) minmax(140px,.38fr);justify-content:start}.item-modal-metrics{display:grid;grid-template-columns:minmax(160px,.55fr) minmax(150px,.45fr) minmax(150px,.45fr);gap:12px;align-items:stretch;justify-content:start}' +
       '.item-modal-metric{background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;padding:10px 12px;box-shadow:0 1px 2px rgba(31,31,31,.03)}' +
       '.item-usage-grid{display:grid;grid-template-columns:minmax(250px,1fr) minmax(220px,.78fr);gap:12px;align-items:stretch;}' +
       '.item-usage-panel{background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;padding:12px;box-shadow:0 1px 2px rgba(31,31,31,.03);}' +
@@ -2891,8 +2891,6 @@ Modules.Compras = (function () {
         '• Unidade base unidade e caixa com 12 unidades: preencha 12<br><br>' +
         'Regra simples: converta o conteúdo da embalagem para a unidade base antes de preencher.' +
       '</div><div class="supplier-field-control"><input id="it-conteudo-padrao" type="number" value="' + _esc(item.conteudo_por_embalagem_padrao || 1) + '"></div></div>' +
-      '</div>' +
-      '<div class="item-modal-grid item-modal-stock-grid" style="margin-bottom:11px;">' +
       _supplierField('it-stock-min', 'Estoque mínimo', item.minStock || item.estoque_minimo || '', 'number') +
       _supplierField('it-stock-max', 'Estoque máximo', item.maxStock || item.estoque_maximo || '', 'number') +
       '</div>' +

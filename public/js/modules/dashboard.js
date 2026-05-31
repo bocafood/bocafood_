@@ -1196,15 +1196,31 @@ Modules.Dashboard = (function () {
       'Cadastrar receitas': {
         icon: 'receipt_long',
         path: 'Caminho: Produção > Receitas',
-        intro: 'Receitas mostram o que cada produção usa. Isso ajuda a entender custo, rendimento, compras, produção e estoque.',
+        intro: 'Aqui entram as receitas e bases de produção do negócio. Use esta tela para mostrar o que a receita usa, quanto ela rende e quanto custa produzir. Nesta primeira etapa, não precisa cadastrar tudo: comece pelas 2 ou 3 receitas principais dos produtos que mais vendem.',
+        introHtml: '<div><strong style="color:#1F1F1F;">Aqui entram:</strong> receitas, massas, recheios, bases de produção e preparos que fazem parte dos produtos vendidos.</div><div style="margin-top:7px;"><strong style="color:#1F1F1F;">Nesta primeira etapa, não precisa cadastrar tudo.</strong></div><div style="margin-top:7px;">Comece pelas <strong style="color:#1F1F1F;">2 ou 3 receitas principais</strong> dos produtos que mais vendem. Assim o BocaFood já consegue calcular custo, rendimento e produção com uma base mais real.</div>',
         fields: [
-          ['Produto ou base produzida', 'Escolha o que será produzido: massa, recheio, combo, produto pronto ou etapa de receita.'],
-          ['Rendimento', 'Informe quanto essa receita rende no final.'],
-          ['Ingredientes', 'Adicione o que entra na produção com quantidade e unidade.'],
-          ['Custo', 'Confira se os insumos têm custo para o cálculo fazer sentido.']
+          ['Nome da receita', 'Use um nome simples de reconhecer depois. Exemplos: Massa de Coxinha, Recheio de Frango, Brigadeiro ou Molho Especial.'],
+          ['Categoria', 'Agrupe receitas parecidas para encontrar mais rápido depois. Exemplos: Massas, Recheios, Doces, Molhos ou Bases de produção.'],
+          ['Anotações da receita', 'Use para observações internas que ajudam na produção, como ajuste de textura, marca preferida ou cuidado especial.'],
+          ['Rendimento', 'Informe quanto a receita rende depois de pronta. Não coloque a quantidade de ingredientes usados; coloque o resultado final. Exemplo: se a massa pronta rende 20 salgados, preencha 20.'],
+          ['Tipo de rendimento', 'Escolha como esse rendimento deve ser lido: unidades, porções, kg ou litros. Use unidades quando a receita vira peças contáveis, como coxinhas ou brigadeiros. Use kg ou litros quando o resultado é uma massa, recheio, molho ou líquido.'],
+          ['Peso por unidade', 'Preencha somente quando cada unidade tem um peso padrão. Exemplo: cada coxinha tem 120 g. O peso total produzido é calculado automaticamente.'],
+          ['Estoque mínimo e máximo', 'Use quando essa receita pronta ou base de produção precisa ser controlada. Estoque mínimo mostra quando precisa produzir mais. Estoque máximo ajuda a não produzir além do necessário.'],
+          ['Imagem', 'Adicione uma foto quando isso ajudar a reconhecer a receita, a base ou o preparo com mais facilidade.'],
+          ['Etapa da receita', 'Separe a receita em partes como massa, recheio, cobertura ou finalização. Isso deixa a produção mais organizada e ajuda a entender onde cada ingrediente entra.'],
+          ['Anotação da etapa', 'Use para um detalhe específico daquela parte da receita. Exemplo: usar fria, bater por mais tempo ou adicionar no final.'],
+          ['Controlar esta etapa como base de produção', 'Marque quando essa etapa vira uma base feita antes e usada depois em outros produtos, como massa, recheio, molho ou creme. Assim ela pode ser acompanhada como produção própria.'],
+          ['Rendimento da base', 'Quando controlar uma etapa como base de produção, informe quanto essa base rende depois de pronta. Exemplo: 5 kg de massa ou 3 litros de molho.'],
+          ['Ingredientes', 'Escolha os insumos já cadastrados em Compras > Produtos / Insumos. Se um ingrediente ainda não aparece aqui, cadastre primeiro na tela de Produtos / Insumos.'],
+          ['Quantidade usada', 'Informe quanto realmente entra na receita. Não informe como você compra. Exemplo: se compra farinha em saco de 5 kg, mas usa 500 g na massa, coloque 500 g na receita.'],
+          ['Unidade, perda e custo', 'Essas informações aparecem automaticamente a partir do cadastro do insumo. A unidade vem do item comprado, a perda vem do aproveitamento e o custo vem do preço de compra ou custo médio.'],
+          ['Custos da receita', 'O BocaFood calcula automaticamente ingredientes, embalagem, custo direto, outros custos, custo total e custo por rendimento. Se algum custo aparecer zerado, revise se os insumos têm preço de compra cadastrado.'],
+          ['Modo de preparo', 'Escreva o passo a passo da produção de forma prática, para qualquer pessoa conseguir repetir o preparo do mesmo jeito.'],
+          ['Cuidados no preparo', 'Anote pontos importantes como ponto da massa, tempo de forno, cuidado ao congelar, embalagem final ou algo que costuma dar erro.'],
+          ['Conservação e validade', 'Informe como essa receita deve ser guardada e por quanto tempo pode ser usada. Isso ajuda na rotina de produção e evita perda.']
         ],
-        actions: ['Cadastre primeiro as receitas que mais impactam a venda.', 'Use quantidades reais do preparo.', 'Salve e confira se o custo previsto parece próximo da realidade.'],
-        ready: 'Está pronto quando as receitas principais têm rendimento e ingredientes cadastrados.'
+        actions: ['Cadastre primeiro as receitas que mais impactam a venda.', 'Use o rendimento real depois da receita pronta.', 'Confira se os ingredientes escolhidos têm custo cadastrado para o cálculo ficar confiável.', 'Salve e veja se o custo total e o custo por unidade fazem sentido para a produção.'],
+        ready: 'Está pronto quando as receitas principais têm nome, rendimento real, ingredientes com quantidade e custo calculado.'
       },
       'Cadastrar produtos do cardápio': {
         icon: 'restaurant_menu',
