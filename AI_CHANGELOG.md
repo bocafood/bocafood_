@@ -9936,3 +9936,33 @@
 - Corrigi o cálculo do `Preço de compra base` em Produtos / Insumos: o valor informado passa a representar a embalagem inteira, e o sistema divide pelo `Conteúdo por embalagem (×)` para salvar o custo por unidade base usado nas receitas.
 - Adicionei compatibilidade no cálculo das receitas para itens antigos sem histórico de compra que foram salvos antes dessa correção, evitando que o custo da embalagem inteira seja usado como custo por kg/L/unidade.
 - Impacto esperado: dar base de custo confiável para o primeiro Plano de Voo e para os cálculos de receitas antes de haver histórico suficiente.
+
+## 2026-05-31 — Receitas: custo proporcional por etapa
+- Arquivos alterados: `public/js/modules/catalogo.js`, `public/js/modules/receitas.js`, `public/js/modules/dashboard.js`, `public/js/modules/suporte.js`, `public/dashboard-onboarding-preview.html`, `AI_CHANGELOG.md`.
+- Ajustei o cálculo das receitas para considerar o rendimento próprio de cada etapa quando ele é compatível com o rendimento final da receita.
+- Exemplo: se a receita final rende 15 unidades e o recheio rende 40 unidades, o custo final usa apenas 15/40 do custo do recheio, preservando o custo cheio da etapa para quando ela for produzida como base.
+- O cadastro da receita agora salva custo cheio da etapa, custo proporcional aplicado, quantidade proporcional usada no produto final e dados de rendimento da etapa.
+- Ordens de produção passaram a preferir os ingredientes proporcionais da receita final, para que custo planejado, ingredientes previstos e movimentações futuras não herdem o lote inteiro de uma etapa que rende mais.
+- Mantive a produção de base/etapa usando o custo cheio da etapa, sem aplicar a proporção da receita final.
+- Atualizei o onboarding e a documentação para explicar o campo `Rendimento da etapa` e como ele influencia o custo final.
+- Impacto esperado: evitar custo final inflado em produtos compostos por etapas com rendimentos diferentes, sem quebrar ordens, bases de produção e snapshots antigos.
+
+## 2026-05-31 — Produção: remover KPIs da aba Insumos
+- Arquivos alterados: `public/js/modules/compras.js`, `AI_CHANGELOG.md`.
+- Removi os cards de KPI exibidos em `Produção > Insumos`.
+- Mantive cabeçalho, botão de novo insumo, filtros, listagem, paginação e regras de cadastro sem alteração.
+- Impacto esperado: deixar a tela de insumos mais direta e alinhada ao pedido visual, sem mexer na lógica de dados.
+
+## 2026-05-31 — Produção: duplicar receita
+- Arquivos alterados: `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Incluí o botão `Duplicar` na listagem de `Produção > Receitas de produção`, seguindo a lógica usada em `Cardápio > Produtos`.
+- A duplicação cria uma nova ficha técnica independente com nome `Cópia de ...`, novo identificador, novos timestamps e sem copiar imagem ou vínculo com produto/cardápio.
+- A cópia preserva componentes, etapas, ingredientes, rendimento e estoque mínimo/máximo das bases, recalculando os custos da receita com a regra atual de custo proporcional por etapa.
+- Quando a receita duplicada possui etapas controladas como base de produção, as configurações de estoque da nova ficha são sincronizadas com o novo ID.
+- Impacto esperado: permitir reaproveitar uma receita como ponto de partida sem manter ligação viva com a ficha original nem herdar imagens/vínculos indevidos.
+
+## 2026-05-31 — Onboarding: copy de receitas
+- Arquivos alterados: `public/js/modules/dashboard.js`, `AI_CHANGELOG.md`.
+- Removi do modal `Como preencher > Cadastrar receitas` as frases que explicavam massa, recheio e finalização dentro dos campos `Nome da receita` e `Categoria`.
+- Mantive o campo como `Rendimento da etapa` no cadastro da receita e confirmei que não há mais ocorrência de `Rendimento da base` nesses textos.
+- Impacto esperado: deixar a orientação mais limpa e sem repetir uma regra que já aparece no campo específico de etapa.

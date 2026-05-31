@@ -1885,6 +1885,12 @@ Modules.Receitas = (function () {
           stockItemType: controls ? 'base_producao' : (comp.stockItemType || ''),
           itemClass: controls ? 'base_producao' : (comp.itemClass || comp.classe || ''),
           classe: controls ? 'base_producao' : (comp.classe || comp.itemClass || ''),
+          stageYieldQuantity: _num(comp.stageYieldQuantity || comp.baseYieldQuantity || comp.stockYieldQuantity),
+          stageYieldUnit: comp.stageYieldUnit || comp.baseYieldUnit || comp.stockYieldUnit || '',
+          stageUsageRatio: _num(comp.stageUsageRatio || 1) || 1,
+          proportionalCostApplied: !!comp.proportionalCostApplied,
+          rawCost: _num(comp.rawCost),
+          appliedCost: _num(comp.appliedCost),
           baseYieldQuantity: controls ? _num(comp.baseYieldQuantity || comp.stockYieldQuantity) : 0,
           stockYieldQuantity: controls ? _num(comp.baseYieldQuantity || comp.stockYieldQuantity) : 0,
           baseYieldUnit: controls ? (comp.baseYieldUnit || comp.stockYieldUnit || '') : '',
@@ -1991,14 +1997,27 @@ Modules.Receitas = (function () {
 
   function _recipeIngredients(recipe) {
     var out = [];
-    if (Array.isArray(recipe.components) && recipe.components.length) {
+    var hasAppliedFlatIngredients = Array.isArray(recipe.ingredients) && recipe.ingredients.some(function (ing) {
+      return ing && (ing.appliedTotalCost != null || ing.appliedQty != null || ing.stageUsageRatio != null || ing.rawTotalCost != null);
+    });
+    if (hasAppliedFlatIngredients) {
+      out = recipe.ingredients.slice();
+    }
+    if (!out.length && Array.isArray(recipe.components) && recipe.components.length) {
       recipe.components.forEach(function (comp) {
         (comp.ingredients || []).forEach(function (ing) {
-          out.push(Object.assign({ componentName: comp.name || '' }, ing));
+          var ratio = _num(comp.stageUsageRatio || ing.stageUsageRatio || 1) || 1;
+          out.push(Object.assign({ componentName: comp.name || '' }, ing, {
+            qty: _num(ing.appliedQty || 0) || (_num(ing.qty) * ratio),
+            grossQuantityCalculated: _num(ing.appliedGrossQuantity || 0) || (_num(ing.grossQuantityCalculated || ing.grossQuantity || ing.qty) * ratio),
+            totalCost: _num(ing.appliedTotalCost || 0) || (_num(ing.totalCost) * ratio),
+            rawQty: _num(ing.qty),
+            rawGrossQuantity: _num(ing.grossQuantityCalculated || ing.grossQuantity || ing.qty),
+            rawTotalCost: _num(ing.totalCost)
+          }));
         });
       });
     }
-    if (!out.length && Array.isArray(recipe.ingredients)) out = recipe.ingredients.slice();
     return out;
   }
 

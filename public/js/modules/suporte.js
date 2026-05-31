@@ -1056,8 +1056,8 @@ Modules.Suporte = (function () {
             title: '2. Receitas e fichas técnicas',
             path: 'Produção > Receitas de produção',
             intro: 'A ficha técnica mostra como um produto ou base é feito.',
-            fill: ['nome da receita', 'ingredientes usados', 'quantidade de cada ingrediente', 'rendimento', 'unidade do rendimento', 'custo previsto', 'imagem quando ajudar', 'produto produzido vinculado quando existir'],
-            why: 'A ficha técnica ajuda a saber quanto custa produzir, quanto rende e se o preço de venda faz sentido.',
+            fill: ['nome da receita', 'rendimento final da receita', 'etapas da receita', 'rendimento de cada etapa quando for diferente do rendimento final', 'ingredientes usados', 'quantidade de cada ingrediente', 'unidade do rendimento', 'custo previsto', 'imagem quando ajudar', 'produto produzido vinculado quando existir'],
+            why: 'A ficha técnica ajuda a saber quanto custa produzir, quanto rende e se o preço de venda faz sentido. Quando uma etapa rende mais que a receita final, o custo usado no produto final é proporcional ao que a receita realmente consome.',
             after: 'A receita alimenta produto do cardápio, produção, estoque, lista de compras, preço e margem.',
             cautions: ['Rendimento errado muda todo o custo.', 'Ingrediente sem custo deixa a ficha incompleta.', 'A receita atual não deve alterar o snapshot de uma ordem antiga já criada.'],
             ready: 'A receita mostra ingredientes, rendimento e custo previsto de forma coerente.'
@@ -1068,7 +1068,7 @@ Modules.Suporte = (function () {
             intro: 'Base de produção é uma etapa intermediária que depois entra em outro produto.',
             subtopics: [
               { title: 'Exemplos', text: 'Massa, recheio, molho, creme, calda, carne desfiada ou qualquer preparo usado em mais de uma receita.' },
-              { title: 'Como pensar', text: 'Se você faz primeiro uma etapa e depois monta o produto final quando chega pedido, essa etapa vira uma base.' }
+              { title: 'Como pensar', text: 'Se você faz primeiro uma etapa e depois monta o produto final quando chega pedido, essa etapa vira uma base. Mesmo sem controlar estoque da base, informe o rendimento da etapa para o custo final ficar correto.' }
             ],
             why: 'Essa lógica ajuda quem trabalha produzindo partes do produto antes, como massas e recheios, e monta o item final depois.',
             after: 'A base é produzida, entrar no estoque e ser usada em outra receita ou no preparo do produto final.',

@@ -2595,30 +2595,10 @@ Modules.Compras = (function () {
       }).join('');
     var filteredForCounts = _filteredItens();
     var insumosCount = filteredForCounts.length;
-    var produtosCount = filteredForCounts.filter(function (i) { return i.classe === 'produto'; }).length;
-    var insumosClassCount = filteredForCounts.filter(function (i) { return i.classe !== 'produto'; }).length;
-    var receitasCount = filteredForCounts.filter(function (i) { return i.usar_em_fichas !== false; }).length;
-    var categoriasCount = _availableItemFilterValues('categoria').length;
-    var custoMedio = filteredForCounts.length ? filteredForCounts.reduce(function (s, i) { return s + _num(i.custo_atual); }, 0) / filteredForCounts.length : 0;
     var p = _pag.itens;
     var totalPages = Math.max(1, Math.ceil(insumosCount / p.perPage));
     var currentPage = Math.min(p.page, totalPages);
     if (p.page !== currentPage) p.page = currentPage;
-    var insumoKpi = function (label, value, icon, color) {
-      return '<div style="display:flex;align-items:center;gap:12px;background:#FAF8F4;border:none;border-radius:16px;padding:15px 16px;box-shadow:0 12px 30px rgba(31,31,31,.06);min-height:78px;transition:transform .16s ease,box-shadow .16s ease,background .16s ease;" onmouseover="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 16px 34px rgba(31,31,31,.09)\';this.style.background=\'#fff\';" onmouseout="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'0 12px 30px rgba(31,31,31,.06)\';this.style.background=\'#FAF8F4\';">' +
-        '<div style="width:46px;height:46px;border-radius:14px;background:transparent;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><span class="mi" style="font-size:26px;color:' + color + ';">' + _esc(icon) + '</span></div>' +
-        '<div style="min-width:0;display:flex;flex-direction:column;gap:3px;">' +
-          '<span style="display:block;font-size:12px;font-weight:500;color:#6F6860;line-height:1.2;">' + _esc(label) + '</span>' +
-          '<strong style="display:block;font-size:26px;font-weight:700;color:#1F1F1F;line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(value) + '</strong>' +
-        '</div>' +
-      '</div>';
-    };
-    var metricsHtml = insumosOnly ? '<div class="growth-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">' +
-      insumoKpi('Total de insumos', insumosCount, 'inventory_2', '#8A6F5A') +
-      insumoKpi('Categorias', categoriasCount, 'category', '#A18362') +
-      insumoKpi('Em receitas', receitasCount, 'receipt_long', '#6C8777') +
-      insumoKpi('Custo médio', UI.fmt(custoMedio), 'query_stats', '#B42318') +
-      '</div>' : '';
     var classeFilterHtml = insumosOnly ? '' : '<div class="item-filter-control"><select id="it-f-classe" onchange="Modules.Compras._filterItens()">' +
       '<option value=""' + (!_itensFilters.classe ? ' selected' : '') + '>Todas classes</option>' +
       '<option value="produto"' + (_itensFilters.classe === 'produto' ? ' selected' : '') + '>Produtos</option>' +
@@ -2655,7 +2635,6 @@ Modules.Compras = (function () {
           '<button type="button" onclick="' + addFn + '" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">' + _esc(addLabel) + '</button>' +
         '</div>' +
       '</div>' +
-      metricsHtml +
       filterCard +
       '<section style="display:flex;flex-direction:column;gap:10px;">' +
         '<div>' +
