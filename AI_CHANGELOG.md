@@ -9929,4 +9929,7 @@
 - No mesmo modal, troquei a `Unidade` da base/etapa de receita para uma lista herdada de `unidades_medida`, com fallback para unidades comuns quando o cadastro ainda não carregou.
 - Adicionei busca no campo `Ingrediente` de cada linha da receita, filtrando os insumos disponíveis sem alterar o vínculo salvo na ficha.
 - Troquei o botão `+ Adicionar componente` por `+ Adicionar Etapa` e dei mais destaque visual a essa ação dentro do cadastro de receitas.
+- Corrigi o modal `Detalhes da receita` para recalcular e exibir o custo de cada ingrediente dentro da etapa, usando a mesma base de cálculo que já alimentava o total da etapa.
+- Ajustei a copy do campo `Nome da receita` no onboarding para orientar que o nome deve ser da receita principal, deixando massa, recheio e finalização para `Etapa da receita`.
+- Ajustei a copy de `Categoria` no mesmo onboarding para agrupar receitas principais, deixando claro que massa, recheio e finalização pertencem às etapas internas da receita.
 - Impacto esperado: dar base de custo confiável para o primeiro Plano de Voo e para os cálculos de receitas antes de haver histórico suficiente.

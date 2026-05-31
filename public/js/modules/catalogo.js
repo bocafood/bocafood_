@@ -7382,12 +7382,14 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     return comps.map(function (comp) {
       var list = (comp.ingredients || []).map(function (ing) {
         var ins = _itensCusto.find(function (i) { return i.id === ing.insumoId; });
+        var calc = _calcFichaIng(ins, ing.qty);
+        var lineCost = calc.totalCost || _parseFichaNum(ing.totalCost || 0);
         return '<div class="recipe-view-ingredient-row">' +
           '<div class="recipe-view-ingredient-main">' +
             '<div class="recipe-view-ingredient-name">' + _esc((ins && ins.nome) || ing.supplyName || 'Insumo') + '</div>' +
             '<div class="recipe-view-ingredient-meta">' + _esc(ing.qty || 0) + ' ' + _esc(ing.unit || (ins && ins.unidade_base) || '') + '</div>' +
           '</div>' +
-          '<div class="recipe-view-ingredient-cost">' + (ing.totalCost != null ? UI.fmt(ing.totalCost) : '€0,00') + '</div>' +
+          '<div class="recipe-view-ingredient-cost">' + (lineCost > 0 ? UI.fmt(lineCost) : '€0,00') + '</div>' +
           '</div>';
       }).join('');
       if (!list) list = '<div class="recipe-view-empty">Sem ingredientes nesta etapa.</div>';
