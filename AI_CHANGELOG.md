@@ -1,5 +1,11 @@
 # AI Changelog
 
+## 2026-05-31 — Financeiro: filtros de Saídas lado a lado
+- Arquivos alterados: `public/js/modules/financeiro.js`, `AI_CHANGELOG.md`.
+- Ajustei o card de filtros em `Financeiro > Saídas` para mostrar `Status` e `Contas bancárias` lado a lado no desktop.
+- Mantive o grid responsivo para empilhar os campos em telas menores, evitando campos apertados no mobile.
+- Impacto esperado: aproveitar melhor o espaço da tela e deixar o filtro de saídas mais compacto no desktop.
+
 ## 2026-05-31 — Financeiro: Entradas sem filtro inicial
 - Arquivos alterados: `public/js/modules/financeiro.js`, `AI_CHANGELOG.md`.
 - Ajustei a aba `Financeiro > Entradas` para abrir mostrando todos os registros por padrão, sem recorte mensal inicial.

@@ -2596,15 +2596,17 @@ Modules.Financeiro = (function () {
           '<div><label style="'+labelStyle+'">Período</label><select onchange="Modules.Financeiro._setCPFiltro(\'periodo\',this.value)" style="'+selectStyle+'">'+_periodoOptionsHtml(_cpFiltro.periodo)+'</select></div>'+
           (hasCPFilter?'<div style="display:flex;align-items:flex-end;"><button onclick="Modules.Financeiro._limparCPFiltros()" style="height:38px;padding:0 14px;border:1px solid #E8DCD7;border-radius:12px;font-size:12.5px;font-weight:600;color:#B42318;background:#fff;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);">Limpar filtros</button></div>':'')+
         '</div>'+
-        '<div style="margin-top:12px;display:grid;grid-template-columns:minmax(260px,max-content);gap:6px;">'+
-          '<span style="'+labelStyle+'margin-bottom:0;">Status</span>'+
-          '<div style="min-height:42px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:8px 12px;">'+
-            statusCheck('pago','Já pago')+statusCheck('pendente','A pagar')+statusCheck('parcial','Parcial')+statusCheck('vencido','Vencido')+
+        '<div style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;align-items:start;">'+
+          '<div style="display:grid;grid-template-columns:minmax(0,1fr);gap:6px;">'+
+            '<span style="'+labelStyle+'margin-bottom:0;">Status</span>'+
+            '<div style="min-height:42px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:8px 12px;">'+
+              statusCheck('pago','Já pago')+statusCheck('pendente','A pagar')+statusCheck('parcial','Parcial')+statusCheck('vencido','Vencido')+
+            '</div>'+
           '</div>'+
-        '</div>'+
-        '<div style="margin-top:12px;display:grid;grid-template-columns:minmax(260px,max-content);gap:6px;">'+
-          '<span style="'+labelStyle+'margin-bottom:0;">Contas bancárias</span>'+
-          '<div style="min-height:42px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:8px 12px;">'+contasHtml+'</div>'+
+          '<div style="display:grid;grid-template-columns:minmax(0,1fr);gap:6px;">'+
+            '<span style="'+labelStyle+'margin-bottom:0;">Contas bancárias</span>'+
+            '<div style="min-height:42px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:8px 12px;">'+contasHtml+'</div>'+
+          '</div>'+
         '</div>'+
         (showCustom?'<div style="display:grid;grid-template-columns:repeat(2,minmax(160px,220px));gap:12px;margin-top:12px;">'+
           '<div><label style="'+labelStyle+'">Data inicial</label><input type="date" value="'+_esc(_cpFiltro.inicio||'')+'" onchange="Modules.Financeiro._setCPFiltro(\'inicio\',this.value)" style="'+inputStyle+'"></div>'+
