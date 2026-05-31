@@ -1246,9 +1246,7 @@ Modules.Financeiro = (function () {
   }
 
   function _limparMovFiltros(){
-    _movFiltro={tipo:'todos',periodo:'todos',inicio:'',fim:'',contas:[],status:'',busca:'',ordem:'desc'};
-    _movSelecionadas=[];
-    _movView={page:1,pageSize:12};
+    _resetMovDefaultListState();
     _paintMovimentacoes();
   }
 
@@ -1316,9 +1314,7 @@ Modules.Financeiro = (function () {
   }
 
   function _limparCPFiltros(){
-    _cpFiltro={periodo:'todos',inicio:'',fim:'',contas:[],status:{pago:true,pendente:true,parcial:true,vencido:true},busca:'',ordem:'asc'};
-    _cpSelecionadas=[];
-    _cpView={page:1,pageSize:12};
+    _resetCPDefaultListState();
     _paintContasPagar();
   }
 
@@ -1430,10 +1426,16 @@ Modules.Financeiro = (function () {
   }
 
   // ── MOVIMENTAÇÕES ─────────────────────────────────────────────────────────
-  var _movFiltro={tipo:'todos',periodo:'mes',inicio:'',fim:'',contas:[],status:'',busca:'',ordem:'desc'};
+  var _movFiltro={tipo:'todos',periodo:'todos',inicio:'',fim:'',contas:[],status:'',busca:'',ordem:'desc'};
   var _movSelecionadas=[];
   var _movVisiveis=[];
   var _movView={page:1,pageSize:12};
+
+  function _resetMovDefaultListState(){
+    _movFiltro={tipo:'todos',periodo:'todos',inicio:'',fim:'',contas:[],status:'',busca:'',ordem:'desc'};
+    _movSelecionadas=[];
+    _movView={page:1,pageSize:12};
+  }
 
   function _loadMovimentacoes() {
     Promise.all([_loadMovimentacoesData(),DB.getAll('contas_bancarias'),DB.getAll('financeiro_categorias'),DB.getAll('store_customers'),DB.getAll('fornecedores'),DB.getDocRoot('config','financeiro')]).then(function(r){
@@ -1498,7 +1500,7 @@ Modules.Financeiro = (function () {
     var inputStyle='width:100%;box-sizing:border-box;padding:0 12px;border:1px solid #E8DCD7;border-radius:12px;background:#FFFCF8;color:#1F1F1F;font-size:14px;font-weight:400;font-family:inherit;outline:none;height:42px;';
     var selectStyle=inputStyle+'appearance:none;-webkit-appearance:none;background-color:#FFFCF8;background-image:linear-gradient(45deg,transparent 50%,#8A7E7C 50%),linear-gradient(135deg,#8A7E7C 50%,transparent 50%);background-position:calc(100% - 18px) 18px,calc(100% - 13px) 18px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:36px;';
     var labelStyle='font-size:11px;font-weight:650;color:#6F6860;letter-spacing:.04em;text-transform:uppercase;display:block;margin-bottom:6px;';
-    var hasMovFilter=!!(_movFiltro.busca||_movFiltro.periodo!=='mes'||_movFiltro.inicio||_movFiltro.fim||(_movFiltro.contas&&_movFiltro.contas.length)||_movFiltro.status);
+    var hasMovFilter=!!(_movFiltro.busca||_movFiltro.periodo!=='todos'||_movFiltro.inicio||_movFiltro.fim||(_movFiltro.contas&&_movFiltro.contas.length)||_movFiltro.status);
     var sectionTitle=function(title,desc){ return '<div style="margin-bottom:14px;"><h3 style="font-size:15px;font-weight:700;color:#1F1F1F;margin:0 0 4px;line-height:1.2;">'+_esc(title)+'</h3><p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0;max-width:680px;">'+_esc(desc||'')+'</p></div>'; };
     var metric=function(title,value,desc,icon,color){
       return '<div style="display:flex;align-items:flex-start;gap:14px;background:#FAF8F4;border:none;border-radius:16px;padding:18px;box-shadow:0 12px 30px rgba(31,31,31,.06);min-height:118px;overflow:hidden;transition:transform .16s ease,box-shadow .16s ease,background .16s ease;" onmouseenter="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 16px 34px rgba(31,31,31,.09)\';this.style.background=\'#fff\'" onmouseleave="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'0 12px 30px rgba(31,31,31,.06)\';this.style.background=\'#FAF8F4\'">'+
@@ -2122,6 +2124,7 @@ Modules.Financeiro = (function () {
   }
 
   function _saveMov() {
+    var isNewMov=!_editingId;
     var desc=((document.getElementById('mov-desc')||{}).value||'').trim();
     var valor=_parseNum((document.getElementById('mov-valor')||{}).value);
     var contaId=(document.getElementById('mov-conta')||{}).value||'';
@@ -2260,6 +2263,7 @@ Modules.Financeiro = (function () {
     }).then(function(){
       UI.toast('Entrada salva!','success');
       if(window._movModal) window._movModal.close();
+      if(isNewMov) _resetMovDefaultListState();
       _loadMovimentacoes();
     }).catch(function(e){ UI.toast('Erro: '+e.message,'error'); });
   }
@@ -2450,8 +2454,14 @@ Modules.Financeiro = (function () {
   }
 
   // ── CONTAS A PAGAR ────────────────────────────────────────────────────────
-  var _cpFiltro={periodo:'mes',inicio:'',fim:'',contas:[],status:{pago:true,pendente:true,parcial:true,vencido:true},busca:'',ordem:'asc'};
+  var _cpFiltro={periodo:'todos',inicio:'',fim:'',contas:[],status:{pago:true,pendente:true,parcial:true,vencido:true},busca:'',ordem:'desc'};
   var _cpView={page:1,pageSize:12};
+
+  function _resetCPDefaultListState(){
+    _cpFiltro={periodo:'todos',inicio:'',fim:'',contas:[],status:{pago:true,pendente:true,parcial:true,vencido:true},busca:'',ordem:'desc'};
+    _cpSelecionadas=[];
+    _cpView={page:1,pageSize:12};
+  }
 
   function _loadContasPagar() {
     Promise.all([_loadContasPagarData(),DB.getAll('financeiro_categorias'),DB.getAll('fornecedores'),DB.getAll('contas_bancarias'),_loadMovimentacoesData(),DB.getDocRoot('config','financeiro')]).then(function(r){
@@ -2539,7 +2549,7 @@ Modules.Financeiro = (function () {
     var inputStyle='width:100%;box-sizing:border-box;padding:0 12px;border:1px solid #E8DCD7;border-radius:12px;background:#FFFCF8;color:#1F1F1F;font-size:14px;font-weight:400;font-family:inherit;outline:none;height:42px;';
     var selectStyle=inputStyle+'appearance:none;-webkit-appearance:none;background-color:#FFFCF8;background-image:linear-gradient(45deg,transparent 50%,#8A7E7C 50%),linear-gradient(135deg,#8A7E7C 50%,transparent 50%);background-position:calc(100% - 18px) 18px,calc(100% - 13px) 18px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:36px;';
     var labelStyle='font-size:11px;font-weight:650;color:#6F6860;letter-spacing:.04em;text-transform:uppercase;display:block;margin-bottom:6px;';
-    var hasCPFilter=!!(_cpFiltro.busca||_cpFiltro.periodo!=='mes'||_cpFiltro.inicio||_cpFiltro.fim||(_cpFiltro.contas&&_cpFiltro.contas.length)||!(_cpFiltro.status||{}).pago||!(_cpFiltro.status||{}).pendente||!(_cpFiltro.status||{}).parcial||!(_cpFiltro.status||{}).vencido);
+    var hasCPFilter=!!(_cpFiltro.busca||_cpFiltro.periodo!=='todos'||_cpFiltro.inicio||_cpFiltro.fim||(_cpFiltro.contas&&_cpFiltro.contas.length)||!(_cpFiltro.status||{}).pago||!(_cpFiltro.status||{}).pendente||!(_cpFiltro.status||{}).parcial||!(_cpFiltro.status||{}).vencido);
     var sectionTitle=function(title,desc){ return '<div style="margin-bottom:14px;"><h3 style="font-size:15px;font-weight:700;color:#1F1F1F;margin:0 0 4px;line-height:1.2;">'+_esc(title)+'</h3><p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0;max-width:680px;">'+_esc(desc||'')+'</p></div>'; };
     var metric=function(title,value,desc,icon,color){
       return '<div style="display:flex;align-items:flex-start;gap:14px;background:#FAF8F4;border:none;border-radius:16px;padding:18px;box-shadow:0 12px 30px rgba(31,31,31,.06);min-height:118px;overflow:hidden;transition:transform .16s ease,box-shadow .16s ease,background .16s ease;" onmouseenter="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 16px 34px rgba(31,31,31,.09)\';this.style.background=\'#fff\'" onmouseleave="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'0 12px 30px rgba(31,31,31,.06)\';this.style.background=\'#FAF8F4\'">'+
@@ -3273,6 +3283,7 @@ Modules.Financeiro = (function () {
   }
 
   function _saveCP() {
+    var isNewCP=!_editingId;
     var desc=((document.getElementById('cp-desc')||{}).value||'').trim();
     var valor=_parseNum((document.getElementById('cp-valor')||{}).value);
     if(!desc){ UI.toast('Descrição obrigatória','error'); return; }
@@ -3460,6 +3471,7 @@ Modules.Financeiro = (function () {
     }).then(function(){
       UI.toast('Saída salva!','success');
       if(window._cpModal) window._cpModal.close();
+      if(isNewCP) _resetCPDefaultListState();
       _loadContasPagar();
     }).catch(function(e){ if(!e._handled) UI.toast('Erro: '+e.message,'error'); });
   }

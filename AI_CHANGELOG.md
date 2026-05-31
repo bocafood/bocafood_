@@ -1,5 +1,19 @@
 # AI Changelog
 
+## 2026-05-31 — Financeiro: Entradas sem filtro inicial
+- Arquivos alterados: `public/js/modules/financeiro.js`, `AI_CHANGELOG.md`.
+- Ajustei a aba `Financeiro > Entradas` para abrir mostrando todos os registros por padrão, sem recorte mensal inicial.
+- Mantive a ordenação padrão decrescente, deixando as entradas mais recentes no topo.
+- Ao cadastrar uma nova entrada, a lista volta ao padrão e recarrega imediatamente para o lançamento aparecer sem atualizar a página.
+- Impacto esperado: deixar entradas e saídas com o mesmo comportamento de listagem e evitar que novos lançamentos fiquem escondidos por filtros.
+
+## 2026-05-31 — Financeiro: Saídas sem filtro inicial
+- Arquivos alterados: `public/js/modules/financeiro.js`, `AI_CHANGELOG.md`.
+- Ajustei a aba `Financeiro > Saídas` para abrir mostrando todos os registros por padrão, sem recorte mensal inicial.
+- A ordenação padrão da lista passou a ser decrescente, deixando as saídas mais recentes no topo.
+- Ao cadastrar uma nova saída, a lista volta ao padrão e recarrega imediatamente, para a saída recém-criada aparecer sem atualizar a página.
+- Impacto esperado: deixar a listagem de saídas mais previsível e evitar que lançamentos novos fiquem escondidos por filtros anteriores.
+
 ## 2026-05-31 — Financeiro: saldo inicial na conta rápida
 - Arquivos alterados: `public/js/modules/financeiro.js`, `AI_CHANGELOG.md`.
 - Incluí o campo `Saldo inicial` no modal rápido `Nova conta bancária` aberto a partir de `Nova Saída`.
