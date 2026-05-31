@@ -1,5 +1,11 @@
 # AI Changelog
 
+## 2026-05-31 — Financeiro: saldo inicial na conta rápida
+- Arquivos alterados: `public/js/modules/financeiro.js`, `AI_CHANGELOG.md`.
+- Incluí o campo `Saldo inicial` no modal rápido `Nova conta bancária` aberto a partir de `Nova Saída`.
+- O saldo informado é salvo em `saldo_inicial`, usando o mesmo padrão de moeda do financeiro.
+- Impacto esperado: permitir cadastrar uma conta nova com o saldo correto sem sair do lançamento da saída.
+
 ## 2026-05-31 — Financeiro: conta rápida em Nova Saída
 - Arquivos alterados: `public/js/modules/financeiro.js`, `AI_CHANGELOG.md`.
 - Adicionei o atalho `+ conta bancária` no campo `Conta bancária` do modal `Nova Saída`.

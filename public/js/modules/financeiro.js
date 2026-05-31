@@ -1370,6 +1370,7 @@ Modules.Financeiro = (function () {
     var cardStyle = _modalCardStyle();
     var fieldStyle = _modalFieldStyle();
     var selectStyle = _modalSelectStyle('max-width:220px;');
+    var moneyStyle = _modalFieldStyle('max-width:170px;');
     var body =
       '<div style="display:flex;flex-direction:column;gap:14px;">' +
         '<div style="' + cardStyle + '">' +
@@ -1380,6 +1381,7 @@ Modules.Financeiro = (function () {
               '<div><label style="' + _lbl() + '">Banco / Instituição</label><input id="quick-conta-banco" type="text" placeholder="Opcional" style="' + fieldStyle + '"></div>' +
               '<div style="max-width:220px;"><label style="' + _lbl() + '">Tipo</label><select id="quick-conta-tipo" style="' + selectStyle + '">' + _quickBankTypeOptions('') + '</select></div>' +
             '</div>' +
+            '<div style="max-width:170px;"><label style="' + _lbl() + '">Saldo inicial</label><input id="quick-conta-saldo" type="text" inputmode="decimal" placeholder="€ 0,00" onfocus="Modules.Financeiro._moneyInputFocus(this)" onblur="Modules.Financeiro._moneyInputBlur(this)" style="' + moneyStyle + '"></div>' +
           '</div>' +
         '</div>' +
       '</div>';
@@ -1405,7 +1407,7 @@ Modules.Financeiro = (function () {
       tipoGlobalSlug: globalTipo ? globalTipo.slug : (selectedOption ? (selectedOption.dataset.slug || '') : ''),
       tipoGlobalNome: globalTipo ? globalTipo.name : (selectedOption ? (selectedOption.dataset.name || tipoId) : tipoId),
       tipoGlobalCountry: globalTipo ? globalTipo.countryFiscal : (selectedOption ? (selectedOption.dataset.country || 'ambos') : 'ambos'),
-      saldo_inicial: 0,
+      saldo_inicial: _parseNum((document.getElementById('quick-conta-saldo') || {}).value),
       ativo: true,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
