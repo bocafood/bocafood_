@@ -7096,17 +7096,19 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       '.recipes-page{display:flex;flex-direction:column;gap:16px;}' +
       '.recipes-page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;}' +
       '.recipes-page-title{font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;line-height:1.15;}' +
-      '.recipes-page-subtitle{font-size:13px;color:#6F6860;line-height:1.5;margin:0;max-width:760px;}' +
-      '.recipes-primary-btn{height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;transition:transform .16s ease,box-shadow .16s ease,background .16s ease;}' +
-      '.recipes-primary-btn:hover{background:#9F1F16;transform:translateY(-1px);box-shadow:0 8px 18px rgba(180,35,24,.22);}' +
-      '.recipes-filter-card{background:linear-gradient(180deg,#FFFFFF 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.055);}' +
+	      '.recipes-page-subtitle{font-size:13px;color:#6F6860;line-height:1.5;margin:0;max-width:760px;}' +
+	      '.recipes-primary-btn{height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;transition:transform .16s ease,box-shadow .16s ease,background .16s ease;}' +
+	      '.recipes-primary-btn:hover{background:#9F1F16;transform:translateY(-1px);box-shadow:0 8px 18px rgba(180,35,24,.22);}' +
+	      '.recipes-secondary-btn{height:38px;padding:0 13px;border:1px solid #EADFD8;border-radius:10px;background:#fff;color:#5F5750;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;box-shadow:0 1px 2px rgba(31,31,31,.03);transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease,background .16s ease;}' +
+	      '.recipes-secondary-btn:hover{background:#FFFCF8;border-color:#D9C8BA;transform:translateY(-1px);box-shadow:0 8px 18px rgba(31,31,31,.06);}' +
+	      '.recipes-filter-card{background:linear-gradient(180deg,#FFFFFF 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.055);}' +
       '.recipes-filter-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:11px 12px;align-items:end;}' +
       '.recipes-filter-control{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:0 12px;min-height:42px;display:flex;align-items:center;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;}' +
       '.recipes-filter-control:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
       '.recipes-filter-control input{width:100%;height:40px;border:0;border-radius:8px;padding:0;font-size:14px;font-family:inherit;outline:none;background:transparent;box-sizing:border-box;color:#1F1F1F;box-shadow:none;}' +
       '.recipes-filter-actions{display:flex;justify-content:flex-start;margin-top:11px;}' +
       '.recipes-select{min-width:110px;max-width:110px;height:34px;padding:0 34px 0 10px;border:1px solid #EAE4DA;border-radius:10px;font-size:12px;font-family:inherit;outline:none;background-color:#fff;color:#6F6860;box-sizing:border-box;appearance:none;-webkit-appearance:none;-moz-appearance:none;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 14px center;background-size:14px;}' +
-      '@media(max-width:680px){.recipes-filter-grid{grid-template-columns:1fr}.recipes-primary-btn,.recipes-filter-actions button{width:100%;}}' +
+	      '@media(max-width:680px){.recipes-filter-grid{grid-template-columns:1fr}.recipes-primary-btn,.recipes-secondary-btn,.recipes-filter-actions button{width:100%;}}' +
       '</style>';
     var emptyHtml = totalCount === 0
       ? '<section style="background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:42px 20px;box-shadow:0 10px 24px rgba(31,31,31,.04);text-align:center;"><div style="width:42px;height:42px;border-radius:14px;background:#FFF3F1;color:#B42318;display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;"><span class="mi" style="font-size:20px;">receipt_long</span></div><div style="font-size:15px;font-weight:700;color:#1F1F1F;margin-bottom:4px;">Nenhuma receita ainda</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin:0 auto 16px;max-width:420px;">Crie a primeira ficha técnica para acompanhar rendimento, ingredientes e custo da produção.</div><button onclick="Modules.Catalogo._openFichaModal(null)" class="recipes-primary-btn">+ Nova receita</button></section>'
@@ -7119,7 +7121,10 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
           '<h2 class="recipes-page-title">Receitas de produção</h2>' +
           '<p class="recipes-page-subtitle">Crie fichas técnicas para calcular rendimento, ingredientes e custo real de cada receita.</p>' +
         '</div>' +
-        '<button onclick="Modules.Catalogo._openFichaModal(null)" class="recipes-primary-btn">Adicionar receita</button>' +
+	      '<div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;justify-content:flex-end;">' +
+	        '<button onclick="Router.navigate(\'receitas/insumos\')" class="recipes-secondary-btn"><span class="mi" style="font-size:16px;">inventory_2</span>Adicionar insumo</button>' +
+	        '<button onclick="Modules.Catalogo._openFichaModal(null)" class="recipes-primary-btn">Adicionar receita</button>' +
+	      '</div>' +
       '</div>' +
       '<div class="recipes-filter-card">' +
         '<div class="recipes-filter-grid">' +

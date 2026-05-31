@@ -2845,7 +2845,7 @@ Modules.Compras = (function () {
         'Se compra por litro, cadastre como litro.' +
       '</div>' +
       '<div class="item-modal-grid item-modal-cost-grid" style="margin-bottom:11px;align-items:start;">' +
-        _supplierSelect('it-unidade', 'Unidade base *', '<option value="">Selecionar...</option>' + unidadeOpts) +
+        _supplierSelect('it-unidade', 'Unidade base *', '<option value="">Selecionar...</option>' + unidadeOpts, 'Modules.Compras._updateItemCurrentCostPreview()') +
         '<div style="position:relative;"><div class="item-field-head"><label style="' + _labelStyle() + 'margin-bottom:0;">Fornecedor padrão</label><button type="button" class="item-inline-add" onclick="Modules.Compras._openItemSupplierCreateModal()">+ fornecedor</button></div>' +
           '<div class="supplier-field-control">' +
           '<input id="it-forn-display" type="text" placeholder="Buscar fornecedor..." autocomplete="off" value="' + _esc(fornAtual.name || '') + '" ' +
@@ -2870,13 +2870,13 @@ Modules.Compras = (function () {
         '• Unidade base L e embalagem com 500 ml: preencha 0,500<br>' +
         '• Unidade base unidade e caixa com 12 unidades: preencha 12<br><br>' +
         'Regra simples: converta o conteúdo da embalagem para a unidade base antes de preencher.' +
-      '</div><div class="supplier-field-control"><input id="it-conteudo-padrao" type="number" value="' + _esc(item.conteudo_por_embalagem_padrao || 1) + '"></div></div>' +
+      '</div><div class="supplier-field-control"><input id="it-conteudo-padrao" type="number" value="' + _esc(item.conteudo_por_embalagem_padrao || 1) + '" oninput="Modules.Compras._updateItemCurrentCostPreview()"></div></div>' +
       _supplierField('it-stock-min', 'Estoque mínimo', item.minStock || item.estoque_minimo || '', 'number') +
       _supplierField('it-stock-max', 'Estoque máximo', item.maxStock || item.estoque_maximo || '', 'number') +
       '</div>' +
       '<div class="item-modal-metrics">' +
       '<label class="item-modal-metric" style="display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;"><input id="it-ativo" type="checkbox" ' + (item.ativo !== false ? 'checked' : '') + ' style="accent-color:#C4362A;width:17px;height:17px;"> Cadastro ativo</label>' +
-      '<div class="item-modal-metric"><div style="' + sectionTitle + 'margin-bottom:6px;">Custo atual</div><strong style="font-size:17px;color:#1A1A1A;">' + costText + '</strong></div>' +
+      '<div class="item-modal-metric"><div style="' + sectionTitle + 'margin-bottom:6px;">Custo atual</div><strong id="it-current-cost-preview" style="font-size:17px;color:#1A1A1A;">' + costText + '</strong></div>' +
       '<div class="item-modal-metric"><div style="' + sectionTitle + 'margin-bottom:6px;">Última compra</div><strong style="font-size:17px;color:#1A1A1A;">' + lastPurchaseText + '</strong></div>' +
       '</div>' +
       '</div>' +
@@ -2892,7 +2892,7 @@ Modules.Compras = (function () {
         '</div>' +
         '<div class="item-usage-panel">' +
           '<div class="item-usage-panel-title">Aproveitamento do item</div>' +
-          _supplierField('it-aprov', 'Aproveitamento (%)', item.aproveitamento_padrao || 100, 'number') +
+          _supplierField('it-aprov', 'Aproveitamento (%)', item.aproveitamento_padrao || 100, 'number', 'Modules.Compras._updateItemCurrentCostPreview()') +
           '<p class="item-usage-panel-text" style="margin-top:7px;">Use 100% quando tudo é aproveitado. Se parte do item se perde ao limpar, descascar ou preparar, informe uma porcentagem menor.</p>' +
         '</div>' +
       '</div>' +
@@ -2913,7 +2913,7 @@ Modules.Compras = (function () {
       ? (id ? 'Editar Insumo/Produto Pronto' : 'Novo Insumo/Produto Pronto')
       : (id ? 'Editar Produto / Insumo' : 'Novo Produto / Insumo');
     window._itemCompraModal = UI.modal({ title: modalTitle, body: body, footer: footer, maxWidth: '1120px' });
-    setTimeout(_toggleItemClasse, 20);
+    setTimeout(function () { _toggleItemClasse(); _updateItemCurrentCostPreview(); }, 20);
   }
 
   function _itemFornSearch(q) {
@@ -3199,6 +3199,7 @@ Modules.Compras = (function () {
         conteudoPadraoEl.style.cursor = '';
       }
     }
+    _updateItemCurrentCostPreview();
     // Hint dinâmico da secção Compra e custo
     var custoHint = document.getElementById('it-custo-hint');
     if (custoHint) {
@@ -5255,7 +5256,7 @@ Modules.Compras = (function () {
     var note = hasHistory
       ? 'Atualizado automaticamente pela média das compras registradas. Para corrigir este valor, ajuste a compra que gerou o custo.'
       : 'Informe o valor pago pela embalagem inteira. O BocaFood divide pelo conteúdo da embalagem para chegar ao custo por kg, litro ou unidade.';
-    return '<div><label style="' + _labelStyle() + '">' + label + '</label><div class="item-money-control"><span class="item-money-prefix">€</span><input id="it-base-cost" type="text" inputmode="decimal" value="' + _esc(_moneyFieldText(value)) + '" placeholder="0,00" onblur="Modules.Compras._formatItemMoneyField(this)"' + (hasHistory ? ' disabled' : '') + '></div><div class="item-auto-note">' + _esc(note) + '</div></div>';
+    return '<div><label style="' + _labelStyle() + '">' + label + '</label><div class="item-money-control"><span class="item-money-prefix">€</span><input id="it-base-cost" type="text" inputmode="decimal" value="' + _esc(_moneyFieldText(value)) + '" placeholder="0,00" oninput="Modules.Compras._updateItemCurrentCostPreview()" onblur="Modules.Compras._formatItemMoneyField(this)"' + (hasHistory ? ' disabled' : '') + '></div><div class="item-auto-note">' + _esc(note) + '</div></div>';
   }
   function _moneyFieldText(value) {
     var n = _num(value);
@@ -5272,6 +5273,23 @@ Modules.Compras = (function () {
   function _formatItemMoneyField(el) {
     if (!el) return;
     el.value = _moneyFieldText(_parseMoneyField(el.value));
+    _updateItemCurrentCostPreview();
+  }
+  function _updateItemCurrentCostPreview() {
+    var el = document.getElementById('it-current-cost-preview');
+    if (!el) return;
+    var classeEl = document.getElementById('it-classe');
+    var unitEl = document.getElementById('it-unidade');
+    var packageEl = document.getElementById('it-base-cost');
+    var contentEl = document.getElementById('it-conteudo-padrao');
+    var aproveitamentoEl = document.getElementById('it-aprov');
+    var classe = classeEl ? (classeEl.value || 'insumo') : 'insumo';
+    var packageCost = _parseMoneyField(packageEl ? packageEl.value : '');
+    var content = parseFloat(String(contentEl ? contentEl.value : '1').replace(',', '.')) || 1;
+    var aproveitamento = parseFloat(String(aproveitamentoEl ? aproveitamentoEl.value : '100').replace(',', '.')) || 100;
+    var unitCost = _itemBaseUnitCostFromPackage(packageCost, content, aproveitamento, classe);
+    var unit = unitEl ? (unitEl.value || '') : '';
+    el.textContent = unitCost > 0 ? (UI.fmt(unitCost) + (unit ? '/' + unit : '')) : '-';
   }
   function _supplierField(id, label, value, type, oninput, placeholder) {
     return '<div><label style="' + _labelStyle() + '">' + label + '</label><div class="supplier-field-control"><input id="' + id + '" type="' + (type || 'text') + '" value="' + _esc(value == null ? '' : value) + '"' + (placeholder ? ' placeholder="' + _esc(placeholder) + '"' : '') + (oninput ? ' oninput="' + oninput + '"' : '') + '></div></div>';
@@ -5361,6 +5379,7 @@ Modules.Compras = (function () {
   function _el(id) { return document.getElementById(id) || { value: '', checked: false, innerHTML: '' }; }
   function _esc(str) { return String(str == null ? '' : str).replace(/[&<>"']/g, function (m) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[m]; }); }
   function _escJs(str) { return _esc(String(str == null ? '' : str).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, ' ')); }
+  function _packageOptions() { return PACKAGE_OPTIONS_PT.slice(); }
 
   return {
     render: render, _switchSub: _switchSub,
@@ -5384,9 +5403,9 @@ Modules.Compras = (function () {
     _filterItemSelect: _filterItemSelect, _compraItemSearch: _compraItemSearch, _compraItemSelect: _compraItemSelect,
     _compraFornSearch: _compraFornSearch, _compraFornSelect: _compraFornSelect,
     _itemFornSearch: _itemFornSearch, _itemFornSelect: _itemFornSelect,
-    _catalogSearch: _catalogSearch, _catalogSelect: _catalogSelect, _catalogQuickCreate: _catalogQuickCreate, _openItemCategoryCreateModal: _openItemCategoryCreateModal, _saveItemCategoryFromModal: _saveItemCategoryFromModal, _openItemSupplierCreateModal: _openItemSupplierCreateModal, _saveItemSupplierFromModal: _saveItemSupplierFromModal, _packageSearch: _packageSearch, _packageSelect: _packageSelect,
+    _catalogSearch: _catalogSearch, _catalogSelect: _catalogSelect, _catalogQuickCreate: _catalogQuickCreate, _openItemCategoryCreateModal: _openItemCategoryCreateModal, _saveItemCategoryFromModal: _saveItemCategoryFromModal, _openItemSupplierCreateModal: _openItemSupplierCreateModal, _saveItemSupplierFromModal: _saveItemSupplierFromModal, _packageSearch: _packageSearch, _packageSelect: _packageSelect, _packageOptions: _packageOptions,
     _setSimpleListClasse: _setSimpleListClasse,
-    _openItemModal: _openItemModal, _openInsumoModal: _openInsumoModal, _saveItem: _saveItem, _deleteItem: _deleteItem, _toggleItemClasse: _toggleItemClasse, _toggleItemCostHelp: _toggleItemCostHelp, _toggleItemPackageHelp: _toggleItemPackageHelp, _formatItemMoneyField: _formatItemMoneyField, _onItemImgFileChange: _onItemImgFileChange, _filterItens: _filterItens, _renderInsumos: _renderInsumos,
+    _openItemModal: _openItemModal, _openInsumoModal: _openInsumoModal, _saveItem: _saveItem, _deleteItem: _deleteItem, _toggleItemClasse: _toggleItemClasse, _toggleItemCostHelp: _toggleItemCostHelp, _toggleItemPackageHelp: _toggleItemPackageHelp, _formatItemMoneyField: _formatItemMoneyField, _updateItemCurrentCostPreview: _updateItemCurrentCostPreview, _onItemImgFileChange: _onItemImgFileChange, _filterItens: _filterItens, _renderInsumos: _renderInsumos,
     _openFornecedorModal: _openFornecedorModal, _saveFornecedor: _saveFornecedor, _deleteFornecedor: _deleteFornecedor, _onFornecedorCountryChange: _onFornecedorCountryChange,
     _openUnidadeModal: _openUnidadeModal, _saveUnidade: _saveUnidade, _deleteUnidade: _deleteUnidade,
     _openSimpleModal: _openSimpleModal, _saveSimple: _saveSimple, _deleteSimple: _deleteSimple, _renderUnidades: _renderUnidades, _renderSimpleList: _renderSimpleList,

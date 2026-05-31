@@ -42,6 +42,7 @@ Modules.Receitas = (function () {
     { key: 'componentes', label: 'Etapas da receita' },
     { key: 'categorias-receita', label: 'Categorias da receita' },
     { key: 'categorias-insumos', label: 'Categorias de insumos' },
+    { key: 'embalagens-compra', label: 'Embalagem de Compra' },
     { key: 'unidades', label: 'Unidades' }
   ];
 
@@ -75,6 +76,11 @@ Modules.Receitas = (function () {
         title: 'Categorias de insumos',
         desc: 'Categorias organizam insumos parecidos no mesmo grupo.',
         add: '+ Adicionar categoria'
+      },
+      'embalagens-compra': {
+        title: 'Embalagem de compra',
+        desc: 'Opções que aparecem no campo Embalagem de compra padrão do cadastro de insumos e produtos comprados.',
+        add: ''
       },
       unidades: {
         title: 'Unidades',
@@ -172,7 +178,7 @@ Modules.Receitas = (function () {
     if (key === 'tipos') key = 'categorias-insumos';
     if (key === 'categorias') key = 'categorias-insumos';
     if (key === 'configuracoes') key = 'configuracoes/componentes';
-    if (key === 'componentes' || key === 'categorias-receita' || key === 'tipos-insumos' || key === 'categorias-insumos' || key === 'unidades') {
+    if (key === 'componentes' || key === 'categorias-receita' || key === 'tipos-insumos' || key === 'categorias-insumos' || key === 'embalagens-compra' || key === 'unidades') {
       key = 'configuracoes/' + key;
       redirect = true;
     }
@@ -2278,6 +2284,7 @@ Modules.Receitas = (function () {
       'categorias-receita': meta.add,
       'tipos-insumos': meta.add,
       'categorias-insumos': meta.add,
+      'embalagens-compra': meta.add,
       unidades: meta.add
     };
     var addActionMap = {
@@ -2308,6 +2315,7 @@ Modules.Receitas = (function () {
     if (subKey === 'categorias-receita') return _renderRecipeCategories();
     if (subKey === 'tipos-insumos') return _renderIngredientCatalog('tipos');
     if (subKey === 'categorias-insumos') return _renderIngredientCatalog('categorias');
+    if (subKey === 'embalagens-compra') return _renderPurchasePackages();
     if (subKey === 'unidades') return _renderUnits();
   }
 
@@ -2318,6 +2326,7 @@ Modules.Receitas = (function () {
     if (key === 'categorias-receita') return _paintRecipeCategories();
     if (key === 'tipos-insumos') return _paintIngredientCatalog('tipos');
     if (key === 'categorias-insumos') return _paintIngredientCatalog('categorias');
+    if (key === 'embalagens-compra') return _paintPurchasePackages();
     if (key === 'unidades') return _paintUnits();
   }
 
@@ -2563,6 +2572,46 @@ Modules.Receitas = (function () {
     });
   }
 
+  function _purchasePackageOptions() {
+    var fallback = ['bandeja', 'bolsa', 'caixa', 'fardo', 'frasco', 'garrafa', 'lata', 'pacote', 'saco', 'unidade'];
+    if (window.Modules && Modules.Compras && typeof Modules.Compras._packageOptions === 'function') {
+      return Modules.Compras._packageOptions();
+    }
+    return fallback;
+  }
+
+  function _renderPurchasePackages() {
+    _paintPurchasePackages();
+  }
+
+  function _paintPurchasePackages() {
+    var content = document.getElementById('receitas-config-content') || document.getElementById('receitas-content');
+    if (!content) return;
+    var meta = _configMeta('embalagens-compra');
+    var options = _purchasePackageOptions().map(function (name) {
+      return {
+        name: _capitalizeLabel(name),
+        description: 'Disponível no cadastro de insumos e produtos comprados.',
+        type: 'embalagem'
+      };
+    });
+    var filtered = options.filter(_matchesConfigSearch);
+    var rows = filtered.map(function (item) {
+      return '<div class="recipes-config-row">' +
+        '<div style="width:34px;height:34px;border-radius:12px;background:#FFF3E8;color:#9F4D18;display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span class="mi" style="font-size:18px;">inventory_2</span></div>' +
+        '<div style="min-width:0;flex:1;"><div class="recipes-config-row-title">' + _esc(item.name) + '</div>' +
+        '<div class="recipes-config-row-text">' + _esc(item.description) + '</div></div>' +
+        '<div class="recipes-config-actions"><span class="recipes-config-status">Disponível</span></div>' +
+      '</div>';
+    }).join('');
+    content.innerHTML = '<section class="recipes-config-card">' +
+      '<div class="recipes-config-card-head">' +
+        '<div><div class="recipes-config-section-title">' + _esc(meta.title) + ' (' + filtered.length + ')</div><div class="recipes-config-section-desc">' + _esc(meta.desc || '') + '</div></div>' +
+      '</div>' +
+      (rows ? '<div class="recipes-config-list">' + rows + '</div>' : '<div class="recipes-config-empty">Nenhuma embalagem encontrada.</div>') +
+      '</section>';
+  }
+
   function _renderUnits() {
     DB.getAll('unidades_medida').then(function (items) {
       _units = (items || []).slice().sort(function (a, b) {
@@ -2643,6 +2692,12 @@ Modules.Receitas = (function () {
 
   function _normName(s) {
     return String(s || '').trim().replace(/\s+/g, ' ').toLowerCase();
+  }
+
+  function _capitalizeLabel(s) {
+    var value = String(s || '').trim();
+    if (!value) return '';
+    return value.charAt(0).toUpperCase() + value.slice(1);
   }
 
   return {

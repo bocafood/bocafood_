@@ -54,6 +54,7 @@
       --r:         18px;
       --r-lg:      26px;
       --r-pill:    999px;
+      --diag:      36px;
     }
 
     html { scroll-behavior: smooth; }
@@ -130,6 +131,13 @@
       background: var(--warm); clip-path: ellipse(90% 100% at 100% 50%);
       pointer-events: none; z-index: 0;
     }
+    .hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='250' height='250'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='250' height='250' filter='url(%23n)'/%3E%3C/svg%3E");
+      opacity: 0.03;
+      pointer-events: none; z-index: 0;
+    }
     .hero-text { position: relative; z-index: 1; }
     .hero-eyebrow {
       display: inline-flex; align-items: center; gap: 10px;
@@ -171,14 +179,21 @@
 
     /* Floating notes */
     .fn {
-      position: absolute; background: var(--white); border-radius: 16px;
-      padding: 12px 16px; box-shadow: var(--sh); border: 1.5px solid var(--border);
+      position: absolute;
+      background: rgba(255,252,248,.82);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      border-radius: 16px; padding: 12px 16px;
+      box-shadow: 0 8px 32px rgba(44,26,14,.14), 0 2px 8px rgba(44,26,14,.06), inset 0 1px 0 rgba(255,255,255,.95);
+      border: 1px solid rgba(255,255,255,.75);
       display: flex; align-items: center; gap: 10px; white-space: nowrap;
     }
     .fn-ico { font-size: 20px; flex-shrink: 0; }
     .fn strong { display: block; font-size: 12.5px; font-weight: 700; color: var(--dark); }
     .fn small  { display: block; font-size: 11px; color: var(--muted); margin-top: 1px; }
-    .fn1 { top: 4%;  left: -4%;  animation: fnf 5s ease-in-out infinite; }
+    .fn1 { top: 2%; left: -8%; padding: 16px 22px; gap: 14px; animation: fnf 5s ease-in-out infinite; z-index: 3; }
+    .fn1 .ico-bg { width: 48px; height: 48px; font-size: 22px; border-radius: 14px; }
+    .fn1 strong { font-size: 14px; }
+    .fn1 small  { font-size: 12px; }
     .fn2 { top: 42%; right: -6%; animation: fnf 7s ease-in-out infinite .6s; }
     .fn3 { bottom: 8%; left: 0%;  animation: fnf 6s ease-in-out infinite 1.2s; }
     @keyframes fnf { 0%,100%{transform:translateY(0) rotate(-1.5deg)} 50%{transform:translateY(-8px) rotate(1deg)} }
@@ -259,25 +274,45 @@
 
     /* ─── VIRADA ─────────────────────────────── */
     .virada-sec {
-      background: var(--dark); padding: 110px 5%; text-align: center;
-      position: relative; overflow: hidden;
+      background: var(--dark);
+      padding: calc(110px + var(--diag)) 5% calc(110px + var(--diag));
+      text-align: center; position: relative; overflow: hidden; z-index: 1;
+      clip-path: polygon(0 var(--diag), 100% 0, 100% calc(100% - var(--diag)), 0 100%);
+      margin: calc(var(--diag) * -1) 0;
     }
     .virada-sec::before {
-      content: ''; position: absolute; top: -180px; left: 50%; transform: translateX(-50%);
-      width: 640px; height: 640px; border-radius: 50%;
-      background: radial-gradient(circle, rgba(190,35,24,.14) 0%, transparent 65%); pointer-events: none;
+      content: ''; position: absolute; top: -80px; left: 50%; transform: translateX(-50%);
+      width: 700px; height: 700px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(196,122,48,.12) 0%, transparent 65%); pointer-events: none; z-index: 0;
     }
-    .virada-inner { max-width: 720px; margin: 0 auto; position: relative; z-index: 1; }
-    .v-tag { font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 2.5px; color: rgba(190,35,24,.65); margin-bottom: 26px; }
+    .virada-sec::after {
+      content: '';
+      position: absolute; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='250' height='250'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='250' height='250' filter='url(%23n)'/%3E%3C/svg%3E");
+      opacity: 0.04; pointer-events: none; z-index: 0;
+    }
+    .virada-inner { max-width: 720px; margin: 0 auto; position: relative; z-index: 2; }
+    .virada-bg-text {
+      position: absolute;
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(72px, 14vw, 160px);
+      font-weight: 800; font-style: italic;
+      color: rgba(255,255,255,.03);
+      white-space: nowrap; left: 50%; top: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none; letter-spacing: -.04em; line-height: 1;
+      z-index: 1; user-select: none;
+    }
+    .v-tag { font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 2.5px; color: rgba(196,122,48,.8); margin-bottom: 26px; }
     .virada-h { font-size: clamp(30px, 4.6vw, 58px); line-height: 1.17; letter-spacing: -.025em; color: #fff; margin-bottom: 28px; }
-    .virada-h em { font-style: italic; color: var(--red); }
+    .virada-h em { font-style: italic; color: var(--honey); }
     .virada-p { font-size: 17px; color: rgba(255,255,255,.52); line-height: 1.82; margin-bottom: 20px; }
-    .virada-p strong { color: rgba(255,255,255,.84); font-weight: 600; }
+    .virada-p strong { color: var(--honey); font-weight: 600; }
     .virada-quote {
       font-size: clamp(16px, 1.9vw, 19px); font-style: italic; color: rgba(255,255,255,.72);
       font-family: 'Playfair Display', serif; line-height: 1.7;
-      border-left: 3px solid var(--red); padding: 20px 26px;
-      background: rgba(255,255,255,.05); border-radius: 0 14px 14px 0;
+      border-left: 3px solid var(--honey); padding: 20px 26px;
+      background: rgba(196,122,48,.06); border-radius: 0 14px 14px 0;
       text-align: left; margin: 32px 0 44px;
     }
 
@@ -484,8 +519,10 @@
 
     /* ─── CTA FINAL ──────────────────────────── */
     .final-sec {
-      background: var(--red); padding: 100px 5%; text-align: center;
-      position: relative; overflow: hidden;
+      background: var(--red); padding: calc(100px + var(--diag)) 5% 100px; text-align: center;
+      position: relative; overflow: hidden; z-index: 1;
+      clip-path: polygon(0 var(--diag), 100% 0, 100% 100%, 0 100%);
+      margin-top: calc(var(--diag) * -1);
     }
     .final-sec::before { content: ''; position: absolute; top: -200px; left: -100px; width: 480px; height: 480px; border-radius: 50%; background: rgba(255,255,255,.07); pointer-events: none; }
     .final-sec::after  { content: ''; position: absolute; bottom: -150px; right: -80px; width: 360px; height: 360px; border-radius: 50%; background: rgba(0,0,0,.1); pointer-events: none; }
@@ -537,7 +574,8 @@
 
     .graf-wrap {
       border-radius: var(--r-lg); overflow: hidden;
-      box-shadow: var(--sh); border: 1.5px solid var(--border);
+      box-shadow: 0 20px 56px rgba(44,26,14,.13), 0 4px 14px rgba(44,26,14,.07), inset 0 1px 0 rgba(255,255,255,.9);
+      border: 1.5px solid rgba(216,200,176,.7);
       background: var(--white); width: 100%;
     }
     .graf-topbar {
@@ -656,7 +694,7 @@
     .mg-dim-fill { height: 100%; border-radius: 3px; }
 
     /* ─── INTEGRAÇÃO FACTURADIRECTA ─────────── */
-    .integ-sec { background: var(--dark); color: var(--white); padding: 80px 5%; }
+    .integ-sec { background: var(--dark); color: var(--white); padding: calc(80px + var(--diag)) 5% calc(80px + var(--diag)); position: relative; z-index: 1; clip-path: polygon(0 var(--diag), 100% 0, 100% calc(100% - var(--diag)), 0 100%); margin: calc(var(--diag) * -1) 0; }
     .integ-inner { max-width: 1080px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; }
     .integ-tag {
       display: inline-flex; align-items: center; gap: 8px;
@@ -756,9 +794,13 @@
       .hg-m-val { font-size: 16px; }
       .hg-items { flex-direction: column; gap: 6px; }
       .pg-scenarios .pg-sc { gap: 8px; }
+      :root { --diag: 0px; }
       .virada-sec { padding: 72px 4%; }
       .virada-inner { padding: 0; }
       .europa-cards .ec { gap: 12px; }
+      .sit-foot .btn { width: 100%; justify-content: center; }
+      .final-sec .btn-xl { width: 100%; justify-content: center; font-size: 16px; padding: 18px 20px; }
+      .final-sec { padding: 80px 4% 72px; }
     }
     @media (max-width: 400px) {
       .hg-metrics { grid-template-columns: 1fr 1fr; }
@@ -1035,6 +1077,7 @@
 
 <!-- ══════════════ VIRADA ══════════════════════ -->
 <section class="virada-sec">
+  <div class="virada-bg-text" aria-hidden="true">crescendo</div>
   <div class="virada-inner">
     <div class="v-tag reveal">A mudança começa aqui</div>
     <h2 class="virada-h reveal">

@@ -9967,3 +9967,22 @@
 - Mantive o campo como `Rendimento da etapa` no cadastro da receita e confirmei que não há mais ocorrência de `Rendimento da base` nesses textos.
 - Reescrevi as orientações de `Rendimento`, `Tipo de rendimento` e `Rendimento da etapa` com destaques, exemplos práticos e foco apenas em como preencher.
 - Impacto esperado: deixar a orientação mais limpa e sem repetir uma regra que já aparece no campo específico de etapa.
+
+## 2026-05-31 — Produção: atalho para insumos em Receitas
+- Arquivos alterados: `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Adicionei no cabeçalho de `Produção > Receitas de produção` um botão secundário `Adicionar insumo`, ao lado do botão principal `Adicionar receita`.
+- O botão leva para `Produção > Insumos`, reaproveitando a mesma página de cadastro/listagem de insumos do módulo Produção.
+- Impacto esperado: facilitar o fluxo de cadastrar insumos antes ou durante a montagem das receitas, sem alterar rotas ou lógica de cadastro.
+
+## 2026-05-31 — Compras: custo atual em tempo real no item
+- Arquivos alterados: `public/js/modules/compras.js`, `AI_CHANGELOG.md`.
+- No modal `Novo/Editar Insumo/Produto Pronto`, o card `Custo atual` passa a atualizar enquanto a usuária altera `Preço de compra base`, `Conteúdo por embalagem`, `Aproveitamento`, `Unidade base` ou `Classe do item`.
+- A atualização visual usa a mesma fórmula aplicada no salvamento: valor da embalagem dividido pelo conteúdo e ajustado pelo aproveitamento quando for insumo.
+- Impacto esperado: permitir conferir imediatamente o custo por kg, litro ou unidade antes de salvar o cadastro.
+
+## 2026-05-31 — Produção: aba Embalagem de Compra em Configurações
+- Arquivos alterados: `public/js/modules/receitas.js`, `public/js/modules/compras.js`, `AI_CHANGELOG.md`.
+- Incluí a subaba `Embalagem de Compra` em `Produção > Configurações`.
+- A aba mostra as embalagens disponíveis no campo `Embalagem de compra padrão` do cadastro de insumos e produtos comprados.
+- A lista reaproveita as opções já usadas pelo módulo de Compras, evitando criar uma fonte paralela ou alterar a lógica de cadastro.
+- Impacto esperado: deixar visível dentro das configurações de Produção quais embalagens de compra podem ser usadas no preenchimento dos insumos.
