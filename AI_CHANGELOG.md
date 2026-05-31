@@ -1,5 +1,31 @@
 # AI Changelog
 
+## 2026-06-01 — Plano de Voo: leitura da comissão efetiva
+- Arquivos alterados: `public/js/modules/plano_voo.js`, `AI_CHANGELOG.md`.
+- Ajustei a linha `Comissões dos canais` em `Custos que acompanham as vendas`.
+- A tela agora mostra a comissão efetiva dos canais que cobram taxa, por exemplo 30% de comissão + 21% de imposto sobre a comissão = 36,3%.
+- O valor projetado continua calculado somente sobre a parte da venda que passa por canais com comissão, evitando inflar o custo quando também existem canais próprios sem comissão.
+- Impacto esperado: deixar a leitura da comissão mais clara sem perder a projeção correta do custo total da rota.
+
+## 2026-06-01 — Plano de Voo: saídas lançadas na rota
+- Arquivos alterados: `public/js/modules/plano_voo.js`, `AI_CHANGELOG.md`.
+- Corrigi a base de `Despesas previstas da rota` e `Custos previstos da rota` para considerar também saídas já lançadas no Financeiro dentro do período da rota.
+- Antes, saídas efetivadas ou registradas como movimentação podiam ficar fora quando o negócio ainda não tinha 1 ano completo de histórico, deixando os cards zerados.
+- A regra continua evitando duplicidade com contas a pagar já reconhecidas e mantém a separação definida: entram na rota apenas saídas classificadas como indiretas; diretas seguem fora para não duplicar custo de produto/receita.
+- Impacto esperado: o Plano de Voo passa a refletir melhor despesas e custos indiretos lançados no Financeiro mesmo em negócios sem histórico anual completo.
+
+## 2026-06-01 — Plano de Voo: vendas recentes só com histórico
+- Arquivos alterados: `public/js/modules/plano_voo.js`, `AI_CHANGELOG.md`.
+- O mini-card `Vendas recentes` dentro de `Antes de criar a rota` agora só aparece quando existe histórico real de vendas nos canais.
+- Quando a usuária ainda está preenchendo vendas manualmente dentro do Plano de Voo, esse card deixa de aparecer para não confundir base lançada com histórico observado.
+- Impacto esperado: deixar a criação da primeira rota mais clara para negócios sem histórico suficiente.
+
+## 2026-06-01 — Plano de Voo: copy da base antes da rota
+- Arquivos alterados: `public/js/modules/plano_voo.js`, `AI_CHANGELOG.md`.
+- Ajustei a copy do card `Antes de criar a rota`, no bloco `Vendas recentes`.
+- O texto agora explica que o valor é uma média das vendas recentes e deve servir como ponto de partida para a usuária ajustar conforme a realidade atual do negócio.
+- Impacto esperado: evitar leitura confusa de que o valor é uma meta ou previsão pronta.
+
 ## 2026-06-01 — Pedidos: líquido a receber por canal
 - Arquivos alterados: `public/js/modules/pedidos.js`, `AI_CHANGELOG.md`.
 - Adicionei no pedido o cálculo financeiro do canal de venda quando houver comissão, imposto sobre comissão ou taxa fixa configurados.

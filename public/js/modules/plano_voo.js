@@ -709,6 +709,9 @@ Modules.PlanoDeVoo = (function () {
   function _routeReadinessCard() {
     var forecast = _forecastModel();
     var alerts = _routeQualityAlerts(forecast);
+    var hasSalesHistory = (forecast.channels || []).some(function (ch) {
+      return ch && ch.historyHasData === true && _num(ch.historyAvg) > 0;
+    });
     return '' +
       '<section style="' + _cardStyle() + 'display:flex;flex-direction:column;gap:13px;">' +
         '<div style="display:flex;gap:10px;align-items:flex-start;">' +
@@ -720,7 +723,7 @@ Modules.PlanoDeVoo = (function () {
         '</div>' +
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:11px;">' +
           _baseMini('Ticket médio', _averageTicket() ? _fmtMoney(_averageTicket()) : 'Falta base', 'Hoje, cada pedido está ficando perto deste valor.') +
-          _baseMini('Vendas recentes', _fmtMoney(forecast.revenueBase || 0), 'Valor que o negócio já mostrou nas vendas mais recentes. Use como base e ajuste se esperar vender mais ou menos.') +
+          (hasSalesHistory ? _baseMini('Vendas recentes', _fmtMoney(forecast.revenueBase || 0), 'Mostra a média das vendas recentes. Use este número como ponto de partida e ajuste se hoje o negócio estiver vendendo mais ou menos que isso.') : '') +
           _baseMini('Custos e despesas', _fmtMoney(_num(forecast.variableTotal) + _num(forecast.fixedTotal)), 'Valor que o negócio precisa cobrir antes de sobrar dinheiro.') +
           _baseMini('Dias de trabalho', String(_workingDaysInPeriod()), 'Dias disponíveis para vender dentro deste período.') +
         '</div>' +
@@ -1547,11 +1550,12 @@ Modules.PlanoDeVoo = (function () {
     var include = _state.costInclude[row.key] !== false;
     var mode = _state.costMode[row.key] || row.mode || 'automatico';
     var pct = mode === 'manual' ? _num(_state.costPct[row.key] != null ? _state.costPct[row.key] : row.pct) : _num(row.pct);
-    var projected = include ? revenueTotal * (pct / 100) : 0;
+    var displayPct = mode === 'manual' ? pct : _num(row.displayPct != null ? row.displayPct : pct);
+    var projected = include ? (row.projected != null ? _num(row.projected) : revenueTotal * (pct / 100)) : 0;
     var note = row.note || (mode === 'manual' ? 'Manual' : 'Automático');
     var pctField = mode === 'manual'
       ? '<input type="number" step="0.01" value="' + _esc(pct) + '" onchange="Modules.PlanoDeVoo._setCostPct(\'' + row.key + '\', this.value)" style="' + _inputStyle() + 'height:40px;">'
-      : '<div style="padding:10px 12px;border:1px solid #EAE4DA;border-radius:10px;background:#FAF8F4;font-size:13px;font-weight:600;color:#1F1F1F;">' + _fmtPct(pct) + '</div>';
+      : '<div style="padding:10px 12px;border:1px solid #EAE4DA;border-radius:10px;background:#FAF8F4;font-size:13px;font-weight:600;color:#1F1F1F;">' + _fmtPct(displayPct) + '</div>';
     return '' +
       '<div style="display:grid;grid-template-columns:28px minmax(230px,1.3fr) minmax(150px,1fr) minmax(150px,.9fr) minmax(120px,130px);gap:10px;align-items:center;min-width:800px;padding:14px 14px;border:1px solid #EAE4DA;border-radius:14px;background:' + (include ? '#fff' : '#FAF8F4') + ';transition:background .15s ease,box-shadow .15s ease;" onmouseenter="this.style.background=\'#FCFBF8\';this.style.boxShadow=\'0 10px 24px rgba(31,31,31,.05)\'" onmouseleave="this.style.background=\'' + (include ? '#fff' : '#FAF8F4') + '\';this.style.boxShadow=\'none\'">' +
         '<label style="display:flex;align-items:center;justify-content:center;"><input type="checkbox" ' + (include ? 'checked' : '') + ' onchange="Modules.PlanoDeVoo._toggleCostInclude(\'' + row.key + '\', this.checked)" style="accent-color:#B42318;width:16px;height:16px;"></label>' +
@@ -1986,14 +1990,14 @@ Modules.PlanoDeVoo = (function () {
     var lookbackMonths = _historyMonthsBack();
     var productCostPct = _historicalProductCostPct(lookbackMonths);
     var paymentPct = _num(_data.dinheiro.cardFeePct || 0);
-    var channelCommissionPct = _channelCommissionPct(channels);
+    var channelCommissionInfo = _channelCommissionInfo(channels);
     var indirectInfo = _indirectCostInfo();
     var indirectPct = indirectInfo.percent;
     var taxReserve = _taxReserveInfo();
     var rows = [
       { key: 'products', name: 'Custo do que foi vendido', pct: productCostPct, mode: 'automatico', sourceLabel: 'Produtos vendidos', note: productCostPct > 0 ? 'Usa o custo cadastrado nos produtos que já foram vendidos.' : 'Cadastre o custo dos produtos para o BocaFood estimar melhor esta parte.', warning: productCostPct <= 0 ? 'Custo não informado' : '' },
       { key: 'payment', name: 'Taxas de pagamento', pct: paymentPct, mode: 'automatico', sourceLabel: 'Formas de pagamento', note: 'Reserva para taxas cobradas pelas formas de pagamento usadas nas vendas.' },
-      { key: 'channel', name: 'Comissões dos canais', pct: channelCommissionPct, mode: 'automatico', sourceLabel: 'Canais de venda', note: 'Considera comissão, imposto sobre a comissão e taxa fixa configurada nos canais.' },
+      { key: 'channel', name: 'Comissões dos canais', pct: channelCommissionInfo.totalPct, displayPct: channelCommissionInfo.chargedPct || channelCommissionInfo.totalPct, projectedOverride: channelCommissionInfo.feeTotal, mode: 'automatico', sourceLabel: 'Canais de venda', note: channelCommissionInfo.chargedPct > channelCommissionInfo.totalPct ? 'Mostra a comissão efetiva dos canais que cobram taxa. O valor projetado considera só a parte das vendas que passa por esses canais.' : 'Considera comissão, imposto sobre a comissão e taxa fixa configurada nos canais.' },
       { key: 'indirect', name: 'Provisão para custos gerais', pct: indirectPct, mode: indirectInfo.configuredMode === 'automatico' ? 'automatico' : 'manual', sourceLabel: indirectInfo.modeUsed === 'Automático' ? 'Histórico financeiro' : 'Configuração geral', note: indirectInfo.fallback ? 'Usa o percentual configurado para reservar custos gerais, como marketing, perdas, energia ou apoio da operação.' : 'Usa o histórico para estimar uma reserva de custos gerais que acompanham as vendas.' },
       { key: 'tax', name: 'Reserva fiscal', pct: taxReserve.pct, mode: 'automatico', sourceLabel: taxReserve.sourceLabel, note: taxReserve.note }
     ];
@@ -2003,12 +2007,13 @@ Modules.PlanoDeVoo = (function () {
       var pct = mode === 'manual'
         ? _num(_state.costPct[row.key] != null ? _state.costPct[row.key] : row.pct)
         : _num(row.pct);
-      var projected = revenueTotal * (pct / 100);
+      var projected = row.projectedOverride != null ? _num(row.projectedOverride) : revenueTotal * (pct / 100);
       var projectedMonthly = projected / _routeMonthCount();
       return {
         key: row.key,
         name: row.name,
         pct: pct,
+        displayPct: row.displayPct != null ? _num(row.displayPct) : pct,
         mode: mode,
         include: _state.costInclude[row.key] !== false,
         projectedMonthly: _state.costInclude[row.key] === false ? 0 : projectedMonthly,
@@ -2984,10 +2989,11 @@ Modules.PlanoDeVoo = (function () {
     return revenue > 0 && cost > 0 ? (cost / revenue) * 100 : 0;
   }
 
-  function _channelCommissionPct(channels) {
+  function _channelCommissionInfo(channels) {
     var total = 0;
     var weighted = 0;
     var fixedFeeTotal = 0;
+    var chargedRevenue = 0;
     var ticket = _averageTicket();
     (channels || []).forEach(function (ch) {
       if (!ch.include) return;
@@ -2995,14 +3001,27 @@ Modules.PlanoDeVoo = (function () {
       if (!(periodValue > 0)) return;
       var commissionPct = _num(ch.commissionPct);
       var commissionTaxPct = commissionPct > 0 ? (commissionPct * _num(ch.taxPct) / 100) : 0;
+      var fixedFee = _num(ch.fixedFee);
+      var hasChannelCost = commissionPct > 0 || commissionTaxPct > 0 || fixedFee > 0;
       total += periodValue;
       weighted += periodValue * (commissionPct + commissionTaxPct);
-      if (ticket > 0 && _num(ch.fixedFee) > 0) {
-        fixedFeeTotal += (periodValue / ticket) * _num(ch.fixedFee);
+      if (hasChannelCost) chargedRevenue += periodValue;
+      if (ticket > 0 && fixedFee > 0) {
+        fixedFeeTotal += (periodValue / ticket) * fixedFee;
       }
     });
-    if (!(total > 0)) return _num(_data.dinheiro.marketplaceCommissionPct || 0);
-    return (weighted / total) + (fixedFeeTotal > 0 ? (fixedFeeTotal / total) * 100 : 0);
+    if (!(total > 0)) {
+      var legacy = _num(_data.dinheiro.marketplaceCommissionPct || 0);
+      return { totalPct: legacy, chargedPct: legacy, feeTotal: 0, chargedRevenue: 0, totalRevenue: 0 };
+    }
+    var feeTotal = (weighted / 100) + fixedFeeTotal;
+    return {
+      totalPct: feeTotal > 0 ? (feeTotal / total) * 100 : 0,
+      chargedPct: chargedRevenue > 0 ? (feeTotal / chargedRevenue) * 100 : 0,
+      feeTotal: feeTotal,
+      chargedRevenue: chargedRevenue,
+      totalRevenue: total
+    };
   }
 
   function _productById(id) {
@@ -3282,10 +3301,10 @@ Modules.PlanoDeVoo = (function () {
     });
   }
 
-  function _mergeHistoricalCategories() {
+  function _mergeHistoricalCategories(extraRows) {
     var rows = _historicalExpenseRows();
-    var payables = _openPayablesRows();
-    var payableNames = payables.map(function (p) { return _normalizeText(p.name); });
+    var payables = _openPayablesRows().concat(extraRows || []);
+    var payableNames = payables.map(function (p) { return _normalizeText(p.name); }).filter(Boolean);
     return rows.filter(function (r) {
       var normalized = _normalizeText(r.name);
       return !payableNames.some(function (name) {
@@ -3299,7 +3318,72 @@ Modules.PlanoDeVoo = (function () {
   }
 
   function _fixedRowsForForecast() {
-    return _openPayablesRows().concat(_mergeHistoricalCategories()).concat(_historicalCostRows());
+    var payables = _openPayablesRows();
+    var routeOutflows = _routeOutflowRows(payables);
+    return payables.concat(routeOutflows).concat(_mergeHistoricalCategories(payables.concat(routeOutflows))).concat(_historicalCostRows());
+  }
+
+  function _routeOutflowRows(payableRows) {
+    var rows = [];
+    var seen = {};
+    var payableIds = {};
+    (payableRows || []).forEach(function (row) {
+      var raw = row && row.raw || {};
+      [row && row.id, raw.id, raw.sourceId, raw.contaPagarId].forEach(function (id) {
+        id = String(id || '').replace(/^pay:/, '').trim();
+        if (id) payableIds[id] = true;
+      });
+    });
+    var range = _routeDateRange();
+    function add(item, source) {
+      if (!item) return;
+      var type = _normalizeText(item.tipo || item.type || '');
+      if (source === 'movimentacoes') {
+        if (type !== 'saida' && type !== 'saída' && type !== 'expense') return;
+      } else if (type && type !== 'saida' && type !== 'saída' && type !== 'expense') {
+        return;
+      }
+      var origin = _normalizeText(item.origem || item.origin || item.source || item.sourceCollection || '');
+      if (origin === 'transferencia' || origin === 'transferência' || origin === 'transfer' || origin === 'caixa') return;
+      var status = _normalizeText(item.status || '');
+      if (status === 'cancelado' || status === 'cancelada' || status === 'canceled' || status === 'cancelled' || status === 'estornado') return;
+      var linkedId = String(item.contaPagarId || item.sourceId || item.origemId || '').trim();
+      if (linkedId && payableIds[linkedId]) return;
+      var d = _recordDate(item);
+      if (!d || d < range.start || d > range.end) return;
+      var value = source === 'movimentacoes' ? _movementValueOut(item) : _outflowValue(item);
+      if (!(value > 0)) return;
+      var rawCat = item.categoriaFinanceiraId || item.categoria_id || item.categoriaId || item.categoryId || item.categoriaFinanceiraNome || item.categoria || item.category || item.financialCategory || '';
+      var meta = _categoryMeta(rawCat);
+      var nature = meta.category ? meta.nature : _financeNature(item);
+      var costClass = meta.category ? meta.costClass : _financeCostClass(item);
+      var name = item.descricao || item.description || item.name || item.title || meta.name || (nature === 'custo' ? 'Custo lançado' : 'Despesa lançada');
+      var id = String(item.id || item.sourceId || item.contaPagarId || [name, value, d.toISOString().slice(0, 10)].join(':'));
+      var key = source + ':' + id;
+      if (seen[key]) return;
+      seen[key] = true;
+      rows.push({
+        id: 'out:' + key,
+        source: source,
+        name: name,
+        value: value,
+        recurrence: 'única',
+        recurrenceLabel: 'Única',
+        include: _state.fixedInclude['out:' + key] !== false,
+        projectedMonthly: _state.fixedInclude['out:' + key] === false ? 0 : value / Math.max(1, _routeMonthCount()),
+        projected: _state.fixedInclude['out:' + key] === false ? 0 : value,
+        sourceLabel: nature === 'custo' ? 'Custo lançado' : 'Saída lançada',
+        transformable: false,
+        categoryId: item.categoriaFinanceiraId || item.categoria_id || item.categoriaId || item.categoryId || '',
+        financialNature: nature || 'despesa',
+        costClass: costClass || 'indireto',
+        dueDate: d.toISOString().slice(0, 10),
+        raw: item
+      });
+    }
+    (_data.movements || []).forEach(function (item) { add(item, 'movimentacoes'); });
+    (_data.saidas || []).forEach(function (item) { add(item, 'financeiro_saidas'); });
+    return rows;
   }
 
 
