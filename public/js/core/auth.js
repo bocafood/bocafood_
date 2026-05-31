@@ -501,7 +501,7 @@ window.FiscalConfig = (function () {
       addressLabel: 'Morada',
       cityLabel: 'Localidade',
       postalCodeLabel: 'Código postal',
-      fiscalModuleEnabled: false,
+      fiscalModuleEnabled: true,
       productTaxEnabled: false,
       validateNif: function (v) {
         return !v || /^[0-9]{9}$/.test(v);

@@ -178,6 +178,7 @@ Modules.PlanoDeVoo = (function () {
       _safeDoc('config', 'financeiro'),
       _safeDoc('config', 'custos'),
       _safeDoc('config', 'canais_venda'),
+      _safeDoc('config', 'fiscal'),
       _safeAll('flight_plans'),
       _safeDoc('flight_plan_month_scenarios', _currentMonthKey())
     ]).then(function (r) {
@@ -196,10 +197,11 @@ Modules.PlanoDeVoo = (function () {
       _data.financeiro = r[12] || {};
       _data.custos = r[13] || {};
       _data.canais = _normalizeChannels(r[14] || {});
-      _data.snapshots = (r[15] || []).slice().sort(function (a, b) {
+      _data.fiscal = _normalizeFiscal(r[15] || {});
+      _data.snapshots = (r[16] || []).slice().sort(function (a, b) {
         return _ts(b.createdAt) - _ts(a.createdAt);
       });
-      _data.monthScenario = r[16] || null;
+      _data.monthScenario = r[17] || null;
       _loading = false;
     }).catch(function (err) {
       _loading = false;
@@ -262,6 +264,18 @@ Modules.PlanoDeVoo = (function () {
       fixedOrderFee: _num(c.fixedOrderFee != null ? c.fixedOrderFee : 0),
       estimatedTaxReservePct: _num(c.estimatedTaxReservePct != null ? c.estimatedTaxReservePct : 0),
       otherFeesPct: _num(c.otherFeesPct != null ? c.otherFeesPct : 0)
+    };
+  }
+
+  function _normalizeFiscal(c) {
+    c = c || {};
+    var iva = _num(c.defaultIvaRate != null ? c.defaultIvaRate : (c.ivaPadrao != null ? c.ivaPadrao : 0));
+    return {
+      usarCalculoFiscal: c.usarCalculoFiscal !== false,
+      defaultIvaRate: iva,
+      ivaPadrao: iva,
+      pricesIncludeIva: c.pricesIncludeIva !== false,
+      irpfPadrao: _num(c.irpfPadrao != null ? c.irpfPadrao : 0)
     };
   }
 
@@ -1923,6 +1937,39 @@ Modules.PlanoDeVoo = (function () {
     return { modeUsed: 'Automático', configuredMode: 'automatico', percent: (indirect / direct) * 100, fallback: false, months: months };
   }
 
+  function _taxReserveInfo() {
+    var fiscal = _data.fiscal || {};
+    if (fiscal.usarCalculoFiscal === false) {
+      return {
+        pct: 0,
+        sourceLabel: 'Módulo fiscal',
+        note: 'Controle fiscal desativado. O Plano de Voo não reserva valor fiscal nesta linha.'
+      };
+    }
+    if (fiscal.usarCalculoFiscal !== false) {
+      var iva = _num(fiscal.defaultIvaRate != null ? fiscal.defaultIvaRate : fiscal.ivaPadrao);
+      var irpf = _num(fiscal.irpfPadrao);
+      if (iva > 0 || irpf > 0) {
+        var ivaPct = iva > 0 ? (fiscal.pricesIncludeIva === false ? iva : (iva / (100 + iva)) * 100) : 0;
+        var profitBase = _num(_data.dinheiro.desiredMarginPct || 0);
+        var irpfPct = irpf > 0 && profitBase > 0 ? (profitBase * irpf / 100) : 0;
+        return {
+          pct: ivaPct + irpfPct,
+          sourceLabel: 'Módulo fiscal',
+          note: 'Usa IVA e IRPF configurados no Fiscal para reservar uma parte da venda antes de estimar a sobra.'
+        };
+      }
+    }
+    var legacy = _num(_data.dinheiro.estimatedTaxReservePct || 0);
+    return {
+      pct: legacy,
+      sourceLabel: legacy > 0 ? 'Regra antiga de preço' : 'Módulo fiscal',
+      note: legacy > 0
+        ? 'Mantém a reserva fiscal antiga salva em Preço e Margem para não alterar rotas anteriores.'
+        : 'Sem reserva fiscal configurada no Fiscal. O Plano de Voo considera 0% nesta linha.'
+    };
+  }
+
   function _variableRowsForRevenue(revenueTotal, channels) {
     var lookbackMonths = _historyMonthsBack();
     var productCostPct = _historicalProductCostPct(lookbackMonths);
@@ -1930,13 +1977,13 @@ Modules.PlanoDeVoo = (function () {
     var channelCommissionPct = _channelCommissionPct(channels);
     var indirectInfo = _indirectCostInfo();
     var indirectPct = indirectInfo.percent;
-    var taxReservePct = _num(_data.dinheiro.estimatedTaxReservePct || 0);
+    var taxReserve = _taxReserveInfo();
     var rows = [
       { key: 'products', name: 'Custo do que foi vendido', pct: productCostPct, mode: 'automatico', sourceLabel: 'Produtos vendidos', note: productCostPct > 0 ? 'Usa o custo cadastrado nos produtos que já foram vendidos.' : 'Cadastre o custo dos produtos para o BocaFood estimar melhor esta parte.', warning: productCostPct <= 0 ? 'Custo não informado' : '' },
       { key: 'payment', name: 'Taxas de pagamento', pct: paymentPct, mode: 'automatico', sourceLabel: 'Formas de pagamento', note: 'Reserva para taxas cobradas pelas formas de pagamento usadas nas vendas.' },
       { key: 'channel', name: 'Comissões dos canais', pct: channelCommissionPct, mode: 'automatico', sourceLabel: 'Canais de venda', note: 'Considera canais que cobram comissão sobre o pedido.' },
       { key: 'indirect', name: 'Provisão para custos gerais', pct: indirectPct, mode: indirectInfo.configuredMode === 'automatico' ? 'automatico' : 'manual', sourceLabel: indirectInfo.modeUsed === 'Automático' ? 'Histórico financeiro' : 'Configuração geral', note: indirectInfo.fallback ? 'Usa o percentual configurado para reservar custos gerais, como marketing, perdas, energia ou apoio da operação.' : 'Usa o histórico para estimar uma reserva de custos gerais que acompanham as vendas.' },
-      { key: 'tax', name: 'Reserva fiscal', pct: taxReservePct, mode: 'automatico', sourceLabel: 'Configuração financeira', note: 'Reserva uma parte das vendas para impostos.' }
+      { key: 'tax', name: 'Reserva fiscal', pct: taxReserve.pct, mode: 'automatico', sourceLabel: taxReserve.sourceLabel, note: taxReserve.note }
     ];
 
     return rows.map(function (row) {

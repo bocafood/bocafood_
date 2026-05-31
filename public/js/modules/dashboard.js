@@ -23,6 +23,7 @@ Modules.Dashboard = (function () {
     monthScenario: null,
     channels: {},
     moneyConfig: {},
+    fiscalConfig: {},
     purchaseItems: [],
     recipes: [],
     purchases: [],
@@ -98,6 +99,7 @@ Modules.Dashboard = (function () {
       _safeDocRoot('config', 'operacao'),
       _safeDocRoot('config', 'canais_venda'),
       _safeDocRoot('config', 'dinheiro'),
+      _safeDocRoot('config', 'fiscal'),
       _safeAll('itens_custo'),
       _safeAll('fichasTecnicas'),
       _safeAll('compras'),
@@ -117,11 +119,12 @@ Modules.Dashboard = (function () {
       _data.operacao = r[13] || {};
       _data.channels = r[14] || {};
       _data.moneyConfig = r[15] || {};
-      _data.purchaseItems = Array.isArray(r[16]) ? r[16] : [];
-      _data.recipes = Array.isArray(r[17]) ? r[17] : [];
-      _data.purchases = Array.isArray(r[18]) ? r[18] : [];
-      _data.seasons = Array.isArray(r[19]) ? r[19] : [];
-      _data.stockMovements = Array.isArray(r[20]) ? r[20] : [];
+      _data.fiscalConfig = r[16] || {};
+      _data.purchaseItems = Array.isArray(r[17]) ? r[17] : [];
+      _data.recipes = Array.isArray(r[18]) ? r[18] : [];
+      _data.purchases = Array.isArray(r[19]) ? r[19] : [];
+      _data.seasons = Array.isArray(r[20]) ? r[20] : [];
+      _data.stockMovements = Array.isArray(r[21]) ? r[21] : [];
       _loading = false;
       _loaded = true;
     }).catch(function (err) {
@@ -1179,6 +1182,37 @@ Modules.Dashboard = (function () {
         actions: ['Comece com uma margem desejada realista para a maioria dos produtos.', 'Defina uma margem mínima para o BocaFood sinalizar produtos que deixam pouca sobra.', 'Use markup como apoio, principalmente enquanto ainda está organizando custos e receitas.', 'Escolha um arredondamento que deixe os preços claros para a cliente.'],
         ready: 'Está pronto quando a regra mostra quanto você quer que sobre, qual é o mínimo aceitável e como os preços devem ser arredondados.'
       },
+      'Configurar fiscal': {
+        icon: 'request_quote',
+        path: 'Caminho: Fiscal > Configurações fiscais',
+        intro: '<div><strong style="color:#1F1F1F;">Aqui você informa como o negócio deve reservar impostos nas leituras do BocaFood.</strong></div><div style="margin-top:7px;">Essa etapa deixa o Plano de Voo mais realista, porque IVA e IRPF entram antes de calcular quanto pode sobrar.</div>',
+        fields: [
+          ['Usar controle fiscal', 'Ative quando quiser que IVA e IRPF entrem nas leituras fiscais, nos preços e no Plano de Voo. Se deixar desligado, o BocaFood não faz reserva fiscal automática.'],
+          ['País fiscal', 'Escolha o país onde o negócio declara impostos. Isso ajuda a mostrar documentos e campos mais próximos da sua realidade.'],
+          ['Moeda', 'Escolha a moeda usada no negócio. Para Espanha e Portugal, normalmente será EUR.'],
+          ['IVA padrão (%)', 'Informe a porcentagem de IVA mais comum para o que você vende ou compra. Esse valor vira a base da reserva fiscal quando o item não tiver uma porcentagem própria.'],
+          ['IRPF padrão (%)', 'Informe a porcentagem usada como referência para reservar imposto sobre a sobra estimada. Esse valor ajuda o Plano de Voo a não contar como sobra um dinheiro que pode precisar ficar guardado.'],
+          ['Preços incluem IVA', 'Marque Sim quando os preços que a cliente vê já incluem IVA. Marque Não se você trabalha com preço sem IVA e adiciona o imposto depois.'],
+          ['Tipo de fatura padrão', 'Escolha o tipo de documento que o negócio costuma usar como padrão. Use a opção que combina com a sua rotina de venda e faturação.'],
+          ['Emissão', 'Escolha como a emissão deve ser tratada nesta etapa. Enquanto a integração fiscal final não estiver ativa, deixe no modo que mantém os dados preparados sem emitir documento automaticamente.'],
+          ['Série', 'Preencha a série usada nos documentos fiscais quando o negócio já trabalha com essa organização. Se ainda não usa série, deixe em branco até definir com o contador.'],
+          ['Próximo número', 'Preencha o próximo número da sequência fiscal quando já existe uma numeração em uso. Se ainda não emite documentos por aqui, deixe a sequência inicial preparada.'],
+          ['Nome fiscal', 'Preencha o nome que aparece nos documentos fiscais do negócio. Normalmente é o nome legal, nome da atividade ou nome registrado.'],
+          ['Nome comercial', 'Preencha o nome pelo qual as clientes conhecem o negócio. Pode ser diferente do nome fiscal.'],
+          ['Tipo de documento', 'Escolha se o documento fiscal é NIF, NIE, CIF ou outro tipo aceito no país fiscal escolhido.'],
+          ['NIF / NIE / CIF', 'Preencha o número fiscal do negócio ou da responsável pela atividade. Confira com atenção, porque esse dado identifica quem emite a fatura.'],
+          ['Regime fiscal', 'Preencha o regime quando já souber qual é o enquadramento usado pelo negócio. Se tiver dúvida, confirme com o contador antes de usar em documentos reais.'],
+          ['E-mail para faturas', 'Informe o e-mail que deve receber ou aparecer nas comunicações fiscais do negócio.'],
+          ['Endereço fiscal', 'Preencha a rua do endereço fiscal. Use o endereço que deve aparecer nos documentos do negócio.'],
+          ['Número', 'Informe o número do endereço fiscal.'],
+          ['Complemento', 'Use para piso, porta, sala, referência ou outra informação que ajude a completar o endereço.'],
+          ['Cidade', 'Informe a cidade do endereço fiscal.'],
+          ['Província', 'Informe a província, distrito ou região correspondente ao endereço fiscal.'],
+          ['Código postal', 'Informe o código postal do endereço fiscal.']
+        ],
+        actions: ['Ative o controle fiscal se ele fizer parte da sua rotina.', 'Preencha IVA e IRPF com os percentuais que você usa como referência.', 'Salve antes de criar o Plano de Voo para a reserva fiscal entrar na rota.'],
+        ready: 'Está pronto quando o controle fiscal está configurado com IVA, IRPF e dados principais do negócio.'
+      },
       'Cadastrar ingredientes, embalagens e produtos comprados': {
         icon: 'inventory_2',
         path: 'Caminho: Compras > Ingredientes, Embalagens e Produtos',
@@ -1190,12 +1224,17 @@ Modules.Dashboard = (function () {
           ['Categoria', 'Pense na categoria como uma pasta para encontrar o item depois. Use nomes do dia a dia do negócio, como Bebidas, Carnes, Ingredientes secos, Embalagens, Descartáveis ou Congelados.'],
           ['Unidade base', 'Escolha a unidade em que você compra e controla o custo desse item, como kg, g, litro, ml ou unidade. Se você compra batata por kg, use kg; se compra refrigerante por unidade, use unidade.'],
           ['Fornecedor padrão', 'Preencha com o fornecedor de quem você compra esse item com mais frequência. Isso deixa o registro de compra mais rápido depois.'],
+          ['IVA padrão (%)', 'Informe a porcentagem de IVA que normalmente vem na compra desse item. Quando registrar uma compra, esse valor já aparece preenchido e você só ajusta se aquela nota vier diferente.'],
+          ['Dedutível para IVA nas compras', 'Marque quando o IVA desse item normalmente pode ser abatido no controle fiscal. Ingredientes e embalagens de produção costumam precisar dessa informação para a leitura fiscal ficar correta.'],
+          ['Dedutível para IRPF nas compras', 'Marque quando o valor desse item normalmente pode entrar como gasto dedutível no IRPF. Essa informação ajuda o Fiscal a estimar melhor a base de imposto.'],
           ['Preço de compra base', 'Preencha uma primeira base de custo quando ainda não existe compra registrada. Depois que houver compras, esse campo vira custo médio automático e não deve ser alterado pelo cadastro do item.'],
           ['Embalagem de compra padrão', 'Informe como você costuma comprar esse item: saco, caixa, pacote, garrafa, bandeja ou unidade.'],
           ['Conteúdo por embalagem (×)', 'Preencha quanto vem dentro da embalagem usando a mesma unidade base. Se a unidade base é kg e vem 400 g, preencha 0,400. Se a unidade base é g e vem 400 g, preencha 400. Se a caixa tem 12 unidades, preencha 12.'],
-          ['Estoque mínimo e máximo', 'Estoque mínimo é a quantidade que acende o alerta para comprar mais. Estoque máximo é a quantidade limite que vale a pena manter guardada para não comprar além do necessário.'],
+          ['Estoque mínimo', 'Informe a quantidade que deve acender o alerta para comprar mais. Exemplo: se abaixo de 3 pacotes você já precisa repor, preencha 3.'],
+          ['Estoque máximo', 'Informe a quantidade limite que vale a pena manter guardada. Isso ajuda a não comprar além do necessário e evita dinheiro parado em excesso.'],
           ['Cadastro ativo', 'Deixe ativo enquanto o item ainda é usado. Quando parar de usar, desative para manter o histórico organizado.'],
-          ['Custo atual e última compra', 'Esses campos são atualizados automaticamente pelo BocaFood quando você registra compras. O custo atual passa a usar a média das compras do item.'],
+          ['Custo atual', 'Esse valor é atualizado automaticamente pelo BocaFood quando você registra compras. Depois que houver histórico, ele usa a média das compras do item.'],
+          ['Última compra', 'Mostra automaticamente o último valor registrado em compra para esse item. Use apenas para conferência.'],
           ['Pode ser usado em receitas', 'Marque quando o item entra nas receitas. Assim ele aparece como ingrediente e entra no custo de produção.'],
           ['Aproveitamento (%)', 'Use 100% quando tudo entra na receita. Se uma parte se perde, pese antes e depois de preparar. Exemplo: comprou 1 kg e aproveitou 800 g; 800 g é 80% de 1 kg, então preencha 80%.']
         ],
@@ -1274,15 +1313,27 @@ Modules.Dashboard = (function () {
       'Criar Plano de Voo': {
         icon: 'flight_takeoff',
         path: 'Caminho: Crescimento > Plano de Voo',
-        intro: 'O Plano de Voo transforma a base do negócio em uma rota para o ano. Ele ajuda a escolher quanto vender, quantos pedidos buscar e qual esforço a rota pede.',
+        intro: '<div><strong style="color:#1F1F1F;">O Plano de Voo cria a rota do ano.</strong></div><div style="margin-top:7px;">Ele usa a base atual do negócio de comida para mostrar quanto precisa vender, quantos pedidos precisa buscar e qual rota combina melhor com o momento.</div><div style="margin-top:7px;">Antes de salvar, confira se os números parecem reais. Depois de ativada, a rota vira acompanhamento; para mudar o caminho, crie uma nova rota.</div>',
         fields: [
-          ['Ticket médio', 'Confira o valor médio dos pedidos. Se ainda tiver poucos pedidos, use uma estimativa realista.'],
-          ['Vendas por canal', 'Use o desempenho atual como ponto de partida para a rota.'],
-          ['Custos e despesas', 'Confira se os valores que saem todo mês estão aparecendo corretamente.'],
-          ['Meses fortes e fracos', 'Ajuste os meses que vendem mais, vendem menos ou não serão trabalhados.'],
-          ['Cenário', 'Escolha a realidade que quer buscar: sobrevivência, segurança, crescimento ou lucro forte.']
+          ['Criar nova rota', 'Clique no botão para abrir o fluxo de criação. A tela principal fica para acompanhar a rota depois que ela for ativada.'],
+          ['Período da rota', 'A rota é criada para o período anual. Se o ano já começou, ela considera o restante do ano. Use esse campo para entender de qual mês até qual mês a rota está falando.'],
+          ['Base da rota', 'Confira o ponto de partida antes de escolher o cenário: ticket médio, vendas por canal, custos, despesas, dias trabalhados, dias fechados e força dos meses.'],
+          ['Ticket médio usado', 'Preencha uma estimativa realista do valor médio que cada cliente costuma comprar. Exemplo: se a maioria dos pedidos fica perto de €15,00, use esse valor como ponto de partida. Se esse valor mudar, os pedidos por dia também mudam nos cenários.'],
+          ['Vendas por canal', 'Registre quanto você acredita que cada canal consegue vender por mês, como Cardápio, Instagram, WhatsApp ou venda presencial. Esse valor ajuda o BocaFood a montar a previsão de venda do período.'],
+          ['Custos que acompanham as vendas', 'Confira os custos que aumentam quando vende mais, como custo dos produtos, taxas, comissões e uma reserva para custos gerais. Esses valores são calculados automaticamente pelo BocaFood.'],
+          ['Provisão para custos gerais', 'Use para reservar uma parte da venda para custos que nem sempre aparecem item por item, mas que pesam no resultado, como perdas, energia, marketing, ajustes de produção ou apoio da operação. Se estiver em automático, o BocaFood usa a base que já existe. Se estiver manual, informe um percentual prudente para não criar uma rota apertada demais.'],
+          ['Reserva fiscal', 'Vem da configuração fiscal do negócio. Ela separa uma parte da venda para impostos, usando IVA e IRPF configurados no Fiscal. Essa reserva não registra pagamento automático; ela serve para o Plano de Voo não tratar como sobra um valor que precisa ficar guardado.'],
+          ['Despesas e custos previstos', 'Confira se os compromissos do período aparecem com valores que fazem sentido. Eles ajudam a mostrar se a rota cobre o que precisa sair do caixa. Esses valores são calculados automaticamente pelo BocaFood.'],
+          ['Confirme sua realidade de trabalho', 'Abra essa parte para marcar os dias da semana em que trabalha e informar feriados ou dias fechados. Isso muda o ritmo de pedidos por dia.'],
+          ['Meses mais fortes ou mais fracos', 'Dê uma pontuação para cada mês. Use 100 para um mês normal, abaixo de 100 para um mês mais fraco, acima de 100 para um mês mais forte e 0 para um mês em que não vai trabalhar. Meses fora do período da rota ficam travados em 0.'],
+          ['Escolha a realidade que você quer viver', 'Compare Sobrevivência, Segurança, Crescimento e Lucro forte. Em cada card, veja: quanto precisa vender no período, quantos pedidos por dia precisa buscar, quanto pode sobrar e se o esforço parece leve, possível, puxado ou muito puxado. Depois de conferir a base e os ajustes avançados, volte para escolher o cenário do seu ano.'],
+          ['Nome da rota', 'Revise o nome que vai identificar a rota depois. Use algo simples, como Rota Segurança 2026 ou Rota Crescimento 2026.'],
+          ['Resumo da rota selecionada', 'Depois de escolher um cenário, revise o nome da rota, período, venda necessária, sobra estimada, pedidos por dia, dias trabalhados e distribuição mês a mês. Essa é a última conferência antes de salvar.'],
+          ['Distribuição mês a mês', 'Confira como a rota ficou dividida ao longo dos meses. Meses mais fortes recebem mais peso, meses mais fracos recebem menos e meses fora da rota ficam zerados.'],
+          ['Ajustes avançados', 'Abra apenas se precisar revisar ticket médio, vendas por canal ou custos que influenciam o cálculo. Quando alterar algo, os cards dos cenários são atualizados.'],
+          ['Salvar e ativar rota', 'Use esse botão somente depois de revisar a rota escolhida. A rota ativada passa a ser acompanhada no Plano de Voo, Performance e Temporadas.']
         ],
-        actions: ['Confira a base antes de escolher o cenário.', 'Selecione a rota que parece possível para o momento do negócio.', 'Salve e ative a rota para acompanhar depois.'],
+        actions: ['Confira se a base inicial parece real para o negócio hoje.', 'Ajuste dias de trabalho, meses fortes ou fracos e canais quando necessário.', 'Escolha uma rota possível de executar e revise o resumo antes de salvar.', 'Salve e ative a rota para começar o acompanhamento.'],
         ready: 'Está pronto quando existe uma rota ativa para guiar o ano ou o restante do ano.'
       },
       'Criar primeira Temporada': {
@@ -2319,6 +2370,8 @@ Modules.Dashboard = (function () {
     var hasSalesChannels = channels.filter(function (ch) { return ch && ch.name; }).length > 0;
     var money = _data.moneyConfig || {};
     var hasPriceRules = !!(money.desiredMarginPct || money.minMarginPct || money.defaultMarkup || Object.keys(money).length);
+    var fiscal = _data.fiscalConfig || {};
+    var hasFiscalConfig = fiscal.usarCalculoFiscal !== false && !!(fiscal.defaultIvaRate || fiscal.ivaPadrao || fiscal.irpfPadrao);
     var hasProducts = (_data.products || []).length > 0;
     var hasPurchaseItems = (_data.purchaseItems || []).length > 0;
     var hasRecipes = (_data.recipes || []).length > 0;
@@ -2346,6 +2399,7 @@ Modules.Dashboard = (function () {
           { title: 'Preencher dados do negócio', text: 'Nome, contato e endereço para deixar tudo identificado.', icon: 'badge', route: 'configuracoes/geral', done: !!(g.businessName && (g.phone || g.whatsapp || g.email)) },
           { title: 'Criar canais de venda', text: 'Mostre de onde os pedidos chegam: cardápio, balcão, Instagram ou outro canal.', icon: 'storefront', route: 'configuracoes/canais_venda', done: hasSalesChannels },
           { title: 'Definir preço e margem', text: 'Ajude o BocaFood a proteger sua sobra em cada venda.', icon: 'calculate', route: 'dinheiro/regras', done: hasPriceRules },
+          { title: 'Configurar fiscal', text: 'Informe IVA e IRPF para a rota não contar como sobra um dinheiro que precisa ficar reservado.', icon: 'request_quote', route: 'fiscal/configuracoes', done: hasFiscalConfig },
           { title: 'Cadastrar ingredientes, embalagens e produtos comprados', text: 'Cadastre ingredientes, embalagens e produtos prontos que entram na operação.', icon: 'inventory_2', route: 'compras/itens', done: hasPurchaseItems },
           { title: 'Cadastrar receitas', text: 'Monte as receitas usando os ingredientes, embalagens e bases cadastradas.', icon: 'receipt_long', route: 'receitas/receitas', done: hasRecipes },
           { title: 'Registrar custos e despesas fixas', text: 'Inclua contas e compromissos que precisam entrar na rota.', icon: 'payments', route: 'financeiro/contas-pagar', done: hasCosts }

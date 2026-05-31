@@ -1,5 +1,13 @@
 # AI Changelog
 
+## 2026-05-31 — Onboarding: Como preencher completo
+- Arquivos alterados: `public/js/modules/dashboard.js`, `AI_CHANGELOG.md`.
+- Revisei o `Como preencher` das etapas afetadas por Fiscal, Ingredientes/Embalagens/Produtos e Plano de Voo contra os campos reais das telas.
+- Completei a etapa `Configurar fiscal` com os campos de regras fiscais, emissão, sequência, dados fiscais, documento, e-mail e endereço fiscal.
+- Separei explicações agrupadas de estoque mínimo/máximo e custo atual/última compra para deixar cada campo mais claro.
+- Completei o Plano de Voo com nome da rota e distribuição mês a mês.
+- Impacto esperado: deixar o onboarding mais fiel aos formulários reais e reduzir dúvida na primeira configuração.
+
 ## 2026-05-31 — Onboarding: checks no menu lateral
 - Arquivos alterados: `public/admin.html`, `public/js/modules/dashboard.js`, `AI_CHANGELOG.md`.
 - Conectei o progresso do onboarding ao menu lateral usando as mesmas rotas dos passos do checklist.
@@ -10092,6 +10100,27 @@
 - Mantive a produção de base/etapa usando o custo cheio da etapa, sem aplicar a proporção da receita final.
 - Atualizei o onboarding e a documentação para explicar o campo `Rendimento da etapa` e como ele influencia o custo final.
 - Impacto esperado: evitar custo final inflado em produtos compostos por etapas com rendimentos diferentes, sem quebrar ordens, bases de produção e snapshots antigos.
+
+## 2026-05-31 — Onboarding: Como preencher Plano de Voo
+- Arquivos alterados: `public/js/modules/dashboard.js`, `AI_CHANGELOG.md`.
+- Revisei o checklist `Como preencher > Criar Plano de Voo` comparando com o modal real de criação de rota.
+- Incluí orientações para `Criar nova rota`, período anual/restante do ano, base da rota, ticket médio, vendas por canal, custos, despesas, realidade de trabalho, meses fortes/fracos, cenários, resumo da rota, ajustes avançados e `Salvar e ativar rota`.
+- Ajustei a copy para explicar a decisão da rota com linguagem mais prática para a usuária, sem termos internos.
+- Reforcei que ticket médio e vendas por canal são estimativas realistas usadas antes de salvar, que custos/despesas são calculados automaticamente e que cada cenário deve ser lido por venda do período, pedidos por dia, sobra estimada e esforço.
+- Incluí a explicação de `Provisão para custos gerais` dentro dos ajustes do Plano de Voo, orientando quando usar automático ou percentual manual.
+- Ajustei a `Reserva fiscal` do Plano de Voo para usar a configuração do módulo Fiscal (`config/fiscal`) como fonte principal, mantendo `config/dinheiro.estimatedTaxReservePct` apenas como fallback legado.
+- Incluí no onboarding a explicação de que a reserva fiscal vem do Fiscal, usa o IVA padrão configurado e não registra pagamento automático.
+- Impacto esperado: o onboarding passa a orientar todos os campos e etapas relevantes do Plano de Voo, evitando que a usuária crie a rota sem entender a base usada.
+
+## 2026-05-31 — Fiscal: base para Plano de Voo e compras
+- Arquivos alterados: `public/js/modules/fiscal.js`, `public/js/modules/compras.js`, `public/js/modules/plano_voo.js`, `public/js/modules/dashboard.js`, `public/js/core/auth.js`, `AI_CHANGELOG.md`.
+- Incluí em `Fiscal > Configurações fiscais` a opção `Usar controle fiscal` e o campo `IRPF padrão (%)`, mantendo o `IVA padrão (%)` como base fiscal principal.
+- Ajustei a `Reserva fiscal` do Plano de Voo para considerar IVA + IRPF configurados no módulo Fiscal quando o controle fiscal está ativo.
+- Adicionei no cadastro de `Ingredientes, Embalagens e Produtos` os padrões fiscais do item: `IVA padrão (%)`, `Dedutível para IVA nas compras` e `Dedutível para IRPF nas compras`.
+- Ao selecionar um item no registro de compra, o BocaFood passa a preencher automaticamente IVA e dedutibilidade com base no cadastro do item, permitindo ajuste manual na compra quando a nota vier diferente.
+- Protegi o salvamento de compras quando o controle fiscal estiver desligado, evitando exigir campos fiscais ocultos.
+- Atualizei o onboarding para incluir `Configurar fiscal` antes do Plano de Voo e explicar os campos fiscais também no cadastro de itens.
+- Impacto esperado: a usuária configura a base fiscal antes de criar a rota, os itens comprados carregam seus padrões fiscais para as compras e o Plano de Voo deixa de depender de uma reserva fiscal escondida em Preço e Margem.
 
 ## 2026-05-31 — Produção: remover KPIs da aba Insumos
 - Arquivos alterados: `public/js/modules/compras.js`, `AI_CHANGELOG.md`.

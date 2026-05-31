@@ -164,10 +164,15 @@ Modules.Fiscal = (function () {
             '<div><div style="font-size:15px;font-weight:700;color:#1F1F1F;">Dados de faturação</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:3px;">Configurações básicas para preparar faturas simplificadas e completas no futuro.</div></div>' +
             '<div style="' + _softGroupStyle() + '">' +
               '<div style="font-size:12px;font-weight:700;color:#1F1F1F;margin-bottom:12px;">Regras padrão</div>' +
+              '<label style="display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;padding:11px 12px;border-radius:14px;background:#fff;border:1px solid #EAE4DA;color:#1F1F1F;font-size:13px;font-weight:700;line-height:1.35;">' +
+                '<input id="fis-enabled" type="checkbox" ' + (c.usarCalculoFiscal !== false ? 'checked' : '') + ' style="accent-color:#B42318;width:17px;height:17px;margin-top:1px;flex:0 0 auto;">' +
+                '<span><span style="display:block;">Usar controle fiscal</span><small style="display:block;margin-top:3px;color:#6F6860;font-size:12px;font-weight:500;line-height:1.4;">Ative quando quiser que IVA e IRPF entrem nas leituras fiscais, preços e Plano de Voo.</small></span>' +
+              '</label>' +
               '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;">' +
                 _select('fis-country', 'País fiscal', _countryOptions(c.countryCode)) +
                 _select('fis-currency', 'Moeda', _currencyOptions(c.currency)) +
                 _field('fis-default-iva', 'IVA padrão (%)', c.defaultIvaRate, 'number') +
+                _field('fis-irpf', 'IRPF padrão (%)', c.irpfPadrao, 'number') +
                 _select('fis-prices-iva', 'Preços incluem IVA', '<option value="sim"' + (c.pricesIncludeIva !== false ? ' selected' : '') + '>Sim</option><option value="nao"' + (c.pricesIncludeIva === false ? ' selected' : '') + '>Não</option>') +
                 _select('fis-default-invoice-type', 'Tipo de fatura padrão', _invoiceTypeOptions(c.defaultInvoiceType)) +
                 _select('fis-invoice-mode', 'Emissão', _invoiceModeOptions(c.invoiceMode)) +
@@ -227,6 +232,7 @@ Modules.Fiscal = (function () {
     var current = _normalizeFiscalConfig(_data.config || {});
     var now = new Date().toISOString();
     var iva = _num(_val('fis-default-iva')) || 10;
+    var irpf = _num(_val('fis-irpf'));
     var country = _normalizeCountryCode(_val('fis-country') || current.countryCode);
     var data = Object.assign({}, current, {
       countryCode: country,
@@ -264,9 +270,9 @@ Modules.Fiscal = (function () {
       createdAt: current.createdAt || now,
       updatedAt: now,
       ivaPadrao: iva,
-      irpfPadrao: current.irpfPadrao,
+      irpfPadrao: irpf,
       trimestreAtual: current.trimestreAtual || _currentQuarterKey(),
-      usarCalculoFiscal: current.usarCalculoFiscal !== false
+      usarCalculoFiscal: !!(_el('fis-enabled') && _el('fis-enabled').checked)
     });
     DB.setDocRoot('config', 'fiscal', data).then(function () {
       UI.toast('Configuração fiscal salva.', 'success');

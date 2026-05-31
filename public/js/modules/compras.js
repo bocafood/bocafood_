@@ -12,6 +12,7 @@ Modules.Compras = (function () {
   var _contas = [];
   var _finCategorias = [];
   var _finFormas = [];
+  var _fiscalConfig = {};
   var _editingId = null;
   var _editingKind = '';
   var _itensView = 'todos';
@@ -158,7 +159,7 @@ Modules.Compras = (function () {
       DB.getAll('compras'), DB.getAll('fornecedores'), DB.getAll('itens_custo'),
       DB.getAll('contas_bancarias'), DB.getAll('financeiro_categorias'),
       DB.getDoc('config', 'financeiro'), DB.getAll('financeiro_apagar'),
-      DB.getAll('contas_pagar'), DB.getAll('movimentacoes')
+      DB.getAll('contas_pagar'), DB.getAll('movimentacoes'), DB.getDocRoot('config', 'fiscal')
     ]).then(function (r) {
       _compras = (r[0] || []).sort(function (a, b) { return (b.data || '').localeCompare(a.data || ''); });
       _fornecedores = r[1] || [];
@@ -168,6 +169,7 @@ Modules.Compras = (function () {
       var finConfig = r[5] || {};
       _finFormas = (finConfig.formas_pagamento && finConfig.formas_pagamento.length) ? finConfig.formas_pagamento : [];
       _comprasFinanceiroStatus = _buildComprasFinanceiroStatus(r[6] || [], r[7] || [], r[8] || []);
+      _fiscalConfig = r[9] || {};
       _paintRegistros();
     });
   }
@@ -1467,7 +1469,8 @@ Modules.Compras = (function () {
       var embPadrao = (!_isBaseUnit(i.unidade_compra_padrao) ? (i.unidade_compra_padrao || '') : '') ||
                       (!_isBaseUnit(i.ultima_embalagem) ? (i.ultima_embalagem || '') : '');
       var conteudoPadrao = _num(i.conteudo_por_embalagem_padrao) || _num(i.ultimo_conteudo) || 1;
-      return '<option value="' + i.id + '" data-unidade="' + _esc(unidade) + '" data-aproveitamento="' + (i.aproveitamento_padrao || 100) + '" data-emb="' + _esc(embPadrao) + '" data-conteudo="' + conteudoPadrao + '" data-classe="' + _esc(i.classe || 'insumo') + '">' + _esc(i.nome || i.name) + '</option>';
+      var fiscal = _itemFiscalDefaults(i);
+      return '<option value="' + i.id + '" data-unidade="' + _esc(unidade) + '" data-aproveitamento="' + (i.aproveitamento_padrao || 100) + '" data-emb="' + _esc(embPadrao) + '" data-conteudo="' + conteudoPadrao + '" data-classe="' + _esc(i.classe || 'insumo') + '" data-iva="' + _esc(fiscal.ivaPct) + '" data-ded-iva="' + (fiscal.dedutivelIva ? '1' : '0') + '" data-ded-irpf="' + (fiscal.dedutivelIrpf ? '1' : '0') + '">' + _esc(i.nome || i.name) + '</option>';
     }).join('');
     window._compraAllItems = _itens; // para busca live no modal
     var secTitle = 'font-size:13px;font-weight:800;color:#1F1F1F;line-height:1.25;margin-bottom:3px;';
@@ -1568,8 +1571,7 @@ Modules.Compras = (function () {
         _purchaseField('cp-validade', 'Validade', '', 'date') +
       '</div>' +
       (function () {
-        var _fc = window.Auth && Auth.getFiscalCountry ? Auth.getFiscalCountry() : 'ES';
-        var _fiscalEnabled = window.FiscalConfig ? FiscalConfig.get(_fc).fiscalModuleEnabled : true;
+        var _fiscalEnabled = _fiscalConfig.usarCalculoFiscal !== false;
         return '<div class="purchase-field-grid purchase-price-grid">' +
           _purchaseField('cp-preco', 'Preço por embalagem (€)', '', 'number', 'Modules.Compras._calcCompraLinha()') +
           _purchaseField('cp-desc', 'Desconto unitário (€)', '', 'number', 'Modules.Compras._calcCompraLinha()') +
@@ -1582,8 +1584,7 @@ Modules.Compras = (function () {
       '<div id="cp-preco-hint"></div>' +
       '<div id="cp-lines"></div><div id="cp-total" style="margin:10px 0 14px;text-align:right;font-weight:600;"></div>' +
       (function () {
-        var _fc = window.Auth && Auth.getFiscalCountry ? Auth.getFiscalCountry() : 'ES';
-        var _fiscalEnabled = window.FiscalConfig ? FiscalConfig.get(_fc).fiscalModuleEnabled : true;
+        var _fiscalEnabled = _fiscalConfig.usarCalculoFiscal !== false;
         if (!_fiscalEnabled) return '';
         return '<section id="cp-fiscal-card" class="purchase-card">' +
           '<div class="purchase-card-head"><span class="mi">request_quote</span><div><div style="' + secTitle + '">Dados fiscais</div><div style="' + secHint + '">Classifique a compra para manter impostos e despesas bem organizados.</div></div></div>' +
@@ -1750,7 +1751,8 @@ Modules.Compras = (function () {
       var embPadrao = (!_isBaseUnit(i.unidade_compra_padrao) ? (i.unidade_compra_padrao || '') : '') ||
                       (!_isBaseUnit(i.ultima_embalagem) ? (i.ultima_embalagem || '') : '');
       var conteudoPadrao = _num(i.conteudo_por_embalagem_padrao) || _num(i.ultimo_conteudo) || 1;
-      return '<option value="' + i.id + '" data-unidade="' + _esc(unidade) + '" data-aproveitamento="' + (i.aproveitamento_padrao || 100) + '" data-emb="' + _esc(embPadrao) + '" data-conteudo="' + conteudoPadrao + '" data-classe="' + _esc(i.classe || 'insumo') + '">' + _esc(i.nome || i.name) + '</option>';
+      var fiscal = _itemFiscalDefaults(i);
+      return '<option value="' + i.id + '" data-unidade="' + _esc(unidade) + '" data-aproveitamento="' + (i.aproveitamento_padrao || 100) + '" data-emb="' + _esc(embPadrao) + '" data-conteudo="' + conteudoPadrao + '" data-classe="' + _esc(i.classe || 'insumo') + '" data-iva="' + _esc(fiscal.ivaPct) + '" data-ded-iva="' + (fiscal.dedutivelIva ? '1' : '0') + '" data-ded-irpf="' + (fiscal.dedutivelIrpf ? '1' : '0') + '">' + _esc(i.nome || i.name) + '</option>';
     }).join('');
   }
 
@@ -2063,6 +2065,12 @@ Modules.Compras = (function () {
     var embPadraoItem = (opt && opt.dataset.emb) || '';
     var conteudoPadraoItem = parseFloat((opt && opt.dataset.conteudo) || '1') || 1;
     var isProduto = (opt && opt.dataset.classe) === 'produto';
+    var ivaLine = document.getElementById('cp-iva-line');
+    if (ivaLine) ivaLine.value = opt && opt.dataset.iva != null ? opt.dataset.iva : (_fiscalConfig.defaultIvaRate || _fiscalConfig.ivaPadrao || '');
+    var dedIva = document.getElementById('cp-ded-iva');
+    var dedIrpf = document.getElementById('cp-ded-irpf');
+    if (dedIva && opt) dedIva.checked = opt.dataset.dedIva !== '0';
+    if (dedIrpf && opt) dedIrpf.checked = opt.dataset.dedIrpf === '1';
     // Para Produto: conteúdo fixo em 1 e bloqueado
     if (conteudoEl) {
       if (isProduto) {
@@ -2209,6 +2217,8 @@ Modules.Compras = (function () {
       totalLiquido: totalLinha,
       ivaPct: ivaPct,
       ivaValor: ivaValor,
+      dedutivelIva: opt && opt.dataset.dedIva !== '0',
+      dedutivelIrpf: opt && opt.dataset.dedIrpf === '1',
       valorSemIva: valorSemIva,
       qtyBase: qtyBase,
       aproveitamento: aproveitamento,
@@ -2314,6 +2324,7 @@ Modules.Compras = (function () {
     var valorSemIva = linhas.reduce(function (s, l) { return s + (_num(l.valorSemIva) || _lineTotal(l)); }, 0);
     var ivaValor = linhas.reduce(function (s, l) { return s + _num(l.ivaValor); }, 0);
     var ivaPctList = linhas.map(function (l) { return _num(l.ivaPct); }).filter(function (v) { return v > 0; });
+    var fiscalEnabled = _fiscalConfig.usarCalculoFiscal !== false;
     var compraData = {
       data: data,
       fornecedorId: _el('cp-forn').value,
@@ -2325,9 +2336,9 @@ Modules.Compras = (function () {
       ivaValor: ivaValor,
       ivaPct: ivaPctList.length ? ivaPctList[0] : 0,
       itens: linhas,
-      dedutivelIva: _el('cp-ded-iva').checked,
-      dedutivelIrpf: _el('cp-ded-irpf').checked,
-      categoriaFiscal: _el('cp-fiscal-cat').value || 'outro',
+      dedutivelIva: fiscalEnabled && !!(_el('cp-ded-iva') && _el('cp-ded-iva').checked),
+      dedutivelIrpf: fiscalEnabled && !!(_el('cp-ded-irpf') && _el('cp-ded-irpf').checked),
+      categoriaFiscal: fiscalEnabled && _el('cp-fiscal-cat') ? (_el('cp-fiscal-cat').value || 'outro') : 'outro',
       costClass: _el('cp-cost-class').value || 'direto',
       gerarContaPagar: _el('cp-gerar-apagar').checked,
       contaBancariaId: currentCompra.contaBancariaId || '',
@@ -2399,11 +2410,12 @@ Modules.Compras = (function () {
 
   // ── Ingredientes, Embalagens e Produtos ───────────────────────────────────
   function _renderItens() {
-    Promise.all([DB.getAll('itens_custo'), DB.getAll('fornecedores'), DB.getAll('unidades_medida'), DB.getAll('compras_categorias')]).then(function (r) {
+    Promise.all([DB.getAll('itens_custo'), DB.getAll('fornecedores'), DB.getAll('unidades_medida'), DB.getAll('compras_categorias'), DB.getDocRoot('config', 'fiscal')]).then(function (r) {
       _itens = (r[0] || []).sort(function (a, b) { return (a.nome || '').localeCompare(b.nome || ''); });
       _fornecedores = r[1] || [];
       _unidades = r[2] || [];
       _categorias = (r[3] || []).slice().sort(_sortByName);
+      _fiscalConfig = r[4] || {};
       _syncItemFiltersToCatalog();
       _paintItens();
     });
@@ -2471,6 +2483,17 @@ Modules.Compras = (function () {
     return '<option value="insumo"' + (selected === 'insumo' ? ' selected' : '') + '>Ingrediente</option>' +
       '<option value="embalagem"' + (selected === 'embalagem' ? ' selected' : '') + '>Embalagem</option>' +
       '<option value="produto"' + (selected === 'produto' ? ' selected' : '') + '>Produto pronto</option>';
+  }
+
+  function _itemFiscalDefaults(item) {
+    item = item || {};
+    var fiscal = item.fiscal || {};
+    var iva = fiscal.ivaPct != null ? fiscal.ivaPct : (item.ivaPct != null ? item.ivaPct : (_fiscalConfig.defaultIvaRate != null ? _fiscalConfig.defaultIvaRate : _fiscalConfig.ivaPadrao));
+    return {
+      ivaPct: _num(iva),
+      dedutivelIva: fiscal.dedutivelIva != null ? fiscal.dedutivelIva !== false : (item.dedutivelIva != null ? item.dedutivelIva !== false : true),
+      dedutivelIrpf: fiscal.dedutivelIrpf != null ? fiscal.dedutivelIrpf === true : (item.dedutivelIrpf === true)
+    };
   }
 
   function _findCatalogByName(kind, name, classe, strictClass) {
@@ -2817,6 +2840,7 @@ Modules.Compras = (function () {
     var currentUnitCost = _num(item.custo_atual != null ? item.custo_atual : (item.preco_compra != null ? item.preco_compra : item.purchasePrice));
     var costText = _itemCostDisplayHtml(currentUnitCost, item.unidade_base || item.unidadeBase || '');
     var lastPurchaseText = item.ultima_compra_data ? UI.fmtDate(new Date(item.ultima_compra_data)) : '-';
+    var fiscalDefaults = _itemFiscalDefaults(item);
     var sectionTitle = 'font-size:13px;font-weight:800;color:#1F1F1F;line-height:1.25;margin-bottom:3px;';
     var sectionHint = 'font-size:12px;color:#8A7E7C;line-height:1.4;margin-bottom:11px;';
     var classDesc = classeItem === 'embalagem'
@@ -2856,6 +2880,14 @@ Modules.Compras = (function () {
       '</select></div></div>' +
       '<div>' + _supplierField('it-nome', 'Nome *', item.nome || item.name || '') + '</div>' +
       _searchableCatalogField('categorias', 'it-categoria', 'Categoria *', item.categoria || '', classeItem, strictCatalog, '<button type="button" class="item-inline-add" onclick="Modules.Compras._openItemCategoryCreateModal()">+ categoria</button>') +
+      '</div>' +
+      '<div class="item-modal-grid item-modal-tax-grid">' +
+        _supplierField('it-iva-pct', 'IVA padrão (%)', fiscalDefaults.ivaPct, 'decimal') +
+        '<div class="item-modal-metric" style="display:flex;flex-direction:column;gap:9px;justify-content:center;">' +
+          '<label style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:700;color:#1F1F1F;"><input id="it-ded-iva" type="checkbox" ' + (fiscalDefaults.dedutivelIva ? 'checked' : '') + ' style="accent-color:#C4362A;width:16px;height:16px;"> Dedutível para IVA nas compras</label>' +
+          '<label style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:700;color:#1F1F1F;"><input id="it-ded-irpf" type="checkbox" ' + (fiscalDefaults.dedutivelIrpf ? 'checked' : '') + ' style="accent-color:#C4362A;width:16px;height:16px;"> Dedutível para IRPF nas compras</label>' +
+          '<div style="font-size:11.5px;color:#8A7E7C;line-height:1.4;">Esses dados entram como padrão no registro de compra. Na compra, você pode ajustar se a nota vier diferente.</div>' +
+        '</div>' +
       '</div>' +
       '</div>' +
       '<div class="item-modal-card item-modal-cost">' +
@@ -3323,6 +3355,14 @@ Modules.Compras = (function () {
       ativo: _el('it-ativo').checked,
       unidade_compra_padrao: (_el('it-emb-padrao').value || '').trim(),
       conteudo_por_embalagem_padrao: contentPerPackage,
+      ivaPct: _num((_el('it-iva-pct') || {}).value),
+      dedutivelIva: !!(_el('it-ded-iva') && _el('it-ded-iva').checked),
+      dedutivelIrpf: !!(_el('it-ded-irpf') && _el('it-ded-irpf').checked),
+      fiscal: {
+        ivaPct: _num((_el('it-iva-pct') || {}).value),
+        dedutivelIva: !!(_el('it-ded-iva') && _el('it-ded-iva').checked),
+        dedutivelIrpf: !!(_el('it-ded-irpf') && _el('it-ded-irpf').checked)
+      },
       minStock: minStock,
       maxStock: maxStock,
       estoque_minimo: minStock,
