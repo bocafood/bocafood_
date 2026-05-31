@@ -5451,7 +5451,7 @@ Modules.Temporadas = (function () {
   function _analysisTab(season, snapshots) {
     snapshots = snapshots || {};
     return '' +
-      '<div class="seasons-tab-header"><span class="seasons-section-label">Análises Automáticas</span><h3>Snapshots da temporada</h3><p>Leituras geradas automaticamente para reduzir recálculo e registrar o histórico de interpretação.</p></div>' +
+      '<div class="seasons-tab-header"><span class="seasons-section-label">Análises Automáticas</span><h3>Leituras salvas da temporada</h3><p>Registros automáticos que preservam como a temporada estava sendo lida em cada momento.</p></div>' +
       '<div class="seasons-analysis-update">' + _icon('update') + ' Última atualização: <strong>' + _esc(_snapshotUpdatedLabel(snapshots)) + '</strong></div>' +
       '<div class="seasons-analysis-grid">' +
         _snapshotAnalysisCard('Análise Diária', snapshots.daily, 'Mudanças rápidas, alertas curtos e progresso recente.') +
@@ -5648,7 +5648,7 @@ Modules.Temporadas = (function () {
     var alerts = ((snapshots && snapshots.daily && snapshots.daily.alerts) || []).slice(0, 3);
     return '<section class="seasons-alert-panel"><span class="seasons-section-label">Alertas rápidos</span>' + (alerts.length ? alerts.map(function (alert) {
       return '<article><strong>' + _esc(alert.title || 'Alerta') + '</strong><p>' + _esc(alert.message || '') + '</p></article>';
-    }).join('') : '<p>Nenhum alerta crítico no snapshot diário.</p>') + '</section>';
+    }).join('') : '<p>Nenhum alerta crítico na leitura de hoje.</p>') + '</section>';
   }
 
   function _snapshotAnalysisCard(title, snapshot, description) {
@@ -5659,7 +5659,7 @@ Modules.Temporadas = (function () {
     return '' +
       '<article class="seasons-analysis-card">' +
         '<span class="seasons-section-label">' + _esc(title) + '</span>' +
-        '<h4>' + _esc(_formatDate(snapshot.date || snapshot.createdAt) || snapshot.date || 'Snapshot') + '</h4>' +
+        '<h4>' + _esc(_formatDate(snapshot.date || snapshot.createdAt) || snapshot.date || 'Leitura salva') + '</h4>' +
         '<div class="seasons-analysis-facts">' +
           '<span>Score <strong>' + Math.round(_number(snapshot.score, 0)) + '</strong></span>' +
           '<span>Ritmo <strong>' + _esc(_statusScoreLabel(snapshot.status)) + '</strong></span>' +
@@ -6363,8 +6363,8 @@ Modules.Temporadas = (function () {
   function _maturitySnapshotsHistoryBlock(snapshots) {
     snapshots = _normalizeMaturitySnapshots(snapshots || []).slice(0, 12);
     return '<section class="stones-snapshots-history">' +
-      '<div class="stones-history-section-head"><span class="seasons-section-label">Histórico de maturidade</span><h3>Snapshots recentes</h3></div>' +
-      (snapshots.length ? '<div class="stones-snapshots-list">' + snapshots.map(_maturitySnapshotRow).join('') + '</div>' : '<div class="stones-snapshots-empty">Ainda não há snapshots de maturidade registrados.</div>') +
+      '<div class="stones-history-section-head"><span class="seasons-section-label">Histórico de maturidade</span><h3>Leituras recentes</h3></div>' +
+      (snapshots.length ? '<div class="stones-snapshots-list">' + snapshots.map(_maturitySnapshotRow).join('') + '</div>' : '<div class="stones-snapshots-empty">Ainda não há leituras de maturidade registradas.</div>') +
     '</section>';
   }
 
@@ -6387,7 +6387,7 @@ Modules.Temporadas = (function () {
       season_final: 'Temporada finalizada',
       stone_upgrade: 'Subida de Pedra',
       manual_recalculation: 'Recálculo manual'
-    })[type] || 'Snapshot';
+    })[type] || 'Leitura salva';
   }
 
   function _renderFinalResultModal(season) {
@@ -6628,7 +6628,7 @@ Modules.Temporadas = (function () {
           '</div>' +
           '<div class="seasons-final-summary">' +
             '<span class="seasons-section-label">Análises</span>' +
-            '<p>As análises, snapshots e recomendações da Próxima Jogada começam quando a temporada ficar ativa.</p>' +
+            '<p>As leituras automáticas e recomendações da Próxima Jogada começam quando a temporada ficar ativa.</p>' +
           '</div>' +
         '</div>' +
       '</div>';
@@ -8632,7 +8632,7 @@ Modules.Temporadas = (function () {
       alerts.push(_snapshotAlert('target_reached', 'success', 'Meta atingida', 'A métrica principal atingiu ou superou a meta atual.', 'progressPercent', season.progressPercent, 100));
     }
     if (season.objective === 'sell_more' && !metrics.orders) {
-      alerts.push(_snapshotAlert('no_orders', 'warning', 'Sem pedidos no período', 'Nenhum pedido válido foi encontrado no período do snapshot.', 'orders', 0, 1));
+      alerts.push(_snapshotAlert('no_orders', 'warning', 'Sem pedidos no período', 'Nenhum pedido válido foi encontrado nesta leitura.', 'orders', 0, 1));
     }
     return alerts;
   }

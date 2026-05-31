@@ -1339,8 +1339,8 @@ Modules.PlanoDeVoo = (function () {
     var forecast = _snapshotToForecast(snap);
     var scenario = SCENARIOS[snap.scenario] || SCENARIOS.equilibrium;
     var summary = snap.summary || {};
-    var body = '' +
-      '<div style="display:flex;flex-direction:column;gap:14px;max-height:72vh;overflow:auto;padding-right:2px;">' +
+    var body = '<style>.pv-route-details-modal{scrollbar-width:none;}.pv-route-details-modal::-webkit-scrollbar{display:none;width:0;height:0;}</style>' +
+      '<div style="display:flex;flex-direction:column;gap:14px;">' +
         '<section style="' + _cardStyle() + '">' +
           '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:14px;">' +
             '<div style="min-width:0;">' +
@@ -1366,7 +1366,7 @@ Modules.PlanoDeVoo = (function () {
         _routeSavedCostsDetails(snap, forecast) +
         _routeSavedMonthlyDetails(forecast) +
       '</div>';
-    UI.modal({
+    var modal = UI.modal({
       title: 'Detalhes da rota',
       body: body,
       maxWidth: '1040px',
@@ -1374,6 +1374,8 @@ Modules.PlanoDeVoo = (function () {
         '<button type="button" onclick="Modules.PlanoDeVoo._closePlanModals()" style="height:38px;padding:0 14px;border:1px solid #EAE4DA;background:#fff;color:#1F1F1F;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Fechar</button>' +
       '</div>'
     });
+    var modalBox = modal && modal.el ? modal.el.querySelector('.bf-modal') : null;
+    if (modalBox) modalBox.classList.add('pv-route-details-modal');
   }
 
   function _routeSavedBaseDetails(snap, forecast) {
@@ -1402,7 +1404,7 @@ Modules.PlanoDeVoo = (function () {
     return '' +
       '<section style="' + _cardStyle() + '">' +
         _sectionTitle('Vendas por canal', 'Valores usados como base para distribuir a venda da rota.') +
-        (channels.length ? '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:separate;border-spacing:0;min-width:760px;">' +
+        (channels.length ? '<div><table style="width:100%;border-collapse:separate;border-spacing:0;table-layout:auto;">' +
           '<thead><tr>' + ['Canal', 'Base mensal', 'Valor no período', 'Comissão efetiva'].map(_routeSavedTh).join('') + '</tr></thead>' +
           '<tbody>' + channels.map(function (ch) {
             var commission = _num(ch.commissionPct);
@@ -1431,15 +1433,73 @@ Modules.PlanoDeVoo = (function () {
               return _routeSavedLine(row.name || 'Custo', _fmtMoney(row.projected || 0), (row.pct != null ? _fmtPct(row.displayPct != null ? row.displayPct : row.pct) : '') + (row.sourceLabel ? ' · ' + row.sourceLabel : ''));
             }).join('') : _routeSavedEmpty('Nenhum custo variável salvo.')) +
           '</div>' +
-          '<div style="background:#FFFCF8;border:1px solid #E8DCD7;border-radius:14px;padding:12px;">' +
-            '<div style="font-size:13px;font-weight:700;color:#1F1F1F;margin-bottom:8px;">Saídas previstas</div>' +
-            (fixedRows.length ? fixedRows.map(function (row) {
-              var label = (row.financialNature === 'custo' ? 'Custo' : 'Despesa') + (row.costClass ? ' ' + row.costClass : '');
-              return _routeSavedLine(row.name || 'Saída', _fmtMoney(row.projected || row.value || 0), label + (row.recurrenceLabel ? ' · ' + row.recurrenceLabel : ''));
-            }).join('') : _routeSavedEmpty('Nenhuma saída prevista salva.')) +
-          '</div>' +
+          _routeSavedFixedByMonth(fixedRows, forecast) +
         '</div>' +
       '</section>';
+  }
+
+  function _routeSavedFixedByMonth(rows, forecast) {
+    var grouped = _routeSavedFixedGroups(rows, forecast);
+    return '' +
+      '<div style="background:#FFFCF8;border:1px solid #E8DCD7;border-radius:14px;padding:12px;">' +
+        '<div style="font-size:13px;font-weight:700;color:#1F1F1F;margin-bottom:8px;">Saídas previstas</div>' +
+        (grouped.length ? '<div style="display:flex;flex-direction:column;gap:10px;">' + grouped.map(function (month) {
+          return '<div style="border:1px solid #EFE6DA;background:#fff;border-radius:13px;padding:10px;">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;">' +
+              '<strong style="font-size:13px;color:#1F1F1F;">' + _esc(month.label) + '</strong>' +
+              '<span style="font-size:12px;font-weight:800;color:#1F1F1F;background:#FAF8F4;border:1px solid #EAE4DA;border-radius:999px;padding:4px 8px;">' + _esc(_fmtMoney(month.total)) + '</span>' +
+            '</div>' +
+            month.categories.map(function (cat) {
+              return '<div style="padding:8px 0;border-top:1px solid #F2EDEA;">' +
+                '<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:start;">' +
+                  '<div style="min-width:0;"><strong style="display:block;font-size:12.5px;color:#2D2823;line-height:1.25;">' + _esc(cat.label) + '</strong>' +
+                  '<small style="display:block;font-size:11.5px;color:#6F6860;line-height:1.35;margin-top:3px;">' + _esc(cat.items.map(function (item) { return item.name; }).join(' · ')) + '</small></div>' +
+                  '<strong style="font-size:12.5px;color:#1F1F1F;white-space:nowrap;">' + _esc(_fmtMoney(cat.total)) + '</strong>' +
+                '</div>' +
+              '</div>';
+            }).join('') +
+          '</div>';
+        }).join('') + '</div>' : _routeSavedEmpty('Nenhuma saída prevista salva.')) +
+      '</div>';
+  }
+
+  function _routeSavedFixedGroups(rows, forecast) {
+    var months = (forecast && forecast.monthSeries) || [];
+    var groups = [];
+    if (!rows || !rows.length || !months.length) return groups;
+    months.forEach(function (month) {
+      var byCategory = {};
+      rows.forEach(function (row) {
+        if (!row || row.include === false) return;
+        var value = _fixedRowValueForMonth(row, month);
+        if (!(value > 0)) return;
+        var label = _routeSavedCategoryLabel(row);
+        var key = _normalizeCategoryKey(label);
+        if (!byCategory[key]) byCategory[key] = { label: label, total: 0, items: [] };
+        byCategory[key].total += value;
+        byCategory[key].items.push({ name: row.name || 'Saída prevista', value: value });
+      });
+      var categories = Object.keys(byCategory).map(function (key) { return byCategory[key]; }).sort(function (a, b) {
+        return b.total - a.total;
+      });
+      if (categories.length) {
+        groups.push({
+          label: month.label || MONTHS[month.monthIndex] || 'Mês',
+          total: categories.reduce(function (sum, item) { return sum + _num(item.total); }, 0),
+          categories: categories
+        });
+      }
+    });
+    return groups;
+  }
+
+  function _routeSavedCategoryLabel(row) {
+    row = row || {};
+    var raw = row.categoryId || row.categoriaFinanceiraId || row.categoriaId || row.categoryId ||
+      (row.raw && (row.raw.categoriaFinanceiraNome || row.raw.categoria || row.raw.categoryName || row.raw.category)) || '';
+    var meta = _categoryMeta(raw);
+    if (meta && meta.name && meta.name !== 'Despesa') return meta.name;
+    return row.financialNature === 'custo' ? 'Custos indiretos' : 'Despesas indiretas';
   }
 
   function _routeSavedMonthlyDetails(forecast) {
@@ -1447,7 +1507,7 @@ Modules.PlanoDeVoo = (function () {
     return '' +
       '<section style="' + _cardStyle() + '">' +
         _sectionTitle('Resumo mês a mês', 'Distribuição salva para acompanhar a rota ao longo do período.') +
-        (months.length ? '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:separate;border-spacing:0;min-width:820px;">' +
+        (months.length ? '<div><table style="width:100%;border-collapse:separate;border-spacing:0;table-layout:auto;">' +
           '<thead><tr>' + ['Mês', 'Receita', 'Custos e despesas', 'Lucro', 'Força do mês'].map(_routeSavedTh).join('') + '</tr></thead>' +
           '<tbody>' + months.map(function (m) {
             var breakdown = _monthScenarioBreakdown(forecast, m);

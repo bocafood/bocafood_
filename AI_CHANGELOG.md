@@ -1,5 +1,27 @@
 # AI Changelog
 
+## 2026-06-01 — Onboarding: cardápio separado na etapa Loja pronta
+- Arquivos alterados: `public/js/modules/dashboard.js`, `AI_CHANGELOG.md`.
+- Separei o check inicial `Cadastrar produtos do cardápio` do check posterior `Finalizar cardápio de venda`.
+- O cadastro inicial agora considera a primeira base com 3 produtos principais.
+- A etapa `Loja pronta para vender` passa a orientar a usuária a completar e revisar o cardápio depois do Plano de Voo e da primeira Temporada, antes de configurar a loja online.
+- O novo check de finalização valida produtos visíveis com nome, preço e categoria, evitando usar o mesmo indicador do cadastro inicial.
+- Atualizei o `Como preencher` dessa etapa para explicar o que revisar: produtos que faltam, categorias, preços, descrições, imagens, tipo de produto, escolhas, extras, visibilidade e destaques.
+- Impacto esperado: deixar claro que o primeiro cadastro serve para formar a base do sistema, enquanto a etapa de venda serve para preparar o cardápio completo para a cliente comprar.
+
+## 2026-06-01 — Temporadas: remove termo técnico snapshot das copies
+- Arquivos alterados: `public/js/modules/temporadas.js`, `AI_CHANGELOG.md`.
+- Troquei ocorrências visíveis de `snapshot` no módulo Temporadas/Maturidade por termos mais claros, como `leitura salva`, `leitura de hoje` e `leituras automáticas`.
+- Mantive nomes internos de funções, campos e coleções sem alteração para preservar a lógica e compatibilidade com os dados já salvos.
+- Impacto esperado: evitar que a usuária veja termos técnicos que não ajudam na leitura do negócio.
+
+## 2026-06-01 — Plano de Voo: Detalhes da rota sem barras internas
+- Arquivos alterados: `public/js/modules/plano_voo.js`, `AI_CHANGELOG.md`.
+- Removi a rolagem interna do conteúdo do modal `Detalhes da rota` e o modal passa a ocultar barras visuais de rolagem quando o navegador criar scroll no painel.
+- As tabelas internas deixaram de forçar largura mínima com rolagem horizontal.
+- No card `Saídas previstas`, os valores agora aparecem agrupados por mês e por categoria, com total do mês, total da categoria e itens que compõem cada grupo.
+- Impacto esperado: deixar a consulta da rota salva mais limpa, sem barras de rolagem dentro do conteúdo e com leitura financeira mais clara.
+
 ## 2026-06-01 — Temporadas: card Decisão da temporada completo
 - Arquivos alterados: `public/js/modules/temporadas.js`, `public/css/modules/temporadas.css`, `AI_CHANGELOG.md`.
 - Ajustei o card `Decisão da temporada` dentro do modal `Nova Temporada` para mostrar também `Duração` e `Início`, além de objetivo, ritmo e estratégia.

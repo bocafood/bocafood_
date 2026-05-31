@@ -1460,6 +1460,25 @@ Modules.Dashboard = (function () {
         actions: ['Abra as categorias como se fosse uma cliente comprando.', 'Deixe os produtos mais importantes fáceis de encontrar.', 'Corrija nomes longos, preço errado ou opções confusas.'],
         ready: 'Está pronto quando o cardápio está fácil de navegar e comprar.'
       },
+      'Finalizar cardápio de venda': {
+        icon: 'menu_book',
+        path: 'Caminho: Cardápio > Produtos',
+        introHtml: '<div><strong style="color:#1F1F1F;">Aqui você termina o cardápio que vai para venda.</strong></div><div style="margin-top:7px;">Na primeira base, você cadastrou só os produtos principais para criar custo, preço e Plano de Voo. Agora, com a rota criada, revise o cardápio com olhar de venda: o que a cliente vai ver, entender e conseguir pedir.</div><div style="margin-top:7px;"><strong style="color:#1F1F1F;">Esse check é separado do cadastro inicial.</strong> Ele serve para deixar o cardápio pronto antes de configurar a loja online.</div>',
+        fields: [
+          ['Produtos principais', 'Confira se os produtos que mais vendem continuam cadastrados com nome, preço, categoria e vínculo correto quando existir receita ou produto pronto.'],
+          ['Produtos que faltam', 'Adicione os outros produtos que precisam aparecer para a cliente comprar. Não precisa cadastrar tudo de uma vez, mas o cardápio precisa ter o suficiente para começar a vender com clareza.'],
+          ['Categorias', 'Organize os produtos em grupos fáceis de entender, como Salgados, Doces, Bebidas, Combos ou Pratos. A cliente precisa encontrar rápido o que quer pedir.'],
+          ['Preços', 'Revise se cada produto visível tem preço real. Se algum preço ainda está em teste, ajuste antes de publicar o cardápio online.'],
+          ['Descrição e frase de venda', 'Confira se os produtos importantes têm uma explicação curta que ajuda a cliente decidir. Fale de sabor, recheio, tamanho, textura ou benefício.'],
+          ['Imagem', 'Use imagem nos produtos principais quando tiver. A foto ajuda a vender, mas é melhor ter poucas imagens boas do que muitas imagens ruins.'],
+          ['Tipo de produto', 'Veja se cada produto está no tipo certo: simples quando vende direto, ou com escolhas/combo quando a cliente precisa escolher sabor, tamanho, acompanhamento ou itens.'],
+          ['Variações, escolhas e extras', 'Revise se combos, sabores, tamanhos, adicionais e produtos extras estão claros. A cliente não deve ficar em dúvida antes de adicionar ao pedido.'],
+          ['Mostrar no cardápio', 'Deixe ligado somente o que já pode ser vendido. Produto incompleto, sem preço ou que ainda não está disponível deve ficar oculto até estar pronto.'],
+          ['Destaques', 'Use destaque em poucos produtos. Escolha os que mais ajudam a vender ou que combinam com a rota e a temporada atual.']
+        ],
+        actions: ['Complete primeiro os produtos que realmente vão vender agora.', 'Revise preço, categoria e visibilidade antes de configurar a loja online.', 'Confira produtos com escolhas ou combos como se fosse uma cliente comprando.', 'Oculte o que ainda não está pronto para venda.', 'Depois siga para Configurar cardápio online.'],
+        ready: 'Está pronto quando existem pelo menos 3 produtos visíveis com nome, preço e categoria, e o cardápio já está claro para a cliente comprar.'
+      },
       'Configurar cardápio online': {
         icon: 'store',
         path: 'Caminho: Loja online > Template da loja',
@@ -2478,7 +2497,10 @@ Modules.Dashboard = (function () {
       fiscal.irpfPadrao != null ||
       !!(fiscal.legalBusiness && (fiscal.legalBusiness.legalName || fiscal.legalBusiness.fiscalId))
     );
-    var hasProducts = (_data.products || []).length > 0;
+    var products = Array.isArray(_data.products) ? _data.products : [];
+    var visibleProducts = products.filter(_isVisibleCatalogProduct);
+    var hasProducts = products.length >= 3;
+    var hasStorefrontCatalogReady = _hasStorefrontCatalogReady(visibleProducts);
     var hasPurchaseItems = (_data.purchaseItems || []).length > 0;
     var hasRecipes = (_data.recipes || []).length > 0;
     var hasCosts = (_data.exits || []).length > 0;
@@ -2507,7 +2529,7 @@ Modules.Dashboard = (function () {
     baseSteps = baseSteps.concat([
       { title: 'Cadastrar ingredientes, embalagens e produtos comprados', text: 'Cadastre ingredientes, embalagens e produtos prontos que entram na operação.', icon: 'inventory_2', route: 'compras/itens', done: hasPurchaseItems },
       { title: 'Cadastrar receitas', text: 'Monte as receitas usando os ingredientes, embalagens e bases cadastradas.', icon: 'receipt_long', route: 'receitas/receitas', done: hasRecipes },
-      { title: 'Cadastrar produtos do cardápio', text: 'Coloque para venda os produtos que a cliente vai comprar.', icon: 'restaurant_menu', route: 'catalogo/produtos', done: hasProducts },
+      { title: 'Cadastrar produtos do cardápio', text: 'Comece pelos 3 produtos principais para formar a primeira base de venda.', icon: 'restaurant_menu', route: 'catalogo/produtos', done: hasProducts },
       { title: 'Registrar custos e despesas fixas', text: 'Inclua contas e compromissos que precisam entrar na rota.', icon: 'payments', route: 'financeiro/contas-pagar', done: hasCosts }
     ]);
     return [
@@ -2532,9 +2554,9 @@ Modules.Dashboard = (function () {
         key: 'storefront',
         title: 'Loja pronta para vender',
         shortTitle: 'Venda',
-        text: 'Deixe a experiência pronta para a cliente entender, escolher e pedir.',
+        text: 'Depois da rota criada, complete o cardápio e deixe a experiência pronta para a cliente comprar.',
         steps: [
-          { title: 'Organizar cardápio', text: 'Deixe produtos, categorias e destaques fáceis de comprar.', icon: 'menu_book', route: 'catalogo/produtos', done: hasProducts },
+          { title: 'Finalizar cardápio de venda', text: 'Complete os produtos, revise preços, categorias e o que ficará visível para vender.', icon: 'menu_book', route: 'catalogo/produtos', done: hasStorefrontCatalogReady },
           { title: 'Configurar cardápio online', text: 'Use sua identidade, capa, logo e informações para vender com confiança.', icon: 'store', route: 'loja-online/template', done: hasStorefrontIdentity },
           { title: 'Conferir entrega e retirada', text: 'Garanta que a cliente saiba como e quando vai receber o pedido.', icon: 'local_shipping', route: 'loja-online/template', done: hasCheckout }
         ]
@@ -2555,6 +2577,31 @@ Modules.Dashboard = (function () {
         ]
       }
     ];
+  }
+
+  function _isVisibleCatalogProduct(product) {
+    if (!product) return false;
+    return product.hidden !== true &&
+      product.oculto !== true &&
+      product.active !== false &&
+      product.ativo !== false &&
+      product.visible !== false &&
+      product.visivel !== false &&
+      product.showInMenu !== false &&
+      product.showOnMenu !== false &&
+      product.mostrarNoCardapio !== false &&
+      product.exibirNoCardapio !== false;
+  }
+
+  function _hasStorefrontCatalogReady(products) {
+    products = Array.isArray(products) ? products : [];
+    var ready = products.filter(function (product) {
+      var name = String(product.name || product.nome || product.title || '').trim();
+      var price = _num(product.price != null ? product.price : (product.preco != null ? product.preco : product.valor));
+      var category = String(product.category || product.categoria || product.categoryName || product.categoriaNome || product.categoryId || product.categoriaId || '').trim();
+      return name && price > 0 && category;
+    });
+    return ready.length >= 3;
   }
 
   function _kpi(label, value, hint, icon, color) {
