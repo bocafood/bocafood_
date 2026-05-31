@@ -91,6 +91,10 @@ button,input,select,textarea{font-family:inherit}
 .nav-item.nav-item-performance.active{background:#FFF8F6;border-color:#F2D6D1;color:var(--red);box-shadow:0 9px 20px rgba(180,35,24,.075)}
 .nav-item.nav-item-performance.active .mi{background:#fff;color:var(--red)}
 .nav-badge{margin-left:auto;display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 7px;border-radius:999px;background:#FBEDEB;color:var(--red);font-size:11px;font-weight:600;line-height:1}
+.nav-onboarding-check{margin-left:auto;width:18px;height:18px;border-radius:999px;background:#E8F7EE;color:#1F6F43;border:1px solid #CDEDD8;display:inline-flex;align-items:center;justify-content:center;font-size:14px;line-height:1;flex:0 0 auto}
+.nav-sub-item .nav-onboarding-check{width:16px;height:16px;font-size:13px}
+.nav-badge + .nav-onboarding-check{margin-left:4px}
+.nav-item.has-onboarding-check,.nav-sub-item.has-onboarding-check{color:#1F6F43}
 .nav-group.expanded .nav-sub{display:block}
 .nav-sub{display:none;margin:2px 0 8px 24px;border-left:1px solid var(--line);padding-left:8px}
 .nav-sub-item{font-size:12px;padding:7px 9px;color:#667085;min-height:32px}
@@ -101,6 +105,7 @@ button,input,select,textarea{font-family:inherit}
 .app-shell.sidebar-collapsed .nav-section,.app-shell.sidebar-collapsed .nav-sub,.app-shell.sidebar-collapsed .sidebar-footer{display:none!important}
 .app-shell.sidebar-collapsed .nav-item{justify-content:center;padding:8px 8px;font-size:0;gap:0;min-height:38px}
 .app-shell.sidebar-collapsed .nav-item .mi{font-size:20px}
+.app-shell.sidebar-collapsed .nav-onboarding-check,.app-shell.sidebar-env-collapsed .nav-onboarding-check{display:none!important}
 .sidebar-footer{border-top:none;padding:11px 11px 22px;display:flex;flex-direction:column;gap:8px;background:#fff}
 .sidebar-footer-card{border:1px solid var(--line);background:#fff;border-radius:13px;padding:10px}
 .sidebar-footer-title{font-size:10px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px}
@@ -779,6 +784,51 @@ button,input,select,textarea{font-family:inherit}
       var shell = document.getElementById('admin-shell');
       var state = shell && shell.classList.contains('sidebar-env-collapsed') ? 'collapsed' : (localStorage.getItem('admin.sidebarState') || 'expanded');
       _adminApplySidebarState(mode, state, false);
+    },
+    updateOnboardingNavChecks: function (steps) {
+      steps = Array.isArray(steps) ? steps : [];
+      var nav = document.querySelector('.sidebar .nav');
+      if (!nav) return;
+      nav.querySelectorAll('.nav-onboarding-check').forEach(function (el) { el.remove(); });
+      nav.querySelectorAll('.has-onboarding-check').forEach(function (el) { el.classList.remove('has-onboarding-check'); });
+
+      var validSteps = steps.filter(function (step) {
+        return step && step.route && step.done;
+      }).map(function (step) {
+        return String(step.route || '').replace(/^#/, '').replace(/\/$/, '');
+      });
+      var allSteps = steps.filter(function (step) {
+        return step && step.route;
+      }).map(function (step) {
+        return {
+          route: String(step.route || '').replace(/^#/, '').replace(/\/$/, ''),
+          done: !!step.done
+        };
+      });
+
+      function addCheck(btn) {
+        if (!btn || btn.querySelector('.nav-onboarding-check')) return;
+        btn.classList.add('has-onboarding-check');
+        var mark = document.createElement('span');
+        mark.className = 'nav-onboarding-check';
+        mark.title = 'Etapa concluída';
+        mark.innerHTML = '<span class="mi" style="font-size:inherit;">check</span>';
+        btn.appendChild(mark);
+      }
+
+      nav.querySelectorAll('[data-route]').forEach(function (btn) {
+        var route = String(btn.getAttribute('data-route') || '').replace(/^#/, '').replace(/\/$/, '');
+        if (!route) return;
+        if (validSteps.indexOf(route) >= 0) {
+          addCheck(btn);
+          return;
+        }
+        if (route.indexOf('/') >= 0) return;
+        var children = allSteps.filter(function (step) {
+          return step.route === route || step.route.indexOf(route + '/') === 0;
+        });
+        if (children.length && children.every(function (step) { return step.done; })) addCheck(btn);
+      });
     },
     toggleSidebar: function () {
       var shell = document.getElementById('admin-shell');

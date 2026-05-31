@@ -1,5 +1,31 @@
 # AI Changelog
 
+## 2026-05-31 — Onboarding: checks no menu lateral
+- Arquivos alterados: `public/admin.html`, `public/js/modules/dashboard.js`, `AI_CHANGELOG.md`.
+- Conectei o progresso do onboarding ao menu lateral usando as mesmas rotas dos passos do checklist.
+- Quando um passo é concluído, o item correspondente no menu recebe um check visual; grupos do menu também recebem check quando todos os passos daquele grupo estão concluídos.
+- A atualização acontece junto com o recálculo do onboarding após gravações, valendo para todos os checks do checklist.
+- Impacto esperado: deixar o menu lateral sincronizado com o progresso do onboarding, sem exigir atualização manual da página.
+
+## 2026-05-31 — Onboarding: check de custos e despesas fixas
+- Arquivos alterados: `public/js/modules/dashboard.js`, `AI_CHANGELOG.md`.
+- Corrigi a base usada pelo checklist do onboarding para considerar também a coleção `contas_pagar`, onde o modal `Financeiro > Saídas > Nova Saída` salva os lançamentos manuais.
+- O passo `Registrar custos e despesas fixas` agora reconhece despesas criadas pela tela de Saídas, além das fontes financeiras antigas.
+- Impacto esperado: marcar o checklist em tempo real depois que a usuária cadastrar uma nova saída, sem depender de atualizar a página.
+
+## 2026-05-31 — Onboarding: custos e despesas fixas
+- Arquivos alterados: `public/js/modules/dashboard.js`, `AI_CHANGELOG.md`.
+- Ajustei a etapa `Registrar custos fixos` para `Registrar custos e despesas fixas`, deixando claro que o cadastro em `Financeiro > Saídas` é para compromissos fixos, recorrentes ou já conhecidos.
+- Atualizei a copy para diferenciar esses lançamentos dos custos variáveis de previsão, que no Plano de Voo entram como percentuais e ajustes ligados às vendas.
+- Impacto esperado: evitar que a usuária tente cadastrar toda variação operacional como saída fixa e deixar o onboarding mais alinhado ao cálculo real do Plano de Voo.
+
+## 2026-05-31 — Onboarding: Como preencher custos fixos
+- Arquivos alterados: `public/js/modules/dashboard.js`, `AI_CHANGELOG.md`.
+- Revisei o `Como preencher > Registrar custos fixos` e comparei com o modal real `Financeiro > Saídas > Nova Saída`.
+- Completei a orientação com todos os campos do cadastro: número interno, documento, descrição, valor, fornecedor/favorecido, categoria, tipo/classe da nova categoria, forma de pagamento, conta bancária, status, vencimento, data de pagamento, recorrência, parcelamento e observações.
+- Ajustei a copy para explicar de forma prática como preencher despesas e custos fixos, sem entrar em lógica interna do sistema.
+- Impacto esperado: ajudar a usuária a registrar saídas com mais segurança e com dados suficientes para financeiro e Plano de Voo.
+
 ## 2026-05-31 — Financeiro: filtros de Saídas lado a lado
 - Arquivos alterados: `public/js/modules/financeiro.js`, `AI_CHANGELOG.md`.
 - Ajustei o card de filtros em `Financeiro > Saídas` para mostrar `Status` e `Contas bancárias` lado a lado no desktop.

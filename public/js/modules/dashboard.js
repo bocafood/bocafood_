@@ -88,6 +88,7 @@ Modules.Dashboard = (function () {
       _safeAll('financeiro_entradas'),
       _safeAll('financeiro_saidas'),
       _safeAll('financeiro_apagar'),
+      _safeAll('contas_pagar'),
       _safeAll('contas_bancarias'),
       _safeAll('flight_plans'),
       _safeAll('flight_plan_month_scenarios'),
@@ -106,21 +107,21 @@ Modules.Dashboard = (function () {
       _data.orders = Array.isArray(r[0]) ? r[0] : [];
       _data.products = Array.isArray(r[1]) ? r[1] : [];
       _data.entries = _normalizeEntries(r[2], r[3]);
-      _data.exits = _normalizeExits(r[4], r[5], r[2]);
-      _data.accounts = Array.isArray(r[6]) ? r[6] : [];
-      _data.snapshots = Array.isArray(r[7]) ? r[7] : [];
-      _data.monthScenarios = Array.isArray(r[8]) ? r[8].filter(Boolean) : [];
-      _data.monthScenario = _resolveMonthScenario(_currentMonthKey(), r[9] || null, _data.monthScenarios);
-      _data.geral = r[10] || {};
-      _data.template = r[11] || {};
-      _data.operacao = r[12] || {};
-      _data.channels = r[13] || {};
-      _data.moneyConfig = r[14] || {};
-      _data.purchaseItems = Array.isArray(r[15]) ? r[15] : [];
-      _data.recipes = Array.isArray(r[16]) ? r[16] : [];
-      _data.purchases = Array.isArray(r[17]) ? r[17] : [];
-      _data.seasons = Array.isArray(r[18]) ? r[18] : [];
-      _data.stockMovements = Array.isArray(r[19]) ? r[19] : [];
+      _data.exits = _normalizeExits(r[4], [].concat(r[5] || [], r[6] || []), r[2]);
+      _data.accounts = Array.isArray(r[7]) ? r[7] : [];
+      _data.snapshots = Array.isArray(r[8]) ? r[8] : [];
+      _data.monthScenarios = Array.isArray(r[9]) ? r[9].filter(Boolean) : [];
+      _data.monthScenario = _resolveMonthScenario(_currentMonthKey(), r[10] || null, _data.monthScenarios);
+      _data.geral = r[11] || {};
+      _data.template = r[12] || {};
+      _data.operacao = r[13] || {};
+      _data.channels = r[14] || {};
+      _data.moneyConfig = r[15] || {};
+      _data.purchaseItems = Array.isArray(r[16]) ? r[16] : [];
+      _data.recipes = Array.isArray(r[17]) ? r[17] : [];
+      _data.purchases = Array.isArray(r[18]) ? r[18] : [];
+      _data.seasons = Array.isArray(r[19]) ? r[19] : [];
+      _data.stockMovements = Array.isArray(r[20]) ? r[20] : [];
       _loading = false;
       _loaded = true;
     }).catch(function (err) {
@@ -195,6 +196,7 @@ Modules.Dashboard = (function () {
     _setTourScrollLock(false);
     var root = document.getElementById('dash-global-onboarding-root');
     if (root) root.remove();
+    if (window.AdminApp && typeof AdminApp.updateOnboardingNavChecks === 'function') AdminApp.updateOnboardingNavChecks([]);
   }
 
   function _setTourScrollLock(lock) {
@@ -346,6 +348,7 @@ Modules.Dashboard = (function () {
     _ensureOnboardingRemoteLoaded();
     _ensureGlobalOnboardingStyles();
     var vm = _buildModel();
+    _syncSidebarOnboardingChecks(vm);
     var html = _welcomeModal(vm) + _onboarding(vm) + _checklistGuideModal();
     _setTourScrollLock(false);
     if (!html) {
@@ -362,6 +365,12 @@ Modules.Dashboard = (function () {
     root.innerHTML = _safeHtml(html);
     _setTourScrollLock(!!_activeChecklistGuide());
     _applyTourHighlight();
+  }
+
+  function _syncSidebarOnboardingChecks(vm) {
+    if (!window.AdminApp || typeof AdminApp.updateOnboardingNavChecks !== 'function') return;
+    var flat = _flattenOnboarding((vm && vm.onboarding) || []);
+    AdminApp.updateOnboardingNavChecks(flat);
   }
 
   function _installOnboardingDataRefreshHooks() {
@@ -1237,19 +1246,30 @@ Modules.Dashboard = (function () {
         actions: ['Comece pelos produtos que a cliente mais pede.', 'Confira se produto produzido tem receita e se produto comprado pronto tem custo.', 'Depois abra o cardápio online para ver se a compra ficou fácil.'],
         ready: 'Está pronto quando os principais produtos de venda aparecem com nome, preço, categoria e vínculo correto quando existir.'
       },
-      'Registrar custos fixos': {
+      'Registrar custos e despesas fixas': {
         icon: 'payments',
         path: 'Caminho: Financeiro > Saídas',
-        intro: 'Aqui entram contas e compromissos que o negócio precisa pagar. Esses valores ajudam o Plano de Voo a mostrar quanto vender para fechar bem.',
+        intro: '<div><strong style="color:#1F1F1F;">Aqui entram custos fixos e despesas fixas</strong>: valores que o negócio já sabe que precisa pagar ou que costumam se repetir.</div><div style="margin-top:7px;">Comece por aluguel, energia, internet, serviços, taxas, fornecedores fixos, assinaturas e compromissos que precisam entrar na conta do mês.</div><div style="margin-top:7px;"><strong style="color:#1F1F1F;">Custos variáveis de previsão</strong>, aqueles que mudam conforme o volume de venda, são ajustados depois no Plano de Voo.</div>',
         fields: [
-          ['Descrição', 'Escreva o nome da conta de um jeito fácil de reconhecer.'],
-          ['Valor', 'Informe o valor real em moeda.'],
-          ['Vencimento', 'Coloque a data em que precisa pagar.'],
-          ['Categoria', 'Separe despesa, custo direto ou custo indireto conforme a natureza do gasto.'],
-          ['Recorrência', 'Marque quando a conta se repete todo mês.']
+          ['Número interno', 'É criado automaticamente pelo BocaFood para organizar as saídas. Não precisa preencher.'],
+          ['Número do documento', 'Use quando tiver uma fatura, recibo, nota ou referência do pagamento. Se não tiver, deixe em branco.'],
+          ['Descrição da saída', 'Escreva o nome da conta de um jeito fácil de reconhecer depois. Exemplos: aluguel, energia, internet, compra de gás, taxa do marketplace ou fornecedor de embalagens.'],
+          ['Valor total', 'Informe o valor real da saída em moeda. Exemplo: se a conta é de cinquenta euros, preencha € 50,00.'],
+          ['Fornecedor / favorecido', 'Preencha para quem o negócio vai pagar. Pode ser fornecedor, empresa, serviço, banco, plataforma ou pessoa.'],
+          ['Categoria de saída', '<strong style="color:#1F1F1F;">Escolha onde esse gasto entra no financeiro.</strong><br><br>Use uma categoria que explique bem o motivo do pagamento, como Aluguel, Energia, Internet, Fornecedores, Embalagens, Taxas, Marketing ou Marketplace.<br><br>Se precisar criar uma categoria nova, use a opção de nova categoria e informe também se ela é <strong style="color:#1F1F1F;">Despesa</strong> ou <strong style="color:#1F1F1F;">Custo</strong>, e se é <strong style="color:#1F1F1F;">Direto</strong> ou <strong style="color:#1F1F1F;">Indireto</strong>.', true],
+          ['Tipo da nova categoria', '<strong style="color:#1F1F1F;">Despesa</strong> é algo necessário para manter o negócio funcionando, como aluguel, internet ou sistema.<br><br><strong style="color:#1F1F1F;">Custo</strong> é algo mais ligado ao que você vende ou entrega, como embalagem, taxa de venda, comissão ou item usado para produzir.', true],
+          ['Classe da nova categoria', '<strong style="color:#1F1F1F;">Direto</strong> é quando o gasto acompanha a venda ou a produção, como embalagem, comissão, taxa do canal ou fornecedor ligado ao produto.<br><br><strong style="color:#1F1F1F;">Indireto</strong> é quando o gasto existe mesmo sem venda naquele dia, como aluguel, internet, contador ou sistema.', true],
+          ['Forma de pagamento', 'Escolha como essa saída será paga ou já foi paga. Exemplos: dinheiro, cartão, transferência, débito em conta ou outra forma cadastrada.'],
+          ['Conta bancária', 'Escolha de qual conta o dinheiro saiu ou vai sair. Se a conta ainda não existe, use o botão + conta bancária para cadastrar sem sair da saída.'],
+          ['Status da saída', 'Marque A pagar quando ainda não saiu dinheiro do caixa. Marque Já paga quando o valor já foi pago.'],
+          ['Vencimento', 'Coloque a data em que a saída precisa ser paga. Essa data ajuda a organizar o financeiro e o Plano de Voo.'],
+          ['Data de pagamento', 'Aparece quando a saída está como Já paga. Preencha o dia em que o dinheiro saiu da conta ou do caixa.'],
+          ['Pagamento recorrente', 'Marque quando a saída se repete, como aluguel, internet, mensalidade, serviço ou assinatura. Informe a frequência e quantas vezes ela deve ser criada.'],
+          ['Dividir em parcelas', 'Use quando a mesma saída será paga em partes. Informe o número de parcelas e a frequência. O BocaFood calcula o valor por parcela e cria as datas.'],
+          ['Observações', 'Use para anotar algo que ajuda depois, como detalhe do contrato, mês de referência, combinado com fornecedor ou motivo do pagamento.']
         ],
-        actions: ['Comece pelas contas que não podem faltar, como aluguel, energia, internet e serviços.', 'Confira se o valor está em moeda e não em centavos.', 'Salve para que a rota anual use uma base mais real.'],
-        ready: 'Está pronto quando os principais compromissos do período estão registrados.'
+        actions: ['Comece pelas despesas fixas que não podem faltar, como aluguel, energia, internet, serviços e taxas principais.', 'Depois registre custos fixos ou recorrentes que pesam no negócio, como fornecedores fixos, embalagens recorrentes ou comissões já conhecidas.', 'Confira se valor, vencimento, categoria, forma de pagamento e conta bancária fazem sentido antes de salvar.', 'Use recorrência para contas que voltam todo mês e parcelas para pagamentos divididos.'],
+        ready: 'Está pronto quando os principais custos fixos e despesas fixas do negócio estão registrados com valor, vencimento, categoria, status e conta correta.'
       },
       'Criar Plano de Voo': {
         icon: 'flight_takeoff',
@@ -1759,7 +1779,7 @@ Modules.Dashboard = (function () {
           ['Aviso', 'sinais simples para olhar antes de tomar decisao.']
         ],
         actionTitle: 'Primeiro passo',
-        action: 'Registre as despesas e custos fixos. Sem isso, o Plano de Voo pode sugerir uma meta menor do que o negocio precisa.',
+        action: 'Registre os custos fixos e as despesas fixas. Sem isso, o Plano de Voo pode sugerir uma meta menor do que o negócio precisa.',
         actionSelector: 'button[onclick*="_openEntradaModal"], button[onclick*="_openEntryModal"], button[onclick*="_openMovModal"]',
         actionFocusTitle: 'Ação principal nesta tela',
         actionFocus: 'Use esta área para conferir saúde financeira. Para criar entradas ou saídas, vá para a aba específica do financeiro.'
@@ -2328,7 +2348,7 @@ Modules.Dashboard = (function () {
           { title: 'Definir preço e margem', text: 'Ajude o BocaFood a proteger sua sobra em cada venda.', icon: 'calculate', route: 'dinheiro/regras', done: hasPriceRules },
           { title: 'Cadastrar ingredientes, embalagens e produtos comprados', text: 'Cadastre ingredientes, embalagens e produtos prontos que entram na operação.', icon: 'inventory_2', route: 'compras/itens', done: hasPurchaseItems },
           { title: 'Cadastrar receitas', text: 'Monte as receitas usando os ingredientes, embalagens e bases cadastradas.', icon: 'receipt_long', route: 'receitas/receitas', done: hasRecipes },
-          { title: 'Registrar custos fixos', text: 'Inclua contas e compromissos que precisam entrar na rota.', icon: 'payments', route: 'financeiro/contas-pagar', done: hasCosts }
+          { title: 'Registrar custos e despesas fixas', text: 'Inclua contas e compromissos que precisam entrar na rota.', icon: 'payments', route: 'financeiro/contas-pagar', done: hasCosts }
         ]
       },
       {
