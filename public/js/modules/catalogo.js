@@ -842,12 +842,9 @@ Modules.Catalogo = (function () {
       { key: 'bets', title: 'Apostas', subtitle: 'começaram a crescer e merecem atenção', icon: 'rocket_launch', color: '#2F6F9F', bg: '#F0F7FC', border: '#D8EAF5', empty: 'Nenhum produto pequeno ganhou tração recente.', noProductTitle: 'Sem aposta clara' },
       { key: 'review', title: 'Revisar', subtitle: 'baixo giro, sem venda recente ou custo incompleto', icon: 'manage_search', color: '#B42318', bg: '#FFF5F3', border: '#F0D2CC', empty: 'Tudo com leitura de venda recente no momento.', noProductTitle: 'Nada urgente para revisar' }
     ];
-    var info = data.hasRecentSales
-      ? 'Matriz BCG do cardápio: compara os últimos 30 dias com os 30 dias anteriores e usa a margem como apoio.'
-      : 'Matriz BCG do cardápio: quando entrarem vendas, os produtos serão separados por força e crescimento.';
     return '<div style="display:flex;flex-direction:column;gap:10px;">' +
       '<div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;">' +
-        '<div><div style="font-size:13px;font-weight:800;color:#1F1F1F;">Matriz BCG do cardápio</div><div style="font-size:12px;color:#6F6860;line-height:1.4;margin-top:2px;">' + _esc(info) + '</div></div>' +
+        '<div></div>' +
         '<span style="font-size:11px;font-weight:700;color:#8A7E7C;background:#FAF8F4;border:1px solid #EAE4DA;border-radius:999px;padding:6px 9px;">' + (data.ordersCount || 0) + ' pedido(s) na base</span>' +
       '</div>' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;">' + cards.map(function (card) {
@@ -1063,8 +1060,10 @@ Modules.Catalogo = (function () {
     p = _normalizeProduct(p);
     var tipoMenu = p.type === 'menu' || p.productType === 'combo';
     var tipoUnico = !tipoMenu;
-    var unicoSubReceita = !p.unicoSource || p.unicoSource === 'receita';
-    var unicoSubPronto = p.unicoSource === 'produto_pronto' || p.unicoSource === 'compras_produto';
+    var internalComposition = _normalizeInternalComposition(p);
+    var unicoSubComposicao = p.unicoSource === 'composicao_interna' || (!p.unicoSource && internalComposition.length > 0);
+    var unicoSubReceita = !unicoSubComposicao && (!p.unicoSource || p.unicoSource === 'receita');
+    var unicoSubPronto = !unicoSubComposicao && (p.unicoSource === 'produto_pronto' || p.unicoSource === 'compras_produto');
     var fichaOptions = _fichas.map(function (f) {
       return '<option value="' + f.id + '"' + (p.fichaId === f.id ? ' selected' : '') + '>' + _esc(f.name) + '</option>';
     }).join('');
@@ -1072,7 +1071,6 @@ Modules.Catalogo = (function () {
       var selectedId = p.produtoProntoId || p.sourceItemId || '';
       return '<option value="' + pp.id + '"' + (String(selectedId) === String(pp.id) ? ' selected' : '') + '>' + _esc(pp.name) + '</option>';
     }).join('');
-    var internalComposition = _normalizeInternalComposition(p);
     var internalCompositionHtml = _internalCompositionRowsHtml(internalComposition);
     var menuGroups = _normalizeMenuGroups(p);
     var menuGroupsHtml = menuGroups.map(function (group, i) { return _menuGroupRowHtml(i, group); }).join('');
@@ -1181,27 +1179,29 @@ Modules.Catalogo = (function () {
             </div>
           </section>
           <section style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">
-            <div class="pm-section-head"><span class="pm-section-icon"><span class="mi">tune</span></span><div style="min-width:0;flex:1;"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><div class="pm-section-title">Tipo de produto</div><button type="button" class="pm-help-btn" onclick="Modules.Catalogo._openProductTypeHelpModal()"><span class="mi" style="font-size:15px;">help</span>Como preencher?</button></div><div class="pm-section-text">Escolha se o item será vendido sozinho ou com escolhas, como combos e menus.</div></div></div>
+            <div class="pm-section-head"><span class="pm-section-icon"><span class="mi">tune</span></span><div style="min-width:0;flex:1;"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><div class="pm-section-title">Como a cliente compra</div><button type="button" class="pm-help-btn" onclick="Modules.Catalogo._openProductTypeHelpModal()"><span class="mi" style="font-size:15px;">help</span>Como preencher?</button></div><div class="pm-section-text">Primeiro escolha o que acontece para a cliente no cardápio: ela só adiciona o produto ou precisa escolher sabores, tamanhos, acompanhamentos ou itens do menu.</div></div></div>
             <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px;">
               <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;"><input type="radio" name="pm-tipo" value="unico"${tipoUnico ? ' checked' : ''} onchange="Modules.Catalogo._onTipoChange();Modules.Catalogo._refreshProductPreview()" style="accent-color:#B42318;"> Produto simples</label>
               <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;"><input type="radio" name="pm-tipo" value="menu"${tipoMenu ? ' checked' : ''} onchange="Modules.Catalogo._onTipoChange();Modules.Catalogo._refreshProductPreview()" style="accent-color:#B42318;"> Produto com escolhas / combo</label>
             </div>
             <div id="pm-panel-unico" style="display:${tipoUnico ? 'block' : 'none'};">
+              <div style="font-size:12px;font-weight:800;color:#1F1F1F;margin-bottom:8px;">De onde vem esse produto simples?</div>
+              <div style="font-size:12px;color:#6F6860;line-height:1.45;margin-bottom:10px;">Escolha só uma opção. Isso evita baixar estoque duas vezes.</div>
               <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px;">
                 <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;"><input type="radio" name="pm-unico-src" value="receita"${unicoSubReceita ? ' checked' : ''} onchange="Modules.Catalogo._onUnicoSrcChange();Modules.Catalogo._refreshProductPreview()" style="accent-color:#B42318;"> Receita</label>
                 <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;"><input type="radio" name="pm-unico-src" value="produto_pronto"${unicoSubPronto ? ' checked' : ''} onchange="Modules.Catalogo._onUnicoSrcChange();Modules.Catalogo._refreshProductPreview()" style="accent-color:#B42318;"> Produto pronto</label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;"><input type="radio" name="pm-unico-src" value="composicao_interna"${unicoSubComposicao ? ' checked' : ''} onchange="Modules.Catalogo._onUnicoSrcChange();Modules.Catalogo._refreshProductPreview()" style="accent-color:#B42318;"> Montagem interna</label>
               </div>
               <div id="pm-unico-receita-panel" style="display:${unicoSubReceita ? 'block' : 'none'};margin-bottom:10px;"><label style="${_fichaLbl()}">Receita</label><select id="pm-ficha-id" style="${_fichaInp()}background:#fff;"><option value="">Selecionar receita...</option>${fichaOptions}</select></div>
               <div id="pm-unico-pronto-panel" style="display:${unicoSubPronto ? 'block' : 'none'};margin-bottom:10px;"><label style="${_fichaLbl()}">Produto pronto</label><select id="pm-pronto-id" style="${_fichaInp()}background:#fff;"><option value="">Selecionar produto pronto...</option>${prontoOptions}</select></div>
+              <div id="pm-unico-composicao-panel" style="display:${unicoSubComposicao ? 'block' : 'none'};margin-bottom:10px;">
+                <div style="background:#FFFCF8;border:1px solid #E8DCD7;border-radius:14px;padding:11px 12px;margin-bottom:11px;font-size:12px;color:#6F6860;line-height:1.45;">
+                  Use quando a cliente compra um item simples, mas por dentro ele é montado com outras coisas do estoque. Preencha tudo que sai do estoque para <strong style="color:#1F1F1F;">1 unidade vendida</strong>, como brigadeiros produzidos e a embalagem final do kit. Isso não aparece para a cliente.
+                </div>
+                <div id="pm-internal-composition-list" style="display:flex;flex-direction:column;gap:9px;">${internalCompositionHtml}</div>
+                <button type="button" onclick="Modules.Catalogo._addInternalCompositionItem()" style="width:100%;padding:10px;border-radius:10px;border:1px dashed #E3D7C9;background:transparent;font-size:13px;font-weight:700;cursor:pointer;color:#7A746B;font-family:inherit;margin-top:9px;">+ Adicionar item interno</button>
+              </div>
             </div>
-          </section>
-          <section style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">
-            <div class="pm-section-head"><span class="pm-section-icon"><span class="mi">inventory_2</span></span><div><div class="pm-section-title">Composição interna</div><div class="pm-section-text">Use quando o cliente compra um produto pronto no cardápio, mas por dentro o BocaFood precisa baixar itens do estoque. Essa informação não aparece para o cliente.</div></div></div>
-            <div style="background:#FFFCF8;border:1px solid #E8DCD7;border-radius:14px;padding:11px 12px;margin-bottom:11px;font-size:12px;color:#6F6860;line-height:1.45;">
-              Inclua tudo que sai do estoque para <strong style="color:#1F1F1F;">1 unidade vendida</strong>, como brigadeiros produzidos, produtos comprados prontos e a embalagem final do kit.
-            </div>
-            <div id="pm-internal-composition-list" style="display:flex;flex-direction:column;gap:9px;">${internalCompositionHtml}</div>
-            <button type="button" onclick="Modules.Catalogo._addInternalCompositionItem()" style="width:100%;padding:10px;border-radius:10px;border:1px dashed #E3D7C9;background:transparent;font-size:13px;font-weight:700;cursor:pointer;color:#7A746B;font-family:inherit;margin-top:9px;">+ Adicionar item interno</button>
           </section>
           <section id="pm-panel-menu" style="display:${tipoMenu ? 'block' : 'none'};background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">
             <div class="pm-section-head"><span class="pm-section-icon"><span class="mi">splitscreen</span></span><div><div class="pm-section-title">Escolhas do combo</div><div class="pm-section-text">Organize as opções que a cliente escolhe antes de adicionar o produto ao pedido.</div></div></div>
@@ -1300,6 +1300,10 @@ Modules.Catalogo = (function () {
     p.categoryId = p.categoryId || p.category || '';
     p.seoDescription = p.seoDescription || p.seoDesc || p.fullDesc || p.shortDesc || '';
     p.type = p.type || (p.category === 'menu' ? 'menu' : 'unico');
+    if (Array.isArray(p.internalComposition) || Array.isArray(p.internalCompositionItems)) {
+      var hasInternal = (p.internalComposition || p.internalCompositionItems || []).some(function (item) { return item && (item.ref || item.itemId || item.fichaId || item.fichaTecnicaId); });
+      if (hasInternal) p.unicoSource = 'composicao_interna';
+    }
     p.featured = p.featured === true || p.popular === true;
     p.popular = p.popular === true || p.featured === true;
     p.fiscal = _ensureProductFiscal(p);
@@ -1719,8 +1723,6 @@ Modules.Catalogo = (function () {
     base = _normalizeProduct(base || {});
     var tipoEl = document.querySelector('input[name="pm-tipo"]:checked');
     var tipo = (tipoEl && tipoEl.value) || base.type || 'unico';
-    var internalCost = _internalCompositionCost(base);
-    if (internalCost > 0) return _moneyLike(internalCost);
     var cost = _moneyLike(base.cost != null ? base.cost :
       (base.custo != null ? base.custo :
       (base.purchasePrice != null ? base.purchasePrice :
@@ -1730,6 +1732,10 @@ Modules.Catalogo = (function () {
     if (tipo === 'unico') {
       var srcEl = document.querySelector('input[name="pm-unico-src"]:checked');
       var src = (srcEl && srcEl.value) || base.unicoSource || 'receita';
+      if (src === 'composicao_interna') {
+        var internalCost = _internalCompositionCost(base);
+        return internalCost > 0 ? _moneyLike(internalCost) : 0;
+      }
       if (src === 'receita') {
         var fichaId = ((document.getElementById('pm-ficha-id') || {}).value || base.fichaId || '').trim();
         var ficha = _fichas.find(function (f) { return String(f.id) === String(fichaId); });
@@ -2312,10 +2318,13 @@ Modules.Catalogo = (function () {
   function _onUnicoSrcChange() {
     var val = document.querySelector('input[name="pm-unico-src"]:checked');
     var isReceita = !val || val.value === 'receita';
+    var isComposicao = val && val.value === 'composicao_interna';
     var rp = document.getElementById('pm-unico-receita-panel');
     var pp = document.getElementById('pm-unico-pronto-panel');
+    var cp = document.getElementById('pm-unico-composicao-panel');
     if (rp) rp.style.display = isReceita ? 'block' : 'none';
-    if (pp) pp.style.display = isReceita ? 'none' : 'block';
+    if (pp) pp.style.display = (!isReceita && !isComposicao) ? 'block' : 'none';
+    if (cp) cp.style.display = isComposicao ? 'block' : 'none';
     _refreshProductPreview();
   }
 
@@ -2326,9 +2335,10 @@ Modules.Catalogo = (function () {
           '<div style="font-size:15px;font-weight:850;color:#1F1F1F;margin-bottom:5px;">Antes de escolher, pense em como a cliente compra esse item.</div>' +
           '<div style="font-size:13px;color:#5F5750;line-height:1.5;">Se ela só clica e adiciona, é simples. Se ela precisa escolher sabor, tamanho, bebida, acompanhamento ou montar um menu, é produto com escolhas.</div>' +
         '</section>' +
-        _productTypeHelpBlock('Produto simples', 'Use quando o produto é vendido direto, sem escolha obrigatória.', ['Coxinha de frango', 'Brigadeiro', 'Guaraná lata', 'Bolo de pote já definido'], 'Depois escolha se ele vem de uma receita ou de um produto pronto comprado.') +
+        _productTypeHelpBlock('Produto simples', 'Use quando o produto é vendido direto, sem escolha obrigatória.', ['Coxinha de frango', 'Brigadeiro', 'Guaraná lata', 'Bolo de pote já definido'], 'Depois escolha se ele vem de uma receita, de um produto pronto comprado ou de uma montagem interna.') +
         _productTypeHelpBlock('Receita', 'Use quando o produto é preparado pelo negócio.', ['Coxinha feita com massa e recheio', 'Bolo produzido na cozinha', 'Brigadeiro feito por receita'], 'Vincule a receita para o BocaFood puxar custo, rendimento e margem com mais segurança.') +
         _productTypeHelpBlock('Produto pronto', 'Use quando você compra o item já pronto e revende.', ['Bebida', 'Doce de fornecedor', 'Produto embalado comprado pronto'], 'Vincule ao produto pronto cadastrado em Compras para o custo entrar certo.') +
+        _productTypeHelpBlock('Montagem interna', 'Use quando o produto vendido é um kit ou caixa montada com vários itens do estoque.', ['Caixa com 4 brigadeiros', 'Kit presente com doce e embalagem', 'Caixa mista com sabores já definidos'], 'Escolha esta opção no lugar de Receita ou Produto pronto. Assim o BocaFood baixa somente os itens internos e não duplica a saída do estoque.') +
         _productTypeHelpBlock('Produto com escolhas / combo', 'Use quando a cliente precisa escolher algo antes de adicionar ao pedido.', ['Escolher sabor', 'Escolher tamanho', 'Escolher bebida do combo', 'Escolher acompanhamento ou sobremesa'], 'Depois crie os grupos em Escolhas do combo. Cada grupo deve deixar claro o que a cliente precisa escolher.') +
         _productTypeHelpBlock('Escolhas do combo', 'Use para organizar cada pergunta feita à cliente.', ['Bebida: Coca, Guaraná ou água', 'Sabor: frango, carne ou queijo', 'Acompanhamento: batata ou salada'], 'Cada grupo pode ter quantidade mínima e máxima de escolhas. Use nomes simples para a cliente entender rápido.') +
         '<section style="border:1px solid #EADFD8;background:#fff;border-radius:16px;padding:14px;">' +
@@ -2904,13 +2914,16 @@ Modules.Catalogo = (function () {
       }
     }
     var publicVariants = _publicVariantsForProduct(menuChoiceGroups, variantGroupIds);
-    var internalCompositionError = _validateInternalCompositionRows();
-    if (internalCompositionError) {
-      _setProductModalError(internalCompositionError);
-      UI.toast(internalCompositionError, 'error');
-      return;
+    var usesInternalComposition = tipo === 'unico' && unicoSrc === 'composicao_interna';
+    if (usesInternalComposition) {
+      var internalCompositionError = _validateInternalCompositionRows();
+      if (internalCompositionError) {
+        _setProductModalError(internalCompositionError);
+        UI.toast(internalCompositionError, 'error');
+        return;
+      }
     }
-    var internalComposition = _collectInternalComposition();
+    var internalComposition = usesInternalComposition ? _collectInternalComposition() : [];
     var selectedTags = tags.filter(function (tag) { return tag && tag.text; });
     var primaryTag = selectedTags[0] || {};
     var selectedPairing = firstText(base.pairing, base.pairingId, base.pairingProductId, '');

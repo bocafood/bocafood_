@@ -1,5 +1,21 @@
 # AI Changelog
 
+## 2026-06-01 — Cardápio: texto da matriz removido
+- Arquivos alterados: `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Removi o título e o texto explicativo `Matriz BCG do cardápio` da área de KPIs dos produtos.
+- Mantive os cards e a lógica de classificação dos produtos sem alteração.
+- Impacto esperado: a tela fica mais limpa e evita linguagem técnica para a usuária.
+
+## 2026-06-01 — Cardápio: montagem interna como origem
+- Arquivos alterados: `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Reorganizei o cadastro do produto para evitar confusão entre receita, produto pronto e composição interna.
+- `Montagem interna` agora aparece como uma terceira opção de origem do produto simples, no mesmo nível de `Receita` e `Produto pronto`.
+- Quando a usuária escolhe `Montagem interna`, o preenchimento da composição aparece no mesmo bloco e as opções de receita/produto pronto ficam ocultas.
+- Ao salvar, a composição interna só é mantida quando essa origem está selecionada, evitando risco de baixa de estoque duplicada.
+- Produtos que já tinham composição interna salva passam a abrir automaticamente como `Montagem interna`, evitando conflito visual com `Receita` ou `Produto pronto`.
+- Atualizei o modal `Como preencher` para explicar quando usar montagem interna.
+- Impacto esperado: a usuária escolhe uma única origem do produto e entende melhor quando usar kits, caixas e montagens internas.
+
 ## 2026-06-01 — Cardápio: composição interna de produto
 - Arquivos alterados: `public/js/modules/catalogo.js`, `public/js/modules/pedidos.js`, `public/js/modules/estoque.js`, `AI_CHANGELOG.md`.
 - Adicionei no cadastro de produto do Cardápio a seção opcional `Composição interna`.
