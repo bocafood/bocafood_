@@ -1,5 +1,19 @@
 # AI Changelog
 
+## 2026-06-01 — Performance: contas a pagar no financeiro
+- Arquivos alterados: `public/js/modules/performance.js`, `AI_CHANGELOG.md`.
+- Corrigi a aba `Financeiro` dentro de Performance para considerar também a coleção `contas_pagar`, além de `financeiro_saidas` e `financeiro_apagar`.
+- Ajustei a leitura de status das saídas para separar corretamente contas pendentes, vencidas, parciais e pagas.
+- A aba agora mostra o total de `Contas a pagar` e uma lista curta com os próximos vencimentos do período.
+- Impacto esperado: contas cadastradas em Financeiro > Saídas aparecem na Performance como contas a pagar, sem serem confundidas com dinheiro que já saiu do caixa.
+
+## 2026-06-01 — Performance: mensagens com valores reais
+- Arquivos alterados: `public/js/modules/performance.js`, `AI_CHANGELOG.md`.
+- Ajustei a copy dos cards de acompanhamento da Performance para falar de forma mais próxima com a usuária.
+- A `Leitura prática` agora mostra comparações específicas, como ticket médio atual versus ticket planejado, diferença em euros, canal que mais respondeu e projeção do mês contra a rota.
+- Também suavizei os status do card `Como está o mês`, mantendo a leitura de início de mês menos pesada e deixando as mensagens de atenção mais orientadas para ação.
+- Impacto esperado: a usuária entende melhor o que está acontecendo no negócio sem precisar interpretar mensagens genéricas ou técnicas.
+
 ## 2026-06-01 — Performance: leitura mais leve no início do mês
 - Arquivos alterados: `public/js/modules/performance.js`, `AI_CHANGELOG.md`.
 - Ajustei a copy e os status do módulo Performance para tratar os dois primeiros dias do mês como leitura inicial.

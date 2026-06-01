@@ -52,6 +52,7 @@ Modules.Performance = (function () {
       _safeAll('financeiro_entradas'),
       _safeAll('financeiro_saidas'),
       _safeAll('financeiro_apagar'),
+      _safeAll('contas_pagar'),
       _safeAll('financeiro_categorias'),
       _safeAll('flight_plans'),
       _safeAll('flight_plan_month_scenarios'),
@@ -61,15 +62,15 @@ Modules.Performance = (function () {
     ]).then(function (r) {
       _data.orders = Array.isArray(r[0]) ? r[0] : [];
       _data.entries = _normalizeEntries(r[1], r[2]);
-      _data.exits = _normalizeExits(r[3], r[4]);
-      _data.categories = Array.isArray(r[5]) ? r[5] : [];
-      _data.snapshots = Array.isArray(r[6]) ? r[6].slice().sort(function (a, b) {
+      _data.exits = _normalizeExits(r[3], r[4], r[5]);
+      _data.categories = Array.isArray(r[6]) ? r[6] : [];
+      _data.snapshots = Array.isArray(r[7]) ? r[7].slice().sort(function (a, b) {
         return _ts(b.createdAt) - _ts(a.createdAt);
       }) : [];
-      _data.monthScenarios = Array.isArray(r[7]) ? r[7].filter(Boolean) : [];
-      _data.monthScenario = _resolveMonthScenario(_state.scenarioMonthKey, r[8] || null, _data.monthScenarios, _data.snapshots);
-      _data.money = _normalizeMoney(r[9] || {});
-      _data.channels = _normalizeConfiguredChannels(r[10] || {});
+      _data.monthScenarios = Array.isArray(r[8]) ? r[8].filter(Boolean) : [];
+      _data.monthScenario = _resolveMonthScenario(_state.scenarioMonthKey, r[9] || null, _data.monthScenarios, _data.snapshots);
+      _data.money = _normalizeMoney(r[10] || {});
+      _data.channels = _normalizeConfiguredChannels(r[11] || {});
       _loading = false;
     }).catch(function (err) {
       _loading = false;
@@ -177,7 +178,7 @@ Modules.Performance = (function () {
     return _dedupe(arr).sort(function (a, b) { return b.ts - a.ts; });
   }
 
-  function _normalizeExits(saidas, apagar) {
+  function _normalizeExits(saidas, apagar, contasPagar) {
     var arr = [];
     (Array.isArray(saidas) ? saidas : []).forEach(function (m) {
       arr.push(_normalizeCashFlow(m, 'saida', 'financeiro_saidas'));
@@ -185,25 +186,28 @@ Modules.Performance = (function () {
     (Array.isArray(apagar) ? apagar : []).forEach(function (m) {
       arr.push(_normalizeCashFlow(m, 'saida', 'financeiro_apagar'));
     });
+    (Array.isArray(contasPagar) ? contasPagar : []).forEach(function (m) {
+      arr.push(_normalizeCashFlow(m, 'saida', 'contas_pagar'));
+    });
     return _dedupe(arr).sort(function (a, b) { return b.ts - a.ts; });
   }
 
   function _normalizeCashFlow(item, kind, source) {
     item = item || {};
-    var status = _normalizeText(item.status || item.state || '');
     var rawValue = _num(item.valor != null ? item.valor : item.value);
     var totalOriginal = _num(item.valorTotalOriginal != null ? item.valorTotalOriginal : item.valor_total_original != null ? item.valor_total_original : rawValue);
     var valueRow = _num(item.valorParcela != null ? item.valorParcela : item.valor_parcela != null ? item.valor_parcela : rawValue || totalOriginal);
     var paid = _num(item.valorPago != null ? item.valorPago : item.valor_pago_total != null ? item.valor_pago_total : item.valorRecebido != null ? item.valorRecebido : item.valor_recebido_total != null ? item.valor_recebido_total : 0);
     var pending = _num(item.saldoRestante != null ? item.saldoRestante : item.saldo_restante != null ? item.saldo_restante : Math.max(0, totalOriginal - paid));
-    var date = _cashDate(item);
+    var status = _normalizeCashStatus(item, kind, source, item.status || item.state || '', paid, totalOriginal || valueRow);
+    var date = _cashDate(item, kind, status);
     var category = _normalizeCategoryName(item.categoria || item.category || item.cat || item.categoryName || item.tipo || '');
     var channel = _normalizeChannelKey(item.channel || item.canal || item.source || '');
     var customer = _normalizeText(item.pessoaNome || item.customerName || item.nome || item.fornecedorNome || item.supplierName || '');
     var desc = _normalizeText(item.descricao || item.description || item.nome || item.title || '');
     var effective = kind === 'entrada'
       ? (status === 'parcial' ? (paid || valueRow - pending) : (status === 'efetivado' || status === 'pago' ? (paid || valueRow) : (status === 'previsto' ? 0 : (paid || valueRow))))
-      : (status === 'parcial' ? (paid || valueRow - pending) : (status === 'pago' || status === 'efetivado' ? (paid || valueRow) : (status === 'vencido' ? 0 : (paid || valueRow))));
+      : (status === 'parcial' ? (paid || valueRow - pending) : (status === 'pago' || status === 'efetivado' ? (paid || valueRow) : 0));
 
     return {
       id: String(item.id || item._id || item.docId || kind + '-' + Math.random().toString(36).slice(2)),
@@ -267,6 +271,11 @@ Modules.Performance = (function () {
     var pendingPayables = exits.filter(function (x) { return x.kind === 'saida' && (x.status === 'pendente' || x.status === 'vencido' || x.status === 'parcial'); }).reduce(function (s, x) {
       return s + (x.status === 'parcial' ? x.pendingValue : x.valueRow);
     }, 0);
+    var pendingPayableRows = exits.filter(function (x) {
+      return x.kind === 'saida' && (x.status === 'pendente' || x.status === 'vencido' || x.status === 'parcial');
+    }).sort(function (a, b) {
+      return a.ts - b.ts;
+    }).slice(0, 5);
     var netCash = actualEntries - actualExits;
     var marginPct = actualRevenue > 0 ? ((actualRevenue - actualExits) / actualRevenue) * 100 : 0;
     var periodPrev = _previousRange(range.start, range.end);
@@ -297,15 +306,16 @@ Modules.Performance = (function () {
     var scenarioRevenue = monthTarget.revenue;
     var scenarioProfit = monthTarget.profit;
     var scenarioCash = monthTarget.cashFinal;
+    var targetAverageTicket = monthTarget.averageTicket;
     var rateLabel;
     var monthStarting = targetRevenue && daysElapsedMonth <= 2 && progressPct < 92;
-    if (!targetRevenue) rateLabel = 'Crie uma rota no Plano de Voo para acompanhar se o mês está no caminho certo.';
-    else if (monthStarting) rateLabel = 'O mês acabou de começar. Use estes primeiros dias para observar pedidos, ticket e caixa antes de cobrar ritmo.';
-    else if (progressPct >= 100 && marginPct >= _data.money.desiredMarginPct) rateLabel = 'Bom desempenho: o ritmo e a margem estão saudáveis.';
-    else if (progressPct >= 85) rateLabel = 'Atenção: o mês ainda pode fechar bem, mas o ritmo precisa ser mantido.';
-    else rateLabel = 'O mês está abaixo do ritmo. Vale buscar mais pedidos nos próximos dias.';
+    if (!targetRevenue) rateLabel = 'Escolha uma rota no Plano de Voo para acompanhar o mês com mais clareza.';
+    else if (monthStarting) rateLabel = 'O mês está só começando. Observe os primeiros pedidos antes de cobrar ritmo.';
+    else if (progressPct >= 100 && marginPct >= _data.money.desiredMarginPct) rateLabel = 'Seu mês está caminhando bem e a margem acompanha esse resultado.';
+    else if (progressPct >= 85) rateLabel = 'Seu mês pede atenção, mas ainda há tempo para ajustar o ritmo.';
+    else rateLabel = 'Seu mês precisa de uma reação para voltar ao caminho escolhido.';
     if (targetRevenue && !monthStarting && marginPct < _data.money.minMarginPct) {
-      rateLabel = 'Margem baixa: o caixa está entrando, mas a margem ficou apertada.';
+      rateLabel = 'As vendas estão entrando, mas a sobra ficou apertada. Vale olhar preço, custo e descontos.';
     }
 
     return {
@@ -318,6 +328,7 @@ Modules.Performance = (function () {
       scenarioLabel: scenarioLabel,
       targetRevenue: targetRevenue,
       targetProfit: targetProfit,
+      targetAverageTicket: targetAverageTicket,
       targetMonthStrength: monthTarget.strengthLabel || '',
       targetMonthLabel: monthTarget.monthLabel || _scenarioMonthLabel(),
       scenarioCash: scenarioCash,
@@ -326,6 +337,7 @@ Modules.Performance = (function () {
       actualExits: actualExits,
       pendingReceivables: pendingReceivables,
       pendingPayables: pendingPayables,
+      pendingPayableRows: pendingPayableRows,
       netCash: netCash,
       marginPct: marginPct,
       daysTotal: daysTotal,
@@ -635,7 +647,7 @@ Modules.Performance = (function () {
     var messages = _routeMessages(vm);
     return '' +
       '<section class="perf-panel perf-panel-practical" style="' + _cardStyle() + '">' +
-        _sectionTitle('Leitura prática', 'Sinais simples para decidir o próximo passo do mês.') +
+        _sectionTitle('O que olhar agora', 'Alguns sinais do mês para ajudar você a decidir o próximo passo sem procurar número por número.') +
         '<div class="perf-practical-grid">' +
           messages.map(function (msg) {
             return '<div class="perf-practical-item"><span class="mi" style="color:' + _esc(msg.color) + ';">' + _esc(msg.icon) + '</span><div>' + _esc(msg.text) + '</div></div>';
@@ -651,17 +663,17 @@ Modules.Performance = (function () {
   function _routeStatusInfo(vm) {
     var monthRevenue = _monthRevenue(vm);
     if (!vm.targetRevenue) {
-      return { title: 'Ainda falta uma rota ativa', text: 'Crie uma rota no Plano de Voo para acompanhar se o mês está no caminho certo.', color: '#B45309', bg: '#FFF7ED', border: '#FED7AA', icon: 'info' };
+      return { title: 'Ainda falta escolher a rota do mês', text: 'Crie uma rota no Plano de Voo para acompanhar o mês com mais clareza e ver se o negócio está indo na direção que você escolheu.', color: '#B45309', bg: '#FFF7ED', border: '#FED7AA', icon: 'info' };
     }
     var pct = vm.expectedNow > 0 ? (monthRevenue / vm.expectedNow) * 100 : 0;
     var diff = monthRevenue - vm.expectedNow;
     if (_isMonthStarting(vm) && pct < 92) {
-      return { title: 'O mês está começando', text: 'Ainda é cedo para dizer que o mês saiu da rota. Use estes primeiros dias para observar pedidos, ticket médio e caixa.', color: '#6C8777', bg: '#F4F7F2', border: '#DCE6DA', icon: 'schedule' };
+      return { title: 'O mês está só começando', text: 'Ainda estamos nos primeiros dias. Agora é hora de observar quais produtos começam a sair, por onde chegam os pedidos e como o caixa começa a se movimentar.', color: '#6C8777', bg: '#F4F7F2', border: '#DCE6DA', icon: 'schedule' };
     }
-    if (pct >= 115) return { title: 'Você está acima da rota', text: 'As vendas estão passando do ritmo esperado. Se mantiver assim, o mês pode terminar melhor que o planejado.', color: '#2563EB', bg: '#EEF4FF', border: '#D6E6FF', icon: 'north_east' };
-    if (pct >= 92) return { title: 'Você está dentro da rota', text: 'O mês está perto do caminho escolhido. Continue acompanhando o ritmo dos pedidos.', color: '#1F6F43', bg: '#F0FAF4', border: '#D9F2E3', icon: 'check_circle' };
-    if (pct >= 75) return { title: 'A rota pede atenção', text: 'As vendas estão um pouco abaixo do esperado. Faltam ' + _fmtMoney(Math.abs(diff)) + ' para voltar ao ritmo de hoje.', color: '#B45309', bg: '#FFF7ED', border: '#FED7AA', icon: 'warning' };
-    return { title: 'Você está abaixo do ritmo', text: 'O mês está distante do caminho escolhido. Faltam ' + _fmtMoney(Math.abs(diff)) + ' para voltar ao ritmo esperado até hoje.', color: '#B42318', bg: '#FFF0EE', border: '#F3C7C1', icon: 'priority_high' };
+    if (pct >= 115) return { title: 'Seu mês começou mais forte que o esperado', text: 'As vendas já estão ' + _fmtMoney(Math.abs(diff)) + ' acima do que estava previsto para hoje. Vale entender o que está puxando esse resultado para repetir nos próximos dias.', color: '#2563EB', bg: '#EEF4FF', border: '#D6E6FF', icon: 'north_east' };
+    if (pct >= 92) return { title: 'Seu mês está caminhando bem', text: 'As vendas estão perto do caminho escolhido. Continue cuidando dos produtos que mais saem, do ticket médio e dos custos para manter essa direção.', color: '#1F6F43', bg: '#F0FAF4', border: '#D9F2E3', icon: 'check_circle' };
+    if (pct >= 75) return { title: 'Seu mês pede um pouco mais de atenção', text: 'As vendas estão ' + _fmtMoney(Math.abs(diff)) + ' abaixo do ritmo esperado para hoje. Ainda há tempo para ajustar produtos, canais ou horários.', color: '#B45309', bg: '#FFF7ED', border: '#FED7AA', icon: 'warning' };
+    return { title: 'Seu mês precisa de uma reação', text: 'As vendas estão ' + _fmtMoney(Math.abs(diff)) + ' abaixo do caminho escolhido para hoje. O melhor agora é escolher uma ação simples em Temporadas para trazer pedidos com mais foco.', color: '#B42318', bg: '#FFF0EE', border: '#F3C7C1', icon: 'priority_high' };
   }
 
   function _routeMessages(vm) {
@@ -671,18 +683,52 @@ Modules.Performance = (function () {
     var ticket = _monthTicket(vm);
     var needed = ticket > 0 && remaining > 0 ? Math.max(1, Math.ceil((remaining / ticket) / Math.max(1, vm.daysLeftMonth || 1))) : 0;
     var out = [{ icon: status.icon, color: status.color, text: status.text }];
+    if (!vm.targetRevenue) {
+      out.push(_ticketComparisonMessage(vm));
+      out.push(_channelSignalMessage(vm));
+      return out;
+    }
     if (_isMonthStarting(vm)) {
-      out.push({ icon: 'shopping_bag', color: '#8A6F5A', text: 'Por enquanto, observe quais produtos começam a vender, qual ticket médio aparece e quais canais trazem os primeiros pedidos.' });
-      out.push({ icon: 'event_available', color: '#6C8777', text: 'Depois dos primeiros dias, a Performance começa a pesar melhor se o mês está dentro, em atenção ou abaixo da rota.' });
+      out.push(_ticketComparisonMessage(vm));
+      out.push(_channelSignalMessage(vm));
       return out;
     }
     out.push(remaining > 0
-      ? { icon: 'shopping_bag', color: '#8A6F5A', text: 'Para fechar o mês dentro da rota, faltam ' + _fmtMoney(remaining) + '. Com o ticket atual, isso pede cerca de ' + needed + ' pedidos por dia.' }
+      ? { icon: 'shopping_bag', color: '#8A6F5A', text: 'Para chegar na meta do mês, ainda faltam ' + _fmtMoney(remaining) + '. Com o ticket médio atual de ' + (ticket > 0 ? _fmtMoney(ticket) : 'sem base') + ', isso pede cerca de ' + needed + ' pedidos por dia daqui pra frente.' }
       : { icon: 'celebration', color: '#1F6F43', text: 'A meta de venda do mês já foi alcançada. Agora vale observar se os custos seguem dentro do esperado.' });
+    out.push(_ticketComparisonMessage(vm));
     out.push(_num(vm.paceProjection) < _num(vm.targetRevenue)
-      ? { icon: 'schedule', color: '#B45309', text: 'Mantendo o ritmo atual, o mês pode terminar em ' + _fmtMoney(vm.paceProjection) + ', abaixo do planejado.' }
-      : { icon: 'trending_up', color: '#2563EB', text: 'Mantendo o ritmo atual, o mês pode terminar em ' + _fmtMoney(vm.paceProjection) + '.' });
+      ? { icon: 'schedule', color: '#B45309', text: 'Mantendo o ritmo atual, o mês pode terminar em ' + _fmtMoney(vm.paceProjection) + '. A rota do mês é ' + _fmtMoney(vm.targetRevenue) + ', então ficaria ' + _fmtMoney(Math.abs(_num(vm.targetRevenue) - _num(vm.paceProjection))) + ' abaixo do planejado.' }
+      : { icon: 'trending_up', color: '#2563EB', text: 'Mantendo o ritmo atual, o mês pode terminar em ' + _fmtMoney(vm.paceProjection) + '. A rota do mês é ' + _fmtMoney(vm.targetRevenue) + ', então ficaria ' + _fmtMoney(Math.abs(_num(vm.paceProjection) - _num(vm.targetRevenue))) + ' acima do planejado.' });
     return out;
+  }
+
+  function _ticketComparisonMessage(vm) {
+    var current = _monthTicket(vm);
+    var planned = _num(vm && vm.targetAverageTicket);
+    if (current > 0 && planned > 0) {
+      var diff = current - planned;
+      return {
+        icon: diff >= 0 ? 'local_activity' : 'sell',
+        color: diff >= 0 ? '#1F6F43' : '#B45309',
+        text: 'O ticket médio atual está em ' + _fmtMoney(current) + '. Na rota, você planejou perto de ' + _fmtMoney(planned) + ', então cada pedido está vindo ' + _fmtMoney(Math.abs(diff)) + (diff >= 0 ? ' acima' : ' abaixo') + ' do planejado.'
+      };
+    }
+    if (current > 0) {
+      return { icon: 'local_activity', color: '#8A6F5A', text: 'O ticket médio atual está em ' + _fmtMoney(current) + '. Use esse valor para sentir se os pedidos estão vindo fortes o suficiente para o mês.' };
+    }
+    if (planned > 0) {
+      return { icon: 'local_activity', color: '#8A6F5A', text: 'A rota foi criada com ticket médio perto de ' + _fmtMoney(planned) + '. Assim que os primeiros pedidos entrarem, a Performance compara o valor real com esse plano.' };
+    }
+    return { icon: 'local_activity', color: '#8A6F5A', text: 'Ainda não há ticket médio suficiente para comparar. Quando os pedidos entrarem, este card mostra se cada venda está vindo mais forte ou mais fraca que o planejado.' };
+  }
+
+  function _channelSignalMessage(vm) {
+    var channel = vm && vm.bestChannel;
+    if (channel && channel.label) {
+      return { icon: 'storefront', color: '#6C8777', text: 'O canal que mais respondeu até agora foi ' + channel.label + ', com ' + _fmtMoney(channel.value || 0) + ' em vendas neste período. Use esse sinal para decidir onde vale concentrar a próxima ação.' };
+    }
+    return { icon: 'storefront', color: '#6C8777', text: 'Ainda não apareceu um canal puxando as vendas. Quando os pedidos entrarem, a Performance mostra qual canal está ajudando mais o mês.' };
   }
 
   function _isMonthStarting(vm) {
@@ -773,15 +819,40 @@ Modules.Performance = (function () {
         '</div>' +
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:14px;">' +
           _miniMetric('A receber', _fmtMoney(pendingReceivables), '#6C8777') +
-          _miniMetric('A pagar', _fmtMoney(pendingPayables), '#B45309') +
+          _miniMetric('Contas a pagar', _fmtMoney(pendingPayables), '#B45309') +
           _miniMetric('Saldo líquido', _fmtMoney(vm.netCash), vm.netCash >= 0 ? '#1F6F43' : '#B42318') +
           _miniMetric('Margem operacional', vm.marginPct.toFixed(1) + '%', vm.marginPct >= _data.money.desiredMarginPct ? '#1F6F43' : (vm.marginPct >= _data.money.minMarginPct ? '#B45309' : '#B42318')) +
         '</div>' +
+        _pendingPayablesList(vm.pendingPayableRows) +
         '<div style="font-size:12px;color:#6F6860;line-height:1.5;">' +
           'O caixa do período ficou ' + (vm.netCash >= 0 ? 'positivo' : 'negativo') + '. ' +
           (vm.marginPct >= _data.money.desiredMarginPct ? 'Margem acima do desejado.' : (vm.marginPct >= _data.money.minMarginPct ? 'Margem perto do mínimo.' : 'Margem abaixo do mínimo.')) +
         '</div>' +
       '</section>';
+  }
+
+  function _pendingPayablesList(rows) {
+    rows = Array.isArray(rows) ? rows : [];
+    if (!rows.length) return '';
+    return '' +
+      '<div style="border:1px solid #F0E3D5;background:#FFFCF8;border-radius:14px;padding:12px;margin:0 0 14px;">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px;flex-wrap:wrap;">' +
+          '<strong style="font-size:13px;color:#1F1F1F;">Próximas contas a pagar</strong>' +
+          '<span style="font-size:11px;color:#8A6F5A;font-weight:700;">Até 5 vencimentos do período</span>' +
+        '</div>' +
+        rows.map(function (row) {
+          var color = row.status === 'vencido' ? '#B42318' : (row.status === 'parcial' ? '#B45309' : '#6C8777');
+          var amount = row.status === 'parcial' ? row.pendingValue : row.valueRow;
+          return '' +
+            '<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 0;border-top:1px solid #F1E6DD;">' +
+              '<div style="min-width:0;">' +
+                '<div style="font-size:13px;font-weight:700;color:#1F1F1F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(row.description || 'Conta a pagar') + '</div>' +
+                '<div style="font-size:11.5px;color:#6F6860;margin-top:2px;">' + _esc(row.labelDate) + ' · ' + _esc(row.category || 'Sem categoria') + ' · ' + _esc(_cashStatusLabel(row.status)) + '</div>' +
+              '</div>' +
+              '<strong style="font-size:13px;color:' + color + ';white-space:nowrap;">' + _fmtMoney(amount) + '</strong>' +
+            '</div>';
+        }).join('') +
+      '</div>';
   }
 
   function _categoriesCard(vm) {
@@ -1147,6 +1218,7 @@ Modules.Performance = (function () {
       revenue: monthRevenue,
       profit: monthShare > 0 ? routeProfit * monthShare : 0,
       cashFinal: _num(summary.cashFinal != null ? summary.cashFinal : 0),
+      averageTicket: _num(summary.averageTicket || 0),
       monthFactor: effectiveMonthWeight,
       strengthLabel: strength.label,
       monthLabel: monthRow && monthRow.label ? monthRow.label : _monthLabelFromKey(_state.scenarioMonthKey || _currentMonthKey())
@@ -1520,8 +1592,42 @@ Modules.Performance = (function () {
     return String(v == null ? '' : v).trim().toLowerCase();
   }
 
-  function _cashDate(item) {
-    return _dateFromTs(_ts(item && (item.createdAt || item.updatedAt || item.date || item.dueDate || item.vencimento || item.data)));
+  function _normalizeCashStatus(item, kind, source, rawStatus, paid, total) {
+    var status = _normalizeText(rawStatus || '');
+    if (status === 'paga' || status === 'pago' || status === 'ja-pago' || status === 'já pago' || status === 'já paga') return 'pago';
+    if (status === 'recebido' || status === 'recebida' || status === 'efetivada') return 'efetivado';
+    if (status === 'a pagar' || status === 'pendente' || status === 'aberto' || status === 'em aberto') return 'pendente';
+    if (status === 'a receber' || status === 'prevista') return 'previsto';
+    if (status === 'parcial' || status === 'parcialmente pago' || status === 'parcialmente recebido') return 'parcial';
+    if (status === 'vencida' || status === 'vencido') return 'vencido';
+    if (status) return status;
+
+    if (kind === 'entrada') return 'efetivado';
+
+    var dueTs = _ts(item && (item.vencimento || item.dueDate || item.data_vencimento || item.dataVencimento || item.data));
+    var isPayable = source === 'contas_pagar' || source === 'financeiro_apagar';
+    if (paid > 0 && paid < total) return 'parcial';
+    if (paid >= total && total > 0) return 'pago';
+    if (item && (item.data_pagamento || item.paidAt)) return 'pago';
+    if (isPayable && dueTs && dueTs < _todayStart().getTime()) return 'vencido';
+    return isPayable ? 'pendente' : 'pago';
+  }
+
+  function _cashStatusLabel(status) {
+    status = _normalizeText(status || '');
+    if (status === 'pago' || status === 'efetivado') return 'Já pago';
+    if (status === 'parcial') return 'Parcial';
+    if (status === 'vencido') return 'Vencida';
+    if (status === 'previsto') return 'Previsto';
+    return 'A pagar';
+  }
+
+  function _cashDate(item, kind, status) {
+    item = item || {};
+    var value = kind === 'saida' && (status === 'pendente' || status === 'vencido' || status === 'parcial')
+      ? (item.vencimento || item.dueDate || item.data_vencimento || item.dataVencimento || item.data || item.date || item.createdAt || item.updatedAt)
+      : (item.data_pagamento || item.paidAt || item.data_recebimento || item.receivedAt || item.date || item.data || item.vencimento || item.dueDate || item.createdAt || item.updatedAt);
+    return _dateFromTs(_ts(value));
   }
 
   function _isCancelledOrder(o) {
