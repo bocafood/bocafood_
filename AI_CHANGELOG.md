@@ -1,5 +1,19 @@
 # AI Changelog
 
+## 2026-06-01 — Plano de Voo: detalhes da rota mês a mês
+- Arquivos alterados: `public/js/modules/plano_voo.js`, `AI_CHANGELOG.md`.
+- Ajustei o modal `Detalhes da rota` para mostrar o `Resumo mês a mês` com o mesmo padrão usado na criação do Plano de Voo.
+- Cada mês agora mantém a leitura com botão `Ver detalhes`, abrindo receitas, custos e despesas daquele mês.
+- Removi do modal o card separado `Saídas previstas`, porque essa informação passa a aparecer dentro dos detalhes mensais.
+- Impacto esperado: a consulta da rota salva fica mais fiel ao momento de criação e evita informação duplicada no modal.
+
+## 2026-06-01 — Performance: origem das entradas
+- Arquivos alterados: `public/js/modules/performance.js`, `AI_CHANGELOG.md`.
+- Troquei o card `Categorias` por `De onde veio o dinheiro`, focado nas entradas reais do período.
+- Removi a alternância entre `Entradas` e `Saídas` desse card, porque as saídas agora ficam explicadas no card `Gastos previstos da rota`.
+- A leitura das entradas passa a agrupar por categoria financeira e usa canal/origem como apoio quando a categoria não estiver preenchida.
+- Impacto esperado: a visão geral de Performance fica menos duplicada e mostra de forma mais clara de onde entrou dinheiro no negócio.
+
 ## 2026-06-01 — Performance: gastos por blocos da rota
 - Arquivos alterados: `public/js/modules/performance.js`, `AI_CHANGELOG.md`.
 - Ajustei o card `Gastos por categoria` para virar `Gastos previstos da rota`, comparando blocos globais do Plano de Voo com saídas reais do Financeiro.

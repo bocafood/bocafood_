@@ -1484,18 +1484,13 @@ Modules.PlanoDeVoo = (function () {
 
   function _routeSavedCostsDetails(snap, forecast) {
     var variableRows = (forecast && forecast.variableRows) || [];
-    var fixedRows = (forecast && forecast.fixedRows) || [];
     return '' +
       '<section style="' + _cardStyle() + '">' +
-        _sectionTitle('Custos e compromissos salvos', 'Custos que acompanham as vendas e saídas previstas consideradas na rota.') +
-        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;">' +
-          '<div style="background:#FFFCF8;border:1px solid #E8DCD7;border-radius:14px;padding:12px;">' +
-            '<div style="font-size:13px;font-weight:700;color:#1F1F1F;margin-bottom:8px;">Custos que acompanham as vendas</div>' +
-            (variableRows.length ? variableRows.map(function (row) {
-              return _routeSavedLine(row.name || 'Custo', _fmtMoney(row.projected || 0), (row.pct != null ? _fmtPct(row.displayPct != null ? row.displayPct : row.pct) : '') + (row.sourceLabel ? ' · ' + row.sourceLabel : ''));
-            }).join('') : _routeSavedEmpty('Nenhum custo variável salvo.')) +
-          '</div>' +
-          _routeSavedFixedByMonth(fixedRows, forecast) +
+        _sectionTitle('Custos que acompanham as vendas', 'Custos salvos na rota que crescem junto com as vendas do período.') +
+        '<div style="background:#FFFCF8;border:1px solid #E8DCD7;border-radius:14px;padding:12px;">' +
+          (variableRows.length ? variableRows.map(function (row) {
+            return _routeSavedLine(row.name || 'Custo', _fmtMoney(row.projected || 0), (row.pct != null ? _fmtPct(row.displayPct != null ? row.displayPct : row.pct) : '') + (row.sourceLabel ? ' · ' + row.sourceLabel : ''));
+          }).join('') : _routeSavedEmpty('Nenhum custo variável salvo.')) +
         '</div>' +
       '</section>';
   }
@@ -1568,19 +1563,18 @@ Modules.PlanoDeVoo = (function () {
     var months = (forecast && forecast.monthSeries) || [];
     return '' +
       '<section style="' + _cardStyle() + '">' +
-        _sectionTitle('Resumo mês a mês', 'Distribuição salva para acompanhar a rota ao longo do período.') +
-        (months.length ? '<div><table style="width:100%;border-collapse:separate;border-spacing:0;table-layout:auto;">' +
-          '<thead><tr>' + ['Mês', 'Receita', 'Custos e despesas', 'Lucro', 'Força do mês'].map(_routeSavedTh).join('') + '</tr></thead>' +
+        _sectionTitle('Resumo mês a mês', 'A mesma leitura salva na criação da rota, com receitas, custos, despesas e lucro de cada mês.') +
+        (months.length ? '<div style="overflow-x:auto;"><table class="bf-table" style="width:100%;border-collapse:separate;border-spacing:0;min-width:860px;">' +
+          '<thead><tr style="background:#fff;">' + ['Mês', 'Receita', 'Custos e despesas', 'Lucro', 'Detalhes'].map(_routeSavedTh).join('') + '</tr></thead>' +
           '<tbody>' + months.map(function (m) {
             var breakdown = _monthScenarioBreakdown(forecast, m);
             var profit = _num(m.revenue) - _num(breakdown.total);
-            var strength = _monthStrengthInfo(m.factor);
-            return '<tr>' +
+            return '<tr style="background:#fff;transition:background .15s ease;" onmouseenter="this.style.background=\'#FCFBF8\'" onmouseleave="this.style.background=\'#fff\'">' +
               _routeSavedTd(m.label || 'Mês', true) +
               _routeSavedTd(_fmtMoney(m.revenue || 0)) +
               _routeSavedTd(_fmtMoney(breakdown.total || 0)) +
               _routeSavedTd(_fmtMoney(profit), true, profit >= 0 ? '#1F6F43' : '#B42318') +
-              _routeSavedTd(strength.label) +
+              '<td style="padding:10px 12px;border-bottom:1px solid #EAE4DA;vertical-align:top;">' + _monthDetailsHtml(forecast, m, breakdown) + '</td>' +
             '</tr>';
           }).join('') + '</tbody></table></div>' : _routeSavedEmpty('Sem distribuição mensal salva.')) +
       '</section>';

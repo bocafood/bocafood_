@@ -338,6 +338,7 @@ Modules.Performance = (function () {
     var dailyRows = _dailyRows(days, orders, entries, exits, targetRevenue, dailyPlan);
     var channelBreakdown = _channelBreakdown(orders);
     var entryCategories = _categoryBreakdown(entries, 'entrada');
+    var entryOrigins = _entryOriginBreakdown(entries);
     var exitCategories = _categoryBreakdown(exits, 'saida');
     var expensePlanRows = _expensePlanRows(exits);
     var monthScenario = _data.monthScenario || null;
@@ -401,6 +402,7 @@ Modules.Performance = (function () {
       dailyRows: dailyRows,
       channelBreakdown: channelBreakdown,
       entryCategories: entryCategories,
+      entryOrigins: entryOrigins,
       exitCategories: exitCategories,
       expensePlanRows: expensePlanRows,
       monthOrders: monthOrders,
@@ -896,19 +898,15 @@ Modules.Performance = (function () {
   }
 
   function _categoriesCard(vm) {
-    var rows = (vm.selectedCategoryType === 'entradas' ? vm.entryCategories : vm.exitCategories) || [];
+    var rows = vm.entryOrigins || vm.entryCategories || [];
     return '' +
       '<section style="' + _cardStyle() + '">' +
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px;flex-wrap:wrap;">' +
-          _sectionTitle('Categorias', 'Veja onde o dinheiro está se concentrando por tipo de lançamento.') +
-          '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
-            '<button onclick="Modules.Performance._setCategoryType(\'entradas\')" style="border:1px solid ' + (vm.selectedCategoryType === 'entradas' ? '#B42318' : '#EAE4DA') + ';background:' + (vm.selectedCategoryType === 'entradas' ? '#FFF0EE' : '#fff') + ';color:' + (vm.selectedCategoryType === 'entradas' ? '#B42318' : '#1F1F1F') + ';border-radius:999px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Entradas</button>' +
-            '<button onclick="Modules.Performance._setCategoryType(\'saidas\')" style="border:1px solid ' + (vm.selectedCategoryType === 'saidas' ? '#B42318' : '#EAE4DA') + ';background:' + (vm.selectedCategoryType === 'saidas' ? '#FFF0EE' : '#fff') + ';color:' + (vm.selectedCategoryType === 'saidas' ? '#B42318' : '#1F1F1F') + ';border-radius:999px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Saídas</button>' +
-          '</div>' +
+          _sectionTitle('De onde veio o dinheiro', 'Veja quais origens trouxeram entrada para o negócio neste período.') +
         '</div>' +
-        (rows.length ? _barList(rows, vm.selectedCategoryType === 'entradas' ? '#1F6F43' : '#B42318', function (row) {
+        (rows.length ? _barList(rows, '#1F6F43', function (row) {
           return _fmtMoney(row.value);
-        }) : _emptyState('Sem categorias para mostrar', 'Cadastre lançamentos com categoria.')) +
+        }) : _emptyState('Ainda não há entradas para mostrar', 'Quando entrar dinheiro no período, ele aparece aqui agrupado pela origem.')) +
       '</section>';
   }
 
@@ -1124,6 +1122,23 @@ Modules.Performance = (function () {
     });
     return Object.keys(map).map(function (k) { return map[k]; }).sort(function (a, b) { return b.value - a.value; }).slice(0, 8).map(function (row) {
       row.note = row.count + ' lançamento(s)';
+      return row;
+    });
+  }
+
+  function _entryOriginBreakdown(rows) {
+    var map = {};
+    (rows || []).forEach(function (r) {
+      var amount = _cashFlowAmount(r);
+      if (amount <= 0) return;
+      var raw = r.category || r.categoria || r.cat || r.channel || r.canal || r.source || r.type || '';
+      var key = _normalizeCategoryName(raw);
+      if (!map[key]) map[key] = { key: key, label: key, value: 0, count: 0, note: '' };
+      map[key].value += amount;
+      map[key].count += 1;
+    });
+    return Object.keys(map).map(function (k) { return map[k]; }).sort(function (a, b) { return b.value - a.value; }).slice(0, 8).map(function (row) {
+      row.note = row.count === 1 ? '1 entrada' : row.count + ' entradas';
       return row;
     });
   }
