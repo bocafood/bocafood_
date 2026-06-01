@@ -271,12 +271,16 @@ Modules.Catalogo = (function () {
   // ── DRAG-TO-REORDER (Change K) ────────────────────────────────────────────
   function makeSortable(listEl, onReorder) {
     var dragging = null;
-    listEl.querySelectorAll('[draggable]').forEach(function (el) {
+    [].slice.call(listEl.children).filter(function (child) {
+      return child && child.matches && child.matches('[draggable]');
+    }).forEach(function (el) {
       el.addEventListener('dragstart', function () { dragging = el; el.style.opacity = '.4'; });
       el.addEventListener('dragend', function () {
         el.style.opacity = '1';
         dragging = null;
-        onReorder([].slice.call(listEl.querySelectorAll('[data-id]')).map(function (x, i) {
+        onReorder([].slice.call(listEl.children).filter(function (child) {
+          return child && child.dataset && child.dataset.id;
+        }).map(function (x, i) {
           return { id: x.dataset.id, order: i };
         }));
       });
@@ -289,7 +293,9 @@ Modules.Catalogo = (function () {
       });
       el.addEventListener('drop', function (e) {
         e.preventDefault();
-        onReorder([].slice.call(listEl.querySelectorAll('[data-id]')).map(function (x, i) {
+        onReorder([].slice.call(listEl.children).filter(function (child) {
+          return child && child.dataset && child.dataset.id;
+        }).map(function (x, i) {
           return { id: x.dataset.id, order: i };
         }));
       });
@@ -1130,7 +1136,7 @@ Modules.Catalogo = (function () {
           .product-modal-admin details[open] summary span:last-child{transform:rotate(90deg);}
           .product-modal-admin .pm-help-btn{height:30px;border:1px solid #E8DCD7;background:#fff;color:#8A6F5A;border-radius:999px;padding:0 10px;font-family:inherit;font-size:11px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:5px;box-shadow:0 1px 2px rgba(31,31,31,.03);}
           .product-modal-admin .pm-help-btn:hover{background:#FFF8F2;border-color:#E8D1BF;}
-          @media(max-width:760px){.product-modal-admin section:first-of-type>div:nth-child(2){grid-template-columns:1fr!important}.product-modal-admin section:first-of-type>div:nth-child(2)>div:first-child{max-width:100%;}.product-modal-admin section:first-of-type [style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important}.product-modal-admin details>div{grid-template-columns:1fr!important}.product-modal-admin button{min-height:42px;}}
+          @media(max-width:760px){.product-modal-admin section:first-of-type>div:nth-child(2){grid-template-columns:1fr!important}.product-modal-admin section:first-of-type>div:nth-child(2)>div:first-child{max-width:100%;}.product-modal-admin section:first-of-type [style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important}.product-modal-admin details>div{grid-template-columns:1fr!important}.product-modal-admin button{min-height:42px;}.product-modal-admin [data-menu-selected]{grid-template-columns:22px 34px minmax(120px,1fr) 108px 58px 30px!important;min-width:390px;}}
         </style>
         <div style="display:flex;flex-direction:column;gap:14px;">
           <div id="pm-form-error" style="display:none;background:#FDEDEB;border:1px solid #F4C7BF;color:#B42318;padding:10px 12px;border-radius:12px;font-size:12px;font-weight:600;line-height:1.45;"></div>
@@ -1265,6 +1271,7 @@ Modules.Catalogo = (function () {
       _refreshProductPreview();
       var menuListEl = document.getElementById('pm-menu-groups');
       if (menuListEl) makeSortable(menuListEl, function () {});
+      _initMenuOptionSortables();
     }, 100);
   }
 
@@ -2169,17 +2176,27 @@ Modules.Catalogo = (function () {
   function _menuSelectedOptionsHtml(idx, group) {
     var options = group.options || [];
     if (!options.length) return '<div data-menu-empty="' + idx + '" style="font-size:12px;color:#8A7E7C;padding:10px;border:1px dashed #D4C8C6;border-radius:9px;text-align:center;">Nenhuma opção adicionada neste grupo.</div>';
-    return options.map(function (o) {
-      var ent = _entityForMenuRef(o.ref);
-      var img = o.img || _imgForEntity(ent);
-      var imgHtml = img ? '<img src="' + _esc(img) + '" style="width:34px;height:34px;border-radius:8px;object-fit:cover;background:#F2EDED;flex-shrink:0;" onerror="this.style.display=\'none\';">' : '<div style="width:34px;height:34px;border-radius:8px;background:#F2EDED;display:flex;align-items:center;justify-content:center;color:#B9AAA6;flex-shrink:0;"><span class="mi" style="font-size:17px;">restaurant</span></div>';
-      return '<div data-menu-selected="' + idx + '" data-ref="' + _esc(o.ref) + '" data-label="' + _esc(o.label || _labelForMenuRef(o.ref)) + '" data-img="' + _esc(img) + '" style="display:grid;grid-template-columns:34px 1fr 95px 26px;align-items:center;gap:9px;padding:8px 10px;border:1px solid #F2EDED;border-radius:9px;background:#fff;margin-bottom:6px;">' +
-        imgHtml +
-        '<span style="font-size:13px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + _esc(o.label || _labelForMenuRef(o.ref)) + '</span>' +
-        '<label style="display:block;"><span style="display:block;font-size:9px;font-weight:800;text-transform:uppercase;color:#8A7E7C;margin-bottom:2px;">Extra €</span><input data-menu-price="' + idx + '" type="number" step="0.01" value="' + (parseFloat(o.priceExtra || o.price || 0) || '') + '" placeholder="0,00" style="width:100%;padding:6px;border:1.5px solid #D4C8C6;border-radius:7px;font-size:12px;font-family:inherit;outline:none;"></label>' +
-        '<button type="button" onclick="Modules.Catalogo._removeMenuOption(' + idx + ', \'' + _esc(o.ref) + '\')" style="width:26px;height:26px;border-radius:7px;border:none;background:#FFF0EE;color:#B42318;cursor:pointer;font-size:13px;flex-shrink:0;">x</button>' +
-        '</div>';
-    }).join('');
+    return options.map(function (o) { return _menuSelectedOptionRowHtml(idx, o); }).join('');
+  }
+
+  function _menuSelectedOptionRowHtml(idx, option) {
+    var o = option || {};
+    var ent = _entityForMenuRef(o.ref);
+    var img = o.img || _imgForEntity(ent);
+    var label = o.label || _labelForMenuRef(o.ref);
+    var price = _moneyLike(o.priceExtra != null ? o.priceExtra : o.price != null ? o.price : 0);
+    var imgHtml = img ? '<img src="' + _esc(img) + '" style="width:34px;height:34px;border-radius:8px;object-fit:cover;background:#F2EDED;flex-shrink:0;" onerror="this.style.display=\'none\';">' : '<div style="width:34px;height:34px;border-radius:8px;background:#F2EDED;display:flex;align-items:center;justify-content:center;color:#B9AAA6;flex-shrink:0;"><span class="mi" style="font-size:17px;">restaurant</span></div>';
+    return '<div draggable="true" data-id="menu-option-' + idx + '-' + _esc(o.ref) + '" data-menu-selected="' + idx + '" data-ref="' + _esc(o.ref) + '" data-label="' + _esc(label) + '" data-img="' + _esc(img) + '" style="display:grid;grid-template-columns:22px 34px minmax(0,1fr) 112px 58px 26px;align-items:center;gap:8px;padding:8px 10px;border:1px solid #F2EDED;border-radius:9px;background:#fff;margin-bottom:6px;">' +
+      '<span class="mi" title="Arrastar para ordenar" style="color:#D4C8C6;font-size:16px;cursor:grab;">drag_indicator</span>' +
+      imgHtml +
+      '<span style="font-size:13px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + _esc(label) + '</span>' +
+      '<label style="display:block;"><span style="display:block;font-size:9px;font-weight:800;text-transform:uppercase;color:#8A7E7C;margin-bottom:2px;">Valor extra</span><input data-menu-price="' + idx + '" type="text" inputmode="decimal" value="' + _esc(_moneyDisplay(price)) + '" placeholder="€0,00" onfocus="Modules.Catalogo._moneyInputFocus(this)" onblur="Modules.Catalogo._moneyInputBlur(this)" style="width:100%;padding:6px;border:1.5px solid #D4C8C6;border-radius:7px;font-size:12px;font-family:inherit;outline:none;text-align:right;"></label>' +
+      '<div style="display:flex;gap:4px;justify-content:center;">' +
+        '<button type="button" title="Subir" onclick="Modules.Catalogo._moveMenuOption(' + idx + ', \'' + _esc(o.ref) + '\', -1)" style="width:26px;height:26px;border-radius:7px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;cursor:pointer;display:flex;align-items:center;justify-content:center;"><span class="mi" style="font-size:15px;">keyboard_arrow_up</span></button>' +
+        '<button type="button" title="Descer" onclick="Modules.Catalogo._moveMenuOption(' + idx + ', \'' + _esc(o.ref) + '\', 1)" style="width:26px;height:26px;border-radius:7px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;cursor:pointer;display:flex;align-items:center;justify-content:center;"><span class="mi" style="font-size:15px;">keyboard_arrow_down</span></button>' +
+      '</div>' +
+      '<button type="button" onclick="Modules.Catalogo._removeMenuOption(' + idx + ', \'' + _esc(o.ref) + '\')" style="width:26px;height:26px;border-radius:7px;border:none;background:#FFF0EE;color:#B42318;cursor:pointer;font-size:13px;flex-shrink:0;">x</button>' +
+      '</div>';
   }
 
   function _menuSearchOptionsHtml(idx, group) {
@@ -2209,7 +2226,7 @@ Modules.Catalogo = (function () {
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
       '<div>' +
       '<div style="font-size:10px;font-weight:700;color:#8A7E7C;text-transform:uppercase;margin-bottom:5px;">Opções adicionadas</div>' +
-      '<div id="pm-menu-selected-' + idx + '" style="max-height:170px;overflow:auto;padding:8px;border:1px solid #F2EDED;border-radius:9px;background:#FCFAFA;">' + _menuSelectedOptionsHtml(idx, group) + '</div>' +
+      '<div id="pm-menu-selected-' + idx + '" data-menu-selected-list="' + idx + '" style="max-height:170px;overflow:auto;padding:8px;border:1px solid #F2EDED;border-radius:9px;background:#FCFAFA;">' + _menuSelectedOptionsHtml(idx, group) + '</div>' +
       '</div>' +
       '<div>' +
       '<div style="font-size:10px;font-weight:700;color:#8A7E7C;text-transform:uppercase;margin-bottom:5px;">Buscar e adicionar opções</div>' +
@@ -2341,16 +2358,10 @@ Modules.Catalogo = (function () {
     var empty = selectedBox.querySelector('[data-menu-empty]');
     if (empty) empty.remove();
     img = img || '';
-    var imgHtml = img ? '<img src="' + _esc(img) + '" style="width:34px;height:34px;border-radius:8px;object-fit:cover;background:#F2EDED;flex-shrink:0;" onerror="this.style.display=\'none\';">' : '<div style="width:34px;height:34px;border-radius:8px;background:#F2EDED;display:flex;align-items:center;justify-content:center;color:#B9AAA6;flex-shrink:0;"><span class="mi" style="font-size:17px;">restaurant</span></div>';
-    selectedBox.insertAdjacentHTML('beforeend',
-      '<div data-menu-selected="' + idx + '" data-ref="' + _esc(ref) + '" data-label="' + _esc(label) + '" data-img="' + _esc(img) + '" style="display:grid;grid-template-columns:34px 1fr 95px 26px;align-items:center;gap:9px;padding:8px 10px;border:1px solid #F2EDED;border-radius:9px;background:#fff;margin-bottom:6px;">' +
-      imgHtml +
-      '<span style="font-size:13px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + _esc(label) + '</span>' +
-      '<label style="display:block;"><span style="display:block;font-size:9px;font-weight:800;text-transform:uppercase;color:#8A7E7C;margin-bottom:2px;">Extra €</span><input data-menu-price="' + idx + '" type="number" step="0.01" value="" placeholder="0,00" style="width:100%;padding:6px;border:1.5px solid #D4C8C6;border-radius:7px;font-size:12px;font-family:inherit;outline:none;"></label>' +
-      '<button type="button" onclick="Modules.Catalogo._removeMenuOption(' + idx + ', \'' + _esc(ref) + '\')" style="width:26px;height:26px;border-radius:7px;border:none;background:#FFF0EE;color:#B42318;cursor:pointer;font-size:13px;flex-shrink:0;">x</button>' +
-      '</div>');
+    selectedBox.insertAdjacentHTML('beforeend', _menuSelectedOptionRowHtml(idx, { ref: ref, label: label, img: img, priceExtra: 0 }));
     var candidate = candidatesBox.querySelector('[data-ref="' + ref.replace(/"/g, '\\"') + '"]');
     if (candidate) candidate.remove();
+    _initMenuOptionSortables(idx);
   }
 
   function _removeMenuOption(idx, ref) {
@@ -2362,6 +2373,25 @@ Modules.Catalogo = (function () {
       selectedBox.innerHTML = '<div data-menu-empty="' + idx + '" style="font-size:12px;color:#8A7E7C;padding:10px;border:1px dashed #D4C8C6;border-radius:9px;text-align:center;">Nenhuma opção adicionada neste grupo.</div>';
     }
     _refreshMenuCandidates(idx);
+  }
+
+  function _moveMenuOption(idx, ref, direction) {
+    var selectedBox = document.getElementById('pm-menu-selected-' + idx);
+    if (!selectedBox) return;
+    var row = selectedBox.querySelector('[data-ref="' + String(ref).replace(/"/g, '\\"') + '"]');
+    if (!row) return;
+    if (direction < 0 && row.previousElementSibling && row.previousElementSibling.matches('[data-menu-selected]')) {
+      selectedBox.insertBefore(row, row.previousElementSibling);
+    } else if (direction > 0 && row.nextElementSibling && row.nextElementSibling.matches('[data-menu-selected]')) {
+      selectedBox.insertBefore(row.nextElementSibling, row);
+    }
+  }
+
+  function _initMenuOptionSortables(idx) {
+    var selector = idx != null ? '#pm-menu-selected-' + idx : '[data-menu-selected-list]';
+    [].slice.call(document.querySelectorAll(selector)).forEach(function (box) {
+      makeSortable(box, function () {});
+    });
   }
 
   function _filterMenuOptions(idx) {
@@ -2397,6 +2427,7 @@ Modules.Catalogo = (function () {
     window._pmMenuGroupCount = idx + 1;
     container.insertAdjacentHTML('beforeend', _menuGroupRowHtml(idx, { title: 'Escolha', min: 1, max: 1, options: [] }));
     makeSortable(container, function () {});
+    _initMenuOptionSortables(idx);
   }
 
   function _removeMenuGroup(idx) {
@@ -2622,7 +2653,7 @@ Modules.Catalogo = (function () {
           options.push({
             ref: opt.dataset.ref,
             label: opt.dataset.label || opt.dataset.ref,
-            priceExtra: parseFloat(priceEl ? priceEl.value : 0) || 0,
+            priceExtra: _moneyLike(priceEl ? priceEl.value : 0),
             img: opt.dataset.img || ''
           });
         });
@@ -6541,7 +6572,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       '.catalog-config-checkline{display:flex;align-items:center;gap:8px;min-height:40px;}' +
       '.catalog-config-checkline input{width:16px;height:16px;accent-color:#B42318;}' +
       '.catalog-config-checkline label{font-size:13px;font-weight:500;color:#211815;cursor:pointer;}' +
-      '.catalog-config-option-row{display:grid;grid-template-columns:minmax(0,1fr) 96px minmax(0,210px) 32px;gap:10px;align-items:start;padding:12px;border:1px solid #E8DCD7;border-radius:14px;background:#FFFCF8;margin-bottom:9px;max-width:100%;box-sizing:border-box;overflow:hidden;}' +
+      '.catalog-config-option-row{display:grid;grid-template-columns:22px minmax(0,1fr) 110px minmax(0,210px) 34px 32px;gap:10px;align-items:start;padding:12px;border:1px solid #E8DCD7;border-radius:14px;background:#FFFCF8;margin-bottom:9px;max-width:100%;box-sizing:border-box;overflow:hidden;}' +
       '.catalog-config-option-row>*{min-width:0;}' +
       '.catalog-config-option-row .option-remove-btn{align-self:end;flex:0 0 auto;}' +
       '.catalog-config-image-tools{display:grid;grid-template-columns:42px minmax(0,1fr);gap:9px;align-items:center;min-width:0;}' +
@@ -6556,7 +6587,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       '.catalog-config-select-arrow{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:19px;color:#6F6860;line-height:1;pointer-events:none;}' +
       '.catalog-config-chip{display:inline-flex;align-items:center;border-radius:999px;padding:5px 11px;font-size:12px;font-weight:500;line-height:1;white-space:nowrap;}' +
       '.catalog-config-tag-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 13px;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:14px;box-shadow:0 1px 2px rgba(31,31,31,.03);}' +
-      '@media(max-width:980px){.catalog-config-option-row{grid-template-columns:minmax(0,1fr) 96px 32px;}.catalog-config-option-row>div:nth-child(3){grid-column:1/-1}.catalog-config-option-row .option-remove-btn{grid-column:3;grid-row:1;justify-self:end}}' +
+      '@media(max-width:980px){.catalog-config-option-row{grid-template-columns:22px minmax(0,1fr) 110px 34px 32px;}.catalog-config-option-row>div:nth-child(4){grid-column:1/-1}.catalog-config-option-row .option-remove-btn{grid-column:5;grid-row:1;justify-self:end}}' +
       '@media(max-width:760px){.catalog-config-section-head{flex-direction:column}.catalog-config-primary{width:100%}.catalog-config-grid,.catalog-config-grid.compact,.catalog-config-option-row{grid-template-columns:1fr}.catalog-config-item,.catalog-config-tag-row{align-items:flex-start}.catalog-config-actions{align-self:flex-start}.catalog-config-option-row .option-remove-btn{grid-column:auto;grid-row:auto;justify-self:start}}';
     document.head.appendChild(style);
   }
@@ -6989,9 +7020,10 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     option = option || {};
     var img = option.img || option.imageUrl || option.image || '';
     var price = option.priceExtra != null ? option.priceExtra : option.extraPrice != null ? option.extraPrice : option.price || '';
-    return '<div class="vg-option-row catalog-config-option-row" data-option-index="' + index + '">' +
+    return '<div class="vg-option-row catalog-config-option-row" draggable="true" data-id="variant-option-' + index + '" data-option-index="' + index + '">' +
+      '<span class="mi" title="Arrastar para ordenar" style="color:#D4C8C6;font-size:17px;cursor:grab;align-self:center;">drag_indicator</span>' +
       '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Opção</span><input class="vg-option-label" type="text" value="' + _esc(option.label || option.name || '') + '" placeholder="Ex: Carne, queijo, grande..." style="' + _inputStyle() + '"></label>' +
-      '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Valor</span><input class="vg-option-price" type="number" step="0.01" value="' + _esc(price) + '" placeholder="0,00" style="' + _inputStyle() + '"></label>' +
+      '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Valor extra</span><input class="vg-option-price" type="text" inputmode="decimal" value="' + _esc(_moneyDisplay(price)) + '" placeholder="€0,00" onfocus="Modules.Catalogo._moneyInputFocus(this)" onblur="Modules.Catalogo._moneyInputBlur(this)" style="' + _inputStyle() + 'text-align:right;"></label>' +
       '<div style="min-width:0;max-width:100%;"><span style="' + _labelStyle() + '">Imagem</span><div class="catalog-config-image-tools">' +
         '<input class="vg-option-img" type="hidden" value="' + _esc(img) + '">' +
         '<div class="vg-option-preview catalog-config-image-preview">' + (img ? '<img src="' + _esc(img) + '" alt="">' : '<span class="mi" style="font-size:20px;">image</span>') + '</div>' +
@@ -7001,6 +7033,10 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
           '<input type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onchange="Modules.Catalogo._onVariantOptionImageChange(event)" style="display:none;">' +
         '</div><div class="catalog-config-help">JPG, PNG ou WebP. Opcional.</div></div>' +
       '</div></div>' +
+      '<div style="display:flex;flex-direction:column;gap:4px;align-self:center;">' +
+        '<button type="button" title="Subir" onclick="Modules.Catalogo._moveVariantOptionRow(this,-1)" style="width:30px;height:25px;border-radius:8px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;cursor:pointer;display:flex;align-items:center;justify-content:center;"><span class="mi" style="font-size:16px;">keyboard_arrow_up</span></button>' +
+        '<button type="button" title="Descer" onclick="Modules.Catalogo._moveVariantOptionRow(this,1)" style="width:30px;height:25px;border-radius:8px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;cursor:pointer;display:flex;align-items:center;justify-content:center;"><span class="mi" style="font-size:16px;">keyboard_arrow_down</span></button>' +
+      '</div>' +
       '<button type="button" class="option-remove-btn" onclick="Modules.Catalogo._removeVariantOptionRow(this)" style="width:32px;height:42px;border-radius:10px;border:1px solid #EAE4DA;background:#fff;color:#B42318;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;"><span class="mi" style="font-size:16px;">close</span></button>' +
       '</div>';
   }
@@ -7010,6 +7046,20 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     if (!host) return;
     var index = host.querySelectorAll('.vg-option-row').length;
     host.insertAdjacentHTML('beforeend', _variantOptionRowHtml(option || {}, index));
+    _initVariantOptionSortable();
+  }
+
+  function _moveVariantOptionRow(button, direction) {
+    var row = button && button.closest ? button.closest('.vg-option-row') : null;
+    var host = document.getElementById('vg-options-list');
+    if (!row || !host) return;
+    if (direction < 0 && row.previousElementSibling) host.insertBefore(row, row.previousElementSibling);
+    else if (direction > 0 && row.nextElementSibling) host.insertBefore(row.nextElementSibling, row);
+  }
+
+  function _initVariantOptionSortable() {
+    var host = document.getElementById('vg-options-list');
+    if (host) makeSortable(host, function () {});
   }
 
   function _removeVariantOptionRow(button) {
@@ -7077,6 +7127,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
 
     var footer = '<button onclick="Modules.Catalogo._saveVariant()" style="height:40px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:14px;font-weight:650;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">' + (id ? 'Salvar grupo' : 'Criar grupo') + '</button>';
     window._variantModal = UI.modal({ title: id ? 'Editar grupo' : 'Novo grupo de variantes', body: body, footer: footer });
+    setTimeout(_initVariantOptionSortable, 60);
   }
 
   function _saveVariant() {
@@ -7089,7 +7140,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     if (min > max) min = max;
     var options = [].slice.call(document.querySelectorAll('.vg-option-row')).map(function (row) {
       var label = ((row.querySelector('.vg-option-label') || {}).value || '').trim();
-      var price = parseFloat(String(((row.querySelector('.vg-option-price') || {}).value || '0')).replace(',', '.')) || 0;
+      var price = _moneyLike((row.querySelector('.vg-option-price') || {}).value || '0');
       var img = ((row.querySelector('.vg-option-img') || {}).value || '').trim();
       return label ? { label: label, name: label, price: price, priceExtra: price, img: img } : null;
     }).filter(Boolean);
@@ -9391,13 +9442,13 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     _onProductNameChange: _onProductNameChange, _onProductDescChange: _onProductDescChange, _refreshProductPreview: _refreshProductPreview, _moneyInputFocus: _moneyInputFocus, _moneyInputBlur: _moneyInputBlur,
     _seoEdited: _seoEdited, _onTipoChange: _onTipoChange, _onUnicoSrcChange: _onUnicoSrcChange, _openProductTypeHelpModal: _openProductTypeHelpModal, _openProductCategoryCreateModal: _openProductCategoryCreateModal, _saveProductCategoryFromModal: _saveProductCategoryFromModal,
     _addMenuGroup: _addMenuGroup, _removeMenuGroup: _removeMenuGroup,
-    _addMenuOption: _addMenuOption, _removeMenuOption: _removeMenuOption, _filterMenuOptions: _filterMenuOptions,
+    _addMenuOption: _addMenuOption, _removeMenuOption: _removeMenuOption, _moveMenuOption: _moveMenuOption, _filterMenuOptions: _filterMenuOptions,
     _addUpsellProduct: _addUpsellProduct, _removeUpsellProduct: _removeUpsellProduct, _filterUpsellProducts: _filterUpsellProducts,
     _onImgFileChange: _onImgFileChange, _openProductImagePicker: _openProductImagePicker, _removeProductImage: _removeProductImage,
     _onProntoImgChange: _onProntoImgChange, _onFichaImgChange: _onFichaImgChange,
     _openCatModal: _openCatModal, _selectCatColor: _selectCatColor, _uploadCategoryGraphic: _uploadCategoryGraphic, _clearCategoryGraphic: _clearCategoryGraphic, _uploadTemplateCategoryGraphic: _uploadTemplateCategoryGraphic, _moveTemplateCategory: _moveTemplateCategory, _saveCat: _saveCat, _deleteCat: _deleteCat,
     _openProntosModal: _openProntosModal, _savePronto: _savePronto, _deletePronto: _deletePronto,
-    _openVariantModal: _openVariantModal, _addVariantOptionRow: _addVariantOptionRow, _removeVariantOptionRow: _removeVariantOptionRow, _onVariantOptionImageChange: _onVariantOptionImageChange, _removeVariantOptionImage: _removeVariantOptionImage, _toggleProductVariantPreview: _toggleProductVariantPreview, _saveVariant: _saveVariant, _deleteVariant: _deleteVariant,
+    _openVariantModal: _openVariantModal, _addVariantOptionRow: _addVariantOptionRow, _removeVariantOptionRow: _removeVariantOptionRow, _moveVariantOptionRow: _moveVariantOptionRow, _onVariantOptionImageChange: _onVariantOptionImageChange, _removeVariantOptionImage: _removeVariantOptionImage, _toggleProductVariantPreview: _toggleProductVariantPreview, _saveVariant: _saveVariant, _deleteVariant: _deleteVariant,
     _openItemCustoModal: _openItemCustoModal, _saveItemCusto: _saveItemCusto, _deleteItemCusto: _deleteItemCusto,
     _filterItensCusto: _filterItensCusto, _setItensCustoFilter: _setItensCustoFilter, _onItemTipoChange: _onItemTipoChange,
     _openFichaViewModal: _openFichaViewModal, _editFichaFromView: _editFichaFromView,

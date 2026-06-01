@@ -229,8 +229,11 @@ Modules.PlanoDeVoo = (function () {
 
     _buildVariableSeed().forEach(function (row) {
       if (_state.costInclude[row.key] == null) _state.costInclude[row.key] = true;
-      if (_state.costMode[row.key] == null) _state.costMode[row.key] = row.mode;
-      if (_state.costPct[row.key] == null) _state.costPct[row.key] = row.pct;
+      if (row.key === 'indirect') {
+        _state.costMode[row.key] = row.mode;
+        _state.costPct[row.key] = row.pct;
+      } else if (_state.costMode[row.key] == null) _state.costMode[row.key] = row.mode;
+      if (row.key !== 'indirect' && _state.costPct[row.key] == null) _state.costPct[row.key] = row.pct;
       else if (row.key === 'products' && row.pct > 0 && _num(_state.costPct[row.key]) <= 0 && (_state.costMode[row.key] || row.mode) === 'automatico') _state.costPct[row.key] = row.pct;
     });
 
@@ -1774,14 +1777,15 @@ Modules.PlanoDeVoo = (function () {
 
   function _variableRow(row, revenueTotal) {
     var include = _state.costInclude[row.key] !== false;
-    var mode = _state.costMode[row.key] || row.mode || 'automatico';
-    var pct = mode === 'manual' ? _num(_state.costPct[row.key] != null ? _state.costPct[row.key] : row.pct) : _num(row.pct);
+    var locked = row.key === 'indirect';
+    var mode = locked ? (row.mode || 'manual') : (_state.costMode[row.key] || row.mode || 'automatico');
+    var pct = locked ? _num(row.pct) : (mode === 'manual' ? _num(_state.costPct[row.key] != null ? _state.costPct[row.key] : row.pct) : _num(row.pct));
     var displayPct = mode === 'manual' ? pct : _num(row.displayPct != null ? row.displayPct : pct);
     var projected = include ? (row.projected != null ? _num(row.projected) : revenueTotal * (pct / 100)) : 0;
     var note = row.note || (mode === 'manual' ? 'Manual' : 'Automático');
-    var pctField = mode === 'manual'
-      ? '<input type="number" step="0.01" value="' + _esc(pct) + '" onchange="Modules.PlanoDeVoo._setCostPct(\'' + row.key + '\', this.value)" style="' + _inputStyle() + 'height:40px;">'
-      : '<div style="padding:10px 12px;border:1px solid #EAE4DA;border-radius:10px;background:#FAF8F4;font-size:13px;font-weight:600;color:#1F1F1F;">' + _fmtPct(displayPct) + '</div>';
+    var pctField = locked || mode !== 'manual'
+      ? '<div style="padding:10px 12px;border:1px solid #EAE4DA;border-radius:10px;background:#FAF8F4;font-size:13px;font-weight:600;color:#1F1F1F;">' + _fmtPct(displayPct) + '</div>'
+      : '<input type="number" step="0.01" value="' + _esc(pct) + '" onchange="Modules.PlanoDeVoo._setCostPct(\'' + row.key + '\', this.value)" style="' + _inputStyle() + 'height:40px;">';
     return '' +
       '<div style="display:grid;grid-template-columns:28px minmax(230px,1.3fr) minmax(150px,1fr) minmax(150px,.9fr) minmax(120px,130px);gap:10px;align-items:center;min-width:800px;padding:14px 14px;border:1px solid #EAE4DA;border-radius:14px;background:' + (include ? '#fff' : '#FAF8F4') + ';transition:background .15s ease,box-shadow .15s ease;" onmouseenter="this.style.background=\'#FCFBF8\';this.style.boxShadow=\'0 10px 24px rgba(31,31,31,.05)\'" onmouseleave="this.style.background=\'' + (include ? '#fff' : '#FAF8F4') + '\';this.style.boxShadow=\'none\'">' +
         '<label style="display:flex;align-items:center;justify-content:center;"><input type="checkbox" ' + (include ? 'checked' : '') + ' onchange="Modules.PlanoDeVoo._toggleCostInclude(\'' + row.key + '\', this.checked)" style="accent-color:#B42318;width:16px;height:16px;"></label>' +
@@ -1799,7 +1803,7 @@ Modules.PlanoDeVoo = (function () {
         '</div>' +
         '<div style="text-align:right;font-size:12px;color:#6F6860;">' +
           '<div style="margin-bottom:4px;padding:5px 8px;border-radius:999px;background:' + (mode === 'manual' ? '#F2F7FF' : '#F0FAF4') + ';color:' + (mode === 'manual' ? '#2F5F93' : '#1F6F43') + ';font-size:11px;font-weight:600;">' + (mode === 'manual' ? 'Manual' : 'Automático') + '</div>' +
-          (row.sourceLabel || 'Base') +
+          (row.sourceLabel || 'Base') + (locked ? '<div style="margin-top:4px;font-size:10.5px;color:#8A7E7C;">Editável em Financeiro &gt; Configurações</div>' : '') +
         '</div>' +
       '</div>';
   }
@@ -2251,8 +2255,8 @@ Modules.PlanoDeVoo = (function () {
     ];
 
     return rows.map(function (row) {
-      var mode = _state.costMode[row.key] || row.mode || 'automatico';
-      var pct = mode === 'manual'
+      var mode = row.key === 'indirect' ? (row.mode || 'manual') : (_state.costMode[row.key] || row.mode || 'automatico');
+      var pct = row.key === 'indirect' ? _num(row.pct) : mode === 'manual'
         ? _num(_state.costPct[row.key] != null ? _state.costPct[row.key] : row.pct)
         : _num(row.pct);
       var projected = row.projectedOverride != null ? _num(row.projectedOverride) : revenueTotal * (pct / 100);

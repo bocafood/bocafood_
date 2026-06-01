@@ -1,5 +1,20 @@
 # AI Changelog
 
+## 2026-06-01 — Plano de Voo: provisão variável bloqueada
+- Arquivos alterados: `public/js/modules/plano_voo.js`, `AI_CHANGELOG.md`.
+- Corrigi a linha `Provisão para custos variáveis` para sempre puxar o percentual salvo em `Financeiro > Configurações`, inclusive quando a origem está manual.
+- A linha agora fica somente leitura dentro do Plano de Voo, tanto no modo manual quanto no automático.
+- Mantive a indicação de origem e incluí orientação discreta de que a edição deve ser feita em `Financeiro > Configurações`.
+- Impacto esperado: a rota mostra o percentual correto de custos variáveis sem permitir alteração direta no fluxo de criação do Plano de Voo.
+
+## 2026-06-01 — Cardápio: ordenação e moeda nas escolhas do combo
+- Arquivos alterados: `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- No cadastro de produto do Cardápio, as opções adicionadas em `Escolhas do combo` agora podem ser reordenadas por arrastar ou pelos botões de subir/descer.
+- O campo de valor extra das opções do combo passou a usar formato de moeda, mantendo o valor salvo como número para o pedido e o template.
+- No modal de grupos de variantes, as próprias opções da variante também podem ser reordenadas e o valor extra usa o mesmo padrão de moeda.
+- Ajustei a rotina de ordenação para considerar apenas filhos diretos da lista, evitando conflito entre ordenar grupos e ordenar opções internas.
+- Impacto esperado: combos e variantes ficam com ordem controlada pela usuária e preços extras mais claros no cadastro.
+
 ## 2026-06-01 — Plano de Voo: provisão de custos variáveis
 - Arquivos alterados: `public/js/modules/plano_voo.js`, `public/js/modules/dashboard.js`, `public/js/modules/financeiro.js`, `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
 - Renomeei a configuração antes do Plano de Voo para `custos variáveis`, alinhando o campo com gastos que crescem junto com as vendas, como marketing, luz, água, gás, perdas e reforços de operação.
