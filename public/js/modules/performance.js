@@ -339,6 +339,7 @@ Modules.Performance = (function () {
     var channelBreakdown = _channelBreakdown(orders);
     var entryCategories = _categoryBreakdown(entries, 'entrada');
     var entryOrigins = _entryOriginBreakdown(entries);
+    var incomePlanRows = _incomePlanRows(entries);
     var exitCategories = _categoryBreakdown(exits, 'saida');
     var expensePlanRows = _expensePlanRows(exits);
     var monthScenario = _data.monthScenario || null;
@@ -403,6 +404,7 @@ Modules.Performance = (function () {
       channelBreakdown: channelBreakdown,
       entryCategories: entryCategories,
       entryOrigins: entryOrigins,
+      incomePlanRows: incomePlanRows,
       exitCategories: exitCategories,
       expensePlanRows: expensePlanRows,
       monthOrders: monthOrders,
@@ -898,16 +900,76 @@ Modules.Performance = (function () {
   }
 
   function _categoriesCard(vm) {
-    var rows = vm.entryOrigins || vm.entryCategories || [];
+    var rows = vm.incomePlanRows || [];
+    var monthScenario = vm.monthScenario || null;
+    var scenarioLabel = monthScenario ? (monthScenario.snapshotName || monthScenario.name || 'Rota ativa') : 'Sem rota ativa';
+    var scenarioMonth = _scenarioMonthLabel(vm);
     return '' +
       '<section style="' + _cardStyle() + '">' +
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px;flex-wrap:wrap;">' +
-          _sectionTitle('De onde veio o dinheiro', 'Veja quais origens trouxeram entrada para o negócio neste período.') +
+          _sectionTitle('De onde veio o dinheiro', 'Compare por categoria o que a rota esperava receber e o que já entrou de verdade.') +
+          '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
+            _chip(scenarioMonth) +
+            _chip(scenarioLabel) +
+          '</div>' +
         '</div>' +
-        (rows.length ? _barList(rows, '#1F6F43', function (row) {
-          return _fmtMoney(row.value);
-        }) : _emptyState('Ainda não há entradas para mostrar', 'Quando entrar dinheiro no período, ele aparece aqui agrupado pela origem.')) +
+        (rows.length ? '' +
+          '<div style="overflow-x:auto;">' +
+            '<table style="width:100%;border-collapse:collapse;min-width:960px;">' +
+              '<thead><tr style="background:#FAF8F4;">' +
+                ['Categoria', 'Previsto', 'Realizado', 'Falta entrar', 'Leitura'].map(function (h) {
+                  return '<th style="padding:11px 14px;text-align:left;font-size:11px;font-weight:700;color:#6F6860;text-transform:uppercase;letter-spacing:.02em;">' + h + '</th>';
+                }).join('') +
+              '</tr></thead>' +
+              '<tbody>' +
+                rows.map(function (row) {
+                  var remaining = Math.max(0, row.planned - row.actual);
+                  var over = Math.max(0, row.actual - row.planned);
+                  var tone = over > 0 ? '#2563EB' : row.actual > 0 ? '#1F6F43' : '#B45309';
+                  var tag = over > 0 ? 'Entrou acima do previsto' : row.actual > 0 ? 'Já começou a entrar' : 'Ainda previsto';
+                  var tagBg = over > 0 ? '#EFF6FF' : row.actual > 0 ? '#EDFAF3' : '#FFF7ED';
+                  return '' +
+                    '<tr style="border-top:1px solid #EAE4DA;transition:background .15s ease;" onmouseenter="this.style.background=\'#FAF8F4\'" onmouseleave="this.style.background=\'transparent\'">' +
+                      '<td style="padding:13px 14px;vertical-align:top;">' +
+                        '<div style="font-size:13px;font-weight:700;color:#1F1F1F;">' + _esc(row.label || 'Categoria') + '</div>' +
+                        '<div style="font-size:12px;color:#6F6860;margin-top:3px;">' + _esc(row.note || 'Entrada prevista na rota e acompanhada pelo financeiro') + '</div>' +
+                      '</td>' +
+                      '<td style="padding:13px 14px;vertical-align:top;font-size:13px;font-weight:700;color:#1F1F1F;white-space:nowrap;">' + _fmtMoney(row.planned) + '</td>' +
+                      '<td style="padding:13px 14px;vertical-align:top;font-size:13px;font-weight:700;color:#1F1F1F;white-space:nowrap;">' + _fmtMoney(row.actual) + '</td>' +
+                      '<td style="padding:13px 14px;vertical-align:top;font-size:13px;font-weight:700;color:' + (over > 0 ? '#2563EB' : '#1F6F43') + ';white-space:nowrap;">' + (over > 0 ? '+' + _fmtMoney(over) : _fmtMoney(remaining)) + '</td>' +
+                      '<td style="padding:13px 14px;vertical-align:top;">' +
+                        '<div style="display:flex;flex-direction:column;gap:6px;">' +
+                          _expenseMiniGraph(row) +
+                          '<div style="display:inline-flex;align-items:center;gap:6px;width:max-content;padding:5px 8px;border-radius:999px;background:' + tagBg + ';color:' + tone + ';font-size:11px;font-weight:700;">' + tag + '</div>' +
+                        '</div>' +
+                      '</td>' +
+                    '</tr>' +
+                    '<tr style="border-top:0;">' +
+                      '<td colspan="5" style="padding:0 14px 13px;">' + _incomeDetails(row) + '</td>' +
+                    '</tr>';
+                }).join('') +
+              '</tbody>' +
+            '</table>' +
+          '</div>'
+          : _emptyState('Ainda não há entradas para comparar', 'Crie uma rota no Plano de Voo ou registre entradas no financeiro para acompanhar previsto e realizado por categoria.')) +
       '</section>';
+  }
+
+  function _incomeDetails(row) {
+    row = row || {};
+    var planned = row.plannedItems || [];
+    var actual = row.actualItems || [];
+    if (!planned.length && !actual.length) return '';
+    return '' +
+      '<details style="background:#FFFCF8;border:1px solid #EAE4DA;border-radius:12px;padding:10px 12px;">' +
+        '<summary style="cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px;font-weight:800;color:#6F6860;">' +
+          '<span>Ver detalhes da categoria</span><span class="mi" style="font-size:17px;color:#8A7E7C;">expand_more</span>' +
+        '</summary>' +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:10px;">' +
+          _expenseDetailColumn('Previsto na rota', planned, 'Ainda não há valor previsto para esta categoria.') +
+          _expenseDetailColumn('Entrou no financeiro', actual, 'Ainda não entrou dinheiro nesta categoria.') +
+        '</div>' +
+      '</details>';
   }
 
   function _expensePlanCard(vm) {
@@ -1141,6 +1203,84 @@ Modules.Performance = (function () {
       row.note = row.count === 1 ? '1 entrada' : row.count + ' entradas';
       return row;
     });
+  }
+
+  function _incomePlanRows(actualEntries) {
+    var snapshot = _monthScenarioSnapshot() || {};
+    var monthFactor = _incomePlanMonthFactor(snapshot);
+    var configured = _configuredChannelMetaMap();
+    var map = {};
+
+    function ensure(key, label, note) {
+      key = key || _normalizeCategoryKey(label || 'entradas');
+      if (!map[key]) {
+        map[key] = {
+          key: key,
+          label: label || 'Entradas',
+          planned: 0,
+          actual: 0,
+          note: note || 'Previsto na rota e acompanhado pelas entradas reais.',
+          plannedItems: [],
+          actualItems: []
+        };
+      }
+      return map[key];
+    }
+
+    (Array.isArray(snapshot.channels) ? snapshot.channels : []).forEach(function (ch) {
+      if (!ch || ch.include === false) return;
+      var key = _normalizeChannelKey(ch.key || ch.label || ch.name || '');
+      var meta = configured[key] || {};
+      var categoryLabel = ch.incomeCategoryName || ch.entradaCategoriaNome || ch.categoriaEntradaNome ||
+        meta.incomeCategoryName || meta.entradaCategoriaNome || meta.categoriaEntradaNome ||
+        meta.categoryName || meta.categoriaFinanceiraNome || ch.label || ch.name || _channelDisplay(key);
+      var categoryKey = _normalizeCategoryKey(ch.incomeCategoryId || ch.entradaCategoriaId || meta.incomeCategoryId || meta.entradaCategoriaId || categoryLabel);
+      var planned = _num(ch.baseMonthly) * monthFactor;
+      if (!(planned > 0)) return;
+      var row = ensure(categoryKey, _normalizeCategoryName(categoryLabel), 'Previsão de entrada por categoria da rota.');
+      row.planned += planned;
+      row.plannedItems.push({
+        name: ch.label || ch.name || _channelDisplay(key),
+        value: planned,
+        note: 'Valor previsto para este canal no mês.'
+      });
+    });
+
+    (actualEntries || []).forEach(function (r) {
+      var amount = _cashFlowAmount(r);
+      if (amount <= 0) return;
+      var label = r.category && r.category !== 'Sem categoria' ? r.category : _channelDisplay(r.channel || r.source || '');
+      var key = _normalizeCategoryKey(r.category && r.category !== 'Sem categoria' ? r.category : label);
+      var row = ensure(key, label || 'Sem categoria', 'Entrada realizada no período.');
+      row.actual += amount;
+      row.actualItems.push({
+        name: r.description || r.customer || r.channel || 'Entrada',
+        value: amount,
+        note: [r.labelDate, _cashStatusLabel(r.status)].filter(Boolean).join(' · ')
+      });
+    });
+
+    return Object.keys(map).map(function (key) {
+      var row = map[key];
+      row.diff = row.actual - row.planned;
+      row.base = Math.max(row.planned, row.actual, 1);
+      row.planPct = Math.min(100, (row.planned / row.base) * 100);
+      row.actualPct = Math.min(100, (row.actual / row.base) * 100);
+      return row;
+    }).sort(function (a, b) {
+      return Math.abs(b.diff) - Math.abs(a.diff) || b.planned - a.planned;
+    });
+  }
+
+  function _incomePlanMonthFactor(snapshot) {
+    snapshot = snapshot || {};
+    var monthKey = _state.scenarioMonthKey || _currentMonthKey();
+    var monthIndex = _monthIndexFromKey(monthKey);
+    var month = (Array.isArray(snapshot.monthSeries) ? snapshot.monthSeries : []).find(function (m) {
+      return m && _num(m.monthIndex) === monthIndex;
+    });
+    if (month && month.factor != null) return _num(month.factor);
+    return 1;
   }
 
   function _cashFlowAmount(row) {
@@ -1884,7 +2024,12 @@ Modules.Performance = (function () {
       var key = _normalizeChannelKey(name);
       if (!key || seen[key]) return;
       seen[key] = true;
-      out.push({ key: key, label: name || _channelDisplay(key) });
+      out.push({
+        key: key,
+        label: name || _channelDisplay(key),
+        incomeCategoryId: String(ch.incomeCategoryId || ch.entradaCategoriaId || ch.categoriaEntradaId || ch.financialCategoryId || ch.categoriaFinanceiraId || ''),
+        incomeCategoryName: String(ch.incomeCategoryName || ch.entradaCategoriaNome || ch.categoriaEntradaNome || ch.financialCategoryName || ch.categoriaFinanceiraNome || ch.categoryName || '')
+      });
     });
     ['cardapio', 'venda-presencial'].forEach(function (key) {
       if (!seen[key]) {
@@ -1904,6 +2049,15 @@ Modules.Performance = (function () {
     if (!list.length) return null;
     var map = {};
     list.forEach(function (ch) { map[ch.key] = true; });
+    return map;
+  }
+
+  function _configuredChannelMetaMap() {
+    var map = {};
+    _configuredChannelOptions().forEach(function (ch) {
+      if (!ch || !ch.key) return;
+      map[ch.key] = ch;
+    });
     return map;
   }
 

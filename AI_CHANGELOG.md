@@ -1,5 +1,13 @@
 # AI Changelog
 
+## 2026-06-01 — Performance: entradas previstas por categoria
+- Arquivos alterados: `public/js/modules/performance.js`, `AI_CHANGELOG.md`.
+- Ajustei o card `De onde veio o dinheiro` para seguir o mesmo padrão visual do card de gastos.
+- O card agora compara por categoria o valor previsto na rota com o valor que já entrou no financeiro.
+- Incluí detalhes abre/fecha mostrando quais canais formaram o previsto e quais entradas reais formaram o realizado.
+- O agrupamento usa a categoria financeira do canal quando existir e usa o canal/origem como apoio quando faltar categoria.
+- Impacto esperado: Performance passa a mostrar entradas previstas x realizadas por categoria, sem misturar com a leitura de gastos.
+
 ## 2026-06-01 — Plano de Voo: detalhes da rota mês a mês
 - Arquivos alterados: `public/js/modules/plano_voo.js`, `AI_CHANGELOG.md`.
 - Ajustei o modal `Detalhes da rota` para mostrar o `Resumo mês a mês` com o mesmo padrão usado na criação do Plano de Voo.
