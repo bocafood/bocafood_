@@ -1,5 +1,33 @@
 # AI Changelog
 
+## 2026-06-01 — Cardápio: busca na Montagem interna
+- Arquivos alterados: `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Incluí um campo de busca no bloco `Montagem interna` do cadastro de produto.
+- A busca filtra as opções disponíveis nos itens internos por receita, ingrediente, embalagem ou produto pronto, sem mudar a estrutura salva da composição.
+- O item já selecionado continua preservado mesmo quando a busca é alterada.
+- Impacto esperado: facilitar a montagem de kits e caixas internas sem deixar a lista longa difícil de usar.
+
+## 2026-06-01 — Upsell: produto oculto disponível como oferta
+- Arquivos alterados: `public/js/modules/marketing.js`, `public/storefront.html`, `AI_CHANGELOG.md`.
+- Ajustei o template público para manter uma lista interna com todos os produtos ativos, inclusive os ocultos no cardápio, sem exibi-los na vitrine, categorias, busca ou promoções públicas.
+- O upsell agora consegue localizar e adicionar um produto ativo mesmo quando ele está marcado como `não mostrar no cardápio`.
+- No Admin, o seletor de produtos do upsell sinaliza quando o item está oculto no cardápio, deixando claro que ele continua disponível para ser usado como oferta de aumento do pedido.
+- Impacto esperado: permitir usar produtos reservados para upsell sem tornar esses itens visíveis no cardápio público.
+
+## 2026-06-01 — Loja pública: idioma do checkout
+- Arquivos alterados: `public/storefront.html`, `AI_CHANGELOG.md`.
+- Completei chaves de tradução do checkout em `pt-BR`, que estavam caindo no fallback espanhol em endereço, retirada, horários e endereços salvos.
+- Ajustei textos dinâmicos da conta do cliente, validação de CEP, cupom e mensagem de WhatsApp para usarem o idioma configurado da loja.
+- Também alinhei placeholders da área de endereço do cliente para serem preenchidos conforme o idioma ativo.
+- Corrigi a tela inicial de carregamento para não ficar fixa em espanhol e usar as mensagens do idioma da loja durante o carregamento.
+- Impacto esperado: quando a loja estiver em português, o checkout, a conta do cliente e a mensagem do pedido deixam de mostrar textos em espanhol.
+
+## 2026-06-01 — Admin: Ver loja respeita publicação real
+- Arquivos alterados: `public/admin.html`, `AI_CHANGELOG.md`.
+- Ajustei o botão `Ver loja` para abrir a loja somente quando o registro `public_stores/{slug}` estiver ativo para o tenant atual.
+- Removi o fallback que abria `storefront.html?tenant=...` ou uma URL configurada mesmo com a loja não publicada.
+- Impacto esperado: evitar que uma loja em rascunho pareça publicada ou abra como cliente antes da publicação real.
+
 ## 2026-06-01 — Cardápio: modal de variantes ampliado
 - Arquivos alterados: `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
 - Aumentei a largura do modal `Novo grupo de variantes` e `Editar grupo`.

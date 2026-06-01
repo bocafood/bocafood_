@@ -6058,17 +6058,19 @@ Modules.Marketing = (function () {
     return (_products || []).map(function (p) {
       var selected = selectedIds.indexOf(String(p.id)) >= 0;
       var disabled = triggerOnly && selectedIds.length && !selected;
+      var hiddenFromMenu = p && p.menuVisible === false;
       var text = [
         p.name || '',
         p.category || p.categoryName || p.categoryLabel || '',
         p.desc || p.shortDesc || '',
+        hiddenFromMenu ? 'oculto cardapio upsell' : '',
         UI.fmt(_promoBasePrice(p))
       ].join(' ').toLowerCase();
       return '<label data-ups-product-text="' + _esc(text) + '" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #EEE6E4;border-radius:12px;background:' + (selected ? '#FFF0EE' : '#fff') + ';cursor:pointer;">' +
         '<input type="checkbox" class="ups-prod-check" data-id="' + _esc(String(p.id)) + '" ' + (selected ? 'checked' : '') + ' onchange="Modules.Marketing._refreshUpsellAnalysis();Modules.Marketing._syncUpsellProductSearch()" style="width:16px;height:16px;accent-color:#C4362A;"' + (disabled ? ' disabled' : '') + '>' +
         '<div style="min-width:0;flex:1;">' +
           '<div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(p.name || 'Produto') + '</div>' +
-          '<div style="font-size:11px;color:#8A7E7C;">' + UI.fmt(_promoBasePrice(p)) + '</div>' +
+          '<div style="font-size:11px;color:#8A7E7C;">' + UI.fmt(_promoBasePrice(p)) + (hiddenFromMenu ? ' · oculto no cardápio, disponível para upsell' : '') + '</div>' +
         '</div>' +
       '</label>';
     }).join('');

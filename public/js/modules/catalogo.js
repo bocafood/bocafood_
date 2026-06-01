@@ -1057,6 +1057,7 @@ Modules.Catalogo = (function () {
     var tipoMenu = p.type === 'menu' || p.productType === 'combo';
     var tipoUnico = !tipoMenu;
     var internalComposition = _normalizeInternalComposition(p);
+    window._pmInternalCompositionQuery = '';
     var unicoSubComposicao = p.unicoSource === 'composicao_interna' || (!p.unicoSource && internalComposition.length > 0);
     var unicoSubReceita = !unicoSubComposicao && (!p.unicoSource || p.unicoSource === 'receita');
     var unicoSubPronto = !unicoSubComposicao && (p.unicoSource === 'produto_pronto' || p.unicoSource === 'compras_produto');
@@ -1193,6 +1194,11 @@ Modules.Catalogo = (function () {
               <div id="pm-unico-composicao-panel" style="display:${unicoSubComposicao ? 'block' : 'none'};margin-bottom:10px;">
                 <div style="background:#FFFCF8;border:1px solid #E8DCD7;border-radius:14px;padding:11px 12px;margin-bottom:11px;font-size:12px;color:#6F6860;line-height:1.45;">
                   Use quando a cliente compra um item simples, mas por dentro ele é montado com outras coisas do estoque. Preencha tudo que sai do estoque para <strong style="color:#1F1F1F;">1 unidade vendida</strong>, como brigadeiros produzidos e a embalagem final do kit. Isso não aparece para a cliente.
+                </div>
+                <div style="margin-bottom:9px;">
+                  <label style="${_fichaLbl()}">Buscar item interno</label>
+                  <input id="pm-internal-composition-search" type="search" placeholder="Buscar receita, ingrediente, embalagem ou produto pronto..." oninput="Modules.Catalogo._filterInternalCompositionOptions(this.value)" style="${_fichaInp()}background:#fff;">
+                  <div id="pm-internal-composition-search-help" style="font-size:11px;color:#8A7E7C;line-height:1.35;margin-top:5px;">Use a busca para reduzir a lista dos campos abaixo. O item selecionado continua salvo mesmo quando a busca muda.</div>
                 </div>
                 <div id="pm-internal-composition-list" style="display:flex;flex-direction:column;gap:9px;">${internalCompositionHtml}</div>
                 <button type="button" onclick="Modules.Catalogo._addInternalCompositionItem()" style="width:100%;padding:10px;border-radius:10px;border:1px dashed #E3D7C9;background:transparent;font-size:13px;font-weight:700;cursor:pointer;color:#7A746B;font-family:inherit;margin-top:9px;">+ Adicionar item interno</button>
@@ -1433,6 +1439,26 @@ Modules.Catalogo = (function () {
     };
   }
 
+  function _compositionSearchText(item) {
+    item = item || {};
+    return [
+      item.label || '',
+      item.note || '',
+      item.unit || '',
+      item.stockItemType || '',
+      item.classe || ''
+    ].join(' ').toLowerCase();
+  }
+
+  function _compositionFilteredOptions(selectedRef) {
+    var query = String(window._pmInternalCompositionQuery || '').trim().toLowerCase();
+    var options = _compositionOptions();
+    if (!query) return options;
+    return options.filter(function (item) {
+      return String(item.ref || '') === String(selectedRef || '') || _compositionSearchText(item).indexOf(query) >= 0;
+    });
+  }
+
   function _internalCompositionRowsHtml(rows) {
     rows = rows || [];
     if (!rows.length) {
@@ -1442,10 +1468,11 @@ Modules.Catalogo = (function () {
   }
 
   function _compositionOptionsHtml(selectedRef) {
-    return '<option value="">Selecionar item...</option>' + _compositionOptions().map(function (item) {
+    var options = _compositionFilteredOptions(selectedRef);
+    return '<option value="">Selecionar item...</option>' + options.map(function (item) {
       var text = item.label + (item.note ? ' · ' + item.note : '');
       return '<option value="' + _esc(item.ref) + '"' + (String(selectedRef || '') === String(item.ref || '') ? ' selected' : '') + '>' + _esc(text) + '</option>';
-    }).join('');
+    }).join('') + (!options.length ? '<option value="" disabled>Nenhum item encontrado na busca</option>' : '');
   }
 
   function _internalCompositionRowHtml(idx, item) {
@@ -1479,6 +1506,14 @@ Modules.Catalogo = (function () {
     window._pmInternalCompositionCount = rows.length;
     host.innerHTML = _internalCompositionRowsHtml(rows);
     _refreshProductPreview();
+  }
+
+  function _filterInternalCompositionOptions(value) {
+    window._pmInternalCompositionQuery = String(value || '');
+    var host = document.getElementById('pm-internal-composition-list');
+    if (!host) return;
+    var rows = _collectInternalComposition();
+    host.innerHTML = _internalCompositionRowsHtml(rows);
   }
 
   function _onInternalCompositionChange(idx) {
@@ -9689,7 +9724,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     _openProductsMoreFilters: _openProductsMoreFilters,
     _onProductNameChange: _onProductNameChange, _onProductDescChange: _onProductDescChange, _refreshProductPreview: _refreshProductPreview, _moneyInputFocus: _moneyInputFocus, _moneyInputBlur: _moneyInputBlur,
     _seoEdited: _seoEdited, _onTipoChange: _onTipoChange, _onUnicoSrcChange: _onUnicoSrcChange, _openProductTypeHelpModal: _openProductTypeHelpModal, _openProductCategoryCreateModal: _openProductCategoryCreateModal, _saveProductCategoryFromModal: _saveProductCategoryFromModal,
-    _addInternalCompositionItem: _addInternalCompositionItem, _removeInternalCompositionItem: _removeInternalCompositionItem, _onInternalCompositionChange: _onInternalCompositionChange,
+    _addInternalCompositionItem: _addInternalCompositionItem, _removeInternalCompositionItem: _removeInternalCompositionItem, _onInternalCompositionChange: _onInternalCompositionChange, _filterInternalCompositionOptions: _filterInternalCompositionOptions,
     _addMenuGroup: _addMenuGroup, _removeMenuGroup: _removeMenuGroup,
     _addMenuOption: _addMenuOption, _removeMenuOption: _removeMenuOption, _moveMenuOption: _moveMenuOption, _filterMenuOptions: _filterMenuOptions,
     _addUpsellProduct: _addUpsellProduct, _removeUpsellProduct: _removeUpsellProduct, _filterUpsellProducts: _filterUpsellProducts,

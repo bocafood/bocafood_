@@ -1134,26 +1134,15 @@ button,input,select,textarea{font-family:inherit}
               return;
             }
           }
-          if (freshStore.status === 'published' && (freshUrl || slug)) {
-            openUrl(normalizePublicUrl(freshUrl || '', slug));
-            return;
-          }
-          if (freshUrl) configuredUrl = normalizePublicUrl(freshUrl, slug);
-          if (slug) configuredSlug = slug;
+          if (opened && !opened.closed) opened.close();
+          UI.toast(slug ? 'Esta loja ainda não está publicada.' : 'Defina o link da loja antes de publicar.', 'info');
+          return;
         } catch (err) {
           console.warn('[AdminApp] Não foi possível validar a loja publicada antes de abrir.', err);
         }
       }
-      if (configuredSlug) {
-        configuredUrl = normalizePublicUrl(configuredUrl, configuredSlug);
-      }
-      if (configuredUrl) {
-        openUrl(configuredUrl);
-        return;
-      }
-      var origin = window.location.origin || '';
-      var url = origin.replace(/\/+$/, '') + '/storefront.html' + (tenantId ? '?tenant=' + encodeURIComponent(tenantId) : '');
-      openUrl(url);
+      if (opened && !opened.closed) opened.close();
+      UI.toast('Não foi possível confirmar que a loja está publicada.', 'error');
     }
   };
 
