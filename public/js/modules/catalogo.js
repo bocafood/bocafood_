@@ -1179,7 +1179,9 @@ Modules.Catalogo = (function () {
     var menuGroupsHtml = menuGroups.map(function (group, i) { return _menuGroupRowHtml(i, group); }).join('');
     var availableUpsellIds = {};
     _upsellProductPool().forEach(function (item) { availableUpsellIds[String(item.id)] = true; });
-    var addAlsoIds = (p.addAlsoIds || []).map(String).filter(function (id) { return availableUpsellIds[String(id)]; }).slice(0, 1);
+    var addAlsoIds = (p.addAlsoIds || []).map(String).filter(function (id, index, arr) {
+      return availableUpsellIds[String(id)] && arr.indexOf(id) === index;
+    });
     var addAlsoTitle = p.addAlsoTitle || p.upsellTitle || 'Aumentar valor do pedido';
     var addAlsoDiscount = parseFloat(String(p.addAlsoDiscount || p.upsellDiscount || 0).replace(',', '.')) || 0;
     var pairingId = firstText(p.pairing, p.pairingId, p.pairingProductId, '');
@@ -2684,7 +2686,7 @@ Modules.Catalogo = (function () {
   function _upsellCandidatesHtml(kind, ids) {
     var selected = {};
     (ids || []).forEach(function (id) { selected[String(id)] = true; });
-    var rows = _upsellProductPool().filter(function (p) { return kind === 'addAlso' || !selected[p.id]; }).sort(function (a, b) { return String(a.name || '').localeCompare(String(b.name || '')); });
+    var rows = _upsellProductPool().filter(function (p) { return !selected[p.id]; }).sort(function (a, b) { return String(a.name || '').localeCompare(String(b.name || '')); });
     if (!rows.length) return '<div style="font-size:12px;color:#8A7E7C;padding:10px;">Nenhum produto disponível.</div>';
     return rows.map(function (p) {
       var imgHtml = p.img ? '<img src="' + _esc(p.img) + '" style="width:30px;height:30px;border-radius:7px;object-fit:cover;background:#F2EDED;flex-shrink:0;" onerror="this.style.display=\'none\';">' : '<span class="mi" style="font-size:17px;color:#B9AAA6;">restaurant</span>';
@@ -2722,7 +2724,7 @@ Modules.Catalogo = (function () {
   function _addUpsellProduct(kind, id) {
     var selectedBox = document.getElementById('pm-upsell-selected-' + kind);
     if (!selectedBox) return;
-    if (kind === 'pairing' || kind === 'addAlso') selectedBox.innerHTML = '';
+    if (kind === 'pairing') selectedBox.innerHTML = '';
     if (selectedBox.querySelector('[data-id="' + String(id).replace(/"/g, '\\"') + '"]')) return;
     var empty = selectedBox.querySelector('[data-upsell-empty]');
     if (empty) empty.remove();
@@ -3012,9 +3014,20 @@ Modules.Catalogo = (function () {
 
     var unicoSrcEl = document.querySelector('input[name="pm-unico-src"]:checked');
     var unicoSrc = unicoSrcEl ? unicoSrcEl.value : 'receita';
+    var selectedFichaId = ((document.getElementById('pm-ficha-id') || {}).value || '').trim();
     var selectedProntoId = (document.getElementById('pm-pronto-id') || {}).value || '';
     if (tipo === 'unico' && unicoSrc === 'produto_pronto' && selectedProntoId) {
       unicoSrc = _prontoSourceForId(selectedProntoId);
+    }
+    if (tipo === 'unico' && unicoSrc === 'receita' && !selectedFichaId) {
+      _setProductModalError('Escolha a receita usada por este produto.');
+      UI.toast('Escolha a receita usada por este produto.', 'error');
+      return;
+    }
+    if (tipo === 'unico' && (unicoSrc === 'produto_pronto' || unicoSrc === 'compras_produto') && !selectedProntoId) {
+      _setProductModalError('Escolha o produto pronto usado por este item.');
+      UI.toast('Escolha o produto pronto usado por este item.', 'error');
+      return;
     }
 
     // Change C: tags — from registered tag checkboxes
@@ -3077,6 +3090,7 @@ Modules.Catalogo = (function () {
     }
     var publicVariants = _publicVariantsForProduct(menuChoiceGroups, variantGroupIds);
     var usesInternalComposition = tipo === 'unico' && unicoSrc === 'composicao_interna';
+    var internalComposition = [];
     if (usesInternalComposition) {
       var internalCompositionError = _validateInternalCompositionRows();
       if (internalCompositionError) {
@@ -3084,8 +3098,13 @@ Modules.Catalogo = (function () {
         UI.toast(internalCompositionError, 'error');
         return;
       }
+      internalComposition = _collectInternalComposition();
+      if (!internalComposition.length) {
+        _setProductModalError('Adicione pelo menos um item na montagem interna.');
+        UI.toast('Adicione pelo menos um item na montagem interna.', 'error');
+        return;
+      }
     }
-    var internalComposition = usesInternalComposition ? _collectInternalComposition() : [];
     var selectedTags = tags.filter(function (tag) { return tag && tag.text; });
     var primaryTag = selectedTags[0] || {};
     var selectedPairing = firstText(base.pairing, base.pairingId, base.pairingProductId, '');
@@ -3100,6 +3119,11 @@ Modules.Catalogo = (function () {
     var fiscalBase = _ensureProductFiscal(base);
     var fiscalIvaRaw = (document.getElementById('pm-fiscal-iva') || {}).value;
     var fiscalIva = parseFloat(String(fiscalIvaRaw == null ? '' : fiscalIvaRaw).replace(',', '.'));
+    if (String(fiscalIvaRaw == null ? '' : fiscalIvaRaw).trim() && (!isFinite(fiscalIva) || fiscalIva < 0)) {
+      _setProductModalError('Informe um IVA válido para o produto.');
+      UI.toast('Informe um IVA válido para o produto.', 'error');
+      return;
+    }
     var fiscal = Object.assign({}, fiscalBase, {
       sku: ((document.getElementById('pm-fiscal-sku') || {}).value || '').trim(),
       fiscalName: ((document.getElementById('pm-fiscal-name') || {}).value || '').trim(),
@@ -3125,14 +3149,14 @@ Modules.Catalogo = (function () {
       type: tipo,
       productType: tipo === 'menu' ? 'combo' : 'simple',
       unicoSource: tipo === 'unico' ? unicoSrc : null,
-      fichaId: (tipo === 'unico' && unicoSrc === 'receita') ? ((document.getElementById('pm-ficha-id') || {}).value || '') : '',
+      fichaId: (tipo === 'unico' && unicoSrc === 'receita') ? selectedFichaId : '',
       produtoProntoId: (tipo === 'unico' && (unicoSrc === 'produto_pronto' || unicoSrc === 'compras_produto')) ? selectedProntoId : '',
       sourceItemId: (tipo === 'unico' && unicoSrc === 'compras_produto') ? selectedProntoId : '',
       menuItems: tipo === 'menu' ? menuItems : [],
       menuChoiceGroups: tipo === 'menu' ? menuChoiceGroups : [],
       internalComposition: internalComposition,
       internalCompositionItems: internalComposition,
-      addAlsoIds: [].slice.call(document.querySelectorAll('[data-upsell-selected="addAlso"]')).map(function (x) { return x.dataset.id; }).slice(0, 1),
+      addAlsoIds: [].slice.call(document.querySelectorAll('[data-upsell-selected="addAlso"]')).map(function (x) { return x.dataset.id; }).filter(function (id, index, arr) { return id && arr.indexOf(id) === index; }),
       addAlsoTitle: ((document.getElementById('pm-upsell-title-addAlso') || {}).value || 'Aumentar valor do pedido').trim(),
       addAlsoDiscount: _moneyLike(((document.getElementById('pm-upsell-discount-addAlso') || {}).value || '0')) || 0,
       variants: publicVariants,

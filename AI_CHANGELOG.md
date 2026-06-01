@@ -9,6 +9,8 @@
 - Reescrevi as copies vazias dos cards da Matriz BCG para explicar o que a usuária verá em cada card quando os primeiros pedidos começarem a entrar.
 - Ajustei novamente essas copies para ficarem menos técnicas e mais próximas da rotina de decidir o que destacar, manter, testar ou revisar no cardápio.
 - Aumentei o espaço da coluna `Opções adicionadas` no card `Escolhas do combo` para facilitar a leitura do nome dos produtos selecionados.
+- Removi o limite de um único item em `Aumentar valor do pedido`, permitindo selecionar e salvar vários produtos de upsell no cadastro do produto.
+- Validei o salvamento do cadastro do produto e bloqueei produto simples sem receita/produto pronto selecionado, montagem interna vazia e IVA inválido.
 - Impacto esperado: facilitar a conferência e ajuste da vitrine pública diretamente pela listagem de produtos.
 
 ## 2026-06-01 — Cardápio: busca na Montagem interna
