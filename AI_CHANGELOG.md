@@ -16,6 +16,7 @@
 - Alinhei o mesmo custo de `Montagem interna` no Plano de Voo, evitando que produtos montados por dentro entrem com custo zerado ou desatualizado na base da rota.
 - Corrigi a classificação dos canais em `Preço e Margem` para que o canal com maior comissão/taxa apareça como `maior custo`, evitando a contradição de mostrar `Atenção` e `melhor canal` ao mesmo tempo.
 - Ajustei a regra de `Produtos abaixo do preço sugerido` para considerar somente produtos que ainda estão abaixo da margem desejada ou abaixo do markup padrão, evitando alertar produtos que já passam das duas regras.
+- Incluí o `markup padrão` na definição do status da Composição do Preço: quando a margem está segura, mas o markup fica abaixo da regra, o produto passa a aparecer como `atenção`.
 - Impacto esperado: facilitar a conferência e ajuste da vitrine pública diretamente pela listagem de produtos.
 
 ## 2026-06-01 — Cardápio: busca na Montagem interna

@@ -172,7 +172,7 @@ Modules.Dinheiro = (function () {
     var minMargin = _num(_data.dinheiro.minMarginPct || 40);
     var minimum = _priceForMargin(cost.total, minMargin, channel, { round: false }, p);
     var suggested = _suggestedPrice(cost.total, desired, channel, p);
-    var status = _status(price, cost.total, margin, minMargin, profit);
+    var status = _status(price, cost.total, margin, minMargin, profit, markup);
     return {
       product: p,
       channel: channel,
@@ -516,11 +516,13 @@ Modules.Dinheiro = (function () {
     return Math.round(rounded * 100) / 100;
   }
 
-  function _status(price, cost, margin, minMargin, profit) {
+  function _status(price, cost, margin, minMargin, profit, markup) {
     if (!cost) return 'sem custo';
     if (!price) return 'sem preço';
     if (profit < 0) return 'prejuízo';
     if (margin < minMargin) return 'margem baixa';
+    var defaultMarkup = _num(_data.dinheiro.defaultMarkup || 0);
+    if (defaultMarkup > 0 && markup > 0 && markup < defaultMarkup) return 'atenção';
     if (margin < minMargin + 10) return 'atenção';
     return 'saudável';
   }
