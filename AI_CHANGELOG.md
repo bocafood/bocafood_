@@ -1,5 +1,16 @@
 # AI Changelog
 
+## 2026-06-01 — Cardápio: produtos agrupados por categoria
+- Arquivos alterados: `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Reorganizei a listagem de `Cardápio > Produtos` para mostrar os produtos separados por categoria.
+- As categorias seguem a ordem definida em `Configurações > Categorias`, a mesma usada pela loja pública.
+- Quando a ordenação está em `Ordem da loja pública`, cada categoria permite ordenar os produtos com setas ou arrastando os itens.
+- A ordenação salva no campo `order` dos produtos, preservando a forma como eles aparecem dentro da categoria no template público.
+- Reescrevi as copies vazias dos cards da Matriz BCG para explicar o que a usuária verá em cada card quando os primeiros pedidos começarem a entrar.
+- Ajustei novamente essas copies para ficarem menos técnicas e mais próximas da rotina de decidir o que destacar, manter, testar ou revisar no cardápio.
+- Aumentei o espaço da coluna `Opções adicionadas` no card `Escolhas do combo` para facilitar a leitura do nome dos produtos selecionados.
+- Impacto esperado: facilitar a conferência e ajuste da vitrine pública diretamente pela listagem de produtos.
+
 ## 2026-06-01 — Cardápio: busca na Montagem interna
 - Arquivos alterados: `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
 - Incluí um campo de busca no bloco `Montagem interna` do cadastro de produto.

@@ -373,7 +373,7 @@ Modules.Catalogo = (function () {
     var selectArrowHtml = '<span class="mi" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:19px;color:#8A7E7C;pointer-events:none;">expand_more</span>';
     var labelStyle = 'font-size:11px;font-weight:600;color:#6F6860;display:block;margin-bottom:5px;letter-spacing:.02em;';
     var sortOptions = [
-      { value: 'order', label: 'Ordem manual' },
+      { value: 'order', label: 'Ordem da loja pública' },
       { value: 'name-asc', label: 'Nome A-Z' },
       { value: 'name-desc', label: 'Nome Z-A' },
       { value: 'price-asc', label: 'Menor preço' },
@@ -414,32 +414,9 @@ Modules.Catalogo = (function () {
     if (!visibleProducts.length) {
       bodyHtml = '<section style="' + filterCardStyle + 'text-align:center;padding:28px 18px;"><div style="font-size:15px;font-weight:700;color:#1F1F1F;margin-bottom:5px;">Nenhum produto encontrado</div><div style="font-size:13px;color:#6F6860;line-height:1.45;max-width:420px;margin:0 auto 14px;">Ajuste a busca, limpe os filtros ou cadastre um novo produto para aparecer no cardápio.</div><button type="button" onclick="Modules.Catalogo._openProductModal(null)" style="height:38px;padding:0 14px;border:none;border-radius:12px;background:#B42318;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 8px 18px rgba(180,35,24,.16);">Adicionar produto</button></section>';
     } else if (listMode) {
-      bodyHtml = '<section style="display:flex;flex-direction:column;gap:10px;">' +
-        '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">Lista de produtos</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Gerencie preço, categoria, visibilidade e destaque dos itens da loja.</div></div>' +
-        '<div style="background:#fff;border:1px solid #EADFD8;border-radius:18px;overflow:hidden;box-shadow:0 12px 30px rgba(31,31,31,.055);">' +
-        '<div style="overflow:auto;">' +
-          '<table class="bf-table" style="width:100%;border-collapse:separate;border-spacing:0;min-width:920px;">' +
-            '<thead><tr style="background:#fff;border-bottom:1px solid #EAE4DA;">' +
-              '<th style="width:44px;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;"><input type="checkbox" disabled style="width:16px;height:16px;accent-color:#B42318;"></th>' +
-              '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Produto</th>' +
-              '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Categoria</th>' +
-              '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Preço</th>' +
-              '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Status</th>' +
-              '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Destaque</th>' +
-              '<th style="text-align:right;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Ações</th>' +
-            '</tr></thead>' +
-            '<tbody id="products-list">' + paging.items.map(function (p) { return _productTableRowHTML(p); }).join('') + '</tbody>' +
-          '</table>' +
-        '</div>' +
-        paginationHtml +
-      '</div></section>';
+      bodyHtml = _productGroupedListHTML(visibleProducts, true);
     } else {
-      bodyHtml = '<section style="display:flex;flex-direction:column;gap:10px;">' +
-        '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">Lista de produtos</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Visualize os produtos em cards e edite rapidamente as principais informações.</div></div>' +
-        '<div id="products-list" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;">' +
-        paging.items.map(function (p) { return _productCardHTML(p); }).join('') +
-      '</div>' +
-      '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' + paginationHtml + '</div></section>';
+      bodyHtml = _productGroupedListHTML(visibleProducts, false);
     }
     content.innerHTML = '<div class="bf-page" style="display:flex;flex-direction:column;gap:16px;">' +
       '<div class="bf-page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
@@ -457,14 +434,134 @@ Modules.Catalogo = (function () {
       bodyHtml +
     '</div>';
 
-    if (listMode && _products.length > 0 && !query && !_hasActiveProductFilters() && _productView.sort === 'order' && paging.totalPages === 1) {
-      var listEl = document.getElementById('products-list');
-      if (listEl) {
-        makeSortable(listEl, function (orders) {
-          orders.forEach(function (o) { DB.update('products', o.id, { order: o.order }); });
-        });
-      }
-    }
+    _bindProductCategoryOrdering();
+  }
+
+  function _categoryLabel(cat) {
+    return cat && (cat.name || cat.label || cat.nome) || 'Sem categoria';
+  }
+
+  function _categoryKey(cat) {
+    return String(cat && (cat.id || cat.slug || cat.name || cat.label) || '');
+  }
+
+  function _productCategoryValue(product) {
+    product = _normalizeProduct(product || {});
+    return String(product.categoryId || product.category || product.categoria || '');
+  }
+
+  function _productCategory(product) {
+    var value = _productCategoryValue(product);
+    return (_categories || []).find(function (cat) {
+      return value && [cat.id, cat.slug, cat.name, cat.label].map(function (v) { return String(v || ''); }).indexOf(value) >= 0;
+    }) || null;
+  }
+
+  function _orderedProductCategoryGroups(list) {
+    var products = _sortProductsForView(list || []);
+    var groupsByKey = {};
+    var orderedCats = (_categories || []).slice().sort(function (a, b) {
+      return (a.order || 0) - (b.order || 0) || String(_categoryLabel(a)).localeCompare(String(_categoryLabel(b)));
+    });
+    orderedCats.forEach(function (cat) {
+      var key = _categoryKey(cat);
+      if (key) groupsByKey[key] = { key: key, category: cat, title: _categoryLabel(cat), products: [] };
+    });
+    var uncategorized = { key: '__sem_categoria', category: null, title: 'Sem categoria', products: [] };
+    products.forEach(function (product) {
+      var cat = _productCategory(product);
+      var key = cat ? _categoryKey(cat) : '';
+      if (key && groupsByKey[key]) groupsByKey[key].products.push(product);
+      else uncategorized.products.push(product);
+    });
+    var groups = orderedCats.map(function (cat) { return groupsByKey[_categoryKey(cat)]; }).filter(function (group) {
+      return group && group.products.length;
+    });
+    if (uncategorized.products.length) groups.push(uncategorized);
+    return groups;
+  }
+
+  function _productGroupedListHTML(list, listMode) {
+    var groups = _orderedProductCategoryGroups(list || []);
+    var manual = (_productView.sort || 'order') === 'order';
+    var intro = manual
+      ? 'A ordem abaixo segue a vitrine pública: primeiro a ordem das categorias, depois a ordem dos produtos dentro de cada categoria.'
+      : 'Produtos separados por categoria. A ordenação escolhida é aplicada dentro de cada categoria.';
+    return '<section style="display:flex;flex-direction:column;gap:12px;">' +
+      '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">Produtos por categoria</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">' + _esc(intro) + '</div></div>' +
+      groups.map(function (group) {
+        var categoryNote = group.category
+          ? 'Ordem definida em Configurações > Categorias'
+          : 'Itens sem categoria aparecem depois das categorias configuradas';
+        var countText = group.products.length === 1 ? '1 produto' : group.products.length + ' produtos';
+        var orderHint = manual ? '<span style="font-size:11px;color:#8A7E7C;">Use as setas ou arraste para ordenar dentro desta categoria.</span>' : '';
+        var content = listMode
+          ? '<div style="overflow:auto;">' +
+              '<table class="bf-table" style="width:100%;border-collapse:separate;border-spacing:0;min-width:920px;">' +
+                '<thead><tr style="background:#fff;border-bottom:1px solid #EAE4DA;">' +
+                  '<th style="width:92px;text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Ordem</th>' +
+                  '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Produto</th>' +
+                  '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Categoria</th>' +
+                  '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Preço</th>' +
+                  '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Status</th>' +
+                  '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Destaque</th>' +
+                  '<th style="text-align:right;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Ações</th>' +
+                '</tr></thead>' +
+                '<tbody data-product-category-list="' + _esc(group.key) + '">' + group.products.map(function (p) { return _productTableRowHTML(p, manual); }).join('') + '</tbody>' +
+              '</table>' +
+            '</div>'
+          : '<div data-product-category-list="' + _esc(group.key) + '" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;">' + group.products.map(function (p) { return _productCardHTML(p, manual); }).join('') + '</div>';
+        return '<div style="background:#fff;border:1px solid #EADFD8;border-radius:18px;overflow:hidden;box-shadow:0 12px 30px rgba(31,31,31,.055);">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 16px;border-bottom:1px solid #EAE4DA;background:#FFFCF8;">' +
+            '<div style="min-width:0;"><div style="font-size:15px;font-weight:800;color:#1F1F1F;line-height:1.25;">' + _esc(group.title) + '</div><div style="font-size:12px;color:#6F6860;line-height:1.35;margin-top:2px;">' + _esc(countText + ' · ' + categoryNote) + '</div></div>' +
+            orderHint +
+          '</div>' +
+          content +
+        '</div>';
+      }).join('') +
+    '</section>';
+  }
+
+  function _saveProductCategoryOrder(productIds) {
+    var ids = (productIds || []).map(String).filter(Boolean);
+    if (!ids.length) return Promise.resolve();
+    _products = (_products || []).map(function (product) {
+      var index = ids.indexOf(String(product.id));
+      return index >= 0 ? Object.assign({}, product, { order: index }) : product;
+    });
+    return Promise.all(ids.map(function (id, index) { return DB.update('products', id, { order: index }); }))
+      .then(function () { UI.toast('Ordem dos produtos salva.', 'success'); })
+      .catch(function (err) { UI.toast('Erro ao salvar ordem: ' + err.message, 'error'); _renderProdutos(); });
+  }
+
+  function _productCategoryOrderIdsByProduct(productId) {
+    var product = (_products || []).find(function (p) { return String(p.id) === String(productId); });
+    if (!product) return [];
+    var cat = _productCategory(product);
+    var value = cat ? _categoryKey(cat) : '';
+    return _sortProductsForView((_products || []).filter(function (item) {
+      var itemCat = _productCategory(item);
+      return value ? itemCat && _categoryKey(itemCat) === value : !itemCat;
+    })).map(function (item) { return String(item.id); });
+  }
+
+  function _moveProductInCategory(id, direction) {
+    var ids = _productCategoryOrderIdsByProduct(id);
+    var index = ids.indexOf(String(id));
+    var next = index + (Number(direction) || 0);
+    if (index < 0 || next < 0 || next >= ids.length) return;
+    var moved = ids.splice(index, 1)[0];
+    ids.splice(next, 0, moved);
+    _saveProductCategoryOrder(ids).then(function () { _paintProdutos(); });
+  }
+
+  function _bindProductCategoryOrdering() {
+    if ((_productView.sort || 'order') !== 'order') return;
+    [].slice.call(document.querySelectorAll('[data-product-category-list]')).forEach(function (listEl) {
+      makeSortable(listEl, function (orders) {
+        _saveProductCategoryOrder(orders.map(function (o) { return o.id; })).then(function () { _paintProdutos(); });
+      });
+    });
   }
 
   function _filterProductList(query) {
@@ -818,9 +915,10 @@ Modules.Catalogo = (function () {
     var items = cfg.items || [];
     var top = items[0] || null;
     var topName = top ? (top.product.name || 'Produto') : '';
+    var hasSalesBase = cfg.hasSalesBase !== false;
     var topMeta = top
       ? _fmtMoneyDisplay(top.currentRevenue || 0) + ' nos últimos 30 dias · ' + (top.marginInfo ? top.marginInfo.label : 'margem não informada')
-      : cfg.empty;
+      : (hasSalesBase ? cfg.empty : cfg.noSalesText);
     return '<div style="display:flex;align-items:flex-start;gap:13px;background:' + cfg.bg + ';border:1px solid ' + cfg.border + ';border-radius:18px;padding:15px 16px;box-shadow:0 12px 30px rgba(31,31,31,.055);min-height:112px;overflow:hidden;transition:transform .16s ease,box-shadow .16s ease,background .16s ease;" onmouseenter="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 16px 34px rgba(31,31,31,.09)\';" onmouseleave="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'0 12px 30px rgba(31,31,31,.055)\';">' +
       '<div style="width:44px;height:44px;border-radius:15px;background:#fff;color:' + cfg.color + ';display:flex;align-items:center;justify-content:center;flex:0 0 auto;box-shadow:0 6px 16px rgba(31,31,31,.06);"><span class="mi" style="font-size:23px;">' + _esc(cfg.icon) + '</span></div>' +
       '<div style="min-width:0;display:flex;flex-direction:column;gap:6px;flex:1;">' +
@@ -836,15 +934,17 @@ Modules.Catalogo = (function () {
   function _productBcgMetricsHtml(data) {
     data = data || { buckets: {} };
     var buckets = data.buckets || {};
+    var hasSalesBase = data.hasRecentSales !== false && data.ordersCount > 0;
     var cards = [
-      { key: 'stars', title: 'Estrelas', subtitle: 'vendem bem e estão crescendo', icon: 'auto_awesome', color: '#16735B', bg: '#F1FAF5', border: '#D9EFE4', empty: 'Ainda não há produto com venda forte e crescimento recente.', noProductTitle: 'Nenhuma estrela ainda' },
-      { key: 'cash', title: 'Caixa forte', subtitle: 'já puxam venda com ritmo estável', icon: 'payments', color: '#8A5A18', bg: '#FFF8E8', border: '#F1E1B8', empty: 'Nenhum produto concentrando venda estável nos últimos pedidos.', noProductTitle: 'Sem caixa forte ainda' },
-      { key: 'bets', title: 'Apostas', subtitle: 'começaram a crescer e merecem atenção', icon: 'rocket_launch', color: '#2F6F9F', bg: '#F0F7FC', border: '#D8EAF5', empty: 'Nenhum produto pequeno ganhou tração recente.', noProductTitle: 'Sem aposta clara' },
-      { key: 'review', title: 'Revisar', subtitle: 'baixo giro, sem venda recente ou custo incompleto', icon: 'manage_search', color: '#B42318', bg: '#FFF5F3', border: '#F0D2CC', empty: 'Tudo com leitura de venda recente no momento.', noProductTitle: 'Nada urgente para revisar' }
+      { key: 'stars', title: 'Estrelas', subtitle: 'os queridinhos do cardápio', icon: 'auto_awesome', color: '#16735B', bg: '#F1FAF5', border: '#D9EFE4', empty: 'Aqui aparecem os produtos que estão chamando mais pedido.', noSalesText: 'Quando chegarem pedidos, este card vai mostrar quais produtos estão puxando a venda e merecem mais destaque.', noProductTitle: 'Vai mostrar o que está brilhando' },
+      { key: 'cash', title: 'Caixa forte', subtitle: 'vendem sempre e ajudam o caixa', icon: 'payments', color: '#8A5A18', bg: '#FFF8E8', border: '#F1E1B8', empty: 'Aqui aparecem os produtos que ajudam a manter o caixa girando.', noSalesText: 'Quando chegarem pedidos, este card vai mostrar os produtos que vendem com frequência e ajudam a segurar o faturamento.', noProductTitle: 'Vai mostrar o que segura o caixa' },
+      { key: 'bets', title: 'Apostas', subtitle: 'podem merecer mais espaço', icon: 'rocket_launch', color: '#2F6F9F', bg: '#F0F7FC', border: '#D8EAF5', empty: 'Aqui aparecem produtos que começaram a dar sinal de que podem vender mais.', noSalesText: 'Quando um produto começar a responder melhor, ele aparece aqui para você decidir se vale testar mais destaque.', noProductTitle: 'Vai mostrar chances para testar' },
+      { key: 'review', title: 'Revisar', subtitle: 'precisam de um olhar antes de insistir', icon: 'manage_search', color: '#B42318', bg: '#FFF5F3', border: '#F0D2CC', empty: 'Aqui aparecem produtos que talvez precisem de ajuste no preço, custo ou destaque.', noSalesText: 'Quando houver pedidos, este card vai mostrar produtos que estão vendendo pouco ou que talvez não estejam compensando.', noProductTitle: 'Vai mostrar o que merece cuidado' }
     ];
     return '<div style="display:flex;flex-direction:column;gap:10px;">' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;">' + cards.map(function (card) {
         card.items = buckets[card.key] || [];
+        card.hasSalesBase = hasSalesBase;
         return _productBcgCardHtml(card);
       }).join('') + '</div>' +
     '</div>';
@@ -902,7 +1002,7 @@ Modules.Catalogo = (function () {
     return { label: 'Produto pronto', detail: 'Produto único' };
   }
 
-  function _productCardHTML(p) {
+  function _productCardHTML(p, canOrder) {
     p = _normalizeProduct(p);
     var cat = _categories.find(function (c) { return c.id === p.categoryId || c.slug === p.categoryId || c.name === p.categoryId; });
     var price = _moneyLike(p.price || 0);
@@ -921,6 +1021,7 @@ Modules.Catalogo = (function () {
       '<div style="position:relative;background:#fff;border-bottom:1px solid #EAE4DA;">' +
         '<div style="aspect-ratio:1.45/1;display:flex;align-items:center;justify-content:center;overflow:hidden;">' + imgHtml + '</div>' +
         '<span class="mi" style="position:absolute;left:12px;top:12px;width:28px;height:28px;border-radius:999px;background:rgba(255,255,255,.92);color:#9CA3AF;font-size:16px;display:flex;align-items:center;justify-content:center;">drag_indicator</span>' +
+        (canOrder ? '<div style="position:absolute;right:12px;bottom:12px;display:flex;gap:5px;"><button type="button" title="Subir produto" onclick="event.stopPropagation();Modules.Catalogo._moveProductInCategory(\'' + _esc(p.id) + '\', -1)" style="width:28px;height:28px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;display:flex;align-items:center;justify-content:center;cursor:pointer;"><span class="mi" style="font-size:16px;">keyboard_arrow_up</span></button><button type="button" title="Descer produto" onclick="event.stopPropagation();Modules.Catalogo._moveProductInCategory(\'' + _esc(p.id) + '\', 1)" style="width:28px;height:28px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;display:flex;align-items:center;justify-content:center;cursor:pointer;"><span class="mi" style="font-size:16px;">keyboard_arrow_down</span></button></div>' : '') +
         (featured ? '<span style="position:absolute;left:12px;bottom:12px;display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border-radius:999px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.04);border:1px solid #EAE4DA;color:#B42318;font-size:10px;font-weight:600;line-height:1;">★ Destaque</span>' : '') +
         (promoState ? '<div style="position:absolute;right:12px;top:12px;">' + _promoProductVisual(p) + '</div>' : '') +
       '</div>' +
@@ -948,7 +1049,7 @@ Modules.Catalogo = (function () {
     '</div>';
   }
 
-  function _productTableRowHTML(p) {
+  function _productTableRowHTML(p, canOrder) {
     p = _normalizeProduct(p);
     var cat = _categories.find(function (c) { return c.id === p.categoryId || c.slug === p.categoryId || c.name === p.categoryId; });
     var price = _moneyLike(p.price || 0);
@@ -970,7 +1071,12 @@ Modules.Catalogo = (function () {
       : '<span style="display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;background:#fff;color:#A39B90;font-size:12px;font-weight:500;border:1px solid #EAE4DA;">Sem categoria</span>';
     var codeLine = [p.codigo || p.sku || '', p.type === 'menu' || p.productType === 'combo' ? 'Combo/Menu' : 'Produto'].filter(Boolean).join(' · ');
     return '<tr draggable="true" data-id="' + p.id + '" onclick="Modules.Catalogo._openProductModal(\'' + p.id + '\')" onmouseenter="this.style.background=\'#FBF8F2\'" onmouseleave="this.style.background=\'#fff\'" style="cursor:pointer;background:#fff;border-bottom:1px solid #EAE4DA;transition:background .15s ease;">' +
-      '<td style="padding:14px 16px;vertical-align:middle;"><input type="checkbox" onclick="event.stopPropagation()" style="width:16px;height:16px;accent-color:#B42318;"></td>' +
+      '<td style="padding:13px 16px;vertical-align:middle;">' +
+        '<div style="display:flex;align-items:center;gap:5px;">' +
+          '<span class="mi" title="Arrastar para ordenar" style="width:28px;height:28px;border-radius:9px;background:#FFFCF8;border:1px solid #EAE4DA;color:#A39B90;font-size:17px;display:inline-flex;align-items:center;justify-content:center;cursor:grab;">drag_indicator</span>' +
+          (canOrder ? '<button type="button" title="Subir produto" onclick="event.stopPropagation();Modules.Catalogo._moveProductInCategory(\'' + _esc(p.id) + '\', -1)" style="width:28px;height:28px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;"><span class="mi" style="font-size:16px;">keyboard_arrow_up</span></button><button type="button" title="Descer produto" onclick="event.stopPropagation();Modules.Catalogo._moveProductInCategory(\'' + _esc(p.id) + '\', 1)" style="width:28px;height:28px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;"><span class="mi" style="font-size:16px;">keyboard_arrow_down</span></button>' : '') +
+        '</div>' +
+      '</td>' +
       '<td style="padding:12px 16px;vertical-align:middle;min-width:280px;">' +
         '<div style="display:flex;align-items:center;gap:12px;min-width:0;">' +
           '<div style="width:48px;height:48px;border-radius:12px;background:#fff;border:1px solid #EAE4DA;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;box-shadow:0 1px 2px rgba(31,31,31,.03);">' + imgHtml + '</div>' +
@@ -2482,7 +2588,7 @@ Modules.Catalogo = (function () {
     var label = o.label || _labelForMenuRef(o.ref);
     var price = _moneyLike(o.priceExtra != null ? o.priceExtra : o.price != null ? o.price : 0);
     var imgHtml = img ? '<img src="' + _esc(img) + '" style="width:34px;height:34px;border-radius:8px;object-fit:cover;background:#F2EDED;flex-shrink:0;" onerror="this.style.display=\'none\';">' : '<div style="width:34px;height:34px;border-radius:8px;background:#F2EDED;display:flex;align-items:center;justify-content:center;color:#B9AAA6;flex-shrink:0;"><span class="mi" style="font-size:17px;">restaurant</span></div>';
-    return '<div draggable="true" data-id="menu-option-' + idx + '-' + _esc(o.ref) + '" data-menu-selected="' + idx + '" data-ref="' + _esc(o.ref) + '" data-label="' + _esc(label) + '" data-img="' + _esc(img) + '" style="display:grid;grid-template-columns:22px 34px minmax(0,1fr) 112px 58px 26px;align-items:center;gap:8px;padding:8px 10px;border:1px solid #F2EDED;border-radius:9px;background:#fff;margin-bottom:6px;">' +
+    return '<div draggable="true" data-id="menu-option-' + idx + '-' + _esc(o.ref) + '" data-menu-selected="' + idx + '" data-ref="' + _esc(o.ref) + '" data-label="' + _esc(label) + '" data-img="' + _esc(img) + '" style="display:grid;grid-template-columns:22px 34px minmax(220px,1fr) 96px 58px 26px;align-items:center;gap:8px;padding:8px 10px;border:1px solid #F2EDED;border-radius:9px;background:#fff;margin-bottom:6px;">' +
       '<span class="mi" title="Arrastar para ordenar" style="color:#D4C8C6;font-size:16px;cursor:grab;">drag_indicator</span>' +
       imgHtml +
       '<span style="font-size:13px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + _esc(label) + '</span>' +
@@ -2519,7 +2625,7 @@ Modules.Catalogo = (function () {
       '<label style="display:block;"><span style="font-size:10px;font-weight:700;color:#8A7E7C;text-transform:uppercase;">Máximo</span><input data-menu-max="' + idx + '" type="number" min="1" step="1" value="' + max + '" style="width:100%;padding:9px;border:1.5px solid #D4C8C6;border-radius:9px;font-size:13px;font-family:inherit;outline:none;"></label>' +
       '<button type="button" onclick="Modules.Catalogo._removeMenuGroup(' + idx + ')" style="width:32px;height:38px;border-radius:8px;border:none;background:#FFF0EE;color:#B42318;cursor:pointer;font-size:14px;">x</button>' +
       '</div>' +
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
+      '<div style="display:grid;grid-template-columns:minmax(0,1.45fr) minmax(250px,.85fr);gap:10px;">' +
       '<div>' +
       '<div style="font-size:10px;font-weight:700;color:#8A7E7C;text-transform:uppercase;margin-bottom:5px;">Opções adicionadas</div>' +
       '<div id="pm-menu-selected-' + idx + '" data-menu-selected-list="' + idx + '" style="max-height:170px;overflow:auto;padding:8px;border:1px solid #F2EDED;border-radius:9px;background:#FCFAFA;">' + _menuSelectedOptionsHtml(idx, group) + '</div>' +
@@ -9745,7 +9851,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     _onTemplateHoursChange: _onTemplateHoursChange,
     _uploadStoreImage: _uploadStoreImage, _saveTemplateLoja: _saveTemplateLoja, _saveSeoLoja: _saveSeoLoja,
     _clearStoreImage: _clearStoreImage,
-    _openProductModal: _openProductModal, _toggleVis: _toggleVis, _saveProduct: _saveProduct, _deleteProduct: _deleteProduct, _duplicateProduct: _duplicateProduct, _openImportProducts: _openImportProducts, _filterProdutos: _filterProdutos, _setProductFilter: _setProductFilter, _setProductSort: _setProductSort, _setProductPage: _setProductPage, _setProductPageSize: _setProductPageSize, _clearProductFilters: _clearProductFilters, _quickUpdateProduct: _quickUpdateProduct,
+    _openProductModal: _openProductModal, _toggleVis: _toggleVis, _saveProduct: _saveProduct, _deleteProduct: _deleteProduct, _duplicateProduct: _duplicateProduct, _openImportProducts: _openImportProducts, _filterProdutos: _filterProdutos, _setProductFilter: _setProductFilter, _setProductSort: _setProductSort, _setProductPage: _setProductPage, _setProductPageSize: _setProductPageSize, _clearProductFilters: _clearProductFilters, _quickUpdateProduct: _quickUpdateProduct, _moveProductInCategory: _moveProductInCategory,
     _openProductsMoreFilters: _openProductsMoreFilters,
     _onProductNameChange: _onProductNameChange, _onProductDescChange: _onProductDescChange, _refreshProductPreview: _refreshProductPreview, _moneyInputFocus: _moneyInputFocus, _moneyInputBlur: _moneyInputBlur,
     _seoEdited: _seoEdited, _onTipoChange: _onTipoChange, _onUnicoSrcChange: _onUnicoSrcChange, _openProductTypeHelpModal: _openProductTypeHelpModal, _openProductCategoryCreateModal: _openProductCategoryCreateModal, _saveProductCategoryFromModal: _saveProductCategoryFromModal,
