@@ -1,5 +1,24 @@
 # AI Changelog
 
+## 2026-06-01 — Plano de Voo: rotas criadas com valores da base salva
+- Arquivos alterados: `public/js/modules/plano_voo.js`, `AI_CHANGELOG.md`.
+- Ajustei o card `Rotas criadas` para calcular os cenários não escolhidos usando a mesma base salva da rota ativa.
+- Os cards alternativos passam a mostrar cenário, venda, pedidos por dia, sobra, esforço e diferença contra a rota escolhida sem depender do estado aberto da tela.
+- Impacto esperado: a usuária consegue comparar os caminhos que ficaram de fora com valores coerentes da rota criada.
+
+## 2026-06-01 — Performance: previsto e real em gastos
+- Arquivos alterados: `public/js/modules/performance.js`, `AI_CHANGELOG.md`.
+- Corrigi o card `Gastos por categoria` para não tratar contas ainda não pagas como gasto real.
+- Ajustei a leitura do previsto para considerar também despesas abertas que já estavam na base da rota do Plano de Voo.
+- Ajustei também o card `Categorias` para agrupar somente dinheiro efetivamente realizado, evitando valores pendentes ou baixas vinculadas duplicadas.
+- Impacto esperado: despesas lançadas antes da rota aparecem como previsto quando fazem parte da base, e só entram como real depois de pagas/efetivadas.
+
+## 2026-06-01 — Performance: linha diária sem duplicar saída
+- Arquivos alterados: `public/js/modules/performance.js`, `AI_CHANGELOG.md`.
+- Corrigi a soma de entradas e saídas da `Linha do tempo diária` para usar o valor efetivo do lançamento financeiro.
+- Contas a pagar vinculadas a uma baixa deixam de aparecer duplicadas na coluna `Saídas`.
+- Impacto esperado: a linha diária passa a bater com os totais financeiros da Performance.
+
 ## 2026-06-01 — Performance: validação de dados financeiros
 - Arquivos alterados: `public/js/modules/performance.js`, `AI_CHANGELOG.md`.
 - Validei os campos financeiros da Performance e ajustei a leitura de saídas pagas/parciais vinculadas a contas a pagar.

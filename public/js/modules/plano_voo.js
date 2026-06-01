@@ -457,7 +457,7 @@ Modules.PlanoDeVoo = (function () {
 
   function _scenarioCompareMiniCard(key) {
     var scenario = SCENARIOS[key] || SCENARIOS.equilibrium;
-    var vm = _forecastForScenario(key);
+    var vm = _forecastForScenario(key, _activeRouteSnapshot(_data.monthScenario));
     var effort = _effortInfo(vm);
     var base = _activeRouteBaselineSummary();
     var revenueDelta = _num(vm.revenueTotal) - _num(base.revenue);
@@ -975,12 +975,71 @@ Modules.PlanoDeVoo = (function () {
       '</div>';
   }
 
-  function _forecastForScenario(key) {
+  function _forecastForScenario(key, snapshotBase) {
+    if (snapshotBase) {
+      return _forecastForScenarioFromSnapshot(key, snapshotBase);
+    }
     var previous = _state.scenario;
     _state.scenario = SCENARIOS[key] ? key : 'equilibrium';
     var vm = _forecastModel();
     _state.scenario = previous;
     return vm;
+  }
+
+  function _forecastForScenarioFromSnapshot(key, snapshotBase) {
+    var previous = _cloneState(_state);
+    _applySnapshotBaseToState(snapshotBase, key);
+    var vm = _forecastModel();
+    _restoreState(previous);
+    return vm;
+  }
+
+  function _cloneState(state) {
+    return JSON.parse(JSON.stringify(state || {}));
+  }
+
+  function _restoreState(previous) {
+    Object.keys(_state).forEach(function (key) { delete _state[key]; });
+    Object.keys(previous || {}).forEach(function (key) { _state[key] = previous[key]; });
+  }
+
+  function _applySnapshotBaseToState(s, scenarioKey) {
+    s = s || {};
+    _state.periodType = s.periodType || 'annual';
+    _state.routePeriod = s.routePeriod || _state.routePeriod || _defaultRoutePeriod();
+    _state.mode = s.mode || 'automatico';
+    _state.annualMode = s.annualMode || 'linear_growth';
+    _state.scenario = SCENARIOS[scenarioKey] ? scenarioKey : (s.scenario || 'equilibrium');
+    _state.growthSource = s.growthSource || 'historical';
+    _state.declineSource = s.declineSource || 'historical';
+    _state.historyMonths = _historyMonthsBack();
+    _state.growthPct = _num(s.growthPct != null ? s.growthPct : 10);
+    _state.declinePct = _num(s.declinePct != null ? s.declinePct : 5);
+    _state.averageTicketOverride = _num((s.summary || {}).averageTicket || s.averageTicket || 0);
+    _state.seasonality = (s.seasonality || _state.seasonality || _defaultState().seasonality).slice(0, 12);
+    _state.monthWeights = (s.monthWeights || s.seasonality || _state.monthWeights || _defaultMonthWeights()).slice(0, 12);
+    _state.workDays = Array.isArray(s.workDays) && s.workDays.length ? s.workDays.slice() : _state.workDays;
+    _state.plannedClosedDays = s.plannedClosedDays || '';
+    _state.channelValues = {};
+    _state.channelMode = {};
+    _state.channelInclude = {};
+    _state.costMode = {};
+    _state.costPct = {};
+    _state.costInclude = {};
+    _state.fixedInclude = {};
+    (s.channels || []).forEach(function (ch) {
+      _state.channelValues[ch.key] = _num(ch.baseMonthly != null ? ch.baseMonthly : ch.periodValue);
+      _state.channelMode[ch.key] = ch.mode || (ch.historyAvg > 0 ? 'automatico' : 'manual');
+      _state.channelInclude[ch.key] = ch.include !== false;
+    });
+    (s.variableCosts || []).forEach(function (r) {
+      _state.costMode[r.key] = r.mode || 'automatico';
+      _state.costPct[r.key] = _num(r.pct);
+      _state.costInclude[r.key] = r.include !== false;
+    });
+    (s.fixedExpenses || []).forEach(function (r) {
+      _state.fixedInclude[r.id] = r.include !== false;
+    });
   }
 
   function _routeMiniMetric(label, value, sub, icon, color) {
@@ -2499,6 +2558,7 @@ Modules.PlanoDeVoo = (function () {
     var s = (_data.snapshots || []).find(function (x) { return String(x.id) === String(id); });
     if (!s) return;
     _state.periodType = s.periodType || 'monthly';
+    _state.routePeriod = s.routePeriod || _state.routePeriod || _defaultRoutePeriod();
     _state.mode = s.mode || 'automatico';
     _state.annualMode = s.annualMode || 'linear_growth';
     _state.scenario = s.scenario || 'equilibrium';

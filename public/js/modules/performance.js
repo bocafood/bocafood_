@@ -1078,9 +1078,11 @@ Modules.Performance = (function () {
   function _categoryBreakdown(rows, kind) {
     var map = {};
     (rows || []).forEach(function (r) {
+      var amount = _cashFlowAmount(r);
+      if (amount <= 0) return;
       var key = _normalizeCategoryName(r.category || r.categoria || r.cat || r.type || '');
       if (!map[key]) map[key] = { key: key, label: key, value: 0, count: 0, note: '' };
-      map[key].value += _num(r.effectiveValue || r.valueRow || r.value || 0);
+      map[key].value += amount;
       map[key].count += 1;
     });
     return Object.keys(map).map(function (k) { return map[k]; }).sort(function (a, b) { return b.value - a.value; }).slice(0, 8).map(function (row) {
@@ -1089,10 +1091,21 @@ Modules.Performance = (function () {
     });
   }
 
+  function _cashFlowAmount(row) {
+    if (!row) return 0;
+    if (row.kind === 'entrada' || row.kind === 'saida') {
+      return _num(row.effectiveValue);
+    }
+    if (row.valueRow != null) return _num(row.valueRow);
+    return _num(row.value);
+  }
+
   function _expensePlanRows(actualRows) {
     var snapshot = _monthScenarioSnapshot() || {};
     var plannedRows = (Array.isArray(snapshot.fixedExpenses) ? snapshot.fixedExpenses : []).filter(function (r) {
-      return String(r && r.source || '') === 'historical';
+      if (!r || r.include === false) return false;
+      var source = String(r.source || '').toLowerCase();
+      return !source || source === 'historical' || source === 'payable' || source === 'outflow' || source === 'financeiro_saida' || source === 'financeiro_saidas';
     });
     var map = {};
 
@@ -1359,9 +1372,11 @@ Modules.Performance = (function () {
   function _bestCategory(rows) {
     var map = {};
     (rows || []).forEach(function (r) {
+      var amount = _cashFlowAmount(r);
+      if (amount <= 0) return;
       var key = _normalizeCategoryName(r.category || r.categoria || r.cat || '');
       if (!map[key]) map[key] = { label: key, value: 0 };
-      map[key].value += _num(r.effectiveValue || r.valueRow || r.value || 0);
+      map[key].value += amount;
     });
     return Object.keys(map).map(function (k) { return map[k]; }).sort(function (a, b) { return b.value - a.value; })[0] || { label: '' };
   }
@@ -1687,7 +1702,8 @@ Modules.Performance = (function () {
 
   function _sumByDate(list, key) {
     return (list || []).filter(function (item) { return item.dateKey === key; }).reduce(function (s, item) {
-      return s + _num(item.value);
+      var useEffective = item && (item.kind === 'entrada' || item.kind === 'saida');
+      return s + _num(useEffective ? item.effectiveValue : item.value);
     }, 0);
   }
 
