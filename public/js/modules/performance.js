@@ -339,7 +339,7 @@ Modules.Performance = (function () {
     var channelBreakdown = _channelBreakdown(orders);
     var entryCategories = _categoryBreakdown(entries, 'entrada');
     var exitCategories = _categoryBreakdown(exits, 'saida');
-    var expensePlanRows = _expensePlanRows(exitCategories);
+    var expensePlanRows = _expensePlanRows(exits);
     var monthScenario = _data.monthScenario || null;
     var scenarioName = monthScenario ? (monthScenario.snapshotName || monthScenario.name || 'Rota ativa') : '';
     var scenarioLabel = monthScenario ? _scenarioLabel(monthScenario.scenario) : 'Sem rota';
@@ -920,7 +920,7 @@ Modules.Performance = (function () {
     return '' +
       '<section style="' + _cardStyle() + '">' +
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px;flex-wrap:wrap;">' +
-          _sectionTitle('Gastos por categoria', 'Compare o que a rota previa com o que já apareceu no financeiro.') +
+          _sectionTitle('Gastos previstos da rota', 'Veja quanto a rota reservou para cada bloco de gasto e quanto já virou saída real.') +
           '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
             _chip(scenarioMonth) +
             _chip(scenarioLabel) +
@@ -930,38 +930,75 @@ Modules.Performance = (function () {
           '<div style="overflow-x:auto;">' +
             '<table style="width:100%;border-collapse:collapse;min-width:960px;">' +
               '<thead><tr style="background:#FAF8F4;">' +
-                ['Categoria', 'Previsto', 'Real', 'Diferença', 'Mini gráfico'].map(function (h) {
+                ['Bloco', 'Previsto', 'Realizado', 'Ainda previsto', 'Leitura'].map(function (h) {
                   return '<th style="padding:11px 14px;text-align:left;font-size:11px;font-weight:700;color:#6F6860;text-transform:uppercase;letter-spacing:.02em;">' + h + '</th>';
                 }).join('') +
               '</tr></thead>' +
               '<tbody>' +
                 rows.map(function (row) {
-                  var tone = row.diff > 0 ? '#B42318' : row.diff < 0 ? '#B45309' : '#1F6F43';
-                  var tag = row.diff > 0 ? 'Passou' : row.diff < 0 ? 'Faltou' : 'No alvo';
-                  var tagBg = row.diff > 0 ? '#FFF0EE' : row.diff < 0 ? '#FFF7ED' : '#EDFAF3';
+                  var remaining = Math.max(0, row.planned - row.actual);
+                  var over = Math.max(0, row.actual - row.planned);
+                  var tone = over > 0 ? '#B42318' : row.actual > 0 ? '#1F6F43' : '#B45309';
+                  var tag = over > 0 ? 'Passou do previsto' : row.actual > 0 ? 'Já começou a acontecer' : 'Ainda previsto';
+                  var tagBg = over > 0 ? '#FFF0EE' : row.actual > 0 ? '#EDFAF3' : '#FFF7ED';
                   var tagColor = tone;
                   return '' +
                     '<tr style="border-top:1px solid #EAE4DA;transition:background .15s ease;" onmouseenter="this.style.background=\'#FAF8F4\'" onmouseleave="this.style.background=\'transparent\'">' +
                       '<td style="padding:13px 14px;vertical-align:top;">' +
-                        '<div style="font-size:13px;font-weight:700;color:#1F1F1F;">' + _esc(row.label || 'Sem categoria') + '</div>' +
-                        '<div style="font-size:12px;color:#6F6860;margin-top:3px;">' + _esc(row.note || 'Comparação financeira') + '</div>' +
+                        '<div style="font-size:13px;font-weight:700;color:#1F1F1F;">' + _esc(row.label || 'Bloco da rota') + '</div>' +
+                        '<div style="font-size:12px;color:#6F6860;margin-top:3px;">' + _esc(row.note || 'Previsto na rota e acompanhado pelo financeiro') + '</div>' +
                       '</td>' +
                       '<td style="padding:13px 14px;vertical-align:top;font-size:13px;font-weight:700;color:#1F1F1F;white-space:nowrap;">' + _fmtMoney(row.planned) + '</td>' +
                       '<td style="padding:13px 14px;vertical-align:top;font-size:13px;font-weight:700;color:#1F1F1F;white-space:nowrap;">' + _fmtMoney(row.actual) + '</td>' +
+                      '<td style="padding:13px 14px;vertical-align:top;font-size:13px;font-weight:700;color:' + (over > 0 ? '#B42318' : '#1F6F43') + ';white-space:nowrap;">' + (over > 0 ? '+' + _fmtMoney(over) : _fmtMoney(remaining)) + '</td>' +
                       '<td style="padding:13px 14px;vertical-align:top;">' +
                         '<div style="display:flex;flex-direction:column;gap:6px;">' +
-                          '<div style="font-size:13px;font-weight:700;color:' + tone + ';white-space:nowrap;">' + (row.diff > 0 ? '+' : row.diff < 0 ? '-' : '') + _fmtMoney(Math.abs(row.diff)) + '</div>' +
+                          _expenseMiniGraph(row) +
                           '<div style="display:inline-flex;align-items:center;gap:6px;width:max-content;padding:5px 8px;border-radius:999px;background:' + tagBg + ';color:' + tagColor + ';font-size:11px;font-weight:700;">' + tag + '</div>' +
                         '</div>' +
                       '</td>' +
-                      '<td style="padding:13px 14px;vertical-align:top;">' + _expenseMiniGraph(row) + '</td>' +
+                    '</tr>' +
+                    '<tr style="border-top:0;">' +
+                      '<td colspan="5" style="padding:0 14px 13px;">' + _expenseDetails(row) + '</td>' +
                     '</tr>';
                 }).join('') +
               '</tbody>' +
             '</table>' +
           '</div>'
-          : _emptyState('Ainda não há gastos por categoria para comparar', 'Crie uma rota e registre saídas com categoria para acompanhar o planejado contra o realizado.')) +
+          : _emptyState('Ainda não há gastos previstos para comparar', 'Crie uma rota no Plano de Voo para acompanhar quanto foi reservado e quanto já virou saída real.')) +
       '</section>';
+  }
+
+  function _expenseDetails(row) {
+    row = row || {};
+    var planned = row.plannedItems || [];
+    var actual = row.actualItems || [];
+    if (!planned.length && !actual.length) return '';
+    return '' +
+      '<details style="background:#FFFCF8;border:1px solid #EAE4DA;border-radius:12px;padding:10px 12px;">' +
+        '<summary style="cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px;font-weight:800;color:#6F6860;">' +
+          '<span>Ver detalhes do bloco</span><span class="mi" style="font-size:17px;color:#8A7E7C;">expand_more</span>' +
+        '</summary>' +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:10px;">' +
+          _expenseDetailColumn('Previsto na rota', planned, 'Ainda não há detalhe previsto para este bloco.') +
+          _expenseDetailColumn('Realizado no financeiro', actual, 'Ainda não houve saída real neste bloco.') +
+        '</div>' +
+      '</details>';
+  }
+
+  function _expenseDetailColumn(title, items, emptyText) {
+    items = (items || []).filter(Boolean);
+    return '' +
+      '<div style="min-width:0;">' +
+        '<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#8A7E7C;margin-bottom:7px;">' + _esc(title) + '</div>' +
+        (items.length ? '<div style="display:flex;flex-direction:column;gap:6px;">' + items.slice(0, 8).map(function (item) {
+          return '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;background:#fff;border:1px solid #F0E7E2;border-radius:10px;padding:8px 9px;">' +
+            '<div style="min-width:0;"><div style="font-size:12px;font-weight:700;color:#1F1F1F;line-height:1.25;">' + _esc(item.name || 'Item') + '</div>' +
+            (item.note ? '<div style="font-size:11px;color:#8A7E7C;line-height:1.3;margin-top:2px;">' + _esc(item.note) + '</div>' : '') + '</div>' +
+            '<div style="font-size:12px;font-weight:800;color:#1F1F1F;white-space:nowrap;">' + _fmtMoney(item.value) + '</div>' +
+          '</div>';
+        }).join('') + (items.length > 8 ? '<div style="font-size:11px;color:#8A7E7C;padding:2px 1px;">+' + (items.length - 8) + ' item(ns) neste bloco.</div>' : '') + '</div>' : '<div style="font-size:12px;color:#8A7E7C;background:#fff;border:1px dashed #E4D8D0;border-radius:10px;padding:9px;">' + _esc(emptyText) + '</div>') +
+      '</div>';
   }
 
   function _barList(rows, color, valueFormatter) {
@@ -1100,16 +1137,12 @@ Modules.Performance = (function () {
     return _num(row.value);
   }
 
-  function _expensePlanRows(actualRows) {
+  function _expensePlanRows(actualExits) {
     var snapshot = _monthScenarioSnapshot() || {};
-    var plannedRows = (Array.isArray(snapshot.fixedExpenses) ? snapshot.fixedExpenses : []).filter(function (r) {
-      if (!r || r.include === false) return false;
-      var source = String(r.source || '').toLowerCase();
-      return !source || source === 'historical' || source === 'payable' || source === 'outflow' || source === 'financeiro_saida' || source === 'financeiro_saidas';
-    });
+    var plannedMonthRevenue = _expensePlanMonthRevenue(snapshot);
     var map = {};
 
-    function ensure(key, label) {
+    function ensure(key, label, note) {
       if (!key) return null;
       if (!map[key]) {
         map[key] = {
@@ -1117,29 +1150,56 @@ Modules.Performance = (function () {
           label: label || key,
           planned: 0,
           actual: 0,
-          note: 'Comparação da rota com o período selecionado'
+          note: note || 'Previsto na rota e acompanhado pelo financeiro',
+          plannedItems: [],
+          actualItems: []
         };
       }
       return map[key];
     }
 
-    plannedRows.forEach(function (r) {
-      var key = _normalizeCategoryName(r.categoryId || r.name || r.sourceLabel || r.label || '');
-      if (!key) return;
-      var planned = _num(r.projectedMonthly != null ? r.projectedMonthly : r.projected != null ? r.projected : r.value);
-      var row = ensure(key, r.name || key);
+    (Array.isArray(snapshot.variableCosts) ? snapshot.variableCosts : []).forEach(function (r) {
+      if (!r || r.include === false) return;
+      var group = _plannedVariableExpenseGroup(r);
+      var planned = plannedMonthRevenue > 0 ? plannedMonthRevenue * (_num(r.pct) / 100) : _num(r.projectedMonthly != null ? r.projectedMonthly : r.projected);
+      var row = ensure(group.key, group.label, group.note);
       if (!row) return;
       row.planned += planned;
-      row.note = r.sourceLabel || row.note;
+      row.plannedItems.push({
+        name: r.name || group.label,
+        value: planned,
+        note: r.sourceLabel || (r.pct != null ? _fmtPct(_num(r.pct)) + ' da venda prevista do mês' : '')
+      });
     });
 
-    (actualRows || []).forEach(function (r) {
-      var key = _normalizeCategoryName(r.key || r.label || '');
-      if (!key) return;
-      var row = ensure(key, r.label || key);
+    (Array.isArray(snapshot.fixedExpenses) ? snapshot.fixedExpenses : []).forEach(function (r) {
+      if (!r || r.include === false) return;
+      var source = String(r.source || '').toLowerCase();
+      if (source && source !== 'historical' && source !== 'payable' && source !== 'outflow' && source !== 'financeiro_saida' && source !== 'financeiro_saidas') return;
+      var group = _financialGlobalGroup(r);
+      var planned = _num(r.projectedMonthly != null ? r.projectedMonthly : r.projected != null ? r.projected : r.value);
+      var row = ensure(group.key, group.label, group.note);
       if (!row) return;
-      row.actual += _num(r.value);
-      row.note = r.note || row.note;
+      row.planned += planned;
+      row.plannedItems.push({
+        name: r.name || group.label,
+        value: planned,
+        note: r.sourceLabel || r.recurrenceLabel || ''
+      });
+    });
+
+    (actualExits || []).forEach(function (r) {
+      var amount = _cashFlowAmount(r);
+      if (amount <= 0) return;
+      var group = _financialGlobalGroup(r);
+      var row = ensure(group.key, group.label, group.note);
+      if (!row) return;
+      row.actual += amount;
+      row.actualItems.push({
+        name: r.description || r.category || group.label,
+        value: amount,
+        note: [r.labelDate, _cashStatusLabel(r.status)].filter(Boolean).join(' · ')
+      });
     });
 
     return Object.keys(map).map(function (key) {
@@ -1152,6 +1212,80 @@ Modules.Performance = (function () {
     }).sort(function (a, b) {
       return Math.abs(b.diff) - Math.abs(a.diff) || b.planned - a.planned;
     });
+  }
+
+  function _expensePlanMonthRevenue(snapshot) {
+    snapshot = snapshot || {};
+    var monthKey = _state.scenarioMonthKey || _currentMonthKey();
+    var parts = String(monthKey || '').split('-');
+    var monthIndex = parts.length > 1 ? parseInt(parts[1], 10) - 1 : new Date().getMonth();
+    var month = (Array.isArray(snapshot.monthSeries) ? snapshot.monthSeries : []).find(function (m) {
+      return m && _num(m.monthIndex) === monthIndex;
+    });
+    if (month && _num(month.revenue) > 0) return _num(month.revenue);
+    var total = _num((snapshot.summary || {}).revenue || snapshot.revenueTotal || snapshot.revenue);
+    var count = Math.max(1, (Array.isArray(snapshot.monthSeries) ? snapshot.monthSeries.length : 0) || 1);
+    return total > 0 ? total / count : 0;
+  }
+
+  function _plannedVariableExpenseGroup(row) {
+    var key = String(row && row.key || '');
+    if (key === 'products') {
+      return { key: 'custos-diretos', label: 'Custos diretos', note: 'Produtos, ingredientes, embalagens e itens previstos para vender.' };
+    }
+    if (key === 'tax') {
+      return { key: 'reserva-fiscal', label: 'Reserva fiscal', note: 'Valor reservado para impostos conforme a rota.' };
+    }
+    return { key: 'custos-variaveis', label: 'Custos variáveis', note: 'Taxas, comissões, marketing, perdas e outros gastos que crescem com as vendas.' };
+  }
+
+  function _financialGlobalGroup(row) {
+    var meta = _financialCategoryMeta(row);
+    var nature = meta.nature || _normalizeFinancialNature(row && row.raw || row);
+    var costClass = meta.costClass || _normalizeCostClass(row && row.raw || row);
+    if (nature === 'custo' && costClass === 'direto') return { key: 'custos-diretos', label: 'Custos diretos', note: 'Custos ligados diretamente ao que é produzido ou vendido.' };
+    if (nature === 'custo') return { key: 'custos-indiretos', label: 'Custos indiretos', note: 'Custos de apoio para manter a operação funcionando.' };
+    if (costClass === 'direto') return { key: 'despesas-diretas', label: 'Despesas diretas', note: 'Despesas ligadas diretamente à venda ou entrega.' };
+    return { key: 'despesas-indiretas', label: 'Despesas indiretas', note: 'Contas e compromissos gerais do negócio.' };
+  }
+
+  function _financialCategoryMeta(row) {
+    row = row || {};
+    var raw = row.raw || row;
+    var rawKey = _normalizeCategoryKey(
+      row.categoryId || row.categoriaFinanceiraId || row.categoriaId ||
+      raw.categoriaFinanceiraId || raw.categoria_id || raw.categoriaId || raw.categoryId ||
+      row.category || raw.categoriaFinanceiraNome || raw.categoria || raw.categoryName || raw.category || ''
+    );
+    var found = (_data.categories || []).find(function (cat) {
+      var keys = [cat.id, cat.slug, cat.name, cat.nome, cat.label].map(_normalizeCategoryKey);
+      return keys.indexOf(rawKey) >= 0;
+    }) || null;
+    return {
+      category: found,
+      nature: found ? _normalizeFinancialNature(found) : '',
+      costClass: found ? _normalizeCostClass(found) : ''
+    };
+  }
+
+  function _normalizeCategoryKey(v) {
+    return _normalizeText(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  }
+
+  function _normalizeFinancialNature(item) {
+    var v = _normalizeText(item && (item.financialNature || item.naturezaFinanceira || item.nature || item.tipoFinanceiro || item.kind));
+    if (v === 'custo' || v === 'cost') return 'custo';
+    if (v === 'despesa' || v === 'expense') return 'despesa';
+    if (item && item.tipoSaida === 'Custo Produção') return 'custo';
+    return '';
+  }
+
+  function _normalizeCostClass(item) {
+    var v = _normalizeText(item && (item.costClass || item.classeCusto || item.classificacaoCusto || item.tipoCusto));
+    if (v === 'direto' || v === 'direct') return 'direto';
+    if (v === 'indireto' || v === 'indirect') return 'indireto';
+    if (item && item.tipoSaida === 'Custo Produção') return 'direto';
+    return '';
   }
 
   function _expenseMiniGraph(row) {

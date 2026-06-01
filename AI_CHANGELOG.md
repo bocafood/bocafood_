@@ -1,5 +1,14 @@
 # AI Changelog
 
+## 2026-06-01 — Performance: gastos por blocos da rota
+- Arquivos alterados: `public/js/modules/performance.js`, `AI_CHANGELOG.md`.
+- Ajustei o card `Gastos por categoria` para virar `Gastos previstos da rota`, comparando blocos globais do Plano de Voo com saídas reais do Financeiro.
+- O previsto agora considera também custos das vendas salvos na rota, como custo do que foi vendido, taxas, comissões, provisão variável e reserva fiscal.
+- As saídas reais deixam de aparecer como contas avulsas, como `Luz` ou `Conta a pagar`, e passam a ser agrupadas em `Custos diretos`, `Custos variáveis`, `Reserva fiscal`, `Custos indiretos`, `Despesas diretas` e `Despesas indiretas`.
+- Cada bloco ganhou um detalhe abre/fecha com a composição do previsto da rota e as saídas reais que entraram naquele grupo.
+- A leitura passou a mostrar previsto, realizado e quanto ainda está reservado, deixando claro que valores previstos podem existir mesmo antes de haver uma conta a pagar lançada.
+- Impacto esperado: Performance conversa melhor com o Plano de Voo e mostra a evolução dos gastos por blocos do negócio, não por lançamentos soltos.
+
 ## 2026-06-01 — Plano de Voo: provisão variável bloqueada
 - Arquivos alterados: `public/js/modules/plano_voo.js`, `AI_CHANGELOG.md`.
 - Corrigi a linha `Provisão para custos variáveis` para sempre puxar o percentual salvo em `Financeiro > Configurações`, inclusive quando a origem está manual.
