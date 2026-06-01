@@ -1,5 +1,16 @@
 # AI Changelog
 
+## 2026-06-01 — Cardápio: composição interna de produto
+- Arquivos alterados: `public/js/modules/catalogo.js`, `public/js/modules/pedidos.js`, `public/js/modules/estoque.js`, `AI_CHANGELOG.md`.
+- Adicionei no cadastro de produto do Cardápio a seção opcional `Composição interna`.
+- A composição permite informar, por unidade vendida, quais itens internos saem do estoque: produto produzido por receita, produto comprado pronto, ingrediente ou embalagem.
+- Essa composição não aparece para o cliente no template público; ela serve para custo, margem e controle interno.
+- Quando um produto tem composição interna, o custo do produto passa a usar a soma desses itens e a baixa de estoque por pedido usa essa composição antes da lógica antiga de ficha/produto pronto/combo.
+- Validei os campos para evitar item interno repetido, linha incompleta e quantidade zerada.
+- Ajustei a movimentação de estoque para registrar o nome do item interno baixado e manter embalagem como classe `embalagem`.
+- Mantive a lógica existente para produtos sem composição interna, evitando alterar produtos já validados.
+- Impacto esperado: kits como caixas de brigadeiro podem vender um item simples no cardápio, enquanto o BocaFood baixa brigadeiros e embalagem corretamente por dentro.
+
 ## 2026-06-01 — Performance: entradas previstas por categoria
 - Arquivos alterados: `public/js/modules/performance.js`, `AI_CHANGELOG.md`.
 - Ajustei o card `De onde veio o dinheiro` para seguir o mesmo padrão visual do card de gastos.

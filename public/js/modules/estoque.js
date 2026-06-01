@@ -207,10 +207,10 @@ Modules.Estoque = (function () {
     var originDetail = (isPurchaseEntry || isPurchaseReversal)
       ? ('Compra' + (movement.purchaseNumber ? ' ' + movement.purchaseNumber : '') + (movement.purchaseDocument ? ' · ' + movement.purchaseDocument : ''))
       : ((isSaleRelated || isSaleReversal) ? ('Pedido' + (movement.orderNumber ? ' ' + movement.orderNumber : '') + (isSaleLoss ? ' · perda registrada' : (isSaleReturn ? ' · retorno ao estoque' : ''))) : ((isAdjustmentEntry || isAdjustmentExit) ? (movement.reason || 'Contagem manual') : (movement.productionOrderName || movement.fichaTecnicaNome || 'Ordem de produção')));
-    var stockItemType = movementIsSupply
-      ? 'insumo'
-      : (stockClass === 'embalagem'
-        ? 'embalagem'
+    var stockItemType = stockClass === 'embalagem'
+      ? 'embalagem'
+      : (movementIsSupply
+        ? 'insumo'
       : (movementIsReadyProduct
         ? 'produto_pronto'
         : (movementIsBaseProduct

@@ -9,6 +9,7 @@ Modules.Catalogo = (function () {
   var _variants = [];
   var _fichas = [];
   var _produtosProntos = [];
+  var _stockCompositionItems = [];
   var _tags = [];
   var _promotions = [];
   var _coupons = [];
@@ -1049,6 +1050,7 @@ Modules.Catalogo = (function () {
       _categories = r[0] || [];
       _fichas = r[1] || [];
       _produtosProntos = _normalizeProdutosCompras(r[2] || []);
+      _stockCompositionItems = _normalizeStockCompositionItems(r[2] || []);
       _variants = r[3] || [];
       _tags = r[4] || [];
       _promotions = r[5] || [];
@@ -1070,6 +1072,8 @@ Modules.Catalogo = (function () {
       var selectedId = p.produtoProntoId || p.sourceItemId || '';
       return '<option value="' + pp.id + '"' + (String(selectedId) === String(pp.id) ? ' selected' : '') + '>' + _esc(pp.name) + '</option>';
     }).join('');
+    var internalComposition = _normalizeInternalComposition(p);
+    var internalCompositionHtml = _internalCompositionRowsHtml(internalComposition);
     var menuGroups = _normalizeMenuGroups(p);
     var menuGroupsHtml = menuGroups.map(function (group, i) { return _menuGroupRowHtml(i, group); }).join('');
     var availableUpsellIds = {};
@@ -1106,6 +1110,7 @@ Modules.Catalogo = (function () {
     var productFiscal = _ensureProductFiscal(p);
 
     window._pmMenuGroupCount = menuGroups.length;
+    window._pmInternalCompositionCount = internalComposition.length;
     window._pmVisible = p.menuVisible !== false;
     window._pmImageBase64 = null;
     window._pmImagePreviewUrl = '';
@@ -1136,7 +1141,7 @@ Modules.Catalogo = (function () {
           .product-modal-admin details[open] summary span:last-child{transform:rotate(90deg);}
           .product-modal-admin .pm-help-btn{height:30px;border:1px solid #E8DCD7;background:#fff;color:#8A6F5A;border-radius:999px;padding:0 10px;font-family:inherit;font-size:11px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:5px;box-shadow:0 1px 2px rgba(31,31,31,.03);}
           .product-modal-admin .pm-help-btn:hover{background:#FFF8F2;border-color:#E8D1BF;}
-          @media(max-width:760px){.product-modal-admin section:first-of-type>div:nth-child(2){grid-template-columns:1fr!important}.product-modal-admin section:first-of-type>div:nth-child(2)>div:first-child{max-width:100%;}.product-modal-admin section:first-of-type [style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important}.product-modal-admin details>div{grid-template-columns:1fr!important}.product-modal-admin button{min-height:42px;}.product-modal-admin [data-menu-selected]{grid-template-columns:22px 34px minmax(120px,1fr) 108px 58px 30px!important;min-width:390px;}}
+          @media(max-width:760px){.product-modal-admin section:first-of-type>div:nth-child(2){grid-template-columns:1fr!important}.product-modal-admin section:first-of-type>div:nth-child(2)>div:first-child{max-width:100%;}.product-modal-admin section:first-of-type [style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important}.product-modal-admin details>div{grid-template-columns:1fr!important}.product-modal-admin button{min-height:42px;}.product-modal-admin [data-menu-selected]{grid-template-columns:22px 34px minmax(120px,1fr) 108px 58px 30px!important;min-width:390px;}.product-modal-admin .pm-internal-row{grid-template-columns:1fr 1fr!important}.product-modal-admin .pm-internal-row>div:first-child{grid-column:1/-1}.product-modal-admin .pm-internal-row>button{width:100%!important;grid-column:1/-1;}}
         </style>
         <div style="display:flex;flex-direction:column;gap:14px;">
           <div id="pm-form-error" style="display:none;background:#FDEDEB;border:1px solid #F4C7BF;color:#B42318;padding:10px 12px;border-radius:12px;font-size:12px;font-weight:600;line-height:1.45;"></div>
@@ -1189,6 +1194,14 @@ Modules.Catalogo = (function () {
               <div id="pm-unico-receita-panel" style="display:${unicoSubReceita ? 'block' : 'none'};margin-bottom:10px;"><label style="${_fichaLbl()}">Receita</label><select id="pm-ficha-id" style="${_fichaInp()}background:#fff;"><option value="">Selecionar receita...</option>${fichaOptions}</select></div>
               <div id="pm-unico-pronto-panel" style="display:${unicoSubPronto ? 'block' : 'none'};margin-bottom:10px;"><label style="${_fichaLbl()}">Produto pronto</label><select id="pm-pronto-id" style="${_fichaInp()}background:#fff;"><option value="">Selecionar produto pronto...</option>${prontoOptions}</select></div>
             </div>
+          </section>
+          <section style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">
+            <div class="pm-section-head"><span class="pm-section-icon"><span class="mi">inventory_2</span></span><div><div class="pm-section-title">Composição interna</div><div class="pm-section-text">Use quando o cliente compra um produto pronto no cardápio, mas por dentro o BocaFood precisa baixar itens do estoque. Essa informação não aparece para o cliente.</div></div></div>
+            <div style="background:#FFFCF8;border:1px solid #E8DCD7;border-radius:14px;padding:11px 12px;margin-bottom:11px;font-size:12px;color:#6F6860;line-height:1.45;">
+              Inclua tudo que sai do estoque para <strong style="color:#1F1F1F;">1 unidade vendida</strong>, como brigadeiros produzidos, produtos comprados prontos e a embalagem final do kit.
+            </div>
+            <div id="pm-internal-composition-list" style="display:flex;flex-direction:column;gap:9px;">${internalCompositionHtml}</div>
+            <button type="button" onclick="Modules.Catalogo._addInternalCompositionItem()" style="width:100%;padding:10px;border-radius:10px;border:1px dashed #E3D7C9;background:transparent;font-size:13px;font-weight:700;cursor:pointer;color:#7A746B;font-family:inherit;margin-top:9px;">+ Adicionar item interno</button>
           </section>
           <section id="pm-panel-menu" style="display:${tipoMenu ? 'block' : 'none'};background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">
             <div class="pm-section-head"><span class="pm-section-icon"><span class="mi">splitscreen</span></span><div><div class="pm-section-title">Escolhas do combo</div><div class="pm-section-text">Organize as opções que a cliente escolhe antes de adicionar o produto ao pedido.</div></div></div>
@@ -1324,6 +1337,221 @@ Modules.Catalogo = (function () {
       externalFiscalProductId: current.externalFiscalProductId || '',
       facturaDirectaProductId: current.facturaDirectaProductId || ''
     });
+  }
+
+  function _normalizeInternalComposition(product) {
+    var list = Array.isArray(product && product.internalComposition)
+      ? product.internalComposition
+      : (Array.isArray(product && product.internalCompositionItems) ? product.internalCompositionItems : []);
+    return list.map(function (item) {
+      var ref = item.ref || _compositionRefFromItem(item);
+      var meta = _compositionItemMeta(ref);
+      return {
+        ref: ref,
+        itemId: item.itemId || meta.itemId || '',
+        itemName: item.itemName || item.name || meta.label || '',
+        stockItemType: item.stockItemType || item.itemClass || item.classe || meta.stockItemType || '',
+        itemClass: item.itemClass || item.stockItemType || item.classe || meta.stockItemType || '',
+        classe: item.classe || item.stockItemType || item.itemClass || meta.stockItemType || '',
+        quantity: _moneyLike(item.quantity != null ? item.quantity : item.qty != null ? item.qty : 1) || 1,
+        unit: item.unit || meta.unit || 'un',
+        unitCost: _moneyLike(item.unitCost != null ? item.unitCost : meta.unitCost || 0)
+      };
+    }).filter(function (item) {
+      return item.ref && _moneyLike(item.quantity) > 0;
+    });
+  }
+
+  function _compositionRefFromItem(item) {
+    item = item || {};
+    var type = item.stockItemType || item.itemClass || item.classe || '';
+    var id = item.itemId || item.fichaTecnicaId || item.fichaId || item.sourceItemId || item.produtoProntoId || '';
+    if (!id) return '';
+    if (type === 'produto_produzido' || item.fichaTecnicaId || item.fichaId) return 'ficha:' + id;
+    return 'item:' + id;
+  }
+
+  function _normalizeStockCompositionItems(items) {
+    return (items || []).filter(function (item) {
+      var classe = String((item && (item.classe || item.itemClass || item.stockItemType || item.class || item.tipoCadastro)) || '').toLowerCase();
+      return item && item.ativo !== false && (classe === 'produto' || classe === 'produto_pronto' || classe === 'embalagem' || classe === 'insumo');
+    }).map(function (item) {
+      var classe = String(item.classe || item.itemClass || item.stockItemType || item.class || item.tipoCadastro || '').toLowerCase();
+      var name = item.nome || item.name || item.title || 'Item';
+      var unit = item.unidade_base || item.unidadeBase || item.unit || '';
+      var cost = _moneyLike(item.custo_unitario_base != null ? item.custo_unitario_base :
+        item.unitCost != null ? item.unitCost :
+        item.custo_atual != null ? item.custo_atual :
+        item.preco_compra != null ? item.preco_compra :
+        item.purchasePrice != null ? item.purchasePrice :
+        item.cost || 0);
+      return {
+        id: item.id,
+        ref: 'item:' + item.id,
+        label: name,
+        unit: unit,
+        unitCost: cost,
+        stockItemType: classe === 'embalagem' ? 'embalagem' : (classe === 'produto' ? 'produto_pronto' : 'insumo'),
+        classe: classe,
+        note: classe === 'embalagem' ? 'Embalagem' : (classe === 'produto' ? 'Produto comprado pronto' : 'Ingrediente')
+      };
+    }).sort(function (a, b) {
+      return String(a.label || '').localeCompare(String(b.label || ''));
+    });
+  }
+
+  function _compositionOptions() {
+    var recipeRows = (_fichas || []).map(function (f) {
+      var cost = 0;
+      if (typeof _calcFichaCosts === 'function') {
+        var calc = _calcFichaCosts(f);
+        cost = _moneyLike(calc && calc.costPerYield != null ? calc.costPerYield : 0);
+      }
+      return {
+        ref: 'ficha:' + f.id,
+        label: f.name || f.title || 'Receita',
+        unit: f.yieldUnit || f.unit || 'un',
+        unitCost: cost,
+        stockItemType: 'produto_produzido',
+        note: 'Produto produzido'
+      };
+    });
+    return recipeRows.concat(_stockCompositionItems || []);
+  }
+
+  function _compositionItemMeta(ref) {
+    var found = _compositionOptions().find(function (item) { return String(item.ref || '') === String(ref || ''); }) || {};
+    var parts = String(ref || '').split(':');
+    return {
+      ref: ref || '',
+      itemId: parts.slice(1).join(':'),
+      label: found.label || '',
+      unit: found.unit || 'un',
+      unitCost: _moneyLike(found.unitCost || 0),
+      stockItemType: found.stockItemType || (parts[0] === 'ficha' ? 'produto_produzido' : ''),
+      note: found.note || ''
+    };
+  }
+
+  function _internalCompositionRowsHtml(rows) {
+    rows = rows || [];
+    if (!rows.length) {
+      return '<div style="font-size:12px;color:#8A7E7C;border:1px dashed #E4D8D0;border-radius:12px;padding:12px;text-align:center;">Nenhum item interno configurado. Se este produto não precisa baixar itens específicos do estoque, pode deixar vazio.</div>';
+    }
+    return rows.map(function (item, idx) { return _internalCompositionRowHtml(idx, item); }).join('');
+  }
+
+  function _compositionOptionsHtml(selectedRef) {
+    return '<option value="">Selecionar item...</option>' + _compositionOptions().map(function (item) {
+      var text = item.label + (item.note ? ' · ' + item.note : '');
+      return '<option value="' + _esc(item.ref) + '"' + (String(selectedRef || '') === String(item.ref || '') ? ' selected' : '') + '>' + _esc(text) + '</option>';
+    }).join('');
+  }
+
+  function _internalCompositionRowHtml(idx, item) {
+    item = item || {};
+    var meta = _compositionItemMeta(item.ref);
+    var unit = item.unit || meta.unit || 'un';
+    return '' +
+      '<div class="pm-internal-row" data-internal-row="' + idx + '" style="display:grid;grid-template-columns:minmax(230px,1fr) 104px 82px 112px 34px;gap:9px;align-items:end;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:13px;padding:10px;">' +
+        '<div><label style="' + _fichaLbl() + '">Item interno</label><select data-internal-ref="' + idx + '" onchange="Modules.Catalogo._onInternalCompositionChange(' + idx + ')" style="' + _fichaInp() + 'background:#fff;">' + _compositionOptionsHtml(item.ref) + '</select></div>' +
+        '<div><label style="' + _fichaLbl() + '">Qtd.</label><input data-internal-qty="' + idx + '" type="text" inputmode="decimal" value="' + _esc(String(item.quantity || 1).replace('.', ',')) + '" oninput="Modules.Catalogo._refreshProductPreview()" style="' + _fichaInp() + 'text-align:right;"></div>' +
+        '<div><label style="' + _fichaLbl() + '">Unid.</label><input data-internal-unit="' + idx + '" type="text" value="' + _esc(unit) + '" readonly style="' + _fichaInp() + 'background:#F7F2ED!important;color:#6F6860!important;"></div>' +
+        '<div><label style="' + _fichaLbl() + '">Custo</label><input data-internal-cost="' + idx + '" type="text" value="' + _esc(_moneyDisplay(item.unitCost || meta.unitCost || 0)) + '" readonly style="' + _fichaInp() + 'background:#F7F2ED!important;color:#6F6860!important;text-align:right;"></div>' +
+        '<button type="button" onclick="Modules.Catalogo._removeInternalCompositionItem(' + idx + ')" title="Remover" style="width:34px;height:34px;border:1px solid #F1D2CE;border-radius:10px;background:#FFF7F5;color:#B42318;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;"><span class="mi" style="font-size:16px;">delete</span></button>' +
+      '</div>';
+  }
+
+  function _addInternalCompositionItem() {
+    var host = document.getElementById('pm-internal-composition-list');
+    if (!host) return;
+    var rows = _collectInternalComposition();
+    rows.push({ ref: '', quantity: 1 });
+    window._pmInternalCompositionCount = rows.length;
+    host.innerHTML = _internalCompositionRowsHtml(rows);
+    _refreshProductPreview();
+  }
+
+  function _removeInternalCompositionItem(idx) {
+    var host = document.getElementById('pm-internal-composition-list');
+    if (!host) return;
+    var rows = _collectInternalComposition().filter(function (_, i) { return i !== idx; });
+    window._pmInternalCompositionCount = rows.length;
+    host.innerHTML = _internalCompositionRowsHtml(rows);
+    _refreshProductPreview();
+  }
+
+  function _onInternalCompositionChange(idx) {
+    var refEl = document.querySelector('[data-internal-ref="' + idx + '"]');
+    var meta = _compositionItemMeta(refEl ? refEl.value : '');
+    var unitEl = document.querySelector('[data-internal-unit="' + idx + '"]');
+    var costEl = document.querySelector('[data-internal-cost="' + idx + '"]');
+    if (unitEl) unitEl.value = meta.unit || 'un';
+    if (costEl) costEl.value = _moneyDisplay(meta.unitCost || 0);
+    _refreshProductPreview();
+  }
+
+  function _collectInternalComposition() {
+    var rows = [];
+    var host = document.getElementById('pm-internal-composition-list');
+    if (!host) return [];
+    host.querySelectorAll('.pm-internal-row').forEach(function (row) {
+      var idx = row.dataset.internalRow;
+      var ref = ((row.querySelector('[data-internal-ref="' + idx + '"]') || {}).value || '').trim();
+      var qty = _moneyLike((row.querySelector('[data-internal-qty="' + idx + '"]') || {}).value || 0);
+      if (!ref || qty <= 0) return;
+      var meta = _compositionItemMeta(ref);
+      rows.push({
+        ref: ref,
+        itemId: meta.itemId || '',
+        itemName: meta.label || '',
+        stockItemType: meta.stockItemType || '',
+        itemClass: meta.stockItemType || '',
+        classe: meta.stockItemType || '',
+        quantity: qty,
+        unit: meta.unit || 'un',
+        unitCost: meta.unitCost || 0
+      });
+    });
+    return rows;
+  }
+
+  function _validateInternalCompositionRows() {
+    var host = document.getElementById('pm-internal-composition-list');
+    if (!host) return '';
+    var seen = {};
+    var error = '';
+    host.querySelectorAll('.pm-internal-row').forEach(function (row) {
+      if (error) return;
+      var idx = row.dataset.internalRow;
+      var ref = ((row.querySelector('[data-internal-ref="' + idx + '"]') || {}).value || '').trim();
+      var qtyRaw = ((row.querySelector('[data-internal-qty="' + idx + '"]') || {}).value || '').trim();
+      var qty = _moneyLike(qtyRaw);
+      if (!ref && !qtyRaw) return;
+      if (!ref) {
+        error = 'Escolha o item interno ou remova a linha vazia da composição.';
+        return;
+      }
+      if (!(qty > 0)) {
+        error = 'A quantidade da composição interna precisa ser maior que zero.';
+        return;
+      }
+      if (seen[ref]) {
+        error = 'O mesmo item interno aparece mais de uma vez. Ajuste a quantidade em uma única linha.';
+        return;
+      }
+      seen[ref] = true;
+    });
+    return error;
+  }
+
+  function _internalCompositionCost(base) {
+    var items = document.getElementById('pm-internal-composition-list')
+      ? _collectInternalComposition()
+      : _normalizeInternalComposition(base || {});
+    return items.reduce(function (sum, item) {
+      return sum + (_moneyLike(item.quantity) * _moneyLike(item.unitCost));
+    }, 0);
   }
 
   function _productPricingPreview(p) {
@@ -1491,6 +1719,8 @@ Modules.Catalogo = (function () {
     base = _normalizeProduct(base || {});
     var tipoEl = document.querySelector('input[name="pm-tipo"]:checked');
     var tipo = (tipoEl && tipoEl.value) || base.type || 'unico';
+    var internalCost = _internalCompositionCost(base);
+    if (internalCost > 0) return _moneyLike(internalCost);
     var cost = _moneyLike(base.cost != null ? base.cost :
       (base.custo != null ? base.custo :
       (base.purchasePrice != null ? base.purchasePrice :
@@ -2674,6 +2904,13 @@ Modules.Catalogo = (function () {
       }
     }
     var publicVariants = _publicVariantsForProduct(menuChoiceGroups, variantGroupIds);
+    var internalCompositionError = _validateInternalCompositionRows();
+    if (internalCompositionError) {
+      _setProductModalError(internalCompositionError);
+      UI.toast(internalCompositionError, 'error');
+      return;
+    }
+    var internalComposition = _collectInternalComposition();
     var selectedTags = tags.filter(function (tag) { return tag && tag.text; });
     var primaryTag = selectedTags[0] || {};
     var selectedPairing = firstText(base.pairing, base.pairingId, base.pairingProductId, '');
@@ -2718,6 +2955,8 @@ Modules.Catalogo = (function () {
       sourceItemId: (tipo === 'unico' && unicoSrc === 'compras_produto') ? selectedProntoId : '',
       menuItems: tipo === 'menu' ? menuItems : [],
       menuChoiceGroups: tipo === 'menu' ? menuChoiceGroups : [],
+      internalComposition: internalComposition,
+      internalCompositionItems: internalComposition,
       addAlsoIds: [].slice.call(document.querySelectorAll('[data-upsell-selected="addAlso"]')).map(function (x) { return x.dataset.id; }).slice(0, 1),
       addAlsoTitle: ((document.getElementById('pm-upsell-title-addAlso') || {}).value || 'Aumentar valor do pedido').trim(),
       addAlsoDiscount: _moneyLike(((document.getElementById('pm-upsell-discount-addAlso') || {}).value || '0')) || 0,
@@ -9441,6 +9680,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     _openProductsMoreFilters: _openProductsMoreFilters,
     _onProductNameChange: _onProductNameChange, _onProductDescChange: _onProductDescChange, _refreshProductPreview: _refreshProductPreview, _moneyInputFocus: _moneyInputFocus, _moneyInputBlur: _moneyInputBlur,
     _seoEdited: _seoEdited, _onTipoChange: _onTipoChange, _onUnicoSrcChange: _onUnicoSrcChange, _openProductTypeHelpModal: _openProductTypeHelpModal, _openProductCategoryCreateModal: _openProductCategoryCreateModal, _saveProductCategoryFromModal: _saveProductCategoryFromModal,
+    _addInternalCompositionItem: _addInternalCompositionItem, _removeInternalCompositionItem: _removeInternalCompositionItem, _onInternalCompositionChange: _onInternalCompositionChange,
     _addMenuGroup: _addMenuGroup, _removeMenuGroup: _removeMenuGroup,
     _addMenuOption: _addMenuOption, _removeMenuOption: _removeMenuOption, _moveMenuOption: _moveMenuOption, _filterMenuOptions: _filterMenuOptions,
     _addUpsellProduct: _addUpsellProduct, _removeUpsellProduct: _removeUpsellProduct, _filterUpsellProducts: _filterUpsellProducts,

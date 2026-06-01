@@ -3754,11 +3754,47 @@ Modules.Pedidos = (function () {
 
   function _orderItemStockRefs(item, product) {
     var mainQty = _orderItemStockQuantity(item);
+    var internalRefs = _internalCompositionStockRefs(item, product, mainQty);
+    if (internalRefs.length) return internalRefs;
     var direct = _stockRefFromProductLike(item, product, mainQty, 'item');
     var choices = _extractStockChoiceRefs(item, product, mainQty);
     if (choices.length) return choices;
     if (Array.isArray(direct)) return direct;
     return direct ? [direct] : [];
+  }
+
+  function _internalCompositionStockRefs(item, product, mainQty) {
+    var composition = Array.isArray(product && product.internalComposition)
+      ? product.internalComposition
+      : (Array.isArray(product && product.internalCompositionItems) ? product.internalCompositionItems : []);
+    if (!composition.length) return [];
+    return composition.map(function (part) {
+      if (!part || typeof part !== 'object') return null;
+      var ref = String(part.ref || '').trim();
+      var refParts = ref.split(':');
+      var refType = refParts[0] || '';
+      var refId = refParts.slice(1).join(':');
+      var stockType = String(part.stockItemType || part.itemClass || part.classe || '').trim();
+      if (!stockType && refType === 'ficha') stockType = 'produto_produzido';
+      if (!stockType) stockType = 'produto_pronto';
+      var itemId = String(part.itemId || refId || part.fichaTecnicaId || part.fichaId || part.sourceItemId || part.produtoProntoId || '').trim();
+      var qty = _roundStockQty((_num(part.quantity != null ? part.quantity : part.qty != null ? part.qty : 1) || 1) * (_num(mainQty) || 1));
+      if (!itemId || qty <= 0) return null;
+      var isProduced = stockType === 'produto_produzido' || refType === 'ficha';
+      var stockName = _firstText(part.itemName, part.name, part.label, isProduced ? 'Produto produzido' : 'Item interno');
+      return {
+        fichaId: isProduced ? itemId : '',
+        fichaNome: isProduced ? stockName : '',
+        readyItemId: isProduced ? '' : itemId,
+        productId: itemId,
+        productName: stockName,
+        quantity: qty,
+        unit: part.unit || 'un',
+        unitCost: _num(part.unitCost),
+        stockItemType: stockType,
+        source: 'composicao_interna'
+      };
+    }).filter(Boolean);
   }
 
   function _extractStockChoiceRefs(item, product, mainQty) {
