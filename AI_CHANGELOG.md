@@ -14,6 +14,8 @@
 - Corrigi a Matriz BCG para não listar produtos em `Revisar` quando ainda não há venda real recente; nesse caso os cards mostram apenas a explicação do que será analisado quando os pedidos entrarem.
 - Validei os campos e cálculos de `Preço e Margem` e corrigi o custo de produtos com `Montagem interna`, para que receita, produto pronto, ingrediente e embalagem internos entrem corretamente na margem.
 - Alinhei o mesmo custo de `Montagem interna` no Plano de Voo, evitando que produtos montados por dentro entrem com custo zerado ou desatualizado na base da rota.
+- Corrigi a classificação dos canais em `Preço e Margem` para que o canal com maior comissão/taxa apareça como `maior custo`, evitando a contradição de mostrar `Atenção` e `melhor canal` ao mesmo tempo.
+- Ajustei a regra de `Produtos abaixo do preço sugerido` para considerar somente produtos que ainda estão abaixo da margem desejada ou abaixo do markup padrão, evitando alertar produtos que já passam das duas regras.
 - Impacto esperado: facilitar a conferência e ajuste da vitrine pública diretamente pela listagem de produtos.
 
 ## 2026-06-01 — Cardápio: busca na Montagem interna

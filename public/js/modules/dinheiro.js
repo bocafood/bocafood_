@@ -534,7 +534,7 @@ Modules.Dinheiro = (function () {
     var noPrice = rows.filter(function (r) { return !r.price; });
     var healthy = rows.filter(function (r) { return r.status === 'saudável'; });
     var validRows = rows.filter(function (r) { return r.totalCost > 0 && r.price > 0; });
-    var belowSuggested = validRows.filter(function (r) { return r.suggestedPrice > 0 && r.price < r.suggestedPrice; });
+    var belowSuggested = validRows.filter(_isBelowSuggestedActionable);
     var avgProfit = validRows.length ? validRows.reduce(function (s, r) { return s + (r.profit || 0); }, 0) / validRows.length : null;
     var channels = _channelDiagnostics(rows);
     var worstChannel = channels.slice().sort(function (a, b) { return b.impactPct - a.impactPct || b.fixedFee - a.fixedFee; })[0];
@@ -558,7 +558,7 @@ Modules.Dinheiro = (function () {
       _prioritySummary(belowSuggested.length, 'produtos abaixo do preço sugerido', 'Ver produtos', 'abaixo-recomendado', 'O preço atual pode estar deixando pouco espaço para lucro')
     ].join('');
     var channelImpact = channels.map(function (c) {
-      var tone = c.status === 'margem baixa' ? '#B42318' : (c.status === 'atenção' ? '#D97706' : (c.status === 'melhor canal' || c.status === 'saudável' ? '#1F6F43' : '#6F6860'));
+      var tone = c.status === 'margem baixa' ? '#B42318' : (c.status === 'atenção' || c.status === 'maior custo' ? '#D97706' : (c.status === 'melhor margem' || c.status === 'saudável' ? '#1F6F43' : '#6F6860'));
       return '<div style="' + _radarInnerCardStyle('display:grid;grid-template-columns:minmax(0,1fr) minmax(82px,max-content);gap:14px;align-items:start;') + '">' +
         '<div style="min-width:0;">' +
           '<div style="font-size:14px;font-weight:650;color:#1F1F1F;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:10px;">' + _esc(c.name) + '</div>' +
@@ -611,8 +611,10 @@ Modules.Dinheiro = (function () {
       return { name: ch.name, channel: ch, impactPct: impactPct, commissionPct: commissionPct, commissionTaxPct: commissionTaxPct, fixedFee: fixedFee, avgMargin: avgMargin, status: 'saudável' };
     }).filter(function (c) { return c.impactPct > 0 || c.fixedFee > 0; });
     var best = data.filter(function (c) { return c.avgMargin != null; }).sort(function (a, b) { return b.avgMargin - a.avgMargin; })[0];
+    var mostExpensive = data.slice().sort(function (a, b) { return b.impactPct - a.impactPct || b.fixedFee - a.fixedFee; })[0];
     data.forEach(function (c) {
-      if (best && c.name === best.name) c.status = 'melhor canal';
+      if (mostExpensive && c.name === mostExpensive.name && (c.impactPct > 0 || c.fixedFee > 0)) c.status = 'maior custo';
+      else if (best && c.name === best.name) c.status = 'melhor margem';
       else if (c.avgMargin == null) c.status = 'sem dados';
       else if (c.avgMargin < _num(_data.dinheiro.minMarginPct || 40)) c.status = 'margem baixa';
       else if (c.avgMargin < _num(_data.dinheiro.minMarginPct || 40) + 10) c.status = 'atenção';
@@ -627,7 +629,8 @@ Modules.Dinheiro = (function () {
 
   function _channelStatusBadge(status) {
     var colors = {
-      'melhor canal': ['#EDFAF3', '#1A9E5A'],
+      'melhor margem': ['#EDFAF3', '#1A9E5A'],
+      'maior custo': ['#FFF7ED', '#D97706'],
       'saudável': ['#EDFAF3', '#1A9E5A'],
       'atenção': ['#FFF7ED', '#D97706'],
       'margem baixa': ['#FFF0EE', '#C4362A'],
@@ -640,7 +643,7 @@ Modules.Dinheiro = (function () {
     var valid = rows.filter(function (r) { return r.totalCost > 0 && r.price > 0; });
     var lowestMargin = valid.slice().sort(function (a, b) { return a.margin - b.margin; })[0];
     var noCost = rows.filter(function (r) { return !r.totalCost && r.price > 0; }).sort(function (a, b) { return b.price - a.price; })[0] || rows.filter(function (r) { return !r.totalCost; })[0];
-    var belowSuggested = valid.filter(function (r) { return r.suggestedPrice > 0 && r.price < r.suggestedPrice; }).sort(function (a, b) { return (b.suggestedPrice - b.price) - (a.suggestedPrice - a.price); })[0];
+    var belowSuggested = valid.filter(_isBelowSuggestedActionable).sort(function (a, b) { return (b.suggestedPrice - b.price) - (a.suggestedPrice - a.price); })[0];
     var worstCh = channels.slice().sort(function (a, b) { return b.impactPct - a.impactPct || b.fixedFee - a.fixedFee; })[0];
     var highFeeProduct = worstCh ? valid.map(function (r) {
       var a = _analyzeProduct(r.product, worstCh.channel);
@@ -815,8 +818,17 @@ Modules.Dinheiro = (function () {
     if (filter === 'sem-custo') return rows.filter(function (r) { return !r.totalCost; });
     if (filter === 'sem-preco') return rows.filter(function (r) { return !r.price; });
     if (filter === 'margem-baixa') return rows.filter(function (r) { return r.status === 'margem baixa' || r.status === 'prejuízo'; });
-    if (filter === 'abaixo-recomendado') return rows.filter(function (r) { return r.totalCost > 0 && r.price > 0 && r.suggestedPrice > 0 && r.price < r.suggestedPrice; });
+    if (filter === 'abaixo-recomendado') return rows.filter(_isBelowSuggestedActionable);
     return rows;
+  }
+
+  function _isBelowSuggestedActionable(r) {
+    if (!r || !(r.totalCost > 0) || !(r.price > 0) || !(r.suggestedPrice > 0) || !(r.price < r.suggestedPrice)) return false;
+    var desired = _num(_data.dinheiro.desiredMarginPct || 60);
+    var defaultMarkup = _num(_data.dinheiro.defaultMarkup || 0);
+    var marginBelowTarget = desired > 0 && r.margin < desired;
+    var markupBelowTarget = defaultMarkup > 0 && r.markup > 0 && r.markup < defaultMarkup;
+    return marginBelowTarget || markupBelowTarget;
   }
 
   function _filterLabel(filter) {
