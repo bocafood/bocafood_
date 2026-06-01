@@ -1042,7 +1042,9 @@ Modules.Financeiro = (function () {
     if(busca){ eventos=eventos.filter(function(ev){ return _normSearch((ev.descricao||'')+' '+(ev.categoria||'')+' '+(ev.tipo||'')).indexOf(busca)>=0; }); }
     var rows=eventos.sort(function(a,b){ var d=(a.data||'').localeCompare(b.data||''); return d?d:a.order-b.order; });
     if(_fluxoFiltro.ordem==='desc') rows.reverse();
-    var running=0;
+    var conta=(_contasBancarias||[]).find(function(c){ return String(c.id)===String(_fluxoFiltro.conta); });
+    var saldoInicialFluxo=_fluxoSaldoInicialSelecionado(conta);
+    var running=saldoInicialFluxo;
     rows=rows.map(function(ev){ running+=ev.entrada-ev.saida; ev.saldo=running; return ev; });
     var entradaTotal=rows.reduce(function(s,r){ return s+(r.entrada||0); },0);
     var saidaTotal=rows.reduce(function(s,r){ return s+(r.saida||0); },0);
@@ -1050,18 +1052,44 @@ Modules.Financeiro = (function () {
     var previstos=rows.filter(function(r){ return r.status==='previsto'; }).length;
     var efetivados=rows.filter(function(r){ return r.status==='efetivado'; }).length;
     var periodoLabel=(_PERIODO_OPTIONS.find(function(p){ return p.value===(_fluxoFiltro.periodo==='30'?'30d':_fluxoFiltro.periodo); })||{}).label||'Todo período';
-    var conta=(_contasBancarias||[]).find(function(c){ return String(c.id)===String(_fluxoFiltro.conta); });
     return {
       rows: rows,
       entradaTotal: entradaTotal,
       saidaTotal: saidaTotal,
       saldoFiltrado: running,
+      saldoInicialFluxo: saldoInicialFluxo,
       vencidos: vencidos,
       previstos: previstos,
       efetivados: efetivados,
       periodoLabel: periodoLabel,
       contaLabel: conta ? (conta.nome||'Conta') : 'Todas as contas'
     };
+  }
+
+  function _fluxoSaldoInicialSelecionado(conta) {
+    if (conta) return _saldoContaAteData(conta, _fluxoPeriodRange().start);
+    return (_contasBancarias || []).filter(function (c) {
+      return c && c.ativo !== false;
+    }).reduce(function (sum, c) {
+      return sum + _saldoContaAteData(c, _fluxoPeriodRange().start);
+    }, 0);
+  }
+
+  function _saldoContaAteData(conta, beforeDate) {
+    if (!conta) return 0;
+    if (!beforeDate) return _parseNum(conta.saldo_inicial);
+    var base = _parseNum(conta.saldo_inicial);
+    return (_movimentacoes || []).reduce(function (saldo, m) {
+      var data = m && m.data ? String(m.data) : '';
+      if (!data || data >= beforeDate) return saldo;
+      if (_isTransferMov(m)) return saldo + _transferEffectForAccount(m, conta.id);
+      if (String(m.conta_id || m.contaBancariaId || '') !== String(conta.id)) return saldo;
+      if (m.status !== 'efetivado' && m.status !== 'parcial') return saldo;
+      var info = _movValorInfo(m);
+      if (m.tipo === 'entrada') return saldo + (m.status === 'parcial' ? info.valorRecebido : info.valorRow);
+      if (m.tipo === 'saida') return saldo - (m.status === 'parcial' ? info.valorPago : info.valorRow);
+      return saldo;
+    }, base);
   }
 
   function _fluxoPaging(rows) {
@@ -1134,6 +1162,7 @@ Modules.Financeiro = (function () {
           '</div>':'')+
         '</section>'+
         '<section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;">'+
+          metric('Saldo antes do período', _fmtVal(vm.saldoInicialFluxo), 'Ponto de partida das contas selecionadas.', 'account_balance', vm.saldoInicialFluxo>=0?'#6C8777':'#B42318')+
           metric('Saldo filtrado', _fmtVal(vm.saldoFiltrado), 'Resultado acumulado dos eventos exibidos.', 'account_balance_wallet', vm.saldoFiltrado>=0?'#1F6F43':'#B42318')+
           metric('Entradas', _fmtVal(vm.entradaTotal), vm.efetivados+' evento(s) efetivado(s) no recorte.', 'south_west', '#1F6F43')+
           metric('Saídas', _fmtVal(vm.saidaTotal), vm.vencidos?vm.vencidos+' evento(s) vencido(s) no recorte.':'Sem vencidos no recorte.', 'north_east', vm.vencidos?'#B42318':'#B45309')+
@@ -2454,11 +2483,11 @@ Modules.Financeiro = (function () {
   }
 
   // ── CONTAS A PAGAR ────────────────────────────────────────────────────────
-  var _cpFiltro={periodo:'todos',inicio:'',fim:'',contas:[],status:{pago:true,pendente:true,parcial:true,vencido:true},busca:'',ordem:'desc'};
+  var _cpFiltro={periodo:'todos',inicio:'',fim:'',contas:[],status:{pago:true,pendente:true,parcial:true,vencido:true},busca:'',ordem:'asc'};
   var _cpView={page:1,pageSize:12};
 
   function _resetCPDefaultListState(){
-    _cpFiltro={periodo:'todos',inicio:'',fim:'',contas:[],status:{pago:true,pendente:true,parcial:true,vencido:true},busca:'',ordem:'desc'};
+    _cpFiltro={periodo:'todos',inicio:'',fim:'',contas:[],status:{pago:true,pendente:true,parcial:true,vencido:true},busca:'',ordem:'asc'};
     _cpSelecionadas=[];
     _cpView={page:1,pageSize:12};
   }

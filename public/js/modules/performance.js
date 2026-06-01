@@ -62,7 +62,7 @@ Modules.Performance = (function () {
     ]).then(function (r) {
       _data.orders = Array.isArray(r[0]) ? r[0] : [];
       _data.entries = _normalizeEntries(r[1], r[2]);
-      _data.exits = _normalizeExits(r[3], r[4], r[5]);
+      _data.exits = _normalizeExits(r[3], r[4], r[5], r[1]);
       _data.categories = Array.isArray(r[6]) ? r[6] : [];
       _data.snapshots = Array.isArray(r[7]) ? r[7].slice().sort(function (a, b) {
         return _ts(b.createdAt) - _ts(a.createdAt);
@@ -170,6 +170,7 @@ Modules.Performance = (function () {
   function _normalizeEntries(legacy, modern) {
     var arr = [];
     (Array.isArray(legacy) ? legacy : []).forEach(function (m) {
+      if (!_isCashFlowType(m, 'entrada')) return;
       arr.push(_normalizeCashFlow(m, 'entrada', 'movimentacoes'));
     });
     (Array.isArray(modern) ? modern : []).forEach(function (m) {
@@ -178,18 +179,53 @@ Modules.Performance = (function () {
     return _dedupe(arr).sort(function (a, b) { return b.ts - a.ts; });
   }
 
-  function _normalizeExits(saidas, apagar, contasPagar) {
+  function _normalizeExits(saidas, apagar, contasPagar, legacy) {
     var arr = [];
+    var movementRefs = _payableMovementRefs(legacy);
+    (Array.isArray(legacy) ? legacy : []).forEach(function (m) {
+      if (!_isCashFlowType(m, 'saida')) return;
+      arr.push(_normalizeCashFlow(m, 'saida', 'movimentacoes'));
+    });
     (Array.isArray(saidas) ? saidas : []).forEach(function (m) {
       arr.push(_normalizeCashFlow(m, 'saida', 'financeiro_saidas'));
     });
     (Array.isArray(apagar) ? apagar : []).forEach(function (m) {
-      arr.push(_normalizeCashFlow(m, 'saida', 'financeiro_apagar'));
+      arr.push(_normalizePayableCashFlow(m, 'financeiro_apagar', movementRefs));
     });
     (Array.isArray(contasPagar) ? contasPagar : []).forEach(function (m) {
-      arr.push(_normalizeCashFlow(m, 'saida', 'contas_pagar'));
+      arr.push(_normalizePayableCashFlow(m, 'contas_pagar', movementRefs));
     });
     return _dedupe(arr).sort(function (a, b) { return b.ts - a.ts; });
+  }
+
+  function _isCashFlowType(item, expected) {
+    var type = _normalizeText(item && (item.tipo || item.type || item.kind || ''));
+    if (!type) return false;
+    if (expected === 'entrada') {
+      return type === 'entrada' || type === 'income' || type === 'receita' || type === 'recebimento';
+    }
+    return type === 'saida' || type === 'saída' || type === 'expense' || type === 'despesa' || type === 'pagamento';
+  }
+
+  function _payableMovementRefs(legacy) {
+    var refs = {};
+    (Array.isArray(legacy) ? legacy : []).forEach(function (m) {
+      if (!_isCashFlowType(m, 'saida')) return;
+      if (m.contaPagarId) refs['id:' + String(m.contaPagarId)] = true;
+      if (m.sourceCollection && m.sourceId) refs['source:' + String(m.sourceCollection) + ':' + String(m.sourceId)] = true;
+    });
+    return refs;
+  }
+
+  function _normalizePayableCashFlow(item, source, movementRefs) {
+    var normalized = _normalizeCashFlow(item, 'saida', source);
+    var id = String(item && (item.id || item._id || item.docId) || '');
+    var hasMovement = !!(id && (movementRefs['id:' + id] || movementRefs['source:' + source + ':' + id]));
+    if (hasMovement && (normalized.status === 'pago' || normalized.status === 'parcial')) {
+      normalized.effectiveValue = 0;
+      normalized.paidValue = 0;
+    }
+    return normalized;
   }
 
   function _normalizeCashFlow(item, kind, source) {

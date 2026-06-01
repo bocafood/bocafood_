@@ -1,5 +1,32 @@
 # AI Changelog
 
+## 2026-06-01 — Performance: validação de dados financeiros
+- Arquivos alterados: `public/js/modules/performance.js`, `AI_CHANGELOG.md`.
+- Validei os campos financeiros da Performance e ajustei a leitura de saídas pagas/parciais vinculadas a contas a pagar.
+- Quando uma conta a pagar já tem movimentação de baixa vinculada, a Performance usa a movimentação como dinheiro que saiu e evita contar a própria conta a pagar novamente como saída efetivada.
+- Contas pendentes e vencidas continuam aparecendo como `Contas a pagar`, sem entrar como saída já realizada.
+- Impacto esperado: evitar duplicidade entre contas a pagar e movimentações financeiras na aba Performance.
+
+## 2026-06-01 — Performance: separa entradas e saídas do financeiro
+- Arquivos alterados: `public/js/modules/performance.js`, `AI_CHANGELOG.md`.
+- Corrigi a leitura da coleção `movimentacoes` na Performance para respeitar o tipo do lançamento.
+- Lançamentos com `tipo: saida` deixam de entrar como entrada e passam a ser considerados somente como saída.
+- Lançamentos com `tipo: entrada` continuam entrando como entrada.
+- Impacto esperado: ao registrar uma saída no Financeiro, a Performance não soma mais o mesmo valor em entradas e saídas ao mesmo tempo.
+
+## 2026-06-01 — Financeiro: fluxo considera saldo das contas
+- Arquivos alterados: `public/js/modules/financeiro.js`, `AI_CHANGELOG.md`.
+- Ajustei o `Fluxo de Caixa` para iniciar o saldo acumulado com o saldo das contas bancárias selecionadas.
+- Quando há filtro de período, o fluxo calcula o saldo anterior ao início do período usando saldo inicial, entradas, saídas e transferências anteriores.
+- Incluí o card `Saldo antes do período` para deixar claro de onde o saldo acumulado começa.
+- Impacto esperado: o fluxo passa a refletir o dinheiro real das contas, e não apenas o saldo líquido dos lançamentos filtrados.
+
+## 2026-06-01 — Financeiro: saídas em ordem crescente
+- Arquivos alterados: `public/js/modules/financeiro.js`, `AI_CHANGELOG.md`.
+- Ajustei a listagem `Financeiro > Saídas` para abrir por padrão com os vencimentos em ordem crescente, começando pela data mais antiga.
+- Mantive o botão da coluna `Nº / Vencimento` permitindo alternar entre crescente e decrescente.
+- Impacto esperado: facilitar a leitura das próximas obrigações na ordem em que precisam ser acompanhadas.
+
 ## 2026-06-01 — Performance: meta diária pela realidade da rota
 - Arquivos alterados: `public/js/modules/performance.js`, `AI_CHANGELOG.md`.
 - Ajustei a `Linha do tempo diária` para distribuir a meta mensal usando os dados salvos na rota do Plano de Voo.
