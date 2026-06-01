@@ -1,5 +1,18 @@
 # AI Changelog
 
+## 2026-06-01 — Menu: atalho para custos indiretos
+- Arquivos alterados: `public/admin.html`, `AI_CHANGELOG.md`.
+- Adicionei um atalho visível em `Preços e Margem` para a configuração de `Custos indiretos`.
+- A configuração continua sendo salva em `Financeiro > Configurações`, que é a tela usada hoje pelo sistema.
+- Impacto esperado: facilitar encontrar o percentual manual/automático usado em `Outros custos` das receitas.
+
+## 2026-06-01 — Admin: botão Ver loja abre a loja pública
+- Arquivos alterados: `public/admin.html`, `public/js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Corrigi o botão `Ver loja` para abrir a loja em `/loja/{slug}` quando houver slug publicado.
+- Ajustei o fallback sem slug para abrir `storefront.html?tenant=...`, evitando cair na landing page.
+- Atualizei a geração do link público em `Configurações > Link da loja` para usar o caminho da loja, preservando a raiz `bocafood.app/` para a landing page.
+- Impacto esperado: o Admin abre o cardápio público correto do cliente em vez da landing page.
+
 ## 2026-06-01 — Plano de Voo: rotas criadas com valores da base salva
 - Arquivos alterados: `public/js/modules/plano_voo.js`, `AI_CHANGELOG.md`.
 - Ajustei o card `Rotas criadas` para calcular os cenários não escolhidos usando a mesma base salva da rota ativa.

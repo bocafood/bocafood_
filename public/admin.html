@@ -338,6 +338,7 @@ button,input,select,textarea{font-family:inherit}
           <button class="nav-sub-item" data-route="dinheiro/lista" onclick="Router.navigate('dinheiro/lista')">Lista de preço</button>
           <button class="nav-sub-item" data-route="dinheiro/simulador" onclick="Router.navigate('dinheiro/simulador')">Simulador</button>
           <button class="nav-sub-item" data-route="dinheiro/regras" onclick="Router.navigate('dinheiro/regras')">Regras de preço</button>
+          <button class="nav-sub-item" data-route="financeiro/configuracoes" onclick="Router.navigate('financeiro/configuracoes')">Custos indiretos</button>
         </div>
       </div>
 
@@ -1085,6 +1086,21 @@ button,input,select,textarea{font-family:inherit}
       var cleanSlug = function (value) {
         return String(value || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
       };
+      var publicStoreUrl = function (slug) {
+        slug = cleanSlug(slug);
+        if (!slug) return '';
+        var host = (window.location && window.location.hostname) || '';
+        var origin = (/^(localhost|127\.0\.0\.1)$/i.test(host) && window.location.origin) ? window.location.origin : 'https://bocafood.app';
+        return origin.replace(/\/+$/, '') + '/loja/' + encodeURIComponent(slug);
+      };
+      var normalizePublicUrl = function (url, slug) {
+        slug = cleanSlug(slug);
+        url = String(url || '').trim();
+        if (slug) return publicStoreUrl(slug);
+        if (/\/admin\.html/i.test(url)) return '';
+        if (/^https?:\/\/[^/]+\/?$/i.test(url)) return '';
+        return url;
+      };
       var configuredUrl = (store.publicUrl || (profile && profile.storeUrl) || (profile && profile.publicUrl) || '').trim();
       var configuredSlug = cleanSlug(store.slug || store.storeSlug || store.subdomain || '');
       if (!configuredSlug && configuredUrl) {
@@ -1098,7 +1114,7 @@ button,input,select,textarea{font-family:inherit}
           var dominioSlug = cleanSlug(dominio.storeSlug || dominio.slug || dominio.subdomain || '');
           if (dominioSlug) {
             configuredSlug = dominioSlug;
-            configuredUrl = dominio.publicUrl || dominio.siteUrl || ('https://bocafood.app/' + dominioSlug);
+            configuredUrl = normalizePublicUrl(dominio.publicUrl || dominio.siteUrl || '', dominioSlug);
           }
         } catch (errDominio) {
           console.warn('[AdminApp] Não foi possível ler config/dominio antes de abrir a loja.', errDominio);
@@ -1115,31 +1131,29 @@ button,input,select,textarea{font-family:inherit}
             var publicSnap = await firebase.firestore().collection('public_stores').doc(slug).get();
             var publicData = publicSnap.exists ? (publicSnap.data() || {}) : {};
             if (publicData.tenantId === tenantId && String(publicData.status || '').toLowerCase() === 'active') {
-              openUrl(publicData.publicUrl || freshUrl || ('https://bocafood.app/' + slug));
+              openUrl(normalizePublicUrl(publicData.publicUrl || freshUrl || '', slug));
               return;
             }
           }
           if (freshStore.status === 'published' && (freshUrl || slug)) {
-            openUrl(freshUrl || ('https://bocafood.app/' + slug));
+            openUrl(normalizePublicUrl(freshUrl || '', slug));
             return;
           }
-          if (freshUrl) configuredUrl = freshUrl;
+          if (freshUrl) configuredUrl = normalizePublicUrl(freshUrl, slug);
           if (slug) configuredSlug = slug;
         } catch (err) {
           console.warn('[AdminApp] Não foi possível validar a loja publicada antes de abrir.', err);
         }
       }
-      if (configuredSlug && (!configuredUrl || /bocafood\.app\//i.test(configuredUrl))) {
-        configuredUrl = 'https://bocafood.app/' + configuredSlug;
+      if (configuredSlug) {
+        configuredUrl = normalizePublicUrl(configuredUrl, configuredSlug);
       }
       if (configuredUrl) {
         openUrl(configuredUrl);
         return;
       }
       var origin = window.location.origin || '';
-      var path = window.location.pathname || '';
-      var base = origin + path.replace(/\/?admin\.html$/, '/').replace(/\/+$/, '/') ;
-      var url = base + (tenantId ? '?tenant=' + encodeURIComponent(tenantId) : '');
+      var url = origin.replace(/\/+$/, '') + '/storefront.html' + (tenantId ? '?tenant=' + encodeURIComponent(tenantId) : '');
       openUrl(url);
     }
   };

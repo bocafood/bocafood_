@@ -2655,8 +2655,8 @@ Modules.Configuracoes = (function () {
   }
 
   function _domainBase(slug, rootDomain, c) {
-    if (slug) return 'https://bocafood.app/' + slug;
-    return 'https://bocafood.app/aguardando-slug';
+    if (slug) return 'https://bocafood.app/loja/' + slug;
+    return 'https://bocafood.app/loja/aguardando-slug';
   }
 
   function _domainUrls(slug, rootDomain, c) {
