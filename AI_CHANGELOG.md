@@ -1,7 +1,7 @@
 # AI Changelog
 
 ## 2026-06-01 — Cardápio: produtos agrupados por categoria
-- Arquivos alterados: `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Arquivos alterados: `public/js/modules/catalogo.js`, `public/js/modules/dinheiro.js`, `public/js/modules/plano_voo.js`, `AI_CHANGELOG.md`.
 - Reorganizei a listagem de `Cardápio > Produtos` para mostrar os produtos separados por categoria.
 - As categorias seguem a ordem definida em `Configurações > Categorias`, a mesma usada pela loja pública.
 - Quando a ordenação está em `Ordem da loja pública`, cada categoria permite ordenar os produtos com setas ou arrastando os itens.
@@ -11,6 +11,9 @@
 - Aumentei o espaço da coluna `Opções adicionadas` no card `Escolhas do combo` para facilitar a leitura do nome dos produtos selecionados.
 - Removi o limite de um único item em `Aumentar valor do pedido`, permitindo selecionar e salvar vários produtos de upsell no cadastro do produto.
 - Validei o salvamento do cadastro do produto e bloqueei produto simples sem receita/produto pronto selecionado, montagem interna vazia e IVA inválido.
+- Corrigi a Matriz BCG para não listar produtos em `Revisar` quando ainda não há venda real recente; nesse caso os cards mostram apenas a explicação do que será analisado quando os pedidos entrarem.
+- Validei os campos e cálculos de `Preço e Margem` e corrigi o custo de produtos com `Montagem interna`, para que receita, produto pronto, ingrediente e embalagem internos entrem corretamente na margem.
+- Alinhei o mesmo custo de `Montagem interna` no Plano de Voo, evitando que produtos montados por dentro entrem com custo zerado ou desatualizado na base da rota.
 - Impacto esperado: facilitar a conferência e ajuste da vitrine pública diretamente pela listagem de produtos.
 
 ## 2026-06-01 — Cardápio: busca na Montagem interna

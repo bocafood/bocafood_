@@ -206,6 +206,12 @@ Modules.Dinheiro = (function () {
       packaging = menu.packaging;
       direct = menu.direct;
       source = menu.source;
+    } else if (_hasInternalComposition(p)) {
+      var internal = _internalCompositionCost(p);
+      ingredients = internal.ingredients;
+      packaging = internal.packaging;
+      direct = internal.direct;
+      source = 'montagem interna';
     } else if (p.fichaId) {
       var recipe = _byId(_data.receitas, p.fichaId);
       var rc = _recipeDirectCost(recipe);
@@ -268,15 +274,60 @@ Modules.Dinheiro = (function () {
     return { direct: direct, ingredients: ingredients, packaging: packaging, source: source };
   }
 
+  function _hasInternalComposition(product) {
+    return _internalCompositionItems(product).length > 0;
+  }
+
+  function _internalCompositionItems(product) {
+    var list = Array.isArray(product && product.internalComposition)
+      ? product.internalComposition
+      : (Array.isArray(product && product.internalCompositionItems) ? product.internalCompositionItems : []);
+    return list.filter(function (item) {
+      return item && (item.ref || item.itemId || item.fichaTecnicaId || item.fichaId || item.sourceItemId || item.produtoProntoId);
+    });
+  }
+
+  function _internalCompositionCost(product) {
+    var result = { direct: 0, ingredients: 0, packaging: 0 };
+    _internalCompositionItems(product).forEach(function (part) {
+      var qty = _num(part.quantity != null ? part.quantity : (part.qty != null ? part.qty : 1)) || 1;
+      var ref = String(part.ref || '').trim();
+      var pieces = ref.split(':');
+      var refType = pieces[0] || '';
+      var refId = pieces.slice(1).join(':');
+      var stockType = String(part.stockItemType || part.itemClass || part.classe || '').toLowerCase();
+      var id = part.itemId || refId || part.fichaTecnicaId || part.fichaId || part.sourceItemId || part.produtoProntoId || '';
+      var line = { direct: 0, ingredients: 0, packaging: 0 };
+      if (refType === 'ficha' || stockType === 'produto_produzido' || part.fichaTecnicaId || part.fichaId) {
+        line = _recipeDirectCost(_byId(_data.receitas, id));
+        if (!line.direct) {
+          line.direct = _num(part.unitCost);
+          line.ingredients = line.direct;
+        }
+      } else {
+        var item = _byId(_data.itens, id);
+        var cost = _itemCost(item) || _num(part.unitCost);
+        line.direct = cost;
+        if (stockType === 'embalagem' || (item && String(item.classe || item.itemClass || item.stockItemType || '').toLowerCase() === 'embalagem')) line.packaging = cost;
+        else line.ingredients = cost;
+      }
+      result.direct += line.direct * qty;
+      result.ingredients += line.ingredients * qty;
+      result.packaging += line.packaging * qty;
+    });
+    return result;
+  }
+
   function _refCost(ref) {
     var parts = String(ref || '').split(':');
     var type = parts[0];
     var id = parts.slice(1).join(':');
     if (type === 'ficha') return _recipeDirectCost(_byId(_data.receitas, id));
-    if (type === 'pronto') {
+    if (type === 'pronto' || type === 'item') {
       var item = _byId(_data.itens, id);
       var direct = _itemCost(item);
-      return { direct: direct, ingredients: direct, packaging: 0 };
+      var packaging = item && String(item.classe || item.itemClass || item.stockItemType || '').toLowerCase() === 'embalagem';
+      return { direct: direct, ingredients: packaging ? 0 : direct, packaging: packaging ? direct : 0 };
     }
     return { direct: 0, ingredients: 0, packaging: 0 };
   }

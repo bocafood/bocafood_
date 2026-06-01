@@ -3435,8 +3435,38 @@ Modules.PlanoDeVoo = (function () {
     };
   }
 
+  function _internalCompositionUnitCost(product) {
+    var list = Array.isArray(product && product.internalComposition)
+      ? product.internalComposition
+      : (Array.isArray(product && product.internalCompositionItems) ? product.internalCompositionItems : []);
+    return (list || []).reduce(function (sum, part) {
+      if (!part || typeof part !== 'object') return sum;
+      var qty = _num(part.quantity != null ? part.quantity : (part.qty != null ? part.qty : 1)) || 1;
+      var ref = String(part.ref || '').trim();
+      var pieces = ref.split(':');
+      var refType = pieces[0] || '';
+      var refId = pieces.slice(1).join(':');
+      var stockType = String(part.stockItemType || part.itemClass || part.classe || '').toLowerCase();
+      var itemId = part.itemId || refId || part.fichaTecnicaId || part.fichaId || part.sourceItemId || part.produtoProntoId || '';
+      var cost = 0;
+      if (refType === 'ficha' || stockType === 'produto_produzido' || part.fichaTecnicaId || part.fichaId) {
+        var recipe = _recipeById(itemId);
+        if (recipe) cost = _num(_recipeCostSummary(recipe).costPerYield);
+      } else {
+        var item = _costItemById(itemId);
+        if (item) cost = _num(item.custo_atual != null ? item.custo_atual : (item.custoAtual != null ? item.custoAtual : (item.preco_compra != null ? item.preco_compra : item.purchasePrice)));
+      }
+      if (!cost) cost = _num(part.unitCost);
+      return sum + (cost * qty);
+    }, 0);
+  }
+
   function _productUnitCost(p) {
     if (!p) return 0;
+    if (Array.isArray(p.internalComposition) || Array.isArray(p.internalCompositionItems)) {
+      var compositionCost = _internalCompositionUnitCost(p);
+      if (compositionCost > 0) return compositionCost;
+    }
     var direct = _num(
       p.cost != null ? p.cost :
       p.custo != null ? p.custo :

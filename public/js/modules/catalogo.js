@@ -912,10 +912,10 @@ Modules.Catalogo = (function () {
   }
 
   function _productBcgCardHtml(cfg) {
-    var items = cfg.items || [];
-    var top = items[0] || null;
-    var topName = top ? (top.product.name || 'Produto') : '';
     var hasSalesBase = cfg.hasSalesBase !== false;
+    var items = hasSalesBase ? (cfg.items || []) : [];
+    var top = hasSalesBase ? (items[0] || null) : null;
+    var topName = top ? (top.product.name || 'Produto') : '';
     var topMeta = top
       ? _fmtMoneyDisplay(top.currentRevenue || 0) + ' nos últimos 30 dias · ' + (top.marginInfo ? top.marginInfo.label : 'margem não informada')
       : (hasSalesBase ? cfg.empty : cfg.noSalesText);
