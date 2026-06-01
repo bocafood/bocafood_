@@ -1,5 +1,17 @@
 # AI Changelog
 
+## 2026-06-01 — Cardápio: modal de variantes ampliado
+- Arquivos alterados: `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Aumentei a largura do modal `Novo grupo de variantes` e `Editar grupo`.
+- A mudança dá mais espaço para nome da opção, valor extra, imagem e botões de ordenação sem apertar os campos.
+- Impacto esperado: melhorar a leitura e o preenchimento das variantes, especialmente quando há várias opções com imagem.
+
+## 2026-06-01 — Cardápio: pílula de base removida
+- Arquivos alterados: `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Removi a pílula `0 pedido(s) na base` da área de KPIs do cardápio.
+- Mantive a lógica da Matriz BCG e dos cards sem alteração.
+- Impacto esperado: deixar a tela mais limpa e sem informação técnica no topo dos cards.
+
 ## 2026-06-01 — Cardápio: texto da matriz removido
 - Arquivos alterados: `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
 - Removi o título e o texto explicativo `Matriz BCG do cardápio` da área de KPIs dos produtos.

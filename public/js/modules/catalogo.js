@@ -843,10 +843,6 @@ Modules.Catalogo = (function () {
       { key: 'review', title: 'Revisar', subtitle: 'baixo giro, sem venda recente ou custo incompleto', icon: 'manage_search', color: '#B42318', bg: '#FFF5F3', border: '#F0D2CC', empty: 'Tudo com leitura de venda recente no momento.', noProductTitle: 'Nada urgente para revisar' }
     ];
     return '<div style="display:flex;flex-direction:column;gap:10px;">' +
-      '<div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;">' +
-        '<div></div>' +
-        '<span style="font-size:11px;font-weight:700;color:#8A7E7C;background:#FAF8F4;border:1px solid #EAE4DA;border-radius:999px;padding:6px 9px;">' + (data.ordersCount || 0) + ' pedido(s) na base</span>' +
-      '</div>' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;">' + cards.map(function (card) {
         card.items = buckets[card.key] || [];
         return _productBcgCardHtml(card);
@@ -7378,7 +7374,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       '</div>';
 
     var footer = '<button onclick="Modules.Catalogo._saveVariant()" style="height:40px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:14px;font-weight:650;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">' + (id ? 'Salvar grupo' : 'Criar grupo') + '</button>';
-    window._variantModal = UI.modal({ title: id ? 'Editar grupo' : 'Novo grupo de variantes', body: body, footer: footer });
+    window._variantModal = UI.modal({ title: id ? 'Editar grupo' : 'Novo grupo de variantes', body: body, footer: footer, maxWidth: '920px' });
     setTimeout(_initVariantOptionSortable, 60);
   }
 
