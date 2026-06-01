@@ -6296,6 +6296,34 @@ Modules.Temporadas = (function () {
     if (modal) modal.remove();
   }
 
+  function deleteScheduledSeason(id) {
+    var season = (_state.seasons || []).filter(function (item) { return item.id === id; })[0];
+    if (!season || season.status !== 'scheduled') {
+      _toast('Temporada programada não encontrada.', 'warning');
+      return;
+    }
+    if (season.tenantId && season.tenantId !== _tenantId) {
+      _toast('Temporada pertence a outro negócio.', 'error');
+      return;
+    }
+    var ok = window.confirm('Excluir esta temporada programada? Ela ainda não começou e será removida da lista de futuras temporadas.');
+    if (!ok) return;
+    if (!window.DB || typeof DB.remove !== 'function') {
+      _toast('Não foi possível excluir agora.', 'error');
+      return;
+    }
+    DB.remove('seasons', id).then(function () {
+      closeFinalResult();
+      _state.seasons = (_state.seasons || []).filter(function (item) { return item.id !== id; });
+      _refreshSeasonStateFlags();
+      _paint();
+      _toast('Temporada programada excluída.', 'success');
+    }).catch(function (err) {
+      console.error('Erro ao excluir temporada programada', err);
+      _toast((err && err.message) || 'Erro ao excluir temporada programada.', 'error');
+    });
+  }
+
   function openStoneEvolutionHistory() {
     var overlay = document.getElementById('stones-upgrade-celebration');
     if (overlay) overlay.remove();
@@ -6629,6 +6657,10 @@ Modules.Temporadas = (function () {
           '<div class="seasons-final-summary">' +
             '<span class="seasons-section-label">Análises</span>' +
             '<p>As leituras automáticas e recomendações da Próxima Jogada começam quando a temporada ficar ativa.</p>' +
+          '</div>' +
+          '<div class="seasons-modal-foot" style="padding:0;margin-top:4px;border-top:none;background:transparent;">' +
+            '<button class="seasons-secondary-button" type="button" onclick="Modules.Temporadas.closeFinalResult()">Fechar</button>' +
+            '<button class="seasons-secondary-button" type="button" onclick="Modules.Temporadas.deleteScheduledSeason(\'' + _esc(season.id || '') + '\')" style="color:#B42318;border-color:#F1D2CE;background:#FFF7F5;">Excluir temporada</button>' +
           '</div>' +
         '</div>' +
       '</div>';
@@ -9837,6 +9869,7 @@ Modules.Temporadas = (function () {
     finishActiveSeason: finishActiveSeason,
     openFinalResult: openFinalResult,
     openScheduledDetails: openScheduledDetails,
+    deleteScheduledSeason: deleteScheduledSeason,
     openStoneEvolutionHistory: openStoneEvolutionHistory,
     closeStoneEvolutionHistory: closeStoneEvolutionHistory,
     openHelpModal: openHelpModal,

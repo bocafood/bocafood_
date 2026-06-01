@@ -1,5 +1,12 @@
 # AI Changelog
 
+## 2026-06-01 — Temporadas: exclusão de temporada programada
+- Arquivos alterados: `public/js/modules/temporadas.js`, `AI_CHANGELOG.md`.
+- Adicionei o botão `Excluir temporada` no modal `Temporada Programada`.
+- A exclusão só é permitida para temporadas com status `scheduled`, preservando temporadas ativas, finalizadas e abandonadas.
+- Ao excluir, o modal fecha, a lista de programadas é atualizada e os indicadores da tela são recalculados.
+- Impacto esperado: permitir remover uma temporada futura criada por engano sem mexer nas temporadas já iniciadas ou concluídas.
+
 ## 2026-06-01 — Cardápio: produtos agrupados por categoria
 - Arquivos alterados: `public/js/modules/catalogo.js`, `public/js/modules/dinheiro.js`, `public/js/modules/plano_voo.js`, `AI_CHANGELOG.md`.
 - Reorganizei a listagem de `Cardápio > Produtos` para mostrar os produtos separados por categoria.
