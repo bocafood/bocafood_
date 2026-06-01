@@ -641,12 +641,12 @@ Modules.Dashboard = (function () {
       '</div>' +
       '<div style="padding:10px;background:#fff;display:flex;flex-direction:column;gap:9px;">' +
           '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 2px;"><span style="font-size:11px;color:#8A6F5A;text-transform:uppercase;letter-spacing:.03em;">Etapa atual</span><span style="font-size:11px;color:#6F6860;">' + phaseDone + '/' + phaseSteps.length + '</span></div>' +
-          '<button type="button" onclick="Modules.Dashboard._openChecklistGuide(\'' + _esc((phase && phase.key) || '') + '\',' + nextIdx + ')" class="dash-action" style="text-align:left;border:1px solid ' + (nextStep.done ? '#D9F2E3' : '#EAE4DA') + ';background:' + (nextStep.done ? '#F4FBF6' : '#fff') + ';border-radius:14px;padding:12px;display:flex;gap:10px;align-items:flex-start;cursor:pointer;font-family:inherit;min-width:0;">' +
+          '<button type="button" onclick="Modules.Dashboard._openChecklistStepRoute(\'' + _esc((phase && phase.key) || '') + '\',' + nextIdx + ')" class="dash-action" style="text-align:left;border:1px solid ' + (nextStep.done ? '#D9F2E3' : '#EAE4DA') + ';background:' + (nextStep.done ? '#F4FBF6' : '#fff') + ';border-radius:14px;padding:12px;display:flex;gap:10px;align-items:flex-start;cursor:pointer;font-family:inherit;min-width:0;">' +
             '<span class="mi" style="width:32px;height:32px;border-radius:11px;background:' + (nextStep.done ? '#E8F7EE' : '#FAF8F4') + ';color:' + (nextStep.done ? '#1F6F43' : '#B42318') + ';font-size:18px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;">' + (nextStep.done ? 'check_circle' : _esc(nextStep.icon || 'arrow_forward')) + '</span>' +
             '<span style="min-width:0;"><span style="display:block;font-size:10.5px;color:#8A6F5A;font-weight:800;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Agora faça isso</span><strong style="display:block;font-size:13px;color:#1F1F1F;line-height:1.25;">' + _esc(nextStep.title || 'Continuar configuração') + '</strong><span style="display:block;font-size:11.5px;color:#6F6860;line-height:1.35;margin-top:3px;">' + _esc(nextStep.text || 'Abra para ver o que preencher e onde continuar.') + '</span></span>' +
           '</button>' +
           '<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;align-items:center;">' +
-            '<button type="button" onclick="Modules.Dashboard._openChecklistGuide(\'' + _esc((phase && phase.key) || '') + '\',' + nextIdx + ')" class="dash-soft-btn" style="height:38px;padding:0 12px;border:none;background:#B42318;color:#fff;border-radius:12px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;">Abrir passo</button>' +
+            '<button type="button" onclick="Modules.Dashboard._openChecklistStepRoute(\'' + _esc((phase && phase.key) || '') + '\',' + nextIdx + ')" class="dash-soft-btn" style="height:38px;padding:0 12px;border:none;background:#B42318;color:#fff;border-radius:12px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;">Abrir tela</button>' +
             '<button type="button" onclick="Modules.Dashboard._openChecklistSteps(\'' + _esc((phase && phase.key) || '') + '\')" class="dash-soft-btn" style="height:38px;padding:0 12px;border:1px solid #E8DCD7;background:#fff;color:#1F1F1F;border-radius:12px;font-size:12px;font-weight:750;cursor:pointer;font-family:inherit;">Ver etapas</button>' +
           '</div>' +
           '<div style="border-top:1px solid #F1ECE4;margin-top:1px;padding-top:8px;display:flex;gap:6px;flex-wrap:wrap;">' +
@@ -1087,7 +1087,7 @@ Modules.Dashboard = (function () {
         '</div>' +
         '<div class="dash-checklist-body" style="padding:14px 16px 16px;display:flex;flex-direction:column;gap:8px;">' +
           phase.steps.map(function (step, idx) {
-            return '<button type="button" onclick="Modules.Dashboard._openChecklistGuide(\'' + _esc(phase.key || '') + '\',' + idx + ')" class="dash-action" style="text-align:left;border:1px solid ' + (step.done ? '#D9F2E3' : '#EAE4DA') + ';background:' + (step.done ? '#F4FBF6' : '#fff') + ';border-radius:14px;padding:11px;display:flex;gap:10px;align-items:flex-start;cursor:pointer;font-family:inherit;min-width:0;">' +
+            return '<button type="button" onclick="Modules.Dashboard._openChecklistStepRoute(\'' + _esc(phase.key || '') + '\',' + idx + ')" class="dash-action" style="text-align:left;border:1px solid ' + (step.done ? '#D9F2E3' : '#EAE4DA') + ';background:' + (step.done ? '#F4FBF6' : '#fff') + ';border-radius:14px;padding:11px;display:flex;gap:10px;align-items:flex-start;cursor:pointer;font-family:inherit;min-width:0;">' +
               '<span class="mi" style="width:30px;height:30px;border-radius:11px;background:' + (step.done ? '#E8F7EE' : '#FAF8F4') + ';color:' + (step.done ? '#1F6F43' : '#B42318') + ';font-size:18px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;">' + (step.done ? 'check_circle' : _esc(step.icon || 'arrow_forward')) + '</span>' +
               '<span style="min-width:0;"><strong style="display:block;font-size:13px;color:#1F1F1F;line-height:1.25;">' + _esc(step.title || '') + '</strong><span style="display:block;font-size:11.5px;color:#6F6860;line-height:1.35;margin-top:3px;">' + _esc(step.text || '') + '</span></span>' +
             '</button>';
@@ -1151,6 +1151,23 @@ Modules.Dashboard = (function () {
     var route = active && active.step ? active.step.route : '';
     if (route) _navigateChecklistRoute(route);
     _renderGlobalOnboarding();
+    window.setTimeout(function () { _renderGlobalOnboarding(); }, 180);
+  }
+
+  function _openChecklistStepRoute(phaseKey, index) {
+    var phases = _onboardingSteps();
+    var phase = phases.filter(function (p) { return p && p.key === phaseKey; })[0] || null;
+    var step = phase && Array.isArray(phase.steps) ? phase.steps[index || 0] : null;
+    var route = step && step.route ? step.route : '';
+    if (!route) return;
+    try {
+      if (window.localStorage) {
+        localStorage.removeItem('boca_dashboard_checklist_guide');
+        localStorage.removeItem('boca_dashboard_checklist_steps');
+      }
+    } catch (err) {}
+    _writeLocalOnboardingState({ version: ONBOARDING_VERSION, welcomeSeen: true, tourOpen: false, tourDone: true, collapsed: false }, { action: 'checklist_route_opened' });
+    _navigateChecklistRoute(route);
     window.setTimeout(function () { _renderGlobalOnboarding(); }, 180);
   }
 
@@ -2878,6 +2895,7 @@ Modules.Dashboard = (function () {
     _closeChecklistSteps: _closeChecklistSteps,
     _closeChecklistGuide: _closeChecklistGuide,
     _openChecklistGuideRoute: _openChecklistGuideRoute,
+    _openChecklistStepRoute: _openChecklistStepRoute,
     _nextTourStep: _nextTourStep,
     _prevTourStep: _prevTourStep,
     _closeTour: _closeTour,

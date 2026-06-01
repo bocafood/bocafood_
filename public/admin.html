@@ -788,49 +788,10 @@ button,input,select,textarea{font-family:inherit}
       _adminApplySidebarState(mode, state, false);
     },
     updateOnboardingNavChecks: function (steps) {
-      steps = Array.isArray(steps) ? steps : [];
       var nav = document.querySelector('.sidebar .nav');
       if (!nav) return;
       nav.querySelectorAll('.nav-onboarding-check').forEach(function (el) { el.remove(); });
       nav.querySelectorAll('.has-onboarding-check').forEach(function (el) { el.classList.remove('has-onboarding-check'); });
-
-      var validSteps = steps.filter(function (step) {
-        return step && step.route && step.done;
-      }).map(function (step) {
-        return String(step.route || '').replace(/^#/, '').replace(/\/$/, '');
-      });
-      var allSteps = steps.filter(function (step) {
-        return step && step.route;
-      }).map(function (step) {
-        return {
-          route: String(step.route || '').replace(/^#/, '').replace(/\/$/, ''),
-          done: !!step.done
-        };
-      });
-
-      function addCheck(btn) {
-        if (!btn || btn.querySelector('.nav-onboarding-check')) return;
-        btn.classList.add('has-onboarding-check');
-        var mark = document.createElement('span');
-        mark.className = 'nav-onboarding-check';
-        mark.title = 'Etapa concluída';
-        mark.innerHTML = '<span class="mi" style="font-size:inherit;">check</span>';
-        btn.appendChild(mark);
-      }
-
-      nav.querySelectorAll('[data-route]').forEach(function (btn) {
-        var route = String(btn.getAttribute('data-route') || '').replace(/^#/, '').replace(/\/$/, '');
-        if (!route) return;
-        if (validSteps.indexOf(route) >= 0) {
-          addCheck(btn);
-          return;
-        }
-        if (route.indexOf('/') >= 0) return;
-        var children = allSteps.filter(function (step) {
-          return step.route === route || step.route.indexOf(route + '/') === 0;
-        });
-        if (children.length && children.every(function (step) { return step.done; })) addCheck(btn);
-      });
     },
     toggleSidebar: function () {
       var shell = document.getElementById('admin-shell');

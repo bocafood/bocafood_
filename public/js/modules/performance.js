@@ -286,16 +286,20 @@ Modules.Performance = (function () {
     var targetProfit = monthTarget.profit > 0 ? monthTarget.profit : 0;
     var daysLeftMonth = Math.max(0, _diffDays(today, currentMonth.end));
     var daysElapsedMonth = Math.min(_diffDays(currentMonth.start, today) + 1, currentMonth.days);
-    var expectedNow = targetRevenue ? (targetRevenue / currentMonth.days) * daysElapsedMonth : 0;
+    var dailyPlan = _dailyTargetPlan(days, targetRevenue, orders);
+    var monthPlan = _dailyTargetPlan(_rangeDays(currentMonth.start, currentMonth.end), targetRevenue, monthOrders);
+    var expectedNow = targetRevenue ? _plannedTargetUpTo(monthPlan, today) : 0;
     var remainingToTarget = targetRevenue ? Math.max(0, targetRevenue - monthRevenueTotal) : 0;
-    var needPerDay = targetRevenue && daysLeftMonth ? remainingToTarget / daysLeftMonth : 0;
-    var paceProjection = targetRevenue && daysElapsedMonth ? (monthRevenueTotal / daysElapsedMonth) * currentMonth.days : 0;
+    var remainingPlanWeight = _plannedWeightAfter(monthPlan, today);
+    var needPerDay = targetRevenue && remainingPlanWeight > 0 ? remainingToTarget / remainingPlanWeight : 0;
+    var elapsedPlanWeight = _plannedWeightUpTo(monthPlan, today);
+    var totalPlanWeight = _plannedTotalWeight(monthPlan);
+    var paceProjection = targetRevenue && elapsedPlanWeight > 0 ? (monthRevenueTotal / elapsedPlanWeight) * totalPlanWeight : 0;
     var progressPct = targetRevenue ? (monthRevenueTotal / targetRevenue) * 100 : 0;
     var bestDay = _bestDay(days, orders);
     var bestChannel = _bestChannel(orders);
     var bestCategory = _bestCategory(exits);
-    var daysRemainingPeriod = Math.max(0, daysTotal - daysElapsedMonth);
-    var dailyRows = _dailyRows(days, orders, entries, exits, targetRevenue, daysRemainingPeriod);
+    var dailyRows = _dailyRows(days, orders, entries, exits, targetRevenue, dailyPlan);
     var channelBreakdown = _channelBreakdown(orders);
     var entryCategories = _categoryBreakdown(entries, 'entrada');
     var exitCategories = _categoryBreakdown(exits, 'saida');
@@ -750,7 +754,7 @@ Modules.Performance = (function () {
     return '' +
       '<section style="' + _cardStyle() + '">' +
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px;flex-wrap:wrap;">' +
-          _sectionTitle('Linha do tempo diária', 'Veja vendas, entradas, saídas e a meta recalculada dia a dia.') +
+          _sectionTitle('Linha do tempo diária', 'Veja vendas, entradas, saídas e a meta diária ajustada pela realidade da rota.') +
           _chip(vm.periodLabel) +
         '</div>' +
         (rows.length ? '' +
@@ -1123,10 +1127,10 @@ Modules.Performance = (function () {
       '</div>';
   }
 
-  function _dailyRows(days, orders, entries, exits, targetRevenue, daysRemainingPeriod) {
+  function _dailyRows(days, orders, entries, exits, targetRevenue, dailyPlan) {
     var rows = [];
-    var totalDays = days.length || 1;
     var cumulative = 0;
+    var plan = dailyPlan || _dailyTargetPlan(days, targetRevenue, orders);
     for (var i = 0; i < days.length; i += 1) {
       var day = days[i];
       var key = _dateKey(day);
@@ -1134,10 +1138,11 @@ Modules.Performance = (function () {
       var dayEntries = _sumByDate(entries, key);
       var dayExits = _sumByDate(exits, key);
       cumulative += daySales;
-      var targetDaily = targetRevenue ? (targetRevenue / totalDays) : 0;
-      var expectedUpTo = targetRevenue ? targetDaily * (i + 1) : 0;
-      var remainingDays = Math.max(0, totalDays - (i + 1));
-      var needPerDay = targetRevenue && remainingDays ? Math.max(0, targetRevenue - cumulative) / remainingDays : 0;
+      var planRow = plan.byKey[key] || { target: 0, weight: 0, cumulativeTarget: 0, remainingWeightAfter: 0 };
+      var targetDaily = planRow.target || 0;
+      var expectedUpTo = planRow.cumulativeTarget || 0;
+      var remainingWeight = _num(planRow.remainingWeightAfter);
+      var needPerDay = targetRevenue && remainingWeight > 0 ? Math.max(0, targetRevenue - cumulative) / remainingWeight : 0;
       var balanceDay = dayEntries - dayExits;
       rows.push({
         date: day,
@@ -1156,6 +1161,141 @@ Modules.Performance = (function () {
       });
     }
     return rows;
+  }
+
+  function _dailyTargetPlan(days, targetRevenue, orders) {
+    days = Array.isArray(days) ? days : [];
+    var weights = {};
+    var byKey = {};
+    var totalWeight = 0;
+    var dayWeights = _weekdayRevenueWeights(orders);
+    var snap = _monthScenarioSnapshot();
+    var workDays = _snapshotWorkDays(snap);
+    var unavailable = _snapshotUnavailableDateKeys(snap);
+
+    days.forEach(function (day) {
+      var key = _dateKey(day);
+      var weight = 1;
+      if (workDays && workDays.indexOf(day.getDay()) < 0) weight = 0;
+      if (unavailable[key]) weight = 0;
+      if (weight > 0) weight = _num(dayWeights[day.getDay()] || 1);
+      weights[key] = weight;
+      totalWeight += weight;
+    });
+
+    if (targetRevenue > 0 && totalWeight <= 0 && days.length) {
+      days.forEach(function (day) {
+        var key = _dateKey(day);
+        weights[key] = 1;
+      });
+      totalWeight = days.length;
+    }
+
+    var cumulativeTarget = 0;
+    days.forEach(function (day) {
+      var key = _dateKey(day);
+      var weight = _num(weights[key]);
+      var target = targetRevenue && totalWeight > 0 ? targetRevenue * (weight / totalWeight) : 0;
+      cumulativeTarget += target;
+      byKey[key] = {
+        weight: weight,
+        target: target,
+        cumulativeTarget: cumulativeTarget,
+        remainingWeightAfter: 0
+      };
+    });
+
+    var remainingWeight = 0;
+    for (var i = days.length - 1; i >= 0; i -= 1) {
+      var dkey = _dateKey(days[i]);
+      if (byKey[dkey]) byKey[dkey].remainingWeightAfter = remainingWeight;
+      remainingWeight += _num(weights[dkey]);
+    }
+
+    return {
+      byKey: byKey,
+      totalWeight: totalWeight
+    };
+  }
+
+  function _plannedTargetUpTo(plan, date) {
+    var key = _dateKey(date);
+    var row = plan && plan.byKey ? plan.byKey[key] : null;
+    if (row) return _num(row.cumulativeTarget);
+    var total = 0;
+    Object.keys((plan && plan.byKey) || {}).forEach(function (k) {
+      if (k <= key) total = Math.max(total, _num(plan.byKey[k].cumulativeTarget));
+    });
+    return total;
+  }
+
+  function _plannedWeightUpTo(plan, date) {
+    var key = _dateKey(date);
+    return Object.keys((plan && plan.byKey) || {}).reduce(function (sum, k) {
+      return k <= key ? sum + _num(plan.byKey[k].weight) : sum;
+    }, 0);
+  }
+
+  function _plannedWeightAfter(plan, date) {
+    var key = _dateKey(date);
+    return Object.keys((plan && plan.byKey) || {}).reduce(function (sum, k) {
+      return k > key ? sum + _num(plan.byKey[k].weight) : sum;
+    }, 0);
+  }
+
+  function _plannedTotalWeight(plan) {
+    return _num(plan && plan.totalWeight);
+  }
+
+  function _snapshotWorkDays(snap) {
+    if (!snap || !Array.isArray(snap.workDays) || !snap.workDays.length) return null;
+    return snap.workDays.map(function (v) { return _num(v); }).filter(function (v, idx, arr) {
+      return v >= 0 && v <= 6 && arr.indexOf(v) === idx;
+    });
+  }
+
+  function _snapshotUnavailableDateKeys(snap) {
+    var map = {};
+    var text = String(snap && snap.plannedClosedDays || '').trim();
+    if (!text) return map;
+    var year = _dateFromAny(snap && snap.periodStart);
+    year = year ? year.getFullYear() : new Date().getFullYear();
+    var re = /(\d{1,2})\/(\d{1,2})(?:\s*(?:a|até|ate|-)\s*(\d{1,2})\/(\d{1,2}))?/gi;
+    var match;
+    while ((match = re.exec(text))) {
+      var start = new Date(year, parseInt(match[2], 10) - 1, parseInt(match[1], 10));
+      var end = match[3] && match[4] ? new Date(year, parseInt(match[4], 10) - 1, parseInt(match[3], 10)) : start;
+      if (!start || isNaN(start.getTime()) || !end || isNaN(end.getTime())) continue;
+      if (end < start) end = start;
+      var cursor = new Date(start);
+      while (cursor <= end) {
+        map[_dateKey(cursor)] = true;
+        cursor.setDate(cursor.getDate() + 1);
+      }
+    }
+    return map;
+  }
+
+  function _weekdayRevenueWeights(orders) {
+    var totals = {};
+    var active = [];
+    (orders || []).forEach(function (order) {
+      var date = _dateFromTs(_ts(order.createdAt || order.updatedAt || order.date));
+      if (!date) return;
+      var day = date.getDay();
+      totals[day] = _num(totals[day]) + _num(order.value || order.total || order.finalSubtotal || order.subtotal);
+    });
+    Object.keys(totals).forEach(function (key) {
+      if (_num(totals[key]) > 0) active.push(_num(totals[key]));
+    });
+    if (active.length < 3) return {};
+    var avg = active.reduce(function (sum, value) { return sum + value; }, 0) / active.length;
+    if (avg <= 0) return {};
+    var weights = {};
+    Object.keys(totals).forEach(function (key) {
+      weights[_num(key)] = Math.max(0.5, Math.min(1.8, _num(totals[key]) / avg));
+    });
+    return weights;
   }
 
   function _bestDay(days, orders) {

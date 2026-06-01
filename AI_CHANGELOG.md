@@ -1,5 +1,20 @@
 # AI Changelog
 
+## 2026-06-01 — Performance: meta diária pela realidade da rota
+- Arquivos alterados: `public/js/modules/performance.js`, `AI_CHANGELOG.md`.
+- Ajustei a `Linha do tempo diária` para distribuir a meta mensal usando os dados salvos na rota do Plano de Voo.
+- A meta diária agora considera dias da semana trabalhados, dias fechados/feriados e, quando houver histórico suficiente no período, peso por dia da semana.
+- A coluna `Meta recalculada` passa a dividir o que falta vender somente pelos dias trabalháveis restantes, em vez de usar todos os dias do mês.
+- Mantive fallback linear para rotas antigas ou cenários sem dados suficientes.
+- Impacto esperado: a Performance cobra ritmo de venda nos dias certos e deixa dias sem trabalho com meta zerada.
+
+## 2026-06-01 — Onboarding: abre tela sem checks no menu lateral
+- Arquivos alterados: `public/admin.html`, `public/js/modules/dashboard.js`, `AI_CHANGELOG.md`.
+- Removi a marcação visual de checklist no menu lateral do Admin.
+- Ajustei os cliques do onboarding para abrir diretamente a tela correspondente da etapa, sem abrir o modal de orientação como primeira ação.
+- A lista de etapas do onboarding também passa a navegar direto para a tela selecionada.
+- Impacto esperado: deixar o menu lateral mais limpo e fazer o onboarding funcionar como atalho direto para continuar a configuração.
+
 ## 2026-06-01 — Performance: contas a pagar no financeiro
 - Arquivos alterados: `public/js/modules/performance.js`, `AI_CHANGELOG.md`.
 - Corrigi a aba `Financeiro` dentro de Performance para considerar também a coleção `contas_pagar`, além de `financeiro_saidas` e `financeiro_apagar`.
