@@ -1266,6 +1266,21 @@ Modules.Dashboard = (function () {
         actions: ['Comece com uma margem desejada realista para a maioria dos produtos.', 'Defina uma margem mínima para o BocaFood sinalizar produtos que deixam pouca sobra.', 'Use markup como apoio, principalmente enquanto ainda está organizando custos e receitas.', 'Escolha um arredondamento que deixe os preços claros para a cliente.'],
         ready: 'Está pronto quando a regra mostra quanto você quer que sobre, qual é o mínimo aceitável e como os preços devem ser arredondados.'
       },
+      'Configurar custos variáveis': {
+        icon: 'price_check',
+        path: 'Caminho: Financeiro > Configurações',
+        introHtml: '<div><strong style="color:#1F1F1F;">Antes do Plano de Voo, reserve uma parte da venda para custos que crescem junto com o movimento.</strong></div><div style="margin-top:7px;">Use esta etapa para prever gastos que aumentam quando vende mais, como campanhas de marketing, energia, água, gás, perdas de produção ou reforços da operação. Contas fixas já entram pelas saídas previstas do Financeiro.</div>',
+        fields: [
+          ['Custos variáveis', 'Abra o card com esse nome dentro de Financeiro > Configurações. Ele alimenta a provisão de custos variáveis no Plano de Voo e o card Outros custos nas receitas.'],
+          ['Automático', 'Use quando já existem lançamentos financeiros que representam custos que aumentam conforme a venda cresce. O BocaFood compara esses custos com as vendas recentes para estimar uma porcentagem.'],
+          ['Manual', 'Use quando o negócio ainda está começando ou quando você prefere informar uma porcentagem de segurança. Exemplo: se quer reservar 5% da venda para marketing, energia, perdas ou reforços de operação, preencha 5.'],
+          ['Percentual de custos variáveis', 'Preencha uma porcentagem prudente para cobrir custos que acompanham o volume de venda. Não coloque aqui aluguel, internet, contador ou outras contas fixas, porque elas já entram pelas saídas previstas do Financeiro.'],
+          ['Período para cálculo automático', 'Quando estiver em automático, escolha se o BocaFood deve olhar 3, 6 ou 12 meses de histórico para estimar a porcentagem.'],
+          ['Salvar configuração', 'Depois de escolher manual ou automático, salve. A partir daí, as próximas rotas do Plano de Voo usam essa base.']
+        ],
+        actions: ['Abra Financeiro > Configurações.', 'Encontre o card Custos variáveis.', 'Escolha Manual se ainda não há histórico suficiente.', 'Escolha Automático quando o financeiro já tiver lançamentos variáveis bem registrados.', 'Salve antes de criar a primeira rota no Plano de Voo.'],
+        ready: 'Está pronto quando o modo de cálculo dos custos variáveis foi escolhido e salvo.'
+      },
       'Configurar fiscal': {
         icon: 'request_quote',
         path: 'Caminho: Configurações > Fiscal',
@@ -1428,8 +1443,8 @@ Modules.Dashboard = (function () {
           ['Base da rota', 'Confira o ponto de partida antes de escolher o cenário: ticket médio, vendas por canal, custos, despesas, dias trabalhados, dias fechados e força dos meses.'],
           ['Ticket médio usado', 'Preencha uma estimativa realista do valor médio que cada cliente costuma comprar. Exemplo: se a maioria dos pedidos fica perto de €15,00, use esse valor como ponto de partida. Se esse valor mudar, os pedidos por dia também mudam nos cenários.'],
           ['Vendas por canal', 'Registre quanto você acredita que cada canal consegue vender por mês, como Cardápio, Instagram ou WhatsApp. Venda presencial entra nessa base quando estiver ativada nas configurações. Esse valor ajuda o BocaFood a montar a previsão de venda do período.'],
-          ['Custos que acompanham as vendas', 'Confira os custos que aumentam quando vende mais, como custo dos produtos, taxas, comissões e uma reserva para custos gerais. Esses valores são calculados automaticamente pelo BocaFood.'],
-          ['Provisão para custos gerais', 'Use para reservar uma parte da venda para custos que nem sempre aparecem item por item, mas que pesam no resultado, como perdas, energia, marketing, ajustes de produção ou apoio da operação. Se estiver em automático, o BocaFood usa a base que já existe. Se estiver manual, informe um percentual prudente para não criar uma rota apertada demais.'],
+          ['Custos que acompanham as vendas', 'Confira os custos que aumentam quando vende mais, como custo dos produtos, taxas, comissões e a provisão para custos variáveis. Esses valores ajudam a rota a não contar como sobra um dinheiro que ainda precisa pagar a venda.'],
+          ['Provisão para custos variáveis', 'Use para reservar uma parte da venda para marketing, energia, água, gás, perdas, reforço de operação ou outros gastos que crescem quando o movimento aumenta. Não coloque aqui contas fixas, porque elas já entram no Plano de Voo pelas saídas previstas do Financeiro.'],
           ['Reserva fiscal', 'Vem da configuração fiscal do negócio. Ela separa uma parte da venda para impostos, usando IVA e IRPF configurados no Fiscal. Essa reserva não registra pagamento automático; ela serve para o Plano de Voo não tratar como sobra um valor que precisa ficar guardado.'],
           ['Despesas e custos previstos', 'Confira se os compromissos do período aparecem com valores que fazem sentido. Eles ajudam a mostrar se a rota cobre o que precisa sair do caixa. Esses valores são calculados automaticamente pelo BocaFood.'],
           ['Confirme sua realidade de trabalho', 'Abra essa parte para marcar os dias da semana em que trabalha e informar feriados ou dias fechados. Isso muda o ritmo de pedidos por dia.'],
@@ -2521,6 +2536,22 @@ Modules.Dashboard = (function () {
     var hasPurchaseItems = (_data.purchaseItems || []).length > 0;
     var hasRecipes = (_data.recipes || []).length > 0;
     var hasCosts = (_data.exits || []).length > 0;
+    var hasVariableCostConfig = _data.geral.variableCostConfigured === true ||
+      _data.geral.custosVariaveisConfigurados === true ||
+      _data.geral.variableCostMode != null ||
+      _data.geral.custosVariaveisModo != null ||
+      _data.geral.variableCostPercent != null ||
+      _data.geral.percentualCustosVariaveis != null ||
+      _data.geral.variableCostMonths != null ||
+      _data.geral.custosVariaveisMeses != null ||
+      _data.geral.indirectCostConfigured === true ||
+      _data.geral.custosIndiretosConfigurados === true ||
+      _data.geral.indirectCostMode != null ||
+      _data.geral.custosIndiretosModo != null ||
+      _data.geral.indirectCostPercent != null ||
+      _data.geral.percentualCustosIndiretos != null ||
+      _data.geral.indirectCostMonths != null ||
+      _data.geral.custosIndiretosMeses != null;
     var hasPlan = !!_data.monthScenario || !!_snapshotForCurrentMonth() || (_data.snapshots || []).length > 0;
     var hasSeason = (_data.seasons || []).length > 0;
     var hasStorefrontIdentity = !!(t.publicStoreName || t.publicName || t.logoUrl);
@@ -2563,6 +2594,7 @@ Modules.Dashboard = (function () {
         shortTitle: 'Rota',
         text: 'Com a base pronta, transforme seus números em uma direção para seguir.',
         steps: [
+          { title: 'Configurar custos variáveis', text: 'Reserve uma parte da venda para gastos que crescem junto com o movimento.', icon: 'price_check', route: 'financeiro/configuracoes', done: hasVariableCostConfig },
           { title: 'Criar Plano de Voo', text: 'Escolha a realidade que você quer buscar no ano.', icon: 'flight_takeoff', route: 'crescimento/plano-de-voo', done: hasPlan },
           { title: 'Criar primeira Temporada', text: 'Transforme a rota em jogadas práticas para executar agora.', icon: 'event_available', route: 'crescimento/temporadas', done: hasSeason }
         ]

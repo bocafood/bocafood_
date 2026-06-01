@@ -4812,16 +4812,16 @@ function _openContaModal(id) {
   function _paintCfgCustos() {
     var g=_configGeral||{};
     var cc=window._configCustos||{};
-    var mode=g.indirectCostMode||g.custosIndiretosModo||'manual';
-    var pct=g.indirectCostPercent!=null?g.indirectCostPercent:(g.percentualCustosIndiretos!=null?g.percentualCustosIndiretos:(cc.defaultIndirectCostPercent!=null?cc.defaultIndirectCostPercent:''));
-    var months=String(g.indirectCostMonths||g.custosIndiretosMeses||6);
+    var mode=g.variableCostMode||g.custosVariaveisModo||g.indirectCostMode||g.custosIndiretosModo||'manual';
+    var pct=g.variableCostPercent!=null?g.variableCostPercent:(g.percentualCustosVariaveis!=null?g.percentualCustosVariaveis:(g.indirectCostPercent!=null?g.indirectCostPercent:(g.percentualCustosIndiretos!=null?g.percentualCustosIndiretos:(cc.defaultIndirectCostPercent!=null?cc.defaultIndirectCostPercent:''))));
+    var months=String(g.variableCostMonths||g.custosVariaveisMeses||g.indirectCostMonths||g.custosIndiretosMeses||6);
     var manualVisible = mode !== 'automatico';
     var autoVisible = mode === 'automatico';
     return '<div style="'+_cfgCardStyle()+'">'+
-      '<div style="margin-bottom:14px;">'+_cfgSectionHead('price_check','Custos indiretos do negócio','Defina como despesas gerais entram no cálculo de lucro e preço dos produtos.')+'</div>'+
+      '<div style="margin-bottom:14px;">'+_cfgSectionHead('price_check','Custos variáveis','Reserve uma parte da venda para gastos que aumentam quando o movimento cresce.')+'</div>'+
       '<div style="display:flex;flex-direction:column;gap:14px;">'+
         '<div style="background:#FFFCF8;border:1px solid #EADFD8;border-radius:16px;padding:14px 14px 16px;">'+
-          '<div style="font-size:13px;font-weight:650;color:#1F1F1F;margin-bottom:10px;">Como deseja calcular os custos indiretos?</div>'+
+          '<div style="font-size:13px;font-weight:650;color:#1F1F1F;margin-bottom:10px;">Como deseja prever esses custos?</div>'+
           '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;">'+
             '<label style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:500;cursor:pointer;background:#fff;border:1px solid #E8DCD7;border-radius:12px;padding:11px 12px;"><input type="radio" name="cfg-ind-mode-radio" value="automatico" '+(mode==='automatico'?'checked':'')+' onchange="Modules.Financeiro._setCfgIndirectMode(this.value)" style="accent-color:#B42318;width:16px;height:16px;"> Automático</label>'+
             '<label style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:500;cursor:pointer;background:#fff;border:1px solid #E8DCD7;border-radius:12px;padding:11px 12px;"><input type="radio" name="cfg-ind-mode-radio" value="manual" '+(mode!=='automatico'?'checked':'')+' onchange="Modules.Financeiro._setCfgIndirectMode(this.value)" style="accent-color:#B42318;width:16px;height:16px;"> Manual</label>'+
@@ -4829,12 +4829,12 @@ function _openContaModal(id) {
         '</div>'+
         '<div style="background:#FFFCF8;border:1px solid #EADFD8;border-radius:16px;padding:14px 14px 16px;">'+
           '<div id="cfg-ind-manual-box" style="display:'+(manualVisible?'block':'none')+';margin-bottom:12px;">'+
-            '<label style="'+_lbl()+'">Percentual de custos indiretos</label>'+
+            '<label style="'+_lbl()+'">Percentual de custos variáveis</label>'+
             '<div style="display:flex;align-items:center;gap:8px;max-width:180px;">'+
               '<input id="cfg-ind-pct" type="text" value="'+_esc(pct)+'" placeholder="15" style="'+_inp()+'max-width:112px;background:#fff;border-color:#E8DCD7;border-radius:12px;">'+
               '<span style="font-size:16px;font-weight:600;color:#1F1F1F;">%</span>'+
             '</div>'+
-            '<div style="font-size:11.5px;color:#6F6860;margin-top:5px;">Ex.: aluguel, luz, internet e outras despesas do negócio.</div>'+
+            '<div style="font-size:11.5px;color:#6F6860;margin-top:5px;">Use para marketing de campanha, energia, água, gás, perdas e reforços que crescem junto com as vendas. Contas fixas, como aluguel, internet e contador, já entram pelas saídas previstas do Financeiro.</div>'+
           '</div>'+
           '<div id="cfg-ind-auto-box" style="display:'+(autoVisible?'block':'none')+';">'+
             '<label style="'+_lbl()+'">Período para cálculo automático</label><select id="cfg-ind-months" style="'+_modalSelectStyle('max-width:220px;')+'">'+
@@ -4842,15 +4842,15 @@ function _openContaModal(id) {
               '<option value="6"'+(months==='6'?' selected':'')+'>6 meses</option>'+
               '<option value="12"'+(months==='12'?' selected':'')+'>12 meses</option>'+
             '</select>'+
-            '<div style="font-size:11.5px;color:#6F6860;margin-top:5px;">Usa o histórico recente para estimar uma porcentagem média.</div>'+
+            '<div style="font-size:11.5px;color:#6F6860;margin-top:5px;">Usa lançamentos financeiros com perfil variável em relação às vendas do período. Se ainda não houver histórico confiável, prefira Manual.</div>'+
           '</div>'+
         '</div>'+
         '<div style="background:#FFFCF8;border:1px solid #EADFD8;border-radius:16px;padding:14px 14px 16px;">'+
           '<div style="font-size:13px;font-weight:650;color:#1F1F1F;margin-bottom:10px;">Exemplo rápido</div>'+
           '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;font-size:12px;color:#1F1F1F;">'+
             '<div style="background:#fff;border:1px solid #E8DCD7;border-radius:12px;padding:9px 10px;"><span style="display:block;color:#6F6860;font-size:10.5px;text-transform:uppercase;">Produto</span><strong style="font-weight:650;">'+_fmtVal(10)+'</strong></div>'+
-            '<div style="background:#fff;border:1px solid #E8DCD7;border-radius:12px;padding:9px 10px;"><span style="display:block;color:#6F6860;font-size:10.5px;text-transform:uppercase;">Custo direto</span><strong style="font-weight:650;">'+_fmtVal(4)+'</strong></div>'+
-            '<div style="background:#fff;border:1px solid #E8DCD7;border-radius:12px;padding:9px 10px;"><span style="display:block;color:#6F6860;font-size:10.5px;text-transform:uppercase;">Custo indireto</span><strong style="font-weight:650;">'+_fmtVal(1)+'</strong></div>'+
+            '<div style="background:#fff;border:1px solid #E8DCD7;border-radius:12px;padding:9px 10px;"><span style="display:block;color:#6F6860;font-size:10.5px;text-transform:uppercase;">Custo do produto</span><strong style="font-weight:650;">'+_fmtVal(4)+'</strong></div>'+
+            '<div style="background:#fff;border:1px solid #E8DCD7;border-radius:12px;padding:9px 10px;"><span style="display:block;color:#6F6860;font-size:10.5px;text-transform:uppercase;">Custo variável</span><strong style="font-weight:650;">'+_fmtVal(1)+'</strong></div>'+
             '<div style="background:#fff;border:1px solid #E8DCD7;border-radius:12px;padding:9px 10px;"><span style="display:block;color:#6F6860;font-size:10.5px;text-transform:uppercase;">Lucro</span><strong style="font-weight:650;">'+_fmtVal(5)+'</strong></div>'+
           '</div>'+
         '</div>'+
@@ -4875,12 +4875,22 @@ function _openContaModal(id) {
     var mode=(modeEl&&modeEl.value)||'manual';
     var months=parseInt((document.getElementById('cfg-ind-months')||{}).value,10)||6;
     var geral=Object.assign({}, _configGeral || {}, {
+      variableCostMode: mode,
+      variableCostPercent: pct,
+      variableCostMonths: months,
+      custosVariaveisModo: mode,
+      percentualCustosVariaveis: pct,
+      custosVariaveisMeses: months,
+      variableCostConfigured: true,
+      custosVariaveisConfigurados: true,
       indirectCostMode: mode,
       indirectCostPercent: pct,
       indirectCostMonths: months,
       custosIndiretosModo: mode,
       percentualCustosIndiretos: pct,
-      custosIndiretosMeses: months
+      custosIndiretosMeses: months,
+      indirectCostConfigured: true,
+      custosIndiretosConfigurados: true
     });
     Promise.all([
       DB.setDocRoot('config','geral',geral),
@@ -4888,7 +4898,7 @@ function _openContaModal(id) {
     ]).then(function(){
       _configGeral=geral;
       if(window._configCustos) window._configCustos.defaultIndirectCostPercent=pct;
-      UI.toast('Custos indiretos salvos!','success');
+      UI.toast('Custos variáveis salvos!','success');
     }).catch(function(e){ UI.toast('Erro ao salvar configurações','error'); console.error(e); });
   }
 

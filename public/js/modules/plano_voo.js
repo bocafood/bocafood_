@@ -245,9 +245,9 @@ Modules.PlanoDeVoo = (function () {
   function _normalizeGeneral(c) {
     c = c || {};
     return {
-      indirectCostMode: c.indirectCostMode || c.custosIndiretosModo || 'manual',
-      indirectCostPercent: _num(c.indirectCostPercent != null ? c.indirectCostPercent : c.percentualCustosIndiretos != null ? c.percentualCustosIndiretos : 0),
-      indirectCostMonths: parseInt(c.indirectCostMonths != null ? c.indirectCostMonths : c.custosIndiretosMeses != null ? c.custosIndiretosMeses : 6, 10) || 6,
+      indirectCostMode: c.variableCostMode || c.custosVariaveisModo || c.indirectCostMode || c.custosIndiretosModo || 'manual',
+      indirectCostPercent: _num(c.variableCostPercent != null ? c.variableCostPercent : c.percentualCustosVariaveis != null ? c.percentualCustosVariaveis : c.indirectCostPercent != null ? c.indirectCostPercent : c.percentualCustosIndiretos != null ? c.percentualCustosIndiretos : 0),
+      indirectCostMonths: parseInt(c.variableCostMonths != null ? c.variableCostMonths : c.custosVariaveisMeses != null ? c.custosVariaveisMeses : c.indirectCostMonths != null ? c.indirectCostMonths : c.custosIndiretosMeses != null ? c.custosIndiretosMeses : 6, 10) || 6,
       businessName: c.businessName || c.nomeNegocio || '',
       description: c.description || '',
       primaryColor: c.primaryColor || '#C4362A'
@@ -1763,7 +1763,7 @@ Modules.PlanoDeVoo = (function () {
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px;flex-wrap:wrap;">' +
           '<div>' +
             '<h3 style="font-size:15px;font-weight:600;color:#1F1F1F;margin:0 0 4px;line-height:1.2;">Custos que acompanham as vendas</h3>' +
-            '<p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0;">Aqui entram valores que tendem a aumentar quando você vende mais, como custo dos produtos, taxas, comissões e uma reserva para custos gerais.</p>' +
+            '<p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0;">Aqui entram valores que tendem a aumentar quando você vende mais: custo dos produtos, taxas, comissões e a provisão para custos variáveis.</p>' +
           '</div>' +
         '</div>' +
         '<div style="display:flex;flex-direction:column;gap:10px;overflow-x:auto;padding-bottom:2px;">' +
@@ -2136,6 +2136,23 @@ Modules.PlanoDeVoo = (function () {
     return 'despesa';
   }
 
+  function _financeHasRecurrence(item) {
+    if (!item) return false;
+    return item.recorrente === true || item.isRecurring === true || !!(item.recorrencia || item.recurrence || item.frequencia || item.frequency || item.recorrenciaId || item.contaOriginalId);
+  }
+
+  function _variableCostCandidate(item) {
+    if (!item) return false;
+    var cls = _financeCostClass(item);
+    if (cls === 'direto') return true;
+    if (_financeHasRecurrence(item)) return false;
+    var text = String([
+      item.name, item.title, item.descricao, item.description, item.categoria,
+      item.category, item.categoriaFinanceiraNome, item.financialCategory
+    ].filter(Boolean).join(' ')).toLowerCase();
+    return /(marketing|campanha|trafego|tráfego|luz|energia|agua|água|g[aá]s|perda|taxa|comiss[aã]o|extra|refor[cç]o|vari[aá]vel)/.test(text);
+  }
+
   function _categoryMeta(rawCat) {
     var rawKey = _normalizeCategoryKey(rawCat);
     var found = (_data.categorias || []).find(function (c) {
@@ -2151,34 +2168,37 @@ Modules.PlanoDeVoo = (function () {
   }
 
   function _indirectCostInfo() {
-    var manualValue = _data.geral.indirectCostPercent != null ? _data.geral.indirectCostPercent : _data.custos.defaultIndirectCostPercent;
+    var manualValue = _data.geral.variableCostPercent != null ? _data.geral.variableCostPercent : _data.geral.percentualCustosVariaveis != null ? _data.geral.percentualCustosVariaveis : _data.geral.indirectCostPercent != null ? _data.geral.indirectCostPercent : _data.custos.defaultIndirectCostPercent;
     var manual = _num(manualValue != null ? manualValue : 0);
-    var mode = _data.geral.indirectCostMode || _data.geral.custosIndiretosModo || 'manual';
+    var mode = _data.geral.variableCostMode || _data.geral.custosVariaveisModo || _data.geral.indirectCostMode || _data.geral.custosIndiretosModo || 'manual';
     if (mode !== 'automatico') return { modeUsed: 'Manual', configuredMode: 'manual', percent: manual, fallback: false };
 
-    var months = parseInt(_data.geral.indirectCostMonths || _data.geral.custosIndiretosMeses, 10) || 6;
+    var months = parseInt(_data.geral.variableCostMonths || _data.geral.custosVariaveisMeses || _data.geral.indirectCostMonths || _data.geral.custosIndiretosMeses, 10) || 6;
     if ([3, 6, 12].indexOf(months) < 0) months = 6;
     var start = new Date();
     start.setMonth(start.getMonth() - months);
     start.setHours(0, 0, 0, 0);
 
-    var direct = 0;
-    var indirect = 0;
+    var variableExtra = 0;
     (_data.saidas || []).concat(_data.apagar || []).forEach(function (item) {
       var rawDate = _financeRecordDate(item);
       if (!rawDate) return;
       var d = new Date(rawDate);
       if (isNaN(d.getTime()) || d < start) return;
       var value = _num(item.valor || item.amount || item.total);
-      var cls = _financeCostClass(item);
-      if (cls === 'direto') direct += value;
-      if (cls === 'indireto') indirect += value;
+      if (_variableCostCandidate(item)) variableExtra += value;
     });
 
-    if (direct <= 0 || indirect <= 0) {
+    var revenue = _realOrders().reduce(function (sum, order) {
+      var d = _orderDate(order);
+      if (!d || d < start) return sum;
+      return sum + _orderRevenue(order);
+    }, 0);
+
+    if (variableExtra <= 0 || revenue <= 0) {
       return { modeUsed: 'Manual', configuredMode: 'automatico', percent: manual, fallback: true, months: months };
     }
-    return { modeUsed: 'Automático', configuredMode: 'automatico', percent: (indirect / direct) * 100, fallback: false, months: months };
+    return { modeUsed: 'Automático', configuredMode: 'automatico', percent: (variableExtra / revenue) * 100, fallback: false, months: months };
   }
 
   function _taxReserveInfo() {
@@ -2226,7 +2246,7 @@ Modules.PlanoDeVoo = (function () {
       { key: 'products', name: 'Custo do que foi vendido', pct: productCostPct, mode: 'automatico', sourceLabel: 'Produtos vendidos', note: productCostPct > 0 ? 'Usa o custo cadastrado nos produtos que já foram vendidos.' : 'Cadastre o custo dos produtos para o BocaFood estimar melhor esta parte.', warning: productCostPct <= 0 ? 'Custo não informado' : '' },
       { key: 'payment', name: 'Taxas de pagamento', pct: paymentPct, mode: 'automatico', sourceLabel: 'Formas de pagamento', note: 'Reserva para taxas cobradas pelas formas de pagamento usadas nas vendas.' },
       { key: 'channel', name: 'Comissões dos canais', pct: channelCommissionInfo.totalPct, displayPct: channelCommissionInfo.chargedPct || channelCommissionInfo.totalPct, projectedOverride: channelCommissionInfo.feeTotal, mode: 'automatico', sourceLabel: 'Canais de venda', note: channelCommissionInfo.chargedPct > channelCommissionInfo.totalPct ? 'Mostra a comissão efetiva dos canais que cobram taxa. O valor projetado considera só a parte das vendas que passa por esses canais.' : 'Considera comissão, imposto sobre a comissão e taxa fixa configurada nos canais.' },
-      { key: 'indirect', name: 'Provisão para custos gerais', pct: indirectPct, mode: indirectInfo.configuredMode === 'automatico' ? 'automatico' : 'manual', sourceLabel: indirectInfo.modeUsed === 'Automático' ? 'Histórico financeiro' : 'Configuração geral', note: indirectInfo.fallback ? 'Usa o percentual configurado para reservar custos gerais, como marketing, perdas, energia ou apoio da operação.' : 'Usa o histórico para estimar uma reserva de custos gerais que acompanham as vendas.' },
+      { key: 'indirect', name: 'Provisão para custos variáveis', pct: indirectPct, mode: indirectInfo.configuredMode === 'automatico' ? 'automatico' : 'manual', sourceLabel: indirectInfo.modeUsed === 'Automático' ? 'Histórico financeiro' : 'Configuração geral', note: indirectInfo.fallback ? 'Usa o percentual configurado para reservar custos que crescem quando as vendas aumentam.' : 'Usa o histórico financeiro para estimar custos variáveis que acompanharam as vendas.' },
       { key: 'tax', name: 'Reserva fiscal', pct: taxReserve.pct, mode: 'automatico', sourceLabel: taxReserve.sourceLabel, note: taxReserve.note }
     ];
 

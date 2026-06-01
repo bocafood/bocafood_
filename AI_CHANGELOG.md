@@ -1,10 +1,25 @@
 # AI Changelog
 
+## 2026-06-01 — Plano de Voo: provisão de custos variáveis
+- Arquivos alterados: `public/js/modules/plano_voo.js`, `public/js/modules/dashboard.js`, `public/js/modules/financeiro.js`, `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Renomeei a configuração antes do Plano de Voo para `custos variáveis`, alinhando o campo com gastos que crescem junto com as vendas, como marketing, luz, água, gás, perdas e reforços de operação.
+- O Plano de Voo continua separando contas fixas/indiretas pelas saídas previstas do Financeiro para não duplicar aluguel, internet, contador e outros compromissos fixos.
+- O modo automático agora busca lançamentos com perfil variável no Financeiro em relação às vendas recentes; se não houver base confiável, mantém o percentual manual.
+- Mantive os campos antigos de `custosIndiretos`/`indirectCost` como compatibilidade interna e adicionei aliases de `custosVariaveis` para novas configurações.
+- Impacto esperado: a rota fica mais fiel ao negócio real, separando custo do produto, taxas/comissões, reserva fiscal, saídas previstas e provisão para custos variáveis.
+
+## 2026-06-01 — Onboarding: custos variáveis antes do Plano de Voo
+- Arquivos alterados: `public/js/modules/dashboard.js`, `public/js/modules/financeiro.js`, `AI_CHANGELOG.md`.
+- Incluí a etapa `Configurar custos variáveis` no checklist antes de `Criar Plano de Voo`.
+- A etapa abre `Financeiro > Configurações` e explica como escolher manual ou automático para custos que crescem junto com as vendas.
+- Ao salvar essa configuração no Financeiro, o sistema passa a registrar que a etapa foi configurada para o checklist acompanhar.
+- Impacto esperado: a primeira rota do Plano de Voo considera melhor marketing, energia, água, perdas e reforços de operação, sem misturar com despesas fixas previstas.
+
 ## 2026-06-01 — Menu: atalho para custos indiretos
 - Arquivos alterados: `public/admin.html`, `AI_CHANGELOG.md`.
-- Adicionei um atalho visível em `Preços e Margem` para a configuração de `Custos indiretos`.
-- A configuração continua sendo salva em `Financeiro > Configurações`, que é a tela usada hoje pelo sistema.
-- Impacto esperado: facilitar encontrar o percentual manual/automático usado em `Outros custos` das receitas.
+- Removi o atalho `Custos indiretos` de `Preços e Margem` para manter o menu mais limpo.
+- A configuração continua disponível em `Financeiro > Configurações`, que é a tela usada hoje pelo sistema.
+- Impacto esperado: evitar duplicidade visual no menu e manter a configuração no local correto.
 
 ## 2026-06-01 — Admin: botão Ver loja abre a loja pública
 - Arquivos alterados: `public/admin.html`, `public/js/modules/configuracoes.js`, `AI_CHANGELOG.md`.

@@ -7535,7 +7535,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   }
 
   function _getManualIndirectCostPercent() {
-    var value = _recipeConfig.indirectCostPercent != null ? _recipeConfig.indirectCostPercent : _recipeConfig.percentualCustosIndiretos;
+    var value = _recipeConfig.variableCostPercent != null ? _recipeConfig.variableCostPercent : _recipeConfig.percentualCustosVariaveis != null ? _recipeConfig.percentualCustosVariaveis : _recipeConfig.indirectCostPercent != null ? _recipeConfig.indirectCostPercent : _recipeConfig.percentualCustosIndiretos;
     return _parseFichaNum(value != null ? value : 0);
   }
 
@@ -7551,10 +7551,10 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
 
   function _getIndirectCostInfo() {
     var manual = _getManualIndirectCostPercent();
-    var mode = _recipeConfig.indirectCostMode || _recipeConfig.custosIndiretosModo || 'manual';
+    var mode = _recipeConfig.variableCostMode || _recipeConfig.custosVariaveisModo || _recipeConfig.indirectCostMode || _recipeConfig.custosIndiretosModo || 'manual';
     if (mode !== 'automatico') return { modeUsed: 'Manual', configuredMode: 'manual', percent: manual, fallback: false };
 
-    var months = parseInt(_recipeConfig.indirectCostMonths || _recipeConfig.custosIndiretosMeses, 10) || 6;
+    var months = parseInt(_recipeConfig.variableCostMonths || _recipeConfig.custosVariaveisMeses || _recipeConfig.indirectCostMonths || _recipeConfig.custosIndiretosMeses, 10) || 6;
     if ([3, 6, 12].indexOf(months) < 0) months = 6;
     var start = new Date();
     start.setMonth(start.getMonth() - months);
