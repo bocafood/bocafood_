@@ -5,6 +5,9 @@
 - Incluí um campo de busca no bloco `Montagem interna` do cadastro de produto.
 - A busca filtra as opções disponíveis nos itens internos por receita, ingrediente, embalagem ou produto pronto, sem mudar a estrutura salva da composição.
 - O item já selecionado continua preservado mesmo quando a busca é alterada.
+- Corrigi a atualização da busca para preservar linhas vazias ou ainda em preenchimento enquanto a lista é filtrada.
+- Ajustei também a lista `Aumentar valor do pedido` no cadastro do produto para permitir selecionar produtos ativos mesmo quando estão ocultos no cardápio.
+- Produtos ocultos aparecem sinalizados como `Oculto no cardápio`, mas seguem disponíveis para upsell sem voltar para a vitrine pública.
 - Impacto esperado: facilitar a montagem de kits e caixas internas sem deixar a lista longa difícil de usar.
 
 ## 2026-06-01 — Upsell: produto oculto disponível como oferta

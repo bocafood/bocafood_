@@ -1492,7 +1492,7 @@ Modules.Catalogo = (function () {
   function _addInternalCompositionItem() {
     var host = document.getElementById('pm-internal-composition-list');
     if (!host) return;
-    var rows = _collectInternalComposition();
+    var rows = _collectInternalCompositionDraft();
     rows.push({ ref: '', quantity: 1 });
     window._pmInternalCompositionCount = rows.length;
     host.innerHTML = _internalCompositionRowsHtml(rows);
@@ -1502,7 +1502,7 @@ Modules.Catalogo = (function () {
   function _removeInternalCompositionItem(idx) {
     var host = document.getElementById('pm-internal-composition-list');
     if (!host) return;
-    var rows = _collectInternalComposition().filter(function (_, i) { return i !== idx; });
+    var rows = _collectInternalCompositionDraft().filter(function (_, i) { return i !== idx; });
     window._pmInternalCompositionCount = rows.length;
     host.innerHTML = _internalCompositionRowsHtml(rows);
     _refreshProductPreview();
@@ -1512,7 +1512,7 @@ Modules.Catalogo = (function () {
     window._pmInternalCompositionQuery = String(value || '');
     var host = document.getElementById('pm-internal-composition-list');
     if (!host) return;
-    var rows = _collectInternalComposition();
+    var rows = _collectInternalCompositionDraft();
     host.innerHTML = _internalCompositionRowsHtml(rows);
   }
 
@@ -1546,6 +1546,31 @@ Modules.Catalogo = (function () {
         quantity: qty,
         unit: meta.unit || 'un',
         unitCost: meta.unitCost || 0
+      });
+    });
+    return rows;
+  }
+
+  function _collectInternalCompositionDraft() {
+    var rows = [];
+    var host = document.getElementById('pm-internal-composition-list');
+    if (!host) return [];
+    host.querySelectorAll('.pm-internal-row').forEach(function (row) {
+      var idx = row.dataset.internalRow;
+      var ref = ((row.querySelector('[data-internal-ref="' + idx + '"]') || {}).value || '').trim();
+      var qtyRaw = ((row.querySelector('[data-internal-qty="' + idx + '"]') || {}).value || '').trim();
+      var qty = qtyRaw ? _moneyLike(qtyRaw) : 1;
+      var meta = _compositionItemMeta(ref);
+      rows.push({
+        ref: ref,
+        itemId: meta.itemId || '',
+        itemName: meta.label || '',
+        stockItemType: meta.stockItemType || '',
+        itemClass: meta.stockItemType || '',
+        classe: meta.stockItemType || '',
+        quantity: qty > 0 ? qty : 1,
+        unit: meta.unit || ((row.querySelector('[data-internal-unit="' + idx + '"]') || {}).value || 'un'),
+        unitCost: meta.unitCost || _moneyLike((row.querySelector('[data-internal-cost="' + idx + '"]') || {}).value || 0)
       });
     });
     return rows;
@@ -2518,10 +2543,10 @@ Modules.Catalogo = (function () {
     return _products.filter(function (p) {
       p = _normalizeProduct(p);
       var isCurrent = _editingId && String(p.id) === String(_editingId);
-      return !isCurrent && p.active !== false && p.menuVisible !== false;
+      return !isCurrent && p.active !== false;
     }).map(function (p) {
       p = _normalizeProduct(p);
-      return { id: String(p.id), name: p.name || 'Produto', price: p.price || 0, img: _imageUrlFor(p, 'thumb') || _imageUrlFor(p, 'card') || _imageUrlFor(p, 'main') };
+      return { id: String(p.id), name: p.name || 'Produto', price: p.price || 0, hiddenFromMenu: p.menuVisible === false, img: _imageUrlFor(p, 'thumb') || _imageUrlFor(p, 'card') || _imageUrlFor(p, 'main') };
     }).sort(function (a, b) { return String(a.name || '').localeCompare(String(b.name || '')); });
   }
 
@@ -2558,7 +2583,7 @@ Modules.Catalogo = (function () {
     return rows.map(function (p) {
       var imgHtml = p.img ? '<img src="' + _esc(p.img) + '" style="width:30px;height:30px;border-radius:7px;object-fit:cover;background:#F2EDED;flex-shrink:0;" onerror="this.style.display=\'none\';">' : '<span class="mi" style="font-size:17px;color:#B9AAA6;">restaurant</span>';
       return '<button type="button" data-upsell-candidate="' + kind + '" data-id="' + _esc(p.id) + '" data-name="' + _esc(p.name) + '" onclick="Modules.Catalogo._addUpsellProduct(\'' + kind + '\', \'' + _esc(p.id) + '\')" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border:none;border-bottom:1px solid #F2EDED;background:#fff;text-align:left;cursor:pointer;font-family:inherit;">' +
-        '<span style="display:flex;align-items:center;gap:8px;min-width:0;">' + imgHtml + '<span style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(p.name) + '</span></span><span style="font-size:11px;color:#B42318;font-weight:800;">Adicionar</span></button>';
+        '<span style="display:flex;align-items:center;gap:8px;min-width:0;">' + imgHtml + '<span style="min-width:0;"><span style="display:block;font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(p.name) + '</span>' + (p.hiddenFromMenu ? '<span style="display:block;font-size:10px;color:#8A7E7C;margin-top:2px;">Oculto no cardápio</span>' : '') + '</span></span><span style="font-size:11px;color:#B42318;font-weight:800;">Adicionar</span></button>';
     }).join('');
   }
 
