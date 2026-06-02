@@ -1,5 +1,15 @@
 # AI Changelog
 
+## 2026-06-02 — Temporadas: início sem pedidos não vira dia fraco
+- Arquivos alterados: `public/js/modules/temporadas.js`, `AI_CHANGELOG.md`.
+- Ajustei a leitura inicial da Próxima Jogada para não tratar o primeiro dia sem pedidos como `dia fraco`.
+- Quando a temporada ainda não tem pedido válido, a jogada passa a orientar a abertura da operação e o registro dos primeiros pedidos reais.
+- A contagem de `dias fracos` agora só aparece depois que existe venda válida dentro da temporada.
+- Ajustei a Maturidade para não considerar uma temporada encerrada sem resultado real como dado suficiente para avançar a Pedra.
+- `Falha Operacional` não soma mais progresso positivo na Pedra.
+- O card `Vendas e pedidos` da Maturidade só fala em ritmo de venda quando existem pedidos reais.
+- Impacto esperado: evitar recomendações falsas como repetir produto, canal ou horário antes de haver histórico real da temporada.
+
 ## 2026-06-01 — Temporadas: exclusão de temporada programada
 - Arquivos alterados: `public/js/modules/temporadas.js`, `AI_CHANGELOG.md`.
 - Adicionei o botão `Excluir temporada` no modal `Temporada Programada`.

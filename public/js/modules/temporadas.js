@@ -545,7 +545,7 @@ Modules.Temporadas = (function () {
     var businessHistory = _businessHistoryContext(input, orders);
     var indexes = _maturityIndexes(seasonStats, orderStats, loyaltyStats, scenario, dataSignals, businessHistory);
     var maturityScore = _maturityScore(indexes);
-    var hasEnoughData = seasonStats.total > 0 || orderStats.totalOrders >= 3;
+    var hasEnoughData = seasonStats.finishedWithResult > 0 || orderStats.totalOrders >= 3;
     var previousProgress = _clamp(_number(existing.stoneProgressPercent, 0), 0, 100);
     var progress = hasEnoughData ? _clamp(Math.round((maturityScore * 0.68) + seasonStats.totalImpact), 0, 100) : 0;
     var strengths = _maturityStrengths(seasonStats, orderStats, loyaltyStats, indexes, scenario, dataSignals);
@@ -590,6 +590,13 @@ Modules.Temporadas = (function () {
       indexes: indexes,
       dataSignals: dataSignals,
       businessHistory: businessHistory,
+      orderSummary: {
+        totalOrders: orderStats.totalOrders,
+        revenue: orderStats.revenue,
+        activeDays: orderStats.activeDays,
+        activeWeeks: orderStats.activeWeeks,
+        averageTicket: orderStats.averageTicket
+      },
       strengths: strengths,
       weaknesses: weaknesses,
       checklist: checklist,
@@ -627,6 +634,7 @@ Modules.Temporadas = (function () {
       indexes: _emptyMaturityIndexes(),
       dataSignals: _emptyMaturityDataSignals(),
       businessHistory: _emptyBusinessHistory(),
+      orderSummary: { totalOrders: 0, revenue: 0, activeDays: 0, activeWeeks: 0, averageTicket: 0 },
       strengths: ['Comeco da organizacao do negocio.'],
       weaknesses: ['Ainda faltam dados suficientes para medir evolucao.'],
       lastCalculatedAt: null,
@@ -1514,8 +1522,7 @@ Modules.Temporadas = (function () {
       impact += 3;
       reasons.push('Houve avanço, mas com instabilidade.');
     } else if (result === 'Falha Operacional') {
-      impact += 1;
-      limiters.push('Falha Operacional quase não contribui para a Pedra.');
+      limiters.push('Falha Operacional não avança a Pedra porque ainda não mostrou resultado real do negócio.');
     } else if (result === 'Abandono') {
       impact -= 7;
       limiters.push('Temporada abandonada limita a evolução.');
@@ -1581,7 +1588,8 @@ Modules.Temporadas = (function () {
 
   function _seasonImpactReason(result, difficulty, risk, impact, reasons, limiters) {
     if (result === 'Abandono') return 'Esta temporada limitou sua evolução porque foi abandonada antes de consolidar resultado.';
-    if (!_seasonHasBusinessResult(result) && result !== 'Falha Operacional') return 'Esta temporada foi encerrada, mas ainda não trouxe resultado claro para acelerar a Pedra.';
+    if (result === 'Falha Operacional') return 'Esta temporada não avançou sua Pedra porque terminou sem resultado real suficiente.';
+    if (!_seasonHasBusinessResult(result)) return 'Esta temporada foi encerrada, mas ainda não trouxe resultado claro para acelerar a Pedra.';
     if (result === 'Vitória Total' && difficulty === 'aggressive' && (risk === 'high' || risk === 'very_high')) {
       return 'Vitória Total em dificuldade agressiva aumentou seu progresso, mas o avanço foi limitado por chance de falha elevada.';
     }
@@ -3005,6 +3013,8 @@ Modules.Temporadas = (function () {
     var points = signals.loyaltyProgram || {};
     var reviews = signals.reviews || {};
     var operations = signals.operations || {};
+    var orders = maturity.orderSummary || {};
+    var hasRealOrders = _number(orders.totalOrders, 0) > 0;
     var healthyScore = _number(indexes.healthyGrowth && indexes.healthyGrowth.score, 0);
     var consistencyScore = _number(indexes.consistency && indexes.consistency.score, 0);
     var loyaltyScore = _number(indexes.loyalty && indexes.loyalty.score, 0);
@@ -3015,10 +3025,10 @@ Modules.Temporadas = (function () {
 
     return [
       {
-        level: healthyScore || consistencyScore ? 'strong' : 'empty',
+        level: hasRealOrders ? (healthyScore || consistencyScore ? 'strong' : 'light') : 'empty',
         title: 'Vendas e pedidos',
-        text: healthyScore || consistencyScore ? 'As vendas já mostram algum ritmo. Isso ajuda a entender se o negócio está criando constância ou se ainda depende de poucos dias bons.' : 'Ainda faltam pedidos para enxergar se as vendas estão começando a ganhar ritmo.',
-        meta: healthyScore || consistencyScore ? 'Ritmo atual: ' + Math.round(Math.max(healthyScore, consistencyScore)) + '/100' : 'Aguardando pedidos'
+        text: hasRealOrders ? 'Os pedidos reais começam a mostrar se o negócio está criando ritmo ou se ainda depende de poucos dias bons.' : 'Ainda não há pedidos reais para dizer que o negócio vendeu ou ganhou ritmo.',
+        meta: hasRealOrders ? _number(orders.totalOrders, 0) + ' pedido(s) · ' + _number(orders.activeDays, 0) + ' dia(s) com venda' : 'Aguardando os primeiros pedidos'
       },
       {
         level: seasonVictories ? 'strong' : (_number(seasons.closedSeasons, 0) ? 'light' : 'empty'),
@@ -4754,6 +4764,7 @@ Modules.Temporadas = (function () {
     var signals = validatedImpactSignals || {};
     var metrics = currentMetrics || {};
     var actions = [];
+    var hasCurrentOrders = _number(metrics.orders, 0) > 0;
     var topProduct = signals.products && signals.products.topProduct && signals.products.topProduct.name ? signals.products.topProduct : (metrics.topProducts || [])[0];
     var topChannel = signals.channels && signals.channels.topChannel;
     var strongHour = (metrics.strongHours || [])[0];
@@ -4769,6 +4780,33 @@ Modules.Temporadas = (function () {
     var channelEvidence = topChannel && topChannel.channel ? (channelLabel + ' trouxe ' + Math.round(_number(topChannel.orders, 0)) + ' pedido(s) e ' + _fmtMoney(_number(topChannel.revenue, 0))) : '';
     var hourEvidence = strongHour && strongHour.hour !== undefined ? (hourLabel + ' concentrou ' + Math.round(_number(strongHour.orders, 0)) + ' pedido(s)') : '';
     var rankedActions = _selectRankedSeasonActions(_applySeasonActionStrategy(opportunities.rankedActions || [], season), profile.maxActions, _seasonExcludedActionIds(season));
+
+    if (!hasCurrentOrders) {
+      actions.push(_seasonAction(
+        'primeira-base-temporada',
+        'Abrir a temporada com os primeiros pedidos',
+        'Hoje, coloque a operação para rodar e registre os primeiros pedidos com produto, canal e horário certos.',
+        'A temporada começou agora. Ainda não existe venda dentro deste período para dizer qual produto, canal ou horário respondeu melhor.',
+        'baseline',
+        'high',
+        [
+          'Abra a operação do dia.',
+          'Registre os pedidos reais assim que eles entrarem.',
+          'Confira se cada pedido ficou com produto, canal de venda e horário corretos.',
+          'Depois dos primeiros pedidos, a próxima jogada passa a usar o que realmente aconteceu nesta temporada.'
+        ]
+      ));
+      return {
+        difficulty: season && season.difficulty || 'balanced',
+        difficultyProfile: profile,
+        actions: actions,
+        alertThresholds: {
+          progressRatioAttention: profile.progressRatioAttention,
+          progressRatioCritical: profile.progressRatioCritical
+        },
+        source: 'season_start_without_orders'
+      };
+    }
 
     if (rankedActions.length) {
       actions = rankedActions;
@@ -5073,7 +5111,7 @@ Modules.Temporadas = (function () {
     }
 
     var weakDays = Math.round(_number(metrics && metrics.weakDays, 0));
-    if (weakDays > 0) {
+    if (weakDays > 0 && _number(metrics && metrics.orders, 0) > 0) {
       add(_seasonAction(
         'consistencia-extra',
         'Puxar um dia fraco',
@@ -5811,6 +5849,11 @@ Modules.Temporadas = (function () {
     var current = _number(metrics.currentValue, 0);
     var target = _number(metrics.targetValue || season && season.targetValue, 0);
     var missing = Math.max(0, target - current);
+    if (_number(metrics.orders, 0) <= 0) {
+      return {
+        title: 'A temporada acabou de começar. Primeiro registre os pedidos de hoje para a leitura ficar ligada ao que aconteceu de verdade.'
+      };
+    }
     if (objective === 'sell_more') {
       return {
         title: missing > 0 ? 'Sua temporada precisa vender mais ' + _fmtMoney(missing) + ' até o fim do período.' : 'Sua temporada já passou da meta de venda.'
@@ -5844,6 +5887,9 @@ Modules.Temporadas = (function () {
       return product ? 'O foco agora é trazer clientes de volta usando ' + product + ' como motivo claro para repetir a compra.' : 'O foco agora é trazer clientes de volta com uma oferta simples e fácil de entender.';
     }
     if (season && season.objective === 'improve_consistency') {
+      if (_number(metrics && metrics.orders, 0) <= 0) {
+        return 'O foco agora é começar a temporada com pedidos reais. Depois disso, a leitura mostra quais dias, horários ou produtos merecem mais atenção.';
+      }
       return product ? 'O foco agora é usar ' + product + ' para puxar os dias ou horários mais fracos.' : 'O foco agora é distribuir melhor as vendas ao longo da semana.';
     }
     return product ? 'Para esta semana, use ' + product + ' como produto de força e acompanhe se a jogada vira venda.' : 'Para esta semana, foque nas jogadas abaixo e veja qual responde melhor.';
@@ -8807,9 +8853,13 @@ Modules.Temporadas = (function () {
       blocked.push('Alguns descontos podem ter reduzido o ticket médio.');
     }
 
+    var fallbackWorked = _number(metrics.orders, 0) > 0
+      ? 'Houve base suficiente para encerrar a temporada com leitura objetiva.'
+      : 'A temporada terminou sem pedidos válidos para mostrar o que funcionou.';
+
     return {
       headline: _finalHeadlineForSeason(season, finalResult),
-      worked: _uniqueTextItems(worked).slice(0, 5).length ? _uniqueTextItems(worked).slice(0, 5) : ['Houve base suficiente para encerrar a temporada com leitura objetiva.'],
+      worked: _uniqueTextItems(worked).slice(0, 5).length ? _uniqueTextItems(worked).slice(0, 5) : [fallbackWorked],
       blocked: _uniqueTextItems(blocked).slice(0, 5).length ? _uniqueTextItems(blocked).slice(0, 5) : ['Nenhum bloqueio crítico foi detectado nas métricas finais.'],
       evolution: _finalEvolutionText(season, finalResult),
       nextAction: reading.nextAction || _nextSeasonReason(season),
@@ -9108,7 +9158,7 @@ Modules.Temporadas = (function () {
     });
     var customerKeys = Object.keys(customers);
     var frequencyTotal = customerKeys.reduce(function (sum, key) { return sum + customers[key]; }, 0);
-    var weakDays = Math.max(0, _number(days, 0) - base.baselineActiveDays);
+    var weakDays = base.baselineOrders > 0 ? Math.max(0, _number(days, 0) - base.baselineActiveDays) : 0;
     var topProducts = Object.keys(products).map(function (key) { return products[key]; }).sort(function (a, b) {
       return b.quantity - a.quantity || b.revenue - a.revenue;
     }).slice(0, 5);
