@@ -189,7 +189,8 @@ Modules.Dinheiro = (function () {
       suggestedPrice: suggested,
       minimumPrice: minimum,
       status: status,
-      costSource: cost.source
+      costSource: cost.source,
+      costRange: cost.range || null
     };
   }
 
@@ -231,6 +232,17 @@ Modules.Dinheiro = (function () {
     }
 
     var indirect = direct * (indirectInfo.percent / 100);
+    var range = null;
+    if (p.type === 'menu' && menu && menu.range) {
+      range = {
+        minDirect: menu.range.min,
+        avgDirect: menu.range.avg,
+        maxDirect: menu.range.max,
+        minTotal: menu.range.min + (menu.range.min * indirectInfo.percent / 100),
+        avgTotal: menu.range.avg + (menu.range.avg * indirectInfo.percent / 100),
+        maxTotal: menu.range.max + (menu.range.max * indirectInfo.percent / 100)
+      };
+    }
     return {
       ingredients: ingredients,
       packaging: packaging,
@@ -239,7 +251,8 @@ Modules.Dinheiro = (function () {
       total: direct + indirect,
       indirectPercent: indirectInfo.percent,
       indirectMode: indirectInfo.modeUsed,
-      source: source
+      source: source,
+      range: range
     };
   }
 
@@ -247,7 +260,10 @@ Modules.Dinheiro = (function () {
     var direct = 0;
     var ingredients = 0;
     var packaging = 0;
-    var source = 'menu';
+    var minDirect = 0;
+    var avgDirect = 0;
+    var maxDirect = 0;
+    var source = 'combo/menu (pior caso)';
     var groups = Array.isArray(p.menuChoiceGroups) ? p.menuChoiceGroups : [];
     if (groups.length) {
       groups.forEach(function (g) {
@@ -255,11 +271,19 @@ Modules.Dinheiro = (function () {
         var optionCosts = (g.options || []).map(function (o) { return _refCost(o.ref); }).filter(function (c) { return c.direct > 0; });
         if (!optionCosts.length) return;
         optionCosts.sort(function (a, b) { return a.direct - b.direct; });
-        var selected = optionCosts.slice(0, qty);
-        selected.forEach(function (c) {
+        var count = Math.min(qty, optionCosts.length);
+        var cheapest = optionCosts.slice(0, count);
+        var expensive = optionCosts.slice().reverse().slice(0, count);
+        var avg = _averageMenuCost(optionCosts, count);
+        cheapest.forEach(function (c) {
+          minDirect += c.direct;
+        });
+        avgDirect += avg.direct;
+        expensive.forEach(function (c) {
           direct += c.direct;
           ingredients += c.ingredients;
           packaging += c.packaging;
+          maxDirect += c.direct;
         });
       });
     } else if (Array.isArray(p.menuItems)) {
@@ -269,9 +293,24 @@ Modules.Dinheiro = (function () {
         direct += c.direct * qty;
         ingredients += c.ingredients * qty;
         packaging += c.packaging * qty;
+        minDirect += c.direct * qty;
+        avgDirect += c.direct * qty;
+        maxDirect += c.direct * qty;
       });
     }
-    return { direct: direct, ingredients: ingredients, packaging: packaging, source: source };
+    return { direct: direct, ingredients: ingredients, packaging: packaging, source: source, range: { min: minDirect, avg: avgDirect, max: maxDirect } };
+  }
+
+  function _averageMenuCost(optionCosts, count) {
+    var base = { direct: 0, ingredients: 0, packaging: 0 };
+    if (!optionCosts || !optionCosts.length || !count) return base;
+    var factor = count / optionCosts.length;
+    optionCosts.forEach(function (c) {
+      base.direct += c.direct * factor;
+      base.ingredients += c.ingredients * factor;
+      base.packaging += c.packaging * factor;
+    });
+    return base;
   }
 
   function _hasInternalComposition(product) {
@@ -1073,7 +1112,9 @@ Modules.Dinheiro = (function () {
       fiscalCards +
       _priceMetric('Margem', (analysis.margin || 0).toFixed(1).replace('.', ',') + '%', 'real') +
       _priceMetric('Markup', analysis.markup ? analysis.markup.toFixed(2).replace('.', ',') + 'x' : '—', 'real') +
-      '</div></section>' +
+      '</div>' +
+      _comboCostRangeBlock(analysis) +
+      '</section>' +
       '<section style="' + _priceModalCardStyle() + '">' +
       _priceModalSectionTitle('Distribuição do preço', 'Veja quanto do preço vai para custo, taxas e resultado.', 'donut_large') +
       _priceDistribution(analysis) +
@@ -1098,6 +1139,31 @@ Modules.Dinheiro = (function () {
       '<span class="mi" style="font-size:18px;color:#D97706;line-height:1.2;">warning</span>' +
       '<span><strong style="font-weight:700;">Preço sugerido muito acima do preço atual.</strong> Isso acontece quando a margem desejada, as taxas e os impostos deixam pouco espaço para lucro nesse canal.' + feeText + '</span>' +
       '</div>';
+  }
+
+  function _comboCostRangeBlock(analysis) {
+    var range = analysis && analysis.costRange;
+    if (!range || !(_num(range.maxTotal) > 0)) return '';
+    return '<div style="margin-top:12px;border:1px solid #E8DCD7;background:#FFFCF8;border-radius:14px;padding:12px;">' +
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px;">' +
+        '<div><div style="font-size:11px;font-weight:800;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Faixa de custo do combo</div>' +
+        '<p style="font-size:12px;color:#6F6860;line-height:1.4;margin:3px 0 0;">A margem usa o pior caso, quando a cliente escolhe as opções mais caras.</p></div>' +
+        '<span class="mi" style="width:30px;height:30px;border-radius:10px;background:#FFF3F1;color:#B42318;display:inline-flex;align-items:center;justify-content:center;font-size:17px;flex:0 0 auto;">rule</span>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;">' +
+        _comboCostRangeMetric('Mínimo', range.minTotal, 'opções mais baratas') +
+        _comboCostRangeMetric('Médio', range.avgTotal, 'média das opções') +
+        _comboCostRangeMetric('Máximo', range.maxTotal, 'usado na margem') +
+      '</div>' +
+    '</div>';
+  }
+
+  function _comboCostRangeMetric(label, value, note) {
+    return '<div style="background:#fff;border:1px solid #EFE5E1;border-radius:12px;padding:10px 11px;">' +
+      '<span style="display:block;font-size:10px;font-weight:800;color:#8A7E7C;text-transform:uppercase;letter-spacing:.04em;">' + _esc(label) + '</span>' +
+      '<strong style="display:block;font-size:15px;color:#1F1F1F;margin-top:3px;">' + UI.fmt(_num(value)) + '</strong>' +
+      '<small style="display:block;font-size:11px;color:#6F6860;line-height:1.3;margin-top:3px;">' + _esc(note) + '</small>' +
+    '</div>';
   }
 
   function _updateProductPriceModal(useChannelPrice) {

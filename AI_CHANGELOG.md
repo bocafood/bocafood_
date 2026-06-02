@@ -1,5 +1,12 @@
 # AI Changelog
 
+## 2026-06-02 — Preço e Margem: custo de combo por pior caso
+- Arquivos alterados: `public/js/modules/dinheiro.js`, `AI_CHANGELOG.md`.
+- Ajustei o cálculo de custo de produtos `combo/menu` em `Preço e Margem`.
+- O custo usado na margem, markup, preço mínimo e preço sugerido agora considera o pior caso das escolhas do combo, ou seja, as opções mais caras que a cliente pode selecionar.
+- O modal de análise do produto passou a mostrar a faixa de custo do combo: mínimo, médio e máximo.
+- Impacto esperado: evitar que combos pareçam mais lucrativos do que realmente são quando a cliente escolhe opções mais caras.
+
 ## 2026-06-02 — Temporadas: início sem pedidos não vira dia fraco
 - Arquivos alterados: `public/js/modules/temporadas.js`, `AI_CHANGELOG.md`.
 - Ajustei a leitura inicial da Próxima Jogada para não tratar o primeiro dia sem pedidos como `dia fraco`.
