@@ -10677,6 +10677,14 @@
 - Estoque e Lista de Compras passam a reconhecer a classe `Embalagem` como tipo próprio, preservando compatibilidade com insumos antigos.
 - Impacto esperado: permitir que caixas, potes, sacos, etiquetas e descartáveis sejam controlados e calculados como embalagem, sem quebrar compras, receitas, produção ou estoque existentes.
 
+## 2026-06-02 — Checkout do template: opção Stripe nos pagamentos
+- Arquivos alterados: `public/js/modules/catalogo.js`, `public/storefront.html`, `AI_CHANGELOG.md`.
+- Ajustei a lista `Pagamentos exibidos na loja` em `Loja Online > Template da loja > Checkout` para incluir a opção `Cartão online (Stripe)` quando a integração Stripe da loja estiver disponível.
+- A opção Stripe passa a ser salva como pagamento online do template, sem substituir as formas comuns do Financeiro, como dinheiro, cartão presencial, Bizum, MB Way ou transferência.
+- O template público agora reconhece a opção com `Stripe` ou `online` como pagamento por cartão online e abre o fluxo Stripe antes de enviar/confirmar o pedido.
+- Também passei a salvar no template os dados públicos necessários da integração Stripe (`stripeEnabled`, `stripeConnectedAccountId`, status), preservando a origem em `Configurações > Integrações`.
+- Impacto esperado: a usuária consegue ativar Stripe na área de pagamentos exibidos na loja, e o cliente vê a opção correta no checkout quando a conta Stripe estiver conectada.
+
 ## 2026-05-31 — Cardápio: KPIs com Matriz BCG
 - Arquivos alterados: `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
 - Troquei os KPIs da página `Cardápio > Produtos` por uma leitura de Matriz BCG do cardápio.

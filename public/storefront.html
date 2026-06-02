@@ -17253,7 +17253,9 @@
         if (cfg.stripeEnabled !== true) return false;
         if (!/^acct_/.test(storeStripeAccountId())) return false;
         var token = normalizePaymentToken(payment);
-        return token === 'cartao' || token === 'tarjeta' || token === 'card' || token.indexOf('credito') >= 0 || token.indexOf('credit') >= 0;
+        return token === 'cartao' || token === 'tarjeta' || token === 'card' || token === 'stripe' ||
+          token.indexOf('stripe') >= 0 || token.indexOf('online') >= 0 ||
+          token.indexOf('credito') >= 0 || token.indexOf('credit') >= 0;
       }
 
       function callStoreFunction(name, payload) {

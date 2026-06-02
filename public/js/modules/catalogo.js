@@ -4384,7 +4384,34 @@ Modules.Catalogo = (function () {
     if (key === 'pagamento-online' || key === 'pago-online' || key === 'online') return !!(pay && pay.online);
     return true;
   }
-  function _templatePaymentMethods(financeiro, pay, tpl) {
+  function _stripePaymentAvailable(integracoes) {
+    integracoes = integracoes || {};
+    var accountId = String(integracoes.stripeConnectedAccountId || integracoes.stripeAccountId || '').trim();
+    return integracoes.stripeEnabled === true || /^acct_/.test(accountId) || integracoes.stripeConnectStatus === 'ready';
+  }
+  function _stripeTemplatePaymentMethod(existing, integracoes) {
+    existing = existing || {};
+    integracoes = integracoes || {};
+    var accountId = String(integracoes.stripeConnectedAccountId || integracoes.stripeAccountId || '').trim();
+    var ready = integracoes.stripeEnabled === true && /^acct_/.test(accountId) && (!integracoes.stripeConnectStatus || integracoes.stripeConnectStatus === 'ready');
+    return {
+      key: 'pagamento-online-stripe',
+      id: 'pagamento-online-stripe',
+      name: 'Cartão online (Stripe)',
+      label: 'Cartão online (Stripe)',
+      active: existing.active !== undefined ? !!existing.active : ready,
+      enabled: existing.enabled !== undefined ? !!existing.enabled : ready,
+      financeActive: ready,
+      stripe: true,
+      provider: 'stripe',
+      tipo: 'Cartão',
+      tipoGlobalSlug: 'card',
+      tipoGlobalNome: 'Cartão',
+      instructions: existing.instructions || existing.instrucoes || existing.note || '',
+      statusText: ready ? 'Stripe conectado' : 'Conecte o Stripe em Configurações > Integrações'
+    };
+  }
+  function _templatePaymentMethods(financeiro, pay, tpl, integracoes) {
     pay = pay || {};
     tpl = tpl || {};
     var source = Array.isArray(financeiro && financeiro.formas_pagamento) && financeiro.formas_pagamento.length
@@ -4392,29 +4419,41 @@ Modules.Catalogo = (function () {
       : (Array.isArray(pay.paymentMethodConfigs) && pay.paymentMethodConfigs.length ? pay.paymentMethodConfigs : (Array.isArray(pay.paymentMethods) ? pay.paymentMethods : ['Dinheiro', 'Cartão', 'Bizum', 'Transferência']));
     var lookup = _paymentSavedLookup(pay, tpl);
     var seen = {};
-    return source.map(function (item) {
+    var methods = source.map(function (item) {
       var name = _paymentMethodName(item);
       if (!name) return null;
       var key = _paymentMethodKey((item && (item.key || item.id || item.tipoGlobalSlug)) || name);
+      var isStripe = !!(item && typeof item !== 'string' && (item.provider === 'stripe' || item.stripe === true || item.stripeConnected === true)) || key === 'stripe';
+      if (isStripe) key = 'pagamento-online-stripe';
       var byName = lookup[_paymentMethodKey(name)] || lookup[key] || {};
       var financeActive = typeof item === 'string' ? true : item.ativo !== false;
+      var stripeReady = !isStripe || ((integracoes || {}).stripeEnabled === true && /^acct_/.test(String((integracoes || {}).stripeConnectedAccountId || (integracoes || {}).stripeAccountId || '').trim()) && (!(integracoes || {}).stripeConnectStatus || (integracoes || {}).stripeConnectStatus === 'ready'));
       var savedActive = byName.active !== undefined ? byName.active : byName.enabled;
       var instructions = byName.instructions || byName.instrucoes || byName.instrucoesAdicionais || byName.note || byName.observacaoLoja || '';
       if (!instructions && item && typeof item !== 'string') instructions = item.instrucoesLoja || item.instructions || item.observacaoLoja || '';
       var method = {
         key: key,
-        name: name,
-        active: savedActive !== undefined ? !!savedActive : (financeActive && _legacyPaymentActive(name, pay)),
-        financeActive: financeActive,
+        name: isStripe ? 'Cartão online (Stripe)' : name,
+        active: isStripe ? (stripeReady && (savedActive !== undefined ? !!savedActive : true)) : (savedActive !== undefined ? !!savedActive : (financeActive && _legacyPaymentActive(name, pay))),
+        financeActive: isStripe ? stripeReady : financeActive,
         instructions: instructions,
+        provider: isStripe ? 'stripe' : (item && typeof item !== 'string' ? item.provider || '' : ''),
+        stripe: isStripe,
         tipo: item && typeof item !== 'string' ? item.tipo || '' : '',
         tipoGlobalSlug: item && typeof item !== 'string' ? item.tipoGlobalSlug || '' : '',
-        tipoGlobalNome: item && typeof item !== 'string' ? item.tipoGlobalNome || '' : ''
+        tipoGlobalNome: item && typeof item !== 'string' ? item.tipoGlobalNome || '' : '',
+        statusText: isStripe ? (stripeReady ? 'Stripe conectado' : 'Conecte o Stripe em Configurações > Integrações') : ''
       };
       if (seen[method.key]) return null;
       seen[method.key] = true;
       return method;
     }).filter(Boolean);
+    if (!seen['pagamento-online-stripe'] && _stripePaymentAvailable(integracoes)) {
+      var savedStripe = lookup['pagamento-online-stripe'] || lookup['stripe'] || lookup['cartao-online-stripe'] || {};
+      methods.push(_stripeTemplatePaymentMethod(savedStripe, integracoes));
+      seen['pagamento-online-stripe'] = true;
+    }
+    return methods;
   }
   function _paymentMethodsHtml(methods) {
     if (!methods.length) {
@@ -4423,7 +4462,7 @@ Modules.Catalogo = (function () {
     return '<div class="tpl-payment-methods">' + methods.map(function (m, idx) {
       return '<div class="tpl-payment-method-card" data-tpl-payment-method="1" data-payment-key="' + _esc(m.key) + '" data-payment-name="' + _esc(m.name) + '" data-payment-finance-active="' + (m.financeActive ? '1' : '0') + '" data-payment-tipo="' + _esc(m.tipo || '') + '" data-payment-tipo-global-slug="' + _esc(m.tipoGlobalSlug || '') + '" data-payment-tipo-global-nome="' + _esc(m.tipoGlobalNome || '') + '">' +
         '<div class="tpl-payment-method-head">' +
-          '<div style="min-width:0;"><div class="tpl-payment-method-name">' + _esc(m.name) + '</div><div class="tpl-payment-method-status">' + (m.financeActive ? 'Cadastrada no Financeiro' : 'Inativa no Financeiro') + '</div></div>' +
+          '<div style="min-width:0;"><div class="tpl-payment-method-name">' + _esc(m.name) + '</div><div class="tpl-payment-method-status">' + _esc(m.statusText || (m.financeActive ? 'Cadastrada no Financeiro' : 'Inativa no Financeiro')) + '</div></div>' +
           _toggleHtml('tpl-pay-method-active-' + idx, 'Disponível na loja', m.active, '') +
         '</div>' +
         '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Instruções adicionais</span><textarea id="tpl-pay-method-instructions-' + idx + '" rows="3" placeholder="Ex: informe dados para pagamento na retirada ou entrega." style="' + _operationFieldStyle('min-height:78px;resize:vertical;') + '">' + _esc(m.instructions || '') + '</textarea><small class="tpl-payment-method-note">Aparece para o cliente quando essa forma de pagamento for escolhida.</small></label>' +
@@ -4444,6 +4483,8 @@ Modules.Catalogo = (function () {
         enabled: _checked('tpl-pay-method-active-' + idx),
         instructions: _val('tpl-pay-method-instructions-' + idx),
         financeActive: row.getAttribute('data-payment-finance-active') !== '0',
+        provider: key === 'pagamento-online-stripe' ? 'stripe' : '',
+        stripe: key === 'pagamento-online-stripe',
         tipo: row.getAttribute('data-payment-tipo') || '',
         tipoGlobalSlug: row.getAttribute('data-payment-tipo-global-slug') || '',
         tipoGlobalNome: row.getAttribute('data-payment-tipo-global-nome') || ''
@@ -5334,7 +5375,7 @@ Modules.Catalogo = (function () {
       var deliveryEnabled = tpl.deliveryEnabled !== false;
       var mainCard = _mainCardConfigFromTemplate(tpl);
       var contactDisplay = _contactDisplayConfigFromTemplate(tpl);
-      var paymentMethods = _templatePaymentMethods(financeiro, pay, tpl);
+      var paymentMethods = _templatePaymentMethods(financeiro, pay, tpl, integracoes);
       var deliveryArea = _deliveryAreaFromConfig(tpl, zonas);
       if (!preserveDeliveryZonesDraft) {
         _deliveryZonesDraft = _normalizeDeliveryZones(
@@ -6604,8 +6645,12 @@ Modules.Catalogo = (function () {
 address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-number'), city: _val('tpl-city'), region: _val('tpl-region'), neighborhood: _val('tpl-neighborhood') || currentTpl.neighborhood || currentGeral.neighborhood || currentApp.neighborhood || '', postalCode: _val('tpl-postal'), country: _val('tpl-country'), reference: _val('tpl-reference'), complemento: _val('tpl-reference'), showAddress: currentTpl.showAddress !== undefined ? currentTpl.showAddress : (currentGeral.showAddress !== undefined ? currentGeral.showAddress : (currentApp.showAddress !== undefined ? currentApp.showAddress : true)), mapsUrl: currentTpl.mapsUrl || currentGeral.mapsUrl || currentApp.mapsUrl || '', deliveryArea: deliveryArea, deliveryCity: deliveryArea.city, deliveryProvince: deliveryArea.province, deliveryCountry: deliveryArea.country, deliveryPostalCode: deliveryArea.postalCode, pickupNote: currentTpl.pickupNote || currentGeral.pickupNote || currentApp.pickupNote || '',      statusMode: selectedStatusMode, manualClosed: manualClosedValue, manualOpen: manualOpenValue, hours: hours, pickupHours: _val('tpl-pickup-hours'), deliveryHours: _val('tpl-delivery-hours'), openingHoursSummary: _hoursSummaryFromHours(hours), hoursSummary: _hoursSummaryFromHours(hours), todayHoursText: _hoursSummaryFromHours(hours),
       pickupEnabled: _checked('tpl-pickup-enabled'), deliveryEnabled: _checked('tpl-delivery-enabled'), minDeliveryOrder: _numVal('tpl-min-delivery'), minimumDeliveryOrder: _numVal('tpl-min-delivery'), maxOrdersPerSlot: _numVal('tpl-orders-per-hour'), ordersPerHour: _numVal('tpl-orders-per-hour'), maxAdvanceDays: _numVal('tpl-max-advance-days'), advanceDaysLimit: _numVal('tpl-max-advance-days'), scheduleDays: _numVal('tpl-max-advance-days') + 1, daysToShow: _numVal('tpl-max-advance-days') + 1, minAdvanceDays: 0, minimumAdvanceDays: 0, deliveryFee: document.getElementById('tpl-delivery-fee') ? _numVal('tpl-delivery-fee') : (currentTpl.deliveryFee || currentGeral.deliveryFee || currentApp.deliveryFee || ''), prepTime: _val('tpl-prep-time') || currentTpl.prepTime || currentGeral.prepTime || currentApp.prepTime || '', averagePrepTime: _val('tpl-prep-time') || currentTpl.averagePrepTime || currentGeral.averagePrepTime || currentApp.averagePrepTime || currentTpl.prepTime || '', deliveryTime: _val('tpl-delivery-time') || currentTpl.deliveryTime || currentGeral.deliveryTime || currentApp.deliveryTime || '', averageDeliveryTime: _val('tpl-delivery-time') || currentTpl.averageDeliveryTime || currentGeral.averageDeliveryTime || currentApp.averageDeliveryTime || currentTpl.deliveryTime || '',
       deliveryZones: deliveryZones,
+      stripeEnabled: currentIntegracoes.stripeEnabled === true,
+      stripeConnectedAccountId: currentIntegracoes.stripeConnectedAccountId || currentIntegracoes.stripeAccountId || '',
+      stripeAccountId: currentIntegracoes.stripeAccountId || currentIntegracoes.stripeConnectedAccountId || '',
+      stripeConnectStatus: currentIntegracoes.stripeConnectStatus || '',
       paymentMethods: paymentMethods, paymentMethodConfigs: paymentMethodConfigs, paymentMethodInstructions: paymentMethodInstructions, paymentNote: _val('tpl-payment-note'),
-      payments: { cash: methodIsActive(['dinheiro', 'efectivo', 'efetivo', 'cash']), card: methodIsActive(['cartao', 'tarjeta', 'card']), bizum: methodIsActive(['bizum']), mbway: methodIsActive(['mb-way', 'mbway']), transfer: methodIsActive(['transferencia', 'transfer', 'bank-transfer']), localTransfer: methodIsActive(['transferencia', 'transfer', 'bank-transfer']), online: methodIsActive(['pagamento-online', 'pago-online', 'online']), note: _val('tpl-payment-note'), paymentMethods: paymentMethods, paymentMethodConfigs: paymentMethodConfigs, paymentMethodInstructions: paymentMethodInstructions, paymentNote: _val('tpl-payment-note') },
+      payments: { cash: methodIsActive(['dinheiro', 'efectivo', 'efetivo', 'cash']), card: methodIsActive(['cartao', 'tarjeta', 'card']), bizum: methodIsActive(['bizum']), mbway: methodIsActive(['mb-way', 'mbway']), transfer: methodIsActive(['transferencia', 'transfer', 'bank-transfer']), localTransfer: methodIsActive(['transferencia', 'transfer', 'bank-transfer']), online: methodIsActive(['pagamento-online', 'pagamento-online-stripe', 'cartao-online-stripe', 'pago-online', 'online', 'stripe']), note: _val('tpl-payment-note'), paymentMethods: paymentMethods, paymentMethodConfigs: paymentMethodConfigs, paymentMethodInstructions: paymentMethodInstructions, paymentNote: _val('tpl-payment-note') },
       mainButtonText: _val('tpl-main-button'), cartButtonText: _val('tpl-cart-button'), whatsappMessage: _val('tpl-whatsapp-message'), whatsappTooltip: _val('tpl-whatsapp-tooltip'), whatsappFloatingLabel: _val('tpl-whatsapp-tooltip'), allowCustomerNote: _checked('tpl-allow-note'), allowFulfillmentChoice: document.getElementById('tpl-allow-mode') ? _checked('tpl-allow-mode') : (currentTpl.allowFulfillmentChoice !== false), allowCoupon: _checked('tpl-allow-coupon'), checkoutWarning: _val('tpl-checkout-warning'),
       about: _val('tpl-about'), aboutStore: _val('tpl-about'), importantNotice: _val('tpl-important'), deliveryPolicy: _val('tpl-delivery-policy'), cancelPolicy: _val('tpl-cancel-policy'), cancellationPolicy: _val('tpl-cancel-policy'), footerText: _val('tpl-footer'), updatedAt: new Date().toISOString()
     };
