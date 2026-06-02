@@ -10612,6 +10612,12 @@
 - Reescrevi as orientações de `Rendimento`, `Tipo de rendimento` e `Rendimento da etapa` com destaques, exemplos práticos e foco apenas em como preencher.
 - Impacto esperado: deixar a orientação mais limpa e sem repetir uma regra que já aparece no campo específico de etapa.
 
+## 2026-06-02 — Template da loja: botão de zona no final da lista
+- Arquivos alterados: `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Reposicionei o botão `+ Adicionar zona` para aparecer abaixo da lista de zonas de entrega, depois do último card cadastrado.
+- Mantive a mesma lógica de bloqueio quando a localização atendida ainda não está pronta.
+- Impacto esperado: deixar o fluxo de cadastro mais natural, adicionando uma nova zona depois de revisar as zonas já existentes.
+
 ## 2026-06-02 — Template da loja: localização principal dentro da área atendida
 - Arquivos alterados: `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
 - Mudei o card `Localização principal` para dentro de `Loja Online > Template da loja > Operação > Localização atendida`.

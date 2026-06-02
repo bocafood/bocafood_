@@ -4983,10 +4983,10 @@ Modules.Catalogo = (function () {
           '<small style="display:block;color:#6F6860;font-size:11px;line-height:1.45;">Zonas ativas com CEP duplicado não podem ser salvas.</small>' +
           '<button type="button" class="tpl-image-btn primary" data-delivery-zone-add="1"' + disabledAttr + ' style="min-height:38px;border-radius:10px;' + disabledStyle + '">+ Adicionar zona</button>' +
         '</div>' +
-        '<div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;">' +
+        '<div id="tpl-delivery-zones-list" style="display:flex;flex-direction:column;gap:12px;">' + body + '</div>' +
+        '<div style="display:flex;align-items:center;justify-content:flex-start;gap:10px;flex-wrap:wrap;">' +
           '<button type="button" class="tpl-image-btn primary" data-delivery-zone-add="1"' + disabledAttr + ' style="min-height:38px;border-radius:10px;' + disabledStyle + '">+ Adicionar zona</button>' +
         '</div>' +
-        '<div id="tpl-delivery-zones-list" style="display:flex;flex-direction:column;gap:12px;">' + body + '</div>' +
       '</div>' +
     '</section>';
   }
