@@ -10726,6 +10726,7 @@
       var tenantId = tenantIdFromUrl();
       var activeTenantId = tenantId;
       var cfg = {};
+      var pointsProgramCfg = {};
       var seoCfg = {};
       var products = [];
       var allProducts = [];
@@ -12699,7 +12700,8 @@
         var enabled = loyaltyEnabled();
         if (!enabled) { card.style.display = 'none'; return; }
         card.style.display = '';
-        var name = firstText(cfg.programName, cfg.loyaltyProgramName, cfg.pointsProgramName, t('loyaltyTitle'));
+        var pointsCfg = pointsProgramCfg || {};
+        var name = firstText(pointsCfg.programName, cfg.loyaltyProgramName, cfg.pointsProgramName, t('loyaltyTitle'));
         var authUser = storeAuthUser();
         var customer = authUser ? currentCustomerRecord() : null;
         var loggedIn = !!authUser;
@@ -12709,7 +12711,7 @@
         if (loggedIn) {
           textEl.innerHTML = '<span class="loyalty-points-line"><strong class="loyalty-points-value">' + text(customerPointsBalance(customer)) + '</strong><span class="loyalty-points-label">' + text(t('pointsBalanceNote')) + '</span></span>';
         } else {
-          textEl.textContent = firstText(cfg.storeText, cfg.loyaltyShortText, cfg.loyaltyText, t('loyaltyText'));
+          textEl.textContent = firstText(pointsCfg.storeText, cfg.loyaltyShortText, cfg.loyaltyText, t('loyaltyText'));
         }
         card.querySelector('.loyalty-cta').textContent = loggedIn ? loyaltyMoreText() : loyaltyButtonText();
       }
@@ -12733,9 +12735,11 @@
       }
 
       function loyaltyEnabled() {
-        var hasProgramStatus = cfg.active != null;
-        var pointsConfigured = hasProgramStatus || cfg.earnPerEuro != null || cfg.redeemRate != null || !!firstText(cfg.programName, cfg.storeText);
-        var pointsActive = pointsConfigured && cfg.active !== false && String(cfg.active).toLowerCase() !== 'false';
+        var pointsCfg = pointsProgramCfg || {};
+        var hasProgramStatus = pointsCfg.active != null || pointsCfg.enabled != null || pointsCfg.pointsProgramEnabled != null;
+        var pointsConfigured = Object.keys(pointsCfg).length > 0 && (hasProgramStatus || pointsCfg.earnPerEuro != null || pointsCfg.redeemRate != null || !!firstText(pointsCfg.programName, pointsCfg.storeText));
+        var statusValue = pointsCfg.active != null ? pointsCfg.active : (pointsCfg.enabled != null ? pointsCfg.enabled : pointsCfg.pointsProgramEnabled);
+        var pointsActive = pointsConfigured && (statusValue == null ? true : (statusValue !== false && String(statusValue).toLowerCase() !== 'false'));
         return pointsConfigured ? pointsActive : (isEnabled(cfg.loyaltyEnabled) || isEnabled(cfg.pointsProgramEnabled) || num(cfg.pointsPerEuro) > 0);
       }
 
@@ -15875,14 +15879,16 @@
       }
 
       function pointsConfig() {
+        var pointsCfg = pointsProgramCfg || {};
+        var activeValue = pointsCfg.active != null ? pointsCfg.active : (pointsCfg.enabled != null ? pointsCfg.enabled : pointsCfg.pointsProgramEnabled);
         return {
-          active: cfg.active !== false && String(cfg.active).toLowerCase() !== 'false',
-          earnPerEuro: Math.max(1, pointsNumber(cfg.earnPerEuro || cfg.pointsPerEuro || 1) || 1),
-          redeemRate: Math.max(1, pointsNumber(cfg.redeemRate || cfg.pointsPerDiscountEuro || 10) || 10),
-          minimumPointsToUse: pointsNumber(cfg.minimumPointsToUse || cfg.minPointsToUse || 0),
-          maxDiscountPct: Math.max(0, Math.min(100, num(cfg.maxDiscountPct || cfg.maxDiscountPercent || 100) || 100)),
-          pointsExpire: cfg.pointsExpire === true || String(cfg.pointsExpire).toLowerCase() === 'true',
-          pointsExpirationDays: Math.max(0, pointsNumber(cfg.pointsExpirationDays || cfg.expirationDays || cfg.pointsExpireDays || 0))
+          active: loyaltyEnabled() && activeValue !== false && String(activeValue).toLowerCase() !== 'false',
+          earnPerEuro: Math.max(1, pointsNumber(pointsCfg.earnPerEuro || pointsCfg.pointsPerEuro || 1) || 1),
+          redeemRate: Math.max(1, pointsNumber(pointsCfg.redeemRate || pointsCfg.pointsPerDiscountEuro || 10) || 10),
+          minimumPointsToUse: pointsNumber(pointsCfg.minimumPointsToUse || pointsCfg.minPointsToUse || 0),
+          maxDiscountPct: Math.max(0, Math.min(100, num(pointsCfg.maxDiscountPct || pointsCfg.maxDiscountPercent || 100) || 100)),
+          pointsExpire: pointsCfg.pointsExpire === true || String(pointsCfg.pointsExpire).toLowerCase() === 'true',
+          pointsExpirationDays: Math.max(0, pointsNumber(pointsCfg.pointsExpirationDays || pointsCfg.expirationDays || pointsCfg.pointsExpireDays || 0))
         };
       }
 
@@ -18262,6 +18268,7 @@
                 docs[0] && docs[0].defaultLanguage,
                 configuredStoreLanguage
               );
+              pointsProgramCfg = docs[6] || {};
               cfg = Object.assign({}, docs[0] || {}, docs[1] || {}, docs[2] || {}, docs[3] || {}, docs[4] || {}, docs[5] || {}, docs[6] || {}, docs[7] || {});
               seoCfg = docs[8] || {};
               categories = docs[9] || [];

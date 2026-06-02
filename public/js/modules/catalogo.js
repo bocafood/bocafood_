@@ -5110,19 +5110,37 @@ Modules.Catalogo = (function () {
     };
   }
 
-  function _deliveryAreaHtml(area) {
+  function _deliveryAreaHtml(area, end, tpl, geral, fiscal, regionLabel) {
     area = area || {};
+    end = end || {};
+    tpl = tpl || {};
+    geral = geral || {};
+    fiscal = fiscal || _fiscalInfo();
+    regionLabel = regionLabel || (fiscal.cfg && fiscal.cfg.regionLabel) || 'Província/Estado';
     return '<section ' + _templatePanelAttrs('operacao') + ' style="' + _cardStyle() + '">' + _sectionTitle('Localização atendida', 'Selecione a cidade atendida antes de cadastrar as zonas de entrega. A província, país e código postal podem ser preenchidos automaticamente pela busca.', 'travel_explore') +
       '<div style="display:flex;flex-direction:column;gap:12px;">' +
         '<div style="' + _operationCardStyle() + '">' +
-          _operationCardHead('travel_explore', 'Cidade base da entrega', 'Defina a região usada para organizar as zonas atendidas.') +
+          _operationCardHead('place', 'Localização principal', 'Preencha o endereço usado como referência da loja. O código postal daqui alimenta o Código postal base.') +
           '<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">' +
-            _operationFieldHtml('tpl-delivery-area-city', 'Cidade atendida', area.city || '', 'Buscar cidade atendida', 'text', '', '', '', 'width:260px;flex:0 1 260px;') +
-            _operationFieldHtml('tpl-delivery-area-province', 'Província / estado', area.province || '', 'Província', 'text', '', '', '', 'width:200px;flex:0 1 200px;') +
-            _operationSelectHtml('tpl-delivery-area-country', 'País atendido', area.country || '', _templateCountryOptions(), '', 'width:160px;flex:0 0 160px;') +
+            _operationFieldHtml('tpl-address', fiscal.cfg.addressLabel || 'Endereço da loja/produção', end.address || tpl.pickupAddress || tpl.address || '', 'Rua...', 'text', '', '', '', 'width:520px;flex:1 1 420px;') +
+            _operationFieldHtml('tpl-number', 'Número', end.number || end.numero || tpl.number || tpl.numero || '', 'Nº', 'text', '', '', '', 'width:110px;flex:0 0 110px;') +
+            _operationFieldHtml('tpl-neighborhood', 'Bairro / Localidade', end.neighborhood || geral.neighborhood || tpl.neighborhood || '', 'Rochapea', 'text', '', '', '', 'width:220px;flex:0 0 220px;') +
+            _operationFieldHtml('tpl-reference', 'Referência / complemento', end.reference || end.complemento || tpl.reference || tpl.complemento || '', 'Opcional', 'text', '', '', '', 'width:300px;flex:1 1 260px;') +
           '</div>' +
           '<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">' +
-            _operationFieldHtml('tpl-delivery-area-postal', 'Código postal base', area.postalCode || '', 'Código postal', 'text', 'background:#F4F0EA;color:#6F6860;cursor:not-allowed;', 'CEP de atendimento da loja.', 'readonly disabled aria-readonly="true"', 'width:150px;flex:0 0 150px;') +
+            _operationFieldHtml('tpl-city', 'Cidade', end.city || geral.city || tpl.city || '', 'Pamplona', 'text', '', '', '', 'width:220px;flex:0 0 220px;') +
+            _operationFieldHtml('tpl-region', regionLabel, end.region || end.state || end.province || tpl.region || '', regionLabel, 'text', '', '', '', 'width:220px;flex:0 0 220px;') +
+            _operationFieldHtml('tpl-postal', fiscal.cfg.postalCodeLabel || 'Código postal', end.postalCode || tpl.postalCode || '', '31001', 'text', '', '', '', 'width:130px;flex:0 0 130px;') +
+            _operationFieldHtml('tpl-country', 'País', end.country || geral.country || tpl.country || fiscal.country, fiscal.country, 'text', '', '', '', 'width:170px;flex:0 0 170px;') +
+          '</div>' +
+        '</div>' +
+        '<div style="' + _operationCardStyle() + '">' +
+          _operationCardHead('travel_explore', 'Área atendida', 'Informe a cidade usada para organizar as zonas. Província, país e código postal vêm da localização principal.') +
+          '<input id="tpl-delivery-area-province" type="hidden" value="' + _esc(area.province || end.region || end.state || end.province || tpl.region || '') + '">' +
+          '<input id="tpl-delivery-area-country" type="hidden" value="' + _esc(area.country || end.country || geral.country || tpl.country || fiscal.country || '') + '">' +
+          '<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">' +
+            _operationFieldHtml('tpl-delivery-area-city', 'Cidade atendida', area.city || end.city || geral.city || tpl.city || '', 'Buscar cidade atendida', 'text', '', '', '', 'width:260px;flex:0 1 260px;') +
+            _operationFieldHtml('tpl-delivery-area-postal', 'Código postal base', area.postalCode || end.postalCode || tpl.postalCode || '', 'Código postal', 'text', 'background:#F4F0EA;color:#6F6860;cursor:not-allowed;', 'Vem da localização principal.', 'readonly disabled aria-readonly="true"', 'width:150px;flex:0 0 150px;') +
           '</div>' +
         '</div>' +
       '</div>' +
@@ -5135,7 +5153,7 @@ Modules.Catalogo = (function () {
       city: _val('tpl-delivery-area-city') || currentArea.city || '',
       province: _val('tpl-delivery-area-province') || currentArea.province || '',
       country: _normalizeDeliveryAreaCountry(_val('tpl-delivery-area-country') || currentArea.country || ''),
-      postalCode: _val('tpl-delivery-area-postal') || currentArea.postalCode || '',
+      postalCode: _val('tpl-delivery-area-postal') || _val('tpl-postal') || currentArea.postalCode || '',
       source: 'admin_delivery_zones',
       updatedAt: new Date().toISOString()
     };
@@ -5252,6 +5270,8 @@ Modules.Catalogo = (function () {
       var pay = _storeConfig.pagamentos || {};
       var financeiro = _storeConfig.financeiro || {};
       var pointsCfg = _storeConfig.pontos_program || {};
+      var pointsProgramConfigured = !!(pointsCfg && Object.keys(pointsCfg).length);
+      var pointsProgramActive = pointsProgramConfigured && pointsCfg.active !== false && String(pointsCfg.active).toLowerCase() !== 'false';
       var hor = _storeConfig.horarios || {};
       var zonas = _storeConfig.zonas || {};
       var inheritedWhatsapp = tpl.whatsapp || geral.whatsapp || integracoes.whatsappFull || integracoes.whatsapp || geral.phone || '';
@@ -5491,7 +5511,7 @@ Modules.Catalogo = (function () {
               '<div style="padding:14px;border:1px solid #EAE4DA;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(31,31,31,.03);display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;">' +
                 '<div style="min-width:0;">' +
                   '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:9px;">' +
-                    '<span style="' + chipStyle + '">' + (pointsCfg.active === false ? 'Oculto no público' : 'Ativo no público') + '</span>' +
+                    '<span style="' + chipStyle + '">' + (pointsProgramActive ? 'Ativo no público' : 'Oculto no público') + '</span>' +
                     '<span style="' + chipStyle + '">' + _esc(pointsCfg.programName || 'Programa de Pontos') + '</span>' +
                   '</div>' +
                   '<div style="font-size:13px;font-weight:760;color:#1F1F1F;line-height:1.25;">' + _esc(pointsCfg.programName || 'Programa de Pontos') + '</div>' +
@@ -5554,7 +5574,7 @@ Modules.Catalogo = (function () {
                 '</div>' +
               '</div>' +
             '</section>' +
-            _deliveryAreaHtml(deliveryArea) +
+            _deliveryAreaHtml(deliveryArea, end, tpl, geral, fiscal, regionLabel) +
             _deliveryZonesHtml() +
             '<section ' + _templatePanelAttrs('operacao') + ' style="' + _cardStyle() + '">' + _sectionTitle('Horários e status', 'Funcionamento da loja e mensagens especiais.', 'schedule') +
               '<div style="display:flex;flex-direction:column;gap:12px;">' +
@@ -5621,39 +5641,6 @@ Modules.Catalogo = (function () {
                       _operationCheckHtml('tpl-contact-footer-instagram', 'Instagram no rodapé', contactDisplay.showInstagramInFooter, '') +
                       _operationCheckHtml('tpl-contact-footer-facebook', 'Facebook no rodapé', contactDisplay.showFacebookInFooter, '') +
                       _operationCheckHtml('tpl-contact-footer-tiktok', 'TikTok no rodapé', contactDisplay.showTiktokInFooter, '') +
-                    '</div>' +
-                  '</div>' +
-                '</div>' +
-              '</div>' +
-            '</section>' +
-            '<section ' + _templatePanelAttrs('atendimento') + ' style="' + _cardStyle() + '">' + _sectionTitle('Endereço', 'Localização pública da loja.', 'location_on') +
-              '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                '<div style="display:none;">' +
-                  '<div style="display:flex;align-items:center;gap:10px;"><div style="width:42px;height:42px;border-radius:13px;background:#fff;color:#B42318;display:flex;align-items:center;justify-content:center;border:1px solid #EAE4DA;"><span class="mi" style="font-size:22px;">location_on</span></div><div><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;">Resumo do endereço</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">Local público usado para retirada, comunicação e referência da loja.</div></div></div>' +
-                  '<div style="display:flex;gap:7px;flex-wrap:wrap;">' +
-                    '<span data-template-summary="city" style="' + chipStyle + '">' + _esc(end.city || geral.city || tpl.city || 'Sem cidade') + '</span>' +
-                    '<span data-template-summary="postal" style="' + chipStyle + '">' + _esc(end.postalCode || tpl.postalCode || 'Sem código postal') + '</span>' +
-                    '<span data-template-summary="country" style="' + chipStyle + '">' + _esc(end.country || geral.country || tpl.country || fiscal.country || 'Sem país') + '</span>' +
-                  '</div>' +
-                  '<small style="display:block;color:#6F6860;font-size:11px;line-height:1.45;">Esse endereço é o exibido publicamente na loja e pode ser diferente do endereço fiscal.</small>' +
-                '</div>' +
-                '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                  '<div style="' + _operationCardStyle() + '">' +
-                    _operationCardHead('place', 'Localização principal', 'Endereço exibido para retirada e referência pública.') +
-                    '<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">' +
-                      _operationFieldHtml('tpl-address', fiscal.cfg.addressLabel || 'Endereço da loja/produção', end.address || tpl.pickupAddress || tpl.address || '', 'Rua...', 'text', '', '', '', 'width:520px;flex:1 1 420px;') +
-                      _operationFieldHtml('tpl-number', 'Número', end.number || end.numero || tpl.number || tpl.numero || '', 'Nº', 'text', '', '', '', 'width:110px;flex:0 0 110px;') +
-                      _operationFieldHtml('tpl-neighborhood', 'Bairro / Localidade', end.neighborhood || geral.neighborhood || tpl.neighborhood || '', 'Rochapea', 'text', '', '', '', 'width:220px;flex:0 0 220px;') +
-                      _operationFieldHtml('tpl-reference', 'Referência / complemento', end.reference || end.complemento || tpl.reference || tpl.complemento || '', 'Opcional', 'text', '', '', '', 'width:300px;flex:1 1 260px;') +
-                    '</div>' +
-                  '</div>' +
-                  '<div style="' + _operationCardStyle() + '">' +
-                    _operationCardHead('map', 'Cidade e região', 'Dados usados no rodapé, nas informações da loja e na busca local.') +
-                    '<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">' +
-                      _operationFieldHtml('tpl-city', 'Cidade', end.city || geral.city || tpl.city || '', 'Pamplona', 'text', '', '', '', 'width:220px;flex:0 0 220px;') +
-                      _operationFieldHtml('tpl-region', regionLabel, end.region || end.state || end.province || tpl.region || '', regionLabel, 'text', '', '', '', 'width:220px;flex:0 0 220px;') +
-                      _operationFieldHtml('tpl-postal', fiscal.cfg.postalCodeLabel || 'Código postal', end.postalCode || tpl.postalCode || '', '31001', 'text', '', '', '', 'width:130px;flex:0 0 130px;') +
-                      _operationFieldHtml('tpl-country', 'País', end.country || geral.country || tpl.country || fiscal.country, fiscal.country, 'text', '', '', '', 'width:170px;flex:0 0 170px;') +
                     '</div>' +
                   '</div>' +
                 '</div>' +
@@ -5785,10 +5772,27 @@ Modules.Catalogo = (function () {
         _bindTemplateCategoryOrder();
         _refreshTemplatePreview();
         _syncTemplatePreviewColumn();
+        _syncDeliveryAreaPostalFromMain();
+        var mainPostalEl = document.getElementById('tpl-postal');
+        if (mainPostalEl && !mainPostalEl._deliveryAreaPostalBound) {
+          mainPostalEl._deliveryAreaPostalBound = true;
+          mainPostalEl.addEventListener('input', _syncDeliveryAreaPostalFromMain);
+          mainPostalEl.addEventListener('change', _syncDeliveryAreaPostalFromMain);
+        }
         setTimeout(_syncTemplatePreviewColumn, 160);
         if (window.BocaPlaces) {
           BocaPlaces.init('tpl-address', {
             onPlace: function (place) {
+              function setField(id, value) {
+                var el = document.getElementById(id);
+                if (!el || !String(value || '').trim()) return;
+                el.value = value;
+                if (el._bocaPlaceElement) {
+                  try { el._bocaPlaceElement.value = value; } catch (e) {}
+                }
+                try { el.dispatchEvent(new Event('input', { bubbles: true })); } catch (e2) {}
+                try { el.dispatchEvent(new Event('change', { bubbles: true })); } catch (e3) {}
+              }
               var addressEl = document.getElementById('tpl-address');
               var streetOnly = place.street || (place.addressLine ? String(place.addressLine).split(',')[0] : '');
               if (addressEl && streetOnly) {
@@ -5806,12 +5810,38 @@ Modules.Catalogo = (function () {
                 try { neighborhoodEl.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {}
                 try { neighborhoodEl.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) {}
               }
+              setField('tpl-city', place.city || place.locality || '');
+              setField('tpl-region', place.region || place.state || place.province || '');
+              setField('tpl-country', place.country || '');
+              setField('tpl-postal', place.postalCode || place.postcode || place.zip || '');
+              _syncDeliveryAreaPostalFromMain();
             }
           });
           BocaPlaces.init('tpl-delivery-area-city');
         }
       }, 80);
     });
+  }
+
+  function _syncDeliveryAreaPostalFromMain() {
+    var source = document.getElementById('tpl-postal');
+    var target = document.getElementById('tpl-delivery-area-postal');
+    if (!source || !target) return;
+    var value = String(source.value || '').trim();
+    if (value || !String(target.value || '').trim()) target.value = value;
+  }
+
+  function _syncDeliveryAreaHiddenFieldsFromMain() {
+    var city = document.getElementById('tpl-delivery-area-city');
+    var mainCity = document.getElementById('tpl-city');
+    var province = document.getElementById('tpl-delivery-area-province');
+    var mainProvince = document.getElementById('tpl-region');
+    var country = document.getElementById('tpl-delivery-area-country');
+    var mainCountry = document.getElementById('tpl-country');
+    if (city && mainCity && !String(city.value || '').trim()) city.value = String(mainCity.value || '').trim();
+    if (province && mainProvince) province.value = String(mainProvince.value || '').trim();
+    if (country && mainCountry) country.value = String(mainCountry.value || '').trim();
+    _syncDeliveryAreaPostalFromMain();
   }
 
   function _templatePreviewHtml(geral, app, tpl, logo, banner) {
@@ -6055,6 +6085,7 @@ Modules.Catalogo = (function () {
   }
 
   function _refreshTemplatePreview() {
+    _syncDeliveryAreaHiddenFieldsFromMain();
     setTimeout(_syncTemplatePreviewColumn, 0);
     _refreshTemplateSummaryChips();
     var name = document.getElementById('tpl-preview-name');

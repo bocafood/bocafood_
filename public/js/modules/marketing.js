@@ -262,7 +262,7 @@ Modules.Marketing = (function () {
       pointsExpire: false,
       pointsExpirationDays: 0,
       autoApply: false,
-      active: true,
+      active: false,
       programName: 'Programa de Pontos',
       storeText: 'Acumule pontos a cada pedido finalizado e use como desconto em compras futuras.'
     };
@@ -284,6 +284,9 @@ Modules.Marketing = (function () {
   function _normalizePointsConfig(raw) {
     raw = raw || {};
     var defaults = _pointsDefaultConfig();
+    var hasSavedConfig = Object.keys(raw).length > 0;
+    var rawActive = raw.active != null ? raw.active : (raw.enabled != null ? raw.enabled : raw.pointsProgramEnabled);
+    var active = rawActive == null ? (hasSavedConfig ? true : defaults.active) : (rawActive !== false && String(rawActive).toLowerCase() !== 'false');
     return {
       earnPerEuro: Math.max(1, Math.round(_pointsNumber(raw.earnPerEuro != null ? raw.earnPerEuro : raw.pointsPerEuro != null ? raw.pointsPerEuro : raw.earnRate != null ? raw.earnRate : defaults.earnPerEuro) || defaults.earnPerEuro)),
       redeemRate: Math.max(1, Math.round(_pointsNumber(raw.redeemRate != null ? raw.redeemRate : raw.pointsPerDiscountEuro != null ? raw.pointsPerDiscountEuro : raw.redeemPointsRate != null ? raw.redeemPointsRate : defaults.redeemRate) || defaults.redeemRate)),
@@ -292,7 +295,7 @@ Modules.Marketing = (function () {
       pointsExpire: raw.pointsExpire === true || raw.pointsExpire === 'true',
       pointsExpirationDays: Math.max(0, Math.round(_pointsNumber(raw.pointsExpirationDays != null ? raw.pointsExpirationDays : raw.expirationDays != null ? raw.expirationDays : raw.pointsExpireDays != null ? raw.pointsExpireDays : defaults.pointsExpirationDays) || defaults.pointsExpirationDays)),
       autoApply: raw.autoApply === true || raw.autoApply === 'true',
-      active: raw.active !== false,
+      active: active,
       programName: firstText(raw.programName, raw.name, 'Programa de Pontos'),
       storeText: firstText(raw.storeText, raw.description, 'Acumule pontos a cada pedido finalizado e use como desconto em compras futuras.')
     };
@@ -375,10 +378,11 @@ Modules.Marketing = (function () {
     order = order || {};
     customer = customer || null;
     var cfg = _pointsConfigData();
+    var active = cfg.active !== false;
     var balance = _pointsCustomerBalance(customer);
     var subtotal = _pointsOrderSubtotal(order);
-    var generated = Math.max(0, Math.floor(_pointsOrderFinalValue(order) * cfg.earnPerEuro));
-    var usage = _pointsDiscountByBalance(balance, subtotal);
+    var generated = active ? Math.max(0, Math.floor(_pointsOrderFinalValue(order) * cfg.earnPerEuro)) : 0;
+    var usage = active ? _pointsDiscountByBalance(balance, subtotal) : { discount: 0, pointsUsed: 0 };
     var used = Math.max(0, _pointsNumber(order.pointsUsed || order.pointsDiscountPoints || 0));
     var discountApplied = Math.max(0, _pointsNumber(order.pointsDiscountTotal || order.pointsDiscount || 0));
     var before = _pointsNumber(order.pointsBalanceBefore || balance);
@@ -386,6 +390,7 @@ Modules.Marketing = (function () {
     var eligible = !!(customer && balance >= cfg.minimumPointsToUse && usage.discount > 0);
     return {
       cfg: cfg,
+      active: active,
       linked: !!customer,
       balance: balance,
       subtotal: subtotal,
@@ -396,8 +401,8 @@ Modules.Marketing = (function () {
       pointsNeeded: usage.pointsUsed,
       before: before,
       after: after,
-      eligible: eligible,
-      enough: balance >= cfg.minimumPointsToUse
+      eligible: active && eligible,
+      enough: active && balance >= cfg.minimumPointsToUse
     };
   }
 
@@ -1193,6 +1198,13 @@ Modules.Marketing = (function () {
     customer = customer || null;
     var ctx = _pointsOrderContext(order, customer);
     var customerLabel = customer && customer.name ? customer.name : '—';
+    if (!ctx.active) {
+      return '<div style="background:#FFF8F1;border:1px solid #F3D9C7;border-radius:16px;padding:14px;">' +
+        '<div style="font-size:11px;font-weight:900;color:#8A7E7C;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;">Programa de Pontos</div>' +
+        '<div style="font-size:14px;font-weight:900;color:#1A1A1A;margin-bottom:6px;">Programa inativo</div>' +
+        '<div style="font-size:13px;color:#5D514F;line-height:1.45;">Ative o programa em Ações de Vendas para gerar ou usar pontos nos pedidos.</div>' +
+      '</div>';
+    }
     if (!ctx.linked) {
       return '<div style="background:#FFF8F1;border:1px solid #F3D9C7;border-radius:16px;padding:14px;">' +
         '<div style="font-size:11px;font-weight:900;color:#8A7E7C;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;">Programa de Pontos</div>' +
@@ -1244,6 +1256,7 @@ Modules.Marketing = (function () {
           throw new Error('Desconto por pontos já aplicado neste pedido.');
         }
         var cfg = _pointsConfigData();
+        if (cfg.active === false) throw new Error('O programa de pontos está inativo.');
         var balance = _pointsCustomerBalance(customer);
         if (balance < cfg.minimumPointsToUse) throw new Error('Este cliente aún no tiene puntos suficientes para usar descuento.');
         var subtotal = _pointsOrderSubtotal(ord);
@@ -1321,6 +1334,8 @@ Modules.Marketing = (function () {
       var status = String(ord.status || '').trim();
       if (status !== 'Entregado') return false;
       if (ord.pointsAwardedAt || _pointsNumber(ord.pointsEarned || 0) > 0) return false;
+      var cfg = _pointsConfigData();
+      if (cfg.active === false) return false;
       var ensureCustomers = function () {
         if (_customers && _customers.length) return Promise.resolve(_customers);
         return DB.getAll('store_customers').catch(function () { return []; }).then(function (rows) {
@@ -1333,7 +1348,6 @@ Modules.Marketing = (function () {
           customer = (customers || []).find(function (c) { return String(c.id || '') === String(ord.customerId || ord.clientId || ''); }) || _pointsFindCustomerByPhone(ord) || null;
         }
         if (!customer) return false;
-        var cfg = _pointsConfigData();
         var earned = Math.max(0, Math.floor(_pointsOrderFinalValue(ord) * cfg.earnPerEuro));
         if (!(earned > 0)) return false;
         var before = _pointsCustomerBalance(customer);

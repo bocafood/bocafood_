@@ -10612,6 +10612,29 @@
 - Reescrevi as orientações de `Rendimento`, `Tipo de rendimento` e `Rendimento da etapa` com destaques, exemplos práticos e foco apenas em como preencher.
 - Impacto esperado: deixar a orientação mais limpa e sem repetir uma regra que já aparece no campo específico de etapa.
 
+## 2026-06-02 — Template da loja: localização principal dentro da área atendida
+- Arquivos alterados: `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Mudei o card `Localização principal` para dentro de `Loja Online > Template da loja > Operação > Localização atendida`.
+- Removi o bloco separado de `Endereço` da aba Atendimento para evitar duplicidade de campos e manter o fluxo no lugar certo.
+- O campo `Código postal base` continua bloqueado, mas agora acompanha o `Código postal` preenchido na localização principal, inclusive quando os dados vierem pelo autocomplete do Google.
+- Simplifiquei o subcard `Área atendida`: província e país deixam de aparecer como campos repetidos e passam a herdar internamente da localização principal.
+- Corrigi a atualização em tempo real da aba Operação para sincronizar cidade, província, país e CEP base antes de repintar a prévia/resumos.
+- Impacto esperado: deixar claro que a localização principal precisa ser preenchida para formar o CEP base usado nas zonas de entrega.
+
+## 2026-06-02 — Onboarding: botão fechado sem cobrir salvar
+- Arquivos alterados: `public/js/modules/dashboard.js`, `AI_CHANGELOG.md`.
+- Ajustei a posição do botão fechado do checklist flutuante para ficar acima da área onde aparecem botões fixos de salvar nas páginas.
+- No mobile, o botão também considera a área segura inferior da tela para não encostar em controles do navegador.
+- Impacto esperado: permitir manter o checklist recolhido sem atrapalhar ações importantes de salvar ou publicar configurações.
+
+## 2026-06-02 — Programa de Pontos: início inativo
+- Arquivos alterados: `public/js/modules/marketing.js`, `public/js/modules/catalogo.js`, `public/storefront.html`, `AI_CHANGELOG.md`.
+- Ajustei o padrão inicial do Programa de Pontos para ficar inativo quando ainda não existe configuração salva para a loja.
+- Preservei configurações antigas já existentes: se houver documento salvo de pontos sem campo `active`, ele continua sendo tratado como configurado para não desligar lojas que já usavam o recurso.
+- A loja pública e a aba `Template da loja` passam a considerar o status específico de `config/pontos_program`, evitando confundir o status geral da loja com o status do programa de pontos.
+- Pedidos no Admin deixam de gerar ou aplicar pontos quando o programa estiver inativo.
+- Impacto esperado: ao iniciar uma loja do zero, o programa de pontos só aparece e funciona depois que a usuária ativar explicitamente.
+
 ## 2026-05-31 — Produção: atalho para insumos em Receitas
 - Arquivos alterados: `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
 - Adicionei no cabeçalho de `Produção > Receitas de produção` um botão secundário `Adicionar insumo`, ao lado do botão principal `Adicionar receita`.
