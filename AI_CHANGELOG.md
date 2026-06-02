@@ -1,5 +1,12 @@
 # AI Changelog
 
+## 2026-06-02 — Stripe: diagnóstico da conta do Master
+- Arquivos alterados: `functions/index.js`, `server.rb`, `master.html`, `public/master.html`, `AI_CHANGELOG.md`.
+- Adicionei no diagnóstico Stripe do Master a consulta segura da conta da Stripe usada pela chave secreta salva.
+- O Master agora mostra o `acct_...` da chave, o modo Live/Teste, se as chaves pública/secreta estão no mesmo modo e se essa chave consegue acessar Connect.
+- A leitura foi aplicada tanto no Master publicado quanto no Master local, porque o teste local usa `127.0.0.1:3000/master.html`.
+- Impacto esperado: quando o botão `Conectar minha conta Stripe` continuar falhando, fica visível se o problema é chave de outra conta, chave de teste/live misturada ou conta Stripe sem Connect liberado.
+
 ## 2026-06-02 — Preço e Margem: custo de combo por pior caso
 - Arquivos alterados: `public/js/modules/dinheiro.js`, `AI_CHANGELOG.md`.
 - Ajustei o cálculo de custo de produtos `combo/menu` em `Preço e Margem`.

@@ -1795,15 +1795,19 @@ function stripeMoney(value) {
 function safeStripeSettings(settingsSnap, secretSnap) {
   const settings = settingsSnap && settingsSnap.exists ? (settingsSnap.data() || {}) : {};
   const secret = secretSnap && secretSnap.exists ? (secretSnap.data() || {}) : {};
+  const secretKey = String(secret.secretKey || "").trim();
+  const publishableKey = String(settings.publishableKey || "").trim();
   return {
     found: !!(settingsSnap && settingsSnap.exists),
     enabled: settings.enabled === true,
     connectEnabled: settings.connectEnabled !== false,
-    publishableKeyConfigured: !!settings.publishableKey,
-    secretKeyConfigured: !!secret.secretKey || settings.secretKeyConfigured === true,
+    publishableKeyConfigured: !!publishableKey,
+    secretKeyConfigured: !!secretKey || settings.secretKeyConfigured === true,
     webhookSecretConfigured: !!secret.webhookSecret || settings.webhookSecretConfigured === true,
     currency: normalizeCurrency(settings.currency || "EUR").toUpperCase(),
-    mode: settings.mode || (String(settings.publishableKey || "").startsWith("pk_live_") ? "live" : "test"),
+    mode: settings.mode || (publishableKey.startsWith("pk_live_") ? "live" : "test"),
+    secretMode: secretKey.startsWith("sk_live_") ? "live" : (secretKey.startsWith("sk_test_") ? "test" : ""),
+    keyModesMatch: !publishableKey || !secretKey || (publishableKey.startsWith("pk_live_") && secretKey.startsWith("sk_live_")) || (publishableKey.startsWith("pk_test_") && secretKey.startsWith("sk_test_")),
     updatedAt: settings.updatedAt || ""
   };
 }
@@ -1933,6 +1937,32 @@ async function stripeGet(path, config, stripeAccountId) {
     throw new Error(message);
   }
   return json;
+}
+
+async function stripePlatformDiagnostics(config) {
+  if (!config || !config.secretKey) return { checked: false, reason: "secret_key_missing" };
+  const result = { checked: true };
+  try {
+    const account = await stripeGet("account", config);
+    result.accountId = account.id || "";
+    result.email = account.email || "";
+    result.country = account.country || "";
+    result.defaultCurrency = account.default_currency || "";
+    result.businessName = account.business_profile && account.business_profile.name ? account.business_profile.name : "";
+    result.chargesEnabled = account.charges_enabled === true;
+    result.payoutsEnabled = account.payouts_enabled === true;
+    result.detailsSubmitted = account.details_submitted === true;
+  } catch (error) {
+    result.accountLookupError = String(error && error.message ? error.message : error).slice(0, 220);
+  }
+  try {
+    await stripeGet("accounts?limit=1", config);
+    result.connectAccountListAvailable = true;
+  } catch (error) {
+    result.connectAccountListAvailable = false;
+    result.connectLookupError = String(error && error.message ? error.message : error).slice(0, 220);
+  }
+  return result;
 }
 
 function sanitizeStripeReturnUrl(value) {
@@ -2766,12 +2796,14 @@ exports.masterStripeDiagnostics = onRequest({ region: REGION }, async (req, res)
       db.collection("system_private_stripe_secrets").doc("default").get()
     ]);
     const settings = settingsSnap.exists ? (settingsSnap.data() || {}) : {};
+    const config = await loadStripePlatformConfig();
     return res.json({
       ok: true,
       stripe: {
         ...safeStripeSettings(settingsSnap, secretSnap),
         publishableKey: settings.publishableKey || "",
-        currency: normalizeCurrency(settings.currency || "EUR").toUpperCase()
+        currency: normalizeCurrency(settings.currency || "EUR").toUpperCase(),
+        platform: await stripePlatformDiagnostics(config)
       }
     });
   } catch (error) {
@@ -2824,7 +2856,22 @@ exports.saveStripeSettings = onRequest({ region: REGION }, async (req, res) => {
     if (secretKey || webhookSecret) {
       await db.collection("system_private_stripe_secrets").doc("default").set(secretPatch, { merge: true });
     }
-    return res.json({ ok: true, stripe: safeStripeSettings({ exists: true, data: () => settings }, { exists: true, data: () => Object.assign({}, currentSecret, secretPatch) }) });
+    const safe = safeStripeSettings({ exists: true, data: () => settings }, { exists: true, data: () => Object.assign({}, currentSecret, secretPatch) });
+    return res.json({
+      ok: true,
+      stripe: {
+        ...safe,
+        publishableKey,
+        platform: await stripePlatformDiagnostics({
+          enabled: settings.enabled,
+          connectEnabled: true,
+          publishableKey,
+          secretKey: String(secretPatch.secretKey || currentSecret.secretKey || "").trim(),
+          webhookSecret: String(secretPatch.webhookSecret || currentSecret.webhookSecret || "").trim(),
+          currency
+        })
+      }
+    });
   } catch (error) {
     const status = error.message === "forbidden" ? 403 : error.message && error.message.indexOf("_invalid") >= 0 ? 400 : 401;
     return res.status(status).json({ error: error.message || "unauthorized" });

@@ -401,16 +401,61 @@ end
 def safe_stripe_settings(settings_doc = nil, secret_doc = nil)
   settings = settings_doc ? firestore_fields_to_hash(settings_doc['fields'] || {}) : {}
   secret = secret_doc ? firestore_fields_to_hash(secret_doc['fields'] || {}) : {}
+  publishable_key = settings['publishableKey'].to_s.strip
+  secret_key = secret['secretKey'].to_s.strip
   {
     'enabled' => settings['enabled'] == true,
     'connectEnabled' => settings.key?('connectEnabled') ? settings['connectEnabled'] != false : true,
-    'publishableKeyConfigured' => !settings['publishableKey'].to_s.strip.empty?,
-    'secretKeyConfigured' => !secret['secretKey'].to_s.strip.empty? || settings['secretKeyConfigured'] == true,
+    'publishableKeyConfigured' => !publishable_key.empty?,
+    'secretKeyConfigured' => !secret_key.empty? || settings['secretKeyConfigured'] == true,
     'webhookSecretConfigured' => !secret['webhookSecret'].to_s.strip.empty? || settings['webhookSecretConfigured'] == true,
     'currency' => settings['currency'].to_s.strip.empty? ? 'EUR' : settings['currency'].to_s.strip.upcase,
-    'mode' => settings['mode'].to_s.strip.empty? ? (settings['publishableKey'].to_s.start_with?('pk_live_') ? 'live' : 'test') : settings['mode'].to_s,
-    'publishableKey' => settings['publishableKey'].to_s
+    'mode' => settings['mode'].to_s.strip.empty? ? (publishable_key.start_with?('pk_live_') ? 'live' : 'test') : settings['mode'].to_s,
+    'secretMode' => secret_key.start_with?('sk_live_') ? 'live' : (secret_key.start_with?('sk_test_') ? 'test' : ''),
+    'keyModesMatch' => publishable_key.empty? || secret_key.empty? || (publishable_key.start_with?('pk_live_') && secret_key.start_with?('sk_live_')) || (publishable_key.start_with?('pk_test_') && secret_key.start_with?('sk_test_')),
+    'publishableKey' => publishable_key
   }
+end
+
+def stripe_api_get(secret_key, path)
+  uri = URI("https://api.stripe.com/v1/#{path.to_s.sub(%r{\A/+}, '')}")
+  req = Net::HTTP::Get.new(uri)
+  req['Authorization'] = "Bearer #{secret_key}"
+  res = Net::HTTP.start(uri.host, uri.port, use_ssl: true) { |http| http.request(req) }
+  json = JSON.parse(res.body) rescue {}
+  unless res.is_a?(Net::HTTPSuccess)
+    message = json.dig('error', 'message') || "stripe_http_#{res.code}"
+    raise message
+  end
+  json
+end
+
+def stripe_platform_diagnostics(settings_doc = nil, secret_doc = nil)
+  secret = secret_doc ? firestore_fields_to_hash(secret_doc['fields'] || {}) : {}
+  secret_key = secret['secretKey'].to_s.strip
+  return { 'checked' => false, 'reason' => 'secret_key_missing' } if secret_key.empty?
+  result = { 'checked' => true }
+  begin
+    account = stripe_api_get(secret_key, 'account')
+    result['accountId'] = account['id'].to_s
+    result['email'] = account['email'].to_s
+    result['country'] = account['country'].to_s
+    result['defaultCurrency'] = account['default_currency'].to_s
+    result['businessName'] = account.dig('business_profile', 'name').to_s
+    result['chargesEnabled'] = account['charges_enabled'] == true
+    result['payoutsEnabled'] = account['payouts_enabled'] == true
+    result['detailsSubmitted'] = account['details_submitted'] == true
+  rescue => e
+    result['accountLookupError'] = e.message.to_s[0, 220]
+  end
+  begin
+    stripe_api_get(secret_key, 'accounts?limit=1')
+    result['connectAccountListAvailable'] = true
+  rescue => e
+    result['connectAccountListAvailable'] = false
+    result['connectLookupError'] = e.message.to_s[0, 220]
+  end
+  result
 end
 
 def save_stripe_settings_local(body)
@@ -454,7 +499,9 @@ def save_stripe_settings_local(body)
   end
   settings_doc = firestore_get_document('system_stripe_settings', 'default')
   secret_doc = firestore_get_document('system_private_stripe_secrets', 'default')
-  { 'ok' => true, 'stripe' => safe_stripe_settings(settings_doc, secret_doc) }
+  stripe = safe_stripe_settings(settings_doc, secret_doc)
+  stripe['platform'] = stripe_platform_diagnostics(settings_doc, secret_doc)
+  { 'ok' => true, 'stripe' => stripe }
 end
 
 def save_email_settings!(body)
@@ -4469,7 +4516,9 @@ server.mount_proc '/api/master/stripe_settings' do |req, res|
   else
     settings_doc = firestore_get_document('system_stripe_settings', 'default')
     secret_doc = firestore_get_document('system_private_stripe_secrets', 'default')
-    json_response(res, 200, { stripe: safe_stripe_settings(settings_doc, secret_doc) })
+    stripe = safe_stripe_settings(settings_doc, secret_doc)
+    stripe['platform'] = stripe_platform_diagnostics(settings_doc, secret_doc)
+    json_response(res, 200, { stripe: stripe })
   end
 rescue => e
   json_response(res, 400, { error: e.message })

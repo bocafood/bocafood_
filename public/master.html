@@ -259,19 +259,25 @@
     }
     function renderTemplates(templates){templates=templates||[];if(!templates.length){document.getElementById('templates').innerHTML='<div class="empty">Nenhum template encontrado.</div>';return;}document.getElementById('templates').innerHTML='<table><thead><tr><th>Template</th><th>Status</th><th>Gatilhos</th></tr></thead><tbody>'+templates.map(function(t){var triggerLabel=t.activeTriggerCount? t.activeTriggerCount+' ativo(s)' : (t.triggerCount?t.triggerCount+' inativo(s)':'Sem gatilho');var triggerCls=t.activeTriggerCount?'on':(t.triggerCount?'warn':'off');return '<tr><td><strong>'+esc(t.name)+'</strong><br><span class="subtitle">'+esc(t.key)+'</span></td><td><span class="badge '+(t.enabled?'on':'off')+'">'+(t.enabled?'Ativo':'Inativo')+'</span></td><td><span class="badge '+triggerCls+'">'+esc(triggerLabel)+'</span></td></tr>';}).join('')+'</tbody></table>';}
     function renderLogs(logs){logs=logs||[];if(!logs.length){document.getElementById('logs').innerHTML='<div class="empty">Nenhum log encontrado.</div>';return;}document.getElementById('logs').innerHTML='<table><thead><tr><th>Data</th><th>Template</th><th>Para</th><th>Status</th><th>Erro</th></tr></thead><tbody>'+logs.map(function(log){var cls=log.status==='success'||log.status==='ok'?'on':(log.status==='error'?'off':'warn');return '<tr><td>'+esc(log.createdAt||'')+'</td><td><strong>'+esc(log.templateKey)+'</strong><br><span class="subtitle">'+esc(log.source)+'</span></td><td>'+esc(log.to)+'</td><td><span class="badge '+cls+'">'+esc(log.status||'')+'</span></td><td>'+esc(log.error||'')+'</td></tr>';}).join('')+'</tbody></table>';}
-    function renderStripe(stripe){stripe=stripe||{};document.getElementById('stripe-grid').innerHTML=[
+    function renderStripe(stripe){stripe=stripe||{};var platform=stripe.platform||{};var connectOk=platform.connectAccountListAvailable===true;var connectChecked=platform.checked===true;document.getElementById('stripe-grid').innerHTML=[
       metric('Stripe',stripe.enabled?'Ativo':'Inativo',stripe.enabled?'ok':'warn'),
       metric('Connect',stripe.connectEnabled!==false?'Ativo':'Inativo',stripe.connectEnabled!==false?'ok':'warn'),
       metric('Chave pública',stripe.publishableKeyConfigured?'Configurada':'Ausente',stripe.publishableKeyConfigured?'ok':'bad'),
       metric('Chave secreta',stripe.secretKeyConfigured?'Configurada':'Ausente',stripe.secretKeyConfigured?'ok':'bad'),
       metric('Webhook',stripe.webhookSecretConfigured?'Configurado':'Ausente',stripe.webhookSecretConfigured?'ok':'bad'),
-      metric('Moeda',stripe.currency||'EUR','')
+      metric('Moeda',stripe.currency||'EUR',''),
+      metric('Modo das chaves',stripe.keyModesMatch===false?'Diferentes':((stripe.secretMode||stripe.mode||'test')==='live'?'Live':'Teste'),stripe.keyModesMatch===false?'bad':''),
+      metric('Conta Stripe da chave',platform.accountId||'Não conferida',platform.accountId?'ok':'warn'),
+      metric('Connect da chave',connectChecked?(connectOk?'Liberado':'Não liberado'):'Não conferido',connectChecked?(connectOk?'ok':'bad'):'warn')
     ].join('');
       setValue('stripe-enabled',stripe.enabled?'true':'false');
       setValue('stripe-currency',stripe.currency||'EUR');
       setValue('stripe-publishable-key',stripe.publishableKey||'');
       setValue('stripe-secret-key','');
       setValue('stripe-webhook-secret','');
+      if(platform.connectLookupError){
+        msg('stripe-message','A chave secreta salva pertence à conta '+(platform.accountId||'Stripe informada')+', mas essa conta ainda não respondeu como Connect liberado: '+platform.connectLookupError);
+      }
     }
     function renderLookup(lookup){if(!lookup){clearMsg('lookup-result');return;}msg('lookup-result','Auth: '+(lookup.authUserExists?'encontrado':'não encontrado')+' · Tenant: '+(lookup.tenantExists?'encontrado':'não encontrado')+(lookup.tenantUid?' · UID '+lookup.tenantUid:''));}
     async function load(extra,options){if(!(options&&options.keepMessage)){clearMsg('action-message');clearMsg('stripe-message');}var data=await call('masterEmailDiagnostics',extra||{});state.data=data;renderSettings(data.settings);renderTemplates(data.templates);renderLogs(data.logs);renderLookup(data.lookup);call('masterStripeDiagnostics',{}).then(function(s){renderStripe(s.stripe||{});}).catch(function(error){msg('stripe-message','Erro ao carregar Stripe: '+error.message);});}

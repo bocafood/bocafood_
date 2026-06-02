@@ -1819,6 +1819,9 @@ function _stripeMetric(label, value, tone){
 }
 function renderMasterStripe(stripe){
   stripe = stripe || {};
+  var platform = stripe.platform || {};
+  var connectOk = platform.connectAccountListAvailable === true;
+  var connectChecked = platform.checked === true;
   var status = document.getElementById('master-stripe-status');
   if (status) {
     status.innerHTML = [
@@ -1827,7 +1830,10 @@ function renderMasterStripe(stripe){
       _stripeMetric('Chave pública', stripe.publishableKeyConfigured ? 'Configurada' : 'Ausente', stripe.publishableKeyConfigured ? 'ok' : 'bad'),
       _stripeMetric('Chave secreta', stripe.secretKeyConfigured ? 'Configurada' : 'Ausente', stripe.secretKeyConfigured ? 'ok' : 'bad'),
       _stripeMetric('Webhook', stripe.webhookSecretConfigured ? 'Configurado' : 'Ausente', stripe.webhookSecretConfigured ? 'ok' : 'bad'),
-      _stripeMetric('Moeda', stripe.currency || 'EUR', '')
+      _stripeMetric('Moeda', stripe.currency || 'EUR', ''),
+      _stripeMetric('Modo das chaves', stripe.keyModesMatch === false ? 'Diferentes' : (((stripe.secretMode || stripe.mode || 'test') === 'live') ? 'Live' : 'Teste'), stripe.keyModesMatch === false ? 'bad' : ''),
+      _stripeMetric('Conta Stripe da chave', platform.accountId || 'Não conferida', platform.accountId ? 'ok' : 'warn'),
+      _stripeMetric('Connect da chave', connectChecked ? (connectOk ? 'Liberado' : 'Não liberado') : 'Não conferido', connectChecked ? (connectOk ? 'ok' : 'bad') : 'warn')
     ].join('');
   }
   _stripeSetVal('master-stripe-enabled', stripe.enabled ? 'true' : 'false');
@@ -1835,6 +1841,9 @@ function renderMasterStripe(stripe){
   _stripeSetVal('master-stripe-publishable-key', stripe.publishableKey || '');
   _stripeSetVal('master-stripe-secret-key', '');
   _stripeSetVal('master-stripe-webhook-secret', '');
+  if (platform.connectLookupError) {
+    _stripeMessage('A chave secreta salva pertence à conta ' + (platform.accountId || 'Stripe informada') + ', mas essa conta ainda não respondeu como Connect liberado: ' + platform.connectLookupError, 'error');
+  }
 }
 function loadMasterStripe(){
   var status = document.getElementById('master-stripe-status');
