@@ -1,5 +1,25 @@
 # AI Changelog
 
+## 2026-06-02 — Stripe: forma de pagamento sem timestamp em array
+- Arquivos alterados: `functions/index.js`, `AI_CHANGELOG.md`.
+- Corrigi a criação/atualização automática da forma de pagamento `Stripe` no Financeiro para não gravar `serverTimestamp()` dentro do array `formas_pagamento`.
+- Os timestamps internos do item Stripe passam a ser salvos como string ISO, mantendo `serverTimestamp()` apenas no documento de configuração financeira.
+- Impacto esperado: o fluxo `Conectar minha conta Stripe` deixa de falhar com erro do Firestore sobre `FieldValue.serverTimestamp()` dentro de array.
+
+## 2026-06-02 — Stripe: mensagem de perfil Connect pendente
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Ajustei a mensagem do botão `Conectar minha conta Stripe` quando a Stripe retorna pendência de `platform-profile`/responsabilidade por perdas.
+- O Admin deixa de classificar esse caso como `Connect não liberado` e passa a orientar a conclusão do perfil Connect no painel Stripe.
+- Impacto esperado: a usuária vê o próximo passo correto quando a conta já tem Connect liberado, mas ainda falta revisar a responsabilidade por perdas das contas conectadas.
+
+## 2026-06-02 — Master local: fallback do diagnóstico Stripe
+- Arquivos alterados: `master.html`, `AI_CHANGELOG.md`.
+- Ajustei o Master local para buscar a Function `masterStripeDiagnostics` quando o endpoint local ainda não devolver os dados de conferência da conta Stripe.
+- Também adicionei uma mensagem mais clara quando a chave secreta ainda não foi salva, explicando que sem ela o Master não consegue conferir a conta e o Connect.
+- Depois de salvar o Stripe, o Master local agora recarrega o diagnóstico completo em vez de renderizar a resposta local incompleta.
+- Evitei que o Master local caia em `forbidden` ao tentar a Function de diagnóstico quando o endpoint local responde sem o bloco novo; agora ele orienta reiniciar o servidor local.
+- Impacto esperado: evitar que o card Stripe fique preso em `Conta Stripe da chave: Não conferida` e `Connect da chave: Não conferido` quando o servidor local ainda não foi reiniciado.
+
 ## 2026-06-02 — Stripe: diagnóstico da conta do Master
 - Arquivos alterados: `functions/index.js`, `server.rb`, `master.html`, `public/master.html`, `AI_CHANGELOG.md`.
 - Adicionei no diagnóstico Stripe do Master a consulta segura da conta da Stripe usada pela chave secreta salva.

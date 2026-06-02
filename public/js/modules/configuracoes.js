@@ -1860,6 +1860,7 @@ Modules.Configuracoes = (function () {
     var lower = code.toLowerCase();
     if (lower.indexOf('failed to fetch') >= 0 || lower.indexOf('network') >= 0) return 'Não foi possível falar com o Stripe agora. Confira a internet e tente novamente.';
     if (lower.indexOf('api key') >= 0 || lower.indexOf('secret key') >= 0 || lower.indexOf('no such') >= 0) return 'A chave secreta do Stripe no Master não parece válida. Revise a chave no Master e salve novamente.';
+    if (lower.indexOf('managing losses') >= 0 || lower.indexOf('platform-profile') >= 0) return 'Falta concluir uma etapa do perfil Connect na Stripe. No painel Stripe, abra Configurações > Connect > Perfil da plataforma e revise a responsabilidade por perdas das contas conectadas.';
     if (lower.indexOf('connect') >= 0 && (lower.indexOf('sign') >= 0 || lower.indexOf('platform') >= 0 || lower.indexOf('account') >= 0)) return 'A conta Stripe configurada no Master precisa estar liberada para Stripe Connect antes de conectar lojas.';
     if (lower.indexOf('country') >= 0 || lower.indexOf('unsupported') >= 0) return 'O país fiscal da loja precisa ser Portugal ou Espanha para criar a conta Stripe conectada.';
     if (lower.indexOf('permission') >= 0 || lower.indexOf('not allowed') >= 0) return 'O Stripe não permitiu criar a conexão com essa conta. Revise as permissões da conta Stripe no Master.';

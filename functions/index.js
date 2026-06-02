@@ -2007,7 +2007,7 @@ function safeStripeAccountStatus(account) {
   };
 }
 
-function stripePaymentMethodPayload(accountId = "", now = serverTimestamp()) {
+function stripePaymentMethodPayload(accountId = "", now = new Date().toISOString()) {
   return {
     nome: "Stripe",
     tipo: "Cartão",
@@ -2044,6 +2044,7 @@ async function ensureStripeFinancePaymentMethod(tenantId, accountId = "") {
   const snap = await ref.get();
   const finance = snap.exists ? snap.data() || {} : {};
   let methods = Array.isArray(finance.formas_pagamento) ? finance.formas_pagamento.slice() : [];
+  const itemNow = new Date().toISOString();
   let found = false;
   methods = methods.map((item) => {
     if (typeof item === "string") item = { nome: item, tipo: "outro", ativo: true };
@@ -2054,13 +2055,13 @@ async function ensureStripeFinancePaymentMethod(tenantId, accountId = "") {
     found = true;
     return {
       ...item,
-      ...stripePaymentMethodPayload(accountId || item.contaPadraoId || ""),
+      ...stripePaymentMethodPayload(accountId || item.contaPadraoId || "", itemNow),
       taxaPercentual: Number(item.taxaPercentual || item.feePct || 0),
       taxaFixa: Number(item.taxaFixa || item.fixedFee || 0),
-      createdAt: item.createdAt || serverTimestamp()
+      createdAt: item.createdAt || itemNow
     };
   });
-  if (!found) methods.push(stripePaymentMethodPayload(accountId));
+  if (!found) methods.push(stripePaymentMethodPayload(accountId, itemNow));
   await ref.set({ formas_pagamento: methods, updatedAt: serverTimestamp() }, { merge: true });
   return methods.find((item) => item && (item.provider === "stripe" || item.stripe === true || String(item.nome || "").toLowerCase() === "stripe")) || null;
 }

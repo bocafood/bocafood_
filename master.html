@@ -1843,6 +1843,10 @@ function renderMasterStripe(stripe){
   _stripeSetVal('master-stripe-webhook-secret', '');
   if (platform.connectLookupError) {
     _stripeMessage('A chave secreta salva pertence à conta ' + (platform.accountId || 'Stripe informada') + ', mas essa conta ainda não respondeu como Connect liberado: ' + platform.connectLookupError, 'error');
+  } else if (platform.reason === 'secret_key_missing') {
+    _stripeMessage('Salve a chave secreta do Stripe para o Master conseguir conferir a conta e o Connect.', 'error');
+  } else if (!platform.checked) {
+    _stripeMessage('O Master carregou o Stripe, mas ainda não recebeu a conferência da conta. Recarregue o Stripe; se continuar assim, reinicie o servidor local do Master.', 'error');
   }
 }
 function loadMasterStripe(){
@@ -1850,9 +1854,15 @@ function loadMasterStripe(){
   if (!status) return Promise.resolve();
   status.innerHTML = '<div class="users-empty" style="grid-column:1/-1;">Carregando Stripe Connect...</div>';
   _stripeMessage('', '');
-  return api('/api/master/stripe_settings').catch(function(){
+  return api('/api/master/stripe_settings').then(function(result){
+    if (result && result.stripe && result.stripe.platform) return result;
+    renderMasterStripe((result && result.stripe) || {});
+    _stripeMessage('O Stripe foi carregado pelo servidor local, mas a conferência da conta ainda não veio. Reinicie o servidor local do Master e clique em Recarregar Stripe.', 'error');
+    return null;
+  }).catch(function(){
     return _emailCallFunction('masterStripeDiagnostics', {});
   }).then(function(result){
+    if (!result) return;
     renderMasterStripe((result && result.stripe) || {});
   }).catch(function(err){
     status.innerHTML = '<div class="users-empty" style="grid-column:1/-1;">Não foi possível carregar Stripe Connect.</div>';
@@ -1893,7 +1903,7 @@ function saveMasterStripe(){
     return _emailCallFunction('saveStripeSettings', payload);
   }).then(function(result){
     _stripeMessage('Stripe Connect salvo. Agora cada loja pode conectar a própria conta em Configurações > Integrações.', 'success');
-    renderMasterStripe((result && result.stripe) || {});
+    return loadMasterStripe();
   }).catch(function(err){
     _stripeMessage('Erro ao salvar Stripe: ' + (err && err.message ? err.message : err), 'error');
   }).finally(function(){
