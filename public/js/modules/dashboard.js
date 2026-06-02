@@ -24,6 +24,8 @@ Modules.Dashboard = (function () {
     channels: {},
     moneyConfig: {},
     fiscalConfig: {},
+    dominio: {},
+    systemTenant: {},
     purchaseItems: [],
     recipes: [],
     purchases: [],
@@ -104,6 +106,8 @@ Modules.Dashboard = (function () {
       _safeDocRoot('config', 'canais_venda'),
       _safeDocRoot('config', 'dinheiro'),
       _safeDocRoot('config', 'fiscal'),
+      _safeDocRoot('config', 'dominio'),
+      _safeSystemTenant(),
       _safeAll('itens_custo'),
       _safeAll('fichasTecnicas'),
       _safeAll('compras'),
@@ -124,11 +128,13 @@ Modules.Dashboard = (function () {
       _data.channels = r[14] || {};
       _data.moneyConfig = r[15] || {};
       _data.fiscalConfig = r[16] || {};
-      _data.purchaseItems = Array.isArray(r[17]) ? r[17] : [];
-      _data.recipes = Array.isArray(r[18]) ? r[18] : [];
-      _data.purchases = Array.isArray(r[19]) ? r[19] : [];
-      _data.seasons = Array.isArray(r[20]) ? r[20] : [];
-      _data.stockMovements = Array.isArray(r[21]) ? r[21] : [];
+      _data.dominio = r[17] || {};
+      _data.systemTenant = r[18] || {};
+      _data.purchaseItems = Array.isArray(r[19]) ? r[19] : [];
+      _data.recipes = Array.isArray(r[20]) ? r[20] : [];
+      _data.purchases = Array.isArray(r[21]) ? r[21] : [];
+      _data.seasons = Array.isArray(r[22]) ? r[22] : [];
+      _data.stockMovements = Array.isArray(r[23]) ? r[23] : [];
       _loading = false;
       _loaded = true;
     }).catch(function (err) {
@@ -137,6 +143,18 @@ Modules.Dashboard = (function () {
       throw err;
     });
     return _loadPromise;
+  }
+
+  function _safeSystemTenant() {
+    try {
+      var tenantId = window.Auth && Auth.getTenantId ? Auth.getTenantId() : '';
+      if (!tenantId || !window.firebase || !firebase.firestore) return Promise.resolve({});
+      return firebase.firestore().collection('system_tenants').doc(tenantId).get().then(function (snap) {
+        return snap.exists ? (snap.data() || {}) : {};
+      }).catch(function () { return {}; });
+    } catch (err) {
+      return Promise.resolve({});
+    }
   }
 
   function _paint() {
@@ -1538,6 +1556,20 @@ Modules.Dashboard = (function () {
         actions: ['Teste como cliente: escolha entrega, depois retirada.', 'Confira se o carrinho mostra os campos certos em cada caso.', 'Ajuste horários antes de publicar.'],
         ready: 'Está pronto quando a cliente consegue escolher entrega ou retirada sem dúvida.'
       },
+      'Configurar e publicar link da loja': {
+        icon: 'link',
+        path: 'Caminho: Loja online > Link da loja',
+        introHtml: '<div><strong style="color:#1F1F1F;">Aqui você prepara o endereço que a cliente vai abrir para comprar.</strong></div><div style="margin-top:7px;">Depois de revisar cardápio, entrega, retirada e pagamento, escolha o nome do link e publique a loja. Esse é o passo que transforma a vitrine em um endereço pronto para divulgar.</div>',
+        fields: [
+          ['Nome do link', 'Use um nome parecido com o nome do negócio, fácil de falar e de escrever. Evite acentos, espaços e palavras difíceis.'],
+          ['Check verde ou X vermelho', 'O campo mostra se o nome escolhido está disponível e no formato certo. Se aparecer erro, ajuste o nome antes de salvar.'],
+          ['Link público', 'Depois de publicado, esse é o endereço que você envia para clientes no WhatsApp, Instagram, bio, grupos ou redes sociais.'],
+          ['Ver loja', 'Abra para conferir como a cliente vai ver o cardápio. Faça isso antes de divulgar.'],
+          ['Publicar loja', 'Use quando o cardápio, entrega, retirada, pagamentos e textos já estiverem revisados. Depois de publicar, a loja fica pronta para receber pedidos pelo link.']
+        ],
+        actions: ['Escolha um nome de link simples e parecido com o nome do negócio.', 'Salve e confira se o campo mostra que o link está certo.', 'Clique em Ver loja e teste como cliente.', 'Publique somente depois de revisar o checkout.', 'Depois siga para a primeira rotina de venda.'],
+        ready: 'Está pronto quando o link está salvo, publicado e você consegue abrir a loja pelo botão Ver loja.'
+      },
       'Registrar primeira compra': {
         icon: 'shopping_cart',
         path: 'Caminho: Compras > Registros',
@@ -2228,7 +2260,7 @@ Modules.Dashboard = (function () {
       },
       {
         selector: '[data-route="loja-online"]',
-        route: 'loja-online/links',
+        route: 'loja-online/link-da-loja',
         routeCta: 'Abrir Link',
         icon: 'link',
         chapter: 'Loja Online',
@@ -2244,7 +2276,7 @@ Modules.Dashboard = (function () {
         ],
         actionTitle: 'Primeiro passo',
         action: 'Defina o nome do link e publique apenas depois de conferir produtos, checkout e informacoes.',
-        actionSelector: '#store-slug, #config-save, button[onclick*="_publishStore"]',
+        actionSelector: '#cfg-store-slug, #config-save, button[onclick*="_publishStore"]',
         actionFocusTitle: 'Ação principal nesta tela',
         actionFocus: 'Escolha um nome de link parecido com o nome da loja e publique só depois de conferir a vitrine.'
       },
@@ -2558,6 +2590,14 @@ Modules.Dashboard = (function () {
     var hasCheckout = !!(op.deliveryEnabled || op.pickupEnabled || t.deliveryEnabled || t.pickupEnabled ||
       (Array.isArray(t.deliveryZones) && t.deliveryZones.length) ||
       (Array.isArray(t.hours) && t.hours.length));
+    var d = _data.dominio || {};
+    var tenantStore = ((_data.systemTenant || {}).store) || {};
+    var hasStoreLink = !!(d.slug || d.publicSlug || d.storeSlug || d.urlSlug || d.publicUrl || d.storeUrl || tenantStore.slug || tenantStore.publicUrl);
+    var hasPublishedStoreLink = hasStoreLink && (
+      d.publicado === true || d.published === true || d.isPublished === true ||
+      d.status === 'published' || d.status === 'publicada' ||
+      tenantStore.status === 'published'
+    );
     var hasPurchase = (_data.purchases || []).length > 0;
     var hasOrder = (_data.orders || []).length > 0;
     var hasOpenOrder = (_data.orders || []).some(_isOpenOrder);
@@ -2607,7 +2647,8 @@ Modules.Dashboard = (function () {
         steps: [
           { title: 'Finalizar cardápio de venda', text: 'Complete os produtos, revise preços, categorias e o que ficará visível para vender.', icon: 'menu_book', route: 'catalogo/produtos', done: hasStorefrontCatalogReady },
           { title: 'Configurar cardápio online', text: 'Use sua identidade, capa, logo e informações para vender com confiança.', icon: 'store', route: 'loja-online/template', done: hasStorefrontIdentity },
-          { title: 'Conferir entrega e retirada', text: 'Garanta que a cliente saiba como e quando vai receber o pedido.', icon: 'local_shipping', route: 'loja-online/template', done: hasCheckout }
+          { title: 'Conferir entrega e retirada', text: 'Garanta que a cliente saiba como e quando vai receber o pedido.', icon: 'local_shipping', route: 'loja-online/template', done: hasCheckout },
+          { title: 'Configurar e publicar link da loja', text: 'Escolha o nome do link, publique a loja e confira como a cliente vai acessar o cardápio.', icon: 'link', route: 'loja-online/link-da-loja', done: hasPublishedStoreLink }
         ]
       },
       {

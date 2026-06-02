@@ -1803,6 +1803,7 @@ Modules.Configuracoes = (function () {
       }
       _stripeMessage('Não foi possível abrir o Stripe agora.', 'error');
     }).catch(function (err) {
+      console.warn('[Stripe] connect error', err && err.message ? err.message : err);
       _stripeMessage(_stripeConnectErrorMessage(err && err.message), 'error');
       UI.toast(_stripeConnectErrorMessage(err && err.message), 'error');
     }).finally(function () {
@@ -1840,6 +1841,7 @@ Modules.Configuracoes = (function () {
       _renderIntegracoes();
       UI.toast(stripe.status === 'ready' ? 'Stripe pronto para receber cartão.' : 'Stripe ainda precisa de ajustes.', stripe.status === 'ready' ? 'success' : 'info');
     }).catch(function (err) {
+      console.warn('[Stripe] status error', err && err.message ? err.message : err);
       _stripeMessage(_stripeConnectErrorMessage(err && err.message), 'error');
       UI.toast(_stripeConnectErrorMessage(err && err.message), 'error');
     }).finally(function () {
@@ -1853,7 +1855,15 @@ Modules.Configuracoes = (function () {
     if (code === 'store_stripe_not_connected') return 'A conta Stripe da loja ainda não foi conectada.';
     if (code === 'forbidden') return 'Você não tem permissão para conectar esta loja.';
     if (code === 'missing_auth') return 'Entre novamente para conectar o Stripe.';
-    return 'Não foi possível conectar o Stripe agora.';
+    if (code === 'tenant_required') return 'Não foi possível identificar a loja. Entre novamente e tente conectar o Stripe.';
+    if (code === 'stripe_account_not_created') return 'O Stripe não conseguiu criar a conta conectada da loja. Confira se o Stripe Connect está liberado na conta configurada no Master.';
+    var lower = code.toLowerCase();
+    if (lower.indexOf('failed to fetch') >= 0 || lower.indexOf('network') >= 0) return 'Não foi possível falar com o Stripe agora. Confira a internet e tente novamente.';
+    if (lower.indexOf('api key') >= 0 || lower.indexOf('secret key') >= 0 || lower.indexOf('no such') >= 0) return 'A chave secreta do Stripe no Master não parece válida. Revise a chave no Master e salve novamente.';
+    if (lower.indexOf('connect') >= 0 && (lower.indexOf('sign') >= 0 || lower.indexOf('platform') >= 0 || lower.indexOf('account') >= 0)) return 'A conta Stripe configurada no Master precisa estar liberada para Stripe Connect antes de conectar lojas.';
+    if (lower.indexOf('country') >= 0 || lower.indexOf('unsupported') >= 0) return 'O país fiscal da loja precisa ser Portugal ou Espanha para criar a conta Stripe conectada.';
+    if (lower.indexOf('permission') >= 0 || lower.indexOf('not allowed') >= 0) return 'O Stripe não permitiu criar a conexão com essa conta. Revise as permissões da conta Stripe no Master.';
+    return 'Não foi possível conectar o Stripe agora. Motivo recebido: ' + code;
   }
 
   function _renderSeo() {

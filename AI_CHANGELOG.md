@@ -10677,6 +10677,20 @@
 - Estoque e Lista de Compras passam a reconhecer a classe `Embalagem` como tipo próprio, preservando compatibilidade com insumos antigos.
 - Impacto esperado: permitir que caixas, potes, sacos, etiquetas e descartáveis sejam controlados e calculados como embalagem, sem quebrar compras, receitas, produção ou estoque existentes.
 
+## 2026-06-02 — Stripe: mensagem de erro da conexão
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Ajustei o botão `Conectar minha conta Stripe` para não esconder o motivo real quando a conexão falhar.
+- A tela agora diferencia erro de Master sem Stripe, falta de permissão, loja não identificada, chave secreta inválida, Stripe Connect não liberado, país fiscal não suportado e falha de rede.
+- Também registrei o erro no console do navegador para facilitar diagnóstico quando a Stripe retornar uma mensagem específica.
+- Impacto esperado: quando a conexão Stripe falhar, a usuária vê uma orientação prática em vez da mensagem genérica `Não foi possível conectar o Stripe agora`.
+
+## 2026-06-02 — Onboarding: etapa de link da loja
+- Arquivos alterados: `public/js/modules/dashboard.js`, `AI_CHANGELOG.md`.
+- Incluí a etapa `Configurar e publicar link da loja` no checklist do onboarding, dentro de `Loja pronta para vender`, antes de `Primeira rotina de venda`.
+- A etapa abre `Loja online > Link da loja`, orienta escolha do nome do link, publicação e conferência pelo botão de ver loja.
+- O check automático usa o link salvo em `config/dominio` e o status real de publicação em `system_tenants.store.status`.
+- Impacto esperado: garantir que a usuária configure e publique o endereço público da loja antes de entrar na rotina de comprar, vender e acompanhar resultado.
+
 ## 2026-06-02 — Checkout do template: opção Stripe nos pagamentos
 - Arquivos alterados: `public/js/modules/catalogo.js`, `public/storefront.html`, `AI_CHANGELOG.md`.
 - Ajustei a lista `Pagamentos exibidos na loja` em `Loja Online > Template da loja > Checkout` para incluir a opção `Cartão online (Stripe)` quando a integração Stripe da loja estiver disponível.
