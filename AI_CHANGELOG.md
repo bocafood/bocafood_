@@ -11239,6 +11239,13 @@
 - A lista reaproveita as opções já usadas pelo módulo de Compras, evitando criar uma fonte paralela ou alterar a lógica de cadastro.
 - Impacto esperado: deixar visível dentro das configurações de Produção quais embalagens de compra podem ser usadas no preenchimento dos insumos.
 
+## 2026-06-03 — Pedidos: estorno de estoque ao cancelar pedido com flag inconsistente
+- Arquivos alterados: `public/admin.html`, `public/js/modules/pedidos.js`, `AI_CHANGELOG.md`, `AGENTS.md`.
+- Corrigi a rotina de cancelamento para tentar estornar saídas de estoque pelo `orderId` mesmo quando o pedido não está marcado internamente com `stockMovementCreated`.
+- Isso cobre pedidos antigos ou inconsistentes que têm movimentações de venda em `stock_movements`, mas não carregam a flag usada como atalho pelo modal de pedidos.
+- Atualizei o cache-buster de `pedidos.js` no Admin para carregar a correção publicada.
+- Impacto esperado: ao cancelar um pedido com saídas de estoque registradas, o sistema cria os movimentos `estorno_venda` e devolve o saldo, mesmo se a flag interna do pedido estiver ausente.
+
 ## 2026-06-03 — Estoque: regularização de escolhas de combo sem duplicar baixa
 - Arquivos alterados: `public/admin.html`, `public/js/modules/pedidos.js`, `public/js/modules/estoque.js`, `functions/index.js`, `AI_CHANGELOG.md`, `AGENTS.md`.
 - Corrigi a leitura das escolhas do pedido na baixa de estoque do Admin e das Functions para deduplicar aliases do mesmo combo/opção, evitando que a mesma escolha seja contada mais de uma vez.

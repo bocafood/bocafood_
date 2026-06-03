@@ -4228,7 +4228,7 @@ Modules.Pedidos = (function () {
   }
 
   function _reverseOrderStockMovements(orderId, order) {
-    if (!order || !orderId || !order.stockMovementCreated || order.stockMovementReversed) return Promise.resolve(null);
+    if (!order || !orderId || order.stockMovementReversed) return Promise.resolve(null);
     return DB.getAll('stock_movements').catch(function () { return []; }).then(function (existing) {
       var exits = (existing || []).filter(function (movement) {
         return movement && (movement.type === 'saida_venda' || movement.type === 'saida_base_venda') && String(movement.orderId || '') === String(orderId || '');

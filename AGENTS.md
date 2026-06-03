@@ -321,3 +321,4 @@ O Boca Food é um sistema de gestão e operação de loja com painel admin, cat�
 - Não contar a mesma escolha várias vezes só porque o pedido preserva aliases como `choices`, `variants`, `options` ou `selectedOptions`.
 - Pendências de regularização por saldo negativo devem representar a falta efetiva daquela saída, limitada pela quantidade da própria movimentação, e não o saldo negativo acumulado completo.
 - Quando uma escolha aparecer no pedido mas não tiver vínculo de estoque, ela não deve gerar baixa automática por suposição. O cadastro precisa deixar claro o item/receita/etapa e a quantidade consumida.
+- Estorno de estoque por pedido cancelado deve procurar saídas reais em `stock_movements` pelo `orderId`; não depender apenas da flag `stockMovementCreated`, pois pedidos antigos podem ter movimentações sem essa marca interna.
