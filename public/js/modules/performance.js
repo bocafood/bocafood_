@@ -621,7 +621,8 @@ Modules.Performance = (function () {
     var monthRevenue = _monthRevenue(vm);
     var remaining = Math.max(0, _num(vm.targetRevenue) - monthRevenue);
     var ticket = _monthTicket(vm);
-    var neededOrders = ticket > 0 && remaining > 0 ? Math.max(1, Math.ceil((remaining / ticket) / Math.max(1, vm.daysLeftMonth || 1))) : 0;
+    var canEstimateOrders = ticket > 0 && remaining > 0;
+    var neededOrders = canEstimateOrders ? Math.max(1, Math.ceil((remaining / ticket) / Math.max(1, vm.daysLeftMonth || 1))) : 0;
     return '' +
       '<section class="perf-panel" style="' + _cardStyle() + '">' +
         _sectionTitle('Este mês', 'Veja o que já aconteceu, quanto falta vender e o ritmo necessário até o fim do mês.') +
@@ -630,7 +631,7 @@ Modules.Performance = (function () {
           _miniMetric('Vendido até agora', _fmtMoney(monthRevenue), monthRevenue >= vm.expectedNow ? '#1F6F43' : '#B42318') +
           _miniMetric('Ticket médio atual', ticket > 0 ? _fmtMoney(ticket) : 'Sem base', '#8A6F5A') +
           _miniMetric('Ainda falta vender', remaining > 0 ? _fmtMoney(remaining) : 'Meta alcançada', remaining > 0 ? '#B45309' : '#1F6F43') +
-          _miniMetric('Pedidos por dia daqui pra frente', String(neededOrders), '#B42318') +
+          _miniMetric('Pedidos por dia daqui pra frente', remaining > 0 ? (canEstimateOrders ? String(neededOrders) : 'Sem base') : 'Meta alcançada', canEstimateOrders ? '#B42318' : '#6C8777') +
         '</div>' +
       '</section>';
   }
@@ -641,13 +642,17 @@ Modules.Performance = (function () {
     var ticket = _monthTicket(vm);
     var targetOrders = ticket > 0 && vm.targetRevenue ? Math.ceil(vm.targetRevenue / ticket) : 0;
     var early = _isMonthStarting(vm);
+    var hasOrderTarget = targetOrders > 0;
+    var ordersTone = early || !hasOrderTarget ? '#6C8777' : (ordersDone >= targetOrders ? '#1F6F43' : '#B45309');
+    var paceValue = early ? 'Acompanhar nos próximos dias' : (vm.targetRevenue ? _fmtMoney(vm.paceProjection || 0) : 'Sem rota ativa');
+    var paceTone = early || !vm.targetRevenue ? '#6C8777' : (_num(vm.paceProjection) >= _num(vm.targetRevenue) ? '#1F6F43' : '#B42318');
     return '' +
       '<section class="perf-panel perf-panel-soft" style="' + _cardStyle() + '">' +
         _sectionTitle('Ritmo da rota', 'Compare o volume de pedidos planejado com o que já aconteceu no mês.') +
         '<div class="perf-metric-grid">' +
-          _miniMetric('Pedidos previstos no mês', targetOrders ? String(targetOrders) : '—', '#6C8777') +
-          _miniMetric('Pedidos já feitos', String(ordersDone), early ? '#6C8777' : (ordersDone >= targetOrders ? '#1F6F43' : '#B45309')) +
-          _miniMetric(early ? 'Leitura inicial' : 'Se continuar assim', early ? 'Acompanhar nos próximos dias' : _fmtMoney(vm.paceProjection || 0), early ? '#6C8777' : (_num(vm.paceProjection) >= _num(vm.targetRevenue) ? '#1F6F43' : '#B42318')) +
+          _miniMetric('Pedidos previstos no mês', hasOrderTarget ? String(targetOrders) : 'Sem base', '#6C8777') +
+          _miniMetric('Pedidos já feitos', String(ordersDone), ordersTone) +
+          _miniMetric(early ? 'Leitura inicial' : 'Se continuar assim', paceValue, paceTone) +
         '</div>' +
       '</section>';
   }
@@ -725,7 +730,8 @@ Modules.Performance = (function () {
     var monthRevenue = _monthRevenue(vm);
     var remaining = Math.max(0, _num(vm.targetRevenue) - monthRevenue);
     var ticket = _monthTicket(vm);
-    var needed = ticket > 0 && remaining > 0 ? Math.max(1, Math.ceil((remaining / ticket) / Math.max(1, vm.daysLeftMonth || 1))) : 0;
+    var canEstimateOrders = ticket > 0 && remaining > 0;
+    var needed = canEstimateOrders ? Math.max(1, Math.ceil((remaining / ticket) / Math.max(1, vm.daysLeftMonth || 1))) : 0;
     var out = [{ icon: status.icon, color: status.color, text: status.text }];
     if (!vm.targetRevenue) {
       out.push(_ticketComparisonMessage(vm));
@@ -738,7 +744,9 @@ Modules.Performance = (function () {
       return out;
     }
     out.push(remaining > 0
-      ? { icon: 'shopping_bag', color: '#8A6F5A', text: 'Para chegar na meta do mês, ainda faltam ' + _fmtMoney(remaining) + '. Com o ticket médio atual de ' + (ticket > 0 ? _fmtMoney(ticket) : 'sem base') + ', isso pede cerca de ' + needed + ' pedidos por dia daqui pra frente.' }
+      ? (canEstimateOrders
+        ? { icon: 'shopping_bag', color: '#8A6F5A', text: 'Para chegar na meta do mês, ainda faltam ' + _fmtMoney(remaining) + '. Com o ticket médio atual de ' + _fmtMoney(ticket) + ', isso pede cerca de ' + needed + ' pedidos por dia daqui pra frente.' }
+        : { icon: 'shopping_bag', color: '#8A6F5A', text: 'Ainda faltam ' + _fmtMoney(remaining) + ' para a meta do mês. Sem ticket médio suficiente, ainda não dá para estimar os pedidos por dia com segurança.' })
       : { icon: 'celebration', color: '#1F6F43', text: 'A meta de venda do mês já foi alcançada. Agora vale observar se os custos seguem dentro do esperado.' });
     out.push(_ticketComparisonMessage(vm));
     out.push(_num(vm.paceProjection) < _num(vm.targetRevenue)

@@ -3099,6 +3099,7 @@ Modules.Pedidos = (function () {
             '</div>' +
             paymentBreakdownHTML +
             '<div class="order-detail-payment-grid">' +
+              '<div><label class="order-detail-label">Canal de venda</label><div class="order-detail-field-control"><select id="detail-sales-channel">' + _manualOrderChannelOptions(_firstText(o.channel, o.source, o.originChannel, o.originSource, 'manual')) + '</select></div></div>' +
               '<div><label class="order-detail-label">Forma de pagamento</label><div class="order-detail-field-control"><select id="detail-payment-method">' + _paymentMethodOptions(payment.method) + '</select></div></div>' +
               '<div><label class="order-detail-label">Status do pagamento</label><div class="order-detail-field-control"><select id="detail-payment-status" onchange="Modules.Pedidos._detailPaymentSync()">' + _paymentStatusOptions(payment.status || (payment.paid >= payment.total && payment.total > 0 ? 'pago' : payment.paid > 0 ? 'parcial' : 'previsto')) + '</select></div></div>' +
               '<div id="detail-paid-amount-box" class="order-detail-paid-field" style="display:' + (((payment.status || '').toLowerCase() === 'parcial') ? 'block' : 'none') + ';">' +
@@ -3291,6 +3292,7 @@ Modules.Pedidos = (function () {
 
   function _saveDetail(id) {
     var sel = document.getElementById('detail-status');
+    var channelSel = document.getElementById('detail-sales-channel');
     var paymentSel = document.getElementById('detail-payment-method');
     var paymentStatusSel = document.getElementById('detail-payment-status');
     var paidAmountInput = document.getElementById('detail-paid-amount');
@@ -3303,6 +3305,10 @@ Modules.Pedidos = (function () {
     _hideDetailWhatsappPrompt();
     var order = _orders.find(function (x) { return String(x.id || '') === String(id || ''); });
     var nextStatus = String(sel.value || 'Pendente');
+    var nextChannel = String((channelSel && channelSel.value) || _firstText(order && order.channel, order && order.source, 'manual')).trim() || 'manual';
+    var nextChannelSource = _manualOrderChannelSource(nextChannel);
+    var nextChannelMeta = _salesChannelByName(nextChannel) || {};
+    var nextChannelCategory = _channelIncomeCategoryMeta(nextChannelMeta);
     var nextPaymentMethod = String((paymentSel && paymentSel.value) || (order && order.paymentMethod) || '').trim();
     var nextPaymentStatus = String((paymentStatusSel && paymentStatusSel.value) || (order && order.paymentStatus) || 'previsto').trim() || 'previsto';
     var nextPaidAmount = _num((paidAmountInput && paidAmountInput.value) || (order && order.paidAmount) || 0);
@@ -3312,12 +3318,14 @@ Modules.Pedidos = (function () {
     if (_paymentStatusIsPaid(nextPaymentStatus)) nextPaidAmount = _detailPaymentInfo(order || {}).total;
     if (!_paymentStatusIsPartial(nextPaymentStatus)) nextPaidAmount = _paymentStatusIsPaid(nextPaymentStatus) ? nextPaidAmount : 0;
     var currentStatus = String(order && order.status || 'Pendente');
+    var currentChannel = _firstText(order && order.channel, order && order.source, order && order.originChannel, order && order.originSource, 'manual');
     var currentPaymentMethod = String(order && order.paymentMethod || '').trim();
     var currentPaymentStatus = String(order && order.paymentStatus || '').trim();
     var currentPaidAmount = _num(order && order.paidAmount);
     var currentScheduleDate = String((isPickup ? (order && order.pickupDate) : (order && order.deliveryDate)) || (order && order.scheduleDate) || '').trim();
     var currentScheduleTime = String((isPickup ? (order && order.pickupTime) : (order && order.deliveryTime)) || (order && order.scheduleTime) || '').trim();
     var statusChanged = nextStatus !== currentStatus;
+    var channelChanged = _channelAliasKey(nextChannel) !== _channelAliasKey(currentChannel);
     var paymentChanged = nextPaymentMethod !== currentPaymentMethod;
     var scheduleChanged = nextScheduleDate !== currentScheduleDate || nextScheduleTime !== currentScheduleTime;
     var channelFeePatch = null;
@@ -3340,6 +3348,37 @@ Modules.Pedidos = (function () {
           channelFixedFee: nextFixedFee,
           channelFeesEditedAt: _nowIso()
         };
+      }
+    }
+    var channelPatch = null;
+    if (channelChanged) {
+      channelPatch = {
+        channel: nextChannel,
+        source: nextChannelSource,
+        originChannel: nextChannel,
+        originSource: nextChannelSource,
+        channelName: _salesChannelDisplayName(nextChannel),
+        salesChannel: _salesChannelDisplayName(nextChannel),
+        canalVenda: _salesChannelDisplayName(nextChannel),
+        channelFeesManual: false,
+        channelFeeManual: false,
+        channelFeesEdited: false,
+        channelCommissionPct: _num(nextChannelMeta.commissionPct),
+        channelCommissionTaxPct: _num(nextChannelMeta.taxPct),
+        channelFixedFee: _num(nextChannelMeta.fixedFee),
+        channelChangedAt: _nowIso()
+      };
+      if (nextChannelCategory.id || nextChannelCategory.name) {
+        channelPatch.entradaCategoriaId = nextChannelCategory.id;
+        channelPatch.entradaCategoriaNome = nextChannelCategory.name;
+        channelPatch.incomeCategoryId = nextChannelCategory.id;
+        channelPatch.incomeCategoryName = nextChannelCategory.name;
+        channelPatch.categoriaEntradaId = nextChannelCategory.id;
+        channelPatch.categoriaEntradaNome = nextChannelCategory.name;
+        channelPatch.financialCategoryId = nextChannelCategory.id;
+        channelPatch.financialCategoryName = nextChannelCategory.name;
+        channelPatch.categoriaFinanceiraId = nextChannelCategory.id;
+        channelPatch.categoriaFinanceiraNome = nextChannelCategory.name;
       }
     }
     var editedItems = _detailEditedItems(order || {});
@@ -3371,6 +3410,11 @@ Modules.Pedidos = (function () {
     if (paymentChanged) {
       tasks.push(DB.update('orders', id, { paymentMethod: nextPaymentMethod }).then(function () {
         if (order) order.paymentMethod = nextPaymentMethod;
+      }));
+    }
+    if (channelPatch) {
+      tasks.push(DB.update('orders', id, channelPatch).then(function () {
+        if (order) Object.assign(order, channelPatch);
       }));
     }
     if (paymentMetaChanged) {
@@ -3442,6 +3486,7 @@ Modules.Pedidos = (function () {
       var fresh = _orders.find(function (x) { return String(x.id || '') === String(id || ''); }) || order;
       if (fresh) {
         fresh.paymentMethod = nextPaymentMethod;
+        if (channelPatch) Object.assign(fresh, channelPatch);
         fresh.paymentStatus = nextPaymentStatus;
         fresh.paymentState = nextPaymentStatus;
         fresh.paidAmount = nextPaidAmount;
@@ -6237,6 +6282,9 @@ Modules.Pedidos = (function () {
       if (_isTpvEnabledForChannels()) options.push({ value: 'Venda presencial', label: 'Venda presencial' });
     }
     var selectedKey = _channelAliasKey(selected || '');
+    if (selectedKey && !options.some(function (item) { return _channelAliasKey(item.value || item.label || '') === selectedKey; })) {
+      options.push({ value: String(selected || ''), label: _salesChannelDisplayName(selected) || String(selected || '') });
+    }
     return options.map(function (item) {
       var value = String(item.value || '');
       return '<option value="' + _esc(value) + '"' + (selectedKey === _channelAliasKey(value) ? ' selected' : '') + '>' + _esc(item.label || value) + '</option>';

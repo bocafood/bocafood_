@@ -9,6 +9,8 @@ Modules.Receitas = (function () {
   var _recipeComponents = [];
   var _recipeComponentUsage = {};
   var _editingComponentId = null;
+  var _stageCostItems = [];
+  var _stageUnits = [];
   var _ingredientTypes = [];
   var _ingredientCategories = [];
   var _editingIngredientCatalogKind = null;
@@ -36,6 +38,7 @@ Modules.Receitas = (function () {
   var _forecastPage = { page: 1, perPage: 10 };
   var TABS = [
     { key: 'receitas', label: 'Receitas' },
+    { key: 'etapas', label: 'Etapas de produção' },
     { key: 'ordens', label: 'Ordens' },
     { key: 'previsao', label: 'Previsão' },
     { key: 'lista-compras', label: 'Lista de Compras' },
@@ -44,7 +47,6 @@ Modules.Receitas = (function () {
     { key: 'configuracoes', label: 'Configurações' }
   ];
   var CONFIG_TABS = [
-    { key: 'componentes', label: 'Etapas da receita' },
     { key: 'categorias-receita', label: 'Categorias da receita' },
     { key: 'categorias-insumos', label: 'Categorias de ingredientes e embalagens' },
     { key: 'embalagens-compra', label: 'Embalagem de Compra' },
@@ -63,8 +65,13 @@ Modules.Receitas = (function () {
   function _configMeta(key) {
     var map = {
       componentes: {
-        title: 'Etapas da receita',
+        title: 'Etapas de produção',
         desc: 'Cadastre partes que podem aparecer em mais de uma receita, como massa, recheio, creme, molho ou cobertura.',
+        add: '+ Adicionar etapa'
+      },
+      etapas: {
+        title: 'Etapas de produção',
+        desc: 'Cadastre bases e partes reaproveitáveis da produção com rendimento, ingredientes e custo próprio.',
         add: '+ Adicionar etapa'
       },
       'categorias-receita': {
@@ -134,6 +141,13 @@ Modules.Receitas = (function () {
       '.recipes-config-status.inactive{border-color:#E6DED8;background:#FAF8F4;color:#8A7E7C;}' +
       '.recipes-config-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}' +
       '.recipes-config-empty{text-align:center;padding:38px 18px;color:#8A7E7C;font-size:13px;line-height:1.45;border:1px dashed #EADFD8;border-radius:14px;background:#FFFCF8;}' +
+      '.production-stage-form{display:grid;gap:12px;font-family:Manrope,Inter,sans-serif;}' +
+      '.production-stage-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:16px;padding:14px;box-shadow:0 10px 24px rgba(31,31,31,.04);}' +
+      '.production-stage-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(120px,.35fr) minmax(150px,.42fr);gap:11px;align-items:end;}' +
+      '.production-stage-ingredients{display:grid;gap:8px;margin-top:10px;}' +
+      '.production-stage-ing-row{display:grid;grid-template-columns:minmax(190px,1fr) minmax(100px,.32fr) minmax(86px,.24fr) minmax(100px,.28fr) auto;gap:8px;align-items:end;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:13px;padding:10px;}' +
+      '.production-stage-soft-btn{height:36px;padding:0 12px;border:1px solid #EADFD8;border-radius:10px;background:#fff;color:#1F1F1F;font-size:12px;font-weight:650;cursor:pointer;font-family:inherit;}' +
+      '@media(max-width:760px){.production-stage-grid,.production-stage-ing-row{grid-template-columns:1fr}}' +
       '@media(max-width:760px){.recipes-config-filter-grid,.recipes-config-guide{grid-template-columns:1fr}.recipes-config-chip-row{overflow:auto;flex-wrap:nowrap}.recipes-config-chip{white-space:nowrap}.recipes-config-row{align-items:flex-start;flex-direction:column}.recipes-config-actions{justify-content:flex-start}}' +
       '</style>';
   }
@@ -181,7 +195,7 @@ Modules.Receitas = (function () {
 
   function _configSub(key) {
     var parts = String(key || '').split('/');
-    return parts[0] === 'configuracoes' ? (parts[1] || 'componentes') : '';
+    return parts[0] === 'configuracoes' ? (parts[1] || 'categorias-receita') : '';
   }
 
   function _normalizeSub(sub) {
@@ -190,8 +204,12 @@ Modules.Receitas = (function () {
     if (!key) key = 'receitas';
     if (key === 'tipos') key = 'categorias-insumos';
     if (key === 'categorias') key = 'categorias-insumos';
-    if (key === 'configuracoes') key = 'configuracoes/componentes';
-    if (key === 'componentes' || key === 'categorias-receita' || key === 'tipos-insumos' || key === 'categorias-insumos' || key === 'embalagens-compra' || key === 'unidades') {
+    if (key === 'componentes' || key === 'configuracoes/componentes') {
+      key = 'etapas';
+      redirect = true;
+    }
+    if (key === 'configuracoes') key = 'configuracoes/categorias-receita';
+    if (key === 'categorias-receita' || key === 'tipos-insumos' || key === 'categorias-insumos' || key === 'embalagens-compra' || key === 'unidades') {
       key = 'configuracoes/' + key;
       redirect = true;
     }
@@ -204,8 +222,8 @@ Modules.Receitas = (function () {
       redirect = true;
     }
     if (key.indexOf('configuracoes/') === 0) {
-      var subKey = key.split('/')[1] || 'componentes';
-      if (!CONFIG_TABS.some(function (t) { return t.key === subKey; })) subKey = 'componentes';
+      var subKey = key.split('/')[1] || 'categorias-receita';
+      if (!CONFIG_TABS.some(function (t) { return t.key === subKey; })) subKey = 'categorias-receita';
       key = 'configuracoes/' + subKey;
     }
     if (!TABS.some(function (t) { return t.key === _mainSub(key); })) key = 'receitas';
@@ -237,6 +255,7 @@ Modules.Receitas = (function () {
       return Modules.Catalogo._renderFichas();
     }
 
+    if (key === 'etapas') return _renderProductionStages();
     if (key === 'ordens') return _renderProductionOrders();
     if (key === 'previsao') return _renderProductionForecast();
     if (key === 'lista-compras') return _renderPurchaseList();
@@ -1182,6 +1201,23 @@ Modules.Receitas = (function () {
       return;
     }
     var snapshot = isBase ? _buildBaseProductionSnapshot(recipe, baseComponent, qty) : _buildProductionSnapshot(recipe, qty);
+    var forecastDetails = _forecastRequirementDetails(row).map(function (item) {
+      var needed = _round(_num(item.requiredPerUnit) * qty);
+      var missing = _round(Math.max(0, needed - _num(item.balance)));
+      return {
+        key: item.key || '',
+        name: item.name || '',
+        stockKind: item.stockKind || '',
+        unit: item.unit || '',
+        balance: _num(item.balance),
+        balanceUnit: item.balanceUnit || item.unit || '',
+        requiredPerUnit: _num(item.requiredPerUnit),
+        neededForTarget: needed,
+        missingForTarget: missing,
+        coversTarget: missing <= 0
+      };
+    });
+    var forecastMissingCount = forecastDetails.filter(function (item) { return item.missingForTarget > 0; }).length;
     var user = window.Auth && Auth.getUser ? Auth.getUser() : null;
     var now = new Date().toISOString();
     var payload = {
@@ -1197,6 +1233,22 @@ Modules.Receitas = (function () {
       recipeSnapshot: snapshot.recipeSnapshot,
       plannedCost: snapshot.plannedCost,
       plannedIngredients: snapshot.plannedIngredients,
+      plannedStages: snapshot.plannedStages,
+      forecastSnapshot: {
+        source: 'production_forecast',
+        kind: row.kind || '',
+        rowKey: key,
+        name: row.name || '',
+        status: row.status || '',
+        capacity: row.capacity == null ? null : _num(row.capacity),
+        yieldUnit: row.yieldUnit || '',
+        targetQuantity: qty,
+        limiterKey: row.limiter && row.limiter.key || '',
+        limiterName: row.limiter && row.limiter.name || '',
+        missingItemsCount: forecastMissingCount,
+        requirements: forecastDetails,
+        createdAt: now
+      },
       createdBy: user && user.uid ? user.uid : '',
       createdFrom: 'production_forecast',
       createdAt: now,
@@ -2293,6 +2345,7 @@ Modules.Receitas = (function () {
       recipeSnapshot: snapshot.recipeSnapshot,
       plannedCost: snapshot.plannedCost,
       plannedIngredients: snapshot.plannedIngredients,
+      plannedStages: snapshot.plannedStages,
       createdBy: user && user.uid ? user.uid : '',
       createdFrom: 'stock_minimum_need',
       updatedAt: new Date().toISOString()
@@ -2326,6 +2379,7 @@ Modules.Receitas = (function () {
       _detailTile(isBase ? 'Rendimento da base' : 'Rendimento da ficha', _fmtQty(snapshot.yieldQuantity) + ' ' + snapshot.yieldUnit) +
       _detailTile(isBase ? 'Custo da base' : 'Custo da ficha', _money(snapshot.totalCost)) +
       _detailTile('Custo planejado', _money(snapshot.plannedCost)) +
+      _detailTile('Etapas', String((snapshot.plannedStages || []).length)) +
       _detailTile('Ingredientes', String(snapshot.plannedIngredients.length)) +
       '</div>';
   }
@@ -2356,6 +2410,7 @@ Modules.Receitas = (function () {
       recipeSnapshot: snapshot.recipeSnapshot,
       plannedCost: snapshot.plannedCost,
       plannedIngredients: snapshot.plannedIngredients,
+      plannedStages: snapshot.plannedStages,
       createdBy: user && user.uid ? user.uid : '',
       updatedAt: new Date().toISOString()
     };
@@ -2374,6 +2429,8 @@ Modules.Receitas = (function () {
     var snapshot = order.recipeSnapshot || {};
     var isBaseOrder = order.productionMode === 'base_producao' || snapshot.productionMode === 'base_producao';
     var ingredients = order.plannedIngredients || snapshot.plannedIngredients || [];
+    var stages = order.plannedStages || snapshot.plannedStages || _plannedStagesFromIngredients(snapshot, ingredients);
+    var forecastSnapshot = order.forecastSnapshot || null;
     var metrics = _productionMetrics(order);
     var result = _productionResult(order, metrics);
     var canComplete = order.status !== 'concluida' && order.status !== 'cancelada';
@@ -2387,6 +2444,29 @@ Modules.Receitas = (function () {
         '<div><div class="production-orders-label">Custo previsto</div><div class="production-orders-value">' + _money(ing.plannedTotalCost != null ? ing.plannedTotalCost : ing.totalCost || 0) + '</div></div>' +
       '</div>';
     }).join('');
+    var stageRows = stages.map(function (stage) {
+      var stageIngredients = stage.ingredients || [];
+      var names = stageIngredients.slice(0, 4).map(function (ing) { return ing.supplyName || ing.name || 'Ingrediente'; }).join(', ');
+      var more = stageIngredients.length > 4 ? ' +' + (stageIngredients.length - 4) : '';
+      var qtyText = _num(stage.plannedQuantity) > 0 ? (_fmtQty(stage.plannedQuantity) + ' ' + (stage.yieldUnit || '')) : '—';
+      return '<div class="production-ingredient-row">' +
+        '<div><div class="production-orders-label">Etapa</div><div class="production-orders-value">' + _esc(stage.name || 'Etapa de produção') + '</div><div class="production-orders-row-text">' + _esc((stage.stockControl ? 'Base controlada' : 'Etapa da receita') + (names ? ' · ' + names + more : '')) + '</div></div>' +
+        '<div><div class="production-orders-label">Quantidade planejada</div><div class="production-orders-value">' + _esc(qtyText) + '</div></div>' +
+        '<div><div class="production-orders-label">Custo previsto</div><div class="production-orders-value">' + _money(stage.plannedCost || 0) + '</div></div>' +
+      '</div>';
+    }).join('');
+    var forecastDetails = forecastSnapshot && Array.isArray(forecastSnapshot.requirements) ? forecastSnapshot.requirements : [];
+    var forecastMissing = forecastDetails.filter(function (item) { return _num(item.missingForTarget) > 0; });
+    var forecastCard = forecastSnapshot ? '<section class="production-modal-card">' +
+        '<div class="production-modal-head"><span class="mi">query_stats</span><div><div class="production-modal-card-title">Previsão que gerou a ordem</div>' +
+        '<div class="production-modal-card-desc">Snapshot da simulação no momento em que a ordem planejada foi criada.</div></div></div>' +
+        '<div class="production-detail-grid">' +
+          _detailTile('Origem', forecastSnapshot.kind === 'base' ? 'Base de produção' : 'Receita') +
+          _detailTile('Capacidade lida', forecastSnapshot.capacity == null ? '—' : (_fmtQty(forecastSnapshot.capacity) + ' ' + (forecastSnapshot.yieldUnit || ''))) +
+          _detailTile('Quantidade desejada', _fmtQty(forecastSnapshot.targetQuantity || order.plannedQuantity) + ' ' + (forecastSnapshot.yieldUnit || snapshot.yieldUnit || '')) +
+          _detailTile('Faltas na simulação', forecastMissing.length ? (forecastMissing.length + ' item(ns)') : 'Nenhuma') +
+        '</div>' +
+      '</section>' : '';
     var body = '<div style="display:flex;flex-direction:column;gap:14px;">' +
       '<section class="production-modal-card">' +
         '<div class="production-modal-head"><span class="mi">assignment</span><div><div class="production-modal-card-title">' + _esc(isBaseOrder ? (order.baseProductionName || snapshot.baseProductionName || 'Base de produção') : (order.fichaTecnicaNome || snapshot.name || 'Ordem de produção')) + '</div>' +
@@ -2410,6 +2490,7 @@ Modules.Receitas = (function () {
         '</div>' +
         '<div style="margin-top:12px;font-size:12px;color:#6F6860;line-height:1.45;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:10px 12px;">Depois da conclusão, as movimentações do lote ficam registradas no histórico. Se a ordem for cancelada depois disso, o sistema mantém o registro com estorno.</div>' +
       '</section>' +
+      forecastCard +
       '<section class="production-modal-card">' +
         '<div class="production-modal-head"><span class="mi">sync_alt</span><div><div class="production-modal-card-title">Movimentações do lote</div>' +
         '<div class="production-modal-card-desc">Resumo do que esta ordem gerou ou ainda precisa gerar no histórico de produção.</div></div></div>' +
@@ -2427,8 +2508,13 @@ Modules.Receitas = (function () {
           _detailTile('Rendimento da ficha', _fmtQty(snapshot.yieldQuantity || 1) + ' ' + (snapshot.yieldUnit || 'unidades')) +
           _detailTile('Custo total da ficha', _money(snapshot.totalCost || 0)) +
           _detailTile('Custo por rendimento', _money(snapshot.costPerYield || 0)) +
-          _detailTile('Ingredientes', String(ingredients.length)) +
+          _detailTile('Etapas', String(stages.length)) +
         '</div>' +
+      '</section>' +
+      '<section class="production-modal-card">' +
+        '<div class="production-modal-head"><span class="mi">account_tree</span><div><div class="production-modal-card-title">Etapas planejadas</div>' +
+        '<div class="production-modal-card-desc">Resumo da produção por etapa da receita, com custo e quantidade prevista no lote.</div></div></div>' +
+        (stageRows ? '<div class="production-ingredient-list">' + stageRows + '</div>' : '<div class="production-orders-empty">Nenhuma etapa no snapshot desta ordem.</div>') +
       '</section>' +
       '<section class="production-modal-card">' +
         '<div class="production-modal-head"><span class="mi">format_list_bulleted</span><div><div class="production-modal-card-title">Ingredientes previstos</div>' +
@@ -2649,6 +2735,8 @@ Modules.Receitas = (function () {
         type: 'saida_producao',
         ingredientId: ing.insumoId || '',
         ingredientName: ing.supplyName || ing.name || '',
+        componentName: ing.componentName || '',
+        productionStageName: ing.componentName || '',
         itemClass: ing.classe || ing.itemClass || 'insumo',
         classe: ing.classe || ing.itemClass || 'insumo',
         quantity: quantity,
@@ -2860,6 +2948,91 @@ Modules.Receitas = (function () {
     }) || null;
   }
 
+  function _plannedStagesFromIngredients(snapshot, ingredients) {
+    snapshot = snapshot || {};
+    var components = Array.isArray(snapshot.components) ? snapshot.components : [];
+    ingredients = Array.isArray(ingredients) ? ingredients : [];
+    if (components.length) {
+      return components.map(function (comp, idx) {
+        var name = comp.name || comp.componentName || ('Etapa ' + (idx + 1));
+        var stageIngredients = ingredients.filter(function (ing) {
+          return String(ing.componentName || '') === String(name || '');
+        });
+        var plannedCost = stageIngredients.reduce(function (sum, ing) {
+          return sum + _num(ing.plannedTotalCost != null ? ing.plannedTotalCost : ing.totalCost);
+        }, 0);
+        var stageQty = _num(comp.stageYieldQuantity || comp.baseYieldQuantity || comp.stockYieldQuantity);
+        return {
+          name: name,
+          componentName: name,
+          componentId: comp.componentId || comp.recipeComponentId || '',
+          recipeComponentId: comp.recipeComponentId || comp.componentId || '',
+          stockControl: !!(comp.stockControl || comp.controlsStock),
+          controlsStock: !!(comp.stockControl || comp.controlsStock),
+          baseProductionId: comp.baseProductionId || comp.sharedBaseId || '',
+          sharedBaseId: comp.sharedBaseId || comp.baseProductionId || '',
+          yieldQuantity: stageQty,
+          yieldUnit: comp.stageYieldUnit || comp.baseYieldUnit || comp.stockYieldUnit || '',
+          plannedQuantity: _num(comp.plannedQuantity),
+          plannedCost: plannedCost,
+          ingredientCount: stageIngredients.length,
+          ingredients: stageIngredients
+        };
+      }).filter(function (stage) {
+        return stage.name || stage.ingredientCount || stage.plannedCost > 0;
+      });
+    }
+    var grouped = {};
+    ingredients.forEach(function (ing) {
+      var key = ing.componentName || 'Ingredientes da receita';
+      if (!grouped[key]) grouped[key] = { name: key, componentName: key, plannedCost: 0, ingredientCount: 0, ingredients: [] };
+      grouped[key].plannedCost += _num(ing.plannedTotalCost != null ? ing.plannedTotalCost : ing.totalCost);
+      grouped[key].ingredientCount += 1;
+      grouped[key].ingredients.push(ing);
+    });
+    return Object.keys(grouped).map(function (key) { return grouped[key]; });
+  }
+
+  function _buildPlannedStages(recipe, plannedQty, yieldQty, ingredients) {
+    recipe = recipe || {};
+    var scale = plannedQty > 0 && yieldQty > 0 ? plannedQty / yieldQty : 0;
+    var components = Array.isArray(recipe.components) ? recipe.components : [];
+    if (!components.length) return _plannedStagesFromIngredients({}, ingredients);
+    return components.map(function (comp, idx) {
+      var name = comp.name || comp.componentName || ('Etapa ' + (idx + 1));
+      var stageIngredients = (ingredients || []).filter(function (ing) {
+        return String(ing.componentName || '') === String(name || '');
+      });
+      var plannedCost = stageIngredients.reduce(function (sum, ing) {
+        return sum + _num(ing.plannedTotalCost != null ? ing.plannedTotalCost : ing.totalCost);
+      }, 0);
+      var stageYield = _num(comp.stageYieldQuantity || comp.baseYieldQuantity || comp.stockYieldQuantity);
+      var ratio = _num(comp.stageUsageRatio || 1) || 1;
+      var plannedStageQty = stageYield > 0 ? stageYield * ratio * scale : 0;
+      var controls = !!(comp.stockControl || comp.controlsStock);
+      var baseId = controls ? _baseProductionId(recipe, comp, idx) : '';
+      return {
+        name: name,
+        componentName: name,
+        componentId: comp.componentId || comp.recipeComponentId || '',
+        recipeComponentId: comp.recipeComponentId || comp.componentId || '',
+        stockControl: controls,
+        controlsStock: controls,
+        baseProductionId: baseId,
+        sharedBaseId: comp.sharedBaseId || baseId,
+        yieldQuantity: stageYield,
+        yieldUnit: comp.stageYieldUnit || comp.baseYieldUnit || comp.stockYieldUnit || '',
+        stageUsageRatio: ratio,
+        plannedQuantity: _round(plannedStageQty),
+        plannedCost: _round(plannedCost),
+        ingredientCount: stageIngredients.length,
+        ingredients: stageIngredients
+      };
+    }).filter(function (stage) {
+      return stage.name || stage.ingredientCount || stage.plannedCost > 0;
+    });
+  }
+
   function _buildProductionSnapshot(recipe, plannedQty) {
     var yieldQty = _num(recipe.yieldQuantity || recipe.yield) || 1;
     var yieldUnit = recipe.yieldUnit || 'unidades';
@@ -2893,6 +3066,7 @@ Modules.Receitas = (function () {
     var totalCost = _num(recipe.totalCost) || (directCost + indirectCost) || ingredientTotalFallback;
     var costPerYield = _num(recipe.costPerYield) || (yieldQty > 0 ? totalCost / yieldQty : 0);
     var plannedCost = costPerYield * plannedQty;
+    var plannedStages = _buildPlannedStages(recipe, plannedQty, yieldQty, ingredients);
     var recipeSnapshot = {
       id: recipe.id || '',
       name: recipe.name || '',
@@ -2928,6 +3102,7 @@ Modules.Receitas = (function () {
       packagingItems: Array.isArray(recipe.packagingItems) ? recipe.packagingItems.slice() : (Array.isArray(recipe.packaging) ? recipe.packaging.slice() : []),
       packaging: Array.isArray(recipe.packagingItems) ? recipe.packagingItems.slice() : (Array.isArray(recipe.packaging) ? recipe.packaging.slice() : []),
       ingredients: ingredients,
+      plannedStages: plannedStages,
       ingredientCost: ingredientCost || ingredientTotalFallback,
       packagingCost: packagingCost,
       directCost: directCost || ingredientTotalFallback,
@@ -2946,6 +3121,7 @@ Modules.Receitas = (function () {
       costPerYield: costPerYield,
       plannedCost: plannedCost,
       plannedIngredients: ingredients,
+      plannedStages: plannedStages,
       recipeSnapshot: recipeSnapshot
     };
   }
@@ -2996,6 +3172,7 @@ Modules.Receitas = (function () {
       stockYieldUnit: yieldUnit,
       ingredients: component.ingredients || []
     });
+    var plannedStages = _buildPlannedStages({ id: recipe.id || '', components: [baseComponent] }, plannedQty, yieldQty, ingredients);
     var recipeSnapshot = {
       id: recipe.id || '',
       name: recipe.name || '',
@@ -3008,6 +3185,7 @@ Modules.Receitas = (function () {
       yieldUnit: yieldUnit,
       components: [baseComponent],
       ingredients: ingredients,
+      plannedStages: plannedStages,
       ingredientCost: totalCost,
       packagingCost: 0,
       directCost: totalCost,
@@ -3025,6 +3203,7 @@ Modules.Receitas = (function () {
       costPerYield: costPerYield,
       plannedCost: plannedCost,
       plannedIngredients: ingredients,
+      plannedStages: plannedStages,
       recipeSnapshot: recipeSnapshot
     };
   }
@@ -3313,10 +3492,9 @@ Modules.Receitas = (function () {
   function _renderConfiguracoes(subKey) {
     var content = document.getElementById('receitas-content');
     if (!content) return;
-    subKey = subKey || 'componentes';
+    subKey = subKey || 'categorias-receita';
     var meta = _configMeta(subKey);
     var addLabelMap = {
-      componentes: meta.add,
       'categorias-receita': meta.add,
       'tipos-insumos': meta.add,
       'categorias-insumos': meta.add,
@@ -3324,7 +3502,6 @@ Modules.Receitas = (function () {
       unidades: meta.add
     };
     var addActionMap = {
-      componentes: 'Modules.Receitas._openRecipeComponentModal(null)',
       'categorias-receita': 'Modules.Receitas._openRecipeCategoryModal(null)',
       'tipos-insumos': 'Modules.Receitas._openIngredientCatalogModal(\'tipos\',null)',
       'categorias-insumos': 'Modules.Receitas._openIngredientCatalogModal(\'categorias\',null)',
@@ -3333,7 +3510,7 @@ Modules.Receitas = (function () {
     content.innerHTML = _configStyles() +
       '<div class="recipes-config-wrap">' +
       '<div class="recipes-config-head">' +
-        '<div><h1 class="recipes-config-title">Configurações</h1><p class="recipes-config-subtitle">Organize as bases usadas nas receitas para preencher fichas com mais rapidez e manter a produção clara.</p></div>' +
+        '<div><h1 class="recipes-config-title">Configurações</h1><p class="recipes-config-subtitle">Organize categorias, unidades e cadastros auxiliares usados na produção.</p></div>' +
       '</div>' +
       '<section class="recipes-config-chip-row">' +
         CONFIG_TABS.map(function (t) {
@@ -3347,7 +3524,6 @@ Modules.Receitas = (function () {
         '</div>' +
       '</div>' +
       '<div id="receitas-config-content"></div>';
-    if (subKey === 'componentes') return _renderRecipeComponents();
     if (subKey === 'categorias-receita') return _renderRecipeCategories();
     if (subKey === 'tipos-insumos') return _renderIngredientCatalog('tipos');
     if (subKey === 'categorias-insumos') return _renderIngredientCatalog('categorias');
@@ -3357,13 +3533,36 @@ Modules.Receitas = (function () {
 
   function _setConfigSearch(value) {
     _configSearch = String(value || '').trim();
-    var key = _configSub(_activeSub) || 'componentes';
-    if (key === 'componentes') return _paintRecipeComponents();
+    if (_activeSub === 'etapas') return _paintRecipeComponents();
+    var key = _configSub(_activeSub) || 'categorias-receita';
     if (key === 'categorias-receita') return _paintRecipeCategories();
     if (key === 'tipos-insumos') return _paintIngredientCatalog('tipos');
     if (key === 'categorias-insumos') return _paintIngredientCatalog('categorias');
     if (key === 'embalagens-compra') return _paintPurchasePackages();
     if (key === 'unidades') return _paintUnits();
+  }
+
+  function _renderProductionStages() {
+    var content = document.getElementById('receitas-content');
+    if (!content) return;
+    _configSearch = '';
+    content.innerHTML = _configStyles() +
+      '<div class="bf-page recipes-config-wrap">' +
+        '<div class="bf-page-header recipes-config-head">' +
+          '<div style="min-width:0;flex:1 1 420px;">' +
+            '<h1 class="recipes-config-title">Etapas de produção</h1>' +
+            '<p class="recipes-config-subtitle">Cadastre bases e partes reaproveitáveis, como massa, recheio, creme, molho ou cobertura. As receitas usam essas etapas para montar a ficha completa.</p>' +
+          '</div>' +
+          '<button type="button" class="recipes-config-primary" onclick="Modules.Receitas._openRecipeComponentModal(null)">Adicionar etapa</button>' +
+        '</div>' +
+        '<div class="recipes-config-filter">' +
+          '<div class="recipes-config-filter-grid">' +
+            '<div><label style="' + _labelStyle() + '">Buscar</label><div class="recipes-config-control"><input id="production-stage-search" type="search" placeholder="Buscar por nome ou orientação..." value="' + _esc(_configSearch || '') + '" oninput="Modules.Receitas._setConfigSearch(this.value)"></div></div>' +
+          '</div>' +
+        '</div>' +
+        '<div id="production-stages-content"></div>' +
+      '</div>';
+    _renderRecipeComponents();
   }
 
   function _matchesConfigSearch(item) {
@@ -3386,12 +3585,22 @@ Modules.Receitas = (function () {
   function _renderRecipeComponents() {
     Promise.all([
       DB.getAll('recipe_components'),
-      DB.getAll('fichasTecnicas').catch(function () { return []; })
+      DB.getAll('fichasTecnicas').catch(function () { return []; }),
+      DB.getAll('itens_custo').catch(function () { return []; }),
+      DB.getAll('unidades_medida').catch(function () { return []; })
     ]).then(function (results) {
       _recipeComponents = (results[0] || []).slice().sort(function (a, b) {
         return (a.order || 0) - (b.order || 0) || String(a.name || '').localeCompare(String(b.name || ''));
       });
       _recipeComponentUsage = _buildRecipeComponentUsage(results[1] || []);
+      _stageCostItems = (results[2] || []).filter(function (item) {
+        return item && item.ativo !== false && item.active !== false && item.classe !== 'produto' && item.usar_em_fichas !== false;
+      }).sort(function (a, b) {
+        return String(a.nome || a.name || '').localeCompare(String(b.nome || b.name || ''));
+      });
+      _stageUnits = (results[3] || []).slice().sort(function (a, b) {
+        return String(a.name || a.label || a.symbol || '').localeCompare(String(b.name || b.label || b.symbol || ''));
+      });
       _paintRecipeComponents();
     }).catch(function (err) {
       UI.toast('Erro: ' + err.message, 'error');
@@ -3428,15 +3637,25 @@ Modules.Receitas = (function () {
   }
 
   function _paintRecipeComponents() {
-    var content = document.getElementById('receitas-config-content') || document.getElementById('receitas-content');
+    var content = document.getElementById('production-stages-content') || document.getElementById('receitas-config-content') || document.getElementById('receitas-content');
     if (!content) return;
+    var inStagesTab = _activeSub === 'etapas' || !!document.getElementById('production-stages-content');
     var filtered = _recipeComponents.filter(_matchesConfigSearch);
     var rows = filtered.map(function (comp) {
       var usage = _componentUsageInfo(comp);
       var usageLabel = usage.count ? ('Usada em ' + usage.count + ' receita' + (usage.count > 1 ? 's' : '')) : 'Ainda não usada';
+      var yieldQty = _num(comp.stageYieldQuantity || comp.yieldQuantity || comp.baseYieldQuantity);
+      var yieldUnit = comp.stageYieldUnit || comp.yieldUnit || comp.baseYieldUnit || '';
+      var ingredientsCount = Array.isArray(comp.ingredients) ? comp.ingredients.length : 0;
+      var cost = _stageTotalCost(comp.ingredients || []);
+      var meta = [];
+      if (yieldQty > 0) meta.push('Rende ' + _fmtQty(yieldQty) + (yieldUnit ? ' ' + yieldUnit : ''));
+      meta.push(ingredientsCount ? (ingredientsCount + ' ingrediente' + (ingredientsCount === 1 ? '' : 's')) : 'Sem ingredientes nesta fase');
+      if (cost > 0) meta.push('Custo ' + _money(cost));
       return '<div class="recipes-config-row">' +
         '<div style="min-width:0;flex:1;"><div class="recipes-config-row-title">' + _esc(comp.name) + '</div>' +
-        '<div class="recipes-config-row-text">' + _esc(comp.description || 'Use esta etapa para reaproveitar uma mesma base em várias receitas, como massa, recheio, creme ou molho.') + '</div></div>' +
+        '<div class="recipes-config-row-text">' + _esc(comp.description || 'Use esta etapa para reaproveitar uma mesma base em várias receitas, como massa, recheio, creme ou molho.') + '</div>' +
+        '<div class="recipes-config-row-text" style="margin-top:4px;">' + _esc(meta.join(' · ')) + '</div></div>' +
         '<div class="recipes-config-actions">' +
         '<span class="recipes-config-usage">' + _esc(usageLabel) + '</span>' +
         '<button onclick="Modules.Receitas._openRecipeComponentModal(\'' + comp.id + '\')" style="' + _smallActionStyle('#6F6860') + '"><span class="mi" style="font-size:14px;">edit</span></button>' +
@@ -3445,8 +3664,8 @@ Modules.Receitas = (function () {
     }).join('');
     var guide = '<div class="recipes-config-guide">' +
       '<div class="recipes-config-guide-main">' +
-        '<div class="recipes-config-guide-title">Use etapas para não cadastrar a mesma base várias vezes</div>' +
-        '<p class="recipes-config-guide-text">Se o mesmo recheio, massa, creme ou molho entra em mais de uma receita, cadastre uma etapa com esse nome e selecione a mesma etapa nas receitas. Assim o BocaFood consegue enxergar essa base como uma coisa só na produção.</p>' +
+        '<div class="recipes-config-guide-title">' + (inStagesTab ? 'Use etapas para montar receitas completas' : 'Use etapas para não cadastrar a mesma base várias vezes') + '</div>' +
+        '<p class="recipes-config-guide-text">' + (inStagesTab ? 'Cadastre aqui as partes reaproveitáveis da produção. Depois, dentro de cada receita, escolha essas etapas e informe ingredientes, rendimento e controle de base.' : 'Se o mesmo recheio, massa, creme ou molho entra em mais de uma receita, cadastre uma etapa com esse nome e selecione a mesma etapa nas receitas. Assim o BocaFood consegue enxergar essa base como uma coisa só na produção.') + '</p>' +
         '<ul class="recipes-config-guide-list">' +
           '<li><span class="mi">check_circle</span><span><strong>Recheio de frango</strong> pode entrar na coxinha e no pastel.</span></li>' +
           '<li><span class="mi">check_circle</span><span><strong>Massa base</strong> pode entrar em vários sabores ou tamanhos.</span></li>' +
@@ -3454,11 +3673,11 @@ Modules.Receitas = (function () {
         '</ul>' +
       '</div>' +
       '<div class="recipes-config-guide-side">' +
-        '<div class="recipes-config-guide-title">Quando controlar estoque?</div>' +
-        '<p class="recipes-config-guide-text">Marque como base de produção dentro da receita quando essa etapa é feita antes e fica guardada para usar depois. Se a etapa só existe durante o preparo daquela receita, deixe sem controle de estoque.</p>' +
+        '<div class="recipes-config-guide-title">Próxima fase</div>' +
+        '<p class="recipes-config-guide-text">' + (inStagesTab ? 'Nesta fase, a etapa já guarda rendimento, ingredientes e custo próprio. A próxima fase conecta esses dados automaticamente dentro do cadastro da receita.' : 'Marque como base de produção dentro da receita quando essa etapa é feita antes e fica guardada para usar depois. Se a etapa só existe durante o preparo daquela receita, deixe sem controle de estoque.') + '</p>' +
       '</div>' +
     '</div>';
-    content.innerHTML = guide + _configCardHtml(_configMeta('componentes'), 'Modules.Receitas._openRecipeComponentModal(null)', 'Nenhuma etapa encontrada.', rows, filtered.length);
+    content.innerHTML = guide + _configCardHtml(_configMeta(inStagesTab ? 'etapas' : 'componentes'), 'Modules.Receitas._openRecipeComponentModal(null)', 'Nenhuma etapa encontrada.', rows, filtered.length);
   }
 
   function _openRecipeComponentModal(id) {
@@ -3466,25 +3685,213 @@ Modules.Receitas = (function () {
     var comp = id ? (_recipeComponents.find(function (x) { return x.id === id; }) || {}) : {};
     var usage = _componentUsageInfo(comp);
     var usageText = usage.count ? ('Esta etapa já aparece em ' + usage.count + ' receita' + (usage.count > 1 ? 's' : '') + '.') : 'Depois de salvar, escolha esta etapa dentro das receitas em que ela aparece.';
-    var body = '<div>' +
-      '<div style="border:1px solid #EADFD8;border-radius:14px;background:#FFFCF8;padding:12px;margin-bottom:12px;color:#5F5652;font-size:12.5px;line-height:1.5;">' +
+    window._stageIngredientCount = 0;
+    var ingredientRows = (Array.isArray(comp.ingredients) ? comp.ingredients : []).map(function (item) {
+      var idx = window._stageIngredientCount++;
+      return _stageIngredientRowHtml(idx, item);
+    }).join('');
+    if (!ingredientRows) ingredientRows = _stageIngredientRowHtml(window._stageIngredientCount++, {});
+    var body = '<div class="production-stage-form">' +
+      '<div class="production-stage-card" style="color:#5F5652;font-size:12.5px;line-height:1.5;">' +
         '<strong style="color:#1F1F1F;">Pense na etapa como uma parte reaproveitável da produção.</strong><br>' +
-        'Use nomes claros, como Recheio de frango, Massa de coxinha, Creme branco ou Molho especial. Quando selecionar o mesmo nome em várias receitas, o BocaFood entende que é a mesma base.' +
+        'Use nomes claros, como Recheio de frango, Massa de coxinha, Creme branco ou Molho especial. As receitas continuam escolhendo esta etapa para montar a ficha completa.' +
       '</div>' +
-      '<label style="display:block;margin-bottom:12px;"><span style="' + _labelStyle() + '">Nome da etapa *</span><input id="rcomp-name" type="text" value="' + _esc(comp.name || '') + '" placeholder="Ex: Recheio de frango" style="' + _inputStyle() + '"></label>' +
-      '<label style="display:block;margin-bottom:12px;"><span style="' + _labelStyle() + '">Quando usar esta etapa</span><textarea id="rcomp-desc" placeholder="Ex: usado na coxinha e no pastel de frango." style="' + _inputStyle() + 'min-height:84px;resize:vertical;">' + _esc(comp.description || '') + '</textarea></label>' +
-      '<div style="font-size:12px;color:#6F6860;line-height:1.45;">' + _esc(usageText) + '</div>' +
-      '</div>';
+      '<div class="production-stage-card">' +
+        '<div class="production-stage-grid">' +
+          '<label style="display:block;"><span style="' + _labelStyle() + '">Nome da etapa *</span><input id="rcomp-name" type="text" value="' + _esc(comp.name || '') + '" placeholder="Ex: Recheio de frango" style="' + _inputStyle() + '"></label>' +
+          '<label style="display:block;"><span style="' + _labelStyle() + '">Rendimento</span><input id="rcomp-yield-qty" type="text" inputmode="decimal" value="' + _esc(comp.stageYieldQuantity || comp.yieldQuantity || comp.baseYieldQuantity || '') + '" placeholder="Ex: 40" oninput="Modules.Receitas._updateProductionStageCost()" style="' + _inputStyle() + '"></label>' +
+          '<label style="display:block;"><span style="' + _labelStyle() + '">Unidade</span><select id="rcomp-yield-unit" onchange="Modules.Receitas._updateProductionStageCost()" style="' + _inputStyle() + '">' + _stageUnitOptionsHtml(comp.stageYieldUnit || comp.yieldUnit || comp.baseYieldUnit || '') + '</select></label>' +
+        '</div>' +
+        '<label style="display:block;margin-top:12px;"><span style="' + _labelStyle() + '">Quando usar esta etapa</span><textarea id="rcomp-desc" placeholder="Ex: usado na coxinha e no pastel de frango." style="' + _inputStyle() + 'min-height:84px;resize:vertical;">' + _esc(comp.description || '') + '</textarea></label>' +
+      '</div>' +
+      '<div class="production-stage-card">' +
+        '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px;">' +
+          '<div><div class="recipes-config-section-title">Ingredientes da etapa</div><div class="recipes-config-section-desc">Informe o que esta etapa consome quando ela é produzida.</div></div>' +
+          '<button type="button" class="production-stage-soft-btn" onclick="Modules.Receitas._addProductionStageIngredient()">+ Ingrediente</button>' +
+        '</div>' +
+        '<div id="production-stage-ingredients" class="production-stage-ingredients">' + ingredientRows + '</div>' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid #F1E7E1;">' +
+          '<div style="font-size:12px;color:#6F6860;line-height:1.4;">' + _esc(usageText) + '</div>' +
+          '<div style="text-align:right;"><div style="' + _labelStyle() + 'margin-bottom:2px;">Custo da etapa</div><strong id="rcomp-total-cost" style="font-size:15px;color:#1F1F1F;">' + _money(_stageTotalCost(comp.ingredients || [])) + '</strong></div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
     var footer = '<button onclick="Modules.Receitas._saveRecipeComponent()" style="width:100%;height:40px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:14px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">Salvar etapa</button>';
-    window._recipeComponentModal = UI.modal({ title: id ? 'Editar etapa da receita' : 'Nova etapa da receita', body: body, footer: footer });
+    window._recipeComponentModal = UI.modal({ title: id ? 'Editar etapa de produção' : 'Nova etapa de produção', body: body, footer: footer });
+    setTimeout(_updateProductionStageCost, 60);
+  }
+
+  function _stageItemById(id) {
+    return (_stageCostItems || []).find(function (item) { return String(item.id || '') === String(id || ''); }) || null;
+  }
+
+  function _stageItemName(item) {
+    return item && (item.nome || item.name || item.label || item.title) || '';
+  }
+
+  function _stageItemUnit(item) {
+    return item && (item.unidade_base || item.unidadeBase || item.unit || 'un') || 'un';
+  }
+
+  function _stageItemCost(item) {
+    item = item || {};
+    return _num(item.custo_atual != null ? item.custo_atual : item.custoAtual != null ? item.custoAtual : item.unitCost != null ? item.unitCost : item.preco_compra != null ? item.preco_compra : item.purchasePrice);
+  }
+
+  function _stageUnitOptionsHtml(selected) {
+    var fallback = [
+      { name: 'Quilograma', symbol: 'kg' },
+      { name: 'Grama', symbol: 'g' },
+      { name: 'Litro', symbol: 'L' },
+      { name: 'Mililitro', symbol: 'ml' },
+      { name: 'Unidade', symbol: 'un' },
+      { name: 'Unidades', symbol: 'unidades' }
+    ];
+    var units = (_stageUnits && _stageUnits.length ? _stageUnits : fallback).slice();
+    var seen = {};
+    var html = units.map(function (unit) {
+      var value = String(unit.symbol || unit.value || unit.name || '').trim();
+      if (!value) return '';
+      var key = value.toLowerCase();
+      if (seen[key]) return '';
+      seen[key] = true;
+      var label = String(unit.name || unit.label || value).trim();
+      var text = label && label !== value ? label + ' (' + value + ')' : value;
+      return '<option value="' + _esc(value) + '"' + (String(selected || '') === value ? ' selected' : '') + '>' + _esc(text) + '</option>';
+    }).filter(Boolean).join('');
+    if (selected && !seen[String(selected).toLowerCase()]) {
+      html = '<option value="' + _esc(selected) + '" selected>' + _esc(selected) + '</option>' + html;
+    }
+    return '<option value="">Selecionar...</option>' + html;
+  }
+
+  function _stageCostItemOptionsHtml(selected) {
+    var html = (_stageCostItems || []).map(function (item) {
+      var id = String(item.id || '');
+      var name = _stageItemName(item);
+      var unit = _stageItemUnit(item);
+      var cost = _stageItemCost(item);
+      var label = name + (unit ? ' · ' + unit : '') + (cost > 0 ? ' · ' + _money(cost) : '');
+      return '<option value="' + _esc(id) + '"' + (String(selected || '') === id ? ' selected' : '') + '>' + _esc(label) + '</option>';
+    }).join('');
+    return '<option value="">Selecionar ingrediente...</option>' + html;
+  }
+
+  function _stageIngredientRowHtml(idx, item) {
+    item = item || {};
+    var itemId = item.insumoId || item.itemId || item.supplyId || '';
+    var found = _stageItemById(itemId) || {};
+    var qty = item.qty != null ? item.qty : item.quantity != null ? item.quantity : '';
+    var unit = item.unit || _stageItemUnit(found);
+    var total = _num(item.totalCost);
+    if (!total && itemId && qty) total = _stageItemCost(found) * _num(qty);
+    return '<div class="production-stage-ing-row" id="stage-ing-' + idx + '" data-stage-ing-row="' + idx + '">' +
+      '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Ingrediente</span><select data-stage-ing-item="' + idx + '" onchange="Modules.Receitas._updateProductionStageCost()" style="' + _inputStyle() + '">' + _stageCostItemOptionsHtml(itemId) + '</select></label>' +
+      '<label style="display:block;"><span style="' + _labelStyle() + '">Qtd.</span><input data-stage-ing-qty="' + idx + '" type="text" inputmode="decimal" value="' + _esc(qty) + '" placeholder="Ex: 1,5" oninput="Modules.Receitas._updateProductionStageCost()" style="' + _inputStyle() + '"></label>' +
+      '<div><span style="' + _labelStyle() + '">Unid.</span><div data-stage-ing-unit="' + idx + '" style="min-height:40px;display:flex;align-items:center;font-size:12px;color:#1F1F1F;font-weight:650;">' + _esc(unit || '—') + '</div></div>' +
+      '<div><span style="' + _labelStyle() + '">Custo</span><div data-stage-ing-cost="' + idx + '" style="min-height:40px;display:flex;align-items:center;font-size:12px;color:#1F1F1F;font-weight:650;">' + (total > 0 ? _money(total) : '—') + '</div></div>' +
+      '<button type="button" onclick="Modules.Receitas._removeProductionStageIngredient(' + idx + ')" title="Remover" style="width:32px;height:32px;border-radius:9px;border:1px solid #EADFD8;background:#fff;color:#B42318;cursor:pointer;align-self:center;">×</button>' +
+    '</div>';
+  }
+
+  function _addProductionStageIngredient() {
+    var container = document.getElementById('production-stage-ingredients');
+    if (!container) return;
+    var idx = window._stageIngredientCount || 0;
+    window._stageIngredientCount = idx + 1;
+    container.insertAdjacentHTML('beforeend', _stageIngredientRowHtml(idx, {}));
+    _updateProductionStageCost();
+  }
+
+  function _removeProductionStageIngredient(idx) {
+    var row = document.getElementById('stage-ing-' + idx);
+    if (row) row.remove();
+    _updateProductionStageCost();
+  }
+
+  function _stageIngredientsFromModal() {
+    var out = [];
+    var invalid = false;
+    var container = document.getElementById('production-stage-ingredients');
+    if (!container) return { items: out, invalid: false };
+    Array.prototype.slice.call(container.querySelectorAll('[data-stage-ing-row]')).forEach(function (row) {
+      var idx = row.getAttribute('data-stage-ing-row');
+      var itemId = ((row.querySelector('[data-stage-ing-item="' + idx + '"]') || {}).value || '').trim();
+      var qty = _num((row.querySelector('[data-stage-ing-qty="' + idx + '"]') || {}).value);
+      if (!itemId && qty <= 0) return;
+      if (!itemId || qty <= 0) { invalid = true; return; }
+      var item = _stageItemById(itemId) || {};
+      var unitCost = _stageItemCost(item);
+      var unit = _stageItemUnit(item);
+      var cls = _normalizeStockClass(item.classe || item.itemClass || item.tipo || item.type || 'insumo');
+      out.push({
+        insumoId: itemId,
+        itemId: itemId,
+        supplyName: _stageItemName(item),
+        itemClass: cls || 'insumo',
+        classe: cls || 'insumo',
+        costType: cls === 'embalagem' ? 'embalagem' : 'insumo',
+        qty: qty,
+        quantity: qty,
+        unit: unit,
+        unitCost: _round(unitCost),
+        totalCost: _round(qty * unitCost)
+      });
+    });
+    return { items: out, invalid: invalid };
+  }
+
+  function _stageTotalCost(ingredients) {
+    return (Array.isArray(ingredients) ? ingredients : []).reduce(function (sum, item) {
+      var total = _num(item && item.totalCost);
+      if (!total) {
+        var found = _stageItemById(item && (item.insumoId || item.itemId || item.supplyId));
+        total = _num(item && (item.qty != null ? item.qty : item.quantity)) * _stageItemCost(found);
+      }
+      return sum + total;
+    }, 0);
+  }
+
+  function _updateProductionStageCost() {
+    Array.prototype.slice.call(document.querySelectorAll('[data-stage-ing-row]')).forEach(function (row) {
+      var idx = row.getAttribute('data-stage-ing-row');
+      var itemId = ((row.querySelector('[data-stage-ing-item="' + idx + '"]') || {}).value || '').trim();
+      var qty = _num((row.querySelector('[data-stage-ing-qty="' + idx + '"]') || {}).value);
+      var item = _stageItemById(itemId);
+      var total = item && qty > 0 ? qty * _stageItemCost(item) : 0;
+      var unitEl = row.querySelector('[data-stage-ing-unit="' + idx + '"]');
+      var costEl = row.querySelector('[data-stage-ing-cost="' + idx + '"]');
+      if (unitEl) unitEl.textContent = item ? _stageItemUnit(item) : '—';
+      if (costEl) costEl.textContent = total > 0 ? _money(total) : '—';
+    });
+    var data = _stageIngredientsFromModal();
+    var totalEl = document.getElementById('rcomp-total-cost');
+    if (totalEl) totalEl.textContent = _money(_stageTotalCost(data.items || []));
   }
 
   function _saveRecipeComponent() {
     var name = ((document.getElementById('rcomp-name') || {}).value || '').trim();
     if (!name) { UI.toast('Nome obrigatório', 'error'); return; }
+    var ingredients = _stageIngredientsFromModal();
+    if (ingredients.invalid) {
+      UI.toast('Complete ingrediente e quantidade, ou remova a linha vazia.', 'error');
+      return;
+    }
+    var yieldQty = _num((document.getElementById('rcomp-yield-qty') || {}).value);
+    var yieldUnit = ((document.getElementById('rcomp-yield-unit') || {}).value || '').trim();
     var data = {
       name: name,
       description: ((document.getElementById('rcomp-desc') || {}).value || '').trim(),
+      stageYieldQuantity: yieldQty || null,
+      yieldQuantity: yieldQty || null,
+      stageYieldUnit: yieldUnit,
+      yieldUnit: yieldUnit,
+      ingredients: ingredients.items,
+      ingredientCost: _round(_stageTotalCost(ingredients.items)),
+      directCost: _round(_stageTotalCost(ingredients.items)),
+      totalCost: _round(_stageTotalCost(ingredients.items)),
+      costPerYield: yieldQty > 0 ? _round(_stageTotalCost(ingredients.items) / yieldQty) : 0,
+      stageVersion: 2,
       updatedAt: new Date().toISOString()
     };
     if (!_editingComponentId) data.createdAt = new Date().toISOString();
@@ -3845,6 +4252,9 @@ Modules.Receitas = (function () {
     _openRecipeComponentModal: _openRecipeComponentModal,
     _saveRecipeComponent: _saveRecipeComponent,
     _deleteRecipeComponent: _deleteRecipeComponent,
+    _addProductionStageIngredient: _addProductionStageIngredient,
+    _removeProductionStageIngredient: _removeProductionStageIngredient,
+    _updateProductionStageCost: _updateProductionStageCost,
     _openRecipeCategoryModal: _openRecipeCategoryModal,
     _saveRecipeCategory: _saveRecipeCategory,
     _deleteRecipeCategory: _deleteRecipeCategory,

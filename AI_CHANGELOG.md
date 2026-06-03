@@ -1,5 +1,62 @@
 # AI Changelog
 
+## 2026-06-03 — Pedidos: editar canal de venda no detalhe
+- Arquivos alterados: `public/js/modules/pedidos.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Adicionei o campo `Canal de venda` no modal `Detalhes do pedido`.
+- Ao salvar uma troca de canal, o pedido atualiza `channel`, `source`, `originChannel`, `originSource`, nome do canal e categoria financeira herdada do canal.
+- A troca de canal limpa o modo manual de taxas e recalcula comissão, imposto e taxa fixa usando a configuração padrão do novo canal.
+- Se a usuária editar os campos de comissão/taxa no mesmo detalhe, esses valores continuam sendo salvos como ajuste manual.
+- A sincronização com o Financeiro continua usando uma única entrada líquida do pedido, com bruto/taxas/líquido preservados para rastreio.
+
+## 2026-06-03 — Produção: fase 5 das Etapas de produção
+- Arquivos alterados: `public/js/modules/receitas.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Fechei a ligação entre `Produção → Previsão` e `Ordens de produção` usando a estrutura de etapas criada na fase 4.
+- Ordens planejadas geradas pela previsão agora salvam `plannedStages`, mantendo o rastreio por etapa no snapshot da ordem.
+- A criação pela previsão também salva `forecastSnapshot` com capacidade lida, quantidade desejada, limitador, itens calculados, saldo no momento da simulação e faltas para a quantidade escolhida.
+- O modal `Detalhes da ordem` passou a mostrar o bloco `Previsão que gerou a ordem` quando a ordem nasceu da previsão.
+- A ação continua conservadora: gera somente ordem com status `planejada`, não conclui produção, não baixa estoque e não cria movimentação.
+- Impacto esperado: a usuária consegue transformar uma leitura de previsão em planejamento rastreável, sabendo com quais saldos/faltas aquela decisão foi tomada.
+
+## 2026-06-03 — Produção: fase 4 das Etapas de produção
+- Arquivos alterados: `public/js/modules/receitas.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Passei a salvar `plannedStages` nas ordens de produção criadas a partir de receitas ou bases de produção.
+- O snapshot da ordem agora carrega as etapas planejadas com nome, quantidade prevista, custo previsto, ingredientes da etapa e indicação de base controlada quando aplicável.
+- O modal `Detalhes da ordem` passou a mostrar a seção `Etapas planejadas`, antes da lista plana de ingredientes.
+- A prévia de criação da ordem também informa quantas etapas entram no planejamento.
+- As movimentações de saída de ingredientes geradas pela ordem agora carregam `componentName`/`productionStageName`, melhorando o rastreio do consumo por etapa sem alterar quantidade, custo ou baixa.
+- Impacto esperado: a produção deixa de ser apenas uma lista plana de insumos e passa a preservar o histórico por etapa, mantendo compatibilidade com ordens antigas.
+
+## 2026-06-03 — Produção: fase 3 das Etapas de produção
+- Arquivos alterados: `public/js/modules/catalogo.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Integrei `Produção → Receitas` com as etapas cadastradas em `Produção → Etapas de produção`.
+- Ao selecionar uma etapa com ingredientes próprios, a ficha técnica passa a preencher esses ingredientes como sugestão inicial da etapa dentro da receita.
+- A integração preserva edição manual: se a etapa da receita já tiver ingrediente ou quantidade preenchida, o sistema não sobrescreve automaticamente nem duplica linhas.
+- O rendimento e a unidade cadastrados na etapa também podem preencher os campos da etapa na receita quando esses campos ainda estão vazios.
+- Impacto esperado: a usuária cadastra a base uma vez na etapa e reutiliza essa composição para montar receitas completas com menos retrabalho e controle de custo preservado.
+
+## 2026-06-03 — Produção: fase 2 das Etapas de produção
+- Arquivos alterados: `public/js/modules/receitas.js`, `public/js/modules/catalogo.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Ampliei o cadastro de `Produção → Etapas de produção` para salvar rendimento, unidade e ingredientes próprios da etapa.
+- O modal da etapa agora permite adicionar/remover ingredientes, informar quantidade, ver unidade/custo por linha e custo total da etapa.
+- A etapa salva os campos `stageYieldQuantity`, `stageYieldUnit`, `ingredients`, `ingredientCost`, `directCost`, `totalCost` e `costPerYield`, mantendo nome/descrição e a base `recipe_components` para compatibilidade.
+- Atualizei a orientação no cadastro de Receitas para apontar novas etapas para `Produção → Etapas de produção`, não mais Configurações.
+- Impacto esperado: etapas passam a ter composição própria, preparando a próxima fase em que Receitas poderão puxar esses ingredientes automaticamente.
+
+## 2026-06-03 — Produção: fase 1 da aba Etapas de produção
+- Arquivos alterados: `public/js/modules/receitas.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Criei a aba principal `Produção → Etapas de produção`, separando etapas do bloco `Produção → Configurações`.
+- Removi `Etapas da receita` das abas internas de Configurações e redirecionei rotas antigas de `componentes`/`configuracoes/componentes` para a nova aba.
+- Mantive a mesma base de dados atual (`recipe_components`) para não quebrar receitas existentes: nesta fase a etapa ainda salva nome e orientação, sem ingredientes próprios.
+- Ajustei a copy para explicar que as receitas usam essas etapas para montar a ficha completa e que ingredientes/rendimento/custo direto na etapa entram na próxima fase.
+- Impacto esperado: preparar a separação correta entre cadastro de etapas de produção e configurações auxiliares, sem alterar cálculo, estoque ou ordens nesta fase.
+
+## 2026-06-03 — Performance: pedidos por dia sem base de ticket
+- Arquivos alterados: `public/js/modules/performance.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Corrigi a leitura prática da Performance para não montar frases como `ticket médio atual de sem base` nem estimar `0 pedidos por dia` quando ainda não há ticket médio.
+- O card `Este mês` agora mostra `Sem base` em `Pedidos por dia daqui pra frente` quando falta ticket médio para calcular a previsão.
+- O card `Ritmo da rota` também evita pintar como positivo um volume planejado sem base, mantendo leitura neutra até existirem pedidos suficientes.
+- Impacto esperado: a Performance passa a diferenciar ausência de histórico de cálculo real, evitando orientação enganosa no início do mês ou em lojas sem pedidos.
+
 ## 2026-06-03 — Pedidos: opções no pedido manual
 - Arquivos alterados: `public/js/modules/pedidos.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
 - Ajustei `Criar pedido manual` para abrir seleção de opções/variantes quando o produto tem escolhas cadastradas.

@@ -9306,6 +9306,75 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     }) || null;
   }
 
+  function _recipeComponentTemplateIngredients(name) {
+    var component = _recipeComponentByName(name);
+    var ingredients = component && Array.isArray(component.ingredients) ? component.ingredients : [];
+    return ingredients.map(function (ing) {
+      var itemId = String(ing && (ing.insumoId || ing.itemId || ing.ingredientId || ing.supplyId || ing.packagingId) || '').trim();
+      var qty = _moneyLike(ing && (ing.qty != null ? ing.qty : ing.quantity != null ? ing.quantity : ing.amount));
+      return itemId && qty > 0 ? { insumoId: itemId, qty: qty } : null;
+    }).filter(Boolean);
+  }
+
+  function _recipeComponentStageDefaults(name) {
+    var component = _recipeComponentByName(name) || {};
+    return {
+      stageYieldQuantity: component.stageYieldQuantity != null ? component.stageYieldQuantity : component.yieldQuantity != null ? component.yieldQuantity : component.baseYieldQuantity != null ? component.baseYieldQuantity : component.stockYieldQuantity,
+      stageYieldUnit: component.stageYieldUnit || component.yieldUnit || component.baseYieldUnit || component.stockYieldUnit || ''
+    };
+  }
+
+  function _componentHasRealIngredients(compIdx) {
+    var compEl = document.getElementById('fc-comp-' + compIdx);
+    if (!compEl) return false;
+    return [].slice.call(compEl.querySelectorAll('[data-ing-idx]')).some(function (hidden) {
+      var idx = hidden.getAttribute('data-ing-idx');
+      var qtyEl = compEl.querySelector('[data-ing-qty="' + idx + '"]');
+      return String(hidden.value || '').trim() || _moneyLike(qtyEl && qtyEl.value) > 0;
+    });
+  }
+
+  function _setSelectValueWithFallback(select, value) {
+    if (!select || !value) return;
+    var wanted = String(value);
+    var exists = [].slice.call(select.options || []).some(function (option) { return String(option.value) === wanted; });
+    if (!exists) {
+      select.insertAdjacentHTML('afterbegin', '<option value="' + _esc(wanted) + '">' + _esc(wanted) + '</option>');
+    }
+    select.value = wanted;
+  }
+
+  function _applyRecipeComponentTemplate(compIdx, force) {
+    var select = document.querySelector('[data-comp-name="' + compIdx + '"]');
+    var name = select ? String(select.value || '').trim() : '';
+    var templateIngredients = _recipeComponentTemplateIngredients(name);
+    var defaults = _recipeComponentStageDefaults(name);
+    var qtyEl = document.querySelector('[data-comp-stock-qty="' + compIdx + '"]');
+    var unitEl = document.querySelector('[data-comp-stock-unit="' + compIdx + '"]');
+    if (qtyEl && !String(qtyEl.value || '').trim() && defaults.stageYieldQuantity) qtyEl.value = defaults.stageYieldQuantity;
+    if (unitEl && !String(unitEl.value || '').trim() && defaults.stageYieldUnit) _setSelectValueWithFallback(unitEl, defaults.stageYieldUnit);
+    if (!templateIngredients.length) {
+      _updateFichaCost();
+      return;
+    }
+    if (!force && _componentHasRealIngredients(compIdx)) {
+      UI.toast('A etapa já tem ingredientes nesta receita. Mantive a edição manual.', 'info');
+      _updateFichaCost();
+      return;
+    }
+    var container = document.getElementById('fc-comp-ings-' + compIdx);
+    if (!container) {
+      _updateFichaCost();
+      return;
+    }
+    container.innerHTML = templateIngredients.map(function (ing) {
+      var idx = window._fichaIngCount || 0;
+      window._fichaIngCount = idx + 1;
+      return _fichaIngRow(idx, compIdx, ing.insumoId, ing.qty);
+    }).join('');
+    _updateFichaCost();
+  }
+
   function _recipeComponentSharedBaseId(name, componentId) {
     var id = String(componentId || '').trim();
     if (id.indexOf('base_component:') === 0) return id;
@@ -9339,7 +9408,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   function _recipeComponentOptionsHtml(selected) {
     var names = _recipeComponentNames(selected);
     if (!names.length) {
-      return '<option value="">Cadastre etapas em Produção > Configurações</option>';
+      return '<option value="">Cadastre etapas em Produção > Etapas de produção</option>';
     }
     return '<option value="">Selecionar etapa...</option>' + names.map(function (name) {
       return '<option value="' + _esc(name) + '"' + (name === selected ? ' selected' : '') + '>' + _esc(name) + '</option>';
@@ -9464,7 +9533,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       '<button type="button" onclick="window._recipeComponentModal&&window._recipeComponentModal.close()" style="height:38px;padding:0 14px;border-radius:10px;border:1px solid #E6E1D8;background:#fff;color:#6F6860;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;">Cancelar</button>' +
       '<button type="button" onclick="Modules.Catalogo._saveRecipeComponentFromModal()" style="height:38px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">Adicionar etapa</button>' +
       '</div>';
-    window._recipeComponentModal = UI.modal({ title: 'Nova etapa da receita', body: body, footer: footer, maxWidth: '560px' });
+    window._recipeComponentModal = UI.modal({ title: 'Nova etapa de produção', body: body, footer: footer, maxWidth: '560px' });
     setTimeout(function () { var el = document.getElementById('recipe-new-component-name'); if (el) el.focus(); }, 80);
   }
 
@@ -9501,7 +9570,8 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       select.innerHTML = _recipeComponentOptionsHtml(nextValue);
       select.value = nextValue;
     });
-    _updateFichaCost();
+    if (targetIdx != null && targetIdx !== undefined) _applyRecipeComponentTemplate(targetIdx, false);
+    else _updateFichaCost();
   }
 
   function _fichaComponentHtml(compIdx, comp) {
@@ -9519,7 +9589,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     return '<div id="fc-comp-' + compIdx + '" class="fc-component recipe-component" data-comp-idx="' + compIdx + '">' +
       '<div class="recipe-stage-guidance"><strong>Escolha uma etapa já cadastrada.</strong> Se essa mesma base aparece em outras receitas, use exatamente a mesma etapa para manter a produção conectada.</div>' +
       '<div class="recipe-component-head">' +
-      '<div><div class="recipe-inline-label"><label style="' + _fichaLbl() + 'margin-bottom:0;">Etapa reutilizável *</label><button type="button" class="recipe-inline-add" onclick="Modules.Catalogo._openRecipeComponentCreateModal(' + compIdx + ')">+ etapa</button></div><div class="supplier-field-control"><select data-comp-name="' + compIdx + '" onchange="Modules.Catalogo._updateFichaCost()">' + _recipeComponentOptionsHtml((comp.name || '').trim()) + '</select></div><div class="recipe-component-hint">Exemplo: Recheio de frango, Massa de coxinha, Creme branco ou Molho especial.</div></div>' +
+      '<div><div class="recipe-inline-label"><label style="' + _fichaLbl() + 'margin-bottom:0;">Etapa reutilizável *</label><button type="button" class="recipe-inline-add" onclick="Modules.Catalogo._openRecipeComponentCreateModal(' + compIdx + ')">+ etapa</button></div><div class="supplier-field-control"><select data-comp-name="' + compIdx + '" onchange="Modules.Catalogo._applyRecipeComponentTemplate(' + compIdx + ', false)">' + _recipeComponentOptionsHtml((comp.name || '').trim()) + '</select></div><div class="recipe-component-hint">Exemplo: Recheio de frango, Massa de coxinha, Creme branco ou Molho especial.</div></div>' +
       '<div><label style="' + _fichaLbl() + '">Anotação desta receita</label><div class="supplier-field-control"><input data-comp-note="' + compIdx + '" value="' + _esc(comp.note || '') + '" placeholder="Ex: usar fria ou bater antes de misturar"></div><div class="recipe-component-hint">Use só para orientação desta receita. Não altera a etapa reaproveitada.</div></div>' +
       '<button type="button" onclick="Modules.Catalogo._removeFichaComponent(' + compIdx + ')" title="Remover etapa desta receita" style="width:34px;height:34px;border-radius:9px;border:1px solid #E6E1D8;background:#fff;color:#B42318;cursor:pointer;font-size:14px;box-shadow:0 1px 2px rgba(31,31,31,.03);">✕</button>' +
       '</div>' +
@@ -9710,7 +9780,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var compIdx = window._fichaCompCount || 0;
     window._fichaCompCount = compIdx + 1;
     container.insertAdjacentHTML('beforeend', _fichaComponentHtml(compIdx, { name: _defaultRecipeComponentName(), note: '', ingredients: [] }));
-    _updateFichaCost();
+    _applyRecipeComponentTemplate(compIdx, true);
   }
 
   function _removeFichaComponent(compIdx) {
@@ -10510,7 +10580,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     _addFichaPackaging: _addFichaPackaging, _removeFichaPackaging: _removeFichaPackaging,
     _toggleFichaYieldHelp: _toggleFichaYieldHelp, _toggleFichaIngredientsHelp: _toggleFichaIngredientsHelp, _toggleFichaPackagingHelp: _toggleFichaPackagingHelp,
     _openRecipeCategoryCreateModal: _openRecipeCategoryCreateModal, _saveRecipeCategoryFromModal: _saveRecipeCategoryFromModal,
-    _openRecipeComponentCreateModal: _openRecipeComponentCreateModal, _saveRecipeComponentFromModal: _saveRecipeComponentFromModal,
+    _openRecipeComponentCreateModal: _openRecipeComponentCreateModal, _saveRecipeComponentFromModal: _saveRecipeComponentFromModal, _applyRecipeComponentTemplate: _applyRecipeComponentTemplate,
     _updateFichaCost: _updateFichaCost, _updateFichaPesoTotal: _updateFichaPesoTotal, _onYieldUnitChange: _onYieldUnitChange,
     _onFichaIngChange: _onFichaIngChange, _filterFichaIngredientOptions: _filterFichaIngredientOptions, _selectFichaIngredient: _selectFichaIngredient,
     _filterFichaPackagingOptions: _filterFichaPackagingOptions, _selectFichaPackaging: _selectFichaPackaging, _onFichaPackagingChange: _onFichaPackagingChange,
