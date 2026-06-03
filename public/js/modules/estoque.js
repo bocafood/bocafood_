@@ -133,8 +133,14 @@ Modules.Estoque = (function () {
         ? Object.keys(item.origins).slice(0, 3).join(', ') + (Object.keys(item.origins).length > 3 ? ' +' + (Object.keys(item.origins).length - 3) : '')
         : 'Produção';
       var setting = _settings[item.key] || {};
-      item.minStock = _num(setting.minStock);
-      item.maxStock = _num(setting.maxStock);
+      var manualMinStock = _num(setting.minStock);
+      var manualMaxStock = _num(setting.maxStock);
+      var suggestedMinStock = _num(setting.suggestedMinStock);
+      var suggestedMaxStock = _num(setting.suggestedMaxStock);
+      item.minStock = manualMinStock > 0 ? manualMinStock : suggestedMinStock;
+      item.maxStock = manualMaxStock > 0 ? manualMaxStock : suggestedMaxStock;
+      item.minStockSuggested = manualMinStock <= 0 && suggestedMinStock > 0;
+      item.maxStockSuggested = manualMaxStock <= 0 && suggestedMaxStock > 0;
       item.minStockEnabled = item.minStock > 0;
       item.maxStockEnabled = item.maxStock > 0;
       item.isBelowMin = item.minStockEnabled && item.balance <= item.minStock;
@@ -1229,8 +1235,8 @@ Modules.Estoque = (function () {
           _detailMetric('Entradas', _fmtQty(item.entries) + ' ' + _esc(item.unit || ''), 'Quantidade registrada como entrada.') +
           _detailMetric('Saídas', _fmtQty(item.exits) + ' ' + _esc(item.unit || ''), 'Quantidade registrada como saída.') +
           _detailMetric('Valor estimado', item.hasCost ? _money(item.estimatedValue) : 'sem custo informado', 'Usa o custo informado nas movimentações.') +
-          _detailMetric('Estoque mínimo', item.minStockEnabled ? (_fmtQty(item.minStock) + ' ' + _esc(item.unit || '')) : 'não definido', item.isBelowMin ? 'Este item está abaixo do mínimo.' : 'Referência para conferência rápida.') +
-          _detailMetric('Estoque máximo', item.maxStockEnabled ? (_fmtQty(item.maxStock) + ' ' + _esc(item.unit || '')) : 'não definido', item.isAboveMax ? 'Este item está acima do máximo definido.' : 'Limite recomendado para não comprar ou produzir além do necessário.') +
+          _detailMetric('Estoque mínimo', item.minStockEnabled ? (_fmtQty(item.minStock) + ' ' + _esc(item.unit || '') + (item.minStockSuggested ? ' · sugerido' : '')) : 'não definido', item.isBelowMin ? 'Este item está abaixo do mínimo.' : 'Referência para conferência rápida.') +
+          _detailMetric('Estoque máximo', item.maxStockEnabled ? (_fmtQty(item.maxStock) + ' ' + _esc(item.unit || '') + (item.maxStockSuggested ? ' · sugerido' : '')) : 'não definido', item.isAboveMax ? 'Este item está acima do máximo definido.' : 'Limite recomendado para não comprar ou produzir além do necessário.') +
         '</section>' +
         '<section class="stock-detail-card">' +
           '<div class="stock-modal-head"><span class="mi">receipt_long</span><div><div class="stock-modal-title">Movimentações relacionadas</div><div class="stock-modal-hint">Histórico usado para calcular este saldo.</div></div><span style="margin-left:auto;font-size:12px;color:#6F6860;border:1px solid #EAE4DA;border-radius:999px;padding:5px 9px;background:#FFFCF8;white-space:nowrap;">' + item.movements.length + '</span></div>' +

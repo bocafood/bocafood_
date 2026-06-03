@@ -1,5 +1,15 @@
 # AI Changelog
 
+## 2026-06-03 — Produção/Estoque: mínimos sugeridos para ingredientes das etapas
+- Arquivos alterados: `public/js/modules/catalogo.js`, `public/js/modules/receitas.js`, `public/js/modules/estoque.js`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- A sincronização da ficha técnica passou a derivar também a necessidade mínima/máxima dos ingredientes e embalagens usados dentro das etapas de produção.
+- O cálculo usa o mínimo/máximo da ficha, a quantidade da etapa consumida por unidade vendida, o rendimento da etapa e a quantidade de cada ingrediente dentro da etapa.
+- Os valores derivados são salvos como `suggestedMinStock` e `suggestedMaxStock`, sem sobrescrever `minStock` e `maxStock` manuais do item.
+- O módulo de Estoque e a Lista de Compras passam a usar o valor sugerido quando o item não tem mínimo manual definido, indicando a origem como sugestão automática.
+- Ao salvar uma etapa de produção, o módulo de Produção recalcula essas sugestões para refletir mudanças de rendimento ou ingredientes sem exigir salvar a ficha novamente.
+- Sugestões antigas geradas por receitas/etapas são zeradas quando deixam de aparecer no cálculo atual, evitando mínimo velho em ingrediente removido.
+- Impacto esperado: reduzir campos manuais para a usuária e manter insumos, embalagens e bases com referência de reposição coerente com as fichas cadastradas.
+
 ## 2026-06-03 — Pedidos: recria entrada financeira após estorno
 - Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - Corrigi a sincronização financeira após estorno: quando o pedido está com pagamento `estornado`, ele não recria entrada automaticamente.
@@ -11238,6 +11248,23 @@
 - A aba mostra as embalagens disponíveis no campo `Embalagem de compra padrão` do cadastro de insumos e produtos comprados.
 - A lista reaproveita as opções já usadas pelo módulo de Compras, evitando criar uma fonte paralela ou alterar a lógica de cadastro.
 - Impacto esperado: deixar visível dentro das configurações de Produção quais embalagens de compra podem ser usadas no preenchimento dos insumos.
+
+## 2026-06-03 — Produção: mínimo e máximo automáticos das etapas
+- Arquivos alterados: `public/admin.html`, `public/js/modules/catalogo.js`, `public/js/modules/receitas.js`, `AI_CHANGELOG.md`, `AGENTS.md`.
+- Removi da ficha técnica os campos manuais de mínimo e máximo da etapa/base de produção, reduzindo campos que a usuária precisa preencher.
+- O mínimo e máximo sugeridos da etapa passam a ser calculados automaticamente a partir do estoque mínimo/máximo das fichas que usam aquela etapa e da quantidade consumida por unidade.
+- O cadastro da etapa de produção agora mostra o total sugerido e o detalhamento por receita, incluindo quanto cada ficha pede de mínimo/máximo da base.
+- A sincronização de `stock_settings` das bases de produção também passou a agregar os mínimos/máximos calculados das receitas que usam a mesma etapa.
+- Atualizei os cache-busters de `catalogo.js` e `receitas.js` no Admin.
+- Impacto esperado: a usuária define mínimo/máximo no nível da ficha do produto, e o sistema calcula automaticamente a necessidade de cada etapa/base.
+
+## 2026-06-03 — Produção: unidade da etapa travada na ficha técnica
+- Arquivos alterados: `public/admin.html`, `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`, `AGENTS.md`.
+- No cadastro da ficha técnica, a unidade da `Qtd. usada por unidade` agora herda a unidade definida na etapa de produção selecionada.
+- Quando a etapa tem unidade de rendimento, o select de unidade da ficha fica bloqueado e o salvamento usa a unidade da etapa, evitando misturar famílias como `g` com `unidade` ou `ml`.
+- Se a etapa ainda não tiver unidade definida, o campo continua editável para preservar compatibilidade com dados antigos.
+- Atualizei o cache-buster de `catalogo.js` no Admin.
+- Impacto esperado: reduzir erro de cadastro e manter a baixa de bases de produção coerente com a unidade real da etapa.
 
 ## 2026-06-03 — Produção: ficha consome quantidade da etapa por unidade vendida
 - Arquivos alterados: `public/admin.html`, `public/js/modules/catalogo.js`, `public/js/modules/receitas.js`, `public/js/modules/pedidos.js`, `functions/index.js`, `AI_CHANGELOG.md`, `AGENTS.md`.

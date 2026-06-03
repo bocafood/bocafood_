@@ -9358,6 +9358,22 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     select.value = wanted;
   }
 
+  function _syncRecipeComponentUsageUnit(compIdx) {
+    var select = document.querySelector('[data-comp-name="' + compIdx + '"]');
+    var name = select ? String(select.value || '').trim() : '';
+    var defaults = _recipeComponentStageDefaults(name);
+    var unitEl = document.querySelector('[data-comp-stock-unit="' + compIdx + '"]');
+    if (!unitEl) return;
+    if (defaults.stageYieldUnit) {
+      _setSelectValueWithFallback(unitEl, defaults.stageYieldUnit);
+      unitEl.disabled = true;
+      unitEl.setAttribute('aria-readonly', 'true');
+    } else {
+      unitEl.disabled = false;
+      unitEl.removeAttribute('aria-readonly');
+    }
+  }
+
   function _applyRecipeComponentTemplate(compIdx, force) {
     var select = document.querySelector('[data-comp-name="' + compIdx + '"]');
     var name = select ? String(select.value || '').trim() : '';
@@ -9365,7 +9381,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var defaults = _recipeComponentStageDefaults(name);
     var qtyEl = document.querySelector('[data-comp-stock-qty="' + compIdx + '"]');
     var unitEl = document.querySelector('[data-comp-stock-unit="' + compIdx + '"]');
-    if (unitEl && !String(unitEl.value || '').trim() && defaults.stageYieldUnit) _setSelectValueWithFallback(unitEl, defaults.stageYieldUnit);
+    _syncRecipeComponentUsageUnit(compIdx);
     if (!templateIngredients.length) {
       _updateFichaCost();
       return;
@@ -9600,7 +9616,9 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       rows = _fichaIngRow(blankIdx, compIdx, '', 0);
     }
     var usageQty = comp.stageUsageQuantity != null ? comp.stageUsageQuantity : comp.usageQuantity != null ? comp.usageQuantity : comp.quantityPerUnit != null ? comp.quantityPerUnit : comp.baseUsageQuantity != null ? comp.baseUsageQuantity : (comp.stageYieldQuantity || comp.baseYieldQuantity || comp.stockYieldQuantity || '');
-    var usageUnit = comp.stageUsageUnit || comp.usageUnit || comp.unitPerUnit || comp.baseUsageUnit || comp.stageYieldUnit || comp.baseYieldUnit || comp.stockYieldUnit || '';
+    var componentDefaults = _recipeComponentStageDefaults((comp.name || '').trim());
+    var lockedUsageUnit = componentDefaults.stageYieldUnit || '';
+    var usageUnit = lockedUsageUnit || comp.stageUsageUnit || comp.usageUnit || comp.unitPerUnit || comp.baseUsageUnit || comp.stageYieldUnit || comp.baseYieldUnit || comp.stockYieldUnit || '';
     return '<div id="fc-comp-' + compIdx + '" class="fc-component recipe-component" data-comp-idx="' + compIdx + '">' +
       '<div class="recipe-stage-guidance"><strong>Escolha uma etapa já cadastrada.</strong> Se essa mesma base aparece em outras receitas, use exatamente a mesma etapa para manter a produção conectada.</div>' +
       '<div class="recipe-component-head">' +
@@ -9611,9 +9629,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       '<div class="recipe-component-base">' +
         '<label><input type="checkbox" data-comp-stock="' + compIdx + '"' + (comp.stockControl || comp.controlsStock ? ' checked' : '') + ' style="accent-color:#B42318;width:15px;height:15px;"> Controlar como base produzida antes</label>' +
         '<div><label style="' + _fichaLbl() + '">Qtd. usada por unidade</label><div class="supplier-field-control"><input type="text" data-comp-stock-qty="' + compIdx + '" value="' + _esc(usageQty) + '" placeholder="Ex: 80" oninput="Modules.Catalogo._updateFichaCost()"></div></div>' +
-        '<div><label style="' + _fichaLbl() + '">Unidade</label><div class="supplier-field-control"><select data-comp-stock-unit="' + compIdx + '" onchange="Modules.Catalogo._updateFichaCost()">' + _recipeUnitOptionsHtml(usageUnit) + '</select></div></div>' +
-        '<div><label style="' + _fichaLbl() + '">Mínimo</label><div class="supplier-field-control"><input type="text" data-comp-stock-min="' + compIdx + '" value="' + _esc(comp.minStock || comp.estoque_minimo || '') + '" placeholder="Ex: 2"></div></div>' +
-        '<div><label style="' + _fichaLbl() + '">Máximo</label><div class="supplier-field-control"><input type="text" data-comp-stock-max="' + compIdx + '" value="' + _esc(comp.maxStock || comp.estoque_maximo || '') + '" placeholder="Ex: 8"></div></div>' +
+        '<div><label style="' + _fichaLbl() + '">Unidade</label><div class="supplier-field-control"><select data-comp-stock-unit="' + compIdx + '" onchange="Modules.Catalogo._updateFichaCost()" ' + (lockedUsageUnit ? 'disabled aria-readonly="true"' : '') + '>' + _recipeUnitOptionsHtml(usageUnit) + '</select></div><div class="recipe-component-hint">' + (lockedUsageUnit ? 'Herdada da etapa de produção.' : 'Defina uma unidade na etapa para travar este campo.') + '</div></div>' +
         '<div class="recipe-base-copy"><strong style="color:#1F1F1F;">Marque apenas se essa etapa vira estoque próprio.</strong> Exemplo: cadastre a etapa Recheio de frango com rendimento próprio e, nesta ficha, informe 80 g no pastel ou 50 g na coxinha. A venda baixa essa quantidade da base pronta.</div>' +
       '</div>' +
       '<div id="fc-comp-ings-' + compIdx + '" style="display:flex;flex-direction:column;gap:8px;">' + rows + '</div>' +
@@ -9962,7 +9978,6 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var packagingItems = [];
     var components = [];
     var missingComponentName = false;
-    var invalidStockRange = false;
     var invalidIngredientRow = false;
     var invalidPackagingRow = false;
     if (container) {
@@ -9974,13 +9989,10 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
         var compNote = ((container.querySelector('[data-comp-note="' + compIdx + '"]') || {}).value || '').trim();
         var compStockControl = !!((container.querySelector('[data-comp-stock="' + compIdx + '"]') || {}).checked);
         var compUsageQuantity = _parseFichaNum((container.querySelector('[data-comp-stock-qty="' + compIdx + '"]') || {}).value);
-        var compUsageUnit = ((container.querySelector('[data-comp-stock-unit="' + compIdx + '"]') || {}).value || '').trim();
         var stageDefaults = _recipeComponentStageDefaults(compName);
+        var compUsageUnit = (stageDefaults.stageYieldUnit || ((container.querySelector('[data-comp-stock-unit="' + compIdx + '"]') || {}).value || '')).trim();
         var compBaseYieldQuantity = _parseFichaNum(stageDefaults.stageYieldQuantity || compUsageQuantity);
         var compBaseYieldUnit = stageDefaults.stageYieldUnit || compUsageUnit;
-        var compMinStock = _parseFichaNum((container.querySelector('[data-comp-stock-min="' + compIdx + '"]') || {}).value);
-        var compMaxStock = _parseFichaNum((container.querySelector('[data-comp-stock-max="' + compIdx + '"]') || {}).value);
-        if (compMinStock > 0 && compMaxStock > 0 && compMaxStock < compMinStock) invalidStockRange = true;
         var compIngredients = [];
         compEl.querySelectorAll('[data-ing-idx]').forEach(function (sel) {
           var idx = sel.dataset.ingIdx;
@@ -10061,10 +10073,10 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
             stockYieldQuantity: compStockControl ? compBaseYieldQuantity : null,
             baseYieldUnit: compStockControl ? compBaseYieldUnit : '',
             stockYieldUnit: compStockControl ? compBaseYieldUnit : '',
-            minStock: compStockControl ? compMinStock : 0,
-            maxStock: compStockControl ? compMaxStock : 0,
-            estoque_minimo: compStockControl ? compMinStock : 0,
-            estoque_maximo: compStockControl ? compMaxStock : 0
+            minStock: 0,
+            maxStock: 0,
+            estoque_minimo: 0,
+            estoque_maximo: 0
           });
         }
       });
@@ -10103,7 +10115,6 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     if (missingComponentName) { UI.toast('Selecione o componente da receita', 'error'); return; }
     if (invalidIngredientRow) { UI.toast('Complete o ingrediente e a quantidade, ou remova a linha vazia.', 'error'); return; }
     if (invalidPackagingRow) { UI.toast('Complete a embalagem e a quantidade, ou remova a linha vazia.', 'error'); return; }
-    if (invalidStockRange) { UI.toast('O estoque máximo da base não pode ser menor que o mínimo.', 'error'); return; }
     components.forEach(function (comp) {
       var ratio = _parseFichaNum(comp.stageUsageRatio || 1) || 1;
       (comp.ingredients || []).forEach(function (ing) {
@@ -10201,9 +10212,8 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   function _syncRecipeStockSettings(fichaId, ficha) {
     if (!fichaId) return Promise.resolve();
     var now = new Date().toISOString();
-    var ops = [];
     var recipeKey = 'produto_produzido:' + fichaId;
-    ops.push(DB.col('stock_settings').doc(_stockSettingId(recipeKey)).set({
+    var productOp = DB.col('stock_settings').doc(_stockSettingId(recipeKey)).set({
       id: _stockSettingId(recipeKey),
       stockKey: recipeKey,
       itemId: fichaId,
@@ -10215,31 +10225,181 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       maxStock: _parseFichaNum(ficha.maxStock),
       updatedAt: now,
       createdAt: now
-    }, { merge: true }));
-    (ficha.components || []).forEach(function (comp, idx) {
-      if (!(comp.stockControl || comp.controlsStock)) return;
-      var sharedBaseId = _recipeComponentSharedBaseId(comp.name || ('etapa_' + idx), comp.componentId || comp.recipeComponentId || comp.sharedBaseId || '');
-      var baseKey = 'base_producao:' + sharedBaseId;
-      ops.push(DB.col('stock_settings').doc(_stockSettingId(baseKey)).set({
-        id: _stockSettingId(baseKey),
-        stockKey: baseKey,
-        itemId: sharedBaseId,
-        itemName: comp.name || 'Base de produção',
-        itemType: 'base_producao',
-        stockItemType: 'base_producao',
-        sourceRecipeId: fichaId,
-        sourceRecipeName: ficha.name || '',
-        componentId: comp.componentId || comp.recipeComponentId || '',
-        sharedBaseId: sharedBaseId,
-        unit: comp.baseYieldUnit || comp.stockYieldUnit || ficha.yieldUnit || '',
-        minStock: _parseFichaNum(comp.minStock),
-        maxStock: _parseFichaNum(comp.maxStock),
-        updatedAt: now,
-        createdAt: now
-      }, { merge: true }));
+    }, { merge: true });
+    return DB.getAll('fichasTecnicas').catch(function () { return []; }).then(function (recipes) {
+      var byId = {};
+      (recipes || []).forEach(function (item) { if (item && item.id) byId[String(item.id)] = item; });
+      byId[String(fichaId)] = ficha;
+      var aggregate = _aggregateRecipeBaseStockSettings(Object.keys(byId).map(function (id) { return byId[id]; }));
+      var ingredientAggregate = _aggregateRecipeIngredientStockSettings(aggregate);
+      var ops = [productOp];
+      Object.keys(aggregate).forEach(function (baseKey) {
+        var item = aggregate[baseKey];
+        ops.push(DB.col('stock_settings').doc(_stockSettingId(baseKey)).set({
+          id: _stockSettingId(baseKey),
+          stockKey: baseKey,
+          itemId: item.itemId,
+          itemName: item.itemName,
+          itemType: 'base_producao',
+          stockItemType: 'base_producao',
+          sourceRecipeId: '',
+          sourceRecipeName: '',
+          componentId: item.componentId || '',
+          sharedBaseId: item.itemId,
+          unit: item.unit || '',
+          minStock: _roundFichaCost(item.minStock, 4),
+          maxStock: _roundFichaCost(item.maxStock, 4),
+          autoCalculated: true,
+          recipeBreakdown: item.recipes,
+          updatedAt: now,
+          createdAt: now
+        }, { merge: true }));
+      });
+      Object.keys(ingredientAggregate).forEach(function (stockKey) {
+        var item = ingredientAggregate[stockKey];
+        ops.push(DB.col('stock_settings').doc(_stockSettingId(stockKey)).set({
+          id: _stockSettingId(stockKey),
+          stockKey: stockKey,
+          itemId: item.itemId,
+          itemName: item.itemName,
+          itemType: item.itemType,
+          stockItemType: item.stockItemType,
+          unit: item.unit || '',
+          suggestedMinStock: _roundFichaCost(item.minStock, 4),
+          suggestedMaxStock: _roundFichaCost(item.maxStock, 4),
+          autoSuggested: true,
+          autoSuggestionSource: 'receitas_etapas',
+          recipeBreakdown: item.recipes,
+          updatedAt: now,
+          createdAt: now
+        }, { merge: true }));
+      });
+      return _removeRecipeBaseStockSettings(fichaId).then(function () {
+        return _clearStaleRecipeIngredientStockSuggestions(ingredientAggregate, now);
+      }).then(function () {
+        return Promise.all(ops);
+      });
     });
-    return _removeRecipeBaseStockSettings(fichaId).then(function () {
-      return Promise.all(ops);
+  }
+
+  function _aggregateRecipeBaseStockSettings(recipes) {
+    var map = {};
+    (recipes || []).forEach(function (recipe) {
+      var recipeMin = _parseFichaNum(recipe && (recipe.minStock || recipe.estoque_minimo || 0));
+      var recipeMax = _parseFichaNum(recipe && (recipe.maxStock || recipe.estoque_maximo || 0));
+      if (!(recipeMin > 0) && !(recipeMax > 0)) return;
+      (recipe.components || []).forEach(function (comp, idx) {
+        if (!comp || !(comp.stockControl || comp.controlsStock)) return;
+        var usageQty = _parseFichaNum(comp.stageUsageQuantity || comp.usageQuantity || comp.quantityPerUnit || comp.baseUsageQuantity || 0);
+        if (!(usageQty > 0)) return;
+        var sharedBaseId = _recipeComponentSharedBaseId(comp.name || ('etapa_' + idx), comp.componentId || comp.recipeComponentId || comp.sharedBaseId || '');
+        var baseKey = 'base_producao:' + sharedBaseId;
+        if (!map[baseKey]) {
+          map[baseKey] = {
+            itemId: sharedBaseId,
+            itemName: comp.name || 'Base de produção',
+            componentId: comp.componentId || comp.recipeComponentId || '',
+            unit: comp.stageUsageUnit || comp.usageUnit || comp.unitPerUnit || comp.baseUsageUnit || comp.stageYieldUnit || comp.baseYieldUnit || comp.stockYieldUnit || '',
+            minStock: 0,
+            maxStock: 0,
+            recipes: []
+          };
+        }
+        var minQty = recipeMin > 0 ? recipeMin * usageQty : 0;
+        var maxQty = recipeMax > 0 ? recipeMax * usageQty : 0;
+        map[baseKey].minStock += minQty;
+        map[baseKey].maxStock += maxQty;
+        map[baseKey].recipes.push({
+          recipeId: recipe.id || '',
+          recipeName: recipe.name || 'Receita sem nome',
+          recipeMinStock: recipeMin,
+          recipeMaxStock: recipeMax,
+          usageQuantity: usageQty,
+          usageUnit: map[baseKey].unit,
+          minStock: _roundFichaCost(minQty, 4),
+          maxStock: _roundFichaCost(maxQty, 4)
+        });
+      });
+    });
+    return map;
+  }
+
+  function _aggregateRecipeIngredientStockSettings(baseAggregate) {
+    var map = {};
+    var componentsByKey = {};
+    (_recipeComponents || []).forEach(function (comp) {
+      var key = 'base_producao:' + _recipeComponentSharedBaseId(comp.name || '', comp.id || comp.componentId || comp.recipeComponentId || comp.sharedBaseId || '');
+      componentsByKey[key] = comp;
+    });
+    Object.keys(baseAggregate || {}).forEach(function (baseKey) {
+      var base = baseAggregate[baseKey] || {};
+      var component = componentsByKey[baseKey] || _recipeComponentByName(base.itemName || '') || {};
+      var stageYield = _parseFichaNum(component.stageYieldQuantity || component.yieldQuantity || component.baseYieldQuantity || component.stockYieldQuantity || 0);
+      if (!(stageYield > 0)) return;
+      (component.ingredients || []).forEach(function (ing) {
+        var itemId = ing.insumoId || ing.itemId || ing.supplyId || '';
+        if (!itemId) return;
+        var ingQty = _parseFichaNum(ing.qty != null ? ing.qty : ing.quantity);
+        if (!(ingQty > 0)) return;
+        var cls = ing.itemClass || ing.classe || ing.stockItemType || 'insumo';
+        var stockType = cls === 'embalagem' ? 'embalagem' : 'insumo';
+        var stockKey = stockType + ':' + itemId;
+        if (!map[stockKey]) {
+          map[stockKey] = {
+            itemId: itemId,
+            itemName: ing.supplyName || ing.name || 'Ingrediente',
+            itemType: stockType,
+            stockItemType: stockType,
+            unit: ing.unit || '',
+            minStock: 0,
+            maxStock: 0,
+            recipes: []
+          };
+        }
+        (base.recipes || []).forEach(function (line) {
+          var minQty = _parseFichaNum(line.minStock) * ingQty / stageYield;
+          var maxQty = _parseFichaNum(line.maxStock) * ingQty / stageYield;
+          map[stockKey].minStock += minQty;
+          map[stockKey].maxStock += maxQty;
+          map[stockKey].recipes.push({
+            recipeId: line.recipeId || '',
+            recipeName: line.recipeName || 'Receita sem nome',
+            baseName: base.itemName || '',
+            baseMinStock: _parseFichaNum(line.minStock),
+            baseMaxStock: _parseFichaNum(line.maxStock),
+            ingredientQuantityInStage: ingQty,
+            stageYieldQuantity: stageYield,
+            minStock: _roundFichaCost(minQty, 4),
+            maxStock: _roundFichaCost(maxQty, 4),
+            unit: ing.unit || ''
+          });
+        });
+      });
+    });
+    return map;
+  }
+
+  function _clearStaleRecipeIngredientStockSuggestions(validAggregate, now) {
+    var validKeys = {};
+    Object.keys(validAggregate || {}).forEach(function (key) { validKeys[key] = true; });
+    return DB.getAll('stock_settings').catch(function () { return []; }).then(function (settings) {
+      var clears = (settings || []).filter(function (setting) {
+        var key = String(setting.stockKey || '');
+        return setting && setting.autoSuggestionSource === 'receitas_etapas' && !validKeys[key];
+      }).map(function (setting) {
+        var key = String(setting.stockKey || '');
+        return DB.col('stock_settings').doc(_stockSettingId(key)).set({
+          id: _stockSettingId(key),
+          stockKey: key,
+          suggestedMinStock: 0,
+          suggestedMaxStock: 0,
+          autoSuggested: false,
+          autoSuggestionSource: '',
+          recipeBreakdown: [],
+          updatedAt: now
+        }, { merge: true }).catch(function () { return null; });
+      });
+      return Promise.all(clears);
     });
   }
 
