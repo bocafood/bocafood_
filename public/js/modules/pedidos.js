@@ -577,11 +577,12 @@ Modules.Pedidos = (function () {
     var pageItems = list.slice(start, start + _clientPageSize);
     var paginationHtml = _paginationHtml(list.length, _clientPage, _clientPageSize, '_setClientPage', '_setClientPageSize');
     var table = pageItems.length ? pageItems.map(function (c) {
+      var cid = _customerRecordId(c);
       var s = _customerStats(c);
       var reviews = _customerReviewStats(c);
       var avatar = '<div style="width:48px;height:48px;border-radius:12px;background:' + _avatarColor(c.name) + ';color:#fff;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:0 0 auto;border:1px solid #EAE4DA;box-shadow:0 1px 2px rgba(31,31,31,.03);">' + _esc(_initials(c.name)) + '</div>';
       var segmentTone = s.segment === 'vip' ? '#B45309' : s.segment === 'recorrente' ? '#1A9E5A' : s.segment === 'inativo' ? '#6F6860' : '#2563EB';
-      return '<tr onclick="event.stopPropagation();Modules.Pedidos._openClientProfile(\'' + _esc(c.id) + '\')" onmouseenter="this.style.background=\'#FBF8F2\'" onmouseleave="this.style.background=\'#fff\'" style="cursor:pointer;background:#fff;border-bottom:1px solid #EAE4DA;transition:background .15s ease;">' +
+      return '<tr onclick="event.stopPropagation();Modules.Pedidos._openClientProfile(\'' + _esc(cid) + '\')" onmouseenter="this.style.background=\'#FBF8F2\'" onmouseleave="this.style.background=\'#fff\'" style="cursor:pointer;background:#fff;border-bottom:1px solid #EAE4DA;transition:background .15s ease;">' +
         '<td style="padding:14px 16px;vertical-align:middle;"><input type="checkbox" onclick="event.stopPropagation()" style="width:16px;height:16px;accent-color:#B42318;"></td>' +
         '<td style="padding:12px 16px;vertical-align:middle;min-width:280px;">' +
           '<div style="display:flex;align-items:center;gap:12px;min-width:0;">' + avatar +
@@ -602,9 +603,9 @@ Modules.Pedidos = (function () {
         '</td>' +
         '<td style="padding:13px 16px;vertical-align:middle;text-align:right;white-space:nowrap;">' +
           '<div style="display:inline-flex;align-items:center;gap:6px;" onclick="event.stopPropagation();">' +
-            '<button type="button" title="Ver" onclick="event.stopPropagation();Modules.Pedidos._openClientProfile(\'' + _esc(c.id) + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">visibility</span></button>' +
-            '<button type="button" title="Histórico" onclick="event.stopPropagation();Modules.Pedidos._openClientHistory(\'' + _esc(c.id) + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">history</span></button>' +
-            '<button type="button" title="Editar" onclick="event.stopPropagation();Modules.Pedidos._openClientEdit(\'' + _esc(c.id) + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#B42318;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">edit</span></button>' +
+            '<button type="button" title="Ver" onclick="event.stopPropagation();Modules.Pedidos._openClientProfile(\'' + _esc(cid) + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">visibility</span></button>' +
+            '<button type="button" title="Histórico" onclick="event.stopPropagation();Modules.Pedidos._openClientHistory(\'' + _esc(cid) + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">history</span></button>' +
+            '<button type="button" title="Editar" onclick="event.stopPropagation();Modules.Pedidos._openClientEdit(\'' + _esc(cid) + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#B42318;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">edit</span></button>' +
           '</div>' +
         '</td>' +
       '</tr>';
@@ -754,12 +755,30 @@ Modules.Pedidos = (function () {
     return { total: list.length, approved: approved, pending: pending, avg: avg };
   }
 
+  function _customerRecordId(customer) {
+    return String(customer && (customer.id || customer._id || customer.customerId || customer.clientId || customer.uid || customer.customerUid || customer.docId || '') || '').trim();
+  }
+
+  function _withCustomerRecordId(customer) {
+    if (!customer || typeof customer !== 'object') return customer;
+    var id = _customerRecordId(customer);
+    return id && !customer.id ? Object.assign({}, customer, { id: id }) : customer;
+  }
+
+  function _findCustomerByRecordId(id) {
+    var wanted = String(id || '').trim();
+    if (!wanted) return null;
+    return (_customers || []).map(_withCustomerRecordId).find(function (x) {
+      return _customerRecordId(x) === wanted;
+    }) || null;
+  }
+
   function _openClientProfile(id) {
-    var c = _customers.find(function (x) { return String(x.id || '') === String(id || ''); });
+    var c = _findCustomerByRecordId(id);
     if (!c && window.DB && DB.getAll) {
       DB.getAll('store_customers').then(function (rows) {
-        _customers = rows || [];
-        var found = _customers.find(function (x) { return String(x.id || '') === String(id || ''); });
+        _customers = (rows || []).map(_withCustomerRecordId);
+        var found = _findCustomerByRecordId(id);
         if (found) _openClientProfile(id);
         else UI.toast('Cliente não encontrado no cadastro.', 'error');
       }).catch(function () {
@@ -771,6 +790,8 @@ Modules.Pedidos = (function () {
       UI.toast('Cliente não encontrado no cadastro.', 'error');
       return;
     }
+    c = _withCustomerRecordId(c);
+    var cid = _customerRecordId(c);
     var s = _customerStats(c);
     var reviews = _customerReviewStats(c);
     var orders = _ordersForClient(c);
@@ -794,8 +815,8 @@ Modules.Pedidos = (function () {
           '</div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:flex-end;">' +
             (contact ? '<a href="' + _whatsUrl(contact, 'Hola ' + (c.name || '') + ', temos uma novidade para você.') + '" target="_blank" rel="noopener" style="height:36px;display:inline-flex;align-items:center;padding:0 12px;border:none;background:#E8FFF1;color:#1A9E5A;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;text-decoration:none;">WhatsApp</a>' : '<span style="height:36px;display:inline-flex;align-items:center;padding:0 12px;border:none;background:#F2EDED;color:#8A7E7C;border-radius:10px;font-size:12px;font-weight:700;">Sem telefone</span>') +
-            '<button onclick="event.stopPropagation();Modules.Pedidos._openClientHistory(\'' + _esc(c.id) + '\')" style="height:36px;border:1px solid #EAE4DA;background:#fff;color:#1F1F1F;border-radius:10px;padding:0 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Histórico</button>' +
-            '<button onclick="event.stopPropagation();Modules.Pedidos._openClientEdit(\'' + _esc(c.id) + '\')" style="height:36px;border:none;background:#B42318;color:#fff;border-radius:10px;padding:0 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(180,35,24,.16);">Editar</button>' +
+            '<button onclick="event.stopPropagation();Modules.Pedidos._openClientHistory(\'' + _esc(cid) + '\')" style="height:36px;border:1px solid #EAE4DA;background:#fff;color:#1F1F1F;border-radius:10px;padding:0 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Histórico</button>' +
+            '<button onclick="event.stopPropagation();Modules.Pedidos._openClientEdit(\'' + _esc(cid) + '\')" style="height:36px;border:none;background:#B42318;color:#fff;border-radius:10px;padding:0 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(180,35,24,.16);">Editar</button>' +
           '</div>' +
         '</div>' +
       '</section>' +
@@ -832,8 +853,9 @@ Modules.Pedidos = (function () {
   }
 
   function _openClientHistory(id) {
-    var c = _customers.find(function (x) { return String(x.id || '') === String(id || ''); });
+    var c = _findCustomerByRecordId(id);
     if (!c) return;
+    c = _withCustomerRecordId(c);
     var orders = _ordersForClient(c);
     var s = _customerStats(c);
     var body = '<div style="display:flex;flex-direction:column;gap:14px;">' +
@@ -1324,13 +1346,13 @@ Modules.Pedidos = (function () {
 
   function _matchedCustomer(order) {
     if (!order) return null;
-    var id = String(order.customerId || order.clientId || '').trim();
+    var id = String(order.customerId || order.clientId || order.customerUid || order.uid || '').trim();
     var phone = _phoneMatchKey(order.phone || order.customerPhone || order.whatsapp);
     var email = _clean(order.email || order.customerEmail);
     var name = _clean(order.customerName || order.clientName || order.name);
-    if (id) return (_customers || []).find(function (c) { return String(c.id || '') === id; }) || null;
+    if (id) return _findCustomerByRecordId(id);
     return (_customers || []).find(function (c) {
-      if (phone && _customerPhoneMatchIsUnique(phone, c.id) && _phoneMatchKey(c.phone || c.whatsapp) === phone) return true;
+      if (phone && _customerPhoneMatchIsUnique(phone, _customerRecordId(c)) && _phoneMatchKey(c.phone || c.whatsapp) === phone) return true;
       if (email && _clean(c.email || '') === email) return true;
       if (name && _clean(c.name || '') === name) return true;
       return false;
@@ -1352,12 +1374,13 @@ Modules.Pedidos = (function () {
     if (!_customers || !_customers.length || !rows.length) return;
     rows.forEach(function (order) {
       if (!order) return;
-      if (String(order.customerId || order.clientId || '').trim()) return;
+      if (String(order.customerId || order.clientId || order.customerUid || '').trim()) return;
       var customer = _matchedCustomerByPhone(order);
-      if (!customer || !customer.id) return;
+      var cid = _customerRecordId(customer);
+      if (!customer || !cid) return;
       var update = {
-        customerId: customer.id,
-        clientId: customer.id,
+        customerId: cid,
+        clientId: cid,
         customerName: customer.name || order.customerName || order.clientName || order.name || '',
         clientName: customer.name || order.customerName || order.clientName || order.name || '',
         name: customer.name || order.customerName || order.clientName || order.name || '',
@@ -1383,7 +1406,7 @@ Modules.Pedidos = (function () {
   }
 
   function _reviewsForCustomer(customer, order) {
-    var cid = customer ? String(customer.id || '') : '';
+    var cid = customer ? _customerRecordId(customer) : '';
     var name = customer ? _clean(customer.name || '') : _clean((order || {}).customerName || (order || {}).clientName || (order || {}).name || '');
     return (_reviews || []).filter(function (r) {
       if (cid && String(r.customerId || '') === cid) return true;
@@ -1692,8 +1715,9 @@ Modules.Pedidos = (function () {
   }
 
   function _customerReviewStats(c) {
+    var cid = _customerRecordId(c);
     var rows = (_reviews || []).filter(function (r) {
-      return String(r.customerId || '') === String(c.id || '') || _clean(r.customerName || r.name || '') === _clean(c.name || '');
+      return (cid && String(r.customerId || r.clientId || r.customerUid || '') === cid) || _clean(r.customerName || r.name || '') === _clean(c.name || '');
     });
     var avg = rows.length ? rows.reduce(function (sum, r) { return sum + (Number(r.stars || r.rating || 0) || 0); }, 0) / rows.length : 0;
     return { count: rows.length, avg: avg };
@@ -2510,9 +2534,10 @@ Modules.Pedidos = (function () {
 
   function _orderClientActions(order, customer) {
     var phone = _orderPhoneDigits(order);
-    if (customer && customer.id) {
+    var cid = _customerRecordId(customer);
+    if (customer && cid) {
       return '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">' +
-        '<button type="button" onclick="Modules.Pedidos._openClientProfile(\'' + _esc(customer.id) + '\');return false;" style="height:34px;border:1px solid #EAE4DA;background:#fff;color:#1F1F1F;border-radius:10px;padding:0 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 8px 18px rgba(31,31,31,.05);">Ver cliente</button>' +
+        '<button type="button" onclick="event.stopPropagation();Modules.Pedidos._openClientProfile(\'' + _esc(cid) + '\');return false;" style="height:34px;border:1px solid #EAE4DA;background:#fff;color:#1F1F1F;border-radius:10px;padding:0 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 8px 18px rgba(31,31,31,.05);">Ver cliente</button>' +
         (phone ? '<button onclick="Modules.Pedidos._waFromDetail(\'' + _esc(order.id) + '\');event.stopPropagation();" style="height:34px;border:1px solid rgba(26,158,90,.18);background:#E8FFF1;color:#1A9E5A;border-radius:10px;padding:0 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">WhatsApp</button>' : '<span style="font-size:12px;color:#8A7E7C;">Sem telefone registrado</span>') +
       '</div>';
     }
@@ -2539,7 +2564,15 @@ Modules.Pedidos = (function () {
   }
 
   function _openOrderCustomerModal(order) {
+    if (order && typeof order !== 'object') {
+      var wantedOrderId = String(order || '');
+      order = (_orders || []).find(function (x) { return String(x.id || '') === wantedOrderId; }) || {};
+    }
     order = order || {};
+    if (!order.id) {
+      UI.toast('Pedido não encontrado para vincular cliente.', 'error');
+      return;
+    }
     var matched = _matchedCustomer(order);
     var name = matched ? matched.name : (order.customerName || order.clientName || order.name || '');
     var phone = matched ? (matched.phone || matched.whatsapp || '') : _firstText(order.phone, order.customerPhone, order.whatsapp, '');
@@ -2600,7 +2633,7 @@ Modules.Pedidos = (function () {
     var notes = String((document.getElementById('oc-notes') || {}).value || '').trim();
     if (!name) { UI.toast('Informe o nome do cliente.', 'error'); return; }
     var match = _customers.find(function (c) {
-      if (order.customerId && String(c.id || '') === String(order.customerId)) return true;
+      if (order.customerId && _customerRecordId(c) === String(order.customerId)) return true;
       var opPhone = _phone(phone);
       if (opPhone && _phone(c.phone || c.whatsapp || '') === opPhone) return true;
       return _clean(c.name || '') === _clean(name);
@@ -2621,9 +2654,10 @@ Modules.Pedidos = (function () {
       totalOrders: match && match.totalOrders ? match.totalOrders : 0,
       totalSpent: match && match.totalSpent ? match.totalSpent : 0
     };
-    var op = match && match.id ? DB.update('store_customers', match.id, data) : DB.add('store_customers', data);
+    var matchId = _customerRecordId(match);
+    var op = matchId ? DB.update('store_customers', matchId, data) : DB.add('store_customers', data);
     op.then(function (ref) {
-      var customerId = match && match.id ? match.id : (ref && ref.id ? ref.id : ref);
+      var customerId = matchId || (ref && ref.id ? ref.id : ref);
       return DB.update('orders', orderId, {
         customerId: customerId,
         clientId: customerId,
@@ -4859,7 +4893,7 @@ Modules.Pedidos = (function () {
   function _manualOrderSelectedCustomer() {
     var id = String(_manualOrderState.selectedCustomerId || _manualOrderState.customerId || '').trim();
     if (id) {
-      var byId = (_customers || []).find(function (c) { return String(c.id || '') === id; });
+      var byId = _findCustomerByRecordId(id);
       if (byId) return byId;
     }
     var phone = _phone(_manualOrderState.customerPhone || '');
@@ -5206,10 +5240,11 @@ Modules.Pedidos = (function () {
   }
 
   function _manualOrderSelectCustomer(id) {
-    var customer = (_customers || []).find(function (c) { return String(c.id || '') === String(id || ''); });
+    var customer = _findCustomerByRecordId(id);
     if (!customer) return;
-    _manualOrderState.selectedCustomerId = String(customer.id || '');
-    _manualOrderState.customerId = String(customer.id || '');
+    var cid = _customerRecordId(customer);
+    _manualOrderState.selectedCustomerId = cid;
+    _manualOrderState.customerId = cid;
     _manualOrderState.customerName = _firstText(customer.name, customer.customerName, customer.fullName, customer.nome) || '';
     _manualOrderState.customerPhone = _firstText(customer.phone, customer.whatsapp, customer.mobile) || '';
     _manualOrderState.customerEmail = _firstText(customer.email, customer.mail) || '';
@@ -5637,7 +5672,7 @@ Modules.Pedidos = (function () {
       var phone = _firstText(c.phone, c.whatsapp, c.mobile, '');
       var email = _firstText(c.email, c.mail, '');
       var address = _firstText(c.address, c.neighborhood, c.zone, '');
-      return '<button type="button" onclick="Modules.Pedidos._manualOrderChooseCustomer(\'' + _esc(String(c.id || '')) + '\')" style="width:100%;border:0;border-bottom:' + (index === list.length - 1 ? '0' : '1px solid #F0E8E3') + ';background:#fff;padding:10px 11px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;text-align:left;cursor:pointer;font-family:inherit;">' +
+      return '<button type="button" onclick="Modules.Pedidos._manualOrderChooseCustomer(\'' + _esc(_customerRecordId(c)) + '\')" style="width:100%;border:0;border-bottom:' + (index === list.length - 1 ? '0' : '1px solid #F0E8E3') + ';background:#fff;padding:10px 11px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;text-align:left;cursor:pointer;font-family:inherit;">' +
         '<span style="min-width:0;display:grid;gap:3px;">' +
           '<span style="font-size:13px;font-weight:650;color:#1A1A1A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(name) + '</span>' +
           '<span style="font-size:11px;color:#8A7E7C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc([phone, email, address].filter(Boolean).join(' · ')) + '</span>' +
@@ -5901,9 +5936,9 @@ Modules.Pedidos = (function () {
 
   function _findCustomerForOrder(order) {
     order = order || {};
-    var wantedId = String(order.customerId || order.clientId || '').trim();
+    var wantedId = String(order.customerId || order.clientId || order.customerUid || '').trim();
     if (wantedId) {
-      var byId = (_customers || []).find(function (c) { return String(c.id || '') === wantedId; });
+      var byId = _findCustomerByRecordId(wantedId);
       if (byId) return byId;
     }
     var phone = _phone(order.customerPhone || order.phone || order.whatsapp || '');
@@ -6395,14 +6430,15 @@ Modules.Pedidos = (function () {
         totalSpent: match && match.totalSpent ? match.totalSpent : 0,
         totalOrders: match && match.totalOrders ? match.totalOrders : 0
       };
-      var op = match && match.id ? DB.update('store_customers', match.id, payload).then(function () { return match.id; }) : DB.add('store_customers', payload).then(function (ref) {
+      var matchId = _customerRecordId(match);
+      var op = matchId ? DB.update('store_customers', matchId, payload).then(function () { return matchId; }) : DB.add('store_customers', payload).then(function (ref) {
         return ref && ref.id ? ref.id : ref;
       });
       return op.then(function (customerId) {
         customerId = String(customerId || '');
         if (customerId) {
           var next = Object.assign({}, payload, { id: customerId });
-          var idx = (_customers || []).findIndex(function (c) { return String(c.id || '') === customerId; });
+          var idx = (_customers || []).findIndex(function (c) { return _customerRecordId(c) === customerId; });
           if (idx >= 0) _customers[idx] = Object.assign({}, _customers[idx], next);
           else _customers.push(next);
         }
@@ -6720,7 +6756,7 @@ Modules.Pedidos = (function () {
     });
     if (matches.length !== 1) return false;
     if (!customerId) return true;
-    return String(matches[0].id || '') === String(customerId || '');
+    return _customerRecordId(matches[0]) === String(customerId || '');
   }
 
   function _dateTs(o) {
@@ -6737,13 +6773,13 @@ Modules.Pedidos = (function () {
   }
 
   function _ordersForClient(c) {
-    var id = String(c && c.id || '').trim();
+    var id = _customerRecordId(c);
     var name = _clean(c && c.name || '');
     var phone = _phoneMatchKey(c && (c.phone || c.whatsapp) || '');
     var email = _clean(c && c.email || '');
     var uniquePhone = phone && _customerPhoneMatchIsUnique(phone, id);
     return (_orders || []).filter(function (o) {
-      var orderCustomerId = String(o.customerId || o.clientId || '').trim();
+      var orderCustomerId = String(o.customerId || o.clientId || o.customerUid || '').trim();
       if (orderCustomerId) return !!id && orderCustomerId === id;
       if (uniquePhone && _phoneMatchKey(o.phone || o.customerPhone || o.whatsapp) === phone) return true;
       if (email && _clean(o.email || o.customerEmail) === email) return true;

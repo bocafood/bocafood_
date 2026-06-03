@@ -34,7 +34,7 @@ Modules.Clientes = (function () {
       DB.getDocRoot ? DB.getDocRoot('config', 'pontos_program').catch(function () { return null; }) : Promise.resolve(null),
       DB.getAll('points_movements').catch(function () { return []; })
     ]).then(function (r) {
-      _clientes = (r[0] || []).sort(function (a, b) { return (a.name || '').localeCompare(b.name || ''); });
+      _clientes = (r[0] || []).map(_withClienteRecordId).sort(function (a, b) { return (a.name || '').localeCompare(b.name || ''); });
       _orders = r[1] || [];
       _reviews = r[2] || [];
       _canais = _normalizeCanais(r[3]);
@@ -190,7 +190,7 @@ Modules.Clientes = (function () {
     var wa = _whatsUrl(c.phone, 'Hola ' + (c.name || '') + ', ¿todo bien?');
     var contact = _contactHTML(c, 'Hola ' + (c.name || '') + ', ¿todo bien?');
     var address = _clientAddress(c);
-    return '<tr onclick="Modules.Clientes._openProfile(\'' + c.id + '\')">' +
+    return '<tr onclick="Modules.Clientes._openProfile(\'' + _clienteRecordId(c) + '\')">' +
       '<td style="min-width:280px;">' +
         '<div style="display:flex;align-items:center;gap:12px;min-width:0;">' +
           _avatarHTML(c, 48, 12, 16) +
@@ -210,8 +210,8 @@ Modules.Clientes = (function () {
       '<td style="text-align:right;white-space:nowrap;" onclick="event.stopPropagation();">' +
         '<div style="display:inline-flex;align-items:center;gap:6px;">' +
           (c.phone ? '<a href="' + wa + '" target="_blank" style="' + _iconBtn('#fff', '#6F6860') + '" title="WhatsApp"><span class="mi" style="font-size:14px;">chat</span></a>' : '') +
-          '<button type="button" onclick="Modules.Clientes._openHistory(\'' + c.id + '\')" style="' + _iconBtn('#fff', '#6F6860') + '" title="Histórico"><span class="mi" style="font-size:14px;">history</span></button>' +
-          '<button type="button" onclick="Modules.Clientes._openModal(\'' + c.id + '\')" style="' + _iconBtn('#fff', '#6F6860') + '" title="Editar"><span class="mi" style="font-size:14px;">edit</span></button>' +
+          '<button type="button" onclick="Modules.Clientes._openHistory(\'' + _clienteRecordId(c) + '\')" style="' + _iconBtn('#fff', '#6F6860') + '" title="Histórico"><span class="mi" style="font-size:14px;">history</span></button>' +
+          '<button type="button" onclick="Modules.Clientes._openModal(\'' + _clienteRecordId(c) + '\')" style="' + _iconBtn('#fff', '#6F6860') + '" title="Editar"><span class="mi" style="font-size:14px;">edit</span></button>' +
         '</div>' +
       '</td>' +
     '</tr>';
@@ -221,7 +221,8 @@ Modules.Clientes = (function () {
     _editingId = id;
     var _tenantFc = window.Auth && Auth.getFiscalCountry ? Auth.getFiscalCountry() : 'ES';
     var _defaultCountry = _tenantFc === 'PT' ? 'Portugal' : 'España';
-    var c = id ? (_clientes.find(function (x) { return x.id === id; }) || {}) : { status: 'ativo', origin: _defaultChannel(), acceptsMarketing: false, country: _defaultCountry };
+    var c = id ? (_findClienteByRecordId(id) || {}) : { status: 'ativo', origin: _defaultChannel(), acceptsMarketing: false, country: _defaultCountry };
+    _editingId = id ? _clienteRecordId(c) || String(id || '') : null;
     _clienteDeliveryAddresses = _normalizeClienteAddresses(c);
     _clienteAddressFormOpen = false;
     _clienteAddressEditIndex = -1;
@@ -338,7 +339,7 @@ Modules.Clientes = (function () {
     var footer = '<div style="display:flex;align-items:center;gap:10px;justify-content:space-between;width:100%;font-family:Manrope,Inter,sans-serif;flex-wrap:wrap;">' +
       '<div style="font-size:12px;color:#7A746B;line-height:1.4;">Revise os dados antes de salvar.</div>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">' +
-      (id ? '<button class="bf-btn bf-btn-secondary" onclick="Modules.Clientes._deleteCliente(\'' + id + '\')" style="height:40px;padding:0 13px;color:#B42318;font-size:13px;font-weight:600;"><span class="mi" style="font-size:16px;">delete</span>Excluir</button>' : '') +
+      (_editingId ? '<button class="bf-btn bf-btn-secondary" onclick="Modules.Clientes._deleteCliente(\'' + _editingId + '\')" style="height:40px;padding:0 13px;color:#B42318;font-size:13px;font-weight:600;"><span class="mi" style="font-size:16px;">delete</span>Excluir</button>' : '') +
       '<button class="bf-btn bf-btn-secondary" onclick="if(window._clienteModal)window._clienteModal.close()" style="height:40px;padding:0 14px;font-size:13px;font-weight:600;">Cancelar</button>' +
       '<button class="bf-btn bf-btn-primary" onclick="Modules.Clientes._saveCliente()" style="height:40px;padding:0 16px;font-size:13px;font-weight:600;min-width:auto;flex:0 0 auto;">' + (id ? 'Atualizar cliente' : 'Adicionar cliente') + '</button>' +
       '</div>' +
@@ -352,7 +353,7 @@ Modules.Clientes = (function () {
     if (!name) { UI.toast('Nome é obrigatório', 'error'); return; }
     if (!_validPhone(_val('cli-phone'))) { UI.toast('Telefone inválido. Use apenas números com DDD/código do país.', 'error'); return; }
     if (!_validEmail(_val('cli-email'))) { UI.toast('E-mail inválido', 'error'); return; }
-    var current = _editingId ? (_clientes.find(function (c) { return c.id === _editingId; }) || {}) : {};
+    var current = _editingId ? (_findClienteByRecordId(_editingId) || {}) : {};
     var channel = _val('cli-origin') || _defaultChannel();
     var deliveryAddresses = _normalizeClienteAddresses({ deliveryAddresses: _clienteDeliveryAddresses });
     var primaryAddress = deliveryAddresses[0] || {};
@@ -360,12 +361,12 @@ Modules.Clientes = (function () {
     var _sCode = window.FiscalConfig ? FiscalConfig.countryToCode(_sCountry) : null;
     var _sNifCfg = window.FiscalConfig ? FiscalConfig.get(_sCode || _sCountry || 'ES') : null;
     var _nifRaw = (_val('cli-fiscal') || '').trim().toUpperCase().replace(/[\s.-]/g, '');
-    var _nifOk = _sNifCfg ? _sNifCfg.validateNif(_nifRaw) : _validFiscalId(_val('cli-fiscal'));
+    var _nifOk = !_nifRaw || (_sNifCfg ? _sNifCfg.validateNif(_nifRaw) : _validFiscalId(_val('cli-fiscal')));
     if (!_nifOk) { UI.toast((_sNifCfg && _sNifCfg.nifErrorMsg) || 'Documento fiscal inválido.', 'error'); return; }
     var _fiscalCountryCode = _countryIso(_val('cli-fiscal-country-code') || _sCountry || 'ES');
     var _structuredFiscalRaw = (_val('cli-fiscal-id-structured') || '').trim().toUpperCase().replace(/[\s.-]/g, '');
     var _structuredFiscalCfg = window.FiscalConfig ? FiscalConfig.get(_fiscalCountryCode || 'ES') : null;
-    var _structuredFiscalOk = _structuredFiscalCfg ? _structuredFiscalCfg.validateNif(_structuredFiscalRaw) : _validFiscalId(_val('cli-fiscal-id-structured'));
+    var _structuredFiscalOk = !_structuredFiscalRaw || (_structuredFiscalCfg ? _structuredFiscalCfg.validateNif(_structuredFiscalRaw) : _validFiscalId(_val('cli-fiscal-id-structured')));
     if (!_structuredFiscalOk) { UI.toast((_structuredFiscalCfg && _structuredFiscalCfg.nifErrorMsg) || 'Documento fiscal inválido.', 'error'); return; }
     if (!_validEmail(_val('cli-fiscal-invoice-email'))) { UI.toast('E-mail de faturação inválido', 'error'); return; }
     if (!_validPostalCode(_val('cli-fiscal-postal'), _fiscalCountryCode)) {
@@ -428,10 +429,12 @@ Modules.Clientes = (function () {
       totalSpent: current.totalSpent || 0,
       fiscal: fiscal
     };
-    var op = _editingId ? DB.update('store_customers', _editingId, data) : DB.add('store_customers', data);
-    op.then(function () {
+    var editingId = _clienteRecordId(current) || String(_editingId || '');
+    var op = editingId ? DB.update('store_customers', editingId, data).then(function () { return editingId; }) : DB.add('store_customers', data).then(function (ref) { return ref && ref.id ? ref.id : ref; });
+    op.then(function (savedId) {
       UI.toast(_editingId ? 'Cliente atualizado!' : 'Cliente adicionado!', 'success');
       if (window._clienteModal) window._clienteModal.close();
+      if (savedId) _editingId = String(savedId || '');
       _load();
     }).catch(function (err) { UI.toast('Erro: ' + err.message, 'error'); });
   }
@@ -495,7 +498,7 @@ Modules.Clientes = (function () {
   function _syncClienteAvatarLocal(id, url, path) {
     [_clientes, _view].forEach(function (list) {
       (list || []).forEach(function (item) {
-        if (item && item.id === id) {
+        if (item && _clienteRecordId(item) === String(id || '')) {
           item.avatarUrl = url || '';
           item.avatarStoragePath = path || '';
           item.avatarImagePath = path || '';
@@ -505,7 +508,7 @@ Modules.Clientes = (function () {
   }
 
   function _openProfile(id) {
-    var c = _view.find(function (x) { return x.id === id; });
+    var c = _view.find(function (x) { return _clienteRecordId(x) === String(id || ''); });
     if (!c) return;
     var s = c._stats;
     var contact = _contactHTML(c, 'Hola ' + (c.name || '') + ', tenemos una novedad para ti.');
@@ -541,7 +544,7 @@ Modules.Clientes = (function () {
             '<div style="color:#6F6860;font-size:13px;line-height:1.35;">' + (contact || 'Sem contato') + '</div>' +
             (address ? '<div style="color:#6F6860;font-size:12px;margin-top:4px;line-height:1.35;"><span class="mi" style="font-size:15px;color:#B42318;vertical-align:-3px;">location_on</span> ' + _esc(address) + '</div>' : '') +
           '</div>' +
-          '<button class="bf-btn bf-btn-primary" onclick="Modules.Clientes._openModal(\'' + c.id + '\')" style="min-width:150px;height:38px;border-radius:10px;font-size:13px;font-weight:600;">Editar</button>' +
+          '<button class="bf-btn bf-btn-primary" onclick="Modules.Clientes._openModal(\'' + _clienteRecordId(c) + '\')" style="min-width:150px;height:38px;border-radius:10px;font-size:13px;font-weight:600;">Editar</button>' +
         '</div>' +
       '</section>' +
       '<section class="cliente-profile-grid cliente-profile-metrics">' +
@@ -564,8 +567,8 @@ Modules.Clientes = (function () {
         '</div>' +
         '<div class="cliente-profile-card"><div class="cliente-profile-head"><span class="mi">bolt</span><div><div class="cliente-profile-title">Ações rápidas</div><p class="cliente-profile-hint">Atalhos para atendimento e leitura do relacionamento.</p></div></div>' +
           (c.phone ? '<a href="' + _whatsUrl(c.phone, 'Hola ' + (c.name || '') + ', tenemos una novedad para ti.') + '" target="_blank" style="' + _actionLink('#E9F8EF', '#1A9E5A') + '"><span class="mi">chat</span> Abrir WhatsApp</a>' : '') +
-          '<button onclick="Modules.Clientes._openHistory(\'' + c.id + '\')" style="' + _actionButton('#EEF4FF', '#2563EB') + '"><span class="mi">history</span> Ver histórico</button>' +
-          '<button onclick="Modules.Clientes._openSegmentFlow(\'' + c.id + '\')" style="' + _actionButton('#FFF8F1', '#B45309') + '"><span class="mi">timeline</span> Ver fluxo do segmento</button>' +
+          '<button onclick="Modules.Clientes._openHistory(\'' + _clienteRecordId(c) + '\')" style="' + _actionButton('#EEF4FF', '#2563EB') + '"><span class="mi">history</span> Ver histórico</button>' +
+          '<button onclick="Modules.Clientes._openSegmentFlow(\'' + _clienteRecordId(c) + '\')" style="' + _actionButton('#FFF8F1', '#B45309') + '"><span class="mi">timeline</span> Ver fluxo do segmento</button>' +
         '</div>' +
       '</section>' +
       _pointsHistoryHTML(c) +
@@ -576,7 +579,7 @@ Modules.Clientes = (function () {
   }
 
   function _openHistory(id) {
-    var c = _view.find(function (x) { return x.id === id; });
+    var c = _view.find(function (x) { return _clienteRecordId(x) === String(id || ''); });
     if (!c) return;
     var orders = c._orders || [];
     var body = '<div>' +
@@ -591,7 +594,7 @@ Modules.Clientes = (function () {
   }
 
   function _openSegmentFlow(id) {
-    var c = _view.find(function (x) { return x.id === id; }) || _clientes.find(function (x) { return x.id === id; });
+    var c = _view.find(function (x) { return _clienteRecordId(x) === String(id || ''); }) || _findClienteByRecordId(id);
     if (!c) return;
     var orders = c._orders || _ordersForClient(c);
     var stats = c._stats || _stats(c, orders);
@@ -670,12 +673,12 @@ Modules.Clientes = (function () {
   }
 
   function _ordersForClient(c) {
-    var id = String(c.id || '');
+    var id = _clienteRecordId(c);
     var name = _clean(c.name);
     var phone = _phone(c.phone);
     var email = _clean(c.email);
     return (_orders || []).filter(function (o) {
-      if (id && String(o.customerId || o.clientId || '') === id) return true;
+      if (id && String(o.customerId || o.clientId || o.customerUid || '') === id) return true;
       if (phone && _phone(o.phone || o.customerPhone || o.whatsapp) === phone) return true;
       if (email && _clean(o.email || o.customerEmail) === email) return true;
       if (name && _clean(o.customerName || o.clientName || o.name) === name) return true;
@@ -794,9 +797,10 @@ Modules.Clientes = (function () {
   }
 
   function _reviewsHTML(c) {
+    var id = _clienteRecordId(c);
     var name = _clean(c.name);
     var rows = (_reviews || []).filter(function (r) {
-      return String(r.customerId || '') === String(c.id || '') || (name && _clean(r.customerName || r.name) === name);
+      return (id && String(r.customerId || r.clientId || r.customerUid || '') === id) || (name && _clean(r.customerName || r.name) === name);
     }).slice(0, 3);
     if (!rows.length) return '';
     return '<div style="' + _panel() + 'margin-top:14px;"><h3 style="' + _h3() + '">Avaliações</h3>' + rows.map(function (r) {
@@ -1146,11 +1150,11 @@ Modules.Clientes = (function () {
   }
 
   function _pointsMovementsForClient(c) {
-    var id = String(c && c.id || '');
+    var id = _clienteRecordId(c);
     var phone = String(c && c.phone || c && c.whatsapp || '').replace(/\D/g, '');
     var name = _clean(c && c.name || '');
     return (_pointsMovements || []).filter(function (m) {
-      if (id && String(m.customerId || m.clientId || '') === id) return true;
+      if (id && String(m.customerId || m.clientId || m.customerUid || '') === id) return true;
       if (phone && String(m.phone || '').replace(/\D/g, '') === phone) return true;
       if (name && _clean(m.customerName || m.name || '') === name) return true;
       return false;
@@ -1313,6 +1317,19 @@ Modules.Clientes = (function () {
     return parts.join('<span style="color:#D4C8C6;"> · </span>');
   }
   function _whatsUrl(phone, text) { return 'https://wa.me/' + _phone(phone) + '?text=' + encodeURIComponent(text || ''); }
+  function _clienteRecordId(cliente) {
+    return String(cliente && (cliente.id || cliente._id || cliente.customerId || cliente.clientId || cliente.uid || cliente.customerUid || cliente.docId || '') || '').trim();
+  }
+  function _withClienteRecordId(cliente) {
+    if (!cliente || typeof cliente !== 'object') return cliente;
+    var id = _clienteRecordId(cliente);
+    return id && !cliente.id ? Object.assign({}, cliente, { id: id }) : cliente;
+  }
+  function _findClienteByRecordId(id) {
+    var wanted = String(id || '').trim();
+    if (!wanted) return null;
+    return (_clientes || []).map(_withClienteRecordId).find(function (c) { return _clienteRecordId(c) === wanted; }) || null;
+  }
   function _phone(v) { return String(v || '').replace(/\D/g, ''); }
   function _validPhone(v) { var raw = String(v || '').trim(); if (!raw) return true; var digits = _phone(raw); return digits.length >= 7 && digits.length <= 15; }
   function _validEmail(v) { var raw = String(v || '').trim(); return !raw || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw); }

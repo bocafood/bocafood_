@@ -134,6 +134,12 @@ O Boca Food é um sistema de gestão e operação de loja com painel admin, cat�
 - Quando o canal de venda tiver comissão, imposto sobre comissão ou taxa fixa, o pedido deve calcular automaticamente esses abatimentos a partir do total bruto do pedido.
 - Esses valores devem ficar registrados no próprio pedido como taxas/desconto do canal, com possibilidade de edição manual no detalhe do pedido.
 - Para canais de venda comuns, não criar movimentação financeira separada de taxa/comissão. O Financeiro deve receber uma única entrada do pedido com o saldo líquido a receber, mantendo no movimento os campos de bruto, taxas do canal e líquido para rastreio.
+- A ação `Ver cliente` no detalhe do pedido deve localizar o cadastro por id normalizado, aceitando `id`, `_id`, `customerId`, `clientId`, `uid`, `customerUid` e `docId`. O clique deve interromper propagação antes de abrir o perfil para não conflitar com o modal do pedido.
+- O modal `Cadastrar cliente` aberto pelo detalhe do pedido pode receber apenas o id do pedido, mas deve resolver o objeto do pedido antes de montar o rodapé. Nunca renderizar o botão `Salvar cliente` com `orderId` vazio.
+
+### Admin — Clientes
+- O cadastro de clientes deve operar com id normalizado, aceitando `id`, `_id`, `customerId`, `clientId`, `uid`, `customerUid` e `docId` em listagem, edição, salvamento, exclusão, histórico, reviews e pontos.
+- Documento fiscal/NIF/CIF é opcional no cadastro de cliente. Quando vazio, não deve bloquear `Salvar cliente` ou `Atualizar cliente`; quando preenchido, deve ser validado conforme o país fiscal.
 
 ## Loja pública / Stripe
 

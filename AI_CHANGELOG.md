@@ -1,5 +1,19 @@
 # AI Changelog
 
+## 2026-06-03 — Clientes: salvar cadastro e vínculo pelo pedido
+- Arquivos alterados: `public/js/modules/clientes.js`, `public/js/modules/pedidos.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Corrigi o modal `Cadastrar cliente` dentro do detalhe do pedido: ele agora resolve o objeto do pedido quando recebe apenas o id, evitando salvar com `orderId` vazio.
+- Ajustei o cadastro principal de Clientes para abrir, editar, salvar, excluir, listar histórico, reviews e pontos usando id normalizado (`id`, `_id`, `customerId`, `clientId`, `uid`, `customerUid`, `docId`).
+- A validação fiscal do cadastro de cliente deixou de bloquear salvamento quando documento fiscal opcional está vazio; continua validando quando a usuária preenche NIF/CIF/documento fiscal.
+- Impacto esperado: os botões `Salvar cliente` e `Atualizar cliente` voltam a funcionar tanto em Pedidos quanto em Cadastro de Cliente, inclusive para registros antigos ou vindos da loja pública.
+
+## 2026-06-03 — Pedidos: botão Ver cliente no detalhe
+- Arquivos alterados: `public/js/modules/pedidos.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Corrigi o botão `Ver cliente` no modal de detalhes do pedido para usar o identificador real do cliente mesmo quando o cadastro vier com `id`, `_id`, `customerId`, `clientId`, `uid`, `customerUid` ou `docId`.
+- O clique do botão agora interrompe a propagação dentro do modal do pedido antes de abrir o perfil do cliente.
+- A mesma normalização de id foi aplicada aos atalhos de cliente, histórico, edição, reviews, vínculo automático por telefone e seleção de cliente em pedido manual.
+- Impacto esperado: pedidos antigos ou criados pelo template público continuam abrindo o cadastro do cliente corretamente no Admin, sem depender de um único formato de id.
+
 ## 2026-06-03 — Validação do checkout público e aliases para o Admin
 - Arquivos alterados: `public/storefront.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
 - Validei o contrato entre checkout público da loja e Admin de Pedidos para cliente, WhatsApp, endereço, agenda, pagamento, descontos, cupom, pontos, itens, escolhas, vínculos de estoque e origem do pedido.
