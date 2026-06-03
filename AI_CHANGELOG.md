@@ -1,5 +1,20 @@
 # AI Changelog
 
+## 2026-06-03 — Admin: menu e cache das etapas/canal do pedido
+- Arquivos alterados: `public/admin.html`, `AI_CHANGELOG.md`.
+- Adicionei `Etapas de produção` no menu lateral de `Produção`, apontando para `receitas/etapas`.
+- Atualizei o cache-buster de `pedidos.js` para forçar o admin a carregar a versão com edição de `Canal de venda` no detalhe do pedido.
+- Atualizei o cache-buster de `receitas.js` para forçar o admin a carregar a versão com a aba `Etapas de produção`.
+- Impacto esperado: a aba nova aparece na navegação e o modal de detalhes do pedido carrega a versão correta dos campos já implementados.
+
+## 2026-06-03 — Pedidos: produto sob encomenda no pedido manual
+- Arquivos alterados: `public/js/modules/pedidos.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Adicionei a opção `Produto sob encomenda` no cadastro de pedido manual.
+- A usuária pode informar o prazo de produção em dias, e o sistema valida esse prazo contra a antecedência configurada em `Operação → Prazos e capacidade`.
+- Pedido sob encomenda exige data de entrega/retirada, não permite data antes do prazo mínimo de produção e também não permite data fora da janela máxima de antecedência.
+- O pedido salva `madeToOrder`, `productMadeToOrder`, `sobEncomenda`, `productionLeadDays`, `productionLeadTimeDays`, `productionDeadlineDate` e `productionDeadlineType`.
+- Impacto esperado: encomendas manuais ficam registradas com prazo operacional, sem permitir prometer uma produção fora da capacidade configurada.
+
 ## 2026-06-03 — Pedidos: editar canal de venda no detalhe
 - Arquivos alterados: `public/js/modules/pedidos.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
 - Adicionei o campo `Canal de venda` no modal `Detalhes do pedido`.

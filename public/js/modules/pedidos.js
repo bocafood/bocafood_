@@ -13,6 +13,7 @@ Modules.Pedidos = (function () {
   var _promotions = [];
   var _generalConfig = {};
   var _templateConfig = {};
+  var _operationConfig = {};
   var _domainConfig = {};
   var _financeConfig = {};
   var _tpvConfig = {};
@@ -99,6 +100,8 @@ Modules.Pedidos = (function () {
     orderTime: '',
     deliveryDate: '',
     deliveryTime: '',
+    madeToOrder: false,
+    productionLeadDays: 0,
     adjustment: 0,
     shippingFee: 0,
     priceOrigin: 'manual'
@@ -195,7 +198,8 @@ Modules.Pedidos = (function () {
       DB.getDocRoot ? DB.getDocRoot('config', 'template').catch(function () { return null; }) : Promise.resolve(null),
       DB.getDocRoot ? DB.getDocRoot('config', 'canais_venda').catch(function () { return null; }) : Promise.resolve(null),
       DB.getDocRoot ? DB.getDocRoot('config', 'dominio').catch(function () { return null; }) : Promise.resolve(null),
-      DB.getDocRoot ? DB.getDocRoot('config', 'tpv').catch(function () { return null; }) : Promise.resolve(null)
+      DB.getDocRoot ? DB.getDocRoot('config', 'tpv').catch(function () { return null; }) : Promise.resolve(null),
+      DB.getDocRoot ? DB.getDocRoot('config', 'operacao').catch(function () { return null; }) : Promise.resolve(null)
     ]).then(function (res) {
       _customers = res[0] || [];
       _reviews = res[1] || [];
@@ -209,6 +213,7 @@ Modules.Pedidos = (function () {
       if (!_zones.length) _zones = _normalizeZones(res[10]);
       _templateConfig = res[10] || {};
       _tpvConfig = res[13] || {};
+      _operationConfig = res[14] || {};
       _canais = _normalizeCanais(res[11]);
       _domainConfig = res[12] || {};
       _syncOrderCustomerLinks(_orders);
@@ -219,6 +224,7 @@ Modules.Pedidos = (function () {
       _products = [];
       _variantGroups = [];
       _templateConfig = {};
+      _operationConfig = {};
       _domainConfig = {};
       _stockRecipes = [];
       _promotions = [];
@@ -4650,6 +4656,8 @@ Modules.Pedidos = (function () {
     var deliveryTime = String((document.getElementById('mo-delivery-time') || {}).value || _manualOrderState.deliveryTime || '').trim();
     var orderTime = _normalizeTimeValue(String((document.getElementById('mo-order-time') || {}).value || _manualOrderState.orderTime || _currentTimeValue()).trim());
     _manualOrderState.orderTime = orderTime;
+    var madeToOrder = !!((document.getElementById('mo-made-to-order') || {}).checked || _manualOrderState.madeToOrder);
+    var productionLeadDays = madeToOrder ? Math.max(0, Math.floor(_num((document.getElementById('mo-production-lead-days') || {}).value || _manualOrderState.productionLeadDays || 0))) : 0;
     var slot = [deliveryDate, deliveryTime].filter(Boolean).join(' ').trim();
     var note = String((document.getElementById('mo-note') || {}).value || '').trim();
     var paymentStatus = String((document.getElementById('mo-payment-status') || {}).value || _manualOrderState.paymentStatus || 'previsto').trim() || 'previsto';
@@ -4767,6 +4775,30 @@ Modules.Pedidos = (function () {
     if (!type) { UI.toast('Tipo do pedido obrigatório', 'error'); return; }
     if (!items.length) { UI.toast('Selecione ao menos um produto', 'error'); return; }
     if (!(total > 0)) { UI.toast('O total final precisa ser maior que zero', 'error'); return; }
+    if (madeToOrder) {
+      var maxAdvance = _manualOrderMaxAdvanceDays();
+      var daysUntil = _manualOrderDaysUntil(deliveryDate);
+      if (productionLeadDays <= 0) {
+        UI.toast('Informe o prazo de produção da encomenda.', 'error');
+        return;
+      }
+      if (productionLeadDays > maxAdvance) {
+        UI.toast('O prazo de produção precisa ficar dentro da antecedência configurada em Operação: até ' + maxAdvance + ' dia(s).', 'error');
+        return;
+      }
+      if (daysUntil == null) {
+        UI.toast('Informe a data de entrega ou retirada para pedido sob encomenda.', 'error');
+        return;
+      }
+      if (daysUntil > maxAdvance) {
+        UI.toast('A data escolhida precisa ficar dentro da antecedência configurada em Operação: até ' + maxAdvance + ' dia(s).', 'error');
+        return;
+      }
+      if (daysUntil < productionLeadDays) {
+        UI.toast('A data escolhida não respeita o prazo de produção de ' + productionLeadDays + ' dia(s).', 'error');
+        return;
+      }
+    }
 
     var saveOrder = function () {
       _ensureManualOrderCustomer({
@@ -4848,6 +4880,13 @@ Modules.Pedidos = (function () {
         paid: _paymentStatusIsPaid(paymentStatus) ? true : (_paymentStatusIsPartial(paymentStatus) ? paidAmount : false),
         deliveryDate: deliveryDate,
         deliveryTime: deliveryTime,
+        madeToOrder: madeToOrder,
+        productMadeToOrder: madeToOrder,
+        sobEncomenda: madeToOrder,
+        productionLeadDays: productionLeadDays,
+        productionLeadTimeDays: productionLeadDays,
+        productionDeadlineDate: madeToOrder && productionLeadDays > 0 ? deliveryDate : '',
+        productionDeadlineType: madeToOrder ? 'sob_encomenda' : '',
         orderTime: orderTime,
         saleTime: orderTime,
         createdTime: orderTime,
@@ -4950,6 +4989,8 @@ Modules.Pedidos = (function () {
     _manualOrderState.orderTime = _currentTimeValue();
     _manualOrderState.deliveryDate = '';
     _manualOrderState.deliveryTime = '';
+    _manualOrderState.madeToOrder = false;
+    _manualOrderState.productionLeadDays = 0;
     _manualOrderState.productFilter = 'all';
     _manualOrderState.productCategory = '';
     _manualOrderState.adjustment = 0;
@@ -5267,6 +5308,19 @@ Modules.Pedidos = (function () {
 
   function _manualOrderSetDeliveryTime(value) {
     _manualOrderState.deliveryTime = String(value || '');
+    _manualOrderRefreshSummary();
+  }
+
+  function _manualOrderSetMadeToOrder(value) {
+    _manualOrderState.madeToOrder = value === true || value === 'true';
+    if (!_manualOrderState.madeToOrder) _manualOrderState.productionLeadDays = 0;
+    _manualOrderSyncMadeToOrderUI();
+    _manualOrderRefreshSummary();
+  }
+
+  function _manualOrderSetProductionLeadDays(value) {
+    _manualOrderState.productionLeadDays = Math.max(0, Math.floor(_num(value)));
+    _manualOrderSyncMadeToOrderUI();
     _manualOrderRefreshSummary();
   }
 
@@ -5624,7 +5678,53 @@ Modules.Pedidos = (function () {
       adjNote.textContent = _num(_manualOrderState.adjustment || 0) !== 0 ? 'Este ajuste será registrado como alteração manual no pedido.' : '';
     }
     _manualOrderUpdateSubmitState();
+    _manualOrderSyncMadeToOrderUI();
     _manualOrderSyncPaymentUI();
+  }
+
+  function _manualOrderMaxAdvanceDays() {
+    var raw = _firstText(
+      _operationConfig && _operationConfig.maxAdvanceDays,
+      _operationConfig && _operationConfig.advanceDaysLimit,
+      _operationConfig && _operationConfig.advanceDays,
+      _templateConfig && _templateConfig.maxAdvanceDays,
+      _templateConfig && _templateConfig.advanceDaysLimit,
+      _templateConfig && _templateConfig.advanceDays,
+      0
+    );
+    return Math.max(0, Math.floor(_num(raw)));
+  }
+
+  function _manualOrderProductionLeadHelp() {
+    var max = _manualOrderMaxAdvanceDays();
+    return max > 0
+      ? 'Pode usar até ' + max + ' dia' + (max === 1 ? '' : 's') + ', conforme Prazos e capacidade.'
+      : 'Operação permite apenas pedidos para hoje; ajuste Prazos e capacidade para usar encomenda.';
+  }
+
+  function _manualOrderLocalDate(value) {
+    var parts = String(value || '').slice(0, 10).split('-').map(function (n) { return parseInt(n, 10); });
+    if (parts.length !== 3 || !parts[0] || !parts[1] || !parts[2]) return null;
+    return new Date(parts[0], parts[1] - 1, parts[2]);
+  }
+
+  function _manualOrderDaysUntil(dateValue) {
+    var target = _manualOrderLocalDate(dateValue);
+    if (!target) return null;
+    var today = _manualOrderLocalDate(_today());
+    return Math.round((target.getTime() - today.getTime()) / 86400000);
+  }
+
+  function _manualOrderSyncMadeToOrderUI() {
+    var checkbox = document.getElementById('mo-made-to-order');
+    var lead = document.getElementById('mo-production-lead-days');
+    var help = document.getElementById('mo-production-lead-help');
+    if (checkbox) checkbox.checked = !!_manualOrderState.madeToOrder;
+    if (lead) {
+      lead.disabled = !_manualOrderState.madeToOrder;
+      if (String(lead.value || '') !== String(_manualOrderState.productionLeadDays || '')) lead.value = _manualOrderState.productionLeadDays || '';
+    }
+    if (help) help.textContent = _manualOrderProductionLeadHelp();
   }
 
   function _manualOrderSyncPaymentUI() {
@@ -6353,6 +6453,7 @@ Modules.Pedidos = (function () {
       '.mo-service-time{grid-column:span 3;}' +
       '.mo-service-fee{grid-column:span 3;}' +
       '.mo-service-order-time{grid-column:span 3;}' +
+      '.mo-service-custom-order{grid-column:1/-1;}' +
       '.manual-order-products-grid{grid-template-columns:minmax(0,1fr);}' +
       '.manual-order-summary-grid{grid-template-columns:minmax(120px,.45fr) minmax(150px,.55fr);}' +
       '.manual-order-body label{font-size:11px!important;font-weight:650!important;color:#8A7E7C!important;display:block!important;margin-bottom:5px!important;letter-spacing:.02em!important;}' +
@@ -6377,8 +6478,8 @@ Modules.Pedidos = (function () {
       '.manual-order-filter-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:center;}' +
       '.manual-order-filter-row button{padding:7px 12px!important;border-radius:999px!important;font-size:12px!important;font-weight:650!important;font-family:inherit!important;cursor:pointer!important;}' +
       '.manual-order-sticky{display:flex;flex-direction:column;gap:12px;position:sticky;top:0;align-self:start;}' +
-      '@media(max-width:1120px){.manual-order-body{grid-template-columns:1fr}.manual-order-sticky{position:static}.manual-order-service-grid{grid-template-columns:repeat(6,minmax(0,1fr))}.mo-service-type,.mo-service-postal,.mo-service-number,.mo-service-complement,.mo-service-quarter,.mo-service-time,.mo-service-fee,.mo-service-order-time{grid-column:span 3}.mo-service-address-select,.mo-service-street{grid-column:1/-1}}' +
-      '@media(max-width:760px){.manual-order-customer-grid,.manual-order-service-grid,.manual-order-summary-grid,.manual-order-search-row,.manual-order-channel-row,.manual-order-channel-panel{grid-template-columns:1fr}.manual-order-delivery-grid{padding-left:0}.manual-order-email-field{grid-column:auto;max-width:none}.manual-order-phone-box{grid-template-columns:118px minmax(0,1fr)}.mo-service-type,.mo-service-address-select,.mo-service-postal,.mo-service-street,.mo-service-number,.mo-service-complement,.mo-service-quarter,.mo-service-time,.mo-service-fee,.mo-service-order-time{grid-column:auto}.manual-order-secondary-btn{width:100%;}}' +
+      '@media(max-width:1120px){.manual-order-body{grid-template-columns:1fr}.manual-order-sticky{position:static}.manual-order-service-grid{grid-template-columns:repeat(6,minmax(0,1fr))}.mo-service-type,.mo-service-postal,.mo-service-number,.mo-service-complement,.mo-service-quarter,.mo-service-time,.mo-service-fee,.mo-service-order-time{grid-column:span 3}.mo-service-address-select,.mo-service-street,.mo-service-custom-order{grid-column:1/-1}}' +
+      '@media(max-width:760px){.manual-order-customer-grid,.manual-order-service-grid,.manual-order-summary-grid,.manual-order-search-row,.manual-order-channel-row,.manual-order-channel-panel{grid-template-columns:1fr}.manual-order-delivery-grid{padding-left:0}.manual-order-email-field{grid-column:auto;max-width:none}.manual-order-phone-box{grid-template-columns:118px minmax(0,1fr)}.mo-service-type,.mo-service-address-select,.mo-service-postal,.mo-service-street,.mo-service-number,.mo-service-complement,.mo-service-quarter,.mo-service-time,.mo-service-fee,.mo-service-order-time,.mo-service-custom-order{grid-column:auto}.manual-order-secondary-btn{width:100%;}}' +
       '</style>';
     body.innerHTML = modalCss +
       '<div class="manual-order-body">' +
@@ -6424,6 +6525,10 @@ Modules.Pedidos = (function () {
               '<div class="mo-service-time"><label>Horário</label><div class="manual-order-field-control"><input id="mo-delivery-time" type="time" value="' + _esc(_manualOrderState.deliveryTime || '') + '" oninput="Modules.Pedidos._manualOrderSetDeliveryTime(this.value)"></div></div>' +
               '<div class="mo-delivery-only mo-service-fee" id="mo-delivery-fee-block"><label>Taxa de entrega</label><div class="manual-order-field-control"><input id="mo-shipping" type="text" inputmode="decimal" value="' + _esc(UI.fmt(_manualOrderState.shippingFee || 0)) + '" readonly placeholder="€0,00"></div><div id="mo-shipping-info" style="display:none;"></div></div>' +
               '<div class="mo-service-order-time"><label>Hora do pedido</label><div class="manual-order-field-control"><input id="mo-order-time" type="time" value="' + _esc(_manualOrderState.orderTime || _currentTimeValue()) + '" oninput="Modules.Pedidos._manualOrderSetOrderTime(this.value)"></div></div>' +
+              '<div class="mo-service-custom-order"><div style="border:1px solid #E8DCD7;border-radius:13px;background:#FFFCF8;padding:10px 12px;display:grid;grid-template-columns:minmax(220px,1fr) minmax(120px,160px);gap:10px;align-items:end;">' +
+                '<label style="display:flex!important;align-items:flex-start;gap:9px;margin:0!important;color:#1F1F1F!important;font-size:12px!important;line-height:1.35!important;"><input id="mo-made-to-order" type="checkbox" onchange="Modules.Pedidos._manualOrderSetMadeToOrder(this.checked)" style="width:16px;height:16px;accent-color:#B42318;margin-top:2px;"' + (_manualOrderState.madeToOrder ? ' checked' : '') + '><span><strong style="display:block;color:#1F1F1F;font-size:12px;">Produto sob encomenda</strong><span id="mo-production-lead-help" style="display:block;color:#6F6860;font-size:11px;margin-top:2px;">' + _esc(_manualOrderProductionLeadHelp()) + '</span></span></label>' +
+                '<div><label>Prazo produção</label><div class="manual-order-field-control"><input id="mo-production-lead-days" type="number" min="0" step="1" value="' + _esc(String(_manualOrderState.productionLeadDays || '')) + '" placeholder="Dias" oninput="Modules.Pedidos._manualOrderSetProductionLeadDays(this.value)"' + (_manualOrderState.madeToOrder ? '' : ' disabled') + '></div></div>' +
+              '</div></div>' +
             '</div>' +
             '<div id="mo-pickup-block" style="display:none;"></div>' +
           '</section>' +
@@ -7529,6 +7634,8 @@ Modules.Pedidos = (function () {
     _manualOrderSetOrderTime: _manualOrderSetOrderTime,
     _manualOrderSetDeliveryDate: _manualOrderSetDeliveryDate,
     _manualOrderSetDeliveryTime: _manualOrderSetDeliveryTime,
+    _manualOrderSetMadeToOrder: _manualOrderSetMadeToOrder,
+    _manualOrderSetProductionLeadDays: _manualOrderSetProductionLeadDays,
     _manualOrderSetProductFilter: _manualOrderSetProductFilter,
     _manualOrderSetCategoryFilter: _manualOrderSetCategoryFilter,
     _manualOrderSelectCustomer: _manualOrderSelectCustomer,
