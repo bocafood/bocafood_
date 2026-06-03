@@ -3482,10 +3482,14 @@ Modules.Pedidos = (function () {
     var itemsChanged = currentItemsJson !== editedItemsJson || checklistChanged;
     if (itemsChanged && _paymentStatusIsPaid(nextPaymentStatus)) nextPaidAmount = itemTotalsPayload.total;
     var paymentMetaChanged = nextPaymentStatus !== currentPaymentStatus || Math.abs(nextPaidAmount - currentPaidAmount) > 0.001;
+    var retryCancelledStockReversal = !statusChanged && _statusCancelsStockMovement(nextStatus);
     var tasks = [];
 
     if (statusChanged) {
       tasks.push(_updateOrderStatus(id, nextStatus, { toast: 'Pedido atualizado!', prompt: false }));
+    }
+    if (retryCancelledStockReversal) {
+      tasks.push(_syncOrderStockMovement(id, order || {}, nextStatus));
     }
     if (paymentChanged) {
       tasks.push(DB.update('orders', id, { paymentMethod: nextPaymentMethod }).then(function () {
@@ -4228,27 +4232,46 @@ Modules.Pedidos = (function () {
   }
 
   function _reverseOrderStockMovements(orderId, order) {
-    if (!order || !orderId || order.stockMovementReversed) return Promise.resolve(null);
+    if (!order || !orderId) return Promise.resolve(null);
     return DB.getAll('stock_movements').catch(function () { return []; }).then(function (existing) {
+      var orderNumber = _orderDisplayId(order);
+      var normalizedOrderNumber = _fold(String(orderNumber || '').replace(/^#/, ''));
+      function belongsToOrder(movement) {
+        if (!movement) return false;
+        if (String(movement.orderId || movement.pedidoId || movement.origemPedidoId || '') === String(orderId || '')) return true;
+        var movementNumber = _fold(String(_firstText(movement.orderNumber, movement.pedidoNumero, movement.orderDisplayId, '') || '').replace(/^#/, ''));
+        return !!(normalizedOrderNumber && movementNumber && movementNumber === normalizedOrderNumber);
+      }
       var exits = (existing || []).filter(function (movement) {
-        return movement && (movement.type === 'saida_venda' || movement.type === 'saida_base_venda') && String(movement.orderId || '') === String(orderId || '');
+        return movement && (movement.type === 'saida_venda' || movement.type === 'saida_base_venda') && belongsToOrder(movement);
       });
       if (!exits.length) return {};
-      var already = (existing || []).some(function (movement) {
-        return movement && movement.type === 'estorno_venda' && String(movement.orderId || '') === String(orderId || '');
+      var reversedBySource = {};
+      (existing || []).forEach(function (movement) {
+        if (!movement || movement.type !== 'estorno_venda' || !belongsToOrder(movement)) return;
+        var sourceId = String(movement.sourceSaleMovementId || movement.reversalOf || '');
+        if (sourceId) reversedBySource[sourceId] = true;
       });
-      if (already) return {
+      var pendingExits = exits.filter(function (movement) {
+        var movementId = String(movement.id || '');
+        return !movementId || !reversedBySource[movementId];
+      });
+      if (!pendingExits.length) return {
         stockMovementReversed: true,
         stockMovementReversedAt: order.stockMovementReversedAt || _nowIso()
       };
       var now = _nowIso();
-      var ops = exits.map(function (movement, idx) {
-        var id = _stockMovementOrderId(orderId, idx + '_estorno').replace('_saida_venda', '_estorno_venda');
+      var ops = pendingExits.map(function (movement, idx) {
+        var sourceId = String(movement.id || idx);
+        var id = String(orderId || 'pedido').replace(/[^\w-]/g, '_') + '_' + sourceId.replace(/[^\w-]/g, '_') + '_estorno_venda';
         return DB.col('stock_movements').doc(id).set(Object.assign({}, movement, {
           id: id,
           type: 'estorno_venda',
           movementGroup: 'order',
+          orderId: orderId,
+          orderNumber: orderNumber,
           reversalOf: movement.id || '',
+          sourceSaleMovementId: movement.id || '',
           reversalReason: 'cancelamento_pedido',
           movementDate: now.slice(0, 10),
           createdAt: now,

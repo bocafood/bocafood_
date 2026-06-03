@@ -11239,6 +11239,13 @@
 - A lista reaproveita as opções já usadas pelo módulo de Compras, evitando criar uma fonte paralela ou alterar a lógica de cadastro.
 - Impacto esperado: deixar visível dentro das configurações de Produção quais embalagens de compra podem ser usadas no preenchimento dos insumos.
 
+## 2026-06-03 — Pedidos: reforço no estorno de estoque já cancelado
+- Arquivos alterados: `public/admin.html`, `public/js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- Reforcei o estorno de estoque para pedidos já cancelados: ao salvar um pedido que continua como `Cancelado`, o sistema tenta novamente sincronizar o estorno.
+- A rotina de estorno deixou de pular quando o pedido já tinha `stockMovementReversed` e agora confere movimento por movimento, criando apenas os estornos de venda que ainda faltam.
+- Também ampliei a identificação das saídas do pedido por `orderId` e pelo número exibido do pedido, cobrindo registros antigos com vínculo inconsistente.
+- Impacto esperado: pedidos cancelados com saídas antigas ou parcialmente estornadas conseguem gerar os movimentos `estorno_venda` faltantes sem duplicar estornos já existentes.
+
 ## 2026-06-03 — Pedidos: estorno de estoque ao cancelar pedido com flag inconsistente
 - Arquivos alterados: `public/admin.html`, `public/js/modules/pedidos.js`, `AI_CHANGELOG.md`, `AGENTS.md`.
 - Corrigi a rotina de cancelamento para tentar estornar saídas de estoque pelo `orderId` mesmo quando o pedido não está marcado internamente com `stockMovementCreated`.
