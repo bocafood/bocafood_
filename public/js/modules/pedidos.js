@@ -2606,7 +2606,6 @@ Modules.Pedidos = (function () {
     var cid = _customerRecordId(customer);
     if (customer && cid) {
       return '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">' +
-        '<button type="button" onclick="event.stopPropagation();Modules.Pedidos._openClientProfile(\'' + _esc(cid) + '\');return false;" style="height:34px;border:1px solid #EAE4DA;background:#fff;color:#1F1F1F;border-radius:10px;padding:0 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 8px 18px rgba(31,31,31,.05);">Ver cliente</button>' +
         (phone ? '<button onclick="Modules.Pedidos._waFromDetail(\'' + _esc(order.id) + '\');event.stopPropagation();" style="height:34px;border:1px solid rgba(26,158,90,.18);background:#E8FFF1;color:#1A9E5A;border-radius:10px;padding:0 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">WhatsApp</button>' : '<span style="font-size:12px;color:#8A7E7C;">Sem telefone registrado</span>') +
       '</div>';
     }
@@ -3083,6 +3082,9 @@ Modules.Pedidos = (function () {
       var channelFeesHTML = _safeDetailValue('taxas do canal', function () { return _detailChannelFeeInputsHTML(o, payment); }, '');
       var stockTraceHTML = _safeDetailValue('rastreio de estoque', function () { return _detailStockTraceHTML(o); }, '');
       var observationsHTML = _safeDetailValue('observações', function () { return _detailObservationBlocks(o); }, '<div style="font-size:13px;color:#8A7E7C;">Sem observações.</div>');
+      var paymentFinanceLocked = _orderPaymentFinanceLocked(o);
+      var paymentDisabledAttr = paymentFinanceLocked ? ' disabled' : '';
+      var paymentLockedHint = paymentFinanceLocked ? '<div style="margin:0 0 8px;padding:8px 10px;border:1px solid #EADFD8;border-radius:11px;background:#FAF8F4;color:#6F6860;font-size:11.5px;line-height:1.4;">Pagamento enviado ao Financeiro. Para alterar forma, conta ou status, estorne primeiro a entrada financeira vinculada.</div>' : '';
       var detailCss = '<style>' +
         '.order-detail-modal-body{display:flex;flex-direction:column;gap:9px;font-family:Manrope,Inter,sans-serif;}' +
         '.order-detail-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:16px;padding:11px 12px;box-shadow:0 8px 18px rgba(31,31,31,.035);min-width:0;}' +
@@ -3164,12 +3166,13 @@ Modules.Pedidos = (function () {
               (payment.status ? UI.badge(_paymentStatusLabel(payment.status), 'blue') : UI.badge('Sem status', 'gray')) +
             '</div>' +
             paymentBreakdownHTML +
+            paymentLockedHint +
             '<div class="order-detail-payment-grid">' +
-              '<div><label class="order-detail-label">Forma de pagamento</label><div class="order-detail-field-control"><select id="detail-payment-method">' + _paymentMethodOptions(payment.method) + '</select></div></div>' +
-              '<div><label class="order-detail-label">Conta bancária</label><div class="order-detail-field-control"><select id="detail-bank-account">' + _bankAccountOptions(_orderBankAccountId(o)) + '</select></div></div>' +
-              '<div><label class="order-detail-label">Status do pagamento</label><div class="order-detail-field-control"><select id="detail-payment-status" onchange="Modules.Pedidos._detailPaymentSync()">' + _paymentStatusOptions(payment.status || (payment.paid >= payment.total && payment.total > 0 ? 'pago' : payment.paid > 0 ? 'parcial' : 'previsto')) + '</select></div></div>' +
+              '<div><label class="order-detail-label">Forma de pagamento</label><div class="order-detail-field-control"><select id="detail-payment-method"' + paymentDisabledAttr + '>' + _paymentMethodOptions(payment.method) + '</select></div></div>' +
+              '<div><label class="order-detail-label">Conta bancária</label><div class="order-detail-field-control"><select id="detail-bank-account"' + paymentDisabledAttr + '>' + _bankAccountOptions(_orderBankAccountId(o)) + '</select></div></div>' +
+              '<div><label class="order-detail-label">Status do pagamento</label><div class="order-detail-field-control"><select id="detail-payment-status" onchange="Modules.Pedidos._detailPaymentSync()"' + paymentDisabledAttr + '>' + _paymentStatusOptions(payment.status || (payment.paid >= payment.total && payment.total > 0 ? 'pago' : payment.paid > 0 ? 'parcial' : 'previsto')) + '</select></div></div>' +
               '<div id="detail-paid-amount-box" class="order-detail-paid-field" style="display:' + (((payment.status || '').toLowerCase() === 'parcial') ? 'block' : 'none') + ';">' +
-                '<label class="order-detail-label">Valor pago</label><div class="order-detail-field-control"><input id="detail-paid-amount" type="number" step="0.01" value="' + _esc(String(payment.paid || 0)) + '" placeholder="0,00"></div>' +
+                '<label class="order-detail-label">Valor pago</label><div class="order-detail-field-control"><input id="detail-paid-amount" type="number" step="0.01" value="' + _esc(String(payment.paid || 0)) + '" placeholder="0,00"' + paymentDisabledAttr + '></div>' +
               '</div>' +
             '</div>' +
             channelFeesHTML +
@@ -3394,6 +3397,12 @@ Modules.Pedidos = (function () {
     var currentPaidAmount = _num(order && order.paidAmount);
     var currentScheduleDate = String((isPickup ? (order && order.pickupDate) : (order && order.deliveryDate)) || (order && order.scheduleDate) || '').trim();
     var currentScheduleTime = String((isPickup ? (order && order.pickupTime) : (order && order.deliveryTime)) || (order && order.scheduleTime) || '').trim();
+    if (_orderPaymentFinanceLocked(order || {})) {
+      nextPaymentMethod = currentPaymentMethod;
+      nextBankAccountId = currentBankAccountId;
+      nextPaymentStatus = currentPaymentStatus || 'previsto';
+      nextPaidAmount = currentPaidAmount;
+    }
     var statusChanged = nextStatus !== currentStatus;
     var channelChanged = _channelAliasKey(nextChannel) !== _channelAliasKey(currentChannel);
     var paymentChanged = nextPaymentMethod !== currentPaymentMethod;
@@ -3587,7 +3596,11 @@ Modules.Pedidos = (function () {
         fresh.slot = [nextScheduleDate, nextScheduleTime].filter(Boolean).join(' ').trim();
         if (itemsChanged) Object.assign(fresh, itemTotalsPayload);
       }
-      _syncOrderFinanceMovement(id, fresh || order || {});
+      Promise.resolve().then(function () {
+        return _syncOrderFinanceMovement(id, fresh || order || {});
+      }).catch(function (err) {
+        console.warn('Erro ao sincronizar financeiro do pedido', err);
+      });
       _refreshDetailView(id);
       if (statusChanged && fresh) _showDetailWhatsappPrompt(fresh, nextStatus);
     }).catch(function (err) {
@@ -7455,6 +7468,7 @@ Modules.Pedidos = (function () {
       { value: 'pago', label: 'Já pago integral' },
       { value: 'paid', label: 'Pago online confirmado' },
       { value: 'failed', label: 'Pagamento falhou' },
+      { value: 'estornado', label: 'Pagamento estornado' },
       { value: 'canceled', label: 'Pagamento cancelado' }
     ];
     var current = _fold(selected || '');
@@ -7474,6 +7488,8 @@ Modules.Pedidos = (function () {
       previsto: 'A pagar na entrega',
       pending: 'Aguardando pagamento online',
       failed: 'Pagamento falhou',
+      estornado: 'Pagamento estornado',
+      estornada: 'Pagamento estornado',
       canceled: 'Pagamento cancelado',
       cancelado: 'Pagamento cancelado'
     };
@@ -7551,17 +7567,17 @@ Modules.Pedidos = (function () {
     var channelName = _firstText(costs.channelFeeBreakdown && costs.channelFeeBreakdown.channelName, order && order.channel, order && order.source, 'Canal');
     var hasRule = _num(costs.channelCommissionPct) > 0 || _num(costs.channelCommissionTaxPct) > 0 || _num(costs.channelFixedFee) > 0 || _num(costs.channelFeeTotal) > 0;
     if (!hasRule) return '';
-    return '<div style="margin-top:10px;border:1px solid #EFE4DC;border-radius:14px;background:#FFFCF8;padding:12px;display:grid;gap:11px;">' +
+    return '<div style="margin-top:10px;border:1px solid #EFE4DC;border-radius:14px;background:#FFFCF8;padding:12px;display:grid;gap:11px;min-width:0;max-width:100%;box-sizing:border-box;overflow:hidden;">' +
       '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-bottom:8px;border-bottom:1px solid #F1E6DF;">' +
         '<div style="min-width:0;"><div style="font-size:12px;font-weight:850;color:#1F1F1F;line-height:1.2;">Taxas do canal de venda</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:3px;">' + _esc(channelName) + ' · valores abatidos antes da entrada no Financeiro.</div></div>' +
         '<span style="font-size:10px;font-weight:850;color:' + (costs.channelFeesManual ? '#9A3412' : '#2F6B57') + ';background:#fff;border:1px solid #EADFD8;border-radius:999px;padding:5px 9px;white-space:nowrap;">' + (costs.channelFeesManual ? 'Editado manualmente' : 'Automático') + '</span>' +
       '</div>' +
-      '<div style="display:grid;grid-template-columns:repeat(3,minmax(115px,1fr));gap:9px;align-items:end;">' +
-        '<div><label class="order-detail-label">Comissão %</label><div class="order-detail-field-control order-detail-field-control-sm"><input id="detail-channel-commission-pct" type="number" step="0.01" value="' + _esc(String(_num(costs.channelCommissionPct))) + '"></div></div>' +
-        '<div><label class="order-detail-label">Imposto comissão %</label><div class="order-detail-field-control order-detail-field-control-sm"><input id="detail-channel-tax-pct" type="number" step="0.01" value="' + _esc(String(_num(costs.channelCommissionTaxPct))) + '"></div></div>' +
-        '<div><label class="order-detail-label">Taxa fixa</label><div class="order-detail-field-control order-detail-field-control-sm"><input id="detail-channel-fixed-fee" type="number" step="0.01" value="' + _esc(String(_num(costs.channelFixedFee))) + '"></div></div>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:9px;align-items:end;min-width:0;max-width:100%;">' +
+        '<div style="min-width:0;max-width:100%;"><label class="order-detail-label">Comissão %</label><div class="order-detail-field-control order-detail-field-control-sm"><input id="detail-channel-commission-pct" type="number" step="0.01" value="' + _esc(String(_num(costs.channelCommissionPct))) + '"></div></div>' +
+        '<div style="min-width:0;max-width:100%;"><label class="order-detail-label">Imposto comissão %</label><div class="order-detail-field-control order-detail-field-control-sm"><input id="detail-channel-tax-pct" type="number" step="0.01" value="' + _esc(String(_num(costs.channelCommissionTaxPct))) + '"></div></div>' +
+        '<div style="min-width:0;max-width:100%;"><label class="order-detail-label">Taxa fixa</label><div class="order-detail-field-control order-detail-field-control-sm"><input id="detail-channel-fixed-fee" type="number" step="0.01" value="' + _esc(String(_num(costs.channelFixedFee))) + '"></div></div>' +
       '</div>' +
-      '<div style="display:grid;grid-template-columns:repeat(3,minmax(115px,1fr));gap:8px;">' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:8px;min-width:0;max-width:100%;">' +
         '<div style="background:#fff;border:1px solid #EFE4DC;border-radius:11px;padding:9px 10px;min-width:0;"><div style="font-size:10px;font-weight:800;color:#8A7E7C;text-transform:uppercase;letter-spacing:.03em;">Total bruto</div><strong style="display:block;margin-top:3px;font-size:13px;color:#1F1F1F;">' + _esc(UI.fmt(costs.grossOrderTotal || costs.grossAmount || 0)) + '</strong></div>' +
         '<div style="background:#fff;border:1px solid #EFE4DC;border-radius:11px;padding:9px 10px;min-width:0;"><div style="font-size:10px;font-weight:800;color:#8A7E7C;text-transform:uppercase;letter-spacing:.03em;">Taxas calculadas</div><strong style="display:block;margin-top:3px;font-size:13px;color:#B42318;">-' + _esc(UI.fmt(costs.channelFeeTotal || 0)) + '</strong></div>' +
         '<div style="background:#fff;border:1px solid #EFE4DC;border-radius:11px;padding:9px 10px;min-width:0;"><div style="font-size:10px;font-weight:800;color:#8A7E7C;text-transform:uppercase;letter-spacing:.03em;">Entrada no Financeiro</div><strong style="display:block;margin-top:3px;font-size:13px;color:#1A9E5A;">' + _esc(UI.fmt(costs.netReceivable || 0)) + '</strong></div>' +
@@ -7585,6 +7601,15 @@ Modules.Pedidos = (function () {
     return String(order.conta_id || order.contaBancariaId || order.accountId || order.bankAccountId || _orderBankAccountId(order) || '');
   }
 
+  function _orderPaymentFinanceLocked(order) {
+    order = order || {};
+    var finStatus = _fold(_firstText(order.financeMovementStatus, order.financeStatus, order.financialStatus, ''));
+    if (finStatus === 'estornada' || finStatus === 'estornado' || finStatus === 'cancelada' || finStatus === 'cancelado') return false;
+    var payStatus = _fold(_firstText(order.paymentStatus, order.paymentState, order.statusPayment, order.payStatus, ''));
+    if (payStatus === 'estornado' || payStatus === 'estornada' || payStatus === 'canceled' || payStatus === 'cancelado') return false;
+    return !!(order.financeMovementId || order.financeReviewPending || order.requiresFinanceConfirmation);
+  }
+
   function _isTpvOrder(order) {
     var channel = _fold(_firstText(order && order.channel, order && order.source, order && order.originChannel, order && order.originSource, ''));
     return channel === 'tpv' || channel === 'venda presencial';
@@ -7595,7 +7620,12 @@ Modules.Pedidos = (function () {
     if (!orderId) return Promise.resolve(false);
     order = order || {};
     var orderStatus = String(order.status || order.orderStatus || '');
-    var isCancelled = _isCancelledStatus(orderStatus);
+    var existingFinanceStatus = _fold(_firstText(order.financeMovementStatus, order.financeStatus, order.financialStatus, ''));
+    var currentPaymentState = _fold(_firstText(order.paymentStatus, order.paymentState, order.statusPayment, order.payStatus, ''));
+    if (existingFinanceStatus === 'estornada' || existingFinanceStatus === 'estornado' || currentPaymentState === 'estornado' || currentPaymentState === 'estornada') {
+      return Promise.resolve(false);
+    }
+    var isCancelled = _statusCancelsStockMovement(orderStatus);
     var grossTotal = _orderFinanceTotal(order);
     var channelFinancial = _orderChannelFinancialPatch(order, grossTotal);
     Object.assign(order, channelFinancial);

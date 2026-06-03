@@ -1,5 +1,16 @@
 # AI Changelog
 
+## 2026-06-03 — Financeiro/Pedidos: estorno de entrada e bloqueio do pagamento
+- Arquivos alterados: `public/js/modules/financeiro.js`, `public/js/modules/pedidos.js`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Adicionei o fluxo `Estornar` para entradas financeiras com status `efetivado` ou `parcial`.
+- O estorno abre modal com data e motivo, mantém o histórico, marca a movimentação como `estornada`, zera `valorRecebido` e saldo ativo e registra `valorEstornado`, `data_estorno`, `motivoEstorno` e `statusAnterior`.
+- Quando a entrada estornada está vinculada a um pedido (`pedidoId/orderId/origemPedidoId`), o pedido passa a receber `paymentStatus/paymentState/statusPayment/payStatus/payment = estornado`, valores pagos zerados e `financeMovementStatus = estornada`.
+- No detalhe do pedido, `Forma de pagamento`, `Conta bancária`, `Status do pagamento` e `Valor pago` ficam bloqueados quando a entrada financeira vinculada está ativa; após estorno, voltam a ser editáveis.
+- Corrigi a chamada inexistente `_isCancelledStatus`, usando a função real `_statusCancelsStockMovement`, e isolei a sincronização financeira para não mostrar erro de pedido não salvo quando apenas o Financeiro falhar.
+- Ajustei o card `Taxas do canal de venda` para não estourar a largura no modal.
+- Removi o botão `Ver cliente` do detalhe do pedido.
+- Impacto esperado: preservar histórico financeiro, permitir reabrir correção de pagamento via estorno e evitar divergência entre pedido e entrada financeira.
+
 ## 2026-06-03 — Pedidos: detalhe tolerante a dados incompletos
 - Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - Ajustei o modal `Detalhes do pedido` para montar blocos críticos de forma isolada: cliente, pagamento, itens, endereço, observações, rastreio de estoque, pontos e taxas do canal.

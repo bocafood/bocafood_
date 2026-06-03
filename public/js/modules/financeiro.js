@@ -274,7 +274,7 @@ Modules.Financeiro = (function () {
     return '<span style="background:' + m[0] + ';color:' + m[1] + ';padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700;">' + m[2] + '</span>';
   }
   function _badgeEntradaStatus(s) {
-    var m = { previsto:['#EFF6FF','#2563EB','A receber',''], efetivado:['#DCFCE7','#16A34A','Recebido',''], parcial:['#FEF9C3','#B45309','Parcial','Recebido parcialmente'] }[s] || ['#F3F4F6','#6B7280',s||'—',''];
+    var m = { previsto:['#EFF6FF','#2563EB','A receber',''], efetivado:['#DCFCE7','#16A34A','Recebido',''], parcial:['#FEF9C3','#B45309','Parcial','Recebido parcialmente'], estornada:['#F3F4F6','#6B7280','Estornada','Recebimento estornado'], cancelada:['#F3F4F6','#6B7280','Cancelada','Entrada cancelada'] }[s] || ['#F3F4F6','#6B7280',s||'—',''];
     return '<span '+(m[3]?'title="'+_esc(m[3])+'" ':'')+'style="background:' + m[0] + ';color:' + m[1] + ';padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700;">' + m[2] + '</span>';
   }
   function _badgeSaidaStatus(s) {
@@ -305,7 +305,7 @@ Modules.Financeiro = (function () {
       valorRecebido: valorRecebido,
       valorPago: valorPago,
       saldoRestante: saldoRestante,
-      displayValor: st==='parcial' ? valorTotalOriginal : (st==='efetivado' ? valorRecebido : valorParcela),
+      displayValor: (st==='estornada'||st==='cancelada') ? 0 : (st==='parcial' ? valorTotalOriginal : (st==='efetivado' ? valorRecebido : valorParcela)),
       valorRow: valorParcela || valorTotalOriginal
     };
   }
@@ -1365,7 +1365,7 @@ Modules.Financeiro = (function () {
       if(!yes) return;
       var valid=ids.filter(function(id){
         var m=(_movimentacoes||[]).find(function(x){ return x.id===id; });
-        return m && m.status!=='efetivado' && m.status!=='parcial';
+        return m && m.status!=='efetivado' && m.status!=='parcial' && m.status!=='estornada' && m.status!=='cancelada';
       });
       Promise.all(valid.map(function(id){ return DB.remove('movimentacoes',id); })).then(function(){
         UI.toast(valid.length+' entrada(s) excluída(s). '+(ids.length-valid.length)+' ignorada(s).','info');
@@ -1611,6 +1611,7 @@ Modules.Financeiro = (function () {
             '<option value="efetivado"'+(_movFiltro.status==='efetivado'?' selected':'')+'>Recebido</option>'+
             '<option value="previsto"'+(_movFiltro.status==='previsto'?' selected':'')+'>A receber</option>'+
             '<option value="parcial"'+(_movFiltro.status==='parcial'?' selected':'')+'>Parcial</option>'+
+            '<option value="estornada"'+(_movFiltro.status==='estornada'?' selected':'')+'>Estornada</option>'+
           '</select></div>'+
           (hasMovFilter?'<div style="display:flex;align-items:flex-end;"><button onclick="Modules.Financeiro._limparMovFiltros()" style="height:38px;padding:0 14px;border:1px solid #E8DCD7;border-radius:12px;font-size:12.5px;font-weight:600;color:#B42318;background:#fff;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);">Limpar filtros</button></div>':'')+
         '</div>'+
@@ -1653,7 +1654,9 @@ Modules.Financeiro = (function () {
                 }
                 var st=m.status||'efetivado';
                 var info=_movValorInfo(m);
-                var valorHtml=st==='parcial'
+                var valorHtml=(st==='estornada'||st==='cancelada')
+                  ? '<div style="text-align:right;"><div style="font-size:13px;font-weight:800;color:#6B7280;">Estornado: '+_fmtVal(_parseNum(m.valorEstornado||m.valorEstornadoTotal||info.valorTotalOriginal||m.valor))+'</div><div style="font-size:11px;color:#8A7E7C;margin-top:2px;">Sem impacto no caixa</div></div>'
+                  : st==='parcial'
                   ?'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;line-height:1.15;"><div style="font-size:12px;font-weight:700;color:#16A34A;">Recebido: '+_fmtVal(info.valorRecebido)+'</div><div style="font-size:12px;font-weight:700;color:#B45309;">Pendente: '+_fmtVal(info.saldoRestante)+'</div></div>'
                   :('<div style="text-align:right;"><div style="font-size:14px;font-weight:800;color:#16A34A;">+ '+_fmtVal(info.displayValor)+'</div><div style="font-size:11px;color:#8A7E7C;margin-top:2px;">'+(st==='efetivado'?'Recebido':(m.parcelamento?'Parcela '+(m.parcelaNumero||'?')+'/'+(m.numeroParcelas||'?'):'A receber'))+'</div></div>');
                 return '<tr style="cursor:pointer;transition:background .15s ease;" onclick="Modules.Financeiro._openMovDetalheModal(\''+m.id+'\')" onmouseover="this.style.background=\'#FAF8F4\'" onmouseout="this.style.background=\'transparent\'">'+
@@ -1667,8 +1670,9 @@ Modules.Financeiro = (function () {
                   '<td style="padding:10px 14px;text-align:right;">'+valorHtml+'</td>'+
                   '<td style="padding:10px 6px;text-align:right;white-space:nowrap;">'+
                     (st==='previsto'?'<button onclick="event.stopPropagation();Modules.Financeiro._openEfetivarEntradasModal(\''+m.id+'\')" style="padding:6px 10px;border-radius:8px;border:none;background:#16A34A;color:#fff;cursor:pointer;font-size:11px;font-weight:700;font-family:inherit;margin-right:4px;">Confirmar recebimento</button>':'')+
-                    (st==='efetivado'?'':'<button onclick="event.stopPropagation();Modules.Financeiro._openMovModal(\''+m.id+'\')" style="padding:6px 10px;border-radius:8px;border:none;background:#EEF4FF;color:#3B82F6;cursor:pointer;font-size:11px;font-weight:700;font-family:inherit;margin-right:4px;">Editar</button>')+
-                    '<button onclick="event.stopPropagation();Modules.Financeiro._deleteMov(\''+m.id+'\')" style="padding:6px 10px;border-radius:8px;border:none;background:#FFF0EE;color:#C4362A;cursor:pointer;font-size:11px;font-weight:700;font-family:inherit;">Excluir</button>'+
+                    ((st==='efetivado'||st==='parcial')?'<button onclick="event.stopPropagation();Modules.Financeiro._openEstornarEntradaModal(\''+m.id+'\')" style="padding:6px 10px;border-radius:8px;border:none;background:#FFF7ED;color:#9A3412;cursor:pointer;font-size:11px;font-weight:700;font-family:inherit;margin-right:4px;">Estornar</button>':'')+
+                    ((st==='previsto'||st==='parcial')?'<button onclick="event.stopPropagation();Modules.Financeiro._openMovModal(\''+m.id+'\')" style="padding:6px 10px;border-radius:8px;border:none;background:#EEF4FF;color:#3B82F6;cursor:pointer;font-size:11px;font-weight:700;font-family:inherit;margin-right:4px;">Editar</button>':'')+
+                    ((st==='estornada'||st==='cancelada')?'':'<button onclick="event.stopPropagation();Modules.Financeiro._deleteMov(\''+m.id+'\')" style="padding:6px 10px;border-radius:8px;border:none;background:#FFF0EE;color:#C4362A;cursor:pointer;font-size:11px;font-weight:700;font-family:inherit;">Excluir</button>')+
                   '</td></tr>';
               }).join('')+
               '</tbody></table></div>'+paginationHtml+'</div></section>')+
@@ -1747,7 +1751,11 @@ Modules.Financeiro = (function () {
       ? {label:'Ainda não recebido',bg:'#EFF6FF',fg:'#2563EB'}
       : st==='parcial'
         ? {label:'Recebido parcialmente',bg:'#FEF9C3',fg:'#B45309'}
-        : {label:'Já recebido',bg:'#DCFCE7',fg:'#16A34A'};
+        : st==='estornada'
+          ? {label:'Recebimento estornado',bg:'#F3F4F6',fg:'#6B7280'}
+          : st==='cancelada'
+            ? {label:'Entrada cancelada',bg:'#F3F4F6',fg:'#6B7280'}
+            : {label:'Já recebido',bg:'#DCFCE7',fg:'#16A34A'};
     var cardStyle=_modalCardStyle();
     var detailItem=function(label,value,wide){
       return '<div style="'+(wide?'grid-column:1/-1;':'')+'min-width:0;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:10px 11px;">'+
@@ -1786,6 +1794,10 @@ Modules.Financeiro = (function () {
     }
     if(st==='efetivado' && recebido){
       infoCards.push(detailItem('Valor recebido','<span style="color:#1F6F43;">'+_fmtVal(recebido)+'</span>'));
+    }
+    if(st==='estornada'){
+      infoCards.push(detailItem('Valor estornado','<span style="color:#6B7280;">'+_fmtVal(_parseNum(m.valorEstornado||m.valorEstornadoTotal||info.valorTotalOriginal||m.valor))+'</span>'));
+      if(m.data_estorno||m.dataEstorno) infoCards.push(detailItem('Data do estorno',_esc(_fmtDateDisplay(m.data_estorno||m.dataEstorno))));
     }
     var body=
       '<div style="display:flex;flex-direction:column;gap:14px;">'+
@@ -1841,10 +1853,13 @@ Modules.Financeiro = (function () {
         : (st==='previsto'
           ? '<button onclick="Modules.Financeiro._closeMovDetalhe();Modules.Financeiro._openEfetivarEntradasModal(\''+m.id+'\')" style="height:42px;padding:0 16px;border-radius:12px;border:none;background:#1F8F56;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(31,143,86,.16);">Marcar como recebido</button>'
           : ''))+
-      (st!=='efetivado'
+      ((st==='efetivado'||st==='parcial')
+        ? '<button onclick="Modules.Financeiro._openEstornarEntradaModal(\''+m.id+'\')" style="height:42px;padding:0 16px;border-radius:12px;border:none;background:#FFF7ED;color:#9A3412;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Estornar recebimento</button>'
+        : '')+
+      ((st==='previsto'||st==='parcial')
         ? '<button onclick="Modules.Financeiro._closeMovDetalhe();Modules.Financeiro._openMovModal(\''+m.id+'\')" style="height:42px;padding:0 16px;border-radius:12px;border:1px solid #E6DDD3;background:#fff;color:#1F1F1F;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Editar</button>'
         : '')+
-      '<button onclick="Modules.Financeiro._deleteMov(\''+m.id+'\')" style="height:42px;padding:0 16px;border-radius:12px;border:none;background:#FFF0EE;color:#B42318;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Excluir</button>'+
+      ((st==='estornada'||st==='cancelada')?'':'<button onclick="Modules.Financeiro._deleteMov(\''+m.id+'\')" style="height:42px;padding:0 16px;border-radius:12px;border:none;background:#FFF0EE;color:#B42318;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Excluir</button>')+
       '<button onclick="Modules.Financeiro._closeMovDetalhe();" style="height:42px;padding:0 16px;border-radius:12px;border:1px solid #E6DDD3;background:#fff;color:#1F1F1F;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Fechar</button>'+
       '</div>'+
     '</div>';
@@ -2333,7 +2348,11 @@ Modules.Financeiro = (function () {
   function _deleteMov(id) {
     var mov=(_movimentacoes||[]).find(function(m){ return m.id===id; });
     if(mov && (mov.status==='efetivado' || mov.status==='parcial')){
-      UI.toast('Não é possível excluir uma entrada recebida ou parcial. Use estorno/cancelamento para manter o histórico financeiro.','error');
+      UI.toast('Não é possível excluir uma entrada recebida ou parcial. Use Estornar para manter o histórico financeiro.','error');
+      return;
+    }
+    if(mov && (mov.status==='estornada' || mov.status==='cancelada')){
+      UI.toast('Esta entrada já faz parte do histórico financeiro e não pode ser excluída.','error');
       return;
     }
     var body='<div style="display:flex;flex-direction:column;gap:14px;">'+
@@ -2367,6 +2386,106 @@ Modules.Financeiro = (function () {
       UI.toast('Eliminado','info');
       _loadMovimentacoes();
     });
+  }
+
+  function _openEstornarEntradaModal(id) {
+    var mov=(_movimentacoes||[]).find(function(m){ return m.id===id; });
+    if(!mov) return;
+    if(mov.status!=='efetivado'&&mov.status!=='parcial'){
+      UI.toast('Somente entradas recebidas ou parciais podem ser estornadas.','error');
+      return;
+    }
+    var info=_movValorInfo(mov);
+    var valorEstorno=mov.status==='parcial'?info.valorRecebido:info.valorRecebido||info.valorRow;
+    window._movEstornoEntrada={id:id};
+    var body='<div style="display:flex;flex-direction:column;gap:14px;">'+
+      '<div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:16px;padding:16px;display:flex;gap:12px;align-items:flex-start;">'+
+        '<div style="width:40px;height:40px;border-radius:13px;background:#fff;color:#9A3412;display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span class="mi" style="font-size:22px;">undo</span></div>'+
+        '<div style="min-width:0;">'+
+          '<div style="font-size:15px;font-weight:800;color:#1F1F1F;line-height:1.25;">Estornar este recebimento?</div>'+
+          '<div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:5px;">O histórico será mantido, a entrada deixará de contar como recebida e, se estiver ligada a um pedido, o status de pagamento do pedido será marcado como estornado.</div>'+
+        '</div>'+
+      '</div>'+
+      '<div style="background:#fff;border:1px solid #EADFD8;border-radius:16px;padding:16px;">'+
+        '<div style="font-size:11px;font-weight:750;color:#8A7E7C;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">Entrada</div>'+
+        '<div style="font-size:14px;font-weight:750;color:#1F1F1F;line-height:1.35;word-break:break-word;">'+_esc(mov.descricao||'Entrada')+'</div>'+
+        '<div style="margin-top:8px;font-size:22px;font-weight:800;color:#9A3412;">'+_fmtVal(valorEstorno)+'</div>'+
+      '</div>'+
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;">'+
+        '<div><label style="'+_lbl()+'">Data do estorno *</label><input id="mov-estorno-data" type="date" value="'+_today()+'" style="'+_inp()+'"></div>'+
+        '<div style="grid-column:1/-1;"><label style="'+_lbl()+'">Motivo</label><textarea id="mov-estorno-motivo" rows="3" placeholder="Ex: pagamento cancelado, lançado em duplicidade, cliente solicitou reembolso..." style="'+_inp()+'height:auto;min-height:82px;resize:vertical;padding-top:10px;"></textarea></div>'+
+      '</div>'+
+    '</div>';
+    var footer='<div style="display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;width:100%;">'+
+      '<button onclick="if(window._movEstornoModal)window._movEstornoModal.close();" style="height:40px;padding:0 14px;border-radius:12px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Cancelar</button>'+
+      '<button onclick="Modules.Financeiro._confirmEstornarEntrada()" style="height:40px;padding:0 16px;border-radius:12px;border:none;background:#9A3412;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 8px 18px rgba(154,52,18,.16);">Confirmar estorno</button>'+
+    '</div>';
+    window._movEstornoModal=UI.modal({title:'Estornar entrada',body:body,footer:footer,maxWidth:'560px'});
+  }
+
+  function _confirmEstornarEntrada() {
+    var ctx=window._movEstornoEntrada||{};
+    var mov=(_movimentacoes||[]).find(function(m){ return m.id===ctx.id; });
+    if(!mov) return;
+    var data=(document.getElementById('mov-estorno-data')||{}).value||'';
+    var motivo=String((document.getElementById('mov-estorno-motivo')||{}).value||'').trim();
+    if(!data){ UI.toast('Informe a data do estorno','error'); return; }
+    var info=_movValorInfo(mov);
+    var valorEstorno=mov.status==='parcial'?info.valorRecebido:info.valorRecebido||info.valorRow;
+    var now=new Date().toISOString();
+    var patch={
+      status:'estornada',
+      statusAnterior:mov.status||'',
+      estornada:true,
+      estornadaEm:now,
+      data_estorno:data,
+      dataEstorno:data,
+      motivoEstorno:motivo,
+      valorEstornado:valorEstorno,
+      valorRecebido:0,
+      valor_recebido_total:0,
+      saldoRestante:0,
+      saldo_restante:0,
+      updatedAt:now
+    };
+    DB.update('movimentacoes',mov.id,patch).then(function(){
+      return _syncPedidoAposEstornoEntrada(mov, patch);
+    }).then(function(){
+      if(window._movEstornoModal) window._movEstornoModal.close();
+      if(window._movDetalheModal) window._movDetalheModal.close();
+      UI.toast('Entrada estornada','success');
+      _movSelecionadas=[];
+      _loadMovimentacoes();
+    }).catch(function(e){ UI.toast('Erro: '+(e&&e.message?e.message:'falha ao estornar'),'error'); });
+  }
+
+  function _syncPedidoAposEstornoEntrada(mov, estornoPatch) {
+    var pedidoId=String((mov&& (mov.pedidoId||mov.orderId||mov.origemPedidoId))||'').trim();
+    if(!pedidoId) return Promise.resolve(false);
+    var patch={
+      paymentStatus:'estornado',
+      paymentState:'estornado',
+      statusPayment:'estornado',
+      payStatus:'estornado',
+      payment:'estornado',
+      paid:false,
+      paidAmount:0,
+      amountPaid:0,
+      valuePaid:0,
+      financeMovementStatus:'estornada',
+      paymentReversed:true,
+      paymentReversedAt:estornoPatch.estornadaEm,
+      paymentReversalDate:estornoPatch.data_estorno,
+      paymentReversalReason:estornoPatch.motivoEstorno||'',
+      updatedAt:new Date().toISOString()
+    };
+    return DB.update('orders',pedidoId,patch).catch(function(){
+      return DB.getAll('orders').then(function(orders){
+        var found=(orders||[]).find(function(o){ return String(o.id||o.orderId||o.publicOrderCode||o.orderNumber||'')===pedidoId; });
+        if(found&&found.id) return DB.update('orders',found.id,patch);
+        return false;
+      });
+    }).catch(function(){ return false; });
   }
 
   function _openEfetivarEntradasModal(id) {
@@ -4944,7 +5063,7 @@ function _openContaModal(id) {
     _limparMovFiltros:_limparMovFiltros, _limparCPFiltros:_limparCPFiltros, _applyFormaPadraoConta:_applyFormaPadraoConta,
     _openMovModal:_openMovModal, _setMovTipo:_setMovTipo, _selectMovStatus:_selectMovStatus, _toggleMovNovaCat:_toggleMovNovaCat, _toggleMovRecorrente:_toggleMovRecorrente, _toggleMovParcelado:_toggleMovParcelado, _calcMovParcela:_calcMovParcela, _renderMovPreviews:_renderMovPreviews,
     _toggleMovNovaPessoa:_toggleMovNovaPessoa, _financePessoaSearch:_financePessoaSearch, _financePessoaSelect:_financePessoaSelect, _saveMov:_saveMov, _deleteMov:_deleteMov, _setMovFiltro:_setMovFiltro, _toggleMovConta:_toggleMovConta, _toggleMovOrdem:_toggleMovOrdem,
-    _toggleMovSelecionada:_toggleMovSelecionada, _toggleMovTodas:_toggleMovTodas, _clearMovSelection:_clearMovSelection, _setMovPage:_setMovPage, _setMovPageSize:_setMovPageSize, _openBulkEntradaModal:_openBulkEntradaModal, _applyBulkEntrada:_applyBulkEntrada, _bulkMovStatus:_bulkMovStatus, _bulkDeleteMov:_bulkDeleteMov, _openMovDetalheModal:_openMovDetalheModal, _closeMovDetalhe:_closeMovDetalhe, _confirmDeleteMov:_confirmDeleteMov, _openEfetivarEntradasModal:_openEfetivarEntradasModal, _saveEfetivarEntradas:_saveEfetivarEntradas, _marcarEntradaParcial:_marcarEntradaParcial, _gerarNovaPrevisaoParcial:_gerarNovaPrevisaoParcial, _criarEntradaRestante:_criarEntradaRestante,
+    _toggleMovSelecionada:_toggleMovSelecionada, _toggleMovTodas:_toggleMovTodas, _clearMovSelection:_clearMovSelection, _setMovPage:_setMovPage, _setMovPageSize:_setMovPageSize, _openBulkEntradaModal:_openBulkEntradaModal, _applyBulkEntrada:_applyBulkEntrada, _bulkMovStatus:_bulkMovStatus, _bulkDeleteMov:_bulkDeleteMov, _openMovDetalheModal:_openMovDetalheModal, _closeMovDetalhe:_closeMovDetalhe, _confirmDeleteMov:_confirmDeleteMov, _openEstornarEntradaModal:_openEstornarEntradaModal, _confirmEstornarEntrada:_confirmEstornarEntrada, _openEfetivarEntradasModal:_openEfetivarEntradasModal, _saveEfetivarEntradas:_saveEfetivarEntradas, _marcarEntradaParcial:_marcarEntradaParcial, _gerarNovaPrevisaoParcial:_gerarNovaPrevisaoParcial, _criarEntradaRestante:_criarEntradaRestante,
     _openCompraModal:_openCompraModal, _addCompraLinha:_addCompraLinha, _removeCompraLinha:_removeCompraLinha,
     _onCompraInsChange:_onCompraInsChange, _calcCompraLinha:_calcCompraLinha, _saveCompra:_saveCompra, _deleteCompra:_deleteCompra,
     _openCPModal:_openCPModal, _saveCP:_saveCP, _deleteCP:_deleteCP, _confirmDeleteCP:_confirmDeleteCP, _pagarCP:_pagarCP, _savePagamentoCP:_savePagamentoCP, _criarSaldoRestanteCP:_criarSaldoRestanteCP, _toggleSaldoRestanteModo:_toggleSaldoRestanteModo,
