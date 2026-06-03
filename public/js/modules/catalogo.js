@@ -1859,7 +1859,9 @@ Modules.Catalogo = (function () {
     var recipeQty = _parseFichaNum(recipe && (recipe.yieldQuantity || recipe.yield || 0)) || 1;
     var recipeUnit = recipe && recipe.yieldUnit || 'unidades';
     var stageQty = _parseFichaNum(comp.stageYieldQuantity || comp.baseYieldQuantity || comp.stockYieldQuantity || 0);
+    var usageQty = _parseFichaNum(comp.stageUsageQuantity || comp.usageQuantity || comp.quantityPerUnit || comp.baseUsageQuantity || 0);
     var stageUnit = comp.stageYieldUnit || comp.baseYieldUnit || comp.stockYieldUnit || '';
+    if (usageQty > 0) return usageQty;
     if (!(stageQty > 0)) return 1;
     if (_sameYieldFamily(stageUnit, recipeUnit) && _recipeYieldUnitKey(recipeUnit) === 'count') return 1;
     return stageQty / Math.max(1, recipeQty);
@@ -8707,19 +8709,32 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     return comp.stageYieldUnit || comp.baseYieldUnit || comp.stockYieldUnit || '';
   }
 
+  function _componentUsageQuantity(comp) {
+    return _parseFichaNum(comp.stageUsageQuantity || comp.usageQuantity || comp.quantityPerUnit || comp.baseUsageQuantity || 0);
+  }
+
+  function _componentUsageUnit(comp) {
+    return comp.stageUsageUnit || comp.usageUnit || comp.unitPerUnit || comp.baseUsageUnit || _componentYieldUnit(comp) || '';
+  }
+
   function _componentUsageRatio(comp, recipeYieldQty, recipeYieldUnit) {
     var stageQty = _componentYieldQuantity(comp);
+    var usageQty = _componentUsageQuantity(comp);
     var recipeQty = _parseFichaNum(recipeYieldQty);
     var stageUnit = _componentYieldUnit(comp);
+    var usageUnit = _componentUsageUnit(comp);
     var recipeUnit = recipeYieldUnit || 'unidades';
-    var compatible = !!stageQty && !!recipeQty && _recipeYieldUnitKey(stageUnit) && _recipeYieldUnitKey(stageUnit) === _recipeYieldUnitKey(recipeUnit);
-    var ratio = compatible ? (recipeQty / stageQty) : 1;
+    var usageCompatible = !!usageQty && !!stageQty && _recipeYieldUnitKey(usageUnit) && _recipeYieldUnitKey(usageUnit) === _recipeYieldUnitKey(stageUnit);
+    var legacyCompatible = !!stageQty && !!recipeQty && _recipeYieldUnitKey(stageUnit) && _recipeYieldUnitKey(stageUnit) === _recipeYieldUnitKey(recipeUnit);
+    var ratio = usageCompatible ? (usageQty / stageQty) : (legacyCompatible ? (recipeQty / stageQty) : 1);
     if (!isFinite(ratio) || ratio <= 0) ratio = 1;
     return {
       ratio: ratio,
-      proportional: compatible,
+      proportional: usageCompatible || legacyCompatible,
       stageYieldQuantity: stageQty,
       stageYieldUnit: stageUnit,
+      stageUsageQuantity: usageQty,
+      stageUsageUnit: usageUnit,
       recipeYieldQuantity: recipeQty,
       recipeYieldUnit: recipeUnit
     };
@@ -8738,6 +8753,8 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
         note: comp.note || comp.observation || comp.observacao || '',
         stageYieldQuantity: _parseFichaNum(comp.stageYieldQuantity || comp.baseYieldQuantity || comp.stockYieldQuantity || 0),
         stageYieldUnit: comp.stageYieldUnit || comp.baseYieldUnit || comp.stockYieldUnit || '',
+        stageUsageQuantity: _parseFichaNum(comp.stageUsageQuantity || comp.usageQuantity || comp.quantityPerUnit || comp.baseUsageQuantity || 0),
+        stageUsageUnit: comp.stageUsageUnit || comp.usageUnit || comp.unitPerUnit || comp.baseUsageUnit || comp.stageYieldUnit || comp.baseYieldUnit || comp.stockYieldUnit || '',
         stockControl: !!(comp.stockControl || comp.controlsStock),
         controlsStock: !!(comp.stockControl || comp.controlsStock),
         baseYieldQuantity: _parseFichaNum(comp.baseYieldQuantity || comp.stockYieldQuantity || 0),
@@ -9149,26 +9166,23 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       '</div>' +
 
       '<div class="recipe-modal-card recipe-modal-yield">' +
-      '<div class="recipe-modal-head"><span class="mi">scale</span><div><div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;"><div class="recipe-modal-title">Rendimento</div><button type="button" class="recipe-help-btn" onclick="Modules.Catalogo._toggleFichaYieldHelp()">Como preencher?</button></div><div class="recipe-modal-desc">Informe quanto esta receita rende quando fica pronta.</div></div></div>' +
+      '<div class="recipe-modal-head"><span class="mi">scale</span><div><div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;"><div class="recipe-modal-title">Unidade da ficha</div><button type="button" class="recipe-help-btn" onclick="Modules.Catalogo._toggleFichaYieldHelp()">Como preencher?</button></div><div class="recipe-modal-desc">Use 1 unidade quando esta ficha representa um produto vendido.</div></div></div>' +
       '<div id="fc-yield-help" class="recipe-help-box">' +
-        'Aqui você dirá quanto essa receita depois de pronta.<br><br>' +
+        'Para produto vendido, a ficha pode representar 1 unidade final.<br><br>' +
         '<strong>Exemplo:</strong><br>' +
-        'Você faz uma massa e, no final, consegue montar 20 salgados.<br><br>' +
+        'Pastel de frango usa 80 g de recheio de frango e 1 embalagem. Coxinha usa 50 g de recheio de frango.<br><br>' +
         '<strong>Preencha assim:</strong><br>' +
-        '• Rendimento: 20<br>' +
+        '• Quantidade base: 1<br>' +
         '• Tipo de rendimento: unidades<br>' +
         '• Peso por unidade: só preencha se cada unidade tiver um peso padrão<br><br>' +
-        'O BocaFood usa esse rendimento para calcular quanto custa cada unidade produzida.<br><br>' +
-        'Se a receita rende unidades, use "unidades".<br>' +
-        'Se rende uma quantidade em kg, use "kg".<br>' +
-        'Se rende uma quantidade em litros, use "litros".<br><br>' +
+        'O rendimento da etapa, como 1 kg de frango preparado, fica no cadastro da etapa de produção. Aqui entra só quanto a ficha consome daquela etapa.<br><br>' +
         '<strong>Importante:</strong><br>' +
-        'preencha o rendimento real depois de pronta, não a quantidade de ingredientes usados.' +
+        'se deixar vazio, o BocaFood considera 1 unidade.' +
       '</div>' +
       '<div class="recipe-modal-grid recipe-yield-grid">' +
-      '<div><label style="' + _fichaLbl() + '">Rendimento *</label>' +
-      '<div class="supplier-field-control"><input id="fc-yield-qty" type="text" value="' + _esc(f.yieldQuantity || f.yield || '') + '" required oninput="Modules.Catalogo._updateFichaPesoTotal()"></div></div>' +
-      '<div><label style="' + _fichaLbl() + '">Tipo de rendimento *</label>' +
+      '<div><label style="' + _fichaLbl() + '">Quantidade base</label>' +
+      '<div class="supplier-field-control"><input id="fc-yield-qty" type="text" value="' + _esc(f.yieldQuantity || f.yield || '') + '" placeholder="1" oninput="Modules.Catalogo._updateFichaPesoTotal()"></div></div>' +
+      '<div><label style="' + _fichaLbl() + '">Unidade base</label>' +
       '<div class="supplier-field-control"><select id="fc-yield-unit" onchange="Modules.Catalogo._onYieldUnitChange()">' + yieldUnitOpts + '</select></div></div>' +
       '</div>' +
       '<div id="fc-peso-section" class="recipe-modal-grid" style="display:' + (showPeso ? 'grid' : 'none') + ';grid-template-columns:1fr 1fr;gap:12px;margin-top:11px;">' +
@@ -9351,7 +9365,6 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var defaults = _recipeComponentStageDefaults(name);
     var qtyEl = document.querySelector('[data-comp-stock-qty="' + compIdx + '"]');
     var unitEl = document.querySelector('[data-comp-stock-unit="' + compIdx + '"]');
-    if (qtyEl && !String(qtyEl.value || '').trim() && defaults.stageYieldQuantity) qtyEl.value = defaults.stageYieldQuantity;
     if (unitEl && !String(unitEl.value || '').trim() && defaults.stageYieldUnit) _setSelectValueWithFallback(unitEl, defaults.stageYieldUnit);
     if (!templateIngredients.length) {
       _updateFichaCost();
@@ -9586,6 +9599,8 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       window._fichaIngCount = blankIdx + 1;
       rows = _fichaIngRow(blankIdx, compIdx, '', 0);
     }
+    var usageQty = comp.stageUsageQuantity != null ? comp.stageUsageQuantity : comp.usageQuantity != null ? comp.usageQuantity : comp.quantityPerUnit != null ? comp.quantityPerUnit : comp.baseUsageQuantity != null ? comp.baseUsageQuantity : (comp.stageYieldQuantity || comp.baseYieldQuantity || comp.stockYieldQuantity || '');
+    var usageUnit = comp.stageUsageUnit || comp.usageUnit || comp.unitPerUnit || comp.baseUsageUnit || comp.stageYieldUnit || comp.baseYieldUnit || comp.stockYieldUnit || '';
     return '<div id="fc-comp-' + compIdx + '" class="fc-component recipe-component" data-comp-idx="' + compIdx + '">' +
       '<div class="recipe-stage-guidance"><strong>Escolha uma etapa já cadastrada.</strong> Se essa mesma base aparece em outras receitas, use exatamente a mesma etapa para manter a produção conectada.</div>' +
       '<div class="recipe-component-head">' +
@@ -9595,11 +9610,11 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       '</div>' +
       '<div class="recipe-component-base">' +
         '<label><input type="checkbox" data-comp-stock="' + compIdx + '"' + (comp.stockControl || comp.controlsStock ? ' checked' : '') + ' style="accent-color:#B42318;width:15px;height:15px;"> Controlar como base produzida antes</label>' +
-        '<div><label style="' + _fichaLbl() + '">Rendimento da etapa</label><div class="supplier-field-control"><input type="text" data-comp-stock-qty="' + compIdx + '" value="' + _esc(comp.stageYieldQuantity || comp.baseYieldQuantity || comp.stockYieldQuantity || '') + '" placeholder="Ex: 40" oninput="Modules.Catalogo._updateFichaCost()"></div></div>' +
-        '<div><label style="' + _fichaLbl() + '">Unidade</label><div class="supplier-field-control"><select data-comp-stock-unit="' + compIdx + '" onchange="Modules.Catalogo._updateFichaCost()">' + _recipeUnitOptionsHtml(comp.stageYieldUnit || comp.baseYieldUnit || comp.stockYieldUnit || '') + '</select></div></div>' +
+        '<div><label style="' + _fichaLbl() + '">Qtd. usada por unidade</label><div class="supplier-field-control"><input type="text" data-comp-stock-qty="' + compIdx + '" value="' + _esc(usageQty) + '" placeholder="Ex: 80" oninput="Modules.Catalogo._updateFichaCost()"></div></div>' +
+        '<div><label style="' + _fichaLbl() + '">Unidade</label><div class="supplier-field-control"><select data-comp-stock-unit="' + compIdx + '" onchange="Modules.Catalogo._updateFichaCost()">' + _recipeUnitOptionsHtml(usageUnit) + '</select></div></div>' +
         '<div><label style="' + _fichaLbl() + '">Mínimo</label><div class="supplier-field-control"><input type="text" data-comp-stock-min="' + compIdx + '" value="' + _esc(comp.minStock || comp.estoque_minimo || '') + '" placeholder="Ex: 2"></div></div>' +
         '<div><label style="' + _fichaLbl() + '">Máximo</label><div class="supplier-field-control"><input type="text" data-comp-stock-max="' + compIdx + '" value="' + _esc(comp.maxStock || comp.estoque_maximo || '') + '" placeholder="Ex: 8"></div></div>' +
-        '<div class="recipe-base-copy"><strong style="color:#1F1F1F;">Marque apenas se essa etapa vira estoque próprio.</strong> Exemplo: você produz 40 unidades de recheio, guarda e depois usa em coxinha e pastel. Se a etapa só acontece dentro desta receita, deixe desmarcado.</div>' +
+        '<div class="recipe-base-copy"><strong style="color:#1F1F1F;">Marque apenas se essa etapa vira estoque próprio.</strong> Exemplo: cadastre a etapa Recheio de frango com rendimento próprio e, nesta ficha, informe 80 g no pastel ou 50 g na coxinha. A venda baixa essa quantidade da base pronta.</div>' +
       '</div>' +
       '<div id="fc-comp-ings-' + compIdx + '" style="display:flex;flex-direction:column;gap:8px;">' + rows + '</div>' +
       '<button type="button" onclick="Modules.Catalogo._addFichaIng(' + compIdx + ')" class="recipe-dashed-btn">+ Adicionar ingrediente nesta etapa</button>' +
@@ -9940,8 +9955,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   function _saveFicha() {
     var name = ((document.getElementById('fc-name') || {}).value || '').trim();
     if (!name) { UI.toast('Nome é obrigatório', 'error'); return; }
-    var yieldQty = _parseFichaNum((document.getElementById('fc-yield-qty') || {}).value);
-    if (!yieldQty || yieldQty <= 0) { UI.toast('Rendimento deve ser maior que zero', 'error'); return; }
+    var yieldQty = _parseFichaNum((document.getElementById('fc-yield-qty') || {}).value) || 1;
     var yieldUnit = ((document.getElementById('fc-yield-unit') || {}).value) || 'unidades';
     var container = document.getElementById('fc-components');
     var ingredients = [];
@@ -9959,8 +9973,11 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
         var compRefId = compRef ? String(compRef.id || '') : '';
         var compNote = ((container.querySelector('[data-comp-note="' + compIdx + '"]') || {}).value || '').trim();
         var compStockControl = !!((container.querySelector('[data-comp-stock="' + compIdx + '"]') || {}).checked);
-        var compBaseYieldQuantity = _parseFichaNum((container.querySelector('[data-comp-stock-qty="' + compIdx + '"]') || {}).value);
-        var compBaseYieldUnit = ((container.querySelector('[data-comp-stock-unit="' + compIdx + '"]') || {}).value || '').trim();
+        var compUsageQuantity = _parseFichaNum((container.querySelector('[data-comp-stock-qty="' + compIdx + '"]') || {}).value);
+        var compUsageUnit = ((container.querySelector('[data-comp-stock-unit="' + compIdx + '"]') || {}).value || '').trim();
+        var stageDefaults = _recipeComponentStageDefaults(compName);
+        var compBaseYieldQuantity = _parseFichaNum(stageDefaults.stageYieldQuantity || compUsageQuantity);
+        var compBaseYieldUnit = stageDefaults.stageYieldUnit || compUsageUnit;
         var compMinStock = _parseFichaNum((container.querySelector('[data-comp-stock-min="' + compIdx + '"]') || {}).value);
         var compMaxStock = _parseFichaNum((container.querySelector('[data-comp-stock-max="' + compIdx + '"]') || {}).value);
         if (compMinStock > 0 && compMaxStock > 0 && compMaxStock < compMinStock) invalidStockRange = true;
@@ -9998,7 +10015,9 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
           if (!compName) missingComponentName = true;
           var compRatio = _componentUsageRatio({
             stageYieldQuantity: compBaseYieldQuantity,
-            stageYieldUnit: compBaseYieldUnit
+            stageYieldUnit: compBaseYieldUnit,
+            stageUsageQuantity: compUsageQuantity,
+            stageUsageUnit: compUsageUnit
           }, yieldQty, yieldUnit);
           var compRawCost = compIngredients.reduce(function (sum, ing) { return sum + _parseFichaNum(ing.totalCost); }, 0);
           components.push({
@@ -10016,7 +10035,9 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
                 recipeYieldQuantity: yieldQty,
                 recipeYieldUnit: yieldUnit,
                 stageYieldQuantity: compBaseYieldQuantity || null,
-                stageYieldUnit: compBaseYieldUnit || ''
+                stageYieldUnit: compBaseYieldUnit || '',
+                stageUsageQuantity: compUsageQuantity || null,
+                stageUsageUnit: compUsageUnit || ''
               });
             }),
             stockControl: compStockControl,
@@ -10026,6 +10047,12 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
             classe: compStockControl ? 'base_producao' : '',
             stageYieldQuantity: compBaseYieldQuantity || null,
             stageYieldUnit: compBaseYieldUnit || '',
+            stageUsageQuantity: compUsageQuantity || null,
+            stageUsageUnit: compUsageUnit || '',
+            usageQuantity: compUsageQuantity || null,
+            usageUnit: compUsageUnit || '',
+            quantityPerUnit: compUsageQuantity || null,
+            unitPerUnit: compUsageUnit || '',
             stageUsageRatio: compRatio.ratio,
             proportionalCostApplied: compRatio.proportional,
             rawCost: compRawCost,
@@ -10349,6 +10376,12 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
         classe: controls ? 'base_producao' : '',
         stageYieldQuantity: built.ratioInfo.stageYieldQuantity || null,
         stageYieldUnit: built.ratioInfo.stageYieldUnit || '',
+        stageUsageQuantity: built.ratioInfo.stageUsageQuantity || null,
+        stageUsageUnit: built.ratioInfo.stageUsageUnit || '',
+        usageQuantity: built.ratioInfo.stageUsageQuantity || null,
+        usageUnit: built.ratioInfo.stageUsageUnit || '',
+        quantityPerUnit: built.ratioInfo.stageUsageQuantity || null,
+        unitPerUnit: built.ratioInfo.stageUsageUnit || '',
         stageUsageRatio: built.ratioInfo.ratio,
         proportionalCostApplied: built.ratioInfo.proportional,
         rawCost: built.rawCost,

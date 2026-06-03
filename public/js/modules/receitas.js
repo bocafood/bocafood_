@@ -1029,12 +1029,14 @@ Modules.Receitas = (function () {
         if (comp.stockControl || comp.controlsStock) {
           var baseQty = _num(comp.stageYieldQuantity || comp.baseYieldQuantity || comp.stockYieldQuantity);
           if (baseQty <= 0) baseQty = yieldQty;
+          var usageQty = _num(comp.stageUsageQuantity || comp.usageQuantity || comp.quantityPerUnit || comp.baseUsageQuantity);
+          if (usageQty <= 0) usageQty = baseQty / Math.max(1, yieldQty);
           var baseId = _baseProductionId(recipe, comp, idx);
           requirements.push({
             key: 'base_producao:' + baseId,
             name: comp.name || 'Base de produção',
-            requiredPerUnit: baseQty / Math.max(1, yieldQty),
-            unit: comp.stageYieldUnit || comp.baseYieldUnit || comp.stockYieldUnit || recipe.yieldUnit || '',
+            requiredPerUnit: usageQty,
+            unit: comp.stageUsageUnit || comp.usageUnit || comp.unitPerUnit || comp.baseUsageUnit || comp.stageYieldUnit || comp.baseYieldUnit || comp.stockYieldUnit || recipe.yieldUnit || '',
             stockKind: 'base_producao'
           });
           return;
@@ -3089,6 +3091,8 @@ Modules.Receitas = (function () {
           classe: controls ? 'base_producao' : (comp.classe || comp.itemClass || ''),
           stageYieldQuantity: _num(comp.stageYieldQuantity || comp.baseYieldQuantity || comp.stockYieldQuantity),
           stageYieldUnit: comp.stageYieldUnit || comp.baseYieldUnit || comp.stockYieldUnit || '',
+          stageUsageQuantity: _num(comp.stageUsageQuantity || comp.usageQuantity || comp.quantityPerUnit || comp.baseUsageQuantity),
+          stageUsageUnit: comp.stageUsageUnit || comp.usageUnit || comp.unitPerUnit || comp.baseUsageUnit || comp.stageYieldUnit || comp.baseYieldUnit || comp.stockYieldUnit || '',
           stageUsageRatio: _num(comp.stageUsageRatio || 1) || 1,
           proportionalCostApplied: !!comp.proportionalCostApplied,
           rawCost: _num(comp.rawCost),

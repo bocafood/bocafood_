@@ -4535,7 +4535,9 @@ Modules.Pedidos = (function () {
     return baseComponents.map(function (comp, idx) {
       var baseYield = _num(comp.stageYieldQuantity || comp.baseYieldQuantity || comp.stockYieldQuantity);
       if (baseYield <= 0) baseYield = recipeYield;
-      var qty = _roundStockQty((baseYield / Math.max(1, recipeYield)) * soldQty);
+      var usageQty = _num(comp.stageUsageQuantity || comp.usageQuantity || comp.quantityPerUnit || comp.baseUsageQuantity);
+      if (usageQty <= 0) usageQty = baseYield / Math.max(1, recipeYield);
+      var qty = _roundStockQty(usageQty * soldQty);
       var totalCost = _componentStockCost(comp);
       var unitCost = baseYield > 0 ? totalCost / baseYield : 0;
       return {
@@ -4548,7 +4550,7 @@ Modules.Pedidos = (function () {
         baseProductionName: comp.name || 'Base de produção',
         componentName: comp.name || '',
         quantity: qty,
-        unit: comp.stageYieldUnit || comp.baseYieldUnit || comp.stockYieldUnit || recipe.yieldUnit || 'unidades',
+        unit: comp.stageUsageUnit || comp.usageUnit || comp.unitPerUnit || comp.baseUsageUnit || comp.stageYieldUnit || comp.baseYieldUnit || comp.stockYieldUnit || recipe.yieldUnit || 'unidades',
         unitCost: unitCost,
         stockItemType: 'base_producao',
         source: source === 'combo' ? 'combo_base_producao' : 'base_producao'

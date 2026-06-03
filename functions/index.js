@@ -2323,7 +2323,9 @@ function stockBaseRefsFromRecipe(item, product, quantity, source, fichaId, recip
   return baseComponents.map((comp, idx) => {
     let baseYield = stockNum(comp.stageYieldQuantity || comp.baseYieldQuantity || comp.stockYieldQuantity);
     if (baseYield <= 0) baseYield = recipeYield;
-    const qty = stockRoundQty((baseYield / Math.max(1, recipeYield)) * soldQty);
+    let usageQty = stockNum(comp.stageUsageQuantity || comp.usageQuantity || comp.quantityPerUnit || comp.baseUsageQuantity);
+    if (usageQty <= 0) usageQty = baseYield / Math.max(1, recipeYield);
+    const qty = stockRoundQty(usageQty * soldQty);
     const totalCost = stockComponentCost(comp);
     const unitCost = baseYield > 0 ? totalCost / baseYield : 0;
     return {
@@ -2336,7 +2338,7 @@ function stockBaseRefsFromRecipe(item, product, quantity, source, fichaId, recip
       baseProductionName: comp.name || "Base de produção",
       componentName: comp.name || "",
       quantity: qty,
-      unit: comp.stageYieldUnit || comp.baseYieldUnit || comp.stockYieldUnit || recipe.yieldUnit || "unidades",
+      unit: comp.stageUsageUnit || comp.usageUnit || comp.unitPerUnit || comp.baseUsageUnit || comp.stageYieldUnit || comp.baseYieldUnit || comp.stockYieldUnit || recipe.yieldUnit || "unidades",
       unitCost,
       stockItemType: "base_producao",
       source: source === "combo" ? "combo_base_producao" : "base_producao"

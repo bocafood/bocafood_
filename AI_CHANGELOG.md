@@ -11239,6 +11239,16 @@
 - A lista reaproveita as opções já usadas pelo módulo de Compras, evitando criar uma fonte paralela ou alterar a lógica de cadastro.
 - Impacto esperado: deixar visível dentro das configurações de Produção quais embalagens de compra podem ser usadas no preenchimento dos insumos.
 
+## 2026-06-03 — Produção: ficha consome quantidade da etapa por unidade vendida
+- Arquivos alterados: `public/admin.html`, `public/js/modules/catalogo.js`, `public/js/modules/receitas.js`, `public/js/modules/pedidos.js`, `functions/index.js`, `AI_CHANGELOG.md`, `AGENTS.md`.
+- Ajustei a lógica entre etapa de produção e ficha técnica: a etapa continua guardando o rendimento próprio da base produzida, enquanto a ficha passa a salvar a quantidade dessa etapa consumida por unidade vendida (`stageUsageQuantity`).
+- No cadastro da ficha, o campo da etapa foi reposicionado como `Qtd. usada por unidade`, com exemplo de 80 g de recheio no pastel e 50 g na coxinha.
+- A venda no Admin e no webhook Stripe/Functions agora baixa a quantidade usada por unidade vendida quando ela existe; fichas antigas sem esse campo continuam usando o cálculo legado para não quebrar dados existentes.
+- A previsão de produção/cardápio também passou a usar a quantidade consumida por unidade para bases de produção, evitando estimativas baseadas no rendimento inteiro da etapa.
+- O rendimento global da ficha deixou de bloquear o salvamento: quando vazio, o sistema considera 1 unidade, alinhando a ficha técnica ao produto vendido.
+- Atualizei os cache-busters de `catalogo.js`, `receitas.js` e `pedidos.js` no Admin.
+- Impacto esperado: uma etapa como `Recheio de frango` pode produzir 1 kg, enquanto `Pastel` baixa 80 g e `Coxinha` baixa 50 g, sem duplicar ingredientes da etapa na venda.
+
 ## 2026-06-03 — Estoque: retirar regularizações de pedidos cancelados
 - Arquivos alterados: `public/admin.html`, `public/js/modules/pedidos.js`, `public/js/modules/estoque.js`, `AI_CHANGELOG.md`, `AGENTS.md`.
 - Corrigi o estorno de estoque do pedido para também cancelar as pendências de `stockRegularizationPendingItems` quando o pedido é cancelado ou quando o estorno já estava registrado.
