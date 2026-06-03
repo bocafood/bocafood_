@@ -1,5 +1,12 @@
 # AI Changelog
 
+## 2026-06-03 — Pedidos: campo Origem com mais espaço
+- Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Ajustei o campo `Origem` no modal `Detalhes do pedido` para usar label acima e seletor em largura total.
+- Aumentei a largura mínima da coluna de resumo do pedido no desktop para o seletor não ficar comprimido.
+- Atualizei o cache-buster de `pedidos.js` no admin para carregar o ajuste visual.
+- Impacto esperado: editar a origem/canal do pedido fica legível e confortável dentro do detalhe.
+
 ## 2026-06-03 — Produção: modal de etapa maior e sem embalagens
 - Arquivos alterados: `public/js/modules/receitas.js`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
 - Aumentei o modal `Nova etapa de produção` para `920px` e ajustei as grades internas para os campos ficarem menos apertados.

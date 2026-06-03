@@ -1869,9 +1869,9 @@ Modules.Pedidos = (function () {
   }
 
   function _detailOriginSelectLine(order) {
-    return '<div style="display:grid;grid-template-columns:minmax(88px,.46fr) minmax(0,1fr);gap:10px;align-items:center;font-size:12px;line-height:1.35;color:#1F1F1F;min-width:0;">' +
+    return '<div style="display:grid;grid-template-columns:minmax(0,1fr);gap:4px;font-size:12px;line-height:1.35;color:#1F1F1F;min-width:0;">' +
       '<label for="detail-sales-channel" style="color:#6F6860;min-width:0;">Origem</label>' +
-      '<div class="order-detail-field-control" style="padding:3px;border-radius:9px;"><select id="detail-sales-channel" aria-label="Origem do pedido" style="min-height:28px;font-size:12px;text-align:right;">' + _manualOrderChannelOptions(_firstText(order && order.channel, order && order.source, order && order.originChannel, order && order.originSource, 'manual')) + '</select></div>' +
+      '<div class="order-detail-field-control" style="padding:4px;border-radius:10px;width:100%;"><select id="detail-sales-channel" aria-label="Origem do pedido" style="min-height:30px;font-size:12.5px;text-align:left;">' + _manualOrderChannelOptions(_firstText(order && order.channel, order && order.source, order && order.originChannel, order && order.originSource, 'manual')) + '</select></div>' +
     '</div>';
   }
 
@@ -3038,7 +3038,7 @@ Modules.Pedidos = (function () {
         '.order-detail-title{font-size:13px;font-weight:800;color:#1F1F1F;line-height:1.25;margin-bottom:3px;}' +
         '.order-detail-hint{font-size:11px;color:#8A7E7C;line-height:1.35;margin-bottom:0;}' +
         '.order-detail-grid{display:grid;gap:9px 10px;align-items:start;min-width:0;}' +
-        '.order-detail-top-grid{display:grid;grid-template-columns:minmax(185px,.34fr) minmax(360px,.82fr) minmax(260px,.58fr);gap:9px;align-items:start;}' +
+        '.order-detail-top-grid{display:grid;grid-template-columns:minmax(230px,.46fr) minmax(360px,.82fr) minmax(260px,.58fr);gap:9px;align-items:start;}' +
         '.order-detail-main-grid{grid-template-columns:minmax(0,1fr);align-items:center;}' +
         '.order-detail-service-grid{grid-template-columns:minmax(0,1fr);}' +
         '.order-detail-service-row{display:grid;grid-template-columns:minmax(180px,.62fr) minmax(260px,1fr);gap:9px 10px;align-items:start;}' +
