@@ -1,5 +1,27 @@
 # AI Changelog
 
+## 2026-06-03 — Pedidos: opções no pedido manual
+- Arquivos alterados: `public/js/modules/pedidos.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Ajustei `Criar pedido manual` para abrir seleção de opções/variantes quando o produto tem escolhas cadastradas.
+- O pedido manual agora reconhece opções diretas do produto e grupos globais vinculados por `variantGroupIds`.
+- O item salvo preserva `choices`, `selectedOptions`, `variants`, `options` e `stockChoices`, mantendo vínculos comerciais e de estoque.
+- Produtos iguais com opções diferentes entram como linhas separadas; quantidade e remoção usam a chave da linha com escolhas.
+- Impacto esperado: pedidos manuais conseguem vender sabores, adicionais, combos e escolhas cadastradas com o mesmo controle usado no detalhe do pedido/template.
+
+## 2026-06-03 — Pedidos: cancelados fora do ticket médio
+- Arquivos alterados: `public/js/modules/pedidos.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Ajustei a aba `Pedidos` para ocultar pedidos cancelados quando o filtro de status está em `Todos`.
+- O KPI `Ticket médio` agora calcula apenas pedidos válidos/não cancelados, mesmo quando a tela estiver filtrada por outro critério.
+- Quando a usuária filtrar explicitamente por `Cancelado`, os pedidos cancelados continuam acessíveis para consulta, mas não alimentam o ticket médio.
+- Impacto esperado: evitar que cancelamentos distorçam o ticket médio operacional da lista de pedidos.
+
+## 2026-06-03 — Pedidos: status de pagamento do Stripe no Admin
+- Arquivos alterados: `public/js/modules/pedidos.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Ampliei o seletor `Status do pagamento` no detalhe do pedido para reconhecer também os status técnicos enviados pelo template/Stripe: `pending`, `paid`, `failed` e `canceled`.
+- Mantive as opções operacionais existentes (`previsto`, `parcial`, `pago`) e adicionei labels mais claros para Stripe: `Aguardando pagamento online`, `Pago online confirmado`, `Pagamento falhou` e `Pagamento cancelado`.
+- Ajustei o cálculo de valor pago para tratar `paid` como pagamento integral, assim um pedido Stripe pago não é zerado ao ser aberto/salvo no Admin.
+- Impacto esperado: pedidos feitos pelo site mostram status de pagamento coerente no Admin, sem misturar `paid` com pendente ou perder valor pago.
+
 ## 2026-06-03 — Clientes: salvar cadastro e vínculo pelo pedido
 - Arquivos alterados: `public/js/modules/clientes.js`, `public/js/modules/pedidos.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
 - Corrigi o modal `Cadastrar cliente` dentro do detalhe do pedido: ele agora resolve o objeto do pedido quando recebe apenas o id, evitando salvar com `orderId` vazio.

@@ -8,6 +8,7 @@ Modules.Pedidos = (function () {
   var _customers = [];
   var _reviews = [];
   var _products = [];
+  var _variantGroups = [];
   var _stockRecipes = [];
   var _promotions = [];
   var _generalConfig = {};
@@ -187,6 +188,7 @@ Modules.Pedidos = (function () {
       DB.getAll('fichasTecnicas').catch(function () { return []; }),
       DB.getAll('promotions').catch(function () { return []; }),
       DB.getAll('promocoes').catch(function () { return []; }),
+      DB.getAll('variantGroups').catch(function () { return []; }),
       DB.getDocRoot ? DB.getDocRoot('config', 'geral').catch(function () { return null; }) : Promise.resolve(null),
       DB.getDocRoot ? DB.getDocRoot('config', 'financeiro').catch(function () { return null; }) : Promise.resolve(null),
       DB.getDocRoot ? DB.getDocRoot('config', 'zonas').catch(function () { return null; }) : Promise.resolve(null),
@@ -200,20 +202,22 @@ Modules.Pedidos = (function () {
       _products = (res[2] || []).slice();
       _stockRecipes = (res[3] || []).slice();
       _promotions = _mergeManualPromotions(res[4], res[5]);
-      _generalConfig = res[6] || {};
-      _financeConfig = res[7] || {};
-      _zones = _normalizeZones(res[8]);
-      if (!_zones.length) _zones = _normalizeZones(res[9]);
-      _templateConfig = res[9] || {};
-      _tpvConfig = res[12] || {};
-      _canais = _normalizeCanais(res[10]);
-      _domainConfig = res[11] || {};
+      _variantGroups = (res[6] || []).slice();
+      _generalConfig = res[7] || {};
+      _financeConfig = res[8] || {};
+      _zones = _normalizeZones(res[9]);
+      if (!_zones.length) _zones = _normalizeZones(res[10]);
+      _templateConfig = res[10] || {};
+      _tpvConfig = res[13] || {};
+      _canais = _normalizeCanais(res[11]);
+      _domainConfig = res[12] || {};
       _syncOrderCustomerLinks(_orders);
       if (!_paintReviewsHost()) _paintActive();
     }).catch(function () {
       _customers = [];
       _reviews = [];
       _products = [];
+      _variantGroups = [];
       _templateConfig = {};
       _domainConfig = {};
       _stockRecipes = [];
@@ -383,7 +387,7 @@ Modules.Pedidos = (function () {
         _kitchenKpiCard('Pedidos filtrados', stats.totalOrders, 'resultado da busca atual', 'receipt_long', '#8A6F5A') +
         _kitchenKpiCard('Clientes ligados', stats.customerHits, 'pedidos com cliente reconhecido', 'person_search', '#6C8777') +
         _kitchenKpiCard('Com avaliação', stats.reviewedOrders, 'vinculados a reviews', 'reviews', '#B45309') +
-        _kitchenKpiCard('Ticket médio', stats.totalOrders ? UI.fmt(stats.avgTicket) : '—', 'todos os pedidos filtrados', 'payments', '#B42318') +
+        _kitchenKpiCard('Ticket médio', stats.ticketOrders ? UI.fmt(stats.avgTicket) : '—', 'pedidos válidos filtrados', 'payments', '#B42318') +
       '</div>' +
       '<div style="' + _adminPanelStyle() + '">' +
         '<div style="display:grid;grid-template-columns:minmax(260px,1fr) minmax(180px,240px) minmax(190px,260px);gap:11px 12px;align-items:end;">' +
@@ -1463,6 +1467,7 @@ Modules.Pedidos = (function () {
     var orderStatus = String(order.status || 'Pendente').toLowerCase();
     var orderChannel = _orderChannelKey(order);
     if (q && _orderSearchHaystack(order).indexOf(q) < 0) return false;
+    if (status === 'all' && _statusCancelsStockMovement(order.status)) return false;
     if (status !== 'all' && orderStatus !== status.toLowerCase()) return false;
     if (channel !== 'all' && orderChannel !== channel) return false;
     return true;
@@ -1532,20 +1537,24 @@ Modules.Pedidos = (function () {
 
   function _allOrdersStats(orders) {
     var list = Array.isArray(orders) ? orders : [];
+    var ticketList = list.filter(function (o) { return !_statusCancelsStockMovement(o && o.status); });
     var matched = 0;
     var reviewed = 0;
     var total = 0;
-    list.forEach(function (o) {
+    ticketList.forEach(function (o) {
       total += _num(o.total || o.amount || o.grandTotal);
+    });
+    list.forEach(function (o) {
       var customer = _matchedCustomer(o);
       if (customer) matched += 1;
       if (_reviewsForCustomer(customer, o).length) reviewed += 1;
     });
     return {
       totalOrders: list.length,
+      ticketOrders: ticketList.length,
       customerHits: matched,
       reviewedOrders: reviewed,
-      avgTicket: list.length ? total / list.length : 0
+      avgTicket: ticketList.length ? total / ticketList.length : 0
     };
   }
 
@@ -2057,7 +2066,7 @@ Modules.Pedidos = (function () {
 
   function _normalizeDetailChoiceGroup(group, idx) {
     if (!group) return null;
-    var options = (group.options || group.items || []).map(function (option, optionIdx) {
+    var options = (group.options || group.opcoes || group.choices || group.items || []).map(function (option, optionIdx) {
       var label = _detailChoiceOptionLabel(option);
       if (!label) return null;
       var id = _firstText(option.id, option.ref, option.value, option.key, label);
@@ -2100,6 +2109,11 @@ Modules.Pedidos = (function () {
     product = product || {};
     var source = [];
     if (Array.isArray(product.variants) && product.variants.length) source = product.variants;
+    else if (Array.isArray(product.variantGroupIds) && product.variantGroupIds.length) {
+      source = product.variantGroupIds.map(function (id) {
+        return (_variantGroups || []).find(function (group) { return String(group.id || group._id || '') === String(id || ''); });
+      }).filter(Boolean);
+    }
     else if (Array.isArray(product.menuChoiceGroups) && product.menuChoiceGroups.length) source = product.menuChoiceGroups;
     else if (Array.isArray(product.menuItems) && product.menuItems.length) {
       source = product.menuItems.map(function (item, idx) {
@@ -3295,8 +3309,8 @@ Modules.Pedidos = (function () {
     var isPickup = order && order.type === 'pickup';
     var nextScheduleDate = String((scheduleDateSel && scheduleDateSel.value) || (isPickup ? (order && order.pickupDate) : (order && order.deliveryDate)) || (order && order.scheduleDate) || '').trim();
     var nextScheduleTime = String((scheduleTimeSel && scheduleTimeSel.value) || (isPickup ? (order && order.pickupTime) : (order && order.deliveryTime)) || (order && order.scheduleTime) || '').trim();
-    if (nextPaymentStatus === 'pago') nextPaidAmount = _detailPaymentInfo(order || {}).total;
-    if (nextPaymentStatus !== 'parcial') nextPaidAmount = nextPaymentStatus === 'pago' ? nextPaidAmount : 0;
+    if (_paymentStatusIsPaid(nextPaymentStatus)) nextPaidAmount = _detailPaymentInfo(order || {}).total;
+    if (!_paymentStatusIsPartial(nextPaymentStatus)) nextPaidAmount = _paymentStatusIsPaid(nextPaymentStatus) ? nextPaidAmount : 0;
     var currentStatus = String(order && order.status || 'Pendente');
     var currentPaymentMethod = String(order && order.paymentMethod || '').trim();
     var currentPaymentStatus = String(order && order.paymentStatus || '').trim();
@@ -3347,7 +3361,7 @@ Modules.Pedidos = (function () {
     }));
     var checklistChanged = !!_detailChecklistDirty[String(id || '')];
     var itemsChanged = currentItemsJson !== editedItemsJson || checklistChanged;
-    if (itemsChanged && nextPaymentStatus === 'pago') nextPaidAmount = itemTotalsPayload.total;
+    if (itemsChanged && _paymentStatusIsPaid(nextPaymentStatus)) nextPaidAmount = itemTotalsPayload.total;
     var paymentMetaChanged = nextPaymentStatus !== currentPaymentStatus || Math.abs(nextPaidAmount - currentPaidAmount) > 0.001;
     var tasks = [];
 
@@ -3366,7 +3380,7 @@ Modules.Pedidos = (function () {
         paidAmount: nextPaidAmount,
         amountPaid: nextPaidAmount,
         valuePaid: nextPaidAmount,
-        paid: nextPaymentStatus === 'pago' ? true : (nextPaymentStatus === 'parcial' ? nextPaidAmount : false),
+        paid: _paymentStatusIsPaid(nextPaymentStatus) ? true : (_paymentStatusIsPartial(nextPaymentStatus) ? nextPaidAmount : false),
         payment: nextPaymentStatus
       }).then(function () {
         if (order) {
@@ -3375,7 +3389,7 @@ Modules.Pedidos = (function () {
           order.paidAmount = nextPaidAmount;
           order.amountPaid = nextPaidAmount;
           order.valuePaid = nextPaidAmount;
-          order.paid = nextPaymentStatus === 'pago' ? true : (nextPaymentStatus === 'parcial' ? nextPaidAmount : false);
+          order.paid = _paymentStatusIsPaid(nextPaymentStatus) ? true : (_paymentStatusIsPartial(nextPaymentStatus) ? nextPaidAmount : false);
           order.payment = nextPaymentStatus;
         }
       }));
@@ -3433,7 +3447,7 @@ Modules.Pedidos = (function () {
         fresh.paidAmount = nextPaidAmount;
         fresh.amountPaid = nextPaidAmount;
         fresh.valuePaid = nextPaidAmount;
-        fresh.paid = nextPaymentStatus === 'pago' ? true : (nextPaymentStatus === 'parcial' ? nextPaidAmount : false);
+        fresh.paid = _paymentStatusIsPaid(nextPaymentStatus) ? true : (_paymentStatusIsPartial(nextPaymentStatus) ? nextPaidAmount : false);
         fresh.payment = nextPaymentStatus;
         fresh.scheduleDate = nextScheduleDate;
         fresh.scheduleTime = nextScheduleTime;
@@ -3461,14 +3475,14 @@ Modules.Pedidos = (function () {
     var paidInput = document.getElementById('detail-paid-amount');
     if (!statusSel) return;
     var status = String(statusSel.value || 'previsto');
-    if (paidBox) paidBox.style.display = status === 'parcial' ? 'block' : 'none';
+    if (paidBox) paidBox.style.display = _paymentStatusIsPartial(status) ? 'block' : 'none';
     if (paidInput) {
-      if (status === 'pago') {
+      if (_paymentStatusIsPaid(status)) {
         var order = _orders.find(function (x) { return String(x.id || '') === String(_currentDetailOrderId || ''); });
         var payment = _detailPaymentInfo(order || {});
         paidInput.value = String(payment.total || 0);
       }
-      if (status !== 'parcial' && status !== 'pago') paidInput.value = '0';
+      if (!_paymentStatusIsPartial(status) && !_paymentStatusIsPaid(status)) paidInput.value = '0';
     }
   }
 
@@ -4515,7 +4529,7 @@ Modules.Pedidos = (function () {
                 '<label style="font-size:11px;font-weight:700;color:#8A7E7C;display:block;margin-bottom:4px;">Status do pagamento</label>' +
                 '<select id="mo-payment-status" onchange="Modules.Pedidos._manualOrderSetPaymentStatus(this.value)" style="width:100%;padding:10px 12px;border:1.5px solid #D4C8C6;border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;">' + _paymentStatusOptions(_manualOrderState.paymentStatus) + '</select>' +
               '</div>' +
-              '<div id="mo-paid-amount-box" style="display:' + (_manualOrderState.paymentStatus === 'parcial' ? 'block' : 'none') + ';">' +
+              '<div id="mo-paid-amount-box" style="display:' + (_paymentStatusIsPartial(_manualOrderState.paymentStatus) ? 'block' : 'none') + ';">' +
                 '<label style="font-size:11px;font-weight:700;color:#8A7E7C;display:block;margin-bottom:4px;">Valor pago</label>' +
                 '<input id="mo-paid-amount" type="number" step="0.01" value="' + _esc(String(_manualOrderState.paidAmount || 0)) + '" oninput="Modules.Pedidos._manualOrderSetPaidAmount(this.value)" placeholder="0,00" style="width:100%;padding:10px 12px;border:1.5px solid #D4C8C6;border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;">' +
               '</div>' +
@@ -4630,9 +4644,9 @@ Modules.Pedidos = (function () {
     var items = (_manualOrderState.items || []).map(function (item) {
       var product = (_products || []).find(function (p) { return String(p.id || '') === String(item.productId || ''); }) || {};
       var calc = _manualOrderState.channel === 'cardapio' ? _manualOrderBestPromoForProduct(product) : null;
-      var originalPrice = _manualOrderProductBasePrice(product) || _num(item.originalPrice || 0);
+      var originalPrice = _num(item.originalPrice != null ? item.originalPrice : (_manualOrderProductBasePrice(product) + _num(item.choiceExtraTotal || 0)));
       var quantity = item.quantity || 1;
-      var finalPrice = calc ? calc.calc.final : _num(item.finalPrice || originalPrice);
+      var finalPrice = calc && !_num(item.choiceExtraTotal || 0) ? calc.calc.final : _num(item.finalPrice || originalPrice);
       return {
         id: item.productId,
         productId: item.productId,
@@ -4643,6 +4657,14 @@ Modules.Pedidos = (function () {
         originalPrice: originalPrice,
         price: finalPrice,
         finalPrice: finalPrice,
+        unitPrice: finalPrice,
+        basePrice: _num(item.basePrice || _manualOrderProductBasePrice(product)),
+        choiceExtraTotal: _num(item.choiceExtraTotal || 0),
+        choices: Array.isArray(item.choices) ? item.choices : [],
+        selectedOptions: Array.isArray(item.selectedOptions) ? item.selectedOptions : (Array.isArray(item.choices) ? item.choices : []),
+        variants: Array.isArray(item.variants) ? item.variants : (Array.isArray(item.choices) ? item.choices : []),
+        options: Array.isArray(item.options) ? item.options : (Array.isArray(item.choices) ? item.choices : []),
+        stockChoices: Array.isArray(item.stockChoices) ? item.stockChoices : [],
         total: finalPrice * quantity,
         fichaTecnicaId: _firstText(product.fichaTecnicaId, product.fichaId, product.recipeId, ''),
         fichaId: _firstText(product.fichaId, product.fichaTecnicaId, product.recipeId, ''),
@@ -4692,8 +4714,8 @@ Modules.Pedidos = (function () {
     var promoDiscountTotal = Math.max(subtotalOriginal - subtotalFinal, 0);
     var total = Math.max(subtotalFinal + shippingFee + adjustment, 0);
     var hasPromo = promoDiscountTotal > 0;
-    if (paymentStatus === 'pago') paidAmount = total;
-    if (paymentStatus !== 'parcial') paidAmount = paymentStatus === 'pago' ? total : 0;
+    if (_paymentStatusIsPaid(paymentStatus)) paidAmount = total;
+    if (!_paymentStatusIsPartial(paymentStatus)) paidAmount = _paymentStatusIsPaid(paymentStatus) ? total : 0;
 
     if (!(name || phone) && _fold(_manualOrderState.channel) === 'tpv') name = 'Cliente balcão';
     if (!(name || phone)) { UI.toast('Informe o nome ou telefone do cliente', 'error'); return; }
@@ -4778,7 +4800,7 @@ Modules.Pedidos = (function () {
         paidAmount: paidAmount,
         amountPaid: paidAmount,
         valuePaid: paidAmount,
-        paid: paymentStatus === 'pago' ? true : (paymentStatus === 'parcial' ? paidAmount : false),
+        paid: _paymentStatusIsPaid(paymentStatus) ? true : (_paymentStatusIsPartial(paymentStatus) ? paidAmount : false),
         deliveryDate: deliveryDate,
         deliveryTime: deliveryTime,
         orderTime: orderTime,
@@ -5180,9 +5202,9 @@ Modules.Pedidos = (function () {
 
   function _manualOrderSetPaymentStatus(value) {
     _manualOrderState.paymentStatus = String(value || 'previsto');
-    if (_manualOrderState.paymentStatus === 'pago') {
+    if (_paymentStatusIsPaid(_manualOrderState.paymentStatus)) {
       _manualOrderState.paidAmount = _manualOrderTotals().total || 0;
-    } else if (_manualOrderState.paymentStatus !== 'parcial') {
+    } else if (!_paymentStatusIsPartial(_manualOrderState.paymentStatus)) {
       _manualOrderState.paidAmount = 0;
     }
     _manualOrderRefreshSummary();
@@ -5294,18 +5316,50 @@ Modules.Pedidos = (function () {
   function _manualOrderAddProduct(id) {
     var product = (_products || []).find(function (p) { return String(p.id || '') === String(id || ''); });
     if (!product) return;
-    var idx = _manualOrderState.items.findIndex(function (it) { return String(it.productId || '') === String(id || ''); });
+    if (_detailProductChoiceGroups(product).length) {
+      _openManualOrderChoicesModal(id);
+      return;
+    }
+    _manualOrderAddConfiguredProduct(product, []);
+  }
+
+  function _manualOrderChoiceKey(productId, choices) {
+    var choiceKey = (Array.isArray(choices) ? choices : []).map(function (choice) {
+      return [_firstText(choice.groupId, choice.group, ''), _firstText(choice.optionId, choice.ref, choice.option, choice.label, '')].join(':');
+    }).sort().join('|');
+    return String(productId || '') + '::' + choiceKey;
+  }
+
+  function _manualOrderAddConfiguredProduct(product, choices) {
+    choices = Array.isArray(choices) ? choices : [];
+    var id = String(product && product.id || '');
+    if (!id) return;
+    var itemKey = _manualOrderChoiceKey(id, choices);
+    var idx = _manualOrderState.items.findIndex(function (it) { return String(it.itemKey || it.productId || '') === itemKey; });
     if (idx >= 0) {
       _manualOrderState.items[idx].quantity += 1;
     } else {
       var calc = _manualOrderBestPromoForProduct(product);
+      var basePrice = _manualOrderProductBasePrice(product);
+      var finalBasePrice = calc && calc.calc && calc.calc.final != null ? _num(calc.calc.final) : basePrice;
+      var extra = _detailChoiceExtraTotal(choices);
       _manualOrderState.items.push({
-        productId: String(product.id || ''),
+        itemKey: itemKey,
+        productId: id,
         name: _firstText(product.name, product.title, product.nome, 'Produto'),
         category: _firstText(product.category, product.categoria, ''),
         quantity: 1,
-        originalPrice: _manualOrderProductBasePrice(product),
-        finalPrice: calc ? calc.final : _manualOrderProductBasePrice(product),
+        choiceExtraTotal: extra,
+        basePrice: basePrice,
+        originalPrice: basePrice + extra,
+        finalPrice: finalBasePrice + extra,
+        price: finalBasePrice + extra,
+        unitPrice: finalBasePrice + extra,
+        choices: choices,
+        selectedOptions: choices,
+        variants: choices,
+        options: choices,
+        stockChoices: _manualOrderStockChoicesFromChoices(choices),
         internalNote: _firstText(product.internalNote, product.internalNotes, product.kitchenNote, ''),
         productInternalNote: _firstText(product.internalNote, product.internalNotes, product.kitchenNote, ''),
         promoId: calc && calc.promo ? String(calc.promo.id || calc.promo._id || calc.promo.slug || '') : '',
@@ -5318,15 +5372,149 @@ Modules.Pedidos = (function () {
     _manualOrderRefresh();
   }
 
+  function _manualOrderStockChoicesFromChoices(choices) {
+    return (Array.isArray(choices) ? choices : []).filter(function (choice) {
+      return choice && (_firstText(choice.stockRef, choice.stockItemRef, '') || _firstText(choice.stockItemId, choice.itemId, ''));
+    }).map(function (choice) {
+      var perChoice = _num(choice.stockQuantityPerChoice != null ? choice.stockQuantityPerChoice : choice.stockQuantity != null ? choice.stockQuantity : choice.stockQty);
+      if (perChoice <= 0) perChoice = 1;
+      return Object.assign({}, choice, {
+        quantity: _num(choice.quantity || choice.qty || 1) || 1,
+        stockQuantityPerChoice: perChoice,
+        stockQuantityTotal: perChoice,
+        stockAbsoluteQuantity: perChoice
+      });
+    });
+  }
+
+  function _openManualOrderChoicesModal(id) {
+    var product = (_products || []).find(function (p) { return String(p.id || '') === String(id || ''); });
+    if (!product) return;
+    var groups = _detailProductChoiceGroups(product);
+    if (!groups.length) {
+      _manualOrderAddConfiguredProduct(product, []);
+      return;
+    }
+    var body = '<style>' +
+      '.manual-choice-editor{display:grid;gap:12px;font-family:Manrope,Inter,sans-serif;}' +
+      '.manual-choice-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:16px;padding:14px;box-shadow:0 10px 22px rgba(31,31,31,.045);}' +
+      '.manual-choice-head{display:flex;align-items:flex-start;gap:9px;margin-bottom:10px;}' +
+      '.manual-choice-title{font-size:13px;font-weight:760;color:#1F1F1F;line-height:1.25;}' +
+      '.manual-choice-help{font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;}' +
+      '.manual-choice-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;}' +
+      '.manual-choice-option{min-width:0;display:flex;align-items:center;gap:8px;padding:9px 10px;border:1px solid #EADFD8;border-radius:12px;background:#FFFCF8;cursor:pointer;box-sizing:border-box;}' +
+      '.manual-choice-option input{width:16px;height:16px;accent-color:#B42318;flex:0 0 auto;}' +
+      '.manual-choice-thumb{width:34px;height:34px;border-radius:9px;object-fit:cover;flex:0 0 auto;background:#F7F1EE;}' +
+      '.manual-choice-option-name{font-size:12px;color:#1F1F1F;line-height:1.25;}' +
+      '.manual-choice-option-price{font-size:11px;color:#6F6860;line-height:1.25;margin-top:2px;}' +
+      '@media(max-width:720px){.manual-choice-options{grid-template-columns:1fr;}}' +
+    '</style>' +
+    '<div class="manual-choice-editor">' +
+      '<div class="manual-choice-card"><div class="manual-choice-head"><span class="mi" style="font-size:18px;color:#8A7E7C;">tune</span><div><div class="manual-choice-title">' + _esc(_firstText(product.name, product.title, product.nome, 'Produto')) + '</div><div class="manual-choice-help">Escolha as opções antes de adicionar ao pedido manual.</div></div></div></div>' +
+      groups.map(function (group, groupIdx) {
+        var inputType = group.max === 1 ? 'radio' : 'checkbox';
+        var rule = group.min > 0 ? ('Escolha ' + group.min + (group.max !== group.min ? ' a ' + group.max : '') + '.') : ('Escolha até ' + group.max + '.');
+        return '<div class="manual-choice-card" data-manual-choice-group="' + groupIdx + '" data-min="' + _esc(String(group.min)) + '" data-max="' + _esc(String(group.max)) + '">' +
+          '<div class="manual-choice-head"><span class="mi" style="font-size:18px;color:#8A7E7C;">radio_button_checked</span><div><div class="manual-choice-title">' + _esc(group.title) + '</div><div class="manual-choice-help">' + _esc(rule) + '</div></div></div>' +
+          '<div class="manual-choice-options">' +
+            group.options.map(function (option, optionIdx) {
+              return '<label class="manual-choice-option">' +
+                '<input type="' + inputType + '" name="manual-choice-' + groupIdx + '" data-manual-group-index="' + groupIdx + '" data-manual-option-index="' + optionIdx + '" onchange="Modules.Pedidos._manualOrderSyncChoiceGroup(' + groupIdx + ')">' +
+                (option.img ? '<img class="manual-choice-thumb" src="' + _esc(option.img) + '" alt="">' : '') +
+                '<span style="min-width:0;"><span class="manual-choice-option-name">' + _esc(option.label) + '</span>' +
+                (option.priceExtra ? '<span class="manual-choice-option-price">' + (option.priceExtra > 0 ? '+' : '') + UI.fmt(option.priceExtra) + '</span>' : '') +
+                '</span>' +
+              '</label>';
+            }).join('') +
+          '</div>' +
+        '</div>';
+      }).join('') +
+    '</div>';
+    window._manualOrderChoicesState = { productId: String(id || ''), groups: groups };
+    window._manualOrderChoicesModal = UI.modal({
+      title: 'Opções do produto',
+      body: body,
+      footer: '<div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;"><button type="button" onclick="Modules.Pedidos._closeManualOrderChoicesModal()" style="height:40px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#1F1F1F;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Cancelar</button><button type="button" onclick="Modules.Pedidos._saveManualOrderChoices()" style="height:40px;padding:0 16px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(180,35,24,.16);">Adicionar ao pedido</button></div>',
+      maxWidth: '760px'
+    });
+    if (window._manualOrderChoicesModal && window._manualOrderChoicesModal.el) window._manualOrderChoicesModal.el.style.zIndex = '9200';
+  }
+
+  function _manualOrderSyncChoiceGroup(index) {
+    var group = document.querySelector('[data-manual-choice-group="' + index + '"]');
+    if (!group) return;
+    var max = parseInt(group.getAttribute('data-max'), 10) || 1;
+    if (max <= 1) return;
+    var checked = Array.prototype.slice.call(group.querySelectorAll('input:checked'));
+    if (checked.length <= max) return;
+    checked[checked.length - 1].checked = false;
+    UI.toast('Escolha no máximo ' + max + ' opção(ões).', 'warning');
+  }
+
+  function _saveManualOrderChoices() {
+    var state = window._manualOrderChoicesState || {};
+    var product = (_products || []).find(function (p) { return String(p.id || '') === String(state.productId || ''); });
+    if (!product) return;
+    var choices = [];
+    var invalid = '';
+    (state.groups || []).forEach(function (group, groupIdx) {
+      if (invalid) return;
+      var checked = Array.prototype.slice.call(document.querySelectorAll('input[data-manual-group-index="' + groupIdx + '"]:checked'));
+      if (checked.length < group.min) invalid = 'Complete "' + group.title + '" antes de adicionar.';
+      if (!invalid && checked.length > group.max) invalid = 'Em "' + group.title + '", escolha no máximo ' + group.max + '.';
+      checked.forEach(function (input) {
+        var option = group.options[parseInt(input.getAttribute('data-manual-option-index'), 10)] || {};
+        choices.push({
+          groupId: group.id,
+          group: group.title,
+          groupName: group.title,
+          optionId: option.id,
+          ref: option.ref || '',
+          option: option.label,
+          optionName: option.label,
+          label: option.label,
+          name: option.label,
+          value: option.label,
+          priceExtra: _num(option.priceExtra),
+          price: _num(option.priceExtra),
+          img: option.img || '',
+          stockRef: option.stockRef || '',
+          stockItemId: option.stockItemId || '',
+          stockItemName: option.stockItemName || '',
+          stockItemType: option.stockItemType || '',
+          itemClass: option.itemClass || option.stockItemType || '',
+          classe: option.classe || option.stockItemType || '',
+          stockQuantityPerChoice: _num(option.stockQuantityPerChoice || option.stockQuantity),
+          stockQuantity: _num(option.stockQuantity || option.stockQuantityPerChoice),
+          stockUnit: option.stockUnit || option.unit || '',
+          stockUnitCost: _num(option.stockUnitCost),
+          qty: 1
+        });
+      });
+    });
+    if (invalid) {
+      UI.toast(invalid, 'error');
+      return;
+    }
+    _manualOrderAddConfiguredProduct(product, choices);
+    _closeManualOrderChoicesModal();
+  }
+
+  function _closeManualOrderChoicesModal() {
+    if (window._manualOrderChoicesModal && window._manualOrderChoicesModal.close) window._manualOrderChoicesModal.close();
+    window._manualOrderChoicesModal = null;
+    window._manualOrderChoicesState = null;
+  }
+
   function _manualOrderChangeQty(id, delta) {
-    var idx = _manualOrderState.items.findIndex(function (it) { return String(it.productId || '') === String(id || ''); });
+    var idx = _manualOrderState.items.findIndex(function (it) { return String(it.itemKey || it.productId || '') === String(id || ''); });
     if (idx < 0) return;
     _manualOrderState.items[idx].quantity = Math.max(1, (_manualOrderState.items[idx].quantity || 1) + (parseInt(delta, 10) || 0));
     _manualOrderRefresh();
   }
 
   function _manualOrderRemoveProduct(id) {
-    _manualOrderState.items = _manualOrderState.items.filter(function (it) { return String(it.productId || '') !== String(id || ''); });
+    _manualOrderState.items = _manualOrderState.items.filter(function (it) { return String(it.itemKey || it.productId || '') !== String(id || ''); });
     _manualOrderRefresh();
   }
 
@@ -5404,7 +5592,7 @@ Modules.Pedidos = (function () {
       status.value = String(_manualOrderState.paymentStatus || 'previsto');
     }
     var box = document.getElementById('mo-paid-amount-box');
-    if (box) box.style.display = String(_manualOrderState.paymentStatus || 'previsto') === 'parcial' ? 'block' : 'none';
+    if (box) box.style.display = _paymentStatusIsPartial(_manualOrderState.paymentStatus || 'previsto') ? 'block' : 'none';
     var paid = document.getElementById('mo-paid-amount');
     if (paid && String(paid.value || '') !== String(_manualOrderState.paidAmount || 0)) {
       paid.value = String(_manualOrderState.paidAmount || 0);
@@ -5597,6 +5785,13 @@ Modules.Pedidos = (function () {
     return _num(calc.calc.final) * qty;
   }
 
+  function _manualOrderLineTotal(original, qty, calc, item) {
+    qty = Math.max(1, _num(qty || 1));
+    if (!calc) return _num(item && item.finalPrice != null ? item.finalPrice : original) * qty;
+    if (calc.calc && calc.calc.type === 'add1') return _manualOrderPromoLineTotal(original, qty, calc);
+    return _num(item && item.finalPrice != null ? item.finalPrice : (calc.calc && calc.calc.final != null ? calc.calc.final : original)) * qty;
+  }
+
   function _manualOrderBestPromoForProduct(product) {
     if (!product) return null;
     if (_manualOrderState.channel !== 'cardapio') return null;
@@ -5688,7 +5883,11 @@ Modules.Pedidos = (function () {
     if (!query) return '';
     if (!list.length) return '<div style="margin-top:8px;padding:10px 12px;border:1px dashed #E6DDDB;border-radius:12px;color:#8A7E7C;font-size:12px;background:#FCFBFB;">Nenhum produto encontrado.</div>';
     var selectedMap = {};
-    (_manualOrderState.items || []).forEach(function (item) { selectedMap[String(item.productId || '')] = item.quantity || 1; });
+    (_manualOrderState.items || []).forEach(function (item) {
+      var productId = String(item.productId || '');
+      if (!productId) return;
+      selectedMap[productId] = (selectedMap[productId] || 0) + (item.quantity || 1);
+    });
     var visible = list.slice(0, 12);
     return '<div style="margin-top:8px;border:1px solid #E8DCD7;border-radius:12px;background:#fff;overflow:hidden;box-shadow:0 8px 18px rgba(31,31,31,.04);">' + visible.map(function (p, index) {
       var calc = _manualOrderBestPromoForProduct(p);
@@ -5729,23 +5928,26 @@ Modules.Pedidos = (function () {
     }
     var selectedOriginalSubtotal = items.reduce(function (sum, item) {
       var product = (_products || []).find(function (p) { return String(p.id || '') === String(item.productId || ''); }) || {};
-      var original = _manualOrderProductBasePrice(product) || _num(item.originalPrice || 0);
+      var original = _num(item.originalPrice != null ? item.originalPrice : (_manualOrderProductBasePrice(product) + _num(item.choiceExtraTotal || 0)));
       return sum + original * (item.quantity || 1);
     }, 0);
     return '<div style="display:flex;flex-direction:column;gap:8px;">' + items.map(function (item) {
       var product = (_products || []).find(function (p) { return String(p.id || '') === String(item.productId || ''); }) || {};
       var calc = _manualOrderState.channel === 'cardapio' ? _manualOrderBestPromoForProduct(product) : null;
-      var original = _manualOrderProductBasePrice(product) || _num(item.originalPrice || 0);
+      var original = _num(item.originalPrice != null ? item.originalPrice : (_manualOrderProductBasePrice(product) + _num(item.choiceExtraTotal || 0)));
       var minOrder = calc && calc.promo ? _manualOrderPromoMinOrder(calc.promo) : 0;
       var calcApplies = calc && (!minOrder || selectedOriginalSubtotal >= minOrder);
       var qty = item.quantity || 1;
-      var lineTotal = calcApplies ? _manualOrderPromoLineTotal(original, qty, calc) : (calc ? original * qty : _num(item.finalPrice || original) * qty);
+      var lineTotal = calcApplies ? _manualOrderLineTotal(original, qty, calc, item) : (calc ? original * qty : _num(item.finalPrice || original) * qty);
       var final = lineTotal / Math.max(1, qty);
       var discount = Math.max((original * qty) - lineTotal, 0);
+      var choiceText = _detailChoiceText(item.choices || item.selectedOptions || item.variants || item.options);
+      var itemKey = String(item.itemKey || item.productId || '');
       return '<div style="border:1.5px solid #E6DDDB;border-radius:12px;padding:10px 12px;display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;background:#fff;">' +
         '<div style="min-width:0;">' +
           '<div style="font-size:13px;font-weight:800;color:#1A1A1A;">' + _esc(item.name || 'Produto') + '</div>' +
           '<div style="font-size:11px;color:#8A7E7C;margin-top:3px;">' + _esc(_firstText(product.category, item.category, '')) + '</div>' +
+          (choiceText ? '<div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:3px;">' + _esc(choiceText) + '</div>' : '') +
           (calcApplies ? '<div style="font-size:11px;font-weight:700;color:#C4362A;margin-top:4px;">' + _esc(calc.calc.type === 'pct' ? ('-' + Math.round(calc.calc.value) + '%') : calc.calc.type === 'eur' ? ('- ' + UI.fmt(calc.calc.value)) : calc.calc.type === 'add1' ? ('Leve ' + calc.calc.leve + ' pague ' + calc.calc.pague) : 'Oferta') + '</div>' : '') +
         '</div>' +
         '<div style="text-align:right;min-width:110px;">' +
@@ -5755,9 +5957,9 @@ Modules.Pedidos = (function () {
           '<div style="font-size:11px;color:#8A7E7C;">Economia: ' + UI.fmt(discount * qty) + '</div>' +
         '</div>' +
         '<div style="display:flex;gap:6px;align-items:center;">' +
-          '<button type="button" onclick="Modules.Pedidos._manualOrderChangeQty(\'' + _esc(String(item.productId || '')) + '\',-1)" style="width:28px;height:28px;border-radius:8px;border:1px solid #D4C8C6;background:#fff;cursor:pointer;">−</button>' +
-          '<button type="button" onclick="Modules.Pedidos._manualOrderChangeQty(\'' + _esc(String(item.productId || '')) + '\',1)" style="width:28px;height:28px;border-radius:8px;border:none;background:#C4362A;color:#fff;cursor:pointer;font-weight:900;">+</button>' +
-          '<button type="button" onclick="Modules.Pedidos._manualOrderRemoveProduct(\'' + _esc(String(item.productId || '')) + '\')" style="width:28px;height:28px;border-radius:8px;border:none;background:#FFF0EE;color:#C4362A;cursor:pointer;">🗑️</button>' +
+          '<button type="button" onclick="Modules.Pedidos._manualOrderChangeQty(\'' + _esc(itemKey) + '\',-1)" style="width:28px;height:28px;border-radius:8px;border:1px solid #D4C8C6;background:#fff;cursor:pointer;">−</button>' +
+          '<button type="button" onclick="Modules.Pedidos._manualOrderChangeQty(\'' + _esc(itemKey) + '\',1)" style="width:28px;height:28px;border-radius:8px;border:none;background:#C4362A;color:#fff;cursor:pointer;font-weight:900;">+</button>' +
+          '<button type="button" onclick="Modules.Pedidos._manualOrderRemoveProduct(\'' + _esc(itemKey) + '\')" style="width:28px;height:28px;border-radius:8px;border:none;background:#FFF0EE;color:#C4362A;cursor:pointer;">🗑️</button>' +
         '</div>' +
       '</div>';
     }).join('') + '</div>';
@@ -5772,7 +5974,7 @@ Modules.Pedidos = (function () {
     var prepared = items.map(function (item) {
       var product = (_products || []).find(function (p) { return String(p.id || '') === String(item.productId || ''); }) || {};
       var calc = _manualOrderState.channel === 'cardapio' ? _manualOrderBestPromoForProduct(product) : null;
-      var original = _manualOrderProductBasePrice(product) || _num(item.originalPrice || 0);
+      var original = _num(item.originalPrice != null ? item.originalPrice : (_manualOrderProductBasePrice(product) + _num(item.choiceExtraTotal || 0)));
       var qty = item.quantity || 1;
       subtotalOriginal += original * qty;
       return { item: item, calc: calc, original: original, qty: qty };
@@ -5780,7 +5982,7 @@ Modules.Pedidos = (function () {
     prepared.forEach(function (entry) {
       var minOrder = entry.calc && entry.calc.promo ? _manualOrderPromoMinOrder(entry.calc.promo) : 0;
       var calcApplies = entry.calc && (!minOrder || subtotalOriginal >= minOrder);
-      var lineTotal = calcApplies ? _manualOrderPromoLineTotal(entry.original, entry.qty, entry.calc) : (entry.calc ? entry.original * entry.qty : _num(entry.item.finalPrice || entry.original) * entry.qty);
+      var lineTotal = calcApplies ? _manualOrderLineTotal(entry.original, entry.qty, entry.calc, entry.item) : (entry.calc ? entry.original * entry.qty : _num(entry.item.finalPrice || entry.original) * entry.qty);
       var qty = entry.qty;
       subtotalFinal += lineTotal;
       promoDiscount += Math.max((entry.original * qty) - lineTotal, 0);
@@ -5833,7 +6035,7 @@ Modules.Pedidos = (function () {
         '<div style="font-size:11px;color:#8A7E7C;margin-bottom:3px;">Status do pagamento</div>',
         '<select id="mo-payment-status" onchange="Modules.Pedidos._manualOrderSetPaymentStatus(this.value)" style="' + _adminSelectStyle('height:40px;font-size:13px;') + '">' + _paymentStatusOptions(_manualOrderState.paymentStatus) + '</select>',
       '</div>',
-      '<div id="mo-paid-amount-box" style="grid-column:1/-1;border:1px solid #F2EDED;border-radius:12px;padding:10px 12px;background:#FAF8F8;display:' + (_manualOrderState.paymentStatus === 'parcial' ? 'block' : 'none') + ';">',
+      '<div id="mo-paid-amount-box" style="grid-column:1/-1;border:1px solid #F2EDED;border-radius:12px;padding:10px 12px;background:#FAF8F8;display:' + (_paymentStatusIsPartial(_manualOrderState.paymentStatus) ? 'block' : 'none') + ';">',
         '<div style="font-size:11px;color:#8A7E7C;margin-bottom:3px;">Valor pago</div>',
         '<input id="mo-paid-amount" type="number" step="0.01" value="' + _esc(String(_manualOrderState.paidAmount || 0)) + '" oninput="Modules.Pedidos._manualOrderSetPaidAmount(this.value)" placeholder="0,00" style="width:100%;padding:10px 12px;border:1.5px solid #D4C8C6;border-radius:10px;font-size:13px;font-family:inherit;outline:none;background:#fff;">',
       '</div>',
@@ -6251,7 +6453,7 @@ Modules.Pedidos = (function () {
     var orderTime = _normalizeTimeValue(data.orderTime || _currentTimeValue());
     var paymentStatus = String(data.paymentStatus || 'pago');
     var paymentMethod = String(data.paymentMethod || '');
-    var paidAmount = paymentStatus === 'pago' ? total : _num(data.paidAmount || 0);
+    var paidAmount = _paymentStatusIsPaid(paymentStatus) ? total : _num(data.paidAmount || 0);
     var channelCategory = _channelIncomeCategoryMeta(_salesChannelByName('Venda presencial') || _salesChannelByName('TPV') || {});
     var payload = {
       customerId: String(data.customerId || ''),
@@ -6279,7 +6481,7 @@ Modules.Pedidos = (function () {
       paidAmount: paidAmount,
       amountPaid: paidAmount,
       valuePaid: paidAmount,
-      paid: paymentStatus === 'pago' ? true : (paymentStatus === 'parcial' ? paidAmount : false),
+      paid: _paymentStatusIsPaid(paymentStatus) ? true : (_paymentStatusIsPartial(paymentStatus) ? paidAmount : false),
       deliveryDate: '',
       deliveryTime: '',
       orderTime: orderTime,
@@ -6967,8 +7169,12 @@ Modules.Pedidos = (function () {
   function _paymentStatusOptions(selected) {
     var options = [
       { value: 'previsto', label: 'A pagar na entrega' },
+      { value: 'pending', label: 'Aguardando pagamento online' },
       { value: 'parcial', label: 'Parcial' },
-      { value: 'pago', label: 'Já pago integral' }
+      { value: 'pago', label: 'Já pago integral' },
+      { value: 'paid', label: 'Pago online confirmado' },
+      { value: 'failed', label: 'Pagamento falhou' },
+      { value: 'canceled', label: 'Pagamento cancelado' }
     ];
     var current = _fold(selected || '');
     return options.map(function (opt) {
@@ -6982,16 +7188,31 @@ Modules.Pedidos = (function () {
     var key = _fold(value || '');
     var labels = {
       pago: 'Já pago integral',
+      paid: 'Pago online confirmado',
       parcial: 'Parcial',
-      previsto: 'A pagar na entrega'
+      previsto: 'A pagar na entrega',
+      pending: 'Aguardando pagamento online',
+      failed: 'Pagamento falhou',
+      canceled: 'Pagamento cancelado',
+      cancelado: 'Pagamento cancelado'
     };
     return labels[key] || _title(value || '');
   }
 
+  function _paymentStatusIsPaid(value) {
+    var key = _fold(value || '');
+    return key === 'pago' || key === 'paid' || key === 'quitado' || key === 'quitada';
+  }
+
+  function _paymentStatusIsPartial(value) {
+    var key = _fold(value || '');
+    return key === 'parcial' || key === 'partial' || key === 'partially_paid';
+  }
+
   function _paymentStatusFinanceStatus(value) {
     var key = _fold(value || '');
-    if (key === 'pago') return 'efetivado';
-    if (key === 'parcial') return 'parcial';
+    if (_paymentStatusIsPaid(key)) return 'efetivado';
+    if (_paymentStatusIsPartial(key)) return 'parcial';
     return 'previsto';
   }
 
@@ -7101,8 +7322,8 @@ Modules.Pedidos = (function () {
     var paymentStatus = _orderPaymentStatus(order);
     var grossPaidAmount = _normalizeMoneyAgainstExpected(order.paidAmount != null ? order.paidAmount : order.amountPaid != null ? order.amountPaid : order.valuePaid != null ? order.valuePaid : 0, grossTotal);
     var paidAmount = grossTotal > 0 && total > 0 ? +(grossPaidAmount * (total / grossTotal)).toFixed(2) : grossPaidAmount;
-    if (paymentStatus === 'pago') paidAmount = total;
-    if (paymentStatus !== 'parcial') paidAmount = paymentStatus === 'pago' ? total : 0;
+    if (_paymentStatusIsPaid(paymentStatus)) paidAmount = total;
+    if (!_paymentStatusIsPartial(paymentStatus)) paidAmount = _paymentStatusIsPaid(paymentStatus) ? total : 0;
     var finStatus = _paymentStatusFinanceStatus(paymentStatus);
     var data = (finStatus === 'previsto'
       ? (_firstText(order.deliveryDate, order.deliveryDateISO, order.scheduleDate, order.createdAt, _today()))
@@ -7264,6 +7485,9 @@ Modules.Pedidos = (function () {
     _manualOrderSetCategoryFilter: _manualOrderSetCategoryFilter,
     _manualOrderSelectCustomer: _manualOrderSelectCustomer,
     _manualOrderAddProduct: _manualOrderAddProduct,
+    _manualOrderSyncChoiceGroup: _manualOrderSyncChoiceGroup,
+    _saveManualOrderChoices: _saveManualOrderChoices,
+    _closeManualOrderChoicesModal: _closeManualOrderChoicesModal,
     _manualOrderChangeQty: _manualOrderChangeQty,
     _manualOrderRemoveProduct: _manualOrderRemoveProduct,
     _manualOrderMaybeSyncShipping: _manualOrderMaybeSyncShipping,
