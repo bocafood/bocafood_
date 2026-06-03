@@ -318,6 +318,7 @@ button,input,select,textarea{font-family:inherit}
         <div class="nav-sub">
           <button class="nav-sub-item" data-route="estoque/itens" onclick="Router.navigate('estoque/itens')">Itens</button>
           <button class="nav-sub-item" data-route="estoque/movimentacoes" onclick="Router.navigate('estoque/movimentacoes')">Movimentações</button>
+          <button class="nav-sub-item" data-route="estoque/regularizacoes" onclick="Router.navigate('estoque/regularizacoes')">Regularizações</button>
         </div>
       </div>
 
@@ -1186,6 +1187,7 @@ button,input,select,textarea{font-family:inherit}
   Router.register('estoque', Modules.Estoque);
   Router.register('estoque/itens', Modules.Estoque);
   Router.register('estoque/movimentacoes', Modules.Estoque);
+  Router.register('estoque/regularizacoes', Modules.Estoque);
   Router.register('clientes', Modules.Clientes);
   Router.register('marketing', Modules.Marketing);
   Router.register('marketing/pontos', Modules.Marketing);

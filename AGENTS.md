@@ -165,6 +165,16 @@ O Boca Food é um sistema de gestão e operação de loja com painel admin, cat�
 - Campos fiscais de fornecedor não devem ser tratados como “opcionais” na copy do card principal quando a tela estiver pedindo dados de cadastro. A orientação deve explicar para que servem no uso da loja: compras, pagamentos e documentos.
 - Evitar copy apelativa, demagógica ou excessivamente didática. O texto deve ser claro, direto e profissional.
 
+### Admin — Estoque e regularizações
+- Regularização por saldo negativo deve ser tratada como correção operacional rastreável, não como compra real. Ela não deve inventar fornecedor, documento, pagamento ou financeiro.
+- A Fase 1 da regularização é apenas detecção passiva na baixa por venda: quando a saída deixa o item negativo, registrar `stockRegularizationPending`, saldo antes/depois, quantidade faltante e origem `saldo_negativo_venda` no pedido/movimentação.
+- A Fase 2 da regularização é a tela `Estoque → Regularizações`, listando as pendências por pedido e item com busca, filtros, status, falta, saldo antes/depois e custo estimado.
+- A Fase 3 permite aplicar manualmente uma pendência em `Estoque → Regularizações`, criando uma movimentação `entrada_regularizacao` idempotente e marcando o item da pendência como `aplicada`. Essa entrada corrige o histórico operacional de estoque, mas não cria compra, fornecedor, documento ou financeiro.
+- A Fase 4 adiciona configuração em `Estoque → Regularizações` para o comportamento da falta de saldo: `Criar pendência` como padrão seguro, `Aplicar automaticamente` para gerar `entrada_regularizacao` junto com a baixa, ou `Desligado` para não gerar pendência/entrada. Essa configuração é salva em `config/estoque.regularizationMode`.
+- A Fase 5 permite converter pendências selecionadas em compra rápida, criando um registro `compras` com origem `regularizacao_estoque` e entradas `entrada_compra` para os itens selecionados. Essa compra rápida não cria financeiro automático; fornecedor, documento e pagamento completo podem ser ajustados depois em Compras/Financeiro.
+- Detectar regularização pendente não pode criar entrada automática, compra, movimentação financeira, ajuste de inventário ou alteração no cardápio público.
+- Futuras fases podem aplicar entrada de regularização ou converter pendências em compra rápida, mas essas ações devem ser explícitas, rastreadas e separadas de compra fiscal/financeira real.
+
 ### Admin — Produção e receitas
 - A aba `Produção → Receitas` deve seguir o mesmo padrão de listagem aprovado em Compras: topo limpo, título de 22px, subtítulo curto, botão principal vermelho à direita, card de filtros compacto com campos off-white, botão `Limpar filtros` apenas quando houver filtro ativo, tabela com hover suave e paginação no rodapé.
 - Não repetir chips de totalizadores no cabeçalho nem dentro do card de filtros de receitas. O resumo da tela deve vir da própria lista, paginação, estados vazios ou KPIs quando forem realmente necessários.

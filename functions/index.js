@@ -2441,6 +2441,158 @@ function stockNormalizeItemType(value) {
   return type || "insumo";
 }
 
+function stockMovementBalanceEntry(movement) {
+  if (!movement || typeof movement !== "object") return null;
+  const type = movement.type || "";
+  const isPurchaseEntry = type === "entrada_compra";
+  const isProductionEntry = type === "entrada_producao";
+  const isBaseProductionEntry = type === "entrada_base_producao";
+  const isBaseSaleExit = type === "saida_base_venda";
+  const isSaleExit = type === "saida_venda" || isBaseSaleExit;
+  const isSaleReturn = type === "retorno_venda";
+  const isPurchaseReversal = type === "estorno_compra";
+  const isSaleReversal = type === "estorno_venda";
+  const isProductionIngredientReversal = type === "estorno_producao_ingrediente";
+  const isProductionProductReversal = type === "estorno_producao_produto";
+  const isBaseProductionReversal = type === "estorno_base_producao";
+  const isAdjustmentEntry = type === "ajuste_entrada";
+  const isAdjustmentExit = type === "ajuste_saida";
+  const isRegularizationEntry = type === "entrada_regularizacao";
+  const isEntry = isProductionEntry || isBaseProductionEntry || isPurchaseEntry || isSaleReversal || isSaleReturn || isProductionIngredientReversal || isAdjustmentEntry || isRegularizationEntry;
+  const isExit = type === "saida_producao" || isSaleExit || isPurchaseReversal || isProductionProductReversal || isBaseProductionReversal || isAdjustmentExit;
+  if (!isEntry && !isExit) return null;
+  const directType = stockNormalizeItemType(movement.stockItemType || movement.itemClass || movement.classe || "");
+  const isBase = isBaseProductionEntry || isBaseProductionReversal || isBaseSaleExit || !!movement.baseProductionId;
+  const readyId = movement.sourceItemId || movement.produtoProntoId || "";
+  const itemId = isBase
+    ? (movement.baseProductionId || movement.stockItemId || movement.componentName || "")
+    : ((isProductionEntry || isProductionProductReversal)
+      ? (movement.fichaTecnicaId || movement.stockItemId || "")
+      : (isSaleExit || isSaleReversal || isSaleReturn)
+        ? (movement.fichaTecnicaId || readyId || movement.stockItemId || movement.productId || "")
+        : (isRegularizationEntry)
+          ? (movement.itemId || movement.stockItemId || movement.fichaTecnicaId || readyId || movement.productId || "")
+        : ((isAdjustmentEntry || isAdjustmentExit)
+          ? (movement.itemId || movement.stockItemId || "")
+          : ((isPurchaseEntry || isPurchaseReversal)
+            ? (movement.itemId || movement.stockItemId || "")
+            : (movement.ingredientId || movement.stockItemId || ""))));
+  const fallbackName = isBase
+    ? (movement.baseProductionName || movement.componentName || "Base de produção")
+    : (movement.fichaTecnicaNome || movement.productName || movement.itemName || movement.ingredientName || "Item");
+  const stockType = directType || (isBase ? "base_producao" : ((isProductionEntry || isProductionProductReversal || movement.fichaTecnicaId) ? "produto_produzido" : (readyId ? "produto_pronto" : "insumo")));
+  const quantity = (isProductionEntry || isProductionProductReversal || isBaseProductionEntry || isBaseProductionReversal) ? stockNum(movement.quantityProduced || movement.quantity) : stockNum(movement.quantity);
+  if (quantity <= 0) return null;
+  return {
+    key: `${stockType}:${itemId || fallbackName}`,
+    direction: isEntry ? 1 : -1,
+    quantity: Math.abs(quantity)
+  };
+}
+
+function stockBalancesByKey(movements) {
+  const balances = {};
+  (movements || []).forEach((movement) => {
+    const entry = stockMovementBalanceEntry(movement);
+    if (!entry || !entry.key) return;
+    balances[entry.key] = stockRoundQty(stockNum(balances[entry.key]) + entry.direction * entry.quantity);
+  });
+  return balances;
+}
+
+function stockRefBalanceKey(ref) {
+  const stockType = stockNormalizeItemType((ref && (ref.stockItemType || ref.itemClass || ref.classe)) || (ref && ref.fichaId ? "produto_produzido" : "produto_pronto"));
+  const itemId = ref && (ref.baseProductionId || ref.fichaId || ref.readyItemId || ref.stockItemId || ref.productId || "");
+  const name = ref && (ref.baseProductionName || ref.fichaNome || ref.productName || "Item");
+  return `${stockType}:${itemId || name}`;
+}
+
+function stockRegularizationPendingItem(ref, orderItem, product, data = {}) {
+  const stockType = stockNormalizeItemType((ref && (ref.stockItemType || ref.itemClass || ref.classe)) || (ref && ref.fichaId ? "produto_produzido" : "produto_pronto"));
+  const itemId = ref && (ref.baseProductionId || ref.fichaId || ref.readyItemId || ref.stockItemId || ref.productId || "");
+  const itemName = (ref && (ref.baseProductionName || ref.fichaNome || ref.productName || "")) || stockFirstText(orderItem && orderItem.name, orderItem && orderItem.productName, product && product.name, product && product.title, "Item");
+  return {
+    status: "pendente",
+    origin: "saldo_negativo_venda",
+    stockKey: data.stockKey || stockRefBalanceKey(ref),
+    stockItemId: itemId,
+    stockItemType: stockType,
+    itemClass: stockType,
+    classe: stockType,
+    itemName,
+    productId: (ref && ref.productId) || stockFirstText(orderItem && orderItem.productId, orderItem && orderItem.id, product && product.id, ""),
+    productName: stockFirstText(orderItem && orderItem.name, orderItem && orderItem.productName, product && product.name, product && product.title, itemName),
+    stockSource: (ref && ref.source) || "item",
+    movementId: data.movementId || "",
+    requiredQuantity: stockRoundQty(stockNum(ref && ref.quantity)),
+    shortageQuantity: stockRoundQty(stockNum(data.shortage)),
+    balanceBefore: stockRoundQty(stockNum(data.balanceBefore)),
+    balanceAfter: stockRoundQty(stockNum(data.balanceAfter)),
+    unit: (ref && ref.unit) || "un",
+    unitCost: stockNum(ref && ref.unitCost),
+    estimatedTotalCost: stockNum(ref && ref.unitCost) > 0 ? stockRoundQty(stockNum(data.shortage) * stockNum(ref && ref.unitCost)) : 0
+  };
+}
+
+function stockRegularizationMode(config) {
+  let mode = String((config && (config.regularizationMode || config.stockRegularizationMode)) || "pendencia").trim().toLowerCase();
+  if (mode === "auto") mode = "automatico";
+  if (mode === "off") mode = "desligado";
+  return ["pendencia", "automatico", "desligado"].includes(mode) ? mode : "pendencia";
+}
+
+function stockRegularizationMovementId(orderId, itemIdx, refIdx, ref) {
+  return `regularizacao_${stockSafeId(orderId)}_${itemIdx}_${refIdx}_${stockSafeId(ref && (ref.baseProductionId || ref.fichaId || ref.readyItemId || ref.productId) || "item")}`;
+}
+
+function stockRegularizationMovementPayload(item, order, movementId) {
+  const stockType = stockNormalizeItemType(item.stockItemType || item.itemClass || item.classe || "");
+  const qty = stockRoundQty(item.shortageQuantity);
+  const unitCost = stockNum(item.unitCost);
+  const payload = {
+    id: movementId,
+    type: "entrada_regularizacao",
+    movementGroup: "stock_regularization",
+    regularizationOrigin: "saldo_negativo_venda",
+    regularizationStatus: "aplicada",
+    regularizationEntry: true,
+    regularizationSourceMovementId: item.movementId || "",
+    orderId: order && order.id || "",
+    orderNumber: stockOrderLabel(order || {}, order && order.id),
+    itemId: item.stockItemId || "",
+    itemName: item.itemName || "",
+    productId: item.productId || "",
+    productName: item.productName || item.itemName || "",
+    stockItemId: item.stockItemId || "",
+    stockItemType: stockType,
+    itemClass: stockType,
+    classe: stockType,
+    quantity: qty,
+    unit: item.unit || "un",
+    unitCost,
+    totalCost: unitCost > 0 ? qty * unitCost : 0,
+    previousBalance: stockNum(item.balanceAfter),
+    balanceBefore: stockNum(item.balanceAfter),
+    balanceAfter: stockRoundQty(stockNum(item.balanceAfter) + qty),
+    reason: "Regularização automática de venda sem saldo",
+    notes: "Entrada criada automaticamente conforme configuração do estoque.",
+    movementDate: new Date().toISOString().slice(0, 10),
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  };
+  if (stockType === "base_producao") {
+    payload.baseProductionId = item.stockItemId || "";
+    payload.baseProductionName = item.itemName || "";
+  } else if (stockType === "produto_produzido") {
+    payload.fichaTecnicaId = item.stockItemId || "";
+    payload.fichaTecnicaNome = item.itemName || "";
+  } else if (stockType === "produto_pronto") {
+    payload.sourceItemId = item.stockItemId || "";
+    payload.produtoProntoId = item.stockItemId || "";
+  }
+  return payload;
+}
+
 function stockInternalCompositionRefs(item, product, mainQty) {
   const composition = Array.isArray(product && product.internalComposition)
     ? product.internalComposition
@@ -2519,18 +2671,28 @@ async function syncStripeOrderStockMovements(tenantId, orderId) {
     return true;
   }
 
-  const [productsSnap, recipesSnap] = await Promise.all([
+  const [productsSnap, recipesSnap, stockConfigSnap] = await Promise.all([
     tenantRef.collection("products").get(),
-    tenantRef.collection("fichasTecnicas").get()
+    tenantRef.collection("fichasTecnicas").get(),
+    tenantRef.collection("config").doc("estoque").get()
   ]);
   const products = [];
   productsSnap.forEach((doc) => products.push({ id: doc.id, ...(doc.data() || {}) }));
   const recipes = [];
   recipesSnap.forEach((doc) => recipes.push({ id: doc.id, ...(doc.data() || {}) }));
+  const regularizationMode = stockRegularizationMode(stockConfigSnap.exists ? stockConfigSnap.data() || {} : {});
 
   const items = Array.isArray(order.items) ? order.items : [];
   const batch = db.batch();
   const skipped = [];
+  const balances = stockBalancesByKey([]);
+  const allMovementsSnap = await tenantRef.collection("stock_movements").get();
+  allMovementsSnap.forEach((doc) => {
+    const entry = stockMovementBalanceEntry(doc.data() || {});
+    if (!entry || !entry.key) return;
+    balances[entry.key] = stockRoundQty(stockNum(balances[entry.key]) + entry.direction * entry.quantity);
+  });
+  const regularizationItems = [];
   let count = 0;
   const nowIso = new Date().toISOString();
   const movementDate = stockDateText(order.deliveryDate, order.pickupDate, order.scheduleDate, order.createdAt, nowIso);
@@ -2543,9 +2705,33 @@ async function syncStripeOrderStockMovements(tenantId, orderId) {
       return;
     }
     refs.forEach((ref, refIdx) => {
-      if (stockNum(ref.quantity) <= 0) return;
+      const quantity = stockNum(ref.quantity);
+      if (quantity <= 0) return;
       const movementId = `${stockSafeId(orderId)}_${idx}_${refIdx}_saida_venda`;
       const isBase = ref.stockItemType === "base_producao";
+      const stockKey = stockRefBalanceKey(ref);
+      const balanceBefore = stockRoundQty(stockNum(balances[stockKey]));
+      const balanceAfter = stockRoundQty(balanceBefore - quantity);
+      const shortage = balanceAfter < 0 ? stockRoundQty(Math.abs(balanceAfter)) : 0;
+      balances[stockKey] = balanceAfter;
+      const regularizationMovementId = shortage > 0 ? stockRegularizationMovementId(orderId, idx, refIdx, ref) : "";
+      let regularizationItem = null;
+      if (shortage > 0 && regularizationMode !== "desligado") {
+        regularizationItem = stockRegularizationPendingItem(ref, item, product, {
+          stockKey,
+          balanceBefore,
+          balanceAfter,
+          shortage,
+          movementId
+        });
+        if (regularizationMode === "automatico") {
+          regularizationItem.status = "aplicada";
+          regularizationItem.appliedAt = nowIso;
+          regularizationItem.regularizationMovementId = regularizationMovementId;
+          regularizationItem.regularizationAppliedQuantity = shortage;
+        }
+        regularizationItems.push(regularizationItem);
+      }
       batch.set(tenantRef.collection("stock_movements").doc(movementId), {
         id: movementId,
         type: isBase ? "saida_base_venda" : "saida_venda",
@@ -2566,17 +2752,28 @@ async function syncStripeOrderStockMovements(tenantId, orderId) {
         stockItemType: ref.stockItemType || (ref.fichaId ? "produto_produzido" : "produto_pronto"),
         itemClass: ref.stockItemType || (ref.fichaId ? "produto_produzido" : "produto_pronto"),
         classe: ref.stockItemType || (ref.fichaId ? "produto_produzido" : "produto_pronto"),
-        quantity: stockNum(ref.quantity),
+        quantity,
         unit: ref.unit || "unidades",
         unitCost: stockNum(ref.unitCost),
-        totalCost: stockNum(ref.unitCost) > 0 ? stockNum(ref.quantity) * stockNum(ref.unitCost) : 0,
+        totalCost: stockNum(ref.unitCost) > 0 ? quantity * stockNum(ref.unitCost) : 0,
         parentOrderItemId: stockFirstText(item && item.productId, item && item.id, product.id, ""),
         parentOrderItemName: stockFirstText(item && item.name, item && item.productName, product.name, product.title, ""),
         stockSource: ref.source || "item",
+        stockBalanceKey: stockKey,
+        balanceBefore,
+        balanceAfter,
+        regularizationPending: shortage > 0 && regularizationMode === "pendencia",
+        regularizationShortage: shortage,
+        regularizationStatus: shortage > 0 && regularizationMode !== "desligado" ? (regularizationMode === "automatico" ? "aplicada" : "pendente") : "",
+        regularizationOrigin: shortage > 0 ? "saldo_negativo_venda" : "",
+        regularizationMovementId: shortage > 0 && regularizationMode === "automatico" ? regularizationMovementId : "",
         movementDate,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       }, { merge: true });
+      if (regularizationItem && regularizationMode === "automatico") {
+        batch.set(tenantRef.collection("stock_movements").doc(regularizationMovementId), stockRegularizationMovementPayload(regularizationItem, order, regularizationMovementId), { merge: true });
+      }
       count += 1;
     });
   });
@@ -2590,6 +2787,25 @@ async function syncStripeOrderStockMovements(tenantId, orderId) {
     patch.stockMovementCreatedAt = serverTimestamp();
     patch.stockMovementUpdatedAt = serverTimestamp();
     patch.stockMovementCount = count;
+  }
+  if (regularizationItems.length) {
+    const pendingRegularizations = regularizationItems.filter((item) => String((item && item.status) || "pendente") === "pendente").length;
+    patch.stockRegularizationPending = pendingRegularizations > 0;
+    patch.stockRegularizationStatus = pendingRegularizations > 0 ? "pendente" : "aplicada";
+    patch.stockRegularizationOrigin = "saldo_negativo_venda";
+    patch.stockRegularizationDetectedAt = serverTimestamp();
+    patch.stockRegularizationPendingCount = pendingRegularizations;
+    patch.stockRegularizationPendingItems = regularizationItems.slice(0, 50);
+    patch.stockRegularizationWarning = pendingRegularizations > 0
+      ? "Pedido gerou saída com saldo insuficiente. Revise a regularização em Estoque."
+      : "Pedido gerou saída com saldo insuficiente e recebeu entrada automática de regularização.";
+    if (!pendingRegularizations) patch.stockRegularizationAppliedAt = serverTimestamp();
+  } else {
+    patch.stockRegularizationPending = false;
+    patch.stockRegularizationStatus = "";
+    patch.stockRegularizationPendingCount = 0;
+    patch.stockRegularizationPendingItems = [];
+    patch.stockRegularizationWarning = "";
   }
   if (skipped.length) {
     patch.stockMovementSkippedItems = skipped.slice(0, 12);

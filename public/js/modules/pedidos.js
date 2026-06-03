@@ -1841,6 +1841,10 @@ Modules.Pedidos = (function () {
 
   function _orderStockStatusText(order) {
     if (!order) return '';
+    if (order.stockRegularizationPending) {
+      var pending = _num(order.stockRegularizationPendingCount);
+      return 'Regularização pendente' + (pending ? ' · ' + pending + ' item' + (pending === 1 ? '' : 's') : '');
+    }
     if (order.stockResolutionCount) {
       var returned = _num(order.stockReturnedQuantity);
       var lost = _num(order.stockLossQuantity);
@@ -1867,24 +1871,37 @@ Modules.Pedidos = (function () {
     var count = _num(order.stockMovementCount);
     var skippedCount = _num(order.stockMovementSkippedCount);
     var skipped = Array.isArray(order.stockMovementSkippedItems) ? order.stockMovementSkippedItems : [];
+    var regularizationPending = !!order.stockRegularizationPending;
+    var regularizationCount = _num(order.stockRegularizationPendingCount);
+    var regularizationItems = Array.isArray(order.stockRegularizationPendingItems) ? order.stockRegularizationPendingItems : [];
     if (!statusText && !created && !skippedCount && !reversed && !_statusTriggersStockMovement(order.status)) return '';
-    var tone = created ? '#146C43' : (skippedCount ? '#9A3412' : '#6F6860');
-    var bg = created ? '#EEF8F1' : (skippedCount ? '#FFF6ED' : '#F6F1EA');
-    var border = created ? '#CFE9D8' : (skippedCount ? '#FED7AA' : '#E8DCD7');
+    var tone = regularizationPending ? '#9A3412' : (created ? '#146C43' : (skippedCount ? '#9A3412' : '#6F6860'));
+    var bg = regularizationPending ? '#FFF6ED' : (created ? '#EEF8F1' : (skippedCount ? '#FFF6ED' : '#F6F1EA'));
+    var border = regularizationPending ? '#FED7AA' : (created ? '#CFE9D8' : (skippedCount ? '#FED7AA' : '#E8DCD7'));
     var headline = created
       ? 'O estoque já foi movimentado por este pedido.'
       : (skippedCount ? 'Alguns itens ainda não baixaram do estoque.' : 'A baixa de estoque será criada quando o pedido entrar em preparo ou for confirmado.');
+    if (regularizationPending) headline = 'Este pedido gerou saída com saldo insuficiente.';
     if (reversed) headline = 'A baixa deste pedido já teve estorno registrado.';
     var details = [];
     if (count) details.push(count + ' registro' + (count === 1 ? '' : 's') + ' de estoque criado' + (count === 1 ? '' : 's'));
+    if (regularizationCount) details.push(regularizationCount + ' regularização' + (regularizationCount === 1 ? '' : 'ões') + ' pendente' + (regularizationCount === 1 ? '' : 's'));
     if (skippedCount) details.push(skippedCount + ' item' + (skippedCount === 1 ? '' : 's') + ' sem vínculo');
     if (reversed) details.push('estorno registrado');
     var skippedHtml = skipped.length ? '<div style="margin-top:9px;display:flex;flex-wrap:wrap;gap:6px;">' + skipped.map(function (name) {
       return '<span style="display:inline-flex;align-items:center;min-height:26px;padding:0 9px;border-radius:999px;background:#fff;border:1px solid #F3D6C2;color:#8A3A12;font-size:11px;font-weight:700;">' + _esc(name) + '</span>';
     }).join('') + '</div>' : '';
-    var help = skippedCount
+    var regularizationHtml = regularizationItems.length ? '<div style="margin-top:9px;display:grid;gap:6px;">' + regularizationItems.slice(0, 8).map(function (item) {
+      return '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border-radius:12px;background:#fff;border:1px solid #F3D6C2;font-size:12px;color:#1F1F1F;">' +
+        '<span style="font-weight:750;min-width:0;overflow-wrap:anywhere;">' + _esc(item.itemName || 'Item') + '</span>' +
+        '<span style="font-weight:800;color:#9A3412;white-space:nowrap;">Falta ' + _esc(_fmtQty(item.shortageQuantity || 0)) + ' ' + _esc(item.unit || '') + '</span>' +
+      '</div>';
+    }).join('') + '</div>' : '';
+    var help = regularizationPending
+      ? 'A saída foi registrada para preservar o histórico. Nenhuma entrada automática foi criada; a regularização manual entra na próxima fase.'
+      : (skippedCount
       ? 'Confira se esses produtos têm receita, produto pronto ou montagem interna configurada no cardápio.'
-      : (created ? 'Esses registros aparecem em Estoque > Movimentações e entram no saldo dos itens envolvidos.' : 'Enquanto o pedido ainda não chegou nessa etapa, o estoque fica sem alteração.');
+      : (created ? 'Esses registros aparecem em Estoque > Movimentações e entram no saldo dos itens envolvidos.' : 'Enquanto o pedido ainda não chegou nessa etapa, o estoque fica sem alteração.'));
     return '<div class="order-detail-card">' +
       '<div class="order-detail-head"><span class="mi">inventory_2</span><div><div class="order-detail-title">Estoque do pedido</div></div></div>' +
       '<div style="border:1px solid ' + border + ';background:' + bg + ';border-radius:14px;padding:12px;display:grid;gap:7px;">' +
@@ -1896,6 +1913,7 @@ Modules.Pedidos = (function () {
           (details.length ? '<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">' + details.map(function (part) { return '<span style="display:inline-flex;align-items:center;min-height:28px;padding:0 9px;border-radius:999px;background:#fff;border:1px solid rgba(31,31,31,.07);color:#1F1F1F;font-size:11px;font-weight:750;">' + _esc(part) + '</span>'; }).join('') + '</div>' : '') +
         '</div>' +
         skippedHtml +
+        regularizationHtml +
       '</div>' +
     '</div>';
   }
@@ -3679,8 +3697,13 @@ Modules.Pedidos = (function () {
   function _createOrderStockMovements(orderId, order) {
     if (order && order.stockMovementCreated) return Promise.resolve({});
     return _ensureProductsLoadedForStock().then(function () {
-      return DB.getAll('stock_movements').catch(function () { return []; });
-    }).then(function (existing) {
+      return Promise.all([
+        DB.getAll('stock_movements').catch(function () { return []; }),
+        DB.getDocRoot ? DB.getDocRoot('config', 'estoque').catch(function () { return {}; }) : Promise.resolve({})
+      ]);
+    }).then(function (results) {
+      var existing = results[0] || [];
+      var regularizationMode = _stockRegularizationMode(results[1] || {});
       var existingMatches = (existing || []).filter(function (movement) {
         return movement && (movement.type === 'saida_venda' || movement.type === 'saida_base_venda') && String(movement.orderId || '') === String(orderId || '');
       });
@@ -3696,7 +3719,10 @@ Modules.Pedidos = (function () {
       var now = _nowIso();
       var items = Array.isArray(order.items) ? order.items : [];
       var ops = [];
+      var saleMovementCount = 0;
       var skipped = [];
+      var balances = _stockBalancesByKey(existing || []);
+      var regularizationItems = [];
       items.forEach(function (item, idx) {
         var product = _findProductForOrderItem(item) || {};
         var refs = _orderItemStockRefs(item, product);
@@ -3705,9 +3731,33 @@ Modules.Pedidos = (function () {
           return;
         }
         refs.forEach(function (ref, refIdx) {
-          if (_num(ref.quantity) <= 0) return;
+          var quantity = _num(ref.quantity);
+          if (quantity <= 0) return;
           var movementId = _stockMovementOrderId(orderId, idx + '_' + refIdx);
           var isBase = ref.stockItemType === 'base_producao';
+          var stockKey = _stockRefBalanceKey(ref);
+          var balanceBefore = _roundStockQty(_num(balances[stockKey]));
+          var balanceAfter = _roundStockQty(balanceBefore - quantity);
+          var shortage = balanceAfter < 0 ? _roundStockQty(Math.abs(balanceAfter)) : 0;
+          balances[stockKey] = balanceAfter;
+          var regularizationMovementId = shortage > 0 ? _stockRegularizationMovementId(orderId, idx, refIdx, ref) : '';
+          var regularizationItem = null;
+          if (shortage > 0 && regularizationMode !== 'desligado') {
+            regularizationItem = _stockRegularizationPendingItem(ref, item, product, {
+              stockKey: stockKey,
+              balanceBefore: balanceBefore,
+              balanceAfter: balanceAfter,
+              shortage: shortage,
+              movementId: movementId
+            });
+            if (regularizationMode === 'automatico') {
+              regularizationItem.status = 'aplicada';
+              regularizationItem.appliedAt = now;
+              regularizationItem.regularizationMovementId = regularizationMovementId;
+              regularizationItem.regularizationAppliedQuantity = shortage;
+            }
+            regularizationItems.push(regularizationItem);
+          }
           ops.push(DB.col('stock_movements').doc(movementId).set({
             id: movementId,
             type: isBase ? 'saida_base_venda' : 'saida_venda',
@@ -3728,17 +3778,29 @@ Modules.Pedidos = (function () {
             stockItemType: ref.stockItemType || (ref.fichaId ? 'produto_produzido' : 'produto_pronto'),
             itemClass: ref.stockItemType || (ref.fichaId ? 'produto_produzido' : 'produto_pronto'),
             classe: ref.stockItemType || (ref.fichaId ? 'produto_produzido' : 'produto_pronto'),
-            quantity: _num(ref.quantity),
+            quantity: quantity,
             unit: ref.unit || 'unidades',
             unitCost: _num(ref.unitCost),
-            totalCost: _num(ref.unitCost) > 0 ? _num(ref.quantity) * _num(ref.unitCost) : 0,
+            totalCost: _num(ref.unitCost) > 0 ? quantity * _num(ref.unitCost) : 0,
             parentOrderItemId: _firstText(item && item.productId, item && item.id, product.id, ''),
             parentOrderItemName: _firstText(item && item.name, item && item.productName, product.name, product.title, ''),
             stockSource: ref.source || 'item',
+            stockBalanceKey: stockKey,
+            balanceBefore: balanceBefore,
+            balanceAfter: balanceAfter,
+            regularizationPending: shortage > 0 && regularizationMode === 'pendencia',
+            regularizationShortage: shortage,
+            regularizationStatus: shortage > 0 && regularizationMode !== 'desligado' ? (regularizationMode === 'automatico' ? 'aplicada' : 'pendente') : '',
+            regularizationOrigin: shortage > 0 ? 'saldo_negativo_venda' : '',
+            regularizationMovementId: shortage > 0 && regularizationMode === 'automatico' ? regularizationMovementId : '',
             movementDate: _firstText(order.deliveryDate, order.pickupDate, order.scheduleDate, order.createdAt, now).slice(0, 10),
             createdAt: now,
             updatedAt: now
           }, { merge: true }));
+          saleMovementCount += 1;
+          if (regularizationItem && regularizationMode === 'automatico') {
+            ops.push(DB.col('stock_movements').doc(regularizationMovementId).set(_stockRegularizationMovementPayload(regularizationItem, order, regularizationMovementId, now), { merge: true }));
+          }
         });
       });
 
@@ -3756,9 +3818,28 @@ Modules.Pedidos = (function () {
           stockMovementCreated: true,
           stockMovementCreatedAt: order.stockMovementCreatedAt || now,
           stockMovementUpdatedAt: now,
-          stockMovementCount: ops.length,
+          stockMovementCount: saleMovementCount,
           stockMovementSkippedCount: skipped.length
         };
+        if (regularizationItems.length) {
+          var pendingRegularizations = regularizationItems.filter(function (item) { return String(item && item.status || 'pendente') === 'pendente'; }).length;
+          patch.stockRegularizationPending = pendingRegularizations > 0;
+          patch.stockRegularizationStatus = pendingRegularizations > 0 ? 'pendente' : 'aplicada';
+          patch.stockRegularizationOrigin = 'saldo_negativo_venda';
+          patch.stockRegularizationDetectedAt = now;
+          patch.stockRegularizationPendingCount = pendingRegularizations;
+          patch.stockRegularizationPendingItems = regularizationItems.slice(0, 50);
+          patch.stockRegularizationWarning = pendingRegularizations > 0
+            ? 'Pedido gerou saída com saldo insuficiente. Revise a regularização em Estoque.'
+            : 'Pedido gerou saída com saldo insuficiente e recebeu entrada automática de regularização.';
+          if (!pendingRegularizations) patch.stockRegularizationAppliedAt = now;
+        } else {
+          patch.stockRegularizationPending = false;
+          patch.stockRegularizationStatus = '';
+          patch.stockRegularizationPendingCount = 0;
+          patch.stockRegularizationPendingItems = [];
+          patch.stockRegularizationWarning = '';
+        }
         if (skipped.length) {
           patch.stockMovementSkippedItems = skipped.slice(0, 12);
           patch.stockMovementWarning = 'Itens sem vínculo com ficha técnica, base de produção ou produto pronto.';
@@ -3769,6 +3850,159 @@ Modules.Pedidos = (function () {
         return patch;
       });
     });
+  }
+
+  function _stockBalancesByKey(movements) {
+    var balances = {};
+    (movements || []).forEach(function (movement) {
+      var entry = _stockMovementBalanceEntry(movement);
+      if (!entry || !entry.key) return;
+      balances[entry.key] = _roundStockQty(_num(balances[entry.key]) + entry.direction * entry.quantity);
+    });
+    return balances;
+  }
+
+  function _stockMovementBalanceEntry(movement) {
+    if (!movement || typeof movement !== 'object') return null;
+    var type = movement.type || '';
+    var isPurchaseEntry = type === 'entrada_compra';
+    var isProductionEntry = type === 'entrada_producao';
+    var isBaseProductionEntry = type === 'entrada_base_producao';
+    var isBaseSaleExit = type === 'saida_base_venda';
+    var isSaleExit = type === 'saida_venda' || isBaseSaleExit;
+    var isSaleReturn = type === 'retorno_venda';
+    var isPurchaseReversal = type === 'estorno_compra';
+    var isSaleReversal = type === 'estorno_venda';
+    var isProductionIngredientReversal = type === 'estorno_producao_ingrediente';
+    var isProductionProductReversal = type === 'estorno_producao_produto';
+    var isBaseProductionReversal = type === 'estorno_base_producao';
+    var isAdjustmentEntry = type === 'ajuste_entrada';
+    var isAdjustmentExit = type === 'ajuste_saida';
+    var isRegularizationEntry = type === 'entrada_regularizacao';
+    var isEntry = isProductionEntry || isBaseProductionEntry || isPurchaseEntry || isSaleReversal || isSaleReturn || isProductionIngredientReversal || isAdjustmentEntry || isRegularizationEntry;
+    var isExit = type === 'saida_producao' || isSaleExit || isPurchaseReversal || isProductionProductReversal || isBaseProductionReversal || isAdjustmentExit;
+    if (!isEntry && !isExit) return null;
+    var directType = _normalizeStockItemType(movement.stockItemType || movement.itemClass || movement.classe || '');
+    var isBase = isBaseProductionEntry || isBaseProductionReversal || isBaseSaleExit || !!movement.baseProductionId;
+    var readyId = movement.sourceItemId || movement.produtoProntoId || '';
+    var itemId = isBase
+      ? (movement.baseProductionId || movement.stockItemId || movement.componentName || '')
+      : ((isProductionEntry || isProductionProductReversal)
+        ? (movement.fichaTecnicaId || movement.stockItemId || '')
+        : (isSaleExit || isSaleReversal || isSaleReturn)
+          ? (movement.fichaTecnicaId || readyId || movement.stockItemId || movement.productId || '')
+          : (isRegularizationEntry)
+            ? (movement.itemId || movement.stockItemId || movement.fichaTecnicaId || readyId || movement.productId || '')
+          : ((isAdjustmentEntry || isAdjustmentExit)
+            ? (movement.itemId || movement.stockItemId || '')
+            : ((isPurchaseEntry || isPurchaseReversal)
+              ? (movement.itemId || movement.stockItemId || '')
+              : (movement.ingredientId || movement.stockItemId || ''))));
+    var fallbackName = isBase
+      ? (movement.baseProductionName || movement.componentName || 'Base de produção')
+      : (movement.fichaTecnicaNome || movement.productName || movement.itemName || movement.ingredientName || 'Item');
+    var stockType = directType || (isBase ? 'base_producao' : ((isProductionEntry || isProductionProductReversal || movement.fichaTecnicaId) ? 'produto_produzido' : (readyId ? 'produto_pronto' : 'insumo')));
+    var quantity = (isProductionEntry || isProductionProductReversal || isBaseProductionEntry || isBaseProductionReversal) ? _num(movement.quantityProduced || movement.quantity) : _num(movement.quantity);
+    if (quantity <= 0) return null;
+    return {
+      key: stockType + ':' + (itemId || fallbackName),
+      direction: isEntry ? 1 : -1,
+      quantity: Math.abs(quantity)
+    };
+  }
+
+  function _stockRefBalanceKey(ref) {
+    var stockType = _normalizeStockItemType(ref && (ref.stockItemType || ref.itemClass || ref.classe || '') || (ref && ref.fichaId ? 'produto_produzido' : 'produto_pronto'));
+    var itemId = ref && (ref.baseProductionId || ref.fichaId || ref.readyItemId || ref.stockItemId || ref.productId || '');
+    var name = ref && (ref.baseProductionName || ref.fichaNome || ref.productName || 'Item');
+    return stockType + ':' + (itemId || name);
+  }
+
+  function _stockRegularizationPendingItem(ref, orderItem, product, data) {
+    data = data || {};
+    var stockType = _normalizeStockItemType(ref && (ref.stockItemType || ref.itemClass || ref.classe || '') || (ref && ref.fichaId ? 'produto_produzido' : 'produto_pronto'));
+    var itemId = ref && (ref.baseProductionId || ref.fichaId || ref.readyItemId || ref.stockItemId || ref.productId || '');
+    var itemName = ref && (ref.baseProductionName || ref.fichaNome || ref.productName || '') || _firstText(orderItem && orderItem.name, orderItem && orderItem.productName, product && product.name, product && product.title, 'Item');
+    return {
+      status: 'pendente',
+      origin: 'saldo_negativo_venda',
+      stockKey: data.stockKey || _stockRefBalanceKey(ref),
+      stockItemId: itemId,
+      stockItemType: stockType,
+      itemClass: stockType,
+      classe: stockType,
+      itemName: itemName,
+      productId: ref && ref.productId || _firstText(orderItem && orderItem.productId, orderItem && orderItem.id, product && product.id, ''),
+      productName: _firstText(orderItem && orderItem.name, orderItem && orderItem.productName, product && product.name, product && product.title, itemName),
+      stockSource: ref && ref.source || 'item',
+      movementId: data.movementId || '',
+      requiredQuantity: _roundStockQty(_num(ref && ref.quantity)),
+      shortageQuantity: _roundStockQty(_num(data.shortage)),
+      balanceBefore: _roundStockQty(_num(data.balanceBefore)),
+      balanceAfter: _roundStockQty(_num(data.balanceAfter)),
+      unit: ref && ref.unit || 'un',
+      unitCost: _num(ref && ref.unitCost),
+      estimatedTotalCost: _num(ref && ref.unitCost) > 0 ? _roundStockQty(_num(data.shortage) * _num(ref && ref.unitCost)) : 0
+    };
+  }
+
+  function _stockRegularizationMode(config) {
+    var mode = String(config && (config.regularizationMode || config.stockRegularizationMode) || 'pendencia').trim().toLowerCase();
+    if (mode === 'auto') mode = 'automatico';
+    if (mode === 'off') mode = 'desligado';
+    return ['pendencia', 'automatico', 'desligado'].indexOf(mode) >= 0 ? mode : 'pendencia';
+  }
+
+  function _stockRegularizationMovementId(orderId, itemIdx, refIdx, ref) {
+    return 'regularizacao_' + String(orderId || 'pedido').replace(/[^\w-]/g, '_') + '_' + itemIdx + '_' + refIdx + '_' + String(ref && (ref.baseProductionId || ref.fichaId || ref.readyItemId || ref.productId) || 'item').replace(/[^\w-]/g, '_');
+  }
+
+  function _stockRegularizationMovementPayload(item, order, movementId, now) {
+    var stockType = _normalizeStockItemType(item.stockItemType || item.itemClass || item.classe || '');
+    var qty = _roundStockQty(item.shortageQuantity);
+    var unitCost = _num(item.unitCost);
+    var payload = {
+      id: movementId,
+      type: 'entrada_regularizacao',
+      movementGroup: 'stock_regularization',
+      regularizationOrigin: 'saldo_negativo_venda',
+      regularizationStatus: 'aplicada',
+      regularizationEntry: true,
+      regularizationSourceMovementId: item.movementId || '',
+      orderId: order && order.id || '',
+      orderNumber: _orderDisplayId(order || {}),
+      itemId: item.stockItemId || '',
+      itemName: item.itemName || '',
+      productId: item.productId || '',
+      productName: item.productName || item.itemName || '',
+      stockItemId: item.stockItemId || '',
+      stockItemType: stockType,
+      itemClass: stockType,
+      classe: stockType,
+      quantity: qty,
+      unit: item.unit || 'un',
+      unitCost: unitCost,
+      totalCost: unitCost > 0 ? qty * unitCost : 0,
+      previousBalance: _num(item.balanceAfter),
+      balanceBefore: _num(item.balanceAfter),
+      balanceAfter: _roundStockQty(_num(item.balanceAfter) + qty),
+      reason: 'Regularização automática de venda sem saldo',
+      notes: 'Entrada criada automaticamente conforme configuração do estoque.',
+      movementDate: _today(),
+      createdAt: now,
+      updatedAt: now
+    };
+    if (stockType === 'base_producao') {
+      payload.baseProductionId = item.stockItemId || '';
+      payload.baseProductionName = item.itemName || '';
+    } else if (stockType === 'produto_produzido') {
+      payload.fichaTecnicaId = item.stockItemId || '';
+      payload.fichaTecnicaNome = item.itemName || '';
+    } else if (stockType === 'produto_pronto') {
+      payload.sourceItemId = item.stockItemId || '';
+      payload.produtoProntoId = item.stockItemId || '';
+    }
+    return payload;
   }
 
   function _reverseOrderStockMovements(orderId, order) {

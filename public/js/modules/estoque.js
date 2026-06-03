@@ -7,11 +7,17 @@ Modules.Estoque = (function () {
   var _movements = [];
   var _items = [];
   var _settings = {};
+  var _stockConfig = {};
+  var _orders = [];
+  var _fornecedores = [];
   var _classMaps = { itens: {}, receitas: {}, produtos: {} };
   var _filters = { q: '', type: 'todos', stockKind: 'insumo' };
   var _itemsPage = { page: 1, perPage: 10 };
   var _movementFilters = { q: '', direction: 'entrada', origin: 'todos' };
   var _movementsPage = { page: 1, perPage: 10 };
+  var _regularizationFilters = { q: '', status: 'pendente', type: 'todos' };
+  var _regularizationsPage = { page: 1, perPage: 10 };
+  var _selectedRegularizationIds = {};
   var _detailMovementState = { key: '', q: '', page: 1, perPage: 5 };
 
   function render(sub) {
@@ -19,13 +25,18 @@ Modules.Estoque = (function () {
     var app = document.getElementById('app');
     if (!app) return;
     var isMovements = _activeSub === 'movimentacoes';
+    var isRegularizations = _activeSub === 'regularizacoes';
+    var title = isRegularizations ? 'Regularizações do estoque' : (isMovements ? 'Movimentações do estoque' : 'Itens em estoque');
+    var subtitle = isRegularizations
+      ? 'Veja vendas que geraram saída com saldo insuficiente e escolha como regularizar o histórico de estoque.'
+      : (isMovements ? 'Acompanhe entradas, saídas, estornos e ajustes usados para calcular os saldos.' : 'Saldo calculado pelas entradas, saídas e ajustes registrados. Separe os itens por classe para conferir com mais clareza.');
     app.innerHTML =
       '<div id="stock-root" class="module-page stock-page">' +
         _styles() +
         '<div class="stock-page-head">' +
           '<div style="min-width:0;flex:1 1 420px;">' +
-            '<h2>' + (isMovements ? 'Movimentações do estoque' : 'Itens em estoque') + '</h2>' +
-            '<p>' + (isMovements ? 'Acompanhe entradas, saídas, estornos e ajustes usados para calcular os saldos.' : 'Saldo calculado pelas entradas, saídas e ajustes registrados. Separe os itens por classe para conferir com mais clareza.') + '</p>' +
+            '<h2>' + title + '</h2>' +
+            '<p>' + subtitle + '</p>' +
           '</div>' +
         '</div>' +
         '<div id="stock-content" class="stock-content"><div class="loading-inline">Carregando estoque...</div></div>' +
@@ -41,11 +52,17 @@ Modules.Estoque = (function () {
       DB.getAll('stock_settings').catch(function () { return []; }),
       DB.getAll('itens_custo').catch(function () { return []; }),
       DB.getAll('fichasTecnicas').catch(function () { return []; }),
-      DB.getAll('products').catch(function () { return []; })
+      DB.getAll('products').catch(function () { return []; }),
+      DB.getAll('orders').catch(function () { return []; }),
+      DB.getDocRoot ? DB.getDocRoot('config', 'estoque').catch(function () { return {}; }) : Promise.resolve({}),
+      DB.getAll('fornecedores').catch(function () { return []; })
     ]).then(function (results) {
       var movements = results[0] || [];
       var settings = results[1] || [];
       _classMaps = _buildClassMaps(results[2] || [], results[3] || [], results[4] || []);
+      _orders = results[5] || [];
+      _stockConfig = results[6] || {};
+      _fornecedores = results[7] || [];
       _settings = {};
       settings.forEach(function (item) {
         if (item && item.stockKey) _settings[item.stockKey] = item;
@@ -53,6 +70,7 @@ Modules.Estoque = (function () {
       _movements = (movements || []).slice();
       _items = _buildStockItems(_movements);
       if (_activeSub === 'movimentacoes') _paintMovements();
+      else if (_activeSub === 'regularizacoes') _paintRegularizations();
       else _paintItems();
     });
   }
@@ -161,7 +179,8 @@ Modules.Estoque = (function () {
     var isBaseProductionReversal = type === 'estorno_base_producao';
     var isAdjustmentEntry = type === 'ajuste_entrada';
     var isAdjustmentExit = type === 'ajuste_saida';
-    var isEntry = isProductionEntry || isBaseProductionEntry || isPurchaseEntry || isSaleReversal || isSaleReturn || isProductionIngredientReversal || isAdjustmentEntry;
+    var isRegularizationEntry = type === 'entrada_regularizacao';
+    var isEntry = isProductionEntry || isBaseProductionEntry || isPurchaseEntry || isSaleReversal || isSaleReturn || isProductionIngredientReversal || isAdjustmentEntry || isRegularizationEntry;
     var isExit = type === 'saida_producao' || isSaleExit || isPurchaseReversal || isProductionProductReversal || isBaseProductionReversal || isAdjustmentExit;
     if (!isEntry && !isExit && !isSaleLoss) return {};
 
@@ -171,16 +190,30 @@ Modules.Estoque = (function () {
     var saleIsReadyProduct = isSaleRelated && !!saleReadyItemId && !movement.fichaTecnicaId;
     var adjustmentStockType = String(movement.stockItemType || '').trim();
     var isBaseStockMovement = isBaseProductionEntry || isBaseProductionReversal || isBaseSaleExit || ((isSaleReversal || isSaleExit) && !!movement.baseProductionId);
-    var itemId = isBaseStockMovement
-      ? (movement.baseProductionId || movement.componentName || '')
-      : ((isProductionEntry || isProductionProductReversal)
-      ? (movement.fichaTecnicaId || '')
-      : (isSaleRelated ? (movement.fichaTecnicaId || saleReadyItemId || movement.productId || '') : ((isAdjustmentEntry || isAdjustmentExit) ? (movement.itemId || '') : ((isPurchaseEntry || isPurchaseReversal) ? (movement.itemId || '') : (movement.ingredientId || '')))));
-    var itemName = isBaseStockMovement
-      ? (movement.baseProductionName || movement.componentName || 'Base de produção')
-      : ((isProductionEntry || isProductionProductReversal)
-      ? (movement.fichaTecnicaNome || 'Produto produzido')
-      : (isSaleRelated ? (movement.productName || 'Produto vendido') : ((isAdjustmentEntry || isAdjustmentExit) ? (movement.itemName || 'Item ajustado') : ((isPurchaseEntry || isPurchaseReversal) ? (movement.itemName || 'Ingrediente') : (movement.ingredientName || 'Ingrediente')))));
+    var itemId = '';
+    var itemName = '';
+    if (isBaseStockMovement) {
+      itemId = movement.baseProductionId || movement.componentName || '';
+      itemName = movement.baseProductionName || movement.componentName || 'Base de produção';
+    } else if (isProductionEntry || isProductionProductReversal) {
+      itemId = movement.fichaTecnicaId || '';
+      itemName = movement.fichaTecnicaNome || 'Produto produzido';
+    } else if (isRegularizationEntry) {
+      itemId = movement.itemId || movement.stockItemId || movement.fichaTecnicaId || saleReadyItemId || movement.productId || '';
+      itemName = movement.itemName || movement.productName || 'Item regularizado';
+    } else if (isSaleRelated) {
+      itemId = movement.fichaTecnicaId || saleReadyItemId || movement.productId || '';
+      itemName = movement.productName || 'Produto vendido';
+    } else if (isAdjustmentEntry || isAdjustmentExit) {
+      itemId = movement.itemId || '';
+      itemName = movement.itemName || 'Item ajustado';
+    } else if (isPurchaseEntry || isPurchaseReversal) {
+      itemId = movement.itemId || '';
+      itemName = movement.itemName || 'Ingrediente';
+    } else {
+      itemId = movement.ingredientId || '';
+      itemName = movement.ingredientName || 'Ingrediente';
+    }
     var lookupClass = _lookupStockClass(movement, itemId, {
       isProductionEntry: isProductionEntry,
       isProductionProductReversal: isProductionProductReversal,
@@ -197,16 +230,25 @@ Modules.Estoque = (function () {
     var movementIsBaseProduct = stockClass === 'base_producao';
     var movementIsSupply = stockClass === 'insumo' || stockClass === 'embalagem';
     var purchaseIsProduct = (isPurchaseEntry || isPurchaseReversal) && movementIsReadyProduct;
-    var itemType = (isProductionEntry || isProductionProductReversal || isBaseStockMovement || isSaleRelated || purchaseIsProduct || adjustmentStockType.indexOf('produto') === 0 || movementIsProducedProduct || movementIsBaseProduct) ? 'produto' : 'ingrediente';
+    var itemType = (isProductionEntry || isProductionProductReversal || isBaseStockMovement || isSaleRelated || isRegularizationEntry || purchaseIsProduct || adjustmentStockType.indexOf('produto') === 0 || movementIsProducedProduct || movementIsBaseProduct) ? 'produto' : 'ingrediente';
     var quantity = (isProductionEntry || isProductionProductReversal || isBaseProductionEntry || isBaseProductionReversal) ? _num(movement.quantityProduced || movement.quantity) : _num(movement.quantity);
     var unit = (isProductionEntry || isProductionProductReversal || isBaseProductionEntry || isBaseProductionReversal) ? (movement.yieldUnit || movement.unit || '') : (movement.unit || '');
     var unitCost = (isProductionEntry || isProductionProductReversal || isBaseProductionEntry || isBaseProductionReversal) ? _num(movement.estimatedUnitCost || movement.unitCost) : _num(movement.unitCost);
     var hasCost = unitCost > 0;
-    var label = isPurchaseEntry ? 'Entrada de compra' : (isPurchaseReversal ? 'Estorno de compra' : (isBaseProductionEntry ? 'Entrada de base de produção' : (isBaseProductionReversal ? 'Estorno de base de produção' : (isBaseSaleExit ? 'Saída de base por venda' : (isProductionEntry ? 'Entrada de produção' : (isProductionProductReversal ? 'Estorno de produto produzido' : (isSaleReturn ? 'Retorno de venda' : (isSaleLoss ? 'Perda de venda' : (isSaleExit ? 'Saída por venda' : (isSaleReversal ? 'Estorno de venda' : (isProductionIngredientReversal ? 'Estorno de ingrediente' : (isAdjustmentEntry ? 'Ajuste de entrada' : (isAdjustmentExit ? 'Ajuste de saída' : 'Saída para produção')))))))))))));
-    var origin = (isPurchaseEntry || isPurchaseReversal) ? 'Compra' : (isSaleRelated || isSaleReversal ? 'Venda' : ((isAdjustmentEntry || isAdjustmentExit) ? 'Ajuste' : 'Produção'));
-    var originDetail = (isPurchaseEntry || isPurchaseReversal)
-      ? ('Compra' + (movement.purchaseNumber ? ' ' + movement.purchaseNumber : '') + (movement.purchaseDocument ? ' · ' + movement.purchaseDocument : ''))
-      : ((isSaleRelated || isSaleReversal) ? ('Pedido' + (movement.orderNumber ? ' ' + movement.orderNumber : '') + _saleStockTraceLabel(movement, { isSaleLoss: isSaleLoss, isSaleReturn: isSaleReturn, isBaseSaleExit: isBaseSaleExit })) : ((isAdjustmentEntry || isAdjustmentExit) ? (movement.reason || 'Contagem manual') : (movement.productionOrderName || movement.fichaTecnicaNome || 'Ordem de produção')));
+    var label = isRegularizationEntry ? 'Entrada de regularização' : (isPurchaseEntry ? 'Entrada de compra' : (isPurchaseReversal ? 'Estorno de compra' : (isBaseProductionEntry ? 'Entrada de base de produção' : (isBaseProductionReversal ? 'Estorno de base de produção' : (isBaseSaleExit ? 'Saída de base por venda' : (isProductionEntry ? 'Entrada de produção' : (isProductionProductReversal ? 'Estorno de produto produzido' : (isSaleReturn ? 'Retorno de venda' : (isSaleLoss ? 'Perda de venda' : (isSaleExit ? 'Saída por venda' : (isSaleReversal ? 'Estorno de venda' : (isProductionIngredientReversal ? 'Estorno de ingrediente' : (isAdjustmentEntry ? 'Ajuste de entrada' : (isAdjustmentExit ? 'Ajuste de saída' : 'Saída para produção'))))))))))))));
+    var origin = isRegularizationEntry ? 'Regularização' : ((isPurchaseEntry || isPurchaseReversal) ? 'Compra' : (isSaleRelated || isSaleReversal ? 'Venda' : ((isAdjustmentEntry || isAdjustmentExit) ? 'Ajuste' : 'Produção')));
+    var originDetail = '';
+    if (isPurchaseEntry || isPurchaseReversal) {
+      originDetail = 'Compra' + (movement.purchaseNumber ? ' ' + movement.purchaseNumber : '') + (movement.purchaseDocument ? ' · ' + movement.purchaseDocument : '');
+    } else if (isRegularizationEntry) {
+      originDetail = 'Regularização do pedido' + (movement.orderNumber ? ' ' + movement.orderNumber : '');
+    } else if (isSaleRelated || isSaleReversal) {
+      originDetail = 'Pedido' + (movement.orderNumber ? ' ' + movement.orderNumber : '') + _saleStockTraceLabel(movement, { isSaleLoss: isSaleLoss, isSaleReturn: isSaleReturn, isBaseSaleExit: isBaseSaleExit });
+    } else if (isAdjustmentEntry || isAdjustmentExit) {
+      originDetail = movement.reason || 'Contagem manual';
+    } else {
+      originDetail = movement.productionOrderName || movement.fichaTecnicaNome || 'Ordem de produção';
+    }
     var stockItemType = stockClass === 'embalagem'
       ? 'embalagem'
       : (movementIsSupply
@@ -314,6 +356,7 @@ Modules.Estoque = (function () {
     }).join('');
 
     content.innerHTML =
+      _viewTabsHtml() +
       _stockKindTabsHtml() +
       '<section class="stock-filter-card">' +
         '<div class="stock-filter-grid">' +
@@ -347,15 +390,143 @@ Modules.Estoque = (function () {
 
   function _viewTabsHtml() {
     return '<section class="stock-view-tabs">' +
-      '<button type="button" class="' + (_activeSub !== 'movimentacoes' ? 'active' : '') + '" onclick="Modules.Estoque._setView(\'itens\')">Itens</button>' +
+      '<button type="button" class="' + (_activeSub === 'itens' ? 'active' : '') + '" onclick="Modules.Estoque._setView(\'itens\')">Itens</button>' +
       '<button type="button" class="' + (_activeSub === 'movimentacoes' ? 'active' : '') + '" onclick="Modules.Estoque._setView(\'movimentacoes\')">Movimentações</button>' +
+      '<button type="button" class="' + (_activeSub === 'regularizacoes' ? 'active' : '') + '" onclick="Modules.Estoque._setView(\'regularizacoes\')">Regularizações</button>' +
     '</section>';
   }
 
   function _setView(view) {
-    _activeSub = view === 'movimentacoes' ? 'movimentacoes' : 'itens';
+    _activeSub = view === 'movimentacoes' ? 'movimentacoes' : (view === 'regularizacoes' ? 'regularizacoes' : 'itens');
     if (_activeSub === 'movimentacoes') _paintMovements();
+    else if (_activeSub === 'regularizacoes') _paintRegularizations();
     else _paintItems();
+  }
+
+  function _paintRegularizations() {
+    var content = document.getElementById('stock-content');
+    if (!content) return;
+    var entries = _filteredRegularizations();
+    var summary = _regularizationSummary();
+    var paging = _regularizationsPage || (_regularizationsPage = { page: 1, perPage: 10 });
+    paging.perPage = Number(paging.perPage) || 10;
+    var totalPages = Math.max(1, Math.ceil(entries.length / paging.perPage));
+    if (paging.page > totalPages) paging.page = totalPages;
+    if (paging.page < 1) paging.page = 1;
+    var pageStartIndex = (paging.page - 1) * paging.perPage;
+    var pageEntries = entries.slice(pageStartIndex, pageStartIndex + paging.perPage);
+    var showingStart = entries.length ? pageStartIndex + 1 : 0;
+    var showingEnd = entries.length ? Math.min(pageStartIndex + pageEntries.length, entries.length) : 0;
+    var pageOptions = [10, 25, 50].map(function (size) {
+      return '<option value="' + size + '"' + (paging.perPage === size ? ' selected' : '') + '>' + size + ' por página</option>';
+    }).join('');
+    var rows = pageEntries.map(function (entry) {
+      var canApply = entry.status === 'pendente';
+      var checked = !!_selectedRegularizationIds[entry.id];
+      return '<tr>' +
+        '<td style="width:42px;text-align:center;"><input type="checkbox" ' + (canApply ? '' : 'disabled') + (checked ? ' checked' : '') + ' onchange="Modules.Estoque._toggleRegularizationSelection(\'' + _escJs(entry.id) + '\', this.checked)" style="width:16px;height:16px;accent-color:#B42318;cursor:pointer;"></td>' +
+        '<td><div class="stock-item-name">' + _esc(entry.itemName) + '</div><div class="stock-item-note">' + _esc(_stockKindLabel(entry.stockItemType)) + ' · ' + _esc(entry.stockSourceLabel) + '</div></td>' +
+        '<td><div class="stock-item-name">' + _esc(entry.orderLabel) + '</div><div class="stock-item-note">' + _esc(_fmtDate(entry.detectedAt || entry.orderDate)) + ' · ' + _esc(entry.customerName || 'Cliente não informado') + '</div></td>' +
+        '<td><span class="stock-badge ' + (entry.status === 'pendente' ? 'regularization-pending' : 'regularization-muted') + '">' + _esc(_regularizationStatusLabel(entry.status)) + '</span></td>' +
+        '<td><strong class="stock-negative">' + _fmtQty(entry.shortageQuantity) + ' ' + _esc(entry.unit || '') + '</strong><div class="stock-item-note">Saída: ' + _fmtQty(entry.requiredQuantity) + ' ' + _esc(entry.unit || '') + '</div></td>' +
+        '<td><div class="stock-item-name">' + _fmtQty(entry.balanceBefore) + ' → ' + _fmtQty(entry.balanceAfter) + '</div><div class="stock-item-note">Saldo antes/depois</div></td>' +
+        '<td>' + (entry.unitCost > 0 ? _money(entry.estimatedTotalCost) : '<span class="stock-muted">sem custo</span>') + '</td>' +
+        '<td><button type="button" class="stock-row-action" ' + (canApply ? 'onclick="Modules.Estoque._applyRegularization(\'' + _escJs(entry.id) + '\')"' : 'disabled') + '>' + (canApply ? 'Regularizar entrada' : 'Aplicada') + '</button></td>' +
+      '</tr>';
+    }).join('');
+    var selectedCount = _selectedRegularizationEntries().length;
+    var hasFilters = !!((_regularizationFilters.q || '').trim() || _regularizationFilters.status !== 'todos' || _regularizationFilters.type !== 'todos');
+    content.innerHTML =
+      _viewTabsHtml() +
+      _regularizationConfigHtml() +
+      '<section class="stock-regularization-summary">' +
+        _regularizationMetric('Pendentes', summary.pending, 'Itens vendidos sem saldo suficiente.') +
+        _regularizationMetric('Pedidos', summary.orders, 'Pedidos com pelo menos uma pendência.') +
+        _regularizationMetric('Custo estimado', summary.cost > 0 ? _money(summary.cost) : 'sem custo', 'Soma dos custos estimados das faltas.') +
+      '</section>' +
+      '<section class="stock-filter-card">' +
+        '<div class="stock-filter-grid movement-grid">' +
+          '<label><span>Buscar</span><input type="search" value="' + _esc(_regularizationFilters.q || '') + '" placeholder="Buscar item, pedido ou cliente..." oninput="Modules.Estoque._setRegularizationFilter(\'q\', this.value)"></label>' +
+          '<label><span>Status</span><select onchange="Modules.Estoque._setRegularizationFilter(\'status\', this.value)">' +
+            '<option value="pendente"' + (_regularizationFilters.status === 'pendente' ? ' selected' : '') + '>Pendentes</option>' +
+            '<option value="todos"' + (_regularizationFilters.status === 'todos' ? ' selected' : '') + '>Todos</option>' +
+            '<option value="aplicada"' + (_regularizationFilters.status === 'aplicada' ? ' selected' : '') + '>Aplicadas</option>' +
+            '<option value="ignorada"' + (_regularizationFilters.status === 'ignorada' ? ' selected' : '') + '>Ignoradas</option>' +
+          '</select></label>' +
+          '<label><span>Classe</span><select onchange="Modules.Estoque._setRegularizationFilter(\'type\', this.value)">' +
+            '<option value="todos"' + (_regularizationFilters.type === 'todos' ? ' selected' : '') + '>Todas</option>' +
+            '<option value="insumo"' + (_regularizationFilters.type === 'insumo' ? ' selected' : '') + '>Insumos</option>' +
+            '<option value="embalagem"' + (_regularizationFilters.type === 'embalagem' ? ' selected' : '') + '>Embalagens</option>' +
+            '<option value="produto_pronto"' + (_regularizationFilters.type === 'produto_pronto' ? ' selected' : '') + '>Produtos prontos</option>' +
+            '<option value="produto_produzido"' + (_regularizationFilters.type === 'produto_produzido' ? ' selected' : '') + '>Produtos produzidos</option>' +
+            '<option value="base_producao"' + (_regularizationFilters.type === 'base_producao' ? ' selected' : '') + '>Bases de produção</option>' +
+          '</select></label>' +
+        '</div>' +
+        (hasFilters ? '<div class="stock-filter-actions"><button type="button" class="stock-filter-clear" onclick="Modules.Estoque._clearRegularizationFilters()">Limpar filtros</button></div>' : '') +
+      '</section>' +
+      (entries.length ?
+        '<section style="display:flex;flex-direction:column;gap:10px;">' +
+          '<div class="stock-list-title"><div><h2>Itens para regularizar</h2><p>Lista gerada por pedidos que baixaram estoque sem saldo suficiente.</p></div><div class="stock-head-actions"><span>' + selectedCount + ' selecionado' + (selectedCount === 1 ? '' : 's') + '</span><button type="button" ' + (selectedCount ? '' : 'disabled') + ' onclick="Modules.Estoque._openQuickPurchaseModal()">Gerar compra rápida</button></div></div>' +
+          '<div class="stock-table-card">' +
+            '<div class="stock-table-wrap"><table class="stock-table stock-regularization-table"><thead><tr><th style="width:42px;text-align:center;"><input type="checkbox" onchange="Modules.Estoque._toggleRegularizationPageSelection(this.checked)" style="width:16px;height:16px;accent-color:#B42318;cursor:pointer;"></th><th>Item</th><th>Pedido</th><th>Status</th><th>Falta</th><th>Saldo</th><th>Custo estimado</th><th>Ação</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+            '<div class="stock-table-footer">' +
+              '<span>Mostrando <strong>' + showingStart + '</strong> a <strong>' + showingEnd + '</strong> de <strong>' + entries.length + '</strong></span>' +
+              '<div class="stock-pagination">' +
+                '<select onchange="Modules.Estoque._setRegularizationsPageSize(this.value)">' + pageOptions + '</select>' +
+                '<button type="button" ' + (paging.page <= 1 ? 'disabled' : '') + ' onclick="Modules.Estoque._setRegularizationsPage(' + (paging.page - 1) + ')">Anterior</button>' +
+                '<div class="stock-page-indicator"><span>' + paging.page + '</span><i></i><span>' + totalPages + '</span></div>' +
+                '<button type="button" ' + (paging.page >= totalPages ? 'disabled' : '') + ' onclick="Modules.Estoque._setRegularizationsPage(' + (paging.page + 1) + ')">Próxima</button>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+        '</section>' :
+        '<section class="stock-card">' + _emptyState('regularizacoes') + '</section>') +
+      '<p class="stock-footnote">Compra rápida de regularização registra uma compra recebida sem criar financeiro automático. Pagamentos e documentos completos podem ser ajustados depois em Compras.</p>';
+  }
+
+  function _regularizationConfigHtml() {
+    var mode = _regularizationMode();
+    return '<section class="stock-filter-card stock-regularization-config">' +
+      '<div class="stock-list-title">' +
+        '<div><h2>Comportamento da regularização</h2><p>Defina o que acontece quando uma venda baixa estoque sem saldo suficiente.</p></div>' +
+      '</div>' +
+      '<div class="stock-config-options">' +
+        _regularizationModeOption('pendencia', mode, 'Criar pendência', 'Registra a falta para revisar depois. É o modo mais seguro.') +
+        _regularizationModeOption('automatico', mode, 'Aplicar automaticamente', 'Cria entrada de regularização junto com a saída da venda.') +
+        _regularizationModeOption('desligado', mode, 'Desligado', 'Mantém a saída, mas não gera pendência nem entrada de regularização.') +
+      '</div>' +
+    '</section>';
+  }
+
+  function _regularizationModeOption(value, current, label, description) {
+    return '<button type="button" class="stock-config-option ' + (current === value ? 'active' : '') + '" onclick="Modules.Estoque._saveRegularizationMode(\'' + value + '\')">' +
+      '<strong>' + _esc(label) + '</strong><span>' + _esc(description) + '</span>' +
+    '</button>';
+  }
+
+  function _regularizationMode() {
+    var mode = String(_stockConfig.regularizationMode || _stockConfig.stockRegularizationMode || 'pendencia').trim().toLowerCase();
+    if (mode === 'auto') mode = 'automatico';
+    if (mode === 'off') mode = 'desligado';
+    if (['pendencia', 'automatico', 'desligado'].indexOf(mode) < 0) mode = 'pendencia';
+    return mode;
+  }
+
+  function _saveRegularizationMode(mode) {
+    mode = ['pendencia', 'automatico', 'desligado'].indexOf(mode) >= 0 ? mode : 'pendencia';
+    var now = new Date().toISOString();
+    DB.col('config').doc('estoque').set({
+      regularizationMode: mode,
+      stockRegularizationMode: mode,
+      updatedAt: now
+    }, { merge: true }).then(function () {
+      _stockConfig.regularizationMode = mode;
+      _stockConfig.stockRegularizationMode = mode;
+      UI.toast('Configuração de regularização salva.', 'success');
+      _paintRegularizations();
+    }).catch(function (err) {
+      UI.toast('Erro ao salvar configuração: ' + (err && err.message ? err.message : err), 'error');
+    });
   }
 
   function _paintMovements() {
@@ -388,6 +559,7 @@ Modules.Estoque = (function () {
     }).join('');
     var hasFilters = !!((_movementFilters.q || '').trim() || _movementFilters.direction !== 'todos' || _movementFilters.origin !== 'todos');
     content.innerHTML =
+      _viewTabsHtml() +
       '<section class="stock-kind-tabs movement-tabs">' +
         '<button type="button" class="' + (_movementFilters.direction === 'entrada' ? 'active' : '') + '" onclick="Modules.Estoque._setMovementDirection(\'entrada\')">Entradas</button>' +
         '<button type="button" class="' + (_movementFilters.direction === 'saida' ? 'active' : '') + '" onclick="Modules.Estoque._setMovementDirection(\'saida\')">Saídas</button>' +
@@ -401,6 +573,7 @@ Modules.Estoque = (function () {
             '<option value="Produção"' + (_movementFilters.origin === 'Produção' ? ' selected' : '') + '>Produção</option>' +
             '<option value="Venda"' + (_movementFilters.origin === 'Venda' ? ' selected' : '') + '>Venda</option>' +
             '<option value="Ajuste"' + (_movementFilters.origin === 'Ajuste' ? ' selected' : '') + '>Ajuste</option>' +
+            '<option value="Regularização"' + (_movementFilters.origin === 'Regularização' ? ' selected' : '') + '>Regularização</option>' +
           '</select></label>' +
         '</div>' +
         (hasFilters ? '<div class="stock-filter-actions"><button type="button" class="stock-filter-clear" onclick="Modules.Estoque._clearMovementFilters()">Limpar filtros</button></div>' : '') +
@@ -469,6 +642,116 @@ Modules.Estoque = (function () {
     });
   }
 
+  function _regularizationEntries() {
+    var entries = [];
+    (_orders || []).forEach(function (order) {
+      var items = Array.isArray(order && order.stockRegularizationPendingItems) ? order.stockRegularizationPendingItems : [];
+      if (!items.length && order && order.stockRegularizationPending) {
+        items = [];
+      }
+      items.forEach(function (item, idx) {
+        if (!item || typeof item !== 'object') return;
+        var status = String(item.status || order.stockRegularizationStatus || 'pendente').trim().toLowerCase() || 'pendente';
+        var stockType = _normalizeRegularizationStockType(item.stockItemType || item.itemClass || item.classe || '');
+        entries.push({
+          id: String(order.id || '') + ':' + idx,
+          itemIndex: idx,
+          orderId: order.id || '',
+          orderLabel: _orderLabel(order),
+          orderDate: _firstText(order.deliveryDate, order.pickupDate, order.scheduleDate, order.createdAt, order.updatedAt, ''),
+          detectedAt: _firstText(order.stockRegularizationDetectedAt, order.stockMovementUpdatedAt, order.updatedAt, ''),
+          customerName: _firstText(order.customerName, order.name, order.clienteNome, ''),
+          status: status,
+          origin: item.origin || order.stockRegularizationOrigin || 'saldo_negativo_venda',
+          stockKey: item.stockKey || '',
+          stockItemId: item.stockItemId || '',
+          stockItemType: stockType,
+          itemName: item.itemName || 'Item',
+          productId: item.productId || '',
+          productName: item.productName || '',
+          stockSource: item.stockSource || '',
+          stockSourceLabel: _stockSourceLabel(item.stockSource || ''),
+          sourceMovementId: item.movementId || item.sourceMovementId || '',
+          regularizationMovementId: item.regularizationMovementId || '',
+          requiredQuantity: _num(item.requiredQuantity),
+          shortageQuantity: _num(item.shortageQuantity),
+          balanceBefore: _num(item.balanceBefore),
+          balanceAfter: _num(item.balanceAfter),
+          unit: item.unit || '',
+          unitCost: _num(item.unitCost),
+          estimatedTotalCost: _num(item.estimatedTotalCost)
+        });
+      });
+    });
+    return entries.sort(function (a, b) {
+      return _dateValue(b.detectedAt || b.orderDate) - _dateValue(a.detectedAt || a.orderDate);
+    });
+  }
+
+  function _filteredRegularizations() {
+    var q = _norm(_regularizationFilters.q);
+    return _regularizationEntries().filter(function (entry) {
+      if (_regularizationFilters.status !== 'todos' && entry.status !== _regularizationFilters.status) return false;
+      if (_regularizationFilters.type !== 'todos' && entry.stockItemType !== _regularizationFilters.type) return false;
+      if (!q) return true;
+      return _norm([
+        entry.itemName,
+        entry.productName,
+        entry.orderLabel,
+        entry.customerName,
+        entry.stockItemType,
+        entry.stockSourceLabel,
+        entry.origin
+      ].join(' ')).indexOf(q) >= 0;
+    });
+  }
+
+  function _regularizationSummary() {
+    var entries = _regularizationEntries();
+    var pending = entries.filter(function (entry) { return entry.status === 'pendente'; });
+    var orders = {};
+    var cost = 0;
+    pending.forEach(function (entry) {
+      if (entry.orderId) orders[entry.orderId] = true;
+      cost += _num(entry.estimatedTotalCost);
+    });
+    return { pending: pending.length, orders: Object.keys(orders).length, cost: _round(cost) };
+  }
+
+  function _regularizationMetric(label, value, note) {
+    return '<div class="stock-detail-metric"><span>' + _esc(label) + '</span><strong>' + _esc(String(value)) + '</strong><p>' + _esc(note) + '</p></div>';
+  }
+
+  function _regularizationStatusLabel(status) {
+    var key = String(status || '').toLowerCase();
+    if (key === 'aplicada') return 'Aplicada';
+    if (key === 'ignorada') return 'Ignorada';
+    return 'Pendente';
+  }
+
+  function _normalizeRegularizationStockType(value) {
+    var key = _norm(value || '').replace(/\s+/g, '_');
+    if (key === 'ingrediente' || key === 'ingredient') return 'insumo';
+    if (key === 'embalagens' || key === 'packaging' || key === 'package') return 'embalagem';
+    if (key === 'produto' || key === 'produto_pronto' || key === 'ready_product') return 'produto_pronto';
+    if (key === 'receita' || key === 'ficha' || key === 'ficha_tecnica' || key === 'produto_produzido') return 'produto_produzido';
+    if (key === 'base' || key === 'base_producao') return 'base_producao';
+    return key || 'insumo';
+  }
+
+  function _stockSourceLabel(source) {
+    var key = String(source || '').trim();
+    if (key === 'combo_opcao') return 'Combo/opção';
+    if (key === 'composicao_interna') return 'Montagem interna';
+    if (key === 'base_producao' || key === 'combo_base_producao') return 'Base de produção';
+    if (key === 'item') return 'Produto';
+    return key || 'Venda';
+  }
+
+  function _orderLabel(order) {
+    return _firstText(order && order.publicOrderCode, order && order.orderRef, order && order.orderNumber, order && order.number, order && order.code, order && order.id ? '#' + String(order.id).slice(-6).toUpperCase() : 'Pedido');
+  }
+
   function _setStockKind(value) {
     _filters.stockKind = value || 'todos';
     _itemsPage.page = 1;
@@ -527,6 +810,391 @@ Modules.Estoque = (function () {
   function _setMovementsPage(page) {
     _movementsPage.page = Math.max(1, Number(page) || 1);
     _paintMovements();
+  }
+
+  function _setRegularizationFilter(key, value) {
+    _regularizationFilters[key] = value || (key === 'status' || key === 'type' ? 'todos' : '');
+    _regularizationsPage.page = 1;
+    _paintRegularizations();
+  }
+
+  function _clearRegularizationFilters() {
+    _regularizationFilters.q = '';
+    _regularizationFilters.status = 'pendente';
+    _regularizationFilters.type = 'todos';
+    _regularizationsPage.page = 1;
+    _paintRegularizations();
+  }
+
+  function _setRegularizationsPageSize(value) {
+    _regularizationsPage.perPage = Number(value) || 10;
+    _regularizationsPage.page = 1;
+    _paintRegularizations();
+  }
+
+  function _setRegularizationsPage(page) {
+    _regularizationsPage.page = Math.max(1, Number(page) || 1);
+    _paintRegularizations();
+  }
+
+  function _toggleRegularizationSelection(entryId, checked) {
+    if (checked) _selectedRegularizationIds[entryId] = true;
+    else delete _selectedRegularizationIds[entryId];
+    _paintRegularizations();
+  }
+
+  function _toggleRegularizationPageSelection(checked) {
+    _filteredRegularizations().forEach(function (entry) {
+      if (entry.status !== 'pendente') return;
+      if (checked) _selectedRegularizationIds[entry.id] = true;
+      else delete _selectedRegularizationIds[entry.id];
+    });
+    _paintRegularizations();
+  }
+
+  function _selectedRegularizationEntries() {
+    var selected = _selectedRegularizationIds || {};
+    return _regularizationEntries().filter(function (entry) {
+      return selected[entry.id] && entry.status === 'pendente';
+    });
+  }
+
+  function _openQuickPurchaseModal() {
+    var entries = _selectedRegularizationEntries();
+    if (!entries.length) {
+      UI.toast('Selecione pelo menos uma pendência.', 'info');
+      return;
+    }
+    var total = entries.reduce(function (sum, entry) { return sum + _num(entry.estimatedTotalCost); }, 0);
+    var rows = entries.map(function (entry) {
+      return '<div class="stock-quick-line"><div><strong>' + _esc(entry.itemName) + '</strong><span>' + _esc(entry.orderLabel) + ' · falta ' + _fmtQty(entry.shortageQuantity) + ' ' + _esc(entry.unit || '') + '</span></div><div>' + (entry.unitCost > 0 ? _money(entry.estimatedTotalCost) : 'sem custo') + '</div></div>';
+    }).join('');
+    var body = _styles() +
+      '<div class="stock-adjust">' +
+        '<section class="stock-detail-hero compact">' +
+          '<div class="stock-modal-head" style="margin-bottom:0;"><span class="mi">shopping_cart</span><div><p>Compra rápida</p><h2>Converter regularizações em compra</h2></div></div>' +
+          '<span class="stock-badge regularization-pending">' + entries.length + ' item' + (entries.length === 1 ? '' : 's') + '</span>' +
+        '</section>' +
+        '<section class="stock-adjust-card">' +
+          '<div class="stock-adjust-head"><span class="mi">receipt_long</span><div><h3>Dados da compra</h3><p>Esta compra registra o histórico de entrada no estoque. Nenhum financeiro é criado automaticamente.</p></div></div>' +
+          '<div class="stock-adjust-grid quick-grid">' +
+            '<label><span>Data da compra</span><input id="stock-quick-purchase-date" type="date" value="' + _today() + '"></label>' +
+            '<label><span>Fornecedor</span><select id="stock-quick-purchase-supplier"><option value="">Sem fornecedor</option>' + _supplierOptions() + '</select></label>' +
+            '<label><span>Documento</span><input id="stock-quick-purchase-doc" type="text" placeholder="Nota, recibo ou referência"></label>' +
+            '<label><span>Total estimado</span><input type="text" value="' + _esc(total > 0 ? _money(total) : 'sem custo') + '" disabled></label>' +
+            '<label class="full"><span>Observação</span><textarea id="stock-quick-purchase-notes" placeholder="Ex: regularização de compras feitas no dia"></textarea></label>' +
+          '</div>' +
+          '<div class="stock-quick-list">' + rows + '</div>' +
+        '</section>' +
+      '</div>';
+    window._stockQuickPurchaseModal = UI.modal({
+      title: 'Compra rápida',
+      body: body,
+      footer: '<div class="stock-modal-footer"><button class="stock-secondary" onclick="if(window._stockQuickPurchaseModal){window._stockQuickPurchaseModal.close();}">Cancelar</button><button class="stock-primary" onclick="Modules.Estoque._createQuickPurchaseFromRegularizations()">Criar compra rápida</button></div>',
+      maxWidth: '860px'
+    });
+  }
+
+  function _supplierOptions() {
+    return (_fornecedores || []).filter(function (supplier) {
+      return supplier && supplier.ativo !== false;
+    }).sort(function (a, b) {
+      return String(a.nome || a.name || '').localeCompare(String(b.nome || b.name || ''), 'pt-BR');
+    }).map(function (supplier) {
+      var name = supplier.nome || supplier.name || supplier.razaoSocial || 'Fornecedor';
+      return '<option value="' + _esc(supplier.id || '') + '">' + _esc(name) + '</option>';
+    }).join('');
+  }
+
+  function _createQuickPurchaseFromRegularizations() {
+    var entries = _selectedRegularizationEntries();
+    if (!entries.length) {
+      UI.toast('Selecione pelo menos uma pendência.', 'info');
+      return;
+    }
+    var date = ((document.getElementById('stock-quick-purchase-date') || {}).value || _today()).trim();
+    var supplierId = ((document.getElementById('stock-quick-purchase-supplier') || {}).value || '').trim();
+    var supplier = supplierId ? ((_fornecedores || []).find(function (item) { return String(item.id || '') === supplierId; }) || {}) : {};
+    var supplierName = supplier.nome || supplier.name || supplier.razaoSocial || '';
+    var doc = ((document.getElementById('stock-quick-purchase-doc') || {}).value || '').trim();
+    var notes = ((document.getElementById('stock-quick-purchase-notes') || {}).value || '').trim();
+    var now = new Date().toISOString();
+    var purchaseRef = DB.col('compras').doc();
+    var purchaseId = purchaseRef.id;
+    var lines = entries.map(function (entry, idx) {
+      return _quickPurchaseLine(entry, idx);
+    });
+    var total = lines.reduce(function (sum, line) { return sum + _num(line.total); }, 0);
+    var purchaseNumber = 'REG-' + now.slice(0, 10).replace(/-/g, '') + '-' + purchaseId.slice(0, 5).toUpperCase();
+    var purchase = {
+      id: purchaseId,
+      numPedido: purchaseNumber,
+      data: date,
+      fornecedorId: supplierId,
+      fornecedorNome: supplierName,
+      numDocumento: doc,
+      observacoes: notes,
+      origem: 'regularizacao_estoque',
+      source: 'stock_regularization',
+      sourceType: 'stock_regularization',
+      regularizationEntry: true,
+      regularizationOrderIds: entries.map(function (entry) { return entry.orderId; }).filter(Boolean),
+      statusCompra: 'Recebida',
+      gerarContaPagar: false,
+      contaPagarId: '',
+      contaPagarIds: [],
+      contaPagarStatus: '',
+      total: total,
+      itens: lines,
+      recebimento: {
+        status: 'Recebida',
+        itens: lines.map(function (line) {
+          return {
+            itemId: line.itemId || '',
+            itemNome: line.itemNome || '',
+            qtyCompra: _num(line.qty),
+            qtyRecebida: _num(line.qtyRecebida),
+            qtyPendente: 0,
+            status: 'recebida'
+          };
+        }),
+        updatedAt: now
+      },
+      recebimentoAtualizadoEm: now,
+      createdAt: now,
+      updatedAt: now
+    };
+    var ops = [purchaseRef.set(purchase, { merge: true })];
+    lines.forEach(function (line, idx) {
+      ops.push(DB.col('stock_movements').doc(purchaseId + '_' + idx + '_entrada_compra').set(_quickPurchaseMovement(purchase, line, idx, now), { merge: true }));
+    });
+    _quickPurchaseOrderPatches(entries, purchaseId, purchaseNumber, now).forEach(function (patch) {
+      ops.push(DB.update('orders', patch.orderId, patch.payload));
+    });
+    entries.forEach(function (entry, idx) {
+      if (!entry.sourceMovementId) return;
+      ops.push(DB.update('stock_movements', entry.sourceMovementId, {
+        regularizationStatus: 'aplicada',
+        regularizationAppliedAt: now,
+        regularizationPurchaseId: purchaseId,
+        regularizationPurchaseNumber: purchaseNumber,
+        regularizationMovementId: purchaseId + '_' + idx + '_entrada_compra',
+        updatedAt: now
+      }).catch(function () { return null; }));
+    });
+    Promise.all(ops).then(function () {
+      _selectedRegularizationIds = {};
+      UI.toast('Compra rápida criada e estoque regularizado.', 'success');
+      if (window._stockQuickPurchaseModal) window._stockQuickPurchaseModal.close();
+      _loadItems();
+    }).catch(function (err) {
+      UI.toast('Erro ao criar compra rápida: ' + (err && err.message ? err.message : err), 'error');
+    });
+  }
+
+  function _quickPurchaseLine(entry, idx) {
+    var qty = _round(entry.shortageQuantity);
+    var unitCost = _num(entry.unitCost);
+    var total = unitCost > 0 ? qty * unitCost : 0;
+    return {
+      itemId: entry.stockItemId || '',
+      itemNome: entry.itemName || '',
+      nome: entry.itemName || '',
+      name: entry.itemName || '',
+      itemClass: entry.stockItemType || '',
+      classe: entry.stockItemType || '',
+      qty: qty,
+      quantidade: qty,
+      qtyBase: qty,
+      qtyRecebida: qty,
+      qtyPendente: 0,
+      recebido: true,
+      statusRecebimento: 'recebida',
+      unidadeCompra: entry.unit || 'un',
+      unidadeBase: entry.unit || 'un',
+      custoUnitario: unitCost,
+      custoAjustado: unitCost,
+      total: total,
+      regularizationEntryId: entry.id,
+      regularizationOrderId: entry.orderId,
+      regularizationSourceMovementId: entry.sourceMovementId || '',
+      order: idx
+    };
+  }
+
+  function _quickPurchaseMovement(purchase, line, idx, now) {
+    return {
+      id: purchase.id + '_' + idx + '_entrada_compra',
+      type: 'entrada_compra',
+      movementGroup: 'purchase',
+      purchaseId: purchase.id,
+      purchaseNumber: purchase.numPedido || '',
+      purchaseDocument: purchase.numDocumento || '',
+      purchaseLineIndex: idx,
+      itemId: line.itemId || '',
+      itemName: line.itemNome || line.nome || line.name || '',
+      itemClass: line.itemClass || line.classe || 'insumo',
+      classe: line.itemClass || line.classe || 'insumo',
+      stockItemType: line.itemClass || line.classe || 'insumo',
+      quantity: _num(line.qtyBase || line.qty),
+      unit: line.unidadeBase || line.unidadeCompra || 'un',
+      unitCost: _num(line.custoAjustado || line.custoUnitario),
+      totalCost: _num(line.total),
+      receivedPackages: _num(line.qtyRecebida || line.qty),
+      purchaseUnit: line.unidadeCompra || '',
+      regularizationPurchase: true,
+      regularizationEntryId: line.regularizationEntryId || '',
+      regularizationOrderId: line.regularizationOrderId || '',
+      regularizationSourceMovementId: line.regularizationSourceMovementId || '',
+      movementDate: purchase.data || _today(),
+      createdAt: now,
+      updatedAt: now
+    };
+  }
+
+  function _quickPurchaseOrderPatches(entries, purchaseId, purchaseNumber, now) {
+    var grouped = {};
+    entries.forEach(function (entry) {
+      if (!grouped[entry.orderId]) grouped[entry.orderId] = [];
+      grouped[entry.orderId].push(entry);
+    });
+    return Object.keys(grouped).map(function (orderId) {
+      var order = (_orders || []).find(function (item) { return String(item.id || '') === String(orderId || ''); }) || {};
+      var selected = grouped[orderId] || [];
+      var items = (Array.isArray(order.stockRegularizationPendingItems) ? order.stockRegularizationPendingItems : []).map(function (item, idx) {
+        var entry = selected.find(function (selectedEntry) { return selectedEntry.itemIndex === idx; });
+        if (!entry) return item;
+        return Object.assign({}, item, {
+          status: 'aplicada',
+          appliedAt: now,
+          regularizationPurchaseId: purchaseId,
+          regularizationPurchaseNumber: purchaseNumber,
+          regularizationAppliedQuantity: entry.shortageQuantity
+        });
+      });
+      var pendingCount = items.filter(function (item) { return String(item && item.status || 'pendente').toLowerCase() === 'pendente'; }).length;
+      var payload = {
+        stockRegularizationPendingItems: items,
+        stockRegularizationPendingCount: pendingCount,
+        stockRegularizationPending: pendingCount > 0,
+        stockRegularizationStatus: pendingCount > 0 ? 'pendente' : 'aplicada',
+        stockRegularizationUpdatedAt: now,
+        stockRegularizationPurchaseId: purchaseId,
+        stockRegularizationPurchaseNumber: purchaseNumber
+      };
+      if (!pendingCount) payload.stockRegularizationAppliedAt = now;
+      return { orderId: orderId, payload: payload };
+    });
+  }
+
+  function _applyRegularization(entryId) {
+    var entry = _regularizationEntries().find(function (item) { return item.id === entryId; });
+    if (!entry || entry.status !== 'pendente') {
+      UI.toast('Regularização já aplicada ou não encontrada.', 'info');
+      return;
+    }
+    var ask = UI && typeof UI.confirm === 'function'
+      ? UI.confirm('Criar entrada de regularização para ' + entry.itemName + '?')
+      : Promise.resolve(window.confirm('Criar entrada de regularização para ' + entry.itemName + '?'));
+    ask.then(function (yes) {
+      if (!yes) return null;
+      return _saveRegularizationEntry(entry);
+    }).catch(function (err) {
+      UI.toast('Erro ao regularizar: ' + (err && err.message ? err.message : err), 'error');
+    });
+  }
+
+  function _saveRegularizationEntry(entry) {
+    var order = (_orders || []).find(function (item) { return String(item.id || '') === String(entry.orderId || ''); });
+    if (!order) {
+      UI.toast('Pedido da regularização não encontrado.', 'error');
+      return Promise.resolve(false);
+    }
+    var now = new Date().toISOString();
+    var movementId = 'regularizacao_' + _stockSettingId(entry.orderId + '_' + entry.itemIndex + '_' + entry.stockItemId + '_' + entry.stockItemType);
+    var movement = _regularizationMovementPayload(entry, movementId, now);
+    var items = (Array.isArray(order.stockRegularizationPendingItems) ? order.stockRegularizationPendingItems : []).map(function (item, idx) {
+      if (idx !== entry.itemIndex) return item;
+      return Object.assign({}, item, {
+        status: 'aplicada',
+        appliedAt: now,
+        regularizationMovementId: movementId,
+        regularizationAppliedQuantity: entry.shortageQuantity
+      });
+    });
+    var pendingCount = items.filter(function (item) { return String(item && item.status || 'pendente').toLowerCase() === 'pendente'; }).length;
+    var orderPatch = {
+      stockRegularizationPendingItems: items,
+      stockRegularizationPendingCount: pendingCount,
+      stockRegularizationPending: pendingCount > 0,
+      stockRegularizationStatus: pendingCount > 0 ? 'pendente' : 'aplicada',
+      stockRegularizationUpdatedAt: now
+    };
+    if (!pendingCount) orderPatch.stockRegularizationAppliedAt = now;
+    var ops = [
+      DB.col('stock_movements').doc(movementId).set(movement, { merge: true }),
+      DB.update('orders', entry.orderId, orderPatch)
+    ];
+    if (entry.sourceMovementId) {
+      ops.push(DB.update('stock_movements', entry.sourceMovementId, {
+        regularizationStatus: 'aplicada',
+        regularizationAppliedAt: now,
+        regularizationMovementId: movementId,
+        updatedAt: now
+      }).catch(function () { return null; }));
+    }
+    return Promise.all(ops).then(function () {
+      UI.toast('Entrada de regularização criada.', 'success');
+      return _loadItems();
+    });
+  }
+
+  function _regularizationMovementPayload(entry, movementId, now) {
+    var stockType = _normalizeRegularizationStockType(entry.stockItemType);
+    var qty = _round(entry.shortageQuantity);
+    var unitCost = _num(entry.unitCost);
+    var payload = {
+      id: movementId,
+      type: 'entrada_regularizacao',
+      movementGroup: 'stock_regularization',
+      regularizationOrigin: 'saldo_negativo_venda',
+      regularizationStatus: 'aplicada',
+      regularizationEntry: true,
+      regularizationSourceMovementId: entry.sourceMovementId || '',
+      orderId: entry.orderId || '',
+      orderNumber: entry.orderLabel || '',
+      itemId: entry.stockItemId || '',
+      itemName: entry.itemName || '',
+      productId: entry.productId || '',
+      productName: entry.productName || entry.itemName || '',
+      stockItemId: entry.stockItemId || '',
+      stockItemType: stockType,
+      itemClass: stockType,
+      classe: stockType,
+      quantity: qty,
+      unit: entry.unit || 'un',
+      unitCost: unitCost,
+      totalCost: unitCost > 0 ? qty * unitCost : 0,
+      previousBalance: entry.balanceAfter,
+      balanceBefore: entry.balanceAfter,
+      balanceAfter: _round(entry.balanceAfter + qty),
+      reason: 'Regularização de venda sem saldo',
+      notes: 'Entrada criada manualmente a partir de Estoque > Regularizações.',
+      movementDate: _today(),
+      createdAt: now,
+      updatedAt: now
+    };
+    if (stockType === 'base_producao') {
+      payload.baseProductionId = entry.stockItemId || '';
+      payload.baseProductionName = entry.itemName || '';
+    } else if (stockType === 'produto_produzido') {
+      payload.fichaTecnicaId = entry.stockItemId || '';
+      payload.fichaTecnicaNome = entry.itemName || '';
+    } else if (stockType === 'produto_pronto') {
+      payload.sourceItemId = entry.stockItemId || '';
+      payload.produtoProntoId = entry.stockItemId || '';
+    }
+    return payload;
   }
 
   function _openItemDetails(key) {
@@ -896,7 +1564,14 @@ Modules.Estoque = (function () {
     });
   }
 
-  function _emptyState() {
+  function _emptyState(context) {
+    if (context === 'regularizacoes') {
+      return '<div class="stock-empty">' +
+        '<span class="mi">task_alt</span>' +
+        '<strong>Nenhuma regularização encontrada</strong>' +
+        '<p>Quando uma venda baixar estoque sem saldo suficiente, a pendência aparecerá aqui para conferência.</p>' +
+      '</div>';
+    }
     return '<div class="stock-empty">' +
       '<span class="mi">inventory_2</span>' +
       '<strong>Nenhum saldo calculado ainda</strong>' +
@@ -1000,6 +1675,21 @@ Modules.Estoque = (function () {
     });
   }
 
+  function _firstText() {
+    for (var i = 0; i < arguments.length; i++) {
+      var value = arguments[i];
+      if (value === undefined || value === null) continue;
+      if (value && typeof value.toDate === 'function') {
+        try {
+          return value.toDate().toISOString();
+        } catch (err) {}
+      }
+      var text = String(value).trim();
+      if (text) return text;
+    }
+    return '';
+  }
+
   function _escJs(value) {
     return String(value == null ? '' : value).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/\r/g, '');
   }
@@ -1041,10 +1731,17 @@ Modules.Estoque = (function () {
       '.stock-head-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;}' +
       '.stock-head-actions span{font-size:12px;color:#6F6860;border:1px solid #EAE4DA;border-radius:999px;padding:5px 9px;background:#FFFCF8;white-space:nowrap;}' +
       '.stock-head-actions button{height:34px;padding:0 12px;border:none;border-radius:10px;background:#1F1F1F;color:#fff;font-size:12px;font-weight:650;font-family:inherit;cursor:pointer;box-shadow:0 8px 18px rgba(31,31,31,.12);}' +
+      '.stock-head-actions button:disabled{opacity:.45;cursor:not-allowed;box-shadow:none;}' +
       '.stock-list-title{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;}' +
       '.stock-list-title h2{margin:0;color:#1F1F1F;font-size:14px;font-weight:700;line-height:1.3;}' +
       '.stock-list-title p{margin:3px 0 0;color:#6F6860;font-size:13px;line-height:1.45;}' +
       '.stock-list-title button{height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;font-family:inherit;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);}' +
+      '.stock-regularization-config{display:flex;flex-direction:column;gap:12px;}' +
+      '.stock-config-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}' +
+      '.stock-config-option{min-height:78px;text-align:left;border:1px solid #E8DCD7;border-radius:14px;background:#FFFCF8;padding:12px;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;gap:5px;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;}' +
+      '.stock-config-option strong{font-size:13px;color:#1F1F1F;font-weight:750;line-height:1.25;}' +
+      '.stock-config-option span{font-size:12px;color:#6F6860;line-height:1.35;}' +
+      '.stock-config-option.active{background:#FFF6F4;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
       '.stock-table-card{background:#fff;border:1px solid #EADFD8;border-radius:18px;box-shadow:0 12px 30px rgba(31,31,31,.055);overflow:hidden;}' +
       '.stock-table-wrap{overflow:auto;}' +
       '.stock-table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;min-width:920px;}' +
@@ -1062,6 +1759,8 @@ Modules.Estoque = (function () {
       '.stock-pagination span{font-size:12px;color:#6F6860;}' +
       '.stock-page-indicator{display:flex;align-items:center;gap:6px;}' +
       '.stock-page-indicator i{width:14px;height:2px;border-radius:999px;background:#B42318;display:inline-block;opacity:.65;}' +
+      '.stock-row-action{height:32px;padding:0 10px;border:none;border-radius:9px;background:#B42318;color:#fff;font-size:12px;font-weight:650;font-family:inherit;cursor:pointer;white-space:nowrap;box-shadow:0 4px 10px rgba(180,35,24,.14);}' +
+      '.stock-row-action:disabled{background:#F1E8E3;color:#8A7E7C;box-shadow:none;cursor:not-allowed;}' +
       '.stock-item-name{font-size:14px;font-weight:650;color:#1F1F1F;line-height:1.25;}' +
       '.stock-item-note,.stock-muted{font-size:12px;color:#6F6860;font-weight:400;line-height:1.35;}' +
       '.stock-alert-text{color:#B42318;margin-top:3px;}' +
@@ -1086,6 +1785,9 @@ Modules.Estoque = (function () {
       '.stock-detail-hero p{margin:0 0 5px;color:#6F6860;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;}' +
       '.stock-detail-hero h2{margin:0;font-size:19px;line-height:1.18;color:#1F1F1F;font-weight:700;}' +
       '.stock-detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:stretch;}' +
+      '.stock-regularization-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:stretch;}' +
+      '.stock-regularization-table .stock-badge.regularization-pending{background:#FFF6ED;color:#9A3412;border:1px solid #FED7AA;}' +
+      '.stock-regularization-table .stock-badge.regularization-muted{background:#F6F1EA;color:#6F6860;border:1px solid #E8DCD7;}' +
       '.stock-detail-metric{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:16px;padding:13px;box-shadow:0 1px 2px rgba(31,31,31,.03);}' +
       '.stock-detail-metric span{display:block;color:#6F6860;font-size:12px;font-weight:500;margin-bottom:5px;}' +
       '.stock-detail-metric strong{display:block;color:#1F1F1F;font-size:16px;font-weight:650;line-height:1.2;}' +
@@ -1131,10 +1833,14 @@ Modules.Estoque = (function () {
       '.stock-inventory-row span{display:block;margin-top:3px;font-size:12px;color:#6F6860;line-height:1.35;}' +
       '.stock-inventory-row input{width:100%;height:38px;border:1px solid #E8DCD7;border-radius:11px;background:#fff;color:#1F1F1F;font-size:14px;font-family:inherit;padding:0 10px;box-sizing:border-box;outline:none;transition:border-color .16s ease,box-shadow .16s ease;}' +
       '.stock-inventory-row input:focus{border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
-      '@media(max-width:900px){.stock-detail-grid{grid-template-columns:1fr 1fr;}.stock-adjust-grid,.stock-adjust-grid.min-grid{grid-template-columns:1fr 1fr;}}' +
-      '@media(max-width:760px){.stock-page{padding:16px;}.stock-filter-grid,.stock-filter-grid.movement-grid{grid-template-columns:1fr;}.stock-table{min-width:760px;}}' +
+      '.stock-quick-list{display:flex;flex-direction:column;gap:8px;margin-top:12px;}' +
+      '.stock-quick-line{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid #F0E7E1;border-radius:14px;background:#FFFCF8;}' +
+      '.stock-quick-line strong{display:block;font-size:13px;color:#1F1F1F;font-weight:750;line-height:1.25;}' +
+      '.stock-quick-line span{display:block;margin-top:3px;font-size:12px;color:#6F6860;line-height:1.35;}' +
+      '@media(max-width:900px){.stock-detail-grid,.stock-regularization-summary{grid-template-columns:1fr 1fr;}.stock-adjust-grid,.stock-adjust-grid.min-grid{grid-template-columns:1fr 1fr;}}' +
+      '@media(max-width:760px){.stock-page{padding:16px;}.stock-filter-grid,.stock-filter-grid.movement-grid,.stock-config-options{grid-template-columns:1fr;}.stock-table{min-width:760px;}}' +
       '@media(max-width:760px){.stock-adjust-grid{grid-template-columns:1fr 1fr;}.stock-kind-tabs{overflow:auto;flex-wrap:nowrap}.stock-kind-tabs button{white-space:nowrap;}}' +
-      '@media(max-width:520px){.stock-detail-grid{grid-template-columns:1fr;}.stock-detail-hero{flex-direction:column;}.stock-header h1{font-size:22px;}.stock-adjust-grid{grid-template-columns:1fr;}}' +
+      '@media(max-width:520px){.stock-detail-grid,.stock-regularization-summary{grid-template-columns:1fr;}.stock-detail-hero{flex-direction:column;}.stock-header h1{font-size:22px;}.stock-adjust-grid{grid-template-columns:1fr;}}' +
       '</style>';
   }
 
@@ -1150,6 +1856,16 @@ Modules.Estoque = (function () {
     _clearMovementFilters: _clearMovementFilters,
     _setMovementsPageSize: _setMovementsPageSize,
     _setMovementsPage: _setMovementsPage,
+    _setRegularizationFilter: _setRegularizationFilter,
+    _clearRegularizationFilters: _clearRegularizationFilters,
+    _setRegularizationsPageSize: _setRegularizationsPageSize,
+    _setRegularizationsPage: _setRegularizationsPage,
+    _toggleRegularizationSelection: _toggleRegularizationSelection,
+    _toggleRegularizationPageSelection: _toggleRegularizationPageSelection,
+    _openQuickPurchaseModal: _openQuickPurchaseModal,
+    _createQuickPurchaseFromRegularizations: _createQuickPurchaseFromRegularizations,
+    _applyRegularization: _applyRegularization,
+    _saveRegularizationMode: _saveRegularizationMode,
     _openItemDetails: _openItemDetails,
     _setDetailMovementSearch: _setDetailMovementSearch,
     _setDetailMovementPage: _setDetailMovementPage,

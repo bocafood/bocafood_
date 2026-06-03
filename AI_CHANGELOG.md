@@ -1,5 +1,79 @@
 # AI Changelog
 
+## 2026-06-03 — Deploy: regularizações de estoque
+- Arquivos alterados: `AI_CHANGELOG.md`.
+- Publiquei as alterações pendentes das Fases 1 a 5 de regularização de estoque no Firebase do projeto `bocado-brasil`.
+- Comando executado: `firebase deploy --only hosting,functions --project bocado-brasil --force`.
+- Escopo publicado: Firebase Hosting a partir de `public/` e Firebase Functions a partir de `functions/`.
+- Resultado: deploy concluído com sucesso; Hosting liberado em `https://bocado-brasil.web.app`.
+- Avisos do Firebase durante o deploy: runtime Node.js 20 está depreciado para janela futura e `firebase-functions` está desatualizado. O deploy continuou e foi concluído.
+
+## 2026-06-03 — Validação minuciosa: regularizações de estoque
+- Arquivos alterados: `public/js/modules/estoque.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Revisei as Fases 1 a 5 da regularização por saldo negativo após a implementação completa.
+- Corrigi a copy do topo de `Estoque → Regularizações`, que ainda dizia que a tela era apenas conferência, para refletir que agora permite regularização manual, automática e compra rápida.
+- Ajustei `Estoque → Movimentações` para também mostrar as abas internas `Itens`, `Movimentações` e `Regularizações`.
+- Incluí `Regularização` no filtro de origem de movimentações, permitindo filtrar entradas `entrada_regularizacao`.
+- Validação executada sem erros: `node --check public/js/modules/estoque.js`, `node --check public/js/modules/pedidos.js`, `node --check functions/index.js`, `node --check public/js/modules/catalogo.js`, `node --check public/js/modules/receitas.js`, validação dos scripts inline de `public/admin.html` e `public/storefront.html`, `git diff --check`, checagem de handlers exportados em `Modules.Estoque` e simulações em Node para cálculo de saldo negativo, modos `pendencia`/`automatico`/`desligado` e agrupamento de compra rápida.
+
+## 2026-06-03 — Estoque: compra rápida a partir de regularizações
+- Arquivos alterados: `public/js/modules/estoque.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Implementei a Fase 5 da regularização por saldo negativo com conversão de pendências selecionadas em compra rápida.
+- A tela `Estoque → Regularizações` agora permite selecionar pendências pendentes e abrir `Gerar compra rápida`.
+- O modal permite informar data, fornecedor opcional, documento opcional e observação.
+- Ao confirmar, o sistema cria um registro em `compras` com origem `regularizacao_estoque`, status `Recebida`, `gerarContaPagar: false` e linhas correspondentes às pendências selecionadas.
+- Para cada linha, o sistema cria uma movimentação `entrada_compra`, fazendo a entrada aparecer no cálculo de saldo e no histórico de estoque.
+- As pendências selecionadas são marcadas como `aplicada` no pedido e recebem vínculo com a compra rápida criada.
+- A saída original da venda também recebe vínculo com a compra quando a referência da movimentação existe.
+- A compra rápida não cria fornecedor novo, conta a pagar, pagamento, movimento financeiro ou documento fiscal automático.
+- Documentei em `AGENTS.md` que fornecedor/documento/pagamento completo devem ser ajustados depois em Compras/Financeiro quando necessário.
+- Validação executada sem erros: `node --check public/js/modules/estoque.js`, `node --check public/js/modules/pedidos.js`, `node --check functions/index.js`, validação dos scripts inline de `public/admin.html` e `git diff --check`.
+
+## 2026-06-03 — Estoque: configuração de regularização automática
+- Arquivos alterados: `public/js/modules/estoque.js`, `public/js/modules/pedidos.js`, `functions/index.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Implementei a Fase 4 da regularização por saldo negativo com configuração em `Estoque → Regularizações`.
+- A tela agora permite escolher entre `Criar pendência`, `Aplicar automaticamente` e `Desligado`.
+- A configuração é salva em `config/estoque.regularizationMode` e `config/estoque.stockRegularizationMode`.
+- O padrão seguro continua sendo `Criar pendência`.
+- No modo `Aplicar automaticamente`, a baixa por venda cria também uma movimentação `entrada_regularizacao`, marca o item como `aplicada` e mantém a saída original vinculada à regularização.
+- No modo `Desligado`, a venda continua gerando saída e saldo negativo quando faltar estoque, mas não cria pendência nem entrada de regularização.
+- A mesma regra foi aplicada no Admin e nas Functions para pedidos pagos via Stripe.
+- A entrada automática continua sendo correção operacional de estoque: não cria compra, fornecedor, documento, conta a pagar, financeiro ou fiscal.
+- Validação executada sem erros: `node --check public/js/modules/estoque.js`, `node --check public/js/modules/pedidos.js`, `node --check functions/index.js`, validação dos scripts inline de `public/admin.html` e `git diff --check`.
+
+## 2026-06-03 — Estoque: aplicação manual de regularização
+- Arquivos alterados: `public/js/modules/estoque.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Implementei a Fase 3 da regularização por saldo negativo com ação manual em `Estoque → Regularizações`.
+- Cada pendência com status `pendente` agora tem o botão `Regularizar entrada`.
+- Ao confirmar, o sistema cria uma movimentação `entrada_regularizacao` com origem `saldo_negativo_venda`, pedido vinculado, item, quantidade faltante, custo estimado, saldo antes/depois e referência à saída original quando disponível.
+- A criação usa ID determinístico para evitar duplicidade se a ação for repetida.
+- A pendência no pedido é marcada como `aplicada`, recebe `regularizationMovementId` e o pedido recalcula `stockRegularizationPendingCount`.
+- A movimentação de saída original também recebe status de regularização aplicada quando a referência existe.
+- A entrada de regularização entra no cálculo de saldo e na aba `Movimentações`, mas não cria compra, fornecedor, documento, conta a pagar, movimento financeiro ou baixa fiscal.
+- Documentei em `AGENTS.md` que essa entrada corrige histórico operacional e continua separada de compra real.
+- Validação executada sem erros: `node --check public/js/modules/estoque.js`, `node --check public/js/modules/pedidos.js`, `node --check functions/index.js`, validação dos scripts inline de `public/admin.html` e `git diff --check`.
+
+## 2026-06-03 — Estoque: tela de regularizações pendentes
+- Arquivos alterados: `public/admin.html`, `public/js/modules/estoque.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Implementei a Fase 2 da regularização por saldo negativo com a nova rota `Estoque → Regularizações`.
+- A navegação lateral do Admin agora inclui `Regularizações` dentro de Estoque, e o módulo também possui abas internas `Itens`, `Movimentações` e `Regularizações`.
+- A tela carrega pedidos com `stockRegularizationPendingItems` e lista cada item pendente com pedido, cliente, status, quantidade faltante, saída original, saldo antes/depois e custo estimado.
+- Incluí resumo de pendências, pedidos afetados e custo estimado, além de busca, filtros por status/classe e paginação.
+- A tela é somente leitura nesta fase: não cria entrada, não cria compra, não mexe no financeiro, não aplica ajuste e não altera saldos.
+- Documentei em `AGENTS.md` que a Fase 2 é uma listagem de conferência e que a aplicação de entrada fica para fase futura.
+- Validação executada sem erros: `node --check public/js/modules/estoque.js`, `node --check public/js/modules/pedidos.js`, `node --check functions/index.js`, validação dos scripts inline de `public/admin.html` e `git diff --check`.
+
+## 2026-06-03 — Estoque: detecção passiva de regularização por saldo negativo
+- Arquivos alterados: `public/js/modules/pedidos.js`, `functions/index.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Implementei a Fase 1 da regularização por saldo negativo na baixa de estoque por venda.
+- Quando uma saída por pedido deixa o saldo do item negativo, o Admin registra `stockRegularizationPending` no pedido, com itens pendentes, saldo antes/depois, quantidade faltante, custo estimado e origem `saldo_negativo_venda`.
+- As movimentações de saída passam a gravar `stockBalanceKey`, `balanceBefore`, `balanceAfter`, `regularizationPending`, `regularizationShortage`, `regularizationStatus` e `regularizationOrigin`.
+- O modal de detalhes do pedido mostra o alerta de regularização pendente e lista os itens faltantes, sem criar entrada automática.
+- A mesma detecção foi aplicada no fluxo seguro das Functions para pedidos pagos via Stripe, mantendo consistência entre confirmação pelo Admin e confirmação por pagamento online.
+- Esta fase não cria compra, não cria entrada de estoque, não baixa financeiro, não ajusta inventário e não altera cardápio público.
+- Documentei em `AGENTS.md` que regularização por saldo negativo é correção operacional rastreável, separada de compra real.
+- Validação executada sem erros: `node --check public/js/modules/pedidos.js`, `node --check functions/index.js` e `git diff --check`.
+
 ## 2026-06-03 — Deploy: previsão de produção e estoque em cadeia
 - Arquivos alterados: `AI_CHANGELOG.md`.
 - Publiquei as alterações pendentes no Firebase do projeto `bocado-brasil`.
