@@ -2376,9 +2376,32 @@ function stockRefFromProductLike(item, product, quantity, source, products, reci
 
 function stockExtractChoiceRefs(item, product, mainQty, products, recipes) {
   let sources = [];
-  ["stockChoices", "choiceStockRefs", "choices", "variants", "selections", "options", "selectedOptions", "comboItems", "comboSelections", "items"].forEach((key) => {
+  const seenChoices = {};
+  function choiceSignature(choice) {
+    return [
+      stockFirstText(choice && choice.groupId, choice && choice.groupName, ""),
+      stockFirstText(choice && choice.stockRef, choice && choice.stockItemRef, choice && choice.stockItem, ""),
+      stockFirstText(choice && choice.stockItemId, choice && choice.itemId, choice && choice.productId, choice && choice.id, choice && choice.value, choice && choice.optionId, ""),
+      stockFirstText(choice && choice.stockItemType, choice && choice.itemClass, choice && choice.classe, ""),
+      stockFirstText(choice && choice.optionName, choice && choice.name, choice && choice.label, ""),
+      stockNum(choice && (choice.stockAbsoluteQuantity != null ? choice.stockAbsoluteQuantity : choice.stockQuantityTotal != null ? choice.stockQuantityTotal : choice.stockQuantity != null ? choice.stockQuantity : choice.stockQty)),
+      stockNum(choice && (choice.quantity != null ? choice.quantity : choice.qty != null ? choice.qty : choice.count != null ? choice.count : choice.amount))
+    ].join("|");
+  }
+  function addChoiceSource(choice) {
+    if (!choice || typeof choice !== "object") return;
+    const signature = choiceSignature(choice);
+    if (seenChoices[signature]) return;
+    seenChoices[signature] = true;
+    sources.push(choice);
+  }
+  ["stockChoices", "choiceStockRefs"].forEach((key) => {
     const value = item && item[key];
-    if (Array.isArray(value)) sources = sources.concat(value);
+    if (Array.isArray(value)) value.forEach(addChoiceSource);
+  });
+  ["choices", "variants", "selections", "options", "selectedOptions", "comboItems", "comboSelections", "items"].forEach((key) => {
+    const value = item && item[key];
+    if (Array.isArray(value)) value.forEach(addChoiceSource);
   });
   if (!sources.length && product) {
     ["comboItems", "menuItems", "itemsIncluded", "components"].forEach((key) => {
@@ -2544,6 +2567,8 @@ function stockRegularizationPendingItem(ref, orderItem, product, data = {}) {
     productName: stockFirstText(orderItem && orderItem.name, orderItem && orderItem.productName, product && product.name, product && product.title, itemName),
     stockSource: (ref && ref.source) || "item",
     movementId: data.movementId || "",
+    orderItemIndex: data.orderItemIndex,
+    stockRefIndex: data.stockRefIndex,
     requiredQuantity: stockRoundQty(stockNum(ref && ref.quantity)),
     shortageQuantity: stockRoundQty(stockNum(data.shortage)),
     balanceBefore: stockRoundQty(stockNum(data.balanceBefore)),
@@ -2732,7 +2757,7 @@ async function syncStripeOrderStockMovements(tenantId, orderId) {
       const stockKey = stockRefBalanceKey(ref);
       const balanceBefore = stockRoundQty(stockNum(balances[stockKey]));
       const balanceAfter = stockRoundQty(balanceBefore - quantity);
-      const shortage = balanceAfter < 0 ? stockRoundQty(Math.abs(balanceAfter)) : 0;
+      const shortage = balanceAfter < 0 ? stockRoundQty(Math.min(quantity, Math.abs(balanceAfter))) : 0;
       balances[stockKey] = balanceAfter;
       const regularizationMovementId = shortage > 0 ? stockRegularizationMovementId(orderId, idx, refIdx, ref) : "";
       let regularizationItem = null;
@@ -2742,6 +2767,8 @@ async function syncStripeOrderStockMovements(tenantId, orderId) {
           balanceBefore,
           balanceAfter,
           shortage,
+          orderItemIndex: idx,
+          stockRefIndex: refIdx,
           movementId
         });
         if (regularizationMode === "automatico") {

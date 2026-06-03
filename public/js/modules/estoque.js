@@ -653,6 +653,9 @@ Modules.Estoque = (function () {
         if (!item || typeof item !== 'object') return;
         var status = String(item.status || order.stockRegularizationStatus || 'pendente').trim().toLowerCase() || 'pendente';
         var stockType = _normalizeRegularizationStockType(item.stockItemType || item.itemClass || item.classe || '');
+        var requiredQty = _num(item.requiredQuantity);
+        var shortageQty = _regularizationEffectiveShortage(item);
+        var unitCost = _num(item.unitCost);
         entries.push({
           id: String(order.id || '') + ':' + idx,
           itemIndex: idx,
@@ -673,19 +676,27 @@ Modules.Estoque = (function () {
           stockSourceLabel: _stockSourceLabel(item.stockSource || ''),
           sourceMovementId: item.movementId || item.sourceMovementId || '',
           regularizationMovementId: item.regularizationMovementId || '',
-          requiredQuantity: _num(item.requiredQuantity),
-          shortageQuantity: _num(item.shortageQuantity),
+          requiredQuantity: requiredQty,
+          shortageQuantity: shortageQty,
           balanceBefore: _num(item.balanceBefore),
           balanceAfter: _num(item.balanceAfter),
           unit: item.unit || '',
-          unitCost: _num(item.unitCost),
-          estimatedTotalCost: _num(item.estimatedTotalCost)
+          unitCost: unitCost,
+          estimatedTotalCost: unitCost > 0 ? _round(shortageQty * unitCost) : _num(item.estimatedTotalCost)
         });
       });
     });
     return entries.sort(function (a, b) {
       return _dateValue(b.detectedAt || b.orderDate) - _dateValue(a.detectedAt || a.orderDate);
     });
+  }
+
+  function _regularizationEffectiveShortage(item) {
+    var required = _num(item && item.requiredQuantity);
+    var shortage = _num(item && item.shortageQuantity);
+    var balanceAfter = _num(item && item.balanceAfter);
+    if (required > 0 && balanceAfter < 0) return _round(Math.min(required, Math.abs(balanceAfter)));
+    return _round(shortage);
   }
 
   function _filteredRegularizations() {

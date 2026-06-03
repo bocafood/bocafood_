@@ -11239,6 +11239,15 @@
 - A lista reaproveita as opções já usadas pelo módulo de Compras, evitando criar uma fonte paralela ou alterar a lógica de cadastro.
 - Impacto esperado: deixar visível dentro das configurações de Produção quais embalagens de compra podem ser usadas no preenchimento dos insumos.
 
+## 2026-06-03 — Estoque: regularização de escolhas de combo sem duplicar baixa
+- Arquivos alterados: `public/admin.html`, `public/js/modules/pedidos.js`, `public/js/modules/estoque.js`, `functions/index.js`, `AI_CHANGELOG.md`, `AGENTS.md`.
+- Corrigi a leitura das escolhas do pedido na baixa de estoque do Admin e das Functions para deduplicar aliases do mesmo combo/opção, evitando que a mesma escolha seja contada mais de uma vez.
+- Mantive a tentativa de resolver escolhas comerciais por produto/receita quando elas não vierem em `stockChoices`, para que itens como pastel, coxinha ou bolo possam baixar estoque quando tiverem vínculo claro.
+- Ajustei a pendência de regularização para salvar o índice do item do pedido e da referência de estoque que gerou a falta.
+- Corrigi a quantidade efetiva de falta exibida em `Estoque > Regularizações`: a falta de cada linha agora fica limitada à quantidade da saída daquela linha, evitando leituras acumuladas como 1, 2, 3, 4 para saídas repetidas de 1 unidade.
+- Atualizei os cache-busters do Admin para carregar as novas versões de `pedidos.js` e `estoque.js` após publicação.
+- Impacto esperado: pedidos com combos deixam de gerar pendências multiplicadas por leitura duplicada e a regularização passa a refletir a saída real de cada item vinculado ao estoque.
+
 ## 2026-05-31 — Compras: leitura do custo por unidade e por kg
 - Arquivos alterados: `public/js/modules/compras.js`, `AI_CHANGELOG.md`.
 - Ajustei a exibição de `Custo atual` no cadastro e na listagem de insumos/produtos para mostrar o valor conforme a `Unidade base` escolhida.

@@ -3956,7 +3956,7 @@ Modules.Pedidos = (function () {
           var stockKey = _stockRefBalanceKey(ref);
           var balanceBefore = _roundStockQty(_num(balances[stockKey]));
           var balanceAfter = _roundStockQty(balanceBefore - quantity);
-          var shortage = balanceAfter < 0 ? _roundStockQty(Math.abs(balanceAfter)) : 0;
+          var shortage = balanceAfter < 0 ? _roundStockQty(Math.min(quantity, Math.abs(balanceAfter))) : 0;
           balances[stockKey] = balanceAfter;
           var regularizationMovementId = shortage > 0 ? _stockRegularizationMovementId(orderId, idx, refIdx, ref) : '';
           var regularizationItem = null;
@@ -3966,6 +3966,8 @@ Modules.Pedidos = (function () {
               balanceBefore: balanceBefore,
               balanceAfter: balanceAfter,
               shortage: shortage,
+              orderItemIndex: idx,
+              stockRefIndex: refIdx,
               movementId: movementId
             });
             if (regularizationMode === 'automatico') {
@@ -4154,6 +4156,8 @@ Modules.Pedidos = (function () {
       productName: _firstText(orderItem && orderItem.name, orderItem && orderItem.productName, product && product.name, product && product.title, itemName),
       stockSource: ref && ref.source || 'item',
       movementId: data.movementId || '',
+      orderItemIndex: data.orderItemIndex,
+      stockRefIndex: data.stockRefIndex,
       requiredQuantity: _roundStockQty(_num(ref && ref.quantity)),
       shortageQuantity: _roundStockQty(_num(data.shortage)),
       balanceBefore: _roundStockQty(_num(data.balanceBefore)),
@@ -4330,9 +4334,33 @@ Modules.Pedidos = (function () {
 
   function _extractStockChoiceRefs(item, product, mainQty) {
     var sources = [];
-    ['stockChoices', 'choiceStockRefs', 'choices', 'variants', 'selections', 'options', 'selectedOptions', 'comboItems', 'comboSelections', 'items'].forEach(function (key) {
+    var seenChoices = {};
+    function choiceSignature(choice) {
+      return [
+        _firstText(choice && choice.groupId, choice && choice.groupName, ''),
+        _firstText(choice && choice.stockRef, choice && choice.stockItemRef, choice && choice.stockItem, ''),
+        _firstText(choice && choice.stockItemId, choice && choice.itemId, choice && choice.productId, choice && choice.id, choice && choice.value, choice && choice.optionId, ''),
+        _firstText(choice && choice.stockItemType, choice && choice.itemClass, choice && choice.classe, ''),
+        _firstText(choice && choice.optionName, choice && choice.name, choice && choice.label, ''),
+        _num(choice && (choice.stockAbsoluteQuantity != null ? choice.stockAbsoluteQuantity : choice.stockQuantityTotal != null ? choice.stockQuantityTotal : choice.stockQuantity != null ? choice.stockQuantity : choice.stockQty)),
+        _num(choice && (choice.quantity != null ? choice.quantity : choice.qty != null ? choice.qty : choice.count != null ? choice.count : choice.amount))
+      ].join('|');
+    }
+    function addChoiceSource(choice) {
+      if (!choice || typeof choice !== 'object') return;
+      var signature = choiceSignature(choice);
+      if (seenChoices[signature]) return;
+      seenChoices[signature] = true;
+      sources.push(choice);
+    }
+    ['stockChoices', 'choiceStockRefs'].forEach(function (key) {
       var value = item && item[key];
-      if (Array.isArray(value)) sources = sources.concat(value);
+      if (Array.isArray(value)) value.forEach(addChoiceSource);
+    });
+    ['choices', 'variants', 'selections', 'options', 'selectedOptions', 'comboItems', 'comboSelections', 'items'].forEach(function (key) {
+      var value = item && item[key];
+      if (!Array.isArray(value)) return;
+      value.forEach(addChoiceSource);
     });
     if (!sources.length && product) {
       ['comboItems', 'menuItems', 'itemsIncluded', 'components'].forEach(function (key) {

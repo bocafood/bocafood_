@@ -315,3 +315,9 @@ O Boca Food é um sistema de gestão e operação de loja com painel admin, cat�
 - Sempre atualizar `AI_CHANGELOG.md` ao finalizar qualquer alteração.
 - Registrar no changelog o que foi feito, os arquivos alterados, o motivo e o impacto esperado.
 - Se a mudança afetar módulos, dependências ou fluxos, atualizar também os documentos de arquitetura necessários.
+
+### Estoque, combos e regularização
+- Baixa de estoque de combos deve priorizar vínculos internos salvos em `stockChoices`/`choiceStockRefs`, mas pode usar escolhas comerciais como fallback quando elas carregarem produto, receita, etapa, insumo, embalagem ou produto pronto identificável.
+- Não contar a mesma escolha várias vezes só porque o pedido preserva aliases como `choices`, `variants`, `options` ou `selectedOptions`.
+- Pendências de regularização por saldo negativo devem representar a falta efetiva daquela saída, limitada pela quantidade da própria movimentação, e não o saldo negativo acumulado completo.
+- Quando uma escolha aparecer no pedido mas não tiver vínculo de estoque, ela não deve gerar baixa automática por suposição. O cadastro precisa deixar claro o item/receita/etapa e a quantidade consumida.
