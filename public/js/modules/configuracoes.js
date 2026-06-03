@@ -1540,17 +1540,10 @@ Modules.Configuracoes = (function () {
     var hasAnalytics = !!(ga || c.gtmId);
     var hasMeta = !!meta;
     var hasSocial = !!(c.whatsapp || c.instagram || c.facebook || c.tiktok);
-    var stripeEnabled = c.stripeEnabled === true;
     var stripeAccountId = c.stripeConnectedAccountId || c.stripeAccountId || '';
-    var stripeStatus = c.stripeConnectStatus || (stripeAccountId ? 'onboarding_required' : 'not_connected');
-    var stripeReady = stripeStatus === 'ready' && c.stripeChargesEnabled === true;
-    var stripeStatusText = _stripeConnectStatusText(stripeStatus, c);
-    var stripeStatusTone = stripeReady ? '#2F6B57' : (stripeAccountId ? '#9A6A2F' : '#B42318');
-    var stripeFinanceAccountId = c.stripeFinanceAccountId || c.stripeDefaultAccountId || _stripePaymentMethodAccountId();
-    var stripeAccountOptions = _stripeBankAccountOptions(stripeFinanceAccountId);
     var content = document.getElementById('config-content');
     content.innerHTML =
-      '<style>.integrations-info-panel{border:1px solid #EADFD8;border-radius:15px;background:#fff;padding:14px;display:grid;gap:12px}.integrations-info-title{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:13px}.integrations-info-title h3{margin:0;color:#1F1F1F;font-size:16px;font-weight:800;line-height:1.2}.integrations-info-title p{margin:4px 0 0;color:#6F6860;font-size:13px;line-height:1.45;max-width:620px}.integrations-info-title .mi{color:#B42318;font-size:21px;line-height:1.1;opacity:.9}.integrations-info-panel .bf-input,.integrations-info-panel .bf-select{background:#FFFCF8;border-color:#E4D8D3;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease}.integrations-info-panel .bf-input:focus,.integrations-info-panel .bf-select:focus{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);outline:none}.integrations-info-panel .contact-field-help{font-size:10px;line-height:1.3;margin-top:4px;color:#9A8E89;max-width:270px}.integrations-phone-box{display:grid;grid-template-columns:112px minmax(0,1fr);gap:8px;align-items:center;background:#FFFCF8;border:1px solid #E4D8D3;border-radius:12px;padding:6px;transition:border-color .16s ease,box-shadow .16s ease}.integrations-phone-box .bf-select,.integrations-phone-box .bf-input{border:0;background:transparent;box-shadow:none;min-height:36px}.integrations-phone-box .bf-select{border-right:1px solid #E8DCD7;border-radius:8px;padding-left:8px}.integrations-phone-box .bf-input{padding-left:8px}.integrations-phone-box:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08)}.stripe-connect-card{border:1px solid #EADFD8;border-radius:16px;background:linear-gradient(180deg,#FFFFFF 0%,#FFFCF8 100%);padding:15px;display:grid;gap:12px;box-shadow:0 10px 24px rgba(31,31,31,.045)}.stripe-connect-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.stripe-status-pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:7px 10px;background:#FFF8F3;color:#1F1F1F;font-size:11px;font-weight:760;white-space:nowrap}.stripe-status-dot{width:8px;height:8px;border-radius:99px;background:currentColor}.stripe-connect-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.stripe-connect-actions .bf-btn{min-height:38px}.stripe-account-readonly{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#554B45;background:#FFF8F4;border:1px solid #E8DCD7;border-radius:12px;padding:10px 12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.stripe-connect-note{margin:0;color:#6F6860;font-size:12px;line-height:1.45}.stripe-connect-message{font-size:12px;color:#6F6860;min-height:16px}.stripe-connect-message.error{color:#B42318}.stripe-connect-message.success{color:#2F6B57}@media(max-width:640px){.integrations-info-panel{padding:12px}.integrations-info-title{margin-bottom:11px}.integrations-phone-box{grid-template-columns:100px minmax(0,1fr)}.stripe-connect-top{display:grid}.stripe-status-pill{width:max-content}.stripe-connect-actions .bf-btn{width:100%;justify-content:center}}</style>' +
+      '<style>.integrations-info-panel{border:1px solid #EADFD8;border-radius:15px;background:#fff;padding:14px;display:grid;gap:12px}.integrations-info-title{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:13px}.integrations-info-title h3{margin:0;color:#1F1F1F;font-size:16px;font-weight:800;line-height:1.2}.integrations-info-title p{margin:4px 0 0;color:#6F6860;font-size:13px;line-height:1.45;max-width:620px}.integrations-info-title .mi{color:#B42318;font-size:21px;line-height:1.1;opacity:.9}.integrations-info-panel .bf-input,.integrations-info-panel .bf-select{background:#FFFCF8;border-color:#E4D8D3;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease}.integrations-info-panel .bf-input:focus,.integrations-info-panel .bf-select:focus{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);outline:none}.integrations-info-panel .contact-field-help{font-size:10px;line-height:1.3;margin-top:4px;color:#9A8E89;max-width:270px}.integrations-phone-box{display:grid;grid-template-columns:112px minmax(0,1fr);gap:8px;align-items:center;background:#FFFCF8;border:1px solid #E4D8D3;border-radius:12px;padding:6px;transition:border-color .16s ease,box-shadow .16s ease}.integrations-phone-box .bf-select,.integrations-phone-box .bf-input{border:0;background:transparent;box-shadow:none;min-height:36px}.integrations-phone-box .bf-select{border-right:1px solid #E8DCD7;border-radius:8px;padding-left:8px}.integrations-phone-box .bf-input{padding-left:8px}.integrations-phone-box:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08)}@media(max-width:640px){.integrations-info-panel{padding:12px}.integrations-info-title{margin-bottom:11px}.integrations-phone-box{grid-template-columns:100px minmax(0,1fr)}}</style>' +
       '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px;">' +
         '<div><h2 style="margin:0;color:#1F1F1F;font-size:24px;line-height:1.15;font-weight:700;">Integrações</h2><p style="margin:6px 0 0;color:#6F6860;font-size:14px;line-height:1.45;max-width:680px;">Conecte canais, redes sociais e ferramentas de medição usadas na página pública do seu negócio.</p></div>' +
         '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">' +
@@ -1581,25 +1574,12 @@ Modules.Configuracoes = (function () {
               _configInput('cfg-tiktok', 'TikTok', c.tiktok, 'https://tiktok.com/@sua_loja') +
             '</div>' +
           '</section>' +
-          '<section style="' + _configCardStyle('18px 20px') + '"><div class="integrations-info-title"><div><h3>Pagamento online</h3><p>Conecte a conta Stripe da loja para receber cartão antes de confirmar o pedido.</p></div><span class="mi">credit_card</span></div>' +
-            '<div class="stripe-connect-card">' +
-              '<div class="stripe-connect-top"><div><div class="stripe-status-pill" style="color:' + stripeStatusTone + '"><span class="stripe-status-dot"></span>' + _esc(stripeStatusText) + '</div><p class="stripe-connect-note" style="margin-top:9px;">A cliente paga no checkout da loja. O pedido só entra como confirmado quando o cartão for aprovado.</p></div>' +
-              '<label style="display:flex;align-items:center;gap:10px;color:#1F1F1F;font-size:13px;font-weight:650;text-transform:none;letter-spacing:0;"><input id="cfg-stripe-enabled" type="checkbox" ' + (stripeEnabled ? 'checked' : '') + ' style="width:18px;height:18px;accent-color:#B42318;"> Ativar cartão via Stripe</label></div>' +
-              '<div><div class="bf-field-label" style="margin-bottom:6px;">Conta conectada</div><div class="stripe-account-readonly">' + _esc(stripeAccountId || 'Ainda não conectada') + '</div></div>' +
-              '<div class="bf-field"><label>Conta financeira para receber</label><select id="cfg-stripe-finance-account" class="bf-select">' + stripeAccountOptions + '</select><div class="contact-field-help">Escolha onde o dinheiro do cartão entra no Financeiro. As taxas Stripe serão registradas nessa mesma conta.</div></div>' +
-              '<div class="stripe-connect-actions">' +
-                '<button id="cfg-stripe-connect" type="button" class="bf-btn bf-btn-primary"><span class="mi">open_in_new</span>' + (stripeAccountId ? 'Continuar configuração no Stripe' : 'Conectar minha conta Stripe') + '</button>' +
-                '<button id="cfg-stripe-refresh" type="button" class="bf-btn bf-btn-secondary" ' + (stripeAccountId ? '' : 'disabled') + '><span class="mi">sync</span>Atualizar status</button>' +
-              '</div>' +
-              '<div id="cfg-stripe-message" class="stripe-connect-message"></div>' +
-            '</div>' +
-          '</section>' +
         '</div>' +
         '<aside style="' + _configCardStyle('18px 20px') + 'position:sticky;top:82px;">' +
           '<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:14px;"><div style="width:36px;height:36px;border-radius:12px;background:#FAF8F4;color:#B42318;display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span class="mi" style="font-size:20px;">hub</span></div><div><h3 style="margin:0;color:#1F1F1F;font-size:16px;font-weight:700;">O que cada integração faz</h3><p style="margin:4px 0 0;color:#6F6860;font-size:13px;line-height:1.4;">Veja como cada canal ajuda no funcionamento da sua página pública.</p></div></div>' +
           '<div style="display:flex;flex-direction:column;gap:10px;">' +
             _integrationInfoRow('forum', 'WhatsApp', 'Mostra o botão de contato na página pública e nas avaliações.') +
-            _integrationInfoRow('credit_card', 'Stripe', 'Permite cobrar cartão antes de confirmar o pedido no checkout.') +
+            _integrationInfoRow('credit_card', 'Cartão online', 'Configure em Loja Online > Template da loja > Checkout.') +
             _integrationInfoRow('alternate_email', 'Redes sociais', 'Exibe seus canais para o cliente conhecer e acompanhar sua marca.') +
             _integrationInfoRow('analytics', 'Analytics', 'Ajuda a medir visitas, campanhas e resultados.') +
           '</div>' +
@@ -1623,12 +1603,12 @@ Modules.Configuracoes = (function () {
         instagram: _val('cfg-instagram'),
         facebook: _val('cfg-facebook'),
         tiktok: _val('cfg-tiktok'),
-        stripeEnabled: _checked('cfg-stripe-enabled'),
+        stripeEnabled: c.stripeEnabled === true,
         stripeConnectedAccountId: stripeAccountId,
         stripeAccountId: stripeAccountId,
-        stripeConnectStatus: stripeStatus,
-        stripeFinanceAccountId: _val('cfg-stripe-finance-account'),
-        stripeDefaultAccountId: _val('cfg-stripe-finance-account'),
+        stripeConnectStatus: c.stripeConnectStatus || (stripeAccountId ? 'onboarding_required' : 'not_connected'),
+        stripeFinanceAccountId: c.stripeFinanceAccountId || c.stripeDefaultAccountId || _stripePaymentMethodAccountId(),
+        stripeDefaultAccountId: c.stripeDefaultAccountId || c.stripeFinanceAccountId || _stripePaymentMethodAccountId(),
         updatedAt: new Date().toISOString()
       });
       _ensureStripeFinancePaymentMethod(data).then(function () {
@@ -1637,14 +1617,6 @@ Modules.Configuracoes = (function () {
         UI.toast('Erro ao preparar forma de pagamento Stripe: ' + (err && err.message ? err.message : err), 'error');
       });
     };
-    var connectBtn = document.getElementById('cfg-stripe-connect');
-    if (connectBtn) connectBtn.onclick = _startStripeConnect;
-    var refreshBtn = document.getElementById('cfg-stripe-refresh');
-    if (refreshBtn) refreshBtn.onclick = _refreshStripeConnectStatus;
-    if (stripeAccountId && window.sessionStorage && sessionStorage.getItem('bf_stripe_connect_refresh') === '1') {
-      sessionStorage.removeItem('bf_stripe_connect_refresh');
-      setTimeout(_refreshStripeConnectStatus, 350);
-    }
   }
 
   function _stripeConnectStatusText(status, data) {
@@ -1676,13 +1648,70 @@ Modules.Configuracoes = (function () {
   }
 
   function _stripePaymentMethodAccountId() {
+    var method = _stripePaymentMethod();
+    return method ? String(method.contaPadraoId || method.defaultAccountId || method.bankAccountId || '') : '';
+  }
+
+  function _stripePaymentMethod() {
     var finance = _config.financeiro || {};
     var methods = Array.isArray(finance.formas_pagamento) ? finance.formas_pagamento : [];
-    var method = methods.find(function (item) {
+    return methods.find(function (item) {
       var name = String(item && (item.nome || item.name || '') || '').toLowerCase();
       return item && (item.provider === 'stripe' || item.stripe === true || item.stripeConnected === true || name === 'stripe');
-    });
-    return method ? String(method.contaPadraoId || method.defaultAccountId || method.bankAccountId || '') : '';
+    }) || null;
+  }
+
+  function _stripeFeeInfo() {
+    var method = _stripePaymentMethod() || {};
+    var pct = _safeNumber(method.taxaPercentual || method.feePct || 0);
+    var fixed = _safeNumber(method.taxaFixa || method.fixedFee || 0);
+    var sampleAmount = 10;
+    var sampleFee = Math.max(0, (sampleAmount * pct / 100) + fixed);
+    return {
+      pct: pct,
+      fixed: fixed,
+      sampleAmount: sampleAmount,
+      sampleFee: sampleFee,
+      sampleNet: Math.max(0, sampleAmount - sampleFee),
+      hasEstimate: pct > 0 || fixed > 0
+    };
+  }
+
+  function _stripeFeePanel(info) {
+    info = info || _stripeFeeInfo();
+    var ruleText = info.hasEstimate ? (_formatPercent(info.pct) + (info.fixed > 0 ? ' + ' + _formatCurrency(info.fixed) : '')) : 'Taxa ainda não preenchida';
+    var note = info.hasEstimate
+      ? 'Essa é uma previsão para a usuária decidir se quer ativar cartão online. Depois da venda aprovada, o BocaFood registra a taxa real informada pela Stripe.'
+      : 'Preencha a taxa estimada em Financeiro > Configurações > Formas de pagamento. Mesmo sem previsão, quando a venda for aprovada o BocaFood tenta registrar a taxa real cobrada pela Stripe.';
+    return '<div class="stripe-fee-panel">' +
+      '<div class="stripe-fee-head"><span class="mi">payments</span><div><h4>Taxa estimada do cartão online</h4><p>Antes de conectar, veja quanto pode sair de cada venda paga por cartão.</p></div></div>' +
+      '<div class="stripe-fee-grid">' +
+        '<div class="stripe-fee-metric"><span>Regra usada</span><strong>' + _esc(ruleText) + '</strong></div>' +
+        '<div class="stripe-fee-metric"><span>Exemplo em ' + _esc(_formatCurrency(info.sampleAmount)) + '</span><strong>' + _esc(_formatCurrency(info.sampleFee)) + '</strong></div>' +
+        '<div class="stripe-fee-metric"><span>Ficaria perto de</span><strong>' + _esc(_formatCurrency(info.sampleNet)) + '</strong></div>' +
+      '</div>' +
+      '<p class="stripe-fee-note">' + _esc(note) + '</p>' +
+    '</div>';
+  }
+
+  function _safeNumber(value) {
+    if (typeof value === 'string') value = value.replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
+    value = Number(value || 0);
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  function _formatCurrency(value) {
+    value = _safeNumber(value);
+    try {
+      return value.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' });
+    } catch (err) {
+      return '€ ' + value.toFixed(2).replace('.', ',');
+    }
+  }
+
+  function _formatPercent(value) {
+    value = _safeNumber(value);
+    return value.toLocaleString('pt-PT', { minimumFractionDigits: value % 1 ? 1 : 0, maximumFractionDigits: 2 }) + '%';
   }
 
   function _ensureStripeFinancePaymentMethod(integracoes) {
@@ -1767,26 +1796,29 @@ Modules.Configuracoes = (function () {
     });
   }
 
-  function _stripeReturnUrl() {
-    return window.location.origin + window.location.pathname + '#configuracoes/integracoes';
+  function _stripeReturnUrl(hash) {
+    hash = String(hash || 'configuracoes/integracoes').replace(/^#/, '');
+    return window.location.origin + window.location.pathname + '#' + hash;
   }
 
-  function _startStripeConnect() {
+  function _startStripeConnect(options) {
+    options = options || {};
     var tenantId = window.Auth && Auth.getTenantId ? Auth.getTenantId() : '';
     if (!tenantId) {
       UI.toast('Tenant não identificado.', 'error');
       return;
     }
-    var btn = document.getElementById('cfg-stripe-connect');
+    var btn = document.getElementById(options.buttonId || 'cfg-stripe-connect');
     if (btn) {
       btn.disabled = true;
       btn.innerHTML = '<span class="mi">sync</span>Abrindo Stripe...';
     }
     _stripeMessage('Preparando conexão segura com o Stripe...', '');
-    _callConfigFunction('createStripeConnectOnboarding', {
+    return _callConfigFunction('createStripeConnectOnboarding', {
       tenantId: tenantId,
-      returnUrl: _stripeReturnUrl(),
-      refreshUrl: _stripeReturnUrl()
+      financeAccountId: options.financeAccountId != null ? options.financeAccountId : _val('cfg-stripe-finance-account'),
+      returnUrl: options.returnUrl || _stripeReturnUrl(options.returnHash),
+      refreshUrl: options.refreshUrl || _stripeReturnUrl(options.returnHash)
     }).then(function (result) {
       if (result.accountId) {
         _config.integracoes = Object.assign({}, _config.integracoes || {}, {
@@ -1809,22 +1841,58 @@ Modules.Configuracoes = (function () {
     }).finally(function () {
       if (btn) {
         btn.disabled = false;
-        btn.innerHTML = '<span class="mi">open_in_new</span>Conectar minha conta Stripe';
+        var hasAccount = !!((_config.integracoes || {}).stripeConnectedAccountId || (_config.integracoes || {}).stripeAccountId);
+        btn.innerHTML = '<span class="mi">open_in_new</span>' + (hasAccount ? 'Continuar configuração no Stripe' : 'Conectar minha conta Stripe');
       }
     });
   }
 
-  function _refreshStripeConnectStatus() {
+  function _disconnectStripeConnect() {
+    if (!confirm('Desconectar o Stripe desta loja? O cartão deixará de aparecer no checkout, mas a conta Stripe não será encerrada.')) return;
+    var current = Object.assign({}, _config.integracoes || {});
+    var data = Object.assign({}, current, {
+      stripeEnabled: false,
+      stripeConnectedAccountId: '',
+      stripeAccountId: '',
+      stripeConnectStatus: 'not_connected',
+      stripeChargesEnabled: false,
+      stripePayoutsEnabled: false,
+      stripeDetailsSubmitted: false,
+      stripeDisabledReason: '',
+      stripeRequirementsDue: [],
+      updatedAt: new Date().toISOString()
+    });
+    var btn = document.getElementById('cfg-stripe-connect');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="mi">sync</span>Desconectando...';
+    }
+    _stripeMessage('Desconectando o Stripe desta loja...', '');
+    DB.setDocRoot('config', 'integracoes', data).then(function () {
+      _config.integracoes = data;
+      if (options.renderAfter !== false) _renderIntegracoes();
+      UI.toast('Stripe desconectado desta loja.', 'success');
+    }).catch(function (err) {
+      _stripeMessage('Erro ao desconectar Stripe: ' + (err && err.message ? err.message : err), 'error');
+      UI.toast('Erro ao desconectar Stripe.', 'error');
+    }).finally(function () {
+      if (btn) btn.disabled = false;
+    });
+  }
+
+  function _refreshStripeConnectStatus(options) {
+    options = options || {};
     var tenantId = window.Auth && Auth.getTenantId ? Auth.getTenantId() : '';
     if (!tenantId) {
       UI.toast('Tenant não identificado.', 'error');
       return;
     }
-    var btn = document.getElementById('cfg-stripe-refresh');
+    var btn = document.getElementById(options.buttonId || 'cfg-stripe-refresh');
     if (btn) btn.disabled = true;
     _stripeMessage('Consultando status no Stripe...', '');
-    _callConfigFunction('getStripeConnectStatus', { tenantId: tenantId }).then(function (result) {
+    return _callConfigFunction('getStripeConnectStatus', { tenantId: tenantId, financeAccountId: options.financeAccountId != null ? options.financeAccountId : _val('cfg-stripe-finance-account') }).then(function (result) {
       var stripe = result.stripe || {};
+      var selectedFinanceAccountId = (options.financeAccountId != null ? options.financeAccountId : _val('cfg-stripe-finance-account')) || (_config.integracoes || {}).stripeFinanceAccountId || _stripePaymentMethodAccountId();
       _config.integracoes = Object.assign({}, _config.integracoes || {}, {
         stripeEnabled: stripe.status === 'ready' ? true : (_config.integracoes && _config.integracoes.stripeEnabled === true),
         stripeConnectedAccountId: stripe.accountId || ((_config.integracoes || {}).stripeConnectedAccountId),
@@ -1835,8 +1903,8 @@ Modules.Configuracoes = (function () {
         stripeDetailsSubmitted: stripe.detailsSubmitted === true,
         stripeDisabledReason: stripe.disabledReason || '',
         stripeRequirementsDue: stripe.currentlyDue || [],
-        stripeFinanceAccountId: (_config.integracoes || {}).stripeFinanceAccountId || _stripePaymentMethodAccountId(),
-        stripeDefaultAccountId: (_config.integracoes || {}).stripeDefaultAccountId || _stripePaymentMethodAccountId()
+        stripeFinanceAccountId: selectedFinanceAccountId,
+        stripeDefaultAccountId: selectedFinanceAccountId
       });
       _renderIntegracoes();
       UI.toast(stripe.status === 'ready' ? 'Stripe pronto para receber cartão.' : 'Stripe ainda precisa de ajustes.', stripe.status === 'ready' ? 'success' : 'info');
@@ -3375,6 +3443,9 @@ Modules.Configuracoes = (function () {
     _copyDomainValue: _copyDomainValue,
     _toggleFiscalEnabled: _toggleFiscalEnabled,
     _sendPasswordReset: _sendPasswordReset,
+    _startStripeConnect: _startStripeConnect,
+    _refreshStripeConnectStatus: _refreshStripeConnectStatus,
+    _disconnectStripeConnect: _disconnectStripeConnect,
     _publishStore: _publishStore,
     _unpublishStore: _unpublishStore
   };

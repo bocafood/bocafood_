@@ -1453,6 +1453,48 @@
       transform: scale(.96);
     }
 
+    .product-row.is-unavailable,
+    .promo-product-card.is-unavailable {
+      opacity: .72;
+      cursor: default;
+    }
+
+    .product-row.is-unavailable:hover,
+    .promo-product-card.is-unavailable:hover {
+      transform: none;
+      box-shadow: 0 8px 22px rgba(33, 27, 24, .06);
+    }
+
+    .stock-badge {
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      z-index: 3;
+      min-height: 28px;
+      display: inline-flex;
+      align-items: center;
+      padding: 0 10px;
+      border-radius: 999px;
+      color: #7d2117;
+      background: rgba(255, 244, 240, .96);
+      border: 1px solid rgba(180, 35, 24, .16);
+      box-shadow: 0 7px 16px rgba(33, 27, 24, .08);
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .02em;
+    }
+
+    .add-btn.is-unavailable,
+    .add-btn:disabled {
+      color: #8a7e76;
+      background: #e7ded5;
+      box-shadow: none;
+      cursor: not-allowed;
+      transform: none;
+      filter: none;
+    }
+
     .reviews-card {
       margin-top: 18px;
       margin-bottom: 18px;
@@ -2517,6 +2559,11 @@
     .promo-product-card:hover {
       transform: translateY(-1px);
       box-shadow: 0 12px 26px rgba(33, 27, 24, .08);
+    }
+
+    .promo-product-card.is-unavailable .promo-product-add {
+      color: #8a7e76;
+      background: #e7ded5;
     }
 
     .promo-product-img {
@@ -10737,6 +10784,9 @@
       var promotions = [];
       var coupons = [];
       var upsellRules = [];
+      var stockMovements = [];
+      var stockRecipes = [];
+      var stockCostItems = [];
       var storeCustomers = [];
       var pointsMovements = [];
       var currentStoreUser = null;
@@ -11116,6 +11166,7 @@
             price: num(item.price),
             originalPrice: num(item.originalPrice != null ? item.originalPrice : item.price),
             choices: Array.isArray(item.choices) ? item.choices : [],
+            stockChoices: Array.isArray(item.stockChoices) ? item.stockChoices : [],
             note: firstText(item.note, '')
           });
         }).filter(Boolean);
@@ -11344,6 +11395,338 @@
         return num(product.price || product.preco || product.salePrice || product.valor);
       }
 
+      function roundStock(value, decimals) {
+        var places = decimals == null ? 4 : decimals;
+        var factor = Math.pow(10, places);
+        return Math.round((num(value) + Number.EPSILON) * factor) / factor;
+      }
+
+      function stockFeatureActive() {
+        return Array.isArray(stockMovements) && stockMovements.length > 0;
+      }
+
+      function stockClassFromItem(item) {
+        var raw = String(item && (item.classe || item.itemClass || item.stockItemType || item.class || item.tipoCadastro) || '').toLowerCase();
+        if (raw === 'embalagem' || raw === 'embalagens') return 'embalagem';
+        if (raw === 'produto' || raw === 'produto_pronto' || raw === 'produto pronto') return 'produto_pronto';
+        if (raw === 'ingrediente' || raw === 'ingredientes') return 'insumo';
+        return 'insumo';
+      }
+
+      function costItemById(id) {
+        return (stockCostItems || []).find(function (item) { return String(item.id || '') === String(id || ''); }) || {};
+      }
+
+      function stockBalanceMap() {
+        var map = {};
+        function add(key, name, unit, delta) {
+          if (!key) return;
+          if (!map[key]) map[key] = { key: key, name: name || '', unit: unit || '', balance: 0 };
+          map[key].name = map[key].name || name || '';
+          map[key].unit = map[key].unit || unit || '';
+          map[key].balance += num(delta);
+        }
+        (stockMovements || []).forEach(function (m) {
+          if (!m || !m.type) return;
+          var type = String(m.type || '');
+          var direction = 0;
+          if (['entrada_compra', 'entrada_producao', 'entrada_base_producao', 'retorno_venda', 'estorno_venda', 'ajuste_entrada'].indexOf(type) >= 0) direction = 1;
+          if (['saida_producao', 'saida_venda', 'saida_base_venda', 'estorno_compra', 'estorno_producao_produto', 'estorno_base_producao', 'ajuste_saida'].indexOf(type) >= 0) direction = -1;
+          if (!direction) return;
+          var qty = num(m.quantityProduced != null ? m.quantityProduced : m.quantity);
+          if (!(qty > 0)) return;
+          if (type === 'entrada_base_producao' || type === 'saida_base_venda' || type === 'estorno_base_producao') {
+            add('base_producao:' + firstText(m.baseProductionId, m.componentName), firstText(m.baseProductionName, m.componentName, 'Base de producción'), firstText(m.yieldUnit, m.unit), direction * qty);
+            return;
+          }
+          if (type === 'entrada_producao' || type === 'estorno_producao_produto') {
+            if (m.productionMode === 'base_producao' || m.baseProductionId) {
+              add('base_producao:' + firstText(m.baseProductionId, m.fichaTecnicaId), firstText(m.baseProductionName, m.fichaTecnicaNome, 'Base de producción'), firstText(m.yieldUnit, m.unit), direction * qty);
+            } else {
+              add('produto_produzido:' + (m.fichaTecnicaId || ''), firstText(m.fichaTecnicaNome, 'Producto producido'), firstText(m.yieldUnit, m.unit), direction * qty);
+            }
+            return;
+          }
+          if (type === 'saida_venda' || type === 'retorno_venda' || type === 'estorno_venda') {
+            if (m.baseProductionId) add('base_producao:' + m.baseProductionId, firstText(m.baseProductionName, m.productName, 'Base de producción'), m.unit || '', direction * qty);
+            else if (m.fichaTecnicaId) add('produto_produzido:' + m.fichaTecnicaId, firstText(m.fichaTecnicaNome, m.productName, 'Producto producido'), m.unit || '', direction * qty);
+            else if (m.sourceItemId || m.produtoProntoId) add('produto_pronto:' + (m.sourceItemId || m.produtoProntoId), firstText(m.productName, 'Producto listo'), m.unit || '', direction * qty);
+            return;
+          }
+          if (type === 'entrada_compra' || type === 'estorno_compra') {
+            var item = costItemById(m.itemId);
+            add(stockClassFromItem(firstText(item.id, item.classe, item.itemClass, item.stockItemType) ? item : m) + ':' + (m.itemId || ''), firstText(m.itemName, item.nome, item.name, 'Item'), firstText(m.unit, item.unidade_base, item.unit), direction * qty);
+            return;
+          }
+          if (type === 'saida_producao') {
+            var ing = costItemById(m.ingredientId);
+            add(stockClassFromItem(firstText(ing.id, ing.classe, ing.itemClass, ing.stockItemType) ? ing : m) + ':' + (m.ingredientId || ''), firstText(m.ingredientName, ing.nome, ing.name, 'Ingrediente'), firstText(m.unit, ing.unidade_base, ing.unit), direction * qty);
+            return;
+          }
+          if (type === 'ajuste_entrada' || type === 'ajuste_saida') {
+            var cls = String(m.stockItemType || m.itemClass || m.classe || 'insumo').toLowerCase();
+            add(cls + ':' + (m.itemId || ''), firstText(m.itemName, 'Item'), m.unit || '', direction * qty);
+          }
+        });
+        Object.keys(map).forEach(function (key) { map[key].balance = roundStock(map[key].balance, 4); });
+        return map;
+      }
+
+      function recipeYieldUnitKey(unit) {
+        var value = String(unit || '').trim().toLowerCase();
+        if (['un', 'unid', 'unidade', 'unidades', 'porção', 'porções', 'porcao', 'porcoes'].indexOf(value) >= 0) return 'count';
+        if (['kg', 'quilo', 'quilos', 'quilograma', 'quilogramas'].indexOf(value) >= 0) return 'kg';
+        if (['g', 'gr', 'grama', 'gramas'].indexOf(value) >= 0) return 'g';
+        if (['l', 'litro', 'litros'].indexOf(value) >= 0) return 'l';
+        if (['ml', 'mililitro', 'mililitros'].indexOf(value) >= 0) return 'ml';
+        return value;
+      }
+
+      function sameYieldFamily(a, b) {
+        var ka = recipeYieldUnitKey(a);
+        var kb = recipeYieldUnitKey(b);
+        if (!ka || !kb) return false;
+        if (ka === kb) return true;
+        if ((ka === 'g' || ka === 'kg') && (kb === 'g' || kb === 'kg')) return true;
+        if ((ka === 'ml' || ka === 'l') && (kb === 'ml' || kb === 'l')) return true;
+        return false;
+      }
+
+      function recipeComponents(recipe) {
+        recipe = recipe || {};
+        var comps = Array.isArray(recipe.components) ? recipe.components : [];
+        if (!comps.length && Array.isArray(recipe.recipeComponents)) comps = recipe.recipeComponents;
+        if (!comps.length && Array.isArray(recipe.ingredients) && recipe.ingredients.length) comps = [{ name: 'Base', ingredients: recipe.ingredients }];
+        return (comps || []).map(function (comp) {
+          var ingredients = Array.isArray(comp.ingredients) ? comp.ingredients : [];
+          return Object.assign({}, comp, {
+            name: firstText(comp.name, comp.componentName, 'Base'),
+            ingredients: ingredients.map(function (ing) {
+              return Object.assign({}, ing, {
+                insumoId: firstText(ing.insumoId, ing.itemId),
+                qty: num(ing.qty != null ? ing.qty : ing.quantity),
+                appliedQty: num(ing.appliedQty || 0)
+              });
+            })
+          });
+        });
+      }
+
+      function recipePackaging(recipe) {
+        recipe = recipe || {};
+        var list = Array.isArray(recipe.packagingItems) ? recipe.packagingItems : (Array.isArray(recipe.packaging) ? recipe.packaging : []);
+        return (list || []).map(function (item) {
+          return Object.assign({}, item, {
+            insumoId: firstText(item.insumoId, item.itemId, item.packagingId),
+            qty: num(item.qty != null ? item.qty : item.quantity)
+          });
+        }).filter(function (item) { return item.insumoId || item.qty > 0; });
+      }
+
+      function componentUsageRatio(comp, recipeYieldQty, recipeYieldUnit) {
+        var stageQty = num(comp.stageYieldQuantity || comp.baseYieldQuantity || comp.stockYieldQuantity || 0);
+        var stageUnit = firstText(comp.stageYieldUnit, comp.baseYieldUnit, comp.stockYieldUnit);
+        var compatible = !!stageQty && !!recipeYieldQty && recipeYieldUnitKey(stageUnit) === recipeYieldUnitKey(recipeYieldUnit);
+        var ratio = compatible ? (recipeYieldQty / stageQty) : 1;
+        return isFinite(ratio) && ratio > 0 ? ratio : 1;
+      }
+
+      function baseProductionId(recipe, comp, idx) {
+        var existing = firstText(comp && comp.baseProductionId);
+        if (existing) return existing;
+        var shared = firstText(comp && comp.sharedBaseId);
+        if (shared) return shared;
+        var componentId = firstText(comp && comp.componentId, comp && comp.recipeComponentId);
+        if (componentId) return componentId.indexOf('base_component:') === 0 ? componentId : 'base_component:' + componentId;
+        return firstText(recipe && recipe.id) + ':' + firstText(comp && comp.name, 'etapa_' + (idx || 0));
+      }
+
+      function baseRequirementPerUnit(recipe, comp) {
+        var recipeQty = num(recipe && (recipe.yieldQuantity || recipe.yield || 0)) || 1;
+        var recipeUnit = firstText(recipe && recipe.yieldUnit, 'unidades');
+        var stageQty = num(comp && (comp.stageYieldQuantity || comp.baseYieldQuantity || comp.stockYieldQuantity || 0));
+        var stageUnit = firstText(comp && comp.stageYieldUnit, comp && comp.baseYieldUnit, comp && comp.stockYieldUnit);
+        if (!(stageQty > 0)) return 1;
+        if (sameYieldFamily(stageUnit, recipeUnit) && recipeYieldUnitKey(recipeUnit) === 'count') return 1;
+        return stageQty / Math.max(1, recipeQty);
+      }
+
+      function recipeById(id) {
+        return (stockRecipes || []).find(function (recipe) { return String(recipe.id || '') === String(id || ''); }) || null;
+      }
+
+      function recipeRequirements(recipe) {
+        recipe = recipe || {};
+        var reqs = [];
+        var recipeYieldQty = num(recipe.yieldQuantity || recipe.yield || 0) || 1;
+        var recipeYieldUnit = firstText(recipe.yieldUnit, 'unidades');
+        recipeComponents(recipe).forEach(function (comp, idx) {
+          if (comp.stockControl || comp.controlsStock) {
+            reqs.push({
+              key: 'base_producao:' + baseProductionId(recipe, comp, idx),
+              name: firstText(comp.name, 'Base de producción'),
+              unit: firstText(comp.baseYieldUnit, comp.stockYieldUnit, comp.stageYieldUnit),
+              requiredPerUnit: baseRequirementPerUnit(recipe, comp),
+              kind: 'base'
+            });
+            return;
+          }
+          var ratio = componentUsageRatio(comp, recipeYieldQty, recipeYieldUnit);
+          (comp.ingredients || []).forEach(function (ing) {
+            var item = costItemById(ing.insumoId);
+            var qty = num(ing.appliedQty || 0);
+            if (!(qty > 0)) qty = num(ing.qty || 0) * ratio;
+            var perUnit = qty / Math.max(1, recipeYieldQty);
+            if (ing.insumoId && perUnit > 0) {
+              var cls = stockClassFromItem(firstText(item.id, item.classe, item.itemClass, item.stockItemType) ? item : ing);
+              reqs.push({
+                key: cls + ':' + ing.insumoId,
+                name: firstText(item.nome, item.name, ing.supplyName, 'Ingrediente'),
+                unit: firstText(ing.unit, item.unidade_base, item.unit),
+                requiredPerUnit: perUnit,
+                kind: cls
+              });
+            }
+          });
+        });
+        recipePackaging(recipe).forEach(function (pkg) {
+          var item = costItemById(pkg.insumoId);
+          var perUnit = num(pkg.qty || 0) / Math.max(1, recipeYieldQty);
+          if (pkg.insumoId && perUnit > 0) {
+            reqs.push({
+              key: 'embalagem:' + pkg.insumoId,
+              name: firstText(item.nome, item.name, pkg.supplyName, 'Embalaje'),
+              unit: firstText(pkg.unit, item.unidade_base, item.unit),
+              requiredPerUnit: perUnit,
+              kind: 'embalagem'
+            });
+          }
+        });
+        return reqs;
+      }
+
+      function mergeRequirements(reqs) {
+        var map = {};
+        (reqs || []).forEach(function (req) {
+          if (!req || !req.key || !(req.requiredPerUnit > 0)) return;
+          if (!map[req.key]) map[req.key] = Object.assign({}, req);
+          else map[req.key].requiredPerUnit += req.requiredPerUnit;
+        });
+        return Object.keys(map).map(function (key) {
+          map[key].requiredPerUnit = roundStock(map[key].requiredPerUnit, 6);
+          return map[key];
+        });
+      }
+
+      function availabilityFromRequirements(reqs, balances) {
+        reqs = mergeRequirements(reqs);
+        if (!stockFeatureActive() || !reqs.length) return { calculable: false, available: null, rows: [] };
+        var rows = reqs.map(function (req) {
+          var stock = balances[req.key] || {};
+          var balance = num(stock.balance || 0);
+          return Object.assign({}, req, {
+            balance: balance,
+            availableUnits: req.requiredPerUnit > 0 ? Math.max(0, Math.floor(balance / req.requiredPerUnit)) : null
+          });
+        });
+        var finite = rows.filter(function (row) { return row.availableUnits != null; });
+        return {
+          calculable: !!finite.length,
+          available: finite.length ? Math.min.apply(Math, finite.map(function (row) { return row.availableUnits; })) : null,
+          rows: rows,
+          blocker: finite.slice().sort(function (a, b) { return a.availableUnits - b.availableUnits; })[0] || null
+        };
+      }
+
+      function recipeAvailability(recipe, balances) {
+        if (!recipe || !recipe.id || !stockFeatureActive()) return { calculable: false, available: null };
+        var produced = balances['produto_produzido:' + recipe.id] || {};
+        var producedBalance = Math.max(0, Math.floor(num(produced.balance || 0)));
+        var chain = availabilityFromRequirements(recipeRequirements(recipe), balances);
+        if (!chain.calculable && producedBalance <= 0) return { calculable: false, available: null };
+        return Object.assign({}, chain, {
+          calculable: true,
+          available: producedBalance + (chain.calculable && chain.available != null ? chain.available : 0),
+          producedBalance: producedBalance
+        });
+      }
+
+      function internalCompositionItems(product) {
+        var list = Array.isArray(product && product.internalComposition) ? product.internalComposition : [];
+        if (!list.length && Array.isArray(product && product.composicaoInterna)) list = product.composicaoInterna;
+        if (!list.length && Array.isArray(product && product.stockComposition)) list = product.stockComposition;
+        return list.map(function (item) {
+          var type = String(firstText(item.stockItemType, item.itemClass, item.classe, item.type, 'insumo')).toLowerCase();
+          if (type === 'ingrediente' || type === 'ingredientes') type = 'insumo';
+          if (type === 'produto' || type === 'produto pronto') type = 'produto_pronto';
+          var id = firstText(item.itemId, item.refId, item.id, item.fichaTecnicaId, item.sourceItemId);
+          return {
+            type: type,
+            id: id,
+            name: firstText(item.itemName, item.name, item.label, 'Item'),
+            unit: firstText(item.unit, item.unidade),
+            quantity: num(item.quantity || item.qty || 0)
+          };
+        }).filter(function (item) { return item.id && item.quantity > 0; });
+      }
+
+      function internalCompositionRequirements(product, balances) {
+        var reqs = [];
+        internalCompositionItems(product).forEach(function (item) {
+          if (item.type === 'produto_produzido' || item.type === 'receita') {
+            var recipeInfo = recipeAvailability(recipeById(item.id), balances);
+            if (recipeInfo.calculable && recipeInfo.available != null) {
+              reqs.push({ key: 'virtual_recipe:' + item.id, name: item.name, unit: item.unit, requiredPerUnit: item.quantity, kind: 'produto_produzido', virtualBalance: recipeInfo.available });
+            } else {
+              reqs.push({ key: 'produto_produzido:' + item.id, name: item.name, unit: item.unit, requiredPerUnit: item.quantity, kind: 'produto_produzido' });
+            }
+          } else {
+            reqs.push({ key: item.type + ':' + item.id, name: item.name, unit: item.unit, requiredPerUnit: item.quantity, kind: item.type });
+          }
+        });
+        var virtualBalances = Object.assign({}, balances);
+        reqs.forEach(function (req) {
+          if (req.virtualBalance != null) virtualBalances[req.key] = { balance: req.virtualBalance, unit: req.unit, name: req.name };
+        });
+        return availabilityFromRequirements(reqs, virtualBalances);
+      }
+
+      function productStockAvailability(product) {
+        product = product || {};
+        if (!stockFeatureActive()) return { calculable: false, available: null };
+        var balances = stockBalanceMap();
+        var type = String(firstText(product.productType, product.type, product.tipo, '')).toLowerCase();
+        var hasComposition = internalCompositionItems(product).length > 0;
+        if (hasComposition) return internalCompositionRequirements(product, balances);
+        if (type === 'combo' || type === 'menu' || (Array.isArray(product.menuChoiceGroups) && product.menuChoiceGroups.length)) return { calculable: false, available: null };
+        var src = String(firstText(product.unicoSource, product.sourceType, product.source, '')).toLowerCase();
+        var fichaId = firstText(product.fichaId, product.fichaTecnicaId, product.recipeId);
+        if (src === 'receita' || fichaId) return recipeAvailability(recipeById(fichaId), balances);
+        var prontoId = firstText(product.produtoProntoId, product.sourceItemId, product.readyProductId);
+        if (src === 'produto_pronto' || src === 'compras_produto' || prontoId) {
+          return availabilityFromRequirements([{ key: 'produto_pronto:' + prontoId, name: productName(product), unit: '', requiredPerUnit: 1, kind: 'produto_pronto' }], balances);
+        }
+        return { calculable: false, available: null };
+      }
+
+      function cartProductQty(productId) {
+        return (cart || []).reduce(function (sum, item) {
+          return String(item.id || '') === String(productId || '') ? sum + num(item.qty || 0) : sum;
+        }, 0);
+      }
+
+      function productUnavailable(product) {
+        var info = productStockAvailability(product);
+        return !!(info.calculable && info.available != null && info.available <= 0);
+      }
+
+      function canAddProductQty(product, qty) {
+        var info = productStockAvailability(product);
+        if (!info.calculable || info.available == null) return { ok: true, info: info };
+        var requested = cartProductQty(product.id) + Math.max(1, num(qty || 1));
+        return { ok: requested <= info.available, info: info };
+      }
+
       function productPrimaryTagData(product) {
         var tags = Array.isArray(product && product.tags) ? product.tags : [];
         var tag = tags.find(function (item) {
@@ -11398,10 +11781,10 @@
           loyaltyTitle: 'Ganhe pontos a cada pedido', loyaltyText: 'Entre no clube e troque pontos por descontos.', loyaltyButton: 'Quero participar', loyaltyHint: '',
           cartView: 'Ver pedido', openCart: 'Abrir ›', yourOrder: 'Seu pedido', noItems: 'Nenhum item no pedido', itemSingular: '1 item no pedido', itemPlural: '{count} itens no pedido', emptyOrder: 'Seu pedido ainda está vazio.',
           receiving: 'Recebimento', required: 'obrigatório', pickupAddress: 'Retirada no endereço da loja.', selectPickup: 'Selecione um horário de retirada', selectDelivery: 'Selecione um horário de entrega', selectTime: 'Selecione um horário', pickupDateLabel: 'Data de retirada', deliveryDateLabel: 'Data de entrega', noSlots: 'Sem horários disponíveis.', noFulfillment: 'Nenhum modo de recebimento está disponível no momento.', receivingTitle: 'Como você quer receber?', receivingSubtitle: 'Selecione antes de confirmar seu pedido.', pickupAddressTitle: 'Endereço de retirada', savedAddressesTitle: 'Em qual endereço você quer receber o pedido?', savedAddressesModalTitle: 'Endereços salvos', chooseSavedAddress: 'Escolher endereço salvo', newAddressHelp: 'Se quiser receber o pedido em um endereço novo ou ainda não tiver endereço salvo, comece pelo código postal.', scheduleQuestion: 'Quando você quer receber seu pedido?', noSavedAddresses: 'Ainda não há endereços salvos.', savedAddressDefault: 'Endereço {count}', chooseOrAddAddress: 'Escolha um endereço salvo ou adicione um novo.', saveAddressForNext: 'Salvar este endereço para próximas compras', addressLabelPlaceholder: 'Nome do endereço', contactSaved: 'WhatsApp salvo. Seus endereços ficam separados para cada entrega.', contactInvalid: 'Informe um WhatsApp válido para salvar.', profileSaveError: 'Não foi possível salvar esses dados. Tente novamente.', addressOutsideZone: 'Esse endereço ainda não está dentro das zonas atendidas pela loja.', addressSaveError: 'Não foi possível salvar esse endereço. Confira o código postal e tente novamente.', clearOrder: 'Limpar pedido', pickupTimeLabel: 'Horário de retirada', deliveryTimeLabel: 'Horário de entrega', deliveryAddressLabel: 'Endereço de entrega', addressNumberLabel: 'Número / portal', addressComplementLabel: 'Piso / porta', addressCityLabel: 'Cidade', addressProvinceLabel: 'Província', addressCountryLabel: 'País', orderNoteLabel: 'Observação para o pedido', minimumDeliveryLabel: 'Pedido mínimo para entrega', minOrderLeft: 'Adicione mais {value}', savings: 'Você economiza', paymentRequired: 'Selecione uma forma de pagamento.', checkoutChoiceKicker: 'Pedido', checkoutChoiceTitle: 'Como quer continuar?', checkoutChoiceText: 'Entre para acompanhar seus pedidos e acumular pontos. Se continuar como convidado, seus pontos não serão acumulados.', checkoutChoiceLogin: 'Entrar ou criar acesso', checkoutChoiceGuest: 'Continuar como convidado', orderSentKicker: 'Pedido', orderSentTitle: 'Pedido enviado', orderSentSuccess: 'Pedido enviado pelo WhatsApp. Se precisar de ajuda, fale com a loja pela conversa que acabou de abrir.', orderSentHelp: 'Referência do pedido: {ref}. A loja vai continuar o atendimento pelo WhatsApp.', orderSentButton: 'Entendido',
-          customer: 'Cliente', name: 'Nome', phone: 'WhatsApp', paymentNotes: 'Como vai pagar?', paymentMethod: 'Forma de pagamento', select: 'Selecione', orderNote: 'Observação para o pedido', productNote: 'Observação para este produto',
+          customer: 'Cliente', name: 'Nome', phone: 'WhatsApp', paymentNotes: 'Como vai pagar?', paymentMethod: 'Forma de pagamento', paymentCardOnline: 'Cartão online', paymentCash: 'Dinheiro', paymentCard: 'Cartão', paymentTransfer: 'Transferência', paymentBankSlip: 'Multibanco', paymentDirectDebit: 'Débito direto', paymentCheck: 'Cheque', paymentOther: 'Outro', select: 'Selecione', orderNote: 'Observação para o pedido', productNote: 'Observação para este produto',
           stripeKicker: 'Pagamento seguro', stripeTitle: 'Pague com cartão', stripeText: 'O pedido será confirmado quando o pagamento for aprovado.', stripeButton: 'Pagar agora', stripeLoading: 'Preparando pagamento...', stripeProcessing: 'Processando pagamento...', stripeSuccess: 'Pagamento aprovado. Pedido confirmado.', stripeFailed: 'Não foi possível aprovar o pagamento. O pedido ficou pendente.',
           coupon: 'Cupom', apply: 'Aplicar', couponApplied: 'Cupom {code} aplicado', couponInvalid: 'Cupom inválido ou indisponível.', subtotal: 'Subtotal', discount: 'Desconto', promotionDiscount: 'Promoções', total: 'Total', sendWhatsApp: 'Enviar pedido pelo WhatsApp', addToOrder: 'Adicionar ao pedido',
-          addProduct: 'Adicionar {name}', options: 'Opções', requiredChoice: 'Obrigatório {used}/{needed}', extraOptions: 'opções', addMoreItems: 'Adicione mais itens', upsellOffer: 'Boa escolha', saveAmount: 'Economize {amount}', productReviews: 'Avaliações do produto', allReviewsTitle: 'Todas as avaliações', reviewFallback: 'Cliente gostou deste produto.', leaveReview: 'Deixar avaliação', shareReviewCta: 'Conte também como foi sua experiência', firstReviewText: 'Ainda não há avaliações publicadas. Seja a primeira pessoa a contar como foi sua experiência.', mostOrderedBadge: 'Mais pedido', addChoices: 'Adicionar:', noteShort: 'Obs:', addFirst: 'Adicione produtos ao pedido primeiro.', selectSlotWarn: 'Selecione um horário para continuar.', minimumDeliveryWarn: 'Pedido mínimo para entrega: {value}.', postalWarn: 'Informe um código postal atendido pela loja.', addressWarn: 'Informe o endereço completo para entrega.',
+          addProduct: 'Adicionar {name}', unavailable: 'Indisponível', unavailableCart: 'Este produto não está disponível agora.', unavailableQty: 'Só há {qty} unidade(s) disponíveis agora.', options: 'Opções', requiredChoice: 'Obrigatório {used}/{needed}', extraOptions: 'opções', addMoreItems: 'Adicione mais itens', upsellOffer: 'Boa escolha', saveAmount: 'Economize {amount}', productReviews: 'Avaliações do produto', allReviewsTitle: 'Todas as avaliações', reviewFallback: 'Cliente gostou deste produto.', leaveReview: 'Deixar avaliação', shareReviewCta: 'Conte também como foi sua experiência', firstReviewText: 'Ainda não há avaliações publicadas. Seja a primeira pessoa a contar como foi sua experiência.', mostOrderedBadge: 'Mais pedido', addChoices: 'Adicionar:', noteShort: 'Obs:', addFirst: 'Adicione produtos ao pedido primeiro.', selectSlotWarn: 'Selecione um horário para continuar.', minimumDeliveryWarn: 'Pedido mínimo para entrega: {value}.', postalWarn: 'Informe um código postal atendido pela loja.', addressWarn: 'Informe o endereço completo para entrega.',
           perfectWith: 'Combina com', addedWith: 'Adicionado com', comboQtyLabel: 'Quantos você quer?', comboQtyLock: 'Escolha a quantidade para selecionar as opções ↑',
           whatsappHello: 'Olá! Quero fazer um pedido em {name}:', whatsappOrderIntro: 'Quero fazer um pedido:', shippingHome: 'Entrega em casa', pickupStore: 'Retirada na loja', whatsappAddress: 'Endereço', whatsappTime: 'Horário', whatsappPayment: 'Pagamento', whatsappGift: 'Presente', whatsappBenefits: 'Benefícios', shipping: 'Entrega', schedule: 'Horário', hours: 'Horários', postal: 'Código postal', zone: 'Zona', address: 'Endereço completo', contact: 'Contato', payment: 'Pagamento', observation: 'Observação', reviewsApproved: '{count} avaliações aprovadas.', footerText: 'Obrigada pela visita.', footerPowered: 'Loja online criada com BocaFood',
           authKicker: 'Acesso', authTitle: 'Entrar', authSignupTitle: 'Criar acesso', authText: 'Entre para acompanhar seus pedidos e usar benefícios da loja.', authSignupText: 'Crie seu acesso para acompanhar pedidos e consultar seus benefícios nesta loja.', authGoogle: 'Continuar com Google', authDivider: 'ou', authEmail: 'seu@email.com', authPassword: 'Senha', authSubmit: 'Entrar', authSignupSubmit: 'Criar acesso', authHelp: 'Ainda não tem conta?', authSignupHelp: 'Já tem conta?', authCreate: 'Criar acesso', authLoginLink: 'Entrar', close: 'Fechar', closeSearch: 'Fechar busca', searchPlaceholder: 'Buscar produto...', searchEmpty: 'Nenhum produto encontrado.', searchHint: 'Digite o nome do produto para buscar.',
@@ -11415,10 +11798,10 @@
           loyaltyTitle: 'Ganhe pontos em cada pedido', loyaltyText: 'Entre no clube e troque pontos por descontos.', loyaltyButton: 'Quero participar', loyaltyHint: '',
           cartView: 'Ver pedido', openCart: 'Abrir ›', yourOrder: 'O seu pedido', noItems: 'Nenhum item no pedido', itemSingular: '1 item no pedido', itemPlural: '{count} itens no pedido', emptyOrder: 'O seu pedido ainda está vazio.',
           receiving: 'Recebimento', required: 'obrigatório', pickupAddress: 'Levantamento no endereço da loja.', selectPickup: 'Selecione um horário de levantamento', selectDelivery: 'Selecione um horário de entrega', selectTime: 'Selecione um horário', pickupDateLabel: 'Data de levantamento', deliveryDateLabel: 'Data de entrega', noSlots: 'Sem horários disponíveis.', noFulfillment: 'Nenhum modo de recebimento está disponível no momento.', receivingTitle: 'Como você quer receber?', receivingSubtitle: 'Selecione antes de confirmar seu pedido.', pickupAddressTitle: 'Endereço de retirada', savedAddressesTitle: 'Em qual endereço você quer receber o pedido?', savedAddressesModalTitle: 'Endereços salvos', chooseSavedAddress: 'Escolher endereço salvo', newAddressHelp: 'Se quiser receber o pedido em um endereço novo ou ainda não tiver endereço salvo, comece pelo código postal.', scheduleQuestion: 'Quando você quer receber seu pedido?', noSavedAddresses: 'Ainda não há endereços salvos.', savedAddressDefault: 'Endereço {count}', chooseOrAddAddress: 'Escolha um endereço salvo ou adicione um novo.', saveAddressForNext: 'Guardar este endereço para próximas compras', addressLabelPlaceholder: 'Nome do endereço', contactSaved: 'WhatsApp guardado. Os seus endereços ficam separados para cada entrega.', contactInvalid: 'Informe um WhatsApp válido para guardar.', profileSaveError: 'Não foi possível guardar esses dados. Tente novamente.', addressOutsideZone: 'Esse endereço ainda não está dentro das zonas atendidas pela loja.', addressSaveError: 'Não foi possível guardar esse endereço. Confira o código postal e tente novamente.', clearOrder: 'Limpar pedido', pickupTimeLabel: 'Horário de retirada', deliveryTimeLabel: 'Horário de entrega', deliveryAddressLabel: 'Endereço de entrega', addressNumberLabel: 'Número / portal', addressComplementLabel: 'Piso / porta', addressCityLabel: 'Cidade', addressProvinceLabel: 'Província', addressCountryLabel: 'País', orderNoteLabel: 'Observação para o pedido', minimumDeliveryLabel: 'Pedido mínimo para entrega', minOrderLeft: 'Adicione mais {value}', savings: 'Poupa', paymentRequired: 'Selecione uma forma de pagamento.', checkoutChoiceKicker: 'Pedido', checkoutChoiceTitle: 'Como quer continuar?', checkoutChoiceText: 'Entre para acompanhar os seus pedidos e acumular pontos. Se continuar como convidado, os pontos não serão acumulados.', checkoutChoiceLogin: 'Entrar ou criar acesso', checkoutChoiceGuest: 'Continuar como convidado', orderSentKicker: 'Pedido', orderSentTitle: 'Pedido enviado', orderSentSuccess: 'Pedido enviado pelo WhatsApp. Se precisar de ajuda, fale com a loja pela conversa que acabou de abrir.', orderSentHelp: 'Referência do pedido: {ref}. A loja vai continuar o atendimento pelo WhatsApp.', orderSentButton: 'Entendido',
-          customer: 'Cliente', name: 'Nome', phone: 'WhatsApp', paymentNotes: 'Como vai pagar?', paymentMethod: 'Forma de pagamento', select: 'Selecione', orderNote: 'Observação para o pedido', productNote: 'Observação para este produto',
+          customer: 'Cliente', name: 'Nome', phone: 'WhatsApp', paymentNotes: 'Como vai pagar?', paymentMethod: 'Forma de pagamento', paymentCardOnline: 'Cartão online', paymentCash: 'Dinheiro', paymentCard: 'Cartão', paymentTransfer: 'Transferência', paymentBankSlip: 'Multibanco', paymentDirectDebit: 'Débito direto', paymentCheck: 'Cheque', paymentOther: 'Outro', select: 'Selecione', orderNote: 'Observação para o pedido', productNote: 'Observação para este produto',
           stripeKicker: 'Pagamento seguro', stripeTitle: 'Pague com cartão', stripeText: 'O pedido será confirmado quando o pagamento for aprovado.', stripeButton: 'Pagar agora', stripeLoading: 'Preparando pagamento...', stripeProcessing: 'Processando pagamento...', stripeSuccess: 'Pagamento aprovado. Pedido confirmado.', stripeFailed: 'Não foi possível aprovar o pagamento. O pedido ficou pendente.',
           coupon: 'Cupão', apply: 'Aplicar', couponApplied: 'Cupão {code} aplicado', couponInvalid: 'Cupão inválido ou indisponível.', subtotal: 'Subtotal', discount: 'Desconto', promotionDiscount: 'Promoções', total: 'Total', sendWhatsApp: 'Enviar pedido pelo WhatsApp', addToOrder: 'Adicionar ao pedido',
-          addProduct: 'Adicionar {name}', options: 'Opções', requiredChoice: 'Obrigatório {used}/{needed}', extraOptions: 'opções', addMoreItems: 'Adicione mais itens', upsellOffer: 'Boa escolha', saveAmount: 'Economize {amount}', productReviews: 'Avaliações do produto', allReviewsTitle: 'Todas as avaliações', reviewFallback: 'Cliente gostou deste produto.', leaveReview: 'Deixar avaliação', shareReviewCta: 'Conte também como foi sua experiência', firstReviewText: 'Ainda não há avaliações publicadas. Seja a primeira pessoa a contar como foi sua experiência.', mostOrderedBadge: 'Mais pedido', addChoices: 'Adicionar:', noteShort: 'Obs:', addFirst: 'Adicione produtos ao pedido primeiro.', selectSlotWarn: 'Selecione um horário para continuar.', minimumDeliveryWarn: 'Pedido mínimo para entrega: {value}.', postalWarn: 'Informe um código postal atendido pela loja.', addressWarn: 'Informe o endereço completo para entrega.',
+          addProduct: 'Adicionar {name}', unavailable: 'Indisponível', unavailableCart: 'Este produto não está disponível agora.', unavailableQty: 'Só há {qty} unidade(s) disponíveis agora.', options: 'Opções', requiredChoice: 'Obrigatório {used}/{needed}', extraOptions: 'opções', addMoreItems: 'Adicione mais itens', upsellOffer: 'Boa escolha', saveAmount: 'Economize {amount}', productReviews: 'Avaliações do produto', allReviewsTitle: 'Todas as avaliações', reviewFallback: 'Cliente gostou deste produto.', leaveReview: 'Deixar avaliação', shareReviewCta: 'Conte também como foi sua experiência', firstReviewText: 'Ainda não há avaliações publicadas. Seja a primeira pessoa a contar como foi sua experiência.', mostOrderedBadge: 'Mais pedido', addChoices: 'Adicionar:', noteShort: 'Obs:', addFirst: 'Adicione produtos ao pedido primeiro.', selectSlotWarn: 'Selecione um horário para continuar.', minimumDeliveryWarn: 'Pedido mínimo para entrega: {value}.', postalWarn: 'Informe um código postal atendido pela loja.', addressWarn: 'Informe o endereço completo para entrega.',
           perfectWith: 'Combina com', addedWith: 'Adicionado com', comboQtyLabel: 'Quantos quer?', comboQtyLock: 'Escolha a quantidade para selecionar as opções ↑',
           whatsappHello: 'Olá! Quero fazer um pedido em {name}:', whatsappOrderIntro: 'Quero fazer um pedido:', shippingHome: 'Entrega em casa', pickupStore: 'Retirada na loja', whatsappAddress: 'Endereço', whatsappTime: 'Horário', whatsappPayment: 'Pagamento', whatsappGift: 'Presente', whatsappBenefits: 'Benefícios', shipping: 'Entrega', schedule: 'Horário', hours: 'Horários', postal: 'Código postal', zone: 'Zona', address: 'Endereço completo', contact: 'Contacto', payment: 'Pagamento', observation: 'Observação', reviewsApproved: '{count} avaliações aprovadas.', footerText: 'Obrigada pela visita.', footerPowered: 'Loja online criada com BocaFood',
           authKicker: 'Acesso', authTitle: 'Entrar', authSignupTitle: 'Criar acesso', authText: 'Entre para acompanhar os seus pedidos e usar benefícios da loja.', authSignupText: 'Crie o seu acesso para acompanhar pedidos e consultar benefícios nesta loja.', authGoogle: 'Continuar com Google', authDivider: 'ou', authEmail: 'seu@email.com', authPassword: 'Senha', authSubmit: 'Entrar', authSignupSubmit: 'Criar acesso', authHelp: 'Ainda não tem conta?', authSignupHelp: 'Já tem conta?', authCreate: 'Criar acesso', authLoginLink: 'Entrar', close: 'Fechar', closeSearch: 'Fechar pesquisa', searchPlaceholder: 'Pesquisar produto...', searchEmpty: 'Nenhum produto encontrado.', searchHint: 'Digite o nome do produto para pesquisar.',
@@ -11432,10 +11815,10 @@
           loyaltyTitle: 'Gana puntos en cada pedido', loyaltyText: 'Únete al club y cambia puntos por descuentos.', loyaltyButton: 'Quiero participar', loyaltyHint: '',
           cartView: 'Ver pedido', openCart: 'Abrir ›', yourOrder: 'Tu pedido', noItems: 'Ningún artículo en el pedido', itemSingular: '1 artículo en el pedido', itemPlural: '{count} artículos en el pedido', emptyOrder: 'Tu pedido aún está vacío.',
           receiving: 'Recepción', required: 'obligatorio', pickupAddress: 'Recogida en la dirección de la tienda.', selectPickup: 'Selecciona un horario de recogida', selectDelivery: 'Selecciona un horario de entrega', selectTime: 'Selecciona un horario', pickupDateLabel: 'Fecha de recogida', deliveryDateLabel: 'Fecha de entrega', noSlots: 'No hay horarios disponibles.', noFulfillment: 'No hay ningún modo de entrega o recogida disponible en este momento.', receivingTitle: '¿Cómo quieres recibirlo?', receivingSubtitle: 'Selecciona antes de confirmar tu pedido.', pickupAddressTitle: 'Dirección de recogida', savedAddressesTitle: '¿En qué dirección quieres recibir el pedido?', savedAddressesModalTitle: 'Direcciones guardadas', chooseSavedAddress: 'Elegir dirección guardada', newAddressHelp: 'Si quieres recibir el pedido en una dirección nueva o todavía no tienes una dirección guardada, empieza por el código postal.', scheduleQuestion: '¿Cuándo quieres recibir tu pedido?', noSavedAddresses: 'Todavía no hay direcciones guardadas.', savedAddressDefault: 'Dirección {count}', chooseOrAddAddress: 'Elige una dirección guardada o agrega una nueva.', saveAddressForNext: 'Guardar esta dirección para próximas compras', addressLabelPlaceholder: 'Nombre de la dirección', contactSaved: 'WhatsApp guardado. Tus direcciones quedan separadas para cada entrega.', contactInvalid: 'Indica un WhatsApp válido para guardarlo.', profileSaveError: 'No pudimos guardar estos datos. Inténtalo otra vez.', addressOutsideZone: 'Esta dirección todavía no está dentro de las zonas atendidas por la tienda.', addressSaveError: 'No pudimos guardar esta dirección. Revisa el código postal e inténtalo otra vez.', clearOrder: 'Limpiar pedido', pickupTimeLabel: 'Horario de recogida', deliveryTimeLabel: 'Horario de entrega', deliveryAddressLabel: 'Dirección de entrega', addressNumberLabel: 'Número / portal', addressComplementLabel: 'Piso / puerta', addressCityLabel: 'Localidad', addressProvinceLabel: 'Provincia', addressCountryLabel: 'País', orderNoteLabel: 'Observación para el pedido', minimumDeliveryLabel: 'Pedido mínimo de entrega', minOrderLeft: 'Añade {value} más', savings: 'Ahorras', paymentRequired: 'Selecciona una forma de pago.', checkoutChoiceKicker: 'Pedido', checkoutChoiceTitle: '¿Cómo quieres continuar?', checkoutChoiceText: 'Inicia sesión para seguir tus pedidos y acumular puntos. Si continúas como invitado, no acumularás puntos.', checkoutChoiceLogin: 'Entrar o crear acceso', checkoutChoiceGuest: 'Continuar como invitado', orderSentKicker: 'Pedido', orderSentTitle: 'Pedido enviado', orderSentSuccess: 'Pedido enviado por WhatsApp. Si necesitas ayuda, escribe a la tienda en la conversación que se acaba de abrir.', orderSentHelp: 'Referencia del pedido: {ref}. La tienda continuará la atención por WhatsApp.', orderSentButton: 'Entendido',
-          customer: 'Cliente', name: 'Nombre', phone: 'WhatsApp', paymentNotes: '¿Cómo vas a pagar?', paymentMethod: 'Forma de pago', select: 'Selecciona', orderNote: 'Observación para el pedido', productNote: 'Observación para este producto',
+          customer: 'Cliente', name: 'Nombre', phone: 'WhatsApp', paymentNotes: '¿Cómo vas a pagar?', paymentMethod: 'Forma de pago', paymentCardOnline: 'Tarjeta online', paymentCash: 'Efectivo', paymentCard: 'Tarjeta', paymentTransfer: 'Transferencia', paymentBankSlip: 'Multibanco', paymentDirectDebit: 'Domiciliación bancaria', paymentCheck: 'Cheque', paymentOther: 'Otro', select: 'Selecciona', orderNote: 'Observación para el pedido', productNote: 'Observación para este producto',
           stripeKicker: 'Pago seguro', stripeTitle: 'Paga con tarjeta', stripeText: 'El pedido se confirmará cuando el pago sea aprobado.', stripeButton: 'Pagar ahora', stripeLoading: 'Preparando el pago...', stripeProcessing: 'Procesando el pago...', stripeSuccess: 'Pago aprobado. Pedido confirmado.', stripeFailed: 'No se pudo aprobar el pago. El pedido quedó pendiente.',
           coupon: 'Cupón', apply: 'Aplicar', couponApplied: 'Cupón {code} aplicado', couponInvalid: 'Cupón inválido o no disponible.', subtotal: 'Subtotal', discount: 'Descuento', promotionDiscount: 'Promociones', total: 'Total', sendWhatsApp: 'Enviar pedido por WhatsApp', addToOrder: 'Añadir al pedido',
-          addProduct: 'Añadir {name}', options: 'Opciones', requiredChoice: 'Obligatorio {used}/{needed}', extraOptions: 'opciones', addMoreItems: 'Añade más productos', upsellOffer: 'Buena elección', saveAmount: 'Ahorras {amount}', productReviews: 'Reseñas del producto', allReviewsTitle: 'Todas las reseñas', reviewFallback: 'A un cliente le gustó este producto.', leaveReview: 'Dejar reseña', shareReviewCta: 'Cuéntanos también cómo fue tu experiencia', firstReviewText: 'Todavía no hay reseñas publicadas. Sé la primera persona en contar cómo fue tu experiencia.', mostOrderedBadge: 'Más pedido', addChoices: 'Añadir:', noteShort: 'Nota:', addFirst: 'Añade productos al pedido primero.', selectSlotWarn: 'Selecciona un horario para continuar.', minimumDeliveryWarn: 'Pedido mínimo para entrega: {value}.', postalWarn: 'Indica un código postal atendido por la tienda.', addressWarn: 'Indica la dirección completa para la entrega.',
+          addProduct: 'Añadir {name}', unavailable: 'No disponible', unavailableCart: 'Este producto no está disponible ahora.', unavailableQty: 'Solo hay {qty} unidad(es) disponibles ahora.', options: 'Opciones', requiredChoice: 'Obligatorio {used}/{needed}', extraOptions: 'opciones', addMoreItems: 'Añade más productos', upsellOffer: 'Buena elección', saveAmount: 'Ahorras {amount}', productReviews: 'Reseñas del producto', allReviewsTitle: 'Todas las reseñas', reviewFallback: 'A un cliente le gustó este producto.', leaveReview: 'Dejar reseña', shareReviewCta: 'Cuéntanos también cómo fue tu experiencia', firstReviewText: 'Todavía no hay reseñas publicadas. Sé la primera persona en contar cómo fue tu experiencia.', mostOrderedBadge: 'Más pedido', addChoices: 'Añadir:', noteShort: 'Nota:', addFirst: 'Añade productos al pedido primero.', selectSlotWarn: 'Selecciona un horario para continuar.', minimumDeliveryWarn: 'Pedido mínimo para entrega: {value}.', postalWarn: 'Indica un código postal atendido por la tienda.', addressWarn: 'Indica la dirección completa para la entrega.',
           perfectWith: 'Perfecto con', addedWith: 'Añadido con', comboQtyLabel: '¿Cuántos quieres?', comboQtyLock: 'Elige la cantidad para elegir las opciones ↑',
           whatsappHello: '¡Hola! Quiero hacer un pedido en {name}:', whatsappOrderIntro: 'Quiero hacer un pedido:', shippingHome: 'Envío a domicilio', pickupStore: 'Recogida en tienda', whatsappAddress: 'Dirección', whatsappTime: 'Hora', whatsappPayment: 'Pago', whatsappGift: 'Regalo', whatsappBenefits: 'Beneficios', shipping: 'Envío', schedule: 'Horario', hours: 'Horarios', postal: 'Código postal', zone: 'Zona', address: 'Dirección completa', contact: 'Contacto', payment: 'Pago', observation: 'Observación', reviewsApproved: '{count} reseñas aprobadas.', footerText: 'Gracias por visitarnos.', footerPowered: 'Tienda online creada con BocaFood',
           authKicker: 'Acceso', authTitle: 'Iniciar sesión', authSignupTitle: 'Crear acceso', authText: 'Entra para seguir tus pedidos y usar beneficios de la tienda.', authSignupText: 'Crea tu acceso para seguir pedidos y consultar tus beneficios en esta tienda.', authGoogle: 'Continuar con Google', authDivider: 'o', authEmail: 'tu@email.com', authPassword: 'Contraseña', authSubmit: 'Iniciar sesión', authSignupSubmit: 'Crear acceso', authHelp: '¿Aún no tienes cuenta?', authSignupHelp: '¿Ya tienes cuenta?', authCreate: 'Crear acceso', authLoginLink: 'Iniciar sesión', close: 'Cerrar', closeSearch: 'Cerrar búsqueda', searchPlaceholder: 'Buscar producto...', searchEmpty: 'No encontramos productos.', searchHint: 'Escribe el nombre del producto para buscar.',
@@ -11449,10 +11832,10 @@
           loyaltyTitle: 'Earn points with every order', loyaltyText: 'Join the club and redeem points for discounts.', loyaltyButton: 'Join now', loyaltyHint: '',
           cartView: 'View order', openCart: 'Open ›', yourOrder: 'Your order', noItems: 'No items in the order', itemSingular: '1 item in the order', itemPlural: '{count} items in the order', emptyOrder: 'Your order is still empty.',
           receiving: 'Fulfilment', required: 'required', pickupAddress: 'Pickup at the store address.', selectPickup: 'Select a pickup time', selectDelivery: 'Select a delivery time', selectTime: 'Select a time', pickupDateLabel: 'Pickup date', deliveryDateLabel: 'Delivery date', noSlots: 'No times available.', noFulfillment: 'No fulfilment option is available right now.', receivingTitle: 'How would you like to receive it?', receivingSubtitle: 'Select this before confirming your order.', pickupAddressTitle: 'Pickup address', savedAddressesTitle: 'Which address should receive the order?', savedAddressesModalTitle: 'Saved addresses', chooseSavedAddress: 'Choose saved address', newAddressHelp: 'If you want to receive the order at a new address or do not have a saved address yet, start with the postal code.', scheduleQuestion: 'When would you like to receive your order?', noSavedAddresses: 'There are no saved addresses yet.', savedAddressDefault: 'Address {count}', chooseOrAddAddress: 'Choose a saved address or add a new one.', saveAddressForNext: 'Save this address for next orders', addressLabelPlaceholder: 'Address name', contactSaved: 'WhatsApp saved. Your addresses stay separate for each delivery.', contactInvalid: 'Enter a valid WhatsApp to save it.', profileSaveError: 'We could not save these details. Try again.', addressOutsideZone: 'This address is not inside the delivery zones yet.', addressSaveError: 'We could not save this address. Check the postal code and try again.', clearOrder: 'Clear order', pickupTimeLabel: 'Pickup time', deliveryTimeLabel: 'Delivery time', deliveryAddressLabel: 'Delivery address', addressNumberLabel: 'Number / building', addressComplementLabel: 'Floor / door', addressCityLabel: 'City', addressProvinceLabel: 'Province', addressCountryLabel: 'Country', orderNoteLabel: 'Order note', minimumDeliveryLabel: 'Minimum delivery order', minOrderLeft: 'Add {value} more', savings: 'You save', paymentRequired: 'Select a payment method.', checkoutChoiceKicker: 'Order', checkoutChoiceTitle: 'How do you want to continue?', checkoutChoiceText: 'Sign in to track orders and earn points. If you continue as a guest, points will not be added.', checkoutChoiceLogin: 'Sign in or create access', checkoutChoiceGuest: 'Continue as guest', orderSentKicker: 'Order', orderSentTitle: 'Order sent', orderSentSuccess: 'Order sent via WhatsApp. If you need help, message the store in the conversation that just opened.', orderSentHelp: 'Order reference: {ref}. The store will continue the conversation on WhatsApp.', orderSentButton: 'Got it',
-          customer: 'Customer', name: 'Name', phone: 'WhatsApp', paymentNotes: 'How will you pay?', paymentMethod: 'Payment method', select: 'Select', orderNote: 'Order note', productNote: 'Note for this product',
+          customer: 'Customer', name: 'Name', phone: 'WhatsApp', paymentNotes: 'How will you pay?', paymentMethod: 'Payment method', paymentCardOnline: 'Online card', paymentCash: 'Cash', paymentCard: 'Card', paymentTransfer: 'Bank transfer', paymentBankSlip: 'Multibanco', paymentDirectDebit: 'Direct debit', paymentCheck: 'Check', paymentOther: 'Other', select: 'Select', orderNote: 'Order note', productNote: 'Note for this product',
           stripeKicker: 'Secure payment', stripeTitle: 'Pay by card', stripeText: 'The order will be confirmed when the payment is approved.', stripeButton: 'Pay now', stripeLoading: 'Preparing payment...', stripeProcessing: 'Processing payment...', stripeSuccess: 'Payment approved. Order confirmed.', stripeFailed: 'Payment could not be approved. The order remains pending.',
           coupon: 'Coupon', apply: 'Apply', couponApplied: 'Coupon {code} applied', couponInvalid: 'Invalid or unavailable coupon.', subtotal: 'Subtotal', discount: 'Discount', promotionDiscount: 'Promotions', total: 'Total', sendWhatsApp: 'Send order via WhatsApp', addToOrder: 'Add to order',
-          addProduct: 'Add {name}', options: 'Options', requiredChoice: 'Required {used}/{needed}', extraOptions: 'options', addMoreItems: 'Add more items', upsellOffer: 'Smart add-on', saveAmount: 'Save {amount}', productReviews: 'Product reviews', allReviewsTitle: 'All reviews', reviewFallback: 'A customer liked this product.', leaveReview: 'Leave a review', shareReviewCta: 'Share your experience too', firstReviewText: 'There are no published reviews yet. Be the first person to share your experience.', mostOrderedBadge: 'Most ordered', addChoices: 'Add:', noteShort: 'Note:', addFirst: 'Add products to the order first.', selectSlotWarn: 'Select a time to continue.', minimumDeliveryWarn: 'Minimum delivery order: {value}.', postalWarn: 'Enter a postal code served by the store.', addressWarn: 'Enter the full delivery address.',
+          addProduct: 'Add {name}', unavailable: 'Unavailable', unavailableCart: 'This product is not available right now.', unavailableQty: 'Only {qty} unit(s) are available right now.', options: 'Options', requiredChoice: 'Required {used}/{needed}', extraOptions: 'options', addMoreItems: 'Add more items', upsellOffer: 'Smart add-on', saveAmount: 'Save {amount}', productReviews: 'Product reviews', allReviewsTitle: 'All reviews', reviewFallback: 'A customer liked this product.', leaveReview: 'Leave a review', shareReviewCta: 'Share your experience too', firstReviewText: 'There are no published reviews yet. Be the first person to share your experience.', mostOrderedBadge: 'Most ordered', addChoices: 'Add:', noteShort: 'Note:', addFirst: 'Add products to the order first.', selectSlotWarn: 'Select a time to continue.', minimumDeliveryWarn: 'Minimum delivery order: {value}.', postalWarn: 'Enter a postal code served by the store.', addressWarn: 'Enter the full delivery address.',
           perfectWith: 'Perfect with', addedWith: 'Added with', comboQtyLabel: 'How many would you like?', comboQtyLock: 'Choose the quantity to select the options ↑',
           whatsappHello: 'Hi! I want to place an order at {name}:', whatsappOrderIntro: 'I want to place an order:', shippingHome: 'Home delivery', pickupStore: 'Store pickup', whatsappAddress: 'Address', whatsappTime: 'Time', whatsappPayment: 'Payment', whatsappGift: 'Gift', whatsappBenefits: 'Benefits', shipping: 'Delivery', schedule: 'Time', hours: 'Hours', postal: 'Postal code', zone: 'Zone', address: 'Full address', contact: 'Contact', payment: 'Payment', observation: 'Note', reviewsApproved: '{count} approved reviews.', footerText: 'Thanks for visiting us.', footerPowered: 'Online store created with BocaFood',
           authKicker: 'Access', authTitle: 'Sign in', authSignupTitle: 'Create access', authText: 'Sign in to follow your orders and use store benefits.', authSignupText: 'Create access to follow orders and check your benefits in this store.', authGoogle: 'Continue with Google', authDivider: 'or', authEmail: 'your@email.com', authPassword: 'Password', authSubmit: 'Sign in', authSignupSubmit: 'Create access', authHelp: 'No account yet?', authSignupHelp: 'Already have an account?', authCreate: 'Create access', authLoginLink: 'Sign in', close: 'Close', closeSearch: 'Close search', searchPlaceholder: 'Search product...', searchEmpty: 'No products found.', searchHint: 'Type a product name to search.',
@@ -11466,10 +11849,10 @@
           loyaltyTitle: 'Gagnez des points à chaque commande', loyaltyText: 'Rejoignez le club et échangez vos points contre des réductions.', loyaltyButton: 'Je participe', loyaltyHint: '',
           cartView: 'Voir la commande', openCart: 'Ouvrir ›', yourOrder: 'Votre commande', noItems: 'Aucun article dans la commande', itemSingular: '1 article dans la commande', itemPlural: '{count} articles dans la commande', emptyOrder: 'Votre commande est encore vide.',
           receiving: 'Réception', required: 'obligatoire', pickupAddress: 'Retrait à l’adresse de la boutique.', selectPickup: 'Sélectionnez un horaire de retrait', selectDelivery: 'Sélectionnez un horaire de livraison', selectTime: 'Sélectionnez un horaire', pickupDateLabel: 'Date de retrait', deliveryDateLabel: 'Date de livraison', noSlots: 'Aucun horaire disponible.', noFulfillment: 'Aucun mode de retrait ou livraison n’est disponible pour le moment.', receivingTitle: 'Comment voulez-vous recevoir votre commande ?', receivingSubtitle: 'Sélectionnez avant de confirmer votre commande.', pickupAddressTitle: 'Adresse de retrait', savedAddressesTitle: 'À quelle adresse voulez-vous recevoir la commande ?', savedAddressesModalTitle: 'Adresses enregistrées', chooseSavedAddress: 'Choisir une adresse enregistrée', newAddressHelp: 'Si vous voulez recevoir la commande à une nouvelle adresse ou si vous n’avez pas encore d’adresse enregistrée, commencez par le code postal.', scheduleQuestion: 'Quand voulez-vous recevoir votre commande ?', noSavedAddresses: 'Il n’y a pas encore d’adresses enregistrées.', savedAddressDefault: 'Adresse {count}', chooseOrAddAddress: 'Choisissez une adresse enregistrée ou ajoutez-en une nouvelle.', saveAddressForNext: 'Enregistrer cette adresse pour les prochaines commandes', addressLabelPlaceholder: 'Nom de l’adresse', contactSaved: 'WhatsApp enregistré. Vos adresses restent séparées pour chaque livraison.', contactInvalid: 'Indiquez un WhatsApp valide pour l’enregistrer.', profileSaveError: 'Impossible d’enregistrer ces informations. Réessayez.', addressOutsideZone: 'Cette adresse n’est pas encore dans les zones desservies.', addressSaveError: 'Impossible d’enregistrer cette adresse. Vérifiez le code postal et réessayez.', clearOrder: 'Vider la commande', pickupTimeLabel: 'Horaire de retrait', deliveryTimeLabel: 'Horaire de livraison', deliveryAddressLabel: 'Adresse de livraison', addressNumberLabel: 'Numéro / bâtiment', addressComplementLabel: 'Étage / porte', addressCityLabel: 'Ville', addressProvinceLabel: 'Province', addressCountryLabel: 'Pays', orderNoteLabel: 'Remarque pour la commande', minimumDeliveryLabel: 'Commande minimum pour livraison', minOrderLeft: 'Ajoutez encore {value}', savings: 'Vous économisez', paymentRequired: 'Sélectionnez un mode de paiement.', checkoutChoiceKicker: 'Commande', checkoutChoiceTitle: 'Comment voulez-vous continuer ?', checkoutChoiceText: 'Connectez-vous pour suivre vos commandes et cumuler des points. Si vous continuez comme invité, les points ne seront pas ajoutés.', checkoutChoiceLogin: 'Se connecter ou créer un accès', checkoutChoiceGuest: 'Continuer comme invité', orderSentKicker: 'Commande', orderSentTitle: 'Commande envoyée', orderSentSuccess: 'Commande envoyée via WhatsApp. Si vous avez besoin d’aide, écrivez à la boutique dans la conversation ouverte.', orderSentHelp: 'Référence de commande : {ref}. La boutique continuera l’échange sur WhatsApp.', orderSentButton: 'Compris',
-          customer: 'Client', name: 'Nom', phone: 'WhatsApp', paymentNotes: 'Comment souhaitez-vous payer ?', paymentMethod: 'Mode de paiement', select: 'Sélectionnez', orderNote: 'Remarque pour la commande', productNote: 'Remarque pour ce produit',
+          customer: 'Client', name: 'Nom', phone: 'WhatsApp', paymentNotes: 'Comment souhaitez-vous payer ?', paymentMethod: 'Mode de paiement', paymentCardOnline: 'Carte en ligne', paymentCash: 'Espèces', paymentCard: 'Carte', paymentTransfer: 'Virement bancaire', paymentBankSlip: 'Multibanco', paymentDirectDebit: 'Prélèvement bancaire', paymentCheck: 'Chèque', paymentOther: 'Autre', select: 'Sélectionnez', orderNote: 'Remarque pour la commande', productNote: 'Remarque pour ce produit',
           stripeKicker: 'Paiement sécurisé', stripeTitle: 'Payez par carte', stripeText: 'La commande sera confirmée lorsque le paiement sera approuvé.', stripeButton: 'Payer maintenant', stripeLoading: 'Préparation du paiement...', stripeProcessing: 'Traitement du paiement...', stripeSuccess: 'Paiement approuvé. Commande confirmée.', stripeFailed: 'Le paiement n’a pas pu être approuvé. La commande reste en attente.',
           coupon: 'Coupon', apply: 'Appliquer', couponApplied: 'Coupon {code} appliqué', couponInvalid: 'Coupon invalide ou indisponible.', subtotal: 'Sous-total', discount: 'Réduction', promotionDiscount: 'Promotions', total: 'Total', sendWhatsApp: 'Envoyer la commande par WhatsApp', addToOrder: 'Ajouter à la commande',
-          addProduct: 'Ajouter {name}', options: 'Options', requiredChoice: 'Obligatoire {used}/{needed}', extraOptions: 'options', addMoreItems: 'Ajouter d’autres articles', upsellOffer: 'Bon choix', saveAmount: 'Économisez {amount}', productReviews: 'Avis du produit', allReviewsTitle: 'Tous les avis', reviewFallback: 'Un client a aimé ce produit.', leaveReview: 'Laisser un avis', shareReviewCta: 'Racontez vous aussi votre expérience', firstReviewText: 'Aucun avis publié pour le moment. Soyez la première personne à raconter votre expérience.', mostOrderedBadge: 'Le plus commandé', addChoices: 'Ajouter :', noteShort: 'Remarque :', addFirst: 'Ajoutez d’abord des produits à la commande.', selectSlotWarn: 'Sélectionnez un horaire pour continuer.', minimumDeliveryWarn: 'Commande minimum pour livraison : {value}.', postalWarn: 'Indiquez un code postal desservi par la boutique.', addressWarn: 'Indiquez l’adresse complète pour la livraison.',
+          addProduct: 'Ajouter {name}', unavailable: 'Indisponible', unavailableCart: 'Ce produit n’est pas disponible maintenant.', unavailableQty: 'Il ne reste que {qty} unité(s) disponibles maintenant.', options: 'Options', requiredChoice: 'Obligatoire {used}/{needed}', extraOptions: 'options', addMoreItems: 'Ajouter d’autres articles', upsellOffer: 'Bon choix', saveAmount: 'Économisez {amount}', productReviews: 'Avis du produit', allReviewsTitle: 'Tous les avis', reviewFallback: 'Un client a aimé ce produit.', leaveReview: 'Laisser un avis', shareReviewCta: 'Racontez vous aussi votre expérience', firstReviewText: 'Aucun avis publié pour le moment. Soyez la première personne à raconter votre expérience.', mostOrderedBadge: 'Le plus commandé', addChoices: 'Ajouter :', noteShort: 'Remarque :', addFirst: 'Ajoutez d’abord des produits à la commande.', selectSlotWarn: 'Sélectionnez un horaire pour continuer.', minimumDeliveryWarn: 'Commande minimum pour livraison : {value}.', postalWarn: 'Indiquez un code postal desservi par la boutique.', addressWarn: 'Indiquez l’adresse complète pour la livraison.',
           perfectWith: 'Parfait avec', addedWith: 'Ajouté avec', comboQtyLabel: 'Combien en voulez-vous ?', comboQtyLock: 'Choisissez la quantité pour sélectionner les options ↑',
           whatsappHello: 'Bonjour ! Je souhaite passer une commande chez {name} :', whatsappOrderIntro: 'Je souhaite passer une commande :', shippingHome: 'Livraison à domicile', pickupStore: 'Retrait en boutique', whatsappAddress: 'Adresse', whatsappTime: 'Horaire', whatsappPayment: 'Paiement', whatsappGift: 'Cadeau', whatsappBenefits: 'Avantages', shipping: 'Livraison', schedule: 'Horaire', hours: 'Horaires', postal: 'Code postal', zone: 'Zone', address: 'Adresse complète', contact: 'Contact', payment: 'Paiement', observation: 'Remarque', reviewsApproved: '{count} avis approuvés.', footerText: 'Merci pour votre visite.', footerPowered: 'Boutique en ligne créée avec BocaFood',
           authKicker: 'Accès', authTitle: 'Se connecter', authSignupTitle: 'Créer un accès', authText: 'Connectez-vous pour suivre vos commandes et utiliser les avantages de la boutique.', authSignupText: 'Créez votre accès pour suivre vos commandes et consulter vos avantages dans cette boutique.', authGoogle: 'Continuer avec Google', authDivider: 'ou', authEmail: 'votre@email.com', authPassword: 'Mot de passe', authSubmit: 'Se connecter', authSignupSubmit: 'Créer un accès', authHelp: 'Pas encore de compte ?', authSignupHelp: 'Vous avez déjà un compte ?', authCreate: 'Créer un accès', authLoginLink: 'Se connecter', close: 'Fermer', closeSearch: 'Fermer la recherche', searchPlaceholder: 'Rechercher un produit...', searchEmpty: 'Aucun produit trouvé.', searchHint: 'Saisissez le nom du produit à rechercher.',
@@ -13696,6 +14079,7 @@
         var image = imgOf(product) || 'https://images.unsplash.com/photo-1551782450-a2132b4ba21d?auto=format&fit=crop&w=320&q=82';
         var tagData = productPrimaryTagData(product);
         var promo = bestPromotionForProduct(product);
+        var unavailable = productUnavailable(product);
         var badge = firstText(tagData && tagData.text, product.popular ? 'Top' : '');
         var badgeStyle = tagData ? ' style="--badge-bg:' + text(tagData.bg) + ';--badge-text:' + text(tagData.color) + ';"' : '';
         var kicker = productKicker(product);
@@ -13706,23 +14090,24 @@
         var benefit = promo && promo.promo ? promotionBenefitText(promo.promo) : '';
         var priceHtml = '<span class="product-price">' + money(finalPrice) + '</span>' + (hasDiscount ? '<span class="product-old-price">' + money(originalPrice) + '</span>' : '');
         if (kicker && desc && kicker.toLowerCase() === desc.toLowerCase()) kicker = '';
-        return '<article class="product-row" data-product-id="' + text(product.id) + '"><div class="product-img-wrap"><img class="product-img" src="' + text(image) + '" alt="' + text(firstText(product.imageAlt, productName(product))) + '">' + (badge ? '<span class="small-badge"' + badgeStyle + '>' + text(badge) + '</span>' : '') + '</div><div class="product-body"><div class="product-title">' + text(productName(product)) + '</div>' + (kicker ? '<div class="product-kicker">' + text(kicker) + '</div>' : '') + '<div class="product-desc">' + text(desc) + '</div>' + (benefit ? '<div class="product-promo-benefit">' + text(benefit) + '</div>' : '') + '<div class="product-meta"><span class="product-price-stack">' + priceHtml + '</span></div></div><button class="add-btn" type="button" data-product-id="' + text(product.id) + '" aria-label="' + text(t('addProduct', { name: productName(product) })) + '">+</button></article>';
+        return '<article class="product-row' + (unavailable ? ' is-unavailable' : '') + '" data-product-id="' + text(product.id) + '"><div class="product-img-wrap"><img class="product-img" src="' + text(image) + '" alt="' + text(firstText(product.imageAlt, productName(product))) + '">' + (badge ? '<span class="small-badge"' + badgeStyle + '>' + text(badge) + '</span>' : '') + (unavailable ? '<span class="stock-badge">' + text(t('unavailable')) + '</span>' : '') + '</div><div class="product-body"><div class="product-title">' + text(productName(product)) + '</div>' + (kicker ? '<div class="product-kicker">' + text(kicker) + '</div>' : '') + '<div class="product-desc">' + text(desc) + '</div>' + (benefit ? '<div class="product-promo-benefit">' + text(benefit) + '</div>' : '') + '<div class="product-meta"><span class="product-price-stack">' + priceHtml + '</span></div></div><button class="add-btn' + (unavailable ? ' is-unavailable' : '') + '" type="button" data-product-id="' + text(product.id) + '" aria-label="' + text(t('addProduct', { name: productName(product) })) + '"' + (unavailable ? ' disabled aria-disabled="true"' : '') + '>+</button></article>';
       }
 
       function promoProductCardHtml(product) {
         var image = imgOf(product) || 'https://images.unsplash.com/photo-1551782450-a2132b4ba21d?auto=format&fit=crop&w=320&q=82';
         var promo = bestPromotionForProduct(product);
+        var unavailable = productUnavailable(product);
         var originalPrice = productPrice(product);
         var finalPrice = promo && promo.calc ? promo.calc.final : originalPrice;
         var hasDiscount = promo && promo.calc && finalPrice < originalPrice;
         var benefit = promo && promo.promo ? promotionBenefitText(promo.promo) : '';
-        return '<article class="promo-product-card" data-product-id="' + text(product.id) + '">' +
+        return '<article class="promo-product-card' + (unavailable ? ' is-unavailable' : '') + '" data-product-id="' + text(product.id) + '">' +
           '<img class="promo-product-img" src="' + text(image) + '" alt="' + text(firstText(product.imageAlt, productName(product))) + '">' +
           '<div class="promo-product-copy">' +
             '<div class="promo-product-name">' + text(productName(product)) + '</div>' +
             '<div class="promo-product-desc">' + text(productDesc(product)) + '</div>' +
             '<div class="promo-product-price-row"><span class="promo-product-price">' + money(finalPrice) + '</span>' + (hasDiscount ? '<span class="promo-product-old-price">' + money(originalPrice) + '</span>' : '') + '</div>' +
-            (benefit ? '<div class="promo-product-benefit">' + text(benefit) + '</div>' : '') +
+            (unavailable ? '<div class="promo-product-benefit">' + text(t('unavailable')) + '</div>' : (benefit ? '<div class="promo-product-benefit">' + text(benefit) + '</div>' : '')) +
           '</div>' +
           '<span class="promo-product-add">+</span>' +
         '</article>';
@@ -14140,6 +14525,65 @@
         return labels;
       }
 
+      function optionStockChoice(group, option, selectedQty) {
+        var stockRef = firstText(option && option.stockRef, option && option.stockItemRef, option && option.stockItem, '');
+        var stockType = firstText(option && option.stockItemType, option && option.itemClass, option && option.classe, '');
+        var stockItemId = firstText(option && option.stockItemId, option && option.itemId, '');
+        if (!stockRef && !stockType && !stockItemId) return null;
+        var refParts = stockRef ? String(stockRef).split(':') : [];
+        var refType = refParts[0] || '';
+        var refId = refParts.slice(1).join(':');
+        if (!stockType) {
+          if (refType === 'ficha' || refType === 'receita') stockType = 'produto_produzido';
+          else if (refType === 'produto_pronto') stockType = 'produto_pronto';
+          else if (refType === 'embalagem') stockType = 'embalagem';
+          else if (refType === 'insumo' || refType === 'ingrediente') stockType = 'insumo';
+          else if (refType === 'base_producao') stockType = 'base_producao';
+        }
+        stockItemId = stockItemId || refId;
+        var perChoice = num(option && (option.stockQuantityPerChoice != null ? option.stockQuantityPerChoice : option.stockQuantity != null ? option.stockQuantity : option.stockQty));
+        if (perChoice <= 0) perChoice = 1;
+        selectedQty = Math.max(0, num(selectedQty || 0));
+        if (!stockItemId || selectedQty <= 0) return null;
+        return {
+          groupId: group && group.id || '',
+          groupName: group && group.title || '',
+          optionName: firstText(option && option.name, option && option.label, ''),
+          label: firstText(option && option.name, option && option.label, ''),
+          name: firstText(option && option.name, option && option.label, ''),
+          stockRef: stockRef,
+          stockItemId: stockItemId,
+          itemId: stockItemId,
+          stockItemName: firstText(option && option.stockItemName, option && option.itemName, option && option.name, ''),
+          stockItemType: stockType,
+          itemClass: stockType,
+          classe: stockType,
+          stockQuantityPerChoice: perChoice,
+          quantity: selectedQty,
+          stockUnit: firstText(option && option.stockUnit, option && option.unit, 'un'),
+          unit: firstText(option && option.stockUnit, option && option.unit, 'un'),
+          stockUnitCost: num(option && (option.stockUnitCost != null ? option.stockUnitCost : option.unitCost))
+        };
+      }
+
+      function stockChoicesFromSelections(product, selectedByGroup) {
+        var refs = [];
+        productVariants(product).forEach(function (group) {
+          var selected = selectedByGroup[group.id] || {};
+          (group.options || []).forEach(function (option) {
+            var selectedQty = num(selected[option.name]);
+            if (selectedQty <= 0) return;
+            var ref = optionStockChoice(group, option, selectedQty);
+            if (ref) refs.push(ref);
+          });
+        });
+        return refs;
+      }
+
+      function modalVariantStockChoices() {
+        return stockChoicesFromSelections(modalProduct, modalSelections || {});
+      }
+
       function modalRelatedChoicesLabels() {
         var labels = [];
         var seen = {};
@@ -14173,7 +14617,8 @@
               upsellRuleName: firstText(product.__upsellRule && product.__upsellRule.name, product.__upsellRule && product.__upsellRule.title, ''),
               upsellBenefitType: firstText(product.__upsellRule && product.__upsellRule.benefitType, product.__upsellRule && product.__upsellRule.benefit, ''),
               relatedToProductId: modalProduct && modalProduct.id || '',
-              relatedToProductName: productName(modalProduct)
+              relatedToProductName: productName(modalProduct),
+              stockChoices: modalUpsellStockChoices(product.id, product)
             });
           }
         });
@@ -14183,7 +14628,8 @@
           if (pairQty > 0) addToCart(paired.id, pairQty, '', [t('addedWith') + ' ' + productName(modalProduct)].concat(modalUpsellChoiceLabels(paired.id, paired)), modalRelatedUnitExtra(paired.id, paired, false), {
             originalExtraUnit: modalUpsellUnitExtra(paired.id, paired),
             relatedToProductId: modalProduct && modalProduct.id || '',
-            relatedToProductName: productName(modalProduct)
+            relatedToProductName: productName(modalProduct),
+            stockChoices: modalUpsellStockChoices(paired.id, paired)
           });
         }
       }
@@ -14284,6 +14730,14 @@
       function updateModalButton() {
         var btn = document.getElementById('modal-add');
         if (!btn || !modalProduct) return;
+        var availability = canAddProductQty(modalProduct, Math.max(1, modalQty || 1));
+        if (!availability.ok) {
+          btn.classList.add('is-disabled');
+          btn.textContent = availability.info && availability.info.available > 0
+            ? t('unavailableQty', { qty: availability.info.available })
+            : t('unavailable');
+          return;
+        }
         if (isComboProduct(modalProduct) && modalQty <= 0) {
           btn.classList.add('is-disabled');
           btn.textContent = t('addToOrder');
@@ -14376,6 +14830,10 @@
           });
         });
         return labels;
+      }
+
+      function modalUpsellStockChoices(productId, product) {
+        return stockChoicesFromSelections(product, modalAddAlsoSelections[productId] || {});
       }
 
       function modalUpsellChoicesText(productId, product) {
@@ -16073,7 +16531,13 @@
       function addToCart(id, qty, note, choices, extraUnit, options) {
         options = options || {};
         var product = findProduct(id);
-        if (!product) return;
+        if (!product) return false;
+        var availability = canAddProductQty(product, qty);
+        if (!availability.ok) {
+          if (availability.info && availability.info.available > 0) showCartWarning(t('unavailableQty', { qty: availability.info.available }));
+          else showCartWarning(t('unavailableCart'));
+          return false;
+        }
         var promo = options.disablePromotion ? null : bestPromotionForProduct(product);
         var basePrice = productPrice(product);
         var finalPrice = promo && promo.calc ? promo.calc.final : basePrice;
@@ -16087,7 +16551,10 @@
         var upsellRuleId = options.upsellRuleId || '';
         var key = String(id) + '::' + String(note || '') + '::' + choiceText + '::' + promoId + '::' + relationDiscount + '::' + upsellRuleId;
         var found = cart.find(function (item) { return item.key === key; });
-        if (found) found.qty += qty;
+        if (found) {
+          found.qty += qty;
+          if (!Array.isArray(found.stockChoices) || !found.stockChoices.length) found.stockChoices = Array.isArray(options.stockChoices) ? options.stockChoices : [];
+        }
         else cart.push({
           key: key,
           id: id,
@@ -16097,6 +16564,7 @@
           price: unitPrice,
           originalPrice: originalUnitPrice,
           choices: choices || [],
+          stockChoices: Array.isArray(options.stockChoices) ? options.stockChoices : [],
           addAlsoDiscount: relationDiscount,
           upsellRuleId: upsellRuleId,
           upsellRuleName: options.upsellRuleName || '',
@@ -16126,6 +16594,7 @@
         });
         renderCart();
         if (!options.disableCartUpsellPrompt) scheduleCartUpsellPrompt();
+        return true;
       }
 
       function cartTotal() {
@@ -16719,11 +17188,26 @@
         if (!hasConfiguredSource) src = ['Dinheiro', 'Cartão', 'MB Way', 'Bizum'];
         return src.map(function (item) {
           if (!item) return null;
-          if (typeof item === 'string') return { name: item, instructions: '' };
-          if (typeof item !== 'object') return { name: firstText(String(item), ''), instructions: '' };
+          if (typeof item === 'string') return { name: item, displayName: paymentPublicName(item), instructions: '' };
+          if (typeof item !== 'object') return { name: firstText(String(item), ''), displayName: paymentPublicName(String(item)), instructions: '' };
           if (item && (item.active === false || item.enabled === false)) return null;
-          return { name: firstText(item.name, item.label, item.title, item.id), instructions: firstText(item.instructions, item.note, item.description) };
+          var name = firstText(item.name, item.label, item.title, item.id);
+          return { name: name, displayName: paymentPublicName(name, item), instructions: firstText(item.instructions, item.note, item.description) };
         }).filter(function (item) { return item && item.name; });
+      }
+
+      function paymentPublicName(name, item) {
+        var token = normalizePaymentToken(firstText(name, item && item.name, item && item.label, item && item.id));
+        var isOnlineCard = token.indexOf('stripe') >= 0 || token.indexOf('online') >= 0 || (item && (item.provider === 'stripe' || item.stripe === true || item.stripeConnected === true));
+        if (isOnlineCard) return t('paymentCardOnline');
+        if (token === 'dinheiro' || token === 'cash' || token === 'efectivo' || token === 'efetivo') return t('paymentCash');
+        if (token === 'cartao' || token === 'cartao presencial' || token === 'tarjeta' || token === 'card') return t('paymentCard');
+        if (token === 'transferencia' || token === 'transferencia bancaria' || token === 'bank transfer' || token === 'virement bancaire') return t('paymentTransfer');
+        if (token === 'debito direto' || token === 'domiciliacion bancaria' || token === 'direct debit' || token === 'prelevement bancaire') return t('paymentDirectDebit');
+        if (token === 'cheque' || token === 'check') return t('paymentCheck');
+        if (token === 'outro' || token === 'otro' || token === 'other' || token === 'autre') return t('paymentOther');
+        if (token === 'multibanco') return t('paymentBankSlip');
+        return name;
       }
 
       function renderPaymentMethods() {
@@ -16731,11 +17215,11 @@
         var buttons = document.getElementById('payment-options');
         var methods = paymentMethods();
         select.innerHTML = '<option value="" disabled selected>' + text(t('select')) + '</option>' + methods.map(function (item) {
-          return '<option value="' + text(item.name) + '" data-instructions="' + text(item.instructions) + '">' + text(item.name) + '</option>';
+          return '<option value="' + text(item.name) + '" data-instructions="' + text(item.instructions) + '">' + text(item.displayName || item.name) + '</option>';
         }).join('');
         if (buttons) {
           buttons.innerHTML = methods.map(function (item) {
-            return '<button class="payment-option" type="button" data-payment-option="' + text(item.name) + '">' + text(item.name) + '</button>';
+            return '<button class="payment-option" type="button" data-payment-option="' + text(item.name) + '">' + text(item.displayName || item.name) + '</button>';
           }).join('');
           buttons.querySelectorAll('[data-payment-option]').forEach(function (btn) {
             btn.onclick = function () {
@@ -17179,6 +17663,15 @@
       function changeLine(key, delta) {
         var item = cart.find(function (line) { return line.key === key; });
         if (!item) return;
+        if (delta > 0) {
+          var product = findProduct(item.id);
+          var availability = canAddProductQty(product, 1);
+          if (!availability.ok) {
+            if (availability.info && availability.info.available > 0) showCartWarning(t('unavailableQty', { qty: availability.info.available }));
+            else showCartWarning(t('unavailableCart'));
+            return;
+          }
+        }
         item.qty += delta;
         if (item.qty <= 0) cart = cart.filter(function (line) { return line.key !== key; });
         renderCart();
@@ -17509,7 +18002,7 @@
           lines.push('📍 ' + t('whatsappAddress') + ': ' + pickupAddressLine());
         }
         lines.push('⏰ ' + t('whatsappTime') + ': ' + whatsappScheduleLabel(slotKey, slotLabelText));
-        if (payment) lines.push('💳 ' + t('whatsappPayment') + ': ' + payment);
+        if (payment) lines.push('💳 ' + t('whatsappPayment') + ': ' + paymentPublicName(payment));
         if (customerName) lines.push(t('customer') + ': ' + customerName);
         if (customerPhone) lines.push(t('phone') + ': ' + customerPhone);
         if (note) lines.push('📝 ' + t('observation') + ': ' + note);
@@ -17636,7 +18129,7 @@
           items: cart.map(function (item) {
             var linePrice = cartLineUnitPrice(item);
             var linePromo = item.promo && cartLinePromoApplies(item) ? item.promo : null;
-            return { id: item.id, name: item.name, qty: item.qty, price: linePrice, originalPrice: item.originalPrice || item.price, promoUnitPrice: linePrice, promoDiscountTotal: cartLinePromoSaving(item), promo: linePromo, addAlsoDiscount: item.addAlsoDiscount || 0, upsellRuleId: item.upsellRuleId || '', upsellRuleName: item.upsellRuleName || '', upsellBenefitType: item.upsellBenefitType || '', relatedToProductId: item.relatedToProductId || '', relatedToProductName: item.relatedToProductName || '', internalNote: item.internalNote || '', productInternalNote: item.productInternalNote || item.internalNote || '', total: cartLineTotal(item), note: item.note || '', choices: item.choices || [] };
+            return { id: item.id, name: item.name, qty: item.qty, price: linePrice, originalPrice: item.originalPrice || item.price, promoUnitPrice: linePrice, promoDiscountTotal: cartLinePromoSaving(item), promo: linePromo, addAlsoDiscount: item.addAlsoDiscount || 0, upsellRuleId: item.upsellRuleId || '', upsellRuleName: item.upsellRuleName || '', upsellBenefitType: item.upsellBenefitType || '', relatedToProductId: item.relatedToProductId || '', relatedToProductName: item.relatedToProductName || '', internalNote: item.internalNote || '', productInternalNote: item.productInternalNote || item.internalNote || '', total: cartLineTotal(item), note: item.note || '', choices: item.choices || [], stockChoices: item.stockChoices || [] };
           }),
           subtotal: extra.subtotal,
           originalSubtotal: extra.originalSubtotal || extra.subtotal,
@@ -18221,7 +18714,10 @@
         document.getElementById('modal-add').onclick = function () {
           if (!modalProduct) return;
           if (modalRequiredMissing()) { document.getElementById('modal-variants').scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
-          addToCart(modalProduct.id, modalQty, document.getElementById('modal-note').value.trim(), modalVariantChoicesLabels(), modalMainUnitExtra());
+          var added = addToCart(modalProduct.id, modalQty, document.getElementById('modal-note').value.trim(), modalVariantChoicesLabels(), modalMainUnitExtra(), {
+            stockChoices: modalVariantStockChoices()
+          });
+          if (!added) return;
           addModalRelatedItemsToCart();
           closeProduct();
         };
@@ -18257,7 +18753,7 @@
               activeTenantId = candidates[i];
               loadStep = 'carregar dados do tenant';
               var docs = await Promise.all([
-                safeConfig('geral'), safeConfig('aparencia'), safeConfig('template'), safeConfig('operacao'), safeConfig('horarios'), safeConfig('zonas'), safeConfig('pontos_program'), safeConfig('integracoes'), safeConfig('seo'), safeDocs('categories'), safeDocs('products'), safeDocs('variantGroups'), safeDocs('tags'), safeDocs('reviews'), safeDocs('promotions'), safeDocs('promocoes'), safeDocs('coupons'), safeDocs('upsellRules'), safeDocs('orderSlots'), safeDocs('store_customers'), safeDocs('points_movements')
+                safeConfig('geral'), safeConfig('aparencia'), safeConfig('template'), safeConfig('operacao'), safeConfig('horarios'), safeConfig('zonas'), safeConfig('pontos_program'), safeConfig('integracoes'), safeConfig('seo'), safeDocs('categories'), safeDocs('products'), safeDocs('variantGroups'), safeDocs('tags'), safeDocs('reviews'), safeDocs('promotions'), safeDocs('promocoes'), safeDocs('coupons'), safeDocs('upsellRules'), safeDocs('orderSlots'), safeDocs('store_customers'), safeDocs('points_movements'), safeDocs('stock_movements'), safeDocs('fichasTecnicas'), safeDocs('itens_custo')
               ]);
               configuredStoreLanguage = firstText(
                 docs[2] && docs[2].language,
@@ -18285,7 +18781,10 @@
               slotCounts = (docs[18] || []).reduce(function (acc, item) { if (item && item.id) acc[item.id] = num(item.count); return acc; }, {});
               storeCustomers = docs[19] || [];
               pointsMovements = docs[20] || [];
-              window.__templateTenantDebug = { requestedTenantId: tenantId, activeTenantId: activeTenantId, configLoaded: Object.keys(cfg).length, categoriesLoaded: categories.length, productsLoaded: products.length, variantGroupsLoaded: variantGroups.length, tagsLoaded: productTags.length, reviewsLoaded: reviews.length, promotionsLoaded: promotions.length, couponsLoaded: coupons.length, upsellRulesLoaded: upsellRules.length, customersLoaded: storeCustomers.length, pointsMovementsLoaded: pointsMovements.length };
+              stockMovements = docs[21] || [];
+              stockRecipes = docs[22] || [];
+              stockCostItems = docs[23] || [];
+              window.__templateTenantDebug = { requestedTenantId: tenantId, activeTenantId: activeTenantId, configLoaded: Object.keys(cfg).length, categoriesLoaded: categories.length, productsLoaded: products.length, variantGroupsLoaded: variantGroups.length, tagsLoaded: productTags.length, reviewsLoaded: reviews.length, promotionsLoaded: promotions.length, couponsLoaded: coupons.length, upsellRulesLoaded: upsellRules.length, customersLoaded: storeCustomers.length, pointsMovementsLoaded: pointsMovements.length, stockMovementsLoaded: stockMovements.length, stockRecipesLoaded: stockRecipes.length, stockCostItemsLoaded: stockCostItems.length };
               if (Object.keys(cfg).length || categories.length || products.length) break;
             }
           }

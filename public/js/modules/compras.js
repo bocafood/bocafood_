@@ -12,6 +12,8 @@ Modules.Compras = (function () {
   var _contas = [];
   var _finCategorias = [];
   var _finFormas = [];
+  var _systemConfig = {};
+  var _configGeral = {};
   var _fiscalConfig = {};
   var _editingId = null;
   var _editingKind = '';
@@ -159,7 +161,9 @@ Modules.Compras = (function () {
       DB.getAll('compras'), DB.getAll('fornecedores'), DB.getAll('itens_custo'),
       DB.getAll('contas_bancarias'), DB.getAll('financeiro_categorias'),
       DB.getDoc('config', 'financeiro'), DB.getAll('financeiro_apagar'),
-      DB.getAll('contas_pagar'), DB.getAll('movimentacoes'), DB.getDocRoot('config', 'fiscal')
+      DB.getAll('contas_pagar'), DB.getAll('movimentacoes'), DB.getDocRoot('config', 'fiscal'),
+      DB.getSystemConfig ? DB.getSystemConfig() : Promise.resolve({}),
+      DB.getDocRoot('config', 'geral').catch(function () { return {}; })
     ]).then(function (r) {
       _compras = (r[0] || []).sort(function (a, b) { return (b.data || '').localeCompare(a.data || ''); });
       _fornecedores = r[1] || [];
@@ -170,6 +174,8 @@ Modules.Compras = (function () {
       _finFormas = (finConfig.formas_pagamento && finConfig.formas_pagamento.length) ? finConfig.formas_pagamento : [];
       _comprasFinanceiroStatus = _buildComprasFinanceiroStatus(r[6] || [], r[7] || [], r[8] || []);
       _fiscalConfig = r[9] || {};
+      _systemConfig = r[10] || {};
+      _configGeral = r[11] || {};
       _paintRegistros();
     });
   }
@@ -1652,9 +1658,8 @@ Modules.Compras = (function () {
 
   // Formas de pagamento reais do módulo Financeiro (com fallback à lista padrão)
   function _finFormasPagOptions(selected) {
-    var FALLBACK = ['A definir', 'Cartão', 'Débito direto', 'Dinheiro', 'MB WAY', 'Outro', 'Transferência'];
     selected = selected || '';
-    var list = (_finFormas && _finFormas.length) ? _finFormas.slice() : FALLBACK.slice();
+    var list = _purchasePaymentMethods();
     var normalized = [];
     var seen = {};
     function addForma(item, force) {
@@ -1662,18 +1667,96 @@ Modules.Compras = (function () {
         ? { nome: item, ativo: true }
         : Object.assign({ ativo: true }, item || {});
       var nome = (forma.nome || forma.name || forma.label || '').trim();
-      if (!nome || seen[nome]) return;
+      var key = _paymentMethodKey(nome);
+      if (!nome || seen[key]) return;
       if (!force && forma.ativo === false) return;
-      seen[nome] = true;
+      if (!force && !_paymentMethodCountryAllowed(forma.tipoGlobalCountry || forma.countryFiscal || forma.fiscalCountry || forma.country || '', nome)) return;
+      seen[key] = true;
       normalized.push({ nome: nome, inactive: forma.ativo === false });
     }
     addForma('A definir', true);
     list.forEach(function (item) { addForma(item, false); });
-    if (selected && !seen[selected]) addForma({ nome: selected, ativo: false }, true);
+    if (selected && !seen[_paymentMethodKey(selected)]) addForma({ nome: selected, ativo: false }, true);
     return normalized.map(function (p) {
       var label = p.nome + (p.inactive ? ' (inativa)' : '');
       return '<option value="' + _esc(p.nome) + '"' + (selected === p.nome ? ' selected' : '') + '>' + _esc(label) + '</option>';
     }).join('');
+  }
+
+  function _purchasePaymentMethods() {
+    var raw = Array.isArray(_finFormas) ? _finFormas.slice() : [];
+    var seen = {};
+    function keyFor(item) {
+      var name = typeof item === 'string' ? item : (item && (item.nome || item.name || item.tipoGlobalNome || item.tipo || item.id || item.slug || ''));
+      return _paymentMethodKey(name);
+    }
+    raw.forEach(function (item) {
+      var key = keyFor(item);
+      if (key) seen[key] = true;
+    });
+    var global = (((_systemConfig || {}).globalFinance || {}).paymentMethodTypes || []);
+    global.forEach(function (item) {
+      var name = item && (item.name || item.nome || item.label || item.id || item.slug || '');
+      var key = _paymentMethodKey(name);
+      if (!key || seen[key]) return;
+      if (!_paymentMethodCountryAllowed(item.countryFiscal || item.fiscalCountry || item.country || item.tipoGlobalCountry || '', name)) return;
+      seen[key] = true;
+      raw.push({
+        nome: name,
+        tipo: name,
+        tipoGlobalId: item.id || '',
+        tipoGlobalSlug: item.slug || '',
+        tipoGlobalNome: name,
+        tipoGlobalCountry: item.countryFiscal || item.fiscalCountry || item.country || 'ambos',
+        ativo: item.active !== false,
+        exigeConta: item.requiresBankAccount === true,
+        prazoCompensacaoDias: item.defaultCompensationDays || 0
+      });
+    });
+    if (!raw.length) {
+      ['Cartão', 'Débito direto', 'Dinheiro', 'Outro', 'Transferência'].forEach(function (name) {
+        raw.push({ nome: name, ativo: true, tipoGlobalCountry: 'ambos' });
+      });
+      if (_tenantFiscalCountry() === 'PT') raw.push({ nome: 'MB Way', ativo: true, tipoGlobalCountry: 'PT' }, { nome: 'Multibanco', ativo: true, tipoGlobalCountry: 'PT' });
+      if (_tenantFiscalCountry() === 'ES') raw.push({ nome: 'Bizum', ativo: true, tipoGlobalCountry: 'ES' });
+    }
+    return raw;
+  }
+
+  function _paymentMethodKey(name) {
+    return String(name || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ');
+  }
+
+  function _paymentCountryByName(name) {
+    var key = _paymentMethodKey(name);
+    if (key === 'mb way' || key === 'mbway' || key === 'multibanco') return 'PT';
+    if (key === 'bizum') return 'ES';
+    return '';
+  }
+
+  function _tenantFiscalCountry() {
+    var profile = (window.Auth && Auth.getAdminProfile) ? (Auth.getAdminProfile() || {}) : {};
+    var fromAuth = (window.Auth && Auth.getFiscalCountry) ? Auth.getFiscalCountry() : '';
+    var candidates = [
+      _configGeral && (_configGeral.fiscalCountry || _configGeral.countryFiscal || _configGeral.paisFiscal || _configGeral.country),
+      profile && profile.fiscalCountry,
+      profile && profile.accountAddress && profile.accountAddress.fiscalCountry,
+      profile && profile.store && profile.store.fiscalCountry,
+      fromAuth
+    ];
+    for (var i = 0; i < candidates.length; i++) {
+      var code = _countryCode(candidates[i]);
+      if (code === 'PT' || code === 'ES') return code;
+    }
+    return 'ES';
+  }
+
+  function _paymentMethodCountryAllowed(country, name) {
+    var raw = String(country || '').trim().toLowerCase();
+    if (!raw) raw = _paymentCountryByName(name);
+    if (!raw || raw === 'ambos' || raw === 'both' || raw === 'all' || raw === 'geral') return true;
+    var code = _countryCode(raw);
+    return code === _tenantFiscalCountry();
   }
 
   // Categorias financeiras do tipo saída (para contas a pagar)
@@ -3485,8 +3568,14 @@ Modules.Compras = (function () {
   function _renderFornecedores() {
     var p1 = DB.getAll('fornecedores');
     var p2 = window.BocaPlaces ? BocaPlaces.loadConfig() : Promise.resolve({});
-    Promise.all([p1, p2]).then(function (r) {
+    var p3 = DB.getDocRoot('config', 'financeiro').catch(function () { return {}; });
+    var p4 = DB.getSystemConfig ? DB.getSystemConfig() : Promise.resolve({});
+    var p5 = DB.getDocRoot('config', 'geral').catch(function () { return {}; });
+    Promise.all([p1, p2, p3, p4, p5]).then(function (r) {
       _fornecedores = (r[0] || []).sort(function (a, b) { return (a.name || '').localeCompare(b.name || ''); });
+      _finFormas = (r[2] && r[2].formas_pagamento && r[2].formas_pagamento.length) ? r[2].formas_pagamento : [];
+      _systemConfig = r[3] || {};
+      _configGeral = r[4] || {};
       _paintFornecedores();
     }).catch(function () {
       DB.getAll('fornecedores').then(function (data) {

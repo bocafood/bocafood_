@@ -10,6 +10,7 @@ Modules.Catalogo = (function () {
   var _fichas = [];
   var _produtosProntos = [];
   var _stockCompositionItems = [];
+  var _baseCompositionItems = [];
   var _tags = [];
   var _promotions = [];
   var _coupons = [];
@@ -33,6 +34,7 @@ Modules.Catalogo = (function () {
   var _fiscalConfig = {};
   var _financeSaidas = [];
   var _financeApagar = [];
+  var _stockMovements = [];
   var USE_FIREBASE_STORAGE_UPLOAD = true;
 
   function _newEntityId(prefix) {
@@ -1144,7 +1146,9 @@ Modules.Catalogo = (function () {
       DB.getAll('variantGroups'),
       DB.getAll('tags'),
       DB.getAll('promotions'),
-      DB.getDocRoot ? DB.getDocRoot('config', 'fiscal').catch(function () { return {}; }) : Promise.resolve({})
+      DB.getDocRoot ? DB.getDocRoot('config', 'fiscal').catch(function () { return {}; }) : Promise.resolve({}),
+      DB.getAll('stock_movements').catch(function () { return []; }),
+      DB.getAll('stock_settings').catch(function () { return []; })
     ]).then(function (r) {
       _categories = r[0] || [];
       _fichas = r[1] || [];
@@ -1154,6 +1158,8 @@ Modules.Catalogo = (function () {
       _tags = r[4] || [];
       _promotions = r[5] || [];
       _fiscalConfig = r[6] || {};
+      _stockMovements = r[7] || [];
+      _baseCompositionItems = _normalizeBaseCompositionItems(r[8] || []);
       _buildProductModal(p, id);
     });
   }
@@ -1244,6 +1250,16 @@ Modules.Catalogo = (function () {
           .product-modal-admin details[open] summary span:last-child{transform:rotate(90deg);}
           .product-modal-admin .pm-help-btn{height:30px;border:1px solid #E8DCD7;background:#fff;color:#8A6F5A;border-radius:999px;padding:0 10px;font-family:inherit;font-size:11px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:5px;box-shadow:0 1px 2px rgba(31,31,31,.03);}
           .product-modal-admin .pm-help-btn:hover{background:#FFF8F2;border-color:#E8D1BF;}
+          .product-modal-admin .pm-chain-card{border:1px solid #E8DCD7;border-radius:14px;background:#FFFCF8;padding:12px;margin-top:12px;}
+          .product-modal-admin .pm-chain-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+          .product-modal-admin .pm-chain-title{font-size:12px;font-weight:850;color:#1F1F1F;line-height:1.25;}
+          .product-modal-admin .pm-chain-text{font-size:11.5px;color:#6F6860;line-height:1.45;margin-top:3px;}
+          .product-modal-admin .pm-chain-pill{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 9px;border-radius:999px;border:1px solid #DDE8D9;background:#F5FBF2;color:#2F6B57;font-size:11px;font-weight:850;white-space:nowrap;}
+          .product-modal-admin .pm-chain-pill.warn{border-color:#F7D9A7;background:#FFF8E8;color:#9A6A2F;}
+          .product-modal-admin .pm-chain-pill.danger{border-color:#F1C3BD;background:#FFF3F1;color:#B42318;}
+          .product-modal-admin .pm-chain-list{display:grid;gap:7px;margin-top:10px;}
+          .product-modal-admin .pm-chain-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;border-top:1px solid #EFE4DC;padding-top:7px;font-size:11.5px;color:#5F5750;}
+          .product-modal-admin .pm-chain-row strong{display:block;color:#1F1F1F;font-size:12px;line-height:1.25;}
           @media(max-width:760px){.product-modal-admin section:first-of-type>div:nth-child(2){grid-template-columns:1fr!important}.product-modal-admin section:first-of-type>div:nth-child(2)>div:first-child{max-width:100%;}.product-modal-admin section:first-of-type [style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important}.product-modal-admin details>div{grid-template-columns:1fr!important}.product-modal-admin button{min-height:42px;}.product-modal-admin [data-menu-selected]{grid-template-columns:22px 34px minmax(120px,1fr) 108px 58px 30px!important;min-width:390px;}.product-modal-admin .pm-internal-row{grid-template-columns:1fr 1fr!important}.product-modal-admin .pm-internal-row>div:first-child{grid-column:1/-1}.product-modal-admin .pm-internal-row>button{width:100%!important;grid-column:1/-1;}}
         </style>
         <div style="display:flex;flex-direction:column;gap:14px;">
@@ -1297,8 +1313,8 @@ Modules.Catalogo = (function () {
                 <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;"><input type="radio" name="pm-unico-src" value="produto_pronto"${unicoSubPronto ? ' checked' : ''} onchange="Modules.Catalogo._onUnicoSrcChange();Modules.Catalogo._refreshProductPreview()" style="accent-color:#B42318;"> Produto pronto</label>
                 <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;"><input type="radio" name="pm-unico-src" value="composicao_interna"${unicoSubComposicao ? ' checked' : ''} onchange="Modules.Catalogo._onUnicoSrcChange();Modules.Catalogo._refreshProductPreview()" style="accent-color:#B42318;"> Montagem interna</label>
               </div>
-              <div id="pm-unico-receita-panel" style="display:${unicoSubReceita ? 'block' : 'none'};margin-bottom:10px;"><label style="${_fichaLbl()}">Receita</label><select id="pm-ficha-id" style="${_fichaInp()}background:#fff;"><option value="">Selecionar receita...</option>${fichaOptions}</select></div>
-              <div id="pm-unico-pronto-panel" style="display:${unicoSubPronto ? 'block' : 'none'};margin-bottom:10px;"><label style="${_fichaLbl()}">Produto pronto</label><select id="pm-pronto-id" style="${_fichaInp()}background:#fff;"><option value="">Selecionar produto pronto...</option>${prontoOptions}</select></div>
+              <div id="pm-unico-receita-panel" style="display:${unicoSubReceita ? 'block' : 'none'};margin-bottom:10px;"><label style="${_fichaLbl()}">Receita</label><select id="pm-ficha-id" onchange="Modules.Catalogo._refreshProductPreview()" style="${_fichaInp()}background:#fff;"><option value="">Selecionar receita...</option>${fichaOptions}</select></div>
+              <div id="pm-unico-pronto-panel" style="display:${unicoSubPronto ? 'block' : 'none'};margin-bottom:10px;"><label style="${_fichaLbl()}">Produto pronto</label><select id="pm-pronto-id" onchange="Modules.Catalogo._refreshProductPreview()" style="${_fichaInp()}background:#fff;"><option value="">Selecionar produto pronto...</option>${prontoOptions}</select></div>
               <div id="pm-unico-composicao-panel" style="display:${unicoSubComposicao ? 'block' : 'none'};margin-bottom:10px;">
                 <div style="background:#FFFCF8;border:1px solid #E8DCD7;border-radius:14px;padding:11px 12px;margin-bottom:11px;font-size:12px;color:#6F6860;line-height:1.45;">
                   Use quando a cliente compra um item simples, mas por dentro ele é montado com outras coisas do estoque. Preencha tudo que sai do estoque para <strong style="color:#1F1F1F;">1 unidade vendida</strong>, como brigadeiros produzidos e a embalagem final do kit. Isso não aparece para a cliente.
@@ -1311,6 +1327,7 @@ Modules.Catalogo = (function () {
                 <div id="pm-internal-composition-list" style="display:flex;flex-direction:column;gap:9px;">${internalCompositionHtml}</div>
                 <button type="button" onclick="Modules.Catalogo._addInternalCompositionItem()" style="width:100%;padding:10px;border-radius:10px;border:1px dashed #E3D7C9;background:transparent;font-size:13px;font-weight:700;cursor:pointer;color:#7A746B;font-family:inherit;margin-top:9px;">+ Adicionar item interno</button>
               </div>
+              <div id="pm-stock-chain-preview"></div>
             </div>
           </section>
           <section id="pm-panel-menu" style="display:${tipoMenu ? 'block' : 'none'};background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">
@@ -1482,6 +1499,7 @@ Modules.Catalogo = (function () {
     var id = item.itemId || item.fichaTecnicaId || item.fichaId || item.sourceItemId || item.produtoProntoId || '';
     if (!id) return '';
     if (type === 'produto_produzido' || item.fichaTecnicaId || item.fichaId) return 'ficha:' + id;
+    if (type === 'base_producao') return 'base_producao:' + id;
     return 'item:' + id;
   }
 
@@ -1514,6 +1532,31 @@ Modules.Catalogo = (function () {
     });
   }
 
+  function _normalizeBaseCompositionItems(settings) {
+    return (settings || []).filter(function (item) {
+      var type = String((item && (item.stockItemType || item.itemType || item.type)) || '').toLowerCase();
+      var key = String((item && item.stockKey) || '');
+      return item && item.active !== false && item.ativo !== false && (type === 'base_producao' || key.indexOf('base_producao:') === 0);
+    }).map(function (item) {
+      var key = String(item.stockKey || '');
+      var itemId = item.itemId || (key.indexOf(':') >= 0 ? key.split(':').slice(1).join(':') : item.id) || '';
+      return {
+        id: item.id || itemId,
+        ref: 'base_producao:' + itemId,
+        label: item.itemName || item.name || item.baseProductionName || 'Base de produção',
+        unit: item.unit || item.yieldUnit || '',
+        unitCost: _moneyLike(item.unitCost || 0),
+        stockItemType: 'base_producao',
+        classe: 'base_producao',
+        note: 'Base de produção'
+      };
+    }).filter(function (item) {
+      return item.id && item.ref !== 'base_producao:';
+    }).sort(function (a, b) {
+      return String(a.label || '').localeCompare(String(b.label || ''));
+    });
+  }
+
   function _compositionOptions() {
     var recipeRows = (_fichas || []).map(function (f) {
       var cost = 0;
@@ -1530,7 +1573,7 @@ Modules.Catalogo = (function () {
         note: 'Produto produzido'
       };
     });
-    return recipeRows.concat(_stockCompositionItems || []);
+    return recipeRows.concat(_baseCompositionItems || [], _stockCompositionItems || []);
   }
 
   function _compositionItemMeta(ref) {
@@ -1542,7 +1585,7 @@ Modules.Catalogo = (function () {
       label: found.label || '',
       unit: found.unit || 'un',
       unitCost: _moneyLike(found.unitCost || 0),
-      stockItemType: found.stockItemType || (parts[0] === 'ficha' ? 'produto_produzido' : ''),
+      stockItemType: found.stockItemType || (parts[0] === 'ficha' ? 'produto_produzido' : (parts[0] === 'base_producao' ? 'base_producao' : '')),
       note: found.note || ''
     };
   }
@@ -1581,6 +1624,13 @@ Modules.Catalogo = (function () {
       var text = item.label + (item.note ? ' · ' + item.note : '');
       return '<option value="' + _esc(item.ref) + '"' + (String(selectedRef || '') === String(item.ref || '') ? ' selected' : '') + '>' + _esc(text) + '</option>';
     }).join('') + (!options.length ? '<option value="" disabled>Nenhum item encontrado na busca</option>' : '');
+  }
+
+  function _compositionAllOptionsHtml(selectedRef) {
+    return '<option value="">Não baixa estoque nesta opção</option>' + _compositionOptions().map(function (item) {
+      var text = item.label + (item.note ? ' · ' + item.note : '');
+      return '<option value="' + _esc(item.ref) + '"' + (String(selectedRef || '') === String(item.ref || '') ? ' selected' : '') + '>' + _esc(text) + '</option>';
+    }).join('');
   }
 
   function _internalCompositionRowHtml(idx, item) {
@@ -1720,6 +1770,250 @@ Modules.Catalogo = (function () {
     return items.reduce(function (sum, item) {
       return sum + (_moneyLike(item.quantity) * _moneyLike(item.unitCost));
     }, 0);
+  }
+
+  function _stockClassFromCostItem(item) {
+    var raw = String((item && (item.classe || item.itemClass || item.stockItemType || item.class || item.tipoCadastro)) || '').toLowerCase();
+    if (raw === 'embalagem' || raw === 'embalagens') return 'embalagem';
+    if (raw === 'produto' || raw === 'produto_pronto') return 'produto_pronto';
+    return 'insumo';
+  }
+
+  function _stockBalanceMapForCatalog() {
+    var map = {};
+    function add(key, name, unit, delta) {
+      if (!key) return;
+      if (!map[key]) map[key] = { key: key, name: name || '', unit: unit || '', balance: 0 };
+      map[key].name = map[key].name || name || '';
+      map[key].unit = map[key].unit || unit || '';
+      map[key].balance += _moneyLike(delta);
+    }
+    (_stockMovements || []).forEach(function (m) {
+      if (!m || !m.type) return;
+      var type = m.type;
+      var direction = 0;
+      if (type === 'entrada_compra' || type === 'entrada_producao' || type === 'entrada_base_producao' || type === 'retorno_venda' || type === 'estorno_venda' || type === 'ajuste_entrada') direction = 1;
+      if (type === 'saida_producao' || type === 'saida_venda' || type === 'saida_base_venda' || type === 'estorno_compra' || type === 'estorno_producao_produto' || type === 'estorno_base_producao' || type === 'ajuste_saida') direction = -1;
+      if (!direction) return;
+      var qty = _moneyLike(m.quantityProduced != null ? m.quantityProduced : m.quantity);
+      if (!(qty > 0)) return;
+      if (type === 'entrada_producao' || type === 'estorno_producao_produto') {
+        add('produto_produzido:' + (m.fichaTecnicaId || ''), m.fichaTecnicaNome || 'Produto produzido', m.yieldUnit || m.unit || '', direction * qty);
+        return;
+      }
+      if (type === 'entrada_base_producao' || type === 'saida_base_venda' || type === 'estorno_base_producao') {
+        add('base_producao:' + (m.baseProductionId || m.componentName || ''), m.baseProductionName || m.componentName || 'Base de produção', m.yieldUnit || m.unit || '', direction * qty);
+        return;
+      }
+      if (type === 'saida_venda' || type === 'retorno_venda' || type === 'estorno_venda') {
+        if (m.baseProductionId) add('base_producao:' + m.baseProductionId, m.baseProductionName || m.productName || 'Base de produção', m.unit || '', direction * qty);
+        else if (m.fichaTecnicaId) add('produto_produzido:' + m.fichaTecnicaId, m.fichaTecnicaNome || m.productName || 'Produto produzido', m.unit || '', direction * qty);
+        else if (m.sourceItemId || m.produtoProntoId) add('produto_pronto:' + (m.sourceItemId || m.produtoProntoId), m.productName || 'Produto pronto', m.unit || '', direction * qty);
+        return;
+      }
+      if (type === 'entrada_compra' || type === 'estorno_compra') {
+        var costItem = _itensCusto.find(function (item) { return String(item.id || '') === String(m.itemId || ''); }) || {};
+        var cls = _stockClassFromCostItem(costItem);
+        add(cls + ':' + (m.itemId || ''), m.itemName || costItem.nome || 'Item comprado', m.unit || costItem.unidade_base || '', direction * qty);
+        return;
+      }
+      if (type === 'saida_producao') {
+        var ingItem = _itensCusto.find(function (item) { return String(item.id || '') === String(m.ingredientId || ''); }) || {};
+        var ingClass = _stockClassFromCostItem(ingItem);
+        add(ingClass + ':' + (m.ingredientId || ''), m.ingredientName || ingItem.nome || 'Ingrediente', m.unit || ingItem.unidade_base || '', direction * qty);
+        return;
+      }
+      if (type === 'ajuste_entrada' || type === 'ajuste_saida') {
+        var stockType = m.stockItemType || m.itemClass || m.classe || 'insumo';
+        add(stockType + ':' + (m.itemId || ''), m.itemName || 'Item ajustado', m.unit || '', direction * qty);
+      }
+    });
+    Object.keys(map).forEach(function (key) {
+      map[key].balance = _roundFichaCost(map[key].balance, 4);
+    });
+    return map;
+  }
+
+  function _baseProductionIdForCatalog(recipe, comp, idx) {
+    comp = comp || {};
+    var existing = String(comp.baseProductionId || '').trim();
+    if (existing) return existing;
+    var shared = String(comp.sharedBaseId || '').trim();
+    if (shared) return shared;
+    var componentId = String(comp.componentId || comp.recipeComponentId || '').trim();
+    if (componentId) return componentId.indexOf('base_component:') === 0 ? componentId : 'base_component:' + componentId;
+    return (recipe && recipe.id ? recipe.id : '') + ':' + (comp.name || ('etapa_' + (idx || 0)));
+  }
+
+  function _sameYieldFamily(a, b) {
+    var ka = _recipeYieldUnitKey(a);
+    var kb = _recipeYieldUnitKey(b);
+    if (!ka || !kb) return false;
+    if (ka === kb) return true;
+    if ((ka === 'g' || ka === 'kg') && (kb === 'g' || kb === 'kg')) return true;
+    if ((ka === 'ml' || ka === 'l') && (kb === 'ml' || kb === 'l')) return true;
+    return false;
+  }
+
+  function _baseRequirementPerYieldUnit(recipe, comp) {
+    var recipeQty = _parseFichaNum(recipe && (recipe.yieldQuantity || recipe.yield || 0)) || 1;
+    var recipeUnit = recipe && recipe.yieldUnit || 'unidades';
+    var stageQty = _parseFichaNum(comp.stageYieldQuantity || comp.baseYieldQuantity || comp.stockYieldQuantity || 0);
+    var stageUnit = comp.stageYieldUnit || comp.baseYieldUnit || comp.stockYieldUnit || '';
+    if (!(stageQty > 0)) return 1;
+    if (_sameYieldFamily(stageUnit, recipeUnit) && _recipeYieldUnitKey(recipeUnit) === 'count') return 1;
+    return stageQty / Math.max(1, recipeQty);
+  }
+
+  function _recipeChainRequirements(recipe) {
+    recipe = recipe || {};
+    var reqs = [];
+    var recipeYieldQty = _parseFichaNum(recipe.yieldQuantity || recipe.yield || 0) || 1;
+    var recipeYieldUnit = recipe.yieldUnit || 'unidades';
+    _normalizeFichaComponents(recipe).forEach(function (comp, idx) {
+      if (comp.stockControl || comp.controlsStock) {
+        var baseId = _baseProductionIdForCatalog(recipe, comp, idx);
+        reqs.push({
+          key: 'base_producao:' + baseId,
+          name: comp.name || 'Base de produção',
+          unit: comp.baseYieldUnit || comp.stockYieldUnit || comp.stageYieldUnit || '',
+          requiredPerUnit: _baseRequirementPerYieldUnit(recipe, comp),
+          kind: 'base'
+        });
+        return;
+      }
+      var ratio = _componentUsageRatio(comp, recipeYieldQty, recipeYieldUnit).ratio;
+      (comp.ingredients || []).forEach(function (ing) {
+        var item = _itensCusto.find(function (x) { return String(x.id || '') === String(ing.insumoId || ''); }) || {};
+        var cls = _stockClassFromCostItem(item || ing);
+        var qty = _parseFichaNum(ing.appliedQty || 0);
+        if (!(qty > 0)) qty = _parseFichaNum(ing.qty || 0) * ratio;
+        var perUnit = qty / Math.max(1, recipeYieldQty);
+        if (ing.insumoId && perUnit > 0) {
+          reqs.push({
+            key: cls + ':' + ing.insumoId,
+            name: item.nome || ing.supplyName || 'Ingrediente',
+            unit: ing.unit || item.unidade_base || '',
+            requiredPerUnit: perUnit,
+            kind: cls === 'embalagem' ? 'embalagem' : 'ingrediente'
+          });
+        }
+      });
+    });
+    _normalizeFichaPackaging(recipe).forEach(function (pkg) {
+      var item = _itensCusto.find(function (x) { return String(x.id || '') === String(pkg.insumoId || ''); }) || {};
+      var qty = _parseFichaNum(pkg.qty || pkg.quantity || 0);
+      var perUnit = qty / Math.max(1, recipeYieldQty);
+      if (pkg.insumoId && perUnit > 0) {
+        reqs.push({
+          key: 'embalagem:' + pkg.insumoId,
+          name: item.nome || pkg.supplyName || 'Embalagem',
+          unit: pkg.unit || item.unidade_base || '',
+          requiredPerUnit: perUnit,
+          kind: 'embalagem'
+        });
+      }
+    });
+    return reqs;
+  }
+
+  function _mergeChainRequirements(reqs) {
+    var map = {};
+    (reqs || []).forEach(function (req) {
+      if (!req || !req.key || !(req.requiredPerUnit > 0)) return;
+      if (!map[req.key]) map[req.key] = Object.assign({}, req);
+      else map[req.key].requiredPerUnit += req.requiredPerUnit;
+    });
+    return Object.keys(map).map(function (key) {
+      map[key].requiredPerUnit = _roundFichaCost(map[key].requiredPerUnit, 6);
+      return map[key];
+    });
+  }
+
+  function _availabilityFromRequirements(reqs, balances) {
+    reqs = _mergeChainRequirements(reqs);
+    if (!reqs.length) {
+      return { status: 'empty', label: 'Sem composição para conferir', available: null, rows: [], message: 'Preencha a receita, produto pronto ou montagem interna para ver a disponibilidade.' };
+    }
+    var missing = [];
+    var limits = reqs.map(function (req) {
+      var stock = balances[req.key] || {};
+      var balance = _moneyLike(stock.balance || 0);
+      var max = req.requiredPerUnit > 0 ? Math.floor(balance / req.requiredPerUnit) : null;
+      var row = Object.assign({}, req, {
+        balance: balance,
+        balanceUnit: stock.unit || req.unit || '',
+        availableUnits: max == null ? null : Math.max(0, max)
+      });
+      if (!(balance > 0)) missing.push(row);
+      return row;
+    });
+    var finite = limits.filter(function (row) { return row.availableUnits != null; });
+    var available = finite.length ? Math.min.apply(Math, finite.map(function (row) { return row.availableUnits; })) : null;
+    var blocker = finite.slice().sort(function (a, b) { return a.availableUnits - b.availableUnits; })[0] || null;
+    var status = missing.length ? 'danger' : (available != null && available <= 3 ? 'warn' : 'ok');
+    var label = missing.length ? 'Falta item na cadeia' : (available == null ? 'Cadeia sem saldo calculado' : ('Até ' + available + ' unidade' + (available === 1 ? '' : 's')));
+    var message = missing.length
+      ? 'Existe item sem saldo suficiente. Nesta fase o BocaFood só mostra a leitura para conferência.'
+      : (blocker ? ('O limite vem de ' + blocker.name + '.') : 'A cadeia está pronta para conferência.');
+    return { status: status, label: label, available: available, rows: limits, blocker: blocker, message: message };
+  }
+
+  function _availabilityForRecipe(recipe, balances) {
+    if (!recipe || !recipe.id) return { status: 'empty', label: 'Selecione uma receita', rows: [], message: 'Escolha uma receita para ver a cadeia de produção.' };
+    var producedKey = 'produto_produzido:' + recipe.id;
+    var produced = balances[producedKey] || {};
+    var reqAvailability = _availabilityFromRequirements(_recipeChainRequirements(recipe), balances);
+    reqAvailability.producedBalance = _moneyLike(produced.balance || 0);
+    reqAvailability.producedUnit = produced.unit || recipe.yieldUnit || '';
+    return reqAvailability;
+  }
+
+  function _productChainAvailability(base) {
+    base = _normalizeProduct(base || {});
+    var balances = _stockBalanceMapForCatalog();
+    var tipoEl = document.querySelector('input[name="pm-tipo"]:checked');
+    var tipo = (tipoEl && tipoEl.value) || base.type || 'unico';
+    if (tipo !== 'unico') return { status: 'empty', label: 'Combo sem leitura nesta fase', rows: [], message: 'A leitura de combo entra depois, quando cada escolha tiver uma composição confirmada.' };
+    var srcEl = document.querySelector('input[name="pm-unico-src"]:checked');
+    var src = (srcEl && srcEl.value) || base.unicoSource || 'receita';
+    if (src === 'receita') {
+      var fichaId = ((document.getElementById('pm-ficha-id') || {}).value || base.fichaId || '').trim();
+      return _availabilityForRecipe(_fichas.find(function (f) { return String(f.id) === String(fichaId); }), balances);
+    }
+    if (src === 'produto_pronto' || src === 'compras_produto') {
+      var prontoId = ((document.getElementById('pm-pronto-id') || {}).value || base.produtoProntoId || base.sourceItemId || '').trim();
+      var pronto = _produtosProntos.find(function (pp) { return String(pp.id) === String(prontoId); }) || {};
+      return _availabilityFromRequirements([{ key: 'produto_pronto:' + prontoId, name: pronto.name || 'Produto pronto', unit: pronto.unit || '', requiredPerUnit: 1, kind: 'produto' }], balances);
+    }
+    var reqs = [];
+    _collectInternalCompositionDraft().forEach(function (item) {
+      var meta = _compositionItemMeta(item.ref);
+      if (!meta.ref || !(item.quantity > 0)) return;
+      if (meta.stockItemType === 'produto_produzido') {
+        reqs.push({ key: 'produto_produzido:' + meta.itemId, name: meta.label || 'Produto produzido', unit: meta.unit || '', requiredPerUnit: item.quantity, kind: 'produto_produzido' });
+      } else {
+        reqs.push({ key: (meta.stockItemType || item.stockItemType || 'insumo') + ':' + meta.itemId, name: meta.label || item.itemName || 'Item interno', unit: meta.unit || item.unit || '', requiredPerUnit: item.quantity, kind: meta.stockItemType || item.stockItemType || 'item' });
+      }
+    });
+    return _availabilityFromRequirements(reqs, balances);
+  }
+
+  function _productChainAvailabilityHtml(base) {
+    var info = _productChainAvailability(base || {});
+    var cls = info.status === 'danger' ? 'danger' : (info.status === 'warn' ? 'warn' : '');
+    var rows = (info.rows || []).slice(0, 5).map(function (row) {
+      return '<div class="pm-chain-row"><div><strong>' + _esc(row.name || 'Item') + '</strong><span>Precisa de ' + _esc(_roundFichaCost(row.requiredPerUnit, 4).toLocaleString('pt-BR', { maximumFractionDigits: 4 })) + ' ' + _esc(row.unit || '') + ' por unidade vendida</span></div><div style="text-align:right;font-weight:850;color:#1F1F1F;">' + _esc(_roundFichaCost(row.balance, 4).toLocaleString('pt-BR', { maximumFractionDigits: 4 })) + ' ' + _esc(row.balanceUnit || row.unit || '') + '</div></div>';
+    }).join('');
+    return '<div class="pm-chain-card">' +
+      '<div class="pm-chain-head">' +
+        '<div><div class="pm-chain-title">Disponibilidade em cadeia</div><div class="pm-chain-text">' + _esc(info.message || 'Confira se os itens internos têm saldo para vender este produto.') + '</div></div>' +
+        '<span class="pm-chain-pill ' + cls + '">' + _esc(info.label || 'Conferir cadeia') + '</span>' +
+      '</div>' +
+      (info.producedBalance > 0 ? '<div class="pm-chain-text" style="margin-top:8px;">Produto produzido já em estoque: <strong style="color:#1F1F1F;">' + _esc(_roundFichaCost(info.producedBalance, 4).toLocaleString('pt-BR', { maximumFractionDigits: 4 })) + ' ' + _esc(info.producedUnit || '') + '</strong>.</div>' : '') +
+      (rows ? '<div class="pm-chain-list">' + rows + '</div>' : '<div class="pm-chain-text" style="margin-top:8px;">Nenhum item interno encontrado para calcular agora.</div>') +
+      ((info.rows || []).length > 5 ? '<div class="pm-chain-text" style="margin-top:8px;">+' + ((info.rows || []).length - 5) + ' item(ns) na cadeia.</div>' : '') +
+    '</div>';
   }
 
   function _productPricingPreview(p) {
@@ -2041,6 +2335,8 @@ Modules.Catalogo = (function () {
       var cost = _productCostFromState(base);
       costEl.value = cost > 0 ? String(cost) : '';
     }
+    var chainEl = document.getElementById('pm-stock-chain-preview');
+    if (chainEl) chainEl.innerHTML = _productChainAvailabilityHtml(base);
     el.innerHTML = _productPreviewHtml(base);
   }
 
@@ -2324,7 +2620,18 @@ Modules.Catalogo = (function () {
         label: label,
         priceExtra: price,
         price: price,
-        img: _variantOptionImage(option)
+        img: _variantOptionImage(option),
+        stockRef: option.stockRef || option.stockItemRef || '',
+        stockItemRef: option.stockItemRef || option.stockRef || '',
+        stockItemId: option.stockItemId || '',
+        stockItemName: option.stockItemName || '',
+        stockItemType: option.stockItemType || '',
+        itemClass: option.itemClass || option.stockItemType || '',
+        classe: option.classe || option.stockItemType || '',
+        stockQuantity: option.stockQuantity != null ? option.stockQuantity : option.stockQty,
+        stockQuantityPerChoice: option.stockQuantityPerChoice != null ? option.stockQuantityPerChoice : option.stockQuantity,
+        stockUnit: option.stockUnit || option.unit || '',
+        stockUnitCost: option.stockUnitCost || option.unitCost || 0
       };
     }).filter(Boolean);
     if (!options.length) return null;
@@ -2355,7 +2662,18 @@ Modules.Catalogo = (function () {
         label: label,
         priceExtra: price,
         price: price,
-        img: _variantOptionImage(option) || _imgForEntity(_entityForMenuRef(option.ref)) || ''
+        img: _variantOptionImage(option) || _imgForEntity(_entityForMenuRef(option.ref)) || '',
+        stockRef: option.stockRef || option.stockItemRef || '',
+        stockItemRef: option.stockItemRef || option.stockRef || '',
+        stockItemId: option.stockItemId || '',
+        stockItemName: option.stockItemName || '',
+        stockItemType: option.stockItemType || '',
+        itemClass: option.itemClass || option.stockItemType || '',
+        classe: option.classe || option.stockItemType || '',
+        stockQuantity: option.stockQuantity != null ? option.stockQuantity : option.stockQty,
+        stockQuantityPerChoice: option.stockQuantityPerChoice != null ? option.stockQuantityPerChoice : option.stockQuantity,
+        stockUnit: option.stockUnit || option.unit || '',
+        stockUnitCost: option.stockUnitCost || option.unitCost || 0
       };
     }).filter(Boolean);
     if (!options.length) return null;
@@ -3065,11 +3383,24 @@ Modules.Catalogo = (function () {
         var options = [];
         groupEl.querySelectorAll('[data-menu-selected="' + idx + '"]').forEach(function (opt) {
           var priceEl = opt.querySelector('[data-menu-price="' + idx + '"]');
+          var ref = opt.dataset.ref || '';
+          var meta = _compositionItemMeta(ref);
           options.push({
-            ref: opt.dataset.ref,
-            label: opt.dataset.label || opt.dataset.ref,
+            ref: ref,
+            label: opt.dataset.label || ref,
             priceExtra: _moneyLike(priceEl ? priceEl.value : 0),
-            img: opt.dataset.img || ''
+            img: opt.dataset.img || '',
+            stockRef: ref,
+            stockItemRef: ref,
+            stockItemId: meta.itemId || '',
+            stockItemName: meta.label || opt.dataset.label || '',
+            stockItemType: meta.stockItemType || '',
+            itemClass: meta.stockItemType || '',
+            classe: meta.stockItemType || '',
+            stockQuantity: 1,
+            stockQuantityPerChoice: 1,
+            stockUnit: meta.unit || 'un',
+            stockUnitCost: meta.unitCost || 0
           });
         });
         var groupName = (titleEl ? titleEl.value : '').trim();
@@ -4455,6 +4786,101 @@ Modules.Catalogo = (function () {
     }
     return methods;
   }
+  function _stripeFinanceMethodForTemplate(financeiro) {
+    var methods = Array.isArray(financeiro && financeiro.formas_pagamento) ? financeiro.formas_pagamento : [];
+    return methods.find(function (item) {
+      if (!item || typeof item === 'string') return false;
+      var name = String(item.nome || item.name || '').trim().toLowerCase();
+      return item.provider === 'stripe' || item.stripe === true || item.stripeConnected === true || name === 'stripe';
+    }) || null;
+  }
+  function _templateCurrency(value) {
+    value = _moneyLike(value);
+    try {
+      return value.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' });
+    } catch (err) {
+      return '€' + value.toFixed(2).replace('.', ',');
+    }
+  }
+  function _templatePercent(value) {
+    value = _moneyLike(value);
+    return value.toLocaleString('pt-PT', { minimumFractionDigits: value % 1 ? 1 : 0, maximumFractionDigits: 2 }) + '%';
+  }
+  function _templateStripeAccountOptions(selected) {
+    var current = String(selected || '').trim();
+    var accounts = Array.isArray(_storeConfig.bankAccounts) ? _storeConfig.bankAccounts : [];
+    var active = accounts.filter(function (account) {
+      return account && (account.ativo !== false || String(account.id || '') === current);
+    }).sort(function (a, b) {
+      return String(a.nome || a.name || '').localeCompare(String(b.nome || b.name || ''), 'pt', { sensitivity: 'base' });
+    });
+    var html = '<option value="">Selecionar conta financeira...</option>';
+    html += active.map(function (account) {
+      var id = String(account.id || '');
+      var name = account.nome || account.name || 'Conta';
+      return '<option value="' + _esc(id) + '"' + (id === current ? ' selected' : '') + '>' + _esc(name) + '</option>';
+    }).join('');
+    if (current && !active.some(function (account) { return String(account.id || '') === current; })) {
+      html += '<option value="' + _esc(current) + '" selected>Conta selecionada</option>';
+    }
+    return html;
+  }
+  function _stripeCheckoutIntegrationCard(integracoes, financeiro) {
+    integracoes = integracoes || {};
+    financeiro = financeiro || {};
+    var accountId = String(integracoes.stripeConnectedAccountId || integracoes.stripeAccountId || '').trim();
+    var status = integracoes.stripeConnectStatus || (accountId ? 'onboarding_required' : 'not_connected');
+    var ready = integracoes.stripeEnabled === true && /^acct_/.test(accountId) && (!status || status === 'ready') && integracoes.stripeChargesEnabled !== false;
+    var pending = /^acct_/.test(accountId) && !ready;
+    var method = _stripeFinanceMethodForTemplate(financeiro) || {};
+    var selectedAccount = integracoes.stripeFinanceAccountId || integracoes.stripeDefaultAccountId || method.contaPadraoId || method.defaultAccountId || '';
+    var pct = _moneyLike(method.taxaPercentual || method.feePct || 0);
+    var fixed = _moneyLike(method.taxaFixa || method.fixedFee || 0);
+    var sample = 10;
+    var sampleFee = Math.max(0, (sample * pct / 100) + fixed);
+    var sampleNet = Math.max(0, sample - sampleFee);
+    var hasFee = pct > 0 || fixed > 0;
+    var tone = ready ? '#2F6B57' : (pending ? '#9A6A2F' : '#B42318');
+    var statusText = ready ? 'Cartão online pronto' : (pending ? 'Falta concluir no Stripe' : 'Cartão online ainda não conectado');
+    var btnText = ready ? 'Ver conexão do Stripe' : (pending ? 'Continuar configuração' : 'Conectar cartão online');
+    var feeRule = hasFee ? (_templatePercent(pct) + (fixed > 0 ? ' + ' + _templateCurrency(fixed) : '')) : 'Taxa estimada ainda não preenchida';
+    return '<div style="border:1px solid #EADFD8;border-radius:16px;background:linear-gradient(180deg,#FFFFFF 0%,#FFFCF8 100%);padding:14px;display:grid;gap:12px;box-shadow:0 8px 22px rgba(31,31,31,.04);">' +
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">' +
+        '<div style="display:flex;align-items:flex-start;gap:10px;min-width:0;max-width:640px;"><div style="width:38px;height:38px;border-radius:13px;background:#FFF3F1;color:#B42318;display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span class="mi" style="font-size:20px;">credit_card</span></div><div style="min-width:0;"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><h3 style="margin:0;color:#1F1F1F;font-size:15px;font-weight:850;line-height:1.2;">Cartão online no checkout</h3><span style="display:inline-flex;align-items:center;gap:6px;border-radius:999px;background:#FFF8F3;color:' + tone + ';padding:6px 9px;font-size:10.5px;font-weight:800;"><span style="width:7px;height:7px;border-radius:50%;background:currentColor;"></span>' + _esc(statusText) + '</span></div><p style="margin:6px 0 0;color:#6F6860;font-size:12px;line-height:1.45;">A cliente paga por cartão antes de confirmar o pedido. O pedido só entra como confirmado quando o pagamento for aprovado.</p></div></div>' +
+        '<button id="tpl-stripe-connect" type="button" onclick="Modules.Catalogo._connectCheckoutStripe()" style="height:38px;padding:0 13px;border:1px solid #EADFD8;border-radius:11px;background:#fff;color:#B42318;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);white-space:nowrap;"><span class="mi" style="font-size:15px;vertical-align:-3px;margin-right:5px;">open_in_new</span>' + _esc(btnText) + '</button>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:minmax(220px,360px);gap:6px;"><label style="' + _labelStyle() + '">Conta financeira para receber</label><select id="tpl-stripe-finance-account" style="' + _operationFieldStyle('') + '">' + _templateStripeAccountOptions(selectedAccount) + '</select><small style="color:#6F6860;font-size:11px;line-height:1.4;">Escolha onde o dinheiro do cartão entra no Financeiro. As taxas Stripe serão registradas nessa mesma conta.</small></div>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;">' +
+        '<div style="background:#fff;border:1px solid #EFE4DC;border-radius:12px;padding:10px;"><div style="color:#8B817B;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.02em;">Taxa estimada</div><div style="color:#1F1F1F;font-size:14px;font-weight:850;margin-top:4px;">' + _esc(feeRule) + '</div></div>' +
+        '<div style="background:#fff;border:1px solid #EFE4DC;border-radius:12px;padding:10px;"><div style="color:#8B817B;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.02em;">Exemplo em ' + _esc(_templateCurrency(sample)) + '</div><div style="color:#1F1F1F;font-size:14px;font-weight:850;margin-top:4px;">' + _esc(_templateCurrency(sampleFee)) + ' de taxa</div></div>' +
+        '<div style="background:#fff;border:1px solid #EFE4DC;border-radius:12px;padding:10px;"><div style="color:#8B817B;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.02em;">Ficaria perto de</div><div style="color:#1F1F1F;font-size:14px;font-weight:850;margin-top:4px;">' + _esc(_templateCurrency(sampleNet)) + '</div></div>' +
+      '</div>' +
+      '<p style="margin:0;color:#6F6860;font-size:11.5px;line-height:1.45;">' + (hasFee ? 'Esta é uma previsão para decidir se vale ativar cartão online. Depois da venda aprovada, o BocaFood registra a taxa real informada pela Stripe.' : 'Preencha a taxa estimada em Financeiro > Configurações > Formas de pagamento. Depois da venda aprovada, o BocaFood tenta registrar a taxa real informada pela Stripe.') + '</p>' +
+    '</div>';
+  }
+  function _connectCheckoutStripe() {
+    if (!(window.Modules && Modules.Configuracoes && Modules.Configuracoes._startStripeConnect)) {
+      UI.toast('Não foi possível abrir a conexão Stripe agora.', 'error');
+      return;
+    }
+    Modules.Configuracoes._startStripeConnect({
+      buttonId: 'tpl-stripe-connect',
+      financeAccountId: (document.getElementById('tpl-stripe-finance-account') || {}).value || '',
+      returnHash: 'catalogo/template'
+    });
+  }
+  function _refreshCheckoutStripeStatus() {
+    if (!(window.Modules && Modules.Configuracoes && Modules.Configuracoes._refreshStripeConnectStatus)) return;
+    Modules.Configuracoes._refreshStripeConnectStatus({
+      buttonId: 'tpl-stripe-connect',
+      financeAccountId: (document.getElementById('tpl-stripe-finance-account') || {}).value || '',
+      renderAfter: false
+    }).then(function () {
+      return _loadStoreConfig();
+    }).then(function () {
+      _renderTemplateLoja(true);
+    }).catch(function () {});
+  }
   function _paymentMethodsHtml(methods) {
     if (!methods.length) {
       return '<div style="padding:18px;border:1px dashed #EAE4DA;border-radius:14px;background:#FAF8F4;color:#6F6860;font-size:13px;line-height:1.45;text-align:center;">Nenhuma forma cadastrada no Financeiro. Cadastre em Configurações > Financeiro para exibir aqui.</div>';
@@ -4572,9 +4998,12 @@ Modules.Catalogo = (function () {
   }
   function _loadStoreConfig() {
     var keys = ['geral', 'aparencia', 'template', 'pagamentos', 'endereco', 'horarios', 'zonas', 'seo', 'seoTechnical', 'dominio', 'financeiro', 'pontos_program', 'integracoes'];
-    return Promise.all(keys.map(function (k) { return DB.getDocRoot('config', k).catch(function () { return {}; }); })).then(function (docs) {
+    return Promise.all(keys.map(function (k) { return DB.getDocRoot('config', k).catch(function () { return {}; }); }).concat([
+      DB.getAll ? DB.getAll('contas_bancarias').catch(function () { return []; }) : Promise.resolve([])
+    ])).then(function (docs) {
       _storeConfig = {};
       keys.forEach(function (k, i) { _storeConfig[k] = docs[i] || {}; });
+      _storeConfig.bankAccounts = docs[keys.length] || [];
       return _storeConfig;
     });
   }
@@ -5285,6 +5714,9 @@ Modules.Catalogo = (function () {
       DB.getAll('promocoes').catch(function () { return []; }),
       DB.getAll('orders').catch(function () { return []; })
     ]).then(function (results) {
+      if (window.sessionStorage && sessionStorage.getItem('bf_stripe_connect_refresh') === '1') {
+        _templateActiveTab = 'checkout';
+      }
       var productList = results[1] || [];
       var marketingProductSources = []
         .concat(results[1] || [])
@@ -5699,6 +6131,7 @@ Modules.Catalogo = (function () {
                   '<small style="display:block;color:#6F6860;font-size:11px;line-height:1.45;">As formas disponíveis vêm das configurações financeiras; aqui você escolhe o que aparece para o cliente.</small>' +
                 '</div>' +
                 '<div style="display:flex;flex-direction:column;gap:12px;">' +
+                  _stripeCheckoutIntegrationCard(integracoes, financeiro) +
                   '<div style="' + _operationCardStyle() + '">' +
                     _operationCardHead('payments', 'Formas disponíveis', 'Ative somente as opções que o cliente poderá escolher no checkout.') +
                     _paymentMethodsHtml(paymentMethods) +
@@ -5814,6 +6247,10 @@ Modules.Catalogo = (function () {
         _refreshTemplatePreview();
         _syncTemplatePreviewColumn();
         _syncDeliveryAreaPostalFromMain();
+        if (window.sessionStorage && sessionStorage.getItem('bf_stripe_connect_refresh') === '1' && _templateActiveTab === 'checkout') {
+          sessionStorage.removeItem('bf_stripe_connect_refresh');
+          setTimeout(_refreshCheckoutStripeStatus, 350);
+        }
         var mainPostalEl = document.getElementById('tpl-postal');
         if (mainPostalEl && !mainPostalEl._deliveryAreaPostalBound) {
           mainPostalEl._deliveryAreaPostalBound = true;
@@ -7534,10 +7971,17 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     option = option || {};
     var img = option.img || option.imageUrl || option.image || '';
     var price = option.priceExtra != null ? option.priceExtra : option.extraPrice != null ? option.extraPrice : option.price || '';
+    var stockRef = option.stockRef || option.stockItemRef || option.stockItem || '';
+    var stockQty = option.stockQuantity != null ? option.stockQuantity : option.stockQty != null ? option.stockQty : option.stockQuantityPerChoice != null ? option.stockQuantityPerChoice : '';
+    var stockMeta = _compositionItemMeta(stockRef);
+    var stockUnit = option.stockUnit || option.unit || stockMeta.unit || 'un';
     return '<div class="vg-option-row catalog-config-option-row" draggable="true" data-id="variant-option-' + index + '" data-option-index="' + index + '">' +
       '<span class="mi" title="Arrastar para ordenar" style="color:#D4C8C6;font-size:17px;cursor:grab;align-self:center;">drag_indicator</span>' +
       '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Opção</span><input class="vg-option-label" type="text" value="' + _esc(option.label || option.name || '') + '" placeholder="Ex: Carne, queijo, grande..." style="' + _inputStyle() + '"></label>' +
       '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Valor extra</span><input class="vg-option-price" type="text" inputmode="decimal" value="' + _esc(_moneyDisplay(price)) + '" placeholder="€0,00" onfocus="Modules.Catalogo._moneyInputFocus(this)" onblur="Modules.Catalogo._moneyInputBlur(this)" style="' + _inputStyle() + 'text-align:right;"></label>' +
+      '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Estoque</span><select class="vg-option-stock-ref" onchange="Modules.Catalogo._onVariantStockLinkChange(this)" style="' + _inputStyle() + '">' + _compositionAllOptionsHtml(stockRef) + '</select></label>' +
+      '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Qtd. estoque</span><input class="vg-option-stock-qty" type="text" inputmode="decimal" value="' + _esc(stockQty ? String(stockQty).replace('.', ',') : '') + '" placeholder="Ex: 1" style="' + _inputStyle() + 'text-align:right;"></label>' +
+      '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Unid.</span><input class="vg-option-stock-unit" type="text" value="' + _esc(stockRef ? stockUnit : '') + '" readonly style="' + _inputStyle() + 'background:#F7F2ED!important;color:#6F6860!important;"></label>' +
       '<div style="min-width:0;max-width:100%;"><span style="' + _labelStyle() + '">Imagem</span><div class="catalog-config-image-tools">' +
         '<input class="vg-option-img" type="hidden" value="' + _esc(img) + '">' +
         '<div class="vg-option-preview catalog-config-image-preview">' + (img ? '<img src="' + _esc(img) + '" alt="">' : '<span class="mi" style="font-size:20px;">image</span>') + '</div>' +
@@ -7553,6 +7997,30 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       '</div>' +
       '<button type="button" class="option-remove-btn" onclick="Modules.Catalogo._removeVariantOptionRow(this)" style="width:32px;height:42px;border-radius:10px;border:1px solid #EAE4DA;background:#fff;color:#B42318;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;"><span class="mi" style="font-size:16px;">close</span></button>' +
       '</div>';
+  }
+
+  function _onVariantStockLinkChange(select) {
+    var row = select && select.closest ? select.closest('.vg-option-row') : null;
+    if (!row) return;
+    var meta = _compositionItemMeta(select.value || '');
+    var unit = row.querySelector('.vg-option-stock-unit');
+    var qty = row.querySelector('.vg-option-stock-qty');
+    if (unit) unit.value = select.value ? (meta.unit || 'un') : '';
+    if (qty && select.value && !qty.value) qty.value = '1';
+  }
+
+  function _ensureVariantStockData() {
+    if ((_fichas && _fichas.length) || (_stockCompositionItems && _stockCompositionItems.length) || (_baseCompositionItems && _baseCompositionItems.length)) return Promise.resolve();
+    return Promise.all([
+      DB.getAll('fichasTecnicas').catch(function () { return []; }),
+      DB.getAll('itens_custo').catch(function () { return []; }),
+      DB.getAll('stock_settings').catch(function () { return []; })
+    ]).then(function (r) {
+      _fichas = r[0] || [];
+      _produtosProntos = _normalizeProdutosCompras(r[1] || []);
+      _stockCompositionItems = _normalizeStockCompositionItems(r[1] || []);
+      _baseCompositionItems = _normalizeBaseCompositionItems(r[2] || []);
+    });
   }
 
   function _addVariantOptionRow(option) {
@@ -7616,6 +8084,10 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   }
 
   function _openVariantModal(id) {
+    _ensureVariantStockData().then(function () { _openVariantModalReady(id); });
+  }
+
+  function _openVariantModalReady(id) {
     _editingId = id;
     var vg = id ? (_variants.find(function (x) { return x.id === id; }) || {}) : {};
     window._variantDraftId = id || _newEntityId('variant');
@@ -7640,7 +8112,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       '</div>';
 
     var footer = '<button onclick="Modules.Catalogo._saveVariant()" style="height:40px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:14px;font-weight:650;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">' + (id ? 'Salvar grupo' : 'Criar grupo') + '</button>';
-    window._variantModal = UI.modal({ title: id ? 'Editar grupo' : 'Novo grupo de variantes', body: body, footer: footer, maxWidth: '920px' });
+    window._variantModal = UI.modal({ title: id ? 'Editar grupo' : 'Novo grupo de variantes', body: body, footer: footer, maxWidth: '1120px' });
     setTimeout(_initVariantOptionSortable, 60);
   }
 
@@ -7656,7 +8128,24 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       var label = ((row.querySelector('.vg-option-label') || {}).value || '').trim();
       var price = _moneyLike((row.querySelector('.vg-option-price') || {}).value || '0');
       var img = ((row.querySelector('.vg-option-img') || {}).value || '').trim();
-      return label ? { label: label, name: label, price: price, priceExtra: price, img: img } : null;
+      var stockRef = ((row.querySelector('.vg-option-stock-ref') || {}).value || '').trim();
+      var stockQty = _moneyLike((row.querySelector('.vg-option-stock-qty') || {}).value || 0);
+      var meta = _compositionItemMeta(stockRef);
+      var option = label ? { label: label, name: label, price: price, priceExtra: price, img: img } : null;
+      if (option && stockRef && stockQty > 0) {
+        option.stockRef = stockRef;
+        option.stockItemRef = stockRef;
+        option.stockItemId = meta.itemId || '';
+        option.stockItemName = meta.label || '';
+        option.stockItemType = meta.stockItemType || '';
+        option.itemClass = meta.stockItemType || '';
+        option.classe = meta.stockItemType || '';
+        option.stockQuantity = stockQty;
+        option.stockQuantityPerChoice = stockQty;
+        option.stockUnit = meta.unit || 'un';
+        option.stockUnitCost = meta.unitCost || 0;
+      }
+      return option;
     }).filter(Boolean);
     if (!options.length) { UI.toast('Adicione pelo menos uma opção.', 'error'); return; }
     var data = {
@@ -8614,6 +9103,10 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       '.recipe-add-stage-btn{height:42px;border-style:solid;border-color:#E7C6C0;background:linear-gradient(180deg,#FFF7F5 0%,#fff 100%);color:#B42318;font-size:13px;font-weight:700;box-shadow:0 6px 14px rgba(180,35,24,.08);}' +
       '.recipe-add-stage-btn:hover{background:#FFF3F1;border-color:#D9AAA1;color:#9F1F16;}' +
       '.recipe-component{background:#fff;border:1px solid #EAE4DA;border-radius:16px;padding:13px;box-shadow:0 1px 2px rgba(31,31,31,.03);}' +
+      '.recipe-stage-guidance{border:1px solid #EADFD8;border-radius:14px;background:#FFFCF8;padding:11px 12px;margin-bottom:12px;color:#5F5652;font-size:12px;line-height:1.5;}' +
+      '.recipe-stage-guidance strong{color:#1F1F1F;font-weight:800;}' +
+      '.recipe-component-hint{margin-top:7px;color:#6F6860;font-size:11.5px;line-height:1.42;}' +
+      '.recipe-base-copy{grid-column:1/-1;border-top:1px solid #EFE4DC;padding-top:9px;color:#6F6860;font-size:11.5px;line-height:1.45;}' +
       '.recipe-component-head{display:grid;grid-template-columns:minmax(220px,1fr) minmax(180px,.8fr) 34px;gap:10px;align-items:end;margin-bottom:12px;}' +
       '.recipe-component-base{display:grid;grid-template-columns:minmax(220px,1fr) minmax(110px,.35fr) minmax(120px,.4fr) minmax(100px,.32fr) minmax(100px,.32fr);gap:10px;align-items:end;background:#FFFCF8;border:1px solid #EAE4DA;border-radius:14px;padding:10px;margin-bottom:12px;}' +
       '.recipe-component-base label{display:flex;align-items:center;gap:8px;font-size:12px;color:#1F1F1F;font-weight:500;line-height:1.35;}' +
@@ -8692,15 +9185,18 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       '</div>' +
 
       '<div class="recipe-modal-card recipe-modal-ingredients">' +
-      '<div class="recipe-modal-head"><span class="mi">restaurant</span><div><div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;"><div class="recipe-modal-title">Ingredientes</div><button type="button" class="recipe-help-btn" onclick="Modules.Catalogo._toggleFichaIngredientsHelp()">Como preencher?</button></div><div class="recipe-modal-desc">Liste o que entra na preparação e a quantidade usada.</div></div></div>' +
+      '<div class="recipe-modal-head"><span class="mi">restaurant</span><div><div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;"><div class="recipe-modal-title">Etapas e ingredientes</div><button type="button" class="recipe-help-btn" onclick="Modules.Catalogo._toggleFichaIngredientsHelp()">Como preencher?</button></div><div class="recipe-modal-desc">Escolha uma etapa reaproveitável e informe os ingredientes usados nela.</div></div></div>' +
       '<div id="fc-ingredients-help" class="recipe-help-box">' +
-        'Informe aqui o que entra em cada etapa da receita.<br><br>' +
-        'Primeiro escolha a etapa da receita, como massa, recheio, cobertura ou finalização.<br>' +
-        'Essas etapas são cadastradas em Produção &gt; Configurações.<br><br>' +
-        'Depois adicione os ingredientes usados nessa etapa.<br><br>' +
+        '<strong>Primeiro escolha a etapa.</strong><br>' +
+        'A etapa é a parte da receita que pode ser reaproveitada, como Massa de coxinha, Recheio de frango, Creme branco, Molho ou Cobertura.<br><br>' +
+        '<strong>Use sempre a mesma etapa quando for a mesma base.</strong><br>' +
+        'Se o mesmo Recheio de frango entra na coxinha e no pastel, selecione Recheio de frango nas duas receitas. Assim o BocaFood consegue tratar essa base como uma coisa só na produção.<br><br>' +
+        '<strong>Depois adicione os ingredientes dessa etapa.</strong><br>' +
         '<strong>Exemplo:</strong><br>' +
         'Na etapa "Massa", você pode adicionar farinha, leite, manteiga e sal.<br><br>' +
-        'Preencha a quantidade que realmente entra na receita.<br><br>' +
+        'Preencha a quantidade que realmente entra na etapa ou na parte usada por esta receita.<br><br>' +
+        '<strong>Controle como base de produção</strong><br>' +
+        'Marque essa opção quando você produz essa etapa antes e guarda para usar depois. Exemplo: faz uma panela de recheio e usa em vários produtos ao longo do dia.<br><br>' +
         '<strong>Importante:</strong><br>' +
         'não informe como você compra o ingrediente.<br>' +
         'Informe quanto você usa na produção.<br><br>' +
@@ -8795,6 +9291,24 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     return names;
   }
 
+  function _recipeComponentByName(name) {
+    var wanted = String(name || '').trim().toLowerCase();
+    if (!wanted) return null;
+    return (_recipeComponents || []).find(function (c) {
+      return String(c.name || c.label || '').trim().toLowerCase() === wanted;
+    }) || null;
+  }
+
+  function _recipeComponentSharedBaseId(name, componentId) {
+    var id = String(componentId || '').trim();
+    if (id.indexOf('base_component:') === 0) return id;
+    if (id) return 'base_component:' + id;
+    var slug = String(name || 'base').trim().toLowerCase();
+    if (slug.normalize) slug = slug.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    slug = slug.replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'base';
+    return 'base_name:' + slug;
+  }
+
   function _recipeCategoryNames(selected) {
     var seen = {};
     var names = [];
@@ -8820,7 +9334,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     if (!names.length) {
       return '<option value="">Cadastre etapas em Produção > Configurações</option>';
     }
-    return '<option value="">Selecionar componente...</option>' + names.map(function (name) {
+    return '<option value="">Selecionar etapa...</option>' + names.map(function (name) {
       return '<option value="' + _esc(name) + '"' + (name === selected ? ' selected' : '') + '>' + _esc(name) + '</option>';
     }).join('');
   }
@@ -8936,8 +9450,8 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     window._recipeComponentTargetIdx = compIdx;
     var body = _recipeQuickCreateCss() +
       '<div class="recipe-quick-modal"><div class="recipe-quick-card">' +
-        '<div class="recipe-quick-field"><label>Nome da etapa *</label><input id="recipe-new-component-name" type="text" placeholder="Ex.: Massa, Recheio ou Finalização"></div>' +
-        '<div class="recipe-quick-hint">Use a etapa para separar as partes da receita e organizar onde cada ingrediente entra.</div>' +
+        '<div class="recipe-quick-field"><label>Nome da etapa *</label><input id="recipe-new-component-name" type="text" placeholder="Ex.: Recheio de frango"></div>' +
+        '<div class="recipe-quick-hint">Crie uma nova etapa só quando ela ainda não existe. Se for a mesma massa, recheio, creme ou molho usado em outra receita, escolha a etapa já cadastrada.</div>' +
       '</div></div>';
     var footer = '<div style="display:flex;justify-content:flex-end;gap:8px;">' +
       '<button type="button" onclick="window._recipeComponentModal&&window._recipeComponentModal.close()" style="height:38px;padding:0 14px;border-radius:10px;border:1px solid #E6E1D8;background:#fff;color:#6F6860;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;">Cancelar</button>' +
@@ -8996,20 +9510,22 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       rows = _fichaIngRow(blankIdx, compIdx, '', 0);
     }
     return '<div id="fc-comp-' + compIdx + '" class="fc-component recipe-component" data-comp-idx="' + compIdx + '">' +
+      '<div class="recipe-stage-guidance"><strong>Escolha uma etapa já cadastrada.</strong> Se essa mesma base aparece em outras receitas, use exatamente a mesma etapa para manter a produção conectada.</div>' +
       '<div class="recipe-component-head">' +
-      '<div><div class="recipe-inline-label"><label style="' + _fichaLbl() + 'margin-bottom:0;">Etapa da receita</label><button type="button" class="recipe-inline-add" onclick="Modules.Catalogo._openRecipeComponentCreateModal(' + compIdx + ')">+ etapa</button></div><div class="supplier-field-control"><select data-comp-name="' + compIdx + '" onchange="Modules.Catalogo._updateFichaCost()">' + _recipeComponentOptionsHtml((comp.name || '').trim()) + '</select></div></div>' +
-      '<div><label style="' + _fichaLbl() + '">Anotação</label><div class="supplier-field-control"><input data-comp-note="' + compIdx + '" value="' + _esc(comp.note || '') + '" placeholder="Ex: usar fria"></div></div>' +
-      '<button type="button" onclick="Modules.Catalogo._removeFichaComponent(' + compIdx + ')" title="Remover componente" style="width:34px;height:34px;border-radius:9px;border:1px solid #E6E1D8;background:#fff;color:#B42318;cursor:pointer;font-size:14px;box-shadow:0 1px 2px rgba(31,31,31,.03);">✕</button>' +
+      '<div><div class="recipe-inline-label"><label style="' + _fichaLbl() + 'margin-bottom:0;">Etapa reutilizável *</label><button type="button" class="recipe-inline-add" onclick="Modules.Catalogo._openRecipeComponentCreateModal(' + compIdx + ')">+ etapa</button></div><div class="supplier-field-control"><select data-comp-name="' + compIdx + '" onchange="Modules.Catalogo._updateFichaCost()">' + _recipeComponentOptionsHtml((comp.name || '').trim()) + '</select></div><div class="recipe-component-hint">Exemplo: Recheio de frango, Massa de coxinha, Creme branco ou Molho especial.</div></div>' +
+      '<div><label style="' + _fichaLbl() + '">Anotação desta receita</label><div class="supplier-field-control"><input data-comp-note="' + compIdx + '" value="' + _esc(comp.note || '') + '" placeholder="Ex: usar fria ou bater antes de misturar"></div><div class="recipe-component-hint">Use só para orientação desta receita. Não altera a etapa reaproveitada.</div></div>' +
+      '<button type="button" onclick="Modules.Catalogo._removeFichaComponent(' + compIdx + ')" title="Remover etapa desta receita" style="width:34px;height:34px;border-radius:9px;border:1px solid #E6E1D8;background:#fff;color:#B42318;cursor:pointer;font-size:14px;box-shadow:0 1px 2px rgba(31,31,31,.03);">✕</button>' +
       '</div>' +
       '<div class="recipe-component-base">' +
-        '<label><input type="checkbox" data-comp-stock="' + compIdx + '"' + (comp.stockControl || comp.controlsStock ? ' checked' : '') + ' style="accent-color:#B42318;width:15px;height:15px;"> Controlar esta etapa como base de produção</label>' +
+        '<label><input type="checkbox" data-comp-stock="' + compIdx + '"' + (comp.stockControl || comp.controlsStock ? ' checked' : '') + ' style="accent-color:#B42318;width:15px;height:15px;"> Controlar como base produzida antes</label>' +
         '<div><label style="' + _fichaLbl() + '">Rendimento da etapa</label><div class="supplier-field-control"><input type="text" data-comp-stock-qty="' + compIdx + '" value="' + _esc(comp.stageYieldQuantity || comp.baseYieldQuantity || comp.stockYieldQuantity || '') + '" placeholder="Ex: 40" oninput="Modules.Catalogo._updateFichaCost()"></div></div>' +
         '<div><label style="' + _fichaLbl() + '">Unidade</label><div class="supplier-field-control"><select data-comp-stock-unit="' + compIdx + '" onchange="Modules.Catalogo._updateFichaCost()">' + _recipeUnitOptionsHtml(comp.stageYieldUnit || comp.baseYieldUnit || comp.stockYieldUnit || '') + '</select></div></div>' +
         '<div><label style="' + _fichaLbl() + '">Mínimo</label><div class="supplier-field-control"><input type="text" data-comp-stock-min="' + compIdx + '" value="' + _esc(comp.minStock || comp.estoque_minimo || '') + '" placeholder="Ex: 2"></div></div>' +
         '<div><label style="' + _fichaLbl() + '">Máximo</label><div class="supplier-field-control"><input type="text" data-comp-stock-max="' + compIdx + '" value="' + _esc(comp.maxStock || comp.estoque_maximo || '') + '" placeholder="Ex: 8"></div></div>' +
+        '<div class="recipe-base-copy"><strong style="color:#1F1F1F;">Marque apenas se essa etapa vira estoque próprio.</strong> Exemplo: você produz 40 unidades de recheio, guarda e depois usa em coxinha e pastel. Se a etapa só acontece dentro desta receita, deixe desmarcado.</div>' +
       '</div>' +
       '<div id="fc-comp-ings-' + compIdx + '" style="display:flex;flex-direction:column;gap:8px;">' + rows + '</div>' +
-      '<button type="button" onclick="Modules.Catalogo._addFichaIng(' + compIdx + ')" class="recipe-dashed-btn">+ Adicionar ingrediente nesta parte</button>' +
+      '<button type="button" onclick="Modules.Catalogo._addFichaIng(' + compIdx + ')" class="recipe-dashed-btn">+ Adicionar ingrediente nesta etapa</button>' +
       '</div>';
   }
 
@@ -9362,6 +9878,8 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       container.querySelectorAll('.fc-component').forEach(function (compEl) {
         var compIdx = compEl.dataset.compIdx;
         var compName = ((container.querySelector('[data-comp-name="' + compIdx + '"]') || {}).value || '').trim();
+        var compRef = _recipeComponentByName(compName);
+        var compRefId = compRef ? String(compRef.id || '') : '';
         var compNote = ((container.querySelector('[data-comp-note="' + compIdx + '"]') || {}).value || '').trim();
         var compStockControl = !!((container.querySelector('[data-comp-stock="' + compIdx + '"]') || {}).checked);
         var compBaseYieldQuantity = _parseFichaNum((container.querySelector('[data-comp-stock-qty="' + compIdx + '"]') || {}).value);
@@ -9408,6 +9926,9 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
           var compRawCost = compIngredients.reduce(function (sum, ing) { return sum + _parseFichaNum(ing.totalCost); }, 0);
           components.push({
             name: compName,
+            componentId: compRefId,
+            recipeComponentId: compRefId,
+            sharedBaseId: compStockControl ? _recipeComponentSharedBaseId(compName, compRefId) : '',
             note: compNote,
             ingredients: compIngredients.map(function (ing) {
               return Object.assign({}, ing, {
@@ -9593,14 +10114,19 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     }, { merge: true }));
     (ficha.components || []).forEach(function (comp, idx) {
       if (!(comp.stockControl || comp.controlsStock)) return;
-      var baseKey = 'base_producao:' + fichaId + ':' + (comp.name || 'etapa_' + idx);
+      var sharedBaseId = _recipeComponentSharedBaseId(comp.name || ('etapa_' + idx), comp.componentId || comp.recipeComponentId || comp.sharedBaseId || '');
+      var baseKey = 'base_producao:' + sharedBaseId;
       ops.push(DB.col('stock_settings').doc(_stockSettingId(baseKey)).set({
         id: _stockSettingId(baseKey),
         stockKey: baseKey,
-        itemId: fichaId + ':' + (comp.name || 'etapa_' + idx),
+        itemId: sharedBaseId,
         itemName: comp.name || 'Base de produção',
         itemType: 'base_producao',
         stockItemType: 'base_producao',
+        sourceRecipeId: fichaId,
+        sourceRecipeName: ficha.name || '',
+        componentId: comp.componentId || comp.recipeComponentId || '',
+        sharedBaseId: sharedBaseId,
         unit: comp.baseYieldUnit || comp.stockYieldUnit || ficha.yieldUnit || '',
         minStock: _parseFichaNum(comp.minStock),
         maxStock: _parseFichaNum(comp.maxStock),
@@ -9730,8 +10256,13 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var components = _normalizeFichaComponents(source).map(function (comp) {
       var built = _duplicateFichaIngredientsForSave(comp, yieldQty, yieldUnit);
       var controls = !!(comp.stockControl || comp.controlsStock);
+      var compRef = _recipeComponentByName(comp.name || '');
+      var compRefId = comp.componentId || comp.recipeComponentId || (compRef && compRef.id) || '';
       return {
         name: comp.name || '',
+        componentId: compRefId,
+        recipeComponentId: compRefId,
+        sharedBaseId: controls ? _recipeComponentSharedBaseId(comp.name || '', compRefId || comp.sharedBaseId || '') : '',
         note: comp.note || '',
         ingredients: built.ingredients,
         stockControl: controls,
@@ -9950,6 +10481,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     _refreshTemplatePreview: _refreshTemplatePreview,
     _onTemplateHoursChange: _onTemplateHoursChange,
     _uploadStoreImage: _uploadStoreImage, _saveTemplateLoja: _saveTemplateLoja, _saveSeoLoja: _saveSeoLoja,
+    _connectCheckoutStripe: _connectCheckoutStripe,
     _clearStoreImage: _clearStoreImage,
     _openProductModal: _openProductModal, _toggleVis: _toggleVis, _saveProduct: _saveProduct, _deleteProduct: _deleteProduct, _duplicateProduct: _duplicateProduct, _openImportProducts: _openImportProducts, _filterProdutos: _filterProdutos, _setProductFilter: _setProductFilter, _setProductSort: _setProductSort, _setProductPage: _setProductPage, _setProductPageSize: _setProductPageSize, _clearProductFilters: _clearProductFilters, _quickUpdateProduct: _quickUpdateProduct, _moveProductInCategory: _moveProductInCategory,
     _openProductsMoreFilters: _openProductsMoreFilters,
@@ -9963,7 +10495,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     _onProntoImgChange: _onProntoImgChange, _onFichaImgChange: _onFichaImgChange,
     _openCatModal: _openCatModal, _selectCatColor: _selectCatColor, _uploadCategoryGraphic: _uploadCategoryGraphic, _clearCategoryGraphic: _clearCategoryGraphic, _uploadTemplateCategoryGraphic: _uploadTemplateCategoryGraphic, _moveTemplateCategory: _moveTemplateCategory, _saveCat: _saveCat, _deleteCat: _deleteCat,
     _openProntosModal: _openProntosModal, _savePronto: _savePronto, _deletePronto: _deletePronto,
-    _openVariantModal: _openVariantModal, _addVariantOptionRow: _addVariantOptionRow, _removeVariantOptionRow: _removeVariantOptionRow, _moveVariantOptionRow: _moveVariantOptionRow, _onVariantOptionImageChange: _onVariantOptionImageChange, _removeVariantOptionImage: _removeVariantOptionImage, _toggleProductVariantPreview: _toggleProductVariantPreview, _saveVariant: _saveVariant, _deleteVariant: _deleteVariant,
+    _openVariantModal: _openVariantModal, _addVariantOptionRow: _addVariantOptionRow, _removeVariantOptionRow: _removeVariantOptionRow, _moveVariantOptionRow: _moveVariantOptionRow, _onVariantOptionImageChange: _onVariantOptionImageChange, _removeVariantOptionImage: _removeVariantOptionImage, _onVariantStockLinkChange: _onVariantStockLinkChange, _toggleProductVariantPreview: _toggleProductVariantPreview, _saveVariant: _saveVariant, _deleteVariant: _deleteVariant,
     _openItemCustoModal: _openItemCustoModal, _saveItemCusto: _saveItemCusto, _deleteItemCusto: _deleteItemCusto,
     _filterItensCusto: _filterItensCusto, _setItensCustoFilter: _setItensCustoFilter, _onItemTipoChange: _onItemTipoChange,
     _openFichaViewModal: _openFichaViewModal, _editFichaFromView: _editFichaFromView,

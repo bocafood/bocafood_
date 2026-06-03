@@ -1,5 +1,206 @@
 # AI Changelog
 
+## 2026-06-03 — Deploy: previsão de produção e estoque em cadeia
+- Arquivos alterados: `AI_CHANGELOG.md`.
+- Publiquei as alterações pendentes no Firebase do projeto `bocado-brasil`.
+- Comando executado: `firebase deploy --only hosting,functions --project bocado-brasil --force`.
+- Escopo publicado: Firebase Hosting a partir de `public/` e Firebase Functions a partir de `functions/`.
+- Resultado: deploy concluído com sucesso; Hosting liberado em `https://bocado-brasil.web.app`.
+- Avisos do Firebase durante o deploy: runtime Node.js 20 está marcado como depreciado para novas janelas futuras e `firebase-functions` está desatualizado. O deploy continuou e foi concluído.
+
+## 2026-06-03 — Documentação e validação: previsão de produção
+- Arquivos alterados: `AGENTS.md`, `AI_CHANGELOG.md`.
+- Documentei em `AGENTS.md` que `Produção → Previsão` é o módulo correto para previsão operacional baseada em estoque.
+- Registrei as regras permanentes da previsão: cálculo conservador, rastreabilidade por item limitador, simulação passiva e visões por `Receitas`, `Bases de produção` e `Cardápio`.
+- Documentei que consultar ou simular previsão não pode criar movimentação, baixar estoque, alterar pedido, publicar cardápio ou mexer em Stripe.
+- Documentei que `Gerar ordem planejada` cria apenas ordem com status `planejada` e origem `production_forecast`, sem concluir produção nem alterar saldos.
+- Documentei que combos sem vínculo claro de estoque continuam como `Sem composição clara`, evitando previsão otimista.
+- Validação executada sem erros: `node --check public/js/modules/receitas.js`, `node --check public/js/modules/catalogo.js`, `node --check public/js/modules/pedidos.js`, `node --check public/js/modules/estoque.js`, `node --check functions/index.js`, validação dos scripts inline de `public/admin.html` e `public/storefront.html`, e `git diff --check`.
+
+## 2026-06-03 — Produção: ordem planejada a partir da previsão
+- Arquivos alterados: `public/js/modules/receitas.js`, `AI_CHANGELOG.md`.
+- Implementei a Fase 7 da previsão de produção com criação controlada de ordem planejada.
+- No modal `Ver cálculo`, receitas e bases de produção agora podem gerar uma ordem com status `planejada` usando a quantidade simulada.
+- A ordem criada preserva ficha, base de produção quando aplicável, snapshot da receita, ingredientes planejados, custo previsto e origem `production_forecast`.
+- A ação não conclui produção, não baixa estoque e não cria movimentações; apenas cria o planejamento para a rotina normal de ordens.
+- Para produtos do cardápio, o botão ainda não cria ordem automaticamente, porque a conversão de venda para produção pode envolver produto, combo e agrupamento de receitas.
+- Impacto esperado: transformar uma previsão conferida em planejamento operacional sem alterar saldos até a ordem ser concluída.
+
+## 2026-06-03 — Produção: simulação de quantidade na previsão
+- Arquivos alterados: `public/js/modules/receitas.js`, `AI_CHANGELOG.md`.
+- Implementei a Fase 6 da previsão de produção com simulação de quantidade desejada.
+- No modal `Ver cálculo`, a usuária agora pode informar quanto quer produzir ou vender.
+- A simulação mostra se o estoque cobre a quantidade informada, quanto cada item será consumido e qual quantidade falta por item.
+- O cálculo usa a mesma base da previsão: saldo atual dividido pelo consumo por unidade, sem criar movimentação ou ordem.
+- A leitura funciona para receitas, bases de produção e produtos do cardápio calculáveis.
+- A funcionalidade continua passiva: não cria ordem, não baixa estoque, não altera pedidos, cardápio público ou movimentações.
+- Impacto esperado: permitir testar cenários antes de decidir compra, produção ou venda, mantendo os números rastreáveis.
+
+## 2026-06-03 — Produção: detalhe dos cálculos da previsão
+- Arquivos alterados: `public/js/modules/receitas.js`, `AI_CHANGELOG.md`.
+- Implementei a Fase 5 da previsão de produção com detalhamento dos números.
+- Cada linha de `Produção > Previsão` agora tem o botão `Ver cálculo`.
+- O modal mostra status, capacidade, limitador, total de itens calculados e custo/preço principal.
+- A tabela do detalhe abre o cálculo por item: consumo por unidade, saldo atual e capacidade gerada por aquele item.
+- O menor resultado da tabela fica identificável como limitador, facilitando conferir por que a receita, base ou produto ficou bloqueado.
+- A leitura continua passiva: não cria ordem, não baixa estoque, não altera pedidos, cardápio público ou movimentações.
+- Impacto esperado: dar rastreabilidade aos números da previsão antes de avançar para sugestões automáticas de produção.
+
+## 2026-06-03 — Produção: previsão de combos com escolhas
+- Arquivos alterados: `public/js/modules/receitas.js`, `AI_CHANGELOG.md`.
+- Implementei a Fase 4 da previsão de produção para produtos do cardápio com combo/escolhas.
+- A visão `Cardápio` agora carrega também `variantGroups` e calcula combos quando os grupos obrigatórios têm opções com vínculo claro de estoque.
+- Para evitar previsão otimista, cada grupo obrigatório usa uma leitura conservadora pelo pior caso seguro entre as opções vinculadas.
+- Combos com escolha obrigatória sem vínculo de estoque continuam como `Sem composição clara`.
+- Produtos de combo com montagem interna também somam a composição interna fixa com as escolhas obrigatórias calculáveis.
+- A leitura continua passiva: não cria ordem, não baixa estoque, não altera pedidos, cardápio público ou movimentações.
+- Impacto esperado: permitir prever venda de combos com sabores, tamanhos ou adicionais obrigatórios quando cada escolha já informa o que consome do estoque.
+
+## 2026-06-03 — Produção: previsão por cardápio
+- Arquivos alterados: `public/js/modules/receitas.js`, `AI_CHANGELOG.md`.
+- Implementei a Fase 3 da previsão de produção dentro de `Produção > Previsão`.
+- A tela agora permite alternar também para `Cardápio`, calculando quantas unidades de cada produto podem ser vendidas com o saldo atual.
+- Produtos vinculados a receita usam a cadeia da ficha técnica; produtos prontos usam o saldo do item comprado pronto; produtos de montagem interna usam os itens internos configurados.
+- A visão mostra status, quantidade possível de venda, item limitador, preço de venda, busca, filtro por status e paginação.
+- Produtos com combo/escolhas sem composição fechada continuam como `Sem composição clara`, para não gerar previsão falsa.
+- A leitura continua passiva: não cria ordem, não baixa estoque, não altera pedidos, cardápio público ou movimentações.
+- Impacto esperado: conectar previsão operacional com o que a usuária realmente vende no cardápio, sem quebrar a cadeia já validada.
+
+## 2026-06-03 — Produção: previsão por bases de produção
+- Arquivos alterados: `public/js/modules/receitas.js`, `AI_CHANGELOG.md`.
+- Implementei a Fase 2 da previsão de produção dentro de `Produção > Previsão`.
+- A tela agora permite alternar entre `Receitas` e `Bases de produção`.
+- A visão de bases deduplica bases compartilhadas pelo mesmo `baseProductionId`, mostra em quais receitas a base é usada e calcula quanto pode ser produzido com o saldo atual dos insumos da etapa.
+- A tabela mantém status, quantidade possível, item limitador, custo por unidade/rendimento, busca, filtro por status e paginação.
+- A leitura continua totalmente passiva: não cria ordem, não baixa estoque e não altera movimentações.
+- Impacto esperado: permitir prever a produção de massas, recheios, cremes, molhos e outras bases antes de analisar produto final ou venda do cardápio.
+
+## 2026-06-03 — Produção: previsão por receitas
+- Arquivos alterados: `public/admin.html`, `public/js/modules/receitas.js`, `AI_CHANGELOG.md`.
+- Iniciei a Fase 1 da previsão de produção com uma nova aba `Produção > Previsão`.
+- A tela calcula, em modo somente leitura, quanto cada receita pode produzir com o saldo atual de ingredientes, embalagens e bases de produção.
+- A previsão usa `stock_movements` para montar o saldo atual e cruza esse saldo com a composição da ficha técnica, respeitando etapas marcadas como `Base de produção`.
+- A tabela mostra status, quantidade possível, item limitador, rendimento da ficha e custo por unidade/rendimento.
+- Incluí busca, filtro por status e paginação, sem criar ordens, baixas ou movimentações de estoque.
+- Impacto esperado: permitir conferência operacional da capacidade de produção sem alterar pedidos, estoque, cardápio público ou Stripe.
+
+## 2026-06-03 — Cardápio: estoque por opção de combo
+- Arquivos alterados: `public/js/modules/catalogo.js`, `public/storefront.html`, `public/js/modules/pedidos.js`, `functions/index.js`, `AI_CHANGELOG.md`.
+- Adicionei vínculo opcional de estoque em cada opção dos grupos de variantes do cardápio, com item, quantidade consumida e unidade.
+- As opções criadas a partir de itens internos do produto agora salvam o vínculo de estoque automaticamente quando já existe referência clara para receita, produto pronto, insumo, embalagem ou base.
+- O template público preserva as escolhas visíveis para a cliente e envia os vínculos internos em `stockChoices`, sem expor a composição no checkout.
+- A baixa de estoque do Admin e das Functions passa a ler `stockChoices` antes da leitura antiga de escolhas comerciais, mantendo compatibilidade com pedidos anteriores.
+- Impacto esperado: combos e escolhas deixam de ser apenas comerciais e podem baixar o item correto da cadeia quando cada opção tiver composição definida.
+
+## 2026-06-03 — Produção: rastreabilidade da cadeia no pedido e estoque
+- Arquivos alterados: `public/js/modules/pedidos.js`, `public/js/modules/estoque.js`, `AI_CHANGELOG.md`.
+- Implementei a Fase 6 da cadeia de produção com leitura de rastreabilidade.
+- O modal `Detalhes do pedido` passa a mostrar um card `Estoque do pedido`, indicando se a baixa foi criada, quantos registros foram gerados, se houve estorno e quais itens ficaram sem vínculo.
+- A tela `Estoque > Movimentações` agora detalha melhor a origem das saídas por venda, diferenciando base de produção, montagem interna, produto pronto e produto produzido.
+- A copy orienta a usuária a conferir receita, produto pronto ou montagem interna quando algum item do pedido não gera baixa.
+- Impacto esperado: facilitar a conferência do caminho pedido → saída de estoque sem alterar o cálculo de saldo, pedidos, financeiro ou rotas.
+
+## 2026-06-03 — Produção: baixa de estoque em cadeia na venda
+- Arquivos alterados: `public/js/modules/pedidos.js`, `functions/index.js`, `AI_CHANGELOG.md`.
+- Implementei a Fase 5 da cadeia de produção na geração de saídas de estoque por venda.
+- O fluxo do Admin agora usa o identificador compartilhado da base de produção (`sharedBaseId`, `componentId` ou `recipeComponentId`) ao baixar uma etapa reaproveitada em mais de uma receita.
+- O webhook/fluxo seguro das Functions recebeu a mesma regra para pedidos pagos via Stripe, evitando divergência entre pedido confirmado no Admin e pedido confirmado por pagamento online.
+- A baixa por venda passa a reconhecer também `internalComposition`, `internalCompositionItems`, `composicaoInterna` e `stockComposition`, permitindo baixar os itens internos definidos no produto do cardápio.
+- Normalizei tipos como receita/ficha, ingrediente, embalagem e produto pronto para que a movimentação grave `stockItemType`, `itemClass` e `classe` de forma consistente.
+- Impacto esperado: quando um pedido for confirmado, o estoque passa a baixar o item certo da cadeia, incluindo base compartilhada e montagem interna, sem duplicar saída entre receita e composição interna.
+
+## 2026-06-02 — Produção: bloqueio seguro por cadeia no template público
+- Arquivos alterados: `public/storefront.html`, `AI_CHANGELOG.md`.
+- Implementei a Fase 4 da cadeia de produção no template público.
+- A loja publicada passa a carregar `stock_movements`, `fichasTecnicas` e `itens_custo` para calcular disponibilidade por produto produzido, base de produção, ingrediente, embalagem e produto pronto.
+- Produtos com cadeia calculável e saldo indisponível recebem selo de indisponibilidade no card público e não podem ser adicionados ao carrinho.
+- O botão de adicionar, o modal de produto e o incremento de quantidade no carrinho validam a disponibilidade antes de aceitar a ação.
+- A validação considera receita vinculada, produto comprado pronto e composição interna do produto; combos sem composição confirmada permanecem sem bloqueio automático nesta fase para evitar travar escolhas complexas sem leitura completa.
+- Mantive uma regra segura: se a loja ainda não tem movimentações de estoque carregadas, o template não bloqueia produtos por ausência de dados.
+- Impacto esperado: começar a proteger a venda pública contra itens sem saldo na cadeia, sem alterar pedidos, financeiro, rotas ou movimentações já existentes.
+
+## 2026-06-02 — Produção: disponibilidade em cadeia no cadastro do produto
+- Arquivos alterados: `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Implementei a Fase 3 da cadeia de produção com uma leitura de `Disponibilidade em cadeia` dentro do modal de cadastro/edição de produto do cardápio.
+- O cadastro do produto passa a carregar `stock_movements` para calcular saldos atuais por produto pronto, produto produzido, base de produção, ingrediente e embalagem.
+- Para produto simples vindo de receita, o sistema calcula quais bases, ingredientes e embalagens limitam a produção daquele produto.
+- Para produto pronto comprado, o sistema confere o saldo do item comprado pronto.
+- Para montagem interna, o sistema confere os itens internos informados para 1 unidade vendida, incluindo receitas produzidas, ingredientes, embalagens e produtos prontos.
+- A leitura mostra quantas unidades podem ser vendidas/produzidas pelo menor saldo encontrado e indica qual item está limitando a cadeia.
+- Nesta fase a informação é apenas para conferência no Admin; ainda não bloqueia a venda no template público nem altera pedidos.
+- Impacto esperado: validar a inteligência de cadeia ingrediente → base → produto antes de aplicar bloqueio automático na loja pública.
+
+## 2026-06-02 — Produção: orientação para etapas reutilizáveis
+- Arquivos alterados: `public/js/modules/catalogo.js`, `public/js/modules/receitas.js`, `AI_CHANGELOG.md`.
+- Apliquei a Fase 2 da cadeia de produção, focada em deixar claro para a usuária como cadastrar e reaproveitar etapas de receita.
+- A aba `Produção > Configurações > Etapas da receita` agora explica quando usar etapas como massa, recheio, creme, molho ou cobertura e quando controlar uma etapa como base produzida antes.
+- A listagem de etapas mostra se cada etapa já está sendo usada em receitas, ajudando a evitar duplicidade como `Recheio de frango` cadastrado várias vezes.
+- O modal de cadastro/edição de etapa recebeu copy mais clara, com foco em partes reaproveitáveis da produção.
+- O modal de receita agora chama a área de `Etapas e ingredientes`, orienta a escolher uma etapa já cadastrada e explica que a opção de base de produção deve ser marcada apenas quando aquela etapa vira estoque próprio.
+- Impacto esperado: facilitar o cadastro correto de bases compartilhadas sem mudar o funcionamento atual das receitas, pedidos, estoque ou cardápio público.
+
+## 2026-06-02 — Produção: bases reutilizáveis em cadeia
+- Arquivos alterados: `public/js/modules/catalogo.js`, `public/js/modules/receitas.js`, `public/js/modules/estoque.js`, `AI_CHANGELOG.md`.
+- Iniciei a Fase 1 da cadeia de produção para etapas reutilizáveis, como massa, recheio, creme, molho ou cobertura.
+- As etapas selecionadas dentro da receita passam a guardar a referência da etapa cadastrada em `Produção > Configurações > Etapas da receita`.
+- Quando a etapa controla estoque como `Base de produção`, o estoque passa a usar um identificador compartilhado da etapa, em vez de separar por `receita + etapa`.
+- O modal de ordem de produção deduplica bases compartilhadas para mostrar a mesma base uma vez, mesmo quando ela aparece em mais de uma receita.
+- O planejamento por estoque mínimo passa a considerar também bases de produção abaixo do mínimo, além de produtos finais.
+- Ajustei a sincronização de estoque mínimo/máximo para conseguir refletir bases compartilhadas nas receitas que usam a mesma etapa.
+- Impacto esperado: permitir que uma mesma base, como `Recheio de frango`, seja usada por coxinha e pastel com um saldo único de estoque, preparando a disponibilidade em cadeia sem quebrar receitas antigas.
+
+## 2026-06-02 — Loja Online Checkout: Stripe no lugar da decisão
+- Arquivos alterados: `public/js/modules/catalogo.js`, `public/js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Incluí na aba `Loja Online > Template da loja > Checkout` um card de `Cartão online no checkout`.
+- O card mostra status da conexão Stripe, conta financeira para receber, taxa estimada, exemplo de venda e botão para conectar/configurar o cartão online.
+- O botão do Checkout reaproveita a Function segura já existente para Stripe Connect e volta para a própria aba Checkout depois do onboarding.
+- O card visual do Stripe foi ocultado de `Configurações > Integrações`; essa tela preserva os dados já salvos, mas a decisão e a conexão ficam no Checkout.
+- Impacto esperado: a usuária entende e decide sobre cartão online no mesmo lugar onde configura pagamentos exibidos no checkout.
+
+## 2026-06-02 — Stripe: explicação de taxas na integração
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Incluí no card `Configurações > Integrações > Pagamento online` uma área explicando a taxa estimada do cartão antes da conexão Stripe.
+- A leitura usa a forma Stripe cadastrada no Financeiro para mostrar percentual, taxa fixa, exemplo em venda de €10,00 e valor aproximado que sobra.
+- Quando a taxa estimada ainda está zerada, a tela orienta preencher em `Financeiro > Configurações > Formas de pagamento` e deixa claro que a taxa real é registrada depois da venda aprovada quando a Stripe informar.
+- Impacto esperado: a usuária entende o custo do cartão online antes de decidir conectar a conta Stripe.
+
+## 2026-06-02 — Stripe: conta financeira selecionada
+- Arquivos alterados: `functions/index.js`, `public/js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Confirmei e corrigi o fluxo da conta financeira usada pelo Stripe.
+- Ao salvar `Configurações > Integrações`, a conta selecionada já era gravada em `config/integracoes` e enviada para a forma Stripe em `config/financeiro.formas_pagamento`.
+- Ajustei também o clique direto em `Conectar minha conta Stripe` e a atualização de status para enviarem a conta selecionada naquele momento para a Function.
+- A Function agora salva `stripeFinanceAccountId` e `stripeDefaultAccountId` em `config/integracoes` e sincroniza a forma de pagamento Stripe no Financeiro com essa conta.
+- Impacto esperado: mesmo sem clicar antes em `Salvar alterações`, a conta escolhida para receber cartão fica vinculada corretamente ao Financeiro.
+
+## 2026-06-02 — Compras: formas de pagamento por país fiscal
+- Arquivos alterados: `public/js/modules/compras.js`, `AI_CHANGELOG.md`.
+- Ajustei os selects de forma de pagamento do modal de compras e do cadastro de fornecedor para usar a mesma base do Financeiro.
+- O módulo passa a carregar os tipos globais do Master e filtrar por país fiscal da conta, mantendo apenas formas compatíveis com Espanha, Portugal ou ambos.
+- As formas próprias já cadastradas no Financeiro continuam aparecendo e as globais entram sem duplicar nomes.
+- Impacto esperado: Compras deixa de mostrar opções incompatíveis com o país fiscal da loja, como MB Way em conta espanhola ou Bizum em conta portuguesa.
+
+## 2026-06-02 — Template público: copy de pagamento por idioma
+- Arquivos alterados: `public/storefront.html`, `AI_CHANGELOG.md`.
+- Ajustei a exibição das formas de pagamento no checkout público para respeitar o idioma da loja quando a opção for cartão online.
+- A opção interna `Cartão online (Stripe)` continua sendo usada para identificar o fluxo de pagamento, mas a cliente vê `Cartão online`, `Tarjeta online`, `Online card` ou `Carte en ligne`, conforme o idioma.
+- Também adicionei copy pública por idioma para formas globais comuns, como dinheiro, cartão, transferência, débito direto, cheque, Multibanco e outro, mantendo MB Way e Bizum como nomes próprios locais.
+- A mesma copy amigável passa a ser usada na linha de pagamento enviada no WhatsApp.
+- Impacto esperado: o checkout público não expõe o nome técnico `Stripe` para a cliente e mantém a lógica de pagamento online funcionando.
+
+## 2026-06-02 — Financeiro: formas globais por país fiscal
+- Arquivos alterados: `public/js/modules/financeiro.js`, `AI_CHANGELOG.md`.
+- Ajustei a lista de formas de pagamento do Admin para mesclar formas próprias da loja com os tipos globais definidos no Master.
+- As formas globais só aparecem quando são compatíveis com o país fiscal da conta: Portugal, Espanha ou ambos.
+- A correção mantém as formas já cadastradas no tenant e evita duplicidade por nome.
+- Impacto esperado: opções globais como MB Way, Multibanco ou Bizum aparecem no Admin apenas para o país fiscal correto.
+
+## 2026-06-02 — Stripe: desconectar conta pronta
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `AI_CHANGELOG.md`.
+- Ajustei o card `Configurações > Integrações > Pagamento online` para não mostrar `Continuar configuração no Stripe` quando a conta conectada já está pronta para receber cartão.
+- Nesse estado, o botão principal vira `Desconectar Stripe`, removendo apenas o vínculo da loja no BocaFood e desativando cartão no checkout, sem encerrar a conta Stripe.
+- Contas pendentes continuam mostrando `Continuar configuração no Stripe`, e lojas sem conexão continuam mostrando `Conectar minha conta Stripe`.
+- Impacto esperado: a ação disponível fica coerente com o status real da conta Stripe da loja.
+
 ## 2026-06-02 — Stripe: forma de pagamento sem timestamp em array
 - Arquivos alterados: `functions/index.js`, `AI_CHANGELOG.md`.
 - Corrigi a criação/atualização automática da forma de pagamento `Stripe` no Financeiro para não gravar `serverTimestamp()` dentro do array `formas_pagamento`.

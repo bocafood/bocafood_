@@ -1859,6 +1859,47 @@ Modules.Pedidos = (function () {
     return '';
   }
 
+  function _detailStockTraceHTML(order) {
+    order = order || {};
+    var statusText = _orderStockStatusText(order);
+    var created = !!order.stockMovementCreated;
+    var reversed = !!order.stockMovementReversed;
+    var count = _num(order.stockMovementCount);
+    var skippedCount = _num(order.stockMovementSkippedCount);
+    var skipped = Array.isArray(order.stockMovementSkippedItems) ? order.stockMovementSkippedItems : [];
+    if (!statusText && !created && !skippedCount && !reversed && !_statusTriggersStockMovement(order.status)) return '';
+    var tone = created ? '#146C43' : (skippedCount ? '#9A3412' : '#6F6860');
+    var bg = created ? '#EEF8F1' : (skippedCount ? '#FFF6ED' : '#F6F1EA');
+    var border = created ? '#CFE9D8' : (skippedCount ? '#FED7AA' : '#E8DCD7');
+    var headline = created
+      ? 'O estoque já foi movimentado por este pedido.'
+      : (skippedCount ? 'Alguns itens ainda não baixaram do estoque.' : 'A baixa de estoque será criada quando o pedido entrar em preparo ou for confirmado.');
+    if (reversed) headline = 'A baixa deste pedido já teve estorno registrado.';
+    var details = [];
+    if (count) details.push(count + ' registro' + (count === 1 ? '' : 's') + ' de estoque criado' + (count === 1 ? '' : 's'));
+    if (skippedCount) details.push(skippedCount + ' item' + (skippedCount === 1 ? '' : 's') + ' sem vínculo');
+    if (reversed) details.push('estorno registrado');
+    var skippedHtml = skipped.length ? '<div style="margin-top:9px;display:flex;flex-wrap:wrap;gap:6px;">' + skipped.map(function (name) {
+      return '<span style="display:inline-flex;align-items:center;min-height:26px;padding:0 9px;border-radius:999px;background:#fff;border:1px solid #F3D6C2;color:#8A3A12;font-size:11px;font-weight:700;">' + _esc(name) + '</span>';
+    }).join('') + '</div>' : '';
+    var help = skippedCount
+      ? 'Confira se esses produtos têm receita, produto pronto ou montagem interna configurada no cardápio.'
+      : (created ? 'Esses registros aparecem em Estoque > Movimentações e entram no saldo dos itens envolvidos.' : 'Enquanto o pedido ainda não chegou nessa etapa, o estoque fica sem alteração.');
+    return '<div class="order-detail-card">' +
+      '<div class="order-detail-head"><span class="mi">inventory_2</span><div><div class="order-detail-title">Estoque do pedido</div></div></div>' +
+      '<div style="border:1px solid ' + border + ';background:' + bg + ';border-radius:14px;padding:12px;display:grid;gap:7px;">' +
+        '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">' +
+          '<div style="min-width:0;flex:1 1 260px;">' +
+            '<div style="font-size:13px;font-weight:800;color:' + tone + ';line-height:1.35;">' + _esc(headline) + '</div>' +
+            '<div style="font-size:12px;color:#6F6860;line-height:1.45;margin-top:3px;">' + _esc(help) + '</div>' +
+          '</div>' +
+          (details.length ? '<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">' + details.map(function (part) { return '<span style="display:inline-flex;align-items:center;min-height:28px;padding:0 9px;border-radius:999px;background:#fff;border:1px solid rgba(31,31,31,.07);color:#1F1F1F;font-size:11px;font-weight:750;">' + _esc(part) + '</span>'; }).join('') + '</div>' : '') +
+        '</div>' +
+        skippedHtml +
+      '</div>' +
+    '</div>';
+  }
+
   function _detailCustomerMetaHTML(order, customer) {
     var lines = [
       _detailSmallLine('WhatsApp', _firstText(order && order.customerPhone, order && order.phone, order && order.whatsapp, customer && (customer.phone || customer.whatsapp), '')),
@@ -1984,6 +2025,16 @@ Modules.Pedidos = (function () {
         label: label,
         priceExtra: _detailChoiceOptionPrice(option),
         img: _detailChoiceOptionImage(option),
+        stockRef: _firstText(option.stockRef, option.stockItemRef, option.stockItem, ''),
+        stockItemId: _firstText(option.stockItemId, option.itemId, ''),
+        stockItemName: _firstText(option.stockItemName, option.itemName, ''),
+        stockItemType: _firstText(option.stockItemType, option.itemClass, option.classe, ''),
+        itemClass: _firstText(option.itemClass, option.stockItemType, option.classe, ''),
+        classe: _firstText(option.classe, option.stockItemType, option.itemClass, ''),
+        stockQuantity: _num(option.stockQuantity != null ? option.stockQuantity : option.stockQty),
+        stockQuantityPerChoice: _num(option.stockQuantityPerChoice != null ? option.stockQuantityPerChoice : option.stockQuantity),
+        stockUnit: _firstText(option.stockUnit, option.unit, ''),
+        stockUnitCost: _num(option.stockUnitCost != null ? option.stockUnitCost : option.unitCost),
         order: optionIdx
       };
     }).filter(Boolean);
@@ -2143,6 +2194,16 @@ Modules.Pedidos = (function () {
           value: option.label,
           priceExtra: _num(option.priceExtra),
           img: option.img || '',
+          stockRef: option.stockRef || '',
+          stockItemId: option.stockItemId || '',
+          stockItemName: option.stockItemName || '',
+          stockItemType: option.stockItemType || '',
+          itemClass: option.itemClass || option.stockItemType || '',
+          classe: option.classe || option.stockItemType || '',
+          stockQuantityPerChoice: _num(option.stockQuantityPerChoice || option.stockQuantity),
+          stockQuantity: _num(option.stockQuantity || option.stockQuantityPerChoice),
+          stockUnit: option.stockUnit || option.unit || '',
+          stockUnitCost: _num(option.stockUnitCost),
           qty: 1
         });
       });
@@ -2987,6 +3048,9 @@ Modules.Pedidos = (function () {
         '</div>' +
 
         (pointsHtml ? '<section style="display:grid;grid-template-columns:1fr;gap:12px;">' + pointsHtml + '</section>' : '') +
+        '<section class="order-detail-grid" style="grid-template-columns:1fr;">' +
+          _detailStockTraceHTML(o) +
+        '</section>' +
 
         '<section class="order-detail-grid" style="grid-template-columns:1fr;">' +
           '<div class="order-detail-card">' +
@@ -3766,7 +3830,7 @@ Modules.Pedidos = (function () {
   function _internalCompositionStockRefs(item, product, mainQty) {
     var composition = Array.isArray(product && product.internalComposition)
       ? product.internalComposition
-      : (Array.isArray(product && product.internalCompositionItems) ? product.internalCompositionItems : []);
+      : (Array.isArray(product && product.internalCompositionItems) ? product.internalCompositionItems : (Array.isArray(product && product.composicaoInterna) ? product.composicaoInterna : (Array.isArray(product && product.stockComposition) ? product.stockComposition : [])));
     if (!composition.length) return [];
     return composition.map(function (part) {
       if (!part || typeof part !== 'object') return null;
@@ -3775,12 +3839,17 @@ Modules.Pedidos = (function () {
       var refType = refParts[0] || '';
       var refId = refParts.slice(1).join(':');
       var stockType = String(part.stockItemType || part.itemClass || part.classe || '').trim();
+      if (!stockType && refType === 'receita') stockType = 'produto_produzido';
       if (!stockType && refType === 'ficha') stockType = 'produto_produzido';
+      if (!stockType && refType === 'produto_pronto') stockType = 'produto_pronto';
+      if (!stockType && refType === 'embalagem') stockType = 'embalagem';
+      if (!stockType && (refType === 'insumo' || refType === 'ingrediente')) stockType = 'insumo';
       if (!stockType) stockType = 'produto_pronto';
+      stockType = _normalizeStockItemType(stockType);
       var itemId = String(part.itemId || refId || part.fichaTecnicaId || part.fichaId || part.sourceItemId || part.produtoProntoId || '').trim();
       var qty = _roundStockQty((_num(part.quantity != null ? part.quantity : part.qty != null ? part.qty : 1) || 1) * (_num(mainQty) || 1));
       if (!itemId || qty <= 0) return null;
-      var isProduced = stockType === 'produto_produzido' || refType === 'ficha';
+      var isProduced = stockType === 'produto_produzido' || refType === 'ficha' || refType === 'receita';
       var stockName = _firstText(part.itemName, part.name, part.label, isProduced ? 'Produto produzido' : 'Item interno');
       return {
         fichaId: isProduced ? itemId : '',
@@ -3797,9 +3866,19 @@ Modules.Pedidos = (function () {
     }).filter(Boolean);
   }
 
+  function _normalizeStockItemType(value) {
+    var type = String(value || '').trim().toLowerCase();
+    if (type === 'ingrediente' || type === 'ingredientes') return 'insumo';
+    if (type === 'produto' || type === 'produto pronto' || type === 'compras_produto') return 'produto_pronto';
+    if (type === 'receita' || type === 'ficha') return 'produto_produzido';
+    if (type === 'base' || type === 'base_producao') return 'base_producao';
+    if (type === 'embalagens') return 'embalagem';
+    return type || 'insumo';
+  }
+
   function _extractStockChoiceRefs(item, product, mainQty) {
     var sources = [];
-    ['choices', 'variants', 'selections', 'options', 'selectedOptions', 'comboItems', 'comboSelections', 'items'].forEach(function (key) {
+    ['stockChoices', 'choiceStockRefs', 'choices', 'variants', 'selections', 'options', 'selectedOptions', 'comboItems', 'comboSelections', 'items'].forEach(function (key) {
       var value = item && item[key];
       if (Array.isArray(value)) sources = sources.concat(value);
     });
@@ -3812,6 +3891,15 @@ Modules.Pedidos = (function () {
     var refs = [];
     sources.forEach(function (choice) {
       if (!choice || typeof choice !== 'object') return;
+      var boundRef = _stockRefFromChoiceBinding(choice, mainQty);
+      if (Array.isArray(boundRef) && boundRef.length) {
+        refs = refs.concat(boundRef);
+        return;
+      }
+      if (boundRef) {
+        refs.push(boundRef);
+        return;
+      }
       var choiceProduct = _findProductForOrderItem(choice) || _findProductByAnyId(_firstText(choice.productId, choice.id, choice.itemId, choice.value, choice.optionId, '')) || {};
       var qty = _num(choice.quantity != null ? choice.quantity : choice.qty != null ? choice.qty : choice.count != null ? choice.count : choice.amount);
       if (qty <= 0) qty = 1;
@@ -3820,6 +3908,50 @@ Modules.Pedidos = (function () {
       else if (ref) refs.push(ref);
     });
     return refs;
+  }
+
+  function _stockRefFromChoiceBinding(choice, mainQty) {
+    if (!choice || typeof choice !== 'object') return null;
+    var ref = String(_firstText(choice.stockRef, choice.stockItemRef, choice.stockItem, '') || '').trim();
+    var refParts = ref ? ref.split(':') : [];
+    var refType = refParts[0] || '';
+    var refId = refParts.slice(1).join(':');
+    var stockType = _firstText(choice.stockItemType, choice.itemClass, choice.classe, '');
+    if (!stockType && (refType === 'ficha' || refType === 'receita')) stockType = 'produto_produzido';
+    if (!stockType && refType === 'produto_pronto') stockType = 'produto_pronto';
+    if (!stockType && refType === 'embalagem') stockType = 'embalagem';
+    if (!stockType && (refType === 'insumo' || refType === 'ingrediente')) stockType = 'insumo';
+    if (!stockType && refType === 'base_producao') stockType = 'base_producao';
+    stockType = _normalizeStockItemType(stockType);
+    var itemId = _firstText(choice.stockItemId, choice.itemId, refId, choice.fichaTecnicaId, choice.fichaId, choice.sourceItemId, choice.produtoProntoId, '');
+    if (!itemId) return null;
+    var absoluteQty = _num(choice.stockAbsoluteQuantity != null ? choice.stockAbsoluteQuantity : choice.stockQuantityTotal);
+    var perChoice = _num(choice.stockQuantityPerChoice != null ? choice.stockQuantityPerChoice : choice.stockQuantity != null ? choice.stockQuantity : choice.stockQty);
+    if (perChoice <= 0) perChoice = 1;
+    var selectedQty = _num(choice.quantity != null ? choice.quantity : choice.qty != null ? choice.qty : choice.count != null ? choice.count : choice.amount);
+    if (selectedQty <= 0) selectedQty = 1;
+    var qty = absoluteQty > 0 ? absoluteQty : (_num(mainQty) || 1) * selectedQty * perChoice;
+    qty = _roundStockQty(qty);
+    if (qty <= 0) return null;
+    if (stockType === 'produto_produzido') {
+      var baseRefs = _baseStockRefsFromRecipe(choice, {}, qty, 'combo_opcao', itemId);
+      if (baseRefs.length) return baseRefs;
+    }
+    var stockName = _firstText(choice.stockItemName, choice.itemName, choice.optionName, choice.name, choice.label, stockType === 'produto_produzido' ? 'Produto produzido' : 'Item da escolha');
+    return {
+      fichaId: stockType === 'produto_produzido' ? itemId : '',
+      fichaNome: stockType === 'produto_produzido' ? stockName : '',
+      readyItemId: (stockType === 'produto_produzido' || stockType === 'base_producao') ? '' : itemId,
+      baseProductionId: stockType === 'base_producao' ? itemId : '',
+      baseProductionName: stockType === 'base_producao' ? stockName : '',
+      productId: itemId,
+      productName: stockName,
+      quantity: qty,
+      unit: _firstText(choice.stockUnit, choice.unit, 'un'),
+      unitCost: _num(choice.stockUnitCost != null ? choice.stockUnitCost : choice.unitCost),
+      stockItemType: stockType,
+      source: 'combo_opcao'
+    };
   }
 
   function _stockRefFromProductLike(item, product, quantity, source) {
@@ -3850,7 +3982,7 @@ Modules.Pedidos = (function () {
     var recipeYield = _num(recipe.yieldQuantity || recipe.yield || recipe.rendimento || product && (product.yieldQuantity || product.yield)) || 1;
     var soldQty = _num(quantity) || 1;
     return baseComponents.map(function (comp, idx) {
-      var baseYield = _num(comp.baseYieldQuantity || comp.stockYieldQuantity);
+      var baseYield = _num(comp.stageYieldQuantity || comp.baseYieldQuantity || comp.stockYieldQuantity);
       if (baseYield <= 0) baseYield = recipeYield;
       var qty = _roundStockQty((baseYield / Math.max(1, recipeYield)) * soldQty);
       var totalCost = _componentStockCost(comp);
@@ -3861,16 +3993,27 @@ Modules.Pedidos = (function () {
         readyItemId: '',
         productId: _firstText(item && item.productId, item && item.id, product && product.id, ''),
         productName: _firstText(item && item.name, item && item.productName, product && product.name, product && product.title, 'Produto'),
-        baseProductionId: (fichaId || 'receita') + ':' + (comp.name || 'etapa_' + idx),
+        baseProductionId: _baseProductionIdForOrder(recipe, comp, idx),
         baseProductionName: comp.name || 'Base de produção',
         componentName: comp.name || '',
         quantity: qty,
-        unit: comp.baseYieldUnit || comp.stockYieldUnit || recipe.yieldUnit || 'unidades',
+        unit: comp.stageYieldUnit || comp.baseYieldUnit || comp.stockYieldUnit || recipe.yieldUnit || 'unidades',
         unitCost: unitCost,
         stockItemType: 'base_producao',
         source: source === 'combo' ? 'combo_base_producao' : 'base_producao'
       };
     }).filter(function (ref) { return _num(ref.quantity) > 0; });
+  }
+
+  function _baseProductionIdForOrder(recipe, comp, idx) {
+    comp = comp || {};
+    var existing = String(comp.baseProductionId || '').trim();
+    if (existing) return existing;
+    var shared = String(comp.sharedBaseId || '').trim();
+    if (shared) return shared;
+    var componentId = String(comp.componentId || comp.recipeComponentId || '').trim();
+    if (componentId) return componentId.indexOf('base_component:') === 0 ? componentId : 'base_component:' + componentId;
+    return (recipe && recipe.id ? recipe.id : 'receita') + ':' + (comp.name || ('etapa_' + (idx || 0)));
   }
 
   function _findStockRecipeById(id) {

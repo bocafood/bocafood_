@@ -2301,7 +2301,7 @@ function stockBaseRefsFromRecipe(item, product, quantity, source, fichaId, recip
   const recipeYield = stockNum(recipe.yieldQuantity || recipe.yield || recipe.rendimento || product && (product.yieldQuantity || product.yield)) || 1;
   const soldQty = stockNum(quantity) || 1;
   return baseComponents.map((comp, idx) => {
-    let baseYield = stockNum(comp.baseYieldQuantity || comp.stockYieldQuantity);
+    let baseYield = stockNum(comp.stageYieldQuantity || comp.baseYieldQuantity || comp.stockYieldQuantity);
     if (baseYield <= 0) baseYield = recipeYield;
     const qty = stockRoundQty((baseYield / Math.max(1, recipeYield)) * soldQty);
     const totalCost = stockComponentCost(comp);
@@ -2312,16 +2312,26 @@ function stockBaseRefsFromRecipe(item, product, quantity, source, fichaId, recip
       readyItemId: "",
       productId: stockFirstText(item && item.productId, item && item.id, product && product.id, ""),
       productName: stockFirstText(item && item.name, item && item.productName, product && product.name, product && product.title, "Produto"),
-      baseProductionId: `${fichaId || "receita"}:${comp.name || `etapa_${idx}`}`,
+      baseProductionId: stockBaseProductionId(recipe, comp, idx),
       baseProductionName: comp.name || "Base de produção",
       componentName: comp.name || "",
       quantity: qty,
-      unit: comp.baseYieldUnit || comp.stockYieldUnit || recipe.yieldUnit || "unidades",
+      unit: comp.stageYieldUnit || comp.baseYieldUnit || comp.stockYieldUnit || recipe.yieldUnit || "unidades",
       unitCost,
       stockItemType: "base_producao",
       source: source === "combo" ? "combo_base_producao" : "base_producao"
     };
   }).filter((ref) => stockNum(ref.quantity) > 0);
+}
+
+function stockBaseProductionId(recipe, comp, idx) {
+  const existing = String((comp && comp.baseProductionId) || "").trim();
+  if (existing) return existing;
+  const shared = String((comp && comp.sharedBaseId) || "").trim();
+  if (shared) return shared;
+  const componentId = String((comp && (comp.componentId || comp.recipeComponentId)) || "").trim();
+  if (componentId) return componentId.startsWith("base_component:") ? componentId : `base_component:${componentId}`;
+  return `${(recipe && recipe.id) || "receita"}:${(comp && comp.name) || `etapa_${idx || 0}`}`;
 }
 
 function stockRefFromProductLike(item, product, quantity, source, products, recipes) {
@@ -2346,7 +2356,7 @@ function stockRefFromProductLike(item, product, quantity, source, products, reci
 
 function stockExtractChoiceRefs(item, product, mainQty, products, recipes) {
   let sources = [];
-  ["choices", "variants", "selections", "options", "selectedOptions", "comboItems", "comboSelections", "items"].forEach((key) => {
+  ["stockChoices", "choiceStockRefs", "choices", "variants", "selections", "options", "selectedOptions", "comboItems", "comboSelections", "items"].forEach((key) => {
     const value = item && item[key];
     if (Array.isArray(value)) sources = sources.concat(value);
   });
@@ -2359,6 +2369,15 @@ function stockExtractChoiceRefs(item, product, mainQty, products, recipes) {
   const refs = [];
   sources.forEach((choice) => {
     if (!choice || typeof choice !== "object") return;
+    const boundRef = stockRefFromChoiceBinding(choice, mainQty, recipes);
+    if (Array.isArray(boundRef) && boundRef.length) {
+      refs.push(...boundRef);
+      return;
+    }
+    if (boundRef) {
+      refs.push(boundRef);
+      return;
+    }
     const choiceProduct = stockFindProductForOrderItem(choice, products) || stockFindProductByAnyId(stockFirstText(choice.productId, choice.id, choice.itemId, choice.value, choice.optionId, ""), products) || {};
     let qty = stockNum(choice.quantity != null ? choice.quantity : choice.qty != null ? choice.qty : choice.count != null ? choice.count : choice.amount);
     if (qty <= 0) qty = 1;
@@ -2369,8 +2388,105 @@ function stockExtractChoiceRefs(item, product, mainQty, products, recipes) {
   return refs;
 }
 
+function stockRefFromChoiceBinding(choice, mainQty, recipes) {
+  if (!choice || typeof choice !== "object") return null;
+  const ref = String(stockFirstText(choice.stockRef, choice.stockItemRef, choice.stockItem, "") || "").trim();
+  const refParts = ref ? ref.split(":") : [];
+  const refType = refParts[0] || "";
+  const refId = refParts.slice(1).join(":");
+  let stockType = stockFirstText(choice.stockItemType, choice.itemClass, choice.classe, "");
+  if (!stockType && (refType === "ficha" || refType === "receita")) stockType = "produto_produzido";
+  if (!stockType && refType === "produto_pronto") stockType = "produto_pronto";
+  if (!stockType && refType === "embalagem") stockType = "embalagem";
+  if (!stockType && (refType === "insumo" || refType === "ingrediente")) stockType = "insumo";
+  if (!stockType && refType === "base_producao") stockType = "base_producao";
+  stockType = stockNormalizeItemType(stockType);
+  const itemId = stockFirstText(choice.stockItemId, choice.itemId, refId, choice.fichaTecnicaId, choice.fichaId, choice.sourceItemId, choice.produtoProntoId, "");
+  if (!itemId) return null;
+  const absoluteQty = stockNum(choice.stockAbsoluteQuantity != null ? choice.stockAbsoluteQuantity : choice.stockQuantityTotal);
+  let perChoice = stockNum(choice.stockQuantityPerChoice != null ? choice.stockQuantityPerChoice : choice.stockQuantity != null ? choice.stockQuantity : choice.stockQty);
+  if (perChoice <= 0) perChoice = 1;
+  let selectedQty = stockNum(choice.quantity != null ? choice.quantity : choice.qty != null ? choice.qty : choice.count != null ? choice.count : choice.amount);
+  if (selectedQty <= 0) selectedQty = 1;
+  const qty = stockRoundQty(absoluteQty > 0 ? absoluteQty : (stockNum(mainQty) || 1) * selectedQty * perChoice);
+  if (qty <= 0) return null;
+  if (stockType === "produto_produzido") {
+    const baseRefs = stockBaseRefsFromRecipe(choice, {}, qty, "combo_opcao", itemId, recipes);
+    if (baseRefs.length) return baseRefs;
+  }
+  const stockName = stockFirstText(choice.stockItemName, choice.itemName, choice.optionName, choice.name, choice.label, stockType === "produto_produzido" ? "Produto produzido" : "Item da escolha");
+  return {
+    fichaId: stockType === "produto_produzido" ? itemId : "",
+    fichaNome: stockType === "produto_produzido" ? stockName : "",
+    readyItemId: (stockType === "produto_produzido" || stockType === "base_producao") ? "" : itemId,
+    baseProductionId: stockType === "base_producao" ? itemId : "",
+    baseProductionName: stockType === "base_producao" ? stockName : "",
+    productId: itemId,
+    productName: stockName,
+    quantity: qty,
+    unit: stockFirstText(choice.stockUnit, choice.unit, "un"),
+    unitCost: stockNum(choice.stockUnitCost != null ? choice.stockUnitCost : choice.unitCost),
+    stockItemType: stockType,
+    source: "combo_opcao"
+  };
+}
+
+function stockNormalizeItemType(value) {
+  const type = String(value || "").trim().toLowerCase();
+  if (type === "ingrediente" || type === "ingredientes") return "insumo";
+  if (type === "produto" || type === "produto pronto" || type === "compras_produto") return "produto_pronto";
+  if (type === "receita" || type === "ficha") return "produto_produzido";
+  if (type === "base" || type === "base_producao") return "base_producao";
+  if (type === "embalagens") return "embalagem";
+  return type || "insumo";
+}
+
+function stockInternalCompositionRefs(item, product, mainQty) {
+  const composition = Array.isArray(product && product.internalComposition)
+    ? product.internalComposition
+    : (Array.isArray(product && product.internalCompositionItems)
+      ? product.internalCompositionItems
+      : (Array.isArray(product && product.composicaoInterna)
+        ? product.composicaoInterna
+        : (Array.isArray(product && product.stockComposition) ? product.stockComposition : [])));
+  if (!composition.length) return [];
+  return composition.map((part) => {
+    if (!part || typeof part !== "object") return null;
+    const ref = String(part.ref || "").trim();
+    const refParts = ref.split(":");
+    const refType = refParts[0] || "";
+    const refId = refParts.slice(1).join(":");
+    let stockType = String(part.stockItemType || part.itemClass || part.classe || "").trim();
+    if (!stockType && (refType === "ficha" || refType === "receita")) stockType = "produto_produzido";
+    if (!stockType && refType === "produto_pronto") stockType = "produto_pronto";
+    if (!stockType && refType === "embalagem") stockType = "embalagem";
+    if (!stockType && (refType === "insumo" || refType === "ingrediente")) stockType = "insumo";
+    if (!stockType) stockType = "produto_pronto";
+    stockType = stockNormalizeItemType(stockType);
+    const itemId = String(part.itemId || refId || part.fichaTecnicaId || part.fichaId || part.sourceItemId || part.produtoProntoId || "").trim();
+    const qty = stockRoundQty((stockNum(part.quantity != null ? part.quantity : part.qty != null ? part.qty : 1) || 1) * (stockNum(mainQty) || 1));
+    if (!itemId || qty <= 0) return null;
+    const isProduced = stockType === "produto_produzido" || refType === "ficha" || refType === "receita";
+    const stockName = stockFirstText(part.itemName, part.name, part.label, isProduced ? "Produto produzido" : "Item interno");
+    return {
+      fichaId: isProduced ? itemId : "",
+      fichaNome: isProduced ? stockName : "",
+      readyItemId: isProduced ? "" : itemId,
+      productId: itemId,
+      productName: stockName,
+      quantity: qty,
+      unit: part.unit || "un",
+      unitCost: stockNum(part.unitCost),
+      stockItemType: stockType,
+      source: "composicao_interna"
+    };
+  }).filter(Boolean);
+}
+
 function stockOrderItemRefs(item, product, products, recipes) {
   const mainQty = stockOrderItemQuantity(item);
+  const internalRefs = stockInternalCompositionRefs(item, product, mainQty);
+  if (internalRefs.length) return internalRefs;
   const direct = stockRefFromProductLike(item, product, mainQty, "item", products, recipes);
   const choices = stockExtractChoiceRefs(item, product, mainQty, products, recipes);
   if (choices.length) return choices;
@@ -2913,6 +3029,7 @@ exports.createStripeConnectOnboarding = onRequest({ region: REGION, timeoutSecon
     const tenant = tenantSnap.exists ? tenantSnap.data() || {} : {};
     const integrations = integrationsSnap.exists ? integrationsSnap.data() || {} : {};
     const existingAccountId = String(integrations.stripeConnectedAccountId || integrations.stripeAccountId || "").trim();
+    const selectedFinanceAccountId = String(body.financeAccountId || body.stripeFinanceAccountId || integrations.stripeFinanceAccountId || integrations.stripeDefaultAccountId || "").trim();
     let accountId = existingAccountId;
     if (!/^acct_/.test(accountId)) {
       const account = await stripeRequest("accounts", {
@@ -2938,12 +3055,14 @@ exports.createStripeConnectOnboarding = onRequest({ region: REGION, timeoutSecon
       stripeEnabled: true,
       stripeConnectedAccountId: accountId,
       stripeAccountId: accountId,
+      stripeFinanceAccountId: selectedFinanceAccountId,
+      stripeDefaultAccountId: selectedFinanceAccountId,
       stripeConnectStatus: existingAccountId === accountId ? (integrations.stripeConnectStatus || "onboarding_required") : "onboarding_required",
       stripeConnectUpdatedAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     };
     await Promise.all([
-      ensureStripeFinancePaymentMethod(tenantId, integrations.stripeFinanceAccountId || integrations.stripeDefaultAccountId || ""),
+      ensureStripeFinancePaymentMethod(tenantId, selectedFinanceAccountId),
       db.collection("tenants").doc(tenantId).collection("config").doc("integracoes").set(patch, { merge: true }),
       db.collection("system_tenants").doc(tenantId).set({
         integrations: {
@@ -2976,6 +3095,7 @@ exports.getStripeConnectStatus = onRequest({ region: REGION, timeoutSeconds: 45,
     const integrationsSnap = await integrationsRef.get();
     const integrations = integrationsSnap.exists ? integrationsSnap.data() || {} : {};
     const accountId = String(integrations.stripeConnectedAccountId || integrations.stripeAccountId || "").trim();
+    const selectedFinanceAccountId = String(body.financeAccountId || body.stripeFinanceAccountId || integrations.stripeFinanceAccountId || integrations.stripeDefaultAccountId || "").trim();
     if (!/^acct_/.test(accountId)) return res.status(404).json({ ok: false, error: "store_stripe_not_connected" });
     const account = await stripeGet(`accounts/${encodeURIComponent(accountId)}`, config);
     const status = safeStripeAccountStatus(account);
@@ -2983,6 +3103,8 @@ exports.getStripeConnectStatus = onRequest({ region: REGION, timeoutSeconds: 45,
       stripeEnabled: status.status === "ready" ? true : integrations.stripeEnabled === true,
       stripeConnectedAccountId: accountId,
       stripeAccountId: accountId,
+      stripeFinanceAccountId: selectedFinanceAccountId,
+      stripeDefaultAccountId: selectedFinanceAccountId,
       stripeConnectStatus: status.status,
       stripeChargesEnabled: status.chargesEnabled,
       stripePayoutsEnabled: status.payoutsEnabled,
@@ -2993,7 +3115,7 @@ exports.getStripeConnectStatus = onRequest({ region: REGION, timeoutSeconds: 45,
       updatedAt: serverTimestamp()
     };
     await Promise.all([
-      ensureStripeFinancePaymentMethod(tenantId, integrations.stripeFinanceAccountId || integrations.stripeDefaultAccountId || ""),
+      ensureStripeFinancePaymentMethod(tenantId, selectedFinanceAccountId),
       integrationsRef.set(patch, { merge: true }),
       db.collection("system_tenants").doc(tenantId).set({
         integrations: {

@@ -7,6 +7,7 @@ Modules.Receitas = (function () {
   var _recipeCategories = [];
   var _editingCategoryId = null;
   var _recipeComponents = [];
+  var _recipeComponentUsage = {};
   var _editingComponentId = null;
   var _ingredientTypes = [];
   var _ingredientCategories = [];
@@ -30,9 +31,13 @@ Modules.Receitas = (function () {
   var _purchaseListPage = { page: 1, perPage: 10 };
   var _purchaseListData = { lists: [], orders: [], recipes: [], movements: [], settings: [], costItems: [] };
   var _productionNeedData = { items: [], recipes: [], movements: [], settings: [] };
+  var _forecastData = { recipes: [], movements: [], settings: [], costItems: [], products: [], variantGroups: [] };
+  var _forecastFilters = { view: 'receitas', q: '', status: 'todos' };
+  var _forecastPage = { page: 1, perPage: 10 };
   var TABS = [
     { key: 'receitas', label: 'Receitas' },
     { key: 'ordens', label: 'Ordens' },
+    { key: 'previsao', label: 'Previsão' },
     { key: 'lista-compras', label: 'Lista de Compras' },
     { key: 'movimentacoes', label: 'Movimentações' },
     { key: 'insumos', label: 'Ingredientes e Embalagens' },
@@ -59,7 +64,7 @@ Modules.Receitas = (function () {
     var map = {
       componentes: {
         title: 'Etapas da receita',
-        desc: 'Cadastre etapas como massa, recheio, cobertura ou finalização para organizar melhor os ingredientes.',
+        desc: 'Cadastre partes que podem aparecer em mais de uma receita, como massa, recheio, creme, molho ou cobertura.',
         add: '+ Adicionar etapa'
       },
       'categorias-receita': {
@@ -117,11 +122,19 @@ Modules.Receitas = (function () {
       '.recipes-config-row:hover{background:#FFFCF8;box-shadow:0 8px 18px rgba(31,31,31,.04);transform:translateY(-1px);}' +
       '.recipes-config-row-title{font-size:15px;font-weight:650;color:#1F1F1F;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
       '.recipes-config-row-text{font-size:12px;color:#6F6860;line-height:1.35;margin-top:2px;}' +
+      '.recipes-config-guide{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,.44fr);gap:12px;margin-bottom:14px;}' +
+      '.recipes-config-guide-main,.recipes-config-guide-side{border:1px solid #EADFD8;border-radius:16px;background:#FFFCF8;padding:13px 14px;box-shadow:0 1px 2px rgba(31,31,31,.03);}' +
+      '.recipes-config-guide-title{font-size:13px;font-weight:800;color:#1F1F1F;line-height:1.25;margin-bottom:6px;}' +
+      '.recipes-config-guide-text{font-size:12.5px;color:#5F5652;line-height:1.5;margin:0;}' +
+      '.recipes-config-guide-list{display:grid;gap:7px;margin:10px 0 0;padding:0;list-style:none;}' +
+      '.recipes-config-guide-list li{display:flex;gap:7px;align-items:flex-start;font-size:12px;color:#5F5652;line-height:1.4;}' +
+      '.recipes-config-guide-list .mi{font-size:15px;color:#B42318;margin-top:1px;}' +
+      '.recipes-config-usage{height:24px;padding:0 9px;border-radius:999px;border:1px solid #EADFD8;background:#FFFCF8;color:#6F6860;font-size:11px;font-weight:750;display:inline-flex;align-items:center;white-space:nowrap;}' +
       '.recipes-config-status{height:24px;padding:0 9px;border-radius:999px;border:1px solid #DDE8D9;background:#F5FBF2;color:#3F7A3D;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;}' +
       '.recipes-config-status.inactive{border-color:#E6DED8;background:#FAF8F4;color:#8A7E7C;}' +
       '.recipes-config-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}' +
       '.recipes-config-empty{text-align:center;padding:38px 18px;color:#8A7E7C;font-size:13px;line-height:1.45;border:1px dashed #EADFD8;border-radius:14px;background:#FFFCF8;}' +
-      '@media(max-width:760px){.recipes-config-filter-grid{grid-template-columns:1fr}.recipes-config-chip-row{overflow:auto;flex-wrap:nowrap}.recipes-config-chip{white-space:nowrap}.recipes-config-row{align-items:flex-start;flex-direction:column}.recipes-config-actions{justify-content:flex-start}}' +
+      '@media(max-width:760px){.recipes-config-filter-grid,.recipes-config-guide{grid-template-columns:1fr}.recipes-config-chip-row{overflow:auto;flex-wrap:nowrap}.recipes-config-chip{white-space:nowrap}.recipes-config-row{align-items:flex-start;flex-direction:column}.recipes-config-actions{justify-content:flex-start}}' +
       '</style>';
   }
 
@@ -225,6 +238,7 @@ Modules.Receitas = (function () {
     }
 
     if (key === 'ordens') return _renderProductionOrders();
+    if (key === 'previsao') return _renderProductionForecast();
     if (key === 'lista-compras') return _renderPurchaseList();
     if (key === 'movimentacoes') return _renderStockMovements();
 
@@ -335,6 +349,13 @@ Modules.Receitas = (function () {
       '.production-plan-check{display:flex;align-items:center;gap:10px;min-width:0;cursor:pointer;}' +
       '.production-plan-check strong{display:block;font-size:14px;color:#1F1F1F;font-weight:650;line-height:1.25;}' +
       '.production-plan-check small{display:block;font-size:12px;color:#6F6860;font-weight:500;line-height:1.35;margin-top:3px;}' +
+      '.production-forecast-summary{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:10px;}' +
+      '.production-forecast-status{height:26px;padding:0 10px;border-radius:999px;border:1px solid #EADFD8;background:#FAF8F4;color:#6F6860;font-size:11px;font-weight:750;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;}' +
+      '.production-forecast-status.ok{background:#F5FBF2;border-color:#DDE8D9;color:#3F7A3D;}' +
+      '.production-forecast-status.warn{background:#FFF7ED;border-color:#FED7AA;color:#C2410C;}' +
+      '.production-forecast-status.danger{background:#FFF3F1;border-color:#F2B8B0;color:#B42318;}' +
+      '.production-forecast-limit{font-size:12px;color:#6F6860;line-height:1.4;margin-top:4px;max-width:340px;}' +
+      '.production-forecast-table{min-width:980px;}' +
       '@media(max-width:820px){.production-orders-row,.stock-movement-row,.purchase-list-row,.production-need-row,.production-plan-row{grid-template-columns:1fr}.production-orders-filter-grid,.purchase-list-filter-grid,.stock-movement-filter-grid,.purchase-list-controls,.purchase-generate-card,.purchase-generate-form{grid-template-columns:1fr}.production-modal-grid,.production-detail-grid,.purchase-list-summary-grid,.production-ingredient-row{grid-template-columns:1fr}.production-orders-primary{width:100%;}}' +
       '</style>';
   }
@@ -530,6 +551,797 @@ Modules.Receitas = (function () {
     if (!isFinite(next)) return;
     _productionOrderPage.page = Math.max(1, next);
     _paintProductionOrders();
+  }
+
+  function _renderProductionForecast() {
+    var content = document.getElementById('receitas-content');
+    if (!content) return;
+    content.innerHTML = _ordersStyles() + '<div class="production-orders-page"><div class="loading-inline">Calculando previsão de produção...</div></div>';
+    Promise.all([
+      DB.getAll('fichasTecnicas').catch(function () { return []; }),
+      DB.getAll('stock_movements').catch(function () { return []; }),
+      DB.getAll('stock_settings').catch(function () { return []; }),
+      DB.getAll('itens_custo').catch(function () { return []; }),
+      DB.getAll('products').catch(function () { return []; }),
+      DB.getAll('variantGroups').catch(function () { return []; })
+    ]).then(function (r) {
+      _forecastData = {
+        recipes: r[0] || [],
+        movements: r[1] || [],
+        settings: r[2] || [],
+        costItems: r[3] || [],
+        products: r[4] || [],
+        variantGroups: r[5] || []
+      };
+      _paintProductionForecast();
+    }).catch(function (err) {
+      UI.toast('Erro: ' + err.message, 'error');
+    });
+  }
+
+  function _paintProductionForecast() {
+    var content = document.getElementById('receitas-content');
+    if (!content) return;
+    var view = _forecastFilters.view || 'receitas';
+    var rowsData = _filteredProductionForecastRows();
+    var allRows = _buildProductionForecastRows();
+    var paging = _forecastPage || (_forecastPage = { page: 1, perPage: 10 });
+    paging.perPage = Number(paging.perPage) || 10;
+    var totalPages = Math.max(1, Math.ceil(rowsData.length / paging.perPage));
+    if (paging.page > totalPages) paging.page = totalPages;
+    if (paging.page < 1) paging.page = 1;
+    var startIdx = (paging.page - 1) * paging.perPage;
+    var pageRows = rowsData.slice(startIdx, startIdx + paging.perPage);
+    var showingStart = rowsData.length ? startIdx + 1 : 0;
+    var showingEnd = rowsData.length ? Math.min(startIdx + pageRows.length, rowsData.length) : 0;
+    var summary = _productionForecastSummary(allRows);
+    var hasFilters = !!((_forecastFilters.q || '').trim() || _forecastFilters.status !== 'todos');
+    var pageOptions = [10, 25, 50].map(function (size) {
+      return '<option value="' + size + '"' + (paging.perPage === size ? ' selected' : '') + '>' + size + ' por página</option>';
+    }).join('');
+    var rows = pageRows.map(function (row) {
+      var status = _forecastStatus(row);
+      var rowKey = _forecastRowKey(row);
+      return '<tr>' +
+        '<td><div class="production-orders-row-title">' + _esc(row.name) + '</div><div class="production-orders-row-text">' + _esc(_forecastRowSubtitle(row)) + '</div></td>' +
+        '<td><span class="production-forecast-status ' + _esc(status.tone) + '">' + _esc(status.label) + '</span><div class="production-forecast-limit">' + _esc(row.requirements.length ? (row.requirements.length + ' item(ns) controlados') : 'Sem itens controlados para calcular') + '</div></td>' +
+        '<td><div class="production-orders-value">' + (row.capacity == null ? '—' : (_esc(_fmtQty(row.capacity)) + ' ' + _esc(row.yieldUnit || ''))) + '</div><div class="production-orders-row-text">Com o saldo atual</div></td>' +
+        '<td><div class="production-orders-value">' + _esc(row.limiter ? row.limiter.name : '—') + '</div><div class="production-forecast-limit">' + _esc(row.limiter ? ('Saldo ' + _fmtQty(row.limiter.balance) + ' de ' + _fmtQty(row.limiter.requiredPerUnit) + ' por unidade') : 'Nenhum limitador identificado') + '</div></td>' +
+        '<td><div class="production-orders-value">' + _money(view === 'cardapio' ? (row.salePrice || 0) : (row.costPerYield || 0)) + '</div><div class="production-orders-row-text">' + (view === 'cardapio' ? 'Preço de venda' : 'Custo por unidade/rendimento') + '</div></td>' +
+        '<td style="text-align:right;"><button type="button" class="production-orders-secondary" style="height:32px;padding:0 10px;font-size:12px;" onclick="Modules.Receitas._openProductionForecastDetails(\'' + _escJs(rowKey) + '\')">Ver cálculo</button></td>' +
+      '</tr>';
+    }).join('');
+    content.innerHTML = _ordersStyles() +
+      '<div class="bf-page production-orders-page">' +
+        '<div class="bf-page-header production-orders-head">' +
+          '<div style="min-width:0;flex:1 1 420px;">' +
+            '<h2 class="production-orders-title">Previsão de produção</h2>' +
+            '<p class="production-orders-subtitle">Leitura passiva do que pode ser produzido com o saldo atual. Esta tela não cria ordem, baixa ou movimentação.</p>' +
+          '</div>' +
+        '</div>' +
+        '<div class="stock-movement-tabs">' +
+          '<button type="button" class="stock-movement-tab ' + (view === 'receitas' ? 'active' : '') + '" onclick="Modules.Receitas._setProductionForecastView(\'receitas\')">Receitas</button>' +
+          '<button type="button" class="stock-movement-tab ' + (view === 'bases' ? 'active' : '') + '" onclick="Modules.Receitas._setProductionForecastView(\'bases\')">Bases de produção</button>' +
+          '<button type="button" class="stock-movement-tab ' + (view === 'cardapio' ? 'active' : '') + '" onclick="Modules.Receitas._setProductionForecastView(\'cardapio\')">Cardápio</button>' +
+        '</div>' +
+        '<section class="production-orders-card">' +
+          '<div class="production-forecast-summary">' +
+            _detailTile(view === 'bases' ? 'Bases analisadas' : (view === 'cardapio' ? 'Produtos analisados' : 'Receitas analisadas'), String(summary.total)) +
+            _detailTile(view === 'cardapio' ? 'Com venda possível' : 'Com produção possível', String(summary.available)) +
+            _detailTile('Limitadas por estoque', String(summary.blocked)) +
+            _detailTile('Sem composição clara', String(summary.unclear)) +
+          '</div>' +
+        '</section>' +
+        '<section class="production-orders-filter">' +
+          '<div class="production-orders-filter-grid">' +
+            '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Buscar</span><div class="production-orders-field"><input id="production-forecast-search" type="search" value="' + _esc(_forecastFilters.q || '') + '" placeholder="' + (view === 'bases' ? 'Buscar base ou limitador' : (view === 'cardapio' ? 'Buscar produto ou limitador' : 'Buscar receita ou limitador')) + '" autocomplete="off" oninput="Modules.Receitas._setProductionForecastFilter(\'q\',this.value)"></div></label>' +
+            '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Status</span><div class="production-orders-field"><select onchange="Modules.Receitas._setProductionForecastFilter(\'status\',this.value)">' +
+              '<option value="todos"' + (_forecastFilters.status === 'todos' ? ' selected' : '') + '>Todos</option>' +
+              '<option value="ok"' + (_forecastFilters.status === 'ok' ? ' selected' : '') + '>Pode produzir</option>' +
+              '<option value="bloqueado"' + (_forecastFilters.status === 'bloqueado' ? ' selected' : '') + '>Limitado por estoque</option>' +
+              '<option value="sem_composicao"' + (_forecastFilters.status === 'sem_composicao' ? ' selected' : '') + '>Sem composição clara</option>' +
+            '</select></div></label>' +
+            '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Base da previsão</span><div class="production-orders-field"><input type="text" value="Saldo atual do estoque" readonly></div></label>' +
+          '</div>' +
+          (hasFilters ? '<div class="production-orders-filter-actions"><button type="button" class="production-orders-clear" onclick="Modules.Receitas._clearProductionForecastFilters()">Limpar filtros</button></div>' : '') +
+        '</section>' +
+        (rows ?
+          '<section style="display:flex;flex-direction:column;gap:10px;">' +
+            '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">' + (view === 'bases' ? 'Capacidade por base de produção' : (view === 'cardapio' ? 'Capacidade por produto do cardápio' : 'Capacidade por receita')) + '</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">' + (view === 'bases' ? 'A quantidade possível de cada base é definida pelo menor saldo disponível entre os insumos da etapa.' : (view === 'cardapio' ? 'A quantidade possível de venda usa receita vinculada, produto pronto ou montagem interna do produto.' : 'A quantidade possível é definida pelo menor saldo disponível entre os itens exigidos pela ficha.')) + '</div></div>' +
+            '<div class="production-orders-table-card">' +
+              '<div class="production-orders-table-wrap">' +
+                '<table class="bf-table production-orders-table production-forecast-table">' +
+                  '<thead><tr><th>' + (view === 'bases' ? 'Base' : (view === 'cardapio' ? 'Produto' : 'Receita')) + '</th><th>Status</th><th>' + (view === 'cardapio' ? 'Pode vender' : 'Pode produzir') + '</th><th>Limitador</th><th>' + (view === 'cardapio' ? 'Preço' : 'Custo') + '</th><th></th></tr></thead>' +
+                  '<tbody>' + rows + '</tbody>' +
+                '</table>' +
+              '</div>' +
+              '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:16px 18px;">' +
+                '<span style="font-size:12px;color:#6F6860;line-height:1.4;">Mostrando <strong style="color:#1F1F1F;font-weight:600;">' + showingStart + '</strong> a <strong style="color:#1F1F1F;font-weight:600;">' + showingEnd + '</strong> de <strong style="color:#1F1F1F;font-weight:600;">' + rowsData.length + '</strong></span>' +
+                '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+                  '<select onchange="Modules.Receitas._setProductionForecastPageSize(this.value)" class="production-orders-page-select">' + pageOptions + '</select>' +
+                  '<button type="button" onclick="Modules.Receitas._setProductionForecastPage(' + (paging.page - 1) + ')" class="production-orders-secondary" style="height:34px;"' + (paging.page > 1 ? '' : ' disabled') + '>Anterior</button>' +
+                  '<span style="font-size:12px;color:#8A7E7C;">' + paging.page + ' / ' + totalPages + '</span>' +
+                  '<button type="button" onclick="Modules.Receitas._setProductionForecastPage(' + (paging.page + 1) + ')" class="production-orders-secondary" style="height:34px;"' + (paging.page < totalPages ? '' : ' disabled') + '>Próxima</button>' +
+                '</div>' +
+              '</div>' +
+            '</div>' +
+          '</section>' :
+          '<section class="production-orders-card"><div class="production-orders-empty"><div style="font-size:15px;font-weight:700;color:#1F1F1F;margin-bottom:4px;">' + (hasFilters ? 'Nenhuma previsão encontrada' : (view === 'bases' ? 'Nenhuma base calculável ainda' : (view === 'cardapio' ? 'Nenhum produto calculável ainda' : 'Nenhuma receita calculável ainda'))) + '</div><div>' + (hasFilters ? 'Ajuste a busca ou limpe os filtros.' : (view === 'bases' ? 'Marque etapas da receita como Base de produção para ver a previsão.' : (view === 'cardapio' ? 'Vincule produtos do cardápio a receita, produto pronto ou montagem interna para ver a previsão.' : 'Cadastre receitas com ingredientes, embalagens ou bases de produção para ver a previsão.'))) + '</div></div></section>') +
+      '</div>';
+  }
+
+  function _buildProductionForecastRows() {
+    if ((_forecastFilters.view || 'receitas') === 'bases') return _buildBaseProductionForecastRows();
+    if ((_forecastFilters.view || 'receitas') === 'cardapio') return _buildMenuProductForecastRows();
+    var recipes = (_forecastData.recipes || []).filter(_isProductionNeedRecipe);
+    var balances = _buildSimpleStockBalances(_forecastData.movements || []);
+    return recipes.map(function (recipe) {
+      var requirements = _recipeForecastRequirements(recipe);
+      var yieldQty = _num(recipe.yieldQuantity || recipe.yield) || 1;
+      var limit = null;
+      requirements.forEach(function (req) {
+        if (!req.key || !(req.requiredPerUnit > 0)) return;
+        var balance = _num((balances[req.key] || {}).balance);
+        var possible = Math.max(0, balance) / req.requiredPerUnit;
+        var enriched = Object.assign({}, req, {
+          balance: balance,
+          possible: _round(possible),
+          unit: req.unit || (balances[req.key] || {}).unit || ''
+        });
+        if (!limit || enriched.possible < limit.possible) limit = enriched;
+      });
+      var costPerYield = _num(recipe.costPerYield) || ((_num(recipe.totalCost) || 0) / Math.max(1, yieldQty));
+      return {
+        recipeId: recipe.id || '',
+        name: recipe.name || recipe.title || 'Receita sem nome',
+        yieldQuantity: yieldQty,
+        yieldUnit: recipe.yieldUnit || recipe.unit || 'unidades',
+        requirements: requirements,
+        limiter: limit,
+        capacity: requirements.length && limit ? _round(limit.possible) : null,
+        costPerYield: costPerYield,
+        status: !requirements.length ? 'sem_composicao' : (limit && limit.possible > 0 ? 'ok' : 'bloqueado')
+      };
+    }).sort(function (a, b) {
+      if (a.status !== b.status) return a.status === 'bloqueado' ? -1 : (b.status === 'bloqueado' ? 1 : 0);
+      return String(a.name || '').localeCompare(String(b.name || ''));
+    });
+  }
+
+  function _buildMenuProductForecastRows() {
+    var balances = _buildSimpleStockBalances(_forecastData.movements || []);
+    return (_forecastData.products || []).filter(_isForecastProduct).map(function (product) {
+      var requirements = _productForecastRequirements(product);
+      var limit = null;
+      requirements.forEach(function (req) {
+        if (!req.key || !(req.requiredPerUnit > 0)) return;
+        var balance = _num((balances[req.key] || {}).balance);
+        var possible = Math.max(0, balance) / req.requiredPerUnit;
+        var enriched = Object.assign({}, req, {
+          balance: balance,
+          possible: _round(possible),
+          unit: req.unit || (balances[req.key] || {}).unit || ''
+        });
+        if (!limit || enriched.possible < limit.possible) limit = enriched;
+      });
+      return {
+        kind: 'product',
+        productId: product.id || '',
+        name: _forecastProductName(product),
+        sourceLabel: _forecastProductSourceLabel(product),
+        yieldQuantity: 1,
+        yieldUnit: 'un',
+        requirements: requirements,
+        limiter: limit,
+        capacity: requirements.length && limit ? Math.floor(Math.max(0, limit.possible)) : null,
+        salePrice: _num(product.price != null ? product.price : product.preco != null ? product.preco : product.salePrice),
+        status: !requirements.length ? 'sem_composicao' : (limit && limit.possible > 0 ? 'ok' : 'bloqueado')
+      };
+    }).sort(function (a, b) {
+      if (a.status !== b.status) return a.status === 'bloqueado' ? -1 : (b.status === 'bloqueado' ? 1 : 0);
+      return String(a.name || '').localeCompare(String(b.name || ''));
+    });
+  }
+
+  function _isForecastProduct(product) {
+    if (!product || !product.id) return false;
+    if (product.ativo === false || product.active === false || product.deleted === true || product.isDeleted === true || product.archived === true) return false;
+    return true;
+  }
+
+  function _forecastProductName(product) {
+    return product && (product.name || product.title || product.nome || product.productName) || 'Produto sem nome';
+  }
+
+  function _forecastProductSourceLabel(product) {
+    product = product || {};
+    var type = String(product.productType || product.type || product.tipo || '').toLowerCase();
+    if (type === 'combo' || type === 'menu') return _comboForecastRequirements(product).length ? 'Combo com estoque por escolha' : 'Produto com escolhas/combo';
+    var composition = _productInternalComposition(product);
+    if (composition.length) return 'Montagem interna';
+    var src = String(product.unicoSource || product.sourceType || product.source || '').toLowerCase();
+    if (src === 'composicao_interna') return 'Montagem interna';
+    if (src === 'produto_pronto' || src === 'compras_produto' || product.produtoProntoId || product.sourceItemId || product.readyProductId) return 'Produto pronto';
+    if (product.fichaTecnicaId || product.fichaId || product.recipeId) return 'Receita vinculada';
+    return 'Sem vínculo de estoque';
+  }
+
+  function _productForecastRequirements(product) {
+    product = product || {};
+    var type = String(product.productType || product.type || product.tipo || '').toLowerCase();
+    var composition = _productInternalComposition(product);
+    var baseRequirements = composition.length ? _internalCompositionForecastRequirements(composition) : [];
+    if (type === 'combo' || type === 'menu') return _mergeForecastRequirements(baseRequirements.concat(_comboForecastRequirements(product)));
+    if (baseRequirements.length) return baseRequirements;
+    var src = String(product.unicoSource || product.sourceType || product.source || '').toLowerCase();
+    if (src === 'composicao_interna') return [];
+    var readyId = product.produtoProntoId || product.sourceItemId || product.readyProductId || '';
+    if (src === 'produto_pronto' || src === 'compras_produto' || readyId) {
+      if (!readyId) return [];
+      return [{
+        key: 'produto_pronto:' + readyId,
+        name: _forecastProductName(product),
+        requiredPerUnit: 1,
+        unit: 'un',
+        stockKind: 'produto_pronto'
+      }];
+    }
+    var recipeId = product.fichaTecnicaId || product.fichaId || product.recipeId || '';
+    if (!recipeId) return [];
+    var recipe = (_forecastData.recipes || []).find(function (item) {
+      return String(item.id || '') === String(recipeId || '') || String(item.fichaTecnicaId || '') === String(recipeId || '');
+    }) || null;
+    return recipe ? _recipeForecastRequirements(recipe) : [];
+  }
+
+  function _comboForecastRequirements(product) {
+    var groups = _forecastProductVariantGroups(product);
+    if (!groups.length) return [];
+    var requirements = [];
+    var unclear = false;
+    groups.forEach(function (group) {
+      var min = parseInt(group.minPerUnit != null ? group.minPerUnit : group.min != null ? group.min : (group.required ? 1 : 0), 10);
+      if (!isFinite(min) || min < 0) min = 0;
+      if (min <= 0) return;
+      var options = (group.options || []).filter(Boolean);
+      if (!options.length) {
+        unclear = true;
+        return;
+      }
+      var optionReqs = options.map(function (option) {
+        return _optionForecastRequirement(option, min);
+      });
+      if (optionReqs.some(function (req) { return !req; })) {
+        unclear = true;
+        return;
+      }
+      var worst = _worstOptionRequirement(optionReqs);
+      if (worst) requirements.push(worst);
+    });
+    return unclear ? [] : _mergeForecastRequirements(requirements);
+  }
+
+  function _forecastProductVariantGroups(product) {
+    product = product || {};
+    var groups = [];
+    if (Array.isArray(product.variants) && product.variants.length) groups = product.variants.slice();
+    if (!groups.length && Array.isArray(product.menuChoiceGroups) && product.menuChoiceGroups.length) groups = product.menuChoiceGroups.slice();
+    if (!groups.length && Array.isArray(product.variantGroupIds) && product.variantGroupIds.length) {
+      groups = product.variantGroupIds.map(function (id) {
+        return (_forecastData.variantGroups || []).find(function (group) { return String(group.id || '') === String(id || ''); });
+      }).filter(Boolean);
+    }
+    return groups;
+  }
+
+  function _optionForecastRequirement(option, multiplier) {
+    option = option || {};
+    var req = _requirementFromCompositionItem({
+      ref: option.stockRef || option.stockItemRef || option.stockItem || option.ref || '',
+      stockRef: option.stockRef || option.stockItemRef || option.stockItem || option.ref || '',
+      itemId: option.stockItemId || option.itemId || '',
+      stockItemId: option.stockItemId || option.itemId || '',
+      stockItemType: option.stockItemType || option.itemClass || option.classe || '',
+      itemClass: option.itemClass || option.stockItemType || option.classe || '',
+      classe: option.classe || option.stockItemType || option.itemClass || '',
+      stockQuantity: option.stockQuantityPerChoice != null ? option.stockQuantityPerChoice : option.stockQuantity != null ? option.stockQuantity : option.stockQty,
+      quantity: option.stockQuantityPerChoice != null ? option.stockQuantityPerChoice : option.stockQuantity != null ? option.stockQuantity : option.stockQty,
+      stockUnit: option.stockUnit || option.unit || '',
+      unit: option.stockUnit || option.unit || '',
+      stockItemName: option.stockItemName || option.itemName || option.name || option.label || '',
+      itemName: option.stockItemName || option.itemName || option.name || option.label || ''
+    });
+    if (!req) return null;
+    req.requiredPerUnit = _round(req.requiredPerUnit * Math.max(1, _num(multiplier) || 1));
+    req.name = (option.name || option.label || 'Opção') + ' → ' + req.name;
+    return req;
+  }
+
+  function _worstOptionRequirement(optionReqs) {
+    var balances = _buildSimpleStockBalances(_forecastData.movements || []);
+    return optionReqs.slice().sort(function (a, b) {
+      var balanceA = _num((balances[a.key] || {}).balance);
+      var balanceB = _num((balances[b.key] || {}).balance);
+      var possibleA = a.requiredPerUnit > 0 ? balanceA / a.requiredPerUnit : Infinity;
+      var possibleB = b.requiredPerUnit > 0 ? balanceB / b.requiredPerUnit : Infinity;
+      if (possibleA !== possibleB) return possibleA - possibleB;
+      return _num(b.requiredPerUnit) - _num(a.requiredPerUnit);
+    })[0] || null;
+  }
+
+  function _productInternalComposition(product) {
+    return Array.isArray(product && product.internalComposition)
+      ? product.internalComposition
+      : (Array.isArray(product && product.internalCompositionItems)
+        ? product.internalCompositionItems
+        : (Array.isArray(product && product.composicaoInterna)
+          ? product.composicaoInterna
+          : (Array.isArray(product && product.stockComposition) ? product.stockComposition : [])));
+  }
+
+  function _internalCompositionForecastRequirements(items) {
+    var requirements = [];
+    (items || []).forEach(function (item) {
+      var req = _requirementFromCompositionItem(item);
+      if (req) requirements.push(req);
+    });
+    return _mergeForecastRequirements(requirements);
+  }
+
+  function _mergeForecastRequirements(requirements) {
+    var merged = {};
+    (requirements || []).forEach(function (req) {
+      if (!req.key || !(req.requiredPerUnit > 0)) return;
+      if (!merged[req.key]) merged[req.key] = Object.assign({}, req);
+      else merged[req.key].requiredPerUnit = _round(_num(merged[req.key].requiredPerUnit) + _num(req.requiredPerUnit));
+    });
+    return Object.keys(merged).map(function (key) { return merged[key]; });
+  }
+
+  function _requirementFromCompositionItem(item) {
+    item = item || {};
+    var ref = String(item.ref || item.stockRef || item.stockItemRef || '').trim();
+    var parts = ref ? ref.split(':') : [];
+    var refType = parts[0] || '';
+    var refId = parts.slice(1).join(':');
+    var stockKind = _normalizeStockClass(item.stockItemType || item.itemClass || item.classe || item.costType || '');
+    if (!stockKind && (refType === 'ficha' || refType === 'receita')) stockKind = 'produto_produzido';
+    if (!stockKind && refType === 'base_producao') stockKind = 'base_producao';
+    if (!stockKind && (refType === 'produto_pronto' || refType === 'pronto')) stockKind = 'produto_pronto';
+    if (!stockKind && refType === 'embalagem') stockKind = 'embalagem';
+    if (!stockKind && (refType === 'insumo' || refType === 'ingrediente')) stockKind = 'insumo';
+    if (stockKind === 'produto') stockKind = 'produto_pronto';
+    if (stockKind !== 'produto_produzido' && stockKind !== 'base_producao' && stockKind !== 'produto_pronto' && stockKind !== 'embalagem') stockKind = 'insumo';
+    var itemId = item.itemId || item.stockItemId || refId || item.fichaTecnicaId || item.fichaId || item.sourceItemId || item.produtoProntoId || '';
+    var qty = _num(item.quantity != null ? item.quantity : item.qty != null ? item.qty : item.stockQuantity != null ? item.stockQuantity : item.stockQuantityPerChoice);
+    if (qty <= 0) qty = 1;
+    if (!itemId) return null;
+    return {
+      key: stockKind + ':' + itemId,
+      name: item.itemName || item.stockItemName || item.name || item.label || 'Item interno',
+      requiredPerUnit: qty,
+      unit: item.unit || item.stockUnit || 'un',
+      stockKind: stockKind
+    };
+  }
+
+  function _buildBaseProductionForecastRows() {
+    var balances = _buildSimpleStockBalances(_forecastData.movements || []);
+    var baseMap = {};
+    (_forecastData.recipes || []).filter(_isProductionNeedRecipe).forEach(function (recipe) {
+      (recipe.components || []).forEach(function (comp, idx) {
+        if (!(comp && (comp.stockControl || comp.controlsStock))) return;
+        var baseId = _baseProductionId(recipe, comp, idx);
+        if (!baseMap[baseId]) {
+          baseMap[baseId] = {
+            baseId: baseId,
+            name: comp.name || 'Base de produção',
+            component: comp,
+            recipeNames: [],
+            sourceRecipe: recipe
+          };
+        }
+        var recipeName = recipe.name || 'Ficha sem nome';
+        if (baseMap[baseId].recipeNames.indexOf(recipeName) < 0) baseMap[baseId].recipeNames.push(recipeName);
+      });
+    });
+    return Object.keys(baseMap).map(function (baseId) {
+      var item = baseMap[baseId];
+      var comp = item.component || {};
+      var yieldQty = _num(comp.stageYieldQuantity || comp.baseYieldQuantity || comp.stockYieldQuantity) || _num(item.sourceRecipe && (item.sourceRecipe.yieldQuantity || item.sourceRecipe.yield)) || 1;
+      var yieldUnit = comp.stageYieldUnit || comp.baseYieldUnit || comp.stockYieldUnit || item.sourceRecipe && item.sourceRecipe.yieldUnit || 'unidades';
+      var requirements = _baseForecastRequirements(comp, yieldQty);
+      var limit = null;
+      requirements.forEach(function (req) {
+        if (!req.key || !(req.requiredPerUnit > 0)) return;
+        var balance = _num((balances[req.key] || {}).balance);
+        var possible = Math.max(0, balance) / req.requiredPerUnit;
+        var enriched = Object.assign({}, req, {
+          balance: balance,
+          possible: _round(possible),
+          unit: req.unit || (balances[req.key] || {}).unit || ''
+        });
+        if (!limit || enriched.possible < limit.possible) limit = enriched;
+      });
+      var totalCost = (comp.ingredients || []).reduce(function (sum, ing) {
+        return sum + _num(ing.totalCost || ing.appliedTotalCost);
+      }, 0);
+      return {
+        kind: 'base',
+        baseId: baseId,
+        name: item.name,
+        recipeNames: item.recipeNames,
+        yieldQuantity: yieldQty,
+        yieldUnit: yieldUnit,
+        requirements: requirements,
+        limiter: limit,
+        capacity: requirements.length && limit ? _round(limit.possible) : null,
+        costPerYield: yieldQty > 0 ? totalCost / yieldQty : 0,
+        status: !requirements.length ? 'sem_composicao' : (limit && limit.possible > 0 ? 'ok' : 'bloqueado')
+      };
+    }).sort(function (a, b) {
+      if (a.status !== b.status) return a.status === 'bloqueado' ? -1 : (b.status === 'bloqueado' ? 1 : 0);
+      return String(a.name || '').localeCompare(String(b.name || ''));
+    });
+  }
+
+  function _baseForecastRequirements(component, yieldQty) {
+    var requirements = [];
+    component = component || {};
+    (component.ingredients || []).forEach(function (ing) {
+      _pushForecastIngredientRequirement(requirements, ing, component.name || '', yieldQty);
+    });
+    var merged = {};
+    requirements.forEach(function (req) {
+      if (!req.key || !(req.requiredPerUnit > 0)) return;
+      if (!merged[req.key]) merged[req.key] = Object.assign({}, req);
+      else merged[req.key].requiredPerUnit = _round(_num(merged[req.key].requiredPerUnit) + _num(req.requiredPerUnit));
+    });
+    return Object.keys(merged).map(function (key) { return merged[key]; });
+  }
+
+  function _recipeForecastRequirements(recipe) {
+    recipe = recipe || {};
+    var yieldQty = _num(recipe.yieldQuantity || recipe.yield) || 1;
+    var requirements = [];
+    if (Array.isArray(recipe.components) && recipe.components.length) {
+      recipe.components.forEach(function (comp, idx) {
+        if (!comp) return;
+        if (comp.stockControl || comp.controlsStock) {
+          var baseQty = _num(comp.stageYieldQuantity || comp.baseYieldQuantity || comp.stockYieldQuantity);
+          if (baseQty <= 0) baseQty = yieldQty;
+          var baseId = _baseProductionId(recipe, comp, idx);
+          requirements.push({
+            key: 'base_producao:' + baseId,
+            name: comp.name || 'Base de produção',
+            requiredPerUnit: baseQty / Math.max(1, yieldQty),
+            unit: comp.stageYieldUnit || comp.baseYieldUnit || comp.stockYieldUnit || recipe.yieldUnit || '',
+            stockKind: 'base_producao'
+          });
+          return;
+        }
+        (comp.ingredients || []).forEach(function (ing) {
+          var ratio = _num(comp.stageUsageRatio || ing.stageUsageRatio || 1) || 1;
+          _pushForecastIngredientRequirement(requirements, Object.assign({}, ing, {
+            appliedQty: ing.appliedQty != null ? ing.appliedQty : (_num(ing.qty) * ratio)
+          }), comp.name || '', yieldQty);
+        });
+      });
+    } else {
+      (recipe.ingredients || []).forEach(function (ing) {
+        _pushForecastIngredientRequirement(requirements, ing, ing.componentName || '', yieldQty);
+      });
+    }
+    var packaging = Array.isArray(recipe.packagingItems) ? recipe.packagingItems : (Array.isArray(recipe.packaging) ? recipe.packaging : []);
+    packaging.forEach(function (item) {
+      _pushForecastIngredientRequirement(requirements, Object.assign({ itemClass: 'embalagem', classe: 'embalagem', costType: 'embalagem' }, item), 'Embalagens da receita', yieldQty);
+    });
+    var merged = {};
+    requirements.forEach(function (req) {
+      if (!req.key || !(req.requiredPerUnit > 0)) return;
+      if (!merged[req.key]) merged[req.key] = Object.assign({}, req);
+      else merged[req.key].requiredPerUnit = _round(_num(merged[req.key].requiredPerUnit) + _num(req.requiredPerUnit));
+    });
+    return Object.keys(merged).map(function (key) { return merged[key]; });
+  }
+
+  function _pushForecastIngredientRequirement(out, ing, componentName, yieldQty) {
+    ing = ing || {};
+    var itemId = ing.insumoId || ing.itemId || ing.ingredientId || ing.packagingId || '';
+    if (!itemId) return;
+    var cls = _normalizeStockClass(ing.itemClass || ing.classe || ing.stockItemType || ing.costType || '');
+    if (cls === 'produto') cls = 'produto_pronto';
+    if (cls !== 'embalagem' && cls !== 'produto_pronto') cls = 'insumo';
+    var qty = _num(ing.appliedQty != null ? ing.appliedQty : ing.qty);
+    if (!(qty > 0)) qty = _num(ing.grossQuantityCalculated || ing.grossQuantity || ing.appliedGrossQuantity);
+    if (!(qty > 0)) return;
+    out.push({
+      key: cls + ':' + itemId,
+      name: ing.supplyName || ing.itemName || ing.name || componentName || (cls === 'embalagem' ? 'Embalagem' : 'Ingrediente'),
+      requiredPerUnit: qty / Math.max(1, yieldQty),
+      unit: ing.unit || '',
+      stockKind: cls
+    });
+  }
+
+  function _forecastStatus(row) {
+    if (!row || row.status === 'sem_composicao') return { label: 'Sem composição clara', tone: 'warn' };
+    if (row.status === 'bloqueado') return { label: 'Limitado por estoque', tone: 'danger' };
+    return { label: row.kind === 'product' ? 'Pode vender' : 'Pode produzir', tone: 'ok' };
+  }
+
+  function _forecastRowSubtitle(row) {
+    if (!row) return '';
+    if (row.kind === 'base') return 'Base usada em ' + (row.recipeNames && row.recipeNames.length ? row.recipeNames.join(', ') : 'receitas');
+    if (row.kind === 'product') return row.sourceLabel || 'Produto do cardápio';
+    return 'Rendimento da ficha: ' + _fmtQty(row.yieldQuantity) + ' ' + (row.yieldUnit || '');
+  }
+
+  function _forecastRowKey(row) {
+    row = row || {};
+    if (row.kind === 'base') return 'base:' + (row.baseId || '');
+    if (row.kind === 'product') return 'product:' + (row.productId || '');
+    return 'recipe:' + (row.recipeId || '');
+  }
+
+  function _openProductionForecastDetails(key) {
+    var row = (_buildProductionForecastRows() || []).find(function (item) {
+      return _forecastRowKey(item) === key;
+    });
+    if (!row) {
+      UI.toast('Previsão não encontrada.', 'error');
+      return;
+    }
+    var status = _forecastStatus(row);
+    var details = _forecastRequirementDetails(row);
+    var rowsHtml = details.map(function (item) {
+      var isLimiter = row.limiter && item.key === row.limiter.key;
+      return '<tr>' +
+        '<td><div class="production-orders-row-title">' + _esc(item.name || 'Item') + '</div><div class="production-orders-row-text">' + _esc(item.key || '') + (isLimiter ? ' · limitador' : '') + '</div></td>' +
+        '<td><div class="production-orders-value">' + _esc(_fmtQty(item.requiredPerUnit)) + ' ' + _esc(item.unit || '') + '</div></td>' +
+        '<td><div class="production-orders-value">' + _esc(_fmtQty(item.balance)) + ' ' + _esc(item.balanceUnit || item.unit || '') + '</div></td>' +
+        '<td><div class="production-orders-value">' + _esc(_fmtQty(item.possible)) + ' ' + _esc(row.yieldUnit || '') + '</div></td>' +
+      '</tr>';
+    }).join('');
+    var capacityLabel = row.capacity == null ? '—' : (_fmtQty(row.capacity) + ' ' + (row.yieldUnit || ''));
+    var defaultTarget = row.capacity && row.capacity > 0 ? Math.max(1, Math.floor(row.capacity)) : 1;
+    var body = _ordersStyles() +
+      '<div class="production-plan-modal">' +
+        '<section class="production-modal-card">' +
+          '<div class="production-modal-head"><span class="mi">calculate</span><div><div class="production-modal-card-title">' + _esc(row.name) + '</div>' +
+          '<div class="production-modal-card-desc">' + _esc(_forecastRowSubtitle(row)) + '</div></div><span class="production-forecast-status ' + _esc(status.tone) + '" style="margin-left:auto;">' + _esc(status.label) + '</span></div>' +
+          '<div class="production-detail-grid">' +
+            _detailTile(row.kind === 'product' ? 'Pode vender' : 'Pode produzir', capacityLabel) +
+            _detailTile('Limitador', row.limiter ? row.limiter.name : '—') +
+            _detailTile('Itens calculados', String(row.requirements.length || 0)) +
+            _detailTile(row.kind === 'product' ? 'Preço' : 'Custo', _money(row.kind === 'product' ? (row.salePrice || 0) : (row.costPerYield || 0))) +
+          '</div>' +
+        '</section>' +
+        '<section class="production-modal-card">' +
+          '<div class="production-modal-head"><span class="mi">functions</span><div><div class="production-modal-card-title">Cálculo por item</div>' +
+          '<div class="production-modal-card-desc">A capacidade de cada item é calculada por saldo atual dividido pelo consumo por unidade. O menor resultado vira o limitador.</div></div></div>' +
+          (rowsHtml ? '<div class="production-orders-table-wrap"><table class="bf-table production-orders-table production-forecast-table"><thead><tr><th>Item</th><th>Consumo por unidade</th><th>Saldo atual</th><th>Capacidade</th></tr></thead><tbody>' + rowsHtml + '</tbody></table></div>' : '<div class="production-orders-empty">Sem composição clara para detalhar.</div>') +
+        '</section>' +
+        '<section class="production-modal-card">' +
+          '<div class="production-modal-head"><span class="mi">playlist_add_check</span><div><div class="production-modal-card-title">Simular quantidade desejada</div>' +
+          '<div class="production-modal-card-desc">Informe uma quantidade para conferir consumo previsto e faltas antes de decidir produzir ou vender.</div></div></div>' +
+          '<div class="production-orders-filter-grid" style="grid-template-columns:minmax(180px,240px) minmax(0,1fr);margin-bottom:12px;">' +
+            '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Quantidade</span><div class="production-orders-field"><input id="production-forecast-target-qty" type="text" inputmode="decimal" value="' + _esc(_fmtQty(defaultTarget)) + '" oninput="Modules.Receitas._updateProductionForecastSimulation(\'' + _escJs(key) + '\')"></div></label>' +
+            '<div id="production-forecast-simulation-summary"></div>' +
+          '</div>' +
+          '<div id="production-forecast-simulation-table"></div>' +
+        '</section>' +
+      '</div>';
+    var canCreateOrder = row.kind === 'base' || row.kind !== 'product';
+    window._productionForecastDetailsModal = UI.modal({
+      title: 'Detalhe da previsão',
+      body: body,
+      footer: '<div class="production-modal-footer">' +
+        (canCreateOrder ? '<button class="production-orders-primary" onclick="Modules.Receitas._createProductionOrderFromForecast(\'' + _escJs(key) + '\')">Gerar ordem planejada</button>' : '<span style="font-size:12px;color:#6F6860;line-height:1.4;">Para cardápio, a criação automática entra depois com conversão de venda para produção.</span>') +
+        '<button class="production-orders-secondary" onclick="if(window._productionForecastDetailsModal)window._productionForecastDetailsModal.close()">Fechar</button></div>',
+      maxWidth: '980px'
+    });
+    setTimeout(function () { _updateProductionForecastSimulation(key); }, 0);
+  }
+
+  function _createProductionOrderFromForecast(key) {
+    var row = (_buildProductionForecastRows() || []).find(function (item) {
+      return _forecastRowKey(item) === key;
+    });
+    if (!row) {
+      UI.toast('Previsão não encontrada.', 'error');
+      return;
+    }
+    if (row.kind === 'product') {
+      UI.toast('A ordem automática por produto do cardápio entra na próxima etapa.', 'info');
+      return;
+    }
+    var qty = _num((document.getElementById('production-forecast-target-qty') || {}).value);
+    if (qty <= 0) {
+      UI.toast('Informe uma quantidade válida para gerar a ordem.', 'error');
+      return;
+    }
+    var recipe = null;
+    var baseComponent = null;
+    var isBase = row.kind === 'base';
+    if (isBase) {
+      var found = _findBaseRecipeForNeed(_forecastData.recipes || [], row.baseId);
+      recipe = found && found.recipe;
+      baseComponent = found && found.component;
+    } else {
+      recipe = (_forecastData.recipes || []).find(function (item) {
+        return String(item.id || '') === String(row.recipeId || '');
+      });
+    }
+    if (!recipe) {
+      UI.toast('Receita não encontrada para gerar a ordem.', 'error');
+      return;
+    }
+    if (isBase && !baseComponent) {
+      UI.toast('Base de produção não encontrada para gerar a ordem.', 'error');
+      return;
+    }
+    var snapshot = isBase ? _buildBaseProductionSnapshot(recipe, baseComponent, qty) : _buildProductionSnapshot(recipe, qty);
+    var user = window.Auth && Auth.getUser ? Auth.getUser() : null;
+    var now = new Date().toISOString();
+    var payload = {
+      fichaTecnicaId: recipe.id || '',
+      fichaTecnicaNome: recipe.name || '',
+      productionMode: isBase ? 'base_producao' : 'produto_final',
+      baseProductionId: isBase ? _baseProductionId(recipe, baseComponent) : '',
+      baseProductionName: isBase ? (baseComponent.name || 'Base de produção') : '',
+      plannedQuantity: qty,
+      plannedDate: _today(),
+      status: 'planejada',
+      notes: isBase ? 'Ordem planejada gerada pela previsão de base de produção.' : 'Ordem planejada gerada pela previsão de produção.',
+      recipeSnapshot: snapshot.recipeSnapshot,
+      plannedCost: snapshot.plannedCost,
+      plannedIngredients: snapshot.plannedIngredients,
+      createdBy: user && user.uid ? user.uid : '',
+      createdFrom: 'production_forecast',
+      createdAt: now,
+      updatedAt: now
+    };
+    DB.add('production_orders', payload).then(function () {
+      UI.toast('Ordem planejada criada.', 'success');
+      if (window._productionForecastDetailsModal) window._productionForecastDetailsModal.close();
+      _renderProductionOrders();
+    }).catch(function (err) {
+      UI.toast('Erro: ' + err.message, 'error');
+    });
+  }
+
+  function _updateProductionForecastSimulation(key) {
+    var row = (_buildProductionForecastRows() || []).find(function (item) {
+      return _forecastRowKey(item) === key;
+    });
+    var summaryEl = document.getElementById('production-forecast-simulation-summary');
+    var tableEl = document.getElementById('production-forecast-simulation-table');
+    if (!row || !summaryEl || !tableEl) return;
+    var target = _num((document.getElementById('production-forecast-target-qty') || {}).value);
+    if (target <= 0) {
+      summaryEl.innerHTML = '<div class="production-orders-empty" style="padding:12px;text-align:left;">Informe uma quantidade maior que zero.</div>';
+      tableEl.innerHTML = '';
+      return;
+    }
+    var details = _forecastRequirementDetails(row).map(function (item) {
+      var needed = _round(_num(item.requiredPerUnit) * target);
+      var missing = _round(Math.max(0, needed - _num(item.balance)));
+      return Object.assign({}, item, {
+        targetNeeded: needed,
+        targetMissing: missing,
+        coversTarget: missing <= 0
+      });
+    });
+    var missingItems = details.filter(function (item) { return item.targetMissing > 0; });
+    summaryEl.innerHTML = '<div class="production-result-panel" style="margin:0;padding:10px 12px;">' +
+      '<div><div class="production-orders-label">Resultado da simulação</div><div class="production-result-message">' +
+      (details.length ? (missingItems.length ? ('Faltam ' + missingItems.length + ' item(ns) para ' + _fmtQty(target) + ' ' + (row.yieldUnit || '') + '.') : ('Estoque cobre ' + _fmtQty(target) + ' ' + (row.yieldUnit || '') + '.')) : 'Sem composição clara para simular.') +
+      '</div></div><span class="production-result-badge ' + (missingItems.length ? 'danger' : 'ok') + '">' + (missingItems.length ? 'Falta estoque' : 'Cobre') + '</span></div>';
+    if (!details.length) {
+      tableEl.innerHTML = '<div class="production-orders-empty">Sem itens calculáveis para esta simulação.</div>';
+      return;
+    }
+    tableEl.innerHTML = '<div class="production-orders-table-wrap"><table class="bf-table production-orders-table production-forecast-table"><thead><tr><th>Item</th><th>Precisa</th><th>Saldo atual</th><th>Falta</th></tr></thead><tbody>' +
+      details.map(function (item) {
+        return '<tr>' +
+          '<td><div class="production-orders-row-title">' + _esc(item.name || 'Item') + '</div><div class="production-orders-row-text">' + _esc(item.key || '') + '</div></td>' +
+          '<td><div class="production-orders-value">' + _esc(_fmtQty(item.targetNeeded)) + ' ' + _esc(item.unit || '') + '</div></td>' +
+          '<td><div class="production-orders-value">' + _esc(_fmtQty(item.balance)) + ' ' + _esc(item.balanceUnit || item.unit || '') + '</div></td>' +
+          '<td><span class="production-result-badge ' + (item.coversTarget ? 'ok' : 'danger') + '">' + (item.coversTarget ? 'Cobre' : (_esc(_fmtQty(item.targetMissing)) + ' ' + _esc(item.unit || ''))) + '</span></td>' +
+        '</tr>';
+      }).join('') +
+      '</tbody></table></div>';
+  }
+
+  function _forecastRequirementDetails(row) {
+    var balances = _buildSimpleStockBalances(_forecastData.movements || []);
+    return (row && row.requirements || []).map(function (req) {
+      var stock = balances[req.key] || {};
+      var balance = _num(stock.balance);
+      var required = _num(req.requiredPerUnit);
+      return Object.assign({}, req, {
+        balance: balance,
+        balanceUnit: stock.unit || req.unit || '',
+        possible: required > 0 ? _round(Math.max(0, balance) / required) : 0
+      });
+    }).sort(function (a, b) {
+      return _num(a.possible) - _num(b.possible);
+    });
+  }
+
+  function _productionForecastSummary(rows) {
+    rows = rows || [];
+    return rows.reduce(function (acc, row) {
+      acc.total += 1;
+      if (row.status === 'ok') acc.available += 1;
+      else if (row.status === 'bloqueado') acc.blocked += 1;
+      else acc.unclear += 1;
+      return acc;
+    }, { total: 0, available: 0, blocked: 0, unclear: 0 });
+  }
+
+  function _filteredProductionForecastRows() {
+    var q = String(_forecastFilters.q || '').trim().toLowerCase();
+    var status = _forecastFilters.status || 'todos';
+    return _buildProductionForecastRows().filter(function (row) {
+      if (status !== 'todos' && row.status !== status) return false;
+      if (!q) return true;
+      var hay = [
+        row.name,
+        row.yieldUnit,
+        row.sourceLabel,
+        row.limiter && row.limiter.name,
+        row.status
+      ].join(' ').toLowerCase();
+      return hay.indexOf(q) >= 0;
+    });
+  }
+
+  function _setProductionForecastFilter(key, value) {
+    if (key === 'q') _forecastFilters.q = String(value || '');
+    if (key === 'status') _forecastFilters.status = value || 'todos';
+    _forecastPage.page = 1;
+    _paintProductionForecast();
+    if (key === 'q') {
+      var input = document.getElementById('production-forecast-search');
+      if (input) {
+        try {
+          input.focus();
+          var len = String(input.value || '').length;
+          if (input.setSelectionRange) input.setSelectionRange(len, len);
+        } catch (e) {}
+      }
+    }
+  }
+
+  function _setProductionForecastView(view) {
+    _forecastFilters.view = view === 'bases' ? 'bases' : (view === 'cardapio' ? 'cardapio' : 'receitas');
+    _forecastFilters.q = '';
+    _forecastFilters.status = 'todos';
+    _forecastPage.page = 1;
+    _paintProductionForecast();
+  }
+
+  function _clearProductionForecastFilters() {
+    _forecastFilters = { view: _forecastFilters.view || 'receitas', q: '', status: 'todos' };
+    _forecastPage.page = 1;
+    _paintProductionForecast();
+  }
+
+  function _setProductionForecastPageSize(value) {
+    var size = parseInt(value, 10);
+    if (!isFinite(size) || size <= 0) return;
+    _forecastPage.perPage = size;
+    _forecastPage.page = 1;
+    _paintProductionForecast();
+  }
+
+  function _setProductionForecastPage(page) {
+    var next = parseInt(page, 10);
+    if (!isFinite(next)) return;
+    _forecastPage.page = Math.max(1, next);
+    _paintProductionForecast();
   }
 
   function _renderStockMovements() {
@@ -1252,7 +2064,7 @@ Modules.Receitas = (function () {
     }).join('');
     return '<section class="production-orders-card">' +
       '<div class="production-orders-card-head">' +
-        '<div><div class="production-orders-section-title">Necessidade de produção</div><div class="production-orders-section-desc">Receitas abaixo do estoque mínimo aparecem aqui para virar ordem planejada.</div></div>' +
+        '<div><div class="production-orders-section-title">Necessidade de produção</div><div class="production-orders-section-desc">Produtos finais e bases abaixo do estoque mínimo aparecem aqui para virar ordem planejada.</div></div>' +
       '</div>' +
       '<div class="production-need-list">' + rows + '</div>' +
     '</section>';
@@ -1276,7 +2088,7 @@ Modules.Receitas = (function () {
     var body = '<div class="production-plan-modal">' +
       '<section class="production-modal-card">' +
         '<div class="production-modal-head"><span class="mi">assignment_add</span><div><div class="production-modal-card-title">Escolha o que vai produzir</div>' +
-        '<div class="production-modal-card-desc">Selecione as receitas abaixo do estoque mínimo e ajuste a quantidade antes de gerar as ordens.</div></div></div>' +
+        '<div class="production-modal-card-desc">Selecione produtos finais ou bases abaixo do estoque mínimo e ajuste a quantidade antes de gerar as ordens.</div></div></div>' +
         '<div class="production-plan-list">' + rows + '</div>' +
       '</section>' +
       '<section class="production-modal-card">' +
@@ -1287,7 +2099,7 @@ Modules.Receitas = (function () {
       '<div id="production-plan-preview"></div>' +
     '</div>';
     var footer = '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;flex-wrap:wrap;">' +
-      '<span style="font-size:12px;color:#6F6860;line-height:1.4;">Será criada uma ordem planejada para cada receita selecionada.</span>' +
+      '<span style="font-size:12px;color:#6F6860;line-height:1.4;">Será criada uma ordem planejada para cada item selecionado.</span>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;"><button type="button" onclick="if(window._productionPlanningModal)window._productionPlanningModal.close()" class="production-orders-secondary">Cancelar</button><button type="button" onclick="Modules.Receitas._createProductionOrdersFromPlanning()" class="production-orders-primary">Gerar ordens</button></div>' +
     '</div>';
     window._productionPlanningModal = UI.modal({ title: 'Gerar planejamento', body: _ordersStyles() + body, footer: footer, maxWidth: '940px' });
@@ -1335,17 +2147,19 @@ Modules.Receitas = (function () {
     var notes = ((document.getElementById('production-plan-notes') || {}).value || '').trim();
     var now = new Date().toISOString();
     var ops = selected.map(function (item) {
-      var snapshot = _buildProductionSnapshot(item.recipe, item.qty);
+      var isBase = item.need && item.need.stockKind === 'base_producao';
+      var baseComponent = isBase ? _findBaseComponentByProductionId(item.recipe, item.need.baseProductionId) : null;
+      var snapshot = isBase && baseComponent ? _buildBaseProductionSnapshot(item.recipe, baseComponent, item.qty) : _buildProductionSnapshot(item.recipe, item.qty);
       return DB.add('production_orders', {
         fichaTecnicaId: item.recipe.id || '',
         fichaTecnicaNome: item.recipe.name || '',
-        productionMode: 'produto_final',
-        baseProductionId: '',
-        baseProductionName: '',
+        productionMode: isBase ? 'base_producao' : 'produto_final',
+        baseProductionId: isBase && baseComponent ? _baseProductionId(item.recipe, baseComponent) : '',
+        baseProductionName: isBase && baseComponent ? (baseComponent.name || 'Base de produção') : '',
         plannedQuantity: item.qty,
         plannedDate: item.date,
         status: 'planejada',
-        notes: notes || 'Planejamento gerado a partir das receitas abaixo do estoque mínimo.',
+        notes: notes || (isBase ? 'Planejamento gerado a partir das bases abaixo do estoque mínimo.' : 'Planejamento gerado a partir das receitas abaixo do estoque mínimo.'),
         recipeSnapshot: snapshot.recipeSnapshot,
         plannedCost: snapshot.plannedCost,
         plannedIngredients: snapshot.plannedIngredients,
@@ -1376,7 +2190,7 @@ Modules.Receitas = (function () {
       settingByRecipe[String(recipeId)] = setting;
     });
     var seen = {};
-    return (recipes || []).map(function (recipe) {
+    var productNeeds = (recipes || []).map(function (recipe) {
       if (!_isProductionNeedRecipe(recipe) || seen[String(recipe.id || '')]) return null;
       seen[String(recipe.id || '')] = true;
       var setting = settingByRecipe[String(recipe.id || '')] || {};
@@ -1397,7 +2211,53 @@ Modules.Receitas = (function () {
         missing: missing,
         unit: setting.unit || (balances[key] || {}).unit || recipe.yieldUnit || 'unidades'
       };
-    }).filter(Boolean).sort(function (a, b) { return b.missing - a.missing; });
+    }).filter(Boolean);
+    var baseNeeds = (settings || []).map(function (setting) {
+      var stockKind = _stockKindFromKey(setting.stockKey || '', setting.stockItemType);
+      if (stockKind !== 'base_producao') return null;
+      var baseId = String(setting.itemId || '').trim();
+      if (!baseId) {
+        var parts = String(setting.stockKey || '').split(':');
+        parts.shift();
+        baseId = parts.join(':');
+      }
+      var found = _findBaseRecipeForNeed(recipes || [], baseId);
+      if (!found) return null;
+      var min = _num(setting.minStock);
+      if (min <= 0) return null;
+      var key = 'base_producao:' + baseId;
+      var balance = _num((balances[key] || {}).balance);
+      var missing = _round(Math.max(0, min - balance));
+      if (missing <= 0) return null;
+      return {
+        recipeId: found.recipe.id || '',
+        stockKind: 'base_producao',
+        baseProductionId: baseId,
+        name: setting.itemName || found.component.name || 'Base de produção',
+        minStock: min,
+        balance: balance,
+        missing: missing,
+        unit: setting.unit || (balances[key] || {}).unit || found.component.baseYieldUnit || found.component.stockYieldUnit || ''
+      };
+    }).filter(Boolean);
+    return productNeeds.concat(baseNeeds).sort(function (a, b) { return b.missing - a.missing; });
+  }
+
+  function _findBaseRecipeForNeed(recipes, baseId) {
+    baseId = String(baseId || '').trim();
+    var fallback = null;
+    (recipes || []).some(function (recipe) {
+      return (recipe.components || []).some(function (comp, idx) {
+        if (!(comp && (comp.stockControl || comp.controlsStock))) return false;
+        var id = _baseProductionId(recipe, comp, idx);
+        if (id === baseId) {
+          fallback = { recipe: recipe, component: comp };
+          return true;
+        }
+        return false;
+      });
+    });
+    return fallback;
   }
 
   function _isProductionNeedRecipe(recipe) {
@@ -1424,7 +2284,7 @@ Modules.Receitas = (function () {
       fichaTecnicaId: recipe.id || '',
       fichaTecnicaNome: recipe.name || '',
       productionMode: isBase ? 'base_producao' : 'produto_final',
-      baseProductionId: isBase ? ((recipe.id || '') + ':' + (baseComponent.name || 'base')) : '',
+      baseProductionId: isBase ? _baseProductionId(recipe, baseComponent) : '',
       baseProductionName: isBase ? (baseComponent.name || 'Base de produção') : '',
       plannedQuantity: qty,
       plannedDate: _today(),
@@ -1487,7 +2347,7 @@ Modules.Receitas = (function () {
       fichaTecnicaId: recipe.id || '',
       fichaTecnicaNome: recipe.name || '',
       productionMode: isBase ? 'base_producao' : 'produto_final',
-      baseProductionId: isBase ? ((recipe.id || '') + ':' + (baseComponent.name || 'base')) : '',
+      baseProductionId: isBase ? _baseProductionId(recipe, baseComponent) : '',
       baseProductionName: isBase ? (baseComponent.name || 'Base de produção') : '',
       plannedQuantity: qty,
       plannedDate: plannedDate,
@@ -1835,7 +2695,7 @@ Modules.Receitas = (function () {
       var unitCost = qty > 0 ? totalCost / qty : 0;
       return Object.assign({}, base, {
         type: 'entrada_base_producao',
-        baseProductionId: (order.fichaTecnicaId || snapshot.id || 'receita') + ':' + (comp.name || 'etapa_' + idx),
+        baseProductionId: comp.baseProductionId || _baseProductionId({ id: order.fichaTecnicaId || snapshot.id || 'receita' }, comp, idx),
         baseProductionName: comp.name || 'Base de produção',
         fichaTecnicaId: order.fichaTecnicaId || snapshot.id || '',
         fichaTecnicaNome: order.fichaTecnicaNome || snapshot.name || '',
@@ -1936,25 +2796,45 @@ Modules.Receitas = (function () {
   }
 
   function _baseProductionOptions() {
-    var list = [];
+    var map = {};
     (_productionRecipes || []).forEach(function (recipe) {
       (recipe.components || []).forEach(function (comp, idx) {
         if (!(comp && (comp.stockControl || comp.controlsStock))) return;
-        list.push({
-          id: (recipe.id || '') + ':' + (comp.name || 'etapa_' + idx),
+        var id = _baseProductionId(recipe, comp, idx);
+        if (!map[id]) {
+          map[id] = {
+          id: id,
           recipeId: recipe.id || '',
           recipeName: recipe.name || 'Ficha sem nome',
           componentName: comp.name || 'Base de produção',
-          component: comp
-        });
+          component: comp,
+          recipeNames: []
+          };
+        }
+        if (map[id].recipeNames.indexOf(recipe.name || 'Ficha sem nome') < 0) map[id].recipeNames.push(recipe.name || 'Ficha sem nome');
       });
     });
-    return list;
+    return Object.keys(map).map(function (id) { return map[id]; }).sort(function (a, b) {
+      return String(a.componentName || '').localeCompare(String(b.componentName || ''));
+    });
+  }
+
+  function _baseProductionId(recipe, comp, idx) {
+    recipe = recipe || {};
+    comp = comp || {};
+    var existing = String(comp.baseProductionId || '').trim();
+    if (existing) return existing;
+    var shared = String(comp.sharedBaseId || '').trim();
+    if (shared) return shared;
+    var componentId = String(comp.componentId || comp.recipeComponentId || '').trim();
+    if (componentId) return componentId.indexOf('base_component:') === 0 ? componentId : 'base_component:' + componentId;
+    return (recipe.id || '') + ':' + (comp.name || ('etapa_' + (idx || 0)));
   }
 
   function _baseProductionOptionsHtml() {
     return _baseProductionOptions().map(function (item) {
-      return '<option value="' + _esc(item.id) + '">' + _esc(item.componentName) + ' · ' + _esc(item.recipeName) + '</option>';
+      var usage = item.recipeNames && item.recipeNames.length > 1 ? (' · usada em ' + item.recipeNames.length + ' receitas') : (' · ' + item.recipeName);
+      return '<option value="' + _esc(item.id) + '">' + _esc(item.componentName + usage) + '</option>';
     }).join('');
   }
 
@@ -1975,7 +2855,7 @@ Modules.Receitas = (function () {
     var components = recipe.components || [];
     return components.find(function (comp, idx) {
       if (!(comp && (comp.stockControl || comp.controlsStock))) return false;
-      var id = (recipe.id || '') + ':' + (comp.name || 'etapa_' + idx);
+      var id = _baseProductionId(recipe, comp, idx);
       return id === wanted || String(comp.name || '') === wanted || wanted.indexOf(':' + String(comp.name || '')) > -1;
     }) || null;
   }
@@ -2020,11 +2900,16 @@ Modules.Receitas = (function () {
       classe: recipe.classe || recipe.itemClass || 'produto_produzido',
       yieldQuantity: yieldQty,
       yieldUnit: yieldUnit,
-      components: (recipe.components || []).map(function (comp) {
+      components: (recipe.components || []).map(function (comp, idx) {
         var controls = !!(comp.stockControl || comp.controlsStock);
+        var baseId = controls ? _baseProductionId(recipe, comp, idx) : '';
         return Object.assign({}, comp, {
           stockControl: controls,
           controlsStock: controls,
+          baseProductionId: baseId,
+          sharedBaseId: comp.sharedBaseId || baseId,
+          componentId: comp.componentId || comp.recipeComponentId || '',
+          recipeComponentId: comp.recipeComponentId || comp.componentId || '',
           stockItemType: controls ? 'base_producao' : (comp.stockItemType || ''),
           itemClass: controls ? 'base_producao' : (comp.itemClass || comp.classe || ''),
           classe: controls ? 'base_producao' : (comp.classe || comp.itemClass || ''),
@@ -2098,6 +2983,10 @@ Modules.Receitas = (function () {
     var baseComponent = Object.assign({}, component, {
       stockControl: true,
       controlsStock: true,
+      baseProductionId: _baseProductionId(recipe, component),
+      sharedBaseId: component.sharedBaseId || _baseProductionId(recipe, component),
+      componentId: component.componentId || component.recipeComponentId || '',
+      recipeComponentId: component.recipeComponentId || component.componentId || '',
       stockItemType: 'base_producao',
       itemClass: 'base_producao',
       classe: 'base_producao',
@@ -2111,7 +3000,7 @@ Modules.Receitas = (function () {
       id: recipe.id || '',
       name: recipe.name || '',
       productionMode: 'base_producao',
-      baseProductionId: (recipe.id || '') + ':' + (component.name || 'base'),
+      baseProductionId: _baseProductionId(recipe, component),
       baseProductionName: component.name || 'Base de produção',
       itemClass: 'base_producao',
       classe: 'base_producao',
@@ -2495,14 +3384,47 @@ Modules.Receitas = (function () {
   }
 
   function _renderRecipeComponents() {
-    DB.getAll('recipe_components').then(function (items) {
-      _recipeComponents = (items || []).slice().sort(function (a, b) {
+    Promise.all([
+      DB.getAll('recipe_components'),
+      DB.getAll('fichasTecnicas').catch(function () { return []; })
+    ]).then(function (results) {
+      _recipeComponents = (results[0] || []).slice().sort(function (a, b) {
         return (a.order || 0) - (b.order || 0) || String(a.name || '').localeCompare(String(b.name || ''));
       });
+      _recipeComponentUsage = _buildRecipeComponentUsage(results[1] || []);
       _paintRecipeComponents();
     }).catch(function (err) {
       UI.toast('Erro: ' + err.message, 'error');
     });
+  }
+
+  function _buildRecipeComponentUsage(recipes) {
+    var map = {};
+    (recipes || []).forEach(function (recipe) {
+      (recipe.components || []).forEach(function (comp) {
+        if (!comp) return;
+        var keys = [];
+        var id = String(comp.componentId || comp.recipeComponentId || '').trim();
+        var name = String(comp.name || '').trim().toLowerCase();
+        if (id) keys.push('id:' + id);
+        if (name) keys.push('name:' + name);
+        keys.forEach(function (key) {
+          if (!map[key]) map[key] = { count: 0, recipes: {} };
+          if (!map[key].recipes[String(recipe.id || recipe.name || '')]) {
+            map[key].recipes[String(recipe.id || recipe.name || '')] = recipe.name || 'Receita sem nome';
+            map[key].count += 1;
+          }
+        });
+      });
+    });
+    return map;
+  }
+
+  function _componentUsageInfo(comp) {
+    comp = comp || {};
+    var id = String(comp.id || '').trim();
+    var name = String(comp.name || comp.label || '').trim().toLowerCase();
+    return (id && _recipeComponentUsage['id:' + id]) || (name && _recipeComponentUsage['name:' + name]) || { count: 0, recipes: {} };
   }
 
   function _paintRecipeComponents() {
@@ -2510,26 +3432,51 @@ Modules.Receitas = (function () {
     if (!content) return;
     var filtered = _recipeComponents.filter(_matchesConfigSearch);
     var rows = filtered.map(function (comp) {
+      var usage = _componentUsageInfo(comp);
+      var usageLabel = usage.count ? ('Usada em ' + usage.count + ' receita' + (usage.count > 1 ? 's' : '')) : 'Ainda não usada';
       return '<div class="recipes-config-row">' +
         '<div style="min-width:0;flex:1;"><div class="recipes-config-row-title">' + _esc(comp.name) + '</div>' +
-        '<div class="recipes-config-row-text">' + _esc(comp.description || 'Etapa usada para separar ingredientes dentro da receita.') + '</div></div>' +
+        '<div class="recipes-config-row-text">' + _esc(comp.description || 'Use esta etapa para reaproveitar uma mesma base em várias receitas, como massa, recheio, creme ou molho.') + '</div></div>' +
         '<div class="recipes-config-actions">' +
+        '<span class="recipes-config-usage">' + _esc(usageLabel) + '</span>' +
         '<button onclick="Modules.Receitas._openRecipeComponentModal(\'' + comp.id + '\')" style="' + _smallActionStyle('#6F6860') + '"><span class="mi" style="font-size:14px;">edit</span></button>' +
         '<button onclick="Modules.Receitas._deleteRecipeComponent(\'' + comp.id + '\')" style="' + _smallActionStyle('#B42318') + '"><span class="mi" style="font-size:14px;">delete</span></button>' +
         '</div></div>';
     }).join('');
-    content.innerHTML = _configCardHtml(_configMeta('componentes'), 'Modules.Receitas._openRecipeComponentModal(null)', 'Nenhuma etapa encontrada.', rows, filtered.length);
+    var guide = '<div class="recipes-config-guide">' +
+      '<div class="recipes-config-guide-main">' +
+        '<div class="recipes-config-guide-title">Use etapas para não cadastrar a mesma base várias vezes</div>' +
+        '<p class="recipes-config-guide-text">Se o mesmo recheio, massa, creme ou molho entra em mais de uma receita, cadastre uma etapa com esse nome e selecione a mesma etapa nas receitas. Assim o BocaFood consegue enxergar essa base como uma coisa só na produção.</p>' +
+        '<ul class="recipes-config-guide-list">' +
+          '<li><span class="mi">check_circle</span><span><strong>Recheio de frango</strong> pode entrar na coxinha e no pastel.</span></li>' +
+          '<li><span class="mi">check_circle</span><span><strong>Massa base</strong> pode entrar em vários sabores ou tamanhos.</span></li>' +
+          '<li><span class="mi">check_circle</span><span><strong>Molho especial</strong> pode entrar em pratos diferentes.</span></li>' +
+        '</ul>' +
+      '</div>' +
+      '<div class="recipes-config-guide-side">' +
+        '<div class="recipes-config-guide-title">Quando controlar estoque?</div>' +
+        '<p class="recipes-config-guide-text">Marque como base de produção dentro da receita quando essa etapa é feita antes e fica guardada para usar depois. Se a etapa só existe durante o preparo daquela receita, deixe sem controle de estoque.</p>' +
+      '</div>' +
+    '</div>';
+    content.innerHTML = guide + _configCardHtml(_configMeta('componentes'), 'Modules.Receitas._openRecipeComponentModal(null)', 'Nenhuma etapa encontrada.', rows, filtered.length);
   }
 
   function _openRecipeComponentModal(id) {
     _editingComponentId = id;
     var comp = id ? (_recipeComponents.find(function (x) { return x.id === id; }) || {}) : {};
+    var usage = _componentUsageInfo(comp);
+    var usageText = usage.count ? ('Esta etapa já aparece em ' + usage.count + ' receita' + (usage.count > 1 ? 's' : '') + '.') : 'Depois de salvar, escolha esta etapa dentro das receitas em que ela aparece.';
     var body = '<div>' +
-      '<label style="display:block;margin-bottom:12px;"><span style="' + _labelStyle() + '">Nome do componente *</span><input id="rcomp-name" type="text" value="' + _esc(comp.name || '') + '" placeholder="Ex: Massa" style="' + _inputStyle() + '"></label>' +
-      '<label style="display:block;"><span style="' + _labelStyle() + '">Descrição</span><textarea id="rcomp-desc" placeholder="Uso interno opcional" style="' + _inputStyle() + 'min-height:84px;resize:vertical;"></textarea></label>' +
+      '<div style="border:1px solid #EADFD8;border-radius:14px;background:#FFFCF8;padding:12px;margin-bottom:12px;color:#5F5652;font-size:12.5px;line-height:1.5;">' +
+        '<strong style="color:#1F1F1F;">Pense na etapa como uma parte reaproveitável da produção.</strong><br>' +
+        'Use nomes claros, como Recheio de frango, Massa de coxinha, Creme branco ou Molho especial. Quando selecionar o mesmo nome em várias receitas, o BocaFood entende que é a mesma base.' +
+      '</div>' +
+      '<label style="display:block;margin-bottom:12px;"><span style="' + _labelStyle() + '">Nome da etapa *</span><input id="rcomp-name" type="text" value="' + _esc(comp.name || '') + '" placeholder="Ex: Recheio de frango" style="' + _inputStyle() + '"></label>' +
+      '<label style="display:block;margin-bottom:12px;"><span style="' + _labelStyle() + '">Quando usar esta etapa</span><textarea id="rcomp-desc" placeholder="Ex: usado na coxinha e no pastel de frango." style="' + _inputStyle() + 'min-height:84px;resize:vertical;">' + _esc(comp.description || '') + '</textarea></label>' +
+      '<div style="font-size:12px;color:#6F6860;line-height:1.45;">' + _esc(usageText) + '</div>' +
       '</div>';
-    var footer = '<button onclick="Modules.Receitas._saveRecipeComponent()" style="width:100%;height:40px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:14px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">Salvar componente</button>';
-    window._recipeComponentModal = UI.modal({ title: id ? 'Editar Componente da Receita' : 'Novo Componente da Receita', body: body, footer: footer });
+    var footer = '<button onclick="Modules.Receitas._saveRecipeComponent()" style="width:100%;height:40px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:14px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">Salvar etapa</button>';
+    window._recipeComponentModal = UI.modal({ title: id ? 'Editar etapa da receita' : 'Nova etapa da receita', body: body, footer: footer });
   }
 
   function _saveRecipeComponent() {
@@ -2543,17 +3490,17 @@ Modules.Receitas = (function () {
     if (!_editingComponentId) data.createdAt = new Date().toISOString();
     var op = _editingComponentId ? DB.update('recipe_components', _editingComponentId, data) : DB.add('recipe_components', data);
     op.then(function () {
-      UI.toast('Componente salvo', 'success');
+      UI.toast('Etapa salva', 'success');
       if (window._recipeComponentModal) window._recipeComponentModal.close();
       _renderRecipeComponents();
     }).catch(function (err) { UI.toast('Erro: ' + err.message, 'error'); });
   }
 
   function _deleteRecipeComponent(id) {
-    UI.confirm('Eliminar este componente da receita?').then(function (yes) {
+    UI.confirm('Eliminar esta etapa da receita?').then(function (yes) {
       if (!yes) return;
       DB.remove('recipe_components', id).then(function () {
-        UI.toast('Componente eliminado', 'info');
+        UI.toast('Etapa eliminada', 'info');
         _renderRecipeComponents();
       });
     });
@@ -2860,6 +3807,14 @@ Modules.Receitas = (function () {
     _clearProductionOrderFilters: _clearProductionOrderFilters,
     _setProductionOrderPageSize: _setProductionOrderPageSize,
     _setProductionOrderPage: _setProductionOrderPage,
+    _setProductionForecastView: _setProductionForecastView,
+    _setProductionForecastFilter: _setProductionForecastFilter,
+    _clearProductionForecastFilters: _clearProductionForecastFilters,
+    _setProductionForecastPageSize: _setProductionForecastPageSize,
+    _setProductionForecastPage: _setProductionForecastPage,
+    _openProductionForecastDetails: _openProductionForecastDetails,
+    _createProductionOrderFromForecast: _createProductionOrderFromForecast,
+    _updateProductionForecastSimulation: _updateProductionForecastSimulation,
     _saveProductionOrder: _saveProductionOrder,
     _openProductionOrderDetails: _openProductionOrderDetails,
     _updateProductionOrderMode: _updateProductionOrderMode,

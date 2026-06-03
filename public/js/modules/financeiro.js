@@ -398,7 +398,7 @@ Modules.Financeiro = (function () {
     },0);
   }
   function _formasPag() {
-    var raw=(_configFin.formas_pagamento && _configFin.formas_pagamento.length) ? _configFin.formas_pagamento : FORMAS_PAG_DEFAULT;
+    var raw=_formasPagFull(false);
     return raw.filter(function(f){ return _formaPagCountryOk(f); }).map(function(f){ return typeof f==='string'?f:(f&&f.nome)||''; }).filter(Boolean).sort(function(a,b){ return a.localeCompare(b); });
   }
   function _formaPagCountryOk(f) {
@@ -408,7 +408,40 @@ Modules.Financeiro = (function () {
     return _globalTypeCountryOk(country, _tenantFiscalCountry());
   }
   function _formasPagFull(includeInactive) {
-    var raw=(_configFin.formas_pagamento && _configFin.formas_pagamento.length) ? _configFin.formas_pagamento : FORMAS_PAG_DEFAULT.map(function(n){ return {nome:n,tipo:'outro',ativo:true,tipoGlobalCountry:_paymentCountryByName(n)||'ambos'}; });
+    var hasTenant = !!(_configFin.formas_pagamento && _configFin.formas_pagamento.length);
+    var raw = hasTenant ? _configFin.formas_pagamento.slice() : [];
+    var tenantCountry = _tenantFiscalCountry();
+    var seen = {};
+    function keyFor(item) {
+      var name = typeof item === 'string' ? item : (item && (item.nome || item.name || item.tipoGlobalNome || item.tipo || item.id || item.slug || ''));
+      return String(name || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ');
+    }
+    raw.forEach(function (item) {
+      var key = keyFor(item);
+      if (key) seen[key] = true;
+    });
+    _globalFinanceList('payment', false).filter(function(t){ return _globalTypeCountryOk(t.countryFiscal, tenantCountry); }).forEach(function (t) {
+      var key = keyFor(t);
+      if (!key || seen[key]) return;
+      seen[key] = true;
+      raw.push({
+        nome: t.name || t.nome || '',
+        tipo: t.name || t.nome || '',
+        tipoGlobalId: t.id || '',
+        tipoGlobalSlug: t.slug || '',
+        tipoGlobalNome: t.name || t.nome || '',
+        tipoGlobalCountry: t.countryFiscal || 'ambos',
+        ativo: t.active !== false,
+        exigeConta: !!t.requiresBankAccount,
+        prazoCompensacaoDias: t.defaultCompensationDays || 0,
+        taxaPercentual: 0,
+        taxaFixa: 0,
+        origemGlobalMaster: true
+      });
+    });
+    if (!raw.length) {
+      raw = FORMAS_PAG_DEFAULT.map(function(n){ return {nome:n,tipo:'outro',ativo:true,tipoGlobalCountry:_paymentCountryByName(n)||'ambos'}; });
+    }
     return raw.map(function(f){ return typeof f==='string'?{nome:f,tipo:'outro',ativo:true}:Object.assign({ativo:true,tipo:'outro'},f||{}); })
       .filter(function(f){ return _formaPagCountryOk(f); })
       .filter(function(f){ return includeInactive || f.ativo!==false; })

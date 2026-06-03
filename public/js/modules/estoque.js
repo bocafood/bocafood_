@@ -206,7 +206,7 @@ Modules.Estoque = (function () {
     var origin = (isPurchaseEntry || isPurchaseReversal) ? 'Compra' : (isSaleRelated || isSaleReversal ? 'Venda' : ((isAdjustmentEntry || isAdjustmentExit) ? 'Ajuste' : 'Produção'));
     var originDetail = (isPurchaseEntry || isPurchaseReversal)
       ? ('Compra' + (movement.purchaseNumber ? ' ' + movement.purchaseNumber : '') + (movement.purchaseDocument ? ' · ' + movement.purchaseDocument : ''))
-      : ((isSaleRelated || isSaleReversal) ? ('Pedido' + (movement.orderNumber ? ' ' + movement.orderNumber : '') + (isSaleLoss ? ' · perda registrada' : (isSaleReturn ? ' · retorno ao estoque' : ''))) : ((isAdjustmentEntry || isAdjustmentExit) ? (movement.reason || 'Contagem manual') : (movement.productionOrderName || movement.fichaTecnicaNome || 'Ordem de produção')));
+      : ((isSaleRelated || isSaleReversal) ? ('Pedido' + (movement.orderNumber ? ' ' + movement.orderNumber : '') + _saleStockTraceLabel(movement, { isSaleLoss: isSaleLoss, isSaleReturn: isSaleReturn, isBaseSaleExit: isBaseSaleExit })) : ((isAdjustmentEntry || isAdjustmentExit) ? (movement.reason || 'Contagem manual') : (movement.productionOrderName || movement.fichaTecnicaNome || 'Ordem de produção')));
     var stockItemType = stockClass === 'embalagem'
       ? 'embalagem'
       : (movementIsSupply
@@ -244,6 +244,18 @@ Modules.Estoque = (function () {
       batchNumber: movement.batchNumber || '',
       expiresAt: movement.expiresAt || ''
     };
+  }
+
+  function _saleStockTraceLabel(movement, flags) {
+    flags = flags || {};
+    if (flags.isSaleLoss) return ' · perda registrada';
+    if (flags.isSaleReturn) return ' · retorno ao estoque';
+    var source = String(movement && movement.stockSource || '').trim();
+    if (flags.isBaseSaleExit || movement.baseProductionId || source.indexOf('base') >= 0) return ' · base de produção';
+    if (source === 'composicao_interna') return ' · montagem interna';
+    if (movement.sourceItemId || movement.produtoProntoId) return ' · produto pronto';
+    if (movement.fichaTecnicaId) return ' · produto produzido';
+    return '';
   }
 
   function _lookupStockClass(movement, itemId, flags) {
@@ -781,24 +793,37 @@ Modules.Estoque = (function () {
     var parts = rawId.split(':');
     var recipeId = parts.shift() || '';
     var componentName = parts.join(':');
-    if (!recipeId || !componentName) return Promise.resolve();
     return DB.getAll('fichasTecnicas').catch(function () { return []; }).then(function (recipes) {
-      var recipe = (recipes || []).find(function (r) { return String(r.id) === String(recipeId); });
-      if (!recipe) return null;
-      var changed = false;
-      var components = (recipe.components || []).map(function (comp) {
-        if (String(comp.name || '') !== String(componentName || '')) return comp;
-        changed = true;
-        return Object.assign({}, comp, {
-          minStock: minStock,
-          maxStock: maxStock,
-          estoque_minimo: minStock,
-          estoque_maximo: maxStock
+      var ops = [];
+      (recipes || []).forEach(function (recipe) {
+        var changed = false;
+        var components = (recipe.components || []).map(function (comp, idx) {
+          var isLegacyMatch = recipeId && componentName && String(recipe.id || '') === String(recipeId) && String(comp.name || '') === String(componentName || '');
+          var isSharedMatch = _baseComponentStockId(recipe, comp, idx) === rawId;
+          if (!isLegacyMatch && !isSharedMatch) return comp;
+          changed = true;
+          return Object.assign({}, comp, {
+            minStock: minStock,
+            maxStock: maxStock,
+            estoque_minimo: minStock,
+            estoque_maximo: maxStock
+          });
         });
+        if (changed) ops.push(DB.update('fichasTecnicas', recipe.id, { components: components, updatedAt: now }).catch(function () { return null; }));
       });
-      if (!changed) return null;
-      return DB.update('fichasTecnicas', recipeId, { components: components, updatedAt: now }).catch(function () { return null; });
+      return Promise.all(ops);
     });
+  }
+
+  function _baseComponentStockId(recipe, comp, idx) {
+    comp = comp || {};
+    var existing = String(comp.baseProductionId || '').trim();
+    if (existing) return existing;
+    var shared = String(comp.sharedBaseId || '').trim();
+    if (shared) return shared;
+    var componentId = String(comp.componentId || comp.recipeComponentId || '').trim();
+    if (componentId) return componentId.indexOf('base_component:') === 0 ? componentId : 'base_component:' + componentId;
+    return (recipe && recipe.id ? recipe.id : '') + ':' + (comp.name || ('etapa_' + (idx || 0)));
   }
 
   function _openInventoryModal() {
