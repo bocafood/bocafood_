@@ -645,6 +645,7 @@ Modules.Estoque = (function () {
   function _regularizationEntries() {
     var entries = [];
     (_orders || []).forEach(function (order) {
+      if (_regularizationOrderCancelled(order)) return;
       var items = Array.isArray(order && order.stockRegularizationPendingItems) ? order.stockRegularizationPendingItems : [];
       if (!items.length && order && order.stockRegularizationPending) {
         items = [];
@@ -689,6 +690,11 @@ Modules.Estoque = (function () {
     return entries.sort(function (a, b) {
       return _dateValue(b.detectedAt || b.orderDate) - _dateValue(a.detectedAt || a.orderDate);
     });
+  }
+
+  function _regularizationOrderCancelled(order) {
+    var status = _norm(order && (order.status || order.orderStatus || ''));
+    return status === 'cancelado' || status === 'cancelada' || status === 'canceled' || status === 'cancelled';
   }
 
   function _regularizationEffectiveShortage(item) {

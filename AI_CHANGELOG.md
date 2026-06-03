@@ -11239,6 +11239,14 @@
 - A lista reaproveita as opções já usadas pelo módulo de Compras, evitando criar uma fonte paralela ou alterar a lógica de cadastro.
 - Impacto esperado: deixar visível dentro das configurações de Produção quais embalagens de compra podem ser usadas no preenchimento dos insumos.
 
+## 2026-06-03 — Estoque: retirar regularizações de pedidos cancelados
+- Arquivos alterados: `public/admin.html`, `public/js/modules/pedidos.js`, `public/js/modules/estoque.js`, `AI_CHANGELOG.md`, `AGENTS.md`.
+- Corrigi o estorno de estoque do pedido para também cancelar as pendências de `stockRegularizationPendingItems` quando o pedido é cancelado ou quando o estorno já estava registrado.
+- A lista `Estoque > Regularizações` agora ignora pedidos com status cancelado, evitando que itens de pedidos cancelados continuem aparecendo como `Itens para regularizar`.
+- As pendências antigas do pedido passam a ser marcadas como `cancelada`, com motivo `pedido_cancelado`, em vez de permanecerem como pendentes.
+- Atualizei os cache-busters de `pedidos.js` e `estoque.js` no Admin para carregar a correção publicada.
+- Impacto esperado: quando um pedido cancelado tem estoque estornado, os itens deixam de ficar presos na lista de regularização.
+
 ## 2026-06-03 — Pedidos: ação explícita para estornar estoque de cancelado
 - Arquivos alterados: `public/admin.html`, `public/js/modules/pedidos.js`, `AI_CHANGELOG.md`.
 - Incluí o botão `Estornar estoque` no rodapé do modal de detalhes quando o pedido está cancelado.

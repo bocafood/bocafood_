@@ -4280,11 +4280,11 @@ Modules.Pedidos = (function () {
         var movementId = String(movement.id || '');
         return !movementId || !reversedBySource[movementId];
       });
-      if (!pendingExits.length) return {
-        stockMovementReversed: true,
-        stockMovementReversedAt: order.stockMovementReversedAt || _nowIso()
-      };
       var now = _nowIso();
+      if (!pendingExits.length) return Object.assign({
+        stockMovementReversed: true,
+        stockMovementReversedAt: order.stockMovementReversedAt || now
+      }, _cancelOrderStockRegularizationPatch(order, now));
       var ops = pendingExits.map(function (movement, idx) {
         var sourceId = String(movement.id || idx);
         var id = String(orderId || 'pedido').replace(/[^\w-]/g, '_') + '_' + sourceId.replace(/[^\w-]/g, '_') + '_estorno_venda';
@@ -4308,6 +4308,8 @@ Modules.Pedidos = (function () {
           stockMovementReversedAt: now,
           stockMovementReversalCount: ops.length
         };
+      }).then(function (patch) {
+        return Object.assign(patch, _cancelOrderStockRegularizationPatch(order, now));
       });
     }).then(function (patch) {
       if (!patch || !Object.keys(patch).length) return null;
@@ -4317,6 +4319,28 @@ Modules.Pedidos = (function () {
       console.warn('Erro ao estornar baixa de estoque do pedido', err);
       return null;
     });
+  }
+
+  function _cancelOrderStockRegularizationPatch(order, now) {
+    var items = Array.isArray(order && order.stockRegularizationPendingItems) ? order.stockRegularizationPendingItems : [];
+    if (!items.length && !order.stockRegularizationPending) return {};
+    var cancelledItems = items.map(function (item) {
+      if (!item || typeof item !== 'object') return item;
+      if (String(item.status || 'pendente').toLowerCase() !== 'pendente') return item;
+      return Object.assign({}, item, {
+        status: 'cancelada',
+        cancelledAt: now,
+        regularizationCancelReason: 'pedido_cancelado'
+      });
+    });
+    return {
+      stockRegularizationPending: false,
+      stockRegularizationPendingCount: 0,
+      stockRegularizationStatus: 'cancelada',
+      stockRegularizationCancelledAt: now,
+      stockRegularizationPendingItems: cancelledItems,
+      stockRegularizationWarning: ''
+    };
   }
 
   function _orderItemStockRefs(item, product) {
