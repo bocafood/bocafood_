@@ -1,5 +1,105 @@
 # AI Changelog
 
+## 2026-06-03 — Validação do checkout público e aliases para o Admin
+- Arquivos alterados: `public/storefront.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Validei o contrato entre checkout público da loja e Admin de Pedidos para cliente, WhatsApp, endereço, agenda, pagamento, descontos, cupom, pontos, itens, escolhas, vínculos de estoque e origem do pedido.
+- Corrigi o pedido salvo pelo template público para gravar aliases de compatibilidade: `customerId`, `clientId`, `clientName`, `name`, `phone`, `whatsapp`, além dos campos de endereço no topo (`neighborhood`, `city`, `province`, `country`).
+- Esses aliases evitam que o Admin/Financeiro/Clientes dependam apenas de fallback por telefone ou de campos aninhados em `deliveryAddress`.
+- Rodei uma validação estática do contrato com 18 campos de UI do checkout, 72 campos salvos no pedido e 36 aliases consumidos pelo Admin.
+- Documentei em `AGENTS.md` a regra de aliases obrigatórios para pedidos criados pela loja pública.
+- Validação executada sem erros: contrato estático do checkout, validação dos scripts inline de `public/storefront.html`, `node --check public/js/modules/pedidos.js`, `node --check public/js/modules/catalogo.js`, `node --check public/js/modules/configuracoes.js`, `node --check public/js/modules/dashboard.js`, `node --check public/js/modules/temporadas.js`, `node --check functions/index.js` e `git diff --check`.
+
+## 2026-06-03 — Pedidos: taxas de canal editáveis e entrada líquida no Financeiro
+- Arquivos alterados: `public/js/modules/pedidos.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Confirmei que o módulo de Pedidos já calculava comissão, imposto sobre comissão, taxa fixa, total abatido e líquido a receber quando o canal de venda tem esses valores configurados.
+- Ajustei o detalhe do pedido para exibir os campos `Comissão %`, `Imposto comissão %` e `Taxa fixa` como editáveis quando o canal possui taxa/comissão.
+- Ao salvar uma edição, o pedido passa a guardar o override manual e recalcular comissão, imposto, taxa total, desconto/taxa do canal e líquido a receber.
+- A sincronização com o Financeiro passa a persistir esses campos no próprio pedido junto com o `financeMovementId`.
+- Para canais comuns, a taxa/comissão não vira movimentação separada: a movimentação financeira do pedido continua sendo uma única entrada com o saldo líquido, mantendo bruto/taxas/líquido para rastreio.
+- Documentei em `AGENTS.md` o contrato de canais de venda em Pedidos: cálculo automático, edição manual e entrada líquida única no Financeiro.
+- Validação executada sem erros: `node --check public/js/modules/pedidos.js`, `node --check functions/index.js` e `git diff --check`.
+
+## 2026-06-03 — Stripe: taxa registrada no pedido e enviada ao Financeiro
+- Arquivos alterados: `functions/index.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Confirmei que o webhook Stripe já criava duas movimentações financeiras: entrada da venda e saída separada `Taxa Stripe`.
+- Corrigi o fallback da Function para a forma Stripe nascer e ser recalculada com taxa estimada `1,5% + €0,25` quando a taxa estava zerada ou ausente.
+- Ao criar o PaymentIntent, o pedido passa a guardar `stripeEstimatedFeeAmount`, `stripeEstimatedNetAmount`, `stripeEstimatedGrossAmount` e a regra estimada usada.
+- Ao aprovar o pagamento via webhook, o pedido passa a guardar `stripeFeeAmount`, `stripeGrossAmount`, `stripeNetAmount`, `stripeFeeSource`, `stripeGrossMovementId`, `stripeFeeMovementId` e `stripeFeeSentToFinance`.
+- A taxa real da Stripe continua tendo prioridade quando vier pela `balance_transaction`; se não vier, o Financeiro recebe a taxa estimada para não perder o histórico.
+- Documentei em `AGENTS.md` o contrato de pedido Stripe + Financeiro.
+
+## 2026-06-03 — Checkout: copy e taxa Stripe no cartão online
+- Arquivos alterados: `public/storefront.html`, `public/js/modules/configuracoes.js`, `public/js/modules/catalogo.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Ajustei a copy da forma `Cartão online` no checkout público para mostrar uma mensagem curta e útil, sem expor texto técnico da configuração.
+- A opção passa a informar a taxa estimada da Stripe: `1,5% + €0,25 por venda`.
+- A forma financeira criada automaticamente para Stripe agora nasce com `taxaPercentual: 1.5` e `taxaFixa: 0.25`, em vez de taxa zerada.
+- O card de Stripe no template/admin também passa a mostrar essa estimativa como padrão quando ainda não havia taxa preenchida.
+- Documentei em `AGENTS.md` a regra de copy pública e taxa padrão da forma Stripe.
+- Validação executada sem erros: `node --check public/js/modules/configuracoes.js`, `node --check public/js/modules/catalogo.js`, validação dos scripts inline de `public/storefront.html` e `git diff --check`.
+
+## 2026-06-03 — Onboarding: primeira Temporada recomendada
+- Arquivos alterados: `public/js/modules/dashboard.js`, `public/js/modules/temporadas.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Ajustei o checklist do onboarding para recomendar que a primeira Temporada seja criada com objetivo `Aumentar Ticket` e estratégia `Margem`.
+- A orientação explica que, como ainda há pouco histórico, é mais seguro começar vendendo melhor e protegendo margem antes de buscar volume.
+- Quando ainda não existe nenhuma Temporada, o wizard de criação passa a abrir pré-preenchido com `Aumentar Ticket`, duração `Sprint`, dificuldade segura e estratégia `Margem`.
+- Para contas que já têm Temporadas, o wizard continua sem forçar esse padrão.
+- Documentei em `AGENTS.md` a regra de recomendação da primeira Temporada no onboarding.
+- Validação executada sem erros: `node --check public/js/modules/dashboard.js`, `node --check public/js/modules/temporadas.js` e `git diff --check`.
+
+## 2026-06-03 — Temporadas: meta proporcional ao Plano de Voo
+- Arquivos alterados: `public/js/modules/temporadas.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Corrigi o cálculo da meta da Temporada quando ela usa a meta do Plano de Voo e cruza mais de um mês.
+- Antes, a Temporada somava o mês inteiro de cada mês tocado pelo período. Uma rota mensal de `2.600` podia virar `5.200` se a temporada pegasse dias de dois meses.
+- Agora a meta da Temporada usa a fração de dias coberta em cada mês, evitando dobrar a meta quando o período cruza meses.
+- A fração passa a considerar os dias de trabalho e dias fechados configurados no Plano de Voo quando esses dados existem; sem essa configuração, usa dias corridos como fallback.
+- Para objetivo `Vender mais`, a meta passa a usar o alvo proporcional da rota como referência principal, sem inflar por diferença/gap quando a temporada ainda não começou.
+- Documentei em `AGENTS.md` que a meta da Temporada deve ser proporcional ao período e não somar meses inteiros.
+- Validação executada sem erros: `node --check public/js/modules/temporadas.js`, simulação Node de meta proporcional cruzando meses com peso de mês e dias de trabalho, e `git diff --check`.
+
+## 2026-06-03 — Temporadas: base de previsão para início futuro
+- Arquivos alterados: `public/js/modules/temporadas.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Corrigi a base de cálculo da criação de Temporada quando a data de início está no futuro.
+- Antes, o sistema tentava usar pedidos entre o início da temporada e o momento atual; como a temporada ainda não tinha começado, a base ficava vazia e a mensagem dizia incorretamente que havia poucos pedidos `dentro desta temporada`.
+- Agora, para temporada programada, a previsão usa pedidos históricos anteriores à data de início como base.
+- Ajustei a copy do alerta para diferenciar `temporada ainda não começou` de `pouco histórico usado como base`.
+- Documentei em `AGENTS.md` que temporadas futuras devem usar histórico anterior ao início e não tratar ausência de pedidos futuros como baixa performance da temporada.
+- Validação executada sem erros: `node --check public/js/modules/temporadas.js` e `git diff --check`.
+
+## 2026-06-03 — Template da loja: pedido salvo, carrinho limpo e recuperação de pagamento
+- Arquivos alterados: `public/storefront.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Ajustei o checkout público para salvar o pedido em `orders` antes de limpar o carrinho no fluxo comum sem Stripe.
+- O carrinho agora só é limpo depois que o pedido foi salvo e o fluxo de envio foi concluído; em erro de salvamento, o carrinho permanece para a cliente não perder o pedido.
+- A confirmação de pedido salvo aparece após o salvamento mesmo quando não houver link de WhatsApp configurado.
+- No pagamento por cartão online, o pedido continua sendo salvo como `Pendente` antes de abrir o Stripe.
+- Quando o pagamento Stripe falha ou a criação do pagamento não abre, o template informa que o pedido ficou salvo com pagamento pendente.
+- Incluí botões para `Pagar novamente com cartão` e `Atualizar forma de pagamento`, permitindo reabrir o Stripe ou voltar ao carrinho para escolher outra forma.
+- Se a cliente trocar a forma de pagamento depois de uma falha de Stripe, o template reaproveita o mesmo documento de pedido pendente em vez de criar um pedido duplicado.
+- Documentei em `AGENTS.md` a regra de contrato do checkout público: salvar antes de limpar carrinho e manter recuperação de pagamento pendente sem duplicar pedido.
+- A mudança não altera baixa de estoque, webhook, cálculo de total, pedido mínimo, agenda ou regras de checkout; o escopo é persistência/limpeza do carrinho e recuperação de pagamento.
+- Validação executada sem erros: validação dos scripts inline de `public/storefront.html` e `git diff --check`.
+
+## 2026-06-03 — Template da loja: textos de entrega e retirada no card principal
+- Arquivos alterados: `public/storefront.html`, `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Ajustei o texto de pedido mínimo no card principal para exibir `Pedido Mín. para Entrega XX`, deixando claro que o mínimo é da entrega.
+- Ajustei o chip de retirada/recogida para incluir o bairro/localidade quando cadastrado, como `Recogida en Bairro` na loja em espanhol ou `Retirada em Bairro` na prévia em português.
+- A mudança é somente visual no card principal e na prévia; não altera cálculo de pedido mínimo, endereço, entrega, retirada ou checkout.
+- Validação executada sem erros: `node --check public/js/modules/catalogo.js`, validação dos scripts inline de `public/storefront.html` e `git diff --check`.
+
+## 2026-06-03 — Template da loja: cidade no card principal
+- Arquivos alterados: `public/storefront.html`, `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Ajustei o item `Cidade/localização` do card principal para exibir somente a cidade, sem concatenar província/estado.
+- A alteração vale para a loja pública e para a prévia do `Template da loja` no Admin.
+- Os campos de província/estado continuam salvos e disponíveis para endereço, entrega, SEO e demais cálculos; a mudança é apenas visual no card principal.
+- Validação executada sem erros: `node --check public/js/modules/catalogo.js`, validação dos scripts inline de `public/storefront.html` e `git diff --check`.
+
+## 2026-06-03 — Template da loja: botão no modal de produto simples
+- Arquivos alterados: `public/storefront.html`, `AI_CHANGELOG.md`.
+- Corrigi o modal público do produto para manter o rodapé e o botão `Adicionar ao pedido` visíveis também em produtos simples, sem depender do fluxo de combo.
+- O rodapé do modal de produto agora fica ancorado no fundo da área visível do painel, evitando que o botão fique fora da tela em produtos sem composição/variações.
+- Ao abrir um produto, o template reseta a rolagem do corpo do modal e restaura explicitamente a visibilidade do rodapé e do botão, evitando estado herdado de um modal anterior.
+- Impacto esperado: produto simples aberto no modal permite adicionar ao pedido dentro do próprio modal, mantendo o comportamento atual de combos, variações e compre-junto.
+- Validação executada sem erros: validação dos scripts inline de `public/storefront.html` e `git diff --check`.
+
 ## 2026-06-03 — Deploy: regularizações de estoque
 - Arquivos alterados: `AI_CHANGELOG.md`.
 - Publiquei as alterações pendentes das Fases 1 a 5 de regularização de estoque no Firebase do projeto `bocado-brasil`.

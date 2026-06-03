@@ -3057,6 +3057,7 @@ Modules.Pedidos = (function () {
                 '<label class="order-detail-label">Valor pago</label><div class="order-detail-field-control"><input id="detail-paid-amount" type="number" step="0.01" value="' + _esc(String(payment.paid || 0)) + '" placeholder="0,00"></div>' +
               '</div>' +
             '</div>' +
+            _detailChannelFeeInputsHTML(o, payment) +
             '<div class="order-detail-summary-grid">' +
               '<div class="order-detail-tile"><div style="font-size:10px;font-weight:700;color:#8A7E7C;text-transform:uppercase;margin-bottom:4px;">Valor total</div><div style="font-size:14px;font-weight:700;color:#1A1A1A;">' + UI.fmt(payment.total) + '</div></div>' +
               '<div class="order-detail-tile"><div style="font-size:10px;font-weight:700;color:#8A7E7C;text-transform:uppercase;margin-bottom:4px;">Valor pago</div><div style="font-size:14px;font-weight:700;color:#1A1A1A;">' + UI.fmt(payment.paid) + '</div></div>' +
@@ -3245,6 +3246,9 @@ Modules.Pedidos = (function () {
     var paymentSel = document.getElementById('detail-payment-method');
     var paymentStatusSel = document.getElementById('detail-payment-status');
     var paidAmountInput = document.getElementById('detail-paid-amount');
+    var channelCommissionInput = document.getElementById('detail-channel-commission-pct');
+    var channelTaxInput = document.getElementById('detail-channel-tax-pct');
+    var channelFixedInput = document.getElementById('detail-channel-fixed-fee');
     var scheduleDateSel = document.getElementById('detail-delivery-date');
     var scheduleTimeSel = document.getElementById('detail-delivery-time');
     if (!sel) return;
@@ -3268,6 +3272,28 @@ Modules.Pedidos = (function () {
     var statusChanged = nextStatus !== currentStatus;
     var paymentChanged = nextPaymentMethod !== currentPaymentMethod;
     var scheduleChanged = nextScheduleDate !== currentScheduleDate || nextScheduleTime !== currentScheduleTime;
+    var channelFeePatch = null;
+    var channelFeeChanged = false;
+    if (channelCommissionInput || channelTaxInput || channelFixedInput) {
+      var currentChannelCosts = _orderChannelFinancialPatch(order || {}, _detailPaymentInfo(order || {}).total);
+      var nextCommissionPct = _num(channelCommissionInput ? channelCommissionInput.value : currentChannelCosts.channelCommissionPct);
+      var nextTaxPct = _num(channelTaxInput ? channelTaxInput.value : currentChannelCosts.channelCommissionTaxPct);
+      var nextFixedFee = _num(channelFixedInput ? channelFixedInput.value : currentChannelCosts.channelFixedFee);
+      channelFeeChanged = Math.abs(nextCommissionPct - _num(currentChannelCosts.channelCommissionPct)) > 0.001 ||
+        Math.abs(nextTaxPct - _num(currentChannelCosts.channelCommissionTaxPct)) > 0.001 ||
+        Math.abs(nextFixedFee - _num(currentChannelCosts.channelFixedFee)) > 0.001;
+      if (channelFeeChanged) {
+        channelFeePatch = {
+          channelFeesManual: true,
+          channelFeeManual: true,
+          channelFeesEdited: true,
+          channelCommissionPct: nextCommissionPct,
+          channelCommissionTaxPct: nextTaxPct,
+          channelFixedFee: nextFixedFee,
+          channelFeesEditedAt: _nowIso()
+        };
+      }
+    }
     var editedItems = _detailEditedItems(order || {});
     var itemTotalsPayload = _orderItemTotalsPayload(order || {}, editedItems);
     var currentItemsJson = JSON.stringify(Array.isArray(order && order.items) ? order.items.map(function (item) {
@@ -3318,6 +3344,11 @@ Modules.Pedidos = (function () {
           order.paid = nextPaymentStatus === 'pago' ? true : (nextPaymentStatus === 'parcial' ? nextPaidAmount : false);
           order.payment = nextPaymentStatus;
         }
+      }));
+    }
+    if (channelFeePatch) {
+      tasks.push(DB.update('orders', id, channelFeePatch).then(function () {
+        if (order) Object.assign(order, channelFeePatch);
       }));
     }
     if (scheduleChanged) {
@@ -6933,9 +6964,10 @@ Modules.Pedidos = (function () {
     grossTotal = _num(grossTotal);
     var meta = _orderChannelMeta(order);
     var channel = meta.channel || {};
-    var commissionPct = _num(channel.commissionPct != null ? channel.commissionPct : order.channelCommissionPct);
-    var taxPct = _num(channel.taxPct != null ? channel.taxPct : order.channelCommissionTaxPct);
-    var fixedFee = _num(channel.fixedFee != null ? channel.fixedFee : order.channelFixedFee);
+    var manual = order.channelFeesManual === true || order.channelFeeManual === true || order.channelFeesEdited === true;
+    var commissionPct = _num(manual && order.channelCommissionPct != null ? order.channelCommissionPct : (channel.commissionPct != null ? channel.commissionPct : order.channelCommissionPct));
+    var taxPct = _num(manual && order.channelCommissionTaxPct != null ? order.channelCommissionTaxPct : (channel.taxPct != null ? channel.taxPct : order.channelCommissionTaxPct));
+    var fixedFee = _num(manual && order.channelFixedFee != null ? order.channelFixedFee : (channel.fixedFee != null ? channel.fixedFee : order.channelFixedFee));
     var commissionAmount = grossTotal > 0 && commissionPct > 0 ? +(grossTotal * commissionPct / 100).toFixed(2) : 0;
     var commissionTaxAmount = commissionAmount > 0 && taxPct > 0 ? +(commissionAmount * taxPct / 100).toFixed(2) : 0;
     var fixedFeeAmount = grossTotal > 0 && fixedFee > 0 ? +fixedFee.toFixed(2) : 0;
@@ -6954,9 +6986,13 @@ Modules.Pedidos = (function () {
       channelCommissionAmount: commissionAmount,
       channelCommissionTaxAmount: commissionTaxAmount,
       channelFixedFeeAmount: fixedFeeAmount,
+      channelFeeDiscountTotal: feeTotal,
+      financialDiscountTotal: feeTotal,
       netReceivable: net,
       liquidReceivable: net,
       financialNetAmount: net,
+      channelFeesManual: manual,
+      channelFeesEdited: manual,
       channelFeeBreakdown: {
         channel: String(meta.raw || ''),
         channelName: String(meta.label || ''),
@@ -6969,9 +7005,32 @@ Modules.Pedidos = (function () {
         fixedFeeAmount: fixedFeeAmount,
         totalFees: feeTotal,
         grossTotal: grossTotal,
-        netReceivable: net
+        netReceivable: net,
+        manual: manual
       }
     };
+  }
+
+  function _detailChannelFeeInputsHTML(order, payment) {
+    var costs = (payment && payment.channelCosts) || _orderChannelFinancialPatch(order || {}, _num(payment && payment.total));
+    var channelName = _firstText(costs.channelFeeBreakdown && costs.channelFeeBreakdown.channelName, order && order.channel, order && order.source, 'Canal');
+    var hasRule = _num(costs.channelCommissionPct) > 0 || _num(costs.channelCommissionTaxPct) > 0 || _num(costs.channelFixedFee) > 0 || _num(costs.channelFeeTotal) > 0;
+    if (!hasRule) return '';
+    return '<div style="margin-top:9px;border:1px solid #EFE4DC;border-radius:13px;background:#FFFCF8;padding:10px;display:grid;gap:8px;">' +
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;">' +
+        '<div style="min-width:0;"><div style="font-size:11px;font-weight:800;color:#1F1F1F;">Taxas do canal de venda</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">' + _esc(channelName) + ' · abatem do pedido para calcular o saldo que entra no Financeiro.</div></div>' +
+        '<span style="font-size:10px;font-weight:800;color:' + (costs.channelFeesManual ? '#9A3412' : '#2F6B57') + ';background:#fff;border:1px solid #EADFD8;border-radius:999px;padding:5px 8px;">' + (costs.channelFeesManual ? 'Editado manualmente' : 'Automático') + '</span>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;">' +
+        '<div><label class="order-detail-label">Comissão %</label><div class="order-detail-field-control order-detail-field-control-sm"><input id="detail-channel-commission-pct" type="number" step="0.01" value="' + _esc(String(_num(costs.channelCommissionPct))) + '"></div></div>' +
+        '<div><label class="order-detail-label">Imposto comissão %</label><div class="order-detail-field-control order-detail-field-control-sm"><input id="detail-channel-tax-pct" type="number" step="0.01" value="' + _esc(String(_num(costs.channelCommissionTaxPct))) + '"></div></div>' +
+        '<div><label class="order-detail-label">Taxa fixa</label><div class="order-detail-field-control order-detail-field-control-sm"><input id="detail-channel-fixed-fee" type="number" step="0.01" value="' + _esc(String(_num(costs.channelFixedFee))) + '"></div></div>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;font-size:11px;color:#6F6860;">' +
+        '<div style="background:#fff;border:1px solid #EFE4DC;border-radius:10px;padding:8px;">Taxas calculadas: <strong style="color:#1F1F1F;">' + _esc(UI.fmt(costs.channelFeeTotal || 0)) + '</strong></div>' +
+        '<div style="background:#fff;border:1px solid #EFE4DC;border-radius:10px;padding:8px;">Entrada no Financeiro: <strong style="color:#1F1F1F;">' + _esc(UI.fmt(costs.netReceivable || 0)) + '</strong></div>' +
+      '</div>' +
+    '</div>';
   }
 
   function _orderPaymentStatus(order) {
@@ -7069,19 +7128,30 @@ Modules.Pedidos = (function () {
       payload.categoriaFinanceiraNatureza = 'receita';
       payload.financialNature = 'receita';
     }
+    function persistOrderFinancialPatch(extra) {
+      var patch = Object.assign({}, channelFinancial, extra || {}, {
+        financeMovementSyncedAt: _nowIso()
+      });
+      Object.assign(order, patch);
+      return DB.update('orders', orderId, patch).then(function () { return true; }).catch(function () { return true; });
+    }
     if (order.financeMovementId) {
-      return DB.update('movimentacoes', order.financeMovementId, payload).then(function () { return true; }).catch(function () { return false; });
+      return DB.update('movimentacoes', order.financeMovementId, payload).then(function () {
+        return persistOrderFinancialPatch({ financeMovementId: order.financeMovementId });
+      }).catch(function () { return false; });
     }
     return DB.getAll('movimentacoes').then(function (list) {
       var found = (list || []).find(function (m) { return String(m.pedidoId || m.orderId || m.origemPedidoId || '') === orderId; });
       if (found && found.id) {
         order.financeMovementId = found.id;
-        return DB.update('movimentacoes', found.id, payload).then(function () { return true; });
+        return DB.update('movimentacoes', found.id, payload).then(function () {
+          return persistOrderFinancialPatch({ financeMovementId: found.id });
+        });
       }
       return DB.add('movimentacoes', payload).then(function (ref) {
         var refId = String((ref && ref.id) || '');
         if (refId) order.financeMovementId = refId;
-        return true;
+        return persistOrderFinancialPatch(refId ? { financeMovementId: refId } : {});
       });
     }).catch(function () { return false; });
   }

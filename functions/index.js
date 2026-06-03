@@ -2007,6 +2007,9 @@ function safeStripeAccountStatus(account) {
   };
 }
 
+const STRIPE_DEFAULT_FEE_PCT = 1.5;
+const STRIPE_DEFAULT_FIXED_FEE = 0.25;
+
 function stripePaymentMethodPayload(accountId = "", now = new Date().toISOString()) {
   return {
     nome: "Stripe",
@@ -2022,9 +2025,9 @@ function stripePaymentMethodPayload(accountId = "", now = new Date().toISOString
     stripe: true,
     stripeConnected: true,
     prazoCompensacaoDias: 0,
-    taxaPercentual: 0,
-    taxaFixa: 0,
-    observacao: "Forma criada automaticamente para pagamentos Stripe Connect.",
+    taxaPercentual: STRIPE_DEFAULT_FEE_PCT,
+    taxaFixa: STRIPE_DEFAULT_FIXED_FEE,
+    observacao: "Taxa Stripe estimada: 1,5% + €0,25 por venda.",
     updatedAt: now,
     createdAt: now
   };
@@ -2056,8 +2059,8 @@ async function ensureStripeFinancePaymentMethod(tenantId, accountId = "") {
     return {
       ...item,
       ...stripePaymentMethodPayload(accountId || item.contaPadraoId || "", itemNow),
-      taxaPercentual: Number(item.taxaPercentual || item.feePct || 0),
-      taxaFixa: Number(item.taxaFixa || item.fixedFee || 0),
+      taxaPercentual: stripeDefaultFeeValue(item.taxaPercentual, item.feePct, STRIPE_DEFAULT_FEE_PCT),
+      taxaFixa: stripeDefaultFeeValue(item.taxaFixa, item.fixedFee, STRIPE_DEFAULT_FIXED_FEE),
       createdAt: item.createdAt || itemNow
     };
   });
@@ -2069,9 +2072,15 @@ async function ensureStripeFinancePaymentMethod(tenantId, accountId = "") {
 function stripeEstimatedFee(amount, method) {
   amount = Number(amount || 0);
   method = method || {};
-  const pct = Number(method.taxaPercentual || method.feePct || 0);
-  const fixed = Number(method.taxaFixa || method.fixedFee || 0);
+  const pct = stripeDefaultFeeValue(method.taxaPercentual, method.feePct, STRIPE_DEFAULT_FEE_PCT);
+  const fixed = stripeDefaultFeeValue(method.taxaFixa, method.fixedFee, STRIPE_DEFAULT_FIXED_FEE);
   return stripeMoney((amount * pct / 100) + fixed);
+}
+
+function stripeDefaultFeeValue(primary, fallback, defaultValue) {
+  const selected = primary !== undefined && primary !== null && primary !== "" ? primary : fallback;
+  const value = Number(selected || 0);
+  return Number.isFinite(value) && value > 0 ? value : defaultValue;
 }
 
 async function stripePaymentFeeFromCharge(config, stripeAccountId, paymentIntent) {
@@ -2104,6 +2113,7 @@ async function syncStripeFinanceMovements(tenantId, orderId, paymentIntent, conf
   if (!(gross > 0)) return false;
   const feeFromStripe = await stripePaymentFeeFromCharge(config, stripeAccountId, paymentIntent);
   const fee = feeFromStripe > 0 ? feeFromStripe : stripeEstimatedFee(gross, method);
+  const feeSource = feeFromStripe > 0 ? "stripe" : "estimated";
   const net = stripeMoney(Math.max(0, gross - fee));
   const accountId = String(integrations.stripeFinanceAccountId || integrations.stripeDefaultAccountId || method.contaPadraoId || "");
   const baseDate = new Date().toISOString().slice(0, 10);
@@ -2116,6 +2126,10 @@ async function syncStripeFinanceMovements(tenantId, orderId, paymentIntent, conf
     paymentProvider: "stripe",
     stripePaymentIntentId: paymentIntent.id || "",
     stripeConnectedAccountId: stripeAccountId,
+    stripeFeeAmount: fee,
+    stripeNetAmount: net,
+    stripeGrossAmount: gross,
+    stripeFeeSource: feeSource,
     data: baseDate,
     status: "efetivado",
     updatedAt: serverTimestamp()
@@ -2159,6 +2173,7 @@ async function syncStripeFinanceMovements(tenantId, orderId, paymentIntent, conf
       costClass: "indireto",
       stripeGrossAmount: gross,
       stripeNetAmount: net,
+      stripeFeeSource: feeSource,
       createdAt: serverTimestamp()
     }, { merge: true });
   }
@@ -2169,6 +2184,11 @@ async function syncStripeFinanceMovements(tenantId, orderId, paymentIntent, conf
     stripeFeeAmount: fee,
     stripeNetAmount: net,
     stripeGrossAmount: gross,
+    stripeFeeSource: feeSource,
+    stripeFeeMovementId: fee > 0 ? `stripe_order_${orderId}_taxa` : "",
+    stripeGrossMovementId: `stripe_order_${orderId}_entrada`,
+    stripeFeeSentToFinance: fee > 0,
+    stripeFeeSentToFinanceAt: fee > 0 ? serverTimestamp() : null,
     contaBancariaId: accountId,
     conta_id: accountId,
     updatedAt: serverTimestamp()
@@ -3388,6 +3408,9 @@ exports.createStorefrontStripePaymentIntent = onRequest({ region: REGION, timeou
       "metadata[source]": "bocafood_storefront"
     }, config, stripeAccountId);
     const financeMethod = await ensureStripeFinancePaymentMethod(tenantId, integrations.stripeFinanceAccountId || integrations.stripeDefaultAccountId || "");
+    const estimatedGross = stripeMoney(amount / 100);
+    const estimatedFee = stripeEstimatedFee(estimatedGross, financeMethod);
+    const estimatedNet = stripeMoney(Math.max(0, estimatedGross - estimatedFee));
     await orderSnap.ref.set({
       paymentProvider: "stripe",
       paymentMethod: "Cartão",
@@ -3402,6 +3425,10 @@ exports.createStorefrontStripePaymentIntent = onRequest({ region: REGION, timeou
       stripeConnectedAccountId: stripeAccountId,
       stripeCurrency: currency,
       stripeAmount: amount,
+      stripeEstimatedFeeAmount: estimatedFee,
+      stripeEstimatedNetAmount: estimatedNet,
+      stripeEstimatedGrossAmount: estimatedGross,
+      stripeFeeEstimateRule: `${stripeDefaultFeeValue(financeMethod.taxaPercentual, financeMethod.feePct, STRIPE_DEFAULT_FEE_PCT)}% + ${stripeDefaultFeeValue(financeMethod.taxaFixa, financeMethod.fixedFee, STRIPE_DEFAULT_FIXED_FEE)}`,
       updatedAt: serverTimestamp()
     }, { merge: true });
     return res.json({

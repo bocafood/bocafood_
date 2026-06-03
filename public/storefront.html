@@ -4385,17 +4385,30 @@
     }
 
     .payment-option {
-      min-height: 38px;
+      min-height: 42px;
       border: 1px solid rgba(33, 27, 24, .08);
       border-radius: 13px;
       background: #fffaf5;
       color: #655c54;
-      padding: 0 10px;
+      padding: 8px 10px;
       font: inherit;
       font-size: 11px;
       font-weight: 800;
       cursor: pointer;
       transition: background .16s ease, color .16s ease, border-color .16s ease, box-shadow .16s ease;
+    }
+
+    .payment-option-label,
+    .payment-option-help {
+      display: block;
+      line-height: 1.25;
+    }
+
+    .payment-option-help {
+      margin-top: 3px;
+      color: #756C64;
+      font-size: 10px;
+      font-weight: 650;
     }
 
     .payment-option:hover {
@@ -4408,6 +4421,10 @@
       border-color: rgba(var(--brand-rgb), .34);
       color: var(--brand);
       box-shadow: 0 7px 16px rgba(var(--brand-rgb), .08);
+    }
+
+    .payment-option.active .payment-option-help {
+      color: #6F3A2F;
     }
 
     .payment-options + .cart-select#payment-method {
@@ -8005,9 +8022,9 @@
     }
 
     .payment-option {
-      min-height: 42px;
+      min-height: 46px;
       justify-content: flex-start;
-      padding: 0 13px;
+      padding: 8px 13px;
       border: 1.5px solid #dfd4ce;
       border-radius: 14px;
       background: #fff;
@@ -9923,6 +9940,23 @@
       /* Quote — ligeiramente maior no desktop, mais respirado */
       .review-quote              { font-size: 14px; line-height: 1.55 }
     }
+
+    .product-modal .modal-body {
+      position: relative;
+      padding-bottom: calc(86px + env(safe-area-inset-bottom));
+    }
+
+    .product-modal .modal-footer {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      margin: 0;
+    }
+
+    .product-modal .modal-footer .modal-add {
+      display: inline-flex;
+    }
   </style>
   <script>
     if (window.location.hostname === 'cc.bocafood.app' && (window.location.pathname === '/' || window.location.pathname === '')) {
@@ -10446,6 +10480,8 @@
                 </div>
                 <div class="points-status" id="order-success-detail"></div>
                 <button class="auth-submit" type="button" id="order-success-ok">Entendido</button>
+                <button class="points-secondary" type="button" id="order-success-pay" style="display:none;">Pagar com cartão</button>
+                <button class="points-secondary" type="button" id="order-success-change-payment" style="display:none;">Atualizar forma de pagamento</button>
               </div>
             </section>
           </div>
@@ -10503,6 +10539,7 @@
                 <div id="stripe-card-element" style="padding:14px;border:1px solid #E8DCD7;border-radius:14px;background:#fff;"></div>
                 <div class="checkout-warning" id="stripe-payment-message"></div>
                 <button class="auth-submit" type="button" id="stripe-payment-confirm">Pagar ahora</button>
+                <button class="points-secondary" type="button" id="stripe-payment-change" style="display:none;">Actualizar forma de pago</button>
               </div>
             </section>
           </div>
@@ -10833,6 +10870,7 @@
       var stripeElements = null;
       var stripeCardElement = null;
       var stripePaymentContext = null;
+      var pendingStorefrontOrderContext = null;
 
       function tenantIdFromUrl() {
         var params = new URLSearchParams(window.location.search);
@@ -11781,7 +11819,7 @@
           loyaltyTitle: 'Ganhe pontos a cada pedido', loyaltyText: 'Entre no clube e troque pontos por descontos.', loyaltyButton: 'Quero participar', loyaltyHint: '',
           cartView: 'Ver pedido', openCart: 'Abrir ›', yourOrder: 'Seu pedido', noItems: 'Nenhum item no pedido', itemSingular: '1 item no pedido', itemPlural: '{count} itens no pedido', emptyOrder: 'Seu pedido ainda está vazio.',
           receiving: 'Recebimento', required: 'obrigatório', pickupAddress: 'Retirada no endereço da loja.', selectPickup: 'Selecione um horário de retirada', selectDelivery: 'Selecione um horário de entrega', selectTime: 'Selecione um horário', pickupDateLabel: 'Data de retirada', deliveryDateLabel: 'Data de entrega', noSlots: 'Sem horários disponíveis.', noFulfillment: 'Nenhum modo de recebimento está disponível no momento.', receivingTitle: 'Como você quer receber?', receivingSubtitle: 'Selecione antes de confirmar seu pedido.', pickupAddressTitle: 'Endereço de retirada', savedAddressesTitle: 'Em qual endereço você quer receber o pedido?', savedAddressesModalTitle: 'Endereços salvos', chooseSavedAddress: 'Escolher endereço salvo', newAddressHelp: 'Se quiser receber o pedido em um endereço novo ou ainda não tiver endereço salvo, comece pelo código postal.', scheduleQuestion: 'Quando você quer receber seu pedido?', noSavedAddresses: 'Ainda não há endereços salvos.', savedAddressDefault: 'Endereço {count}', chooseOrAddAddress: 'Escolha um endereço salvo ou adicione um novo.', saveAddressForNext: 'Salvar este endereço para próximas compras', addressLabelPlaceholder: 'Nome do endereço', contactSaved: 'WhatsApp salvo. Seus endereços ficam separados para cada entrega.', contactInvalid: 'Informe um WhatsApp válido para salvar.', profileSaveError: 'Não foi possível salvar esses dados. Tente novamente.', addressOutsideZone: 'Esse endereço ainda não está dentro das zonas atendidas pela loja.', addressSaveError: 'Não foi possível salvar esse endereço. Confira o código postal e tente novamente.', clearOrder: 'Limpar pedido', pickupTimeLabel: 'Horário de retirada', deliveryTimeLabel: 'Horário de entrega', deliveryAddressLabel: 'Endereço de entrega', addressNumberLabel: 'Número / portal', addressComplementLabel: 'Piso / porta', addressCityLabel: 'Cidade', addressProvinceLabel: 'Província', addressCountryLabel: 'País', orderNoteLabel: 'Observação para o pedido', minimumDeliveryLabel: 'Pedido mínimo para entrega', minOrderLeft: 'Adicione mais {value}', savings: 'Você economiza', paymentRequired: 'Selecione uma forma de pagamento.', checkoutChoiceKicker: 'Pedido', checkoutChoiceTitle: 'Como quer continuar?', checkoutChoiceText: 'Entre para acompanhar seus pedidos e acumular pontos. Se continuar como convidado, seus pontos não serão acumulados.', checkoutChoiceLogin: 'Entrar ou criar acesso', checkoutChoiceGuest: 'Continuar como convidado', orderSentKicker: 'Pedido', orderSentTitle: 'Pedido enviado', orderSentSuccess: 'Pedido enviado pelo WhatsApp. Se precisar de ajuda, fale com a loja pela conversa que acabou de abrir.', orderSentHelp: 'Referência do pedido: {ref}. A loja vai continuar o atendimento pelo WhatsApp.', orderSentButton: 'Entendido',
-          customer: 'Cliente', name: 'Nome', phone: 'WhatsApp', paymentNotes: 'Como vai pagar?', paymentMethod: 'Forma de pagamento', paymentCardOnline: 'Cartão online', paymentCash: 'Dinheiro', paymentCard: 'Cartão', paymentTransfer: 'Transferência', paymentBankSlip: 'Multibanco', paymentDirectDebit: 'Débito direto', paymentCheck: 'Cheque', paymentOther: 'Outro', select: 'Selecione', orderNote: 'Observação para o pedido', productNote: 'Observação para este produto',
+          customer: 'Cliente', name: 'Nome', phone: 'WhatsApp', paymentNotes: 'Como vai pagar?', paymentMethod: 'Forma de pagamento', paymentCardOnline: 'Cartão online', paymentCardOnlineHelp: 'Taxa Stripe estimada: 1,5% + €0,25 por venda.', paymentCash: 'Dinheiro', paymentCard: 'Cartão', paymentTransfer: 'Transferência', paymentBankSlip: 'Multibanco', paymentDirectDebit: 'Débito direto', paymentCheck: 'Cheque', paymentOther: 'Outro', select: 'Selecione', orderNote: 'Observação para o pedido', productNote: 'Observação para este produto',
           stripeKicker: 'Pagamento seguro', stripeTitle: 'Pague com cartão', stripeText: 'O pedido será confirmado quando o pagamento for aprovado.', stripeButton: 'Pagar agora', stripeLoading: 'Preparando pagamento...', stripeProcessing: 'Processando pagamento...', stripeSuccess: 'Pagamento aprovado. Pedido confirmado.', stripeFailed: 'Não foi possível aprovar o pagamento. O pedido ficou pendente.',
           coupon: 'Cupom', apply: 'Aplicar', couponApplied: 'Cupom {code} aplicado', couponInvalid: 'Cupom inválido ou indisponível.', subtotal: 'Subtotal', discount: 'Desconto', promotionDiscount: 'Promoções', total: 'Total', sendWhatsApp: 'Enviar pedido pelo WhatsApp', addToOrder: 'Adicionar ao pedido',
           addProduct: 'Adicionar {name}', unavailable: 'Indisponível', unavailableCart: 'Este produto não está disponível agora.', unavailableQty: 'Só há {qty} unidade(s) disponíveis agora.', options: 'Opções', requiredChoice: 'Obrigatório {used}/{needed}', extraOptions: 'opções', addMoreItems: 'Adicione mais itens', upsellOffer: 'Boa escolha', saveAmount: 'Economize {amount}', productReviews: 'Avaliações do produto', allReviewsTitle: 'Todas as avaliações', reviewFallback: 'Cliente gostou deste produto.', leaveReview: 'Deixar avaliação', shareReviewCta: 'Conte também como foi sua experiência', firstReviewText: 'Ainda não há avaliações publicadas. Seja a primeira pessoa a contar como foi sua experiência.', mostOrderedBadge: 'Mais pedido', addChoices: 'Adicionar:', noteShort: 'Obs:', addFirst: 'Adicione produtos ao pedido primeiro.', selectSlotWarn: 'Selecione um horário para continuar.', minimumDeliveryWarn: 'Pedido mínimo para entrega: {value}.', postalWarn: 'Informe um código postal atendido pela loja.', addressWarn: 'Informe o endereço completo para entrega.',
@@ -11798,7 +11836,7 @@
           loyaltyTitle: 'Ganhe pontos em cada pedido', loyaltyText: 'Entre no clube e troque pontos por descontos.', loyaltyButton: 'Quero participar', loyaltyHint: '',
           cartView: 'Ver pedido', openCart: 'Abrir ›', yourOrder: 'O seu pedido', noItems: 'Nenhum item no pedido', itemSingular: '1 item no pedido', itemPlural: '{count} itens no pedido', emptyOrder: 'O seu pedido ainda está vazio.',
           receiving: 'Recebimento', required: 'obrigatório', pickupAddress: 'Levantamento no endereço da loja.', selectPickup: 'Selecione um horário de levantamento', selectDelivery: 'Selecione um horário de entrega', selectTime: 'Selecione um horário', pickupDateLabel: 'Data de levantamento', deliveryDateLabel: 'Data de entrega', noSlots: 'Sem horários disponíveis.', noFulfillment: 'Nenhum modo de recebimento está disponível no momento.', receivingTitle: 'Como você quer receber?', receivingSubtitle: 'Selecione antes de confirmar seu pedido.', pickupAddressTitle: 'Endereço de retirada', savedAddressesTitle: 'Em qual endereço você quer receber o pedido?', savedAddressesModalTitle: 'Endereços salvos', chooseSavedAddress: 'Escolher endereço salvo', newAddressHelp: 'Se quiser receber o pedido em um endereço novo ou ainda não tiver endereço salvo, comece pelo código postal.', scheduleQuestion: 'Quando você quer receber seu pedido?', noSavedAddresses: 'Ainda não há endereços salvos.', savedAddressDefault: 'Endereço {count}', chooseOrAddAddress: 'Escolha um endereço salvo ou adicione um novo.', saveAddressForNext: 'Guardar este endereço para próximas compras', addressLabelPlaceholder: 'Nome do endereço', contactSaved: 'WhatsApp guardado. Os seus endereços ficam separados para cada entrega.', contactInvalid: 'Informe um WhatsApp válido para guardar.', profileSaveError: 'Não foi possível guardar esses dados. Tente novamente.', addressOutsideZone: 'Esse endereço ainda não está dentro das zonas atendidas pela loja.', addressSaveError: 'Não foi possível guardar esse endereço. Confira o código postal e tente novamente.', clearOrder: 'Limpar pedido', pickupTimeLabel: 'Horário de retirada', deliveryTimeLabel: 'Horário de entrega', deliveryAddressLabel: 'Endereço de entrega', addressNumberLabel: 'Número / portal', addressComplementLabel: 'Piso / porta', addressCityLabel: 'Cidade', addressProvinceLabel: 'Província', addressCountryLabel: 'País', orderNoteLabel: 'Observação para o pedido', minimumDeliveryLabel: 'Pedido mínimo para entrega', minOrderLeft: 'Adicione mais {value}', savings: 'Poupa', paymentRequired: 'Selecione uma forma de pagamento.', checkoutChoiceKicker: 'Pedido', checkoutChoiceTitle: 'Como quer continuar?', checkoutChoiceText: 'Entre para acompanhar os seus pedidos e acumular pontos. Se continuar como convidado, os pontos não serão acumulados.', checkoutChoiceLogin: 'Entrar ou criar acesso', checkoutChoiceGuest: 'Continuar como convidado', orderSentKicker: 'Pedido', orderSentTitle: 'Pedido enviado', orderSentSuccess: 'Pedido enviado pelo WhatsApp. Se precisar de ajuda, fale com a loja pela conversa que acabou de abrir.', orderSentHelp: 'Referência do pedido: {ref}. A loja vai continuar o atendimento pelo WhatsApp.', orderSentButton: 'Entendido',
-          customer: 'Cliente', name: 'Nome', phone: 'WhatsApp', paymentNotes: 'Como vai pagar?', paymentMethod: 'Forma de pagamento', paymentCardOnline: 'Cartão online', paymentCash: 'Dinheiro', paymentCard: 'Cartão', paymentTransfer: 'Transferência', paymentBankSlip: 'Multibanco', paymentDirectDebit: 'Débito direto', paymentCheck: 'Cheque', paymentOther: 'Outro', select: 'Selecione', orderNote: 'Observação para o pedido', productNote: 'Observação para este produto',
+          customer: 'Cliente', name: 'Nome', phone: 'WhatsApp', paymentNotes: 'Como vai pagar?', paymentMethod: 'Forma de pagamento', paymentCardOnline: 'Cartão online', paymentCardOnlineHelp: 'Taxa Stripe estimada: 1,5% + €0,25 por venda.', paymentCash: 'Dinheiro', paymentCard: 'Cartão', paymentTransfer: 'Transferência', paymentBankSlip: 'Multibanco', paymentDirectDebit: 'Débito direto', paymentCheck: 'Cheque', paymentOther: 'Outro', select: 'Selecione', orderNote: 'Observação para o pedido', productNote: 'Observação para este produto',
           stripeKicker: 'Pagamento seguro', stripeTitle: 'Pague com cartão', stripeText: 'O pedido será confirmado quando o pagamento for aprovado.', stripeButton: 'Pagar agora', stripeLoading: 'Preparando pagamento...', stripeProcessing: 'Processando pagamento...', stripeSuccess: 'Pagamento aprovado. Pedido confirmado.', stripeFailed: 'Não foi possível aprovar o pagamento. O pedido ficou pendente.',
           coupon: 'Cupão', apply: 'Aplicar', couponApplied: 'Cupão {code} aplicado', couponInvalid: 'Cupão inválido ou indisponível.', subtotal: 'Subtotal', discount: 'Desconto', promotionDiscount: 'Promoções', total: 'Total', sendWhatsApp: 'Enviar pedido pelo WhatsApp', addToOrder: 'Adicionar ao pedido',
           addProduct: 'Adicionar {name}', unavailable: 'Indisponível', unavailableCart: 'Este produto não está disponível agora.', unavailableQty: 'Só há {qty} unidade(s) disponíveis agora.', options: 'Opções', requiredChoice: 'Obrigatório {used}/{needed}', extraOptions: 'opções', addMoreItems: 'Adicione mais itens', upsellOffer: 'Boa escolha', saveAmount: 'Economize {amount}', productReviews: 'Avaliações do produto', allReviewsTitle: 'Todas as avaliações', reviewFallback: 'Cliente gostou deste produto.', leaveReview: 'Deixar avaliação', shareReviewCta: 'Conte também como foi sua experiência', firstReviewText: 'Ainda não há avaliações publicadas. Seja a primeira pessoa a contar como foi sua experiência.', mostOrderedBadge: 'Mais pedido', addChoices: 'Adicionar:', noteShort: 'Obs:', addFirst: 'Adicione produtos ao pedido primeiro.', selectSlotWarn: 'Selecione um horário para continuar.', minimumDeliveryWarn: 'Pedido mínimo para entrega: {value}.', postalWarn: 'Informe um código postal atendido pela loja.', addressWarn: 'Informe o endereço completo para entrega.',
@@ -11815,7 +11853,7 @@
           loyaltyTitle: 'Gana puntos en cada pedido', loyaltyText: 'Únete al club y cambia puntos por descuentos.', loyaltyButton: 'Quiero participar', loyaltyHint: '',
           cartView: 'Ver pedido', openCart: 'Abrir ›', yourOrder: 'Tu pedido', noItems: 'Ningún artículo en el pedido', itemSingular: '1 artículo en el pedido', itemPlural: '{count} artículos en el pedido', emptyOrder: 'Tu pedido aún está vacío.',
           receiving: 'Recepción', required: 'obligatorio', pickupAddress: 'Recogida en la dirección de la tienda.', selectPickup: 'Selecciona un horario de recogida', selectDelivery: 'Selecciona un horario de entrega', selectTime: 'Selecciona un horario', pickupDateLabel: 'Fecha de recogida', deliveryDateLabel: 'Fecha de entrega', noSlots: 'No hay horarios disponibles.', noFulfillment: 'No hay ningún modo de entrega o recogida disponible en este momento.', receivingTitle: '¿Cómo quieres recibirlo?', receivingSubtitle: 'Selecciona antes de confirmar tu pedido.', pickupAddressTitle: 'Dirección de recogida', savedAddressesTitle: '¿En qué dirección quieres recibir el pedido?', savedAddressesModalTitle: 'Direcciones guardadas', chooseSavedAddress: 'Elegir dirección guardada', newAddressHelp: 'Si quieres recibir el pedido en una dirección nueva o todavía no tienes una dirección guardada, empieza por el código postal.', scheduleQuestion: '¿Cuándo quieres recibir tu pedido?', noSavedAddresses: 'Todavía no hay direcciones guardadas.', savedAddressDefault: 'Dirección {count}', chooseOrAddAddress: 'Elige una dirección guardada o agrega una nueva.', saveAddressForNext: 'Guardar esta dirección para próximas compras', addressLabelPlaceholder: 'Nombre de la dirección', contactSaved: 'WhatsApp guardado. Tus direcciones quedan separadas para cada entrega.', contactInvalid: 'Indica un WhatsApp válido para guardarlo.', profileSaveError: 'No pudimos guardar estos datos. Inténtalo otra vez.', addressOutsideZone: 'Esta dirección todavía no está dentro de las zonas atendidas por la tienda.', addressSaveError: 'No pudimos guardar esta dirección. Revisa el código postal e inténtalo otra vez.', clearOrder: 'Limpiar pedido', pickupTimeLabel: 'Horario de recogida', deliveryTimeLabel: 'Horario de entrega', deliveryAddressLabel: 'Dirección de entrega', addressNumberLabel: 'Número / portal', addressComplementLabel: 'Piso / puerta', addressCityLabel: 'Localidad', addressProvinceLabel: 'Provincia', addressCountryLabel: 'País', orderNoteLabel: 'Observación para el pedido', minimumDeliveryLabel: 'Pedido mínimo de entrega', minOrderLeft: 'Añade {value} más', savings: 'Ahorras', paymentRequired: 'Selecciona una forma de pago.', checkoutChoiceKicker: 'Pedido', checkoutChoiceTitle: '¿Cómo quieres continuar?', checkoutChoiceText: 'Inicia sesión para seguir tus pedidos y acumular puntos. Si continúas como invitado, no acumularás puntos.', checkoutChoiceLogin: 'Entrar o crear acceso', checkoutChoiceGuest: 'Continuar como invitado', orderSentKicker: 'Pedido', orderSentTitle: 'Pedido enviado', orderSentSuccess: 'Pedido enviado por WhatsApp. Si necesitas ayuda, escribe a la tienda en la conversación que se acaba de abrir.', orderSentHelp: 'Referencia del pedido: {ref}. La tienda continuará la atención por WhatsApp.', orderSentButton: 'Entendido',
-          customer: 'Cliente', name: 'Nombre', phone: 'WhatsApp', paymentNotes: '¿Cómo vas a pagar?', paymentMethod: 'Forma de pago', paymentCardOnline: 'Tarjeta online', paymentCash: 'Efectivo', paymentCard: 'Tarjeta', paymentTransfer: 'Transferencia', paymentBankSlip: 'Multibanco', paymentDirectDebit: 'Domiciliación bancaria', paymentCheck: 'Cheque', paymentOther: 'Otro', select: 'Selecciona', orderNote: 'Observación para el pedido', productNote: 'Observación para este producto',
+          customer: 'Cliente', name: 'Nombre', phone: 'WhatsApp', paymentNotes: '¿Cómo vas a pagar?', paymentMethod: 'Forma de pago', paymentCardOnline: 'Tarjeta online', paymentCardOnlineHelp: 'Comisión Stripe estimada: 1,5% + 0,25 € por venta.', paymentCash: 'Efectivo', paymentCard: 'Tarjeta', paymentTransfer: 'Transferencia', paymentBankSlip: 'Multibanco', paymentDirectDebit: 'Domiciliación bancaria', paymentCheck: 'Cheque', paymentOther: 'Otro', select: 'Selecciona', orderNote: 'Observación para el pedido', productNote: 'Observación para este producto',
           stripeKicker: 'Pago seguro', stripeTitle: 'Paga con tarjeta', stripeText: 'El pedido se confirmará cuando el pago sea aprobado.', stripeButton: 'Pagar ahora', stripeLoading: 'Preparando el pago...', stripeProcessing: 'Procesando el pago...', stripeSuccess: 'Pago aprobado. Pedido confirmado.', stripeFailed: 'No se pudo aprobar el pago. El pedido quedó pendiente.',
           coupon: 'Cupón', apply: 'Aplicar', couponApplied: 'Cupón {code} aplicado', couponInvalid: 'Cupón inválido o no disponible.', subtotal: 'Subtotal', discount: 'Descuento', promotionDiscount: 'Promociones', total: 'Total', sendWhatsApp: 'Enviar pedido por WhatsApp', addToOrder: 'Añadir al pedido',
           addProduct: 'Añadir {name}', unavailable: 'No disponible', unavailableCart: 'Este producto no está disponible ahora.', unavailableQty: 'Solo hay {qty} unidad(es) disponibles ahora.', options: 'Opciones', requiredChoice: 'Obligatorio {used}/{needed}', extraOptions: 'opciones', addMoreItems: 'Añade más productos', upsellOffer: 'Buena elección', saveAmount: 'Ahorras {amount}', productReviews: 'Reseñas del producto', allReviewsTitle: 'Todas las reseñas', reviewFallback: 'A un cliente le gustó este producto.', leaveReview: 'Dejar reseña', shareReviewCta: 'Cuéntanos también cómo fue tu experiencia', firstReviewText: 'Todavía no hay reseñas publicadas. Sé la primera persona en contar cómo fue tu experiencia.', mostOrderedBadge: 'Más pedido', addChoices: 'Añadir:', noteShort: 'Nota:', addFirst: 'Añade productos al pedido primero.', selectSlotWarn: 'Selecciona un horario para continuar.', minimumDeliveryWarn: 'Pedido mínimo para entrega: {value}.', postalWarn: 'Indica un código postal atendido por la tienda.', addressWarn: 'Indica la dirección completa para la entrega.',
@@ -11832,7 +11870,7 @@
           loyaltyTitle: 'Earn points with every order', loyaltyText: 'Join the club and redeem points for discounts.', loyaltyButton: 'Join now', loyaltyHint: '',
           cartView: 'View order', openCart: 'Open ›', yourOrder: 'Your order', noItems: 'No items in the order', itemSingular: '1 item in the order', itemPlural: '{count} items in the order', emptyOrder: 'Your order is still empty.',
           receiving: 'Fulfilment', required: 'required', pickupAddress: 'Pickup at the store address.', selectPickup: 'Select a pickup time', selectDelivery: 'Select a delivery time', selectTime: 'Select a time', pickupDateLabel: 'Pickup date', deliveryDateLabel: 'Delivery date', noSlots: 'No times available.', noFulfillment: 'No fulfilment option is available right now.', receivingTitle: 'How would you like to receive it?', receivingSubtitle: 'Select this before confirming your order.', pickupAddressTitle: 'Pickup address', savedAddressesTitle: 'Which address should receive the order?', savedAddressesModalTitle: 'Saved addresses', chooseSavedAddress: 'Choose saved address', newAddressHelp: 'If you want to receive the order at a new address or do not have a saved address yet, start with the postal code.', scheduleQuestion: 'When would you like to receive your order?', noSavedAddresses: 'There are no saved addresses yet.', savedAddressDefault: 'Address {count}', chooseOrAddAddress: 'Choose a saved address or add a new one.', saveAddressForNext: 'Save this address for next orders', addressLabelPlaceholder: 'Address name', contactSaved: 'WhatsApp saved. Your addresses stay separate for each delivery.', contactInvalid: 'Enter a valid WhatsApp to save it.', profileSaveError: 'We could not save these details. Try again.', addressOutsideZone: 'This address is not inside the delivery zones yet.', addressSaveError: 'We could not save this address. Check the postal code and try again.', clearOrder: 'Clear order', pickupTimeLabel: 'Pickup time', deliveryTimeLabel: 'Delivery time', deliveryAddressLabel: 'Delivery address', addressNumberLabel: 'Number / building', addressComplementLabel: 'Floor / door', addressCityLabel: 'City', addressProvinceLabel: 'Province', addressCountryLabel: 'Country', orderNoteLabel: 'Order note', minimumDeliveryLabel: 'Minimum delivery order', minOrderLeft: 'Add {value} more', savings: 'You save', paymentRequired: 'Select a payment method.', checkoutChoiceKicker: 'Order', checkoutChoiceTitle: 'How do you want to continue?', checkoutChoiceText: 'Sign in to track orders and earn points. If you continue as a guest, points will not be added.', checkoutChoiceLogin: 'Sign in or create access', checkoutChoiceGuest: 'Continue as guest', orderSentKicker: 'Order', orderSentTitle: 'Order sent', orderSentSuccess: 'Order sent via WhatsApp. If you need help, message the store in the conversation that just opened.', orderSentHelp: 'Order reference: {ref}. The store will continue the conversation on WhatsApp.', orderSentButton: 'Got it',
-          customer: 'Customer', name: 'Name', phone: 'WhatsApp', paymentNotes: 'How will you pay?', paymentMethod: 'Payment method', paymentCardOnline: 'Online card', paymentCash: 'Cash', paymentCard: 'Card', paymentTransfer: 'Bank transfer', paymentBankSlip: 'Multibanco', paymentDirectDebit: 'Direct debit', paymentCheck: 'Check', paymentOther: 'Other', select: 'Select', orderNote: 'Order note', productNote: 'Note for this product',
+          customer: 'Customer', name: 'Name', phone: 'WhatsApp', paymentNotes: 'How will you pay?', paymentMethod: 'Payment method', paymentCardOnline: 'Online card', paymentCardOnlineHelp: 'Estimated Stripe fee: 1.5% + €0.25 per sale.', paymentCash: 'Cash', paymentCard: 'Card', paymentTransfer: 'Bank transfer', paymentBankSlip: 'Multibanco', paymentDirectDebit: 'Direct debit', paymentCheck: 'Check', paymentOther: 'Other', select: 'Select', orderNote: 'Order note', productNote: 'Note for this product',
           stripeKicker: 'Secure payment', stripeTitle: 'Pay by card', stripeText: 'The order will be confirmed when the payment is approved.', stripeButton: 'Pay now', stripeLoading: 'Preparing payment...', stripeProcessing: 'Processing payment...', stripeSuccess: 'Payment approved. Order confirmed.', stripeFailed: 'Payment could not be approved. The order remains pending.',
           coupon: 'Coupon', apply: 'Apply', couponApplied: 'Coupon {code} applied', couponInvalid: 'Invalid or unavailable coupon.', subtotal: 'Subtotal', discount: 'Discount', promotionDiscount: 'Promotions', total: 'Total', sendWhatsApp: 'Send order via WhatsApp', addToOrder: 'Add to order',
           addProduct: 'Add {name}', unavailable: 'Unavailable', unavailableCart: 'This product is not available right now.', unavailableQty: 'Only {qty} unit(s) are available right now.', options: 'Options', requiredChoice: 'Required {used}/{needed}', extraOptions: 'options', addMoreItems: 'Add more items', upsellOffer: 'Smart add-on', saveAmount: 'Save {amount}', productReviews: 'Product reviews', allReviewsTitle: 'All reviews', reviewFallback: 'A customer liked this product.', leaveReview: 'Leave a review', shareReviewCta: 'Share your experience too', firstReviewText: 'There are no published reviews yet. Be the first person to share your experience.', mostOrderedBadge: 'Most ordered', addChoices: 'Add:', noteShort: 'Note:', addFirst: 'Add products to the order first.', selectSlotWarn: 'Select a time to continue.', minimumDeliveryWarn: 'Minimum delivery order: {value}.', postalWarn: 'Enter a postal code served by the store.', addressWarn: 'Enter the full delivery address.',
@@ -11849,7 +11887,7 @@
           loyaltyTitle: 'Gagnez des points à chaque commande', loyaltyText: 'Rejoignez le club et échangez vos points contre des réductions.', loyaltyButton: 'Je participe', loyaltyHint: '',
           cartView: 'Voir la commande', openCart: 'Ouvrir ›', yourOrder: 'Votre commande', noItems: 'Aucun article dans la commande', itemSingular: '1 article dans la commande', itemPlural: '{count} articles dans la commande', emptyOrder: 'Votre commande est encore vide.',
           receiving: 'Réception', required: 'obligatoire', pickupAddress: 'Retrait à l’adresse de la boutique.', selectPickup: 'Sélectionnez un horaire de retrait', selectDelivery: 'Sélectionnez un horaire de livraison', selectTime: 'Sélectionnez un horaire', pickupDateLabel: 'Date de retrait', deliveryDateLabel: 'Date de livraison', noSlots: 'Aucun horaire disponible.', noFulfillment: 'Aucun mode de retrait ou livraison n’est disponible pour le moment.', receivingTitle: 'Comment voulez-vous recevoir votre commande ?', receivingSubtitle: 'Sélectionnez avant de confirmer votre commande.', pickupAddressTitle: 'Adresse de retrait', savedAddressesTitle: 'À quelle adresse voulez-vous recevoir la commande ?', savedAddressesModalTitle: 'Adresses enregistrées', chooseSavedAddress: 'Choisir une adresse enregistrée', newAddressHelp: 'Si vous voulez recevoir la commande à une nouvelle adresse ou si vous n’avez pas encore d’adresse enregistrée, commencez par le code postal.', scheduleQuestion: 'Quand voulez-vous recevoir votre commande ?', noSavedAddresses: 'Il n’y a pas encore d’adresses enregistrées.', savedAddressDefault: 'Adresse {count}', chooseOrAddAddress: 'Choisissez une adresse enregistrée ou ajoutez-en une nouvelle.', saveAddressForNext: 'Enregistrer cette adresse pour les prochaines commandes', addressLabelPlaceholder: 'Nom de l’adresse', contactSaved: 'WhatsApp enregistré. Vos adresses restent séparées pour chaque livraison.', contactInvalid: 'Indiquez un WhatsApp valide pour l’enregistrer.', profileSaveError: 'Impossible d’enregistrer ces informations. Réessayez.', addressOutsideZone: 'Cette adresse n’est pas encore dans les zones desservies.', addressSaveError: 'Impossible d’enregistrer cette adresse. Vérifiez le code postal et réessayez.', clearOrder: 'Vider la commande', pickupTimeLabel: 'Horaire de retrait', deliveryTimeLabel: 'Horaire de livraison', deliveryAddressLabel: 'Adresse de livraison', addressNumberLabel: 'Numéro / bâtiment', addressComplementLabel: 'Étage / porte', addressCityLabel: 'Ville', addressProvinceLabel: 'Province', addressCountryLabel: 'Pays', orderNoteLabel: 'Remarque pour la commande', minimumDeliveryLabel: 'Commande minimum pour livraison', minOrderLeft: 'Ajoutez encore {value}', savings: 'Vous économisez', paymentRequired: 'Sélectionnez un mode de paiement.', checkoutChoiceKicker: 'Commande', checkoutChoiceTitle: 'Comment voulez-vous continuer ?', checkoutChoiceText: 'Connectez-vous pour suivre vos commandes et cumuler des points. Si vous continuez comme invité, les points ne seront pas ajoutés.', checkoutChoiceLogin: 'Se connecter ou créer un accès', checkoutChoiceGuest: 'Continuer comme invité', orderSentKicker: 'Commande', orderSentTitle: 'Commande envoyée', orderSentSuccess: 'Commande envoyée via WhatsApp. Si vous avez besoin d’aide, écrivez à la boutique dans la conversation ouverte.', orderSentHelp: 'Référence de commande : {ref}. La boutique continuera l’échange sur WhatsApp.', orderSentButton: 'Compris',
-          customer: 'Client', name: 'Nom', phone: 'WhatsApp', paymentNotes: 'Comment souhaitez-vous payer ?', paymentMethod: 'Mode de paiement', paymentCardOnline: 'Carte en ligne', paymentCash: 'Espèces', paymentCard: 'Carte', paymentTransfer: 'Virement bancaire', paymentBankSlip: 'Multibanco', paymentDirectDebit: 'Prélèvement bancaire', paymentCheck: 'Chèque', paymentOther: 'Autre', select: 'Sélectionnez', orderNote: 'Remarque pour la commande', productNote: 'Remarque pour ce produit',
+          customer: 'Client', name: 'Nom', phone: 'WhatsApp', paymentNotes: 'Comment souhaitez-vous payer ?', paymentMethod: 'Mode de paiement', paymentCardOnline: 'Carte en ligne', paymentCardOnlineHelp: 'Frais Stripe estimés : 1,5 % + 0,25 € par vente.', paymentCash: 'Espèces', paymentCard: 'Carte', paymentTransfer: 'Virement bancaire', paymentBankSlip: 'Multibanco', paymentDirectDebit: 'Prélèvement bancaire', paymentCheck: 'Chèque', paymentOther: 'Autre', select: 'Sélectionnez', orderNote: 'Remarque pour la commande', productNote: 'Remarque pour ce produit',
           stripeKicker: 'Paiement sécurisé', stripeTitle: 'Payez par carte', stripeText: 'La commande sera confirmée lorsque le paiement sera approuvé.', stripeButton: 'Payer maintenant', stripeLoading: 'Préparation du paiement...', stripeProcessing: 'Traitement du paiement...', stripeSuccess: 'Paiement approuvé. Commande confirmée.', stripeFailed: 'Le paiement n’a pas pu être approuvé. La commande reste en attente.',
           coupon: 'Coupon', apply: 'Appliquer', couponApplied: 'Coupon {code} appliqué', couponInvalid: 'Coupon invalide ou indisponible.', subtotal: 'Sous-total', discount: 'Réduction', promotionDiscount: 'Promotions', total: 'Total', sendWhatsApp: 'Envoyer la commande par WhatsApp', addToOrder: 'Ajouter à la commande',
           addProduct: 'Ajouter {name}', unavailable: 'Indisponible', unavailableCart: 'Ce produit n’est pas disponible maintenant.', unavailableQty: 'Il ne reste que {qty} unité(s) disponibles maintenant.', options: 'Options', requiredChoice: 'Obligatoire {used}/{needed}', extraOptions: 'options', addMoreItems: 'Ajouter d’autres articles', upsellOffer: 'Bon choix', saveAmount: 'Économisez {amount}', productReviews: 'Avis du produit', allReviewsTitle: 'Tous les avis', reviewFallback: 'Un client a aimé ce produit.', leaveReview: 'Laisser un avis', shareReviewCta: 'Racontez vous aussi votre expérience', firstReviewText: 'Aucun avis publié pour le moment. Soyez la première personne à raconter votre expérience.', mostOrderedBadge: 'Le plus commandé', addChoices: 'Ajouter :', noteShort: 'Remarque :', addFirst: 'Ajoutez d’abord des produits à la commande.', selectSlotWarn: 'Sélectionnez un horaire pour continuer.', minimumDeliveryWarn: 'Commande minimum pour livraison : {value}.', postalWarn: 'Indiquez un code postal desservi par la boutique.', addressWarn: 'Indiquez l’adresse complète pour la livraison.',
@@ -12696,7 +12734,20 @@
           if (!/(min|hora|horas|hour|hours|h\b)/i.test(value)) value += ' min';
           return value;
         };
-        var minText = min ? t('minimumOrderShort') + ' ' + money(min) : firstText(cfg.minimumOrderText, t('minimumOrderShort') + ' €12');
+        var mainCardMinimumLabel = function (value) {
+          value = firstText(value, '');
+          return value ? 'Pedido Mín. para Entrega ' + value : '';
+        };
+        var mainCardPickupLabel = function () {
+          var addressObj = cfg.address && typeof cfg.address === 'object' ? cfg.address : {};
+          var publicAddress = cfg.publicAddress && typeof cfg.publicAddress === 'object' ? cfg.publicAddress : {};
+          var neighborhood = firstText(cfg.pickupArea, cfg.pickupNeighborhood, cfg.neighborhood, cfg.bairro, cfg.zone, cfg.area, addressObj.neighborhood, addressObj.bairro, addressObj.zone, publicAddress.neighborhood, publicAddress.bairro, publicAddress.zone, '');
+          if (!neighborhood) return t('pickup');
+          var lang = currentLanguage();
+          var preposition = lang.indexOf('es') === 0 ? 'en' : lang.indexOf('en') === 0 ? 'in' : 'em';
+          return t('pickup') + ' ' + preposition + ' ' + neighborhood;
+        };
+        var minText = mainCardMinimumLabel(min ? money(min) : firstText(cfg.minimumOrderText, '€12'));
         var topInfoIcon = function (type) {
           return '&ndash;';
         };
@@ -12711,7 +12762,7 @@
           return '<span class="store-chip ' + text(className || '') + '"><span class="store-chip-icon">' + topInfoIcon(icon) + '</span><span>' + text(label) + '</span></span>';
         };
         var facts = (showRating && avg) ? [ratingItem(avg)] : [];
-        var cityRegion = [firstText(cfg.city, cfg.storeCity, cfg.locationCity), firstText(cfg.region, cfg.province, cfg.state)].filter(Boolean).join(' · ');
+        var cityRegion = firstText(cfg.city, cfg.storeCity, cfg.locationCity);
         var hoursText = weeklyHoursSummary() || firstText(cfg.openingHoursSummary, cfg.hoursSummary, cfg.businessHoursText, cfg.todayHoursText, '') || nextHoursLabel();
         var deliveryTime = firstText(cfg.averageDeliveryTime, cfg.deliveryTime);
         var advanceDays = num(cfg.maxAdvanceDays || cfg.advanceDaysLimit || cfg.advanceDays);
@@ -12730,7 +12781,7 @@
         if (showStoreStatus) chips.push(chipItem('status', statusLabel, open ? 'open' : 'closed'));
         if (showHours && hoursText) chips.push(chipItem('time', hoursText, 'hours-summary'));
         if (showDelivery && cfg.deliveryEnabled !== false) chips.push(chipItem('delivery', deliveryFee ? t('deliveryFrom', { value: money(deliveryFee) }) : t('delivery')));
-        if (showPickup && cfg.pickupEnabled !== false) chips.push(chipItem('pickup', t('pickup')));
+        if (showPickup && cfg.pickupEnabled !== false) chips.push(chipItem('pickup', mainCardPickupLabel()));
         if (chipsRow) {
           chipsRow.innerHTML = chips.join('');
           chipsRow.style.display = chips.length ? '' : 'none';
@@ -14995,6 +15046,12 @@
         updateModalPrice();
         var modal = document.getElementById('product-modal');
         var panel = modal.querySelector('.modal-panel');
+        var body = modal.querySelector('.modal-body');
+        var footer = modal.querySelector('.modal-footer');
+        var addBtn = document.getElementById('modal-add');
+        if (body) body.scrollTop = 0;
+        if (footer) footer.style.display = '';
+        if (addBtn) addBtn.style.display = '';
         if (panel) panel.classList.toggle('is-combo', isComboProduct(product));
         modal.classList.add('open');
         modal.setAttribute('aria-hidden', 'false');
@@ -16292,16 +16349,35 @@
         modal.setAttribute('aria-hidden', 'true');
       }
 
-      function openOrderSuccessModal(orderRef) {
+      function paymentRecoveryText(key) {
+        var lang = currentLanguage();
+        var es = lang.indexOf('es') === 0;
+        var en = lang.indexOf('en') === 0;
+        var fr = lang.indexOf('fr') === 0;
+        var ptPt = lang === 'pt-PT';
+        var dict = {
+          pendingTitle: es ? 'Pedido guardado, pago pendiente' : en ? 'Order saved, payment pending' : fr ? 'Commande enregistrée, paiement en attente' : 'Pedido salvo, pagamento pendente',
+          pendingText: es ? 'Tu pedido ya quedó en la lista de pedidos. Falta aprobar el pago con tarjeta.' : en ? 'Your order is already saved. Card payment still needs approval.' : fr ? 'Votre commande est enregistrée. Le paiement par carte doit encore être approuvé.' : 'Seu pedido já ficou salvo na lista de pedidos. Falta aprovar o pagamento com cartão.',
+          pendingDetail: es ? 'Referencia: {ref}. Puedes intentar pagar otra vez o cambiar la forma de pago.' : en ? 'Reference: {ref}. You can try card payment again or change the payment method.' : fr ? 'Référence : {ref}. Vous pouvez réessayer le paiement par carte ou changer de mode de paiement.' : 'Referência: {ref}. Você pode tentar pagar novamente ou trocar a forma de pagamento.',
+          payAgain: es ? 'Pagar nuevamente con tarjeta' : en ? 'Pay by card again' : fr ? 'Réessayer par carte' : 'Pagar novamente com cartão',
+          changePayment: es ? 'Actualizar forma de pago' : en ? 'Change payment method' : fr ? 'Changer le mode de paiement' : 'Atualizar forma de pagamento',
+          choosePayment: es ? 'El pedido quedó pendiente. Elige otra forma de pago y confirma de nuevo.' : en ? 'The order is pending. Choose another payment method and confirm again.' : fr ? 'La commande est en attente. Choisissez un autre mode de paiement et confirmez à nouveau.' : (ptPt ? 'O pedido ficou pendente. Escolha outra forma de pagamento e confirme novamente.' : 'O pedido ficou pendente. Escolha outra forma de pagamento e confirme novamente.')
+        };
+        return dict[key] || '';
+      }
+
+      function openOrderSuccessModal(orderRef, options) {
         var modal = document.getElementById('order-success-modal');
         if (!modal) return;
+        options = options || {};
         var ref = orderRef ? '#pedido_' + orderRef : '';
+        var pendingPayment = options.paymentPending === true;
         var pairs = [
           ['order-success-kicker', 'textContent', t('orderSentKicker')],
-          ['order-success-title', 'textContent', t('orderSentTitle')],
-          ['order-success-text', 'textContent', t('orderSentSuccess')],
-          ['order-success-detail', 'textContent', t('orderSentHelp', { ref: ref })],
-          ['order-success-ok', 'textContent', t('orderSentButton')]
+          ['order-success-title', 'textContent', pendingPayment ? paymentRecoveryText('pendingTitle') : t('orderSentTitle')],
+          ['order-success-text', 'textContent', pendingPayment ? paymentRecoveryText('pendingText') : t('orderSentSuccess')],
+          ['order-success-detail', 'textContent', pendingPayment ? paymentRecoveryText('pendingDetail').replace('{ref}', ref) : t('orderSentHelp', { ref: ref })],
+          ['order-success-ok', 'textContent', pendingPayment ? t('close') : t('orderSentButton')]
         ];
         pairs.forEach(function (item) {
           var el = document.getElementById(item[0]);
@@ -16309,6 +16385,16 @@
         });
         var close = document.getElementById('order-success-close');
         if (close) close.setAttribute('aria-label', t('close'));
+        var pay = document.getElementById('order-success-pay');
+        var change = document.getElementById('order-success-change-payment');
+        if (pay) {
+          pay.textContent = paymentRecoveryText('payAgain');
+          pay.style.display = pendingPayment ? '' : 'none';
+        }
+        if (change) {
+          change.textContent = paymentRecoveryText('changePayment');
+          change.style.display = pendingPayment ? '' : 'none';
+        }
         modal.classList.add('open');
         modal.setAttribute('aria-hidden', 'false');
       }
@@ -16318,6 +16404,27 @@
         if (!modal) return;
         modal.classList.remove('open');
         modal.setAttribute('aria-hidden', 'true');
+      }
+
+      function showPendingPaymentOrder(context, message) {
+        pendingStorefrontOrderContext = context || pendingStorefrontOrderContext;
+        showCartWarning(message || paymentRecoveryText('choosePayment'));
+        openOrderSuccessModal((context && context.orderRef) || '', { paymentPending: true });
+      }
+
+      function retryPendingStripePayment() {
+        if (!pendingStorefrontOrderContext || !pendingStorefrontOrderContext.docRef) return;
+        closeOrderSuccessModal();
+        startStripeCheckout(pendingStorefrontOrderContext);
+      }
+
+      function changePendingOrderPayment() {
+        closeOrderSuccessModal();
+        closeStripePaymentModal();
+        openCart();
+        var paymentSelect = document.getElementById('payment-method');
+        showCartWarning(paymentRecoveryText('choosePayment'));
+        if (paymentSelect && paymentSelect.focus) paymentSelect.focus();
       }
 
       function checkoutAsGuest() {
@@ -17188,17 +17295,30 @@
         if (!hasConfiguredSource) src = ['Dinheiro', 'Cartão', 'MB Way', 'Bizum'];
         return src.map(function (item) {
           if (!item) return null;
-          if (typeof item === 'string') return { name: item, displayName: paymentPublicName(item), instructions: '' };
-          if (typeof item !== 'object') return { name: firstText(String(item), ''), displayName: paymentPublicName(String(item)), instructions: '' };
+          if (typeof item === 'string') {
+            var stringOnline = paymentMethodIsOnlineCard(item, null);
+            return { name: item, displayName: paymentPublicName(item), instructions: stringOnline ? t('paymentCardOnlineHelp') : '', isOnlineCard: stringOnline };
+          }
+          if (typeof item !== 'object') {
+            var rawName = firstText(String(item), '');
+            var rawOnline = paymentMethodIsOnlineCard(rawName, null);
+            return { name: rawName, displayName: paymentPublicName(rawName), instructions: rawOnline ? t('paymentCardOnlineHelp') : '', isOnlineCard: rawOnline };
+          }
           if (item && (item.active === false || item.enabled === false)) return null;
           var name = firstText(item.name, item.label, item.title, item.id);
-          return { name: name, displayName: paymentPublicName(name, item), instructions: firstText(item.instructions, item.note, item.description) };
+          var onlineCard = paymentMethodIsOnlineCard(name, item);
+          return { name: name, displayName: paymentPublicName(name, item), instructions: onlineCard ? t('paymentCardOnlineHelp') : firstText(item.instructions, item.note, item.description), isOnlineCard: onlineCard };
         }).filter(function (item) { return item && item.name; });
+      }
+
+      function paymentMethodIsOnlineCard(name, item) {
+        var token = normalizePaymentToken(firstText(name, item && item.name, item && item.label, item && item.id));
+        return token.indexOf('stripe') >= 0 || token.indexOf('online') >= 0 || (item && (item.provider === 'stripe' || item.stripe === true || item.stripeConnected === true));
       }
 
       function paymentPublicName(name, item) {
         var token = normalizePaymentToken(firstText(name, item && item.name, item && item.label, item && item.id));
-        var isOnlineCard = token.indexOf('stripe') >= 0 || token.indexOf('online') >= 0 || (item && (item.provider === 'stripe' || item.stripe === true || item.stripeConnected === true));
+        var isOnlineCard = paymentMethodIsOnlineCard(name, item);
         if (isOnlineCard) return t('paymentCardOnline');
         if (token === 'dinheiro' || token === 'cash' || token === 'efectivo' || token === 'efetivo') return t('paymentCash');
         if (token === 'cartao' || token === 'cartao presencial' || token === 'tarjeta' || token === 'card') return t('paymentCard');
@@ -17219,7 +17339,8 @@
         }).join('');
         if (buttons) {
           buttons.innerHTML = methods.map(function (item) {
-            return '<button class="payment-option" type="button" data-payment-option="' + text(item.name) + '">' + text(item.displayName || item.name) + '</button>';
+            var help = item.isOnlineCard ? '<span class="payment-option-help">' + text(t('paymentCardOnlineHelp')) + '</span>' : '';
+            return '<button class="payment-option" type="button" data-payment-option="' + text(item.name) + '"><span class="payment-option-label">' + text(item.displayName || item.name) + '</span>' + help + '</button>';
           }).join('');
           buttons.querySelectorAll('[data-payment-option]').forEach(function (btn) {
             btn.onclick = function () {
@@ -17769,6 +17890,7 @@
         var modal = document.getElementById('stripe-payment-modal');
         var message = document.getElementById('stripe-payment-message');
         var confirm = document.getElementById('stripe-payment-confirm');
+        var change = document.getElementById('stripe-payment-change');
         if (!modal) return;
         document.getElementById('stripe-payment-kicker').textContent = t('stripeKicker');
         document.getElementById('stripe-payment-title').textContent = t('stripeTitle');
@@ -17776,6 +17898,10 @@
         if (confirm) {
           confirm.textContent = t('stripeButton');
           confirm.disabled = false;
+        }
+        if (change) {
+          change.textContent = paymentRecoveryText('changePayment');
+          change.style.display = context && context.docRef ? '' : 'none';
         }
         if (message) {
           message.textContent = '';
@@ -17833,6 +17959,8 @@
           paymentProvider: 'stripe',
           paymentStatus: 'paid',
           paymentState: 'paid',
+          paymentError: '',
+          paymentRetryAvailable: false,
           paid: true,
           paidAmount: paidAmount,
           amountPaid: paidAmount,
@@ -17854,6 +17982,8 @@
           paymentStatus: 'failed',
           paymentState: 'failed',
           paymentError: String(errorMessage || ''),
+          paymentRetryAvailable: true,
+          status: 'Pendente',
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true }).catch(function (err) {
           console.warn('Stripe failed order update error', err);
@@ -17870,6 +18000,7 @@
           closeStripePaymentModal();
           closeCart();
           openOrderSuccessModal(context.orderRef);
+          pendingStorefrontOrderContext = null;
           guestCheckoutApproved = false;
         });
       }
@@ -17894,7 +18025,10 @@
         }).catch(function (err) {
           var message = err && err.message ? err.message : t('stripeFailed');
           showStripePaymentMessage(t('stripeFailed') + (message ? ' ' + message : ''), true);
-          if (stripePaymentContext && stripePaymentContext.docRef) updateOrderStripeFailed(stripePaymentContext.docRef, message);
+          if (stripePaymentContext && stripePaymentContext.docRef) {
+            pendingStorefrontOrderContext = stripePaymentContext;
+            updateOrderStripeFailed(stripePaymentContext.docRef, message);
+          }
           if (button) {
             button.disabled = false;
             button.textContent = t('stripeButton');
@@ -17916,8 +18050,10 @@
           });
         }).catch(function (err) {
           console.warn('Stripe checkout error', err);
-          showCartWarning(t('stripeFailed'));
-          return updateOrderStripeFailed(context.docRef, err && err.message ? err.message : 'stripe_checkout_failed');
+          var message = err && err.message ? err.message : 'stripe_checkout_failed';
+          return updateOrderStripeFailed(context.docRef, message).then(function () {
+            showPendingPaymentOrder(context, t('stripeFailed'));
+          });
         });
       }
 
@@ -17975,7 +18111,7 @@
         var freeShippingPromo = orderType === 'delivery' ? freeShippingPromotion(subtotal) : null;
         var freeShippingUpsellRule = orderType === 'delivery' ? upsellBenefits.freeShippingRule : null;
         var fee = deliveryFee();
-        var orderRef = shortOrderReference();
+        var orderRef = pendingStorefrontOrderContext && pendingStorefrontOrderContext.orderRef ? pendingStorefrontOrderContext.orderRef : shortOrderReference();
         var lines = ['#pedido_' + orderRef, '', t('whatsappOrderIntro'), ''];
         cart.forEach(function (item) {
           lines.push(whatsappItemLine(item));
@@ -18020,6 +18156,7 @@
           balanceAfter: pointsInfo.balanceAfter,
           redeemRate: pointsInfo.redeemRate
         } : { used: false, pointsUsed: 0, discount: 0 };
+        var pendingOrderDocRef = pendingStorefrontOrderContext && pendingStorefrontOrderContext.docRef ? pendingStorefrontOrderContext.docRef : null;
         if (isStripeCardPayment(payment)) {
           if (authUser) {
             if (orderType === 'delivery') {
@@ -18038,6 +18175,7 @@
             updateStoreUserUi();
           }
           saveOrder({
+            docRef: pendingOrderDocRef,
             orderRef: orderRef,
             subtotal: subtotal,
             originalSubtotal: cartOriginalTotal(),
@@ -18061,13 +18199,15 @@
             paymentProvider: 'stripe',
             paymentStatus: 'pending',
             paymentState: 'pending',
+            paymentError: '',
+            paymentRetryAvailable: true,
             status: 'Pendente',
             paid: false,
             note: note,
             slotKey: slotKey,
             slotLabel: slotLabelText
           }).then(function (docRef) {
-            return startStripeCheckout({
+            var stripeContext = {
               docRef: docRef,
               orderRef: orderRef,
               lines: lines,
@@ -18075,16 +18215,14 @@
               pointsRedemption: pointsRedemptionPayload,
               customerName: customerName,
               customerPhone: customerPhone
-            });
+            };
+            pendingStorefrontOrderContext = stripeContext;
+            return startStripeCheckout(stripeContext);
           }).catch(function (err) {
             console.warn('Stripe order save error', err);
             showCartWarning(t('stripeFailed'));
           });
           return;
-        }
-        if (href) {
-          window.open(href + '?text=' + encodeURIComponent(lines.join('\n')), '_blank', 'noopener');
-          showCartWarning('');
         }
         if (authUser) {
           if (orderType === 'delivery') {
@@ -18103,15 +18241,20 @@
           updateStoreUserUi();
         }
         var pointsRedemption = pointsRedemptionPayload;
-        saveOrder({ orderRef: orderRef, subtotal: subtotal, originalSubtotal: cartOriginalTotal(), promoDiscount: promoDiscount, upsellBenefits: upsellBenefits, upsellDiscount: upsellDiscount, discount: discount, pointsDiscount: pointDiscount, pointsRedemption: pointsRedemption, deliveryFee: fee, originalDeliveryFee: originalDeliveryFee, freeShippingPromotion: freeShippingPromo, freeShippingUpsellRule: freeShippingUpsellRule, total: cartGrandTotal(), customerName: customerName, customerPhone: customerPhone, address: address, deliveryAddress: deliveryAddressData(), postal: postal, payment: payment, note: note, slotKey: slotKey, slotLabel: slotLabelText }).then(function () {
+        saveOrder({ docRef: pendingOrderDocRef, orderRef: orderRef, subtotal: subtotal, originalSubtotal: cartOriginalTotal(), promoDiscount: promoDiscount, upsellBenefits: upsellBenefits, upsellDiscount: upsellDiscount, discount: discount, pointsDiscount: pointDiscount, pointsRedemption: pointsRedemption, deliveryFee: fee, originalDeliveryFee: originalDeliveryFee, freeShippingPromotion: freeShippingPromo, freeShippingUpsellRule: freeShippingUpsellRule, total: cartGrandTotal(), customerName: customerName, customerPhone: customerPhone, address: address, deliveryAddress: deliveryAddressData(), postal: postal, payment: payment, paymentProvider: '', paymentStatus: 'previsto', paymentState: 'previsto', paid: false, paymentError: '', paymentRetryAvailable: false, note: note, slotKey: slotKey, slotLabel: slotLabelText }).then(function () {
           return applyPointsRedemption(orderRef, pointsRedemption);
+        }).then(function () {
+          if (href) window.open(href + '?text=' + encodeURIComponent(lines.join('\n')), '_blank', 'noopener');
+          showCartWarning('');
+          clearCart();
+          closeCart();
+          openOrderSuccessModal(orderRef);
+          pendingStorefrontOrderContext = null;
+          guestCheckoutApproved = false;
         }).catch(function (err) {
           console.warn('Order save or points redemption error', err);
+          showCartWarning(t('storeUnavailable'));
         });
-        clearCart();
-        closeCart();
-        if (href) openOrderSuccessModal(orderRef);
-        guestCheckoutApproved = false;
       }
 
       function saveOrder(extra) {
@@ -18159,10 +18302,16 @@
           } : null,
           total: extra.total,
           type: orderType,
+          customerId: authUser && authUser.uid ? authUser.uid : '',
+          clientId: authUser && authUser.uid ? authUser.uid : '',
           customerUid: authUser && authUser.uid ? authUser.uid : '',
           customerEmail: authUser && authUser.email ? authUser.email : '',
           customerName: extra.customerName || 'Cliente',
+          clientName: extra.customerName || 'Cliente',
+          name: extra.customerName || 'Cliente',
           customerPhone: extra.customerPhone || '',
+          phone: extra.customerPhone || '',
+          whatsapp: extra.customerPhone || '',
           customerFiscal: orderCustomer && orderCustomer.fiscal ? orderCustomer.fiscal : {},
           customerDocument: firstText(orderCustomer && orderCustomer.nifCif, orderCustomer && orderCustomer.fiscalId, orderCustomer && orderCustomer.fiscal && orderCustomer.fiscal.fiscalId, ''),
           customerBirthday: orderCustomer && orderCustomer.birthday ? orderCustomer.birthday : '',
@@ -18175,6 +18324,10 @@
           streetAddress: deliveryStreetAddress(),
           addressNumber: extra.deliveryAddress && extra.deliveryAddress.number ? extra.deliveryAddress.number : '',
           addressComplement: extra.deliveryAddress && extra.deliveryAddress.complement ? extra.deliveryAddress.complement : '',
+          neighborhood: extra.deliveryAddress && extra.deliveryAddress.neighborhood ? extra.deliveryAddress.neighborhood : '',
+          city: extra.deliveryAddress && extra.deliveryAddress.city ? extra.deliveryAddress.city : '',
+          province: extra.deliveryAddress && extra.deliveryAddress.province ? extra.deliveryAddress.province : '',
+          country: extra.deliveryAddress && extra.deliveryAddress.country ? extra.deliveryAddress.country : '',
           addressCity: extra.deliveryAddress && extra.deliveryAddress.city ? extra.deliveryAddress.city : '',
           addressProvince: extra.deliveryAddress && extra.deliveryAddress.province ? extra.deliveryAddress.province : '',
           addressCountry: extra.deliveryAddress && extra.deliveryAddress.country ? extra.deliveryAddress.country : '',
@@ -18195,6 +18348,10 @@
           paymentProvider: extra.paymentProvider || '',
           paymentStatus: extra.paymentStatus || 'previsto',
           paymentState: extra.paymentState || extra.paymentStatus || 'previsto',
+          paymentError: extra.paymentError || '',
+          paymentRetryAvailable: extra.paymentRetryAvailable === true,
+          stripePaymentIntentId: extra.stripePaymentIntentId || '',
+          stripeConnectedAccountId: extra.stripeConnectedAccountId || '',
           paidAmount: num(extra.paidAmount || 0),
           amountPaid: num(extra.amountPaid || extra.paidAmount || 0),
           valuePaid: num(extra.valuePaid || extra.paidAmount || 0),
@@ -18217,12 +18374,14 @@
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
         data.fiscal = ensureOrderFiscalDefaults(data);
-        return col('orders').add(data).then(function (docRef) {
+        var targetRef = extra && extra.docRef && extra.docRef.set ? extra.docRef : null;
+        var writePromise = targetRef ? targetRef.set(data, { merge: true }).then(function () { return targetRef; }) : col('orders').add(data);
+        return writePromise.then(function (docRef) {
           var followUps = [];
-          if (data.slotKey) {
+          if (!targetRef && data.slotKey) {
             followUps.push(col('orderSlots').doc(data.slotKey).set({ count: firebase.firestore.FieldValue.increment(1), date: data.scheduleDate, time: data.scheduleTime }, { merge: true }));
           }
-          if (couponToSync && extra.discount) followUps.push(syncCouponUsage(couponToSync, extra.discount));
+          if (!targetRef && couponToSync && extra.discount) followUps.push(syncCouponUsage(couponToSync, extra.discount));
           if (!followUps.length) return docRef;
           return Promise.all(followUps).then(function () { return docRef; });
         }).catch(function (err) { console.warn('Order save error', err); throw err; });
@@ -18472,6 +18631,10 @@
         if (orderSuccessClose) orderSuccessClose.onclick = closeOrderSuccessModal;
         var orderSuccessOk = document.getElementById('order-success-ok');
         if (orderSuccessOk) orderSuccessOk.onclick = closeOrderSuccessModal;
+        var orderSuccessPay = document.getElementById('order-success-pay');
+        if (orderSuccessPay) orderSuccessPay.onclick = retryPendingStripePayment;
+        var orderSuccessChangePayment = document.getElementById('order-success-change-payment');
+        if (orderSuccessChangePayment) orderSuccessChangePayment.onclick = changePendingOrderPayment;
         var orderSuccessModal = document.getElementById('order-success-modal');
         if (orderSuccessModal) orderSuccessModal.onclick = function (event) {
           if (event.target === orderSuccessModal) closeOrderSuccessModal();
@@ -18480,6 +18643,8 @@
         if (stripePaymentClose) stripePaymentClose.onclick = closeStripePaymentModal;
         var stripePaymentConfirm = document.getElementById('stripe-payment-confirm');
         if (stripePaymentConfirm) stripePaymentConfirm.onclick = confirmStripePayment;
+        var stripePaymentChange = document.getElementById('stripe-payment-change');
+        if (stripePaymentChange) stripePaymentChange.onclick = changePendingOrderPayment;
         var stripePaymentModal = document.getElementById('stripe-payment-modal');
         if (stripePaymentModal) stripePaymentModal.onclick = function (event) {
           if (event.target === stripePaymentModal) closeStripePaymentModal();

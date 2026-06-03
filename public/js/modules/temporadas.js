@@ -6948,6 +6948,7 @@ Modules.Temporadas = (function () {
   }
 
   function _defaultWizard() {
+    var firstSeason = !(_state && Array.isArray(_state.seasons) && _state.seasons.length);
     return {
       step: 0,
       saving: false,
@@ -6955,13 +6956,13 @@ Modules.Temporadas = (function () {
       baseline: null,
       error: '',
       values: {
-        objective: '',
-        durationType: '',
+        objective: firstSeason ? 'increase_ticket' : '',
+        durationType: firstSeason ? 'sprint' : '',
         startDate: _todayKey(),
         targetMode: 'flight_plan',
         targetValue: '',
-        difficulty: '',
-        build: ''
+        difficulty: firstSeason ? 'safe' : '',
+        build: firstSeason ? 'margin' : ''
       }
     };
   }
@@ -7182,7 +7183,9 @@ Modules.Temporadas = (function () {
       alerts.push(_buildMisalignmentMessage(values.objective, values.build));
     }
     if (baseline.baselineConfidence === 'low') {
-      alerts.push('Há poucos pedidos dentro desta temporada. A rota continua valendo, mas a leitura inicial pode ficar menos precisa.');
+      alerts.push(_isFutureStart(values.startDate)
+        ? 'A temporada ainda não começou. Há poucos pedidos no histórico usado como base, então a previsão inicial pode ficar menos precisa.'
+        : 'Há poucos pedidos no período usado como base. A rota continua valendo, mas a leitura inicial pode ficar menos precisa.');
     }
     if (values.durationType === 'sprint' && growth !== null && growth >= 35) {
       alerts.push('Para 30 dias, essa meta exige um ritmo alto desde a primeira semana.');
@@ -7482,14 +7485,13 @@ Modules.Temporadas = (function () {
         throw new Error('A rota do Plano de Voo ainda não tem venda prevista para esse período.');
       }
 
-      var end = range ? range.end : new Date();
-      var now = new Date();
-      var progressEnd = now < end ? now : end;
-      var validOrders = range && progressEnd >= range.start ? _ordersInPeriod(orders, range.start, progressEnd) : [];
       var duration = _findByValue(DURATIONS, values.durationType) || DURATIONS[0];
-      var baseline = _buildBaselineMetrics(validOrders, (duration && duration.days) || 30);
+      var durationDays = (duration && duration.days) || 30;
+      var now = new Date();
+      var validOrders = _creationBaselineOrders(orders, range, now, durationDays);
+      var baseline = _buildBaselineMetrics(validOrders, durationDays);
       var baseValue = _baselineValueForObjective(baseline, values.objective);
-      var currentRevenue = _number(baseline.baselineRevenue, 0);
+      var currentRevenue = range && now >= range.start ? _number(_buildBaselineMetrics(_ordersInPeriod(orders, range.start, now < range.end ? now : range.end), durationDays).baselineRevenue, 0) : 0;
       var gap = Math.max(0, routeTarget - currentRevenue);
       var calculatedTarget = _targetFromFlightPlan(values.objective, routeTarget, gap, summary, baseline, range);
       var risk = _flightPlanTargetRisk(values.difficulty, calculatedTarget, baseValue, baseline.baselineConfidence);
@@ -7520,6 +7522,20 @@ Modules.Temporadas = (function () {
         planConnection: planConnection
       });
     });
+  }
+
+  function _creationBaselineOrders(orders, range, now, durationDays) {
+    if (!range) return [];
+    now = now || new Date();
+    durationDays = Math.max(1, _number(durationDays, 30));
+    if (now < range.start) {
+      var historyEnd = new Date(range.start.getTime() - 1);
+      var historyStart = new Date(range.start.getTime());
+      historyStart.setDate(historyStart.getDate() - durationDays);
+      historyStart.setHours(0, 0, 0, 0);
+      return _ordersInPeriod(orders, historyStart, historyEnd);
+    }
+    return _ordersInPeriod(orders, range.start, now < range.end ? now : range.end);
   }
 
   function _seasonMonthKeyFromDate(value) {
@@ -7558,11 +7574,72 @@ Modules.Temporadas = (function () {
     if (!range) return total;
     var series = Array.isArray(plan && plan.monthSeries) ? plan.monthSeries : [];
     if (!series.length) return total;
-    var months = _monthIndexesInRange(range.start, range.end);
     var seriesTotal = series.reduce(function (sum, row) {
-      return months.indexOf(_number(row.monthIndex, -1)) >= 0 ? sum + _number(row.revenue, 0) : sum;
+      var monthIndex = _number(row.monthIndex, -1);
+      if (monthIndex < 0) return sum;
+      var share = _monthShareInRange(range.start, range.end, monthIndex, plan);
+      return share > 0 ? sum + (_number(row.revenue, 0) * share) : sum;
     }, 0);
     return seriesTotal > 0 ? seriesTotal : total;
+  }
+
+  function _monthShareInRange(start, end, monthIndex, plan) {
+    if (!start || !end || monthIndex < 0) return 0;
+    var year = start.getFullYear();
+    if (monthIndex < start.getMonth() && end.getFullYear() > start.getFullYear()) year = end.getFullYear();
+    var monthStart = new Date(year, monthIndex, 1);
+    var monthEnd = new Date(year, monthIndex + 1, 0, 23, 59, 59, 999);
+    var overlapStart = start > monthStart ? start : monthStart;
+    var overlapEnd = end < monthEnd ? end : monthEnd;
+    if (overlapEnd < overlapStart) return 0;
+    var monthWorkDays = _countPlanWorkDays(monthStart, monthEnd, plan);
+    var overlapWorkDays = _countPlanWorkDays(overlapStart, overlapEnd, plan);
+    if (monthWorkDays > 0) return _clamp(overlapWorkDays / monthWorkDays, 0, 1);
+    var monthDays = monthEnd.getDate();
+    var overlapDays = Math.floor((overlapEnd.getTime() - overlapStart.getTime()) / 86400000) + 1;
+    return _clamp(overlapDays / monthDays, 0, 1);
+  }
+
+  function _countPlanWorkDays(start, end, plan) {
+    if (!start || !end || end < start) return 0;
+    var workDays = Array.isArray(plan && plan.workDays) && plan.workDays.length ? plan.workDays.map(function (day) { return _number(day, -1); }) : [0, 1, 2, 3, 4, 5, 6];
+    var closed = _plannedClosedDayMap(plan && plan.plannedClosedDays, start.getFullYear());
+    if (end.getFullYear() !== start.getFullYear()) {
+      var nextClosed = _plannedClosedDayMap(plan && plan.plannedClosedDays, end.getFullYear());
+      Object.keys(nextClosed).forEach(function (key) { closed[key] = true; });
+    }
+    var count = 0;
+    var cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+    var limit = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+    while (cursor <= limit) {
+      if (workDays.indexOf(cursor.getDay()) >= 0 && !closed[_localDateKey(cursor)]) count += 1;
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return count;
+  }
+
+  function _plannedClosedDayMap(text, year) {
+    var map = {};
+    text = String(text || '');
+    if (!text) return map;
+    var re = /(\d{1,2})\/(\d{1,2})(?:\s*(?:a|até|ate|-)\s*(\d{1,2})\/(\d{1,2}))?/gi;
+    var match;
+    while ((match = re.exec(text))) {
+      var start = new Date(year, parseInt(match[2], 10) - 1, parseInt(match[1], 10));
+      var end = match[3] && match[4] ? new Date(year, parseInt(match[4], 10) - 1, parseInt(match[3], 10)) : start;
+      if (!start || isNaN(start.getTime()) || !end || isNaN(end.getTime())) continue;
+      if (end < start) end = start;
+      var cursor = new Date(start);
+      while (cursor <= end) {
+        map[_localDateKey(cursor)] = true;
+        cursor.setDate(cursor.getDate() + 1);
+      }
+    }
+    return map;
+  }
+
+  function _localDateKey(date) {
+    return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
   }
 
   function _monthIndexesInRange(start, end) {
@@ -7577,7 +7654,7 @@ Modules.Temporadas = (function () {
   }
 
   function _targetFromFlightPlan(objective, routeTarget, gap, summary, baseline, range) {
-    if (objective === 'sell_more') return Math.max(1, gap || routeTarget);
+    if (objective === 'sell_more') return Math.max(1, routeTarget || gap);
     if (objective === 'increase_ticket') {
       return _number(summary.averageTicket, 0) || _number(baseline.baselineAverageTicket, 0) || 1;
     }
@@ -7592,7 +7669,7 @@ Modules.Temporadas = (function () {
       if (range) return Math.max(1, Math.ceil((range.end.getTime() - range.start.getTime()) / 86400000) + 1);
       return 1;
     }
-    return Math.max(1, gap || routeTarget);
+    return Math.max(1, routeTarget || gap);
   }
 
   function _flightPlanTargetRisk(difficulty, target, base, confidence) {

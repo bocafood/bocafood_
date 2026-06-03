@@ -121,7 +121,25 @@ O Boca Food é um sistema de gestão e operação de loja com painel admin, cat�
 - `Configurações → Integrações` deve explicar canais, redes sociais e ferramentas de medição em linguagem simples. O bloco `Visitas e campanhas` salva GA4, GTM e Meta Pixel em `config/integracoes` e a loja pública deve carregar esses valores para rastreamento real.
 - O template público `public/index.html` deve ler `config/integracoes` e carregar GA4, Google Tag Manager e Meta Pixel apenas quando os IDs forem preenchidos e tiverem formato válido. Evitar script duplicado e não inventar IDs.
 - Eventos mínimos de rastreamento da loja pública: `PageView`, `add_to_cart` e `begin_checkout`. Não registrar dados pessoais de clientes finais nesses eventos.
+- No checkout da loja pública, pedidos devem ser salvos em `orders` antes de limpar o carrinho. Se o salvamento falhar, o carrinho deve permanecer disponível para a cliente não perder o pedido. Em pagamento Stripe pendente/falho, manter o pedido com status `Pendente`, informar claramente que o pagamento está pendente e oferecer ação para tentar pagar novamente ou trocar a forma de pagamento sem criar pedido duplicado.
+- Pedidos criados pela loja pública devem salvar aliases compatíveis com o Admin: `customerId/clientId/customerUid`, `customerName/clientName/name`, `customerPhone/phone/whatsapp`, endereço detalhado em `deliveryAddress` e também campos de topo como `streetAddress`, `addressNumber`, `neighborhood`, `city`, `province`, `country`, `postalCode`, agenda em `scheduleDate/scheduleTime/deliveryDate/deliveryTime/pickupDate/pickupTime`, pagamento em `payment/paymentMethod/paymentStatus/paymentState` e origem `source/channel/originSource/originChannel`.
 - O bloco `Canais de contato` salva WhatsApp e redes sociais usadas na página pública. O campo WhatsApp deve usar o mesmo padrão visual de DDI + número agrupado usado na aba `Usuário`.
+
+### Admin — Temporadas
+- Ao criar uma Temporada com início futuro, a base de previsão deve usar histórico anterior à data de início, não pedidos dentro da própria temporada. A copy deve deixar claro quando a temporada ainda não começou e diferenciar baixa confiança por pouco histórico de baixa performance dentro da temporada.
+- Quando a Temporada usa meta do Plano de Voo, a meta da temporada deve ser proporcional ao período da temporada. Se o período cruza dois meses, não somar os meses inteiros; usar apenas a fração coberta em cada mês. Quando a rota tiver dias de trabalho e dias fechados configurados, a fração deve usar esses dias de venda, não apenas dias corridos.
+- No onboarding/checklist, a primeira Temporada recomendada deve começar por `Aumentar Ticket` com estratégia `Margem`, porque no início ainda há pouco histórico para orientar volume. O wizard pode pré-preencher esse padrão apenas quando ainda não existir nenhuma temporada.
+
+### Admin — Pedidos e canais de venda
+- Quando o canal de venda tiver comissão, imposto sobre comissão ou taxa fixa, o pedido deve calcular automaticamente esses abatimentos a partir do total bruto do pedido.
+- Esses valores devem ficar registrados no próprio pedido como taxas/desconto do canal, com possibilidade de edição manual no detalhe do pedido.
+- Para canais de venda comuns, não criar movimentação financeira separada de taxa/comissão. O Financeiro deve receber uma única entrada do pedido com o saldo líquido a receber, mantendo no movimento os campos de bruto, taxas do canal e líquido para rastreio.
+
+## Loja pública / Stripe
+
+- No checkout público, a forma `Cartão online` deve mostrar copy simples para a cliente, sem detalhes técnicos da integração. A mensagem padrão deve informar a taxa estimada da Stripe como `1,5% + €0,25 por venda`.
+- A forma financeira criada automaticamente para pagamentos Stripe deve nascer com taxa estimada preenchida em `taxaPercentual: 1.5` e `taxaFixa: 0.25`. A taxa real continua sendo registrada depois pela informação retornada pela Stripe quando a venda é aprovada.
+- Pedidos pagos por Stripe devem registrar no documento do pedido a taxa estimada enquanto o pagamento está pendente e, após aprovação via webhook, registrar `stripeFeeAmount`, `stripeGrossAmount`, `stripeNetAmount`, origem da taxa (`stripe` ou `estimated`) e os IDs das movimentações. O Financeiro deve receber uma entrada da venda e uma saída separada de `Taxa Stripe`.
 
 ### Admin — Padrão de modais de cadastro
 - O modal de `Compras → Fornecedores` é a referência atual para novos modais/cadastros do Admin, salvo quando a usuária pedir outro padrão.

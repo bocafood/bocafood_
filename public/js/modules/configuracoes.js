@@ -1661,10 +1661,13 @@ Modules.Configuracoes = (function () {
     }) || null;
   }
 
+  var STRIPE_DEFAULT_FEE_PCT = 1.5;
+  var STRIPE_DEFAULT_FIXED_FEE = 0.25;
+
   function _stripeFeeInfo() {
     var method = _stripePaymentMethod() || {};
-    var pct = _safeNumber(method.taxaPercentual || method.feePct || 0);
-    var fixed = _safeNumber(method.taxaFixa || method.fixedFee || 0);
+    var pct = _stripeDefaultFeeValue(method.taxaPercentual, method.feePct, STRIPE_DEFAULT_FEE_PCT);
+    var fixed = _stripeDefaultFeeValue(method.taxaFixa, method.fixedFee, STRIPE_DEFAULT_FIXED_FEE);
     var sampleAmount = 10;
     var sampleFee = Math.max(0, (sampleAmount * pct / 100) + fixed);
     return {
@@ -1729,8 +1732,8 @@ Modules.Configuracoes = (function () {
       if (!isStripe) return item;
       found = true;
       return Object.assign({}, item, _stripeFinancePaymentPayload(accountId, now), {
-        taxaPercentual: item.taxaPercentual || item.feePct || 0,
-        taxaFixa: item.taxaFixa || item.fixedFee || 0,
+        taxaPercentual: _stripeDefaultFeeValue(item.taxaPercentual, item.feePct, STRIPE_DEFAULT_FEE_PCT),
+        taxaFixa: _stripeDefaultFeeValue(item.taxaFixa, item.fixedFee, STRIPE_DEFAULT_FIXED_FEE),
         createdAt: item.createdAt || now
       });
     });
@@ -1756,12 +1759,17 @@ Modules.Configuracoes = (function () {
       stripe: true,
       stripeConnected: true,
       prazoCompensacaoDias: 0,
-      taxaPercentual: 0,
-      taxaFixa: 0,
-      observacao: 'Forma criada automaticamente para pagamentos Stripe Connect.',
+      taxaPercentual: STRIPE_DEFAULT_FEE_PCT,
+      taxaFixa: STRIPE_DEFAULT_FIXED_FEE,
+      observacao: 'Taxa Stripe estimada: 1,5% + €0,25 por venda.',
       updatedAt: now || new Date().toISOString(),
       createdAt: now || new Date().toISOString()
     };
+  }
+
+  function _stripeDefaultFeeValue(primary, fallback, defaultValue) {
+    var value = _safeNumber(primary != null && primary !== '' ? primary : fallback);
+    return value > 0 ? value : defaultValue;
   }
 
   function _stripeMessage(text, tone) {

@@ -4834,8 +4834,8 @@ Modules.Catalogo = (function () {
     var pending = /^acct_/.test(accountId) && !ready;
     var method = _stripeFinanceMethodForTemplate(financeiro) || {};
     var selectedAccount = integracoes.stripeFinanceAccountId || integracoes.stripeDefaultAccountId || method.contaPadraoId || method.defaultAccountId || '';
-    var pct = _moneyLike(method.taxaPercentual || method.feePct || 0);
-    var fixed = _moneyLike(method.taxaFixa || method.fixedFee || 0);
+    var pct = _templateStripeFeeDefault(method.taxaPercentual, method.feePct, 1.5);
+    var fixed = _templateStripeFeeDefault(method.taxaFixa, method.fixedFee, 0.25);
     var sample = 10;
     var sampleFee = Math.max(0, (sample * pct / 100) + fixed);
     var sampleNet = Math.max(0, sample - sampleFee);
@@ -4855,7 +4855,7 @@ Modules.Catalogo = (function () {
         '<div style="background:#fff;border:1px solid #EFE4DC;border-radius:12px;padding:10px;"><div style="color:#8B817B;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.02em;">Exemplo em ' + _esc(_templateCurrency(sample)) + '</div><div style="color:#1F1F1F;font-size:14px;font-weight:850;margin-top:4px;">' + _esc(_templateCurrency(sampleFee)) + ' de taxa</div></div>' +
         '<div style="background:#fff;border:1px solid #EFE4DC;border-radius:12px;padding:10px;"><div style="color:#8B817B;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.02em;">Ficaria perto de</div><div style="color:#1F1F1F;font-size:14px;font-weight:850;margin-top:4px;">' + _esc(_templateCurrency(sampleNet)) + '</div></div>' +
       '</div>' +
-      '<p style="margin:0;color:#6F6860;font-size:11.5px;line-height:1.45;">' + (hasFee ? 'Esta é uma previsão para decidir se vale ativar cartão online. Depois da venda aprovada, o BocaFood registra a taxa real informada pela Stripe.' : 'Preencha a taxa estimada em Financeiro > Configurações > Formas de pagamento. Depois da venda aprovada, o BocaFood tenta registrar a taxa real informada pela Stripe.') + '</p>' +
+      '<p style="margin:0;color:#6F6860;font-size:11.5px;line-height:1.45;">Taxa Stripe estimada: 1,5% + €0,25 por venda. Depois da venda aprovada, o BocaFood registra a taxa real informada pela Stripe.</p>' +
     '</div>';
   }
   function _connectCheckoutStripe() {
@@ -4868,6 +4868,11 @@ Modules.Catalogo = (function () {
       financeAccountId: (document.getElementById('tpl-stripe-finance-account') || {}).value || '',
       returnHash: 'catalogo/template'
     });
+  }
+
+  function _templateStripeFeeDefault(primary, fallback, defaultValue) {
+    var value = _moneyLike(primary != null && primary !== '' ? primary : fallback);
+    return value > 0 ? value : defaultValue;
   }
   function _refreshCheckoutStripeStatus() {
     if (!(window.Modules && Modules.Configuracoes && Modules.Configuracoes._refreshStripeConnectStatus)) return;
@@ -6721,7 +6726,7 @@ Modules.Catalogo = (function () {
     if (document.getElementById('tpl-mobile-promo-banner-promotion-picker') || document.getElementById('tpl-mobile-promo-banner-promotion')) _bindMobilePromoPromotionPicker();
     if (document.getElementById('tpl-mobile-promo-banner-product-picker') || document.getElementById('tpl-mobile-promo-banner-product')) _bindMobilePromoProductPicker();
     if (document.getElementById('tpl-showcase-product-picker-1') || document.getElementById('tpl-showcase-product-1')) _bindShowcaseProductPickers();
-    if (region) { region.style.display = _checked('tpl-maincard-show-location') ? 'block' : 'none'; region.textContent = [_val('tpl-city'), _val('tpl-region')].filter(Boolean).join(' · ') || 'Cidade/região'; }
+    if (region) { region.style.display = _checked('tpl-maincard-show-location') ? 'block' : 'none'; region.textContent = _val('tpl-city') || 'Cidade'; }
     if (more) more.style.display = _checked('tpl-maincard-show-more-info') ? 'inline-block' : 'none';
     if (mainCardPreviewMore) mainCardPreviewMore.style.display = _checked('tpl-maincard-show-more-info') ? 'inline-flex' : 'none';
     if (calc) calc.style.display = 'none';
@@ -6734,11 +6739,13 @@ Modules.Catalogo = (function () {
       var previewZones = _collectDeliveryZonesFromDom();
       var storedDeliveryFee = _minActiveDeliveryZoneFee(previewZones);
       if (storedDeliveryFee == null || storedDeliveryFee === '') storedDeliveryFee = _val('tpl-delivery-fee') || ((_storeConfig && _storeConfig.template && _storeConfig.template.deliveryFee) || (_storeConfig && _storeConfig.geral && _storeConfig.geral.deliveryFee) || '');
+      var previewPickupNeighborhood = _val('tpl-neighborhood');
+      var previewPickupLabel = previewPickupNeighborhood ? ('Retirada em ' + previewPickupNeighborhood) : 'Retirada';
       chips.innerHTML = (_checked('tpl-maincard-show-delivery') && _checked('tpl-delivery-enabled') ? '<span style="font-size:10px;font-weight:800;background:' + _esc(palette.chipSoft) + ';color:' + _esc(palette.primaryDark) + ';border-radius:999px;padding:5px 8px;">Entrega ' + (storedDeliveryFee !== '' && storedDeliveryFee != null ? _fmtMoneyDisplay(storedDeliveryFee) : '') + '</span>' : '') +
-        (_checked('tpl-maincard-show-pickup') && _checked('tpl-pickup-enabled') ? '<span style="font-size:10px;font-weight:800;background:' + _esc(palette.chipSoft) + ';color:' + _esc(palette.primaryDark) + ';border-radius:999px;padding:5px 8px;">Retirada</span>' : '') +
+        (_checked('tpl-maincard-show-pickup') && _checked('tpl-pickup-enabled') ? '<span style="font-size:10px;font-weight:800;background:' + _esc(palette.chipSoft) + ';color:' + _esc(palette.primaryDark) + ';border-radius:999px;padding:5px 8px;">' + _esc(previewPickupLabel) + '</span>' : '') +
         (_checked('tpl-maincard-show-prep') && _val('tpl-prep-time') ? '<span style="font-size:10px;font-weight:800;background:' + _esc(palette.chipSoft) + ';color:' + _esc(palette.primaryDark) + ';border-radius:999px;padding:5px 8px;">Preparo ' + _esc(_val('tpl-prep-time')) + ' min</span>' : '') +
         (_checked('tpl-maincard-show-delivery-time') && _val('tpl-delivery-time') ? '<span style="font-size:10px;font-weight:800;background:' + _esc(palette.chipSoft) + ';color:' + _esc(palette.primaryDark) + ';border-radius:999px;padding:5px 8px;">Entrega ' + _esc(_val('tpl-delivery-time')) + '</span>' : '') +
-        (_checked('tpl-maincard-show-min-order') && _val('tpl-min-delivery') ? '<span style="font-size:10px;font-weight:800;background:' + _esc(palette.chipSoft) + ';color:' + _esc(palette.primaryDark) + ';border-radius:999px;padding:5px 8px;">Mín. ' + _fmtMoneyDisplay(_val('tpl-min-delivery')) + '</span>' : '') +
+        (_checked('tpl-maincard-show-min-order') && _val('tpl-min-delivery') ? '<span style="font-size:10px;font-weight:800;background:' + _esc(palette.chipSoft) + ';color:' + _esc(palette.primaryDark) + ';border-radius:999px;padding:5px 8px;">Pedido Mín. para Entrega ' + _fmtMoneyDisplay(_val('tpl-min-delivery')) + '</span>' : '') +
         (_checked('tpl-maincard-show-advance-days') && _val('tpl-max-advance-days') ? '<span style="font-size:10px;font-weight:800;background:' + _esc(palette.chipSoft) + ';color:' + _esc(palette.primaryDark) + ';border-radius:999px;padding:5px 8px;">Antecedência ' + _esc(_val('tpl-max-advance-days')) + ' dia(s)</span>' : '');
     }
     var bannerUrl = _cleanPublicUrl(_val('tpl-banner-url'));
@@ -6758,7 +6765,7 @@ Modules.Catalogo = (function () {
     }
     if (mainCardPreviewFacts) {
       var previewFacts = _checked('tpl-maincard-show-rating') ? ['<span class="tpl-maincard-preview-star">★</span><b>4,8</b>'] : [];
-      var previewRegion = [_val('tpl-city'), _val('tpl-region')].filter(Boolean).join(' · ');
+      var previewRegion = _val('tpl-city');
       var previewPrep = _val('tpl-prep-time');
       var previewDeliveryTime = _val('tpl-delivery-time');
       var previewMinimum = _val('tpl-min-delivery');
@@ -6767,7 +6774,7 @@ Modules.Catalogo = (function () {
       if (_checked('tpl-maincard-show-location') && previewRegion) previewFacts.push('<span>' + _esc(previewRegion) + '</span>');
       if (_checked('tpl-maincard-show-prep') && previewPrep) previewFacts.push('<span>' + _esc(String(previewPrep).indexOf('min') >= 0 ? previewPrep : previewPrep + ' min') + '</span>');
       if (_checked('tpl-maincard-show-delivery-time') && previewDeliveryTime) previewFacts.push('<span>' + _esc(String(previewDeliveryTime).indexOf('min') >= 0 ? previewDeliveryTime : previewDeliveryTime + ' min') + '</span>');
-      if (_checked('tpl-maincard-show-min-order') && previewMinimum) previewFacts.push('<span>mín. ' + _fmtMoneyDisplay(previewMinimum) + '</span>');
+      if (_checked('tpl-maincard-show-min-order') && previewMinimum) previewFacts.push('<span>Pedido Mín. para Entrega ' + _fmtMoneyDisplay(previewMinimum) + '</span>');
       if (_checked('tpl-maincard-show-advance-days') && previewAdvanceDays) previewFacts.push('<span>' + previewAdvanceDays + ' dia' + (previewAdvanceDays === 1 ? '' : 's') + ' de antecedência</span>');
       if (_checked('tpl-maincard-show-hours') && previewHours) previewFacts.push('<span>' + _esc(previewHours) + '</span>');
       mainCardPreviewFacts.style.display = previewFacts.length ? 'flex' : 'none';
@@ -6780,7 +6787,7 @@ Modules.Catalogo = (function () {
       if (previewMainDeliveryFee == null || previewMainDeliveryFee === '') previewMainDeliveryFee = _val('tpl-delivery-fee') || ((_storeConfig && _storeConfig.template && _storeConfig.template.deliveryFee) || (_storeConfig && _storeConfig.geral && _storeConfig.geral.deliveryFee) || '');
       if (_checked('tpl-maincard-show-status')) previewCardChips.push({ label: previewOpen ? 'Aberto' : 'Fechado', tone: previewOpen ? 'open' : 'closed' });
       if (_checked('tpl-maincard-show-delivery') && _checked('tpl-delivery-enabled')) previewCardChips.push({ label: 'Entrega ' + (previewMainDeliveryFee !== '' && previewMainDeliveryFee != null ? _fmtMoneyDisplay(previewMainDeliveryFee) : 'desde'), tone: '' });
-      if (_checked('tpl-maincard-show-pickup') && _checked('tpl-pickup-enabled')) previewCardChips.push({ label: 'Retirada', tone: '' });
+      if (_checked('tpl-maincard-show-pickup') && _checked('tpl-pickup-enabled')) previewCardChips.push({ label: previewPickupLabel, tone: '' });
       mainCardPreviewChips.style.display = previewCardChips.length ? 'flex' : 'none';
       mainCardPreviewChips.innerHTML = previewCardChips.map(function (chip) { return '<span class="tpl-maincard-preview-chip ' + _esc(chip.tone || '') + '">' + _esc(chip.label) + '</span>'; }).join('');
     }
