@@ -7432,19 +7432,20 @@ Modules.Pedidos = (function () {
     var channelName = _firstText(costs.channelFeeBreakdown && costs.channelFeeBreakdown.channelName, order && order.channel, order && order.source, 'Canal');
     var hasRule = _num(costs.channelCommissionPct) > 0 || _num(costs.channelCommissionTaxPct) > 0 || _num(costs.channelFixedFee) > 0 || _num(costs.channelFeeTotal) > 0;
     if (!hasRule) return '';
-    return '<div style="margin-top:9px;border:1px solid #EFE4DC;border-radius:13px;background:#FFFCF8;padding:10px;display:grid;gap:8px;">' +
-      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;">' +
-        '<div style="min-width:0;"><div style="font-size:11px;font-weight:800;color:#1F1F1F;">Taxas do canal de venda</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;">' + _esc(channelName) + ' · abatem do pedido para calcular o saldo que entra no Financeiro.</div></div>' +
-        '<span style="font-size:10px;font-weight:800;color:' + (costs.channelFeesManual ? '#9A3412' : '#2F6B57') + ';background:#fff;border:1px solid #EADFD8;border-radius:999px;padding:5px 8px;">' + (costs.channelFeesManual ? 'Editado manualmente' : 'Automático') + '</span>' +
+    return '<div style="margin-top:10px;border:1px solid #EFE4DC;border-radius:14px;background:#FFFCF8;padding:12px;display:grid;gap:11px;">' +
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-bottom:8px;border-bottom:1px solid #F1E6DF;">' +
+        '<div style="min-width:0;"><div style="font-size:12px;font-weight:850;color:#1F1F1F;line-height:1.2;">Taxas do canal de venda</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:3px;">' + _esc(channelName) + ' · valores abatidos antes da entrada no Financeiro.</div></div>' +
+        '<span style="font-size:10px;font-weight:850;color:' + (costs.channelFeesManual ? '#9A3412' : '#2F6B57') + ';background:#fff;border:1px solid #EADFD8;border-radius:999px;padding:5px 9px;white-space:nowrap;">' + (costs.channelFeesManual ? 'Editado manualmente' : 'Automático') + '</span>' +
       '</div>' +
-      '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;">' +
+      '<div style="display:grid;grid-template-columns:repeat(3,minmax(115px,1fr));gap:9px;align-items:end;">' +
         '<div><label class="order-detail-label">Comissão %</label><div class="order-detail-field-control order-detail-field-control-sm"><input id="detail-channel-commission-pct" type="number" step="0.01" value="' + _esc(String(_num(costs.channelCommissionPct))) + '"></div></div>' +
         '<div><label class="order-detail-label">Imposto comissão %</label><div class="order-detail-field-control order-detail-field-control-sm"><input id="detail-channel-tax-pct" type="number" step="0.01" value="' + _esc(String(_num(costs.channelCommissionTaxPct))) + '"></div></div>' +
         '<div><label class="order-detail-label">Taxa fixa</label><div class="order-detail-field-control order-detail-field-control-sm"><input id="detail-channel-fixed-fee" type="number" step="0.01" value="' + _esc(String(_num(costs.channelFixedFee))) + '"></div></div>' +
       '</div>' +
-      '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;font-size:11px;color:#6F6860;">' +
-        '<div style="background:#fff;border:1px solid #EFE4DC;border-radius:10px;padding:8px;">Taxas calculadas: <strong style="color:#1F1F1F;">' + _esc(UI.fmt(costs.channelFeeTotal || 0)) + '</strong></div>' +
-        '<div style="background:#fff;border:1px solid #EFE4DC;border-radius:10px;padding:8px;">Entrada no Financeiro: <strong style="color:#1F1F1F;">' + _esc(UI.fmt(costs.netReceivable || 0)) + '</strong></div>' +
+      '<div style="display:grid;grid-template-columns:repeat(3,minmax(115px,1fr));gap:8px;">' +
+        '<div style="background:#fff;border:1px solid #EFE4DC;border-radius:11px;padding:9px 10px;min-width:0;"><div style="font-size:10px;font-weight:800;color:#8A7E7C;text-transform:uppercase;letter-spacing:.03em;">Total bruto</div><strong style="display:block;margin-top:3px;font-size:13px;color:#1F1F1F;">' + _esc(UI.fmt(costs.grossOrderTotal || costs.grossAmount || 0)) + '</strong></div>' +
+        '<div style="background:#fff;border:1px solid #EFE4DC;border-radius:11px;padding:9px 10px;min-width:0;"><div style="font-size:10px;font-weight:800;color:#8A7E7C;text-transform:uppercase;letter-spacing:.03em;">Taxas calculadas</div><strong style="display:block;margin-top:3px;font-size:13px;color:#B42318;">-' + _esc(UI.fmt(costs.channelFeeTotal || 0)) + '</strong></div>' +
+        '<div style="background:#fff;border:1px solid #EFE4DC;border-radius:11px;padding:9px 10px;min-width:0;"><div style="font-size:10px;font-weight:800;color:#8A7E7C;text-transform:uppercase;letter-spacing:.03em;">Entrada no Financeiro</div><strong style="display:block;margin-top:3px;font-size:13px;color:#1A9E5A;">' + _esc(UI.fmt(costs.netReceivable || 0)) + '</strong></div>' +
       '</div>' +
     '</div>';
   }

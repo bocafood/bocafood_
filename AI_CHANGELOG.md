@@ -1,5 +1,13 @@
 # AI Changelog
 
+## 2026-06-03 — Pedidos: card de taxas do canal organizado
+- Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Reorganizei o card `Taxas do canal de venda` no detalhe do pedido.
+- O bloco agora separa cabeçalho/estado, campos editáveis de comissão/imposto/taxa fixa e resumo calculado.
+- O resumo mostra `Total bruto`, `Taxas calculadas` e `Entrada no Financeiro` em cards próprios.
+- Atualizei o cache-buster de `pedidos.js` no admin para carregar o ajuste visual.
+- Impacto esperado: a leitura das taxas fica ordenada e a usuária entende melhor o que será abatido antes do Financeiro.
+
 ## 2026-06-03 — Pedidos: campo Origem com mais espaço
 - Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - Ajustei o campo `Origem` no modal `Detalhes do pedido` para usar label acima e seletor em largura total.
