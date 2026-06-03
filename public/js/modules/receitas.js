@@ -142,10 +142,10 @@ Modules.Receitas = (function () {
       '.recipes-config-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}' +
       '.recipes-config-empty{text-align:center;padding:38px 18px;color:#8A7E7C;font-size:13px;line-height:1.45;border:1px dashed #EADFD8;border-radius:14px;background:#FFFCF8;}' +
       '.production-stage-form{display:grid;gap:12px;font-family:Manrope,Inter,sans-serif;}' +
-      '.production-stage-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:16px;padding:14px;box-shadow:0 10px 24px rgba(31,31,31,.04);}' +
-      '.production-stage-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(120px,.35fr) minmax(150px,.42fr);gap:11px;align-items:end;}' +
+      '.production-stage-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:16px;padding:16px;box-shadow:0 10px 24px rgba(31,31,31,.04);}' +
+      '.production-stage-grid{display:grid;grid-template-columns:minmax(280px,1fr) minmax(140px,.34fr) minmax(180px,.42fr);gap:12px;align-items:end;}' +
       '.production-stage-ingredients{display:grid;gap:8px;margin-top:10px;}' +
-      '.production-stage-ing-row{display:grid;grid-template-columns:minmax(190px,1fr) minmax(100px,.32fr) minmax(86px,.24fr) minmax(100px,.28fr) auto;gap:8px;align-items:end;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:13px;padding:10px;}' +
+      '.production-stage-ing-row{display:grid;grid-template-columns:minmax(300px,1fr) minmax(110px,.28fr) minmax(90px,.18fr) minmax(110px,.22fr) auto;gap:10px;align-items:end;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:13px;padding:10px;}' +
       '.production-stage-soft-btn{height:36px;padding:0 12px;border:1px solid #EADFD8;border-radius:10px;background:#fff;color:#1F1F1F;font-size:12px;font-weight:650;cursor:pointer;font-family:inherit;}' +
       '@media(max-width:760px){.production-stage-grid,.production-stage-ing-row{grid-template-columns:1fr}}' +
       '@media(max-width:760px){.recipes-config-filter-grid,.recipes-config-guide{grid-template-columns:1fr}.recipes-config-chip-row{overflow:auto;flex-wrap:nowrap}.recipes-config-chip{white-space:nowrap}.recipes-config-row{align-items:flex-start;flex-direction:column}.recipes-config-actions{justify-content:flex-start}}' +
@@ -3594,7 +3594,8 @@ Modules.Receitas = (function () {
       });
       _recipeComponentUsage = _buildRecipeComponentUsage(results[1] || []);
       _stageCostItems = (results[2] || []).filter(function (item) {
-        return item && item.ativo !== false && item.active !== false && item.classe !== 'produto' && item.usar_em_fichas !== false;
+        var cls = _normalizeStockClass(item && (item.classe || item.itemClass || item.stockItemType || item.tipo || item.type));
+        return item && item.ativo !== false && item.active !== false && item.usar_em_fichas !== false && cls !== 'produto' && cls !== 'embalagem';
       }).sort(function (a, b) {
         return String(a.nome || a.name || '').localeCompare(String(b.nome || b.name || ''));
       });
@@ -3694,7 +3695,7 @@ Modules.Receitas = (function () {
     var body = '<div class="production-stage-form">' +
       '<div class="production-stage-card" style="color:#5F5652;font-size:12.5px;line-height:1.5;">' +
         '<strong style="color:#1F1F1F;">Pense na etapa como uma parte reaproveitável da produção.</strong><br>' +
-        'Use nomes claros, como Recheio de frango, Massa de coxinha, Creme branco ou Molho especial. As receitas continuam escolhendo esta etapa para montar a ficha completa.' +
+        'Use nomes claros, como Recheio de frango, Massa de coxinha, Creme branco ou Molho especial. Embalagens continuam sendo preenchidas na seção própria da receita, não como etapa de produção.' +
       '</div>' +
       '<div class="production-stage-card">' +
         '<div class="production-stage-grid">' +
@@ -3717,7 +3718,7 @@ Modules.Receitas = (function () {
       '</div>' +
     '</div>';
     var footer = '<button onclick="Modules.Receitas._saveRecipeComponent()" style="width:100%;height:40px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:14px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">Salvar etapa</button>';
-    window._recipeComponentModal = UI.modal({ title: id ? 'Editar etapa de produção' : 'Nova etapa de produção', body: body, footer: footer });
+    window._recipeComponentModal = UI.modal({ title: id ? 'Editar etapa de produção' : 'Nova etapa de produção', body: body, footer: footer, maxWidth: '920px' });
     setTimeout(_updateProductionStageCost, 60);
   }
 

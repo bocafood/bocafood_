@@ -1,5 +1,13 @@
 # AI Changelog
 
+## 2026-06-03 — Produção: modal de etapa maior e sem embalagens
+- Arquivos alterados: `public/js/modules/receitas.js`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Aumentei o modal `Nova etapa de produção` para `920px` e ajustei as grades internas para os campos ficarem menos apertados.
+- A lista de itens dentro de `Ingredientes da etapa` passou a ocultar itens de classe `Embalagem`.
+- Embalagens continuam no fluxo próprio da receita, em `Embalagens da receita`, aplicadas ao rendimento global.
+- Atualizei o cache-buster de `receitas.js` no admin para carregar o layout novo.
+- Impacto esperado: a etapa representa massa, recheio, creme, molho e bases de preparo; embalagem não é cadastrada como etapa.
+
 ## 2026-06-03 — Pedidos: Origem editável no detalhe
 - Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
 - Troquei a linha `Origem` do resumo no modal `Detalhes do pedido` por um seletor editável de canal.
