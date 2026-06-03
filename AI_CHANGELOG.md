@@ -1,5 +1,13 @@
 # AI Changelog
 
+## 2026-06-03 — Pedidos: recria entrada financeira após estorno
+- Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Corrigi a sincronização financeira após estorno: quando o pedido está com pagamento `estornado`, ele não recria entrada automaticamente.
+- Se a usuária alterar novamente o status de pagamento para `previsto`, `parcial`, `pago` ou equivalente, o pedido passa a criar uma nova entrada financeira.
+- A nova sincronização ignora movimentações antigas com status `estornada/cancelada`, evitando sobrescrever o histórico do estorno.
+- Ao recriar a entrada, o pedido recebe novo `financeMovementId`, volta a `financeMovementStatus = previsto` e limpa marcadores ativos de `paymentReversed`.
+- Impacto esperado: depois de estornar uma entrada, corrigir e salvar o pagamento do pedido volta a enviar corretamente uma nova entrada ao Financeiro.
+
 ## 2026-06-03 — Financeiro/Pedidos: estorno de entrada e bloqueio do pagamento
 - Arquivos alterados: `public/js/modules/financeiro.js`, `public/js/modules/pedidos.js`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
 - Adicionei o fluxo `Estornar` para entradas financeiras com status `efetivado` ou `parcial`.

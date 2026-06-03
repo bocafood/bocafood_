@@ -7622,9 +7622,11 @@ Modules.Pedidos = (function () {
     var orderStatus = String(order.status || order.orderStatus || '');
     var existingFinanceStatus = _fold(_firstText(order.financeMovementStatus, order.financeStatus, order.financialStatus, ''));
     var currentPaymentState = _fold(_firstText(order.paymentStatus, order.paymentState, order.statusPayment, order.payStatus, ''));
-    if (existingFinanceStatus === 'estornada' || existingFinanceStatus === 'estornado' || currentPaymentState === 'estornado' || currentPaymentState === 'estornada') {
+    if (currentPaymentState === 'estornado' || currentPaymentState === 'estornada' || currentPaymentState === 'canceled' || currentPaymentState === 'cancelado') {
       return Promise.resolve(false);
     }
+    var financeWasReversed = existingFinanceStatus === 'estornada' || existingFinanceStatus === 'estornado' || existingFinanceStatus === 'cancelada' || existingFinanceStatus === 'cancelado';
+    if (financeWasReversed) order.financeMovementId = '';
     var isCancelled = _statusCancelsStockMovement(orderStatus);
     var grossTotal = _orderFinanceTotal(order);
     var channelFinancial = _orderChannelFinancialPatch(order, grossTotal);
@@ -7740,23 +7742,38 @@ Modules.Pedidos = (function () {
       payload.categoriaFinanceiraNatureza = 'receita';
       payload.financialNature = 'receita';
     }
-    if (order.financeMovementId) {
+    function movementIsInactive(movement) {
+      var st = _fold(movement && movement.status || '');
+      return st === 'estornada' || st === 'estornado' || st === 'cancelada' || st === 'cancelado';
+    }
+    var syncedPatch = {
+      financeMovementStatus: finStatus,
+      financeReviewPending: true,
+      requiresFinanceConfirmation: true,
+      paymentReversed: false,
+      paymentReversedAt: '',
+      paymentReversalDate: '',
+      paymentReversalReason: ''
+    };
+    if (order.financeMovementId && !financeWasReversed) {
       return DB.update('movimentacoes', order.financeMovementId, payload).then(function () {
-        return persistOrderFinancialPatch({ financeMovementId: order.financeMovementId });
+        return persistOrderFinancialPatch(Object.assign({ financeMovementId: order.financeMovementId }, syncedPatch));
       }).catch(function () { return false; });
     }
     return DB.getAll('movimentacoes').then(function (list) {
-      var found = (list || []).find(function (m) { return String(m.pedidoId || m.orderId || m.origemPedidoId || '') === orderId; });
+      var found = (list || []).find(function (m) {
+        return !movementIsInactive(m) && String(m.pedidoId || m.orderId || m.origemPedidoId || '') === orderId;
+      });
       if (found && found.id) {
         order.financeMovementId = found.id;
         return DB.update('movimentacoes', found.id, payload).then(function () {
-          return persistOrderFinancialPatch({ financeMovementId: found.id });
+          return persistOrderFinancialPatch(Object.assign({ financeMovementId: found.id }, syncedPatch));
         });
       }
       return DB.add('movimentacoes', payload).then(function (ref) {
         var refId = String((ref && ref.id) || '');
         if (refId) order.financeMovementId = refId;
-        return persistOrderFinancialPatch(refId ? { financeMovementId: refId } : {});
+        return persistOrderFinancialPatch(Object.assign(refId ? { financeMovementId: refId } : {}, syncedPatch));
       });
     }).catch(function () { return false; });
   }
