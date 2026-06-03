@@ -1647,6 +1647,29 @@ Modules.Configuracoes = (function () {
     return html;
   }
 
+  function _channelBankAccountId(channel) {
+    return String(channel && (channel.contaPadraoId || channel.defaultAccountId || channel.bankAccountId || channel.contaBancariaId || channel.conta_id) || '');
+  }
+
+  function _channelBankAccountOptions(selected) {
+    var current = String(selected || '');
+    var active = (_bankAccounts || []).filter(function (account) {
+      return account && (account.ativo !== false || String(account.id || '') === current);
+    }).sort(function (a, b) {
+      return String(a.nome || a.name || '').localeCompare(String(b.nome || b.name || ''));
+    });
+    var html = '<option value="">Definir no pedido</option>';
+    html += active.map(function (account) {
+      var id = String(account.id || '');
+      var name = account.nome || account.name || 'Conta';
+      return '<option value="' + _esc(id) + '"' + (id === current ? ' selected' : '') + '>' + _esc(name) + '</option>';
+    }).join('');
+    if (current && !active.some(function (account) { return String(account.id || '') === current; })) {
+      html += '<option value="' + _esc(current) + '" selected>Conta selecionada</option>';
+    }
+    return html;
+  }
+
   function _stripePaymentMethodAccountId() {
     var method = _stripePaymentMethod();
     return method ? String(method.contaPadraoId || method.defaultAccountId || method.bankAccountId || '') : '';
@@ -2043,7 +2066,11 @@ Modules.Configuracoes = (function () {
             '<span class="mi" style="font-size:18px;">delete_outline</span>' +
           '</button>') +
         '</div>' +
-        '<div class="channel-row-costs" style="display:grid;grid-template-columns:minmax(92px,132px) minmax(104px,132px) minmax(118px,148px) minmax(0,1fr);gap:10px;align-items:end;">' +
+        '<div class="channel-row-costs" style="display:grid;grid-template-columns:minmax(180px,1fr) minmax(92px,132px) minmax(104px,132px) minmax(118px,148px);gap:10px;align-items:end;">' +
+          '<label style="min-width:0;">' +
+            '<span style="' + labelStyle + '">Conta bancária padrão</span>' +
+            '<select id="ch-bank-account-' + idx + '" style="' + selectStyle + '">' + _channelBankAccountOptions(_channelBankAccountId(ch)) + '</select>' +
+          '</label>' +
           '<label style="min-width:0;">' +
             '<span style="' + labelStyle + '">Comissão %</span>' +
             '<input id="ch-commission-' + idx + '" type="text" inputmode="decimal" value="' + _esc(_channelNumberText(ch.commissionPct)) + '" placeholder="0,00" style="' + compactInputStyle + '">' +
@@ -2056,7 +2083,7 @@ Modules.Configuracoes = (function () {
             '<span style="' + labelStyle + '">Imposto comissão %</span>' +
             '<input id="ch-tax-' + idx + '" type="text" inputmode="decimal" value="' + _esc(_channelNumberText(ch.taxPct)) + '" placeholder="0,00" style="' + compactInputStyle + '">' +
           '</label>' +
-          '<div style="align-self:center;color:#8A7E7C;font-size:11px;line-height:1.35;">Deixe zerado quando este canal não cobra comissão, taxa por venda ou imposto sobre a comissão.</div>' +
+          '<div style="grid-column:1/-1;color:#8A7E7C;font-size:11px;line-height:1.35;">A conta bancária será sugerida no pedido. Deixe taxas zeradas quando este canal não cobra comissão, taxa por venda ou imposto sobre a comissão.</div>' +
         '</div>' +
       '</div>';
     }).join('');
@@ -2064,7 +2091,7 @@ Modules.Configuracoes = (function () {
     var fixedChannelText = _isTpvEnabled() ? 'Cardápio e Venda presencial são canais fixos do BocaFood.' : 'Cardápio é um canal fixo do BocaFood. Venda presencial aparece aqui quando estiver ativada.';
     var emptyChannelText = _isTpvEnabled() ? 'Adicione apenas se sua loja vender por outro canal além do Cardápio e da Venda presencial.' : 'Adicione apenas se sua loja vender por outro canal além do Cardápio.';
     content.innerHTML = '<div style="display:flex;flex-direction:column;gap:16px;max-width:1040px;width:100%;margin:0 auto;">' +
-      '<style>@media(max-width:860px){.channel-row-main{grid-template-columns:1fr!important}.channel-row-main>button,.channel-row-main>span[title]{justify-self:start}.channel-row-costs{grid-template-columns:minmax(92px,132px) minmax(104px,132px) minmax(118px,148px)!important}.channel-row-costs>div{grid-column:1/-1}}@media(max-width:640px){.channel-row-main,.channel-row-costs{grid-template-columns:1fr!important}.channel-row-main>label,.channel-row-costs>label,.channel-row-costs>div{grid-column:1/-1!important}.channel-row-costs input{max-width:100%!important}}</style>' +
+      '<style>@media(max-width:860px){.channel-row-main{grid-template-columns:1fr!important}.channel-row-main>button,.channel-row-main>span[title]{justify-self:start}.channel-row-costs{grid-template-columns:minmax(180px,1fr) minmax(92px,132px) minmax(104px,132px)!important}.channel-row-costs>div{grid-column:1/-1}}@media(max-width:640px){.channel-row-main,.channel-row-costs{grid-template-columns:1fr!important}.channel-row-main>label,.channel-row-costs>label,.channel-row-costs>div{grid-column:1/-1!important}.channel-row-costs input{max-width:100%!important}}</style>' +
       '<section class="settings-card bf-card" style="background:linear-gradient(180deg,#FFFFFF 0%,#FFFCF9 100%);border:1px solid #EADFD8;border-radius:18px;padding:18px 20px;box-shadow:0 16px 38px rgba(47,37,35,.055);">' +
         '<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:14px;">' +
           '<span class="mi" style="width:34px;height:34px;border-radius:12px;background:#F8F1ED;color:#8F3E32;display:inline-flex;align-items:center;justify-content:center;font-size:19px;flex:0 0 auto;">storefront</span>' +
@@ -2098,6 +2125,9 @@ Modules.Configuracoes = (function () {
         commissionPct: _parseChannelNumber(_val('ch-commission-' + idx)),
         fixedFee: _parseChannelNumber(_val('ch-fixed-fee-' + idx)),
         taxPct: _parseChannelNumber(_val('ch-tax-' + idx)),
+        contaPadraoId: _val('ch-bank-account-' + idx),
+        defaultAccountId: _val('ch-bank-account-' + idx),
+        bankAccountId: _val('ch-bank-account-' + idx),
         minMarginPct: parseFloat(String(prev.minMarginPct || '0').replace(',', '.')) || 0,
         differentPrice: !!prev.differentPrice,
         locked: _isSystemChannel({ name: name }) || !!prev.locked
@@ -2139,7 +2169,7 @@ Modules.Configuracoes = (function () {
   }
 
   function _addCanalVenda() {
-    _config.canais_venda = { list: _collectCanaisVenda().concat([{ name: '', commissionPct: 0, fixedFee: 0, taxPct: 0, minMarginPct: 0, differentPrice: false }]) };
+    _config.canais_venda = { list: _collectCanaisVenda().concat([{ name: '', commissionPct: 0, fixedFee: 0, taxPct: 0, contaPadraoId: '', defaultAccountId: '', bankAccountId: '', minMarginPct: 0, differentPrice: false }]) };
     _renderCanaisVenda();
   }
 
@@ -3324,10 +3354,10 @@ Modules.Configuracoes = (function () {
 
   function _fixedChannels() {
     var fixed = [
-      { name: 'Cardápio', commissionPct: 0, fixedFee: 0, taxPct: 0, minMarginPct: 0, differentPrice: false, locked: true }
+      { name: 'Cardápio', commissionPct: 0, fixedFee: 0, taxPct: 0, contaPadraoId: '', defaultAccountId: '', bankAccountId: '', minMarginPct: 0, differentPrice: false, locked: true }
     ];
     if (_isTpvEnabled()) {
-      fixed.push({ name: 'Venda presencial', commissionPct: 0, fixedFee: 0, taxPct: 0, minMarginPct: 0, differentPrice: false, locked: true });
+      fixed.push({ name: 'Venda presencial', commissionPct: 0, fixedFee: 0, taxPct: 0, contaPadraoId: '', defaultAccountId: '', bankAccountId: '', minMarginPct: 0, differentPrice: false, locked: true });
     }
     return fixed;
   }

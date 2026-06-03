@@ -1,5 +1,16 @@
 # AI Changelog
 
+## 2026-06-03 — Pedidos/Financeiro: conta bancária e conferência de entradas
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `public/js/modules/pedidos.js`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Incluí `Conta bancária padrão` no cadastro de canais de venda em `Configurações`, preservando comissões, imposto sobre comissão e taxa fixa no mesmo card.
+- O pedido manual passa a herdar essa conta pelo canal selecionado e também permite trocar a conta no cadastro do pedido.
+- O modal `Detalhes do pedido` ganhou o campo `Conta bancária`, permitindo corrigir a conta junto com forma/status de pagamento, origem e taxas do canal.
+- A entrada criada no Financeiro a partir do pedido agora fica sempre com status `previsto`, mesmo quando o pedido está marcado como pago, para a usuária conferir e baixar manualmente no Financeiro.
+- A sincronização financeira passa a preservar aliases de data do pedido e data do pagamento (`orderDate/dataPedido`, `paymentDate/dataPagamentoPedido`) e usa a data prevista do pedido como data da entrada em aberto.
+- Pedidos cancelados passam a marcar a movimentação financeira vinculada como `cancelada/estornada`, zerando recebido e saldo, em vez de deixar a entrada ativa.
+- Também normalizei a leitura dos itens do pedido no detalhe para aceitar pedidos que salvem `items`, `orderItems`, `lineItems`, `products` ou mapa de itens.
+- Impacto esperado: reduzir lançamentos financeiros baixados antes da conferência, manter a conta sugerida pelo canal e impedir que pedidos cancelados continuem contando como entrada ativa.
+
 ## 2026-06-03 — Pedidos: card de taxas do canal organizado
 - Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - Reorganizei o card `Taxas do canal de venda` no detalhe do pedido.

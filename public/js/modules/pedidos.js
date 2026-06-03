@@ -17,6 +17,7 @@ Modules.Pedidos = (function () {
   var _domainConfig = {};
   var _financeConfig = {};
   var _tpvConfig = {};
+  var _bankAccounts = [];
   var _zones = [];
   var _canais = [];
   var _activeTab = 'cozinha';
@@ -94,6 +95,7 @@ Modules.Pedidos = (function () {
     type: 'delivery',
     channel: 'manual',
     source: 'manual',
+    bankAccountId: '',
     paymentMethod: '',
     paymentStatus: 'previsto',
     paidAmount: 0,
@@ -199,7 +201,8 @@ Modules.Pedidos = (function () {
       DB.getDocRoot ? DB.getDocRoot('config', 'canais_venda').catch(function () { return null; }) : Promise.resolve(null),
       DB.getDocRoot ? DB.getDocRoot('config', 'dominio').catch(function () { return null; }) : Promise.resolve(null),
       DB.getDocRoot ? DB.getDocRoot('config', 'tpv').catch(function () { return null; }) : Promise.resolve(null),
-      DB.getDocRoot ? DB.getDocRoot('config', 'operacao').catch(function () { return null; }) : Promise.resolve(null)
+      DB.getDocRoot ? DB.getDocRoot('config', 'operacao').catch(function () { return null; }) : Promise.resolve(null),
+      DB.getAll ? DB.getAll('contas_bancarias').catch(function () { return []; }) : Promise.resolve([])
     ]).then(function (res) {
       _customers = res[0] || [];
       _reviews = res[1] || [];
@@ -214,6 +217,7 @@ Modules.Pedidos = (function () {
       _templateConfig = res[10] || {};
       _tpvConfig = res[13] || {};
       _operationConfig = res[14] || {};
+      _bankAccounts = res[15] || [];
       _canais = _normalizeCanais(res[11]);
       _domainConfig = res[12] || {};
       _syncOrderCustomerLinks(_orders);
@@ -225,6 +229,7 @@ Modules.Pedidos = (function () {
       _variantGroups = [];
       _templateConfig = {};
       _operationConfig = {};
+      _bankAccounts = [];
       _domainConfig = {};
       _stockRecipes = [];
       _promotions = [];
@@ -1860,6 +1865,20 @@ Modules.Pedidos = (function () {
     return { total: total, paid: paid, pending: pending, method: method, status: status, subtotal: subtotal, originalSubtotal: originalSubtotal, promoDiscount: promoDiscount, couponDiscount: couponDiscount, pointsDiscount: pointsDiscount, deliveryFee: deliveryFee, originalDeliveryFee: originalDeliveryFee, freeShippingApplied: freeShippingApplied, freeShippingPromotionName: freeShippingPromotionName, discountTotal: discountTotal, couponCode: couponCode, channelCosts: channelCosts };
   }
 
+  function _orderItemsArray(order) {
+    order = order || {};
+    var source = Array.isArray(order.items) ? order.items
+      : Array.isArray(order.orderItems) ? order.orderItems
+      : Array.isArray(order.lineItems) ? order.lineItems
+      : Array.isArray(order.products) ? order.products
+      : order.items && typeof order.items === 'object' ? Object.keys(order.items).map(function (key) { return order.items[key]; })
+      : [];
+    return source.map(function (item) {
+      if (item && typeof item === 'object') return item;
+      return { name: String(item || 'Item'), qty: 1, quantity: 1 };
+    });
+  }
+
   function _detailSmallLine(label, value) {
     if (value === undefined || value === null || value === '') return '';
     return '<div style="display:grid;grid-template-columns:minmax(88px,.46fr) minmax(0,1fr);gap:10px;align-items:flex-start;font-size:12px;line-height:1.35;color:#1F1F1F;min-width:0;">' +
@@ -1876,10 +1895,11 @@ Modules.Pedidos = (function () {
   }
 
   function _detailOrderMetaHTML(order) {
+    var items = _orderItemsArray(order);
     var lines = [
       _detailSmallLine('Código público', _firstText(order && order.publicOrderCode, order && order.orderRef, order && order.orderNumber, '')),
       _detailOriginSelectLine(order),
-      _detailSmallLine('Itens', order && order.itemCount ? String(order.itemCount) : ((order && order.items && order.items.length) ? String(order.items.length) : '')),
+      _detailSmallLine('Itens', order && order.itemCount ? String(order.itemCount) : (items.length ? String(items.length) : '')),
       _detailSmallLine('Estoque', _orderStockStatusText(order))
     ].filter(Boolean);
     return lines.length ? '<div style="margin-top:10px;display:grid;gap:5px;max-width:360px;">' + lines.join('') + '</div>' : '';
@@ -2174,7 +2194,7 @@ Modules.Pedidos = (function () {
 
   function _openDetailChoicesModal(orderId, idx) {
     var order = (_orders || []).find(function (x) { return String(x.id || '') === String(orderId || ''); });
-    var item = order && Array.isArray(order.items) ? order.items[idx] : null;
+    var item = order ? _orderItemsArray(order)[idx] : null;
     var product = item ? _findProductForOrderItem(item) : null;
     var groups = _detailProductChoiceGroups(product);
     if (!order || !item || !groups.length) {
@@ -2240,7 +2260,7 @@ Modules.Pedidos = (function () {
   function _saveDetailChoices() {
     var state = window._orderDetailChoicesState || {};
     var order = (_orders || []).find(function (x) { return String(x.id || '') === String(state.orderId || ''); });
-    var item = order && Array.isArray(order.items) ? order.items[state.index] : null;
+    var item = order ? _orderItemsArray(order)[state.index] : null;
     if (!order || !item) return;
     var choices = [];
     var invalid = '';
@@ -2832,8 +2852,9 @@ Modules.Pedidos = (function () {
     _closeKitchenDetailPanel();
 
     var meta = _statusMeta(order.status);
-    var itemCount = (order.items || []).length;
-    var checkedCount = (order.items || []).filter(function (item) { return !!item.checked; }).length;
+    var kitchenItems = _orderItemsArray(order);
+    var itemCount = kitchenItems.length;
+    var checkedCount = kitchenItems.filter(function (item) { return !!item.checked; }).length;
     var progress = itemCount ? Math.round((checkedCount / itemCount) * 100) : 0;
     var customerName = _firstText(order.customerName, order.clientName, order.name, 'Cliente');
     var payment = _detailPaymentInfo(order);
@@ -2855,7 +2876,7 @@ Modules.Pedidos = (function () {
     var statusOptions = COLUMNS.map(function (c) {
       return '<option value="' + c.key + '"' + (String(order.status || '') === c.key ? ' selected' : '') + '>' + c.label + '</option>';
     }).join('');
-    var itemsHTML = (order.items || []).map(function (item, i) {
+    var itemsHTML = kitchenItems.map(function (item, i) {
       var pricing = _detailItemPricing(item);
       var itemName = _firstText(item.name, item.productName, 'Item');
       return '<label style="display:flex;align-items:flex-start;gap:10px;padding:11px 12px;border:1px solid ' + (item.checked ? '#D9F2E3' : '#EAE4DA') + ';border-radius:12px;background:' + (item.checked ? '#F4FBF6' : '#fff') + ';cursor:pointer;box-shadow:0 6px 14px rgba(31,31,31,.035);">' +
@@ -3015,7 +3036,7 @@ Modules.Pedidos = (function () {
       var statusOptions = COLUMNS.map(function (c) {
         return '<option value="' + c.key + '"' + (String(o.status || 'Pendente') === c.key ? ' selected' : '') + '>' + c.label + '</option>';
       }).join('');
-      var itemsHTML = (o.items || []).map(function (item, i) { return _detailItemHTML(item, i, o); }).join('');
+      var itemsHTML = _orderItemsArray(o).map(function (item, i) { return _detailItemHTML(item, i, o); }).join('');
       var addressText = o.type === 'pickup' ? _orderPickupText(o) : _orderAddressText(o);
       var deliveryLabel = o.type === 'pickup' ? 'Retirada' : 'Entrega';
       var detailDateValue = o.type === 'pickup' ? _firstText(o.pickupDate, o.scheduleDate, o.deliveryDate, '') : _firstText(o.deliveryDate, o.scheduleDate, o.pickupDate, '');
@@ -3113,6 +3134,7 @@ Modules.Pedidos = (function () {
             paymentBreakdownHTML +
             '<div class="order-detail-payment-grid">' +
               '<div><label class="order-detail-label">Forma de pagamento</label><div class="order-detail-field-control"><select id="detail-payment-method">' + _paymentMethodOptions(payment.method) + '</select></div></div>' +
+              '<div><label class="order-detail-label">Conta bancária</label><div class="order-detail-field-control"><select id="detail-bank-account">' + _bankAccountOptions(_orderBankAccountId(o)) + '</select></div></div>' +
               '<div><label class="order-detail-label">Status do pagamento</label><div class="order-detail-field-control"><select id="detail-payment-status" onchange="Modules.Pedidos._detailPaymentSync()">' + _paymentStatusOptions(payment.status || (payment.paid >= payment.total && payment.total > 0 ? 'pago' : payment.paid > 0 ? 'parcial' : 'previsto')) + '</select></div></div>' +
               '<div id="detail-paid-amount-box" class="order-detail-paid-field" style="display:' + (((payment.status || '').toLowerCase() === 'parcial') ? 'block' : 'none') + ';">' +
                 '<label class="order-detail-label">Valor pago</label><div class="order-detail-field-control"><input id="detail-paid-amount" type="number" step="0.01" value="' + _esc(String(payment.paid || 0)) + '" placeholder="0,00"></div>' +
@@ -3201,8 +3223,9 @@ Modules.Pedidos = (function () {
 
   function _toggleItem(orderId, idx, el) {
     var o = _orders.find(function (x) { return x.id === orderId; });
-    if (!o || !o.items) return;
-    var items = o.items.slice();
+    if (!o) return;
+    var items = _orderItemsArray(o).slice();
+    if (idx < 0 || idx >= items.length) return;
     items[idx] = Object.assign({}, items[idx], { checked: !items[idx].checked });
     o.items = items;
     _detailChecklistDirty[String(orderId || '')] = true;
@@ -3215,7 +3238,7 @@ Modules.Pedidos = (function () {
   }
 
   function _detailEditedItems(order) {
-    var source = Array.isArray(order && order.items) ? order.items : [];
+    var source = _orderItemsArray(order);
     return source.map(function (item, idx) {
       var qtyEl = document.getElementById('detail-item-qty-' + idx);
       var priceEl = document.getElementById('detail-item-price-' + idx);
@@ -3283,7 +3306,7 @@ Modules.Pedidos = (function () {
 
   function _removeDetailItem(orderId, idx) {
     var order = _orders.find(function (x) { return String(x.id || '') === String(orderId || ''); });
-    if (!order || !Array.isArray(order.items)) return;
+    if (!order) return;
     var items = _detailEditedItems(order);
     if (idx < 0 || idx >= items.length) return;
     if (items.length <= 1) {
@@ -3306,6 +3329,7 @@ Modules.Pedidos = (function () {
     var sel = document.getElementById('detail-status');
     var channelSel = document.getElementById('detail-sales-channel');
     var paymentSel = document.getElementById('detail-payment-method');
+    var bankAccountSel = document.getElementById('detail-bank-account');
     var paymentStatusSel = document.getElementById('detail-payment-status');
     var paidAmountInput = document.getElementById('detail-paid-amount');
     var channelCommissionInput = document.getElementById('detail-channel-commission-pct');
@@ -3322,6 +3346,7 @@ Modules.Pedidos = (function () {
     var nextChannelMeta = _salesChannelByName(nextChannel) || {};
     var nextChannelCategory = _channelIncomeCategoryMeta(nextChannelMeta);
     var nextPaymentMethod = String((paymentSel && paymentSel.value) || (order && order.paymentMethod) || '').trim();
+    var nextBankAccountId = String((bankAccountSel && bankAccountSel.value) || _orderBankAccountId(order || {}) || '').trim();
     var nextPaymentStatus = String((paymentStatusSel && paymentStatusSel.value) || (order && order.paymentStatus) || 'previsto').trim() || 'previsto';
     var nextPaidAmount = _num((paidAmountInput && paidAmountInput.value) || (order && order.paidAmount) || 0);
     var isPickup = order && order.type === 'pickup';
@@ -3332,6 +3357,7 @@ Modules.Pedidos = (function () {
     var currentStatus = String(order && order.status || 'Pendente');
     var currentChannel = _firstText(order && order.channel, order && order.source, order && order.originChannel, order && order.originSource, 'manual');
     var currentPaymentMethod = String(order && order.paymentMethod || '').trim();
+    var currentBankAccountId = _orderBankAccountId(order || {});
     var currentPaymentStatus = String(order && order.paymentStatus || '').trim();
     var currentPaidAmount = _num(order && order.paidAmount);
     var currentScheduleDate = String((isPickup ? (order && order.pickupDate) : (order && order.deliveryDate)) || (order && order.scheduleDate) || '').trim();
@@ -3339,6 +3365,7 @@ Modules.Pedidos = (function () {
     var statusChanged = nextStatus !== currentStatus;
     var channelChanged = _channelAliasKey(nextChannel) !== _channelAliasKey(currentChannel);
     var paymentChanged = nextPaymentMethod !== currentPaymentMethod;
+    var bankAccountChanged = nextBankAccountId !== currentBankAccountId;
     var scheduleChanged = nextScheduleDate !== currentScheduleDate || nextScheduleTime !== currentScheduleTime;
     var channelFeePatch = null;
     var channelFeeChanged = false;
@@ -3395,14 +3422,14 @@ Modules.Pedidos = (function () {
     }
     var editedItems = _detailEditedItems(order || {});
     var itemTotalsPayload = _orderItemTotalsPayload(order || {}, editedItems);
-    var currentItemsJson = JSON.stringify(Array.isArray(order && order.items) ? order.items.map(function (item) {
+    var currentItemsJson = JSON.stringify(_orderItemsArray(order).map(function (item) {
       var p = _detailItemPricing(item);
       return {
         name: item.name || item.productName || '',
         qty: _num(p.qty),
         unit: _num(p.finalUnit)
       };
-    }) : []);
+    }));
     var editedItemsJson = JSON.stringify(editedItems.map(function (item) {
       return {
         name: item.name || item.productName || '',
@@ -3422,6 +3449,12 @@ Modules.Pedidos = (function () {
     if (paymentChanged) {
       tasks.push(DB.update('orders', id, { paymentMethod: nextPaymentMethod }).then(function () {
         if (order) order.paymentMethod = nextPaymentMethod;
+      }));
+    }
+    if (bankAccountChanged) {
+      var bankPatch = { conta_id: nextBankAccountId, contaBancariaId: nextBankAccountId, accountId: nextBankAccountId, bankAccountId: nextBankAccountId };
+      tasks.push(DB.update('orders', id, bankPatch).then(function () {
+        if (order) Object.assign(order, bankPatch);
       }));
     }
     if (channelPatch) {
@@ -3498,6 +3531,10 @@ Modules.Pedidos = (function () {
       var fresh = _orders.find(function (x) { return String(x.id || '') === String(id || ''); }) || order;
       if (fresh) {
         fresh.paymentMethod = nextPaymentMethod;
+        fresh.conta_id = nextBankAccountId;
+        fresh.contaBancariaId = nextBankAccountId;
+        fresh.accountId = nextBankAccountId;
+        fresh.bankAccountId = nextBankAccountId;
         if (channelPatch) Object.assign(fresh, channelPatch);
         fresh.paymentStatus = nextPaymentStatus;
         fresh.paymentState = nextPaymentStatus;
@@ -4583,6 +4620,10 @@ Modules.Pedidos = (function () {
                 '<select id="mo-payment-method" onchange="Modules.Pedidos._manualOrderSetPaymentMethod(this.value)" style="width:100%;padding:10px 12px;border:1.5px solid #D4C8C6;border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;">' + _paymentMethodOptions(_manualOrderState.paymentMethod) + '</select>' +
               '</div>' +
               '<div>' +
+                '<label style="font-size:11px;font-weight:700;color:#8A7E7C;display:block;margin-bottom:4px;">Conta bancária</label>' +
+                '<select id="mo-bank-account" onchange="Modules.Pedidos._manualOrderSetBankAccount(this.value)" style="width:100%;padding:10px 12px;border:1.5px solid #D4C8C6;border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;">' + _bankAccountOptions(_manualOrderState.bankAccountId) + '</select>' +
+              '</div>' +
+              '<div>' +
                 '<label style="font-size:11px;font-weight:700;color:#8A7E7C;display:block;margin-bottom:4px;">Status do pagamento</label>' +
                 '<select id="mo-payment-status" onchange="Modules.Pedidos._manualOrderSetPaymentStatus(this.value)" style="width:100%;padding:10px 12px;border:1.5px solid #D4C8C6;border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;">' + _paymentStatusOptions(_manualOrderState.paymentStatus) + '</select>' +
               '</div>' +
@@ -4667,6 +4708,7 @@ Modules.Pedidos = (function () {
     var slot = [deliveryDate, deliveryTime].filter(Boolean).join(' ').trim();
     var note = String((document.getElementById('mo-note') || {}).value || '').trim();
     var paymentStatus = String((document.getElementById('mo-payment-status') || {}).value || _manualOrderState.paymentStatus || 'previsto').trim() || 'previsto';
+    var bankAccountId = String((document.getElementById('mo-bank-account') || {}).value || _manualOrderState.bankAccountId || '').trim();
     var paidAmount = _num((document.getElementById('mo-paid-amount') || {}).value || _manualOrderState.paidAmount || 0);
     var adjustment = _num((document.getElementById('mo-adjustment') || {}).value || _manualOrderState.adjustment || 0);
     var shippingFee = type === 'delivery' ? _num(_manualOrderState.shippingFee || (document.getElementById('mo-shipping') || {}).value || 0) : 0;
@@ -4878,6 +4920,10 @@ Modules.Pedidos = (function () {
         manualAdjustmentValue: adjustment,
         total: total,
         paymentMethod: String(_manualOrderState.paymentMethod || ''),
+        conta_id: bankAccountId,
+        contaBancariaId: bankAccountId,
+        accountId: bankAccountId,
+        bankAccountId: bankAccountId,
         paymentStatus: paymentStatus,
         paymentState: paymentStatus,
         paidAmount: paidAmount,
@@ -4989,6 +5035,7 @@ Modules.Pedidos = (function () {
     _manualOrderState.type = context.type || 'delivery';
     _manualOrderState.channel = context.channel || 'manual';
     _manualOrderState.source = context.source || 'manual';
+    _manualOrderState.bankAccountId = _channelBankAccountId(_salesChannelByName(_manualOrderState.channel) || _salesChannelByName(_manualOrderState.source) || {});
     _manualOrderState.paymentMethod = '';
     _manualOrderState.paymentStatus = context.paymentStatus || 'previsto';
     _manualOrderState.paidAmount = 0;
@@ -5285,11 +5332,18 @@ Modules.Pedidos = (function () {
     var raw = String(value || 'manual').trim() || 'manual';
     _manualOrderState.channel = raw;
     _manualOrderState.source = _manualOrderChannelSource(raw);
+    _manualOrderState.bankAccountId = _channelBankAccountId(_salesChannelByName(raw) || _salesChannelByName(_manualOrderState.source) || {});
     _manualOrderState.priceOrigin = _fold(raw) === 'cardapio' ? 'automático' : 'manual';
     _manualOrderRefreshProducts();
     _manualOrderRefreshSelected();
     _manualOrderRefreshSummary();
+    _manualOrderSyncPaymentUI();
     _manualOrderSyncInheritedPills();
+  }
+
+  function _manualOrderSetBankAccount(value) {
+    _manualOrderState.bankAccountId = String(value || '').trim();
+    _manualOrderSyncPaymentUI();
   }
 
   function _manualOrderSetPaymentStatus(value) {
@@ -5742,6 +5796,10 @@ Modules.Pedidos = (function () {
     if (status && String(status.value || '') !== String(_manualOrderState.paymentStatus || 'previsto')) {
       status.value = String(_manualOrderState.paymentStatus || 'previsto');
     }
+    var account = document.getElementById('mo-bank-account');
+    if (account && String(account.value || '') !== String(_manualOrderState.bankAccountId || '')) {
+      account.value = String(_manualOrderState.bankAccountId || '');
+    }
     var box = document.getElementById('mo-paid-amount-box');
     if (box) box.style.display = _paymentStatusIsPartial(_manualOrderState.paymentStatus || 'previsto') ? 'block' : 'none';
     var paid = document.getElementById('mo-paid-amount');
@@ -6181,6 +6239,10 @@ Modules.Pedidos = (function () {
       '<div style="grid-column:1/-1;border:1px solid #F2EDED;border-radius:12px;padding:10px 12px;background:#FAF8F8;">',
         '<div style="font-size:11px;color:#8A7E7C;margin-bottom:3px;">Forma de pagamento</div>',
         '<select id="mo-payment-method" onchange="Modules.Pedidos._manualOrderSetPaymentMethod(this.value)" style="' + _adminSelectStyle('height:40px;font-size:13px;') + '">' + _paymentMethodOptions(_manualOrderState.paymentMethod) + '</select>',
+      '</div>',
+      '<div style="grid-column:1/-1;border:1px solid #F2EDED;border-radius:12px;padding:10px 12px;background:#FAF8F8;">',
+        '<div style="font-size:11px;color:#8A7E7C;margin-bottom:3px;">Conta bancária</div>',
+        '<select id="mo-bank-account" onchange="Modules.Pedidos._manualOrderSetBankAccount(this.value)" style="' + _adminSelectStyle('height:40px;font-size:13px;') + '">' + _bankAccountOptions(_manualOrderState.bankAccountId) + '</select>',
       '</div>',
       '<div style="grid-column:1/-1;border:1px solid #F2EDED;border-radius:12px;padding:10px 12px;background:#FAF8F8;">',
         '<div style="font-size:11px;color:#8A7E7C;margin-bottom:3px;">Status do pagamento</div>',
@@ -7232,6 +7294,34 @@ Modules.Pedidos = (function () {
     return { id: String(id || '').trim(), name: String(name || '').trim() };
   }
 
+  function _channelBankAccountId(channel) {
+    return String(channel && (channel.contaPadraoId || channel.defaultAccountId || channel.bankAccountId || channel.contaBancariaId || channel.conta_id) || '').trim();
+  }
+
+  function _bankAccountOptions(selected) {
+    var current = String(selected || '').trim();
+    var active = (_bankAccounts || []).filter(function (account) {
+      return account && (account.ativo !== false || String(account.id || '') === current);
+    }).sort(function (a, b) {
+      return String(a.nome || a.name || '').localeCompare(String(b.nome || b.name || ''));
+    });
+    var html = '<option value="">Sem conta definida</option>';
+    html += active.map(function (account) {
+      var id = String(account.id || '');
+      var name = account.nome || account.name || 'Conta';
+      return '<option value="' + _esc(id) + '"' + (id === current ? ' selected' : '') + '>' + _esc(name) + '</option>';
+    }).join('');
+    if (current && !active.some(function (account) { return String(account.id || '') === current; })) {
+      html += '<option value="' + _esc(current) + '" selected>Conta selecionada</option>';
+    }
+    return html;
+  }
+
+  function _orderBankAccountId(order) {
+    order = order || {};
+    return String(order.conta_id || order.contaBancariaId || order.accountId || order.bankAccountId || _channelBankAccountId(_salesChannelByName(_firstText(order.channel, order.source, order.originChannel, order.originSource, '')) || {}) || '').trim();
+  }
+
   function _orderIncomeCategoryMeta(order) {
     order = order || {};
     var direct = _channelIncomeCategoryMeta(order);
@@ -7369,9 +7459,6 @@ Modules.Pedidos = (function () {
   }
 
   function _paymentStatusFinanceStatus(value) {
-    var key = _fold(value || '');
-    if (_paymentStatusIsPaid(key)) return 'efetivado';
-    if (_paymentStatusIsPartial(key)) return 'parcial';
     return 'previsto';
   }
 
@@ -7463,7 +7550,7 @@ Modules.Pedidos = (function () {
   function _orderFinanceAccountId(order) {
     order = order || {};
     if (_isTpvOrder(order)) return String(order.cashAccountId || order.tpvCashAccountId || (_tpvConfig && _tpvConfig.cashAccountId) || '');
-    return String(order.conta_id || order.contaBancariaId || order.accountId || '');
+    return String(order.conta_id || order.contaBancariaId || order.accountId || order.bankAccountId || _orderBankAccountId(order) || '');
   }
 
   function _isTpvOrder(order) {
@@ -7475,6 +7562,8 @@ Modules.Pedidos = (function () {
     orderId = String(orderId || '');
     if (!orderId) return Promise.resolve(false);
     order = order || {};
+    var orderStatus = String(order.status || order.orderStatus || '');
+    var isCancelled = _isCancelledStatus(orderStatus);
     var grossTotal = _orderFinanceTotal(order);
     var channelFinancial = _orderChannelFinancialPatch(order, grossTotal);
     Object.assign(order, channelFinancial);
@@ -7485,12 +7574,46 @@ Modules.Pedidos = (function () {
     if (_paymentStatusIsPaid(paymentStatus)) paidAmount = total;
     if (!_paymentStatusIsPartial(paymentStatus)) paidAmount = _paymentStatusIsPaid(paymentStatus) ? total : 0;
     var finStatus = _paymentStatusFinanceStatus(paymentStatus);
-    var data = (finStatus === 'previsto'
-      ? (_firstText(order.deliveryDate, order.deliveryDateISO, order.scheduleDate, order.createdAt, _today()))
-      : (_firstText(order.paidAt, order.updatedAt, order.createdAt, _today())));
+    paidAmount = 0;
+    var orderDate = _firstText(order.orderDate, order.dataPedido, order.createdAt, order.created_at, order.date, order.createdDate, _today());
+    var paymentDate = _firstText(order.paymentDate, order.dataPagamento, order.paidAt, order.paymentAt, order.paymentUpdatedAt, '');
+    var data = _firstText(order.deliveryDate, order.deliveryDateISO, order.pickupDate, order.scheduleDate, orderDate, _today());
     var financeAccountId = _orderFinanceAccountId(order);
     var channelMeta = _orderChannelMeta(order);
     var incomeCategory = _orderIncomeCategoryMeta(order);
+    function persistOrderFinancialPatch(extra) {
+      var patch = Object.assign({}, channelFinancial, extra || {}, {
+        financeMovementSyncedAt: _nowIso()
+      });
+      Object.assign(order, patch);
+      return DB.update('orders', orderId, patch).then(function () { return true; }).catch(function () { return true; });
+    }
+    if (isCancelled) {
+      var cancelPayload = {
+        status: 'cancelada',
+        cancelada: true,
+        estornada: true,
+        valorRecebido: 0,
+        valor_recebido_total: 0,
+        saldoRestante: 0,
+        saldo_restante: 0,
+        reversalReason: 'cancelamento_pedido',
+        motivoCancelamento: 'Pedido cancelado',
+        cancelledAt: order.cancelledAt || _nowIso(),
+        updatedAt: new Date().toISOString()
+      };
+      var applyCancel = function (movementId) {
+        if (!movementId) return persistOrderFinancialPatch({ financeMovementStatus: 'cancelada' });
+        return DB.update('movimentacoes', movementId, cancelPayload).then(function () {
+          return persistOrderFinancialPatch({ financeMovementId: movementId, financeMovementStatus: 'cancelada' });
+        }).catch(function () { return false; });
+      };
+      if (order.financeMovementId) return applyCancel(order.financeMovementId);
+      return DB.getAll('movimentacoes').then(function (list) {
+        var found = (list || []).find(function (m) { return String(m.pedidoId || m.orderId || m.origemPedidoId || '') === orderId; });
+        return applyCancel(found && found.id ? found.id : '');
+      }).catch(function () { return false; });
+    }
     var payload = {
       origem: 'pedido',
       pedidoId: orderId,
@@ -7498,6 +7621,14 @@ Modules.Pedidos = (function () {
       tipo: 'entrada',
       descricao: 'Pedido ' + (_orderDisplayId(order) || orderId),
       data: data && String(data).slice(0, 10) ? String(data).slice(0, 10) : _today(),
+      data_prevista: data && String(data).slice(0, 10) ? String(data).slice(0, 10) : _today(),
+      dataPrevista: data && String(data).slice(0, 10) ? String(data).slice(0, 10) : _today(),
+      orderDate: orderDate && String(orderDate).slice(0, 10) ? String(orderDate).slice(0, 10) : _today(),
+      dataPedido: orderDate && String(orderDate).slice(0, 10) ? String(orderDate).slice(0, 10) : _today(),
+      paymentDate: paymentDate && String(paymentDate).slice(0, 10) ? String(paymentDate).slice(0, 10) : '',
+      dataPagamentoPedido: paymentDate && String(paymentDate).slice(0, 10) ? String(paymentDate).slice(0, 10) : '',
+      data_recebimento: '',
+      dataRecebimento: '',
       status: finStatus,
       valor: total,
       valorTotalOriginal: total,
@@ -7530,6 +7661,8 @@ Modules.Pedidos = (function () {
       pessoaNome: String(order.customerName || order.clientName || order.name || ''),
       customerName: String(order.customerName || order.clientName || order.name || ''),
       phone: String(order.customerPhone || order.phone || order.whatsapp || ''),
+      financeReviewPending: true,
+      requiresFinanceConfirmation: true,
       updatedAt: new Date().toISOString()
     };
     if (financeAccountId) {
@@ -7544,13 +7677,6 @@ Modules.Pedidos = (function () {
       payload.categoriaFinanceiraTipo = 'entrada';
       payload.categoriaFinanceiraNatureza = 'receita';
       payload.financialNature = 'receita';
-    }
-    function persistOrderFinancialPatch(extra) {
-      var patch = Object.assign({}, channelFinancial, extra || {}, {
-        financeMovementSyncedAt: _nowIso()
-      });
-      Object.assign(order, patch);
-      return DB.update('orders', orderId, patch).then(function () { return true; }).catch(function () { return true; });
     }
     if (order.financeMovementId) {
       return DB.update('movimentacoes', order.financeMovementId, payload).then(function () {
@@ -7636,6 +7762,7 @@ Modules.Pedidos = (function () {
     _manualOrderSetShippingFee: _manualOrderSetShippingFee,
     _manualOrderSetPaymentMethod: _manualOrderSetPaymentMethod,
     _manualOrderSetChannel: _manualOrderSetChannel,
+    _manualOrderSetBankAccount: _manualOrderSetBankAccount,
     _manualOrderSetPaymentStatus: _manualOrderSetPaymentStatus,
     _manualOrderSetPaidAmount: _manualOrderSetPaidAmount,
     _manualOrderSetOrderTime: _manualOrderSetOrderTime,
