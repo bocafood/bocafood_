@@ -1865,6 +1865,28 @@ Modules.Pedidos = (function () {
     return { total: total, paid: paid, pending: pending, method: method, status: status, subtotal: subtotal, originalSubtotal: originalSubtotal, promoDiscount: promoDiscount, couponDiscount: couponDiscount, pointsDiscount: pointsDiscount, deliveryFee: deliveryFee, originalDeliveryFee: originalDeliveryFee, freeShippingApplied: freeShippingApplied, freeShippingPromotionName: freeShippingPromotionName, discountTotal: discountTotal, couponCode: couponCode, channelCosts: channelCosts };
   }
 
+  function _safeDetailValue(label, fn, fallback) {
+    try {
+      return fn();
+    } catch (err) {
+      console.warn('Pedidos detalhe: falha ao montar ' + label, err);
+      return fallback;
+    }
+  }
+
+  function _basicDetailItemHTML(item, idx, order) {
+    item = item || {};
+    var pricing = _detailItemPricing(item);
+    return '<div class="pm-check-item" data-detail-item-index="' + idx + '" style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid #F2EDED;">' +
+      '<input type="checkbox"' + (item.checked ? ' checked' : '') + ' onclick="event.stopPropagation();Modules.Pedidos._toggleItem(\'' + _esc(order && order.id || '') + '\',' + idx + ',this.parentNode)" style="margin-top:9px;width:16px;height:16px;accent-color:#1A9E5A;flex-shrink:0;cursor:pointer;">' +
+      '<div style="flex:1;min-width:0;">' +
+        '<div style="font-size:13px;font-weight:700;line-height:1.25;color:#1F1F1F;">' + _esc(_firstText(item.name, item.productName, 'Item')) + '</div>' +
+        '<div style="font-size:11px;color:#8A7E7C;margin-top:4px;">' + _esc(_num(pricing.qty || item.qty || item.quantity || 1)) + ' x ' + _esc(UI.fmt(pricing.finalUnit || item.price || item.unitPrice || 0)) + '</div>' +
+      '</div>' +
+      '<div style="font-size:13px;font-weight:750;color:#B42318;white-space:nowrap;">' + UI.fmt(pricing.subtotal || item.total || 0) + '</div>' +
+    '</div>';
+  }
+
   function _orderItemsArray(order) {
     order = order || {};
     var source = Array.isArray(order.items) ? order.items
@@ -3027,30 +3049,40 @@ Modules.Pedidos = (function () {
       return;
     }
     try {
-      var detailCustomer = _detailOrderCustomer(o);
+      var detailCustomer = _safeDetailValue('cliente do pedido', function () { return _detailOrderCustomer(o); }, { customer: null, linked: false });
       var customer = detailCustomer.customer;
-      var payment = _detailPaymentInfo(o);
-      var phoneHref = _orderPhoneHref(o);
+      var payment = _safeDetailValue('pagamento', function () { return _detailPaymentInfo(o); }, { total: _num(o.total || o.amount || o.grandTotal), paid: _num(o.paidAmount || o.amountPaid || 0), pending: Math.max(0, _num(o.total || o.amount || o.grandTotal) - _num(o.paidAmount || o.amountPaid || 0)), method: _firstText(o.paymentMethod, o.payment, ''), status: _firstText(o.paymentStatus, o.paymentState, ''), subtotal: _num(o.subtotal || 0), originalSubtotal: _num(o.subtotalOriginal || o.subtotal || 0), promoDiscount: 0, couponDiscount: 0, pointsDiscount: 0, deliveryFee: _num(o.shippingFee || o.deliveryFee || 0), originalDeliveryFee: _num(o.shippingFee || o.deliveryFee || 0), freeShippingApplied: false, freeShippingPromotionName: '', discountTotal: _num(o.discountTotal || 0), couponCode: '', channelCosts: {} });
+      var phoneHref = _safeDetailValue('telefone', function () { return _orderPhoneHref(o); }, '');
       var topName = _firstText(o.customerName, o.clientName, o.name, customer && customer.name, 'Cliente');
-      var topDate = _orderScheduleInfo(o).text;
+      var topDate = _safeDetailValue('data do pedido', function () { return _orderScheduleInfo(o).text; }, _firstText(o.deliveryDate, o.pickupDate, o.scheduleDate, o.createdAt, 'Sem data'));
       var statusOptions = COLUMNS.map(function (c) {
         return '<option value="' + c.key + '"' + (String(o.status || 'Pendente') === c.key ? ' selected' : '') + '>' + c.label + '</option>';
       }).join('');
-      var itemsHTML = _orderItemsArray(o).map(function (item, i) { return _detailItemHTML(item, i, o); }).join('');
-      var addressText = o.type === 'pickup' ? _orderPickupText(o) : _orderAddressText(o);
+      var itemsHTML = _safeDetailValue('itens', function () {
+        return _orderItemsArray(o).map(function (item, i) {
+          return _safeDetailValue('item ' + (i + 1), function () { return _detailItemHTML(item, i, o); }, _basicDetailItemHTML(item, i, o));
+        }).join('');
+      }, '');
+      var addressText = _safeDetailValue('endereço', function () { return o.type === 'pickup' ? _orderPickupText(o) : _orderAddressText(o); }, '');
       var deliveryLabel = o.type === 'pickup' ? 'Retirada' : 'Entrega';
       var detailDateValue = o.type === 'pickup' ? _firstText(o.pickupDate, o.scheduleDate, o.deliveryDate, '') : _firstText(o.deliveryDate, o.scheduleDate, o.pickupDate, '');
       var detailTimeValue = o.type === 'pickup' ? _firstText(o.pickupTime, o.scheduleTime, o.deliveryTime, '') : _firstText(o.deliveryTime, o.scheduleTime, o.pickupTime, '');
       var customerStateLabel = detailCustomer.linked ? 'Cliente vinculado' : 'Sem vínculo';
       var customerStatusTone = detailCustomer.linked ? '#1A9E5A' : '#8A7E7C';
       var customerStatusBg = detailCustomer.linked ? '#EDFAF3' : '#F2EDED';
-      var orderMetaHTML = _detailOrderMetaHTML(o);
-      var customerMetaHTML = _detailCustomerMetaHTML(o, customer);
-      var addressMetaHTML = _detailAddressMetaHTML(o);
-      var paymentBreakdownHTML = _detailPaymentBreakdownHTML(payment);
-      var pointsHtml = Modules.Marketing && typeof Modules.Marketing._pointsOrderBlockHtml === 'function'
-        ? Modules.Marketing._pointsOrderBlockHtml(o, customer)
-        : '';
+      var orderMetaHTML = _safeDetailValue('metadados do pedido', function () { return _detailOrderMetaHTML(o); }, '');
+      var customerMetaHTML = _safeDetailValue('metadados do cliente', function () { return _detailCustomerMetaHTML(o, customer); }, '');
+      var addressMetaHTML = _safeDetailValue('metadados do endereço', function () { return _detailAddressMetaHTML(o); }, '');
+      var paymentBreakdownHTML = _safeDetailValue('resumo do pagamento', function () { return _detailPaymentBreakdownHTML(payment); }, '');
+      var pointsHtml = _safeDetailValue('pontos do pedido', function () {
+        return Modules.Marketing && typeof Modules.Marketing._pointsOrderBlockHtml === 'function'
+          ? Modules.Marketing._pointsOrderBlockHtml(o, customer)
+          : '';
+      }, '');
+      var clientActionsHTML = _safeDetailValue('ações do cliente', function () { return _orderClientActions(o, customer) || ''; }, '');
+      var channelFeesHTML = _safeDetailValue('taxas do canal', function () { return _detailChannelFeeInputsHTML(o, payment); }, '');
+      var stockTraceHTML = _safeDetailValue('rastreio de estoque', function () { return _detailStockTraceHTML(o); }, '');
+      var observationsHTML = _safeDetailValue('observações', function () { return _detailObservationBlocks(o); }, '<div style="font-size:13px;color:#8A7E7C;">Sem observações.</div>');
       var detailCss = '<style>' +
         '.order-detail-modal-body{display:flex;flex-direction:column;gap:9px;font-family:Manrope,Inter,sans-serif;}' +
         '.order-detail-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:16px;padding:11px 12px;box-shadow:0 8px 18px rgba(31,31,31,.035);min-width:0;}' +
@@ -3107,7 +3139,7 @@ Modules.Pedidos = (function () {
                 '<div class="order-detail-soft-value">' + _esc(topName) + '</div>' +
                 '<div style="margin-top:5px;display:inline-flex;align-items:center;padding:4px 9px;border-radius:999px;background:' + customerStatusBg + ';color:' + customerStatusTone + ';font-size:10px;font-weight:700;">' + _esc(customerStateLabel) + '</div>' +
                 customerMetaHTML +
-                (_orderClientActions(o, customer) || '') +
+                clientActionsHTML +
               '</div>' +
               '<div style="min-width:0;">' +
                 '<div class="order-detail-soft-title">' + _esc(deliveryLabel) + '</div>' +
@@ -3140,7 +3172,7 @@ Modules.Pedidos = (function () {
                 '<label class="order-detail-label">Valor pago</label><div class="order-detail-field-control"><input id="detail-paid-amount" type="number" step="0.01" value="' + _esc(String(payment.paid || 0)) + '" placeholder="0,00"></div>' +
               '</div>' +
             '</div>' +
-            _detailChannelFeeInputsHTML(o, payment) +
+            channelFeesHTML +
             '<div class="order-detail-summary-grid">' +
               '<div class="order-detail-tile"><div style="font-size:10px;font-weight:700;color:#8A7E7C;text-transform:uppercase;margin-bottom:4px;">Valor total</div><div style="font-size:14px;font-weight:700;color:#1A1A1A;">' + UI.fmt(payment.total) + '</div></div>' +
               '<div class="order-detail-tile"><div style="font-size:10px;font-weight:700;color:#8A7E7C;text-transform:uppercase;margin-bottom:4px;">Valor pago</div><div style="font-size:14px;font-weight:700;color:#1A1A1A;">' + UI.fmt(payment.paid) + '</div></div>' +
@@ -3151,13 +3183,13 @@ Modules.Pedidos = (function () {
 
         (pointsHtml ? '<section style="display:grid;grid-template-columns:1fr;gap:12px;">' + pointsHtml + '</section>' : '') +
         '<section class="order-detail-grid" style="grid-template-columns:1fr;">' +
-          _detailStockTraceHTML(o) +
+          stockTraceHTML +
         '</section>' +
 
         '<section class="order-detail-grid" style="grid-template-columns:1fr;">' +
           '<div class="order-detail-card">' +
             '<div class="order-detail-head"><span class="mi">notes</span><div><div class="order-detail-title">Observações</div></div></div>' +
-            _detailObservationBlocks(o) +
+            observationsHTML +
           '</div>' +
           '<div class="order-detail-card">' +
             '<div class="order-detail-head"><span class="mi">restaurant_menu</span><div><div class="order-detail-title">Itens do pedido</div></div></div>' +

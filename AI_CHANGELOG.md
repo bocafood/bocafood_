@@ -1,5 +1,13 @@
 # AI Changelog
 
+## 2026-06-03 — Pedidos: detalhe tolerante a dados incompletos
+- Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Ajustei o modal `Detalhes do pedido` para montar blocos críticos de forma isolada: cliente, pagamento, itens, endereço, observações, rastreio de estoque, pontos e taxas do canal.
+- Se um bloco tiver dado fora do formato esperado, o modal completo continua abrindo e apenas esse bloco usa fallback simples ou fica vazio.
+- Itens do pedido agora têm renderização simples de segurança quando algum detalhe/composição não consegue ser interpretado.
+- Atualizei o cache-buster de `pedidos.js` no admin para carregar a versão tolerante.
+- Impacto esperado: pedidos manuais ou antigos, como pedidos com canal Glovo e dados parciais, deixam de cair no aviso `Não foi possível carregar o detalhe completo deste pedido agora`.
+
 ## 2026-06-03 — Pedidos/Financeiro: conta bancária e conferência de entradas
 - Arquivos alterados: `public/js/modules/configuracoes.js`, `public/js/modules/pedidos.js`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
 - Incluí `Conta bancária padrão` no cadastro de canais de venda em `Configurações`, preservando comissões, imposto sobre comissão e taxa fixa no mesmo card.
