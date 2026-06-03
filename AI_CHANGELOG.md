@@ -11239,6 +11239,14 @@
 - A lista reaproveita as opções já usadas pelo módulo de Compras, evitando criar uma fonte paralela ou alterar a lógica de cadastro.
 - Impacto esperado: deixar visível dentro das configurações de Produção quais embalagens de compra podem ser usadas no preenchimento dos insumos.
 
+## 2026-06-03 — Pedidos: ação explícita para estornar estoque de cancelado
+- Arquivos alterados: `public/admin.html`, `public/js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- Incluí o botão `Estornar estoque` no rodapé do modal de detalhes quando o pedido está cancelado.
+- A ação força a rotina de estorno das saídas de venda do pedido e informa se criou movimentos de `estorno_venda`, se o estoque já estava estornado ou se não encontrou saídas vinculadas ao pedido.
+- O objetivo é não depender apenas da troca de status para liberar itens presos no estoque quando pedidos antigos têm vínculos inconsistentes.
+- Atualizei o cache-buster de `pedidos.js` no Admin para carregar a nova ação publicada.
+- Impacto esperado: a usuária consegue resolver manualmente um pedido cancelado que manteve baixas presas no estoque, com retorno claro do que aconteceu.
+
 ## 2026-06-03 — Pedidos: reforço no estorno de estoque já cancelado
 - Arquivos alterados: `public/admin.html`, `public/js/modules/pedidos.js`, `AI_CHANGELOG.md`.
 - Reforcei o estorno de estoque para pedidos já cancelados: ao salvar um pedido que continua como `Cancelado`, o sistema tenta novamente sincronizar o estorno.

@@ -2546,6 +2546,26 @@ Modules.Pedidos = (function () {
     });
   }
 
+  function _forceOrderStockReversal(orderId) {
+    var order = (_orders || []).find(function (x) { return String(x.id || '') === String(orderId || ''); });
+    if (!order) {
+      UI.toast('Pedido não encontrado para estornar estoque.', 'error');
+      return;
+    }
+    _reverseOrderStockMovements(orderId, order, { force: true }).then(function (patch) {
+      if (patch && _num(patch.stockMovementReversalCount) > 0) {
+        UI.toast('Estorno de estoque criado: ' + patch.stockMovementReversalCount + ' movimento' + (patch.stockMovementReversalCount === 1 ? '' : 's') + '.', 'success');
+      } else if (patch && patch.stockMovementReversed) {
+        UI.toast('O estoque deste pedido já estava estornado.', 'info');
+      } else {
+        UI.toast('Nenhuma saída de estoque foi encontrada para este pedido.', 'info');
+      }
+      _refreshDetailView(orderId);
+    }).catch(function (err) {
+      UI.toast('Não foi possível estornar o estoque: ' + (err && err.message ? err.message : 'erro'), 'error');
+    });
+  }
+
   function _detailObservationBlocks(order) {
     var blocks = [];
     if (order.note) blocks.push({ label: 'Observación del cliente', text: order.note, color: '#FFF7ED' });
@@ -3204,9 +3224,13 @@ Modules.Pedidos = (function () {
       var stockResolutionButton = _canResolveOrderStock(o)
         ? '<button onclick="Modules.Pedidos._openOrderStockResolution(\'' + _esc(id) + '\')" style="height:40px;padding:0 14px;border:1px solid #EADFD8;border-radius:10px;background:#fff;color:#1F1F1F;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Retorno/perda</button>'
         : '';
+      var stockReversalButton = _statusCancelsStockMovement(o && o.status)
+        ? '<button onclick="Modules.Pedidos._forceOrderStockReversal(\'' + _esc(id) + '\')" style="height:40px;padding:0 14px;border:1px solid #F3D6C2;border-radius:10px;background:#FFF7F0;color:#9A3412;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;">Estornar estoque</button>'
+        : '';
       var footer = '<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;">' +
         '<button onclick="Modules.Pedidos._closeDetailModal()" style="height:40px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#1F1F1F;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Fechar</button>' +
         stockResolutionButton +
+        stockReversalButton +
         '<button onclick="Modules.Pedidos._sendDetailWhatsapp(\'' + _esc(id) + '\')" style="height:40px;padding:0 14px;border:none;border-radius:10px;background:#1A9E5A;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(26,158,90,.16);">Enviar WhatsApp</button>' +
         '<button onclick="Modules.Pedidos._saveDetail(\'' + _esc(id) + '\')" style="height:40px;padding:0 16px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(180,35,24,.16);">Salvar</button>' +
       '</div>';
@@ -7873,7 +7897,7 @@ Modules.Pedidos = (function () {
     _clearKitchenFilters: _clearKitchenFilters, _clearOrderFilters: _clearOrderFilters, _clearClientFilters: _clearClientFilters,
     _setReviewUi: _setReviewUi, _setReviewPage: _setReviewPage, _setReviewPageSize: _setReviewPageSize,
     _onDragStart: _onDragStart, _onDragEnd: _onDragEnd, _onDrop: _onDrop,
-    _openDetail: _openDetail, _toggleItem: _toggleItem, _removeDetailItem: _removeDetailItem, _openDetailChoicesModal: _openDetailChoicesModal, _saveDetailChoices: _saveDetailChoices, _closeDetailChoicesModal: _closeDetailChoicesModal, _formatDetailMoneyField: _formatDetailMoneyField, _saveDetail: _saveDetail,
+    _openDetail: _openDetail, _toggleItem: _toggleItem, _removeDetailItem: _removeDetailItem, _openDetailChoicesModal: _openDetailChoicesModal, _saveDetailChoices: _saveDetailChoices, _closeDetailChoicesModal: _closeDetailChoicesModal, _formatDetailMoneyField: _formatDetailMoneyField, _saveDetail: _saveDetail, _forceOrderStockReversal: _forceOrderStockReversal,
     _saveOrderCustomer: _saveOrderCustomer, _openOrderCustomerModal: _openOrderCustomerModal,
     _closeCustomerModal: _closeCustomerModal, _closeDetailModal: _closeDetailModal,
     _showDetailWhatsappPrompt: _showDetailWhatsappPrompt, _hideDetailWhatsappPrompt: _hideDetailWhatsappPrompt,
