@@ -1868,10 +1868,17 @@ Modules.Pedidos = (function () {
     '</div>';
   }
 
+  function _detailOriginSelectLine(order) {
+    return '<div style="display:grid;grid-template-columns:minmax(88px,.46fr) minmax(0,1fr);gap:10px;align-items:center;font-size:12px;line-height:1.35;color:#1F1F1F;min-width:0;">' +
+      '<label for="detail-sales-channel" style="color:#6F6860;min-width:0;">Origem</label>' +
+      '<div class="order-detail-field-control" style="padding:3px;border-radius:9px;"><select id="detail-sales-channel" aria-label="Origem do pedido" style="min-height:28px;font-size:12px;text-align:right;">' + _manualOrderChannelOptions(_firstText(order && order.channel, order && order.source, order && order.originChannel, order && order.originSource, 'manual')) + '</select></div>' +
+    '</div>';
+  }
+
   function _detailOrderMetaHTML(order) {
     var lines = [
       _detailSmallLine('Código público', _firstText(order && order.publicOrderCode, order && order.orderRef, order && order.orderNumber, '')),
-      _detailSmallLine('Origem', _orderChannelLabel(order)),
+      _detailOriginSelectLine(order),
       _detailSmallLine('Itens', order && order.itemCount ? String(order.itemCount) : ((order && order.items && order.items.length) ? String(order.items.length) : '')),
       _detailSmallLine('Estoque', _orderStockStatusText(order))
     ].filter(Boolean);
@@ -3105,7 +3112,6 @@ Modules.Pedidos = (function () {
             '</div>' +
             paymentBreakdownHTML +
             '<div class="order-detail-payment-grid">' +
-              '<div><label class="order-detail-label">Canal de venda</label><div class="order-detail-field-control"><select id="detail-sales-channel">' + _manualOrderChannelOptions(_firstText(o.channel, o.source, o.originChannel, o.originSource, 'manual')) + '</select></div></div>' +
               '<div><label class="order-detail-label">Forma de pagamento</label><div class="order-detail-field-control"><select id="detail-payment-method">' + _paymentMethodOptions(payment.method) + '</select></div></div>' +
               '<div><label class="order-detail-label">Status do pagamento</label><div class="order-detail-field-control"><select id="detail-payment-status" onchange="Modules.Pedidos._detailPaymentSync()">' + _paymentStatusOptions(payment.status || (payment.paid >= payment.total && payment.total > 0 ? 'pago' : payment.paid > 0 ? 'parcial' : 'previsto')) + '</select></div></div>' +
               '<div id="detail-paid-amount-box" class="order-detail-paid-field" style="display:' + (((payment.status || '').toLowerCase() === 'parcial') ? 'block' : 'none') + ';">' +

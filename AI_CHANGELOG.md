@@ -1,5 +1,13 @@
 # AI Changelog
 
+## 2026-06-03 — Pedidos: Origem editável no detalhe
+- Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Troquei a linha `Origem` do resumo no modal `Detalhes do pedido` por um seletor editável de canal.
+- Removi o seletor duplicado `Canal de venda` do card `Pagamento`, mantendo a edição no campo que a usuária já vê como origem do pedido.
+- Ao salvar, o mesmo fluxo existente atualiza `channel`, `source`, aliases de origem, categoria financeira herdada e taxas do canal.
+- Atualizei o cache-buster de `pedidos.js` no admin para forçar o carregamento da versão com `Origem` editável.
+- Impacto esperado: a usuária troca o canal diretamente em `Origem`, sem procurar outro campo no modal.
+
 ## 2026-06-03 — Admin: menu e cache das etapas/canal do pedido
 - Arquivos alterados: `public/admin.html`, `AI_CHANGELOG.md`.
 - Adicionei `Etapas de produção` no menu lateral de `Produção`, apontando para `receitas/etapas`.
