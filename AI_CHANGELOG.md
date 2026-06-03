@@ -1,5 +1,16 @@
 # AI Changelog
 
+## 2026-06-03 — Ficha técnica: campo Unidade e composição do custo
+- Arquivos alterados: `public/js/modules/catalogo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Removi o texto auxiliar `Herdada da etapa de produção.` do campo `Unidade` dentro da ficha técnica.
+- Aumentei a largura do campo `Unidade` no bloco da etapa/base para melhorar leitura e seleção.
+- Corrigi o cálculo ao vivo da `Composição do custo` para usar o rendimento real da etapa e a `Qtd. usada por unidade`, em vez de interpretar a quantidade usada como rendimento da etapa.
+- Ajustei a visualização da receita para mostrar a quantidade usada da etapa e corrigi parsing de números com vírgula no resumo/custo.
+- Revisei o bloco `Resultado da receita`: o rótulo `Por ...` agora respeita a unidade de rendimento (`unidade`, `kg`, `g`, `L`, `ml`) e o cálculo `Por kg/L` usa a base correta, inclusive quando a receita rende unidades com peso por unidade.
+- Quando uma etapa é adicionada à ficha, os ingredientes herdados da etapa passam a aparecer com quantidade proporcional à `Qtd. usada por unidade` e ficam sem edição direta; a quantidade original da etapa é preservada internamente para recalcular custo e estoque.
+- Atualizei o cache-buster de `catalogo.js` no Admin.
+- Impacto esperado: deixar o cadastro da ficha mais limpo e manter custo exibido, custo salvo e detalhe da receita com a mesma fórmula.
+
 ## 2026-06-03 — Produção/Estoque: mínimos sugeridos para ingredientes das etapas
 - Arquivos alterados: `public/js/modules/catalogo.js`, `public/js/modules/receitas.js`, `public/js/modules/estoque.js`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
 - A sincronização da ficha técnica passou a derivar também a necessidade mínima/máxima dos ingredientes e embalagens usados dentro das etapas de produção.
