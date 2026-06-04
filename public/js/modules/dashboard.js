@@ -23,6 +23,7 @@ Modules.Dashboard = (function () {
     monthScenario: null,
     channels: {},
     moneyConfig: {},
+    stockConfig: {},
     fiscalConfig: {},
     dominio: {},
     systemTenant: {},
@@ -105,6 +106,7 @@ Modules.Dashboard = (function () {
       _safeDocRoot('config', 'operacao'),
       _safeDocRoot('config', 'canais_venda'),
       _safeDocRoot('config', 'dinheiro'),
+      _safeDocRoot('config', 'estoque'),
       _safeDocRoot('config', 'fiscal'),
       _safeDocRoot('config', 'dominio'),
       _safeSystemTenant(),
@@ -127,14 +129,15 @@ Modules.Dashboard = (function () {
       _data.operacao = r[13] || {};
       _data.channels = r[14] || {};
       _data.moneyConfig = r[15] || {};
-      _data.fiscalConfig = r[16] || {};
-      _data.dominio = r[17] || {};
-      _data.systemTenant = r[18] || {};
-      _data.purchaseItems = Array.isArray(r[19]) ? r[19] : [];
-      _data.recipes = Array.isArray(r[20]) ? r[20] : [];
-      _data.purchases = Array.isArray(r[21]) ? r[21] : [];
-      _data.seasons = Array.isArray(r[22]) ? r[22] : [];
-      _data.stockMovements = Array.isArray(r[23]) ? r[23] : [];
+      _data.stockConfig = r[16] || {};
+      _data.fiscalConfig = r[17] || {};
+      _data.dominio = r[18] || {};
+      _data.systemTenant = r[19] || {};
+      _data.purchaseItems = Array.isArray(r[20]) ? r[20] : [];
+      _data.recipes = Array.isArray(r[21]) ? r[21] : [];
+      _data.purchases = Array.isArray(r[22]) ? r[22] : [];
+      _data.seasons = Array.isArray(r[23]) ? r[23] : [];
+      _data.stockMovements = Array.isArray(r[24]) ? r[24] : [];
       _loading = false;
       _loaded = true;
     }).catch(function (err) {
@@ -634,7 +637,7 @@ Modules.Dashboard = (function () {
   function _onboarding(vm) {
     var intro = _onboardingIntroState();
     if (!intro.welcomeSeen) return '';
-    if (vm.onboardingDone) return _continuousOnboarding(vm);
+    if (vm.onboardingDone) return '';
     var flat = _flattenOnboarding(vm.onboarding);
     var done = flat.filter(function (s) { return s.done; }).length;
     var total = flat.length || 1;
@@ -1661,6 +1664,29 @@ Modules.Dashboard = (function () {
         ],
         actions: ['Abra Performance no fim da semana.', 'Veja se o mês está dentro da rota.', 'Se estiver abaixo, abra Temporadas para escolher a próxima jogada.'],
         ready: 'Está pronto quando a rotina já alimenta uma leitura clara de crescimento.'
+      },
+      'Escolher regra inicial de estoque': {
+        icon: 'tune',
+        path: 'Caminho: Estoque > Configurações',
+        introHtml: '<div><strong style="color:#1F1F1F;">Esta é a última decisão do onboarding.</strong></div><div style="margin-top:7px;">Ela define se a loja vai travar venda quando o estoque calculado acabar ou se vai deixar a venda entrar mesmo sem saldo. Se a prioridade agora é <strong style="color:#1F1F1F;">começar a vender logo</strong>, a sugestão é deixar a loja mais flexível: permitir venda sem saldo e criar pendência para revisar depois. Quando o estoque estiver mais organizado, você pode voltar e mudar para bloquear quando zerar.</div>',
+        fields: [
+          ['Resumo no topo', '<strong style="color:#1F1F1F;">É só um espelho do que está ativo agora.</strong><br><br>Ele mostra duas coisas: como a loja pública se comporta antes da cliente finalizar o pedido e o que o BocaFood faz depois, quando a venda baixa estoque e algum item fica negativo.<br><br>Use esse resumo para conferir se a tela ficou do jeito que você queria antes de sair.', true],
+          ['Loja pública', '<strong style="color:#1F1F1F;">Mostra a regra que vale para a cliente no cardápio online.</strong><br><br>Se aparecer <strong style="color:#1F1F1F;">Bloqueia quando zerar</strong>, a cliente não consegue adicionar um produto calculável quando o saldo acabou.<br><br>Se aparecer <strong style="color:#1F1F1F;">Permite venda sem saldo</strong>, a cliente consegue comprar mesmo que o BocaFood ainda não enxergue saldo suficiente.', true],
+          ['Após a baixa', '<strong style="color:#1F1F1F;">Mostra o que acontece depois que a venda já entrou.</strong><br><br>Quando o pedido passa para a etapa que baixa estoque, o sistema tenta registrar a saída dos produtos, embalagens e itens ligados àquele pedido. Se algum item ficar negativo, essa regra decide se vira pendência, entrada automática ou só histórico.', true],
+          ['Passo 1: Venda sem saldo na loja', '<strong style="color:#1F1F1F;">Essa é a decisão antes da venda.</strong><br><br>Pense assim: a cliente está no cardápio tentando comprar. O BocaFood deve impedir se não tiver saldo calculado ou deve deixar o pedido entrar mesmo assim?<br><br>Essa regra não muda pedidos antigos. Ela orienta o comportamento da loja pública daqui para frente.', true],
+          ['Bloquear quando zerar', '<strong style="color:#1F1F1F;">Use quando você quer proteger o estoque em tempo real.</strong><br><br>Se o sistema entende que não existe saldo para vender aquele produto, a loja impede adicionar ao carrinho. É a opção mais segura quando o cadastro de produtos, receitas, embalagens, compras e produção já está bem organizado.<br><br><strong style="color:#1F1F1F;">Vantagem:</strong> evita vender algo que acabou.<br><strong style="color:#1F1F1F;">Cuidado:</strong> se o estoque ainda não foi alimentado direito, pode bloquear venda que você conseguiria atender.', true],
+          ['Permitir venda sem saldo', '<strong style="color:#1F1F1F;">Use quando você quer começar a vender já, mesmo sem estoque perfeito.</strong><br><br>A loja deixa a cliente comprar. Depois, quando o pedido baixar estoque, o BocaFood registra a falta para você não perder o histórico.<br><br><strong style="color:#1F1F1F;">Sugestão para começo:</strong> se você ainda está cadastrando compras, receitas e produção, deixe essa opção ligada. Assim o sistema não trava venda por falta de histórico.<br><strong style="color:#1F1F1F;">Cuidado:</strong> o estoque em tempo real fica menos confiável até você regularizar as entradas e compras.', true],
+          ['Produtos sob encomenda', '<strong style="color:#1F1F1F;">Eles não entram na mesma lógica de bloqueio.</strong><br><br>Produto sob encomenda depende de prazo de produção, não de saldo pronto na prateleira. Por isso, mesmo que a loja bloqueie produto sem saldo, o produto sob encomenda continua liberado dentro da regra de prazo configurada.', true],
+          ['Passo 2: Quando a baixa deixa saldo negativo', '<strong style="color:#1F1F1F;">Essa é a decisão depois da venda.</strong><br><br>Ela só entra em cena quando uma venda já foi aceita e, ao registrar a saída, algum item ficou sem saldo suficiente. Pode ser produto pronto, produto produzido, base de produção, ingrediente ou embalagem.', true],
+          ['Criar pendência', '<strong style="color:#1F1F1F;">É a opção recomendada para começar.</strong><br><br>Quando faltar saldo, o BocaFood coloca o item em Estoque > Regularizações para você revisar depois. Ele não inventa compra, não mexe no financeiro e não assume que a entrada aconteceu. Só deixa a falta visível.<br><br><strong style="color:#1F1F1F;">Use quando:</strong> você quer vender sem travar, mas ainda quer conferir depois o que precisa regularizar.', true],
+          ['Aplicar automaticamente', '<strong style="color:#1F1F1F;">É a opção mais prática, mas exige confiança no cadastro.</strong><br><br>Quando faltar saldo, o BocaFood cria uma entrada de regularização automaticamente junto com a saída da venda. Isso preserva o histórico, mas assume que aquela entrada existiu, mesmo sem você conferir item por item.<br><br><strong style="color:#1F1F1F;">Use quando:</strong> você já entende bem sua cadeia de estoque e prefere menos trabalho manual.', true],
+          ['Desligado', '<strong style="color:#1F1F1F;">É a opção mais livre, mas com menos ajuda do sistema.</strong><br><br>A venda registra a saída, mas o BocaFood não cria pendência e não cria entrada automática. Se faltar saldo, você vai precisar acompanhar olhando as movimentações e os saldos negativos.<br><br><strong style="color:#1F1F1F;">Use quando:</strong> você não quer que o sistema te lembre de regularizar agora.', true],
+          ['Ativo', 'Mostra qual opção está valendo neste momento. Se uma linha está marcada como Ativo, é ela que será usada na loja ou na regularização.'],
+          ['Selecionar', 'Aparece nas opções que não estão ativas. Clique em Selecionar para trocar a regra. Ao clicar, o BocaFood salva a escolha e a etapa do onboarding fica concluída.'],
+          ['Recomendação para começar vendendo', '<strong style="color:#1F1F1F;">Se você quer vender já, sem esperar estoque perfeito:</strong><br><br>1. Em <strong style="color:#1F1F1F;">Venda sem saldo na loja</strong>, escolha <strong style="color:#1F1F1F;">Permitir venda sem saldo</strong>.<br>2. Em <strong style="color:#1F1F1F;">Quando a baixa deixa saldo negativo</strong>, escolha <strong style="color:#1F1F1F;">Criar pendência</strong>.<br><br>Assim a loja não trava vendas por falta de cadastro completo, mas o sistema ainda guarda o que ficou para revisar depois. Quando compras, produção e receitas estiverem alimentadas com mais segurança, volte aqui e mude para <strong style="color:#1F1F1F;">Bloquear quando zerar</strong>, se fizer sentido.', true]
+        ],
+        actions: ['Se a prioridade é começar a vender já, selecione Permitir venda sem saldo.', 'Para manter controle sem automatizar demais, deixe Criar pendência como regra da regularização.', 'Volte nessa tela depois que compras, produção e estoque estiverem mais confiáveis.', 'Quando o estoque estiver organizado, você pode mudar para Bloquear quando zerar.'],
+        ready: 'Está pronto quando você salvou uma regra inicial para venda sem saldo e regularização. Para começar rápido, a combinação sugerida é Permitir venda sem saldo + Criar pendência.'
       }
     };
     return Object.assign(base, guides[title] || {});
@@ -2605,6 +2631,15 @@ Modules.Dashboard = (function () {
     var hasStockMovement = (_data.stockMovements || []).length > 0;
     var hasPurchaseStockEntry = (_data.stockMovements || []).some(function (m) { return String(m && m.type || '') === 'entrada_compra'; });
     var hasSaleStockExit = (_data.stockMovements || []).some(function (m) { return String(m && m.type || '') === 'saida_venda'; });
+    var stockConfig = _data.stockConfig || {};
+    var hasStockPolicy = stockConfig.stockOnboardingReviewed === true ||
+      stockConfig.onboardingStockConfigDone === true ||
+      stockConfig.stockPolicyReviewed === true ||
+      stockConfig.allowOutOfStockSales != null ||
+      stockConfig.sellWithoutStock != null ||
+      stockConfig.publicAllowOutOfStockSales != null ||
+      stockConfig.regularizationMode != null ||
+      stockConfig.stockRegularizationMode != null;
     var baseSteps = [
       { title: 'Preencher dados do negócio', text: 'Nome, contato e endereço para deixar tudo identificado.', icon: 'badge', route: 'configuracoes/geral', done: !!(g.businessName && (g.phone || g.whatsapp || g.email)) },
       { title: 'Criar canais de venda', text: 'Mostre de onde os pedidos chegam: cardápio, balcão, Instagram ou outro canal.', icon: 'storefront', route: 'configuracoes/canais_venda', done: hasSalesChannels },
@@ -2663,7 +2698,8 @@ Modules.Dashboard = (function () {
           { title: 'Acompanhar na cozinha', text: 'Veja preparo, entrega ou retirada sem perder observações.', icon: 'room_service', route: 'pedidos/cozinha', done: hasOpenOrder || hasOrder },
           { title: 'Conferir dinheiro da venda', text: 'Veja se a venda entrou no financeiro e em qual conta caiu.', icon: 'payments', route: 'financeiro/visao-geral', done: hasEntry || hasOrder },
           { title: 'Conferir estoque depois da venda', text: 'Veja se houve entrada, saída ou ajuste ligado à operação.', icon: 'inventory', route: 'estoque/itens', done: hasSaleStockExit || hasStockMovement },
-          { title: 'Olhar o crescimento da semana', text: 'Confira se a rotina começou a alimentar Performance e Temporadas.', icon: 'analytics', route: 'crescimento/performance', done: hasPlan && hasOrder }
+          { title: 'Olhar o crescimento da semana', text: 'Confira se a rotina começou a alimentar Performance e Temporadas.', icon: 'analytics', route: 'crescimento/performance', done: hasPlan && hasOrder },
+          { title: 'Escolher regra inicial de estoque', text: 'Se quer começar a vender já, deixe a loja vender sem controle rígido de estoque. Depois você pode mudar para bloquear quando o estoque estiver organizado.', icon: 'tune', route: 'estoque/configuracoes', done: hasStockPolicy }
         ]
       }
     ];

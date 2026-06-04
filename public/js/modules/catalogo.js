@@ -28,6 +28,7 @@ Modules.Catalogo = (function () {
   var _productView = { page: 1, pageSize: 12, sort: 'order', mode: 'list' };
   var _salesFilters = { q: '', period: '90', channel: 'todos', type: 'todos' };
   var _salesView = { page: 1, pageSize: 25 };
+  var _salesSearchTimer = null;
   var _catalogForecastData = { products: [], recipes: [], movements: [], variantGroups: [], readyItems: [], categories: [] };
   var _catalogForecastFilters = { q: '', status: 'todos' };
   var _catalogForecastView = { page: 1, pageSize: 25 };
@@ -378,7 +379,6 @@ Modules.Catalogo = (function () {
     var visibleProducts = _filterProductList(query);
     var paging = _productPaging(visibleProducts);
     var listMode = (_productView.mode || 'list') !== 'grid';
-    var bcgMetrics = _productBcgMetrics(_products || [], _orders || []);
     var filterCardStyle = 'background:linear-gradient(180deg,#FFFFFF 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.055);';
     var fieldStyle = 'padding:10px 12px;border:1px solid #E8DCD7;border-radius:12px;font-size:14px;font-family:inherit;outline:none;background:#FFFCF8;width:100%;box-sizing:border-box;color:#1F1F1F;box-shadow:inset 0 1px 0 rgba(255,255,255,.82);transition:border-color .15s ease,box-shadow .15s ease,background .15s ease;';
     var selectFieldStyle = fieldStyle + 'appearance:none;-webkit-appearance:none;-moz-appearance:none;padding-right:40px;';
@@ -398,7 +398,6 @@ Modules.Catalogo = (function () {
         var value = c.id || c.slug || c.name || '';
         return '<option value="' + _esc(value) + '"' + (_productFilters.category === String(value) ? ' selected' : '') + '>' + _esc(c.name || c.label || value || 'Categoria') + '</option>';
       }).join('');
-    var metricsHtml = _productBcgMetricsHtml(bcgMetrics);
     var clearFiltersHtml = (query || _hasActiveProductFilters() || _productView.sort !== 'order') ? '<div style="display:flex;justify-content:flex-start;margin-top:11px;"><button type="button" onclick="Modules.Catalogo._clearProductFilters()" style="height:36px;padding:0 13px;border:1px solid #EADFD8;border-radius:11px;background:#fff;color:#6F6860;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);">Limpar filtros</button></div>' : '';
     var filtersHtml = '<div style="' + filterCardStyle + '">' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:11px 12px;align-items:end;">' +
@@ -441,7 +440,6 @@ Modules.Catalogo = (function () {
           '<button type="button" onmouseenter="this.style.transform=\'translateY(-1px)\';this.style.boxShadow=\'0 8px 18px rgba(180,35,24,.20)\';" onmouseleave="this.style.transform=\'none\';this.style.boxShadow=\'0 4px 12px rgba(180,35,24,.18)\';" onclick="Modules.Catalogo._openProductModal(null)" class="bf-btn-primary" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);">Adicionar produto</button>' +
         '</div>' +
       '</div>' +
-      metricsHtml +
       filtersHtml +
       bodyHtml +
     '</div>';
@@ -1080,6 +1078,40 @@ Modules.Catalogo = (function () {
     });
   }
 
+  function _catalogSalesStyles() {
+    return '<style>' +
+      '.catalog-sales-page{display:flex;flex-direction:column;gap:16px;}' +
+      '.catalog-sales-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;}' +
+      '.catalog-sales-title{font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;line-height:1.15;}' +
+      '.catalog-sales-subtitle{font-size:13px;color:#6F6860;line-height:1.5;margin:0;max-width:760px;}' +
+      '.catalog-sales-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;}' +
+      '.catalog-sales-card{background:#fff;border-radius:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);border:1px solid #EAE4DA;padding:15px;display:flex;gap:12px;align-items:flex-start;min-width:0;transition:transform .16s ease,box-shadow .16s ease;}' +
+      '.catalog-sales-card:hover{transform:translateY(-2px);box-shadow:0 16px 34px rgba(31,31,31,.09);}' +
+      '.catalog-sales-card-icon{width:42px;height:42px;border-radius:14px;background:#FFF5F3;color:#B42318;display:flex;align-items:center;justify-content:center;flex:0 0 auto;}' +
+      '.catalog-sales-card-label{font-size:11px;font-weight:700;color:#6F6860;line-height:1.25;}' +
+      '.catalog-sales-card-value{font-size:23px;font-weight:750;color:#1F1F1F;line-height:1.12;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
+      '.catalog-sales-card-hint{font-size:11px;color:#8A7E7C;line-height:1.35;margin-top:4px;}' +
+      '.production-orders-filter{background:linear-gradient(180deg,#FFFFFF 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.055);}' +
+      '.production-orders-filter-grid{display:grid;grid-template-columns:minmax(260px,1fr) minmax(180px,240px) minmax(190px,260px);gap:11px 12px;align-items:end;}' +
+      '.production-orders-field{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:0 12px;min-height:42px;display:flex;align-items:center;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;}' +
+      '.production-orders-field:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
+      '.production-orders-field input,.production-orders-field select{width:100%;height:40px;border:0;background:transparent;outline:none;font-size:14px;font-family:inherit;color:#1F1F1F;box-sizing:border-box;}' +
+      '.production-orders-field select{appearance:none;-webkit-appearance:none;-moz-appearance:none;padding-right:30px;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 4px center;background-size:14px;}' +
+      '.production-orders-filter-actions{display:flex;justify-content:flex-start;margin-top:11px;}' +
+      '.production-orders-clear{height:36px;padding:0 13px;border:1px solid #EADFD8;border-radius:11px;background:#fff;color:#6F6860;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);}' +
+      '.production-orders-table-card{background:#fff;border:1px solid #EADFD8;border-radius:18px;box-shadow:0 12px 30px rgba(31,31,31,.055);overflow:hidden;}' +
+      '.production-orders-table-wrap{overflow-x:auto;}' +
+      '.production-orders-table{width:100%;border-collapse:separate;border-spacing:0;min-width:920px;}' +
+      '.production-orders-table th{padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;text-align:left;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;}' +
+      '.production-orders-table th:last-child{text-align:right;}' +
+      '.production-orders-table td{padding:14px 16px;vertical-align:middle;border-bottom:1px solid #EADFD8;}' +
+      '.production-orders-table tbody tr{cursor:pointer;background:#fff;transition:background .15s ease,box-shadow .15s ease;}' +
+      '.production-orders-table tbody tr:hover{background:#FFFCF8;}' +
+      '.production-orders-page-select{width:110px;height:34px;padding:0 34px 0 10px;border:1px solid #E8DCD7;border-radius:10px;font-size:12px;font-family:inherit;outline:none;background:#FFFCF8;color:#6F6860;box-sizing:border-box;appearance:none;-webkit-appearance:none;-moz-appearance:none;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 12px center;background-size:14px;}' +
+      '@media(max-width:820px){.production-orders-filter-grid{grid-template-columns:1fr!important}.catalog-sales-cards{grid-template-columns:1fr}}' +
+    '</style>';
+  }
+
   function _paintVendasCardapio() {
     var content = document.getElementById('catalogo-content');
     if (!content) return;
@@ -1088,6 +1120,7 @@ Modules.Catalogo = (function () {
     var paging = _catalogSalesPaging(filtered);
     var summary = _catalogSalesSummary(filtered);
     var channels = _catalogSalesChannelOptions(data.rows);
+    var bcgMetrics = _productBcgMetrics(_products || [], _orders || []);
     var periodOptions = [
       { value: '30', label: 'Últimos 30 dias' },
       { value: '90', label: 'Últimos 90 dias' },
@@ -1104,20 +1137,25 @@ Modules.Catalogo = (function () {
     var channelOptions = '<option value="todos"' + (_salesFilters.channel === 'todos' ? ' selected' : '') + '>Todos os canais</option>' + channels.map(function (channel) {
       return '<option value="' + _esc(channel) + '"' + (_salesFilters.channel === channel ? ' selected' : '') + '>' + _esc(channel) + '</option>';
     }).join('');
-    var fieldStyle = 'height:40px;width:100%;box-sizing:border-box;border:1px solid #E8DCD7;border-radius:12px;background:#FFFCF8;color:#1F1F1F;font-size:13px;font-family:inherit;outline:none;padding:0 12px;';
-    var selectStyle = fieldStyle + 'appearance:none;-webkit-appearance:none;-moz-appearance:none;padding-right:38px;';
-    var arrow = '<span class="mi" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:18px;color:#8A7E7C;pointer-events:none;">expand_more</span>';
+    var hasFilters = (_salesFilters.q || '') || _salesFilters.period !== '90' || _salesFilters.channel !== 'todos' || _salesFilters.type !== 'todos';
     var cards = [
-      { label: 'Faturamento do cardápio', value: _fmtMoneyDisplay(summary.revenue), icon: 'payments', hint: summary.orders + ' pedidos com item vendido' },
-      { label: 'Itens vendidos', value: String(_roundDisplay(summary.qty)), icon: 'shopping_bag', hint: summary.rows + ' linhas comerciais' },
-      { label: 'Ticket por item', value: _fmtMoneyDisplay(summary.avgLine), icon: 'receipt_long', hint: 'média por linha do cardápio' },
-      { label: 'Mais vendido', value: summary.topName || 'Sem base', icon: 'leaderboard', hint: summary.topQty ? _roundDisplay(summary.topQty) + ' vendidos' : 'aguardando pedidos' }
+      { label: 'Dinheiro que veio do cardápio', value: _fmtMoneyDisplay(summary.revenue), icon: 'payments', hint: summary.orders + ' pedidos entram nesta leitura' },
+      { label: 'Itens vendidos', value: String(_roundDisplay(summary.qty)), icon: 'shopping_bag', hint: 'quantidade vendida no período' },
+      { label: 'Valor médio por item', value: _fmtMoneyDisplay(summary.avgLine), icon: 'receipt_long', hint: 'ajuda a enxergar ticket e mix' },
+      { label: 'Preferido das clientes', value: summary.topName || 'Sem vendas ainda', icon: 'leaderboard', hint: summary.topQty ? _roundDisplay(summary.topQty) + ' vendidos' : 'assim que vender, aparece aqui' }
     ].map(function (card) {
-      return '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:16px;padding:15px;box-shadow:0 10px 24px rgba(31,31,31,.045);display:flex;gap:12px;align-items:flex-start;min-width:0;">' +
-        '<div style="width:38px;height:38px;border-radius:13px;background:#FFF5F3;color:#B42318;display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span class="mi" style="font-size:20px;">' + _esc(card.icon) + '</span></div>' +
-        '<div style="min-width:0;"><div style="font-size:11px;font-weight:700;color:#6F6860;line-height:1.25;">' + _esc(card.label) + '</div><div style="font-size:21px;font-weight:750;color:#1F1F1F;line-height:1.15;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(card.value) + '</div><div style="font-size:11px;color:#8A7E7C;line-height:1.35;margin-top:4px;">' + _esc(card.hint) + '</div></div>' +
+      return '<div class="catalog-sales-card">' +
+        '<div class="catalog-sales-card-icon"><span class="mi" style="font-size:21px;">' + _esc(card.icon) + '</span></div>' +
+        '<div style="min-width:0;"><div class="catalog-sales-card-label">' + _esc(card.label) + '</div><div class="catalog-sales-card-value">' + _esc(card.value) + '</div><div class="catalog-sales-card-hint">' + _esc(card.hint) + '</div></div>' +
       '</div>';
     }).join('');
+    var bcgHtml = '<section style="' + _cardStyle() + 'padding:16px 18px;">' +
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px;">' +
+        '<div style="min-width:0;"><h3 style="margin:0;font-size:15px;font-weight:800;color:#1F1F1F;">O que merece mais atenção</h3><p style="margin:4px 0 0;font-size:12px;color:#6F6860;line-height:1.45;max-width:760px;">Mostra o que está vendendo bem, o que segura o caixa, o que pode ganhar mais destaque e o que talvez precise de ajuste.</p></div>' +
+        '<span style="display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:999px;background:#FFF5F3;color:#B42318;font-size:11px;font-weight:750;white-space:nowrap;"><span class="mi" style="font-size:16px;">insights</span> Olhar de venda</span>' +
+      '</div>' +
+      _productBcgMetricsHtml(bcgMetrics) +
+    '</section>';
     var ranking = _catalogSalesRanking(filtered).slice(0, 8);
     var rankingHtml = ranking.length ? ranking.map(function (row, idx) {
       return '<div style="display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid #F0E7E2;">' +
@@ -1127,45 +1165,46 @@ Modules.Catalogo = (function () {
       '</div>';
     }).join('') : '<div style="padding:18px;color:#8A7E7C;font-size:13px;text-align:center;">Sem vendas para este filtro.</div>';
     var tableRows = paging.items.map(_catalogSalesTableRowHtml).join('');
-    var emptyHtml = !paging.items.length ? '<tr><td colspan="7" style="padding:28px;text-align:center;color:#8A7E7C;font-size:13px;">Nenhuma venda do cardápio encontrada para os filtros atuais.</td></tr>' : '';
+    var emptyHtml = !paging.items.length ? '<tr><td colspan="7" style="padding:28px;text-align:center;color:#8A7E7C;font-size:13px;">Nenhuma venda encontrada com esses filtros.</td></tr>' : '';
     var pageSizeOptions = [10, 25, 50, 100].map(function (n) { return '<option value="' + n + '"' + (Number(_salesView.pageSize) === n ? ' selected' : '') + '>' + n + ' / pág.</option>'; }).join('');
     var paginationHtml = paging.total ? '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:14px 16px;border-top:1px solid #EAE4DA;">' +
       '<span style="font-size:12px;color:#6F6860;">Mostrando <strong style="color:#1F1F1F;">' + paging.start + '</strong> a <strong style="color:#1F1F1F;">' + paging.end + '</strong> de <strong style="color:#1F1F1F;">' + paging.total + '</strong></span>' +
       '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
-        '<span style="position:relative;display:inline-block;width:110px;"><select onchange="Modules.Catalogo._setCatalogSalesPageSize(this.value)" style="width:110px;height:34px;padding:0 32px 0 10px;border:1px solid #E8DCD7;border-radius:10px;font-size:12px;font-family:inherit;outline:none;background:#FFFCF8;color:#6F6860;box-sizing:border-box;appearance:none;-webkit-appearance:none;-moz-appearance:none;">' + pageSizeOptions + '</select><span class="mi" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:18px;color:#8A7E7C;pointer-events:none;">expand_more</span></span>' +
+        '<select class="production-orders-page-select" onchange="Modules.Catalogo._setCatalogSalesPageSize(this.value)">' + pageSizeOptions + '</select>' +
         '<button type="button" onclick="Modules.Catalogo._setCatalogSalesPage(' + (paging.page - 1) + ')" style="height:34px;padding:0 11px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#6F6860;font-size:12px;cursor:' + (paging.page > 1 ? 'pointer' : 'not-allowed') + ';opacity:' + (paging.page > 1 ? '1' : '.45') + ';"' + (paging.page > 1 ? '' : ' disabled') + '>Anterior</button>' +
         '<span style="font-size:12px;color:#8A7E7C;">' + paging.page + ' / ' + paging.totalPages + '</span>' +
         '<button type="button" onclick="Modules.Catalogo._setCatalogSalesPage(' + (paging.page + 1) + ')" style="height:34px;padding:0 11px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#6F6860;font-size:12px;cursor:' + (paging.page < paging.totalPages ? 'pointer' : 'not-allowed') + ';opacity:' + (paging.page < paging.totalPages ? '1' : '.45') + ';"' + (paging.page < paging.totalPages ? '' : ' disabled') + '>Próxima</button>' +
       '</div>' +
     '</div>' : '';
-    content.innerHTML = '<div class="bf-page" style="display:flex;flex-direction:column;gap:16px;">' +
-      '<div class="bf-page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
-        '<div style="min-width:0;flex:1 1 460px;"><h2 style="font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;line-height:1.2;">Vendas do cardápio</h2><p style="font-size:13px;color:#6F6860;line-height:1.5;margin:0;max-width:760px;">Leitura comercial por item vendido no cardápio. Esta tabela mostra o menu/produto vendido para estratégia; a baixa de estoque continua separada em Estoque.</p></div>' +
+    content.innerHTML = _catalogSalesStyles() + '<div class="bf-page catalog-sales-page">' +
+      '<div class="bf-page-header catalog-sales-head">' +
+        '<div style="min-width:0;flex:1 1 460px;"><h2 class="catalog-sales-title">Vendas do cardápio</h2><p class="catalog-sales-subtitle">Veja quais produtos, menus e combinações estão trazendo dinheiro para o negócio. Use esta tela para decidir o que destacar, ajustar preço, testar promoção ou tirar de foco.</p></div>' +
       '</div>' +
-      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;">' + cards + '</div>' +
-      '<section style="' + _cardStyle() + 'padding:16px;">' +
-        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:11px;align-items:end;">' +
-          '<label style="display:block;min-width:0;"><span style="display:block;font-size:11px;font-weight:700;color:#6F6860;margin-bottom:5px;">Buscar</span><input type="search" value="' + _esc(_salesFilters.q || '') + '" placeholder="Produto, pedido ou cliente" oninput="Modules.Catalogo._setCatalogSalesFilter(\'q\',this.value)" style="' + fieldStyle + '"></label>' +
-          '<label style="display:block;min-width:0;"><span style="display:block;font-size:11px;font-weight:700;color:#6F6860;margin-bottom:5px;">Período</span><span style="position:relative;display:block;"><select onchange="Modules.Catalogo._setCatalogSalesFilter(\'period\',this.value)" style="' + selectStyle + '">' + periodOptions + '</select>' + arrow + '</span></label>' +
-          '<label style="display:block;min-width:0;"><span style="display:block;font-size:11px;font-weight:700;color:#6F6860;margin-bottom:5px;">Canal</span><span style="position:relative;display:block;"><select onchange="Modules.Catalogo._setCatalogSalesFilter(\'channel\',this.value)" style="' + selectStyle + '">' + channelOptions + '</select>' + arrow + '</span></label>' +
-          '<label style="display:block;min-width:0;"><span style="display:block;font-size:11px;font-weight:700;color:#6F6860;margin-bottom:5px;">Tipo</span><span style="position:relative;display:block;"><select onchange="Modules.Catalogo._setCatalogSalesFilter(\'type\',this.value)" style="' + selectStyle + '">' + typeOptions + '</select>' + arrow + '</span></label>' +
-          '<button type="button" onclick="Modules.Catalogo._clearCatalogSalesFilters()" style="height:40px;padding:0 14px;border:1px solid #EADFD8;border-radius:12px;background:#fff;color:#6F6860;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;">Limpar filtros</button>' +
+      '<div class="catalog-sales-cards">' + cards + '</div>' +
+      bcgHtml +
+      '<section class="production-orders-filter">' +
+        '<div class="production-orders-filter-grid" style="grid-template-columns:minmax(260px,1fr) minmax(155px,190px) minmax(170px,230px) minmax(170px,230px);">' +
+          '<label style="display:block;min-width:0;"><span style="display:block;font-size:11px;font-weight:700;color:#6F6860;margin-bottom:5px;">Buscar</span><span class="production-orders-field"><input type="search" value="' + _esc(_salesFilters.q || '') + '" placeholder="Produto, pedido ou cliente" autocomplete="off" spellcheck="false" oninput="Modules.Catalogo._setCatalogSalesSearch(this.value)"></span></label>' +
+          '<label style="display:block;min-width:0;"><span style="display:block;font-size:11px;font-weight:700;color:#6F6860;margin-bottom:5px;">Período</span><span class="production-orders-field"><select onchange="Modules.Catalogo._setCatalogSalesFilter(\'period\',this.value)">' + periodOptions + '</select></span></label>' +
+          '<label style="display:block;min-width:0;"><span style="display:block;font-size:11px;font-weight:700;color:#6F6860;margin-bottom:5px;">Canal</span><span class="production-orders-field"><select onchange="Modules.Catalogo._setCatalogSalesFilter(\'channel\',this.value)">' + channelOptions + '</select></span></label>' +
+          '<label style="display:block;min-width:0;"><span style="display:block;font-size:11px;font-weight:700;color:#6F6860;margin-bottom:5px;">Tipo</span><span class="production-orders-field"><select onchange="Modules.Catalogo._setCatalogSalesFilter(\'type\',this.value)">' + typeOptions + '</select></span></label>' +
         '</div>' +
+        (hasFilters ? '<div class="production-orders-filter-actions"><button type="button" class="production-orders-clear" onclick="Modules.Catalogo._clearCatalogSalesFilters()">Limpar filtros</button></div>' : '') +
       '</section>' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:16px;align-items:start;">' +
-        '<section style="' + _cardStyle() + 'padding:0;overflow:hidden;">' +
-          '<div style="padding:16px 18px;border-bottom:1px solid #EAE4DA;"><h3 style="margin:0;font-size:15px;font-weight:700;color:#1F1F1F;">Tabela comercial</h3><p style="margin:4px 0 0;font-size:12px;color:#6F6860;line-height:1.4;">Uma linha por item vendido dentro do pedido.</p></div>' +
-          '<div style="overflow:auto;"><table style="width:100%;border-collapse:collapse;min-width:900px;"><thead><tr style="background:#FFFCF8;border-bottom:1px solid #EAE4DA;">' +
-            '<th style="text-align:left;padding:11px 14px;font-size:11px;color:#6F6860;font-weight:750;">Data</th>' +
-            '<th style="text-align:left;padding:11px 14px;font-size:11px;color:#6F6860;font-weight:750;">Produto do cardápio</th>' +
-            '<th style="text-align:left;padding:11px 14px;font-size:11px;color:#6F6860;font-weight:750;">Pedido</th>' +
-            '<th style="text-align:left;padding:11px 14px;font-size:11px;color:#6F6860;font-weight:750;">Canal</th>' +
-            '<th style="text-align:right;padding:11px 14px;font-size:11px;color:#6F6860;font-weight:750;">Qtd.</th>' +
-            '<th style="text-align:right;padding:11px 14px;font-size:11px;color:#6F6860;font-weight:750;">Total</th>' +
-            '<th style="text-align:left;padding:11px 14px;font-size:11px;color:#6F6860;font-weight:750;">Status</th>' +
+        '<section class="production-orders-table-card">' +
+          '<div style="padding:16px 18px;border-bottom:1px solid #EAE4DA;"><h3 style="margin:0;font-size:15px;font-weight:700;color:#1F1F1F;">Vendas item por item</h3><p style="margin:4px 0 0;font-size:12px;color:#6F6860;line-height:1.4;">Aqui dá para ver o que saiu em cada pedido e de onde veio a venda.</p></div>' +
+          '<div class="production-orders-table-wrap"><table class="bf-table production-orders-table"><thead><tr>' +
+            '<th>Data</th>' +
+            '<th>Produto vendido</th>' +
+            '<th>Pedido</th>' +
+            '<th>Canal</th>' +
+            '<th>Status</th>' +
+            '<th style="text-align:right;">Qtd.</th>' +
+            '<th>Total</th>' +
           '</tr></thead><tbody>' + tableRows + emptyHtml + '</tbody></table></div>' + paginationHtml +
         '</section>' +
-        '<section style="' + _cardStyle() + 'padding:16px 18px;"><h3 style="margin:0;font-size:15px;font-weight:700;color:#1F1F1F;">Ranking do cardápio</h3><p style="margin:4px 0 8px;font-size:12px;color:#6F6860;line-height:1.4;">Agrupado pelo produto/menu vendido, não pelo item de estoque.</p>' + rankingHtml + '</section>' +
+        '<section class="production-orders-table-card" style="padding:16px 18px;"><h3 style="margin:0;font-size:15px;font-weight:700;color:#1F1F1F;">Mais vendidos</h3><p style="margin:4px 0 8px;font-size:12px;color:#6F6860;line-height:1.4;">Ajuda a enxergar o que merece destaque na vitrine e nas campanhas.</p>' + rankingHtml + '</section>' +
       '</div>' +
     '</div>';
   }
@@ -1863,15 +1902,25 @@ Modules.Catalogo = (function () {
   function _catalogSalesTableRowHtml(row) {
     var date = row.date ? row.date.toLocaleDateString('pt-PT') : 'Sem data';
     var choices = row.choicesText ? '<div style="font-size:11px;color:#8A7E7C;line-height:1.35;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:340px;">' + _esc(row.choicesText) + '</div>' : '';
-    return '<tr style="border-bottom:1px solid #F0E7E2;background:#fff;">' +
-      '<td style="padding:12px 14px;vertical-align:top;font-size:12px;color:#6F6860;white-space:nowrap;">' + _esc(date) + '</td>' +
-      '<td style="padding:12px 14px;vertical-align:top;min-width:260px;"><div style="font-size:13px;font-weight:650;color:#1F1F1F;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:360px;">' + _esc(row.productName) + '</div><div style="font-size:11px;color:#6F6860;margin-top:2px;">' + _esc(row.productTypeLabel) + '</div>' + choices + '</td>' +
-      '<td style="padding:12px 14px;vertical-align:top;"><div style="font-size:12px;font-weight:650;color:#1F1F1F;white-space:nowrap;">' + _esc(row.orderNumber || row.orderId || 'Pedido') + '</div><div style="font-size:11px;color:#6F6860;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;">' + _esc(row.customer || 'Cliente não informado') + '</div></td>' +
-      '<td style="padding:12px 14px;vertical-align:top;font-size:12px;color:#6F6860;white-space:nowrap;">' + _esc(row.channel || 'Cardápio') + '</td>' +
-      '<td style="padding:12px 14px;vertical-align:top;text-align:right;font-size:13px;font-weight:650;color:#1F1F1F;white-space:nowrap;">' + _roundDisplay(row.qty) + '</td>' +
-      '<td style="padding:12px 14px;vertical-align:top;text-align:right;font-size:13px;font-weight:700;color:#1F1F1F;white-space:nowrap;">' + _fmtMoneyDisplay(row.total) + '</td>' +
-      '<td style="padding:12px 14px;vertical-align:top;font-size:12px;color:#6F6860;white-space:nowrap;">' + _esc(row.status || '') + '</td>' +
+    return '<tr>' +
+      '<td style="font-size:12px;color:#6F6860;white-space:nowrap;">' + _esc(date) + '</td>' +
+      '<td style="min-width:260px;"><div style="font-size:13px;font-weight:650;color:#1F1F1F;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:360px;">' + _esc(row.productName) + '</div><div style="font-size:11px;color:#6F6860;margin-top:2px;">' + _esc(row.productTypeLabel) + '</div>' + choices + '</td>' +
+      '<td><div style="font-size:12px;font-weight:650;color:#1F1F1F;white-space:nowrap;">' + _esc(row.orderNumber || row.orderId || 'Pedido') + '</div><div style="font-size:11px;color:#6F6860;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;">' + _esc(row.customer || 'Cliente não informado') + '</div></td>' +
+      '<td style="font-size:12px;color:#6F6860;white-space:nowrap;">' + _esc(row.channel || 'Cardápio') + '</td>' +
+      '<td style="font-size:12px;color:#6F6860;white-space:nowrap;">' + _esc(row.status || '') + '</td>' +
+      '<td style="text-align:right;font-size:13px;font-weight:650;color:#1F1F1F;white-space:nowrap;">' + _roundDisplay(row.qty) + '</td>' +
+      '<td style="text-align:right;font-size:13px;font-weight:700;color:#1F1F1F;white-space:nowrap;">' + _fmtMoneyDisplay(row.total) + '</td>' +
     '</tr>';
+  }
+
+  function _setCatalogSalesSearch(value) {
+    _salesFilters.q = String(value || '');
+    _salesView.page = 1;
+    if (_salesSearchTimer) clearTimeout(_salesSearchTimer);
+    _salesSearchTimer = setTimeout(function () {
+      _salesSearchTimer = null;
+      _paintVendasCardapio();
+    }, 160);
   }
 
   function _roundDisplay(value) {
@@ -11730,7 +11779,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     _connectCheckoutStripe: _connectCheckoutStripe,
     _clearStoreImage: _clearStoreImage,
     _openProductModal: _openProductModal, _toggleVis: _toggleVis, _saveProduct: _saveProduct, _deleteProduct: _deleteProduct, _duplicateProduct: _duplicateProduct, _openImportProducts: _openImportProducts, _filterProdutos: _filterProdutos, _setProductFilter: _setProductFilter, _setProductSort: _setProductSort, _setProductPage: _setProductPage, _setProductPageSize: _setProductPageSize, _clearProductFilters: _clearProductFilters, _quickUpdateProduct: _quickUpdateProduct, _moveProductInCategory: _moveProductInCategory,
-    _setCatalogSalesFilter: _setCatalogSalesFilter, _clearCatalogSalesFilters: _clearCatalogSalesFilters, _setCatalogSalesPage: _setCatalogSalesPage, _setCatalogSalesPageSize: _setCatalogSalesPageSize,
+    _setCatalogSalesFilter: _setCatalogSalesFilter, _setCatalogSalesSearch: _setCatalogSalesSearch, _clearCatalogSalesFilters: _clearCatalogSalesFilters, _setCatalogSalesPage: _setCatalogSalesPage, _setCatalogSalesPageSize: _setCatalogSalesPageSize,
     _setCatalogForecastFilter: _setCatalogForecastFilter, _clearCatalogForecastFilters: _clearCatalogForecastFilters, _setCatalogForecastPage: _setCatalogForecastPage, _setCatalogForecastPageSize: _setCatalogForecastPageSize, _openCatalogForecastDetails: _openCatalogForecastDetails,
     _openProductsMoreFilters: _openProductsMoreFilters,
     _onProductNameChange: _onProductNameChange, _onProductDescChange: _onProductDescChange, _onProductMadeToOrderChange: _onProductMadeToOrderChange, _refreshProductPreview: _refreshProductPreview, _moneyInputFocus: _moneyInputFocus, _moneyInputBlur: _moneyInputBlur,

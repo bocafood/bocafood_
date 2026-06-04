@@ -1,5 +1,28 @@
 # AI Changelog
 
+## 2026-06-04 — Cardápio: Matriz BCG em Vendas
+- Arquivos alterados: `public/js/modules/catalogo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Movi a Matriz BCG do topo de `Cardápio → Produtos` para `Cardápio → Vendas do cardápio`.
+- Mantive o mesmo cálculo dos últimos 30 dias contra os 30 dias anteriores, agora apresentado como leitura estratégica de venda junto dos KPIs, tabela comercial e ranking do cardápio.
+- A aba `Produtos` volta a ficar focada em cadastro, filtros, ordenação e organização dos itens que aparecem na loja pública.
+- Ajustei `Vendas do cardápio` para usar o padrão visual de filtro e listagem de `Produção → Ordens de produção`.
+- Os cards de resumo passaram a seguir uma leitura mais próxima dos cards do cardápio, com linguagem voltada para decisão do negócio.
+- Troquei copies técnicas por textos mais diretos sobre venda, destaque, preço, promoção e foco dos produtos.
+- A busca da aba agora usa pequeno debounce para evitar repintar a listagem a cada tecla digitada.
+- Atualizei o cache-buster de `catalogo.js` no Admin.
+
+## 2026-06-04 — Estoque: configurações mais guiadas
+- Arquivos alterados: `public/js/modules/estoque.js`, `public/js/modules/dashboard.js`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Reorganizei `Estoque → Configurações` em uma leitura guiada com resumo do estado atual, passo 1 para `Venda sem saldo na loja` e passo 2 para `Quando a baixa deixa saldo negativo`.
+- Reescrevi as copies para explicar quando cada regra age: antes do pedido na loja pública ou depois da venda no histórico do estoque.
+- Ajustei os cards e botões de escolha para ficarem mais próximos do padrão usado nas telas de configuração do Admin, com radio visual, estado ativo claro e notas de impacto.
+- Incluí `Escolher regra inicial de estoque` como a última etapa do onboarding/checklist, apontando para `Estoque → Configurações`.
+- O guia dessa etapa explica cada campo/opção em linguagem prática e recomenda, para quem quer começar a vender já, usar `Permitir venda sem saldo` + `Criar pendência`, podendo mudar depois para bloqueio por saldo.
+- Ao salvar qualquer escolha de venda sem saldo ou regularização, `config/estoque` passa a marcar a etapa de onboarding de estoque como revisada.
+- Ajustei o Dashboard para remover completamente o checklist flutuante quando todas as etapas do onboarding inicial estão concluídas, sem trocar por outro card flutuante de rotina.
+- Não alterei a lógica salva em `config/estoque`; a mudança é de organização, copy e apresentação.
+- Atualizei os cache-busters de `estoque.js` e `dashboard.js` no Admin.
+
 ## 2026-06-04 — Produção e Cardápio: previsão no módulo correto
 - Arquivos alterados: `public/js/modules/receitas.js`, `public/js/modules/catalogo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - Ajustei `Produção → Bases de produção` para seguir o mesmo padrão visual de `Produção → Ordens de produção`.

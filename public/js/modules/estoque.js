@@ -539,24 +539,42 @@ Modules.Estoque = (function () {
   function _regularizationConfigHtml() {
     var mode = _regularizationMode();
     var allowOutOfStock = _allowOutOfStockSales();
-    return '<section class="stock-config-card">' +
-      '<div class="stock-config-card-head">' +
-        '<div><div class="stock-config-card-title">Comportamento da regularização</div><div class="stock-config-card-desc">Escolha o que acontece quando qualquer saída deixar o estoque negativo.</div></div>' +
-      '</div>' +
-      '<div class="stock-config-list">' +
-        _regularizationModeOption('pendencia', mode, 'Criar pendência', 'Registra a falta para revisar depois. É o modo mais seguro.') +
-        _regularizationModeOption('automatico', mode, 'Aplicar automaticamente', 'Cria entrada de regularização junto com a saída da venda.') +
-        _regularizationModeOption('desligado', mode, 'Desligado', 'Mantém a saída, mas não gera pendência nem entrada de regularização.') +
-      '</div>' +
-      '<div class="stock-config-divider"></div>' +
-      '<div class="stock-config-card-head">' +
-        '<div><div class="stock-config-card-title">Venda sem saldo na loja</div><div class="stock-config-card-desc">Produtos sob encomenda continuam liberados. Para os demais, escolha se a loja pública bloqueia quando o saldo calculado acabar.</div></div>' +
-      '</div>' +
-      '<div class="stock-config-list">' +
-        _outOfStockModeOption(false, allowOutOfStock, 'Bloquear quando zerar', 'A loja impede adicionar produto calculável sem saldo. É o padrão seguro.') +
-        _outOfStockModeOption(true, allowOutOfStock, 'Permitir venda sem saldo', 'A loja aceita a venda. A baixa posterior segue a regra de regularização acima.') +
-      '</div>' +
-    '</section>';
+    return '<div class="stock-config-layout">' +
+      '<section class="stock-config-intro">' +
+        '<div class="stock-config-eyebrow">Decisão principal</div>' +
+        '<h3>Como o estoque deve se comportar quando falta saldo?</h3>' +
+        '<p>Configure primeiro se a loja pode vender sem saldo. Se a venda passar e a baixa deixar algum item negativo, escolha se o sistema cria uma pendência, regulariza sozinho ou só registra a saída.</p>' +
+        '<div class="stock-config-state-grid">' +
+          '<div><span>Loja pública</span><strong>' + _esc(allowOutOfStock ? 'Permite venda sem saldo' : 'Bloqueia quando zerar') + '</strong><small>' + _esc(allowOutOfStock ? 'A cliente consegue comprar mesmo sem saldo calculado.' : 'Produto calculável sem saldo não entra no carrinho.') + '</small></div>' +
+          '<div><span>Após a baixa</span><strong>' + _esc(_regularizationModeLabel(mode)) + '</strong><small>' + _esc(_regularizationModeShort(mode)) + '</small></div>' +
+        '</div>' +
+      '</section>' +
+      '<section class="stock-config-card">' +
+        '<div class="stock-config-step">1</div>' +
+        '<div class="stock-config-card-head">' +
+          '<div><div class="stock-config-card-title">Venda sem saldo na loja</div><div class="stock-config-card-desc">Esta regra age antes do pedido. Produtos sob encomenda continuam liberados; para os demais, escolha se a loja deve bloquear quando o saldo calculado acabar.</div></div>' +
+        '</div>' +
+        '<div class="stock-config-list">' +
+          _outOfStockModeOption(false, allowOutOfStock, 'Bloquear quando zerar', 'A loja impede adicionar produto calculável sem saldo.', 'Padrão seguro: evita vender o que o sistema entende que acabou.') +
+          _outOfStockModeOption(true, allowOutOfStock, 'Permitir venda sem saldo', 'A loja aceita a venda mesmo quando o saldo calculado acabou.', 'Útil quando a operação aceita produzir ou comprar depois, mas o estoque em tempo real fica menos preciso.') +
+        '</div>' +
+      '</section>' +
+      '<section class="stock-config-card">' +
+        '<div class="stock-config-step">2</div>' +
+        '<div class="stock-config-card-head">' +
+          '<div><div class="stock-config-card-title">Quando a baixa deixa saldo negativo</div><div class="stock-config-card-desc">Esta regra age depois da venda, no histórico do estoque. Ela define como o sistema registra a falta encontrada na saída.</div></div>' +
+        '</div>' +
+        '<div class="stock-config-list">' +
+          _regularizationModeOption('pendencia', mode, 'Criar pendência', 'Registra o item em Regularizações para revisar depois.', 'Mais seguro: mantém a falta visível até alguém decidir regularizar ou ignorar.') +
+          _regularizationModeOption('automatico', mode, 'Aplicar automaticamente', 'Cria entrada de regularização junto com a saída.', 'Mais prático: preserva o histórico, mas assume a entrada sem conferência manual.') +
+          _regularizationModeOption('desligado', mode, 'Desligado', 'Mantém a saída e não cria pendência nem entrada automática.', 'Use só quando quiser acompanhar o negativo manualmente por movimentações.') +
+        '</div>' +
+      '</section>' +
+      '<section class="stock-config-note">' +
+        '<span class="mi">info</span>' +
+        '<div><strong>Como ler esta tela</strong><p>Bloquear na loja evita pedido sem saldo. Permitir venda sem saldo deixa o pedido entrar; nesse caso, a segunda regra decide o que fazer quando a baixa encontrar falta no produto pronto, produto produzido, base de produção, insumo ou embalagem.</p></div>' +
+      '</section>' +
+    '</div>';
   }
 
   function _paintConfiguracoes() {
@@ -568,9 +586,9 @@ Modules.Estoque = (function () {
       '</div>';
   }
 
-  function _regularizationModeOption(value, current, label, description) {
+  function _regularizationModeOption(value, current, label, description, effect) {
     return '<button type="button" class="stock-config-row ' + (current === value ? 'active' : '') + '" onclick="Modules.Estoque._saveRegularizationMode(\'' + value + '\')">' +
-      '<div><div class="stock-config-row-title">' + _esc(label) + '</div><div class="stock-config-row-text">' + _esc(description) + '</div></div><span class="stock-config-row-check">' + (current === value ? 'Ativo' : 'Selecionar') + '</span>' +
+      '<span class="stock-config-radio"></span><div><div class="stock-config-row-title">' + _esc(label) + '</div><div class="stock-config-row-text">' + _esc(description) + '</div><div class="stock-config-row-effect">' + _esc(effect || '') + '</div></div><span class="stock-config-row-check">' + (current === value ? 'Ativo' : 'Selecionar') + '</span>' +
     '</button>';
   }
 
@@ -586,9 +604,21 @@ Modules.Estoque = (function () {
     return !!(_stockConfig.allowOutOfStockSales || _stockConfig.sellWithoutStock || _stockConfig.publicAllowOutOfStockSales);
   }
 
-  function _outOfStockModeOption(value, current, label, description) {
+  function _regularizationModeLabel(mode) {
+    if (mode === 'automatico') return 'Aplicar automaticamente';
+    if (mode === 'desligado') return 'Desligado';
+    return 'Criar pendência';
+  }
+
+  function _regularizationModeShort(mode) {
+    if (mode === 'automatico') return 'Cria entrada de regularização automaticamente.';
+    if (mode === 'desligado') return 'Não cria pendência nem entrada automática.';
+    return 'Mostra a falta para revisão manual.';
+  }
+
+  function _outOfStockModeOption(value, current, label, description, effect) {
     return '<button type="button" class="stock-config-row ' + (current === value ? 'active' : '') + '" onclick="Modules.Estoque._saveOutOfStockSalesMode(' + (value ? 'true' : 'false') + ')">' +
-      '<div><div class="stock-config-row-title">' + _esc(label) + '</div><div class="stock-config-row-text">' + _esc(description) + '</div></div><span class="stock-config-row-check">' + (current === value ? 'Ativo' : 'Selecionar') + '</span>' +
+      '<span class="stock-config-radio"></span><div><div class="stock-config-row-title">' + _esc(label) + '</div><div class="stock-config-row-text">' + _esc(description) + '</div><div class="stock-config-row-effect">' + _esc(effect || '') + '</div></div><span class="stock-config-row-check">' + (current === value ? 'Ativo' : 'Selecionar') + '</span>' +
     '</button>';
   }
 
@@ -598,10 +628,14 @@ Modules.Estoque = (function () {
     DB.col('config').doc('estoque').set({
       regularizationMode: mode,
       stockRegularizationMode: mode,
+      stockOnboardingReviewed: true,
+      onboardingStockConfigDone: true,
       updatedAt: now
     }, { merge: true }).then(function () {
       _stockConfig.regularizationMode = mode;
       _stockConfig.stockRegularizationMode = mode;
+      _stockConfig.stockOnboardingReviewed = true;
+      _stockConfig.onboardingStockConfigDone = true;
       UI.toast('Configuração de regularização salva.', 'success');
       if (_activeSub === 'configuracoes') _paintConfiguracoes();
       else _paintRegularizations();
@@ -617,11 +651,15 @@ Modules.Estoque = (function () {
       allowOutOfStockSales: allow,
       sellWithoutStock: allow,
       publicAllowOutOfStockSales: allow,
+      stockOnboardingReviewed: true,
+      onboardingStockConfigDone: true,
       updatedAt: now
     }, { merge: true }).then(function () {
       _stockConfig.allowOutOfStockSales = allow;
       _stockConfig.sellWithoutStock = allow;
       _stockConfig.publicAllowOutOfStockSales = allow;
+      _stockConfig.stockOnboardingReviewed = true;
+      _stockConfig.onboardingStockConfigDone = true;
       UI.toast('Configuração de venda sem saldo salva.', 'success');
       if (_activeSub === 'configuracoes') _paintConfiguracoes();
       else _paintRegularizations();
@@ -1760,18 +1798,37 @@ Modules.Estoque = (function () {
       '.stock-list-title p{margin:3px 0 0;color:#6F6860;font-size:13px;line-height:1.45;}' +
       '.stock-list-title button{height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;font-family:inherit;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);}' +
       '.stock-config-wrap{display:flex;flex-direction:column;gap:16px;}' +
-      '.stock-config-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:18px 20px;box-shadow:0 10px 24px rgba(31,31,31,.04);}' +
+      '.stock-config-layout{display:flex;flex-direction:column;gap:16px;max-width:1040px;}' +
+      '.stock-config-intro,.stock-config-card,.stock-config-note{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;box-shadow:0 10px 24px rgba(31,31,31,.04);}' +
+      '.stock-config-intro{padding:20px 22px;}' +
+      '.stock-config-eyebrow{font-size:11px;font-weight:800;color:#A39B90;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;}' +
+      '.stock-config-intro h3{margin:0;color:#1F1F1F;font-size:20px;font-weight:760;line-height:1.18;letter-spacing:0;}' +
+      '.stock-config-intro p{margin:7px 0 0;color:#6F6860;font-size:13px;line-height:1.55;max-width:820px;}' +
+      '.stock-config-state-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:16px;}' +
+      '.stock-config-state-grid>div{background:#fff;border:1px solid #F0E7E1;border-radius:14px;padding:13px 14px;box-shadow:0 1px 2px rgba(31,31,31,.03);}' +
+      '.stock-config-state-grid span{display:block;font-size:11px;font-weight:800;color:#8A7E7C;text-transform:uppercase;letter-spacing:.04em;}' +
+      '.stock-config-state-grid strong{display:block;margin-top:5px;font-size:15px;font-weight:760;color:#1F1F1F;line-height:1.25;}' +
+      '.stock-config-state-grid small{display:block;margin-top:4px;font-size:12px;color:#6F6860;line-height:1.35;}' +
+      '.stock-config-card{position:relative;padding:18px 20px 18px 58px;}' +
+      '.stock-config-step{position:absolute;left:18px;top:18px;width:26px;height:26px;border-radius:10px;background:#FFF3F1;border:1px solid #F0C9C2;color:#B42318;font-size:12px;font-weight:850;display:flex;align-items:center;justify-content:center;}' +
       '.stock-config-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:14px;}' +
-      '.stock-config-card-title{font-size:14px;font-weight:700;color:#1F1F1F;line-height:1.3;}' +
-      '.stock-config-card-desc{font-size:13px;color:#6F6860;line-height:1.45;margin-top:4px;max-width:760px;}' +
+      '.stock-config-card-title{font-size:16px;font-weight:760;color:#1F1F1F;line-height:1.25;}' +
+      '.stock-config-card-desc{font-size:13px;color:#6F6860;line-height:1.5;margin-top:5px;max-width:760px;}' +
       '.stock-config-list{display:flex;flex-direction:column;gap:10px;}' +
-      '.stock-config-row{width:100%;background:#fff;border:1px solid #EADFD8;border-radius:14px;padding:13px 14px;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;align-items:center;justify-content:space-between;gap:12px;text-align:left;cursor:pointer;font-family:inherit;transition:background .15s ease,box-shadow .15s ease,transform .15s ease,border-color .15s ease;}' +
+      '.stock-config-row{width:100%;background:#fff;border:1px solid #EADFD8;border-radius:14px;padding:13px 14px;box-shadow:0 1px 2px rgba(31,31,31,.03);display:grid;grid-template-columns:20px minmax(0,1fr) auto;align-items:flex-start;gap:12px;text-align:left;cursor:pointer;font-family:inherit;transition:background .15s ease,box-shadow .15s ease,transform .15s ease,border-color .15s ease;}' +
       '.stock-config-row:hover{background:#FFFCF8;box-shadow:0 8px 18px rgba(31,31,31,.04);transform:translateY(-1px);}' +
       '.stock-config-row.active{background:#FFF7F5;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
+      '.stock-config-radio{width:16px;height:16px;border-radius:999px;border:1px solid #D8C8BF;background:#fff;margin-top:2px;box-shadow:inset 0 0 0 3px #fff;}' +
+      '.stock-config-row.active .stock-config-radio{border-color:#B42318;background:#B42318;}' +
       '.stock-config-row-title{font-size:15px;font-weight:650;color:#1F1F1F;line-height:1.3;}' +
-      '.stock-config-row-text{font-size:12px;color:#6F6860;line-height:1.35;margin-top:2px;}' +
+      '.stock-config-row-text{font-size:12.5px;color:#6F6860;line-height:1.4;margin-top:3px;}' +
+      '.stock-config-row-effect{font-size:12px;color:#8A7E7C;line-height:1.38;margin-top:6px;background:#FFFCF8;border:1px solid #F0E7E1;border-radius:10px;padding:7px 9px;}' +
       '.stock-config-row-check{height:26px;padding:0 10px;border-radius:999px;border:1px solid #EADFD8;background:#FAF8F4;color:#6F6860;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;}' +
       '.stock-config-row.active .stock-config-row-check{background:#B42318;border-color:#B42318;color:#fff;}' +
+      '.stock-config-note{display:flex;align-items:flex-start;gap:11px;padding:15px 16px;background:#FFFCF8;}' +
+      '.stock-config-note .mi{font-size:19px;color:#B42318;line-height:1.2;flex:0 0 auto;}' +
+      '.stock-config-note strong{display:block;font-size:13px;font-weight:760;color:#1F1F1F;line-height:1.3;}' +
+      '.stock-config-note p{margin:4px 0 0;color:#6F6860;font-size:12.5px;line-height:1.5;}' +
       '.stock-config-divider{height:1px;background:#F0E7E1;margin:18px 0;}' +
       '.stock-table-card{background:#fff;border:1px solid #EADFD8;border-radius:18px;box-shadow:0 12px 30px rgba(31,31,31,.055);overflow:hidden;}' +
       '.stock-table-wrap{overflow:auto;}' +
@@ -1875,7 +1932,7 @@ Modules.Estoque = (function () {
       '.stock-quick-line strong{display:block;font-size:13px;color:#1F1F1F;font-weight:750;line-height:1.25;}' +
       '.stock-quick-line span{display:block;margin-top:3px;font-size:12px;color:#6F6860;line-height:1.35;}' +
       '@media(max-width:900px){.stock-detail-grid,.stock-regularization-summary{grid-template-columns:1fr 1fr;}.stock-adjust-grid,.stock-adjust-grid.min-grid{grid-template-columns:1fr 1fr;}}' +
-      '@media(max-width:760px){.stock-page{padding:16px;}.stock-filter-grid,.stock-filter-grid.movement-grid,.stock-filter-grid.regularization-grid{grid-template-columns:1fr;}.stock-config-card{padding:16px;}.stock-config-row{align-items:flex-start;flex-direction:column;}.stock-table{min-width:760px;}}' +
+      '@media(max-width:760px){.stock-page{padding:16px;}.stock-filter-grid,.stock-filter-grid.movement-grid,.stock-filter-grid.regularization-grid,.stock-config-state-grid{grid-template-columns:1fr;}.stock-config-card{padding:16px 16px 16px 50px;}.stock-config-step{left:16px;top:16px;}.stock-config-row{grid-template-columns:20px minmax(0,1fr);}.stock-config-row-check{grid-column:2;justify-self:start;}.stock-table{min-width:760px;}}' +
       '@media(max-width:760px){.stock-adjust-grid{grid-template-columns:1fr 1fr;}.stock-kind-tabs{overflow:auto;flex-wrap:nowrap}.stock-kind-tabs button{white-space:nowrap;}}' +
       '@media(max-width:520px){.stock-detail-grid,.stock-regularization-summary{grid-template-columns:1fr;}.stock-detail-hero{flex-direction:column;}.stock-header h1{font-size:22px;}.stock-adjust-grid{grid-template-columns:1fr;}}' +
       '</style>';
