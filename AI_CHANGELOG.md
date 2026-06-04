@@ -1,5 +1,12 @@
 # AI Changelog
 
+## 2026-06-04 — Plano de Voo: botão Continuar abre rota salva
+- Arquivos alterados: `public/js/modules/plano_voo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Corrigi o botão `Continuar` do bloco `Rotas salvas para continuar`.
+- Antes ele apenas carregava a rota por trás e repintava a tela principal; agora carrega a rota salva e abre o modal `Criar nova rota` na aba de edição para a usuária continuar o preenchimento.
+- Mantive o botão `Ver resumo` como consulta separada.
+- Atualizei o cache-buster de `plano_voo.js` no Admin.
+
 ## 2026-06-04 — Plano de Voo: média mensal ignora mês fechado
 - Arquivos alterados: `public/js/modules/plano_voo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - Ajustei a `Média mensal` dos cards de cenário para dividir o faturamento da rota apenas pelos meses com peso/receita acima de zero.

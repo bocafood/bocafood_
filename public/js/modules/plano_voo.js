@@ -459,7 +459,7 @@ Modules.PlanoDeVoo = (function () {
                 _routeSmallStat('Sobra', _fmtMoney(forecast.profit), forecast.profit >= 0 ? '#1F6F43' : '#B42318') +
               '</div>' +
               '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;">' +
-                '<button type="button" onclick="Modules.PlanoDeVoo._loadSnapshot(\'' + _esc(snap.id) + '\')" style="height:34px;padding:0 11px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:12px;font-weight:650;cursor:pointer;font-family:inherit;">Continuar</button>' +
+                '<button type="button" onclick="Modules.PlanoDeVoo._continueSavedRoute(\'' + _esc(snap.id) + '\')" style="height:34px;padding:0 11px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:12px;font-weight:650;cursor:pointer;font-family:inherit;">Continuar</button>' +
                 '<button type="button" onclick="Modules.PlanoDeVoo._openRouteSummaryModal(\'' + _esc(snap.id) + '\')" style="height:34px;padding:0 11px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#1F1F1F;font-size:12px;font-weight:650;cursor:pointer;font-family:inherit;">Ver resumo</button>' +
               '</div>' +
             '</article>';
@@ -2640,7 +2640,8 @@ Modules.PlanoDeVoo = (function () {
     });
   }
 
-  function _loadSnapshot(id) {
+  function _loadSnapshot(id, options) {
+    options = options || {};
     var s = (_data.snapshots || []).find(function (x) { return String(x.id) === String(id); });
     if (!s) return;
     _state.periodType = s.periodType || 'monthly';
@@ -2684,9 +2685,18 @@ Modules.PlanoDeVoo = (function () {
     _state.compareSnapshotId = s.id || '';
     _activeSub = 'simulacao';
     _renderTabs();
-      _paintActive();
+    _paintActive();
     Router.navigate(_routeForSub('simulacao'));
+    if (options.openModal) {
+      _openCreateRouteModal(options.tab || 'create');
+      UI.toast('Rota carregada para continuar.', 'success');
+      return;
+    }
     UI.toast('Rota carregada para revisão.', 'success');
+  }
+
+  function _continueSavedRoute(id) {
+    _loadSnapshot(id, { openModal: true, tab: 'create' });
   }
 
 
@@ -3963,6 +3973,7 @@ Modules.PlanoDeVoo = (function () {
     _setMonthWeight: _setMonthWeight,
     _saveSnapshot: _saveSnapshot,
     _loadSnapshot: _loadSnapshot,
+    _continueSavedRoute: _continueSavedRoute,
     _setMonthScenario: _setMonthScenario,
     _deleteRoute: _deleteRoute,
   };
