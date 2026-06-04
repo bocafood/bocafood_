@@ -1,5 +1,21 @@
 # AI Changelog
 
+## 2026-06-04 — Plano de Voo: salvar rota para continuar depois
+- Arquivos alterados: `public/js/modules/plano_voo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Adicionei no modal `Criar nova rota` o botão `Salvar para continuar depois`.
+- Esse botão salva a rota em `flight_plans` como rascunho/salva para revisão, sem definir a rota ativa do mês em `flight_plan_month_scenarios`.
+- O botão `Salvar e ativar rota` mantém o comportamento atual: salva a rota e a escolhe para acompanhar o mês.
+- Quando não há rota ativa e existem rotas salvas, a tela mostra `Rotas salvas para continuar`, com botões para retomar a edição ou ver o resumo.
+- Nos cards de cenário de `Escolha a realidade que você quer viver`, adicionei a linha `Média mensal`, calculada pelo faturamento necessário dividido pelos meses considerados na rota, com o faturamento já distribuído conforme o peso/força dos meses.
+- Atualizei o cache-buster de `plano_voo.js` no Admin.
+
+## 2026-06-04 — Financeiro: Fluxo de Caixa abre em Efetivado
+- Arquivos alterados: `public/js/modules/financeiro.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Ajustei `Financeiro → Fluxo de Caixa` para abrir com apenas o status `Efetivado` pré-selecionado.
+- O botão `Limpar filtros` também volta para esse padrão: `Efetivado` ligado, `Previsto` e `Vencido` desligados.
+- Mantive os checkboxes de `Previsto` e `Vencido` disponíveis para a usuária ativar quando quiser consultar projeções ou atrasos.
+- Atualizei o cache-buster de `financeiro.js` no Admin.
+
 ## 2026-06-04 — Cardápio: filtro de produtos no padrão de produção
 - Arquivos alterados: `public/js/modules/catalogo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - Ajustei o card de filtros de `Cardápio → Produtos` para seguir o padrão visual de `Produção → Ordens de produção`.

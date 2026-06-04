@@ -384,6 +384,7 @@ Modules.PlanoDeVoo = (function () {
         _routeQualityAlertsCard(_data.monthScenario)
       : '' +
         _noActiveRouteCard() +
+        _savedRoutesContinueCard() +
         _routeReadinessCard();
     _paint(html);
   }
@@ -430,6 +431,41 @@ Modules.PlanoDeVoo = (function () {
   function _routesCreatedCard(monthScenario) {
     if (monthScenario) return _unselectedScenariosCard(monthScenario);
     return '';
+  }
+
+  function _savedRoutesContinueCard() {
+    var routes = (_data.snapshots || []).filter(function (snap) { return snap && snap.id; }).slice(0, 6);
+    if (!routes.length) return '';
+    return '' +
+      '<section style="' + _cardStyle() + 'display:flex;flex-direction:column;gap:14px;">' +
+        '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">' +
+          '<div style="min-width:0;">' +
+            '<div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;">' +
+              '<span class="mi" style="font-size:20px;color:#8A6F5A;">bookmark_added</span>' +
+              '<h3 style="font-size:15px;font-weight:600;color:#1F1F1F;margin:0;">Rotas salvas para continuar</h3>' +
+            '</div>' +
+            '<p style="font-size:13px;color:#6F6860;line-height:1.45;margin:5px 0 0;max-width:760px;">Abra uma rota salva para revisar, ajustar e ativar quando estiver pronta.</p>' +
+          '</div>' +
+          _snapshotPill(routes.length + ' salva' + (routes.length === 1 ? '' : 's'), '#FAF8F4', '#6F6860', '#EAE4DA') +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;">' +
+          routes.map(function (snap) {
+            var forecast = _snapshotToForecast(snap);
+            return '<article style="background:#fff;border:1px solid #EAE4DA;border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:11px;box-shadow:0 8px 20px rgba(31,31,31,.04);min-width:0;">' +
+              '<div style="min-width:0;"><div style="font-size:14px;font-weight:700;color:#1F1F1F;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(snap.name || 'Rota salva') + '</div>' +
+              '<div style="font-size:12px;color:#6F6860;line-height:1.35;margin-top:3px;">' + _esc(_scenarioLabel(snap.scenario)) + ' · ' + _esc(_snapshotPeriodLabel(snap)) + '</div></div>' +
+              '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">' +
+                _routeSmallStat('Vender', _fmtMoney(forecast.revenueTotal)) +
+                _routeSmallStat('Sobra', _fmtMoney(forecast.profit), forecast.profit >= 0 ? '#1F6F43' : '#B42318') +
+              '</div>' +
+              '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;">' +
+                '<button type="button" onclick="Modules.PlanoDeVoo._loadSnapshot(\'' + _esc(snap.id) + '\')" style="height:34px;padding:0 11px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:12px;font-weight:650;cursor:pointer;font-family:inherit;">Continuar</button>' +
+                '<button type="button" onclick="Modules.PlanoDeVoo._openRouteSummaryModal(\'' + _esc(snap.id) + '\')" style="height:34px;padding:0 11px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#1F1F1F;font-size:12px;font-weight:650;cursor:pointer;font-family:inherit;">Ver resumo</button>' +
+              '</div>' +
+            '</article>';
+          }).join('') +
+        '</div>' +
+      '</section>';
   }
 
 
@@ -933,6 +969,7 @@ Modules.PlanoDeVoo = (function () {
     var vm = _forecastForScenario(key);
     var effort = _effortInfo(vm);
     var active = _state.scenario === key;
+    var monthlyAverage = _routeMonthlyAverage(vm);
     return '' +
       '<article onclick="Modules.PlanoDeVoo._setScenario(\'' + _esc(key) + '\')" style="min-width:220px;background:#fff;border:1px solid ' + (active ? _esc(scenario.tone) : '#EAE4DA') + ';border-radius:18px;padding:16px;box-shadow:' + (active ? '0 16px 34px rgba(180,35,24,.12)' : '0 12px 30px rgba(31,31,31,.06)') + ';display:flex;flex-direction:column;gap:13px;transition:transform .16s ease,box-shadow .16s ease;cursor:pointer;" onmouseenter="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 18px 38px rgba(31,31,31,.10)\'" onmouseleave="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'' + (active ? '0 16px 34px rgba(180,35,24,.12)' : '0 12px 30px rgba(31,31,31,.06)') + '\'">' +
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">' +
@@ -944,6 +981,7 @@ Modules.PlanoDeVoo = (function () {
         '</div>' +
         '<div style="display:flex;flex-direction:column;gap:9px;">' +
           _routeLine('Faturamento necessário', _fmtMoney(vm.revenueTotal), null, _routePeriodLabel(), true) +
+          _routeLine('Média mensal', _fmtMoney(monthlyAverage), null, 'com peso dos meses') +
           _routeLine('Pedidos por dia', _ordersPerDay(vm)) +
           _routeLine('Lucro estimado', _fmtMoney(vm.profit), vm.profit >= 0 ? '#1F6F43' : '#B42318') +
         '</div>' +
@@ -954,6 +992,13 @@ Modules.PlanoDeVoo = (function () {
         '</div>' +
         '<button type="button" onclick="event.stopPropagation();Modules.PlanoDeVoo._selectRouteForSummary(\'' + _esc(key) + '\')" style="height:40px;border:none;border-radius:12px;background:#B42318;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(180,35,24,.18);">Escolher cenário</button>' +
       '</article>';
+  }
+
+  function _routeMonthlyAverage(vm) {
+    vm = vm || {};
+    var months = Array.isArray(vm.monthSeries) && vm.monthSeries.length ? vm.monthSeries.length : _routeMonthCount();
+    months = Math.max(1, _num(months) || 1);
+    return _num(vm.revenueTotal) / months;
   }
 
   function _scenarioCostSummary(vm) {
@@ -1293,6 +1338,7 @@ Modules.PlanoDeVoo = (function () {
       maxWidth: '1040px',
       footer: '<div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">' +
         '<button type="button" onclick="Modules.PlanoDeVoo._closePlanModals()" style="height:38px;padding:0 14px;border:1px solid #EAE4DA;background:#fff;color:#1F1F1F;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Cancelar</button>' +
+        '<button type="button" onclick="Modules.PlanoDeVoo._saveRouteForLaterFromModal()" style="height:38px;padding:0 14px;border:1px solid #EADFD8;background:#fff;color:#8A6F5A;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);">Salvar para continuar depois</button>' +
         (tab === 'summary'
           ? '<button type="button" onclick="Modules.PlanoDeVoo._activateRouteFromModal()" style="height:38px;padding:0 14px;border:none;background:#B42318;color:#fff;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(180,35,24,.18);">Salvar e ativar rota</button>'
           : '') +
@@ -1606,7 +1652,16 @@ Modules.PlanoDeVoo = (function () {
     _state.periodType = 'annual';
     _state.snapshotMonthKey = _currentMonthKey();
     _state.snapshotMonthLabel = _monthLabelFromKey(_state.snapshotMonthKey);
-    _saveSnapshot(_state.snapshotMonthKey, _state.snapshotMonthLabel);
+    _saveSnapshot(_state.snapshotMonthKey, _state.snapshotMonthLabel, { activate: true });
+  }
+
+  function _saveRouteForLaterFromModal() {
+    var nameEl = document.getElementById('pv-route-name');
+    _state.snapshotName = String(nameEl && nameEl.value || _state.snapshotName || _defaultSnapshotName()).trim();
+    _state.periodType = 'annual';
+    _state.snapshotMonthKey = _state.snapshotMonthKey || _currentMonthKey();
+    _state.snapshotMonthLabel = _state.snapshotMonthLabel || _monthLabelFromKey(_state.snapshotMonthKey);
+    _saveSnapshot(_state.snapshotMonthKey, _state.snapshotMonthLabel, { activate: false });
   }
 
   function _closePlanModals() {
@@ -2443,7 +2498,9 @@ Modules.PlanoDeVoo = (function () {
 
 
 
-  function _saveSnapshot(monthKey, monthLabel) {
+  function _saveSnapshot(monthKey, monthLabel, options) {
+    options = options || {};
+    var activate = options.activate !== false;
     var vm = _forecastModel();
     var name = String(_state.snapshotName || '').trim() || _defaultSnapshotName();
     if (!name || !String(_state.periodType || '').trim() || !_state.scenario || !vm || vm.revenueTotal == null) {
@@ -2460,6 +2517,9 @@ Modules.PlanoDeVoo = (function () {
       routePeriod: _state.routePeriod,
       routePeriodLabel: _routePeriodLabel(),
       routeMonthCount: _routeMonthCount(),
+      routeStatus: activate ? 'active_candidate' : 'draft',
+      activationStatus: activate ? 'activated' : 'saved_for_later',
+      savedForLater: !activate,
       mode: _state.mode,
       annualMode: _state.annualMode,
       scenario: _state.scenario,
@@ -2547,6 +2607,12 @@ Modules.PlanoDeVoo = (function () {
       snapshot.id = ref.id;
       _data.snapshots.unshift(snapshot);
       _state.compareSnapshotId = snapshot.id;
+      if (!activate) {
+        UI.toast('Rota salva. Você pode continuar depois.', 'success');
+        _closePlanModals();
+        _paintActive();
+        return;
+      }
       var monthScenarioPayload = _cleanFirestoreData({
         monthKey: monthKey,
         monthLabel: monthLabel,
@@ -3887,6 +3953,7 @@ Modules.PlanoDeVoo = (function () {
     _openActiveRouteSummary: _openActiveRouteSummary,
     _selectRouteForSummary: _selectRouteForSummary,
     _activateRouteFromModal: _activateRouteFromModal,
+    _saveRouteForLaterFromModal: _saveRouteForLaterFromModal,
     _closePlanModals: _closePlanModals,
     _chooseRoute: _chooseRoute,
     _toggleWorkDay: _toggleWorkDay,

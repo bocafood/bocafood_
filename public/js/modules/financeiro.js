@@ -1007,7 +1007,7 @@ Modules.Financeiro = (function () {
     {value:'ano-passado',    label:'Ano passado'},
     {value:'custom',         label:'Personalizado'}
   ];
-  var _fluxoFiltro={status:{efetivado:true,previsto:true,vencido:true},periodo:'todos',inicio:'',fim:'',busca:'',ordem:'asc',conta:'todas'};
+  var _fluxoFiltro={status:{efetivado:true,previsto:false,vencido:false},periodo:'todos',inicio:'',fim:'',busca:'',ordem:'asc',conta:'todas'};
   var _fluxoView={page:1,pageSize:12};
 
   function _periodoOptionsHtml(selected) {
@@ -1152,7 +1152,7 @@ Modules.Financeiro = (function () {
     var inputStyle='width:100%;box-sizing:border-box;padding:0 12px;border:1px solid #E8DCD7;border-radius:12px;background:#FFFCF8;color:#1F1F1F;font-size:14px;font-weight:400;font-family:inherit;outline:none;height:42px;';
     var selectStyle=inputStyle+'appearance:none;-webkit-appearance:none;background-color:#FFFCF8;background-image:linear-gradient(45deg,transparent 50%,#8A7E7C 50%),linear-gradient(135deg,#8A7E7C 50%,transparent 50%);background-position:calc(100% - 18px) 18px,calc(100% - 13px) 18px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:36px;';
     var labelStyle='font-size:11px;font-weight:650;color:#6F6860;letter-spacing:.04em;text-transform:uppercase;display:block;margin-bottom:6px;';
-    var hasFluxoFilter=!!(_fluxoFiltro.busca||_fluxoFiltro.periodo!=='todos'||_fluxoFiltro.inicio||_fluxoFiltro.fim||_fluxoFiltro.conta!=='todas'||!_fluxoFiltro.status.efetivado||!_fluxoFiltro.status.previsto||!_fluxoFiltro.status.vencido);
+    var hasFluxoFilter=!!(_fluxoFiltro.busca||_fluxoFiltro.periodo!=='todos'||_fluxoFiltro.inicio||_fluxoFiltro.fim||_fluxoFiltro.conta!=='todas'||!_fluxoFiltro.status.efetivado||_fluxoFiltro.status.previsto||_fluxoFiltro.status.vencido);
     var sectionTitle=function(title,desc){ return '<div style="margin-bottom:14px;"><h3 style="font-size:15px;font-weight:700;color:#1F1F1F;margin:0 0 4px;line-height:1.2;">'+_esc(title)+'</h3><p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0;max-width:680px;">'+_esc(desc||'')+'</p></div>'; };
     var metric=function(title,value,desc,icon,color){
       return '<div style="display:flex;align-items:flex-start;gap:14px;background:#FAF8F4;border:none;border-radius:16px;padding:18px;box-shadow:0 12px 30px rgba(31,31,31,.06);min-height:118px;overflow:hidden;transition:transform .16s ease,box-shadow .16s ease,background .16s ease;" onmouseenter="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 16px 34px rgba(31,31,31,.09)\';this.style.background=\'#fff\'" onmouseleave="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'0 12px 30px rgba(31,31,31,.06)\';this.style.background=\'#FAF8F4\'">'+
@@ -1287,7 +1287,7 @@ Modules.Financeiro = (function () {
   }
 
   function _limparFluxoFiltros(){
-    _fluxoFiltro={status:{efetivado:true,previsto:true,vencido:true},periodo:'todos',inicio:'',fim:'',busca:'',ordem:'asc',conta:'todas'};
+    _fluxoFiltro={status:{efetivado:true,previsto:false,vencido:false},periodo:'todos',inicio:'',fim:'',busca:'',ordem:'asc',conta:'todas'};
     _fluxoView={page:1,pageSize:12};
     _paintFluxoCaixa();
   }
