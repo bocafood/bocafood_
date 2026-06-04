@@ -1,5 +1,13 @@
 # AI Changelog
 
+## 2026-06-04 — Pedidos: regularização no pedido manual
+- Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Corrigi a criação de pedido manual para tentar gerar baixa de estoque logo após salvar o pedido, mesmo quando ele nasce com status `Pendente`.
+- A correção mantém o status visual do pedido, mas força a criação das movimentações de saída para itens com vínculo de estoque e, quando houver saldo insuficiente, cria os itens de `Estoque > Regularizações`.
+- O fluxo de mudança de status continua preservado: cancelamento estorna, e status posteriores não duplicam baixa porque o pedido passa a carregar `stockMovementCreated`.
+- Atualizei o cache-buster de `pedidos.js` no Admin.
+- Impacto esperado: pedidos manuais com itens como produto pronto, receita/base ou escolhas vinculadas deixam de ficar sem saída/regularização após o lançamento.
+
 ## 2026-06-03 — Ficha técnica: campo Unidade e composição do custo
 - Arquivos alterados: `public/js/modules/catalogo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - Removi o texto auxiliar `Herdada da etapa de produção.` do campo `Unidade` dentro da ficha técnica.

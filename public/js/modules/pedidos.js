@@ -3914,9 +3914,10 @@ Modules.Pedidos = (function () {
     });
   }
 
-  function _syncOrderStockMovement(orderId, order, status) {
+  function _syncOrderStockMovement(orderId, order, status, opts) {
+    opts = opts || {};
     if (_statusCancelsStockMovement(status)) return _reverseOrderStockMovements(orderId, order);
-    if (!_statusTriggersStockMovement(status)) return Promise.resolve(null);
+    if (!opts.force && !_statusTriggersStockMovement(status)) return Promise.resolve(null);
     if (!order || !orderId) return Promise.resolve(null);
     return _createOrderStockMovements(orderId, order).then(function (patch) {
       if (!patch || !Object.keys(patch).length) return null;
@@ -5119,7 +5120,12 @@ Modules.Pedidos = (function () {
       DB.add('orders', payload).then(function (ref) {
         var createdId = (ref && ref.id) ? String(ref.id) : '';
         if (createdId) payload.id = createdId;
-        return _syncOrderFinanceMovement(createdId || '', payload);
+        return _syncOrderFinanceMovement(createdId || '', payload).then(function () {
+          return _syncOrderStockMovement(createdId || '', payload, payload.status, { force: true });
+        }).then(function (stockPatch) {
+          if (stockPatch && typeof stockPatch === 'object') Object.assign(payload, stockPatch);
+          return payload;
+        });
       }).then(function () {
         UI.toast('Pedido criado!', 'success');
         if (window._newOrderModal) window._newOrderModal.close();
