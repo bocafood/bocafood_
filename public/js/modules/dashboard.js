@@ -1470,8 +1470,8 @@ Modules.Dashboard = (function () {
           ['Despesas e custos previstos', 'Confira se os compromissos do período aparecem com valores que fazem sentido. Eles ajudam a mostrar se a rota cobre o que precisa sair do caixa. Esses valores são calculados automaticamente pelo BocaFood.'],
           ['Confirme sua realidade de trabalho', 'Abra essa parte para marcar os dias da semana em que trabalha e informar feriados ou dias fechados. Isso muda o ritmo de pedidos por dia.'],
           ['Meses mais fortes ou mais fracos', 'Dê uma pontuação para cada mês. Use 100 para um mês normal, abaixo de 100 para um mês mais fraco, acima de 100 para um mês mais forte e 0 para um mês em que não vai trabalhar. Meses fora do período da rota ficam travados em 0.'],
-          ['Escolha a realidade que você quer viver', 'Compare Sobrevivência, Segurança, Crescimento e Lucro forte. Em cada card, veja: quanto precisa vender no período, quantos pedidos por dia precisa buscar, quanto pode sobrar e se o esforço parece leve, possível, puxado ou muito puxado. Depois de conferir a base e os ajustes avançados, volte para escolher o cenário do seu ano.'],
-          ['Nome da rota', 'Revise o nome que vai identificar a rota depois. Use algo simples, como Rota Segurança 2026 ou Rota Crescimento 2026.'],
+          ['Escolha o ritmo que você acredita que o negócio vai ter', 'Compare Conservador, Estável, Forte e Acelerado. Em cada card, veja quanto precisa vender no período, média mensal dos meses abertos, pedidos por dia, lucro do período e se o esforço parece leve, possível, puxado ou muito puxado. Depois de conferir a base e os ajustes avançados, volte para escolher o ritmo da rota.'],
+          ['Nome da rota', 'Revise o nome que vai identificar a rota depois. Use algo simples, como Rota Estável 2026 ou Rota Forte 2026.'],
           ['Resumo da rota selecionada', 'Depois de escolher um cenário, revise o nome da rota, período, venda necessária, sobra estimada, pedidos por dia, dias trabalhados e distribuição mês a mês. Essa é a última conferência antes de salvar.'],
           ['Distribuição mês a mês', 'Confira como a rota ficou dividida ao longo dos meses. Meses mais fortes recebem mais peso, meses mais fracos recebem menos e meses fora da rota ficam zerados.'],
           ['Ajustes avançados', 'Abra apenas se precisar revisar ticket médio, vendas por canal ou custos que influenciam o cálculo. Quando alterar algo, os cards dos cenários são atualizados.'],
@@ -2182,11 +2182,11 @@ Modules.Dashboard = (function () {
         chapter: 'Crescimento',
         title: 'Plano de Voo escolhe a rota do negocio',
         where: 'Crescimento · Plano de Voo',
-        text: 'Aqui voce escolhe a realidade que quer buscar no periodo: quanto vender, quantos pedidos por dia e quanto pode sobrar.',
+        text: 'Aqui voce escolhe o ritmo que acredita que o negocio vai ter no periodo: quanto vender, quantos pedidos por dia e quanto pode sobrar.',
         detailTitle: 'Como pensar',
         details: [
           ['Base', 'usa ticket, custos, despesas, canais e dias de trabalho.'],
-          ['Cenarios', 'Sobrevivencia, Seguranca, Crescimento e Lucro forte.'],
+          ['Ritmos', 'Conservador, Estavel, Forte e Acelerado.'],
           ['Rota ativa', 'depois de escolhida, vira acompanhamento e nao fica mudando toda hora.'],
           ['Historico', 'rotas anteriores ficam como memoria de decisao.']
         ],
@@ -2670,7 +2670,7 @@ Modules.Dashboard = (function () {
         text: 'Com a base pronta, transforme seus números em uma direção para seguir.',
         steps: [
           { title: 'Configurar custos variáveis', text: 'Reserve uma parte da venda para gastos que crescem junto com o movimento.', icon: 'price_check', route: 'financeiro/configuracoes', done: hasVariableCostConfig },
-          { title: 'Criar Plano de Voo', text: 'Escolha a realidade que você quer buscar no ano.', icon: 'flight_takeoff', route: 'crescimento/plano-de-voo', done: hasPlan },
+          { title: 'Criar Plano de Voo', text: 'Escolha o ritmo que você acredita que o negócio vai ter no ano.', icon: 'flight_takeoff', route: 'crescimento/plano-de-voo', done: hasPlan },
           { title: 'Criar primeira Temporada', text: 'Comece com Aumentar Ticket e estratégia Margem, porque ainda não há histórico suficiente para buscar volume com segurança.', icon: 'event_available', route: 'crescimento/temporadas', done: hasSeason }
         ]
       },

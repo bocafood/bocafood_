@@ -34,10 +34,10 @@ Modules.PlanoDeVoo = (function () {
   ];
 
   var SCENARIOS = {
-    survival: { label: 'Sobrevivência', factor: 0.90, tone: '#D97706', bg: '#FFF7ED' },
-    equilibrium: { label: 'Segurança', factor: 1.00, tone: '#2563EB', bg: '#EEF4FF' },
-    growth: { label: 'Crescimento', factor: 2.00, bg: '#EDFAF3', tone: '#1A9E5A' },
-    expansion: { label: 'Lucro forte', factor: 3.00, bg: '#FFF0EE', tone: '#C4362A' }
+    survival: { label: 'Conservador', factor: 0.90, tone: '#D97706', bg: '#FFF7ED' },
+    equilibrium: { label: 'Estável', factor: 1.00, tone: '#2563EB', bg: '#EEF4FF' },
+    growth: { label: 'Forte', factor: 2.00, bg: '#EDFAF3', tone: '#1A9E5A' },
+    expansion: { label: 'Acelerado', factor: 3.00, bg: '#FFF0EE', tone: '#C4362A' }
   };
 
   function _defaultState() {
@@ -935,8 +935,8 @@ Modules.PlanoDeVoo = (function () {
       '<section style="display:flex;flex-direction:column;gap:12px;">' +
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">' +
           '<div>' +
-            '<div style="font-size:15px;font-weight:600;color:#1F1F1F;">Escolha a realidade que você quer viver</div>' +
-            '<div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Compare caminhos possíveis para o negócio e escolha qual deles vai guiar o ano.</div>' +
+            '<div style="font-size:15px;font-weight:600;color:#1F1F1F;">Escolha o ritmo que você acredita que o negócio vai ter</div>' +
+            '<div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Compare ritmos possíveis para o próximo período. Você informa a base esperada e o BocaFood mostra venda, esforço, média mensal e lucro estimado.</div>' +
           '</div>' +
           _chip(_routePeriodLabel()) +
         '</div>' +
@@ -981,7 +981,7 @@ Modules.PlanoDeVoo = (function () {
         '</div>' +
         '<div style="display:flex;flex-direction:column;gap:9px;">' +
           _routeLine('Faturamento necessário', _fmtMoney(vm.revenueTotal), null, _routePeriodLabel(), true) +
-          _routeLine('Média mensal', _fmtMoney(monthlyAverage), null, 'só meses abertos') +
+          _routeLine('Média mensal', _fmtMoney(monthlyAverage)) +
           _routeLine('Pedidos por dia', _ordersPerDay(vm)) +
           _routeLine('Lucro do período', _fmtMoney(vm.profit), vm.profit >= 0 ? '#1F6F43' : '#B42318') +
         '</div>' +
@@ -1138,10 +1138,10 @@ Modules.PlanoDeVoo = (function () {
   }
 
   function _scenarioDecisionText(key) {
-    if (key === 'survival') return 'Para cobrir o básico e manter o negócio respirando.';
-    if (key === 'equilibrium') return 'Para vender com mais tranquilidade e evitar aperto.';
-    if (key === 'growth') return 'Para crescer sem perder o controle da operação.';
-    return 'Para buscar uma sobra maior, com mais esforço.';
+    if (key === 'survival') return 'Quando você quer planejar com cuidado, sem apostar alto.';
+    if (key === 'equilibrium') return 'Quando espera um período realista, estável e mais previsível.';
+    if (key === 'growth') return 'Quando acredita que vai vender mais e aceita um esforço maior.';
+    return 'Quando quer testar um ritmo bem ambicioso para o período.';
   }
 
   function _scenarioIcon(key) {
@@ -1220,13 +1220,24 @@ Modules.PlanoDeVoo = (function () {
     var days = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1);
     var workDays = Array.isArray(_state.workDays) && _state.workDays.length ? _state.workDays : [1, 2, 3, 4, 5];
     var unavailable = _plannedUnavailableDateKeys();
+    var activeMonths = _activeRouteMonthMap();
     var count = 0;
     var d = new Date(start);
     while (d <= end) {
-      if (workDays.indexOf(d.getDay()) >= 0 && !unavailable[_dateKey(d)]) count += 1;
+      if (activeMonths[d.getMonth()] && workDays.indexOf(d.getDay()) >= 0 && !unavailable[_dateKey(d)]) count += 1;
       d.setDate(d.getDate() + 1);
     }
     return Math.max(1, count || days);
+  }
+
+  function _activeRouteMonthMap() {
+    var map = {};
+    var indexes = _routeMonthIndexes();
+    var factors = _state.periodType === 'annual' ? _annualBaseMonthFactors() : [_scenarioMultiplier()];
+    indexes.forEach(function (monthIndex, idx) {
+      map[monthIndex] = _num(factors[idx]) > 0;
+    });
+    return map;
   }
 
   function _plannedUnavailableDateKeys() {
@@ -1381,11 +1392,11 @@ Modules.PlanoDeVoo = (function () {
           '<p style="margin:0 0 10px;">Primeiro confira o ponto de partida: período da rota, ticket médio, custos e compromissos do negócio. A ideia é garantir que a rota comece perto da sua realidade.</p>' +
           '<p style="margin:0 0 10px;">Depois confirme sua rotina de trabalho: dias da semana em que costuma vender, dias fechados e meses que normalmente são mais fortes ou mais fracos. Se não for trabalhar em um mês inteiro, coloque 0 naquele mês.</p>' +
           '<div style="margin:0 0 10px;">' +
-            '<strong style="font-weight:600;color:#1F1F1F;">Compare as quatro rotas:</strong><br>' +
-            '• Sobrevivência: para cobrir o básico.<br>' +
-            '• Segurança: para trabalhar com mais tranquilidade.<br>' +
-            '• Crescimento: para vender mais sem perder o controle.<br>' +
-            '• Lucro forte: para buscar uma sobra maior, sabendo que exige mais esforço.' +
+            '<strong style="font-weight:600;color:#1F1F1F;">Compare os quatro ritmos:</strong><br>' +
+            '• Conservador: para planejar com cuidado, sem apostar alto.<br>' +
+            '• Estável: para um período realista e mais previsível.<br>' +
+            '• Forte: para vender mais, aceitando um esforço maior.<br>' +
+            '• Acelerado: para testar um ritmo bem ambicioso.' +
           '</div>' +
           '<p style="margin:0 0 10px;">Escolha a rota que combina com o momento do negócio. Na aba <strong style="font-weight:600;color:#1F1F1F;">Resumo da rota selecionada</strong>, revise quanto precisa vender, quantos pedidos por dia precisa fazer, quanto pode sobrar e quantos dias de trabalho foram considerados.</p>' +
           '<p style="margin:0;">Ao clicar em <strong style="font-weight:600;color:#1F1F1F;">Salvar e ativar rota</strong>, ela vira a Rota ativa. Depois disso, a tela principal acompanha o andamento. Para mudar o caminho, crie uma nova rota e mantenha o histórico das anteriores.</p>' +
@@ -3076,13 +3087,13 @@ Modules.PlanoDeVoo = (function () {
   function _scenarioHelpText() {
     var scenario = _state.scenario || 'equilibrium';
     if (scenario === 'equilibrium') {
-      return 'Rota de segurança: mantém a base sem ajuste percentual extra.';
+      return 'Ritmo estável: mantém a base sem ajuste percentual extra.';
     }
     if (scenario === 'survival') {
-      return 'Rota de sobrevivência: considera uma venda mais baixa para proteger o básico do negócio.';
+      return 'Ritmo conservador: considera uma venda mais baixa para planejar com cuidado.';
     }
-    var label = scenario === 'growth' ? 'crescimento' : 'lucro forte';
-    return 'Rota de ' + label + ': considera uma venda maior para mostrar o esforço necessário e o resultado esperado.';
+    var label = scenario === 'growth' ? 'forte' : 'acelerado';
+    return 'Ritmo ' + label + ': considera uma venda maior para mostrar o esforço necessário e o resultado esperado.';
   }
 
   function _historicalTrendPct(monthsBack) {
@@ -3873,7 +3884,7 @@ Modules.PlanoDeVoo = (function () {
   }
 
   function _scenarioLabel(key) {
-    return (SCENARIOS[key] && SCENARIOS[key].label) || 'Segurança';
+    return (SCENARIOS[key] && SCENARIOS[key].label) || 'Estável';
   }
 
 

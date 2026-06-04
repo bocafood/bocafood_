@@ -2252,10 +2252,10 @@ Modules.Performance = (function () {
 
   function _scenarioLabel(value) {
     var key = _normalizeText(value || '');
-    if (key === 'survival') return 'Sobrevivência';
-    if (key === 'equilibrium') return 'Segurança';
-    if (key === 'growth') return 'Crescimento';
-    if (key === 'expansion') return 'Lucro forte';
+    if (key === 'survival') return 'Conservador';
+    if (key === 'equilibrium') return 'Estável';
+    if (key === 'growth') return 'Forte';
+    if (key === 'expansion') return 'Acelerado';
     return 'Sem rota';
   }
 

@@ -1,5 +1,21 @@
 # AI Changelog
 
+## 2026-06-04 — Plano de Voo: mês zerado sai dos pedidos por dia
+- Arquivos alterados: `public/js/modules/plano_voo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Removi o texto `só meses abertos` da linha `Média mensal` nos cards de cenário.
+- Corrigi `Pedidos por dia` para não contar dias de trabalho de meses com peso zero.
+- O cálculo agora usa o faturamento ponderado da rota e divide pelos dias trabalhados apenas dos meses ativos, ainda descontando feriados/dias fechados informados.
+- Atualizei o cache-buster de `plano_voo.js` no Admin.
+
+## 2026-06-04 — Plano de Voo: cenários viram ritmos
+- Arquivos alterados: `public/js/modules/plano_voo.js`, `public/js/modules/performance.js`, `public/js/modules/dashboard.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Troquei a narrativa visível dos cenários do Plano de Voo para falar em ritmo previsto do negócio, não em promessa automática de sobrevivência/crescimento.
+- Os nomes visíveis passam a ser `Conservador`, `Estável`, `Forte` e `Acelerado`.
+- A seção `Escolha a realidade que você quer viver` passa a orientar: `Escolha o ritmo que você acredita que o negócio vai ter`.
+- Ajustei as descrições dos cards, a ajuda do modal, a leitura da Performance e os textos de orientação do Dashboard.
+- Mantive as chaves internas antigas (`survival`, `equilibrium`, `growth`, `expansion`) para preservar dados salvos e compatibilidade.
+- Atualizei os cache-busters de `dashboard.js`, `plano_voo.js` e `performance.js` no Admin.
+
 ## 2026-06-04 — Plano de Voo: botão Continuar abre rota salva
 - Arquivos alterados: `public/js/modules/plano_voo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - Corrigi o botão `Continuar` do bloco `Rotas salvas para continuar`.
