@@ -2362,10 +2362,11 @@ function stockRefFromProductLike(item, product, quantity, source, products, reci
   if (baseRefs.length) return baseRefs;
   const readyItemId = fichaId ? "" : stockFirstText(item && item.sourceItemId, item && item.produtoProntoId, item && item.readyProductId, product && product.sourceItemId, product && product.produtoProntoId, product && product.readyProductId, "");
   if (!fichaId && !readyItemId) return null;
-  return {
+  const directRef = {
     fichaId,
-    fichaNome: "",
+    fichaNome: fichaId ? stockFirstText(item && item.fichaNome, item && item.fichaTecnicaNome, product && product.fichaNome, product && product.fichaTecnicaNome, item && item.name, item && item.productName, product && product.name, product && product.title, "") : "",
     readyItemId,
+    stockItemId: fichaId || readyItemId,
     productId: stockFirstText(item && item.productId, item && item.id, product && product.id, ""),
     productName: stockFirstText(item && item.name, item && item.productName, product && product.name, product && product.title, "Produto"),
     quantity,
@@ -2374,6 +2375,7 @@ function stockRefFromProductLike(item, product, quantity, source, products, reci
     stockItemType: fichaId ? "produto_produzido" : "produto_pronto",
     source
   };
+  return directRef;
 }
 
 function stockExtractChoiceRefs(item, product, mainQty, products, recipes) {
@@ -2636,6 +2638,12 @@ function stockRegularizationMovementPayload(item, order, movementId) {
   } else if (stockType === "produto_pronto") {
     payload.sourceItemId = item.stockItemId || "";
     payload.produtoProntoId = item.stockItemId || "";
+  } else if (stockType === "insumo") {
+    payload.ingredientId = item.stockItemId || "";
+    payload.ingredientName = item.itemName || "";
+  } else if (stockType === "embalagem") {
+    payload.packagingId = item.stockItemId || "";
+    payload.packagingName = item.itemName || "";
   }
   return payload;
 }
@@ -2670,7 +2678,10 @@ function stockInternalCompositionRefs(item, product, mainQty) {
     return {
       fichaId: isProduced ? itemId : "",
       fichaNome: isProduced ? stockName : "",
-      readyItemId: isProduced ? "" : itemId,
+      readyItemId: (isProduced || stockType === "base_producao") ? "" : itemId,
+      baseProductionId: stockType === "base_producao" ? itemId : "",
+      baseProductionName: stockType === "base_producao" ? stockName : "",
+      stockItemId: itemId,
       productId: itemId,
       productName: stockName,
       quantity: qty,
@@ -2685,12 +2696,35 @@ function stockInternalCompositionRefs(item, product, mainQty) {
 function stockOrderItemRefs(item, product, products, recipes) {
   const mainQty = stockOrderItemQuantity(item);
   const internalRefs = stockInternalCompositionRefs(item, product, mainQty);
-  if (internalRefs.length) return internalRefs;
+  if (internalRefs.length) return stockDedupeRefs(internalRefs);
+  const refs = [];
+  const addRef = (ref) => {
+    if (Array.isArray(ref)) {
+      ref.forEach(addRef);
+      return;
+    }
+    if (!ref || stockNum(ref.quantity) <= 0) return;
+    refs.push(ref);
+  };
   const direct = stockRefFromProductLike(item, product, mainQty, "item", products, recipes);
-  const choices = stockExtractChoiceRefs(item, product, mainQty, products, recipes);
-  if (choices.length) return choices;
-  if (Array.isArray(direct)) return direct;
-  return direct ? [direct] : [];
+  addRef(direct);
+  stockExtractChoiceRefs(item, product, mainQty, products, recipes).forEach(addRef);
+  return stockDedupeRefs(refs);
+}
+
+function stockDedupeRefs(refs) {
+  const seen = {};
+  return (refs || []).filter((ref) => {
+    const key = [
+      stockNormalizeItemType((ref && (ref.stockItemType || ref.itemClass || ref.classe)) || (ref && ref.fichaId ? "produto_produzido" : "produto_pronto")),
+      ref && (ref.baseProductionId || ref.fichaId || ref.readyItemId || ref.stockItemId || ref.productId || ""),
+      ref && (ref.source || ""),
+      stockRoundQty(ref && ref.quantity)
+    ].join("|");
+    if (seen[key]) return false;
+    seen[key] = true;
+    return true;
+  });
 }
 
 async function syncStripeOrderStockMovements(tenantId, orderId) {

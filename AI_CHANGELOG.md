@@ -1,5 +1,23 @@
 # AI Changelog
 
+## 2026-06-04 — Estoque: regularização para todos os tipos de item
+- Arquivos alterados: `public/js/modules/pedidos.js`, `public/js/modules/estoque.js`, `functions/index.js`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Ajustei a baixa de estoque do pedido para respeitar a hierarquia de estoque: montagem interna baixa só os itens internos; produto pronto baixa como produto pronto; ficha com etapa/base controlada baixa a etapa/base pronta; produto produzido baixa direto quando não há etapa/base controlada representando esse consumo.
+- Com isso, a detecção de saldo negativo e a regularização deixam de acontecer só para etapa/base de produção e passam a considerar também produto pronto, produto produzido, insumo e embalagem, sempre separados por `stockItemType` e sem baixar ingredientes crus de uma etapa que já foi produzida.
+- A entrada de regularização automática e a regularização manual em `Estoque > Regularizações` agora gravam identificadores específicos de insumo e embalagem, além dos campos de produto pronto, produto produzido e base.
+- Espelhei a mesma regra no webhook/Functions para pedidos pagos por Stripe.
+- Atualizei o cache-buster de `estoque.js` no Admin e registrei a regra operacional em `AGENTS.md`.
+- Validação executada sem erros: `node --check public/js/modules/pedidos.js`, `node --check public/js/modules/estoque.js`, `node --check functions/index.js` e `git diff --check`.
+- Impacto esperado: quando uma venda deixa qualquer estoque respectivo negativo, o histórico mostra a saída desse item e a pendência/entrada de regularização correspondente.
+
+## 2026-06-04 — Pedidos: data de registro no pedido manual
+- Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Incluí `Data do pedido` no modal de criação manual, preenchida automaticamente com a data local atual e separada do campo `Dia`, que continua sendo a data de entrega ou retirada.
+- O pedido manual e o pedido criado via TPV passam a salvar `orderDate`, `dataPedido`, `saleDate`, `createdDate` e `orderDateTime`, junto da hora do pedido.
+- A criação da entrada financeira agora usa a data de registro do pedido como `data`, `data_prevista` e `dataPrevista`, sem herdar `deliveryDate`, `pickupDate` ou agenda operacional.
+- Atualizei o cache-buster de `pedidos.js` no Admin e registrei a regra em `AGENTS.md`.
+- Impacto esperado: pedidos lançados manualmente mantêm histórico correto de quando foram registrados, enquanto a entrega/retirada segue como informação operacional separada.
+
 ## 2026-06-04 — Pedidos: regularização no pedido manual
 - Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
 - Corrigi a criação de pedido manual para tentar gerar baixa de estoque logo após salvar o pedido, mesmo quando ele nasce com status `Pendente`.

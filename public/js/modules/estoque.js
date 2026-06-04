@@ -1216,6 +1216,12 @@ Modules.Estoque = (function () {
     } else if (stockType === 'produto_pronto') {
       payload.sourceItemId = entry.stockItemId || '';
       payload.produtoProntoId = entry.stockItemId || '';
+    } else if (stockType === 'insumo') {
+      payload.ingredientId = entry.stockItemId || '';
+      payload.ingredientName = entry.itemName || '';
+    } else if (stockType === 'embalagem') {
+      payload.packagingId = entry.stockItemId || '';
+      payload.packagingName = entry.itemName || '';
     }
     return payload;
   }

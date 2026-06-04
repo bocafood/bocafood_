@@ -99,6 +99,7 @@ Modules.Pedidos = (function () {
     paymentMethod: '',
     paymentStatus: 'previsto',
     paidAmount: 0,
+    orderDate: '',
     orderTime: '',
     deliveryDate: '',
     deliveryTime: '',
@@ -4252,6 +4253,12 @@ Modules.Pedidos = (function () {
     } else if (stockType === 'produto_pronto') {
       payload.sourceItemId = item.stockItemId || '';
       payload.produtoProntoId = item.stockItemId || '';
+    } else if (stockType === 'insumo') {
+      payload.ingredientId = item.stockItemId || '';
+      payload.ingredientName = item.itemName || '';
+    } else if (stockType === 'embalagem') {
+      payload.packagingId = item.stockItemId || '';
+      payload.packagingName = item.itemName || '';
     }
     return payload;
   }
@@ -4347,12 +4354,35 @@ Modules.Pedidos = (function () {
   function _orderItemStockRefs(item, product) {
     var mainQty = _orderItemStockQuantity(item);
     var internalRefs = _internalCompositionStockRefs(item, product, mainQty);
-    if (internalRefs.length) return internalRefs;
-    var direct = _stockRefFromProductLike(item, product, mainQty, 'item');
+    if (internalRefs.length) return _dedupeStockRefs(internalRefs);
+    var refs = [];
+    function addRef(ref) {
+      if (Array.isArray(ref)) {
+        ref.forEach(addRef);
+        return;
+      }
+      if (!ref || _num(ref.quantity) <= 0) return;
+      refs.push(ref);
+    }
+    addRef(_stockRefFromProductLike(item, product, mainQty, 'item'));
     var choices = _extractStockChoiceRefs(item, product, mainQty);
-    if (choices.length) return choices;
-    if (Array.isArray(direct)) return direct;
-    return direct ? [direct] : [];
+    choices.forEach(addRef);
+    return _dedupeStockRefs(refs);
+  }
+
+  function _dedupeStockRefs(refs) {
+    var seen = {};
+    return (refs || []).filter(function (ref) {
+      var key = [
+        _normalizeStockItemType(ref && (ref.stockItemType || ref.itemClass || ref.classe || '') || (ref && ref.fichaId ? 'produto_produzido' : 'produto_pronto')),
+        ref && (ref.baseProductionId || ref.fichaId || ref.readyItemId || ref.stockItemId || ref.productId || ''),
+        ref && (ref.source || ''),
+        _roundStockQty(ref && ref.quantity)
+      ].join('|');
+      if (seen[key]) return false;
+      seen[key] = true;
+      return true;
+    });
   }
 
   function _internalCompositionStockRefs(item, product, mainQty) {
@@ -4382,7 +4412,10 @@ Modules.Pedidos = (function () {
       return {
         fichaId: isProduced ? itemId : '',
         fichaNome: isProduced ? stockName : '',
-        readyItemId: isProduced ? '' : itemId,
+        readyItemId: (isProduced || stockType === 'base_producao') ? '' : itemId,
+        baseProductionId: stockType === 'base_producao' ? itemId : '',
+        baseProductionName: stockType === 'base_producao' ? stockName : '',
+        stockItemId: itemId,
         productId: itemId,
         productName: stockName,
         quantity: qty,
@@ -4512,10 +4545,11 @@ Modules.Pedidos = (function () {
     if (baseRefs.length) return baseRefs;
     var readyItemId = fichaId ? '' : _firstText(item && item.sourceItemId, item && item.produtoProntoId, item && item.readyProductId, product && product.sourceItemId, product && product.produtoProntoId, product && product.readyProductId, '');
     if (!fichaId && !readyItemId) return null;
-    return {
+    var directRef = {
       fichaId: fichaId,
-      fichaNome: '',
+      fichaNome: fichaId ? _firstText(item && item.fichaNome, item && item.fichaTecnicaNome, product && product.fichaNome, product && product.fichaTecnicaNome, item && item.name, item && item.productName, product && product.name, product && product.title, '') : '',
       readyItemId: readyItemId,
+      stockItemId: fichaId || readyItemId,
       productId: _firstText(item && item.productId, item && item.id, product && product.id, ''),
       productName: _firstText(item && item.name, item && item.productName, product && product.name, product && product.title, 'Produto'),
       quantity: quantity,
@@ -4524,6 +4558,7 @@ Modules.Pedidos = (function () {
       stockItemType: fichaId ? 'produto_produzido' : 'produto_pronto',
       source: source
     };
+    return directRef;
   }
 
   function _baseStockRefsFromRecipe(item, product, quantity, source, fichaId) {
@@ -4637,6 +4672,10 @@ Modules.Pedidos = (function () {
   }
   function _today() {
     return new Date().toISOString().slice(0, 10);
+  }
+  function _localDateKey(date) {
+    var d = date instanceof Date ? date : new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
   function _waFromDetail(id) {
     var o = _orders.find(function (x) { return x.id === id; });
@@ -4848,7 +4887,9 @@ Modules.Pedidos = (function () {
     var type = String((document.getElementById('mo-type') || {}).value || _manualOrderState.type || 'delivery');
     var deliveryDate = String((document.getElementById('mo-delivery-date') || {}).value || _manualOrderState.deliveryDate || '').trim();
     var deliveryTime = String((document.getElementById('mo-delivery-time') || {}).value || _manualOrderState.deliveryTime || '').trim();
+    var orderDate = String((document.getElementById('mo-order-date') || {}).value || _manualOrderState.orderDate || _localDateKey()).trim().slice(0, 10);
     var orderTime = _normalizeTimeValue(String((document.getElementById('mo-order-time') || {}).value || _manualOrderState.orderTime || _currentTimeValue()).trim());
+    _manualOrderState.orderDate = orderDate;
     _manualOrderState.orderTime = orderTime;
     var madeToOrder = !!((document.getElementById('mo-made-to-order') || {}).checked || _manualOrderState.madeToOrder);
     var productionLeadDays = madeToOrder ? Math.max(0, Math.floor(_num((document.getElementById('mo-production-lead-days') || {}).value || _manualOrderState.productionLeadDays || 0))) : 0;
@@ -5086,6 +5127,13 @@ Modules.Pedidos = (function () {
         productionLeadTimeDays: productionLeadDays,
         productionDeadlineDate: madeToOrder && productionLeadDays > 0 ? deliveryDate : '',
         productionDeadlineType: madeToOrder ? 'sob_encomenda' : '',
+        orderDate: orderDate,
+        dataPedido: orderDate,
+        date: orderDate,
+        createdDate: orderDate,
+        saleDate: orderDate,
+        analyticsDate: orderDate,
+        orderDateTime: orderDate + 'T' + orderTime,
         orderTime: orderTime,
         saleTime: orderTime,
         createdTime: orderTime,
@@ -5112,7 +5160,7 @@ Modules.Pedidos = (function () {
         kitchenStatus: showInKitchen ? 'Pendente' : '',
         priceOrigin: hasPromo ? 'promo' : (_manualOrderState.channel === 'cardapio' ? 'automático' : 'manual'),
         manualAdjustment: channel !== 'cardapio' || adjustment !== 0,
-        createdAt: _manualOrderCreatedAt(orderTime)
+        createdAt: _manualOrderCreatedAt(orderDate, orderTime)
       };
       Object.assign(payload, _orderChannelFinancialPatch(payload, total));
       payload.fiscal = _ensureOrderFiscalDefaults(payload).fiscal;
@@ -5191,6 +5239,7 @@ Modules.Pedidos = (function () {
     _manualOrderState.paymentMethod = '';
     _manualOrderState.paymentStatus = context.paymentStatus || 'previsto';
     _manualOrderState.paidAmount = 0;
+    _manualOrderState.orderDate = _localDateKey();
     _manualOrderState.orderTime = _currentTimeValue();
     _manualOrderState.deliveryDate = '';
     _manualOrderState.deliveryTime = '';
@@ -5923,7 +5972,7 @@ Modules.Pedidos = (function () {
   function _manualOrderDaysUntil(dateValue) {
     var target = _manualOrderLocalDate(dateValue);
     if (!target) return null;
-    var today = _manualOrderLocalDate(_today());
+    var today = _manualOrderLocalDate(_localDateKey());
     return Math.round((target.getTime() - today.getTime()) / 86400000);
   }
 
@@ -6744,6 +6793,7 @@ Modules.Pedidos = (function () {
               '<div class="mo-service-time"><label>Dia</label><div class="manual-order-field-control"><input id="mo-delivery-date" type="date" value="' + _esc(_manualOrderState.deliveryDate || '') + '" oninput="Modules.Pedidos._manualOrderSetDeliveryDate(this.value)"></div></div>' +
               '<div class="mo-service-time"><label>Horário</label><div class="manual-order-field-control"><input id="mo-delivery-time" type="time" value="' + _esc(_manualOrderState.deliveryTime || '') + '" oninput="Modules.Pedidos._manualOrderSetDeliveryTime(this.value)"></div></div>' +
               '<div class="mo-delivery-only mo-service-fee" id="mo-delivery-fee-block"><label>Taxa de entrega</label><div class="manual-order-field-control"><input id="mo-shipping" type="text" inputmode="decimal" value="' + _esc(UI.fmt(_manualOrderState.shippingFee || 0)) + '" readonly placeholder="€0,00"></div><div id="mo-shipping-info" style="display:none;"></div></div>' +
+              '<div class="mo-service-order-time"><label>Data do pedido</label><div class="manual-order-field-control"><input id="mo-order-date" type="date" value="' + _esc(_manualOrderState.orderDate || _localDateKey()) + '" readonly aria-readonly="true"></div></div>' +
               '<div class="mo-service-order-time"><label>Hora do pedido</label><div class="manual-order-field-control"><input id="mo-order-time" type="time" value="' + _esc(_manualOrderState.orderTime || _currentTimeValue()) + '" oninput="Modules.Pedidos._manualOrderSetOrderTime(this.value)"></div></div>' +
               '<div class="mo-service-custom-order"><div style="border:1px solid #E8DCD7;border-radius:13px;background:#FFFCF8;padding:10px 12px;display:grid;grid-template-columns:minmax(220px,1fr) minmax(120px,160px);gap:10px;align-items:end;">' +
                 '<label style="display:flex!important;align-items:flex-start;gap:9px;margin:0!important;color:#1F1F1F!important;font-size:12px!important;line-height:1.35!important;"><input id="mo-made-to-order" type="checkbox" onchange="Modules.Pedidos._manualOrderSetMadeToOrder(this.checked)" style="width:16px;height:16px;accent-color:#B42318;margin-top:2px;"' + (_manualOrderState.madeToOrder ? ' checked' : '') + '><span><strong style="display:block;color:#1F1F1F;font-size:12px;">Produto sob encomenda</strong><span id="mo-production-lead-help" style="display:block;color:#6F6860;font-size:11px;margin-top:2px;">' + _esc(_manualOrderProductionLeadHelp()) + '</span></span></label>' +
@@ -6823,6 +6873,7 @@ Modules.Pedidos = (function () {
     var total = _num(data.total);
     if (!items.length) return Promise.reject(new Error('Selecione ao menos um produto'));
     if (!(total > 0)) return Promise.reject(new Error('O total final precisa ser maior que zero'));
+    var orderDate = String(data.orderDate || data.dataPedido || data.saleDate || data.createdDate || _localDateKey()).slice(0, 10);
     var orderTime = _normalizeTimeValue(data.orderTime || _currentTimeValue());
     var paymentStatus = String(data.paymentStatus || 'pago');
     var paymentMethod = String(data.paymentMethod || '');
@@ -6857,6 +6908,13 @@ Modules.Pedidos = (function () {
       paid: _paymentStatusIsPaid(paymentStatus) ? true : (_paymentStatusIsPartial(paymentStatus) ? paidAmount : false),
       deliveryDate: '',
       deliveryTime: '',
+      orderDate: orderDate,
+      dataPedido: orderDate,
+      date: orderDate,
+      createdDate: orderDate,
+      saleDate: orderDate,
+      analyticsDate: orderDate,
+      orderDateTime: orderDate + 'T' + orderTime,
       orderTime: orderTime,
       saleTime: orderTime,
       createdTime: orderTime,
@@ -6885,7 +6943,7 @@ Modules.Pedidos = (function () {
       manualAdjustment: _num(data.manualAdjustmentValue || 0) !== 0,
       completedAt: new Date().toISOString(),
       deliveredAt: new Date().toISOString(),
-      createdAt: _manualOrderCreatedAt(orderTime)
+      createdAt: _manualOrderCreatedAt(orderDate, orderTime)
     };
     Object.assign(payload, _orderChannelFinancialPatch(payload, total));
     payload.fiscal = _ensureOrderFiscalDefaults(payload).fiscal;
@@ -6928,9 +6986,13 @@ Modules.Pedidos = (function () {
     return parseInt(time.slice(0, 2), 10) || 0;
   }
 
-  function _manualOrderCreatedAt(orderTime) {
+  function _manualOrderCreatedAt(orderDate, orderTime) {
+    if (orderTime == null) {
+      orderTime = orderDate;
+      orderDate = _localDateKey();
+    }
     var time = _normalizeTimeValue(orderTime);
-    var d = new Date();
+    var d = _manualOrderLocalDate(orderDate) || new Date();
     d.setHours(_timeHour(time), parseInt(time.slice(3, 5), 10) || 0, 0, 0);
     return d.toISOString();
   }
@@ -7746,9 +7808,9 @@ Modules.Pedidos = (function () {
     if (!_paymentStatusIsPartial(paymentStatus)) paidAmount = _paymentStatusIsPaid(paymentStatus) ? total : 0;
     var finStatus = _paymentStatusFinanceStatus(paymentStatus);
     paidAmount = 0;
-    var orderDate = _firstText(order.orderDate, order.dataPedido, order.createdAt, order.created_at, order.date, order.createdDate, _today());
+    var orderDate = _firstText(order.orderDate, order.dataPedido, order.createdDate, order.saleDate, order.date, order.createdAt, order.created_at, _localDateKey());
+    var financeDate = orderDate && String(orderDate).slice(0, 10) ? String(orderDate).slice(0, 10) : _localDateKey();
     var paymentDate = _firstText(order.paymentDate, order.dataPagamento, order.paidAt, order.paymentAt, order.paymentUpdatedAt, '');
-    var data = _firstText(order.deliveryDate, order.deliveryDateISO, order.pickupDate, order.scheduleDate, orderDate, _today());
     var financeAccountId = _orderFinanceAccountId(order);
     var channelMeta = _orderChannelMeta(order);
     var incomeCategory = _orderIncomeCategoryMeta(order);
@@ -7791,11 +7853,11 @@ Modules.Pedidos = (function () {
       pedidoNumero: _orderDisplayId(order) || orderId,
       tipo: 'entrada',
       descricao: 'Pedido ' + (_orderDisplayId(order) || orderId),
-      data: data && String(data).slice(0, 10) ? String(data).slice(0, 10) : _today(),
-      data_prevista: data && String(data).slice(0, 10) ? String(data).slice(0, 10) : _today(),
-      dataPrevista: data && String(data).slice(0, 10) ? String(data).slice(0, 10) : _today(),
-      orderDate: orderDate && String(orderDate).slice(0, 10) ? String(orderDate).slice(0, 10) : _today(),
-      dataPedido: orderDate && String(orderDate).slice(0, 10) ? String(orderDate).slice(0, 10) : _today(),
+      data: financeDate,
+      data_prevista: financeDate,
+      dataPrevista: financeDate,
+      orderDate: financeDate,
+      dataPedido: financeDate,
       paymentDate: paymentDate && String(paymentDate).slice(0, 10) ? String(paymentDate).slice(0, 10) : '',
       dataPagamentoPedido: paymentDate && String(paymentDate).slice(0, 10) ? String(paymentDate).slice(0, 10) : '',
       data_recebimento: '',
