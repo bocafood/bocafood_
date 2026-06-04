@@ -63,6 +63,13 @@ Modules.Pedidos = (function () {
     kitchenDate: '',
     kitchenPeriod: 'all'
   };
+  var _performanceTab = 'resumo';
+  var _performanceFilters = {
+    q: '',
+    period: '90',
+    channel: 'all',
+    type: 'all'
+  };
   var _clientPage = 1;
   var _clientPageSize = 10;
   var _ordersPage = 1;
@@ -173,6 +180,7 @@ Modules.Pedidos = (function () {
     if (key === 'demanda') return 'cozinha';
     if (key === 'todos' || key === 'lista' || key === 'pedidos') return 'lista';
     if (key === 'clientes') return 'clientes';
+    if (key === 'desempenho' || key === 'performance') return 'desempenho';
     if (key === 'avaliacoes' || key === 'review' || key === 'reviews') return 'avaliacoes';
     if (key === 'cozinha') return 'cozinha';
     return 'cozinha';
@@ -182,6 +190,7 @@ Modules.Pedidos = (function () {
     var tab = _normalizeTab(key);
     if (tab === 'lista') return 'pedidos/lista';
     if (tab === 'clientes') return 'pedidos/clientes';
+    if (tab === 'desempenho') return 'pedidos/desempenho';
     if (tab === 'avaliacoes') return 'loja-online/avaliacoes';
     return 'pedidos/cozinha';
   }
@@ -322,6 +331,10 @@ Modules.Pedidos = (function () {
       if (_activeTab === 'clientes') {
         content.innerHTML = _renderClientesPage();
         _renderClientesTab();
+        return;
+      }
+      if (_activeTab === 'desempenho') {
+        content.innerHTML = _renderPerformancePage();
         return;
       }
       if (_activeTab === 'avaliacoes') {
@@ -698,6 +711,338 @@ Modules.Pedidos = (function () {
         '<div id="reviews-tab-list" style="display:flex;flex-direction:column;gap:12px;"></div>' +
       '</section>' +
       '</div>';
+  }
+
+  function _renderPerformancePage() {
+    var rows = _performanceRows();
+    var filtered = _performanceFilteredRows(rows);
+    var summary = _performanceSummary(filtered);
+    var matrix = _performanceMatrix(filtered);
+    var body = _performanceTab === 'matriz'
+      ? _performanceFiltersHtml(false) + _performanceMatrixHtml(matrix)
+      : _performanceTab === 'vendas'
+        ? _performanceFiltersHtml(true) + _performanceSalesTableHtml(filtered)
+        : _performanceFiltersHtml(false) + _performanceSummaryHtml(summary, matrix, filtered);
+    return '<div style="display:flex;flex-direction:column;gap:16px;padding:24px;font-family:Manrope,Inter,sans-serif;">' +
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
+        '<div style="min-width:0;flex:1 1 460px;"><h2 style="font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;line-height:1.2;">Desempenho dos pedidos</h2><p style="font-size:13px;color:#6F6860;line-height:1.45;margin:0;max-width:760px;">Veja o que está vendendo em todos os canais do negócio. Use essa leitura para decidir destaque, preço, promoção, combos e canais que merecem mais atenção.</p></div>' +
+        '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;">' + _performanceSubtabsHtml() + '</div>' +
+      '</div>' +
+      body +
+    '</div>';
+  }
+
+  function _performanceSubtabsHtml() {
+    function tab(key, label, icon) {
+      var active = _performanceTab === key;
+      return '<button type="button" onclick="Modules.Pedidos._setPerformanceTab(\'' + key + '\')" style="display:inline-flex;align-items:center;gap:8px;padding:9px 12px;border:none;border-radius:999px;background:' + (active ? '#B42318' : '#fff') + ';color:' + (active ? '#fff' : '#6F6860') + ';font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:' + (active ? '0 10px 24px rgba(180,35,24,.18)' : 'inset 0 0 0 1px #EAE4DA') + ';transition:background .15s ease,color .15s ease,box-shadow .15s ease;">' +
+        '<span class="mi" style="font-size:17px;">' + _esc(icon) + '</span>' + _esc(label) +
+      '</button>';
+    }
+    return '<div style="display:inline-flex;align-items:center;gap:6px;background:#FAF8F4;border-radius:999px;padding:4px;box-shadow:inset 0 0 0 1px #EAE4DA;max-width:100%;overflow:auto;">' +
+      tab('resumo', 'Resumo', 'monitoring') +
+      tab('matriz', 'Matriz', 'grid_view') +
+      tab('vendas', 'Vendas', 'receipt_long') +
+    '</div>';
+  }
+
+  function _performanceFiltersHtml(includeSearch) {
+    var channels = _performanceChannelOptions();
+    var channelOptions = '<option value="all"' + (_performanceFilters.channel === 'all' ? ' selected' : '') + '>Todos os canais</option>' + channels.map(function (name) {
+      return '<option value="' + _esc(name) + '"' + (_performanceFilters.channel === name ? ' selected' : '') + '>' + _esc(name) + '</option>';
+    }).join('');
+    var periodOptions = [
+      ['30', 'Últimos 30 dias'],
+      ['90', 'Últimos 90 dias'],
+      ['180', 'Últimos 180 dias'],
+      ['all', 'Todo o histórico']
+    ].map(function (row) { return '<option value="' + row[0] + '"' + (_performanceFilters.period === row[0] ? ' selected' : '') + '>' + row[1] + '</option>'; }).join('');
+    var typeOptions = [
+      ['all', 'Todos os tipos'],
+      ['combo', 'Combos e menus'],
+      ['produto', 'Produtos avulsos'],
+      ['receita', 'Receita/produto produzido'],
+      ['pronto', 'Produto pronto']
+    ].map(function (row) { return '<option value="' + row[0] + '"' + (_performanceFilters.type === row[0] ? ' selected' : '') + '>' + row[1] + '</option>'; }).join('');
+    var hasFilters = _performanceFilters.q || _performanceFilters.period !== '90' || _performanceFilters.channel !== 'all' || _performanceFilters.type !== 'all';
+    return '<section style="' + _adminPanelStyle() + '">' +
+      '<div style="display:grid;grid-template-columns:' + (includeSearch ? 'minmax(260px,1fr) ' : '') + 'minmax(155px,190px) minmax(170px,230px) minmax(170px,230px);gap:11px 12px;align-items:end;">' +
+        (includeSearch ? _adminFilterField('Buscar', '<input type="search" value="' + _esc(_performanceFilters.q || '') + '" oninput="Modules.Pedidos._setPerformanceFilter(\'q\',this.value)" placeholder="Produto, pedido ou cliente" autocomplete="off" style="' + _adminInputStyle() + '">') : '') +
+        _adminFilterField('Período', '<select onchange="Modules.Pedidos._setPerformanceFilter(\'period\',this.value)" style="' + _adminSelectStyle() + '">' + periodOptions + '</select>') +
+        _adminFilterField('Canal', '<select onchange="Modules.Pedidos._setPerformanceFilter(\'channel\',this.value)" style="' + _adminSelectStyle() + '">' + channelOptions + '</select>') +
+        _adminFilterField('Tipo', '<select onchange="Modules.Pedidos._setPerformanceFilter(\'type\',this.value)" style="' + _adminSelectStyle() + '">' + typeOptions + '</select>') +
+      '</div>' +
+      (hasFilters ? '<div style="display:flex;justify-content:flex-start;margin-top:11px;"><button type="button" onclick="Modules.Pedidos._clearPerformanceFilters()" style="height:36px;padding:0 13px;border:1px solid #EADFD8;border-radius:11px;background:#fff;color:#6F6860;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);">Limpar filtros</button></div>' : '') +
+    '</section>';
+  }
+
+  function _performanceSummaryHtml(summary, matrix, rows) {
+    var ranking = _performanceRanking(rows).slice(0, 8);
+    var rankingHtml = ranking.length ? ranking.map(function (row, idx) {
+      return '<div style="display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid #F0E7E2;">' +
+        '<span style="width:24px;height:24px;border-radius:9px;background:#FFF5F3;color:#B42318;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:750;">' + (idx + 1) + '</span>' +
+        '<div style="min-width:0;"><div style="font-size:13px;font-weight:650;color:#1F1F1F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(row.name) + '</div><div style="font-size:11px;color:#6F6860;margin-top:2px;">' + _esc(row.typeLabel) + ' · ' + _roundQty(row.qty) + ' un.</div></div>' +
+        '<div style="font-size:13px;font-weight:700;color:#1F1F1F;white-space:nowrap;">' + UI.fmt(row.revenue) + '</div>' +
+      '</div>';
+    }).join('') : '<div style="padding:18px;color:#8A7E7C;font-size:13px;text-align:center;">Sem vendas para este filtro.</div>';
+    return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;">' +
+        _kitchenKpiCard('Faturamento filtrado', UI.fmt(summary.revenue), summary.orders + ' pedido(s)', 'payments', '#8A6F5A') +
+        _kitchenKpiCard('Itens vendidos', _roundQty(summary.qty), 'quantidade no filtro', 'shopping_bag', '#B42318') +
+        _kitchenKpiCard('Valor médio por item', UI.fmt(summary.avgLine), 'mix vendido', 'receipt_long', '#6C8777') +
+        _kitchenKpiCard('Preferido das clientes', summary.topName || 'Sem vendas', summary.topQty ? _roundQty(summary.topQty) + ' vendido(s)' : 'aguardando pedidos', 'leaderboard', '#A18362') +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:16px;align-items:start;">' +
+        '<section style="' + _adminPanelStyle() + '"><h3 style="margin:0;font-size:15px;font-weight:700;color:#1F1F1F;">Mais vendidos</h3><p style="margin:4px 0 8px;font-size:12px;color:#6F6860;line-height:1.4;">Ajuda a enxergar o que merece destaque em qualquer canal de venda.</p>' + rankingHtml + '</section>' +
+        '<section style="' + _adminPanelStyle() + '"><h3 style="margin:0;font-size:15px;font-weight:700;color:#1F1F1F;">Leitura rápida</h3><p style="margin:4px 0 12px;font-size:12px;color:#6F6860;line-height:1.4;">Para abrir a análise completa, use a subaba Matriz.</p>' + _performanceMatrixCardsHtml(matrix) + '</section>' +
+      '</div>';
+  }
+
+  function _performanceSalesTableHtml(rows) {
+    var html = rows.map(function (row) {
+      return '<tr onclick="Modules.Pedidos._openDetail(\'' + _esc(row.orderId) + '\')" style="cursor:pointer;background:#fff;border-bottom:1px solid #EAE4DA;">' +
+        '<td style="padding:12px 16px;color:#6F6860;font-size:12px;white-space:nowrap;">' + _esc(row.dateText) + '</td>' +
+        '<td style="padding:12px 16px;"><div style="font-size:13px;font-weight:650;color:#1F1F1F;">' + _esc(row.name) + '</div><div style="font-size:11px;color:#6F6860;margin-top:2px;">' + _esc(row.typeLabel) + '</div></td>' +
+        '<td style="padding:12px 16px;"><div style="font-size:12px;font-weight:650;color:#1F1F1F;">' + _esc(row.orderNumber) + '</div><div style="font-size:11px;color:#6F6860;margin-top:2px;">' + _esc(row.customer || 'Cliente não informado') + '</div></td>' +
+        '<td style="padding:12px 16px;color:#6F6860;font-size:12px;white-space:nowrap;">' + _esc(row.channel) + '</td>' +
+        '<td style="padding:12px 16px;color:#6F6860;font-size:12px;white-space:nowrap;">' + _esc(row.status) + '</td>' +
+        '<td style="padding:12px 16px;text-align:right;font-size:13px;font-weight:650;color:#1F1F1F;">' + _roundQty(row.qty) + '</td>' +
+        '<td style="padding:12px 16px;text-align:right;font-size:13px;font-weight:700;color:#1F1F1F;">' + UI.fmt(row.total) + '</td>' +
+      '</tr>';
+    }).join('');
+    if (!html) html = '<tr><td colspan="7" style="padding:28px;text-align:center;color:#8A7E7C;font-size:13px;">Nenhuma venda encontrada para os filtros atuais.</td></tr>';
+    return '<section style="background:#fff;border:1px solid #EADFD8;border-radius:18px;box-shadow:0 12px 30px rgba(31,31,31,.055);overflow:hidden;">' +
+      '<div style="padding:16px 18px;border-bottom:1px solid #EAE4DA;"><h3 style="margin:0;font-size:15px;font-weight:700;color:#1F1F1F;">Vendas item por item</h3><p style="margin:4px 0 0;font-size:12px;color:#6F6860;line-height:1.4;">Inclui todos os canais selecionados no filtro.</p></div>' +
+      '<div style="overflow:auto;"><table class="bf-table" style="width:100%;border-collapse:collapse;min-width:920px;"><thead><tr style="background:#fff;border-bottom:1px solid #EAE4DA;">' +
+        '<th style="text-align:left;padding:12px 16px;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Data</th><th style="text-align:left;padding:12px 16px;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Produto vendido</th><th style="text-align:left;padding:12px 16px;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Pedido</th><th style="text-align:left;padding:12px 16px;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Canal</th><th style="text-align:left;padding:12px 16px;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Status</th><th style="text-align:right;padding:12px 16px;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Qtd.</th><th style="text-align:right;padding:12px 16px;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Total</th>' +
+      '</tr></thead><tbody>' + html + '</tbody></table></div>' +
+    '</section>';
+  }
+
+  function _performanceMatrixHtml(matrix) {
+    var configs = _performanceMatrixConfigs();
+    return '<section style="' + _adminPanelStyle() + '">' +
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px;"><div><h3 style="margin:0;font-size:16px;font-weight:850;color:#1F1F1F;">Matriz de desempenho</h3><p style="margin:5px 0 0;font-size:13px;color:#6F6860;line-height:1.45;max-width:780px;">Cada quadrante mostra até 6 produtos dos pedidos filtrados. Se houver mais, abra a lista completa.</p></div><span style="font-size:11px;font-weight:750;color:#6F6860;background:#FAF8F4;border:1px solid #EAE4DA;border-radius:999px;padding:7px 10px;white-space:nowrap;">Últimos 30 dias x 30 anteriores</span></div>' +
+      '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;">' +
+        configs.map(function (cfg) { return _performanceQuadrantHtml(cfg, matrix); }).join('') +
+      '</div>' +
+    '</section>';
+  }
+
+  function _performanceMatrixCardsHtml(matrix) {
+    return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;">' + _performanceMatrixConfigs().map(function (cfg) {
+      var items = matrix[cfg.key] || [];
+      return '<div style="border:1px solid ' + cfg.border + ';background:' + cfg.bg + ';border-radius:14px;padding:12px;"><div style="display:flex;justify-content:space-between;gap:10px;"><strong style="font-size:13px;color:' + cfg.color + ';">' + _esc(cfg.title) + '</strong><strong style="font-size:20px;color:#1F1F1F;">' + items.length + '</strong></div><div style="font-size:11px;color:#6F6860;margin-top:4px;line-height:1.35;">' + _esc(items[0] ? items[0].name : cfg.empty) + '</div></div>';
+    }).join('') + '</div>';
+  }
+
+  function _performanceQuadrantHtml(cfg, matrix) {
+    var items = matrix[cfg.key] || [];
+    var visible = items.slice(0, 6);
+    var body = visible.length ? visible.map(function (row) {
+      return '<div style="background:rgba(255,255,255,.82);border:1px solid rgba(234,228,218,.9);border-radius:13px;padding:10px 11px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:start;"><div style="min-width:0;"><div style="font-size:13px;font-weight:750;color:#1F1F1F;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(row.name) + '</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:3px;">' + _esc(_roundQty(row.currentQty) + ' vendido(s) · ' + UI.fmt(row.currentRevenue)) + '</div></div><span style="font-size:12px;font-weight:800;color:' + (row.growth >= 0 ? '#16735B' : '#B42318') + ';white-space:nowrap;">' + (row.growth > 0 ? '+' : '') + Math.round(row.growth) + '%</span></div>';
+    }).join('') : '<div style="background:rgba(255,255,255,.72);border:1px dashed ' + cfg.border + ';border-radius:14px;padding:18px;color:#6F6860;font-size:13px;line-height:1.45;text-align:center;">' + _esc(cfg.empty) + '</div>';
+    return '<section style="border-radius:18px;padding:16px;border:1px solid ' + cfg.border + ';background:' + cfg.bg + ';box-shadow:0 12px 30px rgba(31,31,31,.055);min-height:300px;display:flex;flex-direction:column;gap:12px;">' +
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;"><div><div style="display:flex;align-items:center;gap:8px;color:' + cfg.color + ';font-size:15px;font-weight:850;"><span class="mi" style="font-size:20px;">' + _esc(cfg.icon) + '</span>' + _esc(cfg.title) + '</div><div style="font-size:12px;color:#6F6860;line-height:1.35;margin-top:3px;">' + _esc(cfg.axis) + '</div></div><strong style="font-size:27px;font-weight:850;color:#1F1F1F;line-height:1;">' + items.length + '</strong></div>' +
+      '<div style="font-size:12px;color:#1F1F1F;line-height:1.45;background:rgba(255,255,255,.55);border-radius:12px;padding:9px 10px;">' + _esc(cfg.action) + '</div>' +
+      '<div style="display:flex;flex-direction:column;gap:8px;">' + body + '</div>' +
+    '</section>';
+  }
+
+  function _setPerformanceTab(value) {
+    _performanceTab = value === 'matriz' || value === 'vendas' ? value : 'resumo';
+    _paintActive();
+  }
+
+  function _setPerformanceFilter(key, value) {
+    _performanceFilters[key] = String(value || '');
+    if (key !== 'q' && !_performanceFilters[key]) _performanceFilters[key] = key === 'channel' || key === 'type' ? 'all' : '90';
+    _paintActive();
+  }
+
+  function _clearPerformanceFilters() {
+    _performanceFilters = { q: '', period: '90', channel: 'all', type: 'all' };
+    _paintActive();
+  }
+
+  function _performanceRows() {
+    var productById = {};
+    var productByName = {};
+    (_products || []).forEach(function (product) {
+      var id = String(product && product.id || '').trim();
+      var name = _firstText(product && product.name, product && product.nome, '');
+      if (id) productById[id] = product;
+      if (name) productByName[_fold(name)] = product;
+    });
+    var rows = [];
+    (_orders || []).forEach(function (order) {
+      if (_statusCancelsStockMovement(order && order.status)) return;
+      var orderId = _firstText(order && order.id, order && order.orderId, '');
+      var orderNumber = _firstText(order && order.number, order && order.orderNumber, order && order.code, orderId ? '#' + String(orderId).slice(-6).toUpperCase() : 'Pedido');
+      var ts = _dateTs(order);
+      var channel = _performanceOrderChannel(order);
+      var customer = _firstText(order && order.customerName, order && order.clientName, order && order.name, order && order.customer && order.customer.name, '');
+      _orderItemsArray(order).forEach(function (item, index) {
+        var name = _firstText(item.name, item.productName, item.title, item.label, item.itemName, 'Item do pedido');
+        var productId = _firstText(item.productId, item.id, item.itemId, '');
+        var product = productId ? productById[productId] : null;
+        if (!product && name) product = productByName[_fold(name)] || null;
+        var qty = Math.max(1, _num(item.qty != null ? item.qty : item.quantity != null ? item.quantity : item.count != null ? item.count : 1) || 1);
+        var total = _itemMoneyTotal(item);
+        if (!(total > 0)) total = qty * _num(item.price != null ? item.price : item.unitPrice != null ? item.unitPrice : 0);
+        var type = _performanceItemType(item, product);
+        rows.push({
+          key: [orderId || 'pedido', productId || name, index].join(':'),
+          orderId: orderId,
+          orderNumber: orderNumber,
+          dateTs: ts,
+          dateText: ts ? UI.fmtDate(new Date(ts)) : '-',
+          customer: customer,
+          channel: channel,
+          status: _orderStatusLabel(order && order.status),
+          productId: productId || product && product.id || '',
+          name: name || product && product.name || 'Item do pedido',
+          type: type.value,
+          typeLabel: type.label,
+          qty: qty,
+          total: total
+        });
+      });
+    });
+    rows.sort(function (a, b) { return (b.dateTs - a.dateTs) || String(b.orderNumber).localeCompare(String(a.orderNumber)); });
+    return rows;
+  }
+
+  function _performanceFilteredRows(rows) {
+    var now = new Date();
+    now.setHours(23, 59, 59, 999);
+    var period = String(_performanceFilters.period || '90');
+    var minTs = 0;
+    if (period !== 'all') minTs = now.getTime() - ((parseInt(period, 10) || 90) * 86400000);
+    var query = _fold(_performanceFilters.q || '').trim();
+    var channel = String(_performanceFilters.channel || 'all');
+    var type = String(_performanceFilters.type || 'all');
+    return (rows || []).filter(function (row) {
+      if (minTs && row.dateTs && row.dateTs < minTs) return false;
+      if (channel !== 'all' && row.channel !== channel) return false;
+      if (type !== 'all' && row.type !== type) return false;
+      if (query) {
+        var hay = _fold([row.name, row.orderNumber, row.customer, row.channel, row.typeLabel].join(' '));
+        if (hay.indexOf(query) < 0) return false;
+      }
+      return true;
+    });
+  }
+
+  function _performanceSummary(rows) {
+    var orderMap = {};
+    var revenue = 0;
+    var qty = 0;
+    (rows || []).forEach(function (row) {
+      revenue += _num(row.total);
+      qty += _num(row.qty);
+      if (row.orderId) orderMap[row.orderId] = true;
+    });
+    var ranking = _performanceRanking(rows);
+    return {
+      revenue: revenue,
+      qty: qty,
+      rows: (rows || []).length,
+      orders: Object.keys(orderMap).length,
+      avgLine: rows && rows.length ? revenue / rows.length : 0,
+      topName: ranking[0] && ranking[0].name || '',
+      topQty: ranking[0] && ranking[0].qty || 0
+    };
+  }
+
+  function _performanceRanking(rows) {
+    var map = {};
+    (rows || []).forEach(function (row) {
+      var key = row.productId || row.name;
+      if (!map[key]) map[key] = { name: row.name, typeLabel: row.typeLabel, qty: 0, revenue: 0 };
+      map[key].qty += _num(row.qty);
+      map[key].revenue += _num(row.total);
+    });
+    return Object.keys(map).map(function (key) { return map[key]; }).sort(function (a, b) {
+      return (b.revenue - a.revenue) || (b.qty - a.qty) || String(a.name).localeCompare(String(b.name));
+    });
+  }
+
+  function _performanceMatrix(rows) {
+    var now = new Date();
+    now.setHours(23, 59, 59, 999);
+    var currentStart = now.getTime() - (30 * 86400000);
+    var previousStart = now.getTime() - (60 * 86400000);
+    var map = {};
+    (rows || []).forEach(function (row) {
+      if (!row.dateTs || row.dateTs < previousStart || row.dateTs > now.getTime()) return;
+      var key = row.productId || row.name;
+      if (!map[key]) map[key] = { name: row.name, currentRevenue: 0, previousRevenue: 0, currentQty: 0, previousQty: 0 };
+      if (row.dateTs >= currentStart) {
+        map[key].currentRevenue += _num(row.total);
+        map[key].currentQty += _num(row.qty);
+      } else {
+        map[key].previousRevenue += _num(row.total);
+        map[key].previousQty += _num(row.qty);
+      }
+    });
+    var items = Object.keys(map).map(function (key) {
+      var row = map[key];
+      row.growth = row.previousRevenue > 0 ? ((row.currentRevenue - row.previousRevenue) / row.previousRevenue) * 100 : (row.currentRevenue > 0 ? 100 : 0);
+      return row;
+    });
+    var sold = items.filter(function (row) { return row.currentRevenue > 0 || row.currentQty > 0; });
+    var avg = sold.length ? sold.reduce(function (sum, row) { return sum + row.currentRevenue; }, 0) / sold.length : 0;
+    var buckets = { stars: [], bets: [], cash: [], review: [] };
+    items.forEach(function (row) {
+      var highSales = row.currentRevenue > 0 && row.currentRevenue >= avg;
+      var highGrowth = row.currentRevenue > 0 && (row.previousRevenue <= 0 || row.growth >= 10);
+      if (highSales && highGrowth) buckets.stars.push(row);
+      else if (highGrowth) buckets.bets.push(row);
+      else if (highSales) buckets.cash.push(row);
+      else buckets.review.push(row);
+    });
+    buckets.stars.sort(function (a, b) { return b.currentRevenue - a.currentRevenue; });
+    buckets.bets.sort(function (a, b) { return b.growth - a.growth; });
+    buckets.cash.sort(function (a, b) { return b.currentRevenue - a.currentRevenue; });
+    buckets.review.sort(function (a, b) { return a.currentRevenue - b.currentRevenue; });
+    return buckets;
+  }
+
+  function _performanceMatrixConfigs() {
+    return [
+      { key: 'stars', title: 'Estrelas', axis: 'Vende bem + cresceu', icon: 'auto_awesome', color: '#16735B', bg: '#F1FAF5', border: '#D9EFE4', empty: 'Produtos fortes aparecem aqui.', action: 'Dê destaque, mantenha disponível e proteja margem.' },
+      { key: 'bets', title: 'Apostas', axis: 'Vende menos + cresceu', icon: 'rocket_launch', color: '#2F6F9F', bg: '#F0F7FC', border: '#D8EAF5', empty: 'Produtos que começaram a reagir aparecem aqui.', action: 'Teste vitrine, combo, foto ou comunicação por alguns dias.' },
+      { key: 'cash', title: 'Caixa forte', axis: 'Vende bem + estável', icon: 'payments', color: '#8A5A18', bg: '#FFF8E8', border: '#F1E1B8', empty: 'Produtos que seguram o caixa aparecem aqui.', action: 'Mantenha no cardápio, revise custo e evite desconto sem necessidade.' },
+      { key: 'review', title: 'Revisar', axis: 'Vende pouco ou perdeu força', icon: 'manage_search', color: '#B42318', bg: '#FFF5F3', border: '#F0D2CC', empty: 'Produtos que precisam de cuidado aparecem aqui.', action: 'Revise preço, foto, descrição, custo ou se ainda vale manter.' }
+    ];
+  }
+
+  function _performanceChannelOptions() {
+    var map = {};
+    _channelNames().forEach(function (name) { if (name) map[name] = true; });
+    (_orders || []).forEach(function (order) {
+      var name = _performanceOrderChannel(order);
+      if (name) map[name] = true;
+    });
+    return Object.keys(map).sort(function (a, b) { return a.localeCompare(b); });
+  }
+
+  function _performanceOrderChannel(order) {
+    return _firstText(order && order.channelName, order && order.salesChannelName, order && order.salesChannel, order && order.canalVenda, _orderChannelLabel(order), 'Cardápio');
+  }
+
+  function _performanceItemType(item, product) {
+    var raw = _fold(_firstText(item && item.productType, item && item.type, product && product.productType, product && product.type, ''));
+    if (raw === 'menu' || raw === 'combo') return { value: 'combo', label: 'Combo/Menu' };
+    if (product && (product.type === 'menu' || product.productType === 'combo')) return { value: 'combo', label: 'Combo/Menu' };
+    if (product && product.fichaId) return { value: 'receita', label: 'Receita/produto produzido' };
+    if (product && (product.produtoProntoId || product.sourceItemId)) return { value: 'pronto', label: 'Produto pronto' };
+    return { value: 'produto', label: 'Produto avulso' };
+  }
+
+  function _roundQty(value) {
+    var n = _num(value || 0);
+    return Math.abs(n - Math.round(n)) < 0.000001 ? String(Math.round(n)) : n.toFixed(2).replace('.', ',');
   }
 
   function _renderAvaliacoesTab() {
@@ -8406,6 +8751,7 @@ Modules.Pedidos = (function () {
   return {
     render: render, destroy: destroy,
     _switchTab: _switchTab, _setUi: _setUi,
+    _setPerformanceTab: _setPerformanceTab, _setPerformanceFilter: _setPerformanceFilter, _clearPerformanceFilters: _clearPerformanceFilters,
     _setOrdersPage: _setOrdersPage, _setOrdersPageSize: _setOrdersPageSize,
     _setKitchenPage: _setKitchenPage, _setKitchenPageSize: _setKitchenPageSize,
     _setClientPage: _setClientPage, _setClientPageSize: _setClientPageSize,

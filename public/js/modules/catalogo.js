@@ -29,6 +29,7 @@ Modules.Catalogo = (function () {
   var _salesFilters = { q: '', period: '90', channel: 'todos', type: 'todos' };
   var _salesView = { page: 1, pageSize: 25 };
   var _salesSearchTimer = null;
+  var _salesChannels = [];
   var _performanceTab = 'resumo';
   var _catalogForecastData = { products: [], recipes: [], movements: [], variantGroups: [], readyItems: [], categories: [] };
   var _catalogForecastFilters = { q: '', status: 'todos' };
@@ -1071,11 +1072,13 @@ Modules.Catalogo = (function () {
     Promise.all([
       DB.getAll('products').catch(function () { return []; }),
       DB.getAll('categories').catch(function () { return []; }),
-      DB.getAll('orders').catch(function () { return []; })
+      DB.getAll('orders').catch(function () { return []; }),
+      DB.getDocRoot ? DB.getDocRoot('config', 'canais_venda').catch(function () { return null; }) : Promise.resolve(null)
     ]).then(function (r) {
       _products = r[0] || [];
       _categories = r[1] || [];
       _orders = r[2] || [];
+      _salesChannels = _catalogConfiguredSalesChannels(r[3] || {});
       _paintVendasCardapio();
     }).catch(function (err) {
       content.innerHTML = UI.emptyState('Vendas indisponíveis', 'Não foi possível carregar os pedidos do cardápio agora.');
@@ -1982,7 +1985,23 @@ Modules.Catalogo = (function () {
 
   function _catalogSalesChannelOptions(rows) {
     var map = {};
+    (_salesChannels || []).forEach(function (channel) { if (channel) map[channel] = true; });
     (rows || []).forEach(function (row) { if (row.channel) map[row.channel] = true; });
+    return Object.keys(map).sort(function (a, b) { return a.localeCompare(b); });
+  }
+
+  function _catalogConfiguredSalesChannels(config) {
+    var map = { 'Cardápio': true };
+    var list = Array.isArray(config && config.list) ? config.list : [];
+    list.forEach(function (channel) {
+      if (!channel || channel.active === false || channel.ativo === false || channel.enabled === false) return;
+      var name = firstText(channel.name, channel.nome, channel.label, channel.key, '');
+      if (!name) return;
+      var key = _fold(name).replace(/\s+/g, ' ').trim();
+      if (key === 'cardapio' || key === 'template' || key === 'store' || key === 'storefront' || key === 'loja online') name = 'Cardápio';
+      if (key === 'tpv' || key === 'venda presencial' || key === 'venda-presencial') name = 'Venda presencial';
+      map[name] = true;
+    });
     return Object.keys(map).sort(function (a, b) { return a.localeCompare(b); });
   }
 

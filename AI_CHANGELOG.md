@@ -1,5 +1,15 @@
 # AI Changelog
 
+## 2026-06-04 — Pedidos: Desempenho com todos os canais
+- Arquivos alterados: `public/js/modules/pedidos.js`, `public/js/modules/catalogo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Criei `Pedidos → Desempenho` para concentrar a análise de vendas dentro do módulo de pedidos.
+- A nova tela usa todos os pedidos válidos e todos os canais de venda, incluindo canais cadastrados em `Configurações → Canais de venda` e canais vindos do histórico dos pedidos.
+- Mantive subabas internas no padrão do `Programa de Pontos`: `Resumo`, `Matriz` e `Vendas`.
+- Cada subaba tem filtros próprios de período, canal e tipo; a subaba `Vendas` também tem busca por produto, pedido ou cliente.
+- A matriz passa a analisar os itens vendidos dos pedidos filtrados, não apenas produtos do cardápio.
+- Removi o acesso principal a `Desempenho` do menu de `Cardápio`, mantendo a rota antiga `catalogo/vendas` apenas por compatibilidade.
+- Atualizei os cache-busters de `pedidos.js` e `catalogo.js` no Admin.
+
 ## 2026-06-04 — Cardápio: Matriz BCG em Vendas
 - Arquivos alterados: `public/js/modules/catalogo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - Movi a Matriz BCG do topo de `Cardápio → Produtos` para `Cardápio → Vendas do cardápio`.
@@ -13,6 +23,8 @@
 - Adicionei subabas internas no mesmo padrão visual do `Programa de Pontos`: `Resumo`, `Matriz` e `Vendas`.
 - A subaba `Matriz` agora mostra a BCG em formato 2x2, com `Estrelas`, `Apostas`, `Caixa forte` e `Revisar`.
 - Cada quadrante mostra até 6 produtos diretamente e abre um modal `Ver todos` quando houver mais itens no grupo.
+- Corrigi o filtro `Canal` de `Desempenho do cardápio` para herdar também os canais cadastrados em `Configurações → Canais de venda`, sem depender de já existir pedido.
+- O canal fixo `Cardápio` aparece no filtro mesmo sem histórico de pedidos.
 - Atualizei o cache-buster de `catalogo.js` no Admin.
 
 ## 2026-06-04 — Estoque: configurações mais guiadas

@@ -274,6 +274,7 @@ button,input,select,textarea{font-family:inherit}
         <div class="nav-sub">
           <button class="nav-sub-item" data-route="pedidos/cozinha" onclick="Router.navigate('pedidos/cozinha')">Cozinha</button>
           <button class="nav-sub-item" data-route="pedidos/lista" onclick="Router.navigate('pedidos/lista')">Pedidos</button>
+          <button class="nav-sub-item" data-route="pedidos/desempenho" onclick="Router.navigate('pedidos/desempenho')">Desempenho</button>
           <button class="nav-sub-item" data-route="pedidos/clientes" onclick="Router.navigate('pedidos/clientes')">Clientes</button>
         </div>
       </div>
@@ -286,7 +287,6 @@ button,input,select,textarea{font-family:inherit}
         <button class="nav-item" data-route="catalogo" onclick="AdminApp.toggleNavGroup(event,'catalogo','catalogo/produtos')"><span class="mi">restaurant_menu</span>Cardápio</button>
         <div class="nav-sub">
           <button class="nav-sub-item" data-route="catalogo/produtos" onclick="Router.navigate('catalogo/produtos')">Produtos</button>
-          <button class="nav-sub-item" data-route="catalogo/vendas" onclick="Router.navigate('catalogo/vendas')">Desempenho</button>
           <button class="nav-sub-item" data-route="catalogo/previsao" onclick="Router.navigate('catalogo/previsao')">Previsão</button>
           <button class="nav-sub-item" data-route="catalogo/configuracoes" onclick="Router.navigate('catalogo/configuracoes')">Configurações</button>
         </div>
@@ -460,9 +460,9 @@ button,input,select,textarea{font-family:inherit}
 <script src="js/core/router.js"></script>
 <script src="js/core/image-tools.js"></script>
 <script src="js/modules/dashboard.js?v=20260604-stock-onboarding-final"></script>
-<script src="js/modules/pedidos.js?v=20260604-stock-regularization-chain"></script>
+<script src="js/modules/pedidos.js?v=20260604-pedidos-desempenho"></script>
 <script src="js/modules/pos.js?v=20260512-tpv-shell"></script>
-<script src="js/modules/catalogo.js?v=20260604-desempenho-matriz"></script>
+<script src="js/modules/catalogo.js?v=20260604-desempenho-canais"></script>
 <script src="js/modules/loja_online.js?v=20260524-reviews-admin-pattern-2"></script>
 <script src="js/modules/receitas.js?v=20260604-bases-list-orders-pattern"></script>
 <script src="js/modules/estoque.js?v=20260604-stock-onboarding-final"></script>
@@ -1185,6 +1185,7 @@ button,input,select,textarea{font-family:inherit}
   Router.register('pedidos', Modules.Pedidos);
   Router.register('pedidos/cozinha', Modules.Pedidos);
   Router.register('pedidos/lista', Modules.Pedidos);
+  Router.register('pedidos/desempenho', Modules.Pedidos);
   Router.register('pedidos/clientes', Modules.Clientes);
   Router.register('catalogo', Modules.Catalogo);
   Router.register('receitas', Modules.Receitas);
