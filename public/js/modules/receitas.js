@@ -36,6 +36,7 @@ Modules.Receitas = (function () {
   var _forecastData = { recipes: [], movements: [], settings: [], costItems: [], products: [], variantGroups: [] };
   var _forecastFilters = { view: 'receitas', q: '', status: 'todos' };
   var _forecastPage = { page: 1, perPage: 10 };
+  var _forecastSearchTimer = null;
   var TABS = [
     { key: 'receitas', label: 'Receitas' },
     { key: 'etapas', label: 'Bases de produção' },
@@ -601,7 +602,8 @@ Modules.Receitas = (function () {
   function _paintProductionForecast() {
     var content = document.getElementById('receitas-content');
     if (!content) return;
-    var view = _forecastFilters.view || 'receitas';
+    var view = _forecastFilters.view === 'bases' ? 'bases' : 'receitas';
+    _forecastFilters.view = view;
     var rowsData = _filteredProductionForecastRows();
     var allRows = _buildProductionForecastRows();
     var paging = _forecastPage || (_forecastPage = { page: 1, perPage: 10 });
@@ -626,7 +628,7 @@ Modules.Receitas = (function () {
         '<td><span class="production-forecast-status ' + _esc(status.tone) + '">' + _esc(status.label) + '</span><div class="production-forecast-limit">' + _esc(row.requirements.length ? (row.requirements.length + ' item(ns) controlados') : 'Sem itens controlados para calcular') + '</div></td>' +
         '<td><div class="production-orders-value">' + (row.capacity == null ? '—' : (_esc(_fmtQty(row.capacity)) + ' ' + _esc(row.yieldUnit || ''))) + '</div><div class="production-orders-row-text">Com o saldo atual</div></td>' +
         '<td><div class="production-orders-value">' + _esc(row.limiter ? row.limiter.name : '—') + '</div><div class="production-forecast-limit">' + _esc(row.limiter ? ('Saldo ' + _fmtQty(row.limiter.balance) + ' de ' + _fmtQty(row.limiter.requiredPerUnit) + ' por unidade') : 'Nenhum limitador identificado') + '</div></td>' +
-        '<td><div class="production-orders-value">' + _money(view === 'cardapio' ? (row.salePrice || 0) : (row.costPerYield || 0)) + '</div><div class="production-orders-row-text">' + (view === 'cardapio' ? 'Preço de venda' : 'Custo por unidade/rendimento') + '</div></td>' +
+        '<td><div class="production-orders-value">' + _money(row.costPerYield || 0) + '</div><div class="production-orders-row-text">Custo por unidade/rendimento</div></td>' +
         '<td style="text-align:right;"><button type="button" class="production-orders-secondary" style="height:32px;padding:0 10px;font-size:12px;" onclick="Modules.Receitas._openProductionForecastDetails(\'' + _escJs(rowKey) + '\')">Ver cálculo</button></td>' +
       '</tr>';
     }).join('');
@@ -635,25 +637,24 @@ Modules.Receitas = (function () {
         '<div class="bf-page-header production-orders-head">' +
           '<div style="min-width:0;flex:1 1 420px;">' +
             '<h2 class="production-orders-title">Previsão de produção</h2>' +
-            '<p class="production-orders-subtitle">Leitura passiva do que pode ser produzido com o saldo atual. Esta tela não cria ordem, baixa ou movimentação.</p>' +
+            '<p class="production-orders-subtitle">Leitura passiva do que pode ser produzido com o saldo atual de bases e insumos. Embalagens ficam fora desta previsão e continuam saindo na venda.</p>' +
           '</div>' +
         '</div>' +
         '<div class="stock-movement-tabs">' +
           '<button type="button" class="stock-movement-tab ' + (view === 'receitas' ? 'active' : '') + '" onclick="Modules.Receitas._setProductionForecastView(\'receitas\')">Receitas</button>' +
           '<button type="button" class="stock-movement-tab ' + (view === 'bases' ? 'active' : '') + '" onclick="Modules.Receitas._setProductionForecastView(\'bases\')">Bases de produção</button>' +
-          '<button type="button" class="stock-movement-tab ' + (view === 'cardapio' ? 'active' : '') + '" onclick="Modules.Receitas._setProductionForecastView(\'cardapio\')">Cardápio</button>' +
         '</div>' +
         '<section class="production-orders-card">' +
           '<div class="production-forecast-summary">' +
-            _detailTile(view === 'bases' ? 'Bases analisadas' : (view === 'cardapio' ? 'Produtos analisados' : 'Receitas analisadas'), String(summary.total)) +
-            _detailTile(view === 'cardapio' ? 'Com venda possível' : 'Com produção possível', String(summary.available)) +
+            _detailTile(view === 'bases' ? 'Bases analisadas' : 'Receitas analisadas', String(summary.total)) +
+            _detailTile('Com produção possível', String(summary.available)) +
             _detailTile('Limitadas por estoque', String(summary.blocked)) +
             _detailTile('Sem composição clara', String(summary.unclear)) +
           '</div>' +
         '</section>' +
         '<section class="production-orders-filter">' +
           '<div class="production-orders-filter-grid">' +
-            '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Buscar</span><div class="production-orders-field"><input id="production-forecast-search" type="search" value="' + _esc(_forecastFilters.q || '') + '" placeholder="' + (view === 'bases' ? 'Buscar base ou limitador' : (view === 'cardapio' ? 'Buscar produto ou limitador' : 'Buscar receita ou limitador')) + '" autocomplete="off" oninput="Modules.Receitas._setProductionForecastFilter(\'q\',this.value)"></div></label>' +
+            '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Buscar</span><div class="production-orders-field"><input id="production-forecast-search" type="search" value="' + _esc(_forecastFilters.q || '') + '" placeholder="' + (view === 'bases' ? 'Buscar base ou limitador' : 'Buscar receita ou limitador') + '" autocomplete="off" oninput="Modules.Receitas._setProductionForecastFilter(\'q\',this.value)"></div></label>' +
             '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Status</span><div class="production-orders-field"><select onchange="Modules.Receitas._setProductionForecastFilter(\'status\',this.value)">' +
               '<option value="todos"' + (_forecastFilters.status === 'todos' ? ' selected' : '') + '>Todos</option>' +
               '<option value="ok"' + (_forecastFilters.status === 'ok' ? ' selected' : '') + '>Pode produzir</option>' +
@@ -666,11 +667,11 @@ Modules.Receitas = (function () {
         '</section>' +
         (rows ?
           '<section style="display:flex;flex-direction:column;gap:10px;">' +
-            '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">' + (view === 'bases' ? 'Capacidade por base de produção' : (view === 'cardapio' ? 'Capacidade por produto do cardápio' : 'Capacidade por receita')) + '</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">' + (view === 'bases' ? 'A quantidade possível de cada base é definida pelo menor saldo disponível entre os insumos da base.' : (view === 'cardapio' ? 'A quantidade possível de venda usa receita vinculada, produto pronto ou montagem interna do produto.' : 'A quantidade possível é definida pelo menor saldo disponível entre os itens exigidos pela ficha.')) + '</div></div>' +
+            '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">' + (view === 'bases' ? 'Capacidade por base de produção' : 'Capacidade por receita') + '</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">' + (view === 'bases' ? 'A quantidade possível de cada base é definida pelo menor saldo disponível entre os insumos da base.' : 'A quantidade possível é definida pelo menor saldo disponível entre bases e insumos exigidos pela ficha, sem considerar embalagens.') + '</div></div>' +
             '<div class="production-orders-table-card">' +
               '<div class="production-orders-table-wrap">' +
                 '<table class="bf-table production-orders-table production-forecast-table">' +
-                  '<thead><tr><th>' + (view === 'bases' ? 'Base' : (view === 'cardapio' ? 'Produto' : 'Receita')) + '</th><th>Status</th><th>' + (view === 'cardapio' ? 'Pode vender' : 'Pode produzir') + '</th><th>Limitador</th><th>' + (view === 'cardapio' ? 'Preço' : 'Custo') + '</th><th></th></tr></thead>' +
+                  '<thead><tr><th>' + (view === 'bases' ? 'Base' : 'Receita') + '</th><th>Status</th><th>Pode produzir</th><th>Limitador</th><th>Custo</th><th></th></tr></thead>' +
                   '<tbody>' + rows + '</tbody>' +
                 '</table>' +
               '</div>' +
@@ -685,13 +686,12 @@ Modules.Receitas = (function () {
               '</div>' +
             '</div>' +
           '</section>' :
-          '<section class="production-orders-card"><div class="production-orders-empty"><div style="font-size:15px;font-weight:700;color:#1F1F1F;margin-bottom:4px;">' + (hasFilters ? 'Nenhuma previsão encontrada' : (view === 'bases' ? 'Nenhuma base calculável ainda' : (view === 'cardapio' ? 'Nenhum produto calculável ainda' : 'Nenhuma receita calculável ainda'))) + '</div><div>' + (hasFilters ? 'Ajuste a busca ou limpe os filtros.' : (view === 'bases' ? 'Cadastre bases de produção para ver a previsão.' : (view === 'cardapio' ? 'Vincule produtos do cardápio a receita, produto pronto ou montagem interna para ver a previsão.' : 'Cadastre receitas com ingredientes, embalagens ou bases de produção para ver a previsão.'))) + '</div></div></section>') +
+          '<section class="production-orders-card"><div class="production-orders-empty"><div style="font-size:15px;font-weight:700;color:#1F1F1F;margin-bottom:4px;">' + (hasFilters ? 'Nenhuma previsão encontrada' : (view === 'bases' ? 'Nenhuma base calculável ainda' : 'Nenhuma receita calculável ainda')) + '</div><div>' + (hasFilters ? 'Ajuste a busca ou limpe os filtros.' : (view === 'bases' ? 'Cadastre bases de produção para ver a previsão.' : 'Cadastre receitas com ingredientes ou bases de produção para ver a previsão.')) + '</div></div></section>') +
       '</div>';
   }
 
   function _buildProductionForecastRows() {
     if ((_forecastFilters.view || 'receitas') === 'bases') return _buildBaseProductionForecastRows();
-    if ((_forecastFilters.view || 'receitas') === 'cardapio') return _buildMenuProductForecastRows();
     var recipes = (_forecastData.recipes || []).filter(_isProductionNeedRecipe);
     var balances = _buildSimpleStockBalances(_forecastData.movements || []);
     return recipes.map(function (recipe) {
@@ -1053,10 +1053,6 @@ Modules.Receitas = (function () {
         _pushForecastIngredientRequirement(requirements, ing, ing.componentName || '', yieldQty);
       });
     }
-    var packaging = Array.isArray(recipe.packagingItems) ? recipe.packagingItems : (Array.isArray(recipe.packaging) ? recipe.packaging : []);
-    packaging.forEach(function (item) {
-      _pushForecastIngredientRequirement(requirements, Object.assign({ itemClass: 'embalagem', classe: 'embalagem', costType: 'embalagem' }, item), 'Embalagens da receita', yieldQty);
-    });
     var merged = {};
     requirements.forEach(function (req) {
       if (!req.key || !(req.requiredPerUnit > 0)) return;
@@ -1088,13 +1084,12 @@ Modules.Receitas = (function () {
   function _forecastStatus(row) {
     if (!row || row.status === 'sem_composicao') return { label: 'Sem composição clara', tone: 'warn' };
     if (row.status === 'bloqueado') return { label: 'Limitado por estoque', tone: 'danger' };
-    return { label: row.kind === 'product' ? 'Pode vender' : 'Pode produzir', tone: 'ok' };
+    return { label: 'Pode produzir', tone: 'ok' };
   }
 
   function _forecastRowSubtitle(row) {
     if (!row) return '';
     if (row.kind === 'base') return 'Base usada em ' + (row.recipeNames && row.recipeNames.length ? row.recipeNames.join(', ') : 'receitas');
-    if (row.kind === 'product') return row.sourceLabel || 'Produto do cardápio';
     return 'Rendimento da ficha: ' + _fmtQty(row.yieldQuantity) + ' ' + (row.yieldUnit || '');
   }
 
@@ -1118,7 +1113,7 @@ Modules.Receitas = (function () {
     var rowsHtml = details.map(function (item) {
       var isLimiter = row.limiter && item.key === row.limiter.key;
       return '<tr>' +
-        '<td><div class="production-orders-row-title">' + _esc(item.name || 'Item') + '</div><div class="production-orders-row-text">' + _esc(item.key || '') + (isLimiter ? ' · limitador' : '') + '</div></td>' +
+        '<td><div class="production-orders-row-title">' + _esc(item.name || 'Item') + '</div><div class="production-orders-row-text">' + _esc(_forecastRequirementSubtitle(item, isLimiter)) + '</div></td>' +
         '<td><div class="production-orders-value">' + _esc(_fmtQty(item.requiredPerUnit)) + ' ' + _esc(item.unit || '') + '</div></td>' +
         '<td><div class="production-orders-value">' + _esc(_fmtQty(item.balance)) + ' ' + _esc(item.balanceUnit || item.unit || '') + '</div></td>' +
         '<td><div class="production-orders-value">' + _esc(_fmtQty(item.possible)) + ' ' + _esc(row.yieldUnit || '') + '</div></td>' +
@@ -1126,16 +1121,28 @@ Modules.Receitas = (function () {
     }).join('');
     var capacityLabel = row.capacity == null ? '—' : (_fmtQty(row.capacity) + ' ' + (row.yieldUnit || ''));
     var defaultTarget = row.capacity && row.capacity > 0 ? Math.max(1, Math.floor(row.capacity)) : 1;
-    var body = _ordersStyles() +
+    var modalTableCss = '<style>' +
+      '.production-forecast-modal .production-orders-table-wrap{overflow:visible!important;width:100%;}' +
+      '.production-forecast-modal .production-orders-table{width:100%;min-width:0!important;table-layout:fixed;}' +
+      '.production-forecast-modal .production-orders-table th,.production-forecast-modal .production-orders-table td{padding:8px 9px;font-size:11.5px;white-space:normal;word-break:break-word;}' +
+      '.production-forecast-modal .production-orders-row-title{font-size:12.5px;line-height:1.25;white-space:normal;}' +
+      '.production-forecast-modal .production-orders-row-text{font-size:10.5px;line-height:1.25;white-space:normal;}' +
+      '.production-forecast-modal .production-orders-value{font-size:12px;line-height:1.25;white-space:normal;}' +
+      '.production-forecast-modal .production-forecast-table th:nth-child(1),.production-forecast-modal .production-forecast-table td:nth-child(1){width:38%;}' +
+      '.production-forecast-modal .production-forecast-table th:nth-child(2),.production-forecast-modal .production-forecast-table td:nth-child(2){width:20%;}' +
+      '.production-forecast-modal .production-forecast-table th:nth-child(3),.production-forecast-modal .production-forecast-table td:nth-child(3){width:20%;}' +
+      '.production-forecast-modal .production-forecast-table th:nth-child(4),.production-forecast-modal .production-forecast-table td:nth-child(4){width:22%;}' +
+    '</style>';
+    var body = _ordersStyles() + modalTableCss +
       '<div class="production-plan-modal">' +
         '<section class="production-modal-card">' +
           '<div class="production-modal-head"><span class="mi">calculate</span><div><div class="production-modal-card-title">' + _esc(row.name) + '</div>' +
           '<div class="production-modal-card-desc">' + _esc(_forecastRowSubtitle(row)) + '</div></div><span class="production-forecast-status ' + _esc(status.tone) + '" style="margin-left:auto;">' + _esc(status.label) + '</span></div>' +
           '<div class="production-detail-grid">' +
-            _detailTile(row.kind === 'product' ? 'Pode vender' : 'Pode produzir', capacityLabel) +
+            _detailTile('Pode produzir', capacityLabel) +
             _detailTile('Limitador', row.limiter ? row.limiter.name : '—') +
             _detailTile('Itens calculados', String(row.requirements.length || 0)) +
-            _detailTile(row.kind === 'product' ? 'Preço' : 'Custo', _money(row.kind === 'product' ? (row.salePrice || 0) : (row.costPerYield || 0))) +
+            _detailTile('Custo', _money(row.costPerYield || 0)) +
           '</div>' +
         '</section>' +
         '<section class="production-modal-card">' +
@@ -1156,11 +1163,11 @@ Modules.Receitas = (function () {
     var canCreateOrder = row.kind === 'base' || row.kind !== 'product';
     window._productionForecastDetailsModal = UI.modal({
       title: 'Detalhe da previsão',
-      body: body,
+      body: '<div class="production-forecast-modal">' + body + '</div>',
       footer: '<div class="production-modal-footer">' +
-        (canCreateOrder ? '<button class="production-orders-primary" onclick="Modules.Receitas._createProductionOrderFromForecast(\'' + _escJs(key) + '\')">Gerar ordem planejada</button>' : '<span style="font-size:12px;color:#6F6860;line-height:1.4;">Para cardápio, a criação automática entra depois com conversão de venda para produção.</span>') +
+        (canCreateOrder ? '<button class="production-orders-primary" onclick="Modules.Receitas._createProductionOrderFromForecast(\'' + _escJs(key) + '\')">Gerar ordem planejada</button>' : '<span style="font-size:12px;color:#6F6860;line-height:1.4;">A ordem planejada só pode ser criada para receitas e bases calculáveis.</span>') +
         '<button class="production-orders-secondary" onclick="if(window._productionForecastDetailsModal)window._productionForecastDetailsModal.close()">Fechar</button></div>',
-      maxWidth: '980px'
+      maxWidth: '1180px'
     });
     setTimeout(function () { _updateProductionForecastSimulation(key); }, 0);
   }
@@ -1174,7 +1181,7 @@ Modules.Receitas = (function () {
       return;
     }
     if (row.kind === 'product') {
-      UI.toast('A ordem automática por produto do cardápio entra na próxima etapa.', 'info');
+      UI.toast('A ordem planejada só pode ser criada para receitas e bases.', 'info');
       return;
     }
     var qty = _num((document.getElementById('production-forecast-target-qty') || {}).value);
@@ -1298,8 +1305,9 @@ Modules.Receitas = (function () {
     }
     tableEl.innerHTML = '<div class="production-orders-table-wrap"><table class="bf-table production-orders-table production-forecast-table"><thead><tr><th>Item</th><th>Precisa</th><th>Saldo atual</th><th>Falta</th></tr></thead><tbody>' +
       details.map(function (item) {
+        var isLimiter = row.limiter && item.key === row.limiter.key;
         return '<tr>' +
-          '<td><div class="production-orders-row-title">' + _esc(item.name || 'Item') + '</div><div class="production-orders-row-text">' + _esc(item.key || '') + '</div></td>' +
+          '<td><div class="production-orders-row-title">' + _esc(item.name || 'Item') + '</div><div class="production-orders-row-text">' + _esc(_forecastRequirementSubtitle(item, isLimiter)) + '</div></td>' +
           '<td><div class="production-orders-value">' + _esc(_fmtQty(item.targetNeeded)) + ' ' + _esc(item.unit || '') + '</div></td>' +
           '<td><div class="production-orders-value">' + _esc(_fmtQty(item.balance)) + ' ' + _esc(item.balanceUnit || item.unit || '') + '</div></td>' +
           '<td><span class="production-result-badge ' + (item.coversTarget ? 'ok' : 'danger') + '">' + (item.coversTarget ? 'Cobre' : (_esc(_fmtQty(item.targetMissing)) + ' ' + _esc(item.unit || ''))) + '</span></td>' +
@@ -1324,6 +1332,27 @@ Modules.Receitas = (function () {
     });
   }
 
+  function _forecastRequirementSubtitle(item, isLimiter) {
+    item = item || {};
+    var kind = _forecastStockKindLabel(item.stockKind || _stockKindFromKey(item.key || '', ''));
+    var unit = item.unit || item.balanceUnit || '';
+    var parts = [];
+    if (kind) parts.push(kind);
+    if (unit) parts.push('unidade ' + unit);
+    if (isLimiter) parts.push('limitador da previsão');
+    return parts.join(' · ') || 'Item controlado no estoque';
+  }
+
+  function _forecastStockKindLabel(kind) {
+    kind = _stockKindFromKey('', kind || '');
+    if (kind === 'produto_produzido') return 'Produto produzido';
+    if (kind === 'base_producao') return 'Base de produção';
+    if (kind === 'produto_pronto') return 'Produto pronto';
+    if (kind === 'embalagem') return 'Embalagem';
+    if (kind === 'insumo') return 'Insumo';
+    return '';
+  }
+
   function _productionForecastSummary(rows) {
     rows = rows || [];
     return rows.reduce(function (acc, row) {
@@ -1345,8 +1374,12 @@ Modules.Receitas = (function () {
         row.name,
         row.yieldUnit,
         row.sourceLabel,
+        row.recipeNames && row.recipeNames.join(' '),
         row.limiter && row.limiter.name,
-        row.status
+        row.status,
+        (row.requirements || []).map(function (req) {
+          return [req.name, req.key, req.stockKind, req.unit].join(' ');
+        }).join(' ')
       ].join(' ').toLowerCase();
       return hay.indexOf(q) >= 0;
     });
@@ -1356,21 +1389,19 @@ Modules.Receitas = (function () {
     if (key === 'q') _forecastFilters.q = String(value || '');
     if (key === 'status') _forecastFilters.status = value || 'todos';
     _forecastPage.page = 1;
-    _paintProductionForecast();
     if (key === 'q') {
-      var input = document.getElementById('production-forecast-search');
-      if (input) {
-        try {
-          input.focus();
-          var len = String(input.value || '').length;
-          if (input.setSelectionRange) input.setSelectionRange(len, len);
-        } catch (e) {}
-      }
+      if (_forecastSearchTimer) clearTimeout(_forecastSearchTimer);
+      _forecastSearchTimer = setTimeout(function () {
+        _forecastSearchTimer = null;
+        _paintProductionForecast();
+      }, 160);
+      return;
     }
+    _paintProductionForecast();
   }
 
   function _setProductionForecastView(view) {
-    _forecastFilters.view = view === 'bases' ? 'bases' : (view === 'cardapio' ? 'cardapio' : 'receitas');
+    _forecastFilters.view = view === 'bases' ? 'bases' : 'receitas';
     _forecastFilters.q = '';
     _forecastFilters.status = 'todos';
     _forecastPage.page = 1;
@@ -1583,7 +1614,7 @@ Modules.Receitas = (function () {
   function _simpleStockEntry(movement) {
     var type = movement && movement.type;
     var direction = 0;
-    if (type === 'entrada_compra' || type === 'entrada_producao' || type === 'entrada_base_producao' || type === 'ajuste_entrada' || type === 'estorno_venda' || type === 'estorno_producao_ingrediente') direction = 1;
+    if (type === 'entrada_compra' || type === 'entrada_producao' || type === 'entrada_base_producao' || type === 'entrada_regularizacao' || type === 'ajuste_entrada' || type === 'estorno_venda' || type === 'estorno_producao_ingrediente') direction = 1;
     if (type === 'saida_producao' || type === 'saida_venda' || type === 'saida_base_venda' || type === 'ajuste_saida' || type === 'estorno_compra' || type === 'estorno_producao_produto' || type === 'estorno_base_producao') direction = -1;
     if (!direction) return {};
     var stockKind = _movementStockKind(movement);
@@ -3628,20 +3659,20 @@ Modules.Receitas = (function () {
     var content = document.getElementById('receitas-content');
     if (!content) return;
     _configSearch = '';
-    content.innerHTML = _configStyles() +
-      '<div class="bf-page recipes-config-wrap">' +
-        '<div class="bf-page-header recipes-config-head">' +
+    content.innerHTML = _ordersStyles() + _configStyles() +
+      '<div class="bf-page production-orders-page recipes-config-wrap">' +
+        '<div class="bf-page-header production-orders-head">' +
           '<div style="min-width:0;flex:1 1 420px;">' +
-            '<h1 class="recipes-config-title">Bases de produção</h1>' +
-            '<p class="recipes-config-subtitle">Cadastre bases reaproveitáveis, como massa, recheio, creme, molho ou cobertura. As receitas usam essas bases para montar a ficha completa.</p>' +
+            '<h1 class="production-orders-title">Bases de produção</h1>' +
+            '<p class="production-orders-subtitle">Cadastre bases reaproveitáveis, como massa, recheio, creme, molho ou cobertura. As receitas usam essas bases para montar a ficha completa.</p>' +
           '</div>' +
-          '<button type="button" class="recipes-config-primary" onclick="Modules.Receitas._openRecipeComponentModal(null)">Adicionar base</button>' +
+          '<button type="button" class="production-orders-primary" onclick="Modules.Receitas._openRecipeComponentModal(null)">Adicionar base</button>' +
         '</div>' +
-        '<div class="recipes-config-filter">' +
-          '<div class="recipes-config-filter-grid">' +
-            '<div><label style="' + _labelStyle() + '">Buscar</label><div class="recipes-config-control"><input id="production-stage-search" type="search" placeholder="Buscar por nome ou orientação..." value="' + _esc(_configSearch || '') + '" oninput="Modules.Receitas._setConfigSearch(this.value)"></div></div>' +
+        '<section class="production-orders-filter">' +
+          '<div class="production-orders-filter-grid" style="grid-template-columns:minmax(260px,1fr);">' +
+            '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Buscar</span><div class="production-orders-field"><input id="production-stage-search" type="search" placeholder="Buscar por nome, orientação ou ingrediente" value="' + _esc(_configSearch || '') + '" autocomplete="off" oninput="Modules.Receitas._setConfigSearch(this.value)"></div></label>' +
           '</div>' +
-        '</div>' +
+        '</section>' +
         '<div id="production-stages-content"></div>' +
       '</div>';
     _renderRecipeComponents();
@@ -3744,6 +3775,10 @@ Modules.Receitas = (function () {
     if (!content) return;
     var inStagesTab = _activeSub === 'etapas' || !!document.getElementById('production-stages-content');
     var filtered = _recipeComponents.filter(_matchesConfigSearch);
+    if (inStagesTab) {
+      content.innerHTML = _productionStagesListHtml(filtered);
+      return;
+    }
     var rows = filtered.map(function (comp) {
       var usage = _componentUsageInfo(comp);
       var usageLabel = usage.count ? ('Usada em ' + usage.count + ' receita' + (usage.count > 1 ? 's' : '')) : 'Ainda não usada';
@@ -3784,6 +3819,63 @@ Modules.Receitas = (function () {
       '</div>' +
     '</div>';
     content.innerHTML = guide + _configCardHtml(_configMeta(inStagesTab ? 'etapas' : 'componentes'), 'Modules.Receitas._openRecipeComponentModal(null)', 'Nenhuma base encontrada.', rows, filtered.length);
+  }
+
+  function _productionStagesListHtml(items) {
+    items = Array.isArray(items) ? items : [];
+    var hasSearch = !!String(_configSearch || '').trim();
+    var rows = items.map(function (comp) {
+      var usage = _componentUsageInfo(comp);
+      var usageLabel = usage.count ? ('Usada em ' + usage.count + ' receita' + (usage.count > 1 ? 's' : '')) : 'Ainda não usada';
+      var yieldQty = _num(comp.stageYieldQuantity || comp.yieldQuantity || comp.baseYieldQuantity);
+      var yieldUnit = comp.stageYieldUnit || comp.yieldUnit || comp.baseYieldUnit || '';
+      var ingredientsCount = Array.isArray(comp.ingredients) ? comp.ingredients.length : 0;
+      var cost = _stageTotalCost(comp.ingredients || []);
+      var stockText = 'Sem sugestão';
+      if (_num(usage.minStock) > 0 || _num(usage.maxStock) > 0) {
+        stockText = 'Mín. ' + _fmtQty(usage.minStock) + (usage.unit ? ' ' + usage.unit : '') + (_num(usage.maxStock) > 0 ? ' · máx. ' + _fmtQty(usage.maxStock) + (usage.unit ? ' ' + usage.unit : '') : '');
+      }
+      return '<tr onclick="Modules.Receitas._openRecipeComponentModal(\'' + _escJs(comp.id) + '\')">' +
+        '<td><div style="display:flex;align-items:center;gap:12px;min-width:0;">' +
+          '<div class="production-orders-icon"><span class="mi" style="font-size:20px;">bakery_dining</span></div>' +
+          '<div style="min-width:0;"><div class="production-orders-row-title">' + _esc(comp.name || 'Base sem nome') + '</div>' +
+          '<div class="production-orders-row-text">' + _esc(comp.description || 'Base reaproveitável usada para montar receitas completas.') + '</div></div>' +
+        '</div></td>' +
+        '<td><div class="production-orders-value">' + (yieldQty > 0 ? (_esc(_fmtQty(yieldQty)) + (yieldUnit ? ' ' + _esc(yieldUnit) : '')) : '—') + '</div></td>' +
+        '<td><div class="production-orders-value">' + _esc(ingredientsCount ? (ingredientsCount + ' ingrediente' + (ingredientsCount === 1 ? '' : 's')) : 'Sem ingredientes') + '</div></td>' +
+        '<td><div class="production-orders-value">' + (cost > 0 ? _money(cost) : '—') + '</div></td>' +
+        '<td><div class="production-orders-value">' + _esc(stockText) + '</div></td>' +
+        '<td><span class="production-orders-status">' + _esc(usageLabel) + '</span></td>' +
+        '<td style="text-align:right;"><div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">' +
+          '<button type="button" class="production-orders-secondary" onclick="event.stopPropagation();Modules.Receitas._openRecipeComponentModal(\'' + _escJs(comp.id) + '\')">Editar</button>' +
+          '<button type="button" class="production-orders-secondary" style="color:#B42318;" onclick="event.stopPropagation();Modules.Receitas._deleteRecipeComponent(\'' + _escJs(comp.id) + '\')">Excluir</button>' +
+        '</div></td>' +
+      '</tr>';
+    }).join('');
+    return rows ?
+      '<section style="display:flex;flex-direction:column;gap:10px;">' +
+        '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">Lista de bases</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Acompanhe rendimento, ingredientes, custo, estoque sugerido e uso em receitas.</div></div>' +
+        '<div class="production-orders-table-card">' +
+          '<div class="production-orders-table-wrap">' +
+            '<table class="bf-table production-orders-table">' +
+              '<thead><tr>' +
+                '<th>Base</th>' +
+                '<th>Rendimento</th>' +
+                '<th>Ingredientes</th>' +
+                '<th>Custo</th>' +
+                '<th>Estoque sugerido</th>' +
+                '<th>Uso</th>' +
+                '<th>Ações</th>' +
+              '</tr></thead>' +
+              '<tbody>' + rows + '</tbody>' +
+            '</table>' +
+          '</div>' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:16px 18px;">' +
+            '<span style="font-size:12px;color:#6F6860;line-height:1.4;">Mostrando <strong style="color:#1F1F1F;font-weight:600;">' + items.length + '</strong> base' + (items.length === 1 ? '' : 's') + '</span>' +
+          '</div>' +
+        '</div>' +
+      '</section>' :
+      '<section class="production-orders-card"><div class="production-orders-empty"><div style="font-size:15px;font-weight:700;color:#1F1F1F;margin-bottom:4px;">' + (hasSearch ? 'Nenhuma base encontrada' : 'Nenhuma base criada ainda') + '</div><div>' + (hasSearch ? 'Ajuste a busca para ver outras bases.' : 'Cadastre massas, recheios, cremes, molhos ou coberturas reaproveitáveis na produção.') + '</div></div></section>';
   }
 
   function _componentUsageDemandHtml(usage) {

@@ -1,5 +1,22 @@
 # AI Changelog
 
+## 2026-06-04 — Produção e Cardápio: previsão no módulo correto
+- Arquivos alterados: `public/js/modules/receitas.js`, `public/js/modules/catalogo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Ajustei `Produção → Bases de produção` para seguir o mesmo padrão visual de `Produção → Ordens de produção`.
+- O card de filtro agora usa `production-orders-filter`, campo off-white, foco discreto e busca larga.
+- A listagem deixou de usar cards de configuração nessa aba e passou para tabela no padrão `production-orders-table`, com colunas de base, rendimento, ingredientes, custo, estoque sugerido, uso e ações.
+- Validei `Produção → Previsão` com mock local cobrindo renderização das abas, busca, filtro de status, paginação, modal `Ver cálculo`, simulação de quantidade e criação de ordem planejada.
+- Corrigi a busca da previsão para considerar também itens calculados da composição, chaves de estoque, tipo, unidade e receitas associadas, com pequeno debounce para não repintar a tela a cada tecla.
+- Removi embalagens do cálculo de `Produção → Previsão`: elas não aparecem como requisito, não viram limitador e não bloqueiam capacidade produtiva; continuam sendo tratadas nos fluxos de venda/baixa.
+- Ajustei o saldo usado pela previsão para considerar `entrada_regularizacao` quando a regularização já foi aplicada, mantendo pendências não aplicadas fora do cálculo.
+- Removi a leitura de `Cardápio` de dentro de `Produção → Previsão`, deixando essa tela restrita a receitas e bases de produção.
+- Criei `Cardápio → Previsão` para disponibilidade comercial por item ativo do cardápio, com filtros, paginação, KPIs, status `Pode vender`, `Limitado por estoque`, `Sob encomenda` e `Sem composição clara`, além do modal `Ver cálculo`.
+- A previsão do cardápio lê saldos de `stock_movements`, incluindo `entrada_regularizacao`, e calcula requisitos por produto pronto, produto produzido/receita, montagem interna, embalagem da ficha e escolhas obrigatórias de combo.
+- Ampliei e compacte os modais de detalhe da previsão em Produção e Cardápio para evitar barras de rolagem horizontais nas tabelas internas.
+- Troquei chaves técnicas exibidas abaixo dos itens desses modais por informações úteis para a usuária, como tipo do item, unidade e indicação de limitador.
+- Mantive a rota interna `receitas/etapas` e as chaves antigas para compatibilidade; a mudança é de apresentação e copy.
+- Atualizei os cache-busters de `receitas.js` e `catalogo.js` no Admin.
+
 ## 2026-06-04 — Produção: copy Base de Produção
 - Arquivos alterados: `public/admin.html`, `public/js/modules/receitas.js`, `public/js/modules/catalogo.js`, `public/js/modules/dashboard.js`, `public/dashboard-onboarding-preview.html`, `public/js/modules/suporte.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
 - Troquei as copies visíveis de `Etapa de produção`/`Etapa da receita` para `Base de produção` nos contextos de ficha técnica, receita, bases reaproveitáveis, previsão, ordens, onboarding e suporte.

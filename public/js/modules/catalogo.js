@@ -28,6 +28,10 @@ Modules.Catalogo = (function () {
   var _productView = { page: 1, pageSize: 12, sort: 'order', mode: 'list' };
   var _salesFilters = { q: '', period: '90', channel: 'todos', type: 'todos' };
   var _salesView = { page: 1, pageSize: 25 };
+  var _catalogForecastData = { products: [], recipes: [], movements: [], variantGroups: [], readyItems: [], categories: [] };
+  var _catalogForecastFilters = { q: '', status: 'todos' };
+  var _catalogForecastView = { page: 1, pageSize: 25 };
+  var _catalogForecastSearchTimer = null;
   var _productSearchQuery = '';
   var _productSearchTimer = null;
   var _cfgSub = 'categorias';
@@ -198,6 +202,7 @@ Modules.Catalogo = (function () {
   var TABS = [
     { key: 'produtos', label: 'Produtos' },
     { key: 'vendas', label: 'Vendas' },
+    { key: 'previsao', label: 'Previsão' },
     { key: 'configuracoes', label: 'Configurações' }
   ];
 
@@ -251,6 +256,7 @@ Modules.Catalogo = (function () {
     content.innerHTML = '<div style="text-align:center;padding:40px;color:#8A7E7C;">Carregando...</div>';
     if (key === 'produtos') _renderProdutos();
     else if (key === 'vendas') _renderVendasCardapio();
+    else if (key === 'previsao') _renderPrevisaoCardapio();
     else if (key === 'avaliacoes') _renderAvaliacoes();
     else if (key === 'template') { _deliveryZonesDraftDirty = false; _renderTemplateLoja(); }
     else if (key === 'seo') _renderSeoLoja();
@@ -1162,6 +1168,546 @@ Modules.Catalogo = (function () {
         '<section style="' + _cardStyle() + 'padding:16px 18px;"><h3 style="margin:0;font-size:15px;font-weight:700;color:#1F1F1F;">Ranking do cardápio</h3><p style="margin:4px 0 8px;font-size:12px;color:#6F6860;line-height:1.4;">Agrupado pelo produto/menu vendido, não pelo item de estoque.</p>' + rankingHtml + '</section>' +
       '</div>' +
     '</div>';
+  }
+
+  function _renderPrevisaoCardapio() {
+    var content = document.getElementById('catalogo-content');
+    if (!content) return;
+    content.innerHTML = '<div style="text-align:center;padding:40px;color:#8A7E7C;">Carregando previsão do cardápio...</div>';
+    Promise.all([
+      DB.getAll('products').catch(function () { return []; }),
+      DB.getAll('fichasTecnicas').catch(function () { return []; }),
+      DB.getAll('stock_movements').catch(function () { return []; }),
+      DB.getAll('variantGroups').catch(function () { return []; }),
+      DB.getAll('itens_custo').catch(function () { return []; }),
+      DB.getAll('categories').catch(function () { return []; })
+    ]).then(function (r) {
+      _catalogForecastData = {
+        products: r[0] || [],
+        recipes: r[1] || [],
+        movements: r[2] || [],
+        variantGroups: r[3] || [],
+        readyItems: _normalizeProdutosCompras(r[4] || []),
+        categories: r[5] || []
+      };
+      _paintPrevisaoCardapio();
+    }).catch(function (err) {
+      content.innerHTML = UI.emptyState('Previsão indisponível', 'Não foi possível carregar a previsão do cardápio agora.');
+      UI.toast('Erro ao carregar previsão: ' + err.message, 'error');
+    });
+  }
+
+  function _paintPrevisaoCardapio() {
+    var content = document.getElementById('catalogo-content');
+    if (!content) return;
+    var rows = _filteredCatalogForecastRows(_buildCatalogForecastRows());
+    var paging = _catalogForecastPaging(rows);
+    var summary = _catalogForecastSummary(rows);
+    var fieldStyle = 'height:40px;width:100%;box-sizing:border-box;border:1px solid #E8DCD7;border-radius:12px;background:#FFFCF8;color:#1F1F1F;font-size:13px;font-family:inherit;outline:none;padding:0 12px;';
+    var selectStyle = fieldStyle + 'appearance:none;-webkit-appearance:none;-moz-appearance:none;padding-right:38px;';
+    var arrow = '<span class="mi" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:18px;color:#8A7E7C;pointer-events:none;">expand_more</span>';
+    var statusOptions = [
+      { value: 'todos', label: 'Todos os status' },
+      { value: 'ok', label: 'Pode vender' },
+      { value: 'bloqueado', label: 'Limitado por estoque' },
+      { value: 'sob_encomenda', label: 'Sob encomenda' },
+      { value: 'sem_composicao', label: 'Sem composição clara' }
+    ].map(function (opt) { return '<option value="' + opt.value + '"' + (_catalogForecastFilters.status === opt.value ? ' selected' : '') + '>' + _esc(opt.label) + '</option>'; }).join('');
+    var cards = [
+      { label: 'Produtos analisados', value: String(summary.total), icon: 'restaurant_menu', hint: 'itens ativos do cardápio' },
+      { label: 'Disponíveis para venda', value: String(summary.ok), icon: 'shopping_bag', hint: 'com saldo calculável agora' },
+      { label: 'Limitados por estoque', value: String(summary.blocked), icon: 'inventory_2', hint: 'o limitador aparece na tabela' },
+      { label: 'Sem composição clara', value: String(summary.unclear), icon: 'warning_amber', hint: 'precisa de vínculo de estoque' }
+    ].map(function (card) {
+      return '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:16px;padding:15px;box-shadow:0 10px 24px rgba(31,31,31,.045);display:flex;gap:12px;align-items:flex-start;min-width:0;">' +
+        '<div style="width:38px;height:38px;border-radius:13px;background:#FFF5F3;color:#B42318;display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span class="mi" style="font-size:20px;">' + _esc(card.icon) + '</span></div>' +
+        '<div style="min-width:0;"><div style="font-size:11px;font-weight:700;color:#6F6860;line-height:1.25;">' + _esc(card.label) + '</div><div style="font-size:21px;font-weight:750;color:#1F1F1F;line-height:1.15;margin-top:4px;">' + _esc(card.value) + '</div><div style="font-size:11px;color:#8A7E7C;line-height:1.35;margin-top:4px;">' + _esc(card.hint) + '</div></div>' +
+      '</div>';
+    }).join('');
+    var tableRows = paging.items.map(_catalogForecastTableRowHtml).join('');
+    var emptyHtml = !paging.items.length ? '<tr><td colspan="6" style="padding:28px;text-align:center;color:#8A7E7C;font-size:13px;">Nenhum produto encontrado para os filtros atuais.</td></tr>' : '';
+    var pageSizeOptions = [10, 25, 50, 100].map(function (n) { return '<option value="' + n + '"' + (Number(_catalogForecastView.pageSize) === n ? ' selected' : '') + '>' + n + ' / pág.</option>'; }).join('');
+    var paginationHtml = paging.total ? '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:14px 16px;border-top:1px solid #EAE4DA;">' +
+      '<span style="font-size:12px;color:#6F6860;">Mostrando <strong style="color:#1F1F1F;">' + paging.start + '</strong> a <strong style="color:#1F1F1F;">' + paging.end + '</strong> de <strong style="color:#1F1F1F;">' + paging.total + '</strong></span>' +
+      '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+        '<span style="position:relative;display:inline-block;width:110px;"><select onchange="Modules.Catalogo._setCatalogForecastPageSize(this.value)" style="width:110px;height:34px;padding:0 32px 0 10px;border:1px solid #E8DCD7;border-radius:10px;font-size:12px;font-family:inherit;outline:none;background:#FFFCF8;color:#6F6860;box-sizing:border-box;appearance:none;-webkit-appearance:none;-moz-appearance:none;">' + pageSizeOptions + '</select><span class="mi" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:18px;color:#8A7E7C;pointer-events:none;">expand_more</span></span>' +
+        '<button type="button" onclick="Modules.Catalogo._setCatalogForecastPage(' + (paging.page - 1) + ')" style="height:34px;padding:0 11px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#6F6860;font-size:12px;cursor:' + (paging.page > 1 ? 'pointer' : 'not-allowed') + ';opacity:' + (paging.page > 1 ? '1' : '.45') + ';"' + (paging.page > 1 ? '' : ' disabled') + '>Anterior</button>' +
+        '<span style="font-size:12px;color:#8A7E7C;">' + paging.page + ' / ' + paging.totalPages + '</span>' +
+        '<button type="button" onclick="Modules.Catalogo._setCatalogForecastPage(' + (paging.page + 1) + ')" style="height:34px;padding:0 11px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#6F6860;font-size:12px;cursor:' + (paging.page < paging.totalPages ? 'pointer' : 'not-allowed') + ';opacity:' + (paging.page < paging.totalPages ? '1' : '.45') + ';"' + (paging.page < paging.totalPages ? '' : ' disabled') + '>Próxima</button>' +
+      '</div>' +
+    '</div>' : '';
+    content.innerHTML = '<div class="bf-page" style="display:flex;flex-direction:column;gap:16px;">' +
+      '<div class="bf-page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
+        '<div style="min-width:0;flex:1 1 460px;"><h2 style="font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;line-height:1.2;">Previsão do cardápio</h2><p style="font-size:13px;color:#6F6860;line-height:1.5;margin:0;max-width:780px;">Leitura comercial do que o cardápio consegue vender agora com o saldo atual. A previsão de receitas e bases continua em Produção → Previsão.</p></div>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;">' + cards + '</div>' +
+      '<section style="' + _cardStyle() + 'padding:16px;">' +
+        '<div style="display:grid;grid-template-columns:minmax(min(100%,280px),1.4fr) minmax(min(100%,190px),.8fr) auto;gap:11px;align-items:end;">' +
+          '<label style="display:block;min-width:0;"><span style="display:block;font-size:11px;font-weight:700;color:#6F6860;margin-bottom:5px;">Buscar</span><input type="search" value="' + _esc(_catalogForecastFilters.q || '') + '" placeholder="Produto, categoria ou vínculo" oninput="Modules.Catalogo._setCatalogForecastFilter(\'q\',this.value)" style="' + fieldStyle + '"></label>' +
+          '<label style="display:block;min-width:0;"><span style="display:block;font-size:11px;font-weight:700;color:#6F6860;margin-bottom:5px;">Status</span><span style="position:relative;display:block;"><select onchange="Modules.Catalogo._setCatalogForecastFilter(\'status\',this.value)" style="' + selectStyle + '">' + statusOptions + '</select>' + arrow + '</span></label>' +
+          '<button type="button" onclick="Modules.Catalogo._clearCatalogForecastFilters()" style="height:40px;padding:0 14px;border:1px solid #EADFD8;border-radius:12px;background:#fff;color:#6F6860;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;">Limpar filtros</button>' +
+        '</div>' +
+      '</section>' +
+      '<section style="' + _cardStyle() + 'padding:0;overflow:hidden;">' +
+        '<div style="padding:16px 18px;border-bottom:1px solid #EAE4DA;"><h3 style="margin:0;font-size:15px;font-weight:700;color:#1F1F1F;">Disponibilidade comercial</h3><p style="margin:4px 0 0;font-size:12px;color:#6F6860;line-height:1.4;">Uma linha por item ativo do cardápio. Produtos sob encomenda ficam identificados e não entram como bloqueio por saldo.</p></div>' +
+        '<div style="overflow:auto;"><table style="width:100%;border-collapse:collapse;min-width:920px;"><thead><tr style="background:#FFFCF8;border-bottom:1px solid #EAE4DA;">' +
+          '<th style="text-align:left;padding:11px 14px;font-size:11px;color:#6F6860;font-weight:750;">Produto</th>' +
+          '<th style="text-align:left;padding:11px 14px;font-size:11px;color:#6F6860;font-weight:750;">Status</th>' +
+          '<th style="text-align:right;padding:11px 14px;font-size:11px;color:#6F6860;font-weight:750;">Pode vender</th>' +
+          '<th style="text-align:left;padding:11px 14px;font-size:11px;color:#6F6860;font-weight:750;">Limitador</th>' +
+          '<th style="text-align:right;padding:11px 14px;font-size:11px;color:#6F6860;font-weight:750;">Preço</th>' +
+          '<th style="text-align:left;padding:11px 14px;font-size:11px;color:#6F6860;font-weight:750;">Ações</th>' +
+        '</tr></thead><tbody>' + tableRows + emptyHtml + '</tbody></table></div>' + paginationHtml +
+      '</section>' +
+    '</div>';
+  }
+
+  function _buildCatalogForecastRows() {
+    var balances = _catalogForecastBalances(_catalogForecastData.movements || []);
+    return (_catalogForecastData.products || []).filter(_isCatalogForecastProduct).map(function (product) {
+      product = _normalizeProduct(product || {});
+      var madeToOrder = !!(product.madeToOrder || product.productMadeToOrder || product.sobEncomenda);
+      var requirements = _catalogProductForecastRequirements(product);
+      var details = requirements.map(function (req) {
+        var balance = _moneyLike((balances[req.key] || {}).balance);
+        var possible = req.requiredPerUnit > 0 ? Math.max(0, balance) / req.requiredPerUnit : 0;
+        return Object.assign({}, req, {
+          balance: _catalogForecastRound(balance),
+          possible: _catalogForecastRound(possible),
+          balanceUnit: (balances[req.key] || {}).unit || req.unit || ''
+        });
+      });
+      var limiter = details.reduce(function (current, req) {
+        if (!current || req.possible < current.possible) return req;
+        return current;
+      }, null);
+      var capacity = details.length && limiter ? Math.floor(Math.max(0, limiter.possible)) : null;
+      var status = madeToOrder ? 'sob_encomenda' : (!details.length ? 'sem_composicao' : (limiter && limiter.possible > 0 ? 'ok' : 'bloqueado'));
+      return {
+        productId: product.id || '',
+        name: product.name || product.title || product.nome || 'Produto sem nome',
+        categoryId: product.categoryId || '',
+        categoryName: _catalogForecastCategoryName(product),
+        sourceLabel: _catalogForecastSourceLabel(product),
+        requirements: details,
+        limiter: limiter,
+        capacity: capacity,
+        status: status,
+        madeToOrder: madeToOrder,
+        price: _moneyLike(product.price != null ? product.price : product.preco != null ? product.preco : product.salePrice)
+      };
+    }).sort(function (a, b) {
+      var order = { bloqueado: 0, sem_composicao: 1, ok: 2, sob_encomenda: 3 };
+      if (order[a.status] !== order[b.status]) return order[a.status] - order[b.status];
+      return String(a.name || '').localeCompare(String(b.name || ''));
+    });
+  }
+
+  function _catalogProductForecastRequirements(product) {
+    product = product || {};
+    var type = String(product.productType || product.type || product.tipo || '').toLowerCase();
+    var composition = _catalogProductInternalComposition(product);
+    var requirements = composition.length ? _catalogInternalCompositionRequirements(composition) : [];
+    if (type === 'combo' || type === 'menu') return _catalogMergeForecastRequirements(requirements.concat(_catalogComboForecastRequirements(product)));
+    if (requirements.length) return requirements;
+    var src = String(product.unicoSource || product.sourceType || product.source || '').toLowerCase();
+    var readyId = product.produtoProntoId || product.sourceItemId || product.readyProductId || '';
+    if (src === 'produto_pronto' || src === 'compras_produto' || readyId) {
+      if (!readyId) return [];
+      return [{
+        key: 'produto_pronto:' + readyId,
+        name: _catalogReadyItemName(readyId) || product.name || 'Produto pronto',
+        requiredPerUnit: 1,
+        unit: 'un',
+        stockKind: 'produto_pronto'
+      }];
+    }
+    var recipeId = product.fichaTecnicaId || product.fichaId || product.recipeId || '';
+    if (!recipeId) return [];
+    var recipe = _catalogFindRecipe(recipeId);
+    if (!recipe) return [{
+      key: 'produto_produzido:' + recipeId,
+      name: product.name || 'Produto produzido',
+      requiredPerUnit: 1,
+      unit: 'un',
+      stockKind: 'produto_produzido'
+    }];
+    var reqs = [{
+      key: 'produto_produzido:' + recipeId,
+      name: recipe.name || recipe.title || product.name || 'Produto produzido',
+      requiredPerUnit: 1,
+      unit: recipe.yieldUnit || recipe.unit || 'un',
+      stockKind: 'produto_produzido'
+    }];
+    (recipe.packagingItems || recipe.packaging || recipe.embalagens || []).forEach(function (item) {
+      var req = _catalogRequirementFromCompositionItem(Object.assign({}, item, {
+        stockItemType: item.stockItemType || item.itemClass || item.classe || item.costType || 'embalagem',
+        quantity: item.qty != null ? item.qty : item.quantity != null ? item.quantity : item.stockQuantity,
+        itemId: item.itemId || item.insumoId || item.packagingId || item.id,
+        stockItemName: item.supplyName || item.itemName || item.name || 'Embalagem'
+      }));
+      if (req) reqs.push(req);
+    });
+    return _catalogMergeForecastRequirements(reqs);
+  }
+
+  function _catalogComboForecastRequirements(product) {
+    var groups = _catalogProductVariantGroups(product);
+    if (!groups.length) return [];
+    var requirements = [];
+    var unclear = false;
+    groups.forEach(function (group) {
+      var min = parseInt(group.minPerUnit != null ? group.minPerUnit : group.min != null ? group.min : (group.required ? 1 : 0), 10);
+      if (!isFinite(min) || min < 0) min = 0;
+      if (min <= 0) return;
+      var options = (group.options || []).filter(Boolean);
+      if (!options.length) { unclear = true; return; }
+      var optionReqs = options.map(function (option) { return _catalogOptionForecastRequirement(option, min); });
+      if (optionReqs.some(function (req) { return !req; })) { unclear = true; return; }
+      var worst = _catalogWorstOptionRequirement(optionReqs);
+      if (worst) requirements.push(worst);
+    });
+    return unclear ? [] : _catalogMergeForecastRequirements(requirements);
+  }
+
+  function _catalogProductVariantGroups(product) {
+    product = product || {};
+    var groups = [];
+    if (Array.isArray(product.variants) && product.variants.length) groups = product.variants.slice();
+    if (!groups.length && Array.isArray(product.menuChoiceGroups) && product.menuChoiceGroups.length) groups = product.menuChoiceGroups.slice();
+    if (!groups.length && Array.isArray(product.variantGroupIds) && product.variantGroupIds.length) {
+      groups = product.variantGroupIds.map(function (id) {
+        return (_catalogForecastData.variantGroups || []).find(function (group) { return String(group.id || '') === String(id || ''); });
+      }).filter(Boolean);
+    }
+    return groups;
+  }
+
+  function _catalogOptionForecastRequirement(option, multiplier) {
+    var req = _catalogRequirementFromCompositionItem({
+      ref: option.stockRef || option.stockItemRef || option.stockItem || option.ref || '',
+      stockRef: option.stockRef || option.stockItemRef || option.stockItem || option.ref || '',
+      itemId: option.stockItemId || option.itemId || '',
+      stockItemId: option.stockItemId || option.itemId || '',
+      stockItemType: option.stockItemType || option.itemClass || option.classe || '',
+      itemClass: option.itemClass || option.stockItemType || option.classe || '',
+      classe: option.classe || option.stockItemType || option.itemClass || '',
+      quantity: option.stockQuantityPerChoice != null ? option.stockQuantityPerChoice : option.stockQuantity != null ? option.stockQuantity : option.stockQty,
+      stockUnit: option.stockUnit || option.unit || '',
+      unit: option.stockUnit || option.unit || '',
+      stockItemName: option.stockItemName || option.itemName || option.name || option.label || '',
+      itemName: option.stockItemName || option.itemName || option.name || option.label || ''
+    });
+    if (!req) return null;
+    req.requiredPerUnit = _catalogForecastRound(req.requiredPerUnit * Math.max(1, _moneyLike(multiplier) || 1));
+    req.name = (option.name || option.label || 'Opção') + ' → ' + req.name;
+    return req;
+  }
+
+  function _catalogWorstOptionRequirement(optionReqs) {
+    var balances = _catalogForecastBalances(_catalogForecastData.movements || []);
+    return optionReqs.slice().sort(function (a, b) {
+      var balanceA = _moneyLike((balances[a.key] || {}).balance);
+      var balanceB = _moneyLike((balances[b.key] || {}).balance);
+      var possibleA = a.requiredPerUnit > 0 ? balanceA / a.requiredPerUnit : Infinity;
+      var possibleB = b.requiredPerUnit > 0 ? balanceB / b.requiredPerUnit : Infinity;
+      if (possibleA !== possibleB) return possibleA - possibleB;
+      return _moneyLike(b.requiredPerUnit) - _moneyLike(a.requiredPerUnit);
+    })[0] || null;
+  }
+
+  function _catalogProductInternalComposition(product) {
+    return Array.isArray(product && product.internalComposition)
+      ? product.internalComposition
+      : (Array.isArray(product && product.internalCompositionItems)
+        ? product.internalCompositionItems
+        : (Array.isArray(product && product.composicaoInterna)
+          ? product.composicaoInterna
+          : (Array.isArray(product && product.stockComposition) ? product.stockComposition : [])));
+  }
+
+  function _catalogInternalCompositionRequirements(items) {
+    return _catalogMergeForecastRequirements((items || []).map(_catalogRequirementFromCompositionItem).filter(Boolean));
+  }
+
+  function _catalogRequirementFromCompositionItem(item) {
+    item = item || {};
+    var ref = String(item.ref || item.stockRef || item.stockItemRef || '').trim();
+    var parts = ref ? ref.split(':') : [];
+    var refType = parts[0] || '';
+    var refId = parts.slice(1).join(':');
+    var stockKind = _catalogNormalizeStockKind(item.stockItemType || item.itemClass || item.classe || item.costType || '');
+    if (!stockKind && (refType === 'ficha' || refType === 'receita')) stockKind = 'produto_produzido';
+    if (!stockKind && refType === 'base_producao') stockKind = 'base_producao';
+    if (!stockKind && (refType === 'produto_pronto' || refType === 'pronto')) stockKind = 'produto_pronto';
+    if (!stockKind && refType === 'embalagem') stockKind = 'embalagem';
+    if (!stockKind && (refType === 'insumo' || refType === 'ingrediente')) stockKind = 'insumo';
+    if (stockKind === 'produto') stockKind = 'produto_pronto';
+    if (!stockKind) stockKind = 'insumo';
+    var itemId = item.itemId || item.stockItemId || refId || item.fichaTecnicaId || item.fichaId || item.sourceItemId || item.produtoProntoId || item.insumoId || item.packagingId || '';
+    var qty = _moneyLike(item.quantity != null ? item.quantity : item.qty != null ? item.qty : item.stockQuantity != null ? item.stockQuantity : item.stockQuantityPerChoice);
+    if (qty <= 0) qty = 1;
+    if (!itemId) return null;
+    return {
+      key: stockKind + ':' + itemId,
+      name: item.itemName || item.stockItemName || item.supplyName || item.name || item.label || 'Item interno',
+      requiredPerUnit: qty,
+      unit: item.unit || item.stockUnit || 'un',
+      stockKind: stockKind
+    };
+  }
+
+  function _catalogMergeForecastRequirements(requirements) {
+    var merged = {};
+    (requirements || []).forEach(function (req) {
+      if (!req || !req.key || !(req.requiredPerUnit > 0)) return;
+      if (!merged[req.key]) merged[req.key] = Object.assign({}, req);
+      else merged[req.key].requiredPerUnit = _catalogForecastRound(_moneyLike(merged[req.key].requiredPerUnit) + _moneyLike(req.requiredPerUnit));
+    });
+    return Object.keys(merged).map(function (key) { return merged[key]; });
+  }
+
+  function _catalogForecastBalances(movements) {
+    var map = {};
+    (movements || []).forEach(function (movement) {
+      var entry = _catalogForecastMovementEntry(movement || {});
+      if (!entry.key || !entry.quantity) return;
+      if (!map[entry.key]) map[entry.key] = { balance: 0, unit: entry.unit || '' };
+      map[entry.key].balance += entry.direction * entry.quantity;
+      map[entry.key].unit = map[entry.key].unit || entry.unit || '';
+    });
+    Object.keys(map).forEach(function (key) { map[key].balance = _catalogForecastRound(map[key].balance); });
+    return map;
+  }
+
+  function _catalogForecastMovementEntry(movement) {
+    var type = movement && movement.type;
+    var direction = 0;
+    if (type === 'entrada_compra' || type === 'entrada_producao' || type === 'entrada_base_producao' || type === 'entrada_regularizacao' || type === 'ajuste_entrada' || type === 'estorno_venda' || type === 'estorno_producao_ingrediente') direction = 1;
+    if (type === 'saida_producao' || type === 'saida_venda' || type === 'saida_base_venda' || type === 'ajuste_saida' || type === 'estorno_compra' || type === 'estorno_producao_produto' || type === 'estorno_base_producao') direction = -1;
+    if (!direction) return {};
+    var stockKind = _catalogMovementStockKind(movement);
+    var itemId = stockKind === 'produto_produzido'
+      ? (movement.fichaTecnicaId || movement.recipeId || movement.productId || '')
+      : (stockKind === 'base_producao'
+        ? (movement.baseProductionId || movement.sharedBaseId || movement.componentName || '')
+        : (stockKind === 'produto_pronto'
+          ? (movement.sourceItemId || movement.produtoProntoId || movement.itemId || '')
+          : (movement.ingredientId || movement.itemId || '')));
+    var quantity = (stockKind === 'produto_produzido' || stockKind === 'base_producao') ? _moneyLike(movement.quantityProduced || movement.quantity) : _moneyLike(movement.quantity);
+    return {
+      key: stockKind + ':' + (itemId || _catalogMovementName(movement)),
+      direction: direction,
+      quantity: Math.abs(quantity),
+      unit: (stockKind === 'produto_produzido' || stockKind === 'base_producao') ? (movement.yieldUnit || movement.unit || '') : (movement.unit || '')
+    };
+  }
+
+  function _catalogMovementStockKind(movement) {
+    var cls = _catalogNormalizeStockKind(movement && (movement.stockItemType || movement.itemClass || movement.classe || ''));
+    if (cls === 'produto') return 'produto_pronto';
+    if (cls === 'produto_produzido' || cls === 'base_producao' || cls === 'embalagem' || cls === 'insumo') return cls;
+    if (movement && (movement.baseProductionId || movement.type === 'entrada_base_producao' || movement.type === 'estorno_base_producao')) return 'base_producao';
+    if (movement && (movement.fichaTecnicaId || movement.recipeId)) return 'produto_produzido';
+    if (movement && (movement.sourceItemId || movement.produtoProntoId)) return 'produto_pronto';
+    return 'insumo';
+  }
+
+  function _catalogNormalizeStockKind(value) {
+    var raw = String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[\s-]+/g, '_');
+    if (raw === 'produto' || raw === 'produto_pronto' || raw === 'compras_produto' || raw === 'pronto') return 'produto_pronto';
+    if (raw === 'produto_produzido' || raw === 'receita' || raw === 'ficha' || raw === 'ficha_tecnica') return 'produto_produzido';
+    if (raw === 'base_producao' || raw === 'etapa_producao' || raw === 'etapa') return 'base_producao';
+    if (raw === 'embalagem') return 'embalagem';
+    if (raw === 'insumo' || raw === 'ingrediente') return 'insumo';
+    return '';
+  }
+
+  function _catalogMovementName(movement) {
+    return firstText(movement && movement.itemName, movement && movement.productName, movement && movement.ingredientName, movement && movement.fichaNome, movement && movement.componentName, 'item');
+  }
+
+  function _catalogFindRecipe(id) {
+    return (_catalogForecastData.recipes || []).find(function (item) {
+      return String(item.id || '') === String(id || '') || String(item.fichaTecnicaId || '') === String(id || '');
+    }) || null;
+  }
+
+  function _catalogReadyItemName(id) {
+    var found = (_catalogForecastData.readyItems || []).find(function (item) { return String(item.id || '') === String(id || ''); });
+    return found && found.name || '';
+  }
+
+  function _catalogForecastCategoryName(product) {
+    product = product || {};
+    var id = product.categoryId || product.category || '';
+    var found = (_catalogForecastData.categories || []).find(function (cat) {
+      return String(cat.id || '') === String(id || '') || String(cat.slug || '') === String(id || '') || String(cat.name || '') === String(id || '');
+    });
+    return found && found.name || firstText(product.categoryName, product.categoryLabel, id);
+  }
+
+  function _catalogForecastSourceLabel(product) {
+    product = product || {};
+    var type = String(product.productType || product.type || product.tipo || '').toLowerCase();
+    if (type === 'combo' || type === 'menu') return 'Combo/Menu';
+    if (_catalogProductInternalComposition(product).length) return 'Montagem interna';
+    if (product.produtoProntoId || product.sourceItemId || product.readyProductId) return 'Produto pronto';
+    if (product.fichaTecnicaId || product.fichaId || product.recipeId) return 'Produto produzido';
+    return 'Sem vínculo de estoque';
+  }
+
+  function _isCatalogForecastProduct(product) {
+    if (!product || !product.id) return false;
+    if (product.ativo === false || product.active === false || product.deleted === true || product.isDeleted === true || product.archived === true) return false;
+    return true;
+  }
+
+  function _filteredCatalogForecastRows(rows) {
+    var query = String(_catalogForecastFilters.q || '').trim().toLowerCase();
+    var status = String(_catalogForecastFilters.status || 'todos');
+    return (rows || []).filter(function (row) {
+      if (status !== 'todos' && row.status !== status) return false;
+      if (!query) return true;
+      var haystack = [row.name, row.categoryName, row.sourceLabel, row.status, row.limiter && row.limiter.name].concat((row.requirements || []).map(function (req) { return [req.name, req.key, req.stockKind].join(' '); })).join(' ').toLowerCase();
+      return haystack.indexOf(query) >= 0;
+    });
+  }
+
+  function _catalogForecastSummary(rows) {
+    return {
+      total: (rows || []).length,
+      ok: (rows || []).filter(function (row) { return row.status === 'ok'; }).length,
+      blocked: (rows || []).filter(function (row) { return row.status === 'bloqueado'; }).length,
+      unclear: (rows || []).filter(function (row) { return row.status === 'sem_composicao'; }).length
+    };
+  }
+
+  function _catalogForecastPaging(rows) {
+    var total = (rows || []).length;
+    var pageSize = Math.max(10, parseInt(_catalogForecastView.pageSize, 10) || 25);
+    var totalPages = Math.max(1, Math.ceil(total / pageSize));
+    var page = Math.min(Math.max(1, parseInt(_catalogForecastView.page, 10) || 1), totalPages);
+    var start = (page - 1) * pageSize;
+    return {
+      items: (rows || []).slice(start, start + pageSize),
+      total: total,
+      page: page,
+      pageSize: pageSize,
+      totalPages: totalPages,
+      start: total ? start + 1 : 0,
+      end: Math.min(total, start + pageSize)
+    };
+  }
+
+  function _catalogForecastTableRowHtml(row) {
+    var status = _catalogForecastStatus(row);
+    var pillBg = status.tone === 'ok' ? '#ECFDF3' : (status.tone === 'warn' ? '#FFF7ED' : (status.tone === 'neutral' ? '#F5F3FF' : '#FEF3F2'));
+    var pillColor = status.tone === 'ok' ? '#027A48' : (status.tone === 'warn' ? '#C2410C' : (status.tone === 'neutral' ? '#5B21B6' : '#B42318'));
+    var capacity = row.capacity == null ? '—' : (_roundDisplay(row.capacity) + ' un.');
+    var limiter = row.limiter ? '<div style="font-size:13px;font-weight:650;color:#1F1F1F;line-height:1.35;">' + _esc(row.limiter.name || 'Item') + '</div><div style="font-size:11px;color:#6F6860;margin-top:2px;">Saldo ' + _esc(_roundDisplay(row.limiter.balance)) + ' ' + _esc(row.limiter.balanceUnit || row.limiter.unit || '') + ' · usa ' + _esc(_roundDisplay(row.limiter.requiredPerUnit)) + ' ' + _esc(row.limiter.unit || '') + '</div>' : '<span style="font-size:12px;color:#8A7E7C;">' + (row.status === 'sob_encomenda' ? 'Prazo definido no produto' : 'Sem limitador calculável') + '</span>';
+    return '<tr style="border-bottom:1px solid #F0E7E2;background:#fff;">' +
+      '<td style="padding:12px 14px;vertical-align:top;min-width:270px;"><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:360px;">' + _esc(row.name) + '</div><div style="font-size:11px;color:#6F6860;margin-top:2px;">' + _esc([row.sourceLabel, row.categoryName].filter(Boolean).join(' · ')) + '</div></td>' +
+      '<td style="padding:12px 14px;vertical-align:top;white-space:nowrap;"><span style="display:inline-flex;align-items:center;padding:5px 9px;border-radius:999px;background:' + pillBg + ';color:' + pillColor + ';font-size:11px;font-weight:750;">' + _esc(status.label) + '</span></td>' +
+      '<td style="padding:12px 14px;vertical-align:top;text-align:right;font-size:13px;font-weight:750;color:#1F1F1F;white-space:nowrap;">' + _esc(capacity) + '</td>' +
+      '<td style="padding:12px 14px;vertical-align:top;min-width:230px;">' + limiter + '</td>' +
+      '<td style="padding:12px 14px;vertical-align:top;text-align:right;font-size:13px;font-weight:750;color:#1F1F1F;white-space:nowrap;">' + _fmtMoneyDisplay(row.price) + '</td>' +
+      '<td style="padding:12px 14px;vertical-align:top;white-space:nowrap;"><button type="button" onclick="Modules.Catalogo._openCatalogForecastDetails(\'' + _esc(row.productId) + '\')" style="height:32px;padding:0 10px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#1F1F1F;font-size:12px;font-weight:650;cursor:pointer;font-family:inherit;">Ver cálculo</button></td>' +
+    '</tr>';
+  }
+
+  function _catalogForecastStatus(row) {
+    if (!row || row.status === 'sem_composicao') return { label: 'Sem composição clara', tone: 'warn' };
+    if (row.status === 'sob_encomenda') return { label: 'Sob encomenda', tone: 'neutral' };
+    if (row.status === 'bloqueado') return { label: 'Limitado por estoque', tone: 'danger' };
+    return { label: 'Pode vender', tone: 'ok' };
+  }
+
+  function _openCatalogForecastDetails(productId) {
+    var row = (_buildCatalogForecastRows() || []).find(function (item) { return String(item.productId || '') === String(productId || ''); });
+    if (!row) { UI.toast('Previsão não encontrada.', 'error'); return; }
+    var status = _catalogForecastStatus(row);
+    var rowsHtml = (row.requirements || []).map(function (item) {
+      var isLimiter = row.limiter && item.key === row.limiter.key;
+      return '<tr style="border-bottom:1px solid #F0E7E2;">' +
+        '<td style="padding:10px 12px;"><div style="font-size:13px;font-weight:700;color:#1F1F1F;">' + _esc(item.name || 'Item') + '</div><div style="font-size:11px;color:#6F6860;margin-top:2px;">' + _esc(_catalogForecastRequirementSubtitle(item, isLimiter)) + '</div></td>' +
+        '<td style="padding:10px 12px;text-align:right;font-size:13px;font-weight:650;color:#1F1F1F;white-space:nowrap;">' + _esc(_roundDisplay(item.requiredPerUnit)) + ' ' + _esc(item.unit || '') + '</td>' +
+        '<td style="padding:10px 12px;text-align:right;font-size:13px;font-weight:650;color:#1F1F1F;white-space:nowrap;">' + _esc(_roundDisplay(item.balance)) + ' ' + _esc(item.balanceUnit || item.unit || '') + '</td>' +
+        '<td style="padding:10px 12px;text-align:right;font-size:13px;font-weight:650;color:#1F1F1F;white-space:nowrap;">' + _esc(_roundDisplay(item.possible)) + ' un.</td>' +
+      '</tr>';
+    }).join('');
+    var body = '<style>' +
+      '.catalog-forecast-modal{display:flex;flex-direction:column;gap:14px;}' +
+      '.catalog-forecast-modal table{width:100%;min-width:0!important;table-layout:fixed;border-collapse:collapse;}' +
+      '.catalog-forecast-modal th,.catalog-forecast-modal td{padding:8px 9px!important;font-size:11.5px!important;white-space:normal!important;word-break:break-word;}' +
+      '.catalog-forecast-modal th:nth-child(1),.catalog-forecast-modal td:nth-child(1){width:38%;}' +
+      '.catalog-forecast-modal th:nth-child(2),.catalog-forecast-modal td:nth-child(2){width:20%;}' +
+      '.catalog-forecast-modal th:nth-child(3),.catalog-forecast-modal td:nth-child(3){width:20%;}' +
+      '.catalog-forecast-modal th:nth-child(4),.catalog-forecast-modal td:nth-child(4){width:22%;}' +
+    '</style><div class="catalog-forecast-modal">' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">' +
+        '<div style="border:1px solid #EAE4DA;border-radius:14px;padding:12px;background:#FFFCF8;"><div style="font-size:11px;font-weight:700;color:#6F6860;">Status</div><div style="font-size:16px;font-weight:800;color:#1F1F1F;margin-top:4px;">' + _esc(status.label) + '</div></div>' +
+        '<div style="border:1px solid #EAE4DA;border-radius:14px;padding:12px;background:#FFFCF8;"><div style="font-size:11px;font-weight:700;color:#6F6860;">Pode vender</div><div style="font-size:16px;font-weight:800;color:#1F1F1F;margin-top:4px;">' + _esc(row.capacity == null ? '—' : _roundDisplay(row.capacity) + ' un.') + '</div></div>' +
+        '<div style="border:1px solid #EAE4DA;border-radius:14px;padding:12px;background:#FFFCF8;"><div style="font-size:11px;font-weight:700;color:#6F6860;">Origem</div><div style="font-size:16px;font-weight:800;color:#1F1F1F;margin-top:4px;">' + _esc(row.sourceLabel || '') + '</div></div>' +
+      '</div>' +
+      '<div style="border:1px solid #EAE4DA;border-radius:14px;overflow:hidden;"><table><thead><tr style="background:#FFFCF8;border-bottom:1px solid #EAE4DA;"><th style="text-align:left;color:#6F6860;">Item</th><th style="text-align:right;color:#6F6860;">Consumo por venda</th><th style="text-align:right;color:#6F6860;">Saldo atual</th><th style="text-align:right;color:#6F6860;">Capacidade</th></tr></thead><tbody>' + (rowsHtml || '<tr><td colspan="4" style="padding:18px;text-align:center;color:#8A7E7C;font-size:13px;">Sem composição clara para calcular.</td></tr>') + '</tbody></table></div>' +
+    '</div>';
+    window._catalogForecastModal = UI.modal({ title: 'Cálculo da previsão — ' + row.name, body: body, maxWidth: '1080px' });
+  }
+
+  function _catalogForecastRequirementSubtitle(item, isLimiter) {
+    item = item || {};
+    var kind = _catalogForecastStockKindLabel(item.stockKind || _catalogNormalizeStockKind(String(item.key || '').split(':')[0] || ''));
+    var unit = item.unit || item.balanceUnit || '';
+    var parts = [];
+    if (kind) parts.push(kind);
+    if (unit) parts.push('unidade ' + unit);
+    if (isLimiter) parts.push('limitador da previsão');
+    return parts.join(' · ') || 'Item controlado no estoque';
+  }
+
+  function _catalogForecastStockKindLabel(kind) {
+    kind = _catalogNormalizeStockKind(kind || '');
+    if (kind === 'produto_produzido') return 'Produto produzido';
+    if (kind === 'base_producao') return 'Base de produção';
+    if (kind === 'produto_pronto') return 'Produto pronto';
+    if (kind === 'embalagem') return 'Embalagem';
+    if (kind === 'insumo') return 'Insumo';
+    return '';
+  }
+
+  function _setCatalogForecastFilter(key, value) {
+    _catalogForecastFilters[key] = String(value || '');
+    if (key !== 'q' && !_catalogForecastFilters[key]) _catalogForecastFilters[key] = 'todos';
+    _catalogForecastView.page = 1;
+    if (key === 'q') {
+      if (_catalogForecastSearchTimer) clearTimeout(_catalogForecastSearchTimer);
+      _catalogForecastSearchTimer = setTimeout(_paintPrevisaoCardapio, 160);
+      return;
+    }
+    _paintPrevisaoCardapio();
+  }
+
+  function _clearCatalogForecastFilters() {
+    _catalogForecastFilters = { q: '', status: 'todos' };
+    _catalogForecastView.page = 1;
+    _paintPrevisaoCardapio();
+  }
+
+  function _setCatalogForecastPage(page) {
+    _catalogForecastView.page = Math.max(1, parseInt(page, 10) || 1);
+    _paintPrevisaoCardapio();
+  }
+
+  function _setCatalogForecastPageSize(size) {
+    _catalogForecastView.pageSize = Math.max(10, parseInt(size, 10) || 25);
+    _catalogForecastView.page = 1;
+    _paintPrevisaoCardapio();
+  }
+
+  function _catalogForecastRound(value) {
+    var n = _moneyLike(value || 0);
+    return Math.round(n * 1000000) / 1000000;
   }
 
   function _catalogSalesData(orders, products) {
@@ -11185,6 +11731,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     _clearStoreImage: _clearStoreImage,
     _openProductModal: _openProductModal, _toggleVis: _toggleVis, _saveProduct: _saveProduct, _deleteProduct: _deleteProduct, _duplicateProduct: _duplicateProduct, _openImportProducts: _openImportProducts, _filterProdutos: _filterProdutos, _setProductFilter: _setProductFilter, _setProductSort: _setProductSort, _setProductPage: _setProductPage, _setProductPageSize: _setProductPageSize, _clearProductFilters: _clearProductFilters, _quickUpdateProduct: _quickUpdateProduct, _moveProductInCategory: _moveProductInCategory,
     _setCatalogSalesFilter: _setCatalogSalesFilter, _clearCatalogSalesFilters: _clearCatalogSalesFilters, _setCatalogSalesPage: _setCatalogSalesPage, _setCatalogSalesPageSize: _setCatalogSalesPageSize,
+    _setCatalogForecastFilter: _setCatalogForecastFilter, _clearCatalogForecastFilters: _clearCatalogForecastFilters, _setCatalogForecastPage: _setCatalogForecastPage, _setCatalogForecastPageSize: _setCatalogForecastPageSize, _openCatalogForecastDetails: _openCatalogForecastDetails,
     _openProductsMoreFilters: _openProductsMoreFilters,
     _onProductNameChange: _onProductNameChange, _onProductDescChange: _onProductDescChange, _onProductMadeToOrderChange: _onProductMadeToOrderChange, _refreshProductPreview: _refreshProductPreview, _moneyInputFocus: _moneyInputFocus, _moneyInputBlur: _moneyInputBlur,
     _seoEdited: _seoEdited, _onTipoChange: _onTipoChange, _onUnicoSrcChange: _onUnicoSrcChange, _openProductTypeHelpModal: _openProductTypeHelpModal, _openProductCategoryCreateModal: _openProductCategoryCreateModal, _saveProductCategoryFromModal: _saveProductCategoryFromModal,
