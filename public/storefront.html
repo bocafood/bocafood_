@@ -10824,6 +10824,7 @@
       var stockMovements = [];
       var stockRecipes = [];
       var stockCostItems = [];
+      var stockConfig = {};
       var storeCustomers = [];
       var pointsMovements = [];
       var currentStoreUser = null;
@@ -11754,15 +11755,30 @@
       }
 
       function productUnavailable(product) {
+        if (!stockShouldBlockPublicSale(product)) return false;
         var info = productStockAvailability(product);
         return !!(info.calculable && info.available != null && info.available <= 0);
       }
 
       function canAddProductQty(product, qty) {
         var info = productStockAvailability(product);
+        if (!stockShouldBlockPublicSale(product)) return { ok: true, info: info };
         if (!info.calculable || info.available == null) return { ok: true, info: info };
         var requested = cartProductQty(product.id) + Math.max(1, num(qty || 1));
         return { ok: requested <= info.available, info: info };
+      }
+
+      function stockShouldBlockPublicSale(product) {
+        if (productMadeToOrder(product)) return false;
+        return !allowOutOfStockSales();
+      }
+
+      function productMadeToOrder(product) {
+        return !!(product && (product.madeToOrder || product.productMadeToOrder || product.sobEncomenda));
+      }
+
+      function allowOutOfStockSales() {
+        return !!(stockConfig && (stockConfig.allowOutOfStockSales || stockConfig.sellWithoutStock || stockConfig.publicAllowOutOfStockSales));
       }
 
       function productPrimaryTagData(product) {
@@ -18918,7 +18934,7 @@
               activeTenantId = candidates[i];
               loadStep = 'carregar dados do tenant';
               var docs = await Promise.all([
-                safeConfig('geral'), safeConfig('aparencia'), safeConfig('template'), safeConfig('operacao'), safeConfig('horarios'), safeConfig('zonas'), safeConfig('pontos_program'), safeConfig('integracoes'), safeConfig('seo'), safeDocs('categories'), safeDocs('products'), safeDocs('variantGroups'), safeDocs('tags'), safeDocs('reviews'), safeDocs('promotions'), safeDocs('promocoes'), safeDocs('coupons'), safeDocs('upsellRules'), safeDocs('orderSlots'), safeDocs('store_customers'), safeDocs('points_movements'), safeDocs('stock_movements'), safeDocs('fichasTecnicas'), safeDocs('itens_custo')
+                safeConfig('geral'), safeConfig('aparencia'), safeConfig('template'), safeConfig('operacao'), safeConfig('horarios'), safeConfig('zonas'), safeConfig('pontos_program'), safeConfig('integracoes'), safeConfig('seo'), safeConfig('estoque'), safeDocs('categories'), safeDocs('products'), safeDocs('variantGroups'), safeDocs('tags'), safeDocs('reviews'), safeDocs('promotions'), safeDocs('promocoes'), safeDocs('coupons'), safeDocs('upsellRules'), safeDocs('orderSlots'), safeDocs('store_customers'), safeDocs('points_movements'), safeDocs('stock_movements'), safeDocs('fichasTecnicas'), safeDocs('itens_custo')
               ]);
               configuredStoreLanguage = firstText(
                 docs[2] && docs[2].language,
@@ -18934,22 +18950,23 @@
               pointsProgramCfg = docs[6] || {};
               cfg = Object.assign({}, docs[0] || {}, docs[1] || {}, docs[2] || {}, docs[3] || {}, docs[4] || {}, docs[5] || {}, docs[6] || {}, docs[7] || {});
               seoCfg = docs[8] || {};
-              categories = docs[9] || [];
-              allProducts = (docs[10] || []).filter(function (p) { return p && p.active !== false; });
+              stockConfig = docs[9] || {};
+              categories = docs[10] || [];
+              allProducts = (docs[11] || []).filter(function (p) { return p && p.active !== false; });
               products = allProducts.filter(function (p) { return p && p.menuVisible !== false; });
-              variantGroups = docs[11] || [];
-              productTags = docs[12] || [];
-              reviews = docs[13] || [];
-              promotions = mergePublicPromotions([docs[14] || [], docs[15] || []]);
-              coupons = docs[16] || [];
-              upsellRules = docs[17] || [];
-              slotCounts = (docs[18] || []).reduce(function (acc, item) { if (item && item.id) acc[item.id] = num(item.count); return acc; }, {});
-              storeCustomers = docs[19] || [];
-              pointsMovements = docs[20] || [];
-              stockMovements = docs[21] || [];
-              stockRecipes = docs[22] || [];
-              stockCostItems = docs[23] || [];
-              window.__templateTenantDebug = { requestedTenantId: tenantId, activeTenantId: activeTenantId, configLoaded: Object.keys(cfg).length, categoriesLoaded: categories.length, productsLoaded: products.length, variantGroupsLoaded: variantGroups.length, tagsLoaded: productTags.length, reviewsLoaded: reviews.length, promotionsLoaded: promotions.length, couponsLoaded: coupons.length, upsellRulesLoaded: upsellRules.length, customersLoaded: storeCustomers.length, pointsMovementsLoaded: pointsMovements.length, stockMovementsLoaded: stockMovements.length, stockRecipesLoaded: stockRecipes.length, stockCostItemsLoaded: stockCostItems.length };
+              variantGroups = docs[12] || [];
+              productTags = docs[13] || [];
+              reviews = docs[14] || [];
+              promotions = mergePublicPromotions([docs[15] || [], docs[16] || []]);
+              coupons = docs[17] || [];
+              upsellRules = docs[18] || [];
+              slotCounts = (docs[19] || []).reduce(function (acc, item) { if (item && item.id) acc[item.id] = num(item.count); return acc; }, {});
+              storeCustomers = docs[20] || [];
+              pointsMovements = docs[21] || [];
+              stockMovements = docs[22] || [];
+              stockRecipes = docs[23] || [];
+              stockCostItems = docs[24] || [];
+              window.__templateTenantDebug = { requestedTenantId: tenantId, activeTenantId: activeTenantId, configLoaded: Object.keys(cfg).length, stockConfigLoaded: Object.keys(stockConfig || {}).length, categoriesLoaded: categories.length, productsLoaded: products.length, variantGroupsLoaded: variantGroups.length, tagsLoaded: productTags.length, reviewsLoaded: reviews.length, promotionsLoaded: promotions.length, couponsLoaded: coupons.length, upsellRulesLoaded: upsellRules.length, customersLoaded: storeCustomers.length, pointsMovementsLoaded: pointsMovements.length, stockMovementsLoaded: stockMovements.length, stockRecipesLoaded: stockRecipes.length, stockCostItemsLoaded: stockCostItems.length };
               if (Object.keys(cfg).length || categories.length || products.length) break;
             }
           }

@@ -2653,6 +2653,7 @@ Modules.Receitas = (function () {
       patch.stockMovementCreatedAt = new Date().toISOString();
       patch.stockMovementCount = movementInfo.count || 0;
       patch.stockMovementIngredientCount = movementInfo.ingredientCount || 0;
+      patch.stockMovementBaseCount = movementInfo.baseCount || 0;
       patch.stockMovementProductCount = movementInfo.productCount || 0;
       return DB.update('production_orders', id, patch);
     }).then(function () {
@@ -2682,6 +2683,7 @@ Modules.Receitas = (function () {
         stockMovementCreatedAt: new Date().toISOString(),
         stockMovementCount: info.count || 0,
         stockMovementIngredientCount: info.ingredientCount || 0,
+        stockMovementBaseCount: info.baseCount || 0,
         stockMovementProductCount: info.productCount || 0
       });
     }).then(function () {
@@ -2700,33 +2702,40 @@ Modules.Receitas = (function () {
       return Promise.resolve({
         count: _num(order.stockMovementCount),
         ingredientCount: _num(order.stockMovementIngredientCount),
+        baseCount: _num(order.stockMovementBaseCount),
         productCount: _num(order.stockMovementProductCount)
       });
     }
     return DB.getAll('stock_movements').catch(function () { return []; }).then(function (existing) {
       var matches = (existing || []).filter(function (m) { return m.productionOrderId === order.id; });
       if (matches.length) {
-        var ingredientExisting = matches.filter(function (m) { return m.type === 'saida_producao'; }).length;
-        var productExisting = matches.filter(function (m) { return m.type === 'entrada_producao'; }).length;
-        return { count: matches.length, ingredientCount: ingredientExisting, productCount: productExisting };
+        return _productionMovementCounts(matches);
       }
       var movements = _buildStockMovementsForOrder(order);
-      if (!movements.length) return { count: 0, ingredientCount: 0, productCount: 0 };
+      if (!movements.length) return { count: 0, ingredientCount: 0, baseCount: 0, productCount: 0 };
       return Promise.all(movements.map(function (movement) {
         return DB.add('stock_movements', movement);
       })).then(function () {
-        return {
-          count: movements.length,
-          ingredientCount: movements.filter(function (m) { return m.type === 'saida_producao'; }).length,
-          productCount: movements.filter(function (m) { return m.type === 'entrada_producao'; }).length
-        };
+        return _productionMovementCounts(movements);
       });
     });
+  }
+
+  function _productionMovementCounts(movements) {
+    movements = movements || [];
+    return {
+      count: movements.length,
+      ingredientCount: movements.filter(function (m) { return m.type === 'saida_producao' && !m.baseProductionId; }).length,
+      baseCount: movements.filter(function (m) { return m.type === 'entrada_base_producao' || (m.type === 'saida_producao' && !!m.baseProductionId); }).length,
+      productCount: movements.filter(function (m) { return m.type === 'entrada_producao'; }).length
+    };
   }
 
   function _buildStockMovementsForOrder(order) {
     var snapshot = order.recipeSnapshot || {};
     var ingredients = order.plannedIngredients || snapshot.plannedIngredients || snapshot.ingredients || [];
+    var stages = order.plannedStages || snapshot.plannedStages || _plannedStagesFromIngredients(snapshot, ingredients);
+    var isBaseOrder = order.productionMode === 'base_producao' || snapshot.productionMode === 'base_producao';
     var movementDate = order.actualDate || order.completedAt || _today();
     var base = {
       movementGroup: 'production_order',
@@ -2734,30 +2743,14 @@ Modules.Receitas = (function () {
       productionOrderName: order.fichaTecnicaNome || snapshot.name || '',
       movementDate: movementDate
     };
-    var ingredientMovements = (ingredients || []).map(function (ing) {
-      var quantity = _num(ing.plannedGrossQuantity || ing.plannedQty || ing.grossQuantityCalculated || ing.qty);
-      var totalCost = _num(ing.plannedTotalCost != null ? ing.plannedTotalCost : ing.totalCost);
-      var unitCost = _num(ing.unitCost) || (quantity > 0 ? totalCost / quantity : 0);
-      return Object.assign({}, base, {
-        type: 'saida_producao',
-        ingredientId: ing.insumoId || '',
-        ingredientName: ing.supplyName || ing.name || '',
-        componentName: ing.componentName || '',
-        productionStageName: ing.componentName || '',
-        itemClass: ing.classe || ing.itemClass || 'insumo',
-        classe: ing.classe || ing.itemClass || 'insumo',
-        quantity: quantity,
-        unit: ing.unit || '',
-        unitCost: unitCost,
-        totalCost: totalCost
-      });
-    }).filter(function (m) { return m.quantity > 0; });
+    var ingredientMovements = _buildProductionIngredientExitMovements(ingredients, stages, base, isBaseOrder);
     var actualQty = _num(order.actualQuantity);
     var metrics = _productionMetrics(order);
     var baseMovements = actualQty > 0 ? _buildBaseProductionMovements(order, snapshot, metrics, base) : [];
-    if (order.productionMode === 'base_producao' || snapshot.productionMode === 'base_producao') {
+    if (isBaseOrder) {
       return ingredientMovements.concat(baseMovements);
     }
+    var stageExitMovements = actualQty > 0 ? _buildProductionStageExitMovements(order, snapshot, stages, base) : [];
     var productMovement = actualQty > 0 ? [Object.assign({}, base, {
       type: 'entrada_producao',
       fichaTecnicaId: order.fichaTecnicaId || snapshot.id || '',
@@ -2769,7 +2762,87 @@ Modules.Receitas = (function () {
       estimatedUnitCost: metrics.estimatedRealUnitCost,
       estimatedTotalCost: metrics.estimatedRealUnitCost * actualQty
     })] : [];
-    return ingredientMovements.concat(baseMovements, productMovement);
+    return ingredientMovements.concat(stageExitMovements, productMovement);
+  }
+
+  function _productionIngredientClass(ing) {
+    return _normalizeStockClass(ing && (ing.stockItemType || ing.itemClass || ing.classe || ing.costType || 'insumo')) || 'insumo';
+  }
+
+  function _isProductionPackagingIngredient(ing) {
+    var cls = _productionIngredientClass(ing);
+    return cls === 'embalagem' || String(ing && ing.componentName || '') === 'Embalagens da receita';
+  }
+
+  function _controlledStageNameMap(stages) {
+    var map = {};
+    (stages || []).forEach(function (stage) {
+      if (!(stage && (stage.stockControl || stage.controlsStock || stage.baseProductionId || stage.sharedBaseId))) return;
+      var name = String(stage.name || stage.componentName || '').trim();
+      if (name) map[name] = true;
+    });
+    return map;
+  }
+
+  function _buildProductionIngredientExitMovements(ingredients, stages, base, isBaseOrder) {
+    var controlledStages = isBaseOrder ? {} : _controlledStageNameMap(stages);
+    return (ingredients || []).map(function (ing) {
+      var componentName = String(ing.componentName || '').trim();
+      if (_isProductionPackagingIngredient(ing)) return null;
+      if (!isBaseOrder && componentName && controlledStages[componentName]) return null;
+      var quantity = _num(ing.plannedGrossQuantity || ing.plannedQty || ing.grossQuantityCalculated || ing.qty);
+      var totalCost = _num(ing.plannedTotalCost != null ? ing.plannedTotalCost : ing.totalCost);
+      var unitCost = _num(ing.unitCost) || (quantity > 0 ? totalCost / quantity : 0);
+      var cls = _productionIngredientClass(ing);
+      return Object.assign({}, base, {
+        type: 'saida_producao',
+        ingredientId: ing.insumoId || ing.itemId || '',
+        ingredientName: ing.supplyName || ing.itemName || ing.name || '',
+        componentName: componentName,
+        productionStageName: componentName,
+        itemClass: cls,
+        classe: cls,
+        stockItemType: cls,
+        quantity: quantity,
+        unit: ing.unit || '',
+        unitCost: unitCost,
+        totalCost: totalCost
+      });
+    }).filter(function (m) { return m && m.quantity > 0; });
+  }
+
+  function _buildProductionStageExitMovements(order, snapshot, stages, base) {
+    var plannedQty = _num(order.plannedQuantity || snapshot.plannedQuantity) || 1;
+    var actualQty = _num(order.actualQuantity);
+    var scale = plannedQty > 0 ? actualQty / plannedQty : 1;
+    return (stages || []).map(function (stage, idx) {
+      if (!(stage && (stage.stockControl || stage.controlsStock || stage.baseProductionId || stage.sharedBaseId))) return null;
+      var baseId = stage.baseProductionId || stage.sharedBaseId || _baseProductionId({ id: order.fichaTecnicaId || snapshot.id || 'receita' }, stage, idx);
+      var plannedStageQty = _num(stage.plannedQuantity || stage.quantity || stage.yieldQuantity);
+      var qty = _round(plannedStageQty * scale);
+      if (qty <= 0) return null;
+      var totalCost = _round(_num(stage.plannedCost) * scale);
+      var unitCost = _num(stage.unitCost) || (qty > 0 ? totalCost / qty : 0);
+      var name = stage.name || stage.componentName || 'Base de produção';
+      return Object.assign({}, base, {
+        type: 'saida_producao',
+        baseProductionId: baseId,
+        baseProductionName: name,
+        ingredientId: baseId,
+        ingredientName: name,
+        componentName: name,
+        productionStageName: name,
+        itemClass: 'base_producao',
+        classe: 'base_producao',
+        stockItemType: 'base_producao',
+        quantity: qty,
+        quantityProduced: qty,
+        unit: stage.yieldUnit || stage.unit || '',
+        yieldUnit: stage.yieldUnit || stage.unit || '',
+        unitCost: unitCost,
+        totalCost: totalCost
+      });
+    }).filter(Boolean);
   }
 
   function _buildBaseProductionMovements(order, snapshot, metrics, base) {

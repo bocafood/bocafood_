@@ -2223,6 +2223,18 @@ function stockSafeId(value, fallback = "pedido") {
   return String(value || fallback).replace(/[^\w-]/g, "_");
 }
 
+function stockStatusKey(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function stockStatusTriggersMovement(status) {
+  return ["em camino", "listo para recoger"].includes(stockStatusKey(status));
+}
+
 function stockRoundQty(value) {
   return Math.round((stockNum(value) + Number.EPSILON) * 10000) / 10000;
 }
@@ -2358,8 +2370,7 @@ function stockBaseProductionId(recipe, comp, idx) {
 
 function stockRefFromProductLike(item, product, quantity, source, products, recipes) {
   const fichaId = stockFirstText(item && item.fichaTecnicaId, item && item.fichaId, item && item.recipeId, product && product.fichaTecnicaId, product && product.fichaId, product && product.recipeId, "");
-  const baseRefs = fichaId ? stockBaseRefsFromRecipe(item, product, quantity, source, fichaId, recipes) : [];
-  if (baseRefs.length) return baseRefs;
+  if (fichaId) return stockRefsFromProducedRecipe(item, product, quantity, source, fichaId, recipes);
   const readyItemId = fichaId ? "" : stockFirstText(item && item.sourceItemId, item && item.produtoProntoId, item && item.readyProductId, product && product.sourceItemId, product && product.produtoProntoId, product && product.readyProductId, "");
   if (!fichaId && !readyItemId) return null;
   const directRef = {
@@ -2376,6 +2387,48 @@ function stockRefFromProductLike(item, product, quantity, source, products, reci
     source
   };
   return directRef;
+}
+
+function stockRefsFromProducedRecipe(item, product, quantity, source, fichaId, recipes) {
+  const recipe = stockFindRecipeById(fichaId, recipes) || {};
+  const soldQty = stockRoundQty(stockNum(quantity) || 1);
+  const recipeYield = stockNum(recipe.yieldQuantity || recipe.yield || recipe.rendimento || product && (product.yieldQuantity || product.yield)) || 1;
+  const refs = [{
+    fichaId,
+    fichaNome: stockFirstText(item && item.fichaNome, item && item.fichaTecnicaNome, product && product.fichaNome, product && product.fichaTecnicaNome, recipe.name, recipe.title, item && item.name, item && item.productName, product && product.name, product && product.title, "Produto produzido"),
+    readyItemId: "",
+    stockItemId: fichaId,
+    productId: stockFirstText(item && item.productId, item && item.id, product && product.id, ""),
+    productName: stockFirstText(item && item.name, item && item.productName, product && product.name, product && product.title, recipe.name, recipe.title, "Produto"),
+    quantity: soldQty,
+    unit: stockFirstText(item && item.unit, product && product.stockUnit, product && product.yieldUnit, recipe.yieldUnit, product && product.unit, "unidades"),
+    unitCost: stockOrderItemUnitCost(item, product),
+    stockItemType: "produto_produzido",
+    source
+  }];
+  const packaging = Array.isArray(recipe.packagingItems) ? recipe.packagingItems : (Array.isArray(recipe.packaging) ? recipe.packaging : []);
+  packaging.forEach((pack, idx) => {
+    if (!pack || typeof pack !== "object") return;
+    const itemId = stockFirstText(pack.insumoId, pack.itemId, pack.ingredientId, pack.packagingId, pack.supplyId, "");
+    const packQty = stockNum(pack.qty != null ? pack.qty : pack.quantity != null ? pack.quantity : pack.rawQty);
+    if (!itemId || packQty <= 0) return;
+    const qty = stockRoundQty((packQty / Math.max(1, recipeYield)) * soldQty);
+    if (qty <= 0) return;
+    refs.push({
+      fichaId: "",
+      fichaNome: "",
+      readyItemId: "",
+      stockItemId: itemId,
+      productId: stockFirstText(item && item.productId, item && item.id, product && product.id, ""),
+      productName: stockFirstText(pack.supplyName, pack.itemName, pack.name, "Embalagem da receita"),
+      quantity: qty,
+      unit: stockFirstText(pack.unit, pack.unidade, "un"),
+      unitCost: stockNum(pack.unitCost),
+      stockItemType: "embalagem",
+      source: `${source || "item"}_embalagem_${idx}`
+    });
+  });
+  return refs;
 }
 
 function stockExtractChoiceRefs(item, product, mainQty, products, recipes) {
@@ -2458,8 +2511,7 @@ function stockRefFromChoiceBinding(choice, mainQty, recipes) {
   const qty = stockRoundQty(absoluteQty > 0 ? absoluteQty : (stockNum(mainQty) || 1) * selectedQty * perChoice);
   if (qty <= 0) return null;
   if (stockType === "produto_produzido") {
-    const baseRefs = stockBaseRefsFromRecipe(choice, {}, qty, "combo_opcao", itemId, recipes);
-    if (baseRefs.length) return baseRefs;
+    return stockRefsFromProducedRecipe(choice, {}, qty, "combo_opcao", itemId, recipes);
   }
   const stockName = stockFirstText(choice.stockItemName, choice.itemName, choice.optionName, choice.name, choice.label, stockType === "produto_produzido" ? "Produto produzido" : "Item da escolha");
   return {
@@ -2579,7 +2631,9 @@ function stockRegularizationPendingItem(ref, orderItem, product, data = {}) {
     balanceAfter: stockRoundQty(stockNum(data.balanceAfter)),
     unit: (ref && ref.unit) || "un",
     unitCost: stockNum(ref && ref.unitCost),
-    estimatedTotalCost: stockNum(ref && ref.unitCost) > 0 ? stockRoundQty(stockNum(data.shortage) * stockNum(ref && ref.unitCost)) : 0
+    estimatedTotalCost: stockNum(ref && ref.unitCost) > 0 ? stockRoundQty(stockNum(data.shortage) * stockNum(ref && ref.unitCost)) : 0,
+    regularizationChain: Array.isArray(data.chainMovements) ? data.chainMovements : [],
+    regularizationChainCount: Array.isArray(data.chainMovements) ? data.chainMovements.length : 0
   };
 }
 
@@ -2591,7 +2645,7 @@ function stockRegularizationMode(config) {
 }
 
 function stockRegularizationMovementId(orderId, itemIdx, refIdx, ref) {
-  return `regularizacao_${stockSafeId(orderId)}_${itemIdx}_${refIdx}_${stockSafeId(ref && (ref.baseProductionId || ref.fichaId || ref.readyItemId || ref.productId) || "item")}`;
+  return `regularizacao_${stockSafeId(orderId)}_${itemIdx}_${refIdx}_${stockSafeId(ref && (ref.baseProductionId || ref.fichaId || ref.readyItemId || ref.stockItemId || ref.productId) || "item")}`;
 }
 
 function stockRegularizationMovementPayload(item, order, movementId) {
@@ -2646,6 +2700,220 @@ function stockRegularizationMovementPayload(item, order, movementId) {
     payload.packagingName = item.itemName || "";
   }
   return payload;
+}
+
+function stockRegularizationChainPayloads(item, order, parentMovementId) {
+  const chain = Array.isArray(item && item.regularizationChain) ? item.regularizationChain : [];
+  return chain.map((movement, idx) => {
+    const id = movement.id || `${stockSafeId(parentMovementId || "regularizacao")}_chain_${idx}`;
+    return {
+      ...movement,
+      id,
+      orderId: order && order.id || "",
+      orderNumber: stockOrderLabel(order || {}, order && order.id),
+      movementGroup: "stock_regularization_chain",
+      regularizationOrigin: "saldo_negativo_venda",
+      regularizationParentMovementId: parentMovementId || "",
+      regularizationSourceMovementId: item.movementId || "",
+      movementDate: new Date().toISOString().slice(0, 10),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    };
+  });
+}
+
+function stockRegularizationChainMovements(ref, shortage, order, sourceMovementId, recipes) {
+  const stockType = stockNormalizeItemType((ref && (ref.stockItemType || ref.itemClass || ref.classe)) || "");
+  const qty = stockRoundQty(shortage);
+  if (qty <= 0) return [];
+  if (stockType === "produto_produzido" && ref && ref.fichaId) {
+    return stockRegularizationChainForProducedRecipe(ref.fichaId, qty, ref, order, sourceMovementId, recipes);
+  }
+  if (stockType === "base_producao" && ref && ref.baseProductionId) {
+    return stockRegularizationChainForBase(ref.baseProductionId, qty, ref, order, sourceMovementId, recipes);
+  }
+  return [];
+}
+
+function stockRegularizationChainMovementId(sourceMovementId, kind, idx, itemId) {
+  return `regularizacao_cadeia_${stockSafeId(sourceMovementId || "mov")}_${kind}_${idx}_${stockSafeId(itemId || "item")}`;
+}
+
+function stockRegularizationChainForProducedRecipe(fichaId, qty, ref, order, sourceMovementId, recipes) {
+  const recipe = stockFindRecipeById(fichaId, recipes) || {};
+  const recipeYield = stockNum(recipe.yieldQuantity || recipe.yield || recipe.rendimento) || 1;
+  let movements = [];
+  const components = Array.isArray(recipe.components) ? recipe.components : [];
+  components.forEach((comp, idx) => {
+    if (!(comp && (comp.stockControl || comp.controlsStock))) return;
+    const baseId = stockBaseProductionId(recipe, comp, idx);
+    const baseQty = stockRegularizationBaseUsageQty(comp, recipeYield, qty);
+    if (!baseId || baseQty <= 0) return;
+    const baseName = comp.name || "Base de produção";
+    const unit = stockFirstText(comp.stageUsageUnit, comp.usageUnit, comp.unitPerUnit, comp.baseUsageUnit, comp.stageYieldUnit, comp.baseYieldUnit, comp.stockYieldUnit, recipe.yieldUnit, "un");
+    movements.push(stockRegularizationMovementBaseEntry(sourceMovementId, idx, baseId, baseName, baseQty, unit));
+    movements.push(stockRegularizationMovementBaseExit(sourceMovementId, idx, baseId, baseName, baseQty, unit, fichaId, recipe.name || ref.fichaNome || ""));
+    movements = movements.concat(stockRegularizationIngredientChainForComponent(comp, baseQty, sourceMovementId, `base_${idx}`));
+  });
+  const controlledNames = {};
+  components.forEach((comp) => {
+    if (comp && (comp.stockControl || comp.controlsStock) && comp.name) controlledNames[String(comp.name)] = true;
+  });
+  stockRegularizationRecipeDirectIngredients(recipe).forEach((ing, idx) => {
+    const componentName = String((ing && ing.componentName) || "").trim();
+    if (componentName && controlledNames[componentName]) return;
+    if (stockRegularizationIngredientType(ing) === "embalagem") return;
+    const ingQty = stockRoundQty((stockNum(ing.grossQuantityCalculated || ing.grossQuantity || ing.qty) / Math.max(1, recipeYield)) * qty);
+    movements = movements.concat(stockRegularizationIngredientEntryExit(ing, ingQty, sourceMovementId, `direto_${idx}`));
+  });
+  return movements;
+}
+
+function stockRegularizationChainForBase(baseId, qty, ref, order, sourceMovementId, recipes) {
+  const found = stockFindRegularizationBaseComponent(baseId, recipes);
+  if (!found) return [];
+  return stockRegularizationIngredientChainForComponent(found.component, qty, sourceMovementId, "base_direta");
+}
+
+function stockFindRegularizationBaseComponent(baseId, recipes) {
+  const wanted = String(baseId || "").trim();
+  let found = null;
+  (recipes || []).some((recipe) => {
+    return (recipe.components || []).some((comp, idx) => {
+      if (!(comp && (comp.stockControl || comp.controlsStock))) return false;
+      const id = stockBaseProductionId(recipe, comp, idx);
+      if (id === wanted || String(comp.sharedBaseId || "") === wanted || String(comp.baseProductionId || "") === wanted) {
+        found = { recipe, component: comp, index: idx };
+        return true;
+      }
+      return false;
+    });
+  });
+  return found;
+}
+
+function stockRegularizationRecipeDirectIngredients(recipe) {
+  let out = [];
+  if (Array.isArray(recipe && recipe.ingredients)) out = recipe.ingredients.slice();
+  if (!out.length && Array.isArray(recipe && recipe.components)) {
+    recipe.components.forEach((comp) => {
+      (comp.ingredients || []).forEach((ing) => {
+        out.push({ componentName: comp.name || "", ...ing });
+      });
+    });
+  }
+  return out;
+}
+
+function stockRegularizationBaseUsageQty(comp, recipeYield, qty) {
+  let usageQty = stockNum(comp.stageUsageQuantity || comp.usageQuantity || comp.quantityPerUnit || comp.baseUsageQuantity);
+  if (usageQty <= 0) {
+    const baseYield = stockNum(comp.stageYieldQuantity || comp.baseYieldQuantity || comp.stockYieldQuantity);
+    usageQty = baseYield > 0 ? baseYield / Math.max(1, recipeYield) : 0;
+  }
+  return stockRoundQty(usageQty * qty);
+}
+
+function stockRegularizationIngredientChainForComponent(comp, producedQty, sourceMovementId, prefix) {
+  const baseYield = stockNum(comp.stageYieldQuantity || comp.baseYieldQuantity || comp.stockYieldQuantity) || 1;
+  const scale = producedQty / Math.max(1, baseYield);
+  let movements = [];
+  (comp.ingredients || []).forEach((ing, idx) => {
+    const ingQty = stockRoundQty(stockNum(ing.grossQuantityCalculated || ing.grossQuantity || ing.qty) * scale);
+    movements = movements.concat(stockRegularizationIngredientEntryExit(ing, ingQty, sourceMovementId, `${prefix}_${idx}`));
+  });
+  return movements;
+}
+
+function stockRegularizationIngredientType(ing) {
+  return stockNormalizeItemType(ing && (ing.stockItemType || ing.itemClass || ing.classe || ing.costType || "insumo"));
+}
+
+function stockRegularizationIngredientEntryExit(ing, qty, sourceMovementId, idx) {
+  if (!ing || qty <= 0) return [];
+  const itemId = stockFirstText(ing.insumoId, ing.itemId, ing.ingredientId, ing.supplyId, "");
+  if (!itemId) return [];
+  const cls = stockRegularizationIngredientType(ing);
+  const name = stockFirstText(ing.supplyName, ing.itemName, ing.name, cls === "embalagem" ? "Embalagem" : "Ingrediente");
+  const unit = stockFirstText(ing.unit, ing.unidade, "un");
+  const unitCost = stockNum(ing.unitCost);
+  return [{
+    id: stockRegularizationChainMovementId(sourceMovementId, `entrada_${idx}`, 0, itemId),
+    type: "entrada_regularizacao",
+    itemId,
+    itemName: name,
+    stockItemId: itemId,
+    stockItemType: cls,
+    itemClass: cls,
+    classe: cls,
+    ingredientId: cls === "insumo" ? itemId : "",
+    ingredientName: cls === "insumo" ? name : "",
+    packagingId: cls === "embalagem" ? itemId : "",
+    packagingName: cls === "embalagem" ? name : "",
+    quantity: qty,
+    unit,
+    unitCost,
+    totalCost: unitCost > 0 ? qty * unitCost : 0,
+    reason: "Regularização em cadeia de venda sem saldo",
+    notes: "Entrada técnica para reconstruir histórico de produção sem compra cadastrada."
+  }, {
+    id: stockRegularizationChainMovementId(sourceMovementId, `saida_${idx}`, 0, itemId),
+    type: "saida_producao",
+    ingredientId: itemId,
+    ingredientName: name,
+    stockItemId: itemId,
+    stockItemType: cls,
+    itemClass: cls,
+    classe: cls,
+    quantity: qty,
+    unit,
+    unitCost,
+    totalCost: unitCost > 0 ? qty * unitCost : 0,
+    productionOrderName: "Regularização em cadeia",
+    reason: "Consumo técnico da regularização em cadeia"
+  }];
+}
+
+function stockRegularizationMovementBaseEntry(sourceMovementId, idx, baseId, baseName, qty, unit) {
+  return {
+    id: stockRegularizationChainMovementId(sourceMovementId, "entrada_base", idx, baseId),
+    type: "entrada_regularizacao",
+    itemId: baseId,
+    itemName: baseName,
+    stockItemId: baseId,
+    stockItemType: "base_producao",
+    itemClass: "base_producao",
+    classe: "base_producao",
+    baseProductionId: baseId,
+    baseProductionName: baseName,
+    quantity: qty,
+    unit,
+    reason: "Regularização em cadeia de venda sem saldo",
+    notes: "Entrada técnica da etapa/base necessária para produzir o item vendido."
+  };
+}
+
+function stockRegularizationMovementBaseExit(sourceMovementId, idx, baseId, baseName, qty, unit, fichaId, fichaNome) {
+  return {
+    id: stockRegularizationChainMovementId(sourceMovementId, "saida_base", idx, baseId),
+    type: "saida_producao",
+    baseProductionId: baseId,
+    baseProductionName: baseName,
+    ingredientId: baseId,
+    ingredientName: baseName,
+    stockItemId: baseId,
+    stockItemType: "base_producao",
+    itemClass: "base_producao",
+    classe: "base_producao",
+    fichaTecnicaId: fichaId || "",
+    fichaTecnicaNome: fichaNome || "",
+    quantity: qty,
+    quantityProduced: qty,
+    unit,
+    yieldUnit: unit,
+    productionOrderName: "Regularização em cadeia",
+    reason: "Consumo técnico da etapa/base para produto vendido sem saldo"
+  };
 }
 
 function stockInternalCompositionRefs(item, product, mainQty) {
@@ -2735,6 +3003,7 @@ async function syncStripeOrderStockMovements(tenantId, orderId) {
   const orderSnap = await orderRef.get();
   if (!orderSnap.exists) return false;
   const order = { id: orderSnap.id, ...(orderSnap.data() || {}) };
+  if (!stockStatusTriggersMovement(order.status || order.orderStatus || "")) return false;
 
   const existingSnap = await tenantRef.collection("stock_movements").where("orderId", "==", orderId).get();
   const existing = [];
@@ -2806,7 +3075,8 @@ async function syncStripeOrderStockMovements(tenantId, orderId) {
           shortage,
           orderItemIndex: idx,
           stockRefIndex: refIdx,
-          movementId
+          movementId,
+          chainMovements: stockRegularizationChainMovements(ref, shortage, order, movementId, recipes)
         });
         if (regularizationMode === "automatico") {
           regularizationItem.status = "aplicada";
@@ -2832,7 +3102,7 @@ async function syncStripeOrderStockMovements(tenantId, orderId) {
         componentName: ref.componentName || "",
         sourceItemId: ref.readyItemId || "",
         produtoProntoId: ref.readyItemId || "",
-        stockItemId: ref.baseProductionId || ref.fichaId || ref.readyItemId || ref.productId || "",
+        stockItemId: ref.baseProductionId || ref.fichaId || ref.readyItemId || ref.stockItemId || ref.productId || "",
         stockItemType: ref.stockItemType || (ref.fichaId ? "produto_produzido" : "produto_pronto"),
         itemClass: ref.stockItemType || (ref.fichaId ? "produto_produzido" : "produto_pronto"),
         classe: ref.stockItemType || (ref.fichaId ? "produto_produzido" : "produto_pronto"),
@@ -2859,6 +3129,10 @@ async function syncStripeOrderStockMovements(tenantId, orderId) {
       if (regularizationItem && regularizationMode === "automatico") {
         batch.set(tenantRef.collection("stock_movements").doc(regularizationMovementId), stockRegularizationMovementPayload(regularizationItem, order, regularizationMovementId), { merge: true });
         writeCount += 1;
+        stockRegularizationChainPayloads(regularizationItem, order, regularizationMovementId).forEach((payload) => {
+          batch.set(tenantRef.collection("stock_movements").doc(payload.id), payload, { merge: true });
+          writeCount += 1;
+        });
       }
       count += 1;
     });

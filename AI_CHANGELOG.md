@@ -1,5 +1,68 @@
 # AI Changelog
 
+## 2026-06-04 — Estoque: Fase 6 de validação operacional
+- Arquivos alterados: `public/js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- Executei validações de sintaxe nos módulos de pedidos, estoque, receitas e Functions.
+- Validei os scripts inline de `public/admin.html` e `public/storefront.html`.
+- Simulei os status que disparam baixa de estoque, confirmando que apenas `Em camino` e `Listo para recoger` criam saída normal.
+- Simulei a política pública de venda sem saldo, confirmando que produto normal bloqueia por padrão, produto sob encomenda não bloqueia e `allowOutOfStockSales` libera a venda.
+- Simulei uma cadeia de produção/venda com etapa controlada, produto produzido e embalagem, validando o saldo esperado.
+- Simulei a regularização em cadeia proporcional para produto produzido sem saldo, validando entrada/saída técnica de etapa e ingrediente.
+- Simulei o cálculo de falta limitada pela quantidade da própria saída, evitando pendência acumulada indevida.
+- Corrigi as mensagens do detalhe do pedido para informar que a baixa acontece quando o pedido estiver em caminho para entrega ou pronto para retirada, e não mais em preparo/confirmado.
+- Impacto esperado: fechar a revisão das fases 1 a 5 antes de commit/publicação, com regra operacional e textos alinhados.
+
+## 2026-06-04 — Estoque/Loja: Fase 5 da política de venda sem saldo
+- Arquivos alterados: `public/js/modules/estoque.js`, `public/storefront.html`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Adicionei em `Estoque → Regularizações` a configuração `Venda sem saldo na loja`, com as opções `Bloquear quando zerar` e `Permitir venda sem saldo`.
+- A configuração salva `allowOutOfStockSales`, `sellWithoutStock` e `publicAllowOutOfStockSales` em `config/estoque`.
+- O template público passa a carregar `config/estoque` junto com os demais dados da loja.
+- Quando `allowOutOfStockSales` está falso ou ausente, a vitrine mantém o bloqueio para produtos calculáveis sem saldo.
+- Quando `allowOutOfStockSales` está verdadeiro, a vitrine permite adicionar produto sem saldo; a baixa posterior segue o modo de regularização já configurado.
+- Produtos sob encomenda (`madeToOrder`, `productMadeToOrder`, `sobEncomenda`) não são bloqueados por saldo público, porque dependem do prazo de produção.
+- Documentei a regra em `AGENTS.md`.
+- Impacto esperado: a usuária escolhe conscientemente se quer proteger inventário em tempo real ou aceitar venda sem saldo com regularização operacional.
+
+## 2026-06-04 — Pedidos/Estoque: Fase 4 da regularização em cadeia
+- Arquivos alterados: `public/js/modules/pedidos.js`, `public/js/modules/estoque.js`, `functions/index.js`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Quando uma venda gera falta de `produto_produzido`, a pendência de regularização passa a salvar `regularizationChain` com os movimentos técnicos necessários para reconstruir a cadeia anterior.
+- A cadeia inclui entrada técnica da etapa/base, saída técnica da etapa/base para o produto produzido e entrada/saída técnica dos ingredientes usados na etapa/base ou na ficha.
+- Quando a falta é de `base_producao`, a cadeia reconstrói os ingredientes próprios da base.
+- No modo `Aplicar automaticamente`, o Admin e a Function gravam a entrada principal de regularização e também os movimentos da cadeia.
+- No modo manual, `Estoque → Regularizações` mostra quantos movimentos de cadeia existem e aplica esses movimentos junto com `Regularizar entrada`.
+- A regra continua não criando compra, fornecedor, documento, financeiro ou pagamento; é apenas histórico operacional de estoque.
+- Atualizei os cache-busters de `pedidos.js` e `estoque.js` no Admin e documentei o contrato em `AGENTS.md`.
+- Impacto esperado: venda sem estoque passa a preservar histórico desde insumos/etapas até produto produzido, sem inventar compra real e sem duplicar baixa normal da venda.
+
+## 2026-06-04 — Produção/Estoque: Fase 3 do consumo em cadeia
+- Arquivos alterados: `public/js/modules/receitas.js`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Ajustei a geração de movimentações ao concluir ordens de produção.
+- Ordem de base/etapa continua baixando seus ingredientes próprios e criando entrada de `base_producao`.
+- Ordem de produto final agora baixa as bases/etapas controladas usadas na ficha e apenas ingredientes diretos da ficha, depois cria a entrada do `produto_produzido`.
+- Ingredientes internos de etapa controlada deixam de baixar de novo na produção do produto final, evitando dupla saída.
+- Embalagem deixa de baixar na conclusão da produção do produto final, porque a embalagem já sai junto com a venda do produto produzido.
+- As contagens da ordem passam a separar movimentações de ingredientes, base/etapa e produto produzido.
+- Atualizei o cache-buster de `receitas.js` no Admin e documentei a regra operacional em `AGENTS.md`.
+- Impacto esperado: o histórico de produção passa a refletir a cadeia correta: produzir etapa consome ingredientes; produzir produto consome etapa pronta; vender produto consome produto final e embalagem.
+
+## 2026-06-04 — Pedidos/Estoque: Fase 2 da baixa do produto vendido
+- Arquivos alterados: `public/js/modules/pedidos.js`, `functions/index.js`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Ajustei a baixa de venda para produto produzido/receita/ficha técnica baixar o produto final produzido, e não a etapa/base da receita.
+- A venda de produto produzido passa a baixar também as embalagens vinculadas à ficha técnica, em quantidade proporcional ao rendimento da receita.
+- Produto pronto continua baixando diretamente como `produto_pronto`, inclusive quando vem de menu/combo/escolha com vínculo de estoque.
+- Escolhas de combo que apontam para produto produzido também passam a baixar produto produzido + embalagem da ficha.
+- Espelhei a regra no backend das Functions para o fluxo Stripe/webhook.
+- Impacto esperado: a venda registra corretamente o que saiu como produto final e embalagem, preservando etapas/ingredientes para o fluxo de produção e para a futura regularização em cadeia.
+
+## 2026-06-04 — Pedidos/Estoque: Fase 1 do momento da baixa
+- Arquivos alterados: `public/js/modules/pedidos.js`, `functions/index.js`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Parei a baixa forçada de estoque ao criar pedido manual com status `Pendente`.
+- A saída de estoque passa a ser disparada somente quando o pedido chega aos status operacionais `Em camino` ou `Listo para recoger`.
+- Pedidos em `Pendente`, `Confirmado`, `Em preparação` ou `Entregue` não criam nova baixa por si só; pedidos antigos que já tinham movimentação preservam o histórico existente.
+- A Function do Stripe deixa de baixar estoque no webhook de pagamento, porque o pagamento confirma financeiro/status, mas a baixa agora depende da etapa operacional do pedido.
+- Atualizei o cache-buster de `pedidos.js` no Admin e substituí a regra antiga em `AGENTS.md`.
+- Impacto esperado: estoque só sai quando o pedido realmente está pronto para retirada ou saiu para entrega, evitando baixa prematura em pedidos ainda pendentes.
+
 ## 2026-06-04 — Pedidos/Estoque: regularização completa da composição
 - Arquivos alterados: `public/js/modules/pedidos.js`, `functions/index.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
 - Corrigi a baixa/regularização de estoque do pedido para não parar quando já existe alguma movimentação do pedido.

@@ -427,8 +427,9 @@ Modules.Estoque = (function () {
     }).join('');
     var rows = pageEntries.map(function (entry) {
       var canApply = entry.status === 'pendente';
+      var chainNote = entry.regularizationChainCount ? '<div class="stock-item-note">Cadeia: ' + entry.regularizationChainCount + ' mov.</div>' : '';
       return '<tr>' +
-        '<td><div class="stock-item-name">' + _esc(entry.itemName) + '</div><div class="stock-item-note">' + _esc(_stockKindLabel(entry.stockItemType)) + ' · ' + _esc(entry.stockSourceLabel) + '</div></td>' +
+        '<td><div class="stock-item-name">' + _esc(entry.itemName) + '</div><div class="stock-item-note">' + _esc(_stockKindLabel(entry.stockItemType)) + ' · ' + _esc(entry.stockSourceLabel) + '</div>' + chainNote + '</td>' +
         '<td><div class="stock-item-name">' + _esc(entry.orderLabel) + '</div><div class="stock-item-note">' + _esc(_fmtDate(entry.detectedAt || entry.orderDate)) + ' · ' + _esc(entry.customerName || 'Cliente não informado') + '</div></td>' +
         '<td><span class="stock-badge ' + (entry.status === 'pendente' ? 'regularization-pending' : 'regularization-muted') + '">' + _esc(_regularizationStatusLabel(entry.status)) + '</span></td>' +
         '<td><strong class="stock-negative">' + _fmtQty(entry.shortageQuantity) + ' ' + _esc(entry.unit || '') + '</strong><div class="stock-item-note">Saída: ' + _fmtQty(entry.requiredQuantity) + ' ' + _esc(entry.unit || '') + '</div></td>' +
@@ -487,6 +488,7 @@ Modules.Estoque = (function () {
 
   function _regularizationConfigHtml() {
     var mode = _regularizationMode();
+    var allowOutOfStock = _allowOutOfStockSales();
     return '<section class="stock-filter-card stock-regularization-config">' +
       '<div class="stock-list-title">' +
         '<div><h2>Comportamento da regularização</h2><p>Defina o que acontece quando uma venda baixa estoque sem saldo suficiente.</p></div>' +
@@ -495,6 +497,13 @@ Modules.Estoque = (function () {
         _regularizationModeOption('pendencia', mode, 'Criar pendência', 'Registra a falta para revisar depois. É o modo mais seguro.') +
         _regularizationModeOption('automatico', mode, 'Aplicar automaticamente', 'Cria entrada de regularização junto com a saída da venda.') +
         _regularizationModeOption('desligado', mode, 'Desligado', 'Mantém a saída, mas não gera pendência nem entrada de regularização.') +
+      '</div>' +
+      '<div class="stock-list-title" style="margin-top:4px;">' +
+        '<div><h2>Venda sem saldo na loja</h2><p>Produtos sob encomenda continuam liberados. Para os demais, escolha se a loja pública deve bloquear quando o saldo calculado acabar.</p></div>' +
+      '</div>' +
+      '<div class="stock-config-options">' +
+        _outOfStockModeOption(false, allowOutOfStock, 'Bloquear quando zerar', 'A loja impede adicionar produto calculável sem saldo. É o padrão seguro.') +
+        _outOfStockModeOption(true, allowOutOfStock, 'Permitir venda sem saldo', 'A loja aceita a venda; a baixa cria pendência, regularização ou só histórico conforme a regra acima.') +
       '</div>' +
     '</section>';
   }
@@ -513,6 +522,16 @@ Modules.Estoque = (function () {
     return mode;
   }
 
+  function _allowOutOfStockSales() {
+    return !!(_stockConfig.allowOutOfStockSales || _stockConfig.sellWithoutStock || _stockConfig.publicAllowOutOfStockSales);
+  }
+
+  function _outOfStockModeOption(value, current, label, description) {
+    return '<button type="button" class="stock-config-option ' + (current === value ? 'active' : '') + '" onclick="Modules.Estoque._saveOutOfStockSalesMode(' + (value ? 'true' : 'false') + ')">' +
+      '<strong>' + _esc(label) + '</strong><span>' + _esc(description) + '</span>' +
+    '</button>';
+  }
+
   function _saveRegularizationMode(mode) {
     mode = ['pendencia', 'automatico', 'desligado'].indexOf(mode) >= 0 ? mode : 'pendencia';
     var now = new Date().toISOString();
@@ -524,6 +543,25 @@ Modules.Estoque = (function () {
       _stockConfig.regularizationMode = mode;
       _stockConfig.stockRegularizationMode = mode;
       UI.toast('Configuração de regularização salva.', 'success');
+      _paintRegularizations();
+    }).catch(function (err) {
+      UI.toast('Erro ao salvar configuração: ' + (err && err.message ? err.message : err), 'error');
+    });
+  }
+
+  function _saveOutOfStockSalesMode(allow) {
+    allow = !!allow;
+    var now = new Date().toISOString();
+    DB.col('config').doc('estoque').set({
+      allowOutOfStockSales: allow,
+      sellWithoutStock: allow,
+      publicAllowOutOfStockSales: allow,
+      updatedAt: now
+    }, { merge: true }).then(function () {
+      _stockConfig.allowOutOfStockSales = allow;
+      _stockConfig.sellWithoutStock = allow;
+      _stockConfig.publicAllowOutOfStockSales = allow;
+      UI.toast('Configuração de venda sem saldo salva.', 'success');
       _paintRegularizations();
     }).catch(function (err) {
       UI.toast('Erro ao salvar configuração: ' + (err && err.message ? err.message : err), 'error');
@@ -658,6 +696,7 @@ Modules.Estoque = (function () {
         var requiredQty = _num(item.requiredQuantity);
         var shortageQty = _regularizationEffectiveShortage(item);
         var unitCost = _num(item.unitCost);
+        var chain = Array.isArray(item.regularizationChain) ? item.regularizationChain : [];
         entries.push({
           id: String(order.id || '') + ':' + idx,
           itemIndex: idx,
@@ -684,7 +723,9 @@ Modules.Estoque = (function () {
           balanceAfter: _num(item.balanceAfter),
           unit: item.unit || '',
           unitCost: unitCost,
-          estimatedTotalCost: unitCost > 0 ? _round(shortageQty * unitCost) : _num(item.estimatedTotalCost)
+          estimatedTotalCost: unitCost > 0 ? _round(shortageQty * unitCost) : _num(item.estimatedTotalCost),
+          regularizationChain: chain,
+          regularizationChainCount: _num(item.regularizationChainCount) || chain.length
         });
       });
     });
@@ -881,6 +922,7 @@ Modules.Estoque = (function () {
     var now = new Date().toISOString();
     var movementId = 'regularizacao_' + _stockSettingId(entry.orderId + '_' + entry.itemIndex + '_' + entry.stockItemId + '_' + entry.stockItemType);
     var movement = _regularizationMovementPayload(entry, movementId, now);
+    var chainMovements = _regularizationChainPayloads(entry, movementId, now);
     var items = (Array.isArray(order.stockRegularizationPendingItems) ? order.stockRegularizationPendingItems : []).map(function (item, idx) {
       if (idx !== entry.itemIndex) return item;
       return Object.assign({}, item, {
@@ -899,10 +941,11 @@ Modules.Estoque = (function () {
       stockRegularizationUpdatedAt: now
     };
     if (!pendingCount) orderPatch.stockRegularizationAppliedAt = now;
-    var ops = [
-      DB.col('stock_movements').doc(movementId).set(movement, { merge: true }),
-      DB.update('orders', entry.orderId, orderPatch)
-    ];
+    var ops = [DB.col('stock_movements').doc(movementId).set(movement, { merge: true })];
+    chainMovements.forEach(function (payload) {
+      ops.push(DB.col('stock_movements').doc(payload.id).set(payload, { merge: true }));
+    });
+    ops.push(DB.update('orders', entry.orderId, orderPatch));
     if (entry.sourceMovementId) {
       ops.push(DB.update('stock_movements', entry.sourceMovementId, {
         regularizationStatus: 'aplicada',
@@ -969,6 +1012,25 @@ Modules.Estoque = (function () {
       payload.packagingName = entry.itemName || '';
     }
     return payload;
+  }
+
+  function _regularizationChainPayloads(entry, parentMovementId, now) {
+    var chain = Array.isArray(entry && entry.regularizationChain) ? entry.regularizationChain : [];
+    return chain.map(function (movement, idx) {
+      var id = movement.id || _stockSettingId(parentMovementId + '_chain_' + idx);
+      return Object.assign({}, movement, {
+        id: id,
+        orderId: entry.orderId || '',
+        orderNumber: entry.orderLabel || '',
+        movementGroup: 'stock_regularization_chain',
+        regularizationOrigin: 'saldo_negativo_venda',
+        regularizationParentMovementId: parentMovementId || '',
+        regularizationSourceMovementId: entry.sourceMovementId || '',
+        movementDate: _today(),
+        createdAt: now,
+        updatedAt: now
+      });
+    });
   }
 
   function _openItemDetails(key) {
@@ -1636,6 +1698,7 @@ Modules.Estoque = (function () {
     _setRegularizationsPage: _setRegularizationsPage,
     _applyRegularization: _applyRegularization,
     _saveRegularizationMode: _saveRegularizationMode,
+    _saveOutOfStockSalesMode: _saveOutOfStockSalesMode,
     _openItemDetails: _openItemDetails,
     _setDetailMovementSearch: _setDetailMovementSearch,
     _setDetailMovementPage: _setDetailMovementPage,
