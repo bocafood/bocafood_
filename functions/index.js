@@ -2722,15 +2722,16 @@ function stockRegularizationChainPayloads(item, order, parentMovementId) {
   });
 }
 
-function stockRegularizationChainMovements(ref, shortage, order, sourceMovementId, recipes) {
+function stockRegularizationChainMovements(ref, shortage, order, sourceMovementId, recipes, balances) {
   const stockType = stockNormalizeItemType((ref && (ref.stockItemType || ref.itemClass || ref.classe)) || "");
   const qty = stockRoundQty(shortage);
   if (qty <= 0) return [];
+  balances = balances || {};
   if (stockType === "produto_produzido" && ref && ref.fichaId) {
-    return stockRegularizationChainForProducedRecipe(ref.fichaId, qty, ref, order, sourceMovementId, recipes);
+    return stockRegularizationChainForProducedRecipe(ref.fichaId, qty, ref, order, sourceMovementId, recipes, balances);
   }
   if (stockType === "base_producao" && ref && ref.baseProductionId) {
-    return stockRegularizationChainForBase(ref.baseProductionId, qty, ref, order, sourceMovementId, recipes);
+    return stockRegularizationChainForBase(ref.baseProductionId, qty, ref, order, sourceMovementId, recipes, balances);
   }
   return [];
 }
@@ -2739,7 +2740,7 @@ function stockRegularizationChainMovementId(sourceMovementId, kind, idx, itemId)
   return `regularizacao_cadeia_${stockSafeId(sourceMovementId || "mov")}_${kind}_${idx}_${stockSafeId(itemId || "item")}`;
 }
 
-function stockRegularizationChainForProducedRecipe(fichaId, qty, ref, order, sourceMovementId, recipes) {
+function stockRegularizationChainForProducedRecipe(fichaId, qty, ref, order, sourceMovementId, recipes, balances) {
   const recipe = stockFindRecipeById(fichaId, recipes) || {};
   const recipeYield = stockNum(recipe.yieldQuantity || recipe.yield || recipe.rendimento) || 1;
   let movements = [];
@@ -2751,9 +2752,12 @@ function stockRegularizationChainForProducedRecipe(fichaId, qty, ref, order, sou
     if (!baseId || baseQty <= 0) return;
     const baseName = comp.name || "Base de produção";
     const unit = stockFirstText(comp.stageUsageUnit, comp.usageUnit, comp.unitPerUnit, comp.baseUsageUnit, comp.stageYieldUnit, comp.baseYieldUnit, comp.stockYieldUnit, recipe.yieldUnit, "un");
-    movements.push(stockRegularizationMovementBaseEntry(sourceMovementId, idx, baseId, baseName, baseQty, unit));
+    const baseKey = stockRegularizationChainBalanceKey("base_producao", baseId, baseName);
+    const baseShortage = stockRegularizationChainShortage(balances, baseKey, baseQty);
+    if (baseShortage > 0) movements.push(stockRegularizationMovementBaseEntry(sourceMovementId, idx, baseId, baseName, baseShortage, unit));
     movements.push(stockRegularizationMovementBaseExit(sourceMovementId, idx, baseId, baseName, baseQty, unit, fichaId, recipe.name || ref.fichaNome || ""));
-    movements = movements.concat(stockRegularizationIngredientChainForComponent(comp, baseQty, sourceMovementId, `base_${idx}`));
+    stockRegularizationChainApply(balances, baseKey, baseShortage - baseQty);
+    movements = movements.concat(stockRegularizationIngredientChainForComponent(comp, baseShortage, sourceMovementId, `base_${idx}`, balances));
   });
   const controlledNames = {};
   components.forEach((comp) => {
@@ -2764,15 +2768,15 @@ function stockRegularizationChainForProducedRecipe(fichaId, qty, ref, order, sou
     if (componentName && controlledNames[componentName]) return;
     if (stockRegularizationIngredientType(ing) === "embalagem") return;
     const ingQty = stockRoundQty((stockNum(ing.grossQuantityCalculated || ing.grossQuantity || ing.qty) / Math.max(1, recipeYield)) * qty);
-    movements = movements.concat(stockRegularizationIngredientEntryExit(ing, ingQty, sourceMovementId, `direto_${idx}`));
+    movements = movements.concat(stockRegularizationIngredientEntryExit(ing, ingQty, sourceMovementId, `direto_${idx}`, balances));
   });
   return movements;
 }
 
-function stockRegularizationChainForBase(baseId, qty, ref, order, sourceMovementId, recipes) {
+function stockRegularizationChainForBase(baseId, qty, ref, order, sourceMovementId, recipes, balances) {
   const found = stockFindRegularizationBaseComponent(baseId, recipes);
   if (!found) return [];
-  return stockRegularizationIngredientChainForComponent(found.component, qty, sourceMovementId, "base_direta");
+  return stockRegularizationIngredientChainForComponent(found.component, qty, sourceMovementId, "base_direta", balances);
 }
 
 function stockFindRegularizationBaseComponent(baseId, recipes) {
@@ -2814,13 +2818,14 @@ function stockRegularizationBaseUsageQty(comp, recipeYield, qty) {
   return stockRoundQty(usageQty * qty);
 }
 
-function stockRegularizationIngredientChainForComponent(comp, producedQty, sourceMovementId, prefix) {
+function stockRegularizationIngredientChainForComponent(comp, producedQty, sourceMovementId, prefix, balances) {
+  if (producedQty <= 0) return [];
   const baseYield = stockNum(comp.stageYieldQuantity || comp.baseYieldQuantity || comp.stockYieldQuantity) || 1;
   const scale = producedQty / Math.max(1, baseYield);
   let movements = [];
   (comp.ingredients || []).forEach((ing, idx) => {
     const ingQty = stockRoundQty(stockNum(ing.grossQuantityCalculated || ing.grossQuantity || ing.qty) * scale);
-    movements = movements.concat(stockRegularizationIngredientEntryExit(ing, ingQty, sourceMovementId, `${prefix}_${idx}`));
+    movements = movements.concat(stockRegularizationIngredientEntryExit(ing, ingQty, sourceMovementId, `${prefix}_${idx}`, balances));
   });
   return movements;
 }
@@ -2829,7 +2834,7 @@ function stockRegularizationIngredientType(ing) {
   return stockNormalizeItemType(ing && (ing.stockItemType || ing.itemClass || ing.classe || ing.costType || "insumo"));
 }
 
-function stockRegularizationIngredientEntryExit(ing, qty, sourceMovementId, idx) {
+function stockRegularizationIngredientEntryExit(ing, qty, sourceMovementId, idx, balances) {
   if (!ing || qty <= 0) return [];
   const itemId = stockFirstText(ing.insumoId, ing.itemId, ing.ingredientId, ing.supplyId, "");
   if (!itemId) return [];
@@ -2837,7 +2842,11 @@ function stockRegularizationIngredientEntryExit(ing, qty, sourceMovementId, idx)
   const name = stockFirstText(ing.supplyName, ing.itemName, ing.name, cls === "embalagem" ? "Embalagem" : "Ingrediente");
   const unit = stockFirstText(ing.unit, ing.unidade, "un");
   const unitCost = stockNum(ing.unitCost);
-  return [{
+  const stockKey = stockRegularizationChainBalanceKey(cls, itemId, name);
+  const shortage = stockRegularizationChainShortage(balances, stockKey, qty);
+  stockRegularizationChainApply(balances, stockKey, shortage - qty);
+  const movements = [];
+  if (shortage > 0) movements.push({
     id: stockRegularizationChainMovementId(sourceMovementId, `entrada_${idx}`, 0, itemId),
     type: "entrada_regularizacao",
     itemId,
@@ -2850,13 +2859,14 @@ function stockRegularizationIngredientEntryExit(ing, qty, sourceMovementId, idx)
     ingredientName: cls === "insumo" ? name : "",
     packagingId: cls === "embalagem" ? itemId : "",
     packagingName: cls === "embalagem" ? name : "",
-    quantity: qty,
+    quantity: shortage,
     unit,
     unitCost,
-    totalCost: unitCost > 0 ? qty * unitCost : 0,
+    totalCost: unitCost > 0 ? shortage * unitCost : 0,
     reason: "Regularização em cadeia de venda sem saldo",
     notes: "Entrada técnica para reconstruir histórico de produção sem compra cadastrada."
-  }, {
+  });
+  movements.push({
     id: stockRegularizationChainMovementId(sourceMovementId, `saida_${idx}`, 0, itemId),
     type: "saida_producao",
     ingredientId: itemId,
@@ -2871,7 +2881,23 @@ function stockRegularizationIngredientEntryExit(ing, qty, sourceMovementId, idx)
     totalCost: unitCost > 0 ? qty * unitCost : 0,
     productionOrderName: "Regularização em cadeia",
     reason: "Consumo técnico da regularização em cadeia"
-  }];
+  });
+  return movements;
+}
+
+function stockRegularizationChainBalanceKey(stockType, itemId, name) {
+  return `${stockNormalizeItemType(stockType || "insumo")}:${itemId || name || "Item"}`;
+}
+
+function stockRegularizationChainShortage(balances, key, quantity) {
+  const before = stockRoundQty(stockNum(balances && balances[key]));
+  const after = stockRoundQty(before - stockNum(quantity));
+  return after < 0 ? stockRoundQty(Math.min(stockNum(quantity), Math.abs(after))) : 0;
+}
+
+function stockRegularizationChainApply(balances, key, delta) {
+  if (!balances || !key) return;
+  balances[key] = stockRoundQty(stockNum(balances[key]) + stockNum(delta));
 }
 
 function stockRegularizationMovementBaseEntry(sourceMovementId, idx, baseId, baseName, qty, unit) {
@@ -3076,7 +3102,7 @@ async function syncStripeOrderStockMovements(tenantId, orderId) {
           orderItemIndex: idx,
           stockRefIndex: refIdx,
           movementId,
-          chainMovements: stockRegularizationChainMovements(ref, shortage, order, movementId, recipes)
+          chainMovements: stockRegularizationChainMovements(ref, shortage, order, movementId, recipes, regularizationMode === "automatico" ? balances : { ...balances })
         });
         if (regularizationMode === "automatico") {
           regularizationItem.status = "aplicada";

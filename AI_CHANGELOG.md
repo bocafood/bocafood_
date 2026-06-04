@@ -1,5 +1,30 @@
 # AI Changelog
 
+## 2026-06-04 — Estoque: configurações em aba própria
+- Arquivos alterados: `public/js/modules/estoque.js`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Removi a barra interna com os botões `Itens`, `Movimentações` e `Regularizações` das telas de Estoque, mantendo a navegação pelo menu lateral.
+- Criei `Estoque → Configurações` no menu lateral e no roteador do Admin.
+- Movi para essa nova tela o bloco `Comportamento da regularização` com as opções `Criar pendência`, `Aplicar automaticamente` e `Desligado`.
+- Movi também o bloco `Venda sem saldo na loja` com as opções `Bloquear quando zerar` e `Permitir venda sem saldo`.
+- A tela `Estoque → Regularizações` fica focada apenas nos indicadores, filtros e lista de itens para regularizar.
+- Atualizei o cache-buster de `estoque.js` no Admin e a documentação operacional em `AGENTS.md`.
+
+## 2026-06-04 — Estoque: ignorar pendência de regularização
+- Arquivos alterados: `public/js/modules/estoque.js`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Adicionei a ação `Ignorar` em `Estoque → Regularizações` para itens pendentes.
+- Ao ignorar, o item do pedido passa para status `ignorada`, recebe data de ignorado e deixa de aparecer nas pendências.
+- A movimentação de saída relacionada também recebe `regularizationStatus: ignorada`.
+- A ação não cria entrada de estoque, compra, financeiro, ajuste de inventário nem altera saldo.
+- Atualizei o cache-buster de `estoque.js` no Admin e documentei a regra em `AGENTS.md`.
+
+## 2026-06-04 — Estoque: regularização em cadeia respeita saldo existente
+- Arquivos alterados: `public/js/modules/pedidos.js`, `functions/index.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Corrigi a geração da `regularizationChain` para calcular falta de etapas/bases e ingredientes contra o saldo atual antes de criar `entrada_regularizacao`.
+- Quando a etapa/base ou ingrediente já tem saldo suficiente, a cadeia mantém somente a saída técnica necessária para reconstruir a produção do item vendido, sem enviar esse item para regularização.
+- Quando falta apenas parte do saldo, a entrada de regularização passa a ser criada somente para a parte faltante.
+- No modo `Criar pendência`, a simulação da cadeia usa uma cópia dos saldos e não interfere no cálculo de outros itens do mesmo pedido; no modo `Aplicar automaticamente`, a cadeia atualiza o saldo em memória porque os movimentos técnicos serão gravados junto com a baixa.
+- Documentei a regra em `AGENTS.md`.
+
 ## 2026-06-04 — Cardápio: tabela comercial de vendas
 - Arquivos alterados: `public/js/modules/catalogo.js`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
 - Criei a área `Cardápio → Vendas` no menu lateral do Admin.

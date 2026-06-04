@@ -25,10 +25,11 @@ Modules.Estoque = (function () {
     if (!app) return;
     var isMovements = _activeSub === 'movimentacoes';
     var isRegularizations = _activeSub === 'regularizacoes';
-    var title = isRegularizations ? 'Regularizações do estoque' : (isMovements ? 'Movimentações do estoque' : 'Itens em estoque');
+    var isSettings = _activeSub === 'configuracoes';
+    var title = isSettings ? 'Configurações do estoque' : (isRegularizations ? 'Regularizações do estoque' : (isMovements ? 'Movimentações do estoque' : 'Itens em estoque'));
     var subtitle = isRegularizations
       ? 'Veja vendas que geraram saída com saldo insuficiente e escolha como regularizar o histórico de estoque.'
-      : (isMovements ? 'Acompanhe entradas, saídas, estornos e ajustes usados para calcular os saldos.' : 'Saldo calculado pelas entradas, saídas e ajustes registrados. Separe os itens por classe para conferir com mais clareza.');
+      : (isSettings ? 'Defina como o sistema trata venda sem saldo e regularização de estoque.' : (isMovements ? 'Acompanhe entradas, saídas, estornos e ajustes usados para calcular os saldos.' : 'Saldo calculado pelas entradas, saídas e ajustes registrados. Separe os itens por classe para conferir com mais clareza.'));
     app.innerHTML =
       '<div id="stock-root" class="module-page stock-page">' +
         _styles() +
@@ -70,6 +71,7 @@ Modules.Estoque = (function () {
       _items = _buildStockItems(_movements);
       if (_activeSub === 'movimentacoes') _paintMovements();
       else if (_activeSub === 'regularizacoes') _paintRegularizations();
+      else if (_activeSub === 'configuracoes') _paintConfiguracoes();
       else _paintItems();
     });
   }
@@ -361,7 +363,6 @@ Modules.Estoque = (function () {
     }).join('');
 
     content.innerHTML =
-      _viewTabsHtml() +
       _stockKindTabsHtml() +
       '<section class="stock-filter-card">' +
         '<div class="stock-filter-grid">' +
@@ -393,18 +394,11 @@ Modules.Estoque = (function () {
         '<section class="stock-card">' + _emptyState() + '</section>');
   }
 
-  function _viewTabsHtml() {
-    return '<section class="stock-view-tabs">' +
-      '<button type="button" class="' + (_activeSub === 'itens' ? 'active' : '') + '" onclick="Modules.Estoque._setView(\'itens\')">Itens</button>' +
-      '<button type="button" class="' + (_activeSub === 'movimentacoes' ? 'active' : '') + '" onclick="Modules.Estoque._setView(\'movimentacoes\')">Movimentações</button>' +
-      '<button type="button" class="' + (_activeSub === 'regularizacoes' ? 'active' : '') + '" onclick="Modules.Estoque._setView(\'regularizacoes\')">Regularizações</button>' +
-    '</section>';
-  }
-
   function _setView(view) {
-    _activeSub = view === 'movimentacoes' ? 'movimentacoes' : (view === 'regularizacoes' ? 'regularizacoes' : 'itens');
+    _activeSub = view === 'movimentacoes' ? 'movimentacoes' : (view === 'regularizacoes' ? 'regularizacoes' : (view === 'configuracoes' ? 'configuracoes' : 'itens'));
     if (_activeSub === 'movimentacoes') _paintMovements();
     else if (_activeSub === 'regularizacoes') _paintRegularizations();
+    else if (_activeSub === 'configuracoes') _paintConfiguracoes();
     else _paintItems();
   }
 
@@ -429,7 +423,11 @@ Modules.Estoque = (function () {
       var canApply = entry.status === 'pendente' && !entry.isChainItem;
       var chainNote = entry.regularizationChainCount ? '<div class="stock-item-note">Cadeia: ' + entry.regularizationChainCount + ' mov.</div>' : '';
       var itemPrefix = entry.isChainItem ? '<span class="stock-chain-prefix">↳</span>' : '';
-      var actionText = entry.isChainItem ? 'Na cadeia' : (canApply ? 'Regularizar entrada' : 'Aplicada');
+      var actionHtml = entry.isChainItem
+        ? '<button type="button" class="stock-row-action" disabled>Na cadeia</button>'
+        : (canApply
+          ? '<div class="stock-row-actions"><button type="button" class="stock-row-action" onclick="Modules.Estoque._applyRegularization(\'' + _escJs(entry.id) + '\')">Regularizar entrada</button><button type="button" class="stock-row-action secondary" onclick="Modules.Estoque._ignoreRegularization(\'' + _escJs(entry.id) + '\')">Ignorar</button></div>'
+          : '<button type="button" class="stock-row-action" disabled>' + _esc(_regularizationStatusLabel(entry.status)) + '</button>');
       return '<tr>' +
         '<td><div class="stock-item-name ' + (entry.isChainItem ? 'stock-chain-item' : '') + '">' + itemPrefix + '<span>' + _esc(entry.itemName) + '</span></div><div class="stock-item-note">' + _esc(_stockKindLabel(entry.stockItemType)) + ' · ' + _esc(entry.stockSourceLabel) + '</div>' + chainNote + '</td>' +
         '<td><div class="stock-item-name">' + _esc(entry.orderLabel) + '</div><div class="stock-item-note">' + _esc(_fmtDate(entry.detectedAt || entry.orderDate)) + ' · ' + _esc(entry.customerName || 'Cliente não informado') + '</div></td>' +
@@ -437,13 +435,11 @@ Modules.Estoque = (function () {
         '<td><strong class="stock-negative">' + _fmtQty(entry.shortageQuantity) + ' ' + _esc(entry.unit || '') + '</strong><div class="stock-item-note">Saída: ' + _fmtQty(entry.requiredQuantity) + ' ' + _esc(entry.unit || '') + '</div></td>' +
         '<td><div class="stock-item-name">' + _fmtQty(entry.balanceBefore) + ' → ' + _fmtQty(entry.balanceAfter) + '</div><div class="stock-item-note">Saldo antes/depois</div></td>' +
         '<td>' + (entry.unitCost > 0 ? _money(entry.estimatedTotalCost) : '<span class="stock-muted">sem custo</span>') + '</td>' +
-        '<td><button type="button" class="stock-row-action" ' + (canApply ? 'onclick="Modules.Estoque._applyRegularization(\'' + _escJs(entry.id) + '\')"' : 'disabled') + '>' + actionText + '</button></td>' +
+        '<td>' + actionHtml + '</td>' +
       '</tr>';
     }).join('');
     var hasFilters = !!((_regularizationFilters.q || '').trim() || _regularizationFilters.status !== 'todos' || _regularizationFilters.type !== 'todos');
     content.innerHTML =
-      _viewTabsHtml() +
-      _regularizationConfigHtml() +
       '<section class="stock-regularization-summary">' +
         _regularizationMetric('Pendentes', summary.pending, 'Itens vendidos sem saldo suficiente.') +
         _regularizationMetric('Pedidos', summary.orders, 'Pedidos com pelo menos uma pendência.') +
@@ -508,6 +504,15 @@ Modules.Estoque = (function () {
         _outOfStockModeOption(true, allowOutOfStock, 'Permitir venda sem saldo', 'A loja aceita a venda; a baixa cria pendência, regularização ou só histórico conforme a regra acima.') +
       '</div>' +
     '</section>';
+  }
+
+  function _paintConfiguracoes() {
+    var content = document.getElementById('stock-content');
+    if (!content) return;
+    content.innerHTML =
+      '<div style="display:flex;flex-direction:column;gap:16px;">' +
+        _regularizationConfigHtml() +
+      '</div>';
   }
 
   function _regularizationModeOption(value, current, label, description) {
@@ -600,7 +605,6 @@ Modules.Estoque = (function () {
     }).join('');
     var hasFilters = !!((_movementFilters.q || '').trim() || _movementFilters.direction !== 'todos' || _movementFilters.origin !== 'todos');
     content.innerHTML =
-      _viewTabsHtml() +
       '<section class="stock-kind-tabs movement-tabs">' +
         '<button type="button" class="' + (_movementFilters.direction === 'entrada' ? 'active' : '') + '" onclick="Modules.Estoque._setMovementDirection(\'entrada\')">Entradas</button>' +
         '<button type="button" class="' + (_movementFilters.direction === 'saida' ? 'active' : '') + '" onclick="Modules.Estoque._setMovementDirection(\'saida\')">Saídas</button>' +
@@ -952,6 +956,67 @@ Modules.Estoque = (function () {
       return _saveRegularizationEntry(entry);
     }).catch(function (err) {
       UI.toast('Erro ao regularizar: ' + (err && err.message ? err.message : err), 'error');
+    });
+  }
+
+  function _ignoreRegularization(entryId) {
+    var entry = _regularizationEntries().find(function (item) { return item.id === entryId; });
+    if (!entry || entry.status !== 'pendente' || entry.isChainItem) {
+      UI.toast('Regularização já resolvida ou não encontrada.', 'info');
+      return;
+    }
+    var ask = UI && typeof UI.confirm === 'function'
+      ? UI.confirm('Ignorar a regularização de ' + entry.itemName + '? Nenhuma entrada de estoque será criada.')
+      : Promise.resolve(window.confirm('Ignorar a regularização de ' + entry.itemName + '? Nenhuma entrada de estoque será criada.'));
+    ask.then(function (yes) {
+      if (!yes) return null;
+      return _saveIgnoredRegularization(entry);
+    }).catch(function (err) {
+      UI.toast('Erro ao ignorar: ' + (err && err.message ? err.message : err), 'error');
+    });
+  }
+
+  function _saveIgnoredRegularization(entry) {
+    var order = (_orders || []).find(function (item) { return String(item.id || '') === String(entry.orderId || ''); });
+    if (!order) {
+      UI.toast('Pedido da regularização não encontrado.', 'error');
+      return Promise.resolve(false);
+    }
+    var now = new Date().toISOString();
+    var items = (Array.isArray(order.stockRegularizationPendingItems) ? order.stockRegularizationPendingItems : []).map(function (item, idx) {
+      if (idx !== entry.itemIndex) return item;
+      return Object.assign({}, item, {
+        status: 'ignorada',
+        ignoredAt: now,
+        regularizationIgnoredAt: now,
+        regularizationIgnoreReason: 'Ignorada manualmente em Estoque > Regularizações'
+      });
+    });
+    var pendingCount = items.filter(function (item) { return String(item && item.status || 'pendente').toLowerCase() === 'pendente'; }).length;
+    var appliedCount = items.filter(function (item) { return String(item && item.status || '').toLowerCase() === 'aplicada'; }).length;
+    var ignoredCount = items.filter(function (item) { return String(item && item.status || '').toLowerCase() === 'ignorada'; }).length;
+    var orderPatch = {
+      stockRegularizationPendingItems: items,
+      stockRegularizationPendingCount: pendingCount,
+      stockRegularizationIgnoredCount: ignoredCount,
+      stockRegularizationPending: pendingCount > 0,
+      stockRegularizationStatus: pendingCount > 0 ? 'pendente' : (appliedCount > 0 ? 'aplicada' : 'ignorada'),
+      stockRegularizationUpdatedAt: now
+    };
+    if (!pendingCount) orderPatch.stockRegularizationResolvedAt = now;
+    var ops = [DB.update('orders', entry.orderId, orderPatch)];
+    if (entry.sourceMovementId) {
+      ops.push(DB.update('stock_movements', entry.sourceMovementId, {
+        regularizationPending: false,
+        regularizationStatus: 'ignorada',
+        regularizationIgnoredAt: now,
+        regularizationIgnoreReason: 'Ignorada manualmente em Estoque > Regularizações',
+        updatedAt: now
+      }).catch(function () { return null; }));
+    }
+    return Promise.all(ops).then(function () {
+      UI.toast('Regularização ignorada.', 'success');
+      return _loadItems();
     });
   }
 
@@ -1588,9 +1653,6 @@ Modules.Estoque = (function () {
       '.stock-kind-tabs button:hover{background:#fff;color:#211815;border-color:#E8DDD5;box-shadow:0 5px 14px rgba(85,46,32,.06);}' +
       '.stock-kind-tabs button.active{background:#B42318;color:#fff;border-color:#B42318;box-shadow:0 8px 18px rgba(180,35,24,.16);}' +
       '.stock-kind-tabs.movement-tabs{padding:8px;}' +
-      '.stock-view-tabs{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}' +
-      '.stock-view-tabs button{height:38px;padding:0 14px;border:1px solid #EAE4DA;border-radius:12px;background:#fff;color:#6F6860;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;box-shadow:0 8px 18px rgba(31,31,31,.035);}' +
-      '.stock-view-tabs button.active{background:#B42318;border-color:#B42318;color:#fff;box-shadow:0 8px 18px rgba(180,35,24,.14);}' +
       '.stock-filter-card,.stock-card,.stock-detail-card{background:#fff;border:1px solid #EAE4DA;border-radius:18px;box-shadow:0 14px 34px rgba(31,31,31,.055);}' +
       '.stock-filter-card{padding:16px;}' +
       '.stock-filter-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:11px 12px;align-items:end;}' +
@@ -1637,7 +1699,9 @@ Modules.Estoque = (function () {
       '.stock-pagination span{font-size:12px;color:#6F6860;}' +
       '.stock-page-indicator{display:flex;align-items:center;gap:6px;}' +
       '.stock-page-indicator i{width:14px;height:2px;border-radius:999px;background:#B42318;display:inline-block;opacity:.65;}' +
+      '.stock-row-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-start;}' +
       '.stock-row-action{height:32px;padding:0 10px;border:none;border-radius:9px;background:#B42318;color:#fff;font-size:12px;font-weight:650;font-family:inherit;cursor:pointer;white-space:nowrap;box-shadow:0 4px 10px rgba(180,35,24,.14);}' +
+      '.stock-row-action.secondary{background:#fff;color:#6F6860;border:1px solid #E8DCD7;box-shadow:none;}' +
       '.stock-row-action:disabled{background:#F1E8E3;color:#8A7E7C;box-shadow:none;cursor:not-allowed;}' +
       '.stock-item-name{font-size:14px;font-weight:650;color:#1F1F1F;line-height:1.25;}' +
       '.stock-item-note,.stock-muted{font-size:12px;color:#6F6860;font-weight:400;line-height:1.35;}' +
@@ -1741,6 +1805,7 @@ Modules.Estoque = (function () {
     _setRegularizationsPageSize: _setRegularizationsPageSize,
     _setRegularizationsPage: _setRegularizationsPage,
     _applyRegularization: _applyRegularization,
+    _ignoreRegularization: _ignoreRegularization,
     _saveRegularizationMode: _saveRegularizationMode,
     _saveOutOfStockSalesMode: _saveOutOfStockSalesMode,
     _openItemDetails: _openItemDetails,

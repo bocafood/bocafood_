@@ -321,6 +321,7 @@ button,input,select,textarea{font-family:inherit}
           <button class="nav-sub-item" data-route="estoque/itens" onclick="Router.navigate('estoque/itens')">Itens</button>
           <button class="nav-sub-item" data-route="estoque/movimentacoes" onclick="Router.navigate('estoque/movimentacoes')">Movimentações</button>
           <button class="nav-sub-item" data-route="estoque/regularizacoes" onclick="Router.navigate('estoque/regularizacoes')">Regularizações</button>
+          <button class="nav-sub-item" data-route="estoque/configuracoes" onclick="Router.navigate('estoque/configuracoes')">Configurações</button>
         </div>
       </div>
 
@@ -463,7 +464,7 @@ button,input,select,textarea{font-family:inherit}
 <script src="js/modules/catalogo.js?v=20260604-catalog-sales"></script>
 <script src="js/modules/loja_online.js?v=20260524-reviews-admin-pattern-2"></script>
 <script src="js/modules/receitas.js?v=20260604-production-consumes-chain"></script>
-<script src="js/modules/estoque.js?v=20260604-regularization-chain-rows"></script>
+<script src="js/modules/estoque.js?v=20260604-stock-settings-tab"></script>
 <script src="js/modules/clientes.js"></script>
 <script src="js/modules/marketing.js?v=20260524-points-clients-pattern-1"></script>
 <script src="js/modules/plano_voo.js?v=20260510-plano-voo-navegacao-crescimento"></script>
@@ -1190,6 +1191,7 @@ button,input,select,textarea{font-family:inherit}
   Router.register('estoque/itens', Modules.Estoque);
   Router.register('estoque/movimentacoes', Modules.Estoque);
   Router.register('estoque/regularizacoes', Modules.Estoque);
+  Router.register('estoque/configuracoes', Modules.Estoque);
   Router.register('clientes', Modules.Clientes);
   Router.register('marketing', Modules.Marketing);
   Router.register('marketing/pontos', Modules.Marketing);
