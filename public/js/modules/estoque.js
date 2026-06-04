@@ -17,7 +17,6 @@ Modules.Estoque = (function () {
   var _movementsPage = { page: 1, perPage: 10 };
   var _regularizationFilters = { q: '', status: 'pendente', type: 'todos' };
   var _regularizationsPage = { page: 1, perPage: 10 };
-  var _selectedRegularizationIds = {};
   var _detailMovementState = { key: '', q: '', page: 1, perPage: 5 };
 
   function render(sub) {
@@ -428,9 +427,7 @@ Modules.Estoque = (function () {
     }).join('');
     var rows = pageEntries.map(function (entry) {
       var canApply = entry.status === 'pendente';
-      var checked = !!_selectedRegularizationIds[entry.id];
       return '<tr>' +
-        '<td style="width:42px;text-align:center;"><input type="checkbox" ' + (canApply ? '' : 'disabled') + (checked ? ' checked' : '') + ' onchange="Modules.Estoque._toggleRegularizationSelection(\'' + _escJs(entry.id) + '\', this.checked)" style="width:16px;height:16px;accent-color:#B42318;cursor:pointer;"></td>' +
         '<td><div class="stock-item-name">' + _esc(entry.itemName) + '</div><div class="stock-item-note">' + _esc(_stockKindLabel(entry.stockItemType)) + ' · ' + _esc(entry.stockSourceLabel) + '</div></td>' +
         '<td><div class="stock-item-name">' + _esc(entry.orderLabel) + '</div><div class="stock-item-note">' + _esc(_fmtDate(entry.detectedAt || entry.orderDate)) + ' · ' + _esc(entry.customerName || 'Cliente não informado') + '</div></td>' +
         '<td><span class="stock-badge ' + (entry.status === 'pendente' ? 'regularization-pending' : 'regularization-muted') + '">' + _esc(_regularizationStatusLabel(entry.status)) + '</span></td>' +
@@ -440,7 +437,6 @@ Modules.Estoque = (function () {
         '<td><button type="button" class="stock-row-action" ' + (canApply ? 'onclick="Modules.Estoque._applyRegularization(\'' + _escJs(entry.id) + '\')"' : 'disabled') + '>' + (canApply ? 'Regularizar entrada' : 'Aplicada') + '</button></td>' +
       '</tr>';
     }).join('');
-    var selectedCount = _selectedRegularizationEntries().length;
     var hasFilters = !!((_regularizationFilters.q || '').trim() || _regularizationFilters.status !== 'todos' || _regularizationFilters.type !== 'todos');
     content.innerHTML =
       _viewTabsHtml() +
@@ -472,9 +468,9 @@ Modules.Estoque = (function () {
       '</section>' +
       (entries.length ?
         '<section style="display:flex;flex-direction:column;gap:10px;">' +
-          '<div class="stock-list-title"><div><h2>Itens para regularizar</h2><p>Lista gerada por pedidos que baixaram estoque sem saldo suficiente.</p></div><div class="stock-head-actions"><span>' + selectedCount + ' selecionado' + (selectedCount === 1 ? '' : 's') + '</span><button type="button" ' + (selectedCount ? '' : 'disabled') + ' onclick="Modules.Estoque._openQuickPurchaseModal()">Gerar compra rápida</button></div></div>' +
+          '<div class="stock-list-title"><div><h2>Itens para regularizar</h2><p>Lista gerada por pedidos que baixaram estoque sem saldo suficiente.</p></div></div>' +
           '<div class="stock-table-card">' +
-            '<div class="stock-table-wrap"><table class="stock-table stock-regularization-table"><thead><tr><th style="width:42px;text-align:center;"><input type="checkbox" onchange="Modules.Estoque._toggleRegularizationPageSelection(this.checked)" style="width:16px;height:16px;accent-color:#B42318;cursor:pointer;"></th><th>Item</th><th>Pedido</th><th>Status</th><th>Falta</th><th>Saldo</th><th>Custo estimado</th><th>Ação</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+            '<div class="stock-table-wrap"><table class="stock-table stock-regularization-table"><thead><tr><th>Item</th><th>Pedido</th><th>Status</th><th>Falta</th><th>Saldo</th><th>Custo estimado</th><th>Ação</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
             '<div class="stock-table-footer">' +
               '<span>Mostrando <strong>' + showingStart + '</strong> a <strong>' + showingEnd + '</strong> de <strong>' + entries.length + '</strong></span>' +
               '<div class="stock-pagination">' +
@@ -486,8 +482,7 @@ Modules.Estoque = (function () {
             '</div>' +
           '</div>' +
         '</section>' :
-        '<section class="stock-card">' + _emptyState('regularizacoes') + '</section>') +
-      '<p class="stock-footnote">Compra rápida de regularização registra uma compra recebida sem criar financeiro automático. Pagamentos e documentos completos podem ser ajustados depois em Compras.</p>';
+        '<section class="stock-card">' + _emptyState('regularizacoes') + '</section>');
   }
 
   function _regularizationConfigHtml() {
@@ -858,256 +853,6 @@ Modules.Estoque = (function () {
   function _setRegularizationsPage(page) {
     _regularizationsPage.page = Math.max(1, Number(page) || 1);
     _paintRegularizations();
-  }
-
-  function _toggleRegularizationSelection(entryId, checked) {
-    if (checked) _selectedRegularizationIds[entryId] = true;
-    else delete _selectedRegularizationIds[entryId];
-    _paintRegularizations();
-  }
-
-  function _toggleRegularizationPageSelection(checked) {
-    _filteredRegularizations().forEach(function (entry) {
-      if (entry.status !== 'pendente') return;
-      if (checked) _selectedRegularizationIds[entry.id] = true;
-      else delete _selectedRegularizationIds[entry.id];
-    });
-    _paintRegularizations();
-  }
-
-  function _selectedRegularizationEntries() {
-    var selected = _selectedRegularizationIds || {};
-    return _regularizationEntries().filter(function (entry) {
-      return selected[entry.id] && entry.status === 'pendente';
-    });
-  }
-
-  function _openQuickPurchaseModal() {
-    var entries = _selectedRegularizationEntries();
-    if (!entries.length) {
-      UI.toast('Selecione pelo menos uma pendência.', 'info');
-      return;
-    }
-    var total = entries.reduce(function (sum, entry) { return sum + _num(entry.estimatedTotalCost); }, 0);
-    var rows = entries.map(function (entry) {
-      return '<div class="stock-quick-line"><div><strong>' + _esc(entry.itemName) + '</strong><span>' + _esc(entry.orderLabel) + ' · falta ' + _fmtQty(entry.shortageQuantity) + ' ' + _esc(entry.unit || '') + '</span></div><div>' + (entry.unitCost > 0 ? _money(entry.estimatedTotalCost) : 'sem custo') + '</div></div>';
-    }).join('');
-    var body = _styles() +
-      '<div class="stock-adjust">' +
-        '<section class="stock-detail-hero compact">' +
-          '<div class="stock-modal-head" style="margin-bottom:0;"><span class="mi">shopping_cart</span><div><p>Compra rápida</p><h2>Converter regularizações em compra</h2></div></div>' +
-          '<span class="stock-badge regularization-pending">' + entries.length + ' item' + (entries.length === 1 ? '' : 's') + '</span>' +
-        '</section>' +
-        '<section class="stock-adjust-card">' +
-          '<div class="stock-adjust-head"><span class="mi">receipt_long</span><div><h3>Dados da compra</h3><p>Esta compra registra o histórico de entrada no estoque. Nenhum financeiro é criado automaticamente.</p></div></div>' +
-          '<div class="stock-adjust-grid quick-grid">' +
-            '<label><span>Data da compra</span><input id="stock-quick-purchase-date" type="date" value="' + _today() + '"></label>' +
-            '<label><span>Fornecedor</span><select id="stock-quick-purchase-supplier"><option value="">Sem fornecedor</option>' + _supplierOptions() + '</select></label>' +
-            '<label><span>Documento</span><input id="stock-quick-purchase-doc" type="text" placeholder="Nota, recibo ou referência"></label>' +
-            '<label><span>Total estimado</span><input type="text" value="' + _esc(total > 0 ? _money(total) : 'sem custo') + '" disabled></label>' +
-            '<label class="full"><span>Observação</span><textarea id="stock-quick-purchase-notes" placeholder="Ex: regularização de compras feitas no dia"></textarea></label>' +
-          '</div>' +
-          '<div class="stock-quick-list">' + rows + '</div>' +
-        '</section>' +
-      '</div>';
-    window._stockQuickPurchaseModal = UI.modal({
-      title: 'Compra rápida',
-      body: body,
-      footer: '<div class="stock-modal-footer"><button class="stock-secondary" onclick="if(window._stockQuickPurchaseModal){window._stockQuickPurchaseModal.close();}">Cancelar</button><button class="stock-primary" onclick="Modules.Estoque._createQuickPurchaseFromRegularizations()">Criar compra rápida</button></div>',
-      maxWidth: '860px'
-    });
-  }
-
-  function _supplierOptions() {
-    return (_fornecedores || []).filter(function (supplier) {
-      return supplier && supplier.ativo !== false;
-    }).sort(function (a, b) {
-      return String(a.nome || a.name || '').localeCompare(String(b.nome || b.name || ''), 'pt-BR');
-    }).map(function (supplier) {
-      var name = supplier.nome || supplier.name || supplier.razaoSocial || 'Fornecedor';
-      return '<option value="' + _esc(supplier.id || '') + '">' + _esc(name) + '</option>';
-    }).join('');
-  }
-
-  function _createQuickPurchaseFromRegularizations() {
-    var entries = _selectedRegularizationEntries();
-    if (!entries.length) {
-      UI.toast('Selecione pelo menos uma pendência.', 'info');
-      return;
-    }
-    var date = ((document.getElementById('stock-quick-purchase-date') || {}).value || _today()).trim();
-    var supplierId = ((document.getElementById('stock-quick-purchase-supplier') || {}).value || '').trim();
-    var supplier = supplierId ? ((_fornecedores || []).find(function (item) { return String(item.id || '') === supplierId; }) || {}) : {};
-    var supplierName = supplier.nome || supplier.name || supplier.razaoSocial || '';
-    var doc = ((document.getElementById('stock-quick-purchase-doc') || {}).value || '').trim();
-    var notes = ((document.getElementById('stock-quick-purchase-notes') || {}).value || '').trim();
-    var now = new Date().toISOString();
-    var purchaseRef = DB.col('compras').doc();
-    var purchaseId = purchaseRef.id;
-    var lines = entries.map(function (entry, idx) {
-      return _quickPurchaseLine(entry, idx);
-    });
-    var total = lines.reduce(function (sum, line) { return sum + _num(line.total); }, 0);
-    var purchaseNumber = 'REG-' + now.slice(0, 10).replace(/-/g, '') + '-' + purchaseId.slice(0, 5).toUpperCase();
-    var purchase = {
-      id: purchaseId,
-      numPedido: purchaseNumber,
-      data: date,
-      fornecedorId: supplierId,
-      fornecedorNome: supplierName,
-      numDocumento: doc,
-      observacoes: notes,
-      origem: 'regularizacao_estoque',
-      source: 'stock_regularization',
-      sourceType: 'stock_regularization',
-      regularizationEntry: true,
-      regularizationOrderIds: entries.map(function (entry) { return entry.orderId; }).filter(Boolean),
-      statusCompra: 'Recebida',
-      gerarContaPagar: false,
-      contaPagarId: '',
-      contaPagarIds: [],
-      contaPagarStatus: '',
-      total: total,
-      itens: lines,
-      recebimento: {
-        status: 'Recebida',
-        itens: lines.map(function (line) {
-          return {
-            itemId: line.itemId || '',
-            itemNome: line.itemNome || '',
-            qtyCompra: _num(line.qty),
-            qtyRecebida: _num(line.qtyRecebida),
-            qtyPendente: 0,
-            status: 'recebida'
-          };
-        }),
-        updatedAt: now
-      },
-      recebimentoAtualizadoEm: now,
-      createdAt: now,
-      updatedAt: now
-    };
-    var ops = [purchaseRef.set(purchase, { merge: true })];
-    lines.forEach(function (line, idx) {
-      ops.push(DB.col('stock_movements').doc(purchaseId + '_' + idx + '_entrada_compra').set(_quickPurchaseMovement(purchase, line, idx, now), { merge: true }));
-    });
-    _quickPurchaseOrderPatches(entries, purchaseId, purchaseNumber, now).forEach(function (patch) {
-      ops.push(DB.update('orders', patch.orderId, patch.payload));
-    });
-    entries.forEach(function (entry, idx) {
-      if (!entry.sourceMovementId) return;
-      ops.push(DB.update('stock_movements', entry.sourceMovementId, {
-        regularizationStatus: 'aplicada',
-        regularizationAppliedAt: now,
-        regularizationPurchaseId: purchaseId,
-        regularizationPurchaseNumber: purchaseNumber,
-        regularizationMovementId: purchaseId + '_' + idx + '_entrada_compra',
-        updatedAt: now
-      }).catch(function () { return null; }));
-    });
-    Promise.all(ops).then(function () {
-      _selectedRegularizationIds = {};
-      UI.toast('Compra rápida criada e estoque regularizado.', 'success');
-      if (window._stockQuickPurchaseModal) window._stockQuickPurchaseModal.close();
-      _loadItems();
-    }).catch(function (err) {
-      UI.toast('Erro ao criar compra rápida: ' + (err && err.message ? err.message : err), 'error');
-    });
-  }
-
-  function _quickPurchaseLine(entry, idx) {
-    var qty = _round(entry.shortageQuantity);
-    var unitCost = _num(entry.unitCost);
-    var total = unitCost > 0 ? qty * unitCost : 0;
-    return {
-      itemId: entry.stockItemId || '',
-      itemNome: entry.itemName || '',
-      nome: entry.itemName || '',
-      name: entry.itemName || '',
-      itemClass: entry.stockItemType || '',
-      classe: entry.stockItemType || '',
-      qty: qty,
-      quantidade: qty,
-      qtyBase: qty,
-      qtyRecebida: qty,
-      qtyPendente: 0,
-      recebido: true,
-      statusRecebimento: 'recebida',
-      unidadeCompra: entry.unit || 'un',
-      unidadeBase: entry.unit || 'un',
-      custoUnitario: unitCost,
-      custoAjustado: unitCost,
-      total: total,
-      regularizationEntryId: entry.id,
-      regularizationOrderId: entry.orderId,
-      regularizationSourceMovementId: entry.sourceMovementId || '',
-      order: idx
-    };
-  }
-
-  function _quickPurchaseMovement(purchase, line, idx, now) {
-    return {
-      id: purchase.id + '_' + idx + '_entrada_compra',
-      type: 'entrada_compra',
-      movementGroup: 'purchase',
-      purchaseId: purchase.id,
-      purchaseNumber: purchase.numPedido || '',
-      purchaseDocument: purchase.numDocumento || '',
-      purchaseLineIndex: idx,
-      itemId: line.itemId || '',
-      itemName: line.itemNome || line.nome || line.name || '',
-      itemClass: line.itemClass || line.classe || 'insumo',
-      classe: line.itemClass || line.classe || 'insumo',
-      stockItemType: line.itemClass || line.classe || 'insumo',
-      quantity: _num(line.qtyBase || line.qty),
-      unit: line.unidadeBase || line.unidadeCompra || 'un',
-      unitCost: _num(line.custoAjustado || line.custoUnitario),
-      totalCost: _num(line.total),
-      receivedPackages: _num(line.qtyRecebida || line.qty),
-      purchaseUnit: line.unidadeCompra || '',
-      regularizationPurchase: true,
-      regularizationEntryId: line.regularizationEntryId || '',
-      regularizationOrderId: line.regularizationOrderId || '',
-      regularizationSourceMovementId: line.regularizationSourceMovementId || '',
-      movementDate: purchase.data || _today(),
-      createdAt: now,
-      updatedAt: now
-    };
-  }
-
-  function _quickPurchaseOrderPatches(entries, purchaseId, purchaseNumber, now) {
-    var grouped = {};
-    entries.forEach(function (entry) {
-      if (!grouped[entry.orderId]) grouped[entry.orderId] = [];
-      grouped[entry.orderId].push(entry);
-    });
-    return Object.keys(grouped).map(function (orderId) {
-      var order = (_orders || []).find(function (item) { return String(item.id || '') === String(orderId || ''); }) || {};
-      var selected = grouped[orderId] || [];
-      var items = (Array.isArray(order.stockRegularizationPendingItems) ? order.stockRegularizationPendingItems : []).map(function (item, idx) {
-        var entry = selected.find(function (selectedEntry) { return selectedEntry.itemIndex === idx; });
-        if (!entry) return item;
-        return Object.assign({}, item, {
-          status: 'aplicada',
-          appliedAt: now,
-          regularizationPurchaseId: purchaseId,
-          regularizationPurchaseNumber: purchaseNumber,
-          regularizationAppliedQuantity: entry.shortageQuantity
-        });
-      });
-      var pendingCount = items.filter(function (item) { return String(item && item.status || 'pendente').toLowerCase() === 'pendente'; }).length;
-      var payload = {
-        stockRegularizationPendingItems: items,
-        stockRegularizationPendingCount: pendingCount,
-        stockRegularizationPending: pendingCount > 0,
-        stockRegularizationStatus: pendingCount > 0 ? 'pendente' : 'aplicada',
-        stockRegularizationUpdatedAt: now,
-        stockRegularizationPurchaseId: purchaseId,
-        stockRegularizationPurchaseNumber: purchaseNumber
-      };
-      if (!pendingCount) payload.stockRegularizationAppliedAt = now;
-      return { orderId: orderId, payload: payload };
-    });
   }
 
   function _applyRegularization(entryId) {
@@ -1889,10 +1634,6 @@ Modules.Estoque = (function () {
     _clearRegularizationFilters: _clearRegularizationFilters,
     _setRegularizationsPageSize: _setRegularizationsPageSize,
     _setRegularizationsPage: _setRegularizationsPage,
-    _toggleRegularizationSelection: _toggleRegularizationSelection,
-    _toggleRegularizationPageSelection: _toggleRegularizationPageSelection,
-    _openQuickPurchaseModal: _openQuickPurchaseModal,
-    _createQuickPurchaseFromRegularizations: _createQuickPurchaseFromRegularizations,
     _applyRegularization: _applyRegularization,
     _saveRegularizationMode: _saveRegularizationMode,
     _openItemDetails: _openItemDetails,

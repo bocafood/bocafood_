@@ -2696,7 +2696,6 @@ function stockInternalCompositionRefs(item, product, mainQty) {
 function stockOrderItemRefs(item, product, products, recipes) {
   const mainQty = stockOrderItemQuantity(item);
   const internalRefs = stockInternalCompositionRefs(item, product, mainQty);
-  if (internalRefs.length) return stockDedupeRefs(internalRefs);
   const refs = [];
   const addRef = (ref) => {
     if (Array.isArray(ref)) {
@@ -2706,8 +2705,11 @@ function stockOrderItemRefs(item, product, products, recipes) {
     if (!ref || stockNum(ref.quantity) <= 0) return;
     refs.push(ref);
   };
-  const direct = stockRefFromProductLike(item, product, mainQty, "item", products, recipes);
-  addRef(direct);
+  internalRefs.forEach(addRef);
+  if (!internalRefs.length) {
+    const direct = stockRefFromProductLike(item, product, mainQty, "item", products, recipes);
+    addRef(direct);
+  }
   stockExtractChoiceRefs(item, product, mainQty, products, recipes).forEach(addRef);
   return stockDedupeRefs(refs);
 }
@@ -2733,24 +2735,17 @@ async function syncStripeOrderStockMovements(tenantId, orderId) {
   const orderSnap = await orderRef.get();
   if (!orderSnap.exists) return false;
   const order = { id: orderSnap.id, ...(orderSnap.data() || {}) };
-  if (order.stockMovementCreated) return true;
 
   const existingSnap = await tenantRef.collection("stock_movements").where("orderId", "==", orderId).get();
   const existing = [];
   existingSnap.forEach((doc) => {
-    const movement = doc.data() || {};
+    const movement = { id: doc.id, ...(doc.data() || {}) };
     if (movement.type === "saida_venda" || movement.type === "saida_base_venda") existing.push(movement);
   });
-  if (existing.length) {
-    await orderRef.set({
-      stockMovementCreated: true,
-      stockMovementCreatedAt: order.stockMovementCreatedAt || serverTimestamp(),
-      stockMovementCount: existing.length,
-      stockMovementSkippedCount: stockNum(order.stockMovementSkippedCount || 0),
-      updatedAt: serverTimestamp()
-    }, { merge: true });
-    return true;
-  }
+  const existingById = {};
+  existing.forEach((movement) => {
+    if (movement && movement.id) existingById[String(movement.id)] = true;
+  });
 
   const [productsSnap, recipesSnap, stockConfigSnap] = await Promise.all([
     tenantRef.collection("products").get(),
@@ -2774,7 +2769,9 @@ async function syncStripeOrderStockMovements(tenantId, orderId) {
     balances[entry.key] = stockRoundQty(stockNum(balances[entry.key]) + entry.direction * entry.quantity);
   });
   const regularizationItems = [];
+  const previousRegularizationItems = Array.isArray(order.stockRegularizationPendingItems) ? order.stockRegularizationPendingItems.slice() : [];
   let count = 0;
+  let writeCount = 0;
   const nowIso = new Date().toISOString();
   const movementDate = stockDateText(order.deliveryDate, order.pickupDate, order.scheduleDate, order.createdAt, nowIso);
 
@@ -2789,6 +2786,10 @@ async function syncStripeOrderStockMovements(tenantId, orderId) {
       const quantity = stockNum(ref.quantity);
       if (quantity <= 0) return;
       const movementId = `${stockSafeId(orderId)}_${idx}_${refIdx}_saida_venda`;
+      if (existingById[movementId]) {
+        count += 1;
+        return;
+      }
       const isBase = ref.stockItemType === "base_producao";
       const stockKey = stockRefBalanceKey(ref);
       const balanceBefore = stockRoundQty(stockNum(balances[stockKey]));
@@ -2854,8 +2855,10 @@ async function syncStripeOrderStockMovements(tenantId, orderId) {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       }, { merge: true });
+      writeCount += 1;
       if (regularizationItem && regularizationMode === "automatico") {
         batch.set(tenantRef.collection("stock_movements").doc(regularizationMovementId), stockRegularizationMovementPayload(regularizationItem, order, regularizationMovementId), { merge: true });
+        writeCount += 1;
       }
       count += 1;
     });
@@ -2865,20 +2868,42 @@ async function syncStripeOrderStockMovements(tenantId, orderId) {
     stockMovementSkippedCount: skipped.length,
     updatedAt: serverTimestamp()
   };
-  if (count > 0) {
+  if (count > 0 || existing.length > 0) {
     patch.stockMovementCreated = true;
-    patch.stockMovementCreatedAt = serverTimestamp();
+    patch.stockMovementCreatedAt = order.stockMovementCreatedAt || serverTimestamp();
     patch.stockMovementUpdatedAt = serverTimestamp();
-    patch.stockMovementCount = count;
+    patch.stockMovementCount = count || existing.length;
   }
-  if (regularizationItems.length) {
-    const pendingRegularizations = regularizationItems.filter((item) => String((item && item.status) || "pendente") === "pendente").length;
+  const allRegularizationItems = previousRegularizationItems.concat(regularizationItems).filter((item, itemIdx, list) => {
+    if (!item || typeof item !== "object") return false;
+    const key = [
+      item.movementId || "",
+      item.stockKey || "",
+      item.orderItemIndex,
+      item.stockRefIndex,
+      item.stockItemId || "",
+      item.stockItemType || ""
+    ].join("|");
+    return list.findIndex((other) => {
+      if (!other || typeof other !== "object") return false;
+      return [
+        other.movementId || "",
+        other.stockKey || "",
+        other.orderItemIndex,
+        other.stockRefIndex,
+        other.stockItemId || "",
+        other.stockItemType || ""
+      ].join("|") === key;
+    }) === itemIdx;
+  });
+  if (allRegularizationItems.length) {
+    const pendingRegularizations = allRegularizationItems.filter((item) => String((item && item.status) || "pendente") === "pendente").length;
     patch.stockRegularizationPending = pendingRegularizations > 0;
     patch.stockRegularizationStatus = pendingRegularizations > 0 ? "pendente" : "aplicada";
     patch.stockRegularizationOrigin = "saldo_negativo_venda";
     patch.stockRegularizationDetectedAt = serverTimestamp();
     patch.stockRegularizationPendingCount = pendingRegularizations;
-    patch.stockRegularizationPendingItems = regularizationItems.slice(0, 50);
+    patch.stockRegularizationPendingItems = allRegularizationItems.slice(0, 50);
     patch.stockRegularizationWarning = pendingRegularizations > 0
       ? "Pedido gerou saída com saldo insuficiente. Revise a regularização em Estoque."
       : "Pedido gerou saída com saldo insuficiente e recebeu entrada automática de regularização.";
@@ -2898,9 +2923,9 @@ async function syncStripeOrderStockMovements(tenantId, orderId) {
     patch.stockMovementWarning = "";
   }
 
-  if (count > 0) await batch.commit();
+  if (writeCount > 0) await batch.commit();
   await orderRef.set(patch, { merge: true });
-  return count > 0;
+  return writeCount > 0;
 }
 
 async function requireTenantAdminAccess(req, tenantId) {

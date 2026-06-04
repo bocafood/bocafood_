@@ -1,5 +1,49 @@
 # AI Changelog
 
+## 2026-06-04 — Pedidos/Estoque: regularização completa da composição
+- Arquivos alterados: `public/js/modules/pedidos.js`, `functions/index.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Corrigi a baixa/regularização de estoque do pedido para não parar quando já existe alguma movimentação do pedido.
+- O processo agora audita os movimentos esperados por item/componente, cria apenas as saídas faltantes e preserva as regularizações já registradas.
+- Ajustei produtos com `Montagem interna` para continuarem baixando a montagem interna, mas também considerar escolhas/combo com vínculo de estoque no mesmo item do cardápio.
+- Espelhei a mesma regra na Function usada no fluxo Stripe/webhook.
+- Impacto esperado: quando um pedido é lançado ou reprocessado, todos os itens que compõem o item do cardápio entram na baixa e na regularização de saldo negativo, sem duplicar movimentos já existentes.
+
+## 2026-06-04 — Estoque: remoção da compra rápida em regularizações
+- Arquivos alterados: `public/js/modules/estoque.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Removi o botão `Gerar compra rápida` de `Estoque > Regularizações`.
+- Removi a coluna de seleção em massa, o modal de compra rápida e as funções que convertiam pendências de regularização em compra.
+- Mantive a ação individual `Regularizar entrada`, que cria entrada de regularização sem gerar compra.
+- Atualizei o cache-buster de `estoque.js` no Admin.
+- Impacto esperado: regularização volta a ter um único caminho claro, sem sugerir criação de compra dentro da tela de pendências.
+
+## 2026-06-04 — Pedidos: trava de edição após entrega
+- Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Ajustei o campo `Ajuste manual` do cadastro de pedido manual para usar formato de moeda, com entrada decimal e normalização visual no blur.
+- Quando o pedido está `Entregue`/finalizado, o modal de detalhes passa a bloquear edição de data, horário, origem, pagamento, taxas do canal, itens, quantidades, preços, escolhas e remoções.
+- A única alteração permitida em pedido entregue é mudar o status para `Cancelado`; nesse caminho, a rotina de cancelamento/estorno financeiro e estoque continua sendo acionada, e o pedido passa a registrar pagamento `estornado` com valores pagos zerados.
+- Reforcei a regra também em `_updateOrderStatus`, para impedir troca de pedido entregue para outros status por kanban ou cozinha.
+- Reorganizei `Itens do pedido` no detalhe em colunas alinhadas por linha: produto/escolhas, quantidade, valor unitário, subtotal e ações.
+- Ajustei a linha de e-mail do cliente para não quebrar em duas linhas; quando não couber, usa reticências com o valor completo no tooltip.
+- Atualizei o cache-buster de `pedidos.js` no Admin.
+- Impacto esperado: pedido entregue vira histórico fechado, evitando alterações acidentais de valores ou itens; correções passam pelo cancelamento com estorno.
+
+## 2026-06-04 — Cardápio/Pedidos: produto sob encomenda no cadastro do produto
+- Arquivos alterados: `public/js/modules/catalogo.js`, `public/js/modules/pedidos.js`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Removi o controle manual `Produto sob encomenda` do modal `Criar pedido manual`.
+- Adicionei `Produto sob encomenda` e `Prazo produção` no cadastro do produto, validando o prazo contra a antecedência configurada em `Operação → Prazos e capacidade`.
+- O pedido manual agora herda automaticamente o maior prazo dos produtos selecionados, exige data de entrega/retirada compatível e salva os aliases de histórico do pedido.
+- Atualizei os cache-busters de `catalogo.js` e `pedidos.js` no Admin e registrei a regra em `AGENTS.md`.
+- Validação executada sem erros: `node --check public/js/modules/catalogo.js`, `node --check public/js/modules/pedidos.js` e `git diff --check`.
+- Impacto esperado: a usuária configura encomenda uma vez no produto, e todo pedido que incluir esse produto respeita automaticamente o prazo correto.
+
+## 2026-06-04 — Pedidos: campos obrigatórios no pedido manual
+- Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- O modal `Criar pedido manual` agora exige canal de venda, forma de pagamento, conta bancária e status do pagamento antes de salvar.
+- Removi o preenchimento silencioso de canal/status no pedido manual comum: placeholders como `Selecionar canal`, `Sem forma definida`, `Sem conta definida` e `Selecionar status` ficam inválidos no salvamento.
+- O botão de criar pedido mostra toast específico e foca o campo faltante.
+- Atualizei o cache-buster de `pedidos.js` no Admin e registrei a regra operacional em `AGENTS.md`.
+- Impacto esperado: todo pedido manual nasce com dados suficientes para conectar canal, pagamento, conta bancária e financeiro sem precisar corrigir depois.
+
 ## 2026-06-04 — Estoque: regularização para todos os tipos de item
 - Arquivos alterados: `public/js/modules/pedidos.js`, `public/js/modules/estoque.js`, `functions/index.js`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
 - Ajustei a baixa de estoque do pedido para respeitar a hierarquia de estoque: montagem interna baixa só os itens internos; produto pronto baixa como produto pronto; ficha com etapa/base controlada baixa a etapa/base pronta; produto produzido baixa direto quando não há etapa/base controlada representando esse consumo.

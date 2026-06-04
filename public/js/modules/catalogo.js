@@ -1296,6 +1296,10 @@ Modules.Catalogo = (function () {
                 <div style="padding:12px 14px;background:#fff;border-radius:14px;box-shadow:0 12px 30px rgba(31,31,31,.06);">
                   ${_toggleHtml('pm-featured', 'Mostrar selo de destaque', p.featured === true || p.popular === true, '')}
                 </div>
+                <div style="padding:12px 14px;background:#FFFCF8;border:1px solid #EADFD8;border-radius:14px;display:grid;grid-template-columns:minmax(220px,1fr) minmax(110px,160px);gap:10px;align-items:end;">
+                  <label style="display:flex!important;align-items:flex-start;gap:9px;margin:0!important;color:#1F1F1F!important;font-size:12px!important;line-height:1.35!important;"><input id="pm-made-to-order" type="checkbox" onchange="Modules.Catalogo._onProductMadeToOrderChange(this.checked);Modules.Catalogo._refreshProductPreview()" style="width:16px;height:16px;accent-color:#B42318;margin-top:2px;"${(p.madeToOrder || p.productMadeToOrder || p.sobEncomenda) ? ' checked' : ''}><span><strong style="display:block;color:#1F1F1F;font-size:12px;">Produto sob encomenda</strong><span style="display:block;color:#6F6860;font-size:11px;margin-top:2px;">${_esc(_productLeadHelp())}</span></span></label>
+                  <div><label style="${_fichaLbl()}">Prazo produção</label><input id="pm-production-lead-days" type="number" min="0" step="1" value="${_esc(String(p.productionLeadDays || p.productionLeadTimeDays || ''))}" placeholder="Dias" oninput="Modules.Catalogo._refreshProductPreview()" ${(p.madeToOrder || p.productMadeToOrder || p.sobEncomenda) ? '' : 'disabled'} style="${_fichaInp()}background:#fff;text-align:right;"></div>
+                </div>
               </div>
             </div>
           </section>
@@ -2845,6 +2849,37 @@ Modules.Catalogo = (function () {
     '</section>';
   }
 
+  function _productMaxAdvanceDays() {
+    var op = _storeConfig && _storeConfig.operacao || {};
+    var tpl = _storeConfig && _storeConfig.template || {};
+    var candidates = [op.maxAdvanceDays, op.advanceDaysLimit, op.advanceDays, tpl.maxAdvanceDays, tpl.advanceDaysLimit, tpl.advanceDays];
+    var raw = 6;
+    for (var i = 0; i < candidates.length; i += 1) {
+      if (candidates[i] !== null && candidates[i] !== undefined && String(candidates[i]).trim() !== '') {
+        raw = candidates[i];
+        break;
+      }
+    }
+    var value = _moneyLike(raw);
+    return Math.max(0, Math.floor(value));
+  }
+
+  function _productLeadHelp() {
+    var max = _productMaxAdvanceDays();
+    return max > 0
+      ? 'Prazo deste produto. Deve ficar dentro da antecedência configurada em Operação: até ' + max + ' dia' + (max === 1 ? '' : 's') + '.'
+      : 'Operação permite apenas pedidos para hoje; ajuste Prazos e capacidade para usar produtos sob encomenda.';
+  }
+
+  function _onProductMadeToOrderChange(checked) {
+    var lead = document.getElementById('pm-production-lead-days');
+    if (lead) {
+      lead.disabled = !checked;
+      if (checked && !lead.value) lead.value = '1';
+      if (!checked) lead.value = '';
+    }
+  }
+
   function _openProductCategoryCreateModal() {
     var body =
       '<div style="display:flex;flex-direction:column;gap:12px;font-family:Manrope,Inter,sans-serif;color:#211815;">' +
@@ -3457,6 +3492,19 @@ Modules.Catalogo = (function () {
       UI.toast('Informe um IVA válido para o produto.', 'error');
       return;
     }
+    var madeToOrder = !!(document.getElementById('pm-made-to-order') && document.getElementById('pm-made-to-order').checked);
+    var productionLeadDays = madeToOrder ? Math.max(0, Math.floor(_moneyLike((document.getElementById('pm-production-lead-days') || {}).value || 0))) : 0;
+    var maxProductAdvance = _productMaxAdvanceDays();
+    if (madeToOrder && productionLeadDays <= 0) {
+      _setProductModalError('Informe o prazo de produção do produto sob encomenda.');
+      UI.toast('Informe o prazo de produção do produto sob encomenda.', 'error');
+      return;
+    }
+    if (madeToOrder && productionLeadDays > maxProductAdvance) {
+      _setProductModalError('O prazo de produção precisa ficar dentro da antecedência configurada em Operação: até ' + maxProductAdvance + ' dia(s).');
+      UI.toast('O prazo de produção precisa ficar dentro da antecedência configurada em Operação: até ' + maxProductAdvance + ' dia(s).', 'error');
+      return;
+    }
     var fiscal = Object.assign({}, fiscalBase, {
       sku: ((document.getElementById('pm-fiscal-sku') || {}).value || '').trim(),
       fiscalName: ((document.getElementById('pm-fiscal-name') || {}).value || '').trim(),
@@ -3506,6 +3554,11 @@ Modules.Catalogo = (function () {
       variantGroupIds: variantGroupIds,
       featured: !!(document.getElementById('pm-featured') && document.getElementById('pm-featured').checked),
       popular: !!(document.getElementById('pm-featured') && document.getElementById('pm-featured').checked),
+      madeToOrder: madeToOrder,
+      productMadeToOrder: madeToOrder,
+      sobEncomenda: madeToOrder,
+      productionLeadDays: productionLeadDays,
+      productionLeadTimeDays: productionLeadDays,
       // Change E
       seoTitle: seoTitle,
       seoDescription: seoDesc,
@@ -10825,7 +10878,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     _clearStoreImage: _clearStoreImage,
     _openProductModal: _openProductModal, _toggleVis: _toggleVis, _saveProduct: _saveProduct, _deleteProduct: _deleteProduct, _duplicateProduct: _duplicateProduct, _openImportProducts: _openImportProducts, _filterProdutos: _filterProdutos, _setProductFilter: _setProductFilter, _setProductSort: _setProductSort, _setProductPage: _setProductPage, _setProductPageSize: _setProductPageSize, _clearProductFilters: _clearProductFilters, _quickUpdateProduct: _quickUpdateProduct, _moveProductInCategory: _moveProductInCategory,
     _openProductsMoreFilters: _openProductsMoreFilters,
-    _onProductNameChange: _onProductNameChange, _onProductDescChange: _onProductDescChange, _refreshProductPreview: _refreshProductPreview, _moneyInputFocus: _moneyInputFocus, _moneyInputBlur: _moneyInputBlur,
+    _onProductNameChange: _onProductNameChange, _onProductDescChange: _onProductDescChange, _onProductMadeToOrderChange: _onProductMadeToOrderChange, _refreshProductPreview: _refreshProductPreview, _moneyInputFocus: _moneyInputFocus, _moneyInputBlur: _moneyInputBlur,
     _seoEdited: _seoEdited, _onTipoChange: _onTipoChange, _onUnicoSrcChange: _onUnicoSrcChange, _openProductTypeHelpModal: _openProductTypeHelpModal, _openProductCategoryCreateModal: _openProductCategoryCreateModal, _saveProductCategoryFromModal: _saveProductCategoryFromModal,
     _addInternalCompositionItem: _addInternalCompositionItem, _removeInternalCompositionItem: _removeInternalCompositionItem, _onInternalCompositionChange: _onInternalCompositionChange, _filterInternalCompositionOptions: _filterInternalCompositionOptions,
     _addMenuGroup: _addMenuGroup, _removeMenuGroup: _removeMenuGroup,
