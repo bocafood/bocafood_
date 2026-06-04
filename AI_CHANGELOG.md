@@ -1,5 +1,13 @@
 # AI Changelog
 
+## 2026-06-04 — Estoque: exibição das etapas na regularização em cadeia
+- Arquivos alterados: `public/js/modules/estoque.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Corrigi a tela `Estoque → Regularizações` para listar também as entradas técnicas de `regularizationChain` como linhas vinculadas ao item principal.
+- Etapas/bases e ingredientes da cadeia passam a aparecer visualmente na lista, em vez de ficarem apenas resumidos como `Cadeia: X mov.` dentro do produto produzido.
+- As linhas da cadeia ficam indentadas e com ação desabilitada `Na cadeia`, porque a aplicação manual continua acontecendo pela linha principal do produto vendido e grava a cadeia completa de uma vez.
+- Atualizei o cache-buster de `estoque.js` no Admin.
+- Impacto esperado: quando uma coxinha vendida sem estoque gera regularização em cadeia, a usuária enxerga o produto produzido e também a etapa/base relacionada na tela de regularizações.
+
 ## 2026-06-04 — Estoque: Fase 6 de validação operacional
 - Arquivos alterados: `public/js/modules/pedidos.js`, `AI_CHANGELOG.md`.
 - Executei validações de sintaxe nos módulos de pedidos, estoque, receitas e Functions.

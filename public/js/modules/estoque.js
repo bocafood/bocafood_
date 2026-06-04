@@ -426,16 +426,18 @@ Modules.Estoque = (function () {
       return '<option value="' + size + '"' + (paging.perPage === size ? ' selected' : '') + '>' + size + ' por página</option>';
     }).join('');
     var rows = pageEntries.map(function (entry) {
-      var canApply = entry.status === 'pendente';
+      var canApply = entry.status === 'pendente' && !entry.isChainItem;
       var chainNote = entry.regularizationChainCount ? '<div class="stock-item-note">Cadeia: ' + entry.regularizationChainCount + ' mov.</div>' : '';
+      var itemPrefix = entry.isChainItem ? '<span class="stock-chain-prefix">↳</span>' : '';
+      var actionText = entry.isChainItem ? 'Na cadeia' : (canApply ? 'Regularizar entrada' : 'Aplicada');
       return '<tr>' +
-        '<td><div class="stock-item-name">' + _esc(entry.itemName) + '</div><div class="stock-item-note">' + _esc(_stockKindLabel(entry.stockItemType)) + ' · ' + _esc(entry.stockSourceLabel) + '</div>' + chainNote + '</td>' +
+        '<td><div class="stock-item-name ' + (entry.isChainItem ? 'stock-chain-item' : '') + '">' + itemPrefix + '<span>' + _esc(entry.itemName) + '</span></div><div class="stock-item-note">' + _esc(_stockKindLabel(entry.stockItemType)) + ' · ' + _esc(entry.stockSourceLabel) + '</div>' + chainNote + '</td>' +
         '<td><div class="stock-item-name">' + _esc(entry.orderLabel) + '</div><div class="stock-item-note">' + _esc(_fmtDate(entry.detectedAt || entry.orderDate)) + ' · ' + _esc(entry.customerName || 'Cliente não informado') + '</div></td>' +
         '<td><span class="stock-badge ' + (entry.status === 'pendente' ? 'regularization-pending' : 'regularization-muted') + '">' + _esc(_regularizationStatusLabel(entry.status)) + '</span></td>' +
         '<td><strong class="stock-negative">' + _fmtQty(entry.shortageQuantity) + ' ' + _esc(entry.unit || '') + '</strong><div class="stock-item-note">Saída: ' + _fmtQty(entry.requiredQuantity) + ' ' + _esc(entry.unit || '') + '</div></td>' +
         '<td><div class="stock-item-name">' + _fmtQty(entry.balanceBefore) + ' → ' + _fmtQty(entry.balanceAfter) + '</div><div class="stock-item-note">Saldo antes/depois</div></td>' +
         '<td>' + (entry.unitCost > 0 ? _money(entry.estimatedTotalCost) : '<span class="stock-muted">sem custo</span>') + '</td>' +
-        '<td><button type="button" class="stock-row-action" ' + (canApply ? 'onclick="Modules.Estoque._applyRegularization(\'' + _escJs(entry.id) + '\')"' : 'disabled') + '>' + (canApply ? 'Regularizar entrada' : 'Aplicada') + '</button></td>' +
+        '<td><button type="button" class="stock-row-action" ' + (canApply ? 'onclick="Modules.Estoque._applyRegularization(\'' + _escJs(entry.id) + '\')"' : 'disabled') + '>' + actionText + '</button></td>' +
       '</tr>';
     }).join('');
     var hasFilters = !!((_regularizationFilters.q || '').trim() || _regularizationFilters.status !== 'todos' || _regularizationFilters.type !== 'todos');
@@ -697,9 +699,12 @@ Modules.Estoque = (function () {
         var shortageQty = _regularizationEffectiveShortage(item);
         var unitCost = _num(item.unitCost);
         var chain = Array.isArray(item.regularizationChain) ? item.regularizationChain : [];
-        entries.push({
+        var baseEntry = {
           id: String(order.id || '') + ':' + idx,
+          parentId: '',
           itemIndex: idx,
+          chainIndex: -1,
+          isChainItem: false,
           orderId: order.id || '',
           orderLabel: _orderLabel(order),
           orderDate: _firstText(order.deliveryDate, order.pickupDate, order.scheduleDate, order.createdAt, order.updatedAt, ''),
@@ -726,11 +731,48 @@ Modules.Estoque = (function () {
           estimatedTotalCost: unitCost > 0 ? _round(shortageQty * unitCost) : _num(item.estimatedTotalCost),
           regularizationChain: chain,
           regularizationChainCount: _num(item.regularizationChainCount) || chain.length
+        };
+        entries.push(baseEntry);
+        chain.forEach(function (movement, chainIdx) {
+          var chainEntry = _regularizationChainEntry(order, item, baseEntry, movement, chainIdx);
+          if (chainEntry) entries.push(chainEntry);
         });
       });
     });
     return entries.sort(function (a, b) {
+      if (a.orderId === b.orderId && a.itemIndex === b.itemIndex) return a.chainIndex - b.chainIndex;
       return _dateValue(b.detectedAt || b.orderDate) - _dateValue(a.detectedAt || a.orderDate);
+    });
+  }
+
+  function _regularizationChainEntry(order, item, parent, movement, chainIdx) {
+    if (!movement || movement.type !== 'entrada_regularizacao') return null;
+    var stockType = _normalizeRegularizationStockType(movement.stockItemType || movement.itemClass || movement.classe || '');
+    var qty = _num(movement.quantity || movement.quantityProduced);
+    if (qty <= 0) return null;
+    var unitCost = _num(movement.unitCost);
+    return Object.assign({}, parent, {
+      id: parent.id + ':chain:' + chainIdx,
+      parentId: parent.id,
+      chainIndex: chainIdx,
+      isChainItem: true,
+      stockItemId: movement.stockItemId || movement.itemId || movement.baseProductionId || movement.ingredientId || movement.packagingId || '',
+      stockItemType: stockType,
+      itemName: movement.itemName || movement.baseProductionName || movement.ingredientName || movement.packagingName || 'Item da cadeia',
+      productName: parent.productName,
+      stockSource: 'regularization_chain',
+      stockSourceLabel: 'Cadeia da regularização',
+      sourceMovementId: item.movementId || item.sourceMovementId || '',
+      regularizationMovementId: movement.id || '',
+      requiredQuantity: qty,
+      shortageQuantity: qty,
+      balanceBefore: 0,
+      balanceAfter: -qty,
+      unit: movement.unit || movement.yieldUnit || '',
+      unitCost: unitCost,
+      estimatedTotalCost: unitCost > 0 ? _round(qty * unitCost) : _num(movement.totalCost),
+      regularizationChain: [],
+      regularizationChainCount: 0
     });
   }
 
@@ -1599,6 +1641,8 @@ Modules.Estoque = (function () {
       '.stock-row-action:disabled{background:#F1E8E3;color:#8A7E7C;box-shadow:none;cursor:not-allowed;}' +
       '.stock-item-name{font-size:14px;font-weight:650;color:#1F1F1F;line-height:1.25;}' +
       '.stock-item-note,.stock-muted{font-size:12px;color:#6F6860;font-weight:400;line-height:1.35;}' +
+      '.stock-chain-item{display:flex;align-items:center;gap:6px;color:#4B403A!important;font-weight:600!important;}' +
+      '.stock-chain-prefix{color:#8A7E7C;font-size:13px;line-height:1;}' +
       '.stock-alert-text{color:#B42318;margin-top:3px;}' +
       '.stock-badge{display:inline-flex;align-items:center;justify-content:center;height:26px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;}' +
       '.stock-badge.ingredient{background:#FFF4EE;color:#8F3D22;border:1px solid #F3D8CA;}' +
