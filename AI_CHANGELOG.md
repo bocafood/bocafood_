@@ -1,5 +1,16 @@
 # AI Changelog
 
+## 2026-06-04 — Cardápio: filtro de produtos no padrão de produção
+- Arquivos alterados: `public/js/modules/catalogo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Ajustei o card de filtros de `Cardápio → Produtos` para seguir o padrão visual de `Produção → Ordens de produção`.
+- Busca, Categoria, Visibilidade, Ordenar por e Mais filtros passam a usar campo off-white, foco discreto, select com seta do próprio campo e botão `Limpar filtros` alinhado abaixo.
+- Levei o mesmo padrão de card de filtro para `Cardápio → Previsão`.
+- Ajustei os cards de resumo da previsão para seguirem o padrão de KPI usado em `Pedidos → Desempenho`, com ícone grande, fundo leve, valor destacado e hover discreto.
+- Reescrevi a copy de `Cardápio → Previsão` para falar com a usuária sobre o que dá para vender hoje, o que precisa repor/produzir e o que precisa completar no cadastro, reduzindo termos técnicos como `vínculo`, `composição clara` e `limitador`.
+- Reorganizei a ordem visual do menu lateral do Admin para: Maturidade do Negócio, Performance, Início, Pedidos, Venda presencial, Cardápio, Produção, Estoque, Compras, Preços e Margem, Financeiro, Crescimento, Ações de Vendas, Marketing e Canais, Loja Online e Configurações.
+- Mantive a lógica existente de busca, filtros, ordenação, paginação e listagem; a mudança é visual e de organização da área de filtros.
+- Atualizei o cache-buster de `catalogo.js` no Admin.
+
 ## 2026-06-04 — Pedidos: Desempenho com todos os canais
 - Arquivos alterados: `public/js/modules/pedidos.js`, `public/js/modules/catalogo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - Criei `Pedidos → Desempenho` para concentrar a análise de vendas dentro do módulo de pedidos.

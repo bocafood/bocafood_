@@ -293,16 +293,6 @@ button,input,select,textarea{font-family:inherit}
       </div>
 
       <div class="nav-group">
-        <button class="nav-item" data-route="loja-online" onclick="AdminApp.toggleNavGroup(event,'loja-online','loja-online/template')"><span class="mi">storefront</span>Loja Online</button>
-        <div class="nav-sub">
-          <button class="nav-sub-item" data-route="loja-online/template" onclick="Router.navigate('loja-online/template')">Template da loja</button>
-          <button class="nav-sub-item" data-route="loja-online/link-da-loja" onclick="Router.navigate('loja-online/link-da-loja')">Link da loja</button>
-          <button class="nav-sub-item" data-route="loja-online/seo" onclick="Router.navigate('loja-online/seo')">SEO da loja</button>
-          <button class="nav-sub-item" data-route="loja-online/avaliacoes" onclick="Router.navigate('loja-online/avaliacoes')">Avaliações</button>
-        </div>
-      </div>
-
-      <div class="nav-group">
         <button class="nav-item" data-route="receitas" onclick="AdminApp.toggleNavGroup(event,'receitas','receitas/receitas')"><span class="mi">receipt_long</span>Produção</button>
         <div class="nav-sub">
           <button class="nav-sub-item" data-route="receitas/receitas" onclick="Router.navigate('receitas/receitas')">Receitas</button>
@@ -348,6 +338,25 @@ button,input,select,textarea{font-family:inherit}
       </div>
 
       <div class="nav-group">
+        <button class="nav-item" data-route="financeiro" onclick="AdminApp.toggleNavGroup(event,'financeiro','financeiro/visao-geral')"><span class="mi">payments</span>Financeiro</button>
+        <div class="nav-sub">
+          <button class="nav-sub-item" data-route="financeiro/visao-geral" onclick="Router.navigate('financeiro/visao-geral')">Visão Geral</button>
+          <button class="nav-sub-item" data-route="financeiro/fluxo-caixa" onclick="Router.navigate('financeiro/fluxo-caixa')">Fluxo de Caixa</button>
+          <button class="nav-sub-item" data-route="financeiro/movimentacoes" onclick="Router.navigate('financeiro/movimentacoes')">Entradas</button>
+          <button class="nav-sub-item" data-route="financeiro/contas-pagar" onclick="Router.navigate('financeiro/contas-pagar')">Saídas</button>
+          <button class="nav-sub-item" data-route="financeiro/configuracoes" onclick="Router.navigate('financeiro/configuracoes')">Configurações</button>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <button class="nav-item" data-route="crescimento" onclick="AdminApp.toggleNavGroup(event,'crescimento','crescimento/temporadas',true)"><span class="mi">trending_up</span>Crescimento</button>
+        <div class="nav-sub">
+          <button class="nav-sub-item" data-route="crescimento/plano-de-voo" onclick="Router.navigate('crescimento/plano-de-voo')">Plano de Voo</button>
+          <button class="nav-sub-item" data-route="crescimento/temporadas" onclick="Router.navigate('crescimento/temporadas')">Temporadas</button>
+        </div>
+      </div>
+
+      <div class="nav-group">
         <button class="nav-item" data-route="marketing" onclick="AdminApp.toggleNavGroup(event,'marketing','marketing/promocoes')"><span class="mi">campaign</span>Ações de Vendas</button>
         <div class="nav-sub">
           <button class="nav-sub-item" data-route="marketing/promocoes" onclick="Router.navigate('marketing/promocoes')">Promoções</button>
@@ -367,21 +376,12 @@ button,input,select,textarea{font-family:inherit}
       </div>
 
       <div class="nav-group">
-        <button class="nav-item" data-route="crescimento" onclick="AdminApp.toggleNavGroup(event,'crescimento','crescimento/temporadas',true)"><span class="mi">trending_up</span>Crescimento</button>
+        <button class="nav-item" data-route="loja-online" onclick="AdminApp.toggleNavGroup(event,'loja-online','loja-online/template')"><span class="mi">storefront</span>Loja Online</button>
         <div class="nav-sub">
-          <button class="nav-sub-item" data-route="crescimento/plano-de-voo" onclick="Router.navigate('crescimento/plano-de-voo')">Plano de Voo</button>
-          <button class="nav-sub-item" data-route="crescimento/temporadas" onclick="Router.navigate('crescimento/temporadas')">Temporadas</button>
-        </div>
-      </div>
-
-      <div class="nav-group">
-        <button class="nav-item" data-route="financeiro" onclick="AdminApp.toggleNavGroup(event,'financeiro','financeiro/visao-geral')"><span class="mi">payments</span>Financeiro</button>
-        <div class="nav-sub">
-          <button class="nav-sub-item" data-route="financeiro/visao-geral" onclick="Router.navigate('financeiro/visao-geral')">Visão Geral</button>
-          <button class="nav-sub-item" data-route="financeiro/fluxo-caixa" onclick="Router.navigate('financeiro/fluxo-caixa')">Fluxo de Caixa</button>
-          <button class="nav-sub-item" data-route="financeiro/movimentacoes" onclick="Router.navigate('financeiro/movimentacoes')">Entradas</button>
-          <button class="nav-sub-item" data-route="financeiro/contas-pagar" onclick="Router.navigate('financeiro/contas-pagar')">Saídas</button>
-          <button class="nav-sub-item" data-route="financeiro/configuracoes" onclick="Router.navigate('financeiro/configuracoes')">Configurações</button>
+          <button class="nav-sub-item" data-route="loja-online/template" onclick="Router.navigate('loja-online/template')">Template da loja</button>
+          <button class="nav-sub-item" data-route="loja-online/link-da-loja" onclick="Router.navigate('loja-online/link-da-loja')">Link da loja</button>
+          <button class="nav-sub-item" data-route="loja-online/seo" onclick="Router.navigate('loja-online/seo')">SEO da loja</button>
+          <button class="nav-sub-item" data-route="loja-online/avaliacoes" onclick="Router.navigate('loja-online/avaliacoes')">Avaliações</button>
         </div>
       </div>
 
@@ -462,7 +462,7 @@ button,input,select,textarea{font-family:inherit}
 <script src="js/modules/dashboard.js?v=20260604-stock-onboarding-final"></script>
 <script src="js/modules/pedidos.js?v=20260604-pedidos-desempenho"></script>
 <script src="js/modules/pos.js?v=20260512-tpv-shell"></script>
-<script src="js/modules/catalogo.js?v=20260604-desempenho-canais"></script>
+<script src="js/modules/catalogo.js?v=20260604-catalogo-filtros-previsao"></script>
 <script src="js/modules/loja_online.js?v=20260524-reviews-admin-pattern-2"></script>
 <script src="js/modules/receitas.js?v=20260604-bases-list-orders-pattern"></script>
 <script src="js/modules/estoque.js?v=20260604-stock-onboarding-final"></script>

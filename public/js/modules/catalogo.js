@@ -382,10 +382,7 @@ Modules.Catalogo = (function () {
     var paging = _productPaging(visibleProducts);
     var listMode = (_productView.mode || 'list') !== 'grid';
     var filterCardStyle = 'background:linear-gradient(180deg,#FFFFFF 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.055);';
-    var fieldStyle = 'padding:10px 12px;border:1px solid #E8DCD7;border-radius:12px;font-size:14px;font-family:inherit;outline:none;background:#FFFCF8;width:100%;box-sizing:border-box;color:#1F1F1F;box-shadow:inset 0 1px 0 rgba(255,255,255,.82);transition:border-color .15s ease,box-shadow .15s ease,background .15s ease;';
-    var selectFieldStyle = fieldStyle + 'appearance:none;-webkit-appearance:none;-moz-appearance:none;padding-right:40px;';
-    var selectArrowHtml = '<span class="mi" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:19px;color:#8A7E7C;pointer-events:none;">expand_more</span>';
-    var labelStyle = 'font-size:11px;font-weight:600;color:#6F6860;display:block;margin-bottom:5px;letter-spacing:.02em;';
+    var labelStyle = 'font-size:11px;font-weight:650;color:#8A7E7C;display:block;margin-bottom:6px;letter-spacing:.04em;text-transform:uppercase;';
     var sortOptions = [
       { value: 'order', label: 'Ordem da loja pública' },
       { value: 'name-asc', label: 'Nome A-Z' },
@@ -400,18 +397,18 @@ Modules.Catalogo = (function () {
         var value = c.id || c.slug || c.name || '';
         return '<option value="' + _esc(value) + '"' + (_productFilters.category === String(value) ? ' selected' : '') + '>' + _esc(c.name || c.label || value || 'Categoria') + '</option>';
       }).join('');
-    var clearFiltersHtml = (query || _hasActiveProductFilters() || _productView.sort !== 'order') ? '<div style="display:flex;justify-content:flex-start;margin-top:11px;"><button type="button" onclick="Modules.Catalogo._clearProductFilters()" style="height:36px;padding:0 13px;border:1px solid #EADFD8;border-radius:11px;background:#fff;color:#6F6860;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);">Limpar filtros</button></div>' : '';
-    var filtersHtml = '<div style="' + filterCardStyle + '">' +
-      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:11px 12px;align-items:end;">' +
-          '<label style="display:block;min-width:0;"><span style="' + labelStyle + '">Buscar</span><input id="catalogo-product-search" type="search" value="' + _esc(query) + '" placeholder="Nome, descrição, tag ou categoria" autocomplete="off" autocapitalize="off" spellcheck="false" oninput="Modules.Catalogo._filterProdutos(this.value)" style="' + fieldStyle + 'height:42px;"></label>' +
-          '<label style="display:block;min-width:0;"><span style="' + labelStyle + '">Categoria</span><span style="position:relative;display:block;"><select onchange="Modules.Catalogo._setProductFilter(\'category\',this.value)" style="' + selectFieldStyle + 'height:42px;">' + categoryOptions + '</select>' + selectArrowHtml + '</span></label>' +
-          '<label style="display:block;min-width:0;"><span style="' + labelStyle + '">Visibilidade</span><span style="position:relative;display:block;"><select onchange="Modules.Catalogo._setProductFilter(\'visibility\',this.value)" style="' + selectFieldStyle + 'height:42px;">' +
-            '<option value="todos"' + (_productFilters.visibility === 'todos' ? ' selected' : '') + '>Status: Todos</option><option value="visiveis"' + (_productFilters.visibility === 'visiveis' ? ' selected' : '') + '>Status: Visíveis</option><option value="ocultos"' + (_productFilters.visibility === 'ocultos' ? ' selected' : '') + '>Status: Ocultos</option></select>' + selectArrowHtml + '</span></label>' +
-          '<label style="display:block;min-width:0;"><span style="' + labelStyle + '">Ordenar por</span><span style="position:relative;display:block;"><select onchange="Modules.Catalogo._setProductSort(this.value)" style="' + selectFieldStyle + 'height:42px;">' + sortOptions + '</select>' + selectArrowHtml + '</span></label>' +
-          '<button type="button" onclick="Modules.Catalogo._openProductsMoreFilters()" style="height:42px;padding:0 14px;border:1px solid #EADFD8;border-radius:12px;background:#fff;color:#1F1F1F;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 1px 2px rgba(31,31,31,.03);font-family:inherit;white-space:nowrap;">Mais filtros</button>' +
+    var clearFiltersHtml = (query || _hasActiveProductFilters() || _productView.sort !== 'order') ? '<div class="production-orders-filter-actions"><button type="button" class="production-orders-clear" onclick="Modules.Catalogo._clearProductFilters()">Limpar filtros</button></div>' : '';
+    var filtersHtml = '<section class="production-orders-filter catalog-product-filter">' +
+      '<div class="production-orders-filter-grid">' +
+          '<label style="display:block;min-width:0;"><span style="' + labelStyle + '">Buscar</span><span class="production-orders-field"><input id="catalogo-product-search" type="search" value="' + _esc(query) + '" placeholder="Nome, descrição, tag ou categoria" autocomplete="off" autocapitalize="off" spellcheck="false" oninput="Modules.Catalogo._filterProdutos(this.value)"></span></label>' +
+          '<label style="display:block;min-width:0;"><span style="' + labelStyle + '">Categoria</span><span class="production-orders-field"><select onchange="Modules.Catalogo._setProductFilter(\'category\',this.value)">' + categoryOptions + '</select></span></label>' +
+          '<label style="display:block;min-width:0;"><span style="' + labelStyle + '">Visibilidade</span><span class="production-orders-field"><select onchange="Modules.Catalogo._setProductFilter(\'visibility\',this.value)">' +
+            '<option value="todos"' + (_productFilters.visibility === 'todos' ? ' selected' : '') + '>Status: Todos</option><option value="visiveis"' + (_productFilters.visibility === 'visiveis' ? ' selected' : '') + '>Status: Visíveis</option><option value="ocultos"' + (_productFilters.visibility === 'ocultos' ? ' selected' : '') + '>Status: Ocultos</option></select></span></label>' +
+          '<label style="display:block;min-width:0;"><span style="' + labelStyle + '">Ordenar por</span><span class="production-orders-field"><select onchange="Modules.Catalogo._setProductSort(this.value)">' + sortOptions + '</select></span></label>' +
+          '<button type="button" class="catalog-product-more-filters" onclick="Modules.Catalogo._openProductsMoreFilters()">Mais filtros</button>' +
       '</div>' +
       clearFiltersHtml +
-    '</div>';
+    '</section>';
     var paginationHtml = paging.total ? '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:16px 18px;">' +
       '<span style="font-size:12px;color:#6F6860;line-height:1.4;">Mostrando <strong style="color:#1F1F1F;font-weight:600;">' + paging.start + '</strong> a <strong style="color:#1F1F1F;font-weight:600;">' + paging.end + '</strong> de <strong style="color:#1F1F1F;font-weight:600;">' + paging.total + '</strong></span>' +
       '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;">' +
@@ -431,7 +428,7 @@ Modules.Catalogo = (function () {
     } else {
       bodyHtml = _productGroupedListHTML(visibleProducts, false);
     }
-    content.innerHTML = '<div class="bf-page" style="display:flex;flex-direction:column;gap:16px;">' +
+    content.innerHTML = _catalogProductFilterStyles() + '<div class="bf-page" style="display:flex;flex-direction:column;gap:16px;">' +
       '<div class="bf-page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
       '<div style="min-width:0;flex:1 1 420px;">' +
           '<h2 style="font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;line-height:1.2;">Produtos</h2>' +
@@ -1125,6 +1122,48 @@ Modules.Catalogo = (function () {
     '</style>';
   }
 
+  function _catalogProductFilterStyles() {
+    return '<style>' +
+      '.catalog-product-filter.production-orders-filter{background:linear-gradient(180deg,#FFFFFF 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.055);}' +
+      '.catalog-product-filter .production-orders-filter-grid{display:grid;grid-template-columns:minmax(260px,1fr) minmax(170px,230px) minmax(160px,220px) minmax(190px,250px) auto;gap:11px 12px;align-items:end;}' +
+      '.catalog-product-filter .production-orders-field{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:0 12px;min-height:42px;display:flex;align-items:center;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;}' +
+      '.catalog-product-filter .production-orders-field:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
+      '.catalog-product-filter .production-orders-field input,.catalog-product-filter .production-orders-field select{width:100%;height:40px;border:0;background:transparent;outline:none;font-size:14px;font-family:inherit;color:#1F1F1F;box-sizing:border-box;}' +
+      '.catalog-product-filter .production-orders-field select{appearance:none;-webkit-appearance:none;-moz-appearance:none;padding-right:30px;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 4px center;background-size:14px;}' +
+      '.catalog-product-filter .production-orders-filter-actions{display:flex;justify-content:flex-start;margin-top:11px;}' +
+      '.catalog-product-filter .production-orders-clear{height:36px;padding:0 13px;border:1px solid #EADFD8;border-radius:11px;background:#fff;color:#6F6860;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);}' +
+      '.catalog-product-filter .catalog-product-more-filters{height:42px;padding:0 14px;border:1px solid #EADFD8;border-radius:12px;background:#fff;color:#1F1F1F;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 1px 2px rgba(31,31,31,.03);font-family:inherit;white-space:nowrap;}' +
+      '.catalog-product-filter .catalog-product-more-filters:hover,.catalog-product-filter .production-orders-clear:hover{background:#FFFCF8;border-color:#E1D5CD;}' +
+      '@media(max-width:980px){.catalog-product-filter .production-orders-filter-grid{grid-template-columns:minmax(260px,1fr) minmax(170px,230px) minmax(160px,220px);}.catalog-product-filter .catalog-product-more-filters{width:max-content;}}' +
+      '@media(max-width:820px){.catalog-product-filter .production-orders-filter-grid{grid-template-columns:1fr!important}.catalog-product-filter .catalog-product-more-filters{width:100%;}}' +
+    '</style>';
+  }
+
+  function _catalogForecastFilterStyles() {
+    return '<style>' +
+      '.catalog-forecast-filter.production-orders-filter{background:linear-gradient(180deg,#FFFFFF 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.055);}' +
+      '.catalog-forecast-filter .production-orders-filter-grid{display:grid;grid-template-columns:minmax(280px,1fr) minmax(190px,250px) auto;gap:11px 12px;align-items:end;}' +
+      '.catalog-forecast-filter .production-orders-field{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:0 12px;min-height:42px;display:flex;align-items:center;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;}' +
+      '.catalog-forecast-filter .production-orders-field:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
+      '.catalog-forecast-filter .production-orders-field input,.catalog-forecast-filter .production-orders-field select{width:100%;height:40px;border:0;background:transparent;outline:none;font-size:14px;font-family:inherit;color:#1F1F1F;box-sizing:border-box;}' +
+      '.catalog-forecast-filter .production-orders-field select{appearance:none;-webkit-appearance:none;-moz-appearance:none;padding-right:30px;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 4px center;background-size:14px;}' +
+      '.catalog-forecast-filter .production-orders-clear{height:42px;padding:0 14px;border:1px solid #EADFD8;border-radius:12px;background:#fff;color:#6F6860;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);white-space:nowrap;}' +
+      '.catalog-forecast-filter .production-orders-clear:hover{background:#FFFCF8;border-color:#E1D5CD;}' +
+      '@media(max-width:820px){.catalog-forecast-filter .production-orders-filter-grid{grid-template-columns:1fr!important}.catalog-forecast-filter .production-orders-clear{width:100%;}}' +
+    '</style>';
+  }
+
+  function _catalogForecastKpiCard(label, value, sub, icon, color) {
+    return '<div style="display:flex;align-items:center;gap:12px;background:#FAF8F4;border:none;border-radius:16px;padding:15px 16px;box-shadow:0 12px 30px rgba(31,31,31,.06);min-height:78px;overflow:hidden;transition:transform .16s ease,box-shadow .16s ease,background .16s ease;" onmouseenter="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 16px 34px rgba(31,31,31,.09)\';this.style.background=\'#fff\'" onmouseleave="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'0 12px 30px rgba(31,31,31,.06)\';this.style.background=\'#FAF8F4\'">' +
+      '<div style="width:46px;height:46px;border-radius:14px;background:transparent;color:' + _esc(color || '#6F6860') + ';display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span class="mi" style="font-size:24px;">' + _esc(icon || 'analytics') + '</span></div>' +
+      '<div style="min-width:0;display:flex;flex-direction:column;gap:3px;">' +
+        '<span style="font-size:12px;font-weight:500;color:#6F6860;line-height:1.15;">' + _esc(label) + '</span>' +
+        '<strong style="font-size:30px;font-weight:700;color:#1F1F1F;line-height:1;white-space:nowrap;letter-spacing:0;">' + _esc(String(value == null ? '0' : value)) + '</strong>' +
+        '<span style="font-size:12px;color:#6F6860;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(sub || '') + '</span>' +
+      '</div>' +
+    '</div>';
+  }
+
   function _performanceSubtabsHtml() {
     function tab(key, label, icon) {
       var active = _performanceTab === key;
@@ -1302,7 +1341,7 @@ Modules.Catalogo = (function () {
   function _renderPrevisaoCardapio() {
     var content = document.getElementById('catalogo-content');
     if (!content) return;
-    content.innerHTML = '<div style="text-align:center;padding:40px;color:#8A7E7C;">Carregando previsão do cardápio...</div>';
+    content.innerHTML = '<div style="text-align:center;padding:40px;color:#8A7E7C;">Preparando a leitura do cardápio...</div>';
     Promise.all([
       DB.getAll('products').catch(function () { return []; }),
       DB.getAll('fichasTecnicas').catch(function () { return []; }),
@@ -1321,7 +1360,7 @@ Modules.Catalogo = (function () {
       };
       _paintPrevisaoCardapio();
     }).catch(function (err) {
-      content.innerHTML = UI.emptyState('Previsão indisponível', 'Não foi possível carregar a previsão do cardápio agora.');
+      content.innerHTML = UI.emptyState('Não deu para carregar esta leitura agora', 'Tente abrir a previsão do cardápio novamente em alguns instantes.');
       UI.toast('Erro ao carregar previsão: ' + err.message, 'error');
     });
   }
@@ -1332,29 +1371,22 @@ Modules.Catalogo = (function () {
     var rows = _filteredCatalogForecastRows(_buildCatalogForecastRows());
     var paging = _catalogForecastPaging(rows);
     var summary = _catalogForecastSummary(rows);
-    var fieldStyle = 'height:40px;width:100%;box-sizing:border-box;border:1px solid #E8DCD7;border-radius:12px;background:#FFFCF8;color:#1F1F1F;font-size:13px;font-family:inherit;outline:none;padding:0 12px;';
-    var selectStyle = fieldStyle + 'appearance:none;-webkit-appearance:none;-moz-appearance:none;padding-right:38px;';
-    var arrow = '<span class="mi" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:18px;color:#8A7E7C;pointer-events:none;">expand_more</span>';
+    var labelStyle = 'display:block;font-size:11px;font-weight:650;color:#8A7E7C;margin-bottom:6px;letter-spacing:.04em;text-transform:uppercase;';
     var statusOptions = [
-      { value: 'todos', label: 'Todos os status' },
-      { value: 'ok', label: 'Pode vender' },
-      { value: 'bloqueado', label: 'Limitado por estoque' },
+      { value: 'todos', label: 'Todos' },
+      { value: 'ok', label: 'Dá para vender hoje' },
+      { value: 'bloqueado', label: 'Precisa repor ou produzir' },
       { value: 'sob_encomenda', label: 'Sob encomenda' },
-      { value: 'sem_composicao', label: 'Sem composição clara' }
+      { value: 'sem_composicao', label: 'Completar cadastro' }
     ].map(function (opt) { return '<option value="' + opt.value + '"' + (_catalogForecastFilters.status === opt.value ? ' selected' : '') + '>' + _esc(opt.label) + '</option>'; }).join('');
     var cards = [
-      { label: 'Produtos analisados', value: String(summary.total), icon: 'restaurant_menu', hint: 'itens ativos do cardápio' },
-      { label: 'Disponíveis para venda', value: String(summary.ok), icon: 'shopping_bag', hint: 'com saldo calculável agora' },
-      { label: 'Limitados por estoque', value: String(summary.blocked), icon: 'inventory_2', hint: 'o limitador aparece na tabela' },
-      { label: 'Sem composição clara', value: String(summary.unclear), icon: 'warning_amber', hint: 'precisa de vínculo de estoque' }
-    ].map(function (card) {
-      return '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:16px;padding:15px;box-shadow:0 10px 24px rgba(31,31,31,.045);display:flex;gap:12px;align-items:flex-start;min-width:0;">' +
-        '<div style="width:38px;height:38px;border-radius:13px;background:#FFF5F3;color:#B42318;display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span class="mi" style="font-size:20px;">' + _esc(card.icon) + '</span></div>' +
-        '<div style="min-width:0;"><div style="font-size:11px;font-weight:700;color:#6F6860;line-height:1.25;">' + _esc(card.label) + '</div><div style="font-size:21px;font-weight:750;color:#1F1F1F;line-height:1.15;margin-top:4px;">' + _esc(card.value) + '</div><div style="font-size:11px;color:#8A7E7C;line-height:1.35;margin-top:4px;">' + _esc(card.hint) + '</div></div>' +
-      '</div>';
-    }).join('');
+      _catalogForecastKpiCard('Itens do cardápio', summary.total, 'ativos para acompanhar', 'restaurant_menu', '#8A6F5A'),
+      _catalogForecastKpiCard('Dá para vender hoje', summary.ok, 'com estoque suficiente agora', 'shopping_bag', '#B42318'),
+      _catalogForecastKpiCard('Precisa repor', summary.blocked, 'veja o que está faltando', 'inventory_2', '#B45309'),
+      _catalogForecastKpiCard('Completar cadastro', summary.unclear, 'falta dizer o que consome', 'warning_amber', '#A18362')
+    ].join('');
     var tableRows = paging.items.map(_catalogForecastTableRowHtml).join('');
-    var emptyHtml = !paging.items.length ? '<tr><td colspan="6" style="padding:28px;text-align:center;color:#8A7E7C;font-size:13px;">Nenhum produto encontrado para os filtros atuais.</td></tr>' : '';
+    var emptyHtml = !paging.items.length ? '<tr><td colspan="6" style="padding:28px;text-align:center;color:#8A7E7C;font-size:13px;">Nenhum item apareceu com esses filtros.</td></tr>' : '';
     var pageSizeOptions = [10, 25, 50, 100].map(function (n) { return '<option value="' + n + '"' + (Number(_catalogForecastView.pageSize) === n ? ' selected' : '') + '>' + n + ' / pág.</option>'; }).join('');
     var paginationHtml = paging.total ? '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:14px 16px;border-top:1px solid #EAE4DA;">' +
       '<span style="font-size:12px;color:#6F6860;">Mostrando <strong style="color:#1F1F1F;">' + paging.start + '</strong> a <strong style="color:#1F1F1F;">' + paging.end + '</strong> de <strong style="color:#1F1F1F;">' + paging.total + '</strong></span>' +
@@ -1365,25 +1397,25 @@ Modules.Catalogo = (function () {
         '<button type="button" onclick="Modules.Catalogo._setCatalogForecastPage(' + (paging.page + 1) + ')" style="height:34px;padding:0 11px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#6F6860;font-size:12px;cursor:' + (paging.page < paging.totalPages ? 'pointer' : 'not-allowed') + ';opacity:' + (paging.page < paging.totalPages ? '1' : '.45') + ';"' + (paging.page < paging.totalPages ? '' : ' disabled') + '>Próxima</button>' +
       '</div>' +
     '</div>' : '';
-    content.innerHTML = '<div class="bf-page" style="display:flex;flex-direction:column;gap:16px;">' +
+    content.innerHTML = _catalogForecastFilterStyles() + '<div class="bf-page" style="display:flex;flex-direction:column;gap:16px;">' +
       '<div class="bf-page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
-        '<div style="min-width:0;flex:1 1 460px;"><h2 style="font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;line-height:1.2;">Previsão do cardápio</h2><p style="font-size:13px;color:#6F6860;line-height:1.5;margin:0;max-width:780px;">Leitura comercial do que o cardápio consegue vender agora com o saldo atual. A previsão de receitas e bases continua em Produção → Previsão.</p></div>' +
+        '<div style="min-width:0;flex:1 1 460px;"><h2 style="font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;line-height:1.2;">O que dá para vender hoje</h2><p style="font-size:13px;color:#6F6860;line-height:1.5;margin:0;max-width:780px;">Veja quais itens do cardápio já estão prontos para venda, quais precisam de reposição ou produção e quais cadastros precisam ser completados para o estoque ajudar melhor.</p></div>' +
       '</div>' +
-      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;">' + cards + '</div>' +
-      '<section style="' + _cardStyle() + 'padding:16px;">' +
-        '<div style="display:grid;grid-template-columns:minmax(min(100%,280px),1.4fr) minmax(min(100%,190px),.8fr) auto;gap:11px;align-items:end;">' +
-          '<label style="display:block;min-width:0;"><span style="display:block;font-size:11px;font-weight:700;color:#6F6860;margin-bottom:5px;">Buscar</span><input type="search" value="' + _esc(_catalogForecastFilters.q || '') + '" placeholder="Produto, categoria ou vínculo" oninput="Modules.Catalogo._setCatalogForecastFilter(\'q\',this.value)" style="' + fieldStyle + '"></label>' +
-          '<label style="display:block;min-width:0;"><span style="display:block;font-size:11px;font-weight:700;color:#6F6860;margin-bottom:5px;">Status</span><span style="position:relative;display:block;"><select onchange="Modules.Catalogo._setCatalogForecastFilter(\'status\',this.value)" style="' + selectStyle + '">' + statusOptions + '</select>' + arrow + '</span></label>' +
-          '<button type="button" onclick="Modules.Catalogo._clearCatalogForecastFilters()" style="height:40px;padding:0 14px;border:1px solid #EADFD8;border-radius:12px;background:#fff;color:#6F6860;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;">Limpar filtros</button>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;">' + cards + '</div>' +
+      '<section class="production-orders-filter catalog-forecast-filter">' +
+        '<div class="production-orders-filter-grid">' +
+          '<label style="display:block;min-width:0;"><span style="' + labelStyle + '">Buscar</span><span class="production-orders-field"><input type="search" value="' + _esc(_catalogForecastFilters.q || '') + '" placeholder="Produto, categoria ou item do estoque" oninput="Modules.Catalogo._setCatalogForecastFilter(\'q\',this.value)"></span></label>' +
+          '<label style="display:block;min-width:0;"><span style="' + labelStyle + '">Situação</span><span class="production-orders-field"><select onchange="Modules.Catalogo._setCatalogForecastFilter(\'status\',this.value)">' + statusOptions + '</select></span></label>' +
+          '<button type="button" class="production-orders-clear" onclick="Modules.Catalogo._clearCatalogForecastFilters()">Limpar filtros</button>' +
         '</div>' +
       '</section>' +
       '<section style="' + _cardStyle() + 'padding:0;overflow:hidden;">' +
-        '<div style="padding:16px 18px;border-bottom:1px solid #EAE4DA;"><h3 style="margin:0;font-size:15px;font-weight:700;color:#1F1F1F;">Disponibilidade comercial</h3><p style="margin:4px 0 0;font-size:12px;color:#6F6860;line-height:1.4;">Uma linha por item ativo do cardápio. Produtos sob encomenda ficam identificados e não entram como bloqueio por saldo.</p></div>' +
+        '<div style="padding:16px 18px;border-bottom:1px solid #EAE4DA;"><h3 style="margin:0;font-size:15px;font-weight:700;color:#1F1F1F;">Itens do cardápio</h3><p style="margin:4px 0 0;font-size:12px;color:#6F6860;line-height:1.4;">Cada linha mostra se esse item pode ser vendido agora. Produtos sob encomenda aparecem separados, porque dependem do prazo combinado no cadastro.</p></div>' +
         '<div style="overflow:auto;"><table style="width:100%;border-collapse:collapse;min-width:920px;"><thead><tr style="background:#FFFCF8;border-bottom:1px solid #EAE4DA;">' +
           '<th style="text-align:left;padding:11px 14px;font-size:11px;color:#6F6860;font-weight:750;">Produto</th>' +
-          '<th style="text-align:left;padding:11px 14px;font-size:11px;color:#6F6860;font-weight:750;">Status</th>' +
-          '<th style="text-align:right;padding:11px 14px;font-size:11px;color:#6F6860;font-weight:750;">Pode vender</th>' +
-          '<th style="text-align:left;padding:11px 14px;font-size:11px;color:#6F6860;font-weight:750;">Limitador</th>' +
+          '<th style="text-align:left;padding:11px 14px;font-size:11px;color:#6F6860;font-weight:750;">Situação</th>' +
+          '<th style="text-align:right;padding:11px 14px;font-size:11px;color:#6F6860;font-weight:750;">Qtd. hoje</th>' +
+          '<th style="text-align:left;padding:11px 14px;font-size:11px;color:#6F6860;font-weight:750;">O que limita</th>' +
           '<th style="text-align:right;padding:11px 14px;font-size:11px;color:#6F6860;font-weight:750;">Preço</th>' +
           '<th style="text-align:left;padding:11px 14px;font-size:11px;color:#6F6860;font-weight:750;">Ações</th>' +
         '</tr></thead><tbody>' + tableRows + emptyHtml + '</tbody></table></div>' + paginationHtml +
@@ -1683,7 +1715,7 @@ Modules.Catalogo = (function () {
     if (_catalogProductInternalComposition(product).length) return 'Montagem interna';
     if (product.produtoProntoId || product.sourceItemId || product.readyProductId) return 'Produto pronto';
     if (product.fichaTecnicaId || product.fichaId || product.recipeId) return 'Produto produzido';
-    return 'Sem vínculo de estoque';
+    return 'Completar cadastro';
   }
 
   function _isCatalogForecastProduct(product) {
@@ -1734,22 +1766,22 @@ Modules.Catalogo = (function () {
     var pillBg = status.tone === 'ok' ? '#ECFDF3' : (status.tone === 'warn' ? '#FFF7ED' : (status.tone === 'neutral' ? '#F5F3FF' : '#FEF3F2'));
     var pillColor = status.tone === 'ok' ? '#027A48' : (status.tone === 'warn' ? '#C2410C' : (status.tone === 'neutral' ? '#5B21B6' : '#B42318'));
     var capacity = row.capacity == null ? '—' : (_roundDisplay(row.capacity) + ' un.');
-    var limiter = row.limiter ? '<div style="font-size:13px;font-weight:650;color:#1F1F1F;line-height:1.35;">' + _esc(row.limiter.name || 'Item') + '</div><div style="font-size:11px;color:#6F6860;margin-top:2px;">Saldo ' + _esc(_roundDisplay(row.limiter.balance)) + ' ' + _esc(row.limiter.balanceUnit || row.limiter.unit || '') + ' · usa ' + _esc(_roundDisplay(row.limiter.requiredPerUnit)) + ' ' + _esc(row.limiter.unit || '') + '</div>' : '<span style="font-size:12px;color:#8A7E7C;">' + (row.status === 'sob_encomenda' ? 'Prazo definido no produto' : 'Sem limitador calculável') + '</span>';
+    var limiter = row.limiter ? '<div style="font-size:13px;font-weight:650;color:#1F1F1F;line-height:1.35;">' + _esc(row.limiter.name || 'Item') + '</div><div style="font-size:11px;color:#6F6860;margin-top:2px;">Tem ' + _esc(_roundDisplay(row.limiter.balance)) + ' ' + _esc(row.limiter.balanceUnit || row.limiter.unit || '') + ' · cada venda usa ' + _esc(_roundDisplay(row.limiter.requiredPerUnit)) + ' ' + _esc(row.limiter.unit || '') + '</div>' : '<span style="font-size:12px;color:#8A7E7C;">' + (row.status === 'sob_encomenda' ? 'Segue o prazo combinado no produto' : 'Cadastre o que esse item consome') + '</span>';
     return '<tr style="border-bottom:1px solid #F0E7E2;background:#fff;">' +
       '<td style="padding:12px 14px;vertical-align:top;min-width:270px;"><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:360px;">' + _esc(row.name) + '</div><div style="font-size:11px;color:#6F6860;margin-top:2px;">' + _esc([row.sourceLabel, row.categoryName].filter(Boolean).join(' · ')) + '</div></td>' +
       '<td style="padding:12px 14px;vertical-align:top;white-space:nowrap;"><span style="display:inline-flex;align-items:center;padding:5px 9px;border-radius:999px;background:' + pillBg + ';color:' + pillColor + ';font-size:11px;font-weight:750;">' + _esc(status.label) + '</span></td>' +
       '<td style="padding:12px 14px;vertical-align:top;text-align:right;font-size:13px;font-weight:750;color:#1F1F1F;white-space:nowrap;">' + _esc(capacity) + '</td>' +
       '<td style="padding:12px 14px;vertical-align:top;min-width:230px;">' + limiter + '</td>' +
       '<td style="padding:12px 14px;vertical-align:top;text-align:right;font-size:13px;font-weight:750;color:#1F1F1F;white-space:nowrap;">' + _fmtMoneyDisplay(row.price) + '</td>' +
-      '<td style="padding:12px 14px;vertical-align:top;white-space:nowrap;"><button type="button" onclick="Modules.Catalogo._openCatalogForecastDetails(\'' + _esc(row.productId) + '\')" style="height:32px;padding:0 10px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#1F1F1F;font-size:12px;font-weight:650;cursor:pointer;font-family:inherit;">Ver cálculo</button></td>' +
+      '<td style="padding:12px 14px;vertical-align:top;white-space:nowrap;"><button type="button" onclick="Modules.Catalogo._openCatalogForecastDetails(\'' + _esc(row.productId) + '\')" style="height:32px;padding:0 10px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#1F1F1F;font-size:12px;font-weight:650;cursor:pointer;font-family:inherit;">Ver detalhes</button></td>' +
     '</tr>';
   }
 
   function _catalogForecastStatus(row) {
-    if (!row || row.status === 'sem_composicao') return { label: 'Sem composição clara', tone: 'warn' };
+    if (!row || row.status === 'sem_composicao') return { label: 'Completar cadastro', tone: 'warn' };
     if (row.status === 'sob_encomenda') return { label: 'Sob encomenda', tone: 'neutral' };
-    if (row.status === 'bloqueado') return { label: 'Limitado por estoque', tone: 'danger' };
-    return { label: 'Pode vender', tone: 'ok' };
+    if (row.status === 'bloqueado') return { label: 'Precisa repor', tone: 'danger' };
+    return { label: 'Dá para vender', tone: 'ok' };
   }
 
   function _openCatalogForecastDetails(productId) {
@@ -1776,12 +1808,12 @@ Modules.Catalogo = (function () {
     '</style><div class="catalog-forecast-modal">' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">' +
         '<div style="border:1px solid #EAE4DA;border-radius:14px;padding:12px;background:#FFFCF8;"><div style="font-size:11px;font-weight:700;color:#6F6860;">Status</div><div style="font-size:16px;font-weight:800;color:#1F1F1F;margin-top:4px;">' + _esc(status.label) + '</div></div>' +
-        '<div style="border:1px solid #EAE4DA;border-radius:14px;padding:12px;background:#FFFCF8;"><div style="font-size:11px;font-weight:700;color:#6F6860;">Pode vender</div><div style="font-size:16px;font-weight:800;color:#1F1F1F;margin-top:4px;">' + _esc(row.capacity == null ? '—' : _roundDisplay(row.capacity) + ' un.') + '</div></div>' +
-        '<div style="border:1px solid #EAE4DA;border-radius:14px;padding:12px;background:#FFFCF8;"><div style="font-size:11px;font-weight:700;color:#6F6860;">Origem</div><div style="font-size:16px;font-weight:800;color:#1F1F1F;margin-top:4px;">' + _esc(row.sourceLabel || '') + '</div></div>' +
+        '<div style="border:1px solid #EAE4DA;border-radius:14px;padding:12px;background:#FFFCF8;"><div style="font-size:11px;font-weight:700;color:#6F6860;">Quantidade para hoje</div><div style="font-size:16px;font-weight:800;color:#1F1F1F;margin-top:4px;">' + _esc(row.capacity == null ? '—' : _roundDisplay(row.capacity) + ' un.') + '</div></div>' +
+        '<div style="border:1px solid #EAE4DA;border-radius:14px;padding:12px;background:#FFFCF8;"><div style="font-size:11px;font-weight:700;color:#6F6860;">Como foi cadastrado</div><div style="font-size:16px;font-weight:800;color:#1F1F1F;margin-top:4px;">' + _esc(row.sourceLabel || '') + '</div></div>' +
       '</div>' +
-      '<div style="border:1px solid #EAE4DA;border-radius:14px;overflow:hidden;"><table><thead><tr style="background:#FFFCF8;border-bottom:1px solid #EAE4DA;"><th style="text-align:left;color:#6F6860;">Item</th><th style="text-align:right;color:#6F6860;">Consumo por venda</th><th style="text-align:right;color:#6F6860;">Saldo atual</th><th style="text-align:right;color:#6F6860;">Capacidade</th></tr></thead><tbody>' + (rowsHtml || '<tr><td colspan="4" style="padding:18px;text-align:center;color:#8A7E7C;font-size:13px;">Sem composição clara para calcular.</td></tr>') + '</tbody></table></div>' +
+      '<div style="border:1px solid #EAE4DA;border-radius:14px;overflow:hidden;"><table><thead><tr style="background:#FFFCF8;border-bottom:1px solid #EAE4DA;"><th style="text-align:left;color:#6F6860;">Item</th><th style="text-align:right;color:#6F6860;">Cada venda usa</th><th style="text-align:right;color:#6F6860;">Tem agora</th><th style="text-align:right;color:#6F6860;">Vendas possíveis</th></tr></thead><tbody>' + (rowsHtml || '<tr><td colspan="4" style="padding:18px;text-align:center;color:#8A7E7C;font-size:13px;">Complete o cadastro desse produto para calcular.</td></tr>') + '</tbody></table></div>' +
     '</div>';
-    window._catalogForecastModal = UI.modal({ title: 'Cálculo da previsão — ' + row.name, body: body, maxWidth: '1080px' });
+    window._catalogForecastModal = UI.modal({ title: 'Detalhe da previsão — ' + row.name, body: body, maxWidth: '1080px' });
   }
 
   function _catalogForecastRequirementSubtitle(item, isLimiter) {
