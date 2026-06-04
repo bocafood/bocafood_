@@ -1,5 +1,12 @@
 # AI Changelog
 
+## 2026-06-04 — Plano de Voo: média mensal ignora mês fechado
+- Arquivos alterados: `public/js/modules/plano_voo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Ajustei a `Média mensal` dos cards de cenário para dividir o faturamento da rota apenas pelos meses com peso/receita acima de zero.
+- Quando um mês está com peso zero, ele deixa de entrar na média porque o negócio não vai funcionar naquele mês.
+- Renomeei a linha de lucro dos cards para `Lucro do período`, deixando claro que esse valor é do período total da rota.
+- Atualizei o cache-buster de `plano_voo.js` no Admin.
+
 ## 2026-06-04 — Plano de Voo: salvar rota para continuar depois
 - Arquivos alterados: `public/js/modules/plano_voo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - Adicionei no modal `Criar nova rota` o botão `Salvar para continuar depois`.

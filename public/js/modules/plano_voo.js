@@ -981,9 +981,9 @@ Modules.PlanoDeVoo = (function () {
         '</div>' +
         '<div style="display:flex;flex-direction:column;gap:9px;">' +
           _routeLine('Faturamento necessário', _fmtMoney(vm.revenueTotal), null, _routePeriodLabel(), true) +
-          _routeLine('Média mensal', _fmtMoney(monthlyAverage), null, 'com peso dos meses') +
+          _routeLine('Média mensal', _fmtMoney(monthlyAverage), null, 'só meses abertos') +
           _routeLine('Pedidos por dia', _ordersPerDay(vm)) +
-          _routeLine('Lucro estimado', _fmtMoney(vm.profit), vm.profit >= 0 ? '#1F6F43' : '#B42318') +
+          _routeLine('Lucro do período', _fmtMoney(vm.profit), vm.profit >= 0 ? '#1F6F43' : '#B42318') +
         '</div>' +
         _scenarioCostSummary(vm) +
         '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:' + _esc(effort.bg) + ';border-radius:13px;padding:10px 11px;">' +
@@ -996,7 +996,9 @@ Modules.PlanoDeVoo = (function () {
 
   function _routeMonthlyAverage(vm) {
     vm = vm || {};
-    var months = Array.isArray(vm.monthSeries) && vm.monthSeries.length ? vm.monthSeries.length : _routeMonthCount();
+    var months = Array.isArray(vm.monthSeries) && vm.monthSeries.length
+      ? vm.monthSeries.filter(function (month) { return _num(month && month.revenue) > 0 || _num(month && month.factor) > 0; }).length
+      : _routeMonthCount();
     months = Math.max(1, _num(months) || 1);
     return _num(vm.revenueTotal) / months;
   }
