@@ -9287,15 +9287,15 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
           '<div class="recipe-view-ingredient-cost">' + (lineCost > 0 ? _fmtFichaMoney(lineCost) : '€0,00') + '</div>' +
           '</div>';
       }).join('');
-      if (!list) list = '<div class="recipe-view-empty">Sem ingredientes nesta etapa.</div>';
+      if (!list) list = '<div class="recipe-view-empty">Sem ingredientes nesta base.</div>';
       var stepCost = _calcFichaComponentCosts([comp], recipeYieldQty, recipeYieldUnit).direct;
       var yieldNote = ratioInfo.proportional && ratioInfo.stageYieldQuantity
-        ? '<div class="recipe-view-step-note">Usa ' + _esc(_roundFichaCost(ratioInfo.stageUsageQuantity || 0, 4)) + ' ' + _esc(ratioInfo.stageUsageUnit || ratioInfo.stageYieldUnit || recipeYieldUnit) + ' de uma etapa que rende ' + _esc(_roundFichaCost(ratioInfo.stageYieldQuantity, 4)) + ' ' + _esc(ratioInfo.stageYieldUnit || recipeYieldUnit) + '.</div>'
+        ? '<div class="recipe-view-step-note">Usa ' + _esc(_roundFichaCost(ratioInfo.stageUsageQuantity || 0, 4)) + ' ' + _esc(ratioInfo.stageUsageUnit || ratioInfo.stageYieldUnit || recipeYieldUnit) + ' de uma base que rende ' + _esc(_roundFichaCost(ratioInfo.stageYieldQuantity, 4)) + ' ' + _esc(ratioInfo.stageYieldUnit || recipeYieldUnit) + '.</div>'
         : '';
       return '<div class="recipe-view-step-card">' +
         '<div class="recipe-view-step-head">' +
           '<div class="recipe-view-step-info">' +
-            '<div class="recipe-view-step-title">' + _esc(comp.name || 'Etapa da receita') + '</div>' +
+            '<div class="recipe-view-step-title">' + _esc(comp.name || 'Base da receita') + '</div>' +
             (comp.note ? '<div class="recipe-view-step-note">' + _esc(comp.note) + '</div>' : '') +
             yieldNote +
           '</div>' +
@@ -9415,7 +9415,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
         '</div>' +
       '</div>' +
       '<div class="recipe-view-card">' +
-        '<div class="recipe-view-section-head"><span class="mi recipe-view-section-icon">restaurant</span><div><div class="recipe-view-section-title">Ingredientes</div><div class="recipe-view-section-desc">Itens usados em cada etapa da receita.</div></div></div>' +
+        '<div class="recipe-view-section-head"><span class="mi recipe-view-section-icon">restaurant</span><div><div class="recipe-view-section-title">Ingredientes</div><div class="recipe-view-section-desc">Itens usados em cada base da receita.</div></div></div>' +
         '<div class="recipe-view-steps">' + _fichaIngredientsViewHtml(f) + '</div>' +
       '</div>' +
       '<div class="recipe-view-card">' +
@@ -9565,7 +9565,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
         '• Quantidade base: 1<br>' +
         '• Tipo de rendimento: unidades<br>' +
         '• Peso por unidade: só preencha se cada unidade tiver um peso padrão<br><br>' +
-        'O rendimento da etapa, como 1 kg de frango preparado, fica no cadastro da etapa de produção. Aqui entra só quanto a ficha consome daquela etapa.<br><br>' +
+        'O rendimento da base, como 1 kg de frango preparado, fica no cadastro da base de produção. Aqui entra só quanto a ficha consome daquela base.<br><br>' +
         '<strong>Importante:</strong><br>' +
         'se deixar vazio, o BocaFood considera 1 unidade.' +
       '</div>' +
@@ -9596,18 +9596,18 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       '</div>' +
 
       '<div class="recipe-modal-card recipe-modal-ingredients">' +
-      '<div class="recipe-modal-head"><span class="mi">restaurant</span><div><div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;"><div class="recipe-modal-title">Etapas e ingredientes</div><button type="button" class="recipe-help-btn" onclick="Modules.Catalogo._toggleFichaIngredientsHelp()">Como preencher?</button></div><div class="recipe-modal-desc">Escolha uma etapa reaproveitável e informe os ingredientes usados nela.</div></div></div>' +
+      '<div class="recipe-modal-head"><span class="mi">restaurant</span><div><div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;"><div class="recipe-modal-title">Bases e ingredientes</div><button type="button" class="recipe-help-btn" onclick="Modules.Catalogo._toggleFichaIngredientsHelp()">Como preencher?</button></div><div class="recipe-modal-desc">Escolha uma base reaproveitável e informe os ingredientes usados nela.</div></div></div>' +
       '<div id="fc-ingredients-help" class="recipe-help-box">' +
-        '<strong>Primeiro escolha a etapa.</strong><br>' +
-        'A etapa é a parte da receita que pode ser reaproveitada, como Massa de coxinha, Recheio de frango, Creme branco, Molho ou Cobertura.<br><br>' +
-        '<strong>Use sempre a mesma etapa quando for a mesma base.</strong><br>' +
+        '<strong>Primeiro escolha a base.</strong><br>' +
+        'A base é a produção reaproveitável da receita, como Massa de coxinha, Recheio de frango, Creme branco, Molho ou Cobertura.<br><br>' +
+        '<strong>Use sempre a mesma base quando for a mesma produção.</strong><br>' +
         'Se o mesmo Recheio de frango entra na coxinha e no pastel, selecione Recheio de frango nas duas receitas. Assim o BocaFood consegue tratar essa base como uma coisa só na produção.<br><br>' +
-        '<strong>Depois adicione os ingredientes dessa etapa.</strong><br>' +
+        '<strong>Depois adicione os ingredientes dessa base.</strong><br>' +
         '<strong>Exemplo:</strong><br>' +
-        'Na etapa "Massa", você pode adicionar farinha, leite, manteiga e sal.<br><br>' +
-        'Preencha a quantidade que realmente entra na etapa ou na parte usada por esta receita.<br><br>' +
+        'Na base "Massa", você pode adicionar farinha, leite, manteiga e sal.<br><br>' +
+        'Preencha a quantidade que realmente entra na base ou na parte usada por esta receita.<br><br>' +
         '<strong>Controle como base de produção</strong><br>' +
-        'Marque essa opção quando você produz essa etapa antes e guarda para usar depois. Exemplo: faz uma panela de recheio e usa em vários produtos ao longo do dia.<br><br>' +
+        'Marque essa opção quando você produz essa base antes e guarda para usar depois. Exemplo: faz uma panela de recheio e usa em vários produtos ao longo do dia.<br><br>' +
         '<strong>Importante:</strong><br>' +
         'não informe como você compra o ingrediente.<br>' +
         'Informe quanto você usa na produção.<br><br>' +
@@ -9615,7 +9615,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
         'se você compra farinha em saco de 5 kg, mas usa 500 g na massa, coloque 500 g aqui.' +
       '</div>' +
       '<div id="fc-components" style="display:flex;flex-direction:column;gap:12px;">' + componentRows + '</div>' +
-      '<button type="button" onclick="Modules.Catalogo._addFichaComponent()" class="recipe-dashed-btn recipe-add-stage-btn">+ Adicionar Etapa</button>' +
+      '<button type="button" onclick="Modules.Catalogo._addFichaComponent()" class="recipe-dashed-btn recipe-add-stage-btn">+ Adicionar base</button>' +
       '</div>' +
 
       '<div class="recipe-modal-card recipe-modal-packaging">' +
@@ -9625,7 +9625,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
         '<strong>Ela acompanha o rendimento global da receita.</strong><br>' +
         'Se a receita rende 15 unidades e cada unidade usa 1 saquinho, preencha 15 saquinhos aqui.<br><br>' +
         'Se a receita rende 15 unidades e todas vão em 1 caixa grande, preencha 1 caixa.<br><br>' +
-        'Não coloque embalagem dentro da etapa massa, recheio ou finalização, porque ela não depende do rendimento da etapa. Ela depende do rendimento final da receita.' +
+        'Não coloque embalagem dentro da base massa, recheio ou finalização, porque ela não depende do rendimento da base. Ela depende do rendimento final da receita.' +
       '</div>' +
       '<div id="fc-packaging-list" style="display:flex;flex-direction:column;gap:8px;">' + packagingRows + '</div>' +
       '<button type="button" onclick="Modules.Catalogo._addFichaPackaging()" class="recipe-dashed-btn">+ Adicionar embalagem</button>' +
@@ -9800,7 +9800,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       return;
     }
     if (!force && _componentHasRealIngredients(compIdx)) {
-      UI.toast('A etapa já tem ingredientes nesta receita. Mantive a edição manual.', 'info');
+      UI.toast('A base já tem ingredientes nesta receita. Mantive a edição manual.', 'info');
       _updateFichaCost();
       return;
     }
@@ -9850,9 +9850,9 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   function _recipeComponentOptionsHtml(selected) {
     var names = _recipeComponentNames(selected);
     if (!names.length) {
-      return '<option value="">Cadastre etapas em Produção > Etapas de produção</option>';
+      return '<option value="">Cadastre bases em Produção > Bases de produção</option>';
     }
-    return '<option value="">Selecionar etapa...</option>' + names.map(function (name) {
+    return '<option value="">Selecionar base...</option>' + names.map(function (name) {
       return '<option value="' + _esc(name) + '"' + (name === selected ? ' selected' : '') + '>' + _esc(name) + '</option>';
     }).join('');
   }
@@ -9968,14 +9968,14 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     window._recipeComponentTargetIdx = compIdx;
     var body = _recipeQuickCreateCss() +
       '<div class="recipe-quick-modal"><div class="recipe-quick-card">' +
-        '<div class="recipe-quick-field"><label>Nome da etapa *</label><input id="recipe-new-component-name" type="text" placeholder="Ex.: Recheio de frango"></div>' +
-        '<div class="recipe-quick-hint">Crie uma nova etapa só quando ela ainda não existe. Se for a mesma massa, recheio, creme ou molho usado em outra receita, escolha a etapa já cadastrada.</div>' +
+        '<div class="recipe-quick-field"><label>Nome da base *</label><input id="recipe-new-component-name" type="text" placeholder="Ex.: Recheio de frango"></div>' +
+        '<div class="recipe-quick-hint">Crie uma nova base só quando ela ainda não existe. Se for a mesma massa, recheio, creme ou molho usado em outra receita, escolha a base já cadastrada.</div>' +
       '</div></div>';
     var footer = '<div style="display:flex;justify-content:flex-end;gap:8px;">' +
       '<button type="button" onclick="window._recipeComponentModal&&window._recipeComponentModal.close()" style="height:38px;padding:0 14px;border-radius:10px;border:1px solid #E6E1D8;background:#fff;color:#6F6860;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;">Cancelar</button>' +
-      '<button type="button" onclick="Modules.Catalogo._saveRecipeComponentFromModal()" style="height:38px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">Adicionar etapa</button>' +
+      '<button type="button" onclick="Modules.Catalogo._saveRecipeComponentFromModal()" style="height:38px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">Adicionar base</button>' +
       '</div>';
-    window._recipeComponentModal = UI.modal({ title: 'Nova etapa de produção', body: body, footer: footer, maxWidth: '560px' });
+    window._recipeComponentModal = UI.modal({ title: 'Nova base de produção', body: body, footer: footer, maxWidth: '560px' });
     setTimeout(function () { var el = document.getElementById('recipe-new-component-name'); if (el) el.focus(); }, 80);
   }
 
@@ -9988,7 +9988,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     if (existing) {
       _refreshRecipeComponentSelects(existing.name || existing.label || name, window._recipeComponentTargetIdx);
       if (window._recipeComponentModal) window._recipeComponentModal.close();
-      UI.toast('Etapa selecionada.', 'success');
+      UI.toast('Base selecionada.', 'success');
       return;
     }
     var id = _newEntityId('recipe-comp');
@@ -9999,7 +9999,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       _recipeComponents = rows || [];
       _refreshRecipeComponentSelects(name, window._recipeComponentTargetIdx);
       if (window._recipeComponentModal) window._recipeComponentModal.close();
-      UI.toast('Etapa cadastrada!', 'success');
+      UI.toast('Base cadastrada!', 'success');
     }).catch(function (err) { UI.toast('Erro: ' + err.message, 'error'); });
   }
 
@@ -10034,20 +10034,20 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var lockedUsageUnit = componentDefaults.stageYieldUnit || '';
     var usageUnit = lockedUsageUnit || comp.stageUsageUnit || comp.usageUnit || comp.unitPerUnit || comp.baseUsageUnit || comp.stageYieldUnit || comp.baseYieldUnit || comp.stockYieldUnit || '';
     return '<div id="fc-comp-' + compIdx + '" class="fc-component recipe-component" data-comp-idx="' + compIdx + '">' +
-      '<div class="recipe-stage-guidance"><strong>Escolha uma etapa já cadastrada.</strong> Se essa mesma base aparece em outras receitas, use exatamente a mesma etapa para manter a produção conectada.</div>' +
+      '<div class="recipe-stage-guidance"><strong>Escolha uma base já cadastrada.</strong> Se essa mesma base aparece em outras receitas, use exatamente a mesma base para manter a produção conectada.</div>' +
       '<div class="recipe-component-head">' +
-      '<div><div class="recipe-inline-label"><label style="' + _fichaLbl() + 'margin-bottom:0;">Etapa reutilizável *</label><button type="button" class="recipe-inline-add" onclick="Modules.Catalogo._openRecipeComponentCreateModal(' + compIdx + ')">+ etapa</button></div><div class="supplier-field-control"><select data-comp-name="' + compIdx + '" onchange="Modules.Catalogo._applyRecipeComponentTemplate(' + compIdx + ', false)">' + _recipeComponentOptionsHtml((comp.name || '').trim()) + '</select></div><div class="recipe-component-hint">Exemplo: Recheio de frango, Massa de coxinha, Creme branco ou Molho especial.</div></div>' +
-      '<div><label style="' + _fichaLbl() + '">Anotação desta receita</label><div class="supplier-field-control"><input data-comp-note="' + compIdx + '" value="' + _esc(comp.note || '') + '" placeholder="Ex: usar fria ou bater antes de misturar"></div><div class="recipe-component-hint">Use só para orientação desta receita. Não altera a etapa reaproveitada.</div></div>' +
-      '<button type="button" onclick="Modules.Catalogo._removeFichaComponent(' + compIdx + ')" title="Remover etapa desta receita" style="width:34px;height:34px;border-radius:9px;border:1px solid #E6E1D8;background:#fff;color:#B42318;cursor:pointer;font-size:14px;box-shadow:0 1px 2px rgba(31,31,31,.03);">✕</button>' +
+      '<div><div class="recipe-inline-label"><label style="' + _fichaLbl() + 'margin-bottom:0;">Base reutilizável *</label><button type="button" class="recipe-inline-add" onclick="Modules.Catalogo._openRecipeComponentCreateModal(' + compIdx + ')">+ base</button></div><div class="supplier-field-control"><select data-comp-name="' + compIdx + '" onchange="Modules.Catalogo._applyRecipeComponentTemplate(' + compIdx + ', false)">' + _recipeComponentOptionsHtml((comp.name || '').trim()) + '</select></div><div class="recipe-component-hint">Exemplo: Recheio de frango, Massa de coxinha, Creme branco ou Molho especial.</div></div>' +
+      '<div><label style="' + _fichaLbl() + '">Anotação desta receita</label><div class="supplier-field-control"><input data-comp-note="' + compIdx + '" value="' + _esc(comp.note || '') + '" placeholder="Ex: usar fria ou bater antes de misturar"></div><div class="recipe-component-hint">Use só para orientação desta receita. Não altera a base reaproveitada.</div></div>' +
+      '<button type="button" onclick="Modules.Catalogo._removeFichaComponent(' + compIdx + ')" title="Remover base desta receita" style="width:34px;height:34px;border-radius:9px;border:1px solid #E6E1D8;background:#fff;color:#B42318;cursor:pointer;font-size:14px;box-shadow:0 1px 2px rgba(31,31,31,.03);">✕</button>' +
       '</div>' +
       '<div class="recipe-component-base">' +
         '<label><input type="checkbox" data-comp-stock="' + compIdx + '"' + (comp.stockControl || comp.controlsStock ? ' checked' : '') + ' style="accent-color:#B42318;width:15px;height:15px;"> Controlar como base produzida antes</label>' +
         '<div><label style="' + _fichaLbl() + '">Qtd. usada por unidade</label><div class="supplier-field-control"><input type="text" data-comp-stock-qty="' + compIdx + '" value="' + _esc(usageQty) + '" placeholder="Ex: 80" oninput="Modules.Catalogo._updateFichaCost()"></div></div>' +
         '<div><label style="' + _fichaLbl() + '">Unidade</label><div class="supplier-field-control"><select data-comp-stock-unit="' + compIdx + '" onchange="Modules.Catalogo._updateFichaCost()" ' + (lockedUsageUnit ? 'disabled aria-readonly="true"' : '') + '>' + _recipeUnitOptionsHtml(usageUnit) + '</select></div></div>' +
-        '<div class="recipe-base-copy"><strong style="color:#1F1F1F;">Marque apenas se essa etapa vira estoque próprio.</strong> Exemplo: cadastre a etapa Recheio de frango com rendimento próprio e, nesta ficha, informe 80 g no pastel ou 50 g na coxinha. A venda baixa essa quantidade da base pronta.</div>' +
+        '<div class="recipe-base-copy"><strong style="color:#1F1F1F;">Marque apenas se essa base vira estoque próprio.</strong> Exemplo: cadastre a base Recheio de frango com rendimento próprio e, nesta ficha, informe 80 g no pastel ou 50 g na coxinha. A venda baixa essa quantidade da base pronta.</div>' +
       '</div>' +
       '<div id="fc-comp-ings-' + compIdx + '" style="display:flex;flex-direction:column;gap:8px;">' + rows + '</div>' +
-      '<button type="button" onclick="Modules.Catalogo._addFichaIng(' + compIdx + ')" class="recipe-dashed-btn">+ Adicionar ingrediente nesta etapa</button>' +
+      '<button type="button" onclick="Modules.Catalogo._addFichaIng(' + compIdx + ')" class="recipe-dashed-btn">+ Adicionar ingrediente nesta base</button>' +
       '</div>';
   }
 
@@ -10066,7 +10066,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       : '<span style="color:#D4C8C6;font-size:11px;">—</span>';
     var costHtml = costVal > 0 ? _fmtFichaMoney(costVal) : '—';
     var displayAttrs = options.stageManaged
-      ? 'readonly aria-readonly="true" title="Ingrediente herdado da etapa de produção."'
+      ? 'readonly aria-readonly="true" title="Ingrediente herdado da base de produção."'
       : 'oninput="Modules.Catalogo._filterFichaIngredientOptions(\'' + idx + '\', this.value)" onfocus="Modules.Catalogo._filterFichaIngredientOptions(\'' + idx + '\', this.value)" onblur="setTimeout(function(){var d=document.getElementById(\'fc-ing-dropdown-' + idx + '\');if(d)d.style.display=\'none\';},180)"';
     var removeHtml = options.stageManaged
       ? '<span style="display:inline-flex;width:26px;height:26px;align-items:center;justify-content:center;color:#D4C8C6;font-size:12px;">—</span>'
@@ -10081,7 +10081,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
         '<div id="fc-ing-dropdown-' + idx + '" class="recipe-ingredient-dropdown"></div>' +
       '</div></div>' +
       '<div><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Quantidade</div>' +
-      '<div class="supplier-field-control"><input type="text" data-ing-qty="' + idx + '" value="' + _esc(_displayFichaQty(displayQty)) + '" placeholder="0" ' + (options.stageManaged ? 'readonly aria-readonly="true" title="Calculada pela quantidade usada da etapa nesta ficha."' : 'oninput="Modules.Catalogo._updateFichaCost()"') + '></div></div>' +
+      '<div class="supplier-field-control"><input type="text" data-ing-qty="' + idx + '" value="' + _esc(_displayFichaQty(displayQty)) + '" placeholder="0" ' + (options.stageManaged ? 'readonly aria-readonly="true" title="Calculada pela quantidade usada da base nesta ficha."' : 'oninput="Modules.Catalogo._updateFichaCost()"') + '></div></div>' +
       '<div><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Unidade</div><div id="fc-ing-unit-' + idx + '" style="font-size:12px;color:#1F1F1F;font-weight:600;">' + _esc(unidade) + '</div></div>' +
       '<div><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Perda</div><div id="fc-ing-loss-' + idx + '" style="white-space:nowrap;">' + perdaHtml + '</div></div>' +
       '<div><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Custo</div><div id="fc-ing-cost-' + idx + '" style="font-size:12px;color:#1F1F1F;font-weight:600;white-space:nowrap;">' + costHtml + '</div></div>' +

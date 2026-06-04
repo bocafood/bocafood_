@@ -1,5 +1,55 @@
 # AI Changelog
 
+## 2026-06-04 — Produção: copy Base de Produção
+- Arquivos alterados: `public/admin.html`, `public/js/modules/receitas.js`, `public/js/modules/catalogo.js`, `public/js/modules/dashboard.js`, `public/dashboard-onboarding-preview.html`, `public/js/modules/suporte.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Troquei as copies visíveis de `Etapa de produção`/`Etapa da receita` para `Base de produção` nos contextos de ficha técnica, receita, bases reaproveitáveis, previsão, ordens, onboarding e suporte.
+- Mantive chaves internas e rotas antigas como `receitas/etapas`, `components`, `plannedStages` e `receitas_etapas` para preservar compatibilidade com dados e fluxos existentes.
+- Atualizei a documentação operacional em `AGENTS.md` para orientar que a terminologia visível correta nesses contextos é `Base de produção`.
+- Atualizei os cache-busters dos módulos alterados no Admin.
+
+## 2026-06-04 — Estoque: configurações no padrão de Compras
+- Arquivos alterados: `public/js/modules/estoque.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Ajustei `Estoque → Configurações` para seguir o padrão visual de `Compras → Configurações`.
+- O bloco de regularização passou a usar card leve, cabeçalho compacto, linhas brancas clicáveis, estado ativo discreto e separador interno entre as duas decisões da tela.
+- Mantive a lógica existente de salvar `Comportamento da regularização` e `Venda sem saldo na loja`; a mudança foi visual e de organização da tela.
+- Corrigi o repintar da tela após salvar uma configuração para permanecer em `Estoque → Configurações`.
+- Atualizei o cache-buster de `estoque.js` no Admin.
+
+## 2026-06-04 — Estoque: filtro e listagem de regularizações no padrão de produção
+- Arquivos alterados: `public/js/modules/estoque.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Ajustei o card de filtros de `Estoque → Regularizações` para seguir o padrão visual de `Produção → Ordens de produção`, com busca larga, campos internos off-white, foco discreto e selects com seta consistente.
+- A listagem de regularizações recebeu hover e acabamento de tabela/card alinhados ao padrão usado nas ordens.
+- Corrigi a busca de regularizações para não repintar a tela a cada tecla, permitindo digitação contínua.
+- Atualizei o cache-buster de `estoque.js` no Admin.
+
+## 2026-06-04 — Estoque: origem correta nas movimentações de regularização
+- Arquivos alterados: `public/js/modules/estoque.js`, `AI_CHANGELOG.md`.
+- Corrigi o filtro `Origem` de `Estoque → Movimentações` para classificar movimentos da cadeia de regularização como `Regularização`, mesmo quando o tipo técnico é `saida_producao`.
+- Movimentos normais de ordem de produção continuam aparecendo como `Produção`.
+- A etiqueta da linha passa a mostrar `Consumo da regularização` para saídas técnicas ligadas à regularização.
+
+## 2026-06-04 — Estoque: filtro de movimentações no padrão de produção
+- Arquivos alterados: `public/js/modules/estoque.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Ajustei o card de filtros de `Estoque → Movimentações` para usar o mesmo padrão visual aplicado em `Produção → Ordens de produção` e `Estoque → Itens`.
+- A busca e o filtro de origem agora usam campos internos off-white com foco discreto e grid com busca mais larga.
+- Corrigi a busca de movimentações para não repintar a tela a cada tecla, permitindo digitação contínua.
+- Atualizei o cache-buster de `estoque.js` no Admin.
+
+## 2026-06-04 — Estoque: filtro de itens no padrão de produção
+- Arquivos alterados: `public/js/modules/estoque.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Ajustei o card de filtros de `Estoque → Itens` para seguir o padrão visual usado em `Produção → Ordens de produção`, com card em degradê leve, campos internos off-white, foco discreto e busca mais larga.
+- Corrigi a busca da tela de itens para não recriar o campo a cada tecla; agora a pintura da lista é feita com pequeno atraso, permitindo digitação contínua.
+- A busca também passa a considerar o código sequencial de estoque (`EST-0001`).
+- Atualizei o cache-buster de `estoque.js` no Admin.
+
+## 2026-06-04 — Estoque: código sequencial na listagem
+- Arquivos alterados: `public/js/modules/estoque.js`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- A listagem `Estoque → Itens` deixou de mostrar o ID técnico do item abaixo do nome.
+- Adicionei geração automática de código sequencial de estoque no formato `EST-0001`, salvo em `stock_settings.stockCode`/`codigoEstoque` por `stockKey`.
+- Itens já existentes sem código recebem o próximo código disponível ao carregar a tela; itens novos recebem código seguindo a sequência existente.
+- A tabela passa a mostrar `Código: EST-0001` abaixo do nome do item.
+- Atualizei o cache-buster de `estoque.js` no Admin e documentei a regra em `AGENTS.md`.
+
 ## 2026-06-04 — Estoque: configurações em aba própria
 - Arquivos alterados: `public/js/modules/estoque.js`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
 - Removi a barra interna com os botões `Itens`, `Movimentações` e `Regularizações` das telas de Estoque, mantendo a navegação pelo menu lateral.

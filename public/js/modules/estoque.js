@@ -12,10 +12,13 @@ Modules.Estoque = (function () {
   var _fornecedores = [];
   var _classMaps = { itens: {}, receitas: {}, produtos: {} };
   var _filters = { q: '', type: 'todos', stockKind: 'insumo' };
+  var _itemSearchTimer = null;
   var _itemsPage = { page: 1, perPage: 10 };
   var _movementFilters = { q: '', direction: 'entrada', origin: 'todos' };
+  var _movementSearchTimer = null;
   var _movementsPage = { page: 1, perPage: 10 };
   var _regularizationFilters = { q: '', status: 'pendente', type: 'todos' };
+  var _regularizationSearchTimer = null;
   var _regularizationsPage = { page: 1, perPage: 10 };
   var _detailMovementState = { key: '', q: '', page: 1, perPage: 5 };
 
@@ -69,6 +72,8 @@ Modules.Estoque = (function () {
       });
       _movements = (movements || []).slice();
       _items = _buildStockItems(_movements);
+      return _ensureStockCodesForItems(_items);
+    }).then(function () {
       if (_activeSub === 'movimentacoes') _paintMovements();
       else if (_activeSub === 'regularizacoes') _paintRegularizations();
       else if (_activeSub === 'configuracoes') _paintConfiguracoes();
@@ -140,6 +145,7 @@ Modules.Estoque = (function () {
       var suggestedMaxStock = _num(setting.suggestedMaxStock);
       item.minStock = manualMinStock > 0 ? manualMinStock : suggestedMinStock;
       item.maxStock = manualMaxStock > 0 ? manualMaxStock : suggestedMaxStock;
+      item.stockCode = _firstText(setting.stockCode, setting.codigoEstoque, setting.inventoryCode, '');
       item.minStockSuggested = manualMinStock <= 0 && suggestedMinStock > 0;
       item.maxStockSuggested = manualMaxStock <= 0 && suggestedMaxStock > 0;
       item.minStockEnabled = item.minStock > 0;
@@ -151,6 +157,51 @@ Modules.Estoque = (function () {
     }).sort(function (a, b) {
       return String(a.itemName || '').localeCompare(String(b.itemName || ''), 'pt-BR');
     });
+  }
+
+  function _ensureStockCodesForItems(items) {
+    var list = Array.isArray(items) ? items : [];
+    var used = {};
+    var maxSeq = 0;
+    Object.keys(_settings || {}).forEach(function (key) {
+      var setting = _settings[key] || {};
+      var code = _firstText(setting.stockCode, setting.codigoEstoque, setting.inventoryCode, '');
+      if (!code) return;
+      used[code] = true;
+      var match = String(code).match(/EST-(\d+)/i);
+      if (match) maxSeq = Math.max(maxSeq, parseInt(match[1], 10) || 0);
+    });
+    var missing = list.filter(function (item) { return item && item.key && !item.stockCode; }).sort(function (a, b) {
+      return String(a.itemName || '').localeCompare(String(b.itemName || ''), 'pt-BR') || String(a.key || '').localeCompare(String(b.key || ''));
+    });
+    if (!missing.length) return Promise.resolve(false);
+    var now = new Date().toISOString();
+    var ops = missing.map(function (item) {
+      var code = '';
+      do {
+        maxSeq += 1;
+        code = 'EST-' + String(maxSeq).padStart(4, '0');
+      } while (used[code]);
+      used[code] = true;
+      item.stockCode = code;
+      var id = _stockSettingId(item.key);
+      var current = _settings[item.key] || {};
+      _settings[item.key] = Object.assign({}, current, {
+        id: id,
+        stockKey: item.key,
+        stockCode: code,
+        codigoEstoque: code,
+        itemId: item.itemId || current.itemId || '',
+        itemName: item.itemName || current.itemName || '',
+        itemType: item.itemType || current.itemType || '',
+        stockItemType: item.stockItemType || current.stockItemType || '',
+        unit: item.unit || current.unit || '',
+        updatedAt: now,
+        createdAt: current.createdAt || now
+      });
+      return DB.col('stock_settings').doc(id).set(_settings[item.key], { merge: true }).catch(function () { return null; });
+    });
+    return Promise.all(ops).then(function () { return true; });
   }
 
   function _buildClassMaps(costItems, recipes, products) {
@@ -242,12 +293,13 @@ Modules.Estoque = (function () {
     var unit = (isProductionEntry || isProductionProductReversal || isBaseProductionEntry || isBaseProductionReversal) ? (movement.yieldUnit || movement.unit || '') : (movement.unit || '');
     var unitCost = (isProductionEntry || isProductionProductReversal || isBaseProductionEntry || isBaseProductionReversal) ? _num(movement.estimatedUnitCost || movement.unitCost) : _num(movement.unitCost);
     var hasCost = unitCost > 0;
-    var label = isRegularizationEntry ? 'Entrada de regularização' : (isPurchaseEntry ? 'Entrada de compra' : (isPurchaseReversal ? 'Estorno de compra' : (isBaseProductionEntry ? 'Entrada de base de produção' : (isBaseProductionReversal ? 'Estorno de base de produção' : (isBaseSaleExit ? 'Saída de base por venda' : (isProductionEntry ? 'Entrada de produção' : (isProductionProductReversal ? 'Estorno de produto produzido' : (isSaleReturn ? 'Retorno de venda' : (isSaleLoss ? 'Perda de venda' : (isSaleExit ? 'Saída por venda' : (isSaleReversal ? 'Estorno de venda' : (isProductionIngredientReversal ? 'Estorno de ingrediente' : (isAdjustmentEntry ? 'Ajuste de entrada' : (isAdjustmentExit ? 'Ajuste de saída' : 'Saída para produção'))))))))))))));
-    var origin = isRegularizationEntry ? 'Regularização' : ((isPurchaseEntry || isPurchaseReversal) ? 'Compra' : (isSaleRelated || isSaleReversal ? 'Venda' : ((isAdjustmentEntry || isAdjustmentExit) ? 'Ajuste' : 'Produção')));
+    var isRegularizationRelated = isRegularizationEntry || movement.movementGroup === 'stock_regularization' || movement.movementGroup === 'stock_regularization_chain' || !!movement.regularizationOrigin || !!movement.regularizationParentMovementId || !!movement.regularizationSourceMovementId;
+    var label = isRegularizationEntry ? 'Entrada de regularização' : (isRegularizationRelated ? 'Consumo da regularização' : (isPurchaseEntry ? 'Entrada de compra' : (isPurchaseReversal ? 'Estorno de compra' : (isBaseProductionEntry ? 'Entrada de base de produção' : (isBaseProductionReversal ? 'Estorno de base de produção' : (isBaseSaleExit ? 'Saída de base por venda' : (isProductionEntry ? 'Entrada de produção' : (isProductionProductReversal ? 'Estorno de produto produzido' : (isSaleReturn ? 'Retorno de venda' : (isSaleLoss ? 'Perda de venda' : (isSaleExit ? 'Saída por venda' : (isSaleReversal ? 'Estorno de venda' : (isProductionIngredientReversal ? 'Estorno de ingrediente' : (isAdjustmentEntry ? 'Ajuste de entrada' : (isAdjustmentExit ? 'Ajuste de saída' : 'Saída para produção')))))))))))))));
+    var origin = isRegularizationRelated ? 'Regularização' : ((isPurchaseEntry || isPurchaseReversal) ? 'Compra' : (isSaleRelated || isSaleReversal ? 'Venda' : ((isAdjustmentEntry || isAdjustmentExit) ? 'Ajuste' : 'Produção')));
     var originDetail = '';
     if (isPurchaseEntry || isPurchaseReversal) {
       originDetail = 'Compra' + (movement.purchaseNumber ? ' ' + movement.purchaseNumber : '') + (movement.purchaseDocument ? ' · ' + movement.purchaseDocument : '');
-    } else if (isRegularizationEntry) {
+    } else if (isRegularizationRelated) {
       originDetail = 'Regularização do pedido' + (movement.orderNumber ? ' ' + movement.orderNumber : '');
     } else if (isSaleRelated || isSaleReversal) {
       originDetail = 'Pedido' + (movement.orderNumber ? ' ' + movement.orderNumber : '') + _saleStockTraceLabel(movement, { isSaleLoss: isSaleLoss, isSaleReturn: isSaleReturn, isBaseSaleExit: isBaseSaleExit });
@@ -353,7 +405,7 @@ Modules.Estoque = (function () {
     var hasFilters = _hasFilters();
     var rows = pageItems.map(function (item) {
       return '<tr onclick="Modules.Estoque._openItemDetails(\'' + _escJs(item.key) + '\')" class="stock-row">' +
-        '<td><div class="stock-item-name">' + _esc(item.itemName) + '</div><div class="stock-item-note">' + _esc(item.itemId || 'Sem código vinculado') + '</div></td>' +
+        '<td><div class="stock-item-name">' + _esc(item.itemName) + '</div><div class="stock-item-note">Código: ' + _esc(item.stockCode || 'gerando...') + '</div></td>' +
         '<td><span class="stock-badge ' + _stockKindClass(item.stockItemType) + '">' + _stockClassLabel(item.stockClass || item.stockItemType) + '</span>' + (item.stockItemType && item.stockClass && item.stockItemType !== item.stockClass ? '<div class="stock-item-note">' + _esc(_stockKindLabel(item.stockItemType)) + '</div>' : '') + '</td>' +
         '<td><strong>' + _fmtQty(item.balance) + '</strong> <span>' + _esc(item.unit || '') + '</span>' + (item.isBelowMin ? '<div class="stock-item-note stock-alert-text">Abaixo do mínimo</div>' : '') + (item.isAboveMax ? '<div class="stock-item-note stock-alert-text">Acima do máximo</div>' : '') + '</td>' +
         '<td>' + (item.hasCost ? _money(item.estimatedValue) : '<span class="stock-muted">sem custo informado</span>') + '</td>' +
@@ -366,12 +418,12 @@ Modules.Estoque = (function () {
       _stockKindTabsHtml() +
       '<section class="stock-filter-card">' +
         '<div class="stock-filter-grid">' +
-          '<label><span>Buscar</span><input type="search" value="' + _esc(_filters.q) + '" placeholder="Buscar item..." oninput="Modules.Estoque._setFilter(\'q\', this.value)"></label>' +
-          '<label><span>Tipo</span><select onchange="Modules.Estoque._setFilter(\'type\', this.value)">' +
+          '<label style="display:block;min-width:0;"><span>Buscar</span><div class="stock-filter-field"><input id="stock-item-search" type="search" value="' + _esc(_filters.q) + '" placeholder="Buscar por item, código ou origem" autocomplete="off" oninput="Modules.Estoque._setFilter(\'q\', this.value)"></div></label>' +
+          '<label style="display:block;min-width:0;"><span>Tipo</span><div class="stock-filter-field"><select onchange="Modules.Estoque._setFilter(\'type\', this.value)">' +
             '<option value="todos"' + (_filters.type === 'todos' ? ' selected' : '') + '>Todos</option>' +
             '<option value="ingrediente"' + (_filters.type === 'ingrediente' ? ' selected' : '') + '>Ingredientes</option>' +
             '<option value="produto"' + (_filters.type === 'produto' ? ' selected' : '') + '>Produtos</option>' +
-          '</select></label>' +
+          '</select></div></label>' +
         '</div>' +
         (hasFilters ? '<div class="stock-filter-actions"><button type="button" class="stock-filter-clear" onclick="Modules.Estoque._clearFilters()">Limpar filtros</button></div>' : '') +
       '</section>' +
@@ -446,22 +498,22 @@ Modules.Estoque = (function () {
         _regularizationMetric('Custo estimado', summary.cost > 0 ? _money(summary.cost) : 'sem custo', 'Soma dos custos estimados das faltas.') +
       '</section>' +
       '<section class="stock-filter-card">' +
-        '<div class="stock-filter-grid movement-grid">' +
-          '<label><span>Buscar</span><input type="search" value="' + _esc(_regularizationFilters.q || '') + '" placeholder="Buscar item, pedido ou cliente..." oninput="Modules.Estoque._setRegularizationFilter(\'q\', this.value)"></label>' +
-          '<label><span>Status</span><select onchange="Modules.Estoque._setRegularizationFilter(\'status\', this.value)">' +
+        '<div class="stock-filter-grid regularization-grid">' +
+          '<label style="display:block;min-width:0;"><span>Buscar</span><div class="stock-filter-field"><input id="stock-regularization-search" type="search" value="' + _esc(_regularizationFilters.q || '') + '" placeholder="Buscar item, pedido ou cliente" autocomplete="off" oninput="Modules.Estoque._setRegularizationFilter(\'q\', this.value)"></div></label>' +
+          '<label style="display:block;min-width:0;"><span>Status</span><div class="stock-filter-field"><select onchange="Modules.Estoque._setRegularizationFilter(\'status\', this.value)">' +
             '<option value="pendente"' + (_regularizationFilters.status === 'pendente' ? ' selected' : '') + '>Pendentes</option>' +
             '<option value="todos"' + (_regularizationFilters.status === 'todos' ? ' selected' : '') + '>Todos</option>' +
             '<option value="aplicada"' + (_regularizationFilters.status === 'aplicada' ? ' selected' : '') + '>Aplicadas</option>' +
             '<option value="ignorada"' + (_regularizationFilters.status === 'ignorada' ? ' selected' : '') + '>Ignoradas</option>' +
-          '</select></label>' +
-          '<label><span>Classe</span><select onchange="Modules.Estoque._setRegularizationFilter(\'type\', this.value)">' +
+          '</select></div></label>' +
+          '<label style="display:block;min-width:0;"><span>Classe</span><div class="stock-filter-field"><select onchange="Modules.Estoque._setRegularizationFilter(\'type\', this.value)">' +
             '<option value="todos"' + (_regularizationFilters.type === 'todos' ? ' selected' : '') + '>Todas</option>' +
             '<option value="insumo"' + (_regularizationFilters.type === 'insumo' ? ' selected' : '') + '>Insumos</option>' +
             '<option value="embalagem"' + (_regularizationFilters.type === 'embalagem' ? ' selected' : '') + '>Embalagens</option>' +
             '<option value="produto_pronto"' + (_regularizationFilters.type === 'produto_pronto' ? ' selected' : '') + '>Produtos prontos</option>' +
             '<option value="produto_produzido"' + (_regularizationFilters.type === 'produto_produzido' ? ' selected' : '') + '>Produtos produzidos</option>' +
             '<option value="base_producao"' + (_regularizationFilters.type === 'base_producao' ? ' selected' : '') + '>Bases de produção</option>' +
-          '</select></label>' +
+          '</select></div></label>' +
         '</div>' +
         (hasFilters ? '<div class="stock-filter-actions"><button type="button" class="stock-filter-clear" onclick="Modules.Estoque._clearRegularizationFilters()">Limpar filtros</button></div>' : '') +
       '</section>' +
@@ -487,21 +539,22 @@ Modules.Estoque = (function () {
   function _regularizationConfigHtml() {
     var mode = _regularizationMode();
     var allowOutOfStock = _allowOutOfStockSales();
-    return '<section class="stock-filter-card stock-regularization-config">' +
-      '<div class="stock-list-title">' +
-        '<div><h2>Comportamento da regularização</h2><p>Defina o que acontece quando uma venda baixa estoque sem saldo suficiente.</p></div>' +
+    return '<section class="stock-config-card">' +
+      '<div class="stock-config-card-head">' +
+        '<div><div class="stock-config-card-title">Comportamento da regularização</div><div class="stock-config-card-desc">Escolha o que acontece quando qualquer saída deixar o estoque negativo.</div></div>' +
       '</div>' +
-      '<div class="stock-config-options">' +
+      '<div class="stock-config-list">' +
         _regularizationModeOption('pendencia', mode, 'Criar pendência', 'Registra a falta para revisar depois. É o modo mais seguro.') +
         _regularizationModeOption('automatico', mode, 'Aplicar automaticamente', 'Cria entrada de regularização junto com a saída da venda.') +
         _regularizationModeOption('desligado', mode, 'Desligado', 'Mantém a saída, mas não gera pendência nem entrada de regularização.') +
       '</div>' +
-      '<div class="stock-list-title" style="margin-top:4px;">' +
-        '<div><h2>Venda sem saldo na loja</h2><p>Produtos sob encomenda continuam liberados. Para os demais, escolha se a loja pública deve bloquear quando o saldo calculado acabar.</p></div>' +
+      '<div class="stock-config-divider"></div>' +
+      '<div class="stock-config-card-head">' +
+        '<div><div class="stock-config-card-title">Venda sem saldo na loja</div><div class="stock-config-card-desc">Produtos sob encomenda continuam liberados. Para os demais, escolha se a loja pública bloqueia quando o saldo calculado acabar.</div></div>' +
       '</div>' +
-      '<div class="stock-config-options">' +
+      '<div class="stock-config-list">' +
         _outOfStockModeOption(false, allowOutOfStock, 'Bloquear quando zerar', 'A loja impede adicionar produto calculável sem saldo. É o padrão seguro.') +
-        _outOfStockModeOption(true, allowOutOfStock, 'Permitir venda sem saldo', 'A loja aceita a venda; a baixa cria pendência, regularização ou só histórico conforme a regra acima.') +
+        _outOfStockModeOption(true, allowOutOfStock, 'Permitir venda sem saldo', 'A loja aceita a venda. A baixa posterior segue a regra de regularização acima.') +
       '</div>' +
     '</section>';
   }
@@ -510,14 +563,14 @@ Modules.Estoque = (function () {
     var content = document.getElementById('stock-content');
     if (!content) return;
     content.innerHTML =
-      '<div style="display:flex;flex-direction:column;gap:16px;">' +
+      '<div class="stock-config-wrap">' +
         _regularizationConfigHtml() +
       '</div>';
   }
 
   function _regularizationModeOption(value, current, label, description) {
-    return '<button type="button" class="stock-config-option ' + (current === value ? 'active' : '') + '" onclick="Modules.Estoque._saveRegularizationMode(\'' + value + '\')">' +
-      '<strong>' + _esc(label) + '</strong><span>' + _esc(description) + '</span>' +
+    return '<button type="button" class="stock-config-row ' + (current === value ? 'active' : '') + '" onclick="Modules.Estoque._saveRegularizationMode(\'' + value + '\')">' +
+      '<div><div class="stock-config-row-title">' + _esc(label) + '</div><div class="stock-config-row-text">' + _esc(description) + '</div></div><span class="stock-config-row-check">' + (current === value ? 'Ativo' : 'Selecionar') + '</span>' +
     '</button>';
   }
 
@@ -534,8 +587,8 @@ Modules.Estoque = (function () {
   }
 
   function _outOfStockModeOption(value, current, label, description) {
-    return '<button type="button" class="stock-config-option ' + (current === value ? 'active' : '') + '" onclick="Modules.Estoque._saveOutOfStockSalesMode(' + (value ? 'true' : 'false') + ')">' +
-      '<strong>' + _esc(label) + '</strong><span>' + _esc(description) + '</span>' +
+    return '<button type="button" class="stock-config-row ' + (current === value ? 'active' : '') + '" onclick="Modules.Estoque._saveOutOfStockSalesMode(' + (value ? 'true' : 'false') + ')">' +
+      '<div><div class="stock-config-row-title">' + _esc(label) + '</div><div class="stock-config-row-text">' + _esc(description) + '</div></div><span class="stock-config-row-check">' + (current === value ? 'Ativo' : 'Selecionar') + '</span>' +
     '</button>';
   }
 
@@ -550,7 +603,8 @@ Modules.Estoque = (function () {
       _stockConfig.regularizationMode = mode;
       _stockConfig.stockRegularizationMode = mode;
       UI.toast('Configuração de regularização salva.', 'success');
-      _paintRegularizations();
+      if (_activeSub === 'configuracoes') _paintConfiguracoes();
+      else _paintRegularizations();
     }).catch(function (err) {
       UI.toast('Erro ao salvar configuração: ' + (err && err.message ? err.message : err), 'error');
     });
@@ -569,7 +623,8 @@ Modules.Estoque = (function () {
       _stockConfig.sellWithoutStock = allow;
       _stockConfig.publicAllowOutOfStockSales = allow;
       UI.toast('Configuração de venda sem saldo salva.', 'success');
-      _paintRegularizations();
+      if (_activeSub === 'configuracoes') _paintConfiguracoes();
+      else _paintRegularizations();
     }).catch(function (err) {
       UI.toast('Erro ao salvar configuração: ' + (err && err.message ? err.message : err), 'error');
     });
@@ -611,15 +666,15 @@ Modules.Estoque = (function () {
       '</section>' +
       '<section class="stock-filter-card">' +
         '<div class="stock-filter-grid movement-grid">' +
-          '<label><span>Buscar</span><input type="search" value="' + _esc(_movementFilters.q || '') + '" placeholder="Buscar item, origem ou tipo..." oninput="Modules.Estoque._setMovementFilter(\'q\', this.value)"></label>' +
-          '<label><span>Origem</span><select onchange="Modules.Estoque._setMovementFilter(\'origin\', this.value)">' +
+          '<label style="display:block;min-width:0;"><span>Buscar</span><div class="stock-filter-field"><input id="stock-movement-search" type="search" value="' + _esc(_movementFilters.q || '') + '" placeholder="Buscar item, origem ou tipo" autocomplete="off" oninput="Modules.Estoque._setMovementFilter(\'q\', this.value)"></div></label>' +
+          '<label style="display:block;min-width:0;"><span>Origem</span><div class="stock-filter-field"><select onchange="Modules.Estoque._setMovementFilter(\'origin\', this.value)">' +
             '<option value="todos"' + (_movementFilters.origin === 'todos' ? ' selected' : '') + '>Todas</option>' +
             '<option value="Compra"' + (_movementFilters.origin === 'Compra' ? ' selected' : '') + '>Compra</option>' +
             '<option value="Produção"' + (_movementFilters.origin === 'Produção' ? ' selected' : '') + '>Produção</option>' +
             '<option value="Venda"' + (_movementFilters.origin === 'Venda' ? ' selected' : '') + '>Venda</option>' +
             '<option value="Ajuste"' + (_movementFilters.origin === 'Ajuste' ? ' selected' : '') + '>Ajuste</option>' +
             '<option value="Regularização"' + (_movementFilters.origin === 'Regularização' ? ' selected' : '') + '>Regularização</option>' +
-          '</select></label>' +
+          '</select></div></label>' +
         '</div>' +
         (hasFilters ? '<div class="stock-filter-actions"><button type="button" class="stock-filter-clear" onclick="Modules.Estoque._clearMovementFilters()">Limpar filtros</button></div>' : '') +
       '</section>' +
@@ -661,7 +716,7 @@ Modules.Estoque = (function () {
     return (_items || []).filter(function (item) {
       var typeOk = _filters.type === 'todos' || item.itemType === _filters.type;
       var kindOk = _filters.stockKind === 'todos' || item.stockItemType === _filters.stockKind;
-      var qOk = !q || _norm(item.itemName + ' ' + item.itemId + ' ' + item.originText).indexOf(q) >= 0;
+      var qOk = !q || _norm(item.itemName + ' ' + item.itemId + ' ' + item.stockCode + ' ' + item.originText).indexOf(q) >= 0;
       return typeOk && kindOk && qOk;
     });
   }
@@ -866,6 +921,14 @@ Modules.Estoque = (function () {
   function _setFilter(key, value) {
     _filters[key] = value || (key === 'type' || key === 'stockKind' ? 'todos' : '');
     _itemsPage.page = 1;
+    if (key === 'q') {
+      if (_itemSearchTimer) clearTimeout(_itemSearchTimer);
+      _itemSearchTimer = setTimeout(function () {
+        _itemSearchTimer = null;
+        _paintItems();
+      }, 220);
+      return;
+    }
     _paintItems();
   }
 
@@ -890,6 +953,14 @@ Modules.Estoque = (function () {
   function _setMovementFilter(key, value) {
     _movementFilters[key] = value || (key === 'origin' ? 'todos' : '');
     _movementsPage.page = 1;
+    if (key === 'q') {
+      if (_movementSearchTimer) clearTimeout(_movementSearchTimer);
+      _movementSearchTimer = setTimeout(function () {
+        _movementSearchTimer = null;
+        _paintMovements();
+      }, 220);
+      return;
+    }
     _paintMovements();
   }
 
@@ -920,6 +991,14 @@ Modules.Estoque = (function () {
   function _setRegularizationFilter(key, value) {
     _regularizationFilters[key] = value || (key === 'status' || key === 'type' ? 'todos' : '');
     _regularizationsPage.page = 1;
+    if (key === 'q') {
+      if (_regularizationSearchTimer) clearTimeout(_regularizationSearchTimer);
+      _regularizationSearchTimer = setTimeout(function () {
+        _regularizationSearchTimer = null;
+        _paintRegularizations();
+      }, 220);
+      return;
+    }
     _paintRegularizations();
   }
 
@@ -1654,12 +1733,16 @@ Modules.Estoque = (function () {
       '.stock-kind-tabs button.active{background:#B42318;color:#fff;border-color:#B42318;box-shadow:0 8px 18px rgba(180,35,24,.16);}' +
       '.stock-kind-tabs.movement-tabs{padding:8px;}' +
       '.stock-filter-card,.stock-card,.stock-detail-card{background:#fff;border:1px solid #EAE4DA;border-radius:18px;box-shadow:0 14px 34px rgba(31,31,31,.055);}' +
-      '.stock-filter-card{padding:16px;}' +
-      '.stock-filter-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:11px 12px;align-items:end;}' +
-      '.stock-filter-grid.movement-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));}' +
+      '.stock-filter-card{background:linear-gradient(180deg,#FFFFFF 0%,#FFFCFA 100%);border-color:#EADFD8;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.055);}' +
+      '.stock-filter-grid{display:grid;grid-template-columns:minmax(260px,1fr) minmax(180px,240px);gap:11px 12px;align-items:end;}' +
+      '.stock-filter-grid.movement-grid{grid-template-columns:minmax(260px,1fr) minmax(180px,240px);}' +
+      '.stock-filter-grid.regularization-grid{grid-template-columns:minmax(260px,1fr) minmax(160px,220px) minmax(190px,260px);}' +
       '.stock-filter-grid label{display:flex;flex-direction:column;gap:6px;font-size:11px;font-weight:600;color:#6F6860;letter-spacing:.02em;}' +
-      '.stock-filter-grid input,.stock-filter-grid select{height:42px;width:100%;box-sizing:border-box;border:1px solid #E8DCD7;border-radius:12px;background:#FFFCF8;color:#1F1F1F;font-size:14px;font-weight:400;font-family:inherit;outline:none;padding:0 12px;box-shadow:inset 0 1px 0 rgba(255,255,255,.82);}' +
-      '.stock-filter-grid select{appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,#8A7E7C 50%),linear-gradient(135deg,#8A7E7C 50%,transparent 50%);background-position:calc(100% - 18px) 18px,calc(100% - 13px) 18px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:38px;}' +
+      '.stock-filter-field{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:0 12px;min-height:42px;display:flex;align-items:center;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;}' +
+      '.stock-filter-field:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
+      '.stock-filter-field input,.stock-filter-field select{width:100%;height:40px;border:0;background:transparent;outline:none;font-size:14px;font-weight:400;font-family:inherit;color:#1F1F1F;box-sizing:border-box;}' +
+      '.stock-filter-field select{appearance:none;-webkit-appearance:none;-moz-appearance:none;padding-right:30px;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 4px center;background-size:14px;}' +
+      '.stock-filter-grid input,.stock-filter-grid select{font-family:inherit;}' +
       '.stock-filter-actions{display:flex;justify-content:flex-start;margin-top:11px;}' +
       '.stock-filter-clear{height:36px;padding:0 13px;border:1px solid #EADFD8;border-radius:11px;background:#fff;color:#6F6860;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);}' +
       '.stock-card{padding:0;overflow:hidden;}' +
@@ -1676,17 +1759,27 @@ Modules.Estoque = (function () {
       '.stock-list-title h2{margin:0;color:#1F1F1F;font-size:14px;font-weight:700;line-height:1.3;}' +
       '.stock-list-title p{margin:3px 0 0;color:#6F6860;font-size:13px;line-height:1.45;}' +
       '.stock-list-title button{height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:500;font-family:inherit;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);}' +
-      '.stock-regularization-config{display:flex;flex-direction:column;gap:12px;}' +
-      '.stock-config-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}' +
-      '.stock-config-option{min-height:78px;text-align:left;border:1px solid #E8DCD7;border-radius:14px;background:#FFFCF8;padding:12px;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;gap:5px;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;}' +
-      '.stock-config-option strong{font-size:13px;color:#1F1F1F;font-weight:750;line-height:1.25;}' +
-      '.stock-config-option span{font-size:12px;color:#6F6860;line-height:1.35;}' +
-      '.stock-config-option.active{background:#FFF6F4;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
+      '.stock-config-wrap{display:flex;flex-direction:column;gap:16px;}' +
+      '.stock-config-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:18px 20px;box-shadow:0 10px 24px rgba(31,31,31,.04);}' +
+      '.stock-config-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:14px;}' +
+      '.stock-config-card-title{font-size:14px;font-weight:700;color:#1F1F1F;line-height:1.3;}' +
+      '.stock-config-card-desc{font-size:13px;color:#6F6860;line-height:1.45;margin-top:4px;max-width:760px;}' +
+      '.stock-config-list{display:flex;flex-direction:column;gap:10px;}' +
+      '.stock-config-row{width:100%;background:#fff;border:1px solid #EADFD8;border-radius:14px;padding:13px 14px;box-shadow:0 1px 2px rgba(31,31,31,.03);display:flex;align-items:center;justify-content:space-between;gap:12px;text-align:left;cursor:pointer;font-family:inherit;transition:background .15s ease,box-shadow .15s ease,transform .15s ease,border-color .15s ease;}' +
+      '.stock-config-row:hover{background:#FFFCF8;box-shadow:0 8px 18px rgba(31,31,31,.04);transform:translateY(-1px);}' +
+      '.stock-config-row.active{background:#FFF7F5;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
+      '.stock-config-row-title{font-size:15px;font-weight:650;color:#1F1F1F;line-height:1.3;}' +
+      '.stock-config-row-text{font-size:12px;color:#6F6860;line-height:1.35;margin-top:2px;}' +
+      '.stock-config-row-check{height:26px;padding:0 10px;border-radius:999px;border:1px solid #EADFD8;background:#FAF8F4;color:#6F6860;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;}' +
+      '.stock-config-row.active .stock-config-row-check{background:#B42318;border-color:#B42318;color:#fff;}' +
+      '.stock-config-divider{height:1px;background:#F0E7E1;margin:18px 0;}' +
       '.stock-table-card{background:#fff;border:1px solid #EADFD8;border-radius:18px;box-shadow:0 12px 30px rgba(31,31,31,.055);overflow:hidden;}' +
       '.stock-table-wrap{overflow:auto;}' +
       '.stock-table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;min-width:920px;}' +
       '.stock-table th{padding:12px 16px;text-align:left;color:#1F1F1F;font-size:11px;text-transform:uppercase;letter-spacing:.04em;font-weight:600;background:#fff;border-bottom:1px solid #EAE4DA;white-space:nowrap;}' +
       '.stock-table td{padding:14px 16px;border-bottom:1px solid #EADFD8;color:#1F1F1F;vertical-align:middle;}' +
+      '.stock-table tbody tr{background:#fff;transition:background .15s ease,box-shadow .15s ease;}' +
+      '.stock-table tbody tr:hover{background:#FFFCF8;}' +
       '.stock-row{cursor:pointer;transition:background .15s ease;}' +
       '.stock-row:hover{background:#FFFCF8;}' +
       '.stock-table-footer{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:16px 18px;}' +
@@ -1782,7 +1875,7 @@ Modules.Estoque = (function () {
       '.stock-quick-line strong{display:block;font-size:13px;color:#1F1F1F;font-weight:750;line-height:1.25;}' +
       '.stock-quick-line span{display:block;margin-top:3px;font-size:12px;color:#6F6860;line-height:1.35;}' +
       '@media(max-width:900px){.stock-detail-grid,.stock-regularization-summary{grid-template-columns:1fr 1fr;}.stock-adjust-grid,.stock-adjust-grid.min-grid{grid-template-columns:1fr 1fr;}}' +
-      '@media(max-width:760px){.stock-page{padding:16px;}.stock-filter-grid,.stock-filter-grid.movement-grid,.stock-config-options{grid-template-columns:1fr;}.stock-table{min-width:760px;}}' +
+      '@media(max-width:760px){.stock-page{padding:16px;}.stock-filter-grid,.stock-filter-grid.movement-grid,.stock-filter-grid.regularization-grid{grid-template-columns:1fr;}.stock-config-card{padding:16px;}.stock-config-row{align-items:flex-start;flex-direction:column;}.stock-table{min-width:760px;}}' +
       '@media(max-width:760px){.stock-adjust-grid{grid-template-columns:1fr 1fr;}.stock-kind-tabs{overflow:auto;flex-wrap:nowrap}.stock-kind-tabs button{white-space:nowrap;}}' +
       '@media(max-width:520px){.stock-detail-grid,.stock-regularization-summary{grid-template-columns:1fr;}.stock-detail-hero{flex-direction:column;}.stock-header h1{font-size:22px;}.stock-adjust-grid{grid-template-columns:1fr;}}' +
       '</style>';

@@ -38,7 +38,7 @@ Modules.Receitas = (function () {
   var _forecastPage = { page: 1, perPage: 10 };
   var TABS = [
     { key: 'receitas', label: 'Receitas' },
-    { key: 'etapas', label: 'Etapas de produção' },
+    { key: 'etapas', label: 'Bases de produção' },
     { key: 'ordens', label: 'Ordens' },
     { key: 'previsao', label: 'Previsão' },
     { key: 'lista-compras', label: 'Lista de Compras' },
@@ -65,14 +65,14 @@ Modules.Receitas = (function () {
   function _configMeta(key) {
     var map = {
       componentes: {
-        title: 'Etapas de produção',
-        desc: 'Cadastre partes que podem aparecer em mais de uma receita, como massa, recheio, creme, molho ou cobertura.',
-        add: '+ Adicionar etapa'
+        title: 'Bases de produção',
+        desc: 'Cadastre bases que podem aparecer em mais de uma receita, como massa, recheio, creme, molho ou cobertura.',
+        add: '+ Adicionar base'
       },
       etapas: {
-        title: 'Etapas de produção',
-        desc: 'Cadastre bases e partes reaproveitáveis da produção com rendimento, ingredientes e custo próprio.',
-        add: '+ Adicionar etapa'
+        title: 'Bases de produção',
+        desc: 'Cadastre bases reaproveitáveis da produção com rendimento, ingredientes e custo próprio.',
+        add: '+ Adicionar base'
       },
       'categorias-receita': {
         title: 'Categorias da receita',
@@ -666,7 +666,7 @@ Modules.Receitas = (function () {
         '</section>' +
         (rows ?
           '<section style="display:flex;flex-direction:column;gap:10px;">' +
-            '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">' + (view === 'bases' ? 'Capacidade por base de produção' : (view === 'cardapio' ? 'Capacidade por produto do cardápio' : 'Capacidade por receita')) + '</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">' + (view === 'bases' ? 'A quantidade possível de cada base é definida pelo menor saldo disponível entre os insumos da etapa.' : (view === 'cardapio' ? 'A quantidade possível de venda usa receita vinculada, produto pronto ou montagem interna do produto.' : 'A quantidade possível é definida pelo menor saldo disponível entre os itens exigidos pela ficha.')) + '</div></div>' +
+            '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">' + (view === 'bases' ? 'Capacidade por base de produção' : (view === 'cardapio' ? 'Capacidade por produto do cardápio' : 'Capacidade por receita')) + '</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">' + (view === 'bases' ? 'A quantidade possível de cada base é definida pelo menor saldo disponível entre os insumos da base.' : (view === 'cardapio' ? 'A quantidade possível de venda usa receita vinculada, produto pronto ou montagem interna do produto.' : 'A quantidade possível é definida pelo menor saldo disponível entre os itens exigidos pela ficha.')) + '</div></div>' +
             '<div class="production-orders-table-card">' +
               '<div class="production-orders-table-wrap">' +
                 '<table class="bf-table production-orders-table production-forecast-table">' +
@@ -685,7 +685,7 @@ Modules.Receitas = (function () {
               '</div>' +
             '</div>' +
           '</section>' :
-          '<section class="production-orders-card"><div class="production-orders-empty"><div style="font-size:15px;font-weight:700;color:#1F1F1F;margin-bottom:4px;">' + (hasFilters ? 'Nenhuma previsão encontrada' : (view === 'bases' ? 'Nenhuma base calculável ainda' : (view === 'cardapio' ? 'Nenhum produto calculável ainda' : 'Nenhuma receita calculável ainda'))) + '</div><div>' + (hasFilters ? 'Ajuste a busca ou limpe os filtros.' : (view === 'bases' ? 'Marque etapas da receita como Base de produção para ver a previsão.' : (view === 'cardapio' ? 'Vincule produtos do cardápio a receita, produto pronto ou montagem interna para ver a previsão.' : 'Cadastre receitas com ingredientes, embalagens ou bases de produção para ver a previsão.'))) + '</div></div></section>') +
+          '<section class="production-orders-card"><div class="production-orders-empty"><div style="font-size:15px;font-weight:700;color:#1F1F1F;margin-bottom:4px;">' + (hasFilters ? 'Nenhuma previsão encontrada' : (view === 'bases' ? 'Nenhuma base calculável ainda' : (view === 'cardapio' ? 'Nenhum produto calculável ainda' : 'Nenhuma receita calculável ainda'))) + '</div><div>' + (hasFilters ? 'Ajuste a busca ou limpe os filtros.' : (view === 'bases' ? 'Cadastre bases de produção para ver a previsão.' : (view === 'cardapio' ? 'Vincule produtos do cardápio a receita, produto pronto ou montagem interna para ver a previsão.' : 'Cadastre receitas com ingredientes, embalagens ou bases de produção para ver a previsão.'))) + '</div></div></section>') +
       '</div>';
   }
 
@@ -2090,9 +2090,9 @@ Modules.Receitas = (function () {
         '<strong>Produto final</strong><br>' +
         'Escolha quando vai produzir a receita completa, como coxinha, brigadeiro ou marmita pronta.<br><br>' +
         '<strong>Base de produção</strong><br>' +
-        'Escolha quando vai produzir apenas uma etapa que será usada depois, como massa, recheio, molho ou cobertura.<br><br>' +
+        'Escolha quando vai produzir apenas uma base que será usada depois, como massa, recheio, molho ou cobertura.<br><br>' +
         '<strong>Exemplo:</strong><br>' +
-        'Se você prepara massa de coxinha hoje e monta as coxinhas só quando recebe pedido, escolha Base de produção e selecione a etapa Massa.<br><br>' +
+        'Se você prepara massa de coxinha hoje e monta as coxinhas só quando recebe pedido, escolha Base de produção e selecione a base Massa.<br><br>' +
         '<strong>Importante:</strong><br>' +
         'A ordem salva uma cópia da ficha como ela está agora. Se a ficha mudar depois, esta ordem continua com o planejamento original.' +
       '</div>' +
@@ -2457,7 +2457,7 @@ Modules.Receitas = (function () {
       var more = stageIngredients.length > 4 ? ' +' + (stageIngredients.length - 4) : '';
       var qtyText = _num(stage.plannedQuantity) > 0 ? (_fmtQty(stage.plannedQuantity) + ' ' + (stage.yieldUnit || '')) : '—';
       return '<div class="production-ingredient-row">' +
-        '<div><div class="production-orders-label">Etapa</div><div class="production-orders-value">' + _esc(stage.name || 'Etapa de produção') + '</div><div class="production-orders-row-text">' + _esc((stage.stockControl ? 'Base controlada' : 'Etapa da receita') + (names ? ' · ' + names + more : '')) + '</div></div>' +
+        '<div><div class="production-orders-label">Base</div><div class="production-orders-value">' + _esc(stage.name || 'Base de produção') + '</div><div class="production-orders-row-text">' + _esc((stage.stockControl ? 'Base controlada' : 'Base da receita') + (names ? ' · ' + names + more : '')) + '</div></div>' +
         '<div><div class="production-orders-label">Quantidade planejada</div><div class="production-orders-value">' + _esc(qtyText) + '</div></div>' +
         '<div><div class="production-orders-label">Custo previsto</div><div class="production-orders-value">' + _money(stage.plannedCost || 0) + '</div></div>' +
       '</div>';
@@ -2519,9 +2519,9 @@ Modules.Receitas = (function () {
         '</div>' +
       '</section>' +
       '<section class="production-modal-card">' +
-        '<div class="production-modal-head"><span class="mi">account_tree</span><div><div class="production-modal-card-title">Etapas planejadas</div>' +
-        '<div class="production-modal-card-desc">Resumo da produção por etapa da receita, com custo e quantidade prevista no lote.</div></div></div>' +
-        (stageRows ? '<div class="production-ingredient-list">' + stageRows + '</div>' : '<div class="production-orders-empty">Nenhuma etapa no snapshot desta ordem.</div>') +
+        '<div class="production-modal-head"><span class="mi">account_tree</span><div><div class="production-modal-card-title">Bases planejadas</div>' +
+        '<div class="production-modal-card-desc">Resumo da produção por base da receita, com custo e quantidade prevista no lote.</div></div></div>' +
+        (stageRows ? '<div class="production-ingredient-list">' + stageRows + '</div>' : '<div class="production-orders-empty">Nenhuma base no snapshot desta ordem.</div>') +
       '</section>' +
       '<section class="production-modal-card">' +
         '<div class="production-modal-head"><span class="mi">format_list_bulleted</span><div><div class="production-modal-card-title">Ingredientes previstos</div>' +
@@ -3632,10 +3632,10 @@ Modules.Receitas = (function () {
       '<div class="bf-page recipes-config-wrap">' +
         '<div class="bf-page-header recipes-config-head">' +
           '<div style="min-width:0;flex:1 1 420px;">' +
-            '<h1 class="recipes-config-title">Etapas de produção</h1>' +
-            '<p class="recipes-config-subtitle">Cadastre bases e partes reaproveitáveis, como massa, recheio, creme, molho ou cobertura. As receitas usam essas etapas para montar a ficha completa.</p>' +
+            '<h1 class="recipes-config-title">Bases de produção</h1>' +
+            '<p class="recipes-config-subtitle">Cadastre bases reaproveitáveis, como massa, recheio, creme, molho ou cobertura. As receitas usam essas bases para montar a ficha completa.</p>' +
           '</div>' +
-          '<button type="button" class="recipes-config-primary" onclick="Modules.Receitas._openRecipeComponentModal(null)">Adicionar etapa</button>' +
+          '<button type="button" class="recipes-config-primary" onclick="Modules.Receitas._openRecipeComponentModal(null)">Adicionar base</button>' +
         '</div>' +
         '<div class="recipes-config-filter">' +
           '<div class="recipes-config-filter-grid">' +
@@ -3760,7 +3760,7 @@ Modules.Receitas = (function () {
       }
       return '<div class="recipes-config-row">' +
         '<div style="min-width:0;flex:1;"><div class="recipes-config-row-title">' + _esc(comp.name) + '</div>' +
-        '<div class="recipes-config-row-text">' + _esc(comp.description || 'Use esta etapa para reaproveitar uma mesma base em várias receitas, como massa, recheio, creme ou molho.') + '</div>' +
+        '<div class="recipes-config-row-text">' + _esc(comp.description || 'Use esta base para reaproveitar a mesma produção em várias receitas, como massa, recheio, creme ou molho.') + '</div>' +
         '<div class="recipes-config-row-text" style="margin-top:4px;">' + _esc(meta.join(' · ')) + '</div></div>' +
         '<div class="recipes-config-actions">' +
         '<span class="recipes-config-usage">' + _esc(usageLabel) + '</span>' +
@@ -3770,8 +3770,8 @@ Modules.Receitas = (function () {
     }).join('');
     var guide = '<div class="recipes-config-guide">' +
       '<div class="recipes-config-guide-main">' +
-        '<div class="recipes-config-guide-title">' + (inStagesTab ? 'Use etapas para montar receitas completas' : 'Use etapas para não cadastrar a mesma base várias vezes') + '</div>' +
-        '<p class="recipes-config-guide-text">' + (inStagesTab ? 'Cadastre aqui as partes reaproveitáveis da produção. Depois, dentro de cada receita, escolha essas etapas e informe ingredientes, rendimento e controle de base.' : 'Se o mesmo recheio, massa, creme ou molho entra em mais de uma receita, cadastre uma etapa com esse nome e selecione a mesma etapa nas receitas. Assim o BocaFood consegue enxergar essa base como uma coisa só na produção.') + '</p>' +
+        '<div class="recipes-config-guide-title">' + (inStagesTab ? 'Use bases para montar receitas completas' : 'Use bases para não cadastrar a mesma produção várias vezes') + '</div>' +
+        '<p class="recipes-config-guide-text">' + (inStagesTab ? 'Cadastre aqui as bases reaproveitáveis da produção. Depois, dentro de cada receita, escolha essas bases e informe quanto a ficha consome.' : 'Se o mesmo recheio, massa, creme ou molho entra em mais de uma receita, cadastre uma base com esse nome e selecione a mesma base nas receitas. Assim o BocaFood consegue enxergar essa produção como uma coisa só.') + '</p>' +
         '<ul class="recipes-config-guide-list">' +
           '<li><span class="mi">check_circle</span><span><strong>Recheio de frango</strong> pode entrar na coxinha e no pastel.</span></li>' +
           '<li><span class="mi">check_circle</span><span><strong>Massa base</strong> pode entrar em vários sabores ou tamanhos.</span></li>' +
@@ -3780,17 +3780,17 @@ Modules.Receitas = (function () {
       '</div>' +
       '<div class="recipes-config-guide-side">' +
         '<div class="recipes-config-guide-title">Próxima fase</div>' +
-        '<p class="recipes-config-guide-text">' + (inStagesTab ? 'Nesta fase, a etapa já guarda rendimento, ingredientes e custo próprio. A próxima fase conecta esses dados automaticamente dentro do cadastro da receita.' : 'Marque como base de produção dentro da receita quando essa etapa é feita antes e fica guardada para usar depois. Se a etapa só existe durante o preparo daquela receita, deixe sem controle de estoque.') + '</p>' +
+        '<p class="recipes-config-guide-text">' + (inStagesTab ? 'A base guarda rendimento, ingredientes e custo próprio. Dentro da ficha técnica, informe quanto dessa base entra em cada unidade da receita.' : 'Marque como base de produção dentro da receita quando essa base é feita antes e fica guardada para usar depois. Se ela só existe durante o preparo daquela receita, deixe sem controle de estoque.') + '</p>' +
       '</div>' +
     '</div>';
-    content.innerHTML = guide + _configCardHtml(_configMeta(inStagesTab ? 'etapas' : 'componentes'), 'Modules.Receitas._openRecipeComponentModal(null)', 'Nenhuma etapa encontrada.', rows, filtered.length);
+    content.innerHTML = guide + _configCardHtml(_configMeta(inStagesTab ? 'etapas' : 'componentes'), 'Modules.Receitas._openRecipeComponentModal(null)', 'Nenhuma base encontrada.', rows, filtered.length);
   }
 
   function _componentUsageDemandHtml(usage) {
     usage = usage || {};
     var lines = Array.isArray(usage.lines) ? usage.lines : [];
     if (!lines.length) {
-      return '<div class="production-stage-card" style="font-size:12.5px;color:#6F6860;line-height:1.45;">Quando as fichas que usam esta etapa tiverem estoque mínimo e máximo, o BocaFood calcula aqui a necessidade sugerida desta base.</div>';
+      return '<div class="production-stage-card" style="font-size:12.5px;color:#6F6860;line-height:1.45;">Quando as fichas que usam esta base tiverem estoque mínimo e máximo, o BocaFood calcula aqui a necessidade sugerida.</div>';
     }
     var total = '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:10px;">' +
       '<div style="background:#FFF7F0;border:1px solid #F3D6C2;border-radius:12px;padding:10px;"><div style="' + _labelStyle() + 'margin-bottom:3px;">Mínimo sugerido</div><strong style="font-size:15px;color:#1F1F1F;">' + _esc(_fmtQty(usage.minStock)) + ' ' + _esc(usage.unit || '') + '</strong></div>' +
@@ -3802,7 +3802,7 @@ Modules.Receitas = (function () {
         '<div style="font-size:12px;font-weight:800;color:#1F1F1F;white-space:nowrap;">' + _esc(_fmtQty(line.minStock || 0)) + (_num(line.maxStock) > 0 ? ' / ' + _esc(_fmtQty(line.maxStock)) : '') + ' ' + _esc(line.usageUnit || usage.unit || '') + '</div>' +
       '</div>';
     }).join('');
-    return '<div class="production-stage-card"><div class="recipes-config-section-title">Estoque sugerido da etapa</div><div class="recipes-config-section-desc">Calculado automaticamente pelas fichas que usam esta etapa.</div><div style="margin-top:10px;">' + total + rows + '</div></div>';
+    return '<div class="production-stage-card"><div class="recipes-config-section-title">Estoque sugerido da base</div><div class="recipes-config-section-desc">Calculado automaticamente pelas fichas que usam esta base.</div><div style="margin-top:10px;">' + total + rows + '</div></div>';
   }
 
   function _stockSettingId(key) {
@@ -3930,7 +3930,7 @@ Modules.Receitas = (function () {
     _editingComponentId = id;
     var comp = id ? (_recipeComponents.find(function (x) { return x.id === id; }) || {}) : {};
     var usage = _componentUsageInfo(comp);
-    var usageText = usage.count ? ('Esta etapa já aparece em ' + usage.count + ' receita' + (usage.count > 1 ? 's' : '') + '.') : 'Depois de salvar, escolha esta etapa dentro das receitas em que ela aparece.';
+    var usageText = usage.count ? ('Esta base já aparece em ' + usage.count + ' receita' + (usage.count > 1 ? 's' : '') + '.') : 'Depois de salvar, escolha esta base dentro das receitas em que ela aparece.';
     window._stageIngredientCount = 0;
     var ingredientRows = (Array.isArray(comp.ingredients) ? comp.ingredients : []).map(function (item) {
       var idx = window._stageIngredientCount++;
@@ -3939,32 +3939,32 @@ Modules.Receitas = (function () {
     if (!ingredientRows) ingredientRows = _stageIngredientRowHtml(window._stageIngredientCount++, {});
     var body = '<div class="production-stage-form">' +
       '<div class="production-stage-card" style="color:#5F5652;font-size:12.5px;line-height:1.5;">' +
-        '<strong style="color:#1F1F1F;">Pense na etapa como uma parte reaproveitável da produção.</strong><br>' +
-        'Use nomes claros, como Recheio de frango, Massa de coxinha, Creme branco ou Molho especial. Embalagens continuam sendo preenchidas na seção própria da receita, não como etapa de produção.' +
+        '<strong style="color:#1F1F1F;">Pense na base como uma produção reaproveitável.</strong><br>' +
+        'Use nomes claros, como Recheio de frango, Massa de coxinha, Creme branco ou Molho especial. Embalagens continuam sendo preenchidas na seção própria da receita, não como base de produção.' +
       '</div>' +
       '<div class="production-stage-card">' +
         '<div class="production-stage-grid">' +
-          '<label style="display:block;"><span style="' + _labelStyle() + '">Nome da etapa *</span><input id="rcomp-name" type="text" value="' + _esc(comp.name || '') + '" placeholder="Ex: Recheio de frango" style="' + _inputStyle() + '"></label>' +
+          '<label style="display:block;"><span style="' + _labelStyle() + '">Nome da base *</span><input id="rcomp-name" type="text" value="' + _esc(comp.name || '') + '" placeholder="Ex: Recheio de frango" style="' + _inputStyle() + '"></label>' +
           '<label style="display:block;"><span style="' + _labelStyle() + '">Rendimento</span><input id="rcomp-yield-qty" type="text" inputmode="decimal" value="' + _esc(comp.stageYieldQuantity || comp.yieldQuantity || comp.baseYieldQuantity || '') + '" placeholder="Ex: 40" oninput="Modules.Receitas._updateProductionStageCost()" style="' + _inputStyle() + '"></label>' +
           '<label style="display:block;"><span style="' + _labelStyle() + '">Unidade</span><select id="rcomp-yield-unit" onchange="Modules.Receitas._updateProductionStageCost()" style="' + _inputStyle() + '">' + _stageUnitOptionsHtml(comp.stageYieldUnit || comp.yieldUnit || comp.baseYieldUnit || '') + '</select></label>' +
         '</div>' +
-        '<label style="display:block;margin-top:12px;"><span style="' + _labelStyle() + '">Quando usar esta etapa</span><textarea id="rcomp-desc" placeholder="Ex: usado na coxinha e no pastel de frango." style="' + _inputStyle() + 'min-height:84px;resize:vertical;">' + _esc(comp.description || '') + '</textarea></label>' +
+        '<label style="display:block;margin-top:12px;"><span style="' + _labelStyle() + '">Quando usar esta base</span><textarea id="rcomp-desc" placeholder="Ex: usado na coxinha e no pastel de frango." style="' + _inputStyle() + 'min-height:84px;resize:vertical;">' + _esc(comp.description || '') + '</textarea></label>' +
       '</div>' +
       '<div class="production-stage-card">' +
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px;">' +
-          '<div><div class="recipes-config-section-title">Ingredientes da etapa</div><div class="recipes-config-section-desc">Informe o que esta etapa consome quando ela é produzida.</div></div>' +
+          '<div><div class="recipes-config-section-title">Ingredientes da base</div><div class="recipes-config-section-desc">Informe o que esta base consome quando ela é produzida.</div></div>' +
           '<button type="button" class="production-stage-soft-btn" onclick="Modules.Receitas._addProductionStageIngredient()">+ Ingrediente</button>' +
         '</div>' +
         '<div id="production-stage-ingredients" class="production-stage-ingredients">' + ingredientRows + '</div>' +
         '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid #F1E7E1;">' +
           '<div style="font-size:12px;color:#6F6860;line-height:1.4;">' + _esc(usageText) + '</div>' +
-          '<div style="text-align:right;"><div style="' + _labelStyle() + 'margin-bottom:2px;">Custo da etapa</div><strong id="rcomp-total-cost" style="font-size:15px;color:#1F1F1F;">' + _money(_stageTotalCost(comp.ingredients || [])) + '</strong></div>' +
+          '<div style="text-align:right;"><div style="' + _labelStyle() + 'margin-bottom:2px;">Custo da base</div><strong id="rcomp-total-cost" style="font-size:15px;color:#1F1F1F;">' + _money(_stageTotalCost(comp.ingredients || [])) + '</strong></div>' +
         '</div>' +
       '</div>' +
       _componentUsageDemandHtml(usage) +
     '</div>';
-    var footer = '<button onclick="Modules.Receitas._saveRecipeComponent()" style="width:100%;height:40px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:14px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">Salvar etapa</button>';
-    window._recipeComponentModal = UI.modal({ title: id ? 'Editar etapa de produção' : 'Nova etapa de produção', body: body, footer: footer, maxWidth: '920px' });
+    var footer = '<button onclick="Modules.Receitas._saveRecipeComponent()" style="width:100%;height:40px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:14px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">Salvar base</button>';
+    window._recipeComponentModal = UI.modal({ title: id ? 'Editar base de produção' : 'Nova base de produção', body: body, footer: footer, maxWidth: '920px' });
     setTimeout(_updateProductionStageCost, 60);
   }
 
@@ -4153,7 +4153,7 @@ Modules.Receitas = (function () {
   }
 
   function _deleteRecipeComponent(id) {
-    UI.confirm('Eliminar esta etapa da receita?').then(function (yes) {
+    UI.confirm('Eliminar esta base da receita?').then(function (yes) {
       if (!yes) return;
       DB.remove('recipe_components', id).then(function () {
         UI.toast('Etapa eliminada', 'info');

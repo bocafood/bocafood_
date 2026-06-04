@@ -1031,14 +1031,14 @@ Modules.Suporte = (function () {
         tags: ['receitas', 'lote', 'estoque'],
         sections: [
           ['Receitas e fichas técnicas', 'Ingredientes, rendimento, custo previsto e unidade produzida.', 'menu_book'],
-          ['Bases de produção', 'Massas, recheios e etapas intermediárias usadas em outras receitas.', 'bakery_dining'],
+          ['Bases de produção', 'Massas, recheios e bases intermediárias usadas em outras receitas.', 'bakery_dining'],
           ['Ordens de produção', 'Planejamento, finalização, rendimento real e leitura do lote.', 'assignment'],
           ['Lista de compras', 'Necessidade gerada por produção planejada e estoque mínimo.', 'shopping_cart'],
           ['Movimentações de produção', 'Saída de ingredientes e entrada de produto produzido.', 'sync_alt']
         ],
         intro: [
           'Produção é a área para controlar o que você prepara antes de vender.',
-          'Ela serve para negócios que fazem receitas, bases, recheios, massas, produtos finais ou qualquer etapa que transforma ingredientes em algo que será vendido ou usado depois.',
+          'Ela serve para negócios que fazem receitas, bases, recheios, massas, produtos finais ou qualquer base que transforma ingredientes em algo que será vendido ou usado depois.',
           'Quando a produção está bem cadastrada, o BocaFood começa a entender rendimento, custo, perda, necessidade de compra e entrada de produto produzido no estoque.'
         ],
         topics: [
@@ -1056,24 +1056,24 @@ Modules.Suporte = (function () {
             title: '2. Receitas e fichas técnicas',
             path: 'Produção > Receitas de produção',
             intro: 'A ficha técnica mostra como um produto ou base é feito.',
-            fill: ['nome da receita', 'rendimento final da receita', 'etapas da receita', 'rendimento de cada etapa quando for diferente do rendimento final', 'ingredientes usados', 'quantidade de cada ingrediente', 'embalagens usadas no rendimento global', 'unidade do rendimento', 'custo previsto', 'imagem quando ajudar', 'produto produzido vinculado quando existir'],
-            why: 'A ficha técnica ajuda a saber quanto custa produzir, quanto rende e se o preço de venda faz sentido. Quando uma etapa rende mais que a receita final, o custo usado no produto final é proporcional ao que a receita realmente consome.',
+            fill: ['nome da receita', 'rendimento final da receita', 'bases da receita', 'rendimento de cada base quando for diferente do rendimento final', 'ingredientes usados', 'quantidade de cada ingrediente', 'embalagens usadas no rendimento global', 'unidade do rendimento', 'custo previsto', 'imagem quando ajudar', 'produto produzido vinculado quando existir'],
+            why: 'A ficha técnica ajuda a saber quanto custa produzir, quanto rende e se o preço de venda faz sentido. Quando uma base rende mais que a receita final, o custo usado no produto final é proporcional ao que a receita realmente consome.',
             after: 'A receita alimenta produto do cardápio, produção, estoque, lista de compras, preço e margem.',
-            cautions: ['Rendimento final é obrigatório e muda todo o custo.', 'Ingrediente sem custo deixa a ficha incompleta.', 'Embalagem deve ficar na área de embalagens da receita, não dentro da etapa massa ou recheio.', 'A receita atual não deve alterar o snapshot de uma ordem antiga já criada.'],
+            cautions: ['Rendimento final é obrigatório e muda todo o custo.', 'Ingrediente sem custo deixa a ficha incompleta.', 'Embalagem deve ficar na área de embalagens da receita, não dentro da base massa ou recheio.', 'A receita atual não deve alterar o snapshot de uma ordem antiga já criada.'],
             ready: 'A receita mostra ingredientes, embalagens quando houver, rendimento e custo previsto de forma coerente.'
           },
           {
             title: '3. Bases de produção',
             path: 'Produção > Receitas de produção',
-            intro: 'Base de produção é uma etapa intermediária que depois entra em outro produto.',
+            intro: 'Base de produção é uma preparação intermediária que depois entra em outro produto.',
             subtopics: [
               { title: 'Exemplos', text: 'Massa, recheio, molho, creme, calda, carne desfiada ou qualquer preparo usado em mais de uma receita.' },
-              { title: 'Como pensar', text: 'Se você faz primeiro uma etapa e depois monta o produto final quando chega pedido, essa etapa vira uma base. Mesmo sem controlar estoque da base, informe o rendimento da etapa para o custo final ficar correto.' }
+              { title: 'Como pensar', text: 'Se você faz primeiro uma base e depois monta o produto final quando chega pedido, cadastre essa produção como base. Mesmo sem controlar estoque da base, informe o rendimento dela para o custo final ficar correto.' }
             ],
             why: 'Essa lógica ajuda quem trabalha produzindo partes do produto antes, como massas e recheios, e monta o item final depois.',
             after: 'A base é produzida, entrar no estoque e ser usada em outra receita ou no preparo do produto final.',
             cautions: ['Não misturar base com produto final se você controla os dois separadamente.', 'Registrar perda quando a base estragar ou render menos.', 'Usar classe correta para o estoque entender o tipo do item.'],
-            ready: 'As etapas intermediárias importantes aparecem como receitas/bases e ficam prontas para planejamento.'
+            ready: 'As bases intermediárias importantes aparecem como receitas/bases e ficam prontas para planejamento.'
           },
           {
             title: '4. Produtos produzidos',
@@ -1166,9 +1166,9 @@ Modules.Suporte = (function () {
               { title: 'Exemplo', text: 'Você produz massa e recheio, guarda essas bases, e monta o salgado final quando a cliente pede.' },
               { title: 'Como controlar', text: 'Cadastre massa e recheio como bases de produção, controle entrada e perda dessas bases e vincule o produto final à receita correta.' }
             ],
-            why: 'Esse jeito de trabalhar precisa controlar a etapa intermediária, porque também existe estoque, perda e custo antes do produto final.',
+            why: 'Esse jeito de trabalhar precisa controlar a base intermediária, porque também existe estoque, perda e custo antes do produto final.',
             after: 'O BocaFood consegue diferenciar base produzida, produto produzido e produto vendido.',
-            cautions: ['Registrar perda da base se estragar.', 'Não misturar tudo em uma única ficha se você precisa controlar as etapas separadas.', 'Usar classe correta para a base aparecer no estoque certo.'],
+            cautions: ['Registrar perda da base se estragar.', 'Não misturar tudo em uma única ficha se você precisa controlar as bases separadas.', 'Usar classe correta para a base aparecer no estoque certo.'],
             ready: 'As bases aparecem separadas dos produtos finais e ficam prontas para produção antes.'
           },
           {
@@ -1408,7 +1408,7 @@ Modules.Suporte = (function () {
               { title: 'Embalagem', text: 'Item usado para montar ou entregar o produto, como caixa, pote, saco, etiqueta ou descartável.' },
               { title: 'Produto pronto comprado', text: 'Item comprado pronto para revender, como bebida ou produto embalado.' },
               { title: 'Produto produzido', text: 'Item que entrou no estoque depois de uma produção concluída.' },
-              { title: 'Base de produção', text: 'Massa, recheio, molho ou etapa intermediária que entra em outro produto.' }
+              { title: 'Base de produção', text: 'Massa, recheio, molho ou base intermediária que entra em outro produto.' }
             ],
             why: 'Cada classe tem uma origem e uma forma diferente de entrar ou sair do estoque.',
             after: 'A tela mostra abas separadas para cada classe e facilitar a leitura.',
