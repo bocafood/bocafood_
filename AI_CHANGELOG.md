@@ -9,6 +9,10 @@
 - Os cards de resumo passaram a seguir uma leitura mais próxima dos cards do cardápio, com linguagem voltada para decisão do negócio.
 - Troquei copies técnicas por textos mais diretos sobre venda, destaque, preço, promoção e foco dos produtos.
 - A busca da aba agora usa pequeno debounce para evitar repintar a listagem a cada tecla digitada.
+- Renomeei a área para `Desempenho do cardápio`, mantendo a rota interna `catalogo/vendas` por compatibilidade.
+- Adicionei subabas internas no mesmo padrão visual do `Programa de Pontos`: `Resumo`, `Matriz` e `Vendas`.
+- A subaba `Matriz` agora mostra a BCG em formato 2x2, com `Estrelas`, `Apostas`, `Caixa forte` e `Revisar`.
+- Cada quadrante mostra até 6 produtos diretamente e abre um modal `Ver todos` quando houver mais itens no grupo.
 - Atualizei o cache-buster de `catalogo.js` no Admin.
 
 ## 2026-06-04 — Estoque: configurações mais guiadas
