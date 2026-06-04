@@ -212,6 +212,11 @@ O Boca Food é um sistema de gestão e operação de loja com painel admin, cat�
 - Detectar regularização pendente não pode criar entrada automática, compra, movimentação financeira, ajuste de inventário ou alteração no cardápio público.
 - Futuras fases podem aplicar entrada de regularização ou converter pendências em compra rápida, mas essas ações devem ser explícitas, rastreadas e separadas de compra fiscal/financeira real.
 
+### Admin — Cardápio
+- `Cardápio → Vendas` é a leitura comercial dos itens vendidos no cardápio. A fonte de verdade é `orders[].items[]`: cada linha representa o produto/menu vendido para estratégia de vendas, com pedido, data, canal, cliente, quantidade, total e escolhas.
+- Essa leitura não substitui movimentações de estoque. Saídas de produto produzido, produto pronto, etapa, insumo e embalagem continuam em estoque/produção; a venda do cardápio serve para responder qual produto/menu comercial vendeu mais, inclusive quando o mesmo item de estoque aparece em mais de um menu.
+- Cancelados/recusados não devem entrar nas métricas comerciais do cardápio.
+
 ### Admin — Produção e receitas
 - A aba `Produção → Receitas` deve seguir o mesmo padrão de listagem aprovado em Compras: topo limpo, título de 22px, subtítulo curto, botão principal vermelho à direita, card de filtros compacto com campos off-white, botão `Limpar filtros` apenas quando houver filtro ativo, tabela com hover suave e paginação no rodapé.
 - Não repetir chips de totalizadores no cabeçalho nem dentro do card de filtros de receitas. O resumo da tela deve vir da própria lista, paginação, estados vazios ou KPIs quando forem realmente necessários.

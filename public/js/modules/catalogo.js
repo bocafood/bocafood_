@@ -26,6 +26,8 @@ Modules.Catalogo = (function () {
   var _templateActiveTab = 'identidade';
   var _productFilters = { category: 'todas', visibility: 'todos', type: 'todos', promo: 'todos' };
   var _productView = { page: 1, pageSize: 12, sort: 'order', mode: 'list' };
+  var _salesFilters = { q: '', period: '90', channel: 'todos', type: 'todos' };
+  var _salesView = { page: 1, pageSize: 25 };
   var _productSearchQuery = '';
   var _productSearchTimer = null;
   var _cfgSub = 'categorias';
@@ -195,6 +197,7 @@ Modules.Catalogo = (function () {
 
   var TABS = [
     { key: 'produtos', label: 'Produtos' },
+    { key: 'vendas', label: 'Vendas' },
     { key: 'configuracoes', label: 'Configurações' }
   ];
 
@@ -247,6 +250,7 @@ Modules.Catalogo = (function () {
     var content = document.getElementById('catalogo-content');
     content.innerHTML = '<div style="text-align:center;padding:40px;color:#8A7E7C;">Carregando...</div>';
     if (key === 'produtos') _renderProdutos();
+    else if (key === 'vendas') _renderVendasCardapio();
     else if (key === 'avaliacoes') _renderAvaliacoes();
     else if (key === 'template') { _deliveryZonesDraftDirty = false; _renderTemplateLoja(); }
     else if (key === 'seo') _renderSeoLoja();
@@ -1049,6 +1053,309 @@ Modules.Catalogo = (function () {
         '</div>' +
       '</div>' +
     '</div>';
+  }
+
+  function _renderVendasCardapio() {
+    var content = document.getElementById('catalogo-content');
+    if (!content) return;
+    content.innerHTML = '<div style="text-align:center;padding:40px;color:#8A7E7C;">Carregando vendas do cardápio...</div>';
+    Promise.all([
+      DB.getAll('products').catch(function () { return []; }),
+      DB.getAll('categories').catch(function () { return []; }),
+      DB.getAll('orders').catch(function () { return []; })
+    ]).then(function (r) {
+      _products = r[0] || [];
+      _categories = r[1] || [];
+      _orders = r[2] || [];
+      _paintVendasCardapio();
+    }).catch(function (err) {
+      content.innerHTML = UI.emptyState('Vendas indisponíveis', 'Não foi possível carregar os pedidos do cardápio agora.');
+      UI.toast('Erro ao carregar vendas: ' + err.message, 'error');
+    });
+  }
+
+  function _paintVendasCardapio() {
+    var content = document.getElementById('catalogo-content');
+    if (!content) return;
+    var data = _catalogSalesData(_orders || [], _products || []);
+    var filtered = _filterCatalogSalesRows(data.rows);
+    var paging = _catalogSalesPaging(filtered);
+    var summary = _catalogSalesSummary(filtered);
+    var channels = _catalogSalesChannelOptions(data.rows);
+    var periodOptions = [
+      { value: '30', label: 'Últimos 30 dias' },
+      { value: '90', label: 'Últimos 90 dias' },
+      { value: '180', label: 'Últimos 180 dias' },
+      { value: 'all', label: 'Todo o histórico' }
+    ].map(function (opt) { return '<option value="' + opt.value + '"' + (_salesFilters.period === opt.value ? ' selected' : '') + '>' + _esc(opt.label) + '</option>'; }).join('');
+    var typeOptions = [
+      { value: 'todos', label: 'Todos os tipos' },
+      { value: 'combo', label: 'Combos e menus' },
+      { value: 'produto', label: 'Produtos avulsos' },
+      { value: 'receita', label: 'Receita/produto produzido' },
+      { value: 'pronto', label: 'Produto pronto' }
+    ].map(function (opt) { return '<option value="' + opt.value + '"' + (_salesFilters.type === opt.value ? ' selected' : '') + '>' + _esc(opt.label) + '</option>'; }).join('');
+    var channelOptions = '<option value="todos"' + (_salesFilters.channel === 'todos' ? ' selected' : '') + '>Todos os canais</option>' + channels.map(function (channel) {
+      return '<option value="' + _esc(channel) + '"' + (_salesFilters.channel === channel ? ' selected' : '') + '>' + _esc(channel) + '</option>';
+    }).join('');
+    var fieldStyle = 'height:40px;width:100%;box-sizing:border-box;border:1px solid #E8DCD7;border-radius:12px;background:#FFFCF8;color:#1F1F1F;font-size:13px;font-family:inherit;outline:none;padding:0 12px;';
+    var selectStyle = fieldStyle + 'appearance:none;-webkit-appearance:none;-moz-appearance:none;padding-right:38px;';
+    var arrow = '<span class="mi" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:18px;color:#8A7E7C;pointer-events:none;">expand_more</span>';
+    var cards = [
+      { label: 'Faturamento do cardápio', value: _fmtMoneyDisplay(summary.revenue), icon: 'payments', hint: summary.orders + ' pedidos com item vendido' },
+      { label: 'Itens vendidos', value: String(_roundDisplay(summary.qty)), icon: 'shopping_bag', hint: summary.rows + ' linhas comerciais' },
+      { label: 'Ticket por item', value: _fmtMoneyDisplay(summary.avgLine), icon: 'receipt_long', hint: 'média por linha do cardápio' },
+      { label: 'Mais vendido', value: summary.topName || 'Sem base', icon: 'leaderboard', hint: summary.topQty ? _roundDisplay(summary.topQty) + ' vendidos' : 'aguardando pedidos' }
+    ].map(function (card) {
+      return '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:16px;padding:15px;box-shadow:0 10px 24px rgba(31,31,31,.045);display:flex;gap:12px;align-items:flex-start;min-width:0;">' +
+        '<div style="width:38px;height:38px;border-radius:13px;background:#FFF5F3;color:#B42318;display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span class="mi" style="font-size:20px;">' + _esc(card.icon) + '</span></div>' +
+        '<div style="min-width:0;"><div style="font-size:11px;font-weight:700;color:#6F6860;line-height:1.25;">' + _esc(card.label) + '</div><div style="font-size:21px;font-weight:750;color:#1F1F1F;line-height:1.15;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(card.value) + '</div><div style="font-size:11px;color:#8A7E7C;line-height:1.35;margin-top:4px;">' + _esc(card.hint) + '</div></div>' +
+      '</div>';
+    }).join('');
+    var ranking = _catalogSalesRanking(filtered).slice(0, 8);
+    var rankingHtml = ranking.length ? ranking.map(function (row, idx) {
+      return '<div style="display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid #F0E7E2;">' +
+        '<span style="width:24px;height:24px;border-radius:9px;background:#FFF5F3;color:#B42318;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:750;">' + (idx + 1) + '</span>' +
+        '<div style="min-width:0;"><div style="font-size:13px;font-weight:650;color:#1F1F1F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(row.name) + '</div><div style="font-size:11px;color:#6F6860;margin-top:2px;">' + _esc(row.typeLabel) + ' · ' + _roundDisplay(row.qty) + ' un.</div></div>' +
+        '<div style="font-size:13px;font-weight:700;color:#1F1F1F;white-space:nowrap;">' + _fmtMoneyDisplay(row.revenue) + '</div>' +
+      '</div>';
+    }).join('') : '<div style="padding:18px;color:#8A7E7C;font-size:13px;text-align:center;">Sem vendas para este filtro.</div>';
+    var tableRows = paging.items.map(_catalogSalesTableRowHtml).join('');
+    var emptyHtml = !paging.items.length ? '<tr><td colspan="7" style="padding:28px;text-align:center;color:#8A7E7C;font-size:13px;">Nenhuma venda do cardápio encontrada para os filtros atuais.</td></tr>' : '';
+    var pageSizeOptions = [10, 25, 50, 100].map(function (n) { return '<option value="' + n + '"' + (Number(_salesView.pageSize) === n ? ' selected' : '') + '>' + n + ' / pág.</option>'; }).join('');
+    var paginationHtml = paging.total ? '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:14px 16px;border-top:1px solid #EAE4DA;">' +
+      '<span style="font-size:12px;color:#6F6860;">Mostrando <strong style="color:#1F1F1F;">' + paging.start + '</strong> a <strong style="color:#1F1F1F;">' + paging.end + '</strong> de <strong style="color:#1F1F1F;">' + paging.total + '</strong></span>' +
+      '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+        '<span style="position:relative;display:inline-block;width:110px;"><select onchange="Modules.Catalogo._setCatalogSalesPageSize(this.value)" style="width:110px;height:34px;padding:0 32px 0 10px;border:1px solid #E8DCD7;border-radius:10px;font-size:12px;font-family:inherit;outline:none;background:#FFFCF8;color:#6F6860;box-sizing:border-box;appearance:none;-webkit-appearance:none;-moz-appearance:none;">' + pageSizeOptions + '</select><span class="mi" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:18px;color:#8A7E7C;pointer-events:none;">expand_more</span></span>' +
+        '<button type="button" onclick="Modules.Catalogo._setCatalogSalesPage(' + (paging.page - 1) + ')" style="height:34px;padding:0 11px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#6F6860;font-size:12px;cursor:' + (paging.page > 1 ? 'pointer' : 'not-allowed') + ';opacity:' + (paging.page > 1 ? '1' : '.45') + ';"' + (paging.page > 1 ? '' : ' disabled') + '>Anterior</button>' +
+        '<span style="font-size:12px;color:#8A7E7C;">' + paging.page + ' / ' + paging.totalPages + '</span>' +
+        '<button type="button" onclick="Modules.Catalogo._setCatalogSalesPage(' + (paging.page + 1) + ')" style="height:34px;padding:0 11px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#6F6860;font-size:12px;cursor:' + (paging.page < paging.totalPages ? 'pointer' : 'not-allowed') + ';opacity:' + (paging.page < paging.totalPages ? '1' : '.45') + ';"' + (paging.page < paging.totalPages ? '' : ' disabled') + '>Próxima</button>' +
+      '</div>' +
+    '</div>' : '';
+    content.innerHTML = '<div class="bf-page" style="display:flex;flex-direction:column;gap:16px;">' +
+      '<div class="bf-page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
+        '<div style="min-width:0;flex:1 1 460px;"><h2 style="font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;line-height:1.2;">Vendas do cardápio</h2><p style="font-size:13px;color:#6F6860;line-height:1.5;margin:0;max-width:760px;">Leitura comercial por item vendido no cardápio. Esta tabela mostra o menu/produto vendido para estratégia; a baixa de estoque continua separada em Estoque.</p></div>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;">' + cards + '</div>' +
+      '<section style="' + _cardStyle() + 'padding:16px;">' +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:11px;align-items:end;">' +
+          '<label style="display:block;min-width:0;"><span style="display:block;font-size:11px;font-weight:700;color:#6F6860;margin-bottom:5px;">Buscar</span><input type="search" value="' + _esc(_salesFilters.q || '') + '" placeholder="Produto, pedido ou cliente" oninput="Modules.Catalogo._setCatalogSalesFilter(\'q\',this.value)" style="' + fieldStyle + '"></label>' +
+          '<label style="display:block;min-width:0;"><span style="display:block;font-size:11px;font-weight:700;color:#6F6860;margin-bottom:5px;">Período</span><span style="position:relative;display:block;"><select onchange="Modules.Catalogo._setCatalogSalesFilter(\'period\',this.value)" style="' + selectStyle + '">' + periodOptions + '</select>' + arrow + '</span></label>' +
+          '<label style="display:block;min-width:0;"><span style="display:block;font-size:11px;font-weight:700;color:#6F6860;margin-bottom:5px;">Canal</span><span style="position:relative;display:block;"><select onchange="Modules.Catalogo._setCatalogSalesFilter(\'channel\',this.value)" style="' + selectStyle + '">' + channelOptions + '</select>' + arrow + '</span></label>' +
+          '<label style="display:block;min-width:0;"><span style="display:block;font-size:11px;font-weight:700;color:#6F6860;margin-bottom:5px;">Tipo</span><span style="position:relative;display:block;"><select onchange="Modules.Catalogo._setCatalogSalesFilter(\'type\',this.value)" style="' + selectStyle + '">' + typeOptions + '</select>' + arrow + '</span></label>' +
+          '<button type="button" onclick="Modules.Catalogo._clearCatalogSalesFilters()" style="height:40px;padding:0 14px;border:1px solid #EADFD8;border-radius:12px;background:#fff;color:#6F6860;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;">Limpar filtros</button>' +
+        '</div>' +
+      '</section>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:16px;align-items:start;">' +
+        '<section style="' + _cardStyle() + 'padding:0;overflow:hidden;">' +
+          '<div style="padding:16px 18px;border-bottom:1px solid #EAE4DA;"><h3 style="margin:0;font-size:15px;font-weight:700;color:#1F1F1F;">Tabela comercial</h3><p style="margin:4px 0 0;font-size:12px;color:#6F6860;line-height:1.4;">Uma linha por item vendido dentro do pedido.</p></div>' +
+          '<div style="overflow:auto;"><table style="width:100%;border-collapse:collapse;min-width:900px;"><thead><tr style="background:#FFFCF8;border-bottom:1px solid #EAE4DA;">' +
+            '<th style="text-align:left;padding:11px 14px;font-size:11px;color:#6F6860;font-weight:750;">Data</th>' +
+            '<th style="text-align:left;padding:11px 14px;font-size:11px;color:#6F6860;font-weight:750;">Produto do cardápio</th>' +
+            '<th style="text-align:left;padding:11px 14px;font-size:11px;color:#6F6860;font-weight:750;">Pedido</th>' +
+            '<th style="text-align:left;padding:11px 14px;font-size:11px;color:#6F6860;font-weight:750;">Canal</th>' +
+            '<th style="text-align:right;padding:11px 14px;font-size:11px;color:#6F6860;font-weight:750;">Qtd.</th>' +
+            '<th style="text-align:right;padding:11px 14px;font-size:11px;color:#6F6860;font-weight:750;">Total</th>' +
+            '<th style="text-align:left;padding:11px 14px;font-size:11px;color:#6F6860;font-weight:750;">Status</th>' +
+          '</tr></thead><tbody>' + tableRows + emptyHtml + '</tbody></table></div>' + paginationHtml +
+        '</section>' +
+        '<section style="' + _cardStyle() + 'padding:16px 18px;"><h3 style="margin:0;font-size:15px;font-weight:700;color:#1F1F1F;">Ranking do cardápio</h3><p style="margin:4px 0 8px;font-size:12px;color:#6F6860;line-height:1.4;">Agrupado pelo produto/menu vendido, não pelo item de estoque.</p>' + rankingHtml + '</section>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function _catalogSalesData(orders, products) {
+    var byId = {};
+    var byName = {};
+    (products || []).forEach(function (product) {
+      var p = _normalizeProduct(product || {});
+      if (p.id) byId[String(p.id)] = p;
+      if (p.name) byName[String(p.name).trim().toLowerCase()] = p;
+    });
+    var rows = [];
+    (orders || []).filter(_validOrderForProductHistory).forEach(function (order) {
+      var date = _toDateSafe(order && (order.createdAt || order.orderCreatedAt || order.createdDate || order.registeredAt || order.date || order.dateTime || order.updatedAt));
+      var channel = firstText(order && order.channelName, order && order.salesChannelName, order && order.channel, order && order.source, order && order.originChannel, 'Cardápio');
+      var orderId = firstText(order && order.id, order && order.orderId, '');
+      var orderNumber = firstText(order && order.number, order && order.orderNumber, order && order.code, orderId ? '#' + String(orderId).slice(-6).toUpperCase() : '');
+      var customer = firstText(order && order.customerName, order && order.clientName, order && order.name, order && order.customer && order.customer.name, '');
+      _orderProductItems(order).forEach(function (item, idx) {
+        if (!item || typeof item !== 'object') return;
+        var productId = _orderItemProductId(item);
+        var name = _orderItemName(item);
+        var product = productId ? byId[productId] : null;
+        if (!product && name) product = byName[name.toLowerCase()] || null;
+        var type = _catalogSaleType(item, product);
+        var qty = _orderItemQty(item);
+        var total = _orderItemTotalValue(item, qty, product || {});
+        rows.push({
+          key: [orderId || 'pedido', productId || name || idx, idx].join(':'),
+          orderId: orderId,
+          orderNumber: orderNumber,
+          date: date,
+          dateTs: date ? date.getTime() : 0,
+          customer: customer,
+          channel: channel,
+          status: firstText(order && order.status, 'Pendente'),
+          paymentStatus: firstText(order && order.paymentStatus, order && order.paymentState, ''),
+          productId: productId || (product && product.id) || '',
+          productName: name || (product && product.name) || 'Item do cardápio',
+          productType: type.value,
+          productTypeLabel: type.label,
+          qty: qty,
+          unitPrice: qty > 0 ? total / qty : _moneyLike(item.price || item.unitPrice || 0),
+          total: total,
+          choicesText: _catalogSaleChoicesText(item)
+        });
+      });
+    });
+    rows.sort(function (a, b) { return (b.dateTs - a.dateTs) || String(b.orderNumber || '').localeCompare(String(a.orderNumber || '')); });
+    return { rows: rows };
+  }
+
+  function _catalogSaleType(item, product) {
+    var raw = String(firstText(item && item.productType, item && item.type, product && product.productType, product && product.type, '')).toLowerCase();
+    if (raw === 'menu' || raw === 'combo') return { value: 'combo', label: 'Combo/Menu' };
+    if (product && (product.type === 'menu' || product.productType === 'combo')) return { value: 'combo', label: 'Combo/Menu' };
+    if (product && product.fichaId) return { value: 'receita', label: 'Receita/produto produzido' };
+    if (product && (product.produtoProntoId || product.sourceItemId)) return { value: 'pronto', label: 'Produto pronto' };
+    return { value: 'produto', label: 'Produto avulso' };
+  }
+
+  function _catalogSaleChoicesText(item) {
+    var choices = Array.isArray(item && item.choices) ? item.choices : [];
+    if (!choices.length) return '';
+    return choices.map(function (choice) {
+      if (typeof choice === 'string') return choice;
+      var group = firstText(choice.groupName, choice.group, choice.title, '');
+      var label = firstText(choice.optionName, choice.name, choice.label, choice.value, '');
+      return [group, label].filter(Boolean).join(': ');
+    }).filter(Boolean).join(' · ');
+  }
+
+  function _filterCatalogSalesRows(rows) {
+    var query = String(_salesFilters.q || '').trim().toLowerCase();
+    var period = String(_salesFilters.period || '90');
+    var channel = String(_salesFilters.channel || 'todos');
+    var type = String(_salesFilters.type || 'todos');
+    var limit = 0;
+    if (period !== 'all') limit = Date.now() - ((parseInt(period, 10) || 90) * 86400000);
+    return (rows || []).filter(function (row) {
+      if (limit && (!row.dateTs || row.dateTs < limit)) return false;
+      if (channel !== 'todos' && row.channel !== channel) return false;
+      if (type !== 'todos' && row.productType !== type) return false;
+      if (!query) return true;
+      var haystack = [row.productName, row.orderNumber, row.customer, row.channel, row.choicesText].join(' ').toLowerCase();
+      return haystack.indexOf(query) >= 0;
+    });
+  }
+
+  function _catalogSalesPaging(rows) {
+    var total = (rows || []).length;
+    var pageSize = Math.max(10, parseInt(_salesView.pageSize, 10) || 25);
+    var totalPages = Math.max(1, Math.ceil(total / pageSize));
+    var page = Math.min(Math.max(1, parseInt(_salesView.page, 10) || 1), totalPages);
+    var start = (page - 1) * pageSize;
+    return {
+      items: (rows || []).slice(start, start + pageSize),
+      total: total,
+      page: page,
+      pageSize: pageSize,
+      totalPages: totalPages,
+      start: total ? start + 1 : 0,
+      end: Math.min(total, start + pageSize)
+    };
+  }
+
+  function _catalogSalesSummary(rows) {
+    var orders = {};
+    var products = {};
+    var qty = 0;
+    var revenue = 0;
+    (rows || []).forEach(function (row) {
+      if (row.orderId || row.orderNumber) orders[row.orderId || row.orderNumber] = true;
+      qty += _moneyLike(row.qty || 0);
+      revenue += _moneyLike(row.total || 0);
+      var key = row.productId || row.productName;
+      if (!products[key]) products[key] = { name: row.productName, qty: 0, revenue: 0, typeLabel: row.productTypeLabel };
+      products[key].qty += _moneyLike(row.qty || 0);
+      products[key].revenue += _moneyLike(row.total || 0);
+    });
+    var ranking = Object.keys(products).map(function (key) { return products[key]; }).sort(function (a, b) {
+      return (b.qty - a.qty) || (b.revenue - a.revenue) || String(a.name || '').localeCompare(String(b.name || ''));
+    });
+    return {
+      rows: (rows || []).length,
+      orders: Object.keys(orders).length,
+      qty: qty,
+      revenue: revenue,
+      avgLine: rows && rows.length ? revenue / rows.length : 0,
+      topName: ranking[0] ? ranking[0].name : '',
+      topQty: ranking[0] ? ranking[0].qty : 0
+    };
+  }
+
+  function _catalogSalesRanking(rows) {
+    var map = {};
+    (rows || []).forEach(function (row) {
+      var key = row.productId || row.productName;
+      if (!map[key]) map[key] = { name: row.productName, qty: 0, revenue: 0, typeLabel: row.productTypeLabel };
+      map[key].qty += _moneyLike(row.qty || 0);
+      map[key].revenue += _moneyLike(row.total || 0);
+    });
+    return Object.keys(map).map(function (key) { return map[key]; }).sort(function (a, b) {
+      return (b.revenue - a.revenue) || (b.qty - a.qty) || String(a.name || '').localeCompare(String(b.name || ''));
+    });
+  }
+
+  function _catalogSalesChannelOptions(rows) {
+    var map = {};
+    (rows || []).forEach(function (row) { if (row.channel) map[row.channel] = true; });
+    return Object.keys(map).sort(function (a, b) { return a.localeCompare(b); });
+  }
+
+  function _catalogSalesTableRowHtml(row) {
+    var date = row.date ? row.date.toLocaleDateString('pt-PT') : 'Sem data';
+    var choices = row.choicesText ? '<div style="font-size:11px;color:#8A7E7C;line-height:1.35;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:340px;">' + _esc(row.choicesText) + '</div>' : '';
+    return '<tr style="border-bottom:1px solid #F0E7E2;background:#fff;">' +
+      '<td style="padding:12px 14px;vertical-align:top;font-size:12px;color:#6F6860;white-space:nowrap;">' + _esc(date) + '</td>' +
+      '<td style="padding:12px 14px;vertical-align:top;min-width:260px;"><div style="font-size:13px;font-weight:650;color:#1F1F1F;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:360px;">' + _esc(row.productName) + '</div><div style="font-size:11px;color:#6F6860;margin-top:2px;">' + _esc(row.productTypeLabel) + '</div>' + choices + '</td>' +
+      '<td style="padding:12px 14px;vertical-align:top;"><div style="font-size:12px;font-weight:650;color:#1F1F1F;white-space:nowrap;">' + _esc(row.orderNumber || row.orderId || 'Pedido') + '</div><div style="font-size:11px;color:#6F6860;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;">' + _esc(row.customer || 'Cliente não informado') + '</div></td>' +
+      '<td style="padding:12px 14px;vertical-align:top;font-size:12px;color:#6F6860;white-space:nowrap;">' + _esc(row.channel || 'Cardápio') + '</td>' +
+      '<td style="padding:12px 14px;vertical-align:top;text-align:right;font-size:13px;font-weight:650;color:#1F1F1F;white-space:nowrap;">' + _roundDisplay(row.qty) + '</td>' +
+      '<td style="padding:12px 14px;vertical-align:top;text-align:right;font-size:13px;font-weight:700;color:#1F1F1F;white-space:nowrap;">' + _fmtMoneyDisplay(row.total) + '</td>' +
+      '<td style="padding:12px 14px;vertical-align:top;font-size:12px;color:#6F6860;white-space:nowrap;">' + _esc(row.status || '') + '</td>' +
+    '</tr>';
+  }
+
+  function _roundDisplay(value) {
+    var n = _moneyLike(value || 0);
+    if (Math.abs(n - Math.round(n)) < 0.000001) return String(Math.round(n));
+    return n.toFixed(2).replace('.', ',');
+  }
+
+  function _setCatalogSalesFilter(key, value) {
+    _salesFilters[key] = String(value || '');
+    if (key !== 'q' && !_salesFilters[key]) _salesFilters[key] = 'todos';
+    _salesView.page = 1;
+    _paintVendasCardapio();
+  }
+
+  function _clearCatalogSalesFilters() {
+    _salesFilters = { q: '', period: '90', channel: 'todos', type: 'todos' };
+    _salesView.page = 1;
+    _paintVendasCardapio();
+  }
+
+  function _setCatalogSalesPage(page) {
+    _salesView.page = Math.max(1, parseInt(page, 10) || 1);
+    _paintVendasCardapio();
+  }
+
+  function _setCatalogSalesPageSize(size) {
+    _salesView.pageSize = Math.max(10, parseInt(size, 10) || 25);
+    _salesView.page = 1;
+    _paintVendasCardapio();
   }
 
   function _productTableRowHTML(p, canOrder) {
@@ -10877,6 +11184,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     _connectCheckoutStripe: _connectCheckoutStripe,
     _clearStoreImage: _clearStoreImage,
     _openProductModal: _openProductModal, _toggleVis: _toggleVis, _saveProduct: _saveProduct, _deleteProduct: _deleteProduct, _duplicateProduct: _duplicateProduct, _openImportProducts: _openImportProducts, _filterProdutos: _filterProdutos, _setProductFilter: _setProductFilter, _setProductSort: _setProductSort, _setProductPage: _setProductPage, _setProductPageSize: _setProductPageSize, _clearProductFilters: _clearProductFilters, _quickUpdateProduct: _quickUpdateProduct, _moveProductInCategory: _moveProductInCategory,
+    _setCatalogSalesFilter: _setCatalogSalesFilter, _clearCatalogSalesFilters: _clearCatalogSalesFilters, _setCatalogSalesPage: _setCatalogSalesPage, _setCatalogSalesPageSize: _setCatalogSalesPageSize,
     _openProductsMoreFilters: _openProductsMoreFilters,
     _onProductNameChange: _onProductNameChange, _onProductDescChange: _onProductDescChange, _onProductMadeToOrderChange: _onProductMadeToOrderChange, _refreshProductPreview: _refreshProductPreview, _moneyInputFocus: _moneyInputFocus, _moneyInputBlur: _moneyInputBlur,
     _seoEdited: _seoEdited, _onTipoChange: _onTipoChange, _onUnicoSrcChange: _onUnicoSrcChange, _openProductTypeHelpModal: _openProductTypeHelpModal, _openProductCategoryCreateModal: _openProductCategoryCreateModal, _saveProductCategoryFromModal: _saveProductCategoryFromModal,

@@ -1,5 +1,14 @@
 # AI Changelog
 
+## 2026-06-04 — Cardápio: tabela comercial de vendas
+- Arquivos alterados: `public/js/modules/catalogo.js`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Criei a área `Cardápio → Vendas` no menu lateral do Admin.
+- A tela monta uma tabela comercial a partir dos itens dos pedidos (`orders.items`), com data, produto/menu vendido, pedido, cliente, canal, quantidade, total, status e escolhas.
+- Adicionei KPIs de faturamento do cardápio, itens vendidos, ticket por item e produto/menu mais vendido.
+- Adicionei filtros por busca, período, canal e tipo, ranking agrupado por produto/menu vendido e paginação.
+- Documentei em `AGENTS.md` que essa leitura é estratégica/comercial e fica separada das movimentações de estoque.
+- Atualizei o cache-buster de `catalogo.js` no Admin.
+
 ## 2026-06-04 — Estoque: exibição das etapas na regularização em cadeia
 - Arquivos alterados: `public/js/modules/estoque.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - Corrigi a tela `Estoque → Regularizações` para listar também as entradas técnicas de `regularizationChain` como linhas vinculadas ao item principal.
