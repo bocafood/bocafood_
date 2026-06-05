@@ -1,5 +1,21 @@
 # AI Changelog
 
+## 2026-06-05 — Temporadas: estratégia vira prioridade sem travar jogadas
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/js/services/seasons.ai.js`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Mantive o campo técnico `build` para compatibilidade com temporadas antigas, mas a interface passa a tratar a escolha como `Prioridade da temporada`.
+- As opções agora aparecem como `Mais movimento`, `Melhor sobra` e `Clientes voltando`, com copy explicando que elas dão peso inicial à leitura.
+- Removi o bloqueio de combinações entre objetivo e prioridade no wizard: qualquer prioridade pode ser escolhida.
+- A prioridade deixou de filtrar as próximas jogadas. Ela apenas aumenta ou reduz peso no ranking; outras oportunidades continuam podendo aparecer quando os dados forem mais fortes.
+- Atualizei o prompt/contexto da IA para explicar que a prioridade orienta por onde começar, mas não limita a recomendação.
+- Ajustei labels de resumo, HUD, ajuda e resultado final de `Estratégia` para `Prioridade`.
+- Atualizei cache-busters de `seasons.ai.js` e `temporadas.js` no Admin.
+
+## 2026-06-05 — Temporadas: copy do cabeçalho
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Ajustei a frase de apoio do cabeçalho de Temporadas para remover tom apelativo.
+- A copy agora diz: `Use a rota do Plano de Voo para definir as próximas ações da temporada.`
+- Atualizei o cache-buster de `temporadas.js` no Admin.
+
 ## 2026-06-05 — Temporadas: IA compacta, cache e auditoria de uso
 - Arquivos alterados: `public/js/services/seasons.ai.js`, `public/js/modules/temporadas.js`, `functions/index.js`, `server.rb`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
 - Transformei o contexto de IA de Temporadas em um payload compacto (`compact-v1`), mantendo apenas os dados úteis para gerar a próxima jogada: objetivo, dificuldade, progresso, risco, produtos fortes/fracos, canais, horários/dias, sinais validados, plano de execução e tarefas.

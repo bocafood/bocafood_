@@ -83,9 +83,9 @@ Modules.Temporadas = (function () {
   ];
 
   var BUILDS = [
-    { value: 'volume', label: 'Volume', text: 'Prioriza pedidos, frequência e dias ativos.' },
-    { value: 'margin', label: 'Margem', text: 'Prioriza ticket, valor por pedido e margem estimada.' },
-    { value: 'retention', label: 'Fidelização', text: 'Prioriza recompra, clientes recorrentes e frequência.' }
+    { value: 'volume', label: 'Mais movimento', text: 'Dá mais peso para produto forte, canal, horário e volume de pedidos.' },
+    { value: 'margin', label: 'Melhor sobra', text: 'Dá mais peso para ticket, margem e produtos que vendem melhor.' },
+    { value: 'retention', label: 'Clientes voltando', text: 'Dá mais peso para recompra, pontos e clientes conhecidos.' }
   ];
 
   function render(sub) {
@@ -107,7 +107,7 @@ Modules.Temporadas = (function () {
         '<div class="seasons-hero-copy">' +
           '<div class="seasons-kicker">' + _icon('track_changes') + ' Missões Operacionais</div>' +
           '<h1>Temporadas</h1>' +
-          '<p>Transforme a rota do Plano de Voo em jogadas de curto prazo, com leitura clara do que fazer agora.</p>' +
+          '<p>Use a rota do Plano de Voo para definir as próximas ações da temporada.</p>' +
           '<div class="seasons-hero-chips">' +
             '<span>Rota em ação</span>' +
             '<span>Jogadas práticas</span>' +
@@ -3474,7 +3474,7 @@ Modules.Temporadas = (function () {
           '<p>' + _esc(_formatPeriod(season.startDate, season.endDate)) + '</p>' +
           '<div class="seasons-hud-tags">' +
             _hudTag('Objetivo', _objectiveLabel(season.objective)) +
-            _hudTag('Estratégia', _buildLabel(season.build)) +
+            _hudTag('Prioridade', _buildLabel(season.build)) +
             _hudTag('Dificuldade', _difficultyLabel(season.difficulty)) +
           '</div>' +
         '</div>' +
@@ -4177,16 +4177,14 @@ Modules.Temporadas = (function () {
 
   function _applySeasonActionStrategy(rankedActions, season) {
     var profile = _seasonActionStrategyProfile(season || {});
-    return (rankedActions || []).filter(function (item) {
-      return _isSeasonActionAllowedForStrategy(item, profile);
-    }).map(function (item) {
+    return (rankedActions || []).map(function (item) {
       var key = _seasonActionStrategyKey(item);
       var boost = _number(profile.boosts[key], 0);
       var source = item && item.action && item.action.source || '';
       if (profile.sources && profile.sources[source] !== undefined) boost += _number(profile.sources[source], 0);
       var adjusted = Object.assign({}, item);
       adjusted.score = _number(item && item.score, 0) + boost;
-      adjusted.strategyFit = {
+      adjusted.priorityFit = {
         objective: season && season.objective || '',
         build: season && season.build || '',
         key: key,
@@ -4196,13 +4194,6 @@ Modules.Temporadas = (function () {
       adjusted.action = _contextualizeSeasonActionForStrategy(adjusted.action, key, season);
       return adjusted;
     });
-  }
-
-  function _isSeasonActionAllowedForStrategy(item, profile) {
-    var key = _seasonActionStrategyKey(item);
-    var allowed = profile && profile.allowedKeys;
-    if (!allowed || !allowed.length) return true;
-    return allowed.indexOf(key) >= 0;
   }
 
   function _contextualizeSeasonActionForStrategy(action, key, season) {
@@ -4263,7 +4254,7 @@ Modules.Temporadas = (function () {
         goal: 'Vender mais sem trocar crescimento por desconto pesado.',
         success: 'entrar venda com desconto controlado ou sem desconto.',
         description: 'Use esta jogada para puxar venda preservando a sobra do produto.',
-        why: 'Como a estratégia é margem, a jogada precisa vender sem deixar o desconto mandar no resultado.',
+        why: 'Como a prioridade é melhor sobra, a jogada precisa vender sem deixar o desconto mandar no resultado.',
         checklist: ['Evite aumentar desconto nesta jogada; prefira destaque, produto forte ou upsell.']
       },
       'sell_more:retention': {
@@ -4284,7 +4275,7 @@ Modules.Temporadas = (function () {
         goal: 'Subir o valor do pedido preservando margem.',
         success: 'entrar pedido maior sem depender de cupom forte.',
         description: 'Use esta jogada para vender melhor cada pedido, com adicional ou produto de boa sobra.',
-        why: 'Como a estratégia é margem, upsell e adicional fazem mais sentido que baixar preço.',
+        why: 'Como a prioridade é melhor sobra, upsell e adicional fazem mais sentido que baixar preço.',
         checklist: ['Priorize adicional, combo ou produto complementar em vez de desconto.']
       },
       'increase_ticket:retention': {
@@ -4298,14 +4289,14 @@ Modules.Temporadas = (function () {
         goal: 'Trazer clientes de volta com uma ação fácil de aceitar.',
         success: 'cliente que já comprou voltar a fazer pedido.',
         description: 'Use esta jogada para aumentar recompra com uma chamada simples.',
-        why: 'A estratégia de volume aqui depende de retorno: mais clientes conhecidos comprando de novo.',
+        why: 'A prioridade de movimento aqui depende de retorno: mais clientes conhecidos comprando de novo.',
         checklist: ['Fale com clientes que já compraram antes e use o produto forte como motivo.']
       },
       'retain_customers:margin': {
         goal: 'Gerar recompra sem dar desconto desnecessário.',
         success: 'cliente conhecido voltar comprando produto com boa sobra.',
         description: 'Use esta jogada para trazer cliente de volta protegendo o resultado da venda.',
-        why: 'Como a estratégia é margem, a recompra precisa ser saudável, não só barata.',
+        why: 'Como a prioridade é melhor sobra, a recompra precisa ser saudável, não só barata.',
         checklist: ['Prefira benefício leve, pontos ou produto de boa margem.']
       },
       'retain_customers:retention': {
@@ -4434,23 +4425,8 @@ Modules.Temporadas = (function () {
     return {
       boosts: boosts,
       sources: sources,
-      allowedKeys: _seasonAllowedActionKeys(combo),
       label: _objectiveLabel(objective) + ' + ' + _buildLabel(build)
     };
-  }
-
-  function _seasonAllowedActionKeys(combo) {
-    var map = {
-      'sell_more:volume': ['product', 'timing', 'promotion', 'coupon', 'consistency'],
-      'sell_more:retention': ['retention', 'coupon', 'product', 'promotion', 'timing'],
-      'increase_ticket:margin': ['upsell', 'healthy_discount', 'product', 'promotion'],
-      'increase_ticket:retention': ['upsell', 'retention', 'coupon', 'product'],
-      'retain_customers:retention': ['retention', 'coupon', 'product', 'promotion'],
-      'retain_customers:margin': ['retention', 'healthy_discount', 'product', 'coupon'],
-      'improve_consistency:volume': ['consistency', 'timing', 'product', 'promotion', 'coupon'],
-      'improve_consistency:retention': ['consistency', 'retention', 'coupon', 'product', 'timing']
-    };
-    return map[combo] || [];
   }
 
   function _rankedAction(score, focusKey, productKey, action) {
@@ -5211,7 +5187,6 @@ Modules.Temporadas = (function () {
 
   function _completeSeasonActions(actions, profile, season, metrics, signals, opportunities, topProduct, topChannel, strongHour) {
     var out = (actions || []).slice();
-    var strategyProfile = _seasonActionStrategyProfile(season || {});
     var productName = topProduct && topProduct.name;
     var channelLabel = topChannel && topChannel.channel ? _channelLabel(topChannel.channel) : '';
     var hourLabel = strongHour && strongHour.hour !== undefined ? _formatHourLabel(strongHour.hour) : '';
@@ -5227,7 +5202,6 @@ Modules.Temporadas = (function () {
 
     function add(action) {
       if (!action || out.length >= profile.maxActions || has(action.id)) return;
-      if (!_isSeasonActionAllowedForStrategy({ focusKey: action.source || '', action: action }, strategyProfile)) return;
       out.push(action);
     }
 
@@ -6428,7 +6402,7 @@ Modules.Temporadas = (function () {
       '<article class="seasons-scheduled-row seasons-scheduled-row-clickable" onclick="Modules.Temporadas.openScheduledDetails(\'' + _esc(season.id || '') + '\')" role="button" tabindex="0">' +
         '<div class="seasons-scheduled-main">' +
           '<strong>' + _esc(season.title || 'Temporada sem título') + '</strong>' +
-          '<span>' + _esc(_objectiveLabel(season.objective)) + ' · ' + _esc(_buildLabel(season.build)) + ' · ' + _esc(_difficultyLabel(season.difficulty)) + '</span>' +
+          '<span>' + _esc(_objectiveLabel(season.objective)) + ' · Prioridade: ' + _esc(_buildLabel(season.build)) + ' · ' + _esc(_difficultyLabel(season.difficulty)) + '</span>' +
           '<small>As análises começam quando a temporada ficar ativa.</small>' +
         '</div>' +
         '<div class="seasons-scheduled-meta">' +
@@ -6852,7 +6826,7 @@ Modules.Temporadas = (function () {
             '<strong>' + Math.round(_number(season.finalScore, season.currentScore || 0)) + '</strong>' +
           '</div>' +
           '<div class="seasons-final-grid">' +
-            _finalFact('Estratégia', _buildLabel(season.build)) +
+            _finalFact('Prioridade', _buildLabel(season.build)) +
             _finalFact('Dificuldade', _difficultyLabel(season.difficulty)) +
             _finalFact('Meta', _formatMetricValue(metrics.targetValue, season.objective)) +
             _finalFact('Resultado', _formatMetricValue(metrics.currentValue, season.objective)) +
@@ -6889,7 +6863,7 @@ Modules.Temporadas = (function () {
         '<div class="seasons-final-body">' +
           '<div class="seasons-final-grid">' +
             _finalFact('Objetivo', _objectiveLabel(season.objective)) +
-            _finalFact('Estratégia', _buildLabel(season.build)) +
+            _finalFact('Prioridade', _buildLabel(season.build)) +
             _finalFact('Dificuldade', _difficultyLabel(season.difficulty)) +
             _finalFact('Início', _formatDate(season.startDate)) +
             _finalFact('Fim', _formatDate(season.endDate)) +
@@ -6957,14 +6931,14 @@ Modules.Temporadas = (function () {
         '<div class="seasons-modal-body seasons-help-body">' +
           '<section class="seasons-help-summary">' +
             _helpSummaryCard('Objetivo', _objectiveLabel(season.objective)) +
-            _helpSummaryCard('Estratégia', _buildLabel(season.build)) +
+            _helpSummaryCard('Prioridade', _buildLabel(season.build)) +
             _helpSummaryCard('Dificuldade', _difficultyLabel(season.difficulty)) +
             _helpSummaryCard('Duração', _durationDays(season) + ' dias') +
           '</section>' +
           '<section class="seasons-help-section">' +
             '<h3>O que esta tela te mostra</h3>' +
             '<div class="seasons-help-grid">' +
-              _helpItem('Painel da Temporada', 'Mostra o caminho escolhido: objetivo, estratégia, dificuldade, score, progresso e dias restantes.', 'Use este bloco para saber rapidamente se a temporada está andando no ritmo certo.') +
+              _helpItem('Painel da Temporada', 'Mostra o caminho escolhido: objetivo, prioridade, dificuldade, score, progresso e dias restantes.', 'Use este bloco para saber rapidamente se a temporada está andando no ritmo certo.') +
               _helpItem('Visão Geral', 'Resume como a temporada está hoje, o que está ajudando e o que está travando.', 'Os cards têm explicação extra: clique neles para abrir o balão de ajuda.') +
               _helpItem('Próxima Jogada', 'Mostra as ações práticas que valem fazer agora, com produto, canal, prazo e motivo quando esses dados existem.', 'É a parte mais operacional da Temporada: aqui fica o que fazer no dia a dia.') +
               _helpItem('Resultado da jogada', 'Quando uma jogada aparece nos pedidos, o BocaFood mostra se ela deu resultado, não respondeu ou passou do prazo.', 'Assim a próxima decisão aprende com o que aconteceu.') +
@@ -7011,7 +6985,7 @@ Modules.Temporadas = (function () {
               '<p>' + _esc(objective.focus) + '</p>' +
             '</div>' +
             '<div>' +
-              '<h3>Estratégia</h3>' +
+              '<h3>Prioridade da temporada</h3>' +
               '<p>' + _esc(build) + '</p>' +
             '</div>' +
             '<div>' +
@@ -7048,7 +7022,7 @@ Modules.Temporadas = (function () {
           '<div>' + weights.map(function (item) {
             return '<span><strong>' + _esc(item.weight) + '</strong>' + _esc(item.label) + '</span>';
           }).join('') + '</div>' +
-          '<small>A estratégia ' + _esc(_buildLabel(season.build)) + ' ajuda a priorizar a interpretação, mas não muda os dados reais da temporada.</small>' +
+          '<small>A prioridade ' + _esc(_buildLabel(season.build)) + ' orienta por onde começar, mas não impede o BocaFood de sugerir outra jogada se os dados mostrarem uma oportunidade mais forte.</small>' +
         '</div>' +
       '</section>';
   }
@@ -7120,10 +7094,10 @@ Modules.Temporadas = (function () {
 
   function _buildHelp(build) {
     return ({
-      volume: 'Com a estratégia Volume, o sistema dá mais peso para pedidos, frequência e movimento.',
-      margin: 'Com a estratégia Margem, o sistema dá mais peso para ticket, valor por pedido e produtos de maior valor.',
-      retention: 'Com a estratégia Fidelização, o sistema dá mais peso para recompra, recorrência e frequência.'
-    })[build] || 'A estratégia altera o peso da leitura operacional sem mudar a temporada inteira.';
+      volume: 'Com a prioridade Mais movimento, o sistema dá mais peso para produto forte, canal, horário e volume de pedidos.',
+      margin: 'Com a prioridade Melhor sobra, o sistema dá mais peso para ticket, margem e produtos que vendem melhor.',
+      retention: 'Com a prioridade Clientes voltando, o sistema dá mais peso para recompra, pontos e clientes conhecidos.'
+    })[build] || 'A prioridade orienta o começo da leitura, mas não limita as jogadas quando os dados mostram uma oportunidade mais forte.';
   }
 
   function _difficultyHelp(difficulty) {
@@ -7185,7 +7159,7 @@ Modules.Temporadas = (function () {
 
   function _wizardHtml() {
     var step = _wizard.step;
-    var title = ['Objetivo', 'Duração', 'Data de início', 'Dificuldade', 'Estratégia operacional', 'Resumo final'][step] || 'Nova Temporada';
+    var title = ['Objetivo', 'Duração', 'Data de início', 'Dificuldade', 'Prioridade da temporada', 'Resumo final'][step] || 'Nova Temporada';
     var totalSteps = 6;
     return '' +
       '<div class="seasons-modal seasons-create-wizard" role="dialog" aria-modal="true" aria-label="Nova Temporada">' +
@@ -7218,7 +7192,7 @@ Modules.Temporadas = (function () {
       'Defina o tamanho da rodada de trabalho.',
       'Escolha quando a temporada começa a acompanhar a rota.',
       'Defina a intensidade das jogadas que o BocaFood vai sugerir.',
-      'Escolha o caminho usado para montar as próximas ações.',
+      'Escolha por onde o BocaFood deve começar a procurar as próximas ações.',
       'Revise a rota, o esforço e a base antes de iniciar.'
     ][step] || 'Monte uma temporada clara para executar o Plano de Voo.';
   }
@@ -7234,7 +7208,7 @@ Modules.Temporadas = (function () {
       { label: 'Duração', value: duration ? duration.label + ' · ' + duration.text : 'Ainda não definida' },
       { label: 'Início', value: values.startDate ? _formatDate(_parseDateInput(values.startDate)) : 'Hoje' },
       { label: 'Ritmo', value: values.difficulty ? _difficultyLabel(values.difficulty) : 'Ainda não definido' },
-      { label: 'Estratégia', value: values.build ? _buildLabel(values.build) : 'Ainda não definida' }
+      { label: 'Prioridade', value: values.build ? _buildLabel(values.build) : 'Ainda não definida' }
     ];
     var routeValue = plan ? _fmtMoney(plan.gapAtStart || plan.routeTarget || 0) : (_wizard.baselineLoading ? 'Buscando rota' : 'Plano de Voo');
     var guidance = [
@@ -7242,7 +7216,7 @@ Modules.Temporadas = (function () {
       'Sprint é mais rápido. Temporada dá mais tempo para observar resposta.',
       'A data define quando o BocaFood começa a medir pedidos e jogadas.',
       'Quanto maior a dificuldade, mais jogadas ficam ativas ao mesmo tempo.',
-      'A estratégia muda a ordem das ações sugeridas: volume, margem ou fidelização.',
+      'A prioridade dá mais peso a um caminho, mas não bloqueia outras jogadas se os dados mostrarem algo mais forte.',
       'Depois de salvar, a temporada vira acompanhamento. Para mudar o caminho, crie outra.'
     ][step] || '';
     return '' +
@@ -7297,13 +7271,12 @@ Modules.Temporadas = (function () {
     return '<div class="seasons-option-grid">' + options.map(function (opt) {
       var active = _wizard.values[field] === opt.value;
       var meta = _wizardOptionMeta(field, opt.value);
-      var disabled = field === 'build' && !_isBuildAllowedForObjective(_wizard.values.objective, opt.value);
       return '' +
-        '<button class="seasons-choice-card ' + (active ? 'active ' : '') + (disabled ? 'disabled' : '') + '" type="button" ' + (disabled ? 'disabled aria-disabled="true"' : 'onclick="Modules.Temporadas._wizardSelect(\'' + _esc(field) + '\',\'' + _esc(opt.value) + '\')"') + '>' +
+        '<button class="seasons-choice-card ' + (active ? 'active ' : '') + '" type="button" onclick="Modules.Temporadas._wizardSelect(\'' + _esc(field) + '\',\'' + _esc(opt.value) + '\')">' +
           '<i>' + _icon(meta.icon) + '</i>' +
           '<strong>' + _esc(opt.label) + '</strong>' +
           '<span>' + _esc(opt.text) + '</span>' +
-          '<small>' + _esc(disabled ? _blockedBuildReason(_wizard.values.objective, opt.value) : meta.hint) + '</small>' +
+          '<small>' + _esc(meta.hint) + '</small>' +
         '</button>';
     }).join('') + '</div>';
   }
@@ -7360,7 +7333,7 @@ Modules.Temporadas = (function () {
         _summaryRow('Já realizado', plan ? _fmtMoney(plan.currentValueAtStart) : (_wizard.baselineLoading ? 'Calculando...' : 'Não calculado')) +
         _summaryRow('Falta cumprir', plan ? _fmtMoney(plan.gapAtStart) : (_wizard.baselineLoading ? 'Calculando...' : 'Não calculado')) +
         _summaryRow('Dificuldade', _difficultyLabel(values.difficulty)) +
-        _summaryRow('Estratégia', _buildLabel(values.build)) +
+        _summaryRow('Prioridade', _buildLabel(values.build)) +
         _summaryRow('Ponto de partida', baseline ? _formatBaselineValue(baseline.baselineValue, values.objective) : (_wizard.baselineLoading ? 'Calculando...' : 'Não calculado')) +
         _summaryRow('Meta da temporada', baseline ? _formatBaselineValue(baseline.calculatedTargetValue, values.objective) : (_wizard.baselineLoading ? 'Calculando...' : 'Não calculada')) +
         _summaryRow('Chance de falha inicial', baseline ? _riskLabel(baseline.initialRiskLevel) : (_wizard.baselineLoading ? 'Calculando...' : 'Não calculado')) +
@@ -7423,35 +7396,17 @@ Modules.Temporadas = (function () {
       (objective === 'improve_consistency' && build === 'margin');
   }
 
-  function _isBuildAllowedForObjective(objective, build) {
-    if (!objective || !build) return true;
-    return !_isBuildMisaligned(objective, build);
-  }
-
-  function _blockedBuildReason(objective, build) {
-    if (!objective) return 'Escolha primeiro o objetivo da temporada.';
-    return _buildMisalignmentMessage(objective, build);
-  }
-
   function _buildMisalignmentMessage(objective, build) {
-    if (objective === 'increase_ticket' && build === 'volume') return 'Essa combinação pode funcionar, mas Volume prioriza quantidade de pedidos, não valor por pedido.';
-    if (objective === 'sell_more' && build === 'margin') return 'Essa combinação pode funcionar, mas Margem prioriza valor por pedido e produtos premium, não volume total.';
-    if (objective === 'retain_customers' && build === 'volume') return 'Essa combinação pode funcionar, mas Volume prioriza pedidos, não recorrência e relacionamento.';
-    if (objective === 'improve_consistency' && build === 'margin') return 'Essa combinação pode funcionar, mas Margem pode desviar o foco da regularidade operacional.';
-    return 'Essa combinação pode funcionar, mas a estratégia escolhida não é a mais alinhada ao objetivo.';
+    if (objective === 'increase_ticket' && build === 'volume') return 'Mais movimento pode ajudar, mas para aumentar ticket o BocaFood também vai observar adicionais, combos e upsell quando eles aparecerem mais fortes.';
+    if (objective === 'sell_more' && build === 'margin') return 'Melhor sobra pode orientar a primeira leitura, mas se produto, canal ou horário mostrarem venda mais forte, eles ainda podem virar jogada.';
+    if (objective === 'retain_customers' && build === 'volume') return 'Mais movimento pode entrar como ponto de partida, mas para fidelizar o BocaFood também vai dar atenção a recompra, pontos e clientes conhecidos.';
+    if (objective === 'improve_consistency' && build === 'margin') return 'Melhor sobra pode orientar a primeira leitura, mas para consistência o BocaFood ainda vai olhar dias fracos, horários e canais que ajudam a distribuir vendas.';
+    return 'Essa prioridade orienta o começo da leitura, mas não impede outras jogadas quando os dados mostrarem oportunidade melhor.';
   }
 
   function _wizardSelect(field, value) {
     if (!_wizard || _wizard.saving) return;
-    if (field === 'build' && !_isBuildAllowedForObjective(_wizard.values.objective, value)) {
-      _wizard.error = _blockedBuildReason(_wizard.values.objective, value);
-      _renderWizard();
-      return;
-    }
     _wizard.values[field] = value;
-    if (field === 'objective' && _wizard.values.build && !_isBuildAllowedForObjective(value, _wizard.values.build)) {
-      _wizard.values.build = '';
-    }
     _wizard.error = '';
     _renderWizard();
   }
@@ -7504,8 +7459,7 @@ Modules.Temporadas = (function () {
       if (_parseDateInput(values.startDate) < _dayStart(new Date())) return 'A data de início não pode ser no passado.';
     }
     if (step === 3 && !values.difficulty) return 'Escolha uma dificuldade.';
-    if (step === 4 && !values.build) return 'Escolha uma estratégia operacional.';
-    if (step === 4 && !_isBuildAllowedForObjective(values.objective, values.build)) return _blockedBuildReason(values.objective, values.build);
+    if (step === 4 && !values.build) return 'Escolha uma prioridade para a temporada.';
     if (step === 5) {
       var required = [0, 1, 2, 3, 4].map(_validateWizardStep).filter(Boolean);
       if (required.length) return required[0];
@@ -10204,7 +10158,7 @@ Modules.Temporadas = (function () {
   }
 
   function _buildLabel(value) {
-    return ({ volume: 'Volume', margin: 'Margem', retention: 'Fidelização' })[value] || value || 'Não definido';
+    return ({ volume: 'Mais movimento', margin: 'Melhor sobra', retention: 'Clientes voltando' })[value] || value || 'Não definido';
   }
 
   function _difficultyLabel(value) {
