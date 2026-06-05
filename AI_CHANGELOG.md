@@ -1,5 +1,19 @@
 # AI Changelog
 
+## 2026-06-05 — Temporadas: copy do modal Nova Temporada
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- No modal `Nova Temporada`, troquei as ocorrências de `jogadas` por `ações` ou `próximas ações` nas instruções de criação.
+- Mantive `Próxima Jogada` como nome da aba operacional da Temporada, onde a ação recomendada é detalhada depois que a temporada existe.
+- Atualizei o cache-buster de `temporadas.js` no Admin.
+
+## 2026-06-05 — Temporadas: resumo da rota sem valor zerado confuso
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Ajustei o resumo final do modal `Nova Temporada` para não mostrar `Já realizado` quando o valor é zero no início da rota.
+- Quando já existir venda real dentro da janela da temporada antes da criação/ativação, o resumo mostra `Vendido até agora`.
+- Troquei `Ponto de partida` por `Base de comparação`; quando o valor histórico é zero, o resumo mostra `Poucos pedidos no histórico` ou `Ainda sem histórico suficiente` em vez de `€0,00`.
+- O `planConnection` passa a salvar `hasCurrentValueAtStart` para indicar quando havia venda acumulada no começo da temporada.
+- Atualizei o cache-buster de `temporadas.js` no Admin.
+
 ## 2026-06-05 — Temporadas: estratégia vira prioridade sem travar jogadas
 - Arquivos alterados: `public/js/modules/temporadas.js`, `public/js/services/seasons.ai.js`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
 - Mantive o campo técnico `build` para compatibilidade com temporadas antigas, mas a interface passa a tratar a escolha como `Prioridade da temporada`.

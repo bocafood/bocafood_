@@ -7191,7 +7191,7 @@ Modules.Temporadas = (function () {
       'Escolha o foco principal deste ciclo operacional.',
       'Defina o tamanho da rodada de trabalho.',
       'Escolha quando a temporada começa a acompanhar a rota.',
-      'Defina a intensidade das jogadas que o BocaFood vai sugerir.',
+      'Defina a intensidade das ações que o BocaFood vai sugerir.',
       'Escolha por onde o BocaFood deve começar a procurar as próximas ações.',
       'Revise a rota, o esforço e a base antes de iniciar.'
     ][step] || 'Monte uma temporada clara para executar o Plano de Voo.';
@@ -7214,9 +7214,9 @@ Modules.Temporadas = (function () {
     var guidance = [
       'Primeiro escolha o que você quer melhorar nesta temporada.',
       'Sprint é mais rápido. Temporada dá mais tempo para observar resposta.',
-      'A data define quando o BocaFood começa a medir pedidos e jogadas.',
-      'Quanto maior a dificuldade, mais jogadas ficam ativas ao mesmo tempo.',
-      'A prioridade dá mais peso a um caminho, mas não bloqueia outras jogadas se os dados mostrarem algo mais forte.',
+      'A data define quando o BocaFood começa a medir pedidos e ações.',
+      'Quanto maior a dificuldade, mais ações ficam ativas ao mesmo tempo.',
+      'A prioridade dá mais peso a um caminho, mas não bloqueia outras ações se os dados mostrarem algo mais forte.',
       'Depois de salvar, a temporada vira acompanhamento. Para mudar o caminho, crie outra.'
     ][step] || '';
     return '' +
@@ -7241,7 +7241,7 @@ Modules.Temporadas = (function () {
       'Qual o tamanho da rodada?',
       'Quando começa a execução?',
       'Qual intensidade combina com sua rotina?',
-      'Por onde o BocaFood deve procurar as jogadas?',
+      'Por onde o BocaFood deve procurar as próximas ações?',
       'Está pronto para acompanhar?'
     ][step] || 'Nova temporada';
   }
@@ -7290,13 +7290,13 @@ Modules.Temporadas = (function () {
         improve_consistency: { icon: 'timeline', hint: 'Prioriza dias fracos, regularidade e ritmo.' }
       },
       durationType: {
-        sprint: { icon: 'timer', hint: 'Melhor para testar uma jogada rápida.' },
+        sprint: { icon: 'timer', hint: 'Melhor para testar uma ação rápida.' },
         season: { icon: 'event_upcoming', hint: 'Melhor para acompanhar mudança com mais calma.' }
       },
       difficulty: {
-        safe: { icon: 'schedule', hint: 'Uma jogada principal, menos pressão.' },
-        balanced: { icon: 'speed', hint: 'Duas jogadas diferentes, ritmo constante.' },
-        aggressive: { icon: 'track_changes', hint: 'Até três jogadas, execução mais intensa.' }
+        safe: { icon: 'schedule', hint: 'Uma ação principal, menos pressão.' },
+        balanced: { icon: 'speed', hint: 'Duas ações diferentes, ritmo constante.' },
+        aggressive: { icon: 'track_changes', hint: 'Até três ações, execução mais intensa.' }
       },
       build: {
         volume: { icon: 'trending_up', hint: 'Procura mais pedidos e mais movimento.' },
@@ -7304,7 +7304,7 @@ Modules.Temporadas = (function () {
         retention: { icon: 'verified', hint: 'Procura trazer clientes de volta.' }
       }
     };
-    return map[field] && map[field][value] || { icon: 'track_changes', hint: 'Ajuda o BocaFood a escolher melhores jogadas.' };
+    return map[field] && map[field][value] || { icon: 'track_changes', hint: 'Ajuda o BocaFood a escolher melhores ações.' };
   }
 
   function _summaryStep() {
@@ -7312,6 +7312,7 @@ Modules.Temporadas = (function () {
     var duration = _findByValue(DURATIONS, values.durationType);
     var baseline = _wizard.baseline;
     var plan = baseline && baseline.planConnection ? baseline.planConnection : null;
+    var routeRows = _summaryRouteRows(plan, _wizard.baselineLoading);
     return '' +
       '<div class="seasons-summary-hero">' +
         '<div>' +
@@ -7327,14 +7328,10 @@ Modules.Temporadas = (function () {
         _summaryRow('Início', values.startDate ? _formatDate(_parseDateInput(values.startDate)) : 'Hoje') +
         _summaryRow('Fim previsto', _wizardPeriodRange(values) ? _formatDate(_wizardPeriodRange(values).end) : 'Não calculado') +
         _summaryRow('Status inicial', _isFutureStart(values.startDate) ? 'Programada' : 'Ativa') +
-        _summaryRow('Base da temporada', plan ? (plan.flightPlanName || 'Rota do Plano de Voo') : (_wizard.baselineLoading ? 'Buscando rota...' : 'Plano de Voo não encontrado')) +
-        _summaryRow('Período da rota', plan ? _formatPeriod(plan.periodStart, plan.periodEnd) : (_wizard.baselineLoading ? 'Buscando...' : 'Não calculado')) +
-        _summaryRow('Meta da rota', plan ? _fmtMoney(plan.routeTarget) : (_wizard.baselineLoading ? 'Calculando...' : 'Não calculada')) +
-        _summaryRow('Já realizado', plan ? _fmtMoney(plan.currentValueAtStart) : (_wizard.baselineLoading ? 'Calculando...' : 'Não calculado')) +
-        _summaryRow('Falta cumprir', plan ? _fmtMoney(plan.gapAtStart) : (_wizard.baselineLoading ? 'Calculando...' : 'Não calculado')) +
+        routeRows +
         _summaryRow('Dificuldade', _difficultyLabel(values.difficulty)) +
         _summaryRow('Prioridade', _buildLabel(values.build)) +
-        _summaryRow('Ponto de partida', baseline ? _formatBaselineValue(baseline.baselineValue, values.objective) : (_wizard.baselineLoading ? 'Calculando...' : 'Não calculado')) +
+        _summaryRow('Base de comparação', _summaryBaselineLabel(baseline, values.objective, _wizard.baselineLoading)) +
         _summaryRow('Meta da temporada', baseline ? _formatBaselineValue(baseline.calculatedTargetValue, values.objective) : (_wizard.baselineLoading ? 'Calculando...' : 'Não calculada')) +
         _summaryRow('Chance de falha inicial', baseline ? _riskLabel(baseline.initialRiskLevel) : (_wizard.baselineLoading ? 'Calculando...' : 'Não calculado')) +
         _summaryRow('Confiabilidade', baseline ? _confidenceLabel(baseline.baselineConfidence) : (_wizard.baselineLoading ? 'Calculando...' : 'Não calculada')) +
@@ -7345,6 +7342,35 @@ Modules.Temporadas = (function () {
 
   function _summaryRow(label, value) {
     return '<div class="seasons-summary-row"><span>' + _esc(label) + '</span><strong>' + _esc(value) + '</strong></div>';
+  }
+
+  function _summaryRouteRows(plan, loading) {
+    if (!plan) {
+      return _summaryRow('Base da temporada', loading ? 'Buscando rota...' : 'Plano de Voo não encontrado') +
+        _summaryRow('Período da rota', loading ? 'Buscando...' : 'Não calculado') +
+        _summaryRow('Meta da rota', loading ? 'Calculando...' : 'Não calculada') +
+        _summaryRow('Falta cumprir', loading ? 'Calculando...' : 'Não calculado');
+    }
+    var current = _number(plan.currentValueAtStart, 0);
+    var rows = [
+      _summaryRow('Base da temporada', plan.flightPlanName || 'Rota do Plano de Voo'),
+      _summaryRow('Período da rota', _formatPeriod(plan.periodStart, plan.periodEnd)),
+      _summaryRow('Meta da rota', _fmtMoney(plan.routeTarget))
+    ];
+    if (current > 0 || plan.hasCurrentValueAtStart === true) {
+      rows.push(_summaryRow('Vendido até agora', _fmtMoney(current)));
+    }
+    rows.push(_summaryRow('Falta cumprir', _fmtMoney(plan.gapAtStart)));
+    return rows.join('');
+  }
+
+  function _summaryBaselineLabel(baseline, objective, loading) {
+    if (loading) return 'Calculando...';
+    if (!baseline) return 'Não calculada';
+    var value = _number(baseline.baselineValue, 0);
+    if (value > 0) return _formatBaselineValue(value, objective);
+    if (baseline.baselineConfidence === 'low') return 'Poucos pedidos no histórico';
+    return 'Ainda sem histórico suficiente';
   }
 
   function _creationAlerts(values, baseline) {
@@ -7669,6 +7695,7 @@ Modules.Temporadas = (function () {
         routePeriodEnd: plan.periodEnd || '',
         routeTarget: routeTarget,
         currentValueAtStart: currentRevenue,
+        hasCurrentValueAtStart: currentRevenue > 0,
         gapAtStart: gap,
         suggestedTargetValue: calculatedTarget,
         targetMetric: (_findByValue(OBJECTIVES, values.objective) || {}).metric || 'revenue'
