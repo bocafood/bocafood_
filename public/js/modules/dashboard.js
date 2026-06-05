@@ -1255,10 +1255,11 @@ Modules.Dashboard = (function () {
           ['Nome do negócio', 'Use o nome que a cliente reconhece. Ele precisa bater com a marca que aparece no cardápio online.'],
           ['Contato', 'Informe WhatsApp, telefone e e-mail que realmente são usados no atendimento.'],
           ['Endereço', 'Busque o endereço. O que vier automático fica preenchido; complete número, bairro, referência ou o que faltar.'],
-          ['Dados fiscais', 'Preencha apenas o que o negócio já usa hoje. Se ainda não tiver, volte depois.']
+          ['Dados fiscais', 'Preencha apenas o que o negócio já usa hoje. Se ainda não tiver, volte depois.'],
+          ['Capacidade de pedidos por dia', 'Informe quantos pedidos você consegue preparar ou atender em um dia normal, sem sobrecarregar a operação. Use uma média realista: se normalmente consegue fazer 10 pedidos com qualidade, coloque 10. Se em dias com ajuda extra consegue fazer mais, anote isso na observação. Esse número não limita suas vendas automaticamente; ele ajuda o BocaFood a comparar suas metas com a sua capacidade real e avisar quando uma rota exige mais pedidos por dia do que você consegue atender hoje. Se ainda não souber, pode deixar em branco e preencher depois.']
         ],
-        actions: ['Comece pelo nome e contato.', 'Depois confira o endereço com calma, porque ele alimenta retirada, entrega e informações da loja.', 'Salve e veja se o nome aparece certo no topo do painel.'],
-        ready: 'Está pronto quando nome, contato e endereço principal estão salvos e representam o negócio corretamente.'
+        actions: ['Comece pelo nome e contato.', 'Depois confira o endereço com calma, porque ele alimenta retirada, entrega e informações da loja.', 'Na capacidade diária, coloque uma quantidade que você consegue cumprir em um dia normal, não o máximo possível em dia excepcional.', 'Salve e veja se o nome aparece certo no topo do painel.'],
+        ready: 'Está pronto quando nome, contato, endereço principal e uma capacidade diária realista estão salvos ou conscientemente deixados para preencher depois.'
       },
       'Criar canais de venda': {
         icon: 'storefront',
@@ -2641,7 +2642,7 @@ Modules.Dashboard = (function () {
       stockConfig.regularizationMode != null ||
       stockConfig.stockRegularizationMode != null;
     var baseSteps = [
-      { title: 'Preencher dados do negócio', text: 'Nome, contato e endereço para deixar tudo identificado.', icon: 'badge', route: 'configuracoes/geral', done: !!(g.businessName && (g.phone || g.whatsapp || g.email)) },
+      { title: 'Preencher dados do negócio', text: 'Nome, contato, endereço e capacidade diária para deixar a base do negócio pronta.', icon: 'badge', route: 'configuracoes/geral', done: !!(g.businessName && (g.phone || g.whatsapp || g.email)) },
       { title: 'Criar canais de venda', text: 'Mostre de onde os pedidos chegam: cardápio, balcão, Instagram ou outro canal.', icon: 'storefront', route: 'configuracoes/canais_venda', done: hasSalesChannels },
       { title: 'Definir preço e margem', text: 'Ajude o BocaFood a proteger sua sobra em cada venda.', icon: 'calculate', route: 'dinheiro/regras', done: hasPriceRules },
       { title: 'Configurar fiscal', text: 'Decida se IVA, IRPF e reserva fiscal entram na rotina do negócio agora.', icon: 'request_quote', route: 'configuracoes/fiscal', done: hasFiscalConfig }

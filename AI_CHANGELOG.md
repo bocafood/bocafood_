@@ -1,5 +1,18 @@
 # AI Changelog
 
+## 2026-06-05 — Plano de Voo: ajustes avançados abertos na criação
+- Arquivos alterados: `public/js/modules/plano_voo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- No modal `Criar nova rota`, deixei o bloco `Ajustes avançados` aberto por padrão.
+- Mantive a lógica de preservar o estado do bloco durante recálculos dentro do modal.
+- Atualizei o cache-buster de `plano_voo.js` no Admin.
+
+## 2026-06-05 — Onboarding: explicação da capacidade diária
+- Arquivos alterados: `public/js/modules/dashboard.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Incluí no guia do checklist `Preencher dados do negócio` a explicação de como preencher `Capacidade de pedidos por dia`.
+- A copy orienta a usuária a informar uma média realista de pedidos que consegue preparar ou atender em um dia normal, sem tratar isso como limite automático de venda.
+- O checklist de configuração geral passou a mencionar nome, contato, endereço e capacidade diária como base do negócio.
+- Atualizei o cache-buster de `dashboard.js` no Admin.
+
 ## 2026-06-04 — Plano de Voo: capacidade diária informada pela usuária
 - Arquivos alterados: `public/js/modules/configuracoes.js`, `public/js/modules/plano_voo.js`, `public/js/modules/performance.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - Incluí em `Configurações > Geral`, na parte final da tela, o campo `Capacidade de pedidos por dia` e uma observação interna opcional.

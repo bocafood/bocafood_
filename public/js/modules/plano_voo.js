@@ -1772,7 +1772,7 @@ Modules.PlanoDeVoo = (function () {
 
   function _advancedAdjustmentsCard(vm, annual) {
     return '' +
-      '<details style="' + _cardStyle() + 'padding:0;overflow:hidden;">' +
+      '<details open style="' + _cardStyle() + 'padding:0;overflow:hidden;">' +
         '<summary style="list-style:none;cursor:pointer;padding:18px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;">' +
           '<span style="display:flex;gap:12px;align-items:flex-start;min-width:0;">' +
             '<span class="mi" style="font-size:22px;color:#B42318;">tune</span>' +
