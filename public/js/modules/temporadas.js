@@ -3596,9 +3596,19 @@ Modules.Temporadas = (function () {
     var ratio = _number(metrics.progressRatio, 0);
     var risk = season.riskLevel || 'unknown';
     if (progress >= 100 || ratio >= 1.1) return 'good';
+    if (_isSeasonEarlyReading(season, metrics)) return 'steady';
     if (risk === 'high' || risk === 'very_high' || ratio < .5) return 'danger';
     if (ratio < .8 || risk === 'medium') return 'attention';
     return 'steady';
+  }
+
+  function _isSeasonEarlyReading(season, metrics) {
+    metrics = metrics || {};
+    var orders = Math.round(_number(metrics.orders, 0));
+    var elapsed = Math.round(_number(metrics.elapsedDays, 0));
+    var expected = _number(metrics.expectedProgress, 0);
+    var status = _statusScoreLabel(season && season.currentStatus);
+    return orders < 2 && (elapsed <= 2 || expected <= 0 || status === 'Em início');
   }
 
   function _seasonSituationTitle(season, metrics, progress) {
@@ -3614,6 +3624,11 @@ Modules.Temporadas = (function () {
     var expected = _number(metrics.expectedProgress, 0);
     var current = Math.round(_number(progress, 0));
     if (progress >= 100) return 'A meta principal foi alcançada. Agora vale manter o ritmo e observar o que puxou esse resultado.';
+    if (_isSeasonEarlyReading(season, metrics)) {
+      var risk = season && (season.initialRiskLevel || season.riskLevel);
+      if (risk === 'high' || risk === 'very_high') return 'A rota é exigente, mas ainda é cedo para tratar a temporada como atrasada. Assim que entrarem pedidos, o BocaFood compara produto, canal e ritmo com mais precisão.';
+      return 'Ainda é o começo da temporada. Assim que entrarem pedidos, o BocaFood identifica produto, canal e ritmo com mais precisão.';
+    }
     if (expected > 0) return 'Até hoje, o ideal era estar perto de ' + Math.round(expected) + '%. A temporada está em ' + current + '%.';
     return 'Ainda há poucos dados para comparar com segurança. Conforme novos pedidos entrarem, esta leitura fica mais precisa.';
   }
@@ -3786,6 +3801,7 @@ Modules.Temporadas = (function () {
     var ratio = _number(currentMetrics && currentMetrics.progressRatio, 0);
     var finalScore = _number(scoreBreakdown && scoreBreakdown.finalScore, _number(season && season.currentScore, 0));
     if (progress >= 100) return 'A temporada já bateu a meta';
+    if (_isSeasonEarlyReading(season, currentMetrics)) return 'A temporada acabou de começar';
     if (ratio >= 1.1 || finalScore >= 85) return 'A temporada está acima do ritmo esperado';
     if (ratio >= .8 || finalScore >= 65) return 'A temporada está perto do ritmo esperado';
     if (ratio >= .5 || finalScore >= 40) return 'A temporada está abaixo do ritmo esperado';
@@ -5422,14 +5438,22 @@ Modules.Temporadas = (function () {
       var resultAnchorAt = executionAt || old.resultAnchorAt || createdAt;
       var resultDueAt = executionAt && !old.resultAnchorAt ? _addDaysIso(executionAt, resultDays) : (old.resultDueAt || _addDaysIso(resultAnchorAt, resultDays));
       var evidence = _detectSeasonActionEvidence(action, currentOrders || [], createdAt);
-      var status = evidence.found
-        ? 'executed_with_result'
-        : (hasExecutionEvidence && now > (_toDate(resultDueAt) || now)
-          ? 'executed_without_result'
-          : (!hasExecutionEvidence && now > (_toDate(executeDueAt) || now)
-            ? 'not_executed'
-            : (old.status === 'manually_done' ? 'manually_done' : 'pending')));
-      if (old.status === 'executed_with_result' && !evidence.found) status = old.status;
+      var resultDueDate = _toDate(resultDueAt) || now;
+      var executeDueDate = _toDate(executeDueAt) || now;
+      var status = 'pending';
+      if (evidence.found) {
+        status = now > resultDueDate ? 'executed_with_result' : 'result_in_progress';
+      } else if (hasExecutionEvidence && now > resultDueDate) {
+        status = 'executed_without_result';
+      } else if (!hasExecutionEvidence && now > executeDueDate) {
+        status = 'not_executed';
+      } else if (old.status === 'manually_done') {
+        status = 'manually_done';
+      }
+      if ((old.status === 'executed_with_result' || old.status === 'result_in_progress') && !evidence.found && old.evidence) {
+        evidence = old.evidence;
+        status = now > resultDueDate ? 'executed_with_result' : 'result_in_progress';
+      }
       return {
         actionId: actionId,
         title: action.title || 'Ação',
@@ -5443,8 +5467,8 @@ Modules.Temporadas = (function () {
         executeDueAt: executeDueAt,
         resultAnchorAt: resultAnchorAt,
         resultDueAt: resultDueAt,
-        completedAt: evidence.found ? (old.completedAt || evidence.completedAt || now.toISOString()) : (status === 'executed_with_result' ? old.completedAt || null : null),
-        evidence: evidence.found ? evidence : (old.evidence && old.status === 'executed_with_result' ? old.evidence : null),
+        completedAt: status === 'executed_with_result' ? (old.completedAt || evidence.completedAt || now.toISOString()) : null,
+        evidence: evidence.found ? evidence : (old.evidence && (old.status === 'executed_with_result' || old.status === 'result_in_progress') ? old.evidence : null),
         expectedActionType: old.expectedActionType || '',
         expectedActionId: old.expectedActionId || '',
         expectedActionCollection: old.expectedActionCollection || '',
@@ -5505,6 +5529,7 @@ Modules.Temporadas = (function () {
   function _seasonActionTaskStatusLabel(status) {
     return ({
       pending: 'Em andamento',
+      result_in_progress: 'Resultado em leitura',
       executed_with_result: 'Executada com resultado',
       executed_without_result: 'Executada sem resultado',
       manually_done: 'Marcada como feita',
@@ -5531,6 +5556,11 @@ Modules.Temporadas = (function () {
       (action && action.checklist || []).join(' ')
     ].join(' '));
     var match = null;
+
+    if (source === 'baseline') {
+      match = validOrders[0] || null;
+      if (match) return _actionEvidence('baseline', match, 'Os primeiros pedidos entraram com dados suficientes para iniciar a leitura da temporada.');
+    }
 
     if (source === 'coupons' || text.indexOf('cupom') >= 0) {
       match = validOrders.filter(function (order) {
@@ -6133,10 +6163,12 @@ Modules.Temporadas = (function () {
     if (!task || !task.actionId) return '';
     var status = task.status || 'pending';
     var evidence = task.evidence || {};
-    var title = status === 'executed_with_result' ? 'Deu resultado' : (status === 'executed_without_result' ? 'Foi feita, mas não respondeu' : (status === 'not_executed' ? 'Não foi executada no prazo' : 'Ainda em andamento'));
+    var title = status === 'executed_with_result' ? 'Deu resultado' : (status === 'result_in_progress' ? 'Resultado em leitura' : (status === 'executed_without_result' ? 'Foi feita, mas não respondeu' : (status === 'not_executed' ? 'Não foi executada no prazo' : 'Ainda em andamento')));
     var text = '';
     if (status === 'executed_with_result') {
       text = (evidence.message || 'A jogada apareceu nas vendas.') + (_number(evidence.orderTotal, 0) > 0 ? ' Pedido ligado: ' + _fmtMoney(evidence.orderTotal) + '.' : '');
+    } else if (status === 'result_in_progress') {
+      text = (evidence.message || 'A jogada já apareceu nas vendas.') + ' O BocaFood mantém a leitura aberta até o fim da janela para saber se vale repetir ou trocar.';
     } else if (status === 'not_executed') {
       text = 'Não encontramos a ação criada ou aplicada dentro do prazo de execução. Na próxima rodada, vale trocar para uma jogada mais simples.';
     } else if (status === 'executed_without_result') {
@@ -6155,14 +6187,16 @@ Modules.Temporadas = (function () {
     });
     tasks = tasks.concat(history || []);
     var done = tasks.filter(function (task) { return task.status === 'executed_with_result'; });
+    var reading = tasks.filter(function (task) { return task.status === 'result_in_progress'; });
     var expired = tasks.filter(function (task) { return task.status === 'not_executed'; });
     var pending = tasks.filter(function (task) { return !task.status || task.status === 'pending' || task.status === 'manually_done'; });
-    var revenue = done.reduce(function (sum, task) { return sum + _number(task && task.evidence && task.evidence.orderTotal, 0); }, 0);
+    var revenue = done.concat(reading).reduce(function (sum, task) { return sum + _number(task && task.evidence && task.evidence.orderTotal, 0); }, 0);
     return '' +
       '<section class="seasons-action-outcome">' +
         '<div class="seasons-next-checklist-head"><strong>O que aconteceu</strong><span>Resultado das jogadas</span></div>' +
         '<div class="seasons-action-outcome-grid">' +
           '<span><small>Com resultado</small><strong>' + done.length + '</strong></span>' +
+          '<span><small>Em leitura</small><strong>' + reading.length + '</strong></span>' +
           '<span><small>Sem resposta</small><strong>' + expired.length + '</strong></span>' +
           '<span><small>Em andamento</small><strong>' + pending.length + '</strong></span>' +
           '<span><small>Vendas ligadas</small><strong>' + _esc(_fmtMoney(revenue)) + '</strong></span>' +
@@ -6189,6 +6223,9 @@ Modules.Temporadas = (function () {
     if (!task) return '';
     if (task.status === 'executed_with_result') {
       return ((task.evidence && task.evidence.message) || 'Essa jogada apareceu nas vendas.') + (_number(task.evidence && task.evidence.orderTotal, 0) > 0 ? ' Resultado ligado: ' + _fmtMoney(task.evidence.orderTotal) + '.' : '');
+    }
+    if (task.status === 'result_in_progress') {
+      return ((task.evidence && task.evidence.message) || 'Essa jogada já apareceu nas vendas.') + ' A leitura ficou aberta até fechar a janela de resultado.';
     }
     return 'Saiu da rodada sem venda ligada a ela. Isso ajuda a próxima jogada a mudar foco em vez de repetir a mesma tentativa.';
   }
@@ -6218,14 +6255,16 @@ Modules.Temporadas = (function () {
     var evidence = task.evidence && task.evidence.message ? task.evidence.message : '';
     var text = status === 'executed_with_result'
       ? (evidence || 'Essa jogada já apareceu nas vendas da loja.')
-      : (status === 'executed_without_result'
+      : (status === 'result_in_progress'
+        ? (evidence || 'Essa jogada já apareceu nas vendas.') + ' Vamos medir até ' + (resultDue || 'o fim da janela') + ' antes de trocar a jogada.'
+        : (status === 'executed_without_result'
         ? 'A ação foi executada, mas não trouxe venda ligada a ela até ' + (resultDue || 'o fim da medição') + '.'
         : (status === 'not_executed'
         ? 'O prazo passou e essa jogada ainda não apareceu nas vendas.'
-        : (task.executionStatus === 'created_waiting_result' ? 'Ação criada. Agora vamos medir resposta até ' + (resultDue || 'o fim da janela') + '.' : 'Execute até ' + (due || 'o prazo da rodada') + '.')));
+        : (task.executionStatus === 'created_waiting_result' ? 'Ação criada. Agora vamos medir resposta até ' + (resultDue || 'o fim da janela') + '.' : 'Execute até ' + (due || 'o prazo da rodada') + '.'))));
     return '' +
       '<div class="seasons-action-task-status seasons-action-task-status-' + _esc(status) + '">' +
-        '<span>' + _icon(status === 'executed_with_result' ? 'check_circle' : (status === 'not_executed' ? 'error' : 'schedule')) + _esc(task.statusLabel || _seasonActionTaskStatusLabel(status)) + '</span>' +
+        '<span>' + _icon(status === 'executed_with_result' ? 'check_circle' : (status === 'not_executed' ? 'error' : (status === 'result_in_progress' ? 'query_stats' : 'schedule'))) + _esc(task.statusLabel || _seasonActionTaskStatusLabel(status)) + '</span>' +
         '<small>' + _esc(text) + '</small>' +
       '</div>';
   }
@@ -8909,7 +8948,7 @@ Modules.Temporadas = (function () {
     var context = _buildAIContext(season, snapshotState);
     var contextHash = _aiContextHash(context);
     var contextSize = _aiContextSize(context);
-    if (_canReuseAIRecommendation(daily, contextHash)) {
+    if (_canReuseAIRecommendation(daily, contextHash, season)) {
       return Promise.resolve(daily);
     }
 
@@ -8957,9 +8996,12 @@ Modules.Temporadas = (function () {
     });
   }
 
-  function _canReuseAIRecommendation(daily, contextHash) {
+  function _canReuseAIRecommendation(daily, contextHash, season) {
     if (!daily || !daily.aiRecommendation) return false;
-    if (daily.aiContextHash && contextHash && daily.aiContextHash !== contextHash) return false;
+    if (daily.aiContextHash && contextHash && daily.aiContextHash !== contextHash) {
+      if (_shouldKeepAIRecommendationForOpenTasks(daily, season)) return true;
+      return false;
+    }
     if (daily.aiRecommendationStatus === 'generated') return true;
     if (daily.aiRecommendationStatus !== 'fallback') return false;
     if (String(daily.aiRecommendationModel || '') !== 'local-rules-v1') return true;
@@ -8968,6 +9010,35 @@ Modules.Temporadas = (function () {
       return false;
     }
     return true;
+  }
+
+  function _shouldKeepAIRecommendationForOpenTasks(daily, season) {
+    var currentTasks = _activeActionTasksForAI(season);
+    if (!_hasOpenActionTask(currentTasks)) return false;
+    var savedTasks = _activeActionTasksForAI(daily);
+    return _actionTaskSignature(currentTasks) === _actionTaskSignature(savedTasks);
+  }
+
+  function _activeActionTasksForAI(source) {
+    var tasks = [];
+    if (Array.isArray(source && source.actionTasks)) tasks = source.actionTasks;
+    else if (Array.isArray(source && source.executionPlan && source.executionPlan.actionTasks)) tasks = source.executionPlan.actionTasks;
+    return (tasks || []).filter(function (task) {
+      return task && task.actionId && !_isTerminalActionTask(task);
+    });
+  }
+
+  function _hasOpenActionTask(tasks) {
+    return (tasks || []).some(function (task) {
+      var status = task && task.status || 'pending';
+      return status === 'pending' || status === 'result_in_progress' || status === 'manually_done';
+    });
+  }
+
+  function _actionTaskSignature(tasks) {
+    return (tasks || []).map(function (task) {
+      return String(task.actionId || '');
+    }).filter(Boolean).sort().join('|');
   }
 
   function _recentRemoteAIFallback(daily) {

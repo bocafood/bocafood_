@@ -1,5 +1,23 @@
 # AI Changelog
 
+## 2026-06-05 — Temporadas: ciclo mensurável das jogadas
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/js/services/seasons.ai.js`, `public/css/modules/temporadas.css`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Ajustei o ciclo das jogadas para que venda ligada à jogada não encerre a rodada automaticamente.
+- Quando aparece venda relacionada, a tarefa passa para `Resultado em leitura` e continua ativa até fechar a janela de resultado.
+- A jogada só vira histórico quando a janela termina com resultado, quando vence sem execução ou quando uma ação criada fica sem resposta até o fim da medição.
+- O fallback inicial de temporada sem pedidos agora mede a entrada dos primeiros pedidos como base de leitura.
+- A recomendação de IA é reaproveitada enquanto a mesma jogada continua ativa ou em leitura, mesmo que os números mudem, evitando troca de direção por pedido novo.
+- Reforcei o prompt da IA para gerar apenas jogadas que o BocaFood consiga medir por pedidos, produto, canal, horário, cupom, promoção, upsell, pontos, recompra ou ticket médio.
+- Ajustei a grade do resumo de resultado para acomodar o novo indicador `Em leitura`.
+- Atualizei os cache-busters de `temporadas.css`, `temporadas.js` e `seasons.ai.js` no Admin.
+
+## 2026-06-05 — Temporadas: leitura inicial sem alerta falso
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Ajustei o card `Resumo da temporada` para não mostrar `A temporada precisa de atenção agora` no primeiro momento da temporada, quando ainda há poucos ou nenhum pedido.
+- Quando a temporada acabou de começar, o card passa a usar `A temporada acabou de começar` e tom neutro.
+- Se a rota for exigente, a copy explica que ela é exigente, mas ainda é cedo para tratar a temporada como atrasada.
+- Atualizei o cache-buster de `temporadas.js` no Admin.
+
 ## 2026-06-05 — Temporadas: copy do modal Nova Temporada
 - Arquivos alterados: `public/js/modules/temporadas.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - No modal `Nova Temporada`, troquei as ocorrências de `jogadas` por `ações` ou `próximas ações` nas instruções de criação.
