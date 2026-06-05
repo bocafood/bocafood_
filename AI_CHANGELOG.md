@@ -1,5 +1,30 @@
 # AI Changelog
 
+## 2026-06-05 — Temporadas: card de próxima jogada
+- Arquivos alterados: `public/js/modules/temporadas.js`, `AI_CHANGELOG.md`.
+- Adicionei na aba `Próxima Jogada` um card `Quando vem a próxima jogada`.
+- O card mostra a data limite da jogada atual e explica, em linguagem simples, que a usuária deve seguir a ação e continuar registrando o que acontece na operação.
+- A explicação `O que o BocaFood vai observar` muda conforme a jogada: base, produto, canal/horário, cupom, promoção, upsell, clientes/pontos ou consistência.
+- Se ainda for cedo para tirar conclusão, a copy explica que a próxima ação será mais simples para organizar melhor os primeiros pedidos.
+
+## 2026-06-05 — Temporadas: fallback sem falsa precisão
+- Arquivos alterados: `public/js/modules/temporadas.js`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Ajustei o fallback `base-extra` das jogadas de Temporadas para não dizer `produto com melhor resposta`, `melhor canal` ou `melhor período` quando ainda não há dados suficientes.
+- Quando faltar base, a checklist agora orienta escolher um produto para observar, usar o canal onde a venda entrar e registrar o horário real dos pedidos.
+
+## 2026-06-05 — Temporadas: remove cabeçalho da visão ativa
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Removi o bloco de texto da visão ativa de Temporadas com `Temporada ativa`, `Como estou indo e o que faço hoje?` e a explicação de Progresso, Score e Risco.
+- Mantive o card `Resumo da temporada`, gráfico, cards de leitura e lógica da aba sem alteração.
+- Atualizei o cache-buster de `temporadas.js` no Admin.
+
+## 2026-06-05 — Performance: gastos previstos no mês correto
+- Arquivos alterados: `public/js/modules/performance.js`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Corrigi o card `Gastos previstos da rota` para não listar saídas únicas fora do mês selecionado.
+- A Performance agora calcula cada saída fixa prevista pela recorrência e pela data: conta única entra apenas no mês do vencimento/pagamento; conta anual respeita o mês da data; conta mensal/semanal só aparece a partir da data inicial.
+- O detalhe `Previsto na rota` passa a mostrar também a data do item quando ela existe, facilitando entender por que ele entrou naquele mês.
+- Atualizei o cache-buster de `performance.js` no Admin.
+
 ## 2026-06-05 — Produção: copy do modal Base de produção
 - Arquivos alterados: `public/js/modules/receitas.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - Revisei a copy do modal `Editar base de produção` para falar com a usuária no presente, sem comparar com versões anteriores nem citar decisões internas.

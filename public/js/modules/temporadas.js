@@ -3534,7 +3534,6 @@ Modules.Temporadas = (function () {
     var scoreBreakdown = _scoreBreakdownForDisplay(season, metrics);
     var seasonReading = _seasonReadingForDisplay(season, metrics, scoreBreakdown);
     return '' +
-      '<div class="seasons-tab-header"><span class="seasons-section-label">Temporada ativa</span><h3>Como estou indo e o que faço hoje?</h3><p>Progresso mostra quanto da meta já foi feito. Score mostra a qualidade do caminho. Risco mostra a chance de não chegar lá se nada mudar.</p></div>' +
       '<div class="seasons-active-reading">' +
         '<section class="seasons-reading-hero seasons-reading-hero-' + _esc(_seasonSituationTone(season, metrics, progress)) + '">' +
           '<div>' +
@@ -5366,9 +5365,9 @@ Modules.Temporadas = (function () {
         'baseline',
         'low',
         [
-          productName ? 'Produto fixo para comparação: ' + productName + '.' : 'Produto fixo para comparação: produto com melhor resposta.',
-          channelLabel ? 'Canal fixo para comparação: ' + channelLabel + '.' : 'Canal fixo para comparação: melhor canal.',
-          hourLabel ? 'Horário fixo para comparação: perto de ' + hourLabel + '.' : 'Horário fixo para comparação: melhor período.'
+          productName ? 'Produto fixo para comparação: ' + productName + '.' : 'Produto para comparação: escolha um produto principal para observar.',
+          channelLabel ? 'Canal fixo para comparação: ' + channelLabel + '.' : 'Canal para comparação: use o canal onde a venda entrar hoje.',
+          hourLabel ? 'Horário fixo para comparação: perto de ' + hourLabel + '.' : 'Horário para comparação: registre o horário real dos pedidos.'
         ]
       ));
     }
@@ -6196,6 +6195,7 @@ Modules.Temporadas = (function () {
               '</article>';
             }).join('') +
           '</div>' +
+          _nextMoveTimingCard(actions[0], taskMap[actions[0].id] || {}, season) +
           _seasonActionOutcomeSummaryHtml(actions, taskMap, history) +
           _seasonActionHistoryHtml(history) +
           _seasonActionLearningHtml(season, metrics, actions, taskMap, history) +
@@ -6239,6 +6239,51 @@ Modules.Temporadas = (function () {
         }).join('') + '</div>' : '') +
         '<small>Recomendação gerada com base nos dados disponíveis da temporada.</small>' +
         '</div>';
+  }
+
+  function _nextMoveTimingCard(action, task, season) {
+    action = action || {};
+    task = task || {};
+    var deadlineValue = task.resultDueAt || task.executeDueAt || task.dueAt || (season && season.endDate);
+    var deadline = _formatDate(deadlineValue) || 'o fim desta rodada';
+    return '' +
+      '<section class="seasons-next-reason seasons-next-timing-card">' +
+        '<span>Quando vem a próxima jogada</span>' +
+        '<strong>Esta jogada vai até ' + _esc(deadline) + '.</strong>' +
+        '<p>Até lá, siga a ação proposta e continue registrando tudo que acontece na sua operação.</p>' +
+        '<div class="seasons-next-timing-observe">' +
+          '<small>O que o BocaFood vai observar</small>' +
+          '<p>' + _esc(_nextMoveObservationText(action)) + '</p>' +
+        '</div>' +
+        '<p>Depois dessa data, o BocaFood lê o que aconteceu e cria a próxima jogada.</p>' +
+        '<p>Se ainda estiver cedo para tirar uma conclusão, a próxima ação será mais simples: organizar melhor os primeiros pedidos para entender o que está respondendo na sua operação.</p>' +
+      '</section>';
+  }
+
+  function _nextMoveObservationText(action) {
+    action = action || {};
+    var measurement = action.measurement || {};
+    var type = measurement.type || _measurementTypeFromSource(action.source);
+    var product = _seasonActionProductLabel(action) || measurement.productName || action.productName || '';
+    var channel = action.channel || measurement.channel || '';
+    var channelLabel = channel ? _channelLabel(_normalizeChannel(channel)) : '';
+    var offer = action.couponCode || measurement.couponCode || action.promotionName || measurement.promotionName || '';
+    var upsell = action.upsellName || measurement.upsellName || '';
+    var group = action.customerGroup || measurement.customerGroup || '';
+
+    if (type === 'baseline') return 'Se já existe movimento suficiente para começar a enxergar quais produtos, canais e horários estão funcionando melhor.';
+    if (type === 'coupon') return offer ? 'Se o cupom ' + offer + ' trouxe pedidos sem apertar demais a sobra.' : 'Se o cupom trouxe pedidos sem apertar demais a sobra.';
+    if (type === 'promotion') return offer ? 'Se ' + offer + ' trouxe pedidos sem apertar demais a sobra.' : 'Se a promoção trouxe pedidos sem apertar demais a sobra.';
+    if (type === 'upsell') return upsell ? 'Se ' + upsell + ' entrou junto com os pedidos e aumentou o valor médio.' : 'Se o adicional sugerido entrou junto com os pedidos e aumentou o valor médio.';
+    if (type === 'retention') return group ? 'Se ' + group + ' voltou, usou pontos ou fez novos pedidos.' : 'Se esse grupo de clientes voltou, usou pontos ou fez novos pedidos.';
+    if (type === 'timing') {
+      if (product && channelLabel) return 'Se ' + product + ' apareceu nos pedidos de ' + channelLabel + ' e ajudou a venda a crescer.';
+      if (channelLabel) return 'Se ' + channelLabel + ' trouxe pedidos suficientes para continuar recebendo atenção.';
+      return 'Se o canal ou horário escolhido trouxe pedidos suficientes para continuar recebendo atenção.';
+    }
+    if (type === 'consistency') return 'Se o dia ou horário trabalhado recebeu pedidos suficientes para merecer mais atenção.';
+    if (product) return 'Se ' + product + ' apareceu nos pedidos e ajudou a venda a crescer.';
+    return 'Se a ação trouxe movimento suficiente para entender melhor o que funciona na sua operação.';
   }
 
   function _seasonActionTaskMap(season, executionPlan, metrics) {

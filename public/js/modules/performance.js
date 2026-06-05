@@ -1348,14 +1348,15 @@ Modules.Performance = (function () {
       var source = String(r.source || '').toLowerCase();
       if (source && source !== 'historical' && source !== 'payable' && source !== 'outflow' && source !== 'financeiro_saida' && source !== 'financeiro_saidas') return;
       var group = _financialGlobalGroup(r);
-      var planned = _num(r.projectedMonthly != null ? r.projectedMonthly : r.projected != null ? r.projected : r.value);
+      var planned = _fixedExpenseValueForScenarioMonth(r, snapshot);
       var row = ensure(group.key, group.label, group.note);
-      if (!row) return;
+      if (!row || !(planned > 0)) return;
       row.planned += planned;
+      var due = _fixedExpenseDueDate(r);
       row.plannedItems.push({
         name: r.name || group.label,
         value: planned,
-        note: r.sourceLabel || r.recurrenceLabel || ''
+        note: [r.sourceLabel || r.recurrenceLabel || '', due ? UI.fmtDate(due) : ''].filter(Boolean).join(' · ')
       });
     });
 
@@ -1397,6 +1398,42 @@ Modules.Performance = (function () {
     var total = _num((snapshot.summary || {}).revenue || snapshot.revenueTotal || snapshot.revenue);
     var count = Math.max(1, (Array.isArray(snapshot.monthSeries) ? snapshot.monthSeries.length : 0) || 1);
     return total > 0 ? total / count : 0;
+  }
+
+  function _fixedExpenseValueForScenarioMonth(row, snapshot) {
+    row = row || {};
+    snapshot = snapshot || {};
+    var monthKey = _state.scenarioMonthKey || _currentMonthKey();
+    var monthIndex = _monthIndexFromKey(monthKey);
+    var monthYear = _yearFromMonthKey(monthKey);
+    var recurrence = _normalizeRecurrence(row.recurrence || row.recurrenceLabel || '');
+    var due = _fixedExpenseDueDate(row);
+    if (recurrence === 'única') {
+      if (!due || due.getMonth() !== monthIndex || due.getFullYear() !== monthYear) return 0;
+      return _num(row.value != null ? row.value : row.projected != null ? row.projected : row.projectedMonthly);
+    }
+    if (recurrence === 'anual') {
+      if (due && (due.getMonth() !== monthIndex || due.getFullYear() !== monthYear)) return 0;
+      return _num(row.value != null ? row.value : row.projected != null ? row.projected : row.projectedMonthly);
+    }
+    if (due) {
+      var monthEnd = new Date(monthYear, monthIndex + 1, 0, 23, 59, 59, 999);
+      if (due > monthEnd) return 0;
+    }
+    return _num(row.projectedMonthly != null ? row.projectedMonthly : row.projected != null ? row.projected : row.value);
+  }
+
+  function _fixedExpenseDueDate(row) {
+    row = row || {};
+    return _dateFromAny(row.dueDate || row.vencimento || row.date || (row.raw && (row.raw.vencimento || row.raw.dueDate || row.raw.data_vencimento || row.raw.dataVencimento || row.raw.data || row.raw.date)));
+  }
+
+  function _normalizeRecurrence(v) {
+    var text = _normalizeText(v || '');
+    if (text.indexOf('seman') >= 0 || text.indexOf('week') >= 0) return 'semanal';
+    if (text.indexOf('anual') >= 0 || text.indexOf('year') >= 0) return 'anual';
+    if (text.indexOf('única') >= 0 || text.indexOf('unica') >= 0 || text.indexOf('one') >= 0 || text.indexOf('single') >= 0) return 'única';
+    return 'mensal';
   }
 
   function _plannedVariableExpenseGroup(row) {
@@ -1790,6 +1827,12 @@ Modules.Performance = (function () {
     if (parts.length < 2) return new Date().getMonth();
     var idx = parseInt(parts[1], 10) - 1;
     return Math.max(0, Math.min(11, isFinite(idx) ? idx : new Date().getMonth()));
+  }
+
+  function _yearFromMonthKey(key) {
+    var parts = String(key || '').split('-');
+    var year = parts.length ? parseInt(parts[0], 10) : NaN;
+    return isFinite(year) ? year : new Date().getFullYear();
   }
 
   function _monthScenarioSnapshot() {

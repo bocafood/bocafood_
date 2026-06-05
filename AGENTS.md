@@ -138,12 +138,14 @@ O Boca Food é um sistema de gestão e operação de loja com painel admin, cat�
 - Jogadas de Temporadas precisam ser mensuráveis pelo BocaFood. Venda ligada à jogada deve atualizar a tarefa para `Resultado em leitura`, mas não deve encerrar a jogada nem gerar outra automaticamente antes do fim da janela de resultado. Próxima jogada só deve nascer quando a rodada atual virar histórico por resultado fechado, prazo vencido, ação criada sem resposta ou solicitação explícita da usuária.
 - Cada jogada deve carregar campos estruturados de medição (`measurement`) sempre que possível: tipo, produto, canal, horário, cupom, promoção, upsell, grupo de cliente e métrica de sucesso. A leitura de resultado deve usar esses campos antes de recorrer ao texto da jogada, preservando fallback textual apenas para compatibilidade.
 - O contexto de IA de Temporadas deve incluir inteligência comercial compacta dos últimos 30 dias quando disponível: produtos, canais, horários, baixa saída, performance de cupom/promoção/upsell, programa de pontos, grupos prováveis de clientes e ações de venda disponíveis. A IA deve usar esses dados para deixar a jogada específica, não genérica.
+- Quando ainda não houver dados suficientes, jogadas e checklists não devem falar em `produto com melhor resposta`, `melhor canal` ou `melhor período`. Devem assumir criação de base: escolher um produto para observar, registrar canal real e registrar horário real dos pedidos.
 - Todo uso remoto de IA de Temporadas deve registrar uso em `system_ai_usage` com tenant, temporada, snapshot, hash, modelo, status, tamanho do contexto e tokens retornados pela OpenAI quando disponíveis. Não salvar prompt completo nem payload grande nesse log.
 - Quando a OpenAI não estiver configurada, desativada ou falhar, a Temporada deve continuar funcionando com recomendação local por regras (`local-rules-v1`), sem travar a tela da usuária.
 
 ### Admin — Performance
 - A Performance não deve transformar falta de histórico em cálculo numérico. Quando não houver ticket médio suficiente, cards e mensagens de pedidos por dia devem mostrar `Sem base` ou explicar que ainda não dá para estimar com segurança, nunca `0 pedidos por dia` como orientação.
 - Textos de leitura prática devem diferenciar ausência de base, início de mês, rota não configurada e resultado real. Evitar frases híbridas como `ticket médio atual de sem base` junto com cálculo de pedidos.
+- No card `Gastos previstos da rota`, contas únicas devem aparecer apenas no mês da própria data de vencimento/pagamento. Contas recorrentes podem aparecer mês a mês, mas respeitando a data inicial quando existir. Não usar `projectedMonthly` direto para itens fixos sem validar recorrência e competência.
 
 ### Admin — Pedidos e canais de venda
 - Quando o canal de venda tiver comissão, imposto sobre comissão ou taxa fixa, o pedido deve calcular automaticamente esses abatimentos a partir do total bruto do pedido.
