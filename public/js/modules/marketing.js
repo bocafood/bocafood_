@@ -3018,29 +3018,65 @@ Modules.Marketing = (function () {
     }
     return DB.get('seasons', draft.seasonId).then(function (season) {
       if (!season) return null;
-      var tasks = Array.isArray(season.actionTasks) ? season.actionTasks.slice() : [];
-      var changed = false;
-      tasks = tasks.map(function (task) {
-        if (!task || String(task.actionId || '') !== String(draft.seasonActionId || '')) return task;
-        changed = true;
-        var evidenceList = Array.isArray(task.executionEvidence) ? task.executionEvidence.slice() : [];
-        evidenceList.push({
-          type: type + '_created',
-          collection: collection,
-          actionId: id,
-          label: label || draft.title || '',
-          createdAt: new Date().toISOString()
+      var plan = season.executionPlan && typeof season.executionPlan === 'object' ? Object.assign({}, season.executionPlan) : null;
+      var metrics = season.currentMetrics && typeof season.currentMetrics === 'object' ? Object.assign({}, season.currentMetrics) : null;
+      var metricsPlan = metrics && metrics.executionPlan && typeof metrics.executionPlan === 'object' ? Object.assign({}, metrics.executionPlan) : null;
+      var taskFallback = plan && Array.isArray(plan.actionTasks) ? plan.actionTasks : (metrics && Array.isArray(metrics.actionTasks) ? metrics.actionTasks : (metricsPlan && Array.isArray(metricsPlan.actionTasks) ? metricsPlan.actionTasks : []));
+      var rootTasks = Array.isArray(season.actionTasks) ? season.actionTasks.slice() : taskFallback.slice();
+      var planTasks = plan && Array.isArray(plan.actionTasks) ? plan.actionTasks.slice() : rootTasks.slice();
+      var metricsTasks = metrics && Array.isArray(metrics.actionTasks) ? metrics.actionTasks.slice() : rootTasks.slice();
+      var metricsPlanTasks = metricsPlan && Array.isArray(metricsPlan.actionTasks) ? metricsPlan.actionTasks.slice() : metricsTasks.slice();
+      var now = new Date().toISOString();
+      function markTasks(list) {
+        var changed = false;
+        var next = (list || []).map(function (task) {
+          if (!task || String(task.actionId || '') !== String(draft.seasonActionId || '')) return task;
+          changed = true;
+          var evidenceList = Array.isArray(task.executionEvidence) ? task.executionEvidence.slice() : [];
+          var alreadyLinked = evidenceList.some(function (evidence) {
+            return evidence && String(evidence.collection || '') === String(collection || '') && String(evidence.actionId || evidence.entityId || '') === String(id || '');
+          });
+          if (!alreadyLinked) {
+            evidenceList.push({
+              type: type + '_created',
+              collection: collection,
+              actionId: id,
+              entityId: id,
+              label: label || draft.title || '',
+              createdAt: now
+            });
+          }
+          return Object.assign({}, task, {
+            expectedActionType: type,
+            expectedActionId: id,
+            expectedActionCollection: collection,
+            executionEvidence: evidenceList,
+            executionStatus: 'created_waiting_result',
+            resultAnchorAt: task.resultAnchorAt || now
+          });
         });
-        return Object.assign({}, task, {
-          expectedActionType: type,
-          expectedActionId: id,
-          expectedActionCollection: collection,
-          executionEvidence: evidenceList,
-          executionStatus: 'created_waiting_result'
-        });
-      });
-      if (!changed) return null;
-      return DB.update('seasons', draft.seasonId, { actionTasks: tasks });
+        return { tasks: next, changed: changed };
+      }
+      var rootResult = markTasks(rootTasks);
+      var planResult = markTasks(planTasks);
+      var metricsResult = metrics ? markTasks(metricsTasks) : { tasks: [], changed: false };
+      var metricsPlanResult = metricsPlan ? markTasks(metricsPlanTasks) : { tasks: [], changed: false };
+      if (!rootResult.changed && !planResult.changed && !metricsResult.changed && !metricsPlanResult.changed) return null;
+      var updates = {};
+      if (rootResult.changed) updates.actionTasks = rootResult.tasks;
+      if (plan && planResult.changed) {
+        plan.actionTasks = planResult.tasks;
+        updates.executionPlan = plan;
+      }
+      if (metrics && (metricsResult.changed || metricsPlanResult.changed)) {
+        if (metricsResult.changed) metrics.actionTasks = metricsResult.tasks;
+        if (metricsPlan && metricsPlanResult.changed) {
+          metricsPlan.actionTasks = metricsPlanResult.tasks;
+          metrics.executionPlan = metricsPlan;
+        }
+        updates.currentMetrics = metrics;
+      }
+      return DB.update('seasons', draft.seasonId, updates);
     }).then(function () {
       _clearSeasonActionDraft(type);
       return id;

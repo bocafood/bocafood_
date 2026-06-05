@@ -5268,10 +5268,40 @@ server.mount_proc '/api/seasons/ai-recommendation' do |req, res|
     clean_list = lambda do |items|
       Array(items).map { |item| item.to_s.strip }.reject(&:empty?).first(4)
     end
+    usage = openai_body['usage'] || {}
+    begin
+      safe_context = context.dup
+      safe_context.delete('prompt')
+      firestore_upsert_document('system_ai_usage', SecureRandom.uuid, {
+        'provider' => 'openai',
+        'feature' => 'seasons_next_moves',
+        'tenantId' => body['tenantId'].to_s,
+        'seasonId' => body['seasonId'].to_s,
+        'snapshotId' => body['snapshotId'].to_s,
+        'snapshotDate' => body['snapshotDate'].to_s,
+        'contextHash' => body['contextHash'].to_s,
+        'contextMode' => context['contextMode'].to_s,
+        'contextSize' => body['contextSize'].to_i,
+        'triggerReason' => body['triggerReason'].to_s,
+        'model' => openai_body['model'] || model,
+        'status' => 'generated',
+        'promptTokens' => usage['prompt_tokens'].to_i,
+        'completionTokens' => usage['completion_tokens'].to_i,
+        'totalTokens' => usage['total_tokens'].to_i,
+        'source' => 'master_local'
+      })
+    rescue => usage_error
+      log_master("seasons ai usage log skipped #{usage_error.class}: #{usage_error.message}")
+    end
     json_response_cors(req, res, 200, {
       ok: true,
       status: 'generated',
       model: openai_body['model'] || model,
+      usage: {
+        promptTokens: usage['prompt_tokens'].to_i,
+        completionTokens: usage['completion_tokens'].to_i,
+        totalTokens: usage['total_tokens'].to_i
+      },
       recommendation: {
         headline: headline,
         helpingSignals: clean_list.call(recommendation['helpingSignals']),

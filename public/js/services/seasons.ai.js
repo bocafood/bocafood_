@@ -41,9 +41,53 @@ window.SeasonsAI = (function () {
     relatedData = relatedData || {};
 
     var period = _periodInfo(season, metrics);
+    var executionPlan = _safeExecutionPlan(relatedData.executionPlan || metrics.executionPlan || season.executionPlan || {});
+    var status = {
+      currentScore: _round(_num(season.currentScore)),
+      currentStatus: season.currentStatus || '',
+      riskLevel: season.riskLevel || '',
+      progressPercent: _round(_num(season.progressPercent)),
+      scoreBreakdown: _safeObject(relatedData.scoreBreakdown || metrics.scoreBreakdown || season.scoreBreakdown || {}),
+      validatedImpactSignals: _compactSignals(relatedData.validatedImpactSignals || metrics.validatedImpactSignals || {}),
+      seasonReading: _safeSeasonReading(relatedData.seasonReading || metrics.seasonReading || season.seasonReading || {}),
+      executionPlan: executionPlan,
+      mainMetrics: _safeObject((snapshots.daily && snapshots.daily.mainMetrics) || {}),
+      auxiliaryMetrics: _safeObject((snapshots.daily && snapshots.daily.auxiliaryMetrics) || {}),
+      alerts: _safeAlerts((snapshots.daily && snapshots.daily.alerts) || [])
+    };
+    var operationalData = {
+      revenueCurrentPeriod: _round(_num(metrics.revenue)),
+      revenuePreviousPeriod: _round(_num(relatedData.revenuePreviousPeriod)),
+      ordersCurrentPeriod: _round(_num(metrics.orders)),
+      ordersPreviousPeriod: _round(_num(relatedData.ordersPreviousPeriod)),
+      averageTicket: _round(_num(metrics.averageTicket)),
+      averageTicketChange: _round(_num(relatedData.averageTicketChange)),
+      activeSalesDays: _round(_num(metrics.activeDays)),
+      weakDays: _round(_num(metrics.weakDays)),
+      strongDays: _safeSimpleList(relatedData.strongDays || metrics.strongDays || [], 4),
+      strongHours: _safeSimpleList(relatedData.strongHours || metrics.strongHours || [], 4),
+      topProducts: _safeProducts(relatedData.topProducts || []),
+      lowSellingProducts: _safeProducts(relatedData.lowSellingProducts || []),
+      recurringCustomersCount: _round(_num(metrics.recurringCustomers)),
+      repurchaseRate: _round(_num(metrics.repurchaseRate)),
+      reviewsAverage: _round(_num(relatedData.reviewsAverage)),
+      couponUsage: _round(_num(relatedData.couponUsage)),
+      promotionUsage: _round(_num(relatedData.promotionUsage)),
+      upsellUsage: _round(_num(relatedData.upsellUsage)),
+      couponDiscount: _round(_num(relatedData.couponDiscount)),
+      promotionDiscount: _round(_num(relatedData.promotionDiscount)),
+      upsellDiscount: _round(_num(relatedData.upsellDiscount)),
+      upsellAddedRevenue: _round(_num(relatedData.upsellAddedRevenue)),
+      pointsRedemption: _round(_num(relatedData.pointsRedemption)),
+      pointsDiscount: _round(_num(relatedData.pointsDiscount)),
+      channelBreakdown: _safeChannels(relatedData.channelBreakdown || []),
+      actionOpportunities: _compactOpportunities(relatedData.actionOpportunities || metrics.actionOpportunities || {})
+    };
     return {
       prompt: AI_PROMPT,
+      contextMode: 'compact-v1',
       season: {
+        id: season.id || '',
         objective: season.objective || '',
         build: season.build || '',
         difficulty: season.difficulty || '',
@@ -57,63 +101,48 @@ window.SeasonsAI = (function () {
         daysElapsed: period.daysElapsed,
         daysRemaining: period.daysRemaining
       },
-      status: {
-        currentScore: _num(season.currentScore),
-        currentStatus: season.currentStatus || '',
-        riskLevel: season.riskLevel || '',
-        progressPercent: _num(season.progressPercent),
-        scoreBreakdown: _safeObject(relatedData.scoreBreakdown || metrics.scoreBreakdown || season.scoreBreakdown || {}),
-        validatedImpactSignals: _safeObject(relatedData.validatedImpactSignals || metrics.validatedImpactSignals || {}),
-        seasonReading: _safeObject(relatedData.seasonReading || metrics.seasonReading || season.seasonReading || {}),
-        executionPlan: _safeObject(relatedData.executionPlan || metrics.executionPlan || season.executionPlan || {}),
-        mainMetrics: _safeObject((snapshots.daily && snapshots.daily.mainMetrics) || {}),
-        auxiliaryMetrics: _safeObject((snapshots.daily && snapshots.daily.auxiliaryMetrics) || {}),
-        alerts: _safeAlerts((snapshots.daily && snapshots.daily.alerts) || [])
-      },
-      operationalData: {
-        revenueCurrentPeriod: _num(metrics.revenue),
-        revenuePreviousPeriod: _num(relatedData.revenuePreviousPeriod),
-        ordersCurrentPeriod: _num(metrics.orders),
-        ordersPreviousPeriod: _num(relatedData.ordersPreviousPeriod),
-        averageTicket: _num(metrics.averageTicket),
-        averageTicketChange: _num(relatedData.averageTicketChange),
-        activeSalesDays: _num(metrics.activeDays),
-        weakDays: _num(metrics.weakDays),
-        strongDays: relatedData.strongDays || [],
-        strongHours: relatedData.strongHours || [],
-        topProducts: _safeProducts(relatedData.topProducts || []),
-        lowSellingProducts: _safeProducts(relatedData.lowSellingProducts || []),
-        recurringCustomersCount: _num(metrics.recurringCustomers),
-        repurchaseRate: _num(metrics.repurchaseRate),
-        reviewsAverage: _num(relatedData.reviewsAverage),
-        couponUsage: _num(relatedData.couponUsage),
-        promotionUsage: _num(relatedData.promotionUsage),
-        upsellUsage: _num(relatedData.upsellUsage),
-        couponDiscount: _num(relatedData.couponDiscount),
-        promotionDiscount: _num(relatedData.promotionDiscount),
-        upsellDiscount: _num(relatedData.upsellDiscount),
-        upsellAddedRevenue: _num(relatedData.upsellAddedRevenue),
-        pointsRedemption: _num(relatedData.pointsRedemption),
-        pointsDiscount: _num(relatedData.pointsDiscount),
-        channelBreakdown: relatedData.channelBreakdown || [],
-        actionOpportunities: _safeObject(relatedData.actionOpportunities || metrics.actionOpportunities || {})
-      },
-      currentMetrics: _safeObject(metrics),
-      scoreBreakdown: _safeObject(relatedData.scoreBreakdown || metrics.scoreBreakdown || season.scoreBreakdown || {}),
-      validatedImpactSignals: _safeObject(relatedData.validatedImpactSignals || metrics.validatedImpactSignals || {}),
-      executionPlan: _safeObject(relatedData.executionPlan || metrics.executionPlan || season.executionPlan || {}),
+      status: status,
+      operationalData: operationalData,
+      executionPlan: executionPlan,
       riskContext: {
         riskLevel: season.riskLevel || '',
         currentStatus: season.currentStatus || '',
-        progressPercent: _num(season.progressPercent),
-        progressRatio: _num(metrics.progressRatio),
-        daysRemaining: _num(metrics.daysRemaining)
+        progressPercent: _round(_num(season.progressPercent)),
+        progressRatio: _round(_num(metrics.progressRatio)),
+        daysRemaining: _round(_num(metrics.daysRemaining))
       },
-      snapshots: _safeObject(snapshots),
+      snapshots: _safeSnapshots(snapshots),
       confidence: {
         baselineConfidence: season.baselineConfidence || 'low',
         dataConfidence: (snapshots.daily && (snapshots.daily.confidence || snapshots.daily.auxiliaryMetrics && snapshots.daily.auxiliaryMetrics.confidence)) || 'low',
         unavailableMetrics: _unavailableMetrics(metrics, relatedData)
+      },
+      cache: {
+        hash: _hashContext({
+          season: {
+            id: season.id || '',
+            objective: season.objective || '',
+            build: season.build || '',
+            difficulty: season.difficulty || '',
+            targetValue: _round(_num(season.targetValue || season.calculatedTargetValue)),
+            startDate: season.startDate || '',
+            endDate: season.endDate || ''
+          },
+          status: {
+            score: status.currentScore,
+            progressPercent: status.progressPercent,
+            currentStatus: status.currentStatus,
+            riskLevel: status.riskLevel
+          },
+          operationalData: operationalData,
+          executionPlan: executionPlan,
+          confidence: {
+            baselineConfidence: season.baselineConfidence || 'low',
+            dataConfidence: (snapshots.daily && snapshots.daily.confidence) || 'low'
+          }
+        }),
+        size: 0,
+        triggerReason: ''
       }
     };
   }
@@ -135,7 +164,13 @@ window.SeasonsAI = (function () {
         headers: headers,
         body: JSON.stringify({
           context: context,
-          tenantId: window.Auth && Auth.getTenantId ? Auth.getTenantId() : ''
+          tenantId: window.Auth && window.Auth.getTenantId ? window.Auth.getTenantId() : '',
+          seasonId: context && context.season && context.season.id || '',
+          snapshotId: context && context.snapshots && context.snapshots.daily && context.snapshots.daily.id || '',
+          snapshotDate: context && context.snapshots && context.snapshots.daily && context.snapshots.daily.date || '',
+          contextHash: context && context.cache && context.cache.hash || '',
+          contextSize: context && context.cache && context.cache.size || 0,
+          triggerReason: context && context.cache && context.cache.triggerReason || ''
         })
       });
     }).then(function (res) {
@@ -147,6 +182,7 @@ window.SeasonsAI = (function () {
         recommendation: recommendation,
         status: 'generated',
         model: data.model || data.aiRecommendationModel || 'server-side',
+        usage: data.usage || {},
         error: ''
       };
     }).catch(function (err) {
@@ -255,12 +291,23 @@ window.SeasonsAI = (function () {
 
   function _configuredEndpoint() {
     var cfg = window.SeasonsAIConfig || {};
-    return cfg.endpoint ? String(cfg.endpoint) : '';
+    if (cfg.endpoint) return String(cfg.endpoint);
+    if (window.location && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname || '')) return '/api/seasons/ai-recommendation';
+    var projectId = '';
+    try {
+      projectId = window.firebase && firebase.app && firebase.app().options && firebase.app().options.projectId || '';
+    } catch (err) {}
+    if (!projectId) projectId = 'bocado-brasil';
+    return 'https://us-central1-' + encodeURIComponent(projectId) + '.cloudfunctions.net/seasonsAiRecommendation';
+  }
+
+  function hasRemoteEndpoint() {
+    return !!_configuredEndpoint();
   }
 
   function _requestHeaders() {
     var headers = { 'Content-Type': 'application/json' };
-    var user = window.Auth && Auth.getUser ? Auth.getUser() : null;
+    var user = window.Auth && window.Auth.getUser ? window.Auth.getUser() : null;
     if (!user || typeof user.getIdToken !== 'function') return Promise.resolve(headers);
     return user.getIdToken().then(function (token) {
       if (token) headers.Authorization = 'Bearer ' + token;
@@ -288,8 +335,9 @@ window.SeasonsAI = (function () {
     var start = _date(season.startDate || season.startedAt);
     var end = _date(season.endDate);
     var now = new Date();
+    var currentTime = Math.min(now.getTime(), (end || now).getTime());
     return {
-      daysElapsed: metrics && metrics.elapsedDays ? _num(metrics.elapsedDays) : (start ? Math.max(1, Math.ceil((Math.min(now, end || now).getTime() - start.getTime()) / 86400000)) : 0),
+      daysElapsed: metrics && metrics.elapsedDays ? _num(metrics.elapsedDays) : (start ? Math.max(1, Math.ceil((currentTime - start.getTime()) / 86400000)) : 0),
       daysRemaining: metrics && metrics.daysRemaining !== undefined ? _num(metrics.daysRemaining) : (end ? Math.max(0, Math.ceil((end.getTime() - now.getTime()) / 86400000)) : 0)
     };
   }
@@ -304,6 +352,26 @@ window.SeasonsAI = (function () {
 
   function _safeObject(obj) {
     return JSON.parse(JSON.stringify(obj || {}));
+  }
+
+  function _safeSimpleList(items, limit) {
+    if (!Array.isArray(items)) {
+      items = Object.keys(items || {}).map(function (key) {
+        var value = items[key];
+        return value && typeof value === 'object' ? Object.assign({ label: key }, value) : { label: key, value: value };
+      });
+    }
+    return (items || []).slice(0, limit || 4).map(function (item) {
+      if (item && typeof item === 'object') {
+        return {
+          label: item.label || item.name || item.day || item.hour || item.channelName || item.channel || '',
+          value: _round(_num(item.value || item.count || item.orders || item.revenue || item.quantity))
+        };
+      }
+      return String(item || '');
+    }).filter(function (item) {
+      return typeof item === 'string' ? !!item : !!item.label;
+    });
   }
 
   function _cleanList(items) {
@@ -330,13 +398,146 @@ window.SeasonsAI = (function () {
   }
 
   function _safeProducts(products) {
-    return (products || []).slice(0, 5).map(function (product) {
+    return (products || []).slice(0, 3).map(function (product) {
       return {
+        id: product.id || product.productId || '',
         name: product.name || product.productName || '',
-        quantity: _num(product.quantity || product.qty),
-        revenue: _num(product.revenue || product.total)
+        quantity: _round(_num(product.quantity || product.qty)),
+        revenue: _round(_num(product.revenue || product.total)),
+        marginPercent: _round(_num(product.marginPercent || product.grossMarginPercent || product.margin)),
+        reason: product.reason || product.label || ''
       };
     });
+  }
+
+  function _safeChannels(channels) {
+    return (channels || []).slice(0, 4).map(function (channel) {
+      return {
+        name: channel.name || channel.channelName || channel.channel || '',
+        orders: _round(_num(channel.orders || channel.count || channel.quantity)),
+        revenue: _round(_num(channel.revenue || channel.total)),
+        share: _round(_num(channel.share || channel.percent || channel.percentage))
+      };
+    }).filter(function (channel) {
+      return channel.name || channel.orders || channel.revenue;
+    });
+  }
+
+  function _safeExecutionPlan(plan) {
+    plan = plan || {};
+    return {
+      summary: plan.summary || plan.title || '',
+      difficultyProfile: plan.difficultyProfile ? {
+        label: plan.difficultyProfile.label || '',
+        maxActions: _round(_num(plan.difficultyProfile.maxActions))
+      } : null,
+      actions: (plan.actions || []).slice(0, 3).map(function (action) {
+        return {
+          id: action.id || '',
+          type: action.type || action.kind || '',
+          title: action.title || '',
+          description: action.description || '',
+          why: action.why || action.reason || '',
+          dueDate: action.dueDate || action.deadline || '',
+          productId: action.productId || action.targetProductId || '',
+          productName: action.productName || action.targetProductName || '',
+          channelId: action.channelId || '',
+          channelName: action.channelName || action.channel || '',
+          status: action.status || '',
+          confidence: action.confidence || ''
+        };
+      }),
+      actionTasks: (plan.actionTasks || []).slice(0, 5).map(_safeActionTask)
+    };
+  }
+
+  function _safeActionTask(task) {
+    task = task || {};
+    return {
+      id: task.id || '',
+      actionId: task.actionId || '',
+      type: task.type || '',
+      title: task.title || task.label || '',
+      status: task.status || '',
+      evidenceCount: task.evidenceCount || (task.evidence && task.evidence.length) || 0,
+      updatedAt: task.updatedAt || task.completedAt || task.createdAt || ''
+    };
+  }
+
+  function _compactSignals(signals) {
+    signals = signals || {};
+    return {
+      products: _safeObject(signals.products || {}),
+      channels: _safeObject(signals.channels || {}),
+      actions: _safeObject(signals.actions || {}),
+      margin: _safeObject(signals.margin || signals.margins || {}),
+      recurrence: _safeObject(signals.recurrence || {})
+    };
+  }
+
+  function _safeSeasonReading(reading) {
+    reading = reading || {};
+    return {
+      headline: reading.headline || reading.title || '',
+      helpingSignals: _cleanList(reading.helpingSignals || reading.positiveSignals || []).slice(0, 3),
+      blockingSignals: _cleanList(reading.blockingSignals || reading.risks || []).slice(0, 3),
+      nextAction: reading.nextAction || reading.action || ''
+    };
+  }
+
+  function _compactOpportunities(opportunities) {
+    opportunities = opportunities || {};
+    return {
+      promotions: _safeSimpleList(opportunities.promotions || opportunities.promotion || [], 3),
+      coupons: _safeSimpleList(opportunities.coupons || opportunities.coupon || [], 3),
+      upsells: _safeSimpleList(opportunities.upsells || opportunities.upsell || [], 3),
+      products: _safeSimpleList(opportunities.products || [], 3),
+      channels: _safeSimpleList(opportunities.channels || [], 3)
+    };
+  }
+
+  function _safeSnapshots(snapshots) {
+    var daily = snapshots && snapshots.daily || {};
+    var weekly = snapshots && snapshots.weekly || {};
+    return {
+      daily: {
+        id: daily.id || '',
+        date: daily.date || '',
+        confidence: daily.confidence || '',
+        mainMetrics: _safeObject(daily.mainMetrics || {}),
+        alerts: _safeAlerts(daily.alerts || [])
+      },
+      weekly: {
+        id: weekly.id || '',
+        date: weekly.date || '',
+        confidence: weekly.confidence || '',
+        mainMetrics: _safeObject(weekly.mainMetrics || {})
+      }
+    };
+  }
+
+  function _hashContext(value) {
+    var text = _stableStringify(value);
+    var hash = 0;
+    for (var i = 0; i < text.length; i += 1) {
+      hash = ((hash << 5) - hash + text.charCodeAt(i)) | 0;
+    }
+    return 'ctx_' + Math.abs(hash).toString(36) + '_' + text.length.toString(36);
+  }
+
+  function _stableStringify(value) {
+    if (value === null || value === undefined) return 'null';
+    if (Array.isArray(value)) return '[' + value.map(_stableStringify).join(',') + ']';
+    if (typeof value === 'object') {
+      return '{' + Object.keys(value).sort().map(function (key) {
+        return JSON.stringify(key) + ':' + _stableStringify(value[key]);
+      }).join(',') + '}';
+    }
+    return JSON.stringify(value);
+  }
+
+  function _round(value) {
+    return Math.round(_num(value) * 100) / 100;
   }
 
   function _firstProductName(data) {
@@ -360,6 +561,7 @@ window.SeasonsAI = (function () {
     AI_PROMPT: AI_PROMPT,
     buildSeasonAIContext: buildSeasonAIContext,
     generateSeasonActionRecommendation: generateSeasonActionRecommendation,
-    getFallbackRecommendation: getFallbackRecommendation
+    getFallbackRecommendation: getFallbackRecommendation,
+    hasRemoteEndpoint: hasRemoteEndpoint
   };
 })();

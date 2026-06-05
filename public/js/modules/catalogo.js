@@ -2172,6 +2172,117 @@ Modules.Catalogo = (function () {
       .catch(function (err) { UI.toast('Erro: ' + err.message, 'error'); _renderProdutos(); });
   }
 
+  function _seasonActionDraftFor(type) {
+    try {
+      var raw = window.sessionStorage ? window.sessionStorage.getItem('bocafoodSeasonActionDraft') : '';
+      var draft = raw ? JSON.parse(raw) : null;
+      if (!draft || !draft.seasonId || !draft.seasonActionId) return null;
+      if (type && String(draft.type || '') !== String(type || '')) return null;
+      return draft;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  function _clearSeasonActionDraft(type) {
+    var draft = _seasonActionDraftFor(type);
+    if (!draft) return;
+    try { window.sessionStorage.removeItem('bocafoodSeasonActionDraft'); } catch (err) {}
+  }
+
+  function _decorateSeasonActionPayload(data, type) {
+    var draft = _seasonActionDraftFor(type);
+    if (!draft) return data;
+    return Object.assign({}, data, {
+      createdFromSeasonAction: true,
+      seasonId: draft.seasonId || '',
+      seasonActionId: draft.seasonActionId || '',
+      seasonActionType: type || '',
+      seasonActionTitle: draft.title || '',
+      seasonActionSource: draft.source || '',
+      seasonActionProductKey: draft.productKey || '',
+      seasonActionFocusKey: draft.focusKey || ''
+    });
+  }
+
+  function _linkSeasonActionDraft(type, ref, collection, label) {
+    var draft = _seasonActionDraftFor(type);
+    var id = typeof ref === 'string' ? ref : (ref && (ref.id || ref._key || ref.path && ref.path.split('/').pop && ref.path.split('/').pop()) || '');
+    if (!draft || !draft.seasonId || !draft.seasonActionId || !id || !window.DB || typeof DB.get !== 'function' || typeof DB.update !== 'function') {
+      _clearSeasonActionDraft(type);
+      return Promise.resolve(null);
+    }
+    return DB.get('seasons', draft.seasonId).then(function (season) {
+      if (!season) return null;
+      var plan = season.executionPlan && typeof season.executionPlan === 'object' ? Object.assign({}, season.executionPlan) : null;
+      var metrics = season.currentMetrics && typeof season.currentMetrics === 'object' ? Object.assign({}, season.currentMetrics) : null;
+      var metricsPlan = metrics && metrics.executionPlan && typeof metrics.executionPlan === 'object' ? Object.assign({}, metrics.executionPlan) : null;
+      var taskFallback = plan && Array.isArray(plan.actionTasks) ? plan.actionTasks : (metrics && Array.isArray(metrics.actionTasks) ? metrics.actionTasks : (metricsPlan && Array.isArray(metricsPlan.actionTasks) ? metricsPlan.actionTasks : []));
+      var rootTasks = Array.isArray(season.actionTasks) ? season.actionTasks.slice() : taskFallback.slice();
+      var planTasks = plan && Array.isArray(plan.actionTasks) ? plan.actionTasks.slice() : rootTasks.slice();
+      var metricsTasks = metrics && Array.isArray(metrics.actionTasks) ? metrics.actionTasks.slice() : rootTasks.slice();
+      var metricsPlanTasks = metricsPlan && Array.isArray(metricsPlan.actionTasks) ? metricsPlan.actionTasks.slice() : metricsTasks.slice();
+      var now = new Date().toISOString();
+      function markTasks(list) {
+        var changed = false;
+        var next = (list || []).map(function (task) {
+          if (!task || String(task.actionId || '') !== String(draft.seasonActionId || '')) return task;
+          changed = true;
+          var evidenceList = Array.isArray(task.executionEvidence) ? task.executionEvidence.slice() : [];
+          var alreadyLinked = evidenceList.some(function (evidence) {
+            return evidence && String(evidence.collection || '') === String(collection || '') && String(evidence.actionId || evidence.entityId || '') === String(id || '');
+          });
+          if (!alreadyLinked) {
+            evidenceList.push({
+              type: type + '_created',
+              collection: collection,
+              actionId: id,
+              entityId: id,
+              label: label || draft.title || '',
+              createdAt: now
+            });
+          }
+          return Object.assign({}, task, {
+            expectedActionType: type,
+            expectedActionId: id,
+            expectedActionCollection: collection,
+            executionEvidence: evidenceList,
+            executionStatus: 'created_waiting_result',
+            resultAnchorAt: task.resultAnchorAt || now
+          });
+        });
+        return { tasks: next, changed: changed };
+      }
+      var rootResult = markTasks(rootTasks);
+      var planResult = markTasks(planTasks);
+      var metricsResult = metrics ? markTasks(metricsTasks) : { tasks: [], changed: false };
+      var metricsPlanResult = metricsPlan ? markTasks(metricsPlanTasks) : { tasks: [], changed: false };
+      if (!rootResult.changed && !planResult.changed && !metricsResult.changed && !metricsPlanResult.changed) return null;
+      var updates = {};
+      if (rootResult.changed) updates.actionTasks = rootResult.tasks;
+      if (plan && planResult.changed) {
+        plan.actionTasks = planResult.tasks;
+        updates.executionPlan = plan;
+      }
+      if (metrics && (metricsResult.changed || metricsPlanResult.changed)) {
+        if (metricsResult.changed) metrics.actionTasks = metricsResult.tasks;
+        if (metricsPlan && metricsPlanResult.changed) {
+          metricsPlan.actionTasks = metricsPlanResult.tasks;
+          metrics.executionPlan = metricsPlan;
+        }
+        updates.currentMetrics = metrics;
+      }
+      return DB.update('seasons', draft.seasonId, updates);
+    }).then(function () {
+      _clearSeasonActionDraft(type);
+      return id;
+    }).catch(function (err) {
+      console.warn('[Catalogo] season action link failed', err);
+      _clearSeasonActionDraft(type);
+      return null;
+    });
+  }
+
   function _openProductModal(id) {
     _editingId = id;
     var p = id ? (_products.find(function (x) { return x.id === id; }) || {}) : {};
@@ -4607,6 +4718,7 @@ Modules.Catalogo = (function () {
       imageAlt: seoAlt,
       fiscal: fiscal
     };
+    data = _decorateSeasonActionPayload(data, 'catalog');
 
     var imgState = window._pmImageState || null;
     if (window._pmImageRemoved) {
@@ -4641,6 +4753,8 @@ Modules.Catalogo = (function () {
 
     var op = _editingId ? DB.update('products', _editingId, data) : DB.set('products', productId, data);
     op.then(function () {
+      return _linkSeasonActionDraft('catalog', productId, 'products', data.name);
+    }).then(function () {
       window._pmImageUploadPending = false;
       if (window._pmImagePreviewUrl) {
         try { URL.revokeObjectURL(window._pmImagePreviewUrl); } catch (e) {}

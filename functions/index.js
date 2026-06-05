@@ -1736,6 +1736,35 @@ function safeSeasonAIContext(context) {
   return out;
 }
 
+async function logSeasonAIUsage(payload) {
+  try {
+    await db.collection("system_ai_usage").add({
+      provider: "openai",
+      feature: "seasons_next_moves",
+      tenantId: String(payload.tenantId || ""),
+      uid: String(payload.uid || ""),
+      seasonId: String(payload.seasonId || ""),
+      snapshotId: String(payload.snapshotId || ""),
+      snapshotDate: String(payload.snapshotDate || ""),
+      contextHash: String(payload.contextHash || ""),
+      contextMode: String(payload.contextMode || ""),
+      contextSize: Number(payload.contextSize || 0),
+      triggerReason: String(payload.triggerReason || ""),
+      model: String(payload.model || ""),
+      status: String(payload.status || ""),
+      error: String(payload.error || "").slice(0, 240),
+      promptTokens: Number(payload.promptTokens || 0),
+      completionTokens: Number(payload.completionTokens || 0),
+      totalTokens: Number(payload.totalTokens || 0),
+      createdAt: serverTimestamp()
+    });
+  } catch (error) {
+    console.warn("[SeasonsAI] usage log skipped", {
+      error: String(error && error.message ? error.message : error).slice(0, 180)
+    });
+  }
+}
+
 async function loadOpenAIConfig() {
   let apiKey = String(process.env.OPENAI_API_KEY || "").trim();
   let model = String(process.env.OPENAI_SEASONS_MODEL || process.env.OPENAI_MODEL || "").trim();
@@ -3907,6 +3936,9 @@ exports.seasonsAiRecommendation = onRequest({ region: REGION, timeoutSeconds: 60
       "Responda somente JSON válido com headline, helpingSignals, blockingSignals e nextAction."
     ].join("\n"));
     const safeContext = safeSeasonAIContext(context);
+    const contextHash = String(context && context.cache && context.cache.hash || body.contextHash || "");
+    const contextSize = Number(body.contextSize || JSON.stringify(safeContext || {}).length || 0);
+    const triggerReason = String(body.triggerReason || context && context.cache && context.cache.triggerReason || "");
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -3939,12 +3971,35 @@ exports.seasonsAiRecommendation = onRequest({ region: REGION, timeoutSeconds: 60
     }
     const content = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
     const parsed = JSON.parse(String(content || "{}"));
+    const recommendation = validSeasonAIReading(parsed);
+    const usage = data && data.usage || {};
+    await logSeasonAIUsage({
+      tenantId: body.tenantId || "",
+      uid: decoded.uid || "",
+      seasonId: context && context.season && context.season.id || body.seasonId || "",
+      snapshotId: body.snapshotId || "",
+      snapshotDate: body.snapshotDate || context && context.snapshots && context.snapshots.daily && context.snapshots.daily.date || "",
+      contextHash,
+      contextMode: context && context.contextMode || "",
+      contextSize,
+      triggerReason,
+      model: data.model || aiConfig.model,
+      status: "generated",
+      promptTokens: usage.prompt_tokens || 0,
+      completionTokens: usage.completion_tokens || 0,
+      totalTokens: usage.total_tokens || 0
+    });
     return res.json({
       ok: true,
       status: "generated",
       model: data.model || aiConfig.model,
       configSource: aiConfig.source,
-      recommendation: validSeasonAIReading(parsed),
+      usage: {
+        promptTokens: Number(usage.prompt_tokens || 0),
+        completionTokens: Number(usage.completion_tokens || 0),
+        totalTokens: Number(usage.total_tokens || 0)
+      },
+      recommendation,
       tenantId: String(body.tenantId || ""),
       uid: decoded.uid || ""
     });

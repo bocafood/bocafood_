@@ -1,5 +1,98 @@
 # AI Changelog
 
+## 2026-06-05 — Temporadas: IA compacta, cache e auditoria de uso
+- Arquivos alterados: `public/js/services/seasons.ai.js`, `public/js/modules/temporadas.js`, `functions/index.js`, `server.rb`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Transformei o contexto de IA de Temporadas em um payload compacto (`compact-v1`), mantendo apenas os dados úteis para gerar a próxima jogada: objetivo, dificuldade, progresso, risco, produtos fortes/fracos, canais, horários/dias, sinais validados, plano de execução e tarefas.
+- Removi do envio principal objetos grandes e duplicados como métricas completas e snapshots inteiros, reduzindo consumo de tokens por usuária.
+- A recomendação diária agora usa `aiContextHash`, `aiContextSize` e `aiTriggerReason` no snapshot para reutilizar leituras quando os dados relevantes não mudaram.
+- Se o snapshot tinha apenas fallback local e o endpoint remoto passou a estar disponível, a tela pode substituir a leitura local por uma recomendação real da IA.
+- Configurei endpoint remoto padrão para a Function `seasonsAiRecommendation` em produção e `/api/seasons/ai-recommendation` no ambiente local.
+- A Function publicada registra uso em `system_ai_usage` com tenant, temporada, snapshot, hash, modelo, status, tamanho do contexto e tokens retornados pela OpenAI, sem salvar o prompt completo nem payload grande.
+- O servidor local também devolve `usage` e registra log leve de uso quando a IA é chamada pelo Master/local.
+- Atualizei cache-busters de `seasons.ai.js` e `temporadas.js` no Admin.
+- Documentei em `AGENTS.md` que a IA de Temporadas é camada de leitura/linguagem; os cálculos continuam determinísticos no BocaFood.
+
+## 2026-06-05 — Temporadas: validação pós-fases 1 a 7
+- Arquivos alterados: `AI_CHANGELOG.md`.
+- Rodei validação com pente fino no conjunto pendente do módulo Temporadas.
+- Validei sintaxe de `temporadas.js`, `catalogo.js`, `marketing.js` e `plano_voo.js` com `node --check`.
+- Validei os scripts inline do `public/admin.html` com compilação via `new Function`.
+- Rodei `git diff --check` para detectar espaços finais e problemas de diff.
+- Fiz teste comportamental isolado carregando `temporadas.js` em Node e expondo funções internas apenas durante o teste.
+- O teste cobriu: bloqueio de fallback para rota errada do Plano de Voo, aceite de rota ativa correta, produtos com baixa saída, custo por ficha técnica, custo por composição interna e normalização de data analítica do pedido.
+- Corrigi uma inconsistência encontrada na validação: o estado inicial de `actionContext` agora também contém `recipes` e `costItems`, alinhado ao carregamento real do contexto de ações.
+
+## 2026-06-05 — Temporadas: custo e margem pela cadeia atual
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Revisei o cálculo de custo/margem usado pelas jogadas de Temporadas.
+- O contexto de ações agora carrega também `fichasTecnicas` e `itens_custo`.
+- A margem de produto passa a tentar resolver custo pela cadeia atual antes de usar o custo salvo diretamente no produto.
+- Produtos ligados a ficha técnica usam `costPerYield` ou recalculam custo por rendimento com ingredientes, embalagem, bases/componentes e custos indiretos salvos.
+- Produtos ligados a produto pronto usam o custo do item em `itens_custo`.
+- Produtos com composição interna somam os itens vinculados, incluindo receita/produto produzido, produto pronto, insumo e embalagem.
+- Promoções, cupons, upsell e complementos passam a usar essa margem revisada para decidir se desconto é saudável.
+- Atualizei o cache-buster de `temporadas.js` no Admin.
+
+## 2026-06-05 — Temporadas: produtos com baixa saída
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Implementei o cálculo real de `lowSellingProducts`, que antes ficava vazio nas métricas da Temporada.
+- Quando o Cardápio está disponível, a Temporada compara produtos visíveis/ativos com os itens vendidos no período.
+- Produtos sem venda ou com quantidade muito abaixo da média entram como baixa saída.
+- Quando o Cardápio não está disponível, a leitura usa os próprios itens vendidos e marca os de menor saída relativa.
+- A lista passa para `validatedImpactSignals.products.lowSellingProducts`, `currentMetrics.lowSellingProducts`, snapshots e contexto da recomendação.
+- A baixa saída também aparece em `O que está travando` e no resumo final da Temporada.
+- Atualizei o cache-buster de `temporadas.js` no Admin.
+
+## 2026-06-05 — Temporadas: fallback seguro do Plano de Voo
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Corrigi a resolução da rota do Plano de Voo usada para criar uma Temporada.
+- O sistema deixou de usar qualquer rota mais recente como fallback quando não encontra uma rota ativa do mês.
+- Agora a Temporada só usa uma rota vinculada ao cenário mensal, uma rota ativada para o mês correto ou o próprio cenário mensal válido.
+- Rotas salvas para continuar, rascunhos e rotas de outro mês não entram mais como base automática.
+- Também ajustei a leitura de Maturidade para não herdar cenário de Plano de Voo a partir de rota errada.
+- Atualizei o cache-buster de `temporadas.js` no Admin.
+
+## 2026-06-05 — Temporadas: leitura de progresso, score, risco e resultado
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Reescrevi a copy da visão geral da Temporada para separar melhor os indicadores principais.
+- `Progresso` agora é explicado como avanço contra a meta principal.
+- `Score` agora é explicado como qualidade geral da temporada, combinando meta, sinais reais e penalizações de ritmo/risco.
+- `Risco` agora é explicado como chance de a temporada não chegar bem ao final se nada mudar.
+- `Resultado final` agora fica claro como classificação de encerramento, calculada ao terminar a temporada.
+- Incluí uma seção específica no modal `Como ler` para explicar a diferença entre os quatro conceitos em linguagem simples.
+- Atualizei o cache-buster de `temporadas.js` no Admin.
+
+## 2026-06-05 — Temporadas: ações criadas vinculadas às tarefas
+- Arquivos alterados: `public/js/modules/marketing.js`, `public/js/modules/catalogo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Reforcei o vínculo das jogadas de Temporadas com itens criados em Marketing: promoção, cupom e upsell agora atualizam tanto `actionTasks` quanto `executionPlan.actionTasks`.
+- Incluí o mesmo vínculo no Cardápio: ao salvar um produto a partir de uma jogada da temporada, o produto recebe os metadados da ação e a tarefa fica marcada com evidência em `products`.
+- O vínculo também atualiza a cópia em `currentMetrics`, quando ela existir, para a tela não depender de uma leitura antiga.
+- A evidência registra tipo, coleção, identificador, rótulo e data de criação, evitando duplicidade quando a mesma ação já estiver vinculada.
+- O salvamento do produto continua independente: se o vínculo com Temporadas falhar, o produto já salvo não é desfeito.
+- Atualizei os cache-busters de `catalogo.js` e `marketing.js` no Admin.
+
+## 2026-06-05 — Temporadas: atualização de snapshots do dia
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Ajustei os snapshots diário e semanal para recalcular o conteúdo quando já existe snapshot para o mesmo período.
+- Quando score, progresso, status, risco, confiança, métricas, alertas, leitura, plano de execução ou tarefas mudam, o snapshot existente é atualizado em `season_metrics_snapshots`.
+- Quando o snapshot diário muda, a recomendação antiga é limpa para ser gerada novamente com os dados atuais.
+- Isso evita que o snapshot criado cedo no dia fique congelado depois de novos pedidos ou mudanças relevantes na temporada.
+- Atualizei o cache-buster de `temporadas.js` no Admin.
+
+## 2026-06-05 — Temporadas: data analítica dos pedidos
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Padronizei a data analítica usada por Temporadas para priorizar `analyticsDate`, `orderAnalyticsDate`, `canonicalDate`, `createdAt`, datas de registro/criação do pedido e só depois pagamento, entrega ou agendamento como fallback legado.
+- A leitura de pedidos da temporada deixou de depender exclusivamente de consulta por `createdAt` no Firestore.
+- Score, progresso, snapshots diário/semanal e resultado final agora carregam pedidos por `DB.getAll('orders')` e filtram pelo normalizador completo de período.
+- Isso evita perder pedidos válidos que foram salvos com `orderDate`, `date`, `data`, `paidAt`, `deliveryDate`, `scheduleDate` ou outros campos aceitos pelo normalizador.
+- Atualizei o cache-buster de `temporadas.js` no Admin.
+
+## 2026-06-05 — Plano de Voo: copy dos ajustes avançados
+- Arquivos alterados: `public/js/modules/plano_voo.js`, `AI_CHANGELOG.md`.
+- Ajustei a frase de apoio do bloco `Ajustes avançados` no modal `Criar nova rota`.
+- A copy agora orienta a usuária a revisar ou informar canais, custos e despesas que influenciam a rota.
+- No card de rotas criadas, troquei `Venda vs ativa`, `Sobra vs ativa` e `Pedidos/dia vs ativa` por rótulos mais claros comparando com a rota ativa.
+
 ## 2026-06-05 — Plano de Voo: ajustes avançados abertos na criação
 - Arquivos alterados: `public/js/modules/plano_voo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - No modal `Criar nova rota`, deixei o bloco `Ajustes avançados` aberto por padrão.

@@ -27,7 +27,9 @@ Modules.Temporadas = (function () {
       promotions: [],
       coupons: [],
       upsells: [],
-      salesChannels: []
+      salesChannels: [],
+      recipes: [],
+      costItems: []
     },
     snapshots: {
       daily: null,
@@ -149,7 +151,7 @@ Modules.Temporadas = (function () {
       _state.businessMaturityEvents = [];
       _state.businessMaturitySnapshots = [];
       _state.businessHistory = null;
-      _state.actionContext = { products: [], promotions: [], coupons: [], upsells: [], salesChannels: [] };
+      _state.actionContext = { products: [], promotions: [], coupons: [], upsells: [], salesChannels: [], recipes: [], costItems: [] };
       _state.pendingStoneCelebration = null;
       _state.snapshots = { daily: null, weekly: null };
       _paint();
@@ -197,7 +199,7 @@ Modules.Temporadas = (function () {
       _state.businessMaturityEvents = [];
       _state.businessMaturitySnapshots = [];
       _state.businessHistory = null;
-      _state.actionContext = { products: [], promotions: [], coupons: [], upsells: [], salesChannels: [] };
+      _state.actionContext = { products: [], promotions: [], coupons: [], upsells: [], salesChannels: [], recipes: [], costItems: [] };
       _state.pendingStoneCelebration = null;
       _state.snapshots = { daily: null, weekly: null };
       _paint();
@@ -206,7 +208,7 @@ Modules.Temporadas = (function () {
 
   function _loadSeasonActionContext() {
     if (!window.DB || typeof DB.getAll !== 'function') {
-      return Promise.resolve({ products: [], promotions: [], coupons: [], upsells: [], salesChannels: [] });
+      return Promise.resolve({ products: [], promotions: [], coupons: [], upsells: [], salesChannels: [], recipes: [], costItems: [] });
     }
     return Promise.all([
       DB.getAll('products').catch(function () { return []; }),
@@ -214,6 +216,8 @@ Modules.Temporadas = (function () {
       DB.getAll('promocoes').catch(function () { return []; }),
       DB.getAll('coupons').catch(function () { return []; }),
       DB.getAll('upsellRules').catch(function () { return []; }),
+      DB.getAll('fichasTecnicas').catch(function () { return []; }),
+      DB.getAll('itens_custo').catch(function () { return []; }),
       (typeof DB.getDocRoot === 'function' ? DB.getDocRoot('config', 'canais_venda') : Promise.resolve(null)).catch(function () { return null; })
     ]).then(function (res) {
       return {
@@ -221,7 +225,9 @@ Modules.Temporadas = (function () {
         promotions: _mergePromotionLists(res[1] || [], res[2] || []),
         coupons: res[3] || [],
         upsells: res[4] || [],
-        salesChannels: _normalizeSalesChannelsConfig(res[5] || {})
+        recipes: res[5] || [],
+        costItems: res[6] || [],
+        salesChannels: _normalizeSalesChannelsConfig(res[7] || {})
       };
     });
   }
@@ -540,7 +546,7 @@ Modules.Temporadas = (function () {
     var seasonStats = _maturitySeasonStats(seasons);
     var orderStats = _maturityOrderStats(orders);
     var loyaltyStats = _maturityLoyaltyStats(orders, customers);
-    var scenario = _maturityScenario(monthScenario, flightPlans);
+    var scenario = _maturityScenario(monthScenario, flightPlans, input.monthKey || _maturityMonthKey());
     var dataSignals = _maturityDataSignals(input, orders);
     var businessHistory = _businessHistoryContext(input, orders);
     var indexes = _maturityIndexes(seasonStats, orderStats, loyaltyStats, scenario, dataSignals, businessHistory);
@@ -1701,13 +1707,56 @@ Modules.Temporadas = (function () {
     };
   }
 
-  function _maturityScenario(monthScenario, flightPlans) {
+  function _maturityScenario(monthScenario, flightPlans, monthKey) {
     var direct = monthScenario && (monthScenario.scenario || monthScenario.selectedScenario);
     if (direct) return String(direct).toLowerCase();
-    var plans = (flightPlans || []).slice().sort(function (a, b) {
+    var plans = (flightPlans || []).filter(function (plan) {
+      return _isUsableFlightPlanForMonth(plan, monthKey);
+    }).sort(function (a, b) {
       return _dateValue(b.updatedAt || b.createdAt || b.periodStart) - _dateValue(a.updatedAt || a.createdAt || a.periodStart);
     });
     return plans[0] && plans[0].scenario ? String(plans[0].scenario).toLowerCase() : '';
+  }
+
+  function _isDraftFlightPlan(plan) {
+    if (!plan) return true;
+    return !!(plan.savedForLater || plan.activationStatus === 'saved_for_later' || plan.routeStatus === 'draft');
+  }
+
+  function _isActivatedFlightPlan(plan) {
+    if (!plan || _isDraftFlightPlan(plan)) return false;
+    return plan.activationStatus === 'activated' || plan.routeStatus === 'active_candidate' || plan.routeStatus === 'active' || plan.active === true;
+  }
+
+  function _flightPlanMatchesMonth(plan, monthKey) {
+    if (!plan || !monthKey) return false;
+    var targetMonthKey = String(plan.targetMonthKey || '').trim();
+    if (targetMonthKey) return targetMonthKey === String(monthKey || '');
+    var start = _toDate(plan.periodStart || plan.routePeriodStart || '');
+    var end = _toDate(plan.periodEnd || plan.routePeriodEnd || '');
+    if (!start || !end) return false;
+    var monthStart = _monthStartFromKey(monthKey);
+    var monthEnd = _monthEndFromKey(monthKey);
+    if (!monthStart || !monthEnd) return false;
+    return start <= monthEnd && end >= monthStart;
+  }
+
+  function _isUsableFlightPlanForMonth(plan, monthKey) {
+    return !!(plan && plan.summary && _isActivatedFlightPlan(plan) && _flightPlanMatchesMonth(plan, monthKey));
+  }
+
+  function _monthStartFromKey(monthKey) {
+    var parts = String(monthKey || '').split('-');
+    var year = parseInt(parts[0], 10);
+    var month = parseInt(parts[1], 10);
+    if (!year || !month) return null;
+    return new Date(year, month - 1, 1, 0, 0, 0, 0);
+  }
+
+  function _monthEndFromKey(monthKey) {
+    var start = _monthStartFromKey(monthKey);
+    if (!start) return null;
+    return new Date(start.getFullYear(), start.getMonth() + 1, 0, 23, 59, 59, 999);
   }
 
   function _maturityValidOrders(orders) {
@@ -3476,7 +3525,7 @@ Modules.Temporadas = (function () {
     var scoreBreakdown = _scoreBreakdownForDisplay(season, metrics);
     var seasonReading = _seasonReadingForDisplay(season, metrics, scoreBreakdown);
     return '' +
-      '<div class="seasons-tab-header"><span class="seasons-section-label">Temporada ativa</span><h3>Como estou indo e o que faço hoje?</h3><p>Leitura simples do ritmo da temporada, usando os dados reais que a loja já gerou.</p></div>' +
+      '<div class="seasons-tab-header"><span class="seasons-section-label">Temporada ativa</span><h3>Como estou indo e o que faço hoje?</h3><p>Progresso mostra quanto da meta já foi feito. Score mostra a qualidade do caminho. Risco mostra a chance de não chegar lá se nada mudar.</p></div>' +
       '<div class="seasons-active-reading">' +
         '<section class="seasons-reading-hero seasons-reading-hero-' + _esc(_seasonSituationTone(season, metrics, progress)) + '">' +
           '<div>' +
@@ -3493,11 +3542,11 @@ Modules.Temporadas = (function () {
             _readingFact('Atual', _formatMetricValue(metrics.currentValue, season.objective)),
             _readingFact('Esperado para hoje', expected > 0 ? Math.round(expected) + '%' : 'Em início')
           ], _progressBalloonText(season, metrics, progress)) +
-          _readingCard('Score', 'speed', [
+          _readingCard('Score da temporada', 'speed', [
             _readingFact('Score', score + '/100'),
             _readingFact('Leitura', _scoreSimpleReading(scoreBreakdown, season, metrics))
           ], _scoreBalloonText(season, metrics, scoreBreakdown)) +
-          _readingCard('Risco', 'warning', [
+          _readingCard('Chance de falha', 'warning', [
             _readingFactHtml('Chance de falha', _riskBadge(season.riskLevel)),
             _readingFact('Dias restantes', String(Math.round(_number(metrics.daysRemaining, 0)))),
             _readingFact('Ritmo', _statusScoreLabel(season.currentStatus))
@@ -3505,7 +3554,7 @@ Modules.Temporadas = (function () {
           _readingCard('Base observada', 'analytics', [
             _readingFact('Pedidos', String(Math.round(_number(metrics.orders, 0)))),
             _readingFact('Ticket médio', _fmtMoney(metrics.averageTicket))
-          ], 'Aqui você vê o retrato das vendas desta temporada até agora: quantos pedidos entraram, quanto cada pedido tem deixado em média e qual resultado está puxando o objetivo escolhido.') +
+          ], 'Aqui você vê os pedidos reais que alimentam a leitura. Esta base ajuda a explicar progresso, score e risco, mas não é o resultado final da temporada.') +
         '</div>' +
         '<div class="seasons-reading-columns">' +
           _readingListBlock('O que está ajudando', 'thumb_up', seasonReading.helpingSignals) +
@@ -3781,6 +3830,8 @@ Modules.Temporadas = (function () {
     if (season && season.objective === 'increase_ticket' && promotionDiscount > upsellAdded && promotionDiscount > 0) {
       items.push('O ticket pode estar subindo menos porque o desconto está pesando mais que os adicionais.');
     }
+    var lowProduct = signals.products && signals.products.lowSellingProducts && signals.products.lowSellingProducts[0];
+    if (lowProduct && lowProduct.name) items.push(lowProduct.name + ' está com baixa saída nesta temporada.');
     if (riskContext && riskContext.recentDrop) items.push('Houve queda recente no ritmo da temporada.');
     return _uniqueTextItems(items).slice(0, 5);
   }
@@ -3810,11 +3861,11 @@ Modules.Temporadas = (function () {
     actionContext = actionContext || {};
     var topProductSignal = validatedImpactSignals.products && validatedImpactSignals.products.topProduct || (metrics.topProducts || [])[0] || null;
     var product = _findActionProduct(topProductSignal, actionContext.products || []);
-    var economics = _productEconomics(product, topProductSignal);
-    var promo = _bestAvailablePromotionForProduct(product, actionContext.promotions || []);
+    var economics = _productEconomics(product, topProductSignal, actionContext);
+    var promo = _bestAvailablePromotionForProduct(product, actionContext.promotions || [], actionContext);
     var coupon = _bestAvailableCouponForProduct(economics, actionContext.coupons || []);
     var upsell = _bestAvailableUpsellForProduct(product, actionContext.upsells || []);
-    var complement = _bestComplementProductForProduct(product, economics, actionContext.products || []);
+    var complement = _bestComplementProductForProduct(product, economics, actionContext.products || [], actionContext);
     var recommended = _chooseRecommendedSalesAction(topProductSignal, economics, promo, coupon, upsell, validatedImpactSignals);
     var rankedActions = _buildRankedActionOpportunities(metrics, validatedImpactSignals, actionContext, season);
     return {
@@ -3846,11 +3897,11 @@ Modules.Temporadas = (function () {
     (products || []).slice(0, 6).forEach(function (productSignal, index) {
       if (!productSignal || !productSignal.name) return;
       var product = _findActionProduct(productSignal, actionContext.products || []);
-      var economics = _productEconomics(product, productSignal);
-      var promo = _bestAvailablePromotionForProduct(product, actionContext.promotions || []);
+      var economics = _productEconomics(product, productSignal, actionContext);
+      var promo = _bestAvailablePromotionForProduct(product, actionContext.promotions || [], actionContext);
       var coupon = _bestAvailableCouponForProduct(economics, actionContext.coupons || []);
       var upsell = _bestAvailableUpsellForProduct(product, actionContext.upsells || []);
-      var complement = _bestComplementProductForProduct(product, economics, actionContext.products || []);
+      var complement = _bestComplementProductForProduct(product, economics, actionContext.products || [], actionContext);
       var productName = productSignal.name;
       var complementName = complement && complement.product ? _productActionName(complement.product) : '';
       var productKey = _actionProductKey(productSignal, product);
@@ -4569,9 +4620,11 @@ Modules.Temporadas = (function () {
     })[0] || null;
   }
 
-  function _productEconomics(product, signal) {
+  function _productEconomics(product, signal, actionContext) {
     var price = _money(_firstValue(product && product.price, product && product.salePrice, product && product.valor, product && product.preco, product && product.precoVenda, signal && signal.unitPrice));
-    var cost = _money(_firstValue(product && product.cost, product && product.custo, product && product.purchasePrice, product && product.custoAtual, product && product.custo_atual, product && product.stockUnitCost, product && product.costPerYield, product && product.precoCompra));
+    var chainCost = _productChainCost(product, actionContext || {});
+    var savedCost = _money(_firstValue(product && product.cost, product && product.custo, product && product.purchasePrice, product && product.custoAtual, product && product.custo_atual, product && product.stockUnitCost, product && product.costPerYield, product && product.precoCompra));
+    var cost = chainCost.cost > 0 ? chainCost.cost : savedCost;
     var hasPriceAndCost = price > 0 && cost > 0;
     var marginPct = hasPriceAndCost ? ((price - cost) / price) * 100 : null;
     var targetMarginPct = 25;
@@ -4581,6 +4634,8 @@ Modules.Temporadas = (function () {
     return {
       price: price,
       cost: cost,
+      costSource: chainCost.source || (savedCost > 0 ? 'produto' : ''),
+      costBreakdown: chainCost.breakdown || [],
       hasPriceAndCost: hasPriceAndCost,
       marginPct: marginPct,
       targetMarginPct: targetMarginPct,
@@ -4589,11 +4644,153 @@ Modules.Temporadas = (function () {
     };
   }
 
-  function _bestAvailablePromotionForProduct(product, promotions) {
+  function _productChainCost(product, actionContext) {
+    product = product || {};
+    actionContext = actionContext || {};
+    var recipes = actionContext.recipes || [];
+    var costItems = actionContext.costItems || [];
+    if (!product) return { cost: 0, source: '', breakdown: [] };
+    if (Array.isArray(product.internalComposition) || Array.isArray(product.internalCompositionItems)) {
+      var internal = _internalCompositionChainCost(product, actionContext);
+      if (internal.cost > 0) return internal;
+    }
+    var src = String(product.unicoSource || product.sourceType || product.source || '').toLowerCase();
+    var readyId = String(product.produtoProntoId || product.sourceItemId || product.readyProductId || '').trim();
+    var recipeId = String(product.fichaTecnicaId || product.fichaId || product.recipeId || '').trim();
+    if ((src === 'produto_pronto' || src === 'compras_produto' || readyId) && readyId) {
+      var ready = _findCostItemById(readyId, costItems);
+      var readyCost = _costItemUnitCost(ready);
+      if (readyCost > 0) return { cost: readyCost, source: 'produto_pronto', breakdown: [{ type: 'produto_pronto', id: readyId, name: ready && (ready.nome || ready.name) || product.name || '', cost: readyCost }] };
+    }
+    if ((src === 'receita' || recipeId) && recipeId) {
+      var recipe = _findRecipeById(recipeId, recipes);
+      var recipeCost = _recipeUnitCost(recipe, costItems);
+      if (recipeCost > 0) return { cost: recipeCost, source: 'ficha_tecnica', breakdown: [{ type: 'ficha_tecnica', id: recipeId, name: recipe && (recipe.name || recipe.nome) || product.name || '', cost: recipeCost }] };
+    }
+    return { cost: 0, source: '', breakdown: [] };
+  }
+
+  function _internalCompositionChainCost(product, actionContext) {
+    var items = Array.isArray(product && product.internalComposition)
+      ? product.internalComposition
+      : (Array.isArray(product && product.internalCompositionItems) ? product.internalCompositionItems : []);
+    var total = 0;
+    var breakdown = [];
+    (items || []).forEach(function (part) {
+      if (!part) return;
+      var qty = _money(_firstValue(part.quantity, part.qty, part.quantidade, part.stockQuantity, 1)) || 1;
+      var ref = String(part.ref || part.stockRef || part.stockItemRef || '').trim();
+      var refParts = ref ? ref.split(':') : [];
+      var refType = refParts[0] || '';
+      var refId = refParts.slice(1).join(':');
+      var type = String(part.stockItemType || part.itemClass || part.classe || '').trim();
+      var itemId = String(part.itemId || part.stockItemId || part.fichaTecnicaId || part.fichaId || part.sourceItemId || part.produtoProntoId || refId || '').trim();
+      if (!type && (refType === 'ficha' || refType === 'receita')) type = 'produto_produzido';
+      if (!type && refType === 'produto_pronto') type = 'produto_pronto';
+      if (!type && (refType === 'insumo' || refType === 'ingrediente' || refType === 'embalagem')) type = refType === 'embalagem' ? 'embalagem' : 'insumo';
+      var unitCost = _money(_firstValue(part.unitCost, part.stockUnitCost, part.cost, part.custo, 0));
+      if (!(unitCost > 0) && type === 'produto_produzido') unitCost = _recipeUnitCost(_findRecipeById(itemId, actionContext.recipes || []), actionContext.costItems || []);
+      if (!(unitCost > 0) && type === 'produto_pronto') unitCost = _costItemUnitCost(_findCostItemById(itemId, actionContext.costItems || []));
+      if (!(unitCost > 0) && (type === 'insumo' || type === 'embalagem')) unitCost = _costItemUnitCost(_findCostItemById(itemId, actionContext.costItems || []));
+      if (!(unitCost > 0)) return;
+      var lineCost = qty * unitCost;
+      total += lineCost;
+      breakdown.push({ type: type || 'item', id: itemId, name: part.itemName || part.stockItemName || part.name || '', quantity: qty, unitCost: unitCost, cost: lineCost });
+    });
+    return { cost: total, source: total > 0 ? 'composicao_interna' : '', breakdown: breakdown };
+  }
+
+  function _findRecipeById(id, recipes) {
+    id = String(id || '').trim();
+    if (!id) return null;
+    return (recipes || []).filter(function (item) {
+      return item && String(item.id || item.uid || item.recipeId || '') === id;
+    })[0] || null;
+  }
+
+  function _findCostItemById(id, costItems) {
+    id = String(id || '').trim();
+    if (!id) return null;
+    return (costItems || []).filter(function (item) {
+      return item && String(item.id || item.uid || item.itemId || '') === id;
+    })[0] || null;
+  }
+
+  function _costItemUnitCost(item) {
+    if (!item) return 0;
+    return _money(_firstValue(
+      item.unitCost,
+      item.stockUnitCost,
+      item.custo_atual,
+      item.custoAtual,
+      item.purchasePrice,
+      item.preco_compra,
+      item.precoCompra,
+      item.cost,
+      item.custo,
+      0
+    ));
+  }
+
+  function _recipeUnitCost(recipe, costItems) {
+    if (!recipe) return 0;
+    var saved = _money(_firstValue(recipe.costPerYield, recipe.unitCost, recipe.stockUnitCost, recipe.custoUnitario, 0));
+    if (saved > 0) return saved;
+    var yieldQty = _money(_firstValue(recipe.yieldQuantity, recipe.yield, recipe.rendimento, 0));
+    var direct = _recipeDirectCost(recipe, costItems || []);
+    var indirectPct = _money(_firstValue(recipe.indirectCostPercent, recipe.indirectCostPct, 0));
+    var indirect = _money(_firstValue(recipe.indirectCost, 0));
+    var total = _money(_firstValue(recipe.totalCost, recipe.custoTotal, 0));
+    if (!(total > 0)) total = direct + (indirect > 0 ? indirect : direct * indirectPct / 100);
+    return yieldQty > 0 && total > 0 ? total / yieldQty : 0;
+  }
+
+  function _recipeDirectCost(recipe, costItems) {
+    var total = _money(_firstValue(recipe.directCost, 0));
+    if (total > 0) return total;
+    var ingredients = Array.isArray(recipe.ingredients) ? recipe.ingredients : [];
+    var packaging = Array.isArray(recipe.packagingItems) ? recipe.packagingItems : (Array.isArray(recipe.packaging) ? recipe.packaging : []);
+    var components = Array.isArray(recipe.components) ? recipe.components : (Array.isArray(recipe.recipeComponents) ? recipe.recipeComponents : []);
+    if (ingredients.length) return _recipeLineCost(ingredients, costItems);
+    total += _recipeLineCost(packaging, costItems);
+    (components || []).forEach(function (component) {
+      var componentLines = Array.isArray(component.ingredients) ? component.ingredients : [];
+      var raw = _recipeLineCost(componentLines, costItems);
+      var ratio = _componentCostRatio(component, recipe);
+      total += raw * ratio;
+    });
+    return total;
+  }
+
+  function _recipeLineCost(lines, costItems) {
+    return (lines || []).reduce(function (sum, line) {
+      var saved = _money(_firstValue(line.appliedTotalCost, line.totalCost, line.rawTotalCost, 0));
+      if (saved > 0) return sum + saved;
+      var qty = _money(_firstValue(line.appliedGrossQuantity, line.grossQuantityCalculated, line.grossQuantity, line.qty, line.quantity, 0));
+      var unitCost = _money(_firstValue(line.unitCost, 0));
+      if (!(unitCost > 0)) {
+        var item = _findCostItemById(line.insumoId || line.itemId || line.packagingId || '', costItems);
+        unitCost = _costItemUnitCost(item);
+      }
+      return sum + (qty > 0 && unitCost > 0 ? qty * unitCost : 0);
+    }, 0);
+  }
+
+  function _componentCostRatio(component, recipe) {
+    var stageQty = _money(_firstValue(component.stageYieldQuantity, component.baseYieldQuantity, component.stockYieldQuantity, 0));
+    var usageQty = _money(_firstValue(component.stageUsageQuantity, component.usageQuantity, component.quantityPerUnit, component.baseUsageQuantity, 0));
+    if (stageQty > 0 && usageQty > 0) return usageQty / stageQty;
+    var ratio = _money(_firstValue(component.stageUsageRatio, 0));
+    if (ratio > 0) return ratio;
+    var recipeQty = _money(_firstValue(recipe && recipe.yieldQuantity, recipe && recipe.yield, 0));
+    return stageQty > 0 && recipeQty > 0 ? recipeQty / stageQty : 1;
+  }
+
+  function _bestAvailablePromotionForProduct(product, promotions, actionContext) {
     if (!product) return null;
     var candidates = (promotions || []).map(function (promo) {
       if (!_actionPromoApplies(promo, product)) return null;
-      var calc = _actionPromoCalc(product, promo);
+      var calc = _actionPromoCalc(product, promo, actionContext);
       if (!calc) return null;
       return Object.assign(calc, {
         id: promo.id || promo._id || '',
@@ -4646,7 +4843,7 @@ Modules.Temporadas = (function () {
     return String(product && (product.name || product.nome || product.title || product.label) || '').trim();
   }
 
-  function _bestComplementProductForProduct(baseProduct, baseEconomics, products) {
+  function _bestComplementProductForProduct(baseProduct, baseEconomics, products, actionContext) {
     if (!baseProduct) return null;
     var baseId = String(baseProduct.id || baseProduct.productId || '').trim();
     var baseName = _foldText(_productActionName(baseProduct));
@@ -4660,7 +4857,7 @@ Modules.Temporadas = (function () {
       if (product.hidden === true || product.visible === false || product.showInMenu === false || product.cardapioVisible === false) return null;
       var status = _foldText(product.status || product.situacao || '');
       if (['inativo', 'inativa', 'oculto', 'oculta', 'pausado', 'pausada'].indexOf(status) >= 0) return null;
-      var economics = _productEconomics(product, null);
+      var economics = _productEconomics(product, null, actionContext);
       var price = _number(economics.price, 0);
       if (!(price > 0)) return null;
       var margin = economics.hasPriceAndCost ? _number(economics.marginPct, 0) : 0;
@@ -4716,8 +4913,8 @@ Modules.Temporadas = (function () {
     return true;
   }
 
-  function _actionPromoCalc(product, promo) {
-    var economics = _productEconomics(product, null);
+  function _actionPromoCalc(product, promo, actionContext) {
+    var economics = _productEconomics(product, null, actionContext);
     if (!(economics.price > 0)) return null;
     var type = _foldText(promo.type || promo.tipo || promo.discountType || promo.benefitType || '');
     var value = _money(_firstValue(promo.valuePercentual, promo.discountPct, promo.pctValue, promo.value));
@@ -5479,9 +5676,9 @@ Modules.Temporadas = (function () {
         '<aside class="seasons-system-side">' +
           '<span class="seasons-section-label">Ritmo da temporada</span>' +
           _metricTile('Score', Math.round(_number(season.currentScore, 0)), 'speed') +
-          _metricTile('Progresso', Math.round(_number(season.progressPercent, 0)) + '%', 'trending_up') +
+          _metricTile('Progresso da meta', Math.round(_number(season.progressPercent, 0)) + '%', 'trending_up') +
           _metricTile('Chance de Falha', _riskLabel(season.riskLevel), 'warning') +
-          _metricTile('Métrica observada', _formatMetricValue(metrics.currentValue, season.objective), 'analytics') +
+          _metricTile('Resultado até agora', _formatMetricValue(metrics.currentValue, season.objective), 'analytics') +
         '</aside>' +
       '</div>';
   }
@@ -5501,7 +5698,7 @@ Modules.Temporadas = (function () {
     var summary = season.finalSummary || {};
     var metrics = season.finalMetrics || season.currentMetrics || {};
     return '' +
-      '<div class="seasons-tab-header"><span class="seasons-section-label">Resultado Final</span><h3>' + _esc(season.finalResult || 'Resultado não calculado') + '</h3><p>Fechamento da campanha operacional.</p></div>' +
+      '<div class="seasons-tab-header"><span class="seasons-section-label">Resultado Final</span><h3>' + _esc(season.finalResult || 'Resultado não calculado') + '</h3><p>Fechamento da temporada: aqui o sistema transforma progresso, score e risco em uma classificação final.</p></div>' +
       '<div class="seasons-final-grid">' +
         _finalFact('Score final', Math.round(_number(season.finalScore, season.currentScore || 0))) +
         _finalFact('Progresso final', Math.round(_number(season.finalProgressPercent, season.progressPercent || 0)) + '%') +
@@ -5557,13 +5754,13 @@ Modules.Temporadas = (function () {
     var current = _formatMetricValue(metrics.currentValue, season.objective);
     var target = _formatMetricValue(metrics.targetValue, season.objective);
     var expected = _number(metrics.expectedProgress, 0);
-    var parts = ['Você já chegou em ' + current + ' de uma meta de ' + target + '.'];
+    var parts = ['Progresso é só o avanço contra a meta principal: você já chegou em ' + current + ' de uma meta de ' + target + '.'];
     if (expected <= 0) {
       return parts.concat(['Como a temporada acabou de começar, ainda não vamos tratar isso como atraso. Hoje é dia de colocar a primeira jogada em movimento.']).join(' ');
     }
     parts.push('Para o momento de hoje, o ideal seria estar perto de ' + Math.round(expected) + '%.');
-    if (progress >= 100) parts.push('Você já passou da meta desta temporada. Agora vale manter o que funcionou e cuidar para não perder ritmo.');
-    else parts.push('Ainda falta cerca de ' + Math.max(0, Math.round(100 - progress)) + '% para chegar lá. Use a Próxima Jogada para puxar esse avanço com mais clareza.');
+    if (progress >= 100) parts.push('Você já passou da meta desta temporada. O score e o risco ainda ajudam a entender se esse avanço veio de um jeito saudável.');
+    else parts.push('Ainda falta cerca de ' + Math.max(0, Math.round(100 - progress)) + '% para chegar lá. Isso não é o resultado final: é a leitura do caminho até hoje.');
     return parts.join(' ');
   }
 
@@ -5584,14 +5781,14 @@ Modules.Temporadas = (function () {
     var starting = _statusScoreLabel(season && season.currentStatus) === 'Em início' || _number(metrics && metrics.expectedProgress, 0) <= 0;
     var objectiveText = _scoreObjectivePlainText(season && season.objective);
     var pieces = [
-      'Essa nota ajuda você a sentir se a temporada está indo bem ou se precisa de uma ação mais forte.',
+      'Score é uma nota de 0 a 100 sobre a qualidade da temporada, não apenas sobre quanto da meta já foi feito.',
       objectiveText
     ];
     if (scoreBreakdown.validatedImpactBonus > 0) pieces.push('Algumas vendas e ações reais já começaram a ajudar.');
     if (scoreBreakdown.riskPenalty > 0) {
       pieces.push(starting
         ? 'A rota começou exigente, então este é um cuidado inicial, não uma cobrança de atraso.'
-        : 'Quando o ritmo fica distante do necessário, a nota pede mais atenção.');
+        : 'Quando o ritmo fica distante do necessário, o score cai para mostrar que o caminho precisa de atenção.');
     }
     if (score >= 85) pieces.push('Continue reforçando o que está funcionando.');
     else if (score >= 65) pieces.push('Você está no caminho; mantenha constância.');
@@ -5641,11 +5838,11 @@ Modules.Temporadas = (function () {
     if (daysRemaining <= 7 && progress < 75) reasons.push('restam poucos dias e a temporada ainda está abaixo de 75% da meta');
 
     if (!reasons.length) {
-      if (risk === 'low') return 'A chance está baixa porque o progresso e o ritmo atual não indicam atraso relevante para a meta.';
-      if (risk === 'medium') return 'A chance está média porque existe algum desvio de ritmo ou exigência da meta, mas ainda há espaço para recuperar.';
-      return 'A chance considera a dificuldade da meta, histórico, ritmo atual e dias restantes.';
+      if (risk === 'low') return 'Risco é a chance de a temporada não chegar bem ao final se continuar como está. Aqui ele está baixo porque progresso e ritmo não indicam atraso relevante.';
+      if (risk === 'medium') return 'Risco é a chance de a temporada não chegar bem ao final se continuar como está. Aqui ele está médio porque existe algum desvio de ritmo ou exigência da meta, mas ainda há espaço para recuperar.';
+      return 'Risco é a chance de a temporada não chegar bem ao final se continuar como está. Ele considera dificuldade da meta, histórico, ritmo atual e dias restantes.';
     }
-    return 'A chance está ' + _riskLabel(risk).toLowerCase() + ' porque ' + reasons.join(', ') + '.';
+    return 'Risco é diferente de score: ele olha a chance de falhar se nada mudar. Agora está ' + _riskLabel(risk).toLowerCase() + ' porque ' + reasons.join(', ') + '.';
   }
 
   function _consistencyBalloonText(metrics) {
@@ -6775,12 +6972,21 @@ Modules.Temporadas = (function () {
           '</section>' +
           _helpWeightHighlightsHtml(season) +
           '<section class="seasons-help-section">' +
+            '<h3>Diferença entre progresso, score, risco e resultado</h3>' +
+            '<div class="seasons-help-grid">' +
+              _helpItem('Progresso', 'Mostra quanto da meta principal já foi alcançado.', 'Exemplo: se a meta é faturar €1.000 e já faturou €400, o progresso é 40%. Ele olha volume da meta, não qualidade da execução.') +
+              _helpItem('Score', 'Mostra a qualidade geral do caminho da temporada, de 0 a 100.', 'Ele combina avanço da meta, sinais reais das jogadas e penalizações quando o ritmo ou o risco pedem atenção.') +
+              _helpItem('Risco', 'Mostra a chance de a temporada não chegar bem ao final se continuar como está.', 'Ele olha dificuldade da meta, histórico, ritmo atual, atraso contra o esperado e dias restantes.') +
+              _helpItem('Resultado final', 'Só é fechado quando a temporada termina.', 'É a classificação final, como Vitória Total, Vitória Parcial ou Temporada Instável, usando progresso, score e risco juntos.') +
+            '</div>' +
+          '</section>' +
+          '<section class="seasons-help-section">' +
             '<h3>Como ler os cards principais</h3>' +
             '<div class="seasons-help-grid">' +
               _helpItem('Resumo da temporada', 'É a leitura principal do momento: mostra se a temporada está dentro do caminho, abaixo do ritmo ou pedindo atenção.', 'A porcentagem ao lado mostra o avanço da meta principal.') +
-              _helpItem('Meta e progresso', 'Compara o que precisava acontecer com o que já aconteceu até agora.', objective.progress) +
-              _helpItem('Score', 'Mostra uma leitura geral da temporada para o objetivo escolhido.', objective.score) +
-              _helpItem('Risco', 'Mostra a chance de a temporada não chegar onde precisa se continuar no ritmo atual.', 'Risco alto não é erro: é um aviso para agir mais rápido ou escolher uma jogada mais simples.') +
+              _helpItem('Meta e progresso', 'Compara o que precisava acontecer com o que já aconteceu até agora.', objective.progress + ' Use para saber quanto falta, não para julgar se a temporada está saudável sozinha.') +
+              _helpItem('Score', 'Mostra se o caminho está saudável para o objetivo escolhido.', objective.score + ' Um progresso alto com risco alto pode ter score menor; um progresso parcial com bons sinais pode manter score melhor.') +
+              _helpItem('Risco', 'Mostra a chance de a temporada não chegar bem ao final se continuar no ritmo atual.', 'Risco alto não é erro: é um aviso para agir mais rápido, simplificar a jogada ou proteger o resultado.') +
               _helpItem('Base observada', 'Mostra o retrato das vendas desta temporada até agora.', 'Use para entender o volume de pedidos, o ticket médio e o resultado que está puxando o objetivo escolhido.') +
               _helpItem('O que ajuda e o que trava', 'Mostra sinais simples do que está puxando a temporada e do que está atrapalhando.', 'Use essa parte para entender por que a Próxima Jogada foi sugerida.') +
             '</div>' +
@@ -7548,18 +7754,17 @@ Modules.Temporadas = (function () {
     var snapId = String((monthScenario && monthScenario.snapshotId) || '').trim();
     if (snapId) {
       var byId = plans.filter(function (plan) { return String(plan.id || '') === snapId; })[0];
-      if (byId) return byId;
+      if (byId && !_isDraftFlightPlan(byId) && (String(byId.targetMonthKey || '') === String(monthKey || '') || !byId.targetMonthKey || _flightPlanMatchesMonth(byId, monthKey))) return byId;
+      return null;
     }
     var byMonth = plans.filter(function (plan) {
-      return String(plan.targetMonthKey || '') === monthKey && plan.summary;
+      return _isUsableFlightPlanForMonth(plan, monthKey);
     }).sort(function (a, b) {
       return _dateValue(b.updatedAt || b.createdAt) - _dateValue(a.updatedAt || a.createdAt);
     })[0];
     if (byMonth) return byMonth;
-    if (monthScenario && monthScenario.summary && Object.keys(monthScenario.summary).length) return monthScenario;
-    return plans.filter(function (plan) { return plan && plan.summary; }).sort(function (a, b) {
-      return _dateValue(b.updatedAt || b.selectedAt || b.createdAt) - _dateValue(a.updatedAt || a.selectedAt || a.createdAt);
-    })[0] || null;
+    if (monthScenario && monthScenario.summary && Object.keys(monthScenario.summary).length && String(monthScenario.monthKey || monthKey || '') === String(monthKey || '')) return monthScenario;
+    return null;
   }
 
   function _flightPlanSummary(plan, monthScenario) {
@@ -7732,7 +7937,22 @@ Modules.Temporadas = (function () {
   }
 
   function _normalizeOrderDate(order) {
-    var raw = order && (order.canonicalDate || order.createdAt || order.orderDate || order.date || order.data || order.paidAt || order.deliveryDate || order.scheduleDate || order.updatedAt);
+    var raw = order && (
+      order.analyticsDate ||
+      order.orderAnalyticsDate ||
+      order.canonicalDate ||
+      order.createdAt ||
+      order.registeredAt ||
+      order.orderCreatedAt ||
+      order.orderDate ||
+      order.date ||
+      order.data ||
+      order.paidAt ||
+      order.paymentDate ||
+      order.deliveryDate ||
+      order.scheduleDate ||
+      order.updatedAt
+    );
     return _toDate(raw);
   }
 
@@ -7839,7 +8059,7 @@ Modules.Temporadas = (function () {
       upsell: _calculateUpsellImpact(validOrders, season, baseline),
       points: _calculatePointsImpact(validOrders, season, baseline),
       channels: _calculateChannelImpact(validOrders, season, baseline, actionContext),
-      products: _calculateProductImpact(validOrders, season, baseline)
+      products: _calculateProductImpact(validOrders, season, baseline, actionContext)
     };
   }
 
@@ -8040,13 +8260,13 @@ Modules.Temporadas = (function () {
     return name + ' pode ser testado com uma jogada pequena antes de aumentar esforço.';
   }
 
-  function _calculateProductImpact(validOrders, season, baseline) {
+  function _calculateProductImpact(validOrders, season, baseline, actionContext) {
     var map = {};
     (validOrders || []).forEach(function (order) {
       (order.items || []).forEach(function (item) {
         var key = item.productId || item.id || item.name;
         if (!key) return;
-        if (!map[key]) map[key] = { productId: item.productId || item.id || '', name: item.name, quantity: 0, revenue: 0, impactScore: 0 };
+        if (!map[key]) map[key] = { productId: item.productId || item.id || '', id: item.productId || item.id || '', name: item.name, quantity: 0, revenue: 0, impactScore: 0 };
         map[key].quantity += _number(item.quantity, 0);
         map[key].revenue += _number(item.total, 0);
       });
@@ -8058,10 +8278,88 @@ Modules.Temporadas = (function () {
     }).sort(function (a, b) {
       return b.revenue - a.revenue || b.quantity - a.quantity;
     });
+    var lowSellingProducts = _calculateLowSellingProducts(products, actionContext && actionContext.products || [], validOrders);
     return {
       topProduct: products[0] || null,
-      products: products.slice(0, 6)
+      products: products.slice(0, 6),
+      lowSellingProducts: lowSellingProducts
     };
+  }
+
+  function _calculateLowSellingProducts(soldProducts, catalogProducts, validOrders) {
+    soldProducts = Array.isArray(soldProducts) ? soldProducts : [];
+    catalogProducts = Array.isArray(catalogProducts) ? catalogProducts : [];
+    var soldMap = {};
+    soldProducts.forEach(function (item) {
+      var key = _productSignalKey(item);
+      if (key) soldMap[key] = item;
+      var nameKey = _productNameKey(item && item.name);
+      if (nameKey) soldMap[nameKey] = item;
+    });
+    var activeCatalog = catalogProducts.filter(_isProductVisibleForSeason);
+    var averageQty = soldProducts.length
+      ? soldProducts.reduce(function (sum, item) { return sum + _number(item.quantity, 0); }, 0) / soldProducts.length
+      : 0;
+    var lowQtyLimit = Math.max(1, Math.floor(averageQty * 0.35));
+    var candidates = [];
+    activeCatalog.forEach(function (product) {
+      var productKey = _productSignalKey(product);
+      var productId = String(product.id || product.productId || product.uid || product.ref || product.slug || '').trim();
+      var name = _productDisplayName(product);
+      if (!name) return;
+      var sold = soldMap[productKey] || soldMap[_productNameKey(name)] || null;
+      var quantity = _number(sold && sold.quantity, 0);
+      var revenue = _number(sold && sold.revenue, 0);
+      var reason = quantity <= 0 ? 'sem venda no período' : (quantity <= lowQtyLimit ? 'baixa saída no período' : '');
+      if (!reason) return;
+      candidates.push({
+        productId: productId,
+        id: productId,
+        productKey: productKey,
+        name: name,
+        quantity: quantity,
+        revenue: revenue,
+        reason: reason,
+        active: true,
+        visible: product.menuVisible !== false,
+        impactScore: _validatedImpactScore(quantity, revenue, { baselineOrders: Math.max(1, (validOrders || []).length), baselineRevenue: revenue }, 0)
+      });
+    });
+    if (!candidates.length && soldProducts.length) {
+      candidates = soldProducts.filter(function (item) {
+        return _number(item.quantity, 0) <= lowQtyLimit;
+      }).map(function (item) {
+        return Object.assign({}, item, {
+          reason: 'baixa saída em relação aos outros produtos'
+        });
+      });
+    }
+    return candidates.sort(function (a, b) {
+      return _number(a.quantity, 0) - _number(b.quantity, 0) || _number(a.revenue, 0) - _number(b.revenue, 0) || String(a.name || '').localeCompare(String(b.name || ''));
+    }).slice(0, 8);
+  }
+
+  function _productSignalKey(product) {
+    var id = product && (product.productId || product.id || product.uid || product.ref || product.slug);
+    if (id) return 'id:' + String(id);
+    return _productNameKey(product && (product.name || product.nome || product.title));
+  }
+
+  function _productNameKey(name) {
+    var folded = _foldText(name || '');
+    return folded ? 'name:' + folded : '';
+  }
+
+  function _productDisplayName(product) {
+    return String(product && (product.name || product.nome || product.title || product.label || '') || '').trim().slice(0, 90);
+  }
+
+  function _isProductVisibleForSeason(product) {
+    if (!product) return false;
+    if (product.deleted || product.archived || product.excluded) return false;
+    if (product.active === false || product.enabled === false || product.available === false) return false;
+    if (product.menuVisible === false || product.visible === false || product.hidden === true) return false;
+    return !!_productDisplayName(product);
   }
 
   function _sumOrderRevenue(orders) {
@@ -8468,7 +8766,7 @@ Modules.Temporadas = (function () {
 
   function _ensureSnapshot(season, snapshotType, dateKey) {
     return _findSnapshot(season.id, snapshotType, dateKey).then(function (existing) {
-      if (existing) return existing;
+      if (existing) return _refreshSnapshotIfChanged(season, snapshotType, dateKey, existing);
       return _createSnapshot(season, snapshotType, dateKey);
     });
   }
@@ -8516,27 +8814,56 @@ Modules.Temporadas = (function () {
     });
   }
 
+  function _refreshSnapshotIfChanged(season, snapshotType, dateKey, existing) {
+    if (!existing || !existing.id || !window.DB || typeof DB.update !== 'function') return Promise.resolve(existing);
+    return _loadSnapshotOrders(season, snapshotType).then(function (orders) {
+      var payload = _buildSnapshotPayload(season, snapshotType, dateKey, orders || []);
+      if (!_snapshotHasRelevantChanges(existing, payload)) return existing;
+      var patch = Object.assign({}, payload, {
+        updatedAt: new Date().toISOString(),
+        aiRecommendation: null,
+        aiRecommendationGeneratedAt: null,
+        aiRecommendationModel: '',
+        aiRecommendationStatus: 'not_requested',
+        aiRecommendationError: ''
+      });
+      return DB.update('season_metrics_snapshots', existing.id, patch).then(function () {
+        return Object.assign({}, existing, patch);
+      });
+    }).catch(function (err) {
+      console.warn('Temporadas snapshot refresh skipped', err);
+      return existing;
+    });
+  }
+
+  function _snapshotHasRelevantChanges(existing, payload) {
+    var fields = [
+      'score',
+      'progressPercent',
+      'status',
+      'riskLevel',
+      'confidence',
+      'scoreBreakdown',
+      'validatedImpactSignals',
+      'riskContext',
+      'seasonReading',
+      'executionPlan',
+      'actionTasks',
+      'actionTaskHistory',
+      'metrics',
+      'mainMetrics',
+      'auxiliaryMetrics',
+      'alerts',
+      'insights'
+    ];
+    return fields.some(function (field) {
+      return JSON.stringify(existing && existing[field] != null ? existing[field] : null) !== JSON.stringify(payload && payload[field] != null ? payload[field] : null);
+    });
+  }
+
   function _loadSnapshotOrders(season, snapshotType) {
     var range = _snapshotRange(season, snapshotType);
-    if (window.DB && typeof DB.col === 'function') {
-      return DB.col('orders')
-        .where('createdAt', '>=', range.periodStart)
-        .where('createdAt', '<=', range.periodEnd)
-        .get()
-        .then(function (snap) {
-          return snap.docs.map(function (doc) {
-            return Object.assign({}, doc.data(), { id: doc.id });
-          });
-        }).catch(function (err) {
-          console.warn('Temporadas snapshot orders fallback', err);
-          return DB.getAll('orders').then(function (orders) {
-            return _ordersInPeriod(orders || [], range.periodStart, range.periodEnd);
-          });
-        });
-    }
-    return DB.getAll('orders').then(function (orders) {
-      return _ordersInPeriod(orders || [], range.periodStart, range.periodEnd);
-    });
+    return _loadSeasonOrdersForRange(range.periodStart, range.periodEnd);
   }
 
   function _buildSnapshotPayload(season, snapshotType, dateKey, orders) {
@@ -8587,7 +8914,10 @@ Modules.Temporadas = (function () {
       aiRecommendationGeneratedAt: null,
       aiRecommendationModel: '',
       aiRecommendationStatus: 'not_requested',
-      aiRecommendationError: ''
+      aiRecommendationError: '',
+      aiContextHash: '',
+      aiContextSize: 0,
+      aiTriggerReason: ''
     };
   }
 
@@ -8595,23 +8925,37 @@ Modules.Temporadas = (function () {
     if (!season || season.status !== 'active') return Promise.resolve(null);
     var daily = snapshotState && snapshotState.daily;
     if (!daily || !daily.id || !window.DB || typeof DB.update !== 'function') return Promise.resolve(daily || null);
-    if (daily.aiRecommendation && (daily.aiRecommendationStatus === 'generated' || daily.aiRecommendationStatus === 'fallback')) {
+    var context = _buildAIContext(season, snapshotState);
+    var contextHash = _aiContextHash(context);
+    var contextSize = _aiContextSize(context);
+    if (_canReuseAIRecommendation(daily, contextHash)) {
       return Promise.resolve(daily);
     }
 
-    var context = _buildAIContext(season, snapshotState);
+    var triggerReason = _aiTriggerReason(daily, contextHash);
+    if (!context.cache) context.cache = {};
+    context.cache.hash = contextHash;
+    context.cache.size = contextSize;
+    context.cache.triggerReason = triggerReason;
     return _generateAIRecommendation(context).then(function (result) {
       var now = new Date().toISOString();
       var recommendation = result.recommendation || _fallbackRecommendationForUI();
+      var usage = result.usage || {};
       var patch = {
         aiRecommendation: recommendation,
         aiRecommendationGeneratedAt: now,
         aiRecommendationModel: result.model || 'local-rules-v1',
         aiRecommendationStatus: result.status || 'fallback',
-        aiRecommendationError: result.error || ''
+        aiRecommendationError: result.error || '',
+        aiContextHash: contextHash,
+        aiContextSize: contextSize,
+        aiTriggerReason: triggerReason,
+        aiPromptTokens: _number(usage.promptTokens || usage.prompt_tokens, 0),
+        aiCompletionTokens: _number(usage.completionTokens || usage.completion_tokens, 0),
+        aiTotalTokens: _number(usage.totalTokens || usage.total_tokens, 0)
       };
       return DB.update('season_metrics_snapshots', daily.id, patch).then(function () {
-        _persistSeasonAIFields(season, recommendation, now);
+        _persistSeasonAIFields(season, recommendation, now, patch);
         return Object.assign({}, daily, patch);
       });
     }).catch(function (err) {
@@ -8621,12 +8965,71 @@ Modules.Temporadas = (function () {
         aiRecommendationGeneratedAt: new Date().toISOString(),
         aiRecommendationModel: 'local-rules-v1',
         aiRecommendationStatus: 'fallback',
-        aiRecommendationError: err && err.message ? err.message : 'AI recommendation fallback'
+        aiRecommendationError: err && err.message ? err.message : 'AI recommendation fallback',
+        aiContextHash: contextHash,
+        aiContextSize: contextSize,
+        aiTriggerReason: triggerReason
       };
       return DB.update('season_metrics_snapshots', daily.id, patch).then(function () {
         return Object.assign({}, daily, patch);
       });
     });
+  }
+
+  function _canReuseAIRecommendation(daily, contextHash) {
+    if (!daily || !daily.aiRecommendation) return false;
+    if (daily.aiContextHash && contextHash && daily.aiContextHash !== contextHash) return false;
+    if (daily.aiRecommendationStatus === 'generated') return true;
+    if (daily.aiRecommendationStatus !== 'fallback') return false;
+    if (String(daily.aiRecommendationModel || '') !== 'local-rules-v1') return true;
+    if (window.SeasonsAI && typeof SeasonsAI.hasRemoteEndpoint === 'function' && SeasonsAI.hasRemoteEndpoint()) {
+      if (_recentRemoteAIFallback(daily)) return true;
+      return false;
+    }
+    return true;
+  }
+
+  function _recentRemoteAIFallback(daily) {
+    var error = String(daily && daily.aiRecommendationError || '').toLowerCase();
+    if (!error || (error.indexOf('endpoint') < 0 && error.indexOf('http') < 0 && error.indexOf('openai') < 0 && error.indexOf('configured') < 0)) return false;
+    var generatedAt = _toDate(daily.aiRecommendationGeneratedAt);
+    if (!generatedAt) return false;
+    return (Date.now() - generatedAt.getTime()) < 10 * 60 * 1000;
+  }
+
+  function _aiTriggerReason(daily, contextHash) {
+    if (!daily || !daily.aiRecommendation) return 'first_daily_snapshot';
+    if (daily.aiContextHash && contextHash && daily.aiContextHash !== contextHash) return 'context_changed';
+    if (daily.aiRecommendationStatus === 'fallback' && String(daily.aiRecommendationModel || '') === 'local-rules-v1') return 'remote_available_after_local_fallback';
+    return 'manual_or_snapshot_refresh';
+  }
+
+  function _aiContextHash(context) {
+    return context && context.cache && context.cache.hash ? String(context.cache.hash) : _hashText(_stableStringify(context || {}));
+  }
+
+  function _aiContextSize(context) {
+    try { return JSON.stringify(context || {}).length; } catch (err) { return 0; }
+  }
+
+  function _hashText(text) {
+    text = String(text || '');
+    var hash = 0;
+    for (var i = 0; i < text.length; i += 1) {
+      hash = ((hash << 5) - hash + text.charCodeAt(i)) | 0;
+    }
+    return 'ctx_' + Math.abs(hash).toString(36) + '_' + text.length.toString(36);
+  }
+
+  function _stableStringify(value) {
+    if (value === null || value === undefined) return 'null';
+    if (Array.isArray(value)) return '[' + value.map(_stableStringify).join(',') + ']';
+    if (typeof value === 'object') {
+      return '{' + Object.keys(value).sort().map(function (key) {
+        return JSON.stringify(key) + ':' + _stableStringify(value[key]);
+      }).join(',') + '}';
+    }
+    return JSON.stringify(value);
   }
 
   function _buildAIContext(season, snapshotState) {
@@ -8677,12 +9080,16 @@ Modules.Temporadas = (function () {
     });
   }
 
-  function _persistSeasonAIFields(season, recommendation, generatedAt) {
+  function _persistSeasonAIFields(season, recommendation, generatedAt, meta) {
     if (!season || !season.id || !window.DB || typeof DB.update !== 'function') return;
     DB.update('seasons', season.id, {
       aiEnabled: false,
       lastAIRecommendationAt: generatedAt,
-      lastAIRecommendationSummary: recommendation && (recommendation.headline || recommendation.nextAction || recommendation.summary) ? (recommendation.headline || recommendation.nextAction || recommendation.summary) : ''
+      lastAIRecommendationSummary: recommendation && (recommendation.headline || recommendation.nextAction || recommendation.summary) ? (recommendation.headline || recommendation.nextAction || recommendation.summary) : '',
+      lastAIRecommendationModel: meta && meta.aiRecommendationModel || '',
+      lastAIRecommendationStatus: meta && meta.aiRecommendationStatus || '',
+      lastAIContextHash: meta && meta.aiContextHash || '',
+      lastAITriggerReason: meta && meta.aiTriggerReason || ''
     }).catch(function (err) {
       console.warn('Temporadas AI season fields update skipped', err);
     });
@@ -8918,7 +9325,11 @@ Modules.Temporadas = (function () {
       worked.push('Upsell aceito em ' + Math.round(_number(signals.upsell.acceptedOrders, 0)) + ' pedido(s).');
     }
     if (signals.products && signals.products.topProduct) {
-      worked.push(signals.products.topProduct + ' ajudou a puxar a temporada.');
+      worked.push((signals.products.topProduct.name || signals.products.topProduct) + ' ajudou a puxar a temporada.');
+    }
+    var lowProduct = signals.products && signals.products.lowSellingProducts && signals.products.lowSellingProducts[0];
+    if (lowProduct && lowProduct.name) {
+      blocked.push(lowProduct.name + ' ficou com baixa saída no período.');
     }
 
     if (_number(season.progressPercent, 0) < 75) blocked.push('O progresso ficou abaixo de 75% da meta.');
@@ -9020,22 +9431,18 @@ Modules.Temporadas = (function () {
   }
 
   function _loadScoreOrders(season) {
-    if (window.DB && typeof DB.col === 'function') {
-      var period = _seasonPeriod(season);
-      return DB.col('orders')
-        .where('createdAt', '>=', period.baselineStart)
-        .where('createdAt', '<=', period.currentEnd)
-        .get()
-        .then(function (snap) {
-          return snap.docs.map(function (doc) {
-            return Object.assign({}, doc.data(), { id: doc.id });
-          });
-        }).catch(function (err) {
-          console.warn('Temporadas period query fallback', err);
-          return DB.getAll('orders');
-        });
-    }
-    return DB.getAll('orders');
+    var period = _seasonPeriod(season);
+    return _loadSeasonOrdersForRange(period.baselineStart, period.currentEnd);
+  }
+
+  function _loadSeasonOrdersForRange(start, end) {
+    if (!window.DB || typeof DB.getAll !== 'function') return Promise.resolve([]);
+    return DB.getAll('orders').then(function (orders) {
+      return _ordersInPeriod(orders || [], start, end);
+    }).catch(function (err) {
+      console.warn('Temporadas orders range load skipped', err);
+      return [];
+    });
   }
 
   function _calculateSeasonScore(season, allOrders, actionContext) {
@@ -9045,6 +9452,7 @@ Modules.Temporadas = (function () {
     var current = _buildRuntimeMetrics(currentOrders, period.elapsedDays || 1);
     var baseline = _buildRuntimeMetrics(baselineOrders, period.durationDays || 30);
     var validatedImpactSignals = _calculateValidatedImpactSignals(currentOrders, season, baseline, actionContext || {});
+    current.lowSellingProducts = validatedImpactSignals.products && validatedImpactSignals.products.lowSellingProducts || [];
     var target = _targetValueForSeason(season);
     var primaryValue = _primaryValueForObjective(current, season.objective);
     var progressPercent = target > 0 ? (primaryValue / target) * 100 : 0;

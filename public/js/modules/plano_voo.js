@@ -537,9 +537,9 @@ Modules.PlanoDeVoo = (function () {
           _routeSmallStat('Sobra', _fmtMoney(vm.profit), vm.profit >= 0 ? '#1F6F43' : '#B42318') +
         '</div>' +
         '<div style="display:flex;flex-direction:column;gap:5px;border-radius:12px;background:#FAF8F4;padding:9px 10px;">' +
-          _routeDeltaLine('Venda vs ativa', revenueDelta) +
-          _routeDeltaLine('Sobra vs ativa', profitDelta) +
-          _routeDeltaTextLine('Pedidos/dia vs ativa', (ordersDelta > 0 ? '+' : '') + _fmtNum(ordersDelta, 0)) +
+          _routeDeltaLine('Venda comparada à rota ativa', revenueDelta) +
+          _routeDeltaLine('Sobra comparada à rota ativa', profitDelta) +
+          _routeDeltaTextLine('Pedidos/dia comparado à rota ativa', (ordersDelta > 0 ? '+' : '') + _fmtNum(ordersDelta, 0)) +
         '</div>' +
         '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:' + _esc(effort.bg) + ';border-radius:12px;padding:8px 10px;">' +
           '<span style="font-size:12px;color:#6F6860;">Esforço</span>' +
@@ -1778,7 +1778,7 @@ Modules.PlanoDeVoo = (function () {
             '<span class="mi" style="font-size:22px;color:#B42318;">tune</span>' +
             '<span style="min-width:0;">' +
               '<strong style="display:block;font-size:14px;font-weight:600;color:#1F1F1F;line-height:1.2;">Ajustes avançados</strong>' +
-              '<small style="display:block;font-size:13px;color:#6F6860;line-height:1.4;margin-top:3px;">Abra apenas se quiser revisar canais, custos e despesas que influenciam a rota.</small>' +
+              '<small style="display:block;font-size:13px;color:#6F6860;line-height:1.4;margin-top:3px;">Revise ou informe os canais, custos e despesas que influenciam esta rota.</small>' +
             '</span>' +
           '</span>' +
           '<span class="mi" style="font-size:21px;color:#6F6860;">expand_more</span>' +
