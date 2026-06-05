@@ -1,5 +1,39 @@
 # AI Changelog
 
+## 2026-06-05 — Produção: copy do modal Base de produção
+- Arquivos alterados: `public/js/modules/receitas.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Revisei a copy do modal `Editar base de produção` para falar com a usuária no presente, sem comparar com versões anteriores nem citar decisões internas.
+- A orientação inicial explica que base de produção é uma preparação usada em uma ou mais receitas.
+- A copy de embalagens passou a orientar diretamente: caixas, sacos, etiquetas e outras embalagens devem ser preenchidas em `Embalagens da receita`.
+- Ajustei labels e descrições para `Quantidade produzida`, `Onde esta base é usada`, `Ingredientes da base`, `Custo desta produção` e `Quantidade sugerida para preparar`.
+- Ajustei o subtítulo de `Bases de produção` para dizer que as bases ajudam a montar receitas, sem usar `ficha completa`.
+- Removi o texto padrão `Base reaproveitável usada para montar receitas completas` da listagem quando a base não tem descrição.
+- Adicionei o botão `Duplicar` na `Lista de bases`, criando uma cópia independente da base com ingredientes, rendimento e custos recalculados.
+- Atualizei o cache-buster de `receitas.js` no Admin.
+
+## 2026-06-05 — Temporadas: IA com inteligência comercial
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/js/services/seasons.ai.js`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Ampliei o contexto enviado para a IA de Temporadas com um bloco compacto de inteligência de vendas dos últimos 30 dias.
+- O novo contexto inclui produtos fortes, canais, horários, produtos com baixa saída, performance de cupom/promoção/upsell, ações criadas a partir de Temporadas, programa de pontos e grupos prováveis de clientes.
+- Reforcei o prompt para a IA escolher a jogada mais específica possível com produto, oferta, público, canal, janela de ação e critério de leitura.
+- Corrigi a jogada inicial sem pedidos para não mostrar `Aumentar venda usando o produto com melhor resposta`; agora ela assume que o objetivo é criar a primeira leitura real com pedidos bem registrados.
+- As jogadas agora carregam `measurement` estruturado com tipo, produto, canal, horário, cupom, promoção, upsell, grupo de cliente e métrica de sucesso quando esses dados existem.
+- A leitura de resultado passa a usar `measurement` antes do fallback por texto, tornando mais confiável identificar produto vendido, cupom usado, promoção aplicada, upsell aceito, canal/horário respondendo, recompra e primeira base de pedidos.
+- O contexto enviado para IA também preserva `measurement` dentro das ações do plano operacional.
+- Atualizei os cache-busters de `temporadas.js` e `seasons.ai.js` no Admin.
+
+## 2026-06-05 — Temporadas: copy fala em operação
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Troquei as copies visíveis de Temporadas que falavam da `loja` como negócio/rotina por `operação`.
+- Mantive `loja` apenas em contexto técnico de normalização de canal, sem impacto visual para a usuária.
+- Atualizei o cache-buster de `temporadas.js` no Admin.
+
+## 2026-06-05 — Temporadas: copy de carregamento
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Troquei a mensagem `Buscando temporadas do tenant atual` por uma copy sem termo técnico; depois a frase foi refinada para `Preparando as temporadas da sua operação`.
+- A mudança remove termo técnico da tela de carregamento sem alterar lógica, permissões, consulta ou isolamento de dados.
+- Atualizei o cache-buster de `temporadas.js` no Admin.
+
 ## 2026-06-05 — Temporadas: ciclo mensurável das jogadas
 - Arquivos alterados: `public/js/modules/temporadas.js`, `public/js/services/seasons.ai.js`, `public/css/modules/temporadas.css`, `public/admin.html`, `AI_CHANGELOG.md`.
 - Ajustei o ciclo das jogadas para que venda ligada à jogada não encerre a rodada automaticamente.

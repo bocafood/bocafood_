@@ -17,7 +17,11 @@ window.SeasonsAI = (function () {
     'Não transforme em jogada principal uma ação que o sistema não consiga ler nos pedidos ou cadastros.',
     'Venda ligada à jogada é sinal de leitura, não motivo para trocar automaticamente a jogada antes da janela de resultado.',
     'Quando sugerir ação, use o plano operacional recebido e cite produto, canal, horário, cupom, promoção, upsell ou pontos somente se existirem no contexto.',
+    'Use salesIntelligence para escolher a jogada mais específica possível: melhor produto, melhor canal, público provável, ação de venda disponível e sinais dos últimos 30 dias.',
+    'A jogada deve vir pronta para execução, dizendo exatamente o que fazer, com qual produto/oferta, para qual público/canal, em qual janela e qual dado vai provar se funcionou.',
+    'Se não houver produto/canal/público suficiente, diga que a jogada é criar base e peça registro de pedidos com produto, canal e horário, sem fingir que já existe produto vencedor.',
     'Se existir executionPlan.actions, use essas ações como fonte principal da Próxima Jogada e melhore apenas clareza, prioridade e linguagem.',
+    'Quando executionPlan.actions trouxer measurement, respeite esses campos como a regra de leitura do resultado da jogada.',
     'Se uma ação citar produto, canal, horário, cupom, promoção, upsell ou pontos, preserve esses objetos concretos e não troque por termos genéricos.',
     'Não recomende desconto sem preço, custo, margem e desconto saudável já calculados no contexto.',
     'Upsell só pode ser tratado como jogada do canal Cardápio.',
@@ -84,7 +88,8 @@ window.SeasonsAI = (function () {
       pointsRedemption: _round(_num(relatedData.pointsRedemption)),
       pointsDiscount: _round(_num(relatedData.pointsDiscount)),
       channelBreakdown: _safeChannels(relatedData.channelBreakdown || []),
-      actionOpportunities: _compactOpportunities(relatedData.actionOpportunities || metrics.actionOpportunities || {})
+      actionOpportunities: _compactOpportunities(relatedData.actionOpportunities || metrics.actionOpportunities || {}),
+      salesIntelligence: _safeSalesIntelligence(relatedData.salesIntelligence || {})
     };
     return {
       prompt: AI_PROMPT,
@@ -449,6 +454,12 @@ window.SeasonsAI = (function () {
           productName: action.productName || action.targetProductName || '',
           channelId: action.channelId || '',
           channelName: action.channelName || action.channel || '',
+          couponCode: action.couponCode || action.measurement && action.measurement.couponCode || '',
+          promotionName: action.promotionName || action.measurement && action.measurement.promotionName || '',
+          upsellName: action.upsellName || action.measurement && action.measurement.upsellName || '',
+          customerGroup: action.customerGroup || action.measurement && action.measurement.customerGroup || '',
+          successMetric: action.successMetric || action.measurement && action.measurement.successMetric || '',
+          measurement: _safeMeasurement(action.measurement || {}),
           status: action.status || '',
           confidence: action.confidence || ''
         };
@@ -470,6 +481,22 @@ window.SeasonsAI = (function () {
     };
   }
 
+  function _safeMeasurement(measurement) {
+    measurement = measurement || {};
+    return {
+      type: measurement.type || '',
+      productName: measurement.productName || '',
+      productKey: measurement.productKey || '',
+      channel: measurement.channel || '',
+      hour: measurement.hour || '',
+      couponCode: measurement.couponCode || '',
+      promotionName: measurement.promotionName || '',
+      upsellName: measurement.upsellName || '',
+      customerGroup: measurement.customerGroup || '',
+      successMetric: measurement.successMetric || ''
+    };
+  }
+
   function _compactSignals(signals) {
     signals = signals || {};
     return {
@@ -479,6 +506,75 @@ window.SeasonsAI = (function () {
       margin: _safeObject(signals.margin || signals.margins || {}),
       recurrence: _safeObject(signals.recurrence || {})
     };
+  }
+
+  function _safeSalesIntelligence(info) {
+    info = info || {};
+    var actionPerformance = info.actionPerformance || {};
+    var available = info.availableActions || {};
+    var points = info.pointsProgram || {};
+    var customers = info.customerSignals || {};
+    return {
+      period: info.period || 'ultimos_30_dias',
+      revenue: _round(_num(info.revenue)),
+      previousRevenue: _round(_num(info.previousRevenue)),
+      orders: _round(_num(info.orders)),
+      previousOrders: _round(_num(info.previousOrders)),
+      averageTicket: _round(_num(info.averageTicket)),
+      activeDays: _round(_num(info.activeDays)),
+      topProducts: _safeProducts(info.topProducts || []),
+      topChannels: _safeChannels(info.topChannels || []),
+      strongHours: _safeSimpleList(info.strongHours || [], 4),
+      lowSellingProducts: _safeProducts(info.lowSellingProducts || []),
+      actionPerformance: {
+        couponOrders: _round(_num(actionPerformance.couponOrders)),
+        promotionOrders: _round(_num(actionPerformance.promotionOrders)),
+        upsellOrders: _round(_num(actionPerformance.upsellOrders)),
+        discountTotal: _round(_num(actionPerformance.discountTotal)),
+        upsellAddedRevenue: _round(_num(actionPerformance.upsellAddedRevenue)),
+        seasonLinkedActions: _safeActionList(actionPerformance.seasonLinkedActions || [], 6)
+      },
+      availableActions: {
+        promotions: _safeActionList(available.promotions || [], 4),
+        coupons: _safeActionList(available.coupons || [], 4),
+        upsells: _safeActionList(available.upsells || [], 4)
+      },
+      pointsProgram: {
+        active: points.active !== false,
+        earnPerEuro: _round(_num(points.earnPerEuro)),
+        redeemRate: _round(_num(points.redeemRate)),
+        minimumPointsToUse: _round(_num(points.minimumPointsToUse)),
+        pointsEarned30d: _round(_num(points.pointsEarned30d)),
+        pointsUsed30d: _round(_num(points.pointsUsed30d)),
+        customersWithPoints: _round(_num(points.customersWithPoints)),
+        customersReadyToRedeem: _round(_num(points.customersReadyToRedeem))
+      },
+      customerSignals: {
+        recurringCustomers: _round(_num(customers.recurringCustomers)),
+        repurchaseRate: _round(_num(customers.repurchaseRate)),
+        customersWithPoints: _round(_num(customers.customersWithPoints)),
+        customersReadyToRedeem: _round(_num(customers.customersReadyToRedeem)),
+        suggestedGroups: _cleanList(customers.suggestedGroups || []).slice(0, 4)
+      }
+    };
+  }
+
+  function _safeActionList(items, limit) {
+    return (items || []).slice(0, limit || 4).map(function (item) {
+      item = item || {};
+      return {
+        type: item.type || '',
+        name: item.name || item.label || item.title || '',
+        code: item.code || '',
+        benefit: item.benefit || '',
+        target: item.target || '',
+        status: item.status || '',
+        seasonActionId: item.seasonActionId || '',
+        seasonActionTitle: item.seasonActionTitle || ''
+      };
+    }).filter(function (item) {
+      return item.name || item.code || item.seasonActionId;
+    });
   }
 
   function _safeSeasonReading(reading) {

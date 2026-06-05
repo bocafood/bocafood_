@@ -3664,7 +3664,7 @@ Modules.Receitas = (function () {
         '<div class="bf-page-header production-orders-head">' +
           '<div style="min-width:0;flex:1 1 420px;">' +
             '<h1 class="production-orders-title">Bases de produção</h1>' +
-            '<p class="production-orders-subtitle">Cadastre bases reaproveitáveis, como massa, recheio, creme, molho ou cobertura. As receitas usam essas bases para montar a ficha completa.</p>' +
+            '<p class="production-orders-subtitle">Cadastre bases reaproveitáveis, como massa, recheio, creme, molho ou cobertura. As receitas usam essas bases para montar receitas.</p>' +
           '</div>' +
           '<button type="button" class="production-orders-primary" onclick="Modules.Receitas._openRecipeComponentModal(null)">Adicionar base</button>' +
         '</div>' +
@@ -3805,7 +3805,7 @@ Modules.Receitas = (function () {
     }).join('');
     var guide = '<div class="recipes-config-guide">' +
       '<div class="recipes-config-guide-main">' +
-        '<div class="recipes-config-guide-title">' + (inStagesTab ? 'Use bases para montar receitas completas' : 'Use bases para não cadastrar a mesma produção várias vezes') + '</div>' +
+        '<div class="recipes-config-guide-title">' + (inStagesTab ? 'Use bases nas receitas' : 'Use bases para não cadastrar a mesma produção várias vezes') + '</div>' +
         '<p class="recipes-config-guide-text">' + (inStagesTab ? 'Cadastre aqui as bases reaproveitáveis da produção. Depois, dentro de cada receita, escolha essas bases e informe quanto a ficha consome.' : 'Se o mesmo recheio, massa, creme ou molho entra em mais de uma receita, cadastre uma base com esse nome e selecione a mesma base nas receitas. Assim o BocaFood consegue enxergar essa produção como uma coisa só.') + '</p>' +
         '<ul class="recipes-config-guide-list">' +
           '<li><span class="mi">check_circle</span><span><strong>Recheio de frango</strong> pode entrar na coxinha e no pastel.</span></li>' +
@@ -3815,7 +3815,7 @@ Modules.Receitas = (function () {
       '</div>' +
       '<div class="recipes-config-guide-side">' +
         '<div class="recipes-config-guide-title">Próxima fase</div>' +
-        '<p class="recipes-config-guide-text">' + (inStagesTab ? 'A base guarda rendimento, ingredientes e custo próprio. Dentro da ficha técnica, informe quanto dessa base entra em cada unidade da receita.' : 'Marque como base de produção dentro da receita quando essa base é feita antes e fica guardada para usar depois. Se ela só existe durante o preparo daquela receita, deixe sem controle de estoque.') + '</p>' +
+        '<p class="recipes-config-guide-text">' + (inStagesTab ? 'A base guarda rendimento, ingredientes e custo próprio. Na ficha técnica, informe quanto dessa base entra em cada unidade da receita.' : 'Use esta base nas receitas que consomem uma produção preparada separadamente, como massa, recheio, creme, molho ou cobertura.') + '</p>' +
       '</div>' +
     '</div>';
     content.innerHTML = guide + _configCardHtml(_configMeta(inStagesTab ? 'etapas' : 'componentes'), 'Modules.Receitas._openRecipeComponentModal(null)', 'Nenhuma base encontrada.', rows, filtered.length);
@@ -3839,7 +3839,7 @@ Modules.Receitas = (function () {
         '<td><div style="display:flex;align-items:center;gap:12px;min-width:0;">' +
           '<div class="production-orders-icon"><span class="mi" style="font-size:20px;">bakery_dining</span></div>' +
           '<div style="min-width:0;"><div class="production-orders-row-title">' + _esc(comp.name || 'Base sem nome') + '</div>' +
-          '<div class="production-orders-row-text">' + _esc(comp.description || 'Base reaproveitável usada para montar receitas completas.') + '</div></div>' +
+          (comp.description ? '<div class="production-orders-row-text">' + _esc(comp.description) + '</div>' : '') + '</div>' +
         '</div></td>' +
         '<td><div class="production-orders-value">' + (yieldQty > 0 ? (_esc(_fmtQty(yieldQty)) + (yieldUnit ? ' ' + _esc(yieldUnit) : '')) : '—') + '</div></td>' +
         '<td><div class="production-orders-value">' + _esc(ingredientsCount ? (ingredientsCount + ' ingrediente' + (ingredientsCount === 1 ? '' : 's')) : 'Sem ingredientes') + '</div></td>' +
@@ -3848,6 +3848,7 @@ Modules.Receitas = (function () {
         '<td><span class="production-orders-status">' + _esc(usageLabel) + '</span></td>' +
         '<td style="text-align:right;"><div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">' +
           '<button type="button" class="production-orders-secondary" onclick="event.stopPropagation();Modules.Receitas._openRecipeComponentModal(\'' + _escJs(comp.id) + '\')">Editar</button>' +
+          '<button type="button" class="production-orders-secondary" onclick="event.stopPropagation();Modules.Receitas._duplicateRecipeComponent(\'' + _escJs(comp.id) + '\')">Duplicar</button>' +
           '<button type="button" class="production-orders-secondary" style="color:#B42318;" onclick="event.stopPropagation();Modules.Receitas._deleteRecipeComponent(\'' + _escJs(comp.id) + '\')">Excluir</button>' +
         '</div></td>' +
       '</tr>';
@@ -3882,7 +3883,7 @@ Modules.Receitas = (function () {
     usage = usage || {};
     var lines = Array.isArray(usage.lines) ? usage.lines : [];
     if (!lines.length) {
-      return '<div class="production-stage-card" style="font-size:12.5px;color:#6F6860;line-height:1.45;">Quando as fichas que usam esta base tiverem estoque mínimo e máximo, o BocaFood calcula aqui a necessidade sugerida.</div>';
+      return '<div class="production-stage-card" style="font-size:12.5px;color:#6F6860;line-height:1.45;">Quando uma receita usar esta base e tiver estoque mínimo ou máximo preenchido, o BocaFood mostra aqui a quantidade sugerida para preparar.</div>';
     }
     var total = '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:10px;">' +
       '<div style="background:#FFF7F0;border:1px solid #F3D6C2;border-radius:12px;padding:10px;"><div style="' + _labelStyle() + 'margin-bottom:3px;">Mínimo sugerido</div><strong style="font-size:15px;color:#1F1F1F;">' + _esc(_fmtQty(usage.minStock)) + ' ' + _esc(usage.unit || '') + '</strong></div>' +
@@ -3894,7 +3895,7 @@ Modules.Receitas = (function () {
         '<div style="font-size:12px;font-weight:800;color:#1F1F1F;white-space:nowrap;">' + _esc(_fmtQty(line.minStock || 0)) + (_num(line.maxStock) > 0 ? ' / ' + _esc(_fmtQty(line.maxStock)) : '') + ' ' + _esc(line.usageUnit || usage.unit || '') + '</div>' +
       '</div>';
     }).join('');
-    return '<div class="production-stage-card"><div class="recipes-config-section-title">Estoque sugerido da base</div><div class="recipes-config-section-desc">Calculado automaticamente pelas fichas que usam esta base.</div><div style="margin-top:10px;">' + total + rows + '</div></div>';
+    return '<div class="production-stage-card"><div class="recipes-config-section-title">Quantidade sugerida para preparar</div><div class="recipes-config-section-desc">A sugestão usa as receitas que consomem esta base e os estoques mínimo e máximo dessas receitas.</div><div style="margin-top:10px;">' + total + rows + '</div></div>';
   }
 
   function _stockSettingId(key) {
@@ -4031,26 +4032,26 @@ Modules.Receitas = (function () {
     if (!ingredientRows) ingredientRows = _stageIngredientRowHtml(window._stageIngredientCount++, {});
     var body = '<div class="production-stage-form">' +
       '<div class="production-stage-card" style="color:#5F5652;font-size:12.5px;line-height:1.5;">' +
-        '<strong style="color:#1F1F1F;">Pense na base como uma produção reaproveitável.</strong><br>' +
-        'Use nomes claros, como Recheio de frango, Massa de coxinha, Creme branco ou Molho especial. Embalagens continuam sendo preenchidas na seção própria da receita, não como base de produção.' +
+        '<strong style="color:#1F1F1F;">Base de produção é uma preparação usada em uma ou mais receitas.</strong><br>' +
+        'Use nomes claros, como Recheio de frango, Massa de coxinha, Creme branco ou Molho especial. Preencha caixas, sacos, etiquetas e outras embalagens na seção Embalagens da receita.' +
       '</div>' +
       '<div class="production-stage-card">' +
         '<div class="production-stage-grid">' +
           '<label style="display:block;"><span style="' + _labelStyle() + '">Nome da base *</span><input id="rcomp-name" type="text" value="' + _esc(comp.name || '') + '" placeholder="Ex: Recheio de frango" style="' + _inputStyle() + '"></label>' +
-          '<label style="display:block;"><span style="' + _labelStyle() + '">Rendimento</span><input id="rcomp-yield-qty" type="text" inputmode="decimal" value="' + _esc(comp.stageYieldQuantity || comp.yieldQuantity || comp.baseYieldQuantity || '') + '" placeholder="Ex: 40" oninput="Modules.Receitas._updateProductionStageCost()" style="' + _inputStyle() + '"></label>' +
+          '<label style="display:block;"><span style="' + _labelStyle() + '">Quantidade produzida</span><input id="rcomp-yield-qty" type="text" inputmode="decimal" value="' + _esc(comp.stageYieldQuantity || comp.yieldQuantity || comp.baseYieldQuantity || '') + '" placeholder="Ex: 1" oninput="Modules.Receitas._updateProductionStageCost()" style="' + _inputStyle() + '"></label>' +
           '<label style="display:block;"><span style="' + _labelStyle() + '">Unidade</span><select id="rcomp-yield-unit" onchange="Modules.Receitas._updateProductionStageCost()" style="' + _inputStyle() + '">' + _stageUnitOptionsHtml(comp.stageYieldUnit || comp.yieldUnit || comp.baseYieldUnit || '') + '</select></label>' +
         '</div>' +
-        '<label style="display:block;margin-top:12px;"><span style="' + _labelStyle() + '">Quando usar esta base</span><textarea id="rcomp-desc" placeholder="Ex: usado na coxinha e no pastel de frango." style="' + _inputStyle() + 'min-height:84px;resize:vertical;">' + _esc(comp.description || '') + '</textarea></label>' +
+        '<label style="display:block;margin-top:12px;"><span style="' + _labelStyle() + '">Onde esta base é usada</span><textarea id="rcomp-desc" placeholder="Ex: entra na coxinha e no pastel de frango." style="' + _inputStyle() + 'min-height:84px;resize:vertical;">' + _esc(comp.description || '') + '</textarea></label>' +
       '</div>' +
       '<div class="production-stage-card">' +
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px;">' +
-          '<div><div class="recipes-config-section-title">Ingredientes da base</div><div class="recipes-config-section-desc">Informe o que esta base consome quando ela é produzida.</div></div>' +
+          '<div><div class="recipes-config-section-title">Ingredientes da base</div><div class="recipes-config-section-desc">Informe os ingredientes usados para produzir a quantidade acima.</div></div>' +
           '<button type="button" class="production-stage-soft-btn" onclick="Modules.Receitas._addProductionStageIngredient()">+ Ingrediente</button>' +
         '</div>' +
         '<div id="production-stage-ingredients" class="production-stage-ingredients">' + ingredientRows + '</div>' +
         '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid #F1E7E1;">' +
           '<div style="font-size:12px;color:#6F6860;line-height:1.4;">' + _esc(usageText) + '</div>' +
-          '<div style="text-align:right;"><div style="' + _labelStyle() + 'margin-bottom:2px;">Custo da base</div><strong id="rcomp-total-cost" style="font-size:15px;color:#1F1F1F;">' + _money(_stageTotalCost(comp.ingredients || [])) + '</strong></div>' +
+          '<div style="text-align:right;"><div style="' + _labelStyle() + 'margin-bottom:2px;">Custo desta produção</div><strong id="rcomp-total-cost" style="font-size:15px;color:#1F1F1F;">' + _money(_stageTotalCost(comp.ingredients || [])) + '</strong></div>' +
         '</div>' +
       '</div>' +
       _componentUsageDemandHtml(usage) +
@@ -4238,17 +4239,71 @@ Modules.Receitas = (function () {
     op.then(function () {
       return _syncStageIngredientStockSuggestions();
     }).then(function () {
-      UI.toast('Etapa salva', 'success');
+      UI.toast('Base salva', 'success');
       if (window._recipeComponentModal) window._recipeComponentModal.close();
       _renderRecipeComponents();
     }).catch(function (err) { UI.toast('Erro: ' + err.message, 'error'); });
+  }
+
+  function _duplicateRecipeComponent(id) {
+    var source = (_recipeComponents || []).find(function (item) { return String(item && item.id) === String(id || ''); });
+    if (!source) {
+      UI.toast('Base não encontrada.', 'error');
+      return;
+    }
+    var now = new Date().toISOString();
+    var clone = JSON.parse(JSON.stringify(source || {}));
+    [
+      'id', '_id', 'createdAt', 'updatedAt', 'createdBy', 'updatedBy',
+      'lastProductionOrderId', 'lastProducedAt'
+    ].forEach(function (key) { delete clone[key]; });
+    clone.name = _uniqueRecipeComponentName('Cópia de ' + String(source.name || 'Base'));
+    clone.description = source.description || '';
+    clone.ingredients = Array.isArray(source.ingredients) ? JSON.parse(JSON.stringify(source.ingredients)) : [];
+    clone.ingredientCost = _round(_stageTotalCost(clone.ingredients));
+    clone.directCost = clone.ingredientCost;
+    clone.totalCost = clone.ingredientCost;
+    clone.costPerYield = _num(clone.stageYieldQuantity || clone.yieldQuantity || clone.baseYieldQuantity) > 0 ? _round(clone.totalCost / _num(clone.stageYieldQuantity || clone.yieldQuantity || clone.baseYieldQuantity)) : 0;
+    clone.stageVersion = source.stageVersion || 2;
+    clone.order = (_recipeComponents || []).reduce(function (max, item) {
+      return Math.max(max, parseFloat(item && item.order) || 0);
+    }, -1) + 1;
+    clone.createdAt = now;
+    clone.updatedAt = now;
+    var payload = JSON.parse(JSON.stringify(clone));
+    DB.add('recipe_components', payload).then(function (ref) {
+      var cloneId = ref && ref.id ? ref.id : ref;
+      if (cloneId) clone.id = cloneId;
+      _recipeComponents = (_recipeComponents || []).filter(function (item) { return String(item && item.id) !== String(clone.id); }).concat([clone]).sort(function (a, b) {
+        return (a.order || 0) - (b.order || 0) || String(a.name || '').localeCompare(String(b.name || ''));
+      });
+      return _syncStageIngredientStockSuggestions().then(function () { return cloneId; });
+    }).then(function (cloneId) {
+      UI.toast('Base duplicada como cópia independente.', 'success');
+      _renderRecipeComponents();
+      if (cloneId) setTimeout(function () { _openRecipeComponentModal(cloneId); }, 80);
+    }).catch(function (err) {
+      UI.toast('Erro: ' + err.message, 'error');
+    });
+  }
+
+  function _uniqueRecipeComponentName(baseName) {
+    var base = String(baseName || 'Cópia de Base').trim() || 'Cópia de Base';
+    var names = {};
+    (_recipeComponents || []).forEach(function (item) {
+      names[_normName(item && item.name)] = true;
+    });
+    if (!names[_normName(base)]) return base;
+    var idx = 2;
+    while (names[_normName(base + ' ' + idx)]) idx++;
+    return base + ' ' + idx;
   }
 
   function _deleteRecipeComponent(id) {
     UI.confirm('Eliminar esta base da receita?').then(function (yes) {
       if (!yes) return;
       DB.remove('recipe_components', id).then(function () {
-        UI.toast('Etapa eliminada', 'info');
+        UI.toast('Base excluída', 'info');
         _renderRecipeComponents();
       });
     });
@@ -4592,6 +4647,7 @@ Modules.Receitas = (function () {
     _createProductionOrderFromNeed: _createProductionOrderFromNeed,
     _openRecipeComponentModal: _openRecipeComponentModal,
     _saveRecipeComponent: _saveRecipeComponent,
+    _duplicateRecipeComponent: _duplicateRecipeComponent,
     _deleteRecipeComponent: _deleteRecipeComponent,
     _addProductionStageIngredient: _addProductionStageIngredient,
     _removeProductionStageIngredient: _removeProductionStageIngredient,
