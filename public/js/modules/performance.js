@@ -23,6 +23,7 @@ Modules.Performance = (function () {
     monthScenarios: [],
     monthScenario: null,
     channels: [],
+    geral: {},
     money: { desiredMarginPct: 60, minMarginPct: 40 }
   };
 
@@ -57,6 +58,7 @@ Modules.Performance = (function () {
       _safeAll('flight_plans'),
       _safeAll('flight_plan_month_scenarios'),
       _safeDoc('flight_plan_month_scenarios', _currentMonthKey()),
+      _safeDoc('config', 'geral'),
       _safeDoc('config', 'dinheiro'),
       _safeDoc('config', 'canais_venda')
     ]).then(function (r) {
@@ -69,8 +71,9 @@ Modules.Performance = (function () {
       }) : [];
       _data.monthScenarios = Array.isArray(r[8]) ? r[8].filter(Boolean) : [];
       _data.monthScenario = _resolveMonthScenario(_state.scenarioMonthKey, r[9] || null, _data.monthScenarios, _data.snapshots);
-      _data.money = _normalizeMoney(r[10] || {});
-      _data.channels = _normalizeConfiguredChannels(r[11] || {});
+      _data.geral = r[10] || {};
+      _data.money = _normalizeMoney(r[11] || {});
+      _data.channels = _normalizeConfiguredChannels(r[12] || {});
       _loading = false;
     }).catch(function (err) {
       _loading = false;
@@ -623,6 +626,9 @@ Modules.Performance = (function () {
     var ticket = _monthTicket(vm);
     var canEstimateOrders = ticket > 0 && remaining > 0;
     var neededOrders = canEstimateOrders ? Math.max(1, Math.ceil((remaining / ticket) / Math.max(1, vm.daysLeftMonth || 1))) : 0;
+    var capacity = _dailyOrderCapacity();
+    var capacityText = capacity > 0 ? String(capacity) : 'Não informada';
+    var neededText = remaining > 0 ? (canEstimateOrders ? (capacity > 0 ? neededOrders + ' de ' + capacityText : String(neededOrders)) : 'Sem base') : 'Meta alcançada';
     return '' +
       '<section class="perf-panel" style="' + _cardStyle() + '">' +
         _sectionTitle('Este mês', 'Veja o que já aconteceu, quanto falta vender e o ritmo necessário até o fim do mês.') +
@@ -631,7 +637,8 @@ Modules.Performance = (function () {
           _miniMetric('Vendido até agora', _fmtMoney(monthRevenue), monthRevenue >= vm.expectedNow ? '#1F6F43' : '#B42318') +
           _miniMetric('Ticket médio atual', ticket > 0 ? _fmtMoney(ticket) : 'Sem base', '#8A6F5A') +
           _miniMetric('Ainda falta vender', remaining > 0 ? _fmtMoney(remaining) : 'Meta alcançada', remaining > 0 ? '#B45309' : '#1F6F43') +
-          _miniMetric('Pedidos por dia daqui pra frente', remaining > 0 ? (canEstimateOrders ? String(neededOrders) : 'Sem base') : 'Meta alcançada', canEstimateOrders ? '#B42318' : '#6C8777') +
+          _miniMetric('Pedidos por dia daqui pra frente', neededText, canEstimateOrders && capacity > 0 && neededOrders > capacity ? '#B42318' : (canEstimateOrders ? '#8A6F5A' : '#6C8777')) +
+          _miniMetric('Capacidade informada', capacityText, capacity > 0 ? '#6C8777' : '#B45309') +
         '</div>' +
       '</section>';
   }
@@ -732,6 +739,7 @@ Modules.Performance = (function () {
     var ticket = _monthTicket(vm);
     var canEstimateOrders = ticket > 0 && remaining > 0;
     var needed = canEstimateOrders ? Math.max(1, Math.ceil((remaining / ticket) / Math.max(1, vm.daysLeftMonth || 1))) : 0;
+    var capacity = _dailyOrderCapacity();
     var out = [{ icon: status.icon, color: status.color, text: status.text }];
     if (!vm.targetRevenue) {
       out.push(_ticketComparisonMessage(vm));
@@ -745,7 +753,7 @@ Modules.Performance = (function () {
     }
     out.push(remaining > 0
       ? (canEstimateOrders
-        ? { icon: 'shopping_bag', color: '#8A6F5A', text: 'Para chegar na meta do mês, ainda faltam ' + _fmtMoney(remaining) + '. Com o ticket médio atual de ' + _fmtMoney(ticket) + ', isso pede cerca de ' + needed + ' pedidos por dia daqui pra frente.' }
+        ? { icon: 'shopping_bag', color: capacity > 0 && needed > capacity ? '#B42318' : '#8A6F5A', text: 'Para chegar na meta do mês, ainda faltam ' + _fmtMoney(remaining) + '. Com o ticket médio atual de ' + _fmtMoney(ticket) + ', isso pede cerca de ' + needed + ' pedidos por dia daqui pra frente' + (capacity > 0 ? ', para uma capacidade informada de ' + capacity + ' por dia.' : '.') }
         : { icon: 'shopping_bag', color: '#8A6F5A', text: 'Ainda faltam ' + _fmtMoney(remaining) + ' para a meta do mês. Sem ticket médio suficiente, ainda não dá para estimar os pedidos por dia com segurança.' })
       : { icon: 'celebration', color: '#1F6F43', text: 'A meta de venda do mês já foi alcançada. Agora vale observar se os custos seguem dentro do esperado.' });
     out.push(_ticketComparisonMessage(vm));
@@ -2207,6 +2215,12 @@ Modules.Performance = (function () {
 
   function _fmtFixed(v) {
     return (parseFloat(v) || 0).toFixed(2);
+  }
+
+  function _dailyOrderCapacity() {
+    var c = _data.geral || {};
+    var n = _num(c.dailyOrderCapacity != null ? c.dailyOrderCapacity : c.dailyProductionCapacity != null ? c.dailyProductionCapacity : c.maxOrdersPerDay);
+    return n > 0 ? Math.max(1, Math.round(n)) : 0;
   }
 
   function _num(v) {

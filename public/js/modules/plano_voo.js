@@ -251,6 +251,8 @@ Modules.PlanoDeVoo = (function () {
       indirectCostMode: c.variableCostMode || c.custosVariaveisModo || c.indirectCostMode || c.custosIndiretosModo || 'manual',
       indirectCostPercent: _num(c.variableCostPercent != null ? c.variableCostPercent : c.percentualCustosVariaveis != null ? c.percentualCustosVariaveis : c.indirectCostPercent != null ? c.indirectCostPercent : c.percentualCustosIndiretos != null ? c.percentualCustosIndiretos : 0),
       indirectCostMonths: parseInt(c.variableCostMonths != null ? c.variableCostMonths : c.custosVariaveisMeses != null ? c.custosVariaveisMeses : c.indirectCostMonths != null ? c.indirectCostMonths : c.custosIndiretosMeses != null ? c.custosIndiretosMeses : 6, 10) || 6,
+      dailyOrderCapacity: _num(c.dailyOrderCapacity != null ? c.dailyOrderCapacity : c.dailyProductionCapacity != null ? c.dailyProductionCapacity : c.maxOrdersPerDay),
+      dailyCapacityNote: c.dailyCapacityNote || c.productionCapacityNote || '',
       businessName: c.businessName || c.nomeNegocio || '',
       description: c.description || '',
       primaryColor: c.primaryColor || '#C4362A'
@@ -434,38 +436,54 @@ Modules.PlanoDeVoo = (function () {
   }
 
   function _savedRoutesContinueCard() {
-    var routes = (_data.snapshots || []).filter(function (snap) { return snap && snap.id; }).slice(0, 6);
-    if (!routes.length) return '';
+    var snap = (_data.snapshots || []).filter(function (item) {
+      return item && item.id && _isSavedForLaterRoute(item);
+    })[0] || null;
+    if (!snap) return '';
+    var forecast = _snapshotToForecast(snap);
     return '' +
       '<section style="' + _cardStyle() + 'display:flex;flex-direction:column;gap:14px;">' +
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">' +
           '<div style="min-width:0;">' +
             '<div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;">' +
               '<span class="mi" style="font-size:20px;color:#8A6F5A;">bookmark_added</span>' +
-              '<h3 style="font-size:15px;font-weight:600;color:#1F1F1F;margin:0;">Rotas salvas para continuar</h3>' +
+              '<h3 style="font-size:15px;font-weight:600;color:#1F1F1F;margin:0;">Rota salva para continuar</h3>' +
             '</div>' +
-            '<p style="font-size:13px;color:#6F6860;line-height:1.45;margin:5px 0 0;max-width:760px;">Abra uma rota salva para revisar, ajustar e ativar quando estiver pronta.</p>' +
+            '<p style="font-size:13px;color:#6F6860;line-height:1.45;margin:5px 0 0;max-width:760px;">A última rota salva fica aqui para revisar, ajustar e ativar quando estiver pronta.</p>' +
           '</div>' +
-          _snapshotPill(routes.length + ' salva' + (routes.length === 1 ? '' : 's'), '#FAF8F4', '#6F6860', '#EAE4DA') +
+          _snapshotPill('Última salva', '#FAF8F4', '#6F6860', '#EAE4DA') +
         '</div>' +
-        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;">' +
-          routes.map(function (snap) {
-            var forecast = _snapshotToForecast(snap);
-            return '<article style="background:#fff;border:1px solid #EAE4DA;border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:11px;box-shadow:0 8px 20px rgba(31,31,31,.04);min-width:0;">' +
-              '<div style="min-width:0;"><div style="font-size:14px;font-weight:700;color:#1F1F1F;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(snap.name || 'Rota salva') + '</div>' +
-              '<div style="font-size:12px;color:#6F6860;line-height:1.35;margin-top:3px;">' + _esc(_scenarioLabel(snap.scenario)) + ' · ' + _esc(_snapshotPeriodLabel(snap)) + '</div></div>' +
-              '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">' +
-                _routeSmallStat('Vender', _fmtMoney(forecast.revenueTotal)) +
-                _routeSmallStat('Sobra', _fmtMoney(forecast.profit), forecast.profit >= 0 ? '#1F6F43' : '#B42318') +
-              '</div>' +
-              '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;">' +
-                '<button type="button" onclick="Modules.PlanoDeVoo._continueSavedRoute(\'' + _esc(snap.id) + '\')" style="height:34px;padding:0 11px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:12px;font-weight:650;cursor:pointer;font-family:inherit;">Continuar</button>' +
-                '<button type="button" onclick="Modules.PlanoDeVoo._openRouteSummaryModal(\'' + _esc(snap.id) + '\')" style="height:34px;padding:0 11px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#1F1F1F;font-size:12px;font-weight:650;cursor:pointer;font-family:inherit;">Ver resumo</button>' +
-              '</div>' +
-            '</article>';
-          }).join('') +
-        '</div>' +
+        '<article style="background:#fff;border:1px solid #EAE4DA;border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:11px;box-shadow:0 8px 20px rgba(31,31,31,.04);min-width:0;">' +
+          '<div style="min-width:0;"><div style="font-size:14px;font-weight:700;color:#1F1F1F;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(snap.name || 'Rota salva') + '</div>' +
+          '<div style="font-size:12px;color:#6F6860;line-height:1.35;margin-top:3px;">' + _esc(_scenarioLabel(snap.scenario)) + ' · ' + _esc(_snapshotPeriodLabel(snap)) + '</div></div>' +
+          '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;">' +
+            _routeSmallStat('Vender', _fmtMoney(forecast.revenueTotal)) +
+            _routeSmallStat('Sobra', _fmtMoney(forecast.profit), forecast.profit >= 0 ? '#1F6F43' : '#B42318') +
+          '</div>' +
+          '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;">' +
+            '<button type="button" onclick="Modules.PlanoDeVoo._continueSavedRoute(\'' + _esc(snap.id) + '\')" style="height:34px;padding:0 11px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:12px;font-weight:650;cursor:pointer;font-family:inherit;">Continuar</button>' +
+            '<button type="button" onclick="Modules.PlanoDeVoo._openRouteSummaryModal(\'' + _esc(snap.id) + '\')" style="height:34px;padding:0 11px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#1F1F1F;font-size:12px;font-weight:650;cursor:pointer;font-family:inherit;">Ver resumo</button>' +
+          '</div>' +
+        '</article>' +
       '</section>';
+  }
+
+
+  function _isSavedForLaterRoute(route) {
+    return !!(route && (route.savedForLater || route.activationStatus === 'saved_for_later' || route.routeStatus === 'draft'));
+  }
+
+  function _cleanupPreviousSavedRoutes(keepId) {
+    var previous = (_data.snapshots || []).filter(function (route) {
+      return route && route.id && String(route.id) !== String(keepId) && _isSavedForLaterRoute(route);
+    });
+    if (!previous.length) return Promise.resolve();
+    _data.snapshots = (_data.snapshots || []).filter(function (route) {
+      return !route || !route.id || String(route.id) === String(keepId) || !_isSavedForLaterRoute(route);
+    });
+    return Promise.all(previous.map(function (route) {
+      return DB.remove('flight_plans', route.id).catch(function () { return null; });
+    })).then(function () { return null; });
   }
 
 
@@ -515,6 +533,7 @@ Modules.PlanoDeVoo = (function () {
         '<div style="display:grid;grid-template-columns:1fr;gap:7px;">' +
           _routeSmallStat('Vender', _fmtMoney(vm.revenueTotal)) +
           _routeSmallStat('Pedidos por dia', _ordersPerDay(vm)) +
+          _routeSmallStat('Capacidade/dia', _ordersCapacityLabel()) +
           _routeSmallStat('Sobra', _fmtMoney(vm.profit), vm.profit >= 0 ? '#1F6F43' : '#B42318') +
         '</div>' +
         '<div style="display:flex;flex-direction:column;gap:5px;border-radius:12px;background:#FAF8F4;padding:9px 10px;">' +
@@ -568,6 +587,7 @@ Modules.PlanoDeVoo = (function () {
     var summary = snap.summary || {};
     var ticket = _num(summary.averageTicket || _averageTicket());
     var workingDays = _num(summary.workingDays || _workingDaysInPeriod());
+    var dailyCapacity = _num(summary.dailyOrderCapacity || _dailyOrderCapacity());
     var monthsText = snap.routeMonthCount ? snap.routeMonthCount + ' meses' : _routeMonthCount() + ' meses';
     return '' +
       '<section style="' + _cardStyle() + 'display:flex;flex-direction:column;gap:14px;">' +
@@ -583,6 +603,7 @@ Modules.PlanoDeVoo = (function () {
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:11px;">' +
           _baseMini('Ticket médio', ticket > 0 ? _fmtMoney(ticket) : 'Sem base', 'Valor médio usado para estimar pedidos.') +
           _baseMini('Dias de venda', workingDays ? String(workingDays) : 'Sem base', 'Dias úteis considerados na rota.') +
+          _baseMini('Capacidade/dia', dailyCapacity > 0 ? String(dailyCapacity) : 'Não informada', 'Limite informado em Configurações > Geral.') +
           _baseMini('Meses considerados', monthsText, 'Período que a rota acompanha.') +
         '</div>' +
       '</section>';
@@ -915,9 +936,10 @@ Modules.PlanoDeVoo = (function () {
               '<button type="button" onclick="Modules.PlanoDeVoo._deleteRoute(\'' + _esc(routeId) + '\')" style="height:36px;padding:0 12px;border:1px solid #F3C7C1;background:#FFF7F6;color:#B42318;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Excluir rota</button>' +
             '</div>' : '') +
           '</div>' +
-          '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px;">' +
+          '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:11px;">' +
             _routeMiniMetric('Você precisa vender', _fmtMoney(revenue), 'meta do período', 'payments', '#8A6F5A') +
             _routeMiniMetric('Pedidos por dia', ordersDay, 'ritmo necessário', 'receipt_long', scenario.tone || '#B42318') +
+            _routeMiniMetric('Capacidade/dia', _ordersCapacityLabel(), 'informada na configuração', 'fact_check', '#6F6860') +
             _routeMiniMetric('Pode sobrar', _fmtMoney(profit), profit >= 0 ? 'lucro esperado' : 'atenção ao resultado', 'trending_up', profit >= 0 ? '#1F6F43' : '#B42318') +
           '</div>' +
           '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;align-items:center;">' +
@@ -983,6 +1005,7 @@ Modules.PlanoDeVoo = (function () {
           _routeLine('Faturamento necessário', _fmtMoney(vm.revenueTotal), null, _routePeriodLabel(), true) +
           _routeLine('Média mensal', _fmtMoney(monthlyAverage)) +
           _routeLine('Pedidos por dia', _ordersPerDay(vm)) +
+          _routeLine('Capacidade/dia', _ordersCapacityLabel()) +
           _routeLine('Lucro do período', _fmtMoney(vm.profit), vm.profit >= 0 ? '#1F6F43' : '#B42318') +
         '</div>' +
         _scenarioCostSummary(vm) +
@@ -1284,10 +1307,27 @@ Modules.PlanoDeVoo = (function () {
     return _ordersPerDayFromRevenue(vm && vm.revenueTotal);
   }
 
+  function _dailyOrderCapacity() {
+    return Math.max(0, Math.round(_num(_data.geral && (_data.geral.dailyOrderCapacity || _data.geral.dailyProductionCapacity || _data.geral.maxOrdersPerDay))));
+  }
+
+  function _ordersCapacityLabel() {
+    var capacity = _dailyOrderCapacity();
+    return capacity > 0 ? String(capacity) : 'Não informada';
+  }
+
   function _effortInfo(vm) {
     var raw = _ordersPerDay(vm);
     var n = _num(raw);
     if (!n) return { label: 'Sem base', color: '#6F6860', bg: '#FAF8F4' };
+    var capacity = _dailyOrderCapacity();
+    if (capacity > 0) {
+      var pct = n / capacity;
+      if (pct <= 0.7) return { label: 'Dentro da capacidade', color: '#1F6F43', bg: '#F0FAF4' };
+      if (pct <= 1) return { label: 'No limite da capacidade', color: '#2563EB', bg: '#EEF4FF' };
+      if (pct <= 1.25) return { label: 'Acima da capacidade', color: '#B45309', bg: '#FFF7ED' };
+      return { label: 'Muito acima da capacidade', color: '#B42318', bg: '#FFF0EE' };
+    }
     if (n <= 3) return { label: 'Leve', color: '#1F6F43', bg: '#F0FAF4' };
     if (n <= 8) return { label: 'Possível', color: '#2563EB', bg: '#EEF4FF' };
     if (n <= 12) return { label: 'Puxado', color: '#B45309', bg: '#FFF7ED' };
@@ -1424,6 +1464,7 @@ Modules.PlanoDeVoo = (function () {
           _baseMini('Faturamento necessário', _fmtMoney(vm.revenueTotal), 'Meta principal da rota.') +
           _baseMini('Pode sobrar', _fmtMoney(vm.profit), 'Lucro estimado no período.') +
           _baseMini('Pedidos por dia', _ordersPerDay(vm), 'Ritmo médio nos dias trabalhados.') +
+          _baseMini('Capacidade/dia', _ordersCapacityLabel(), 'Informada em Configurações > Geral.') +
           _baseMini('Dias trabalhados considerados', String(_workingDaysInPeriod()), 'Calculado pelos dias marcados na realidade de trabalho.') +
         '</div>' +
       '</section>' +
@@ -1447,6 +1488,7 @@ Modules.PlanoDeVoo = (function () {
         _sectionTitle('Base usada na rota', 'Resumo do ponto de partida que será salvo junto com esta decisão.') +
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;">' +
           _baseMini('Ticket médio', _averageTicket() ? _fmtMoney(_averageTicket()) : 'Sem base suficiente', 'Base atual dos pedidos.') +
+          _baseMini('Capacidade/dia', _ordersCapacityLabel(), 'Referência da operação para comparar o esforço.') +
           _baseMini('Custos que acompanham as vendas', _fmtMoney(vm.variableTotal), 'Custos previstos para vender neste caminho.') +
           _baseMini('Despesas fixas', _fmtMoney(vm.fixedTotal), 'Compromissos considerados.') +
           _baseMini('Histórico anual', _hasFullYearSalesHistory() ? 'Disponível' : 'Ainda não completo', 'Define o peso do histórico na leitura.') +
@@ -1479,6 +1521,7 @@ Modules.PlanoDeVoo = (function () {
             _baseMini('Faturamento necessário', _fmtMoney(forecast.revenueTotal), 'Meta da rota.') +
             _baseMini('Pode sobrar', _fmtMoney(forecast.profit), 'Lucro estimado.') +
             _baseMini('Pedidos por dia', summary.ordersPerDay != null ? _fmtNum(summary.ordersPerDay, 1) : _ordersPerDayFromRevenue(forecast.revenueTotal), 'Ritmo médio esperado.') +
+            _baseMini('Capacidade/dia', summary.dailyOrderCapacity ? String(summary.dailyOrderCapacity) : 'Não informada', 'Referência salva junto com a rota.') +
             _baseMini('Caixa final', _fmtMoney(forecast.cashFinal), 'Estimativa ao fim do período.') +
           '</div>' +
         '</section>' +
@@ -2605,6 +2648,8 @@ Modules.PlanoDeVoo = (function () {
         needForProfit: vm.needForProfit,
         averageTicket: _averageTicket(),
         workingDays: _workingDaysInPeriod(),
+        dailyOrderCapacity: _dailyOrderCapacity(),
+        dailyCapacityNote: (_data.geral && _data.geral.dailyCapacityNote) || '',
         ordersPerDay: _num(_ordersPerDay(vm))
       },
       periodStart: vm.periodStart,
@@ -2621,10 +2666,11 @@ Modules.PlanoDeVoo = (function () {
       _data.snapshots.unshift(snapshot);
       _state.compareSnapshotId = snapshot.id;
       if (!activate) {
-        UI.toast('Rota salva. Você pode continuar depois.', 'success');
-        _closePlanModals();
-        _paintActive();
-        return;
+        return _cleanupPreviousSavedRoutes(snapshot.id).then(function () {
+          UI.toast('Rota salva. Você pode continuar depois.', 'success');
+          _closePlanModals();
+          _paintActive();
+        });
       }
       var monthScenarioPayload = _cleanFirestoreData({
         monthKey: monthKey,

@@ -468,6 +468,18 @@ Modules.Configuracoes = (function () {
           '</div>' +
         '</div>' +
       '</section>' +
+      '<section class="bf-card bf-section operation-capacity" style="padding-top:18px;">' +
+        '<div class="bf-section-header">' +
+          '<div style="min-width:0;"><h3 class="bf-section-title">Capacidade diária</h3><p class="bf-section-subtitle">Informe uma referência simples do que você consegue produzir ou atender em um dia normal.</p></div>' +
+        '</div>' +
+        '<div class="general-info-panel">' +
+          '<div class="general-info-title"><span class="mi">fact_check</span><div><strong>Pedidos por dia</strong><span>Esse número ajuda o Plano de Voo e a Performance a comparar a meta com a sua rotina real. Se deixar vazio, o sistema calcula os pedidos necessários, mas não avisa se passou da sua capacidade.</span></div></div>' +
+          '<div class="contact-grid">' +
+            '<div class="bf-field"><label>Capacidade de pedidos por dia</label><input id="cfg-daily-order-capacity" class="bf-input" type="number" min="0" step="1" inputmode="numeric" value="' + _esc(c.dailyOrderCapacity || c.dailyProductionCapacity || c.maxOrdersPerDay || '') + '" placeholder="Ex.: 12"><div class="contact-field-help">Use a quantidade média de pedidos que você consegue preparar, vender ou entregar em um dia de trabalho sem sobrecarregar a operação.</div></div>' +
+            '<div class="bf-field"><label>Observação interna</label><textarea id="cfg-daily-capacity-note" class="bf-input" rows="3" placeholder="Ex.: 12 pedidos em dias normais, 18 com ajuda extra." style="min-height:84px;resize:vertical;">' + _esc(c.dailyCapacityNote || c.productionCapacityNote || '') + '</textarea><div class="contact-field-help">Opcional. Serve para lembrar quando essa capacidade muda, por exemplo fins de semana, eventos ou ajuda extra.</div></div>' +
+          '</div>' +
+        '</div>' +
+      '</section>' +
       '<section class="bf-card bf-actions-row" style="padding:14px 16px;position:sticky;bottom:0;z-index:2;">' +
         '<div style="font-size:13px;color:#6F6860;line-height:1.45;">Revise os dados antes de salvar.</div>' +
         '<button id="config-save" class="bf-btn bf-btn-primary">Salvar alterações</button>' +
@@ -523,6 +535,11 @@ Modules.Configuracoes = (function () {
         defaultLanguage: _val('cfg-language'),
         currency: _val('cfg-currency'),
         defaultCurrency: _val('cfg-currency'),
+        dailyOrderCapacity: _positiveIntegerValue('cfg-daily-order-capacity'),
+        dailyProductionCapacity: _positiveIntegerValue('cfg-daily-order-capacity'),
+        maxOrdersPerDay: _positiveIntegerValue('cfg-daily-order-capacity'),
+        dailyCapacityNote: _val('cfg-daily-capacity-note'),
+        productionCapacityNote: _val('cfg-daily-capacity-note'),
         indirectCostMode: c.indirectCostMode,
         custosIndiretosModo: c.custosIndiretosModo,
         indirectCostPercent: c.indirectCostPercent,
@@ -3322,6 +3339,13 @@ Modules.Configuracoes = (function () {
   function _val(id) {
     var el = document.getElementById(id);
     return el ? el.value.trim() : '';
+  }
+
+  function _positiveIntegerValue(id) {
+    var raw = _val(id).replace(/\./g, '').replace(',', '.');
+    var n = parseFloat(raw.replace(/[^0-9.-]/g, ''));
+    if (!isFinite(n) || n <= 0) return 0;
+    return Math.max(1, Math.round(n));
   }
 
   function _checked(id) {

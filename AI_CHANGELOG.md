@@ -1,5 +1,22 @@
 # AI Changelog
 
+## 2026-06-04 — Plano de Voo: capacidade diária informada pela usuária
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `public/js/modules/plano_voo.js`, `public/js/modules/performance.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Incluí em `Configurações > Geral`, na parte final da tela, o campo `Capacidade de pedidos por dia` e uma observação interna opcional.
+- O Plano de Voo passou a ler essa capacidade para comparar o ritmo necessário de pedidos por dia com a capacidade real informada pela usuária.
+- O nível de esforço agora usa a capacidade configurada quando ela existe: dentro da capacidade, no limite, acima ou muito acima.
+- As rotas salvas registram a capacidade diária usada no momento da criação, preservando a leitura histórica da decisão.
+- A Performance passou a mostrar `Pedidos por dia daqui pra frente` junto da capacidade informada e sinaliza quando a meta pede mais pedidos do que a operação consegue atender.
+- Atualizei os cache-busters de `configuracoes.js`, `plano_voo.js` e `performance.js` no Admin.
+
+## 2026-06-04 — Plano de Voo: uma única rota salva para continuar
+- Arquivos alterados: `public/js/modules/plano_voo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Ajustei o card `Rota salva para continuar` para exibir somente a última rota salva como rascunho.
+- Ao clicar em `Salvar para continuar depois`, o sistema salva a nova rota e remove rascunhos anteriores de `flight_plans`.
+- Rotas já ativadas continuam preservadas como histórico; a limpeza atinge apenas rotas em rascunho/salvas para continuar.
+- Mantive os botões `Continuar` e `Ver resumo` apontando para a última rota salva.
+- Atualizei o cache-buster de `plano_voo.js` no Admin.
+
 ## 2026-06-04 — Plano de Voo: mês zerado sai dos pedidos por dia
 - Arquivos alterados: `public/js/modules/plano_voo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - Removi o texto `só meses abertos` da linha `Média mensal` nos cards de cenário.
