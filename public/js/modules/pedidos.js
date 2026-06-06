@@ -8868,6 +8868,13 @@ Modules.Pedidos = (function () {
     var payout = _importMoney(row['Payout Amount']);
     var estimated = _importMoney(row['Estimated earnings']);
     var net = payout || estimated || Math.max(0, gross - feesTotal);
+    var previewSubtotal = +items.reduce(function (sum, item) {
+      var product = item.match && item.match.product || {};
+      var choices = _orderImportChoicesForItem(item);
+      var extra = choices.length ? _detailChoiceExtraTotal(choices) : 0;
+      return sum + ((_productPriceForSalesChannel(product, channelName) + extra) * (Math.max(1, _num(item.qty) || 1)));
+    }, 0).toFixed(2);
+    var subtotalDiff = +(gross - previewSubtotal).toFixed(2);
     var warnings = [];
     if (!orderId) warnings.push('Sem número do pedido.');
     if (!row['Order received at']) warnings.push('Sem data do pedido.');
@@ -8885,6 +8892,7 @@ Modules.Pedidos = (function () {
     if (!_channelBankAccountId(channel)) warnings.push('Canal sem conta bancária.');
     if (!_channelPaymentMethod(channel)) warnings.push('Canal sem forma de pagamento.');
     if (items.some(function (item) { return item.match && item.match.product && !_orderImportItemChoicesComplete(item); })) warnings.push('Complete as escolhas do menu/combo antes de importar.');
+    if (Math.abs(subtotalDiff) >= 0.01) warnings.push('Subtotal da Glovo diferente da soma dos produtos. O pedido será importado sem enviar ao Financeiro até ajustar.');
     return {
       idx: idx,
       orderId: orderId,
@@ -8965,9 +8973,11 @@ Modules.Pedidos = (function () {
     var net = _num(row.net);
     var importedFees = Math.max(0, +(gross - (net || Math.max(0, gross - _num(row.feesTotal)))).toFixed(2));
     if (!(importedFees > 0)) importedFees = _num(row.feesTotal);
+    var fixedFeeAmount = Math.max(0, +(importedFees - _num(row.commission) - _num(row.tax)).toFixed(2));
     var items = _glovoImportedOrderItems(row, channelName);
     var systemSubtotal = +items.reduce(function (sum, item) { return sum + _num(item.total); }, 0).toFixed(2);
     var importAdjustment = +(gross - systemSubtotal).toFixed(2);
+    var hasSubtotalMismatch = Math.abs(importAdjustment) >= 0.01;
     var customerName = 'Cliente Glovo';
     var payload = {
       customerId: '',
@@ -9004,7 +9014,7 @@ Modules.Pedidos = (function () {
       marketplaceGrossTotal: gross,
       systemItemsSubtotal: systemSubtotal,
       promoDiscountTotal: 0,
-      discountTotal: importedFees,
+      discountTotal: 0,
       couponDiscountTotal: 0,
       pointsDiscountTotal: 0,
       upsellDiscountTotal: 0,
@@ -9012,6 +9022,9 @@ Modules.Pedidos = (function () {
       originalDeliveryFee: 0,
       manualAdjustmentValue: importAdjustment,
       importPriceAdjustment: importAdjustment,
+      importSubtotalMismatch: hasSubtotalMismatch,
+      importFinanceBlocked: hasSubtotalMismatch,
+      importFinanceBlockReason: hasSubtotalMismatch ? 'subtotal_glovo_diferente_soma_produtos' : '',
       total: gross,
       paymentMethod: paymentMethod,
       formaPagamento: paymentMethod,
@@ -9081,7 +9094,11 @@ Modules.Pedidos = (function () {
       channelFeesEdited: true,
       channelCommissionPct: 0,
       channelCommissionTaxPct: 0,
-      channelFixedFee: importedFees,
+      channelFixedFee: fixedFeeAmount,
+      channelCommissionAmountManual: _num(row.commission),
+      channelCommissionTaxAmountManual: _num(row.tax),
+      channelFixedFeeAmountManual: fixedFeeAmount,
+      channelFeeTotalManual: importedFees,
       createdAt: _manualOrderCreatedAt(parsedDate.date, parsedDate.time)
     };
     Object.assign(payload, _orderChannelFinancialPatch(payload, gross));
@@ -9669,10 +9686,15 @@ Modules.Pedidos = (function () {
     var commissionPct = _num(manual && order.channelCommissionPct != null ? order.channelCommissionPct : (channel.commissionPct != null ? channel.commissionPct : order.channelCommissionPct));
     var taxPct = _num(manual && order.channelCommissionTaxPct != null ? order.channelCommissionTaxPct : (channel.taxPct != null ? channel.taxPct : order.channelCommissionTaxPct));
     var fixedFee = _num(manual && order.channelFixedFee != null ? order.channelFixedFee : (channel.fixedFee != null ? channel.fixedFee : order.channelFixedFee));
-    var commissionAmount = grossTotal > 0 && commissionPct > 0 ? +(grossTotal * commissionPct / 100).toFixed(2) : 0;
-    var commissionTaxAmount = commissionAmount > 0 && taxPct > 0 ? +(commissionAmount * taxPct / 100).toFixed(2) : 0;
-    var fixedFeeAmount = grossTotal > 0 && fixedFee > 0 ? +fixedFee.toFixed(2) : 0;
-    var feeTotal = +(commissionAmount + commissionTaxAmount + fixedFeeAmount).toFixed(2);
+    var manualCommissionAmount = manual ? _num(order.channelCommissionAmountManual != null ? order.channelCommissionAmountManual : order.channelCommissionAmount) : 0;
+    var manualCommissionTaxAmount = manual ? _num(order.channelCommissionTaxAmountManual != null ? order.channelCommissionTaxAmountManual : order.channelCommissionTaxAmount) : 0;
+    var manualFixedFeeAmount = manual ? _num(order.channelFixedFeeAmountManual != null ? order.channelFixedFeeAmountManual : order.channelFixedFeeAmount) : 0;
+    var manualFeeTotal = manual ? _num(order.channelFeeTotalManual != null ? order.channelFeeTotalManual : order.channelFeeTotal) : 0;
+    var hasManualAmounts = manual && (manualCommissionAmount > 0 || manualCommissionTaxAmount > 0 || manualFixedFeeAmount > 0 || manualFeeTotal > 0);
+    var commissionAmount = hasManualAmounts ? manualCommissionAmount : (grossTotal > 0 && commissionPct > 0 ? +(grossTotal * commissionPct / 100).toFixed(2) : 0);
+    var commissionTaxAmount = hasManualAmounts ? manualCommissionTaxAmount : (commissionAmount > 0 && taxPct > 0 ? +(commissionAmount * taxPct / 100).toFixed(2) : 0);
+    var fixedFeeAmount = hasManualAmounts ? manualFixedFeeAmount : (grossTotal > 0 && fixedFee > 0 ? +fixedFee.toFixed(2) : 0);
+    var feeTotal = hasManualAmounts && manualFeeTotal > 0 ? manualFeeTotal : +(commissionAmount + commissionTaxAmount + fixedFeeAmount).toFixed(2);
     var net = Math.max(0, +(grossTotal - feeTotal).toFixed(2));
     var effectivePct = commissionPct + (commissionPct > 0 && taxPct > 0 ? (commissionPct * taxPct / 100) : 0);
     return {
@@ -9773,6 +9795,19 @@ Modules.Pedidos = (function () {
     var orderStatus = String(order.status || order.orderStatus || '');
     var existingFinanceStatus = _fold(_firstText(order.financeMovementStatus, order.financeStatus, order.financialStatus, ''));
     var currentPaymentState = _fold(_firstText(order.paymentStatus, order.paymentState, order.statusPayment, order.payStatus, ''));
+    if (order.importFinanceBlocked || order.importSubtotalMismatch) {
+      return DB.update('orders', orderId, {
+        financeMovementId: '',
+        financeMovementStatus: 'pendente_ajuste',
+        financeStatus: 'pendente_ajuste',
+        financialStatus: 'pendente_ajuste',
+        financeReviewPending: true,
+        requiresFinanceConfirmation: true,
+        importFinanceBlocked: true,
+        importFinanceBlockReason: order.importFinanceBlockReason || 'subtotal_importado_divergente',
+        financeMovementSyncedAt: _nowIso()
+      }).then(function () { return false; }).catch(function () { return false; });
+    }
     if (currentPaymentState === 'estornado' || currentPaymentState === 'estornada' || currentPaymentState === 'canceled' || currentPaymentState === 'cancelado') {
       return Promise.resolve(false);
     }

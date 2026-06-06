@@ -1,5 +1,13 @@
 # AI Changelog
 
+## 2026-06-06 — Pedidos: taxas e ajuste financeiro na importação Glovo
+- Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Corrigi a importação Glovo para registrar comissão, imposto sobre comissão e demais taxas em campos separados, em vez de jogar tudo como taxa fixa.
+- As taxas do marketplace deixam de entrar como `discountTotal` comum do pedido; ficam registradas nos campos de taxas do canal e no resumo financeiro.
+- Quando o subtotal informado pela Glovo não bate com a soma dos produtos vinculados no sistema, o pedido é importado com pendência de ajuste e não cria entrada no Financeiro.
+- A prévia mostra aviso quando essa divergência existe, indicando que o Financeiro ficará bloqueado até o ajuste.
+- Atualizei o cache-buster de `pedidos.js` no Admin.
+
 ## 2026-06-06 — Pedidos: prévia recarrega variantes atualizadas
 - Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - Corrigi a prioridade das escolhas na importação: quando o produto tem `variantGroupIds`, a prévia usa o grupo global atualizado em vez da cópia antiga salva em `product.variants`.
