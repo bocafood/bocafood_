@@ -8513,7 +8513,11 @@ Modules.Pedidos = (function () {
     state.choiceMappings = state.choiceMappings || {};
     if (productId) state.mappings[itemKey] = String(productId || '');
     else delete state.mappings[itemKey];
-    delete state.choiceMappings[itemKey];
+    (Array.isArray(state.parsed) ? state.parsed : []).forEach(function (row) {
+      (Array.isArray(row && row.items) ? row.items : []).forEach(function (item) {
+        if (String(item && item.itemKey || '') === String(itemKey || '')) delete state.choiceMappings[_orderImportChoiceMappingKey(item)];
+      });
+    });
     window._orderImportPreviewState = state;
     if (state.rows && state.rows.length) {
       state.parsed = state.rows.map(function (row, idx) { return _glovoPreviewRow(row, idx, state.channel); });
@@ -8648,9 +8652,14 @@ Modules.Pedidos = (function () {
       var items = Array.isArray(rows[i] && rows[i].items) ? rows[i].items : [];
       for (var j = 0; j < items.length; j++) {
         if (String(items[j] && items[j].itemKey || '') === String(itemKey || '')) return items[j];
+        if (_orderImportChoiceMappingKey(items[j]) === String(itemKey || '')) return items[j];
       }
     }
     return null;
+  }
+
+  function _orderImportChoiceMappingKey(item) {
+    return String(item && (item.choiceKey || item.importChoiceKey || item.itemChoiceKey || item.itemKey) || '');
   }
 
   function _orderImportChoiceOptionKey(group, option) {
@@ -8719,9 +8728,10 @@ Modules.Pedidos = (function () {
   }
 
   function _orderImportChoicesForItem(item) {
-    if (!item || !item.itemKey) return [];
+    var key = _orderImportChoiceMappingKey(item);
+    if (!item || !key) return [];
     var state = window._orderImportPreviewState || {};
-    var saved = state.choiceMappings && state.choiceMappings[item.itemKey];
+    var saved = state.choiceMappings && state.choiceMappings[key];
     if (Array.isArray(saved)) return saved.slice();
     var product = item.match && item.match.product;
     var groups = _detailProductChoiceGroups(product);
@@ -8813,6 +8823,8 @@ Modules.Pedidos = (function () {
     var status = _glovoStatus(row['Order status']);
     var items = _parseGlovoItems(row['Order Items']).map(function (item, itemIdx) {
       item.itemKey = _orderImportItemKey(channelName, item.name);
+      item.choiceKey = _orderImportItemChoiceKey(channelName, orderId, itemIdx, item.name);
+      item.importChoiceKey = item.choiceKey;
       item.match = _orderImportMatchProduct(item, channelName);
       item.orderItemIndex = itemIdx;
       return item;
@@ -9205,6 +9217,15 @@ Modules.Pedidos = (function () {
     return _channelAliasKey(channelName || 'canal') + '::' + _orderImportNormalizeName(name);
   }
 
+  function _orderImportItemChoiceKey(channelName, orderId, itemIdx, name) {
+    return [
+      _channelAliasKey(channelName || 'canal'),
+      _fold(orderId || 'pedido'),
+      String(itemIdx == null ? '0' : itemIdx),
+      _orderImportNormalizeName(name)
+    ].join('::');
+  }
+
   function _orderImportNormalizeName(value) {
     return _fold(value || '')
       .replace(/[×x]/g, ' x ')
@@ -9419,6 +9440,7 @@ Modules.Pedidos = (function () {
     var product = item && item.match && item.match.product;
     var groups = _detailProductChoiceGroups(product);
     if (!groups.length) return '';
+    var choiceKey = _orderImportChoiceMappingKey(item);
     var selected = _orderImportChoicesForItem(item);
     var selectedKeys = {};
     selected.forEach(function (choice) { selectedKeys[_orderImportChoiceKey(choice)] = true; });
@@ -9434,7 +9456,7 @@ Modules.Pedidos = (function () {
             var key = _orderImportChoiceOptionKey(group, option);
             var checked = selectedKeys[key] ? ' checked' : '';
             return '<label style="display:flex;align-items:center;gap:6px;border:1px solid #EFE4DC;border-radius:9px;background:#fff;padding:6px 7px;cursor:pointer;min-width:0;">' +
-              '<input type="' + inputType + '" name="order-import-choice-' + _esc(String(item.itemKey || '').replace(/[^a-zA-Z0-9_-]/g, '_')) + '-' + groupIdx + '" data-import-choice-key="' + _esc(item.itemKey || '') + '" onchange="Modules.Pedidos._setOrderImportChoiceMapping(this.dataset.importChoiceKey,' + groupIdx + ',' + optionIdx + ',this.checked)"' + checked + ' style="width:14px;height:14px;accent-color:#B42318;flex:0 0 auto;">' +
+              '<input type="' + inputType + '" name="order-import-choice-' + _esc(String(choiceKey || '').replace(/[^a-zA-Z0-9_-]/g, '_')) + '-' + groupIdx + '" data-import-choice-key="' + _esc(choiceKey || '') + '" onchange="Modules.Pedidos._setOrderImportChoiceMapping(this.dataset.importChoiceKey,' + groupIdx + ',' + optionIdx + ',this.checked)"' + checked + ' style="width:14px;height:14px;accent-color:#B42318;flex:0 0 auto;">' +
               '<span style="min-width:0;font-size:11.5px;color:#1F1F1F;line-height:1.25;">' + _esc(option.label) + (option.priceExtra ? ' <span style="color:#8A7E7C;">' + (option.priceExtra > 0 ? '+' : '') + UI.fmt(option.priceExtra) + '</span>' : '') + '</span>' +
             '</label>';
           }).join('') + '</div>' +

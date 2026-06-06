@@ -11,6 +11,8 @@
 
 ## 2026-06-06 — Pedidos: escolhas de menu na importação
 - Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Corrigi as escolhas da prévia quando o mesmo combo aparece em mais de um pedido importado.
+- O vínculo do produto continua podendo ser reaproveitado pelo nome, mas as escolhas do menu/combo agora são guardadas por pedido e por linha do item, evitando apagar a seleção de outro pedido.
 - Corrigi a seleção das escolhas no modal de importação para não redesenhar a tabela inteira no mesmo clique.
 - Ao marcar uma opção de menu/combo, a seleção fica visível e o botão de importar é atualizado com base no estado novo.
 - Na `Prévia de importação de pedidos`, quando o produto vinculado é menu/combo ou possui variantes, a linha passa a mostrar as escolhas cadastradas para esse produto.
