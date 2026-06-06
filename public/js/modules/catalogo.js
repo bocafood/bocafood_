@@ -10436,7 +10436,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       '<div><label style="' + _fichaLbl() + '">Estoque mínimo</label><div class="supplier-field-control"><input id="fc-stock-min" type="text" value="' + _esc(f.minStock || f.estoque_minimo || '') + '" placeholder="Ex: 20"></div></div>' +
       '<div><label style="' + _fichaLbl() + '">Estoque máximo</label><div class="supplier-field-control"><input id="fc-stock-max" type="text" value="' + _esc(f.maxStock || f.estoque_maximo || '') + '" placeholder="Ex: 80"></div></div>' +
       '</div>' +
-      '<div style="margin-top:12px;background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;padding:10px 12px;box-shadow:0 1px 2px rgba(31,31,31,.03);"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Custo por unidade</div><strong style="font-size:17px;color:#1A1A1A;">' + costBadge + '</strong></div>' +
+      '<div style="margin-top:12px;background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;padding:10px 12px;box-shadow:0 1px 2px rgba(31,31,31,.03);"><div style="font-size:10px;font-weight:600;color:#6F6860;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Custo por unidade</div><strong id="fc-yield-cost-badge" style="font-size:17px;color:#1A1A1A;">' + costBadge + '</strong></div>' +
       '</div>' +
 
       '<div class="recipe-modal-card recipe-modal-image">' + sectionHead('image', 'Imagem', 'Adicione uma foto para reconhecer esta receita com mais facilidade.') +
@@ -11262,6 +11262,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var indirectPctEl = document.getElementById('fc-indirect-pct');
     var indirectModeEl = document.getElementById('fc-indirect-mode');
     var unitEl = document.getElementById('fc-cost-unit');
+    var yieldCostBadgeEl = document.getElementById('fc-yield-cost-badge');
     var labelEl = document.getElementById('fc-cost-unit-label');
     var kgEl = document.getElementById('fc-cost-kg');
     var baseLabelEl = document.getElementById('fc-cost-base-label');
@@ -11274,6 +11275,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     if (indirectModeEl) indirectModeEl.textContent = 'Modo: ' + indirectInfo.modeUsed + (indirectInfo.fallback ? ' (fallback)' : '');
     if (totalEl) totalEl.textContent = _fmtFichaMoney(total);
     if (unitEl) unitEl.textContent = _fmtFichaMoney(costPerUnit);
+    if (yieldCostBadgeEl) yieldCostBadgeEl.textContent = costPerUnit > 0 ? _fmtFichaMoney(costPerUnit) : '—';
     if (labelEl) labelEl.textContent = _recipeResultUnitLabel(yieldUnit);
 
     var unitWeightG = _parseFichaNum((document.getElementById('fc-unit-weight') || {}).value);

@@ -1,5 +1,11 @@
 # AI Changelog
 
+## 2026-06-06 — Receitas: custo por unidade em tempo real
+- Arquivos alterados: `public/js/modules/catalogo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- No modal `Editar Receita`, corrigi o `Custo por unidade` exibido no card `Unidade da ficha` para atualizar em tempo real junto com os demais cálculos.
+- Revisei os outros campos derivados do modal: composição do custo, resultado da receita, custo por kg/L, peso total e custos das linhas já estavam ligados aos eventos de atualização.
+- Atualizei o cache-buster de `catalogo.js` no Admin.
+
 ## 2026-06-06 — Receitas: proporção dos cards de produção
 - Arquivos alterados: `public/js/modules/catalogo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - No modal `Editar Receita`, reduzi a largura do card `Conservação e validade` para ficar proporcional aos campos.
