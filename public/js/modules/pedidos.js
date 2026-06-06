@@ -405,6 +405,7 @@ Modules.Pedidos = (function () {
           '<p style="font-size:13px;color:#6F6860;line-height:1.5;margin:0;max-width:760px;">Acompanhe o histórico de pedidos, clientes vinculados, avaliações e canais de venda.</p>' +
         '</div>' +
         '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">' +
+          '<button onclick="Modules.Pedidos._openOrderImportPreview()" style="height:38px;padding:0 14px;border:1px solid #E6E1D8;border-radius:10px;background:#fff;color:#1F1F1F;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);display:inline-flex;align-items:center;gap:6px;"><span class="mi" style="font-size:17px;color:#8A7E7C;">upload_file</span>Importar pedidos</button>' +
           '<button onclick="Modules.Pedidos._openNewOrder()" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(180,35,24,.16);">+ Novo pedido</button>' +
         '</div>' +
       '</div>' +
@@ -779,22 +780,105 @@ Modules.Pedidos = (function () {
   function _performanceSummaryHtml(summary, matrix, rows) {
     var ranking = _performanceRanking(rows).slice(0, 8);
     var rankingHtml = ranking.length ? ranking.map(function (row, idx) {
-      return '<div style="display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid #F0E7E2;">' +
-        '<span style="width:24px;height:24px;border-radius:9px;background:#FFF5F3;color:#B42318;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:750;">' + (idx + 1) + '</span>' +
-        '<div style="min-width:0;"><div style="font-size:13px;font-weight:650;color:#1F1F1F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(row.name) + '</div><div style="font-size:11px;color:#6F6860;margin-top:2px;">' + _esc(row.typeLabel) + ' · ' + _roundQty(row.qty) + ' un.</div></div>' +
-        '<div style="font-size:13px;font-weight:700;color:#1F1F1F;white-space:nowrap;">' + UI.fmt(row.revenue) + '</div>' +
-      '</div>';
+      return _performanceRankingRow(row, idx);
     }).join('') : '<div style="padding:18px;color:#8A7E7C;font-size:13px;text-align:center;">Sem vendas para este filtro.</div>';
-    return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;">' +
-        _kitchenKpiCard('Faturamento filtrado', UI.fmt(summary.revenue), summary.orders + ' pedido(s)', 'payments', '#8A6F5A') +
-        _kitchenKpiCard('Itens vendidos', _roundQty(summary.qty), 'quantidade no filtro', 'shopping_bag', '#B42318') +
-        _kitchenKpiCard('Valor médio por item', UI.fmt(summary.avgLine), 'mix vendido', 'receipt_long', '#6C8777') +
-        _kitchenKpiCard('Preferido das clientes', summary.topName || 'Sem vendas', summary.topQty ? _roundQty(summary.topQty) + ' vendido(s)' : 'aguardando pedidos', 'leaderboard', '#A18362') +
-      '</div>' +
-      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:16px;align-items:start;">' +
-        '<section style="' + _adminPanelStyle() + '"><h3 style="margin:0;font-size:15px;font-weight:700;color:#1F1F1F;">Mais vendidos</h3><p style="margin:4px 0 8px;font-size:12px;color:#6F6860;line-height:1.4;">Ajuda a enxergar o que merece destaque em qualquer canal de venda.</p>' + rankingHtml + '</section>' +
-        '<section style="' + _adminPanelStyle() + '"><h3 style="margin:0;font-size:15px;font-weight:700;color:#1F1F1F;">Leitura rápida</h3><p style="margin:4px 0 12px;font-size:12px;color:#6F6860;line-height:1.4;">Para abrir a análise completa, use a subaba Matriz.</p>' + _performanceMatrixCardsHtml(matrix) + '</section>' +
+    return _performanceExecutiveHero(summary, matrix, rows) +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:16px;align-items:start;">' +
+        '<section style="' + _performancePremiumPanelStyle() + '">' +
+          '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:12px;">' +
+            '<div><span style="' + _performanceLabelStyle() + '">Produtos que sustentam a venda</span><h3 style="margin:5px 0 4px;font-size:17px;font-weight:850;color:#1F1F1F;line-height:1.2;">Mais vendidos</h3><p style="margin:0;font-size:12.5px;color:#5F554B;line-height:1.45;">Veja o que merece destaque, estoque protegido e atenção de margem.</p></div>' +
+            '<span class="mi" style="width:38px;height:38px;border-radius:14px;background:#FFF3F1;color:#B42318;display:inline-flex;align-items:center;justify-content:center;font-size:20px;flex:0 0 auto;">leaderboard</span>' +
+          '</div>' +
+          '<div style="display:flex;flex-direction:column;">' + rankingHtml + '</div>' +
+        '</section>' +
+        '<section style="' + _performancePremiumPanelStyle() + '">' +
+          '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:12px;">' +
+            '<div><span style="' + _performanceLabelStyle() + '">Próxima leitura</span><h3 style="margin:5px 0 4px;font-size:17px;font-weight:850;color:#1F1F1F;line-height:1.2;">Onde olhar primeiro</h3><p style="margin:0;font-size:12.5px;color:#5F554B;line-height:1.45;">A matriz separa o cardápio por força de venda e reação recente.</p></div>' +
+            '<button type="button" onclick="Modules.Pedidos._setPerformanceTab(\'matriz\')" style="height:36px;padding:0 12px;border:1px solid #E8DCD7;border-radius:12px;background:#fff;color:#1F1F1F;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);">Abrir matriz</button>' +
+          '</div>' +
+          _performanceMatrixCardsHtml(matrix) +
+        '</section>' +
       '</div>';
+  }
+
+  function _performanceExecutiveHero(summary, matrix, rows) {
+    var period = _performancePeriodText();
+    var activeChannels = _performanceActiveChannels(rows);
+    var top = summary.topName || 'Sem produto líder ainda';
+    var hasSales = summary.revenue > 0 || summary.orders > 0;
+    var headline = hasSales ? 'A operação vendeu ' + UI.fmt(summary.revenue) + ' no período filtrado.' : 'Ainda não há venda suficiente neste filtro.';
+    var subtitle = hasSales
+      ? 'O item que mais apareceu foi ' + top + '. Use essa leitura para decidir o que destacar, revisar e manter disponível.'
+      : 'Quando os pedidos entrarem, este resumo mostra quais produtos puxam o resultado e quais precisam de atenção.';
+    return '<section style="' + _performanceHeroStyle() + '">' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:18px;align-items:stretch;">' +
+        '<div style="display:flex;flex-direction:column;gap:16px;min-width:0;">' +
+          '<div><span style="' + _performanceLabelStyle('#8A6F5A') + '">Resumo dos pedidos</span><h3 style="margin:7px 0 7px;font-size:26px;font-weight:850;color:#1F1F1F;line-height:1.08;letter-spacing:0;">' + _esc(headline) + '</h3><p style="margin:0;max-width:720px;color:#5F554B;font-size:13.5px;line-height:1.5;">' + _esc(subtitle) + '</p></div>' +
+          '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">' +
+            _performanceMetricCard('Faturamento', UI.fmt(summary.revenue), period, 'payments', '#8A6F5A') +
+            _performanceMetricCard('Pedidos', summary.orders, activeChannels, 'receipt_long', '#2F6F9F') +
+            _performanceMetricCard('Itens vendidos', _roundQty(summary.qty), 'quantidade vendida', 'shopping_bag', '#16735B') +
+            _performanceMetricCard('Valor por item', UI.fmt(summary.avgLine), 'média do mix vendido', 'monitoring', '#B42318') +
+          '</div>' +
+        '</div>' +
+        '<div style="border:1px solid rgba(234,228,218,.9);background:rgba(255,255,255,.72);border-radius:18px;padding:15px;display:flex;flex-direction:column;gap:12px;min-width:0;box-shadow:inset 0 1px 0 rgba(255,255,255,.9);">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;"><span style="' + _performanceLabelStyle('#B42318') + '">Sinais do cardápio</span><span style="font-size:11px;color:#7A7065;font-weight:750;">' + _esc(period) + '</span></div>' +
+          _performanceSignalRow('Produto líder', top, summary.topQty ? _roundQty(summary.topQty) + ' vendido(s)' : 'aguardando pedidos', '#B42318') +
+          _performanceSignalRow('Estrelas', (matrix.stars || []).length + ' produto(s)', 'venda forte e crescimento', '#16735B') +
+          _performanceSignalRow('Apostas', (matrix.bets || []).length + ' produto(s)', 'começaram a reagir', '#2F6F9F') +
+          _performanceSignalRow('Revisar', (matrix.review || []).length + ' produto(s)', 'pedem decisão comercial', '#8A5A18') +
+        '</div>' +
+      '</div>' +
+    '</section>';
+  }
+
+  function _performanceHeroStyle() {
+    return 'position:relative;overflow:hidden;border:1px solid #E3D7CE;border-radius:22px;padding:20px;background:radial-gradient(circle at 6% 0%,rgba(138,111,90,.16),transparent 34%),radial-gradient(circle at 96% 4%,rgba(47,111,159,.10),transparent 30%),linear-gradient(135deg,rgba(255,255,255,.98),rgba(250,248,244,.92));box-shadow:0 18px 44px rgba(31,31,31,.075);';
+  }
+
+  function _performancePremiumPanelStyle() {
+    return 'border:1px solid #E8DCD7;border-radius:20px;padding:16px;background:radial-gradient(circle at 8% 0%,rgba(138,111,90,.08),transparent 36%),linear-gradient(135deg,rgba(255,255,255,.98),rgba(250,248,244,.9));box-shadow:0 14px 34px rgba(31,31,31,.06);font-family:Manrope,Inter,sans-serif;';
+  }
+
+  function _performanceLabelStyle(color) {
+    return 'font-size:10.5px;font-weight:850;text-transform:uppercase;letter-spacing:.06em;color:' + (color || '#8A6F5A') + ';line-height:1;';
+  }
+
+  function _performanceMetricCard(label, value, note, icon, color) {
+    return '<article style="border:1px solid rgba(234,228,218,.94);background:rgba(255,255,255,.82);border-radius:16px;padding:13px;display:grid;gap:8px;min-width:0;box-shadow:0 1px 2px rgba(31,31,31,.03);">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;"><span style="font-size:11.5px;font-weight:750;color:#5F554B;line-height:1.25;">' + _esc(label) + '</span><span class="mi" style="width:30px;height:30px;border-radius:11px;background:#FAF8F4;color:' + _esc(color || '#8A6F5A') + ';display:inline-flex;align-items:center;justify-content:center;font-size:17px;flex:0 0 auto;">' + _esc(icon || 'analytics') + '</span></div>' +
+      '<strong style="font-size:24px;font-weight:850;color:#1F1F1F;line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(String(value == null ? '0' : value)) + '</strong>' +
+      '<small style="font-size:11.5px;color:#7A7065;line-height:1.35;">' + _esc(note || '') + '</small>' +
+    '</article>';
+  }
+
+  function _performanceSignalRow(label, value, note, color) {
+    return '<div style="display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 0;border-top:1px solid rgba(234,228,218,.82);">' +
+      '<span style="width:8px;height:28px;border-radius:999px;background:' + _esc(color || '#8A6F5A') + ';opacity:.9;"></span>' +
+      '<div style="min-width:0;"><div style="font-size:12.5px;font-weight:750;color:#1F1F1F;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(label) + '</div><div style="font-size:11.5px;color:#7A7065;line-height:1.35;margin-top:2px;">' + _esc(note || '') + '</div></div>' +
+      '<strong style="font-size:12.5px;font-weight:850;color:#1F1F1F;text-align:right;white-space:nowrap;max-width:150px;overflow:hidden;text-overflow:ellipsis;">' + _esc(value || '—') + '</strong>' +
+    '</div>';
+  }
+
+  function _performanceRankingRow(row, idx) {
+    return '<div style="display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:11px;align-items:center;padding:11px 0;border-top:' + (idx ? '1px solid #F0E7E2' : '0') + ';">' +
+      '<span style="width:27px;height:27px;border-radius:10px;background:' + (idx < 3 ? '#FFF3F1' : '#FAF8F4') + ';color:' + (idx < 3 ? '#B42318' : '#6F6860') + ';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:850;">' + (idx + 1) + '</span>' +
+      '<div style="min-width:0;"><div style="font-size:13px;font-weight:750;color:#1F1F1F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(row.name) + '</div><div style="font-size:11.5px;color:#6F6860;margin-top:3px;line-height:1.35;">' + _esc(row.typeLabel) + ' · ' + _roundQty(row.qty) + ' un.</div></div>' +
+      '<div style="font-size:13px;font-weight:850;color:#1F1F1F;white-space:nowrap;">' + UI.fmt(row.revenue) + '</div>' +
+    '</div>';
+  }
+
+  function _performancePeriodText() {
+    var period = String(_performanceFilters.period || '90');
+    if (period === 'all') return 'Todo o histórico';
+    return 'Últimos ' + (parseInt(period, 10) || 90) + ' dias';
+  }
+
+  function _performanceActiveChannels(rows) {
+    var map = {};
+    (rows || []).forEach(function (row) { if (row.channel) map[row.channel] = true; });
+    var count = Object.keys(map).length;
+    return count ? count + ' canal(is)' : 'sem canal no filtro';
   }
 
   function _performanceSalesTableHtml(rows) {
@@ -6898,6 +6982,28 @@ Modules.Pedidos = (function () {
     return _num(_firstText(product && product.price, product && product.salePrice, product && product.valor, product && product.preco, product && product.precoVenda, 0));
   }
 
+  function _productPriceForSalesChannel(product, channelName) {
+    product = product || {};
+    var base = _manualOrderProductBasePrice(product);
+    var channel = _salesChannelByName(channelName) || {};
+    var channelLabel = _firstText(channel.name, channel.nome, channel.label, channelName, '');
+    var aliases = [
+      channelLabel,
+      _salesChannelDisplayName(channelLabel),
+      channelName,
+      _salesChannelDisplayName(channelName)
+    ].filter(Boolean);
+    var prices = product.channelPrices || product.precosPorCanal || product.pricesByChannel || {};
+    for (var i = 0; i < aliases.length; i++) {
+      var direct = _num(prices[aliases[i]]);
+      if (direct > 0) return direct;
+      var folded = _fold(aliases[i]);
+      var foundKey = Object.keys(prices || {}).find(function (key) { return _fold(key) === folded; });
+      if (foundKey && _num(prices[foundKey]) > 0) return _num(prices[foundKey]);
+    }
+    return base;
+  }
+
   function _manualOrderProductCost(product) {
     return _num(_firstText(product && product.cost, product && product.custo, product && product.purchasePrice, product && product.custoAtual, product && product.custo_atual, product && product.preco_compra, product && product.precoCompra, product && product.custoCompra, 0));
   }
@@ -8270,6 +8376,878 @@ Modules.Pedidos = (function () {
     return String(channel && (channel.contaPadraoId || channel.defaultAccountId || channel.bankAccountId || channel.contaBancariaId || channel.conta_id) || '').trim();
   }
 
+  function _channelPaymentMethod(channel) {
+    return String(channel && (channel.formaPagamento || channel.forma_pagamento || channel.defaultPaymentMethod || channel.paymentMethod || channel.paymentMethodName || channel.metodoPagamento) || '').trim();
+  }
+
+  function _openOrderImportPreview() {
+    var preferred = _salesChannelByName('Glovo') ? 'Glovo' : (_channelNames()[0] || '');
+    var body = '' +
+      '<div style="display:flex;flex-direction:column;gap:14px;">' +
+        '<div style="display:grid;grid-template-columns:minmax(220px,300px) minmax(260px,1fr) minmax(220px,300px);gap:12px;align-items:end;">' +
+          '<label style="display:block;min-width:0;"><span style="font-size:11px;font-weight:650;color:#8A7E7C;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;display:block;">Canal de venda</span><div style="background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:0 12px;min-height:42px;display:flex;align-items:center;"><select id="order-import-channel" onchange="Modules.Pedidos._refreshOrderImportPreview()" style="' + _adminSelectStyle() + '">' + _orderImportChannelOptions(preferred) + '</select></div></label>' +
+          '<label style="display:block;min-width:0;"><span style="font-size:11px;font-weight:650;color:#8A7E7C;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;display:block;">Arquivo CSV</span><div style="background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:0 12px;min-height:42px;display:flex;align-items:center;"><input type="file" accept=".csv,text/csv" onchange="Modules.Pedidos._handleOrderImportFile(this)" style="' + _adminInputStyle() + 'padding-top:9px;"></div></label>' +
+          '<label style="display:block;min-width:0;"><span style="font-size:11px;font-weight:650;color:#8A7E7C;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;display:block;">Estoque</span><div style="background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:0 12px;min-height:42px;display:flex;align-items:center;"><select id="order-import-stock-mode" onchange="Modules.Pedidos._setOrderImportStockMode(this.value)" style="' + _adminSelectStyle() + '"><option value="history" selected>Só histórico</option><option value="deduct">Baixar estoque dos entregues</option></select></div></label>' +
+        '</div>' +
+        '<div style="padding:12px 14px;border:1px solid #EADFD8;border-radius:12px;background:#FFF9F6;color:#6F6860;font-size:13px;line-height:1.5;">A importação cria pedidos e entrada financeira. O estoque fica como histórico, a menos que você escolha baixar estoque dos pedidos entregues.</div>' +
+        '<div id="order-import-preview-result">' + _orderImportEmptyHtml() + '</div>' +
+      '</div>';
+    var footer = '<div style="display:flex;gap:10px;align-items:center;justify-content:flex-end;flex-wrap:wrap;">' +
+      '<button type="button" onclick="window._orderImportPreviewModal&&window._orderImportPreviewModal.close()" style="height:38px;padding:0 14px;border:1px solid #E6E1D8;border-radius:10px;background:#fff;color:#1F1F1F;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Fechar</button>' +
+      '<button id="order-import-submit" type="button" onclick="Modules.Pedidos._importGlovoPreviewOrders()" style="height:38px;padding:0 15px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(180,35,24,.16);">Importar pedidos válidos</button>' +
+    '</div>';
+    window._orderImportPreviewState = { fileName: '', rows: [], parsed: [], channel: preferred, error: '', mappings: {}, imported: {}, importing: false, stockMode: 'history' };
+    window._orderImportPreviewModal = UI.modal({ title: 'Prévia de importação de pedidos', body: body, footer: footer, maxWidth: '1120px' });
+  }
+
+  function _orderImportChannelOptions(selected) {
+    var names = _channelNames().slice();
+    if (selected && names.indexOf(selected) < 0) names.unshift(selected);
+    return names.map(function (name) {
+      return '<option value="' + _esc(name) + '"' + (String(selected || '') === String(name || '') ? ' selected' : '') + '>' + _esc(_title(name)) + '</option>';
+    }).join('');
+  }
+
+  function _orderImportEmptyHtml() {
+    return '<div style="border:1px dashed #E3D8D0;border-radius:14px;padding:18px;background:#fff;color:#6F6860;font-size:13px;line-height:1.5;">Selecione o canal e envie o CSV da Glovo para conferir como os pedidos serão lidos antes da importação real.</div>';
+  }
+
+  function _handleOrderImportFile(input) {
+    var file = input && input.files && input.files[0];
+    if (!file) return;
+    var state = window._orderImportPreviewState || {};
+    state.fileName = file.name || '';
+    state.channel = _orderImportSelectedChannel();
+    state.rows = [];
+    state.parsed = [];
+    state.error = '';
+    state.mappings = state.mappings || {};
+    state.imported = state.imported || {};
+    state.stockMode = state.stockMode || _orderImportStockMode();
+    window._orderImportPreviewState = state;
+    _renderOrderImportPreview();
+    var reader = new FileReader();
+    reader.onload = function (ev) {
+      try {
+        var parsed = _parseGlovoImportPreview(String(ev && ev.target && ev.target.result || ''), state.channel);
+        state.rows = parsed.rows;
+        state.parsed = parsed.preview;
+        state.error = parsed.error || '';
+      } catch (err) {
+        state.error = err && err.message ? err.message : 'Não foi possível ler o arquivo.';
+      }
+      window._orderImportPreviewState = state;
+      _renderOrderImportPreview();
+    };
+    reader.onerror = function () {
+      state.error = 'Não foi possível abrir o arquivo selecionado.';
+      window._orderImportPreviewState = state;
+      _renderOrderImportPreview();
+    };
+    reader.readAsText(file);
+  }
+
+  function _refreshOrderImportPreview() {
+    var state = window._orderImportPreviewState || {};
+    state.channel = _orderImportSelectedChannel();
+    state.mappings = state.mappings || {};
+    state.imported = state.imported || {};
+    state.stockMode = _orderImportStockMode();
+    if (state.rows && state.rows.length) {
+      state.parsed = state.rows.map(function (row, idx) { return _glovoPreviewRow(row, idx, state.channel); });
+    }
+    window._orderImportPreviewState = state;
+    _renderOrderImportPreview();
+  }
+
+  function _orderImportSelectedChannel() {
+    var el = document.getElementById('order-import-channel');
+    return String(el && el.value || '').trim();
+  }
+
+  function _orderImportStockMode() {
+    var el = document.getElementById('order-import-stock-mode');
+    var state = window._orderImportPreviewState || {};
+    var value = String(el && el.value || state.stockMode || 'history').trim();
+    return value === 'deduct' ? 'deduct' : 'history';
+  }
+
+  function _setOrderImportStockMode(value) {
+    var state = window._orderImportPreviewState || {};
+    state.stockMode = value === 'deduct' ? 'deduct' : 'history';
+    if (state.rows && state.rows.length) {
+      state.parsed = state.rows.map(function (row, idx) { return _glovoPreviewRow(row, idx, state.channel); });
+    }
+    window._orderImportPreviewState = state;
+    _renderOrderImportPreview();
+  }
+
+  function _setOrderImportItemMapping(itemKey, productId) {
+    var state = window._orderImportPreviewState || {};
+    state.mappings = state.mappings || {};
+    if (productId) state.mappings[itemKey] = String(productId || '');
+    else delete state.mappings[itemKey];
+    if (state.rows && state.rows.length) {
+      state.parsed = state.rows.map(function (row, idx) { return _glovoPreviewRow(row, idx, state.channel); });
+    }
+    window._orderImportPreviewState = state;
+    _renderOrderImportPreview();
+  }
+
+  function _importGlovoPreviewOrders() {
+    var state = window._orderImportPreviewState || {};
+    var rows = Array.isArray(state.parsed) ? state.parsed : [];
+    if (state.importing) return;
+    if (!rows.length) {
+      UI.toast('Envie um CSV e confira a prévia antes de importar.', 'info');
+      return;
+    }
+    var validation = _orderImportValidation(rows);
+    if (validation.blockers.length) {
+      UI.toast(validation.blockers[0], 'error');
+      _renderOrderImportPreview();
+      return;
+    }
+    var importable = validation.importable;
+    if (!importable.length) {
+      UI.toast('Não há pedidos novos válidos para importar.', 'info');
+      return;
+    }
+    var stockText = _orderImportStockMode() === 'deduct' ? ' Pedidos entregues também vão baixar estoque.' : ' O estoque ficará apenas como histórico desta importação.';
+    var askText = 'Importar ' + importable.length + ' pedido(s) da Glovo agora? Eles serão criados no Admin e a entrada financeira ficará aberta para conferência.' + stockText;
+    UI.confirm(askText).then(function (yes) {
+      if (!yes) return;
+      state.importing = true;
+      window._orderImportPreviewState = state;
+      _renderOrderImportPreview();
+      var imported = 0;
+      var failed = 0;
+      var chain = Promise.resolve();
+      importable.forEach(function (row) {
+        chain = chain.then(function () {
+          return _createImportedGlovoOrder(row).then(function (createdId) {
+            imported++;
+            state.imported = state.imported || {};
+            state.imported[row.orderId] = createdId || true;
+            window._orderImportPreviewState = state;
+            _renderOrderImportPreview();
+          }).catch(function (err) {
+            failed++;
+            row.importError = err && err.message ? err.message : 'Falha ao importar.';
+          });
+        });
+      });
+      chain.then(function () {
+        state.importing = false;
+        if (state.rows && state.rows.length) {
+          state.parsed = state.rows.map(function (row, idx) { return _glovoPreviewRow(row, idx, state.channel); });
+        }
+        window._orderImportPreviewState = state;
+        _renderOrderImportPreview();
+        if (typeof _loadMeta === 'function') _loadMeta();
+        UI.toast(imported + ' pedido(s) importado(s)' + (failed ? ' · ' + failed + ' com erro' : ''), failed ? 'warning' : 'success');
+      });
+    });
+  }
+
+  function _orderImportValidation(rows) {
+    var blockers = [];
+    var importable = [];
+    var channelName = _orderImportSelectedChannel();
+    var channel = _salesChannelByName(channelName) || {};
+    if (!channelName) blockers.push('Selecione o canal de venda antes de importar.');
+    if (!_channelPaymentMethod(channel)) blockers.push('Configure a forma de pagamento padrão do canal antes de importar.');
+    if (!_channelBankAccountId(channel)) blockers.push('Configure a conta bancária padrão do canal antes de importar.');
+    if (!_channelIncomeCategoryMeta(channel).id && !_channelIncomeCategoryMeta(channel).name) blockers.push('Configure a categoria financeira do canal antes de importar.');
+    rows.forEach(function (row) {
+      if (_orderImportRowImported(row)) return;
+      if (_isDuplicateImportedOrder(row.channelName, row.orderId)) return;
+      if (!_orderImportRowReady(row)) return;
+      importable.push(row);
+    });
+    if (!importable.length && !blockers.length) blockers.push('Revise duplicados e itens sem vínculo antes de importar.');
+    return { blockers: blockers, importable: importable };
+  }
+
+  function _orderImportRowReady(row) {
+    if (!row || !row.orderId) return false;
+    if (!Array.isArray(row.items) || !row.items.length) return false;
+    return row.items.every(function (item) { return item.match && item.match.product; });
+  }
+
+  function _orderImportRowImported(row) {
+    var state = window._orderImportPreviewState || {};
+    return !!(state.imported && row && row.orderId && state.imported[row.orderId]);
+  }
+
+  function _parseGlovoImportPreview(text, channelName) {
+    var table = _parseCsvText(text);
+    if (!table.length) return { rows: [], preview: [], error: 'O CSV está vazio.' };
+    var headers = table[0].map(function (h) { return String(h || '').replace(/^\uFEFF/, '').trim(); });
+    var required = ['Order ID', 'Order status', 'Order received at', 'Subtotal', 'Commission', 'Tax Charge', 'Marketing Fees Total', 'Payout Amount', 'Order Items'];
+    var missing = required.filter(function (name) { return headers.indexOf(name) < 0; });
+    if (missing.length) {
+      return { rows: [], preview: [], error: 'Este arquivo não parece ser o modelo da Glovo. Campos ausentes: ' + missing.join(', ') + '.' };
+    }
+    var rows = table.slice(1).filter(function (cols) {
+      return cols.some(function (v) { return String(v || '').trim(); });
+    }).map(function (cols) {
+      var row = {};
+      headers.forEach(function (header, idx) { row[header] = cols[idx] != null ? cols[idx] : ''; });
+      return row;
+    });
+    return {
+      rows: rows,
+      preview: rows.map(function (row, idx) { return _glovoPreviewRow(row, idx, channelName); }),
+      error: ''
+    };
+  }
+
+  function _parseCsvText(text) {
+    text = String(text || '').replace(/^\uFEFF/, '');
+    var rows = [];
+    var row = [];
+    var field = '';
+    var quoted = false;
+    for (var i = 0; i < text.length; i++) {
+      var ch = text.charAt(i);
+      if (quoted) {
+        if (ch === '"') {
+          if (text.charAt(i + 1) === '"') {
+            field += '"';
+            i++;
+          } else {
+            quoted = false;
+          }
+        } else {
+          field += ch;
+        }
+      } else if (ch === '"') {
+        quoted = true;
+      } else if (ch === ',') {
+        row.push(field);
+        field = '';
+      } else if (ch === '\n') {
+        row.push(field);
+        rows.push(row);
+        row = [];
+        field = '';
+      } else if (ch !== '\r') {
+        field += ch;
+      }
+    }
+    if (field || row.length) {
+      row.push(field);
+      rows.push(row);
+    }
+    return rows;
+  }
+
+  function _glovoPreviewRow(row, idx, channelName) {
+    var channel = _salesChannelByName(channelName) || {};
+    var orderId = String(row['Order ID'] || '').trim();
+    var status = _glovoStatus(row['Order status']);
+    var items = _parseGlovoItems(row['Order Items']).map(function (item, itemIdx) {
+      item.itemKey = _orderImportItemKey(channelName, item.name);
+      item.match = _orderImportMatchProduct(item, channelName);
+      item.orderItemIndex = itemIdx;
+      return item;
+    });
+    var gross = _importMoney(row.Subtotal);
+    var commission = _importMoney(row.Commission);
+    var tax = _importMoney(row['Tax Charge']);
+    var onlineFee = _importMoney(row['Online Payment Fee']);
+    var marketing = _importMoney(row['Marketing Fees Total']);
+    var operational = _importMoney(row['Operational Charges']);
+    var packaging = _importMoney(row['Packaging charges']);
+    var serviceFee = _importMoney(row['Service fee']);
+    var feesTotal = commission + tax + onlineFee + marketing + operational + serviceFee;
+    var payout = _importMoney(row['Payout Amount']);
+    var estimated = _importMoney(row['Estimated earnings']);
+    var net = payout || estimated || Math.max(0, gross - feesTotal);
+    var warnings = [];
+    if (!orderId) warnings.push('Sem número do pedido.');
+    if (!row['Order received at']) warnings.push('Sem data do pedido.');
+    if (!items.length) warnings.push('Sem itens lidos.');
+    var unmatchedItems = items.filter(function (item) { return !item.match || !item.match.product; });
+    var reviewItems = items.filter(function (item) { return item.match && item.match.confidence === 'review'; });
+    if (unmatchedItems.length) warnings.push(unmatchedItems.length + ' item(ns) sem vínculo no cardápio.');
+    if (reviewItems.length) warnings.push(reviewItems.length + ' vínculo(s) sugerido(s) para revisar.');
+    if (_isDuplicateImportedOrder(channelName, orderId)) warnings.push('Possível duplicado no Admin.');
+    if (_orderImportRowImported({ orderId: orderId })) warnings.push('Já importado nesta prévia.');
+    if (status.key === 'cancelado') warnings.push('Pedido cancelado na Glovo.');
+    if (_orderImportStockMode() === 'deduct' && status.key === 'entregue') warnings.push('Vai baixar estoque ao importar.');
+    if (_orderImportStockMode() === 'deduct' && status.key !== 'entregue' && status.key !== 'cancelado') warnings.push('Estoque não será baixado até o pedido estar entregue.');
+    if (!_channelIncomeCategoryMeta(channel).id && !_channelIncomeCategoryMeta(channel).name) warnings.push('Canal sem categoria financeira.');
+    if (!_channelBankAccountId(channel)) warnings.push('Canal sem conta bancária.');
+    if (!_channelPaymentMethod(channel)) warnings.push('Canal sem forma de pagamento.');
+    return {
+      idx: idx,
+      orderId: orderId,
+      status: status,
+      receivedAt: String(row['Order received at'] || '').trim(),
+      gross: gross,
+      commission: commission,
+      tax: tax,
+      onlineFee: onlineFee,
+      marketing: marketing,
+      operational: operational,
+      packaging: packaging,
+      serviceFee: serviceFee,
+      feesTotal: feesTotal,
+      net: net,
+      items: items,
+      channelName: channelName,
+      category: _channelIncomeCategoryMeta(channel),
+      bankAccountId: _channelBankAccountId(channel),
+      paymentMethod: _channelPaymentMethod(channel),
+      warnings: warnings
+    };
+  }
+
+  function _glovoStatus(value) {
+    var key = _fold(value || '');
+    if (key === 'delivered') return { key: 'entregue', label: 'Entregue' };
+    if (key === 'cancelled' || key === 'canceled') return { key: 'cancelado', label: 'Cancelado' };
+    return { key: key || 'pendente', label: _title(value || 'Pendente') };
+  }
+
+  function _glovoAdminStatus(status) {
+    var key = status && status.key ? status.key : _fold(status || '');
+    if (key === 'cancelado') return 'Cancelado';
+    if (key === 'entregue' || key === 'delivered') return 'Entregado';
+    return 'Pendente';
+  }
+
+  function _glovoPaymentStatus(status) {
+    var key = status && status.key ? status.key : _fold(status || '');
+    if (key === 'cancelado') return 'canceled';
+    if (key === 'entregue' || key === 'delivered') return 'paid';
+    return 'pending';
+  }
+
+  function _createImportedGlovoOrder(row) {
+    var payload = _glovoImportedOrderPayload(row);
+    return DB.add('orders', payload).then(function (ref) {
+      var createdId = String(ref && ref.id || '');
+      if (createdId) payload.id = createdId;
+      return _syncOrderFinanceMovement(createdId, payload).then(function () {
+        if (_orderImportShouldDeductStock(payload)) {
+          return _syncOrderStockMovement(createdId, payload, payload.status, { force: true }).then(function () {
+            return createdId;
+          });
+        }
+        return createdId;
+      });
+    });
+  }
+
+  function _orderImportShouldDeductStock(order) {
+    if (_orderImportStockMode() !== 'deduct') return false;
+    if (_statusCancelsStockMovement(order && order.status)) return false;
+    return _fold(order && order.status || '') === 'entregado';
+  }
+
+  function _glovoImportedOrderPayload(row) {
+    var channelName = String(row.channelName || _orderImportSelectedChannel() || 'Glovo');
+    var channel = _salesChannelByName(channelName) || {};
+    var category = _channelIncomeCategoryMeta(channel);
+    var bankAccountId = _channelBankAccountId(channel);
+    var paymentMethod = _channelPaymentMethod(channel);
+    var parsedDate = _parseImportDateTime(row.receivedAt);
+    var status = _glovoAdminStatus(row.status);
+    var paymentStatus = _glovoPaymentStatus(row.status);
+    var gross = _num(row.gross);
+    var net = _num(row.net);
+    var importedFees = Math.max(0, +(gross - (net || Math.max(0, gross - _num(row.feesTotal)))).toFixed(2));
+    if (!(importedFees > 0)) importedFees = _num(row.feesTotal);
+    var items = _glovoImportedOrderItems(row, channelName);
+    var systemSubtotal = +items.reduce(function (sum, item) { return sum + _num(item.total); }, 0).toFixed(2);
+    var importAdjustment = +(gross - systemSubtotal).toFixed(2);
+    var customerName = 'Cliente Glovo';
+    var payload = {
+      customerId: '',
+      clientId: '',
+      customerName: customerName,
+      clientName: customerName,
+      name: customerName,
+      customerPhone: '',
+      phone: '',
+      whatsapp: '',
+      customerEmail: '',
+      email: '',
+      address: '',
+      deliveryAddress: null,
+      streetAddress: '',
+      neighborhood: '',
+      city: '',
+      province: '',
+      country: '',
+      postalCode: '',
+      deliveryZoneName: '',
+      zone: '',
+      type: 'delivery',
+      deliveryType: 'marketplace',
+      slot: '',
+      note: 'Pedido importado da Glovo.',
+      internalNote: 'Importado da Glovo em ' + _localDateKey() + '.',
+      status: status,
+      items: items,
+      subtotalOriginal: systemSubtotal,
+      subtotal: systemSubtotal,
+      subtotalFinal: systemSubtotal,
+      importCsvGrossTotal: gross,
+      marketplaceGrossTotal: gross,
+      systemItemsSubtotal: systemSubtotal,
+      promoDiscountTotal: 0,
+      discountTotal: importedFees,
+      couponDiscountTotal: 0,
+      pointsDiscountTotal: 0,
+      upsellDiscountTotal: 0,
+      shippingFee: 0,
+      originalDeliveryFee: 0,
+      manualAdjustmentValue: importAdjustment,
+      importPriceAdjustment: importAdjustment,
+      total: gross,
+      paymentMethod: paymentMethod,
+      formaPagamento: paymentMethod,
+      conta_id: bankAccountId,
+      contaBancariaId: bankAccountId,
+      accountId: bankAccountId,
+      bankAccountId: bankAccountId,
+      paymentStatus: paymentStatus,
+      paymentState: paymentStatus,
+      statusPayment: paymentStatus,
+      payStatus: paymentStatus,
+      paidAmount: paymentStatus === 'paid' ? gross : 0,
+      amountPaid: paymentStatus === 'paid' ? gross : 0,
+      valuePaid: paymentStatus === 'paid' ? gross : 0,
+      paid: paymentStatus === 'paid',
+      deliveryDate: parsedDate.date,
+      deliveryTime: parsedDate.time,
+      orderDate: parsedDate.date,
+      dataPedido: parsedDate.date,
+      date: parsedDate.date,
+      createdDate: parsedDate.date,
+      saleDate: parsedDate.date,
+      analyticsDate: parsedDate.date,
+      orderDateTime: parsedDate.date + 'T' + parsedDate.time,
+      orderTime: parsedDate.time,
+      saleTime: parsedDate.time,
+      createdTime: parsedDate.time,
+      analyticsTime: parsedDate.time,
+      analyticsHour: _timeHour(parsedDate.time),
+      orderHour: _timeHour(parsedDate.time),
+      channel: channelName,
+      source: channelName,
+      originChannel: channelName,
+      originSource: channelName,
+      marketplace: 'Glovo',
+      marketplaceName: 'Glovo',
+      externalOrderId: row.orderId,
+      externalId: row.orderId,
+      sourceOrderId: row.orderId,
+      platformOrderId: row.orderId,
+      glovoOrderId: row.orderId,
+      orderNumber: 'Glovo ' + row.orderId,
+      number: 'Glovo ' + row.orderId,
+      reference: row.orderId,
+      entradaCategoriaId: category.id,
+      entradaCategoriaNome: category.name,
+      incomeCategoryId: category.id,
+      incomeCategoryName: category.name,
+      categoriaEntradaId: category.id,
+      categoriaEntradaNome: category.name,
+      financialCategoryId: category.id,
+      financialCategoryName: category.name,
+      categoriaFinanceiraId: category.id,
+      categoriaFinanceiraNome: category.name,
+      kitchenQueue: false,
+      showInKitchen: false,
+      imported: true,
+      importSource: 'glovo_csv',
+      importedFrom: 'Glovo',
+      importedAt: _nowIso(),
+      importedRawSummary: _glovoImportedRawSummary(row),
+      stockImportMode: _orderImportStockMode() === 'deduct' ? 'baixa_estoque_importacao' : 'historico_sem_baixa_automatica',
+      stockImportDeductEnabled: _orderImportStockMode() === 'deduct',
+      priceOrigin: 'marketplace_import',
+      manualAdjustment: importAdjustment !== 0,
+      channelFeesManual: true,
+      channelFeesEdited: true,
+      channelCommissionPct: 0,
+      channelCommissionTaxPct: 0,
+      channelFixedFee: importedFees,
+      createdAt: _manualOrderCreatedAt(parsedDate.date, parsedDate.time)
+    };
+    Object.assign(payload, _orderChannelFinancialPatch(payload, gross));
+    payload.channelFeeBreakdown = Object.assign({}, payload.channelFeeBreakdown || {}, _glovoImportedRawSummary(row));
+    payload.fiscal = _ensureOrderFiscalDefaults(payload).fiscal;
+    return payload;
+  }
+
+  function _glovoImportedOrderItems(row, channelName) {
+    var items = Array.isArray(row.items) ? row.items : [];
+    return items.map(function (item) {
+      var product = item.match && item.match.product || {};
+      var qty = Math.max(1, _num(item.qty) || 1);
+      var unitPrice = _productPriceForSalesChannel(product, channelName);
+      var lineTotal = +(unitPrice * qty).toFixed(2);
+      var choices = (item.choices || []).map(function (choice) {
+        return {
+          name: choice.name,
+          label: choice.name,
+          qty: choice.qty,
+          quantity: choice.qty,
+          source: 'glovo'
+        };
+      });
+      return {
+        id: product.id || '',
+        productId: product.id || '',
+        externalName: item.name,
+        importedName: item.name,
+        name: _orderImportProductLabel(product),
+        category: _firstText(product.category, product.categoria, ''),
+        quantity: qty,
+        qty: qty,
+        originalPrice: unitPrice,
+        price: unitPrice,
+        finalPrice: unitPrice,
+        unitPrice: unitPrice,
+        basePrice: _manualOrderProductBasePrice(product),
+        channelPrice: unitPrice,
+        channelName: channelName,
+        total: lineTotal,
+        choices: choices,
+        selectedOptions: choices,
+        variants: choices,
+        options: choices,
+        choiceDetails: choices,
+        menuChoices: choices,
+        fichaTecnicaId: _firstText(product.fichaTecnicaId, product.fichaId, product.recipeId, ''),
+        fichaId: _firstText(product.fichaId, product.fichaTecnicaId, product.recipeId, ''),
+        sourceItemId: _firstText(product.sourceItemId, product.produtoProntoId, product.readyProductId, ''),
+        produtoProntoId: _firstText(product.produtoProntoId, product.sourceItemId, product.readyProductId, ''),
+        stockUnitCost: _num(_firstText(product.stockUnitCost, product.costPerYield, product.custoUnitario, product.custoAtual, product.custo, product.cost, '')),
+        fiscal: Object.assign({}, product.fiscal || {}),
+        priceOrigin: 'marketplace_import',
+        importPriceSource: unitPrice > 0 ? 'preco_sistema_canal' : 'sem_preco_canal',
+        importMatchConfidence: item.match && item.match.confidence || '',
+        importMatchLabel: item.match && item.match.label || ''
+      };
+    });
+  }
+
+  function _glovoImportedRawSummary(row) {
+    return {
+      source: 'glovo_csv',
+      grossTotal: _num(row.gross),
+      payoutAmount: _num(row.net),
+      importedFeeTotal: Math.max(0, +(_num(row.gross) - _num(row.net)).toFixed(2)),
+      csvFeeTotal: _num(row.feesTotal),
+      commission: _num(row.commission),
+      tax: _num(row.tax),
+      onlineFee: _num(row.onlineFee),
+      marketing: _num(row.marketing),
+      operational: _num(row.operational),
+      packaging: _num(row.packaging),
+      serviceFee: _num(row.serviceFee)
+    };
+  }
+
+  function _parseImportDateTime(value) {
+    var raw = String(value || '').trim();
+    var m = raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{1,2}):(\d{2}))?/);
+    if (m) {
+      return {
+        date: m[1] + '-' + m[2] + '-' + m[3],
+        time: _normalizeTimeValue((m[4] || '00') + ':' + (m[5] || '00'))
+      };
+    }
+    var dmy = raw.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})(?:[ T](\d{1,2}):(\d{2}))?/);
+    if (dmy) {
+      return {
+        date: dmy[3] + '-' + String(dmy[2]).padStart(2, '0') + '-' + String(dmy[1]).padStart(2, '0'),
+        time: _normalizeTimeValue((dmy[4] || '00') + ':' + (dmy[5] || '00'))
+      };
+    }
+    return { date: _localDateKey(), time: _currentTimeValue() };
+  }
+
+  function _importMoney(value) {
+    var raw = String(value == null ? '' : value).trim();
+    if (!raw) return 0;
+    raw = raw.replace(/[^\d,.\-]/g, '');
+    if (raw.indexOf(',') >= 0 && raw.indexOf('.') >= 0) raw = raw.replace(/\./g, '').replace(',', '.');
+    else if (raw.indexOf(',') >= 0) raw = raw.replace(',', '.');
+    var n = parseFloat(raw);
+    return isFinite(n) ? Math.round(n * 100) / 100 : 0;
+  }
+
+  function _parseGlovoItems(text) {
+    return _splitGlovoTopLevelItems(text).map(function (part) {
+      var raw = String(part || '').trim();
+      var choicesText = '';
+      var bracket = raw.match(/\[([\s\S]*)\]\s*$/);
+      if (bracket) {
+        choicesText = bracket[1] || '';
+        raw = raw.slice(0, bracket.index).trim();
+      }
+      var match = raw.match(/^(\d+(?:[.,]\d+)?)\s+(.+)$/);
+      var qty = match ? _importMoney(match[1]) : 1;
+      var name = match ? match[2].trim() : raw;
+      var choices = choicesText ? _splitGlovoChoices(choicesText) : [];
+      return name ? { qty: qty || 1, name: name, choices: choices } : null;
+    }).filter(Boolean);
+  }
+
+  function _splitGlovoTopLevelItems(text) {
+    var parts = [];
+    var current = '';
+    var depth = 0;
+    String(text || '').replace(/\r?\n/g, ' ').split('').forEach(function (ch) {
+      if (ch === '[') depth++;
+      if (ch === ']') depth = Math.max(0, depth - 1);
+      if (ch === ',' && depth === 0) {
+        if (current.trim()) parts.push(current.trim());
+        current = '';
+      } else {
+        current += ch;
+      }
+    });
+    if (current.trim()) parts.push(current.trim());
+    return parts;
+  }
+
+  function _splitGlovoChoices(text) {
+    return String(text || '').split(',').map(function (part) {
+      var raw = part.trim();
+      var match = raw.match(/^(\d+(?:[.,]\d+)?)\s+(.+)$/);
+      return {
+        qty: match ? _importMoney(match[1]) : 1,
+        name: match ? match[2].trim() : raw
+      };
+    }).filter(function (choice) { return choice.name; });
+  }
+
+  function _orderImportItemKey(channelName, name) {
+    return _channelAliasKey(channelName || 'canal') + '::' + _orderImportNormalizeName(name);
+  }
+
+  function _orderImportNormalizeName(value) {
+    return _fold(value || '')
+      .replace(/[×x]/g, ' x ')
+      .replace(/[^\w\s]/g, ' ')
+      .replace(/\b(de|da|do|das|dos|com|con|e|y|a|o|as|os)\b/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function _orderImportProductNames(product) {
+    var names = [];
+    function add(value) {
+      var text = String(value || '').trim();
+      if (text && names.indexOf(text) < 0) names.push(text);
+    }
+    add(product && product.name);
+    add(product && product.nome);
+    add(product && product.title);
+    add(product && product.label);
+    add(product && product.fiscalName);
+    ['aliases', 'apelidos', 'marketplaceAliases', 'marketplaceNames', 'externalNames', 'glovoNames', 'importAliases'].forEach(function (key) {
+      var value = product && product[key];
+      if (Array.isArray(value)) value.forEach(add);
+      else if (value && typeof value === 'object') Object.keys(value).forEach(function (k) { add(value[k]); });
+      else add(value);
+    });
+    return names;
+  }
+
+  function _orderImportMatchProduct(item, channelName) {
+    var state = window._orderImportPreviewState || {};
+    var mappings = state.mappings || {};
+    var itemKey = _orderImportItemKey(channelName, item && item.name);
+    var manualId = mappings[itemKey] || '';
+    if (manualId) {
+      var manualProduct = _findProductByAnyId(manualId);
+      if (manualProduct) return { product: manualProduct, confidence: 'manual', label: 'Selecionado na prévia' };
+    }
+    var target = _orderImportNormalizeName(item && item.name);
+    if (!target) return { product: null, confidence: 'none', label: 'Sem nome para vincular' };
+    var exact = null;
+    var partial = null;
+    (_products || []).forEach(function (product) {
+      if (exact) return;
+      var names = _orderImportProductNames(product).map(_orderImportNormalizeName).filter(Boolean);
+      if (names.some(function (name) { return name === target; })) {
+        exact = product;
+        return;
+      }
+      if (!partial && names.some(function (name) {
+        return name.length >= 8 && target.length >= 8 && (name.indexOf(target) >= 0 || target.indexOf(name) >= 0);
+      })) {
+        partial = product;
+      }
+    });
+    if (exact) return { product: exact, confidence: 'exact', label: 'Nome reconhecido' };
+    if (partial) return { product: partial, confidence: 'review', label: 'Possível vínculo' };
+    return { product: null, confidence: 'none', label: 'Sem vínculo' };
+  }
+
+  function _orderImportProductOptions(selectedId) {
+    var selected = String(selectedId || '');
+    var list = (_products || []).slice().sort(function (a, b) {
+      return _orderImportProductLabel(a).localeCompare(_orderImportProductLabel(b));
+    });
+    var html = '<option value="">Sem vínculo</option>';
+    html += list.map(function (product) {
+      var id = String(product && product.id || '');
+      return '<option value="' + _esc(id) + '"' + (id === selected ? ' selected' : '') + '>' + _esc(_orderImportProductLabel(product)) + '</option>';
+    }).join('');
+    return html;
+  }
+
+  function _orderImportProductLabel(product) {
+    return _firstText(product && product.name, product && product.nome, product && product.title, 'Produto');
+  }
+
+  function _orderImportMatchBadge(match) {
+    match = match || {};
+    var key = match.confidence || 'none';
+    var color = key === 'exact' || key === 'manual' ? '#1A9E5A' : (key === 'review' ? '#B45309' : '#B42318');
+    var bg = key === 'exact' || key === 'manual' ? '#EDFAF3' : (key === 'review' ? '#FFF8E8' : '#FFF4F2');
+    return '<span style="display:inline-flex;align-items:center;width:max-content;max-width:100%;padding:3px 7px;border-radius:999px;background:' + bg + ';color:' + color + ';font-size:10.5px;font-weight:800;line-height:1.2;">' + _esc(match.label || 'Sem vínculo') + '</span>';
+  }
+
+  function _isDuplicateImportedOrder(channelName, orderId) {
+    if (!orderId) return false;
+    var id = _fold(orderId);
+    var channelKey = _channelAliasKey(channelName || '');
+    return (_orders || []).some(function (order) {
+      var existingId = _firstText(order.externalOrderId, order.externalId, order.sourceOrderId, order.platformOrderId, order.glovoOrderId, order.marketplaceOrderId, order.orderNumber, '');
+      if (_fold(existingId) !== id) return false;
+      var existingChannel = _channelAliasKey(_firstText(order.channel, order.source, order.originChannel, order.originSource, ''));
+      return !channelKey || !existingChannel || existingChannel === channelKey || existingChannel === 'glovo';
+    });
+  }
+
+  function _renderOrderImportPreview() {
+    var el = document.getElementById('order-import-preview-result');
+    if (!el) return;
+    var state = window._orderImportPreviewState || {};
+    _syncOrderImportSubmitButton(state);
+    if (state.error) {
+      el.innerHTML = '<div style="border:1px solid #F0C7C0;border-radius:14px;padding:14px;background:#FFF4F2;color:#B42318;font-size:13px;line-height:1.5;">' + _esc(state.error) + '</div>';
+      return;
+    }
+    if (!state.rows || !state.rows.length) {
+      el.innerHTML = state.fileName ? '<div style="border:1px dashed #E3D8D0;border-radius:14px;padding:18px;background:#fff;color:#6F6860;font-size:13px;line-height:1.5;">Lendo ' + _esc(state.fileName) + '...</div>' : _orderImportEmptyHtml();
+      return;
+    }
+    var rows = state.parsed || [];
+    var delivered = rows.filter(function (r) { return r.status.key === 'entregue'; }).length;
+    var cancelled = rows.filter(function (r) { return r.status.key === 'cancelado'; }).length;
+    var duplicates = rows.filter(function (r) { return r.warnings.indexOf('Possível duplicado no Admin.') >= 0; }).length;
+    var alerts = rows.reduce(function (sum, r) { return sum + r.warnings.length; }, 0);
+    var itemTotals = _orderImportItemMatchTotals(rows);
+    var html = '<div style="display:flex;flex-direction:column;gap:12px;">' +
+      _orderImportStockModeNotice() +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">' +
+        _orderImportStat('Pedidos lidos', rows.length) +
+        _orderImportStat('Entregues', delivered) +
+        _orderImportStat('Cancelados', cancelled) +
+        _orderImportStat('Itens vinculados', itemTotals.matched + '/' + itemTotals.total) +
+        _orderImportStat('Duplicados', duplicates) +
+        _orderImportStat('Avisos', alerts) +
+      '</div>' +
+      '<div style="overflow:auto;border:1px solid #EEE5DE;border-radius:14px;background:#fff;">' +
+        '<table style="width:100%;border-collapse:collapse;min-width:980px;">' +
+          '<thead><tr style="background:#FAF7F3;color:#6F6860;font-size:11px;text-transform:uppercase;letter-spacing:.04em;">' +
+            '<th style="text-align:left;padding:11px 12px;">Pedido</th>' +
+            '<th style="text-align:left;padding:11px 12px;">Data e status</th>' +
+            '<th style="text-align:left;padding:11px 12px;">Valores</th>' +
+            '<th style="text-align:left;padding:11px 12px;">Itens e vínculos</th>' +
+            '<th style="text-align:left;padding:11px 12px;">Herança do canal</th>' +
+            '<th style="text-align:left;padding:11px 12px;">Avisos</th>' +
+          '</tr></thead><tbody>' +
+          rows.map(_orderImportPreviewRowHtml).join('') +
+          '</tbody></table>' +
+      '</div>' +
+      '<div style="font-size:12.5px;color:#6F6860;line-height:1.5;">Prévia apenas. A criação dos pedidos, a conferência final e o envio ao financeiro ficam para a próxima fase.</div>' +
+    '</div>';
+    el.innerHTML = html;
+    _syncOrderImportSubmitButton(state);
+  }
+
+  function _syncOrderImportSubmitButton(state) {
+    var btn = document.getElementById('order-import-submit');
+    if (!btn) return;
+    state = state || window._orderImportPreviewState || {};
+    var rows = Array.isArray(state.parsed) ? state.parsed : [];
+    var validation = rows.length ? _orderImportValidation(rows) : { importable: [] };
+    var disabled = !!state.importing || !validation.importable.length;
+    btn.disabled = disabled;
+    btn.style.opacity = disabled ? '.55' : '1';
+    btn.style.cursor = disabled ? 'not-allowed' : 'pointer';
+    btn.textContent = state.importing ? 'Importando...' : ('Importar ' + (validation.importable.length || '') + ' pedido(s) válidos');
+  }
+
+  function _orderImportStat(label, value) {
+    return '<div style="border:1px solid #EEE5DE;border-radius:13px;background:#fff;padding:12px;">' +
+      '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#8A7E7C;font-weight:800;">' + _esc(label) + '</div>' +
+      '<div style="font-size:22px;font-weight:800;color:#1F1F1F;margin-top:4px;">' + _esc(value) + '</div>' +
+    '</div>';
+  }
+
+  function _orderImportStockModeNotice() {
+    if (_orderImportStockMode() === 'deduct') {
+      return '<div style="padding:11px 13px;border:1px solid #F0D5A8;border-radius:12px;background:#FFF8E8;color:#8A5A18;font-size:12.5px;line-height:1.45;">Pedidos entregues importados vão baixar estoque usando a mesma cadeia dos pedidos normais. Se faltar saldo, a regra de regularização do estoque continua valendo.</div>';
+    }
+    return '<div style="padding:11px 13px;border:1px solid #EADFD8;border-radius:12px;background:#FFFCF8;color:#6F6860;font-size:12.5px;line-height:1.45;">Estoque em modo histórico: os pedidos serão importados sem alterar saldos, movimentações ou regularizações.</div>';
+  }
+
+  function _orderImportItemMatchTotals(rows) {
+    var total = 0;
+    var matched = 0;
+    (rows || []).forEach(function (row) {
+      (row.items || []).forEach(function (item) {
+        total++;
+        if (item.match && item.match.product) matched++;
+      });
+    });
+    return { total: total, matched: matched };
+  }
+
+  function _orderImportPreviewRowHtml(row) {
+    var items = row.items.slice(0, 4).map(function (item) {
+      var choices = item.choices && item.choices.length ? ' <span style="color:#8A7E7C;">(' + _esc(item.choices.map(function (c) { return c.name; }).join(', ')) + ')</span>' : '';
+      var product = item.match && item.match.product;
+      var selectedId = product && product.id || '';
+      return '<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,240px);gap:8px;align-items:start;padding:5px 0;border-bottom:1px solid #F4ECE6;">' +
+        '<div style="min-width:0;"><div style="font-weight:750;color:#1F1F1F;">' + _esc(item.qty) + 'x ' + _esc(item.name) + '</div>' + choices + '<div style="margin-top:5px;">' + _orderImportMatchBadge(item.match) + '</div></div>' +
+        '<select data-key="' + _esc(item.itemKey || '') + '" onchange="Modules.Pedidos._setOrderImportItemMapping(this.dataset.key,this.value)" style="width:100%;height:34px;border:1px solid #E8DCD7;border-radius:10px;background:#FFFCF8;color:#1F1F1F;font-size:12px;font-family:inherit;padding:0 9px;">' + _orderImportProductOptions(selectedId) + '</select>' +
+      '</div>';
+    }).join('');
+    if (row.items.length > 4) items += '<div style="color:#8A7E7C;">+' + (row.items.length - 4) + ' item(ns)</div>';
+    var inheritance = [
+      row.channelName ? 'Canal: ' + row.channelName : 'Canal não selecionado',
+      row.paymentMethod ? 'Pagamento: ' + _paymentMethodLabel(row.paymentMethod) : 'Pagamento sem padrão',
+      row.bankAccountId ? 'Conta definida' : 'Conta sem padrão',
+      row.category && (row.category.name || row.category.id) ? 'Categoria: ' + (row.category.name || row.category.id) : 'Categoria sem padrão'
+    ].map(function (txt) { return '<div>' + _esc(txt) + '</div>'; }).join('');
+    var warnings = row.warnings.length ? row.warnings.map(function (w) { return '<div style="color:#B45309;">' + _esc(w) + '</div>'; }).join('') : '<span style="color:#1A9E5A;">Sem avisos</span>';
+    var imported = _orderImportRowImported(row);
+    return '<tr style="border-top:1px solid #F0E8E0;font-size:12.5px;color:#332F2D;vertical-align:top;">' +
+      '<td style="padding:12px;"><div style="font-weight:800;color:#1F1F1F;">' + _esc(row.orderId || 'Sem ID') + '</div><div style="color:#8A7E7C;">Glovo</div>' + (imported ? '<div style="margin-top:6px;color:#1A9E5A;font-size:11px;font-weight:800;">Importado</div>' : '') + '</td>' +
+      '<td style="padding:12px;"><div>' + _esc(row.receivedAt || 'Sem data') + '</div><div style="font-weight:700;color:' + (row.status.key === 'cancelado' ? '#B42318' : '#1A9E5A') + ';">' + _esc(row.status.label) + '</div></td>' +
+      '<td style="padding:12px;"><div>Bruto: <strong>' + UI.fmt(row.gross) + '</strong></div><div>Taxas: ' + UI.fmt(row.feesTotal) + '</div><div>Saldo: <strong>' + UI.fmt(row.net) + '</strong></div></td>' +
+      '<td style="padding:12px;line-height:1.45;">' + (items || '<span style="color:#8A7E7C;">Nenhum item lido</span>') + '</td>' +
+      '<td style="padding:12px;line-height:1.45;">' + inheritance + '</td>' +
+      '<td style="padding:12px;line-height:1.45;">' + warnings + '</td>' +
+    '</tr>';
+  }
+
   function _bankAccountOptions(selected) {
     var current = String(selected || '').trim();
     var active = (_bankAccounts || []).filter(function (account) {
@@ -8661,6 +9639,10 @@ Modules.Pedidos = (function () {
       channel: String(channelMeta.raw || ''),
       salesChannel: String(channelMeta.label || ''),
       canalVenda: String(channelMeta.label || ''),
+      marketplace: String(order.marketplace || order.marketplaceName || order.importedFrom || ''),
+      importedFrom: String(order.importedFrom || ''),
+      importSource: String(order.importSource || ''),
+      externalOrderId: String(order.externalOrderId || order.platformOrderId || order.glovoOrderId || ''),
       customerId: String(order.customerId || order.clientId || ''),
       pessoaId: String(order.customerId || order.clientId || ''),
       pessoaNome: String(order.customerName || order.clientName || order.name || ''),
@@ -8770,7 +9752,7 @@ Modules.Pedidos = (function () {
     _showDetailWhatsappPrompt: _showDetailWhatsappPrompt, _hideDetailWhatsappPrompt: _hideDetailWhatsappPrompt,
     _sendDetailWhatsapp: _sendDetailWhatsapp,
     _saveKitchenDetail: _saveKitchenDetail, _waFromDetail: _waFromDetail, _waFromKitchenDetail: _waFromKitchenDetail, _whatsapp: _whatsapp, _cancelOrder: _cancelOrder,
-    _openNewOrder: _openNewOrder, _openTpvOrder: _openTpvOrder, _createTpvOrder: _createTpvOrder, _saveNewOrder: _saveNewOrder,
+    _openNewOrder: _openNewOrder, _openOrderImportPreview: _openOrderImportPreview, _handleOrderImportFile: _handleOrderImportFile, _refreshOrderImportPreview: _refreshOrderImportPreview, _setOrderImportItemMapping: _setOrderImportItemMapping, _setOrderImportStockMode: _setOrderImportStockMode, _importGlovoPreviewOrders: _importGlovoPreviewOrders, _openTpvOrder: _openTpvOrder, _createTpvOrder: _createTpvOrder, _saveNewOrder: _saveNewOrder,
     _manualOrderSearchCustomers: _manualOrderSearchCustomers,
     _manualOrderFocusCustomers: _manualOrderFocusCustomers,
     _manualOrderChooseCustomer: _manualOrderChooseCustomer,

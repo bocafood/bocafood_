@@ -1,5 +1,70 @@
 # AI Changelog
 
+## 2026-06-06 — Pedidos: estoque na importação Glovo
+- Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Adicionei no modal de importação Glovo a escolha `Estoque`: `Só histórico` ou `Baixar estoque dos entregues`.
+- O modo padrão é `Só histórico`, mantendo pedidos importados sem alterar saldos, movimentações ou regularizações.
+- Quando a usuária escolhe `Baixar estoque dos entregues`, apenas pedidos entregues importados baixam estoque usando a mesma cadeia dos pedidos normais.
+- Pedidos cancelados continuam sem baixa de estoque.
+- A prévia mostra um aviso claro do modo escolhido e sinaliza nas linhas quando o pedido vai baixar estoque ao importar.
+- O pedido importado registra `stockImportMode` e `stockImportDeductEnabled` para rastrear como o estoque foi tratado.
+- Atualizei o cache-buster de `pedidos.js` no Admin.
+
+## 2026-06-06 — Financeiro: conferência de pedidos importados
+- Arquivos alterados: `public/js/modules/pedidos.js`, `public/js/modules/financeiro.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Reforcei os campos financeiros enviados pelo pedido importado para a entrada do Financeiro, incluindo marketplace, origem de importação e ID externo do pedido.
+- Em `Financeiro > Entradas`, entradas vindas de marketplace passam a mostrar abaixo da descrição o resumo `Bruto · Taxas · Líquido`.
+- No modal `Detalhes da entrada`, adicionei o card `Conferência do canal`, com venda bruta, taxas/comissões, entrada líquida, origem, payout informado e aviso de conferência quando aplicável.
+- Mantive a regra financeira: a entrada fica pelo líquido e em aberto para conferência antes de marcar como recebida.
+- Atualizei cache-busters de `pedidos.js` e `financeiro.js` no Admin.
+
+## 2026-06-06 — Pedidos: importação real Glovo
+- Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Adicionei no modal de prévia o botão `Importar pedidos válidos`, criando pedidos reais no Admin a partir do CSV da Glovo.
+- A importação só libera pedidos sem duplicidade, com canal configurado, forma de pagamento, conta bancária, categoria financeira e todos os itens vinculados ao cardápio.
+- Cada pedido importado recebe IDs externos da Glovo (`externalOrderId`, `platformOrderId`, `glovoOrderId`) para evitar reimportação acidental.
+- Os itens importados usam os produtos vinculados ao cardápio e cada linha considera o preço cadastrado no sistema para o canal de venda; se não houver preço específico do canal, usa o preço base do produto.
+- Quando a soma dos preços do sistema difere do total bruto informado pela Glovo, o pedido registra a diferença como ajuste de importação, mantendo a divergência visível.
+- O pedido mantém o total bruto da Glovo e registra as taxas reais do arquivo como abatimento financeiro do canal, deixando a entrada financeira pelo líquido em aberto para conferência.
+- Pedidos cancelados são importados como `Cancelado` e não geram entrada financeira ativa.
+- A importação real não força baixa de estoque retroativa; o pedido fica marcado como histórico importado da Glovo.
+- Atualizei o cache-buster de `pedidos.js` no Admin.
+
+## 2026-06-06 — Pedidos: conferência de itens importados
+- Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Evoluí a prévia de importação Glovo para conferir os itens do arquivo contra o cardápio cadastrado.
+- Cada item lido no CSV agora tenta encontrar um produto do cardápio por nome, aliases/nomes externos e equivalência conservadora.
+- A tabela mostra o vínculo encontrado, sinaliza quando é apenas sugestão e permite trocar manualmente o produto dentro da própria prévia.
+- A prévia passa a mostrar quantos itens do arquivo já estão vinculados e quantos ainda precisam de revisão antes da importação real.
+- Esta fase continua sem salvar pedidos, sem criar regras persistentes, sem baixar estoque e sem enviar nada ao financeiro.
+- Atualizei o cache-buster de `pedidos.js` no Admin.
+
+## 2026-06-06 — Pedidos: prévia de importação Glovo
+- Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Adicionei em `Pedidos` o botão `Importar pedidos`, abrindo uma prévia segura para CSV da Glovo.
+- A prévia lê CSV com aspas, vírgulas e quebras de linha dentro dos campos, sem dividir o arquivo por linha simples.
+- O sistema mostra pedidos lidos, entregues, cancelados, possíveis duplicados, avisos, valores brutos, taxas, saldo e itens identificados.
+- A leitura herda do canal selecionado a forma de pagamento, categoria financeira e conta bancária já configuradas.
+- Esta fase não salva pedidos, não baixa estoque e não envia nada ao financeiro; ela apenas valida como o arquivo será entendido antes da importação real.
+- Atualizei o cache-buster de `pedidos.js` no Admin.
+
+## 2026-06-06 — Canais de venda: padrão financeiro para importação
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `public/js/modules/dinheiro.js`, `public/js/modules/dashboard.js`, `public/js/modules/suporte.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Em `Configurações > Canais de venda`, adicionei o campo `Forma de pagamento padrão` ao lado de `Conta bancária padrão`.
+- O canal agora salva forma de pagamento em chaves compatíveis (`formaPagamento`, `forma_pagamento`, `defaultPaymentMethod`, `paymentMethod`, `paymentMethodName`, `metodoPagamento`) para pedidos e futuras importações herdarem o mesmo padrão.
+- Mantive `Categoria de entrada` e `Conta bancária padrão` como base financeira do canal, deixando o cadastro pronto para importação por marketplace, começando pela Glovo.
+- Atualizei `Preços e Margem > Regras` para preservar a forma de pagamento do canal quando a usuária editar taxas/comissões por ali.
+- Atualizei as cópias do onboarding e suporte para explicar que o padrão do canal ajuda em pedidos/importações, mas ainda pode ser ajustado no pedido quando uma venda vier diferente.
+- Atualizei cache-busters dos módulos afetados no Admin.
+
+## 2026-06-06 — Pedidos: resumo de desempenho premium
+- Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Reformulei a subaba `Resumo` em `Pedidos > Desempenho` com uma apresentação mais premium, inspirada no padrão visual de `Maturidade do Negócio`.
+- O resumo agora abre com um card executivo, leitura do faturamento filtrado, métricas principais e sinais do cardápio em uma hierarquia visual mais clara.
+- Reorganizei `Mais vendidos` e `Onde olhar primeiro` em painéis com acabamento mais sofisticado, mantendo a matriz e os cálculos existentes.
+- A mudança é visual e de leitura: não altera pedidos, filtros, cálculo de faturamento, matriz ou dados salvos.
+- Atualizei o cache-buster de `pedidos.js` no Admin.
+
 ## 2026-06-06 — Preços: itens visíveis na combinação
 - Arquivos alterados: `public/js/modules/dinheiro.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - Na listagem `Composição do Preço`, linhas de combinação de menu agora mostram abaixo do nome do menu apenas os nomes dos itens escolhidos, sem o título dos grupos.

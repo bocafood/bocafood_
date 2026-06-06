@@ -140,6 +140,12 @@ Modules.Dinheiro = (function () {
         financialCategoryName: String(ch.financialCategoryName || ch.entradaCategoriaNome || ch.incomeCategoryName || ch.categoriaEntradaNome || ch.categoriaFinanceiraNome || ''),
         categoriaFinanceiraId: String(ch.categoriaFinanceiraId || ch.entradaCategoriaId || ch.incomeCategoryId || ch.categoriaEntradaId || ch.financialCategoryId || ''),
         categoriaFinanceiraNome: String(ch.categoriaFinanceiraNome || ch.entradaCategoriaNome || ch.incomeCategoryName || ch.categoriaEntradaNome || ch.financialCategoryName || ''),
+        formaPagamento: String(ch.formaPagamento || ch.forma_pagamento || ch.defaultPaymentMethod || ch.paymentMethod || ch.paymentMethodName || ch.metodoPagamento || ''),
+        forma_pagamento: String(ch.forma_pagamento || ch.formaPagamento || ch.defaultPaymentMethod || ch.paymentMethod || ch.paymentMethodName || ch.metodoPagamento || ''),
+        defaultPaymentMethod: String(ch.defaultPaymentMethod || ch.formaPagamento || ch.forma_pagamento || ch.paymentMethod || ch.paymentMethodName || ch.metodoPagamento || ''),
+        paymentMethod: String(ch.paymentMethod || ch.defaultPaymentMethod || ch.formaPagamento || ch.forma_pagamento || ch.paymentMethodName || ch.metodoPagamento || ''),
+        paymentMethodName: String(ch.paymentMethodName || ch.paymentMethod || ch.defaultPaymentMethod || ch.formaPagamento || ch.forma_pagamento || ch.metodoPagamento || ''),
+        metodoPagamento: String(ch.metodoPagamento || ch.paymentMethod || ch.defaultPaymentMethod || ch.formaPagamento || ch.forma_pagamento || ch.paymentMethodName || ''),
         locked: cardapio || tpv || !!ch.locked
       };
     });
@@ -2627,6 +2633,12 @@ Modules.Dinheiro = (function () {
         financialCategoryName: String(prev.financialCategoryName || prev.entradaCategoriaNome || prev.incomeCategoryName || prev.categoriaEntradaNome || prev.categoriaFinanceiraNome || ''),
         categoriaFinanceiraId: String(prev.categoriaFinanceiraId || prev.entradaCategoriaId || prev.incomeCategoryId || prev.categoriaEntradaId || prev.financialCategoryId || ''),
         categoriaFinanceiraNome: String(prev.categoriaFinanceiraNome || prev.entradaCategoriaNome || prev.incomeCategoryName || prev.categoriaEntradaNome || prev.financialCategoryName || ''),
+        formaPagamento: String(prev.formaPagamento || prev.forma_pagamento || prev.defaultPaymentMethod || prev.paymentMethod || prev.paymentMethodName || prev.metodoPagamento || ''),
+        forma_pagamento: String(prev.forma_pagamento || prev.formaPagamento || prev.defaultPaymentMethod || prev.paymentMethod || prev.paymentMethodName || prev.metodoPagamento || ''),
+        defaultPaymentMethod: String(prev.defaultPaymentMethod || prev.formaPagamento || prev.forma_pagamento || prev.paymentMethod || prev.paymentMethodName || prev.metodoPagamento || ''),
+        paymentMethod: String(prev.paymentMethod || prev.defaultPaymentMethod || prev.formaPagamento || prev.forma_pagamento || prev.paymentMethodName || prev.metodoPagamento || ''),
+        paymentMethodName: String(prev.paymentMethodName || prev.paymentMethod || prev.defaultPaymentMethod || prev.formaPagamento || prev.forma_pagamento || prev.metodoPagamento || ''),
+        metodoPagamento: String(prev.metodoPagamento || prev.paymentMethod || prev.defaultPaymentMethod || prev.formaPagamento || prev.forma_pagamento || prev.paymentMethodName || ''),
         locked: _isCardapioChannel({ name: name }) || _isTpvChannel({ name: name }) || !!prev.locked
       };
     }).filter(function (ch) { return !!ch.name; });

@@ -1268,11 +1268,13 @@ Modules.Dashboard = (function () {
         fields: [
           ['Nome do canal', 'Use nomes fáceis de reconhecer, como Cardápio, Instagram, WhatsApp, Balcão ou Marketplace.'],
           ['Categoria financeira', 'Escolha onde o dinheiro desse canal aparece no financeiro. Se ainda não existir uma categoria boa, crie ali mesmo no campo. Exemplo: Vendas Cardápio ou Vendas Instagram.'],
+          ['Conta bancária padrão', 'Escolha onde normalmente cai o dinheiro desse canal. Isso ajuda pedidos e importações a já nascerem com a conta correta.'],
+          ['Forma de pagamento padrão', 'Use quando esse canal costuma vir sempre de um jeito, como Glovo online, Stripe ou cartão. No pedido ainda dá para ajustar quando for diferente.'],
           ['Comissão', 'Preencha só se o canal cobra uma porcentagem. Se não cobra, deixe zerado.'],
           ['Taxa fixa', 'Use quando existe um valor fixo por venda ou pedido. Se não existe, deixe zerado.'],
           ['Imposto comissão %', 'Use quando existe imposto sobre a comissão cobrada pelo canal. Se não existe ou você ainda não controla isso, deixe zerado.']
         ],
-        actions: ['Mantenha apenas canais que o negócio realmente usa.', 'Se precisar organizar melhor o financeiro, crie a categoria de entrada no próprio campo de categoria.', 'Não invente taxa para preencher campo.', 'A forma de pagamento será escolhida em cada venda ou pedido, porque pode mudar de cliente para cliente.', 'Salve e depois use esses canais ao criar pedidos e analisar performance.'],
+        actions: ['Mantenha apenas canais que o negócio realmente usa.', 'Se precisar organizar melhor o financeiro, crie a categoria de entrada no próprio campo de categoria.', 'Preencha conta e forma de pagamento padrão quando esse canal tiver uma rotina clara de recebimento.', 'Não invente taxa para preencher campo.', 'Salve e depois use esses canais ao criar pedidos, importar marketplaces e analisar performance.'],
         ready: 'Está pronto quando os canais reais estão salvos com taxas corretas ou zeradas.'
       },
       'Definir preço e margem': {

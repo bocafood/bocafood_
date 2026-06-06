@@ -114,6 +114,51 @@ Modules.Financeiro = (function () {
     }
     return parseFloat(raw) || 0;
   }
+  function _marketplaceFinanceInfo(m) {
+    m = m || {};
+    var breakdown = m.channelFeeBreakdown || {};
+    var source = String(breakdown.source || m.importSource || m.importedFrom || m.marketplace || '').trim();
+    var gross = _parseNum(m.valorBrutoPedido != null ? m.valorBrutoPedido : (m.grossOrderTotal != null ? m.grossOrderTotal : breakdown.grossTotal));
+    var fees = _parseNum(m.channelFeeTotal != null ? m.channelFeeTotal : (m.channelFeesTotal != null ? m.channelFeesTotal : (breakdown.importedFeeTotal != null ? breakdown.importedFeeTotal : breakdown.totalFees)));
+    var net = _parseNum(m.valorLiquidoReceber != null ? m.valorLiquidoReceber : (m.netReceivable != null ? m.netReceivable : (m.liquidReceivable != null ? m.liquidReceivable : m.valor)));
+    var isMarketplace = !!(source || gross > 0 && fees > 0 || m.requiresFinanceConfirmation || m.financeReviewPending);
+    if (!isMarketplace) return null;
+    return {
+      source: source || m.salesChannel || m.canalVenda || m.channel || 'Canal de venda',
+      gross: gross,
+      fees: fees,
+      net: net,
+      commission: _parseNum(m.channelCommissionAmount != null ? m.channelCommissionAmount : breakdown.commission),
+      commissionTax: _parseNum(m.channelCommissionTaxAmount != null ? m.channelCommissionTaxAmount : breakdown.tax),
+      fixedFee: _parseNum(m.channelFixedFeeAmount != null ? m.channelFixedFeeAmount : breakdown.fixedFee),
+      payout: _parseNum(breakdown.payoutAmount),
+      review: !!(m.requiresFinanceConfirmation || m.financeReviewPending)
+    };
+  }
+  function _marketplaceFinanceLine(m) {
+    var info = _marketplaceFinanceInfo(m);
+    if (!info) return '';
+    return '<div style="font-size:11px;color:#8A7E7C;margin-top:3px;line-height:1.35;white-space:normal;">Bruto ' + _fmtVal(info.gross) + ' · Taxas ' + _fmtVal(info.fees) + ' · Líquido ' + _fmtVal(info.net) + '</div>';
+  }
+  function _marketplaceFinanceCard(m, detailItem, cardStyle) {
+    var info = _marketplaceFinanceInfo(m);
+    if (!info) return '';
+    var detail = [
+      detailItem('Venda bruta', '<span style="color:#1F1F1F;">' + _fmtVal(info.gross) + '</span>'),
+      detailItem('Taxas e comissões', '<span style="color:#B42318;">-' + _fmtVal(info.fees) + '</span>'),
+      detailItem('Entrada líquida', '<span style="color:#1F6F43;">' + _fmtVal(info.net) + '</span>'),
+      detailItem('Origem', _esc(info.source || 'Marketplace'))
+    ];
+    if (info.commission) detail.push(detailItem('Comissão', _fmtVal(info.commission)));
+    if (info.commissionTax) detail.push(detailItem('Imposto/taxa', _fmtVal(info.commissionTax)));
+    if (info.fixedFee) detail.push(detailItem('Taxa fixa', _fmtVal(info.fixedFee)));
+    if (info.payout) detail.push(detailItem('Payout informado', _fmtVal(info.payout)));
+    return '<div style="' + cardStyle + '">' +
+      _modalIconTitle('payments','Conferência do canal','Confira o valor bruto vendido no canal, as taxas descontadas e o líquido que deve entrar na conta.') +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;">' + detail.join('') + '</div>' +
+      (info.review ? '<div style="margin-top:12px;padding:10px 12px;border-radius:12px;background:#FFF8E8;color:#8A5A18;font-size:12px;line-height:1.45;">Esta entrada veio de pedido/importação e fica em aberto para você conferir antes de marcar como recebida.</div>' : '') +
+    '</div>';
+  }
   function _moneyInputDisplay(v) {
     var n = _parseNum(v);
     return n ? _fmtVal(n) : '';
@@ -1662,7 +1707,7 @@ Modules.Financeiro = (function () {
                 return '<tr style="cursor:pointer;transition:background .15s ease;" onclick="Modules.Financeiro._openMovDetalheModal(\''+m.id+'\')" onmouseover="this.style.background=\'#FAF8F4\'" onmouseout="this.style.background=\'transparent\'">'+
                   '<td style="padding:12px 8px;text-align:center;"><input type="checkbox" '+(_movSelecionadas.indexOf(m.id)>=0?'checked':'')+' onclick="event.stopPropagation();" onchange="Modules.Financeiro._toggleMovSelecionada(\''+m.id+'\',this.checked)" style="accent-color:#B42318;"></td>'+
                   '<td style="padding:12px 14px;font-size:13px;color:#6F6860;"><div style="font-weight:700;color:#1F1F1F;">'+_esc(m.numeroSequencial||'—')+'</div><div style="font-size:11px;color:#6F6860;margin-top:2px;">'+_esc(_fmtDateDisplay(m.data))+'</div></td>'+
-                  '<td style="padding:10px 14px;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><div style="font-weight:600;overflow:hidden;text-overflow:ellipsis;">'+_esc(m.descricao||'—')+'</div>'+(m.numeroDocumento||m.numDocumento?'<div style="font-size:11px;color:#8A7E7C;margin-top:2px;overflow:hidden;text-overflow:ellipsis;">Doc: '+_esc(m.numeroDocumento||m.numDocumento)+'</div>':'')+'</td>'+
+                  '<td style="padding:10px 14px;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><div style="font-weight:600;overflow:hidden;text-overflow:ellipsis;">'+_esc(m.descricao||'—')+'</div>'+(m.numeroDocumento||m.numDocumento?'<div style="font-size:11px;color:#8A7E7C;margin-top:2px;overflow:hidden;text-overflow:ellipsis;">Doc: '+_esc(m.numeroDocumento||m.numDocumento)+'</div>':'')+_marketplaceFinanceLine(m)+'</td>'+
                   '<td style="padding:10px 14px;font-size:12px;color:#8A7E7C;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+(pessoa?_esc(pessoa):'—')+'</td>'+
                   '<td style="padding:10px 14px;font-size:12px;color:#8A7E7C;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_esc(m.forma_pagamento||'—')+'</td>'+
                   '<td style="padding:10px 14px;font-size:12px;color:#8A7E7C;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_esc(conta?conta.nome:'—')+'</td>'+
@@ -1839,6 +1884,7 @@ Modules.Financeiro = (function () {
             '</div>'+
           '</div>'+
         '</div>'+
+        _marketplaceFinanceCard(m, detailItem, cardStyle)+
         (infoCards.length
           ? '<div style="'+cardStyle+'">'+_modalIconTitle('calendar_month','Informações adicionais','Valores, parcelas e recorrências ligados a esta entrada.')+'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">'+infoCards.join('')+'</div></div>'
           : '')+
