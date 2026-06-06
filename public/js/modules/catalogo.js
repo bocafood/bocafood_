@@ -10001,7 +10001,6 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       });
       if (legacyIngredients.length) comps = [{ name: 'Outro', note: '', ingredients: legacyIngredients }];
     }
-    if (!comps.length) comps = [{ name: '', note: '', ingredients: [] }];
     return comps.map(function (comp) {
       return {
         name: comp.name || comp.componentName || '',
@@ -10479,6 +10478,11 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       '.recipe-dashed-btn:hover{background:#FFFCF8;border-color:#D9AAA1;color:#B42318;}' +
       '.recipe-add-stage-btn{height:42px;border-style:solid;border-color:#E7C6C0;background:linear-gradient(180deg,#FFF7F5 0%,#fff 100%);color:#B42318;font-size:13px;font-weight:700;box-shadow:0 6px 14px rgba(180,35,24,.08);}' +
       '.recipe-add-stage-btn:hover{background:#FFF3F1;border-color:#D9AAA1;color:#9F1F16;}' +
+      '.recipe-build-choice{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px;}' +
+      '.recipe-build-choice-btn{min-height:72px;text-align:left;border:1px solid #EADFD8;border-radius:16px;background:#fff;padding:12px 13px;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);transition:background .15s,border-color .15s,box-shadow .15s,transform .15s;}' +
+      '.recipe-build-choice-btn:hover{background:#FFFCF8;border-color:#D9AAA1;box-shadow:0 8px 18px rgba(31,31,31,.04);transform:translateY(-1px);}' +
+      '.recipe-build-choice-title{font-size:13px;font-weight:800;color:#1F1F1F;line-height:1.25;margin-bottom:4px;}' +
+      '.recipe-build-choice-desc{font-size:11.5px;color:#6F6860;line-height:1.4;}' +
       '.recipe-component{background:#fff;border:1px solid #EAE4DA;border-radius:16px;padding:13px;box-shadow:0 1px 2px rgba(31,31,31,.03);}' +
       '.recipe-stage-guidance{border:1px solid #EADFD8;border-radius:14px;background:#FFFCF8;padding:11px 12px;margin-bottom:12px;color:#5F5652;font-size:12px;line-height:1.5;}' +
       '.recipe-stage-guidance strong{color:#1F1F1F;font-weight:800;}' +
@@ -10506,7 +10510,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       '.recipe-delete-btn{height:38px;padding:0 14px;border-radius:10px;border:1px solid #F1D3CF;background:#FFF7F5;color:#B42318;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;}' +
       '.recipe-save-btn{height:38px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;}' +
       '.recipe-save-btn:hover{background:#9F1F16;}' +
-      '@media(max-width:900px){.recipe-modal-yield,.recipe-modal-image{grid-column:1/-1}.recipe-modal-main-grid,.recipe-yield-grid,.recipe-stock-grid,.recipe-production-grid{grid-template-columns:1fr 1fr}.recipe-production-layout,.recipe-cost-layout{grid-template-columns:1fr}.recipe-component-base{grid-template-columns:minmax(220px,1fr) minmax(130px,.4fr) minmax(180px,.58fr)}.recipe-ingredient-row{grid-template-columns:minmax(210px,1fr) 90px 62px 72px 82px 30px}.recipe-packaging-row{grid-template-columns:minmax(210px,1fr) 110px 70px 92px 30px}}@media(max-width:640px){.recipe-modal-body{grid-template-columns:1fr}.recipe-modal-card{grid-column:1/-1!important;padding:13px}.recipe-modal-main-grid,.recipe-yield-grid,.recipe-stock-grid,#fc-peso-section,.recipe-production-grid,.recipe-component-head,.recipe-component-base,.recipe-ingredient-row,.recipe-packaging-row,.recipe-cost-grid{grid-template-columns:1fr!important}.recipe-footer{align-items:stretch;flex-direction:column}.recipe-footer-note{margin-right:0;text-align:center}.recipe-save-btn,.recipe-cancel-btn,.recipe-delete-btn{width:100%;}}' +
+      '@media(max-width:900px){.recipe-modal-yield,.recipe-modal-image{grid-column:1/-1}.recipe-modal-main-grid,.recipe-yield-grid,.recipe-stock-grid,.recipe-production-grid{grid-template-columns:1fr 1fr}.recipe-production-layout,.recipe-cost-layout{grid-template-columns:1fr}.recipe-component-base{grid-template-columns:minmax(220px,1fr) minmax(130px,.4fr) minmax(180px,.58fr)}.recipe-ingredient-row{grid-template-columns:minmax(210px,1fr) 90px 62px 72px 82px 30px}.recipe-packaging-row{grid-template-columns:minmax(210px,1fr) 110px 70px 92px 30px}}@media(max-width:640px){.recipe-modal-body{grid-template-columns:1fr}.recipe-modal-card{grid-column:1/-1!important;padding:13px}.recipe-modal-main-grid,.recipe-yield-grid,.recipe-stock-grid,#fc-peso-section,.recipe-production-grid,.recipe-component-head,.recipe-component-base,.recipe-build-choice,.recipe-ingredient-row,.recipe-packaging-row,.recipe-cost-grid{grid-template-columns:1fr!important}.recipe-footer{align-items:stretch;flex-direction:column}.recipe-footer-note{margin-right:0;text-align:center}.recipe-save-btn,.recipe-cancel-btn,.recipe-delete-btn{width:100%;}}' +
       '</style>';
 
     var body = modalCss + '<div class="recipe-modal-body">' +
@@ -10581,12 +10585,14 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
         '<strong>Exemplo:</strong><br>' +
         'se você compra farinha em saco de 5 kg, mas usa 500 g na massa, coloque 500 g aqui.' +
       '</div>' +
+      '<div class="recipe-build-choice">' +
+        '<button type="button" class="recipe-build-choice-btn" onclick="Modules.Catalogo._addFichaComponent()"><div class="recipe-build-choice-title">Usar base de produção</div><div class="recipe-build-choice-desc">Para massa, recheio, creme, molho ou outra base reaproveitada em receitas.</div></button>' +
+        '<button type="button" class="recipe-build-choice-btn" onclick="Modules.Catalogo._addFichaDirectIngredient()"><div class="recipe-build-choice-title">Adicionar ingrediente avulso</div><div class="recipe-build-choice-desc">Para um ingrediente que entra direto nesta receita, sem criar base.</div></button>' +
+      '</div>' +
       '<div id="fc-components" style="display:flex;flex-direction:column;gap:12px;">' + componentRows + '</div>' +
-      '<button type="button" onclick="Modules.Catalogo._addFichaComponent()" class="recipe-dashed-btn recipe-add-stage-btn">+ Adicionar base</button>' +
       '<div class="recipe-loose-ingredients">' +
         '<div class="recipe-loose-head"><div><div class="recipe-loose-title">Ingredientes avulsos da receita</div><div class="recipe-loose-desc">Use quando um ingrediente entra direto nesta receita e não pertence a uma base reutilizável.</div></div></div>' +
         '<div id="fc-direct-ingredients-list" style="display:flex;flex-direction:column;gap:8px;">' + directIngredientRows + '</div>' +
-        '<button type="button" onclick="Modules.Catalogo._addFichaDirectIngredient()" class="recipe-dashed-btn">+ Adicionar ingrediente avulso</button>' +
       '</div>' +
       '</div>' +
 

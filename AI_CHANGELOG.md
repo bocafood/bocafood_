@@ -1,5 +1,12 @@
 # AI Changelog
 
+## 2026-06-06 — Receitas: escolha entre base e ingrediente avulso
+- Arquivos alterados: `public/js/modules/catalogo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- No modal `Editar Receita`, o card `Bases e ingredientes` não abre mais com uma base vazia automaticamente.
+- A usuária agora escolhe primeiro entre `Usar base de produção` ou `Adicionar ingrediente avulso`.
+- O bloco completo de base reutilizável só aparece depois que a usuária escolhe usar uma base, reduzindo campos desnecessários quando a receita usa ingrediente direto.
+- Atualizei o cache-buster de `catalogo.js` no Admin.
+
 ## 2026-06-06 — Receitas: correção do custo por kg com unidades mistas
 - Arquivos alterados: `public/js/modules/catalogo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - Corrigi a construção do peso sugerido para reconhecer variações de unidade como `kilo`, `kilogramo`, `gramo`, `gramos` e `grs`.
